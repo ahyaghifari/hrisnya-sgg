@@ -72,6 +72,7 @@ Route::middleware(['auth', 'portal.access'])->group(function () {
             ->name('push.unsubscribe');
     });
 
+    
     Route::get('/data-diri', EmployeeAttendanceStatistics::class)
         ->name('data-diri');
 

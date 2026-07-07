@@ -288,10 +288,13 @@ body.site { font-family: 'Plus Jakarta Sans', sans-serif; background: #f1f5f9; m
 /* Card header strips — Task Saya (warm gold, pairs with navy) / Kursus Saya (violet,
    navy's closest analogous hue) so each section reads as its own card at a glance,
    not just a plain white list under a bare heading. */
-.pwa-card-header { display: flex; align-items: center; justify-content: space-between; padding: 13px 16px; }
-.pwa-card-header .pwa-section-title, .pwa-card-header .pwa-section-link { color: inherit; }
-.pwa-card-header-gold { background: #fef3c7; color: #92400e; }
-.pwa-card-header-violet { background: #ede9fe; color: #5b21b6; }
+.pwa-card-header { position: relative; overflow: hidden; padding: 13px 16px; }
+.pwa-card-header-content { position: relative; z-index: 1; display: flex; align-items: center; justify-content: space-between; }
+.pwa-card-header .pwa-section-title, .pwa-card-header .pwa-section-link { color: #fff; }
+.pwa-card-header-deco-1 { position: absolute; top: -18px; right: -14px; width: 60px; height: 60px; border-radius: 50%; background: #fff; opacity: 0.12; }
+.pwa-card-header-deco-2 { position: absolute; bottom: -22px; left: 40px; width: 44px; height: 44px; border-radius: 50%; background: #fff; opacity: 0.08; }
+.pwa-card-header-gold { background: linear-gradient(135deg, #92400e 0%, #d97706 100%); }
+.pwa-card-header-violet { background: linear-gradient(135deg, #5b21b6 0%, #7c3aed 100%); }
 
 /* Icon tile — same square-with-tinted-background pattern as the dashboard stat cards,
    reused here so task/course rows don't read as flatter than the rest of the app. */

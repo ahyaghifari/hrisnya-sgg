@@ -77,8 +77,11 @@
 <!-- TASK & KURSUS: placeholder statis, belum ada modul Task/LMS milik-sendiri yang terhubung -->
 <div class="pwa-list" style="margin-top:24px;">
     <div class="pwa-card-header pwa-card-header-gold">
-        <span class="pwa-section-title">Task Saya</span>
-        <a href="#" class="pwa-section-link">Semua <i class="fa-solid fa-chevron-right" style="font-size:9px;"></i></a>
+        <div class="pwa-card-header-deco-1"></div><div class="pwa-card-header-deco-2"></div>
+        <div class="pwa-card-header-content">
+            <span class="pwa-section-title">Task Saya</span>
+            <a href="#" class="pwa-section-link">Semua <i class="fa-solid fa-chevron-right" style="font-size:9px;"></i></a>
+        </div>
     </div>
         <div class="pwa-list-row">
             <div class="pwa-tile-icon danger"><i class="fa-solid fa-triangle-exclamation"></i></div>
@@ -115,8 +118,11 @@
 
 <div id="kursus-section" class="pwa-list" style="margin-top:24px;padding-bottom:16px;">
     <div class="pwa-card-header pwa-card-header-violet" style="margin-bottom:14px;">
-        <span class="pwa-section-title">Kursus Saya</span>
-        <a href="#" class="pwa-section-link">Semua <i class="fa-solid fa-chevron-right" style="font-size:9px;"></i></a>
+        <div class="pwa-card-header-deco-1"></div><div class="pwa-card-header-deco-2"></div>
+        <div class="pwa-card-header-content">
+            <span class="pwa-section-title">Kursus Saya</span>
+            <a href="#" class="pwa-section-link">Semua <i class="fa-solid fa-chevron-right" style="font-size:9px;"></i></a>
+        </div>
     </div>
     <div class="pwa-scroll-row" style="padding-left:16px;padding-right:16px;">
         <div class="pwa-course-chip">
