@@ -38,37 +38,39 @@ Route::middleware(['auth', 'portal.access'])->group(function () {
     Route::get('/dashboard', Dashboard::class)
         ->name('dashboard');
 
-    Route::get('/pwa/home', PwaHome::class)
-        ->name('pwa.home');
+    Route::prefix('pwa')->name('pwa.')->group(function () {
+        Route::get('/home', PwaHome::class)
+            ->name('home');
 
-    Route::get('/pwa/data-diri', PwaDataDiri::class)
-        ->name('pwa.data-diri');
+        Route::get('/data-diri', PwaDataDiri::class)
+            ->name('data-diri');
 
-    Route::get('/pwa/akun', PwaAkun::class)
-        ->name('pwa.akun');
+        Route::get('/akun', PwaAkun::class)
+            ->name('akun');
 
-    Route::get('/pwa/akun/ubah-password', PwaUbahPassword::class)
-        ->name('pwa.akun.ubah-password');
+        Route::get('/akun/ubah-password', PwaUbahPassword::class)
+            ->name('akun.ubah-password');
 
-    Route::get('/pwa/pengajuan', PwaPengajuan::class)
-        ->name('pwa.pengajuan');
+        Route::get('/pengajuan', PwaPengajuan::class)
+            ->name('pengajuan');
 
-    Route::get('/pwa/pengajuan/cuti', SubmitLeaveRequest::class)
-        ->name('pwa.my-attendance-requests.leave');
+        Route::get('/pengajuan/cuti', SubmitLeaveRequest::class)
+            ->name('my-attendance-requests.leave');
 
-    Route::get('/pwa/pengajuan/izin', SubmitPermissionRequest::class)
-        ->name('pwa.my-attendance-requests.permission');
+        Route::get('/pengajuan/izin', SubmitPermissionRequest::class)
+            ->name('my-attendance-requests.permission');
 
-    Route::get('/pwa/pengajuan/lembur', SubmitOvertimeRequest::class)
-        ->name('pwa.my-attendance-requests.overtime');
+        Route::get('/pengajuan/lembur', SubmitOvertimeRequest::class)
+            ->name('my-attendance-requests.overtime');
 
-    Route::get('/pwa/pengajuan/{record}', AttendanceRequestDetail::class)
-        ->name('pwa.my-attendance-requests.show');
+        Route::get('/pengajuan/{record}', AttendanceRequestDetail::class)
+            ->name('my-attendance-requests.show');
 
-    Route::post('/pwa/push/subscribe', [PushSubscriptionController::class, 'store'])
-        ->name('pwa.push.subscribe');
-    Route::delete('/pwa/push/subscribe', [PushSubscriptionController::class, 'destroy'])
-        ->name('pwa.push.unsubscribe');
+        Route::post('/push/subscribe', [PushSubscriptionController::class, 'store'])
+            ->name('push.subscribe');
+        Route::delete('/push/subscribe', [PushSubscriptionController::class, 'destroy'])
+            ->name('push.unsubscribe');
+    });
 
     Route::get('/data-diri', EmployeeAttendanceStatistics::class)
         ->name('data-diri');
