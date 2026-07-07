@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Finance — Syifa Employee Portal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { font-family: 'Plus Jakarta Sans', sans-serif; }
+        html, body { background: #f1f5f9; min-height: 100vh; }
+        canvas { display: block !important; max-width: 100% !important; max-height: 100% !important; }
+
+        /* ── NAV ── */
+        .topnav { background: #fff; border-bottom: 1px solid #e8edf5; position: sticky; top: 0; z-index: 50; }
+        .topnav::before { content: ''; display: block; height: 3px; background: linear-gradient(90deg, #042c6c 0%, #042c6c 55%, #047C54 78%, #B9308C 100%); }
+        .topnav-inner { max-width: 1400px; margin: 0 auto; padding: 0 20px; display: flex; align-items: center; height: 58px; gap: 16px; }
+        @media (min-width: 768px) { .topnav-inner { padding: 0 40px; gap: 40px; } }
+        .nav-brand { display: flex; align-items: center; gap: 10px; text-decoration: none; flex-shrink: 0; }
+        .nav-logo { width: 34px; height: 34px; background: linear-gradient(150deg, #042c6c 0%, #042c6c 45%, #047C54 72%, #B9308C 100%); border-radius: 9px; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 800; font-size: 13px; letter-spacing: -0.5px; }
+        .nav-brand-name { font-size: 13.5px; font-weight: 700; color: #1e293b; display: block; }
+        .nav-brand-sub { font-size: 10.5px; color: #94a3b8; font-weight: 400; }
+        .nav-links { display: none; align-items: center; gap: 2px; flex: 1; }
+        .nav-right { display: none; align-items: center; gap: 8px; }
+        @media (min-width: 768px) { .nav-links { display: flex; } .nav-right { display: flex; } }
+        .nav-item { padding: 7px 14px; border-radius: 8px; font-size: 13.5px; font-weight: 500; color: #64748b; text-decoration: none; transition: all 0.15s; border: none; background: none; cursor: pointer; display: flex; align-items: center; gap: 5px; }
+        .nav-item:hover { color: #042c6c; background: #f0f4fb; }
+        .nav-item.active { color: #042c6c; font-weight: 600; background: #eef2fb; }
+        .nav-bell { position: relative; width: 36px; height: 36px; border-radius: 10px; border: 1.5px solid #e8edf5; display: flex; align-items: center; justify-content: center; color: #64748b; cursor: pointer; }
+        .nav-bell-dot { position: absolute; top: 6px; right: 6px; width: 7px; height: 7px; background: #ef4444; border-radius: 50%; border: 1.5px solid #fff; }
+        .nav-avatar { width: 36px; height: 36px; border-radius: 10px; background: #042c6c; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 700; font-size: 13px; cursor: pointer; }
+        .hamburger-btn { display: flex; margin-left: auto; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 10px; border: 1.5px solid #e2e8f0; color: #64748b; background: #fff; cursor: pointer; transition: all 0.15s; }
+        .hamburger-btn:hover { border-color: #042c6c; color: #042c6c; }
+        @media (min-width: 768px) { .hamburger-btn { display: none; } }
+        .mobile-menu { display: none; border-top: 1px solid #f1f5f9; background: #fff; }
+        .mobile-menu.open { display: block; }
+        .mobile-menu-inner { padding: 10px 16px 14px; display: flex; flex-direction: column; gap: 2px; }
+
+        /* ── PAGE BACKGROUND DECO ── */
+        .page-deco { position: fixed; inset: 0; pointer-events: none; overflow: hidden; z-index: 0; }
+        .deco-a { position: absolute; top: -180px; right: -180px; width: 580px; height: 580px; border-radius: 50%; background: #042c6c; opacity: 0.04; }
+        .deco-b { position: absolute; bottom: -120px; left: -120px; width: 420px; height: 420px; border-radius: 50%; background: #042c6c; opacity: 0.028; }
+        .deco-c { position: absolute; top: 38%; left: 55%; width: 220px; height: 220px; border-radius: 50%; border: 28px solid #042c6c; opacity: 0.03; }
+        .deco-d { position: absolute; top: 15%; left: 20%; width: 90px; height: 90px; border-radius: 14px; background: #047C54; opacity: 0.03; transform: rotate(20deg); }
+
+        /* ── CONTAINER ── */
+        .page-content { max-width: 1400px; margin: 0 auto; padding: 24px 16px; position: relative; z-index: 1; }
+        @media (min-width: 768px) { .page-content { padding: 32px 40px; } }
+
+        /* ── WELCOME CARD ── */
+        .welcome-card { background: linear-gradient(135deg, #042c6c 0%, #0b47a1 100%); border-radius: 20px; padding: 28px; position: relative; overflow: hidden; }
+        @media (min-width: 1024px) { .welcome-card { padding: 32px 36px; } }
+        .w-deco-1 { position: absolute; top: -80px; right: -80px; width: 280px; height: 280px; border-radius: 50%; background: #fff; opacity: 0.06; }
+        .w-deco-2 { position: absolute; bottom: -50px; left: 30px; width: 200px; height: 200px; border-radius: 50%; background: #92400e; opacity: 0.18; }
+        .w-deco-4 { position: absolute; bottom: 40px; right: 40px; width: 100px; height: 100px; border-radius: 14px; background: #047C54; opacity: 0.16; transform: rotate(15deg); }
+
+        /* ── SHARED CARD SURFACES ── */
+        .neuro { background: #e8edf6; box-shadow: 6px 6px 14px #c5ccd8, -6px -6px 14px #ffffff; border-radius: 18px; }
+        .stat-card { background: #fff; border-radius: 18px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); padding: 20px; position: relative; overflow: hidden; }
+        .stat-card-deco { position: absolute; bottom: -20px; right: -20px; width: 90px; height: 90px; border-radius: 50%; opacity: 0.06; }
+        .panel { background: #fff; border-radius: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+
+        /* ── BADGES ── */
+        .kpi-trend { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 99px; }
+        .kpi-trend-warn { background: #fee2e2; color: #b91c1c; }
+        .kpi-trend-neutral { background: #fef9c3; color: #a16207; }
+
+        /* ── TABLE ── */
+        .data-table { width: 100%; border-collapse: collapse; min-width: 480px; }
+        .data-table thead th { text-align: left; padding: 12px 20px; font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.06em; border-bottom: 1px solid #f1f5f9; white-space: nowrap; }
+        .data-table tbody tr { transition: background 0.1s; }
+        .data-table tbody tr:hover { background: #fafcff; }
+        .data-table tbody td { padding: 14px 20px; border-bottom: 1px solid #f8fafc; }
+        .data-table tbody tr:last-child td { border-bottom: none; }
+
+        /* ── QUICK ACTION BUTTONS ── */
+        .qa-btn { display: inline-flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.12); color: #fff; border: 1px solid rgba(255,255,255,0.2); border-radius: 12px; padding: 9px 16px; font-size: 13px; font-weight: 600; text-decoration: none; transition: all 0.15s; cursor: pointer; }
+        .qa-btn:hover { background: rgba(255,255,255,0.22); border-color: rgba(255,255,255,0.35); }
+        .qa-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+
+        /* ── PROCESS STEPS ── */
+        .step { display: flex; align-items: center; gap: 12px; }
+        .step-badge { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12.5px; font-weight: 700; flex-shrink: 0; }
+        .step-done { background: #047C54; color: #fff; }
+        .step-active { background: #f59e0b; color: #fff; }
+        .step-pending { background: #e2e8f0; color: #94a3b8; }
+
+        /* ── BENTO ── */
+        .bento { display: grid; grid-template-columns: 1fr; gap: 16px; }
+        @media (min-width: 1024px) { .bento-charts { grid-template-columns: 2fr 1fr; } }
+        @media (min-width: 1024px) { .bento-tables { grid-template-columns: 1.3fr 1fr; } }
+
+        .kpi-bento { display: grid; grid-template-columns: 1fr; gap: 16px; }
+        @media (min-width: 640px) { .kpi-bento { grid-template-columns: 1fr 1fr; } .kpi-hero { grid-column: 1/3; } }
+        @media (min-width: 1024px) {
+            .kpi-bento { grid-template-columns: 1.3fr 1fr 1fr 1fr; grid-template-rows: 1fr 1fr; min-height: 190px; }
+            .kpi-hero { grid-column: 1/3; grid-row: 1/3; }
+            .kpi-tall { grid-column: 3; grid-row: 1/3; }
+            .kpi-pair-a { grid-column: 4; grid-row: 1; }
+            .kpi-pair-b { grid-column: 4; grid-row: 2; }
+        }
+        .kpi-hero-card { border-radius: 18px; padding: 18px 22px; position: relative; overflow: hidden; display: flex; flex-direction: column; justify-content: space-between; color: #fff; min-height: 130px; gap: 10px; }
+        .kpi-hero-deco { position: absolute; border-radius: 50%; background: #fff; opacity: 0.08; }
+    </style>
+</head>
+<body>
+
+<div class="page-deco" aria-hidden="true">
+    <div class="deco-a"></div><div class="deco-b"></div><div class="deco-c"></div><div class="deco-d"></div>
+</div>
+
+<!-- ── TOP NAV ── -->
+<nav class="topnav">
+    <div class="topnav-inner">
+        <a href="dashboard-finance.html" class="nav-brand">
+            <div class="nav-logo">S</div>
+            <div>
+                <span class="nav-brand-name">Syifa Global</span>
+                <span class="nav-brand-sub">Finance Portal</span>
+            </div>
+        </a>
+        <div class="nav-links">
+            <a href="dashboard-finance.html" class="nav-item active"><i class="fa-solid fa-house text-xs"></i> Dashboard</a>
+            <a href="#" class="nav-item"><i class="fa-solid fa-money-check-dollar text-xs"></i> Payroll</a>
+            <a href="#" class="nav-item"><i class="fa-solid fa-stethoscope text-xs"></i> Jasa Dokter</a>
+            <a href="#" class="nav-item"><i class="fa-solid fa-gift text-xs"></i> Insentif</a>
+        </div>
+        <div class="nav-right">
+            <div class="nav-bell"><i class="fa-regular fa-bell text-sm"></i><span class="nav-bell-dot"></span></div>
+            <div class="nav-avatar">IP</div>
+        </div>
+        <button class="hamburger-btn" onclick="toggleMenu()" id="hamburger-btn" aria-label="Buka menu">
+            <i class="fas fa-bars text-sm" id="hamburger-icon"></i>
+        </button>
+    </div>
+    <div class="mobile-menu" id="mobile-menu">
+        <div class="mobile-menu-inner">
+            <a href="dashboard-finance.html" class="nav-item active"><i class="fa-solid fa-house text-xs w-4"></i> Dashboard</a>
+            <a href="#" class="nav-item"><i class="fa-solid fa-money-check-dollar text-xs w-4"></i> Payroll</a>
+            <a href="#" class="nav-item"><i class="fa-solid fa-stethoscope text-xs w-4"></i> Jasa Dokter</a>
+            <a href="#" class="nav-item"><i class="fa-solid fa-gift text-xs w-4"></i> Insentif</a>
+        </div>
+    </div>
+</nav>
+
+<!-- ── PAGE CONTENT ── -->
+<div class="page-content">
+    <div class="mb-6">
+        <p class="text-xs text-slate-400 mb-1">Rabu, 2 Juli 2026</p>
+        <h1 class="text-[22px] font-extrabold text-slate-900 tracking-tight">Dashboard Keuangan Personalia</h1>
+    </div>
+
+    <!-- WELCOME CARD -->
+    <div class="welcome-card">
+        <div class="w-deco-1"></div><div class="w-deco-2"></div><div class="w-deco-4"></div>
+        <div style="position:relative;z-index:1;display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;">
+            <div style="max-width:520px;">
+                <p style="font-size:13px;color:rgba(167,210,255,0.85);margin-bottom:6px;font-weight:500;">Selamat pagi, Indra 👋</p>
+                <h2 style="font-size:21px;font-weight:800;color:#fff;letter-spacing:-0.5px;line-height:1.3;">Staff Finance &nbsp;·&nbsp; Syifa Global Group</h2>
+                <p style="font-size:13px;color:rgba(147,197,253,0.8);margin-top:8px;font-weight:500;line-height:1.5;">Periode aktif <b style="color:#fff;">Mei 2026</b> · Cutoff 25 Mei (7 hari).</p>
+            </div>
+            <div style="text-align:right;">
+                <p style="font-size:11px;color:rgba(147,197,253,0.65);font-weight:600;text-transform:uppercase;letter-spacing:0.05em;">Tanggal Bayar</p>
+                <div style="font-size:24px;font-weight:800;color:#fff;margin-top:4px;">28 Mei 2026</div>
+                <p style="font-size:11.5px;color:rgba(147,197,253,0.75);margin-top:2px;">3 hari lagi</p>
+            </div>
+        </div>
+        <div style="position:relative;z-index:1;margin-top:22px;">
+            <p style="font-size:11.5px;color:rgba(147,197,253,0.6);margin-bottom:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;">Aksi Cepat</p>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                <a href="#" class="qa-btn"><span class="qa-dot" style="background:#f0a8d9;"></span> Review Slip · 23</a>
+                <a href="#" class="qa-btn"><span class="qa-dot" style="background:#7ee0bb;"></span> Approve Jasa Dokter · 17</a>
+                <a href="#" class="qa-btn"><span class="qa-dot" style="background:#8db3d1;"></span> Kelola Insentif</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- PROGRES PAYROLL BULAN INI — pengganti KPI grid: Finance butuh tahu "sudah sampai mana"
+         siklus payroll bulan ini di atas segalanya, bukan 4 angka lepas. Pipeline dipromosikan
+         jadi hero, angka pendukung diringkas jadi chip kecil di bawahnya. -->
+    <div class="panel" style="padding:22px;margin-top:16px;">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:18px;">
+            <div>
+                <div style="font-size:14px;font-weight:700;color:#1e293b;">Progres Payroll Bulan Ini</div>
+                <div style="font-size:11.5px;color:#94a3b8;">Periode Mei 2026 &nbsp;·&nbsp; Cutoff 25 Mei (7 hari lagi) &nbsp;·&nbsp; Bayar 28 Mei</div>
+            </div>
+            <span style="font-size:11px;background:#fef9c3;color:#a16207;padding:4px 10px;border-radius:99px;font-weight:700;">Langkah 3 dari 5</span>
+        </div>
+
+        <div style="display:flex;align-items:flex-start;overflow-x:auto;padding-bottom:4px;">
+            <div style="display:flex;flex-direction:column;align-items:center;flex:1;min-width:100px;">
+                <div class="step-badge step-done" style="width:34px;height:34px;"><i class="fa-solid fa-check text-xs"></i></div>
+                <p style="font-size:11.5px;font-weight:700;color:#1e293b;margin-top:8px;text-align:center;">Generate</p>
+                <p style="font-size:10px;color:#94a3b8;text-align:center;">1.247 slip · 12 Mei</p>
+            </div>
+            <div style="flex:0.5;height:2px;background:#047C54;margin-top:17px;"></div>
+            <div style="display:flex;flex-direction:column;align-items:center;flex:1;min-width:100px;">
+                <div class="step-badge step-done" style="width:34px;height:34px;"><i class="fa-solid fa-check text-xs"></i></div>
+                <p style="font-size:11.5px;font-weight:700;color:#1e293b;margin-top:8px;text-align:center;">Verifikasi</p>
+                <p style="font-size:10px;color:#94a3b8;text-align:center;">1.224 / 1.247</p>
+            </div>
+            <div style="flex:0.5;height:2px;background:#047C54;margin-top:17px;"></div>
+            <div style="display:flex;flex-direction:column;align-items:center;flex:1;min-width:110px;">
+                <div class="step-badge step-active" style="width:40px;height:40px;font-size:15px;box-shadow:0 0 0 5px rgba(245,158,11,0.15);">3</div>
+                <p style="font-size:12px;font-weight:800;color:#1e293b;margin-top:8px;text-align:center;">Review HC</p>
+                <p style="font-size:10px;color:#a16207;font-weight:700;text-align:center;">23 slip menunggu</p>
+            </div>
+            <div style="flex:0.5;height:2px;background:#e2e8f0;margin-top:17px;"></div>
+            <div style="display:flex;flex-direction:column;align-items:center;flex:1;min-width:100px;opacity:0.55;">
+                <div class="step-badge step-pending" style="width:34px;height:34px;">4</div>
+                <p style="font-size:11.5px;font-weight:700;color:#1e293b;margin-top:8px;text-align:center;">Approve Direktur</p>
+                <p style="font-size:10px;color:#94a3b8;text-align:center;">Menunggu langkah 3</p>
+            </div>
+            <div style="flex:0.5;height:2px;background:#e2e8f0;margin-top:17px;"></div>
+            <div style="display:flex;flex-direction:column;align-items:center;flex:1;min-width:100px;opacity:0.55;">
+                <div class="step-badge step-pending" style="width:34px;height:34px;">5</div>
+                <p style="font-size:11.5px;font-weight:700;color:#1e293b;margin-top:8px;text-align:center;">Eksekusi Bayar</p>
+                <p style="font-size:10px;color:#94a3b8;text-align:center;">Target 28 Mei · H2H BCA</p>
+            </div>
+        </div>
+
+        <div style="display:flex;gap:24px;flex-wrap:wrap;margin-top:20px;padding-top:16px;border-top:1px solid #f1f5f9;">
+            <div><p style="font-size:20px;font-weight:800;color:#1e293b;letter-spacing:-0.5px;">23<span style="font-size:12px;color:#94a3b8;font-weight:500;"> /1.247</span></p><p style="font-size:10.5px;color:#64748b;">Slip Belum Dibayar</p></div>
+            <div><p style="font-size:20px;font-weight:800;color:#1e293b;letter-spacing:-0.5px;">17</p><p style="font-size:10.5px;color:#64748b;">Jasa Dokter Pending &nbsp;·&nbsp; Rp 142jt</p></div>
+            <div><p style="font-size:20px;font-weight:800;color:#1e293b;letter-spacing:-0.5px;">Rp 89jt</p><p style="font-size:10.5px;color:#64748b;">Insentif Mei &nbsp;·&nbsp; 5 program aktif</p></div>
+            <div><p style="font-size:20px;font-weight:800;color:#1e293b;letter-spacing:-0.5px;">2</p><p style="font-size:10.5px;color:#64748b;">Periode Terbuka &nbsp;·&nbsp; Mei karyawan + Apr dokter</p></div>
+        </div>
+    </div>
+
+    <!-- CHARTS ROW -->
+    <div class="bento bento-charts" style="margin-top:16px;">
+        <div class="panel" style="padding:20px;">
+            <div style="font-size:14px;font-weight:700;color:#1e293b;margin-bottom:2px;">Komposisi Payroll Mei 2026</div>
+            <div style="font-size:11.5px;color:#94a3b8;margin-bottom:12px;">Breakdown komponen per kategori</div>
+            <div style="position:relative;width:100%;height:260px;"><canvas id="payrollComposition"></canvas></div>
+        </div>
+        <div class="panel" style="padding:20px;">
+            <div style="font-size:14px;font-weight:700;color:#1e293b;margin-bottom:2px;">Tren Biaya Payroll 6 Bulan</div>
+            <div style="font-size:11.5px;color:#94a3b8;margin-bottom:12px;">Total gross payroll per bulan</div>
+            <div style="position:relative;width:100%;height:260px;"><canvas id="payrollMonthlyTrend"></canvas></div>
+        </div>
+    </div>
+
+    <!-- TABLES ROW -->
+    <div class="bento bento-tables" style="margin-top:16px;">
+        <div class="panel">
+            <div style="padding:18px 20px 14px;border-bottom:1px solid #f1f5f9;">
+                <h3 style="font-size:14px;font-weight:700;color:#1e293b;">Slip Gaji Perlu Review</h3>
+                <p style="font-size:11.5px;color:#94a3b8;">Selisih besar dari bulan lalu</p>
+            </div>
+            <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;">
+                <table class="data-table">
+                    <thead><tr><th>Karyawan</th><th style="text-align:right;">Apr</th><th style="text-align:right;">Mei</th><th style="text-align:right;">Δ</th></tr></thead>
+                    <tbody>
+                        <tr><td><p style="font-size:13.5px;font-weight:600;color:#1e293b;">Dr. Andi Wijaya</p><p style="font-size:11px;color:#94a3b8;">Spesialis IGD</p></td><td style="text-align:right;font-size:12.5px;color:#94a3b8;">Rp 24,1jt</td><td style="text-align:right;font-weight:700;font-size:13.5px;">Rp 31,8jt</td><td style="text-align:right;color:#b91c1c;font-weight:700;font-size:13.5px;">+32%</td></tr>
+                        <tr><td><p style="font-size:13.5px;font-weight:600;color:#1e293b;">Hendra Saputra</p><p style="font-size:11px;color:#94a3b8;">Teknisi Lab</p></td><td style="text-align:right;font-size:12.5px;color:#94a3b8;">Rp 5,8jt</td><td style="text-align:right;font-weight:700;font-size:13.5px;">Rp 8,2jt</td><td style="text-align:right;color:#b91c1c;font-weight:700;font-size:13.5px;">+41%</td></tr>
+                        <tr><td><p style="font-size:13.5px;font-weight:600;color:#1e293b;">Maria Ulfah</p><p style="font-size:11px;color:#94a3b8;">Bidan</p></td><td style="text-align:right;font-size:12.5px;color:#94a3b8;">Rp 7,1jt</td><td style="text-align:right;font-weight:700;font-size:13.5px;">Rp 4,2jt</td><td style="text-align:right;color:#a16207;font-weight:700;font-size:13.5px;">-41%</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div class="panel" style="padding:20px;">
+            <div style="font-size:14px;font-weight:700;color:#1e293b;margin-bottom:2px;">Biaya Lembur per Departemen</div>
+            <div style="font-size:11.5px;color:#94a3b8;margin-bottom:12px;">Mei 2026 · Top 6</div>
+            <div style="position:relative;width:100%;height:220px;"><canvas id="overtimeBar"></canvas></div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+function toggleMenu() {
+    const menu = document.getElementById('mobile-menu');
+    const icon = document.getElementById('hamburger-icon');
+    menu.classList.toggle('open');
+    icon.className = menu.classList.contains('open') ? 'fas fa-xmark text-sm' : 'fas fa-bars text-sm';
+}
+
+new Chart(document.getElementById('payrollComposition'), {
+    type: 'doughnut',
+    data: {
+        labels: ['Gaji Pokok','Tunjangan Tetap','Tunjangan Variabel','Lembur','Insentif','BPJS Kesehatan','BPJS Ketenagakerjaan','PPh 21'],
+        datasets: [{ data: [2900,950,410,348,285,145,124,218], backgroundColor: ['#042c6c','#6799c1','#8db3d1','#f59e0b','#047C54','#86efac','#d9e5f0','#B9308C'], borderWidth: 0 }]
+    },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { boxWidth: 9, font: { size: 10.5 } } } } }
+});
+
+new Chart(document.getElementById('payrollMonthlyTrend'), {
+    type: 'bar',
+    data: {
+        labels: ['Des 25','Jan 26','Feb 26','Mar 26','Apr 26','Mei 26'],
+        datasets: [{ label: 'Gross Payroll', data: [10.1,10.3,10.5,10.7,10.9,11.2], backgroundColor: '#92400e', borderRadius: 6 }]
+    },
+    options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => 'Rp ' + ctx.raw + 'M' } } },
+        scales: { x: { ticks: { font: { size: 10 } } }, y: { ticks: { font: { size: 10 }, callback: v => 'Rp ' + v + 'M' } } }
+    }
+});
+
+new Chart(document.getElementById('overtimeBar'), {
+    type: 'bar',
+    data: {
+        labels: ['IGD','Rawat Inap A','Rawat Inap B','OK','Farmasi','Lab'],
+        datasets: [{ data: [98,72,64,51,38,25], backgroundColor: ['#b91c1c','#f59e0b','#f59e0b','#f59e0b','#94a3b8','#94a3b8'], borderRadius: 6 }]
+    },
+    options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { ticks: { font: { size: 10 } } }, y: { ticks: { font: { size: 11 } } } } }
+});
+</script>
+</body>
+</html>

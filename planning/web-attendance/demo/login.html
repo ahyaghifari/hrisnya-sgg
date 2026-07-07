@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Masuk — Syifa Employee Portal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { font-family: 'Plus Jakarta Sans', sans-serif; }
+        html, body { background: #f1f5f9; min-height: 100vh; margin: 0; }
+
+        /* ── PAGE BACKGROUND DECO ── */
+        .page-deco { position: fixed; inset: 0; pointer-events: none; overflow: hidden; z-index: 0; }
+        .deco-a {
+            position: absolute; top: -200px; right: -200px;
+            width: 640px; height: 640px; border-radius: 50%;
+            background: #042c6c; opacity: 0.05;
+        }
+        .deco-b {
+            position: absolute; bottom: -140px; left: -140px;
+            width: 480px; height: 480px; border-radius: 50%;
+            background: #042c6c; opacity: 0.035;
+        }
+        .deco-c {
+            position: absolute; top: 40%; left: 5%;
+            width: 240px; height: 240px; border-radius: 50%;
+            border: 30px solid #042c6c; opacity: 0.03;
+        }
+        .deco-d {
+            position: absolute; bottom: 20%; right: 8%;
+            width: 100px; height: 100px; border-radius: 16px;
+            background: #1a56c4; opacity: 0.04; transform: rotate(25deg);
+        }
+
+        /* ── AUTH WRAPPER ── */
+        .auth-wrap {
+            position: relative; z-index: 1;
+            min-height: 100vh; display: flex; align-items: center; justify-content: center;
+            padding: 40px 20px;
+        }
+        .auth-box {
+            width: 100%; max-width: 420px;
+        }
+
+        /* ── BRAND HEADER ── */
+        .auth-brand {
+            display: flex; align-items: center; gap: 12px;
+            justify-content: center; margin-bottom: 32px;
+        }
+        .auth-logo {
+            width: 44px; height: 44px; background: #042c6c; border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+            color: #fff; font-weight: 800; font-size: 15px; letter-spacing: -0.5px;
+        }
+        .auth-brand-text { line-height: 1.2; }
+        .auth-brand-name { font-size: 16px; font-weight: 700; color: #1e293b; display: block; }
+        .auth-brand-sub { font-size: 11.5px; color: #94a3b8; font-weight: 400; }
+
+        /* ── CARD ── */
+        .auth-card {
+            background: #fff;
+            border-radius: 20px;
+            padding: 36px 36px 32px;
+            box-shadow: 0 4px 6px rgba(4,44,108,0.04), 0 1px 3px rgba(0,0,0,0.06);
+            border: 1px solid #e8edf5;
+        }
+        .auth-card::before {
+            content: ''; display: block; height: 3px; margin: -36px -36px 28px;
+            border-radius: 20px 20px 0 0;
+            background: linear-gradient(90deg, #042c6c 0%, #1a56c4 100%);
+        }
+
+        .auth-title { font-size: 20px; font-weight: 700; color: #1e293b; margin-bottom: 4px; }
+        .auth-subtitle { font-size: 13px; color: #64748b; margin-bottom: 28px; }
+
+        /* ── FORM ── */
+        .form-group { margin-bottom: 18px; }
+        .form-label {
+            display: block; font-size: 13px; font-weight: 600;
+            color: #374151; margin-bottom: 7px;
+        }
+        .input-wrap { position: relative; }
+        .input-icon {
+            position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+            color: #94a3b8; font-size: 13px; pointer-events: none;
+        }
+        .form-input {
+            width: 100%; padding: 11px 14px 11px 38px;
+            border: 1.5px solid #e2e8f0; border-radius: 10px;
+            font-size: 14px; color: #1e293b; background: #f8fafc;
+            outline: none; transition: all 0.15s; box-sizing: border-box;
+            font-family: inherit;
+        }
+        .form-input::placeholder { color: #94a3b8; }
+        .form-input:focus {
+            border-color: #042c6c; background: #fff;
+            box-shadow: 0 0 0 3px rgba(4,44,108,0.07);
+        }
+
+        /* password toggle */
+        .input-toggle {
+            position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+            color: #94a3b8; cursor: pointer; font-size: 13px; padding: 4px;
+            background: none; border: none; transition: color 0.15s;
+        }
+        .input-toggle:hover { color: #042c6c; }
+        .form-input.has-toggle { padding-right: 40px; }
+
+        /* ── EXTRAS ── */
+        .form-extras {
+            display: flex; align-items: center; justify-content: space-between;
+            margin-bottom: 22px;
+        }
+        .checkbox-wrap { display: flex; align-items: center; gap: 8px; }
+        .checkbox-wrap input[type="checkbox"] {
+            width: 15px; height: 15px; accent-color: #042c6c; cursor: pointer;
+        }
+        .checkbox-wrap label { font-size: 13px; color: #64748b; cursor: pointer; }
+        .forgot-link {
+            font-size: 13px; color: #042c6c; font-weight: 600;
+            text-decoration: none;
+        }
+        .forgot-link:hover { text-decoration: underline; }
+
+        /* ── BUTTON ── */
+        .btn-primary {
+            width: 100%; padding: 12px;
+            background: linear-gradient(135deg, #042c6c 0%, #1a56c4 100%);
+            color: #fff; border: none; border-radius: 10px;
+            font-size: 14px; font-weight: 600; cursor: pointer;
+            transition: opacity 0.15s, transform 0.1s; font-family: inherit;
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+        }
+        .btn-primary:hover { opacity: 0.92; transform: translateY(-1px); }
+        .btn-primary:active { transform: translateY(0); }
+
+        /* ── FOOTER ── */
+        .auth-footer {
+            text-align: center; margin-top: 24px;
+            font-size: 12px; color: #94a3b8;
+        }
+
+        /* ── ALERT ── */
+        .alert-error {
+            background: #fef2f2; border: 1px solid #fecaca; border-radius: 10px;
+            padding: 11px 14px; margin-bottom: 20px;
+            display: flex; align-items: center; gap: 10px;
+            font-size: 13px; color: #dc2626;
+        }
+    </style>
+</head>
+<body>
+    <!-- Background Decorations -->
+    <div class="page-deco">
+        <div class="deco-a"></div>
+        <div class="deco-b"></div>
+        <div class="deco-c"></div>
+        <div class="deco-d"></div>
+    </div>
+
+    <div class="auth-wrap">
+        <div class="auth-box">
+            <!-- Brand -->
+            <div class="auth-brand">
+                <div class="auth-logo">SG</div>
+                <div class="auth-brand-text">
+                    <span class="auth-brand-name">Syifa Global Group</span>
+                    <span class="auth-brand-sub">Employee Self-Service Portal</span>
+                </div>
+            </div>
+
+            <!-- Card -->
+            <div class="auth-card">
+                <div class="auth-title">Selamat Datang</div>
+                <div class="auth-subtitle">Masuk untuk mengakses portal karyawan</div>
+
+                <!-- Error alert (kondisional, sembunyikan jika tidak ada error) -->
+                <!-- <div class="alert-error">
+                    <i class="fas fa-circle-exclamation"></i>
+                    Email atau password salah. Silakan coba lagi.
+                </div> -->
+
+                <form action="#" method="POST">
+                    <div class="form-group">
+                        <label class="form-label" for="email">Email</label>
+                        <div class="input-wrap">
+                            <i class="fas fa-envelope input-icon"></i>
+                            <input class="form-input" type="email" id="email" name="email"
+                                   placeholder="nama@syifaglobal.com" autocomplete="email" required>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="password">Password</label>
+                        <div class="input-wrap">
+                            <i class="fas fa-lock input-icon"></i>
+                            <input class="form-input has-toggle" type="password" id="password"
+                                   name="password" placeholder="Masukkan password" autocomplete="current-password" required>
+                            <button type="button" class="input-toggle" onclick="togglePassword(this, 'password')">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="form-extras">
+                        <div class="checkbox-wrap">
+                            <input type="checkbox" id="remember" name="remember">
+                            <label for="remember">Ingat saya</label>
+                        </div>
+                        <a href="forgot-password.html" class="forgot-link">Lupa password?</a>
+                    </div>
+
+                    <button type="submit" class="btn-primary" onclick="handleLogin(this)">
+                        <i class="fas fa-arrow-right-to-bracket"></i>
+                        Masuk
+                    </button>
+                </form>
+            </div>
+
+            <div class="auth-footer">
+                &copy; 2025 Syifa Global Group &mdash; Seluruh hak dilindungi
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function togglePassword(btn, inputId) {
+            const input = document.getElementById(inputId);
+            const icon = btn.querySelector('i');
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.className = 'fas fa-eye-slash';
+            } else {
+                input.type = 'password';
+                icon.className = 'fas fa-eye';
+            }
+        }
+
+        function handleLogin(btn) {
+            // Demo: redirect to dashboard on click
+            setTimeout(() => { window.location.href = 'dashboard.html'; }, 600);
+        }
+    </script>
+</body>
+</html>

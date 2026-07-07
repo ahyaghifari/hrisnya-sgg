@@ -1,0 +1,54 @@
+<?php
+
+namespace Database\Seeders;
+
+use App\Models\Master\Attendance\LeaveTypes;
+use App\Models\Master\Attendance\OvertimeTypes;
+use App\Models\Master\Attendance\PermissionTypes;
+use Illuminate\Database\Seeder;
+
+class AttendanceRequestTypeSeeder extends Seeder
+{
+    /**
+     * Run the database seeds.
+     */
+    public function run(): void
+    {
+        $leaveTypes = [
+            'Cuti Tahunan',
+            'Cuti Sakit',
+            'Cuti Melahirkan',
+            'Cuti Besar',
+            'Cuti Karena Alasan Penting',
+            'Cuti Menikah',
+        ];
+
+        $permissionTypes = [
+            'Izin Terlambat',
+            'Izin Pulang Lebih Awal',
+            'Izin Tidak Masuk',
+            'Izin Keluar Kantor',
+            'Izin Medis',
+            'Izin Urusan Keluarga',
+        ];
+
+        $overtimeTypes = [
+            'Lembur Biasa',
+            'Lembur Malam',
+            'Lembur Hari Libur',
+            'Lembur Khusus/Proyek',
+        ];
+
+        foreach ($leaveTypes as $name) {
+            LeaveTypes::firstOrCreate(['name' => $name]);
+        }
+
+        foreach ($permissionTypes as $name) {
+            PermissionTypes::firstOrCreate(['name' => $name]);
+        }
+
+        foreach ($overtimeTypes as $name) {
+            OvertimeTypes::firstOrCreate(['name' => $name]);
+        }
+    }
+}

@@ -1,0 +1,23 @@
+<?php
+
+namespace App\Http\Resources\JobOpening;
+
+use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\JsonResource;
+
+class JobOpeningListResource extends JsonResource
+{
+    /**
+     * Transform the resource into an array.
+     *
+     * @return array<string, mixed>
+     */
+    public function toArray(Request $request): array
+    {
+        return [
+            'id' => $this->id,
+            'company' => $this->company->name,
+            'job_position' => $this->jobPosition->name,
+        ];
+    }
+}

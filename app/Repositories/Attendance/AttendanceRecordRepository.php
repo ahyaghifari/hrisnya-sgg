@@ -1,0 +1,65 @@
+<?php
+
+namespace App\Repositories\Attendance;
+
+use App\Models\Attendance\AttendanceRecords;
+use App\Models\User;
+
+class AttendanceRecordRepository
+{
+    public function updateOrCreate(array $data): AttendanceRecords
+    {
+        // Try to find user by nip (fallback when user_id is not yet resolved)
+        $user = User::where('nip', $data['nip'])->first();
+        
+        // Prepare data for insert/update
+        $recordData = [
+            'user_id'             => $data['user_id'] ?? $user?->id,
+            'schedule_id'         => $data['schedule_id'] ?? null,
+            'shift_id'            => $data['shift_id'] ?? null,
+            'check_in_time'       => $data['check_in_time'] ?? null,
+            'check_out_time'      => $data['check_out_time'] ?? null,
+            'working_minutes'     => $data['working_minutes'] ?? null,
+            'late_minutes'        => $data['late_minutes'] ?? null,
+            'early_leave_minutes' => $data['early_leave_minutes'] ?? null,
+            'overtime_minutes'    => $data['overtime_minutes'] ?? null,
+            'permission_minutes'  => $data['permission_minutes'] ?? null,
+            'status'              => $data['status'] ?? 'present',
+            'source'              => 'import',
+        ];
+        
+        // Log the data being saved
+        \Illuminate\Support\Facades\Log::info("Repository saving: NIP={$data['nip']}, Date={$data['date']}", $recordData);
+        
+        return AttendanceRecords::updateOrCreate(
+            [
+                'nip'  => $data['nip'],
+                'date' => $data['date'],
+            ], 
+            $recordData
+        );
+    }
+
+    public function findByEmployeeCodeAndDate(string $employeeCode, string $date): ?AttendanceRecords
+    {
+        return AttendanceRecords::where('nip', $employeeCode)
+            ->where('date', $date)
+            ->first();
+    }
+
+    public function getByEmployeeCode(string $employeeCode, int $limit = 50): \Illuminate\Database\Eloquent\Collection
+    {
+        return AttendanceRecords::where('nip', $employeeCode)
+            ->orderBy('date', 'desc')
+            ->limit($limit)
+            ->get();
+    }
+
+    public function getByDateRange(string $startDate, string $endDate): \Illuminate\Database\Eloquent\Collection
+    {
+        return AttendanceRecords::whereBetween('date', [$startDate, $endDate])
+            ->orderBy('date', 'desc')
+            ->orderBy('nip')
+            ->get();
+    }
+}

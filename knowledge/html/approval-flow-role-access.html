@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<title>Analisis Approval Flow & Role Access</title>
+<style>
+  body { font-family: -apple-system, Segoe UI, Arial, sans-serif; max-width: 900px; margin: 2rem auto; padding: 0 1rem; line-height: 1.6; color: #1a1a1a; }
+  h1 { border-bottom: 3px solid #042c6c; padding-bottom: .5rem; }
+  h2 { color: #042c6c; margin-top: 2.5rem; border-bottom: 1px solid #ddd; padding-bottom: .3rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ccc; padding: .5rem .75rem; text-align: left; }
+  th { background: #042c6c; color: #fff; }
+  tr:nth-child(even) { background: #f5f7fa; }
+  code { background: #f0f0f0; padding: .1rem .35rem; border-radius: 4px; font-size: .9em; }
+  pre { background: #1e1e1e; color: #d4d4d4; padding: 1rem; border-radius: 6px; overflow-x: auto; }
+  blockquote { border-left: 4px solid #1a56c4; margin: 1rem 0; padding: .3rem 1rem; background: #eef3fb; }
+  .tldr { background: #eef3fb; border: 1px solid #1a56c4; border-radius: 8px; padding: 1rem 1.25rem; }
+  .warn { background: #fdecea; border: 1px solid #e0554f; border-radius: 8px; padding: 1rem 1.25rem; }
+  ol li, ul li { margin-bottom: .4rem; }
+  footer { margin-top: 3rem; font-size: .85em; color: #777; border-top: 1px solid #ddd; padding-top: 1rem; }
+</style>
+</head>
+<body>
+
+<h1>Analisis Approval Flow &amp; Role Access <small style="font-weight:normal;color:#666;">(per 2026-07-03)</small></h1>
+
+<p>Dokumen ini menjawab pertanyaan: <strong>apakah sistem approval saat ini sudah mendukung alur persetujuan yang berbeda-beda tergantung struktur organisasi, jabatan, dan company?</strong> Ditulis berdasarkan pembacaan kode (<code>app/Services/Approval</code>, <code>app/Repositories/Approval</code>, <code>app/Models/ApprovalManagement</code>) DAN query langsung ke database <code>hris_db</code> (bukan cuma migration), supaya merefleksikan kondisi data riil, bukan cuma skema.</p>
+
+<h2>TL;DR</h2>
+<div class="tldr">
+<p><strong>Ya, sistem ini multi-company (holding + anak perusahaan), dan mekanisme approval flow SUDAH bisa menghasilkan skenario yang dijelaskan</strong> (programmer → supervisor → manager; supervisor sendiri langsung ke manager; finance beda jalur) — <strong>tapi bukan lewat penelusuran hierarki organisasi secara dinamis.</strong> Ini dicapai dengan cara manual: admin membuat <em>flow terpisah</em> per jabatan/kelompok jabatan (<code>flow_type = specific</code>), di-assign ke job_position tertentu. Kolom <code>parent_id</code> yang ada di <code>m_org_structures</code> dan <code>m_job_positions</code> (hierarki atasan-bawahan) <strong>sama sekali tidak dipakai</strong> oleh service approval untuk mencari "siapa atasan langsung" — itu cuma dipakai untuk tampilan struktur &amp; filter <code>specific_department</code>.</p>
+<p>Ditemukan juga <strong>bug nyata yang sedang aktif</strong>: minimal 3 karyawan sungguhan yang masih aktif di company holding akan mendapat error 500 kalau mengajukan cuti/izin/lembur, karena profil jabatan mereka tidak (atau belum) match flow manapun dan flow default company mereka soft-deleted. Detail di bagian "Gap &amp; Bug Ditemukan" dan audit lengkap di bagian 7.</p>
+</div>
+
+<h2>1. Konteks Organisasi (dari data riil)</h2>
+<p>Sistem ini menaungi <strong>1 holding + minimal 6 anak perusahaan</strong> (<code>m_companies</code>):</p>
+<table>
+<tr><th>Company</th><th>Kode</th><th>Users</th><th>Org Structure</th><th>Job Position</th></tr>
+<tr><td>Syifa Global Group (holding/head office)</td><td>0000</td><td>24</td><td>18</td><td>27</td></tr>
+<tr><td><strong>RSU Syifa Medika Banjarbaru</strong></td><td>0001</td><td><strong>479</strong></td><td>46</td><td>127</td></tr>
+<tr><td>RSU Syifa Medika Barabai</td><td>0002</td><td>1</td><td>20</td><td>0</td></tr>
+<tr><td>Syifa Global Medica</td><td>0003</td><td>1</td><td>0</td><td>0</td></tr>
+<tr><td>Syifa Global Lestari Banjarbaru</td><td>0004</td><td>1</td><td>0</td><td>0</td></tr>
+<tr><td>Syifa Global Lestari Surabaya</td><td>0005</td><td>1</td><td>0</td><td>0</td></tr>
+<tr><td>Lerina Inn</td><td>0006</td><td>1</td><td>0</td><td>0</td></tr>
+<tr><td>Syifa Agro Natura</td><td>0007</td><td>1</td><td>0</td><td>0</td></tr>
+</table>
+
+<p>Jadi baru <strong>2 company yang benar-benar "hidup"</strong>: holding (kantor pusat — isinya IT, HCGA, Finance, Accounting, dsb) dan RSU Banjarbaru (rumah sakit dengan 479 karyawan). Company lain baru placeholder (1 user saja, kemungkinan akun admin/testing).</p>
+
+<p><code>m_org_structures</code> dan <code>m_job_positions</code> keduanya <strong>company-scoped</strong> (<code>company_id</code> wajib) dan punya hierarki asli via <code>parent_id</code> self-referencing + <code>level</code> — tapi seperti disebutkan, hierarki ini menganggur untuk approval.</p>
+
+<h2>2. Cara Approval Flow Bekerja Saat Ini</h2>
+<p>Alur resolusi (<code>ApprovalSnapshotRepository::resolveApprovalFlowForUser()</code>):</p>
+<ol>
+<li>Ambil <code>job_position_id</code> pengaju dari <code>user_profiles</code> (bukan dari tabel histori <code>user_job_positions</code>).</li>
+<li>Cari flow <code>flow_type = specific</code> di company yang sama, modul yang sama (<code>attendance_request</code> — cuti/izin/lembur berbagi 1 modul yang sama, tidak dipisah), yang di-assign ke job_position tsb lewat <code>m_approval_flow_assignments</code>.</li>
+<li>Kalau ketemu → pakai itu. Kalau tidak → fallback ke flow <code>flow_type = default</code> company tsb.</li>
+<li><strong>Kalau tidak ada keduanya → <code>throw new \Exception(...)</code></strong> (lihat <code>AttendaceReqService.php:59-61</code>, dst) — request GAGAL total, bukan fallback diam-diam.</li>
+</ol>
+
+<p>Begitu flow ditemukan, langkah-langkahnya (<code>steps</code>) <strong>di-snapshot (dibekukan)</strong> ke <code>approval_snapshots.steps_snapshot</code> (JSON) saat request dibuat. Progres approval selanjutnya murni baca dari snapshot ini (<code>current_step_order + 1</code>), tidak ada evaluasi kondisi runtime apa pun (tidak cek siapa pengaju vs siapa approver).</p>
+
+<p>Yang bisa dikonfigurasi admin lewat Filament (<code>ApprovalFlowResource</code>):</p>
+<ul>
+<li>Flow selalu terikat ke 1 company (otomatis dari company admin yang login).</li>
+<li>Flow <code>default</code> (satu-satunya per company+modul) vs <code>specific</code> (di-assign ke 1+ job_position).</li>
+<li>Per step: approver berupa <code>role</code>, <code>user</code>, atau <code>job_position</code>; <code>scope_type</code> (<code>same_department</code> / <code>specific_department</code> / <code>global</code>); ada field <strong>"source_company"</strong> yang secara eksplisit mengizinkan memilih approver dari <strong>company sendiri ATAU dari holding company</strong> (ID holding di-hardcode: <code>01J2F0C8KQ9M7D4S8RBX6E1ZVP</code>) — ini mekanisme eskalasi lintas-company yang sudah dipakai (lihat bagian 3).</li>
+</ul>
+
+<h2>3. Bukti Konkret yang Cocok Dengan Skenario Kamu</h2>
+<p>Data di company <strong>holding (Syifa Global Group)</strong> ternyata sudah dikonfigurasi persis seperti cerita kamu:</p>
+<ul>
+<li><strong>"Alur Perizinan IT"</strong> (specific, di-assign ke IT Programmer/Network/Support/R&amp;D Staff): step 1 = job_position <strong>IT Supervisor</strong>, step 2 (final) = job_position <strong>PJ HCGA Manager</strong>. → <em>Programmer → Supervisor → Manager.</em> Cocok persis dengan ceritamu.</li>
+<li><strong>"Alur Persetujuan Supervisor"</strong> (specific, di-assign ke <strong>HC Supervisor</strong> dan <strong>IT Supervisor</strong> sendiri): cuma 1 step, langsung ke <strong>PJ HCGA Manager</strong>, final. → <em>Kalau supervisor sendiri yang izin, langsung ke manager</em> — persis seperti ceritamu.</li>
+<li><strong>"Alur Perizinan Finance"</strong> (untuk Finance Analyst Staff): step 1 = role <strong>Finance Manager</strong>, step 2 = <strong>PJ HCGA Manager</strong> (final) — bukan langsung ke Direktur seperti dugaanmu, tapi tetap jalur terpisah dari flow HCGA/IT biasa.</li>
+<li><strong>"Alur Perizinan Manajer"</strong> (untuk Finance Manager &amp; Accounting Manager sendiri): step 1 = <strong>PJ HCGA Manager</strong>, step 2 = role <strong>Direktur</strong> (final).</li>
+<li><strong>"Alur Persetujuan HCGA Manager"</strong> (untuk PJ HCGA Manager sendiri): langsung ke role <strong>Direktur</strong>, 1 step final.</li>
+</ul>
+
+<p>Jadi mekanisme "kalau level X yang mengajukan, mulai dari level yang lebih tinggi" <strong>sudah dicapai</strong> — tapi dengan cara admin membuat flow terpisah untuk tiap tingkat jabatan yang butuh perlakuan beda, bukan sistem yang otomatis mendeteksi "requester == approver step ini, skip". Konsekuensinya: setiap ada jabatan/posisi baru yang butuh jalur khusus, HR/admin harus manual bikin flow baru + assignment baru. Tidak auto-scale kalau struktur organisasi berubah.</p>
+
+<blockquote><strong>Temuan tambahan penting:</strong> RSU Banjarbaru (479 karyawan) ternyata memakai jalur eskalasi <strong>lintas-company</strong> ke holding — step 1 &amp; 2 flow default RSU menunjuk ke job_position "HC Supervisor" dan "PJ HCGA Manager" milik <strong>holding</strong>, bukan milik RSU sendiri. Hanya <strong>2 user</strong> di RSU yang punya <code>job_position_id</code> cocok dengan posisi holding tsb — artinya <strong>seluruh 479 karyawan RSU saat ini cuma diproses lewat 1 flow flat 2-step, dan disetujui oleh cuma 2 orang di kantor pusat</strong> (bukan supervisor/kepala unit lokal RSU sendiri, padahal RSU sudah punya 127 job position &amp; 46 unit organisasi sendiri). Ini kemungkinan besar akan jadi bottleneck kalau volume pengajuan bertambah, dan belum mencerminkan struktur organisasi riil rumah sakit (per unit/departemen).</blockquote>
+
+<h2>4. Gap &amp; Bug yang Ditemukan</h2>
+<p>Perlu diputuskan sebelum lanjut desain portal:</p>
+
+<div class="warn">
+<strong>1. Bug aktif — request akan gagal (500) untuk minimal 3 karyawan aktif riil:</strong> company holding punya flow <code>default</code> untuk modul <code>attendance_request</code> ("Alur Perizinan"), tapi statusnya sudah soft-deleted (<code>deleted_at = 2026-04-07</code>) dan tidak ada penggantinya. Setelah verifikasi silang users×profiles×flow assignment (lihat bagian 7), user aktif <strong>Muhammad Fauzul Akbar</strong>, <strong>Yudith Melani Wael (Sekretaris Corporate)</strong>, dan <strong>Dimas Permadi, S.Tr.T</strong> tidak punya <code>job_position_id</code> yang cocok dengan flow <code>specific</code> manapun — begitu mereka mengajukan cuti/izin/lembur akan kena <code>throw new \Exception('No active approval flow found...')</code>. <em>(Catatan: 2 akun bernama "Direktur" yang sempat teridentifikasi di analisis awal ternyata sudah soft-deleted/tidak aktif — dikoreksi di sini setelah audit lebih teliti.)</em>
+<p style="margin-top:.75rem;margin-bottom:0;"><strong>Konfirmasi dari pemilik project (2026-07-03):</strong> ketiga orang ini BUKAN data yang salah input — mereka memang pemegang jabatan puncak (Akbar adalah pucuk pimpinan tertinggi di Syifa Global Group, holding yang menaungi seluruh lini bisnis dari rumah sakit sampai hotel). Jadi ini bukan "3 karyawan lupa di-assign flow", tapi <strong>gap desain</strong>: sistem saat ini mengharuskan setiap job_position (termasuk yang paling atas dalam grup) match ke sebuah flow approval, padahal orang di puncak hierarki tidak punya atasan untuk approve. Perlu diputuskan: flow 1-step final ke diri sendiri/HR-record-only, approver_type baru ("Board"/self-acknowledge), atau izinkan request tanpa approval flow kalau pengaju top-of-hierarchy.</p>
+</div>
+
+<ol start="2">
+<li><strong>Job position duplikat/yatim</strong>: ditemukan beberapa jabatan dengan nama sama tapi ID beda di holding (mis. 3 "HC Supervisor", 3 "Accounting Manager", 2 "Direktur", 2 "IT Supervisor") — sebagian tidak pernah di-assign ke flow apa pun. Kemungkinan sisa reorganisasi/percobaan, atau bakal jadi jebakan kalau user baru kebetulan ditaruh di posisi yang "yatim" ini.</li>
+<li><strong><code>scope_type = same_department</code> tidak benar-benar difilter</strong> di kode (<code>ApprovalPermissionService::checkRolePermission()</code> dan <code>NotificationService::getFirstApproverFromSnapshot()</code>) — hanya <code>specific_department</code> yang benar difilter. Jadi kalau step approval pakai <code>role</code> + scope "Satu Departemen", di kode itu efeknya sama seperti "Global". Perlu diperbaiki dulu sebelum dipakai serius.</li>
+<li><strong>1 modul untuk 3 jenis pengajuan</strong>: cuti, izin, lembur semua pakai <code>module = 'attendance_request'</code> yang sama di <code>AttendaceReqService</code>. Kalau butuh flow yang beda total per jenis, kolom <code>module</code> di DB sudah bebas string — tinggal ubah 3 pemanggil untuk pakai module_type berbeda. Perubahan kecil kalau dibutuhkan.</li>
+<li><strong>Sumber jabatan user tidak konsisten</strong>: resolusi approval pakai <code>user_profiles.job_position_id</code> (field tunggal, tanpa histori), padahal ada tabel <code>user_job_positions</code> dengan histori dan relasi <code>User::activeJobPosition()</code> yang sebenarnya lebih tepat dipakai.</li>
+<li><strong>RSU (mayoritas karyawan, 479 orang) belum punya flow granular per unit/departemen</strong> — masih 1 flow flat yang eskalasi ke 2 orang di kantor pusat. Perlu diklarifikasi ke PM/HR: apakah ini memang disengaja (sentralisasi HR-GA), atau memang belum sempat dikonfigurasi granular seperti di holding.</li>
+</ol>
+
+<h2>5. Rekomendasi Arah Desain</h2>
+<ul>
+<li><strong>Untuk fitur "web attendance" yang mau langsung digarap</strong>: konsumsi API attendance yang sudah ada apa adanya — logic approval-nya sudah berjalan (snapshot-based), jadi portal cukup menampilkan status/histori dari <code>approval_activities</code>/<code>approval_snapshots</code>, tidak perlu bikin ulang logic approvalnya.</li>
+<li><strong>Sebelum portal dipakai serius</strong>, selesaikan dulu 2 bug di atas (flow default holding yang ke-soft-delete, dan pastikan tidak ada job_position aktif yang orphan) — kalau tidak, begitu portal live, user seperti Direktur/Sekretaris Corporate akan langsung gagal submit.</li>
+<li><strong>Keputusan besar yang perlu diambil bareng PM</strong>: apakah tetap pakai pola "manual flow per job_position" (sudah terbukti jalan untuk holding, effort admin makin besar seiring jumlah jabatan unik) atau investasi ke <strong>resolusi hierarki dinamis</strong> (pakai <code>parent_id</code> di <code>m_org_structures</code>/<code>m_job_positions</code> yang sudah ada di skema tapi menganggur) sehingga approval flow bisa auto-derive "atasan langsung" tanpa perlu admin bikin flow baru tiap ada jabatan baru. Untuk skala RSU (127 job position, 479 karyawan), pola manual-per-jabatan kemungkinan tidak akan scale.</li>
+</ul>
+
+<h2>7. Audit Kualitas Data Master (Deep Dive)</h2>
+<p>Pertanyaan: <em>"dari tabel-tabel master yang berkaitan, apakah ada yang harus diperbaiki dulu karena datanya sangat banyak/berantakan?"</em> — dicek dengan query langsung ke tiap tabel master yang relevan ke approval flow, di seluruh 8 company (bukan cuma holding). Hasilnya <strong>jauh lebih bersih dari dugaan</strong>: sebagian besar tabel master OK, masalah nyata terkonsentrasi di 2 area.</p>
+
+<h3>7.1 Tabel yang Ternyata Bersih (tidak perlu diapa-apakan)</h3>
+<table>
+<tr><th>Tabel</th><th>Yang dicek</th><th>Hasil</th></tr>
+<tr><td><code>m_job_positions</code></td><td>Nama duplikat aktif per company</td><td>0 — semua "duplikat nama" (Direktur, HC Supervisor, Accounting Manager, dst di holding) ternyata cuma 1 versi aktif, sisanya sudah soft-deleted dengan benar</td></tr>
+<tr><td><code>m_job_positions</code></td><td><code>parent_id</code> orphan</td><td>0</td></tr>
+<tr><td><code>m_job_positions</code></td><td><code>parent_id</code> lintas-company</td><td>1 (lihat 7.2)</td></tr>
+<tr><td><code>m_job_positions</code></td><td><code>org_structure_id</code> mismatch/tidak ditemukan</td><td>0</td></tr>
+<tr><td><code>m_org_structures</code></td><td>Nama duplikat per company+level</td><td>0</td></tr>
+<tr><td><code>m_org_structures</code></td><td><code>parent_id</code> orphan / lintas-company</td><td>0 / 0</td></tr>
+<tr><td><code>m_org_structures</code></td><td>Konsistensi <code>level</code> (anak vs induk)</td><td>0 pelanggaran</td></tr>
+<tr><td><code>roles</code></td><td>Nama duplikat per company, role tanpa <code>company_id</code></td><td>0 — 8 company semua dapat set role standar (10-14 role), scoping rapi</td></tr>
+<tr><td><code>m_approval_flow_steps</code></td><td>Referensi approver rusak (job_position/role/user tidak ada/soft-deleted)</td><td>0</td></tr>
+<tr><td><code>m_approval_flow_steps</code></td><td><code>scope_ref_id</code> (org structure) tidak ditemukan</td><td>0</td></tr>
+<tr><td><code>m_approval_flow_assignments</code></td><td><code>assignable_id</code> rusak</td><td>0</td></tr>
+<tr><td><code>m_approval_flows</code></td><td>Flow <code>default</code> duplikat per company+module</td><td>0</td></tr>
+<tr><td><code>user_profiles</code></td><td><code>job_position_id</code> lintas-company</td><td>0</td></tr>
+<tr><td><code>user_profiles</code></td><td><code>job_position_id</code> aktif nunjuk posisi soft-deleted</td><td>0</td></tr>
+</table>
+<p>Kesimpulan: <strong>integritas referensial antar tabel master ini sebenarnya terjaga dengan baik</strong> — seed data-nya rapi. Tidak perlu proyek "bersih-bersih data" besar-besaran sebelum lanjut.</p>
+
+<h3>7.2 Yang Benar-Benar Perlu Diperbaiki/Diputuskan</h3>
+<ol>
+<li><strong>1 job position di holding dengan <code>parent_id</code> lintas-company</strong>: "Finance Analyst Staff" (company holding) → <code>parent_id</code> menunjuk job position di company RSU Banjarbaru. Kemungkinan salah pilih saat input data. Perlu diperbaiki manual — 1 baris data, bukan masalah besar.</li>
+<li><strong>6 dari 8 company TIDAK punya approval flow untuk modul <code>attendance_request</code> sama sekali</strong> (default maupun specific): RSU Barabai, Syifa Global Medica, Syifa Global Lestari Banjarbaru, Syifa Global Lestari Surabaya, Lerina Inn, Syifa Agro Natura. Baru 1 user (placeholder) per company jadi belum jadi masalah nyata — tapi begitu ada karyawan sungguhan on-boarding, mereka tidak akan bisa mengajukan cuti/izin/lembur sama sekali sampai admin bikin minimal 1 flow <code>default</code>. Perlu jadi checklist wajib onboarding company baru.</li>
+<li><strong>Company holding kehilangan flow default-nya</strong> — dulu ada ("Alur Perizinan"), di-soft-delete 2026-04-07 dan tidak digantikan. Dampak nyata: 3 karyawan aktif (Muhammad Fauzul Akbar, Yudith Melani Wael, Dimas Permadi) tidak punya <code>job_position_id</code> ter-assign ke flow spesifik manapun. Solusi: aktifkan lagi 1 flow <code>default</code> untuk company holding modul <code>attendance_request</code>.</li>
+<li><strong>50 user aktif RSU Banjarbaru &amp; 5 di holding belum punya <code>job_position_id</code></strong> di profil mereka. Untuk RSU masih aman (ada flow default fallback). Untuk holding berkontribusi ke poin 3 (3 dari 5 adalah karyawan aktif sungguhan). PR untuk HR: lengkapi data jabatan di profil karyawan.</li>
+</ol>
+
+<h3>7.3 Ringkasan Prioritas Perbaikan</h3>
+<table>
+<tr><th>Prioritas</th><th>Item</th><th>Effort</th></tr>
+<tr><td><strong>Tinggi</strong></td><td>Aktifkan ulang/buat flow <code>default</code> attendance_request untuk company holding</td><td>Kecil — 1 flow + steps via Filament admin</td></tr>
+<tr><td><strong>Tinggi</strong></td><td>Lengkapi <code>job_position_id</code> untuk 3 karyawan aktif holding yang belum ter-cover</td><td>Kecil — update data via admin panel</td></tr>
+<tr><td><strong>Sedang</strong></td><td>Buat checklist SOP: company baru wajib ada minimal 1 flow default sebelum user pertama di-onboard</td><td>Proses, bukan kode</td></tr>
+<tr><td><strong>Rendah</strong></td><td>Perbaiki <code>parent_id</code> "Finance Analyst Staff" yang salah nunjuk company lain</td><td>Kecil — 1 baris data</td></tr>
+<tr><td><strong>Rendah</strong></td><td>Lengkapi <code>job_position_id</code> untuk 50 user RSU yang masih kosong</td><td>Sedang — data entry, tidak urgent</td></tr>
+</table>
+
+<h2>8. Referensi File Kode Terkait</h2>
+<ul>
+<li><code>app/Repositories/Approval/ApprovalSnapshotRepository.php</code> — <code>resolveApprovalFlowForUser()</code></li>
+<li><code>app/Services/Approval/ApprovalCreationService.php</code> — <code>createSnapshot()</code></li>
+<li><code>app/Services/Approval/ApprovalFlowService.php</code> — <code>getNextApprover()</code>, <code>advanceStep()</code>, <code>checkStepsSync()</code></li>
+<li><code>app/Services/Approval/ApprovalPermissionService.php</code> — validasi siapa boleh approve step aktif (lokasi bug <code>same_department</code>)</li>
+<li><code>app/Services/Attendance/AttendaceReqService.php</code> — pemanggil resolve flow untuk cuti/izin/lembur (lokasi <code>throw new \Exception</code>)</li>
+<li><code>app/Filament/Resources/ApprovalFlows/Schemas/ApprovalFlowForm.php</code> — form konfigurasi flow (lokasi hardcode ID holding company)</li>
+<li><code>app/Models/Master/OrgStructure.php</code>, <code>app/Models/Master/JobPositions.php</code> — hierarki <code>parent_id</code> yang belum dipakai approval</li>
+</ul>
+
+<footer>Knowledge base HRIS — Syifa Global Group. Versi markdown: <code>knowledge/markdown/approval-flow-role-access.md</code></footer>
+
+</body>
+</html>

@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<title>Manajemen Persetujuan — Referensi Teknis</title>
+<style>
+  body { font-family: -apple-system, Segoe UI, Arial, sans-serif; max-width: 900px; margin: 2rem auto; padding: 0 1rem; line-height: 1.6; color: #1a1a1a; }
+  h1 { border-bottom: 3px solid #042c6c; padding-bottom: .5rem; }
+  h2 { color: #042c6c; margin-top: 2.5rem; border-bottom: 1px solid #ddd; padding-bottom: .3rem; }
+  h3 { color: #032356; margin-top: 1.75rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ccc; padding: .5rem .75rem; text-align: left; vertical-align: top; }
+  th { background: #042c6c; color: #fff; }
+  tr:nth-child(even) { background: #f5f7fa; }
+  code { background: #f0f0f0; padding: .1rem .35rem; border-radius: 4px; font-size: .9em; }
+  pre { background: #1e1e1e; color: #d4d4d4; padding: 1rem; border-radius: 6px; overflow-x: auto; }
+  pre code { background: none; padding: 0; color: inherit; }
+  blockquote { border-left: 4px solid #1a56c4; margin: 1rem 0; padding: .3rem 1rem; background: #eef3fb; }
+  .tldr { background: #eef3fb; border: 1px solid #1a56c4; border-radius: 8px; padding: 1rem 1.25rem; }
+  .warn { background: #fdecea; border: 1px solid #e0554f; border-radius: 8px; padding: 1rem 1.25rem; }
+  ol li, ul li { margin-bottom: .4rem; }
+  footer { margin-top: 3rem; font-size: .85em; color: #777; border-top: 1px solid #ddd; padding-top: 1rem; }
+</style>
+</head>
+<body>
+
+<h1>Manajemen Persetujuan (Approval Management) <small style="font-weight:normal;color:#666;">— Referensi Teknis (2026-07-05)</small></h1>
+
+<p>Dokumen ini murni referensi teknis: <strong>tabel apa saja yang terlibat, bagaimana relasinya, dan bagaimana alurnya</strong> — dari pengajuan dibuat sampai selesai (disetujui/ditolak/dibatalkan). Ditulis dari pembacaan kode langsung (migration, model, service), bukan asumsi. Untuk analisis gap bisnis/data riil, lihat dokumen terpisah <code>approval-flow-role-access.html</code> — dokumen ini fokus ke strukturnya saja.</p>
+
+<h2>Ringkasan</h2>
+<div class="tldr">
+<p>Sistem approval di project ini adalah <strong>engine generik yang dipakai lintas modul</strong> — bukan cuma buat cuti/izin/lembur. <code>module_type</code> di <code>approval_snapshots</code> bisa berupa <code>attendance_request</code>, <code>task_request</code>, <code>swap_shift_request</code>, <code>jobposition_request</code>, <code>lms_course_request</code>, <code>approval_candidate_applicant</code>, <code>user_transition</code>, <code>additional_employee_request</code>, <code>employee_replacement_request</code> — tapi baru <strong>3 modul</strong> (<code>attendance_request</code>, <code>task_request</code>, <code>swap_shift_request</code>) yang punya efek samping nyata di kode.</p>
+<p>Ada 2 sisi tabel yang perlu dibedakan: <strong>sisi konfigurasi</strong> (dibuat admin lewat Filament, jarang berubah) — "alur approval-nya seperti apa" — dan <strong>sisi runtime</strong> (dibuat otomatis tiap ada pengajuan baru) — "progress approval pengajuan ini sudah sampai mana".</p>
+</div>
+
+<h2>1. Tabel &amp; Skema</h2>
+
+<h3>1.1 Sisi Konfigurasi</h3>
+<p><code>m_approval_flows</code> — 1 baris = 1 alur approval, terikat ke 1 company + 1 modul.</p>
+<table>
+<tr><th>Kolom</th><th>Tipe</th><th>Keterangan</th></tr>
+<tr><td><code>id</code></td><td>ulid, PK</td><td></td></tr>
+<tr><td><code>company_id</code></td><td>ulid, FK → <code>m_companies.id</code></td><td>cascade delete</td></tr>
+<tr><td><code>name</code></td><td>string</td><td>nama alur, bebas (mis. "Alur Perizinan IT")</td></tr>
+<tr><td><code>module</code></td><td>string</td><td>modul target (<code>attendance_request</code>, dst)</td></tr>
+<tr><td><code>flow_type</code></td><td>enum(<code>default</code>, <code>specific</code>)</td><td><code>default</code> = 1 per company+module (fallback), <code>specific</code> = di-assign ke job_position tertentu</td></tr>
+<tr><td><code>description</code></td><td>text, nullable</td><td></td></tr>
+<tr><td><code>is_active</code></td><td>boolean</td><td></td></tr>
+<tr><td><code>updated_by</code></td><td>ulid, FK → <code>users.id</code></td><td>nullable, null on delete</td></tr>
+<tr><td><code>deleted_at</code></td><td>timestamp</td><td>soft delete</td></tr>
+</table>
+
+<p><code>m_approval_flow_steps</code> — 1 baris = 1 langkah approval dalam sebuah flow.</p>
+<table>
+<tr><th>Kolom</th><th>Tipe</th><th>Keterangan</th></tr>
+<tr><td><code>id</code></td><td>ulid, PK</td><td></td></tr>
+<tr><td><code>flow_id</code></td><td>ulid, FK → <code>m_approval_flows.id</code></td><td>cascade delete</td></tr>
+<tr><td><code>step_order</code></td><td>unsigned int</td><td>urutan step (1, 2, 3, ...)</td></tr>
+<tr><td><code>approver_type</code></td><td>enum(<code>role</code>, <code>user</code>, <code>job_position</code>)</td><td>siapa yang approve step ini</td></tr>
+<tr><td><code>approver_ref_id</code></td><td>string</td><td><strong>bukan FK sungguhan</strong> — ID role/user/job_position tergantung <code>approver_type</code>, tanpa constraint DB</td></tr>
+<tr><td><code>approval_mode</code></td><td>enum(<code>any</code>, <code>all</code>)</td><td>auto-derive: <code>all</code> kalau job_position, selain itu <code>any</code></td></tr>
+<tr><td><code>scope_type</code></td><td>enum(<code>same_department</code>, <code>specific_department</code>, <code>global</code>)</td><td>lihat catatan §5 — <code>same_department</code> tidak difilter sungguhan</td></tr>
+<tr><td><code>scope_ref_id</code></td><td>ulid, FK → <code>m_org_structures.id</code>, nullable</td><td>dipakai kalau <code>specific_department</code></td></tr>
+<tr><td><code>is_final</code></td><td>boolean</td><td>step terakhir?</td></tr>
+</table>
+
+<p><code>m_approval_flow_assignments</code> — cuma dipakai kalau <code>flow_type = specific</code>.</p>
+<table>
+<tr><th>Kolom</th><th>Tipe</th><th>Keterangan</th></tr>
+<tr><td><code>id</code></td><td>ulid, PK</td><td></td></tr>
+<tr><td><code>approval_flow_id</code></td><td>ulid, FK → <code>m_approval_flows.id</code></td><td>cascade delete</td></tr>
+<tr><td><code>assignable_id</code> / <code>assignable_type</code></td><td>ulid morph</td><td>saat ini selalu <code>App\Models\Master\JobPositions</code></td></tr>
+</table>
+<p>Unique constraint <code>(approval_flow_id, assignable_id, assignable_type)</code> — 1 flow tidak bisa di-assign dobel ke job_position yang sama.</p>
+
+<h3>1.2 Sisi Runtime</h3>
+<p><code>approval_snapshots</code> — 1 baris = 1 pengajuan yang lagi/sudah diproses. Dibuat sekali saat submit, isinya <strong>beku</strong> (copy dari flow saat itu, bukan live-reference).</p>
+<table>
+<tr><th>Kolom</th><th>Tipe</th><th>Keterangan</th></tr>
+<tr><td><code>id</code></td><td>ulid, PK</td><td></td></tr>
+<tr><td><code>module_type</code></td><td>string</td><td>diskriminator (<code>attendance_request</code>, dst) — bukan FK</td></tr>
+<tr><td><code>module_id</code></td><td>ulid</td><td>ID baris di tabel modul — juga bukan FK sungguhan</td></tr>
+<tr><td><code>flow_id</code></td><td>ulid, FK → <code>m_approval_flows.id</code></td><td>flow yang dipakai</td></tr>
+<tr><td><code>flow_name</code></td><td>string</td><td>copy nama flow saat itu (denormalized)</td></tr>
+<tr><td><code>steps_snapshot</code></td><td>json (cast <code>array</code>)</td><td><strong>copy beku</strong> seluruh steps saat pengajuan dibuat — perubahan di master flow setelahnya tidak otomatis ikut</td></tr>
+<tr><td><code>status</code></td><td>enum(<code>in_review</code>, <code>approved</code>, <code>rejected</code>, <code>cancelled</code>)</td><td>ejaan <strong>2&nbsp;L</strong> <code>cancelled</code></td></tr>
+<tr><td><code>current_step_order</code></td><td>integer, nullable</td><td>step yang sedang aktif</td></tr>
+<tr><td><code>company_id</code> / <code>created_by</code></td><td>ulid, nullable</td><td></td></tr>
+</table>
+
+<p><code>approval_activities</code> — 1 baris = "step yang sedang/terakhir diproses". <strong>Bukan histori</strong> — di-update terus di tempat yang sama (relasi ke snapshot adalah <code>hasOne</code>, bukan <code>hasMany</code>).</p>
+<table>
+<tr><th>Kolom</th><th>Tipe</th><th>Keterangan</th></tr>
+<tr><td><code>id</code></td><td>ulid, PK</td><td></td></tr>
+<tr><td><code>snapshot_id</code></td><td>ulid, FK → <code>approval_snapshots.id</code></td><td>cascade delete</td></tr>
+<tr><td><code>current_step_order</code></td><td>integer, nullable</td><td></td></tr>
+<tr><td><code>approver_type</code> / <code>approver_ref_id</code></td><td>enum / string, nullable</td><td></td></tr>
+<tr><td><code>scope_type</code> / <code>scope_ref_id</code></td><td>string, nullable</td><td>di tabel ini plain string, bukan enum</td></tr>
+<tr><td><code>status</code></td><td>enum(<code>pending</code>, <code>created</code>, <code>approved</code>, <code>rejected</code>, <code>skipped</code>, <code>canceled</code>)</td><td>ejaan <strong>1&nbsp;L</strong> <code>canceled</code>. <code>created</code>/<code>skipped</code> tidak pernah ditulis di kode manapun</td></tr>
+<tr><td><code>note</code></td><td>text, nullable</td><td></td></tr>
+<tr><td><code>acted_by</code> / <code>acted_at</code></td><td>ulid / timestamp, nullable</td><td></td></tr>
+</table>
+
+<p><code>approval_histories</code> — log lengkap, append-only (satu-satunya tabel yang benar-benar jadi audit trail penuh).</p>
+<table>
+<tr><th>Kolom</th><th>Tipe</th><th>Keterangan</th></tr>
+<tr><td><code>id</code></td><td>ulid, PK</td><td></td></tr>
+<tr><td><code>snapshot_id</code></td><td>ulid, FK → <code>approval_snapshots.id</code></td><td>cascade delete</td></tr>
+<tr><td><code>activity_id</code></td><td>ulid, FK → <code>approval_activities.id</code>, nullable</td><td>null on delete</td></tr>
+<tr><td><code>action</code></td><td>string bebas</td><td><code>requested</code>, <code>approved</code>, <code>rejected</code>, <code>cancelled</code>, <code>completed</code>, <code>flow_updated</code>, <code>activity_restored</code></td></tr>
+<tr><td><code>actor_id</code> / <code>actor_name</code></td><td>ulid nullable / string nullable</td><td><code>actor_name</code> denormalized, tetap kebaca walau user dihapus</td></tr>
+<tr><td><code>note</code></td><td>text, nullable</td><td></td></tr>
+<tr><td><code>metadata</code></td><td>json (cast <code>array</code>), nullable</td><td></td></tr>
+<tr><td><code>requestable_id</code> / <code>requestable_type</code></td><td>ulid morph</td><td><strong>morphTo sungguhan</strong> — diisi sama persis dengan <code>module_id</code>/<code>module_type</code> snapshot-nya</td></tr>
+</table>
+
+<h3>1.3 Tabel Modul (contoh: <code>attendance_requests</code>)</h3>
+<table>
+<tr><th>Kolom</th><th>Tipe</th><th>Keterangan</th></tr>
+<tr><td><code>id</code></td><td>ulid, PK</td><td></td></tr>
+<tr><td><code>user_id</code></td><td>ulid, FK → <code>users.id</code></td><td>cascade delete</td></tr>
+<tr><td><code>type</code></td><td>enum(<code>leave</code>, <code>permission</code>, <code>overtime</code>)</td><td></td></tr>
+<tr><td><code>status</code></td><td>enum(<code>submitted</code>, <code>in_review</code>, <code>approved</code>, <code>rejected</code>, <code>cancelled</code>, <code>failed</code>)</td><td></td></tr>
+<tr><td><code>approved_by</code> / <code>approved_at</code></td><td>ulid / timestamp, nullable</td><td></td></tr>
+<tr><td><code>cancelled_by</code> / <code>cancelled_at</code></td><td>ulid / timestamp, nullable</td><td></td></tr>
+<tr><td><code>is_flow_changed</code></td><td>boolean, default false</td><td><strong>tidak pernah di-set true</strong> di kode manapun — kolom menganggur</td></tr>
+</table>
+<div class="warn"><strong>Tidak ada kolom <code>rejected_by</code>/<code>rejected_at</code></strong> di tabel ini — lihat temuan penting di §5.</div>
+
+<h2>2. Relasi Antar Tabel</h2>
+<pre><code>m_approval_flows  (config, per company+module)
+   │
+   ├─ 1:N ──&gt; m_approval_flow_steps        (step_order, approver_type, scope_type, is_final)
+   └─ 1:N ──&gt; m_approval_flow_assignments  (assignable → job_position, hanya flow_type=specific)
+
+──────────── saat user submit pengajuan, sistem resolve flow di atas lalu bikin: ────────────
+
+approval_snapshots  (1 pengajuan = 1 snapshot, steps beku dari flow saat itu)
+   │
+   ├─ 1:1 ──&gt; approval_activities   (SATU baris "step aktif saat ini", terus di-update)
+   └─ 1:N ──&gt; approval_histories    (log lengkap, append-only: requested/approved/rejected/...)
+
+approval_snapshots.module_id  ──(module_type = 'attendance_request')──&gt;  attendance_requests.id   (string biasa, bukan FK)
+approval_histories.requestable_id/type  ──(morphTo)──&gt;  attendance_requests   (relasi polymorphic sungguhan)</code></pre>
+
+<p>Relasi lewat Eloquent (<code>app/Models/ApprovalManagement/*</code>, semua pakai <code>HasUlids</code>):</p>
+<table>
+<tr><th>Model</th><th>Relasi</th></tr>
+<tr><td><code>MasterApprovalFlows</code></td><td><code>company()</code> belongsTo, <code>steps()</code> hasMany (urut <code>step_order</code>), <code>assignments()</code> hasMany</td></tr>
+<tr><td><code>MasterApprovalFlowSteps</code></td><td><code>flows()</code> belongsTo <code>MasterApprovalFlows</code></td></tr>
+<tr><td><code>ApprovalFlowAssignments</code></td><td><code>approvalFlow()</code> belongsTo — <strong>tidak ada</strong> relasi <code>assignable()</code> morphTo, dibaca manual per query</td></tr>
+<tr><td><code>ApprovalSnapshots</code></td><td><code>activity()</code> hasOne — <strong>tidak ada</strong> relasi <code>module()</code>/histories di sini</td></tr>
+<tr><td><code>ApprovalActivities</code></td><td><code>snapshot()</code> belongsTo</td></tr>
+<tr><td><code>ApprovalHistories</code></td><td><code>requestable()</code> morphTo</td></tr>
+<tr><td><code>AttendanceRequests</code></td><td><code>approvalSnapshot()</code> hasOne (key <code>module_id</code>, filter <code>module_type</code>), <code>approvalHistories()</code> hasMany (key <code>requestable_id</code>, <strong>tidak</strong> ikut filter <code>requestable_type</code>)</td></tr>
+</table>
+
+<h2>3. Alur (Flow)</h2>
+
+<h3>3.1 Submit pengajuan</h3>
+<p>File: <code>AttendaceReqService.php</code> (<code>storeLeaveRequest</code>/<code>storePermissionRequest</code>/<code>storeOvertimeRequest</code> — strukturnya identik).</p>
+<ol>
+<li><strong>Resolve flow</strong> — <code>ApprovalSnapshotRepository::resolveApprovalFlowForUser()</code>: ambil <code>job_position_id</code> user dari <code>user_profiles</code> → cari flow <code>specific</code> yang di-assign ke job_position itu → kalau tidak ada, fallback ke flow <code>default</code> company tsb → kalau dua-duanya tidak ada, <code>throw new \Exception(...)</code> (pengajuan gagal total, tidak ada fallback diam-diam).</li>
+<li>Insert baris <code>attendance_requests</code> (<code>status = in_review</code>) + baris detail (leave/permission/overtime).</li>
+<li><code>ApprovalCreationService::createSnapshot()</code> (1 <code>DB::transaction()</code>): copy steps jadi <code>steps_snapshot</code> beku → insert <code>approval_snapshots</code> → insert 1 baris <code>approval_activities</code> (<code>status=pending</code>) kalau ada step pertama → insert <code>approval_histories</code> (<code>action='requested'</code>).</li>
+<li><code>NotificationService::getFirstApproverFromSnapshot()</code> cari siapa yang perlu dikabari, kirim notifikasi.</li>
+</ol>
+
+<h3>3.2 Approve</h3>
+<p>Dipicu <code>AttendanceRequestDetail::confirmAction()</code> → <code>ApprovalFlowService::advanceStep($snapshot, $actorId, $note, 'approved')</code>. Semua dalam 1 <code>DB::transaction()</code>, urutan tulis selalu sama:</p>
+<ol>
+<li><strong>Selalu duluan</strong>: insert <code>approval_histories</code> (<code>action='approved'</code>) mencatat aksi yang baru terjadi.</li>
+<li><strong>Kalau masih ada step berikutnya</strong>: <em>update</em> (bukan insert) baris <code>approval_activities</code> yang sama → isi approver step berikutnya, status tetap <code>pending</code>; update <code>current_step_order</code> naik satu, snapshot tetap <code>in_review</code>.</li>
+<li><strong>Kalau step terakhir (final)</strong>: <code>approval_activities.status=approved</code>, <code>approval_snapshots.status=approved</code>, update modul (<code>attendance_requests.status=approved</code>, <code>approved_by</code>, <code>approved_at</code>) + efek samping modul lain (task_request, swap_shift_request — termasuk benar-benar menukar <code>shift_id</code>/<code>user_id</code> antar 2 baris jadwal, dengan re-check konflik) → insert <code>approval_histories</code> (<code>action='completed'</code>).</li>
+</ol>
+
+<h3>3.3 Reject</h3>
+<div class="warn">
+<p>Sama seperti approve, tapi kode coba set <code>attendance_requests.rejected_by</code>/<code>rejected_at</code> — <strong>kolom itu tidak ada</strong> di tabel &amp; tidak ada di <code>$fillable</code>. Laravel diam-diam membuang 2 field itu (tidak error), cuma <code>status</code> yang benar-benar tersimpan. Jejak siapa/kapan reject cuma ada di <code>approval_activities.acted_by/acted_at</code> dan <code>approval_histories</code>, <strong>tidak</strong> di baris <code>attendance_requests</code> itu sendiri.</p>
+</div>
+<p><code>task_request</code> → <code>TaskStatus::REJECTED</code>; <code>swap_shift_request</code> → <code>status=rejected</code>. Ditutup dengan insert <code>approval_histories</code> (<code>action='completed'</code>).</p>
+
+<h3>3.4 Cancel</h3>
+<p><code>approval_activities.status = canceled</code> (1&nbsp;L) — <code>approval_snapshots.status = cancelled</code> (2&nbsp;L, beda ejaan, lihat §5) — <code>attendance_requests.status = cancelled</code>, <code>cancelled_by</code>, <code>cancelled_at</code> (kolom ini <strong>memang ada</strong>, jadi cancel tersimpan lengkap, beda dari reject). Ditutup dengan <code>approval_histories</code> (<code>action='completed'</code>).</p>
+
+<h3>3.5 Siapa yang boleh approve (<code>ApprovalPermissionService</code>)</h3>
+<ul>
+<li><code>canApprove()</code> — activity harus <code>status=pending</code> dulu, baru cek <code>checkUserPermission()</code>.</li>
+<li><code>checkUserPermission()</code>: <code>user</code> → cocok persis ID; <code>role</code> → <code>hasRole()</code> + (kalau <code>specific_department</code>) departemen harus cocok — <strong><code>same_department</code> tidak benar-benar mengecek "departemen yang sama dengan pengaju"</strong>, efeknya sama seperti <code>global</code>; <code>job_position</code> → cocok `job_position_id` di profil.</li>
+<li><code>pendingApprovalsFor($user, $moduleType)</code> — query semua activity pending yang cocok ke user (langsung/role/job_position), disaring ulang lewat <code>checkUserPermission()</code> → dipakai widget "Butuh Persetujuan Anda".</li>
+</ul>
+
+<h3>3.6 Timeline visual (<code>ApprovalTimelineService::build()</code>)</h3>
+<p>Load <code>approvalSnapshot.activity</code>, <code>approvalHistories</code>, <code>user</code>. Entry pertama selalu "Diajukan" (state <code>done</code>). Tiap step: kalau ada histori yang cocok → pakai itu; kalau belum, tandai <code>current</code> (step aktif &amp; status masih <code>in_review</code>) atau <code>pending</code>.</p>
+
+<h3>3.7 Sinkronisasi manual</h3>
+<p><code>checkStepsSync()</code>/<code>syncStepsFromMaster()</code> — alat perbaikan manual kalau admin ubah flow master padahal sudah ada pengajuan berjalan di flow lama. <strong>Tidak ada cron/observer yang manggil ini otomatis.</strong></p>
+
+<h2>4. Konfigurasi Admin (Filament)</h2>
+<p><code>app/Filament/Resources/ApprovalFlows/</code> — form di <code>Schemas/ApprovalFlowForm.php</code>.</p>
+<p><strong>Level flow:</strong> <code>company_id</code> (hidden), <code>name</code>, <code>module</code>, <code>flow_type</code>. Validasi custom: maksimal 1 flow <code>default</code> per company+module; tidak boleh ada flow <code>specific</code> dobel buat job_position yang sama. <code>assignment_job_positions</code> (multi-select, cuma muncul kalau <code>specific</code>) → ditulis ke <code>m_approval_flow_assignments</code>.</p>
+<p><strong>Level step:</strong> <code>approver_type</code>, <code>approver_ref_id</code>, <code>source_company</code> (<code>same_company</code>/<code>holding_company</code> — <strong>hanya filter UI</strong>, tidak pernah disimpan ke DB, ID holding company di-hardcode langsung di kode form), <code>scope_type</code> (form cuma menyediakan <code>same_department</code>/<code>specific_department</code>, opsi <code>global</code> ada di enum tapi tidak ditawarkan form), <code>scope_ref_id</code>, <code>is_final</code>, <code>approval_mode</code> (hidden, auto-derive).</p>
+<p>Saat disimpan (<code>EditApprovalFlow::afterSave()</code>): <strong>semua step lama dihapus dan ditulis ulang dari form</strong> — step tidak punya identitas stabil lintas edit selain <code>step_order</code>.</p>
+
+<h2>5. Temuan Penting / Catatan (Known Gaps)</h2>
+<ol>
+<li><strong>Bug nyata — reject tidak tersimpan lengkap</strong>: <code>attendance_requests</code> tidak punya kolom <code>rejected_by</code>/<code>rejected_at</code>, tapi <code>ApprovalFlowService::advanceStep()</code> mencoba menulis ke situ; dibuang diam-diam oleh mass-assignment guard.</li>
+<li><strong>Ejaan enum beda antar tabel</strong> — <code>approval_activities.status</code> pakai <code>canceled</code> (1&nbsp;L), <code>approval_snapshots.status</code> pakai <code>cancelled</code> (2&nbsp;L). Sudah dikomentari eksplisit di kode — bukan typo tak sadar, tapi tetap berisiko kalau ada query manual pakai ejaan yang salah.</li>
+<li><strong><code>scope_type = same_department</code> tidak difilter sungguhan</strong> — cuma <code>specific_department</code> yang benar dibatasi. Step <code>role</code> + "Satu Departemen" perilakunya sama seperti "Global".</li>
+<li><strong>Inkonsistensi <code>getDeniedReason()</code> vs <code>checkRolePermission()</code></strong> — satu cek <code>profile?->department</code>, satunya <code>profile?->orgStructure</code>, untuk scope yang sama. <code>getDeniedReason()</code> juga baca <code>$user->job_position_id</code> langsung (kemungkinan selalu null — job position ada di <code>$user->profile</code>).</li>
+<li><strong><code>flow_version</code> ditulis tapi tidak pernah tersimpan</strong> — kolom tidak ada di migration/<code>$fillable</code>, dibuang diam-diam.</li>
+<li><strong><code>approval_activities</code> bukan histori</strong> — cuma 1 baris per snapshot yang terus di-update. Riwayat lengkap ada di <code>approval_histories</code>.</li>
+<li><strong><code>AttendanceRequests::approvalHistories()</code> tidak filter <code>requestable_type</code></strong> — cuma filter <code>requestable_id</code>. Longgar secara teori dibanding morph relation yang benar (walau ULID nyaris mustahil bentrok).</li>
+<li><strong><code>is_flow_changed</code>, <code>checkStepsSync()</code>, <code>syncStepsFromMaster()</code></strong> — alat manual yang belum pernah dipanggil otomatis di mana pun. Kalau admin edit flow yang sudah punya pengajuan berjalan, snapshot lama <strong>tidak</strong> otomatis ter-update.</li>
+</ol>
+
+<h2>6. Referensi File Kode</h2>
+<ul>
+<li><code>app/Models/ApprovalManagement/</code> — <code>MasterApprovalFlows</code>, <code>MasterApprovalFlowSteps</code>, <code>ApprovalFlowAssignments</code>, <code>ApprovalSnapshots</code>, <code>ApprovalActivities</code>, <code>ApprovalHistories</code></li>
+<li><code>app/Models/Attendance/AttendanceRequests.php</code> — relasi <code>approvalSnapshot()</code>/<code>approvalHistories()</code></li>
+<li><code>app/Repositories/Approval/ApprovalSnapshotRepository.php</code> — <code>resolveApprovalFlowForUser()</code></li>
+<li><code>app/Services/Approval/ApprovalCreationService.php</code> — <code>createSnapshot()</code></li>
+<li><code>app/Services/Approval/ApprovalFlowService.php</code> — <code>getNextApprover()</code>, <code>advanceStep()</code>, <code>checkStepsSync()</code>, <code>syncStepsFromMaster()</code></li>
+<li><code>app/Services/Approval/ApprovalPermissionService.php</code> — <code>checkUserPermission()</code>, <code>canApprove()</code>, <code>hasPermission()</code>, <code>pendingApprovalsFor()</code>, <code>getDeniedReason()</code></li>
+<li><code>app/Services/Approval/ApprovalTimelineService.php</code> — <code>build()</code></li>
+<li><code>app/Services/Attendance/AttendaceReqService.php</code> — pemanggil resolve flow untuk cuti/izin/lembur</li>
+<li><code>app/Filament/Resources/ApprovalFlows/</code> — konfigurasi flow lewat admin panel</li>
+<li>Migration: <code>2025_10_23_204835_create_m_approval_flows_table.php</code>, <code>2025_10_23_204844_create_m_approval_flow_steps_table.php</code>, <code>2026_02_20_132321_add_column_default_m_approval_table.php</code>, <code>2025_10_26_000441_create_approval_snapshots_table.php</code>, <code>2025_10_26_000530_create_approval_activities_table.php</code>, <code>2025_10_26_000537_create_approval_histories_table.php</code>, <code>2025_11_03_103111_add_requestable_morph_approval_histories_table.php</code></li>
+</ul>
+
+<footer>Dibuat 2026-07-05 — dokumen referensi teknis, lihat <code>approval-flow-role-access.md/html</code> untuk analisis gap bisnis &amp; audit data riil.</footer>
+
+</body>
+</html>

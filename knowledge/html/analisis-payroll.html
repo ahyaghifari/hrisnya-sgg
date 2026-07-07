@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<title>Analisis Payroll</title>
+<style>
+  body { font-family: -apple-system, Segoe UI, Arial, sans-serif; max-width: 900px; margin: 2rem auto; padding: 0 1rem; line-height: 1.6; color: #1a1a1a; }
+  h1 { border-bottom: 3px solid #042c6c; padding-bottom: .5rem; }
+  h2 { color: #042c6c; margin-top: 2.5rem; border-bottom: 1px solid #ddd; padding-bottom: .3rem; }
+  h3 { color: #032356; margin-top: 1.75rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ccc; padding: .5rem .75rem; text-align: left; vertical-align: top; }
+  th { background: #042c6c; color: #fff; }
+  tr:nth-child(even) { background: #f5f7fa; }
+  code { background: #f0f0f0; padding: .1rem .35rem; border-radius: 4px; font-size: .9em; }
+  blockquote { border-left: 4px solid #1a56c4; margin: 1rem 0; padding: .3rem 1rem; background: #eef3fb; }
+  .tldr { background: #eef3fb; border: 1px solid #1a56c4; border-radius: 8px; padding: 1rem 1.25rem; }
+  .warn { background: #fdecea; border: 1px solid #e0554f; border-radius: 8px; padding: 1rem 1.25rem; }
+  ol li, ul li { margin-bottom: .4rem; }
+  footer { margin-top: 3rem; font-size: .85em; color: #777; border-top: 1px solid #ddd; padding-top: 1rem; }
+</style>
+</head>
+<body>
+
+<h1>Analisis Payroll <small style="font-weight:normal;color:#666;">— Komponen Gaji, Jasa Dokter, Trainer, Insentif (2026-07-05)</small></h1>
+
+<p>Dokumen ini menjawab kebingungan yang dirasakan soal payroll: apakah jasa dokter/pajak jasa dokter memang dibatasi cuma untuk company rumah sakit, dan apakah tunjangan jabatan/transportasi memang punya syarat status kepegawaian (tetap vs kontrak). Ditulis dari pembacaan kode langsung (migration, model, service) — bukan asumsi.</p>
+
+<h2>TL;DR</h2>
+<div class="warn">
+<p><strong>Dua kecurigaan yang disampaikan TERNYATA BENAR — keduanya adalah gap nyata, bukan fitur yang sudah ada tapi tersembunyi:</strong></p>
+<ol>
+<li><strong>Tidak ada syarat status kepegawaian (tetap/kontrak) untuk tunjangan apa pun.</strong> <code>PayrollService::generatePayroll()</code> cuma filter karyawan berdasar <code>company_id</code> + <code>is_active</code> — kolom <code>employee_type_id</code> <strong>tidak pernah dibaca</strong> di seluruh alur generate payroll. Semua karyawan aktif otomatis dapat SEMUA komponen gaji di jabatan &amp; pangkatnya, termasuk Tunjangan Jabatan dan Tunjangan Transportasi, tidak peduli status kepegawaiannya.</li>
+<li><strong>Tidak ada pembeda "ini rumah sakit" vs "bukan" di mana pun</strong> — baik skema database (<code>m_companies</code> cuma <code>code</code>, <code>name</code>, <code>location</code>, <code>is_active</code>) maupun kode. Jasa Dokter, Master Layanan Dokter, dan Pajak Jasa Dokter semuanya resource global yang company mana pun bisa pakai — termasuk holding atau hotel.</li>
+</ol>
+</div>
+
+<h2>1. Peta Modul Payroll</h2>
+<table>
+<tr><th>Sub-modul</th><th>Fungsi</th><th>Trigger</th></tr>
+<tr><td><strong>Payroll reguler</strong></td><td>Gaji pokok + komponen tetap/persentase per jabatan/pangkat + lembur + jasa pelayanan</td><td>Manual — klik "Generate" per periode</td></tr>
+<tr><td><strong>Jasa Dokter</strong></td><td>Klaim jasa pelayanan dokter per pasien → payroll dokter + pajak</td><td>Manual — input submission, lalu "Generate"</td></tr>
+<tr><td><strong>Gaji Trainer</strong></td><td>Skor penilaian → honor + masa berlaku sertifikasi</td><td>Otomatis tiap ada assessment baru</td></tr>
+<tr><td><strong>Insentif Program</strong></td><td>Insentif manual per karyawan</td><td><strong>Full manual</strong> — tidak ada logic otomatis</td></tr>
+</table>
+<p>Semua generate payroll dipicu tombol di tabel Filament (<code>GeneratePayrollJob</code>/<code>GenerateDoctorPayrollJob</code>), <strong>bukan cron/scheduled job</strong>.</p>
+
+<h2>2. Skema Tabel</h2>
+
+<h3>2.1 Payroll Reguler</h3>
+<p><code>m_salary_components</code> — katalog master komponen gaji.</p>
+<table>
+<tr><th>Kolom</th><th>Tipe</th><th>Keterangan</th></tr>
+<tr><td><code>company_id</code></td><td>ulid, FK, <strong>nullable</strong></td><td><code>NULL</code> = berlaku semua company (shared) — data lama sengaja tidak di-backfill</td></tr>
+<tr><td><code>name</code></td><td>string</td><td>mis. "Tunjangan Jabatan", "Pajak Jasa Dokter"</td></tr>
+<tr><td><code>type</code></td><td>enum(earning, deduction)</td><td></td></tr>
+<tr><td><code>calculation_type</code></td><td>enum(fixed, percentage, formula)</td><td></td></tr>
+<tr><td><code>is_active</code></td><td>boolean</td><td></td></tr>
+</table>
+
+<p><code>salary_components</code> — tabel assignment (polymorphic ke JobPositions/Pangkats/Companies).</p>
+<table>
+<tr><th>Kolom</th><th>Tipe</th><th>Keterangan</th></tr>
+<tr><td><code>salary_component_id</code></td><td>FK → m_salary_components</td><td></td></tr>
+<tr><td><code>salaryable_type</code>/<code>salaryable_id</code></td><td>polymorphic</td><td>JobPositions / Pangkats / Companies</td></tr>
+<tr><td><code>amount</code> / <code>percentage</code></td><td>decimal</td><td></td></tr>
+</table>
+<div class="warn">Tidak ada kolom apa pun di tabel ini yang menyebut syarat kepegawaian — assignment cuma bicara "jabatan/pangkat/company ini dapat komponen X sebesar Y".</div>
+
+<p><code>payroll_periods</code>: <code>company_id</code> (nullable, tapi fungsinya wajib), <code>start_date</code>/<code>end_date</code>, <code>processed_at</code>. <code>payrolls</code>: <code>user_id</code>, <code>payroll_period_id</code>, <code>gross_salary</code>/<code>total_deductions</code>/<code>net_salary</code>, <code>is_paid</code>. <code>payroll_items</code>: baris rincian snapshot per payroll.</p>
+
+<h3>2.2 Jasa Dokter</h3>
+<p><code>m_doctor_services</code> — tarif master, <code>company_id</code> nullable (sama pola dengan komponen gaji). <code>doctor_fee_submissions</code> — klaim per pasien, <code>company_id</code> <strong>wajib</strong>. <code>doctor_fee_items</code> — baris per dokter. <code>doctor_payroll_periods</code> — <code>company_id</code> nullable.</p>
+<p><code>doctor_payrolls</code> — <strong>di sinilah pajak jasa dokter hidup</strong>, di level payroll-run:</p>
+<table>
+<tr><th>Kolom</th><th>Tipe</th></tr>
+<tr><td><code>gross_salary</code></td><td>decimal(15,2)</td></tr>
+<tr><td><code>tax_percentage</code></td><td>decimal(5,2)</td></tr>
+<tr><td><code>tax_amount</code></td><td>decimal(15,2)</td></tr>
+<tr><td><code>net_salary</code></td><td>decimal(15,2)</td></tr>
+</table>
+<div class="warn">Tidak ada kolom "tipe company" di <code>m_companies</code> maupun tabel manapun di atas. Skema <code>m_companies</code> cuma: <code>id</code>, <code>code</code>, <code>name</code>, <code>location</code>, <code>is_active</code>.</div>
+
+<h3>2.3 Gaji Trainer</h3>
+<p><code>trainers</code> (kolom <code>company</code> string bebas, bukan FK) → <code>trainer_score_variables</code> → <code>trainer_score_categories</code> → <code>trainer_assessments</code>/<code>trainer_assessment_details</code> → <code>trainer_score_ranges</code> (rentang skor → honor + masa berlaku) → <code>trainer_assesments_results</code> ("Gaji Trainer").</p>
+
+<h3>2.4 Insentif Program</h3>
+<p><code>program_incentives</code>: <code>company_id</code>, <code>user_id</code>, <code>program_name</code>, <code>incentive_date</code>, <code>amount</code>, <code>is_processed</code> — murni input manual, <strong>tidak ada Service class atau logic otomatis apa pun</strong>.</p>
+
+<h2>3. Relasi Model (ringkas)</h2>
+<table>
+<tr><th>Model</th><th>Relasi kunci</th></tr>
+<tr><td><code>MasterSalaryComponents</code></td><td><code>hasMany(SalaryComponents)</code>, trait <code>BelongsToCompanyOrShared</code></td></tr>
+<tr><td><code>JobPositions</code>/<code>Pangkats</code>/<code>Companies</code></td><td><code>morphMany(SalaryComponents::class, 'salaryable')</code></td></tr>
+<tr><td><code>Payroll</code></td><td><code>belongsTo(User)</code>, <code>belongsTo(PayrollPeriod)</code>, <code>hasMany(PayrollItem)</code></td></tr>
+<tr><td><code>DoctorFeeSubmission</code></td><td><code>company()</code>, <code>items() hasMany DoctorFeeItem</code></td></tr>
+<tr><td><code>DoctorPayroll</code></td><td><code>period()</code>, <code>doctor() (User)</code>, <code>items()</code></td></tr>
+<tr><td><code>ProgramIncentive</code></td><td>trait <code>BelongsToCompany</code> (scope ketat, beda dari OrShared) — <code>company()</code>, <code>user()</code></td></tr>
+<tr><td><code>EmployeeTypes</code></td><td>cuma <code>name</code> + <code>company_id</code> — <strong>tidak ada relasi ke komponen gaji sama sekali</strong></td></tr>
+</table>
+
+<h2>4. Bagaimana Payroll Dihasilkan</h2>
+
+<h3>4.1 Payroll reguler — <code>PayrollService::generatePayroll()</code></h3>
+<ol>
+<li>Ambil <code>User::where('company_id', $period->company_id)->where('is_active', true)</code> — <strong>cuma ini filternya</strong>, tidak ada <code>employee_type_id</code>.</li>
+<li><code>handleBaseSalary()</code> — gaji pokok dari pangkat, tanpa syarat tambahan.</li>
+<li><code>handleJobPositionFixedComponents()</code>/<code>handleJobPositionPercentageComponents()</code> — loop <strong>semua</strong> komponen fixed/persentase di jabatan user — <strong>di sinilah Tunjangan Jabatan &amp; Transportasi diterapkan tanpa cek status kepegawaian apa pun.</strong></li>
+<li><code>handleExtraHourAllowanceComponent()</code>/<code>handleOvertimeComponent()</code> — satu-satunya bagian yang benar-benar kondisional, tapi soal jam kerja/shift, bukan status kepegawaian.</li>
+</ol>
+
+<h3>4.2 Payroll Jasa Dokter — <code>DoctorPayrollService::generatePayroll()</code></h3>
+<p>Ambil <code>doctor_fee_items</code> belum lunas dalam periode → group per dokter → jumlahkan jadi <code>gross_salary</code> → cari <code>MasterSalaryComponents</code> bernama "Pajak Jasa Dokter" <strong>tanpa filter company sama sekali</strong> → <code>tax_amount = gross * tax_percentage/100</code>.</p>
+
+<h3>4.3 Gaji Trainer</h3>
+<p>Rata-rata skor honor/validity per course → dicocokkan ke <code>TrainerScoreRanges</code> → hasil disimpan di <code>trainer_assesments_results</code>. Berbasis tabel skor, bukan status kepegawaian (masuk akal, trainer bukan karyawan tetap).</p>
+
+<h3>4.4 Insentif Program</h3>
+<p>Tidak ada alur otomatis — admin isi manual, tandai <code>is_processed</code> manual juga.</p>
+
+<h2>5. Temuan Kritis (Gap Analysis)</h2>
+<ol>
+<li><strong>Tidak ada eligibility check status kepegawaian untuk komponen gaji apa pun.</strong> Grep menyeluruh <code>employee_type|EmployeeType|is_permanent|status_karyawan</code> di seluruh <code>app/</code> cuma 22 hits, <strong>tidak satu pun</strong> di jalur generate payroll. Ini bukan fitur tersembunyi — memang belum pernah dibangun.</li>
+<li><strong>Tidak ada kolom tipe/kategori company</strong> di <code>m_companies</code>. Form admin jasa dokter menampilkan semua company tanpa filter — satu-satunya pembatas yang ada saat ini murni soal permission, bukan jenis company.</li>
+<li><strong><code>MasterDoctorServiceResource</code> tidak punya halaman create/edit</strong> — <code>getPages()</code> cuma daftarkan <code>index</code>. Tarif master layanan dokter saat ini tidak bisa dibuat/diubah lewat UI sama sekali.</li>
+<li><strong>Tarif "Pajak Jasa Dokter" bersifat 1 tarif global</strong> — dicari lewat nama komponen tanpa filter company.</li>
+<li><strong><code>Trainers.company</code></strong> adalah kolom string bebas (bukan FK) — beda sendiri dari pola <code>company_id</code> FK yang dipakai tabel lain.</li>
+<li><strong>Insentif Program 100% manual</strong> — belum ada rule/trigger otomatis apa pun.</li>
+</ol>
+
+<h2>6. Rekomendasi</h2>
+<p><strong>Untuk syarat status kepegawaian:</strong> tambah 1 kolom nullable di tabel assignment <code>salary_components</code>, mis. <code>required_employee_type_id</code> (FK ke <code>m_employee_types</code>, nullable = "berlaku semua tipe"). Lalu di <code>PayrollService::handleJobPositionFixedComponents()</code>/<code>Percentage...()</code>, tambah pengecekan: skip komponen kalau tidak cocok dengan <code>employee_type_id</code> user. Perubahan kecil, tidak perlu redesain skema.</p>
+<p><strong>Untuk "jasa dokter cuma buat rumah sakit" — jangka pendek:</strong></p>
+<ul>
+<li><strong>Opsi A (data-driven, 1 company)</strong>: pakai kolom <code>company_id</code> yang <strong>sudah ada</strong> (nullable) — isi 1 company spesifik alih-alih <code>NULL</code>. Tidak butuh migration, tapi kalau rumah sakitnya lebih dari satu, harus duplikasi baris per rumah sakit.</li>
+<li><strong>Opsi B (permission-based, tanpa ubah skema)</strong>: jangan berikan permission <code>view_pengajuan_jasa_dokter</code>/<code>create_pengajuan_jasa_dokter</code> ke role di company non-rumah-sakit lewat <code>/admin/roles</code> yang sudah ada. Bisa langsung diterapkan hari ini, nol risiko migrasi data.</li>
+</ul>
+
+<h3>6.1 Rekomendasi jangka panjang: scope 3 tingkat (company spesifik → kategori company → global)</h3>
+<p><code>company_id</code> nullable yang sudah ada cuma bisa membedakan <strong>1 company spesifik</strong> vs <strong>global (semua company)</strong> — tidak ada tingkat menengah "sekelompok company sejenis" (mis. "semua rumah sakit", tanpa peduli berapa banyak yang ada/akan ada). Kalau rumah sakit nambah jadi 3, 4, dst, satu-satunya cara sekarang adalah duplikasi baris komponen per rumah sakit — dan tiap kali tarifnya berubah, semua baris duplikat harus diingat untuk diupdate bareng. Pola drift yang sama yang berulang kali ditemukan di analisis lain (permission, dst).</p>
+<div class="tldr">
+<p><strong>Rekomendasi</strong>: tambah 1 tingkat scope lagi, mengikuti pola <code>scope_type</code> yang <strong>sudah ada</strong> di Approval Engine (<code>same_department</code> / <code>specific_department</code> / <code>global</code> — lihat <code>manajemen-persetujuan.html</code>) — reuse pola yang sudah dikenal di codebase ini, bukan konsep baru:</p>
+<ol>
+<li><strong>Company spesifik</strong> (<code>company_id</code> diisi) — paling spesifik, menang duluan kalau ada.</li>
+<li><strong>Kategori company</strong> (<code>company_category</code>, kolom baru nullable) — berlaku untuk semua company dengan kategori yang sama. Rumah sakit baru otomatis ke-cover tanpa duplikasi baris.</li>
+<li><strong>Global</strong> (keduanya <code>NULL</code>) — berlaku semua company, seperti sekarang.</li>
+</ol>
+<p>Urutan pencarian tarif: cek company spesifik dulu → kalau tidak ada, cek kategori → kalau tidak ada juga, pakai yang global.</p>
+</div>
+<p><strong>Perubahan yang dibutuhkan:</strong></p>
+<ol>
+<li>Kolom baru <code>type</code> (enum: <code>hospital</code>, <code>hotel</code>, <code>other</code>, dst — nullable dulu, diisi manual per company yang sudah ada) di <strong><code>m_companies</code></strong> — sekaligus menutup temuan §5.2.</li>
+<li>Kolom baru <code>company_category</code> (nullable, enum sama) di <strong><code>m_salary_components</code></strong> dan <strong><code>m_doctor_services</code></strong> — dua tabel yang sudah sama-sama punya <code>company_id</code> nullable, pattern-nya identik jadi dirapikan bareng.</li>
+<li>Ubah query pencarian komponen di <code>PayrollService</code>/<code>DoctorPayrollService</code> supaya cek 3 tingkat itu berurutan.</li>
+</ol>
+<p><strong>Kenapa kategori, bukan tabel pivot many-to-many</strong> (company ↔ daftar komponen eksplisit): pivot lebih fleksibel secara teori, tapi tetap butuh pilih manual satu-satu dan tidak otomatis ke-cover company baru sejenis. Untuk kasus "jasa dokter = rumah sakit" yang soal JENIS BISNIS (bukan pengecualian acak), kategori lebih pas dan lebih sedikit kerja manual jangka panjang. Kalau nanti butuh pengecualian di luar kategori (mis. 1 rumah sakit tertentu TIDAK boleh dapat komponen itu), tingkat company spesifik tetap bisa jadi override di atas kategori.</p>
+<p>Efeknya kecil di kode: 2 kolom nullable + 1 langkah tambahan di urutan pencarian, tidak perlu redesain skema besar-besaran.</p>
+
+<p><strong>Soal otomatisasi</strong>: sudah otomatis begitu tombol "Generate" diklik — base salary, komponen jabatan, lembur, jasa pelayanan, pajak jasa dokter. Belum otomatis: trigger-nya sendiri (masih manual per periode), input klaim jasa dokter (wajar, data kejadian nyata), insentif program (100% manual). Area paling berdampak kalau mau "lebih otomatis": jadwalkan generate payroll reguler otomatis tiap awal bulan lewat <code>$schedule</code> — bukan mengubah logic perhitungannya, cuma triggernya.</p>
+
+<h2>7. Referensi File Kode</h2>
+<ul>
+<li><code>app/Services/Payroll/PayrollService.php</code>, <code>DoctorPayrollService.php</code></li>
+<li><code>app/Services/LMS/TrainerAssessmentService.php</code></li>
+<li><code>app/Models/Payroll/MasterSalaryComponents.php</code>, <code>SalaryComponents.php</code></li>
+<li><code>app/Models/DoctorService/MasterDoctorService.php</code>, <code>DoctorFeeSubmission.php</code>, <code>DoctorPayroll.php</code></li>
+<li><code>app/Models/Master/Companies.php</code>, <code>EmployeeTypes.php</code></li>
+<li><code>app/Models/Concerns/BelongsToCompanyOrShared.php</code>, <code>BelongsToCompany.php</code></li>
+<li><code>app/Enum/Salary/SalaryComponentNameEnum.php</code></li>
+<li><code>app/Filament/Clusters/MasterSalaryComponent/</code>, <code>app/Filament/Resources/Payroll/**</code></li>
+<li>Migration: <code>2026_07_03_141000_add_nullable_company_id_to_master_doctor_services_and_salary_components.php</code>, <code>2026_01_11_100257_...</code> (kolom pajak <code>doctor_payrolls</code>)</li>
+</ul>
+
+<footer>Dibuat 2026-07-05 — analisis payroll berdasarkan pembacaan kode langsung, bukan asumsi.</footer>
+
+</body>
+</html>

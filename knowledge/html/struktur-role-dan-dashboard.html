@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<title>Struktur Role & Model Dashboard per Level</title>
+<style>
+  body { font-family: -apple-system, Segoe UI, Arial, sans-serif; max-width: 900px; margin: 2rem auto; padding: 0 1rem; line-height: 1.6; color: #1a1a1a; }
+  h1 { border-bottom: 3px solid #042c6c; padding-bottom: .5rem; }
+  h2 { color: #042c6c; margin-top: 2.5rem; border-bottom: 1px solid #ddd; padding-bottom: .3rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ccc; padding: .5rem .75rem; text-align: left; }
+  th { background: #042c6c; color: #fff; }
+  tr:nth-child(even) { background: #f5f7fa; }
+  code { background: #f0f0f0; padding: .1rem .35rem; border-radius: 4px; font-size: .9em; }
+  .warn { background: #fdecea; border: 1px solid #e0554f; border-radius: 8px; padding: 1rem 1.25rem; }
+  .note { background: #eef3fb; border: 1px solid #1a56c4; border-radius: 8px; padding: 1rem 1.25rem; }
+  ol li, ul li { margin-bottom: .4rem; }
+  footer { margin-top: 3rem; font-size: .85em; color: #777; border-top: 1px solid #ddd; padding-top: 1rem; }
+</style>
+</head>
+<body>
+
+<h1>Struktur Role &amp; Model Dashboard per Level <small style="font-weight:normal;color:#666;">(per 2026-07-03)</small></h1>
+
+<h2>Ringkasan Role di Seluruh Sistem</h2>
+<p>15 nama role unik, tapi tiap company punya baris <code>roles</code> sendiri-sendiri (bukan role yang dipakai bersama) — total 84 baris di tabel <code>roles</code> untuk 8 company.</p>
+
+<p><strong>11 role dasar</strong> (di-seed sama persis ke semua 8 company via <code>RoleSeeder.php</code>):</p>
+<ol>
+<li>Super Admin <em>(cuma company holding yang benar-benar bypass semua company — 7 lainnya sudah di-rename jadi "Admin")</em></li>
+<li>Admin</li>
+<li>Direktur</li>
+<li>HC Supervisor</li>
+<li>HC Manager</li>
+<li>Kasubag / Staff Kepegawaian</li>
+<li>Staff Finance</li>
+<li>Learning &amp; Development</li>
+<li>Manager / Kepala Bidang</li>
+<li>Supervisor / Kepala Ruangan</li>
+<li>Karyawan / Staff</li>
+</ol>
+
+<p><strong>4 role tambahan</strong>, cuma ada di company holding (dibuat manual belakangan, bukan dari seeder dasar):</p>
+<ul>
+<li>Accounting Manager</li>
+<li>Finance Manager</li>
+<li>IT Supervisor</li>
+<li>Tax Staff</li>
+</ul>
+
+<h2>Bug yang Ditemukan &amp; Diperbaiki: "Super Admin" Ambigu Lintas Company</h2>
+<div class="warn">
+<p><code>RoleSeeder.php</code> membuat role <strong>"Super Admin" di SETIAP company</strong> (niatnya jadi admin lokal per company, full akses tapi cuma company sendiri). Masalahnya: Spatie <code>hasRole()</code> cuma cek <code>name</code> + <code>guard_name</code>, TIDAK peduli kolom custom <code>company_id</code> di tabel <code>roles</code> (fitur <code>teams</code> Spatie juga tidak diaktifkan: <code>config/permission.php: 'teams' =&gt; false</code>). Akibatnya 8 role yang sama-sama bernama "Super Admin" ter-treat identik oleh sistem — bug PRA-EXISTING (ditemukan juga di <code>PermissionHelper::hasPermission()</code>, bukan buatan sesi ini).</p>
+<p style="margin-bottom:0;"><strong>Fix</strong>: migration <code>2026_07_03_140000_rename_company_scoped_super_admin_roles_to_admin.php</code> me-rename 7 role "Super Admin" (company selain holding) jadi <strong>"Admin"</strong>. Sekarang cuma role holding yang bernama "Super Admin" — satu-satunya yang bypass company-scope lewat trait <code>BelongsToCompany</code>.</p>
+</div>
+
+<h2>Analisis Kesehatan Struktur Permission</h2>
+<p>Dicek similarity &amp; subset antar semua role di holding (14 role, paling lengkap):</p>
+<ul>
+<li><strong>Tidak ada role yang benar-benar duplikat.</strong> Pasangan paling mirip: HC Supervisor vs HC Manager (82,9% overlap) — tetap ada permission unik masing-masing, bukan identik.</li>
+<li><strong>Polanya berlapis rapi (bukan acak)</strong>: <code>Karyawan / Staff</code> (4 permission) adalah <strong>subset penuh dari SEMUA role lain</strong> di company yang sama — konfirmasi semua role dibangun dari baseline karyawan + tambahan sesuai levelnya (mis. <code>Karyawan/Staff</code> ⊂ <code>Tax Staff</code> ⊂ <code>Finance Manager</code> ⊂ <code>Direktur</code> ⊂ <code>Super Admin</code>).</li>
+<li><strong>Kesimpulan</strong>: 15 role ini SUDAH PAS, tidak perlu dikonsolidasi/dikurangi — mengurangi role berisiko menghilangkan distingsi akses yang memang disengaja beda.</li>
+<li>Permission count untuk nama role yang SAMA ternyata beda antar company (mis. "Direktur" holding=55 vs RSU Banjarbaru=92) — <strong>dikonfirmasi disengaja</strong> oleh pemilik project (wewenang Direktur holding vs anak perusahaan memang beda), bukan bug.</li>
+</ul>
+
+<h2>Model Dashboard: Level × Domain</h2>
+<p>15 role tidak berarti butuh 15 dashboard berbeda. Dashboard dimodelkan dari 2 sumbu independen:</p>
+
+<p><strong>Sumbu 1 — Level</strong> (menentukan cakupan data):</p>
+<table>
+<tr><th>Level</th><th>Cakupan</th><th>Dependency teknis</th></tr>
+<tr><td>Karyawan</td><td>Diri sendiri</td><td>Sudah siap</td></tr>
+<tr><td>Supervisor</td><td>Diri + tim langsung</td><td>Fase 3 — <code>OrgHierarchyService</code> (belum dibangun)</td></tr>
+<tr><td>Manager</td><td>1 departemen/fungsi (company-scoped)</td><td>Fase 1 company-scoping</td></tr>
+<tr><td>Direktur/Eksekutif</td><td>Seluruh company (holding: lintas company)</td><td>Fase 1 + logic khusus holding</td></tr>
+</table>
+
+<p><strong>Sumbu 2 — Domain</strong> (menentukan widget yang muncul): HR/HCGA, Finance/Accounting, L&amp;D, Umum.</p>
+
+<div class="note">
+<p style="margin-bottom:0;">Pemetaan role → Level+Domain dan detail cara bangun (widget library reusable, bukan halaman terpisah per role) ada di <code>planning/2026-07-03-arsitektur-dashboard-per-role.md</code>. Admin &amp; Super Admin TIDAK masuk model ini — tetap pakai Filament <code>/admin</code>.</p>
+</div>
+
+<footer>Knowledge base HRIS — Syifa Global Group. Versi markdown: <code>knowledge/markdown/struktur-role-dan-dashboard.md</code></footer>
+
+</body>
+</html>

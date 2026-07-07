@@ -1,0 +1,1272 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Syifa HRIS — Optimal Dashboard Mockup</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          brand: {
+            50:  '#f0f4f8',
+            100: '#d9e5f0',
+            200: '#b3cce0',
+            300: '#8db3d1',
+            400: '#6799c1',
+            500: '#042c6c',
+            600: '#042c6c',
+            700: '#032356',
+            800: '#021a40',
+            900: '#01122b',
+          },
+          ok: {
+            50:  '#f0fdf4',
+            100: '#dcfce7',
+            500: '#047C54',
+            600: '#036143',
+            700: '#024732',
+          },
+        },
+        fontFamily: {
+          sans: ['Inter', 'system-ui', 'sans-serif'],
+        },
+      }
+    }
+  }
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<style>
+  body { font-family: 'Inter', system-ui, sans-serif; }
+  .role-tab.active { background: #042c6c; color: white; }
+  .role-view { display: none; }
+  .role-view.active { display: block; }
+  .scrollbar-thin::-webkit-scrollbar { width: 6px; height: 6px; }
+  .scrollbar-thin::-webkit-scrollbar-thumb { background: #d9e5f0; border-radius: 3px; }
+  .icon { width: 1.25rem; height: 1.25rem; display: inline-block; vertical-align: -3px; }
+  .icon-sm { width: 1rem; height: 1rem; display: inline-block; vertical-align: -2px; }
+  /* Lock canvas to wrapper — prevents Chart.js ResizeObserver feedback loop */
+  canvas { display: block !important; max-width: 100% !important; max-height: 100% !important; }
+</style>
+</head>
+<body class="bg-slate-50 text-slate-800">
+
+<!-- TOP BAR -->
+<header class="bg-white border-b border-slate-200 sticky top-0 z-30">
+  <div class="max-w-[1440px] mx-auto px-6 py-3 flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <div class="w-9 h-9 rounded-lg bg-brand-500 flex items-center justify-center text-white font-bold">S</div>
+      <div>
+        <div class="text-sm font-bold text-brand-500">Syifa Global Group</div>
+        <div class="text-xs text-slate-500">HRIS Dashboard — Mockup Preview</div>
+      </div>
+    </div>
+    <div class="flex items-center gap-4">
+      <div class="hidden md:flex items-center gap-2 px-3 py-1.5 bg-slate-100 rounded-lg text-sm text-slate-500">
+        <svg class="icon-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+        Cari karyawan, dokumen, atau menu...
+        <kbd class="ml-3 px-1.5 py-0.5 text-xs bg-white border border-slate-300 rounded">Ctrl K</kbd>
+      </div>
+      <button class="relative p-2 hover:bg-slate-100 rounded-lg">
+        <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.4-1.4A2 2 0 0118 14.2V11a6 6 0 10-12 0v3.2a2 2 0 01-.6 1.4L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+        <span class="absolute top-1 right-1 w-4 h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">7</span>
+      </button>
+      <div class="flex items-center gap-2 pl-3 border-l border-slate-200">
+        <div class="w-9 h-9 rounded-full bg-brand-500 text-white flex items-center justify-center text-sm font-semibold">BD</div>
+        <div class="text-sm leading-tight">
+          <div class="font-semibold" id="topbar-name">Budi Darmawan</div>
+          <div class="text-xs text-slate-500" id="topbar-role">HC Manager</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- ROLE SWITCHER -->
+<div class="bg-white border-b border-slate-200">
+  <div class="max-w-[1440px] mx-auto px-6 py-3 flex flex-wrap gap-2 items-center">
+    <span class="text-xs font-semibold text-slate-500 uppercase tracking-wide mr-3">Preview sebagai:</span>
+    <button data-role="hc" class="role-tab active px-4 py-1.5 rounded-full text-sm font-medium border border-slate-200 hover:bg-brand-500 hover:text-white transition">HC Manager</button>
+    <button data-role="direktur" class="role-tab px-4 py-1.5 rounded-full text-sm font-medium border border-slate-200 hover:bg-brand-500 hover:text-white transition">Direktur</button>
+    <button data-role="karyawan" class="role-tab px-4 py-1.5 rounded-full text-sm font-medium border border-slate-200 hover:bg-brand-500 hover:text-white transition">Karyawan</button>
+    <button data-role="finance" class="role-tab px-4 py-1.5 rounded-full text-sm font-medium border border-slate-200 hover:bg-brand-500 hover:text-white transition">Staff Finance</button>
+    <button data-role="lnd" class="role-tab px-4 py-1.5 rounded-full text-sm font-medium border border-slate-200 hover:bg-brand-500 hover:text-white transition">Learning & Development</button>
+    <span class="ml-auto text-xs text-slate-400">Static mockup — Senin, 18 Mei 2026</span>
+  </div>
+</div>
+
+<main class="max-w-[1440px] mx-auto px-6 py-6 space-y-6">
+
+<!-- ============================================== -->
+<!-- HC MANAGER VIEW                                 -->
+<!-- ============================================== -->
+<section class="role-view active" data-role="hc">
+
+  <!-- WELCOME BANNER -->
+  <div class="bg-gradient-to-r from-brand-500 to-brand-700 rounded-2xl p-6 text-white flex items-center justify-between">
+    <div>
+      <h1 class="text-2xl font-bold">Selamat pagi, Budi 👋</h1>
+      <p class="text-brand-100 mt-1">Anda login sebagai <span class="font-semibold">HC Manager</span> di <span class="font-semibold">RS Syifa Pusat</span>. Hari ini ada <span class="font-semibold text-white">12 pengajuan menunggu approval</span> dan <span class="font-semibold text-white">3 karyawan baru</span> mulai bekerja.</p>
+    </div>
+    <div class="hidden md:flex flex-col items-end text-sm">
+      <div class="text-brand-100">Periode Payroll Aktif</div>
+      <div class="text-xl font-bold">Mei 2026</div>
+      <div class="text-xs text-brand-200">Cutoff: 25 Mei (7 hari lagi)</div>
+    </div>
+  </div>
+
+  <!-- QUICK ACTIONS -->
+  <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 mt-6">
+    <button class="bg-white rounded-xl border border-slate-200 p-4 hover:border-brand-500 hover:shadow-md transition text-left">
+      <svg class="icon text-brand-500 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+      <div class="text-sm font-semibold">Review Pengajuan</div>
+      <div class="text-xs text-slate-500">12 menunggu</div>
+    </button>
+    <button class="bg-white rounded-xl border border-slate-200 p-4 hover:border-brand-500 hover:shadow-md transition text-left">
+      <svg class="icon text-brand-500 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m6-5.13a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+      <div class="text-sm font-semibold">Data Karyawan</div>
+      <div class="text-xs text-slate-500">1.247 aktif</div>
+    </button>
+    <button class="bg-white rounded-xl border border-slate-200 p-4 hover:border-brand-500 hover:shadow-md transition text-left">
+      <svg class="icon text-brand-500 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+      <div class="text-sm font-semibold">Absensi Hari Ini</div>
+      <div class="text-xs text-slate-500">94,2% hadir</div>
+    </button>
+    <button class="bg-white rounded-xl border border-slate-200 p-4 hover:border-brand-500 hover:shadow-md transition text-left">
+      <svg class="icon text-brand-500 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+      <div class="text-sm font-semibold">Buat Penugasan</div>
+      <div class="text-xs text-slate-500">Task baru</div>
+    </button>
+    <button class="bg-white rounded-xl border border-slate-200 p-4 hover:border-brand-500 hover:shadow-md transition text-left">
+      <svg class="icon text-brand-500 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+      <div class="text-sm font-semibold">Kirim Pengumuman</div>
+      <div class="text-xs text-slate-500">Broadcast</div>
+    </button>
+    <button class="bg-white rounded-xl border border-slate-200 p-4 hover:border-brand-500 hover:shadow-md transition text-left">
+      <svg class="icon text-brand-500 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+      <div class="text-sm font-semibold">Laporan Bulanan</div>
+      <div class="text-xs text-slate-500">Export PDF/XLSX</div>
+    </button>
+  </div>
+
+  <!-- KPI ROW -->
+  <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
+    <div class="bg-white rounded-xl border border-slate-200 p-5">
+      <div class="flex items-center justify-between">
+        <div class="text-xs font-medium text-slate-500 uppercase">Total Karyawan</div>
+        <span class="text-xs px-2 py-0.5 bg-ok-50 text-ok-500 rounded-full">+3.2%</span>
+      </div>
+      <div class="mt-2 text-3xl font-bold text-slate-900">1.247</div>
+      <div class="text-xs text-slate-500 mt-1">+12 dari bulan lalu</div>
+      <div class="relative w-full mt-3" style="height:40px"><canvas id="hc-spark-headcount"></canvas></div>
+    </div>
+
+    <div class="bg-white rounded-xl border border-slate-200 p-5">
+      <div class="flex items-center justify-between">
+        <div class="text-xs font-medium text-slate-500 uppercase">Hadir Hari Ini</div>
+        <span class="text-xs px-2 py-0.5 bg-ok-50 text-ok-500 rounded-full">94,2%</span>
+      </div>
+      <div class="mt-2 text-3xl font-bold text-slate-900">1.175 <span class="text-sm font-normal text-slate-400">/ 1.247</span></div>
+      <div class="flex gap-3 text-xs mt-2">
+        <span class="flex items-center gap-1"><span class="w-2 h-2 bg-ok-500 rounded-full"></span>Hadir 1.175</span>
+        <span class="flex items-center gap-1"><span class="w-2 h-2 bg-amber-500 rounded-full"></span>Terlambat 28</span>
+        <span class="flex items-center gap-1"><span class="w-2 h-2 bg-red-500 rounded-full"></span>Absen 17</span>
+        <span class="flex items-center gap-1"><span class="w-2 h-2 bg-blue-400 rounded-full"></span>Cuti 27</span>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-xl border border-slate-200 p-5">
+      <div class="flex items-center justify-between">
+        <div class="text-xs font-medium text-slate-500 uppercase">Pengajuan Pending</div>
+        <span class="text-xs px-2 py-0.5 bg-amber-50 text-amber-600 rounded-full">Perlu aksi</span>
+      </div>
+      <div class="mt-2 text-3xl font-bold text-slate-900">12</div>
+      <div class="flex gap-3 text-xs mt-2 text-slate-600">
+        <span>🟦 Cuti 5</span>
+        <span>🟩 Izin 4</span>
+        <span>🟨 Lembur 3</span>
+      </div>
+      <div class="text-xs text-red-500 mt-1">2 pengajuan SLA &gt; 48 jam</div>
+    </div>
+
+    <div class="bg-white rounded-xl border border-slate-200 p-5">
+      <div class="flex items-center justify-between">
+        <div class="text-xs font-medium text-slate-500 uppercase">Total Payroll Mei</div>
+        <span class="text-xs px-2 py-0.5 bg-brand-50 text-brand-500 rounded-full">Draft</span>
+      </div>
+      <div class="mt-2 text-3xl font-bold text-slate-900">Rp 4,82M</div>
+      <div class="text-xs text-slate-500 mt-1">1.224 slip · 23 perlu review</div>
+      <div class="w-full bg-slate-100 rounded-full h-1.5 mt-3">
+        <div class="bg-brand-500 h-1.5 rounded-full" style="width: 78%"></div>
+      </div>
+      <div class="text-xs text-slate-400 mt-1">78% selesai diproses</div>
+    </div>
+  </div>
+
+  <!-- CHARTS ROW -->
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-4">
+    <div class="lg:col-span-2 bg-white rounded-xl border border-slate-200 p-5">
+      <div class="flex items-center justify-between mb-4">
+        <div>
+          <div class="text-sm font-semibold">Tren Kehadiran 30 Hari</div>
+          <div class="text-xs text-slate-500">Persentase hadir vs terlambat vs absen</div>
+        </div>
+        <div class="flex gap-2 text-xs">
+          <button class="px-3 py-1 bg-brand-500 text-white rounded-md">30 Hari</button>
+          <button class="px-3 py-1 bg-slate-100 text-slate-600 rounded-md">90 Hari</button>
+          <button class="px-3 py-1 bg-slate-100 text-slate-600 rounded-md">1 Tahun</button>
+        </div>
+      </div>
+      <div class="relative w-full" style="height:260px"><canvas id="hc-attendance-trend"></canvas></div>
+    </div>
+
+    <div class="bg-white rounded-xl border border-slate-200 p-5">
+      <div class="text-sm font-semibold mb-1">Karyawan per Departemen</div>
+      <div class="text-xs text-slate-500 mb-4">Distribusi headcount aktif</div>
+      <div class="relative w-full" style="height:200px"><canvas id="hc-dept-donut"></canvas></div>
+      <div class="mt-4 space-y-1.5 text-xs">
+        <div class="flex justify-between"><span class="flex items-center gap-2"><span class="w-2.5 h-2.5 rounded-sm bg-brand-500"></span>Pelayanan Medis</span><span class="font-semibold">487</span></div>
+        <div class="flex justify-between"><span class="flex items-center gap-2"><span class="w-2.5 h-2.5 rounded-sm bg-brand-300"></span>Keperawatan</span><span class="font-semibold">352</span></div>
+        <div class="flex justify-between"><span class="flex items-center gap-2"><span class="w-2.5 h-2.5 rounded-sm bg-ok-500"></span>Penunjang Medis</span><span class="font-semibold">198</span></div>
+        <div class="flex justify-between"><span class="flex items-center gap-2"><span class="w-2.5 h-2.5 rounded-sm bg-amber-400"></span>Administrasi</span><span class="font-semibold">142</span></div>
+        <div class="flex justify-between"><span class="flex items-center gap-2"><span class="w-2.5 h-2.5 rounded-sm bg-slate-400"></span>Umum & K3</span><span class="font-semibold">68</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TABLES ROW -->
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
+
+    <!-- PENDING APPROVALS -->
+    <div class="bg-white rounded-xl border border-slate-200">
+      <div class="flex items-center justify-between p-5 border-b border-slate-100">
+        <div>
+          <div class="text-sm font-semibold">Pengajuan Menunggu Approval</div>
+          <div class="text-xs text-slate-500">Daftar request dengan SLA tertinggi di atas</div>
+        </div>
+        <button class="text-xs text-brand-500 font-medium hover:underline">Lihat semua →</button>
+      </div>
+      <table class="w-full text-sm">
+        <thead class="text-xs text-slate-500 bg-slate-50">
+          <tr>
+            <th class="text-left px-5 py-2 font-medium">Karyawan</th>
+            <th class="text-left px-5 py-2 font-medium">Tipe</th>
+            <th class="text-left px-5 py-2 font-medium">Tanggal</th>
+            <th class="text-left px-5 py-2 font-medium">SLA</th>
+            <th class="text-right px-5 py-2 font-medium">Aksi</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          <tr>
+            <td class="px-5 py-3">
+              <div class="font-medium">Siti Nurhaliza</div>
+              <div class="text-xs text-slate-500">Perawat IGD · NIP 2024031245</div>
+            </td>
+            <td class="px-5 py-3"><span class="text-xs px-2 py-0.5 bg-blue-50 text-blue-600 rounded">Cuti Tahunan</span></td>
+            <td class="px-5 py-3 text-xs">20-22 Mei</td>
+            <td class="px-5 py-3 text-xs text-red-500 font-medium">52 jam ⚠</td>
+            <td class="px-5 py-3 text-right">
+              <button class="text-xs px-2 py-1 bg-ok-500 text-white rounded mr-1">Setujui</button>
+              <button class="text-xs px-2 py-1 bg-red-500 text-white rounded">Tolak</button>
+            </td>
+          </tr>
+          <tr>
+            <td class="px-5 py-3">
+              <div class="font-medium">Dr. Andi Wijaya</div>
+              <div class="text-xs text-slate-500">Dokter Spesialis · NIP 2023110123</div>
+            </td>
+            <td class="px-5 py-3"><span class="text-xs px-2 py-0.5 bg-amber-50 text-amber-600 rounded">Lembur</span></td>
+            <td class="px-5 py-3 text-xs">19 Mei · 22:00–02:00</td>
+            <td class="px-5 py-3 text-xs text-red-500 font-medium">48 jam ⚠</td>
+            <td class="px-5 py-3 text-right">
+              <button class="text-xs px-2 py-1 bg-ok-500 text-white rounded mr-1">Setujui</button>
+              <button class="text-xs px-2 py-1 bg-red-500 text-white rounded">Tolak</button>
+            </td>
+          </tr>
+          <tr>
+            <td class="px-5 py-3">
+              <div class="font-medium">Rina Marlina</div>
+              <div class="text-xs text-slate-500">Admin Farmasi · NIP 2025010567</div>
+            </td>
+            <td class="px-5 py-3"><span class="text-xs px-2 py-0.5 bg-ok-50 text-ok-500 rounded">Izin Sakit</span></td>
+            <td class="px-5 py-3 text-xs">18 Mei</td>
+            <td class="px-5 py-3 text-xs text-amber-600 font-medium">18 jam</td>
+            <td class="px-5 py-3 text-right">
+              <button class="text-xs px-2 py-1 bg-ok-500 text-white rounded mr-1">Setujui</button>
+              <button class="text-xs px-2 py-1 bg-red-500 text-white rounded">Tolak</button>
+            </td>
+          </tr>
+          <tr>
+            <td class="px-5 py-3">
+              <div class="font-medium">Hendra Saputra</div>
+              <div class="text-xs text-slate-500">Teknisi Lab · NIP 2024062201</div>
+            </td>
+            <td class="px-5 py-3"><span class="text-xs px-2 py-0.5 bg-blue-50 text-blue-600 rounded">Cuti Melahirkan</span></td>
+            <td class="px-5 py-3 text-xs">1-30 Jun</td>
+            <td class="px-5 py-3 text-xs text-slate-500">6 jam</td>
+            <td class="px-5 py-3 text-right">
+              <button class="text-xs px-2 py-1 bg-ok-500 text-white rounded mr-1">Setujui</button>
+              <button class="text-xs px-2 py-1 bg-red-500 text-white rounded">Tolak</button>
+            </td>
+          </tr>
+          <tr>
+            <td class="px-5 py-3">
+              <div class="font-medium">Yuni Astuti</div>
+              <div class="text-xs text-slate-500">Bidan · NIP 2022090112</div>
+            </td>
+            <td class="px-5 py-3"><span class="text-xs px-2 py-0.5 bg-amber-50 text-amber-600 rounded">Lembur</span></td>
+            <td class="px-5 py-3 text-xs">17 Mei · 18:00–22:00</td>
+            <td class="px-5 py-3 text-xs text-slate-500">3 jam</td>
+            <td class="px-5 py-3 text-right">
+              <button class="text-xs px-2 py-1 bg-ok-500 text-white rounded mr-1">Setujui</button>
+              <button class="text-xs px-2 py-1 bg-red-500 text-white rounded">Tolak</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- NEW HIRES + UPCOMING LEAVES -->
+    <div class="space-y-4">
+      <div class="bg-white rounded-xl border border-slate-200">
+        <div class="flex items-center justify-between p-5 border-b border-slate-100">
+          <div>
+            <div class="text-sm font-semibold">Karyawan Baru Bulan Ini</div>
+            <div class="text-xs text-slate-500">Mulai bergabung Mei 2026</div>
+          </div>
+          <span class="text-xs px-2 py-0.5 bg-ok-50 text-ok-500 rounded-full font-semibold">+12 orang</span>
+        </div>
+        <div class="p-5 space-y-3">
+          <div class="flex items-center gap-3">
+            <div class="w-9 h-9 rounded-full bg-brand-100 text-brand-500 flex items-center justify-center text-xs font-semibold">FA</div>
+            <div class="flex-1">
+              <div class="text-sm font-medium">Farhan Aditya</div>
+              <div class="text-xs text-slate-500">Perawat Rawat Inap · Mulai 12 Mei</div>
+            </div>
+            <span class="text-xs px-2 py-0.5 bg-amber-50 text-amber-600 rounded">Onboarding 3/7</span>
+          </div>
+          <div class="flex items-center gap-3">
+            <div class="w-9 h-9 rounded-full bg-ok-100 text-ok-500 flex items-center justify-center text-xs font-semibold">DP</div>
+            <div class="flex-1">
+              <div class="text-sm font-medium">Dewi Pratiwi</div>
+              <div class="text-xs text-slate-500">Apoteker · Mulai 6 Mei</div>
+            </div>
+            <span class="text-xs px-2 py-0.5 bg-ok-50 text-ok-500 rounded">Selesai</span>
+          </div>
+          <div class="flex items-center gap-3">
+            <div class="w-9 h-9 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center text-xs font-semibold">RS</div>
+            <div class="flex-1">
+              <div class="text-sm font-medium">Reza Saputro</div>
+              <div class="text-xs text-slate-500">Radiografer · Mulai 16 Mei</div>
+            </div>
+            <span class="text-xs px-2 py-0.5 bg-slate-100 text-slate-600 rounded">Belum mulai</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-xl border border-slate-200">
+        <div class="flex items-center justify-between p-5 border-b border-slate-100">
+          <div>
+            <div class="text-sm font-semibold">Cuti 7 Hari Ke Depan</div>
+            <div class="text-xs text-slate-500">Antisipasi kebutuhan tenaga kerja</div>
+          </div>
+          <button class="text-xs text-brand-500 font-medium hover:underline">Lihat kalender →</button>
+        </div>
+        <ul class="p-5 space-y-2 text-sm">
+          <li class="flex items-center justify-between">
+            <span><span class="font-medium">Maria Ulfah</span> · Cuti Tahunan</span>
+            <span class="text-xs text-slate-500">19-21 Mei</span>
+          </li>
+          <li class="flex items-center justify-between">
+            <span><span class="font-medium">Bagus Permana</span> · Cuti Tahunan</span>
+            <span class="text-xs text-slate-500">20 Mei</span>
+          </li>
+          <li class="flex items-center justify-between">
+            <span><span class="font-medium">Nisa Aulia</span> · Cuti Melahirkan</span>
+            <span class="text-xs text-slate-500">22 Mei – 22 Agu</span>
+          </li>
+          <li class="flex items-center justify-between">
+            <span><span class="font-medium">Joko Susilo</span> · Cuti Tahunan</span>
+            <span class="text-xs text-slate-500">23-25 Mei</span>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- ATTENDANCE HEATMAP + APPROVAL SLA -->
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-4">
+    <div class="lg:col-span-2 bg-white rounded-xl border border-slate-200 p-5">
+      <div class="flex items-center justify-between mb-4">
+        <div>
+          <div class="text-sm font-semibold">Tingkat Keterlambatan per Departemen</div>
+          <div class="text-xs text-slate-500">Rata-rata menit terlambat per karyawan / bulan</div>
+        </div>
+        <select class="text-xs border border-slate-200 rounded px-2 py-1">
+          <option>Mei 2026</option>
+          <option>April 2026</option>
+        </select>
+      </div>
+      <div class="relative w-full" style="height:280px"><canvas id="hc-late-dept"></canvas></div>
+    </div>
+
+    <div class="bg-white rounded-xl border border-slate-200 p-5">
+      <div class="text-sm font-semibold">Beban Approval per Approver</div>
+      <div class="text-xs text-slate-500 mb-4">Identifikasi bottleneck approval flow</div>
+      <ul class="space-y-3">
+        <li>
+          <div class="flex justify-between text-sm"><span>dr. Hadi (Ka. Pelayanan)</span><span class="font-semibold">8</span></div>
+          <div class="w-full bg-slate-100 rounded-full h-1.5"><div class="bg-red-500 h-1.5 rounded-full" style="width:80%"></div></div>
+        </li>
+        <li>
+          <div class="flex justify-between text-sm"><span>Ns. Lisa (Ka. Keperawatan)</span><span class="font-semibold">5</span></div>
+          <div class="w-full bg-slate-100 rounded-full h-1.5"><div class="bg-amber-500 h-1.5 rounded-full" style="width:50%"></div></div>
+        </li>
+        <li>
+          <div class="flex justify-between text-sm"><span>Pak Yusuf (Ka. SDM)</span><span class="font-semibold">3</span></div>
+          <div class="w-full bg-slate-100 rounded-full h-1.5"><div class="bg-ok-500 h-1.5 rounded-full" style="width:30%"></div></div>
+        </li>
+        <li>
+          <div class="flex justify-between text-sm"><span>Bu Ratna (Ka. Penunjang)</span><span class="font-semibold">2</span></div>
+          <div class="w-full bg-slate-100 rounded-full h-1.5"><div class="bg-ok-500 h-1.5 rounded-full" style="width:20%"></div></div>
+        </li>
+      </ul>
+    </div>
+  </div>
+
+</section>
+
+<!-- ============================================== -->
+<!-- DIREKTUR VIEW                                   -->
+<!-- ============================================== -->
+<section class="role-view" data-role="direktur">
+
+  <div class="bg-gradient-to-r from-brand-700 to-brand-900 rounded-2xl p-6 text-white flex items-center justify-between">
+    <div>
+      <h1 class="text-2xl font-bold">Ringkasan Eksekutif</h1>
+      <p class="text-brand-100 mt-1">Konsolidasi <span class="font-semibold">4 perusahaan grup</span> · Periode Mei 2026 · Update terakhir 10:42 WIB</p>
+    </div>
+    <div class="flex gap-2">
+      <select class="bg-white/10 border border-white/20 text-white text-sm rounded-lg px-3 py-2">
+        <option>Semua Perusahaan</option>
+        <option>RS Syifa Pusat</option>
+        <option>RS Syifa Bekasi</option>
+        <option>Klinik Syifa Bogor</option>
+        <option>Akademi Syifa</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- EXEC KPIs -->
+  <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
+    <div class="bg-white rounded-xl border border-slate-200 p-5">
+      <div class="text-xs text-slate-500 uppercase">Total Headcount</div>
+      <div class="mt-2 text-3xl font-bold">2.841</div>
+      <div class="flex items-center gap-2 text-xs mt-2">
+        <span class="text-ok-500 font-semibold">▲ 4,1%</span>
+        <span class="text-slate-500">YoY · +112 orang</span>
+      </div>
+    </div>
+    <div class="bg-white rounded-xl border border-slate-200 p-5">
+      <div class="text-xs text-slate-500 uppercase">Total Payroll Mei</div>
+      <div class="mt-2 text-3xl font-bold">Rp 11,2M</div>
+      <div class="flex items-center gap-2 text-xs mt-2">
+        <span class="text-amber-600 font-semibold">▲ 6,8%</span>
+        <span class="text-slate-500">vs Apr · +Rp 712jt</span>
+      </div>
+    </div>
+    <div class="bg-white rounded-xl border border-slate-200 p-5">
+      <div class="text-xs text-slate-500 uppercase">Turnover Rate</div>
+      <div class="mt-2 text-3xl font-bold">2,3%</div>
+      <div class="flex items-center gap-2 text-xs mt-2">
+        <span class="text-ok-500 font-semibold">▼ 0,4 pp</span>
+        <span class="text-slate-500">3-bulan terakhir</span>
+      </div>
+    </div>
+    <div class="bg-white rounded-xl border border-slate-200 p-5">
+      <div class="text-xs text-slate-500 uppercase">Biaya Lembur Mei</div>
+      <div class="mt-2 text-3xl font-bold">Rp 348jt</div>
+      <div class="flex items-center gap-2 text-xs mt-2">
+        <span class="text-red-500 font-semibold">▲ 12,4%</span>
+        <span class="text-slate-500">Anomali · cek shift</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-4">
+    <div class="lg:col-span-2 bg-white rounded-xl border border-slate-200 p-5">
+      <div class="text-sm font-semibold mb-1">Tren Payroll & Lembur (6 Bulan)</div>
+      <div class="text-xs text-slate-500 mb-4">Komposisi gaji pokok vs tunjangan vs lembur</div>
+      <div class="relative w-full" style="height:280px"><canvas id="dir-payroll-trend"></canvas></div>
+    </div>
+    <div class="bg-white rounded-xl border border-slate-200 p-5">
+      <div class="text-sm font-semibold mb-1">Headcount per Perusahaan</div>
+      <div class="text-xs text-slate-500 mb-4">Distribusi tenaga kerja grup</div>
+      <div class="relative w-full" style="height:240px"><canvas id="dir-company-bar"></canvas></div>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
+    <div class="bg-white rounded-xl border border-slate-200">
+      <div class="p-5 border-b border-slate-100">
+        <div class="text-sm font-semibold">Top 5 Departemen dengan Absensi Tertinggi</div>
+        <div class="text-xs text-slate-500">Departemen yang perlu intervensi manajerial</div>
+      </div>
+      <table class="w-full text-sm">
+        <thead class="text-xs text-slate-500 bg-slate-50">
+          <tr><th class="text-left px-5 py-2">Departemen</th><th class="text-left px-5 py-2">Perusahaan</th><th class="text-right px-5 py-2">Absen</th><th class="text-right px-5 py-2">Rate</th></tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          <tr><td class="px-5 py-3 font-medium">IGD Lantai 1</td><td class="px-5 py-3 text-xs text-slate-500">RS Syifa Pusat</td><td class="px-5 py-3 text-right font-semibold">42</td><td class="px-5 py-3 text-right text-red-500 font-semibold">8,4%</td></tr>
+          <tr><td class="px-5 py-3 font-medium">Rawat Inap Anak</td><td class="px-5 py-3 text-xs text-slate-500">RS Syifa Bekasi</td><td class="px-5 py-3 text-right font-semibold">31</td><td class="px-5 py-3 text-right text-amber-600 font-semibold">6,1%</td></tr>
+          <tr><td class="px-5 py-3 font-medium">Farmasi</td><td class="px-5 py-3 text-xs text-slate-500">RS Syifa Pusat</td><td class="px-5 py-3 text-right font-semibold">22</td><td class="px-5 py-3 text-right text-amber-600 font-semibold">5,3%</td></tr>
+          <tr><td class="px-5 py-3 font-medium">Laboratorium</td><td class="px-5 py-3 text-xs text-slate-500">Klinik Syifa Bogor</td><td class="px-5 py-3 text-right font-semibold">14</td><td class="px-5 py-3 text-right text-slate-600 font-semibold">4,2%</td></tr>
+          <tr><td class="px-5 py-3 font-medium">Administrasi</td><td class="px-5 py-3 text-xs text-slate-500">RS Syifa Bekasi</td><td class="px-5 py-3 text-right font-semibold">9</td><td class="px-5 py-3 text-right text-slate-600 font-semibold">3,1%</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="bg-white rounded-xl border border-slate-200 p-5">
+      <div class="text-sm font-semibold mb-1">Status Pelatihan & Sertifikasi</div>
+      <div class="text-xs text-slate-500 mb-4">Compliance kompetensi tahunan</div>
+      <div class="space-y-4">
+        <div>
+          <div class="flex justify-between text-sm mb-1"><span>BLS / BTLS</span><span class="font-semibold">94,1%</span></div>
+          <div class="w-full bg-slate-100 rounded-full h-2"><div class="bg-ok-500 h-2 rounded-full" style="width:94%"></div></div>
+          <div class="text-xs text-slate-500 mt-1">73 karyawan sertifikat expired dalam 90 hari</div>
+        </div>
+        <div>
+          <div class="flex justify-between text-sm mb-1"><span>PPI (Pencegahan Infeksi)</span><span class="font-semibold">87,3%</span></div>
+          <div class="w-full bg-slate-100 rounded-full h-2"><div class="bg-amber-500 h-2 rounded-full" style="width:87%"></div></div>
+          <div class="text-xs text-slate-500 mt-1">158 karyawan belum sertifikasi 2026</div>
+        </div>
+        <div>
+          <div class="flex justify-between text-sm mb-1"><span>Customer Service Excellence</span><span class="font-semibold">62,1%</span></div>
+          <div class="w-full bg-slate-100 rounded-full h-2"><div class="bg-red-500 h-2 rounded-full" style="width:62%"></div></div>
+          <div class="text-xs text-slate-500 mt-1">412 karyawan perlu update</div>
+        </div>
+        <div>
+          <div class="flex justify-between text-sm mb-1"><span>Patient Safety Goals</span><span class="font-semibold">98,4%</span></div>
+          <div class="w-full bg-slate-100 rounded-full h-2"><div class="bg-ok-500 h-2 rounded-full" style="width:98%"></div></div>
+          <div class="text-xs text-slate-500 mt-1">Target tercapai · audit Q2 lulus</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</section>
+
+<!-- ============================================== -->
+<!-- KARYAWAN VIEW                                   -->
+<!-- ============================================== -->
+<section class="role-view" data-role="karyawan">
+
+  <div class="bg-gradient-to-r from-ok-500 to-ok-700 rounded-2xl p-6 text-white">
+    <div class="flex items-center justify-between">
+      <div>
+        <h1 class="text-2xl font-bold">Selamat pagi, Siti! 🌅</h1>
+        <p class="text-ok-100 mt-1">Shift hari ini: <span class="font-semibold">Pagi (07:00–15:00)</span> · IGD Lantai 1 · RS Syifa Pusat</p>
+      </div>
+      <div class="text-right">
+        <div class="text-ok-100 text-sm">Status Hari Ini</div>
+        <div class="text-3xl font-bold">07:02 ✓</div>
+        <div class="text-xs text-ok-100">Clock in tepat waktu</div>
+      </div>
+    </div>
+    <div class="grid grid-cols-3 gap-4 mt-6">
+      <button class="bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl p-4 text-left transition">
+        <div class="text-2xl mb-1">⏱️</div>
+        <div class="font-semibold">Clock Out</div>
+        <div class="text-xs text-ok-100">Estimasi 15:00</div>
+      </button>
+      <button class="bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl p-4 text-left transition">
+        <div class="text-2xl mb-1">📅</div>
+        <div class="font-semibold">Ajukan Cuti</div>
+        <div class="text-xs text-ok-100">Sisa cuti: 8 hari</div>
+      </button>
+      <button class="bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl p-4 text-left transition">
+        <div class="text-2xl mb-1">📋</div>
+        <div class="font-semibold">Task Saya</div>
+        <div class="text-xs text-ok-100">3 belum selesai</div>
+      </button>
+    </div>
+  </div>
+
+  <!-- PERSONAL KPI -->
+  <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
+    <div class="bg-white rounded-xl border border-slate-200 p-5">
+      <div class="text-xs text-slate-500 uppercase">Hadir Bulan Ini</div>
+      <div class="mt-2 text-3xl font-bold">18 <span class="text-sm font-normal text-slate-400">/ 22 hari</span></div>
+      <div class="text-xs text-ok-500 mt-1">Kehadiran 81,8% — di atas rata-rata</div>
+    </div>
+    <div class="bg-white rounded-xl border border-slate-200 p-5">
+      <div class="text-xs text-slate-500 uppercase">Sisa Cuti</div>
+      <div class="mt-2 text-3xl font-bold">8 <span class="text-sm font-normal text-slate-400">/ 12 hari</span></div>
+      <div class="text-xs text-slate-500 mt-1">Cuti tahunan + cuti besar</div>
+    </div>
+    <div class="bg-white rounded-xl border border-slate-200 p-5">
+      <div class="text-xs text-slate-500 uppercase">Lembur Mei</div>
+      <div class="mt-2 text-3xl font-bold">14 <span class="text-sm font-normal text-slate-400">jam</span></div>
+      <div class="text-xs text-slate-500 mt-1">Setara Rp 420.000</div>
+    </div>
+    <div class="bg-white rounded-xl border border-slate-200 p-5">
+      <div class="text-xs text-slate-500 uppercase">Slip Gaji April</div>
+      <div class="mt-2 text-3xl font-bold">Rp 6,2jt</div>
+      <button class="text-xs text-brand-500 font-medium mt-1 hover:underline">⬇ Download PDF</button>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-4">
+    <!-- SHIFT CALENDAR PEEK -->
+    <div class="lg:col-span-2 bg-white rounded-xl border border-slate-200 p-5">
+      <div class="flex items-center justify-between mb-4">
+        <div>
+          <div class="text-sm font-semibold">Jadwal Shift — Mei 2026</div>
+          <div class="text-xs text-slate-500">Pola shift 6-hari kerja · 1-hari libur</div>
+        </div>
+        <button class="text-xs text-brand-500 font-medium hover:underline">Tukar shift →</button>
+      </div>
+      <div class="grid grid-cols-7 gap-1 text-center text-xs">
+        <div class="text-slate-400 font-medium pb-1">Sen</div>
+        <div class="text-slate-400 font-medium pb-1">Sel</div>
+        <div class="text-slate-400 font-medium pb-1">Rab</div>
+        <div class="text-slate-400 font-medium pb-1">Kam</div>
+        <div class="text-slate-400 font-medium pb-1">Jum</div>
+        <div class="text-slate-400 font-medium pb-1">Sab</div>
+        <div class="text-slate-400 font-medium pb-1">Min</div>
+        <!-- week 1 -->
+        <div class="p-2 rounded bg-brand-100 text-brand-700 font-semibold">P<br><span class="text-[10px] font-normal">12</span></div>
+        <div class="p-2 rounded bg-brand-100 text-brand-700 font-semibold">P<br><span class="text-[10px] font-normal">13</span></div>
+        <div class="p-2 rounded bg-amber-100 text-amber-700 font-semibold">S<br><span class="text-[10px] font-normal">14</span></div>
+        <div class="p-2 rounded bg-amber-100 text-amber-700 font-semibold">S<br><span class="text-[10px] font-normal">15</span></div>
+        <div class="p-2 rounded bg-slate-700 text-white font-semibold">M<br><span class="text-[10px] font-normal">16</span></div>
+        <div class="p-2 rounded bg-slate-700 text-white font-semibold">M<br><span class="text-[10px] font-normal">17</span></div>
+        <div class="p-2 rounded bg-slate-100 text-slate-400">Off<br><span class="text-[10px]">18</span></div>
+        <!-- week 2 - today -->
+        <div class="p-2 rounded ring-2 ring-ok-500 bg-brand-500 text-white font-semibold">P<br><span class="text-[10px] font-normal">19</span></div>
+        <div class="p-2 rounded bg-brand-100 text-brand-700 font-semibold">P<br><span class="text-[10px] font-normal">20</span></div>
+        <div class="p-2 rounded bg-brand-100 text-brand-700 font-semibold">P<br><span class="text-[10px] font-normal">21</span></div>
+        <div class="p-2 rounded bg-amber-100 text-amber-700 font-semibold">S<br><span class="text-[10px] font-normal">22</span></div>
+        <div class="p-2 rounded bg-amber-100 text-amber-700 font-semibold">S<br><span class="text-[10px] font-normal">23</span></div>
+        <div class="p-2 rounded bg-slate-700 text-white font-semibold">M<br><span class="text-[10px] font-normal">24</span></div>
+        <div class="p-2 rounded bg-slate-100 text-slate-400">Off<br><span class="text-[10px]">25</span></div>
+        <!-- week 3 -->
+        <div class="p-2 rounded bg-brand-100 text-brand-700 font-semibold">P<br><span class="text-[10px] font-normal">26</span></div>
+        <div class="p-2 rounded bg-brand-100 text-brand-700 font-semibold">P<br><span class="text-[10px] font-normal">27</span></div>
+        <div class="p-2 rounded bg-amber-100 text-amber-700 font-semibold">S<br><span class="text-[10px] font-normal">28</span></div>
+        <div class="p-2 rounded bg-blue-100 text-blue-700 font-semibold">Cuti<br><span class="text-[10px] font-normal">29</span></div>
+        <div class="p-2 rounded bg-blue-100 text-blue-700 font-semibold">Cuti<br><span class="text-[10px] font-normal">30</span></div>
+        <div class="p-2 rounded bg-slate-100 text-slate-400">Off<br><span class="text-[10px]">31</span></div>
+        <div class="p-2 rounded bg-slate-50 text-slate-300">-</div>
+      </div>
+      <div class="flex flex-wrap gap-3 mt-4 text-xs text-slate-600">
+        <span class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-brand-100"></span>Pagi (07-15)</span>
+        <span class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-amber-100"></span>Sore (15-23)</span>
+        <span class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-slate-700"></span>Malam (23-07)</span>
+        <span class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-blue-100"></span>Cuti</span>
+        <span class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-slate-100"></span>Libur</span>
+      </div>
+    </div>
+
+    <!-- MY TASKS -->
+    <div class="bg-white rounded-xl border border-slate-200">
+      <div class="p-5 border-b border-slate-100 flex items-center justify-between">
+        <div>
+          <div class="text-sm font-semibold">Task Saya</div>
+          <div class="text-xs text-slate-500">3 belum selesai · 1 overdue</div>
+        </div>
+        <button class="text-xs text-brand-500 font-medium hover:underline">Lihat semua →</button>
+      </div>
+      <ul class="p-5 space-y-3">
+        <li class="flex items-start gap-3">
+          <input type="checkbox" class="mt-1 accent-ok-500" />
+          <div class="flex-1">
+            <div class="text-sm font-medium">Update form triase pasien IGD</div>
+            <div class="text-xs text-red-500 mt-0.5">⚠ Overdue · 16 Mei</div>
+          </div>
+        </li>
+        <li class="flex items-start gap-3">
+          <input type="checkbox" class="mt-1 accent-ok-500" />
+          <div class="flex-1">
+            <div class="text-sm font-medium">Sertifikasi BLS — daftar ulang</div>
+            <div class="text-xs text-amber-600 mt-0.5">Due 22 Mei</div>
+          </div>
+        </li>
+        <li class="flex items-start gap-3">
+          <input type="checkbox" class="mt-1 accent-ok-500" />
+          <div class="flex-1">
+            <div class="text-sm font-medium">Audit obat narkotika harian</div>
+            <div class="text-xs text-slate-500 mt-0.5">Rutin · hari ini</div>
+          </div>
+        </li>
+        <li class="flex items-start gap-3 opacity-50">
+          <input type="checkbox" checked class="mt-1 accent-ok-500" />
+          <div class="flex-1">
+            <div class="text-sm font-medium line-through">Stocktake APD IGD</div>
+            <div class="text-xs text-ok-500 mt-0.5">✓ Selesai 16 Mei</div>
+          </div>
+        </li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- LEAVE BALANCE + LMS -->
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
+    <div class="bg-white rounded-xl border border-slate-200 p-5">
+      <div class="text-sm font-semibold mb-1">Saldo Cuti & Izin</div>
+      <div class="text-xs text-slate-500 mb-4">Tahun berjalan 2026</div>
+      <div class="space-y-4">
+        <div>
+          <div class="flex justify-between text-sm mb-1"><span>Cuti Tahunan</span><span class="font-semibold">8 / 12 hari</span></div>
+          <div class="w-full bg-slate-100 rounded-full h-2"><div class="bg-ok-500 h-2 rounded-full" style="width:67%"></div></div>
+        </div>
+        <div>
+          <div class="flex justify-between text-sm mb-1"><span>Cuti Besar</span><span class="font-semibold">0 / 30 hari</span></div>
+          <div class="w-full bg-slate-100 rounded-full h-2"><div class="bg-brand-500 h-2 rounded-full" style="width:0%"></div></div>
+          <div class="text-xs text-slate-400 mt-1">Tersedia mulai 2027 (masa kerja 6 thn)</div>
+        </div>
+        <div>
+          <div class="flex justify-between text-sm mb-1"><span>Izin Sakit</span><span class="font-semibold">2 hari terpakai</span></div>
+          <div class="w-full bg-slate-100 rounded-full h-2"><div class="bg-amber-500 h-2 rounded-full" style="width:20%"></div></div>
+        </div>
+        <div>
+          <div class="flex justify-between text-sm mb-1"><span>Izin Lainnya</span><span class="font-semibold">1 hari terpakai</span></div>
+          <div class="w-full bg-slate-100 rounded-full h-2"><div class="bg-amber-500 h-2 rounded-full" style="width:10%"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-xl border border-slate-200 p-5">
+      <div class="flex items-center justify-between mb-4">
+        <div>
+          <div class="text-sm font-semibold">Kursus Saya</div>
+          <div class="text-xs text-slate-500">Pelatihan & sertifikasi aktif</div>
+        </div>
+        <button class="text-xs text-brand-500 font-medium hover:underline">Lihat semua →</button>
+      </div>
+      <div class="space-y-3">
+        <div class="border border-slate-200 rounded-lg p-3">
+          <div class="flex justify-between items-start">
+            <div>
+              <div class="text-sm font-semibold">Patient Safety Goals 2026</div>
+              <div class="text-xs text-slate-500">10 dari 12 modul selesai</div>
+            </div>
+            <span class="text-xs px-2 py-0.5 bg-amber-50 text-amber-600 rounded">In Progress</span>
+          </div>
+          <div class="w-full bg-slate-100 rounded-full h-1.5 mt-2"><div class="bg-ok-500 h-1.5 rounded-full" style="width:83%"></div></div>
+        </div>
+        <div class="border border-slate-200 rounded-lg p-3">
+          <div class="flex justify-between items-start">
+            <div>
+              <div class="text-sm font-semibold">Basic Life Support — Refresher</div>
+              <div class="text-xs text-slate-500">Quiz akhir minggu depan</div>
+            </div>
+            <span class="text-xs px-2 py-0.5 bg-brand-50 text-brand-500 rounded">Enrolled</span>
+          </div>
+          <div class="w-full bg-slate-100 rounded-full h-1.5 mt-2"><div class="bg-brand-500 h-1.5 rounded-full" style="width:35%"></div></div>
+        </div>
+        <div class="border border-slate-200 rounded-lg p-3 opacity-70">
+          <div class="flex justify-between items-start">
+            <div>
+              <div class="text-sm font-semibold">Komunikasi Efektif Pelayanan</div>
+              <div class="text-xs text-ok-500">Selesai 03 Apr 2026 · Nilai 92</div>
+            </div>
+            <span class="text-xs px-2 py-0.5 bg-ok-50 text-ok-500 rounded">✓ Lulus</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</section>
+
+<!-- ============================================== -->
+<!-- FINANCE VIEW                                    -->
+<!-- ============================================== -->
+<section class="role-view" data-role="finance">
+
+  <div class="bg-gradient-to-r from-brand-500 to-brand-700 rounded-2xl p-6 text-white flex items-center justify-between">
+    <div>
+      <h1 class="text-2xl font-bold">Dashboard Keuangan Personalia</h1>
+      <p class="text-brand-100 mt-1">Periode aktif <span class="font-semibold">Mei 2026</span> · Cutoff <span class="font-semibold">25 Mei (7 hari)</span> · Tanggal bayar <span class="font-semibold">28 Mei</span></p>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
+    <div class="bg-white rounded-xl border border-slate-200 p-5">
+      <div class="text-xs text-slate-500 uppercase">Periode Payroll Terbuka</div>
+      <div class="mt-2 text-3xl font-bold">2</div>
+      <div class="text-xs text-amber-600 mt-1">Mei karyawan + April dokter</div>
+    </div>
+    <div class="bg-white rounded-xl border border-slate-200 p-5">
+      <div class="text-xs text-slate-500 uppercase">Slip Belum Dibayar</div>
+      <div class="mt-2 text-3xl font-bold">23 <span class="text-sm text-slate-400 font-normal">/ 1.247</span></div>
+      <div class="text-xs text-red-500 mt-1">Perlu review komponen lembur</div>
+    </div>
+    <div class="bg-white rounded-xl border border-slate-200 p-5">
+      <div class="text-xs text-slate-500 uppercase">Jasa Dokter Pending</div>
+      <div class="mt-2 text-3xl font-bold">17</div>
+      <div class="text-xs text-slate-500 mt-1">Rp 142jt belum dibayarkan</div>
+    </div>
+    <div class="bg-white rounded-xl border border-slate-200 p-5">
+      <div class="text-xs text-slate-500 uppercase">Biaya Insentif Mei</div>
+      <div class="mt-2 text-3xl font-bold">Rp 89jt</div>
+      <div class="text-xs text-slate-500 mt-1">5 program incentive aktif</div>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-4">
+    <div class="lg:col-span-2 bg-white rounded-xl border border-slate-200 p-5">
+      <div class="text-sm font-semibold mb-1">Komposisi Payroll Mei 2026</div>
+      <div class="text-xs text-slate-500 mb-4">Breakdown komponen per kategori</div>
+      <div class="relative w-full" style="height:280px"><canvas id="fin-payroll-stack"></canvas></div>
+    </div>
+    <div class="bg-white rounded-xl border border-slate-200 p-5">
+      <div class="text-sm font-semibold mb-1">Status Pemrosesan</div>
+      <div class="text-xs text-slate-500 mb-4">Workflow payroll bulan ini</div>
+      <ul class="space-y-3">
+        <li class="flex items-center gap-3">
+          <div class="w-7 h-7 rounded-full bg-ok-500 text-white flex items-center justify-center text-sm">✓</div>
+          <div class="flex-1"><div class="text-sm font-medium">Generate Payroll</div><div class="text-xs text-slate-500">1.247 slip dibuat · 12 Mei</div></div>
+        </li>
+        <li class="flex items-center gap-3">
+          <div class="w-7 h-7 rounded-full bg-ok-500 text-white flex items-center justify-center text-sm">✓</div>
+          <div class="flex-1"><div class="text-sm font-medium">Verifikasi Komponen</div><div class="text-xs text-slate-500">1.224 dari 1.247 selesai</div></div>
+        </li>
+        <li class="flex items-center gap-3">
+          <div class="w-7 h-7 rounded-full bg-amber-500 text-white flex items-center justify-center text-sm">3</div>
+          <div class="flex-1"><div class="text-sm font-medium">Review HC Manager</div><div class="text-xs text-amber-600">23 slip menunggu approval</div></div>
+        </li>
+        <li class="flex items-center gap-3 opacity-50">
+          <div class="w-7 h-7 rounded-full bg-slate-200 text-slate-500 flex items-center justify-center text-sm">4</div>
+          <div class="flex-1"><div class="text-sm font-medium">Final Approve Direktur</div><div class="text-xs text-slate-500">Menunggu langkah 3</div></div>
+        </li>
+        <li class="flex items-center gap-3 opacity-50">
+          <div class="w-7 h-7 rounded-full bg-slate-200 text-slate-500 flex items-center justify-center text-sm">5</div>
+          <div class="flex-1"><div class="text-sm font-medium">Eksekusi Pembayaran</div><div class="text-xs text-slate-500">Target 28 Mei via H2H BCA</div></div>
+        </li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
+    <div class="bg-white rounded-xl border border-slate-200">
+      <div class="p-5 border-b border-slate-100 flex items-center justify-between">
+        <div>
+          <div class="text-sm font-semibold">Slip Gaji Perlu Review</div>
+          <div class="text-xs text-slate-500">Selisih besar dari bulan lalu</div>
+        </div>
+        <button class="text-xs text-brand-500 font-medium hover:underline">Lihat semua →</button>
+      </div>
+      <table class="w-full text-sm">
+        <thead class="text-xs text-slate-500 bg-slate-50">
+          <tr>
+            <th class="text-left px-5 py-2">Karyawan</th>
+            <th class="text-right px-5 py-2">Apr</th>
+            <th class="text-right px-5 py-2">Mei</th>
+            <th class="text-right px-5 py-2">Δ</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          <tr>
+            <td class="px-5 py-3"><div class="font-medium">Dr. Andi Wijaya</div><div class="text-xs text-slate-500">Spesialis IGD</div></td>
+            <td class="px-5 py-3 text-right text-xs text-slate-500">Rp 24,1jt</td>
+            <td class="px-5 py-3 text-right font-semibold">Rp 31,8jt</td>
+            <td class="px-5 py-3 text-right text-red-500 font-semibold">+32%</td>
+          </tr>
+          <tr>
+            <td class="px-5 py-3"><div class="font-medium">Hendra Saputra</div><div class="text-xs text-slate-500">Teknisi Lab</div></td>
+            <td class="px-5 py-3 text-right text-xs text-slate-500">Rp 5,8jt</td>
+            <td class="px-5 py-3 text-right font-semibold">Rp 8,2jt</td>
+            <td class="px-5 py-3 text-right text-red-500 font-semibold">+41%</td>
+          </tr>
+          <tr>
+            <td class="px-5 py-3"><div class="font-medium">Maria Ulfah</div><div class="text-xs text-slate-500">Bidan</div></td>
+            <td class="px-5 py-3 text-right text-xs text-slate-500">Rp 7,1jt</td>
+            <td class="px-5 py-3 text-right font-semibold">Rp 4,2jt</td>
+            <td class="px-5 py-3 text-right text-amber-600 font-semibold">-41%</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="bg-white rounded-xl border border-slate-200 p-5">
+      <div class="text-sm font-semibold mb-1">Biaya Lembur per Departemen</div>
+      <div class="text-xs text-slate-500 mb-4">Mei 2026 · Top 6</div>
+      <div class="relative w-full" style="height:280px"><canvas id="fin-overtime-bar"></canvas></div>
+    </div>
+  </div>
+
+</section>
+
+<!-- ============================================== -->
+<!-- LEARNING & DEVELOPMENT VIEW                     -->
+<!-- ============================================== -->
+<section class="role-view" data-role="lnd">
+
+  <div class="bg-gradient-to-r from-brand-500 to-ok-500 rounded-2xl p-6 text-white flex items-center justify-between">
+    <div>
+      <h1 class="text-2xl font-bold">Learning & Development</h1>
+      <p class="text-brand-100 mt-1"><span class="font-semibold">18 kursus aktif</span> · <span class="font-semibold">842 enrolment</span> · Rencana pelatihan Q2 berjalan</p>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
+    <div class="bg-white rounded-xl border border-slate-200 p-5">
+      <div class="text-xs text-slate-500 uppercase">Kursus Aktif</div>
+      <div class="mt-2 text-3xl font-bold">18</div>
+      <div class="text-xs text-ok-500 mt-1">+3 dari Q1</div>
+    </div>
+    <div class="bg-white rounded-xl border border-slate-200 p-5">
+      <div class="text-xs text-slate-500 uppercase">Total Enrolment</div>
+      <div class="mt-2 text-3xl font-bold">842</div>
+      <div class="text-xs text-slate-500 mt-1">682 sedang aktif</div>
+    </div>
+    <div class="bg-white rounded-xl border border-slate-200 p-5">
+      <div class="text-xs text-slate-500 uppercase">Completion Rate</div>
+      <div class="mt-2 text-3xl font-bold">71,4%</div>
+      <div class="text-xs text-amber-600 mt-1">Target 80% · gap 8,6 pp</div>
+    </div>
+    <div class="bg-white rounded-xl border border-slate-200 p-5">
+      <div class="text-xs text-slate-500 uppercase">Trainer Aktif</div>
+      <div class="mt-2 text-3xl font-bold">14</div>
+      <div class="text-xs text-slate-500 mt-1">5 internal · 9 eksternal</div>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-4">
+    <div class="lg:col-span-2 bg-white rounded-xl border border-slate-200 p-5">
+      <div class="text-sm font-semibold mb-1">Completion Rate per Kursus</div>
+      <div class="text-xs text-slate-500 mb-4">6 kursus dengan enrolment tertinggi</div>
+      <div class="relative w-full" style="height:280px"><canvas id="lnd-completion-bar"></canvas></div>
+    </div>
+    <div class="bg-white rounded-xl border border-slate-200 p-5">
+      <div class="text-sm font-semibold mb-1">Distribusi Nilai Quiz</div>
+      <div class="text-xs text-slate-500 mb-4">Patient Safety Goals · 312 peserta</div>
+      <div class="relative w-full" style="height:280px"><canvas id="lnd-score-dist"></canvas></div>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
+    <div class="bg-white rounded-xl border border-slate-200">
+      <div class="p-5 border-b border-slate-100 flex items-center justify-between">
+        <div>
+          <div class="text-sm font-semibold">Jadwal Pelatihan Minggu Ini</div>
+          <div class="text-xs text-slate-500">19-25 Mei 2026</div>
+        </div>
+        <button class="text-xs text-brand-500 font-medium hover:underline">Kelola jadwal →</button>
+      </div>
+      <ul class="p-5 space-y-3">
+        <li class="border-l-4 border-brand-500 pl-3">
+          <div class="text-sm font-semibold">BLS Refresher — Batch 12</div>
+          <div class="text-xs text-slate-500">Selasa 20 Mei · 09:00–15:00 · Ruang Diklat 1</div>
+          <div class="text-xs text-slate-600 mt-1">Trainer: dr. Hadi Susanto · 24/24 peserta</div>
+        </li>
+        <li class="border-l-4 border-ok-500 pl-3">
+          <div class="text-sm font-semibold">Komunikasi Efektif Frontline</div>
+          <div class="text-xs text-slate-500">Rabu 21 Mei · 13:00–17:00 · Online (Zoom)</div>
+          <div class="text-xs text-slate-600 mt-1">Trainer: Prof. Maya Sari · 18/30 peserta</div>
+        </li>
+        <li class="border-l-4 border-amber-500 pl-3">
+          <div class="text-sm font-semibold">Manajemen Risiko Klinis</div>
+          <div class="text-xs text-slate-500">Jumat 23 Mei · 08:30–12:00 · Ruang Diklat 2</div>
+          <div class="text-xs text-slate-600 mt-1">Trainer: dr. Bambang K. · 8/15 peserta · Buka pendaftaran</div>
+        </li>
+      </ul>
+    </div>
+
+    <div class="bg-white rounded-xl border border-slate-200">
+      <div class="p-5 border-b border-slate-100 flex items-center justify-between">
+        <div>
+          <div class="text-sm font-semibold">Top Performer</div>
+          <div class="text-xs text-slate-500">Akumulasi nilai pelatihan 2026</div>
+        </div>
+        <button class="text-xs text-brand-500 font-medium hover:underline">Lihat ranking →</button>
+      </div>
+      <ol class="p-5 space-y-3">
+        <li class="flex items-center gap-3">
+          <div class="text-lg">🥇</div>
+          <div class="w-9 h-9 rounded-full bg-brand-100 text-brand-500 flex items-center justify-center text-xs font-semibold">SN</div>
+          <div class="flex-1">
+            <div class="text-sm font-medium">Siti Nurhaliza</div>
+            <div class="text-xs text-slate-500">8 kursus selesai · rata-rata 94</div>
+          </div>
+          <span class="text-sm font-bold text-brand-500">752</span>
+        </li>
+        <li class="flex items-center gap-3">
+          <div class="text-lg">🥈</div>
+          <div class="w-9 h-9 rounded-full bg-ok-100 text-ok-500 flex items-center justify-center text-xs font-semibold">AW</div>
+          <div class="flex-1">
+            <div class="text-sm font-medium">Dr. Andi Wijaya</div>
+            <div class="text-xs text-slate-500">6 kursus selesai · rata-rata 96</div>
+          </div>
+          <span class="text-sm font-bold text-brand-500">694</span>
+        </li>
+        <li class="flex items-center gap-3">
+          <div class="text-lg">🥉</div>
+          <div class="w-9 h-9 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center text-xs font-semibold">YA</div>
+          <div class="flex-1">
+            <div class="text-sm font-medium">Yuni Astuti</div>
+            <div class="text-xs text-slate-500">7 kursus selesai · rata-rata 89</div>
+          </div>
+          <span class="text-sm font-bold text-brand-500">671</span>
+        </li>
+        <li class="flex items-center gap-3 pl-9">
+          <div class="w-9 h-9 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center text-xs font-semibold">MU</div>
+          <div class="flex-1">
+            <div class="text-sm font-medium">Maria Ulfah</div>
+            <div class="text-xs text-slate-500">6 kursus selesai · rata-rata 88</div>
+          </div>
+          <span class="text-sm font-bold text-slate-600">623</span>
+        </li>
+      </ol>
+    </div>
+  </div>
+
+</section>
+
+</main>
+
+<footer class="max-w-[1440px] mx-auto px-6 py-8 text-center text-xs text-slate-400">
+  Mockup statis · Dirancang untuk presentasi klien Syifa HRIS · Data ilustrasi mengikuti skema model aktual (User, AttendanceRecords, Payroll, AttendanceRequests, Task, LmsCourses, ShiftScheduleAssignments, OrgStructure).
+</footer>
+
+<script>
+// =====================
+// Global Chart.js defaults — kill animation + lazy resize
+// =====================
+Chart.defaults.animation = false;
+Chart.defaults.animations.colors = false;
+Chart.defaults.animations.x = false;
+Chart.defaults.animations.y = false;
+Chart.defaults.transitions.active.animation.duration = 0;
+Chart.defaults.transitions.resize.animation.duration = 0;
+Chart.defaults.responsive = true;
+Chart.defaults.maintainAspectRatio = false;
+Chart.defaults.devicePixelRatio = 1; // cheaper redraw
+
+// =====================
+// Role switching
+// =====================
+const tabs = document.querySelectorAll('.role-tab');
+const views = document.querySelectorAll('.role-view');
+const topbarName = document.getElementById('topbar-name');
+const topbarRole = document.getElementById('topbar-role');
+
+const roleMeta = {
+  hc:       { name: 'Budi Darmawan',   role: 'HC Manager' },
+  direktur: { name: 'dr. Hartono, MARS', role: 'Direktur Utama' },
+  karyawan: { name: 'Siti Nurhaliza',   role: 'Perawat IGD' },
+  finance:  { name: 'Indra Permata',    role: 'Staff Finance' },
+  lnd:      { name: 'Prof. Maya Sari',  role: 'Learning & Dev' },
+};
+
+const initialized = { hc: false, direktur: false, finance: false, lnd: false, karyawan: true };
+
+tabs.forEach(t => {
+  t.addEventListener('click', () => {
+    const role = t.dataset.role;
+    tabs.forEach(x => x.classList.remove('active'));
+    t.classList.add('active');
+    views.forEach(v => v.classList.toggle('active', v.dataset.role === role));
+    topbarName.textContent = roleMeta[role].name;
+    topbarRole.textContent = roleMeta[role].role;
+    // Init once per role; subsequent visits do nothing (charts already drawn).
+    if (!initialized[role]) {
+      requestAnimationFrame(() => initChartsFor(role));
+      initialized[role] = true;
+    }
+  });
+});
+
+// =====================
+// Chart helpers
+// =====================
+const charts = {};
+const gridColor = '#e2e8f0';
+const labelColor = '#64748b';
+
+function destroy(id) {
+  if (charts[id]) { charts[id].destroy(); delete charts[id]; }
+}
+
+function commonOpts(extra = {}) {
+  return {
+    animation: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: { backgroundColor: '#0f172a', padding: 10, cornerRadius: 8, animation: false }
+    },
+    scales: {
+      x: { grid: { display: false }, ticks: { color: labelColor, font: { size: 10 } } },
+      y: { grid: { color: gridColor, drawBorder: false }, ticks: { color: labelColor, font: { size: 10 } }, beginAtZero: true }
+    },
+    ...extra
+  };
+}
+
+// =====================
+// HC charts
+// =====================
+function initHC() {
+  destroy('hc-spark-headcount');
+  charts['hc-spark-headcount'] = new Chart(document.getElementById('hc-spark-headcount'), {
+    type: 'line',
+    data: {
+      labels: ['Des','Jan','Feb','Mar','Apr','Mei'],
+      datasets: [{ data: [1198,1208,1219,1228,1235,1247], borderColor: '#047C54', backgroundColor: 'rgba(4,124,84,0.15)', fill: true, tension: 0.35, pointRadius: 0, borderWidth: 2 }]
+    },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { enabled: false } }, scales: { x: { display: false }, y: { display: false } } }
+  });
+
+  destroy('hc-attendance-trend');
+  const days = Array.from({length: 30}, (_, i) => (i+1));
+  charts['hc-attendance-trend'] = new Chart(document.getElementById('hc-attendance-trend'), {
+    type: 'line',
+    data: {
+      labels: days,
+      datasets: [
+        { label: 'Hadir %', data: [94,93,95,94,96,93,91,94,95,96,94,92,93,95,94,96,97,95,94,93,94,95,96,94,93,92,95,96,94,94], borderColor: '#047C54', backgroundColor: 'rgba(4,124,84,0.10)', fill: true, tension: 0.35, pointRadius: 0, borderWidth: 2 },
+        { label: 'Terlambat %', data: [3,4,2,3,2,4,5,3,2,2,3,4,4,2,3,2,1,2,3,4,3,2,2,3,4,5,2,2,3,3], borderColor: '#f59e0b', backgroundColor: 'rgba(245,158,11,0.10)', fill: false, tension: 0.35, pointRadius: 0, borderWidth: 2, borderDash: [4,4] },
+        { label: 'Absen %', data: [3,3,3,3,2,3,4,3,3,2,3,4,3,3,3,2,2,3,3,3,3,3,2,3,3,3,3,2,3,3], borderColor: '#ef4444', backgroundColor: 'rgba(239,68,68,0.10)', fill: false, tension: 0.35, pointRadius: 0, borderWidth: 2, borderDash: [2,3] }
+      ]
+    },
+    options: commonOpts({ plugins: { legend: { display: true, position: 'bottom', labels: { boxWidth: 10, color: labelColor, font: { size: 11 } } }, tooltip: { mode: 'index', intersect: false } } })
+  });
+
+  destroy('hc-dept-donut');
+  charts['hc-dept-donut'] = new Chart(document.getElementById('hc-dept-donut'), {
+    type: 'doughnut',
+    data: {
+      labels: ['Pelayanan Medis','Keperawatan','Penunjang Medis','Administrasi','Umum & K3'],
+      datasets: [{ data: [487,352,198,142,68], backgroundColor: ['#042c6c','#8db3d1','#047C54','#f59e0b','#94a3b8'], borderWidth: 0 }]
+    },
+    options: { responsive: true, maintainAspectRatio: false, cutout: '65%', plugins: { legend: { display: false }, tooltip: { backgroundColor: '#0f172a', padding: 10, cornerRadius: 8 } } }
+  });
+
+  destroy('hc-late-dept');
+  charts['hc-late-dept'] = new Chart(document.getElementById('hc-late-dept'), {
+    type: 'bar',
+    data: {
+      labels: ['IGD','Rawat Inap A','Rawat Inap B','Farmasi','Lab','Radiologi','Administrasi','Keuangan'],
+      datasets: [
+        { label: 'Rata-rata menit terlambat', data: [18.2, 12.1, 9.4, 14.6, 8.2, 11.3, 5.4, 3.1], backgroundColor: ['#ef4444','#f59e0b','#f59e0b','#f59e0b','#94a3b8','#f59e0b','#94a3b8','#047C54'], borderRadius: 6 }
+      ]
+    },
+    options: commonOpts()
+  });
+}
+
+// =====================
+// Direktur charts
+// =====================
+function initDirektur() {
+  destroy('dir-payroll-trend');
+  charts['dir-payroll-trend'] = new Chart(document.getElementById('dir-payroll-trend'), {
+    type: 'bar',
+    data: {
+      labels: ['Des 25','Jan 26','Feb 26','Mar 26','Apr 26','Mei 26'],
+      datasets: [
+        { label: 'Gaji Pokok',  data: [7.1,7.2,7.2,7.3,7.4,7.5], backgroundColor: '#042c6c', stack: 'p' },
+        { label: 'Tunjangan',   data: [2.3,2.3,2.4,2.5,2.5,2.6], backgroundColor: '#6799c1', stack: 'p' },
+        { label: 'Lembur',      data: [0.21,0.24,0.26,0.28,0.31,0.35], backgroundColor: '#f59e0b', stack: 'p' },
+        { label: 'Insentif',    data: [0.55,0.58,0.62,0.65,0.71,0.75], backgroundColor: '#047C54', stack: 'p' }
+      ]
+    },
+    options: commonOpts({ plugins: { legend: { display: true, position: 'bottom', labels: { boxWidth: 10, color: labelColor, font: { size: 11 } } }, tooltip: { mode: 'index', intersect: false, callbacks: { label: (ctx) => ctx.dataset.label + ': Rp ' + ctx.raw + 'M' } } }, scales: { x: { stacked: true, grid: { display: false }, ticks: { color: labelColor, font: { size: 10 } } }, y: { stacked: true, grid: { color: gridColor }, ticks: { color: labelColor, font: { size: 10 }, callback: v => 'Rp ' + v + 'M' }, beginAtZero: true } } })
+  });
+
+  destroy('dir-company-bar');
+  charts['dir-company-bar'] = new Chart(document.getElementById('dir-company-bar'), {
+    type: 'bar',
+    data: {
+      labels: ['RS Syifa Pusat','RS Syifa Bekasi','Klinik Bogor','Akademi Syifa'],
+      datasets: [{ data: [1247,892,418,284], backgroundColor: ['#042c6c','#6799c1','#047C54','#f59e0b'], borderRadius: 6 }]
+    },
+    options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { backgroundColor: '#0f172a', padding: 10, cornerRadius: 8 } }, scales: { x: { grid: { color: gridColor }, ticks: { color: labelColor } }, y: { grid: { display: false }, ticks: { color: labelColor, font: { size: 11 } } } } }
+  });
+}
+
+// =====================
+// Finance charts
+// =====================
+function initFinance() {
+  destroy('fin-payroll-stack');
+  charts['fin-payroll-stack'] = new Chart(document.getElementById('fin-payroll-stack'), {
+    type: 'doughnut',
+    data: {
+      labels: ['Gaji Pokok','Tunjangan Tetap','Tunjangan Variabel','Lembur','Insentif','BPJS Kesehatan','BPJS Ketenagakerjaan','PPh 21'],
+      datasets: [{ data: [2900, 950, 410, 348, 285, 145, 124, 218], backgroundColor: ['#042c6c','#6799c1','#8db3d1','#f59e0b','#047C54','#86efac','#d9e5f0','#fca5a5'], borderWidth: 0 }]
+    },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { boxWidth: 10, color: labelColor, font: { size: 11 } } }, tooltip: { backgroundColor: '#0f172a', padding: 10, callbacks: { label: ctx => ctx.label + ': Rp ' + ctx.raw.toLocaleString('id-ID') + 'jt' } } } }
+  });
+
+  destroy('fin-overtime-bar');
+  charts['fin-overtime-bar'] = new Chart(document.getElementById('fin-overtime-bar'), {
+    type: 'bar',
+    data: {
+      labels: ['IGD','Rawat Inap A','Rawat Inap B','OK','Farmasi','Lab'],
+      datasets: [{ data: [98, 72, 64, 51, 38, 25], backgroundColor: ['#ef4444','#f59e0b','#f59e0b','#f59e0b','#94a3b8','#94a3b8'], borderRadius: 6 }]
+    },
+    options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { backgroundColor: '#0f172a', padding: 10, callbacks: { label: ctx => 'Rp ' + ctx.raw + 'jt' } } }, scales: { x: { grid: { color: gridColor }, ticks: { color: labelColor, callback: v => 'Rp '+v+'jt' } }, y: { grid: { display: false }, ticks: { color: labelColor, font: { size: 11 } } } } }
+  });
+}
+
+// =====================
+// L&D charts
+// =====================
+function initLnd() {
+  destroy('lnd-completion-bar');
+  charts['lnd-completion-bar'] = new Chart(document.getElementById('lnd-completion-bar'), {
+    type: 'bar',
+    data: {
+      labels: ['Patient Safety 2026','BLS Refresher','Komunikasi Efektif','PPI Dasar','Manajemen Risiko','Customer Service'],
+      datasets: [
+        { label: 'Selesai', data: [78, 65, 52, 71, 38, 44], backgroundColor: '#047C54', stack: 's' },
+        { label: 'Belum',   data: [22, 35, 48, 29, 62, 56], backgroundColor: '#e2e8f0', stack: 's' }
+      ]
+    },
+    options: commonOpts({ plugins: { legend: { display: true, position: 'bottom', labels: { boxWidth: 10, color: labelColor, font: { size: 11 } } }, tooltip: { mode: 'index', intersect: false } }, scales: { x: { stacked: true, grid: { display: false }, ticks: { color: labelColor, font: { size: 10 } } }, y: { stacked: true, grid: { color: gridColor }, ticks: { color: labelColor, callback: v => v + '%' }, beginAtZero: true, max: 100 } } })
+  });
+
+  destroy('lnd-score-dist');
+  charts['lnd-score-dist'] = new Chart(document.getElementById('lnd-score-dist'), {
+    type: 'bar',
+    data: {
+      labels: ['<60','60-70','70-80','80-90','90-100'],
+      datasets: [{ data: [8, 24, 86, 142, 52], backgroundColor: ['#ef4444','#f59e0b','#6799c1','#042c6c','#047C54'], borderRadius: 6 }]
+    },
+    options: commonOpts()
+  });
+}
+
+// =====================
+// Init per active role
+// =====================
+function initChartsFor(role) {
+  if (role === 'hc')       initHC();
+  if (role === 'direktur') initDirektur();
+  if (role === 'finance')  initFinance();
+  if (role === 'lnd')      initLnd();
+}
+
+window.addEventListener('load', () => {
+  initChartsFor('hc');
+  initialized.hc = true;
+});
+
+// Pause Chart.js work when tab not visible — keep laptop fan quiet during presentation
+document.addEventListener('visibilitychange', () => {
+  Object.values(charts).forEach(ch => {
+    try { document.hidden ? ch.stop() : ch.update('none'); } catch (e) {}
+  });
+});
+</script>
+
+</body>
+</html>

@@ -1,0 +1,299 @@
+/* Syifa Global Group - Custom Filament Theme */
+/* Primary Color: #042c6c (Dark Blue) */
+/* Success Color: #047C54 (Dark Green) */
+
+:root {
+    --syifa-primary: #042c6c;
+    --syifa-primary-hover: #032356;
+    --syifa-primary-light: rgba(4, 44, 108, 0.1);
+    
+    --syifa-success: #047C54;
+    --syifa-success-hover: #036143;
+    --syifa-success-light: rgba(4, 124, 84, 0.1);
+}
+
+/* PRIMARY BUTTONS - Background #042c6c, Text White */
+.fi-btn-primary,
+.fi-ac-btn-action.fi-color-primary,
+button[type="submit"],
+.fi-form-actions .fi-btn-primary,
+.fi-ta-actions .fi-btn-primary {
+    background-color: var(--syifa-primary) !important;
+    color: white !important;
+    border-color: var(--syifa-primary) !important;
+}
+
+.fi-btn-primary:hover,
+.fi-ac-btn-action.fi-color-primary:hover,
+button[type="submit"]:hover,
+.fi-form-actions .fi-btn-primary:hover,
+.fi-ta-actions .fi-btn-primary:hover {
+    background-color: var(--syifa-primary-hover) !important;
+    color: white !important;
+    border-color: var(--syifa-primary-hover) !important;
+}
+
+.fi-btn-primary:focus,
+.fi-ac-btn-action.fi-color-primary:focus,
+button[type="submit"]:focus,
+.fi-form-actions .fi-btn-primary:focus {
+    background-color: var(--syifa-primary) !important;
+    color: white !important;
+    border-color: var(--syifa-primary) !important;
+    box-shadow: 0 0 0 2px rgba(4, 44, 108, 0.2) !important;
+}
+
+/* PRIMARY LINKS */
+.fi-link.fi-color-primary,
+a.fi-color-primary {
+    color: var(--syifa-primary) !important;
+}
+
+.fi-link.fi-color-primary:hover,
+a.fi-color-primary:hover {
+    color: var(--syifa-primary-hover) !important;
+}
+
+/* BADGES */
+/* .fi-badge.fi-color-primary {
+    background-color: var(--syifa-primary) !important;
+    color: white !important;
+} */
+
+/* FORM INPUTS FOCUS */
+.fi-input:focus,
+.fi-select select:focus,
+.fi-textarea:focus {
+    border-color: var(--syifa-primary) !important;
+    box-shadow: 0 0 0 1px var(--syifa-primary) !important;
+}
+
+/* CHECKBOXES & RADIOS */
+.fi-fo-checkbox input:checked,
+.fi-fo-radio input:checked {
+    background-color: var(--syifa-primary) !important;
+    border-color: var(--syifa-primary) !important;
+}
+
+/* TOGGLE SWITCHES */
+.fi-fo-toggle input:checked {
+    background-color: var(--syifa-primary) !important;
+}
+
+/* SIDEBAR NAVIGATION */
+.fi-sidebar-nav .fi-sidebar-nav-item.fi-active {
+    background-color: var(--syifa-primary-light) !important;
+}
+
+.fi-sidebar-nav .fi-sidebar-nav-item.fi-active .fi-sidebar-nav-item-label {
+    color: var(--syifa-primary) !important;
+    font-weight: 600;
+}
+
+/* PAGINATION */
+.fi-pagination .fi-btn.fi-active {
+    background-color: var(--syifa-primary) !important;
+    color: white !important;
+    border-color: var(--syifa-primary) !important;
+}
+
+/* PROGRESS BARS */
+.fi-progress-bar .fi-progress-bar-indicator {
+    background-color: var(--syifa-primary) !important;
+}
+
+/* TABS */
+.fi-tabs .fi-tabs-item.fi-active {
+    color: var(--syifa-primary) !important;
+    border-bottom-color: var(--syifa-primary) !important;
+}
+
+/* TABLE SORTING */
+.fi-ta-header-cell .fi-ta-header-cell-sort-button.fi-active {
+    color: var(--syifa-primary) !important;
+}
+
+/* LOADING SPINNER */
+.fi-spinner {
+    color: var(--syifa-primary) !important;
+}
+
+/* NOTIFICATION SUCCESS */
+.fi-no-success {
+    background-color: var(--syifa-primary) !important;
+}
+
+/* UTILITY CLASSES */
+.text-primary-600 {
+    color: var(--syifa-primary) !important;
+}
+
+.bg-primary-600 {
+    background-color: var(--syifa-primary) !important;
+}
+
+.border-primary-600 {
+    border-color: var(--syifa-primary) !important;
+}
+
+/* CUSTOM SYIFA UTILITIES */
+.bg-syifa-primary {
+    background-color: var(--syifa-primary) !important;
+}
+
+.text-syifa-primary {
+    color: var(--syifa-primary) !important;
+}
+
+.border-syifa-primary {
+    border-color: var(--syifa-primary) !important;
+}
+
+/* ENSURE BUTTON TEXT IS ALWAYS WHITE ON PRIMARY BACKGROUND */
+.fi-btn-primary *,
+.fi-ac-btn-action.fi-color-primary *,
+button[type="submit"] *,
+.fi-form-actions .fi-btn-primary * {
+    color: white !important;
+}
+
+/* MODAL ACTIONS */
+.fi-modal-actions .fi-btn-primary {
+    background-color: var(--syifa-primary) !important;
+    color: white !important;
+}
+
+/* DROPDOWN ACTIONS */
+.fi-dropdown-list-item.fi-color-primary {
+    color: var(--syifa-primary) !important;
+}
+
+.fi-dropdown-list-item.fi-color-primary:hover {
+    background-color: var(--syifa-primary-light) !important;
+    color: var(--syifa-primary) !important;
+}
+
+/* SUCCESS BUTTONS - Background #047C54, Text White */
+.fi-btn-success,
+.fi-ac-btn-action.fi-color-success,
+.fi-form-actions .fi-btn-success,
+.fi-ta-actions .fi-btn-success {
+    background-color: var(--syifa-success) !important;
+    color: white !important;
+    border-color: var(--syifa-success) !important;
+}
+
+.fi-btn-success:hover,
+.fi-ac-btn-action.fi-color-success:hover,
+.fi-form-actions .fi-btn-success:hover,
+.fi-ta-actions .fi-btn-success:hover {
+    background-color: var(--syifa-success-hover) !important;
+    color: white !important;
+    border-color: var(--syifa-success-hover) !important;
+}
+
+.fi-btn-success:focus,
+.fi-ac-btn-action.fi-color-success:focus,
+.fi-form-actions .fi-btn-success:focus {
+    background-color: var(--syifa-success) !important;
+    color: white !important;
+    border-color: var(--syifa-success) !important;
+    box-shadow: 0 0 0 2px rgba(4, 124, 84, 0.2) !important;
+}
+
+/* SUCCESS LINKS */
+.fi-link.fi-color-success,
+a.fi-color-success {
+    color: var(--syifa-success) !important;
+}
+
+.fi-link.fi-color-success:hover,
+a.fi-color-success:hover {
+    color: var(--syifa-success-hover) !important;
+}
+
+/* SUCCESS BADGES */
+/* .fi-badge.fi-color-success {
+    background-color: var(--syifa-success) !important;
+    color: white !important;
+} */
+
+/* SUCCESS NOTIFICATIONS */
+.fi-no-success {
+    background-color: var(--syifa-success) !important;
+    color: white !important;
+}
+
+/* SUCCESS UTILITY CLASSES */
+.text-success-600 {
+    color: var(--syifa-success) !important;
+}
+
+.bg-success-600 {
+    background-color: var(--syifa-success) !important;
+}
+
+.border-success-600 {
+    border-color: var(--syifa-success) !important;
+}
+
+/* CUSTOM SYIFA SUCCESS UTILITIES */
+.bg-syifa-success {
+    background-color: var(--syifa-success) !important;
+}
+
+.text-syifa-success {
+    color: var(--syifa-success) !important;
+}
+
+.border-syifa-success {
+    border-color: var(--syifa-success) !important;
+}
+
+/* ENSURE SUCCESS BUTTON TEXT IS ALWAYS WHITE */
+.fi-btn-success *,
+.fi-ac-btn-action.fi-color-success *,
+.fi-form-actions .fi-btn-success * {
+    color: white !important;
+}
+
+/* MODAL SUCCESS ACTIONS */
+.fi-modal-actions .fi-btn-success {
+    background-color: var(--syifa-success) !important;
+    color: white !important;
+}
+
+/* DROPDOWN SUCCESS ACTIONS */
+.fi-dropdown-list-item.fi-color-success {
+    color: var(--syifa-success) !important;
+}
+
+.fi-dropdown-list-item.fi-color-success:hover {
+    background-color: var(--syifa-success-light) !important;
+    color: var(--syifa-success) !important;
+}
+
+/* SUCCESS PROGRESS BARS */
+.fi-progress-bar.fi-color-success .fi-progress-bar-indicator {
+    background-color: var(--syifa-success) !important;
+}
+
+/* SUCCESS TABLE STATES */
+.fi-ta-row.fi-color-success {
+    background-color: var(--syifa-success-light) !important;
+}
+
+/* SUCCESS FORM STATES */
+.fi-fo-field-wrp.fi-color-success .fi-input {
+    border-color: var(--syifa-success) !important;
+}
+
+.fi-fo-field-wrp.fi-color-success .fi-select select {
+    border-color: var(--syifa-success) !important;
+}
+
+.fi-navigation-item-badge {
+    background-color: #E8F1FF !important;
+    border: 1px solid #6883AF !important;
+    color: #6883AF !important;
+}

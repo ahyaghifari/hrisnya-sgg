@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Direktur — Syifa Employee Portal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { font-family: 'Plus Jakarta Sans', sans-serif; }
+        html, body { background: #f1f5f9; min-height: 100vh; }
+        canvas { display: block !important; max-width: 100% !important; max-height: 100% !important; }
+
+        /* ── NAV ── */
+        .topnav { background: #fff; border-bottom: 1px solid #e8edf5; position: sticky; top: 0; z-index: 50; }
+        .topnav::before { content: ''; display: block; height: 3px; background: linear-gradient(90deg, #042c6c 0%, #042c6c 55%, #047C54 78%, #B9308C 100%); }
+        .topnav-inner { max-width: 1400px; margin: 0 auto; padding: 0 20px; display: flex; align-items: center; height: 58px; gap: 16px; }
+        @media (min-width: 768px) { .topnav-inner { padding: 0 40px; gap: 40px; } }
+        .nav-brand { display: flex; align-items: center; gap: 10px; text-decoration: none; flex-shrink: 0; }
+        .nav-logo { width: 34px; height: 34px; background: linear-gradient(150deg, #042c6c 0%, #042c6c 45%, #047C54 72%, #B9308C 100%); border-radius: 9px; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 800; font-size: 13px; letter-spacing: -0.5px; }
+        .nav-brand-name { font-size: 13.5px; font-weight: 700; color: #1e293b; display: block; }
+        .nav-brand-sub { font-size: 10.5px; color: #94a3b8; font-weight: 400; }
+        .nav-links { display: none; align-items: center; gap: 2px; flex: 1; }
+        .nav-right { display: none; align-items: center; gap: 8px; }
+        @media (min-width: 768px) { .nav-links { display: flex; } .nav-right { display: flex; } }
+        .nav-item { padding: 7px 14px; border-radius: 8px; font-size: 13.5px; font-weight: 500; color: #64748b; text-decoration: none; transition: all 0.15s; border: none; background: none; cursor: pointer; display: flex; align-items: center; gap: 5px; }
+        .nav-item:hover { color: #042c6c; background: #f0f4fb; }
+        .nav-item.active { color: #042c6c; font-weight: 600; background: #eef2fb; }
+        .nav-bell { position: relative; width: 36px; height: 36px; border-radius: 10px; border: 1.5px solid #e8edf5; display: flex; align-items: center; justify-content: center; color: #64748b; cursor: pointer; }
+        .nav-bell-dot { position: absolute; top: 6px; right: 6px; width: 7px; height: 7px; background: #ef4444; border-radius: 50%; border: 1.5px solid #fff; }
+        .nav-avatar { width: 36px; height: 36px; border-radius: 10px; background: #042c6c; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 700; font-size: 13px; cursor: pointer; }
+        .hamburger-btn { display: flex; margin-left: auto; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 10px; border: 1.5px solid #e2e8f0; color: #64748b; background: #fff; cursor: pointer; transition: all 0.15s; }
+        .hamburger-btn:hover { border-color: #042c6c; color: #042c6c; }
+        @media (min-width: 768px) { .hamburger-btn { display: none; } }
+        .mobile-menu { display: none; border-top: 1px solid #f1f5f9; background: #fff; }
+        .mobile-menu.open { display: block; }
+        .mobile-menu-inner { padding: 10px 16px 14px; display: flex; flex-direction: column; gap: 2px; }
+
+        /* ── PAGE BACKGROUND DECO ── */
+        .page-deco { position: fixed; inset: 0; pointer-events: none; overflow: hidden; z-index: 0; }
+        .deco-a { position: absolute; top: -180px; right: -180px; width: 580px; height: 580px; border-radius: 50%; background: #042c6c; opacity: 0.04; }
+        .deco-b { position: absolute; bottom: -120px; left: -120px; width: 420px; height: 420px; border-radius: 50%; background: #042c6c; opacity: 0.028; }
+        .deco-c { position: absolute; top: 38%; left: 55%; width: 220px; height: 220px; border-radius: 50%; border: 28px solid #042c6c; opacity: 0.03; }
+        .deco-d { position: absolute; top: 15%; left: 20%; width: 90px; height: 90px; border-radius: 14px; background: #047C54; opacity: 0.03; transform: rotate(20deg); }
+
+        /* ── CONTAINER ── */
+        .page-content { max-width: 1400px; margin: 0 auto; padding: 24px 16px; position: relative; z-index: 1; }
+        @media (min-width: 768px) { .page-content { padding: 32px 40px; } }
+
+        /* ── WELCOME CARD ── */
+        .welcome-card { background: linear-gradient(135deg, #042c6c 0%, #021a40 100%); border-radius: 20px; padding: 28px; position: relative; overflow: hidden; }
+        @media (min-width: 1024px) { .welcome-card { padding: 32px 36px; } }
+        .w-deco-1 { position: absolute; top: -80px; right: -80px; width: 280px; height: 280px; border-radius: 50%; background: #fff; opacity: 0.06; }
+        .w-deco-2 { position: absolute; bottom: -50px; left: 30px; width: 200px; height: 200px; border-radius: 50%; background: #047C54; opacity: 0.16; }
+        .w-deco-4 { position: absolute; bottom: 40px; right: 40px; width: 100px; height: 100px; border-radius: 14px; background: #B9308C; opacity: 0.16; transform: rotate(15deg); }
+
+        /* ── SHARED CARD SURFACES ── */
+        .neuro { background: #e8edf6; box-shadow: 6px 6px 14px #c5ccd8, -6px -6px 14px #ffffff; border-radius: 18px; }
+        .stat-card { background: #fff; border-radius: 18px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); padding: 20px; position: relative; overflow: hidden; }
+        .stat-card-deco { position: absolute; bottom: -20px; right: -20px; width: 90px; height: 90px; border-radius: 50%; opacity: 0.06; }
+        .panel { background: #fff; border-radius: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+
+        /* ── BADGES ── */
+        .badge { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 99px; font-size: 11.5px; font-weight: 600; }
+        .kpi-trend { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 99px; }
+        .kpi-trend-up { background: #dcfce7; color: #15803d; }
+        .kpi-trend-warn { background: #fee2e2; color: #b91c1c; }
+
+        /* ── PROGRESS ── */
+        .progress-track { height: 6px; background: #dde3f0; border-radius: 99px; overflow: hidden; }
+        .progress-fill { height: 100%; border-radius: 99px; transition: width 0.4s ease; }
+
+        /* ── TABLE ── */
+        .data-table { width: 100%; border-collapse: collapse; min-width: 480px; }
+        .data-table thead th { text-align: left; padding: 12px 20px; font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.06em; border-bottom: 1px solid #f1f5f9; white-space: nowrap; }
+        .data-table tbody tr { transition: background 0.1s; }
+        .data-table tbody tr:hover { background: #fafcff; }
+        .data-table tbody td { padding: 14px 20px; border-bottom: 1px solid #f8fafc; }
+        .data-table tbody tr:last-child td { border-bottom: none; }
+
+        /* ── QUICK ACTION BUTTONS ── */
+        .qa-btn { display: inline-flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.12); color: #fff; border: 1px solid rgba(255,255,255,0.2); border-radius: 12px; padding: 9px 16px; font-size: 13px; font-weight: 600; text-decoration: none; transition: all 0.15s; cursor: pointer; }
+        .qa-btn:hover { background: rgba(255,255,255,0.22); border-color: rgba(255,255,255,0.35); }
+        .qa-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+
+        /* ── BENTO for charts/tables ── */
+        .bento { display: grid; grid-template-columns: 1fr; gap: 16px; }
+        @media (min-width: 1024px) { .bento-charts { grid-template-columns: 2fr 1fr; } }
+        @media (min-width: 1024px) { .bento-tables { grid-template-columns: 1.2fr 1fr; } }
+
+        /* ── KPI BENTO (hero gradient + neuro trio, mirrors welcome/absen rhythm) ── */
+        .kpi-bento { display: grid; grid-template-columns: 1fr; gap: 16px; }
+        @media (min-width: 640px) { .kpi-bento { grid-template-columns: 1fr 1fr; } .kpi-hero { grid-column: 1/3; } }
+        @media (min-width: 1024px) {
+            .kpi-bento { grid-template-columns: 1.3fr 1fr 1fr 1fr; grid-template-rows: 1fr 1fr; min-height: 190px; }
+            .kpi-hero { grid-column: 1/3; grid-row: 1/3; }
+            .kpi-tall { grid-column: 3; grid-row: 1/3; }
+            .kpi-pair-a { grid-column: 4; grid-row: 1; }
+            .kpi-pair-b { grid-column: 4; grid-row: 2; }
+        }
+        .kpi-hero-card { border-radius: 18px; padding: 18px 22px; position: relative; overflow: hidden; display: flex; flex-direction: column; justify-content: space-between; color: #fff; min-height: 130px; gap: 10px; }
+        .kpi-hero-deco { position: absolute; border-radius: 50%; background: #fff; opacity: 0.08; }
+    </style>
+</head>
+<body>
+
+<div class="page-deco" aria-hidden="true">
+    <div class="deco-a"></div><div class="deco-b"></div><div class="deco-c"></div><div class="deco-d"></div>
+</div>
+
+<!-- ── TOP NAV ── -->
+<nav class="topnav">
+    <div class="topnav-inner">
+        <a href="dashboard-direktur.html" class="nav-brand">
+            <div class="nav-logo">S</div>
+            <div>
+                <span class="nav-brand-name">Syifa Global</span>
+                <span class="nav-brand-sub">Direktur Portal</span>
+            </div>
+        </a>
+        <div class="nav-links">
+            <a href="dashboard-direktur.html" class="nav-item active"><i class="fa-solid fa-house text-xs"></i> Dashboard</a>
+            <a href="#" class="nav-item"><i class="fa-solid fa-chart-line text-xs"></i> Laporan Eksekutif</a>
+            <a href="#" class="nav-item"><i class="fa-solid fa-building text-xs"></i> Perusahaan</a>
+            <a href="#" class="nav-item"><i class="fa-solid fa-users text-xs"></i> Kepegawaian</a>
+        </div>
+        <div class="nav-right">
+            <div class="nav-bell"><i class="fa-regular fa-bell text-sm"></i><span class="nav-bell-dot"></span></div>
+            <div class="nav-avatar">DH</div>
+        </div>
+        <button class="hamburger-btn" onclick="toggleMenu()" id="hamburger-btn" aria-label="Buka menu">
+            <i class="fas fa-bars text-sm" id="hamburger-icon"></i>
+        </button>
+    </div>
+    <div class="mobile-menu" id="mobile-menu">
+        <div class="mobile-menu-inner">
+            <a href="dashboard-direktur.html" class="nav-item active"><i class="fa-solid fa-house text-xs w-4"></i> Dashboard</a>
+            <a href="#" class="nav-item"><i class="fa-solid fa-chart-line text-xs w-4"></i> Laporan Eksekutif</a>
+            <a href="#" class="nav-item"><i class="fa-solid fa-building text-xs w-4"></i> Perusahaan</a>
+            <a href="#" class="nav-item"><i class="fa-solid fa-users text-xs w-4"></i> Kepegawaian</a>
+        </div>
+    </div>
+</nav>
+
+<!-- ── PAGE CONTENT ── -->
+<div class="page-content">
+    <div class="mb-6">
+        <p class="text-xs text-slate-400 mb-1">Rabu, 2 Juli 2026</p>
+        <h1 class="text-[22px] font-extrabold text-slate-900 tracking-tight">Ringkasan Eksekutif</h1>
+    </div>
+
+    <!-- WELCOME CARD -->
+    <div class="welcome-card">
+        <div class="w-deco-1"></div><div class="w-deco-2"></div><div class="w-deco-4"></div>
+        <div style="position:relative;z-index:1;display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;">
+            <div style="max-width:520px;">
+                <p style="font-size:13px;color:rgba(167,210,255,0.85);margin-bottom:6px;font-weight:500;">Selamat pagi, dr. Hartono 👋</p>
+                <h2 style="font-size:21px;font-weight:800;color:#fff;letter-spacing:-0.5px;line-height:1.3;">Direktur Utama &nbsp;·&nbsp; Syifa Global Group</h2>
+                <p style="font-size:13px;color:rgba(147,197,253,0.8);margin-top:8px;font-weight:500;line-height:1.5;">Konsolidasi <b style="color:#fff;">4 perusahaan grup</b> · Update terakhir 10:42 WIB.</p>
+            </div>
+            <div style="text-align:right;">
+                <p style="font-size:11px;color:rgba(147,197,253,0.65);font-weight:600;text-transform:uppercase;letter-spacing:0.05em;">Cakupan Laporan</p>
+                <div style="font-size:20px;font-weight:800;color:#fff;margin-top:4px;">Semua Perusahaan</div>
+                <p style="font-size:11.5px;color:rgba(147,197,253,0.75);margin-top:2px;">RS &nbsp;·&nbsp; Klinik &nbsp;·&nbsp; Akademi &nbsp;·&nbsp; Holding</p>
+            </div>
+        </div>
+        <div style="position:relative;z-index:1;margin-top:22px;">
+            <p style="font-size:11.5px;color:rgba(147,197,253,0.6);margin-bottom:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;">Aksi Cepat</p>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                <a href="#" class="qa-btn"><span class="qa-dot" style="background:#f0a8d9;"></span> Laporan Eksekutif</a>
+                <a href="#" class="qa-btn"><span class="qa-dot" style="background:#f59e0b;"></span> Approval Saya · 2</a>
+                <a href="#" class="qa-btn"><span class="qa-dot" style="background:#7ee0bb;"></span> Bandingkan Perusahaan</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- PETA KESEHATAN PERUSAHAAN — pengganti KPI grid: Direktur butuh BANDINGKAN unit bisnis,
+         bukan scan angka flat seperti HC. Bentuknya sengaja grid seragam (bukan hero+pair asimetris)
+         supaya tiap perusahaan bisa dibandingkan apple-to-apple sekali lihat. -->
+    <div class="panel" style="padding:22px;margin-top:16px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:16px;">
+            <div>
+                <div style="font-size:14px;font-weight:700;color:#1e293b;">Peta Kesehatan Perusahaan</div>
+                <div style="font-size:11.5px;color:#94a3b8;">Perbandingan lintas 4 perusahaan grup &nbsp;·&nbsp; Mei 2026</div>
+            </div>
+            <span style="font-size:11px;background:#fee2e2;color:#b91c1c;padding:4px 10px;border-radius:99px;font-weight:700;">1 perlu perhatian</span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px;">
+            <div class="stat-card" style="border-left:4px solid #047C54;padding:16px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+                    <span style="font-size:12.5px;font-weight:700;color:#1e293b;">RS Syifa Pusat</span>
+                    <span style="width:8px;height:8px;border-radius:50%;background:#047C54;flex-shrink:0;"></span>
+                </div>
+                <p style="font-size:24px;font-weight:800;color:#1e293b;letter-spacing:-1px;line-height:1;">1.247</p>
+                <p style="font-size:10.5px;color:#94a3b8;margin-top:3px;">karyawan aktif</p>
+                <div style="display:flex;justify-content:space-between;font-size:11px;color:#64748b;margin-top:12px;padding-top:10px;border-top:1px solid #f1f5f9;">
+                    <span>Payroll <b style="color:#1e293b;">Rp 6,1M</b></span>
+                    <span>Hadir <b style="color:#047C54;">95%</b></span>
+                </div>
+            </div>
+            <div class="stat-card" style="border-left:4px solid #f59e0b;padding:16px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+                    <span style="font-size:12.5px;font-weight:700;color:#1e293b;">RS Syifa Bekasi</span>
+                    <span style="width:8px;height:8px;border-radius:50%;background:#f59e0b;flex-shrink:0;"></span>
+                </div>
+                <p style="font-size:24px;font-weight:800;color:#1e293b;letter-spacing:-1px;line-height:1;">892</p>
+                <p style="font-size:10.5px;color:#94a3b8;margin-top:3px;">karyawan aktif</p>
+                <div style="display:flex;justify-content:space-between;font-size:11px;color:#64748b;margin-top:12px;padding-top:10px;border-top:1px solid #f1f5f9;">
+                    <span>Payroll <b style="color:#1e293b;">Rp 3,4M</b></span>
+                    <span>Hadir <b style="color:#a16207;">91%</b></span>
+                </div>
+            </div>
+            <div class="stat-card" style="border-left:4px solid #047C54;padding:16px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+                    <span style="font-size:12.5px;font-weight:700;color:#1e293b;">Klinik Syifa Bogor</span>
+                    <span style="width:8px;height:8px;border-radius:50%;background:#047C54;flex-shrink:0;"></span>
+                </div>
+                <p style="font-size:24px;font-weight:800;color:#1e293b;letter-spacing:-1px;line-height:1;">418</p>
+                <p style="font-size:10.5px;color:#94a3b8;margin-top:3px;">karyawan aktif</p>
+                <div style="display:flex;justify-content:space-between;font-size:11px;color:#64748b;margin-top:12px;padding-top:10px;border-top:1px solid #f1f5f9;">
+                    <span>Payroll <b style="color:#1e293b;">Rp 1,2M</b></span>
+                    <span>Hadir <b style="color:#047C54;">96%</b></span>
+                </div>
+            </div>
+            <div class="stat-card" style="border-left:4px solid #b91c1c;padding:16px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+                    <span style="font-size:12.5px;font-weight:700;color:#1e293b;">Akademi Syifa</span>
+                    <span style="width:8px;height:8px;border-radius:50%;background:#b91c1c;flex-shrink:0;"></span>
+                </div>
+                <p style="font-size:24px;font-weight:800;color:#1e293b;letter-spacing:-1px;line-height:1;">284</p>
+                <p style="font-size:10.5px;color:#94a3b8;margin-top:3px;">karyawan aktif</p>
+                <div style="display:flex;justify-content:space-between;font-size:11px;color:#64748b;margin-top:12px;padding-top:10px;border-top:1px solid #f1f5f9;">
+                    <span>Lembur <b style="color:#b91c1c;">▲12,4%</b></span>
+                    <span>Hadir <b style="color:#a16207;">89%</b></span>
+                </div>
+            </div>
+        </div>
+        <div style="display:flex;gap:24px;flex-wrap:wrap;margin-top:16px;padding-top:16px;border-top:1px solid #f1f5f9;">
+            <div><p style="font-size:20px;font-weight:800;color:#1e293b;letter-spacing:-0.5px;">2.841</p><p style="font-size:10.5px;color:#64748b;">Total Headcount Grup &nbsp;·&nbsp; +112 (▲4,1% YoY)</p></div>
+            <div><p style="font-size:20px;font-weight:800;color:#1e293b;letter-spacing:-0.5px;">Rp 11,2M</p><p style="font-size:10.5px;color:#64748b;">Total Payroll Mei &nbsp;·&nbsp; +Rp 712jt vs Apr</p></div>
+            <div><p style="font-size:20px;font-weight:800;color:#1e293b;letter-spacing:-0.5px;">2,3%</p><p style="font-size:10.5px;color:#64748b;">Turnover Rate &nbsp;·&nbsp; ▼0,4pp 3 bulan</p></div>
+        </div>
+    </div>
+
+    <!-- CHARTS ROW -->
+    <div class="bento bento-charts" style="margin-top:16px;">
+        <div class="panel" style="padding:20px;">
+            <div style="font-size:14px;font-weight:700;color:#1e293b;margin-bottom:2px;">Tren Payroll &amp; Lembur (6 Bulan)</div>
+            <div style="font-size:11.5px;color:#94a3b8;margin-bottom:12px;">Komposisi gaji pokok vs tunjangan vs lembur vs insentif</div>
+            <div style="position:relative;width:100%;height:250px;"><canvas id="payrollTrend"></canvas></div>
+        </div>
+        <div class="panel" style="padding:20px;">
+            <div style="font-size:14px;font-weight:700;color:#1e293b;margin-bottom:2px;">Headcount per Perusahaan</div>
+            <div style="font-size:11.5px;color:#94a3b8;margin-bottom:12px;">Distribusi tenaga kerja grup</div>
+            <div style="position:relative;width:100%;height:250px;"><canvas id="companyBar"></canvas></div>
+        </div>
+    </div>
+
+    <!-- TABLES ROW -->
+    <div class="bento bento-tables" style="margin-top:16px;">
+        <div class="panel">
+            <div style="padding:18px 20px 14px;border-bottom:1px solid #f1f5f9;">
+                <h3 style="font-size:14px;font-weight:700;color:#1e293b;">Top 5 Departemen dengan Absensi Tertinggi</h3>
+                <p style="font-size:11.5px;color:#94a3b8;">Departemen yang perlu intervensi manajerial</p>
+            </div>
+            <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;">
+                <table class="data-table">
+                    <thead><tr><th>Departemen</th><th>Perusahaan</th><th style="text-align:right;">Absen</th><th style="text-align:right;">Rate</th></tr></thead>
+                    <tbody>
+                        <tr><td style="font-weight:600;color:#1e293b;font-size:13.5px;">IGD Lantai 1</td><td style="font-size:12px;color:#94a3b8;">RS Syifa Pusat</td><td style="text-align:right;font-weight:700;font-size:13.5px;">42</td><td style="text-align:right;color:#b91c1c;font-weight:700;font-size:13.5px;">8,4%</td></tr>
+                        <tr><td style="font-weight:600;color:#1e293b;font-size:13.5px;">Rawat Inap Anak</td><td style="font-size:12px;color:#94a3b8;">RS Syifa Bekasi</td><td style="text-align:right;font-weight:700;font-size:13.5px;">31</td><td style="text-align:right;color:#a16207;font-weight:700;font-size:13.5px;">6,1%</td></tr>
+                        <tr><td style="font-weight:600;color:#1e293b;font-size:13.5px;">Farmasi</td><td style="font-size:12px;color:#94a3b8;">RS Syifa Pusat</td><td style="text-align:right;font-weight:700;font-size:13.5px;">22</td><td style="text-align:right;color:#a16207;font-weight:700;font-size:13.5px;">5,3%</td></tr>
+                        <tr><td style="font-weight:600;color:#1e293b;font-size:13.5px;">Laboratorium</td><td style="font-size:12px;color:#94a3b8;">Klinik Syifa Bogor</td><td style="text-align:right;font-weight:700;font-size:13.5px;">14</td><td style="text-align:right;color:#64748b;font-weight:700;font-size:13.5px;">4,2%</td></tr>
+                        <tr><td style="font-weight:600;color:#1e293b;font-size:13.5px;">Administrasi</td><td style="font-size:12px;color:#94a3b8;">RS Syifa Bekasi</td><td style="text-align:right;font-weight:700;font-size:13.5px;">9</td><td style="text-align:right;color:#64748b;font-weight:700;font-size:13.5px;">3,1%</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="panel" style="padding:20px;">
+            <div style="font-size:14px;font-weight:700;color:#1e293b;margin-bottom:2px;">Status Pelatihan &amp; Sertifikasi</div>
+            <div style="font-size:11.5px;color:#94a3b8;margin-bottom:14px;">Compliance kompetensi tahunan</div>
+            <div style="display:flex;flex-direction:column;gap:14px;">
+                <div>
+                    <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:5px;"><span>BLS / BTLS</span><b>94,1%</b></div>
+                    <div class="progress-track"><div class="progress-fill" style="width:94%;background:#047C54;"></div></div>
+                    <p style="font-size:10.5px;color:#94a3b8;margin-top:4px;">73 karyawan sertifikat expired dalam 90 hari</p>
+                </div>
+                <div>
+                    <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:5px;"><span>PPI (Pencegahan Infeksi)</span><b>87,3%</b></div>
+                    <div class="progress-track"><div class="progress-fill" style="width:87%;background:#f59e0b;"></div></div>
+                    <p style="font-size:10.5px;color:#94a3b8;margin-top:4px;">158 karyawan belum sertifikasi 2026</p>
+                </div>
+                <div>
+                    <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:5px;"><span>Customer Service Excellence</span><b>62,1%</b></div>
+                    <div class="progress-track"><div class="progress-fill" style="width:62%;background:#b91c1c;"></div></div>
+                    <p style="font-size:10.5px;color:#94a3b8;margin-top:4px;">412 karyawan perlu update</p>
+                </div>
+                <div>
+                    <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:5px;"><span>Patient Safety Goals</span><b>98,4%</b></div>
+                    <div class="progress-track"><div class="progress-fill" style="width:98%;background:#B9308C;"></div></div>
+                    <p style="font-size:10.5px;color:#94a3b8;margin-top:4px;">Target tercapai · audit Q2 lulus</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- APPROVAL FINAL MENUNGGU DIREKTUR -->
+    <div class="panel" style="margin-top:16px;">
+        <div style="padding:18px 20px 14px;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;justify-content:space-between;">
+            <div>
+                <h3 style="font-size:14px;font-weight:700;color:#1e293b;">Approval Final Menunggu Anda</h3>
+                <p style="font-size:11.5px;color:#94a3b8;">Step terakhir di alur persetujuan — Direktur sebagai final approver</p>
+            </div>
+            <span style="font-size:11px;background:#fee2e2;color:#b91c1c;padding:3px 8px;border-radius:99px;font-weight:700;">2 menunggu</span>
+        </div>
+        <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;">
+            <table class="data-table">
+                <thead><tr><th>Pengaju</th><th>Alur</th><th>Perusahaan</th><th style="text-align:right;">Menunggu Sejak</th></tr></thead>
+                <tbody>
+                    <tr>
+                        <td><p style="font-weight:600;color:#1e293b;font-size:13.5px;">Yusuf Pratama</p><p style="font-size:11px;color:#94a3b8;">Finance Manager</p></td>
+                        <td style="font-size:12.5px;color:#374151;">Alur Perizinan Manajer</td>
+                        <td style="font-size:12px;color:#94a3b8;">Syifa Global Group</td>
+                        <td style="text-align:right;font-size:12.5px;color:#b91c1c;font-weight:700;">1 hari 4 jam</td>
+                    </tr>
+                    <tr>
+                        <td><p style="font-weight:600;color:#1e293b;font-size:13.5px;">Ratna Wulandari</p><p style="font-size:11px;color:#94a3b8;">PJ HCGA Manager</p></td>
+                        <td style="font-size:12.5px;color:#374151;">Alur Persetujuan HCGA Manager</td>
+                        <td style="font-size:12px;color:#94a3b8;">Syifa Global Group</td>
+                        <td style="text-align:right;font-size:12.5px;color:#a16207;font-weight:700;">6 jam</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<script>
+function toggleMenu() {
+    const menu = document.getElementById('mobile-menu');
+    const icon = document.getElementById('hamburger-icon');
+    menu.classList.toggle('open');
+    icon.className = menu.classList.contains('open') ? 'fas fa-xmark text-sm' : 'fas fa-bars text-sm';
+}
+
+new Chart(document.getElementById('payrollTrend'), {
+    type: 'bar',
+    data: {
+        labels: ['Des 25','Jan 26','Feb 26','Mar 26','Apr 26','Mei 26'],
+        datasets: [
+            { label: 'Gaji Pokok', data: [7.1,7.2,7.2,7.3,7.4,7.5], backgroundColor: '#042c6c', stack: 'p' },
+            { label: 'Tunjangan', data: [2.3,2.3,2.4,2.5,2.5,2.6], backgroundColor: '#8db3d1', stack: 'p' },
+            { label: 'Lembur', data: [0.21,0.24,0.26,0.28,0.31,0.35], backgroundColor: '#f59e0b', stack: 'p' },
+            { label: 'Insentif', data: [0.55,0.58,0.62,0.65,0.71,0.75], backgroundColor: '#B9308C', stack: 'p' }
+        ]
+    },
+    options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { position: 'bottom', labels: { boxWidth: 8, font: { size: 10.5 } } } },
+        scales: { x: { stacked: true, ticks: { font: { size: 10 } } }, y: { stacked: true, ticks: { font: { size: 10 }, callback: v => 'Rp ' + v + 'M' } } }
+    }
+});
+
+new Chart(document.getElementById('companyBar'), {
+    type: 'bar',
+    data: {
+        labels: ['RS Syifa Pusat','RS Syifa Bekasi','Klinik Bogor','Akademi Syifa'],
+        datasets: [{ data: [1247,892,418,284], backgroundColor: ['#042c6c','#047C54','#B9308C','#f59e0b'], borderRadius: 6 }]
+    },
+    options: {
+        indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: { x: { ticks: { font: { size: 10 } } }, y: { ticks: { font: { size: 11 } } } }
+    }
+});
+</script>
+</body>
+</html>
