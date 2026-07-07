@@ -105,7 +105,7 @@ Route::middleware(['auth', 'portal.access'])->group(function () {
 });
 
 Route::get('/attendance/template/download', [AttendanceTemplateController::class, 'downloadTemplate'])
-    ->name('attendance.template.download');
+    ->name('attendance.template.downloa');
 
 Route::get('/employees/import/template', [EmployeeImportController::class, 'downloadTemplate'])
     ->middleware(['auth'])
