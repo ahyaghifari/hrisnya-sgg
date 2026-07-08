@@ -6,7 +6,7 @@
     <link rel="stylesheet" href="{{ asset('css/filament/filament/app.css') }}">
 @endpush
 
-<x-page-header title="MyStafff" />
+<x-page-header title="MyStaff" />
 
 <div style="margin-bottom:20px;">
     <livewire:pending-approvals-card />
