@@ -51,7 +51,7 @@ planning/            # Dokumen perencanaan fitur yang belum dikerjakan
 - **LMS** — kursus, kuis, sertifikat, ranking, trainer
 - **Assessment, Coaching, Counseling, Task tracking**
 
-Otorisasi memakai **Spatie Permission** langsung (tidak ada layer Policy — sudah dihapus, dulu cuma dead code). Permission bisa dikelola lewat Filament (`PermissionResource`, `/admin/permissions`), role via `RoleResource`. Akses `/admin` (Filament) dibatasi ke role **Admin/Super Admin** saja (`User::canAccessPanel()`); role lain (Supervisor, Manager, HC, Karyawan, dst) beraktivitas lewat **portal karyawan** (`/dashboard`, `/karyawanku`, `/pengajuan-absensi`, `/data-diri`, dst — lihat bawah). Route portal dijaga registry `config/portal-pages.php` + middleware `EnsurePortalPageAccess` (route yang tidak terdaftar di registry lolos tanpa cek — desain sengaja, bukan whitelist ketat).
+Otorisasi memakai **Spatie Permission** langsung (tidak ada layer Policy — sudah dihapus, dulu cuma dead code). Permission bisa dikelola lewat Filament (`PermissionResource`, `/admin/permissions`), role via `RoleResource`. Akses `/admin` (Filament) dibatasi ke role **Admin/Super Admin** saja (`User::canAccessPanel()`); role lain (Supervisor, Manager, HC, Karyawan, dst) beraktivitas lewat **portal karyawan** (`/dashboard`, `/my-staff`, `/pengajuan-absensi`, `/data-diri`, dst — lihat bawah). Route portal dijaga registry `config/portal-pages.php` + middleware `EnsurePortalPageAccess` (route yang tidak terdaftar di registry lolos tanpa cek — desain sengaja, bukan whitelist ketat).
 
 Konvensi nama role: **"Super Admin"** cuma dipakai company holding, **"Admin"** untuk semua company lain (permission ceiling sama, beda label saja).
 
@@ -66,19 +66,28 @@ php artisan migrate --seed
 npm run dev      # atau: composer run dev (server + queue + vite sekaligus)
 ```
 
-## Portal Karyawan (Livewire, bukan API/SPA)
+## Portal Karyawan (Livewire, bukan API/SPA — satu set halaman responsive, bukan PWA terpisah)
 
 Berbeda dari rencana awal (portal berbasis token Sanctum/SPA — lihat [`planning/web-attendance/PLANNING.md`](planning/web-attendance/PLANNING.md) untuk histori rencana lama), implementasi aktualnya pakai **session (guard `web`) + Livewire penuh**, konsisten dengan sisi admin. Endpoint di `routes/api.php` tetap ada untuk mobile app, tapi portal web TIDAK memakainya — portal manggil Service (`AttendaceReqService`, dll) langsung.
 
-Halaman yang sudah berjalan:
-- `/dashboard` — ringkasan (saldo cuti, status pengajuan aktif dengan timeline visual, kotak "Butuh Persetujuan Anda" buat atasan, riwayat pengajuan terbaru).
-- `/karyawanku` + `/karyawanku/{id}/edit` + `/karyawanku/{id}` — daftar, edit, dan **detail** karyawan (profil lengkap + presensi harian + statistik cuti/izin/lembur + riwayat pengajuan dalam 3 tab), scoped ke bawahan (rekursif via `OrgHierarchyService`) atau semua company (khusus Direktur holding). Widget "Butuh Persetujuan Anda" juga tampil di halaman list-nya.
-- `/data-diri` — halaman "detail karyawan" yang sama (`EmployeeAttendanceStatistics`) tapi dipakai untuk **lihat data diri sendiri** (`record` default ke user yang login), bukan cuma untuk atasan melihat bawahan.
-- `/pengajuan-absensi` (list riwayat **milik sendiri**) + `/pengajuan-absensi/{cuti,izin,lembur}` (form pengajuan, custom — bukan reuse Filament) + `/pengajuan-absensi/{id}` (detail: timeline status + tombol Approve/Reject/Batalkan buat atasan — manager juga bisa **lihat** detail pengajuan bawahannya walau bukan approver).
-- Approve/Reject/**Batalkan** tersedia di **dua tempat** (admin `/admin/attendance-requests` DAN portal) — reuse service yang sama (`ApprovalFlowService`, `ApprovalPermissionService`), tidak ada logic ganda.
-- `/pwa/home` — shell **PWA installable** (manifest + service worker + ikon di `public/pwa/`), layout mobile terpisah (app bar + bottom nav), halaman Beranda sendiri (bukan share partial dengan `/dashboard`, kontennya sengaja beda). Baru sebagian: ganti password, presensi (nanti dari sinkronisasi Hikvision, belum diimplementasi), push notification, dan versi mobile untuk Pengajuan/Akun masih belum ada — detail & next steps di `knowledge/changes/2026-07-05-pwa-portal-karyawan.md`.
+Sempat ada percobaan shell PWA terpisah di `/pwa/*` (app bar + bottom nav sendiri, konten sengaja beda dari `/dashboard`) — itu sudah **dilebur total** ke satu set halaman responsive. Tidak ada lagi route/komponen `/pwa/*` yang duplikat; setiap halaman portal sekarang otomatis menyesuaikan tampilan lewat breakpoint `md:` (768px), diatur di satu `components/layout.blade.php`:
+- **Desktop** (`≥768px`): `<x-nav>` — topnav dengan dropdown/link biasa.
+- **Mobile** (`<768px`): `<x-pwa-app-bar>` (app bar + tombol hamburger) + `<x-pwa-sidebar>` (drawer off-canvas, bukan bottom-nav lagi).
+- Instalabilitas PWA (manifest `public/pwa/manifest.json`, service worker `public/sw.js`, `start_url` ke `/dashboard`) kini berlaku situs-lebar, bukan cuma satu shell terpisah.
+- Header tiap halaman (tanggal + jam live yang update tiap detik + judul) pakai satu komponen `<x-page-header title="..." />` (`resources/views/components/page-header.blade.php`) — jangan tulis ulang markup date/title manual per halaman.
+- Logo resmi: `public/assets/logo-sgg.png`, dipakai di `<x-nav>` dan `<x-pwa-sidebar>`.
 
-Detail lengkap tiap bagian ada di `knowledge/changes/` (lihat tanggal terbaru) dan `planning/2026-07-05-portal-pengajuan-absensi.md` / `planning/2026-07-04-draft-role-job-position-mapping.md` / `planning/2026-07-05-statistik-karyawanku.md` / `planning/2026-07-05-pwa-portal-karyawan.md`.
+Pola "mobile card vs desktop table" dipakai konsisten di semua list/detail: lihat [`DESIGN.md`](DESIGN.md) bagian *Responsive requirement* untuk pola persisnya (kapan pakai `.pwa-list`/`.pwa-list-row` vs Filament Table, cara gabung query Filament Table + query manual mobile lewat satu `baseQuery()`, dan jebakan cascade-layer Tailwind `md:hidden` vs custom CSS unlayered).
+
+Halaman yang sudah berjalan:
+- `/dashboard` — ringkasan (saldo cuti + jumlah izin/lembur bulan ini berdampingan presensi, status pengajuan aktif dengan timeline visual — vertikal di mobile, horizontal di desktop, kotak "Butuh Persetujuan Anda" buat atasan, Task Saya/Kursus Saya placeholder).
+- `/my-staff` + `/my-staff/{id}/edit` + `/my-staff/{id}` — daftar (Filament Table di desktop, card list di mobile), edit, dan **detail** karyawan (profil lengkap + presensi harian + statistik cuti/izin/lembur + riwayat pengajuan dalam 3 tab), scoped ke bawahan (rekursif via `OrgHierarchyService`) atau semua company (khusus Direktur holding). Widget "Butuh Persetujuan Anda" juga tampil di halaman list-nya, sudah responsive juga.
+- `/data-diri` — halaman "detail karyawan" yang sama (`EmployeeAttendanceStatistics`) tapi dipakai untuk **lihat data diri sendiri** (`record` default ke user yang login), bukan cuma untuk atasan melihat bawahan.
+- `/pengajuan-absensi` (list riwayat **milik sendiri**, Filament Table di desktop / card list + Aksi Cepat Cuti-Izin-Lembur di mobile) + `/pengajuan-absensi/{cuti,izin,lembur}` (form pengajuan, custom — bukan reuse Filament, header-nya senada warna dengan tombol Aksi Cepat: navy/gold/hijau) + `/pengajuan-absensi/{id}` (detail: timeline status + tombol Approve/Reject/Batalkan buat atasan — manager juga bisa **lihat** detail pengajuan bawahannya walau bukan approver).
+- `/akun` + `/akun/ubah-password` — ganti foto profil & ubah password, cuma ada di portal (belum ada padanan di admin panel).
+- Approve/Reject/**Batalkan** tersedia di **dua tempat** (admin `/admin/attendance-requests` DAN portal) — reuse service yang sama (`ApprovalFlowService`, `ApprovalPermissionService`), tidak ada logic ganda.
+
+Detail lengkap tiap bagian ada di `knowledge/changes/` (lihat tanggal terbaru) dan `planning/2026-07-05-portal-pengajuan-absensi.md` / `planning/2026-07-04-draft-role-job-position-mapping.md` / `planning/2026-07-05-statistik-karyawanku.md`. Catatan: `knowledge/changes/2026-07-05-pwa-portal-karyawan.md` mendokumentasikan shell PWA terpisah yang **sudah tidak berlaku** (sudah dilebur ke atas) — baca sebagai histori, bukan state saat ini.
 
 ## Design System
 
