@@ -162,7 +162,7 @@ class EmployeeAttendanceStatistics extends Component
     {
         $title = $this->record->id === Auth::id()
             ? 'Data Diri'
-            : "Karyawanku - {$this->record->name}";
+            : "MyStaff - {$this->record->name}";
 
         return view('livewire.employee-attendance-statistics')
             ->layout('components.layout', ['title' => $title]);

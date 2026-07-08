@@ -1,4 +1,4 @@
-@props(['timeline', 'title' => 'Status Persetujuan', 'vertical' => false])
+@props(['timeline', 'title' => 'Status Persetujuan'])
 
 <div class="timeline-card p-6 mb-6">
     <div class="tl-deco-1"></div><div class="tl-deco-2"></div><div class="tl-deco-3"></div>
@@ -6,10 +6,9 @@
     <div style="position:relative;z-index:1;">
     <h3 style="font-size:14px;font-weight:800;color:#422006;margin:0 0 20px;">{{ $title }}</h3>
 
-    @if ($vertical)
-        {{-- Varian vertikal — dipakai di PWA supaya tidak perlu scroll horizontal
-             untuk lihat seluruh rantai approval di layar sempit. --}}
-        <div>
+    {{-- Vertikal di mobile (tidak perlu scroll horizontal buat lihat seluruh rantai approval
+         di layar sempit), horizontal berdampingan di desktop (lebih lega, sekali pandang). --}}
+    <div class="md:hidden">
             @foreach ($timeline as $node)
                 @php
                     $accentColor = match ($node['state']) {
@@ -45,8 +44,9 @@
                     </div>
                 </div>
             @endforeach
-        </div>
-    @else
+    </div>
+
+    <div class="hidden md:block">
         <div style="display:flex;overflow-x:auto;padding-bottom:4px;">
             @foreach ($timeline as $node)
                 <div style="flex:1;min-width:130px;position:relative;text-align:center;">
@@ -85,7 +85,7 @@
                 </div>
             @endforeach
         </div>
-    @endif
+    </div>
 
     @isset($slot)
         @if (trim($slot))

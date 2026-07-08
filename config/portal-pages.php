@@ -31,62 +31,20 @@ return [
         'guard' => null,
     ],
 
-    'pwa.home' => [
-        'label' => 'Beranda (PWA)',
-        'permission' => null,
-        'guard' => null,
-    ],
-
     'data-diri' => [
         'label' => 'Data Diri',
         'permission' => null,
         'guard' => null,
     ],
 
-    'pwa.data-diri' => [
-        'label' => 'Data Diri (PWA)',
+    'akun' => [
+        'label' => 'Akun',
         'permission' => null,
         'guard' => null,
     ],
 
-    'pwa.akun' => [
-        'label' => 'Akun (PWA)',
-        'permission' => null,
-        'guard' => null,
-    ],
-
-    'pwa.akun.ubah-password' => [
-        'label' => 'Ubah Kata Sandi (PWA)',
-        'permission' => null,
-        'guard' => null,
-    ],
-
-    'pwa.pengajuan' => [
-        'label' => 'Pengajuan (PWA)',
-        'permission' => null,
-        'guard' => null,
-    ],
-
-    'pwa.my-attendance-requests.leave' => [
-        'label' => 'Ajukan Cuti (PWA)',
-        'permission' => null,
-        'guard' => null,
-    ],
-
-    'pwa.my-attendance-requests.permission' => [
-        'label' => 'Ajukan Izin (PWA)',
-        'permission' => null,
-        'guard' => null,
-    ],
-
-    'pwa.my-attendance-requests.overtime' => [
-        'label' => 'Ajukan Lembur (PWA)',
-        'permission' => null,
-        'guard' => null,
-    ],
-
-    'pwa.my-attendance-requests.show' => [
-        'label' => 'Detail Pengajuan (PWA)',
+    'akun.ubah-password' => [
+        'label' => 'Ubah Kata Sandi',
         'permission' => null,
         'guard' => null,
     ],
@@ -97,19 +55,19 @@ return [
         'guard' => null,
     ],
 
-    'my-employees' => [
-        'label' => 'Karyawanku',
+    'my-staff' => [
+        'label' => 'MyStaff',
         'permission' => null,
         'guard' => 'canAccessKaryawanMenu',
     ],
 
-    'my-employees.edit' => [
+    'my-staff.edit' => [
         'label' => 'Edit Karyawan',
         'permission' => null,
         'guard' => 'canAccessKaryawanMenu',
     ],
 
-    'my-employees.show' => [
+    'my-staff.show' => [
         'label' => 'Detail Karyawan',
         'permission' => null,
         // Tidak pakai 'canAccessKaryawanMenu' di sini — halaman ini sekarang dipakai juga
@@ -120,7 +78,7 @@ return [
     ],
 
     'my-attendance-requests' => [
-        'label' => 'Riwayat Pengajuan',
+        'label' => 'Pengajuan Absensi',
         'permission' => null,
         'guard' => null,
     ],

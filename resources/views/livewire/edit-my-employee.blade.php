@@ -4,15 +4,7 @@
     <link rel="stylesheet" href="{{ asset('css/filament/filament/app.css') }}">
 @endpush
 
-<div class="mb-6 flex items-center justify-between">
-    <div>
-        <p class="text-xs text-slate-500 mb-1">{{ now()->translatedFormat('l, d F Y') }}</p>
-        <h1 class="text-[22px] font-extrabold text-slate-900 tracking-tight">Edit Karyawan</h1>
-    </div>
-    <a href="{{ route('my-employees') }}" wire:navigate class="text-sm font-semibold text-gray-600 hover:text-gray-900">
-        &larr; Kembali
-    </a>
-</div>
+<x-page-header title="Edit Karyawan" :back="route('my-staff')" />
 
 <form wire:submit="save">
     <div class="bg-white rounded-xl border border-gray-200 p-6">

@@ -80,10 +80,7 @@ class SubmitOvertimeRequest extends Component
                 ->success()
                 ->send();
 
-            $this->redirect(
-                route(request()->routeIs('pwa.*') ? 'pwa.pengajuan' : 'my-attendance-requests'),
-                navigate: true
-            );
+            $this->redirect(route('my-attendance-requests'), navigate: true);
         } catch (\Exception $e) {
             Notification::make()
                 ->title('Gagal mengajukan: ' . $e->getMessage())
@@ -94,9 +91,7 @@ class SubmitOvertimeRequest extends Component
 
     public function render()
     {
-        $isPwa = request()->routeIs('pwa.*');
-
         return view('livewire.submit-overtime-request')
-            ->layout($isPwa ? 'components.pwa-layout' : 'components.layout', ['title' => 'Pengajuan Lembur']);
+            ->layout('components.layout', ['title' => 'Pengajuan Lembur']);
     }
 }

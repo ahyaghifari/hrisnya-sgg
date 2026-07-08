@@ -19,7 +19,7 @@ use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 
-#[Layout('components.layout', ['title' => 'Karyawanku'])]
+#[Layout('components.layout', ['title' => 'MyStaff'])]
 class MyEmployees extends Component implements HasTable, HasSchemas, HasActions
 {
     use InteractsWithTable;
@@ -40,39 +40,53 @@ class MyEmployees extends Component implements HasTable, HasSchemas, HasActions
         return Companies::pluck('name', 'id');
     }
 
+    // Sumber data yang sama dipakai desktop (Filament Table) dan mobile (card manual).
+    protected function baseQuery()
+    {
+        if (Auth::user()->canBrowseAllCompanies()) {
+            if (! $this->companyId) {
+                return User::query()->whereRaw('1 = 0');
+            }
+
+            return User::query()
+                ->where('company_id', $this->companyId)
+                ->with(['profile.jobPosition', 'profile.orgStructure.parent.parent', 'company', 'roles']);
+        }
+
+        return app(OrgHierarchyService::class)->subordinates(Auth::user())
+            ->with(['profile.jobPosition', 'profile.orgStructure.parent.parent', 'company', 'roles']);
+    }
+
+    // Dipakai desktop (Filament Table).
     public function table(Table $table): Table
     {
         $canBrowseAllCompanies = Auth::user()->canBrowseAllCompanies();
 
         return EmployeesTable::configure($table)
-            ->query(function () use ($canBrowseAllCompanies) {
-                if ($canBrowseAllCompanies) {
-                    if (! $this->companyId) {
-                        return User::query()->whereRaw('1 = 0');
-                    }
-
-                    return User::query()
-                        ->where('company_id', $this->companyId)
-                        ->with(['profile.jobPosition', 'profile.orgStructure', 'company', 'roles']);
-                }
-
-                return app(OrgHierarchyService::class)->subordinates(Auth::user())->with(['company', 'roles']);
-            })
+            ->query(fn () => $this->baseQuery())
             ->filters([])
             ->recordActions([
                 Action::make('statistik')
                     ->label('Lihat')
                     ->icon('heroicon-o-chart-bar')
-                    ->url(fn (User $record) => route('my-employees.show', ['record' => $record])),
+                    ->url(fn (User $record) => route('my-staff.show', ['record' => $record])),
                 EditAction::make()
                     ->visible(fn () => Auth::user()
                     ->can('edit_karyawan'))
-                    ->url(fn (User $record) => route('my-employees.edit', ['record' => $record])),
+                    ->url(fn (User $record) => route('my-staff.edit', ['record' => $record])),
             ])
             ->toolbarActions([])
             ->emptyStateHeading($canBrowseAllCompanies && ! $this->companyId
                 ? 'Pilih perusahaan dulu'
                 : 'Belum ada karyawan di bawah kamu');
+    }
+
+    // Dipakai mobile (card manual, lihat my-employees.blade.php).
+    public function getEmployeesProperty()
+    {
+        return $this->baseQuery()
+            ->orderBy('name')
+            ->paginate(10);
     }
 
     public function render()

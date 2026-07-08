@@ -1,8 +1,5 @@
 <div>
-<div class="mb-6">
-    <p class="text-xs text-slate-500 mb-1">{{ now()->translatedFormat('l, d F Y') }}</p>
-    <h1 class="text-[22px] font-extrabold text-slate-900 tracking-tight">Akun</h1>
-</div>
+<x-page-header title="Akun" />
 
 @php
     $profile = $record->profile;
@@ -45,13 +42,13 @@
             </p>
             @error('photo') <p style="color:#ef4444;font-size:11px;margin-top:3px;">{{ $message }}</p> @enderror
         </div>
-        <a href="{{ route('pwa.data-diri') }}" wire:navigate style="color:#cbd5e1;">
+        <a href="{{ route('data-diri') }}" wire:navigate style="color:#cbd5e1;">
             <i class="fa-solid fa-chevron-right" style="font-size:12px;"></i>
         </a>
     </div>
 </div>
 
-<a href="{{ route('pwa.akun.ubah-password') }}" wire:navigate class="pwa-list-row" style="background:#fff;border-radius:16px;box-shadow:0 1px 4px rgba(0,0,0,0.06);text-decoration:none;margin-bottom:16px;border-bottom:none;">
+<a href="{{ route('akun.ubah-password') }}" wire:navigate class="pwa-list-row" style="background:#fff;border-radius:16px;box-shadow:0 1px 4px rgba(0,0,0,0.06);text-decoration:none;margin-bottom:16px;border-bottom:none;">
     <div class="pwa-tile-icon neutral"><i class="fa-solid fa-lock"></i></div>
     <div style="flex:1;min-width:0;">
         <p style="font-size:13.5px;font-weight:600;color:#1e293b;margin:0;">Ubah Kata Sandi</p>
@@ -61,7 +58,7 @@
 
 <form method="POST" action="{{ route('logout') }}">
     @csrf
-    <button type="submit" style="width:100%;display:flex;align-items:center;justify-content:center;gap:8px;background:#fee2e2;color:#b91c1c;border:none;border-radius:12px;padding:13px;font-size:13.5px;font-weight:700;cursor:pointer;">
+    <button type="submit" style="width:100%;display:flex;align-items:center;justify-content:center;gap:8px;background:#fee2e2 !important;color:#b91c1c !important;border:none;border-radius:12px;padding:13px;font-size:13.5px;font-weight:700;cursor:pointer;">
         <i class="fa-solid fa-arrow-right-from-bracket"></i> Keluar
     </button>
 </form>

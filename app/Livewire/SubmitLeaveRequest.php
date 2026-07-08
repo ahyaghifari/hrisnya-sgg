@@ -68,10 +68,7 @@ class SubmitLeaveRequest extends Component
                 ->success()
                 ->send();
 
-            $this->redirect(
-                route(request()->routeIs('pwa.*') ? 'pwa.pengajuan' : 'my-attendance-requests'),
-                navigate: true
-            );
+            $this->redirect(route('my-attendance-requests'), navigate: true);
         } catch (\Exception $e) {
             Notification::make()
                 ->title('Gagal mengajukan: ' . $e->getMessage())
@@ -82,9 +79,7 @@ class SubmitLeaveRequest extends Component
 
     public function render()
     {
-        $isPwa = request()->routeIs('pwa.*');
-
         return view('livewire.submit-leave-request')
-            ->layout($isPwa ? 'components.pwa-layout' : 'components.layout', ['title' => 'Pengajuan Cuti']);
+            ->layout('components.layout', ['title' => 'Pengajuan Cuti']);
     }
 }

@@ -76,10 +76,7 @@ class SubmitPermissionRequest extends Component
                 ->success()
                 ->send();
 
-            $this->redirect(
-                route(request()->routeIs('pwa.*') ? 'pwa.pengajuan' : 'my-attendance-requests'),
-                navigate: true
-            );
+            $this->redirect(route('my-attendance-requests'), navigate: true);
         } catch (\Exception $e) {
             Notification::make()
                 ->title('Gagal mengajukan: ' . $e->getMessage())
@@ -90,9 +87,7 @@ class SubmitPermissionRequest extends Component
 
     public function render()
     {
-        $isPwa = request()->routeIs('pwa.*');
-
         return view('livewire.submit-permission-request')
-            ->layout($isPwa ? 'components.pwa-layout' : 'components.layout', ['title' => 'Pengajuan Izin']);
+            ->layout('components.layout', ['title' => 'Pengajuan Izin']);
     }
 }

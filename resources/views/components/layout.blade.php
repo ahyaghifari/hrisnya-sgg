@@ -3,8 +3,16 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <meta name="vapid-public-key" content="{{ config('webpush.vapid.public_key') }}">
     <title>{{ $title }} — HRIS Syifa Global Group</title>
+    <link rel="manifest" href="/pwa/manifest.json">
+    <meta name="theme-color" content="#042c6c">
+    <link rel="apple-touch-icon" href="/pwa/icons/icon-192.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Syifa HRIS">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -17,15 +25,37 @@
         <div class="deco-a"></div><div class="deco-b"></div><div class="deco-c"></div><div class="deco-d"></div>
     </div>
 
-    <x-nav />
+    <div class="hidden md:block">
+        <x-nav />
+    </div>
+    <div class="md:hidden">
+        <x-pwa-app-bar :title="$title" />
+        <x-pwa-sidebar />
+    </div>
 
     <main class="page-content">
         {{ $slot }}
     </main>
 
-    <x-footer />
+    <div class="hidden md:block">
+        <x-footer />
+    </div>
 
     @livewireScripts
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js', { scope: '/' });
+        }
+
+        function pwaTickClock() {
+            const el = document.getElementById('live-clock');
+            if (el) el.textContent = new Date().toLocaleTimeString('id-ID');
+        }
+        clearInterval(window.__liveClockInterval);
+        pwaTickClock();
+        window.__liveClockInterval = setInterval(pwaTickClock, 1000);
+        document.addEventListener('livewire:navigated', pwaTickClock);
+    </script>
     @stack('scripts')
 </body>
 </html>

@@ -2,15 +2,13 @@
     <div class="page-hero">
         <div class="hero-deco-1"></div><div class="hero-deco-2"></div><div class="hero-deco-3"></div>
         <div style="position:relative;z-index:1;">
-            @unless (request()->routeIs('pwa.*'))
-                <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;flex-wrap:wrap;">
-                    <a href="{{ route('dashboard') }}" wire:navigate style="font-size:12px;color:rgba(147,197,253,0.75);text-decoration:none;font-weight:500;">Dashboard</a>
-                    <span style="color:rgba(147,197,253,0.4);font-size:11px;">/</span>
-                    <span style="font-size:12px;color:rgba(147,197,253,0.75);font-weight:500;">Pengajuan</span>
-                    <span style="color:rgba(147,197,253,0.4);font-size:11px;">/</span>
-                    <span style="font-size:12px;color:rgba(255,255,255,0.9);font-weight:600;">Cuti</span>
-                </div>
-            @endunless
+            <div class="hidden md:flex" style="align-items:center;gap:6px;margin-bottom:8px;flex-wrap:wrap;">
+                <a href="{{ route('dashboard') }}" wire:navigate style="font-size:12px;color:rgba(147,197,253,0.75);text-decoration:none;font-weight:500;">Dashboard</a>
+                <span style="color:rgba(147,197,253,0.4);font-size:11px;">/</span>
+                <span style="font-size:12px;color:rgba(147,197,253,0.75);font-weight:500;">Pengajuan</span>
+                <span style="color:rgba(147,197,253,0.4);font-size:11px;">/</span>
+                <span style="font-size:12px;color:rgba(255,255,255,0.9);font-weight:600;">Cuti</span>
+            </div>
             <h1 style="font-size:20px;font-weight:800;color:#fff;letter-spacing:-0.5px;margin:0 0 6px;">Pengajuan Cuti</h1>
             <p style="font-size:13px;color:rgba(147,197,253,0.8);margin:0;">Isi formulir berikut untuk mengajukan permohonan cuti</p>
         </div>
@@ -85,7 +83,7 @@
         </div>
 
         <div style="display:flex;align-items:center;justify-content:space-between;margin-top:20px;gap:12px;flex-wrap:wrap;">
-            <a href="{{ route(request()->routeIs('pwa.*') ? 'pwa.pengajuan' : 'dashboard') }}" wire:navigate class="btn-ghost"><i class="fa-solid fa-arrow-left" style="font-size:12px;"></i> Kembali</a>
+            <a href="{{ route('my-attendance-requests') }}" wire:navigate class="btn-ghost"><i class="fa-solid fa-arrow-left" style="font-size:12px;"></i> Kembali</a>
             <button type="submit" class="btn-primary"><i class="fa-solid fa-paper-plane" style="font-size:12px;"></i> Ajukan Cuti</button>
         </div>
     </form>

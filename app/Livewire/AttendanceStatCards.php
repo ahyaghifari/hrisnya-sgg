@@ -7,18 +7,23 @@ use Livewire\Component;
 
 class AttendanceStatCards extends Component
 {
+    public bool $compact = false;
+
     public function render(AttendaceReqService $service)
     {
         $requests = $service->getListAttendanceRequestsByUserId(auth()->id());
 
-        $pending = $requests->whereIn('status', ['submitted', 'in_review'])->count();
-        $approvedThisMonth = $requests->filter(
-            fn ($r) => $r->status === 'approved' && $r->created_at?->isCurrentMonth()
+        $izinCount = $requests->filter(
+            fn ($r) => $r->type === 'permission' && $r->created_at?->isCurrentMonth()
+        )->count();
+
+        $lemburCount = $requests->filter(
+            fn ($r) => $r->type === 'overtime' && $r->created_at?->isCurrentMonth()
         )->count();
 
         return view('livewire.attendance-stat-cards', [
-            'pending' => $pending,
-            'approvedThisMonth' => $approvedThisMonth,
+            'izinCount' => $izinCount,
+            'lemburCount' => $lemburCount,
         ]);
     }
 }

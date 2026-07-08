@@ -1,4 +1,5 @@
-<div class="neuro {{ $gridClass }}" style="padding:{{ $compact ? '14px' : '22px' }};display:flex;flex-direction:column;justify-content:space-between;">
+<div class="stat-card {{ $gridClass }}" style="padding:{{ $compact ? '14px' : '22px' }};display:flex;flex-direction:column;justify-content:space-between;">
+    <div class="stat-card-deco" style="background:{{ $color }};"></div>
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:{{ $compact ? '8px' : '12px' }};">
         <div style="display:flex;align-items:center;gap:{{ $compact ? '8px' : '10px' }};">
             <div style="width:{{ $compact ? '26px' : '34px' }};height:{{ $compact ? '26px' : '34px' }};background:{{ $iconBg }};border-radius:10px;display:flex;align-items:center;justify-content:center;">

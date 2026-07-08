@@ -12,18 +12,17 @@ use App\Livewire\MyEmployees;
 use App\Livewire\OrganizationStructure;
 use App\Http\Controllers\Pwa\PushSubscriptionController;
 use App\Livewire\Pwa\Akun as PwaAkun;
-use App\Livewire\Pwa\DataDiri as PwaDataDiri;
-use App\Livewire\Pwa\Home as PwaHome;
-use App\Livewire\Pwa\Pengajuan as PwaPengajuan;
 use App\Livewire\Pwa\UbahPassword as PwaUbahPassword;
 use App\Livewire\SubmitLeaveRequest;
 use App\Livewire\SubmitOvertimeRequest;
 use App\Livewire\SubmitPermissionRequest;
 use Illuminate\Support\Facades\Route;
 
+
 Route::get('/', function () {
     return redirect()->route('login');
 });
+
 
 Route::middleware('guest')->group(function () {
     Route::get('/login', [LoginController::class, 'create'])->name('login');
@@ -38,40 +37,16 @@ Route::middleware(['auth', 'portal.access'])->group(function () {
     Route::get('/dashboard', Dashboard::class)
         ->name('dashboard');
 
-    Route::prefix('pwa')->name('pwa.')->group(function () {
-        Route::get('/home', PwaHome::class)
-            ->name('home');
+    Route::get('/akun', PwaAkun::class)
+        ->name('akun');
 
-        Route::get('/data-diri', PwaDataDiri::class)
-            ->name('data-diri');
+    Route::get('/akun/ubah-password', PwaUbahPassword::class)
+        ->name('akun.ubah-password');
 
-        Route::get('/akun', PwaAkun::class)
-            ->name('akun');
-
-        Route::get('/akun/ubah-password', PwaUbahPassword::class)
-            ->name('akun.ubah-password');
-
-        Route::get('/pengajuan', PwaPengajuan::class)
-            ->name('pengajuan');
-
-        Route::get('/pengajuan/cuti', SubmitLeaveRequest::class)
-            ->name('my-attendance-requests.leave');
-
-        Route::get('/pengajuan/izin', SubmitPermissionRequest::class)
-            ->name('my-attendance-requests.permission');
-
-        Route::get('/pengajuan/lembur', SubmitOvertimeRequest::class)
-            ->name('my-attendance-requests.overtime');
-
-        Route::get('/pengajuan/{record}', AttendanceRequestDetail::class)
-            ->name('my-attendance-requests.show');
-
-        Route::post('/push/subscribe', [PushSubscriptionController::class, 'store'])
-            ->name('push.subscribe');
-        Route::delete('/push/subscribe', [PushSubscriptionController::class, 'destroy'])
-            ->name('push.unsubscribe');
-    });
-
+    Route::post('/push/subscribe', [PushSubscriptionController::class, 'store'])
+        ->name('push.subscribe');
+    Route::delete('/push/subscribe', [PushSubscriptionController::class, 'destroy'])
+        ->name('push.unsubscribe');
 
     Route::get('/data-diri', EmployeeAttendanceStatistics::class)
         ->name('data-diri');
@@ -79,14 +54,14 @@ Route::middleware(['auth', 'portal.access'])->group(function () {
     Route::get('/struktur-organisasi', OrganizationStructure::class)
         ->name('organization-structure');
 
-    Route::get('/karyawanku', MyEmployees::class)
-        ->name('my-employees');
+    Route::get('/my-staff', MyEmployees::class)
+        ->name('my-staff');
 
-    Route::get('/karyawanku/{record}/edit', EditMyEmployee::class)
-        ->name('my-employees.edit');
+    Route::get('/my-staff/{record}/edit', EditMyEmployee::class)
+        ->name('my-staff.edit');
 
-    Route::get('/karyawanku/{record}', EmployeeAttendanceStatistics::class)
-        ->name('my-employees.show');
+    Route::get('/my-staff/{record}', EmployeeAttendanceStatistics::class)
+        ->name('my-staff.show');
 
     Route::get('/pengajuan-absensi', MyAttendanceRequests::class)
         ->name('my-attendance-requests');

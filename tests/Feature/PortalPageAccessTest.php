@@ -48,7 +48,7 @@ class PortalPageAccessTest extends TestCase
         $user = User::factory()->create();
 
         $this->actingAs($user)
-            ->get(route('my-employees'))
+            ->get(route('my-staff'))
             ->assertForbidden();
     }
 
@@ -68,7 +68,7 @@ class PortalPageAccessTest extends TestCase
         ]);
 
         $this->actingAs($manager)
-            ->get(route('my-employees'))
+            ->get(route('my-staff'))
             ->assertOk();
     }
 }

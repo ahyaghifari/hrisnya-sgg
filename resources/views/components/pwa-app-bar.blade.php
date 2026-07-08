@@ -1,16 +1,11 @@
 @props(['title' => 'Beranda'])
 
-@php
-    $initials = collect(explode(' ', auth()->user()->name))
-        ->map(fn ($part) => mb_substr($part, 0, 1))
-        ->take(2)
-        ->implode('');
-@endphp
-
 <header class="pwa-app-bar">
     <div class="pwa-app-bar-inner">
         <div class="pwa-app-bar-brand">
-            <div class="pwa-app-bar-logo">S</div>
+            <button type="button" class="pwa-app-bar-toggle" onclick="togglePwaSidebar()" aria-label="Buka menu">
+                <i class="fa-solid fa-bars"></i>
+            </button>
             <span class="pwa-app-bar-title">{{ $title }}</span>
         </div>
 
@@ -19,7 +14,6 @@
                 <i class="fa-regular fa-bell"></i>
                 <span class="pwa-app-bar-dot"></span>
             </div>
-            <a href="{{ route('pwa.akun') }}" wire:navigate class="pwa-app-bar-avatar">{{ $initials }}</a>
         </div>
     </div>
 </header>

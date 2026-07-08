@@ -10,7 +10,7 @@ use Livewire\Attributes\Layout;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 
-#[Layout('components.pwa-layout', ['title' => 'Akun'])]
+#[Layout('components.layout', ['title' => 'Akun'])]
 class Akun extends Component
 {
     use WithFileUploads;

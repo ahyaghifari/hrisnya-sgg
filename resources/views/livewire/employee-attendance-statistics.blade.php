@@ -1,21 +1,16 @@
 @php
     $isSelf = $record->id === auth()->id();
-    $backRoute = $isSelf && ! auth()->user()->canAccessKaryawanMenu() ? route('dashboard') : route('my-employees');
+    $backRoute = $isSelf && ! auth()->user()->canAccessKaryawanMenu() ? route('dashboard') : route('my-staff');
 @endphp
 <div x-data="{ tab: 'profil' }">
-<div class="mb-6 flex items-center justify-between">
-    <div>
-        <p class="text-xs text-slate-500 mb-1">{{ now()->translatedFormat('l, d F Y') }}</p>
-        <h1 class="text-[22px] font-extrabold text-slate-900 tracking-tight">{{ $isSelf ? 'Data Diri' : 'Karyawanku - ' . $record->name }}</h1>
-        <p class="text-xs text-slate-600 mt-1">{{ $record->profile?->jobPosition?->name ?? 'Karyawan' }}</p>
-    </div>
-    <a href="{{ $backRoute }}" wire:navigate class="text-sm font-semibold text-gray-600 hover:text-gray-900">
-        &larr; Kembali
-    </a>
-</div>
+<x-page-header
+    :title="$isSelf ? 'Data Diri' : 'MyStaff - ' . $record->name"
+    :subtitle="$record->profile?->jobPosition?->name ?? 'Karyawan'"
+    :back="$backRoute"
+/>
 
 <!-- Tabs -->
-<div class="flex gap-1 border-b border-gray-200 mb-6">
+<div class="flex gap-1 border-b border-gray-200 mb-6 overflow-x-auto whitespace-nowrap">
     <button type="button" @click="tab = 'profil'"
         class="px-4 py-2.5 text-sm font-semibold border-b-2 -mb-px transition-colors"
         :class="tab === 'profil' ? 'border-blue-700 text-blue-700' : 'border-transparent text-slate-500 hover:text-slate-700'">

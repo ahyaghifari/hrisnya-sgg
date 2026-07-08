@@ -45,7 +45,7 @@ Each "domain" of the app gets **one** recognizable dark/colored gradient or soli
 |---|---|---|
 | `.welcome-card` | Greeting / quick actions | Navy gradient `#042c6c → #0b47a1`, white text, `.w-deco-*` decorative circles |
 | `.absen-card` | Presence / clock-in (`.a-deco-*`) | Green gradient `#047C54 → #024732`, white text |
-| `.approval-card` | "Butuh Persetujuan Anda" (pending approvals inbox) | Solid-feeling orange gradient `#9a3412 → #ea580c → #fb923c` (darker stop anchored under the header text for contrast), white text, `.appr-deco-*` |
+| `.approval-card` | "Butuh Persetujuan Anda" (pending approvals inbox — Dashboard, MyStaff) | Solid-feeling orange gradient `#9a3412 → #ea580c → #fb923c` (darker stop anchored under the header text for contrast), white text, `.appr-deco-*` |
 | `.timeline-card` | Approval status timeline (`x-approval-timeline` component) | Solid soft yellow `#FCF0D6` with `#F0DBA3` border (no gradient — deliberately flat), **dark** text (`#422006` / `#374151` / `#64748b`), `.tl-deco-*` |
 | `.neuro` | Saldo cuti / stat widgets | Light neumorphic double-shadow (`6px 6px 14px #c5ccd8, -6px -6px 14px #fff`), cool gray `#e8edf6` base |
 | `.stat-card` | Plain white stat cards | Flat white, subtle shadow, `.stat-card-deco` faint corner circle |
@@ -66,10 +66,22 @@ All dark/colored identity cards follow the same anatomy: `border-radius:20px`, `
 
 ## Layout conventions
 
-- Page header pattern: small `text-xs text-slate-500` date line, then `text-[22px] font-extrabold text-slate-900` page title, optional subtitle line.
-- Tabs (when a page has multiple concerns, e.g. Karyawanku's Profil / Presensi & Absensi / Riwayat Pengajuan): plain Alpine (`x-data="{ tab: '...' }"`, `x-show`), styled with a bottom-border-underline active state — no extra JS library.
-- Multi-card responsive grids: prefer `display:grid;grid-template-columns:repeat(auto-fit,minmax(Npx,1fr));gap:...` inline over `.card-pair`/bento-grid classes when the surrounding page isn't the Dashboard's bento grid — `.card-pair` specifically relies on `display:contents` + a parent bento grid with named `grid-column` placement classes (`bento-saldo-1`, etc.), and does nothing on its own outside that context.
+- Page header pattern: **use `<x-page-header title="..." />`** (`resources/views/components/page-header.blade.php`) — every page's header (date + live clock + title, optional `subtitle`/`back` props, `size="lg"` for Dashboard) goes through this one component now. Don't hand-roll the date/title markup per page again; that was the pre-refactor state and it drifted (9 near-duplicate copies, some missing the live clock). If a page needs a header shape the component can't do, extend the component with a new prop rather than bypassing it.
+- Tabs (when a page has multiple concerns, e.g. MyStaff's Profil / Presensi & Absensi / Riwayat Pengajuan): plain Alpine (`x-data="{ tab: '...' }"`, `x-show`), styled with a bottom-border-underline active state — no extra JS library.
+- Multi-card responsive grids: prefer `display:grid;grid-template-columns:repeat(auto-fit,minmax(Npx,1fr));gap:...` inline over `.card-pair`/bento-grid classes when the surrounding page isn't the Dashboard's bento grid — `.card-pair` specifically relies on `display:contents` + a parent bento grid with named `grid-column` placement classes, and does nothing on its own outside that context.
 - Dense multi-field data (profile info, employment info) uses the field-row pattern above, not a raw CSS grid of stacked label/value cells — better line-by-line scanability.
+
+## Responsive requirement — every page must have a mobile layout, not just a shrunk desktop one
+
+This is a hard rule, not a nice-to-have: **every portal page must be designed for both mobile and desktop**, not just wrapped in `overflow-x:auto` and called done. The breakpoint is Tailwind `md:` (768px), matching the switch between `<x-pwa-app-bar>`+`<x-pwa-sidebar>` (mobile) and `<x-nav>` (desktop) in `components/layout.blade.php`.
+
+**The pattern** (see `MyAttendanceRequests`/`my-attendance-requests.blade.php`, `MyEmployees`/`my-employees.blade.php`, and `pending-approvals-card.blade.php` for reference implementations):
+- Data that reads fine as a table on desktop (Filament Table, `.data-table`) becomes a **card/list layout on mobile** (`.pwa-list` + `.pwa-list-row` + `.pwa-tile-icon`, the same components the PWA redesign introduced) — not the same table squeezed into a horizontal scroll. Render both, wrap the mobile version in `<div class="md:hidden">` and the desktop version in `<div class="hidden md:block">` (or `md:grid`/`md:flex` if the desktop variant needs that display type).
+- Components meant to appear in multiple contexts (`<x-approval-timeline>`, leave-balance/stat cards) should own their own responsive behavior internally (render both variants, toggle via the same `md:hidden`/`hidden md:block` pattern) rather than take a `vertical`/`compact` boolean prop that forces the caller to pick one — the caller shouldn't have to know or guess the viewport.
+- When a component needs BOTH Filament's query/pagination machinery AND a separate manual query for the mobile card list (e.g. `MyAttendanceRequests`, `MyEmployees`): extract the shared query into one `baseQuery()`/protected method, call it from both the Filament `table()` method and a `getXProperty()` used by the mobile Blade — don't duplicate the scoping logic.
+- Pagination: if a component already uses `Filament\Tables\Concerns\InteractsWithTable` (which internally composes `Livewire\WithPagination`, aliased to avoid collision), do **not** also add `use WithPagination;` directly — that's a trait method collision (fatal error). Plain `->paginate(n)` still works for the mobile query without it.
+
+**Cascade-layer trap to avoid:** don't combine Tailwind's `hidden`/`md:hidden` with a custom `app.css` class that also sets `display` unconditionally on the *same element* — this project's custom CSS is unlayered (written after `@import 'tailwindcss'` with no `@layer` wrapper), so it always wins the cascade over Tailwind's layered utilities, even across a matching media query. Concretely: `<div class="md:hidden my-custom-grid-class">` where `.my-custom-grid-class { display: grid; }` is defined with no media query will **stay visible above the `md` breakpoint** because the unlayered rule beats `.md\:hidden`'s layered one. Fix: give the custom class its own `display: none` + `@media (min-width: 768px) { display: grid }` pair (see `.bento-side-stats-compact`/`.bento-side-stats` in `app.css`) instead of relying on a Tailwind visibility utility to hide it.
 
 ## Testing & safety (unrelated to visual design, but load-bearing)
 

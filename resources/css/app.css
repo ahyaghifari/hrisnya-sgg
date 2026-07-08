@@ -269,12 +269,11 @@ body.site { font-family: 'Plus Jakarta Sans', sans-serif; background: #f1f5f9; m
 .pwa-app-bar { background: #042c6c; position: sticky; top: 0; z-index: 50; }
 .pwa-app-bar-inner { display: flex; align-items: center; justify-content: space-between; height: 56px; padding: 0 16px; padding-top: env(safe-area-inset-top); }
 .pwa-app-bar-brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
-.pwa-app-bar-logo { flex-shrink: 0; width: 30px; height: 30px; background: rgba(255,255,255,0.14); border-radius: 9px; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 800; font-size: 13px; }
+.pwa-app-bar-toggle { flex-shrink: 0; width: 32px; height: 32px; background: rgba(255,255,255,0.14); border: none; border-radius: 9px; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 15px; cursor: pointer; }
 .pwa-app-bar-title { color: #fff; font-size: 15.5px; font-weight: 700; letter-spacing: -0.2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pwa-app-bar-actions { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
 .pwa-app-bar-bell { position: relative; width: 32px; height: 32px; border-radius: 9px; background: rgba(255,255,255,0.14); display: flex; align-items: center; justify-content: center; color: #fff; font-size: 13.5px; }
 .pwa-app-bar-dot { position: absolute; top: 5px; right: 6px; width: 6px; height: 6px; background: #fb923c; border-radius: 50%; border: 1.5px solid #042c6c; }
-.pwa-app-bar-avatar { width: 32px; height: 32px; border-radius: 9px; background: rgba(255,255,255,0.14); color: #fff; font-weight: 700; font-size: 12.5px; display: flex; align-items: center; justify-content: center; text-decoration: none; }
 
 /* ── PWA MOBILE LIST / CAROUSEL PATTERNS ── */
 .pwa-bento { gap: 20px; }
@@ -285,16 +284,21 @@ body.site { font-family: 'Plus Jakarta Sans', sans-serif; background: #f1f5f9; m
 .pwa-list-row:last-child { border-bottom: none; }
 .pwa-list-row i.fa-chevron-right { color: #cbd5e1; font-size: 11px; }
 
-/* Card header strips — Task Saya (warm gold, pairs with navy) / Kursus Saya (violet,
-   navy's closest analogous hue) so each section reads as its own card at a glance,
-   not just a plain white list under a bare heading. */
+/* Card header strips — Task Saya (soft gold) / Kursus Saya (soft violet), pastel tint instead
+   of solid saturated gradient so it stays soft/easy on the eye while still reading as its own
+   card at a glance (decorative circles kept, just recolored to suit the light background). */
 .pwa-card-header { position: relative; overflow: hidden; padding: 13px 16px; }
 .pwa-card-header-content { position: relative; z-index: 1; display: flex; align-items: center; justify-content: space-between; }
-.pwa-card-header .pwa-section-title, .pwa-card-header .pwa-section-link { color: #fff; }
-.pwa-card-header-deco-1 { position: absolute; top: -18px; right: -14px; width: 60px; height: 60px; border-radius: 50%; background: #fff; opacity: 0.12; }
-.pwa-card-header-deco-2 { position: absolute; bottom: -22px; left: 40px; width: 44px; height: 44px; border-radius: 50%; background: #fff; opacity: 0.08; }
-.pwa-card-header-gold { background: linear-gradient(135deg, #92400e 0%, #d97706 100%); }
-.pwa-card-header-violet { background: linear-gradient(135deg, #5b21b6 0%, #7c3aed 100%); }
+.pwa-card-header-deco-1 { position: absolute; top: -18px; right: -14px; width: 60px; height: 60px; border-radius: 50%; opacity: 0.14; }
+.pwa-card-header-deco-2 { position: absolute; bottom: -22px; left: 40px; width: 44px; height: 44px; border-radius: 50%; opacity: 0.10; }
+
+.pwa-card-header-gold { background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); }
+.pwa-card-header-gold .pwa-section-title, .pwa-card-header-gold .pwa-section-link { color: #92400e; }
+.pwa-card-header-gold .pwa-card-header-deco-1, .pwa-card-header-gold .pwa-card-header-deco-2 { background: #d97706; }
+
+.pwa-card-header-violet { background: linear-gradient(135deg, #ede9fe 0%, #ddd6fe 100%); }
+.pwa-card-header-violet .pwa-section-title, .pwa-card-header-violet .pwa-section-link { color: #5b21b6; }
+.pwa-card-header-violet .pwa-card-header-deco-1, .pwa-card-header-violet .pwa-card-header-deco-2 { background: #7c3aed; }
 
 /* Icon tile — same square-with-tinted-background pattern as the dashboard stat cards,
    reused here so task/course rows don't read as flatter than the rest of the app. */
@@ -307,6 +311,20 @@ body.site { font-family: 'Plus Jakarta Sans', sans-serif; background: #f1f5f9; m
 .pwa-scroll-row { display: flex; gap: 14px; overflow-x: auto; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; padding-bottom: 2px; }
 .pwa-scroll-row::-webkit-scrollbar { display: none; }
 .pwa-course-chip { flex: 0 0 215px; scroll-snap-align: start; background: #fff; border: 1px solid #f1f5f9; border-radius: 14px; padding: 14px; box-shadow: 0 1px 4px rgba(0,0,0,0.05); }
+
+.pwa-row-title { font-size: 13px; font-weight: 600; color: #1e293b; }
+.pwa-course-title { font-size: 12.5px; font-weight: 700; color: #1e293b; margin-bottom: 4px; }
+.pwa-course-sub { font-size: 11px; color: #64748b; margin-bottom: 8px; }
+
+/* Task Saya & Kursus Saya: font sedikit dikecilkan khusus mobile, ukuran desktop tidak berubah. */
+@media (max-width: 767.98px) {
+    .pwa-section-title { font-size: 12px; }
+    .pwa-section-link { font-size: 10.5px; }
+    .pwa-row-title { font-size: 12px; }
+    .pwa-course-title { font-size: 11.5px; }
+    .pwa-course-sub { font-size: 10px; }
+    .pwa-list .badge, .pwa-course-chip .badge { font-size: 10px; }
+}
 
 /* Quick-action buttons (Cuti/Izin/Lembur) — same dark-gradient-card anatomy as
    .welcome-card/.absen-card (border-radius, overflow hidden, low-opacity decorative
@@ -321,13 +339,13 @@ body.site { font-family: 'Plus Jakarta Sans', sans-serif; background: #f1f5f9; m
 .pwa-action-btn.gold { background: linear-gradient(135deg, #92400e 0%, #d97706 100%); }
 .pwa-action-btn.green { background: linear-gradient(135deg, #047C54 0%, #024732 100%); }
 
-/* ── PWA BOTTOM NAV ── */
-.pwa-content { padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
-.pwa-bottom-nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 50; background: #fff; border-top: 1px solid #e8edf5; display: flex; padding-bottom: env(safe-area-inset-bottom); box-shadow: 0 -2px 12px rgba(4,44,108,0.06); }
-.pwa-nav-item { flex: 1; display: flex; align-items: center; justify-content: center; padding: 14px 4px; color: #64748b; text-decoration: none; }
-.pwa-nav-item i { font-size: 19px; }
-.pwa-nav-item.active { color: #042c6c; }
-.pwa-nav-avatar { width: 22px; height: 22px; border-radius: 50%; object-fit: cover; }
+/* ── PWA SIDEBAR (off-canvas, triggered by .pwa-app-bar-toggle) ── */
+.pwa-sidebar-backdrop { position: fixed; inset: 0; background: rgba(15,23,42,0.5); z-index: 60; opacity: 0; pointer-events: none; transition: opacity 0.2s ease; }
+.pwa-sidebar-backdrop.open { opacity: 1; pointer-events: auto; }
+.pwa-sidebar { position: fixed; top: 0; left: 0; bottom: 0; width: 260px; max-width: 80vw; background: #fff; z-index: 61; transform: translateX(-100%); transition: transform 0.25s ease; box-shadow: 4px 0 24px rgba(0,0,0,0.12); display: flex; flex-direction: column; }
+.pwa-sidebar.open { transform: translateX(0); }
+.pwa-sidebar-header { flex-shrink: 0; display: flex; align-items: center; gap: 10px; padding: 16px; padding-top: calc(16px + env(safe-area-inset-top)); border-bottom: 1px solid #f1f5f9; }
+.pwa-sidebar-body { padding: 10px 16px 14px; display: flex; flex-direction: column; gap: 2px; overflow-y: auto; flex: 1; }
 
 /* ── PAGE BACKGROUND DECO ── */
 .page-deco { position: fixed; inset: 0; pointer-events: none; overflow: hidden; z-index: 0; }
@@ -337,7 +355,7 @@ body.site { font-family: 'Plus Jakarta Sans', sans-serif; background: #f1f5f9; m
 .deco-d { position: absolute; top: 15%; left: 20%; width: 90px; height: 90px; border-radius: 14px; background: #047C54; opacity: 0.03; transform: rotate(20deg); }
 
 /* ── CONTAINER ── */
-.page-content { max-width: 1400px; margin: 0 auto; padding: 24px 16px; position: relative; z-index: 2; }
+.page-content { max-width: 1400px; margin: 0 auto; padding: 24px 16px; position: relative; z-index: 2; min-height: 100vh; }
 @media (min-width: 768px) { .page-content { padding: 32px 40px; } }
 
 /* ── BENTO GRID ── */
@@ -350,13 +368,29 @@ body.site { font-family: 'Plus Jakarta Sans', sans-serif; background: #f1f5f9; m
     .bento { grid-template-columns: 1.3fr 1fr 1fr 1fr 1fr; grid-template-rows: 1fr 1fr auto auto; min-height: 340px; }
     .bento-welcome { grid-column: 1/3; grid-row: 1/3; }
     .bento-absensi { grid-column: 3; grid-row: 1/3; }
-    .bento-saldo-1 { grid-column: 4; grid-row: 1; }
-    .bento-saldo-2 { grid-column: 4; grid-row: 2; }
-    .bento-stat-1  { grid-column: 5; grid-row: 1; }
-    .bento-stat-2  { grid-column: 5; grid-row: 2; }
     .bento-pending-approvals { grid-column: 1/-1; grid-row: 3; }
     .bento-recent  { grid-column: 1/-1; grid-row: 4; }
 }
+
+/* Cuti Tahunan + Jumlah Izin + Jumlah Lembur, di samping presensi pada layar lebar (>=1024px),
+   2 kolom (3 card, jadi baris ke-2 cuma terisi 1) di semua breakpoint lain. Dua varian ukuran
+   (compact untuk <768px, normal untuk >=768px) — punya visibility sendiri-sendiri di sini,
+   BUKAN lewat Tailwind `md:hidden` di elemen yang sama: custom CSS di file ini tidak
+   ter-layer, jadi selalu menang cascade-nya di atas utility Tailwind (yang di-@layer),
+   walau kondisi media query md: sudah aktif — kombinasi keduanya di elemen yang sama
+   bikin visibility-nya tidak pernah benar-benar ke-toggle. */
+.bento-side-stats-compact { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+@media (min-width: 768px) { .bento-side-stats-compact { display: none; } }
+
+.bento-side-stats { display: none; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+@media (min-width: 768px) { .bento-side-stats { display: grid; grid-column: 1 / -1; } }
+@media (min-width: 1024px) { .bento-side-stats { grid-column: 4 / 6; grid-row: 1 / 3; } }
+
+/* Task Saya + Kursus Saya: satu kolom bertumpuk di mobile, berdampingan 2 kolom di desktop.
+   Full-width row-nya sendiri di bawah welcome/presensi/saldo, terlepas dari jumlah kolom
+   .bento di breakpoint manapun. */
+.bento-task-kursus { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr; gap: 16px; }
+@media (min-width: 768px) { .bento-task-kursus { grid-template-columns: 1fr 1fr; } }
 
 /* ── WELCOME CARD ── */
 .welcome-card { background: linear-gradient(135deg, #042c6c 0%, #0b47a1 100%); border-radius: 20px; padding: 32px; position: relative; overflow: hidden; }
@@ -371,7 +405,6 @@ body.site { font-family: 'Plus Jakarta Sans', sans-serif; background: #f1f5f9; m
 
 /* ── ABSENSI CARD ── */
 .absen-card { background: linear-gradient(135deg, #047C54 0%, #024732 100%); border-radius: 20px; padding: 24px; position: relative; overflow: hidden; display: flex; flex-direction: column; justify-content: space-between; gap: 14px; min-height: 220px; }
-.absen-card-compact { padding: 16px; min-height: 0; gap: 4px; }
 .a-deco-1 { position: absolute; top: -70px; right: -60px; width: 220px; height: 220px; border-radius: 50%; background: #fff; opacity: 0.06; }
 .a-deco-2 { position: absolute; bottom: -60px; left: -40px; width: 180px; height: 180px; border-radius: 50%; background: #042c6c; opacity: 0.14; }
 .a-deco-3 { position: absolute; top: 40%; right: 20px; width: 70px; height: 70px; border-radius: 14px; background: #B9308C; opacity: 0.14; transform: rotate(18deg); }
@@ -391,7 +424,7 @@ body.site { font-family: 'Plus Jakarta Sans', sans-serif; background: #f1f5f9; m
     .qa-btn-group { gap: 7px; }
     .qa-btn { font-size: 11px; padding: 6px 11px; border-radius: 9px; gap: 6px; }
     .qa-dot { width: 6px; height: 6px; }
-    .absen-card { padding: 20px; }
+    .absen-card { padding: 16px; min-height: 0; gap: 4px; }
     .absen-label { font-size: 10px; }
     .absen-title { font-size: 13px; }
     .absen-sub { font-size: 10.5px; }
@@ -445,6 +478,10 @@ body.site { font-family: 'Plus Jakarta Sans', sans-serif; background: #f1f5f9; m
 .form-page-wrap { max-width: 680px; margin: 0 auto; }
 .page-hero { background: linear-gradient(130deg,#042c6c 0%,#0b47a1 100%); border-radius: 20px; padding: 24px; position: relative; overflow: hidden; margin-bottom: 20px; }
 @media (min-width: 768px) { .page-hero { padding: 28px 32px; } }
+/* Warna header form pengajuan disamakan dengan tombol Aksi Cepat di halaman Pengajuan Absensi
+   (navy = Cuti, default di atas; gold = Izin; green = Lembur). */
+.page-hero.gold { background: linear-gradient(130deg, #92400e 0%, #d97706 100%); }
+.page-hero.green { background: linear-gradient(130deg, #047C54 0%, #024732 100%); }
 .hero-deco-1 { position: absolute; top: -50px; right: -50px; width: 180px; height: 180px; border-radius: 50%; background: #fff; opacity: 0.06; }
 .hero-deco-2 { position: absolute; bottom: -30px; right: 80px; width: 100px; height: 100px; border-radius: 50%; background: #fff; opacity: 0.04; }
 .hero-deco-3 { position: absolute; top: 20px; right: 160px; width: 40px; height: 40px; border-radius: 50%; background: #fff; opacity: 0.08; }

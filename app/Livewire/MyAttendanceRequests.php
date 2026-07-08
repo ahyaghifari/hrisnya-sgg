@@ -17,7 +17,7 @@ use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 
-#[Layout('components.layout', ['title' => 'Riwayat Pengajuan'])]
+#[Layout('components.layout', ['title' => 'Pengajuan Absensi'])]
 class MyAttendanceRequests extends Component implements HasTable, HasActions, HasSchemas
 {
     use InteractsWithTable;
@@ -29,16 +29,15 @@ class MyAttendanceRequests extends Component implements HasTable, HasActions, Ha
         abort_if(Auth::user()->canBrowseAllCompanies(), 403);
     }
 
+    // Dipakai desktop (Filament Table, lihat table() di bawah).
     public function table(Table $table): Table
     {
         $user = Auth::user();
 
         return $table
-            ->query(function () use ($user) {
-                return AttendanceRequests::query()
-                    ->where('user_id', $user->id)
-                    ->with(['leaveDetails', 'permissionDetails', 'overtimeDetails']);
-            })
+            ->query(fn () => AttendanceRequests::query()
+                ->where('user_id', $user->id)
+                ->with(['leaveDetails', 'permissionDetails', 'overtimeDetails']))
             ->columns([
                 TextColumn::make('created_at')
                     ->label('Tanggal Pengajuan')
@@ -77,7 +76,17 @@ class MyAttendanceRequests extends Component implements HasTable, HasActions, Ha
             ]);
     }
 
-    private function keterangan(AttendanceRequests $record): string
+    // Dipakai mobile (list manual, lihat my-attendance-requests.blade.php).
+    public function getRequestsProperty()
+    {
+        return AttendanceRequests::query()
+            ->where('user_id', Auth::id())
+            ->with(['leaveDetails', 'permissionDetails', 'overtimeDetails'])
+            ->orderByDesc('created_at')
+            ->paginate(10);
+    }
+
+    public function keterangan(AttendanceRequests $record): string
     {
         return match ($record->type) {
             'leave' => $record->leaveDetails->first()?->leave_type ?? 'Cuti',

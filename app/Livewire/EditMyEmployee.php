@@ -65,7 +65,7 @@ class EditMyEmployee extends Component implements HasSchemas
             ->success()
             ->send();
 
-        $this->redirect(route('my-employees'), navigate: true);
+        $this->redirect(route('my-staff'), navigate: true);
     }
 
     public function render()

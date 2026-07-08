@@ -2,7 +2,7 @@
 @if ($requests->isNotEmpty())
     {{-- Identitas "Approval Dark": dipakai konsisten di semua kartu domain persetujuan
          (kartu ini + timeline status) supaya user langsung kenali "ini soal approval"
-         di mana pun kartunya muncul (Dashboard, Karyawanku, dsb), tanpa perlu baca teks. --}}
+         di mana pun kartunya muncul (Dashboard, MyStaff, dsb), tanpa perlu baca teks. --}}
     <div style="background:#fff;border-radius:20px;box-shadow:0 2px 10px rgba(0,0,0,0.08);overflow:hidden;">
         <div class="approval-card" style="padding:16px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px;">
             <div class="appr-deco-1"></div><div class="appr-deco-2"></div>
@@ -19,7 +19,28 @@
                 {{ $requests->count() }}
             </span>
         </div>
-        <div style="overflow-x:auto;">
+
+        <!-- MOBILE: card manual -->
+        <div class="md:hidden">
+            @php
+                $typeLabel = fn (string $type) => ['leave' => 'Cuti', 'permission' => 'Izin', 'overtime' => 'Lembur'][$type] ?? $type;
+                $typeIcon = fn (string $type) => ['leave' => 'fa-umbrella-beach', 'permission' => 'fa-clock', 'overtime' => 'fa-briefcase-clock'][$type] ?? 'fa-file-lines';
+                $typeTile = fn (string $type) => ['leave' => 'neutral', 'permission' => 'warn', 'overtime' => 'done'][$type] ?? 'neutral';
+            @endphp
+            @foreach ($requests as $request)
+                <a href="{{ route('my-attendance-requests.show', ['record' => $request->id]) }}" wire:navigate class="pwa-list-row" style="text-decoration:none;">
+                    <div class="pwa-tile-icon {{ $typeTile($request->type) }}"><i class="fa-solid {{ $typeIcon($request->type) }}"></i></div>
+                    <div style="flex:1;min-width:0;">
+                        <p style="font-size:13px;font-weight:600;color:#1e293b;">{{ $typeLabel($request->type) }} · {{ $request->user->name }}</p>
+                        <p style="font-size:11px;color:#64748b;margin-top:2px;">{{ $request->created_at->translatedFormat('d M Y') }}</p>
+                    </div>
+                    <i class="fa-solid fa-chevron-right"></i>
+                </a>
+            @endforeach
+        </div>
+
+        <!-- DESKTOP: table -->
+        <div class="hidden md:block" style="overflow-x:auto;">
             <table class="data-table">
                 <thead>
                     <tr><th>Jenis</th><th>Pemohon</th><th>Tanggal Pengajuan</th><th></th></tr>

@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 
-#[Layout('components.pwa-layout', ['title' => 'Ubah Kata Sandi'])]
+#[Layout('components.layout', ['title' => 'Ubah Kata Sandi'])]
 class UbahPassword extends Component
 {
     public ?string $current_password = null;
