@@ -68,7 +68,7 @@
     };
 @endphp
 
-<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px;align-items:start;">
+<div class="grid grid-cols-1 md:grid-cols-2" style="gap:16px;align-items:start;">
     <div style="background:#fff;border-radius:16px;box-shadow:0 1px 4px rgba(0,0,0,0.06);padding:18px;">
         {!! $sectionHeader('fa-user', 'Informasi Karyawan') !!}
         {!! $renderField('Nama Karyawan', $record->user->name) !!}
