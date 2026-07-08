@@ -47,6 +47,31 @@
             navigator.serviceWorker.register('/sw.js', { scope: '/' });
         }
 
+        // ponytail: submit needs a live request to the server (Livewire AJAX), so just
+        // block it while offline instead of silently failing. No offline queue/sync yet.
+        function pwaUpdateOfflineState() {
+            const offline = !navigator.onLine;
+            document.querySelectorAll('form[wire\\:submit]').forEach((form) => {
+                const btn = form.querySelector('button[type="submit"]');
+                if (!btn) return;
+                btn.disabled = offline;
+                let notice = form.querySelector('.pwa-offline-notice');
+                if (offline && !notice) {
+                    notice = document.createElement('span');
+                    notice.className = 'pwa-offline-notice';
+                    notice.style.cssText = 'color:#dc2626;font-size:12px;font-weight:600;';
+                    notice.textContent = 'Tidak bisa mengajukan saat offline';
+                    btn.insertAdjacentElement('beforebegin', notice);
+                } else if (!offline && notice) {
+                    notice.remove();
+                }
+            });
+        }
+        window.addEventListener('online', pwaUpdateOfflineState);
+        window.addEventListener('offline', pwaUpdateOfflineState);
+        document.addEventListener('livewire:navigated', pwaUpdateOfflineState);
+        pwaUpdateOfflineState();
+
         function pwaTickClock() {
             const el = document.getElementById('live-clock');
             if (el) el.textContent = new Date().toLocaleTimeString('id-ID');

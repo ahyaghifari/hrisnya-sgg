@@ -1,10 +1,35 @@
-// ponytail: minimal service worker — satisfies PWA installability criteria (a registered
-// SW with a fetch handler) plus web push. No offline caching yet; add a cache strategy
-// here when offline support is actually needed.
+// ponytail: network-first with cache fallback — every successful same-origin GET
+// (page navigations + build assets) is cached, so offline reloads show the last-seen
+// version instead of the browser's no-connection page. Not stale-while-revalidate or
+// precaching; upgrade to Workbox if per-route strategies are needed later.
+const CACHE = 'hris-runtime-v1';
+
 self.addEventListener('install', () => self.skipWaiting());
-self.addEventListener('activate', (event) => event.waitUntil(self.clients.claim()));
+self.addEventListener('activate', (event) => {
+    event.waitUntil(
+        caches.keys()
+            .then((keys) => Promise.all(keys.filter((key) => key !== CACHE).map((key) => caches.delete(key))))
+            .then(() => self.clients.claim())
+    );
+});
+
 self.addEventListener('fetch', (event) => {
-    event.respondWith(fetch(event.request));
+    const req = event.request;
+    if (req.method !== 'GET' || !req.url.startsWith(self.location.origin)) {
+        return;
+    }
+
+    event.respondWith(
+        fetch(req)
+            .then((res) => {
+                if (res.ok) {
+                    const copy = res.clone();
+                    caches.open(CACHE).then((cache) => cache.put(req, copy));
+                }
+                return res;
+            })
+            .catch(() => caches.match(req).then((cached) => cached || Response.error()))
+    );
 });
 
 self.addEventListener('push', (event) => {
