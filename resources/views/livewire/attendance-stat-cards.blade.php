@@ -9,7 +9,7 @@
             <span style="font-size:{{ $compact ? '10px' : '13px' }};font-weight:700;color:#374151;line-height:1.2;">Jumlah Izin</span>
         </div>
         <div>
-            <span style="font-size:{{ $compact ? '18px' : '36px' }};font-weight:800;color:#d97706;letter-spacing:-1px;">{{ $izinCount }}</span>
+            <span style="font-size:{{ $compact ? '26px' : '36px' }};font-weight:800;color:#d97706;letter-spacing:-1px;">{{ $izinCount }}</span>
             <p style="font-size:{{ $compact ? '9px' : '13px' }};color:#64748b;margin-top:2px;">pengajuan bulan ini</p>
         </div>
     </div>
@@ -23,7 +23,7 @@
             <span style="font-size:{{ $compact ? '10px' : '13px' }};font-weight:700;color:#374151;line-height:1.2;">Jumlah Lembur</span>
         </div>
         <div>
-            <span style="font-size:{{ $compact ? '18px' : '36px' }};font-weight:800;color:#047C54;letter-spacing:-1px;">{{ $lemburCount }}</span>
+            <span style="font-size:{{ $compact ? '26px' : '36px' }};font-weight:800;color:#047C54;letter-spacing:-1px;">{{ $lemburCount }}</span>
             <p style="font-size:{{ $compact ? '9px' : '13px' }};color:#64748b;margin-top:2px;">pengajuan bulan ini</p>
         </div>
     </div>

@@ -16,7 +16,7 @@
         @php $pct = $balance['quota'] > 0 ? round(($balance['used'] / $balance['quota']) * 100) : 0; @endphp
         <div>
             <div style="display:flex;align-items:baseline;gap:4px;margin-bottom:{{ $compact ? '5px' : '8px' }};">
-                <span style="font-size:{{ $compact ? '18px' : '36px' }};font-weight:800;color:{{ $color }};letter-spacing:-1px;">{{ $balance['available'] }}</span>
+                <span style="font-size:{{ $compact ? '26px' : '36px' }};font-weight:800;color:{{ $color }};letter-spacing:-1px;">{{ $balance['available'] }}</span>
                 <span style="font-size:{{ $compact ? '9px' : '13px' }};color:#64748b;font-weight:500;">/ {{ $balance['quota'] }} hari</span>
             </div>
             @unless ($compact)

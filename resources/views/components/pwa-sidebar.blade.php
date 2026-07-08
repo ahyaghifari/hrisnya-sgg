@@ -19,9 +19,6 @@
         <a href="{{ route('data-diri') }}" wire:navigate class="nav-item {{ request()->routeIs('data-diri') ? 'active' : '' }}">
             <i class="fa-solid fa-id-card text-xs w-4"></i> Data Diri
         </a>
-        <a href="{{ route('akun') }}" wire:navigate class="nav-item {{ request()->routeIs('akun') ? 'active' : '' }}">
-            <i class="fa-solid fa-user text-xs w-4"></i> Akun
-        </a>
         <a href="{{ route('akun.ubah-password') }}" wire:navigate class="nav-item {{ request()->routeIs('akun.ubah-password') ? 'active' : '' }}">
             <i class="fa-solid fa-lock text-xs w-4"></i> Ubah Password
         </a>
