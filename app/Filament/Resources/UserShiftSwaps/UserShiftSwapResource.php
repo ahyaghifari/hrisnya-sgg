@@ -26,7 +26,7 @@ class UserShiftSwapResource extends Resource
 
     protected static ?string $navigationParentItem = 'Jadwal Shift';
 
-    protected static string | UnitEnum | null $navigationGroup = 'Jadwal Shift Karyawan';
+    protected static string | UnitEnum | null $navigationGroup = 'Karyawan';
 
     public static function form(Schema $schema): Schema
     {

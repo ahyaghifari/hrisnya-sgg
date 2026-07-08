@@ -2,11 +2,6 @@
 
 namespace App\Providers\Filament;
 
-use App\Filament\Resources\Users\UserResource;
-use App\Filament\Widgets\NotificationWidget;
-use App\Filament\Widgets\PerformanceChart;
-use Filament\Actions\Action;
-use Filament\Enums\ThemeMode;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -15,9 +10,7 @@ use Filament\Navigation\NavigationGroup;
 use Filament\Pages\Dashboard;
 use Filament\Panel;
 use Filament\PanelProvider;
-use Filament\Support\Colors\Color;
 use Filament\Widgets\AccountWidget;
-use Filament\Widgets\FilamentInfoWidget;
 use Guava\Calendar\CalendarPlugin;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
@@ -36,7 +29,6 @@ class AdminPanelProvider extends PanelProvider
             ->id('admin')
             ->path('admin')
             ->brandName(fn () => Auth::user()?->company?->name ?? 'Syifa Global Group')
-            ->defaultThemeMode(ThemeMode::Light)
             ->darkMode(false)
             ->login()
             ->colors([
@@ -74,10 +66,8 @@ class AdminPanelProvider extends PanelProvider
                 Dashboard::class,
             ])
             ->globalSearch(false)
-            ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\Filament\Widgets')
             ->widgets([
-                PerformanceChart::class,
-                NotificationWidget::class,
+                AccountWidget::class,
             ])
             ->navigationGroups([
                 NavigationGroup::make()->label('Karyawan'),

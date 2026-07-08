@@ -51,7 +51,7 @@ return [
 
     'organization-structure' => [
         'label' => 'Struktur Organisasi',
-        'permission' => 'view_struktur_organisasi',
+        'permission' => null,
         'guard' => null,
     ],
 

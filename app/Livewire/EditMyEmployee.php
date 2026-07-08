@@ -24,7 +24,6 @@ class EditMyEmployee extends Component implements HasSchemas
 
     public function mount(User $record): void
     {
-        abort_unless(Auth::user()->can('edit_karyawan'), 403);
         abort_unless($this->canManage($record), 403);
 
         $this->record = $record;

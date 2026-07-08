@@ -1,0 +1,35 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Policies\Assessment;
+
+use Illuminate\Foundation\Auth\User as AuthUser;
+use App\Models\Assessment\AssessmentUsers;
+use Illuminate\Auth\Access\HandlesAuthorization;
+
+class AssessmentUsersPolicy
+{
+    use HandlesAuthorization;
+    
+    public function view(AuthUser $authUser, AssessmentUsers $assessmentUsers): bool
+    {
+        return $authUser->can('View:AssessmentUsers');
+    }
+
+    public function create(AuthUser $authUser): bool
+    {
+        return $authUser->can('Create:AssessmentUsers');
+    }
+
+    public function update(AuthUser $authUser, AssessmentUsers $assessmentUsers): bool
+    {
+        return $authUser->can('Update:AssessmentUsers');
+    }
+
+    public function delete(AuthUser $authUser, AssessmentUsers $assessmentUsers): bool
+    {
+        return $authUser->can('Delete:AssessmentUsers');
+    }
+
+}

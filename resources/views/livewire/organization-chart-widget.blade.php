@@ -53,16 +53,14 @@
                         <p class="text-xs text-gray-400 mt-2">Silakan tambahkan jabatan melalui menu Master Data.</p>
                     </div>
 
-                    @can('create_struktur_organisasi')
-                        <div class="mt-6">
-                            <x-filament::button 
-                                color="primary" 
-                                wire:click="createJob()"
-                            >
-                                Tambah Jabatan
-                            </x-filament::button>
-                        </div>
-                    @endcan
+                    <div class="mt-6">
+                        <x-filament::button
+                            color="primary"
+                            wire:click="createJob()"
+                        >
+                            Tambah Jabatan
+                        </x-filament::button>
+                    </div>
                 @endif
             </div>
         </div>

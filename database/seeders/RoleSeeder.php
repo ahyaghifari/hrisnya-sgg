@@ -10,7 +10,8 @@ class RoleSeeder extends Seeder
 {
     /**
      * "Super Admin" cuma buat company holding — company lain cuma sampai "Admin".
-     * Lihat RenameCompanySuperAdminToAdminSeeder untuk perbaikan data yang sudah terlanjur ada.
+     * Perbaikan data yang sudah terlanjur ada ditangani di migration
+     * 2026_07_08_230229_sync_filament_shield_permission_catalog.php.
      */
     private const HOLDING_COMPANY_ID = '01J2F0C8KQ9M7D4S8RBX6E1ZVP';
 

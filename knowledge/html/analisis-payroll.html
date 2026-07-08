@@ -18,11 +18,24 @@
   .warn { background: #fdecea; border: 1px solid #e0554f; border-radius: 8px; padding: 1rem 1.25rem; }
   ol li, ul li { margin-bottom: .4rem; }
   footer { margin-top: 3rem; font-size: .85em; color: #777; border-top: 1px solid #ddd; padding-top: 1rem; }
+
+  .erd-wrap { overflow-x: auto; margin: 1.5rem 0; }
+  .erd-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0 1.5rem; min-width: 900px; }
+  .erd-col-title { text-align: center; font-weight: bold; color: #042c6c; margin-bottom: .5rem; font-size: .95em; }
+  .erd-box { border: 1px solid #99a; border-radius: 6px; padding: .6rem .75rem; margin-bottom: .35rem; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.06); }
+  .erd-box .name { font-weight: bold; color: #042c6c; font-size: .95em; }
+  .erd-box .cols { font-size: .8em; color: #333; margin-top: .25rem; }
+  .erd-box .cols code { background: transparent; padding: 0; }
+  .erd-box.gap { border-color: #e0554f; background: #fff6f5; }
+  .erd-box.gap .note { color: #b23; font-size: .78em; margin-top: .3rem; font-style: italic; }
+  .erd-arrow { text-align: center; color: #99a; font-size: 1.1em; margin: -.1rem 0 .35rem; }
+  .erd-mid { grid-column: 2; align-self: start; margin-top: 2.1rem; }
+  .erd-rel-table td, .erd-rel-table th { font-size: .85em; }
 </style>
 </head>
 <body>
 
-<h1>Analisis Payroll <small style="font-weight:normal;color:#666;">— Komponen Gaji, Jasa Dokter, Trainer, Insentif (2026-07-05)</small></h1>
+<h1>Analisis Payroll <small style="font-weight:normal;color:#666;">— Komponen Gaji, Jasa Dokter, Trainer, Insentif (2026-07-05, update 2026-07-08)</small></h1>
 
 <p>Dokumen ini menjawab kebingungan yang dirasakan soal payroll: apakah jasa dokter/pajak jasa dokter memang dibatasi cuma untuk company rumah sakit, dan apakah tunjangan jabatan/transportasi memang punya syarat status kepegawaian (tetap vs kontrak). Ditulis dari pembacaan kode langsung (migration, model, service) — bukan asumsi.</p>
 
@@ -86,6 +99,121 @@
 
 <h3>2.4 Insentif Program</h3>
 <p><code>program_incentives</code>: <code>company_id</code>, <code>user_id</code>, <code>program_name</code>, <code>incentive_date</code>, <code>amount</code>, <code>is_processed</code> — murni input manual, <strong>tidak ada Service class atau logic otomatis apa pun</strong>.</p>
+
+<h3>2.5 Relasi Antar Tabel (ERD ringkas, diverifikasi ke migration asli 2026-07-08)</h3>
+<p>Dua rantai yang bentuknya sejajar — payroll reguler (kiri) dan jasa dokter (kanan) — sama-sama mengalir <em>katalog master → klaim/assignment → periode → slip → rincian</em>, nyambung ke cluster <code>m_companies</code>/<code>users</code> di tengah. Kotak merah = gap yang sudah dikonfirmasi di kode (lihat §5).</p>
+
+<div class="erd-wrap">
+<div class="erd-grid">
+
+  <div class="erd-col-title">Payroll Reguler</div>
+  <div></div>
+  <div class="erd-col-title">Jasa Dokter</div>
+
+  <div>
+    <div class="erd-box">
+      <div class="name">m_salary_components</div>
+      <div class="cols"><code>id</code>, <code>company_id</code> (FK, nullable=shared), <code>name</code>, <code>type</code> (earning/deduction), <code>calculation_type</code>, <code>default_value</code>, <code>is_active</code></div>
+    </div>
+    <div class="erd-arrow">↓ salary_component_id</div>
+    <div class="erd-box gap">
+      <div class="name">salary_components <small>(assignment)</small></div>
+      <div class="cols"><code>id</code>, <code>salary_component_id</code> (FK), <code>salaryable_type/id</code> (poly → JobPositions | Pangkats | Companies), <code>amount</code>, <code>percentage</code>, <code>is_overrideable</code></div>
+      <div class="note">✗ tidak ada kolom syarat kepegawaian (gap §5.1)</div>
+    </div>
+  </div>
+
+  <div></div>
+
+  <div>
+    <div class="erd-box">
+      <div class="name">m_doctor_services</div>
+      <div class="cols"><code>id</code>, <code>company_id</code> (FK, nullable=shared), <code>name</code>, <code>calculation_type</code>, <code>amount</code>, <code>percentage</code>, <code>formula_code</code>, <code>is_active</code></div>
+      <div class="note" style="color:#b23">✗ halaman create/edit tidak ada (gap §5.3)</div>
+    </div>
+    <div class="erd-arrow">↓ doctor_service_id</div>
+    <div class="erd-box">
+      <div class="name">doctor_fee_submissions</div>
+      <div class="cols"><code>id</code>, <code>company_id</code> (FK, <strong>wajib</strong>), <code>sep_number</code>, <code>patient_name</code>, <code>status</code>, <code>date</code>, <code>created_by</code></div>
+    </div>
+    <div class="erd-arrow">↓ submission_id</div>
+    <div class="erd-box">
+      <div class="name">doctor_fee_items</div>
+      <div class="cols"><code>id</code>, <code>submission_id</code> (FK), <code>user_id</code> (dokternya), <code>doctor_service_id</code> (FK), <code>amount</code>, <code>is_paid</code></div>
+    </div>
+  </div>
+
+  <div class="erd-mid">
+    <div class="erd-box gap">
+      <div class="name">m_companies</div>
+      <div class="cols"><code>id</code>, <code>code</code>, <code>name</code>, <code>location</code>, <code>is_active</code></div>
+      <div class="note">✗ belum ada kolom kategori/tipe bisnis (gap §5.2)</div>
+    </div>
+    <div class="erd-box">
+      <div class="name">users</div>
+      <div class="cols"><code>id</code>, <code>nip</code>, <code>company_id</code> (FK), <code>name</code></div>
+    </div>
+    <div class="erd-box gap">
+      <div class="name">m_employee_types</div>
+      <div class="cols"><code>id</code>, <code>name</code>, <code>company_id</code></div>
+      <div class="note">✗ tidak ada relasi ke komponen gaji / payroll manapun (gap §5.1) — <code>employee_type_id</code> tidak pernah dibaca saat generate payroll</div>
+    </div>
+  </div>
+
+  <div>
+    <div class="erd-box">
+      <div class="name">payroll_periods</div>
+      <div class="cols"><code>id</code>, <code>company_id</code> (FK, nullable — fungsinya wajib), <code>start_date</code>, <code>end_date</code>, <code>processed_at</code></div>
+    </div>
+    <div class="erd-arrow">↓ payroll_period_id</div>
+    <div class="erd-box">
+      <div class="name">payrolls</div>
+      <div class="cols"><code>id</code>, <code>user_id</code> (FK), <code>payroll_period_id</code> (FK), <code>gross_salary</code>, <code>total_deductions</code>, <code>net_salary</code>, <code>is_paid</code></div>
+    </div>
+    <div class="erd-arrow">↓ payroll_id</div>
+    <div class="erd-box">
+      <div class="name">payroll_items</div>
+      <div class="cols"><code>id</code>, <code>payroll_id</code> (FK), <code>name</code>, <code>type</code>, <code>calculation_type</code>, <code>amount</code></div>
+      <div class="note" style="color:#666">snapshot murni — tidak link balik ke <code>salary_components</code></div>
+    </div>
+  </div>
+
+  <div></div>
+
+  <div>
+    <div class="erd-box">
+      <div class="name">doctor_payroll_periods</div>
+      <div class="cols"><code>id</code>, <code>company_id</code> (FK, nullable) — identik pola dengan <code>payroll_periods</code></div>
+    </div>
+    <div class="erd-arrow">↓ doctor_payroll_period_id</div>
+    <div class="erd-box gap">
+      <div class="name">doctor_payrolls</div>
+      <div class="cols"><code>id</code>, <code>doctor_id</code> (FK users), <code>doctor_payroll_period_id</code> (FK), <code>gross_salary</code>, <code>tax_percentage</code>, <code>tax_amount</code>, <code>net_salary</code>, <code>is_paid</code></div>
+      <div class="note">tax_* kolom terpisah — harusnya bisa jadi baris <code>payroll_items</code> type=deduction, bandingkan dgn <code>payrolls</code></div>
+    </div>
+    <div class="erd-arrow">↓ doctor_payroll_id</div>
+    <div class="erd-box">
+      <div class="name">doctor_payroll_items</div>
+      <div class="cols"><code>id</code>, <code>doctor_payroll_id</code> (FK), <code>doctor_fee_item_id</code> (FK, nullable), <code>service_name</code>, <code>amount</code></div>
+      <div class="note" style="color:#666">beda dari <code>payroll_items</code>: punya provenance link balik ke <code>doctor_fee_items</code></div>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<p><strong>Relasi lintas kolom</strong> (FK yang menghubungkan kedua rantai ke cluster tengah):</p>
+<table class="erd-rel-table">
+<tr><th>Dari</th><th>Ke</th><th>Kolom</th><th>Catatan</th></tr>
+<tr><td><code>m_salary_components</code></td><td><code>m_companies</code></td><td><code>company_id</code> (nullable)</td><td>NULL = shared/global, lihat migration <code>2026_07_03_141000</code></td></tr>
+<tr><td><code>m_doctor_services</code></td><td><code>m_companies</code></td><td><code>company_id</code> (nullable)</td><td>pola identik dengan <code>m_salary_components</code></td></tr>
+<tr><td><code>salary_components</code></td><td><code>m_companies</code> / JobPositions / Pangkats</td><td><code>salaryable_type/id</code> (poly)</td><td>assignment tetap, rule-driven</td></tr>
+<tr><td><code>doctor_fee_submissions</code></td><td><code>m_companies</code></td><td><code>company_id</code> (wajib)</td><td>klaim per kejadian, event-driven</td></tr>
+<tr><td><code>doctor_fee_items</code></td><td><code>users</code></td><td><code>user_id</code></td><td>dokter penerima fee</td></tr>
+<tr><td><code>payroll_periods</code> / <code>doctor_payroll_periods</code></td><td><code>m_companies</code></td><td><code>company_id</code> (nullable)</td><td>nullable di skema, tapi wajib diisi secara praktik — kalau NULL, query generate cuma nangkep user yang <code>company_id</code>-nya juga NULL</td></tr>
+<tr><td><code>payrolls</code></td><td><code>users</code>, <code>payroll_periods</code></td><td><code>user_id</code>, <code>payroll_period_id</code></td><td></td></tr>
+<tr><td><code>doctor_payrolls</code></td><td><code>users</code>, <code>doctor_payroll_periods</code></td><td><code>doctor_id</code>, <code>doctor_payroll_period_id</code></td><td>dokter = <code>User</code> biasa, tidak ada tabel <code>doctors</code> terpisah</td></tr>
+</table>
 
 <h2>3. Relasi Model (ringkas)</h2>
 <table>
@@ -171,7 +299,45 @@
 <li>Migration: <code>2026_07_03_141000_add_nullable_company_id_to_master_doctor_services_and_salary_components.php</code>, <code>2026_01_11_100257_...</code> (kolom pajak <code>doctor_payrolls</code>)</li>
 </ul>
 
-<footer>Dibuat 2026-07-05 — analisis payroll berdasarkan pembacaan kode langsung, bukan asumsi.</footer>
+<h2>8. Update 2026-07-08 — Verifikasi Ulang &amp; Rencana Unifikasi Skema</h2>
+
+<h3>8.1 Kode berubah sejak 2026-07-05 — 4 komponen baru belum pernah didokumentasikan</h3>
+<p><code>PayrollService.php</code> sekarang punya method tambahan yang tidak ada di analisis awal: <code>handleLeaveComponent()</code>, <code>handlePermissionComponent()</code>, <code>handleLateArrivalComponent()</code>, <code>handleProgramIncentiveComponent()</code>. <code>handleOvertimeComponent()</code> juga ditulis ulang total — sekarang murni dari <code>ShiftOvertimeCosts</code> (rate per shift+jenis lembur+company, dengan cap <code>maximum_overtime_hours</code>), bukan lagi referensi <code>MasterSalaryComponents</code>. Method baru ini juga <strong>tidak</strong> menyentuh <code>employee_type_id</code> — konsisten dengan gap §5.1, deduction baru (potongan telat, dll) pun berlaku sama rata ke karyawan tetap maupun kontrak.</p>
+
+<div class="warn">
+<p><strong>Temuan baru: lookup komponen master rusak diam-diam saat dijalankan lewat queue.</strong></p>
+<p><code>getMasterComponent()</code> (dipakai <code>handleLeaveComponent</code>/<code>handlePermissionComponent</code>/<code>handleLateArrivalComponent</code>) dan lookup pajak dokter di <code>DoctorPayrollService.php</code> sama-sama query:</p>
+<blockquote><code>MasterSalaryComponents::where('name', $nameEnum->value)->first();</code></blockquote>
+<p>Tanpa filter <code>company_id</code> eksplisit — mengandalkan global scope <code>BelongsToCompanyOrShared</code> yang otomatis filter by <code>Auth::user()->company_id</code>. Masalahnya, scope itu (<code>BelongsToCompanyOrShared.php</code>):</p>
+<blockquote><code>if (app()->runningInConsole()) { return; } // scope tidak dipasang sama sekali</code></blockquote>
+<p><code>GeneratePayrollJob</code>/<code>GenerateDoctorPayrollJob</code> adalah <code>ShouldQueue</code>, dan <code>.env</code> set <code>QUEUE_CONNECTION=database</code> — di production beneran jalan lewat <code>php artisan queue:work</code>, sebuah proses console. Begitu job dieksekusi worker (bukan disimulasikan sync di request HTTP), global scope company <strong>hilang total</strong>, dan <code>-&gt;first()</code> mengambil baris pertama sesuai urutan default DB — company mana pun, tanpa peduli periode payroll ini untuk company apa. Saat ini masih <strong>laten</strong> (belum ada data ganda per nama komponen), tapi begitu ada company kedua dengan tarif Leave/Izin/Keterlambatan/Pajak Dokter sendiri, payroll generate via queue bisa memakai tarif company yang salah tanpa error apa pun.</p>
+<p><strong>Fix yang disarankan</strong> (root-cause, 1 titik nutup 4 pemanggilan): filter eksplisit <code>company_id = $period-&gt;company_id OR NULL</code>, urutkan company-specific menang duluan — jangan mengandalkan Auth scope buat konteks background job.</p>
+</div>
+
+<h3>8.2 Perbandingan PDF slip gaji reguler vs dokter</h3>
+<p>Layout &amp; CSS <strong>identik 100%</strong> antara <code>pdf/payroll/payroll.blade.php</code> dan <code>pdf/payroll/doctor-payroll.blade.php</code> — bedanya cuma isi/data, mengikuti perbedaan skema:</p>
+<table>
+<tr><th></th><th>Slip reguler</th><th>Slip dokter</th></tr>
+<tr><td>Nama perusahaan</td><td>hardcode "Syifa Global Group"</td><td>dinamis <code>$payroll->period->company->name</code></td></tr>
+<tr><td>Tabel rincian</td><td>2 kolom terpisah: PENDAPATAN vs POTONGAN</td><td>1 kolom, semua item digabung rata</td></tr>
+<tr><td>Pajak</td><td>baris di kolom POTONGAN (kalau ada payroll_item type=deduction)</td><td>baris terpisah hardcode di luar tabel item</td></tr>
+</table>
+<div class="warn">Bug ketemu: <code>doctor-payroll.blade.php</code> baris info kiri manggil <code>$payroll->doctor->employee_number</code> — kolom itu <strong>tidak ada</strong> di skema <code>users</code> (yang ada <code>nip</code>). Kemungkinan besar selalu tampil "-" di PDF dokter.</div>
+<p>Konsekuensi buat rencana unifikasi (§8.3): kalau fee dokter disatukan ke <code>payroll_items</code> dan pajak jadi baris <code>type=deduction</code>, PDF dokter otomatis bisa pakai template <code>payroll.blade.php</code> yang sama persis — tidak perlu 2 file blade lagi.</p>
+
+<h3>8.3 Rencana diskusi: unifikasi skema doctor → payroll</h3>
+<p>Alasan diajukan: holding ini bukan cuma rumah sakit (ada hotel, agribisnis, dll), jadi skema paralel penuh khusus "doctor_*" tidak proporsional — bentuknya sudah identik dengan payroll reguler (<em>katalog master → klaim/assignment → periode → slip → rincian</em>), cuma beda sumber pemicu: assignment tetap ke jabatan (rule-driven) vs klaim per kejadian (event-driven).</p>
+<p><strong>Pemetaan yang diusulkan</strong> (belum dieksekusi — masih tahap diskusi):</p>
+<table>
+<tr><th>Lama (doctor-only)</th><th>Baru (general)</th><th>Alasan</th></tr>
+<tr><td><code>m_doctor_services</code></td><td>baris <code>type=earning</code> di <code>m_salary_components</code></td><td>sudah 1:1 bentuknya, cuma beda nama tabel</td></tr>
+<tr><td><code>doctor_fee_submissions</code></td><td><code>fee_submissions</code> (generik: <code>reference_number</code>, <code>subject_name</code>/<code>notes</code>, bukan "patient")</td><td>klaim per-kejadian bukan cuma milik dokter</td></tr>
+<tr><td><code>doctor_fee_items</code></td><td><code>fee_items</code> (refer ke <code>m_salary_components</code>, bukan tabel service terpisah)</td><td>satu katalog komponen buat semua jenis income</td></tr>
+<tr><td><code>doctor_payroll_periods</code> + <code>doctor_payrolls</code> + <code>doctor_payroll_items</code></td><td><strong>dihapus</strong> — fee items ditarik ke <code>payroll_periods</code>/<code>payrolls</code>/<code>payroll_items</code> lewat 1 handler baru (<code>handleFeeSubmissionComponent()</code>), pola sama dengan <code>handleServiceFeeComponent</code></td><td>dokter = <code>User</code> biasa di company rumah sakit, satu pipeline payroll buat semua orang</td></tr>
+</table>
+<p><strong>Keputusan yang masih perlu disepakati sebelum eksekusi</strong>: (1) trigger generate fee tetap terpisah ritmenya dari payroll bulanan reguler, atau digabung jadi satu tombol; (2) ada data produksi nyata di tabel doctor_* (RSU Banjarbaru) yang perlu script migrasi data, atau boleh mulai bersih; (3) urutan migration + daftar file yang kena refactor (2 Service, 3 Job, beberapa Filament Resource, PDF view) ditulis sebagai planning doc dulu sebelum coding.</p>
+
+<footer>Ditulis 2026-07-05, diverifikasi &amp; diperluas 2026-07-08 — berdasarkan pembacaan kode &amp; migration langsung, bukan asumsi.</footer>
 
 </body>
 </html>

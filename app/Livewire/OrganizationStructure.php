@@ -7,7 +7,6 @@ use App\Helpers\PermissionHelper;
 use App\Models\Master\Companies;
 use App\Models\Master\JobPositions;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Gate;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\On;
 use Livewire\Component;
@@ -21,8 +20,6 @@ class OrganizationStructure extends Component
 
     public function mount(): void
     {
-        abort_unless(Gate::allows('view_struktur_organisasi'), 403);
-
         $this->companyId = Auth::user()?->company_id ?? Companies::query()->first()?->id;
     }
 

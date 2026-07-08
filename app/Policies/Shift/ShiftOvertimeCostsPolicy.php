@@ -1,0 +1,35 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Policies\Shift;
+
+use Illuminate\Foundation\Auth\User as AuthUser;
+use App\Models\Shift\ShiftOvertimeCosts;
+use Illuminate\Auth\Access\HandlesAuthorization;
+
+class ShiftOvertimeCostsPolicy
+{
+    use HandlesAuthorization;
+    
+    public function view(AuthUser $authUser, ShiftOvertimeCosts $shiftOvertimeCosts): bool
+    {
+        return $authUser->can('View:ShiftOvertimeCosts');
+    }
+
+    public function create(AuthUser $authUser): bool
+    {
+        return $authUser->can('Create:ShiftOvertimeCosts');
+    }
+
+    public function update(AuthUser $authUser, ShiftOvertimeCosts $shiftOvertimeCosts): bool
+    {
+        return $authUser->can('Update:ShiftOvertimeCosts');
+    }
+
+    public function delete(AuthUser $authUser, ShiftOvertimeCosts $shiftOvertimeCosts): bool
+    {
+        return $authUser->can('Delete:ShiftOvertimeCosts');
+    }
+
+}

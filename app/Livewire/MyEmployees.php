@@ -71,8 +71,6 @@ class MyEmployees extends Component implements HasTable, HasSchemas, HasActions
                     ->icon('heroicon-o-chart-bar')
                     ->url(fn (User $record) => route('my-staff.show', ['record' => $record])),
                 EditAction::make()
-                    ->visible(fn () => Auth::user()
-                    ->can('edit_karyawan'))
                     ->url(fn (User $record) => route('my-staff.edit', ['record' => $record])),
             ])
             ->toolbarActions([])

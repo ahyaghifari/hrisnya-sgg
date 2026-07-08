@@ -166,16 +166,14 @@
                     Tutup
                 </button>
 
-                @can('edit_master_data_jabatan')
-                    <button
-                        type="button"
-                        wire:click="editJob('{{ $this->selectedJobDetail->id }}')"
-                        class="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-white bg-primary-600 rounded-lg shadow-sm hover:bg-primary-700 transition-colors"
-                    >
-                        <x-heroicon-m-pencil-square class="w-4 h-4" />
-                        Edit Jabatan
-                    </button>
-                @endcan
+                <button
+                    type="button"
+                    wire:click="editJob('{{ $this->selectedJobDetail->id }}')"
+                    class="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-white bg-primary-600 rounded-lg shadow-sm hover:bg-primary-700 transition-colors"
+                >
+                    <x-heroicon-m-pencil-square class="w-4 h-4" />
+                    Edit Jabatan
+                </button>
             </div>
         </div>
     @endif

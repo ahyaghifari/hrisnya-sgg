@@ -20,7 +20,7 @@ class UserShiftScheduleResource extends Resource
 
     protected static ?int $navigationSort = 4;
 
-    protected static string | UnitEnum | null $navigationGroup = 'Jadwal Shift Karyawan';
+    protected static string | UnitEnum | null $navigationGroup = 'Karyawan';
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedCalendarDateRange;
 

@@ -1,0 +1,35 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Policies\Assessment;
+
+use Illuminate\Foundation\Auth\User as AuthUser;
+use App\Models\Assessment\AssessmentTemplates;
+use Illuminate\Auth\Access\HandlesAuthorization;
+
+class AssessmentTemplatesPolicy
+{
+    use HandlesAuthorization;
+    
+    public function view(AuthUser $authUser, AssessmentTemplates $assessmentTemplates): bool
+    {
+        return $authUser->can('View:AssessmentTemplates');
+    }
+
+    public function create(AuthUser $authUser): bool
+    {
+        return $authUser->can('Create:AssessmentTemplates');
+    }
+
+    public function update(AuthUser $authUser, AssessmentTemplates $assessmentTemplates): bool
+    {
+        return $authUser->can('Update:AssessmentTemplates');
+    }
+
+    public function delete(AuthUser $authUser, AssessmentTemplates $assessmentTemplates): bool
+    {
+        return $authUser->can('Delete:AssessmentTemplates');
+    }
+
+}

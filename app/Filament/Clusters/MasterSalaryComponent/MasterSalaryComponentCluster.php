@@ -22,4 +22,5 @@ class MasterSalaryComponentCluster extends Cluster
     {
         return Gate::allows('view_master_data_komponen_gaji');
     }
+    
 }
