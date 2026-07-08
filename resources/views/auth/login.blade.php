@@ -35,7 +35,7 @@
                 <div class="absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-[#042c6c] to-[#1a56c4]"></div>
 
                 <div class="text-xl font-bold text-slate-800 mb-1">Selamat Datang</div>
-                <div class="text-[13px] text-slate-500 mb-7">Masuk untuk mengakses portal</div>
+                {{-- <div class="text-[13px] text-slate-500 mb-7">Masuk untuk menga</div> --}}
 
                 @if ($errors->any())
                     <div class="flex items-center gap-2.5 bg-red-50 border border-red-200 rounded-[10px] px-3.5 py-2.5 mb-5 text-[13px] text-red-600">
