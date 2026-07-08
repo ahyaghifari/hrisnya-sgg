@@ -12,6 +12,11 @@ class AssessmentsPolicy
 {
     use HandlesAuthorization;
     
+    public function viewAny(AuthUser $authUser): bool
+    {
+        return $authUser->can('ViewAny:Assessments');
+    }
+
     public function view(AuthUser $authUser, Assessments $assessments): bool
     {
         return $authUser->can('View:Assessments');
@@ -30,6 +35,41 @@ class AssessmentsPolicy
     public function delete(AuthUser $authUser, Assessments $assessments): bool
     {
         return $authUser->can('Delete:Assessments');
+    }
+
+    public function deleteAny(AuthUser $authUser): bool
+    {
+        return $authUser->can('DeleteAny:Assessments');
+    }
+
+    public function restore(AuthUser $authUser, Assessments $assessments): bool
+    {
+        return $authUser->can('Restore:Assessments');
+    }
+
+    public function forceDelete(AuthUser $authUser, Assessments $assessments): bool
+    {
+        return $authUser->can('ForceDelete:Assessments');
+    }
+
+    public function forceDeleteAny(AuthUser $authUser): bool
+    {
+        return $authUser->can('ForceDeleteAny:Assessments');
+    }
+
+    public function restoreAny(AuthUser $authUser): bool
+    {
+        return $authUser->can('RestoreAny:Assessments');
+    }
+
+    public function replicate(AuthUser $authUser, Assessments $assessments): bool
+    {
+        return $authUser->can('Replicate:Assessments');
+    }
+
+    public function reorder(AuthUser $authUser): bool
+    {
+        return $authUser->can('Reorder:Assessments');
     }
 
 }

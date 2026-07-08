@@ -16,7 +16,6 @@ use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use UnitEnum;
@@ -117,21 +116,6 @@ class AttendanceRequestResource extends Resource
                 ->group(static::getNavigationGroup())
                 ->badge($getCount('overtime')),
         ];
-    }
-
-    public static function canAccess(): bool
-    {
-        return Gate::allows('view_pengajuan_absensi');
-    }
-
-    public static function canView(Model $record): bool
-    {
-        return Gate::allows('view_pengajuan_absensi');
-    }
-
-    public static function canCreate(): bool
-    {
-        return Gate::allows('create_pengajuan_absensi');
     }
 
     public static function canApprove(): bool

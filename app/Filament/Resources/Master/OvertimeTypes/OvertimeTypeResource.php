@@ -15,8 +15,6 @@ use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\Gate;
 use UnitEnum;
 
 class OvertimeTypeResource extends Resource
@@ -25,7 +23,7 @@ class OvertimeTypeResource extends Resource
 
     protected static ?string $navigationLabel = "Jenis Lembur";
 
-    protected static string | UnitEnum | null $navigationGroup = 'Master Data';
+    protected static string | UnitEnum | null $navigationGroup = 'Master';
 
     protected static ?int $navigationSort = 13;
 
@@ -53,30 +51,5 @@ class OvertimeTypeResource extends Resource
             // 'create' => CreateOvertimeType::route('/create'),
             // 'edit' => EditOvertimeType::route('/{record}/edit'),
         ];
-    }
-
-    public static function canAccess(): bool
-    {
-        return Gate::allows('view_master_data_jenis_lembur');
-    }
-
-    public static function canView(Model $record): bool
-    {
-        return Gate::allows('view_master_data_jenis_lembur');
-    }
-
-    public static function canCreate(): bool
-    {
-        return Gate::allows('create_master_data_jenis_lembur');
-    }
-
-    public static function canEdit(Model $record): bool
-    {
-        return Gate::allows('edit_master_data_jenis_lembur');
-    }
-
-    public static function canDelete(Model $record): bool
-    {
-        return Gate::allows('delete_master_data_jenis_lembur');
     }
 }

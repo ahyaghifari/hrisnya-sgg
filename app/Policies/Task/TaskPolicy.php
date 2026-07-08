@@ -12,6 +12,11 @@ class TaskPolicy
 {
     use HandlesAuthorization;
     
+    public function viewAny(AuthUser $authUser): bool
+    {
+        return $authUser->can('ViewAny:Task');
+    }
+
     public function view(AuthUser $authUser, Task $task): bool
     {
         return $authUser->can('View:Task');
@@ -30,6 +35,41 @@ class TaskPolicy
     public function delete(AuthUser $authUser, Task $task): bool
     {
         return $authUser->can('Delete:Task');
+    }
+
+    public function deleteAny(AuthUser $authUser): bool
+    {
+        return $authUser->can('DeleteAny:Task');
+    }
+
+    public function restore(AuthUser $authUser, Task $task): bool
+    {
+        return $authUser->can('Restore:Task');
+    }
+
+    public function forceDelete(AuthUser $authUser, Task $task): bool
+    {
+        return $authUser->can('ForceDelete:Task');
+    }
+
+    public function forceDeleteAny(AuthUser $authUser): bool
+    {
+        return $authUser->can('ForceDeleteAny:Task');
+    }
+
+    public function restoreAny(AuthUser $authUser): bool
+    {
+        return $authUser->can('RestoreAny:Task');
+    }
+
+    public function replicate(AuthUser $authUser, Task $task): bool
+    {
+        return $authUser->can('Replicate:Task');
+    }
+
+    public function reorder(AuthUser $authUser): bool
+    {
+        return $authUser->can('Reorder:Task');
     }
 
 }

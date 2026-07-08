@@ -13,14 +13,13 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
 use UnitEnum;
 
 class QuestionBanksResource extends Resource
 {
     protected static ?string $model = QuestionBanks::class;
-    
+
     protected static ?string $navigationLabel = "Bank Soal";
 
     protected static string | UnitEnum | null $navigationGroup = 'LMS';
@@ -55,30 +54,5 @@ class QuestionBanksResource extends Resource
             'create' => CreateQuestionBanks::route('/create'),
             'edit' => EditQuestionBanks::route('/{record}/edit'),
         ];
-    }
-
-    public static function canAccess(): bool
-    {
-        return Auth::user()?->can('view_bank_soal') ?? false;
-    }
-
-    public static function canView(Model $record): bool
-    {
-        return Auth::user()?->can('view_bank_soal') ?? false;
-    }
-    
-    public static function canCreate(): bool
-    {
-        return Auth::user()?->can('create_bank_soal') ?? false;
-    }
-    
-    public static function canEdit(Model $record): bool
-    {
-        return Auth::user()?->can('edit_bank_soal') ?? false;
-    }
-
-    public static function canDelete(Model $record): bool
-    {
-        return Auth::user()?->can('delete_bank_soal') ?? false;
     }
 }

@@ -12,6 +12,11 @@ class DoctorPayrollPeriodPolicy
 {
     use HandlesAuthorization;
     
+    public function viewAny(AuthUser $authUser): bool
+    {
+        return $authUser->can('ViewAny:DoctorPayrollPeriod');
+    }
+
     public function view(AuthUser $authUser, DoctorPayrollPeriod $doctorPayrollPeriod): bool
     {
         return $authUser->can('View:DoctorPayrollPeriod');
@@ -30,6 +35,41 @@ class DoctorPayrollPeriodPolicy
     public function delete(AuthUser $authUser, DoctorPayrollPeriod $doctorPayrollPeriod): bool
     {
         return $authUser->can('Delete:DoctorPayrollPeriod');
+    }
+
+    public function deleteAny(AuthUser $authUser): bool
+    {
+        return $authUser->can('DeleteAny:DoctorPayrollPeriod');
+    }
+
+    public function restore(AuthUser $authUser, DoctorPayrollPeriod $doctorPayrollPeriod): bool
+    {
+        return $authUser->can('Restore:DoctorPayrollPeriod');
+    }
+
+    public function forceDelete(AuthUser $authUser, DoctorPayrollPeriod $doctorPayrollPeriod): bool
+    {
+        return $authUser->can('ForceDelete:DoctorPayrollPeriod');
+    }
+
+    public function forceDeleteAny(AuthUser $authUser): bool
+    {
+        return $authUser->can('ForceDeleteAny:DoctorPayrollPeriod');
+    }
+
+    public function restoreAny(AuthUser $authUser): bool
+    {
+        return $authUser->can('RestoreAny:DoctorPayrollPeriod');
+    }
+
+    public function replicate(AuthUser $authUser, DoctorPayrollPeriod $doctorPayrollPeriod): bool
+    {
+        return $authUser->can('Replicate:DoctorPayrollPeriod');
+    }
+
+    public function reorder(AuthUser $authUser): bool
+    {
+        return $authUser->can('Reorder:DoctorPayrollPeriod');
     }
 
 }

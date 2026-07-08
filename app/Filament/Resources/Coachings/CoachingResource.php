@@ -15,9 +15,7 @@ use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Gate;
 use UnitEnum;
 
 class CoachingResource extends Resource
@@ -67,30 +65,5 @@ class CoachingResource extends Resource
         }
 
         return $query;
-    }
-
-    public static function canAccess(): bool
-    {
-        return Gate::allows('view_coaching');
-    }
-
-    public static function canView(Model $record): bool
-    {
-        return Gate::allows('view_coaching');
-    }
-
-    public static function canCreate(): bool
-    {
-        return Gate::allows('create_coaching');
-    }
-
-    public static function canEdit(Model $record): bool
-    {
-        return Gate::allows('edit_coaching');
-    }
-
-    public static function canDelete(Model $record): bool
-    {
-        return Gate::allows('delete_coaching');
     }
 }

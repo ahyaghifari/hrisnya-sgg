@@ -12,6 +12,11 @@ class CompaniesPolicy
 {
     use HandlesAuthorization;
     
+    public function viewAny(AuthUser $authUser): bool
+    {
+        return $authUser->can('ViewAny:Companies');
+    }
+
     public function view(AuthUser $authUser, Companies $companies): bool
     {
         return $authUser->can('View:Companies');
@@ -30,6 +35,41 @@ class CompaniesPolicy
     public function delete(AuthUser $authUser, Companies $companies): bool
     {
         return $authUser->can('Delete:Companies');
+    }
+
+    public function deleteAny(AuthUser $authUser): bool
+    {
+        return $authUser->can('DeleteAny:Companies');
+    }
+
+    public function restore(AuthUser $authUser, Companies $companies): bool
+    {
+        return $authUser->can('Restore:Companies');
+    }
+
+    public function forceDelete(AuthUser $authUser, Companies $companies): bool
+    {
+        return $authUser->can('ForceDelete:Companies');
+    }
+
+    public function forceDeleteAny(AuthUser $authUser): bool
+    {
+        return $authUser->can('ForceDeleteAny:Companies');
+    }
+
+    public function restoreAny(AuthUser $authUser): bool
+    {
+        return $authUser->can('RestoreAny:Companies');
+    }
+
+    public function replicate(AuthUser $authUser, Companies $companies): bool
+    {
+        return $authUser->can('Replicate:Companies');
+    }
+
+    public function reorder(AuthUser $authUser): bool
+    {
+        return $authUser->can('Reorder:Companies');
     }
 
 }

@@ -12,6 +12,11 @@ class LmsCoursePlansPolicy
 {
     use HandlesAuthorization;
     
+    public function viewAny(AuthUser $authUser): bool
+    {
+        return $authUser->can('ViewAny:LmsCoursePlans');
+    }
+
     public function view(AuthUser $authUser, LmsCoursePlans $lmsCoursePlans): bool
     {
         return $authUser->can('View:LmsCoursePlans');
@@ -30,6 +35,41 @@ class LmsCoursePlansPolicy
     public function delete(AuthUser $authUser, LmsCoursePlans $lmsCoursePlans): bool
     {
         return $authUser->can('Delete:LmsCoursePlans');
+    }
+
+    public function deleteAny(AuthUser $authUser): bool
+    {
+        return $authUser->can('DeleteAny:LmsCoursePlans');
+    }
+
+    public function restore(AuthUser $authUser, LmsCoursePlans $lmsCoursePlans): bool
+    {
+        return $authUser->can('Restore:LmsCoursePlans');
+    }
+
+    public function forceDelete(AuthUser $authUser, LmsCoursePlans $lmsCoursePlans): bool
+    {
+        return $authUser->can('ForceDelete:LmsCoursePlans');
+    }
+
+    public function forceDeleteAny(AuthUser $authUser): bool
+    {
+        return $authUser->can('ForceDeleteAny:LmsCoursePlans');
+    }
+
+    public function restoreAny(AuthUser $authUser): bool
+    {
+        return $authUser->can('RestoreAny:LmsCoursePlans');
+    }
+
+    public function replicate(AuthUser $authUser, LmsCoursePlans $lmsCoursePlans): bool
+    {
+        return $authUser->can('Replicate:LmsCoursePlans');
+    }
+
+    public function reorder(AuthUser $authUser): bool
+    {
+        return $authUser->can('Reorder:LmsCoursePlans');
     }
 
 }

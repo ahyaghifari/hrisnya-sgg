@@ -15,7 +15,6 @@ use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
 use UnitEnum;
 
@@ -67,30 +66,5 @@ class EmployeeResource extends Resource
         }
 
         return $query;
-    }
-
-    public static function canAccess(): bool
-    {
-        return Auth::user()?->can('view_karyawan') ?? false;
-    }
-
-    public static function canView(Model $record): bool
-    {
-        return Auth::user()?->can('view_karyawan') ?? false;
-    }
-    
-    public static function canCreate(): bool
-    {
-        return Auth::user()?->can('create_karyawan') ?? false;
-    }
-    
-    public static function canEdit(Model $record): bool
-    {
-        return Auth::user()?->can('edit_karyawan') ?? false;
-    }
-
-    public static function canDelete(Model $record): bool
-    {
-        return Auth::user()?->can('delete_karyawan') ?? false;
     }
 }

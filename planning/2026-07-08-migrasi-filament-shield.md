@@ -230,9 +230,10 @@ Karena bukan hasil auto-generate CRUD, Gate check manual untuk verb-verb ini (mi
 - `App\Providers\AppServiceProvider::configureShieldPermissionNaming()` (closure `buildPermissionKeyUsing`) — **dihapus**, `boot()` kembali kosong.
 - `config/filament-shield.php` → `permissions.separator`/`permissions.case` — dikembalikan ke default Shield (`':'` / `'pascal'`), bukan `'_'`/`'snake'` yang tadinya dipakai buat menjaga kemiripan penamaan lama.
 - `custom_permissions` di config — tetap ada (5 permission non-CRUD approve/report/import), sekarang di-inline langsung di config (bukan lewat class yang sudah dihapus).
-- `resources.manage` override (Coaching/Counseling 3 verb) dan `pages.exclude` (6 Cluster) — **tetap dipertahankan**, itu independen dari isu penamaan.
+- `pages.exclude` (6 Cluster) — **tetap dipertahankan**, itu independen dari isu penamaan.
+- `resources.manage` override (Coaching/Counseling 3 verb) — **dihapus juga**, lihat §10 (bug fail-open).
 
-**Yang TIDAK berubah:** verb dibatasi 4 (`view/create/update/delete`, lewat `policies.methods`) — itu soal jumlah verb, bukan soal nama, jadi tetap relevan.
+**Awalnya verb dibatasi 4** (`view/create/update/delete`) — **ternyata ini bug, sudah diperbaiki di §10, sekarang balik ke default penuh 12 verb.**
 
 **Hasil generate ulang (`shield:generate --panel=admin --all --option=permissions`)**:
 - Total permission: **206 → 422** (setelah reset ke default Shield, ditambah generate penuh).
@@ -245,4 +246,30 @@ Karena bukan hasil auto-generate CRUD, Gate check manual untuk verb-verb ini (mi
 - Ini konsisten dengan pola yang sudah beberapa kali dikonfirmasi user di sesi ini ("aku sudah tidak peduli lagi dengan RoleDefaultPermissionsSeeder", "cabut aja semua permission portal, anggap terbuka dulu") — arahnya memang reset total, bukan migrasi mulus tanpa gangguan.
 - Kalau mau ada masa transisi (role lama tetap bisa akses sampai di-assign ulang manual), perlu langkah tambahan di luar plan ini (belum diminta): script yang assign permission baru yang relevan ke role-role yang sebelumnya sudah punya permission lama yang senilai, sebagai baseline sementara.
 
-**Belum dikerjakan (tetap sama seperti §8)**: Fase 5 (hapus `canAccess()` manual → Policy Shield) dan Fase 6 (custom permission approve/report/import tetap dicek manual, tidak diganti Policy). Berikutnya kalau lanjut, PermissionsSeeder & RoleDefaultPermissionsSeeder jadi actually dead code (tidak ada yang menjalankan lagi) — bisa dipertimbangkan dihapus sekalian, tapi itu keputusan terpisah (belum diminta).
+## 10. Bug Ditemukan & Diperbaiki — `viewAny`/`deleteAny` Fail-Open
+
+Saat eksekusi Fase 5 (hapus `canAccess()`/`canView()`/dst manual di 49 Resource, biar Filament fallback ke Policy Shield), ketemu bug serius dari keputusan trim verb ke 4 di §9:
+
+**Akar masalah**: `canAccess()` bawaan Filament (`vendor/filament/filament/src/Resources/Resource/Concerns/HasAuthorization.php:17-20`) internally manggil `canViewAny()` yang cek ability **`viewAny`** — BUKAN `view`. Trim verb di §9 cuma generate `view/create/update/delete`, tidak ada `viewAny`. Begitu Filament cek ability yang metode-nya tidak ada di Policy (`vendor/filament/filament/src/helpers.php:39-67`), dan strict mode tidak aktif, dia **fail-open** (`Response::allow()` default) — semua Resource jadi bisa diakses SIAPA SAJA, bukan cuma yang punya permission.
+
+Sama halnya `deleteAny` (bulk-delete) — dicek 60 dari 65 Table lewat `DeleteBulkAction`, kena bug yang sama.
+
+**Cara ketemu**: tes fungsional manual (`Auth::login($user)` lalu panggil `EmployeeResource::canAccess()`) — user role "Admin" biasa (bukan Super Admin) hasilnya `true`, padahal `$user->can('View:Employee')` `false`. Ketidakcocokan itu yang mengarah ke root cause.
+
+**Perbaikan**:
+- `config/filament-shield.php` → `policies.methods` dikembalikan ke **default penuh Shield (12 method)**: `viewAny, view, create, update, delete, deleteAny, restore, forceDelete, forceDeleteAny, restoreAny, replicate, reorder` — bukan cuma 4. Trim 4-verb yang tadinya dikira "YAGNI" ternyata bukan soal jumlah kosmetik, tapi ability yang beneran dicek Filament di banyak titik.
+- `resources.manage` override (Coaching/Counseling dibatasi 3 verb) **dihapus** — semua Resource sekarang seragam pakai default penuh, supaya tidak ada lagi yang "kurang lengkap" Policy-nya dan berisiko fail-open serupa di titik lain yang belum ketauan.
+- `app/Policies/**` (65 file) di-generate ulang dari nol (`shield:generate --option=policies_and_permissions`) dengan config baru.
+- Migration `2026_07_08_230229_sync_filament_shield_permission_catalog.php` di-rollback & dijalankan ulang (logic-nya sendiri tidak berubah, cuma perlu re-run karena total permission bertambah 422 → 862 setelah 12 verb).
+- Diverifikasi ulang: `EmployeeResource::canAccess()` untuk role "Admin" biasa sekarang `false` (benar, sesuai konsekuensi yang sudah disepakati), Super Admin tetap `true`.
+
+**Pelajaran buat siapa pun yang lanjutkan migrasi Shield di project lain**: jangan trim `policies.methods` tanpa cek dulu ability apa saja yang benar-benar dipanggil Filament (`canAccess`→`viewAny`, bulk delete→`deleteAny`, dst) — dan Filament defaultnya **fail-open**, bukan fail-closed, kalau Policy method-nya tidak ada. Kalau mau strict, ada `Filament::isAuthorizationStrict()` yang bisa diaktifkan supaya error eksplisit ketimbang diam-diam allow — worth dipertimbangkan sebagai lapisan keamanan tambahan (belum dipasang di plan ini).
+
+## 11. Fase 5 — Selesai Dieksekusi (2026-07-08 malam)
+
+- 49 file Resource (`app/Filament/Resources/**/*Resource.php` + `app/Filament/Clusters/**/*Resource.php`) sudah dibersihkan dari `canAccess()`/`canView()`/`canCreate()`/`canEdit()`/`canDelete()` manual — total 1272 baris terhapus, 49 file, semua lolos `php -l`.
+- Import yang jadi tidak kepakai (`use ...\Gate;`, `use ...\Model;`) ikut dibersihkan otomatis per file (dicek: tidak ada Resource yang masih import tapi tidak pakai).
+- Method **custom** yang bukan CRUD standar (`canApprove()` di `AttendanceRequestResource`, masih pakai `Gate::allows('approve_pengajuan_absensi')`) **sengaja tidak disentuh** — itu di luar cakupan Shield (bukan salah satu dari 5 method target), sesuai Fase 6.
+- Cluster (`*Cluster.php`, bukan Resource di dalamnya) **tidak disentuh** — tetap pakai `canAccess()` manual sendiri sesuai keputusan di §2.4/Fase 0.
+- Diverifikasi lewat `php artisan route:list --path=admin` (tidak ada fatal error) dan tes fungsional login-as-user (§10).
+- **Status keseluruhan migrasi Shield sekarang: Fase 0-5 selesai.** Fase 6 (custom permission approve/report/import) sudah otomatis "selesai" karena memang sengaja tidak diubah (tetap manual). Yang tersisa di luar plan ini: proses **assign ulang permission baru ke role-role yang ada di 8 company** — itu kerja terpisah (lewat `/admin/roles`), belum dikerjakan, dan memang belum diminta.

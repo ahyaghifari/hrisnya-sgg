@@ -12,6 +12,11 @@ class OrgStructurePolicy
 {
     use HandlesAuthorization;
     
+    public function viewAny(AuthUser $authUser): bool
+    {
+        return $authUser->can('ViewAny:OrgStructure');
+    }
+
     public function view(AuthUser $authUser, OrgStructure $orgStructure): bool
     {
         return $authUser->can('View:OrgStructure');
@@ -30,6 +35,41 @@ class OrgStructurePolicy
     public function delete(AuthUser $authUser, OrgStructure $orgStructure): bool
     {
         return $authUser->can('Delete:OrgStructure');
+    }
+
+    public function deleteAny(AuthUser $authUser): bool
+    {
+        return $authUser->can('DeleteAny:OrgStructure');
+    }
+
+    public function restore(AuthUser $authUser, OrgStructure $orgStructure): bool
+    {
+        return $authUser->can('Restore:OrgStructure');
+    }
+
+    public function forceDelete(AuthUser $authUser, OrgStructure $orgStructure): bool
+    {
+        return $authUser->can('ForceDelete:OrgStructure');
+    }
+
+    public function forceDeleteAny(AuthUser $authUser): bool
+    {
+        return $authUser->can('ForceDeleteAny:OrgStructure');
+    }
+
+    public function restoreAny(AuthUser $authUser): bool
+    {
+        return $authUser->can('RestoreAny:OrgStructure');
+    }
+
+    public function replicate(AuthUser $authUser, OrgStructure $orgStructure): bool
+    {
+        return $authUser->can('Replicate:OrgStructure');
+    }
+
+    public function reorder(AuthUser $authUser): bool
+    {
+        return $authUser->can('Reorder:OrgStructure');
     }
 
 }

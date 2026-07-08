@@ -12,6 +12,11 @@ class PayrollPolicy
 {
     use HandlesAuthorization;
     
+    public function viewAny(AuthUser $authUser): bool
+    {
+        return $authUser->can('ViewAny:Payroll');
+    }
+
     public function view(AuthUser $authUser, Payroll $payroll): bool
     {
         return $authUser->can('View:Payroll');
@@ -30,6 +35,41 @@ class PayrollPolicy
     public function delete(AuthUser $authUser, Payroll $payroll): bool
     {
         return $authUser->can('Delete:Payroll');
+    }
+
+    public function deleteAny(AuthUser $authUser): bool
+    {
+        return $authUser->can('DeleteAny:Payroll');
+    }
+
+    public function restore(AuthUser $authUser, Payroll $payroll): bool
+    {
+        return $authUser->can('Restore:Payroll');
+    }
+
+    public function forceDelete(AuthUser $authUser, Payroll $payroll): bool
+    {
+        return $authUser->can('ForceDelete:Payroll');
+    }
+
+    public function forceDeleteAny(AuthUser $authUser): bool
+    {
+        return $authUser->can('ForceDeleteAny:Payroll');
+    }
+
+    public function restoreAny(AuthUser $authUser): bool
+    {
+        return $authUser->can('RestoreAny:Payroll');
+    }
+
+    public function replicate(AuthUser $authUser, Payroll $payroll): bool
+    {
+        return $authUser->can('Replicate:Payroll');
+    }
+
+    public function reorder(AuthUser $authUser): bool
+    {
+        return $authUser->can('Reorder:Payroll');
     }
 
 }

@@ -28,9 +28,7 @@ use Filament\Support\Enums\Alignment;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Gate;
 use UnitEnum;
 
 class AssessmentResource extends Resource
@@ -96,7 +94,7 @@ class AssessmentResource extends Resource
 
     public static function infolist(Schema $schema): Schema
     {
-        return self::viewSchema($schema);   
+        return self::viewSchema($schema);
     }
 
     public static function viewSchema(Schema $schema): Schema
@@ -125,30 +123,5 @@ class AssessmentResource extends Resource
                             ->dateTime('j F Y, H:i'),
                     ]),
             ]);
-    }
-
-    public static function canAccess(): bool
-    {
-        return Gate::allows('view_penilaian_karyawan');
-    }
-
-    public static function canView(Model $record): bool
-    {
-        return Gate::allows('view_penilaian_karyawan');
-    }
-
-    public static function canCreate(): bool
-    {
-        return Gate::allows('create_penilaian_karyawan');
-    }
-
-    public static function canEdit(Model $record): bool
-    {
-        return Gate::allows('edit_penilaian_karyawan');
-    }
-
-    public static function canDelete(Model $record): bool
-    {
-        return Gate::allows('delete_penilaian_karyawan');
     }
 }

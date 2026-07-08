@@ -81,21 +81,21 @@ class RoleForm
                         // yang beda dari yang dia lihat sehari-hari di menu sidebar.
                         $navGroupMap = [
                             // Master Data
-                            'master_data_perusahaan' => 'Master Data',
-                            'master_data_departemen' => 'Master Data',
-                            'master_data_divisi' => 'Master Data',
-                            'master_data_sub_divisi' => 'Master Data',
-                            'master_data_jabatan' => 'Master Data',
-                            'master_data_pangkat' => 'Master Data',
-                            'master_data_golongan' => 'Master Data',
-                            'master_data_kelas' => 'Master Data',
-                            'master_data_jenis_karyawan' => 'Master Data',
-                            'master_data_agama' => 'Master Data',
-                            'master_data_bank' => 'Master Data',
-                            'master_data_jenis_cuti' => 'Master Data',
-                            'master_data_jenis_perizinan' => 'Master Data',
-                            'master_data_jenis_lembur' => 'Master Data',
-                            'master_data_layanan_penugasan' => 'Master Data',
+                            'master_data_perusahaan' => 'Master',
+                            'master_data_departemen' => 'Master',
+                            'master_data_divisi' => 'Master',
+                            'master_data_sub_divisi' => 'Master',
+                            'master_data_jabatan' => 'Master',
+                            'master_data_pangkat' => 'Master',
+                            'master_data_golongan' => 'Master',
+                            'master_data_kelas' => 'Master',
+                            'master_data_jenis_karyawan' => 'Master',
+                            'master_data_agama' => 'Master',
+                            'master_data_bank' => 'Master',
+                            'master_data_jenis_cuti' => 'Master',
+                            'master_data_jenis_perizinan' => 'Master',
+                            'master_data_jenis_lembur' => 'Master',
+                            'master_data_layanan_penugasan' => 'Master',
 
                             // Kepegawaian
                             'struktur_organisasi' => 'Kepegawaian',
@@ -146,8 +146,8 @@ class RoleForm
 
                         // Urutan container ditampilkan
                         $containerOrder = [
-                            'Master Data', 'Kepegawaian', 'Manajemen Organisasi',
-                            'Jadwal Shift Karyawan', 'Manajemen Pengguna', 'Keuangan', 'LMS',
+                            'Kepegawaian', 'Manajemen Organisasi',
+                            'Jadwal Shift Karyawan', 'Manajemen Pengguna', 'Keuangan', 'LMS', 'Master',
                         ];
 
                         $containerSubSections = [];

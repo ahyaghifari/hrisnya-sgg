@@ -12,6 +12,11 @@ class UserDocumentsPolicy
 {
     use HandlesAuthorization;
     
+    public function viewAny(AuthUser $authUser): bool
+    {
+        return $authUser->can('ViewAny:UserDocuments');
+    }
+
     public function view(AuthUser $authUser, UserDocuments $userDocuments): bool
     {
         return $authUser->can('View:UserDocuments');
@@ -30,6 +35,41 @@ class UserDocumentsPolicy
     public function delete(AuthUser $authUser, UserDocuments $userDocuments): bool
     {
         return $authUser->can('Delete:UserDocuments');
+    }
+
+    public function deleteAny(AuthUser $authUser): bool
+    {
+        return $authUser->can('DeleteAny:UserDocuments');
+    }
+
+    public function restore(AuthUser $authUser, UserDocuments $userDocuments): bool
+    {
+        return $authUser->can('Restore:UserDocuments');
+    }
+
+    public function forceDelete(AuthUser $authUser, UserDocuments $userDocuments): bool
+    {
+        return $authUser->can('ForceDelete:UserDocuments');
+    }
+
+    public function forceDeleteAny(AuthUser $authUser): bool
+    {
+        return $authUser->can('ForceDeleteAny:UserDocuments');
+    }
+
+    public function restoreAny(AuthUser $authUser): bool
+    {
+        return $authUser->can('RestoreAny:UserDocuments');
+    }
+
+    public function replicate(AuthUser $authUser, UserDocuments $userDocuments): bool
+    {
+        return $authUser->can('Replicate:UserDocuments');
+    }
+
+    public function reorder(AuthUser $authUser): bool
+    {
+        return $authUser->can('Reorder:UserDocuments');
     }
 
 }

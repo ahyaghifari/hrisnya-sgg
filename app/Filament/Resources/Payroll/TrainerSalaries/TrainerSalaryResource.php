@@ -14,8 +14,6 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\Gate;
 use UnitEnum;
 
 class TrainerSalaryResource extends Resource
@@ -54,30 +52,5 @@ class TrainerSalaryResource extends Resource
             // 'create' => CreateTrainerSalary::route('/create'),
             // 'edit' => EditTrainerSalary::route('/{record}/edit'),
         ];
-    }
-
-    public static function canAccess(): bool
-    {
-        return Gate::allows('view_gaji_trainner');
-    }
-
-    public static function canView(Model $record): bool
-    {
-        return Gate::allows('view_gaji_trainner');
-    }
-
-    public static function canCreate(): bool
-    {
-        return Gate::allows('create_gaji_trainner');
-    }
-
-    public static function canEdit(Model $record): bool
-    {
-        return Gate::allows('edit_gaji_trainner');
-    }
-
-    public static function canDelete(Model $record): bool
-    {
-        return Gate::allows('delete_gaji_trainner');
     }
 }

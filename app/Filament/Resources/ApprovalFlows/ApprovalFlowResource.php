@@ -16,7 +16,6 @@ use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Gate;
 use UnitEnum;
 
 class ApprovalFlowResource extends Resource
@@ -67,31 +66,5 @@ class ApprovalFlowResource extends Resource
         }
 
         return $query;
-    }
-
-
-    public static function canAccess(): bool
-    {
-        return Gate::allows('view_manajemen_persetujuan');
-    }
-
-    public static function canView($record): bool
-    {
-        return Gate::allows('view_manajemen_persetujuan');
-    }
-
-    public static function canCreate(): bool
-    {
-        return Gate::allows('create_manajemen_persetujuan');
-    }
-
-    public static function canEdit($record): bool
-    {
-        return Gate::allows('edit_manajemen_persetujuan');
-    }
-
-    public static function canDelete($record): bool
-    {
-        return Gate::allows('delete_manajemen_persetujuan');
     }
 }

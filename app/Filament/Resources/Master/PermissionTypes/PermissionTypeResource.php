@@ -14,8 +14,6 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\Gate;
 use UnitEnum;
 
 class PermissionTypeResource extends Resource
@@ -24,7 +22,7 @@ class PermissionTypeResource extends Resource
 
     protected static ?string $navigationLabel = "Jenis Izin";
 
-    protected static string | UnitEnum | null $navigationGroup = 'Master Data';
+    protected static string | UnitEnum | null $navigationGroup = 'Master';
 
     protected static ?int $navigationSort = 12;
 
@@ -54,30 +52,5 @@ class PermissionTypeResource extends Resource
             // 'create' => CreatePermissionType::route('/create'),
             // 'edit' => EditPermissionType::route('/{record}/edit'),
         ];
-    }
-
-    public static function canAccess(): bool
-    {
-        return Gate::allows('view_master_data_jenis_perizinan');
-    }
-
-    public static function canView(Model $record): bool
-    {
-        return Gate::allows('view_master_data_jenis_perizinan');
-    }
-
-    public static function canCreate(): bool
-    {
-        return Gate::allows('create_master_data_jenis_perizinan');
-    }
-
-    public static function canEdit(Model $record): bool
-    {
-        return Gate::allows('edit_master_data_jenis_perizinan');
-    }
-
-    public static function canDelete(Model $record): bool
-    {
-        return Gate::allows('delete_master_data_jenis_perizinan');
     }
 }

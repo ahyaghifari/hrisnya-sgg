@@ -15,8 +15,6 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\Gate;
 use UnitEnum;
 
 class ProgramIncentiveResource extends Resource
@@ -57,30 +55,5 @@ class ProgramIncentiveResource extends Resource
             //'view' => ViewProgramIncentive::route('/{record}'),
             //'edit' => EditProgramIncentive::route('/{record}/edit'),
         ];
-    }
-
-    public static function canAccess(): bool
-    {
-        return Gate::allows('view_program_incentive');
-    }
-
-    public static function canView(Model $record): bool
-    {
-        return Gate::allows('view_program_incentive');
-    }
-
-    public static function canCreate(): bool
-    {
-        return Gate::allows('create_program_incentive');
-    }
-
-    public static function canEdit(Model $record): bool
-    {
-        return Gate::allows('edit_program_incentive');
-    }
-
-    public static function canDelete(Model $record): bool
-    {
-        return Gate::allows('delete_program_incentive');
     }
 }

@@ -16,9 +16,7 @@ use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Gate;
 
 class MasterDataShiftResource extends Resource
 {
@@ -70,30 +68,5 @@ class MasterDataShiftResource extends Resource
             // 'create' => CreateMasterDataShift::route('/create'),
             // 'edit' => EditMasterDataShift::route('/{record}/edit'),
         ];
-    }
-    
-    public static function canAccess(): bool
-    {
-        return Gate::allows('view_master_data_pola_shift');
-    }
-
-    public static function canView(Model $record): bool
-    {
-        return Gate::allows('view_master_data_pola_shift');
-    }
-
-    public static function canCreate(): bool
-    {
-        return Gate::allows('create_master_data_pola_shift');
-    }
-
-    public static function canEdit($record): bool
-    {
-        return Gate::allows('edit_master_data_pola_shift');
-    }
-
-    public static function canDelete($record): bool
-    {
-        return Gate::allows('delete_master_data_pola_shift');
     }
 }

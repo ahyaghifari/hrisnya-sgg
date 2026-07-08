@@ -15,8 +15,6 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\Gate;
 
 class AssessmentTemplateResource extends Resource
 {
@@ -54,30 +52,5 @@ class AssessmentTemplateResource extends Resource
             'create' => CreateAssessmentTemplate::route('/create'),
             'edit' => EditAssessmentTemplate::route('/{record}/edit'),
         ];
-    }
-
-    public static function canAccess(): bool
-    {
-        return Gate::allows('view_penilaian_karyawan');
-    }
-
-    public static function canView(Model $record): bool
-    {
-        return Gate::allows('view_penilaian_karyawan');
-    }
-
-    public static function canCreate(): bool
-    {
-        return Gate::allows('create_penilaian_karyawan');
-    }
-
-    public static function canEdit(Model $record): bool
-    {
-        return Gate::allows('edit_penilaian_karyawan');
-    }
-
-    public static function canDelete(Model $record): bool
-    {
-        return Gate::allows('delete_penilaian_karyawan');
     }
 }

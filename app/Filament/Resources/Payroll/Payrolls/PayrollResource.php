@@ -18,9 +18,7 @@ use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Gate;
 use UnitEnum;
 
 class PayrollResource extends Resource
@@ -76,30 +74,5 @@ class PayrollResource extends Resource
         }
 
         return $query;
-    }
-
-    public static function canAccess(): bool
-    {
-        return Gate::allows('view_payroll');
-    }
-
-    public static function canView(Model $record): bool
-    {
-        return Gate::allows('view_payroll');
-    }
-
-    public static function canCreate(): bool
-    {
-        return Gate::allows('create_payroll');
-    }
-
-    public static function canEdit(Model $record): bool
-    {
-        return Gate::allows('edit_payroll');
-    }
-
-    public static function canDelete(Model $record): bool
-    {
-        return Gate::allows('delete_payroll');
     }
 }

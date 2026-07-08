@@ -12,6 +12,11 @@ class PermissionTypesPolicy
 {
     use HandlesAuthorization;
     
+    public function viewAny(AuthUser $authUser): bool
+    {
+        return $authUser->can('ViewAny:PermissionTypes');
+    }
+
     public function view(AuthUser $authUser, PermissionTypes $permissionTypes): bool
     {
         return $authUser->can('View:PermissionTypes');
@@ -30,6 +35,41 @@ class PermissionTypesPolicy
     public function delete(AuthUser $authUser, PermissionTypes $permissionTypes): bool
     {
         return $authUser->can('Delete:PermissionTypes');
+    }
+
+    public function deleteAny(AuthUser $authUser): bool
+    {
+        return $authUser->can('DeleteAny:PermissionTypes');
+    }
+
+    public function restore(AuthUser $authUser, PermissionTypes $permissionTypes): bool
+    {
+        return $authUser->can('Restore:PermissionTypes');
+    }
+
+    public function forceDelete(AuthUser $authUser, PermissionTypes $permissionTypes): bool
+    {
+        return $authUser->can('ForceDelete:PermissionTypes');
+    }
+
+    public function forceDeleteAny(AuthUser $authUser): bool
+    {
+        return $authUser->can('ForceDeleteAny:PermissionTypes');
+    }
+
+    public function restoreAny(AuthUser $authUser): bool
+    {
+        return $authUser->can('RestoreAny:PermissionTypes');
+    }
+
+    public function replicate(AuthUser $authUser, PermissionTypes $permissionTypes): bool
+    {
+        return $authUser->can('Replicate:PermissionTypes');
+    }
+
+    public function reorder(AuthUser $authUser): bool
+    {
+        return $authUser->can('Reorder:PermissionTypes');
     }
 
 }

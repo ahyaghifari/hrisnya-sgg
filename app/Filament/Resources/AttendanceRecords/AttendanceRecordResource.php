@@ -18,7 +18,6 @@ use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use UnitEnum;
@@ -38,7 +37,7 @@ class AttendanceRecordResource extends Resource
     protected static ?string $modelLabel = 'Absensi';
 
     protected static ?string $pluralModelLabel = 'Data Absensi';
-    
+
     public static function form(Schema $schema): Schema
     {
         return AttendanceRecordForm::configure($schema);
@@ -85,18 +84,6 @@ class AttendanceRecordResource extends Resource
     {
         $items = [];
 
-        // Navigation untuk Karyawan - hanya muncul jika punya permission view_data_absensi
-        if (Gate::allows('view_data_absensi')) {
-            $items[] = NavigationItem::make()
-                ->label('Data Absensi')
-                ->icon(static::$navigationIcon)
-                ->group('Karyawan')
-                ->sort(2)
-                ->url(static::getUrl('records', ['user' => Auth::id()]))
-                ->isActiveWhen(fn (): bool => request()->routeIs('filament.admin.resources.attendance-records.records')
-                    && (string) request()->get('user') === (string) Auth::id());
-        }
-
         // Navigation untuk Kepegawaian - muncul jika punya permission view_report_absensi
         if (Gate::allows('view_report_data_absensi')) {
             $items[] = NavigationItem::make()
@@ -115,30 +102,5 @@ class AttendanceRecordResource extends Resource
         }
 
         return $items;
-    }
-
-    public static function canAccess(): bool
-    {
-        return Gate::allows('view_data_absensi') || Gate::allows('view_report_absensi');
-    }
-
-    public static function canView(Model $record): bool
-    {
-        return Gate::allows('view_data_absensi');
-    }
-
-    public static function canCreate(): bool
-    {
-        return Gate::allows('create_data_absensi');
-    }
-
-    public static function canEdit(Model $record): bool
-    {
-        return Gate::allows('edit_data_absensi');
-    }
-
-    public static function canDelete(Model $record): bool
-    {
-        return Gate::allows('delete_data_absensi');
     }
 }

@@ -12,6 +12,11 @@ class JobOpeningsPolicy
 {
     use HandlesAuthorization;
     
+    public function viewAny(AuthUser $authUser): bool
+    {
+        return $authUser->can('ViewAny:JobOpenings');
+    }
+
     public function view(AuthUser $authUser, JobOpenings $jobOpenings): bool
     {
         return $authUser->can('View:JobOpenings');
@@ -30,6 +35,41 @@ class JobOpeningsPolicy
     public function delete(AuthUser $authUser, JobOpenings $jobOpenings): bool
     {
         return $authUser->can('Delete:JobOpenings');
+    }
+
+    public function deleteAny(AuthUser $authUser): bool
+    {
+        return $authUser->can('DeleteAny:JobOpenings');
+    }
+
+    public function restore(AuthUser $authUser, JobOpenings $jobOpenings): bool
+    {
+        return $authUser->can('Restore:JobOpenings');
+    }
+
+    public function forceDelete(AuthUser $authUser, JobOpenings $jobOpenings): bool
+    {
+        return $authUser->can('ForceDelete:JobOpenings');
+    }
+
+    public function forceDeleteAny(AuthUser $authUser): bool
+    {
+        return $authUser->can('ForceDeleteAny:JobOpenings');
+    }
+
+    public function restoreAny(AuthUser $authUser): bool
+    {
+        return $authUser->can('RestoreAny:JobOpenings');
+    }
+
+    public function replicate(AuthUser $authUser, JobOpenings $jobOpenings): bool
+    {
+        return $authUser->can('Replicate:JobOpenings');
+    }
+
+    public function reorder(AuthUser $authUser): bool
+    {
+        return $authUser->can('Reorder:JobOpenings');
     }
 
 }

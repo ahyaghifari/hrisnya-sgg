@@ -12,6 +12,11 @@ class TrainerScoreRangesPolicy
 {
     use HandlesAuthorization;
     
+    public function viewAny(AuthUser $authUser): bool
+    {
+        return $authUser->can('ViewAny:TrainerScoreRanges');
+    }
+
     public function view(AuthUser $authUser, TrainerScoreRanges $trainerScoreRanges): bool
     {
         return $authUser->can('View:TrainerScoreRanges');
@@ -30,6 +35,41 @@ class TrainerScoreRangesPolicy
     public function delete(AuthUser $authUser, TrainerScoreRanges $trainerScoreRanges): bool
     {
         return $authUser->can('Delete:TrainerScoreRanges');
+    }
+
+    public function deleteAny(AuthUser $authUser): bool
+    {
+        return $authUser->can('DeleteAny:TrainerScoreRanges');
+    }
+
+    public function restore(AuthUser $authUser, TrainerScoreRanges $trainerScoreRanges): bool
+    {
+        return $authUser->can('Restore:TrainerScoreRanges');
+    }
+
+    public function forceDelete(AuthUser $authUser, TrainerScoreRanges $trainerScoreRanges): bool
+    {
+        return $authUser->can('ForceDelete:TrainerScoreRanges');
+    }
+
+    public function forceDeleteAny(AuthUser $authUser): bool
+    {
+        return $authUser->can('ForceDeleteAny:TrainerScoreRanges');
+    }
+
+    public function restoreAny(AuthUser $authUser): bool
+    {
+        return $authUser->can('RestoreAny:TrainerScoreRanges');
+    }
+
+    public function replicate(AuthUser $authUser, TrainerScoreRanges $trainerScoreRanges): bool
+    {
+        return $authUser->can('Replicate:TrainerScoreRanges');
+    }
+
+    public function reorder(AuthUser $authUser): bool
+    {
+        return $authUser->can('Reorder:TrainerScoreRanges');
     }
 
 }

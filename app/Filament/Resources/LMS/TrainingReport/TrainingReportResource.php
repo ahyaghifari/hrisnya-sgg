@@ -9,7 +9,6 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
 use UnitEnum;
 
@@ -42,30 +41,5 @@ class TrainingReportResource extends Resource
         return [
             'index' => TrainingReportPage::route('/'),
         ];
-    }
-
-    public static function canAccess(): bool
-    {
-        return Auth::user()?->can('view_lms') ?? false;
-    }
-
-    public static function canView(Model $record): bool
-    {
-        return Auth::user()?->can('view_lms') ?? false;
-    }
-    
-    public static function canCreate(): bool
-    {
-        return Auth::user()?->can('create_lms') ?? false;
-    }
-    
-    public static function canEdit(Model $record): bool
-    {
-        return Auth::user()?->can('edit_lms') ?? false;
-    }
-
-    public static function canDelete(Model $record): bool
-    {
-        return Auth::user()?->can('delete_lms') ?? false;
     }
 }

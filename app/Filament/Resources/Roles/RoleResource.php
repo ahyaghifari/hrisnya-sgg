@@ -14,10 +14,8 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Gate;
 use UnitEnum;
 
 class RoleResource extends Resource
@@ -66,30 +64,5 @@ class RoleResource extends Resource
         }
 
         return $query;
-    }
-
-    public static function canAccess(): bool
-    {
-        return Gate::allows('view_role');
-    }
-
-    public static function canView(Model $record): bool
-    {
-        return Gate::allows('view_role');
-    }
-    
-    public static function canCreate(): bool
-    {
-        return Gate::allows('create_role');
-    }
-    
-    public static function canEdit(Model $record): bool
-    {
-        return Gate::allows('edit_role');
-    }
-
-    public static function canDelete(Model $record): bool
-    {
-        return Gate::allows('delete_role');
     }
 }

@@ -14,14 +14,12 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\Gate;
 use UnitEnum;
 
 class LmsCoursePlanResource extends Resource
 {
     protected static ?string $model = LmsCoursePlans::class;
-    
+
     protected static ?string $navigationLabel = "Rencana Pelatihan";
 
     protected static string | UnitEnum | null $navigationGroup = 'LMS';
@@ -54,30 +52,5 @@ class LmsCoursePlanResource extends Resource
             'create' => CreateLmsCoursePlan::route('/create'),
             'edit' => EditLmsCoursePlan::route('/{record}/edit'),
         ];
-    }
-
-    public static function canAccess(): bool
-    {
-        return Gate::allows('view_rencana_pelatihan');
-    }
-
-    public static function canView(Model $record): bool
-    {
-        return Gate::allows('view_rencana_pelatihan');
-    }
-
-    public static function canCreate(): bool
-    {
-        return Gate::allows('create_rencana_pelatihan');
-    }
-
-    public static function canEdit(Model $record): bool
-    {
-        return Gate::allows('edit_rencana_pelatihan');
-    }
-
-    public static function canDelete(Model $record): bool
-    {
-        return Gate::allows('delete_rencana_pelatihan');
     }
 }

@@ -15,7 +15,6 @@ use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\Gate;
 use UnitEnum;
 
 class PermissionResource extends Resource
@@ -67,30 +66,5 @@ class PermissionResource extends Resource
     public static function getEloquentQuery(): Builder
     {
         return parent::getEloquentQuery()->withoutGlobalScope('company');
-    }
-
-    public static function canAccess(): bool
-    {
-        return Gate::allows('view_permission');
-    }
-
-    public static function canView(Model $record): bool
-    {
-        return Gate::allows('view_permission');
-    }
-
-    public static function canCreate(): bool
-    {
-        return Gate::allows('create_permission');
-    }
-
-    public static function canEdit(Model $record): bool
-    {
-        return Gate::allows('edit_permission');
-    }
-
-    public static function canDelete(Model $record): bool
-    {
-        return Gate::allows('delete_permission');
     }
 }

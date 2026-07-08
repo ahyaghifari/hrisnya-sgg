@@ -11,9 +11,7 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Gate;
 use UnitEnum;
 
 class TaskServiceResource extends Resource
@@ -22,7 +20,7 @@ class TaskServiceResource extends Resource
 
     protected static ?string $navigationLabel = "Layanan Penugasan";
 
-    protected static string | UnitEnum | null $navigationGroup = 'Master Data';
+    protected static string | UnitEnum | null $navigationGroup = 'Master';
 
     protected static ?int $navigationSort = 14;
 
@@ -50,30 +48,5 @@ class TaskServiceResource extends Resource
         return [
             'index' => ListTaskServices::route('/'),
         ];
-    }
-
-    public static function canAccess(): bool
-    {
-        return Gate::allows('view_master_data_layanan_penugasan');
-    }
-
-    public static function canView(Model $record): bool
-    {
-        return Gate::allows('view_master_data_layanan_penugasan');
-    }
-
-    public static function canCreate(): bool
-    {
-        return Gate::allows('create_master_data_layanan_penugasan');
-    }
-
-    public static function canEdit(Model $record): bool
-    {
-        return Gate::allows('edit_master_data_layanan_penugasan');
-    }
-
-    public static function canDelete(Model $record): bool
-    {
-        return Gate::allows('delete_master_data_layanan_penugasan');
     }
 }

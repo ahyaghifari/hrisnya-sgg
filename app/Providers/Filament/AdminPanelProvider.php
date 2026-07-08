@@ -29,7 +29,6 @@ class AdminPanelProvider extends PanelProvider
             ->id('admin')
             ->path('admin')
             ->brandName(fn () => Auth::user()?->company?->name ?? 'Syifa Global Group')
-            ->darkMode(false)
             ->login()
             ->colors([
                 'primary' => [
@@ -70,13 +69,12 @@ class AdminPanelProvider extends PanelProvider
                 AccountWidget::class,
             ])
             ->navigationGroups([
-                NavigationGroup::make()->label('Karyawan'),
-                NavigationGroup::make()->label('Manajemen Organisasi'),
                 NavigationGroup::make()->label('Kepegawaian'),
+                NavigationGroup::make()->label('Manajemen Organisasi'),
                 NavigationGroup::make()->label('Keuangan'),
                 NavigationGroup::make()->label('LMS'),
-                NavigationGroup::make()->label('Master Data'),
                 NavigationGroup::make()->label('Manajemen Pengguna'),
+                NavigationGroup::make()->label('Master')->collapsed(),
             ])
             ->middleware([
                 EncryptCookies::class,

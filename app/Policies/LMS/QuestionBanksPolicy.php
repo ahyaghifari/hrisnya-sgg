@@ -12,6 +12,11 @@ class QuestionBanksPolicy
 {
     use HandlesAuthorization;
     
+    public function viewAny(AuthUser $authUser): bool
+    {
+        return $authUser->can('ViewAny:QuestionBanks');
+    }
+
     public function view(AuthUser $authUser, QuestionBanks $questionBanks): bool
     {
         return $authUser->can('View:QuestionBanks');
@@ -30,6 +35,41 @@ class QuestionBanksPolicy
     public function delete(AuthUser $authUser, QuestionBanks $questionBanks): bool
     {
         return $authUser->can('Delete:QuestionBanks');
+    }
+
+    public function deleteAny(AuthUser $authUser): bool
+    {
+        return $authUser->can('DeleteAny:QuestionBanks');
+    }
+
+    public function restore(AuthUser $authUser, QuestionBanks $questionBanks): bool
+    {
+        return $authUser->can('Restore:QuestionBanks');
+    }
+
+    public function forceDelete(AuthUser $authUser, QuestionBanks $questionBanks): bool
+    {
+        return $authUser->can('ForceDelete:QuestionBanks');
+    }
+
+    public function forceDeleteAny(AuthUser $authUser): bool
+    {
+        return $authUser->can('ForceDeleteAny:QuestionBanks');
+    }
+
+    public function restoreAny(AuthUser $authUser): bool
+    {
+        return $authUser->can('RestoreAny:QuestionBanks');
+    }
+
+    public function replicate(AuthUser $authUser, QuestionBanks $questionBanks): bool
+    {
+        return $authUser->can('Replicate:QuestionBanks');
+    }
+
+    public function reorder(AuthUser $authUser): bool
+    {
+        return $authUser->can('Reorder:QuestionBanks');
     }
 
 }

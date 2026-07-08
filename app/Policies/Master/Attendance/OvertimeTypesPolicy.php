@@ -12,6 +12,11 @@ class OvertimeTypesPolicy
 {
     use HandlesAuthorization;
     
+    public function viewAny(AuthUser $authUser): bool
+    {
+        return $authUser->can('ViewAny:OvertimeTypes');
+    }
+
     public function view(AuthUser $authUser, OvertimeTypes $overtimeTypes): bool
     {
         return $authUser->can('View:OvertimeTypes');
@@ -30,6 +35,41 @@ class OvertimeTypesPolicy
     public function delete(AuthUser $authUser, OvertimeTypes $overtimeTypes): bool
     {
         return $authUser->can('Delete:OvertimeTypes');
+    }
+
+    public function deleteAny(AuthUser $authUser): bool
+    {
+        return $authUser->can('DeleteAny:OvertimeTypes');
+    }
+
+    public function restore(AuthUser $authUser, OvertimeTypes $overtimeTypes): bool
+    {
+        return $authUser->can('Restore:OvertimeTypes');
+    }
+
+    public function forceDelete(AuthUser $authUser, OvertimeTypes $overtimeTypes): bool
+    {
+        return $authUser->can('ForceDelete:OvertimeTypes');
+    }
+
+    public function forceDeleteAny(AuthUser $authUser): bool
+    {
+        return $authUser->can('ForceDeleteAny:OvertimeTypes');
+    }
+
+    public function restoreAny(AuthUser $authUser): bool
+    {
+        return $authUser->can('RestoreAny:OvertimeTypes');
+    }
+
+    public function replicate(AuthUser $authUser, OvertimeTypes $overtimeTypes): bool
+    {
+        return $authUser->can('Replicate:OvertimeTypes');
+    }
+
+    public function reorder(AuthUser $authUser): bool
+    {
+        return $authUser->can('Reorder:OvertimeTypes');
     }
 
 }

@@ -12,6 +12,11 @@ class TrainersPolicy
 {
     use HandlesAuthorization;
     
+    public function viewAny(AuthUser $authUser): bool
+    {
+        return $authUser->can('ViewAny:Trainers');
+    }
+
     public function view(AuthUser $authUser, Trainers $trainers): bool
     {
         return $authUser->can('View:Trainers');
@@ -30,6 +35,41 @@ class TrainersPolicy
     public function delete(AuthUser $authUser, Trainers $trainers): bool
     {
         return $authUser->can('Delete:Trainers');
+    }
+
+    public function deleteAny(AuthUser $authUser): bool
+    {
+        return $authUser->can('DeleteAny:Trainers');
+    }
+
+    public function restore(AuthUser $authUser, Trainers $trainers): bool
+    {
+        return $authUser->can('Restore:Trainers');
+    }
+
+    public function forceDelete(AuthUser $authUser, Trainers $trainers): bool
+    {
+        return $authUser->can('ForceDelete:Trainers');
+    }
+
+    public function forceDeleteAny(AuthUser $authUser): bool
+    {
+        return $authUser->can('ForceDeleteAny:Trainers');
+    }
+
+    public function restoreAny(AuthUser $authUser): bool
+    {
+        return $authUser->can('RestoreAny:Trainers');
+    }
+
+    public function replicate(AuthUser $authUser, Trainers $trainers): bool
+    {
+        return $authUser->can('Replicate:Trainers');
+    }
+
+    public function reorder(AuthUser $authUser): bool
+    {
+        return $authUser->can('Reorder:Trainers');
     }
 
 }

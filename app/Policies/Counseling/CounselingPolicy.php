@@ -12,6 +12,11 @@ class CounselingPolicy
 {
     use HandlesAuthorization;
     
+    public function viewAny(AuthUser $authUser): bool
+    {
+        return $authUser->can('ViewAny:Counseling');
+    }
+
     public function view(AuthUser $authUser, Counseling $counseling): bool
     {
         return $authUser->can('View:Counseling');
@@ -30,6 +35,41 @@ class CounselingPolicy
     public function delete(AuthUser $authUser, Counseling $counseling): bool
     {
         return $authUser->can('Delete:Counseling');
+    }
+
+    public function deleteAny(AuthUser $authUser): bool
+    {
+        return $authUser->can('DeleteAny:Counseling');
+    }
+
+    public function restore(AuthUser $authUser, Counseling $counseling): bool
+    {
+        return $authUser->can('Restore:Counseling');
+    }
+
+    public function forceDelete(AuthUser $authUser, Counseling $counseling): bool
+    {
+        return $authUser->can('ForceDelete:Counseling');
+    }
+
+    public function forceDeleteAny(AuthUser $authUser): bool
+    {
+        return $authUser->can('ForceDeleteAny:Counseling');
+    }
+
+    public function restoreAny(AuthUser $authUser): bool
+    {
+        return $authUser->can('RestoreAny:Counseling');
+    }
+
+    public function replicate(AuthUser $authUser, Counseling $counseling): bool
+    {
+        return $authUser->can('Replicate:Counseling');
+    }
+
+    public function reorder(AuthUser $authUser): bool
+    {
+        return $authUser->can('Reorder:Counseling');
     }
 
 }

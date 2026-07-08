@@ -13,16 +13,8 @@ use Illuminate\Support\Facades\Auth;
 
 class EditLmsCoursePlanItem extends EditRecord
 {
-    public $type;
     protected static string $resource = LmsCoursePlanItemResource::class;
     protected static ?string $title = 'Edit Pengajuan Pelatihan';
-
-    public function mount(int | string $record): void
-    {
-        parent::mount($record);
-        
-        $this->type = request()->query('type');
-    }
 
     protected function getHeaderActions(): array
     {
@@ -33,53 +25,12 @@ class EditLmsCoursePlanItem extends EditRecord
 
     public function getRedirectUrl(): string
     {
-        return LmsCoursePlanItemResource::getUrl('index', ['type' => $this->type]);
+        return LmsCoursePlanItemResource::getUrl('index');
     }
 
     public function getFormActions(): array
     {
         return [
-            Action::make('saveAndSubmit')
-                ->label('Submit')
-                ->color('primary')
-                ->requiresConfirmation()
-                ->visible(function () {
-                    return $this->record->request_status === 'draft';
-                })
-                ->action(function () {
-                    $this->data['request_status'] = 'submitted';
-                    $this->save();
-                    
-                    app(CourseService::class)->requestCourse(
-                        coursePlanItem: $this->record,
-                    );
-
-                    Notification::make()
-                        ->title('Pengajuan pelatihan berhasil dikirim')
-                        ->success()
-                        ->send();
-
-                    $this->redirect(LmsCoursePlanItemResource::getUrl('index', ['type' => 'request']));
-                }),
-
-            Action::make('save')
-                ->label('Save as Draft')
-                ->color('primary')
-                ->outlined()
-                ->visible(function () {
-                    return $this->record->request_status === 'draft';
-                })
-                ->action(function () {
-                    $this->save();
-
-                    Notification::make()
-                        ->title('Perubahan pada pengajuan pelatihan berhasil disimpan')
-                        ->success()
-                        ->send();
-
-                    $this->redirect($this->getRedirectUrl());
-                }),
-            
             Action::make('approve')
                 ->label('Approve')
                 ->requiresConfirmation()

@@ -15,8 +15,6 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\Gate;
 
 class ShiftTemplateResource extends Resource
 {
@@ -57,30 +55,5 @@ class ShiftTemplateResource extends Resource
             'edit'     => EditShiftTemplate::route('/{record}/edit'),
             'generate' => GenerateScheduleFromTemplate::route('/{record}/generate'),
         ];
-    }
-
-    public static function canAccess(): bool
-    {
-        return Gate::allows('view_template_shift');
-    }
-
-    public static function canView(Model $record): bool
-    {
-        return Gate::allows('view_template_shift');
-    }
-
-    public static function canCreate(): bool
-    {
-        return Gate::allows('create_template_shift');
-    }
-
-    public static function canEdit(Model $record): bool
-    {
-        return Gate::allows('edit_template_shift');
-    }
-
-    public static function canDelete(Model $record): bool
-    {
-        return Gate::allows('delete_template_shift');
     }
 }

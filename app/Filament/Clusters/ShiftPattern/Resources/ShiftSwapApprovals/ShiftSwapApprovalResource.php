@@ -13,8 +13,6 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\Gate;
 
 class ShiftSwapApprovalResource extends Resource
 {
@@ -51,30 +49,5 @@ class ShiftSwapApprovalResource extends Resource
             'index' => ListShiftSwapApprovals::route('/'),
             'edit'  => EditShiftSwapApproval::route('/{record}/edit'),
         ];
-    }
-
-    public static function canAccess(): bool
-    {
-        return Gate::allows('view_manajemen_tukar_shift');
-    }
-
-    public static function canView(Model $record): bool
-    {
-        return Gate::allows('view_manajemen_tukar_shift');
-    }
-
-    public static function canCreate(): bool
-    {
-        return Gate::allows('create_manajemen_tukar_shift');
-    }
-
-    public static function canEdit(Model $record): bool
-    {
-        return Gate::allows('edit_manajemen_tukar_shift');
-    }
-
-    public static function canDelete(Model $record): bool
-    {
-        return Gate::allows('delete_manajemen_tukar_shift'); 
     }
 }

@@ -12,6 +12,11 @@ class LmsCategoriesPolicy
 {
     use HandlesAuthorization;
     
+    public function viewAny(AuthUser $authUser): bool
+    {
+        return $authUser->can('ViewAny:LmsCategories');
+    }
+
     public function view(AuthUser $authUser, LmsCategories $lmsCategories): bool
     {
         return $authUser->can('View:LmsCategories');
@@ -30,6 +35,41 @@ class LmsCategoriesPolicy
     public function delete(AuthUser $authUser, LmsCategories $lmsCategories): bool
     {
         return $authUser->can('Delete:LmsCategories');
+    }
+
+    public function deleteAny(AuthUser $authUser): bool
+    {
+        return $authUser->can('DeleteAny:LmsCategories');
+    }
+
+    public function restore(AuthUser $authUser, LmsCategories $lmsCategories): bool
+    {
+        return $authUser->can('Restore:LmsCategories');
+    }
+
+    public function forceDelete(AuthUser $authUser, LmsCategories $lmsCategories): bool
+    {
+        return $authUser->can('ForceDelete:LmsCategories');
+    }
+
+    public function forceDeleteAny(AuthUser $authUser): bool
+    {
+        return $authUser->can('ForceDeleteAny:LmsCategories');
+    }
+
+    public function restoreAny(AuthUser $authUser): bool
+    {
+        return $authUser->can('RestoreAny:LmsCategories');
+    }
+
+    public function replicate(AuthUser $authUser, LmsCategories $lmsCategories): bool
+    {
+        return $authUser->can('Replicate:LmsCategories');
+    }
+
+    public function reorder(AuthUser $authUser): bool
+    {
+        return $authUser->can('Reorder:LmsCategories');
     }
 
 }

@@ -13,8 +13,6 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\Gate;
 use UnitEnum;
 
 class PositionCompetencyResource extends Resource
@@ -47,30 +45,5 @@ class PositionCompetencyResource extends Resource
         return [
             'index' => ListPositionCompetencies::route('/'),
         ];
-    }
-
-    public static function canAccess(): bool
-    {
-        return Gate::allows('view_jabatan_dan_kompetensi');
-    }
-
-    public static function canView(Model $record): bool
-    {
-        return Gate::allows('view_jabatan_dan_kompetensi');
-    }
-
-    public static function canCreate(): bool
-    {
-        return Gate::allows('create_jabatan_dan_kompetensi');
-    }
-
-    public static function canEdit(Model $record): bool
-    {
-        return Gate::allows('edit_jabatan_dan_kompetensi');
-    }
-
-    public static function canDelete(Model $record): bool
-    {
-        return Gate::allows('delete_jabatan_dan_kompetensi');
     }
 }

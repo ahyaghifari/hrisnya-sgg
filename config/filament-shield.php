@@ -124,14 +124,27 @@ return [
         'path' => app_path('Policies'),
         'merge' => true,
         'generate' => true,
-        // Dibatasi cuma 4 verb yang dipakai sistem sekarang (view/create/edit/delete) —
-        // bukan default Shield yang 12 (viewAny, deleteAny, restore, dst) — supaya katalog
-        // permission tidak membengkak dengan yang tidak akan pernah dipakai (YAGNI).
+        // Default Shield penuh (12 method) — sempat di-trim ke 4 (view/create/update/delete)
+        // tapi itu bikin BUG: canAccess() Filament sebenarnya cek ability 'viewAny' (bukan
+        // 'view'), dan bulk-delete di 60+ Table cek 'deleteAny' — kalau method itu tidak ada
+        // di Policy, Filament fail-open (Response::allow() default, lihat
+        // vendor/filament/filament/src/helpers.php). Pakai default penuh biar tidak ada
+        // ability yang bolong.
         'methods' => [
-            'view', 'create', 'update', 'delete',
+            'viewAny', 'view', 'create', 'update', 'delete', 
+            // 'deleteAny',
+             'restore',
+            'forceDelete', 
+            // 'forceDeleteAny', 
+            'restoreAny', 'replicate', 'reorder',
         ],
         'single_parameter_methods' => [
+            'viewAny',
             'create',
+            'deleteAny',
+            // 'forceDeleteAny',
+            // 'restoreAny',
+            'reorder',
         ],
     ],
 
@@ -164,15 +177,11 @@ return [
 
     'resources' => [
         'subject' => 'model',
+        // Tidak ada override per-resource — semua pakai default penuh (§Policies di atas)
+        // biar seragam, tidak ada resource yang "kurang lengkap" method Policy-nya dan
+        // berisiko fail-open lagi kayak kasus viewAny/deleteAny yang ketemu.
         'manage' => [
-            // Sesuai PermissionsSeeder: coaching/counseling sengaja tidak punya permission
-            // delete (baris 'delete_coaching'/'delete_counseling' di-comment di sana).
-            \App\Filament\Resources\Coachings\CoachingResource::class => [
-                'view', 'create', 'update',
-            ],
-            \App\Filament\Resources\Counselings\CounselingResource::class => [
-                'view', 'create', 'update',
-            ],
+            //
         ],
         'exclude' => [
             //

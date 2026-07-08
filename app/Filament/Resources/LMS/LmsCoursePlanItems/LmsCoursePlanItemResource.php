@@ -2,7 +2,6 @@
 
 namespace App\Filament\Resources\LMS\LmsCoursePlanItems;
 
-use App\Filament\Resources\LMS\LmsCoursePlanItems\Pages\CreateLmsCoursePlanItem;
 use App\Filament\Resources\LMS\LmsCoursePlanItems\Pages\EditLmsCoursePlanItem;
 use App\Filament\Resources\LMS\LmsCoursePlanItems\Pages\ListLmsCoursePlanItems;
 use App\Filament\Resources\LMS\LmsCoursePlanItems\Pages\ViewLmsCoursePlanitem;
@@ -20,7 +19,6 @@ use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use UnitEnum;
@@ -58,7 +56,6 @@ class LmsCoursePlanItemResource extends Resource
     {
         return [
             'index' => ListLmsCoursePlanItems::route('/'),
-            'create' => CreateLmsCoursePlanItem::route('/create'),
             'edit' => EditLmsCoursePlanItem::route('/{record}/edit'),
         ];
     }
@@ -78,28 +75,15 @@ class LmsCoursePlanItemResource extends Resource
             return $query->count();
         };
 
-        // Navigation untuk Karyawan (request) - hanya muncul jika punya permission view_pengajuan_pelatihan
-        if (Gate::allows('view_pengajuan_pelatihan')) {
-            $items[] = NavigationItem::make()
-                ->label('Pelatihan')
-                ->url(static::getUrl('index', ['type' => 'request']))
-                ->icon(static::$navigationIcon)
-                ->group('Karyawan')
-                ->sort(3)
-                ->isActiveWhen(fn (): bool => in_array(request()->route()->getName(), [
-                    'filament.admin.resources.l-m-s.lms-course-plan-items.create',
-                ]) || request()->get('type') === 'request');
-        }
-
         // Navigation untuk Manajemen Organisasi (approval) - hanya muncul jika punya permission approval_pengajuan_pelatihan
         if (Gate::allows('approve_pengajuan_pelatihan')) {
             $items[] = NavigationItem::make()
                 ->label('Pelatihan')
-                ->url(static::getUrl('index', ['type' => 'approval']))
+                ->url(static::getUrl('index'))
                 ->icon(static::$navigationIcon)
                 ->group('Manajemen Organisasi')
                 ->sort(4)
-                ->isActiveWhen(fn (): bool => request()->get('type') === 'approval')
+                ->isActiveWhen(fn (): bool => request()->routeIs('filament.admin.resources.l-m-s.lms-course-plan-items.index'))
                 ->badge(function () use ($getCount) {
                     $count = $getCount('approval');
                     return $count > 0 ? (string)$count : '0';
@@ -124,30 +108,5 @@ class LmsCoursePlanItemResource extends Resource
         }
 
         return $query;
-    }
-
-    public static function canAccess(): bool
-    {
-        return Gate::allows('view_pengajuan_pelatihan') || Gate::allows('approval_pengajuan_pelatihan');
-    }
-
-    public static function canView(Model $record): bool
-    {
-        return Gate::allows('view_pengajuan_pelatihan');
-    }
-
-    public static function canCreate(): bool
-    {
-        return Gate::allows('create_pengajuan_pelatihan');
-    }
-
-    public static function canEdit(Model $record): bool
-    {
-        return Gate::allows('edit_pengajuan_pelatihan');
-    }
-
-    public static function canDelete(Model $record): bool
-    {
-        return Gate::allows('delete_pengajuan_pelatihan');
     }
 }

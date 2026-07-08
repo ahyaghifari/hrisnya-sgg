@@ -12,6 +12,11 @@ class AttendanceRequestsPolicy
 {
     use HandlesAuthorization;
     
+    public function viewAny(AuthUser $authUser): bool
+    {
+        return $authUser->can('ViewAny:AttendanceRequests');
+    }
+
     public function view(AuthUser $authUser, AttendanceRequests $attendanceRequests): bool
     {
         return $authUser->can('View:AttendanceRequests');
@@ -30,6 +35,41 @@ class AttendanceRequestsPolicy
     public function delete(AuthUser $authUser, AttendanceRequests $attendanceRequests): bool
     {
         return $authUser->can('Delete:AttendanceRequests');
+    }
+
+    public function deleteAny(AuthUser $authUser): bool
+    {
+        return $authUser->can('DeleteAny:AttendanceRequests');
+    }
+
+    public function restore(AuthUser $authUser, AttendanceRequests $attendanceRequests): bool
+    {
+        return $authUser->can('Restore:AttendanceRequests');
+    }
+
+    public function forceDelete(AuthUser $authUser, AttendanceRequests $attendanceRequests): bool
+    {
+        return $authUser->can('ForceDelete:AttendanceRequests');
+    }
+
+    public function forceDeleteAny(AuthUser $authUser): bool
+    {
+        return $authUser->can('ForceDeleteAny:AttendanceRequests');
+    }
+
+    public function restoreAny(AuthUser $authUser): bool
+    {
+        return $authUser->can('RestoreAny:AttendanceRequests');
+    }
+
+    public function replicate(AuthUser $authUser, AttendanceRequests $attendanceRequests): bool
+    {
+        return $authUser->can('Replicate:AttendanceRequests');
+    }
+
+    public function reorder(AuthUser $authUser): bool
+    {
+        return $authUser->can('Reorder:AttendanceRequests');
     }
 
 }

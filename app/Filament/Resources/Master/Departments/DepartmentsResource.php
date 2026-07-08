@@ -16,7 +16,6 @@ use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
 use UnitEnum;
 
@@ -26,7 +25,7 @@ class DepartmentsResource extends Resource
 
     protected static ?string $navigationLabel = "Departemen";
 
-    protected static string | UnitEnum | null $navigationGroup = 'Master Data';
+    protected static string | UnitEnum | null $navigationGroup = 'Master';
 
     protected static ?int $navigationSort = 2;
 
@@ -74,30 +73,5 @@ class DepartmentsResource extends Resource
         $query->where('level', OrgStructurLevel::LEVEL_DEPARTMENT->value);
 
         return $query;
-    }
-
-    public static function canAccess(): bool
-    {
-        return Auth::user()?->can('view_master_data_departemen') ?? false;
-    }
-
-    public static function canView(Model $record): bool
-    {
-        return Auth::user()?->can('view_master_data_departemen') ?? false;
-    }
-    
-    public static function canCreate(): bool
-    {
-        return Auth::user()?->can('create_master_data_departemen') ?? false;
-    }
-    
-    public static function canEdit(Model $record): bool
-    {
-        return Auth::user()?->can('edit_master_data_departemen') ?? false;
-    }
-
-    public static function canDelete(Model $record): bool
-    {
-        return Auth::user()?->can('delete_master_data_departemen') ?? false;
     }
 }

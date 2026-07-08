@@ -12,6 +12,11 @@ class JobPositionsPolicy
 {
     use HandlesAuthorization;
     
+    public function viewAny(AuthUser $authUser): bool
+    {
+        return $authUser->can('ViewAny:JobPositions');
+    }
+
     public function view(AuthUser $authUser, JobPositions $jobPositions): bool
     {
         return $authUser->can('View:JobPositions');
@@ -30,6 +35,41 @@ class JobPositionsPolicy
     public function delete(AuthUser $authUser, JobPositions $jobPositions): bool
     {
         return $authUser->can('Delete:JobPositions');
+    }
+
+    public function deleteAny(AuthUser $authUser): bool
+    {
+        return $authUser->can('DeleteAny:JobPositions');
+    }
+
+    public function restore(AuthUser $authUser, JobPositions $jobPositions): bool
+    {
+        return $authUser->can('Restore:JobPositions');
+    }
+
+    public function forceDelete(AuthUser $authUser, JobPositions $jobPositions): bool
+    {
+        return $authUser->can('ForceDelete:JobPositions');
+    }
+
+    public function forceDeleteAny(AuthUser $authUser): bool
+    {
+        return $authUser->can('ForceDeleteAny:JobPositions');
+    }
+
+    public function restoreAny(AuthUser $authUser): bool
+    {
+        return $authUser->can('RestoreAny:JobPositions');
+    }
+
+    public function replicate(AuthUser $authUser, JobPositions $jobPositions): bool
+    {
+        return $authUser->can('Replicate:JobPositions');
+    }
+
+    public function reorder(AuthUser $authUser): bool
+    {
+        return $authUser->can('Reorder:JobPositions');
     }
 
 }
