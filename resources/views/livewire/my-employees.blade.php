@@ -1,8 +1,6 @@
 <div>
 @push('head')
     @filamentStyles
-    {{-- @filamentStyles cuma register asset yang scoped ke Panel aktif; CSS utama Filament
-         (fi-* classes, dipakai table/button/section) di-load manual karena halaman ini di luar Panel --}}
     <link rel="stylesheet" href="{{ asset('css/filament/filament/app.css') }}">
 @endpush
 

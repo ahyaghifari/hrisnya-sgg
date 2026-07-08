@@ -68,97 +68,99 @@
     };
 @endphp
 
-<div style="background:#fff;border-radius:16px;box-shadow:0 1px 4px rgba(0,0,0,0.06);padding:18px;margin-bottom:16px;">
-    {!! $sectionHeader('fa-user', 'Informasi Karyawan') !!}
-    {!! $renderField('Nama Karyawan', $record->user->name) !!}
-    {!! $renderField('NIP', $record->user->nip) !!}
-    {!! $renderField('Departemen', $profile?->department?->name) !!}
-    {!! $renderField('Tipe Karyawan', $profile?->employeeType?->name, false) !!}
-</div>
-
-<div style="background:#fff;border-radius:16px;box-shadow:0 1px 4px rgba(0,0,0,0.06);padding:18px;margin-bottom:16px;">
-    {!! $sectionHeader('fa-file-lines', 'Informasi Pengajuan') !!}
-    {!! $renderField('Tipe Request', $typeLabel) !!}
-    <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;padding:10px 0;">
-        <span style="font-size:12.5px;color:#64748b;">Status</span>
-        <span class="badge {{ $statusBadge }}">{{ $statusLabel }}</span>
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px;align-items:start;">
+    <div style="background:#fff;border-radius:16px;box-shadow:0 1px 4px rgba(0,0,0,0.06);padding:18px;">
+        {!! $sectionHeader('fa-user', 'Informasi Karyawan') !!}
+        {!! $renderField('Nama Karyawan', $record->user->name) !!}
+        {!! $renderField('NIP', $record->user->nip) !!}
+        {!! $renderField('Departemen', $profile?->department?->name) !!}
+        {!! $renderField('Tipe Karyawan', $profile?->employeeType?->name, false) !!}
     </div>
-</div>
 
-@php
-    $formatDate = fn (?string $date) => $date ? \Illuminate\Support\Carbon::parse($date)->translatedFormat('d F Y') : null;
-@endphp
-
-@if ($record->type === 'leave' && $record->leaveDetails->isNotEmpty())
-    @php $leave = $record->leaveDetails->first(); @endphp
-    <div style="background:#fff;border-radius:16px;box-shadow:0 1px 4px rgba(0,0,0,0.06);padding:18px;margin-bottom:16px;">
-        {!! $sectionHeader('fa-umbrella-beach', 'Detail Cuti') !!}
-        {!! $renderField('Tipe Cuti', $leave->leave_type) !!}
-        {!! $renderField('Tanggal Mulai', $formatDate($leave->start_date)) !!}
-        {!! $renderField('Tanggal Selesai', $formatDate($leave->end_date)) !!}
-        {!! $renderField('Total Hari', $leave->total_days ? "{$leave->total_days} hari" : null, false) !!}
+    <div style="background:#fff;border-radius:16px;box-shadow:0 1px 4px rgba(0,0,0,0.06);padding:18px;">
+        {!! $sectionHeader('fa-file-lines', 'Informasi Pengajuan') !!}
+        {!! $renderField('Tipe Request', $typeLabel) !!}
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;padding:10px 0;">
+            <span style="font-size:12.5px;color:#64748b;">Status</span>
+            <span class="badge {{ $statusBadge }}">{{ $statusLabel }}</span>
+        </div>
     </div>
-@endif
 
-@if ($record->type === 'permission' && $record->permissionDetails->isNotEmpty())
-    @php $permission = $record->permissionDetails->first(); @endphp
-    <div style="background:#fff;border-radius:16px;box-shadow:0 1px 4px rgba(0,0,0,0.06);padding:18px;margin-bottom:16px;">
-        {!! $sectionHeader('fa-clock', 'Detail Izin') !!}
-        {!! $renderField('Tipe Izin', $permission->permission_type) !!}
-        {!! $renderField('Tanggal', $formatDate($permission->date)) !!}
-        {!! $renderField('Waktu Mulai', $permission->start_time) !!}
-        {!! $renderField('Waktu Selesai', $permission->end_time) !!}
-        {!! $renderField('Lokasi', $permission->location) !!}
-        {!! $renderField('Tujuan', $permission->purpose) !!}
-        {!! $renderField('Nama Pengganti', $permission->substitute_user_name) !!}
-        {!! $renderField('Tugas Pengganti', $permission->substitute_task, false) !!}
-    </div>
-@endif
+    @php
+        $formatDate = fn (?string $date) => $date ? \Illuminate\Support\Carbon::parse($date)->translatedFormat('d F Y') : null;
+    @endphp
 
-@if ($record->type === 'overtime' && $record->overtimeDetails->isNotEmpty())
-    <div style="background:#fff;border-radius:16px;box-shadow:0 1px 4px rgba(0,0,0,0.06);padding:18px;margin-bottom:16px;">
-        {!! $sectionHeader('fa-briefcase-clock', 'Detail Lembur') !!}
-        @foreach ($record->overtimeDetails as $overtime)
-            {!! $renderField('Tipe Lembur', $overtime->overtime_type) !!}
-            {!! $renderField('Tanggal Lembur', $formatDate($overtime->date)) !!}
-            {!! $renderField('Waktu Mulai', $overtime->start_time) !!}
-            {!! $renderField('Waktu Selesai', $overtime->end_time) !!}
-            {!! $renderField('Deskripsi Tugas', $overtime->task_description, ! $loop->last) !!}
-        @endforeach
-    </div>
-@endif
+    @if ($record->type === 'leave' && $record->leaveDetails->isNotEmpty())
+        @php $leave = $record->leaveDetails->first(); @endphp
+        <div style="background:#fff;border-radius:16px;box-shadow:0 1px 4px rgba(0,0,0,0.06);padding:18px;">
+            {!! $sectionHeader('fa-umbrella-beach', 'Detail Cuti') !!}
+            {!! $renderField('Tipe Cuti', $leave->leave_type) !!}
+            {!! $renderField('Tanggal Mulai', $formatDate($leave->start_date)) !!}
+            {!! $renderField('Tanggal Selesai', $formatDate($leave->end_date)) !!}
+            {!! $renderField('Total Hari', $leave->total_days ? "{$leave->total_days} hari" : null, false) !!}
+        </div>
+    @endif
 
-@php
-    $actionLabel = fn (string $action) => ['requested' => 'Diajukan', 'approved' => 'Disetujui', 'rejected' => 'Ditolak', 'completed' => 'Selesai'][$action] ?? $action;
-    $actionBadge = fn (string $action) => match ($action) {
-        'approved' => 'badge-pending',
-        'rejected' => 'badge-rejected',
-        'completed' => 'badge-approved',
-        default => 'badge-cancelled',
-    };
-@endphp
+    @if ($record->type === 'permission' && $record->permissionDetails->isNotEmpty())
+        @php $permission = $record->permissionDetails->first(); @endphp
+        <div style="background:#fff;border-radius:16px;box-shadow:0 1px 4px rgba(0,0,0,0.06);padding:18px;">
+            {!! $sectionHeader('fa-clock', 'Detail Izin') !!}
+            {!! $renderField('Tipe Izin', $permission->permission_type) !!}
+            {!! $renderField('Tanggal', $formatDate($permission->date)) !!}
+            {!! $renderField('Waktu Mulai', $permission->start_time) !!}
+            {!! $renderField('Waktu Selesai', $permission->end_time) !!}
+            {!! $renderField('Lokasi', $permission->location) !!}
+            {!! $renderField('Tujuan', $permission->purpose) !!}
+            {!! $renderField('Nama Pengganti', $permission->substitute_user_name) !!}
+            {!! $renderField('Tugas Pengganti', $permission->substitute_task, false) !!}
+        </div>
+    @endif
 
-<div style="background:#fff;border-radius:16px;box-shadow:0 1px 4px rgba(0,0,0,0.06);overflow:hidden;">
-    <div style="padding:14px 18px;border-bottom:1px solid #f1f5f9;">
-        <span class="pwa-section-title">Riwayat Approval</span>
-    </div>
-    @forelse ($record->approvalHistories as $history)
-        <div class="pwa-list-row" style="align-items:flex-start;">
-            <div style="flex:1;min-width:0;">
-                <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
-                    <p style="font-size:13px;font-weight:600;color:#1e293b;margin:0;">{{ $history->actor_name ?? '-' }}</p>
-                    <span class="badge {{ $actionBadge($history->action) }}">{{ $actionLabel($history->action) }}</span>
+    @if ($record->type === 'overtime' && $record->overtimeDetails->isNotEmpty())
+        <div style="background:#fff;border-radius:16px;box-shadow:0 1px 4px rgba(0,0,0,0.06);padding:18px;">
+            {!! $sectionHeader('fa-briefcase-clock', 'Detail Lembur') !!}
+            @foreach ($record->overtimeDetails as $overtime)
+                {!! $renderField('Tipe Lembur', $overtime->overtime_type) !!}
+                {!! $renderField('Tanggal Lembur', $formatDate($overtime->date)) !!}
+                {!! $renderField('Waktu Mulai', $overtime->start_time) !!}
+                {!! $renderField('Waktu Selesai', $overtime->end_time) !!}
+                {!! $renderField('Deskripsi Tugas', $overtime->task_description, ! $loop->last) !!}
+            @endforeach
+        </div>
+    @endif
+
+    @php
+        $actionLabel = fn (string $action) => ['requested' => 'Diajukan', 'approved' => 'Disetujui', 'rejected' => 'Ditolak', 'completed' => 'Selesai'][$action] ?? $action;
+        $actionBadge = fn (string $action) => match ($action) {
+            'approved' => 'badge-pending',
+            'rejected' => 'badge-rejected',
+            'completed' => 'badge-approved',
+            default => 'badge-cancelled',
+        };
+    @endphp
+
+    <div style="background:#fff;border-radius:16px;box-shadow:0 1px 4px rgba(0,0,0,0.06);overflow:hidden;">
+        <div style="padding:14px 18px;border-bottom:1px solid #f1f5f9;">
+            <span class="pwa-section-title">Riwayat Approval</span>
+        </div>
+        @forelse ($record->approvalHistories as $history)
+            <div class="pwa-list-row" style="align-items:flex-start;">
+                <div style="flex:1;min-width:0;">
+                    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+                        <p style="font-size:13px;font-weight:600;color:#1e293b;margin:0;">{{ $history->actor_name ?? '-' }}</p>
+                        <span class="badge {{ $actionBadge($history->action) }}">{{ $actionLabel($history->action) }}</span>
+                    </div>
+                    @if ($history->note)
+                        <p style="font-size:12px;color:#64748b;margin-top:4px;">{{ $history->note }}</p>
+                    @endif
+                    <p style="font-size:11px;color:#94a3b8;margin-top:4px;">{{ $history->created_at?->translatedFormat('d F Y H:i') }}</p>
                 </div>
-                @if ($history->note)
-                    <p style="font-size:12px;color:#64748b;margin-top:4px;">{{ $history->note }}</p>
-                @endif
-                <p style="font-size:11px;color:#94a3b8;margin-top:4px;">{{ $history->created_at?->translatedFormat('d F Y H:i') }}</p>
             </div>
-        </div>
-    @empty
-        <div style="padding:24px 18px;text-align:center;">
-            <p style="font-size:13px;color:#64748b;margin:0;">Belum ada riwayat.</p>
-        </div>
-    @endforelse
+        @empty
+            <div style="padding:24px 18px;text-align:center;">
+                <p style="font-size:13px;color:#64748b;margin:0;">Belum ada riwayat.</p>
+            </div>
+        @endforelse
+    </div>
 </div>
 </div>

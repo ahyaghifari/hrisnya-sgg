@@ -9,7 +9,7 @@
                 <span style="font-weight:600;color:#374151;">{{ $summary['type_name'] }}</span>
                 &nbsp;&middot;&nbsp; {{ $summary['date_label'] }}
             </div>
-            <a href="{{ route('my-attendance-requests.show', ['record' => $request->id]) }}" wire:navigate class="btn-ghost" style="padding:8px 16px;font-size:12.5px;">
+            <a href="{{ route('my-attendance-requests.show', ['record' => $request->id]) }}" wire:navigate class="btn-primary" style="padding:8px 16px;font-size:12.5px;text-decoration:none;">
                 Lihat Detail <i class="fa-solid fa-arrow-right text-xs"></i>
             </a>
         </div>

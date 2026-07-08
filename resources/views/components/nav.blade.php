@@ -11,11 +11,8 @@
 <nav class="topnav">
     <div class="topnav-inner">
         <a href="{{ route('dashboard') }}" wire:navigate class="nav-brand">
-            <div class="nav-logo">S</div>
-            <div>
-                <span class="nav-brand-name">Syifa Global</span>
-                <span class="nav-brand-sub">Employee Portal</span>
-            </div>
+            <img src="{{ asset('assets/logo-sgg.png') }}" alt="Syifa Global Group" style="height:38px;width:auto;">
+            <span style="font-size:13.5px;font-weight:700;color:#1e293b;">HRIS</span>
         </a>
 
         <div class="nav-links">

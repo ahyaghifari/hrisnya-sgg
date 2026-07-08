@@ -8,11 +8,8 @@
 
 <aside id="pwa-sidebar" class="pwa-sidebar">
     <div class="pwa-sidebar-header">
-        <div class="nav-logo">S</div>
-        <div>
-            <span class="nav-brand-name">Syifa Global</span>
-            <span class="nav-brand-sub">Employee Portal</span>
-        </div>
+        <img src="{{ asset('assets/logo-sgg.png') }}" alt="Syifa Global Group" style="height:34px;width:auto;">
+        <span style="font-size:13.5px;font-weight:700;color:#1e293b;">HRIS</span>
     </div>
 
     <div class="pwa-sidebar-body">

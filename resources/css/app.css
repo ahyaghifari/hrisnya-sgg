@@ -236,9 +236,6 @@ body.site { font-family: 'Plus Jakarta Sans', sans-serif; background: #f1f5f9; m
 .topnav-inner { max-width: 1400px; margin: 0 auto; padding: 0 20px; display: flex; align-items: center; height: 58px; gap: 16px; }
 @media (min-width: 768px) { .topnav-inner { padding: 0 40px; gap: 40px; } }
 .nav-brand { display: flex; align-items: center; gap: 10px; text-decoration: none; flex-shrink: 0; }
-.nav-logo { width: 34px; height: 34px; background: linear-gradient(150deg, #042c6c 0%, #042c6c 45%, #047C54 72%, #B9308C 100%); border-radius: 9px; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 800; font-size: 13px; letter-spacing: -0.5px; }
-.nav-brand-name { font-size: 13.5px; font-weight: 700; color: #1e293b; display: block; }
-.nav-brand-sub { font-size: 10.5px; color: #64748b; font-weight: 400; }
 .nav-links { display: none; align-items: center; gap: 2px; flex: 1; }
 .nav-right { display: none; align-items: center; gap: 8px; }
 @media (min-width: 768px) { .nav-links { display: flex; } .nav-right { display: flex; } }
@@ -379,7 +376,7 @@ body.site { font-family: 'Plus Jakarta Sans', sans-serif; background: #f1f5f9; m
    ter-layer, jadi selalu menang cascade-nya di atas utility Tailwind (yang di-@layer),
    walau kondisi media query md: sudah aktif — kombinasi keduanya di elemen yang sama
    bikin visibility-nya tidak pernah benar-benar ke-toggle. */
-.bento-side-stats-compact { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+.bento-side-stats-compact { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 @media (min-width: 768px) { .bento-side-stats-compact { display: none; } }
 
 .bento-side-stats { display: none; grid-template-columns: repeat(2, 1fr); gap: 16px; }
