@@ -10,6 +10,7 @@
         </div>
 
         <div class="pwa-app-bar-actions">
+            <x-theme-toggle variant="bar" />
             <div class="pwa-app-bar-bell">
                 <i class="fa-regular fa-bell"></i>
                 <span class="pwa-app-bar-dot"></span>

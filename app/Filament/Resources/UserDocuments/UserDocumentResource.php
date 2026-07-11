@@ -3,7 +3,6 @@
 namespace App\Filament\Resources\UserDocuments;
 
 use App\Enum\UserDocumentType;
-use App\Filament\Clusters\EmployeeDocument\EmployeeDocumentCluster;
 use App\Filament\Resources\UserDocuments\Pages\CreateUserDocument;
 use App\Filament\Resources\UserDocuments\Pages\EditUserDocument;
 use App\Filament\Resources\UserDocuments\Pages\ListUserDocuments;
@@ -11,7 +10,6 @@ use App\Filament\Resources\UserDocuments\Schemas\UserDocumentForm;
 use App\Filament\Resources\UserDocuments\Tables\UserDocumentsTable;
 use App\Helpers\PermissionHelper;
 use App\Models\User\UserDocuments;
-use App\Models\UserDocument;
 use BackedEnum;
 use Filament\Navigation\NavigationItem;
 use Filament\Resources\Resource;
@@ -24,9 +22,13 @@ use Illuminate\Support\Facades\Auth;
 class UserDocumentResource extends Resource
 {
     protected static ?string $model = UserDocuments::class;
-    
-    protected static ?string $cluster = EmployeeDocumentCluster::class;
-    
+
+    // Dokumen karyawan sekarang dilihat dari portal (tab "Dokumen" di halaman Data
+    // Diri/MyStaff), bukan dari admin panel. Resource + route tetap ada (belum ada upload
+    // dari portal) supaya HC/admin masih bisa unggah dokumen lewat /admin/user-documents
+    // langsung, tapi tidak lagi muncul di navigasi.
+    protected static bool $shouldRegisterNavigation = false;
+
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedDocument;
 
     public static function form(Schema $schema): Schema

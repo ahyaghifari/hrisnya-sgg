@@ -5,6 +5,7 @@ namespace App\Models\User;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * @mixin IdeHelperUserDocuments
@@ -35,5 +36,10 @@ class UserDocuments extends Model
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function getFileUrlAttribute(): ?string
+    {
+        return $this->file_path ? Storage::disk('public')->url($this->file_path) : null;
     }
 }

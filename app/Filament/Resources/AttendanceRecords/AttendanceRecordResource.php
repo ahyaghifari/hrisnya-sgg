@@ -19,7 +19,6 @@ use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Gate;
 use UnitEnum;
 
 class AttendanceRecordResource extends Resource
@@ -84,22 +83,19 @@ class AttendanceRecordResource extends Resource
     {
         $items = [];
 
-        // Navigation untuk Kepegawaian - muncul jika punya permission view_report_absensi
-        if (Gate::allows('view_report_data_absensi')) {
-            $items[] = NavigationItem::make()
-                ->label('Data Absensi')
-                ->icon(static::$navigationIcon)
-                ->group('Kepegawaian')
-                ->sort(3)
-                ->url(static::getUrl('index', ['type' => 'report']))
-                ->isActiveWhen(fn (): bool => (
-                    request()->get('type') === 'report'
-                    || (
-                        request()->routeIs('filament.admin.resources.attendance-records.records')
-                        && request()->get('from') === 'kepegawaian'
-                    )
-                ));
-        }
+        $items[] = NavigationItem::make()
+            ->label('Data Absensi')
+            ->icon(static::$navigationIcon)
+            ->group('Kepegawaian')
+            ->sort(3)
+            ->url(static::getUrl('index', ['type' => 'report']))
+            ->isActiveWhen(fn (): bool => (
+                request()->get('type') === 'report'
+                || (
+                    request()->routeIs('filament.admin.resources.attendance-records.records')
+                    && request()->get('from') === 'kepegawaian'
+                )
+            ));
 
         return $items;
     }

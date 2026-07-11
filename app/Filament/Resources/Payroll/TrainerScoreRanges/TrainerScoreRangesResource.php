@@ -2,7 +2,6 @@
 
 namespace App\Filament\Resources\Payroll\TrainerScoreRanges;
 
-use App\Filament\Clusters\MasterSalaryComponent\MasterSalaryComponentCluster;
 use App\Filament\Resources\Payroll\TrainerScoreRanges\Pages\CreateTrainerScoreRanges;
 use App\Filament\Resources\Payroll\TrainerScoreRanges\Pages\EditTrainerScoreRanges;
 use App\Filament\Resources\Payroll\TrainerScoreRanges\Pages\ListTrainerScoreRanges;
@@ -21,7 +20,6 @@ class TrainerScoreRangesResource extends Resource
 
     protected static ?string $navigationLabel = "Skala Nilai Trainer";
 
-    protected static ?string $cluster = MasterSalaryComponentCluster::class;
 
     protected static ?int $navigationSort = 4;
 

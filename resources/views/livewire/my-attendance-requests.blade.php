@@ -53,7 +53,7 @@
 
     @if ($requests->isEmpty())
         <div class="pwa-list" style="padding:32px 16px;text-align:center;">
-            <p style="font-size:13px;color:#64748b;margin:0;">Belum ada pengajuan.</p>
+            <p style="font-size:13px;color:var(--text-muted);margin:0;">Belum ada pengajuan.</p>
         </div>
     @else
         <div class="pwa-list">
@@ -61,8 +61,8 @@
                 <a href="{{ route('my-attendance-requests.show', ['record' => $record]) }}" wire:navigate class="pwa-list-row" style="text-decoration:none;">
                     <div class="pwa-tile-icon {{ $typeTile($record->type) }}"><i class="fa-solid {{ $typeIcon($record->type) }}"></i></div>
                     <div style="flex:1;min-width:0;">
-                        <p style="font-size:13px;font-weight:600;color:#1e293b;">{{ $typeLabel($record->type) }} · {{ $this->keterangan($record) }}</p>
-                        <p style="font-size:11px;color:#64748b;margin-top:2px;">{{ $record->created_at?->translatedFormat('j F Y H:i') }}</p>
+                        <p style="font-size:13px;font-weight:600;color:var(--text-heading);">{{ $typeLabel($record->type) }} · {{ $this->keterangan($record) }}</p>
+                        <p style="font-size:11px;color:var(--text-muted);margin-top:2px;">{{ $record->created_at?->translatedFormat('j F Y H:i') }}</p>
                         <span class="badge {{ $statusBadge($record->status) }}" style="margin-top:4px;">{{ $statusLabel($record->status) }}</span>
                     </div>
                     <i class="fa-solid fa-chevron-right"></i>

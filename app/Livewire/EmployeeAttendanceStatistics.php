@@ -8,6 +8,7 @@ use App\Exports\Attendance\AttendanceHistoryExport;
 use App\Models\Attendance\AttendanceRecords;
 use App\Models\Attendance\AttendanceRequests;
 use App\Models\User;
+use App\Models\User\UserDocuments;
 use App\Services\Attendance\AttendaceReqService;
 use App\Services\OrgHierarchyService;
 use Illuminate\Support\Facades\Auth;
@@ -128,6 +129,14 @@ class EmployeeAttendanceStatistics extends Component
             ->where('user_id', $this->record->id)
             ->whereBetween('date', [$this->date_from, $this->date_to])
             ->orderByDesc('date')
+            ->get();
+    }
+
+    public function getDocumentsProperty()
+    {
+        return UserDocuments::query()
+            ->where('user_id', $this->record->id)
+            ->orderByDesc('issued_date')
             ->get();
     }
 

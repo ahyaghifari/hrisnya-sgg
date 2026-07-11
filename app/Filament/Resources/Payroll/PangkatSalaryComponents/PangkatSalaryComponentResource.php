@@ -3,7 +3,6 @@
 namespace App\Filament\Resources\Payroll\PangkatSalaryComponents;
 
 use App\Enum\Salary\SalaryComponentNameEnum;
-use App\Filament\Clusters\MasterSalaryComponent\MasterSalaryComponentCluster;
 use App\Filament\Resources\Payroll\PangkatSalaryComponents\Pages\CreatePangkatSalaryComponent;
 use App\Filament\Resources\Payroll\PangkatSalaryComponents\Pages\EditPangkatSalaryComponent;
 use App\Filament\Resources\Payroll\PangkatSalaryComponents\Pages\ListPangkatSalaryComponents;
@@ -26,7 +25,6 @@ class PangkatSalaryComponentResource extends Resource
 
     protected static ?int $navigationSort = 3;
 
-    protected static ?string $cluster = MasterSalaryComponentCluster::class;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedBriefcase;
 

@@ -2,7 +2,6 @@
 
 namespace App\Filament\Resources\Assessment\UserAssessments;
 
-use App\Filament\Clusters\Assessment\AssessmentCluster;
 use App\Filament\Resources\Assessment\UserAssessments\Pages\CreateUserAssessment;
 use App\Filament\Resources\Assessment\UserAssessments\Pages\EditUserAssessment;
 use App\Filament\Resources\Assessment\UserAssessments\Pages\ListUserAssessments;
@@ -24,7 +23,6 @@ class UserAssessmentResource extends Resource
 
     protected static bool $shouldRegisterNavigation = false;
 
-    protected static ?string $cluster = AssessmentCluster::class;
 
     public static function form(Schema $schema): Schema
     {

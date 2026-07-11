@@ -38,6 +38,57 @@
     --color-success-950: #001710;
 }
 
+/* ═══════════════════════════════════════════════════════════════ */
+/* DARK MODE TOKENS (portal karyawan saja, tidak menyentuh /admin)  */
+/* Light values = warna yang sudah dipakai sekarang (tidak berubah  */
+/* tampilan default). Kartu identitas gradient (welcome/absen/      */
+/* approval/timeline/page-hero) SENGAJA tidak pakai token ini —     */
+/* sudah kontras tinggi & fixed, tidak ikut tema.                   */
+/* ═══════════════════════════════════════════════════════════════ */
+:root {
+    --surface: #ffffff;
+    --surface-alt: #f8fafc;
+    --surface-page: #f1f5f9;
+    --border: #e2e8f0;
+    --border-soft: #f1f5f9;
+    --text-heading: #1e293b;
+    --text-body: #374151;
+    --text-muted: #64748b;
+    --text-faint: #94a3b8;
+    --brand: #042c6c;
+    --brand-success: #047C54;
+    --shadow-card: 0 1px 4px rgba(0,0,0,0.06);
+    --danger-soft-bg: #fee2e2; --danger-soft-border: #fecaca; --danger-soft-text: #b91c1c;
+    --info-soft-bg: #eff6ff; --info-soft-border: #bfdbfe; --info-soft-text: #1d4ed8;
+    --warn-soft-bg: #fffbeb; --warn-soft-border: #fde68a; --warn-soft-text: #92400e;
+    --danger-text: #ef4444;
+    --neuro-bg: #e8edf6;
+    --neuro-shadow-1: 6px 6px 14px #c5ccd8;
+    --neuro-shadow-2: -6px -6px 14px #ffffff;
+}
+
+html.dark {
+    --surface: #1e2532;
+    --surface-alt: #262f3f;
+    --surface-page: #0f1420;
+    --border: #313d52;
+    --border-soft: #26303f;
+    --text-heading: #f1f5f9;
+    --text-body: #cbd5e1;
+    --text-muted: #94a3b8;
+    --text-faint: #64748b;
+    --brand: #6ea8e0;
+    --brand-success: #34d399;
+    --shadow-card: 0 1px 4px rgba(0,0,0,0.4);
+    --danger-soft-bg: rgba(239,68,68,0.14); --danger-soft-border: rgba(239,68,68,0.35); --danger-soft-text: #fca5a5;
+    --info-soft-bg: rgba(59,130,246,0.14); --info-soft-border: rgba(59,130,246,0.35); --info-soft-text: #93c5fd;
+    --warn-soft-bg: rgba(217,119,6,0.14); --warn-soft-border: rgba(217,119,6,0.35); --warn-soft-text: #fbbf24;
+    --danger-text: #f87171;
+    --neuro-bg: #232b3a;
+    --neuro-shadow-1: 6px 6px 14px #171d27;
+    --neuro-shadow-2: -6px -6px 14px #2f3a4d;
+}
+
 /* Primary buttons - background #042c6c, text white */
 .fi-btn-primary,
 .fi-ac-btn-action.fi-color-primary {
@@ -154,7 +205,7 @@ button[type="submit"]:hover,
    ke-override jadi navy oleh rule di atas, harus tetap netral seperti item nav lainnya. */
 button.dropdown-item[type="submit"] {
     background-color: transparent !important;
-    color: #374151 !important;
+    color: var(--text-body) !important;
     border-color: transparent !important;
 }
 button.dropdown-item[type="submit"]:hover {
@@ -163,7 +214,7 @@ button.dropdown-item[type="submit"]:hover {
 }
 button.nav-item[type="submit"] {
     background-color: transparent !important;
-    color: #64748b !important;
+    color: var(--text-muted) !important;
     border-color: transparent !important;
 }
 button.nav-item[type="submit"]:hover {
@@ -228,10 +279,10 @@ button.nav-item[type="submit"]:hover {
 /* Sumber: planning/web-attendance/demo/dashboard.html                */
 /* ═══════════════════════════════════════════════════════════════ */
 
-body.site { font-family: 'Plus Jakarta Sans', sans-serif; background: #f1f5f9; min-height: 100vh; }
+body.site { font-family: 'Plus Jakarta Sans', sans-serif; background: var(--surface-page); min-height: 100vh; }
 
 /* ── NAV ── */
-.topnav { background: #fff; border-bottom: 1px solid #e8edf5; position: sticky; top: 0; z-index: 50; }
+.topnav { background: var(--surface); border-bottom: 1px solid var(--border-soft); position: sticky; top: 0; z-index: 50; }
 .topnav::before { content: ''; display: block; height: 3px; background: linear-gradient(90deg, #042c6c 0%, #042c6c 55%, #047C54 78%, #B9308C 100%); }
 .topnav-inner { max-width: 1400px; margin: 0 auto; padding: 0 20px; display: flex; align-items: center; height: 58px; gap: 16px; }
 @media (min-width: 768px) { .topnav-inner { padding: 0 40px; gap: 40px; } }
@@ -239,27 +290,29 @@ body.site { font-family: 'Plus Jakarta Sans', sans-serif; background: #f1f5f9; m
 .nav-links { display: none; align-items: center; gap: 2px; flex: 1; }
 .nav-right { display: none; align-items: center; gap: 8px; }
 @media (min-width: 768px) { .nav-links { display: flex; } .nav-right { display: flex; } }
-.nav-item { padding: 7px 14px; border-radius: 8px; font-size: 13.5px; font-weight: 500; color: #64748b; text-decoration: none; transition: all 0.15s; border: none; background: none; cursor: pointer; display: flex; align-items: center; gap: 5px; }
-.nav-item:hover { color: #042c6c; background: #f0f4fb; }
-.nav-item.active { color: #042c6c; font-weight: 600; background: #eef2fb; }
+.nav-item { padding: 7px 14px; border-radius: 8px; font-size: 13.5px; font-weight: 500; color: var(--text-muted); text-decoration: none; transition: all 0.15s; border: none; background: none; cursor: pointer; display: flex; align-items: center; gap: 5px; }
+.nav-item:hover { color: var(--brand); background: #f0f4fb; }
+.nav-item.active { color: var(--brand); font-weight: 600; background: #eef2fb; }
+html.dark .nav-item:hover, html.dark .dropdown-item:hover { background: rgba(110,168,224,0.16); }
+html.dark .nav-item.active { background: rgba(110,168,224,0.22); }
 .dropdown { position: relative; }
-.dropdown-menu { position: absolute; top: calc(100% + 10px); left: 50%; transform: translateX(-50%) translateY(-4px); background: #fff; border-radius: 14px; padding: 6px; box-shadow: 0 8px 30px rgba(4,44,108,0.12), 0 0 0 1px rgba(4,44,108,0.06); min-width: 180px; opacity: 0; visibility: hidden; transition: all 0.15s; }
+.dropdown-menu { position: absolute; top: calc(100% + 10px); left: 50%; transform: translateX(-50%) translateY(-4px); background: var(--surface); border-radius: 14px; padding: 6px; box-shadow: 0 8px 30px rgba(4,44,108,0.12), 0 0 0 1px rgba(4,44,108,0.06); min-width: 180px; opacity: 0; visibility: hidden; transition: all 0.15s; }
 .dropdown-menu.dropdown-menu-right { left: auto; right: 0; transform: translateY(-4px); }
 .dropdown:hover .dropdown-menu { opacity: 1; visibility: visible; transform: translateX(-50%) translateY(0); }
 .dropdown:hover .dropdown-menu.dropdown-menu-right { transform: translateY(0); }
-.dropdown-item { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 9px; font-size: 13px; color: #374151; text-decoration: none; font-weight: 500; transition: background 0.1s; width: 100%; text-align: left; background: none; border: none; cursor: pointer; }
-.dropdown-item:hover { background: #f0f4fb; color: #042c6c; }
-.dropdown-item i { width: 14px; text-align: center; color: #94a3b8; font-size: 12px; }
-.nav-bell { position: relative; width: 36px; height: 36px; border-radius: 10px; border: 1.5px solid #e8edf5; display: flex; align-items: center; justify-content: center; color: #64748b; cursor: pointer; }
-.nav-bell-dot { position: absolute; top: 6px; right: 6px; width: 7px; height: 7px; background: #ef4444; border-radius: 50%; border: 1.5px solid #fff; }
+.dropdown-item { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 9px; font-size: 13px; color: var(--text-body); text-decoration: none; font-weight: 500; transition: background 0.1s; width: 100%; text-align: left; background: none; border: none; cursor: pointer; }
+.dropdown-item:hover { background: #f0f4fb; color: var(--brand); }
+.dropdown-item i { width: 14px; text-align: center; color: var(--text-faint); font-size: 12px; }
+.nav-bell { position: relative; width: 36px; height: 36px; border-radius: 10px; border: 1.5px solid var(--border-soft); display: flex; align-items: center; justify-content: center; color: var(--text-muted); cursor: pointer; }
+.nav-bell-dot { position: absolute; top: 6px; right: 6px; width: 7px; height: 7px; background: #ef4444; border-radius: 50%; border: 1.5px solid var(--surface); }
 .nav-avatar { width: 36px; height: 36px; border-radius: 10px; background: #042c6c; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 700; font-size: 13px; cursor: pointer; }
-.hamburger-btn { display: flex; margin-left: auto; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 10px; border: 1.5px solid #e2e8f0; color: #64748b; background: #fff; cursor: pointer; transition: all 0.15s; }
-.hamburger-btn:hover { border-color: #042c6c; color: #042c6c; }
+.hamburger-btn { display: flex; margin-left: auto; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 10px; border: 1.5px solid var(--border); color: var(--text-muted); background: var(--surface); cursor: pointer; transition: all 0.15s; }
+.hamburger-btn:hover { border-color: var(--brand); color: var(--brand); }
 @media (min-width: 768px) { .hamburger-btn { display: none; } }
-.mobile-menu { display: none; border-top: 1px solid #f1f5f9; background: #fff; }
+.mobile-menu { display: none; border-top: 1px solid var(--border-soft); background: var(--surface); }
 .mobile-menu.open { display: block; }
 .mobile-menu-inner { padding: 10px 16px 14px; display: flex; flex-direction: column; gap: 2px; }
-.mobile-sub-label { font-size: 10.5px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.06em; padding: 8px 14px 4px; }
+.mobile-sub-label { font-size: 10.5px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; padding: 8px 14px 4px; }
 .nav-item-sub { padding-left: 28px !important; font-size: 13px !important; }
 
 /* ── PWA APP BAR ── */
@@ -274,12 +327,12 @@ body.site { font-family: 'Plus Jakarta Sans', sans-serif; background: #f1f5f9; m
 
 /* ── PWA MOBILE LIST / CAROUSEL PATTERNS ── */
 .pwa-bento { gap: 20px; }
-.pwa-section-title { font-size: 13px; font-weight: 700; color: #1e293b; }
-.pwa-section-link { font-size: 11.5px; font-weight: 600; color: #042c6c; text-decoration: none; }
-.pwa-list { background: #fff; border-radius: 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); overflow: hidden; }
-.pwa-list-row { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-bottom: 1px solid #f8fafc; }
+.pwa-section-title { font-size: 13px; font-weight: 700; color: var(--text-heading); }
+.pwa-section-link { font-size: 11.5px; font-weight: 600; color: var(--brand); text-decoration: none; }
+.pwa-list { background: var(--surface); border-radius: 16px; box-shadow: var(--shadow-card); overflow: hidden; }
+.pwa-list-row { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-bottom: 1px solid var(--border-soft); }
 .pwa-list-row:last-child { border-bottom: none; }
-.pwa-list-row i.fa-chevron-right { color: #cbd5e1; font-size: 11px; }
+.pwa-list-row i.fa-chevron-right { color: var(--text-faint); font-size: 11px; }
 
 /* Card header strips — Task Saya (soft gold) / Kursus Saya (soft violet), pastel tint instead
    of solid saturated gradient so it stays soft/easy on the eye while still reading as its own
@@ -307,11 +360,11 @@ body.site { font-family: 'Plus Jakarta Sans', sans-serif; background: #f1f5f9; m
 
 .pwa-scroll-row { display: flex; gap: 14px; overflow-x: auto; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; padding-bottom: 2px; }
 .pwa-scroll-row::-webkit-scrollbar { display: none; }
-.pwa-course-chip { flex: 0 0 215px; scroll-snap-align: start; background: #fff; border: 1px solid #f1f5f9; border-radius: 14px; padding: 14px; box-shadow: 0 1px 4px rgba(0,0,0,0.05); }
+.pwa-course-chip { flex: 0 0 215px; scroll-snap-align: start; background: var(--surface); border: 1px solid var(--border-soft); border-radius: 14px; padding: 14px; box-shadow: var(--shadow-card); }
 
-.pwa-row-title { font-size: 13px; font-weight: 600; color: #1e293b; }
-.pwa-course-title { font-size: 12.5px; font-weight: 700; color: #1e293b; margin-bottom: 4px; }
-.pwa-course-sub { font-size: 11px; color: #64748b; margin-bottom: 8px; }
+.pwa-row-title { font-size: 13px; font-weight: 600; color: var(--text-heading); }
+.pwa-course-title { font-size: 12.5px; font-weight: 700; color: var(--text-heading); margin-bottom: 4px; }
+.pwa-course-sub { font-size: 11px; color: var(--text-muted); margin-bottom: 8px; }
 
 /* Task Saya & Kursus Saya: font sedikit dikecilkan khusus mobile, ukuran desktop tidak berubah. */
 @media (max-width: 767.98px) {
@@ -339,9 +392,9 @@ body.site { font-family: 'Plus Jakarta Sans', sans-serif; background: #f1f5f9; m
 /* ── PWA SIDEBAR (off-canvas, triggered by .pwa-app-bar-toggle) ── */
 .pwa-sidebar-backdrop { position: fixed; inset: 0; background: rgba(15,23,42,0.5); z-index: 60; opacity: 0; pointer-events: none; transition: opacity 0.2s ease; }
 .pwa-sidebar-backdrop.open { opacity: 1; pointer-events: auto; }
-.pwa-sidebar { position: fixed; top: 0; left: 0; bottom: 0; width: 260px; max-width: 80vw; background: #fff; z-index: 61; transform: translateX(-100%); transition: transform 0.25s ease; box-shadow: 4px 0 24px rgba(0,0,0,0.12); display: flex; flex-direction: column; }
+.pwa-sidebar { position: fixed; top: 0; left: 0; bottom: 0; width: 260px; max-width: 80vw; background: var(--surface); z-index: 61; transform: translateX(-100%); transition: transform 0.25s ease; box-shadow: 4px 0 24px rgba(0,0,0,0.12); display: flex; flex-direction: column; }
 .pwa-sidebar.open { transform: translateX(0); }
-.pwa-sidebar-header { flex-shrink: 0; display: flex; align-items: center; gap: 10px; padding: 16px; padding-top: calc(16px + env(safe-area-inset-top)); border-bottom: 1px solid #f1f5f9; }
+.pwa-sidebar-header { flex-shrink: 0; display: flex; align-items: center; gap: 10px; padding: 16px; padding-top: calc(16px + env(safe-area-inset-top)); border-bottom: 1px solid var(--border-soft); }
 .pwa-sidebar-body { padding: 10px 16px 14px; display: flex; flex-direction: column; gap: 2px; overflow-y: auto; flex: 1; }
 /* Menu sidebar mobile dibuat lebih besar dari .nav-item default (dipakai bareng topnav desktop)
    supaya lebih gampang disentuh & dibaca — scoped ke sidebar saja, tidak ikut membesarkan
@@ -445,9 +498,35 @@ body.site { font-family: 'Plus Jakarta Sans', sans-serif; background: #f1f5f9; m
 .tl-deco-2 { position: absolute; bottom: -50px; left: -30px; width: 150px; height: 150px; border-radius: 50%; background: #F0DBA3; opacity: 0.45; }
 .tl-deco-3 { position: absolute; top: 30%; right: 8%; width: 56px; height: 56px; border-radius: 14px; background: #eab308; opacity: 0.10; transform: rotate(18deg); }
 
+/* ── DARK MODE OVERRIDE untuk halaman yang masih pakai class Tailwind gray/white
+   langsung (organization-structure, organization-chart-widget, edit-my-employee) —
+   lebih murah daripada tulis ulang puluhan class jadi inline var(--token). html.dark
+   tidak pernah ter-set di /admin (layout admin terpisah, tidak ada toggle di sana),
+   jadi aman tidak menyentuh Filament. ── */
+html.dark .bg-white { background-color: var(--surface) !important; }
+html.dark .bg-gray-50, html.dark .bg-gray-100, html.dark .bg-gray-50\/50 { background-color: var(--surface-alt) !important; }
+html.dark .border-gray-100, html.dark .border-gray-200, html.dark .border-gray-300 { border-color: var(--border) !important; }
+html.dark .bg-gray-300 { background-color: var(--border) !important; }
+html.dark .text-gray-300 { color: var(--text-faint) !important; }
+html.dark .text-gray-950, html.dark .text-gray-900 { color: var(--text-heading) !important; }
+html.dark .text-gray-800, html.dark .text-gray-700 { color: var(--text-body) !important; }
+html.dark .text-gray-600, html.dark .text-gray-500 { color: var(--text-muted) !important; }
+html.dark .text-gray-400 { color: var(--text-faint) !important; }
+html.dark .hover\:bg-gray-100:hover, html.dark .hover\:bg-gray-50:hover { background-color: var(--surface-alt) !important; }
+html.dark .text-slate-900 { color: var(--text-heading) !important; }
+html.dark .text-slate-800, html.dark .text-slate-700 { color: var(--text-body) !important; }
+html.dark .text-slate-600, html.dark .text-slate-500 { color: var(--text-muted) !important; }
+html.dark .text-slate-400 { color: var(--text-faint) !important; }
+html.dark .border-slate-200, html.dark .border-slate-300 { border-color: var(--border) !important; }
+
+/* ── GENERIC CARD SURFACE (dipakai lewat class, ganti kombinasi Tailwind
+   `bg-white rounded-xl border border-gray-200 p-5` yang tidak ikut dark mode) ── */
+.card-surface { background: var(--surface); border-radius: 12px; border: 1px solid var(--border); padding: 20px; }
+.card-surface-flush { background: var(--surface); border-radius: 12px; border: 1px solid var(--border); overflow: hidden; }
+
 /* ── NEURO / STAT CARD ── */
-.neuro { background: #e8edf6; box-shadow: 6px 6px 14px #c5ccd8, -6px -6px 14px #ffffff; border-radius: 18px; }
-.stat-card { background: #fff; border-radius: 18px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); padding: 20px; position: relative; overflow: hidden; }
+.neuro { background: var(--neuro-bg); box-shadow: var(--neuro-shadow-1), var(--neuro-shadow-2); border-radius: 18px; }
+.stat-card { background: var(--surface); border-radius: 18px; box-shadow: var(--shadow-card); padding: 20px; position: relative; overflow: hidden; }
 .stat-card-deco { position: absolute; bottom: -20px; right: -20px; width: 90px; height: 90px; border-radius: 50%; opacity: 0.06; }
 .card-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 @media (min-width: 640px) { .card-pair { display: contents; } }
@@ -460,15 +539,15 @@ body.site { font-family: 'Plus Jakarta Sans', sans-serif; background: #f1f5f9; m
 .badge-cancelled { background: #f1f5f9; color: #64748b; }
 
 /* ── PROGRESS ── */
-.progress-track { height: 5px; background: #dde3f0; border-radius: 99px; overflow: hidden; }
+.progress-track { height: 5px; background: var(--border); border-radius: 99px; overflow: hidden; }
 .progress-fill { height: 100%; border-radius: 99px; transition: width 0.4s ease; }
 
 /* ── TABLE ── */
 .data-table { width: 100%; border-collapse: collapse; min-width: 480px; }
-.data-table thead th { text-align: left; padding: 12px 20px; font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.06em; border-bottom: 1px solid #f1f5f9; white-space: nowrap; }
+.data-table thead th { text-align: left; padding: 12px 20px; font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; border-bottom: 1px solid var(--border-soft); white-space: nowrap; }
 .data-table tbody tr { transition: background 0.1s; }
-.data-table tbody tr:hover { background: #fafcff; }
-.data-table tbody td { padding: 14px 20px; border-bottom: 1px solid #f8fafc; }
+.data-table tbody tr:hover { background: var(--surface-alt); }
+.data-table tbody td { padding: 14px 20px; border-bottom: 1px solid var(--border-soft); color: var(--text-body); }
 .data-table tbody tr:last-child td { border-bottom: none; }
 
 /* ── QUICK ACTION BUTTONS ── */
@@ -489,31 +568,93 @@ body.site { font-family: 'Plus Jakarta Sans', sans-serif; background: #f1f5f9; m
 .hero-deco-2 { position: absolute; bottom: -30px; right: 80px; width: 100px; height: 100px; border-radius: 50%; background: #fff; opacity: 0.04; }
 .hero-deco-3 { position: absolute; top: 20px; right: 160px; width: 40px; height: 40px; border-radius: 50%; background: #fff; opacity: 0.08; }
 
-.form-card { background: #fff; border-radius: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); padding: 24px; margin-bottom: 20px; }
+.form-card { background: var(--surface); border-radius: 20px; box-shadow: var(--shadow-card); padding: 24px; margin-bottom: 20px; }
 @media (min-width: 768px) { .form-card { padding: 32px; } }
 .section-head { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; }
 .section-icon { width: 28px; height: 28px; background: rgba(4,44,108,0.1); border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.section-title { font-size: 13.5px; font-weight: 700; color: #1e293b; }
+.section-title { font-size: 13.5px; font-weight: 700; color: var(--text-heading); }
 
-.form-label { display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 7px; }
-.form-input { width: 100%; padding: 10px 14px; border: 1.5px solid #e2e8f0; border-radius: 11px; font-size: 13.5px; color: #1e293b; transition: all 0.15s; outline: none; background: #fff; font-family: inherit; }
+.form-label { display: block; font-size: 13px; font-weight: 600; color: var(--text-body); margin-bottom: 7px; }
+.form-input { width: 100%; padding: 10px 14px; border: 1.5px solid var(--border); border-radius: 11px; font-size: 13.5px; color: var(--text-heading); transition: all 0.15s; outline: none; background: var(--surface); font-family: inherit; }
 .form-input:focus { border-color: #042c6c; box-shadow: 0 0 0 3px rgba(4,44,108,0.08); }
-.form-input::placeholder { color: #94a3b8; }
+.form-input::placeholder { color: var(--text-faint); }
 select.form-input { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24'%3E%3Cpath fill='%2394a3b8' d='M7 10l5 5 5-5z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 14px center; padding-right: 36px; }
 textarea.form-input { resize: none; }
 
-.toggle-wrapper { display: flex; align-items: center; gap: 12px; background: #fffbeb; border: 1.5px solid #fde68a; border-radius: 12px; padding: 12px 16px; cursor: pointer; user-select: none; }
-.toggle { position: relative; width: 42px; height: 23px; background: #e2e8f0; border-radius: 99px; transition: background 0.2s; flex-shrink: 0; cursor: pointer; }
+.toggle-wrapper { display: flex; align-items: center; gap: 12px; background: var(--warn-soft-bg); border: 1.5px solid var(--warn-soft-border); border-radius: 12px; padding: 12px 16px; cursor: pointer; user-select: none; }
+.toggle { position: relative; width: 42px; height: 23px; background: var(--border); border-radius: 99px; transition: background 0.2s; flex-shrink: 0; cursor: pointer; }
 .toggle.on { background: #042c6c; }
 .toggle::after { content: ''; position: absolute; top: 3px; left: 3px; width: 17px; height: 17px; background: white; border-radius: 50%; transition: transform 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
 .toggle.on::after { transform: translateX(19px); }
 
-.saldo-pill { display: inline-flex; align-items: center; gap: 5px; background: #eff6ff; border: 1px solid #bfdbfe; color: #1d4ed8; font-size: 12px; font-weight: 600; padding: 5px 11px; border-radius: 99px; }
+.saldo-pill { display: inline-flex; align-items: center; gap: 5px; background: var(--info-soft-bg); border: 1px solid var(--info-soft-border); color: var(--info-soft-text); font-size: 12px; font-weight: 600; padding: 5px 11px; border-radius: 99px; }
 
 .btn-primary { display: inline-flex; align-items: center; justify-content: center; gap: 8px; background: #042c6c; color: white; font-weight: 700; font-size: 13.5px; padding: 12px 28px; border-radius: 12px; border: none; cursor: pointer; transition: all 0.15s; font-family: inherit; }
 .btn-primary:hover { background: #032356; transform: translateY(-1px); box-shadow: 0 4px 14px rgba(4,44,108,0.25); }
-.btn-ghost { display: inline-flex; align-items: center; justify-content: center; gap: 8px; background: transparent; color: #64748b; font-weight: 600; font-size: 13.5px; padding: 12px 22px; border-radius: 12px; border: 1.5px solid #e2e8f0; cursor: pointer; transition: all 0.15s; text-decoration: none; font-family: inherit; }
-.btn-ghost:hover { background: #f8fafc; color: #374151; }
+.btn-ghost { display: inline-flex; align-items: center; justify-content: center; gap: 8px; background: transparent; color: var(--text-muted); font-weight: 600; font-size: 13.5px; padding: 12px 22px; border-radius: 12px; border: 1.5px solid var(--border); cursor: pointer; transition: all 0.15s; text-decoration: none; font-family: inherit; }
+.btn-ghost:hover { background: var(--surface-alt); color: var(--text-body); }
+
+/* ── THEME TOGGLE ── */
+.theme-toggle-btn { position: relative; width: 36px; height: 36px; border-radius: 10px; border: 1.5px solid var(--border-soft); display: flex; align-items: center; justify-content: center; color: var(--text-muted); background: var(--surface); cursor: pointer; font-size: 14px; }
+.theme-toggle-btn:hover { border-color: #042c6c; color: #042c6c; }
+/* .pwa-app-bar-bell dipakai sebagai <div> (badge notifikasi) dan <button> (toggle tema) —
+   reset border/font supaya tombolnya tidak dapat gaya default browser. */
+button.pwa-app-bar-bell { border: none; font-family: inherit; cursor: pointer; }
+.theme-toggle-icons .fa-sun { display: none; }
+html.dark .theme-toggle-icons .fa-sun { display: block; }
+html.dark .theme-toggle-icons .fa-moon { display: none; }
+
+/* ── SECTION NAV (tombol navigasi antar-bagian dalam 1 halaman, mis. Data Diri/MyStaff:
+   Profil / Presensi & Absensi / Riwayat Pengajuan) — pill button sungguhan, bukan tab
+   bergaris bawah, supaya target sentuh cukup besar di mobile. Pakai flex-wrap (bukan grid
+   kolom tetap) supaya kalau nanti nambah tombol lagi, baris berikutnya otomatis susun ke
+   bawah — tidak perlu ubah CSS. Tiap tombol pakai warna identitas domainnya sendiri (navy =
+   profil/identitas, hijau = presensi, rust = pengajuan/approval), konsisten dengan family
+   warna .absen-card / .approval-card di atas. ── */
+.section-nav { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 24px; }
+.section-nav-btn { display: inline-flex; flex-direction: row; align-items: center; justify-content: center; gap: 7px; padding: 10px 16px; border-radius: 999px; border: 1.5px solid transparent; font-size: 12.5px; font-weight: 700; white-space: nowrap; cursor: pointer; transition: all 0.15s; font-family: inherit; }
+.section-nav-btn i { font-size: 13px; }
+.section-nav-btn.navy { background: rgba(4,44,108,0.06); color: #042c6c; border-color: rgba(4,44,108,0.16); }
+.section-nav-btn.navy:hover { background: rgba(4,44,108,0.12); }
+.section-nav-btn.navy.is-active { background: #042c6c; color: #fff; border-color: #042c6c; box-shadow: 0 4px 12px rgba(4,44,108,0.28); }
+.section-nav-btn.green { background: rgba(4,124,84,0.06); color: #047C54; border-color: rgba(4,124,84,0.16); }
+.section-nav-btn.green:hover { background: rgba(4,124,84,0.12); }
+.section-nav-btn.green.is-active { background: #047C54; color: #fff; border-color: #047C54; box-shadow: 0 4px 12px rgba(4,124,84,0.28); }
+.section-nav-btn.rust { background: rgba(154,52,18,0.06); color: #9a3412; border-color: rgba(154,52,18,0.16); }
+.section-nav-btn.rust:hover { background: rgba(154,52,18,0.12); }
+.section-nav-btn.rust.is-active { background: #9a3412; color: #fff; border-color: #9a3412; box-shadow: 0 4px 12px rgba(154,52,18,0.28); }
+.section-nav-btn.teal { background: rgba(15,118,110,0.06); color: #0f766e; border-color: rgba(15,118,110,0.16); }
+.section-nav-btn.teal:hover { background: rgba(15,118,110,0.12); }
+.section-nav-btn.teal.is-active { background: #0f766e; color: #fff; border-color: #0f766e; box-shadow: 0 4px 12px rgba(15,118,110,0.28); }
+@media (max-width: 479px) { .section-nav { gap: 6px; } .section-nav-btn { flex: 1 1 auto; padding: 10px 12px; font-size: 12px; } }
+
+/* Pill tidak-aktif (section-nav-btn, doc-type-btn) pakai tint alpha rendah di atas warna
+   brand gelap — di dark mode itu nyaris tidak kelihatan (tint gelap di atas surface gelap).
+   Naikkan alpha & pakai warna aksen yang lebih terang supaya tetap "menyala" saat tidak aktif;
+   state .is-active dibiarkan (sudah solid + teks putih, kontrasnya sudah aman di tema manapun). */
+html.dark .section-nav-btn.navy { background: rgba(110,168,224,0.16); color: #8fc4f5; border-color: rgba(110,168,224,0.4); }
+html.dark .section-nav-btn.navy:hover { background: rgba(110,168,224,0.26); }
+html.dark .section-nav-btn.green { background: rgba(52,211,153,0.16); color: #6ee7b7; border-color: rgba(52,211,153,0.4); }
+html.dark .section-nav-btn.green:hover { background: rgba(52,211,153,0.26); }
+html.dark .section-nav-btn.rust { background: rgba(251,146,60,0.16); color: #fdba74; border-color: rgba(251,146,60,0.4); }
+html.dark .section-nav-btn.rust:hover { background: rgba(251,146,60,0.26); }
+html.dark .section-nav-btn.teal { background: rgba(45,212,191,0.16); color: #5eead4; border-color: rgba(45,212,191,0.4); }
+html.dark .section-nav-btn.teal:hover { background: rgba(45,212,191,0.26); }
+
+/* ── DOCUMENT TYPE FILTER (tab Dokumen: pilih jenis dokumen di kiri, dokumen dari jenis
+   itu di kanan — sama seperti menu "Jenis Dokumen" di Filament sebelumnya). Mobile: pill
+   row scrollable di atas, daftar di bawah. Desktop (768px+): sidebar vertikal kiri, daftar
+   kanan. ── */
+.doc-type-layout { display: flex; flex-direction: column; gap: 16px; }
+@media (min-width: 768px) { .doc-type-layout { flex-direction: row; align-items: flex-start; gap: 20px; } }
+.doc-type-nav { display: flex; gap: 6px; overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 2px; }
+@media (min-width: 768px) { .doc-type-nav { flex-direction: column; overflow-x: visible; width: 210px; flex-shrink: 0; } }
+.doc-type-btn { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-radius: 12px; border: 1.5px solid transparent; background: rgba(15,118,110,0.06); color: #0f766e; font-size: 12.5px; font-weight: 600; white-space: nowrap; cursor: pointer; transition: all 0.15s; font-family: inherit; text-align: left; }
+.doc-type-btn:hover { background: rgba(15,118,110,0.12); }
+.doc-type-btn.is-active { background: #0f766e; color: #fff; border-color: #0f766e; }
+html.dark .doc-type-btn { background: rgba(45,212,191,0.16); color: #5eead4; }
+html.dark .doc-type-btn:hover { background: rgba(45,212,191,0.26); }
+.doc-type-btn .doc-type-count { margin-left: auto; font-size: 11px; font-weight: 700; opacity: 0.75; }
 
 .date-grid { display: grid; grid-template-columns: 1fr; gap: 12px; }
 @media (min-width: 480px) { .date-grid { grid-template-columns: 1fr 1fr; } }
@@ -521,15 +662,15 @@ textarea.form-input { resize: none; }
 @media (min-width: 480px) { .col2-grid { grid-template-columns: 1fr 1fr; } }
 .time-grid { display: grid; grid-template-columns: 1fr; gap: 12px; }
 @media (min-width: 480px) { .time-grid { grid-template-columns: 1fr auto 1fr; align-items: start; gap: 8px; } }
-.time-arrow { display: none; align-items: center; justify-content: center; color: #94a3b8; padding-top: 22px; font-size: 12px; }
+.time-arrow { display: none; align-items: center; justify-content: center; color: var(--text-faint); padding-top: 22px; font-size: 12px; }
 @media (min-width: 480px) { .time-arrow { display: flex; } }
 
-.pengganti-placeholder { display: flex; align-items: center; gap: 12px; padding: 16px; background: #f8fafc; border-radius: 12px; border: 1.5px dashed #e2e8f0; }
-.task-row { background: #f8fafc; border: 1.5px solid #e8edf5; border-radius: 14px; padding: 18px; }
+.pengganti-placeholder { display: flex; align-items: center; gap: 12px; padding: 16px; background: var(--surface-alt); border-radius: 12px; border: 1.5px dashed var(--border); }
+.task-row { background: var(--surface-alt); border: 1.5px solid var(--border-soft); border-radius: 14px; padding: 18px; }
 .task-num { width: 22px; height: 22px; border-radius: 6px; background: #042c6c; color: #fff; font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.btn-add { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 11px; border: 1.5px dashed #cbd5e1; border-radius: 12px; color: #64748b; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.15s; background: transparent; font-family: inherit; margin-top: 12px; }
+.btn-add { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 11px; border: 1.5px dashed #cbd5e1; border-radius: 12px; color: var(--text-muted); font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.15s; background: transparent; font-family: inherit; margin-top: 12px; }
 .btn-add:hover { border-color: #042c6c; color: #042c6c; background: #f0f7ff; }
-.upload-zone { border: 2px dashed #e2e8f0; border-radius: 14px; padding: 30px; text-align: center; cursor: pointer; transition: all 0.15s; }
+.upload-zone { border: 2px dashed var(--border); border-radius: 14px; padding: 30px; text-align: center; cursor: pointer; transition: all 0.15s; }
 .upload-zone:hover { border-color: #042c6c; background: #f0f7ff; }
 
 /* ── FILAMENT BADGE (dipakai di tabel & Detail Pengajuan) ── */

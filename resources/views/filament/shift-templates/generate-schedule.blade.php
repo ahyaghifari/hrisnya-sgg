@@ -9,7 +9,7 @@
 
             <x-filament::button
                 tag="a"
-                href="{{ \App\Filament\Clusters\ShiftPattern\Resources\ShiftTemplates\ShiftTemplateResource::getUrl('index') }}"
+                href="{{ \App\Filament\Resources\ShiftTemplates\ShiftTemplateResource::getUrl('index') }}"
                 color="gray"
             >
                 Batal

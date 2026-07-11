@@ -2,7 +2,6 @@
 
 namespace App\Filament\Resources\Payroll\MasterDoctorServices;
 
-use App\Filament\Clusters\MasterSalaryComponent\MasterSalaryComponentCluster;
 use App\Filament\Resources\Payroll\MasterDoctorServices\Pages\CreateMasterDoctorService;
 use App\Filament\Resources\Payroll\MasterDoctorServices\Pages\EditMasterDoctorService;
 use App\Filament\Resources\Payroll\MasterDoctorServices\Pages\ListMasterDoctorServices;
@@ -21,7 +20,6 @@ class MasterDoctorServiceResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
 
-    protected static ?string $cluster = MasterSalaryComponentCluster::class;
 
     protected static ?string $navigationLabel = "Jasa Dokter";
 

@@ -2,7 +2,6 @@
 
 namespace App\Filament\Resources\Payroll\ExtraHourAllowances\Tables;
 
-use App\Filament\Clusters\ShiftPattern\Resources\ExtraHourAllowances\Schemas\AttendancePoliciesForm;
 use App\Helpers\PermissionHelper;
 use App\Models\Attendance\AttendancePolicies;
 use Filament\Actions\Action;

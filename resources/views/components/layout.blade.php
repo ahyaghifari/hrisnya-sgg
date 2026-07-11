@@ -14,6 +14,13 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Syifa HRIS">
+    <script>
+        (function () {
+            var t = localStorage.getItem('theme');
+            if (!t) t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+            if (t === 'dark') document.documentElement.classList.add('dark');
+        })();
+    </script>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -81,6 +88,15 @@
         pwaTickClock();
         window.__liveClockInterval = setInterval(pwaTickClock, 1000);
         document.addEventListener('livewire:navigated', pwaTickClock);
+
+        function toggleTheme() {
+            const dark = document.documentElement.classList.toggle('dark');
+            localStorage.setItem('theme', dark ? 'dark' : 'light');
+        }
+        document.addEventListener('livewire:navigated', function () {
+            const dark = localStorage.getItem('theme') === 'dark';
+            document.documentElement.classList.toggle('dark', dark);
+        });
     </script>
     @stack('scripts')
 </body>

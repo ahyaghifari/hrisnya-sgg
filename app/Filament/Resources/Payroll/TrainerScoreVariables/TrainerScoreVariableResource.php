@@ -2,7 +2,6 @@
 
 namespace App\Filament\Resources\Payroll\TrainerScoreVariables;
 
-use App\Filament\Clusters\MasterSalaryComponent\MasterSalaryComponentCluster;
 use App\Filament\Resources\Payroll\TrainerScoreVariables\Pages\CreateTrainerScoreVariable;
 use App\Filament\Resources\Payroll\TrainerScoreVariables\Pages\EditTrainerScoreVariable;
 use App\Filament\Resources\Payroll\TrainerScoreVariables\Pages\ListTrainerScoreVariables;
@@ -21,7 +20,6 @@ class TrainerScoreVariableResource extends Resource
 
     protected static ?string $navigationLabel = "Variabel Gaji Trainer";
 
-    protected static ?string $cluster = MasterSalaryComponentCluster::class;
 
     protected static ?int $navigationSort = 3;
 

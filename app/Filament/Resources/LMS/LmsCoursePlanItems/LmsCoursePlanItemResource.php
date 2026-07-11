@@ -20,7 +20,6 @@ use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Gate;
 use UnitEnum;
 
 class LmsCoursePlanItemResource extends Resource
@@ -75,20 +74,17 @@ class LmsCoursePlanItemResource extends Resource
             return $query->count();
         };
 
-        // Navigation untuk Manajemen Organisasi (approval) - hanya muncul jika punya permission approval_pengajuan_pelatihan
-        if (Gate::allows('approve_pengajuan_pelatihan')) {
-            $items[] = NavigationItem::make()
-                ->label('Pelatihan')
-                ->url(static::getUrl('index'))
-                ->icon(static::$navigationIcon)
-                ->group('Manajemen Organisasi')
-                ->sort(4)
-                ->isActiveWhen(fn (): bool => request()->routeIs('filament.admin.resources.l-m-s.lms-course-plan-items.index'))
-                ->badge(function () use ($getCount) {
-                    $count = $getCount('approval');
-                    return $count > 0 ? (string)$count : '0';
-                });
-        }
+        $items[] = NavigationItem::make()
+            ->label('Pelatihan')
+            ->url(static::getUrl('index'))
+            ->icon(static::$navigationIcon)
+            ->group('Manajemen Organisasi')
+            ->sort(4)
+            ->isActiveWhen(fn (): bool => request()->routeIs('filament.admin.resources.l-m-s.lms-course-plan-items.index'))
+            ->badge(function () use ($getCount) {
+                $count = $getCount('approval');
+                return $count > 0 ? (string)$count : '0';
+            });
 
         return $items;
     }

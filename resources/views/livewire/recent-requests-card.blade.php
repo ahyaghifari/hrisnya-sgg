@@ -9,10 +9,10 @@
     ];
 @endphp
 
-<div class="bento-recent" style="background:#fff;border-radius:20px;box-shadow:0 1px 4px rgba(0,0,0,0.06);overflow:hidden;">
-    <div style="padding:18px 20px 14px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #f1f5f9;">
-        <h3 style="font-size:14px;font-weight:700;color:#1e293b;">Riwayat Pengajuan Terbaru</h3>
-        <a href="#" style="font-size:12.5px;font-weight:600;color:#042c6c;text-decoration:none;display:flex;align-items:center;gap:4px;">
+<div class="bento-recent" style="background:var(--surface);border-radius:20px;box-shadow:var(--shadow-card);overflow:hidden;">
+    <div style="padding:18px 20px 14px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border-soft);">
+        <h3 style="font-size:14px;font-weight:700;color:var(--text-heading);">Riwayat Pengajuan Terbaru</h3>
+        <a href="#" style="font-size:12.5px;font-weight:600;color:var(--brand);text-decoration:none;display:flex;align-items:center;gap:4px;">
             Lihat semua <i class="fa-solid fa-arrow-right text-xs"></i>
         </a>
     </div>

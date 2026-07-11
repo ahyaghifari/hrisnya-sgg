@@ -4,7 +4,6 @@ namespace App\Filament\Resources\ManPower\ManpowerRequests;
 
 use App\Enum\JobPositionReqStatus;
 use App\Enum\ManpowerRequestType;
-use App\Filament\Clusters\ManPowerPlaning\ManPowerPlaningCluster;
 use App\Filament\Resources\ManPower\ManpowerRequests\Pages\CreateManpowerRequest;
 use App\Filament\Resources\ManPower\ManpowerRequests\Pages\EditManpowerRequest;
 use App\Filament\Resources\ManPower\ManpowerRequests\Pages\ListManpowerRequests;
@@ -25,7 +24,6 @@ use UnitEnum;
 class ManpowerRequestResource extends Resource
 {
     protected static ?string $model = ManpowerRequests::class;
-    protected static ?string $cluster = ManPowerPlaningCluster::class;
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedCircleStack;
 
     public static function form(Schema $schema): Schema

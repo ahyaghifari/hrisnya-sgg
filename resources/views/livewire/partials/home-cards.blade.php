@@ -1,8 +1,8 @@
-<div id="push-notif-banner" style="display:none;background:#eef2fb;border:1px solid #dde3f0;border-radius:14px;padding:12px 14px;margin-bottom:16px;align-items:center;gap:12px;">
-    <i class="fa-solid fa-bell" style="color:#042c6c;"></i>
-    <p style="flex:1;font-size:12.5px;color:#374151;margin:0;">Aktifkan notifikasi agar tahu saat pengajuan Anda disetujui/ditolak.</p>
+<div id="push-notif-banner" style="display:none;background:var(--info-soft-bg);border:1px solid var(--info-soft-border);border-radius:14px;padding:12px 14px;margin-bottom:16px;align-items:center;gap:12px;">
+    <i class="fa-solid fa-bell" style="color:var(--brand);"></i>
+    <p style="flex:1;font-size:12.5px;color:var(--text-body);margin:0;">Aktifkan notifikasi agar tahu saat pengajuan Anda disetujui/ditolak.</p>
     <button type="button" onclick="pwaSubscribeToPush()" style="background:#042c6c;color:#fff;border:none;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;">Aktifkan</button>
-    <button type="button" onclick="pwaDismissPushBanner()" style="background:none;border:none;color:#94a3b8;font-size:12px;cursor:pointer;">Nanti</button>
+    <button type="button" onclick="pwaDismissPushBanner()" style="background:none;border:none;color:var(--text-faint);font-size:12px;cursor:pointer;">Nanti</button>
 </div>
 
 <livewire:my-attendance-status-card />
@@ -52,7 +52,7 @@
             type-keyword="tahunan"
             label="Cuti Tahunan"
             icon="fa-sun"
-            color="#042c6c"
+            color="var(--brand)"
             icon-bg="rgba(4,44,108,0.1)"
             grid-class=""
             :compact="true"
@@ -65,7 +65,7 @@
             type-keyword="tahunan"
             label="Cuti Tahunan"
             icon="fa-sun"
-            color="#042c6c"
+            color="var(--brand)"
             icon-bg="rgba(4,44,108,0.1)"
             grid-class=""
             :key="'leave-balance-tahunan'"

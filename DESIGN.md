@@ -37,6 +37,24 @@ Reusable, named visual identities (card families, badges, buttons) belong in `re
 - Identity/subtitle text that's more important than ambient meta (e.g. a job title under a person's name) should go one step darker still — `#475569`/`text-slate-600`.
 - `.data-table thead th` in `app.css` is the single most load-bearing fix here — it controls every table header in the app.
 
+## Dark mode (shipped 2026-07-11)
+
+Portal-wide dark mode is live. **Does not cover `/admin` or `/candidate`** (separate Filament theming, untouched).
+
+- **Toggle:** manual, `localStorage` key `theme`, defaults to `prefers-color-scheme` on first visit. `<x-theme-toggle variant="icon">` sits in `<x-nav>` (desktop). `<x-theme-toggle variant="bar">` sits in `<x-pwa-app-bar>` next to the notification bell (mobile) — **not** the sidebar, that was tried and moved.
+- **Mechanism:** class `dark` on `<html>`. An inline anti-FOUC script in `layout.blade.php` `<head>` (before `@vite`) sets it on load; `toggleTheme()` (bottom script block, same file) flips it and persists to `localStorage`.
+- **Token system:** every theme-aware color is a CSS custom property defined in `app.css` — `:root { ... }` holds the light values (unchanged from before dark mode existed, zero risk), `html.dark { ... }` overrides them. Core tokens: `--surface`, `--surface-alt`, `--surface-page`, `--border`, `--border-soft`, `--text-heading`, `--text-body`, `--text-muted`, `--text-faint`, `--brand`, `--brand-success`, `--shadow-card`, `--danger-text`, `--danger-soft-*`, `--info-soft-*`, `--warn-soft-*`, `--neuro-bg`/`--neuro-shadow-*`.
+
+**Rule going forward: any new color that sits on a themed surface (card background, body/meta text, border) must use `var(--token)`, never a literal hex.** Two things to know before you add one:
+
+1. **Identity/gradient cards are exempt on purpose** — `.welcome-card`, `.absen-card`, `.approval-card`, `.timeline-card`, `.page-hero*`, `.pwa-action-btn*`, `.pwa-card-header-gold/violet`, badges (`.badge-*`), and small self-contained accent tiles (`.pwa-tile-icon`, `.stat-card-deco`) keep their literal hex on purpose — they're fixed-color blocks with contrast already built in (usually white text on a solid/gradient fill), not meant to blend into the page theme. Don't "fix" these by adding `var()` to them.
+2. **`--brand`/`--brand-success` swap to lighter tints in dark mode** (`#042c6c` → `#6ea8e0`, `#047C54` → `#34d399`) specifically so navy/green text/numbers stay readable on a dark surface. If you pass a literal `#042c6c`/`#047C54` into a component prop instead (e.g. `leave-balance-card`'s `color="..."` prop), it goes near-invisible in dark mode — **this already happened once** (Cuti Tahunan stat number, 2026-07-11 fix). Pass `color="var(--brand)"` / `color="var(--brand-success)"` through props like this, never the raw hex.
+
+Two more things worth knowing if you touch dark mode again:
+
+- **Tailwind gray/slate utility classes** (`bg-white`, `text-gray-500`, `border-gray-200`, etc. — mostly in `organization-structure.blade.php` / `organization-chart-widget.blade.php` / `edit-my-employee.blade.php`) aren't converted per-occurrence. Instead `app.css` has a blanket `html.dark .bg-white { background-color: var(--surface) !important; }` (and siblings for `bg-gray-*`, `text-gray-*`, `border-gray-*`, `text-slate-*`) — cheaper than rewriting every file, and safe because `html.dark` never gets set outside the portal layout (Filament renders its own root template, no toggle/FOUC-script there).
+- **Domain-color pills** (`.section-nav-btn.navy/green/rust/teal`, `.doc-type-btn`) needed explicit `html.dark` overrides of their own: the light-mode look is a very low-alpha rgba tint (`rgba(4,44,108,0.06)`) that reads as basically invisible on a dark surface. The dark variant boosts alpha and swaps to a lighter accent color per domain — see the `html.dark .section-nav-btn.*` block right after `.section-nav-btn` in `app.css`. If you add a new domain-color pill, give it the same treatment.
+
 ## Card identity system
 
 Each "domain" of the app gets **one** recognizable dark/colored gradient or solid card treatment, reused everywhere that domain appears (Dashboard, Karyawanku, etc.) so users recognize it at a glance without reading text. Don't reuse another domain's identity color for a new feature — give it its own if it's genuinely a new domain, but don't invent one for something that already fits an existing card family.
@@ -59,7 +77,7 @@ All dark/colored identity cards follow the same anatomy: `border-radius:20px`, `
 ## Components
 
 - **Badges**: `.badge` + `.badge-approved` (green) / `.badge-pending` (amber) / `.badge-rejected` (red) / `.badge-cancelled` (gray). Always pair the two classes.
-- **Buttons**: `.btn-primary` (solid navy), `.btn-ghost` (outlined gray, for light-background contexts), `.qa-btn` (translucent white pill, for buttons sitting on top of dark gradient cards — e.g. inside `.welcome-card`).
+- **Buttons**: `.btn-primary` (solid navy), `.btn-ghost` (outlined gray, for light-background contexts), `.qa-btn` (translucent white pill, for buttons sitting on top of dark gradient cards — e.g. inside `.welcome-card`), `.section-nav-btn` (icon + label, color-coded per domain, active = solid fill — for switching between sections within one page, see Layout conventions below).
 - **Tables**: `.data-table` — uppercase `#64748b` headers, hover row tint, borderless last row. Used for every list (Riwayat Pengajuan, Data Presensi, pending approvals, etc.)
 - **Forms**: `.form-label`, `.form-input`, `.toggle`, `.time-grid`/`.date-grid` for paired inputs, `.upload-zone` for file drop areas. These came from the mockup HTML in `planning/web-attendance/demo/` and should stay consistent with that source design — don't reinvent form styling per page.
 - **Field-row pattern** (label left, value right, hairline divider): used in the Karyawanku profile tab (`employee-attendance-statistics.blade.php`) for scannable label/value lists. Prefer this over floating label-above-value grid cells for anything with more than ~4 fields.
@@ -67,7 +85,7 @@ All dark/colored identity cards follow the same anatomy: `border-radius:20px`, `
 ## Layout conventions
 
 - Page header pattern: **use `<x-page-header title="..." />`** (`resources/views/components/page-header.blade.php`) — every page's header (date + live clock + title, optional `subtitle`/`back` props, `size="lg"` for Dashboard) goes through this one component now. Don't hand-roll the date/title markup per page again; that was the pre-refactor state and it drifted (9 near-duplicate copies, some missing the live clock). If a page needs a header shape the component can't do, extend the component with a new prop rather than bypassing it.
-- Tabs (when a page has multiple concerns, e.g. MyStaff's Profil / Presensi & Absensi / Riwayat Pengajuan): plain Alpine (`x-data="{ tab: '...' }"`, `x-show`), styled with a bottom-border-underline active state — no extra JS library.
+- Section nav (when a page has multiple concerns, e.g. MyStaff's Profil / Presensi & Absensi / Riwayat Pengajuan): plain Alpine (`x-data="{ tab: '...' }"`, `x-show`) for state, but rendered as real **pill buttons** (`.section-nav` + `.section-nav-btn`), not underline tabs — underline tabs read as plain text on mobile and are easy to mis-tap. `.section-nav` is `flex-wrap`, not a fixed-column grid, so adding more buttons later just wraps to the next line instead of squeezing existing ones — no CSS changes needed. Each button gets its own domain color (`.navy`/`.green`/`.rust` modifier, matching the card identity system below) plus a Font Awesome icon, active state = solid color fill.
 - Multi-card responsive grids: prefer `display:grid;grid-template-columns:repeat(auto-fit,minmax(Npx,1fr));gap:...` inline over `.card-pair`/bento-grid classes when the surrounding page isn't the Dashboard's bento grid — `.card-pair` specifically relies on `display:contents` + a parent bento grid with named `grid-column` placement classes, and does nothing on its own outside that context.
 - Dense multi-field data (profile info, employment info) uses the field-row pattern above, not a raw CSS grid of stacked label/value cells — better line-by-line scanability.
 

@@ -9,22 +9,23 @@
     :back="$backRoute"
 />
 
-<!-- Tabs -->
-<div class="flex gap-1 border-b border-gray-200 mb-6 overflow-x-auto whitespace-nowrap">
-    <button type="button" @click="tab = 'profil'"
-        class="px-4 py-2.5 text-sm font-semibold border-b-2 -mb-px transition-colors"
-        :class="tab === 'profil' ? 'border-blue-700 text-blue-700' : 'border-transparent text-slate-500 hover:text-slate-700'">
-        Profil
+<!-- Navigasi antar-bagian: tombol (bukan tab bergaris bawah) supaya enak disentuh di mobile -->
+<div class="section-nav">
+    <button type="button" @click="tab = 'profil'" class="section-nav-btn navy" :class="{ 'is-active': tab === 'profil' }">
+        <i class="fa-solid fa-id-card"></i>
+        <span>Profil</span>
     </button>
-    <button type="button" @click="tab = 'statistik'"
-        class="px-4 py-2.5 text-sm font-semibold border-b-2 -mb-px transition-colors"
-        :class="tab === 'statistik' ? 'border-blue-700 text-blue-700' : 'border-transparent text-slate-500 hover:text-slate-700'">
-        Presensi & Absensi
+    <button type="button" @click="tab = 'statistik'" class="section-nav-btn green" :class="{ 'is-active': tab === 'statistik' }">
+        <i class="fa-solid fa-clock"></i>
+        <span>Presensi &amp; Absensi</span>
     </button>
-    <button type="button" @click="tab = 'riwayat'"
-        class="px-4 py-2.5 text-sm font-semibold border-b-2 -mb-px transition-colors"
-        :class="tab === 'riwayat' ? 'border-blue-700 text-blue-700' : 'border-transparent text-slate-500 hover:text-slate-700'">
-        Riwayat Pengajuan
+    <button type="button" @click="tab = 'riwayat'" class="section-nav-btn rust" :class="{ 'is-active': tab === 'riwayat' }">
+        <i class="fa-solid fa-clock-rotate-left"></i>
+        <span>Riwayat Pengajuan</span>
+    </button>
+    <button type="button" @click="tab = 'dokumen'" class="section-nav-btn teal" :class="{ 'is-active': tab === 'dokumen' }">
+        <i class="fa-solid fa-folder-open"></i>
+        <span>Dokumen</span>
     </button>
 </div>
 
@@ -88,13 +89,13 @@
 
     @php
         $renderField = function (string $label, ?string $value, bool $showBorder = true) {
-            $borderStyle = $showBorder ? 'border-bottom:1px solid #f1f5f9;' : '';
+            $borderStyle = $showBorder ? 'border-bottom:1px solid var(--border-soft);' : '';
             $valueHtml = $value
-                ? '<span style="font-size:13.5px;font-weight:600;color:#334155;text-align:right;">' . e($value) . '</span>'
-                : '<span style="font-size:12.5px;font-style:italic;color:#64748b;text-align:right;">Belum diisi</span>';
+                ? '<span style="font-size:13.5px;font-weight:600;color:var(--text-body);text-align:right;">' . e($value) . '</span>'
+                : '<span style="font-size:12.5px;font-style:italic;color:var(--text-muted);text-align:right;">Belum diisi</span>';
 
             return '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding:10px 0;' . $borderStyle . '">'
-                . '<span style="font-size:12.5px;color:#64748b;flex-shrink:0;">' . e($label) . '</span>'
+                . '<span style="font-size:12.5px;color:var(--text-muted);flex-shrink:0;">' . e($label) . '</span>'
                 . $valueHtml
                 . '</div>';
         };
@@ -102,38 +103,38 @@
         $sectionHeader = function (string $icon, string $title) {
             return '<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">'
                 . '<div style="flex-shrink:0;width:32px;height:32px;border-radius:9px;background:rgba(4,44,108,0.08);display:flex;align-items:center;justify-content:center;">'
-                . '<i class="fa-solid ' . $icon . '" style="color:#042c6c;font-size:13px;"></i>'
+                . '<i class="fa-solid ' . $icon . '" style="color:var(--brand);font-size:13px;"></i>'
                 . '</div>'
-                . '<h4 style="font-size:13.5px;font-weight:700;color:#1e293b;margin:0;">' . e($title) . '</h4>'
+                . '<h4 style="font-size:13.5px;font-weight:700;color:var(--text-heading);margin:0;">' . e($title) . '</h4>'
                 . '</div>';
         };
     @endphp
 
     {{-- Kartu identitas: jawaban cepat untuk "siapa orang ini" sebelum menyelami detail --}}
-    <div class="bg-white rounded-xl border border-gray-200 p-5" style="margin-bottom:20px;">
+    <div class="card-surface" style="margin-bottom:20px;">
         <div style="display:flex;flex-wrap:wrap;align-items:flex-start;gap:16px;">
             <div style="flex-shrink:0;width:56px;height:56px;border-radius:50%;background:#042c6c;color:#fff;font-weight:800;font-size:17px;display:flex;align-items:center;justify-content:center;">
                 {{ $initials ?: '?' }}
             </div>
             <div style="min-width:0;flex:1;">
                 <div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px;">
-                    <h2 style="font-size:19px;font-weight:800;color:#0f172a;letter-spacing:-0.3px;margin:0;">{{ $record->name }}</h2>
+                    <h2 style="font-size:19px;font-weight:800;color:var(--text-heading);letter-spacing:-0.3px;margin:0;">{{ $record->name }}</h2>
                     <span class="badge {{ $record->is_active ? 'badge-approved' : 'badge-cancelled' }}">
                         {{ $record->is_active ? 'Aktif' : 'Nonaktif' }}
                     </span>
                 </div>
-                <p style="font-size:13px;color:#64748b;margin-top:3px;">
+                <p style="font-size:13px;color:var(--text-muted);margin-top:3px;">
                     {{ $profile?->jobPosition?->name ?? 'Belum ada jabatan' }}
                     @if ($profile?->department?->name)
-                        <span style="color:#cbd5e1;">·</span> {{ $profile->department->name }}
+                        <span style="color:var(--text-faint);">·</span> {{ $profile->department->name }}
                     @endif
                 </p>
                 <div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px 20px;margin-top:12px;">
-                    <span style="font-size:12.5px;color:#64748b;"><i class="fa-solid fa-id-badge" style="color:#94a3b8;margin-right:6px;"></i>{{ $record->nip ?: 'NIP belum diisi' }}</span>
-                    <span style="font-size:12.5px;color:#64748b;"><i class="fa-solid fa-envelope" style="color:#94a3b8;margin-right:6px;"></i>{{ $record->email }}</span>
-                    <span style="font-size:12.5px;color:#64748b;"><i class="fa-solid fa-building" style="color:#94a3b8;margin-right:6px;"></i>{{ $record->company?->name }}</span>
+                    <span style="font-size:12.5px;color:var(--text-muted);"><i class="fa-solid fa-id-badge" style="color:var(--text-faint);margin-right:6px;"></i>{{ $record->nip ?: 'NIP belum diisi' }}</span>
+                    <span style="font-size:12.5px;color:var(--text-muted);"><i class="fa-solid fa-envelope" style="color:var(--text-faint);margin-right:6px;"></i>{{ $record->email }}</span>
+                    <span style="font-size:12.5px;color:var(--text-muted);"><i class="fa-solid fa-building" style="color:var(--text-faint);margin-right:6px;"></i>{{ $record->company?->name }}</span>
                     @if ($roleLabel)
-                        <span style="font-size:12.5px;color:#64748b;"><i class="fa-solid fa-user-shield" style="color:#94a3b8;margin-right:6px;"></i>{{ $roleLabel }}</span>
+                        <span style="font-size:12.5px;color:var(--text-muted);"><i class="fa-solid fa-user-shield" style="color:var(--text-faint);margin-right:6px;"></i>{{ $roleLabel }}</span>
                     @endif
                 </div>
             </div>
@@ -142,14 +143,14 @@
 
     {{-- Rincian: dikelompokkan per kartu supaya tiap topik bisa dipindai sendiri-sendiri --}}
     <div style="display:flex;flex-wrap:wrap;gap:20px;margin-bottom:20px;">
-        <div class="bg-white rounded-xl border border-gray-200 p-5" style="flex:2 1 340px;">
+        <div class="card-surface" style="flex:2 1 340px;">
             {!! $sectionHeader('fa-id-card', 'Informasi Pribadi') !!}
             @foreach ($pribadi as $label => $value)
                 {!! $renderField($label, $value, !$loop->last) !!}
             @endforeach
         </div>
 
-        <div class="bg-white rounded-xl border border-gray-200 p-5" style="flex:1 1 220px;align-self:flex-start;">
+        <div class="card-surface" style="flex:1 1 220px;align-self:flex-start;">
             {!! $sectionHeader('fa-phone', 'Kontak') !!}
             @foreach ($kontak as $label => $value)
                 {!! $renderField($label, $value, !$loop->last) !!}
@@ -157,23 +158,23 @@
         </div>
     </div>
 
-    <div class="bg-white rounded-xl border border-gray-200 p-5" style="margin-bottom:20px;">
+    <div class="card-surface" style="margin-bottom:20px;">
         {!! $sectionHeader('fa-location-dot', 'Alamat') !!}
-        <p style="font-size:13.5px;font-weight:500;color:#334155;line-height:1.6;margin:0;">
+        <p style="font-size:13.5px;font-weight:500;color:var(--text-body);line-height:1.6;margin:0;">
             {{ $alamatLengkap ?: 'Alamat belum diisi' }}
         </p>
         @if (collect($alamatDetail)->filter()->isNotEmpty())
             <div style="display:flex;flex-wrap:wrap;gap:6px 28px;margin-top:12px;">
                 @foreach ($alamatDetail as $label => $value)
                     @if ($value)
-                        <span style="font-size:12.5px;color:#64748b;"><span style="color:#64748b;">{{ $label }}:</span> <span style="font-weight:600;color:#334155;">{{ $value }}</span></span>
+                        <span style="font-size:12.5px;color:var(--text-muted);"><span style="color:var(--text-muted);">{{ $label }}:</span> <span style="font-weight:600;color:var(--text-body);">{{ $value }}</span></span>
                     @endif
                 @endforeach
             </div>
         @endif
     </div>
 
-    <div class="bg-white rounded-xl border border-gray-200 p-5">
+    <div class="card-surface">
         {!! $sectionHeader('fa-briefcase', 'Informasi Pekerjaan') !!}
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:0 32px;">
             @foreach ($pekerjaan as $label => $value)
@@ -197,7 +198,7 @@
     @endphp
 
     <!-- Filter periode -->
-    <div class="bg-white rounded-xl border border-gray-200 p-5" style="margin-bottom:20px;">
+    <div class="card-surface" style="margin-bottom:20px;">
         <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;">
             <div>
                 <label class="form-label">Dari Tanggal</label>
@@ -225,7 +226,7 @@
     </div>
 
     <!-- Section: Presensi -->
-    <h3 style="font-size:14px;font-weight:800;color:#1e293b;margin-bottom:12px;">Presensi</h3>
+    <h3 style="font-size:14px;font-weight:800;color:var(--text-heading);margin-bottom:12px;">Presensi</h3>
 
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;margin-bottom:16px;align-items:stretch;">
         <div class="absen-card" style="min-height:0;">
@@ -264,8 +265,8 @@
             @endif
         </div>
 
-        <div class="bg-white rounded-xl border border-gray-200 p-5">
-            <p style="font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.04em;margin-bottom:12px;">Indeks Presensi Periode Ini</p>
+        <div class="card-surface">
+            <p style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:12px;">Indeks Presensi Periode Ini</p>
             <div style="display:flex;flex-wrap:wrap;gap:10px;">
                 @foreach (\App\Enum\AttendanceStatus::cases() as $case)
                     <span class="badge {{ $presenceBadge($case->value) }}">
@@ -277,9 +278,9 @@
     </div>
 
     <!-- Data Presensi -->
-    <div class="bg-white rounded-xl border border-gray-200 overflow-hidden" style="margin-bottom:28px;">
-        <div style="padding:18px 20px 14px;border-bottom:1px solid #f1f5f9;">
-            <h4 style="font-size:13.5px;font-weight:700;color:#1e293b;margin:0;">Data Presensi</h4>
+    <div class="card-surface-flush" style="margin-bottom:28px;">
+        <div style="padding:18px 20px 14px;border-bottom:1px solid var(--border-soft);">
+            <h4 style="font-size:13.5px;font-weight:700;color:var(--text-heading);margin:0;">Data Presensi</h4>
         </div>
         <div style="overflow-x:auto;">
             <table class="data-table">
@@ -307,7 +308,7 @@
     </div>
 
     <!-- Section: Absensi -->
-    <h3 style="font-size:14px;font-weight:800;color:#1e293b;margin-bottom:12px;">Absensi</h3>
+    <h3 style="font-size:14px;font-weight:800;color:var(--text-heading);margin-bottom:12px;">Absensi</h3>
 
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:16px;">
         <div class="stat-card">
@@ -315,8 +316,8 @@
             <div style="width:36px;height:36px;background:#dbeafe;border-radius:10px;display:flex;align-items:center;justify-content:center;margin-bottom:16px;">
                 <i class="fa-solid fa-umbrella-beach" style="color:#1a56c4;font-size:14px;"></i>
             </div>
-            <p style="font-size:38px;font-weight:800;color:#1e293b;letter-spacing:-1.5px;line-height:1;">{{ $this->stats['leave'] }}</p>
-            <p style="font-size:13px;font-weight:600;color:#64748b;margin-top:6px;">Cuti</p>
+            <p style="font-size:38px;font-weight:800;color:var(--text-heading);letter-spacing:-1.5px;line-height:1;">{{ $this->stats['leave'] }}</p>
+            <p style="font-size:13px;font-weight:600;color:var(--text-muted);margin-top:6px;">Cuti</p>
         </div>
 
         <div class="stat-card">
@@ -324,8 +325,8 @@
             <div style="width:36px;height:36px;background:#fef3c7;border-radius:10px;display:flex;align-items:center;justify-content:center;margin-bottom:16px;">
                 <i class="fa-solid fa-clock" style="color:#d97706;font-size:14px;"></i>
             </div>
-            <p style="font-size:38px;font-weight:800;color:#1e293b;letter-spacing:-1.5px;line-height:1;">{{ $this->stats['permission'] }}</p>
-            <p style="font-size:13px;font-weight:600;color:#64748b;margin-top:6px;">Izin</p>
+            <p style="font-size:38px;font-weight:800;color:var(--text-heading);letter-spacing:-1.5px;line-height:1;">{{ $this->stats['permission'] }}</p>
+            <p style="font-size:13px;font-weight:600;color:var(--text-muted);margin-top:6px;">Izin</p>
         </div>
 
         <div class="stat-card">
@@ -333,8 +334,8 @@
             <div style="width:36px;height:36px;background:#dcfce7;border-radius:10px;display:flex;align-items:center;justify-content:center;margin-bottom:16px;">
                 <i class="fa-solid fa-briefcase-clock" style="color:#15803d;font-size:14px;"></i>
             </div>
-            <p style="font-size:38px;font-weight:800;color:#1e293b;letter-spacing:-1.5px;line-height:1;">{{ $this->stats['overtime'] }}</p>
-            <p style="font-size:13px;font-weight:600;color:#64748b;margin-top:6px;">Lembur</p>
+            <p style="font-size:38px;font-weight:800;color:var(--text-heading);letter-spacing:-1.5px;line-height:1;">{{ $this->stats['overtime'] }}</p>
+            <p style="font-size:13px;font-weight:600;color:var(--text-muted);margin-top:6px;">Lembur</p>
         </div>
     </div>
 
@@ -344,7 +345,7 @@
             type-keyword="tahunan"
             label="Cuti Tahunan"
             icon="fa-sun"
-            color="#042c6c"
+            color="var(--brand)"
             icon-bg="rgba(4,44,108,0.1)"
             grid-class=""
             :user-id="$record->id"
@@ -354,7 +355,7 @@
             type-keyword="sakit"
             label="Cuti Sakit"
             icon="fa-heart-pulse"
-            color="#047C54"
+            color="var(--brand-success)"
             icon-bg="rgba(4,124,84,0.1)"
             grid-class=""
             :user-id="$record->id"
@@ -365,7 +366,7 @@
 
 <!-- Tab: Riwayat Pengajuan -->
 <div x-show="tab === 'riwayat'">
-    <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+    <div class="card-surface-flush">
         <div style="overflow-x:auto;">
             <table class="data-table">
                 <thead>
@@ -385,7 +386,7 @@
                                 </span>
                             </td>
                             <td>
-                                <a href="{{ route('my-attendance-requests.show', ['record' => $request]) }}" wire:navigate style="font-size:12.5px;font-weight:700;color:#042c6c;">
+                                <a href="{{ route('my-attendance-requests.show', ['record' => $request]) }}" wire:navigate style="font-size:12.5px;font-weight:700;color:var(--brand);">
                                     Detail
                                 </a>
                             </td>
@@ -395,6 +396,65 @@
                     @endforelse
                 </tbody>
             </table>
+        </div>
+    </div>
+</div>
+
+<!-- Tab: Dokumen -->
+<div x-show="tab === 'dokumen'" x-data="{ docType: 'resignation' }">
+    @php
+        // Sama seperti menu "Jenis Dokumen" di Filament sebelumnya: kiri daftar jenis,
+        // kanan isi dokumen dari jenis yang dipilih. OTHER sengaja tidak masuk daftar
+        // jenis (juga tidak muncul di getNavigationItems() versi Filament-nya dulu).
+        $documentTypes = [
+            \App\Enum\UserDocumentType::RESIGNATION,
+            \App\Enum\UserDocumentType::RETIREMENT,
+            \App\Enum\UserDocumentType::ASSIGNMENT,
+            \App\Enum\UserDocumentType::WORK_CERTIFICATE,
+            \App\Enum\UserDocumentType::EMPLOYMENT_CONTRACT,
+        ];
+        $documentsByType = $this->documents->groupBy('document_type');
+    @endphp
+
+    <div class="doc-type-layout">
+        {{-- Kiri: pilih jenis dokumen (pill row scrollable di mobile, sidebar vertikal di desktop) --}}
+        <div class="doc-type-nav">
+            @foreach ($documentTypes as $type)
+                <button type="button" @click="docType = '{{ $type->value }}'" class="doc-type-btn" :class="{ 'is-active': docType === '{{ $type->value }}' }">
+                    <i class="fa-solid fa-file-lines"></i>
+                    <span>{{ $type->label() }}</span>
+                    <span class="doc-type-count">{{ $documentsByType->get($type->value, collect())->count() }}</span>
+                </button>
+            @endforeach
+        </div>
+
+        {{-- Kanan: dokumen dari jenis yang dipilih --}}
+        <div style="flex:1;min-width:0;">
+            @foreach ($documentTypes as $type)
+                <div x-show="docType === '{{ $type->value }}'">
+                    @php $records = $documentsByType->get($type->value, collect()); @endphp
+                    @if ($records->isEmpty())
+                        <div class="pwa-list" style="padding:32px 16px;text-align:center;">
+                            <p style="font-size:13px;color:var(--text-muted);margin:0;">Belum ada dokumen {{ mb_strtolower($type->label()) }}.</p>
+                        </div>
+                    @else
+                        <div class="pwa-list">
+                            @foreach ($records as $document)
+                                <a href="{{ $document->file_url }}" target="_blank" rel="noopener" class="pwa-list-row" style="text-decoration:none;">
+                                    <div class="pwa-tile-icon neutral"><i class="fa-solid fa-file-lines"></i></div>
+                                    <div style="flex:1;min-width:0;">
+                                        <p style="font-size:13px;font-weight:600;color:var(--text-heading);">{{ $document->document_number ?: 'Tanpa nomor' }}</p>
+                                        <p style="font-size:11px;color:var(--text-muted);margin-top:2px;">
+                                            {{ $document->issued_date?->translatedFormat('d M Y') ?? 'Tanggal belum diisi' }}
+                                        </p>
+                                    </div>
+                                    <i class="fa-solid fa-download" style="color:var(--text-faint);"></i>
+                                </a>
+                            @endforeach
+                        </div>
+                    @endif
+                </div>
+            @endforeach
         </div>
     </div>
 </div>

@@ -8,6 +8,7 @@ use App\Models\Attendance\AttendanceRequests;
 use App\Models\Master\Companies;
 use App\Models\Master\JobPositions;
 use App\Models\User;
+use App\Models\User\UserDocuments;
 use App\Models\User\UserJobPositions;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
@@ -105,6 +106,46 @@ class EmployeeAttendanceStatisticsTest extends TestCase
 
         Livewire::test(EmployeeAttendanceStatistics::class, ['record' => $other])
             ->assertForbidden();
+    }
+
+    public function test_documents_tab_lists_only_the_records_own_documents(): void
+    {
+        $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
+
+        $managerPosition = JobPositions::create(['company_id' => $company->id, 'name' => 'Manager', 'planned_manpower' => 1]);
+        $staffPosition = JobPositions::create(['company_id' => $company->id, 'name' => 'Staff', 'planned_manpower' => 1, 'parent_id' => $managerPosition->id]);
+
+        $manager = User::factory()->create(['company_id' => $company->id]);
+        $this->assignJobPosition($manager, $managerPosition);
+
+        $staff = User::factory()->create(['company_id' => $company->id]);
+        $this->assignJobPosition($staff, $staffPosition);
+
+        $otherStaff = User::factory()->create(['company_id' => $company->id]);
+
+        UserDocuments::create([
+            'user_id' => $staff->id,
+            'document_type' => 'work_certificate',
+            'user_name' => $staff->name,
+            'document_number' => 'SKK/001/2026',
+            'issued_date' => now()->toDateString(),
+            'file_path' => 'user-documents/' . $staff->id . '/skk.pdf',
+        ]);
+
+        UserDocuments::create([
+            'user_id' => $otherStaff->id,
+            'document_type' => 'work_certificate',
+            'user_name' => $otherStaff->name,
+            'document_number' => 'SKK/999/2026',
+            'issued_date' => now()->toDateString(),
+            'file_path' => 'user-documents/' . $otherStaff->id . '/skk.pdf',
+        ]);
+
+        $this->actingAs($manager);
+
+        Livewire::test(EmployeeAttendanceStatistics::class, ['record' => $staff])
+            ->assertSee('SKK/001/2026')
+            ->assertDontSee('SKK/999/2026');
     }
 
     public function test_export_returns_download_response(): void

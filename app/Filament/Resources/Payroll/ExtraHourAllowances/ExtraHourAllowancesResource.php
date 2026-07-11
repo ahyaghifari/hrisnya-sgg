@@ -2,7 +2,6 @@
 
 namespace App\Filament\Resources\Payroll\ExtraHourAllowances;
 
-use App\Filament\Clusters\MasterSalaryComponent\MasterSalaryComponentCluster;
 use App\Filament\Resources\Payroll\ExtraHourAllowances\Pages\CreateExtraHourAllowances;
 use App\Filament\Resources\Payroll\ExtraHourAllowances\Pages\EditExtraHourAllowances;
 use App\Filament\Resources\Payroll\ExtraHourAllowances\Pages\ListExtraHourAllowances;
@@ -25,7 +24,6 @@ class ExtraHourAllowancesResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedBriefcase;
 
-    protected static ?string $cluster = MasterSalaryComponentCluster::class;
 
     public static function form(Schema $schema): Schema
     {

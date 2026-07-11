@@ -34,7 +34,6 @@ use Filament\Support\Enums\Alignment;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
 
 class ViewCandidateApplicant extends Page implements HasForms
@@ -670,7 +669,7 @@ class ViewCandidateApplicant extends Page implements HasForms
             Section::make('Approval Direktur')
                 ->icon(Heroicon::OutlinedUserCircle)
                 ->description('Status approval kandidat oleh direktur')
-                ->visible(fn ($record) => Gate::allows('approve_manajemen_lowongan_kerja') && $record->approval_status !== null)
+                ->visible(fn ($record) => $record->approval_status !== null)
                 ->schema([
                     Grid::make(3)
                         ->schema([
@@ -726,7 +725,7 @@ class ViewCandidateApplicant extends Page implements HasForms
                         ->requiresConfirmation()
                         ->modalHeading('Setujui Kandidat')
                         ->modalDescription('Apakah Anda yakin ingin menyetujui kandidat ini?')
-                        ->visible(fn () => Gate::allows('approve_manajemen_lowongan_kerja') && $this->applicant->approval_status === 'requested')
+                        ->visible(fn () => $this->applicant->approval_status === 'requested')
                         ->schema([
                             Textarea::make('director_approval_notes')
                                 ->label('Catatan Approval')
@@ -756,7 +755,7 @@ class ViewCandidateApplicant extends Page implements HasForms
                         ->requiresConfirmation()
                         ->modalHeading('Tolak Kandidat')
                         ->modalDescription('Apakah Anda yakin ingin menolak kandidat ini?')
-                        ->visible(fn () => Gate::allows('approve_manajemen_lowongan_kerja') && $this->applicant->approval_status === 'requested')
+                        ->visible(fn () => $this->applicant->approval_status === 'requested')
                         ->schema([
                             Textarea::make('director_rejection_notes')
                                 ->label('Alasan Penolakan')
@@ -808,10 +807,10 @@ class ViewCandidateApplicant extends Page implements HasForms
                         ->label('Lanjutkan Tahapan Rekrutmen')
                         ->icon(Heroicon::OutlinedPlusCircle)
                         ->color('success')
-                        ->visible(fn () => Gate::allows('edit_manajemen_lowongan_kerja') && 
-                            ($this->applicant->status !== ProcessStatus::HIRED->value && 
-                                $this->applicant->status !== ProcessStatus::REJECTED->value && 
-                                $this->applicant->status !== ProcessStatus::WITHDRAWN->value && 
+                        ->visible(fn () =>
+                            ($this->applicant->status !== ProcessStatus::HIRED->value &&
+                                $this->applicant->status !== ProcessStatus::REJECTED->value &&
+                                $this->applicant->status !== ProcessStatus::WITHDRAWN->value &&
                                 $this->applicant->status !== ProcessStatus::SUBMITTED->value))
                         ->tooltip('Hanya dapat menambahkan tahapan baru jika tahapan sebelumnya telah selesai.')
                         ->schema($this->inputProcessSchema())
@@ -868,7 +867,7 @@ class ViewCandidateApplicant extends Page implements HasForms
                         ->requiresConfirmation()
                         ->modalHeading('Request Approval Kandidat ke Direktur')
                         ->modalDescription('Apakah Anda yakin ingin mengirim request approval kandidat ini ke direktur?')
-                        ->visible(fn () => Gate::allows('approve_manajemen_lowongan_kerja') && $this->applicant->approval_status !== 'requested' && $this->applicant->approval_status !== 'approved')
+                        ->visible(fn () => $this->applicant->approval_status !== 'requested' && $this->applicant->approval_status !== 'approved')
                         ->schema([
                             Textarea::make('approval_notes')
                                 ->label('Catatan Approval')
@@ -896,7 +895,7 @@ class ViewCandidateApplicant extends Page implements HasForms
                         ->requiresConfirmation()
                         ->modalHeading('Tolak Lamaran Kandidat')
                         ->modalDescription('Apakah Anda yakin ingin menolak lamaran kandidat ini? Tindakan ini tidak dapat dibatalkan.')
-                        ->visible(fn () => Gate::allows('edit_manajemen_lowongan_kerja') && $this->applicant->status !== ProcessStatus::REJECTED->value && $this->applicant->status !== ProcessStatus::HIRED->value)
+                        ->visible(fn () => $this->applicant->status !== ProcessStatus::REJECTED->value && $this->applicant->status !== ProcessStatus::HIRED->value)
                         ->action(function () {
                             $this->applicant->status = 'rejected';
                             $this->applicant->finished_at = now();
@@ -918,7 +917,7 @@ class ViewCandidateApplicant extends Page implements HasForms
                         ->requiresConfirmation()
                         ->modalHeading('Terima Kandidat')
                         ->modalDescription('Apakah Anda yakin ingin menerima kandidat ini? Tindakan ini tidak dapat dibatalkan. Data kandidat akan otomatis diproses ke dalam sistem karyawan setelah diterima.')
-                        ->visible(fn () => Gate::allows('edit_manajemen_lowongan_kerja') && $this->applicant->status !== ProcessStatus::HIRED->value && $this->applicant->status !== ProcessStatus::REJECTED->value)
+                        ->visible(fn () => $this->applicant->status !== ProcessStatus::HIRED->value && $this->applicant->status !== ProcessStatus::REJECTED->value)
                         ->schema([
                             TextInput::make('nip')
                                 ->label('NIP Karyawan')

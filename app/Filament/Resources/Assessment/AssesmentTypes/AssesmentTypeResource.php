@@ -2,7 +2,6 @@
 
 namespace App\Filament\Resources\Assessment\AssesmentTypes;
 
-use App\Filament\Clusters\Assessment\AssessmentCluster;
 use App\Filament\Resources\Assessment\AssesmentTypes\Pages\CreateAssesmentType;
 use App\Filament\Resources\Assessment\AssesmentTypes\Pages\EditAssesmentType;
 use App\Filament\Resources\Assessment\AssesmentTypes\Pages\ListAssesmentTypes;
@@ -23,7 +22,6 @@ class AssesmentTypeResource extends Resource
 
     protected static ?int $navigationSort = 1;
 
-    protected static ?string $cluster = AssessmentCluster::class;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
 

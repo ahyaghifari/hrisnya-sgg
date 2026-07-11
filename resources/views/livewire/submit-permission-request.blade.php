@@ -16,38 +16,38 @@
         <!-- Keterangan Izin -->
         <div class="form-card">
             <div class="section-head">
-                <div class="section-icon"><i class="fa-solid fa-clipboard-list" style="color:#042c6c;font-size:12px;"></i></div>
+                <div class="section-icon"><i class="fa-solid fa-clipboard-list" style="color:var(--brand);font-size:12px;"></i></div>
                 <span class="section-title">Keterangan Izin</span>
             </div>
             <div style="display:flex;flex-direction:column;gap:18px;">
                 <div>
-                    <label class="form-label">Jenis Izin <span style="color:#ef4444;">*</span></label>
+                    <label class="form-label">Jenis Izin <span style="color:var(--danger-text);">*</span></label>
                     <select class="form-input" wire:model="permission_type_id">
                         <option value="">Pilih jenis izin</option>
                         @foreach ($this->permissionTypes as $type)
                             <option value="{{ $type->id }}">{{ $type->name }}</option>
                         @endforeach
                     </select>
-                    @error('permission_type_id') <p style="color:#ef4444;font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
+                    @error('permission_type_id') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
                 </div>
                 <div>
-                    <label class="form-label">Tanggal Izin <span style="color:#ef4444;">*</span></label>
+                    <label class="form-label">Tanggal Izin <span style="color:var(--danger-text);">*</span></label>
                     <input type="date" class="form-input" wire:model="date">
-                    @error('date') <p style="color:#ef4444;font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
+                    @error('date') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
                 </div>
                 <div>
-                    <label class="form-label">Jam Izin <span style="color:#ef4444;">*</span></label>
+                    <label class="form-label">Jam Izin <span style="color:var(--danger-text);">*</span></label>
                     <div class="time-grid">
                         <div>
                             <input type="time" class="form-input" wire:model="start_time">
-                            <p style="font-size:11.5px;color:#64748b;margin:5px 0 0;">Jam Mulai</p>
-                            @error('start_time') <p style="color:#ef4444;font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
+                            <p style="font-size:11.5px;color:var(--text-muted);margin:5px 0 0;">Jam Mulai</p>
+                            @error('start_time') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
                         </div>
                         <div class="time-arrow"><i class="fa-solid fa-arrow-right"></i></div>
                         <div>
                             <input type="time" class="form-input" wire:model="end_time">
-                            <p style="font-size:11.5px;color:#64748b;margin:5px 0 0;">Jam Berakhir</p>
-                            @error('end_time') <p style="color:#ef4444;font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
+                            <p style="font-size:11.5px;color:var(--text-muted);margin:5px 0 0;">Jam Berakhir</p>
+                            @error('end_time') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
                         </div>
                     </div>
                 </div>
@@ -66,11 +66,11 @@
         <div class="form-card">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
                 <div class="section-head" style="margin-bottom:0;">
-                    <div class="section-icon"><i class="fa-solid fa-user-group" style="color:#042c6c;font-size:12px;"></i></div>
+                    <div class="section-icon"><i class="fa-solid fa-user-group" style="color:var(--brand);font-size:12px;"></i></div>
                     <span class="section-title">Pengganti Tugas</span>
                 </div>
                 <div style="display:flex;align-items:center;gap:8px;cursor:pointer;" wire:click="toggleSubstitute">
-                    <span style="font-size:12px;color:#64748b;font-weight:500;">Tambahkan</span>
+                    <span style="font-size:12px;color:var(--text-muted);font-weight:500;">Tambahkan</span>
                     <div class="toggle {{ $with_substitute ? 'on' : '' }}"></div>
                 </div>
             </div>
@@ -88,8 +88,8 @@
                 </div>
             @else
                 <div class="pengganti-placeholder">
-                    <i class="fa-solid fa-user-plus" style="color:#cbd5e1;font-size:20px;"></i>
-                    <p style="font-size:13px;color:#64748b;margin:0;">Aktifkan toggle untuk menambahkan pengganti tugas</p>
+                    <i class="fa-solid fa-user-plus" style="color:var(--text-faint);font-size:20px;"></i>
+                    <p style="font-size:13px;color:var(--text-muted);margin:0;">Aktifkan toggle untuk menambahkan pengganti tugas</p>
                 </div>
             @endif
         </div>

@@ -2,7 +2,6 @@
 
 namespace App\Filament\Resources\Payroll\OvertimeRates;
 
-use App\Filament\Clusters\MasterSalaryComponent\MasterSalaryComponentCluster;
 use App\Filament\Resources\Payroll\OvertimeRates\Pages\CreateOvertimeRates;
 use App\Filament\Resources\Payroll\OvertimeRates\Pages\EditOvertimeRates;
 use App\Filament\Resources\Payroll\OvertimeRates\Pages\ListOvertimeRates;
@@ -25,7 +24,6 @@ class OvertimeRatesResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedBriefcase;
 
-    protected static ?string $cluster = MasterSalaryComponentCluster::class;
 
     public static function form(Schema $schema): Schema
     {

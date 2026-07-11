@@ -27,7 +27,7 @@ Pola arsitektur konsisten: **Controller → Service → Repository → Model**, 
 
 ```
 app/
-  Filament/         # Resource, Cluster, Page, Widget untuk admin panel
+  Filament/         # Resource, Page, Widget untuk admin panel
   Http/Controllers/  # Controller web & API (Api/ untuk mobile/portal)
   Models/            # Dikelompokkan per domain (Attendance, Payroll, Shift, Candidate, LMS, ...)
   Services/          # Business logic per domain
@@ -51,7 +51,9 @@ planning/            # Dokumen perencanaan fitur yang belum dikerjakan
 - **LMS** — kursus, kuis, sertifikat, ranking, trainer
 - **Assessment, Coaching, Counseling, Task tracking**
 
-Otorisasi memakai **Spatie Permission** langsung (tidak ada layer Policy — sudah dihapus, dulu cuma dead code). Permission bisa dikelola lewat Filament (`PermissionResource`, `/admin/permissions`), role via `RoleResource`. Akses `/admin` (Filament) dibatasi ke role **Admin/Super Admin** saja (`User::canAccessPanel()`); role lain (Supervisor, Manager, HC, Karyawan, dst) beraktivitas lewat **portal karyawan** (`/dashboard`, `/my-staff`, `/pengajuan-absensi`, `/data-diri`, dst — lihat bawah). Route portal dijaga registry `config/portal-pages.php` + middleware `EnsurePortalPageAccess` (route yang tidak terdaftar di registry lolos tanpa cek — desain sengaja, bukan whitelist ketat).
+Otorisasi `/admin` memakai **Filament Shield** ([bezhansalleh/filament-shield](https://filamentphp.com/plugins/bezhansalleh-shield)) sejak 2026-07-08 — permission di-generate otomatis dari Resource/Page/Widget yang terdaftar, format `Verb:Subject` (mis. `View:Employee`, bukan `view_karyawan`), 12 verb standar per Resource, Policy ikut di-generate otomatis (layer Policy custom lama sudah dihapus total, digantikan Shield). Permission dikelola lewat `RoleResource` (`/admin/roles`) — form assign permission-nya (`RoleForm.php`) mengelompokkan checkbox per `navigationGroup` Resource secara dinamis. Akses `/admin` (Filament) dibatasi ke role **Admin/Super Admin** saja (`User::canAccessPanel()`); role lain (Supervisor, Manager, HC, Karyawan, dst) beraktivitas lewat **portal karyawan** (`/dashboard`, `/my-staff`, `/pengajuan-absensi`, `/data-diri`, dst — lihat bawah). Route portal dijaga registry `config/portal-pages.php` + middleware `EnsurePortalPageAccess` (route yang tidak terdaftar di registry lolos tanpa cek — desain sengaja, bukan whitelist ketat).
+
+**Catatan penting**: hanya role "Super Admin" (2 baris: holding + global) yang saat ini punya permission terisi — 77 role lain di 8 company punya 0 permission sejak migrasi Shield, belum di-assign ulang. Detail & prioritas lanjutan di [`planning/next/2026-07-11-rekap-sesi-dan-lanjutan.md`](planning/next/2026-07-11-rekap-sesi-dan-lanjutan.md).
 
 Konvensi nama role: **"Super Admin"** cuma dipakai company holding, **"Admin"** untuk semua company lain (permission ceiling sama, beda label saja).
 
@@ -81,7 +83,7 @@ Pola "mobile card vs desktop table" dipakai konsisten di semua list/detail: liha
 
 Halaman yang sudah berjalan:
 - `/dashboard` — ringkasan (saldo cuti + jumlah izin/lembur bulan ini berdampingan presensi, status pengajuan aktif dengan timeline visual — vertikal di mobile, horizontal di desktop, kotak "Butuh Persetujuan Anda" buat atasan, Task Saya/Kursus Saya placeholder).
-- `/my-staff` + `/my-staff/{id}/edit` + `/my-staff/{id}` — daftar (Filament Table di desktop, card list di mobile), edit, dan **detail** karyawan (profil lengkap + presensi harian + statistik cuti/izin/lembur + riwayat pengajuan dalam 3 tab), scoped ke bawahan (rekursif via `OrgHierarchyService`) atau semua company (khusus Direktur holding). Widget "Butuh Persetujuan Anda" juga tampil di halaman list-nya, sudah responsive juga.
+- `/my-staff` + `/my-staff/{id}/edit` + `/my-staff/{id}` — daftar (Filament Table di desktop, card list di mobile), edit, dan **detail** karyawan (profil lengkap + presensi harian + statistik cuti/izin/lembur + riwayat pengajuan + dokumen karyawan, dinavigasi lewat 4 tombol `.section-nav` warna-warni, bukan tab bergaris bawah), scoped ke bawahan (rekursif via `OrgHierarchyService`) atau semua company (khusus Direktur holding). Widget "Butuh Persetujuan Anda" juga tampil di halaman list-nya, sudah responsive juga.
 - `/data-diri` — halaman "detail karyawan" yang sama (`EmployeeAttendanceStatistics`) tapi dipakai untuk **lihat data diri sendiri** (`record` default ke user yang login), bukan cuma untuk atasan melihat bawahan.
 - `/pengajuan-absensi` (list riwayat **milik sendiri**, Filament Table di desktop / card list + Aksi Cepat Cuti-Izin-Lembur di mobile) + `/pengajuan-absensi/{cuti,izin,lembur}` (form pengajuan, custom — bukan reuse Filament, header-nya senada warna dengan tombol Aksi Cepat: navy/gold/hijau) + `/pengajuan-absensi/{id}` (detail: timeline status + tombol Approve/Reject/Batalkan buat atasan — manager juga bisa **lihat** detail pengajuan bawahannya walau bukan approver).
 - `/akun` + `/akun/ubah-password` — ganti foto profil & ubah password, cuma ada di portal (belum ada padanan di admin panel).
@@ -93,6 +95,8 @@ Detail lengkap tiap bagian ada di `knowledge/changes/` (lihat tanggal terbaru) d
 
 Konvensi visual portal karyawan (palet warna, aturan kontras, identitas warna per kartu, komponen shared) didokumentasikan di [`DESIGN.md`](DESIGN.md) — baca sebelum menambah/mengubah tampilan portal, termasuk aturan penting soal inline style vs class utility Tailwind baru (butuh `npm run watch`/`build` sebelum terlihat).
 
+**Dark mode** (2026-07-11) sudah aktif untuk seluruh portal karyawan (tidak untuk `/admin`/`/candidate`) — toggle manual (localStorage, class `dark` di `<html>`) di nav desktop & app bar mobile, warna lewat CSS custom property di `app.css`. **Wajib baca bagian "Dark mode" di [`DESIGN.md`](DESIGN.md) sebelum menambah warna baru** — warna literal (bukan `var(--token)`) di komponen portal gampang jadi nyaris tak kelihatan di dark mode (sudah kejadian sekali, lihat catatan di sana).
+
 ## Known Gaps
 
 - Test coverage sudah ada untuk alur portal karyawan & attendance request (`tests/Feature/`, jalan di sqlite in-memory, `RefreshDatabase` + factory) — modul lain (payroll, LMS, shift, dll) masih belum punya test.
@@ -103,4 +107,5 @@ Konvensi visual portal karyawan (palet warna, aturan kontras, identitas warna pe
 - Kalau perubahan CSS/style di portal "tidak muncul" di browser padahal kodenya sudah benar, cek dulu apakah `public/build/assets/app-*.css` sudah lebih baru dari `resources/css/app.css` — kemungkinan besar cuma butuh `npm run watch`/`build` ulang, bukan bug kode.
 - Payroll belum ada eligibility check per **employee type** (permanent/kontrak) untuk tunjangan, dan `m_companies` belum ada kolom kategori (hospital vs non-hospital) untuk fitur jasa dokter — dua gap ini dikonfirmasi nyata tapi baru terdokumentasi sebagai rekomendasi (`knowledge/markdown/analisis-payroll.md` §6.1), belum diimplementasikan.
 - Approval Engine: path reject nyoba nulis `rejected_by`/`rejected_at` ke `attendance_requests` tapi kolom itu tidak ada (silently dropped), dan ejaan status `canceled`/`cancelled` beda antara `approval_activities` vs `approval_snapshots` — detail di `knowledge/markdown/manajemen-persetujuan.md`.
-- `database/seeders/RoleDefaultPermissionsSeeder.php` sudah ditulis tapi **sengaja belum dijalankan** — nunggu review manual mapping default permission per role sebelum dieksekusi ke data real.
+- Beberapa Resource bekas cluster Filament (Assessment, EmployeeDocument, ManPowerPlaning, MasterSalaryComponent, ShiftPattern, UserTransitions — cluster-nya dihapus 2026-07-11) belum punya `$navigationGroup`, jadi tampil ungrouped di sidebar `/admin` dan di `RoleForm.php`.
+- Dokumen karyawan (`UserDocuments`) sekarang dilihat/diunduh lewat portal (tab "Dokumen" di Data Diri/MyStaff), tapi **upload masih cuma lewat Filament** (`/admin/user-documents`, disembunyikan dari nav tapi route-nya aktif) — belum ada form upload dari portal.

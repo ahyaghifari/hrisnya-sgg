@@ -12,7 +12,7 @@
     <div class="topnav-inner">
         <a href="{{ route('dashboard') }}" wire:navigate class="nav-brand">
             <img src="{{ asset('assets/logo-sgg.png') }}" alt="Syifa Global Group" style="height:38px;width:auto;">
-            <span style="font-size:13.5px;font-weight:700;color:#1e293b;">HRIS</span>
+            <span style="font-size:13.5px;font-weight:700;color:var(--text-heading);">HRIS</span>
         </a>
 
         <div class="nav-links">
@@ -33,17 +33,18 @@
 
         <div class="nav-right">
             @if ($canAccessAdmin)
-                <a href="{{ url('/admin') }}" target="_blank" class="nav-item" style="border:1.5px solid #e2e8f0;background:#f8fafc;">
+                <a href="{{ url('/admin') }}" target="_blank" class="nav-item" style="border:1.5px solid var(--border);background:var(--surface-alt);">
                     <i class="fa-solid fa-table-columns text-xs"></i> Admin Panel
                 </a>
             @endif
+            <x-theme-toggle variant="icon" />
             <div class="nav-bell"><i class="fa-regular fa-bell text-sm"></i><span class="nav-bell-dot"></span></div>
             <div class="dropdown">
                 <div class="nav-avatar">{{ $initials }}</div>
                 <div class="dropdown-menu dropdown-menu-right">
                     <a href="{{ route('data-diri') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-id-card"></i> Data Diri</a>
                     <a href="{{ route('akun.ubah-password') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-lock"></i> Ubah Password</a>
-                    <hr style="border:none;border-top:1px solid #f1f5f9;margin:4px 0;">
+                    <hr style="border:none;border-top:1px solid var(--border-soft);margin:4px 0;">
                     <form action="{{ route('logout') }}" method="POST">
                         @csrf
                         <button type="submit" class="dropdown-item">

@@ -3,7 +3,6 @@
 namespace App\Filament\Resources\Payroll\CompanySalaryComponents;
 
 use App\Enum\Salary\SalaryComponentNameEnum;
-use App\Filament\Clusters\MasterSalaryComponent\MasterSalaryComponentCluster;
 use App\Filament\Resources\Payroll\CompanySalaryComponents\Pages\CreateCompanySalaryComponent;
 use App\Filament\Resources\Payroll\CompanySalaryComponents\Pages\EditCompanySalaryComponent;
 use App\Filament\Resources\Payroll\CompanySalaryComponents\Pages\ListCompanySalaryComponents;
@@ -27,7 +26,6 @@ class CompanySalaryComponentResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
 
-    protected static ?string $cluster = MasterSalaryComponentCluster::class;
 
     public static function form(Schema $schema): Schema
     {

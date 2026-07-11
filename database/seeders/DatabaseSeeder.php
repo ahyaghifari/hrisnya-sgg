@@ -18,7 +18,6 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         $this->call([
-            PermissionsSeeder::class,
             ReligionsSeeder::class,
             RoleSeeder::class,
             AttendanceRequestTypeSeeder::class,
@@ -130,21 +129,6 @@ class DatabaseSeeder extends Seeder
                 // Assign the company role to the user
                 $user->assignRole($roleModel);
             }
-        }
-
-        // ===== PERMISSIONS (CRUD Role & Permission) =====
-        $permissions = [
-            'view_role',
-            'create_role',
-            'edit_role',
-            'delete_role',
-        ];
-
-        foreach ($permissions as $perm) {
-            Permission::firstOrCreate([
-                'name' => $perm,
-                'guard_name' => 'web',
-            ]);
         }
 
         // Super Admin gets all permissions

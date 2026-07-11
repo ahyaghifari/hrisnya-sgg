@@ -204,16 +204,6 @@ return [
         'prefix' => 'view',
         'exclude' => [
             Dashboard::class,
-            // Cluster sudah punya canAccess() manual sendiri (kadang OR beberapa permission,
-            // mis. ShiftPatternCluster) yang sengaja tidak diganti — jadi permission "view_x_cluster"
-            // yang di-generate Shield untuk mereka tidak akan pernah dipakai. Exclude supaya
-            // tidak jadi permission yatim di katalog.
-            \App\Filament\Clusters\Assessment\AssessmentCluster::class,
-            \App\Filament\Clusters\EmployeeDocument\EmployeeDocumentCluster::class,
-            \App\Filament\Clusters\ManPowerPlaning\ManPowerPlaningCluster::class,
-            \App\Filament\Clusters\MasterSalaryComponent\MasterSalaryComponentCluster::class,
-            \App\Filament\Clusters\ShiftPattern\ShiftPatternCluster::class,
-            \App\Filament\Clusters\UserTransitions\UserTransitionsCluster::class,
         ],
     ],
 

@@ -2,7 +2,6 @@
 
 namespace App\Filament\Resources\Assessment\AssessmentTemplates;
 
-use App\Filament\Clusters\Assessment\AssessmentCluster;
 use App\Filament\Resources\Assessment\AssessmentTemplates\Pages\CreateAssessmentTemplate;
 use App\Filament\Resources\Assessment\AssessmentTemplates\Pages\EditAssessmentTemplate;
 use App\Filament\Resources\Assessment\AssessmentTemplates\Pages\ListAssessmentTemplates;
@@ -24,7 +23,6 @@ class AssessmentTemplateResource extends Resource
 
     protected static ?int $navigationSort = 2;
 
-    protected static ?string $cluster = AssessmentCluster::class;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
 

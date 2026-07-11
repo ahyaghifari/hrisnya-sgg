@@ -17,7 +17,6 @@ use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Gate;
 use UnitEnum;
 
 class AttendanceRequestResource extends Resource
@@ -120,6 +119,6 @@ class AttendanceRequestResource extends Resource
 
     public static function canApprove(): bool
     {
-        return Gate::allows('approve_pengajuan_absensi');
+        return true;
     }
 }

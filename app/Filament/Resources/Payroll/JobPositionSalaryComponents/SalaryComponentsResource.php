@@ -3,7 +3,6 @@
 namespace App\Filament\Resources\Payroll\JobPositionSalaryComponents;
 
 use App\Enum\Salary\SalaryComponentNameEnum;
-use App\Filament\Clusters\MasterSalaryComponent\MasterSalaryComponentCluster;
 use App\Filament\Resources\Payroll\JobPositionSalaryComponents\Pages\ListSalaryComponents;
 use App\Filament\Resources\Payroll\JobPositionSalaryComponents\Schemas\SalaryComponentsForm;
 use App\Filament\Resources\Payroll\JobPositionSalaryComponents\Tables\SalaryComponentsTable;
@@ -24,7 +23,6 @@ class SalaryComponentsResource extends Resource
 
     protected static ?int $navigationSort = 3;
 
-    protected static ?string $cluster = MasterSalaryComponentCluster::class;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedBriefcase;
 

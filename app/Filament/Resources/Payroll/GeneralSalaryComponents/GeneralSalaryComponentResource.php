@@ -3,7 +3,6 @@
 namespace App\Filament\Resources\Payroll\GeneralSalaryComponents;
 
 use App\Enum\Salary\SalaryComponentNameEnum;
-use App\Filament\Clusters\MasterSalaryComponent\MasterSalaryComponentCluster;
 use App\Filament\Resources\Payroll\GeneralSalaryComponents\Pages\CreateGeneralSalaryComponent;
 use App\Filament\Resources\Payroll\GeneralSalaryComponents\Pages\EditGeneralSalaryComponent;
 use App\Filament\Resources\Payroll\GeneralSalaryComponents\Pages\ListGeneralSalaryComponents;
@@ -28,7 +27,6 @@ class GeneralSalaryComponentResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedBriefcase;
 
-    protected static ?string $cluster = MasterSalaryComponentCluster::class;
 
     public static function form(Schema $schema): Schema
     {

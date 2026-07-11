@@ -3,7 +3,7 @@
     {{-- Identitas "Approval Dark": dipakai konsisten di semua kartu domain persetujuan
          (kartu ini + timeline status) supaya user langsung kenali "ini soal approval"
          di mana pun kartunya muncul (Dashboard, MyStaff, dsb), tanpa perlu baca teks. --}}
-    <div style="background:#fff;border-radius:20px;box-shadow:0 2px 10px rgba(0,0,0,0.08);overflow:hidden;">
+    <div style="background:var(--surface);border-radius:20px;box-shadow:0 2px 10px rgba(0,0,0,0.08);overflow:hidden;">
         <div class="approval-card" style="padding:16px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px;">
             <div class="appr-deco-1"></div><div class="appr-deco-2"></div>
             <div style="position:relative;z-index:1;display:flex;align-items:center;gap:12px;min-width:0;">
@@ -31,8 +31,8 @@
                 <a href="{{ route('my-attendance-requests.show', ['record' => $request->id]) }}" wire:navigate class="pwa-list-row" style="text-decoration:none;">
                     <div class="pwa-tile-icon {{ $typeTile($request->type) }}"><i class="fa-solid {{ $typeIcon($request->type) }}"></i></div>
                     <div style="flex:1;min-width:0;">
-                        <p style="font-size:13px;font-weight:600;color:#1e293b;">{{ $typeLabel($request->type) }} · {{ $request->user->name }}</p>
-                        <p style="font-size:11px;color:#64748b;margin-top:2px;">{{ $request->created_at->translatedFormat('d M Y') }}</p>
+                        <p style="font-size:13px;font-weight:600;color:var(--text-heading);">{{ $typeLabel($request->type) }} · {{ $request->user->name }}</p>
+                        <p style="font-size:11px;color:var(--text-muted);margin-top:2px;">{{ $request->created_at->translatedFormat('d M Y') }}</p>
                     </div>
                     <i class="fa-solid fa-chevron-right"></i>
                 </a>
@@ -55,7 +55,7 @@
                             <td class="text-sm text-slate-500 whitespace-nowrap">{{ $request->created_at->translatedFormat('d M Y') }}</td>
                             <td>
                                 <a href="{{ route('my-attendance-requests.show', ['record' => $request->id]) }}" wire:navigate
-                                    style="font-size:12.5px;font-weight:600;color:#042c6c;text-decoration:none;white-space:nowrap;">
+                                    style="font-size:12.5px;font-weight:600;color:var(--brand);text-decoration:none;white-space:nowrap;">
                                     Tinjau <i class="fa-solid fa-arrow-right text-xs"></i>
                                 </a>
                             </td>

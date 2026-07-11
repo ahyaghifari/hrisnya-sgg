@@ -28,7 +28,7 @@
 
     @if ($employees->isEmpty())
         <div class="pwa-list" style="padding:32px 16px;text-align:center;">
-            <p style="font-size:13px;color:#64748b;margin:0;">
+            <p style="font-size:13px;color:var(--text-muted);margin:0;">
                 {{ $canBrowseAllCompanies && ! $companyId ? 'Pilih perusahaan dulu.' : 'Belum ada karyawan di bawah kamu.' }}
             </p>
         </div>
@@ -44,15 +44,15 @@
                 <a href="{{ route('my-staff.show', ['record' => $employee]) }}" wire:navigate class="pwa-list-row" style="text-decoration:none;">
                     <div class="pwa-tile-icon neutral" style="border-radius:50%;font-size:12px;font-weight:700;">{{ $initials ?: '?' }}</div>
                     <div style="flex:1;min-width:0;">
-                        <p style="font-size:13px;font-weight:600;color:#1e293b;">{{ $employee->name }}</p>
-                        <p style="font-size:11px;color:#64748b;margin-top:2px;">
+                        <p style="font-size:13px;font-weight:600;color:var(--text-heading);">{{ $employee->name }}</p>
+                        <p style="font-size:11px;color:var(--text-muted);margin-top:2px;">
                             {{ $employee->nip ?: 'NIP belum diisi' }}
                             @if ($employee->profile?->jobPosition?->name)
                                 &middot; {{ $employee->profile->jobPosition->name }}
                             @endif
                         </p>
                         @if ($employee->profile?->department?->name || ($canBrowseAllCompanies && $employee->company?->name))
-                            <p style="font-size:11px;color:#94a3b8;margin-top:2px;">
+                            <p style="font-size:11px;color:var(--text-faint);margin-top:2px;">
                                 {{ $employee->profile?->department?->name }}
                                 @if ($canBrowseAllCompanies && $employee->company?->name)
                                     &middot; {{ $employee->company->name }}
