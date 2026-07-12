@@ -47,11 +47,6 @@
         </div>
 
         <div class="nav-right">
-            @if ($canAccessAdmin)
-                <a href="{{ url('/admin') }}" target="_blank" class="nav-item" style="border:1.5px solid var(--border);background:var(--surface-alt);">
-                    <i class="fa-solid fa-table-columns text-xs"></i> Admin Panel
-                </a>
-            @endif
             <x-theme-toggle variant="icon" />
             <div class="nav-bell"><i class="fa-regular fa-bell text-sm"></i><span class="nav-bell-dot"></span></div>
             <div class="dropdown">
