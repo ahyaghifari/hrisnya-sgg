@@ -3,9 +3,8 @@
 namespace Database\Seeders;
 
 use App\Enum\Salary\CalculationTypeEnum;
-use App\Enum\Salary\SalaryComponentNameEnum;
-use App\Enum\Salary\SalaryComponentTypeEnum;
-use App\Models\Payroll\MasterSalaryComponents;
+use App\Enum\Salary\SalaryComponentCategoryEnum;
+use App\Models\SalaryComponent\SalaryComponents;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
@@ -18,82 +17,77 @@ class MasterSalaryComponentSeeder extends Seeder
     {
         $items = [
             [
-                'name' => SalaryComponentNameEnum::GAJI_POKOK->value,
+                'name' => 'Gaji Pokok',
+                'category' => SalaryComponentCategoryEnum::GAJI_POKOK->value,
                 'calculation_type' => CalculationTypeEnum::FIXED->value,
-                'type' => SalaryComponentTypeEnum::EARNING->value,
             ],
             [
-                'name' => SalaryComponentNameEnum::TUNJANGAN_JABATAN->value,
+                'name' => 'Tunjangan Jabatan',
+                'category' => SalaryComponentCategoryEnum::TUNJANGAN->value,
                 'calculation_type' => CalculationTypeEnum::FIXED->value,
-                'type' => SalaryComponentTypeEnum::EARNING->value,
             ],
             [
-                'name' => SalaryComponentNameEnum::TUNJANGAN_TRANSPORTASI->value,
+                'name' => 'Tunjangan Transportasi',
+                'category' => SalaryComponentCategoryEnum::TUNJANGAN->value,
                 'calculation_type' => CalculationTypeEnum::FIXED->value,
-                'type' => SalaryComponentTypeEnum::EARNING->value,
-            ],
-//            [
-//                'name' => SalaryComponentNameEnum::INSENTIF->value,
-//                'calculation_type' => CalculationTypeEnum::FIXED->value,
-//                'type' => SalaryComponentTypeEnum::EARNING->value,
-//            ],
-            [
-                'name' => SalaryComponentNameEnum::JASA_PELAYANAN->value,
-                'calculation_type' => CalculationTypeEnum::FIXED->value,
-                'type' => SalaryComponentTypeEnum::EARNING->value,
             ],
             [
-                'name' => SalaryComponentNameEnum::TUNJANGAN_MASA_KERJA->value,
+                'name' => 'Jasa Pelayanan',
+                'category' => SalaryComponentCategoryEnum::JASA_PELAYANAN->value,
                 'calculation_type' => CalculationTypeEnum::FIXED->value,
-                'type' => SalaryComponentTypeEnum::EARNING->value,
             ],
             [
-                'name' => SalaryComponentNameEnum::LEMBUR->value,
+                'name' => 'Tunjangan Masa Kerja',
+                'category' => SalaryComponentCategoryEnum::TUNJANGAN->value,
                 'calculation_type' => CalculationTypeEnum::FIXED->value,
-                'type' => SalaryComponentTypeEnum::EARNING->value,
+            ],
+            // LEMBUR sengaja tidak diseed — tidak pernah dipakai (lembur dihitung langsung
+            // dari OvertimeRateRules, bukan lookup katalog), baris "Lembur" yang lama juga
+            // sudah dihapus dari katalog (2026-07-12, tidak pernah dipakai/yatim).
+            [
+                'name' => 'Cuti',
+                'category' => SalaryComponentCategoryEnum::CUTI->value,
+                'calculation_type' => CalculationTypeEnum::FIXED->value,
             ],
             [
-                'name' => SalaryComponentNameEnum::CUTI->value,
+                'name' => 'Izin',
+                'category' => SalaryComponentCategoryEnum::IZIN->value,
                 'calculation_type' => CalculationTypeEnum::FIXED->value,
-                'type' => SalaryComponentTypeEnum::DEDUCTION->value,
             ],
             [
-                'name' => SalaryComponentNameEnum::IZIN->value,
+                'name' => 'Keterlambatan',
+                'category' => SalaryComponentCategoryEnum::KETERLAMBATAN->value,
                 'calculation_type' => CalculationTypeEnum::FIXED->value,
-                'type' => SalaryComponentTypeEnum::DEDUCTION->value,
             ],
             [
-                'name' => SalaryComponentNameEnum::LATE_ARRIVAL->value,
-                'calculation_type' => CalculationTypeEnum::FIXED->value,
-                'type' => SalaryComponentTypeEnum::DEDUCTION->value,
-            ],
-            [
-                'name' => SalaryComponentNameEnum::BPJS_KESEHATAN->value,
+                'name' => 'BPJS Kesehatan',
+                'category' => SalaryComponentCategoryEnum::BPJS->value,
                 'calculation_type' => CalculationTypeEnum::PERCENTAGE->value,
-                'type' => SalaryComponentTypeEnum::DEDUCTION->value,
             ],
             [
-                'name' => SalaryComponentNameEnum::BPJS_KETENAGA_KERJAAN->value,
+                'name' => 'BPJS Ketenaga Kerjaan',
+                'category' => SalaryComponentCategoryEnum::BPJS->value,
                 'calculation_type' => CalculationTypeEnum::PERCENTAGE->value,
-                'type' => SalaryComponentTypeEnum::DEDUCTION->value,
             ],
             [
-                'name' => SalaryComponentNameEnum::DOCTOR_TAX->value,
+                'name' => 'Pajak Jasa Dokter',
+                'category' => SalaryComponentCategoryEnum::PAJAK_JASA_DOKTER->value,
                 'calculation_type' => CalculationTypeEnum::PERCENTAGE->value,
-                'type' => SalaryComponentTypeEnum::DEDUCTION->value,
             ],
         ];
 
         $validNames = array_column($items, 'name');
 
-        MasterSalaryComponents::whereNotIn('name', $validNames)->delete();
+        SalaryComponents::whereNotIn('name', $validNames)->delete();
 
         foreach ($items as $item) {
-            MasterSalaryComponents::updateOrCreate(
+            // 'type' tidak diset manual di sini — otomatis diturunkan dari 'category'
+            // lewat SalaryComponents::booted() (lihat SalaryComponentCategoryEnum::type()).
+            SalaryComponents::updateOrCreate(
                 ['name' => $item['name']],
                 [
+                    'category' => $item['category'],
                     'calculation_type' => $item['calculation_type'],
-                    'type' => $item['type'],
                     'is_active' => true,
                     'formula_key' => null,
                     'default_value' => null,

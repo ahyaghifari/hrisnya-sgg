@@ -3,7 +3,7 @@
 namespace App\Models\Master;
 
 use App\Helpers\PermissionHelper;
-use App\Models\Payroll\SalaryComponents;
+use App\Models\Payroll\SalaryComponentAssignments;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
@@ -51,7 +51,7 @@ class Pangkats extends Model
 
     public function salaryComponents(): MorphMany
     {
-        return $this->morphMany(SalaryComponents::class, 'salaryable');
+        return $this->morphMany(SalaryComponentAssignments::class, 'salaryable');
     }
 
     public function selectedSalaryComponent($type)

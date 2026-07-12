@@ -10,7 +10,7 @@ use App\Models\Master\JobPositions;
 use App\Models\Master\Kelas;
 use App\Models\Master\OrgStructure;
 use App\Models\Master\Pangkats;
-use App\Models\Payroll\MasterSalaryComponents;
+use App\Models\SalaryComponent\SalaryComponents;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Repeater;
@@ -300,7 +300,7 @@ class JobPositionForm
                     Select::make('salary_component_id')
                         ->label('Komponen Gaji')
                         ->options(function () {
-                            return MasterSalaryComponents::where('is_active', true)
+                            return SalaryComponents::where('is_active', true)
                                 ->pluck('name', 'id')
                                 ->toArray();
                         })
@@ -316,7 +316,7 @@ class JobPositionForm
                             
                             // Set default value jika ada
                             if ($state) {
-                                $component = MasterSalaryComponents::find($state);
+                                $component = SalaryComponents::find($state);
                                 if ($component && $component->default_value) {
                                     if ($component->calculation_type === 'fixed') {
                                         $set('amount', $component->default_value);
@@ -339,14 +339,14 @@ class JobPositionForm
                             $salaryComponentId = $get('salary_component_id');
                             if (!$salaryComponentId) return false;
                             
-                            $component = MasterSalaryComponents::find($salaryComponentId);
+                            $component = SalaryComponents::find($salaryComponentId);
                             return $component && $component->calculation_type === 'fixed';
                         })
                         ->required(function (callable $get) {
                             $salaryComponentId = $get('salary_component_id');
                             if (!$salaryComponentId) return false;
                             
-                            $component = MasterSalaryComponents::find($salaryComponentId);
+                            $component = SalaryComponents::find($salaryComponentId);
                             return $component && $component->calculation_type === 'fixed';
                         }),
 
@@ -363,14 +363,14 @@ class JobPositionForm
                             $salaryComponentId = $get('salary_component_id');
                             if (!$salaryComponentId) return false;
                             
-                            $component = MasterSalaryComponents::find($salaryComponentId);
+                            $component = SalaryComponents::find($salaryComponentId);
                             return $component && $component->calculation_type === 'percentage';
                         })
                         ->required(function (callable $get) {
                             $salaryComponentId = $get('salary_component_id');
                             if (!$salaryComponentId) return false;
                             
-                            $component = MasterSalaryComponents::find($salaryComponentId);
+                            $component = SalaryComponents::find($salaryComponentId);
                             return $component && $component->calculation_type === 'percentage';
                         }),
 
@@ -381,13 +381,13 @@ class JobPositionForm
                             $salaryComponentId = $get('salary_component_id');
                             if (!$salaryComponentId) return false;
                             
-                            $component = MasterSalaryComponents::find($salaryComponentId);
+                            $component = SalaryComponents::find($salaryComponentId);
                             return $component && $component->calculation_type === 'formula';
                         })
                         ->afterStateHydrated(function (callable $get, callable $set) {
                             $salaryComponentId = $get('salary_component_id');
                             if ($salaryComponentId) {
-                                $component = MasterSalaryComponents::find($salaryComponentId);
+                                $component = SalaryComponents::find($salaryComponentId);
                                 if ($component && $component->calculation_type === 'formula') {
                                     $set('formula_info', 'Komponen ini menggunakan formula otomatis: ' . ($component->formula_key ?? 'Belum ditentukan'));
                                 }

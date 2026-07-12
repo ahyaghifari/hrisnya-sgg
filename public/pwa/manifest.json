@@ -1,16 +1,31 @@
 {
-    "name": "HRIS Syifa Global Group — Portal Karyawan",
-    "short_name": "Syifa HRIS",
-    "description": "Portal karyawan: data diri, presensi, dan pengajuan absensi.",
+    "name": "HRIS Syifa Global Group",
+    "short_name": "SGG HRIS",
+    "description": "Data diri, presensi, dan pengajuan absensi.",
     "start_url": "/dashboard",
     "scope": "/",
     "display": "standalone",
-    "background_color": "#f1f5f9",
+    "background_color": "#042c6c",
     "theme_color": "#042c6c",
     "orientation": "portrait",
     "icons": [
-        { "src": "/pwa/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
-        { "src": "/pwa/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
-        { "src": "/pwa/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+        {
+            "src": "/pwa/icons/icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "/pwa/icons/icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "/pwa/icons/icon-maskable-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "maskable"
+        }
     ]
 }

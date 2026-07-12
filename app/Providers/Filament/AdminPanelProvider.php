@@ -10,6 +10,7 @@ use Filament\Navigation\NavigationGroup;
 use Filament\Pages\Dashboard;
 use Filament\Panel;
 use Filament\PanelProvider;
+use Filament\Support\Colors\Color;
 use Filament\Widgets\AccountWidget;
 use Guava\Calendar\CalendarPlugin;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
@@ -31,6 +32,7 @@ class AdminPanelProvider extends PanelProvider
             ->brandName(fn () => Auth::user()?->company?->name ?? 'Syifa Global Group')
             ->login()
             ->colors([
+                'gray' => Color::Gray,
                 'primary' => [
                     50 => '#f0f4f8',
                     100 => '#d9e5f0', 

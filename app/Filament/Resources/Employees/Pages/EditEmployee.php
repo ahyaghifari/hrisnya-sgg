@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Employees\Pages;
 
 use App\Filament\Resources\Employees\EmployeeResource;
+use App\Models\Role;
 use App\Models\User\UserJobPositions;
 use Filament\Actions\DeleteAction;
 use Filament\Resources\Pages\EditRecord;
@@ -24,6 +25,9 @@ class EditEmployee extends EditRecord
 
     protected function afterSave(): void
     {
+        $roleIds = $this->data['role_ids'] ?? [];
+        $this->record->syncRoles(Role::whereIn('id', $roleIds)->get());
+
         // Get the job_position_id from profile
         $jobPositionId = $this->record->profile?->job_position_id;
 

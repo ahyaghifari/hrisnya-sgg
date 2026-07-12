@@ -45,7 +45,7 @@ planning/            # Dokumen perencanaan fitur yang belum dikerjakan
 - **User & Profil** — data personal, riwayat jabatan, dokumen, mutasi/transisi
 - **Attendance** — record kehadiran, pengajuan cuti/izin/lembur (`attendance_requests` + tabel detail per tipe), saldo cuti
 - **Approval Engine** — alur approval generik & reusable, dipakai lintas modul (attendance, task, dll)
-- **Payroll** — payroll reguler & payroll dokter (skema fee-based terpisah)
+- **Payroll** — payroll reguler, komponen gaji (katalog + penempatan ke Company/Pangkat/Jabatan, eligibility per tipe karyawan), insentif, fee submission (termasuk dokter, sudah unifikasi ke siklus payroll biasa)
 - **Shift** — master shift, template, jadwal, tukar shift
 - **Rekrutmen** — job opening publik → candidate → recruitment process
 - **LMS** — kursus, kuis, sertifikat, ranking, trainer
@@ -74,10 +74,10 @@ Berbeda dari rencana awal (portal berbasis token Sanctum/SPA — lihat [`plannin
 
 Sempat ada percobaan shell PWA terpisah di `/pwa/*` (app bar + bottom nav sendiri, konten sengaja beda dari `/dashboard`) — itu sudah **dilebur total** ke satu set halaman responsive. Tidak ada lagi route/komponen `/pwa/*` yang duplikat; setiap halaman portal sekarang otomatis menyesuaikan tampilan lewat breakpoint `md:` (768px), diatur di satu `components/layout.blade.php`:
 - **Desktop** (`≥768px`): `<x-nav>` — topnav dengan dropdown/link biasa.
-- **Mobile** (`<768px`): `<x-pwa-app-bar>` (app bar + tombol hamburger) + `<x-pwa-sidebar>` (drawer off-canvas, bukan bottom-nav lagi).
+- **Mobile** (`<768px`): `<x-pwa-app-bar>` (app bar, tanpa tombol hamburger lagi) + `<x-pwa-bottom-nav>` (bottom nav 5 slot — Beranda/Presensi/Menu (tombol tengah, buka bottom sheet shortcut sesuai role)/Pengajuan/Akun; drawer off-canvas lama sudah dihapus 2026-07-12, lihat [`DESIGN.md`](DESIGN.md) bagian "Mobile navigation").
 - Instalabilitas PWA (manifest `public/pwa/manifest.json`, service worker `public/sw.js`, `start_url` ke `/dashboard`) kini berlaku situs-lebar, bukan cuma satu shell terpisah.
 - Header tiap halaman (tanggal + jam live yang update tiap detik + judul) pakai satu komponen `<x-page-header title="..." />` (`resources/views/components/page-header.blade.php`) — jangan tulis ulang markup date/title manual per halaman.
-- Logo resmi: `public/assets/logo-sgg.png`, dipakai di `<x-nav>` dan `<x-pwa-sidebar>`.
+- Logo resmi: `public/assets/logo-sgg.png`, dipakai di `<x-nav>`.
 
 Pola "mobile card vs desktop table" dipakai konsisten di semua list/detail: lihat [`DESIGN.md`](DESIGN.md) bagian *Responsive requirement* untuk pola persisnya (kapan pakai `.pwa-list`/`.pwa-list-row` vs Filament Table, cara gabung query Filament Table + query manual mobile lewat satu `baseQuery()`, dan jebakan cascade-layer Tailwind `md:hidden` vs custom CSS unlayered).
 
@@ -105,7 +105,7 @@ Konvensi visual portal karyawan (palet warna, aturan kontras, identitas warna pe
 - `GET /attendance/template/download` tidak ada middleware `auth`, berbeda dengan endpoint import lain.
 - **PENTING buat siapapun yang mengubah `phpunit.xml`**: beberapa test (`tests/Feature/Api/AttendanceApiTest.php`, `Auth/LoginTest.php`, `Portal/DashboardTest.php`, dll) pakai `RefreshDatabase` — kalau `DB_CONNECTION`/`DB_DATABASE` di `phpunit.xml` diarahkan ke database asli (bukan sqlite `:memory:`), `RefreshDatabase` akan **migrate:fresh dan menghapus semua data** di database itu. Sudah pernah kejadian (2026-07-05) — jangan diulang.
 - Kalau perubahan CSS/style di portal "tidak muncul" di browser padahal kodenya sudah benar, cek dulu apakah `public/build/assets/app-*.css` sudah lebih baru dari `resources/css/app.css` — kemungkinan besar cuma butuh `npm run watch`/`build` ulang, bukan bug kode.
-- Payroll belum ada eligibility check per **employee type** (permanent/kontrak) untuk tunjangan, dan `m_companies` belum ada kolom kategori (hospital vs non-hospital) untuk fitur jasa dokter — dua gap ini dikonfirmasi nyata tapi baru terdokumentasi sebagai rekomendasi (`knowledge/markdown/analisis-payroll.md` §6.1), belum diimplementasikan.
+- `m_companies` belum ada kolom kategori (hospital vs non-hospital) untuk fitur jasa dokter — gap ini dikonfirmasi nyata tapi baru terdokumentasi sebagai rekomendasi (`knowledge/markdown/analisis-payroll.md` §6.1), belum diimplementasikan. (Update 2026-07-12: eligibility per **employee type** untuk komponen gaji **sudah diimplementasikan** — 1 komponen gaji punya daftar tipe karyawan eligible via `salary_component_employee_types`, dicek `PayrollService::isEligibleForEmployeeType()`. Lihat addendum di [`planning/2026-07-12-redesign-payroll-simplifikasi-nama-dan-provenance.md`](planning/2026-07-12-redesign-payroll-simplifikasi-nama-dan-provenance.md).)
 - Approval Engine: path reject nyoba nulis `rejected_by`/`rejected_at` ke `attendance_requests` tapi kolom itu tidak ada (silently dropped), dan ejaan status `canceled`/`cancelled` beda antara `approval_activities` vs `approval_snapshots` — detail di `knowledge/markdown/manajemen-persetujuan.md`.
-- Beberapa Resource bekas cluster Filament (Assessment, EmployeeDocument, ManPowerPlaning, MasterSalaryComponent, ShiftPattern, UserTransitions — cluster-nya dihapus 2026-07-11) belum punya `$navigationGroup`, jadi tampil ungrouped di sidebar `/admin` dan di `RoleForm.php`.
+- Beberapa Resource bekas cluster Filament (Assessment, EmployeeDocument, ManPowerPlaning, ShiftPattern, UserTransitions — cluster-nya dihapus 2026-07-11) belum punya `$navigationGroup`, jadi tampil ungrouped di sidebar `/admin` dan di `RoleForm.php`. (`MasterSalaryComponent` sudah beres — direname & masuk grup "Keuangan", lihat modul Payroll di atas.)
 - Dokumen karyawan (`UserDocuments`) sekarang dilihat/diunduh lewat portal (tab "Dokumen" di Data Diri/MyStaff), tapi **upload masih cuma lewat Filament** (`/admin/user-documents`, disembunyikan dari nav tapi route-nya aktif) — belum ada form upload dari portal.

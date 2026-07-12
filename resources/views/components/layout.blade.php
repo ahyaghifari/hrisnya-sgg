@@ -38,7 +38,6 @@
     </div>
     <div class="md:hidden">
         <x-pwa-app-bar :title="$title" />
-        <x-pwa-sidebar />
     </div>
 
     <main class="page-content">
@@ -47,6 +46,10 @@
 
     <div class="hidden md:block">
         <x-footer />
+    </div>
+
+    <div class="md:hidden">
+        <x-pwa-bottom-nav />
     </div>
 
     @livewireScripts

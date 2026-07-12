@@ -2,11 +2,15 @@
 
 namespace App\Filament\Resources\Permissions\Tables;
 
+use App\Models\Permission;
 use Filament\Actions\BulkActionGroup;
+use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 class PermissionsTable
 {
@@ -34,16 +38,34 @@ class PermissionsTable
                     ->label('Dibuat')
                     ->dateTime('d M Y')
                     ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->defaultSort('name')
-            ->recordActions([
-                EditAction::make(),
+            ->filters([
+                SelectFilter::make('asal')
+                    ->label('Asal')
+                    ->options([
+                        'shield' => 'Dibuat Shield',
+                        'manual' => 'Dibuat Manual',
+                    ])
+                    ->query(fn (Builder $query, array $data) => match ($data['value'] ?? null) {
+                        'shield' => $query->where('name', 'like', '%:%'),
+                        'manual' => $query->where('name', 'not like', '%:%'),
+                        default => $query,
+                    }),
             ])
-            ->toolbarActions([
-                BulkActionGroup::make([
-                    DeleteBulkAction::make(),
-                ]),
+            ->recordActions([
+                // Cuma keliatan buat permission yang BUKAN format Shield (Verb:Subject) —
+                // permission hasil generate Shield sengaja tidak bisa diubah/dihapus lewat
+                // sini (dikelola otomatis oleh shield:generate, bukan manual).
+                EditAction::make()
+                    ->modalWidth('md')
+                    ->visible(fn (Permission $record) => ! str_contains($record->name, ':')),
+
+                // Cuma keliatan buat permission yang BUKAN format Shield (Verb:Subject) —
+                // peninggalan seeder lama, aman dihapus karena tidak ada kode yang cek lagi.
+                DeleteAction::make()
+                    ->label('Hapus')
+                    ->visible(fn (Permission $record) => ! str_contains($record->name, ':')),
             ]);
     }
 }

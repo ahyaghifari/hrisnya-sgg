@@ -1,4 +1,4 @@
-@import 'tailwindcss';
+﻿@import 'tailwindcss';
 @import './syifa-theme.css';
 @plugin '@tailwindcss/forms';
 
@@ -319,8 +319,7 @@ html.dark .nav-item.active { background: rgba(110,168,224,0.22); }
 .pwa-app-bar { background: #042c6c; position: sticky; top: 0; z-index: 50; }
 .pwa-app-bar-inner { display: flex; align-items: center; justify-content: space-between; height: 56px; padding: 0 16px; padding-top: env(safe-area-inset-top); }
 .pwa-app-bar-brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
-.pwa-app-bar-toggle { flex-shrink: 0; width: 42px; height: 42px; background: rgba(255,255,255,0.14); border: none; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 19px; cursor: pointer; }
-.pwa-app-bar-title { color: #fff; font-size: 15.5px; font-weight: 700; letter-spacing: -0.2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pwa-app-bar-title { color: #fff; font-size: 18px; font-weight: 700; letter-spacing: -0.2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pwa-app-bar-actions { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
 .pwa-app-bar-bell { position: relative; width: 32px; height: 32px; border-radius: 9px; background: rgba(255,255,255,0.14); display: flex; align-items: center; justify-content: center; color: #fff; font-size: 13.5px; }
 .pwa-app-bar-dot { position: absolute; top: 5px; right: 6px; width: 6px; height: 6px; background: #fb923c; border-radius: 50%; border: 1.5px solid #042c6c; }
@@ -389,19 +388,40 @@ html.dark .nav-item.active { background: rgba(110,168,224,0.22); }
 .pwa-action-btn.gold { background: linear-gradient(135deg, #92400e 0%, #d97706 100%); }
 .pwa-action-btn.green { background: linear-gradient(135deg, #047C54 0%, #024732 100%); }
 
-/* ── PWA SIDEBAR (off-canvas, triggered by .pwa-app-bar-toggle) ── */
-.pwa-sidebar-backdrop { position: fixed; inset: 0; background: rgba(15,23,42,0.5); z-index: 60; opacity: 0; pointer-events: none; transition: opacity 0.2s ease; }
-.pwa-sidebar-backdrop.open { opacity: 1; pointer-events: auto; }
-.pwa-sidebar { position: fixed; top: 0; left: 0; bottom: 0; width: 260px; max-width: 80vw; background: var(--surface); z-index: 61; transform: translateX(-100%); transition: transform 0.25s ease; box-shadow: 4px 0 24px rgba(0,0,0,0.12); display: flex; flex-direction: column; }
-.pwa-sidebar.open { transform: translateX(0); }
-.pwa-sidebar-header { flex-shrink: 0; display: flex; align-items: center; gap: 10px; padding: 16px; padding-top: calc(16px + env(safe-area-inset-top)); border-bottom: 1px solid var(--border-soft); }
-.pwa-sidebar-body { padding: 10px 16px 14px; display: flex; flex-direction: column; gap: 2px; overflow-y: auto; flex: 1; }
-/* Menu sidebar mobile dibuat lebih besar dari .nav-item default (dipakai bareng topnav desktop)
-   supaya lebih gampang disentuh & dibaca — scoped ke sidebar saja, tidak ikut membesarkan
-   dropdown desktop. */
-.pwa-sidebar-body .nav-item { font-size: 15px; padding: 10px 14px; gap: 10px; }
-.pwa-sidebar-body .nav-item i { font-size: 14px; }
-.pwa-sidebar-body .mobile-sub-label { font-size: 11.5px; }
+/* ── PWA BOTTOM NAV (mobile primary nav — 5 reachable slots instead of top-left hamburger only) ── */
+.pwa-bottom-nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 55; background: var(--surface); border-top: 1px solid var(--border-soft); box-shadow: 0 -2px 16px rgba(0,0,0,0.06); }
+.pwa-bottom-nav-inner { display: flex; align-items: stretch; height: 60px; padding-bottom: env(safe-area-inset-bottom); }
+.pwa-bottom-nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; color: var(--text-muted); text-decoration: none; font-size: 10.5px; font-weight: 600; }
+.pwa-bottom-nav-item i { font-size: 18px; }
+.pwa-bottom-nav-item.active { color: var(--brand); }
+.pwa-bottom-nav-center { flex: 1; position: relative; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 2px; padding-bottom: 6px; }
+.pwa-bottom-nav-center-btn { position: absolute; top: -22px; width: 52px; height: 52px; border-radius: 50%; background: linear-gradient(135deg, #042c6c 0%, #0b47a1 100%); border: 4px solid var(--surface); display: flex; align-items: center; justify-content: center; color: #fff; font-size: 20px; box-shadow: 0 4px 14px rgba(4,44,108,0.35); cursor: pointer; }
+.pwa-bottom-nav-center span { font-size: 10.5px; font-weight: 700; color: var(--brand); }
+
+/* Bottom sheet opened by the center button — off-canvas, anchored to the bottom edge instead of
+   a side edge. */
+.pwa-menu-sheet-backdrop { position: fixed; inset: 0; background: rgba(15,23,42,0.5); z-index: 60; opacity: 0; pointer-events: none; transition: opacity 0.2s ease; }
+.pwa-menu-sheet-backdrop.open { opacity: 1; pointer-events: auto; }
+.pwa-menu-sheet { position: fixed; left: 0; right: 0; bottom: 0; background: var(--surface); z-index: 61; border-radius: 20px 20px 0 0; max-height: 75vh; overflow-y: auto; transform: translateY(100%); transition: transform 0.25s ease; box-shadow: 0 -4px 24px rgba(0,0,0,0.12); padding: 8px 16px calc(16px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 2px; }
+.pwa-menu-sheet.open { transform: translateY(0); }
+.pwa-menu-sheet-handle { width: 40px; height: 4px; border-radius: 2px; background: var(--border); margin: 10px auto 14px; }
+.pwa-menu-sheet .nav-item { font-size: 15px; padding: 11px 14px; gap: 10px; }
+.pwa-menu-sheet .nav-item i { font-size: 14px; }
+
+/* Role shortcuts inside the sheet — 3-column grid, one color-coded icon tile per item so they're
+   scannable at a glance (same identity-tile idea as .pwa-tile-icon, just bigger + one color per
+   entry instead of semantic danger/warn/done). Solid fills are exempt from the var(--token) dark
+   mode rule, same reasoning as .pwa-action-btn/.welcome-card — fixed-color blocks with contrast
+   already built in. */
+.pwa-menu-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px 10px; padding: 4px 4px 10px; }
+.pwa-menu-grid-item { display: flex; flex-direction: column; align-items: center; gap: 8px; text-decoration: none; }
+.pwa-menu-grid-icon { width: 42px; height: 42px; border-radius: 13px; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.12); }
+.pwa-menu-grid-label { font-size: 10px; font-weight: 600; color: var(--text-body); text-align: center; line-height: 1.2; }
+.pwa-menu-grid-icon.navy { background: linear-gradient(135deg, #042c6c 0%, #0b47a1 100%); }
+.pwa-menu-grid-icon.green { background: linear-gradient(135deg, #047C54 0%, #024732 100%); }
+.pwa-menu-grid-icon.gold { background: linear-gradient(135deg, #92400e 0%, #d97706 100%); }
+.pwa-menu-grid-icon.violet { background: linear-gradient(135deg, #5b21b6 0%, #7c3aed 100%); }
+.pwa-menu-grid-icon.teal { background: linear-gradient(135deg, #0f766e 0%, #14b8a6 100%); }
 
 /* ── PAGE BACKGROUND DECO ── */
 .page-deco { position: fixed; inset: 0; pointer-events: none; overflow: hidden; z-index: 0; }
@@ -413,6 +433,8 @@ html.dark .nav-item.active { background: rgba(110,168,224,0.22); }
 /* ── CONTAINER ── */
 .page-content { max-width: 1400px; margin: 0 auto; padding: 24px 16px; position: relative; z-index: 2; min-height: 100vh; }
 @media (min-width: 768px) { .page-content { padding: 32px 40px; } }
+/* Room for the fixed .pwa-bottom-nav so page content doesn't render underneath it. */
+@media (max-width: 767.98px) { .page-content { padding-bottom: calc(84px + env(safe-area-inset-bottom)); } }
 
 /* ── BENTO GRID ── */
 .bento { display: grid; grid-template-columns: 1fr; gap: 16px; }

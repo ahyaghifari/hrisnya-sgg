@@ -4,21 +4,24 @@ namespace App\Services\Payroll;
 
 use App\Enum\AttendanceReqStatus;
 use App\Enum\Salary\CalculationTypeEnum;
-use App\Enum\Salary\SalaryComponentNameEnum;
+use App\Enum\Salary\PayrollItemSourceEnum;
+use App\Enum\Salary\SalaryComponentCategoryEnum;
 use App\Models\Attendance\AttendancePolicies;
 use App\Models\Attendance\AttendanceRecords;
 use App\Models\Attendance\AttendanceRequests;
-use App\Models\Incentive\ProgramIncentive;
+use App\Models\Incentive\Incentive;
 use App\Models\Master\Companies;
 use App\Models\Master\JobEvaluationCompanies;
 use App\Models\Master\JobPositions;
-use App\Models\Shift\ExtraHourAllowanceRules;
-use App\Models\Shift\ShiftOvertimeCosts;
-use App\Models\Shift\ShiftScheduleAssignments;
-use App\Models\Payroll\MasterSalaryComponents;
+use App\Models\Payroll\FeeItem;
+use App\Models\Payroll\SalaryComponentAssignments;
+use App\Models\SalaryComponent\SalaryComponents;
 use App\Models\Payroll\Payroll;
 use App\Models\Payroll\PayrollItem;
 use App\Models\Payroll\PayrollPeriod;
+use App\Models\Shift\ExtraHourAllowanceRules;
+use App\Models\Shift\ShiftOvertimeCosts;
+use App\Models\Shift\ShiftScheduleAssignments;
 use App\Models\User;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
@@ -98,8 +101,8 @@ class PayrollService
                 $this->handleLateArrivalComponent($user, $payroll, $period, $grossSalary, $totalDeductions);
                 $this->handleExtraHourAllowanceComponent($user, $payroll, $period, $grossSalary);
 
-                // 5) Program incentive component
-                $this->handleProgramIncentiveComponent(
+                // 5) Incentive component
+                $this->handleIncentiveComponent(
                     $user,
                     $payroll,
                     $period,
@@ -112,6 +115,15 @@ class PayrollService
                     $payroll,
                     $period,
                     $grossSalary
+                );
+
+                // 7) Fee claim (jasa dokter, dst — klaim per kejadian)
+                $this->handleFeeItemsComponent(
+                    $user,
+                    $payroll,
+                    $period,
+                    $grossSalary,
+                    $totalDeductions
                 );
 
                 $payroll->update([
@@ -142,7 +154,12 @@ class PayrollService
     {
         $baseSalary = 0.0;
 
-        $baseSalaryComponent = $user->profile?->pangkat?->salaryComponents()->first();
+        // Cari eksplisit komponen "Gaji Pokok", bukan ->first() buta — pangkat secara teori
+        // bisa saja di-assign komponen lain juga, jangan salah ambil (fix 2026-07-12).
+        $baseSalaryComponent = $user->profile?->pangkat?->salaryComponents()
+            ->whereHas('salaryComponent', fn ($q) => $q->where('category', SalaryComponentCategoryEnum::GAJI_POKOK->value))
+            ->first();
+
         if (! $baseSalaryComponent) {
             return $baseSalary;
         }
@@ -156,12 +173,29 @@ class PayrollService
             'calculation_type' => $baseSalaryComponent->salaryComponent->calculation_type,
             'quantity' => 1,
             'amount' => $amount,
+            'source_type' => PayrollItemSourceEnum::BASE_SALARY->value,
         ]);
 
         $grossSalary += $amount;
         $baseSalary = $amount;
 
         return $baseSalary;
+    }
+
+    /**
+     * Skip komponen kalau komponen gajinya punya syarat tipe karyawan TAPI tipe karyawan user
+     * tidak ada di daftar itu. Komponen tanpa syarat (tidak ada baris pivot) berlaku semua tipe.
+     * Eligibility ini di level katalog komponen, bukan per assignment.
+     */
+    private function isEligibleForEmployeeType(SalaryComponentAssignments $assignment, User $user): bool
+    {
+        $requiredTypeIds = $assignment->salaryComponent?->employeeTypes()->pluck('m_employee_types.id') ?? collect();
+
+        if ($requiredTypeIds->isEmpty()) {
+            return true;
+        }
+
+        return $requiredTypeIds->contains($user->profile?->employee_type_id);
     }
 
     private function handleJobPositionFixedComponents(
@@ -177,6 +211,10 @@ class PayrollService
         }
 
         foreach ($components as $component) {
+            if (! $this->isEligibleForEmployeeType($component, $user)) {
+                continue;
+            }
+
             $amount = (float) $component->amount;
 
             PayrollItem::create([
@@ -186,6 +224,7 @@ class PayrollService
                 'calculation_type' => $component->salaryComponent->calculation_type,
                 'quantity' => 1,
                 'amount' => $amount,
+                'source_type' => PayrollItemSourceEnum::JOB_POSITION_ASSIGNMENT->value,
             ]);
 
             $this->applyImpactByType($component->salaryComponent->type, $amount, $grossSalary, $totalDeductions);
@@ -206,6 +245,10 @@ class PayrollService
         }
 
         foreach ($components as $component) {
+            if (! $this->isEligibleForEmployeeType($component, $user)) {
+                continue;
+            }
+
             $amount = ((float) $component->percentage / 100) * $baseSalary;
 
             PayrollItem::create([
@@ -216,6 +259,7 @@ class PayrollService
                 'quantity' => $component->percentage,
                 'unit' => CalculationTypeEnum::PERCENTAGE->value,
                 'amount' => $amount,
+                'source_type' => PayrollItemSourceEnum::JOB_POSITION_ASSIGNMENT->value,
             ]);
 
             $this->applyImpactByType($component->salaryComponent->type, $amount, $grossSalary, $totalDeductions);
@@ -229,7 +273,7 @@ class PayrollService
         float &$grossSalary,
         float &$totalDeductions
     ): void {
-        $component = $this->getMasterComponent(SalaryComponentNameEnum::CUTI);
+        $component = $this->getMasterComponent(SalaryComponentCategoryEnum::CUTI, $period->company_id);
         if (! $component) {
             return;
         }
@@ -260,7 +304,8 @@ class PayrollService
             quantity: $totalLeaveDays,
             unit: 'days',
             unitAmount: $unitAmount,
-            amount: $amount
+            amount: $amount,
+            sourceType: PayrollItemSourceEnum::ATTENDANCE->value
         );
 
         $this->applyImpactByType($component->type, $amount, $grossSalary, $totalDeductions);
@@ -273,7 +318,7 @@ class PayrollService
         float &$grossSalary,
         float &$totalDeductions
     ): void {
-        $component = $this->getMasterComponent(SalaryComponentNameEnum::IZIN);
+        $component = $this->getMasterComponent(SalaryComponentCategoryEnum::IZIN, $period->company_id);
         if (! $component) {
             return;
         }
@@ -312,7 +357,8 @@ class PayrollService
             quantity: $totalPermissionHours,
             unit: 'hours',
             unitAmount: $unitAmount,
-            amount: $amount
+            amount: $amount,
+            sourceType: PayrollItemSourceEnum::ATTENDANCE->value
         );
 
         $this->applyImpactByType($component->type, $amount, $grossSalary, $totalDeductions);
@@ -406,6 +452,7 @@ class PayrollService
                         $actualMinutes,
                         $cappedMinutes
                     ),
+                    'source_type' => PayrollItemSourceEnum::ATTENDANCE->value,
                 ]);
 
                 $grossSalary += $amount;
@@ -420,7 +467,7 @@ class PayrollService
         float &$grossSalary,
         float &$totalDeductions
     ): void {
-        $component = $this->getMasterComponent(SalaryComponentNameEnum::LATE_ARRIVAL);
+        $component = $this->getMasterComponent(SalaryComponentCategoryEnum::KETERLAMBATAN, $period->company_id);
 
         if (! $component) {
             return;
@@ -448,7 +495,8 @@ class PayrollService
             quantity: $lateCount,
             unit: 'occurrence',
             unitAmount: $unitAmount,
-            amount: $amount
+            amount: $amount,
+            sourceType: PayrollItemSourceEnum::ATTENDANCE->value
         );
 
         $this->applyImpactByType(
@@ -543,19 +591,19 @@ class PayrollService
                 $excessHours,
                 number_format($amountPerHour, 0, ',', '.')
             ),
+            'source_type' => PayrollItemSourceEnum::ATTENDANCE->value,
         ]);
 
         $grossSalary += $amount;
     }
 
-    private function handleProgramIncentiveComponent(
+    private function handleIncentiveComponent(
         User $user,
         Payroll $payroll,
         PayrollPeriod $period,
         float &$grossSalary
     ): void {
-        $incentives = ProgramIncentive::query()
-            ->where('company_id', $period->company_id)
+        $incentives = Incentive::query()
             ->where('user_id', $user->id)
             ->where('is_processed', false)
             ->whereBetween('incentive_date', [$period->start_date, $period->end_date])
@@ -568,24 +616,25 @@ class PayrollService
         $totalAmount = (float) $incentives->sum('amount');
 
         $programNames = $incentives
-            ->pluck('program_name')
+            ->pluck('name')
             ->filter()
             ->unique()
             ->implode(', ');
 
         PayrollItem::create([
             'payroll_id'       => $payroll->id,
-            'name'             => 'Program Incentive',
+            'name'             => 'Incentive',
             'type'             => 'earning',
             'calculation_type' => CalculationTypeEnum::FIXED->value,
             'quantity'         => 1,
             'amount'           => $totalAmount,
             'note'             => $programNames ?: null,
+            'source_type'      => PayrollItemSourceEnum::INCENTIVE->value,
         ]);
 
         $grossSalary += $totalAmount;
 
-        ProgramIncentive::query()
+        Incentive::query()
             ->whereIn('id', $incentives->pluck('id'))
             ->update([
                 'is_processed' => true,
@@ -599,7 +648,7 @@ class PayrollService
         float &$grossSalary
     ): void {
         // Master salary component
-        $component = $this->getMasterComponent(SalaryComponentNameEnum::JASA_PELAYANAN);
+        $component = $this->getMasterComponent(SalaryComponentCategoryEnum::JASA_PELAYANAN, $period->company_id);
         if (! $component) {
             return;
         }
@@ -630,9 +679,9 @@ class PayrollService
         // Total service fee company (company salary component)
         $company = Companies::find($period->company_id);
 
-        $companyServiceFeeComponent = $company?->selectedSalaryComponent(
-            SalaryComponentNameEnum::JASA_PELAYANAN->value
-        );
+        // $component->name dipakai (bukan enum lagi) — komponen ini sudah ketemu via
+        // category di atas, jadi tinggal pakai nama persisnya buat cocokin assignment.
+        $companyServiceFeeComponent = $company?->selectedSalaryComponent($component->name);
 
         if (! $companyServiceFeeComponent || $companyServiceFeeComponent->amount <= 0) {
             return;
@@ -661,26 +710,103 @@ class PayrollService
                 $totalCompanyJe,
                 number_format($totalCompanyServiceFee, 0)
             ),
+            'source_type' => PayrollItemSourceEnum::SERVICE_FEE->value,
         ]);
 
         $grossSalary += $amount;
     }
 
-    private function getMasterComponent(SalaryComponentNameEnum $nameEnum): ?MasterSalaryComponents
+    /**
+     * Klaim fee per kejadian (mis. jasa dokter) — 1 baris payroll_items per FeeItem (bukan
+     * digabung, beda dari handleIncentiveComponent, karena tiap fee perlu terlihat rinciannya
+     * di slip), plus 1 baris pajak kalau totalnya > 0.
+     */
+    private function handleFeeItemsComponent(
+        User $user,
+        Payroll $payroll,
+        PayrollPeriod $period,
+        float &$grossSalary,
+        float &$totalDeductions
+    ): void {
+        $feeItems = FeeItem::query()
+            ->where('user_id', $user->id)
+            ->where('is_paid', false)
+            ->whereHas('submission', function ($q) use ($period) {
+                $q->where('company_id', $period->company_id)
+                    ->whereBetween('date', [$period->start_date, $period->end_date]);
+            })
+            ->get();
+
+        if ($feeItems->isEmpty()) {
+            return;
+        }
+
+        $totalFee = 0.0;
+
+        foreach ($feeItems as $item) {
+            $amount = (float) $item->amount;
+
+            PayrollItem::create([
+                'payroll_id'       => $payroll->id,
+                'name'             => $item->name,
+                'type'             => 'earning',
+                'calculation_type' => CalculationTypeEnum::FIXED->value,
+                'quantity'         => 1,
+                'amount'           => $amount,
+                'source_type'      => PayrollItemSourceEnum::FEE_CLAIM->value,
+            ]);
+
+            $grossSalary += $amount;
+            $totalFee += $amount;
+        }
+
+        $taxComponent = $this->getMasterComponent(SalaryComponentCategoryEnum::PAJAK_JASA_DOKTER, $period->company_id);
+
+        if ($taxComponent && $totalFee > 0) {
+            $taxPercentage = (float) $taxComponent->default_value;
+            $taxAmount = round($totalFee * $taxPercentage / 100, 2);
+
+            if ($taxAmount > 0) {
+                PayrollItem::create([
+                    'payroll_id'       => $payroll->id,
+                    'name'             => $taxComponent->name,
+                    'type'             => 'deduction',
+                    'calculation_type' => CalculationTypeEnum::PERCENTAGE->value,
+                    'quantity'         => $taxPercentage,
+                    'unit'             => CalculationTypeEnum::PERCENTAGE->value,
+                    'amount'           => $taxAmount,
+                    'source_type'      => PayrollItemSourceEnum::FEE_CLAIM->value,
+                ]);
+
+                $totalDeductions += $taxAmount;
+            }
+        }
+
+        FeeItem::query()
+            ->whereIn('id', $feeItems->pluck('id'))
+            ->update(['is_paid' => true]);
+    }
+
+    private function getMasterComponent(SalaryComponentCategoryEnum $categoryEnum, string $companyId): ?SalaryComponents
     {
-        return MasterSalaryComponents::query()
-            ->where('name', $nameEnum->value)
+        return SalaryComponents::query()
+            ->where('category', $categoryEnum->value)
+            ->where(function ($q) use ($companyId) {
+                $q->where('company_id', $companyId)->orWhereNull('company_id');
+            })
+            ->orderByRaw('company_id IS NULL')
             ->first();
     }
 
     private function createPayrollItemFromMaster(
         Payroll $payroll,
-        MasterSalaryComponents $component,
+        SalaryComponents $component,
         string $calculationType,
         float $quantity,
         string $unit,
         float $unitAmount,
-        float $amount
+        float $amount,
+        string $sourceType
     ): void {
         PayrollItem::create([
             'payroll_id' => $payroll->id,
@@ -691,6 +817,7 @@ class PayrollService
             'unit' => $unit,
             'unit_amount' => $unitAmount,
             'amount' => $amount,
+            'source_type' => $sourceType,
         ]);
     }
 

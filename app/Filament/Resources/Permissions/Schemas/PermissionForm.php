@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Permissions\Schemas;
 
+use Closure;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Components\Section;
@@ -23,7 +24,12 @@ class PermissionForm
                             ->unique(ignoreRecord: true)
                             ->maxLength(255)
                             ->placeholder('contoh: view_laporan_kehadiran')
-                            ->helperText('Snake_case, format {aksi}_{resource} (view/create/edit/delete/approve/import + nama fitur).'),
+                            ->helperText('Snake_case, format {aksi}_{resource} (view/create/edit/delete/approve/import + nama fitur). Tidak boleh pakai titik dua (:) — format itu direservasi buat permission hasil generate Shield.')
+                            ->rule(fn () => function (string $attribute, $value, Closure $fail) {
+                                if (str_contains($value, ':')) {
+                                    $fail('Nama permission tidak boleh mengandung titik dua (:) — format "Verb:Subject" itu direservasi buat permission yang di-generate otomatis oleh Shield, bukan dibuat manual lewat sini.');
+                                }
+                            }),
 
                         Select::make('guard_name')
                             ->label('Guard')

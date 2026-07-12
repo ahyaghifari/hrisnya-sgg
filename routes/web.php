@@ -7,6 +7,9 @@ use App\Livewire\AttendanceRequestDetail;
 use App\Livewire\Dashboard;
 use App\Livewire\EditMyEmployee;
 use App\Livewire\EmployeeAttendanceStatistics;
+use App\Livewire\Keuangan\IncentivesPage;
+use App\Livewire\Keuangan\SalaryComponentMappingPage;
+use App\Livewire\Keuangan\SalaryComponentsPage;
 use App\Livewire\MyAttendanceRequests;
 use App\Livewire\MyEmployees;
 use App\Livewire\OrganizationStructure;
@@ -77,6 +80,15 @@ Route::middleware(['auth', 'portal.access'])->group(function () {
 
     Route::get('/pengajuan-absensi/{record}', AttendanceRequestDetail::class)
         ->name('my-attendance-requests.show');
+
+    Route::get('/keuangan/komponen-gaji', SalaryComponentsPage::class)
+        ->name('keuangan.komponen-gaji');
+
+    Route::get('/keuangan/mapping-komponen-gaji', SalaryComponentMappingPage::class)
+        ->name('keuangan.mapping-komponen-gaji');
+
+    Route::get('/keuangan/insentif', IncentivesPage::class)
+        ->name('keuangan.insentif');
 });
 
 Route::get('/attendance/template/download', [AttendanceTemplateController::class, 'downloadTemplate'])

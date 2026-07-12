@@ -40,7 +40,8 @@ class User extends Authenticatable implements FilamentUser
         'password',
         'nip',
         'company_id',
-        'type_nakes'
+        'type_nakes',
+        'is_active',
     ];
 
     /**

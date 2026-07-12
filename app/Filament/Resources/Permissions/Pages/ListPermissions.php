@@ -16,7 +16,8 @@ class ListPermissions extends ListRecords
         return [
             CreateAction::make()
                 ->visible(PermissionResource::canCreate())
-                ->label('Buat Permission'),
+                ->label('Buat Permission')
+                ->modalWidth('md'),
         ];
     }
 }

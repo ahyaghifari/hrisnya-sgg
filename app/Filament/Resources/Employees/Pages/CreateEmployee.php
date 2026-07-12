@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Employees\Pages;
 
 use App\Filament\Resources\Employees\EmployeeResource;
+use App\Models\Role;
 use App\Models\User;
 use App\Models\User\UserJobPositions;
 use App\Models\User\UserProfiles;
@@ -48,6 +49,11 @@ class CreateEmployee extends CreateRecord
 
     protected function afterCreate(): void
     {
+        // role_ids bukan attribute User (dibuang mass-assignment di handleRecordCreation),
+        // jadi assign role-nya manual di sini — bisa lebih dari 1 role sekaligus.
+        $roleIds = $this->data['role_ids'] ?? [];
+        $this->record->syncRoles(Role::whereIn('id', $roleIds)->get());
+
         // Get the job_position_id from profile
         $jobPositionId = $this->record->profile?->job_position_id;
 

@@ -2,6 +2,7 @@
     $canAccessAdmin = auth()->user()?->hasRole(['Admin', 'Super Admin']) ?? false;
     $canSeeKaryawanMenu = auth()->user()->canAccessKaryawanMenu();
     $canSubmitAttendance = ! auth()->user()->canBrowseAllCompanies();
+    $canAccessKeuangan = auth()->user()->can(\App\Enum\CustomPermissionEnum::SISTEM_KEUANGAN->value);
     $initials = collect(explode(' ', auth()->user()->name))
         ->map(fn ($part) => mb_substr($part, 0, 1))
         ->take(2)
@@ -27,6 +28,20 @@
             @if ($canSubmitAttendance)
                 <a href="{{ route('my-attendance-requests') }}" wire:navigate class="nav-item {{ request()->routeIs('my-attendance-requests*') ? 'active' : '' }}">
                     <i class="fa-solid fa-file-lines text-xs"></i> Pengajuan Absensi
+                </a>
+            @endif
+            @if ($canAccessKeuangan)
+                <div class="dropdown">
+                    <a href="#" class="nav-item {{ request()->routeIs(['keuangan.komponen-gaji*', 'keuangan.mapping-komponen-gaji*']) ? 'active' : '' }}">
+                        <i class="fa-solid fa-sack-dollar text-xs"></i> Master Gaji <i class="fa-solid fa-chevron-down text-[10px]"></i>
+                    </a>
+                    <div class="dropdown-menu">
+                        <a href="{{ route('keuangan.komponen-gaji') }}" wire:navigate class="dropdown-item">Komponen Gaji</a>
+                        <a href="{{ route('keuangan.mapping-komponen-gaji') }}" wire:navigate class="dropdown-item">Mapping Komponen Gaji</a>
+                    </div>
+                </div>
+                <a href="{{ route('keuangan.insentif') }}" wire:navigate class="nav-item {{ request()->routeIs('keuangan.insentif*') ? 'active' : '' }}">
+                    <i class="fa-solid fa-hand-holding-dollar text-xs"></i> Insentif
                 </a>
             @endif
         </div>

@@ -13,12 +13,15 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
+use UnitEnum;
 
 class OvertimeRatesResource extends Resource
 {
     protected static ?string $model = ShiftOvertimeCosts::class;
-    
-    protected static ?string $navigationLabel = "Lembur";
+
+    protected static ?string $navigationLabel = "Tarif Lembur";
+
+    protected static string | UnitEnum | null $navigationGroup = 'Manajemen Organisasi';
 
     protected static ?int $navigationSort = 1;
 

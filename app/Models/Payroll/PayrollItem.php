@@ -25,6 +25,7 @@ class PayrollItem extends Model
         'amount',
         'unit',
         'note',
+        'source_type',
     ];
 
     public function payroll(): BelongsTo

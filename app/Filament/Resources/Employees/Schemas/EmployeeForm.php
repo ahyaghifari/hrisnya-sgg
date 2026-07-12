@@ -3,9 +3,11 @@
 namespace App\Filament\Resources\Employees\Schemas;
 
 use App\Enum\OrgStructurLevel;
+use App\Helpers\PermissionHelper;
 use App\Models\Attendance\LeaveUserBalances;
 use App\Models\Role;
 use App\Models\Master\OrgStructure;
+use App\Models\User;
 use Carbon\Carbon;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Hidden;
@@ -65,19 +67,26 @@ class EmployeeForm
                             ->searchable()
                             ->preload()
                             ->reactive() // Membuat field reactive
-                            ->visible(fn () => Auth::user()->hasRole(['Admin', 'Super Admin']))
+                            // Admin non-global dikunci ke company sendiri — sebelumnya field ini
+                            // bisa diubah bebas ke company manapun walau yang login admin
+                            // company lain (celah bikin karyawan nyasar ke company orang).
+                            ->disabled(fn () => ! PermissionHelper::hasGlobalRole(Auth::user()))
+                            ->dehydrated()
                             ->default(fn () => Auth::user()->company_id)
                             ->afterStateUpdated(function ($state, callable $set) {
-                                // Reset department_id ketika company berubah
+                                // Reset department_id & role_ids ketika company berubah — dua-duanya
+                                // di-scope ke company itu, opsi lama sudah tidak relevan lagi.
                                 $set('profile.department_id', null);
+                                $set('role_ids', []);
                             })
                             ->columnSpanFull(),
 
                         Select::make('role_ids')
                             ->label('Peran')
+                            ->multiple()
                             ->options(function ($get) {
                                 $companyId = $get('company_id');
-                                
+
                                 $roles = $companyId
                                     ? Role::where('company_id', $companyId)->pluck('name', 'id')
                                     : Role::whereNull('company_id')->pluck('name', 'id');
@@ -86,9 +95,11 @@ class EmployeeForm
                                     return ucwords(str_replace('_', ' ', $name));
                                 });
                             })
+                            ->default(fn (?User $record) => $record?->roles->pluck('id')->toArray() ?? [])
                             ->required()
                             ->searchable()
                             ->preload()
+                            ->helperText('Bisa pilih lebih dari 1 peran.')
                             ->columnSpanFull(),
                             
                         Select::make('type_nakes')
@@ -126,15 +137,9 @@ class EmployeeForm
 
                                 Select::make('religion_id')
                                     ->label('Agama')
-                                    ->relationship('religion', 'name', function ($query) {
-                                        $companyId = Auth::user()->company_id;
-                                        if (!$companyId) {
-                                            $query->whereRaw('0 = 1');
-                                            return;
-                                        }
-
-                                        $query->where('company_id', $companyId);
-                                    })
+                                    // Religions itu master data global (tidak ada kolom
+                                    // company_id sama sekali) — jangan difilter per company.
+                                    ->relationship('religion', 'name')
                                     ->searchable()
                                     ->preload(),
 
@@ -236,8 +241,12 @@ class EmployeeForm
                             Select::make('department_id')
                                 ->label('Departemen')
                                 ->options(function ($get) {
-                                    $step = $get('../../');
-                                    $companyId = $step['company_id'] ?? Auth::user()->company_id;
+                                    // Field ini ada di dalam Grid->relationship('profile'), jadi
+                                    // path state aslinya "profile.department_id" — company_id
+                                    // (di Step 1, top-level) dicapai dengan naik SATU level pakai
+                                    // "../company_id", BUKAN absolute path "/company_id" (sudah
+                                    // dicoba & dites, absolute path balik null di sini).
+                                    $companyId = $get('../company_id') ?? Auth::user()->company_id;
                                     if (!$companyId) return [];
 
                                     return OrgStructure::query()
@@ -247,8 +256,8 @@ class EmployeeForm
                                 })
                                 ->reactive()
                                 ->searchable()
-                                ->disabled(fn ($get) => !($get('../../')['company_id'] ?? null))
-                                ->helperText(fn ($get) => !($get('../../')['company_id'] ?? null) ? 'Pilih perusahaan terlebih dahulu di step sebelumnya' : null)
+                                ->disabled(fn ($get) => !($get('../company_id') ?? Auth::user()->company_id))
+                                ->helperText(fn ($get) => !($get('../company_id') ?? Auth::user()->company_id) ? 'Pilih perusahaan terlebih dahulu di step sebelumnya' : null)
                                 ->afterStateHydrated(function ($set, $record) {
                                     if (!$record?->org_structure_id) return;
 
@@ -321,31 +330,22 @@ class EmployeeForm
                                 })
                                 ->dehydrated(false),
 
+                            // Nilainya di-set langsung oleh afterStateUpdated() department_id/
+                            // division_id/sub_division_id di atas — jangan tambah
+                            // afterStateUpdated() lain di sini yang nebak ulang dari 3 field itu,
+                            // 2 penulis buat 1 field gampang balapan/rebutan urutan eksekusi.
                             Hidden::make('org_structure_id')
                                 ->dehydrated(true)
-                                ->afterStateHydrated(function ($state, $set, $record) {
-                                    // Set default value from existing record if available
+                                ->afterStateHydrated(function ($set, $record) {
                                     if ($record?->org_structure_id) {
                                         $set('org_structure_id', $record->org_structure_id);
                                     }
-                                })
-                                ->reactive()
-                                ->afterStateUpdated(function ($state, $get, $set) {
-                                    // Update org_structure_id based on the last filled field
-                                    $orgStructureId = $get('sub_division_id') 
-                                        ?? $get('division_id') 
-                                        ?? $get('department_id');
-                                    
-                                    if ($orgStructureId) {
-                                        $set('org_structure_id', $orgStructureId);
-                                    }
-                                })
-                                ->live(true),
+                                }),
 
                             Select::make('job_position_id')
                                 ->label('Jabatan')
-                                ->relationship('jobPosition', 'name', function ($query) {
-                                    $companyId = Auth::user()->company_id;
+                                ->relationship('jobPosition', 'name', function ($query, $get) {
+                                    $companyId = $get('../company_id') ?? Auth::user()->company_id;
                                     if (!$companyId) {
                                         $query->whereRaw('0 = 1');
                                         return;
@@ -382,8 +382,8 @@ class EmployeeForm
 
                             Select::make('pangkat_id')
                                 ->label('Pangkat')
-                                ->relationship('pangkat', 'name', function ($query) {
-                                    $companyId = Auth::user()->company_id;
+                                ->relationship('pangkat', 'name', function ($query, $get) {
+                                    $companyId = $get('../company_id') ?? Auth::user()->company_id;
                                     if (!$companyId) {
                                         $query->whereRaw('0 = 1');
                                         return;
@@ -397,8 +397,8 @@ class EmployeeForm
 
                             Select::make('golongan_id')
                                 ->label('Golongan')
-                                ->relationship('golongan', 'name', function ($query) {
-                                    $companyId = Auth::user()->company_id;
+                                ->relationship('golongan', 'name', function ($query, $get) {
+                                    $companyId = $get('../company_id') ?? Auth::user()->company_id;
                                     if (!$companyId) {
                                         $query->whereRaw('0 = 1');
                                         return;
@@ -411,8 +411,8 @@ class EmployeeForm
 
                             Select::make('kelas_id')
                                 ->label('Kelas')
-                                ->relationship('kelas', 'name', function ($query) {
-                                    $companyId = Auth::user()->company_id;
+                                ->relationship('kelas', 'name', function ($query, $get) {
+                                    $companyId = $get('../company_id') ?? Auth::user()->company_id;
                                     if (!$companyId) {
                                         $query->whereRaw('0 = 1');
                                         return;
@@ -425,8 +425,8 @@ class EmployeeForm
 
                             Select::make('employee_type_id')
                                 ->label('Tipe Karyawan')
-                                ->relationship('employeeType', 'name', function ($query) {
-                                    $companyId = Auth::user()->company_id;
+                                ->relationship('employeeType', 'name', function ($query, $get) {
+                                    $companyId = $get('../company_id') ?? Auth::user()->company_id;
                                     if (!$companyId) {
                                         $query->whereRaw('0 = 1');
                                         return;

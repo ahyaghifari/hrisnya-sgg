@@ -106,4 +106,22 @@ return [
         'permission' => null,
         'guard' => null,
     ],
+
+    'keuangan.komponen-gaji' => [
+        'label' => 'Komponen Gaji',
+        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_KEUANGAN->value,
+        'guard' => null,
+    ],
+
+    'keuangan.mapping-komponen-gaji' => [
+        'label' => 'Mapping Komponen Gaji',
+        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_KEUANGAN->value,
+        'guard' => null,
+    ],
+
+    'keuangan.insentif' => [
+        'label' => 'Insentif',
+        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_KEUANGAN->value,
+        'guard' => null,
+    ],
 ];

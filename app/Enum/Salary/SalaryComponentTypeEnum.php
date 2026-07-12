@@ -10,8 +10,9 @@ enum SalaryComponentTypeEnum: string
     public function label(): string
     {
         return match ($this) {
-            self::EARNING => 'Earning',
-            self::DEDUCTION => 'Deduction',
+            self::EARNING => 'Pendapatan',
+            self::DEDUCTION => 'Potongan',
         };
     }
 }
+

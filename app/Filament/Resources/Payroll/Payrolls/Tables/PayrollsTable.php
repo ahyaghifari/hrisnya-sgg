@@ -3,7 +3,6 @@
 namespace App\Filament\Resources\Payroll\Payrolls\Tables;
 
 use App\Helpers\PermissionHelper;
-use App\Models\Payroll\DoctorPayroll;
 use App\Models\Payroll\Payroll;
 use App\Services\Payroll\PayrollService;
 use Carbon\Carbon;

@@ -5,7 +5,7 @@ namespace App\Models\Master;
 use App\Enum\Salary\CalculationTypeEnum;
 use App\Models\ApprovalManagement\ApprovalHistories;
 use App\Models\ApprovalManagement\ApprovalSnapshots;
-use App\Models\Payroll\SalaryComponents;
+use App\Models\Payroll\SalaryComponentAssignments;
 use App\Models\User;
 use App\Models\User\UserProfiles;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
@@ -65,17 +65,17 @@ class JobPositions extends Model
 
     public function salaryComponents(): MorphMany
     {
-        return $this->morphMany(SalaryComponents::class, 'salaryable');
+        return $this->morphMany(SalaryComponentAssignments::class, 'salaryable');
     }
 
     public function fixedSalaryComponents(): MorphMany
     {
-        return $this->morphMany(SalaryComponents::class, 'salaryable')->isFixed();
+        return $this->morphMany(SalaryComponentAssignments::class, 'salaryable')->isFixed();
     }
 
     public function percentageSalaryComponents(): MorphMany
     {
-        return $this->morphMany(SalaryComponents::class, 'salaryable')->isFixed(false);
+        return $this->morphMany(SalaryComponentAssignments::class, 'salaryable')->isFixed(false);
     }
 
     public function selectedSalaryComponent($type)

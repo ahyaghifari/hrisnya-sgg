@@ -24,6 +24,13 @@ class EmployeeTypesTable
         return $table
             ->columns([
                 TextColumn::make('name')->label('Nama Tipe Karyawan')->searchable()->sortable(),
+
+                TextColumn::make('user_profiles_count')
+                    ->label('Jumlah Karyawan')
+                    ->counts('userProfiles')
+                    ->badge()
+                    ->color(fn (int $state): string => $state > 0 ? 'info' : 'gray')
+                    ->sortable(),
             ])
             ->filters([
                 SelectFilter::make('company_id')

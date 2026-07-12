@@ -3,9 +3,6 @@
 <header class="pwa-app-bar">
     <div class="pwa-app-bar-inner">
         <div class="pwa-app-bar-brand">
-            <button type="button" class="pwa-app-bar-toggle" onclick="togglePwaSidebar()" aria-label="Buka menu">
-                <i class="fa-solid fa-bars"></i>
-            </button>
             <span class="pwa-app-bar-title">{{ $title }}</span>
         </div>
 

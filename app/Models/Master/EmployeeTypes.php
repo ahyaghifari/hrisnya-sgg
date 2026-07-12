@@ -3,8 +3,11 @@
 namespace App\Models\Master;
 
 use App\Helpers\PermissionHelper;
+use App\Models\SalaryComponent\SalaryComponents;
+use App\Models\User\UserProfiles;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Support\Facades\Auth;
 
 /**
@@ -45,5 +48,20 @@ class EmployeeTypes extends Model
     public function company()
     {
         return $this->belongsTo(Companies::class, 'company_id');
+    }
+
+    public function userProfiles()
+    {
+        return $this->hasMany(UserProfiles::class, 'employee_type_id');
+    }
+
+    public function salaryComponents(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            SalaryComponents::class,
+            'salary_component_employee_types',
+            'employee_type_id',
+            'salary_component_id'
+        );
     }
 }
