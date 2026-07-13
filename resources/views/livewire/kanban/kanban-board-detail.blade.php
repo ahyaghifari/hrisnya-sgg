@@ -1,4 +1,4 @@
-<div>
+<div wire:poll.10s>
 @php
     $statusLabel = fn (string $s) => ['todo' => 'Belum Dikerjakan', 'in_progress' => 'Dikerjakan', 'review' => 'Review', 'done' => 'Selesai'][$s] ?? $s;
     $statusBadge = fn (string $s) => ['todo' => 'badge-cancelled', 'in_progress' => 'badge-pending', 'review' => 'badge-pending', 'done' => 'badge-approved'][$s] ?? 'badge-cancelled';
@@ -6,18 +6,12 @@
     $priorityLabel = fn (string $p) => ['low' => 'Rendah', 'medium' => 'Sedang', 'high' => 'Tinggi', 'urgent' => 'Mendesak'][$p] ?? $p;
 @endphp
 
-@php
-    $initials = fn (?string $name) => collect(explode(' ', $name ?? '?'))->map(fn ($p) => mb_substr($p, 0, 1))->take(2)->implode('');
-@endphp
-
 <x-page-header :title="$board->name" :subtitle="$board->description" :back="route('kanban')" />
 
 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
     <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
         @foreach ($this->members as $member)
-            <div title="{{ $member->user?->name }} · {{ ucfirst($member->role) }}" style="width:32px;height:32px;border-radius:50%;background:#042c6c;display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:700;">
-                {{ $initials($member->user?->name) }}
-            </div>
+            <x-avatar :user="$member->user" :size="32" :title="($member->user?->name ?? '') . ' · ' . ucfirst($member->role)" />
         @endforeach
         @if ($this->canAddMember)
             <button type="button" wire:click="openMemberModal" class="btn-ghost" style="padding:6px 12px;font-size:12px;">
@@ -25,9 +19,16 @@
             </button>
         @endif
     </div>
-    <button type="button" wire:click="openCreateTask" class="btn-primary">
-        <i class="fa-solid fa-plus" style="font-size:12px;"></i> Task Baru
-    </button>
+    <div style="display:flex;align-items:center;gap:8px;">
+        @if ($this->canAddMember)
+            <input type="color" value="{{ $board->color }}" wire:change="updateColor($event.target.value)" title="Ganti warna board" style="width:38px;height:38px;padding:2px;border:1.5px solid var(--border);border-radius:10px;cursor:pointer;background:var(--surface);">
+        @endif
+        @if ($this->canCreateTask)
+            <button type="button" wire:click="openCreateTask" class="btn-primary">
+                <i class="fa-solid fa-plus" style="font-size:12px;"></i> Task Baru
+            </button>
+        @endif
+    </div>
 </div>
 
 <!-- KANBAN WORKSPACE — background gradasi navy (identik warna navigasi desktop), setinggi minimal
@@ -36,23 +37,23 @@
      Zoom pakai CSS `zoom` (bukan transform:scale) supaya scrollbar/overflow ikut menyesuaikan
      otomatis tanpa perhitungan ukuran manual. -->
 <div x-data="{ zoom: 1 }" style="position:relative;">
-    <div style="background:linear-gradient(130deg,#042c6c 0%,#B9308C 100%);border-radius:20px;padding:16px;overflow-y:auto;overflow-x:auto;min-height:100vh;max-height:100vh;" :style="{ zoom: zoom }">
+    <div style="background:{{ $board->color }};border-radius:20px;padding:16px;overflow-y:auto;overflow-x:auto;min-height:100vh;max-height:100vh;" :style="{ zoom: zoom }">
         <div style="display:flex;gap:14px;min-width:min-content;align-items:flex-start;">
         @foreach (\App\Models\Kanban\KanbanTask::STATUSES as $status)
-            <div style="flex:0 0 280px;min-width:280px;background:var(--surface);border-radius:12px;overflow:hidden;">
+            <div style="flex:0 0 280px;min-width:280px;background:var(--surface);border-radius:12px;overflow:hidden;box-shadow:var(--shadow-card);">
                 <div style="background:{{ $statusColor($status) }};padding:10px 12px;display:flex;align-items:center;justify-content:space-between;">
                     <span style="color:#fff;font-weight:700;font-size:13px;">{{ $statusLabel($status) }}</span>
                     <span style="background:rgba(255,255,255,0.25);color:#fff;font-size:11px;font-weight:700;padding:2px 9px;border-radius:99px;">{{ count($this->tasksByStatus[$status]) }}</span>
                 </div>
                 <div style="min-height:80px;padding:8px;display:flex;flex-direction:column;gap:8px;">
                     @forelse ($this->tasksByStatus[$status] as $task)
-                        <div wire:click="openTask('{{ $task->id }}')" style="cursor:pointer;background:var(--surface-alt);border:1px solid var(--border);border-radius:10px;padding:10px 12px;">
+                        @php ($freeStatus = $this->canChangeStatusFreely($task))
+                        @php ($nextStatus = \App\Models\Kanban\KanbanTask::STATUSES[array_search($task->status, \App\Models\Kanban\KanbanTask::STATUSES, true) + 1] ?? null)
+                        <div x-data="{ showItemForm: false, showItems: false, showCommentForm: false, showComments: false }" wire:click="openTask('{{ $task->id }}')" style="cursor:pointer;background:var(--surface-alt);{{ $loop->even ? 'filter:brightness(0.95);' : '' }}border:1px solid var(--border);border-radius:10px;padding:10px 12px;">
                             <p style="font-size:13px;font-weight:600;color:var(--text-heading);margin:0 0 6px;">{{ $task->title }}</p>
                             <div style="display:flex;align-items:center;justify-content:space-between;font-size:11px;color:var(--text-muted);">
                                 @if ($task->assignedTo)
-                                    <div title="{{ $task->assignedTo->name }}" style="width:22px;height:22px;border-radius:50%;background:#042c6c;display:flex;align-items:center;justify-content:center;color:#fff;font-size:9px;font-weight:700;flex-shrink:0;">
-                                        {{ $initials($task->assignedTo->name) }}
-                                    </div>
+                                    <x-avatar :user="$task->assignedTo" :size="22" />
                                 @else
                                     <span>-</span>
                                 @endif
@@ -61,11 +62,74 @@
                                 @endif
                             </div>
                             <div style="margin-top:6px;" onclick="event.stopPropagation()">
-                                <select wire:change="moveTaskStatus('{{ $task->id }}', $event.target.value)" class="form-input" style="font-size:11px;padding:4px 6px;height:auto;">
-                                    @foreach (\App\Models\Kanban\KanbanTask::STATUSES as $moveTo)
-                                        <option value="{{ $moveTo }}" @selected($moveTo === $status)>{{ $statusLabel($moveTo) }}</option>
-                                    @endforeach
+                                <select wire:change="moveTaskStatus('{{ $task->id }}', $event.target.value)" class="form-input" style="font-size:11px;padding:4px 6px;height:auto;" @disabled($status === \App\Models\Kanban\KanbanTask::STATUS_DONE || (! $freeStatus && ! $nextStatus))>
+                                    <option value="{{ $status }}" selected>{{ $statusLabel($status) }}</option>
+                                    @if ($freeStatus)
+                                        @foreach (\App\Models\Kanban\KanbanTask::STATUSES as $moveTo)
+                                            @continue($moveTo === $status)
+                                            <option value="{{ $moveTo }}">{{ $statusLabel($moveTo) }}</option>
+                                        @endforeach
+                                    @elseif ($nextStatus)
+                                        <option value="{{ $nextStatus }}">{{ $statusLabel($nextStatus) }}</option>
+                                    @endif
                                 </select>
+                            </div>
+
+                            <!-- Checklist — disembunyikan total kalau task sudah selesai (terkunci, cuma bisa dikomentari) -->
+                            @if ($task->status !== \App\Models\Kanban\KanbanTask::STATUS_DONE)
+                            <div style="margin-top:6px;" onclick="event.stopPropagation()">
+                                <button type="button" @click="showItems = !showItems" class="btn-ghost" style="font-size:11px;padding:3px 8px;">
+                                    <i class="fa-solid fa-chevron-down" :class="{ 'fa-rotate-180': showItems }" style="font-size:9px;"></i>
+                                    Checklist ({{ $task->items->where('is_done', true)->count() }}/{{ $task->items->count() }})
+                                </button>
+                                <div x-show="showItems" x-cloak style="display:flex;flex-direction:column;gap:4px;margin-top:6px;max-height:130px;overflow-y:auto;background:rgba(0,0,0,0.18);border-radius:8px;padding:6px 8px;">
+                                    @forelse ($task->items as $item)
+                                        <div style="display:flex;align-items:center;gap:6px;font-size:11px;background:var(--surface-alt);border-radius:6px;padding:4px 6px;">
+                                            <input type="checkbox" wire:click="toggleItem('{{ $item->id }}')" @checked($item->is_done) style="accent-color:#0f766e;width:15px;height:15px;border-radius:4px;cursor:pointer;flex-shrink:0;">
+                                            <span style="flex:1;{{ $item->is_done ? 'text-decoration:line-through;color:var(--text-muted);' : '' }}">{{ $item->title }}</span>
+                                            <button type="button" wire:click="deleteItem('{{ $item->id }}')" style="color:var(--danger-text);background:none;border:none;cursor:pointer;padding:0;line-height:1;">
+                                                <i class="fa-solid fa-trash" style="font-size:10px;"></i>
+                                            </button>
+                                        </div>
+                                    @empty
+                                        <p style="font-size:11px;color:var(--text-muted);margin:0;">Belum ada item.</p>
+                                    @endforelse
+                                </div>
+                                @if ($this->canManageItems($task))
+                                <button type="button" @click="showItemForm = !showItemForm" class="btn-ghost" style="font-size:11px;padding:3px 8px;margin-top:4px;">
+                                    <i class="fa-solid fa-plus" style="font-size:9px;"></i> Item
+                                </button>
+                                <div x-show="showItemForm" x-cloak style="display:flex;gap:6px;margin-top:6px;">
+                                    <input type="text" x-ref="itemInput" class="form-input" style="font-size:11px;padding:4px 6px;height:auto;" placeholder="Judul item..." @keydown.enter="$wire.addItemToTask('{{ $task->id }}', $refs.itemInput.value); $refs.itemInput.value = ''; showItemForm = false; showItems = true">
+                                    <button type="button" class="btn-primary" style="font-size:11px;padding:4px 10px;white-space:nowrap;" @click="$wire.addItemToTask('{{ $task->id }}', $refs.itemInput.value); $refs.itemInput.value = ''; showItemForm = false; showItems = true">Simpan</button>
+                                </div>
+                                @endif
+                            </div>
+                            @endif
+
+                            <!-- Komentar -->
+                            <div style="margin-top:6px;" onclick="event.stopPropagation()">
+                                <button type="button" @click="showComments = !showComments" class="btn-ghost" style="font-size:11px;padding:3px 8px;">
+                                    <i class="fa-solid fa-chevron-down" :class="{ 'fa-rotate-180': showComments }" style="font-size:9px;"></i>
+                                    <i class="fa-solid fa-comment" style="font-size:10px;"></i> {{ $task->comments->count() }}
+                                </button>
+                                <div x-show="showComments" x-cloak style="display:flex;flex-direction:column;gap:4px;margin-top:6px;max-height:130px;overflow-y:auto;background:rgba(0,0,0,0.18);border-radius:8px;padding:6px 8px;">
+                                    @forelse ($task->comments as $comment)
+                                        <div style="font-size:11px;background:var(--surface-alt);border-radius:6px;padding:5px 7px;">
+                                            <p style="margin:0 0 2px;font-weight:600;color:var(--text-heading);">{{ $comment->user?->name }}</p>
+                                            <p style="margin:0;color:var(--text-body);">{{ $comment->comment }}</p>
+                                        </div>
+                                    @empty
+                                        <p style="font-size:11px;color:var(--text-muted);margin:0;">Belum ada komentar.</p>
+                                    @endforelse
+                                </div>
+                                <button type="button" @click="showCommentForm = !showCommentForm" class="btn-ghost" style="font-size:11px;padding:3px 8px;margin-top:4px;">
+                                    <i class="fa-solid fa-plus" style="font-size:9px;"></i> Komentari
+                                </button>
+                                <div x-show="showCommentForm" x-cloak style="display:flex;gap:6px;margin-top:6px;">
+                                    <input type="text" x-ref="commentInput" class="form-input" style="font-size:11px;padding:4px 6px;height:auto;" placeholder="Tulis komentar..." @keydown.enter="$wire.addCommentToTask('{{ $task->id }}', $refs.commentInput.value); $refs.commentInput.value = ''; showCommentForm = false; showComments = true">
+                                    <button type="button" class="btn-primary" style="font-size:11px;padding:4px 10px;white-space:nowrap;" @click="$wire.addCommentToTask('{{ $task->id }}', $refs.commentInput.value); $refs.commentInput.value = ''; showCommentForm = false; showComments = true">Simpan</button>
+                                </div>
                             </div>
                         </div>
                     @empty
@@ -121,18 +185,18 @@
                     </div>
                 </div>
                 <div>
-                    <label class="form-label">Assign ke</label>
-                    <select class="form-input" wire:model="assigned_to" @disabled(! $this->canAssign)>
-                        <option value="">Diri Sendiri</option>
-                        @if ($this->canAssign)
-                            @foreach ($this->members as $member)
-                                <option value="{{ $member->user_id }}">{{ $member->user?->name }}</option>
-                            @endforeach
-                        @endif
-                    </select>
-                    @unless ($this->canAssign)
-                        <p style="font-size:11px;color:var(--text-muted);margin-top:4px;">Cuma owner/assigner yang boleh assign ke orang lain.</p>
-                    @endunless
+                    <label class="form-label">Assign ke (bisa lebih dari satu) *</label>
+                    <div style="display:flex;flex-direction:column;gap:6px;max-height:160px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:8px 10px;">
+                        @forelse ($this->assignableMembers as $member)
+                            <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text-body);">
+                                <input type="checkbox" wire:model="assignedUsers" value="{{ $member->user_id }}">
+                                {{ $member->user?->name }}
+                            </label>
+                        @empty
+                            <p style="font-size:12px;color:var(--text-muted);margin:0;">Belum ada member lain di board ini.</p>
+                        @endforelse
+                    </div>
+                    @error('assignedUsers') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
                 </div>
                 <div style="display:flex;justify-content:flex-end;gap:10px;">
                     <button type="button" wire:click="closeTaskModal" class="btn-ghost">Batal</button>
@@ -189,25 +253,6 @@
                 @if ($newAttachment)
                     <button type="button" wire:click="uploadAttachment" class="btn-ghost" style="margin-top:6px;font-size:12px;padding:4px 10px;">Unggah</button>
                 @endif
-            </div>
-
-            <!-- Komentar -->
-            <div style="margin-bottom:14px;">
-                <p class="form-label" style="margin-bottom:6px;">Komentar</p>
-                <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:8px;max-height:180px;overflow-y:auto;">
-                    @forelse ($task->comments as $comment)
-                        <div style="font-size:12px;background:var(--surface-alt);border-radius:8px;padding:8px 10px;">
-                            <p style="margin:0 0 2px;font-weight:600;color:var(--text-heading);">{{ $comment->user?->name }}</p>
-                            <p style="margin:0;color:var(--text-body);">{{ $comment->comment }}</p>
-                        </div>
-                    @empty
-                        <p style="font-size:12px;color:var(--text-muted);margin:0;">Belum ada komentar.</p>
-                    @endforelse
-                </div>
-                <div style="display:flex;gap:8px;">
-                    <input type="text" class="form-input" placeholder="Tulis komentar..." wire:model="newComment" wire:keydown.enter="addComment">
-                    <button type="button" wire:click="addComment" class="btn-primary" style="padding:8px 14px;">Kirim</button>
-                </div>
             </div>
 
             <div style="display:flex;justify-content:flex-end;">

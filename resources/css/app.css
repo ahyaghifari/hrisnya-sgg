@@ -378,6 +378,10 @@ html.dark .nav-item.active { background: rgba(110,168,224,0.22); }
     .pwa-course-title { font-size: 11.5px; }
     .pwa-course-sub { font-size: 10px; }
     .pwa-list .badge, .pwa-course-chip .badge { font-size: 10px; }
+
+    /* 3 tombol toolbar /kanban (BoardKu/Kanban Staff/Board Baru) dikecilkan khusus mobile
+       biar muat sebaris tanpa wrap berlebihan. */
+    .kanban-toolbar-btn { padding: 8px 14px; font-size: 12px; gap: 6px; }
 }
 
 /* Quick-action buttons (Cuti/Izin/Lembur) — same dark-gradient-card anatomy as

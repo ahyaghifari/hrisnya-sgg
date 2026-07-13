@@ -5,7 +5,7 @@
     $priorityLabel = fn (string $p) => ['low' => 'Rendah', 'medium' => 'Sedang', 'high' => 'Tinggi', 'urgent' => 'Mendesak'][$p] ?? $p;
 @endphp
 
-<x-page-header title="Tugas Pribadi" subtitle="Task tanpa board — cuma kamu yang lihat" :back="route('kanban')" />
+<x-page-header title="Tugas Pribadi" subtitle="Task tanpa board — milikmu sendiri, atau ditugaskan langsung dari atasan" :back="route('kanban')" />
 
 <div style="display:flex;justify-content:flex-end;margin-bottom:16px;">
     <button type="button" wire:click="openCreateTask" class="btn-primary">
@@ -13,10 +13,10 @@
     </button>
 </div>
 
-<!-- Sama persis dengan container workspace di board detail: gradasi navy, 1 layar penuh,
+<!-- Sama persis dengan container workspace di board detail: background warna primary, 1 layar penuh,
      header status masuk ke box putih dengan warna beda per status, plus kontrol zoom. -->
 <div x-data="{ zoom: 1 }" style="position:relative;">
-    <div style="background:linear-gradient(130deg,#042c6c 0%,#B9308C 100%);border-radius:20px;padding:16px;overflow-y:auto;overflow-x:auto;min-height:100vh;max-height:100vh;" :style="{ zoom: zoom }">
+    <div style="background:var(--brand);border-radius:20px;padding:16px;overflow-y:auto;overflow-x:auto;min-height:100vh;max-height:100vh;" :style="{ zoom: zoom }">
         <div style="display:flex;gap:14px;min-width:min-content;align-items:flex-start;">
         @foreach (\App\Models\Kanban\KanbanTask::STATUSES as $status)
             <div style="flex:0 0 280px;min-width:280px;background:var(--surface);border-radius:12px;overflow:hidden;">
@@ -26,7 +26,16 @@
                 </div>
                 <div style="min-height:80px;padding:8px;display:flex;flex-direction:column;gap:8px;">
                     @forelse ($this->tasksByStatus[$status] as $task)
-                        <div style="background:var(--surface-alt);border:1px solid var(--border);border-radius:10px;padding:10px 12px;">
+                        @php ($isStaffTask = $task->created_by !== $task->assigned_to)
+                        <div style="background:var(--surface-alt);border:1px solid {{ $isStaffTask ? '#B9308C' : 'var(--border)' }};{{ $isStaffTask ? 'border-left-width:4px;border-radius:0;' : 'border-radius:10px;' }}padding:10px 12px;">
+                            @if ($isStaffTask)
+                                <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
+                                    <x-avatar :user="$task->created_by === auth()->id() ? $task->assignedTo : $task->createdBy" :size="18" />
+                                    <span style="font-size:10.5px;font-weight:700;color:#B9308C;">
+                                        {{ $task->created_by === auth()->id() ? 'Ditugaskan ke ' . $task->assignedTo?->name : 'Ditugaskan oleh ' . $task->createdBy?->name }}
+                                    </span>
+                                </div>
+                            @endif
                             <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:6px;">
                                 <p style="font-size:13px;font-weight:600;color:var(--text-heading);margin:0 0 6px;">{{ $task->title }}</p>
                                 <button type="button" wire:click="deleteTask('{{ $task->id }}')" wire:confirm="Yakin hapus task ini?" style="color:var(--danger-text);background:none;border:none;cursor:pointer;font-size:11px;flex-shrink:0;">

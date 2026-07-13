@@ -100,6 +100,11 @@ class KanbanTask extends Model
         return $this->hasMany(KanbanTaskAttachment::class, 'task_id');
     }
 
+    public function items(): HasMany
+    {
+        return $this->hasMany(KanbanTaskItem::class, 'task_id')->orderBy('position')->orderBy('created_at');
+    }
+
     public function isPersonal(): bool
     {
         return $this->board_id === null;

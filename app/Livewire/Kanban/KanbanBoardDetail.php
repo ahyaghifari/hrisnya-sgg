@@ -7,6 +7,7 @@ use App\Models\Kanban\KanbanBoardMember;
 use App\Models\Kanban\KanbanTask;
 use App\Models\Kanban\KanbanTaskAttachment;
 use App\Models\Kanban\KanbanTaskComment;
+use App\Models\Kanban\KanbanTaskItem;
 use App\Models\Kanban\KanbanTaskMember;
 use App\Models\User;
 use App\Services\Kanban\KanbanAuthorizationService;
@@ -14,6 +15,7 @@ use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 use Livewire\Attributes\Validate;
 use Livewire\Component;
 use Livewire\WithFileUploads;
@@ -30,11 +32,10 @@ class KanbanBoardDetail extends Component
     public ?string $description = null;
     public ?string $due_date = null;
     public string $priority = KanbanTask::PRIORITY_MEDIUM;
-    public ?string $assigned_to = null;
+    public array $assignedUsers = [];
 
     // Modal detail task
     public ?string $selectedTaskId = null;
-    public ?string $newComment = null;
     #[Validate('nullable|image|max:5120')]
     public $newAttachment = null;
 
@@ -54,9 +55,9 @@ class KanbanBoardDetail extends Component
         return app(KanbanAuthorizationService::class);
     }
 
-    public function getCanAssignProperty(): bool
+    public function getCanCreateTaskProperty(): bool
     {
-        return $this->authService()->canAssignToOthers($this->board, Auth::user());
+        return $this->authService()->canCreateTask($this->board, Auth::user());
     }
 
     public function getCanAddMemberProperty(): bool
@@ -64,9 +65,26 @@ class KanbanBoardDetail extends Component
         return $this->authService()->canAddMember($this->board, Auth::user());
     }
 
+    public function updateColor(string $color): void
+    {
+        abort_unless($this->canAddMember, 403); // owner-only, sama seperti kelola member
+
+        if (! preg_match('/^#[0-9a-fA-F]{6}$/', $color)) {
+            return;
+        }
+
+        $this->board->update(['color' => $color]);
+    }
+
     public function getMembersProperty()
     {
         return $this->board->members()->with('user')->get();
+    }
+
+    // Orang yang boleh ditugaskan ke task = member board lain (bukan diri sendiri).
+    public function getAssignableMembersProperty()
+    {
+        return $this->members->where('user_id', '!=', Auth::id());
     }
 
     public function getCompanyUsersProperty()
@@ -77,13 +95,23 @@ class KanbanBoardDetail extends Component
             ->get(['id', 'name']);
     }
 
+    public function canChangeStatusFreely(KanbanTask $task): bool
+    {
+        return $this->authService()->canChangeStatusFreely($task, Auth::user());
+    }
+
     public function getTasksByStatusProperty(): array
     {
         $tasks = $this->board->tasks()
-            ->with(['assignedTo', 'members.user'])
+            ->with(['assignedTo', 'members.user', 'items', 'comments.user'])
             ->orderBy('position')
             ->orderByDesc('created_at')
             ->get();
+
+        // Task yang kita jadi membernya naik ke atas per kolom; sortByDesc stabil (PHP 8+)
+        // jadi urutan position/created_at di atas tetap terjaga di dalam masing-masing grup.
+        $userId = Auth::id();
+        $tasks = $tasks->sortByDesc(fn (KanbanTask $task) => $task->members->contains('user_id', $userId))->values();
 
         return collect(KanbanTask::STATUSES)
             ->mapWithKeys(fn ($status) => [$status => $tasks->where('status', $status)->values()])
@@ -96,13 +124,15 @@ class KanbanBoardDetail extends Component
             return null;
         }
 
-        return KanbanTask::with(['assignedTo', 'createdBy', 'members.user', 'comments.user', 'attachments.uploadedBy'])
+        return KanbanTask::with(['assignedTo', 'createdBy', 'members.user', 'attachments.uploadedBy'])
             ->find($this->selectedTaskId);
     }
 
     public function openCreateTask(): void
     {
-        $this->reset(['title', 'description', 'due_date', 'assigned_to']);
+        abort_unless($this->canCreateTask, 403);
+
+        $this->reset(['title', 'description', 'due_date', 'assignedUsers']);
         $this->priority = KanbanTask::PRIORITY_MEDIUM;
         $this->showTaskModal = true;
     }
@@ -114,42 +144,42 @@ class KanbanBoardDetail extends Component
 
     protected function taskRules(): array
     {
+        $assignableIds = $this->assignableMembers->pluck('user_id')->all();
+
         return [
             'title' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
             'due_date' => ['nullable', 'date'],
             'priority' => ['required', 'in:' . implode(',', KanbanTask::PRIORITIES)],
-            'assigned_to' => ['nullable', 'exists:users,id'],
+            'assignedUsers' => ['required', 'array', 'min:1'],
+            'assignedUsers.*' => [Rule::in($assignableIds)],
         ];
     }
 
     public function createTask(): void
     {
+        abort_unless($this->canCreateTask, 403);
+
         $data = $this->validate($this->taskRules());
         $user = Auth::user();
 
-        $assignedTo = $data['assigned_to'] ?: $user->id;
-
-        if ($assignedTo !== $user->id && ! $this->canAssign) {
-            Notification::make()->title('Kamu tidak punya izin assign task ke orang lain')->danger()->send();
-            return;
-        }
-
-        DB::transaction(function () use ($data, $user, $assignedTo) {
+        DB::transaction(function () use ($data, $user) {
             $task = KanbanTask::create([
                 'board_id' => $this->board->id,
                 'title' => $data['title'],
                 'description' => $data['description'],
                 'created_by' => $user->id,
-                'assigned_to' => $assignedTo,
+                'assigned_to' => $data['assignedUsers'][0],
                 'due_date' => $data['due_date'],
                 'priority' => $data['priority'],
             ]);
 
-            KanbanTaskMember::firstOrCreate([
-                'task_id' => $task->id,
-                'user_id' => $assignedTo,
-            ]);
+            foreach ($data['assignedUsers'] as $userId) {
+                KanbanTaskMember::firstOrCreate([
+                    'task_id' => $task->id,
+                    'user_id' => $userId,
+                ]);
+            }
         });
 
         $this->showTaskModal = false;
@@ -163,6 +193,21 @@ class KanbanBoardDetail extends Component
         }
 
         $task = $this->board->tasks()->findOrFail($taskId);
+
+        if ($task->status === KanbanTask::STATUS_DONE) {
+            return; // task selesai terkunci — tidak bisa diubah siapapun, cuma bisa dikomentari
+        }
+
+        if (! $this->authService()->canChangeStatusFreely($task, Auth::user())) {
+            $currentIndex = array_search($task->status, KanbanTask::STATUSES, true);
+            $nextStatus = KanbanTask::STATUSES[$currentIndex + 1] ?? null;
+
+            if ($status !== $nextStatus) {
+                Notification::make()->title('Kamu cuma boleh memajukan status 1 langkah')->danger()->send();
+                return;
+            }
+        }
+
         $task->update([
             'status' => $status,
             'completed_at' => $status === KanbanTask::STATUS_DONE ? now() : null,
@@ -172,7 +217,6 @@ class KanbanBoardDetail extends Component
     public function openTask(string $taskId): void
     {
         $this->selectedTaskId = $taskId;
-        $this->newComment = null;
         $this->newAttachment = null;
     }
 
@@ -181,17 +225,70 @@ class KanbanBoardDetail extends Component
         $this->selectedTaskId = null;
     }
 
-    public function addComment(): void
+    public function addCommentToTask(string $taskId, string $comment): void
     {
-        $this->validate(['newComment' => ['required', 'string']]);
+        $this->board->tasks()->findOrFail($taskId);
+
+        $comment = trim($comment);
+
+        if ($comment === '') {
+            return;
+        }
 
         KanbanTaskComment::create([
-            'task_id' => $this->selectedTaskId,
+            'task_id' => $taskId,
             'user_id' => Auth::id(),
-            'comment' => $this->newComment,
+            'comment' => $comment,
         ]);
+    }
 
-        $this->newComment = null;
+    public function canManageItems(KanbanTask $task): bool
+    {
+        return $this->authService()->canManageItems($task, Auth::user());
+    }
+
+    public function addItemToTask(string $taskId, string $title): void
+    {
+        $task = $this->board->tasks()->findOrFail($taskId);
+
+        abort_unless($this->canManageItems($task), 403);
+
+        if ($task->status === KanbanTask::STATUS_DONE) {
+            return; // task selesai terkunci
+        }
+
+        $title = trim($title);
+
+        if ($title === '' || mb_strlen($title) > 255) {
+            return;
+        }
+
+        KanbanTaskItem::create([
+            'task_id' => $taskId,
+            'title' => $title,
+        ]);
+    }
+
+    public function toggleItem(string $itemId): void
+    {
+        $item = KanbanTaskItem::whereIn('task_id', $this->board->tasks()->pluck('id'))->with('task')->findOrFail($itemId);
+
+        if ($item->task->status === KanbanTask::STATUS_DONE) {
+            return; // task selesai terkunci
+        }
+
+        $item->update(['is_done' => ! $item->is_done]);
+    }
+
+    public function deleteItem(string $itemId): void
+    {
+        $item = KanbanTaskItem::whereIn('task_id', $this->board->tasks()->pluck('id'))->with('task')->findOrFail($itemId);
+
+        if ($item->task->status === KanbanTask::STATUS_DONE) {
+            return; // task selesai terkunci
+        }
+
+        $item->delete();
     }
 
     public function uploadAttachment(): void

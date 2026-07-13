@@ -18,10 +18,17 @@ class KanbanPersonalTasks extends Component
 
     public function getTasksByStatusProperty(): array
     {
+        // BoardKu cuma nampilin task yang ditugaskan KE aku (assigned_to), bukan yang aku
+        // titipkan ke staff — task yang aku kasih ke bawahan cuma muncul di BoardKu bawahan
+        // itu sendiri (dan di section "Kanban Staff" /kanban untuk aksi cepat sisi atasan).
         $tasks = KanbanTask::whereNull('board_id')
+            ->with('assignedTo', 'createdBy')
+            ->where('assigned_to', Auth::id())
+            // Task ditugaskan (created_by != assigned_to) yang sudah selesai hilang dari board —
+            // task pribadi sendiri (created_by == assigned_to) tetap kelihatan pas selesai.
             ->where(function ($q) {
-                $q->where('created_by', Auth::id())
-                    ->orWhere('assigned_to', Auth::id());
+                $q->where('status', '!=', KanbanTask::STATUS_DONE)
+                    ->orWhereColumn('created_by', 'assigned_to');
             })
             ->orderByDesc('created_at')
             ->get();

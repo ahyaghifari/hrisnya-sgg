@@ -14,6 +14,7 @@ class CreateKanbanBoard extends Component
 {
     public ?string $name = null;
     public ?string $description = null;
+    public string $color = '#042c6c';
 
     public function mount(): void
     {
@@ -25,6 +26,7 @@ class CreateKanbanBoard extends Component
         return [
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
+            'color' => ['required', 'string', 'regex:/^#[0-9a-fA-F]{6}$/'],
         ];
     }
 
@@ -38,6 +40,7 @@ class CreateKanbanBoard extends Component
                 'company_id' => $user->company_id,
                 'name' => $data['name'],
                 'description' => $data['description'],
+                'color' => $data['color'],
                 'owner_id' => $user->id,
             ]);
 

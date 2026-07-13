@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Livewire\Kanban\CreateKanbanBoard;
 use App\Livewire\Kanban\KanbanBoardDetail;
+use App\Livewire\Kanban\KanbanBoardsList;
 use App\Livewire\Kanban\KanbanPersonalTasks;
 use App\Models\Kanban\KanbanBoard;
 use App\Models\Kanban\KanbanBoardMember;
@@ -284,7 +285,7 @@ class KanbanModuleTest extends TestCase
 
     // ── KanbanBoardDetail (Livewire) ───────────────────────────
 
-    public function test_member_creating_task_defaults_to_self_assigned(): void
+    public function test_member_cannot_create_task(): void
     {
         $company = $this->makeCompany();
         $owner = User::factory()->create(['company_id' => $company->id]);
@@ -295,32 +296,24 @@ class KanbanModuleTest extends TestCase
         Livewire::actingAs($member)
             ->test(KanbanBoardDetail::class, ['board' => $board])
             ->set('title', 'Task oleh member')
-            ->call('createTask');
+            ->call('createTask')
+            ->assertForbidden();
 
-        $this->assertDatabaseHas('kanban_tasks', [
-            'board_id' => $board->id,
-            'title' => 'Task oleh member',
-            'assigned_to' => $member->id,
-        ]);
+        $this->assertDatabaseMissing('kanban_tasks', ['title' => 'Task oleh member']);
     }
 
-    public function test_member_cannot_assign_task_to_someone_else(): void
+    public function test_member_cannot_open_create_task_modal(): void
     {
         $company = $this->makeCompany();
         $owner = User::factory()->create(['company_id' => $company->id]);
         $member = User::factory()->create(['company_id' => $company->id]);
-        $anotherMember = User::factory()->create(['company_id' => $company->id]);
         $board = $this->makeBoardWithOwner($company, $owner);
         KanbanBoardMember::create(['board_id' => $board->id, 'user_id' => $member->id, 'role' => KanbanBoardMember::ROLE_MEMBER]);
-        KanbanBoardMember::create(['board_id' => $board->id, 'user_id' => $anotherMember->id, 'role' => KanbanBoardMember::ROLE_MEMBER]);
 
         Livewire::actingAs($member)
             ->test(KanbanBoardDetail::class, ['board' => $board])
-            ->set('title', 'Coba assign ke orang lain')
-            ->set('assigned_to', $anotherMember->id)
-            ->call('createTask');
-
-        $this->assertDatabaseMissing('kanban_tasks', ['title' => 'Coba assign ke orang lain']);
+            ->call('openCreateTask')
+            ->assertForbidden();
     }
 
     public function test_assigner_can_assign_task_to_other_member_and_task_members_synced(): void
@@ -336,13 +329,50 @@ class KanbanModuleTest extends TestCase
         Livewire::actingAs($assigner)
             ->test(KanbanBoardDetail::class, ['board' => $board])
             ->set('title', 'Task buat member')
-            ->set('assigned_to', $member->id)
+            ->set('assignedUsers', [$member->id])
             ->call('createTask');
 
         $task = KanbanTask::where('title', 'Task buat member')->firstOrFail();
         $this->assertSame($member->id, $task->assigned_to);
         // Konsistensi assigned_to <-> kanban_task_members (dikonfirmasi wajib di knowledge doc).
         $this->assertDatabaseHas('kanban_task_members', ['task_id' => $task->id, 'user_id' => $member->id]);
+    }
+
+    public function test_task_can_have_multiple_assignees(): void
+    {
+        $company = $this->makeCompany();
+        $owner = User::factory()->create(['company_id' => $company->id]);
+        $memberA = User::factory()->create(['company_id' => $company->id]);
+        $memberB = User::factory()->create(['company_id' => $company->id]);
+        $board = $this->makeBoardWithOwner($company, $owner);
+        KanbanBoardMember::create(['board_id' => $board->id, 'user_id' => $memberA->id, 'role' => KanbanBoardMember::ROLE_MEMBER]);
+        KanbanBoardMember::create(['board_id' => $board->id, 'user_id' => $memberB->id, 'role' => KanbanBoardMember::ROLE_MEMBER]);
+
+        Livewire::actingAs($owner)
+            ->test(KanbanBoardDetail::class, ['board' => $board])
+            ->set('title', 'Task berdua')
+            ->set('assignedUsers', [$memberA->id, $memberB->id])
+            ->call('createTask');
+
+        $task = KanbanTask::where('title', 'Task berdua')->firstOrFail();
+        $this->assertDatabaseHas('kanban_task_members', ['task_id' => $task->id, 'user_id' => $memberA->id]);
+        $this->assertDatabaseHas('kanban_task_members', ['task_id' => $task->id, 'user_id' => $memberB->id]);
+    }
+
+    public function test_creator_cannot_assign_task_to_self(): void
+    {
+        $company = $this->makeCompany();
+        $owner = User::factory()->create(['company_id' => $company->id]);
+        $board = $this->makeBoardWithOwner($company, $owner);
+
+        Livewire::actingAs($owner)
+            ->test(KanbanBoardDetail::class, ['board' => $board])
+            ->set('title', 'Task buat diri sendiri')
+            ->set('assignedUsers', [$owner->id])
+            ->call('createTask')
+            ->assertHasErrors('assignedUsers.0');
+
+        $this->assertDatabaseMissing('kanban_tasks', ['title' => 'Task buat diri sendiri']);
     }
 
     public function test_move_task_status_updates_completed_at(): void
@@ -361,6 +391,77 @@ class KanbanModuleTest extends TestCase
         $this->assertNotNull($task->completed_at);
     }
 
+    public function test_member_can_only_advance_status_one_step(): void
+    {
+        $company = $this->makeCompany();
+        $owner = User::factory()->create(['company_id' => $company->id]);
+        $creator = User::factory()->create(['company_id' => $company->id]);
+        $member = User::factory()->create(['company_id' => $company->id]);
+        $board = $this->makeBoardWithOwner($company, $owner);
+        KanbanBoardMember::create(['board_id' => $board->id, 'user_id' => $creator->id, 'role' => KanbanBoardMember::ROLE_ASSIGNER]);
+        KanbanBoardMember::create(['board_id' => $board->id, 'user_id' => $member->id, 'role' => KanbanBoardMember::ROLE_MEMBER]);
+        $task = KanbanTask::create(['board_id' => $board->id, 'title' => 'Task', 'created_by' => $creator->id]);
+
+        // Member (bukan owner/pembuat) coba lompat todo -> done, ditolak.
+        Livewire::actingAs($member)
+            ->test(KanbanBoardDetail::class, ['board' => $board])
+            ->call('moveTaskStatus', $task->id, KanbanTask::STATUS_DONE);
+        $this->assertSame(KanbanTask::STATUS_TODO, $task->fresh()->status);
+
+        // Member maju 1 step (todo -> in_progress), diterima.
+        Livewire::actingAs($member)
+            ->test(KanbanBoardDetail::class, ['board' => $board])
+            ->call('moveTaskStatus', $task->id, KanbanTask::STATUS_IN_PROGRESS);
+        $this->assertSame(KanbanTask::STATUS_IN_PROGRESS, $task->fresh()->status);
+    }
+
+    public function test_done_task_is_locked_from_status_and_checklist_changes_for_everyone(): void
+    {
+        $company = $this->makeCompany();
+        $owner = User::factory()->create(['company_id' => $company->id]);
+        $board = $this->makeBoardWithOwner($company, $owner);
+        $task = KanbanTask::create(['board_id' => $board->id, 'title' => 'Task', 'created_by' => $owner->id, 'status' => KanbanTask::STATUS_DONE]);
+        $item = \App\Models\Kanban\KanbanTaskItem::create(['task_id' => $task->id, 'title' => 'Item lama', 'is_done' => false]);
+
+        // Owner (bebas ubah status di kasus lain) tetap ditolak karena task sudah done.
+        Livewire::actingAs($owner)
+            ->test(KanbanBoardDetail::class, ['board' => $board])
+            ->call('moveTaskStatus', $task->id, KanbanTask::STATUS_IN_PROGRESS);
+        $this->assertSame(KanbanTask::STATUS_DONE, $task->fresh()->status);
+
+        Livewire::actingAs($owner)
+            ->test(KanbanBoardDetail::class, ['board' => $board])
+            ->call('addItemToTask', $task->id, 'Item baru');
+        $this->assertDatabaseMissing('kanban_task_items', ['title' => 'Item baru']);
+
+        Livewire::actingAs($owner)
+            ->test(KanbanBoardDetail::class, ['board' => $board])
+            ->call('toggleItem', $item->id);
+        $this->assertFalse($item->fresh()->is_done);
+
+        // Komentar tetap boleh walau task sudah done.
+        Livewire::actingAs($owner)
+            ->test(KanbanBoardDetail::class, ['board' => $board])
+            ->call('addCommentToTask', $task->id, 'Masih bisa komentar');
+        $this->assertDatabaseHas('kanban_task_comments', ['task_id' => $task->id, 'comment' => 'Masih bisa komentar']);
+    }
+
+    public function test_task_creator_can_change_status_freely(): void
+    {
+        $company = $this->makeCompany();
+        $owner = User::factory()->create(['company_id' => $company->id]);
+        $creator = User::factory()->create(['company_id' => $company->id]);
+        $board = $this->makeBoardWithOwner($company, $owner);
+        KanbanBoardMember::create(['board_id' => $board->id, 'user_id' => $creator->id, 'role' => KanbanBoardMember::ROLE_ASSIGNER]);
+        $task = KanbanTask::create(['board_id' => $board->id, 'title' => 'Task', 'created_by' => $creator->id]);
+
+        Livewire::actingAs($creator)
+            ->test(KanbanBoardDetail::class, ['board' => $board])
+            ->call('moveTaskStatus', $task->id, KanbanTask::STATUS_DONE);
+
+        $this->assertSame(KanbanTask::STATUS_DONE, $task->fresh()->status);
+    }
+
     public function test_add_comment_on_task(): void
     {
         $company = $this->makeCompany();
@@ -370,15 +471,105 @@ class KanbanModuleTest extends TestCase
 
         Livewire::actingAs($owner)
             ->test(KanbanBoardDetail::class, ['board' => $board])
-            ->call('openTask', $task->id)
-            ->set('newComment', 'Komentar dari test')
-            ->call('addComment');
+            ->call('addCommentToTask', $task->id, 'Komentar dari test');
 
         $this->assertDatabaseHas('kanban_task_comments', [
             'task_id' => $task->id,
             'user_id' => $owner->id,
             'comment' => 'Komentar dari test',
         ]);
+    }
+
+    public function test_any_board_member_can_comment_on_task(): void
+    {
+        $company = $this->makeCompany();
+        $owner = User::factory()->create(['company_id' => $company->id]);
+        $member = User::factory()->create(['company_id' => $company->id]);
+        $board = $this->makeBoardWithOwner($company, $owner);
+        KanbanBoardMember::create(['board_id' => $board->id, 'user_id' => $member->id, 'role' => KanbanBoardMember::ROLE_MEMBER]);
+        $task = KanbanTask::create(['board_id' => $board->id, 'title' => 'Task', 'created_by' => $owner->id]);
+
+        Livewire::actingAs($member)
+            ->test(KanbanBoardDetail::class, ['board' => $board])
+            ->call('addCommentToTask', $task->id, 'Komentar dari member');
+
+        $this->assertDatabaseHas('kanban_task_comments', [
+            'task_id' => $task->id,
+            'user_id' => $member->id,
+            'comment' => 'Komentar dari member',
+        ]);
+    }
+
+    public function test_checklist_item_add_toggle_and_delete(): void
+    {
+        $company = $this->makeCompany();
+        $owner = User::factory()->create(['company_id' => $company->id]);
+        $board = $this->makeBoardWithOwner($company, $owner);
+        $task = KanbanTask::create(['board_id' => $board->id, 'title' => 'Task', 'created_by' => $owner->id]);
+
+        $component = Livewire::actingAs($owner)
+            ->test(KanbanBoardDetail::class, ['board' => $board])
+            ->call('addItemToTask', $task->id, 'Sub-task 1');
+
+        $item = \App\Models\Kanban\KanbanTaskItem::where('task_id', $task->id)->firstOrFail();
+        $this->assertSame('Sub-task 1', $item->title);
+        $this->assertFalse($item->is_done);
+
+        $component->call('toggleItem', $item->id);
+        $this->assertTrue($item->fresh()->is_done);
+
+        $component->call('deleteItem', $item->id);
+        $this->assertDatabaseMissing('kanban_task_items', ['id' => $item->id]);
+    }
+
+    public function test_task_member_can_add_item_but_unrelated_board_member_cannot(): void
+    {
+        $company = $this->makeCompany();
+        $owner = User::factory()->create(['company_id' => $company->id]);
+        $creator = User::factory()->create(['company_id' => $company->id]);
+        $taskMember = User::factory()->create(['company_id' => $company->id]);
+        $outsider = User::factory()->create(['company_id' => $company->id]);
+        $board = $this->makeBoardWithOwner($company, $owner);
+        KanbanBoardMember::create(['board_id' => $board->id, 'user_id' => $creator->id, 'role' => KanbanBoardMember::ROLE_ASSIGNER]);
+        KanbanBoardMember::create(['board_id' => $board->id, 'user_id' => $taskMember->id, 'role' => KanbanBoardMember::ROLE_MEMBER]);
+        KanbanBoardMember::create(['board_id' => $board->id, 'user_id' => $outsider->id, 'role' => KanbanBoardMember::ROLE_MEMBER]);
+        $task = KanbanTask::create(['board_id' => $board->id, 'title' => 'Task', 'created_by' => $creator->id]);
+        KanbanTaskMember::create(['task_id' => $task->id, 'user_id' => $taskMember->id]);
+
+        Livewire::actingAs($taskMember)
+            ->test(KanbanBoardDetail::class, ['board' => $board])
+            ->call('addItemToTask', $task->id, 'Item dari task member');
+
+        $this->assertDatabaseHas('kanban_task_items', ['task_id' => $task->id, 'title' => 'Item dari task member']);
+
+        Livewire::actingAs($outsider)
+            ->test(KanbanBoardDetail::class, ['board' => $board])
+            ->call('addItemToTask', $task->id, 'Item dari orang luar')
+            ->assertForbidden();
+
+        $this->assertDatabaseMissing('kanban_task_items', ['title' => 'Item dari orang luar']);
+    }
+
+    public function test_only_owner_can_update_board_color(): void
+    {
+        $company = $this->makeCompany();
+        $owner = User::factory()->create(['company_id' => $company->id]);
+        $assigner = User::factory()->create(['company_id' => $company->id]);
+        $board = $this->makeBoardWithOwner($company, $owner);
+        KanbanBoardMember::create(['board_id' => $board->id, 'user_id' => $assigner->id, 'role' => KanbanBoardMember::ROLE_ASSIGNER]);
+
+        Livewire::actingAs($owner)
+            ->test(KanbanBoardDetail::class, ['board' => $board])
+            ->call('updateColor', '#ff0000');
+
+        $this->assertSame('#ff0000', $board->fresh()->color);
+
+        Livewire::actingAs($assigner)
+            ->test(KanbanBoardDetail::class, ['board' => $board])
+            ->call('updateColor', '#00ff00')
+            ->assertForbidden();
+
+        $this->assertSame('#ff0000', $board->fresh()->color);
     }
 
     public function test_upload_attachment_on_task(): void
@@ -401,6 +592,29 @@ class KanbanModuleTest extends TestCase
             'uploaded_by' => $owner->id,
             'file_name' => 'bukti.png',
         ]);
+    }
+
+    public function test_tasks_where_current_user_is_member_sort_first_in_column(): void
+    {
+        $company = $this->makeCompany();
+        $owner = User::factory()->create(['company_id' => $company->id]);
+        $otherMember = User::factory()->create(['company_id' => $company->id]);
+        $board = $this->makeBoardWithOwner($company, $owner);
+        KanbanBoardMember::create(['board_id' => $board->id, 'user_id' => $otherMember->id, 'role' => KanbanBoardMember::ROLE_MEMBER]);
+
+        $taskNotMine = KanbanTask::create(['board_id' => $board->id, 'title' => 'Bukan Task Owner', 'created_by' => $otherMember->id]);
+        KanbanTaskMember::create(['task_id' => $taskNotMine->id, 'user_id' => $otherMember->id]);
+
+        $taskMine = KanbanTask::create(['board_id' => $board->id, 'title' => 'Task Owner', 'created_by' => $owner->id]);
+        KanbanTaskMember::create(['task_id' => $taskMine->id, 'user_id' => $owner->id]);
+
+        $tasksByStatus = Livewire::actingAs($owner)
+            ->test(KanbanBoardDetail::class, ['board' => $board])
+            ->get('tasksByStatus');
+
+        $titlesInTodo = collect($tasksByStatus[KanbanTask::STATUS_TODO])->pluck('title')->all();
+
+        $this->assertSame(['Task Owner', 'Bukan Task Owner'], $titlesInTodo);
     }
 
     public function test_only_creator_or_owner_can_delete_task_from_component(): void
@@ -542,5 +756,175 @@ class KanbanModuleTest extends TestCase
 
         $this->assertContains('Task Board', $boardTaskTitles);
         $this->assertNotContains('Task Pribadi', $boardTaskTitles);
+    }
+
+    // ── Kanban Staff (KanbanBoardsList) ────────────────────────
+
+    public function test_supervisor_can_assign_task_directly_to_subordinate(): void
+    {
+        $company = $this->makeCompany();
+        ['supervisor' => $supervisor, 'staff' => $staff] = $this->makeSupervisorAndStaff($company);
+
+        Livewire::actingAs($supervisor)
+            ->test(KanbanBoardsList::class)
+            ->set('staff_id', $staff->id)
+            ->set('title', 'Rekap laporan bulanan')
+            ->call('createStaffTask');
+
+        $task = KanbanTask::where('title', 'Rekap laporan bulanan')->firstOrFail();
+        $this->assertNull($task->board_id);
+        $this->assertSame($supervisor->id, $task->created_by);
+        $this->assertSame($staff->id, $task->assigned_to);
+        $this->assertDatabaseHas('kanban_task_members', ['task_id' => $task->id, 'user_id' => $staff->id]);
+
+        // Task itu otomatis muncul di Tugas Pribadi staff (query assigned_to = dia).
+        $staffTaskTitles = collect(
+            Livewire::actingAs($staff)->test(KanbanPersonalTasks::class)->get('tasksByStatus')
+        )->flatten()->pluck('title');
+        $this->assertContains('Rekap laporan bulanan', $staffTaskTitles);
+    }
+
+    public function test_staff_task_shows_on_kanban_list_page_for_both_sides_with_direct_actions(): void
+    {
+        $company = $this->makeCompany();
+        ['supervisor' => $supervisor, 'staff' => $staff] = $this->makeSupervisorAndStaff($company);
+
+        $task = KanbanTask::create([
+            'board_id' => null,
+            'title' => 'Titipan Lewat Kanban',
+            'created_by' => $supervisor->id,
+            'assigned_to' => $staff->id,
+        ]);
+        KanbanTaskMember::create(['task_id' => $task->id, 'user_id' => $staff->id]);
+
+        $supervisorTasks = Livewire::actingAs($supervisor)->test(KanbanBoardsList::class)->get('staffTasks');
+        $this->assertTrue(collect($supervisorTasks)->pluck('title')->contains('Titipan Lewat Kanban'));
+
+        $staffTasks = Livewire::actingAs($staff)->test(KanbanBoardsList::class)->get('staffTasks');
+        $this->assertTrue(collect($staffTasks)->pluck('title')->contains('Titipan Lewat Kanban'));
+
+        // Staff bisa langsung ubah status dari /kanban.
+        Livewire::actingAs($staff)
+            ->test(KanbanBoardsList::class)
+            ->call('moveStaffTaskStatus', $task->id, KanbanTask::STATUS_IN_PROGRESS);
+        $this->assertSame(KanbanTask::STATUS_IN_PROGRESS, $task->fresh()->status);
+
+        // Task hilang dari section setelah selesai.
+        Livewire::actingAs($supervisor)
+            ->test(KanbanBoardsList::class)
+            ->call('moveStaffTaskStatus', $task->id, KanbanTask::STATUS_DONE);
+        $tasksAfterDone = Livewire::actingAs($supervisor)->test(KanbanBoardsList::class)->get('staffTasks');
+        $this->assertFalse(collect($tasksAfterDone)->pluck('title')->contains('Titipan Lewat Kanban'));
+    }
+
+    public function test_only_creator_can_delete_staff_task_from_kanban_list(): void
+    {
+        $company = $this->makeCompany();
+        ['supervisor' => $supervisor, 'staff' => $staff] = $this->makeSupervisorAndStaff($company);
+
+        $task = KanbanTask::create([
+            'board_id' => null,
+            'title' => 'Titipan Dihapus',
+            'created_by' => $supervisor->id,
+            'assigned_to' => $staff->id,
+        ]);
+
+        // deleteStaffTask scoped ke created_by = auth user (pola sama seperti
+        // KanbanPersonalTasks::deleteTask) — staff (cuma assignee) dapat 404, bukan Forbidden.
+        try {
+            Livewire::actingAs($staff)
+                ->test(KanbanBoardsList::class)
+                ->call('deleteStaffTask', $task->id);
+            $this->fail('Expected ModelNotFoundException');
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            // expected
+        }
+        $this->assertDatabaseHas('kanban_tasks', ['id' => $task->id]);
+
+        Livewire::actingAs($supervisor)
+            ->test(KanbanBoardsList::class)
+            ->call('deleteStaffTask', $task->id);
+        $this->assertSoftDeleted('kanban_tasks', ['id' => $task->id]);
+    }
+
+    public function test_done_staff_assigned_task_disappears_but_own_done_task_stays(): void
+    {
+        $company = $this->makeCompany();
+        ['supervisor' => $supervisor, 'staff' => $staff] = $this->makeSupervisorAndStaff($company);
+
+        $staffTask = KanbanTask::create([
+            'board_id' => null,
+            'title' => 'Titipan Selesai',
+            'created_by' => $supervisor->id,
+            'assigned_to' => $staff->id,
+            'status' => KanbanTask::STATUS_DONE,
+        ]);
+        $ownTask = KanbanTask::create([
+            'board_id' => null,
+            'title' => 'Task Sendiri Selesai',
+            'created_by' => $staff->id,
+            'assigned_to' => $staff->id,
+            'status' => KanbanTask::STATUS_DONE,
+        ]);
+
+        $titles = collect(
+            Livewire::actingAs($staff)->test(KanbanPersonalTasks::class)->get('tasksByStatus')
+        )->flatten()->pluck('title');
+
+        $this->assertNotContains('Titipan Selesai', $titles);
+        $this->assertContains('Task Sendiri Selesai', $titles);
+    }
+
+    public function test_supervisor_does_not_see_staff_assigned_task_on_own_boardku(): void
+    {
+        $company = $this->makeCompany();
+        ['supervisor' => $supervisor, 'staff' => $staff] = $this->makeSupervisorAndStaff($company);
+
+        KanbanTask::create([
+            'board_id' => null,
+            'title' => 'Ditugaskan Buat Staff',
+            'created_by' => $supervisor->id,
+            'assigned_to' => $staff->id,
+            'status' => KanbanTask::STATUS_IN_PROGRESS,
+        ]);
+
+        // BoardKu supervisor cuma nampilin task yang assigned_to dia — task yang dia titipkan
+        // ke staff tidak muncul di sini (tetap ada di section "Kanban Staff" /kanban).
+        $supervisorTitles = collect(
+            Livewire::actingAs($supervisor)->test(KanbanPersonalTasks::class)->get('tasksByStatus')
+        )->flatten()->pluck('title');
+        $this->assertNotContains('Ditugaskan Buat Staff', $supervisorTitles);
+
+        $staffTitles = collect(
+            Livewire::actingAs($staff)->test(KanbanPersonalTasks::class)->get('tasksByStatus')
+        )->flatten()->pluck('title');
+        $this->assertContains('Ditugaskan Buat Staff', $staffTitles);
+    }
+
+    public function test_staff_without_subordinates_cannot_open_staff_task_modal(): void
+    {
+        $company = $this->makeCompany();
+        ['staff' => $staff] = $this->makeSupervisorAndStaff($company);
+
+        Livewire::actingAs($staff)
+            ->test(KanbanBoardsList::class)
+            ->call('openStaffTaskModal')
+            ->assertForbidden();
+    }
+
+    public function test_supervisor_cannot_assign_staff_task_to_non_subordinate(): void
+    {
+        $company = $this->makeCompany();
+        ['supervisor' => $supervisor] = $this->makeSupervisorAndStaff($company);
+        $stranger = User::factory()->create(['company_id' => $company->id]);
+
+        Livewire::actingAs($supervisor)
+            ->test(KanbanBoardsList::class)
+            ->set('staff_id', $stranger->id)
+            ->set('title', 'Task nyasar')
+            ->call('createStaffTask')
+            ->assertHasErrors('staff_id');
+
+        $this->assertDatabaseMissing('kanban_tasks', ['title' => 'Task nyasar']);
     }
 }

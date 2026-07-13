@@ -24,6 +24,11 @@
                     <label class="form-label">Deskripsi</label>
                     <textarea class="form-input" rows="3" placeholder="Deskripsi singkat board ini (opsional)" wire:model="description"></textarea>
                 </div>
+                <div>
+                    <label class="form-label">Warna Board</label>
+                    <input type="color" wire:model="color" style="width:60px;height:38px;padding:2px;border:1.5px solid var(--border);border-radius:11px;cursor:pointer;background:var(--surface);">
+                    @error('color') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
+                </div>
             </div>
         </div>
 

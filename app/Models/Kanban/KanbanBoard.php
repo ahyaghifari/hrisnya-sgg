@@ -18,6 +18,7 @@ class KanbanBoard extends Model
         'company_id',
         'name',
         'description',
+        'color',
         'owner_id',
     ];
 
