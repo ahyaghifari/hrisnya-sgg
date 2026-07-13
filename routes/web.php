@@ -7,6 +7,10 @@ use App\Livewire\AttendanceRequestDetail;
 use App\Livewire\Dashboard;
 use App\Livewire\EditMyEmployee;
 use App\Livewire\EmployeeAttendanceStatistics;
+use App\Livewire\Kanban\CreateKanbanBoard;
+use App\Livewire\Kanban\KanbanBoardDetail;
+use App\Livewire\Kanban\KanbanBoardsList;
+use App\Livewire\Kanban\KanbanPersonalTasks;
 use App\Livewire\Keuangan\IncentivesPage;
 use App\Livewire\Keuangan\SalaryComponentMappingPage;
 use App\Livewire\Keuangan\SalaryComponentsPage;
@@ -89,6 +93,18 @@ Route::middleware(['auth', 'portal.access'])->group(function () {
 
     Route::get('/keuangan/insentif', IncentivesPage::class)
         ->name('keuangan.insentif');
+
+    Route::get('/kanban', KanbanBoardsList::class)
+        ->name('kanban');
+
+    Route::get('/kanban/baru', CreateKanbanBoard::class)
+        ->name('kanban.create');
+
+    Route::get('/kanban/pribadi', KanbanPersonalTasks::class)
+        ->name('kanban.personal');
+
+    Route::get('/kanban/{board}', KanbanBoardDetail::class)
+        ->name('kanban.show');
 });
 
 Route::get('/attendance/template/download', [AttendanceTemplateController::class, 'downloadTemplate'])

@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<title>Modul LMS — Analisis Teknis</title>
+<style>
+  body { font-family: -apple-system, Segoe UI, Arial, sans-serif; max-width: 900px; margin: 2rem auto; padding: 0 1rem; line-height: 1.6; color: #1a1a1a; }
+  h1 { border-bottom: 3px solid #042c6c; padding-bottom: .5rem; }
+  h2 { color: #042c6c; margin-top: 2.5rem; border-bottom: 1px solid #ddd; padding-bottom: .3rem; }
+  h3 { color: #042c6c; margin-top: 1.75rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ccc; padding: .5rem .75rem; text-align: left; }
+  th { background: #042c6c; color: #fff; }
+  tr:nth-child(even) { background: #f5f7fa; }
+  code { background: #f0f0f0; padding: .1rem .35rem; border-radius: 4px; font-size: .9em; }
+  .warn { background: #fdecea; border: 1px solid #e0554f; border-radius: 8px; padding: 1rem 1.25rem; }
+  .note { background: #eef3fb; border: 1px solid #1a56c4; border-radius: 8px; padding: 1rem 1.25rem; }
+  ol li, ul li { margin-bottom: .4rem; }
+  footer { margin-top: 3rem; font-size: .85em; color: #777; border-top: 1px solid #ddd; padding-top: 1rem; }
+</style>
+</head>
+<body>
+
+<h1>Modul LMS (Learning Management System) <small style="font-weight:normal;color:#666;">— Analisis Teknis (per 2026-07-13)</small></h1>
+
+<p>Dokumen ini menjawab pertanyaan "bagaimana modul LMS (kursus, kuis, sertifikat, ranking, trainer) bekerja di sistem ini?" — ditulis dari pembacaan kode langsung (model, migration, service, repository, controller API, Filament resource, route), bukan asumsi. Rujukan gaya &amp; kedalaman: <code>knowledge/markdown/pengumpulan-data-absensi.md</code>.</p>
+
+<h2>Temuan Utama</h2>
+<div class="warn">
+<p>LMS di codebase ini adalah modul <strong>API-first</strong> (dikonsumsi lewat <code>routes/api.php</code> prefix <code>lms</code>, kemungkinan besar aplikasi mobile terpisah) yang <strong>dikelola sepenuhnya lewat Filament admin panel</strong> — bukan trainer self-service, bukan (belum) portal karyawan. Tiga gap besar ditemukan:</p>
+<ol style="margin-bottom:0;">
+<li><strong>Sertifikat bukan digenerate PDF otomatis</strong> — melainkan <strong>file upload manual oleh admin/HC</strong>, meski <code>barryvdh/laravel-dompdf</code> sudah terpasang &amp; dipakai modul lain (Payroll).</li>
+<li><strong>Soal essay tidak pernah bisa dinilai</strong> — dihitung otomatis 0 poin, status <code>pending_review</code> yang dihasilkan tidak pernah disimpan/ditindaklanjuti di mana pun.</li>
+<li><strong>Portal karyawan (<code>/dashboard</code>) "Kursus Saya" masih 100% hardcoded HTML placeholder</strong> — sama sekali belum terhubung ke data LMS asli.</li>
+</ol>
+</div>
+
+<h2>1. Model &amp; Tabel</h2>
+
+<h3>1.1 Cluster inti — Course/Meeting/Material</h3>
+<table>
+<tr><th>Model</th><th>Tabel</th><th>Peran</th></tr>
+<tr><td><code>LmsCategories</code></td><td><code>lms_categories</code></td><td>Kategori kursus, juga dipakai kategori soal &amp; quiz</td></tr>
+<tr><td><code>LmsCourses</code></td><td><code>lms_courses</code></td><td>Master kursus</td></tr>
+<tr><td><code>LmsMeetings</code></td><td><code>lms_meetings</code></td><td>Sesi/pertemuan dalam 1 kursus</td></tr>
+<tr><td><code>LmsMaterials</code></td><td><code>lms_materials</code></td><td>Materi per meeting (dokumen/teks/file)</td></tr>
+<tr><td><code>LmsCourseSchedules</code></td><td><code>lms_course_schedules</code></td><td>"Batch" penyelenggaraan kursus (mis. "Batch Oktober 2025")</td></tr>
+<tr><td><code>LmsCourseCompetencies</code></td><td><code>lms_course_competencies</code></td><td>Pivot kursus ↔ <code>m_competencies</code></td></tr>
+<tr><td><code>LmsCourseFeedbacks</code></td><td><code>lms_course_feedbacks</code></td><td>Rating + feedback teks per peserta</td></tr>
+<tr><td><code>LmsCourseBaselines</code></td><td><code>lms_course_baselines</code></td><td>Target minimal jumlah kursus/jam per company per periode</td></tr>
+</table>
+
+<p><code>lms_courses</code> (migration <code>2025_09_12_230628_create_lms_courses_table.php</code> + <code>2025_09_15_114809_update_lms_tables.php</code> + <code>2025_10_21_212309_create_lms_course_feedbacks_table.php</code>): <code>category_id</code>→<code>lms_categories</code> (nullOnDelete), <code>company_id</code>→<code>m_companies</code> (nullOnDelete, ditambah belakangan), <code>code</code> (unique), <code>type_nakes</code> enum <code>nakes/non-nakes/all</code>, <code>source_type</code> enum <code>internal/external</code>, <code>type</code> enum <code>seasonal/scheduler</code>, kolom penjadwalan berulang (<code>repeat_cycle</code>, <code>repeat_interval</code>, <code>first_start_date</code>, <code>last_end_date</code>, <code>next_run_date</code> — "Hanya untuk scheduler"), <code>minimum_score</code> (default 0, jadi passing score), <code>created_by</code>→<code>users</code> (nullOnDelete), <code>softDeletes</code>.</p>
+
+<div class="note">
+<p style="margin-bottom:0;"><strong>Catatan penting</strong>: <code>start_date</code>/<code>end_date</code> di-drop di migration <code>update_lms_tables</code> lalu <strong>diisi ulang otomatis</strong> oleh <code>LmsCourses::syncDatesFromMeetings()</code> (<code>app/Models/LMS/LmsCourses.php:86-96</code>, dipanggil di event <code>saving</code>) — bukan input manual, melainkan hasil agregasi <code>MIN(meetings.start_date)</code>/<code>MAX(meetings.end_date)</code>.</p>
+</div>
+
+<p><code>lms_meetings</code>: <code>course_id</code>→<code>lms_courses</code> (<strong>cascadeOnDelete</strong>), <code>type_trainer</code> (<code>internal</code>/<code>external</code>, string bukan enum), <code>trainer_id</code>→<code>trainers</code> (nullOnDelete), <code>trainer_employee_id</code>→<code>users</code> (nullOnDelete, dipakai kalau trainer internal adalah karyawan sendiri), <code>attendance_type</code> (<code>online</code>/<code>offline</code>/<code>hybrid</code>, string bebas bukan enum), <code>sort_order</code>.</p>
+
+<p><code>lms_materials</code>: <code>meeting_id</code>→<code>lms_meetings</code> (<strong>cascadeOnDelete</strong>), <code>content</code> (text, materi berbasis teks), <code>file_path</code>/<code>file_type</code>/<code>file_name</code> (materi berbasis file — <strong>tidak ada validasi/whitelist tipe file di migration</strong>, <code>file_type</code> cuma string bebas, jadi PDF/video/gambar semua ditampung kolom generik yang sama tanpa constraint DB).</p>
+
+<h3>1.2 Cluster Quiz</h3>
+<table>
+<tr><th>Model</th><th>Tabel</th></tr>
+<tr><td><code>QuestionBanks</code></td><td><code>lms_question_banks</code></td></tr>
+<tr><td><code>QuestionOptions</code></td><td><code>lms_question_options</code></td></tr>
+<tr><td><code>LmsQuizzes</code></td><td><code>lms_quizzes</code></td></tr>
+<tr><td><code>LmsQuizQuestions</code></td><td><code>lms_quiz_questions</code></td></tr>
+<tr><td><code>LmsMeetingQuizzes</code></td><td><code>lms_meeting_quizzes</code></td></tr>
+<tr><td><code>LmsQuizUserAnswers</code></td><td><code>lms_quiz_user_answers</code></td></tr>
+<tr><td><code>LmsQuizUserResults</code></td><td><code>lms_quiz_user_results</code></td></tr>
+</table>
+
+<p><code>lms_question_banks</code>: <code>type</code> enum <strong>hanya</strong> <code>multiple_choice</code>/<code>essay</code>, <code>max_score</code>/<code>min_score</code> per soal, <code>category_id</code>→<code>lms_categories</code> (nullOnDelete). <code>lms_question_options</code>: <code>question_id</code>→<code>lms_question_banks</code> (<strong>cascadeOnDelete</strong>), <code>is_correct</code> boolean — kebenaran jawaban pilihan-ganda ditandai per-opsi, bukan field jawaban terpisah di soal.</p>
+
+<p><code>lms_quizzes</code>: cuma wadah (<code>title</code>, <code>total_score</code>, <code>category_id</code>). <code>lms_quiz_questions</code>: pivot <code>quiz_id</code>↔<code>question_bank_id</code> (keduanya <strong>cascadeOnDelete</strong>) — 1 bank soal bisa dipakai ulang di banyak quiz.</p>
+
+<p><code>lms_meeting_quizzes</code>: pivot <code>meeting_id</code>↔<code>quiz_id</code> <strong>unique</strong> (1 quiz cuma bisa dipasang sekali per meeting), plus <code>duration</code> (menit) dan <code>sort_order</code> — ini yang jadi acuan API (<code>/quiz/{meetingQuizId}</code>), bukan <code>quiz_id</code> langsung.</p>
+
+<p><code>lms_quiz_user_answers</code>: FK ke <code>lms_meeting_quizzes</code>, <code>lms_quizzes</code>, <code>lms_question_banks</code>, <code>users</code> (<strong>semua cascadeOnDelete</strong>), <code>user_answer</code> (string — dipakai baik untuk <code>option_id</code> pilihan ganda maupun teks essay), <code>is_correct</code>, <code>earned_points</code>. <strong>Unique</strong> <code>(meeting_quiz_id, question_id, user_id)</code> — 1 jawaban per soal per user per attempt quiz-meeting.</p>
+
+<p><code>lms_quiz_user_results</code>: <strong>unique</strong> <code>(meeting_quiz_id, user_id)</code> — 1 hasil per user per quiz-meeting, <code>total_score</code>/<code>max_score</code>/<code>correct_count</code>/<code>wrong_count</code>/<code>is_completed</code>/<code>completed_at</code>.</p>
+
+<h3>1.3 Cluster Progress &amp; Enrollment</h3>
+<p><code>lms_course_users</code>: <code>user_id</code>, <code>course_id</code> (keduanya nullable, <code>nullOnDelete</code> — <strong>tidak wajib</strong>, beda dari kebanyakan tabel LMS lain yang <code>cascadeOnDelete</code>), <code>is_mandatory</code>, <code>status</code> (string bebas — dikontrol app-level oleh <code>App\Enum\CourseUserStatus</code>: <code>requested/approved/in_progress/completed/canceled</code>), <code>progress</code> (int, persentase), <code>score</code>, <code>ranking</code>, <code>enrolled_at</code>, <code>completed_at</code>, <code>is_passed</code>+<code>passed_at</code> (ditambah belakangan).</p>
+
+<p><code>lms_course_meeting_users</code>: granularitas <strong>per meeting per user</strong> — <code>is_attended</code>, <code>is_present</code> (beda maknanya, lihat §7), <code>quiz_completed</code>, <code>quiz_score</code>, <code>is_completed</code>, <code>completed_at</code>.</p>
+
+<p><code>lms_meeting_attendances</code>: log kehadiran mentah per meeting — <code>status</code> (default <code>present</code>, di-set jadi <code>late</code> dari service), <code>checked_in_at</code>. FK <code>meeting_id</code>/<code>user_id</code> <strong>cascadeOnDelete</strong>, <strong>tidak ada unique constraint</strong> di level DB untuk cegah double-checkin (dicegah di service level, lihat §3).</p>
+
+<p><code>lms_user_histories</code>: arsip hasil akhir per user per course — <code>schedule_id</code>→<code>lms_course_schedules</code> (nullable), <code>score</code> (decimal 5,2), <code>certificate_url</code> (text), <code>is_passed</code>+<code>passed_at</code>, <code>archived_at</code>. <strong>Tidak ada unique constraint</strong> <code>(user_id, course_id)</code> di migration meski dipakai sebagai kunci logis di kode (<code>updateOrCreate</code> di <code>ParticipantCourses.php:139-147</code>) — celah race-condition kalau 2 proses <code>LmsProgresListener</code> jalan bersamaan untuk course sama (queue job, lihat §7).</p>
+
+<p><code>lms_rankings</code>: <code>user_id</code>+<code>course_id</code> <strong>unique</strong>, <code>total_score</code>, <code>rank</code>, <code>calculated_at</code>. Index <code>(course_id, total_score)</code> dan <code>user_id</code> — didesain untuk query leaderboard per-course cepat.</p>
+
+<h3>1.4 Cluster Course Plan (usulan/planning kursus)</h3>
+<p><code>lms_course_plans</code>: rencana tahunan (<code>year</code>, <code>type_nakes</code>, <code>status</code>: <code>draft/submitted/approved/archived</code>, <code>total_courses</code>, <code>approved_by</code>/<code>approved_at</code>).</p>
+
+<p><code>lms_course_plan_items</code>: item usulan kursus individual — <code>source_type</code> (<code>employee</code>/<code>system</code>), <code>competency_id</code>→<code>m_competencies</code>, <code>target_org_structure_id</code>, <code>target_job_position_id</code>, <code>request_status</code> (<code>draft/submitted/approved/rejected/cancelled/completed</code>), <code>realized_course_id</code>/<code>realized_schedule_id</code> (link ke kursus nyata setelah disetujui &amp; dijalankan), <code>requested_by</code>/<code>approved_by</code>. <strong>Ini yang terhubung ke Approval Engine</strong> lewat <code>CourseService::requestCourse()</code>/<code>approveCourseRequest()</code> (lihat §10).</p>
+
+<p><code>lms_course_plan_schedules</code>: jadwal rencana per item (<code>planned_month</code> enum 3-huruf, <code>planned_week</code>, <code>planned_date</code>, <code>status</code>: <code>planned/rescheduled/completed/cancelled</code>).</p>
+
+<h3>1.5 Cluster Trainer</h3>
+<p><code>trainers</code>: <code>name</code>, <code>expertise</code>, <code>email</code>, <code>phone</code>, <code>company</code> (<strong>string bebas</strong>, bukan FK ke <code>m_companies</code>), <code>address</code>, <code>type</code> enum <code>internal</code>/<code>external</code> (default <code>external</code>), <code>user_id</code>→<code>users</code> (nullable, nullOnDelete — link ke akun karyawan <strong>hanya kalau</strong> trainer internal).</p>
+
+<p><code>trainer_score_variables</code>/<code>trainer_score_categories</code>/<code>trainer_score_ranges</code>: konfigurasi rubrik penilaian trainer — 2 tipe variable (<code>honor</code>, <code>validity</code>), tiap variable punya kategori dengan skor (<code>trainer_score_categories.score</code>), lalu range skor total dipetakan ke <code>honor_amount</code> (nominal Rp) atau <code>validity_months</code> (<code>trainer_score_ranges</code>).</p>
+
+<p><code>trainer_assessments</code>: <strong>per meeting</strong> — <code>meeting_id</code>→<code>lms_meetings</code> (nullOnDelete), <code>trainer_id</code>→<code>trainers</code> (nullOnDelete), <code>score_honor</code>, <code>score_validity</code> (angka final, hasil agregasi dari <code>trainer_assessment_details</code>).</p>
+
+<p><code>trainer_assessment_details</code>: baris per variable+kategori yang dipilih penilai, <code>type</code> (<code>honor</code>/<code>validity</code>), <code>score</code>.</p>
+
+<p><code>trainer_assesments_results</code> (<strong>nama tabel typo</strong> "assesments" tanpa 's' kedua): hasil final <strong>per course</strong> (bukan per meeting) — <code>honor_amount</code> (decimal), <code>validity_months</code>, <code>valid_until</code> — hasil agregasi lintas-meeting oleh <code>TrainerAssessmentService</code>.</p>
+
+<h2>2. Alur Pembuatan Course</h2>
+<p>Course <strong>hanya bisa dibuat lewat Filament admin panel</strong> (<code>app/Filament/Resources/LMS/LmsCourses/LmsCoursesResource.php</code> + <code>Schemas/LmsCoursesForm.php</code>), dilindungi permission Filament Shield generik (<code>Create:LmsCourses</code>, dicek lewat <code>App\Policies\LMS\LmsCoursesPolicy::create()</code>) — <strong>bukan role "trainer"</strong>. Trainer (<code>trainers</code> table) sama sekali <strong>tidak punya panel/login/self-service</strong> untuk membuat atau mengelola course sendiri — trainer cuma jadi <em>data yang dipilih</em> di form meeting (<code>Select::make('trainer_id')->relationship('trainer', 'name')</code>, <code>LmsCoursesForm.php:294-299</code>) dan objek yang dinilai (§6).</p>
+
+<p>Struktur konten: <strong>Course → Meeting (sesi/pertemuan) → Material</strong> (linear, 3 level, tidak ada konsep "module"/"section" terpisah — meeting itu sendiri berfungsi sebagai unit modul). Tipe konten materi (<code>lms_materials.file_type</code>) <strong>bebas string, tidak divalidasi enum di DB maupun whitelist eksplisit di service</strong> — PDF/video/gambar/dokumen lain semua ditampung kolom generik <code>file_path</code>/<code>file_type</code>/<code>file_name</code>, plus alternatif <code>content</code> (text) untuk materi teks murni.</p>
+
+<p>Course punya 2 mode (<code>lms_courses.type</code>): <strong><code>seasonal</code></strong> (sekali jalan, tanggal manual) dan <strong><code>scheduler</code></strong> (berulang — <code>repeat_cycle</code>: daily/weekly/monthly/yearly, <code>repeat_interval</code>, <code>next_run_date</code>).</p>
+
+<div class="warn">
+<p style="margin-bottom:0;"><strong>Gap</strong>: kolom <code>next_run_date</code>/<code>repeat_cycle</code>/<code>repeat_interval</code> ada di migration dan fillable model, tapi <strong>tidak ditemukan job/command apa pun</strong> (grep <code>app/Console/Commands</code>, <code>app/Jobs</code>, <code>routes/console.php</code>, <code>bootstrap/app.php</code>) yang mengonsumsi <code>next_run_date</code> untuk benar-benar men-generate instance course baru secara otomatis — pola gap yang sama seperti <code>shift_template_days</code> di <code>pengumpulan-data-absensi.md</code> (data ada, consumer tidak ada). <code>LmsCourses::booted()</code> (<code>LmsCourses.php:118-131</code>) cuma membersihkan field scheduler kalau <code>type</code> diubah ke <code>seasonal</code>, tidak ada logic sebaliknya (generate run).</p>
+</div>
+
+<h2>3. Alur Quiz/Assessment</h2>
+<p>Soal disimpan di <strong>bank soal terpusat</strong> (<code>lms_question_banks</code>) yang bisa dipakai lintas quiz lewat pivot <code>lms_quiz_questions</code>. Tipe soal cuma <strong>2</strong>: <code>multiple_choice</code> (opsi di <code>lms_question_options</code>, kebenaran per-opsi via <code>is_correct</code>) dan <code>essay</code> (jawaban teks bebas).</p>
+
+<p>Penilaian (<code>app/Services/LMS/QuizService.php:65-153</code>, <code>submitQuiz()</code>):</p>
+<ul>
+<li>Skor total dipatok ke basis <strong>100</strong> untuk soal pilihan ganda (<code>$pointsPerMultipleChoice = 100 / $totalMultipleChoiceQuestions</code>, baris 86) — bobot antar soal PG selalu rata, <strong>tidak</strong> memakai <code>max_score</code>/<code>min_score</code> per soal yang sudah didefinisikan di <code>lms_question_banks</code> (kolom itu <strong>hanya dipakai untuk soal essay</strong>, <code>$maxAutoScore += $question->max_score</code>, baris 107).</li>
+<li><strong>Soal essay selalu diberi <code>earnedPoints = 0</code></strong> saat submit (baris 101-107, tidak ada logic scoring essay sama sekali) — <code>is_correct</code> di-set <code>false</code> secara hardcode. <code>$status = $hasEssay ? 'pending_review' : 'completed'</code> (baris 131) dihitung tapi <strong>hanya dikembalikan di response API, tidak pernah disimpan</strong> ke kolom manapun (<code>is_completed</code> yang disimpan <strong>selalu <code>true</code></strong>, baris 141) — dan <strong>tidak ada Filament resource/halaman untuk menilai ulang jawaban essay</strong> (grep <code>LmsQuizUserAnswers</code> ke <code>app/Filament</code> nihil).</li>
+<li><strong>Tidak ada retry/percobaan ulang</strong>: <code>submitQuiz()</code> (baris 67-76) cek <code>findUserResultByMeetingQuizId()</code> dulu — kalau sudah ada hasil, langsung return hasil lama tanpa proses ulang. Constraint DB <code>unique(meeting_quiz_id, user_id)</code> menegakkan ini di level tabel juga. Jadi <strong>1 quiz per meeting = 1 kali kesempatan submit seumur akun</strong>, tidak ada mekanisme reset/retry di kode manapun.</li>
+<li><strong>Passing score</strong> ada di level <strong>course</strong>, bukan quiz: <code>lms_courses.minimum_score</code> (default 0) — dicek di <code>LmsProgresListener::checkUserIsPassed()</code> (<code>app/Listeners/LmsProgresListener.php:158-162</code>), fallback <code>?? 70</code> kalau null. Skor akhir yang dibandingkan bukan skor quiz murni, tapi <strong>skor gabungan</strong> (lihat §7 — 50% rata-rata quiz + 50% persentase kehadiran).</li>
+</ul>
+
+<div class="warn">
+<p style="margin-bottom:0;"><strong>Kesimpulan: soal essay secara efektif tidak pernah bisa mendapat nilai</strong> — otomatis 0 poin permanen, tanpa jalur manual review yang berfungsi.</p>
+</div>
+
+<p>Attendance meeting (<code>MeetingAttendanceService::clockIn</code>, <code>app/Services/LMS/MeetingAttendanceService.php</code>): double-checkin dicegah di <strong>service level</strong> (cek <code>findByMeetingAndUser</code> dulu, bukan constraint DB — rawan race condition kalau 2 request submit bersamaan). Status <code>present</code> vs <code>late</code> ditentukan murni dari perbandingan jam sekarang terhadap <code>meeting.start_date/start_time</code> s.d. <code>end_date/end_time</code> — <strong>tidak ada geofencing/foto</strong>, mirip pola di modul absensi kepegawaian.</p>
+
+<h2>4. Alur Sertifikat</h2>
+<p><strong>Tidak ada generator PDF otomatis untuk sertifikat</strong> — meski <code>barryvdh/laravel-dompdf</code> sudah terpasang di project (dipakai modul lain seperti <code>PayrollService</code>), <strong>tidak dipakai sama sekali</strong> di LMS (grep <code>dompdf</code>/<code>Pdf::</code> ke <code>app/**/LMS/**</code> nihil).</p>
+
+<p>Alur nyata (<code>app/Filament/Resources/LMS/LmsCourses/Pages/ParticipantCourses.php:122-153</code>): admin/HC membuka halaman "Peserta" course, action <strong>"Unggah Sertifikat"</strong> hanya muncul kalau <code>status === COMPLETED</code> (baris 128) dan otomatis ter-disable kalau sudah ada <code>certificate_url</code> terisi (baris 126) — jadi ini <strong>upload file manual</strong> (PDF/JPEG/PNG, maks 10MB, <code>FileUpload::make('certificate_file')</code>, disk <code>public</code>, folder <code>certificates/{course_id}/{user_id}</code>), bukan sertifikat yang digenerate dari template. <code>LmsUserHistories::updateOrCreate()</code> (baris 139-147) menyimpan path file ke <code>certificate_url</code>.</p>
+
+<p>Syarat sertifikat bisa diunggah: <code>LmsCourseUsers.status === CourseUserStatus::COMPLETED</code> — dicapai kalau <strong>semua meeting</strong> di course itu <code>is_completed = true</code> per user (<code>LmsProgresListener::checkCourseCompletion()</code>, baris 97-156), bukan sekadar lulus quiz. <code>is_completed</code> per meeting sendiri butuh <strong>kombinasi hadir (<code>is_attended</code>) + quiz selesai (<code>quiz_completed</code>)</strong> (<code>QuizService::updateMeetingUserData()</code>, baris 175-183).</p>
+
+<div class="warn">
+<p style="margin-bottom:0;"><strong>Gap</strong>: Lulus (<code>is_passed</code>) tidak otomatis mensyaratkan sertifikat bisa diunggah — cek <code>is_passed</code> dan availability upload sertifikat itu independen (halaman upload cuma cek <code>COMPLETED</code>, tidak cek <code>is_passed</code>), jadi peserta yang selesai semua meeting tapi skornya di bawah <code>minimum_score</code> (gagal) tetap <strong>bisa</strong> diberi sertifikat kalau admin mau — tidak ada validasi silang.</p>
+</div>
+
+<p>Download sertifikat oleh peserta lewat API <code>GET /lms/courses/{courseUserId}/certificate</code> (<code>CourseUserController::downloadCertificate</code>, <code>app/Http/Controllers/Api/LMS/CourseUserController.php:56-77</code>) — baca file dari <code>storage/app/public/{certificate_url}</code> dan <code>response()->download()</code>.</p>
+
+<h2>5. Ranking/Leaderboard</h2>
+<p>Dihitung <strong>per course</strong>, bukan global (tabel <code>lms_rankings</code> unique <code>(user_id, course_id)</code>). Trigger: <code>CourseService::updateRanking()</code> (<code>app/Services/LMS/CourseService.php:52-77</code>) dipanggil dari <code>LmsProgresListener::checkCourseCompletion()</code> <strong>hanya sekali</strong> — saat <code>existingHistory</code> belum ada, artinya <strong>ranking cuma dihitung ulang saat pertama kali user menyelesaikan course itu</strong> (guard <code>if (!$existingHistory)</code>, <code>LmsProgresListener.php:117</code>), bukan tiap kali skor berubah setelahnya.</p>
+
+<p>Perhitungan: <code>upsertCourseRanking()</code> simpan <code>total_score</code> user, lalu <code>recalculateCourseRanking()</code> (baris 68-77) <strong>query ulang SEMUA ranking course itu, order by <code>total_score</code> DESC, lalu update <code>rank</code> 1..N secara sequential untuk setiap baris</strong> — ini bukan batch/scheduled job, melainkan <strong>inline recompute per-event</strong> (setiap kali 1 user complete, seluruh leaderboard course itu di-<code>UPDATE</code> ulang N kali dalam 1 request/job). Tidak ada indikasi caching/materialized view — cukup untuk skala kecil, berpotensi jadi bottleneck kalau peserta per course banyak.</p>
+
+<p>Endpoint baca ranking: <code>GET /lms/ranks</code> (<code>CourseController::getRanksByUserId</code> → <code>CourseRepositories::getRanksByUserId</code>).</p>
+
+<h2>6. Trainer</h2>
+<p><strong>Bukan role user</strong> — <code>trainers</code> adalah tabel data master terpisah, bukan bagian dari sistem role/permission (<code>spatie/laravel-permission</code> via Filament Shield yang dipakai modul lain). Trainer bisa <strong>internal</strong> (<code>type=internal</code>, opsional link ke <code>user_id</code>, karyawan sendiri yang jadi pengajar) atau <strong>external</strong> (<code>type=external</code>, kontak manual: <code>name</code>/<code>email</code>/<code>phone</code>/<code>company</code> bebas teks, tanpa akun sistem sama sekali).</p>
+
+<p>Trainer <strong>tidak punya akses/panel apa pun</strong> — semua penilaian trainer (<code>trainer_assessments</code>) dan hasil (<code>trainer_assesments_results</code>, honor &amp; masa berlaku sertifikasi) <strong>diinput dan dilihat oleh admin lewat Filament</strong>, bukan self-service trainer. Rubrik penilaian dua sumbu — <code>honor</code> (nominal bayaran) dan <code>validity</code> (masa berlaku sertifikasi trainer, dalam bulan) — dikonfigurasi lewat variable→kategori→skor dan dipetakan ke hasil akhir lewat range skor. <code>TrainerAssessmentService::generateTrainerAssessmentResult()</code> (<code>app/Services/LMS/TrainerAssessmentService.php:25-88</code>) mengagregasi <strong>rata-rata skor per meeting</strong> dalam 1 course jadi 1 hasil akhir per trainer per course (<code>trainer_assesments_results</code>), termasuk <code>valid_until = now()->addMonths($validityMonths)</code>.</p>
+
+<div class="note">
+<p style="margin-bottom:0;">Ada juga <code>TrainerSalaries</code>/<code>TrainerScoreRanges</code>/<code>TrainerScoreVariables</code> di bawah <strong><code>app/Filament/Resources/Payroll/</code></strong> (bukan <code>LMS/</code>) — indikasi hasil penilaian trainer (<code>honor_amount</code>) <strong>terhubung ke modul Payroll</strong> untuk pencairan honor, meski sebagian nama file duplikat dengan resource di bawah <code>LMS/</code> (perlu klarifikasi lebih lanjut yang mana yang aktif dipakai — di luar cakupan riset ini).</p>
+</div>
+
+<h2>7. Progress Tracking Peserta</h2>
+<p>Granularitas terkecil yang dilacak sistem adalah <strong>per meeting</strong>, bukan per material. <code>lms_course_meeting_users</code> menyimpan 2 boolean terpisah: <code>is_attended</code> (pernah check-in, termasuk yang telat) vs <code>is_present</code> (check-in <strong>tepat waktu</strong>, di dalam rentang <code>start</code>–<code>end</code> meeting) — dibedakan eksplisit di <code>MeetingAttendanceService::clockIn()</code> (baris 40-89, cabang telat set <code>is_present=false</code> tapi <code>is_attended=true</code>).</p>
+
+<p><strong>Tidak ada tracking level material</strong> — tidak ada kolom "sudah dibaca/ditonton" per <code>lms_materials</code>, apalagi <strong>resume position untuk video</strong> (<code>lms_materials</code> cuma punya <code>file_path</code>/<code>file_type</code>/<code>file_name</code> generik, tidak ada kolom durasi/posisi tonton di migration manapun). Progress course (<code>LmsCourseUsers.progress</code>, persen) dihitung murni dari <strong>rasio 2 komponen per meeting</strong> (<code>is_attended</code> + <code>quiz_completed</code>), bukan dari materi individual (<code>LmsProgresListener::handle()</code>, baris 25-58: <code>$totalComponents = $totalMeetings * 2</code>).</p>
+
+<p>Skor akhir (<code>LmsCourseUsers.score</code>) dihitung <code>countTotalScore()</code> (<code>LmsProgresListener.php:61-95</code>): <strong>rata-rata skor quiz (bobot 50%) + persentase kehadiran (bobot 50%)</strong> — rumus tetap (hardcoded <code>* 0.5</code> di kedua sisi), tidak configurable per course.</p>
+
+<p>Event pemicu recompute: <code>LmsProgresUpdated</code> event (<code>app/Events/LmsProgresUpdated.php</code>), listener <code>LmsProgresListener implements ShouldQueue</code> (<strong>async lewat queue</strong>, bukan sync) — dipicu dari 3 titik: <code>MeetingAttendanceService::clockIn()</code> (setelah presensi), <code>QuizService::updateMeetingUserData()</code> (setelah submit quiz), dan (dikomentari-mati) <code>CourseService::getCourseById()</code> baris 43 (<code>// event(new LmsProgresUpdated(...))</code> — sengaja dimatikan, kemungkinan karena bakal terlalu sering fire di endpoint GET biasa).</p>
+
+<h2>8. Enrollment</h2>
+<p><strong>Dua jalur berbeda dengan default <code>is_mandatory</code> yang beda</strong>:</p>
+<ol>
+<li><strong>Manual assign oleh admin</strong> (Filament, <code>LmsCoursesForm.php:462-539</code>, tab "Peserta") — admin pilih user dari <code>CheckboxList</code>, tiap user baru dibuatkan baris <code>lms_course_users</code> dengan <strong><code>is_mandatory => true</code> hardcoded</strong> (baris 526) dan <code>status = REQUESTED</code>.</li>
+<li><strong>Self-enroll oleh karyawan</strong> lewat API <code>POST /lms/courses/{id}/follow</code> (<code>CourseUserController::assignUser</code> → <code>CourseUserService::assignUserToCourse</code> → <code>CourseUserRepository::assignUserToCourse</code>, <code>app/Repositories/LMS/CourseUserRepository.php:12-24</code>) — baris baru dibuat <strong>tanpa</strong> field <code>is_mandatory</code> di-set eksplisit (jadi jatuh ke default migration: <code>false</code>), <code>status = REQUESTED</code> juga. Ada guard cegah double-enroll (<code>isUserEnrolledInCourse</code> dicek dulu, <code>CourseUserService.php:23-25</code>).</li>
+</ol>
+
+<p><strong>Tidak ada mekanisme "wajib per role/jabatan"</strong> — <code>is_mandatory</code> cuma flag boolean tanpa target rule (tidak ada logic yang otomatis meng-assign semua orang dengan jabatan/kompetensi tertentu ke course, meski <code>lms_course_plan_items</code> punya kolom <code>target_job_position_id</code>/<code>target_org_structure_id</code>/<code>competency_id</code> yang <strong>secara struktural cocok untuk itu</strong> — tapi kolom-kolom ini cuma dipakai di tahap <em>usulan/planning</em> (§1.4), <strong>tidak ada kode yang mengonversi target itu jadi assign otomatis</strong> ke <code>lms_course_users</code> saat course direalisasikan).</p>
+
+<p><strong>Tidak ada deadline/due date sama sekali</strong> — grep <code>due</code>/<code>deadline</code> ke seluruh model &amp; service LMS nihil. Yang ada cuma tanggal mulai/selesai meeting (dipakai buat status telat/hadir, bukan tenggat penyelesaian course).</p>
+
+<h2>9. Portal Karyawan — Status UI</h2>
+<div class="warn">
+<p style="margin-bottom:0;"><strong>Belum ada</strong> — dikonfirmasi eksplisit di <code>README.md:85</code>: "<em>Task Saya/Kursus Saya placeholder</em>" di <code>/dashboard</code>. Verifikasi kode: <code>resources/views/livewire/partials/home-cards.blade.php:123-147</code> — section "Kursus Saya" berisi <strong>HTML statis hardcoded</strong>, 2 kartu contoh ("Etika Pelayanan Publik" 60% progress, "K3 Perkantoran Dasar" nilai 88 lulus) yang <strong>sama sekali tidak diambil dari database</strong> — tidak ada <code>@foreach</code>, tidak ada binding ke <code>LmsCourseUsers</code>/<code>LmsCourses</code> apa pun di file ini. Tidak ditemukan satu pun Livewire component (<code>app/Livewire/**Course**</code>, <code>**Lms**</code>) untuk portal karyawan.</p>
+</div>
+
+<p>Kesimpulan: LMS 100% berjalan lewat 2 kanal saja — <strong>Filament admin panel</strong> (pengelolaan penuh: course/quiz/trainer/plan) dan <strong>REST API</strong> (<code>routes/api.php</code> prefix <code>lms</code>, presumably dikonsumsi aplikasi mobile terpisah — bukan portal Livewire ini). Portal karyawan berbasis Livewire <strong>belum punya jalur LMS fungsional apa pun</strong>.</p>
+
+<h2>10. Approval Engine</h2>
+<p><strong>Sebagian pakai, sebagian tidak</strong> — hanya <strong><code>lms_course_plan_items</code></strong> (usulan/planning kursus) yang terhubung ke approval engine generik, lewat <code>module_type = 'lms_course_request'</code>:</p>
+<ul>
+<li><code>CourseService::requestCourse()</code> (<code>app/Services/LMS/CourseService.php:89-112</code>): cari <code>MasterApprovalFlows</code> aktif untuk company user (<code>ApprovalSnapshotRepository::findMasterApprovalFlowByCompany</code>), lempar exception kalau tidak ada flow aktif untuk company itu, lalu <code>ApprovalCreationService::createSnapshot()</code> — <strong>pola identik</strong> dengan modul attendance/shift yang didokumentasikan di <code>knowledge/markdown/manajemen-persetujuan.md</code>.</li>
+<li><code>CourseService::approveCourseRequest()</code> (baris 114-136): panggil <code>ApprovalFlowService::advanceStep()</code> untuk maju step approval, <strong>lalu secara terpisah</strong> update <code>request_status</code>/<code>approved_by</code>/<code>approved_at</code> di <code>lms_course_plan_items</code> sendiri via <code>courseRepositories->updateCourseRequest()</code> — <strong>bukan</strong> lewat side-effect branch di <code>ApprovalFlowService::advanceStep()</code> seperti <code>task_request</code>/<code>swap_shift_request</code> (dikonfirmasi: grep <code>module_type === 'lms_course_request'</code> di <code>app/Services/Approval/ApprovalFlowService.php</code> nihil). Jadi <code>lms_course_request</code> <strong>terdaftar sebagai module_type resmi tapi efek sampingnya di-handle sendiri oleh <code>CourseService</code></strong>, bukan generik lewat approval engine.</li>
+</ul>
+
+<div class="warn">
+<p style="margin-bottom:0;"><strong>Course itu sendiri (<code>lms_courses</code>), enrollment (<code>lms_course_users</code>), dan quiz sama sekali tidak melalui approval engine</strong> — status <code>REQUESTED</code>→<code>APPROVED</code> di <code>CourseUserStatus</code> enum terlihat seperti mengisyaratkan alur approval, tapi <strong>tidak ditemukan kode</strong> yang men-transisikan status itu dari <code>REQUESTED</code> ke <code>APPROVED</code> di mana pun — kemungkinan <strong>fitur setengah jadi</strong>: field/status ada, tapi tidak ada actor (admin action atau approval flow) yang benar-benar mengubahnya dari <code>requested</code> ke <code>approved</code>.</p>
+</div>
+
+<h2>11. Gap/TODO Terkumpul</h2>
+<ol>
+<li><strong>Essay tidak bisa dinilai</strong> (§3) — auto-0 permanen, <code>pending_review</code> status dihitung tapi dibuang, tidak ada UI review. Gap paling signifikan kalau requirement bisnisnya butuh soal essay fungsional.</li>
+<li><strong>Sertifikat manual upload, bukan generate PDF</strong> (§4) — dompdf sudah ada di project untuk modul lain, tidak dipakai LMS.</li>
+<li><strong>Sertifikat bisa diunggah tanpa cek <code>is_passed</code></strong> (§4) — validasi silang antara "lulus" dan "boleh dapat sertifikat" tidak ada.</li>
+<li><strong>Course scheduler (<code>repeat_cycle</code>/<code>next_run_date</code>) tidak punya consumer</strong> (§2) — kolom lengkap di migration &amp; model, tidak ada job/command yang menjalankannya.</li>
+<li><strong><code>CourseUserStatus::APPROVED</code> tidak pernah benar-benar di-set</strong> (§10) — status ada di enum/badge tapi tidak ada actor yang mentransisikannya dari <code>REQUESTED</code>.</li>
+<li><strong><code>is_mandatory</code> tanpa target rule</strong> (§8) — flag ada, tapi tidak ada logic assign-otomatis berdasarkan jabatan/kompetensi meski <code>lms_course_plan_items</code> sudah punya kolom target yang cocok untuk itu.</li>
+<li><strong>Tidak ada deadline/due date</strong> untuk course maupun quiz di seluruh model — kalau bisnis butuh "kursus wajib selesai sebelum tanggal X", ini belum ada strukturnya.</li>
+<li><strong>Tidak ada tracking level material</strong> (video resume position, "sudah dibaca") — progress cuma granularitas meeting.</li>
+<li><strong><code>lms_user_histories</code> tanpa unique constraint</strong> <code>(user_id, course_id)</code> di DB (§1.3) meski dipakai sebagai kunci logis <code>updateOrCreate</code> — race-condition risk pada listener queue.</li>
+<li><strong>Nama tabel typo</strong> <code>trainer_assesments_results</code> (harusnya "assessments") — kosmetik tapi baked ke skema DB permanen.</li>
+<li><strong><code>trainers.company</code></strong> kolom string bebas, bukan FK ke <code>m_companies</code> — tidak konsisten dengan skema multi-company di modul lain.</li>
+<li><strong>Tidak ada test coverage</strong> untuk LMS — dikonfirmasi <code>README.md:102</code>: modul LMS termasuk yang "masih belum punya test".</li>
+</ol>
+
+<footer>
+<p><strong>Referensi Terkait</strong></p>
+<ul>
+<li><code>knowledge/markdown/manajemen-persetujuan.md</code> — approval engine generik, termasuk status <code>lms_course_request</code> sebagai module terdaftar tapi belum punya efek samping generik.</li>
+<li><code>knowledge/markdown/pengumpulan-data-absensi.md</code> — pola serupa (gap company-type, fallback tanpa validasi) yang juga muncul di LMS.</li>
+<li><code>README.md:51,85,102</code> — LMS disebut sebagai modul HRIS, portal "Kursus Saya" ditandai placeholder, dan tidak ada test coverage untuk modul ini.</li>
+</ul>
+</footer>
+
+</body>
+</html>

@@ -39,6 +39,9 @@
             ->take(2)
             ->implode('');
 
+        $photoPath = $profile?->profile_picture[0] ?? null;
+        $photoUrl = $photoPath && is_string($photoPath) ? \Illuminate\Support\Facades\Storage::url($photoPath) : null;
+
         $roleLabel = $record->roles->pluck('name')
             ->map(fn ($n) => ucwords(str_replace('_', ' ', $n)))
             ->implode(', ');
@@ -113,9 +116,13 @@
     {{-- Kartu identitas: jawaban cepat untuk "siapa orang ini" sebelum menyelami detail --}}
     <div class="card-surface" style="margin-bottom:20px;">
         <div style="display:flex;flex-wrap:wrap;align-items:flex-start;gap:16px;">
-            <div style="flex-shrink:0;width:56px;height:56px;border-radius:50%;background:#042c6c;color:#fff;font-weight:800;font-size:17px;display:flex;align-items:center;justify-content:center;">
-                {{ $initials ?: '?' }}
-            </div>
+            @if ($photoUrl)
+                <img src="{{ $photoUrl }}" alt="{{ $record->name }}" style="flex-shrink:0;width:56px;height:56px;border-radius:50%;object-fit:cover;">
+            @else
+                <div style="flex-shrink:0;width:56px;height:56px;border-radius:50%;background:#042c6c;color:#fff;font-weight:800;font-size:17px;display:flex;align-items:center;justify-content:center;">
+                    {{ $initials ?: '?' }}
+                </div>
+            @endif
             <div style="min-width:0;flex:1;">
                 <div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px;">
                     <h2 style="font-size:19px;font-weight:800;color:var(--text-heading);letter-spacing:-0.3px;margin:0;">{{ $record->name }}</h2>

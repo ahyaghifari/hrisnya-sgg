@@ -124,4 +124,30 @@ return [
         'permission' => \App\Enum\CustomPermissionEnum::SISTEM_KEUANGAN->value,
         'guard' => null,
     ],
+
+    'kanban' => [
+        'label' => 'Kanban',
+        'permission' => null,
+        'guard' => null,
+    ],
+
+    'kanban.create' => [
+        'label' => 'Buat Board',
+        'permission' => null,
+        'guard' => 'canAccessKaryawanMenu',
+    ],
+
+    'kanban.personal' => [
+        'label' => 'Tugas Pribadi',
+        'permission' => null,
+        'guard' => null,
+    ],
+
+    'kanban.show' => [
+        'label' => 'Detail Board',
+        'permission' => null,
+        // Akses per-board dicek manual di KanbanBoardDetail::mount() (pola sama seperti
+        // my-staff.show) — keanggotaan board itu spesifik per-record, bukan gate global.
+        'guard' => null,
+    ],
 ];

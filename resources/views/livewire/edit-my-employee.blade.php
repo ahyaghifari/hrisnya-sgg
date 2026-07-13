@@ -1,9 +1,4 @@
 <div>
-@push('head')
-    @filamentStyles
-    <link rel="stylesheet" href="{{ asset('css/filament/filament/app.css') }}">
-@endpush
-
 <x-page-header title="Edit Karyawan" :back="route('my-staff')" />
 
 <form wire:submit="save">
@@ -18,7 +13,4 @@
     </div>
 </form>
 
-@push('scripts')
-    @filamentScripts
-@endpush
 </div>

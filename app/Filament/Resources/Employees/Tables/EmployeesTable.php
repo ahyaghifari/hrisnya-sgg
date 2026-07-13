@@ -9,6 +9,7 @@ use App\Models\Master\OrgStructure;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
+use Filament\Tables\Columns\ImageColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
@@ -20,6 +21,11 @@ class EmployeesTable
     {
         return $table
             ->columns([
+                ImageColumn::make('profile.profile_picture')
+                    ->label('')
+                    ->disk('public')
+                    ->getStateUsing(fn ($record) => $record->profile?->profile_picture[0] ?? null)
+                    ->circular(),
                 TextColumn::make('name')
                     ->description(fn ($record) => $record->email)
                     ->label('Nama')

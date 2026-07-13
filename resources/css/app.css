@@ -349,6 +349,11 @@ html.dark .nav-item.active { background: rgba(110,168,224,0.22); }
 .pwa-card-header-violet .pwa-section-title, .pwa-card-header-violet .pwa-section-link { color: #5b21b6; }
 .pwa-card-header-violet .pwa-card-header-deco-1, .pwa-card-header-violet .pwa-card-header-deco-2 { background: #7c3aed; }
 
+/* Dipakai kartu MyKanban di dashboard. */
+.pwa-card-header-navy { background: linear-gradient(130deg, #B9308C 0%, #8a2269 100%); }
+.pwa-card-header-navy .pwa-section-title, .pwa-card-header-navy .pwa-section-link { color: #fff; }
+.pwa-card-header-navy .pwa-card-header-deco-1, .pwa-card-header-navy .pwa-card-header-deco-2 { background: #fff; }
+
 /* Icon tile — same square-with-tinted-background pattern as the dashboard stat cards,
    reused here so task/course rows don't read as flatter than the rest of the app. */
 .pwa-tile-icon { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 14px; }
@@ -422,6 +427,7 @@ html.dark .nav-item.active { background: rgba(110,168,224,0.22); }
 .pwa-menu-grid-icon.gold { background: linear-gradient(135deg, #92400e 0%, #d97706 100%); }
 .pwa-menu-grid-icon.violet { background: linear-gradient(135deg, #5b21b6 0%, #7c3aed 100%); }
 .pwa-menu-grid-icon.teal { background: linear-gradient(135deg, #0f766e 0%, #14b8a6 100%); }
+.pwa-menu-grid-icon.indigo { background: linear-gradient(135deg, #3730a3 0%, #4f46e5 100%); }
 
 /* ── PAGE BACKGROUND DECO ── */
 .page-deco { position: fixed; inset: 0; pointer-events: none; overflow: hidden; z-index: 0; }
@@ -615,6 +621,10 @@ textarea.form-input { resize: none; }
 .btn-primary:hover { background: #032356; transform: translateY(-1px); box-shadow: 0 4px 14px rgba(4,44,108,0.25); }
 .btn-ghost { display: inline-flex; align-items: center; justify-content: center; gap: 8px; background: transparent; color: var(--text-muted); font-weight: 600; font-size: 13.5px; padding: 12px 22px; border-radius: 12px; border: 1.5px solid var(--border); cursor: pointer; transition: all 0.15s; text-decoration: none; font-family: inherit; }
 .btn-ghost:hover { background: var(--surface-alt); color: var(--text-body); }
+.btn-secondary { display: inline-flex; align-items: center; justify-content: center; gap: 8px; background: #475569; color: white; font-weight: 700; font-size: 13.5px; padding: 12px 28px; border-radius: 12px; border: none; cursor: pointer; transition: all 0.15s; font-family: inherit; text-decoration: none; }
+.btn-secondary:hover { background: #334155; transform: translateY(-1px); box-shadow: 0 4px 14px rgba(51,65,85,0.25); }
+.btn-success { display: inline-flex; align-items: center; justify-content: center; gap: 8px; background: linear-gradient(135deg, #047C54 0%, #024732 100%); color: white; font-weight: 700; font-size: 13.5px; padding: 12px 28px; border-radius: 12px; border: none; cursor: pointer; transition: all 0.15s; font-family: inherit; text-decoration: none; }
+.btn-success:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(4,124,84,0.3); }
 
 /* ── THEME TOGGLE ── */
 .theme-toggle-btn { position: relative; width: 36px; height: 36px; border-radius: 10px; border: 1.5px solid var(--border-soft); display: flex; align-items: center; justify-content: center; color: var(--text-muted); background: var(--surface); cursor: pointer; font-size: 14px; }

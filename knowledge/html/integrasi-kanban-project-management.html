@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<title>Integrasi Sistem Kanban — Analisis &amp; Rancangan Skema</title>
+<style>
+  body { font-family: -apple-system, Segoe UI, Arial, sans-serif; max-width: 900px; margin: 2rem auto; padding: 0 1rem; line-height: 1.6; color: #1a1a1a; }
+  h1 { border-bottom: 3px solid #042c6c; padding-bottom: .5rem; }
+  h2 { color: #042c6c; margin-top: 2.5rem; border-bottom: 1px solid #ddd; padding-bottom: .3rem; }
+  h3 { color: #042c6c; margin-top: 1.75rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ccc; padding: .5rem .75rem; text-align: left; vertical-align: top; }
+  th { background: #042c6c; color: #fff; }
+  tr:nth-child(even) { background: #f5f7fa; }
+  code { background: #f0f0f0; padding: .1rem .35rem; border-radius: 4px; font-size: .9em; }
+  pre { background: #1a1a1a; color: #e8e8e8; padding: 1rem 1.25rem; border-radius: 8px; overflow-x: auto; font-size: .85em; line-height: 1.5; }
+  pre code { background: none; padding: 0; color: inherit; }
+  .warn { background: #fdecea; border: 1px solid #e0554f; border-radius: 8px; padding: 1rem 1.25rem; }
+  .note { background: #eef3fb; border: 1px solid #1a56c4; border-radius: 8px; padding: 1rem 1.25rem; }
+  .ok { background: #eafaf1; border: 1px solid #1a9c5c; border-radius: 8px; padding: 1rem 1.25rem; }
+  .flow { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; font-weight: 600; color: #042c6c; margin: 1rem 0; }
+  .flow span.step { background: #eef3fb; border: 1px solid #1a56c4; border-radius: 999px; padding: .3rem .9rem; }
+  .flow span.arrow { color: #999; }
+  ol li, ul li { margin-bottom: .4rem; }
+  footer { margin-top: 3rem; font-size: .85em; color: #777; border-top: 1px solid #ddd; padding-top: 1rem; }
+</style>
+</head>
+<body>
+
+<h1>Integrasi Sistem Kanban (Project &amp; Individual) <small style="font-weight:normal;color:#666;">— Analisis &amp; Rancangan Skema (per 2026-07-13)</small></h1>
+
+<p>Dokumen ini menjawab permintaan: "bisa dibuat task yang sifatnya per-project (kanban board ala Trello/Lark) sekaligus per-individu?" — hasil analisis kode berjalan (<code>task_records</code> dan modul sekitarnya) plus rancangan skema baru untuk menjawab kebutuhan tersebut, ditulis <strong>sebelum implementasi</strong> untuk direview dulu.</p>
+
+<div class="ok">
+<p style="margin-bottom:0;"><strong>Status: semua keputusan desain utama sudah dikonfirmasi</strong> (lihat &sect;7) — skema di bawah ini sudah final untuk memulai migration, tinggal UI yang belum dibahas.</p>
+</div>
+
+<h2>Ringkasan</h2>
+<div class="warn">
+<ol style="margin-bottom:0;">
+<li>Sistem <code>Task</code> yang sudah ada (<code>task_records</code>) <strong>bukan</strong> kanban — itu <strong>task-request-dengan-approval</strong> (formal work order: create → approval wajib → assign → review), bukan board bebas-drag. <strong>Tabel ini tidak dihapus/diganti</strong> — tetap jalan apa adanya untuk kasus yang memang butuh approval berjenjang formal (lihat &sect;5).</li>
+<li>Modul baru terpisah, <strong>2 tabel inti</strong>: <code>kanban_boards</code> dan <code>kanban_tasks</code>. <code>board_id</code> <strong>nullable</strong> di <code>kanban_tasks</code> jadi mekanisme tunggal yang menutup dua kebutuhan sekaligus — board kosong = task individual.</li>
+<li><strong>Status dihardcode</strong> lewat enum tetap (<code>todo</code> / <code>in_progress</code> / <code>review</code> / <code>done</code>) — bukan tabel kolom kustom.</li>
+<li><strong>Multi-assignee didukung</strong> lewat tabel tambahan <code>kanban_task_members</code> — 1 task bisa dikerjakan bareng lebih dari 1 orang.</li>
+<li><strong>Tidak ada approval terpisah</strong> — siapa yang membuat &amp; assign task (harus role <code>owner</code>/<code>assigner</code> di board) otomatis jadi "penyetuju"-nya. Tidak ada status <code>pending</code> yang perlu ditunggu approve orang lain.</li>
+<li><strong>Hak akses bikin board</strong> — reuse persis kondisi yang sudah dipakai fitur MyStaff: <code>User::canAccessKaryawanMenu()</code> (punya bawahan, atau Direktur dengan akses global).</li>
+<li><strong>Tidak ada perubahan ke tabel yang sudah ada</strong> (<code>task_records</code>, <code>users</code>, <code>m_companies</code>, <code>m_org_structures</code>).</li>
+</ol>
+</div>
+
+<h2>1. Konteks: Sistem Task yang Sudah Ada</h2>
+<p>Ringkasan dari investigasi kode langsung (<code>app/Models/Task/Task.php</code>, <code>app/Services/Task/TaskService.php</code>, <code>app/Http/Controllers/Api/Task/TaskController.php</code>, <code>app/Filament/Resources/TaskRequests/</code>):</p>
+<ul>
+<li>Tabel <code>task_records</code>: <code>company_id</code>, <code>department_id</code>→<code>m_org_structures</code>, <code>service_id</code>→<code>m_task_services</code> (kategori task dari master data tetap), <code>assigned_to</code>, <code>approved_by</code>, <code>sla_reviewer_id</code>, <code>requirement</code>, <code>status</code> (<code>PENDING</code>/<code>IN_PROGRESS</code>/<code>REJECTED</code>/<code>COMPLETE</code> — 4 status tetap), <code>due_date</code>, <code>risk_level</code>, <code>total_cost</code>/<code>unit_cost</code>.</li>
+<li>Alur: siapa saja yang login bisa <code>POST /api/tasks</code> (tidak ada role/permission check), tapi task itu <strong>wajib lewat approval flow generik</strong> (<code>module_type = 'task_request'</code>, engine yang sama dengan cuti/izin/lembur) sebelum <code>assigned_to</code> ditentukan dan status jadi <code>IN_PROGRESS</code>.</li>
+<li>Task individual sudah ada versi sederhananya: <code>POST /api/tasks/self</code> (<code>storeSelfTask</code>) — langsung <code>assigned_to = diri sendiri</code>, <code>status = IN_PROGRESS</code>, <strong>tanpa approval</strong>.</li>
+<li>Semua akses lewat <strong>API only</strong>, tidak ada Livewire/halaman web. Widget "Task Saya" di dashboard portal masih data statis hardcoded.</li>
+</ul>
+
+<h2>2. Kenapa Tidak Reuse <code>task_records</code></h2>
+<table>
+<tr><th>Aspek</th><th><code>task_records</code> (sekarang)</th><th>Kebutuhan Kanban</th></tr>
+<tr><td>Perubahan status</td><td>Lewat approval flow formal, 1 approver</td><td>Digeser manual kapan saja, tanpa approval</td></tr>
+<tr><td>Assignee</td><td>Ditentukan approver saat approve</td><td>Ditentukan pembuat task langsung</td></tr>
+<tr><td>Pengelompokan</td><td>Per <code>department_id</code> (struktur organisasi)</td><td>Per <strong>project/board</strong> (tim lintas-departemen bisa 1 board)</td></tr>
+<tr><td>Urutan tampilan</td><td>Tidak ada konsep posisi/urutan</td><td>Butuh <code>position</code> untuk urutan drag dalam kolom</td></tr>
+</table>
+
+<h2>3. Rancangan Skema Final</h2>
+
+<h3>3.1 <code>kanban_boards</code> — 1 board = 1 project/tim</h3>
+<pre><code>Schema::create('kanban_boards', function (Blueprint $table) {
+    $table->ulid('id')->primary();
+    $table->foreignUlid('company_id')->constrained('m_companies')->cascadeOnDelete();
+    $table->string('name');
+    $table->text('description')->nullable();
+    $table->foreignUlid('owner_id')->constrained('users')->cascadeOnDelete(); // pembuat board
+    $table->timestamps();
+    $table->softDeletes();
+});</code></pre>
+
+<div class="ok">
+<p style="margin-bottom:0;"><strong>Siapa boleh bikin board</strong> (dikonfirmasi): reuse <code>User::canAccessKaryawanMenu()</code> (<code>app/Models/User.php:150-153</code>) — method yang sama persis yang sudah dipakai untuk nampilin menu "MyStaff" (<code>hasSubordinates()</code>: punya bawahan lewat struktur jabatan, <strong>atau</strong> <code>canBrowseAllCompanies()</code>: Direktur dengan akses global). Jadi kalau seseorang sudah bisa akses MyStaff, otomatis bisa bikin board — tidak perlu permission baru, tinggal reuse.</p>
+</div>
+
+<h3>3.2 <code>kanban_tasks</code> — inti fitur, <code>board_id</code> nullable = mekanisme individual/project</h3>
+<pre><code>Schema::create('kanban_tasks', function (Blueprint $table) {
+    $table->ulid('id')->primary();
+    $table->foreignUlid('board_id')->nullable()->constrained('kanban_boards')->cascadeOnDelete(); // null = task pribadi
+    $table->string('title');
+    $table->text('description')->nullable();
+    $table->foreignUlid('created_by')->constrained('users')->cascadeOnDelete(); // dialah yang juga "menyetujui" — lihat &sect;3.3
+    $table->foreignUlid('assigned_to')->nullable()->constrained('users')->nullOnDelete(); // penanggung jawab utama
+    $table->string('status')->default('todo'); // enum app-level: todo/in_progress/review/done — HARDCODE
+    $table->date('due_date')->nullable();
+    $table->unsignedInteger('position')->default(0); // urutan drag dalam 1 status yang sama
+    $table->string('priority')->default('medium'); // enum app-level: low/medium/high/urgent — HARDCODE, sama seperti status
+    $table->timestamp('completed_at')->nullable();
+    $table->foreignUlid('related_task_id')->nullable()->constrained('task_records')->nullOnDelete(); // opsional, lihat &sect;5
+    $table->timestamps();
+    $table->softDeletes();
+});</code></pre>
+
+<p><strong>Logika kunci</strong>: <code>board_id</code> diisi → task tampil di board sebagai kartu kanban, posisinya ditentukan nilai <code>status</code>. <code>board_id</code> kosong → task individual, tetap pakai <code>status</code> yang sama tapi cuma muncul di list pribadi user.</p>
+<p><strong>Status hardcode</strong> (4 nilai tetap):</p>
+<div class="flow">
+<span class="step">todo</span><span class="arrow">→</span><span class="step">in_progress</span><span class="arrow">→</span><span class="step">review</span><span class="arrow">→</span><span class="step">done</span>
+</div>
+
+<div class="note">
+<p><strong>Priority hardcode juga</strong> (dikonfirmasi — "yang terbaik menurutmu"): <code>low</code> / <code>medium</code> / <code>high</code> / <code>urgent</code>, default <code>medium</code>. Alasan dihardcode sama seperti <code>status</code>: 4 nilai closed-set yang umum dipakai di semua tool sejenis (Trello/Lark/Jira), belum ada requirement butuh label kustom per-board, jadi ikut pola yang sama daripada bikin tabel master terpisah untuk sesuatu yang belum diminta.</p>
+<p><strong>Otorisasi hapus task</strong> (dikonfirmasi): hanya <code>created_by</code> (pembuat/pemberi task) atau <code>owner</code> board yang boleh hapus (<code>softDeletes</code>, bukan hard delete). Selain dua itu — termasuk <code>assigned_to</code>/<code>assigner</code> lain — <strong>ditolak</strong>.</p>
+<p style="margin-bottom:0;"><strong>Konsistensi <code>assigned_to</code> ↔ <code>kanban_task_members</code></strong> (dikonfirmasi wajib): setiap kali <code>assigned_to</code> diisi/diganti, aplikasi <strong>wajib</strong> memastikan baris yang sama juga ada di <code>kanban_task_members</code> (auto-insert kalau belum ada) — supaya tidak pernah ada PIC yang gak kelist di daftar pengerja. Ini validasi di level service/aplikasi, bukan constraint DB (beda tabel).</p>
+</div>
+
+<h3>3.3 Kenapa Tidak Ada Kolom <code>approval_status</code> Terpisah</h3>
+<p>Draf awal sempat merancang <code>requires_approval</code>/<code>approval_status</code>/<code>approved_by</code>/<code>approved_at</code> sebagai alur persetujuan terpisah (task dibuat → <code>pending</code> → menunggu approve → baru bisa jalan). <strong>Ini dibuang</strong> setelah klarifikasi: <em>"approval langsung yang bikin tasknya, approver defaultnya adalah yang bikin tasknya."</em></p>
+<p>Karena otorisasi assign-ke-orang-lain <strong>sudah</strong> digerbang di level board (&sect;3.4 — cuma <code>owner</code>/<code>assigner</code> yang boleh assign ke orang lain), dan approver default = pembuat task itu sendiri, maka <strong>pembuat task = penyetuju</strong> — tidak pernah ada pihak ketiga yang perlu approve. Alur <code>pending → menunggu approve</code> jadi tidak pernah benar-benar terjadi, sehingga kolomnya dibuang: <code>created_by</code> di <code>kanban_tasks</code> sudah cukup jadi jejak audit "siapa yang menyetujui/membuat task ini berjalan", tidak perlu kolom terpisah.</p>
+<div class="note">
+<p style="margin-bottom:0;"><strong>Ringkasnya</strong>: keamanan/kontrolnya ada di &sect;3.4 (siapa boleh assign), bukan di step approval tambahan setelah task dibuat.</p>
+</div>
+
+<h3>3.4 <code>kanban_board_members</code> — Siapa Boleh Assign Task ke Orang Lain</h3>
+<pre><code>Schema::create('kanban_board_members', function (Blueprint $table) {
+    $table->ulid('id')->primary();
+    $table->foreignUlid('board_id')->constrained('kanban_boards')->cascadeOnDelete();
+    $table->foreignUlid('user_id')->constrained('users')->cascadeOnDelete();
+    $table->string('role')->default('member'); // owner | assigner | member
+    $table->timestamps();
+    $table->unique(['board_id', 'user_id']);
+});</code></pre>
+
+<p><strong>3 level role per board:</strong></p>
+<ul>
+<li><strong>owner</strong> — pembuat board (<code>kanban_boards.owner_id</code>), otomatis jadi baris <code>owner</code> di sini juga. Kontrol penuh: hapus board, keluarkan member, ubah role member lain, <strong>satu-satunya yang boleh menaikkan orang jadi <code>assigner</code></strong> (dikonfirmasi — <code>assigner</code> lain tidak bisa menaikkan <code>assigner</code> baru), dan <strong>satu-satunya yang boleh menambahkan member baru ke board</strong> (dikonfirmasi — <code>assigner</code> boleh assign task ke anggota yang sudah ada, tapi tidak boleh mengundang orang baru masuk board).</li>
+<li><strong>assigner</strong> — boleh bikin task dan assign ke anggota lain di board itu — role buat atasan/PIC tim yang bukan pemilik board tapi tetap perlu distribusikan kerjaan ke bawahannya.</li>
+<li><strong>member</strong> — biasa, cuma bisa bikin/kerjakan task untuk diri sendiri, tidak bisa assign ke orang lain.</li>
+</ul>
+<div class="note">
+<p style="margin-bottom:0;">Pengecekan otorisasi: <code>assigned_to !== auth()-&gt;id()</code> <strong>hanya boleh</strong> kalau pelaku punya role <code>owner</code> atau <code>assigner</code> di board tersebut — kalau tidak, request ditolak.</p>
+</div>
+
+<div class="note">
+<p><strong>Member dikeluarkan dari board</strong> (dikonfirmasi): task yang sudah terlanjur <code>assigned_to</code>/tercatat di <code>kanban_task_members</code> <strong>dibiarkan apa adanya</strong> — tidak otomatis di-unassign atau dipindah. Task itu tetap kelihatan riwayatnya, cuma orang yang dikeluarkan itu sudah tidak bisa lagi assign task baru (karena bukan member lagi), sampai owner atau assigner lain assign ulang secara manual.</p>
+<p style="margin-bottom:0;"><strong>Scoping company</strong> (dikonfirmasi): board <strong>hanya untuk 1 company</strong>, ditentukan dari <code>company_id</code> milik <code>owner_id</code> saat board dibuat (<code>kanban_boards.company_id</code>, lihat &sect;3.1). Menambahkan member ke board <strong>wajib divalidasi satu company</strong> dengan board itu — user dari company lain tidak bisa ditambahkan, meski technically FK <code>user_id</code> di tabel ini tidak membatasi itu (validasi di level aplikasi, sama seperti pola scoping lain di codebase ini, mis. <code>m_approval_flows.company_id</code>).</p>
+</div>
+
+<h3>3.5 <code>kanban_task_members</code> — Multi-Assignee (Dikonfirmasi)</h3>
+<pre><code>Schema::create('kanban_task_members', function (Blueprint $table) {
+    $table->ulid('id')->primary();
+    $table->foreignUlid('task_id')->constrained('kanban_tasks')->cascadeOnDelete();
+    $table->foreignUlid('user_id')->constrained('users')->cascadeOnDelete();
+    $table->timestamps();
+    $table->unique(['task_id', 'user_id']);
+});</code></pre>
+<p>1 task bisa dikerjakan bareng lebih dari 1 orang. <code>kanban_tasks.assigned_to</code> tetap ada sebagai penanggung jawab utama/PIC (dipakai buat tampilan ringkas &amp; notifikasi kalau nanti dibutuhkan), <code>kanban_task_members</code> sebagai daftar lengkap semua orang yang terlibat (termasuk <code>assigned_to</code> itu sendiri, supaya query "task saya" tinggal <code>whereHas('members', fn($q) =&gt; $q-&gt;where('user_id', auth()-&gt;id()))</code> tanpa perlu union dua kolom beda).</p>
+
+<h3>3.6 <code>kanban_task_comments</code> — Komentar per Task</h3>
+<pre><code>Schema::create('kanban_task_comments', function (Blueprint $table) {
+    $table->ulid('id')->primary();
+    $table->foreignUlid('task_id')->constrained('kanban_tasks')->cascadeOnDelete();
+    $table->foreignUlid('user_id')->constrained('users')->cascadeOnDelete();
+    $table->text('comment');
+    $table->timestamps();
+});</code></pre>
+<p>Flat list per task, diurutkan <code>created_at</code>, tanpa threading/reply.</p>
+
+<h3>3.7 <code>kanban_task_attachments</code> — Unggah Gambar ke Task</h3>
+<pre><code>Schema::create('kanban_task_attachments', function (Blueprint $table) {
+    $table->ulid('id')->primary();
+    $table->foreignUlid('task_id')->constrained('kanban_tasks')->cascadeOnDelete();
+    $table->foreignUlid('uploaded_by')->constrained('users')->cascadeOnDelete();
+    $table->string('file_path');
+    $table->string('file_name')->nullable();
+    $table->timestamps();
+});</code></pre>
+<p>Pola sama persis dengan <code>task_attachments</code> yang sudah dipakai <code>task_records</code> (<code>app/Models/Task/Task.php</code> — <code>file_path</code> disimpan lewat <code>Storage::disk('public')</code>, folder disarankan <code>kanban/{task_id}/attachments</code>). Validasi tipe file (jpg/png/webp, ukuran maks) dilakukan di <strong>level aplikasi</strong> (form request), bukan di DB — kolom <code>file_path</code> generik string, bukan enum tipe file, konsisten dengan pola <code>task_attachments</code>/<code>task_proofs</code> yang sudah ada.</p>
+<p>Siapa yang boleh unggah: siapa saja yang punya akses ke task itu (member board-nya, atau pemilik task kalau individual) — sama seperti aturan komentar di &sect;3.6.</p>
+
+<h2>4. Task Individual (Tanpa Board)</h2>
+<p>Task dengan <code>board_id = null</code> otomatis jadi to-do pribadi — hanya muncul di list personal user, tidak nongol di board manapun. Pola yang sama seperti <code>is_self_assigned</code> di <code>task_records</code>: 1 tabel, cabang logic beda tergantung ada/tidaknya <code>board_id</code>.</p>
+
+<h2>5. Apakah Ada Perubahan ke Tabel yang Sudah Ada?</h2>
+<div class="ok">
+<p><strong>Tidak ada — dan <code>task_records</code> tidak "pensiun".</strong> Semua tabel di &sect;3 baru, murni tambahan. <code>task_records</code> tetap dipakai apa adanya untuk kasus yang memang butuh approval berjenjang formal (mis. lewat <code>m_approval_flows</code>, seperti yang sudah diuji untuk cuti/izin/lembur). Dua sistem hidup berdampingan dengan tujuan beda:</p>
+<table style="margin-bottom:0;">
+<tr><th></th><th><code>task_records</code></th><th><code>kanban_tasks</code></th></tr>
+<tr><td>Filosofi</td><td>Formal, approval berjenjang wajib</td><td>Bebas, cepat, tanpa approval pihak ketiga</td></tr>
+<tr><td>Kontrol</td><td>Approval engine generik (<code>m_approval_flows</code>)</td><td>Role board (<code>owner</code>/<code>assigner</code>) di titik pembuatan</td></tr>
+<tr><td>Kapan dipakai</td><td>Task lintas-departemen yang perlu persetujuan resmi</td><td>Kerja tim/individu sehari-hari, kanban board</td></tr>
+</table>
+</div>
+<p>Satu-satunya "sentuhan" ke tabel lama adalah <strong>foreign key baru</strong> dari <code>kanban_tasks.related_task_id</code> → <code>task_records.id</code> (opsional) — kalau suatu saat sebuah kanban task perlu "naik level" jadi task formal berapproval, bisa di-link. Tidak wajib dipakai.</p>
+
+<h2>6. Ringkasan Migration yang Perlu Dibuat</h2>
+<ol>
+<li><code>create_kanban_boards_table</code></li>
+<li><code>create_kanban_tasks_table</code></li>
+<li><code>create_kanban_board_members_table</code></li>
+<li><code>create_kanban_task_members_table</code></li>
+<li><code>create_kanban_task_comments_table</code></li>
+<li><code>create_kanban_task_attachments_table</code></li>
+</ol>
+<p>Ditambah model Eloquent (<code>app/Models/Kanban/*.php</code>).</p>
+
+<h2>7. Status Keputusan</h2>
+<table>
+<tr><th>#</th><th>Pertanyaan</th><th>Keputusan</th></tr>
+<tr><td>1</td><td>Hak akses bikin board</td><td>✅ Reuse <code>User::canAccessKaryawanMenu()</code> — sama seperti syarat akses MyStaff</td></tr>
+<tr><td>2</td><td>Multi-assignee</td><td>✅ Ya, lewat <code>kanban_task_members</code></td></tr>
+<tr><td>3</td><td>Notifikasi saat assign/pindah status</td><td>✅ Tanpa notifikasi dulu (bisa ditambah belakangan)</td></tr>
+<tr><td>4</td><td>Approval terpisah (opsi A/B)</td><td>✅ Tidak perlu — pembuat task = approver, dibuang (&sect;3.3)</td></tr>
+<tr><td>5</td><td>Approver default</td><td>✅ Pembuat task itu sendiri</td></tr>
+<tr><td>6</td><td>Siapa boleh naikkan orang jadi <code>assigner</code></td><td>✅ Cuma <code>owner</code></td></tr>
+<tr><td>7</td><td>Unggah gambar ke task</td><td>✅ Ya, lewat <code>kanban_task_attachments</code> (&sect;3.7)</td></tr>
+<tr><td>8</td><td>Siapa boleh menambahkan member baru ke board</td><td>✅ Cuma <code>owner</code></td></tr>
+<tr><td>9</td><td>Task orphan saat member dikeluarkan dari board</td><td>✅ Dibiarkan apa adanya, tidak auto-unassign</td></tr>
+<tr><td>10</td><td>Konsistensi <code>assigned_to</code> vs <code>kanban_task_members</code></td><td>✅ Wajib — <code>assigned_to</code> selalu diinsert juga ke <code>kanban_task_members</code></td></tr>
+<tr><td>11</td><td>Siapa boleh hapus task</td><td>✅ Cuma <code>created_by</code> atau <code>owner</code> board</td></tr>
+<tr><td>12</td><td>Nilai <code>priority</code></td><td>✅ Dihardcode juga: <code>low</code>/<code>medium</code>/<code>high</code>/<code>urgent</code>, default <code>medium</code></td></tr>
+<tr><td>13</td><td>Board lintas-company</td><td>✅ Tidak — 1 board = 1 company, dari <code>company_id</code> milik <code>owner_id</code></td></tr>
+<tr><td>14</td><td>UI (Livewire board kanban)</td><td>📝 Draf awal di &sect;8 — <strong>masih bisa berubah</strong>, belum final</td></tr>
+</table>
+
+<h2>8. Rancangan UI (Draf Awal — Bisa Direvisi)</h2>
+<div class="note">
+<p style="margin-bottom:0;">Mengikuti konvensi yang sudah mapan di <code>DESIGN.md</code>, bukan bikin pattern baru. <strong>Ini draf, belum final</strong> — dicatat di sini supaya ada titik acuan kalau ada revisi nanti.</p>
+</div>
+
+<ol>
+<li><strong>Identity color baru untuk domain "Kanban"</strong> — sesuai aturan DESIGN.md &sect;"Card identity system" ("jangan pakai warna domain lain untuk fitur baru, tapi jangan juga bikin warna baru buat sesuatu yang sudah cocok ke domain yang ada"). Kanban ini domain baru (project management), belum ada warna identity yang dipakai untuk itu di app ini. Usul: <strong>teal gelap <code>#0f766e</code></strong> sebagai gradient card (pola sama seperti <code>.welcome-card</code>/<code>.absen-card</code> — gradient solid, white text, <code>.{prefix}-deco-*</code>).</li>
+<li><strong>List board (halaman awal)</strong> — desktop pakai <code>.data-table</code> atau grid card; mobile pakai <code>.pwa-list</code>+<code>.pwa-list-row</code>+<code>.pwa-tile-icon</code>, pola yang sama persis dengan <code>MyAttendanceRequests</code>/<code>MyEmployees</code> (referensi eksplisit di <code>DESIGN.md:107</code> — "every page must have a mobile layout, not just a shrunk desktop one"). Tombol "+ Board Baru" cuma muncul kalau <code>User::canAccessKaryawanMenu()</code> — reuse guard yang sama dengan MyStaff (&sect;3.1).</li>
+<li><strong>Board detail (kanban view)</strong> — bagian paling beda dari halaman lain karena kolom kanban gak bisa "diperkecil" ke mobile begitu saja:
+  <ul>
+  <li><strong>Desktop</strong>: 4 kolom (<code>todo</code>/<code>in_progress</code>/<code>review</code>/<code>done</code>) side-by-side, <code>display:flex</code>, tiap kolom scroll vertikal sendiri kalau card-nya banyak.</li>
+  <li><strong>Mobile</strong>: <strong>bukan</strong> kolom di-scroll horizontal (buruk buat thumb) — pakai pola <code>.section-nav</code>+<code>.section-nav-btn</code> yang sudah dipakai MyStaff (pill button per status buat switch tab), tampilkan cuma 1 status sekaligus sebagai list <code>.pwa-list-row</code>. Konsisten dengan rule "mobile ≠ desktop yang disusutkan" di <code>DESIGN.md:103-113</code>.</li>
+  </ul>
+</li>
+<li><strong>Task card di dalam kolom</strong> — versi ringkas dari <code>.pwa-list-row</code>: judul, avatar-inisial assignee (bisa lebih dari satu kalau <code>kanban_task_members</code> terisi banyak), badge due date reuse <code>.badge-rejected</code>/<code>.badge-pending</code> yang sudah ada (merah kalau overdue, kuning kalau mepet) — <strong>jangan</strong> bikin warna badge baru.</li>
+<li><strong>Role badge</strong> (<code>owner</code>/<code>assigner</code>/<code>member</code> dari <code>kanban_board_members</code>) — reuse komponen <code>.badge</code>, cukup tambah varian warna baru yang konsisten dengan badge yang sudah ada.</li>
+<li><strong>Entry point navigasi</strong> — tambah item di <code>&lt;x-nav&gt;</code> desktop (gated <code>canAccessKaryawanMenu()</code>, sama seperti MyStaff, lihat <code>nav.blade.php:23-27</code>) dan di <code>.pwa-menu-grid</code> bottom-sheet mobile (<code>.pwa-menu-grid-item</code> tile warna teal) — <strong>bukan</strong> masuk 5 slot tetap bottom-nav (sudah penuh &amp; fixed per <code>DESIGN.md:96</code>).</li>
+<li><strong>Form bikin board/task</strong> — reuse <code>.form-label</code>/<code>.form-input</code> standar yang sudah ada, jangan reinvent styling form (<code>DESIGN.md:82</code>).</li>
+</ol>
+
+<footer>
+<p><strong>Referensi Terkait</strong></p>
+<ul>
+<li><code>app/Models/Task/Task.php</code>, <code>app/Services/Task/TaskService.php</code>, <code>app/Http/Controllers/Api/Task/TaskController.php</code> — sistem task-request-dengan-approval yang sudah ada, jadi pembanding.</li>
+<li><code>app/Models/User.php:150-153</code> (<code>canAccessKaryawanMenu</code>) — syarat akses yang di-reuse untuk hak bikin board.</li>
+<li><code>resources/views/components/nav.blade.php:23-27</code> — tempat kondisi MyStaff dipakai di nav, pola yang sama untuk kanban nanti.</li>
+<li><code>resources/views/livewire/partials/home-cards.blade.php</code> — widget "Task Saya" di dashboard yang masih placeholder statis.</li>
+<li><code>DESIGN.md</code> — design system portal karyawan, acuan utama &sect;8 (Rancangan UI).</li>
+</ul>
+</footer>
+
+</body>
+</html>

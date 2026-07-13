@@ -1,9 +1,4 @@
 <div>
-@push('head')
-    @filamentStyles
-    <link rel="stylesheet" href="{{ asset('css/filament/filament/app.css') }}">
-@endpush
-
 <x-page-header title="Struktur Organisasi" />
 
 @if ($this->showCompanyFilter)
@@ -181,7 +176,4 @@
     </div>
 </div>
 
-@push('scripts')
-    @filamentScripts
-@endpush
 </div>

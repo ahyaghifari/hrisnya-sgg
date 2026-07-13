@@ -6,8 +6,6 @@ use App\Jobs\GeneratePayrollJob;
 use App\Jobs\RegeneratePayrollJob;
 use App\Models\Payroll\PayrollPeriod;
 use Filament\Actions\Action;
-use Filament\Actions\BulkActionGroup;
-use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Actions\ViewAction;
 use Filament\Notifications\Notification;
@@ -22,15 +20,17 @@ class PayrollPeriodsTable
         return $table
             ->columns([
                 Tables\Columns\TextColumn::make('company.name')
-                    ->label('Company')
+                    ->label('Perusahaan')
                     ->searchable()
                     ->sortable(),
 
                 Tables\Columns\TextColumn::make('start_date')
+                    ->label('Dari Tanggal')
                     ->date()
                     ->sortable(),
 
                 Tables\Columns\TextColumn::make('end_date')
+                    ->label('Sampai Tanggal')
                     ->date()
                     ->sortable(),
 
@@ -79,12 +79,6 @@ class PayrollPeriodsTable
                             ->warning()
                             ->send();
                     }),
-            ])
-            ->toolbarActions([
-                DeleteBulkAction::make()
-                    ->visible(fn ($records) =>
-                    $records->every(fn ($record) => is_null($record->processed_at))
-                    ),
             ]);
     }
 }

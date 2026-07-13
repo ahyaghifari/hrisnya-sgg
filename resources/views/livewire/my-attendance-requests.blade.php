@@ -1,9 +1,4 @@
 <div>
-@push('head')
-    @filamentStyles
-    <link rel="stylesheet" href="{{ asset('css/filament/filament/app.css') }}">
-@endpush
-
 <x-page-header title="Pengajuan Absensi" />
 
 {{-- AKSI CEPAT: reuse form pengajuan cuti/izin/lembur yang sudah ada, bukan bikin form baru --}}
@@ -85,7 +80,4 @@
     {{ $this->table }}
 </div>
 
-@push('scripts')
-    @filamentScripts
-@endpush
 </div>

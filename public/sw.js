@@ -46,5 +46,7 @@ self.addEventListener('push', (event) => {
 
 self.addEventListener('notificationclick', (event) => {
     event.notification.close();
-    event.waitUntil(clients.openWindow('/dashboard'));
+    const requestId = event.notification.data?.request_id;
+    const url = requestId ? `/pengajuan-absensi/${requestId}` : '/dashboard';
+    event.waitUntil(clients.openWindow(url));
 });

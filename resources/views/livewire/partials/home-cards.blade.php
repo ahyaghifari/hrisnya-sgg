@@ -75,49 +75,47 @@
 
     {{-- <livewire:recent-requests-card /> --}}
 
-    <!-- TASK & KURSUS: placeholder statis, belum ada modul Task/LMS milik-sendiri yang terhubung.
+    {{-- MyKanban: task terkini dari kanban pribadi maupun board (bukan lagi placeholder statis).
     Sekelompok dengan welcome/presensi/saldo di grid .bento yang sama (bukan section terpisah di
-    luar grid), supaya breakpoint-nya konsisten: 1 kolom di mobile, 2 kolom berdampingan di desktop. -->
+    luar grid), supaya breakpoint-nya konsisten: 1 kolom di mobile, 2 kolom berdampingan di desktop. --}}
     <div class="bento-task-kursus">
         <div class="pwa-list">
-            <div class="pwa-card-header pwa-card-header-gold">
+            <div class="pwa-card-header pwa-card-header-navy">
                 <div class="pwa-card-header-deco-1"></div><div class="pwa-card-header-deco-2"></div>
                 <div class="pwa-card-header-content">
-                    <span class="pwa-section-title">Task Saya</span>
-                    <a href="#" class="pwa-section-link">Semua <i class="fa-solid fa-chevron-right" style="font-size:9px;"></i></a>
+                    <span class="pwa-section-title"><i class="fa-solid fa-table-columns" style="font-size:12px;margin-right:4px;"></i> MyKanban</span>
+                    <a href="{{ route('kanban') }}" wire:navigate class="pwa-section-link">Semua <i class="fa-solid fa-chevron-right" style="font-size:9px;"></i></a>
                 </div>
             </div>
-            <div class="pwa-list-row">
-                <div class="pwa-tile-icon danger"><i class="fa-solid fa-triangle-exclamation"></i></div>
-                <div style="flex:1;min-width:0;">
-                    <p class="pwa-row-title">Update laporan rekrutmen Juni</p>
-                    <span class="badge badge-rejected" style="margin-top:4px;">Overdue · 1 Jul 2026</span>
+            @php
+                // Sama dengan palet warna status kolom kanban ($statusColor di kanban-board-detail.blade.php).
+                $statusColor = fn (string $s) => ['todo' => '#64748b', 'in_progress' => '#1a56c4', 'review' => '#d97706', 'done' => '#047C54'][$s] ?? '#64748b';
+                $statusLabel = fn (string $s) => ['todo' => 'Belum Dikerjakan', 'in_progress' => 'Dikerjakan', 'review' => 'Review', 'done' => 'Selesai'][$s] ?? $s;
+            @endphp
+            @forelse ($this->recentKanbanTasks as $task)
+                @php
+                    $isOverdue = $task->due_date && $task->due_date->lt(now()->startOfDay());
+                    $accent = $isOverdue ? '#be123c' : $statusColor($task->status);
+                    $targetRoute = $task->board_id ? route('kanban.show', ['board' => $task->board_id]) : route('kanban.personal');
+                @endphp
+                <a href="{{ $targetRoute }}" wire:navigate class="pwa-list-row" style="text-decoration:none;border-left:4px solid {{ $accent }};padding-left:12px;">
+                    <div style="flex:1;min-width:0;">
+                        <p class="pwa-row-title">{{ $task->title }}</p>
+                        <span style="display:inline-flex;align-items:center;font-size:11px;font-weight:700;color:{{ $accent }};margin-top:4px;">
+                            {{ $isOverdue ? 'Overdue · ' . $task->due_date->translatedFormat('j M') : $statusLabel($task->status) }}
+                        </span>
+                        <span style="font-size:11px;color:var(--text-muted);margin-left:6px;">{{ $task->board?->name ?? 'Pribadi' }}</span>
+                    </div>
+                    <i class="fa-solid fa-chevron-right"></i>
+                </a>
+            @empty
+                <div class="pwa-list-row" style="opacity:0.7;border-left:4px solid var(--border);padding-left:12px;">
+                    <div style="flex:1;min-width:0;">
+                        <p class="pwa-row-title">Belum ada task kanban</p>
+                        <span style="font-size:11.5px;color:var(--text-muted);">Buat board atau task pribadi lewat MyKanban</span>
+                    </div>
                 </div>
-                <i class="fa-solid fa-chevron-right"></i>
-            </div>
-            <div class="pwa-list-row">
-                <div class="pwa-tile-icon warn"><i class="fa-regular fa-clock"></i></div>
-                <div style="flex:1;min-width:0;">
-                    <p class="pwa-row-title">Review dokumen kandidat Finance Staff</p>
-                    <span class="badge badge-pending" style="margin-top:4px;">Due 4 Jul 2026</span>
-                </div>
-                <i class="fa-solid fa-chevron-right"></i>
-            </div>
-            <div class="pwa-list-row">
-                <div class="pwa-tile-icon neutral"><i class="fa-solid fa-list-check"></i></div>
-                <div style="flex:1;min-width:0;">
-                    <p class="pwa-row-title">Update data absensi mingguan</p>
-                    <span class="badge badge-cancelled" style="margin-top:4px;">Rutin · hari ini</span>
-                </div>
-                <i class="fa-solid fa-chevron-right"></i>
-            </div>
-            <div class="pwa-list-row" style="opacity:0.6;">
-                <div class="pwa-tile-icon done"><i class="fa-solid fa-check"></i></div>
-                <div style="flex:1;min-width:0;">
-                    <p class="pwa-row-title" style="text-decoration:line-through;">Arsip dokumen onboarding Juni</p>
-                    <span class="badge badge-approved" style="margin-top:4px;">Selesai 30 Jun 2026</span>
-                </div>
-            </div>
+            @endforelse
         </div>
 
         <div id="kursus-section" class="pwa-list" style="padding-bottom:16px;">

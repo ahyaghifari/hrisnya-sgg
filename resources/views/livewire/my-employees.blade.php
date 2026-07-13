@@ -1,9 +1,4 @@
 <div>
-@push('head')
-    @filamentStyles
-    <link rel="stylesheet" href="{{ asset('css/filament/filament/app.css') }}">
-@endpush
-
 <x-page-header title="MyStaff" />
 
 <div style="margin-bottom:20px;">
@@ -40,9 +35,16 @@
                         ->map(fn ($w) => mb_substr($w, 0, 1))
                         ->take(2)
                         ->implode('');
+
+                    $photoPath = $employee->profile?->profile_picture[0] ?? null;
+                    $photoUrl = $photoPath && is_string($photoPath) ? \Illuminate\Support\Facades\Storage::url($photoPath) : null;
                 @endphp
                 <a href="{{ route('my-staff.show', ['record' => $employee]) }}" wire:navigate class="pwa-list-row" style="text-decoration:none;">
-                    <div class="pwa-tile-icon neutral" style="border-radius:50%;font-size:12px;font-weight:700;">{{ $initials ?: '?' }}</div>
+                    @if ($photoUrl)
+                        <img src="{{ $photoUrl }}" alt="{{ $employee->name }}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;flex-shrink:0;">
+                    @else
+                        <div class="pwa-tile-icon neutral" style="border-radius:50%;font-size:12px;font-weight:700;">{{ $initials ?: '?' }}</div>
+                    @endif
                     <div style="flex:1;min-width:0;">
                         <p style="font-size:13px;font-weight:600;color:var(--text-heading);">{{ $employee->name }}</p>
                         <p style="font-size:11px;color:var(--text-muted);margin-top:2px;">
@@ -76,7 +78,4 @@
     {{ $this->table }}
 </div>
 
-@push('scripts')
-    @filamentScripts
-@endpush
 </div>

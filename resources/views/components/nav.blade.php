@@ -7,6 +7,9 @@
         ->map(fn ($part) => mb_substr($part, 0, 1))
         ->take(2)
         ->implode('');
+
+    $navPhotoPath = auth()->user()->profile?->profile_picture[0] ?? null;
+    $navPhotoUrl = $navPhotoPath && is_string($navPhotoPath) ? \Illuminate\Support\Facades\Storage::url($navPhotoPath) : null;
 @endphp
 
 <nav class="topnav">
@@ -19,6 +22,12 @@
         <div class="nav-links">
             <a href="{{ route('dashboard') }}" wire:navigate class="nav-item {{ request()->routeIs('dashboard') ? 'active' : '' }}">
                 <i class="fa-solid fa-house text-xs"></i> Dashboard
+            </a>
+            <a href="{{ route('kanban') }}" wire:navigate class="nav-item {{ request()->routeIs('kanban*') ? 'active' : '' }}">
+                <i class="fa-solid fa-table-columns text-xs"></i> MyKanban
+            </a>
+            <a href="/pelatihan" class="nav-item">
+                <i class="fa-solid fa-graduation-cap text-xs"></i> MyPelatihan
             </a>
             @if ($canSeeKaryawanMenu)
                 <a href="{{ route('my-staff') }}" wire:navigate class="nav-item {{ request()->routeIs('my-staff*') ? 'active' : '' }}">
@@ -50,7 +59,11 @@
             <x-theme-toggle variant="icon" />
             <div class="nav-bell"><i class="fa-regular fa-bell text-sm"></i><span class="nav-bell-dot"></span></div>
             <div class="dropdown">
-                <div class="nav-avatar">{{ $initials }}</div>
+                @if ($navPhotoUrl)
+                    <img src="{{ $navPhotoUrl }}" alt="{{ auth()->user()->name }}" class="nav-avatar" style="object-fit:cover;">
+                @else
+                    <div class="nav-avatar">{{ $initials }}</div>
+                @endif
                 <div class="dropdown-menu dropdown-menu-right">
                     <a href="{{ route('data-diri') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-id-card"></i> Data Diri</a>
                     <a href="{{ route('akun.ubah-password') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-lock"></i> Ubah Password</a>

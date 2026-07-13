@@ -10,6 +10,8 @@ class ListPayrollPeriods extends ListRecords
 {
     protected static string $resource = PayrollPeriodResource::class;
 
+     protected static ?string $title = 'Periode Penggajian';
+
     protected function getHeaderActions(): array
     {
         return [
