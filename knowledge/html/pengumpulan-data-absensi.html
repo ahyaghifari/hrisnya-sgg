@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<title>Pengumpulan Data Absensi — Analisis Teknis</title>
+<style>
+  body { font-family: -apple-system, Segoe UI, Arial, sans-serif; max-width: 900px; margin: 2rem auto; padding: 0 1rem; line-height: 1.6; color: #1a1a1a; }
+  h1 { border-bottom: 3px solid #042c6c; padding-bottom: .5rem; }
+  h2 { color: #042c6c; margin-top: 2.5rem; border-bottom: 1px solid #ddd; padding-bottom: .3rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ccc; padding: .5rem .75rem; text-align: left; }
+  th { background: #042c6c; color: #fff; }
+  tr:nth-child(even) { background: #f5f7fa; }
+  code { background: #f0f0f0; padding: .1rem .35rem; border-radius: 4px; font-size: .9em; }
+  .warn { background: #fdecea; border: 1px solid #e0554f; border-radius: 8px; padding: 1rem 1.25rem; }
+  .note { background: #eef3fb; border: 1px solid #1a56c4; border-radius: 8px; padding: 1rem 1.25rem; }
+  ol li, ul li { margin-bottom: .4rem; }
+  footer { margin-top: 3rem; font-size: .85em; color: #777; border-top: 1px solid #ddd; padding-top: 1rem; }
+</style>
+</head>
+<body>
+
+<h1>Pengumpulan Data Absensi <small style="font-weight:normal;color:#666;">— Analisis Teknis (per 2026-07-09)</small></h1>
+
+<p>Dokumen ini menjawab pertanyaan "bagaimana data absensi harian karyawan masuk ke sistem?" — ditulis dari pembacaan kode langsung (model, service, migration, route), bukan asumsi. Untuk alur pengajuan cuti/izin/lembur (beda topik, sering tertukar dengan "absensi"), lihat <code>knowledge/changes/2026-07-05-portal-karyawan-dan-pengajuan-absensi.md</code> dan <code>planning/2026-07-05-portal-pengajuan-absensi.md</code>.</p>
+
+<h2>Temuan Utama</h2>
+<div class="warn">
+<p style="margin-bottom:0;"><strong>Tidak ada mekanisme clock-in/clock-out mandiri</strong> (mobile/web dengan validasi lokasi atau foto) di codebase ini. Data absensi harian dikumpulkan lewat dua jalur yang sama sekali terpisah dan tidak saling tahu satu sama lain:</p>
+<ol style="margin-bottom:0;">
+<li><strong>Import batch Excel</strong> — sumber <code>attendance_records</code> <strong>saat ini</strong> (lihat §2). Ini bukan desain akhir — konfirmasi user: sumber kebenarannya adalah <strong>alat presensi Hikvision (sidik jari)</strong>, datanya rencananya ditarik <strong>langsung dari database alat tersebut</strong>, bukan lewat file Excel perantara (lihat §3 — rencana ini sudah tercatat sebelumnya di <code>planning/2026-07-05-pwa-portal-karyawan.md</code> bagian D, tapi <strong>belum ada satu baris kode pun</strong> yang mengimplementasikannya).</li>
+<li><strong>Pengajuan oleh karyawan</strong> (cuti/izin/lembur) — sumber <code>attendance_requests</code>, mempengaruhi status akhir record via override, bukan sumber jam datang/pulang.</li>
+</ol>
+</div>
+
+<h2>1. Model &amp; Tabel Terlibat</h2>
+<table>
+<tr><th>Model</th><th>Lokasi</th><th>Peran</th></tr>
+<tr><td><code>AttendanceRecords</code></td><td><code>app/Models/Attendance/AttendanceRecords.php</code></td><td>Record harian per karyawan — hasil akhir absensi (jam masuk/pulang, telat, lembur, dst)</td></tr>
+<tr><td><code>AttendanceUploads</code></td><td><code>app/Models/Attendance/AttendanceUploads.php</code></td><td>Tracking 1 sesi import Excel (status, jumlah baris sukses/gagal, error log)</td></tr>
+<tr><td><code>AttendanceRequests</code> + detail</td><td><code>app/Models/Attendance/</code></td><td>Pengajuan cuti/izin/lembur — modul terpisah, lihat dokumen lain</td></tr>
+<tr><td><code>AttendanceRequestAttachments</code></td><td><code>app/Models/Attendance/</code></td><td>Lampiran file, praktiknya cuma dipakai request Lembur</td></tr>
+<tr><td><code>AttendancePolicies</code></td><td><code>app/Models/Attendance/AttendancePolicies.php</code></td><td>Config level company — <strong>hanya</strong> dipakai untuk <code>min_total_working_hours_per_month</code> (payroll), <strong>bukan</strong> aturan jam masuk/telat (lihat §4)</td></tr>
+<tr><td><code>MasterShift</code>, <code>ShiftScheduleAssignments</code></td><td><code>app/Models/Shift/</code></td><td>Jadwal shift — jadi acuan jam masuk/pulang seharusnya</td></tr>
+<tr><td><code>ShiftTemplates</code>, <code>ShiftTemplateDays</code></td><td><code>app/Models/Shift/</code></td><td>Pola siklus N-hari (<code>day_number</code> → shift/libur) untuk generate assignment — datanya ada, tapi tidak ditemukan job/scheduler yang mengonsumsinya jadi assignment otomatis</td></tr>
+<tr><td><code>ShiftSwapRequests</code></td><td><code>app/Models/Shift/</code></td><td>Pengajuan tukar shift antar karyawan (lihat §6)</td></tr>
+</table>
+
+<p>Kolom kunci <code>attendance_records</code> (gabungan 2 migration: <code>2025_10_14_140501_create_attendance_records_table.php</code> + <code>2026_03_04_154425_adjustment_attendance_records_table.php</code>):</p>
+<p><code>user_id</code>, <code>nip</code>, <code>date</code>, <code>schedule_id</code> → FK <code>ShiftScheduleAssignments</code>, <code>shift_id</code> → FK <code>MasterShift</code>, <code>check_in_time</code>, <code>check_out_time</code>, <code>working_minutes</code>, <code>late_minutes</code>, <code>early_leave_minutes</code>, <code>overtime_minutes</code>, <code>permission_minutes</code>, <code>status</code>, <code>source</code>.</p>
+
+<div class="note">
+<p style="margin-bottom:0;"><strong>Tidak ada kolom lokasi (lat/long), foto, atau device-id sama sekali</strong> — baik di migration awal maupun adjustment-nya.</p>
+</div>
+
+<h2>2. Alur Import Excel (Implementasi Saat Ini — Bukan Sumber Akhir)</h2>
+<p>File: <code>app/Services/Attendance/AttendanceImportService.php</code>.</p>
+<ol>
+<li>User (biasanya HC) upload file Excel — kemungkinan besar export dari mesin fingerprint/access-control kantor (header terdeteksi punya alias <code>mesin</code>/<code>machine</code>/<code>kantor</code>/<code>location</code>, tapi ini cuma informasi asal baris, <strong>bukan</strong> hasil validasi GPS real-time).</li>
+<li>Baris-baris "scan" digabung per NIP + tanggal — scan pertama jadi <code>check_in_time</code>, scan terakhir jadi <code>check_out_time</code>.</li>
+<li>Untuk tiap baris hasil grouping, sistem resolve jadwal shift karyawan pada tanggal itu (<code>AttendanceImportRepository::findShiftAssignmentForDate</code>), lalu <code>computeMetricsFromCheckTimes()</code> (baris 516–669) menghitung:
+  <ul>
+  <li><code>late_minutes</code> — selisih kalau <code>check_in_time</code> &gt; jam mulai shift.</li>
+  <li><code>early_leave_minutes</code> — selisih kalau <code>check_out_time</code> &lt; jam selesai shift.</li>
+  <li><code>working_minutes</code> — 4 cabang logic (tepat waktu/telat × tepat waktu/pulang cepat), termasuk handle shift overnight (<code>is_overnight</code>).</li>
+  </ul>
+</li>
+<li>Sebelum disimpan final, status &amp; minutes bisa di-override oleh pengajuan yang sudah <strong>approved</strong>: prioritas leave (cuti) tertinggi, lalu overtime/permission.</li>
+<li>Progress &amp; error per baris dicatat di <code>attendance_uploads</code> (<code>record_count</code>, <code>processed_count</code>, <code>error_count</code>, <code>error_log</code> json).</li>
+</ol>
+<p>Tidak ada langkah validasi geofencing atau syarat foto di mana pun dalam service ini — karena input datanya memang bukan hasil interaksi karyawan real-time, tapi hasil import bulk.</p>
+
+<h2>3. Rencana Real: Integrasi Langsung ke Database Hikvision (Belum Diimplementasikan)</h2>
+<p>Dikonfirmasi user: sumber data presensi yang sebenarnya adalah <strong>alat presensi Hikvision berbasis sidik jari</strong> — data <strong>ditarik langsung dari database alat/software Hikvision</strong>, bukan lewat file Excel perantara seperti §2. Ini pertama kali tercatat di <code>planning/2026-07-05-pwa-portal-karyawan.md</code> bagian D ("Integrasi Presensi Hikvision") sebagai item riset terbesar sebelum fitur "Presensi" bisa dikerjakan — sampai saat ini <strong>belum ada kode/koneksi/job yang mengimplementasikannya</strong> (grep <code>hikvision</code>/<code>fingerprint</code>/<code>ISAPI</code> ke seluruh <code>app/</code>, <code>config/</code>, <code>database/</code> nihil, cuma nongkrong di dokumen planning).</p>
+
+<div class="note">
+<p><strong>Keputusan yang sudah dikonfirmasi (2026-07-09)</strong>: HikCentral (platform access-control Hikvision) sebenarnya punya modulnya sendiri — bukan cuma mesin scan mentah, tapi juga <strong>Time &amp; Attendance (T&amp;A) module</strong> yang bisa menghitung sendiri telat/lembur berdasarkan shift yang dikonfigurasi di HikCentral. Ini membuka 2 opsi integrasi yang beda konsekuensi:</p>
+<ul>
+<li><strong>Opsi A — tarik data mentah (raw scan log), HRIS yang hitung sendiri</strong> telat/lembur/shift lewat logic yang sudah ada (<code>computeMetricsFromCheckTimes</code>, §2). <strong>✅ Ini yang dipilih.</strong> HikCentral cuma diperlakukan sebagai sumber jam scan pengganti Excel — seluruh logic shift/holding-vs-RS/multi-company (§5) tetap sepenuhnya dikendalikan dari sisi HRIS, tidak bergantung pada konfigurasi T&amp;A di HikCentral.</li>
+<li style="margin-bottom:0;"><strong>Opsi B — pakai hasil kalkulasi T&amp;A HikCentral</strong> (ditolak): akan berarti aturan telat/lembur (termasuk kasus khusus holding "masuk sebelum 08:35, pulang bebas") harus dikonfigurasi ulang di HikCentral, bukan di kode kita — dan HikCentral tidak tentu fleksibel untuk kasus non-standar seperti itu.</li>
+</ul>
+</div>
+
+<p>Konsekuensi dari keputusan ini: integrasi Hikvision <strong>hanya perlu akses ke tabel transaksi scan mentah</strong> (bukan tabel hasil T&amp;A) — modul Access Control, Video, Visitor Management, Alarm, dll milik HikCentral <strong>sama sekali tidak relevan/tidak disentuh</strong>, cuma bagian log kehadiran per orang per device yang dipakai.</p>
+
+<p>Pertanyaan yang masih terbuka dari dokumen tersebut (belum dijawab, jadi berlaku ulang di sini):</p>
+<ol>
+<li><strong>Jenis akses ke DB alat</strong> — Hikvision biasanya expose data lewat DB on-prem software-nya (mis. iVMS-4200/HikCentral, umumnya SQL Server) atau lewat ISAPI/HTTP event push dari device. Perlu dipastikan skema di lapangan yang mana; "ditarik langsung dari database" mengarah ke opsi konek-DB-langsung, bukan API.</li>
+<li><strong>Koneksi DB kedua</strong> — kalau benar konek langsung, perlu <code>config/database.php</code> connection baru (kemungkinan driver <code>sqlsrv</code> kalau SQL Server), <strong>read-only</strong>, jangan pernah tulis ke DB tersebut.</li>
+<li><strong>Mapping karyawan</strong> — field employee ID di sisi Hikvision (biasanya <code>pin</code>/<code>employeeNo</code>) perlu dipetakan ke <code>nip</code>/<code>user_id</code> di <code>attendance_records</code> — perlu dicek dulu apakah NIP HRIS ini identik dengan yang didaftarkan di alat.</li>
+<li><strong>Mekanisme sync</strong> — kemungkinan job terjadwal (<code>php artisan schedule</code>) yang poll tabel log presensi Hikvision (mis. <code>CheckInOut</code>/<code>ACC_TransactionRecords</code>, tergantung versi software), insert ke <code>attendance_records</code> dengan <code>source</code> baru (kolom <code>source</code> sudah ada, tinggal tambah value mis. <code>hikvision</code>) — perlu hindari duplikasi (cek <code>user_id</code>+<code>date</code>+<code>check_in_time</code> sebelum insert, atau <code>firstOrCreate</code>).</li>
+<li><strong>Frekuensi sync</strong> — real-time (device push event) atau polling interval? Menentukan apakah butuh queue listener atau cukup scheduled command.</li>
+<li><strong>Akses jaringan</strong> — kalau device Hikvision ada di jaringan lokal kantor/RS/hotel yang berbeda dari server hosting (staging/production di-deploy lewat Bitbucket Pipelines), server Laravel harus bisa reach DB/device itu — ini berpotensi jadi <strong>blocker infrastruktur</strong>, bukan cuma soal kode.</li>
+<li><strong>Konsekuensi ke perhitungan §5-§6 (shift/multi-company)</strong> — kalau nanti sumbernya per-device (per lokasi kantor/RS/hotel), pemetaan device→company perlu jelas juga, terutama kalau 1 company (misal holding) punya banyak device presensi di lokasi berbeda.</li>
+</ol>
+
+<div class="note">
+<p style="margin-bottom:0;">Begitu ada keputusan konkret soal 7 poin di atas, <code>AttendanceImportService</code> (§2) kemungkinan besar akan <strong>digantikan atau disandingkan</strong> dengan service sync Hikvision baru — logic perhitungan telat/lembur (<code>computeMetricsFromCheckTimes</code>) kemungkinan tetap reusable karena inputnya sama-sama "pasangan check-in/check-out per NIP per tanggal", cuma sumber datanya beda (DB eksternal vs file Excel).</p>
+</div>
+
+<h2>4. Endpoint API — Semuanya untuk Pengajuan, Bukan Absen Harian</h2>
+<p><code>routes/api.php</code>, prefix <code>attendance</code> (baris 55–63), ditangani <code>App\Http\Controllers\Api\Attendance\AttendanceRequestController</code> → <code>AttendaceReqService</code>:</p>
+<ul>
+<li><code>GET /attendance/requests</code>, <code>GET /attendance/requests/{id}</code></li>
+<li><code>POST /attendance/overtime</code>, <code>/attendance/leave</code>, <code>/attendance/permission</code></li>
+<li><code>GET /attendance/leave/balance/{typeId}</code></li>
+</ul>
+<p>Parameter yang diterima murni field bisnis (alasan, rentang tanggal, jam, lampiran) — <strong>tidak ada param lat/long, foto, atau device_id</strong>.</p>
+<p>Satu-satunya endpoint bernama "clock-in" di seluruh aplikasi adalah <code>POST /meeting/{meetingId}/clock-in</code> (<code>app/Http/Controllers/Api/LMS/AttendanceController.php</code>) — ini absensi <strong>peserta meeting/training LMS</strong>, tidak berhubungan dengan absensi kepegawaian harian.</p>
+
+<h2>5. Keterkaitan dengan Shift — dan Kenyataan Multi-Company yang Lebih Rumit</h2>
+<p><code>AttendanceRecords</code> punya relasi ke <code>MasterShift</code> (<code>shift_id</code>) dan <code>ShiftScheduleAssignments</code> (<code>schedule_id</code>). Proses import me-resolve shift yang berlaku untuk karyawan pada tanggal tersebut, lalu jam mulai/selesai shift itu jadi acuan perhitungan telat/pulang cepat/jam kerja (lihat §2 poin 3).</p>
+
+<p>Realitas bisnisnya: ini sistem HRIS <strong>multi-company</strong> dengan aturan jam kerja yang beda-beda per jenis perusahaan — holding (jam kantor tetap, mis. masuk paling lambat 08:35, pulang bebas) vs rumah sakit/hotel (shift bergilir pagi/siang/malam). Yang ditemukan di kode:</p>
+
+<ul>
+<li><strong>Tidak ada kolom "tipe company"</strong> di <code>m_companies</code> (<code>app/Models/Master/Companies.php</code>) — fillable-nya cuma <code>code, name, location, is_active</code>. Tidak ada <code>category</code>/<code>type</code> (holding/RS/hotel) di migration manapun. Sama seperti temuan gap payroll di <code>knowledge/markdown/analisis-payroll.md</code> §6.1, sistem <strong>tidak tahu secara struktural</strong> company mana yang "harusnya" pakai jam tetap vs shift — itu murni soal siapa yang mengisi data assignment-nya.</li>
+<li><strong>Tidak ada jalur "non-shift" di kode.</strong> <code>AttendanceImportRepository::findShiftAssignmentForDate</code> (<code>app/Repositories/Attendance/AttendanceImportRepository.php:17-23</code>) cuma cari baris <code>ShiftScheduleAssignments</code> — kalau tidak ketemu, <code>computeMetricsFromCheckTimes()</code> (<code>AttendanceImportService.php:516-618</code>) jatuh ke cabang lain:</li>
+</ul>
+
+<pre style="background:#f5f5f5;border:1px solid #ddd;border-radius:6px;padding:1rem;overflow-x:auto;"><code>if ($shift) {
+    // hitung late_minutes, early_leave_minutes, working_minutes vs shift start/end
+} elseif ($checkInTime &amp;&amp; $checkOutTime) {
+    // Tidak ada data shift — fallback murni selisih check-in/out
+    $workingMinutes = $checkInTime-&gt;diffInMinutes($checkOutTime);
+}</code></pre>
+
+<div class="warn">
+<p style="margin-bottom:0;">Di cabang fallback ini, <code>late_minutes</code>/<code>early_leave_minutes</code> <strong>tidak pernah dihitung</strong> (tetap <code>null</code>), status default <code>'present'</code> — <strong>tidak peduli jam berapa pun karyawan check-in</strong>. Fallback ini <strong>bukan</strong> ke <code>AttendancePolicies</code> (itu cuma dipakai payroll, lihat §1) — jadi aturan "masuk sebelum 08:35" milik holding <strong>tidak bisa ditegakkan</strong> kecuali karyawan holding tetap diberi baris <code>ShiftScheduleAssignments</code> harian (workaround: shift dengan <code>start_time = 08:35</code>, dipakai bukan untuk makna "shift" sungguhan tapi supaya lolos jalur perhitungan yang sama seperti RS).</p>
+</div>
+
+<p>Kesimpulan: skema shift sekarang <strong>cukup untuk RS</strong> (yang memang berbasis shift asli), tapi untuk holding ini jadi solusi paksa, bukan jalur native — dan <strong>belum ada bukti kode/dokumen</strong> yang menunjukkan hotel dibedakan pola shift-nya dari RS (pagi/siang/malam generik dipakai di mana-mana, <code>App\Enum\ShiftType</code>: <code>PAGI/SIANG/MALAM</code>).</p>
+
+<h2>6. Tukar Shift ("Shift Bertukar-tukar Sewaktu Waktu")</h2>
+<p>Mekanismenya sudah ada dan cukup matang: <code>app/Services/Shift/ShiftSwapRequestService.php</code>, model <code>ShiftSwapRequests</code>.</p>
+<ul>
+<li>Alur: request dibuat (<code>status='in_review'</code>) → snapshot dibuat lewat <code>ApprovalCreationService::createSnapshot(moduleType: 'swap_shift_request', ...)</code> — <strong>ikut Approval Engine generik</strong> yang sama, persis seperti didokumentasikan di <code>knowledge/markdown/manajemen-persetujuan.md:181</code>.</li>
+<li>2 mode: <strong>schedule swap</strong> (dua assignment existing saling tukar) dan <strong>off-day</strong> (requester kasih shift-nya ke orang yang hari itu libur/tidak ada assignment).</li>
+<li>Validasi (<code>validateScheduleSwapRules</code>, baris 93-139): harus bulan kalender yang sama, tidak boleh bentrok dengan assignment tujuan, dan kompatibilitas jenis shift (pagi↔siang boleh, malam cuma sesama malam).</li>
+<li><strong>Tidak ada batas H-berapa</strong> (lead-time) — swap untuk besok pun tidak diblokir. Ini relevan kalau "bertukar sewaktu-waktu" di lapangan berarti sangat mendadak (hari-H) — sistem tidak mencegahnya sama sekali, cuma soal apakah approver sempat approve tepat waktu.</li>
+<li>Efek saat approved (<code>ApprovalFlowService.php:216-270</code>): swap tanggal sama → tukar <code>shift_id</code> antar 2 baris assignment (menghindari constraint unique <code>user_id</code>+<code>date</code>); swap tanggal beda → tukar <code>user_id</code> antar baris; kasus off-day → pindahkan <code>user_id</code> requester ke baris target. Ada re-check konflik yang mungkin muncul setelah submit (lempar <code>RuntimeException</code> kalau bentrok). Reject cuma ubah <code>status</code>, tidak mengubah assignment.</li>
+</ul>
+
+<h2>7. Kesimpulan — Gap Nyata, Bukan Sekadar "Belum Sempat"</h2>
+<div class="warn">
+<p>Tidak ada dokumen lain di <code>knowledge/markdown/</code> yang membahas geofencing/GPS/foto, integrasi Hikvision, perbedaan aturan jam kerja holding vs RS vs hotel, maupun batas waktu tukar shift secara teknis mendalam — pencarian eksplisit ("shift", "holding", "rumah sakit", "hotel", "tukar shift", "hikvision") cuma menemukan satu referensi di <code>planning/2026-07-05-pwa-portal-karyawan.md</code> bagian D (lihat §3), sisanya nihil. Artinya:</p>
+<ul style="margin-bottom:0;">
+<li>Arsitektur <code>attendance_records</code> didesain sebagai <strong>target import batch</strong>, bukan tabel yang menerima write real-time per kejadian absen — dan itu berlaku baik untuk import Excel (§2, jalan sekarang) maupun rencana sync Hikvision (§3, belum jalan): keduanya sama-sama batch/periodik, bukan per-scan real-time.</li>
+<li><strong>Sumber data presensi akan berubah</strong> dari Excel manual (§2) ke tarik-langsung-DB-Hikvision (§3) — ini perubahan besar yang masih di tahap perencanaan, 7 pertanyaan terbuka di §3 perlu dijawab dulu sebelum implementasi.</li>
+<li>Skema shift <strong>cukup untuk RS</strong> (shift asli, tukar shift jelas), tapi holding harus "dipaksakan" masuk skema shift juga supaya aturan jam masuknya bisa ditegakkan — bukan jalur native berbasis <code>AttendancePolicies</code> atau company-type seperti yang mungkin diasumsikan.</li>
+<li>Belum ada bukti sistem membedakan pola shift hotel dari RS — kalau kebutuhannya beda (mis. shift housekeeping/FO vs shift perawat), ini gap tambahan yang perlu didalami/didesain terpisah.</li>
+<li>Kalau ke depan dibutuhkan rule engine berbasis company-type (holding/RS/hotel) atau pemetaan device Hikvision → company/lokasi, ini butuh <strong>keputusan desain baru</strong> — bukan cuma nambah endpoint/kolom, karena skema tabel, service layer, dan asumsi "1 baris dari hasil grouping import" / "1 shift = 1 sumber kebenaran jam kerja" semuanya perlu dipikirkan ulang.</li>
+</ul>
+</div>
+
+<h2>8. Relasi Antar Tabel (Skema Saat Ini)</h2>
+<p>Dibaca langsung dari migration (<code>database/migrations/*attendance*</code>, <code>*shift*</code>), bukan asumsi dari nama kolom.</p>
+
+<h3 style="color:#042c6c;">8.1 Diagram Ringkas</h3>
+<pre style="background:#f5f5f5;border:1px solid #ddd;border-radius:6px;padding:1rem;overflow-x:auto;font-size:.85em;line-height:1.5;">m_companies ──┬─▶ m_shifts ──┬─▶ shift_schedule_assignments ──┬─▶ attendance_records ◀── attendance_uploads
+              │              │   (user_id, company_id,        │   (schedule_id, shift_id
+              │              │    shift_id, created_by:users)  │    ditambah belakangan,
+              │              │                                 │    lihat §1)
+              │              └─▶ shift_template_days ◀── shift_templates
+              │                  (shift_id nullable)            (company_id)
+              │
+              ├─▶ shift_swap_requests
+              │   (requester_id/target_id → users,
+              │    req_schedule_id/target_schedule_id → shift_schedule_assignments,
+              │    approved_by/rejected_by → users)
+              │
+              ├─▶ shift_overtime_costs ◀── m_overtime_types
+              │   (shift_id)                (overtime_type_id nullable)
+              │
+              └─▶ attendance_policies (company_id nullable)
+
+users ──▶ attendance_requests ──┬─▶ attendance_req_leave_details ──▶ m_leave_types
+      (user_id required,        ├─▶ attendance_req_permission_details ─┬▶ m_permission_types
+       approved_by/             │                                      └▶ users (substitute_user_id)
+       cancelled_by nullable)   ├─▶ attendance_req_overtime_details ──▶ m_overtime_types
+                                 └─▶ attendance_req_attachments</pre>
+
+<h3 style="color:#042c6c;">8.2 Detail FK per Tabel</h3>
+<table>
+<tr><th>Tabel</th><th>Kolom FK</th><th>Referensi</th><th>Wajib?</th><th>Perilaku delete</th></tr>
+<tr><td><code>attendance_records</code></td><td><code>user_id</code></td><td><code>users</code></td><td>nullable</td><td><code>nullOnDelete</code></td></tr>
+<tr><td></td><td><code>schedule_id</code> <em>(ditambah belakangan)</em></td><td><code>shift_schedule_assignments</code></td><td>nullable</td><td><code>nullOnDelete</code></td></tr>
+<tr><td></td><td><code>shift_id</code> <em>(ditambah belakangan)</em></td><td><code>m_shifts</code></td><td>nullable</td><td><code>nullOnDelete</code></td></tr>
+<tr><td><code>attendance_uploads</code></td><td><code>uploaded_by</code></td><td><code>users</code></td><td>nullable</td><td><code>nullOnDelete</code></td></tr>
+<tr><td><code>attendance_requests</code></td><td><code>user_id</code></td><td><code>users</code></td><td><strong>wajib</strong></td><td><code>cascadeOnDelete</code></td></tr>
+<tr><td></td><td><code>approved_by</code>, <code>cancelled_by</code></td><td><code>users</code></td><td>nullable</td><td><code>nullOnDelete</code></td></tr>
+<tr><td><code>attendance_req_leave_details</code></td><td><code>request_id</code></td><td><code>attendance_requests</code></td><td><strong>wajib</strong></td><td><code>cascadeOnDelete</code></td></tr>
+<tr><td></td><td><code>leave_type_id</code></td><td><code>m_leave_types</code></td><td>nullable</td><td><code>nullOnDelete</code></td></tr>
+<tr><td><code>attendance_req_permission_details</code></td><td><code>request_id</code></td><td><code>attendance_requests</code></td><td><strong>wajib</strong></td><td><code>cascadeOnDelete</code></td></tr>
+<tr><td></td><td><code>permission_type_id</code></td><td><code>m_permission_types</code></td><td>nullable</td><td><code>nullOnDelete</code></td></tr>
+<tr><td></td><td><code>substitute_user_id</code></td><td><code>users</code></td><td>nullable</td><td><code>nullOnDelete</code></td></tr>
+<tr><td><code>attendance_req_overtime_details</code></td><td><code>request_id</code></td><td><code>attendance_requests</code></td><td><strong>wajib</strong></td><td><code>cascadeOnDelete</code></td></tr>
+<tr><td></td><td><code>overtime_type_id</code></td><td><code>m_overtime_types</code></td><td>nullable</td><td><code>nullOnDelete</code></td></tr>
+<tr><td><code>attendance_req_attachments</code></td><td><code>request_id</code></td><td><code>attendance_requests</code></td><td><strong>wajib</strong></td><td><code>cascadeOnDelete</code></td></tr>
+<tr><td><code>attendance_policies</code></td><td><code>company_id</code></td><td><code>m_companies</code></td><td>nullable</td><td><code>nullOnDelete</code></td></tr>
+<tr><td><code>m_shifts</code></td><td><code>company_id</code></td><td><code>m_companies</code></td><td><strong>wajib</strong></td><td><code>cascadeOnDelete</code></td></tr>
+<tr><td></td><td><code>org_structure_id</code></td><td><code>m_org_structures</code></td><td>nullable</td><td><code>nullOnDelete</code></td></tr>
+<tr><td><code>shift_schedule_assignments</code></td><td><code>company_id</code></td><td><code>m_companies</code></td><td><strong>wajib</strong></td><td><code>cascadeOnDelete</code></td></tr>
+<tr><td></td><td><code>user_id</code></td><td><code>users</code></td><td><strong>wajib</strong></td><td><code>cascadeOnDelete</code></td></tr>
+<tr><td></td><td><code>shift_id</code></td><td><code>m_shifts</code></td><td><strong>wajib</strong></td><td><code>restrictOnDelete</code> (satu-satunya yang restrict)</td></tr>
+<tr><td></td><td><code>created_by</code></td><td><code>users</code></td><td>nullable</td><td><code>nullOnDelete</code></td></tr>
+<tr><td><code>shift_templates</code></td><td><code>company_id</code></td><td><code>m_companies</code></td><td><strong>wajib</strong></td><td><code>cascadeOnDelete</code></td></tr>
+<tr><td><code>shift_template_days</code></td><td><code>shift_template_id</code></td><td><code>shift_templates</code></td><td><strong>wajib</strong></td><td><code>cascadeOnDelete</code></td></tr>
+<tr><td></td><td><code>shift_id</code></td><td><code>m_shifts</code></td><td>nullable (kosong = libur, <code>is_off_day</code>)</td><td><code>nullOnDelete</code></td></tr>
+<tr><td><code>shift_swap_requests</code></td><td><code>company_id</code></td><td><code>m_companies</code></td><td><strong>wajib</strong></td><td><code>cascadeOnDelete</code></td></tr>
+<tr><td></td><td><code>requester_id</code>, <code>target_id</code></td><td><code>users</code></td><td><strong>wajib</strong></td><td><code>cascadeOnDelete</code></td></tr>
+<tr><td></td><td><code>req_schedule_id</code>, <code>target_schedule_id</code></td><td><code>shift_schedule_assignments</code></td><td><strong>wajib</strong></td><td><code>cascadeOnDelete</code></td></tr>
+<tr><td></td><td><code>approved_by</code>, <code>rejected_by</code></td><td><code>users</code></td><td>nullable</td><td><code>nullOnDelete</code></td></tr>
+<tr><td><code>shift_overtime_costs</code></td><td><code>shift_id</code></td><td><code>m_shifts</code></td><td><strong>wajib</strong></td><td><code>cascadeOnDelete</code></td></tr>
+<tr><td></td><td><code>overtime_type_id</code></td><td><code>m_overtime_types</code></td><td>nullable</td><td><code>nullOnDelete</code></td></tr>
+</table>
+
+<h3 style="color:#042c6c;">8.3 Catatan Desain</h3>
+<div class="note">
+<ul style="margin-bottom:0;">
+<li><strong>Unique constraint kunci</strong>: <code>attendance_records</code> unik per (<code>nip</code>, <code>date</code>); <code>shift_schedule_assignments</code> unik per (<code>user_id</code>, <code>date</code>, nama constraint <code>user_date_unique</code>) — inilah yang membuat mekanisme tukar shift (§6) harus "saling tukar nilai" antar 2 baris, bukan sekadar update satu baris, supaya tidak melanggar constraint ini.</li>
+<li><strong><code>schedule_id</code>/<code>shift_id</code> di <code>attendance_records</code> ditambahkan belakangan</strong> (migration <code>2026_03_04</code>), bukan dari migration awal — konsisten dengan temuan §5 bahwa keterkaitan shift-ke-attendance adalah penambahan setelah desain awal, bukan fondasi dari awal.</li>
+<li><strong><code>shift_id</code> di <code>shift_schedule_assignments</code> pakai <code>restrictOnDelete</code></strong> (satu-satunya FK dengan perilaku ini di seluruh cluster attendance/shift) — sengaja mencegah shift dihapus kalau masih dipakai assignment aktif, beda dari FK lain yang lebih longgar (<code>nullOnDelete</code>/<code>cascadeOnDelete</code>).</li>
+<li><strong><code>m_companies</code> jadi FK wajib</strong> di <code>m_shifts</code>, <code>shift_schedule_assignments</code>, <code>shift_templates</code>, <code>shift_swap_requests</code> — artinya seluruh siklus shift memang di-scope per company (konsisten dengan sistem multi-company), tapi seperti dicatat di §5, <strong>tidak ada kolom yang membedakan <em>jenis</em> company</strong> (holding/RS/hotel) di <code>m_companies</code> itu sendiri.</li>
+<li><strong>Tidak ada FK sama sekali dari cluster shift ke cluster attendance_requests</strong> — keduanya cuma "bertemu" secara logis lewat override status di <code>AttendanceImportService</code> (§2 poin 4), bukan lewat relasi tabel.</li>
+</ul>
+</div>
+
+<h2>Referensi Terkait</h2>
+<ul>
+<li><code>planning/2026-07-05-pwa-portal-karyawan.md</code> bagian D — catatan awal rencana integrasi Hikvision (lihat §3), belum ada progres implementasi.</li>
+<li><code>knowledge/markdown/manajemen-persetujuan.md</code> — approval engine yang menangani hasil pengajuan cuti/izin/lembur &amp; tukar shift (<code>attendance_request</code>, <code>swap_shift_request</code>).</li>
+<li><code>knowledge/markdown/analisis-payroll.md</code> — payroll ikut baca <code>attendance_records</code> untuk komponen berbasis kehadiran; §6.1 punya gap serupa (tidak ada kolom kategori company).</li>
+<li><code>planning/2026-07-05-portal-pengajuan-absensi.md</code> — histori pembangunan portal pengajuan (bukan clock-in).</li>
+</ul>
+
+<footer>Knowledge base HRIS — Syifa Global Group. Versi markdown: <code>knowledge/markdown/pengumpulan-data-absensi.md</code></footer>
+
+</body>
+</html>
