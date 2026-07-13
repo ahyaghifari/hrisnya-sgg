@@ -17,6 +17,7 @@
             <button type="button" class="pwa-bottom-nav-center-btn" onclick="togglePwaMenuSheet()" aria-label="Menu">
                 <i class="fa-solid fa-grip"></i>
             </button>
+            <span>Menu</span>
         </div>
 
         @if ($canSubmitAttendance)
