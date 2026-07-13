@@ -473,8 +473,8 @@ html.dark .nav-item.active { background: rgba(110,168,224,0.22); }
 /* Task Saya + Kursus Saya: satu kolom bertumpuk di mobile, berdampingan 2 kolom di desktop.
    Full-width row-nya sendiri di bawah welcome/presensi/saldo, terlepas dari jumlah kolom
    .bento di breakpoint manapun. */
-.bento-task-kursus { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr; gap: 16px; }
-@media (min-width: 768px) { .bento-task-kursus { grid-template-columns: 1fr 1fr; } }
+.bento-task-kursus { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr; gap: 16px; margin-top: 8vh; }
+@media (min-width: 768px) { .bento-task-kursus { grid-template-columns: 1fr 1fr; margin-top: 0; } }
 
 /* ── WELCOME CARD ── */
 .welcome-card { background: linear-gradient(135deg, #042c6c 0%, #0b47a1 100%); border-radius: 20px; padding: 32px; position: relative; overflow: hidden; }
