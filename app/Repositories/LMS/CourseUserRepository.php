@@ -69,12 +69,10 @@ class CourseUserRepository
         })->get();
     }
 
-    public function getCertificateUrl(string $userId, string $courseUserId)
+    public function getCertificateHistory(string $userId, string $courseUserId)
     {
-        $history = LmsUserHistories::where('user_id', $userId)
+        return LmsUserHistories::where('user_id', $userId)
             ->where('course_id', $courseUserId)
             ->first();
-
-        return $history ? $history->certificate_url : null;
     }
 }

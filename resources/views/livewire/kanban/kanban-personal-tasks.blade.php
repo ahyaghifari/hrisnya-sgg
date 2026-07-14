@@ -26,7 +26,7 @@
                 </div>
                 <div style="min-height:80px;padding:8px;display:flex;flex-direction:column;gap:8px;">
                     @forelse ($this->tasksByStatus[$status] as $task)
-                        @php ($isStaffTask = $task->created_by !== $task->assigned_to)
+                        @php $isStaffTask = $task->created_by !== $task->assigned_to; @endphp
                         <div style="background:var(--surface-alt);border:1px solid {{ $isStaffTask ? '#B9308C' : 'var(--border)' }};{{ $isStaffTask ? 'border-left-width:4px;border-radius:0;' : 'border-radius:10px;' }}padding:10px 12px;">
                             @if ($isStaffTask)
                                 <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
@@ -51,8 +51,10 @@
                                     <span><i class="fa-regular fa-calendar" style="font-size:10px;"></i> {{ $task->due_date->translatedFormat('j M') }}</span>
                                 @endif
                             </div>
-                            <select wire:change="moveTaskStatus('{{ $task->id }}', $event.target.value)" class="form-input" style="font-size:11px;padding:4px 6px;height:auto;">
+                            @php $authService = app(\App\Services\Kanban\KanbanAuthorizationService::class); @endphp
+                            <select wire:change="moveTaskStatus('{{ $task->id }}', $event.target.value)" class="form-input" style="font-size:11px;padding:4px 6px;height:auto;" @disabled($task->status === \App\Models\Kanban\KanbanTask::STATUS_DONE)>
                                 @foreach (\App\Models\Kanban\KanbanTask::STATUSES as $moveTo)
+                                    @continue($moveTo !== $status && ! $authService->canMoveStatus($task, auth()->user(), $moveTo))
                                     <option value="{{ $moveTo }}" @selected($moveTo === $status)>{{ $statusLabel($moveTo) }}</option>
                                 @endforeach
                             </select>

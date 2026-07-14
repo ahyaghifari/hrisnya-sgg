@@ -28,11 +28,13 @@ class LmsCoursesResource extends Resource
 {
     protected static ?string $model = LmsCourses::class;
 
+    protected static ?string $slug = 'lms/lms-courses';
+
     protected static ?string $navigationLabel = "Pelatihan";
 
     protected static string | UnitEnum | null $navigationGroup = 'LMS';
 
-    protected static ?int $navigationSort = 1;
+    protected static ?int $navigationSort = 2;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedBookOpen;
 

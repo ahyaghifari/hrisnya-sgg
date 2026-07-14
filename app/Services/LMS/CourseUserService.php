@@ -2,14 +2,14 @@
 
 namespace App\Services\LMS;
 
-use App\Repositories\LMS\CourseRepositories;
+use App\Repositories\LMS\CourseRepository;
 use App\Repositories\LMS\CourseUserRepository;
 
 class CourseUserService
 {
     public function __construct(
         protected CourseUserRepository $courseUserRepository,
-        protected CourseRepositories $courseRepositories
+        protected CourseRepository $courseRepositories
     ) {}
 
     public function assignUserToCourse($courseId)
@@ -37,8 +37,19 @@ class CourseUserService
         return $this->courseUserRepository->updateByUserIdAndCourseId($userId, $courseId, $data);
     }
 
-    public function getCertificateUrl(string $userId, string $courseUserId)
+    /**
+     * Sertifikat cuma bisa diunduh peserta sendiri kalau is_passed = true — admin tetap boleh
+     * mengunggah file-nya kapan saja course COMPLETED (lihat ParticipantCourses::upload_certificate),
+     * tapi peserta yang belum lulus tidak bisa mengunduhnya.
+     */
+    public function getDownloadableCertificateUrl(string $userId, string $courseUserId): ?string
     {
-        return $this->courseUserRepository->getCertificateUrl($userId, $courseUserId);
+        $history = $this->courseUserRepository->getCertificateHistory($userId, $courseUserId);
+
+        if (!$history || !$history->certificate_url || !$history->is_passed) {
+            return null;
+        }
+
+        return $history->certificate_url;
     }
 }

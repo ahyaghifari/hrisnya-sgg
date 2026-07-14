@@ -194,18 +194,11 @@ class KanbanBoardDetail extends Component
 
         $task = $this->board->tasks()->findOrFail($taskId);
 
-        if ($task->status === KanbanTask::STATUS_DONE) {
-            return; // task selesai terkunci — tidak bisa diubah siapapun, cuma bisa dikomentari
-        }
-
-        if (! $this->authService()->canChangeStatusFreely($task, Auth::user())) {
-            $currentIndex = array_search($task->status, KanbanTask::STATUSES, true);
-            $nextStatus = KanbanTask::STATUSES[$currentIndex + 1] ?? null;
-
-            if ($status !== $nextStatus) {
+        if (! $this->authService()->canMoveStatus($task, Auth::user(), $status)) {
+            if ($task->status !== KanbanTask::STATUS_DONE) {
                 Notification::make()->title('Kamu cuma boleh memajukan status 1 langkah')->danger()->send();
-                return;
             }
+            return; // task selesai terkunci — tidak bisa diubah siapapun, cuma bisa dikomentari
         }
 
         $task->update([

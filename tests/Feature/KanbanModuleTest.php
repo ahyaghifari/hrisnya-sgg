@@ -415,6 +415,43 @@ class KanbanModuleTest extends TestCase
         $this->assertSame(KanbanTask::STATUS_IN_PROGRESS, $task->fresh()->status);
     }
 
+    public function test_assignee_can_withdraw_own_task_from_review_back_to_in_progress(): void
+    {
+        $company = $this->makeCompany();
+        $owner = User::factory()->create(['company_id' => $company->id]);
+        $creator = User::factory()->create(['company_id' => $company->id]);
+        $member = User::factory()->create(['company_id' => $company->id]);
+        $board = $this->makeBoardWithOwner($company, $owner);
+        KanbanBoardMember::create(['board_id' => $board->id, 'user_id' => $creator->id, 'role' => KanbanBoardMember::ROLE_ASSIGNER]);
+        KanbanBoardMember::create(['board_id' => $board->id, 'user_id' => $member->id, 'role' => KanbanBoardMember::ROLE_MEMBER]);
+        $task = KanbanTask::create(['board_id' => $board->id, 'title' => 'Task', 'created_by' => $creator->id, 'status' => KanbanTask::STATUS_REVIEW]);
+        \App\Models\Kanban\KanbanTaskMember::create(['task_id' => $task->id, 'user_id' => $member->id]);
+
+        // Assignee task boleh menarik mundur pengajuan review miliknya sendiri.
+        Livewire::actingAs($member)
+            ->test(KanbanBoardDetail::class, ['board' => $board])
+            ->call('moveTaskStatus', $task->id, KanbanTask::STATUS_IN_PROGRESS);
+        $this->assertSame(KanbanTask::STATUS_IN_PROGRESS, $task->fresh()->status);
+    }
+
+    public function test_non_assignee_member_cannot_pull_others_task_back_from_review(): void
+    {
+        $company = $this->makeCompany();
+        $owner = User::factory()->create(['company_id' => $company->id]);
+        $creator = User::factory()->create(['company_id' => $company->id]);
+        $bystander = User::factory()->create(['company_id' => $company->id]);
+        $board = $this->makeBoardWithOwner($company, $owner);
+        KanbanBoardMember::create(['board_id' => $board->id, 'user_id' => $creator->id, 'role' => KanbanBoardMember::ROLE_ASSIGNER]);
+        KanbanBoardMember::create(['board_id' => $board->id, 'user_id' => $bystander->id, 'role' => KanbanBoardMember::ROLE_MEMBER]);
+        $task = KanbanTask::create(['board_id' => $board->id, 'title' => 'Task', 'created_by' => $creator->id, 'status' => KanbanTask::STATUS_REVIEW]);
+
+        // Member board yang bukan assignee task ini tetap tidak boleh memundurkan status.
+        Livewire::actingAs($bystander)
+            ->test(KanbanBoardDetail::class, ['board' => $board])
+            ->call('moveTaskStatus', $task->id, KanbanTask::STATUS_IN_PROGRESS);
+        $this->assertSame(KanbanTask::STATUS_REVIEW, $task->fresh()->status);
+    }
+
     public function test_done_task_is_locked_from_status_and_checklist_changes_for_everyone(): void
     {
         $company = $this->makeCompany();
@@ -815,6 +852,73 @@ class KanbanModuleTest extends TestCase
             ->call('moveStaffTaskStatus', $task->id, KanbanTask::STATUS_DONE);
         $tasksAfterDone = Livewire::actingAs($supervisor)->test(KanbanBoardsList::class)->get('staffTasks');
         $this->assertFalse(collect($tasksAfterDone)->pluck('title')->contains('Titipan Lewat Kanban'));
+    }
+
+    public function test_staff_cannot_skip_review_but_supervisor_can_pull_back_from_review(): void
+    {
+        $company = $this->makeCompany();
+        ['supervisor' => $supervisor, 'staff' => $staff] = $this->makeSupervisorAndStaff($company);
+
+        $task = KanbanTask::create([
+            'board_id' => null,
+            'title' => 'Titipan Bertahap',
+            'created_by' => $supervisor->id,
+            'assigned_to' => $staff->id,
+            'status' => KanbanTask::STATUS_IN_PROGRESS,
+        ]);
+        KanbanTaskMember::create(['task_id' => $task->id, 'user_id' => $staff->id]);
+
+        // Staff coba lompat langsung ke done, ditolak — harus lewat review dulu.
+        Livewire::actingAs($staff)
+            ->test(KanbanBoardsList::class)
+            ->call('moveStaffTaskStatus', $task->id, KanbanTask::STATUS_DONE);
+        $this->assertSame(KanbanTask::STATUS_IN_PROGRESS, $task->fresh()->status);
+
+        // Staff maju 1 langkah ke review, diterima.
+        Livewire::actingAs($staff)
+            ->test(KanbanBoardsList::class)
+            ->call('moveStaffTaskStatus', $task->id, KanbanTask::STATUS_REVIEW);
+        $this->assertSame(KanbanTask::STATUS_REVIEW, $task->fresh()->status);
+
+        // Supervisor (pembuat) bebas mengembalikan ke in_progress (minta revisi).
+        Livewire::actingAs($supervisor)
+            ->test(KanbanBoardsList::class)
+            ->call('moveStaffTaskStatus', $task->id, KanbanTask::STATUS_IN_PROGRESS);
+        $this->assertSame(KanbanTask::STATUS_IN_PROGRESS, $task->fresh()->status);
+    }
+
+    public function test_personal_task_stays_free_but_staff_assigned_task_gated_in_boardku(): void
+    {
+        $company = $this->makeCompany();
+        ['supervisor' => $supervisor, 'staff' => $staff] = $this->makeSupervisorAndStaff($company);
+
+        $ownTask = KanbanTask::create([
+            'board_id' => null,
+            'title' => 'Task Sendiri',
+            'created_by' => $staff->id,
+            'assigned_to' => $staff->id,
+        ]);
+
+        $delegatedTask = KanbanTask::create([
+            'board_id' => null,
+            'title' => 'Titipan Dari Atasan',
+            'created_by' => $supervisor->id,
+            'assigned_to' => $staff->id,
+            'status' => KanbanTask::STATUS_IN_PROGRESS,
+        ]);
+        KanbanTaskMember::create(['task_id' => $delegatedTask->id, 'user_id' => $staff->id]);
+
+        // Task pribadi murni tetap bebas lompat kemana saja.
+        Livewire::actingAs($staff)
+            ->test(KanbanPersonalTasks::class)
+            ->call('moveTaskStatus', $ownTask->id, KanbanTask::STATUS_DONE);
+        $this->assertSame(KanbanTask::STATUS_DONE, $ownTask->fresh()->status);
+
+        // Task titipan dari atasan tidak boleh dilompat langsung ke done dari BoardKu staff.
+        Livewire::actingAs($staff)
+            ->test(KanbanPersonalTasks::class)
+            ->call('moveTaskStatus', $delegatedTask->id, KanbanTask::STATUS_DONE);
+        $this->assertSame(KanbanTask::STATUS_IN_PROGRESS, $delegatedTask->fresh()->status);
     }
 
     public function test_only_creator_can_delete_staff_task_from_kanban_list(): void

@@ -3,23 +3,16 @@
 namespace App\Services\LMS;
 
 use App\Events\LmsProgresUpdated;
-use App\Models\ApprovalManagement\MasterApprovalFlows;
-use App\Models\LMS\LmsCoursePlanItems;
+use App\Models\LMS\LmsCourses;
 use App\Models\LMS\LmsRankings;
-use App\Repositories\Approval\ApprovalSnapshotRepository;
-use App\Repositories\LMS\CourseRepositories;
-use App\Services\Approval\ApprovalCreationService;
-use App\Services\Approval\ApprovalFlowService;
+use App\Repositories\LMS\CourseRepository;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
 class CourseService
 {
     public function __construct(
-        protected CourseRepositories $courseRepositories,
-        protected ApprovalCreationService $approvalCreationService,
-        protected ApprovalSnapshotRepository $approvalSnapshotRepository,
-        protected ApprovalFlowService $approvalFlowService,
+        protected CourseRepository $courseRepositories,
     ) {}
 
     public function getAllCategories()
@@ -86,52 +79,48 @@ class CourseService
         return $this->courseRepositories->getSuggestionsKeywords($partialKeyword, $limit);
     }
 
-    public function requestCourse(LmsCoursePlanItems $coursePlanItem)
+    /**
+     * Duplikat course jadi batch baru — menggantikan rencana "scheduler" otomatis (kolom
+     * repeat_cycle/next_run_date tidak pernah punya job consumer, lihat
+     * planning/2026-07-14-perbaikan-lms-dan-akses-portal.md Tahap 3 #4). Admin duplikat manual
+     * course lama sebagai template, lalu sesuaikan tanggal meeting-nya di course baru.
+     * Ikut disalin: meeting, materi, dan quiz yang terpasang ke tiap meeting (quiz bank-nya
+     * sendiri tetap dipakai bersama, bukan digandakan — sama seperti desain aslinya).
+     * TIDAK ikut disalin: peserta, kehadiran, hasil quiz, riwayat, feedback — course baru mulai
+     * kosong dari sisi peserta.
+     */
+    public function duplicateCourse(LmsCourses $course): LmsCourses
     {
-        $userId = Auth::id();
+        return DB::transaction(function () use ($course) {
+            $newCourse = $course->replicate();
+            $newCourse->code = $course->code . '-' . now()->format('mdHis');
+            $newCourse->title = $course->title . ' (Salinan)';
+            $newCourse->created_by = Auth::id();
+            $newCourse->save();
 
-        $masterFlow = $this->approvalSnapshotRepository->findMasterApprovalFlowByCompany(
-            moduleType: 'lms_course_request',
-            companyId: Auth::user()->company_id
-        );
+            foreach ($course->competencies as $competency) {
+                $newCourse->competencies()->attach($competency->id);
+            }
 
-        if (!$masterFlow) {
-            throw new \Exception('No active approval flow found for LMS course requests for this company.');
-        }
+            foreach ($course->meetings()->with('materials', 'quizzes')->get() as $meeting) {
+                $newMeeting = $meeting->replicate();
+                $newMeeting->course_id = $newCourse->id;
+                $newMeeting->save();
 
-        $this->approvalCreationService->createSnapshot(
-            moduleType: 'lms_course_request',
-            moduleId: $coursePlanItem->id,
-            flow: $masterFlow,
-            createdBy: $userId,
-            companyId: Auth::user()->company_id,
-            userId: $userId
-        );
+                foreach ($meeting->materials as $material) {
+                    $newMaterial = $material->replicate();
+                    $newMaterial->meeting_id = $newMeeting->id;
+                    $newMaterial->save();
+                }
 
-        return $coursePlanItem->refresh();
-    }
+                foreach ($meeting->quizzes as $meetingQuiz) {
+                    $newMeetingQuiz = $meetingQuiz->replicate();
+                    $newMeetingQuiz->meeting_id = $newMeeting->id;
+                    $newMeetingQuiz->save();
+                }
+            }
 
-    public function approveCourseRequest(
-        LmsCoursePlanItems $coursePlanItem, 
-        string $status,
-        string $note
-    ): LmsCoursePlanItems
-    {
-        $userId = Auth::id();
-
-        $this->approvalFlowService->advanceStep(
-            snapshot: $coursePlanItem->approvalSnapshot,
-            actorId: $userId,
-            note: $note,
-            action: $status,
-        );
-
-        $this->courseRepositories->updateCourseRequest($coursePlanItem, [
-            'request_status' => $status,
-            'approved_by' => $userId,
-            'approved_at' => now(),
-        ]);
-
-        return $coursePlanItem->refresh();
+            return $newCourse->fresh();
+        });
     }
 }

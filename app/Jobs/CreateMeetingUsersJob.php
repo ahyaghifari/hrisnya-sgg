@@ -2,7 +2,7 @@
 
 namespace App\Jobs;
 
-use App\Repositories\LMS\CourseRepositories;
+use App\Repositories\LMS\CourseRepository;
 use App\Repositories\LMS\MeetingUserRepository;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -22,7 +22,7 @@ class CreateMeetingUsersJob implements ShouldQueue
     public function handle()
     {
         // resolve repository via container supaya queue worker bisa menggunakannya
-        $courseRepositories = app(CourseRepositories::class);
+        $courseRepositories = app(CourseRepository::class);
         $meetingUserRepository = app(MeetingUserRepository::class);
 
         $meetings = $courseRepositories->getMeetingByCourseId($this->courseUser->course_id);

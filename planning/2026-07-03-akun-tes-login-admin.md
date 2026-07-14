@@ -14,6 +14,7 @@ Password semua akun di bawah ini: **`password`** (sudah direset massal untuk keb
 | Email | Nama | Company |
 |---|---|---|
 | `admin@rsu-syifa-medika-banjarbaru.com` | Admin | RSU Syifa Medika Banjarbaru |
+
 | `super_admin_banjarbaru@mail.com` | Super Admin *(nama akun lama, role-nya sudah "Admin")* | RSU Syifa Medika Banjarbaru |
 | `admin@rsu-syifa-medika-barabai.com` | Admin RSU Syifa Medika Barabai | RSU Syifa Medika Barabai |
 

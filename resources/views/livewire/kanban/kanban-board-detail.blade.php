@@ -47,8 +47,11 @@
                 </div>
                 <div style="min-height:80px;padding:8px;display:flex;flex-direction:column;gap:8px;">
                     @forelse ($this->tasksByStatus[$status] as $task)
-                        @php ($freeStatus = $this->canChangeStatusFreely($task))
-                        @php ($nextStatus = \App\Models\Kanban\KanbanTask::STATUSES[array_search($task->status, \App\Models\Kanban\KanbanTask::STATUSES, true) + 1] ?? null)
+                        @php
+                            $freeStatus = $this->canChangeStatusFreely($task);
+                            $nextStatus = \App\Models\Kanban\KanbanTask::STATUSES[array_search($task->status, \App\Models\Kanban\KanbanTask::STATUSES, true) + 1] ?? null;
+                            $canWithdrawReview = ! $freeStatus && $task->status === \App\Models\Kanban\KanbanTask::STATUS_REVIEW && $task->members->contains('user_id', auth()->id());
+                        @endphp
                         <div x-data="{ showItemForm: false, showItems: false, showCommentForm: false, showComments: false }" wire:click="openTask('{{ $task->id }}')" style="cursor:pointer;background:var(--surface-alt);{{ $loop->even ? 'filter:brightness(0.95);' : '' }}border:1px solid var(--border);border-radius:10px;padding:10px 12px;">
                             <p style="font-size:13px;font-weight:600;color:var(--text-heading);margin:0 0 6px;">{{ $task->title }}</p>
                             <div style="display:flex;align-items:center;justify-content:space-between;font-size:11px;color:var(--text-muted);">
@@ -62,15 +65,20 @@
                                 @endif
                             </div>
                             <div style="margin-top:6px;" onclick="event.stopPropagation()">
-                                <select wire:change="moveTaskStatus('{{ $task->id }}', $event.target.value)" class="form-input" style="font-size:11px;padding:4px 6px;height:auto;" @disabled($status === \App\Models\Kanban\KanbanTask::STATUS_DONE || (! $freeStatus && ! $nextStatus))>
+                                <select wire:change="moveTaskStatus('{{ $task->id }}', $event.target.value)" class="form-input" style="font-size:11px;padding:4px 6px;height:auto;" @disabled($status === \App\Models\Kanban\KanbanTask::STATUS_DONE || (! $freeStatus && ! $nextStatus && ! $canWithdrawReview))>
                                     <option value="{{ $status }}" selected>{{ $statusLabel($status) }}</option>
                                     @if ($freeStatus)
                                         @foreach (\App\Models\Kanban\KanbanTask::STATUSES as $moveTo)
                                             @continue($moveTo === $status)
                                             <option value="{{ $moveTo }}">{{ $statusLabel($moveTo) }}</option>
                                         @endforeach
-                                    @elseif ($nextStatus)
-                                        <option value="{{ $nextStatus }}">{{ $statusLabel($nextStatus) }}</option>
+                                    @else
+                                        @if ($nextStatus)
+                                            <option value="{{ $nextStatus }}">{{ $statusLabel($nextStatus) }}</option>
+                                        @endif
+                                        @if ($canWithdrawReview)
+                                            <option value="{{ \App\Models\Kanban\KanbanTask::STATUS_IN_PROGRESS }}">{{ $statusLabel(\App\Models\Kanban\KanbanTask::STATUS_IN_PROGRESS) }}</option>
+                                        @endif
                                     @endif
                                 </select>
                             </div>

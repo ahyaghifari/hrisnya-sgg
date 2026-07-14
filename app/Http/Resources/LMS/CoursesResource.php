@@ -42,6 +42,8 @@ class CoursesResource extends JsonResource
 
             "is_followed" => $courseUser ? $statusEnum?->value !== CourseUserStatus::REQUESTED->value : false,
 
+            "is_mandatory" => (bool) ($courseUser->is_mandatory ?? false),
+
             "type_nakes" => $this->type_nakes,
             "type" => $this->type,
 

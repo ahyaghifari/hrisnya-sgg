@@ -20,9 +20,9 @@ class LmsCategoriesResource extends Resource
 {
     protected static ?string $model = LmsCategories::class;
 
-    protected static ?string $navigationLabel = "Kategori";
+    protected static ?string $slug = 'lms/lms-categories';
 
-    protected static ?string $navigationParentItem = 'Pelatihan';
+    protected static ?string $navigationLabel = "Kategori Pelatihan";
 
     protected static string | UnitEnum | null $navigationGroup = 'LMS';
 

@@ -20,13 +20,13 @@ class TrainerExternalResource extends Resource
 {
     protected static ?string $model = Trainers::class;
 
+    protected static ?string $slug = 'lms/trainer-externals';
+
     protected static ?string $navigationLabel = "Trainer";
 
     protected static string | UnitEnum | null $navigationGroup = 'LMS';
 
-    protected static ?string $navigationParentItem = 'Pelatihan';
-
-    protected static ?int $navigationSort = 4;
+    protected static ?int $navigationSort = 5;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
 

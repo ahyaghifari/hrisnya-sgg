@@ -16,13 +16,13 @@ class TrainingReportResource extends Resource
 {
     protected static ?string $model = LmsCourseBaselines::class;
 
-    protected static ?string $navigationLabel = 'Laporan Pelatihan';
+    protected static ?string $slug = 'lms/training-report/training-reports';
 
-    protected static ?string $navigationParentItem = 'Pelatihan';
+    protected static ?string $navigationLabel = 'Laporan Pelatihan';
 
     protected static string|UnitEnum|null $navigationGroup = 'LMS';
 
-    protected static ?int $navigationSort = 7;
+    protected static ?int $navigationSort = 9;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedDocumentChartBar;
 

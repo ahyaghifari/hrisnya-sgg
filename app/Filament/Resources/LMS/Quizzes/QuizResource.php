@@ -23,13 +23,13 @@ class QuizResource extends Resource
 {
     protected static ?string $model = LmsQuizzes::class;
 
+    protected static ?string $slug = 'lms/quizzes';
+
     protected static ?string $navigationLabel = "Kuis";
 
     protected static string | UnitEnum | null $navigationGroup = 'LMS';
 
-    protected static ?string $navigationParentItem = 'Pelatihan';
-
-    protected static ?int $navigationSort = 3;
+    protected static ?int $navigationSort = 4;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedClipboardDocumentCheck;
 

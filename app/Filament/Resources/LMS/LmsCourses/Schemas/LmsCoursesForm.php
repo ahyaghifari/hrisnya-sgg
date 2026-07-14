@@ -524,7 +524,9 @@ class LmsCoursesForm
                                             $record->courseUsers()->create([
                                                 'user_id' => $userId,
                                                 'is_mandatory' => true,
-                                                'status' => CourseUserStatus::REQUESTED->value,
+                                                // Admin memilih peserta langsung di sini — itu sendiri sudah tindakan
+                                                // persetujuan, beda dari self-enroll API yang masih butuh direview.
+                                                'status' => CourseUserStatus::APPROVED->value,
                                                 'score' => 0,
                                             ]);
                                         }

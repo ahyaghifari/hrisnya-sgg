@@ -4,7 +4,7 @@ namespace App\Listeners;
 
 use App\Enum\CourseUserStatus;
 use App\Events\LmsProgresUpdated;
-use App\Repositories\LMS\CourseRepositories;
+use App\Repositories\LMS\CourseRepository;
 use App\Services\LMS\CourseService;
 use App\Services\LMS\CourseUserService;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -17,7 +17,7 @@ class LmsProgresListener implements ShouldQueue
 
     public function __construct(
         protected \App\Repositories\LMS\QuizRepository $quizRepo,
-        protected CourseRepositories $courseRepositories,
+        protected CourseRepository $courseRepositories,
         protected CourseService $courseService,
         protected CourseUserService $courseUserService
     ) {}

@@ -89,7 +89,13 @@ class ParticipantCourses extends Page implements HasTable
                         CourseUserStatus::COMPLETED => 'success',
                         CourseUserStatus::CANCELED => 'danger',
                     }),
-                    
+
+                TextColumn::make('is_mandatory')
+                    ->label('Kewajiban')
+                    ->badge()
+                    ->formatStateUsing(fn (bool $state): string => $state ? 'Wajib' : 'Opsional')
+                    ->color(fn (bool $state): string => $state ? 'danger' : 'gray'),
+
                 TextColumn::make('progress')
                     ->label('Progress')
                     ->suffix('%')
@@ -119,6 +125,30 @@ class ParticipantCourses extends Page implements HasTable
             ])
             ->recordActions([
                 ActionGroup::make([
+                    Action::make('approve')
+                        ->label('Setujui')
+                        ->icon('heroicon-o-check-circle')
+                        ->color('success')
+                        ->requiresConfirmation()
+                        ->visible(fn (LmsCourseUsers $record): bool => $record->status === CourseUserStatus::REQUESTED->value)
+                        ->action(function (LmsCourseUsers $record): void {
+                            $record->update(['status' => CourseUserStatus::APPROVED->value]);
+
+                            Notification::make()->title('Pendaftaran disetujui')->success()->send();
+                        }),
+
+                    Action::make('reject')
+                        ->label('Tolak')
+                        ->icon('heroicon-o-x-circle')
+                        ->color('danger')
+                        ->requiresConfirmation()
+                        ->visible(fn (LmsCourseUsers $record): bool => $record->status === CourseUserStatus::REQUESTED->value)
+                        ->action(function (LmsCourseUsers $record): void {
+                            $record->update(['status' => CourseUserStatus::CANCELED->value]);
+
+                            Notification::make()->title('Pendaftaran ditolak')->danger()->send();
+                        }),
+
                     Action::make('upload_certificate')
                         ->label('Unggah Sertifikat')
                         ->icon('heroicon-o-document-arrow-up')
@@ -164,10 +194,17 @@ class ParticipantCourses extends Page implements HasTable
                     ->label('Status')
                     ->options([
                         'requested' => 'Requested',
-                        'approved' => 'Approved', 
+                        'approved' => 'Approved',
                         'in_progress' => 'In Progress',
                         'completed' => 'Completed',
                         'canceled' => 'Canceled',
+                    ]),
+
+                SelectFilter::make('is_mandatory')
+                    ->label('Kewajiban')
+                    ->options([
+                        '1' => 'Wajib',
+                        '0' => 'Opsional',
                     ]),
             ])
             ->defaultSort('enrolled_at', 'desc');

@@ -2,9 +2,10 @@
 
 namespace App\Services\LMS;
 
+use App\Enum\CourseUserStatus;
 use App\Events\LmsProgresUpdated;
 use App\Models\LMS\LmsMeetingQuizzes;
-use App\Repositories\LMS\CourseRepositories;
+use App\Repositories\LMS\CourseRepository;
 use App\Repositories\LMS\CourseUserRepository;
 use App\Repositories\LMS\MeetingUserRepository;
 use App\Repositories\LMS\QuizRepository;
@@ -20,7 +21,7 @@ class QuizService
         QuizRepository $quizRepo,
         MeetingUserRepository $meetingUserRepository,
         CourseUserRepository $courseUserRepository,
-        CourseRepositories $courseRepositories
+        CourseRepository $courseRepositories
     )
     {
         $this->quizRepo = $quizRepo;
@@ -76,6 +77,16 @@ class QuizService
         }
 
         $meetingQuiz = $this->quizRepo->getMeetingQuizById($meetingQuizId);
+        $meeting = $this->courseRepositories->getMeetingById($meetingQuiz->meeting_id);
+        $courseUser = $this->courseUserRepository->getByUserIdAndCourseId($userId, $meeting->course_id);
+
+        if (!$courseUser || $courseUser->status !== CourseUserStatus::APPROVED->value) {
+            return [
+                'success' => false,
+                'message' => 'Your course enrollment has not been approved yet.',
+            ];
+        }
+
         $quiz = $meetingQuiz->quiz;
         $questionsPivot = $quiz->pivotTable;
 
@@ -139,7 +150,8 @@ class QuizService
             'correct_count' => $correct_count,
             'wrong_count' => $wrong_count,
             'is_completed' => true,
-            'completed_at' => now()
+            'completed_at' => now(),
+            'status' => $status,
         ]);
 
         $this->updateMeetingUserData($userId, $meetingQuiz->meeting_id);
@@ -150,6 +162,49 @@ class QuizService
             'has_essay' => $hasEssay,
             'status' => $status
         ];
+    }
+
+    /**
+     * Admin menilai jawaban esai satu attempt quiz (1 meeting_quiz + 1 user). $scores: [answer_id => skor].
+     * Skor MC yang sudah tersimpan tidak disentuh — cuma earned_points esai yang diupdate, lalu
+     * total_score di-summasi ulang dari SEMUA jawaban (MC + esai) supaya konsisten dengan submitQuiz().
+     */
+    public function reviewEssayAnswers(string $meetingQuizId, string $userId, array $scores, string $reviewerId): void
+    {
+        $result = $this->quizRepo->findUserResultByMeetingQuizId($meetingQuizId, $userId);
+        abort_unless($result && $result->status === 'pending_review', 404);
+
+        $essayAnswers = $this->quizRepo->getEssayAnswers($meetingQuizId, $userId);
+
+        foreach ($essayAnswers as $answer) {
+            if (!array_key_exists($answer->id, $scores)) {
+                continue;
+            }
+
+            $maxScore = (int) $answer->question->max_score;
+            $earnedPoints = max(0, min($maxScore, (int) $scores[$answer->id]));
+
+            $this->quizRepo->updateAnswerScore($answer->id, $earnedPoints);
+        }
+
+        $totalScore = $this->quizRepo->getAllAnswers($meetingQuizId, $userId)->sum('earned_points');
+
+        $this->quizRepo->saveUserResult([
+            'meeting_quiz_id' => $meetingQuizId,
+            'quiz_id' => $result->quiz_id,
+            'user_id' => $userId,
+            'total_score' => $totalScore,
+            'max_score' => $result->max_score,
+            'correct_count' => $result->correct_count,
+            'wrong_count' => $result->wrong_count,
+            'is_completed' => true,
+            'completed_at' => $result->completed_at,
+            'status' => 'completed',
+            'reviewed_by' => $reviewerId,
+            'reviewed_at' => now(),
+        ]);
+
+        $this->updateMeetingUserData($userId, $this->quizRepo->getMeetingQuizById($meetingQuizId)->meeting_id);
     }
 
     public function updateMeetingUserData($userId, $meetingId)
@@ -183,6 +238,9 @@ class QuizService
         }
 
         $this->meetingUserRepository->updateByUserIdAndMeetingId($userId, $meetingId, $dataMeetingUser);
-        event(new LmsProgresUpdated(auth('sanctum')->user(), $this->courseRepositories->getCourseById($meetingUser->course_id)));
+        event(new LmsProgresUpdated(
+            $meetingUser->user ?? \App\Models\User::find($userId),
+            $this->courseRepositories->getCourseById($meetingUser->course_id)
+        ));
     }
 }

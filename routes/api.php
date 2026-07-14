@@ -95,6 +95,8 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 });
 
+Route::get('/sops', [\App\Http\Controllers\Api\SopController::class, 'index']);
+
 Route::prefix('job-openings')->group(function () {
     Route::get('/', [JobOpeningController::class, 'index']);
     Route::get('/{id}', [JobOpeningController::class, 'show']);

@@ -70,6 +70,11 @@ class KanbanBoardsList extends Component
             })
             ->findOrFail($taskId);
 
+        if (! app(KanbanAuthorizationService::class)->canMoveStatus($task, Auth::user(), $status)) {
+            Notification::make()->title('Kamu cuma boleh memajukan status 1 langkah')->danger()->send();
+            return;
+        }
+
         $task->update([
             'status' => $status,
             'completed_at' => $status === KanbanTask::STATUS_DONE ? now() : null,

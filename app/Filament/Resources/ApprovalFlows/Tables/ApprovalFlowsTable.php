@@ -30,7 +30,6 @@ class ApprovalFlowsTable
                             'attendance_request' => 'Permintaan Izin, Cuti, Lembur',
                             'task_request' => 'Permintaan Penugasan Individu',
                             'jobposition_request' => 'Penambahan/Perubahan Jabatan',
-                            'lms_course_request' => 'Pengajuan Pelatihan LMS',
                             'approval_candidate_applicant' => 'Persetujuan Pelamar Kerja',
                             'user_transition' => 'Perubahan Status Karyawan',
                             'swap_shift_request' => 'Permintaan Tukar Shift',

@@ -61,4 +61,38 @@ class QuizRepository
             $query->where('meeting_id', $meetingId);
         })->get();
     }
+
+    public function getPendingReviewResults()
+    {
+        return LmsQuizUserResults::with(['user', 'quiz', 'meetingQuiz.meeting.course'])
+            ->where('status', 'pending_review')
+            ->latest('completed_at')
+            ->get();
+    }
+
+    public function findResultById(string $resultId)
+    {
+        return LmsQuizUserResults::with(['user', 'quiz', 'meetingQuiz.meeting.course'])->find($resultId);
+    }
+
+    public function getEssayAnswers(string $meetingQuizId, string $userId)
+    {
+        return LmsQuizUserAnswers::with('question')
+            ->where('meeting_quiz_id', $meetingQuizId)
+            ->where('user_id', $userId)
+            ->whereHas('question', fn ($q) => $q->where('type', 'essay'))
+            ->get();
+    }
+
+    public function getAllAnswers(string $meetingQuizId, string $userId)
+    {
+        return LmsQuizUserAnswers::where('meeting_quiz_id', $meetingQuizId)
+            ->where('user_id', $userId)
+            ->get();
+    }
+
+    public function updateAnswerScore(string $answerId, int $earnedPoints)
+    {
+        return LmsQuizUserAnswers::where('id', $answerId)->update(['earned_points' => $earnedPoints]);
+    }
 }

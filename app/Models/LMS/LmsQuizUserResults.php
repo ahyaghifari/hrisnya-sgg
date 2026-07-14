@@ -25,13 +25,16 @@ class LmsQuizUserResults extends Model
         'wrong_count',
         'is_completed',
         'completed_at',
+        'status',
+        'reviewed_by',
+        'reviewed_at',
     ];
 
     public function meetingQuiz()
     {
         return $this->belongsTo(LmsMeetingQuizzes::class, 'meeting_quiz_id', 'id');
     }
-    
+
     public function quiz()
     {
         return $this->belongsTo(LmsQuizzes::class, 'quiz_id', 'id');
@@ -40,5 +43,10 @@ class LmsQuizUserResults extends Model
     public function user()
     {
         return $this->belongsTo(User::class, 'user_id', 'id');
+    }
+
+    public function reviewer()
+    {
+        return $this->belongsTo(User::class, 'reviewed_by', 'id');
     }
 }

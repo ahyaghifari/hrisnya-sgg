@@ -76,6 +76,38 @@ class KanbanAuthorizationService
         return $this->roleOf($task->board, $user) === KanbanBoardMember::ROLE_OWNER;
     }
 
+    // Aturan pindah status terpusat, dipakai board, "Kanban Staff", dan BoardKu:
+    // - Task pribadi murni (bukan board, created_by === assigned_to) bebas pindah kemana saja.
+    // - Task done terkunci total untuk siapapun.
+    // - Owner board / pembuat task bebas pindah kemana saja (termasuk task titipan ke staff).
+    // - Selain itu cuma boleh maju 1 langkah berurutan, kecuali menarik mundur review->in_progress
+    //   punya sendiri (assignee task itu).
+    public function canMoveStatus(KanbanTask $task, User $user, string $newStatus): bool
+    {
+        if (! $task->board_id && $task->created_by === $task->assigned_to) {
+            return true;
+        }
+
+        if ($task->status === KanbanTask::STATUS_DONE) {
+            return false;
+        }
+
+        if ($this->canChangeStatusFreely($task, $user)) {
+            return true;
+        }
+
+        $currentIndex = array_search($task->status, KanbanTask::STATUSES, true);
+        $nextStatus = KanbanTask::STATUSES[$currentIndex + 1] ?? null;
+
+        if ($newStatus === $nextStatus) {
+            return true;
+        }
+
+        return $task->status === KanbanTask::STATUS_REVIEW
+            && $newStatus === KanbanTask::STATUS_IN_PROGRESS
+            && $task->members()->where('user_id', $user->id)->exists();
+    }
+
     public function canDeleteTask(KanbanTask $task, User $user): bool
     {
         if ($task->created_by === $user->id) {

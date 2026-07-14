@@ -20,9 +20,8 @@ class CompetencyResource extends Resource
 {
     protected static ?string $model = Competencies::class;
     protected static ?string $navigationLabel = 'Kompetensi';
-    protected static ?string $navigationParentItem = 'Jabatan & Kompetensi';
-    protected static ?int $navigationSort = 2;
-    protected static string | UnitEnum | null $navigationGroup = 'LMS';
+    protected static ?int $navigationSort = 15;
+    protected static string | UnitEnum | null $navigationGroup = 'Master';
 
     public static function form(Schema $schema): Schema
     {

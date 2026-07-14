@@ -49,6 +49,7 @@ class CourseDetailsResource extends JsonResource
             "score" => $courseUser->score ?? 0,
             "status" => $statusEnum?->getLabel(),
             "is_followed" => $courseUser ? $statusEnum?->value !== CourseUserStatus::REQUESTED->value : false,
+            "is_mandatory" => (bool) ($courseUser->is_mandatory ?? false),
             "is_passed" => $courseUser ? ($courseUser->is_passed ? true : false) : false,
             "has_feedback" => (bool) $feedbackUser,
             "meetings" => $this->meetings ? MeetingsResource::collection($this->meetings) : null,

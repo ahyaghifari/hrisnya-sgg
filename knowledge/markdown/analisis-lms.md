@@ -2,13 +2,17 @@
 
 Dokumen ini menjawab pertanyaan "bagaimana modul LMS (kursus, kuis, sertifikat, ranking, trainer) bekerja di sistem ini?" — ditulis dari pembacaan kode langsung (model, migration, service, repository, controller API, Filament resource, route), bukan asumsi. Rujukan gaya & kedalaman: `knowledge/markdown/pengumpulan-data-absensi.md`.
 
-## Temuan Utama
+**Addendum 2026-07-14 (§12)**: struktur kode & penamaan dari review lanjutan — gap #13-17.
 
-LMS di codebase ini adalah modul **API-first** (dikonsumsi lewat `routes/api.php` prefix `lms`, kemungkinan besar aplikasi mobile terpisah) yang **dikelola sepenuhnya lewat Filament admin panel** — bukan trainer self-service, bukan (belum) portal karyawan. Tiga gap besar ditemukan:
+**Addendum 2026-07-14 (eksekusi perbaikan)**: gap esai (#1), validasi download sertifikat (#3), status approval (#5), `is_mandatory` (#6), dan course scheduler (#4, diganti fitur Duplikat Course) **sudah dieksekusi** — lihat status update di §11 dan detail lengkap di `planning/2026-07-14-perbaikan-lms-dan-akses-portal.md`. Fitur "Rencana Pelatihan" (§1.4 lama) **dihapus total** atas keputusan user, cluster tabelnya sudah tidak ada.
 
-1. **Sertifikat bukan digenerate PDF otomatis** — melainkan **file upload manual oleh admin/HC**, meski `barryvdh/laravel-dompdf` sudah terpasang & dipakai modul lain (Payroll).
-2. **Soal essay tidak pernah bisa dinilai** — dihitung otomatis 0 poin, status `pending_review` yang dihasilkan tidak pernah disimpan/ditindaklanjuti di mana pun.
-3. **Portal karyawan (`/dashboard`) "Kursus Saya" masih 100% hardcoded HTML placeholder** — sama sekali belum terhubung ke data LMS asli.
+## Temuan Utama (kondisi 2026-07-13, sebagian sudah diperbaiki — lihat addendum di atas)
+
+LMS di codebase ini adalah modul **API-first** (dikonsumsi lewat `routes/api.php` prefix `lms`, kemungkinan besar aplikasi mobile terpisah) yang **dikelola sepenuhnya lewat Filament admin panel** — bukan trainer self-service, bukan (belum) portal karyawan. Tiga gap besar ditemukan saat riset awal:
+
+1. **Sertifikat bukan digenerate PDF otomatis** — melainkan **file upload manual oleh admin/HC**, meski `barryvdh/laravel-dompdf` sudah terpasang & dipakai modul lain (Payroll). *(Masih berlaku — sengaja tidak dikerjakan, lihat §11 gap #2.)*
+2. ~~Soal essay tidak pernah bisa dinilai~~ — **sudah diperbaiki 2026-07-14**, lihat §11 gap #1.
+3. **Portal karyawan (`/dashboard`) "Kursus Saya" masih 100% hardcoded HTML placeholder** — masih berlaku, di luar cakupan sesi perbaikan 2026-07-14 (lihat §9).
 
 ## 1. Model & Tabel
 
@@ -67,13 +71,13 @@ LMS di codebase ini adalah modul **API-first** (dikonsumsi lewat `routes/api.php
 
 `lms_rankings`: `user_id`+`course_id` **unique**, `total_score`, `rank`, `calculated_at`. Index `(course_id, total_score)` dan `user_id` — didesain untuk query leaderboard per-course cepat.
 
-### 1.4 Cluster Course Plan (usulan/planning kursus)
+### 1.4 ~~Cluster Course Plan (usulan/planning kursus)~~ — DIHAPUS TOTAL 2026-07-14
 
-`lms_course_plans`: rencana tahunan (`year`, `type_nakes`, `status`: `draft/submitted/approved/archived`, `total_courses`, `approved_by`/`approved_at`).
+Fitur "Rencana Pelatihan" (`lms_course_plans`, `lms_course_plan_items`, `lms_course_plan_schedules`) **sudah dihapus total** atas keputusan user — tabel, model, Filament Resource, Policy, dan integrasi Approval Engine-nya semua dibuang (migration `2026_07_14_140000_drop_lms_course_plan_feature.php` + `2026_07_14_140100_purge_lms_course_plan_permissions.php`). Data yang ada saat penghapusan (2 rencana, 3 item usulan, 1 master approval flow, 2 approval snapshot) **hilang permanen** — keputusan sadar, dikonfirmasi user sebelum eksekusi.
 
-`lms_course_plan_items`: item usulan kursus individual — `source_type` (`employee`/`system`), `competency_id`→`m_competencies`, `target_org_structure_id`, `target_job_position_id`, `request_status` (`draft/submitted/approved/rejected/cancelled/completed`), `realized_course_id`/`realized_schedule_id` (link ke kursus nyata setelah disetujui & dijalankan), `requested_by`/`approved_by`. **Ini yang terhubung ke Approval Engine** lewat `CourseService::requestCourse()`/`approveCourseRequest()` (lihat §10).
+**Alasan penghapusan**: `realized_course_id` (kolom yang seharusnya menautkan rencana yang disetujui ke Course asli yang dibuat dari rencana itu) **tidak pernah diisi kode manapun** — jadi di praktiknya rencana dan pelaksanaan course sudah lama terputus total, admin tetap harus bikin Course dari nol manual tanpa jejak sama sekali ke rencana asalnya. Sementara itu, Course (`lms_courses`) sendiri sudah punya alur draft/publish sendiri (`CreateLmsCourses.php` — tombol "Save as Draft"/"Save & Publish", pakai `App\Enum\LsmCourseStatus`) yang cukup untuk kebutuhan "belum siap dipublish" — jadi fitur Rencana Pelatihan dianggap tidak lagi punya nilai unik yang benar-benar tertegakkan di kode.
 
-`lms_course_plan_schedules`: jadwal rencana per item (`planned_month` enum 3-huruf, `planned_week`, `planned_date`, `status`: `planned/rescheduled/completed/cancelled`).
+Lihat `planning/2026-07-14-perbaikan-lms-dan-akses-portal.md` untuk detail eksekusi lengkap.
 
 ### 1.5 Cluster Trainer
 
@@ -139,7 +143,7 @@ Endpoint baca ranking: `GET /lms/ranks` (`CourseController::getRanksByUserId` �
 
 Trainer **tidak punya akses/panel apa pun** — semua penilaian trainer (`trainer_assessments`) dan hasil (`trainer_assesments_results`, honor & masa berlaku sertifikasi) **diinput dan dilihat oleh admin lewat Filament**, bukan self-service trainer. Rubrik penilaian dua sumbu — `honor` (nominal bayaran) dan `validity` (masa berlaku sertifikasi trainer, dalam bulan) — dikonfigurasi lewat variable→kategori→skor dan dipetakan ke hasil akhir lewat range skor. `TrainerAssessmentService::generateTrainerAssessmentResult()` (`app/Services/LMS/TrainerAssessmentService.php:25-88`) mengagregasi **rata-rata skor per meeting** dalam 1 course jadi 1 hasil akhir per trainer per course (`trainer_assesments_results`), termasuk `valid_until = now()->addMonths($validityMonths)`.
 
-Ada juga `TrainerSalaries`/`TrainerScoreRanges`/`TrainerScoreVariables` di bawah **`app/Filament/Resources/Payroll/`** (bukan `LMS/`) — indikasi hasil penilaian trainer (`honor_amount`) **terhubung ke modul Payroll** untuk pencairan honor, meski sebagian nama file duplikat dengan resource di bawah `LMS/` (perlu klarifikasi lebih lanjut yang mana yang aktif dipakai — di luar cakupan riset ini).
+Hasil penilaian trainer (`honor_amount`) terhubung ke modul Payroll untuk pencairan honor lewat `TrainerSalaries` (`app/Filament/Resources/Payroll/TrainerSalaries/`). **Update 2026-07-14**: `TrainerScoreRangesResource`/`TrainerScoreVariableResource` yang sebelumnya ada di `Filament/Resources/Payroll/` (meski model-nya domain LMS) sudah **dipindah ke `Filament/Resources/LMS/`** dengan `navigationGroup = 'LMS'` — lihat §12 gap #14. `TrainerSalaries` sendiri tetap di Payroll (itu memang murni data pencairan gaji, bukan rubrik penilaian).
 
 ## 7. Progress Tracking Peserta
 
@@ -172,25 +176,40 @@ Kesimpulan: LMS 100% berjalan lewat 2 kanal saja — **Filament admin panel** (p
 
 **Sebagian pakai, sebagian tidak** — hanya **`lms_course_plan_items`** (usulan/planning kursus) yang terhubung ke approval engine generik, lewat `module_type = 'lms_course_request'`:
 
-- `CourseService::requestCourse()` (`app/Services/LMS/CourseService.php:89-112`): cari `MasterApprovalFlows` aktif untuk company user (`ApprovalSnapshotRepository::findMasterApprovalFlowByCompany`), lempar exception kalau tidak ada flow aktif untuk company itu, lalu `ApprovalCreationService::createSnapshot()` — **pola identik** dengan modul attendance/shift yang didokumentasikan di `knowledge/markdown/manajemen-persetujuan.md`.
-- `CourseService::approveCourseRequest()` (baris 114-136): panggil `ApprovalFlowService::advanceStep()` untuk maju step approval, **lalu secara terpisah** update `request_status`/`approved_by`/`approved_at` di `lms_course_plan_items` sendiri via `courseRepositories->updateCourseRequest()` — **bukan** lewat side-effect branch di `ApprovalFlowService::advanceStep()` seperti `task_request`/`swap_shift_request` (dikonfirmasi: grep `module_type === 'lms_course_request'` di `app/Services/Approval/ApprovalFlowService.php` nihil). Jadi `lms_course_request` **terdaftar sebagai module_type resmi tapi efek sampingnya di-handle sendiri oleh `CourseService`**, bukan generik lewat approval engine — konsisten dengan temuan `manajemen-persetujuan.md:7` bahwa baru 3 modul (bukan termasuk LMS) yang punya efek samping *di dalam* `ApprovalFlowService`.
+~~`CourseService::requestCourse()`/`approveCourseRequest()` — terhubung ke Approval Engine lewat module_type `lms_course_request`~~ — **DIHAPUS TOTAL 2026-07-14** bareng seluruh fitur Rencana Pelatihan (§1.4). `module_type = 'lms_course_request'` juga sudah dibuang dari dropdown pilihan modul di `ApprovalFlowForm`/`ApprovalFlowsTable`.
 
-**Course itu sendiri (`lms_courses`), enrollment (`lms_course_users`), dan quiz sama sekali tidak melalui approval engine** — status `REQUESTED`→`APPROVED` di `CourseUserStatus` enum terlihat seperti mengisyaratkan alur approval, tapi **tidak ditemukan kode** yang men-transisikan status itu dari `REQUESTED` ke `APPROVED` di mana pun (grep `CourseUserStatus::APPROVED` cuma muncul di definisi enum & badge warna Filament, tidak pernah di-`set` sebagai target update) — kemungkinan **fitur setengah jadi**: field/status ada, tapi tidak ada actor (admin action atau approval flow) yang benar-benar mengubahnya dari `requested` ke `approved`.
+**Course itu sendiri (`lms_courses`), enrollment (`lms_course_users`), dan quiz sama sekali tidak melalui approval engine** — status `REQUESTED`→`APPROVED` di `CourseUserStatus` **sekarang sudah fungsional** (beda dari temuan awal riset ini), lihat §11 gap #5 di bawah untuk update statusnya.
 
 ## 11. Gap/TODO Terkumpul
 
-1. **Essay tidak bisa dinilai** (§3) — auto-0 permanen, `pending_review` status dihitung tapi dibuang, tidak ada UI review. Gap paling signifikan kalau requirement bisnisnya butuh soal essay fungsional.
-2. **Sertifikat manual upload, bukan generate PDF** (§4) — dompdf sudah ada di project untuk modul lain, tidak dipakai LMS.
-3. **Sertifikat bisa diunggah tanpa cek `is_passed`** (§4) — validasi silang antara "lulus" dan "boleh dapat sertifikat" tidak ada.
-4. **Course scheduler (`repeat_cycle`/`next_run_date`) tidak punya consumer** (§2) — kolom lengkap di migration & model, tidak ada job/command yang menjalankannya.
-5. **`CourseUserStatus::APPROVED` tidak pernah benar-benar di-set** (§10) — status ada di enum/badge tapi tidak ada actor yang mentransisikannya dari `REQUESTED`.
-6. **`is_mandatory` tanpa target rule** (§8) — flag ada, tapi tidak ada logic assign-otomatis berdasarkan jabatan/kompetensi meski `lms_course_plan_items` sudah punya kolom target yang cocok untuk itu.
+1. ~~Essay tidak bisa dinilai~~ — **BERES 2026-07-14**. Halaman Filament baru "Review Jawaban Esai" (`app/Filament/Pages/Lms/ReviewEssayAnswers.php`), admin input skor manual per jawaban esai (clamped ke `max_score` soal), `QuizService::submitQuiz()` sekarang beneran menyimpan status `pending_review` (dulu dibuang). Lihat `planning/2026-07-14-perbaikan-lms-dan-akses-portal.md` Tahap 1.
+2. **Sertifikat manual upload, bukan generate PDF** (§4) — masih berlaku, sengaja tidak dikerjakan (effort besar, manfaat kosmetik — lihat Tahap 4 di planning).
+3. ~~Sertifikat bisa diunggah tanpa cek `is_passed`~~ — **BERES SEBAGIAN 2026-07-14**. Upload tetap tanpa gate (keputusan sadar), tapi **download** sertifikat sekarang ditolak (403) untuk peserta `is_passed !== true` — lihat `CourseUserService::getDownloadableCertificateUrl()`.
+4. ~~Course scheduler (`repeat_cycle`/`next_run_date`) tidak punya consumer~~ — **DIGANTI TOTAL 2026-07-14**. Dicek dulu ke data: cuma 1 dari 14 course yang pernah pakai `type=scheduler`, `next_run_date` tidak pernah terisi — scheduler otomatis dibatalkan, diganti fitur **"Duplikat Course"** (`CourseService::duplicateCourse()`, tombol di `LmsCoursesTable.php`).
+5. ~~`CourseUserStatus::APPROVED` tidak pernah benar-benar di-set~~ — **BERES 2026-07-14**. Halaman Peserta admin (`ParticipantCourses.php`) dapat aksi Setujui/Tolak. `MeetingAttendanceService::clockIn()` dan `QuizService::submitQuiz()` sekarang menolak peserta yang belum `APPROVED`. Admin-assign langsung dari form Course otomatis `APPROVED` (bukan lagi `REQUESTED`), karena tindakan admin memilih peserta itu sendiri sudah setara persetujuan.
+6. ~~`is_mandatory` tanpa target rule~~ — **auto-assign dari course plan TIDAK dikerjakan** (fiturnya sendiri sudah dihapus, lihat §1.4). Tapi `is_mandatory` sendiri **sekarang punya konsumen nyata**: badge "Wajib"/"Opsional" + filter di halaman Peserta admin, dan diekspos ke API mobile (`CoursesResource`/`CourseDetailsResource`) — dulu cuma ditulis, tidak pernah dibaca di manapun.
 7. **Tidak ada deadline/due date** untuk course maupun quiz di seluruh model — kalau bisnis butuh "kursus wajib selesai sebelum tanggal X", ini belum ada strukturnya.
 8. **Tidak ada tracking level material** (video resume position, "sudah dibaca") — progress cuma granularitas meeting.
 9. **`lms_user_histories` tanpa unique constraint** `(user_id, course_id)` di DB (§1.3) meski dipakai sebagai kunci logis `updateOrCreate` — race-condition risk pada listener queue.
 10. **Nama tabel typo** `trainer_assesments_results` (harusnya "assessments") — kosmetik tapi baked ke skema DB permanen.
 11. **`trainers.company`** kolom string bebas, bukan FK ke `m_companies` — tidak konsisten dengan skema multi-company di modul lain (mirip temuan gap `m_companies` tanpa kolom "tipe" di dokumen absensi).
 12. **Tidak ada test coverage** untuk LMS — dikonfirmasi `README.md:102`: modul LMS termasuk yang "masih belum punya test" (beda dari portal karyawan & attendance request yang sudah ada `tests/Feature/`).
+
+## 12. Struktur Kode & Penamaan (ditambahkan 2026-07-14, dari review struktur/database/naming)
+
+Temuan tambahan dari pembacaan langsung struktur folder `app/Models/LMS`, `app/Repositories/LMS`, `app/Filament/Resources/LMS` — bukan bug fungsional, tapi menambah biaya kognitif developer yang bekerja di modul ini:
+
+13. ~~`CourseRepositories.php` plural, sendirian~~ — **BERES 2026-07-14**: di-rename jadi `CourseRepository.php` (class `CourseRepository`), konsisten dengan repository LMS lain. Lihat `planning/2026-07-14-perbaikan-lms-dan-akses-portal.md` Tahap 2.
+14. ~~Model trainer-scoring (domain LMS) dikelola dari Filament folder Payroll, tanpa penjelasan~~ — **BERES 2026-07-14**: dipindah beneran ke `app/Filament/Resources/LMS/TrainerScoreRanges/` dan `.../LMS/TrainerScoreVariables/`, `navigationGroup` di-set eksplisit `'LMS'`. URL admin ikut pindah dari `/admin/payroll/trainer-score-*` ke `/admin/l-m-s/trainer-score-*`. Permission Shield tidak orphan (berbasis nama model, bukan folder Resource).
+15. **`QuestionBanks`/`QuestionOptions` tidak ikut prefix `Lms*`** — semua model lain di `app/Models/LMS/` diawali `Lms` (`LmsCourses`, `LmsMeetings`, `LmsQuizzes`, dst), dua model ini polos tanpa prefix. Fungsional tidak masalah (namespace sudah unik), tapi predictability nama class turun buat yang hafal pola `Lms*`.
+16. ~~Folder Filament `LmsBaselines` tidak match nama model `LmsCourseBaselines`~~ — **BERES 2026-07-14**: folder di-rename jadi `LmsCourseBaselines/`, namespace & class ikut diupdate. URL admin ikut pindah dari `/admin/l-m-s/lms-baselines` ke `/admin/l-m-s/lms-course-baselines`.
+17. ~~`lms_meeting_attendances` tanpa unique constraint anti double check-in~~ — **BERES 2026-07-14**: migration tambah unique `(meeting_id, user_id)`, dicek dulu 0 duplikat data existing sebelum apply.
+
+**Prioritas kalau mau dibenahi**: #13, #14, #16, #17 sudah selesai (lihat status di atas). #10 (rename tabel typo) dan #15 (rename model `QuestionBanks`) sengaja ditunda — effort migrasi lebih besar dari manfaat kosmetiknya.
+
+**Bonus temuan saat eksekusi Tahap 1** (`planning/2026-07-14-perbaikan-lms-dan-akses-portal.md`) — 2 bug laten baru, di luar daftar gap ini:
+18. `QuizService::updateMeetingUserData()` memakai `auth('sanctum')->user()` untuk event `LmsProgresUpdated`, seharusnya user targetnya — kebetulan selalu sama selama cuma dipanggil dari API peserta sendiri, baru kepampang begitu dipanggil dari admin panel (guard beda). **Sudah diperbaiki.**
+19. `LmsQuizUserAnswers::question()` salah target relasi (nunjuk ke pivot `LmsQuizQuestions`, padahal `question_id` sebenarnya nyimpan ID dari `QuestionBanks`). **Sudah diperbaiki** — sebelumnya `max_score` soal esai selalu ke-null lewat relasi ini.
 
 ## Referensi Terkait
 

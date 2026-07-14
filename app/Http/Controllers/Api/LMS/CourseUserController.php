@@ -57,10 +57,10 @@ class CourseUserController extends Controller
     {
         try {
             $userId = auth('sanctum')->id();
-            $certificateUrl = $this->courseUserService->getCertificateUrl($userId, $courseUserId);
+            $certificateUrl = $this->courseUserService->getDownloadableCertificateUrl($userId, $courseUserId);
 
             if (!$certificateUrl) {
-                return ApiResponseHelper::notFound('Certificate not found');
+                return ApiResponseHelper::forbidden('Certificate not available for download — you have not passed this course yet');
             }
 
             $filePath = storage_path('app/public/' . $certificateUrl);

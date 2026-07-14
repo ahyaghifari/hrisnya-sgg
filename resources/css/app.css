@@ -305,7 +305,7 @@ html.dark .nav-item.active { background: rgba(110,168,224,0.22); }
 .dropdown-item i { width: 14px; text-align: center; color: var(--text-faint); font-size: 12px; }
 .nav-bell { position: relative; width: 36px; height: 36px; border-radius: 10px; border: 1.5px solid var(--border-soft); display: flex; align-items: center; justify-content: center; color: var(--text-muted); cursor: pointer; }
 .nav-bell-dot { position: absolute; top: 6px; right: 6px; width: 7px; height: 7px; background: #ef4444; border-radius: 50%; border: 1.5px solid var(--surface); }
-.nav-avatar { width: 36px; height: 36px; border-radius: 10px; background: #042c6c; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 700; font-size: 13px; cursor: pointer; }
+.nav-avatar { width: 36px; height: 36px; border-radius: 50%; background: #042c6c; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 700; font-size: 13px; cursor: pointer; }
 .hamburger-btn { display: flex; margin-left: auto; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 10px; border: 1.5px solid var(--border); color: var(--text-muted); background: var(--surface); cursor: pointer; transition: all 0.15s; }
 .hamburger-btn:hover { border-color: var(--brand); color: var(--brand); }
 @media (min-width: 768px) { .hamburger-btn { display: none; } }

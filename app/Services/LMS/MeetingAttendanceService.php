@@ -3,8 +3,10 @@
 namespace App\Services\LMS;
 
 use App\Enum\AttendanceStatus;
+use App\Enum\CourseUserStatus;
 use App\Events\LmsProgresUpdated;
-use App\Repositories\LMS\CourseRepositories;
+use App\Repositories\LMS\CourseRepository;
+use App\Repositories\LMS\CourseUserRepository;
 use App\Repositories\LMS\MeetingAttendanceRepository;
 use App\Repositories\LMS\MeetingUserRepository;
 use Carbon\Carbon;
@@ -14,7 +16,8 @@ class MeetingAttendanceService
     public function __construct(
         protected MeetingAttendanceRepository $meetingAttendanceRepository,
         protected MeetingUserRepository $meetingUserRepository,
-        protected CourseRepositories $courseRepositories
+        protected CourseRepository $courseRepositories,
+        protected CourseUserRepository $courseUserRepository
     ) {}
 
     public function clockIn(string $meetingId)
@@ -22,6 +25,16 @@ class MeetingAttendanceService
         $userId = auth('sanctum')->id();
 
         $meeting = $this->courseRepositories->getMeetingById($meetingId);
+        $courseUser = $this->courseUserRepository->getByUserIdAndCourseId($userId, $meeting->course_id);
+
+        if (!$courseUser || $courseUser->status !== CourseUserStatus::APPROVED->value) {
+            return [
+                'success' => false,
+                'message' => 'Your course enrollment has not been approved yet.',
+                'data' => null,
+            ];
+        }
+
         $existing = $this->meetingAttendanceRepository->findByMeetingAndUser($meetingId, $userId);
         $meetingUser = $this->meetingUserRepository->findByUserIdAndMeetingId($userId, $meetingId);
 

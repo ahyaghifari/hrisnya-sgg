@@ -19,8 +19,8 @@ class PositionCompetencyResource extends Resource
 {
     protected static ?string $model = \App\Models\Master\JobPositions::class;
     protected static ?string $navigationLabel = 'Jabatan & Kompetensi';
-    protected static string | UnitEnum | null $navigationGroup = 'LMS';
-    protected static ?int $navigationSort = 3;
+    protected static string | UnitEnum | null $navigationGroup = 'Master';
+    protected static ?int $navigationSort = 16;
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedAcademicCap;
 
     public static function form(Schema $schema): Schema

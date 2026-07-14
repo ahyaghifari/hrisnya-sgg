@@ -4,6 +4,7 @@ namespace App\Livewire\Kanban;
 
 use App\Models\Kanban\KanbanTask;
 use App\Models\Kanban\KanbanTaskMember;
+use App\Services\Kanban\KanbanAuthorizationService;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
@@ -95,6 +96,11 @@ class KanbanPersonalTasks extends Component
                 $q->where('created_by', Auth::id())->orWhere('assigned_to', Auth::id());
             })
             ->findOrFail($taskId);
+
+        if (! app(KanbanAuthorizationService::class)->canMoveStatus($task, Auth::user(), $status)) {
+            Notification::make()->title('Kamu cuma boleh memajukan status 1 langkah')->danger()->send();
+            return;
+        }
 
         $task->update([
             'status' => $status,

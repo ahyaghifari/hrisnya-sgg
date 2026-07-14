@@ -4,12 +4,14 @@ namespace App\Filament\Resources\LMS\LmsCourses\Tables;
 
 use App\Filament\Resources\LMS\LmsCourses\LmsCoursesResource;
 use App\Helpers\PermissionHelper;
+use App\Services\LMS\CourseService;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Actions\ViewAction;
+use Filament\Notifications\Notification;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
@@ -70,6 +72,25 @@ class LmsCoursesTable
                         ->color('primary')
                         ->url(fn ($record) => LmsCoursesResource::getUrl('participants', ['record' => $record])),
                     EditAction::make()->visible(fn ($record) => LmsCoursesResource::canEdit($record))->label('Detail')->icon(Heroicon::OutlinedInformationCircle),
+
+                    Action::make('duplicate')
+                        ->label('Duplikat')
+                        ->icon('heroicon-o-document-duplicate')
+                        ->color('gray')
+                        ->requiresConfirmation()
+                        ->modalDescription('Meeting, materi, dan quiz yang terpasang ikut disalin. Peserta & riwayat TIDAK ikut disalin — sesuaikan tanggal meeting di course baru setelah ini.')
+                        ->visible(fn ($record) => LmsCoursesResource::canCreate())
+                        ->action(function ($record) {
+                            $newCourse = app(CourseService::class)->duplicateCourse($record);
+
+                            Notification::make()
+                                ->title('Course berhasil diduplikat')
+                                ->body('Jangan lupa sesuaikan tanggal meeting di course baru.')
+                                ->success()
+                                ->send();
+
+                            return redirect(LmsCoursesResource::getUrl('edit', ['record' => $newCourse]));
+                        }),
                 ])
             ])
             ->recordUrl(false)

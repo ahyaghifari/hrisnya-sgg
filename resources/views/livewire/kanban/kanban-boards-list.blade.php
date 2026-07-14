@@ -57,8 +57,10 @@
                         {{ $task->created_by === auth()->id() ? 'Ditugaskan ke ' . $task->assignedTo?->name : 'Ditugaskan oleh ' . $task->createdBy?->name }}
                     </p>
                     <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
-                        <select wire:change="moveStaffTaskStatus('{{ $task->id }}', $event.target.value)" class="form-input" style="font-size:11px;padding:4px 6px;height:auto;width:auto;">
+                        @php $authService = app(\App\Services\Kanban\KanbanAuthorizationService::class); @endphp
+                        <select wire:change="moveStaffTaskStatus('{{ $task->id }}', $event.target.value)" class="form-input" style="font-size:11px;padding:4px 6px;height:auto;width:auto;" @disabled($task->status === \App\Models\Kanban\KanbanTask::STATUS_DONE)>
                             @foreach (\App\Models\Kanban\KanbanTask::STATUSES as $moveTo)
+                                @continue($moveTo !== $task->status && ! $authService->canMoveStatus($task, auth()->user(), $moveTo))
                                 <option value="{{ $moveTo }}" @selected($moveTo === $task->status)>{{ $statusLabel($moveTo) }}</option>
                             @endforeach
                         </select>
