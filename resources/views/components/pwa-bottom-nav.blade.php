@@ -22,7 +22,7 @@
 
         @if ($canSubmitAttendance)
             <a href="{{ route('my-attendance-requests') }}" wire:navigate class="pwa-bottom-nav-item {{ request()->routeIs('my-attendance-requests*') ? 'active' : '' }}">
-                <i class="fa-solid fa-file-lines"></i> Pengajuan
+                <i class="fa-solid fa-file-lines"></i> Pengajuan Absensi
             </a>
         @else
             <a href="{{ route('organization-structure') }}" wire:navigate class="pwa-bottom-nav-item {{ request()->routeIs('organization-structure') ? 'active' : '' }}">

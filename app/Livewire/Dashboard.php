@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 
-#[Layout('components.layout', ['title' => 'Dashboard'])]
+#[Layout('components.layout', ['title' => 'Beranda'])]
 class Dashboard extends Component
 {
     public function getRecentKanbanTasksProperty()

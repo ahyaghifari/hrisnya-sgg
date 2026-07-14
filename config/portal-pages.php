@@ -26,7 +26,7 @@
 
 return [
     'dashboard' => [
-        'label' => 'Dashboard',
+        'label' => 'Beranda',
         'permission' => null,
         'guard' => null,
     ],
