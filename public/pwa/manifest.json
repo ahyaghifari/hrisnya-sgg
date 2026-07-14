@@ -2,7 +2,7 @@
     "name": "HRIS Syifa Global Group",
     "short_name": "Syifa HRIS",
     "description": "Data Diri, MyKanban, MyPelatihan, MyStaff dan Pengajuan Absensi",
-    "start_url": "/dashboard",
+    "start_url": "/",
     "scope": "/",
     "display": "standalone",
     "background_color": "#042c6c",

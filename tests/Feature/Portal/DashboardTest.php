@@ -17,7 +17,7 @@ class DashboardTest extends TestCase
 
     public function test_guest_is_redirected_to_login(): void
     {
-        $response = $this->get('/dashboard');
+        $response = $this->get('/');
 
         $response->assertRedirect('/login');
     }
@@ -26,7 +26,7 @@ class DashboardTest extends TestCase
     {
         $user = User::factory()->create(['name' => 'Budi Santoso']);
 
-        $response = $this->actingAs($user)->get('/dashboard');
+        $response = $this->actingAs($user)->get('/');
 
         $response->assertOk();
         $response->assertSee('Budi Santoso');
@@ -36,7 +36,7 @@ class DashboardTest extends TestCase
     {
         $user = User::factory()->create();
 
-        $response = $this->actingAs($user)->get('/dashboard');
+        $response = $this->actingAs($user)->get('/');
 
         $response->assertOk();
         $response->assertSee('Belum terintegrasi otomatis');
@@ -46,7 +46,7 @@ class DashboardTest extends TestCase
     {
         $user = User::factory()->create();
 
-        $response = $this->actingAs($user)->get('/dashboard');
+        $response = $this->actingAs($user)->get('/');
 
         $response->assertOk();
         $response->assertSee('Riwayat');
@@ -58,7 +58,7 @@ class DashboardTest extends TestCase
     {
         $user = User::factory()->create();
 
-        $response = $this->actingAs($user)->get('/dashboard');
+        $response = $this->actingAs($user)->get('/');
 
         $response->assertOk();
         $response->assertDontSee('Admin Panel');
@@ -70,7 +70,7 @@ class DashboardTest extends TestCase
         $user = User::factory()->create();
         $user->assignRole('Admin');
 
-        $response = $this->actingAs($user)->get('/dashboard');
+        $response = $this->actingAs($user)->get('/');
 
         $response->assertOk();
         $response->assertSee('Admin Panel');
@@ -96,7 +96,7 @@ class DashboardTest extends TestCase
             'used' => 4,
         ]);
 
-        $response = $this->actingAs($user)->get('/dashboard');
+        $response = $this->actingAs($user)->get('/');
 
         $response->assertOk();
         // 12 - 4 = 8 hari tersisa, muncul di HTML awal tanpa perlu JS jalan.
@@ -129,7 +129,7 @@ class DashboardTest extends TestCase
             'total_days' => 1,
         ]);
 
-        $response = $this->actingAs($user)->get('/dashboard');
+        $response = $this->actingAs($user)->get('/');
 
         $response->assertOk();
         $response->assertSee('Cuti Tahunan');

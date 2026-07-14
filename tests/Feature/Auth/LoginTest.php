@@ -32,7 +32,7 @@ class LoginTest extends TestCase
         ]);
 
         $this->assertAuthenticatedAs($user);
-        $response->assertRedirect('/dashboard');
+        $response->assertRedirect('/');
     }
 
     public function test_users_cannot_authenticate_with_invalid_password(): void
@@ -84,7 +84,7 @@ class LoginTest extends TestCase
 
     public function test_dashboard_requires_authentication(): void
     {
-        $response = $this->get('/dashboard');
+        $response = $this->get('/');
 
         $response->assertRedirect('/login');
     }
@@ -93,7 +93,7 @@ class LoginTest extends TestCase
     {
         $user = User::factory()->create();
 
-        $response = $this->actingAs($user)->get('/dashboard');
+        $response = $this->actingAs($user)->get('/');
 
         $response->assertOk();
         $response->assertSee($user->name);

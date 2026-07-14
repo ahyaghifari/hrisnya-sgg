@@ -25,6 +25,11 @@
             <a href="{{ route('data-diri') }}" wire:navigate class="data-diri-btn">
                 <i class="fa-solid fa-id-card"></i> Data Diri
             </a>
+            @if (auth()->user()->hasRole(['Admin', 'Super Admin']))
+                <a href="/admin" class="data-diri-btn">
+                    <i class="fa-solid fa-gauge"></i> Admin Panel
+                </a>
+            @endif
             <a href="{{ route('organization-structure') }}" wire:navigate class="qa-btn">Struktur Organisasi</a>
         </div>
     </div>

@@ -26,11 +26,6 @@ use App\Livewire\SubmitPermissionRequest;
 use Illuminate\Support\Facades\Route;
 
 
-Route::get('/', function () {
-    return redirect()->to('/admin');
-});
-
-
 Route::middleware('guest')->group(function () {
     Route::get('/login', [LoginController::class, 'create'])->name('login');
     Route::post('/login', [LoginController::class, 'store'])->middleware('throttle:5,1');
@@ -41,7 +36,7 @@ Route::post('/logout', [LoginController::class, 'destroy'])
     ->name('logout');
 
 Route::middleware(['auth', 'portal.access'])->group(function () {
-    Route::get('/dashboard', Dashboard::class)
+    Route::get('/', Dashboard::class)
         ->name('dashboard');
 
     Route::get('/akun', PwaAkun::class)
