@@ -9,10 +9,6 @@
         <a href="{{ route('dashboard') }}" wire:navigate class="pwa-bottom-nav-item {{ request()->routeIs('dashboard') ? 'active' : '' }}">
             <i class="fa-solid fa-house"></i> Beranda
         </a>
-        <button type="button" class="pwa-bottom-nav-item" style="border:none;background:none;padding:0;font-family:inherit;" onclick="toggleProduktivitasSheet()">
-            <i class="fa-solid fa-layer-group"></i> MyWorkspace
-        </button>
-
         <div class="pwa-bottom-nav-center">
             <button type="button" class="pwa-bottom-nav-center-btn" onclick="togglePwaMenuSheet()" aria-label="Menu">
                 <i class="fa-solid fa-grip"></i>
@@ -75,34 +71,9 @@
     </div>
 </div>
 
-{{-- Sheet "MyWorkspace" — dibuka lewat tombol bekas "Presensi" di bottom nav (Presensi/data-diri
-     tetap bisa diakses lewat kartu Data Diri di Dashboard, tidak hilang, cuma dipindah). Pelatihan
-     sengaja diarahkan ke path statis (bukan route()) karena portal LMS belum dibangun — akan 404
-     kalau diklik sampai halamannya ada, ini pilihan sadar bukan bug. --}}
-<div id="produktivitas-sheet-backdrop" class="pwa-menu-sheet-backdrop" onclick="toggleProduktivitasSheet()"></div>
-<div id="produktivitas-sheet" class="pwa-menu-sheet">
-    <div class="pwa-menu-sheet-handle"></div>
-
-    <div class="pwa-menu-grid">
-        <a href="{{ route('kanban') }}" wire:navigate class="pwa-menu-grid-item">
-            <span class="pwa-menu-grid-icon indigo"><i class="fa-solid fa-table-columns"></i></span>
-            <span class="pwa-menu-grid-label">Kanban</span>
-        </a>
-        <a href="/pelatihan" class="pwa-menu-grid-item">
-            <span class="pwa-menu-grid-icon violet"><i class="fa-solid fa-graduation-cap"></i></span>
-            <span class="pwa-menu-grid-label">Pelatihan</span>
-        </a>
-    </div>
-</div>
-
 <script>
     function togglePwaMenuSheet() {
         document.getElementById('pwa-menu-sheet').classList.toggle('open');
         document.getElementById('pwa-menu-sheet-backdrop').classList.toggle('open');
-    }
-
-    function toggleProduktivitasSheet() {
-        document.getElementById('produktivitas-sheet').classList.toggle('open');
-        document.getElementById('produktivitas-sheet-backdrop').classList.toggle('open');
     }
 </script>

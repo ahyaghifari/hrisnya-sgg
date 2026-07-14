@@ -23,12 +23,6 @@
             <a href="{{ route('dashboard') }}" wire:navigate class="nav-item {{ request()->routeIs('dashboard') ? 'active' : '' }}">
                 <i class="fa-solid fa-house text-xs"></i> Dashboard
             </a>
-            <a href="{{ route('kanban') }}" wire:navigate class="nav-item {{ request()->routeIs('kanban*') ? 'active' : '' }}">
-                <i class="fa-solid fa-table-columns text-xs"></i> MyKanban
-            </a>
-            <a href="/pelatihan" class="nav-item">
-                <i class="fa-solid fa-graduation-cap text-xs"></i> MyPelatihan
-            </a>
             @if ($canSeeKaryawanMenu)
                 <a href="{{ route('my-staff') }}" wire:navigate class="nav-item {{ request()->routeIs('my-staff*') ? 'active' : '' }}">
                     <i class="fa-solid fa-users text-xs"></i> MyStaff
