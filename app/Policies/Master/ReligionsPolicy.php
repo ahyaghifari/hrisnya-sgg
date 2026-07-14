@@ -37,11 +37,6 @@ class ReligionsPolicy
         return $authUser->can('Delete:Religions');
     }
 
-    public function deleteAny(AuthUser $authUser): bool
-    {
-        return $authUser->can('DeleteAny:Religions');
-    }
-
     public function restore(AuthUser $authUser, Religions $religions): bool
     {
         return $authUser->can('Restore:Religions');
@@ -52,12 +47,7 @@ class ReligionsPolicy
         return $authUser->can('ForceDelete:Religions');
     }
 
-    public function forceDeleteAny(AuthUser $authUser): bool
-    {
-        return $authUser->can('ForceDeleteAny:Religions');
-    }
-
-    public function restoreAny(AuthUser $authUser): bool
+    public function restoreAny(AuthUser $authUser, Religions $religions): bool
     {
         return $authUser->can('RestoreAny:Religions');
     }

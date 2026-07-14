@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\UserTransitions;
 
 use App\Enum\UserTransitionTypeEnum;
+use App\Filament\Clusters\UserTransitions\UserTransitionsCluster;
 use App\Filament\Resources\UserTransitions\Pages\CreateUserTransition;
 use App\Filament\Resources\UserTransitions\Pages\EditUserTransition;
 use App\Filament\Resources\UserTransitions\Pages\ListUserTransitions;
@@ -24,6 +25,8 @@ use Illuminate\Support\Facades\Auth;
 class UserTransitionResource extends Resource
 {
     protected static ?string $model = UserTransition::class;
+
+    protected static ?string $cluster = UserTransitionsCluster::class;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
 

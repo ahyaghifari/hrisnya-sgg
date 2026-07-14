@@ -37,11 +37,6 @@ class CoachingPolicy
         return $authUser->can('Delete:Coaching');
     }
 
-    public function deleteAny(AuthUser $authUser): bool
-    {
-        return $authUser->can('DeleteAny:Coaching');
-    }
-
     public function restore(AuthUser $authUser, Coaching $coaching): bool
     {
         return $authUser->can('Restore:Coaching');
@@ -52,12 +47,7 @@ class CoachingPolicy
         return $authUser->can('ForceDelete:Coaching');
     }
 
-    public function forceDeleteAny(AuthUser $authUser): bool
-    {
-        return $authUser->can('ForceDeleteAny:Coaching');
-    }
-
-    public function restoreAny(AuthUser $authUser): bool
+    public function restoreAny(AuthUser $authUser, Coaching $coaching): bool
     {
         return $authUser->can('RestoreAny:Coaching');
     }

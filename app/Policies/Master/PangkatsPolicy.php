@@ -37,11 +37,6 @@ class PangkatsPolicy
         return $authUser->can('Delete:Pangkats');
     }
 
-    public function deleteAny(AuthUser $authUser): bool
-    {
-        return $authUser->can('DeleteAny:Pangkats');
-    }
-
     public function restore(AuthUser $authUser, Pangkats $pangkats): bool
     {
         return $authUser->can('Restore:Pangkats');
@@ -52,12 +47,7 @@ class PangkatsPolicy
         return $authUser->can('ForceDelete:Pangkats');
     }
 
-    public function forceDeleteAny(AuthUser $authUser): bool
-    {
-        return $authUser->can('ForceDeleteAny:Pangkats');
-    }
-
-    public function restoreAny(AuthUser $authUser): bool
+    public function restoreAny(AuthUser $authUser, Pangkats $pangkats): bool
     {
         return $authUser->can('RestoreAny:Pangkats');
     }

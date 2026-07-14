@@ -8,6 +8,7 @@ use App\Filament\Resources\Assessment\AssessmentTemplates\Pages\ListAssessmentTe
 use App\Filament\Resources\Assessment\AssessmentTemplates\RelationManagers\TemplateItemsRelationManager;
 use App\Filament\Resources\Assessment\AssessmentTemplates\Schemas\AssessmentTemplateForm;
 use App\Filament\Resources\Assessment\AssessmentTemplates\Tables\AssessmentTemplatesTable;
+use App\Filament\Clusters\Assessment\AssessmentCluster;
 use App\Models\Assessment\AssessmentTemplates;
 use BackedEnum;
 use Filament\Resources\Resource;
@@ -18,6 +19,8 @@ use Filament\Tables\Table;
 class AssessmentTemplateResource extends Resource
 {
     protected static ?string $model = AssessmentTemplates::class;
+
+    protected static ?string $cluster = AssessmentCluster::class;
 
     protected static ?string $navigationLabel = 'Form Template';
 

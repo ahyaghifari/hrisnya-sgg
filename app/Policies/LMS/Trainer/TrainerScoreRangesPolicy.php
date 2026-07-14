@@ -37,11 +37,6 @@ class TrainerScoreRangesPolicy
         return $authUser->can('Delete:TrainerScoreRanges');
     }
 
-    public function deleteAny(AuthUser $authUser): bool
-    {
-        return $authUser->can('DeleteAny:TrainerScoreRanges');
-    }
-
     public function restore(AuthUser $authUser, TrainerScoreRanges $trainerScoreRanges): bool
     {
         return $authUser->can('Restore:TrainerScoreRanges');
@@ -52,12 +47,7 @@ class TrainerScoreRangesPolicy
         return $authUser->can('ForceDelete:TrainerScoreRanges');
     }
 
-    public function forceDeleteAny(AuthUser $authUser): bool
-    {
-        return $authUser->can('ForceDeleteAny:TrainerScoreRanges');
-    }
-
-    public function restoreAny(AuthUser $authUser): bool
+    public function restoreAny(AuthUser $authUser, TrainerScoreRanges $trainerScoreRanges): bool
     {
         return $authUser->can('RestoreAny:TrainerScoreRanges');
     }

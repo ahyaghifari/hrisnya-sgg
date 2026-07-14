@@ -14,10 +14,25 @@ enum CustomPermissionEnum: string
 {
     case SISTEM_KEUANGAN = 'sistem_keuangan';
 
+    // Verb non-CRUD (approve/import/report) - dideklarasikan juga di
+    // config/filament-shield.php 'custom_permissions' supaya Shield tidak menganggapnya yatim.
+    // Sebelumnya dijaga lewat PermissionsSeeder.php lama (sudah dihapus), dipindah ke sini.
+    case APPROVE_PENGAJUAN_ABSENSI = 'approve_pengajuan_absensi';
+    case VIEW_REPORT_DATA_ABSENSI = 'view_report_data_absensi';
+    case IMPORT_DATA_ABSENSI = 'import_data_absensi';
+    case APPROVE_PENGAJUAN_PELATIHAN = 'approve_pengajuan_pelatihan';
+    case APPROVE_MANAJEMEN_LOWONGAN_KERJA = 'approve_manajemen_lowongan_kerja';
+
     public function label(): string
     {
-        return match ($this) {
+        return match
+         ($this) {
             self::SISTEM_KEUANGAN => 'Sistem Keuangan',
+            self::APPROVE_PENGAJUAN_ABSENSI => 'Approve Pengajuan Absensi',
+            self::VIEW_REPORT_DATA_ABSENSI => 'Lihat Laporan Data Absensi',
+            self::IMPORT_DATA_ABSENSI => 'Import Data Absensi',
+            self::APPROVE_PENGAJUAN_PELATIHAN => 'Approve Pengajuan Pelatihan',
+            self::APPROVE_MANAJEMEN_LOWONGAN_KERJA => 'Approve Manajemen Lowongan Kerja',
         };
     }
 }

@@ -37,11 +37,6 @@ class MasterApprovalFlowsPolicy
         return $authUser->can('Delete:MasterApprovalFlows');
     }
 
-    public function deleteAny(AuthUser $authUser): bool
-    {
-        return $authUser->can('DeleteAny:MasterApprovalFlows');
-    }
-
     public function restore(AuthUser $authUser, MasterApprovalFlows $masterApprovalFlows): bool
     {
         return $authUser->can('Restore:MasterApprovalFlows');
@@ -52,12 +47,7 @@ class MasterApprovalFlowsPolicy
         return $authUser->can('ForceDelete:MasterApprovalFlows');
     }
 
-    public function forceDeleteAny(AuthUser $authUser): bool
-    {
-        return $authUser->can('ForceDeleteAny:MasterApprovalFlows');
-    }
-
-    public function restoreAny(AuthUser $authUser): bool
+    public function restoreAny(AuthUser $authUser, MasterApprovalFlows $masterApprovalFlows): bool
     {
         return $authUser->can('RestoreAny:MasterApprovalFlows');
     }

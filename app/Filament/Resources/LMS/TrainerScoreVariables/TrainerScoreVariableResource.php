@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\LMS\TrainerScoreVariables;
 
+use App\Filament\Clusters\MasterSalaryComponent\MasterSalaryComponentCluster;
 use App\Filament\Resources\LMS\TrainerScoreVariables\Pages\CreateTrainerScoreVariable;
 use App\Filament\Resources\LMS\TrainerScoreVariables\Pages\EditTrainerScoreVariable;
 use App\Filament\Resources\LMS\TrainerScoreVariables\Pages\ListTrainerScoreVariables;
@@ -18,6 +19,8 @@ use UnitEnum;
 class TrainerScoreVariableResource extends Resource
 {
     protected static ?string $model = TrainerScoreVariables::class;
+
+    protected static ?string $cluster = MasterSalaryComponentCluster::class;
 
     protected static ?string $slug = 'lms/trainer-score-variables';
 

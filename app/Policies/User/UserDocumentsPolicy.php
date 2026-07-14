@@ -37,11 +37,6 @@ class UserDocumentsPolicy
         return $authUser->can('Delete:UserDocuments');
     }
 
-    public function deleteAny(AuthUser $authUser): bool
-    {
-        return $authUser->can('DeleteAny:UserDocuments');
-    }
-
     public function restore(AuthUser $authUser, UserDocuments $userDocuments): bool
     {
         return $authUser->can('Restore:UserDocuments');
@@ -52,12 +47,7 @@ class UserDocumentsPolicy
         return $authUser->can('ForceDelete:UserDocuments');
     }
 
-    public function forceDeleteAny(AuthUser $authUser): bool
-    {
-        return $authUser->can('ForceDeleteAny:UserDocuments');
-    }
-
-    public function restoreAny(AuthUser $authUser): bool
+    public function restoreAny(AuthUser $authUser, UserDocuments $userDocuments): bool
     {
         return $authUser->can('RestoreAny:UserDocuments');
     }

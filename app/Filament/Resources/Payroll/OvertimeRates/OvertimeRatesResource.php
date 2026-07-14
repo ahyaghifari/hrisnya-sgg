@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Payroll\OvertimeRates;
 
+use App\Filament\Clusters\MasterSalaryComponent\MasterSalaryComponentCluster;
 use App\Filament\Resources\Payroll\OvertimeRates\Pages\CreateOvertimeRates;
 use App\Filament\Resources\Payroll\OvertimeRates\Pages\EditOvertimeRates;
 use App\Filament\Resources\Payroll\OvertimeRates\Pages\ListOvertimeRates;
@@ -18,6 +19,8 @@ use UnitEnum;
 class OvertimeRatesResource extends Resource
 {
     protected static ?string $model = ShiftOvertimeCosts::class;
+
+    protected static ?string $cluster = MasterSalaryComponentCluster::class;
 
     protected static ?string $navigationLabel = "Tarif Lembur";
 

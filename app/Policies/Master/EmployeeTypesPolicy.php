@@ -37,11 +37,6 @@ class EmployeeTypesPolicy
         return $authUser->can('Delete:EmployeeTypes');
     }
 
-    public function deleteAny(AuthUser $authUser): bool
-    {
-        return $authUser->can('DeleteAny:EmployeeTypes');
-    }
-
     public function restore(AuthUser $authUser, EmployeeTypes $employeeTypes): bool
     {
         return $authUser->can('Restore:EmployeeTypes');
@@ -52,12 +47,7 @@ class EmployeeTypesPolicy
         return $authUser->can('ForceDelete:EmployeeTypes');
     }
 
-    public function forceDeleteAny(AuthUser $authUser): bool
-    {
-        return $authUser->can('ForceDeleteAny:EmployeeTypes');
-    }
-
-    public function restoreAny(AuthUser $authUser): bool
+    public function restoreAny(AuthUser $authUser, EmployeeTypes $employeeTypes): bool
     {
         return $authUser->can('RestoreAny:EmployeeTypes');
     }

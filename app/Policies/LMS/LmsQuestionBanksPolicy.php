@@ -11,13 +11,13 @@ use Illuminate\Auth\Access\HandlesAuthorization;
 class LmsQuestionBanksPolicy
 {
     use HandlesAuthorization;
-
+    
     public function viewAny(AuthUser $authUser): bool
     {
         return $authUser->can('ViewAny:LmsQuestionBanks');
     }
 
-    public function view(AuthUser $authUser, LmsQuestionBanks $questionBanks): bool
+    public function view(AuthUser $authUser, LmsQuestionBanks $lmsQuestionBanks): bool
     {
         return $authUser->can('View:LmsQuestionBanks');
     }
@@ -27,42 +27,32 @@ class LmsQuestionBanksPolicy
         return $authUser->can('Create:LmsQuestionBanks');
     }
 
-    public function update(AuthUser $authUser, LmsQuestionBanks $questionBanks): bool
+    public function update(AuthUser $authUser, LmsQuestionBanks $lmsQuestionBanks): bool
     {
         return $authUser->can('Update:LmsQuestionBanks');
     }
 
-    public function delete(AuthUser $authUser, LmsQuestionBanks $questionBanks): bool
+    public function delete(AuthUser $authUser, LmsQuestionBanks $lmsQuestionBanks): bool
     {
         return $authUser->can('Delete:LmsQuestionBanks');
     }
 
-    public function deleteAny(AuthUser $authUser): bool
-    {
-        return $authUser->can('DeleteAny:LmsQuestionBanks');
-    }
-
-    public function restore(AuthUser $authUser, LmsQuestionBanks $questionBanks): bool
+    public function restore(AuthUser $authUser, LmsQuestionBanks $lmsQuestionBanks): bool
     {
         return $authUser->can('Restore:LmsQuestionBanks');
     }
 
-    public function forceDelete(AuthUser $authUser, LmsQuestionBanks $questionBanks): bool
+    public function forceDelete(AuthUser $authUser, LmsQuestionBanks $lmsQuestionBanks): bool
     {
         return $authUser->can('ForceDelete:LmsQuestionBanks');
     }
 
-    public function forceDeleteAny(AuthUser $authUser): bool
-    {
-        return $authUser->can('ForceDeleteAny:LmsQuestionBanks');
-    }
-
-    public function restoreAny(AuthUser $authUser): bool
+    public function restoreAny(AuthUser $authUser, LmsQuestionBanks $lmsQuestionBanks): bool
     {
         return $authUser->can('RestoreAny:LmsQuestionBanks');
     }
 
-    public function replicate(AuthUser $authUser, LmsQuestionBanks $questionBanks): bool
+    public function replicate(AuthUser $authUser, LmsQuestionBanks $lmsQuestionBanks): bool
     {
         return $authUser->can('Replicate:LmsQuestionBanks');
     }

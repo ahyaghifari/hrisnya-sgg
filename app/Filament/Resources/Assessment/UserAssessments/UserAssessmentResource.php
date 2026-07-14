@@ -7,6 +7,7 @@ use App\Filament\Resources\Assessment\UserAssessments\Pages\EditUserAssessment;
 use App\Filament\Resources\Assessment\UserAssessments\Pages\ListUserAssessments;
 use App\Filament\Resources\Assessment\UserAssessments\Schemas\UserAssessmentForm;
 use App\Filament\Resources\Assessment\UserAssessments\Tables\UserAssessmentsTable;
+use App\Filament\Clusters\Assessment\AssessmentCluster;
 use App\Models\Assessment\AssessmentUsers;
 use App\Models\Assessment\UserAssessment;
 use BackedEnum;
@@ -20,6 +21,8 @@ use Illuminate\Support\Facades\Gate;
 class UserAssessmentResource extends Resource
 {
     protected static ?string $model = AssessmentUsers::class;
+
+    protected static ?string $cluster = AssessmentCluster::class;
 
     protected static bool $shouldRegisterNavigation = false;
 

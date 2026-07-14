@@ -37,11 +37,6 @@ class CounselingPolicy
         return $authUser->can('Delete:Counseling');
     }
 
-    public function deleteAny(AuthUser $authUser): bool
-    {
-        return $authUser->can('DeleteAny:Counseling');
-    }
-
     public function restore(AuthUser $authUser, Counseling $counseling): bool
     {
         return $authUser->can('Restore:Counseling');
@@ -52,12 +47,7 @@ class CounselingPolicy
         return $authUser->can('ForceDelete:Counseling');
     }
 
-    public function forceDeleteAny(AuthUser $authUser): bool
-    {
-        return $authUser->can('ForceDeleteAny:Counseling');
-    }
-
-    public function restoreAny(AuthUser $authUser): bool
+    public function restoreAny(AuthUser $authUser, Counseling $counseling): bool
     {
         return $authUser->can('RestoreAny:Counseling');
     }

@@ -37,11 +37,6 @@ class ExtraHourAllowanceRulesPolicy
         return $authUser->can('Delete:ExtraHourAllowanceRules');
     }
 
-    public function deleteAny(AuthUser $authUser): bool
-    {
-        return $authUser->can('DeleteAny:ExtraHourAllowanceRules');
-    }
-
     public function restore(AuthUser $authUser, ExtraHourAllowanceRules $extraHourAllowanceRules): bool
     {
         return $authUser->can('Restore:ExtraHourAllowanceRules');
@@ -52,12 +47,7 @@ class ExtraHourAllowanceRulesPolicy
         return $authUser->can('ForceDelete:ExtraHourAllowanceRules');
     }
 
-    public function forceDeleteAny(AuthUser $authUser): bool
-    {
-        return $authUser->can('ForceDeleteAny:ExtraHourAllowanceRules');
-    }
-
-    public function restoreAny(AuthUser $authUser): bool
+    public function restoreAny(AuthUser $authUser, ExtraHourAllowanceRules $extraHourAllowanceRules): bool
     {
         return $authUser->can('RestoreAny:ExtraHourAllowanceRules');
     }

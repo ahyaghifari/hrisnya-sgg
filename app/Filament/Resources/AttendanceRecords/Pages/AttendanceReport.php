@@ -545,7 +545,7 @@ class AttendanceReport extends Page implements HasTable
         }
 
         // Jika type = report, tampilkan sesuai company scope seperti sebelumnya
-        if (! $user || $user->hasRole('super_admin')) {
+        if (! $user || $user->hasRole(['Admin', 'Super Admin'])) {
             return $query;
         }
 

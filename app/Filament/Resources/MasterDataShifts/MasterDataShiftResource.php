@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\MasterDataShifts;
 
+use App\Filament\Clusters\ShiftPattern\ShiftPatternCluster;
 use App\Filament\Resources\MasterDataShifts\Pages\CreateMasterDataShift;
 use App\Filament\Resources\MasterDataShifts\Pages\EditMasterDataShift;
 use App\Filament\Resources\MasterDataShifts\Pages\ListMasterDataShifts;
@@ -20,6 +21,8 @@ use Illuminate\Support\Facades\Auth;
 class MasterDataShiftResource extends Resource
 {
     protected static ?string $model = MasterShift::class;
+
+    protected static ?string $cluster = ShiftPatternCluster::class;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
 

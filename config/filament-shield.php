@@ -238,9 +238,10 @@ return [
     |
     */
 
-    // Permission non-CRUD (verb approve/import/report) yang sudah ada di
-    // PermissionsSeeder — Shield tidak bisa auto-generate ini (bukan pola CRUD standar),
-    // didaftarkan manual supaya tetap "dikenal" & tidak dianggap yatim.
+    // Permission non-CRUD (verb approve/import/report) yang dijaga lewat
+    // App\Enum\CustomPermissionEnum + database/seeders/CustomPermissionsSeeder.php —
+    // Shield tidak bisa auto-generate ini (bukan pola CRUD standar), didaftarkan manual
+    // supaya tetap "dikenal" & tidak dianggap yatim.
     'custom_permissions' => [
         'approve_pengajuan_absensi',
         'view_report_data_absensi',

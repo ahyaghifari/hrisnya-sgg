@@ -3,6 +3,7 @@
 namespace App\Repositories\LMS;
 
 use App\Models\LMS\LmsCategories;
+use App\Models\LMS\LmsCoursePlanItems;
 use App\Models\LMS\LmsCourseFeedbacks;
 use App\Models\LMS\LmsCourses;
 use App\Models\LMS\LmsMeetings;
@@ -126,5 +127,11 @@ class CourseRepository
             ->pluck('title')
             ->unique()
             ->values();
+    }
+
+    public function updateCourseRequest(LmsCoursePlanItems $coursePlanItem, array $data)
+    {
+        $coursePlanItem->update($data);
+        return $coursePlanItem->refresh();
     }
 }

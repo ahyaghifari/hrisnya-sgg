@@ -37,11 +37,6 @@ class OrgStructurePolicy
         return $authUser->can('Delete:OrgStructure');
     }
 
-    public function deleteAny(AuthUser $authUser): bool
-    {
-        return $authUser->can('DeleteAny:OrgStructure');
-    }
-
     public function restore(AuthUser $authUser, OrgStructure $orgStructure): bool
     {
         return $authUser->can('Restore:OrgStructure');
@@ -52,12 +47,7 @@ class OrgStructurePolicy
         return $authUser->can('ForceDelete:OrgStructure');
     }
 
-    public function forceDeleteAny(AuthUser $authUser): bool
-    {
-        return $authUser->can('ForceDeleteAny:OrgStructure');
-    }
-
-    public function restoreAny(AuthUser $authUser): bool
+    public function restoreAny(AuthUser $authUser, OrgStructure $orgStructure): bool
     {
         return $authUser->can('RestoreAny:OrgStructure');
     }

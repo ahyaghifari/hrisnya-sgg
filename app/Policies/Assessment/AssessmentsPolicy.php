@@ -37,11 +37,6 @@ class AssessmentsPolicy
         return $authUser->can('Delete:Assessments');
     }
 
-    public function deleteAny(AuthUser $authUser): bool
-    {
-        return $authUser->can('DeleteAny:Assessments');
-    }
-
     public function restore(AuthUser $authUser, Assessments $assessments): bool
     {
         return $authUser->can('Restore:Assessments');
@@ -52,12 +47,7 @@ class AssessmentsPolicy
         return $authUser->can('ForceDelete:Assessments');
     }
 
-    public function forceDeleteAny(AuthUser $authUser): bool
-    {
-        return $authUser->can('ForceDeleteAny:Assessments');
-    }
-
-    public function restoreAny(AuthUser $authUser): bool
+    public function restoreAny(AuthUser $authUser, Assessments $assessments): bool
     {
         return $authUser->can('RestoreAny:Assessments');
     }

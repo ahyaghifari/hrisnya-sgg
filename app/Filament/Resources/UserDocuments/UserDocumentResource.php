@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\UserDocuments;
 
 use App\Enum\UserDocumentType;
+use App\Filament\Clusters\EmployeeDocument\EmployeeDocumentCluster;
 use App\Filament\Resources\UserDocuments\Pages\CreateUserDocument;
 use App\Filament\Resources\UserDocuments\Pages\EditUserDocument;
 use App\Filament\Resources\UserDocuments\Pages\ListUserDocuments;
@@ -22,6 +23,8 @@ use Illuminate\Support\Facades\Auth;
 class UserDocumentResource extends Resource
 {
     protected static ?string $model = UserDocuments::class;
+
+    protected static ?string $cluster = EmployeeDocumentCluster::class;
 
     // Dokumen karyawan sekarang dilihat dari portal (tab "Dokumen" di halaman Data
     // Diri/MyStaff), bukan dari admin panel. Resource + route tetap ada (belum ada upload

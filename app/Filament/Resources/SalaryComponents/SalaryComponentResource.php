@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\SalaryComponents;
 
+use App\Filament\Clusters\MasterSalaryComponent\MasterSalaryComponentCluster;
 use App\Filament\Resources\SalaryComponents\Pages\ListSalaryComponents;
 use App\Filament\Resources\SalaryComponents\Schemas\SalaryComponentForm;
 use App\Filament\Resources\SalaryComponents\Tables\SalaryComponentsTable;
@@ -16,6 +17,8 @@ use UnitEnum;
 class SalaryComponentResource extends Resource
 {
     protected static ?string $model = SalaryComponents::class;
+
+    protected static ?string $cluster = MasterSalaryComponentCluster::class;
 
     protected static ?string $navigationLabel = "Komponen Gaji";
 

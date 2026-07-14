@@ -37,11 +37,6 @@ class BanksPolicy
         return $authUser->can('Delete:Banks');
     }
 
-    public function deleteAny(AuthUser $authUser): bool
-    {
-        return $authUser->can('DeleteAny:Banks');
-    }
-
     public function restore(AuthUser $authUser, Banks $banks): bool
     {
         return $authUser->can('Restore:Banks');
@@ -52,12 +47,7 @@ class BanksPolicy
         return $authUser->can('ForceDelete:Banks');
     }
 
-    public function forceDeleteAny(AuthUser $authUser): bool
-    {
-        return $authUser->can('ForceDeleteAny:Banks');
-    }
-
-    public function restoreAny(AuthUser $authUser): bool
+    public function restoreAny(AuthUser $authUser, Banks $banks): bool
     {
         return $authUser->can('RestoreAny:Banks');
     }

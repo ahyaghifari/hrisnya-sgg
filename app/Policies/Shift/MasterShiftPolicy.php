@@ -37,11 +37,6 @@ class MasterShiftPolicy
         return $authUser->can('Delete:MasterShift');
     }
 
-    public function deleteAny(AuthUser $authUser): bool
-    {
-        return $authUser->can('DeleteAny:MasterShift');
-    }
-
     public function restore(AuthUser $authUser, MasterShift $masterShift): bool
     {
         return $authUser->can('Restore:MasterShift');
@@ -52,12 +47,7 @@ class MasterShiftPolicy
         return $authUser->can('ForceDelete:MasterShift');
     }
 
-    public function forceDeleteAny(AuthUser $authUser): bool
-    {
-        return $authUser->can('ForceDeleteAny:MasterShift');
-    }
-
-    public function restoreAny(AuthUser $authUser): bool
+    public function restoreAny(AuthUser $authUser, MasterShift $masterShift): bool
     {
         return $authUser->can('RestoreAny:MasterShift');
     }

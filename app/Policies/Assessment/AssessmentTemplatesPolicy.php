@@ -37,11 +37,6 @@ class AssessmentTemplatesPolicy
         return $authUser->can('Delete:AssessmentTemplates');
     }
 
-    public function deleteAny(AuthUser $authUser): bool
-    {
-        return $authUser->can('DeleteAny:AssessmentTemplates');
-    }
-
     public function restore(AuthUser $authUser, AssessmentTemplates $assessmentTemplates): bool
     {
         return $authUser->can('Restore:AssessmentTemplates');
@@ -52,12 +47,7 @@ class AssessmentTemplatesPolicy
         return $authUser->can('ForceDelete:AssessmentTemplates');
     }
 
-    public function forceDeleteAny(AuthUser $authUser): bool
-    {
-        return $authUser->can('ForceDeleteAny:AssessmentTemplates');
-    }
-
-    public function restoreAny(AuthUser $authUser): bool
+    public function restoreAny(AuthUser $authUser, AssessmentTemplates $assessmentTemplates): bool
     {
         return $authUser->can('RestoreAny:AssessmentTemplates');
     }

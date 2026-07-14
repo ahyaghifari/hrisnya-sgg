@@ -37,11 +37,6 @@ class CompetenciesPolicy
         return $authUser->can('Delete:Competencies');
     }
 
-    public function deleteAny(AuthUser $authUser): bool
-    {
-        return $authUser->can('DeleteAny:Competencies');
-    }
-
     public function restore(AuthUser $authUser, Competencies $competencies): bool
     {
         return $authUser->can('Restore:Competencies');
@@ -52,12 +47,7 @@ class CompetenciesPolicy
         return $authUser->can('ForceDelete:Competencies');
     }
 
-    public function forceDeleteAny(AuthUser $authUser): bool
-    {
-        return $authUser->can('ForceDeleteAny:Competencies');
-    }
-
-    public function restoreAny(AuthUser $authUser): bool
+    public function restoreAny(AuthUser $authUser, Competencies $competencies): bool
     {
         return $authUser->can('RestoreAny:Competencies');
     }

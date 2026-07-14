@@ -37,11 +37,6 @@ class ShiftOvertimeCostsPolicy
         return $authUser->can('Delete:ShiftOvertimeCosts');
     }
 
-    public function deleteAny(AuthUser $authUser): bool
-    {
-        return $authUser->can('DeleteAny:ShiftOvertimeCosts');
-    }
-
     public function restore(AuthUser $authUser, ShiftOvertimeCosts $shiftOvertimeCosts): bool
     {
         return $authUser->can('Restore:ShiftOvertimeCosts');
@@ -52,12 +47,7 @@ class ShiftOvertimeCostsPolicy
         return $authUser->can('ForceDelete:ShiftOvertimeCosts');
     }
 
-    public function forceDeleteAny(AuthUser $authUser): bool
-    {
-        return $authUser->can('ForceDeleteAny:ShiftOvertimeCosts');
-    }
-
-    public function restoreAny(AuthUser $authUser): bool
+    public function restoreAny(AuthUser $authUser, ShiftOvertimeCosts $shiftOvertimeCosts): bool
     {
         return $authUser->can('RestoreAny:ShiftOvertimeCosts');
     }

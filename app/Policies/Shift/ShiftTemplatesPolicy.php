@@ -37,11 +37,6 @@ class ShiftTemplatesPolicy
         return $authUser->can('Delete:ShiftTemplates');
     }
 
-    public function deleteAny(AuthUser $authUser): bool
-    {
-        return $authUser->can('DeleteAny:ShiftTemplates');
-    }
-
     public function restore(AuthUser $authUser, ShiftTemplates $shiftTemplates): bool
     {
         return $authUser->can('Restore:ShiftTemplates');
@@ -52,12 +47,7 @@ class ShiftTemplatesPolicy
         return $authUser->can('ForceDelete:ShiftTemplates');
     }
 
-    public function forceDeleteAny(AuthUser $authUser): bool
-    {
-        return $authUser->can('ForceDeleteAny:ShiftTemplates');
-    }
-
-    public function restoreAny(AuthUser $authUser): bool
+    public function restoreAny(AuthUser $authUser, ShiftTemplates $shiftTemplates): bool
     {
         return $authUser->can('RestoreAny:ShiftTemplates');
     }

@@ -37,11 +37,6 @@ class CompaniesPolicy
         return $authUser->can('Delete:Companies');
     }
 
-    public function deleteAny(AuthUser $authUser): bool
-    {
-        return $authUser->can('DeleteAny:Companies');
-    }
-
     public function restore(AuthUser $authUser, Companies $companies): bool
     {
         return $authUser->can('Restore:Companies');
@@ -52,12 +47,7 @@ class CompaniesPolicy
         return $authUser->can('ForceDelete:Companies');
     }
 
-    public function forceDeleteAny(AuthUser $authUser): bool
-    {
-        return $authUser->can('ForceDeleteAny:Companies');
-    }
-
-    public function restoreAny(AuthUser $authUser): bool
+    public function restoreAny(AuthUser $authUser, Companies $companies): bool
     {
         return $authUser->can('RestoreAny:Companies');
     }

@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\ShiftSwapApprovals;
 
+use App\Filament\Clusters\ShiftPattern\ShiftPatternCluster;
 use App\Filament\Resources\ShiftSwapApprovals\Pages\EditShiftSwapApproval;
 use App\Filament\Resources\ShiftSwapApprovals\Pages\ListShiftSwapApprovals;
 use App\Filament\Resources\ShiftSwapApprovals\Schemas\ShiftSwapApprovalForm;
@@ -16,6 +17,8 @@ use Filament\Tables\Table;
 class ShiftSwapApprovalResource extends Resource
 {
     protected static ?string $model = ShiftSwapRequests::class;
+
+    protected static ?string $cluster = ShiftPatternCluster::class;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
 

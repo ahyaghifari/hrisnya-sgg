@@ -37,11 +37,6 @@ class ManpowerRequestsPolicy
         return $authUser->can('Delete:ManpowerRequests');
     }
 
-    public function deleteAny(AuthUser $authUser): bool
-    {
-        return $authUser->can('DeleteAny:ManpowerRequests');
-    }
-
     public function restore(AuthUser $authUser, ManpowerRequests $manpowerRequests): bool
     {
         return $authUser->can('Restore:ManpowerRequests');
@@ -52,12 +47,7 @@ class ManpowerRequestsPolicy
         return $authUser->can('ForceDelete:ManpowerRequests');
     }
 
-    public function forceDeleteAny(AuthUser $authUser): bool
-    {
-        return $authUser->can('ForceDeleteAny:ManpowerRequests');
-    }
-
-    public function restoreAny(AuthUser $authUser): bool
+    public function restoreAny(AuthUser $authUser, ManpowerRequests $manpowerRequests): bool
     {
         return $authUser->can('RestoreAny:ManpowerRequests');
     }

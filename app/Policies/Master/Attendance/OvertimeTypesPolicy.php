@@ -37,11 +37,6 @@ class OvertimeTypesPolicy
         return $authUser->can('Delete:OvertimeTypes');
     }
 
-    public function deleteAny(AuthUser $authUser): bool
-    {
-        return $authUser->can('DeleteAny:OvertimeTypes');
-    }
-
     public function restore(AuthUser $authUser, OvertimeTypes $overtimeTypes): bool
     {
         return $authUser->can('Restore:OvertimeTypes');
@@ -52,12 +47,7 @@ class OvertimeTypesPolicy
         return $authUser->can('ForceDelete:OvertimeTypes');
     }
 
-    public function forceDeleteAny(AuthUser $authUser): bool
-    {
-        return $authUser->can('ForceDeleteAny:OvertimeTypes');
-    }
-
-    public function restoreAny(AuthUser $authUser): bool
+    public function restoreAny(AuthUser $authUser, OvertimeTypes $overtimeTypes): bool
     {
         return $authUser->can('RestoreAny:OvertimeTypes');
     }

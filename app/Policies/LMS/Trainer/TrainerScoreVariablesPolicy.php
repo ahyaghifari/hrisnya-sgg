@@ -37,11 +37,6 @@ class TrainerScoreVariablesPolicy
         return $authUser->can('Delete:TrainerScoreVariables');
     }
 
-    public function deleteAny(AuthUser $authUser): bool
-    {
-        return $authUser->can('DeleteAny:TrainerScoreVariables');
-    }
-
     public function restore(AuthUser $authUser, TrainerScoreVariables $trainerScoreVariables): bool
     {
         return $authUser->can('Restore:TrainerScoreVariables');
@@ -52,12 +47,7 @@ class TrainerScoreVariablesPolicy
         return $authUser->can('ForceDelete:TrainerScoreVariables');
     }
 
-    public function forceDeleteAny(AuthUser $authUser): bool
-    {
-        return $authUser->can('ForceDeleteAny:TrainerScoreVariables');
-    }
-
-    public function restoreAny(AuthUser $authUser): bool
+    public function restoreAny(AuthUser $authUser, TrainerScoreVariables $trainerScoreVariables): bool
     {
         return $authUser->can('RestoreAny:TrainerScoreVariables');
     }

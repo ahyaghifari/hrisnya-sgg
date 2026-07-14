@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\ScheduleShifts;
 
+use App\Filament\Clusters\ShiftPattern\ShiftPatternCluster;
 use App\Filament\Resources\ScheduleShifts\Pages\CreateScheduleShift;
 use App\Filament\Resources\ScheduleShifts\Pages\EditScheduleShift;
 use App\Filament\Resources\ScheduleShifts\Pages\ListScheduleShifts;
@@ -17,6 +18,8 @@ use Filament\Tables\Table;
 class ScheduleShiftResource extends Resource
 {
     protected static ?string $model = ShiftScheduleAssignments::class;
+
+    protected static ?string $cluster = ShiftPatternCluster::class;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
 

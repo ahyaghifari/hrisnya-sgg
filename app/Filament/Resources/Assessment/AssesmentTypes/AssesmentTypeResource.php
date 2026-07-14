@@ -7,6 +7,7 @@ use App\Filament\Resources\Assessment\AssesmentTypes\Pages\EditAssesmentType;
 use App\Filament\Resources\Assessment\AssesmentTypes\Pages\ListAssesmentTypes;
 use App\Filament\Resources\Assessment\AssesmentTypes\Schemas\AssesmentTypeForm;
 use App\Filament\Resources\Assessment\AssesmentTypes\Tables\AssesmentTypesTable;
+use App\Filament\Clusters\Assessment\AssessmentCluster;
 use App\Models\Assessment\AssessmentTypes;
 use BackedEnum;
 use Filament\Resources\Resource;
@@ -17,6 +18,8 @@ use Filament\Tables\Table;
 class AssesmentTypeResource extends Resource
 {
     protected static ?string $model = AssessmentTypes::class;
+
+    protected static ?string $cluster = AssessmentCluster::class;
 
     protected static ?string $navigationLabel = 'Tipe Penilaian';
 

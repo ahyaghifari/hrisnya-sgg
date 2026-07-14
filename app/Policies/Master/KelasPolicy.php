@@ -37,11 +37,6 @@ class KelasPolicy
         return $authUser->can('Delete:Kelas');
     }
 
-    public function deleteAny(AuthUser $authUser): bool
-    {
-        return $authUser->can('DeleteAny:Kelas');
-    }
-
     public function restore(AuthUser $authUser, Kelas $kelas): bool
     {
         return $authUser->can('Restore:Kelas');
@@ -52,12 +47,7 @@ class KelasPolicy
         return $authUser->can('ForceDelete:Kelas');
     }
 
-    public function forceDeleteAny(AuthUser $authUser): bool
-    {
-        return $authUser->can('ForceDeleteAny:Kelas');
-    }
-
-    public function restoreAny(AuthUser $authUser): bool
+    public function restoreAny(AuthUser $authUser, Kelas $kelas): bool
     {
         return $authUser->can('RestoreAny:Kelas');
     }

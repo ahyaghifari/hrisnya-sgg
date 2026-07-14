@@ -37,11 +37,6 @@ class GolongansPolicy
         return $authUser->can('Delete:Golongans');
     }
 
-    public function deleteAny(AuthUser $authUser): bool
-    {
-        return $authUser->can('DeleteAny:Golongans');
-    }
-
     public function restore(AuthUser $authUser, Golongans $golongans): bool
     {
         return $authUser->can('Restore:Golongans');
@@ -52,12 +47,7 @@ class GolongansPolicy
         return $authUser->can('ForceDelete:Golongans');
     }
 
-    public function forceDeleteAny(AuthUser $authUser): bool
-    {
-        return $authUser->can('ForceDeleteAny:Golongans');
-    }
-
-    public function restoreAny(AuthUser $authUser): bool
+    public function restoreAny(AuthUser $authUser, Golongans $golongans): bool
     {
         return $authUser->can('RestoreAny:Golongans');
     }

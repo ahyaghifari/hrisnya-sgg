@@ -37,11 +37,6 @@ class ShiftScheduleAssignmentsPolicy
         return $authUser->can('Delete:ShiftScheduleAssignments');
     }
 
-    public function deleteAny(AuthUser $authUser): bool
-    {
-        return $authUser->can('DeleteAny:ShiftScheduleAssignments');
-    }
-
     public function restore(AuthUser $authUser, ShiftScheduleAssignments $shiftScheduleAssignments): bool
     {
         return $authUser->can('Restore:ShiftScheduleAssignments');
@@ -52,12 +47,7 @@ class ShiftScheduleAssignmentsPolicy
         return $authUser->can('ForceDelete:ShiftScheduleAssignments');
     }
 
-    public function forceDeleteAny(AuthUser $authUser): bool
-    {
-        return $authUser->can('ForceDeleteAny:ShiftScheduleAssignments');
-    }
-
-    public function restoreAny(AuthUser $authUser): bool
+    public function restoreAny(AuthUser $authUser, ShiftScheduleAssignments $shiftScheduleAssignments): bool
     {
         return $authUser->can('RestoreAny:ShiftScheduleAssignments');
     }

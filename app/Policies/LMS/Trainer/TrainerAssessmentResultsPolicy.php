@@ -11,7 +11,7 @@ use Illuminate\Auth\Access\HandlesAuthorization;
 class TrainerAssessmentResultsPolicy
 {
     use HandlesAuthorization;
-
+    
     public function viewAny(AuthUser $authUser): bool
     {
         return $authUser->can('ViewAny:TrainerAssessmentResults');
@@ -37,11 +37,6 @@ class TrainerAssessmentResultsPolicy
         return $authUser->can('Delete:TrainerAssessmentResults');
     }
 
-    public function deleteAny(AuthUser $authUser): bool
-    {
-        return $authUser->can('DeleteAny:TrainerAssessmentResults');
-    }
-
     public function restore(AuthUser $authUser, TrainerAssessmentResults $trainerAssessmentResults): bool
     {
         return $authUser->can('Restore:TrainerAssessmentResults');
@@ -52,12 +47,7 @@ class TrainerAssessmentResultsPolicy
         return $authUser->can('ForceDelete:TrainerAssessmentResults');
     }
 
-    public function forceDeleteAny(AuthUser $authUser): bool
-    {
-        return $authUser->can('ForceDeleteAny:TrainerAssessmentResults');
-    }
-
-    public function restoreAny(AuthUser $authUser): bool
+    public function restoreAny(AuthUser $authUser, TrainerAssessmentResults $trainerAssessmentResults): bool
     {
         return $authUser->can('RestoreAny:TrainerAssessmentResults');
     }

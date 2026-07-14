@@ -9,6 +9,7 @@ use App\Filament\Resources\Assessment\Assessments\Pages\ViewAssessment;
 use App\Filament\Resources\Assessment\Assessments\RelationManagers\UserAssessmentsRelationManager;
 use App\Filament\Resources\Assessment\Assessments\Schemas\AssessmentForm;
 use App\Filament\Resources\Assessment\Assessments\Tables\AssessmentsTable;
+use App\Filament\Clusters\Assessment\AssessmentCluster;
 use App\Helpers\PermissionHelper;
 use App\Models\Assessment\Assessments;
 use App\Models\Assessment\AssessmentTypes;
@@ -34,6 +35,7 @@ class AssessmentResource extends Resource
 {
     protected static ?string $model = Assessments::class;
 
+    protected static ?string $cluster = AssessmentCluster::class;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
 

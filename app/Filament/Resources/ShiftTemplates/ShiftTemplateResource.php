@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\ShiftTemplates;
 
+use App\Filament\Clusters\ShiftPattern\ShiftPatternCluster;
 use App\Filament\Resources\ShiftTemplates\Pages\CreateShiftTemplate;
 use App\Filament\Resources\ShiftTemplates\Pages\EditShiftTemplate;
 use App\Filament\Resources\ShiftTemplates\Pages\GenerateScheduleFromTemplate;
@@ -18,6 +19,8 @@ use Filament\Tables\Table;
 class ShiftTemplateResource extends Resource
 {
     protected static ?string $model = ShiftTemplates::class;
+
+    protected static ?string $cluster = ShiftPatternCluster::class;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
 

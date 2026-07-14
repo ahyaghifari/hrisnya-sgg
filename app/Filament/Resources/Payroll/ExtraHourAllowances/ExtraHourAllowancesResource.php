@@ -7,6 +7,7 @@ use App\Filament\Resources\Payroll\ExtraHourAllowances\Pages\EditExtraHourAllowa
 use App\Filament\Resources\Payroll\ExtraHourAllowances\Pages\ListExtraHourAllowances;
 use App\Filament\Resources\Payroll\ExtraHourAllowances\Schemas\ExtraHourAllowancesForm;
 use App\Filament\Resources\Payroll\ExtraHourAllowances\Tables\ExtraHourAllowancesTable;
+use App\Filament\Clusters\MasterSalaryComponent\MasterSalaryComponentCluster;
 use App\Models\Shift\ExtraHourAllowanceRules;
 use BackedEnum;
 use Filament\Resources\Resource;
@@ -17,7 +18,9 @@ use Filament\Tables\Table;
 class ExtraHourAllowancesResource extends Resource
 {
     protected static ?string $model = ExtraHourAllowanceRules::class;
-    
+
+    protected static ?string $cluster = MasterSalaryComponentCluster::class;
+
     protected static ?string $navigationLabel = "Tunjangan Kelebihan Jam";
 
     protected static ?int $navigationSort = 1;

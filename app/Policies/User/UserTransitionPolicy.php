@@ -37,11 +37,6 @@ class UserTransitionPolicy
         return $authUser->can('Delete:UserTransition');
     }
 
-    public function deleteAny(AuthUser $authUser): bool
-    {
-        return $authUser->can('DeleteAny:UserTransition');
-    }
-
     public function restore(AuthUser $authUser, UserTransition $userTransition): bool
     {
         return $authUser->can('Restore:UserTransition');
@@ -52,12 +47,7 @@ class UserTransitionPolicy
         return $authUser->can('ForceDelete:UserTransition');
     }
 
-    public function forceDeleteAny(AuthUser $authUser): bool
-    {
-        return $authUser->can('ForceDeleteAny:UserTransition');
-    }
-
-    public function restoreAny(AuthUser $authUser): bool
+    public function restoreAny(AuthUser $authUser, UserTransition $userTransition): bool
     {
         return $authUser->can('RestoreAny:UserTransition');
     }

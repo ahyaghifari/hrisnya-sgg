@@ -37,11 +37,6 @@ class ShiftSwapRequestsPolicy
         return $authUser->can('Delete:ShiftSwapRequests');
     }
 
-    public function deleteAny(AuthUser $authUser): bool
-    {
-        return $authUser->can('DeleteAny:ShiftSwapRequests');
-    }
-
     public function restore(AuthUser $authUser, ShiftSwapRequests $shiftSwapRequests): bool
     {
         return $authUser->can('Restore:ShiftSwapRequests');
@@ -52,12 +47,7 @@ class ShiftSwapRequestsPolicy
         return $authUser->can('ForceDelete:ShiftSwapRequests');
     }
 
-    public function forceDeleteAny(AuthUser $authUser): bool
-    {
-        return $authUser->can('ForceDeleteAny:ShiftSwapRequests');
-    }
-
-    public function restoreAny(AuthUser $authUser): bool
+    public function restoreAny(AuthUser $authUser, ShiftSwapRequests $shiftSwapRequests): bool
     {
         return $authUser->can('RestoreAny:ShiftSwapRequests');
     }

@@ -37,11 +37,6 @@ class TaskPolicy
         return $authUser->can('Delete:Task');
     }
 
-    public function deleteAny(AuthUser $authUser): bool
-    {
-        return $authUser->can('DeleteAny:Task');
-    }
-
     public function restore(AuthUser $authUser, Task $task): bool
     {
         return $authUser->can('Restore:Task');
@@ -52,12 +47,7 @@ class TaskPolicy
         return $authUser->can('ForceDelete:Task');
     }
 
-    public function forceDeleteAny(AuthUser $authUser): bool
-    {
-        return $authUser->can('ForceDeleteAny:Task');
-    }
-
-    public function restoreAny(AuthUser $authUser): bool
+    public function restoreAny(AuthUser $authUser, Task $task): bool
     {
         return $authUser->can('RestoreAny:Task');
     }

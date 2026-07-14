@@ -12,6 +12,8 @@ use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
 use Filament\Widgets\AccountWidget;
+use App\Filament\Widgets\PerformanceChart;
+use App\Filament\Widgets\NotificationWidget;
 use Guava\Calendar\CalendarPlugin;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
@@ -69,8 +71,11 @@ class AdminPanelProvider extends PanelProvider
             ->globalSearch(false)
             ->widgets([
                 AccountWidget::class,
+                PerformanceChart::class,
+                NotificationWidget::class,
             ])
             ->navigationGroups([
+                NavigationGroup::make()->label('Karyawan'),
                 NavigationGroup::make()->label('Kepegawaian'),
                 NavigationGroup::make()->label('Manajemen Organisasi'),
                 NavigationGroup::make()->label('Keuangan'),

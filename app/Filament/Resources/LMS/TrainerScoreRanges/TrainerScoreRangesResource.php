@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\LMS\TrainerScoreRanges;
 
+use App\Filament\Clusters\MasterSalaryComponent\MasterSalaryComponentCluster;
 use App\Filament\Resources\LMS\TrainerScoreRanges\Pages\CreateTrainerScoreRanges;
 use App\Filament\Resources\LMS\TrainerScoreRanges\Pages\EditTrainerScoreRanges;
 use App\Filament\Resources\LMS\TrainerScoreRanges\Pages\ListTrainerScoreRanges;
@@ -18,6 +19,8 @@ use UnitEnum;
 class TrainerScoreRangesResource extends Resource
 {
     protected static ?string $model = TrainerScoreRanges::class;
+
+    protected static ?string $cluster = MasterSalaryComponentCluster::class;
 
     protected static ?string $slug = 'lms/trainer-score-ranges';
 

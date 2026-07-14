@@ -37,11 +37,6 @@ class PermissionPolicy
         return $authUser->can('Delete:Permission');
     }
 
-    public function deleteAny(AuthUser $authUser): bool
-    {
-        return $authUser->can('DeleteAny:Permission');
-    }
-
     public function restore(AuthUser $authUser, Permission $permission): bool
     {
         return $authUser->can('Restore:Permission');
@@ -52,12 +47,7 @@ class PermissionPolicy
         return $authUser->can('ForceDelete:Permission');
     }
 
-    public function forceDeleteAny(AuthUser $authUser): bool
-    {
-        return $authUser->can('ForceDeleteAny:Permission');
-    }
-
-    public function restoreAny(AuthUser $authUser): bool
+    public function restoreAny(AuthUser $authUser, Permission $permission): bool
     {
         return $authUser->can('RestoreAny:Permission');
     }

@@ -37,11 +37,6 @@ class LmsQuizzesPolicy
         return $authUser->can('Delete:LmsQuizzes');
     }
 
-    public function deleteAny(AuthUser $authUser): bool
-    {
-        return $authUser->can('DeleteAny:LmsQuizzes');
-    }
-
     public function restore(AuthUser $authUser, LmsQuizzes $lmsQuizzes): bool
     {
         return $authUser->can('Restore:LmsQuizzes');
@@ -52,12 +47,7 @@ class LmsQuizzesPolicy
         return $authUser->can('ForceDelete:LmsQuizzes');
     }
 
-    public function forceDeleteAny(AuthUser $authUser): bool
-    {
-        return $authUser->can('ForceDeleteAny:LmsQuizzes');
-    }
-
-    public function restoreAny(AuthUser $authUser): bool
+    public function restoreAny(AuthUser $authUser, LmsQuizzes $lmsQuizzes): bool
     {
         return $authUser->can('RestoreAny:LmsQuizzes');
     }

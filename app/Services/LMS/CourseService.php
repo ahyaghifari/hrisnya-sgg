@@ -3,9 +3,13 @@
 namespace App\Services\LMS;
 
 use App\Events\LmsProgresUpdated;
+use App\Models\LMS\LmsCoursePlanItems;
 use App\Models\LMS\LmsCourses;
 use App\Models\LMS\LmsRankings;
+use App\Repositories\Approval\ApprovalSnapshotRepository;
 use App\Repositories\LMS\CourseRepository;
+use App\Services\Approval\ApprovalCreationService;
+use App\Services\Approval\ApprovalFlowService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
@@ -13,6 +17,9 @@ class CourseService
 {
     public function __construct(
         protected CourseRepository $courseRepositories,
+        protected ApprovalCreationService $approvalCreationService,
+        protected ApprovalSnapshotRepository $approvalSnapshotRepository,
+        protected ApprovalFlowService $approvalFlowService,
     ) {}
 
     public function getAllCategories()
@@ -77,6 +84,55 @@ class CourseService
     public function getSuggestionsKeywords(string $partialKeyword, int $limit = 5)
     {
         return $this->courseRepositories->getSuggestionsKeywords($partialKeyword, $limit);
+    }
+
+    public function requestCourse(LmsCoursePlanItems $coursePlanItem)
+    {
+        $userId = Auth::id();
+
+        $masterFlow = $this->approvalSnapshotRepository->findMasterApprovalFlowByCompany(
+            moduleType: 'lms_course_request',
+            companyId: Auth::user()->company_id
+        );
+
+        if (!$masterFlow) {
+            throw new \Exception('No active approval flow found for LMS course requests for this company.');
+        }
+
+        $this->approvalCreationService->createSnapshot(
+            moduleType: 'lms_course_request',
+            moduleId: $coursePlanItem->id,
+            flow: $masterFlow,
+            createdBy: $userId,
+            companyId: Auth::user()->company_id,
+            userId: $userId
+        );
+
+        return $coursePlanItem->refresh();
+    }
+
+    public function approveCourseRequest(
+        LmsCoursePlanItems $coursePlanItem,
+        string $status,
+        string $note
+    ): LmsCoursePlanItems
+    {
+        $userId = Auth::id();
+
+        $this->approvalFlowService->advanceStep(
+            snapshot: $coursePlanItem->approvalSnapshot,
+            actorId: $userId,
+            note: $note,
+            action: $status,
+        );
+
+        $this->courseRepositories->updateCourseRequest($coursePlanItem, [
+            'request_status' => $status,
+            'approved_by' => $userId,
+            'approved_at' => now(),
+        ]);
+
+        return $coursePlanItem->refresh();
     }
 
     /**

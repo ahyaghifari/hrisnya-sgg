@@ -37,11 +37,6 @@ class LeaveTypesPolicy
         return $authUser->can('Delete:LeaveTypes');
     }
 
-    public function deleteAny(AuthUser $authUser): bool
-    {
-        return $authUser->can('DeleteAny:LeaveTypes');
-    }
-
     public function restore(AuthUser $authUser, LeaveTypes $leaveTypes): bool
     {
         return $authUser->can('Restore:LeaveTypes');
@@ -52,12 +47,7 @@ class LeaveTypesPolicy
         return $authUser->can('ForceDelete:LeaveTypes');
     }
 
-    public function forceDeleteAny(AuthUser $authUser): bool
-    {
-        return $authUser->can('ForceDeleteAny:LeaveTypes');
-    }
-
-    public function restoreAny(AuthUser $authUser): bool
+    public function restoreAny(AuthUser $authUser, LeaveTypes $leaveTypes): bool
     {
         return $authUser->can('RestoreAny:LeaveTypes');
     }

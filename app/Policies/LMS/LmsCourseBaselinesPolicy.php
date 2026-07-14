@@ -37,11 +37,6 @@ class LmsCourseBaselinesPolicy
         return $authUser->can('Delete:LmsCourseBaselines');
     }
 
-    public function deleteAny(AuthUser $authUser): bool
-    {
-        return $authUser->can('DeleteAny:LmsCourseBaselines');
-    }
-
     public function restore(AuthUser $authUser, LmsCourseBaselines $lmsCourseBaselines): bool
     {
         return $authUser->can('Restore:LmsCourseBaselines');
@@ -52,12 +47,7 @@ class LmsCourseBaselinesPolicy
         return $authUser->can('ForceDelete:LmsCourseBaselines');
     }
 
-    public function forceDeleteAny(AuthUser $authUser): bool
-    {
-        return $authUser->can('ForceDeleteAny:LmsCourseBaselines');
-    }
-
-    public function restoreAny(AuthUser $authUser): bool
+    public function restoreAny(AuthUser $authUser, LmsCourseBaselines $lmsCourseBaselines): bool
     {
         return $authUser->can('RestoreAny:LmsCourseBaselines');
     }
