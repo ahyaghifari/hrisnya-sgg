@@ -7,9 +7,9 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
 
 /**
- * @mixin IdeHelperQuestionBanks
+ * @mixin IdeHelperLmsQuestionBanks
  */
-class QuestionBanks extends Model
+class LmsQuestionBanks extends Model
 {
     use HasUlids;
 
@@ -64,7 +64,7 @@ class QuestionBanks extends Model
 
     public function options()
     {
-        return $this->hasMany(QuestionOptions::class, 'question_id', 'id');
+        return $this->hasMany(LmsQuestionOptions::class, 'question_id', 'id');
     }
 
     public function quizzes()

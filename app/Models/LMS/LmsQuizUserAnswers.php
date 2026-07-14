@@ -37,7 +37,7 @@ class LmsQuizUserAnswers extends Model
 
     public function question()
     {
-        return $this->belongsTo(QuestionBanks::class, 'question_id', 'id');
+        return $this->belongsTo(LmsQuestionBanks::class, 'question_id', 'id');
     }
 
     public function user()

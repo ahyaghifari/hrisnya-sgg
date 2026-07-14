@@ -125,6 +125,10 @@ class LmsCoursesForm
                                 ->required()
                                 ->helperText('Masukkan skor minimum yang harus dicapai peserta untuk lulus pelatihan.'),
 
+                            DatePicker::make('due_date')
+                                ->label('Batas Waktu Penyelesaian')
+                                ->helperText('Opsional. Peserta yang lewat tanggal ini belum selesai akan ditandai "Terlambat" — tidak diblokir, cuma penanda.'),
+
                             Select::make('competencies')
                                 ->label('Kompetensi Terkait')
                                 ->multiple()
@@ -160,93 +164,25 @@ class LmsCoursesForm
         return Tab::make('Jadwal Pelatihan')
             ->schema([
                 Section::make('Jadwal Pelatihan')
-                    ->headerActions([
-                        Action::make('info')
-                            ->label('Informasi Jadwal')
-                            ->visible(fn (callable $get) => $get('type') === 'scheduler')
-                            ->slideOver()
-                            ->modalWidth('md')
-                            ->modalHeading('Informasi Jadwal Pelatihan')
-                            ->schema([
-                                Repeater::make('schedules')
-                                    ->relationship('schedules')
-                                    ->hiddenLabel()
-                                    ->itemLabel('Jadwal Pelatihan')
-                                    ->addActionLabel('Tambah Jadwal Baru')
-                                    ->schema([
-                                        TextInput::make('name')
-                                            ->label('Judul Jadwal')
-                                            ->required()
-                                            ->maxLength(255),
-                                        Grid::make(2)->schema([
-                                            DatePicker::make('start_date')
-                                                ->label('Tanggal Mulai')
-                                                ->required(),
-                                            DatePicker::make('end_date')
-                                                ->label('Tanggal Selesai')
-                                                ->required(),
-                                        ])
-                                    ])
-                                    ->default(fn ($record) => $record?->schedules?->toArray() ?? [])
-                            ])
-                    ])
                     ->description('Atur jadwal pelaksanaan pelatihan LMS.')
                     ->columnSpanFull()
                     ->schema([
-                        Select::make('type')
-                            ->label('Tipe Jadwal')
-                            ->options([
-                                'seasonal' => 'Seasonal',
-                                'scheduler' => 'Terjadwal',
-                            ])
-                            ->default('seasonal')
-                            ->helperText('Pilih "Seasonal" untuk pelatihan dengan jadwal tetap. Pilih "Terjadwal" untuk pelatihan yang diulang secara berkala.')
-                            ->required()
-                            ->reactive(),
+                        // Tipe "Terjadwal" (scheduler) dihapus 2026-07-14 — tidak pernah punya job
+                        // consumer, diganti fitur Duplikat Course. Course selalu seasonal sekarang;
+                        // course lama yang kadung type=scheduler dibiarkan (tidak dipaksa migrasi),
+                        // field ini cukup jadi hidden default supaya tidak menimpa data lama itu.
+                        Hidden::make('type')->default('seasonal'),
 
                         Grid::make(2)->schema([
-                            // SEASONAL TYPE
                             DatePicker::make('start_date')
                                 ->label('Tanggal Mulai Pelatihan')
                                 ->disabled()
-                                ->helperText('Tanggal mulai pelatihan diatur berdasarkan jadwal pertemuan.')
-                                ->visible(fn (callable $get) => $get('type') === 'seasonal'),
+                                ->helperText('Tanggal mulai pelatihan diatur berdasarkan jadwal pertemuan.'),
 
                             DatePicker::make('end_date')
                                 ->label('Tanggal Selesai Pelatihan')
                                 ->disabled()
-                                ->helperText('Tanggal selesai pelatihan diatur berdasarkan jadwal pertemuan.')
-                                ->visible(fn (callable $get) => $get('type') === 'seasonal'),
-
-                            // SCHEDULER TYPE
-                            Select::make('repeat_cycle')
-                                ->label('Siklus Pengulangan')
-                                ->options([
-                                    'daily' => 'Harian',
-                                    'weekly' => 'Mingguan',
-                                    'monthly' => 'Bulanan',
-                                    'yearly' => 'Tahunan',
-                                ])
-                                ->required(fn (callable $get) => $get('type') === 'scheduler')
-                                ->visible(fn (callable $get) => $get('type') === 'scheduler')
-                                ->helperText('Pilih siklus pengulangan untuk pelatihan terjadwal.'),
-
-                            TextInput::make('repeat_interval')
-                                ->label('Interval Pengulangan')
-                                ->numeric()
-                                ->required(fn (callable $get) => $get('type') === 'scheduler')
-                                ->visible(fn (callable $get) => $get('type') === 'scheduler')
-                                ->helperText('Masukkan interval pengulangan dalam angka. Contoh: 2 untuk setiap 2 hari/minggu/bulan/tahun.'),
-
-                            DatePicker::make('first_start_date')
-                                ->label('Tanggal Mulai Pertama')
-                                ->visible(fn (callable $get) => $get('type') === 'scheduler')
-                                ->required(fn (callable $get) => $get('type') === 'scheduler'),
-
-                            DatePicker::make('last_end_date')
-                                ->label('Tanggal Selesai Terakhir')
-                                ->visible(fn (callable $get) => $get('type') === 'scheduler')
-                                ->required(fn (callable $get) => $get('type') === 'scheduler'),
+                                ->helperText('Tanggal selesai pelatihan diatur berdasarkan jadwal pertemuan.'),
                         ])
                     ])
             ]);
@@ -266,20 +202,25 @@ class LmsCoursesForm
                         Tabs::make('Tabs')->tabs([
                             Tab::make('Detail Pertemuan')->schema([
                                 TextInput::make('title')
-                                    ->label('Judul Pertemuan / Sesi'),
+                                    ->label('Judul Pertemuan / Sesi')
+                                    ->required(),
                                 Grid::make(2)->schema([
                                     DatePicker::make('start_date')
                                         ->locale('id')
-                                        ->label('Tanggal Mulai'),
+                                        ->label('Tanggal Mulai')
+                                        ->required(),
                                     DatePicker::make('end_date')
                                         ->locale('id')
-                                        ->label('Tanggal Selesai'),
+                                        ->label('Tanggal Selesai')
+                                        ->required(),
                                     TimePicker::make('start_time')
                                         ->locale('id')
-                                        ->label('Waktu Mulai'),
+                                        ->label('Waktu Mulai')
+                                        ->required(),
                                     TimePicker::make('end_time')
                                         ->locale('id')
-                                        ->label('Waktu Selesai'),
+                                        ->label('Waktu Selesai')
+                                        ->required(),
 
                                     Select::make('attendance_type')
                                         ->label('Tipe Absensi')
@@ -297,6 +238,7 @@ class LmsCoursesForm
                                     ->searchable()
                                     ->preload()
                                     ->placeholder('Pilih trainer dari daftar')
+                                    ->required()
                                     ->reactive()
                                     ->afterStateUpdated(function ($state, callable $set) {
                                         $set(
@@ -340,6 +282,7 @@ class LmsCoursesForm
                                             ->required(),
                                         FileUpload::make('file_path')
                                             ->label('File Materi (PDF, DOCX, PPTX)')
+                                            ->required()
                                             ->maxSize(20480)    // 20 MB
                                             ->acceptedFileTypes(['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/vnd.openxmlformats-officedocument.presentationml.presentation'])
                                             ->openable(true)
@@ -353,27 +296,31 @@ class LmsCoursesForm
                                     ])
                             ]),
 
-                            Tab::make('Quiz / Penilaian')->schema([
+                            Tab::make('Quiz')->schema([
                                 Repeater::make('quizzes')
                                     ->relationship('quizzes')
                                     ->hiddenLabel()
                                     ->itemLabel(fn ($state): ?string => is_array($state) ? ($state['title'] ?? 'Kuis') : 'Kuis')
-                                    ->addActionLabel('Tambah Kuis / Tes Baru')
+                                    ->addActionLabel('Tambah Quiz Baru')
                                     ->schema([
                                         Select::make('category_id')
-                                            ->label('Filter Kategori Kuis / Tes')
+                                            ->label('Filter Kategori')
                                             ->options(function () {
                                                 return LmsCategories::orderBy('name')->pluck('name', 'id')->toArray();
                                             })
+                                            // Default ke kategori course-nya sendiri (paling sering sama),
+                                            // tapi tetap bisa diganti manual kalau memang mau pakai quiz
+                                            // dari kategori lain (quiz bank memang didesain reusable).
+                                            ->default(fn ($livewire) => data_get($livewire, 'data.category_id'))
                                             ->searchable()
                                             ->preload()
                                             ->columnSpanFull()
-                                            ->placeholder('Pilih kategori kuis / tes')
+                                            ->placeholder('Pilih kategori')
                                             ->live()
                                             ->reactive(),
 
                                         Select::make('quiz_id')
-                                            ->label('Pilih Kuis / Tes')
+                                            ->label('Pilih Kuis')
                                             ->options(function ($get, $record) {
                                                 $categoryId = $get('category_id');
                                                 $meetingId = $record ? $record->id : null;
@@ -401,6 +348,7 @@ class LmsCoursesForm
                                         TextInput::make('duration')
                                             ->label('Durasi (menit)')
                                             ->numeric()
+                                            ->required()
                                             ->minValue(1)
                                     ])
                             ]),

@@ -96,6 +96,19 @@ class ParticipantCourses extends Page implements HasTable
                     ->formatStateUsing(fn (bool $state): string => $state ? 'Wajib' : 'Opsional')
                     ->color(fn (bool $state): string => $state ? 'danger' : 'gray'),
 
+                TextColumn::make('overdue')
+                    ->label('Batas Waktu')
+                    ->state(function (LmsCourseUsers $record): ?string {
+                        if (!$this->record->isOverdue() || $record->status === CourseUserStatus::COMPLETED->value) {
+                            return null;
+                        }
+
+                        return 'Terlambat';
+                    })
+                    ->placeholder('-')
+                    ->badge()
+                    ->color('danger'),
+
                 TextColumn::make('progress')
                     ->label('Progress')
                     ->suffix('%')

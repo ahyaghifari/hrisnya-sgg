@@ -4,7 +4,7 @@ namespace App\Repositories\LMS;
 
 use App\Models\LMS\LmsCourses;
 use App\Models\LMS\Trainer\TrainerAssessments;
-use App\Models\LMS\Trainer\TrainerAssesmentsResults;
+use App\Models\LMS\Trainer\TrainerAssessmentResults;
 use App\Models\LMS\Trainer\TrainerScoreRanges;
 
 class TrainerAssessmentRepository
@@ -33,9 +33,9 @@ class TrainerAssessmentRepository
             ->first();
     }
 
-    public function createOrUpdateResult(string $courseId, string $trainerId, array $data): TrainerAssesmentsResults
+    public function createOrUpdateResult(string $courseId, string $trainerId, array $data): TrainerAssessmentResults
     {
-        return TrainerAssesmentsResults::updateOrCreate(
+        return TrainerAssessmentResults::updateOrCreate(
             [
                 'course_id' => $courseId,
                 'trainer_id' => $trainerId,

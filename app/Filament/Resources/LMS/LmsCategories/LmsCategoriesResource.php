@@ -22,7 +22,7 @@ class LmsCategoriesResource extends Resource
 
     protected static ?string $slug = 'lms/lms-categories';
 
-    protected static ?string $navigationLabel = "Kategori Pelatihan";
+    protected static ?string $navigationLabel = "Kategori";
 
     protected static string | UnitEnum | null $navigationGroup = 'LMS';
 

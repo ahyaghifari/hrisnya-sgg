@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Filament\Resources\Competency\Competencies\Schemas;
+namespace App\Filament\Resources\Master\Competency\Schemas;
 
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;

@@ -45,7 +45,7 @@ class LmsQuizzes extends Model
 
     public function questions()
     {
-        return $this->belongsToMany(QuestionBanks::class, 'lms_quiz_questions', 'quiz_id', 'question_bank_id')
+        return $this->belongsToMany(LmsQuestionBanks::class, 'lms_quiz_questions', 'quiz_id', 'question_bank_id')
             ->using(LmsQuizQuestions::class)
             ->withTimestamps();
     }

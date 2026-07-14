@@ -1,8 +1,8 @@
 <?php
 
-namespace App\Filament\Resources\Competency\Competencies\Pages;
+namespace App\Filament\Resources\Master\Competency\Pages;
 
-use App\Filament\Resources\Competency\Competencies\CompetencyResource;
+use App\Filament\Resources\Master\Competency\CompetencyResource;
 use Filament\Actions\DeleteAction;
 use Filament\Resources\Pages\EditRecord;
 

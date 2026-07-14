@@ -6,9 +6,9 @@ use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 
 /**
- * @mixin IdeHelperQuestionOptions
+ * @mixin IdeHelperLmsQuestionOptions
  */
-class QuestionOptions extends Model
+class LmsQuestionOptions extends Model
 {
     use HasUlids;
 
@@ -23,6 +23,6 @@ class QuestionOptions extends Model
 
     public function question()
     {
-        return $this->belongsTo(QuestionBanks::class, 'question_id');
+        return $this->belongsTo(LmsQuestionBanks::class, 'question_id');
     }
 }

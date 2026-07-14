@@ -7,7 +7,7 @@ use App\Filament\Resources\Payroll\TrainerSalaries\Pages\EditTrainerSalary;
 use App\Filament\Resources\Payroll\TrainerSalaries\Pages\ListTrainerSalaries;
 use App\Filament\Resources\Payroll\TrainerSalaries\Schemas\TrainerSalaryForm;
 use App\Filament\Resources\Payroll\TrainerSalaries\Tables\TrainerSalariesTable;
-use App\Models\LMS\Trainer\TrainerAssesmentsResults;
+use App\Models\LMS\Trainer\TrainerAssessmentResults;
 use App\Models\Payroll\TrainerSalary;
 use BackedEnum;
 use Filament\Resources\Resource;
@@ -18,7 +18,7 @@ use UnitEnum;
 
 class TrainerSalaryResource extends Resource
 {
-    protected static ?string $model = TrainerAssesmentsResults::class;
+    protected static ?string $model = TrainerAssessmentResults::class;
 
     protected static ?string $navigationLabel = "Gaji Trainer";
 

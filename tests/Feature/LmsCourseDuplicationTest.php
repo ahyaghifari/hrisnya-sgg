@@ -10,7 +10,7 @@ use App\Models\LMS\LmsMeetingQuizzes;
 use App\Models\LMS\LmsMeetings;
 use App\Models\LMS\LmsQuizQuestions;
 use App\Models\LMS\LmsQuizzes;
-use App\Models\LMS\QuestionBanks;
+use App\Models\LMS\LmsQuestionBanks;
 use App\Models\Master\Companies;
 use App\Models\User;
 use App\Services\LMS\CourseService;
@@ -57,7 +57,7 @@ class LmsCourseDuplicationTest extends TestCase
         ]);
 
         $quiz = LmsQuizzes::create(['title' => 'Quiz 1', 'total_score' => 100]);
-        $question = QuestionBanks::create([
+        $question = LmsQuestionBanks::create([
             'question' => 'Soal 1',
             'type' => QuestionType::MultipleChoice,
             'max_score' => 0,

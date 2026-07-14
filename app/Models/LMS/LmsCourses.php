@@ -36,6 +36,7 @@ class LmsCourses extends Model
         'next_run_date',
         'start_date',
         'end_date',
+        'due_date',
         'minimum_score',
         'competency_id',
         'start_time',
@@ -81,6 +82,11 @@ class LmsCourses extends Model
     public function courseUsers()
     {
         return $this->hasMany(LmsCourseUsers::class, 'course_id', 'id');
+    }
+
+    public function isOverdue(): bool
+    {
+        return $this->due_date && \Carbon\Carbon::parse($this->due_date)->isPast();
     }
 
     public function syncDatesFromMeetings()

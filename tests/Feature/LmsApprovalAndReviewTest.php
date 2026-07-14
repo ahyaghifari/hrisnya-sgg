@@ -12,8 +12,8 @@ use App\Models\LMS\LmsQuizQuestions;
 use App\Models\LMS\LmsQuizUserResults;
 use App\Models\LMS\LmsQuizzes;
 use App\Models\LMS\LmsUserHistories;
-use App\Models\LMS\QuestionBanks;
-use App\Models\LMS\QuestionOptions;
+use App\Models\LMS\LmsQuestionBanks;
+use App\Models\LMS\LmsQuestionOptions;
 use App\Models\Master\Companies;
 use App\Models\User;
 use App\Repositories\LMS\CourseUserRepository;
@@ -66,7 +66,7 @@ class LmsApprovalAndReviewTest extends TestCase
     {
         $quiz = LmsQuizzes::create(['title' => 'Quiz Test', 'total_score' => 100]);
 
-        $essayQuestion = QuestionBanks::create([
+        $essayQuestion = LmsQuestionBanks::create([
             'question' => 'Jelaskan sesuatu',
             'type' => QuestionType::Essay,
             'max_score' => 20,

@@ -5,7 +5,7 @@ namespace App\Filament\Resources\LMS\Quizzes\Schemas;
 use App\Models\LMS\LmsCategories;
 use App\Models\LMS\LmsMeetingQuizzes;
 use App\Models\LMS\LmsQuizzes;
-use App\Models\LMS\QuestionBanks;
+use App\Models\LMS\LmsQuestionBanks;
 use Filament\Actions\Action;
 use Filament\Forms\Components\CheckboxList;
 use Filament\Forms\Components\Hidden;
@@ -91,7 +91,7 @@ class QuizForm
 
                                         $currentSelections = collect($get('question_bank_id') ?? []);
 
-                                        $availableQuestionIds = QuestionBanks::query()
+                                        $availableQuestionIds = LmsQuestionBanks::query()
                                             ->where('category_id', $state)
                                             ->pluck('id');
 
@@ -125,7 +125,7 @@ class QuizForm
                                             return [];
                                         }
 
-                                        return QuestionBanks::query()
+                                        return LmsQuestionBanks::query()
                                             ->where('category_id', $categoryId)
                                             ->pluck('question', 'id')
                                             ->map(function ($question) {

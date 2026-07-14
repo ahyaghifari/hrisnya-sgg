@@ -7,7 +7,7 @@ use App\Filament\Resources\LMS\QuestionBanks\Pages\EditQuestionBanks;
 use App\Filament\Resources\LMS\QuestionBanks\Pages\ListQuestionBanks;
 use App\Filament\Resources\LMS\QuestionBanks\Schemas\QuestionBanksForm;
 use App\Filament\Resources\LMS\QuestionBanks\Tables\QuestionBanksTable;
-use App\Models\LMS\QuestionBanks;
+use App\Models\LMS\LmsQuestionBanks;
 use BackedEnum;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
@@ -18,7 +18,7 @@ use UnitEnum;
 
 class QuestionBanksResource extends Resource
 {
-    protected static ?string $model = QuestionBanks::class;
+    protected static ?string $model = LmsQuestionBanks::class;
 
     protected static ?string $slug = 'lms/question-banks';
 
@@ -26,7 +26,7 @@ class QuestionBanksResource extends Resource
 
     protected static string | UnitEnum | null $navigationGroup = 'LMS';
 
-    protected static ?int $navigationSort = 3;
+    protected static ?int $navigationSort = 4;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedClipboardDocumentList;
 

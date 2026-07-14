@@ -40,6 +40,6 @@ class LmsQuizQuestions extends Pivot
 
     public function questionBank()
     {
-        return $this->belongsTo(QuestionBanks::class, 'question_bank_id');
+        return $this->belongsTo(LmsQuestionBanks::class, 'question_bank_id');
     }
 }

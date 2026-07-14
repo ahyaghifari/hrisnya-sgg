@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Filament\Resources\Competency\Competencies\Tables;
+namespace App\Filament\Resources\Master\Competency\Tables;
 
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;

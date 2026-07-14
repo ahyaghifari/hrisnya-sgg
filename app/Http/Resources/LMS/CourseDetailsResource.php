@@ -51,6 +51,8 @@ class CourseDetailsResource extends JsonResource
             "is_followed" => $courseUser ? $statusEnum?->value !== CourseUserStatus::REQUESTED->value : false,
             "is_mandatory" => (bool) ($courseUser->is_mandatory ?? false),
             "is_passed" => $courseUser ? ($courseUser->is_passed ? true : false) : false,
+            "due_date" => $this->due_date ? Carbon::parse($this->due_date)->format('d M Y') : null,
+            "is_overdue" => $this->isOverdue() && $statusEnum?->value !== CourseUserStatus::COMPLETED->value,
             "has_feedback" => (bool) $feedbackUser,
             "meetings" => $this->meetings ? MeetingsResource::collection($this->meetings) : null,
         ];

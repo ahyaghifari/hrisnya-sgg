@@ -44,6 +44,8 @@ class CoursesResource extends JsonResource
 
             "is_mandatory" => (bool) ($courseUser->is_mandatory ?? false),
 
+            "is_overdue" => $this->isOverdue() && $statusEnum?->value !== CourseUserStatus::COMPLETED->value,
+
             "type_nakes" => $this->type_nakes,
             "type" => $this->type,
 

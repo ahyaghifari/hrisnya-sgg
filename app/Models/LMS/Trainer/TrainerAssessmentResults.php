@@ -8,13 +8,13 @@ use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 
 /**
- * @mixin IdeHelperTrainerAssesmentsResults
+ * @mixin IdeHelperTrainerAssessmentResults
  */
-class TrainerAssesmentsResults extends Model
+class TrainerAssessmentResults extends Model
 {
     use HasUlids;
 
-    protected $table = 'trainer_assesments_results';
+    protected $table = 'trainer_assessment_results';
 
 
     protected $fillable = [

@@ -6,7 +6,6 @@ use App\Http\Controllers\Api\Counseling\CounselingController;
 use App\Http\Controllers\Api\JobOpening\JobOpeningController;
 use App\Http\Controllers\Api\Task\TaskController;
 use App\Http\Controllers\Api\Task\TaskReportController;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('auth')->group(function () {

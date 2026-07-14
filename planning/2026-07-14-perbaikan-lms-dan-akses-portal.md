@@ -98,14 +98,14 @@ Diskusi lanjutan dari Tahap 3 (di atas) menemukan bahwa **"Rencana Pelatihan" (C
 
 ### Tahap 4 — Santai (kosmetik / nice-to-have, effort lebih besar dari manfaat langsung — kerjakan kalau ada waktu luang, bukan prioritas)
 
-- #6 Sertifikat generate PDF otomatis (dompdf) — sekarang upload manual sudah *cukup* jalan, cuma menambah kerja admin.
-- #7 Deadline/due date course & quiz — belum pernah diminta eksplisit di requirement manapun.
-- #8 Tracking level materi (resume video, "sudah dibaca") — butuh skema baru + investasi UI player, besar buat manfaat yang belum tentu dibutuhkan sekarang.
-- #10 Rename tabel `trainer_assesments_results` (typo) — migration rename tabel di production ada risiko downtime/urutan deploy, manfaatnya cuma kosmetik.
-- #11 `trainers.company` jadi FK ke `m_companies` — perlu keputusan data cleanup dulu (banyak baris `trainers.company` kemungkinan tidak match nama company manapun persis).
-- #15 Rename `QuestionBanks`/`QuestionOptions` → `LmsQuestionBanks`/`LmsQuestionOptions` — cosmetic rename class, banyak file terdampak (repository, service, Filament) untuk manfaat predictability saja.
+- #6 Sertifikat generate PDF otomatis (dompdf) — **DILEWATI atas permintaan user 2026-07-14.** Upload manual sekarang sudah *cukup* jalan, cuma menambah kerja admin.
+- ~~#7 Deadline/due date course & quiz~~ — **SELESAI 2026-07-14.** Deadline per Course (kolom `due_date`, opsional), lewat deadline cuma badge "Terlambat" (tidak ada yang diblokir). Field baru di form Course, kolom+badge di halaman Peserta admin (`ParticipantCourses.php`), diekspos ke API mobile (`is_overdue`/`due_date` di `CoursesResource`/`CourseDetailsResource`). Method `LmsCourses::isOverdue()`. Test: `tests/Feature/LmsCourseDueDateTest.php` (1 test, pass).
+- #8 Tracking level materi (resume video, "sudah dibaca") — **DILEWATI, di luar jangkauan backend ini sendirian.** Materi dikonsumsi lewat aplikasi mobile terpisah (bukan bagian repo ini) — butuh app mobile lapor balik posisi tonton ke API, tidak bisa diselesaikan dari sisi Laravel saja. Membangun kolom/endpoint tanpa konsumen di sisi mobile cuma jadi kolom hantu baru.
+- ~~#10 Rename tabel `trainer_assesments_results` (typo)~~ — **SELESAI 2026-07-14**, dikonfirmasi eksplisit dulu sebelum eksekusi (5 baris data, tidak ada tabel lain FK ke sini — aman). Tabel `trainer_assesments_results` → `trainer_assessment_results`, model `TrainerAssesmentsResults` → `TrainerAssessmentResults` (+ file, Policy, referensi di `TrainerSalaryResource`/`TrainerAssessmentRepository`), 10 permission Shield di-rename di tempat (20 role assignment tetap utuh, dicek langsung ke DB).
+- ~~#11 `trainers.company` jadi FK ke `m_companies`~~ — **DIBATALKAN 2026-07-14, ternyata bukan gap.** Dicek ke data: 3 baris terisi, 0 yang match `m_companies` — semuanya nama perusahaan tempat trainer eksternal bekerja (bukan perusahaan internal). Kolom string bebas sudah benar, dipaksa FK justru salah. Lihat `analisis-lms.md` §11 gap #11 (dikoreksi).
+- ~~#15 Rename `QuestionBanks`/`QuestionOptions` → `LmsQuestionBanks`/`LmsQuestionOptions`~~ — **SELESAI 2026-07-14.** Model + Policy di-rename, 12 file referensi (repository, service, Filament, test) diupdate, 10 permission Shield di-rename di tempat (20 role assignment tetap utuh).
 
-**Testing Tahap 4** (kalau salah satu poin di atas dikerjakan): minimal jalankan full `php artisan test` setelah tiap perubahan (kebanyakan poin di tahap ini rename/tambah field, bukan logic baru — resiko utamanya referensi yang lupa diupdate, bukan logic salah). Untuk #6 (generate PDF): test hasil PDF-nya bisa dibuka & kontennya benar (nama peserta, nama course, tanggal), bukan cuma "tidak error saat generate".
+**Testing Tahap 4**: #7, #10, #15 masing-masing diverifikasi (test baru untuk #7, `php -l` + route:list + container-resolve + cek tabel permission untuk #10/#15 — rename murni tanpa logic baru, jadi cukup verifikasi tidak ada referensi lama tersisa). #6 dan #8 dilewati, tidak ada yang perlu ditest.
 
 ### Cross-cutting — bukan 1 tahap, harus dicek di SETIAP tahap di atas sebelum ditutup
 

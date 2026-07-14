@@ -6,7 +6,7 @@ use App\Models\LMS\LmsMeetingQuizzes;
 use App\Models\LMS\LmsQuizQuestions;
 use App\Models\LMS\LmsQuizUserAnswers;
 use App\Models\LMS\LmsQuizUserResults;
-use App\Models\LMS\QuestionOptions;
+use App\Models\LMS\LmsQuestionOptions;
 
 class QuizRepository
 {
@@ -29,7 +29,7 @@ class QuizRepository
 
     public function isOptionCorrectById(string $optionId): bool
     {
-        return QuestionOptions::where('id', $optionId)->where('is_correct', true)->exists();
+        return LmsQuestionOptions::where('id', $optionId)->where('is_correct', true)->exists();
     }
 
     public function saveUserAnswer(array $data)
