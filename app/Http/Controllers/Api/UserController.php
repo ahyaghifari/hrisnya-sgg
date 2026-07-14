@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\UserResource;
 use App\Services\User\UserService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class UserController extends Controller
 {
@@ -25,6 +26,12 @@ class UserController extends Controller
     
             return ApiResponseHelper::success(new UserResource($user), 'User retrieved successfully');
         } catch (\Exception $e) {
+            Log::error('Failed to retrieve user via API', [
+                'user_id' => auth('sanctum')->id(),
+                'message' => $e->getMessage(),
+                'exception' => $e,
+            ]);
+
             return ApiResponseHelper::error('An error occurred while retrieving user.', 500, ['error' => $e->getMessage()]);
         }
     }
