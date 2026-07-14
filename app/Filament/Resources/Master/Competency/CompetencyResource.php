@@ -9,8 +9,10 @@ use App\Filament\Resources\Master\Competency\Schemas\CompetencyForm;
 use App\Filament\Resources\Master\Competency\Tables\CompetenciesTable;
 use App\Models\Competency\Competency;
 use App\Models\Master\Competencies;
+use BackedEnum;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
+use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use UnitEnum;
 
@@ -21,8 +23,9 @@ class CompetencyResource extends Resource
     protected static ?string $slug = 'master/competencies';
 
     protected static ?string $navigationLabel = 'Kompetensi';
-    protected static ?int $navigationSort = 15;
+    protected static ?int $navigationSort = 9;
     protected static string | UnitEnum | null $navigationGroup = 'Master';
+    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedSparkles;
 
     public static function form(Schema $schema): Schema
     {

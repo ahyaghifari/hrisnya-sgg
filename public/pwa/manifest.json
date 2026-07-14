@@ -1,6 +1,6 @@
 {
     "name": "HRIS Syifa Global Group",
-    "short_name": "SGG HRIS",
+    "short_name": "Syifa HRIS",
     "description": "Data Diri, MyKanban, MyPelatihan, MyStaff dan Pengajuan Absensi",
     "start_url": "/dashboard",
     "scope": "/",
@@ -29,4 +29,3 @@
         }
     ]
 }
-

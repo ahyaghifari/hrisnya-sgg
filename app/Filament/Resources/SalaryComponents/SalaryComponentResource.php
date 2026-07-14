@@ -18,7 +18,7 @@ class SalaryComponentResource extends Resource
 {
     protected static ?string $model = SalaryComponents::class;
 
-    protected static ?string $cluster = MasterSalaryComponentCluster::class;
+    // protected static ?string $cluster = MasterSalaryComponentCluster::class;
 
     protected static ?string $navigationLabel = "Komponen Gaji";
 

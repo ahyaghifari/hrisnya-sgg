@@ -6,7 +6,7 @@
     @endphp
 
     @if ($selectedCompanyId)
-        @livewire(\App\Livewire\OrganizationChartWidget::class, ['companyId' => $selectedCompanyId])
+        @livewire(\App\Livewire\OrganizationChartWidget::class, ['companyId' => $selectedCompanyId], key('org-chart-'.$selectedCompanyId))
     @else
         <div class="mt-6 text-center text-gray-500 dark:text-gray-400">
             <x-heroicon-o-information-circle class="w-8 h-8 mx-auto mb-2 opacity-60" />

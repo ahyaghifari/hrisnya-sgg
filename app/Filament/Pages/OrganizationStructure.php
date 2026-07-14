@@ -28,7 +28,7 @@ class OrganizationStructure extends Page implements HasForms
 
     protected static ?string $navigationLabel = 'Struktur Organisasi';
 
-    protected static string | UnitEnum | null $navigationGroup = 'Manajemen Organisasi';
+    // protected static string | UnitEnum | null $navigationGroup = 'Manajemen Organisasi';
 
     protected static ?string $title = 'Struktur Organisasi';
 
