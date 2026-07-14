@@ -59,6 +59,7 @@
                     <div class="nav-avatar">{{ $initials }}</div>
                 @endif
                 <div class="dropdown-menu dropdown-menu-right">
+                    <a href="{{ route('akun') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-user"></i> Akun</a>
                     <a href="{{ route('data-diri') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-id-card"></i> Data Diri</a>
                     <a href="{{ route('akun.ubah-password') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-lock"></i> Ubah Password</a>
                     <hr style="border:none;border-top:1px solid var(--border-soft);margin:4px 0;">

@@ -59,7 +59,7 @@
 <form method="POST" action="{{ route('logout') }}">
     @csrf
     <button type="submit" style="width:100%;display:flex;align-items:center;justify-content:center;gap:8px;background:var(--danger-soft-bg) !important;color:var(--danger-soft-text) !important;border:none;border-radius:12px;padding:13px;font-size:13.5px;font-weight:700;cursor:pointer;">
-        <i class="fa-solid fa-arrow-right-from-bracket" style="color:var(--danger-soft-text);"></i> Keluar
+        Keluar
     </button>
 </form>
 </div>

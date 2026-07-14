@@ -9,12 +9,16 @@
         <a href="{{ route('dashboard') }}" wire:navigate class="pwa-bottom-nav-item {{ request()->routeIs('dashboard') ? 'active' : '' }}">
             <i class="fa-solid fa-house"></i> Beranda
         </a>
+        {{-- Tombol menu tengah disembunyikan sementara — cuma sisa 3 tombol (Beranda/Pengajuan
+             atau Struktur/Akun). Sheet-nya (di bawah) dibiarkan, tinggal buka comment ini kalau
+             mau diaktifkan lagi.
         <div class="pwa-bottom-nav-center">
             <button type="button" class="pwa-bottom-nav-center-btn" onclick="togglePwaMenuSheet()" aria-label="Menu">
                 <i class="fa-solid fa-grip"></i>
             </button>
             <span>Menu</span>
         </div>
+        --}}
 
         @if ($canSubmitAttendance)
             <a href="{{ route('my-attendance-requests') }}" wire:navigate class="pwa-bottom-nav-item {{ request()->routeIs('my-attendance-requests*') ? 'active' : '' }}">

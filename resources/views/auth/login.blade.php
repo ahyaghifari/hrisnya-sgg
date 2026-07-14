@@ -23,7 +23,7 @@
 
             <!-- Brand -->
             <div class="flex items-center justify-center gap-3 mb-8">
-                <div class="w-11 h-11 rounded-xl bg-[#042c6c] flex items-center justify-center text-white font-extrabold text-[15px] tracking-tight">SG</div>
+                <img src="{{ asset('assets/logo-sgg.png') }}" alt="Syifa Global Group" class="w-11 h-11 rounded-xl object-contain">
                 <div class="leading-tight">
                     <span class="block text-[16px] font-bold text-slate-800">Syifa Global Group</span>
                     <span class="text-[11.5px] text-slate-500">Human Resource Information System</span>
