@@ -51,7 +51,8 @@
 
         <div class="nav-right">
             <x-theme-toggle variant="icon" />
-            <div class="nav-bell"><i class="fa-regular fa-bell text-sm"></i><span class="nav-bell-dot"></span></div>
+            {{-- Tombol notifikasi disembunyikan sementara --}}
+            {{-- <div class="nav-bell"><i class="fa-regular fa-bell text-sm"></i><span class="nav-bell-dot"></span></div> --}}
             <div class="dropdown">
                 @if ($navPhotoUrl)
                     <img src="{{ $navPhotoUrl }}" alt="{{ auth()->user()->name }}" class="nav-avatar" style="object-fit:cover;">
