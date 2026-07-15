@@ -1,13 +1,13 @@
 <div wire:poll.10s>
-<x-page-header title="Kanban" />
+<x-page-header title="Kanban" subtitle="Kelola board project & task tim anda di sini." />
 
 <div style="display:flex;align-items:center;justify-content:flex-end;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
     <a href="{{ route('kanban.personal') }}" wire:navigate class="btn-primary kanban-toolbar-btn">
-        <i class="fa-solid fa-user" style="font-size:12px;"></i> BoardKu
+        <i class="fa-solid fa-user" style="font-size:12px;"></i> Board Saya
     </a>
     @if ($this->subordinates->isNotEmpty())
         <button type="button" wire:click="openStaffTaskModal" class="btn-primary kanban-toolbar-btn" style="background:#B9308C;">
-            <i class="fa-solid fa-user-tag" style="font-size:12px;"></i> Kanban Staff
+            <i class="fa-solid fa-user-tag" style="font-size:12px;"></i> Kanban Staff Saya
         </button>
     @endif
     @if ($this->canCreateBoard)

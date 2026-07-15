@@ -55,7 +55,7 @@
     <div class="bento-side-stats-compact">
         <livewire:leave-balance-card
             type-keyword="tahunan"
-            label="Cuti Tahunan"
+            label="Sisa Cuti Tahunan"
             icon="fa-sun"
             color="var(--brand)"
             icon-bg="rgba(4,44,108,0.1)"
@@ -68,7 +68,7 @@
     <div class="bento-side-stats">
         <livewire:leave-balance-card
             type-keyword="tahunan"
-            label="Cuti Tahunan"
+            label="Sisa Cuti Tahunan"
             icon="fa-sun"
             color="var(--brand)"
             icon-bg="rgba(4,44,108,0.1)"
@@ -83,7 +83,7 @@
     {{-- MyKanban: task terkini dari kanban pribadi maupun board (bukan lagi placeholder statis).
     Sekelompok dengan welcome/presensi/saldo di grid .bento yang sama (bukan section terpisah di
     luar grid), supaya breakpoint-nya konsisten: 1 kolom di mobile, 2 kolom berdampingan di desktop. --}}
-    {{-- <div class="bento-task-kursus">
+    <div class="bento-task-kursus">
         <div class="pwa-list">
             <div class="pwa-card-header pwa-card-header-navy">
                 <div class="pwa-card-header-deco-1"></div><div class="pwa-card-header-deco-2"></div>
@@ -123,7 +123,7 @@
             @endforelse
         </div>
 
-        <div id="kursus-section" class="pwa-list" style="padding-bottom:16px;">
+        {{-- <div id="kursus-section" class="pwa-list" style="padding-bottom:16px;">
             <div class="pwa-card-header pwa-card-header-violet" style="margin-bottom:14px;">
                 <div class="pwa-card-header-deco-1"></div><div class="pwa-card-header-deco-2"></div>
                 <div class="pwa-card-header-content">
@@ -147,8 +147,8 @@
                     <span class="badge badge-approved" style="margin-top:8px;"><i class="fa-solid fa-check text-[9px]"></i> Lulus</span>
                 </div>
             </div>
-        </div>
-    </div> --}}
+        </div> --}}
+    </div>
 
     {{-- <livewire:pending-approvals-card /> --}}
 

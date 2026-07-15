@@ -17,11 +17,11 @@
         <div>
             <div style="display:flex;align-items:baseline;gap:4px;margin-bottom:{{ $compact ? '5px' : '8px' }};">
                 <span style="font-size:{{ $compact ? '26px' : '36px' }};font-weight:800;color:{{ $color }};letter-spacing:-1px;">{{ $balance['available'] }}</span>
-                <span style="font-size:{{ $compact ? '9px' : '13px' }};color:var(--text-muted);font-weight:500;">/ {{ $balance['quota'] }} hari</span>
+                <span style="font-size:{{ $compact ? '9px' : '13px' }};color:var(--text-muted);font-weight:500;">hari</span>
             </div>
             @unless ($compact)
                 <div class="progress-track"><div class="progress-fill" style="width:{{ $pct }}%;background:{{ $color }};"></div></div>
-                <p style="font-size:11px;color:var(--text-muted);margin-top:5px;text-align:right;">{{ $balance['used'] }} hari terpakai</p>
+                <p style="font-size:11px;color:var(--text-muted);margin-top:5px;text-align:right;">dari kuota {{ $balance['quota'] }} hari &middot; {{ $balance['used'] }} terpakai</p>
             @endunless
         </div>
     @else
