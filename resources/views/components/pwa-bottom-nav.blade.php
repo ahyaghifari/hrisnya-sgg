@@ -30,6 +30,10 @@
             </a>
         @endif
 
+        <a href="{{ route('kanban') }}" wire:navigate class="pwa-bottom-nav-item {{ request()->routeIs('kanban*') ? 'active' : '' }}">
+            <i class="fa-solid fa-table-columns"></i> Kanban
+        </a>
+
         <a href="{{ route('akun') }}" wire:navigate class="pwa-bottom-nav-item {{ request()->routeIs('akun') ? 'active' : '' }}">
             <i class="fa-solid fa-user"></i> Akun
         </a>

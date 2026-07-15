@@ -33,6 +33,9 @@
                     <i class="fa-solid fa-file-lines text-xs"></i> Pengajuan Absensi
                 </a>
             @endif
+            <a href="{{ route('kanban') }}" wire:navigate class="nav-item {{ request()->routeIs('kanban*') ? 'active' : '' }}">
+                <i class="fa-solid fa-table-columns text-xs"></i> Kanban
+            </a>
             @if ($canAccessKeuangan)
                 <div class="dropdown">
                     <a href="#" class="nav-item {{ request()->routeIs(['keuangan.komponen-gaji*', 'keuangan.mapping-komponen-gaji*']) ? 'active' : '' }}">
