@@ -11,7 +11,7 @@ class KanbanAuthorizationService
 {
     public function canCreateBoard(User $user): bool
     {
-        return $user->canAccessKaryawanMenu();
+        return true;
     }
 
     public function canAccessBoard(KanbanBoard $board, User $user): bool

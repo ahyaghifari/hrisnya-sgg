@@ -134,7 +134,7 @@ return [
     'kanban.create' => [
         'label' => 'Buat Board',
         'permission' => null,
-        'guard' => 'canAccessKaryawanMenu',
+        'guard' => null,
     ],
 
     'kanban.personal' => [

@@ -170,14 +170,14 @@ class KanbanModuleTest extends TestCase
 
     // ── KanbanAuthorizationService ─────────────────────────────
 
-    public function test_can_create_board_requires_subordinates_or_global_access(): void
+    public function test_can_create_board_is_open_to_any_user(): void
     {
         $company = $this->makeCompany();
         ['supervisor' => $supervisor, 'staff' => $staff] = $this->makeSupervisorAndStaff($company);
         $service = app(KanbanAuthorizationService::class);
 
         $this->assertTrue($service->canCreateBoard($supervisor));
-        $this->assertFalse($service->canCreateBoard($staff));
+        $this->assertTrue($service->canCreateBoard($staff));
     }
 
     public function test_can_access_board_requires_membership(): void
@@ -273,14 +273,14 @@ class KanbanModuleTest extends TestCase
         ]);
     }
 
-    public function test_staff_without_subordinates_cannot_open_create_board_page(): void
+    public function test_staff_without_subordinates_can_open_create_board_page(): void
     {
         $company = $this->makeCompany();
         ['staff' => $staff] = $this->makeSupervisorAndStaff($company);
 
         $this->actingAs($staff)
             ->get(route('kanban.create'))
-            ->assertForbidden();
+            ->assertOk();
     }
 
     // ── KanbanBoardDetail (Livewire) ───────────────────────────
