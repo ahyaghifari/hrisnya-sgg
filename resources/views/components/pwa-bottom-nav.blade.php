@@ -2,6 +2,7 @@
     $canSeeKaryawanMenu = auth()->user()->canAccessKaryawanMenu();
     $canSubmitAttendance = ! auth()->user()->canBrowseAllCompanies();
     $canAccessKeuangan = auth()->user()->can(\App\Enum\CustomPermissionEnum::SISTEM_KEUANGAN->value);
+    $canAccessMaster = auth()->user()->can(\App\Enum\CustomPermissionEnum::SISTEM_MASTER->value);
 
     $navPhotoPath = auth()->user()->profile?->profile_picture[0] ?? null;
     $navPhotoUrl = $navPhotoPath && is_string($navPhotoPath) ? \Illuminate\Support\Facades\Storage::url($navPhotoPath) : null;
@@ -88,13 +89,16 @@
                 <span class="pwa-menu-grid-icon gold"><i class="fa-solid fa-sack-dollar"></i></span>
                 <span class="pwa-menu-grid-label">Komponen Gaji</span>
             </a>
-            <a href="{{ route('keuangan.mapping-komponen-gaji') }}" wire:navigate class="pwa-menu-grid-item">
-                <span class="pwa-menu-grid-icon violet"><i class="fa-solid fa-diagram-project"></i></span>
-                <span class="pwa-menu-grid-label">Mapping Komponen Gaji</span>
-            </a>
             <a href="{{ route('keuangan.insentif') }}" wire:navigate class="pwa-menu-grid-item">
                 <span class="pwa-menu-grid-icon green"><i class="fa-solid fa-hand-holding-dollar"></i></span>
                 <span class="pwa-menu-grid-label">Insentif</span>
+            </a>
+        @endif
+
+        @if ($canAccessMaster)
+            <a href="{{ route('master.hari-libur') }}" wire:navigate class="pwa-menu-grid-item">
+                <span class="pwa-menu-grid-icon navy"><i class="fa-solid fa-flag"></i></span>
+                <span class="pwa-menu-grid-label">Hari Libur & Cuti Bersama</span>
             </a>
         @endif
 

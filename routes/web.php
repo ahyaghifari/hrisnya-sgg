@@ -12,8 +12,8 @@ use App\Livewire\Kanban\KanbanBoardDetail;
 use App\Livewire\Kanban\KanbanBoardsList;
 use App\Livewire\Kanban\KanbanPersonalTasks;
 use App\Livewire\Keuangan\IncentivesPage;
-use App\Livewire\Keuangan\SalaryComponentMappingPage;
 use App\Livewire\Keuangan\SalaryComponentsPage;
+use App\Livewire\Master\HolidaysPage;
 use App\Livewire\MyAttendanceRequests;
 use App\Livewire\MyEmployees;
 use App\Livewire\OrganizationStructure;
@@ -86,11 +86,11 @@ Route::middleware(['auth', 'portal.access'])->group(function () {
     Route::get('/keuangan/komponen-gaji', SalaryComponentsPage::class)
         ->name('keuangan.komponen-gaji');
 
-    Route::get('/keuangan/mapping-komponen-gaji', SalaryComponentMappingPage::class)
-        ->name('keuangan.mapping-komponen-gaji');
-
     Route::get('/keuangan/insentif', IncentivesPage::class)
         ->name('keuangan.insentif');
+
+    Route::get('/master/hari-libur', HolidaysPage::class)
+        ->name('master.hari-libur');
 
     Route::get('/kanban', KanbanBoardsList::class)
         ->name('kanban');

@@ -13,6 +13,7 @@ namespace App\Enum;
 enum CustomPermissionEnum: string
 {
     case SISTEM_KEUANGAN = 'sistem_keuangan';
+    case SISTEM_MASTER = 'sistem_master';
 
     // Verb non-CRUD (approve/import/report) - dideklarasikan juga di
     // config/filament-shield.php 'custom_permissions' supaya Shield tidak menganggapnya yatim.
@@ -28,6 +29,7 @@ enum CustomPermissionEnum: string
         return match
          ($this) {
             self::SISTEM_KEUANGAN => 'Sistem Keuangan',
+            self::SISTEM_MASTER => 'Sistem Master',
             self::APPROVE_PENGAJUAN_ABSENSI => 'Approve Pengajuan Absensi',
             self::VIEW_REPORT_DATA_ABSENSI => 'Lihat Laporan Data Absensi',
             self::IMPORT_DATA_ABSENSI => 'Import Data Absensi',

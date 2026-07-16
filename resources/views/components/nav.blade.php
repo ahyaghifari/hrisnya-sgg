@@ -3,6 +3,7 @@
     $canSeeKaryawanMenu = auth()->user()->canAccessKaryawanMenu();
     $canSubmitAttendance = ! auth()->user()->canBrowseAllCompanies();
     $canAccessKeuangan = auth()->user()->can(\App\Enum\CustomPermissionEnum::SISTEM_KEUANGAN->value);
+    $canAccessMaster = auth()->user()->can(\App\Enum\CustomPermissionEnum::SISTEM_MASTER->value);
     $initials = collect(explode(' ', auth()->user()->name))
         ->map(fn ($part) => mb_substr($part, 0, 1))
         ->take(2)
@@ -28,12 +29,15 @@
                     <i class="fa-solid fa-users text-xs"></i> MyStaff
                 </a>
             @endif
-            <a href="{{ route('kanban') }}" wire:navigate class="nav-item {{ request()->routeIs('kanban*') ? 'active' : '' }}">
-                <i class="fa-solid fa-table-columns text-xs"></i> Kanban
-            </a>
-            <a href="{{ route('pelatihan') }}" wire:navigate class="nav-item {{ request()->routeIs('pelatihan*') ? 'active' : '' }}">
-                <i class="fa-solid fa-graduation-cap text-xs"></i> Pelatihan
-            </a>
+            <div class="dropdown">
+                <a href="#" class="nav-item {{ request()->routeIs(['kanban*', 'pelatihan*']) ? 'active' : '' }}">
+                    <i class="fa-solid fa-list-check text-xs"></i> Penugasan <i class="fa-solid fa-chevron-down text-[10px]"></i>
+                </a>
+                <div class="dropdown-menu">
+                    <a href="{{ route('kanban') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-table-columns"></i> Kanban</a>
+                    <a href="{{ route('pelatihan') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-graduation-cap"></i> Pelatihan</a>
+                </div>
+            </div>
             @if ($canSubmitAttendance)
                 <a href="{{ route('my-attendance-requests') }}" wire:navigate class="nav-item {{ request()->routeIs('my-attendance-requests*') ? 'active' : '' }}">
                     <i class="fa-solid fa-file-lines text-xs"></i> Pengajuan Absensi
@@ -41,17 +45,24 @@
             @endif
             @if ($canAccessKeuangan)
                 <div class="dropdown">
-                    <a href="#" class="nav-item {{ request()->routeIs(['keuangan.komponen-gaji*', 'keuangan.mapping-komponen-gaji*']) ? 'active' : '' }}">
-                        <i class="fa-solid fa-sack-dollar text-xs"></i> Master Gaji <i class="fa-solid fa-chevron-down text-[10px]"></i>
+                    <a href="#" class="nav-item {{ request()->routeIs(['keuangan.komponen-gaji*', 'keuangan.insentif*']) ? 'active' : '' }}">
+                        <i class="fa-solid fa-sack-dollar text-xs"></i> Penggajian <i class="fa-solid fa-chevron-down text-[10px]"></i>
                     </a>
                     <div class="dropdown-menu">
-                        <a href="{{ route('keuangan.komponen-gaji') }}" wire:navigate class="dropdown-item">Komponen Gaji</a>
-                        <a href="{{ route('keuangan.mapping-komponen-gaji') }}" wire:navigate class="dropdown-item">Mapping Komponen Gaji</a>
+                        <a href="{{ route('keuangan.komponen-gaji') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-sack-dollar"></i> Komponen Gaji</a>
+                        <a href="{{ route('keuangan.insentif') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-hand-holding-dollar"></i> Insentif</a>
                     </div>
                 </div>
-                <a href="{{ route('keuangan.insentif') }}" wire:navigate class="nav-item {{ request()->routeIs('keuangan.insentif*') ? 'active' : '' }}">
-                    <i class="fa-solid fa-hand-holding-dollar text-xs"></i> Insentif
-                </a>
+            @endif
+            @if ($canAccessMaster)
+                <div class="dropdown">
+                    <a href="#" class="nav-item {{ request()->routeIs('master.*') ? 'active' : '' }}">
+                        <i class="fa-solid fa-database text-xs"></i> Master <i class="fa-solid fa-chevron-down text-[10px]"></i>
+                    </a>
+                    <div class="dropdown-menu">
+                        <a href="{{ route('master.hari-libur') }}" wire:navigate class="dropdown-item">Hari Libur & Cuti Bersama</a>
+                    </div>
+                </div>
             @endif
         </div>
 

@@ -5,6 +5,7 @@ namespace App\Repositories\Attendance;
 use App\Models\Attendance\AttendanceRequestLeaveDetails;
 use App\Models\Attendance\AttendanceRequests;
 use App\Models\Attendance\LeaveUserBalances;
+use App\Models\Master\Attendance\Holidays;
 use App\Models\Master\Attendance\LeaveTypes;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -38,13 +39,26 @@ class LeaveReqRepository
             $isExist = false;
         }
 
-        $available = $quota - $used;
+        // Cuti bersama cuma mengurangi kuota Cuti Tahunan, bukan tipe cuti lain (izin, dll).
+        $collectiveLeaveDays = 0;
+        if ($leaveType && str_contains(mb_strtolower($leaveType->name), 'tahunan')) {
+            $periodStart = $balanceRecord?->period_start ?? now()->startOfYear();
+            $periodEnd = $balanceRecord?->period_end ?? now()->endOfYear();
+
+            $collectiveLeaveDays = Holidays::where('is_collective_leave', true)
+                ->whereBetween('date', [$periodStart, $periodEnd])
+                ->where(fn ($q) => $q->whereNull('company_id')->orWhere('company_id', $leaveType->company_id))
+                ->count();
+        }
+
+        $available = $quota - $used - $collectiveLeaveDays;
         if ($available < 0) {
             $available = 0;
         }
         return [
             'quota' => $quota,
             'used' => $used,
+            'collective_leave_days' => $collectiveLeaveDays,
             'available' => $available,
             'is_exist' => $isExist,
         ];

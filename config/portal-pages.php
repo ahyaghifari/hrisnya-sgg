@@ -113,15 +113,15 @@ return [
         'guard' => null,
     ],
 
-    'keuangan.mapping-komponen-gaji' => [
-        'label' => 'Mapping Komponen Gaji',
+    'keuangan.insentif' => [
+        'label' => 'Insentif',
         'permission' => \App\Enum\CustomPermissionEnum::SISTEM_KEUANGAN->value,
         'guard' => null,
     ],
 
-    'keuangan.insentif' => [
-        'label' => 'Insentif',
-        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_KEUANGAN->value,
+    'master.hari-libur' => [
+        'label' => 'Hari Libur & Cuti Bersama',
+        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_MASTER->value,
         'guard' => null,
     ],
 
