@@ -6,9 +6,14 @@ use App\Enum\Payroll\PayrollComponentEnum;
 
 /**
  * Peta PayrollComponentEnum -> Calculator class (Layer 1 Registry -> Layer 2 Strategy).
- * Komponen yang belum punya entry di sini (LEMBUR versi Holding, IZIN_SEHARIAN,
- * IZIN_MENINGGALKAN_JAM_KERJA) sengaja BELUM dibangun — lihat PayrollComponentEnum::notYetAvailable()
- * dan planning/2026-07-17-payroll-fase-1-registry-rebuild-dan-calculator.md §2.2.
+ * Komponen yang belum punya entry di sini (LEMBUR versi Holding, TL/TM khusus) sengaja BELUM
+ * dibangun — lihat planning/2026-07-17-payroll-fase-1-registry-rebuild-dan-calculator.md §2.2
+ * dan planning/2026-07-17-payroll-fase-2-bpjs-toggle-gabung-izin-izin-seharian.md.
+ *
+ * IZIN_SEHARIAN sengaja TIDAK dipanggil lewat Registry ini di orchestrator — dijalankan
+ * terpisah sebagai langkah terakhir karena butuh $context->grossSalary yang sudah final (lihat
+ * PayrollService::generatePayroll()), tapi tetap didaftarkan di sini biar `resolve()` konsisten
+ * dipakai untuk cek "komponen ini punya Calculator atau belum" dari mana saja.
  */
 class PayrollCalculatorRegistry
 {
@@ -24,8 +29,8 @@ class PayrollCalculatorRegistry
         PayrollComponentEnum::BPJS_KESEHATAN->value => BpjsKesehatanCalculator::class,
         PayrollComponentEnum::BPJS_KETENAGAKERJAAN->value => BpjsKetenagakerjaanCalculator::class,
         PayrollComponentEnum::KETERLAMBATAN->value => KeterlambatanCalculator::class,
-        PayrollComponentEnum::IZIN_TERLAMBAT_MASUK->value => IzinTerlambatMasukCalculator::class,
-        PayrollComponentEnum::IZIN_PULANG_CEPAT->value => IzinPulangCepatCalculator::class,
+        PayrollComponentEnum::IZIN_TERLAMBAT_PULANG_CEPAT->value => IzinTerlambatPulangCepatCalculator::class,
+        PayrollComponentEnum::IZIN_SEHARIAN->value => IzinSeharianCalculator::class,
         PayrollComponentEnum::CUTI->value => CutiCalculator::class,
         PayrollComponentEnum::KOPERASI->value => KoperasiCalculator::class,
         PayrollComponentEnum::BON->value => BonCalculator::class,

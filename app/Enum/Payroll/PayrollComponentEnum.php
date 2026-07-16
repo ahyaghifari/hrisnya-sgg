@@ -31,10 +31,8 @@ enum PayrollComponentEnum: string
     case BPJS_KESEHATAN = 'bpjs_kesehatan';
     case BPJS_KETENAGAKERJAAN = 'bpjs_ketenagakerjaan';
     case KETERLAMBATAN = 'keterlambatan';
-    case IZIN_TERLAMBAT_MASUK = 'izin_terlambat_masuk';
-    case IZIN_PULANG_CEPAT = 'izin_pulang_cepat';
+    case IZIN_TERLAMBAT_PULANG_CEPAT = 'izin_terlambat_pulang_cepat';
     case IZIN_SEHARIAN = 'izin_seharian';
-    case IZIN_MENINGGALKAN_JAM_KERJA = 'izin_meninggalkan_jam_kerja';
     case CUTI = 'cuti';
     case PAJAK_JASA_DOKTER = 'pajak_jasa_dokter';
     case KOPERASI = 'koperasi';
@@ -61,10 +59,8 @@ enum PayrollComponentEnum: string
             self::BPJS_KESEHATAN,
             self::BPJS_KETENAGAKERJAAN,
             self::KETERLAMBATAN,
-            self::IZIN_TERLAMBAT_MASUK,
-            self::IZIN_PULANG_CEPAT,
+            self::IZIN_TERLAMBAT_PULANG_CEPAT,
             self::IZIN_SEHARIAN,
-            self::IZIN_MENINGGALKAN_JAM_KERJA,
             self::CUTI,
             self::PAJAK_JASA_DOKTER,
             self::KOPERASI,
@@ -87,10 +83,8 @@ enum PayrollComponentEnum: string
             self::BPJS_KESEHATAN => 'BPJS Kesehatan',
             self::BPJS_KETENAGAKERJAAN => 'BPJS Ketenagakerjaan',
             self::KETERLAMBATAN => 'Keterlambatan',
-            self::IZIN_TERLAMBAT_MASUK => 'Izin Terlambat Masuk',
-            self::IZIN_PULANG_CEPAT => 'Izin Pulang Cepat',
+            self::IZIN_TERLAMBAT_PULANG_CEPAT => 'Izin Terlambat Masuk / Pulang Cepat',
             self::IZIN_SEHARIAN => 'Izin Seharian',
-            self::IZIN_MENINGGALKAN_JAM_KERJA => 'Izin Meninggalkan Jam Kerja',
             self::CUTI => 'Cuti',
             self::PAJAK_JASA_DOKTER => 'Pajak Jasa Dokter',
             self::KOPERASI => 'Koperasi',
@@ -113,10 +107,14 @@ enum PayrollComponentEnum: string
      * Komponen yang case-nya sudah didaftarkan tapi Calculator-nya BELUM dibangun (nunggu
      * jawaban aturan bisnis — lihat planning Fase 1 §2.2). UI toggle harus tampilkan ini
      * sebagai disabled + keterangan "Belum tersedia", bukan disembunyikan.
+     *
+     * IZIN_SEHARIAN sudah pindah dari sini (Calculator-nya sudah ada, lihat planning Fase 2
+     * §4) — IZIN_MENINGGALKAN_JAM_KERJA sudah dihapus total dari enum ini (final: tidak ada
+     * dampak payroll sama sekali, lihat analisis-payroll-4 §7B.4), bukan lagi "belum tersedia".
      */
     public static function notYetAvailable(): array
     {
-        return [self::IZIN_SEHARIAN, self::IZIN_MENINGGALKAN_JAM_KERJA];
+        return [];
     }
 
     /**
@@ -135,7 +133,7 @@ enum PayrollComponentEnum: string
             self::LEMBUR => ['lembur_minimum_jam'],
             self::BPJS_KESEHATAN, self::BPJS_KETENAGAKERJAAN => ['bpjs_declared_value'],
             self::KETERLAMBATAN => ['keterlambatan_threshold_menit', 'keterlambatan_denda', 'keterlambatan_grace_count'],
-            self::IZIN_TERLAMBAT_MASUK, self::IZIN_PULANG_CEPAT => ['izin_potongan_flat'],
+            self::IZIN_TERLAMBAT_PULANG_CEPAT => ['izin_potongan_flat'],
             self::PAJAK_JASA_DOKTER => ['pajak_jasa_dokter_rate'],
             default => [],
         };

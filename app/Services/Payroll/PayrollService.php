@@ -3,6 +3,7 @@
 namespace App\Services\Payroll;
 
 use App\Enum\Payroll\PayrollComponentEnum;
+use App\Enum\Payroll\PayrollComponentTypeEnum;
 use App\Models\Payroll\CompanyPayrollComponent;
 use App\Models\Payroll\Payroll;
 use App\Models\Payroll\PayrollPeriod;
@@ -80,29 +81,35 @@ class PayrollService
 
                 $context = new PayrollContext();
 
-                foreach ($activeComponents as $companyComponent) {
-                    if (! $companyComponent->isEligibleForEmployeeType($user->profile?->employee_type_id)) {
-                        continue;
-                    }
+                // Urutan WAJIB: semua EARNING dulu -> Fee Claim (earning, always-on) -> semua
+                // DEDUCTION kecuali Izin Seharian -> Izin Seharian terakhir. Izin Seharian
+                // butuh $context->grossSalary (T8) yang sudah final, lihat planning Fase 2 §6.
+                $earning = $activeComponents->filter(
+                    fn (CompanyPayrollComponent $c) => PayrollComponentEnum::tryFrom($c->component)?->type() === PayrollComponentTypeEnum::EARNING
+                );
+                $deduction = $activeComponents->filter(
+                    fn (CompanyPayrollComponent $c) => PayrollComponentEnum::tryFrom($c->component)?->type() === PayrollComponentTypeEnum::DEDUCTION
+                        && $c->component !== PayrollComponentEnum::IZIN_SEHARIAN->value
+                );
+                $izinSeharian = $activeComponents->first(
+                    fn (CompanyPayrollComponent $c) => $c->component === PayrollComponentEnum::IZIN_SEHARIAN->value
+                );
 
-                    $component = PayrollComponentEnum::tryFrom($companyComponent->component);
-
-                    if (! $component) {
-                        continue;
-                    }
-
-                    $calculatorClass = PayrollCalculatorRegistry::resolve($component);
-
-                    if (! $calculatorClass) {
-                        continue; // belum ada Calculator (§2.2 planning Fase 1), skip aman
-                    }
-
-                    app($calculatorClass)->calculate($user, $payroll, $period, $context);
+                foreach ($earning as $companyComponent) {
+                    $this->runComponent($companyComponent, $user, $payroll, $period, $context);
                 }
 
                 // Always-on, tidak digate lewat company_payroll_components (lihat
                 // PayrollComponentEnum::alwaysOn() dan planning Fase 1 §3.1).
                 app(FeeClaimCalculator::class)->calculate($user, $payroll, $period, $context);
+
+                foreach ($deduction as $companyComponent) {
+                    $this->runComponent($companyComponent, $user, $payroll, $period, $context);
+                }
+
+                if ($izinSeharian) {
+                    $this->runComponent($izinSeharian, $user, $payroll, $period, $context);
+                }
 
                 $payroll->update([
                     'gross_salary' => $context->grossSalary,
@@ -123,5 +130,31 @@ class PayrollService
             ->where('user_id', $user->id)
             ->where('payroll_period_id', $period->id)
             ->exists();
+    }
+
+    private function runComponent(
+        CompanyPayrollComponent $companyComponent,
+        User $user,
+        Payroll $payroll,
+        PayrollPeriod $period,
+        PayrollContext $context
+    ): void {
+        if (! $companyComponent->isEligibleForEmployeeType($user->profile?->employee_type_id)) {
+            return;
+        }
+
+        $component = PayrollComponentEnum::tryFrom($companyComponent->component);
+
+        if (! $component) {
+            return;
+        }
+
+        $calculatorClass = PayrollCalculatorRegistry::resolve($component);
+
+        if (! $calculatorClass) {
+            return; // belum ada Calculator (§2.2 planning Fase 1), skip aman
+        }
+
+        app($calculatorClass)->calculate($user, $payroll, $period, $context);
     }
 }

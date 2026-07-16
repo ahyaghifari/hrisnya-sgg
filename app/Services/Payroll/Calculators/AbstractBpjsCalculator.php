@@ -10,10 +10,11 @@ use App\Models\Setting;
 use App\Models\User;
 
 /**
- * Basis potongan: pangkat.bpjs_basis === 'ump' -> GlobalPayrollSettingEnum::UMP (selalu
- * global), 'declared_value' -> Setting('bpjs_declared_value') (selalu company-scoped, lihat
- * PayrollComponentEnum::requiredSettings()). Skip aman (0 baris) kalau bpjs_basis belum diisi
- * ATAU setting basisnya belum diisi — JANGAN asumsikan basis 0 sebagai default.
+ * Basis potongan dibaca dari `pangkat.bpjsBasis` (tabel `pangkat_bpjs_bases`, 1:1 ke
+ * m_pangkats, diisi lewat halaman Komponen Gaji — bukan form Pangkat biasa). Belum
+ * di-mapping (relasi kosong) = auto SKIP, tidak ada potongan sama sekali — bukan fallback ke
+ * UMP. 'ump' -> GlobalPayrollSettingEnum::UMP (selalu global), 'declared_value' ->
+ * Setting('bpjs_declared_value', company-scoped).
  */
 abstract class AbstractBpjsCalculator implements PayrollComponentCalculator
 {
@@ -24,19 +25,17 @@ abstract class AbstractBpjsCalculator implements PayrollComponentCalculator
 
     public function calculate(User $user, Payroll $payroll, PayrollPeriod $period, PayrollContext $context): void
     {
-        $bpjsBasis = $user->profile?->pangkat?->bpjs_basis;
+        $bpjsBasis = $user->profile?->pangkat?->bpjsBasis?->bpjs_basis;
 
         if (! $bpjsBasis) {
             return;
         }
 
-        if ($bpjsBasis === 'ump') {
-            $basis = Setting::resolve(GlobalPayrollSettingEnum::UMP->value, null);
-        } elseif ($bpjsBasis === 'declared_value') {
-            $basis = Setting::resolve('bpjs_declared_value', $period->company_id);
-        } else {
-            return;
-        }
+        $basis = match ($bpjsBasis) {
+            'ump' => Setting::resolve(GlobalPayrollSettingEnum::UMP->value, null),
+            'declared_value' => Setting::resolve('bpjs_declared_value', $period->company_id),
+            default => null,
+        };
 
         if (! $basis || $basis <= 0) {
             return;

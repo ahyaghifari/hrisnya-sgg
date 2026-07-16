@@ -3,6 +3,7 @@
 namespace App\Models\Master;
 
 use App\Helpers\PermissionHelper;
+use App\Models\Payroll\PangkatBpjsBasis;
 use App\Models\Payroll\PangkatSalary;
 use App\Models\Payroll\PositionAllowance;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
@@ -26,7 +27,6 @@ class Pangkats extends Model
         'start_kelas_level',
         'max_kelas_level',
         'class_increment_rate',
-        'bpjs_basis',
     ];
 
     protected static function boot(): void
@@ -63,5 +63,10 @@ class Pangkats extends Model
     public function positionAllowances(): HasMany
     {
         return $this->hasMany(PositionAllowance::class, 'pangkat_id');
+    }
+
+    public function bpjsBasis(): HasOne
+    {
+        return $this->hasOne(PangkatBpjsBasis::class, 'pangkat_id');
     }
 }

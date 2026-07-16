@@ -230,6 +230,50 @@ Detail fitur import (nanti, bukan sekarang): kemungkinan besar reuse pattern Maa
 
 ---
 
+## 7B. Addendum Kedua (2026-07-17)
+
+### 7B.1 BPJS — resolusi ambiguitas §7.1: bukan grup pangkat tetap, tapi toggle + override per pangkat
+
+**Jawaban**: pertanyaan di §7.1 ("Staff/Koordinator/Direktur masuk kelompok mana?") ternyata **salah kerangka** — bukan soal 2 kelompok pangkat tetap (pelaksana vs spv/manager) yang berlaku universal semua company. Kondisi riilnya: **beda per company** (mis. di rumah sakit ada kemungkinan basisnya beda lagi), jadi harus jadi **pengaturan per company**, bukan aturan hardcode 2 kelompok.
+
+**Desain baru (menggantikan §7.1)**:
+- 1 toggle per company: "apakah ada perbedaan basis BPJS antar pangkat?" (setting company-scoped, bagian dari `requiredSettings()` BPJS).
+- Kalau **tidak dicentang** → semua pangkat pakai basis `UMP` (company-wide, sesuai §7.2).
+- Kalau **dicentang** → basis per pangkat diambil dari kolom `m_pangkats.bpjs_basis` (kolom ini **sudah ada** dari Fase 0, `2026_07_16_150100_add_payroll_classification_to_m_pangkats_table.php`, sudah dipakai `AbstractBpjsCalculator` sekarang — isinya string `'ump'` | `'declared_value'` per pangkat, BUKAN angka override; `'declared_value'` artinya "pakai `settings.bpjs_declared_value`", 1 angka yang tetap company-wide seperti §7.1 asal, cuma sekarang jadi opsional per pangkat bukan wajib semua). Kolom ini saat ini semua `NULL` — diisi lewat form edit Pangkat (Resource yang sudah ada, tinggal ditambah 1 field). Pangkat yang `bpjs_basis`-nya `NULL` atau `'ump'` tetap fallback ke UMP walau toggle aktif.
+- Rate tetap seperti semula: Kesehatan 1%, Ketenagakerjaan 2% dari basis yang dipilih.
+
+**Implikasi kode**: `AbstractBpjsCalculator` baca toggle via `Setting::resolve('bpjs_basis_berbeda', $companyId)` dulu — kalau tidak aktif, basis LANGSUNG UMP (tidak lagi baca `bpjs_basis` pangkat sama sekali, tidak lagi skip diam-diam kalau kolom itu NULL). Kalau aktif, baru baca `bpjs_basis` per pangkat, fallback UMP kalau NULL. Detail lengkap & kode di `planning/2026-07-17-payroll-fase-2-bpjs-toggle-gabung-izin-izin-seharian.md` §2.
+
+### 7B.2 Izin Terlambat Masuk + Izin Pulang Cepat — digabung jadi 1 komponen gaji
+
+**Jawaban**: "itu bisa ngga kita bikin menjadi 1 komponen saja, karena itu sebenarnya 1 grup dan biaya potongannya sama" — dikonfirmasi digabung, dengan cakupan: **sisi absensi (pengajuan izin/laporan) tetap 2 tipe terpisah** (`PermissionTypeCategoryEnum::IZIN_TERLAMBAT_MASUK` & `IZIN_PULANG_CEPAT` tidak berubah), **cuma sisi payroll yang digabung** jadi 1 `PayrollComponentEnum` case.
+
+**Implikasi kode**: `PayrollComponentEnum` — hapus 1 dari 2 case (`IZIN_TERLAMBAT_MASUK`/`IZIN_PULANG_CEPAT`), sisakan 1 (mis. rename jadi `IZIN_TERLAMBAT_PULANG_CEPAT`). Gabung `IzinTerlambatMasukCalculator` + `IzinPulangCepatCalculator` (yang sekarang sudah ada, keduanya extends `AbstractIzinFlatCalculator`) jadi 1 Calculator yang menjumlah kejadian dari **kedua** kategori absensi (`IZIN_TERLAMBAT_MASUK` + `IZIN_PULANG_CEPAT`) dikali 1 rate flat yang sama. `company_payroll_components` & `requiredSettings()` juga ikut disederhanakan (1 toggle bukan 2).
+
+### 7B.3 Izin Seharian — rumus dikonfirmasi
+
+**Jawaban**: rumus asli dari Excel adalah `=T8/DAY(EOMONTH($B$2;0)-Q8)*AE8`, dikonfirmasi user bagian `-Q8` di dalam `DAY(EOMONTH(...))` adalah bukan bagian dari perhitungan hari (kemungkinan salah tulis ulang manual formula dari Excel, Q8/Tunjangan Transportasi tidak berperan di pembagi ini). Rumus final yang dipakai:
+
+```
+rate_harian = T8 / DAY(EOMONTH($B$2, 0))
+potongan    = rate_harian * AE8
+```
+
+Di mana:
+- `T8` = Total Pendapatan seluruh komponen pendapatan (setara `$context->grossSalary` sebelum potongan izin ini).
+- `DAY(EOMONTH($B$2,0))` = jumlah hari dalam bulan periode payroll berjalan (`$period`).
+- `AE8` = jumlah kejadian Izin Seharian di periode itu.
+
+**Status berubah dari §7.4/§8**: `IzinSeharianCalculator` **sudah bisa dibangun** (rumus tidak lagi tertunda) — catatan implementasi: perlu urutan Calculator yang tepat, karena `T8` (total pendapatan) harus sudah terkumpul penuh di `PayrollContext` sebelum `IzinSeharianCalculator` jalan (jalankan di akhir urutan komponen EARNING, sebelum komponen DEDUCTION lain yang tidak bergantung total pendapatan).
+
+### 7B.4 Izin Meninggalkan Jam Kerja — dikonfirmasi TIDAK masuk payroll sama sekali
+
+**Jawaban**: "Izin meninggalkan jam kerja tidak ada di komponen gaji di slip gaji juga tidak diperhitungkan" — bukan lagi "masih terbuka, tertunda", tapi **final: memang tidak ada dampak payroll**. Ini murni kategori absensi (tetap ada di `PermissionTypeCategoryEnum::IZIN_MENINGGALKAN_JAM_KERJA` untuk pengajuan/laporan izin), tapi **tidak butuh entry di `PayrollComponentEnum`/Calculator sama sekali** — bukan "belum tersedia", tapi "memang tidak pernah akan ada" untuk komponen ini.
+
+**Implikasi kode**: hapus `IZIN_MENINGGALKAN_JAM_KERJA` dari `PayrollComponentEnum::notYetAvailable()` (dan dari enum itu sendiri kalau sempat ditambahkan) — cukup biarkan hidup di `PermissionTypeCategoryEnum` (sisi absensi) saja.
+
+---
+
 ## 8. Ringkasan Status Setelah Addendum §7
 
 **Cukup jelas untuk mulai dibangun (Fase 0 + sebagian Fase 2 di `analisis-payroll-3` §9)**:
@@ -244,12 +288,15 @@ Detail fitur import (nanti, bukan sekarang): kemungkinan besar reuse pattern Maa
 **Berubah arahnya (bukan kalkulator, tapi fitur import)**:
 - Insentif RSU — dibangun sebagai fitur IMPORT (§7.6), bukan `IncentiveCalculator` dinamis. Ini mengurangi kompleksitas Fase 3 di `analisis-payroll-3` §9.
 
+**Diselesaikan lewat Addendum Kedua §7B (2026-07-17) — sekarang cukup jelas untuk dibangun**:
+- BPJS — bukan lagi 2 kelompok pangkat hardcode, jadi toggle per company + override per pangkat lewat `m_pangkats.bpjs_basis` (§7B.1, menggantikan §7.1).
+- Izin Terlambat Masuk + Izin Pulang Cepat — digabung jadi 1 `PayrollComponentEnum` case & 1 Calculator, sisi absensi tetap 2 tipe terpisah (§7B.2).
+- Rumus Izin Seharian — terkonfirmasi `T8 / DAY(EOMONTH($B$2,0)) * AE8`, `IzinSeharianCalculator` bisa dibangun (§7B.3, menggantikan §7.4).
+- Izin Meninggalkan Jam Kerja — final TIDAK ada dampak payroll sama sekali, tidak perlu Calculator/enum case (§7B.4, menggantikan §7.5).
+
 **Masih 100% terbuka (JANGAN ditebak, jangan dibangun dulu)**:
-- Rumus Izin Seharian (§7.4).
-- Aturan Izin Meninggalkan Jam Kerja (§7.5).
 - Arti TL/TM lembur (§7.8).
 - Aturan >2 jam lembur — floor di rumus vs gate di input (§5.2).
-- Klasifikasi 6 pangkat → 2 kelompok BPJS (Staff/Koordinator/Direktur belum jelas masuk mana — §7.1).
 - Basis angka 3,5jt/3jt lembur — tetap atau dari gaji aktual (§5.4).
 - Pembagi ×7 di lembur — universal atau per shift/company (§5.5).
 - Rate 8% gaji pokok — Holding-only atau berlaku semua company (§7.3).
