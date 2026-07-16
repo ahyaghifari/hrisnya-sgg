@@ -4,7 +4,7 @@
     <div>
         <p class="text-xs text-slate-500 mb-1">{{ now()->translatedFormat('l, d F Y') }} · <span id="live-clock"></span></p>
         {{-- Judul disembunyikan di mobile: sudah tampil di pwa-app-bar-title, dobel kalau ditulis lagi di sini. --}}
-        <h1 class="hidden md:block {{ $size === 'lg' ? 'text-2xl' : 'text-[20px]' }} font-extrabold text-slate-900 tracking-tight">{{ $title }}</h1>
+        <h1 class="hidden md:block {{ $size === 'lg' ? 'text-3xl' : 'text-[20px]' }} font-extrabold text-slate-900 tracking-tight">{{ $title }}</h1>
         @if ($subtitle)
             <p class="text-xs text-slate-600 mt-1">{{ $subtitle }}</p>
         @endif

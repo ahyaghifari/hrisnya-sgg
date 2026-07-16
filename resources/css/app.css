@@ -370,6 +370,205 @@ html.dark .nav-item.active { background: rgba(110,168,224,0.22); }
 .pwa-course-title { font-size: 12.5px; font-weight: 700; color: var(--text-heading); margin-bottom: 4px; }
 .pwa-course-sub { font-size: 11px; color: var(--text-muted); margin-bottom: 8px; }
 
+/* ── Course card (halaman /pelatihan) ──────────────────────────────────────────────
+   Aksen warna per kategori (5 warna hash deterministik dari nama kategori, palet sama
+   dengan .section-nav-btn supaya konsisten di seluruh app) jadi spine kiri kartu — pola
+   "map berwarna per departemen" ala folder klinis. Placeholder foto pakai pola titik +
+   ikon watermark, bukan blok gradient polos. "Seal" di pojok kanan-atas menandakan
+   pelatihan yang sudah diikuti — motif stempel sertifikasi, relevan buat konten
+   compliance rumah sakit (BHD/K3RS/PPI memang literally hal yang "distempel"). --accent-fill
+   tetap vivid di kedua tema (dipakai di elemen isian solid); --accent menyesuaikan kontras
+   di dark mode (dipakai untuk teks/border di atas var(--surface)), pola sama seperti
+   fix kontras .section-nav-btn di atas. */
+.course-card { position: relative; display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--border-soft); border-radius: 16px; overflow: hidden; box-shadow: var(--shadow-card); text-decoration: none; transition: transform 0.18s ease, box-shadow 0.18s ease; }
+.course-card:hover { transform: translateY(-3px); box-shadow: 0 14px 28px rgba(4,44,108,0.14); }
+.course-card:focus-visible { outline: 2px solid var(--accent, #042c6c); outline-offset: 2px; }
+.course-card::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--accent-fill); z-index: 2; }
+
+/* Generik (bukan cuma .course-card) — dipakai juga di .course-hero & turunannya di halaman
+   detail Pelatihan, custom property mewarisi ke descendant lewat cascade CSS biasa. */
+.accent-navy { --accent-fill: #042c6c; --accent: #042c6c; }
+.accent-green { --accent-fill: #047C54; --accent: #047C54; }
+.accent-rust { --accent-fill: #9a3412; --accent: #9a3412; }
+.accent-teal { --accent-fill: #0f766e; --accent: #0f766e; }
+.accent-gold { --accent-fill: #b45309; --accent: #b45309; }
+html.dark .accent-navy { --accent: #8fc4f5; }
+html.dark .accent-green { --accent: #6ee7b7; }
+html.dark .accent-rust { --accent: #fdba74; }
+html.dark .accent-teal { --accent: #5eead4; }
+html.dark .accent-gold { --accent: #fbbf24; }
+
+.course-card-media { position: relative; height: 128px; overflow: hidden; background: var(--accent-fill); }
+.course-card-media img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.course-card-media-placeholder { width: 100%; height: 100%; display: flex; align-items: flex-end; justify-content: flex-end; padding: 10px; background-image: radial-gradient(rgba(255,255,255,0.35) 1px, transparent 1px); background-size: 9px 9px; }
+.course-card-media-placeholder i { font-size: 32px; color: #fff; opacity: 0.4; }
+
+.course-card-seal { position: absolute; top: 10px; right: 10px; width: 50px; height: 50px; border-radius: 50%; background: var(--surface); border: 2px dashed var(--accent); color: var(--accent); display: flex; flex-direction: column; align-items: center; justify-content: center; transform: rotate(-9deg); box-shadow: 0 3px 10px rgba(0,0,0,0.25); z-index: 3; }
+.course-card-seal i { font-size: 13px; }
+.course-card-seal span { font-size: 6px; font-weight: 800; letter-spacing: 0.03em; text-transform: uppercase; margin-top: 1px; }
+
+/* Menunggu approval HC/admin (status lms_course_users = "requested") — beda dari sudah
+   disetujui, supaya user tidak mengira "klik Ikuti" = langsung resmi jadi peserta. */
+.course-card-seal.is-pending, .course-hero-seal.is-pending { border-color: #d97706; color: #d97706; border-style: solid; }
+html.dark .course-card-seal.is-pending, html.dark .course-hero-seal.is-pending { border-color: #fbbf24; color: #fbbf24; }
+
+.course-card-body { padding: 13px 14px 12px 15px; display: flex; flex-direction: column; gap: 5px; flex: 1; }
+.course-card-top-row { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.course-card-eyebrow { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.07em; color: var(--accent); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.course-card-code { flex-shrink: 0; font-size: 9px; font-weight: 700; letter-spacing: 0.02em; color: var(--text-faint); background: var(--surface-alt); padding: 2px 7px; border-radius: 6px; }
+.course-card-title { font-size: 14.5px; font-weight: 800; line-height: 1.3; color: var(--text-heading); }
+.course-card-meta { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-muted); }
+.course-card-meta i { font-size: 10.5px; }
+.course-card-meta-dot { opacity: 0.5; }
+.course-card-roster { display: flex; align-items: center; margin-top: 2px; }
+.course-card-roster img { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--surface); margin-left: -7px; object-fit: cover; }
+.course-card-roster img:first-child { margin-left: 0; }
+.course-card-roster-count { font-size: 10.5px; color: var(--text-muted); margin-left: 6px; font-weight: 600; }
+.course-card-cta { margin-top: auto; padding-top: 10px; border-top: 1px solid var(--border-soft); display: flex; align-items: center; justify-content: space-between; font-size: 12px; font-weight: 700; color: var(--accent); }
+.course-card-cta i { font-size: 10.5px; transition: transform 0.18s ease; }
+.course-card:hover .course-card-cta i { transform: translateX(3px); }
+
+@media (prefers-reduced-motion: reduce) {
+    .course-card, .course-card-cta i { transition: none; }
+    .course-card:hover { transform: none; }
+    .course-card:hover .course-card-cta i { transform: none; }
+}
+
+/* ── Detail Pelatihan (halaman /pelatihan/{course}) — kelanjutan visual course-card:
+   spine kategori sama, seal sertifikasi versi besar jadi centerpiece hero kalau sudah
+   diikuti (folder rumah sakit yang "distempel approved"). Sesi pertemuan dirender sebagai
+   timeline bernomor — nomor di sini BERARTI urutan pertemuan sungguhan, bukan dekorasi. */
+.course-hero { position: relative; border-radius: 18px; overflow: hidden; background: var(--accent-fill); margin-bottom: 34px; box-shadow: var(--shadow-card); }
+.course-hero-media { position: relative; height: 168px; }
+.course-hero-media img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.course-hero-media-placeholder { width: 100%; height: 100%; background-image: radial-gradient(rgba(255,255,255,0.35) 1.5px, transparent 1.5px); background-size: 12px 12px; display: flex; align-items: center; justify-content: center; }
+.course-hero-media-placeholder i { font-size: 52px; color: #fff; opacity: 0.3; }
+.course-hero-seal { position: absolute; bottom: -26px; right: 22px; width: 84px; height: 84px; border-radius: 50%; background: var(--surface); border: 2.5px dashed var(--accent); color: var(--accent); display: flex; flex-direction: column; align-items: center; justify-content: center; transform: rotate(-8deg); box-shadow: 0 6px 16px rgba(0,0,0,0.28); z-index: 4; }
+.course-hero-seal i { font-size: 22px; }
+.course-hero-seal span { font-size: 8.5px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; margin-top: 2px; }
+.course-hero-body { padding: 16px 18px 18px; background: var(--surface); }
+.course-hero-eyebrow { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; color: var(--accent); }
+.course-hero-code { font-size: 10px; font-weight: 700; color: var(--text-faint); background: var(--surface-alt); padding: 3px 8px; border-radius: 6px; margin-left: 8px; letter-spacing: 0.02em; white-space: nowrap; }
+.course-hero-title { font-size: 19px; font-weight: 800; color: var(--text-heading); line-height: 1.3; margin-top: 4px; }
+.course-hero-meta { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-top: 10px; font-size: 12px; color: var(--text-muted); }
+.course-hero-meta span { display: flex; align-items: center; gap: 6px; }
+.course-hero-meta i { font-size: 11px; color: var(--accent); }
+
+.course-follow-btn { display: block; width: 100%; margin-top: 16px; padding: 13px; border: none; border-radius: 12px; background: var(--accent-fill); color: #fff; font-weight: 700; font-size: 13.5px; cursor: pointer; transition: opacity 0.15s; text-align: center; font-family: inherit; }
+.course-follow-btn:hover { opacity: 0.9; }
+.course-follow-btn.is-followed { background: var(--surface-alt); color: var(--text-muted); cursor: default; }
+.course-follow-btn.is-pending { background: rgba(217,119,6,0.12); color: #b45309; cursor: default; }
+html.dark .course-follow-btn.is-pending { background: rgba(251,191,36,0.16); color: #fbbf24; }
+
+.course-timeline { display: flex; flex-direction: column; }
+.course-session { position: relative; display: flex; gap: 14px; padding-bottom: 22px; }
+.course-session:last-child { padding-bottom: 0; }
+.course-session:last-child .course-session-line { display: none; }
+.course-session-num { position: relative; flex-shrink: 0; width: 34px; height: 34px; border-radius: 50%; background: var(--accent-fill); color: #fff; font-size: 13px; font-weight: 800; display: flex; align-items: center; justify-content: center; z-index: 1; }
+.course-session-line { position: absolute; left: 17px; top: 34px; bottom: 0; width: 2px; background: var(--border-soft); }
+.course-session-card { flex: 1; background: var(--surface); border: 1px solid var(--border-soft); border-radius: 14px; padding: 14px 16px; box-shadow: var(--shadow-card); min-width: 0; }
+.course-session-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin-bottom: 2px; }
+.course-session-title { font-size: 13.5px; font-weight: 700; color: var(--text-heading); }
+.course-session-time { font-size: 11px; color: var(--text-muted); white-space: nowrap; }
+.course-session-trainer { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--text-muted); margin-top: 3px; }
+.course-session-trainer i { font-size: 10px; color: var(--accent); }
+.course-session-toggle { display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 10px; border: none; background: none; padding: 0; margin: 0; cursor: pointer; text-align: left; font-family: inherit; }
+.course-session-toggle .course-session-top { margin-bottom: 0; flex: 1; }
+.course-session-chevron { font-size: 11px; color: var(--text-faint); flex-shrink: 0; transition: transform 0.2s ease; }
+.course-session-chevron.is-open { transform: rotate(180deg); }
+.course-session-content { margin-top: 10px; }
+
+.course-attendance-pill { display: inline-flex; align-items: center; gap: 5px; font-size: 10.5px; font-weight: 700; padding: 3px 9px; border-radius: 99px; margin-top: 6px; }
+.course-attendance-pill.is-present { background: rgba(4,124,84,0.12); color: #047C54; }
+.course-attendance-pill.is-absent { background: var(--surface-alt); color: var(--text-faint); }
+html.dark .course-attendance-pill.is-present { background: rgba(52,211,153,0.16); color: #6ee7b7; }
+
+.course-materials { display: flex; flex-direction: column; gap: 4px; margin-top: 10px; }
+.course-material-row { display: flex; align-items: center; gap: 10px; padding: 8px 8px; border-radius: 10px; text-decoration: none; transition: background 0.15s; }
+.course-material-row:hover { background: var(--surface-alt); }
+.course-material-icon { width: 30px; height: 30px; border-radius: 8px; background: rgba(217,119,6,0.12); color: #d97706; display: flex; align-items: center; justify-content: center; font-size: 12px; flex-shrink: 0; }
+html.dark .course-material-icon { background: rgba(251,191,36,0.16); color: #fbbf24; }
+.course-material-name { font-size: 12.5px; font-weight: 600; color: var(--text-heading); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.course-material-row i.fa-chevron-right { font-size: 10px; color: var(--text-faint); }
+
+/* Daftar peserta (bawah Aktivitas Pelatihan di halaman detail). */
+.course-members-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 28px 0 12px; }
+.course-members-title { font-size: 14.5px; font-weight: 800; color: var(--text-heading); }
+.course-members-count { font-size: 11.5px; color: var(--text-muted); font-weight: 600; }
+.course-member-row { display: flex; align-items: center; gap: 12px; padding: 10px 4px; border-bottom: 1px solid var(--border-soft); }
+.course-member-row:last-child { border-bottom: none; }
+.course-member-avatar { width: 34px; height: 34px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
+.course-member-name { font-size: 13px; font-weight: 600; color: var(--text-heading); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.course-member-status { flex-shrink: 0; font-size: 10.5px; font-weight: 700; padding: 3px 10px; border-radius: 99px; white-space: nowrap; }
+.course-member-status.is-approved { background: rgba(4,124,84,0.12); color: #047C54; }
+.course-member-status.is-pending { background: rgba(217,119,6,0.12); color: #b45309; }
+.course-member-status.is-canceled { background: var(--surface-alt); color: var(--text-faint); }
+html.dark .course-member-status.is-approved { background: rgba(52,211,153,0.16); color: #6ee7b7; }
+html.dark .course-member-status.is-pending { background: rgba(251,191,36,0.16); color: #fbbf24; }
+
+/* Baris quiz di daftar materi (session-body) — ikon ungu, beda dari materi (amber). */
+.course-material-icon.is-quiz { background: rgba(124,58,237,0.12); color: #7c3aed; }
+html.dark .course-material-icon.is-quiz { background: rgba(167,139,250,0.18); color: #a78bfa; }
+
+/* Halaman /pelatihan/quiz/{meetingQuiz} — 1 halaman semua soal (gaya Google Form), tanpa wizard. */
+.quiz-option { display: block; width: 100%; text-align: left; padding: 11px 14px; border: 1.5px solid var(--border); border-radius: 11px; background: var(--surface); color: var(--text-heading); font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.15s; font-family: inherit; }
+.quiz-option:hover { border-color: var(--brand); }
+.quiz-option.is-selected { border-color: var(--brand); background: #eef2fb; color: var(--brand); font-weight: 700; }
+html.dark .quiz-option.is-selected { background: rgba(110,168,224,0.16); }
+
+/* Header quiz — background warna aksen kategori course (sama seperti .course-hero), bukan
+   kartu putih polos, supaya nyambung identitas warna dari list sampai quiz. */
+.quiz-header { background: var(--accent-fill); color: #fff; border-radius: 16px; padding: 16px; margin-bottom: 16px; }
+.quiz-header-title { font-size: 15px; font-weight: 800; margin-bottom: 8px; }
+.quiz-header-meta { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; font-size: 12px; color: rgba(255,255,255,0.85); }
+.quiz-header-meta span { display: flex; align-items: center; gap: 6px; }
+
+/* Kartu skor hasil quiz — 3 kolom (Skor/Benar/Salah), angka besar. Pola titik samar di
+   background (bukan foto) ngasih tekstur "kertas sertifikat" tanpa nambah warna baru di
+   luar --accent yang sudah dipakai di seluruh fitur Pelatihan. */
+.quiz-result-card { position: relative; background: var(--surface); border: 1px solid var(--border-soft); border-radius: 18px; padding: 24px 12px; margin-bottom: 20px; overflow: hidden; }
+.quiz-result-card::before { content: ''; position: absolute; inset: 0; background-image: radial-gradient(var(--accent) 1px, transparent 1px); background-size: 16px 16px; opacity: 0.05; pointer-events: none; }
+.quiz-result-status { position: relative; z-index: 1; text-align: center; font-size: 13px; font-weight: 600; color: var(--text-muted); margin-bottom: 18px; }
+.quiz-result-cols { position: relative; z-index: 1; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.quiz-result-col { text-align: center; padding: 14px 6px; border-radius: 12px; }
+.quiz-result-col.is-accent-col { background: color-mix(in srgb, var(--accent) 12%, var(--surface)); }
+.quiz-result-col.is-correct-col { background: rgba(4,124,84,0.1); }
+.quiz-result-col.is-wrong-col { background: rgba(185,28,28,0.08); }
+html.dark .quiz-result-col.is-correct-col { background: rgba(52,211,153,0.14); }
+html.dark .quiz-result-col.is-wrong-col { background: rgba(248,113,113,0.14); }
+.quiz-result-num { font-size: 26px; font-weight: 800; line-height: 1.1; margin: 0; color: var(--text-heading); }
+.quiz-result-num.is-correct-num { color: #047C54; }
+.quiz-result-num.is-wrong-num { color: #b91c1c; }
+html.dark .quiz-result-num.is-correct-num { color: #6ee7b7; }
+html.dark .quiz-result-num.is-wrong-num { color: #f87171; }
+.quiz-result-label { font-size: 10.5px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-muted); margin: 4px 0 0; }
+@media (max-width: 380px) {
+    .quiz-result-num { font-size: 21px; }
+}
+
+/* Pembahasan hasil quiz — pilihan user vs jawaban benar per soal. */
+.quiz-review-heading { font-size: 13px; font-weight: 800; color: var(--text-heading); margin: 20px 0 12px; }
+.quiz-review-verdict { flex-shrink: 0; display: inline-flex; align-items: center; gap: 5px; font-size: 10.5px; font-weight: 700; padding: 3px 9px; border-radius: 99px; }
+.quiz-review-verdict.is-correct { background: rgba(4,124,84,0.12); color: #047C54; }
+.quiz-review-verdict.is-wrong { background: rgba(185,28,28,0.1); color: #b91c1c; }
+html.dark .quiz-review-verdict.is-correct { background: rgba(52,211,153,0.16); color: #6ee7b7; }
+html.dark .quiz-review-verdict.is-wrong { background: rgba(248,113,113,0.16); color: #f87171; }
+.quiz-review-option { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 11px 14px; border: 1.5px solid var(--border); border-radius: 11px; font-size: 13px; color: var(--text-heading); background: var(--surface); }
+.quiz-review-option i { font-size: 12px; }
+.quiz-review-option.is-correct-answer { border-color: #047C54; background: rgba(4,124,84,0.08); color: #047C54; font-weight: 700; }
+.quiz-review-option.is-correct-answer i { color: #047C54; }
+.quiz-review-option.is-wrong-selected { border-color: #b91c1c; background: rgba(185,28,28,0.08); color: #b91c1c; font-weight: 700; }
+.quiz-review-option.is-wrong-selected i { color: #b91c1c; }
+html.dark .quiz-review-option.is-correct-answer { border-color: #34d399; background: rgba(52,211,153,0.14); color: #6ee7b7; }
+html.dark .quiz-review-option.is-correct-answer i { color: #6ee7b7; }
+html.dark .quiz-review-option.is-wrong-selected { border-color: #f87171; background: rgba(248,113,113,0.14); color: #f87171; }
+html.dark .quiz-review-option.is-wrong-selected i { color: #f87171; }
+.quiz-review-tag { font-size: 10px; font-weight: 700; color: var(--text-faint); }
+
+@media (prefers-reduced-motion: reduce) {
+    .course-follow-btn, .course-session-chevron { transition: none; }
+}
+
 /* Task Saya & Kursus Saya: font sedikit dikecilkan khusus mobile, ukuran desktop tidak berubah. */
 @media (max-width: 767.98px) {
     .pwa-section-title { font-size: 12px; }
@@ -612,6 +811,33 @@ html.dark .border-slate-200, html.dark .border-slate-300 { border-color: var(--b
 .form-input::placeholder { color: var(--text-faint); }
 select.form-input { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24'%3E%3Cpath fill='%2394a3b8' d='M7 10l5 5 5-5z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 14px center; padding-right: 36px; }
 textarea.form-input { resize: none; }
+
+/* Tom Select — dibuat selaras dengan .form-input (dipakai filter kategori Pelatihan, dst). */
+.ts-wrapper.single .ts-control, .ts-wrapper.multi .ts-control { padding: 10px 14px; border: 1.5px solid var(--border); border-radius: 11px; font-size: 13.5px; color: var(--text-heading); background: var(--surface); font-family: inherit; box-shadow: none; }
+.ts-wrapper.single .ts-control:after { border-color: var(--text-faint) transparent transparent transparent; }
+.ts-wrapper.focus .ts-control { border-color: #042c6c; box-shadow: 0 0 0 3px rgba(4,44,108,0.08); }
+.ts-dropdown { border: 1.5px solid var(--border); border-radius: 11px; margin-top: 4px; background: var(--surface); box-shadow: var(--shadow-card); overflow: hidden; font-family: inherit; }
+.ts-dropdown .ts-dropdown-content { padding: 4px; }
+.ts-dropdown [data-selectable], .ts-dropdown .no-results { padding: 8px 10px; font-size: 13px; color: var(--text-heading); border-radius: 8px; }
+.ts-dropdown .active { background: #eef2fb; color: var(--brand); }
+html.dark .ts-dropdown .active { background: rgba(110,168,224,0.16); }
+.ts-wrapper.plugin-clear_button .clear-button { color: var(--text-faint); opacity: 1; visibility: visible; }
+
+/* Filter status Pelatihan (Semua/Diikuti/Belum Diikuti) — pill warna pekat + teks putih. */
+.pelatihan-filter-nav { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.pelatihan-filter-btn { padding: 9px 16px; border-radius: 999px; border: none; font-size: 12.5px; font-weight: 700; color: #fff; cursor: pointer; transition: all 0.15s; opacity: 0.55; font-family: inherit; }
+.pelatihan-filter-btn:hover { opacity: 0.8; }
+.pelatihan-filter-btn.is-active { opacity: 1; box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
+.pelatihan-filter-btn.navy { background: #042c6c; }
+.pelatihan-filter-btn.green { background: #047C54; }
+.pelatihan-filter-btn.rust { background: #9a3412; }
+
+/* Paginasi khusus Pelatihan (bukan default Laravel/Tailwind paginator). */
+.pelatihan-pager { display: flex; align-items: center; justify-content: center; gap: 14px; margin-top: 20px; }
+.pelatihan-pager-btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 999px; background: var(--brand); color: #fff; font-size: 12.5px; font-weight: 600; text-decoration: none; transition: opacity 0.15s; }
+.pelatihan-pager-btn:hover { opacity: 0.85; }
+.pelatihan-pager-btn.is-disabled { background: var(--border-soft); color: var(--text-faint); cursor: default; }
+.pelatihan-pager-info { font-size: 12.5px; color: var(--text-muted); font-weight: 600; }
 
 .toggle-wrapper { display: flex; align-items: center; gap: 12px; background: var(--warn-soft-bg); border: 1.5px solid var(--warn-soft-border); border-radius: 12px; padding: 12px 16px; cursor: pointer; user-select: none; }
 .toggle { position: relative; width: 42px; height: 23px; background: var(--border); border-radius: 99px; transition: background 0.2s; flex-shrink: 0; cursor: pointer; }

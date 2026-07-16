@@ -88,7 +88,7 @@
             <div class="pwa-card-header pwa-card-header-navy">
                 <div class="pwa-card-header-deco-1"></div><div class="pwa-card-header-deco-2"></div>
                 <div class="pwa-card-header-content">
-                    <span class="pwa-section-title"><i class="fa-solid fa-table-columns" style="font-size:12px;margin-right:4px;"></i> MyKanban</span>
+                    <span class="pwa-section-title"><i class="fa-solid fa-table-columns" style="font-size:12px;margin-right:4px;"></i> Kanban Saya</span>
                     <a href="{{ route('kanban') }}" wire:navigate class="pwa-section-link">Semua <i class="fa-solid fa-chevron-right" style="font-size:9px;"></i></a>
                 </div>
             </div>

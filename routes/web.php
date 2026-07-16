@@ -17,6 +17,9 @@ use App\Livewire\Keuangan\SalaryComponentsPage;
 use App\Livewire\MyAttendanceRequests;
 use App\Livewire\MyEmployees;
 use App\Livewire\OrganizationStructure;
+use App\Livewire\Pelatihan\QuizAttempt;
+use App\Livewire\Pelatihan\TrainingDetail;
+use App\Livewire\Pelatihan\TrainingList;
 use App\Http\Controllers\Pwa\PushSubscriptionController;
 use App\Livewire\Pwa\Akun as PwaAkun;
 use App\Livewire\Pwa\UbahPassword as PwaUbahPassword;
@@ -100,6 +103,17 @@ Route::middleware(['auth', 'portal.access'])->group(function () {
 
     Route::get('/kanban/{board}', KanbanBoardDetail::class)
         ->name('kanban.show');
+
+    Route::get('/pelatihan', TrainingList::class)
+        ->name('pelatihan');
+
+    // Didaftarkan sebelum wildcard /pelatihan/{course} di bawah — kalau kebalik, "quiz" akan
+    // ditangkap sebagai {course} dan gagal resolve (404) sebelum sempat sampai ke route ini.
+    Route::get('/pelatihan/quiz/{meetingQuiz}', QuizAttempt::class)
+        ->name('pelatihan.quiz');
+
+    Route::get('/pelatihan/{course}', TrainingDetail::class)
+        ->name('pelatihan.show');
 });
 
 Route::get('/attendance/template/download', [AttendanceTemplateController::class, 'downloadTemplate'])

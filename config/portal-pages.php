@@ -131,6 +131,26 @@ return [
         'guard' => null,
     ],
 
+    'pelatihan' => [
+        'label' => 'Pelatihan',
+        'permission' => null,
+        'guard' => null,
+    ],
+
+    'pelatihan.show' => [
+        'label' => 'Detail Pelatihan',
+        'permission' => null,
+        'guard' => null,
+    ],
+
+    // Gate approval per-record (bukan permission generik) ditegakkan di dalam
+    // App\Livewire\Pelatihan\QuizAttempt sendiri, bukan lewat registry ini.
+    'pelatihan.quiz' => [
+        'label' => 'Quiz',
+        'permission' => null,
+        'guard' => null,
+    ],
+
     'kanban.create' => [
         'label' => 'Buat Board',
         'permission' => null,
