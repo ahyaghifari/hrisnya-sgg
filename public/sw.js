@@ -2,7 +2,7 @@
 // (page navigations + build assets) is cached, so offline reloads show the last-seen
 // version instead of the browser's no-connection page. Not stale-while-revalidate or
 // precaching; upgrade to Workbox if per-route strategies are needed later.
-const CACHE = 'hris-runtime-v2';
+const CACHE = 'hris-runtime-v3';
 
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', (event) => {
