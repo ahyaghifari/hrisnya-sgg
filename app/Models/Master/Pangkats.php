@@ -3,10 +3,12 @@
 namespace App\Models\Master;
 
 use App\Helpers\PermissionHelper;
-use App\Models\Payroll\SalaryComponentAssignments;
+use App\Models\Payroll\PangkatSalary;
+use App\Models\Payroll\PositionAllowance;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Facades\Auth;
 
 /**
@@ -21,6 +23,10 @@ class Pangkats extends Model
     protected $fillable = [
         'name',
         'company_id',
+        'start_kelas_level',
+        'max_kelas_level',
+        'class_increment_rate',
+        'bpjs_basis',
     ];
 
     protected static function boot(): void
@@ -49,15 +55,13 @@ class Pangkats extends Model
         return $this->belongsTo(Companies::class, 'company_id');
     }
 
-    public function salaryComponents(): MorphMany
+    public function pangkatSalary(): HasOne
     {
-        return $this->morphMany(SalaryComponentAssignments::class, 'salaryable');
+        return $this->hasOne(PangkatSalary::class, 'pangkat_id');
     }
 
-    public function selectedSalaryComponent($type)
+    public function positionAllowances(): HasMany
     {
-        return $this->salaryComponents()
-            ->whereHas('salaryComponent', fn($q) => $q->where('name', $type))
-            ->first();
+        return $this->hasMany(PositionAllowance::class, 'pangkat_id');
     }
 }

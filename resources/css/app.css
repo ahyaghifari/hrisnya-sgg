@@ -845,6 +845,19 @@ html.dark .ts-dropdown .active { background: rgba(110,168,224,0.16); }
 .toggle::after { content: ''; position: absolute; top: 3px; left: 3px; width: 17px; height: 17px; background: white; border-radius: 50%; transition: transform 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
 .toggle.on::after { transform: translateX(19px); }
 
+/* Checkbox custom — native <input type="checkbox"> disembunyikan (tetap ada di DOM buat
+   accessibility/wire:model), kotak+centang digambar sendiri lewat sibling .box. Warna per
+   instance diatur lewat custom property --accent (default brand navy kalau tidak diisi),
+   bukan `accent-color` native yang renderingnya suka tidak konsisten antar browser. */
+.custom-checkbox { position: relative; display: inline-flex; width: 19px; height: 19px; flex-shrink: 0; cursor: pointer; }
+.custom-checkbox input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; z-index: 1; }
+.custom-checkbox .box { position: absolute; inset: 0; border: 1.5px solid var(--border); border-radius: 6px; background: var(--surface); transition: all 0.15s; display: flex; align-items: center; justify-content: center; }
+.custom-checkbox .box i { color: #fff; font-size: 10px; opacity: 0; transform: scale(0.5); transition: all 0.15s; }
+.custom-checkbox input:checked ~ .box { background: var(--accent, #042c6c); border-color: var(--accent, #042c6c); }
+.custom-checkbox input:checked ~ .box i { opacity: 1; transform: scale(1); }
+.custom-checkbox input:disabled ~ .box { opacity: 0.5; cursor: not-allowed; }
+.custom-checkbox input:focus-visible ~ .box { outline: 2px solid var(--accent, #042c6c); outline-offset: 2px; }
+
 .saldo-pill { display: inline-flex; align-items: center; gap: 5px; background: var(--info-soft-bg); border: 1px solid var(--info-soft-border); color: var(--info-soft-text); font-size: 12px; font-weight: 600; padding: 5px 11px; border-radius: 99px; }
 
 .btn-primary { display: inline-flex; align-items: center; justify-content: center; gap: 8px; background: #042c6c; color: white; font-weight: 700; font-size: 13.5px; padding: 12px 28px; border-radius: 12px; border: none; cursor: pointer; transition: all 0.15s; font-family: inherit; }

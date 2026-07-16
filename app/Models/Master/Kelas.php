@@ -3,8 +3,12 @@
 namespace App\Models\Master;
 
 use App\Helpers\PermissionHelper;
+use App\Models\Payroll\PositionAllowance;
+use App\Models\Payroll\TransportAllowance;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Facades\Auth;
 
 /**
@@ -19,6 +23,7 @@ class Kelas extends Model
     protected $fillable = [
         'name',
         'company_id',
+        'level',
     ];
 
     protected static function boot(): void
@@ -45,5 +50,15 @@ class Kelas extends Model
     public function company()
     {
         return $this->belongsTo(Companies::class, 'company_id');
+    }
+
+    public function transportAllowance(): HasOne
+    {
+        return $this->hasOne(TransportAllowance::class, 'kelas_id');
+    }
+
+    public function positionAllowances(): HasMany
+    {
+        return $this->hasMany(PositionAllowance::class, 'kelas_id');
     }
 }

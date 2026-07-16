@@ -18,6 +18,7 @@ class PermissionTypes extends Model
     protected $fillable = [
         'company_id',
         'name',
+        'category',
     ];
 
     public function company()

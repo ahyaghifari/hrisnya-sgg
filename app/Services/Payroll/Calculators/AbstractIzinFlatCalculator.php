@@ -1,0 +1,63 @@
+<?php
+
+namespace App\Services\Payroll\Calculators;
+
+use App\Enum\AttendanceReqStatus;
+use App\Models\Attendance\AttendanceRequests;
+use App\Models\Payroll\Payroll;
+use App\Models\Payroll\PayrollItem;
+use App\Models\Payroll\PayrollPeriod;
+use App\Models\Setting;
+use App\Models\User;
+
+/**
+ * Potongan flat per kejadian, TANPA kompensasi/grace (beda dari Keterlambatan) — langsung
+ * dipotong sejak kejadian pertama. Dicocokkan lewat `m_permission_types.category` (bukan
+ * nama, fragile), cuma company yang datanya sudah dikonfirmasi (Holding) yang punya category
+ * terisi — company lain otomatis 0 baris sampai category-nya diisi.
+ */
+abstract class AbstractIzinFlatCalculator implements PayrollComponentCalculator
+{
+    abstract protected function permissionTypeCategory(): string;
+    abstract protected function componentValue(): string;
+    abstract protected function componentLabel(): string;
+    abstract protected function componentType(): string;
+
+    public function calculate(User $user, Payroll $payroll, PayrollPeriod $period, PayrollContext $context): void
+    {
+        $flatAmount = Setting::resolve('izin_potongan_flat', $period->company_id, default: 0);
+
+        if ($flatAmount <= 0) {
+            return;
+        }
+
+        $count = AttendanceRequests::query()
+            ->where('user_id', $user->id)
+            ->where('type', 'permission')
+            ->where('status', AttendanceReqStatus::APPROVED->value)
+            ->whereHas('permissionDetails', function ($q) use ($period) {
+                $q->whereBetween('date', [$period->start_date, $period->end_date])
+                    ->whereHas('permissionType', fn ($q2) => $q2->where('category', $this->permissionTypeCategory()));
+            })
+            ->count();
+
+        if ($count <= 0) {
+            return;
+        }
+
+        $amount = $count * (float) $flatAmount;
+
+        PayrollItem::create([
+            'payroll_id' => $payroll->id,
+            'name' => $this->componentLabel(),
+            'type' => $this->componentType(),
+            'quantity' => $count,
+            'unit' => 'kejadian',
+            'unit_amount' => $flatAmount,
+            'amount' => $amount,
+            'source_type' => $this->componentValue(),
+        ]);
+
+        $context->addDeduction($amount);
+    }
+}

@@ -2,16 +2,17 @@
 
 namespace App\Models\Payroll;
 
-use App\Models\SalaryComponent\SalaryComponents;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
- * Generalisasi dari DoctorFeeItem — salary_component_id nullable karena banyak item input
- * manual ad-hoc yang tidak link ke katalog (lihat
- * knowledge/markdown/analisis-payroll-2-redesign-struktur.md §2).
+ * Generalisasi dari DoctorFeeItem — `is_manual` dipakai karena banyak item input manual
+ * ad-hoc yang tidak link ke katalog komponen (lihat
+ * knowledge/markdown/analisis-payroll-2-redesign-struktur.md §2). Kolom `salary_component_id`
+ * (dulu link ke katalog lama) dihapus di Fase 1 — katalog freeform sudah diganti
+ * PayrollComponentEnum tertutup, tidak ada lagi "link ke baris katalog" buat FeeItem.
  *
  * @mixin IdeHelperFeeItem
  */
@@ -24,7 +25,6 @@ class FeeItem extends Model
     protected $fillable = [
         'submission_id',
         'user_id',
-        'salary_component_id',
         'is_manual',
         'name',
         'amount',
@@ -45,10 +45,5 @@ class FeeItem extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id');
-    }
-
-    public function salaryComponent(): BelongsTo
-    {
-        return $this->belongsTo(SalaryComponents::class, 'salary_component_id');
     }
 }

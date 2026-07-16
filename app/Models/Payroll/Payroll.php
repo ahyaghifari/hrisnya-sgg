@@ -2,7 +2,7 @@
 
 namespace App\Models\Payroll;
 
-use App\Enum\Salary\SalaryComponentTypeEnum;
+use App\Enum\Payroll\PayrollComponentTypeEnum;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
@@ -44,11 +44,11 @@ class Payroll extends Model
 
     public function earningItems(): HasMany
     {
-        return $this->items()->where('type', SalaryComponentTypeEnum::EARNING->value);
+        return $this->items()->where('type', PayrollComponentTypeEnum::EARNING->value);
     }
 
     public function deductionItems(): HasMany
     {
-        return $this->items()->where('type', SalaryComponentTypeEnum::DEDUCTION->value);
+        return $this->items()->where('type', PayrollComponentTypeEnum::DEDUCTION->value);
     }
 }

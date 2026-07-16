@@ -2,17 +2,14 @@
 
 namespace App\Models\Master;
 
-use App\Enum\Salary\CalculationTypeEnum;
 use App\Models\ApprovalManagement\ApprovalHistories;
 use App\Models\ApprovalManagement\ApprovalSnapshots;
-use App\Models\Payroll\SalaryComponentAssignments;
 use App\Models\User;
 use App\Models\User\UserProfiles;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
@@ -61,28 +58,6 @@ class JobPositions extends Model
         )
         ->using(JobPositionCompetencies::class)
         ->withTimestamps();
-    }
-
-    public function salaryComponents(): MorphMany
-    {
-        return $this->morphMany(SalaryComponentAssignments::class, 'salaryable');
-    }
-
-    public function fixedSalaryComponents(): MorphMany
-    {
-        return $this->morphMany(SalaryComponentAssignments::class, 'salaryable')->isFixed();
-    }
-
-    public function percentageSalaryComponents(): MorphMany
-    {
-        return $this->morphMany(SalaryComponentAssignments::class, 'salaryable')->isFixed(false);
-    }
-
-    public function selectedSalaryComponent($type)
-    {
-        return $this->salaryComponents()
-            ->whereHas('salaryComponent', fn($q) => $q->where('name', $type))
-            ->first();
     }
 
     public function positionCompetencies(): HasMany

@@ -2,7 +2,7 @@
 
 namespace App\Filament\Resources\Payroll\Payrolls\RelationManagers;
 
-use App\Enum\Salary\PayrollItemSourceEnum;
+use App\Enum\Payroll\PayrollComponentEnum;
 use App\Filament\Resources\Payroll\Payrolls\PayrollResource;
 use Filament\Actions\AssociateAction;
 use Filament\Actions\BulkActionGroup;
@@ -58,7 +58,11 @@ class PayrollItemsRelationManager extends RelationManager
                     ->label('Source')
                     ->badge()
                     ->color('gray')
-                    ->formatStateUsing(fn (?string $state) => $state ? (PayrollItemSourceEnum::tryFrom($state)?->label() ?? $state) : '-'),
+                    ->formatStateUsing(fn (?string $state) => match (true) {
+                        $state === null => '-',
+                        $state === 'manual' => 'Manual',
+                        default => PayrollComponentEnum::tryFrom($state)?->label() ?? $state,
+                    }),
 
                 TextColumn::make('type')
                     ->label('Type')
@@ -125,11 +129,10 @@ class PayrollItemsRelationManager extends RelationManager
                     ])
                     ->mutateFormDataUsing(function (array $data) {
                         return array_merge($data, [
-                            'calculation_type' => 'manual',
                             'quantity' => 1,
                             'unit' => null,
                             'unit_amount' => null,
-                            'source_type' => PayrollItemSourceEnum::MANUAL->value,
+                            'source_type' => 'manual',
                         ]);
                     })
                     ->after(function ($record, array $data, $livewire) {

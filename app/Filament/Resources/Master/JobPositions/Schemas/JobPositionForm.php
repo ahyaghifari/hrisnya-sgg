@@ -10,7 +10,6 @@ use App\Models\Master\JobPositions;
 use App\Models\Master\Kelas;
 use App\Models\Master\OrgStructure;
 use App\Models\Master\Pangkats;
-use App\Models\SalaryComponent\SalaryComponents;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Repeater;

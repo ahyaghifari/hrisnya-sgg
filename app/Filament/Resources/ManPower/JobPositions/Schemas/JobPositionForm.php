@@ -10,7 +10,6 @@ use App\Models\Master\JobPositions;
 use App\Models\Master\Kelas;
 use App\Models\Master\OrgStructure;
 use App\Models\Master\Pangkats;
-use App\Models\SalaryComponent\SalaryComponents;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Repeater;
@@ -288,124 +287,6 @@ class JobPositionForm
         ];
     }
 
-    private static function salaryComponentSchema()
-    {
-        return [
-            Repeater::make('salaryComponentPivots')
-                ->label('Komponen Gaji')
-                ->relationship('salaryComponentPivots')
-                ->minItems(1)
-                ->addable(fn ($record) => $record && $record->status === JobPositionReqStatus::DRAFT->value || !$record)
-                ->schema([
-                    Select::make('salary_component_id')
-                        ->label('Komponen Gaji')
-                        ->options(function () {
-                            return SalaryComponents::where('is_active', true)
-                                ->pluck('name', 'id')
-                                ->toArray();
-                        })
-                        ->searchable()
-                        ->preload()
-                        ->required()
-                        ->reactive()
-                        ->disabled(fn ($record) => $record && $record->status !== JobPositionReqStatus::DRAFT->value)
-                        ->afterStateUpdated(function ($state, callable $set) {
-                            // Reset amount dan percentage saat komponen gaji berubah
-                            $set('amount', null);
-                            $set('percentage', null);
-                            
-                            // Set default value jika ada
-                            if ($state) {
-                                $component = SalaryComponents::find($state);
-                                if ($component && $component->default_value) {
-                                    if ($component->calculation_type === 'fixed') {
-                                        $set('amount', $component->default_value);
-                                    } elseif ($component->calculation_type === 'percentage') {
-                                        $set('percentage', $component->default_value);
-                                    }
-                                }
-                            }
-                        }),
-
-                    TextInput::make('amount')
-                        ->label('Jumlah Nominal')
-                        ->helperText('Masukkan nominal tetap untuk komponen gaji ini')
-                        ->numeric()
-                        ->prefix('Rp')
-                        ->step(0.01)
-                        ->minValue(0)
-                        ->readOnly(fn ($record) => $record && $record->status !== JobPositionReqStatus::DRAFT->value)
-                        ->visible(function (callable $get) {
-                            $salaryComponentId = $get('salary_component_id');
-                            if (!$salaryComponentId) return false;
-                            
-                            $component = SalaryComponents::find($salaryComponentId);
-                            return $component && $component->calculation_type === 'fixed';
-                        })
-                        ->required(function (callable $get) {
-                            $salaryComponentId = $get('salary_component_id');
-                            if (!$salaryComponentId) return false;
-                            
-                            $component = SalaryComponents::find($salaryComponentId);
-                            return $component && $component->calculation_type === 'fixed';
-                        }),
-
-                    TextInput::make('percentage')
-                        ->label('Persentase (%)')
-                        ->helperText('Masukkan persentase yang akan dikalikan dengan gaji pokok')
-                        ->numeric()
-                        ->suffix('%')
-                        ->step(0.01)
-                        ->minValue(0)
-                        ->maxValue(100)
-                        ->readOnly(fn ($record) => $record && $record->status !== JobPositionReqStatus::DRAFT->value)
-                        ->visible(function (callable $get) {
-                            $salaryComponentId = $get('salary_component_id');
-                            if (!$salaryComponentId) return false;
-                            
-                            $component = SalaryComponents::find($salaryComponentId);
-                            return $component && $component->calculation_type === 'percentage';
-                        })
-                        ->required(function (callable $get) {
-                            $salaryComponentId = $get('salary_component_id');
-                            if (!$salaryComponentId) return false;
-                            
-                            $component = SalaryComponents::find($salaryComponentId);
-                            return $component && $component->calculation_type === 'percentage';
-                        }),
-
-                    TextInput::make('formula_info')
-                        ->label('Informasi Formula')
-                        ->disabled()
-                        ->visible(function (callable $get) {
-                            $salaryComponentId = $get('salary_component_id');
-                            if (!$salaryComponentId) return false;
-                            
-                            $component = SalaryComponents::find($salaryComponentId);
-                            return $component && $component->calculation_type === 'formula';
-                        })
-                        ->afterStateHydrated(function (callable $get, callable $set) {
-                            $salaryComponentId = $get('salary_component_id');
-                            if ($salaryComponentId) {
-                                $component = SalaryComponents::find($salaryComponentId);
-                                if ($component && $component->calculation_type === 'formula') {
-                                    $set('formula_info', 'Komponen ini menggunakan formula otomatis: ' . ($component->formula_key ?? 'Belum ditentukan'));
-                                }
-                            }
-                        })
-                        ->dehydrated(false),
-
-                    TextInput::make('is_overrideable')
-                        ->label('Dapat Diubah')
-                        ->default(true)
-                        ->hidden(),
-                ])
-                ->columnSpanFull()
-                ->minItems(1)
-                ->required()
-                ->addActionLabel('Tambah Komponen Gaji'),  
-        ];
-    }
 
     private static function workLoadAnalysisSchema()
     {
