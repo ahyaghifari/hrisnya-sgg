@@ -4,6 +4,7 @@
     $canSubmitAttendance = ! auth()->user()->canBrowseAllCompanies();
     $canAccessKeuangan = auth()->user()->can(\App\Enum\CustomPermissionEnum::SISTEM_KEUANGAN->value);
     $canAccessMaster = auth()->user()->can(\App\Enum\CustomPermissionEnum::SISTEM_MASTER->value);
+    $canAccessAbsensi = auth()->user()->can(\App\Enum\CustomPermissionEnum::SISTEM_ABSENSI->value);
     $initials = collect(explode(' ', auth()->user()->name))
         ->map(fn ($part) => mb_substr($part, 0, 1))
         ->take(2)
@@ -65,6 +66,16 @@
                     </a>
                     <div class="dropdown-menu">
                         <a href="{{ route('master.hari-libur') }}" wire:navigate class="dropdown-item">Hari Libur & Cuti Bersama</a>
+                    </div>
+                </div>
+            @endif
+            @if ($canAccessAbsensi)
+                <div class="dropdown">
+                    <a href="#" class="nav-item {{ request()->routeIs('presensi.*') ? 'active' : '' }}">
+                        <i class="fa-solid fa-calendar-check text-xs"></i> Presensi <i class="fa-solid fa-chevron-down text-[10px]"></i>
+                    </a>
+                    <div class="dropdown-menu">
+                        <a href="{{ route('presensi.jadwal') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-calendar-days"></i> Jadwal</a>
                     </div>
                 </div>
             @endif

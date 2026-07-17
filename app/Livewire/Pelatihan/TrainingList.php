@@ -14,39 +14,24 @@ use Livewire\Component;
 #[Layout('components.layout', ['title' => 'Daftar Pelatihan'])]
 class TrainingList extends Component
 {
-    public ?string $categoryId = null;
-
-    public string $search = '';
-
-    // all | followed | not_followed
-    public string $followStatus = 'all';
-
     public function getCategoriesProperty()
     {
         return LmsCategories::orderBy('name')->get();
     }
 
-    // Sumber data untuk grid card (mobile: 1 kolom, desktop: 4-5 kolom — lihat training-list.blade.php).
+    /**
+     * Semua pelatihan published dimuat sekali (tidak dipaginasi server) — cari/filter
+     * kategori/status ikut/pagination-nya ditangani List.js di browser (lihat
+     * resources/js/app.js `wireDeclarativeFilters()`), tidak roundtrip lagi ke Livewire.
+     * courseUserStatus() tiap kartu dibaca sekali di sini lalu ditaruh jadi data-attribute,
+     * bukan query ulang per klik filter status.
+     */
     protected function baseQuery()
     {
-        $userId = Auth::id();
-
         return LmsCourses::query()
             ->where('status', LsmCourseStatus::Published->value)
             ->with('category')
             ->withCount(['courseUsers', 'meetings'])
-            ->when($this->search, fn ($q) => $q->where(fn ($q2) => $q2
-                ->where('title', 'like', '%' . $this->search . '%')
-                ->orWhere('code', 'like', '%' . $this->search . '%')))
-            ->when($this->categoryId, fn ($q) => $q->where('category_id', $this->categoryId))
-            ->when($this->followStatus === 'followed', fn ($q) => $q->whereHas(
-                'courseUsers',
-                fn ($q2) => $q2->where('user_id', $userId)
-            ))
-            ->when($this->followStatus === 'not_followed', fn ($q) => $q->whereDoesntHave(
-                'courseUsers',
-                fn ($q2) => $q2->where('user_id', $userId)
-            ))
             ->orderBy('title');
     }
 
@@ -90,7 +75,7 @@ class TrainingList extends Component
 
     public function getCoursesProperty()
     {
-        return $this->baseQuery()->paginate(12);
+        return $this->baseQuery()->get();
     }
 
     public function render()

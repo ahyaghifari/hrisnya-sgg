@@ -162,6 +162,18 @@ return [
         'guard' => null,
     ],
 
+    'presensi.jadwal' => [
+        'label' => 'Jadwal',
+        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_ABSENSI->value,
+        'guard' => null,
+    ],
+
+    'presensi.jadwal.tambah' => [
+        'label' => 'Tambah Jadwal',
+        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_ABSENSI->value,
+        'guard' => null,
+    ],
+
     'kanban' => [
         'label' => 'Kanban',
         'permission' => null,

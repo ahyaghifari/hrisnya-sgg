@@ -19,3 +19,4 @@ enum ScheduleType: string implements HasLabel
         };
     }
 }
+

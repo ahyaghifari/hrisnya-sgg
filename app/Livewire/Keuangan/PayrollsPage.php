@@ -15,7 +15,6 @@ use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
-use Livewire\WithPagination;
 
 /**
  * Halaman hasil Generate Payroll — dibangun custom (BUKAN reuse Filament Table) atas
@@ -27,11 +26,8 @@ use Livewire\WithPagination;
 #[Layout('components.layout', ['title' => 'Payroll'])]
 class PayrollsPage extends Component
 {
-    use WithPagination;
-
     public ?string $companyId = null;
     public ?string $periodId = null;
-    public string $search = '';
 
     public bool $showManualLineModal = false;
     public ?string $manualLineComponent = null; // 'koperasi' | 'bon'
@@ -46,20 +42,21 @@ class PayrollsPage extends Component
         $this->companyId = Auth::user()->company_id ?? Companies::orderBy('code')->value('id');
     }
 
+    /**
+     * Cari/sortir/pagination baris yang sudah tampil ditangani List.js di browser (lihat
+     * resources/js/app.js) — tidak roundtrip ke server lagi. Company/period tetap lewat
+     * Livewire karena itu benar-benar ganti data dari database. Event ini memberitahu List.js
+     * kalau barisnya baru saja diganti Livewire, supaya index pencariannya di-refresh.
+     */
     public function updatedCompanyId(): void
     {
         $this->periodId = null;
-        $this->resetPage();
+        $this->dispatch('list-table:refresh');
     }
 
     public function updatedPeriodId(): void
     {
-        $this->resetPage();
-    }
-
-    public function updatedSearch(): void
-    {
-        $this->resetPage();
+        $this->dispatch('list-table:refresh');
     }
 
     public function getCompaniesProperty()
@@ -81,12 +78,9 @@ class PayrollsPage extends Component
         return Payroll::query()
             ->when($this->companyId, fn ($q) => $q->whereHas('payrollPeriod', fn ($q2) => $q2->where('company_id', $this->companyId)))
             ->when($this->periodId, fn ($q) => $q->where('payroll_period_id', $this->periodId))
-            ->when($this->search !== '', fn ($q) => $q->whereHas('user', fn ($q2) => $q2
-                ->where('name', 'like', "%{$this->search}%")
-                ->orWhere('nip', 'like', "%{$this->search}%")))
             ->with(['user', 'payrollPeriod'])
             ->orderByDesc('created_at')
-            ->paginate(15);
+            ->get();
     }
 
     /** Metode insentif company terpilih — tombol Import Insentif cuma tampil kalau 'import'. */

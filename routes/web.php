@@ -25,6 +25,8 @@ use App\Livewire\OrganizationStructure;
 use App\Livewire\Pelatihan\QuizAttempt;
 use App\Livewire\Pelatihan\TrainingDetail;
 use App\Livewire\Pelatihan\TrainingList;
+use App\Livewire\Presensi\CreateSchedulePage;
+use App\Livewire\Presensi\SchedulesPage;
 use App\Http\Controllers\Pwa\PushSubscriptionController;
 use App\Livewire\Pwa\Akun as PwaAkun;
 use App\Livewire\Pwa\UbahPassword as PwaUbahPassword;
@@ -119,6 +121,12 @@ Route::middleware(['auth', 'portal.access'])->group(function () {
 
     Route::get('/master/hari-libur', HolidaysPage::class)
         ->name('master.hari-libur');
+
+    Route::get('/presensi/jadwal', SchedulesPage::class)
+        ->name('presensi.jadwal');
+
+    Route::get('/presensi/jadwal/tambah', CreateSchedulePage::class)
+        ->name('presensi.jadwal.tambah');
 
     Route::get('/kanban', KanbanBoardsList::class)
         ->name('kanban');

@@ -3,6 +3,7 @@
     $canSubmitAttendance = ! auth()->user()->canBrowseAllCompanies();
     $canAccessKeuangan = auth()->user()->can(\App\Enum\CustomPermissionEnum::SISTEM_KEUANGAN->value);
     $canAccessMaster = auth()->user()->can(\App\Enum\CustomPermissionEnum::SISTEM_MASTER->value);
+    $canAccessAbsensi = auth()->user()->can(\App\Enum\CustomPermissionEnum::SISTEM_ABSENSI->value);
 
     $navPhotoPath = auth()->user()->profile?->profile_picture[0] ?? null;
     $navPhotoUrl = $navPhotoPath && is_string($navPhotoPath) ? \Illuminate\Support\Facades\Storage::url($navPhotoPath) : null;
@@ -111,6 +112,13 @@
             <a href="{{ route('master.hari-libur') }}" wire:navigate class="pwa-menu-grid-item">
                 <span class="pwa-menu-grid-icon navy"><i class="fa-solid fa-flag"></i></span>
                 <span class="pwa-menu-grid-label">Hari Libur & Cuti Bersama</span>
+            </a>
+        @endif
+
+        @if ($canAccessAbsensi)
+            <a href="{{ route('presensi.jadwal') }}" wire:navigate class="pwa-menu-grid-item">
+                <span class="pwa-menu-grid-icon indigo"><i class="fa-solid fa-calendar-days"></i></span>
+                <span class="pwa-menu-grid-label">Jadwal</span>
             </a>
         @endif
 

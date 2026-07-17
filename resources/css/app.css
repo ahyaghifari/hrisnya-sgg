@@ -863,6 +863,13 @@ html.dark .ts-dropdown .active { background: rgba(110,168,224,0.16); }
 .custom-checkbox input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; z-index: 1; }
 .custom-checkbox .box { position: absolute; inset: 0; border: 1.5px solid var(--border); border-radius: 6px; background: var(--border); transition: all 0.15s; display: flex; align-items: center; justify-content: center; }
 .custom-checkbox .box i { color: #fff; font-size: 10px; opacity: 0; transform: scale(0.5); transition: all 0.15s; }
+
+/* Pagination List.js — library-nya headless, cuma render <li><a>N</a></li> polos, styling
+   sepenuhnya di sini (biar konsisten sama tombol lain, bukan tampilan bawaan library). */
+.pagination li a { display: inline-flex; align-items: center; justify-content: center; min-width: 30px; height: 30px; padding: 0 8px; border-radius: 8px; font-size: 12px; font-weight: 600; color: var(--text-muted); text-decoration: none; cursor: pointer; transition: all 0.15s; }
+.pagination li a:hover { background: var(--border-soft); }
+.pagination li.active a { background: #042c6c; color: #fff; }
+.pagination li.disabled a { color: var(--text-faint); cursor: default; pointer-events: none; }
 .custom-checkbox input:checked ~ .box { background: var(--accent, #042c6c); border-color: var(--accent, #042c6c); }
 .custom-checkbox input:checked ~ .box i { opacity: 1; transform: scale(1); }
 .custom-checkbox input:disabled ~ .box { opacity: 0.5; cursor: not-allowed; }
@@ -875,6 +882,7 @@ html.dark .ts-dropdown .active { background: rgba(110,168,224,0.16); }
 .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; transform: none; box-shadow: none; }
 .btn-ghost { display: inline-flex; align-items: center; justify-content: center; gap: 8px; background: transparent; color: var(--text-muted); font-weight: 600; font-size: 13.5px; padding: 12px 22px; border-radius: 12px; border: 1.5px solid var(--border); cursor: pointer; transition: all 0.15s; text-decoration: none; font-family: inherit; }
 .btn-ghost:hover { background: var(--surface-alt); color: var(--text-body); }
+.btn-ghost:disabled { opacity: 0.4; cursor: not-allowed; background: transparent; }
 .btn-secondary { display: inline-flex; align-items: center; justify-content: center; gap: 8px; background: #475569; color: white; font-weight: 700; font-size: 13.5px; padding: 12px 28px; border-radius: 12px; border: none; cursor: pointer; transition: all 0.15s; font-family: inherit; text-decoration: none; }
 .btn-secondary:hover { background: #334155; transform: translateY(-1px); box-shadow: 0 4px 14px rgba(51,65,85,0.25); }
 .btn-success { display: inline-flex; align-items: center; justify-content: center; gap: 8px; background: linear-gradient(135deg, #047C54 0%, #024732 100%); color: white; font-weight: 700; font-size: 13.5px; padding: 12px 28px; border-radius: 12px; border: none; cursor: pointer; transition: all 0.15s; font-family: inherit; text-decoration: none; }
