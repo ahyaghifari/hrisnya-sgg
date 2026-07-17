@@ -18,6 +18,7 @@ class LeaveTypes extends Model
     protected $fillable = [
         'company_id',
         'name',
+        'category',
         'quota_days',
         'reset_period',
         'is_paid',

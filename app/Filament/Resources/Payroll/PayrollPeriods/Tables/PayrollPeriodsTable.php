@@ -4,12 +4,13 @@ namespace App\Filament\Resources\Payroll\PayrollPeriods\Tables;
 
 use App\Jobs\GeneratePayrollJob;
 use App\Jobs\RegeneratePayrollJob;
-use App\Models\Payroll\PayrollPeriod;
+use App\Services\Payroll\PayrollService;
 use Filament\Actions\Action;
 use Filament\Actions\EditAction;
 use Filament\Actions\ViewAction;
 use Filament\Notifications\Notification;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Filament\Tables;
 
@@ -21,7 +22,6 @@ class PayrollPeriodsTable
             ->columns([
                 Tables\Columns\TextColumn::make('company.name')
                     ->label('Perusahaan')
-                    ->searchable()
                     ->sortable(),
 
                 Tables\Columns\TextColumn::make('start_date')
@@ -34,16 +34,22 @@ class PayrollPeriodsTable
                     ->date()
                     ->sortable(),
 
-                Tables\Columns\IconColumn::make('processed_at')
-                    ->label('Generated')
-                    ->boolean(fn ($record) => ! is_null($record->processed_at)),
+                Tables\Columns\TextColumn::make('processed_at')
+                    ->label('Status Generate')
+                    ->formatStateUsing(fn ($state) => $state ? $state->translatedFormat('d M Y H:i') : 'Belum digenerate')
+                    ->color(fn ($state) => $state ? 'success' : 'gray')
+                    ->sortable(),
             ])
             ->filters([
-                //
+                SelectFilter::make('company_id')
+                    ->label('Perusahaan')
+                    ->relationship('company', 'name')
+                    ->preload()
+                    ->searchable(),
             ])
             ->recordActions([
-                ViewAction::make(),
                 EditAction::make()
+                    ->authorize('update')
                     ->visible(fn ($record) => is_null($record->processed_at)),
                 Action::make('generatePayroll')
                     ->label('Generate Payroll')
@@ -70,7 +76,19 @@ class PayrollPeriodsTable
                     ->requiresConfirmation()
                     ->modalHeading('Regenerate Payroll')
                     ->modalDescription('This will delete and re-generate all unpaid payrolls for this period. Payrolls that have already been paid will not be affected.')
+                    ->visible(fn ($record) => ! is_null($record->processed_at))
                     ->action(function ($record) {
+                        if (app(PayrollService::class)->periodHasImportedIncentives($record)) {
+                            Notification::make()
+                                ->title('Regenerate dibatalkan')
+                                ->body('Periode ini sudah punya insentif hasil import (RSU) — regenerate akan menghapusnya tanpa cara otomatis untuk menulis ulang. Hubungi Keuangan untuk import ulang insentif setelah regenerate, baru lanjutkan.')
+                                ->danger()
+                                ->persistent()
+                                ->send();
+
+                            return;
+                        }
+
                         RegeneratePayrollJob::dispatch($record->id);
 
                         Notification::make()

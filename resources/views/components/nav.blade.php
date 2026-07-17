@@ -45,11 +45,15 @@
             @endif
             @if ($canAccessKeuangan)
                 <div class="dropdown">
-                    <a href="#" class="nav-item {{ request()->routeIs(['keuangan.komponen-gaji*', 'keuangan.insentif*']) ? 'active' : '' }}">
+                    <a href="#" class="nav-item {{ request()->routeIs(['keuangan.periode-gaji*', 'keuangan.payroll*', 'keuangan.komponen-gaji*', 'keuangan.insentif*', 'keuangan.mapping-komponen-gaji*']) ? 'active' : '' }}">
                         <i class="fa-solid fa-sack-dollar text-xs"></i> Penggajian <i class="fa-solid fa-chevron-down text-[10px]"></i>
                     </a>
                     <div class="dropdown-menu">
+                        <a href="{{ route('keuangan.periode-gaji') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-calendar-days"></i> Periode Gaji</a>
+                        <a href="{{ route('keuangan.payroll') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-money-check-dollar"></i> Payroll</a>
+                        <div style="height:1px;background:var(--border-soft);margin:6px 8px;"></div>
                         <a href="{{ route('keuangan.komponen-gaji') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-sack-dollar"></i> Komponen Gaji</a>
+                        <a href="{{ route('keuangan.mapping-komponen-gaji') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-diagram-project"></i> Mapping Komponen Gaji</a>
                         <a href="{{ route('keuangan.insentif') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-hand-holding-dollar"></i> Insentif</a>
                     </div>
                 </div>

@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Master\LeaaveTypes\Schemas;
 
+use App\Enum\Attendance\LeaveTypeCategoryEnum;
 use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
@@ -23,6 +24,13 @@ class LeaaveTypeForm
                     ->required()
                     ->columnSpanFull()
                     ->maxLength(255),
+
+                Select::make('category')
+                    ->label('Kategori')
+                    ->options(collect(LeaveTypeCategoryEnum::cases())->mapWithKeys(fn ($c) => [$c->value => $c->label()]))
+                    ->placeholder('Tidak ada kategori khusus')
+                    ->helperText('Pilih "Cuti Tahunan" kalau jenis cuti ini mau kena aturan batas akumulasi per bulan (setting `cuti_tahunan_max_per_bulan`, belum ada UI-nya sendiri).')
+                    ->columnSpanFull(),
 
                 TextInput::make('quota_days')
                     ->label('Kuota (Hari)')

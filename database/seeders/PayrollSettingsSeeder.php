@@ -29,9 +29,12 @@ class PayrollSettingsSeeder extends Seeder
             ['key' => 'keterlambatan_denda', 'module' => 'payroll', 'type' => 'decimal', 'value' => '25000', 'label' => 'Denda Keterlambatan', 'description' => 'Potongan per kejadian terlambat (setelah dikurangi kompensasi/grace).'],
             ['key' => 'keterlambatan_grace_count', 'module' => 'payroll', 'type' => 'integer', 'value' => '0', 'label' => 'Kompensasi Terlambat (kali/bulan)', 'description' => 'Jumlah keterlambatan pertama dalam 1 bulan yang tidak kena denda.'],
             ['key' => 'izin_potongan_flat', 'module' => 'payroll', 'type' => 'decimal', 'value' => '10000', 'label' => 'Potongan Izin Terlambat Masuk/Pulang Cepat', 'description' => 'Potongan flat per kejadian, tanpa kompensasi/grace.'],
+            ['key' => 'lembur_metode', 'module' => 'payroll', 'type' => 'string', 'value' => 'shift', 'label' => 'Metode Lembur', 'description' => '"Shift" = rate per shift+jenis lembur (mekanisme lama, tabel Rate Lembur/Shift). "Per Pangkat" = 1 rate per jam per pangkat, sama pola Tunjangan Transportasi.'],
             ['key' => 'lembur_minimum_jam', 'module' => 'payroll', 'type' => 'integer', 'value' => '2', 'label' => 'Minimum Jam Lembur Dibayar', 'description' => 'Lembur di bawah durasi ini tidak dihitung.'],
             ['key' => 'pajak_jasa_dokter_rate', 'module' => 'payroll', 'type' => 'decimal', 'value' => '0', 'label' => 'Rate Pajak Jasa Dokter (%)', 'description' => 'Persentase potongan pajak dari total klaim fee (jasa dokter, dst) per periode.'],
+            ['key' => 'insentif_metode', 'module' => 'payroll', 'type' => 'string', 'value' => 'master', 'label' => 'Metode Insentif', 'description' => '"Master" = input manual lewat tabel Insentif (dipakai Holding). "Import" = upload Excel per periode SETELAH payroll digenerate, dicocokkan lewat NIP (dipakai RSU, perhitungannya dinamis).'],
             ['key' => 'izin_max_per_periode', 'module' => 'attendance', 'type' => 'integer', 'value' => '2', 'label' => 'Batas Izin per Bulan', 'description' => 'Jumlah maksimum pengajuan izin (semua jenis digabung) yang diperbolehkan dalam 1 bulan.'],
+            ['key' => 'cuti_tahunan_max_per_bulan', 'module' => 'attendance', 'type' => 'integer', 'value' => '0', 'label' => 'Batas Cuti Tahunan per Bulan (Hari)', 'description' => 'Total hari Cuti Tahunan (akumulasi semua pengajuan dalam 1 bulan kalender, berdasarkan jenis cuti berkategori "Cuti Tahunan") yang boleh diajukan 1 user. 0 = tidak dibatasi.'],
         ];
 
         foreach ($rows as $row) {
@@ -60,6 +63,17 @@ class PayrollSettingsSeeder extends Seeder
                     'value' => '1',
                     'label' => 'Kompensasi Terlambat (kali/bulan)',
                     'description' => 'Override khusus Holding: telat pertama dalam 1 bulan tidak kena denda.',
+                ]
+            );
+
+            Setting::updateOrCreate(
+                ['company_id' => $holdingId, 'key' => 'cuti_tahunan_max_per_bulan'],
+                [
+                    'module' => 'attendance',
+                    'type' => 'integer',
+                    'value' => '5',
+                    'label' => 'Batas Cuti Tahunan per Bulan (Hari)',
+                    'description' => 'Override khusus Holding: maksimal 5 hari Cuti Tahunan (akumulasi) per bulan kalender per user.',
                 ]
             );
         }

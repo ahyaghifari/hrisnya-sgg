@@ -2,7 +2,11 @@
 
 namespace App\Services\Attendance;
 
+use App\Enum\Attendance\LeaveTypeCategoryEnum;
 use App\Models\ApprovalManagement\MasterApprovalFlows;
+use App\Models\Attendance\AttendanceRequestLeaveDetails;
+use App\Models\Attendance\AttendanceRequests;
+use App\Models\Setting;
 use App\Models\User;
 use App\Repositories\Approval\ApprovalSnapshotRepository;
 use App\Repositories\Attendance\AttendanceReqRepository;
@@ -12,6 +16,7 @@ use App\Repositories\Attendance\PermissionReqRepository;
 use App\Repositories\User\UserRepository;
 use App\Services\Approval\ApprovalCreationService;
 use App\Services\Notification\NotificationService;
+use Carbon\Carbon;
 
 class AttendaceReqService
 {
@@ -132,13 +137,15 @@ class AttendaceReqService
             throw new \Exception('No active approval flow found for attendance requests for this company.');
         }
 
+        $leaveType = $this->leaveReqRepository->getLeaveTypeById($data['type_id']);
+
+        $this->assertWithinCutiTahunanMonthlyLimit($actingUser, $leaveType, $data);
+
         $request = $this->attendanceReqRepository->storeAttendanceRequest([
             'user_id' => $userId,
             'type' => $type,
             'status' => $status,
         ]);
-
-        $leaveType = $this->leaveReqRepository->getLeaveTypeById($data['type_id']);
 
         $leaveData = [
             'user_id' => $userId,
@@ -177,6 +184,45 @@ class AttendaceReqService
         }
 
         return $this->leaveReqRepository->findAttendanceReqLeaveDetail($request->id);
+    }
+
+    /**
+     * Setting `cuti_tahunan_max_per_bulan` (module attendance, company-scoped) — batas
+     * AKUMULASI hari Cuti Tahunan (jenis cuti berkategori LeaveTypeCategoryEnum::TAHUNAN,
+     * lihat m_leave_types.category) yang boleh diajukan 1 user dalam 1 bulan KALENDER,
+     * dihitung dari bulan tanggal mulai pengajuan baru. 0/tidak diset = tidak dibatasi.
+     * Cuma berlaku untuk jenis cuti yang eksplisit ditandai kategori Tahunan — jenis cuti
+     * lain (cuti besar, dst) tidak ikut kena batas ini.
+     */
+    private function assertWithinCutiTahunanMonthlyLimit(User $actingUser, ?object $leaveType, array $data): void
+    {
+        if (! $leaveType || $leaveType->category !== LeaveTypeCategoryEnum::TAHUNAN->value) {
+            return;
+        }
+
+        $maxPerBulan = (int) Setting::resolve('cuti_tahunan_max_per_bulan', $actingUser->company_id, default: 0);
+
+        if ($maxPerBulan <= 0) {
+            return;
+        }
+
+        $start = Carbon::parse($data['start_date']);
+        $end = ! empty($data['end_date']) ? Carbon::parse($data['end_date']) : $start->copy();
+        $newDays = $start->diffInDays($end) + 1;
+
+        $existingDays = (int) AttendanceRequestLeaveDetails::query()
+            ->where('leave_type_id', $data['type_id'])
+            ->whereBetween('start_date', [$start->copy()->startOfMonth()->toDateString(), $start->copy()->endOfMonth()->toDateString()])
+            ->whereIn('request_id', AttendanceRequests::query()
+                ->select('id')
+                ->where('user_id', $actingUser->id)
+                ->where('type', 'leave')
+                ->whereNotIn('status', ['rejected', 'cancelled', 'failed']))
+            ->sum('total_days');
+
+        if ($existingDays + $newDays > $maxPerBulan) {
+            throw new \Exception("Melebihi batas Cuti Tahunan bulan ini (maksimal {$maxPerBulan} hari, sudah diajukan {$existingDays} hari, pengajuan ini {$newDays} hari).");
+        }
     }
 
     public function storePermissionRequest(array $data, ?User $actingUser = null): object

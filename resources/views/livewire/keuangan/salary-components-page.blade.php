@@ -87,7 +87,7 @@
                     </div>
                 @endif
 
-                <button type="button" wire:click="save" class="btn-primary" style="justify-content:center;align-self:flex-start;padding-left:20px;padding-right:20px;">
+                <button type="button" wire:click="save" wire:loading.attr="disabled" wire:target="save" class="btn-primary" style="justify-content:center;align-self:flex-start;padding-left:20px;padding-right:20px;">
                     <i class="fa-solid fa-floppy-disk"></i> Simpan Komponen {{ $this->companies->firstWhere('id', $companyId)->name ?? '' }}
                 </button>
             </div>
@@ -134,7 +134,7 @@
                     <p style="font-size:11.5px;color:var(--warn-soft-text);margin:0;">Perubahan di sini langsung berlaku ke semua perusahaan tanpa terkecuali.</p>
                 </div>
 
-                <button type="button" wire:click="saveGlobal" class="btn-primary" style="justify-content:center;padding-left:20px;padding-right:20px;margin-top:14px;">
+                <button type="button" wire:click="saveGlobal" wire:loading.attr="disabled" wire:target="saveGlobal" class="btn-primary" style="justify-content:center;padding-left:20px;padding-right:20px;margin-top:14px;">
                     <i class="fa-solid fa-floppy-disk"></i> Simpan Pengaturan Global
                 </button>
             </div>

@@ -102,7 +102,7 @@
         @endforeach
     </div>
 
-    {{ $courses->links('livewire.pelatihan.partials.pagination') }}
+    {{ $courses->links('livewire.partials.pagination') }}
 @endif
 
 </div>

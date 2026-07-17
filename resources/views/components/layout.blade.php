@@ -55,6 +55,8 @@
         <x-pwa-bottom-nav />
     </div>
 
+    @livewire('notifications')
+
     @livewireScripts
     <script>
         if ('serviceWorker' in navigator) {

@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Master\LeaaveTypes\Tables;
 
+use App\Enum\Attendance\LeaveTypeCategoryEnum;
 use App\Filament\Resources\Master\LeaaveTypes\LeaaveTypeResource;
 use App\Filament\Resources\Master\LeaaveTypes\Schemas\LeaaveTypeForm;
 use App\Helpers\PermissionHelper;
@@ -24,6 +25,8 @@ class LeaaveTypesTable
         return $table
             ->columns([
                 TextColumn::make('name')->label('Nama Tipe Cuti')->searchable()->sortable(),
+                TextColumn::make('category')->label('Kategori')->placeholder('-')
+                    ->formatStateUsing(fn (?string $state) => $state ? LeaveTypeCategoryEnum::tryFrom($state)?->label() ?? $state : null),
                 TextColumn::make('quota_days')->label('Kuota (Hari)')->searchable()->sortable(),
                 TextColumn::make('reset_period')->label('Periode Reset')->searchable()->sortable()
                     ->formatStateUsing(fn (string $state): string => match ($state) {

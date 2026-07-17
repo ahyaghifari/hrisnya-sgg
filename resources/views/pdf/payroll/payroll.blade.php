@@ -43,7 +43,6 @@
             padding: 4px 10px;
             font-weight: bold;
             font-size: 14px;
-            transform: rotate(-8deg);
         }
 
         .title {
@@ -106,6 +105,29 @@
             padding: 8px;
         }
 
+        .total-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .total-table td {
+            padding: 2px 4px;
+            vertical-align: top;
+        }
+
+        .total-table .label {
+            width: 30%;
+            white-space: nowrap;
+        }
+
+        .total-table .colon {
+            width: 2%;
+        }
+
+        .total-table .value {
+            width: 68%;
+        }
+
         .signature {
             margin-top: 28px;
             display: table;
@@ -162,32 +184,33 @@
 
     <div class="line"></div>
 
-    <!-- SALARY -->
+    <!-- SALARY: seluruh komponen gaji yang aktif di perusahaan ini (bukan cuma yang
+    kebetulan menghasilkan angka) — komponen tanpa nilai tetap tampil Rp 0. -->
     <table class="salary">
         <tr>
             <td class="label">
                 <strong>PENDAPATAN</strong><br>
-                @foreach($payroll->earningItems as $item)
-                    {{ $item->name }}<br>
+                @foreach($rows['earnings'] as $row)
+                    {{ $row['label'] }}@if($row['note']) ({{ $row['note'] }})@endif<br>
                 @endforeach
             </td>
             <td class="amount">
                 <br>
-                @foreach($payroll->earningItems as $item)
-                    Rp {{ number_format($item->amount, 0, ',', '.') }}<br>
+                @foreach($rows['earnings'] as $row)
+                    Rp {{ number_format($row['amount'], 0, ',', '.') }}<br>
                 @endforeach
             </td>
 
             <td class="label">
                 <strong>POTONGAN</strong><br>
-                @foreach($payroll->deductionItems as $item)
-                    {{ $item->name }}<br>
+                @foreach($rows['deductions'] as $row)
+                    {{ $row['label'] }}@if($row['note']) ({{ $row['note'] }})@endif<br>
                 @endforeach
             </td>
             <td class="amount">
                 <br>
-                @foreach($payroll->deductionItems as $item)
-                    Rp {{ number_format($item->amount, 0, ',', '.') }}<br>
+                @foreach($rows['deductions'] as $row)
+                    Rp {{ number_format($row['amount'], 0, ',', '.') }}<br>
                 @endforeach
             </td>
         </tr>
@@ -205,9 +228,25 @@
         </tr>
     </table>
 
+    @php
+        // NumberFormatter::SPELLOUT (ext-intl, locale id) sudah nerjemahin angka ke kata
+        // Indonesia dengan benar bawaan — tidak perlu nulis ulang logic terbilang manual.
+        $terbilang = ucfirst((new NumberFormatter('id', NumberFormatter::SPELLOUT))->format((int) round($payroll->net_salary))) . ' Rupiah';
+    @endphp
+
     <div class="total-box">
-        <strong>Total Diterima</strong> :
-        Rp {{ number_format($payroll->net_salary, 0, ',', '.') }}
+        <table class="total-table">
+            <tr>
+                <td class="label"><strong>Total Gaji Diterima</strong></td>
+                <td class="colon">:</td>
+                <td class="value"><strong>Rp {{ number_format($payroll->net_salary, 0, ',', '.') }}</strong></td>
+            </tr>
+            <tr>
+                <td class="label">Terbilang</td>
+                <td class="colon">:</td>
+                <td class="value" style="font-style: italic;">{{ $terbilang }}</td>
+            </tr>
+        </table>
     </div>
 
     <!-- SIGN -->
@@ -219,8 +258,8 @@
         </div>
         <div>
             Diterima oleh,<br><br><br>
-            <strong>Abdurahman Hakim</strong><br>
-            Office Boy
+            <strong>{{ $payroll->user->name }}</strong><br>
+            {{ $payroll->user->activeJobPosition->jobPosition->name ?? '-' }}
         </div>
     </div>
 

@@ -11,7 +11,12 @@ use App\Livewire\Kanban\CreateKanbanBoard;
 use App\Livewire\Kanban\KanbanBoardDetail;
 use App\Livewire\Kanban\KanbanBoardsList;
 use App\Livewire\Kanban\KanbanPersonalTasks;
+use App\Livewire\Keuangan\ImportIncentivesPage;
 use App\Livewire\Keuangan\IncentivesPage;
+use App\Livewire\Keuangan\MappingKomponenGajiPage;
+use App\Livewire\Keuangan\PayrollDetailPage;
+use App\Livewire\Keuangan\PayrollPeriodsPage;
+use App\Livewire\Keuangan\PayrollsPage;
 use App\Livewire\Keuangan\SalaryComponentsPage;
 use App\Livewire\Master\HolidaysPage;
 use App\Livewire\MyAttendanceRequests;
@@ -83,11 +88,34 @@ Route::middleware(['auth', 'portal.access'])->group(function () {
     Route::get('/pengajuan-absensi/{record}', AttendanceRequestDetail::class)
         ->name('my-attendance-requests.show');
 
+    Route::get('/keuangan/periode-gaji', PayrollPeriodsPage::class)
+        ->name('keuangan.periode-gaji');
+
+    Route::get('/keuangan/payroll', PayrollsPage::class)
+        ->name('keuangan.payroll');
+
+    Route::get('/keuangan/payroll/{payroll}', PayrollDetailPage::class)
+        ->name('keuangan.payroll.show');
+
+    Route::get('/keuangan/payroll/{payroll}/preview', function (\App\Models\Payroll\Payroll $payroll) {
+        abort_unless(\Illuminate\Support\Facades\Auth::user()->can(\App\Enum\CustomPermissionEnum::SISTEM_KEUANGAN->value), 403);
+
+        return app(\App\Services\Payroll\PayrollService::class)->preview($payroll);
+    })->name('keuangan.payroll.preview');
+
     Route::get('/keuangan/komponen-gaji', SalaryComponentsPage::class)
         ->name('keuangan.komponen-gaji');
 
     Route::get('/keuangan/insentif', IncentivesPage::class)
         ->name('keuangan.insentif');
+
+    // Tidak ada link nav langsung (dicabut atas permintaan user) — cuma diakses lewat tombol
+    // "Import Insentif" di halaman Payroll, muncul kondisional kalau company metode='import'.
+    Route::get('/keuangan/import-insentif', ImportIncentivesPage::class)
+        ->name('keuangan.import-insentif');
+
+    Route::get('/keuangan/mapping-komponen-gaji', MappingKomponenGajiPage::class)
+        ->name('keuangan.mapping-komponen-gaji');
 
     Route::get('/master/hari-libur', HolidaysPage::class)
         ->name('master.hari-libur');

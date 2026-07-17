@@ -2,9 +2,12 @@
 
 namespace Tests\Feature\Portal;
 
+use App\Enum\LsmCourseStatus;
 use App\Models\Attendance\AttendanceRequestLeaveDetails;
 use App\Models\Attendance\AttendanceRequests;
 use App\Models\Attendance\LeaveUserBalances;
+use App\Models\LMS\LmsCourses;
+use App\Models\LMS\LmsCourseUsers;
 use App\Models\Master\Attendance\LeaveTypes;
 use App\Models\Master\Companies;
 use App\Models\User;
@@ -134,5 +137,26 @@ class DashboardTest extends TestCase
         $response->assertOk();
         $response->assertSee('Cuti Tahunan');
         $response->assertSee('Submitted');
+    }
+
+    public function test_my_trainings_shows_in_progress_and_member_but_not_completed(): void
+    {
+        $user = User::factory()->create();
+
+        $ongoing = LmsCourses::create(['code' => 'D01', 'title' => 'Pelatihan Berjalan', 'status' => LsmCourseStatus::Published->value]);
+        $member = LmsCourses::create(['code' => 'D02', 'title' => 'Pelatihan Belum Mulai', 'status' => LsmCourseStatus::Published->value]);
+        $done = LmsCourses::create(['code' => 'D03', 'title' => 'Pelatihan Selesai', 'status' => LsmCourseStatus::Published->value]);
+
+        LmsCourseUsers::create(['user_id' => $user->id, 'course_id' => $ongoing->id, 'status' => 'in_progress', 'progress' => 40, 'score' => 0, 'enrolled_at' => now()]);
+        LmsCourseUsers::create(['user_id' => $user->id, 'course_id' => $member->id, 'status' => 'approved', 'progress' => 0, 'score' => 0, 'enrolled_at' => now()]);
+        LmsCourseUsers::create(['user_id' => $user->id, 'course_id' => $done->id, 'status' => 'completed', 'progress' => 100, 'score' => 90, 'enrolled_at' => now()]);
+
+        $response = $this->actingAs($user)->get('/');
+
+        $response->assertOk();
+        $response->assertSee('Pelatihan Saya');
+        $response->assertSee('Pelatihan Berjalan');
+        $response->assertSee('Pelatihan Belum Mulai');
+        $response->assertDontSee('Pelatihan Selesai');
     }
 }

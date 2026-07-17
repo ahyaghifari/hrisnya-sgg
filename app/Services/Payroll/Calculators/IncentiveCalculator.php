@@ -7,17 +7,28 @@ use App\Models\Incentive\Incentive;
 use App\Models\Payroll\Payroll;
 use App\Models\Payroll\PayrollItem;
 use App\Models\Payroll\PayrollPeriod;
+use App\Models\Setting;
 use App\Models\User;
 
 /**
- * Holding: nominal tetap, input manual (sudah jalan apa adanya, tidak berubah). RSU: fitur
- * import terpisah (di luar scope Calculator ini) yang tetap menulis ke tabel `incentives`
- * yang sama — jadi Calculator ini otomatis mencakup keduanya begitu data ada di tabel.
+ * Metode ditentukan setting `insentif_metode` (company-scoped, lihat requiredSettings() di
+ * PayrollComponentEnum::INSENTIF). "master" (Holding): nominal tetap, input manual ke tabel
+ * `incentives`, dibaca di sini. "import" (RSU, perhitungan dinamis): TIDAK dibaca di sini sama
+ * sekali — insentif ditulis LANGSUNG ke payroll_items lewat App\Imports\Payroll\IncentiveImport,
+ * SETELAH payroll digenerate (lihat app/Livewire/Keuangan/ImportIncentivesPage.php). Kalau
+ * Calculator ini tetap jalan pas metode "import", akan bentrok dengan PayrollItem yang sudah
+ * ditulis import (dobel source_type=insentif) — makanya skip total.
  */
 class IncentiveCalculator implements PayrollComponentCalculator
 {
     public function calculate(User $user, Payroll $payroll, PayrollPeriod $period, PayrollContext $context): void
     {
+        $metode = Setting::resolve('insentif_metode', $period->company_id, default: 'master');
+
+        if ($metode !== 'master') {
+            return;
+        }
+
         $incentives = Incentive::query()
             ->where('user_id', $user->id)
             ->where('is_processed', false)

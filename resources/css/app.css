@@ -832,12 +832,22 @@ html.dark .ts-dropdown .active { background: rgba(110,168,224,0.16); }
 .pelatihan-filter-btn.green { background: #047C54; }
 .pelatihan-filter-btn.rust { background: #9a3412; }
 
-/* Paginasi khusus Pelatihan (bukan default Laravel/Tailwind paginator). */
-.pelatihan-pager { display: flex; align-items: center; justify-content: center; gap: 14px; margin-top: 20px; }
-.pelatihan-pager-btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 999px; background: var(--brand); color: #fff; font-size: 12.5px; font-weight: 600; text-decoration: none; transition: opacity 0.15s; }
-.pelatihan-pager-btn:hover { opacity: 0.85; }
-.pelatihan-pager-btn.is-disabled { background: var(--border-soft); color: var(--text-faint); cursor: default; }
-.pelatihan-pager-info { font-size: 12.5px; color: var(--text-muted); font-weight: 600; }
+/* Paginasi custom dipakai bareng lintas halaman (livewire/partials/pagination.blade.php) —
+   awalnya cuma dipakai Pelatihan, sekarang jadi standar buat semua Livewire paginator custom
+   (bukan default Laravel/Tailwind paginator). */
+.app-pager { display: flex; align-items: center; justify-content: center; gap: 14px; margin-top: 20px; }
+.app-pager-btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 999px; background: var(--brand); color: #fff; font-size: 12.5px; font-weight: 600; text-decoration: none; transition: opacity 0.15s; }
+.app-pager-btn:hover { opacity: 0.85; }
+.app-pager-btn.is-disabled { background: var(--border-soft); color: var(--text-faint); cursor: default; }
+.app-pager-info { font-size: 12.5px; color: var(--text-muted); font-weight: 600; }
+
+/* Layar kecil: tombol jadi bulat ikon-saja (label teks disembunyikan) supaya tidak sempit/wrap. */
+@media (max-width: 480px) {
+    .app-pager { gap: 8px; }
+    .app-pager-btn { padding: 9px; border-radius: 50%; width: 34px; height: 34px; justify-content: center; }
+    .app-pager-btn-label { display: none; }
+    .app-pager-info { font-size: 11.5px; }
+}
 
 .toggle-wrapper { display: flex; align-items: center; gap: 12px; background: var(--warn-soft-bg); border: 1.5px solid var(--warn-soft-border); border-radius: 12px; padding: 12px 16px; cursor: pointer; user-select: none; }
 .toggle { position: relative; width: 42px; height: 23px; background: var(--border); border-radius: 99px; transition: background 0.2s; flex-shrink: 0; cursor: pointer; }
@@ -851,7 +861,7 @@ html.dark .ts-dropdown .active { background: rgba(110,168,224,0.16); }
    bukan `accent-color` native yang renderingnya suka tidak konsisten antar browser. */
 .custom-checkbox { position: relative; display: inline-flex; width: 19px; height: 19px; flex-shrink: 0; cursor: pointer; }
 .custom-checkbox input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; z-index: 1; }
-.custom-checkbox .box { position: absolute; inset: 0; border: 1.5px solid var(--border); border-radius: 6px; background: var(--surface); transition: all 0.15s; display: flex; align-items: center; justify-content: center; }
+.custom-checkbox .box { position: absolute; inset: 0; border: 1.5px solid var(--border); border-radius: 6px; background: var(--border); transition: all 0.15s; display: flex; align-items: center; justify-content: center; }
 .custom-checkbox .box i { color: #fff; font-size: 10px; opacity: 0; transform: scale(0.5); transition: all 0.15s; }
 .custom-checkbox input:checked ~ .box { background: var(--accent, #042c6c); border-color: var(--accent, #042c6c); }
 .custom-checkbox input:checked ~ .box i { opacity: 1; transform: scale(1); }
@@ -862,6 +872,7 @@ html.dark .ts-dropdown .active { background: rgba(110,168,224,0.16); }
 
 .btn-primary { display: inline-flex; align-items: center; justify-content: center; gap: 8px; background: #042c6c; color: white; font-weight: 700; font-size: 13.5px; padding: 12px 28px; border-radius: 12px; border: none; cursor: pointer; transition: all 0.15s; font-family: inherit; }
 .btn-primary:hover { background: #032356; transform: translateY(-1px); box-shadow: 0 4px 14px rgba(4,44,108,0.25); }
+.btn-primary:disabled { opacity: 0.6; cursor: not-allowed; transform: none; box-shadow: none; }
 .btn-ghost { display: inline-flex; align-items: center; justify-content: center; gap: 8px; background: transparent; color: var(--text-muted); font-weight: 600; font-size: 13.5px; padding: 12px 22px; border-radius: 12px; border: 1.5px solid var(--border); cursor: pointer; transition: all 0.15s; text-decoration: none; font-family: inherit; }
 .btn-ghost:hover { background: var(--surface-alt); color: var(--text-body); }
 .btn-secondary { display: inline-flex; align-items: center; justify-content: center; gap: 8px; background: #475569; color: white; font-weight: 700; font-size: 13.5px; padding: 12px 28px; border-radius: 12px; border: none; cursor: pointer; transition: all 0.15s; font-family: inherit; text-decoration: none; }

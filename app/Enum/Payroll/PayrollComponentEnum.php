@@ -130,11 +130,12 @@ enum PayrollComponentEnum: string
     {
         return match ($this) {
             self::KELEBIHAN_JAM_KERJA => ['min_total_working_hours_per_month'],
-            self::LEMBUR => ['lembur_minimum_jam'],
+            self::LEMBUR => ['lembur_metode', 'lembur_minimum_jam'],
             self::BPJS_KESEHATAN, self::BPJS_KETENAGAKERJAAN => ['bpjs_declared_value'],
             self::KETERLAMBATAN => ['keterlambatan_threshold_menit', 'keterlambatan_denda', 'keterlambatan_grace_count'],
             self::IZIN_TERLAMBAT_PULANG_CEPAT => ['izin_potongan_flat'],
             self::PAJAK_JASA_DOKTER => ['pajak_jasa_dokter_rate'],
+            self::INSENTIF => ['insentif_metode'],
             default => [],
         };
     }

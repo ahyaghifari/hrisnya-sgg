@@ -4,25 +4,33 @@ namespace App\Services\Payroll\Calculators;
 
 use App\Enum\AttendanceReqStatus;
 use App\Enum\Payroll\PayrollComponentEnum;
+use App\Models\Attendance\AttendanceRequestOvertimeDetails;
 use App\Models\Attendance\AttendanceRequests;
 use App\Models\Payroll\Payroll;
 use App\Models\Payroll\PayrollItem;
 use App\Models\Payroll\PayrollPeriod;
+use App\Models\Setting;
 use App\Models\Shift\ShiftOvertimeCosts;
 use App\Models\Shift\ShiftScheduleAssignments;
 use App\Models\User;
 use Carbon\Carbon;
 
 /**
- * Logic sama persis PayrollService::handleOvertimeComponent() lama — berbasis shift
- * (ShiftScheduleAssignments + ShiftOvertimeCosts), TIDAK berubah. Rumus khusus Holding
- * (TL/TM, lihat analisis-payroll-4 §3.6) masih ditunda — arti TL/TM & aturan >2 jam belum
- * jelas — jadi company yang butuh itu tetap pakai mekanisme shift generik ini dulu.
+ * Metode ditentukan setting `lembur_metode` (company-scoped, lihat requiredSettings() di
+ * PayrollComponentEnum::LEMBUR). "shift" (default): logic lama PayrollService::
+ * handleOvertimeComponent(), berbasis shift (ShiftScheduleAssignments + ShiftOvertimeCosts).
+ * "per_pangkat": 1 rate/jam per pangkat (pangkat_lembur_rates, pola sama transport_allowances)
+ * — dipakai company yang tidak butuh matriks shift, cukup 1 angka per pangkat. Rumus TL/TM
+ * dari Excel Holding (analisis-payroll-4 §3.6, base 3,5jt/3jt + multiplier clamp + pembagi
+ * hari) SENGAJA TIDAK dipakai — user eksplisit minta struktur sesederhana Tunjangan
+ * Transportasi, bukan formula itu.
  */
 class LemburCalculator implements PayrollComponentCalculator
 {
     public function calculate(User $user, Payroll $payroll, PayrollPeriod $period, PayrollContext $context): void
     {
+        $metode = Setting::resolve('lembur_metode', $user->company_id, default: 'shift');
+
         $overtimeRequests = AttendanceRequests::query()
             ->where('user_id', $user->id)
             ->where('type', 'overtime')
@@ -39,11 +47,65 @@ class LemburCalculator implements PayrollComponentCalculator
             return;
         }
 
+        if ($metode === 'per_pangkat') {
+            $this->calculatePerPangkat($user, $payroll, $context, $overtimeRequests);
+
+            return;
+        }
+
         foreach ($overtimeRequests as $request) {
             foreach ($request->overtimeDetails as $detail) {
                 $this->processDetail($user, $payroll, $context, $detail);
             }
         }
+    }
+
+    private function calculatePerPangkat(User $user, Payroll $payroll, PayrollContext $context, $overtimeRequests): void
+    {
+        $rate = $user->profile?->pangkat?->lemburRate;
+
+        if (! $rate || $rate->amount_per_hour <= 0) {
+            return;
+        }
+
+        $minimumJam = (int) Setting::resolve('lembur_minimum_jam', $user->company_id, default: 2);
+
+        foreach ($overtimeRequests as $request) {
+            foreach ($request->overtimeDetails as $detail) {
+                $this->processDetailPerPangkat($payroll, $context, $detail, (float) $rate->amount_per_hour, $minimumJam);
+            }
+        }
+    }
+
+    private function processDetailPerPangkat(Payroll $payroll, PayrollContext $context, AttendanceRequestOvertimeDetails $detail, float $ratePerHour, int $minimumJam): void
+    {
+        $hours = (float) $detail->total_hours;
+
+        if ($hours < $minimumJam) {
+            return;
+        }
+
+        $amount = round($ratePerHour * $hours, 2);
+
+        if ($amount <= 0) {
+            return;
+        }
+
+        $dateLabel = Carbon::parse($detail->date)->locale('id')->isoFormat('D MMMM YYYY');
+
+        PayrollItem::create([
+            'payroll_id' => $payroll->id,
+            'name' => "Lembur - {$dateLabel}",
+            'type' => PayrollComponentEnum::LEMBUR->type()->value,
+            'quantity' => $hours,
+            'unit' => 'jam',
+            'unit_amount' => $ratePerHour,
+            'amount' => $amount,
+            'note' => sprintf('Rate: Rp%s / jam (per pangkat)', number_format($ratePerHour, 0, ',', '.')),
+            'source_type' => PayrollComponentEnum::LEMBUR->value,
+        ]);
+
+        $context->addEarning($amount);
     }
 
     private function processDetail(User $user, Payroll $payroll, PayrollContext $context, $detail): void

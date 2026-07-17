@@ -138,7 +138,7 @@
         @endforeach
     </div>
 
-    {{ $members->links('livewire.pelatihan.partials.pagination') }}
+    {{ $members->links('livewire.partials.pagination') }}
 @endif
 
 </div>

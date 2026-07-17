@@ -26,6 +26,12 @@ class PayrollPeriod extends Model
         'processed_at',
     ];
 
+    protected $casts = [
+        'start_date' => 'date',
+        'end_date' => 'date',
+        'processed_at' => 'datetime',
+    ];
+
     public function company(): BelongsTo
     {
         return $this->belongsTo(Companies::class, 'company_id');

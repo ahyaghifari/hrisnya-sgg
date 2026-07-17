@@ -4,12 +4,14 @@ namespace App\Models\Master;
 
 use App\Helpers\PermissionHelper;
 use App\Models\Payroll\PangkatBpjsBasis;
+use App\Models\Payroll\PangkatLemburRate;
 use App\Models\Payroll\PangkatSalary;
 use App\Models\Payroll\PositionAllowance;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use App\Models\User\UserProfiles;
 use Illuminate\Support\Facades\Auth;
 
 /**
@@ -68,5 +70,20 @@ class Pangkats extends Model
     public function bpjsBasis(): HasOne
     {
         return $this->hasOne(PangkatBpjsBasis::class, 'pangkat_id');
+    }
+
+    public function lemburRate(): HasOne
+    {
+        return $this->hasOne(PangkatLemburRate::class, 'pangkat_id');
+    }
+
+    public function jobPositions(): HasMany
+    {
+        return $this->hasMany(JobPositions::class, 'pangkat_id');
+    }
+
+    public function userProfiles(): HasMany
+    {
+        return $this->hasMany(UserProfiles::class, 'pangkat_id');
     }
 }

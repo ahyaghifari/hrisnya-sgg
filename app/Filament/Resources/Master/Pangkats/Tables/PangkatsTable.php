@@ -23,7 +23,14 @@ class PangkatsTable
     {
         return $table
             ->columns([
-                TextColumn::make('name')->label('Nama Pangkat')->searchable()->sortable()
+                TextColumn::make('name')->label('Nama Pangkat')->searchable()->sortable(),
+                TextColumn::make('jobPositions.name')
+                    ->label('Posisi')
+                    ->badge()
+                    ->separator(', '),
+                TextColumn::make('employee_count')
+                    ->label('Jumlah Karyawan')
+                    ->getStateUsing(fn ($record) => $record->userProfiles()->count()),
             ])
             ->filters([
                 SelectFilter::make('company_id')
@@ -66,7 +73,7 @@ class PangkatsTable
                         ]),
 
                 DeleteAction::make()
-                    ->visible(fn ($record) => PangkatsResource::canDelete($record)),
+                    ->visible(fn ($record) => PangkatsResource::canDelete($record) && $record->jobPositions()->doesntExist()),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([

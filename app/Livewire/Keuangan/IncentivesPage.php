@@ -5,6 +5,7 @@ namespace App\Livewire\Keuangan;
 use App\Enum\CustomPermissionEnum;
 use App\Filament\Resources\Incentives\Schemas\IncentiveForm;
 use App\Filament\Resources\Incentives\Tables\IncentivesTable;
+use App\Models\Incentive\Incentive;
 use Closure;
 use Filament\Actions\Action;
 use Filament\Actions\Concerns\InteractsWithActions;
@@ -40,6 +41,7 @@ class IncentivesPage extends Component implements HasActions, HasSchemas, HasTab
     public function table(Table $table): Table
     {
         return IncentivesTable::configure($table)
+            ->query(Incentive::query())
             ->headerActions([
                 CreateAction::make()
                     ->modalWidth('md'),

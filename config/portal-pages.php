@@ -107,6 +107,36 @@ return [
         'guard' => null,
     ],
 
+    'keuangan.periode-gaji' => [
+        'label' => 'Periode Gaji',
+        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_KEUANGAN->value,
+        'guard' => null,
+    ],
+
+    'keuangan.payroll' => [
+        'label' => 'Payroll',
+        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_KEUANGAN->value,
+        'guard' => null,
+    ],
+
+    'keuangan.payroll.show' => [
+        'label' => 'Detail Payroll',
+        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_KEUANGAN->value,
+        'guard' => null,
+    ],
+
+    'keuangan.payroll.preview' => [
+        'label' => 'Preview Slip Gaji',
+        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_KEUANGAN->value,
+        'guard' => null,
+    ],
+
+    'keuangan.import-insentif' => [
+        'label' => 'Import Insentif',
+        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_KEUANGAN->value,
+        'guard' => null,
+    ],
+
     'keuangan.komponen-gaji' => [
         'label' => 'Komponen Gaji',
         'permission' => \App\Enum\CustomPermissionEnum::SISTEM_KEUANGAN->value,
@@ -115,6 +145,13 @@ return [
 
     'keuangan.insentif' => [
         'label' => 'Insentif',
+        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_KEUANGAN->value,
+        'guard' => null,
+    ],
+
+
+    'keuangan.mapping-komponen-gaji' => [
+        'label' => 'Mapping Komponen Gaji',
         'permission' => \App\Enum\CustomPermissionEnum::SISTEM_KEUANGAN->value,
         'guard' => null,
     ],

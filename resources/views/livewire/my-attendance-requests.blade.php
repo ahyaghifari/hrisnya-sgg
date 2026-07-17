@@ -66,7 +66,7 @@
         </div>
 
         <div style="margin-top:16px;">
-            {{ $requests->links() }}
+            {{ $requests->links('livewire.partials.pagination') }}
         </div>
     @endif
 </div>

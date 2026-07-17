@@ -123,31 +123,43 @@
             @endforelse
         </div>
 
-        {{-- <div id="kursus-section" class="pwa-list" style="padding-bottom:16px;">
+        <div class="pwa-list" style="padding-bottom:16px;">
             <div class="pwa-card-header pwa-card-header-violet" style="margin-bottom:14px;">
                 <div class="pwa-card-header-deco-1"></div><div class="pwa-card-header-deco-2"></div>
                 <div class="pwa-card-header-content">
-                    <span class="pwa-section-title">Kursus Saya</span>
-                    <a href="#" class="pwa-section-link">Semua <i class="fa-solid fa-chevron-right" style="font-size:9px;"></i></a>
+                    <span class="pwa-section-title"><i class="fa-solid fa-graduation-cap" style="font-size:12px;margin-right:4px;"></i> Pelatihan Saya</span>
+                    <a href="{{ route('pelatihan') }}" wire:navigate class="pwa-section-link">Semua <i class="fa-solid fa-chevron-right" style="font-size:9px;"></i></a>
                 </div>
             </div>
-            <div class="pwa-scroll-row" style="padding-left:16px;padding-right:16px;">
-                <div class="pwa-course-chip">
-                    <div class="pwa-tile-icon neutral" style="margin-bottom:10px;"><i class="fa-solid fa-book-open"></i></div>
-                    <p class="pwa-course-title">Etika Pelayanan Publik</p>
-                    <p class="pwa-course-sub">3 dari 5 modul</p>
-                    <div class="progress-track"><div class="progress-fill" style="width:60%;background:#047C54;"></div></div>
-                    <span class="badge badge-pending" style="margin-top:8px;">In Progress</span>
+            @php
+                $trainingStatusLabel = fn (string $s) => ['requested' => 'Menunggu', 'approved' => 'Disetujui', 'in_progress' => 'Berjalan'][$s] ?? $s;
+                $trainingBadgeClass = fn (string $s) => ['requested' => 'badge-pending', 'approved' => 'badge-approved', 'in_progress' => 'badge-pending'][$s] ?? 'badge-cancelled';
+            @endphp
+            @if ($this->myTrainings->isEmpty())
+                <div class="pwa-list-row" style="opacity:0.7;padding-left:16px;padding-right:16px;">
+                    <div style="flex:1;min-width:0;">
+                        <p class="pwa-row-title">Belum ada pelatihan yang diikuti</p>
+                        <span style="font-size:11.5px;color:var(--text-muted);">Cari pelatihan lewat menu Pelatihan</span>
+                    </div>
                 </div>
-                <div class="pwa-course-chip" style="opacity:0.8;">
-                    <div class="pwa-tile-icon done" style="margin-bottom:10px;"><i class="fa-solid fa-award"></i></div>
-                    <p class="pwa-course-title">K3 Perkantoran Dasar</p>
-                    <p class="pwa-course-sub" style="color:#15803d;font-weight:500;">Nilai 88</p>
-                    <div class="progress-track"><div class="progress-fill" style="width:100%;background:#15803d;"></div></div>
-                    <span class="badge badge-approved" style="margin-top:8px;"><i class="fa-solid fa-check text-[9px]"></i> Lulus</span>
+            @else
+                <div class="pwa-scroll-row" style="padding-left:16px;padding-right:16px;">
+                    @foreach ($this->myTrainings as $courseUser)
+                        <a href="{{ route('pelatihan.show', ['course' => $courseUser->course_id]) }}" wire:navigate style="text-decoration:none;flex:0 0 215px;scroll-snap-align:start;">
+                            <div class="pwa-course-chip">
+                                <div class="pwa-tile-icon neutral" style="margin-bottom:10px;"><i class="fa-solid fa-graduation-cap"></i></div>
+                                <p class="pwa-course-title">{{ $courseUser->course->title }}</p>
+                                <p class="pwa-course-sub">{{ $courseUser->course->category?->name ?? 'Umum' }}</p>
+                                @if ($courseUser->status === 'in_progress')
+                                    <div class="progress-track"><div class="progress-fill" style="width:{{ $courseUser->progress }}%;background:#047C54;"></div></div>
+                                @endif
+                                <span class="badge {{ $trainingBadgeClass($courseUser->status) }}" style="margin-top:8px;">{{ $trainingStatusLabel($courseUser->status) }}</span>
+                            </div>
+                        </a>
+                    @endforeach
                 </div>
-            </div>
-        </div> --}}
+            @endif
+        </div>
     </div>
 
     {{-- <livewire:pending-approvals-card /> --}}
