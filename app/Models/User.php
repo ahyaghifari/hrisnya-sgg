@@ -5,6 +5,7 @@ namespace App\Models;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 
 use App\Models\Master\Companies;
+use App\Models\Payroll\UserKoperasi;
 use App\Models\Shift\ShiftScheduleAssignments;
 use App\Models\User\UserDocuments;
 use App\Models\User\UserJobPositions;
@@ -95,6 +96,11 @@ class User extends Authenticatable implements FilamentUser
     public function profile()
     {
         return $this->hasOne(UserProfiles::class, 'user_id', 'id');
+    }
+
+    public function koperasi()
+    {
+        return $this->hasOne(UserKoperasi::class, 'user_id', 'id');
     }
 
     // Dokumen yang diunggah oleh user itu sendiri

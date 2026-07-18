@@ -4,7 +4,7 @@ namespace App\Imports\Payroll;
 
 use App\Enum\Payroll\PayrollComponentEnum;
 use App\Models\Payroll\Payroll;
-use App\Models\Payroll\PayrollItem;
+use App\Models\Payroll\PayrollManualLine;
 use App\Models\User;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -13,12 +13,16 @@ use Maatwebsite\Excel\Concerns\WithHeadingRow;
 
 /**
  * Insentif RSU — dipakai kalau setting `insentif_metode` company = "import" (lihat
- * IncentiveCalculator, yang skip total buat metode ini). Beda dari EmployeeImport: tidak
- * membuat data baru, cuma MENEMPEL PayrollItem ke Payroll yang SUDAH digenerate untuk periode
- * ini — baris yang NIP-nya tidak match user, atau user itu belum punya Payroll di periode ini
- * (belum digenerate/typo NIP), di-skip & dilaporkan sebagai error, tidak menghentikan baris lain.
+ * IncentiveCalculator, yang baca payroll_manual_lines untuk metode ini). Beda dari
+ * EmployeeImport: tidak membuat data baru, cuma menulis baris manual (component=insentif) yang
+ * NIP-nya cocok dengan Payroll yang SUDAH digenerate untuk periode ini — baris yang NIP-nya
+ * tidak match user, atau user itu belum punya Payroll di periode ini (belum digenerate/typo
+ * NIP), di-skip & dilaporkan sebagai error, tidak menghentikan baris lain.
  *
- * Idempotent per (payroll, NIP): upload ulang untuk NIP yang sama MENGGANTI nominal
+ * TIDAK langsung mengubah payroll_items/total Payroll — baru ke-apply setelah Generate/
+ * Regenerate dijalankan ulang untuk periode ini (sama pola Koperasi/Bon).
+ *
+ * Idempotent per (periode, user): upload ulang untuk NIP yang sama MENGGANTI nominal
  * sebelumnya (bukan menambah baris baru) — supaya revisi file tidak dobel-hitung.
  */
 class IncentiveImport implements ToCollection, WithHeadingRow
@@ -66,26 +70,17 @@ class IncentiveImport implements ToCollection, WithHeadingRow
                         throw new \RuntimeException("NIP {$nip}: nominal harus lebih dari 0.");
                     }
 
-                    $existing = PayrollItem::query()
-                        ->where('payroll_id', $payroll->id)
-                        ->where('source_type', PayrollComponentEnum::INSENTIF->value)
-                        ->first();
-
-                    $delta = $amount - (float) ($existing?->amount ?? 0);
-
-                    PayrollItem::updateOrCreate(
-                        ['payroll_id' => $payroll->id, 'source_type' => PayrollComponentEnum::INSENTIF->value],
+                    PayrollManualLine::updateOrCreate(
                         [
-                            'name' => PayrollComponentEnum::INSENTIF->label(),
-                            'type' => PayrollComponentEnum::INSENTIF->type()->value,
-                            'quantity' => 1,
+                            'payroll_period_id' => $this->payrollPeriodId,
+                            'user_id' => $user->id,
+                            'component' => PayrollComponentEnum::INSENTIF->value,
+                        ],
+                        [
                             'amount' => $amount,
                             'note' => 'Import Excel (RSU)',
                         ]
                     );
-
-                    $payroll->increment('gross_salary', $delta);
-                    $payroll->increment('net_salary', $delta);
                 });
 
                 $this->successCount++;

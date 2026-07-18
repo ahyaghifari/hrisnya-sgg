@@ -30,6 +30,14 @@ class Incentive extends Model
         'is_processed',
     ];
 
+    protected function casts(): array
+    {
+        return [
+            'incentive_date' => 'date',
+            'is_processed' => 'boolean',
+        ];
+    }
+
     protected static function booted(): void
     {
         if (app()->runningInConsole()) {

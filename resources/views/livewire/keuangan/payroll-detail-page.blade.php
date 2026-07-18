@@ -5,10 +5,10 @@
 @endphp
 
 <div class="p-4 md:p-6">
-    <div style="display:flex;flex-direction:column;gap:16px;max-width:760px;">
+    <div style="display:flex;flex-direction:column;gap:16px;">
         <a href="{{ route('keuangan.payroll') }}" wire:navigate style="font-size:12.5px;color:var(--text-muted);text-decoration:none;"><i class="fa-solid fa-arrow-left"></i> Kembali ke daftar Payroll</a>
 
-        <div style="background:var(--surface);border-radius:12px;box-shadow:var(--shadow-card);padding:18px;">
+        <div style="background:var(--surface);border-radius:12px;box-shadow:var(--shadow-card);padding:18px;max-width:760px;">
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;">
                 <div>
                     <p style="font-size:10.5px;color:var(--text-faint);margin:0 0 2px;text-transform:uppercase;letter-spacing:0.03em;">Karyawan</p>
@@ -29,6 +29,11 @@
                         {{ $payroll->is_paid ? 'Sudah Dibayar' : 'Belum Dibayar' }}
                     </span>
                 </div>
+                <div>
+                    <p style="font-size:10.5px;color:var(--text-faint);margin:0 0 2px;text-transform:uppercase;letter-spacing:0.03em;">Terakhir Digenerate</p>
+                    <p style="font-size:12.5px;font-weight:700;margin:0;">{{ $payroll->generatedBy?->name ?? '-' }}</p>
+                    <p style="font-size:11px;color:var(--text-muted);margin:2px 0 0;">{{ $payroll->generated_at?->translatedFormat('d M Y H:i') ?? '-' }}</p>
+                </div>
             </div>
 
             <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:18px;padding-top:18px;border-top:1px dashed var(--border);">
@@ -46,16 +51,19 @@
                 </div>
             </div>
 
-            <div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap;">
+            <div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap;">
                 @unless ($payroll->is_paid)
-                    <button type="button" wire:click="markAsPaid" wire:confirm="Tandai payroll ini sudah dibayar?" class="btn-primary" style="padding:9px 18px;font-size:12.5px;">
+                    <button type="button" wire:click="markAsPaid" wire:confirm="Tandai payroll ini sudah dibayar?" class="btn-primary" style="padding:6px 12px;font-size:11px;">
                         <i class="fa-solid fa-check"></i> Tandai Sudah Dibayar
                     </button>
+                    <button type="button" wire:click="regeneratePayroll" wire:confirm="Hapus dan hitung ulang payroll karyawan ini saja? Payroll karyawan lain di periode ini tidak terpengaruh." class="btn-ghost" style="padding:6px 12px;font-size:11px;color:#d97706;">
+                        <i class="fa-solid fa-arrow-rotate-right"></i> Regenerate Payroll Ini
+                    </button>
                 @endunless
-                <a href="{{ route('keuangan.payroll.preview', $payroll->id) }}" target="_blank" class="btn-ghost" style="padding:9px 18px;font-size:12.5px;">
+                <a href="{{ route('keuangan.payroll.preview', $payroll->id) }}" target="_blank" class="btn-ghost" style="padding:6px 12px;font-size:11px;">
                     <i class="fa-solid fa-eye"></i> Preview Slip Gaji
                 </a>
-                <button type="button" wire:click="downloadSlip" class="btn-ghost" style="padding:9px 18px;font-size:12.5px;">
+                <button type="button" wire:click="downloadSlip" class="btn-ghost" style="padding:6px 12px;font-size:11px;">
                     <i class="fa-solid fa-download"></i> Download Slip Gaji
                 </button>
             </div>
@@ -72,11 +80,13 @@
                             <div style="display:flex;justify-content:space-between;gap:8px;font-size:12.5px;">
                                 <span style="color:{{ $row['hasValue'] ? 'var(--text-body)' : 'var(--text-faint)' }};">
                                     {{ $row['label'] }}
+                                </span>
+                                <span style="white-space:nowrap;text-align:right;">
+                                    <span style="font-weight:{{ $row['hasValue'] ? '700' : '500' }};color:{{ $row['hasValue'] ? '#047C54' : 'var(--text-faint)' }};">Rp{{ number_format($row['amount'], 0, ',', '.') }}</span>
                                     @if ($row['note'])
-                                        <span style="font-size:10.5px;color:var(--text-faint);">({{ $row['note'] }})</span>
+                                        <span style="display:block;font-size:10px;font-weight:400;color:var(--text-faint);">({{ $row['note'] }})</span>
                                     @endif
                                 </span>
-                                <span style="font-weight:{{ $row['hasValue'] ? '700' : '500' }};color:{{ $row['hasValue'] ? '#047C54' : 'var(--text-faint)' }};white-space:nowrap;">Rp{{ number_format($row['amount'], 0, ',', '.') }}</span>
                             </div>
                         @empty
                             <p style="font-size:11.5px;color:var(--text-faint);margin:0;">Tidak ada komponen pendapatan.</p>
@@ -97,11 +107,13 @@
                             <div style="display:flex;justify-content:space-between;gap:8px;font-size:12.5px;">
                                 <span style="color:{{ $row['hasValue'] ? 'var(--text-body)' : 'var(--text-faint)' }};">
                                     {{ $row['label'] }}
+                                </span>
+                                <span style="white-space:nowrap;text-align:right;">
+                                    <span style="font-weight:{{ $row['hasValue'] ? '700' : '500' }};color:{{ $row['hasValue'] ? '#dc2626' : 'var(--text-faint)' }};">Rp{{ number_format($row['amount'], 0, ',', '.') }}</span>
                                     @if ($row['note'])
-                                        <span style="font-size:10.5px;color:var(--text-faint);">({{ $row['note'] }})</span>
+                                        <span style="display:block;font-size:10px;font-weight:400;color:var(--text-faint);">({{ $row['note'] }})</span>
                                     @endif
                                 </span>
-                                <span style="font-weight:{{ $row['hasValue'] ? '700' : '500' }};color:{{ $row['hasValue'] ? '#dc2626' : 'var(--text-faint)' }};white-space:nowrap;">Rp{{ number_format($row['amount'], 0, ',', '.') }}</span>
                             </div>
                         @empty
                             <p style="font-size:11.5px;color:var(--text-faint);margin:0;">Tidak ada komponen potongan.</p>

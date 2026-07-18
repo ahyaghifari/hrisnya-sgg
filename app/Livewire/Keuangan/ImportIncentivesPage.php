@@ -17,9 +17,10 @@ use Maatwebsite\Excel\Facades\Excel;
 
 /**
  * Insentif RSU — cuma berlaku kalau setting `insentif_metode` company terpilih = "import"
- * (lihat halaman Komponen Gaji). Import HARUS dilakukan SETELAH payroll periode itu
- * digenerate (menempel PayrollItem ke Payroll yang sudah ada, lihat IncentiveImport) — bukan
- * sebelum, beda dari alur "master" (Holding) yang input manual sebelum generate.
+ * (lihat halaman Komponen Gaji). Import HARUS dilakukan SETELAH payroll periode itu pernah
+ * digenerate (lihat IncentiveImport) — tapi nominalnya baru masuk ke payroll setelah Generate/
+ * Regenerate dijalankan ulang untuk periode ini (sama pola Koperasi/Bon), bukan langsung saat
+ * import selesai.
  */
 #[Layout('components.layout', ['title' => 'Import Insentif'])]
 class ImportIncentivesPage extends Component
@@ -109,7 +110,7 @@ class ImportIncentivesPage extends Component
         if ($this->importErrors === []) {
             Notification::make()
                 ->title('Import berhasil')
-                ->body("{$this->importSuccessCount} baris berhasil diimport.")
+                ->body("{$this->importSuccessCount} baris berhasil diimport. Jalankan Generate/Regenerate Payroll untuk periode ini supaya nominalnya masuk ke payroll.")
                 ->success()
                 ->send();
         } else {

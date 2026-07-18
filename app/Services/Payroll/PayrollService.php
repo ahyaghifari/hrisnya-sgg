@@ -6,14 +6,16 @@ use App\Enum\Payroll\PayrollComponentEnum;
 use App\Enum\Payroll\PayrollComponentTypeEnum;
 use App\Models\Payroll\CompanyPayrollComponent;
 use App\Models\Payroll\Payroll;
-use App\Models\Payroll\PayrollItem;
+use App\Models\Payroll\PayrollManualLine;
 use App\Models\Payroll\PayrollPeriod;
+use App\Models\Payroll\UserKoperasi;
 use App\Models\Setting;
 use App\Models\User;
 use App\Services\Payroll\Calculators\FeeClaimCalculator;
 use App\Services\Payroll\Calculators\PayrollCalculatorRegistry;
 use App\Services\Payroll\Calculators\PayrollContext;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -91,22 +93,40 @@ class PayrollService
             ->groupBy('source_type')
             ->map(fn ($group) => (float) $group->sum('amount'));
 
-        // Anotasi kecil di sebelah label — nunjukin aturan yang lagi berlaku (bukan cuma
-        // ngasih angka, tapi kenapa angkanya segitu), diminta eksplisit buat Lembur & BPJS.
-        $noteFor = function (PayrollComponentEnum $c) use ($companyId): ?string {
+        $quantities = $items->whereNotNull('source_type')
+            ->groupBy('source_type')
+            ->map(fn ($group) => (int) $group->sum('quantity'));
+
+        // Aturan yang lagi berlaku ditempel LANGSUNG ke label (bukan lagi anotasi terpisah) —
+        // diminta eksplisit buat Lembur, BPJS, & toleransi menit Keterlambatan.
+        $labelFor = function (PayrollComponentEnum $c) use ($companyId): string {
             return match ($c) {
-                PayrollComponentEnum::LEMBUR => 'Dihitung > ' . (int) Setting::resolve('lembur_minimum_jam', $companyId, default: 2) . ' jam',
-                PayrollComponentEnum::BPJS_KESEHATAN => Setting::resolve('bpjs_kesehatan_rate', $companyId, default: 0) . '%',
-                PayrollComponentEnum::BPJS_KETENAGAKERJAAN => Setting::resolve('bpjs_ketenagakerjaan_rate', $companyId, default: 0) . '%',
+                PayrollComponentEnum::LEMBUR => $c->label() . ' >' . (int) Setting::resolve('lembur_minimum_jam', $companyId, default: 2) . ' Jam',
+                PayrollComponentEnum::BPJS_KESEHATAN => $c->label() . ' ' . Setting::resolve('bpjs_kesehatan_rate', $companyId, default: 0) . '%',
+                PayrollComponentEnum::BPJS_KETENAGAKERJAAN => $c->label() . ' ' . Setting::resolve('bpjs_ketenagakerjaan_rate', $companyId, default: 0) . '%',
+                PayrollComponentEnum::KETERLAMBATAN => $c->label() . ' >' . (int) Setting::resolve('keterlambatan_threshold_menit', $companyId, default: 0) . ' Menit',
+                default => $c->label(),
+            };
+        };
+
+        // Jumlah kejadian ("NxBulan"/"NxHari") ditampilkan terpisah di sisi kanan (sejajar
+        // nominal), bukan nempel di label — dibaca dari quantity PayrollItem yang sudah
+        // dihitung Calculator, bukan dihitung ulang di sini.
+        $noteFor = function (PayrollComponentEnum $c) use ($quantities): ?string {
+            return match ($c) {
+                PayrollComponentEnum::KETERLAMBATAN,
+                PayrollComponentEnum::IZIN_TERLAMBAT_PULANG_CEPAT => ($quantities[$c->value] ?? 0) . 'x/Bulan',
+                PayrollComponentEnum::CUTI,
+                PayrollComponentEnum::IZIN_SEHARIAN => ($quantities[$c->value] ?? 0) . 'x/Hari',
                 default => null,
             };
         };
 
-        $buildRows = function (PayrollComponentTypeEnum $type) use ($applicable, $sums, $noteFor) {
+        $buildRows = function (PayrollComponentTypeEnum $type) use ($applicable, $sums, $labelFor, $noteFor) {
             return $applicable
                 ->filter(fn (PayrollComponentEnum $c) => $c->type() === $type)
                 ->map(fn (PayrollComponentEnum $c) => [
-                    'label' => $c->label(),
+                    'label' => $labelFor($c),
                     'note' => $noteFor($c),
                     'amount' => $sums[$c->value] ?? 0.0,
                     'hasValue' => isset($sums[$c->value]) && $sums[$c->value] > 0,
@@ -151,28 +171,9 @@ class PayrollService
         return $rows;
     }
 
-    /**
-     * Insentif metode "import" (RSU) ditempel LANGSUNG ke payroll_items SETELAH generate
-     * (lihat IncentiveImport) — Calculator-nya skip total, jadi kalau regenerate menghapus
-     * payroll unpaid, PayrollItem insentif itu hilang tanpa cara otomatis untuk menulis
-     * ulang (beda dari komponen lain yang selalu dihitung ulang dari sumbernya). Dipakai
-     * buat block regenerate di UI SEBELUM data hilang, bukan dicegah di sini (biar caller
-     * bisa kasih pesan yang jelas ke admin).
-     */
-    public function periodHasImportedIncentives(PayrollPeriod $period): bool
+    public function regeneratePayroll(PayrollPeriod $period, ?string $generatedByUserId = null): void
     {
-        return PayrollItem::query()
-            ->where('source_type', PayrollComponentEnum::INSENTIF->value)
-            ->whereIn('payroll_id', Payroll::query()
-                ->where('payroll_period_id', $period->id)
-                ->where('is_paid', false)
-                ->pluck('id'))
-            ->exists();
-    }
-
-    public function regeneratePayroll(PayrollPeriod $period): void
-    {
-        DB::transaction(function () use ($period) {
+        DB::transaction(function () use ($period, $generatedByUserId) {
             // Delete only unpaid payrolls; paid payrolls are kept as-is.
             // payroll_items will be removed automatically via cascadeOnDelete.
             Payroll::query()
@@ -181,13 +182,13 @@ class PayrollService
                 ->delete();
 
             // Re-run generation — payrollAlreadyExists() will skip paid ones.
-            $this->generatePayroll($period);
+            $this->generatePayroll($period, $generatedByUserId);
         });
     }
 
-    public function generatePayroll(PayrollPeriod $period): void
+    public function generatePayroll(PayrollPeriod $period, ?string $generatedByUserId = null): void
     {
-        DB::transaction(function () use ($period) {
+        DB::transaction(function () use ($period, $generatedByUserId) {
             $users = User::query()
                 ->where('company_id', $period->company_id)
                 ->where('is_active', true)
@@ -199,59 +200,132 @@ class PayrollService
                 ->where('is_active', true)
                 ->get();
 
+            $this->syncKoperasiManualLines($period, $users);
+
             foreach ($users as $user) {
                 if ($this->payrollAlreadyExists($user, $period)) {
                     continue;
                 }
 
-                $payroll = Payroll::create([
-                    'user_id' => $user->id,
-                    'payroll_period_id' => $period->id,
-                ]);
-
-                $context = new PayrollContext();
-
-                // Urutan WAJIB: semua EARNING dulu -> Fee Claim (earning, always-on) -> semua
-                // DEDUCTION kecuali Izin Seharian -> Izin Seharian terakhir. Izin Seharian
-                // butuh $context->grossSalary (T8) yang sudah final, lihat planning Fase 2 §6.
-                $earning = $activeComponents->filter(
-                    fn (CompanyPayrollComponent $c) => PayrollComponentEnum::tryFrom($c->component)?->type() === PayrollComponentTypeEnum::EARNING
-                );
-                $deduction = $activeComponents->filter(
-                    fn (CompanyPayrollComponent $c) => PayrollComponentEnum::tryFrom($c->component)?->type() === PayrollComponentTypeEnum::DEDUCTION
-                        && $c->component !== PayrollComponentEnum::IZIN_SEHARIAN->value
-                );
-                $izinSeharian = $activeComponents->first(
-                    fn (CompanyPayrollComponent $c) => $c->component === PayrollComponentEnum::IZIN_SEHARIAN->value
-                );
-
-                foreach ($earning as $companyComponent) {
-                    $this->runComponent($companyComponent, $user, $payroll, $period, $context);
-                }
-
-                // Always-on, tidak digate lewat company_payroll_components (lihat
-                // PayrollComponentEnum::alwaysOn() dan planning Fase 1 §3.1).
-                app(FeeClaimCalculator::class)->calculate($user, $payroll, $period, $context);
-
-                foreach ($deduction as $companyComponent) {
-                    $this->runComponent($companyComponent, $user, $payroll, $period, $context);
-                }
-
-                if ($izinSeharian) {
-                    $this->runComponent($izinSeharian, $user, $payroll, $period, $context);
-                }
-
-                $payroll->update([
-                    'gross_salary' => $context->grossSalary,
-                    'total_deductions' => $context->totalDeductions,
-                    'net_salary' => $context->grossSalary - $context->totalDeductions,
-                ]);
+                $this->generateForUser($user, $period, $activeComponents, $generatedByUserId);
             }
 
             $period->update([
                 'processed_at' => now(),
+                'generated_by' => $generatedByUserId ?? $period->generated_by,
             ]);
         });
+    }
+
+    /**
+     * Regenerate SATU payroll saja (bukan seluruh periode) — dipakai tombol "Regenerate" per
+     * karyawan di halaman detail payroll. Payroll yang sudah dibayar tidak boleh disentuh.
+     */
+    public function regenerateSinglePayroll(Payroll $payroll, ?string $generatedByUserId = null): Payroll
+    {
+        if ($payroll->is_paid) {
+            throw new \RuntimeException('Payroll yang sudah dibayar tidak bisa di-regenerate.');
+        }
+
+        return DB::transaction(function () use ($payroll, $generatedByUserId) {
+            $period = $payroll->payrollPeriod;
+            $user = $payroll->user;
+
+            $activeComponents = CompanyPayrollComponent::query()
+                ->where('company_id', $period->company_id)
+                ->where('is_active', true)
+                ->get();
+
+            $this->syncKoperasiManualLines($period, collect([$user]));
+
+            $payroll->delete(); // payroll_items ikut terhapus lewat cascadeOnDelete
+
+            $newPayroll = $this->generateForUser($user, $period, $activeComponents, $generatedByUserId);
+
+            $period->update([
+                'generated_by' => $generatedByUserId ?? $period->generated_by,
+            ]);
+
+            return $newPayroll;
+        });
+    }
+
+    private function generateForUser(User $user, PayrollPeriod $period, Collection $activeComponents, ?string $generatedByUserId = null): Payroll
+    {
+        $payroll = Payroll::create([
+            'user_id' => $user->id,
+            'payroll_period_id' => $period->id,
+            'generated_by' => $generatedByUserId,
+            'generated_at' => now(),
+        ]);
+
+        $context = new PayrollContext();
+
+        // Urutan WAJIB: semua EARNING dulu -> Fee Claim (earning, always-on) -> semua
+        // DEDUCTION kecuali Izin Seharian -> Izin Seharian terakhir. Izin Seharian
+        // butuh $context->grossSalary (T8) yang sudah final, lihat planning Fase 2 §6.
+        $earning = $activeComponents->filter(
+            fn (CompanyPayrollComponent $c) => PayrollComponentEnum::tryFrom($c->component)?->type() === PayrollComponentTypeEnum::EARNING
+        );
+        $deduction = $activeComponents->filter(
+            fn (CompanyPayrollComponent $c) => PayrollComponentEnum::tryFrom($c->component)?->type() === PayrollComponentTypeEnum::DEDUCTION
+                && $c->component !== PayrollComponentEnum::IZIN_SEHARIAN->value
+        );
+        $izinSeharian = $activeComponents->first(
+            fn (CompanyPayrollComponent $c) => $c->component === PayrollComponentEnum::IZIN_SEHARIAN->value
+        );
+
+        foreach ($earning as $companyComponent) {
+            $this->runComponent($companyComponent, $user, $payroll, $period, $context);
+        }
+
+        // Always-on, tidak digate lewat company_payroll_components (lihat
+        // PayrollComponentEnum::alwaysOn() dan planning Fase 1 §3.1).
+        app(FeeClaimCalculator::class)->calculate($user, $payroll, $period, $context);
+
+        foreach ($deduction as $companyComponent) {
+            $this->runComponent($companyComponent, $user, $payroll, $period, $context);
+        }
+
+        if ($izinSeharian) {
+            $this->runComponent($izinSeharian, $user, $payroll, $period, $context);
+        }
+
+        $payroll->update([
+            'gross_salary' => $context->grossSalary,
+            'total_deductions' => $context->totalDeductions,
+            'net_salary' => $context->grossSalary - $context->totalDeductions,
+        ]);
+
+        return $payroll;
+    }
+
+    /**
+     * Koperasi anggota aktif otomatis "ditulis ulang" jadi payroll_manual_lines tiap Generate/
+     * Regenerate — finance tidak perlu input manual tiap periode lagi (cuma pas amount/status
+     * anggota berubah, lihat halaman Koperasi). KoperasiCalculator tetap baca dari
+     * payroll_manual_lines seperti biasa, tidak berubah.
+     */
+    private function syncKoperasiManualLines(PayrollPeriod $period, Collection $users): void
+    {
+        $koperasiRows = UserKoperasi::query()
+            ->where('is_active', true)
+            ->whereIn('user_id', $users->pluck('id'))
+            ->get();
+
+        foreach ($koperasiRows as $row) {
+            PayrollManualLine::updateOrCreate(
+                [
+                    'payroll_period_id' => $period->id,
+                    'user_id' => $row->user_id,
+                    'component' => PayrollComponentEnum::KOPERASI->value,
+                ],
+                [
+                    'amount' => $row->amount,
+                    'note' => 'Auto-sync dari Koperasi',
+                ]
+            );
+        }
     }
 
     private function payrollAlreadyExists(User $user, PayrollPeriod $period): bool

@@ -198,4 +198,12 @@ document.addEventListener("livewire:init", () => {
     Livewire.on("list-table:refresh", () => {
         refreshListTables();
     });
+
+    // Modal yang dirender kondisional (@if) baru punya elemen <select data-tom-select> setelah
+    // Livewire morph — DOMContentLoaded/livewire:navigated saja tidak cukup buat elemen begini.
+    // "morph.added" nembak buat node yang baru masuk DOM (kasus modal @if), "morph.updated"
+    // buat node yang sudah ada tapi di-patch — pasang keduanya (initTomSelects sudah guard
+    // el.tomselect jadi aman dipanggil berkali-kali).
+    Livewire.hook("morph.added", () => initTomSelects());
+    Livewire.hook("morph.updated", () => initTomSelects());
 });

@@ -19,14 +19,15 @@ class RegeneratePayrollJob implements ShouldQueue
     public int $tries = 3;
 
     public function __construct(
-        public string $payrollPeriodId
+        public string $payrollPeriodId,
+        public ?string $generatedByUserId = null,
     ) {}
 
     public function handle(PayrollService $service): void
     {
         $period = PayrollPeriod::findOrFail($this->payrollPeriodId);
 
-        $service->regeneratePayroll($period);
+        $service->regeneratePayroll($period, $this->generatedByUserId);
     }
 
     public function failed(\Throwable $exception): void

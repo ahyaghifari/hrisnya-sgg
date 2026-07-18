@@ -5,6 +5,7 @@ namespace Tests\Feature\Payroll;
 use App\Models\Incentive\Incentive;
 use App\Models\Master\Companies;
 use App\Models\Payroll\Payroll;
+use App\Models\Payroll\PayrollManualLine;
 use App\Models\Payroll\PayrollPeriod;
 use App\Models\Setting;
 use App\Models\User;
@@ -15,8 +16,8 @@ use Tests\TestCase;
 
 /**
  * Setting `insentif_metode` menentukan apakah IncentiveCalculator baca dari tabel `incentives`
- * ("master", Holding) atau skip total ("import", RSU — insentifnya ditempel manual lewat
- * IncentiveImport SETELAH generate, lihat IncentiveImportTest).
+ * ("master", Holding) atau dari `payroll_manual_lines` component=insentif ("import", RSU —
+ * ditulis lewat IncentiveImport, lihat IncentiveImportTest).
  */
 class IncentiveCalculatorMetodeTest extends TestCase
 {
@@ -52,7 +53,7 @@ class IncentiveCalculatorMetodeTest extends TestCase
         $this->assertDatabaseHas('payroll_items', ['payroll_id' => $payroll->id, 'source_type' => 'insentif', 'amount' => 300000]);
     }
 
-    public function test_import_metode_skips_entirely_even_if_incentives_rows_exist(): void
+    public function test_import_metode_ignores_incentives_table_when_no_manual_line(): void
     {
         [, , $period, $payroll] = $this->makeSetup();
         Setting::create(['company_id' => $period->company_id, 'key' => 'insentif_metode', 'module' => 'payroll', 'type' => 'string', 'value' => 'import', 'label' => 'Metode Insentif']);
@@ -62,8 +63,27 @@ class IncentiveCalculatorMetodeTest extends TestCase
 
         $this->assertSame(0.0, $context->grossSalary);
         $this->assertDatabaseMissing('payroll_items', ['payroll_id' => $payroll->id, 'source_type' => 'insentif']);
-        // Baris incentives tidak ikut ditandai processed — masih murni tidak tersentuh.
+        // Baris incentives (dipakai metode "master") tidak ikut ditandai processed.
         $this->assertDatabaseHas('incentives', ['user_id' => $payroll->user_id, 'is_processed' => false]);
+    }
+
+    public function test_import_metode_reads_from_manual_line(): void
+    {
+        [, , $period, $payroll] = $this->makeSetup();
+        Setting::create(['company_id' => $period->company_id, 'key' => 'insentif_metode', 'module' => 'payroll', 'type' => 'string', 'value' => 'import', 'label' => 'Metode Insentif']);
+        PayrollManualLine::create([
+            'payroll_period_id' => $period->id,
+            'user_id' => $payroll->user_id,
+            'component' => 'insentif',
+            'amount' => 700000,
+            'note' => 'Import Excel (RSU)',
+        ]);
+
+        $context = new PayrollContext();
+        (new IncentiveCalculator())->calculate($payroll->user, $payroll, $period, $context);
+
+        $this->assertSame(700000.0, $context->grossSalary);
+        $this->assertDatabaseHas('payroll_items', ['payroll_id' => $payroll->id, 'source_type' => 'insentif', 'amount' => 700000]);
     }
 
     public function test_defaults_to_master_when_setting_missing(): void

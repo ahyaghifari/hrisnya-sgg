@@ -2,6 +2,7 @@
 
 namespace App\Services\Payroll\Calculators;
 
+use App\Enum\Payroll\PayrollComponentTypeEnum;
 use App\Models\Payroll\Payroll;
 use App\Models\Payroll\PayrollItem;
 use App\Models\Payroll\PayrollManualLine;
@@ -9,9 +10,9 @@ use App\Models\Payroll\PayrollPeriod;
 use App\Models\User;
 
 /**
- * Koperasi & Bon — 100% input manual finance/koperasi lewat `payroll_manual_lines`, tidak
- * ada rumus otomatis sama sekali. Calculator ini cuma "menyalin" baris manual yang sudah
- * diinput ke payroll_items.
+ * Input manual finance lewat `payroll_manual_lines` (Koperasi/Bon = potongan, Insentif metode
+ * "import" = pendapatan — lihat IncentiveCalculator), tidak ada rumus otomatis sama sekali.
+ * Calculator ini cuma "menyalin" baris manual yang sudah diinput ke payroll_items.
  */
 abstract class AbstractManualLineCalculator implements PayrollComponentCalculator
 {
@@ -44,7 +45,11 @@ abstract class AbstractManualLineCalculator implements PayrollComponentCalculato
                 'source_type' => $this->componentValue(),
             ]);
 
-            $context->addDeduction($amount);
+            if ($this->componentType() === PayrollComponentTypeEnum::EARNING->value) {
+                $context->addEarning($amount);
+            } else {
+                $context->addDeduction($amount);
+            }
         }
     }
 }

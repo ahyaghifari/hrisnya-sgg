@@ -13,6 +13,7 @@ use App\Livewire\Kanban\KanbanBoardsList;
 use App\Livewire\Kanban\KanbanPersonalTasks;
 use App\Livewire\Keuangan\ImportIncentivesPage;
 use App\Livewire\Keuangan\IncentivesPage;
+use App\Livewire\Keuangan\KoperasiPage;
 use App\Livewire\Keuangan\MappingKomponenGajiPage;
 use App\Livewire\Keuangan\PayrollDetailPage;
 use App\Livewire\Keuangan\PayrollPeriodsPage;
@@ -110,6 +111,9 @@ Route::middleware(['auth', 'portal.access'])->group(function () {
 
     Route::get('/keuangan/insentif', IncentivesPage::class)
         ->name('keuangan.insentif');
+
+    Route::get('/keuangan/koperasi', KoperasiPage::class)
+        ->name('keuangan.koperasi');
 
     // Tidak ada link nav langsung (dicabut atas permintaan user) — cuma diakses lewat tombol
     // "Import Insentif" di halaman Payroll, muncul kondisional kalau company metode='import'.

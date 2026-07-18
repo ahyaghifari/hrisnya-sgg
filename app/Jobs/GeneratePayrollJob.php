@@ -19,7 +19,8 @@ class GeneratePayrollJob implements ShouldQueue
     public int $tries = 3;
 
     public function __construct(
-        public string $payrollPeriodId
+        public string $payrollPeriodId,
+        public ?string $generatedByUserId = null,
     ) {}
 
     public function handle(PayrollService $service): void
@@ -30,7 +31,7 @@ class GeneratePayrollJob implements ShouldQueue
             return;
         }
 
-        $service->generatePayroll($period);
+        $service->generatePayroll($period, $this->generatedByUserId);
     }
 
     public function failed(\Throwable $exception): void

@@ -6,6 +6,7 @@ use App\Enum\Payroll\PayrollComponentEnum;
 use App\Models\Incentive\Incentive;
 use App\Models\Payroll\Payroll;
 use App\Models\Payroll\PayrollItem;
+use App\Models\Payroll\PayrollManualLine;
 use App\Models\Payroll\PayrollPeriod;
 use App\Models\Setting;
 use App\Models\User;
@@ -13,11 +14,10 @@ use App\Models\User;
 /**
  * Metode ditentukan setting `insentif_metode` (company-scoped, lihat requiredSettings() di
  * PayrollComponentEnum::INSENTIF). "master" (Holding): nominal tetap, input manual ke tabel
- * `incentives`, dibaca di sini. "import" (RSU, perhitungan dinamis): TIDAK dibaca di sini sama
- * sekali — insentif ditulis LANGSUNG ke payroll_items lewat App\Imports\Payroll\IncentiveImport,
- * SETELAH payroll digenerate (lihat app/Livewire/Keuangan/ImportIncentivesPage.php). Kalau
- * Calculator ini tetap jalan pas metode "import", akan bentrok dengan PayrollItem yang sudah
- * ditulis import (dobel source_type=insentif) — makanya skip total.
+ * `incentives`, dibaca di sini. "import" (RSU, perhitungan dinamis): dibaca dari
+ * `payroll_manual_lines` (component=insentif) — App\Imports\Payroll\IncentiveImport menulis ke
+ * situ (bukan langsung ke payroll_items lagi), jadi baris ini ikut ke-generate ulang normal
+ * kalau periode di-regenerate, sama seperti Koperasi/Bon.
  */
 class IncentiveCalculator implements PayrollComponentCalculator
 {
@@ -26,6 +26,8 @@ class IncentiveCalculator implements PayrollComponentCalculator
         $metode = Setting::resolve('insentif_metode', $period->company_id, default: 'master');
 
         if ($metode !== 'master') {
+            $this->calculateFromImport($user, $payroll, $period, $context);
+
             return;
         }
 
@@ -60,5 +62,30 @@ class IncentiveCalculator implements PayrollComponentCalculator
         $context->addEarning($totalAmount);
 
         Incentive::query()->whereIn('id', $incentives->pluck('id'))->update(['is_processed' => true]);
+    }
+
+    private function calculateFromImport(User $user, Payroll $payroll, PayrollPeriod $period, PayrollContext $context): void
+    {
+        $line = PayrollManualLine::query()
+            ->where('user_id', $user->id)
+            ->where('payroll_period_id', $period->id)
+            ->where('component', PayrollComponentEnum::INSENTIF->value)
+            ->first();
+
+        if (! $line || (float) $line->amount <= 0) {
+            return;
+        }
+
+        PayrollItem::create([
+            'payroll_id' => $payroll->id,
+            'name' => PayrollComponentEnum::INSENTIF->label(),
+            'type' => PayrollComponentEnum::INSENTIF->type()->value,
+            'quantity' => 1,
+            'amount' => $line->amount,
+            'note' => $line->note,
+            'source_type' => PayrollComponentEnum::INSENTIF->value,
+        ]);
+
+        $context->addEarning((float) $line->amount);
     }
 }

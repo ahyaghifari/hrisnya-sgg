@@ -25,6 +25,12 @@ class Payroll extends Model
         'total_deductions',
         'net_salary',
         'is_paid',
+        'generated_by',
+        'generated_at',
+    ];
+
+    protected $casts = [
+        'generated_at' => 'datetime',
     ];
 
     public function user(): BelongsTo
@@ -35,6 +41,11 @@ class Payroll extends Model
     public function payrollPeriod(): BelongsTo
     {
         return $this->belongsTo(PayrollPeriod::class);
+    }
+
+    public function generatedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'generated_by');
     }
 
     public function items(): HasMany

@@ -44,6 +44,21 @@ class PayrollDetailPage extends Component
         return app(PayrollService::class)->download($this->payroll);
     }
 
+    /** Regenerate payroll SATU karyawan ini saja — ID payroll berubah, jadi redirect ke yang baru. */
+    public function regeneratePayroll()
+    {
+        abort_if($this->payroll->is_paid, 403, 'Payroll yang sudah dibayar tidak bisa di-regenerate.');
+
+        $newPayroll = app(PayrollService::class)->regenerateSinglePayroll($this->payroll, Auth::id());
+
+        Notification::make()
+            ->title('Payroll berhasil di-regenerate')
+            ->success()
+            ->send();
+
+        return $this->redirect(route('keuangan.payroll.show', $newPayroll), navigate: true);
+    }
+
     public function render()
     {
         return view('livewire.keuangan.payroll-detail-page');

@@ -34,7 +34,11 @@
                     </div>
                 </div>
 
-                @if ($this->insentifMetode === 'import' || $this->koperasiAktif || $this->bonAktif)
+                {{-- Koperasi sengaja DICABUT dari dropdown ini (bukan dihapus) — sudah ada
+                     tabel master `user_koperasi` (halaman Koperasi) yang otomatis sync ke
+                     payroll_manual_lines tiap Generate, jadi input manual per periode di sini
+                     jadi redundan. Disembunyikan dulu, bukan dihapus permanen. --}}
+                @if ($this->insentifMetode === 'import' || $this->bonAktif)
                     <div class="dropdown">
                         <button type="button" style="padding:9px 16px;font-size:12.5px;font-weight:600;border:none;border-radius:12px;cursor:pointer;background:#047C54;color:#fff;">
                             <i class="fa-solid fa-file-import"></i> Import <i class="fa-solid fa-chevron-down text-[10px]"></i>
@@ -43,9 +47,9 @@
                             @if ($this->insentifMetode === 'import')
                                 <a href="{{ route('keuangan.import-insentif') }}" wire:navigate class="dropdown-item" style="background:#047C54;color:#fff;"><i class="fa-solid fa-hand-holding-dollar" style="color:#fff;"></i> Insentif</a>
                             @endif
-                            @if ($this->koperasiAktif)
+                            {{-- @if ($this->koperasiAktif)
                                 <button type="button" wire:click="openManualLineModal('koperasi')" class="dropdown-item" style="background:#4f46e5;color:#fff;"><i class="fa-solid fa-people-group" style="color:#fff;"></i> Koperasi</button>
-                            @endif
+                            @endif --}}
                             @if ($this->bonAktif)
                                 <button type="button" wire:click="openManualLineModal('bon')" class="dropdown-item" style="background:#d97706;color:#fff;"><i class="fa-solid fa-money-bill-transfer" style="color:#fff;"></i> Bon</button>
                             @endif
@@ -109,7 +113,7 @@
     </div>
 
     @if ($showManualLineModal)
-        <div style="position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:50;display:flex;align-items:center;justify-content:center;padding:16px;" wire:click="closeManualLineModal">
+        <div style="position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:100;display:flex;align-items:center;justify-content:center;padding:16px;" wire:click="closeManualLineModal">
             <div style="background:var(--surface);border-radius:14px;padding:20px;max-width:420px;width:100%;max-height:90vh;overflow-y:auto;" onclick="event.stopPropagation()">
                 <h3 style="font-size:16px;font-weight:700;color:var(--text-heading);margin:0 0 14px;">
                     Tambah {{ $manualLineComponent === 'koperasi' ? 'Koperasi' : 'Bon' }}

@@ -12,10 +12,11 @@ use Illuminate\Support\Collection;
 use Tests\TestCase;
 
 /**
- * Insentif RSU (metode "import", lihat planning insentif Fase 3) — ditempel ke Payroll yang
- * SUDAH digenerate lewat NIP. Idempotent per (payroll, NIP): re-import mengganti nominal
- * sebelumnya, bukan menambah baris baru (keputusan eksplisit user, beda dari EmployeeImport
- * yang additive-by-nature untuk field profil).
+ * Insentif RSU (metode "import", lihat planning insentif Fase 3) — menulis baris
+ * `payroll_manual_lines` (component=insentif) untuk user yang sudah punya Payroll di periode
+ * ini lewat NIP. Tidak lagi menyentuh payroll_items/total Payroll langsung — baru ke-apply
+ * setelah Generate/Regenerate dijalankan (lihat IncentiveCalculator). Idempotent per
+ * (periode, user): re-import mengganti nominal sebelumnya, bukan menambah baris baru.
  */
 class IncentiveImportTest extends TestCase
 {
@@ -31,9 +32,9 @@ class IncentiveImportTest extends TestCase
         return [$company, $user, $period, $payroll];
     }
 
-    public function test_creates_payroll_item_and_increments_totals(): void
+    public function test_creates_manual_line_without_touching_payroll_totals(): void
     {
-        [, , $period, $payroll] = $this->makeCompanyUserPayroll('NIP001');
+        [, $user, $period, $payroll] = $this->makeCompanyUserPayroll('NIP001');
 
         $import = new IncentiveImport($period->id);
         $import->collection(new Collection([
@@ -42,33 +43,32 @@ class IncentiveImportTest extends TestCase
 
         $this->assertSame(1, $import->getSuccessCount());
         $this->assertSame([], $import->getErrors());
-        $this->assertDatabaseHas('payroll_items', [
-            'payroll_id' => $payroll->id,
-            'source_type' => 'insentif',
+        $this->assertDatabaseHas('payroll_manual_lines', [
+            'payroll_period_id' => $period->id,
+            'user_id' => $user->id,
+            'component' => 'insentif',
             'amount' => 500000,
         ]);
+        $this->assertDatabaseMissing('payroll_items', ['payroll_id' => $payroll->id, 'source_type' => 'insentif']);
         $payroll->refresh();
-        $this->assertSame(3_500_000.0, (float) $payroll->gross_salary);
-        $this->assertSame(3_500_000.0, (float) $payroll->net_salary);
+        $this->assertSame(3_000_000.0, (float) $payroll->gross_salary);
     }
 
     public function test_reimport_replaces_previous_amount_instead_of_adding(): void
     {
-        [, , $period, $payroll] = $this->makeCompanyUserPayroll('NIP001');
+        [, $user, $period] = $this->makeCompanyUserPayroll('NIP001');
         $import = new IncentiveImport($period->id);
 
         $import->collection(new Collection([['nip' => 'NIP001', 'nominal' => 500000]]));
         $import->collection(new Collection([['nip' => 'NIP001', 'nominal' => 800000]]));
 
-        $this->assertDatabaseHas('payroll_items', [
-            'payroll_id' => $payroll->id,
-            'source_type' => 'insentif',
+        $this->assertDatabaseHas('payroll_manual_lines', [
+            'payroll_period_id' => $period->id,
+            'user_id' => $user->id,
+            'component' => 'insentif',
             'amount' => 800000,
         ]);
-        $this->assertSame(1, \App\Models\Payroll\PayrollItem::where('payroll_id', $payroll->id)->where('source_type', 'insentif')->count());
-
-        $payroll->refresh();
-        $this->assertSame(3_800_000.0, (float) $payroll->gross_salary);
+        $this->assertSame(1, \App\Models\Payroll\PayrollManualLine::where('payroll_period_id', $period->id)->where('user_id', $user->id)->where('component', 'insentif')->count());
     }
 
     public function test_unknown_nip_is_skipped_and_reported(): void
@@ -100,13 +100,13 @@ class IncentiveImportTest extends TestCase
 
     public function test_paid_payroll_is_skipped_and_reported(): void
     {
-        [, , $period, $payroll] = $this->makeCompanyUserPayroll('NIP001');
+        [, $user, $period, $payroll] = $this->makeCompanyUserPayroll('NIP001');
         $payroll->update(['is_paid' => true]);
 
         $import = new IncentiveImport($period->id);
         $import->collection(new Collection([['nip' => 'NIP001', 'nominal' => 500000]]));
 
         $this->assertSame(0, $import->getSuccessCount());
-        $this->assertDatabaseMissing('payroll_items', ['payroll_id' => $payroll->id, 'source_type' => 'insentif']);
+        $this->assertDatabaseMissing('payroll_manual_lines', ['payroll_period_id' => $period->id, 'user_id' => $user->id, 'component' => 'insentif']);
     }
 }

@@ -4,7 +4,6 @@ namespace App\Filament\Resources\Payroll\PayrollPeriods\Tables;
 
 use App\Jobs\GeneratePayrollJob;
 use App\Jobs\RegeneratePayrollJob;
-use App\Services\Payroll\PayrollService;
 use Filament\Actions\Action;
 use Filament\Actions\EditAction;
 use Filament\Actions\ViewAction;
@@ -60,7 +59,7 @@ class PayrollPeriodsTable
                     ->modalDescription('This will generate payroll for all active users in this company. This action cannot be undone.')
                     ->visible(fn ($record) => is_null($record->processed_at))
                     ->action(function ($record) {
-                        GeneratePayrollJob::dispatch($record->id);
+                        GeneratePayrollJob::dispatch($record->id, auth()->id());
 
                         Notification::make()
                             ->title('Payroll generation started')
@@ -78,18 +77,7 @@ class PayrollPeriodsTable
                     ->modalDescription('This will delete and re-generate all unpaid payrolls for this period. Payrolls that have already been paid will not be affected.')
                     ->visible(fn ($record) => ! is_null($record->processed_at))
                     ->action(function ($record) {
-                        if (app(PayrollService::class)->periodHasImportedIncentives($record)) {
-                            Notification::make()
-                                ->title('Regenerate dibatalkan')
-                                ->body('Periode ini sudah punya insentif hasil import (RSU) — regenerate akan menghapusnya tanpa cara otomatis untuk menulis ulang. Hubungi Keuangan untuk import ulang insentif setelah regenerate, baru lanjutkan.')
-                                ->danger()
-                                ->persistent()
-                                ->send();
-
-                            return;
-                        }
-
-                        RegeneratePayrollJob::dispatch($record->id);
+                        RegeneratePayrollJob::dispatch($record->id, auth()->id());
 
                         Notification::make()
                             ->title('Payroll regeneration started')

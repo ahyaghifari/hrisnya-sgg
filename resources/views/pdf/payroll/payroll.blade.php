@@ -10,8 +10,8 @@
         body {
             background: url("{{ public_path('assets/salary_bg.jpg') }}") no-repeat;
             background-size: cover;
-            font-family: DejaVu Sans, sans-serif;
-            font-size: 11px;
+            font-family: Arial, sans-serif;
+            font-size: 12px;
             margin: 0;
             padding: 20px;
         }
@@ -23,26 +23,43 @@
 
         .header {
             height: 60px;
-            border-radius: 0 0 40px 0;
             margin-bottom: 16px;
-            padding: 12px 16px;
-            color: #fff;
         }
 
-        .company {
-            font-size: 14px;
-            font-weight: bold;
+        .header img {
+            height: 100%;
+        }
+
+        .doc-header {
+            display: table;
+            width: 100%;
+            margin-bottom: 10px;
+        }
+
+        .doc-header .stamp-cell,
+        .doc-header .period-cell {
+            display: table-cell;
+            width: 50%;
+            vertical-align: top;
         }
 
         .stamp {
-            position: absolute;
-            top: 90px;
-            left: 30px;
+            display: inline-block;
             border: 2px solid red;
             color: red;
-            padding: 4px 10px;
+            padding: 6px 14px;
             font-weight: bold;
-            font-size: 14px;
+            font-style: italic;
+            font-size: 16px;
+        }
+
+        .period-cell table {
+            margin-left: auto;
+        }
+
+        .period-cell td {
+            padding: 1px 4px;
+            font-size: 11px;
         }
 
         .title {
@@ -50,24 +67,16 @@
             font-weight: bold;
             text-decoration: underline;
             margin: 10px 0 16px;
-            font-size: 14px;
-        }
-
-        .info {
-            display: table;
-            width: 100%;
-            margin-bottom: 12px;
-        }
-
-        .info .left,
-        .info .right {
-            display: table-cell;
-            width: 50%;
-            vertical-align: top;
+            font-size: 16px;
         }
 
         .info table td {
             padding: 2px 4px;
+        }
+
+        .info table td:first-child {
+            width: 130px;
+            white-space: nowrap;
         }
 
         .line {
@@ -86,21 +95,78 @@
         }
 
         table.salary .label {
-            width: 60%;
+            width: 55%;
+        }
+
+        table.salary .colon {
+            width: 2%;
         }
 
         table.salary .amount {
-            width: 40%;
-            text-align: right;
+            width: 43%;
+            text-align: left;
         }
 
         .section-title {
             font-weight: bold;
             margin-top: 6px;
+            margin-bottom: 8px;
+        }
+
+        /* PENDAPATAN/POTONGAN tetap sebelahan (2 kolom halaman) — POTONGAN dikasih porsi lebih
+           lebar (58%) karena punya 3 kolom (label, nominal, keterangan Nx/Bulan), PENDAPATAN
+           cuma 2 kolom. Kolom nominal/keterangan dikasih lebar PASTI kecil (isinya pendek)
+           supaya kolom label otomatis dapat SISA lebar terbanyak — jangan pakai width % di
+           label, biar auto-layout tabel yang atur (biar label panjang mis. "Izin Terlambat
+           Masuk / Pulang Cepat" tetap muat 1 baris meski kolomnya sendiri sudah dipersempit).
+        */
+        .salary-cols {
+            display: table;
+            width: 100%;
+            table-layout: fixed;
+        }
+
+        .salary-col {
+            display: table-cell;
+            vertical-align: top;
+        }
+
+        .salary-col.earnings {
+            width: 42%;
+            padding-right: 8px;
+        }
+
+        .salary-col.deductions {
+            width: 58%;
+            padding-left: 8px;
+        }
+
+        table.salary-items {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 11.5px;
+        }
+
+        table.salary-items td {
+            padding: 2px 3px;
+            white-space: nowrap;
+        }
+
+        table.salary-items .s-amount {
+            width: 62px;
+            text-align: left;
+        }
+
+        table.salary-items .s-note {
+            width: 55px;
+            text-align: right;
+            font-size: 10px;
+            color: #444;
         }
 
         .total-box {
-            margin-top: 10px;
+            margin-top: 20px;
+            width: 75%;
             border: 2px solid #000;
             padding: 8px;
         }
@@ -140,10 +206,27 @@
             width: 50%;
         }
 
+        .ttd-space {
+            display: block;
+            height: 60px;
+            line-height: 60px;
+        }
+
         .footer {
-            margin-top: 24px;
+            position: fixed;
+            bottom: 32px;
+            left: 48px;
+            right: 48px;
             font-size: 9px;
-            text-align: center;
+            font-weight: bold;
+        }
+
+        .footer table {
+            width: 100%;
+        }
+
+        .footer table td {
+            padding: 1px 0;
         }
     </style>
 </head>
@@ -152,79 +235,107 @@
 <div class="page">
 
     <div class="header">
-        <div class="company">Syifa Global Group</div>
+        <img src="{{ public_path('assets/logo-sgg.png') }}" alt="Logo">
     </div>
 
-    <div class="stamp">RAHASIA</div>
+    @php
+        // Nominal 0 cukup tampilkan "Rp" polos (tanpa "0") — diminta eksplisit biar slip tidak
+        // penuh "Rp 0" berulang buat komponen yang memang tidak menghasilkan apa-apa.
+        $rupiah = fn ($amount) => $amount > 0 ? 'Rp ' . number_format($amount, 0, ',', '.') : 'Rp';
 
-    <div class="title">SLIP GAJI</div>
+        $joiningDate = $payroll->user->profile?->joining_date;
+        $masaKerja = '-';
 
-    <!-- INFO -->
-    <div class="info">
-        <div>
-            <table>
-                <tr><td>Nama</td><td>: {{ $payroll->user->name }}</td></tr>
-                <tr><td>NIP</td><td>: {{ $payroll->user->nip ?? '-' }}</td></tr>
-                <tr><td>Jabatan</td><td>: {{ $payroll->user->activeJobPosition->jobPosition->name ?? '-' }}</td></tr>
-            </table>
+        if ($joiningDate) {
+            $mulai = \Carbon\Carbon::parse($joiningDate);
+            $sampai = \Carbon\Carbon::parse($payroll->payrollPeriod->end_date);
+            $tahun = (int) $mulai->diffInYears($sampai);
+            $bulan = $tahun > 0
+                ? (int) $mulai->copy()->addYears($tahun)->diffInMonths($sampai)
+                : (int) $mulai->diffInMonths($sampai);
+            $masaKerja = $tahun > 0 ? "{$tahun} Tahun {$bulan} Bulan" : "{$bulan} Bulan";
+        }
+    @endphp
+
+    <!-- HEADER: stamp RAHASIA (kiri) + Periode Gaji/Tanggal Bayar (kanan) -->
+    <div class="doc-header">
+        <div class="stamp-cell">
+            <div class="stamp">RAHASIA</div>
         </div>
-        <div>
+        <div class="period-cell">
             <table>
                 <tr>
-                    <td>Periode</td>
-                    <td>:
-                        {{ \Carbon\Carbon::parse($payroll->payrollPeriod->start_date)->format('d/m/Y') }}
-                        -
-                        {{ \Carbon\Carbon::parse($payroll->payrollPeriod->end_date)->format('d/m/Y') }}
-                    </td>
+                    <td>Periode Gaji</td>
+                    <td>:</td>
+                    <td>{{ \Carbon\Carbon::parse($payroll->payrollPeriod->end_date)->format('d/m/Y') }}</td>
+                </tr>
+                <tr>
+                    <td>Tanggal Bayar</td>
+                    <td>:</td>
+                    <td>{{ $payroll->payrollPeriod->payment_date?->format('d/m/Y') ?? '-' }}</td>
                 </tr>
             </table>
         </div>
     </div>
 
+    <div class="title">SLIP GAJI</div>
+
+    <!-- INFO -->
+    <div class="info">
+        <table>
+            <tr><td>Nama</td><td>: {{ $payroll->user->name }}</td></tr>
+            <tr><td>Jabatan</td><td>: {{ $payroll->user->activeJobPosition->jobPosition->name ?? '-' }}</td></tr>
+            <tr><td>NIP</td><td>: {{ $payroll->user->nip ?? '-' }}</td></tr>
+            <tr><td>Masa Kerja</td><td>: {{ $masaKerja }}</td></tr>
+            <tr><td>Status Karyawan</td><td>: {{ $payroll->user->profile?->employeeType?->name ?? '-' }}</td></tr>
+        </table>
+    </div>
+
     <div class="line"></div>
 
     <!-- SALARY: seluruh komponen gaji yang aktif di perusahaan ini (bukan cuma yang
-    kebetulan menghasilkan angka) — komponen tanpa nilai tetap tampil Rp 0. -->
-    <table class="salary">
-        <tr>
-            <td class="label">
-                <strong>PENDAPATAN</strong><br>
+    kebetulan menghasilkan angka) — komponen tanpa nilai tetap tampil Rp 0. Tetap sebelahan,
+    POTONGAN dikasih porsi lebar lebih besar karena 3 kolom (lihat .salary-cols). -->
+    <div class="salary-cols">
+        <div class="salary-col earnings">
+            <div class="section-title">PENDAPATAN</div>
+            <table class="salary-items">
                 @foreach($rows['earnings'] as $row)
-                    {{ $row['label'] }}@if($row['note']) ({{ $row['note'] }})@endif<br>
+                    <tr>
+                        <td>{{ $row['label'] }}</td>
+                        <td>:</td>
+                        <td class="s-amount">{{ $rupiah($row['amount']) }}</td>
+                    </tr>
                 @endforeach
-            </td>
-            <td class="amount">
-                <br>
-                @foreach($rows['earnings'] as $row)
-                    Rp {{ number_format($row['amount'], 0, ',', '.') }}<br>
-                @endforeach
-            </td>
+            </table>
+        </div>
 
-            <td class="label">
-                <strong>POTONGAN</strong><br>
+        <div class="salary-col deductions">
+            <div class="section-title">POTONGAN</div>
+            <table class="salary-items">
                 @foreach($rows['deductions'] as $row)
-                    {{ $row['label'] }}@if($row['note']) ({{ $row['note'] }})@endif<br>
+                    <tr>
+                        <td>{{ $row['label'] }}</td>
+                        <td>:</td>
+                        <td class="s-amount">{{ $rupiah($row['amount']) }}</td>
+                        <td class="s-note">{{ $row['note'] ? '(' . $row['note'] . ')' : '' }}</td>
+                    </tr>
                 @endforeach
-            </td>
-            <td class="amount">
-                <br>
-                @foreach($rows['deductions'] as $row)
-                    Rp {{ number_format($row['amount'], 0, ',', '.') }}<br>
-                @endforeach
-            </td>
-        </tr>
-    </table>
+            </table>
+        </div>
+    </div>
 
     <div class="line"></div>
 
     <!-- TOTAL -->
     <table class="salary">
         <tr>
-            <td class="label"><strong>Total Bruto</strong></td>
-            <td class="amount"><strong>Rp {{ number_format($payroll->gross_salary, 0, ',', '.') }}</strong></td>
-            <td class="label"><strong>Total Potongan</strong></td>
-            <td class="amount"><strong>Rp {{ number_format($payroll->total_deductions, 0, ',', '.') }}</strong></td>
+            <td class="label"><strong>TOTAL GAJI</strong></td>
+            <td class="colon">:</td>
+            <td class="amount"><strong>{{ $rupiah($payroll->gross_salary) }}</strong></td>
+            <td class="label" style="padding-left: 28px;"><strong>TOTAL POTONGAN</strong></td>
+            <td class="colon">:</td>
+            <td class="amount"><strong>{{ $rupiah($payroll->total_deductions) }}</strong></td>
         </tr>
     </table>
 
@@ -239,12 +350,12 @@
             <tr>
                 <td class="label"><strong>Total Gaji Diterima</strong></td>
                 <td class="colon">:</td>
-                <td class="value"><strong>Rp {{ number_format($payroll->net_salary, 0, ',', '.') }}</strong></td>
+                <td class="value"><strong>{{ $rupiah($payroll->net_salary) }}</strong></td>
             </tr>
             <tr>
-                <td class="label">Terbilang</td>
+                <td class="label"><strong>Terbilang</strong></td>
                 <td class="colon">:</td>
-                <td class="value" style="font-style: italic;">{{ $terbilang }}</td>
+                <td class="value" style="font-style: italic;"><strong>{{ $terbilang }}</strong></td>
             </tr>
         </table>
     </div>
@@ -252,12 +363,14 @@
     <!-- SIGN -->
     <div class="signature">
         <div>
-            Dibuat oleh,<br><br><br>
-            <strong>NOOR AFINI, SE</strong><br>
-            Accounting
+            Dibuat oleh,
+            <span class="ttd-space">&nbsp;</span>
+            <strong>{{ $payroll->payrollPeriod->generatedBy?->name ?? 'NOOR AFINI, SE' }}</strong><br>
+            {{ $payroll->payrollPeriod->generatedBy?->activeJobPosition?->jobPosition?->name ?? 'Accounting' }}
         </div>
         <div>
-            Diterima oleh,<br><br><br>
+            Diterima oleh,
+            <span class="ttd-space">&nbsp;</span>
             <strong>{{ $payroll->user->name }}</strong><br>
             {{ $payroll->user->activeJobPosition->jobPosition->name ?? '-' }}
         </div>
@@ -265,8 +378,15 @@
 
     <!-- FOOTER -->
     <div class="footer">
-        (+62) 813-4957-9447 · info@syifaglobalgroup.com <br>
-        Jl. R.O Ulin No. 93, Banjarbaru Selatan, Kalimantan Selatan 70712
+        <table>
+            <tr><td colspan="2">(+62) 813-4957-9447</td></tr>
+            <tr><td colspan="2">info@syifaglobalgroup.com</td></tr>
+            <tr>
+                <td>JL. R.O Ulin No. 93. Kec Banjarbaru Selatan</td>
+                <td style="text-align: right;">www.syifaglobalgroup.com</td>
+            </tr>
+            <tr><td colspan="2">Kota Banjarbaru, Kalimantan Selatan, Indonesia 70712</td></tr>
+        </table>
     </div>
 
 </div>

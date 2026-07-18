@@ -4,6 +4,7 @@ namespace App\Models\Payroll;
 
 use App\Models\Concerns\BelongsToCompany;
 use App\Models\Master\Companies;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -23,12 +24,15 @@ class PayrollPeriod extends Model
         'company_id',
         'start_date',
         'end_date',
+        'payment_date',
         'processed_at',
+        'generated_by',
     ];
 
     protected $casts = [
         'start_date' => 'date',
         'end_date' => 'date',
+        'payment_date' => 'date',
         'processed_at' => 'datetime',
     ];
 
@@ -40,5 +44,10 @@ class PayrollPeriod extends Model
     public function payrolls(): HasMany
     {
         return $this->hasMany(Payroll::class);
+    }
+
+    public function generatedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'generated_by');
     }
 }
