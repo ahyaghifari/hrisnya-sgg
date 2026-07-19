@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Master\PermissionTypes\Tables;
 
+use App\Enum\Attendance\PermissionTypeCategoryEnum;
 use App\Filament\Resources\Master\PermissionTypes\PermissionTypeResource;
 use App\Filament\Resources\Master\PermissionTypes\Schemas\PermissionTypeForm;
 use App\Helpers\PermissionHelper;
@@ -24,6 +25,8 @@ class PermissionTypesTable
         return $table
             ->columns([
                 TextColumn::make('name')->label('Nama Tipe Izin')->searchable()->sortable(),
+                TextColumn::make('category')->label('Kategori')->placeholder('-')
+                    ->formatStateUsing(fn (?string $state) => $state ? PermissionTypeCategoryEnum::tryFrom($state)?->label() ?? $state : null),
             ])
             ->filters([
                 SelectFilter::make('company_id')

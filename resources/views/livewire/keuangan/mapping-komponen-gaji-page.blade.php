@@ -43,15 +43,28 @@
                     <div style="background:var(--surface);border-radius:12px;box-shadow:var(--shadow-card);padding:16px;">
                         {{-- Gaji Pokok --}}
                         @if ($activeComponent === 'gaji_pokok')
-                            <p style="font-size:11px;color:var(--text-muted);margin:0 0 12px;">Nominal gaji pokok per pangkat. Pangkat yang belum diisi tidak akan menghasilkan Gaji Pokok saat payroll digenerate.</p>
-                            <div style="display:flex;flex-direction:column;gap:8px;">
+                            <p style="font-size:11px;color:var(--text-muted);margin:0 0 12px;">Gaji pokok per pangkat = Base Salary x (1 + persen kenaikan per kelas x langkah kelas). Langkah kelas dihitung dari "Kelas Mulai" pangkat ini, mentok di "Kelas Maksimal". Persen kenaikannya sendiri berlaku 1 nilai untuk semua pangkat di company ini — atur di halaman Komponen Gaji.</p>
+                            <div style="display:flex;flex-direction:column;gap:14px;">
                                 @foreach ($this->pangkats as $p)
-                                    <div>
-                                        <div style="display:flex;align-items:center;gap:10px;">
-                                            <span style="flex:1;font-size:12.5px;font-weight:600;">{{ $p->name }}</span>
-                                            <input type="number" step="0.01" class="form-input" style="max-width:220px;font-size:12.5px;padding:7px 10px;" wire:model="gajiPokokValues.{{ $p->id }}" placeholder="Belum diisi">
+                                    <div style="border:1px solid var(--border-soft);border-radius:10px;padding:10px 12px;">
+                                        <p style="font-size:12.5px;font-weight:700;margin:0 0 8px;">{{ $p->name }}</p>
+                                        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;">
+                                            <div>
+                                                <label class="form-label" style="font-size:10.5px;">Base Salary (Rp)</label>
+                                                <input type="number" step="0.01" class="form-input" style="font-size:12.5px;padding:7px 10px;" wire:model="gajiPokokValues.{{ $p->id }}" placeholder="Belum diisi">
+                                                @error("gajiPokokValues.{$p->id}") <p style="font-size:10.5px;color:#dc2626;margin-top:2px;">{{ $message }}</p> @enderror
+                                            </div>
+                                            <div>
+                                                <label class="form-label" style="font-size:10.5px;">Kelas Mulai</label>
+                                                <input type="number" class="form-input" style="font-size:12.5px;padding:7px 10px;" wire:model="startKelasLevelValues.{{ $p->id }}" placeholder="Belum diisi">
+                                                @error("startKelasLevelValues.{$p->id}") <p style="font-size:10.5px;color:#dc2626;margin-top:2px;">{{ $message }}</p> @enderror
+                                            </div>
+                                            <div>
+                                                <label class="form-label" style="font-size:10.5px;">Kelas Maksimal</label>
+                                                <input type="number" class="form-input" style="font-size:12.5px;padding:7px 10px;" wire:model="maxKelasLevelValues.{{ $p->id }}" placeholder="Tanpa batas">
+                                                @error("maxKelasLevelValues.{$p->id}") <p style="font-size:10.5px;color:#dc2626;margin-top:2px;">{{ $message }}</p> @enderror
+                                            </div>
                                         </div>
-                                        @error("gajiPokokValues.{$p->id}") <p style="font-size:11px;color:#dc2626;margin:2px 0 0;text-align:right;">{{ $message }}</p> @enderror
                                     </div>
                                 @endforeach
                                 @if ($this->pangkats->isEmpty())
@@ -115,7 +128,7 @@
                                     <table style="border-collapse:collapse;width:100%;font-size:11.5px;">
                                         <thead>
                                             <tr>
-                                                <th style="text-align:left;padding:6px 10px;border-bottom:1.5px solid var(--border);white-space:nowrap;">Pangkat \ Kelas</th>
+                                                <th style="text-align:left;padding:6px 10px;border-bottom:1.5px solid var(--border);white-space:nowrap;position:sticky;left:0;background:var(--surface);z-index:1;border-right:1.5px solid var(--border);">Pangkat \ Kelas</th>
                                                 @foreach ($this->kelasList as $k)
                                                     <th style="text-align:left;padding:6px 10px;border-bottom:1.5px solid var(--border);white-space:nowrap;">{{ $k->name }}</th>
                                                 @endforeach
@@ -124,10 +137,21 @@
                                         <tbody>
                                             @foreach ($this->pangkats as $p)
                                                 <tr>
-                                                    <td style="padding:6px 10px;font-weight:600;white-space:nowrap;">{{ $p->name }}</td>
+                                                    <td style="padding:6px 10px;font-weight:600;white-space:nowrap;position:sticky;left:0;background:var(--surface);z-index:1;border-right:1.5px solid var(--border);">{{ $p->name }}</td>
                                                     @foreach ($this->kelasList as $k)
+                                                        @php
+                                                            // Kelas di luar jangkauan pangkat ini (level < start_kelas_level atau
+                                                            // > max_kelas_level) di-disable — kombinasi itu memang tidak pernah
+                                                            // kejadian di dunia nyata (pangkat cuma bisa naik kelas dalam
+                                                            // rentangnya sendiri). Kalau start/max belum diisi (NULL, company yang
+                                                            // datanya belum ada di migrasi backfill), tidak ada yang di-disable.
+                                                            $outOfRange = $k->level !== null && (
+                                                                ($p->start_kelas_level !== null && $k->level < $p->start_kelas_level)
+                                                                || ($p->max_kelas_level !== null && $k->level > $p->max_kelas_level)
+                                                            );
+                                                        @endphp
                                                         <td style="padding:4px 6px;">
-                                                            <input type="number" step="0.01" class="form-input" style="width:120px;font-size:11.5px;padding:6px 8px;{{ $errors->has("jabatanMatrix.{$p->id}|{$k->id}") ? 'border-color:#dc2626;' : '' }}" wire:model="jabatanMatrix.{{ $p->id }}|{{ $k->id }}">
+                                                            <input type="number" step="0.01" class="form-input" style="width:120px;font-size:11.5px;padding:6px 8px;{{ $outOfRange ? 'opacity:0.4;' : 'border-color:#042c6c;' }}{{ $errors->has("jabatanMatrix.{$p->id}|{$k->id}") ? 'border-color:#dc2626;' : '' }}" wire:model="jabatanMatrix.{{ $p->id }}|{{ $k->id }}" @disabled($outOfRange) @if ($outOfRange) title="Kelas {{ $k->name }} di luar jangkauan pangkat {{ $p->name }} ({{ $p->start_kelas_level ?? '?' }}–{{ $p->max_kelas_level ?? '?' }})" @endif>
                                                         </td>
                                                     @endforeach
                                                 </tr>

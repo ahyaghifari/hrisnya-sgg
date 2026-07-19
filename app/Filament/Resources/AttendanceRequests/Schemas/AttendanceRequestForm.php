@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\AttendanceRequests\Schemas;
 
 use App\Enum\AttendanceReqStatus;
+use App\Services\Attendance\AttendaceReqService;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Hidden;
@@ -379,7 +380,61 @@ class AttendanceRequestForm
                                 ->columnSpan(2),
                         ]),
                 ]),
+
+            // Info kuota pemohon — approver bisa lihat sisa jatah Cuti/Izin pemohon SAAT
+            // memutuskan approve, bukan widget terpisah. Lihat
+            // planning/2026-07-19-revisi-absensi-cutoff-kuota-izin-widget-pimpinan.md §8.
+            Section::make('Kuota Pemohon')
+                ->columnSpanFull()
+                ->visible(fn ($record) => in_array($record->type, ['leave', 'permission']))
+                ->schema([
+                    Grid::make()
+                        ->columns(3)
+                        ->schema([
+                            TextEntry::make('quota_total')
+                                ->label('Kuota')
+                                ->formatStateUsing(fn ($record) => self::getQuotaSummary($record)['quota'] ?? '-'),
+
+                            TextEntry::make('quota_used')
+                                ->label('Digunakan (Disetujui)')
+                                ->formatStateUsing(fn ($record) => self::getQuotaSummary($record)['used'] ?? '-'),
+
+                            TextEntry::make('quota_available')
+                                ->label('Sisa')
+                                ->formatStateUsing(fn ($record) => self::getQuotaSummary($record)['available'] ?? '-'),
+                        ]),
+                ]),
         ];
+    }
+
+    /** @return array{quota: string, used: string, available: string} */
+    private static function getQuotaSummary($record): array
+    {
+        $service = app(AttendaceReqService::class);
+
+        if ($record->type === 'leave' && $record->leaveDetails->isNotEmpty()) {
+            $leave = $record->leaveDetails->first();
+            $balance = $service->getLeaveUserBalance($record->user_id, $leave->leave_type_id);
+
+            return [
+                'quota' => "{$balance['quota']} hari",
+                'used' => "{$balance['used']} hari (Cuti Bersama: {$balance['collective_leave_days']} hari)",
+                'available' => "{$balance['available']} hari",
+            ];
+        }
+
+        if ($record->type === 'permission' && $record->permissionDetails->isNotEmpty()) {
+            $permission = $record->permissionDetails->first();
+            $usage = $service->getIzinPeriodeUsage($record->user, $permission->date);
+
+            return [
+                'quota' => $usage['max'] > 0 ? "{$usage['max']} hari" : 'Tidak dibatasi',
+                'used' => "{$usage['used']} hari",
+                'available' => $usage['available'] !== null ? "{$usage['available']} hari" : '-',
+            ];
+        }
+
+        return [];
     }
 
     private static function getOvertimeDetailSchema(): array

@@ -129,6 +129,7 @@ enum PayrollComponentEnum: string
     public function requiredSettings(): array
     {
         return match ($this) {
+            self::GAJI_POKOK => ['gaji_pokok_kenaikan_per_kelas'],
             self::KELEBIHAN_JAM_KERJA => ['min_total_working_hours_per_month'],
             self::LEMBUR => ['lembur_metode', 'lembur_minimum_jam'],
             self::BPJS_KESEHATAN, self::BPJS_KETENAGAKERJAAN => ['bpjs_declared_value'],

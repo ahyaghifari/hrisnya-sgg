@@ -14,9 +14,10 @@ class AttendanceRequestTypeSeeder extends Seeder
      */
     public function run(): void
     {
+        // "Cuti Sakit" sengaja tidak ada — dikonfirmasi user tidak masuk sistem (lihat
+        // planning/2026-07-19-revisi-absensi-cutoff-kuota-izin-widget-pimpinan.md §7).
         $leaveTypes = [
             'Cuti Tahunan',
-            'Cuti Sakit',
             'Cuti Melahirkan',
             'Cuti Besar',
             'Cuti Karena Alasan Penting',

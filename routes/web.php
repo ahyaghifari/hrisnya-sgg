@@ -4,6 +4,9 @@ use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\AttendanceTemplateController;
 use App\Http\Controllers\EmployeeImportController;
 use App\Livewire\AttendanceRequestDetail;
+use App\Livewire\Coaching\CoachingPage;
+use App\Livewire\Coaching\MyCoachingPage;
+use App\Livewire\Counseling\CounselingPage;
 use App\Livewire\Dashboard;
 use App\Livewire\EditMyEmployee;
 use App\Livewire\EmployeeAttendanceStatistics;
@@ -11,7 +14,6 @@ use App\Livewire\Kanban\CreateKanbanBoard;
 use App\Livewire\Kanban\KanbanBoardDetail;
 use App\Livewire\Kanban\KanbanBoardsList;
 use App\Livewire\Kanban\KanbanPersonalTasks;
-use App\Livewire\Keuangan\ImportIncentivesPage;
 use App\Livewire\Keuangan\IncentivesPage;
 use App\Livewire\Keuangan\KoperasiPage;
 use App\Livewire\Keuangan\MappingKomponenGajiPage;
@@ -19,14 +21,16 @@ use App\Livewire\Keuangan\PayrollDetailPage;
 use App\Livewire\Keuangan\PayrollPeriodsPage;
 use App\Livewire\Keuangan\PayrollsPage;
 use App\Livewire\Keuangan\SalaryComponentsPage;
-use App\Livewire\Master\HolidaysPage;
 use App\Livewire\MyAttendanceRequests;
 use App\Livewire\MyEmployees;
 use App\Livewire\OrganizationStructure;
 use App\Livewire\Pelatihan\QuizAttempt;
 use App\Livewire\Pelatihan\TrainingDetail;
 use App\Livewire\Pelatihan\TrainingList;
+use App\Livewire\Presensi\AttendanceSettingsPage;
 use App\Livewire\Presensi\CreateSchedulePage;
+use App\Livewire\Presensi\HolidayCalendarPage;
+use App\Livewire\Presensi\HolidaysPage;
 use App\Livewire\Presensi\SchedulesPage;
 use App\Http\Controllers\Pwa\PushSubscriptionController;
 use App\Livewire\Pwa\Akun as PwaAkun;
@@ -109,28 +113,45 @@ Route::middleware(['auth', 'portal.access'])->group(function () {
     Route::get('/keuangan/komponen-gaji', SalaryComponentsPage::class)
         ->name('keuangan.komponen-gaji');
 
+    Route::get('/keuangan/penerima-komponen-gaji', \App\Livewire\Keuangan\PayrollComponentRecipientsPage::class)
+        ->name('keuangan.penerima-komponen-gaji');
+
     Route::get('/keuangan/insentif', IncentivesPage::class)
         ->name('keuangan.insentif');
 
     Route::get('/keuangan/koperasi', KoperasiPage::class)
         ->name('keuangan.koperasi');
 
-    // Tidak ada link nav langsung (dicabut atas permintaan user) — cuma diakses lewat tombol
-    // "Import Insentif" di halaman Payroll, muncul kondisional kalau company metode='import'.
-    Route::get('/keuangan/import-insentif', ImportIncentivesPage::class)
-        ->name('keuangan.import-insentif');
 
     Route::get('/keuangan/mapping-komponen-gaji', MappingKomponenGajiPage::class)
         ->name('keuangan.mapping-komponen-gaji');
-
-    Route::get('/master/hari-libur', HolidaysPage::class)
-        ->name('master.hari-libur');
 
     Route::get('/presensi/jadwal', SchedulesPage::class)
         ->name('presensi.jadwal');
 
     Route::get('/presensi/jadwal/tambah', CreateSchedulePage::class)
         ->name('presensi.jadwal.tambah');
+
+    Route::get('/presensi/pengaturan', AttendanceSettingsPage::class)
+        ->name('presensi.pengaturan');
+
+    Route::get('/presensi/hari-libur', HolidaysPage::class)
+        ->name('presensi.hari-libur');
+
+    // Read-only, permission null (guard/self-service biasa) — versi karyawan biasa dari
+    // halaman kelola di atas. Belum ada link masuk di nav manapun, lihat
+    // planning/2026-07-19-revisi-absensi-cutoff-kuota-izin-widget-pimpinan.md §9.3.
+    Route::get('/presensi/kalender-libur', HolidayCalendarPage::class)
+        ->name('presensi.kalender-libur');
+
+    Route::get('/coaching-saya', MyCoachingPage::class)
+        ->name('coaching.saya');
+
+    Route::get('/coaching', CoachingPage::class)
+        ->name('coaching');
+
+    Route::get('/counseling', CounselingPage::class)
+        ->name('counseling');
 
     Route::get('/kanban', KanbanBoardsList::class)
         ->name('kanban');

@@ -283,26 +283,67 @@ body.site { font-family: 'Plus Jakarta Sans', sans-serif; background: var(--surf
 
 /* ── NAV ── */
 .topnav { background: var(--surface); border-bottom: 1px solid var(--border-soft); position: sticky; top: 0; z-index: 50; }
-.topnav::before { content: ''; display: block; height: 3px; background: linear-gradient(90deg, #042c6c 0%, #042c6c 55%, #047C54 78%, #B9308C 100%); }
-.topnav-inner { max-width: 1400px; margin: 0 auto; padding: 0 20px; display: flex; align-items: center; height: 58px; gap: 16px; }
-@media (min-width: 768px) { .topnav-inner { padding: 0 40px; gap: 40px; } }
+.topnav::after { content: ''; display: block; height: 3px; background: linear-gradient(90deg, #042c6c 0%, #042c6c 55%, #047C54 78%, #B9308C 100%); }
+.topnav-inner { max-width: 1400px; margin: 0 auto; padding: 10px 20px; display: flex; align-items: center; min-height: 58px; gap: 16px; }
+@media (min-width: 768px) { .topnav-inner { padding: 10px 40px; gap: 40px; } }
 .nav-brand { display: flex; align-items: center; gap: 10px; text-decoration: none; flex-shrink: 0; }
-.nav-links { display: none; align-items: center; gap: 2px; flex: 1; }
+/* .nav-middle: kolom tengah topnav-inner, isinya nav-links (baris karyawan) ditumpuk di atas
+   topnav-row2 (baris role, kalau ada) — supaya baris role sejajar tepat di bawah baris karyawan,
+   bukan dari kiri penuh ikut posisi logo. */
+.nav-middle { display: none; flex-direction: column; flex: 1; min-width: 0; gap: 6px; }
+.nav-links { display: flex; align-items: center; gap: 2px; flex-wrap: wrap; }
 .nav-right { display: none; align-items: center; gap: 8px; }
-@media (min-width: 768px) { .nav-links { display: flex; } .nav-right { display: flex; } }
+@media (min-width: 768px) { .nav-middle { display: flex; } .nav-right { display: flex; } }
 .nav-item { padding: 7px 14px; border-radius: 8px; font-size: 13.5px; font-weight: 500; color: var(--text-muted); text-decoration: none; transition: all 0.15s; border: none; background: none; cursor: pointer; display: flex; align-items: center; gap: 5px; }
 .nav-item:hover { color: var(--brand); background: #f0f4fb; }
 .nav-item.active { color: var(--brand); font-weight: 600; background: #eef2fb; }
 html.dark .nav-item:hover, html.dark .dropdown-item:hover { background: rgba(110,168,224,0.16); }
 html.dark .nav-item.active { background: rgba(110,168,224,0.22); }
+
+/* Dropdown nav "Penggajian" (hijau) & "Presensi" (sky) — background solid selalu tampil,
+   beda dari .nav-item biasa yang cuma dapat background saat hover/active. */
+.nav-item-green { color: #fff; background: var(--brand-success); }
+.nav-item-green:hover, .nav-item-green.active { color: #fff; background: #036344; }
+html.dark .nav-item-green:hover, html.dark .nav-item-green.active { background: #059669; }
+
+.nav-item-sky { color: #fff; background: #0284c7; }
+.nav-item-sky:hover, .nav-item-sky.active { color: #fff; background: #026aa3; }
+html.dark .nav-item-sky:hover, html.dark .nav-item-sky.active { background: #026aa3; }
+
+.nav-item-navy { color: #fff; background: #042c6c; }
+.nav-item-navy:hover, .nav-item-navy.active { color: #fff; background: #031f4d; }
+
+.nav-item-orange { color: #fff; background: #ea580c; }
+.nav-item-orange:hover, .nav-item-orange.active { color: #fff; background: #c2410c; }
+html.dark .nav-item-navy:hover, html.dark .nav-item-navy.active { background: #031f4d; }
+
+.nav-item-navy-outline { color: #042c6c; background: transparent; border: 1px solid #042c6c; }
+.nav-item-navy-outline:hover, .nav-item-navy-outline.active { color: #042c6c; background: rgba(4,44,108,0.08); }
+html.dark .nav-item-navy-outline { color: #6ea8e0; border-color: #6ea8e0; }
+html.dark .nav-item-navy-outline:hover, html.dark .nav-item-navy-outline.active { color: #6ea8e0; background: rgba(110,168,224,0.12); }
+
+/* Baris 2 nav desktop (role/jabatan) — nested di .nav-middle (bukan full-bleed lagi), pill
+   abu-abu yang cuma selebar isinya, nempel tepat di bawah baris karyawan. Background & teks
+   theme-aware (var(--border)/var(--text-muted)) — abu-abu terang di light mode, abu-abu gelap
+   yang serasi di dark mode (bukan fixed literal, biar tidak nyala terang di tengah halaman gelap). */
+.topnav-row2 { display: flex; align-items: center; gap: 8px; background: var(--border); border: 1px solid var(--border-soft); border-radius: 10px; padding: 4px 8px; flex-wrap: wrap; }
+@media (min-width: 768px) { .topnav-row2 { gap: 16px; } }
+.topnav-row2 .nav-item { padding: 4px 10px; font-size: 12px; border-radius: 7px; gap: 4px; color: var(--text-muted); }
+.topnav-row2 .nav-item-green, .topnav-row2 .nav-item-sky, .topnav-row2 .nav-item-navy, .topnav-row2 .nav-item-orange { color: #fff; }
 .dropdown { position: relative; }
-.dropdown-menu { position: absolute; top: calc(100% + 10px); left: 50%; transform: translateX(-50%) translateY(-4px); background: var(--surface); border-radius: 14px; padding: 6px; box-shadow: 0 8px 30px rgba(4,44,108,0.12), 0 0 0 1px rgba(4,44,108,0.06); min-width: 180px; opacity: 0; visibility: hidden; transition: all 0.15s; }
+.dropdown-menu { position: absolute; top: calc(100% + 10px); left: 50%; transform: translateX(-50%) translateY(-4px); background: var(--surface); border-radius: 14px; padding: 6px; box-shadow: 0 8px 30px rgba(4,44,108,0.12), 0 0 0 1px rgba(4,44,108,0.06); min-width: 180px; opacity: 0; visibility: hidden; transition: all 0.15s; z-index: 60; }
 .dropdown-menu.dropdown-menu-right { left: auto; right: 0; transform: translateY(-4px); }
 .dropdown:hover .dropdown-menu { opacity: 1; visibility: visible; transform: translateX(-50%) translateY(0); }
 .dropdown:hover .dropdown-menu.dropdown-menu-right { transform: translateY(0); }
 .dropdown-item { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 9px; font-size: 13px; color: var(--text-body); text-decoration: none; font-weight: 500; transition: background 0.1s; width: 100%; text-align: left; background: none; border: none; cursor: pointer; }
 .dropdown-item:hover { background: #f0f4fb; color: var(--brand); }
 .dropdown-item i { width: 14px; text-align: center; color: var(--text-faint); font-size: 12px; }
+.dropdown-group-label { display: block; padding: 6px 12px 2px; font-size: 10.5px; font-weight: 700; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.04em; }
+
+/* Logo nav desktop: varian dark (public/assets/app-icon-dark.png) cuma tampil saat html.dark aktif. */
+.nav-brand-icon-dark { display: none; }
+html.dark .nav-brand-icon-light { display: none; }
+html.dark .nav-brand-icon-dark { display: inline-block; }
 .nav-bell { position: relative; width: 36px; height: 36px; border-radius: 10px; border: 1.5px solid var(--border-soft); display: flex; align-items: center; justify-content: center; color: var(--text-muted); cursor: pointer; }
 .nav-bell-dot { position: absolute; top: 6px; right: 6px; width: 7px; height: 7px; background: #ef4444; border-radius: 50%; border: 1.5px solid var(--surface); }
 .nav-avatar { width: 36px; height: 36px; border-radius: 50%; background: #042c6c; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 700; font-size: 13px; cursor: pointer; }
@@ -652,9 +693,9 @@ html.dark .quiz-review-option.is-wrong-selected i { color: #f87171; }
     .bento-welcome, .bento-absensi, .bento-recent, .bento-pending-approvals { grid-column: 1 / 3; }
 }
 @media (min-width: 1024px) {
-    .bento { grid-template-columns: 1.3fr 1fr 1fr 1fr 1fr; grid-template-rows: 1fr 1fr auto auto; min-height: 340px; }
-    .bento-welcome { grid-column: 1/3; grid-row: 1/3; }
-    .bento-absensi { grid-column: 3; grid-row: 1/3; }
+    .bento { grid-template-columns: 1fr 2fr; grid-template-rows: auto auto auto auto; }
+    .bento-welcome { grid-column: 1/-1; grid-row: 1; }
+    .bento-absensi { grid-column: 1; grid-row: 2; }
     .bento-pending-approvals { grid-column: 1/-1; grid-row: 3; }
     .bento-recent  { grid-column: 1/-1; grid-row: 4; }
 }
@@ -671,7 +712,7 @@ html.dark .quiz-review-option.is-wrong-selected i { color: #f87171; }
 
 .bento-side-stats { display: none; grid-template-columns: repeat(2, 1fr); gap: 16px; }
 @media (min-width: 768px) { .bento-side-stats { display: grid; grid-column: 1 / -1; } }
-@media (min-width: 1024px) { .bento-side-stats { grid-column: 4 / 6; grid-row: 1 / 3; } }
+@media (min-width: 1024px) { .bento-side-stats { grid-column: 2; grid-row: 2; grid-template-columns: repeat(3, 1fr); } }
 
 /* Task Saya + Kursus Saya: satu kolom bertumpuk di mobile, berdampingan 2 kolom di desktop.
    Full-width row-nya sendiri di bawah welcome/presensi/saldo, terlepas dari jumlah kolom
@@ -691,7 +732,7 @@ html.dark .quiz-review-option.is-wrong-selected i { color: #f87171; }
 .data-diri-btn { display: inline-flex; align-items: center; gap: 8px; background: #fff; color: #042c6c; font-weight: 700; font-size: 13px; padding: 9px 16px; border-radius: 12px; text-decoration: none; }
 
 /* ── ABSENSI CARD ── */
-.absen-card { background: linear-gradient(135deg, #047C54 0%, #024732 100%); border-radius: 20px; padding: 24px; position: relative; overflow: hidden; display: flex; flex-direction: column; justify-content: space-between; gap: 14px; min-height: 220px; }
+.absen-card { background: linear-gradient(135deg, #047C54 0%, #024732 100%); border-radius: 20px; padding: 24px; position: relative; overflow: hidden; display: flex; flex-direction: column; justify-content: space-between; gap: 14px; min-height: 140px; }
 .a-deco-1 { position: absolute; top: -70px; right: -60px; width: 220px; height: 220px; border-radius: 50%; background: #fff; opacity: 0.06; }
 .a-deco-2 { position: absolute; bottom: -60px; left: -40px; width: 180px; height: 180px; border-radius: 50%; background: #042c6c; opacity: 0.14; }
 .a-deco-3 { position: absolute; top: 40%; right: 20px; width: 70px; height: 70px; border-radius: 14px; background: #B9308C; opacity: 0.14; transform: rotate(18deg); }
@@ -876,6 +917,16 @@ html.dark .ts-dropdown .active { background: rgba(110,168,224,0.16); }
 .custom-checkbox input:focus-visible ~ .box { outline: 2px solid var(--accent, #042c6c); outline-offset: 2px; }
 
 .saldo-pill { display: inline-flex; align-items: center; gap: 5px; background: var(--info-soft-bg); border: 1px solid var(--info-soft-border); color: var(--info-soft-text); font-size: 12px; font-weight: 600; padding: 5px 11px; border-radius: 99px; }
+
+/* ── MODAL ──
+   Dipakai bareng semua modal Livewire simple (Koperasi, Bon, Periode Gaji, dst) — `.modal-box`
+   sengaja dikasih margin-top biar tidak ketiban .topnav (sticky, z-index:50): overlay ini
+   z-index:50 juga (sama context sama nav, bukan trapped di dalam stacking context `.page-content`
+   karena wire:click ada di overlay-nya sendiri), tapi kalau viewport pendek & kontennya panjang,
+   box modal bisa scroll sampai ke bawah topnav — margin-top mencegah bagian atas box ketutupan. */
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 50; display: flex; align-items: flex-start; justify-content: center; padding: 16px; overflow-y: auto; }
+.modal-box { background: var(--surface); border-radius: 14px; padding: 20px; max-width: 420px; width: 100%; max-height: 90vh; overflow-y: auto; margin: 80px auto; }
+.modal-box-lg { max-width: 560px; }
 
 .btn-primary { display: inline-flex; align-items: center; justify-content: center; gap: 8px; background: #042c6c; color: white; font-weight: 700; font-size: 13.5px; padding: 12px 28px; border-radius: 12px; border: none; cursor: pointer; transition: all 0.15s; font-family: inherit; }
 .btn-primary:hover { background: #032356; transform: translateY(-1px); box-shadow: 0 4px 14px rgba(4,44,108,0.25); }

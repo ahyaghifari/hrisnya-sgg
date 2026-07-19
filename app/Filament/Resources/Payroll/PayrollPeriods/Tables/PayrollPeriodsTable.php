@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Payroll\PayrollPeriods\Tables;
 
 use App\Jobs\GeneratePayrollJob;
 use App\Jobs\RegeneratePayrollJob;
+use App\Models\Payroll\Payroll;
 use Filament\Actions\Action;
 use Filament\Actions\EditAction;
 use Filament\Actions\ViewAction;
@@ -12,6 +13,7 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Filament\Tables;
+use Illuminate\Support\Facades\DB;
 
 class PayrollPeriodsTable
 {
@@ -83,6 +85,32 @@ class PayrollPeriodsTable
                             ->title('Payroll regeneration started')
                             ->body('Unpaid payrolls are being re-generated in the background.')
                             ->warning()
+                            ->send();
+                    }),
+
+                // Bersih total: hapus payrolls (payroll_items ikut cascade DB) +
+                // payroll_manual_lines (cascade DB dari payroll_period_id) + periode-nya
+                // sendiri. Ditolak kalau ada payroll is_paid=true di periode ini — payroll yang
+                // sudah dibayar tidak boleh disentuh, prinsip yang sama dipakai regenerate.
+                Action::make('deletePeriod')
+                    ->label('Hapus Periode')
+                    ->icon('heroicon-o-trash')
+                    ->color('danger')
+                    ->requiresConfirmation()
+                    ->modalHeading('Hapus Periode Payroll')
+                    ->modalDescription('Ini akan menghapus PERMANEN periode ini beserta semua payroll, item, dan manual line (Koperasi/Bon/Insentif) di dalamnya. Tidak bisa dibatalkan.')
+                    ->modalSubmitActionLabel('Ya, Hapus Semua')
+                    ->visible(fn ($record) => ! $record->payrolls()->where('is_paid', true)->exists())
+                    ->action(function ($record) {
+                        DB::transaction(function () use ($record) {
+                            Payroll::where('payroll_period_id', $record->id)->each(fn ($payroll) => $payroll->delete());
+                            $record->delete();
+                        });
+
+                        Notification::make()
+                            ->title('Periode berhasil dihapus')
+                            ->body('Payroll, item, dan manual line di periode ini sudah ikut terhapus.')
+                            ->success()
                             ->send();
                     }),
             ]);

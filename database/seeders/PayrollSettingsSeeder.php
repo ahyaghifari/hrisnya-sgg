@@ -21,6 +21,7 @@ class PayrollSettingsSeeder extends Seeder
     public function run(): void
     {
         $rows = [
+            ['key' => 'gaji_pokok_kenaikan_per_kelas', 'module' => 'payroll', 'type' => 'decimal', 'value' => '8', 'label' => 'Kenaikan Gaji Pokok per Kelas (%)', 'description' => 'Persentase kenaikan Gaji Pokok tiap naik 1 kelas dari "Kelas Mulai" pangkatnya (lihat halaman Mapping Komponen Gaji), mentok di "Kelas Maksimal" pangkat itu. Berlaku sama untuk semua pangkat di company ini — beda company boleh beda persen.'],
             ['key' => 'ump', 'module' => 'payroll', 'type' => 'decimal', 'value' => '0', 'label' => 'UMP (Upah Minimum Provinsi)', 'description' => 'Basis potongan BPJS untuk pangkat Pelaksana. Isi per company, jangan andalkan baris global ini.'],
             ['key' => 'bpjs_kesehatan_rate', 'module' => 'payroll', 'type' => 'decimal', 'value' => '1', 'label' => 'Rate BPJS Kesehatan (%)', 'description' => 'Persentase potongan BPJS Kesehatan dari basis (UMP atau nilai perusahaan).'],
             ['key' => 'bpjs_ketenagakerjaan_rate', 'module' => 'payroll', 'type' => 'decimal', 'value' => '2', 'label' => 'Rate BPJS Ketenagakerjaan (%)', 'description' => 'Persentase potongan BPJS Ketenagakerjaan dari basis.'],
@@ -33,9 +34,11 @@ class PayrollSettingsSeeder extends Seeder
             ['key' => 'lembur_minimum_jam', 'module' => 'payroll', 'type' => 'integer', 'value' => '2', 'label' => 'Minimum Jam Lembur Dibayar', 'description' => 'Lembur di bawah durasi ini tidak dihitung.'],
             ['key' => 'pajak_jasa_dokter_rate', 'module' => 'payroll', 'type' => 'decimal', 'value' => '0', 'label' => 'Rate Pajak Jasa Dokter (%)', 'description' => 'Persentase potongan pajak dari total klaim fee (jasa dokter, dst) per periode.'],
             ['key' => 'insentif_metode', 'module' => 'payroll', 'type' => 'string', 'value' => 'master', 'label' => 'Metode Insentif', 'description' => '"Master" = input manual lewat tabel Insentif (dipakai Holding). "Import" = upload Excel per periode SETELAH payroll digenerate, dicocokkan lewat NIP (dipakai RSU, perhitungannya dinamis).'],
-            ['key' => 'izin_max_per_periode', 'module' => 'attendance', 'type' => 'integer', 'value' => '2', 'label' => 'Batas Izin per Bulan', 'description' => 'Jumlah maksimum pengajuan izin (semua jenis digabung) yang diperbolehkan dalam 1 bulan.'],
-            ['key' => 'cuti_tahunan_max_per_bulan', 'module' => 'attendance', 'type' => 'integer', 'value' => '0', 'label' => 'Batas Cuti Tahunan per Bulan (Hari)', 'description' => 'Total hari Cuti Tahunan (akumulasi semua pengajuan dalam 1 bulan kalender, berdasarkan jenis cuti berkategori "Cuti Tahunan") yang boleh diajukan 1 user. 0 = tidak dibatasi.'],
         ];
+
+        // Setting module `attendance` (izin_max_per_periode, cuti_tahunan_max_per_bulan, dst)
+        // dipindah ke AttendanceSettingsSeeder — lihat
+        // planning/2026-07-19-revisi-absensi-cutoff-kuota-izin-widget-pimpinan.md §5.
 
         foreach ($rows as $row) {
             Setting::firstOrCreate(
@@ -63,17 +66,6 @@ class PayrollSettingsSeeder extends Seeder
                     'value' => '1',
                     'label' => 'Kompensasi Terlambat (kali/bulan)',
                     'description' => 'Override khusus Holding: telat pertama dalam 1 bulan tidak kena denda.',
-                ]
-            );
-
-            Setting::updateOrCreate(
-                ['company_id' => $holdingId, 'key' => 'cuti_tahunan_max_per_bulan'],
-                [
-                    'module' => 'attendance',
-                    'type' => 'integer',
-                    'value' => '5',
-                    'label' => 'Batas Cuti Tahunan per Bulan (Hari)',
-                    'description' => 'Override khusus Holding: maksimal 5 hari Cuti Tahunan (akumulasi) per bulan kalender per user.',
                 ]
             );
         }

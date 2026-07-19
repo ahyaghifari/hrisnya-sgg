@@ -63,6 +63,12 @@ class MappingKomponenGajiPage extends Component implements HasActions, HasSchema
     /** @var array<string,string> pangkat_id => base_salary */
     public array $gajiPokokValues = [];
 
+    /** @var array<string,string> pangkat_id => start_kelas_level (kelas terendah pangkat ini) */
+    public array $startKelasLevelValues = [];
+
+    /** @var array<string,string> pangkat_id => max_kelas_level (kelas tertinggi pangkat ini) */
+    public array $maxKelasLevelValues = [];
+
     /** @var array<string,string> pangkat_id => 'ump'|'declared_value'|'' (kosong = hapus mapping) */
     public array $bpjsValues = [];
 
@@ -163,13 +169,42 @@ class MappingKomponenGajiPage extends Component implements HasActions, HasSchema
         $this->gajiPokokValues = $this->pangkats
             ->mapWithKeys(fn (Pangkats $p) => [$p->id => (string) ($p->pangkatSalary?->base_salary ?? '')])
             ->all();
+
+        $this->startKelasLevelValues = $this->pangkats
+            ->mapWithKeys(fn (Pangkats $p) => [$p->id => (string) ($p->start_kelas_level ?? '')])
+            ->all();
+
+        $this->maxKelasLevelValues = $this->pangkats
+            ->mapWithKeys(fn (Pangkats $p) => [$p->id => (string) ($p->max_kelas_level ?? '')])
+            ->all();
     }
 
     public function saveGajiPokok(): void
     {
         $this->validate([
             'gajiPokokValues.*' => $this->nonNegativeAmountRule(),
-        ], [], ['gajiPokokValues.*' => 'nominal gaji pokok']);
+            'startKelasLevelValues.*' => $this->nonNegativeIntegerRule(),
+            'maxKelasLevelValues.*' => $this->nonNegativeIntegerRule(),
+        ], [], [
+            'gajiPokokValues.*' => 'nominal gaji pokok',
+            'startKelasLevelValues.*' => 'kelas mulai',
+            'maxKelasLevelValues.*' => 'kelas maksimal',
+        ]);
+
+        foreach ($this->pangkats as $p) {
+            $pangkatId = $p->id;
+
+            $start = $this->startKelasLevelValues[$pangkatId] ?? '';
+            $max = $this->maxKelasLevelValues[$pangkatId] ?? '';
+
+            if ($start !== '' && $max !== '' && (int) $max < (int) $start) {
+                $this->addError("maxKelasLevelValues.{$pangkatId}", '"Kelas Maksimal" tidak boleh lebih kecil dari "Kelas Mulai".');
+            }
+        }
+
+        if ($this->getErrorBag()->isNotEmpty()) {
+            return;
+        }
 
         foreach ($this->gajiPokokValues as $pangkatId => $value) {
             if ($value === '' || $value === null) {
@@ -177,6 +212,15 @@ class MappingKomponenGajiPage extends Component implements HasActions, HasSchema
             }
 
             PangkatSalary::updateOrCreate(['pangkat_id' => $pangkatId], ['base_salary' => $value]);
+        }
+
+        foreach ($this->pangkats as $p) {
+            $pangkatId = $p->id;
+
+            $p->update([
+                'start_kelas_level' => $this->startKelasLevelValues[$pangkatId] !== '' ? (int) $this->startKelasLevelValues[$pangkatId] : null,
+                'max_kelas_level' => $this->maxKelasLevelValues[$pangkatId] !== '' ? (int) $this->maxKelasLevelValues[$pangkatId] : null,
+            ]);
         }
 
         $this->notifySaved();
@@ -291,12 +335,30 @@ class MappingKomponenGajiPage extends Component implements HasActions, HasSchema
             'jabatanMatrix.*' => $this->nonNegativeAmountRule(),
         ], [], ['jabatanMatrix.*' => 'nominal tunjangan jabatan']);
 
+        $pangkatsById = $this->pangkats->keyBy('id');
+        $kelasById = $this->kelasList->keyBy('id');
+
         foreach ($this->jabatanMatrix as $key => $value) {
             if ($value === '' || $value === null) {
                 continue;
             }
 
             [$pangkatId, $kelasId] = explode('|', $key, 2);
+
+            // Jaring pengaman server-side — input yang di-disable di blade (kelas di luar
+            // start_kelas_level/max_kelas_level pangkatnya) tetap di-skip di sini walau
+            // seandainya ada yang paksa enable lewat DOM manipulation.
+            $pangkat = $pangkatsById->get($pangkatId);
+            $kelas = $kelasById->get($kelasId);
+
+            if ($pangkat && $kelas && $kelas->level !== null) {
+                $outOfRange = ($pangkat->start_kelas_level !== null && $kelas->level < $pangkat->start_kelas_level)
+                    || ($pangkat->max_kelas_level !== null && $kelas->level > $pangkat->max_kelas_level);
+
+                if ($outOfRange) {
+                    continue;
+                }
+            }
 
             PositionAllowance::updateOrCreate(
                 ['pangkat_id' => $pangkatId, 'kelas_id' => $kelasId],
@@ -379,7 +441,11 @@ class MappingKomponenGajiPage extends Component implements HasActions, HasSchema
                 $bMin = (int) $b['min_years'];
                 $bMax = $b['max_years'] !== '' ? (int) $b['max_years'] : PHP_INT_MAX;
 
-                if ($aMin <= $bMax && $bMin <= $aMax) {
+                // Strict "<" di kedua sisi — jenjang yang cuma BERSENTUHAN pas di titik yang
+                // sama (0-2 lanjut 2-5) TIDAK dianggap tumpang tindih, karena batas atas
+                // bersifat eksklusif secara konsep (tahun ke-2 masuk jenjang berikutnya, bukan
+                // dua-duanya). Overlap sungguhan (mis. 0-3 vs 2-5) tetap kena.
+                if ($aMin < $bMax && $bMin < $aMax) {
                     $this->addError("tenureRows.{$j}.min_years", 'Jenjang tahun tumpang tindih dengan baris lain.');
                 }
             }

@@ -34,28 +34,22 @@
                     </div>
                 </div>
 
-                {{-- Koperasi sengaja DICABUT dari dropdown ini (bukan dihapus) — sudah ada
-                     tabel master `user_koperasi` (halaman Koperasi) yang otomatis sync ke
-                     payroll_manual_lines tiap Generate, jadi input manual per periode di sini
-                     jadi redundan. Disembunyikan dulu, bukan dihapus permanen. --}}
-                @if ($this->insentifMetode === 'import' || $this->bonAktif)
-                    <div class="dropdown">
-                        <button type="button" style="padding:9px 16px;font-size:12.5px;font-weight:600;border:none;border-radius:12px;cursor:pointer;background:#047C54;color:#fff;">
-                            <i class="fa-solid fa-file-import"></i> Import <i class="fa-solid fa-chevron-down text-[10px]"></i>
+                <div style="display:flex;gap:8px;">
+                    {{-- Koperasi sengaja DICABUT dari sini (bukan dihapus) — sudah ada tabel
+                         master `user_koperasi` (halaman Koperasi) yang otomatis sync ke
+                         payroll_manual_lines tiap Generate, jadi input manual per periode di
+                         sini jadi redundan. Disembunyikan dulu, bukan dihapus permanen. --}}
+                    @if ($this->insentifMetode === 'import')
+                        <button type="button" wire:click="openImportModal('insentif')" style="display:inline-flex;align-items:center;gap:6px;padding:9px 16px;font-size:12.5px;font-weight:600;border:none;border-radius:12px;cursor:pointer;background:#047C54;color:#fff;">
+                            <i class="fa-solid fa-hand-holding-dollar"></i> Import Insentif
                         </button>
-                        <div class="dropdown-menu dropdown-menu-right" style="display:flex;flex-direction:column;gap:6px;">
-                            @if ($this->insentifMetode === 'import')
-                                <a href="{{ route('keuangan.import-insentif') }}" wire:navigate class="dropdown-item" style="background:#047C54;color:#fff;"><i class="fa-solid fa-hand-holding-dollar" style="color:#fff;"></i> Insentif</a>
-                            @endif
-                            {{-- @if ($this->koperasiAktif)
-                                <button type="button" wire:click="openManualLineModal('koperasi')" class="dropdown-item" style="background:#4f46e5;color:#fff;"><i class="fa-solid fa-people-group" style="color:#fff;"></i> Koperasi</button>
-                            @endif --}}
-                            @if ($this->bonAktif)
-                                <button type="button" wire:click="openManualLineModal('bon')" class="dropdown-item" style="background:#d97706;color:#fff;"><i class="fa-solid fa-money-bill-transfer" style="color:#fff;"></i> Bon</button>
-                            @endif
-                        </div>
-                    </div>
-                @endif
+                    @endif
+                    @if ($this->bonAktif)
+                        <button type="button" wire:click="openImportModal('bon')" style="display:inline-flex;align-items:center;gap:6px;padding:9px 16px;font-size:12.5px;font-weight:600;border:none;border-radius:12px;cursor:pointer;background:#d97706;color:#fff;">
+                            <i class="fa-solid fa-money-bill-transfer"></i> Import Bon
+                        </button>
+                    @endif
+                </div>
             </div>
 
             <div style="background:var(--surface);border-radius:12px;box-shadow:var(--shadow-card);overflow-x:auto;margin-top:16px;">
@@ -112,54 +106,77 @@
         </div>
     </div>
 
-    @if ($showManualLineModal)
-        <div style="position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:100;display:flex;align-items:center;justify-content:center;padding:16px;" wire:click="closeManualLineModal">
-            <div style="background:var(--surface);border-radius:14px;padding:20px;max-width:420px;width:100%;max-height:90vh;overflow-y:auto;" onclick="event.stopPropagation()">
-                <h3 style="font-size:16px;font-weight:700;color:var(--text-heading);margin:0 0 14px;">
-                    Tambah {{ $manualLineComponent === 'koperasi' ? 'Koperasi' : 'Bon' }}
-                </h3>
+    @if ($showImportModal)
+        <div class="modal-overlay" wire:click="closeImportModal">
+            <div class="modal-box modal-box-lg" onclick="event.stopPropagation()" style="display:flex;flex-direction:column;gap:14px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;">
+                    <h3 style="font-size:18px;font-weight:700;color:var(--text-heading);margin:0;">
+                        Import {{ $importType === 'insentif' ? 'Insentif' : 'Bon' }}
+                    </h3>
+                    <button type="button" wire:click="closeImportModal" class="btn-ghost" style="padding:6px 12px;font-size:12px;">
+                        <i class="fa-solid fa-xmark"></i> Tutup
+                    </button>
+                </div>
 
-                <div style="display:flex;flex-direction:column;gap:12px;">
+                <p style="font-size:12px;color:var(--text-muted);margin:0;">
+                    Perusahaan: <strong>{{ $this->companies->firstWhere('id', $companyId)?->name }}</strong>
+                </p>
+
+                @if ($importType === 'insentif' && $this->insentifMetode !== 'import')
+                    <div style="background:rgba(217,119,6,0.08);border:1px solid rgba(217,119,6,0.3);border-radius:10px;padding:12px 14px;font-size:12.5px;color:#92400e;">
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                        Metode Insentif perusahaan ini masih <strong>"Master"</strong> (input manual lewat halaman Insentif), bukan "Import".
+                        Ubah dulu di halaman Komponen Gaji kalau memang mau pakai import Excel.
+                    </div>
+                @elseif ($importType === 'bon' && ! $this->bonAktif)
+                    <div style="background:rgba(217,119,6,0.08);border:1px solid rgba(217,119,6,0.3);border-radius:10px;padding:12px 14px;font-size:12.5px;color:#92400e;">
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                        Komponen <strong>Bon</strong> belum aktif untuk perusahaan ini.
+                        Aktifkan dulu di halaman Komponen Gaji kalau memang mau pakai Bon.
+                    </div>
+                @else
                     <div>
-                        <label class="form-label">Periode Gaji</label>
-                        <select class="form-input" wire:model="periodId">
-                            <option value="">Pilih periode</option>
-                            @foreach ($this->periods as $period)
+                        <label class="form-label">Periode Payroll</label>
+                        <select class="form-input" wire:model="importPeriodId">
+                            <option value="">Pilih periode yang sudah digenerate</option>
+                            @foreach ($this->importPeriods as $period)
                                 <option value="{{ $period->id }}">{{ $period->start_date->format('d M Y') }} — {{ $period->end_date->format('d M Y') }}</option>
                             @endforeach
                         </select>
-                        @error('periodId') <p style="font-size:11px;color:#dc2626;margin-top:4px;">{{ $message }}</p> @enderror
+                        @if ($this->importPeriods->isEmpty())
+                            <p style="font-size:11px;color:var(--text-muted);margin-top:4px;">Belum ada periode yang digenerate untuk perusahaan ini.</p>
+                        @endif
+                        @error('importPeriodId') <p style="font-size:11px;color:#dc2626;margin-top:4px;">{{ $message }}</p> @enderror
                     </div>
 
                     <div>
-                        <label class="form-label">Karyawan</label>
-                        <select class="form-input" wire:model="manualLineUserId">
-                            <option value="">Pilih karyawan</option>
-                            @foreach ($this->employeesForManualLine as $employee)
-                                <option value="{{ $employee->id }}">{{ $employee->name }}</option>
-                            @endforeach
-                        </select>
-                        @error('manualLineUserId') <p style="font-size:11px;color:#dc2626;margin-top:4px;">{{ $message }}</p> @enderror
+                        <label class="form-label">File Excel (.xlsx)</label>
+                        <input type="file" class="form-input" wire:model="importFile" accept=".xlsx,.xls,.csv">
+                        <p style="font-size:11px;color:var(--text-muted);margin-top:4px;">Kolom wajib: <code>nip</code>, <code>nominal</code>. Upload ulang untuk NIP yang sama akan MENGGANTI nominal sebelumnya, bukan menambah.</p>
+                        @error('importFile') <p style="font-size:11px;color:#dc2626;margin-top:4px;">{{ $message }}</p> @enderror
+                        <div wire:loading wire:target="importFile" style="font-size:11px;color:var(--text-muted);margin-top:4px;">Mengunggah...</div>
                     </div>
 
-                    <div>
-                        <label class="form-label">Nominal (Rp)</label>
-                        <input type="number" step="0.01" class="form-input" wire:model="manualLineAmount" placeholder="0">
-                        @error('manualLineAmount') <p style="font-size:11px;color:#dc2626;margin-top:4px;">{{ $message }}</p> @enderror
-                    </div>
+                    <button type="button" wire:click="runImport" wire:loading.attr="disabled" wire:target="runImport"
+                        style="align-self:flex-start;padding:10px 18px;border-radius:10px;background:#042c6c;color:#fff;font-size:13px;font-weight:600;border:none;cursor:pointer;">
+                        <span wire:loading.remove wire:target="runImport"><i class="fa-solid fa-upload"></i> Import</span>
+                        <span wire:loading wire:target="runImport"><i class="fa-solid fa-spinner fa-spin"></i> Memproses...</span>
+                    </button>
 
-                    <div>
-                        <label class="form-label">Catatan (opsional)</label>
-                        <textarea class="form-input" rows="2" wire:model="manualLineNote"></textarea>
-                    </div>
-                </div>
-
-                <p style="font-size:10.5px;color:var(--text-faint);margin-top:10px;">Baru masuk ke payroll setelah Generate/Regenerate dijalankan untuk periode yang dipilih.</p>
-
-                <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px;">
-                    <button type="button" wire:click="closeManualLineModal" class="btn-ghost">Batal</button>
-                    <button type="button" wire:click="saveManualLine" class="btn-primary">Simpan</button>
-                </div>
+                    @if ($importSuccessCount !== null)
+                        <div style="background:{{ $importErrors === [] ? 'rgba(4,124,84,0.08)' : 'rgba(217,119,6,0.08)' }};border-radius:10px;padding:12px 14px;font-size:12.5px;">
+                            <p style="margin:0 0 4px;font-weight:600;">{{ $importSuccessCount }} baris berhasil diimport.</p>
+                            @if ($importErrors !== [])
+                                <p style="margin:6px 0 4px;font-weight:600;color:#92400e;">{{ count($importErrors) }} baris gagal:</p>
+                                <ul style="margin:0;padding-left:18px;color:#92400e;">
+                                    @foreach ($importErrors as $error)
+                                        <li>{{ $error }}</li>
+                                    @endforeach
+                                </ul>
+                            @endif
+                        </div>
+                    @endif
+                @endif
             </div>
         </div>
     @endif

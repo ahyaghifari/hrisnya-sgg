@@ -1,10 +1,15 @@
 @php
-    $canAccessAdmin = auth()->user()?->hasRole(['Admin', 'Super Admin']) ?? false;
     $canSeeKaryawanMenu = auth()->user()->canAccessKaryawanMenu();
     $canSubmitAttendance = ! auth()->user()->canBrowseAllCompanies();
     $canAccessKeuangan = auth()->user()->can(\App\Enum\CustomPermissionEnum::SISTEM_KEUANGAN->value);
     $canAccessMaster = auth()->user()->can(\App\Enum\CustomPermissionEnum::SISTEM_MASTER->value);
     $canAccessAbsensi = auth()->user()->can(\App\Enum\CustomPermissionEnum::SISTEM_ABSENSI->value);
+    // Murni permission Shield (bukan hasSubordinates() seperti MyStaff) — siapa yang boleh
+    // bikin Coaching ditentukan lewat checklist role di /admin/roles, bukan otomatis dari
+    // struktur organisasi. Lihat planning/2026-07-18-portal-coaching-counseling.md §3.2.
+    
+    $canManageCoaching = auth()->user()->can('Create:Coaching');
+    $showRoleRow = $canSeeKaryawanMenu || $canAccessKeuangan || $canAccessMaster || $canAccessAbsensi || $canManageCoaching;
     $initials = collect(explode(' ', auth()->user()->name))
         ->map(fn ($part) => mb_substr($part, 0, 1))
         ->take(2)
@@ -17,67 +22,82 @@
 <nav class="topnav">
     <div class="topnav-inner">
         <a href="{{ route('dashboard') }}" wire:navigate class="nav-brand">
-            <img src="{{ asset('assets/logo-sgg.png') }}" alt="Syifa Global Group" style="height:38px;width:auto;">
-            <span style="font-size:13.5px;font-weight:700;color:var(--text-heading);">HRIS</span>
+            <img src="{{ asset('assets/app-icon.png') }}" alt="Syifa Global Group" class="nav-brand-icon-light" style="height:48px;width:auto;">
+            <img src="{{ asset('assets/app-icon-dark.png') }}" alt="Syifa Global Group" class="nav-brand-icon-dark" style="height:48px;width:auto;">
         </a>
 
-        <div class="nav-links">
-            <a href="{{ route('dashboard') }}" wire:navigate class="nav-item {{ request()->routeIs('dashboard') ? 'active' : '' }}">
-                <i class="fa-solid fa-house text-xs"></i> Beranda
-            </a>
-            @if ($canSeeKaryawanMenu)
-                <a href="{{ route('my-staff') }}" wire:navigate class="nav-item {{ request()->routeIs('my-staff*') ? 'active' : '' }}">
-                    <i class="fa-solid fa-users text-xs"></i> MyStaff
+        <div class="nav-middle">
+        {{-- Baris 1: milik karyawan sendiri — sama buat semua orang, tidak tergantung role/permission apa pun. --}}
+            <div class="nav-links">
+                <a href="{{ route('dashboard') }}" wire:navigate class="nav-item {{ request()->routeIs('dashboard') ? 'active' : '' }}">
+                    <i class="fa-solid fa-house text-xs"></i> Beranda
                 </a>
-            @endif
-            <div class="dropdown">
-                <a href="#" class="nav-item {{ request()->routeIs(['kanban*', 'pelatihan*']) ? 'active' : '' }}">
-                    <i class="fa-solid fa-list-check text-xs"></i> Penugasan <i class="fa-solid fa-chevron-down text-[10px]"></i>
+                <a href="{{ route('kanban') }}" wire:navigate class="nav-item {{ request()->routeIs('kanban*') ? 'active' : '' }}">
+                    <i class="fa-solid fa-table-columns text-xs"></i> Kanban
                 </a>
-                <div class="dropdown-menu">
-                    <a href="{{ route('kanban') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-table-columns"></i> Kanban</a>
-                    <a href="{{ route('pelatihan') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-graduation-cap"></i> Pelatihan</a>
-                </div>
+                <a href="{{ route('pelatihan') }}" wire:navigate class="nav-item {{ request()->routeIs('pelatihan*') ? 'active' : '' }}">
+                    <i class="fa-solid fa-graduation-cap text-xs"></i> Pelatihan
+                </a>
+                @if ($canSubmitAttendance)
+                    <a href="{{ route('my-attendance-requests') }}" wire:navigate class="nav-item {{ request()->routeIs('my-attendance-requests*') ? 'active' : '' }}">
+                        <i class="fa-solid fa-file-lines text-xs"></i> Pengajuan Absensi
+                    </a>
+                @endif
+                <a href="{{ route('counseling') }}" wire:navigate class="nav-item {{ request()->routeIs('counseling*') ? 'active' : '' }}">
+                    <i class="fa-solid fa-comment-dots text-xs"></i> Counseling
+                </a>
+                <a href="{{ route('coaching.saya') }}" wire:navigate class="nav-item {{ request()->routeIs('coaching.saya*') ? 'active' : '' }}">
+                    <i class="fa-solid fa-user-check text-xs"></i> Coaching Saya
+                </a>
             </div>
-            @if ($canSubmitAttendance)
-                <a href="{{ route('my-attendance-requests') }}" wire:navigate class="nav-item {{ request()->routeIs('my-attendance-requests*') ? 'active' : '' }}">
-                    <i class="fa-solid fa-file-lines text-xs"></i> Pengajuan Absensi
-                </a>
-            @endif
-            @if ($canAccessKeuangan)
-                <div class="dropdown">
-                    <a href="#" class="nav-item {{ request()->routeIs(['keuangan.periode-gaji*', 'keuangan.payroll*', 'keuangan.komponen-gaji*', 'keuangan.insentif*', 'keuangan.mapping-komponen-gaji*', 'keuangan.koperasi*']) ? 'active' : '' }}">
-                        <i class="fa-solid fa-sack-dollar text-xs"></i> Penggajian <i class="fa-solid fa-chevron-down text-[10px]"></i>
-                    </a>
-                    <div class="dropdown-menu">
-                        <a href="{{ route('keuangan.periode-gaji') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-calendar-days"></i> Periode Gaji</a>
-                        <a href="{{ route('keuangan.payroll') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-money-check-dollar"></i> Payroll</a>
-                        <div style="height:1px;background:var(--border-soft);margin:6px 8px;"></div>
-                        <a href="{{ route('keuangan.komponen-gaji') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-sack-dollar"></i> Komponen Gaji</a>
-                        <a href="{{ route('keuangan.mapping-komponen-gaji') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-diagram-project"></i> Mapping Komponen Gaji</a>
-                        <a href="{{ route('keuangan.insentif') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-hand-holding-dollar"></i> Insentif</a>
-                        <a href="{{ route('keuangan.koperasi') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-people-group"></i> Koperasi</a>
-                    </div>
-                </div>
-            @endif
-            @if ($canAccessMaster)
-                <div class="dropdown">
-                    <a href="#" class="nav-item {{ request()->routeIs('master.*') ? 'active' : '' }}">
-                        <i class="fa-solid fa-database text-xs"></i> Master <i class="fa-solid fa-chevron-down text-[10px]"></i>
-                    </a>
-                    <div class="dropdown-menu">
-                        <a href="{{ route('master.hari-libur') }}" wire:navigate class="dropdown-item">Hari Libur & Cuti Bersama</a>
-                    </div>
-                </div>
-            @endif
-            @if ($canAccessAbsensi)
-                <div class="dropdown">
-                    <a href="#" class="nav-item {{ request()->routeIs('presensi.*') ? 'active' : '' }}">
-                        <i class="fa-solid fa-calendar-check text-xs"></i> Presensi <i class="fa-solid fa-chevron-down text-[10px]"></i>
-                    </a>
-                    <div class="dropdown-menu">
-                        <a href="{{ route('presensi.jadwal') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-calendar-days"></i> Jadwal</a>
-                    </div>
+            @if ($showRoleRow)
+                <div class="topnav-row2">
+                        @if ($canSeeKaryawanMenu)
+                            <a href="{{ route('my-staff') }}" wire:navigate class="nav-item nav-item-navy {{ request()->routeIs('my-staff*') ? 'active' : '' }}">
+                                <i class="fa-solid fa-users text-xs"></i> MyStaff
+                            </a>
+                        @endif
+                        @if ($canManageCoaching)
+                            <a href="{{ route('coaching') }}" wire:navigate class="nav-item nav-item-orange {{ request()->routeIs('coaching*') ? 'active' : '' }}">
+                                <i class="fa-solid fa-clipboard-check text-xs"></i> Coaching
+                            </a>
+                        @endif
+                        @if ($canAccessKeuangan)
+                            <div class="dropdown">
+                                <a href="#" class="nav-item nav-item-green {{ request()->routeIs(['keuangan.periode-gaji*', 'keuangan.payroll*', 'keuangan.komponen-gaji*', 'keuangan.penerima-komponen-gaji*', 'keuangan.insentif*', 'keuangan.mapping-komponen-gaji*', 'keuangan.koperasi*']) ? 'active' : '' }}">
+                                    <i class="fa-solid fa-sack-dollar text-xs"></i> Penggajian <i class="fa-solid fa-chevron-down text-[10px]"></i>
+                                </a>
+                                <div class="dropdown-menu">
+                                    <a href="{{ route('keuangan.periode-gaji') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-calendar-days"></i> Periode Gaji</a>
+                                    <a href="{{ route('keuangan.payroll') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-money-check-dollar"></i> Payroll</a>
+                                    <div style="height:1px;background:var(--border-soft);margin:6px 8px;"></div>
+                                    <a href="{{ route('keuangan.komponen-gaji') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-sack-dollar"></i> Komponen Gaji</a>
+                                    <a href="{{ route('keuangan.penerima-komponen-gaji') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-users-gear"></i> Penerima Komponen Gaji</a>
+                                    <a href="{{ route('keuangan.mapping-komponen-gaji') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-diagram-project"></i> Mapping Komponen Gaji</a>
+                                    <div style="height:1px;background:var(--border-soft);margin:6px 8px;"></div>
+                                    <a href="{{ route('keuangan.insentif') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-hand-holding-dollar"></i> Insentif</a>
+                                    <a href="{{ route('keuangan.koperasi') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-people-group"></i> Koperasi</a>
+                                </div>
+                            </div>
+                        @endif
+                        @if ($canAccessAbsensi)
+                            <div class="dropdown">
+                                <a href="#" class="nav-item nav-item-sky {{ request()->routeIs(['presensi.*', 'my-attendance-requests*']) ? 'active' : '' }}">
+                                    <i class="fa-solid fa-calendar-check text-xs"></i> Presensi & Absensi <i class="fa-solid fa-chevron-down text-[10px]"></i>
+                                </a>
+                                <div class="dropdown-menu">
+                                    <span class="dropdown-group-label">Presensi</span>
+                                    <a href="{{ route('presensi.jadwal') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-calendar-days"></i> Jadwal</a>
+                                    <a href="{{ route('presensi.hari-libur') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-flag"></i> Hari Libur & Cuti Bersama</a>
+                                    <a href="{{ route('presensi.pengaturan') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-gear"></i> Pengaturan Absensi</a>
+                                    <div style="height:1px;background:var(--border-soft);margin:6px 8px;"></div>
+                                    <span class="dropdown-group-label">Absensi</span>
+                                    <a href="{{ route('my-attendance-requests.permission') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-file-lines"></i> Izin</a>
+                                    <a href="{{ route('my-attendance-requests.leave') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-umbrella-beach"></i> Cuti</a>
+                                    <a href="{{ route('my-attendance-requests.overtime') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-business-time"></i> Lembur</a>
+                                </div>
+                            </div>
+                        @endif
                 </div>
             @endif
         </div>

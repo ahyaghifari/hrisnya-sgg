@@ -19,7 +19,7 @@ class HolidayResource extends Resource
 
     protected static ?string $navigationLabel = "Hari Libur & Cuti Bersama";
 
-    protected static string | UnitEnum | null $navigationGroup = 'Master';
+    protected static string | UnitEnum | null $navigationGroup = 'Presensi & Absensi';
 
     protected static ?int $navigationSort = 15;
 

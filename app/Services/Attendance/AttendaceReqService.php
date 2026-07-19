@@ -2,9 +2,12 @@
 
 namespace App\Services\Attendance;
 
+use App\Enum\Attendance\AttendanceSettingEnum;
 use App\Enum\Attendance\LeaveTypeCategoryEnum;
+use App\Enum\Attendance\PermissionTypeCategoryEnum;
 use App\Models\ApprovalManagement\MasterApprovalFlows;
 use App\Models\Attendance\AttendanceRequestLeaveDetails;
+use App\Models\Attendance\AttendanceRequestPermissionDetails;
 use App\Models\Attendance\AttendanceRequests;
 use App\Models\Setting;
 use App\Models\User;
@@ -48,6 +51,39 @@ class AttendaceReqService
     public function getLeaveUserBalance(string $userId, string $typeId): array
     {
         return $this->leaveReqRepository->getLeaveUserBalance($userId, $typeId);
+    }
+
+    /**
+     * Pemakaian kuota Izin gabungan (AttendanceSettingEnum::IZIN_MAX_PER_PERIODE) untuk 1 user
+     * pada periode yang mengandung $referenceDate — dipakai buat menampilkan info kuota
+     * pemohon di halaman approval (§8), bukan buat validasi (lihat assertWithinIzinPeriodeLimit
+     * untuk itu). "used" cuma menghitung yang sudah APPROVED (konsisten dengan
+     * getLeaveUserBalance) — beda dari assertWithinIzinPeriodeLimit yang juga menghitung
+     * in_review supaya tidak over-commit sebelum di-approve.
+     */
+    public function getIzinPeriodeUsage(User $user, ?string $referenceDate = null): array
+    {
+        $categoryValues = array_map(fn ($c) => $c->value, PermissionTypeCategoryEnum::cases());
+        $maxPerPeriode = (int) Setting::resolve(AttendanceSettingEnum::IZIN_MAX_PER_PERIODE->value, $user->company_id, default: 0);
+
+        $anchor = $referenceDate ? Carbon::parse($referenceDate) : now();
+        [$periodStart, $periodEnd] = AttendancePeriodResolver::resolve($anchor, $user->company_id);
+
+        $used = AttendanceRequestPermissionDetails::query()
+            ->whereBetween('date', [$periodStart->toDateString(), $periodEnd->toDateString()])
+            ->whereHas('permissionType', fn ($q) => $q->whereIn('category', $categoryValues))
+            ->whereIn('request_id', AttendanceRequests::query()
+                ->select('id')
+                ->where('user_id', $user->id)
+                ->where('type', 'permission')
+                ->where('status', 'approved'))
+            ->count();
+
+        return [
+            'max' => $maxPerPeriode,
+            'used' => $used,
+            'available' => $maxPerPeriode > 0 ? max(0, $maxPerPeriode - $used) : null,
+        ];
     }
 
     public function storeOvertimeRequest(array $data, ?User $actingUser = null): object
@@ -187,10 +223,11 @@ class AttendaceReqService
     }
 
     /**
-     * Setting `cuti_tahunan_max_per_bulan` (module attendance, company-scoped) — batas
-     * AKUMULASI hari Cuti Tahunan (jenis cuti berkategori LeaveTypeCategoryEnum::TAHUNAN,
-     * lihat m_leave_types.category) yang boleh diajukan 1 user dalam 1 bulan KALENDER,
-     * dihitung dari bulan tanggal mulai pengajuan baru. 0/tidak diset = tidak dibatasi.
+     * Setting AttendanceSettingEnum::CUTI_TAHUNAN_MAX_PER_BULAN (module attendance,
+     * company-scoped) — batas AKUMULASI hari Cuti Tahunan (jenis cuti berkategori
+     * LeaveTypeCategoryEnum::TAHUNAN, lihat m_leave_types.category) yang boleh diajukan 1 user
+     * dalam 1 periode (lihat AttendancePeriodResolver — ikut cutoff company, default kalender
+     * 1-31), dihitung dari periode tanggal mulai pengajuan baru. 0/tidak diset = tidak dibatasi.
      * Cuma berlaku untuk jenis cuti yang eksplisit ditandai kategori Tahunan — jenis cuti
      * lain (cuti besar, dst) tidak ikut kena batas ini.
      */
@@ -200,7 +237,7 @@ class AttendaceReqService
             return;
         }
 
-        $maxPerBulan = (int) Setting::resolve('cuti_tahunan_max_per_bulan', $actingUser->company_id, default: 0);
+        $maxPerBulan = (int) Setting::resolve(AttendanceSettingEnum::CUTI_TAHUNAN_MAX_PER_BULAN->value, $actingUser->company_id, default: 0);
 
         if ($maxPerBulan <= 0) {
             return;
@@ -210,9 +247,11 @@ class AttendaceReqService
         $end = ! empty($data['end_date']) ? Carbon::parse($data['end_date']) : $start->copy();
         $newDays = $start->diffInDays($end) + 1;
 
+        [$periodStart, $periodEnd] = AttendancePeriodResolver::resolve($start->copy(), $actingUser->company_id);
+
         $existingDays = (int) AttendanceRequestLeaveDetails::query()
             ->where('leave_type_id', $data['type_id'])
-            ->whereBetween('start_date', [$start->copy()->startOfMonth()->toDateString(), $start->copy()->endOfMonth()->toDateString()])
+            ->whereBetween('start_date', [$periodStart->toDateString(), $periodEnd->toDateString()])
             ->whereIn('request_id', AttendanceRequests::query()
                 ->select('id')
                 ->where('user_id', $actingUser->id)
@@ -221,7 +260,46 @@ class AttendaceReqService
             ->sum('total_days');
 
         if ($existingDays + $newDays > $maxPerBulan) {
-            throw new \Exception("Melebihi batas Cuti Tahunan bulan ini (maksimal {$maxPerBulan} hari, sudah diajukan {$existingDays} hari, pengajuan ini {$newDays} hari).");
+            throw new \Exception("Melebihi batas Cuti Tahunan periode ini (maksimal {$maxPerBulan} hari, sudah diajukan {$existingDays} hari, pengajuan ini {$newDays} hari).");
+        }
+    }
+
+    /**
+     * Setting AttendanceSettingEnum::IZIN_MAX_PER_PERIODE (module attendance, company-scoped)
+     * — batas jumlah pengajuan Izin (semua kategori PermissionTypeCategoryEnum digabung jadi
+     * 1 kuota — Terlambat Masuk, Pulang Cepat, Meninggalkan Jam Kerja, Izin Seharian, dikonfirmasi
+     * user) dalam 1 periode. Cuma berlaku untuk jenis izin yang eksplisit ditandai salah satu
+     * kategori itu (m_permission_types.category) — jenis izin lain tidak ikut kena batas ini.
+     */
+    private function assertWithinIzinPeriodeLimit(User $actingUser, ?object $permissionType, array $data): void
+    {
+        $categoryValues = array_map(fn ($c) => $c->value, PermissionTypeCategoryEnum::cases());
+
+        if (! $permissionType || ! in_array($permissionType->category, $categoryValues, true)) {
+            return;
+        }
+
+        $maxPerPeriode = (int) Setting::resolve(AttendanceSettingEnum::IZIN_MAX_PER_PERIODE->value, $actingUser->company_id, default: 0);
+
+        if ($maxPerPeriode <= 0) {
+            return;
+        }
+
+        $date = Carbon::parse($data['date']);
+        [$periodStart, $periodEnd] = AttendancePeriodResolver::resolve($date->copy(), $actingUser->company_id);
+
+        $existingCount = AttendanceRequestPermissionDetails::query()
+            ->whereBetween('date', [$periodStart->toDateString(), $periodEnd->toDateString()])
+            ->whereHas('permissionType', fn ($q) => $q->whereIn('category', $categoryValues))
+            ->whereIn('request_id', AttendanceRequests::query()
+                ->select('id')
+                ->where('user_id', $actingUser->id)
+                ->where('type', 'permission')
+                ->whereNotIn('status', ['rejected', 'cancelled', 'failed']))
+            ->count();
+
+        if ($existingCount + 1 > $maxPerPeriode) {
+            throw new \Exception("Melebihi batas Izin periode ini (maksimal {$maxPerPeriode} hari, sudah diajukan {$existingCount} hari).");
         }
     }
 
@@ -242,13 +320,15 @@ class AttendaceReqService
             throw new \Exception('No active approval flow found for attendance requests for this company.');
         }
 
+        $permissionType = $this->permissionReqRepository->getPermissionTypeById($data['type_id']);
+
+        $this->assertWithinIzinPeriodeLimit($actingUser, $permissionType, $data);
+
         $request = $this->attendanceReqRepository->storeAttendanceRequest([
             'user_id' => $userId,
             'type' => $type,
             'status' => $status,
         ]);
-
-        $permissionType = $this->permissionReqRepository->getPermissionTypeById($data['type_id']);
 
         $permissionData = [
             'request_id' => $request->id,

@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Services\Approval\ApprovalFlowService;
 use App\Services\Approval\ApprovalPermissionService;
 use App\Services\Approval\ApprovalTimelineService;
+use App\Services\Attendance\AttendaceReqService;
 use App\Services\OrgHierarchyService;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\Auth;
@@ -117,6 +118,37 @@ class AttendanceRequestDetail extends Component
     public function getTimelineProperty(): array
     {
         return app(ApprovalTimelineService::class)->build($this->record);
+    }
+
+    /**
+     * Info kuota pemohon (Cuti Tahunan/Izin) buat ditampilkan di halaman approval — approver
+     * bisa lihat sisa jatah pemohon SAAT itu juga, bukan widget terpisah. Lihat
+     * planning/2026-07-19-revisi-absensi-cutoff-kuota-izin-widget-pimpinan.md §8. Cuma relevan
+     * untuk Cuti & Izin — Lembur tidak punya konsep kuota.
+     */
+    public function getQuotaInfoProperty(): ?array
+    {
+        $service = app(AttendaceReqService::class);
+
+        if ($this->record->type === 'leave' && $this->record->leaveDetails->isNotEmpty()) {
+            $leave = $this->record->leaveDetails->first();
+
+            return [
+                'kind' => 'leave',
+                'balance' => $service->getLeaveUserBalance($this->record->user_id, $leave->leave_type_id),
+            ];
+        }
+
+        if ($this->record->type === 'permission' && $this->record->permissionDetails->isNotEmpty()) {
+            $permission = $this->record->permissionDetails->first();
+
+            return [
+                'kind' => 'permission',
+                'usage' => $service->getIzinPeriodeUsage($this->record->user, $permission->date),
+            ];
+        }
+
+        return null;
     }
 
     public function render()

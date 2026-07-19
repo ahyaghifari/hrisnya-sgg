@@ -28,7 +28,6 @@ class Pangkats extends Model
         'company_id',
         'start_kelas_level',
         'max_kelas_level',
-        'class_increment_rate',
     ];
 
     protected static function boot(): void

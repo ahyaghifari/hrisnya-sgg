@@ -77,16 +77,37 @@
                     </p>
                     <div style="display:flex;flex-direction:column;gap:7px;">
                         @forelse ($rows['earnings'] as $row)
-                            <div style="display:flex;justify-content:space-between;gap:8px;font-size:12.5px;">
-                                <span style="color:{{ $row['hasValue'] ? 'var(--text-body)' : 'var(--text-faint)' }};">
-                                    {{ $row['label'] }}
-                                </span>
-                                <span style="white-space:nowrap;text-align:right;">
-                                    <span style="font-weight:{{ $row['hasValue'] ? '700' : '500' }};color:{{ $row['hasValue'] ? '#047C54' : 'var(--text-faint)' }};">Rp{{ number_format($row['amount'], 0, ',', '.') }}</span>
-                                    @if ($row['note'])
-                                        <span style="display:block;font-size:10px;font-weight:400;color:var(--text-faint);">({{ $row['note'] }})</span>
-                                    @endif
-                                </span>
+                            <div>
+                                <div style="display:flex;justify-content:space-between;gap:8px;font-size:12.5px;">
+                                    <span style="color:{{ $row['hasValue'] ? 'var(--text-body)' : 'var(--text-faint)' }};">
+                                        {{ $row['label'] }}
+                                        @if (($row['component'] ?? null) === \App\Enum\Payroll\PayrollComponentEnum::INSENTIF->value && $this->insentifAktif && ! $payroll->is_paid && $this->insentifManualLines->isEmpty())
+                                            <button type="button" wire:click="openManualLineModal('insentif')" title="Tambah Insentif untuk payroll ini" style="border:none;background:#047C54;color:#fff;padding:2px 7px;border-radius:5px;font-size:10px;font-weight:600;cursor:pointer;">+ Tambah</button>
+                                        @endif
+                                    </span>
+                                    <span style="white-space:nowrap;text-align:right;">
+                                        <span style="font-weight:{{ $row['hasValue'] ? '700' : '500' }};color:{{ $row['hasValue'] ? '#047C54' : 'var(--text-faint)' }};">Rp{{ number_format($row['amount'], 0, ',', '.') }}</span>
+                                        @if ($row['note'])
+                                            <span style="display:block;font-size:10px;font-weight:400;color:var(--text-faint);">({{ $row['note'] }})</span>
+                                        @endif
+                                    </span>
+                                </div>
+
+                                @if (($row['component'] ?? null) === \App\Enum\Payroll\PayrollComponentEnum::INSENTIF->value && $this->insentifManualLines->isNotEmpty())
+                                    <div style="display:flex;flex-direction:column;gap:3px;margin:4px 0 0 10px;">
+                                        @foreach ($this->insentifManualLines as $line)
+                                            <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;font-size:11px;color:var(--text-muted);">
+                                                <span>Rp{{ number_format($line->amount, 0, ',', '.') }}{{ $line->note ? " ({$line->note})" : '' }}</span>
+                                                @unless ($payroll->is_paid)
+                                                    <span style="display:flex;gap:4px;flex-shrink:0;">
+                                                        <button type="button" wire:click="openManualLineModal('insentif', '{{ $line->id }}')" title="Ubah" style="border:1px solid var(--border);background:none;color:#047C54;cursor:pointer;padding:2px 7px;border-radius:5px;font-size:10px;"><i class="fa-solid fa-pen"></i> Ubah</button>
+                                                        <button type="button" wire:click="deleteManualLine('{{ $line->id }}')" wire:confirm="Hapus baris Insentif ini?" title="Hapus" style="border:1px solid var(--border);background:none;color:#dc2626;cursor:pointer;padding:2px 7px;border-radius:5px;font-size:10px;"><i class="fa-solid fa-trash"></i> Hapus</button>
+                                                    </span>
+                                                @endunless
+                                            </div>
+                                        @endforeach
+                                    </div>
+                                @endif
                             </div>
                         @empty
                             <p style="font-size:11.5px;color:var(--text-faint);margin:0;">Tidak ada komponen pendapatan.</p>
@@ -104,16 +125,37 @@
                     </p>
                     <div style="display:flex;flex-direction:column;gap:7px;">
                         @forelse ($rows['deductions'] as $row)
-                            <div style="display:flex;justify-content:space-between;gap:8px;font-size:12.5px;">
-                                <span style="color:{{ $row['hasValue'] ? 'var(--text-body)' : 'var(--text-faint)' }};">
-                                    {{ $row['label'] }}
-                                </span>
-                                <span style="white-space:nowrap;text-align:right;">
-                                    <span style="font-weight:{{ $row['hasValue'] ? '700' : '500' }};color:{{ $row['hasValue'] ? '#dc2626' : 'var(--text-faint)' }};">Rp{{ number_format($row['amount'], 0, ',', '.') }}</span>
-                                    @if ($row['note'])
-                                        <span style="display:block;font-size:10px;font-weight:400;color:var(--text-faint);">({{ $row['note'] }})</span>
-                                    @endif
-                                </span>
+                            <div>
+                                <div style="display:flex;justify-content:space-between;gap:8px;font-size:12.5px;">
+                                    <span style="color:{{ $row['hasValue'] ? 'var(--text-body)' : 'var(--text-faint)' }};">
+                                        {{ $row['label'] }}
+                                        @if (($row['component'] ?? null) === \App\Enum\Payroll\PayrollComponentEnum::BON->value && $this->bonAktif && ! $payroll->is_paid && $this->bonManualLines->isEmpty())
+                                            <button type="button" wire:click="openManualLineModal('bon')" title="Tambah Bon untuk payroll ini" style="border:none;background:#d97706;color:#fff;padding:2px 7px;border-radius:5px;font-size:10px;font-weight:600;cursor:pointer;">+ Tambah</button>
+                                        @endif
+                                    </span>
+                                    <span style="white-space:nowrap;text-align:right;">
+                                        <span style="font-weight:{{ $row['hasValue'] ? '700' : '500' }};color:{{ $row['hasValue'] ? '#dc2626' : 'var(--text-faint)' }};">Rp{{ number_format($row['amount'], 0, ',', '.') }}</span>
+                                        @if ($row['note'])
+                                            <span style="display:block;font-size:10px;font-weight:400;color:var(--text-faint);">({{ $row['note'] }})</span>
+                                        @endif
+                                    </span>
+                                </div>
+
+                                @if (($row['component'] ?? null) === \App\Enum\Payroll\PayrollComponentEnum::BON->value && $this->bonManualLines->isNotEmpty())
+                                    <div style="display:flex;flex-direction:column;gap:3px;margin:4px 0 0 10px;">
+                                        @foreach ($this->bonManualLines as $line)
+                                            <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;font-size:11px;color:var(--text-muted);">
+                                                <span>Rp{{ number_format($line->amount, 0, ',', '.') }}{{ $line->note ? " ({$line->note})" : '' }}</span>
+                                                @unless ($payroll->is_paid)
+                                                    <span style="display:flex;gap:4px;flex-shrink:0;">
+                                                        <button type="button" wire:click="openManualLineModal('bon', '{{ $line->id }}')" title="Ubah" style="border:1px solid var(--border);background:none;color:#d97706;cursor:pointer;padding:2px 7px;border-radius:5px;font-size:10px;"><i class="fa-solid fa-pen"></i> Ubah</button>
+                                                        <button type="button" wire:click="deleteManualLine('{{ $line->id }}')" wire:confirm="Hapus baris Bon ini?" title="Hapus" style="border:1px solid var(--border);background:none;color:#dc2626;cursor:pointer;padding:2px 7px;border-radius:5px;font-size:10px;"><i class="fa-solid fa-trash"></i> Hapus</button>
+                                                    </span>
+                                                @endunless
+                                            </div>
+                                        @endforeach
+                                    </div>
+                                @endif
                             </div>
                         @empty
                             <p style="font-size:11.5px;color:var(--text-faint);margin:0;">Tidak ada komponen potongan.</p>
@@ -127,4 +169,34 @@
             </div>
         </div>
     </div>
+
+    @php $manualLineLabel = $manualLineComponent === \App\Enum\Payroll\PayrollComponentEnum::BON->value ? 'Bon' : 'Insentif'; @endphp
+    @if ($showManualLineModal)
+        <div class="modal-overlay" wire:click="closeManualLineModal">
+            <div class="modal-box" onclick="event.stopPropagation()">
+                <h3 style="font-size:16px;font-weight:700;color:var(--text-heading);margin:0 0 4px;">{{ $editingManualLineId ? "Ubah {$manualLineLabel}" : "Tambah {$manualLineLabel}" }}</h3>
+                <p style="font-size:11.5px;color:var(--text-muted);margin:0 0 14px;">Untuk {{ $payroll->user?->name }} — periode {{ $payroll->payrollPeriod->start_date->format('d M Y') }} - {{ $payroll->payrollPeriod->end_date->format('d M Y') }}.</p>
+
+                <div style="display:flex;flex-direction:column;gap:12px;">
+                    <div>
+                        <label class="form-label">Nominal (Rp)</label>
+                        <input type="number" step="0.01" class="form-input" wire:model="manualLineAmount" placeholder="0">
+                        @error('manualLineAmount') <p style="font-size:11px;color:#dc2626;margin-top:4px;">{{ $message }}</p> @enderror
+                    </div>
+
+                    <div>
+                        <label class="form-label">Catatan (opsional)</label>
+                        <textarea class="form-input" rows="2" wire:model="manualLineNote"></textarea>
+                    </div>
+                </div>
+
+                <p style="font-size:10.5px;color:var(--text-faint);margin-top:10px;">Baru masuk ke payroll ini setelah "Regenerate Payroll Ini" dijalankan.</p>
+
+                <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px;">
+                    <button type="button" wire:click="closeManualLineModal" class="btn-ghost">Batal</button>
+                    <button type="button" wire:click="saveManualLine" class="btn-primary">Simpan</button>
+                </div>
+            </div>
+        </div>
+    @endif
 </div>

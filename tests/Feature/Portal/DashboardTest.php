@@ -96,7 +96,24 @@ class DashboardTest extends TestCase
             'period_start' => now()->startOfYear()->toDateString(),
             'period_end' => now()->endOfYear()->toDateString(),
             'quota' => 12,
-            'used' => 4,
+            'used' => 0,
+        ]);
+
+        // "used" dihitung live dari request APPROVED dalam periode — bukan lagi baca kolom
+        // LeaveUserBalances::used. Lihat LeaveReqRepository::getLeaveUserBalance().
+        $approvedRequest = AttendanceRequests::create([
+            'user_id' => $user->id,
+            'type' => 'leave',
+            'status' => 'approved',
+        ]);
+
+        AttendanceRequestLeaveDetails::create([
+            'request_id' => $approvedRequest->id,
+            'leave_type_id' => $leaveType->id,
+            'leave_type' => $leaveType->name,
+            'start_date' => now()->toDateString(),
+            'end_date' => now()->addDays(3)->toDateString(),
+            'total_days' => 4,
         ]);
 
         $response = $this->actingAs($user)->get('/');

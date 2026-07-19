@@ -101,6 +101,26 @@
         </div>
     @endif
 
+    {{-- Info kuota pemohon — supaya approver bisa lihat sisa jatah SAAT memutuskan, bukan
+    widget terpisah. Lihat planning/2026-07-19-revisi-absensi-cutoff-kuota-izin-widget-pimpinan.md §8. --}}
+    @if ($this->quotaInfo)
+        <div style="background:var(--surface);border-radius:16px;box-shadow:var(--shadow-card);padding:18px;">
+            {!! $sectionHeader('fa-chart-simple', 'Kuota Pemohon') !!}
+            @if ($this->quotaInfo['kind'] === 'leave')
+                @php $balance = $this->quotaInfo['balance']; @endphp
+                {!! $renderField('Kuota', "{$balance['quota']} hari") !!}
+                {!! $renderField('Cuti Bersama', "- {$balance['collective_leave_days']} hari") !!}
+                {!! $renderField('Digunakan (Disetujui)', "- {$balance['used']} hari") !!}
+                {!! $renderField('Sisa', "{$balance['available']} hari", false) !!}
+            @else
+                @php $usage = $this->quotaInfo['usage']; @endphp
+                {!! $renderField('Batas Izin per Periode', $usage['max'] > 0 ? "{$usage['max']} hari" : 'Tidak dibatasi') !!}
+                {!! $renderField('Sudah Diajukan (Disetujui)', "{$usage['used']} hari") !!}
+                {!! $renderField('Sisa', $usage['available'] !== null ? "{$usage['available']} hari" : '-', false) !!}
+            @endif
+        </div>
+    @endif
+
     @if ($record->type === 'permission' && $record->permissionDetails->isNotEmpty())
         @php $permission = $record->permissionDetails->first(); @endphp
         <div style="background:var(--surface);border-radius:16px;box-shadow:var(--shadow-card);padding:18px;">

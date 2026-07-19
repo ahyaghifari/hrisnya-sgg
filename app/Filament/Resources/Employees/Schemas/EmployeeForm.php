@@ -451,9 +451,16 @@ class EmployeeForm
                                             ->state(function ($record) {
                                                 if (!$record) return [];
 
+                                                // "used" dihitung live (bukan baca kolom LeaveUserBalances::used
+                                                // yang sudah tidak ditulis lagi saat submit) — lihat
+                                                // LeaveReqRepository::getLeaveUserBalance().
                                                 return LeaveUserBalances::where('user_id', $record->id)
                                                     ->with('leaveType')
-                                                    ->get();
+                                                    ->get()
+                                                    ->each(function ($balance) {
+                                                        $balance->used = app(\App\Services\Attendance\AttendaceReqService::class)
+                                                            ->getLeaveUserBalance($balance->user_id, $balance->leave_type_id)['used'];
+                                                    });
                                             })
                                             ->schema([
                                                 TextEntry::make('leaveType.name')

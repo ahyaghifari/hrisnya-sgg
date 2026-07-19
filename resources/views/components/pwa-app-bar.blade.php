@@ -3,6 +3,7 @@
 <header class="pwa-app-bar">
     <div class="pwa-app-bar-inner">
         <div class="pwa-app-bar-brand">
+            <img src="{{ asset('assets/app-icon-dark.png') }}" alt="" style="height:28px;width:auto;flex-shrink:0;">
             <span class="pwa-app-bar-title">{{ $title }}</span>
         </div>
 

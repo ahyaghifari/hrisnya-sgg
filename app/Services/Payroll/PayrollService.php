@@ -6,6 +6,7 @@ use App\Enum\Payroll\PayrollComponentEnum;
 use App\Enum\Payroll\PayrollComponentTypeEnum;
 use App\Models\Payroll\CompanyPayrollComponent;
 use App\Models\Payroll\Payroll;
+use App\Models\Payroll\PayrollComponentRecipient;
 use App\Models\Payroll\PayrollManualLine;
 use App\Models\Payroll\PayrollPeriod;
 use App\Models\Payroll\UserKoperasi;
@@ -126,6 +127,7 @@ class PayrollService
             return $applicable
                 ->filter(fn (PayrollComponentEnum $c) => $c->type() === $type)
                 ->map(fn (PayrollComponentEnum $c) => [
+                    'component' => $c->value,
                     'label' => $labelFor($c),
                     'note' => $noteFor($c),
                     'amount' => $sums[$c->value] ?? 0.0,
@@ -207,6 +209,13 @@ class PayrollService
                     continue;
                 }
 
+                // Tipe karyawan yang tidak terdaftar sebagai penerima komponen APA PUN (belum
+                // di-assign ke satu pun komponen di halaman "Penerima Komponen Gaji") tidak ikut
+                // digenerate sama sekali — tidak dapat slip gaji, bukan cuma komponen kosong.
+                if (! PayrollComponentRecipient::isRegisteredAnywhere($period->company_id, $user->profile?->employee_type_id)) {
+                    continue;
+                }
+
                 $this->generateForUser($user, $period, $activeComponents, $generatedByUserId);
             }
 
@@ -225,6 +234,10 @@ class PayrollService
     {
         if ($payroll->is_paid) {
             throw new \RuntimeException('Payroll yang sudah dibayar tidak bisa di-regenerate.');
+        }
+
+        if (! PayrollComponentRecipient::isRegisteredAnywhere($payroll->payrollPeriod->company_id, $payroll->user->profile?->employee_type_id)) {
+            throw new \RuntimeException('Tipe karyawan ini belum terdaftar sebagai penerima komponen gaji apa pun — atur dulu di halaman Penerima Komponen Gaji.');
         }
 
         return DB::transaction(function () use ($payroll, $generatedByUserId) {
@@ -343,7 +356,10 @@ class PayrollService
         PayrollPeriod $period,
         PayrollContext $context
     ): void {
-        if (! $companyComponent->isEligibleForEmployeeType($user->profile?->employee_type_id)) {
+        // Halaman "Penerima Komponen Gaji" — TIDAK ADA baris terdaftar utk kombinasi
+        // company+component ini = TIDAK ADA yang eligible (default ketat, disengaja — lihat
+        // App\Models\Payroll\PayrollComponentRecipient).
+        if (! PayrollComponentRecipient::isEligible($companyComponent->company_id, $companyComponent->component, $user->profile?->employee_type_id)) {
             return;
         }
 

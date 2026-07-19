@@ -2,6 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Models\Attendance\AttendanceRequestLeaveDetails;
+use App\Models\Attendance\AttendanceRequests;
 use App\Models\Attendance\LeaveUserBalances;
 use App\Models\Master\Attendance\Holidays;
 use App\Models\Master\Attendance\LeaveTypes;
@@ -53,7 +55,24 @@ class LeaveBalanceCollectiveLeaveTest extends TestCase
             'period_start' => now()->startOfYear()->toDateString(),
             'period_end' => now()->endOfYear()->toDateString(),
             'quota' => 12,
-            'used' => 2,
+            'used' => 0,
+        ]);
+
+        // "used" dihitung live dari request APPROVED dalam periode — bukan lagi baca kolom
+        // LeaveUserBalances::used. Lihat LeaveReqRepository::getLeaveUserBalance().
+        $approvedRequest = AttendanceRequests::create([
+            'user_id' => $user->id,
+            'type' => 'leave',
+            'status' => 'approved',
+        ]);
+
+        AttendanceRequestLeaveDetails::create([
+            'request_id' => $approvedRequest->id,
+            'leave_type_id' => $leaveType->id,
+            'leave_type' => $leaveType->name,
+            'start_date' => now()->startOfYear()->addDays(1)->toDateString(),
+            'end_date' => now()->startOfYear()->addDays(2)->toDateString(),
+            'total_days' => 2,
         ]);
 
         // 2 hari cuti bersama tahun ini: 1 global (semua company), 1 khusus company ini.

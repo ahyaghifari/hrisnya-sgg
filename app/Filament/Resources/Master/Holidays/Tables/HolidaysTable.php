@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Master\Holidays\Tables;
 
+use App\Models\Master\Attendance\Holidays;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
 use Filament\Tables\Columns\IconColumn;
@@ -15,6 +16,10 @@ class HolidaysTable
     public static function configure(Table $table): Table
     {
         return $table
+            // Eksplisit (bukan cuma andalkan inferensi dari HolidayResource) — tabel ini juga
+            // dipakai berdiri sendiri di luar Resource lewat HolidaysPage (portal), yang tidak
+            // punya konteks Resource buat nebak model-nya otomatis.
+            ->query(fn () => Holidays::query())
             ->defaultSort('date', 'desc')
             ->columns([
                 TextColumn::make('date')

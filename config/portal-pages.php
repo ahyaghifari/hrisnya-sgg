@@ -131,14 +131,14 @@ return [
         'guard' => null,
     ],
 
-    'keuangan.import-insentif' => [
-        'label' => 'Import Insentif',
+    'keuangan.komponen-gaji' => [
+        'label' => 'Komponen Gaji',
         'permission' => \App\Enum\CustomPermissionEnum::SISTEM_KEUANGAN->value,
         'guard' => null,
     ],
 
-    'keuangan.komponen-gaji' => [
-        'label' => 'Komponen Gaji',
+    'keuangan.penerima-komponen-gaji' => [
+        'label' => 'Penerima Komponen Gaji',
         'permission' => \App\Enum\CustomPermissionEnum::SISTEM_KEUANGAN->value,
         'guard' => null,
     ],
@@ -156,12 +156,6 @@ return [
         'guard' => null,
     ],
 
-    'master.hari-libur' => [
-        'label' => 'Hari Libur & Cuti Bersama',
-        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_MASTER->value,
-        'guard' => null,
-    ],
-
     'presensi.jadwal' => [
         'label' => 'Jadwal',
         'permission' => \App\Enum\CustomPermissionEnum::SISTEM_ABSENSI->value,
@@ -171,6 +165,50 @@ return [
     'presensi.jadwal.tambah' => [
         'label' => 'Tambah Jadwal',
         'permission' => \App\Enum\CustomPermissionEnum::SISTEM_ABSENSI->value,
+        'guard' => null,
+    ],
+
+    'presensi.pengaturan' => [
+        'label' => 'Pengaturan Absensi',
+        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_ABSENSI->value,
+        'guard' => null,
+    ],
+
+    'presensi.hari-libur' => [
+        'label' => 'Hari Libur & Cuti Bersama',
+        // Direlokasi dari 'master.hari-libur' (permission SISTEM_MASTER) ke grup Presensi &
+        // Absensi, dikonfirmasi user — lihat planning/2026-07-19-revisi-absensi-cutoff-kuota-izin-widget-pimpinan.md §9.2.
+        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_ABSENSI->value,
+        'guard' => null,
+    ],
+
+    // Versi read-only untuk karyawan biasa (bukan halaman kelola di atas) — tidak butuh
+    // permission khusus, siapa saja yang login boleh lihat. Belum ada link masuk di nav
+    // manapun (dikonfirmasi user), diakses lewat URL langsung dulu — lihat §9.3.
+    'presensi.kalender-libur' => [
+        'label' => 'Kalender Hari Libur',
+        'permission' => null,
+        'guard' => null,
+    ],
+
+    'coaching.saya' => [
+        'label' => 'Coaching Saya',
+        'permission' => null,
+        'guard' => null,
+    ],
+
+    'coaching' => [
+        'label' => 'Coaching',
+        // Murni permission Shield (bukan guard hasSubordinates() seperti 'my-staff') — siapa
+        // yang bisa bikin Coaching ditentukan lewat checklist role di /admin/roles. Lihat
+        // planning/2026-07-18-portal-coaching-counseling.md §3.2.
+        'permission' => 'Create:Coaching',
+        'guard' => null,
+    ],
+
+    'counseling' => [
+        'label' => 'Counseling',
+        'permission' => null,
         'guard' => null,
     ],
 

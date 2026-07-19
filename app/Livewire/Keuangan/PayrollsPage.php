@@ -4,36 +4,44 @@ namespace App\Livewire\Keuangan;
 
 use App\Enum\CustomPermissionEnum;
 use App\Enum\Payroll\PayrollComponentEnum;
+use App\Imports\Payroll\BonImport;
+use App\Imports\Payroll\IncentiveImport;
 use App\Models\Master\Companies;
 use App\Models\Payroll\CompanyPayrollComponent;
 use App\Models\Payroll\Payroll;
-use App\Models\Payroll\PayrollManualLine;
 use App\Models\Payroll\PayrollPeriod;
 use App\Models\Setting;
-use App\Models\User;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
+use Livewire\WithFileUploads;
+use Maatwebsite\Excel\Facades\Excel;
 
 /**
  * Halaman hasil Generate Payroll — dibangun custom (BUKAN reuse Filament Table) atas
  * permintaan eksplisit user, beda dari SalaryComponentsPage/IncentivesPage/dst di modul ini.
  * Filter perusahaan + periode, tombol "Lihat" ke halaman detail (PayrollDetailPage). Tombol
- * header (Import Insentif/Koperasi/Bon) muncul kondisional sesuai konfigurasi company yang
- * lagi dipilih — bukan statis buat semua company.
+ * header (Import Insentif/Import Bon) muncul kondisional sesuai konfigurasi company yang lagi
+ * dipilih — bukan statis buat semua company, dan buka modal (bukan navigasi ke halaman lain)
+ * atas permintaan user. Input manual per baris (bukan import) cuma ada di halaman detail
+ * payroll (PayrollDetailPage), tidak di sini.
  */
 #[Layout('components.layout', ['title' => 'Payroll'])]
 class PayrollsPage extends Component
 {
+    use WithFileUploads;
+
     public ?string $companyId = null;
     public ?string $periodId = null;
 
-    public bool $showManualLineModal = false;
-    public ?string $manualLineComponent = null; // 'koperasi' | 'bon'
-    public ?string $manualLineUserId = null;
-    public ?string $manualLineAmount = null;
-    public ?string $manualLineNote = null;
+    public bool $showImportModal = false;
+    public ?string $importType = null; // 'insentif' | 'bon'
+    public ?string $importPeriodId = null;
+    public $importFile;
+    public array $importErrors = [];
+    public ?int $importSuccessCount = null;
 
     public function mount(): void
     {
@@ -89,17 +97,8 @@ class PayrollsPage extends Component
         return (string) Setting::resolve('insentif_metode', $this->companyId, default: 'master');
     }
 
-    public function getKoperasiAktifProperty(): bool
-    {
-        return $this->isComponentActive(PayrollComponentEnum::KOPERASI->value);
-    }
-
+    /** Tombol Import Bon cuma tampil kalau komponen Bon aktif buat company ini. */
     public function getBonAktifProperty(): bool
-    {
-        return $this->isComponentActive(PayrollComponentEnum::BON->value);
-    }
-
-    private function isComponentActive(string $component): bool
     {
         if (! $this->companyId) {
             return false;
@@ -107,63 +106,103 @@ class PayrollsPage extends Component
 
         return CompanyPayrollComponent::query()
             ->where('company_id', $this->companyId)
-            ->where('component', $component)
+            ->where('component', PayrollComponentEnum::BON->value)
             ->where('is_active', true)
             ->exists();
     }
 
-    public function getEmployeesForManualLineProperty()
+    /** Cuma periode yang sudah digenerate (processed_at) yang boleh ditempeli import. */
+    public function getImportPeriodsProperty()
     {
-        return $this->companyId
-            ? User::where('company_id', $this->companyId)->where('is_active', true)->orderBy('name')->get()
-            : collect();
+        if (! $this->companyId) {
+            return collect();
+        }
+
+        return PayrollPeriod::query()
+            ->where('company_id', $this->companyId)
+            ->whereNotNull('processed_at')
+            ->orderByDesc('start_date')
+            ->get();
     }
 
-    public function openManualLineModal(string $component): void
+    public function openImportModal(string $type): void
     {
-        $this->manualLineComponent = $component;
-        $this->manualLineUserId = null;
-        $this->manualLineAmount = null;
-        $this->manualLineNote = null;
+        $this->importType = $type;
+        $this->importPeriodId = null;
+        $this->importFile = null;
+        $this->importErrors = [];
+        $this->importSuccessCount = null;
         $this->resetErrorBag();
-        $this->showManualLineModal = true;
+        $this->showImportModal = true;
     }
 
-    public function closeManualLineModal(): void
+    public function closeImportModal(): void
     {
-        $this->showManualLineModal = false;
+        $this->showImportModal = false;
     }
 
-    public function saveManualLine(): void
+    public function runImport(): void
     {
+        $this->importErrors = [];
+        $this->importSuccessCount = null;
+
         $this->validate([
-            'periodId' => 'required',
-            'manualLineUserId' => 'required',
-            'manualLineAmount' => 'required|numeric|min:0.01',
+            'importPeriodId' => 'required',
+            'importFile' => 'required|file|mimes:xlsx,xls,csv',
         ], [], [
-            'periodId' => 'periode payroll',
-            'manualLineUserId' => 'karyawan',
-            'manualLineAmount' => 'nominal',
+            'importPeriodId' => 'periode payroll',
+            'importFile' => 'file Excel',
         ]);
 
-        PayrollManualLine::create([
-            'payroll_period_id' => $this->periodId,
-            'user_id' => $this->manualLineUserId,
-            'component' => $this->manualLineComponent,
-            'amount' => $this->manualLineAmount,
-            'note' => $this->manualLineNote,
-            'created_by' => Auth::id(),
-        ]);
+        if ($this->importType === 'insentif' && $this->insentifMetode !== 'import') {
+            Notification::make()
+                ->title('Metode insentif company ini bukan "import"')
+                ->body('Ubah setting "Metode Insentif" di halaman Komponen Gaji dulu kalau memang mau pakai import Excel.')
+                ->danger()
+                ->send();
 
-        $this->showManualLineModal = false;
+            return;
+        }
 
-        $label = $this->manualLineComponent === PayrollComponentEnum::KOPERASI->value ? 'Koperasi' : 'Bon';
+        if ($this->importType === 'bon' && ! $this->bonAktif) {
+            Notification::make()
+                ->title('Komponen Bon belum aktif untuk company ini')
+                ->body('Aktifkan dulu di halaman Komponen Gaji kalau memang mau pakai Bon.')
+                ->danger()
+                ->send();
 
-        Notification::make()
-            ->title("{$label} berhasil dicatat")
-            ->body('Akan masuk ke payroll berikutnya kali Generate/Regenerate dijalankan untuk periode ini.')
-            ->success()
-            ->send();
+            return;
+        }
+
+        $path = $this->importFile->store('temp-payroll-imports');
+        $absolutePath = Storage::path($path);
+        $import = $this->importType === 'insentif'
+            ? new IncentiveImport($this->importPeriodId)
+            : new BonImport($this->importPeriodId);
+
+        try {
+            Excel::import($import, $absolutePath);
+        } finally {
+            Storage::delete($path);
+        }
+
+        $this->importErrors = $import->getErrors();
+        $this->importSuccessCount = $import->getSuccessCount();
+        $this->reset('importFile');
+
+        if ($this->importErrors === []) {
+            Notification::make()
+                ->title('Import berhasil')
+                ->body("{$this->importSuccessCount} baris berhasil diimport. Jalankan Generate/Regenerate Payroll untuk periode ini supaya nominalnya masuk ke payroll.")
+                ->success()
+                ->send();
+        } else {
+            Notification::make()
+                ->title("{$this->importSuccessCount} baris berhasil, " . count($this->importErrors) . ' baris gagal')
+                ->body('Lihat detail error di bawah form.')
+                ->warning()
+                ->send();
+        }
     }
 
     public function render()

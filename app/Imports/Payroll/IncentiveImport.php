@@ -4,7 +4,9 @@ namespace App\Imports\Payroll;
 
 use App\Enum\Payroll\PayrollComponentEnum;
 use App\Models\Payroll\Payroll;
+use App\Models\Payroll\PayrollComponentRecipient;
 use App\Models\Payroll\PayrollManualLine;
+use App\Models\Payroll\PayrollPeriod;
 use App\Models\User;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -36,6 +38,8 @@ class IncentiveImport implements ToCollection, WithHeadingRow
 
     public function collection(Collection $rows): void
     {
+        $companyId = PayrollPeriod::find($this->payrollPeriodId)?->company_id;
+
         foreach ($rows as $index => $row) {
             $rowNum = $index + 2;
             $nip = trim((string) ($row['nip'] ?? ''));
@@ -46,7 +50,7 @@ class IncentiveImport implements ToCollection, WithHeadingRow
             }
 
             try {
-                DB::transaction(function () use ($nip, $amount, $rowNum): void {
+                DB::transaction(function () use ($nip, $amount, $rowNum, $companyId): void {
                     $user = User::where('nip', $nip)->first();
 
                     if (! $user) {
@@ -68,6 +72,10 @@ class IncentiveImport implements ToCollection, WithHeadingRow
 
                     if ($amount <= 0) {
                         throw new \RuntimeException("NIP {$nip}: nominal harus lebih dari 0.");
+                    }
+
+                    if (! PayrollComponentRecipient::isEligible($companyId, PayrollComponentEnum::INSENTIF->value, $user->profile?->employee_type_id)) {
+                        throw new \RuntimeException("NIP {$nip}: tipe karyawan ini belum terdaftar sebagai penerima Insentif di halaman Penerima Komponen Gaji — nominal tidak akan muncul di payroll meski diimport.");
                     }
 
                     PayrollManualLine::updateOrCreate(

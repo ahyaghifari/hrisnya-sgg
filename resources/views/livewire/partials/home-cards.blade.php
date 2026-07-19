@@ -5,32 +5,32 @@
     <button type="button" onclick="pwaDismissPushBanner()" style="background:none;border:none;color:var(--text-faint);font-size:12px;cursor:pointer;">Nanti</button>
 </div>
 
-<livewire:my-attendance-status-card />
-
 <div class="bento pwa-bento">
 
     <!-- WELCOME CARD (server-rendered, bukan domain attendance) -->
     <div class="welcome-card bento-welcome">
         <div class="w-deco-1"></div><div class="w-deco-2"></div><div class="w-deco-4"></div>
-        <div style="position:relative;z-index:1;">
-            <p class="welcome-greeting">Selamat datang kembali 👋</p>
-            <h2 class="welcome-name">{{ auth()->user()->name }}</h2>
-            <p class="welcome-meta">
-                {{ auth()->user()->profile?->jobPosition?->name ?? 'Karyawan' }}
-                &nbsp;·&nbsp; NIP {{ auth()->user()->nip }}
-                &nbsp;·&nbsp; {{ auth()->user()->company?->name ?? '-' }}
-            </p>
-        </div>
-        <div style="position:relative;z-index:1;margin-top:14px;display:flex;gap:10px;flex-wrap:wrap;">
-            <a href="{{ route('data-diri') }}" wire:navigate class="data-diri-btn">
-                <i class="fa-solid fa-id-card"></i> Data Diri
-            </a>
-            @if (auth()->user()->hasRole(['Admin', 'Super Admin']))
-                <a href="/admin" class="data-diri-btn">
-                    <i class="fa-solid fa-gauge"></i> Admin Panel
+        <div style="position:relative;z-index:1;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;">
+            <div>
+                <p class="welcome-greeting">Selamat datang kembali 👋</p>
+                <h2 class="welcome-name">{{ auth()->user()->name }}</h2>
+                <p class="welcome-meta">
+                    {{ auth()->user()->profile?->jobPosition?->name ?? 'Karyawan' }}
+                    &nbsp;·&nbsp; NIP {{ auth()->user()->nip }}
+                    &nbsp;·&nbsp; {{ auth()->user()->company?->name ?? '-' }}
+                </p>
+            </div>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end;">
+                <a href="{{ route('data-diri') }}" wire:navigate class="data-diri-btn">
+                    <i class="fa-solid fa-id-card"></i> Data Diri
                 </a>
-            @endif
-            <a href="{{ route('organization-structure') }}" wire:navigate class="qa-btn">Struktur Organisasi</a>
+                @if (auth()->user()->hasRole(['Admin', 'Super Admin']))
+                    <a href="/admin" class="data-diri-btn">
+                        <i class="fa-solid fa-gauge"></i> Admin Panel
+                    </a>
+                @endif
+                <a href="{{ route('organization-structure') }}" wire:navigate class="qa-btn">Struktur Organisasi</a>
+            </div>
         </div>
     </div>
 
@@ -165,6 +165,8 @@
     {{-- <livewire:pending-approvals-card /> --}}
 
 </div>
+
+<livewire:my-attendance-status-card />
 
 
 @push('scripts')

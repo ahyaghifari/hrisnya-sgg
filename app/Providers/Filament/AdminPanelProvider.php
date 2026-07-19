@@ -33,7 +33,6 @@ class AdminPanelProvider extends PanelProvider
             ->path('admin')
             ->brandName(fn () => Auth::user()?->company?->name ?? 'Syifa Global Group')
             ->viteTheme('resources/css/filament/admin/theme.css')
-            ->login()
             ->colors([
                 'gray' => Color::Gray,
                 'primary' => [

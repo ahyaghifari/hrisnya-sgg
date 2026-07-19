@@ -3,10 +3,13 @@
 namespace App\Livewire\Keuangan;
 
 use App\Enum\CustomPermissionEnum;
+use App\Enum\Payroll\PayrollComponentEnum;
 use App\Models\Master\Companies;
+use App\Models\Payroll\PayrollComponentRecipient;
 use App\Models\Payroll\UserKoperasi;
 use App\Models\User;
 use Filament\Notifications\Notification;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
@@ -62,17 +65,29 @@ class KoperasiPage extends Component
             ->get();
     }
 
-    /** Karyawan aktif di company terpilih yang belum jadi anggota koperasi. */
+    /**
+     * Karyawan aktif di company terpilih yang belum jadi anggota koperasi DAN tipe
+     * karyawannya terdaftar sebagai penerima Koperasi di halaman "Penerima Komponen Gaji" —
+     * kalau tidak difilter di sini, admin bisa nambah anggota yang potongannya tidak akan
+     * pernah muncul di payroll (PayrollService::runComponent() tetap gate berdasarkan
+     * PayrollComponentRecipient, roster ini tidak bisa mem-bypass itu).
+     */
     public function getAvailableUsersProperty()
     {
         if (! $this->companyId) {
             return collect();
         }
 
+        $eligibleTypeIds = PayrollComponentRecipient::query()
+            ->where('company_id', $this->companyId)
+            ->where('component', PayrollComponentEnum::KOPERASI->value)
+            ->pluck('employee_type_id');
+
         return User::query()
             ->where('company_id', $this->companyId)
             ->where('is_active', true)
             ->whereDoesntHave('koperasi')
+            ->whereHas('profile', fn ($q) => $q->whereIn('employee_type_id', $eligibleTypeIds))
             ->orderBy('name')
             ->get();
     }
@@ -102,10 +117,34 @@ class KoperasiPage extends Component
             'addAmount' => 'nominal',
         ]);
 
-        UserKoperasi::updateOrCreate(
-            ['user_id' => $this->addUserId],
-            ['amount' => $this->addAmount, 'is_active' => true]
+        $user = User::findOrFail($this->addUserId);
+
+        abort_unless(
+            PayrollComponentRecipient::isEligible($user->company_id, PayrollComponentEnum::KOPERASI->value, $user->profile?->employee_type_id),
+            403,
+            'Tipe karyawan ini belum terdaftar sebagai penerima Koperasi di halaman Penerima Komponen Gaji.'
         );
+
+        // Dropdown "availableUsers" sudah exclude karyawan yang sudah jadi anggota, tapi itu
+        // cuma filter tampilan — bukan jaminan atomik (dua tab/klik ganda bisa lolos bareng
+        // sebelum salah satu commit). Cek eksplisit di sini + constraint unique di DB
+        // (user_koperasi.user_id) yang jadi jaminan sesungguhnya: SATU baris per karyawan,
+        // tidak ditimpa diam-diam kalau ternyata sudah ada.
+        abort_if(
+            UserKoperasi::where('user_id', $this->addUserId)->exists(),
+            409,
+            'Karyawan ini sudah jadi anggota koperasi — ubah nominalnya dari daftar, bukan tambah lagi.'
+        );
+
+        try {
+            UserKoperasi::create([
+                'user_id' => $this->addUserId,
+                'amount' => $this->addAmount,
+                'is_active' => true,
+            ]);
+        } catch (UniqueConstraintViolationException) {
+            abort(409, 'Karyawan ini sudah jadi anggota koperasi — coba muat ulang halaman.');
+        }
 
         $this->showAddModal = false;
         $this->dispatch('list-table:refresh');
