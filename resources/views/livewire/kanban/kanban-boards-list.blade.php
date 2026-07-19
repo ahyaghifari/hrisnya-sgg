@@ -1,5 +1,5 @@
 <div wire:poll.10s>
-<x-page-header title="Kanban" subtitle="Kelola board project & task tim anda di sini." />
+<x-page-header title="Penugasan" subtitle="Kelola board project & task tim anda di sini." />
 
 <div style="display:flex;align-items:center;justify-content:flex-end;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
     <a href="{{ route('kanban.personal') }}" wire:navigate class="btn-primary kanban-toolbar-btn">
@@ -7,7 +7,7 @@
     </a>
     @if ($this->subordinates->isNotEmpty())
         <button type="button" wire:click="openStaffTaskModal" class="btn-primary kanban-toolbar-btn" style="background:#B9308C;">
-            <i class="fa-solid fa-user-tag" style="font-size:12px;"></i> Kanban Staff Saya
+            <i class="fa-solid fa-user-tag" style="font-size:12px;"></i> Penugasan Staff Saya
         </button>
     @endif
     @if ($this->canCreateBoard)
@@ -82,7 +82,7 @@
     @endphp
     <div style="position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:50;display:flex;align-items:center;justify-content:center;padding:16px;" wire:click="closeStaffTaskModal">
         <div style="background:var(--surface);border-radius:14px;padding:20px;max-width:480px;width:100%;max-height:90vh;overflow-y:auto;" onclick="event.stopPropagation()">
-            <h3 style="font-size:16px;font-weight:700;color:var(--text-heading);margin:0 0 14px;">Kanban Staff</h3>
+            <h3 style="font-size:16px;font-weight:700;color:var(--text-heading);margin:0 0 14px;">Penugasan Staff</h3>
             <form wire:submit="createStaffTask" style="display:flex;flex-direction:column;gap:14px;">
                 <div>
                     <label class="form-label">Staff *</label>

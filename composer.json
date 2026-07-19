@@ -9,6 +9,7 @@
         "php": "^8.2",
         "barryvdh/laravel-dompdf": "^3.1",
         "bezhansalleh/filament-shield": "^4.2",
+        "doctrine/dbal": "*",
         "filament/filament": "4.0",
         "guava/calendar": "^2.1",
         "laravel-notification-channels/webpush": "^11.0",

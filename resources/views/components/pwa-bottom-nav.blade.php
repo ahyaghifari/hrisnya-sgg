@@ -59,7 +59,7 @@
     <div class="pwa-menu-grid" style="grid-template-columns: repeat(2, 1fr);">
         <a href="{{ route('kanban') }}" wire:navigate class="pwa-menu-grid-item">
             <span class="pwa-menu-grid-icon navy"><i class="fa-solid fa-table-columns"></i></span>
-            <span class="pwa-menu-grid-label">Kanban</span>
+            <span class="pwa-menu-grid-label">Penugasan</span>
         </a>
 
         <a href="{{ route('pelatihan') }}" wire:navigate class="pwa-menu-grid-item">

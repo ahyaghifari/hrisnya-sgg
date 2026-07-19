@@ -33,7 +33,8 @@ class OrgStructure extends Model
 
         static::creating(function ($model) {
             $user = Auth::user();
-            if (!PermissionHelper::hasGlobalRole($user)) {
+
+            if ($user && !PermissionHelper::hasGlobalRole($user)) {
                 $model->company_id = $user->company_id;
             }
         });

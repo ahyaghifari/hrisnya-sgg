@@ -281,8 +281,10 @@ button.nav-item[type="submit"]:hover {
 
 body.site { font-family: 'Plus Jakarta Sans', sans-serif; background: var(--surface-page); min-height: 100vh; }
 
-/* ── NAV ── */
-.topnav { background: var(--surface); border-bottom: 1px solid var(--border-soft); position: sticky; top: 0; z-index: 50; }
+/* ── NAV ──
+   z-index di atas .page-content (100, lihat komentar di sana) supaya nav & dropdown-nya tidak
+   ketiban konten halaman — tetap di bawah .modal-overlay (9999). */
+.topnav { background: var(--surface); border-bottom: 1px solid var(--border-soft); position: sticky; top: 0; z-index: 200; }
 .topnav::after { content: ''; display: block; height: 3px; background: linear-gradient(90deg, #042c6c 0%, #042c6c 55%, #047C54 78%, #B9308C 100%); }
 .topnav-inner { max-width: 1400px; margin: 0 auto; padding: 10px 20px; display: flex; align-items: center; min-height: 58px; gap: 16px; }
 @media (min-width: 768px) { .topnav-inner { padding: 10px 40px; gap: 40px; } }
@@ -317,6 +319,10 @@ html.dark .nav-item-sky:hover, html.dark .nav-item-sky.active { background: #026
 .nav-item-orange:hover, .nav-item-orange.active { color: #fff; background: #c2410c; }
 html.dark .nav-item-navy:hover, html.dark .nav-item-navy.active { background: #031f4d; }
 
+.nav-item-pink { color: #fff; background: #B9308C; }
+.nav-item-pink:hover, .nav-item-pink.active { color: #fff; background: #99276f; }
+html.dark .nav-item-pink:hover, html.dark .nav-item-pink.active { background: #99276f; }
+
 .nav-item-navy-outline { color: #042c6c; background: transparent; border: 1px solid #042c6c; }
 .nav-item-navy-outline:hover, .nav-item-navy-outline.active { color: #042c6c; background: rgba(4,44,108,0.08); }
 html.dark .nav-item-navy-outline { color: #6ea8e0; border-color: #6ea8e0; }
@@ -329,9 +335,9 @@ html.dark .nav-item-navy-outline:hover, html.dark .nav-item-navy-outline.active 
 .topnav-row2 { display: flex; align-items: center; gap: 8px; background: var(--border); border: 1px solid var(--border-soft); border-radius: 10px; padding: 4px 8px; flex-wrap: wrap; }
 @media (min-width: 768px) { .topnav-row2 { gap: 16px; } }
 .topnav-row2 .nav-item { padding: 4px 10px; font-size: 12px; border-radius: 7px; gap: 4px; color: var(--text-muted); }
-.topnav-row2 .nav-item-green, .topnav-row2 .nav-item-sky, .topnav-row2 .nav-item-navy, .topnav-row2 .nav-item-orange { color: #fff; }
+.topnav-row2 .nav-item-green, .topnav-row2 .nav-item-sky, .topnav-row2 .nav-item-navy, .topnav-row2 .nav-item-orange, .topnav-row2 .nav-item-pink { color: #fff; }
 .dropdown { position: relative; }
-.dropdown-menu { position: absolute; top: calc(100% + 10px); left: 50%; transform: translateX(-50%) translateY(-4px); background: var(--surface); border-radius: 14px; padding: 6px; box-shadow: 0 8px 30px rgba(4,44,108,0.12), 0 0 0 1px rgba(4,44,108,0.06); min-width: 180px; opacity: 0; visibility: hidden; transition: all 0.15s; z-index: 60; }
+.dropdown-menu { position: absolute; top: calc(100% + 10px); left: 50%; transform: translateX(-50%) translateY(-4px); background: var(--surface); border-radius: 14px; padding: 6px; box-shadow: 0 8px 30px rgba(4,44,108,0.12), 0 0 0 1px rgba(4,44,108,0.06); min-width: 180px; opacity: 0; visibility: hidden; transition: all 0.15s; z-index: 210; }
 .dropdown-menu.dropdown-menu-right { left: auto; right: 0; transform: translateY(-4px); }
 .dropdown:hover .dropdown-menu { opacity: 1; visibility: visible; transform: translateX(-50%) translateY(0); }
 .dropdown:hover .dropdown-menu.dropdown-menu-right { transform: translateY(0); }
@@ -357,7 +363,7 @@ html.dark .nav-brand-icon-dark { display: inline-block; }
 .nav-item-sub { padding-left: 28px !important; font-size: 13px !important; }
 
 /* ── PWA APP BAR ── */
-.pwa-app-bar { background: #042c6c; position: sticky; top: 0; z-index: 50; }
+.pwa-app-bar { background: #042c6c; position: sticky; top: 0; z-index: 200; }
 .pwa-app-bar-inner { display: flex; align-items: center; justify-content: space-between; height: 56px; padding: 0 16px; padding-top: env(safe-area-inset-top); }
 .pwa-app-bar-brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .pwa-app-bar-title { color: #fff; font-size: 18px; font-weight: 700; letter-spacing: -0.2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -638,7 +644,7 @@ html.dark .quiz-review-option.is-wrong-selected i { color: #f87171; }
 .pwa-action-btn.green { background: linear-gradient(135deg, #047C54 0%, #024732 100%); }
 
 /* ── PWA BOTTOM NAV (mobile primary nav — 5 reachable slots instead of top-left hamburger only) ── */
-.pwa-bottom-nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 55; background: var(--surface); border-top: 1px solid var(--border-soft); box-shadow: 0 -2px 16px rgba(0,0,0,0.06); }
+.pwa-bottom-nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 205; background: var(--surface); border-top: 1px solid var(--border-soft); box-shadow: 0 -2px 16px rgba(0,0,0,0.06); }
 .pwa-bottom-nav-inner { display: flex; align-items: stretch; height: 60px; padding-bottom: env(safe-area-inset-bottom); }
 .pwa-bottom-nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; color: var(--text-muted); text-decoration: none; font-size: 10.5px; font-weight: 600; }
 .pwa-bottom-nav-item i { font-size: 18px; }
@@ -649,9 +655,9 @@ html.dark .quiz-review-option.is-wrong-selected i { color: #f87171; }
 
 /* Bottom sheet opened by the center button — off-canvas, anchored to the bottom edge instead of
    a side edge. */
-.pwa-menu-sheet-backdrop { position: fixed; inset: 0; background: rgba(15,23,42,0.5); z-index: 60; opacity: 0; pointer-events: none; transition: opacity 0.2s ease; }
+.pwa-menu-sheet-backdrop { position: fixed; inset: 0; background: rgba(15,23,42,0.5); z-index: 210; opacity: 0; pointer-events: none; transition: opacity 0.2s ease; }
 .pwa-menu-sheet-backdrop.open { opacity: 1; pointer-events: auto; }
-.pwa-menu-sheet { position: fixed; left: 0; right: 0; bottom: 0; background: var(--surface); z-index: 61; border-radius: 20px 20px 0 0; max-height: 75vh; overflow-y: auto; transform: translateY(100%); transition: transform 0.25s ease; box-shadow: 0 -4px 24px rgba(0,0,0,0.12); padding: 8px 16px calc(16px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 2px; }
+.pwa-menu-sheet { position: fixed; left: 0; right: 0; bottom: 0; background: var(--surface); z-index: 211; border-radius: 20px 20px 0 0; max-height: 75vh; overflow-y: auto; transform: translateY(100%); transition: transform 0.25s ease; box-shadow: 0 -4px 24px rgba(0,0,0,0.12); padding: 8px 16px calc(16px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 2px; }
 .pwa-menu-sheet.open { transform: translateY(0); }
 .pwa-menu-sheet-handle { width: 40px; height: 4px; border-radius: 2px; background: var(--border); margin: 10px auto 14px; }
 .pwa-menu-sheet .nav-item { font-size: 15px; padding: 11px 14px; gap: 10px; }
@@ -680,8 +686,16 @@ html.dark .quiz-review-option.is-wrong-selected i { color: #f87171; }
 .deco-c { position: absolute; top: 38%; left: 55%; width: 220px; height: 220px; border-radius: 50%; border: 28px solid #042c6c; opacity: 0.03; }
 .deco-d { position: absolute; top: 15%; left: 20%; width: 90px; height: 90px; border-radius: 14px; background: #047C54; opacity: 0.03; transform: rotate(20deg); }
 
-/* ── CONTAINER ── */
-.page-content { max-width: 1400px; margin: 0 auto; padding: 24px 16px; position: relative; z-index: 2; min-height: 100vh; }
+/* ── CONTAINER ──
+   SENGAJA tidak dikasih z-index sama sekali (cuma `position:relative`) — `position:relative`
+   TANPA `z-index` eksplisit TIDAK membuat stacking context baru, jadi anak-anaknya (termasuk
+   modal, position:fixed z-index:9999) ikut dibandingkan langsung di root context, bukan
+   "terjebak" dibandingkan sebagai satu grup lewat z-index .page-content sendiri (bug yang
+   sempat kejadian 2x: giliran .page-content dikasih z-index buat ngalahin .page-deco, modal di
+   dalamnya malah kekunci di bawah nav). .page-deco (fixed, z-index:0) tetap kekalahan natural
+   lewat urutan DOM (dirender sebelum .page-content di layout.blade.php), tidak butuh z-index
+   eksplisit di sini. */
+.page-content { max-width: 1400px; margin: 0 auto; padding: 24px 16px; position: relative; min-height: 100vh; }
 @media (min-width: 768px) { .page-content { padding: 32px 40px; } }
 /* Room for the fixed .pwa-bottom-nav so page content doesn't render underneath it. */
 @media (max-width: 767.98px) { .page-content { padding-bottom: calc(84px + env(safe-area-inset-bottom)); } }
@@ -919,14 +933,20 @@ html.dark .ts-dropdown .active { background: rgba(110,168,224,0.16); }
 .saldo-pill { display: inline-flex; align-items: center; gap: 5px; background: var(--info-soft-bg); border: 1px solid var(--info-soft-border); color: var(--info-soft-text); font-size: 12px; font-weight: 600; padding: 5px 11px; border-radius: 99px; }
 
 /* ── MODAL ──
-   Dipakai bareng semua modal Livewire simple (Koperasi, Bon, Periode Gaji, dst) — `.modal-box`
-   sengaja dikasih margin-top biar tidak ketiban .topnav (sticky, z-index:50): overlay ini
-   z-index:50 juga (sama context sama nav, bukan trapped di dalam stacking context `.page-content`
-   karena wire:click ada di overlay-nya sendiri), tapi kalau viewport pendek & kontennya panjang,
-   box modal bisa scroll sampai ke bawah topnav — margin-top mencegah bagian atas box ketutupan. */
-.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 50; display: flex; align-items: flex-start; justify-content: center; padding: 16px; overflow-y: auto; }
-.modal-box { background: var(--surface); border-radius: 14px; padding: 20px; max-width: 420px; width: 100%; max-height: 90vh; overflow-y: auto; margin: 80px auto; }
+   Dipakai bareng semua modal Livewire simple (Koperasi, Bon, Periode Gaji, dst). z-index jauh
+   di atas semua elemen sticky/fixed lain di halaman (topnav/pwa-app-bar/pwa-bottom-nav z-index
+   tertinggi 61) supaya modal SELALU tampil paling atas — margin-top dulu 80px buat jaga-jaga
+   ketiban .topnav, sekarang cukup kecil (24px) karena modal sudah pasti di atas apa pun. */
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 9999; display: flex; align-items: flex-start; justify-content: center; padding: 16px; overflow-y: auto; }
+.modal-box { background: var(--surface); border-radius: 14px; padding: 20px; max-width: 420px; width: 100%; max-height: 90vh; overflow-y: auto; margin: 24px auto; }
 .modal-box-lg { max-width: 560px; }
+.modal-box-xl { max-width: 1100px; }
+
+/* Toast notifikasi Filament (Notification::make()->send(), dipakai di seluruh portal) — class
+   bawaan `.fi-no` (public/css/filament/filament/app.css) punya z-index:50 sendiri, dan file
+   CSS itu dimuat SETELAH app.css ini di layout.blade.php, jadi override biasa kalah cascade
+   (sama specificity, unggul karena urutan). !important di sini sengaja, bukan kecerobohan. */
+.fi-no { z-index: 9999 !important; }
 
 .btn-primary { display: inline-flex; align-items: center; justify-content: center; gap: 8px; background: #042c6c; color: white; font-weight: 700; font-size: 13.5px; padding: 12px 28px; border-radius: 12px; border: none; cursor: pointer; transition: all 0.15s; font-family: inherit; }
 .btn-primary:hover { background: #032356; transform: translateY(-1px); box-shadow: 0 4px 14px rgba(4,44,108,0.25); }
@@ -1000,6 +1020,14 @@ html.dark .section-nav-btn.teal:hover { background: rgba(45,212,191,0.26); }
 html.dark .doc-type-btn { background: rgba(45,212,191,0.16); color: #5eead4; }
 html.dark .doc-type-btn:hover { background: rgba(45,212,191,0.26); }
 .doc-type-btn .doc-type-count { margin-left: auto; font-size: 11px; font-weight: 700; opacity: 0.75; }
+
+/* Varian warna sky — dipakai khusus halaman Pengaturan Absensi (list perusahaan), bukan default
+   teal di atas, tanpa mengubah halaman lain yang reuse .doc-type-btn (Komponen Gaji, dst). */
+.doc-type-btn-sky { background: rgba(2,132,199,0.08); color: #0284c7; }
+.doc-type-btn-sky:hover { background: rgba(2,132,199,0.14); }
+.doc-type-btn-sky.is-active { background: #0284c7; color: #fff; border-color: #0284c7; }
+html.dark .doc-type-btn-sky { background: rgba(56,189,248,0.16); color: #7dd3fc; }
+html.dark .doc-type-btn-sky:hover { background: rgba(56,189,248,0.26); }
 
 .date-grid { display: grid; grid-template-columns: 1fr; gap: 12px; }
 @media (min-width: 480px) { .date-grid { grid-template-columns: 1fr 1fr; } }

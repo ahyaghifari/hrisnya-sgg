@@ -26,14 +26,20 @@ use Maatwebsite\Excel\Concerns\WithHeadingRow;
  * karyawan itu SUDAH punya baris Bon manual (dari halaman detail payroll), updateOrCreate ini
  * akan menimpa baris pertama yang ditemukan — disengaja, biar tidak ada 2 baris Bon dobel
  * untuk 1 karyawan di 1 periode yang sama.
+ *
+ * Mode `preview: true` cuma memvalidasi tiap baris (termasuk NIP tidak ditemukan) tanpa
+ * menulis apa pun ke database — dipakai buat tampilkan pratinjau sebelum user klik "Simpan"
+ * (lihat PayrollsPage::previewImport()/confirmImport()).
  */
 class BonImport implements ToCollection, WithHeadingRow
 {
     private array $errors = [];
     private int $successCount = 0;
+    private array $previewRows = [];
 
     public function __construct(
         protected string $payrollPeriodId,
+        protected bool $preview = false,
     ) {}
 
     public function collection(Collection $rows): void
@@ -43,59 +49,81 @@ class BonImport implements ToCollection, WithHeadingRow
         foreach ($rows as $index => $row) {
             $rowNum = $index + 2;
             $nip = trim((string) ($row['nip'] ?? ''));
+            $namaImport = trim((string) ($row['nama'] ?? ''));
             $amount = (float) ($row['nominal'] ?? $row['jumlah'] ?? 0);
 
             if ($nip === '') {
                 continue; // baris kosong, bukan error
             }
 
-            try {
-                DB::transaction(function () use ($nip, $amount, $rowNum, $companyId): void {
-                    $user = User::where('nip', $nip)->first();
+            $user = User::where('nip', $nip)->first();
+            $error = $this->validateRow($user, $amount, $nip, $companyId);
 
-                    if (! $user) {
-                        throw new \RuntimeException("NIP {$nip} tidak ditemukan.");
-                    }
+            if ($this->preview) {
+                $this->previewRows[] = [
+                    'row' => $rowNum,
+                    'nip' => $nip,
+                    'nama_import' => $namaImport,
+                    'nama_sistem' => $user?->name,
+                    'nominal' => $amount,
+                    'error' => $error,
+                ];
 
-                    $payroll = Payroll::query()
-                        ->where('user_id', $user->id)
-                        ->where('payroll_period_id', $this->payrollPeriodId)
-                        ->first();
-
-                    if (! $payroll) {
-                        throw new \RuntimeException("NIP {$nip}: belum ada payroll di periode ini — generate payroll dulu sebelum import.");
-                    }
-
-                    if ($payroll->is_paid) {
-                        throw new \RuntimeException("NIP {$nip}: payroll sudah dibayar (is_paid), tidak bisa diubah.");
-                    }
-
-                    if ($amount <= 0) {
-                        throw new \RuntimeException("NIP {$nip}: nominal harus lebih dari 0.");
-                    }
-
-                    if (! PayrollComponentRecipient::isEligible($companyId, PayrollComponentEnum::BON->value, $user->profile?->employee_type_id)) {
-                        throw new \RuntimeException("NIP {$nip}: tipe karyawan ini belum terdaftar sebagai penerima Bon di halaman Penerima Komponen Gaji — nominal tidak akan muncul di payroll meski diimport.");
-                    }
-
-                    PayrollManualLine::updateOrCreate(
-                        [
-                            'payroll_period_id' => $this->payrollPeriodId,
-                            'user_id' => $user->id,
-                            'component' => PayrollComponentEnum::BON->value,
-                        ],
-                        [
-                            'amount' => $amount,
-                            'note' => 'Import Excel',
-                        ]
-                    );
-                });
-
-                $this->successCount++;
-            } catch (\Throwable $e) {
-                $this->errors[] = "Baris {$rowNum}: " . $e->getMessage();
+                continue;
             }
+
+            if ($error) {
+                $this->errors[] = "Baris {$rowNum}: {$error}";
+
+                continue;
+            }
+
+            DB::transaction(function () use ($user, $amount): void {
+                PayrollManualLine::updateOrCreate(
+                    [
+                        'payroll_period_id' => $this->payrollPeriodId,
+                        'user_id' => $user->id,
+                        'component' => PayrollComponentEnum::BON->value,
+                    ],
+                    [
+                        'amount' => $amount,
+                        'note' => 'Import Excel',
+                    ]
+                );
+            });
+
+            $this->successCount++;
         }
+    }
+
+    private function validateRow(?User $user, float $amount, string $nip, ?string $companyId): ?string
+    {
+        if (! $user) {
+            return "NIP {$nip} tidak ditemukan.";
+        }
+
+        $payroll = Payroll::query()
+            ->where('user_id', $user->id)
+            ->where('payroll_period_id', $this->payrollPeriodId)
+            ->first();
+
+        if (! $payroll) {
+            return "NIP {$nip}: belum ada payroll di periode ini — generate payroll dulu sebelum import.";
+        }
+
+        if ($payroll->is_paid) {
+            return "NIP {$nip}: payroll sudah dibayar (is_paid), tidak bisa diubah.";
+        }
+
+        if ($amount <= 0) {
+            return "NIP {$nip}: nominal harus lebih dari 0.";
+        }
+
+        if (! PayrollComponentRecipient::isEligible($companyId, PayrollComponentEnum::BON->value, $user->profile?->employee_type_id)) {
+            return "NIP {$nip}: tipe karyawan ini belum terdaftar sebagai penerima Bon di halaman Penerima Komponen Gaji — nominal tidak akan muncul di payroll meski diimport.";
+        }
+
+        return null;
     }
 
     public function getErrors(): array
@@ -106,5 +134,10 @@ class BonImport implements ToCollection, WithHeadingRow
     public function getSuccessCount(): int
     {
         return $this->successCount;
+    }
+
+    public function getPreview(): array
+    {
+        return $this->previewRows;
     }
 }

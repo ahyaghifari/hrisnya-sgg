@@ -131,7 +131,6 @@ enum PayrollComponentEnum: string
         return match ($this) {
             self::GAJI_POKOK => ['gaji_pokok_kenaikan_per_kelas'],
             self::KELEBIHAN_JAM_KERJA => ['min_total_working_hours_per_month'],
-            self::LEMBUR => ['lembur_metode', 'lembur_minimum_jam'],
             self::BPJS_KESEHATAN, self::BPJS_KETENAGAKERJAAN => ['bpjs_declared_value'],
             self::KETERLAMBATAN => ['keterlambatan_threshold_menit', 'keterlambatan_denda', 'keterlambatan_grace_count'],
             self::IZIN_TERLAMBAT_PULANG_CEPAT => ['izin_potongan_flat'],

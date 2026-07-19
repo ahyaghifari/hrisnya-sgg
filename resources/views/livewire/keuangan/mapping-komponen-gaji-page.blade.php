@@ -56,13 +56,25 @@
                                             </div>
                                             <div>
                                                 <label class="form-label" style="font-size:10.5px;">Kelas Mulai</label>
-                                                <input type="number" class="form-input" style="font-size:12.5px;padding:7px 10px;" wire:model="startKelasLevelValues.{{ $p->id }}" placeholder="Belum diisi">
-                                                @error("startKelasLevelValues.{$p->id}") <p style="font-size:10.5px;color:#dc2626;margin-top:2px;">{{ $message }}</p> @enderror
+                                                <select class="form-input" style="font-size:12.5px;padding:7px 10px;" wire:model="startKelasIdValues.{{ $p->id }}">
+                                                    <option value="">Belum diisi</option>
+                                                    @foreach ($this->kelasList as $k)
+                                                        @continue($k->level === null)
+                                                        <option value="{{ $k->id }}">{{ $k->name }}</option>
+                                                    @endforeach
+                                                </select>
+                                                @error("startKelasIdValues.{$p->id}") <p style="font-size:10.5px;color:#dc2626;margin-top:2px;">{{ $message }}</p> @enderror
                                             </div>
                                             <div>
                                                 <label class="form-label" style="font-size:10.5px;">Kelas Maksimal</label>
-                                                <input type="number" class="form-input" style="font-size:12.5px;padding:7px 10px;" wire:model="maxKelasLevelValues.{{ $p->id }}" placeholder="Tanpa batas">
-                                                @error("maxKelasLevelValues.{$p->id}") <p style="font-size:10.5px;color:#dc2626;margin-top:2px;">{{ $message }}</p> @enderror
+                                                <select class="form-input" style="font-size:12.5px;padding:7px 10px;" wire:model="maxKelasIdValues.{{ $p->id }}">
+                                                    <option value="">Tanpa batas</option>
+                                                    @foreach ($this->kelasList as $k)
+                                                        @continue($k->level === null)
+                                                        <option value="{{ $k->id }}">{{ $k->name }}</option>
+                                                    @endforeach
+                                                </select>
+                                                @error("maxKelasIdValues.{$p->id}") <p style="font-size:10.5px;color:#dc2626;margin-top:2px;">{{ $message }}</p> @enderror
                                             </div>
                                         </div>
                                     </div>
@@ -140,18 +152,20 @@
                                                     <td style="padding:6px 10px;font-weight:600;white-space:nowrap;position:sticky;left:0;background:var(--surface);z-index:1;border-right:1.5px solid var(--border);">{{ $p->name }}</td>
                                                     @foreach ($this->kelasList as $k)
                                                         @php
-                                                            // Kelas di luar jangkauan pangkat ini (level < start_kelas_level atau
-                                                            // > max_kelas_level) di-disable — kombinasi itu memang tidak pernah
-                                                            // kejadian di dunia nyata (pangkat cuma bisa naik kelas dalam
-                                                            // rentangnya sendiri). Kalau start/max belum diisi (NULL, company yang
-                                                            // datanya belum ada di migrasi backfill), tidak ada yang di-disable.
+                                                            // Kelas di luar jangkauan pangkat ini (level < startKelas atau >
+                                                            // maxKelas) di-disable — kombinasi itu memang tidak pernah kejadian
+                                                            // di dunia nyata (pangkat cuma bisa naik kelas dalam rentangnya
+                                                            // sendiri). Kalau start/max belum diisi (NULL), tidak ada yang
+                                                            // di-disable.
+                                                            $startLevel = $p->startKelas?->level;
+                                                            $maxLevel = $p->maxKelas?->level;
                                                             $outOfRange = $k->level !== null && (
-                                                                ($p->start_kelas_level !== null && $k->level < $p->start_kelas_level)
-                                                                || ($p->max_kelas_level !== null && $k->level > $p->max_kelas_level)
+                                                                ($startLevel !== null && $k->level < $startLevel)
+                                                                || ($maxLevel !== null && $k->level > $maxLevel)
                                                             );
                                                         @endphp
                                                         <td style="padding:4px 6px;">
-                                                            <input type="number" step="0.01" class="form-input" style="width:120px;font-size:11.5px;padding:6px 8px;{{ $outOfRange ? 'opacity:0.4;' : 'border-color:#042c6c;' }}{{ $errors->has("jabatanMatrix.{$p->id}|{$k->id}") ? 'border-color:#dc2626;' : '' }}" wire:model="jabatanMatrix.{{ $p->id }}|{{ $k->id }}" @disabled($outOfRange) @if ($outOfRange) title="Kelas {{ $k->name }} di luar jangkauan pangkat {{ $p->name }} ({{ $p->start_kelas_level ?? '?' }}–{{ $p->max_kelas_level ?? '?' }})" @endif>
+                                                            <input type="number" step="0.01" class="form-input" style="width:120px;font-size:11.5px;padding:6px 8px;{{ $outOfRange ? 'opacity:0.4;' : 'border-color:#042c6c;' }}{{ $errors->has("jabatanMatrix.{$p->id}|{$k->id}") ? 'border-color:#dc2626;' : '' }}" wire:model="jabatanMatrix.{{ $p->id }}|{{ $k->id }}" @disabled($outOfRange) @if ($outOfRange) title="Kelas {{ $k->name }} di luar jangkauan pangkat {{ $p->name }} ({{ $startLevel ?? '?' }}–{{ $maxLevel ?? '?' }})" @endif>
                                                         </td>
                                                     @endforeach
                                                 </tr>
@@ -194,15 +208,17 @@
                             </div>
                         @endif
 
-                        {{-- Lembur, metode "per_pangkat" --}}
-                        @if ($activeComponent === 'lembur' && $this->lemburMetode === 'per_pangkat')
-                            <p style="font-size:11px;color:var(--text-muted);margin:0 0 12px;">Rate lembur per jam per pangkat. Pangkat yang belum diisi tidak akan menghasilkan Lembur lewat metode ini.</p>
+                        {{-- Lembur — base rate per pangkat, dipakai rumus TL/TM: base rate ÷ (hari
+                             dalam bulan × 7) × multiplier jam (2 jam → 3,5x, 3 jam → 5,5x, ≥4 jam
+                             → 7,5x, mentok di 4 jam). Satu-satunya metode Lembur di sistem ini. --}}
+                        @if ($activeComponent === 'lembur')
+                            <p style="font-size:11px;color:var(--text-muted);margin:0 0 12px;">Base rate lembur per pangkat. Dihitung per kejadian lembur: base rate ÷ (jumlah hari dalam bulan × 7) × multiplier jam. Pangkat yang belum diisi tidak akan menghasilkan Lembur.</p>
                             <div style="display:flex;flex-direction:column;gap:8px;">
                                 @foreach ($this->pangkats as $p)
                                     <div>
                                         <div style="display:flex;align-items:center;gap:10px;">
                                             <span style="flex:1;font-size:12.5px;font-weight:600;">{{ $p->name }}</span>
-                                            <input type="number" step="0.01" class="form-input" style="max-width:220px;font-size:12.5px;padding:7px 10px;" wire:model="lemburRateValues.{{ $p->id }}" placeholder="Rp / jam">
+                                            <input type="number" step="0.01" class="form-input" style="max-width:220px;font-size:12.5px;padding:7px 10px;" wire:model="lemburRateValues.{{ $p->id }}" placeholder="Base rate (Rp)">
                                         </div>
                                         @error("lemburRateValues.{$p->id}") <p style="font-size:11px;color:#dc2626;margin:2px 0 0;text-align:right;">{{ $message }}</p> @enderror
                                     </div>
@@ -214,8 +230,8 @@
                             <button type="button" wire:click="saveLemburRates" wire:loading.attr="disabled" wire:target="saveLemburRates" class="btn-primary" style="margin-top:14px;padding:9px 20px;font-size:12.5px;">Simpan</button>
                         @endif
 
-                        {{-- Kelebihan Jam Kerja & Lembur (metode "shift") — reuse Filament table+action --}}
-                        @if ($activeComponent === 'kelebihan_jam_kerja' || ($activeComponent === 'lembur' && $this->lemburMetode === 'shift'))
+                        {{-- Kelebihan Jam Kerja — reuse Filament table+action --}}
+                        @if ($activeComponent === 'kelebihan_jam_kerja')
                             {{ $this->table }}
                         @endif
                     </div>

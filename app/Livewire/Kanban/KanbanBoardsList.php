@@ -139,6 +139,6 @@ class KanbanBoardsList extends Component
     public function render()
     {
         return view('livewire.kanban.kanban-boards-list')
-            ->layout('components.layout', ['title' => 'Kanban']);
+            ->layout('components.layout', ['title' => 'Penugasan']);
     }
 }

@@ -26,7 +26,10 @@ use Maatwebsite\Excel\Facades\Excel;
  * header (Import Insentif/Import Bon) muncul kondisional sesuai konfigurasi company yang lagi
  * dipilih — bukan statis buat semua company, dan buka modal (bukan navigasi ke halaman lain)
  * atas permintaan user. Input manual per baris (bukan import) cuma ada di halaman detail
- * payroll (PayrollDetailPage), tidak di sini.
+ * payroll (PayrollDetailPage), tidak di sini. Cari/company/period semuanya lewat Livewire
+ * (server-side) — SEBELUMNYA cari pakai List.js di browser, tapi List.js kedapatan mengunci
+ * baris tbody-nya sendiri sehingga tidak ikut ke-morph Livewire begitu company/periode ganti
+ * (baris karyawan lama nyangkut terus), jadi dicabut.
  */
 #[Layout('components.layout', ['title' => 'Payroll'])]
 class PayrollsPage extends Component
@@ -35,6 +38,7 @@ class PayrollsPage extends Component
 
     public ?string $companyId = null;
     public ?string $periodId = null;
+    public string $search = '';
 
     public bool $showImportModal = false;
     public ?string $importType = null; // 'insentif' | 'bon'
@@ -43,6 +47,10 @@ class PayrollsPage extends Component
     public array $importErrors = [];
     public ?int $importSuccessCount = null;
 
+    /** Baris hasil parsing file, sebelum disimpan — lihat previewImport()/confirmImport(). */
+    public array $importPreviewRows = [];
+    public ?string $importStoredPath = null;
+
     public function mount(): void
     {
         abort_unless(Auth::user()->can(CustomPermissionEnum::SISTEM_KEUANGAN->value), 403);
@@ -50,21 +58,10 @@ class PayrollsPage extends Component
         $this->companyId = Auth::user()->company_id ?? Companies::orderBy('code')->value('id');
     }
 
-    /**
-     * Cari/sortir/pagination baris yang sudah tampil ditangani List.js di browser (lihat
-     * resources/js/app.js) — tidak roundtrip ke server lagi. Company/period tetap lewat
-     * Livewire karena itu benar-benar ganti data dari database. Event ini memberitahu List.js
-     * kalau barisnya baru saja diganti Livewire, supaya index pencariannya di-refresh.
-     */
+    /** Ganti company -> pilihan periode lama tidak relevan lagi. */
     public function updatedCompanyId(): void
     {
         $this->periodId = null;
-        $this->dispatch('list-table:refresh');
-    }
-
-    public function updatedPeriodId(): void
-    {
-        $this->dispatch('list-table:refresh');
     }
 
     public function getCompaniesProperty()
@@ -81,11 +78,17 @@ class PayrollsPage extends Component
         return PayrollPeriod::where('company_id', $this->companyId)->orderByDesc('start_date')->get();
     }
 
+    /** Cari nama/NIP — server-side (bukan List.js, lihat catatan kelas ini). */
     public function getPayrollsProperty()
     {
+        $search = trim($this->search);
+
         return Payroll::query()
             ->when($this->companyId, fn ($q) => $q->whereHas('payrollPeriod', fn ($q2) => $q2->where('company_id', $this->companyId)))
             ->when($this->periodId, fn ($q) => $q->where('payroll_period_id', $this->periodId))
+            ->when($search !== '', fn ($q) => $q->whereHas('user', fn ($q2) => $q2
+                ->where('name', 'like', "%{$search}%")
+                ->orWhere('nip', 'like', "%{$search}%")))
             ->with(['user', 'payrollPeriod'])
             ->orderByDesc('created_at')
             ->get();
@@ -132,6 +135,8 @@ class PayrollsPage extends Component
         $this->importFile = null;
         $this->importErrors = [];
         $this->importSuccessCount = null;
+        $this->importPreviewRows = [];
+        $this->discardStoredImportFile();
         $this->resetErrorBag();
         $this->showImportModal = true;
     }
@@ -139,12 +144,29 @@ class PayrollsPage extends Component
     public function closeImportModal(): void
     {
         $this->showImportModal = false;
+        $this->discardStoredImportFile();
     }
 
-    public function runImport(): void
+    /** Periode ganti setelah file sudah dipratinjau -> pratinjau lama tidak valid lagi, ulang. */
+    public function updatedImportPeriodId(): void
+    {
+        if ($this->importStoredPath !== null) {
+            $this->previewImport();
+        }
+    }
+
+    /** File baru dipilih (wire:model) -> langsung parse & tampilkan pratinjau, JANGAN simpan dulu. */
+    public function updatedImportFile(): void
     {
         $this->importErrors = [];
         $this->importSuccessCount = null;
+        $this->previewImport();
+    }
+
+    private function previewImport(): void
+    {
+        $this->importPreviewRows = [];
+        $this->discardStoredImportFile();
 
         $this->validate([
             'importPeriodId' => 'required',
@@ -154,40 +176,35 @@ class PayrollsPage extends Component
             'importFile' => 'file Excel',
         ]);
 
-        if ($this->importType === 'insentif' && $this->insentifMetode !== 'import') {
-            Notification::make()
-                ->title('Metode insentif company ini bukan "import"')
-                ->body('Ubah setting "Metode Insentif" di halaman Komponen Gaji dulu kalau memang mau pakai import Excel.')
-                ->danger()
-                ->send();
-
+        if (! $this->importGuardPasses()) {
             return;
         }
 
-        if ($this->importType === 'bon' && ! $this->bonAktif) {
-            Notification::make()
-                ->title('Komponen Bon belum aktif untuk company ini')
-                ->body('Aktifkan dulu di halaman Komponen Gaji kalau memang mau pakai Bon.')
-                ->danger()
-                ->send();
+        $this->importStoredPath = $this->importFile->store('temp-payroll-imports');
+        $import = $this->makeImport(preview: true);
+        Excel::import($import, Storage::path($this->importStoredPath));
 
+        $this->importPreviewRows = $import->getPreview();
+    }
+
+    /** Tombol "Simpan" di pratinjau -> baru di sini datanya benar-benar ditulis ke database. */
+    public function confirmImport(): void
+    {
+        if ($this->importStoredPath === null || ! $this->importGuardPasses()) {
             return;
         }
 
-        $path = $this->importFile->store('temp-payroll-imports');
-        $absolutePath = Storage::path($path);
-        $import = $this->importType === 'insentif'
-            ? new IncentiveImport($this->importPeriodId)
-            : new BonImport($this->importPeriodId);
+        $import = $this->makeImport(preview: false);
 
         try {
-            Excel::import($import, $absolutePath);
+            Excel::import($import, Storage::path($this->importStoredPath));
         } finally {
-            Storage::delete($path);
+            $this->discardStoredImportFile();
         }
 
         $this->importErrors = $import->getErrors();
         $this->importSuccessCount = $import->getSuccessCount();
+        $this->importPreviewRows = [];
         $this->reset('importFile');
 
         if ($this->importErrors === []) {
@@ -202,6 +219,46 @@ class PayrollsPage extends Component
                 ->body('Lihat detail error di bawah form.')
                 ->warning()
                 ->send();
+        }
+    }
+
+    private function makeImport(bool $preview): IncentiveImport|BonImport
+    {
+        return $this->importType === 'insentif'
+            ? new IncentiveImport($this->importPeriodId, $preview)
+            : new BonImport($this->importPeriodId, $preview);
+    }
+
+    private function importGuardPasses(): bool
+    {
+        if ($this->importType === 'insentif' && $this->insentifMetode !== 'import') {
+            Notification::make()
+                ->title('Metode insentif company ini bukan "import"')
+                ->body('Ubah setting "Metode Insentif" di halaman Komponen Gaji dulu kalau memang mau pakai import Excel.')
+                ->danger()
+                ->send();
+
+            return false;
+        }
+
+        if ($this->importType === 'bon' && ! $this->bonAktif) {
+            Notification::make()
+                ->title('Komponen Bon belum aktif untuk company ini')
+                ->body('Aktifkan dulu di halaman Komponen Gaji kalau memang mau pakai Bon.')
+                ->danger()
+                ->send();
+
+            return false;
+        }
+
+        return true;
+    }
+
+    private function discardStoredImportFile(): void
+    {
+        if ($this->importStoredPath !== null) {
+            Storage::delete($this->importStoredPath);
+            $this->importStoredPath = null;
         }
     }
 

@@ -67,7 +67,7 @@ class RequestStatusChanged extends Notification implements ShouldQueue
     {
         return (new WebPushMessage)
             ->title($this->title())
-            ->icon('/pwa/icons/icon-192-v2.png')
+            ->icon('/pwa/icons/icon-192-v3.png')
             ->body($this->body())
             ->data(['request_type' => $this->moduleType, 'request_id' => $this->moduleId])
             ->action('Lihat', 'view');

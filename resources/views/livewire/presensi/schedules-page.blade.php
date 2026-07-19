@@ -1,57 +1,60 @@
 <div>
     <x-page-header title="Jadwal" />
 
-    {{--
-        List.js (headless, lihat resources/js/app.js) urus cari/sortir/pagination instan di
-        browser. Company tetap lewat Livewire (ganti data dari database) — wire:ignore.self
-        cuma mengunci atribut container ini sendiri, anak-anaknya (select company) tetap
-        ke-bind Livewire normal.
-    --}}
-    <div id="schedules-list" data-list-table data-list-value-names="name,type,unit" data-list-page-size="15" wire:ignore.self class="mt-4">
+    {{-- Filter company lewat Livewire (server-side) — SEBELUMNYA pakai List.js di browser,
+         tapi List.js mengunci baris tbody-nya sendiri sehingga tidak ikut ke-morph Livewire pas
+         companyId ganti (baris perusahaan lama nyangkut terus), jadi dicabut. Tidak ada kotak
+         cari, filter perusahaan sudah cukup. --}}
+    <div class="mt-4">
         <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;justify-content:space-between;">
-            <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;">
-                <x-company-filter :companies="$this->companies" wire:model.live="companyId" />
-                <div>
-                    <label class="form-label">Cari Jadwal</label>
-                    <div style="position:relative;">
-                        <i class="fa-solid fa-magnifying-glass" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--text-faint);font-size:12px;"></i>
-                        <input type="search" class="form-input search" style="min-width:200px;padding-left:32px;" placeholder="Nama, tipe, atau unit...">
-                    </div>
-                </div>
-            </div>
+            <x-company-filter :companies="$this->companies" wire:model.live="companyId" />
 
             <a href="{{ route('presensi.jadwal.tambah') }}" wire:navigate class="btn-primary" style="text-decoration:none;">
                 <i class="fa-solid fa-plus"></i> Tambah Jadwal
             </a>
         </div>
 
-        <div class="table-wrap" style="background:var(--surface);border-radius:12px;box-shadow:var(--shadow-card);overflow-x:auto;margin-top:16px;{{ $this->schedules->isEmpty() ? 'display:none;' : '' }}">
+        <div style="background:var(--surface);border-radius:12px;box-shadow:var(--shadow-card);overflow-x:auto;margin-top:16px;{{ $this->schedules->isEmpty() ? 'display:none;' : '' }}">
             <table style="width:100%;border-collapse:collapse;font-size:12.5px;">
                 <thead>
                     <tr style="border-bottom:1.5px solid var(--border);">
-                        <th class="sort" data-sort="name" style="text-align:left;padding:10px 14px;white-space:nowrap;cursor:pointer;">Nama Jadwal <i class="fa-solid fa-sort" style="font-size:9px;color:var(--text-faint);"></i></th>
+                        <th style="text-align:left;padding:10px 14px;white-space:nowrap;">Nama Jadwal</th>
                         <th style="text-align:left;padding:10px 14px;white-space:nowrap;">Tipe</th>
-                        <th style="text-align:left;padding:10px 14px;white-space:nowrap;">Unit/Divisi</th>
-                        <th style="text-align:center;padding:10px 14px;white-space:nowrap;">Aksi</th>
+                        <th style="text-align:left;padding:10px 14px;white-space:nowrap;">Aksi</th>
                     </tr>
                 </thead>
-                <tbody class="list">
+                <tbody>
                     @foreach ($this->schedules as $schedule)
-                        <tr style="border-bottom:1px solid var(--border-soft);">
+                        <tr wire:key="'schedule-'.{{ $schedule->id }}" style="border-bottom:1px solid var(--border-soft);">
                             <td style="padding:9px 14px;white-space:nowrap;">
                                 @if ($schedule->color)
                                     <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:{{ $schedule->color }};margin-right:6px;"></span>
                                 @endif
-                                <span class="name" style="font-weight:600;">{{ $schedule->name }}</span>
+                                <span style="font-weight:600;">{{ $schedule->name }}</span>
                             </td>
                             <td style="padding:9px 14px;white-space:nowrap;">
-                                <span class="type" style="display:inline-block;padding:3px 10px;border-radius:99px;font-size:11px;font-weight:600;background:var(--info-soft-bg);color:var(--info-soft-text);">
+                                @php $typeColor = $this->scheduleTypeColor($schedule->schedule_type); @endphp
+                                <span style="display:inline-block;padding:3px 10px;border-radius:99px;font-size:11px;font-weight:600;background:{{ $typeColor['bg'] }};color:{{ $typeColor['text'] }};">
                                     {{ $this->scheduleTypeLabel($schedule->schedule_type) }}
                                 </span>
                             </td>
-                            <td style="padding:9px 14px;white-space:nowrap;"><span class="unit">{{ $schedule->orgStructure?->name ?? '-' }}</span></td>
-                            <td style="padding:9px 14px;text-align:center;white-space:nowrap;">
-                                <span class="btn-ghost" style="padding:5px 12px;font-size:11.5px;opacity:0.5;cursor:not-allowed;" title="Menyusul">Kelola</span>
+                            <td style="padding:9px 14px;text-align:left;white-space:nowrap;">
+                                <div style="display:inline-flex;gap:6px;">
+                                    <a href="{{ route('presensi.jadwal.show', $schedule) }}" wire:navigate style="padding:5px 12px;font-size:11.5px;border-radius:8px;text-decoration:none;display:inline-flex;align-items:center;gap:5px;background:#0284c7;color:#fff;">
+                                        <i class="fa-solid fa-eye"></i> Lihat
+                                    </a>
+                                    <a href="{{ route('presensi.jadwal.pengguna', $schedule) }}" wire:navigate style="padding:5px 12px;font-size:11.5px;border-radius:8px;text-decoration:none;display:inline-flex;align-items:center;gap:5px;background:#047C54;color:#fff;">
+                                        <i class="fa-solid fa-users-gear"></i> Atur Pengguna
+                                    </a>
+                                    <a href="{{ route('presensi.jadwal.edit', $schedule) }}" wire:navigate class="btn-ghost" style="padding:5px 12px;font-size:11.5px;">
+                                        <i class="fa-solid fa-pen"></i> Edit
+                                    </a>
+                                    @unless ($this->hasAttendanceHistory($schedule))
+                                        <button type="button" wire:click="deleteSchedule('{{ $schedule->id }}')" wire:confirm="Hapus jadwal &quot;{{ $schedule->name }}&quot;? Semua pengaturan hari & penempatan jabatannya ikut terhapus." class="btn-ghost" style="padding:5px 12px;font-size:11.5px;color:#dc2626;">
+                                            <i class="fa-solid fa-trash"></i> Hapus
+                                        </button>
+                                    @endunless
+                                </div>
                             </td>
                         </tr>
                     @endforeach
@@ -59,18 +62,8 @@
             </table>
         </div>
 
-        <div class="list-empty-state" style="padding:32px 16px;text-align:center;{{ $this->schedules->isEmpty() ? '' : 'display:none;' }}">
+        <div style="padding:32px 16px;text-align:center;{{ $this->schedules->isEmpty() ? '' : 'display:none;' }}">
             <p style="font-size:13px;color:var(--text-muted);margin:0;">Belum ada jadwal untuk perusahaan ini.</p>
-        </div>
-
-        <div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-top:14px;">
-            <button type="button" class="list-prev btn-ghost" style="padding:6px 14px;font-size:12px;">
-                <i class="fa-solid fa-chevron-left" style="font-size:10px;"></i> Sebelumnya
-            </button>
-            <ul class="pagination" style="display:flex;flex-wrap:wrap;gap:4px;list-style:none;padding:0;margin:0;"></ul>
-            <button type="button" class="list-next btn-ghost" style="padding:6px 14px;font-size:12px;">
-                Selanjutnya <i class="fa-solid fa-chevron-right" style="font-size:10px;"></i>
-            </button>
         </div>
     </div>
 </div>

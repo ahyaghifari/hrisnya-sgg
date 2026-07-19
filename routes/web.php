@@ -3,6 +3,7 @@
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\AttendanceTemplateController;
 use App\Http\Controllers\EmployeeImportController;
+use App\Http\Controllers\PayrollManualLineTemplateController;
 use App\Livewire\AttendanceRequestDetail;
 use App\Livewire\Coaching\CoachingPage;
 use App\Livewire\Coaching\MyCoachingPage;
@@ -31,6 +32,8 @@ use App\Livewire\Presensi\AttendanceSettingsPage;
 use App\Livewire\Presensi\CreateSchedulePage;
 use App\Livewire\Presensi\HolidayCalendarPage;
 use App\Livewire\Presensi\HolidaysPage;
+use App\Livewire\Presensi\ScheduleAssignmentsPage;
+use App\Livewire\Presensi\ScheduleDetailPage;
 use App\Livewire\Presensi\SchedulesPage;
 use App\Http\Controllers\Pwa\PushSubscriptionController;
 use App\Livewire\Pwa\Akun as PwaAkun;
@@ -122,6 +125,10 @@ Route::middleware(['auth', 'portal.access'])->group(function () {
     Route::get('/keuangan/koperasi', KoperasiPage::class)
         ->name('keuangan.koperasi');
 
+    Route::get('/keuangan/payroll/import-template/{type}', [PayrollManualLineTemplateController::class, 'downloadTemplate'])
+        ->whereIn('type', ['bon', 'insentif'])
+        ->name('keuangan.payroll.import-template');
+
 
     Route::get('/keuangan/mapping-komponen-gaji', MappingKomponenGajiPage::class)
         ->name('keuangan.mapping-komponen-gaji');
@@ -131,6 +138,15 @@ Route::middleware(['auth', 'portal.access'])->group(function () {
 
     Route::get('/presensi/jadwal/tambah', CreateSchedulePage::class)
         ->name('presensi.jadwal.tambah');
+
+    Route::get('/presensi/jadwal/{schedule}/pengguna', ScheduleAssignmentsPage::class)
+        ->name('presensi.jadwal.pengguna');
+
+    Route::get('/presensi/jadwal/{schedule}/edit', CreateSchedulePage::class)
+        ->name('presensi.jadwal.edit');
+
+    Route::get('/presensi/jadwal/{schedule}', ScheduleDetailPage::class)
+        ->name('presensi.jadwal.show');
 
     Route::get('/presensi/pengaturan', AttendanceSettingsPage::class)
         ->name('presensi.pengaturan');

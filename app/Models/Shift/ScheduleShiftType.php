@@ -43,6 +43,7 @@ class ScheduleShiftType extends Model
         'half_day_threshold_minutes',
         'absent_threshold_minutes',
         'color',
+        'font_color',
     ];
 
     protected $casts = [

@@ -5,6 +5,7 @@ namespace App\Livewire\Keuangan;
 use App\Enum\CustomPermissionEnum;
 use App\Models\Incentive\Incentive;
 use App\Models\Master\Companies;
+use App\Models\Setting;
 use App\Models\User;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\Auth;
@@ -12,15 +13,21 @@ use Livewire\Attributes\Layout;
 use Livewire\Component;
 
 /**
- * Versi portal dari IncentiveResource (/admin/incentives) — custom, List.js buat cari+
- * pagination (pola sama PayrollPeriodsPage/KoperasiPage), BUKAN lagi reuse Table/Form
- * Filament. Otorisasi Create/Update/Delete:Incentive dicek manual (lihat IncentivePolicy)
- * supaya guard yang sebelumnya nempel di Filament Action tidak ikut hilang pas direplace.
+ * Versi portal dari IncentiveResource (/admin/incentives) — custom Livewire page, BUKAN lagi
+ * reuse Table/Form Filament. Cari/company/status lewat Livewire (server-side) — SEBELUMNYA
+ * cari+filter pakai List.js di browser, tapi List.js mengunci baris tbody-nya sendiri sehingga
+ * tidak ikut ke-morph Livewire tiap company ganti (baris lama nyangkut terus), jadi dicabut.
+ * Otorisasi Create/Update/Delete:Incentive dicek manual (lihat IncentivePolicy) supaya guard
+ * yang sebelumnya nempel di Filament Action tidak ikut hilang pas direplace.
  */
 #[Layout('components.layout', ['title' => 'Insentif'])]
 class IncentivesPage extends Component
 {
     public ?string $companyId = null;
+    public string $search = '';
+
+    /** '' = semua, 'belum' = belum diproses, 'sudah' = sudah diproses. */
+    public string $statusFilter = '';
 
     public bool $showFormModal = false;
     public ?string $editingId = null;
@@ -37,9 +44,9 @@ class IncentivesPage extends Component
         $this->companyId = Auth::user()->company_id ?? Companies::orderBy('code')->value('id');
     }
 
-    public function updatedCompanyId(): void
+    public function setStatusFilter(string $status): void
     {
-        $this->dispatch('list-table:refresh');
+        $this->statusFilter = $status;
     }
 
     public function getCompaniesProperty()
@@ -47,10 +54,23 @@ class IncentivesPage extends Component
         return Companies::orderBy('code')->get();
     }
 
+    /** Halaman ini cuma buat company metode "master" — company "import" pakai halaman Payroll > Import Insentif. */
+    public function getInsentifMetodeProperty(): string
+    {
+        return (string) Setting::resolve('insentif_metode', $this->companyId, default: 'master');
+    }
+
     public function getIncentivesProperty()
     {
+        $search = trim($this->search);
+
         return Incentive::query()
             ->when($this->companyId, fn ($q) => $q->whereHas('user', fn ($q2) => $q2->where('company_id', $this->companyId)))
+            ->when($search !== '', fn ($q) => $q->where(fn ($q2) => $q2
+                ->where('name', 'like', "%{$search}%")
+                ->orWhereHas('user', fn ($q3) => $q3->where('name', 'like', "%{$search}%"))))
+            ->when($this->statusFilter === 'belum', fn ($q) => $q->where('is_processed', false))
+            ->when($this->statusFilter === 'sudah', fn ($q) => $q->where('is_processed', true))
             ->with('user.company')
             ->orderByDesc('incentive_date')
             ->get();
@@ -141,7 +161,6 @@ class IncentivesPage extends Component
         }
 
         $this->showFormModal = false;
-        $this->dispatch('list-table:refresh');
 
         Notification::make()
             ->title($this->editingId ? 'Insentif berhasil diubah' : 'Insentif baru berhasil ditambahkan')
@@ -157,7 +176,6 @@ class IncentivesPage extends Component
         abort_if($incentive->is_processed, 403, 'Insentif yang sudah diproses tidak bisa dihapus.');
 
         $incentive->delete();
-        $this->dispatch('list-table:refresh');
 
         Notification::make()
             ->title('Insentif berhasil dihapus')

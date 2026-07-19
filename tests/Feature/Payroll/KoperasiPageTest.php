@@ -108,4 +108,18 @@ class KoperasiPageTest extends TestCase
 
         $this->assertDatabaseMissing('user_koperasi', ['id' => $member->id]);
     }
+
+    public function test_export_returns_download_response(): void
+    {
+        $finance = $this->actingAsFinance();
+        $company = $this->makeCompany();
+        $employee = User::factory()->create(['company_id' => $company->id, 'is_active' => true]);
+        UserKoperasi::create(['user_id' => $employee->id, 'amount' => 100000, 'is_active' => true]);
+
+        Livewire::actingAs($finance)
+            ->test(KoperasiPage::class)
+            ->set('companyId', $company->id)
+            ->call('export')
+            ->assertFileDownloaded();
+    }
 }

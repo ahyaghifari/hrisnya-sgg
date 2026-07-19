@@ -4,6 +4,7 @@ namespace App\Livewire\Keuangan;
 
 use App\Enum\CustomPermissionEnum;
 use App\Enum\Payroll\PayrollComponentEnum;
+use App\Exports\Payroll\KoperasiExport;
 use App\Models\Master\Companies;
 use App\Models\Payroll\PayrollComponentRecipient;
 use App\Models\Payroll\UserKoperasi;
@@ -13,16 +14,20 @@ use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
+use Maatwebsite\Excel\Facades\Excel;
 
 /**
- * Roster anggota koperasi (portal, custom List.js — pola sama PayrollPeriodsPage) — sumber
- * yang otomatis di-sync ke payroll_manual_lines tiap Generate Payroll, lihat
- * PayrollService::syncKoperasiManualLines().
+ * Roster anggota koperasi — sumber yang otomatis di-sync ke payroll_manual_lines tiap Generate
+ * Payroll, lihat PayrollService::syncKoperasiManualLines(). Cari/company lewat Livewire
+ * (server-side) — SEBELUMNYA cari pakai List.js di browser, tapi List.js mengunci baris
+ * tbody-nya sendiri sehingga tidak ikut ke-morph Livewire tiap company/data ganti (baris lama
+ * nyangkut terus), jadi dicabut.
  */
 #[Layout('components.layout', ['title' => 'Koperasi'])]
 class KoperasiPage extends Component
 {
     public ?string $companyId = null;
+    public string $search = '';
 
     public array $selected = [];
 
@@ -44,7 +49,6 @@ class KoperasiPage extends Component
     public function updatedCompanyId(): void
     {
         $this->selected = [];
-        $this->dispatch('list-table:refresh');
     }
 
     public function toggleSelectAll(bool $checked): void
@@ -59,8 +63,13 @@ class KoperasiPage extends Component
 
     public function getMembersProperty()
     {
+        $search = trim($this->search);
+
         return UserKoperasi::query()
-            ->whereHas('user', fn ($q) => $q->where('company_id', $this->companyId))
+            ->whereHas('user', fn ($q) => $q->where('company_id', $this->companyId)
+                ->when($search !== '', fn ($q2) => $q2->where(fn ($q3) => $q3
+                    ->where('name', 'like', "%{$search}%")
+                    ->orWhere('nip', 'like', "%{$search}%"))))
             ->with('user')
             ->get();
     }
@@ -147,7 +156,6 @@ class KoperasiPage extends Component
         }
 
         $this->showAddModal = false;
-        $this->dispatch('list-table:refresh');
 
         Notification::make()
             ->title('Anggota koperasi berhasil ditambahkan')
@@ -188,7 +196,6 @@ class KoperasiPage extends Component
 
         $this->showEditModal = false;
         $this->selected = [];
-        $this->dispatch('list-table:refresh');
 
         Notification::make()
             ->title('Amount berhasil diubah')
@@ -203,8 +210,6 @@ class KoperasiPage extends Component
     {
         $member = UserKoperasi::findOrFail($id);
         $member->update(['is_active' => ! $member->is_active]);
-
-        $this->dispatch('list-table:refresh');
     }
 
     public function removeMember(string $id): void
@@ -212,12 +217,20 @@ class KoperasiPage extends Component
         UserKoperasi::whereKey($id)->delete();
         $this->selected = array_values(array_diff($this->selected, [$id]));
 
-        $this->dispatch('list-table:refresh');
-
         Notification::make()
             ->title('Anggota koperasi dihapus')
             ->success()
             ->send();
+    }
+
+    public function export()
+    {
+        $companyName = $this->companies->firstWhere('id', $this->companyId)?->name ?? 'semua-perusahaan';
+
+        return Excel::download(
+            new KoperasiExport($this->members),
+            'koperasi-' . str($companyName)->slug() . '.xlsx'
+        );
     }
 
     public function render()

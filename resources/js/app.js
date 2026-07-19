@@ -164,6 +164,14 @@ function wirePrevNextButtons(container, list) {
 
 function refreshListTables() {
     listInstances.forEach((list) => {
+        // Kosongkan pencarian juga - data di belakangnya barusan ganti (mis. ganti perusahaan),
+        // kata kunci lama gampang bikin baris baru kelihatan "hilang" padahal cuma kesaring.
+        list.search("");
+        const searchInput = list.listContainer.querySelector("input.search");
+        if (searchInput) {
+            searchInput.value = "";
+        }
+
         list.reIndex();
         list.update();
     });
@@ -206,4 +214,10 @@ document.addEventListener("livewire:init", () => {
     // el.tomselect jadi aman dipanggil berkali-kali).
     Livewire.hook("morph.added", () => initTomSelects());
     Livewire.hook("morph.updated", () => initTomSelects());
+
+    // Sama seperti tom-select di atas: tabel [data-list-table] yang muncul belakangan lewat
+    // @if (mis. tabel karyawan di CreateSchedulePage, baru ada di DOM setelah pilih tipe Shift)
+    // tidak pernah lewat DOMContentLoaded/livewire:navigated — initListTables sudah guard
+    // listInstances.has(el.id) jadi aman dipanggil berkali-kali.
+    Livewire.hook("morph.added", () => initListTables());
 });

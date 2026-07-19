@@ -88,7 +88,7 @@
             <div class="pwa-card-header pwa-card-header-navy">
                 <div class="pwa-card-header-deco-1"></div><div class="pwa-card-header-deco-2"></div>
                 <div class="pwa-card-header-content">
-                    <span class="pwa-section-title"><i class="fa-solid fa-table-columns" style="font-size:12px;margin-right:4px;"></i> Kanban Saya</span>
+                    <span class="pwa-section-title"><i class="fa-solid fa-table-columns" style="font-size:12px;margin-right:4px;"></i> Penugasan Saya</span>
                     <a href="{{ route('kanban') }}" wire:navigate class="pwa-section-link">Semua <i class="fa-solid fa-chevron-right" style="font-size:9px;"></i></a>
                 </div>
             </div>
@@ -116,8 +116,8 @@
             @empty
                 <div class="pwa-list-row" style="opacity:0.7;border-left:4px solid var(--border);padding-left:12px;">
                     <div style="flex:1;min-width:0;">
-                        <p class="pwa-row-title">Belum ada task kanban</p>
-                        <span style="font-size:11.5px;color:var(--text-muted);">Buat board atau task pribadi lewat MyKanban</span>
+                        <p class="pwa-row-title">Belum ada task penugasan</p>
+                        <span style="font-size:11.5px;color:var(--text-muted);">Buat board atau task pribadi lewat Penugasan</span>
                     </div>
                 </div>
             @endforelse

@@ -6,8 +6,6 @@ use App\Enum\CustomPermissionEnum;
 use App\Enum\Payroll\PayrollComponentEnum;
 use App\Filament\Resources\Payroll\ExtraHourAllowances\Schemas\ExtraHourAllowancesForm;
 use App\Filament\Resources\Payroll\ExtraHourAllowances\Tables\ExtraHourAllowancesTable;
-use App\Filament\Resources\Payroll\OvertimeRates\Schemas\OvertimeRatesForm;
-use App\Filament\Resources\Payroll\OvertimeRates\Tables\OvertimeRatesTable;
 use App\Models\Master\Companies;
 use App\Models\Master\Kelas;
 use App\Models\Master\Pangkats;
@@ -18,9 +16,7 @@ use App\Models\Payroll\PangkatSalary;
 use App\Models\Payroll\PositionAllowance;
 use App\Models\Payroll\TenureAllowance;
 use App\Models\Payroll\TransportAllowance;
-use App\Models\Setting;
 use App\Models\Shift\ExtraHourAllowanceRules;
-use App\Models\Shift\ShiftOvertimeCosts;
 use Closure;
 use Filament\Actions\Action;
 use Filament\Actions\Concerns\InteractsWithActions;
@@ -63,11 +59,11 @@ class MappingKomponenGajiPage extends Component implements HasActions, HasSchema
     /** @var array<string,string> pangkat_id => base_salary */
     public array $gajiPokokValues = [];
 
-    /** @var array<string,string> pangkat_id => start_kelas_level (kelas terendah pangkat ini) */
-    public array $startKelasLevelValues = [];
+    /** @var array<string,string> pangkat_id => start_kelas_id (kelas terendah pangkat ini) */
+    public array $startKelasIdValues = [];
 
-    /** @var array<string,string> pangkat_id => max_kelas_level (kelas tertinggi pangkat ini) */
-    public array $maxKelasLevelValues = [];
+    /** @var array<string,string> pangkat_id => max_kelas_id (kelas tertinggi pangkat ini) */
+    public array $maxKelasIdValues = [];
 
     /** @var array<string,string> pangkat_id => 'ump'|'declared_value'|'' (kosong = hapus mapping) */
     public array $bpjsValues = [];
@@ -81,7 +77,7 @@ class MappingKomponenGajiPage extends Component implements HasActions, HasSchema
     /** @var array<int,array{id:?string,min_years:string,max_years:string,amount:string}> */
     public array $tenureRows = [];
 
-    /** @var array<string,string> pangkat_id => amount_per_hour (metode lembur "per_pangkat") */
+    /** @var array<string,string> pangkat_id => amount_per_hour (base rate rumus TL/TM) */
     public array $lemburRateValues = [];
 
     public function mount(): void
@@ -107,15 +103,9 @@ class MappingKomponenGajiPage extends Component implements HasActions, HasSchema
             'tunjangan_transportasi' => $this->loadTransport(),
             'tunjangan_jabatan' => $this->loadJabatan(),
             'tunjangan_masa_kerja' => $this->loadTenure(),
-            'lembur' => $this->lemburMetode === 'per_pangkat' ? $this->loadLemburRates() : null,
-            default => null, // kelebihan_jam_kerja & lembur (metode shift) dirender lewat $this->table()
+            'lembur' => $this->loadLemburRates(),
+            default => null, // kelebihan_jam_kerja dirender lewat $this->table()
         };
-    }
-
-    /** Metode lembur company yang lagi dipilih — 'shift' (default) atau 'per_pangkat'. */
-    public function getLemburMetodeProperty(): string
-    {
-        return (string) Setting::resolve('lembur_metode', $this->companyId, default: 'shift');
     }
 
     /** @return array<int, array{key:string,label:string,icon:string}> */
@@ -170,12 +160,12 @@ class MappingKomponenGajiPage extends Component implements HasActions, HasSchema
             ->mapWithKeys(fn (Pangkats $p) => [$p->id => (string) ($p->pangkatSalary?->base_salary ?? '')])
             ->all();
 
-        $this->startKelasLevelValues = $this->pangkats
-            ->mapWithKeys(fn (Pangkats $p) => [$p->id => (string) ($p->start_kelas_level ?? '')])
+        $this->startKelasIdValues = $this->pangkats
+            ->mapWithKeys(fn (Pangkats $p) => [$p->id => (string) ($p->start_kelas_id ?? '')])
             ->all();
 
-        $this->maxKelasLevelValues = $this->pangkats
-            ->mapWithKeys(fn (Pangkats $p) => [$p->id => (string) ($p->max_kelas_level ?? '')])
+        $this->maxKelasIdValues = $this->pangkats
+            ->mapWithKeys(fn (Pangkats $p) => [$p->id => (string) ($p->max_kelas_id ?? '')])
             ->all();
     }
 
@@ -183,22 +173,27 @@ class MappingKomponenGajiPage extends Component implements HasActions, HasSchema
     {
         $this->validate([
             'gajiPokokValues.*' => $this->nonNegativeAmountRule(),
-            'startKelasLevelValues.*' => $this->nonNegativeIntegerRule(),
-            'maxKelasLevelValues.*' => $this->nonNegativeIntegerRule(),
+            'startKelasIdValues.*' => 'nullable|exists:m_kelas,id',
+            'maxKelasIdValues.*' => 'nullable|exists:m_kelas,id',
         ], [], [
             'gajiPokokValues.*' => 'nominal gaji pokok',
-            'startKelasLevelValues.*' => 'kelas mulai',
-            'maxKelasLevelValues.*' => 'kelas maksimal',
+            'startKelasIdValues.*' => 'kelas mulai',
+            'maxKelasIdValues.*' => 'kelas maksimal',
         ]);
+
+        $kelasLevels = Kelas::whereIn('id', [...array_values($this->startKelasIdValues), ...array_values($this->maxKelasIdValues)])
+            ->pluck('level', 'id');
 
         foreach ($this->pangkats as $p) {
             $pangkatId = $p->id;
 
-            $start = $this->startKelasLevelValues[$pangkatId] ?? '';
-            $max = $this->maxKelasLevelValues[$pangkatId] ?? '';
+            $startId = $this->startKelasIdValues[$pangkatId] ?? '';
+            $maxId = $this->maxKelasIdValues[$pangkatId] ?? '';
+            $startLevel = $startId !== '' ? $kelasLevels->get($startId) : null;
+            $maxLevel = $maxId !== '' ? $kelasLevels->get($maxId) : null;
 
-            if ($start !== '' && $max !== '' && (int) $max < (int) $start) {
-                $this->addError("maxKelasLevelValues.{$pangkatId}", '"Kelas Maksimal" tidak boleh lebih kecil dari "Kelas Mulai".');
+            if ($startLevel !== null && $maxLevel !== null && $maxLevel < $startLevel) {
+                $this->addError("maxKelasIdValues.{$pangkatId}", '"Kelas Maksimal" tidak boleh lebih kecil (levelnya) dari "Kelas Mulai".');
             }
         }
 
@@ -218,8 +213,8 @@ class MappingKomponenGajiPage extends Component implements HasActions, HasSchema
             $pangkatId = $p->id;
 
             $p->update([
-                'start_kelas_level' => $this->startKelasLevelValues[$pangkatId] !== '' ? (int) $this->startKelasLevelValues[$pangkatId] : null,
-                'max_kelas_level' => $this->maxKelasLevelValues[$pangkatId] !== '' ? (int) $this->maxKelasLevelValues[$pangkatId] : null,
+                'start_kelas_id' => $this->startKelasIdValues[$pangkatId] !== '' ? $this->startKelasIdValues[$pangkatId] : null,
+                'max_kelas_id' => $this->maxKelasIdValues[$pangkatId] !== '' ? $this->maxKelasIdValues[$pangkatId] : null,
             ]);
         }
 
@@ -280,8 +275,9 @@ class MappingKomponenGajiPage extends Component implements HasActions, HasSchema
         $this->notifySaved();
     }
 
-    // ── Lembur, metode "per_pangkat" (pangkat_lembur_rates, 1:1 per pangkat — pola sama
-    // Tunjangan Transportasi). Metode "shift" (default) pakai $this->table() di bawah. ──
+    // ── Lembur (pangkat_lembur_rates, 1:1 per pangkat — pola sama Tunjangan Transportasi).
+    // Base rate dipakai LemburCalculator buat rumus TL/TM: base rate / (hari x 7) x multiplier
+    // jam. Satu-satunya metode Lembur di sistem ini. ──
 
     private function loadLemburRates(): void
     {
@@ -294,7 +290,7 @@ class MappingKomponenGajiPage extends Component implements HasActions, HasSchema
     {
         $this->validate([
             'lemburRateValues.*' => $this->nonNegativeAmountRule(),
-        ], [], ['lemburRateValues.*' => 'rate lembur per jam']);
+        ], [], ['lemburRateValues.*' => 'base rate lembur']);
 
         foreach ($this->lemburRateValues as $pangkatId => $value) {
             if ($value === '' || $value === null) {
@@ -346,14 +342,16 @@ class MappingKomponenGajiPage extends Component implements HasActions, HasSchema
             [$pangkatId, $kelasId] = explode('|', $key, 2);
 
             // Jaring pengaman server-side — input yang di-disable di blade (kelas di luar
-            // start_kelas_level/max_kelas_level pangkatnya) tetap di-skip di sini walau
-            // seandainya ada yang paksa enable lewat DOM manipulation.
+            // startKelas/maxKelas pangkatnya) tetap di-skip di sini walau seandainya ada yang
+            // paksa enable lewat DOM manipulation.
             $pangkat = $pangkatsById->get($pangkatId);
             $kelas = $kelasById->get($kelasId);
 
             if ($pangkat && $kelas && $kelas->level !== null) {
-                $outOfRange = ($pangkat->start_kelas_level !== null && $kelas->level < $pangkat->start_kelas_level)
-                    || ($pangkat->max_kelas_level !== null && $kelas->level > $pangkat->max_kelas_level);
+                $startLevel = $pangkat->startKelas?->level;
+                $maxLevel = $pangkat->maxKelas?->level;
+                $outOfRange = ($startLevel !== null && $kelas->level < $startLevel)
+                    || ($maxLevel !== null && $kelas->level > $maxLevel);
 
                 if ($outOfRange) {
                     continue;
@@ -478,24 +476,16 @@ class MappingKomponenGajiPage extends Component implements HasActions, HasSchema
         $this->notifySaved();
     }
 
-    // ── Kelebihan Jam Kerja & Lembur — reuse Filament Form/Table yang sudah ada
-    // (App\Filament\Resources\Payroll\ExtraHourAllowances / OvertimeRates), sama pola dengan
-    // IncentivesPage.php. modifyQueryUsing dipakai supaya list SELALU mengikuti company yang
-    // dipilih di halaman ini, bukan filter company terpisah di dalam tabelnya sendiri.
+    // ── Kelebihan Jam Kerja — reuse Filament Form/Table yang sudah ada
+    // (App\Filament\Resources\Payroll\ExtraHourAllowances), sama pola dengan IncentivesPage.php.
+    // modifyQueryUsing dipakai supaya list SELALU mengikuti company yang dipilih di halaman ini,
+    // bukan filter company terpisah di dalam tabelnya sendiri.
 
     public function table(Table $table): Table
     {
         return match ($this->activeComponent) {
             'kelebihan_jam_kerja' => ExtraHourAllowancesTable::configure($table)
                 ->query(ExtraHourAllowanceRules::query())
-                ->modifyQueryUsing(fn ($query) => $query->where('company_id', $this->companyId))
-                ->headerActions([
-                    CreateAction::make()
-                        ->modalWidth('lg')
-                        ->mutateFormDataUsing(fn (array $data) => [...$data, 'company_id' => $this->companyId]),
-                ]),
-            'lembur' => OvertimeRatesTable::configure($table)
-                ->query(ShiftOvertimeCosts::query())
                 ->modifyQueryUsing(fn ($query) => $query->where('company_id', $this->companyId))
                 ->headerActions([
                     CreateAction::make()
@@ -514,7 +504,6 @@ class MappingKomponenGajiPage extends Component implements HasActions, HasSchema
 
         return match ($this->activeComponent) {
             'kelebihan_jam_kerja' => fn (Schema $schema): Schema => ExtraHourAllowancesForm::configure($schema),
-            'lembur' => fn (Schema $schema): Schema => OvertimeRatesForm::configure($schema),
             default => null,
         };
     }

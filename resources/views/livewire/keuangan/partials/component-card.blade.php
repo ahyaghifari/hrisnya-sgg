@@ -52,11 +52,6 @@
                                 <option value="master">Master (tabel Insentif, input manual)</option>
                                 <option value="import">Import (upload Excel per periode setelah generate)</option>
                             </select>
-                        @elseif ($key === 'lembur_metode')
-                            <select class="form-input" style="font-size:12px;padding:7px 10px;" wire:model="settingValues.{{ $key }}">
-                                <option value="shift">Shift (rate per shift + jenis lembur)</option>
-                                <option value="per_pangkat">Per Pangkat (1 rate/jam per pangkat)</option>
-                            </select>
                         @else
                             <input type="{{ $inputType($meta?->type) }}" step="0.01" class="form-input" style="font-size:12px;padding:7px 10px;" wire:model="settingValues.{{ $key }}">
                         @endif

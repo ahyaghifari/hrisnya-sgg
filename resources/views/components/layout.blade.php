@@ -10,7 +10,8 @@
         - HRIS Syifa Global Group</title>
     <link rel="manifest" href="/pwa/manifest.json">
     <meta name="theme-color" content="#042c6c">
-    <link rel="apple-touch-icon" href="/pwa/icons/icon-192-v2.png">
+    <link rel="icon" href="/favicon.ico" sizes="any">
+    <link rel="apple-touch-icon" href="/pwa/icons/icon-192-v3.png">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Syifa HRIS">

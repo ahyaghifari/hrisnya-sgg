@@ -9,7 +9,6 @@ use App\Models\Master\Kelas;
 use App\Models\Master\Pangkats;
 use App\Models\Payroll\CompanyPayrollComponent;
 use App\Models\Payroll\TenureAllowance;
-use App\Models\Setting;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
@@ -203,22 +202,21 @@ class MappingKomponenGajiPageTest extends TestCase
             ->assertOk();
     }
 
-    public function test_lembur_per_pangkat_metode_shows_rate_form_and_saves(): void
+    public function test_lembur_shows_base_rate_form_and_saves(): void
     {
         $finance = $this->actingAsFinance();
         $company = $this->makeCompanyWithActiveComponents(['lembur']);
         $pangkat = Pangkats::create(['name' => 'Perawat', 'company_id' => $company->id]);
-        Setting::create(['company_id' => $company->id, 'key' => 'lembur_metode', 'module' => 'payroll', 'type' => 'string', 'value' => 'per_pangkat', 'label' => 'Metode Lembur']);
 
         Livewire::actingAs($finance)
             ->test(MappingKomponenGajiPage::class)
             ->call('selectCompany', $company->id)
             ->call('selectComponent', 'lembur')
-            ->assertSee('Rate lembur per jam')
-            ->set("lemburRateValues.{$pangkat->id}", 25000)
+            ->assertSee('Base rate lembur per pangkat')
+            ->set("lemburRateValues.{$pangkat->id}", 3500000)
             ->call('saveLemburRates');
 
-        $this->assertDatabaseHas('pangkat_lembur_rates', ['pangkat_id' => $pangkat->id, 'amount_per_hour' => 25000]);
+        $this->assertDatabaseHas('pangkat_lembur_rates', ['pangkat_id' => $pangkat->id, 'amount_per_hour' => 3500000]);
     }
 
     public function test_user_without_permission_is_forbidden(): void

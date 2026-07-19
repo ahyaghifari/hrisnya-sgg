@@ -9,6 +9,7 @@ use App\Models\Payroll\PangkatSalary;
 use App\Models\Payroll\PositionAllowance;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use App\Models\User\UserProfiles;
@@ -26,8 +27,8 @@ class Pangkats extends Model
     protected $fillable = [
         'name',
         'company_id',
-        'start_kelas_level',
-        'max_kelas_level',
+        'start_kelas_id',
+        'max_kelas_id',
     ];
 
     protected static function boot(): void
@@ -54,6 +55,16 @@ class Pangkats extends Model
     public function company()
     {
         return $this->belongsTo(Companies::class, 'company_id');
+    }
+
+    public function startKelas(): BelongsTo
+    {
+        return $this->belongsTo(Kelas::class, 'start_kelas_id');
+    }
+
+    public function maxKelas(): BelongsTo
+    {
+        return $this->belongsTo(Kelas::class, 'max_kelas_id');
     }
 
     public function pangkatSalary(): HasOne

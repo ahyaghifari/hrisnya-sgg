@@ -2,7 +2,7 @@
 // (page navigations + build assets) is cached, so offline reloads show the last-seen
 // version instead of the browser's no-connection page. Not stale-while-revalidate or
 // precaching; upgrade to Workbox if per-route strategies are needed later.
-const CACHE = 'hris-runtime-v3';
+const CACHE = 'hris-runtime-v4';
 
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', (event) => {
@@ -37,8 +37,8 @@ self.addEventListener('push', (event) => {
     event.waitUntil(
         self.registration.showNotification(payload.title || 'HRIS Syifa Global', {
             body: payload.body || '',
-            icon: payload.icon || '/pwa/icons/icon-192-v2.png',
-            badge: '/pwa/icons/icon-192-v2.png',
+            icon: payload.icon || '/pwa/icons/icon-192-v3.png',
+            badge: '/pwa/icons/icon-192-v3.png',
             data: payload.data || {},
         })
     );

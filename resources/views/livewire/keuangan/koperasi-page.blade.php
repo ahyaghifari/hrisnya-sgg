@@ -2,22 +2,28 @@
     <x-page-header title="Koperasi" />
 
     <div class="mt-4" style="display:flex;flex-direction:column;gap:16px;">
-        {{-- List.js (headless, resources/js/app.js) urus cari+pagination di browser, pola sama
-             PayrollPeriodsPage. Company tetap lewat Livewire (query ulang server). --}}
-        <div id="koperasi-list" data-list-table data-list-value-names="name,nip" wire:ignore.self>
+        {{-- Cari/company lewat Livewire (server-side) — SEBELUMNYA pakai List.js di browser,
+             tapi List.js mengunci baris tbody-nya sendiri sehingga tidak ikut ke-morph Livewire
+             tiap company/data ganti (baris lama nyangkut terus), jadi dicabut. --}}
+        <div>
             <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;justify-content:space-between;">
                 <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;">
                     <x-company-filter :companies="$this->companies" wire:model.live="companyId" />
 
                     <div style="position:relative;">
                         <label class="form-label">Cari</label>
-                        <input type="search" class="form-input search" placeholder="Nama / NIP..." style="min-width:220px;">
+                        <input type="search" wire:model.live.debounce.300ms="search" class="form-input" placeholder="Nama / NIP..." style="min-width:220px;">
                     </div>
                 </div>
 
-                <button type="button" wire:click="openAddModal" class="btn-primary" style="padding:9px 18px;font-size:12.5px;">
-                    <i class="fa-solid fa-plus"></i> Tambah Anggota Koperasi
-                </button>
+                <div style="display:flex;gap:8px;">
+                    <button type="button" wire:click="export" wire:loading.attr="disabled" wire:target="export" class="btn-ghost" style="padding:9px 16px;font-size:12.5px;">
+                        <i class="fa-solid fa-file-excel"></i> Export
+                    </button>
+                    <button type="button" wire:click="openAddModal" class="btn-primary" style="padding:9px 18px;font-size:12.5px;">
+                        <i class="fa-solid fa-plus"></i> Tambah Anggota Koperasi
+                    </button>
+                </div>
             </div>
 
             @if (count($selected) > 0)
@@ -36,21 +42,21 @@
                             <th style="text-align:left;padding:10px 14px;width:36px;">
                                 <input type="checkbox" wire:click="toggleSelectAll($event.target.checked)">
                             </th>
-                            <th class="sort" data-sort="name" style="text-align:left;padding:10px 14px;white-space:nowrap;cursor:pointer;">Nama <i class="fa-solid fa-sort" style="font-size:9px;color:var(--text-faint);"></i></th>
+                            <th style="text-align:left;padding:10px 14px;white-space:nowrap;">Nama</th>
                             <th style="text-align:left;padding:10px 14px;white-space:nowrap;">NIP</th>
                             <th style="text-align:right;padding:10px 14px;white-space:nowrap;">Potongan Per Bulan</th>
                             <th style="text-align:center;padding:10px 14px;white-space:nowrap;">Status</th>
                             <th style="text-align:center;padding:10px 14px;white-space:nowrap;">Aksi</th>
                         </tr>
                     </thead>
-                    <tbody class="list">
+                    <tbody>
                         @forelse ($this->members as $member)
-                            <tr style="border-bottom:1px solid var(--border-soft);">
+                            <tr wire:key="'koperasi-'.{{ $member->id }}" style="border-bottom:1px solid var(--border-soft);">
                                 <td style="padding:9px 14px;">
                                     <input type="checkbox" wire:model="selected" value="{{ $member->id }}">
                                 </td>
-                                <td class="name" style="padding:9px 14px;font-weight:600;white-space:nowrap;">{{ $member->user?->name ?? '-' }}</td>
-                                <td class="nip" style="padding:9px 14px;white-space:nowrap;">{{ $member->user?->nip ?? '-' }}</td>
+                                <td style="padding:9px 14px;font-weight:600;white-space:nowrap;">{{ $member->user?->name ?? '-' }}</td>
+                                <td style="padding:9px 14px;white-space:nowrap;">{{ $member->user?->nip ?? '-' }}</td>
                                 <td style="padding:9px 14px;text-align:right;white-space:nowrap;">Rp {{ number_format($member->amount, 0, ',', '.') }}</td>
                                 <td style="padding:9px 14px;text-align:center;white-space:nowrap;">
                                     <button type="button" wire:click="toggleActive('{{ $member->id }}')" wire:confirm="Ubah status keanggotaan koperasi ini?"

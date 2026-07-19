@@ -28,6 +28,7 @@ class ScheduleShiftAssignment extends Model
         'company_id',
         'user_id',
         'shift_type_id',
+        'off_day',
         'date',
         'notes',
         'schedule_status',
@@ -36,6 +37,7 @@ class ScheduleShiftAssignment extends Model
 
     protected $casts = [
         'date' => 'date',
+        'off_day' => 'boolean',
     ];
 
     public function shiftType(): BelongsTo

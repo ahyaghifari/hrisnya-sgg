@@ -3,7 +3,6 @@
 namespace App\Models\Shift;
 
 use App\Models\Master\Companies;
-use App\Models\Master\OrgStructure;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -26,20 +25,19 @@ class Schedule extends Model
         'company_id',
         'name',
         'schedule_type',
-        'org_structure_id',
+        'use_template',
         'color',
         'flexible_checkin_from',
         'flexible_checkin_until',
     ];
 
+    protected $casts = [
+        'use_template' => 'boolean',
+    ];
+
     public function company()
     {
         return $this->belongsTo(Companies::class, 'company_id');
-    }
-
-    public function orgStructure()
-    {
-        return $this->belongsTo(OrgStructure::class, 'org_structure_id');
     }
 
     public function fixedDays(): HasMany
@@ -54,16 +52,23 @@ class Schedule extends Model
 
     public function shiftTypes(): HasMany
     {
-        return $this->hasMany(ScheduleShiftType::class, 'schedule_id');
+        // orderBy id: ULID sortable lexically by waktu dibuat — jaga urutan baris shift tetap
+        // sesuai urutan "+ Tambah Shift" ditekan, bukan urutan acak dari DB.
+        return $this->hasMany(ScheduleShiftType::class, 'schedule_id')->orderBy('id');
     }
 
-    public function shiftTemplates(): HasMany
+    public function rotations(): HasMany
     {
-        return $this->hasMany(ScheduleShiftTemplate::class, 'schedule_id');
+        return $this->hasMany(ScheduleShiftRotation::class, 'schedule_id');
     }
 
     public function assignments(): HasMany
     {
         return $this->hasMany(ScheduleAssignment::class, 'schedule_id');
+    }
+
+    public function changeLogs(): HasMany
+    {
+        return $this->hasMany(ScheduleChangeLog::class, 'schedule_id');
     }
 }

@@ -3,10 +3,10 @@
 
     <div class="mt-4">
         <div class="doc-type-layout">
-            {{-- Kiri: perusahaan — pola sama halaman Komponen Gaji. --}}
+            {{-- Kiri: perusahaan — pola sama halaman Komponen Gaji, warna sky khusus halaman ini. --}}
             <div class="doc-type-nav">
                 @foreach ($this->companies as $company)
-                    <button type="button" wire:click="selectCompany('{{ $company->id }}')" class="doc-type-btn {{ $companyId === $company->id ? 'is-active' : '' }}">
+                    <button type="button" wire:click="selectCompany('{{ $company->id }}')" class="doc-type-btn doc-type-btn-sky {{ $companyId === $company->id ? 'is-active' : '' }}">
                         <i class="fa-solid fa-building"></i>
                         <span>{{ $company->name }}</span>
                     </button>
@@ -14,15 +14,18 @@
             </div>
 
             {{-- Kanan: form flat, semua AttendanceSettingEnum company-scoped, tanpa lapis
-            toggle/expand komponen (beda dari Komponen Gaji yang punya banyak komponen). --}}
+            toggle/expand komponen (beda dari Komponen Gaji yang punya banyak komponen). List
+            vertikal (1 pengaturan per baris) biar fokus per pengaturan, bukan grid multi-kolom. --}}
             <div style="flex:1;min-width:0;">
                 <div style="background:var(--surface);border-radius:16px;box-shadow:var(--shadow-card);padding:18px;">
-                    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;">
+                    <div style="display:flex;flex-direction:column;">
                         @foreach ($this->settings as $setting)
-                            <div>
-                                <label class="form-label">{{ $setting->label() }}</label>
-                                <input type="number" class="form-input" wire:model="values.{{ $setting->value }}">
-                                <p style="font-size:11px;color:var(--text-muted);margin-top:4px;">{{ $setting->helperText() }}</p>
+                            <div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px 20px;padding:14px 0;{{ ! $loop->last ? 'border-bottom:1px solid var(--border-soft);' : '' }}">
+                                <div style="flex:1;min-width:220px;">
+                                    <label class="form-label" style="margin:0;">{{ $setting->label() }}</label>
+                                    <p style="font-size:11px;color:var(--text-muted);margin:2px 0 0;">{{ $setting->helperText() }}</p>
+                                </div>
+                                <input type="number" class="form-input" style="max-width:180px;" wire:model="values.{{ $setting->value }}">
                             </div>
                         @endforeach
                     </div>

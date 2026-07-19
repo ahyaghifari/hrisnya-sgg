@@ -2,17 +2,11 @@
     <x-page-header title="Payroll" />
 
     <div class="mt-4" style="display:flex;flex-direction:column;gap:16px;">
-        {{--
-            List.js (headless — tidak maksa style, lihat resources/js/app.js) urus cari/sortir/
-            pagination, instan di browser. Container INI (#payrolls-list) harus membungkus
-            SEMUA elemen yang List.js pakai — input `.search`, header `.sort`, body `.list`,
-            DAN `.pagination` — kalau salah satu ada di LUAR container ini, List.js tidak akan
-            pernah nemu elemen itu (ini yang bikin cari sebelumnya tidak berfungsi).
-            company_id/periodId tetap lewat Livewire karena itu ganti data dari database —
-            wire:ignore.self cuma mencegah Livewire menimpa atribut container ini sendiri,
-            anak-anaknya (termasuk select company/periode) tetap ke-bind Livewire normal.
-        --}}
-        <div id="payrolls-list" data-list-table data-list-value-names="name,nip" data-list-page-size="15" wire:ignore.self>
+        {{-- Cari/company/period lewat Livewire (server-side) — SEBELUMNYA cari pakai List.js di
+             browser, tapi List.js mengunci baris tbody-nya sendiri sehingga tidak ikut ke-morph
+             Livewire pas company/periode ganti (baris karyawan lama nyangkut terus), jadi
+             dicabut. --}}
+        <div>
             <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;justify-content:space-between;">
                 <div style="display:flex;flex-wrap:wrap;gap:10px;">
                     <x-company-filter :companies="$this->companies" wire:model.live="companyId" />
@@ -29,7 +23,7 @@
                         <label class="form-label">Cari Karyawan</label>
                         <div style="position:relative;">
                             <i class="fa-solid fa-magnifying-glass" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--text-faint);font-size:12px;"></i>
-                            <input type="search" class="form-input search" style="min-width:200px;padding-left:32px;" placeholder="Nama atau NIP...">
+                            <input type="search" wire:model.live.debounce.300ms="search" class="form-input" style="min-width:200px;padding-left:32px;" placeholder="Nama atau NIP...">
                         </div>
                     </div>
                 </div>
@@ -56,7 +50,7 @@
                 <table style="width:100%;border-collapse:collapse;font-size:12.5px;">
                     <thead>
                         <tr style="border-bottom:1.5px solid var(--border);">
-                            <th class="sort" data-sort="name" style="text-align:left;padding:10px 14px;white-space:nowrap;cursor:pointer;">Nama Karyawan <i class="fa-solid fa-sort" style="font-size:9px;color:var(--text-faint);"></i></th>
+                            <th style="text-align:left;padding:10px 14px;white-space:nowrap;">Nama Karyawan</th>
                             <th style="text-align:left;padding:10px 14px;white-space:nowrap;">Periode</th>
                             <th style="text-align:right;padding:10px 14px;white-space:nowrap;">Gaji Kotor</th>
                             <th style="text-align:right;padding:10px 14px;white-space:nowrap;">Potongan</th>
@@ -65,12 +59,12 @@
                             <th style="text-align:center;padding:10px 14px;white-space:nowrap;">Aksi</th>
                         </tr>
                     </thead>
-                    <tbody class="list">
+                    <tbody>
                         @forelse ($this->payrolls as $payroll)
-                            <tr style="border-bottom:1px solid var(--border-soft);">
+                            <tr wire:key="'payroll-'.{{ $payroll->id }}" style="border-bottom:1px solid var(--border-soft);">
                                 <td style="padding:9px 14px;white-space:nowrap;">
-                                    <span class="name" style="font-weight:600;">{{ $payroll->user?->name ?? '-' }}</span>
-                                    <span class="nip" style="display:block;font-size:10.5px;color:var(--text-faint);">{{ $payroll->user?->nip ?? '-' }}</span>
+                                    <span style="font-weight:600;">{{ $payroll->user?->name ?? '-' }}</span>
+                                    <span style="display:block;font-size:10.5px;color:var(--text-faint);">{{ $payroll->user?->nip ?? '-' }}</span>
                                 </td>
                                 <td style="padding:9px 14px;white-space:nowrap;">{{ $payroll->payrollPeriod->start_date->format('d M Y') }} - {{ $payroll->payrollPeriod->end_date->format('d M Y') }}</td>
                                 <td style="padding:9px 14px;text-align:right;white-space:nowrap;">Rp{{ number_format($payroll->gross_salary, 0, ',', '.') }}</td>
@@ -93,22 +87,12 @@
                     </tbody>
                 </table>
             </div>
-
-            <div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-top:14px;">
-                <button type="button" class="list-prev btn-ghost" style="padding:6px 14px;font-size:12px;">
-                    <i class="fa-solid fa-chevron-left" style="font-size:10px;"></i> Sebelumnya
-                </button>
-                <ul class="pagination" style="display:flex;flex-wrap:wrap;gap:4px;list-style:none;padding:0;margin:0;"></ul>
-                <button type="button" class="list-next btn-ghost" style="padding:6px 14px;font-size:12px;">
-                    Selanjutnya <i class="fa-solid fa-chevron-right" style="font-size:10px;"></i>
-                </button>
-            </div>
         </div>
     </div>
 
     @if ($showImportModal)
         <div class="modal-overlay" wire:click="closeImportModal">
-            <div class="modal-box modal-box-lg" onclick="event.stopPropagation()" style="display:flex;flex-direction:column;gap:14px;">
+            <div class="modal-box modal-box-xl" onclick="event.stopPropagation()" style="display:flex;flex-direction:column;gap:14px;">
                 <div style="display:flex;align-items:center;justify-content:space-between;">
                     <h3 style="font-size:18px;font-weight:700;color:var(--text-heading);margin:0;">
                         Import {{ $importType === 'insentif' ? 'Insentif' : 'Bon' }}
@@ -135,9 +119,16 @@
                         Aktifkan dulu di halaman Komponen Gaji kalau memang mau pakai Bon.
                     </div>
                 @else
+                    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+                        <p style="font-size:11.5px;color:var(--text-muted);margin:0;">Kolom wajib: <code>nip</code>, <code>nominal</code>. Kolom <code>nama</code> opsional — cuma buat pembanding dengan nama di sistem.</p>
+                        <a href="{{ route('keuangan.payroll.import-template', $importType) }}" class="btn-ghost" style="padding:6px 12px;font-size:11.5px;white-space:nowrap;">
+                            <i class="fa-solid fa-file-arrow-down"></i> Download Template
+                        </a>
+                    </div>
+
                     <div>
                         <label class="form-label">Periode Payroll</label>
-                        <select class="form-input" wire:model="importPeriodId">
+                        <select class="form-input" wire:model.live="importPeriodId">
                             <option value="">Pilih periode yang sudah digenerate</option>
                             @foreach ($this->importPeriods as $period)
                                 <option value="{{ $period->id }}">{{ $period->start_date->format('d M Y') }} — {{ $period->end_date->format('d M Y') }}</option>
@@ -152,16 +143,68 @@
                     <div>
                         <label class="form-label">File Excel (.xlsx)</label>
                         <input type="file" class="form-input" wire:model="importFile" accept=".xlsx,.xls,.csv">
-                        <p style="font-size:11px;color:var(--text-muted);margin-top:4px;">Kolom wajib: <code>nip</code>, <code>nominal</code>. Upload ulang untuk NIP yang sama akan MENGGANTI nominal sebelumnya, bukan menambah.</p>
+                        <p style="font-size:11px;color:var(--text-muted);margin-top:4px;">File akan dipratinjau dulu di bawah — belum tersimpan sampai kamu klik "Simpan".</p>
                         @error('importFile') <p style="font-size:11px;color:#dc2626;margin-top:4px;">{{ $message }}</p> @enderror
-                        <div wire:loading wire:target="importFile" style="font-size:11px;color:var(--text-muted);margin-top:4px;">Mengunggah...</div>
+                        <div wire:loading wire:target="importFile,updatedImportPeriodId" style="font-size:11px;color:var(--text-muted);margin-top:4px;">Memproses pratinjau...</div>
                     </div>
 
-                    <button type="button" wire:click="runImport" wire:loading.attr="disabled" wire:target="runImport"
-                        style="align-self:flex-start;padding:10px 18px;border-radius:10px;background:#042c6c;color:#fff;font-size:13px;font-weight:600;border:none;cursor:pointer;">
-                        <span wire:loading.remove wire:target="runImport"><i class="fa-solid fa-upload"></i> Import</span>
-                        <span wire:loading wire:target="runImport"><i class="fa-solid fa-spinner fa-spin"></i> Memproses...</span>
-                    </button>
+                    @if ($importPreviewRows !== [])
+                        @php $previewInvalidCount = collect($importPreviewRows)->whereNotNull('error')->count(); @endphp
+                        <div style="display:flex;flex-direction:column;gap:8px;">
+                            <p style="font-size:12px;margin:0;">
+                                <strong>{{ count($importPreviewRows) }}</strong> baris dibaca —
+                                <span style="color:#047C54;">{{ count($importPreviewRows) - $previewInvalidCount }} valid</span>,
+                                <span style="color:#dc2626;">{{ $previewInvalidCount }} bermasalah</span>.
+                                Baris bermasalah TIDAK akan disimpan.
+                            </p>
+                            <div style="max-height:260px;overflow-y:auto;border:1px solid var(--border);border-radius:10px;">
+                                <table style="width:100%;border-collapse:collapse;font-size:12px;">
+                                    <thead>
+                                        <tr style="border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--surface);">
+                                            <th style="text-align:left;padding:6px 10px;">Baris</th>
+                                            <th style="text-align:left;padding:6px 10px;">NIP</th>
+                                            <th style="text-align:left;padding:6px 10px;">Nama Import</th>
+                                            <th style="text-align:left;padding:6px 10px;">Nama di Sistem</th>
+                                            <th style="text-align:right;padding:6px 10px;">Nominal</th>
+                                            <th style="text-align:left;padding:6px 10px;">Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach ($importPreviewRows as $row)
+                                            @php
+                                                $namaBeda = $row['nama_import'] && $row['nama_sistem'] && strcasecmp(trim($row['nama_import']), trim($row['nama_sistem'])) !== 0;
+                                            @endphp
+                                            <tr style="border-bottom:1px solid var(--border-soft);{{ $row['error'] ? 'background:rgba(220,38,38,0.06);' : '' }}">
+                                                <td style="padding:6px 10px;">{{ $row['row'] }}</td>
+                                                <td style="padding:6px 10px;">{{ $row['nip'] }}</td>
+                                                <td style="padding:6px 10px;">{{ $row['nama_import'] ?: '-' }}</td>
+                                                <td style="padding:6px 10px;{{ $namaBeda ? 'color:#d97706;font-weight:600;' : '' }}">
+                                                    {{ $row['nama_sistem'] ?? '-' }}
+                                                    @if ($namaBeda)
+                                                        <i class="fa-solid fa-triangle-exclamation" title="Nama import beda dengan nama di sistem"></i>
+                                                    @endif
+                                                </td>
+                                                <td style="padding:6px 10px;text-align:right;">Rp{{ number_format($row['nominal'], 0, ',', '.') }}</td>
+                                                <td style="padding:6px 10px;">
+                                                    @if ($row['error'])
+                                                        <span style="color:#dc2626;"><i class="fa-solid fa-circle-exclamation"></i> {{ $row['error'] }}</span>
+                                                    @else
+                                                        <span style="color:#047C54;"><i class="fa-solid fa-circle-check"></i> Siap disimpan</span>
+                                                    @endif
+                                                </td>
+                                            </tr>
+                                        @endforeach
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <button type="button" wire:click="confirmImport" wire:loading.attr="disabled" wire:target="confirmImport"
+                                style="align-self:flex-start;padding:10px 18px;border-radius:10px;background:#042c6c;color:#fff;font-size:13px;font-weight:600;border:none;cursor:pointer;">
+                                <span wire:loading.remove wire:target="confirmImport"><i class="fa-solid fa-floppy-disk"></i> Simpan {{ count($importPreviewRows) - $previewInvalidCount }} Baris Valid</span>
+                                <span wire:loading wire:target="confirmImport"><i class="fa-solid fa-spinner fa-spin"></i> Menyimpan...</span>
+                            </button>
+                        </div>
+                    @endif
 
                     @if ($importSuccessCount !== null)
                         <div style="background:{{ $importErrors === [] ? 'rgba(4,124,84,0.08)' : 'rgba(217,119,6,0.08)' }};border-radius:10px;padding:12px 14px;font-size:12.5px;">

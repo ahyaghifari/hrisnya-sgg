@@ -3,56 +3,183 @@
 namespace App\Livewire\Presensi;
 
 use App\Enum\CustomPermissionEnum;
-use App\Filament\Resources\Master\Holidays\Schemas\HolidayForm;
-use App\Filament\Resources\Master\Holidays\Tables\HolidaysTable;
-use Closure;
-use Filament\Actions\Action;
-use Filament\Actions\Concerns\InteractsWithActions;
-use Filament\Actions\Contracts\HasActions;
-use Filament\Actions\CreateAction;
-use Filament\Actions\EditAction;
-use Filament\Schemas\Concerns\InteractsWithSchemas;
-use Filament\Schemas\Contracts\HasSchemas;
-use Filament\Schemas\Schema;
-use Filament\Tables\Concerns\InteractsWithTable;
-use Filament\Tables\Contracts\HasTable;
-use Filament\Tables\Table;
+use App\Models\Master\Attendance\Holidays;
+use App\Models\Master\Companies;
+use Carbon\Carbon;
+use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 
 /**
- * Versi portal dari HolidayResource (/admin/holidays) — reuse Table & Form class Filament yang
- * sama, cuma dibungkus di luar panel. Direlokasi dari App\Livewire\Master\HolidaysPage ke grup
- * nav "Presensi & Absensi" (permission SISTEM_MASTER -> SISTEM_ABSENSI, dikonfirmasi user) —
- * lihat planning/2026-07-19-revisi-absensi-cutoff-kuota-izin-widget-pimpinan.md §9.2.
+ * Dibangun ulang total dari reuse HolidaysTable/HolidayForm Filament ke custom Livewire page
+ * atas permintaan eksplisit user — 2 kolom: tabel (lebih lebar) di kiri, kalender bulan berjalan
+ * di kanan buat visualisasi cepat tanggal mana yang libur. Cari/company lewat Livewire
+ * (server-side) — SEBELUMNYA cari pakai List.js di browser, tapi List.js mengunci baris
+ * tbody-nya sendiri sehingga tidak ikut ke-morph Livewire tiap company ganti (baris lama
+ * nyangkut terus), jadi dicabut. HolidayResource Filament (`/admin/holidays`) tidak disentuh,
+ * tetap ada buat admin panel.
  */
 #[Layout('components.layout', ['title' => 'Hari Libur & Cuti Bersama'])]
-class HolidaysPage extends Component implements HasActions, HasSchemas, HasTable
+class HolidaysPage extends Component
 {
-    use InteractsWithActions;
-    use InteractsWithSchemas;
-    use InteractsWithTable;
+    public ?string $companyId = null;
+    public string $search = '';
+
+    public string $calendarMonth;
+
+    public bool $showFormModal = false;
+    public ?string $editingId = null;
+    public ?string $formName = null;
+    public ?string $formDate = null;
+    public ?string $formCompanyId = null;
+    public bool $formIsCollectiveLeave = false;
 
     public function mount(): void
     {
         abort_unless(Auth::user()->can(CustomPermissionEnum::SISTEM_ABSENSI->value), 403);
+
+        $this->calendarMonth = now()->format('Y-m');
     }
 
-    public function table(Table $table): Table
+    public function getCompaniesProperty()
     {
-        return HolidaysTable::configure($table)
-            ->headerActions([
-                CreateAction::make(),
-            ]);
+        return Companies::orderBy('code')->get();
     }
 
-    public function getDefaultActionSchemaResolver(Action $action): ?Closure
+    /** companyId kosong = semua perusahaan (termasuk yang global, company_id null). */
+    public function getHolidaysProperty()
     {
-        return match (true) {
-            $action instanceof CreateAction, $action instanceof EditAction => fn (Schema $schema): Schema => HolidayForm::configure($schema),
-            default => null,
-        };
+        $search = trim($this->search);
+
+        return Holidays::query()
+            ->when($this->companyId, fn ($q) => $q->where(fn ($q2) => $q2->whereNull('company_id')->orWhere('company_id', $this->companyId)))
+            ->when($search !== '', fn ($q) => $q->where('name', 'like', "%{$search}%"))
+            ->with('company')
+            ->orderByDesc('date')
+            ->get();
+    }
+
+    public function getCalendarMonthLabelProperty(): string
+    {
+        return Carbon::parse($this->calendarMonth . '-01')->locale('id')->translatedFormat('F Y');
+    }
+
+    /**
+     * Grid kalender bulan berjalan, Senin-Minggu — sel null buat padding sebelum tanggal 1 &
+     * setelah tanggal terakhir, biar tabel HTML-nya selalu kelipatan 7 rapi.
+     *
+     * @return array<int, array{date: Carbon, holidays: \Illuminate\Support\Collection}|null>
+     */
+    public function getCalendarDaysProperty(): array
+    {
+        $start = Carbon::parse($this->calendarMonth . '-01');
+        $end = $start->copy()->endOfMonth();
+
+        $holidaysByDate = Holidays::query()
+            ->when($this->companyId, fn ($q) => $q->where(fn ($q2) => $q2->whereNull('company_id')->orWhere('company_id', $this->companyId)))
+            ->whereBetween('date', [$start->toDateString(), $end->toDateString()])
+            ->get()
+            ->groupBy(fn (Holidays $h) => $h->date->toDateString());
+
+        $leadingBlanks = $start->dayOfWeekIso - 1; // Senin=1 -> 0 blank, Minggu=7 -> 6 blank
+        $cells = array_fill(0, $leadingBlanks, null);
+
+        for ($day = 1; $day <= $end->day; $day++) {
+            $date = $start->copy()->day($day);
+            $cells[] = ['date' => $date, 'holidays' => $holidaysByDate->get($date->toDateString(), collect())];
+        }
+
+        while (count($cells) % 7 !== 0) {
+            $cells[] = null;
+        }
+
+        return $cells;
+    }
+
+    public function prevMonth(): void
+    {
+        $this->calendarMonth = Carbon::parse($this->calendarMonth . '-01')->subMonthNoOverflow()->format('Y-m');
+    }
+
+    public function nextMonth(): void
+    {
+        $this->calendarMonth = Carbon::parse($this->calendarMonth . '-01')->addMonthNoOverflow()->format('Y-m');
+    }
+
+    // ── Tambah/Ubah ──────────────────────────────────────────────────────────
+
+    public function openCreateModal(): void
+    {
+        $this->editingId = null;
+        $this->formName = null;
+        $this->formDate = null;
+        $this->formCompanyId = $this->companyId;
+        $this->formIsCollectiveLeave = false;
+        $this->resetErrorBag();
+        $this->showFormModal = true;
+    }
+
+    public function openEditModal(string $id): void
+    {
+        $holiday = Holidays::findOrFail($id);
+
+        $this->editingId = $holiday->id;
+        $this->formName = $holiday->name;
+        $this->formDate = $holiday->date->format('Y-m-d');
+        $this->formCompanyId = $holiday->company_id;
+        $this->formIsCollectiveLeave = $holiday->is_collective_leave;
+        $this->resetErrorBag();
+        $this->showFormModal = true;
+    }
+
+    public function closeFormModal(): void
+    {
+        $this->showFormModal = false;
+    }
+
+    public function saveForm(): void
+    {
+        $this->validate([
+            'formName' => 'required|string|max:255',
+            'formDate' => 'required|date',
+            'formCompanyId' => 'nullable|exists:m_companies,id',
+        ], [], [
+            'formName' => 'nama',
+            'formDate' => 'tanggal',
+            'formCompanyId' => 'perusahaan',
+        ]);
+
+        $data = [
+            'name' => $this->formName,
+            'date' => $this->formDate,
+            'company_id' => $this->formCompanyId ?: null,
+            'is_collective_leave' => $this->formIsCollectiveLeave,
+        ];
+
+        if ($this->editingId) {
+            Holidays::whereKey($this->editingId)->update($data);
+        } else {
+            Holidays::create($data);
+        }
+
+        $this->showFormModal = false;
+        $this->calendarMonth = Carbon::parse($this->formDate)->format('Y-m');
+
+        Notification::make()
+            ->title($this->editingId ? 'Hari libur berhasil diubah' : 'Hari libur baru berhasil ditambahkan')
+            ->success()
+            ->send();
+    }
+
+    public function removeHoliday(string $id): void
+    {
+        Holidays::whereKey($id)->delete();
+
+        Notification::make()
+            ->title('Hari libur berhasil dihapus')
+            ->success()
+            ->send();
     }
 
     public function render()

@@ -4,12 +4,13 @@
     $canAccessKeuangan = auth()->user()->can(\App\Enum\CustomPermissionEnum::SISTEM_KEUANGAN->value);
     $canAccessMaster = auth()->user()->can(\App\Enum\CustomPermissionEnum::SISTEM_MASTER->value);
     $canAccessAbsensi = auth()->user()->can(\App\Enum\CustomPermissionEnum::SISTEM_ABSENSI->value);
+    $canAccessKepegawaian = auth()->user()->can(\App\Enum\CustomPermissionEnum::SISTEM_KEPEGAWAIAN->value);
     // Murni permission Shield (bukan hasSubordinates() seperti MyStaff) — siapa yang boleh
     // bikin Coaching ditentukan lewat checklist role di /admin/roles, bukan otomatis dari
     // struktur organisasi. Lihat planning/2026-07-18-portal-coaching-counseling.md §3.2.
     
     $canManageCoaching = auth()->user()->can('Create:Coaching');
-    $showRoleRow = $canSeeKaryawanMenu || $canAccessKeuangan || $canAccessMaster || $canAccessAbsensi || $canManageCoaching;
+    $showRoleRow = $canSeeKaryawanMenu || $canAccessKeuangan || $canAccessMaster || $canAccessAbsensi || $canAccessKepegawaian || $canManageCoaching;
     $initials = collect(explode(' ', auth()->user()->name))
         ->map(fn ($part) => mb_substr($part, 0, 1))
         ->take(2)
@@ -33,7 +34,7 @@
                     <i class="fa-solid fa-house text-xs"></i> Beranda
                 </a>
                 <a href="{{ route('kanban') }}" wire:navigate class="nav-item {{ request()->routeIs('kanban*') ? 'active' : '' }}">
-                    <i class="fa-solid fa-table-columns text-xs"></i> Kanban
+                    <i class="fa-solid fa-table-columns text-xs"></i> Penugasan
                 </a>
                 <a href="{{ route('pelatihan') }}" wire:navigate class="nav-item {{ request()->routeIs('pelatihan*') ? 'active' : '' }}">
                     <i class="fa-solid fa-graduation-cap text-xs"></i> Pelatihan
@@ -57,7 +58,8 @@
                                 <i class="fa-solid fa-users text-xs"></i> MyStaff
                             </a>
                         @endif
-                        @if ($canManageCoaching)
+                        {{-- ponytail: tombol Coaching disembunyikan sementara, aktifkan lagi ganti @if ($canManageCoaching) --}}
+                        @if (false && $canManageCoaching)
                             <a href="{{ route('coaching') }}" wire:navigate class="nav-item nav-item-orange {{ request()->routeIs('coaching*') ? 'active' : '' }}">
                                 <i class="fa-solid fa-clipboard-check text-xs"></i> Coaching
                             </a>
@@ -82,16 +84,22 @@
                         @endif
                         @if ($canAccessAbsensi)
                             <div class="dropdown">
-                                <a href="#" class="nav-item nav-item-sky {{ request()->routeIs(['presensi.*', 'my-attendance-requests*']) ? 'active' : '' }}">
-                                    <i class="fa-solid fa-calendar-check text-xs"></i> Presensi & Absensi <i class="fa-solid fa-chevron-down text-[10px]"></i>
+                                <a href="#" class="nav-item nav-item-sky {{ request()->routeIs('presensi.*') ? 'active' : '' }}">
+                                    <i class="fa-solid fa-calendar-check text-xs"></i> Absensi <i class="fa-solid fa-chevron-down text-[10px]"></i>
                                 </a>
                                 <div class="dropdown-menu">
-                                    <span class="dropdown-group-label">Presensi</span>
                                     <a href="{{ route('presensi.jadwal') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-calendar-days"></i> Jadwal</a>
                                     <a href="{{ route('presensi.hari-libur') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-flag"></i> Hari Libur & Cuti Bersama</a>
                                     <a href="{{ route('presensi.pengaturan') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-gear"></i> Pengaturan Absensi</a>
-                                    <div style="height:1px;background:var(--border-soft);margin:6px 8px;"></div>
-                                    <span class="dropdown-group-label">Absensi</span>
+                                </div>
+                            </div>
+                        @endif
+                        @if ($canAccessKepegawaian)
+                            <div class="dropdown">
+                                <a href="#" class="nav-item nav-item-pink {{ request()->routeIs('my-attendance-requests*') ? 'active' : '' }}">
+                                    <i class="fa-solid fa-id-card-clip text-xs"></i> Kepegawaian <i class="fa-solid fa-chevron-down text-[10px]"></i>
+                                </a>
+                                <div class="dropdown-menu">
                                     <a href="{{ route('my-attendance-requests.permission') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-file-lines"></i> Izin</a>
                                     <a href="{{ route('my-attendance-requests.leave') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-umbrella-beach"></i> Cuti</a>
                                     <a href="{{ route('my-attendance-requests.overtime') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-business-time"></i> Lembur</a>

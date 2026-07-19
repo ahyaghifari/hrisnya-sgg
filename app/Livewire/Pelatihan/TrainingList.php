@@ -30,6 +30,9 @@ class TrainingList extends Component
     {
         return LmsCourses::query()
             ->where('status', LsmCourseStatus::Published->value)
+            // Jadwal sudah lewat (end_date < hari ini) disembunyikan — belum ada jadwal
+            // (end_date null) tetap ditampilkan, bukan "sudah lewat".
+            ->where(fn ($q) => $q->whereNull('end_date')->orWhereDate('end_date', '>=', now()))
             ->with('category')
             ->withCount(['courseUsers', 'meetings'])
             ->orderBy('title');

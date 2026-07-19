@@ -11,14 +11,18 @@ use Livewire\Component;
 
 /**
  * Tabel desktop dulu reuse Filament (EmployeesTable + InteractsWithTable) — dicabut total,
- * ganti custom + List.js (cari/sortir/pagination instan di browser, lihat resources/js/app.js),
- * kolomnya tetap sama persis: foto, nama+email, NIP, departemen, jabatan+role, perusahaan
- * (cuma buat yang punya akses global). Card mobile (di bawah) tidak berubah.
+ * ganti custom + Livewire (server-side, sama sumbernya dengan card mobile di bawah), kolomnya
+ * tetap sama persis: foto, nama+email, NIP, departemen, jabatan+role, perusahaan (cuma buat
+ * yang punya akses global). SEBELUMNYA desktop pakai List.js (cari/sortir/pagination di
+ * browser), tapi List.js mengunci baris tbody-nya sendiri sehingga tidak ikut ke-morph Livewire
+ * tiap company/search ganti (baris lama nyangkut terus), jadi dicabut — desktop sekarang reuse
+ * `$this->employees` (paginated) yang sama dengan mobile, bukan query terpisah tanpa pagination.
  */
 #[Layout('components.layout', ['title' => 'MyStaff'])]
 class MyEmployees extends Component
 {
     public ?string $companyId = null;
+    public string $search = '';
 
     public function mount(): void
     {
@@ -32,7 +36,7 @@ class MyEmployees extends Component
         return Companies::pluck('name', 'id');
     }
 
-    // Sumber data yang sama dipakai desktop (Filament Table) dan mobile (card manual).
+    // Sumber data yang sama dipakai desktop (tabel) dan mobile (card manual).
     protected function baseQuery()
     {
         if (Auth::user()->canBrowseAllCompanies()) {
@@ -40,29 +44,33 @@ class MyEmployees extends Component
                 return User::query()->whereRaw('1 = 0');
             }
 
-            return User::query()
-                ->where('company_id', $this->companyId)
-                ->with(['profile.jobPosition', 'profile.orgStructure.parent.parent', 'company', 'roles']);
+            $query = User::query()->where('company_id', $this->companyId);
+        } else {
+            $query = app(OrgHierarchyService::class)->subordinates(Auth::user());
         }
 
-        return app(OrgHierarchyService::class)->subordinates(Auth::user())
-            ->with(['profile.jobPosition', 'profile.orgStructure.parent.parent', 'company', 'roles']);
+        $query->with(['profile.jobPosition', 'profile.orgStructure.parent.parent', 'company', 'roles']);
+
+        $search = trim($this->search);
+
+        if ($search !== '') {
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                    ->orWhere('email', 'like', "%{$search}%")
+                    ->orWhere('nip', 'like', "%{$search}%")
+                    ->orWhereHas('profile.jobPosition', fn ($q2) => $q2->where('name', 'like', "%{$search}%"));
+            });
+        }
+
+        return $query;
     }
 
-    // Dipakai mobile (card manual, lihat my-employees.blade.php) — tetap dipaginasi server,
-    // tidak disentuh (di luar scope perubahan tabel desktop).
+    // Dipakai mobile (card manual) DAN desktop (tabel), lihat my-employees.blade.php.
     public function getEmployeesProperty()
     {
         return $this->baseQuery()
             ->orderBy('name')
             ->paginate(10);
-    }
-
-    // Dipakai desktop (tabel custom + List.js) — dimuat sekali tanpa pagination server, List.js
-    // urus cari/sortir/pagination-nya di browser.
-    public function getStaffTableRowsProperty()
-    {
-        return $this->baseQuery()->orderBy('name')->get();
     }
 
     public function render()

@@ -10,6 +10,7 @@ use App\Models\Attendance\AttendanceRequests;
 use App\Models\User;
 use App\Models\User\UserDocuments;
 use App\Services\Attendance\AttendaceReqService;
+use App\Services\Attendance\AttendancePeriodResolver;
 use App\Services\OrgHierarchyService;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
@@ -42,8 +43,12 @@ class EmployeeAttendanceStatistics extends Component
             'profile.kelas',
             'profile.employeeType',
         ]);
-        $this->date_from = now()->startOfMonth()->toDateString();
-        $this->date_to = now()->endOfMonth()->toDateString();
+        // Default periode ikut cutoff absensi company (AttendancePeriodResolver, sama dengan
+        // yang dipakai enforcement kuota Cuti/Izin) — bukan kalender 1-31 tetap. User tetap
+        // bisa timpa manual lewat filter Dari/Sampai Tanggal.
+        [$periodStart, $periodEnd] = AttendancePeriodResolver::resolve(now(), $this->record->company_id);
+        $this->date_from = $periodStart->toDateString();
+        $this->date_to = $periodEnd->toDateString();
     }
 
     protected function canManage(User $record): bool

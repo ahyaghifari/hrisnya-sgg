@@ -13,10 +13,11 @@ use Livewire\Attributes\Layout;
 use Livewire\Component;
 
 /**
- * Versi portal dari PayrollPeriodResource (/admin/payroll-periods) — dibangun custom (List.js
- * buat sort+pagination di browser, pola sama PayrollsPage.php), BUKAN lagi reuse Table/Action
- * Filament seperti sebelumnya. Company difilter lewat Livewire (query ulang server, sama pola
- * PayrollsPage), sort+pagination di tabel ditangani List.js tanpa roundtrip.
+ * Versi portal dari PayrollPeriodResource (/admin/payroll-periods) — dibangun custom Livewire
+ * page, BUKAN lagi reuse Table/Action Filament seperti sebelumnya. Company difilter lewat
+ * Livewire (server-side) — SEBELUMNYA List.js dipasang buat sort+pagination di browser, tapi
+ * List.js mengunci baris tbody-nya sendiri sehingga tidak ikut ke-morph Livewire tiap company
+ * ganti (baris lama nyangkut terus), jadi dicabut.
  */
 #[Layout('components.layout', ['title' => 'Periode Gaji'])]
 class PayrollPeriodsPage extends Component
@@ -35,12 +36,6 @@ class PayrollPeriodsPage extends Component
         abort_unless(Auth::user()->can(CustomPermissionEnum::SISTEM_KEUANGAN->value), 403);
 
         $this->companyId = Auth::user()->company_id ?? Companies::orderBy('code')->value('id');
-    }
-
-    /** Company ganti = query ulang ke server, List.js perlu tahu barisnya baru diganti Livewire. */
-    public function updatedCompanyId(): void
-    {
-        $this->dispatch('list-table:refresh');
     }
 
     public function getCompaniesProperty()
@@ -131,7 +126,6 @@ class PayrollPeriodsPage extends Component
         }
 
         $this->showFormModal = false;
-        $this->dispatch('list-table:refresh');
 
         Notification::make()
             ->title($this->editingId ? 'Periode berhasil diubah' : 'Periode baru berhasil ditambahkan')
