@@ -30,7 +30,12 @@ class EditRole extends EditRecord
     }
 
     /**
-     * Preload the role's current permissions into the form data before fill.
+     * Preload the role's current permissions into the form data before fill. Grouping logic
+     * HARUS sama persis dengan RoleForm.php (Verb:Subject -> field key dari Subject, permission
+     * manual tanpa titik dua -> grup "Lainnya") — dulu di sini pakai split underscore yang tidak
+     * pernah cocok, jadi checkbox selalu tampil kosong walau role sudah punya banyak permission
+     * (dan bisa ketimpa hilang total kalau admin save tanpa sadar, karena syncPermissions()
+     * mengganti total, bukan menambah).
      *
      * @param array<string, mixed> $data
      * @return array<string, mixed>
@@ -38,15 +43,11 @@ class EditRole extends EditRecord
     protected function mutateFormDataBeforeFill(array $data): array
     {
         if ($this->getRecord() instanceof Model) {
-            // get all permission names for the role and group them by suffix
             $permissionNames = $this->getRecord()->permissions->pluck('name')->toArray();
 
             foreach ($permissionNames as $permission) {
-                // assume permission format like action_resource (e.g. view_role)
-                $parts = explode('_', $permission);
-                $group = implode('_', array_slice($parts, 1)) ?: 'general';
-
-                $key = $group . '_has_permissions';
+                $subject = explode(':', $permission)[1] ?? 'Lainnya';
+                $key = \Illuminate\Support\Str::snake($subject) . '_has_permissions';
 
                 if (! array_key_exists($key, $data)) {
                     $data[$key] = [];
