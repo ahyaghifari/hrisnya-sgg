@@ -7,7 +7,6 @@ use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
-use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Table;
 
@@ -29,23 +28,11 @@ class HolidaysTable
                     ->searchable()
                     ->sortable(),
 
-                TextColumn::make('company.name')
-                    ->label('Perusahaan')
-                    ->placeholder('Semua Perusahaan')
-                    ->searchable()
-                    ->sortable(),
-
                 IconColumn::make('is_collective_leave')
                     ->label('Cuti Bersama')
                     ->boolean(),
             ])
             ->filters([
-                SelectFilter::make('company_id')
-                    ->label('Perusahaan')
-                    ->relationship('company', 'name')
-                    ->searchable()
-                    ->preload(),
-
                 TernaryFilter::make('is_collective_leave')
                     ->label('Cuti Bersama'),
             ])

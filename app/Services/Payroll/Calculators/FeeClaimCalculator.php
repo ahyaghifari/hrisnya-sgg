@@ -3,6 +3,7 @@
 namespace App\Services\Payroll\Calculators;
 
 use App\Enum\Payroll\PayrollComponentEnum;
+use App\Models\Payroll\CompanyPayrollComponent;
 use App\Models\Payroll\FeeItem;
 use App\Models\Payroll\Payroll;
 use App\Models\Payroll\PayrollItem;
@@ -11,11 +12,11 @@ use App\Models\Setting;
 use App\Models\User;
 
 /**
- * Always-on — TIDAK digate lewat company_payroll_components (lihat PayrollComponentEnum::
- * alwaysOn()). Murni data-driven: jalan kalau ada FeeItem belum lunas, berhenti sendiri kalau
- * tidak ada. Logic sama persis PayrollService::handleFeeItemsComponent() lama, cuma rate
- * pajak pindah dari salary_components (category=pajak_jasa_dokter) ke
- * Setting::resolve('pajak_jasa_dokter_rate').
+ * FEE_CLAIM sendiri always-on — TIDAK digate lewat company_payroll_components (lihat
+ * PayrollComponentEnum::alwaysOn()). Murni data-driven: jalan kalau ada FeeItem belum lunas,
+ * berhenti sendiri kalau tidak ada. PAJAK_JASA_DOKTER (potongannya) TETAP digate lewat toggle
+ * company_payroll_components seperti komponen lain — dicek manual di sini karena
+ * perhitungannya menumpang FeeClaimCalculator, bukan Calculator class sendiri.
  */
 class FeeClaimCalculator implements PayrollComponentCalculator
 {
@@ -52,9 +53,15 @@ class FeeClaimCalculator implements PayrollComponentCalculator
             $totalFee += $amount;
         }
 
+        $pajakActive = CompanyPayrollComponent::query()
+            ->where('company_id', $period->company_id)
+            ->where('component', PayrollComponentEnum::PAJAK_JASA_DOKTER->value)
+            ->where('is_active', true)
+            ->exists();
+
         $taxRate = Setting::resolve('pajak_jasa_dokter_rate', $period->company_id, default: 0);
 
-        if ($taxRate > 0 && $totalFee > 0) {
+        if ($pajakActive && $taxRate > 0 && $totalFee > 0) {
             $taxAmount = round($totalFee * (float) $taxRate / 100, 2);
 
             if ($taxAmount > 0) {

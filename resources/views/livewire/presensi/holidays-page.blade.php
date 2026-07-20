@@ -10,20 +10,9 @@
         {{-- Kolom kiri (lebih lebar): tabel + CRUD, cari/company lewat Livewire (server-side). --}}
         <div style="display:flex;flex-direction:column;gap:16px;min-width:0;">
             <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;justify-content:space-between;">
-                <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;">
-                    <div>
-                        <label class="form-label">Perusahaan</label>
-                        <select class="form-input" style="min-width:220px;" wire:model.live="companyId">
-                            <option value="">Semua Perusahaan</option>
-                            @foreach ($this->companies as $company)
-                                <option value="{{ $company->id }}">{{ $company->name }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div style="position:relative;">
-                        <label class="form-label">Cari</label>
-                        <input type="search" wire:model.live.debounce.300ms="search" class="form-input" placeholder="Nama hari libur..." style="min-width:200px;">
-                    </div>
+                <div style="position:relative;">
+                    <label class="form-label">Cari</label>
+                    <input type="search" wire:model.live.debounce.300ms="search" class="form-input" placeholder="Nama hari libur..." style="min-width:200px;">
                 </div>
 
                 <button type="button" wire:click="openCreateModal" class="btn-primary" style="padding:9px 18px;font-size:12.5px;">
@@ -37,7 +26,6 @@
                         <tr style="border-bottom:1.5px solid var(--border);">
                             <th style="text-align:left;padding:10px 14px;white-space:nowrap;">Tanggal</th>
                             <th style="text-align:left;padding:10px 14px;white-space:nowrap;">Nama</th>
-                            <th style="text-align:left;padding:10px 14px;white-space:nowrap;">Perusahaan</th>
                             <th style="text-align:center;padding:10px 14px;white-space:nowrap;">Cuti Bersama</th>
                             <th style="text-align:center;padding:10px 14px;white-space:nowrap;">Aksi</th>
                         </tr>
@@ -47,7 +35,6 @@
                             <tr wire:key="'holiday-'.{{ $holiday->id }}" style="border-bottom:1px solid var(--border-soft);">
                                 <td style="padding:9px 14px;white-space:nowrap;">{{ $holiday->date->translatedFormat('d M Y') }}</td>
                                 <td style="padding:9px 14px;font-weight:600;white-space:nowrap;">{{ $holiday->name }}</td>
-                                <td style="padding:9px 14px;white-space:nowrap;">{{ $holiday->company?->name ?? 'Semua Perusahaan' }}</td>
                                 <td style="padding:9px 14px;text-align:center;white-space:nowrap;">
                                     @if ($holiday->is_collective_leave)
                                         <i class="fa-solid fa-circle-check" style="color:#047C54;"></i>
@@ -68,7 +55,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="5" style="padding:24px;text-align:center;color:var(--text-faint);">Belum ada hari libur untuk filter ini.</td>
+                                <td colspan="4" style="padding:24px;text-align:center;color:var(--text-faint);">Belum ada hari libur untuk filter ini.</td>
                             </tr>
                         @endforelse
                     </tbody>
@@ -143,17 +130,6 @@
                         <label class="form-label">Tanggal</label>
                         <input type="date" class="form-input" wire:model="formDate">
                         @error('formDate') <p style="font-size:11px;color:#dc2626;margin-top:4px;">{{ $message }}</p> @enderror
-                    </div>
-
-                    <div>
-                        <label class="form-label">Perusahaan</label>
-                        <select class="form-input" wire:model="formCompanyId">
-                            <option value="">Semua Perusahaan</option>
-                            @foreach ($this->companies as $company)
-                                <option value="{{ $company->id }}">{{ $company->name }}</option>
-                            @endforeach
-                        </select>
-                        @error('formCompanyId') <p style="font-size:11px;color:#dc2626;margin-top:4px;">{{ $message }}</p> @enderror
                     </div>
 
                     <label style="display:flex;align-items:center;gap:8px;font-size:12.5px;cursor:pointer;">

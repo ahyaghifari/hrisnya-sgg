@@ -55,7 +55,6 @@ class LeaveReqRepository
         if ($leaveType && str_contains(mb_strtolower($leaveType->name), 'tahunan')) {
             $collectiveLeaveDays = Holidays::where('is_collective_leave', true)
                 ->whereBetween('date', [$periodStart, $periodEnd])
-                ->where(fn ($q) => $q->whereNull('company_id')->orWhere('company_id', $leaveType->company_id))
                 ->count();
         }
 

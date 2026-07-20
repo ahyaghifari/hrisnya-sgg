@@ -2,6 +2,7 @@
 
 namespace App\Livewire;
 
+use App\Enum\Attendance\PermissionTypeCategoryEnum;
 use App\Models\Master\Attendance\PermissionTypes;
 use App\Services\Attendance\AttendaceReqService;
 use Filament\Notifications\Notification;
@@ -21,6 +22,8 @@ class SubmitPermissionRequest extends Component
     public ?string $substitute_user_name = null;
     public ?string $substitute_task = null;
 
+    public ?array $usage = null;
+
     public function mount(): void
     {
         abort_if(Auth::user()->canBrowseAllCompanies(), 403);
@@ -29,6 +32,32 @@ class SubmitPermissionRequest extends Component
     public function getPermissionTypesProperty()
     {
         return PermissionTypes::where('company_id', Auth::user()->company_id)->get();
+    }
+
+    public function updatedPermissionTypeId(): void
+    {
+        $this->refreshUsage();
+    }
+
+    public function updatedDate(): void
+    {
+        $this->refreshUsage();
+    }
+
+    /**
+     * Sama seperti info kuota di halaman approval (§8) — batas Izin gabungan per-periode
+     * (setting izin_max_per_periode) ditampilkan ke pemohon SEBELUM submit. Cuma relevan kalau
+     * jenis izin yang dipilih memang masuk salah satu PermissionTypeCategoryEnum (jenis izin
+     * lain tidak kena batas ini sama sekali, lihat AttendaceReqService::assertWithinIzinPeriodeLimit).
+     */
+    private function refreshUsage(): void
+    {
+        $type = $this->permission_type_id ? PermissionTypes::find($this->permission_type_id) : null;
+        $categoryValues = array_map(fn ($c) => $c->value, PermissionTypeCategoryEnum::cases());
+
+        $this->usage = ($type && in_array($type->category, $categoryValues, true))
+            ? app(AttendaceReqService::class)->getIzinPeriodeUsage(Auth::user(), $this->date)
+            : null;
     }
 
     public function toggleSubstitute(): void

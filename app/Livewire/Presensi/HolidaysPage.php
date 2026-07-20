@@ -4,7 +4,6 @@ namespace App\Livewire\Presensi;
 
 use App\Enum\CustomPermissionEnum;
 use App\Models\Master\Attendance\Holidays;
-use App\Models\Master\Companies;
 use Carbon\Carbon;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\Auth;
@@ -23,7 +22,6 @@ use Livewire\Component;
 #[Layout('components.layout', ['title' => 'Hari Libur & Cuti Bersama'])]
 class HolidaysPage extends Component
 {
-    public ?string $companyId = null;
     public string $search = '';
 
     public string $calendarMonth;
@@ -32,7 +30,6 @@ class HolidaysPage extends Component
     public ?string $editingId = null;
     public ?string $formName = null;
     public ?string $formDate = null;
-    public ?string $formCompanyId = null;
     public bool $formIsCollectiveLeave = false;
 
     public function mount(): void
@@ -42,20 +39,12 @@ class HolidaysPage extends Component
         $this->calendarMonth = now()->format('Y-m');
     }
 
-    public function getCompaniesProperty()
-    {
-        return Companies::orderBy('code')->get();
-    }
-
-    /** companyId kosong = semua perusahaan (termasuk yang global, company_id null). */
     public function getHolidaysProperty()
     {
         $search = trim($this->search);
 
         return Holidays::query()
-            ->when($this->companyId, fn ($q) => $q->where(fn ($q2) => $q2->whereNull('company_id')->orWhere('company_id', $this->companyId)))
             ->when($search !== '', fn ($q) => $q->where('name', 'like', "%{$search}%"))
-            ->with('company')
             ->orderByDesc('date')
             ->get();
     }
@@ -77,7 +66,6 @@ class HolidaysPage extends Component
         $end = $start->copy()->endOfMonth();
 
         $holidaysByDate = Holidays::query()
-            ->when($this->companyId, fn ($q) => $q->where(fn ($q2) => $q2->whereNull('company_id')->orWhere('company_id', $this->companyId)))
             ->whereBetween('date', [$start->toDateString(), $end->toDateString()])
             ->get()
             ->groupBy(fn (Holidays $h) => $h->date->toDateString());
@@ -114,7 +102,6 @@ class HolidaysPage extends Component
         $this->editingId = null;
         $this->formName = null;
         $this->formDate = null;
-        $this->formCompanyId = $this->companyId;
         $this->formIsCollectiveLeave = false;
         $this->resetErrorBag();
         $this->showFormModal = true;
@@ -127,7 +114,6 @@ class HolidaysPage extends Component
         $this->editingId = $holiday->id;
         $this->formName = $holiday->name;
         $this->formDate = $holiday->date->format('Y-m-d');
-        $this->formCompanyId = $holiday->company_id;
         $this->formIsCollectiveLeave = $holiday->is_collective_leave;
         $this->resetErrorBag();
         $this->showFormModal = true;
@@ -143,17 +129,14 @@ class HolidaysPage extends Component
         $this->validate([
             'formName' => 'required|string|max:255',
             'formDate' => 'required|date',
-            'formCompanyId' => 'nullable|exists:m_companies,id',
         ], [], [
             'formName' => 'nama',
             'formDate' => 'tanggal',
-            'formCompanyId' => 'perusahaan',
         ]);
 
         $data = [
             'name' => $this->formName,
             'date' => $this->formDate,
-            'company_id' => $this->formCompanyId ?: null,
             'is_collective_leave' => $this->formIsCollectiveLeave,
         ];
 

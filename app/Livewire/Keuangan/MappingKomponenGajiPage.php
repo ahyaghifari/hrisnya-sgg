@@ -331,32 +331,12 @@ class MappingKomponenGajiPage extends Component implements HasActions, HasSchema
             'jabatanMatrix.*' => $this->nonNegativeAmountRule(),
         ], [], ['jabatanMatrix.*' => 'nominal tunjangan jabatan']);
 
-        $pangkatsById = $this->pangkats->keyBy('id');
-        $kelasById = $this->kelasList->keyBy('id');
-
         foreach ($this->jabatanMatrix as $key => $value) {
             if ($value === '' || $value === null) {
                 continue;
             }
 
             [$pangkatId, $kelasId] = explode('|', $key, 2);
-
-            // Jaring pengaman server-side — input yang di-disable di blade (kelas di luar
-            // startKelas/maxKelas pangkatnya) tetap di-skip di sini walau seandainya ada yang
-            // paksa enable lewat DOM manipulation.
-            $pangkat = $pangkatsById->get($pangkatId);
-            $kelas = $kelasById->get($kelasId);
-
-            if ($pangkat && $kelas && $kelas->level !== null) {
-                $startLevel = $pangkat->startKelas?->level;
-                $maxLevel = $pangkat->maxKelas?->level;
-                $outOfRange = ($startLevel !== null && $kelas->level < $startLevel)
-                    || ($maxLevel !== null && $kelas->level > $maxLevel);
-
-                if ($outOfRange) {
-                    continue;
-                }
-            }
 
             PositionAllowance::updateOrCreate(
                 ['pangkat_id' => $pangkatId, 'kelas_id' => $kelasId],

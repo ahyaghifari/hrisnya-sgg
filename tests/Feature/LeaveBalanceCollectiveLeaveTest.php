@@ -75,9 +75,9 @@ class LeaveBalanceCollectiveLeaveTest extends TestCase
             'total_days' => 2,
         ]);
 
-        // 2 hari cuti bersama tahun ini: 1 global (semua company), 1 khusus company ini.
-        Holidays::create(['company_id' => null, 'date' => now()->startOfYear()->addDays(10), 'name' => 'Cuti Bersama Global', 'is_collective_leave' => true]);
-        Holidays::create(['company_id' => $company->id, 'date' => now()->startOfYear()->addDays(20), 'name' => 'Cuti Bersama Company', 'is_collective_leave' => true]);
+        // 2 hari cuti bersama tahun ini — hari libur/cuti bersama berlaku global buat semua company.
+        Holidays::create(['date' => now()->startOfYear()->addDays(10), 'name' => 'Cuti Bersama 1', 'is_collective_leave' => true]);
+        Holidays::create(['date' => now()->startOfYear()->addDays(20), 'name' => 'Cuti Bersama 2', 'is_collective_leave' => true]);
 
         $balance = (new LeaveReqRepository())->getLeaveUserBalance($user->id, $leaveType->id);
 
@@ -88,28 +88,13 @@ class LeaveBalanceCollectiveLeaveTest extends TestCase
         $this->assertSame(8, $balance['available']);
     }
 
-    public function test_collective_leave_from_other_company_is_not_counted(): void
-    {
-        $company = $this->makeCompany('TSA');
-        $otherCompany = $this->makeCompany('TSB');
-        $user = User::factory()->create(['company_id' => $company->id]);
-        $leaveType = $this->makeLeaveType($company, 'Cuti Tahunan', 12);
-
-        Holidays::create(['company_id' => $otherCompany->id, 'date' => now()->startOfYear()->addDays(10), 'name' => 'Cuti Bersama Company Lain', 'is_collective_leave' => true]);
-
-        $balance = (new LeaveReqRepository())->getLeaveUserBalance($user->id, $leaveType->id);
-
-        $this->assertSame(0, $balance['collective_leave_days']);
-        $this->assertSame(12, $balance['available']);
-    }
-
     public function test_holiday_without_collective_leave_flag_does_not_reduce_balance(): void
     {
         $company = $this->makeCompany('TSC');
         $user = User::factory()->create(['company_id' => $company->id]);
         $leaveType = $this->makeLeaveType($company, 'Cuti Tahunan', 12);
 
-        Holidays::create(['company_id' => null, 'date' => now()->startOfYear()->addDays(5), 'name' => 'Libur Nasional Biasa', 'is_collective_leave' => false]);
+        Holidays::create(['date' => now()->startOfYear()->addDays(5), 'name' => 'Libur Nasional Biasa', 'is_collective_leave' => false]);
 
         $balance = (new LeaveReqRepository())->getLeaveUserBalance($user->id, $leaveType->id);
 
@@ -123,7 +108,7 @@ class LeaveBalanceCollectiveLeaveTest extends TestCase
         $user = User::factory()->create(['company_id' => $company->id]);
         $leaveType = $this->makeLeaveType($company, 'Cuti Melahirkan', 90);
 
-        Holidays::create(['company_id' => null, 'date' => now()->startOfYear()->addDays(10), 'name' => 'Cuti Bersama Global', 'is_collective_leave' => true]);
+        Holidays::create(['date' => now()->startOfYear()->addDays(10), 'name' => 'Cuti Bersama Global', 'is_collective_leave' => true]);
 
         $balance = (new LeaveReqRepository())->getLeaveUserBalance($user->id, $leaveType->id);
 
@@ -137,7 +122,7 @@ class LeaveBalanceCollectiveLeaveTest extends TestCase
         $user = User::factory()->create(['company_id' => $company->id]);
         $leaveType = $this->makeLeaveType($company, 'Cuti Tahunan', 12);
 
-        Holidays::create(['company_id' => null, 'date' => now()->subYear()->startOfYear()->addDays(10), 'name' => 'Cuti Bersama Tahun Lalu', 'is_collective_leave' => true]);
+        Holidays::create(['date' => now()->subYear()->startOfYear()->addDays(10), 'name' => 'Cuti Bersama Tahun Lalu', 'is_collective_leave' => true]);
 
         $balance = (new LeaveReqRepository())->getLeaveUserBalance($user->id, $leaveType->id);
 

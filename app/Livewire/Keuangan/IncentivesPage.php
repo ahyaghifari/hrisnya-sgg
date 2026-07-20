@@ -3,8 +3,10 @@
 namespace App\Livewire\Keuangan;
 
 use App\Enum\CustomPermissionEnum;
+use App\Enum\Payroll\PayrollComponentEnum;
 use App\Models\Incentive\Incentive;
 use App\Models\Master\Companies;
+use App\Models\Payroll\CompanyPayrollComponent;
 use App\Models\Setting;
 use App\Models\User;
 use Filament\Notifications\Notification;
@@ -58,6 +60,16 @@ class IncentivesPage extends Component
     public function getInsentifMetodeProperty(): string
     {
         return (string) Setting::resolve('insentif_metode', $this->companyId, default: 'master');
+    }
+
+    /** Komponen gaji Insentif harus diaktifkan dulu di halaman Komponen Gaji sebelum bisa dipakai di sini. */
+    public function getInsentifActiveProperty(): bool
+    {
+        return CompanyPayrollComponent::query()
+            ->where('company_id', $this->companyId)
+            ->where('component', PayrollComponentEnum::INSENTIF->value)
+            ->where('is_active', true)
+            ->exists();
     }
 
     public function getIncentivesProperty()

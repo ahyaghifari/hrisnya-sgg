@@ -20,6 +20,7 @@
                     &nbsp;·&nbsp; {{ auth()->user()->company?->name ?? '-' }}
                 </p>
             </div>
+            
             <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end;">
                 <a href="{{ route('data-diri') }}" wire:navigate class="data-diri-btn">
                     <i class="fa-solid fa-id-card"></i> Data Diri
@@ -32,6 +33,10 @@
                 <a href="{{ route('organization-structure') }}" wire:navigate class="qa-btn">Struktur Organisasi</a>
             </div>
         </div>
+    </div>
+
+    <div class="bento-status-pengajuan">
+        <livewire:my-attendance-status-card />
     </div>
 
     <!-- PRESENSI: placeholder statis, belum ada endpoint/data clock-in nyata -->
@@ -165,9 +170,6 @@
     {{-- <livewire:pending-approvals-card /> --}}
 
 </div>
-
-<livewire:my-attendance-status-card />
-
 
 @push('scripts')
 

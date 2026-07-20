@@ -1,4 +1,4 @@
-<div class="p-4 md:p-6">
+<div>
     <x-page-header title="Penerima Komponen Gaji" />
 
     <p style="font-size:11.5px;color:var(--text-muted);margin:8px 0 16px;max-width:720px;">

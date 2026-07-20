@@ -21,7 +21,17 @@
             </div>
             <div>
                 <p style="font-size:12.5px;font-weight:700;color:var(--info-soft-text);margin:0 0 6px;">Saldo Cuti Tersedia</p>
-                <span class="saldo-pill"><i class="fa-solid fa-sun" style="font-size:10px;"></i> Sisa <strong>{{ $balance['available'] }} hari</strong> dari {{ $balance['quota'] }} hari</span>
+                <span class="saldo-pill"><i class="fa-solid fa-sun" style="font-size:10px;"></i> Sisa <strong>{{ $balance['available'] }} hari</strong> dari {{ $balance['quota'] }} hari (tahun ini)</span>
+
+                @if ($periode)
+                    <div style="margin-top:8px;">
+                        @if ($periode['max'] > 0)
+                            <span class="saldo-pill"><i class="fa-solid fa-calendar-days" style="font-size:10px;"></i> Sisa <strong>{{ $periode['available'] }} hari</strong> dari {{ $periode['max'] }} hari (periode {{ $periode['period_start']->translatedFormat('d M') }} – {{ $periode['period_end']->translatedFormat('d M Y') }})</span>
+                        @else
+                            <span style="font-size:11.5px;color:var(--text-muted);">Batas per periode: tidak dibatasi.</span>
+                        @endif
+                    </div>
+                @endif
             </div>
         </div>
     @endif
@@ -55,7 +65,7 @@
                 @if ($is_one_day)
                     <div>
                         <label class="form-label">Tanggal Cuti <span style="color:var(--danger-text);">*</span></label>
-                        <input type="date" class="form-input" wire:model="start_date">
+                        <input type="date" class="form-input" wire:model.live="start_date">
                         @error('start_date') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
                     </div>
                 @else
@@ -63,7 +73,7 @@
                         <label class="form-label">Tanggal Cuti <span style="color:var(--danger-text);">*</span></label>
                         <div class="date-grid">
                             <div>
-                                <input type="date" class="form-input" wire:model="start_date">
+                                <input type="date" class="form-input" wire:model.live="start_date">
                                 <p style="font-size:11.5px;color:var(--text-muted);margin:5px 0 0;">Tanggal Mulai</p>
                             </div>
                             <div>

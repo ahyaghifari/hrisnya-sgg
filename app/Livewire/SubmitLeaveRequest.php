@@ -17,6 +17,7 @@ class SubmitLeaveRequest extends Component
     public ?string $reason = null;
 
     public ?array $balance = null;
+    public ?array $periode = null;
 
     public function mount(): void
     {
@@ -30,9 +31,31 @@ class SubmitLeaveRequest extends Component
 
     public function updatedLeaveTypeId(): void
     {
-        $this->balance = $this->leave_type_id
-            ? app(AttendaceReqService::class)->getLeaveUserBalance(Auth::id(), $this->leave_type_id)
-            : null;
+        $this->refreshQuota();
+    }
+
+    public function updatedStartDate(): void
+    {
+        $this->refreshQuota();
+    }
+
+    /**
+     * Sama seperti info kuota di halaman approval (§8) — kuota tahun (LeaveTypes::quota_days)
+     * DAN batas per-periode (setting cuti_tahunan_max_per_bulan, kalau leave type-nya kategori
+     * Tahunan) ditampilkan ke pemohon SEBELUM submit, bukan cuma diketahui approver.
+     */
+    private function refreshQuota(): void
+    {
+        if (! $this->leave_type_id) {
+            $this->balance = null;
+            $this->periode = null;
+            return;
+        }
+
+        $service = app(AttendaceReqService::class);
+
+        $this->balance = $service->getLeaveUserBalance(Auth::id(), $this->leave_type_id);
+        $this->periode = $service->getCutiTahunanPeriodeUsage(Auth::user(), $this->leave_type_id, $this->start_date);
     }
 
     public function toggleOneDay(): void

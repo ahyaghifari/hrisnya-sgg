@@ -3,7 +3,6 @@
 namespace App\Livewire\Presensi;
 
 use App\Models\Master\Attendance\Holidays;
-use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 
@@ -19,10 +18,7 @@ class HolidayCalendarPage extends Component
 {
     public function getHolidaysProperty()
     {
-        $companyId = Auth::user()->company_id;
-
         return Holidays::query()
-            ->where(fn ($q) => $q->whereNull('company_id')->orWhere('company_id', $companyId))
             ->whereBetween('date', [now()->startOfYear(), now()->endOfYear()])
             ->orderBy('date')
             ->get()

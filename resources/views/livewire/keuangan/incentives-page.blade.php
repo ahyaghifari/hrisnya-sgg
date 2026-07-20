@@ -6,7 +6,13 @@
             <x-company-filter :companies="$this->companies" wire:model.live="companyId" />
         </div>
 
-        @if ($this->insentifMetode !== 'master')
+        @if (! $this->insentifActive)
+            <div style="background:rgba(217,119,6,0.08);border:1px solid rgba(217,119,6,0.3);border-radius:10px;padding:14px 16px;font-size:12.5px;color:#92400e;">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+                Perusahaan ini belum mengaktifkan komponen gaji <strong>Insentif</strong>. Aktifkan dulu di halaman
+                <strong>Komponen Gaji</strong> sebelum bisa mencatat insentif di sini.
+            </div>
+        @elseif ($this->insentifMetode !== 'master')
             <div style="background:rgba(217,119,6,0.08);border:1px solid rgba(217,119,6,0.3);border-radius:10px;padding:14px 16px;font-size:12.5px;color:#92400e;">
                 <i class="fa-solid fa-triangle-exclamation"></i>
                 Perusahaan ini memakai metode Insentif <strong>"Import"</strong> (bukan "Master"), jadi halaman ini tidak berlaku

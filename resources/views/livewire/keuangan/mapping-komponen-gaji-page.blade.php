@@ -10,7 +10,7 @@
     ];
 @endphp
 
-<div class="p-4 md:p-6">
+<div >
     <x-page-header title="Mapping Komponen Gaji" />
 
     <div class="mt-4 doc-type-layout">
@@ -151,21 +151,8 @@
                                                 <tr>
                                                     <td style="padding:6px 10px;font-weight:600;white-space:nowrap;position:sticky;left:0;background:var(--surface);z-index:1;border-right:1.5px solid var(--border);">{{ $p->name }}</td>
                                                     @foreach ($this->kelasList as $k)
-                                                        @php
-                                                            // Kelas di luar jangkauan pangkat ini (level < startKelas atau >
-                                                            // maxKelas) di-disable — kombinasi itu memang tidak pernah kejadian
-                                                            // di dunia nyata (pangkat cuma bisa naik kelas dalam rentangnya
-                                                            // sendiri). Kalau start/max belum diisi (NULL), tidak ada yang
-                                                            // di-disable.
-                                                            $startLevel = $p->startKelas?->level;
-                                                            $maxLevel = $p->maxKelas?->level;
-                                                            $outOfRange = $k->level !== null && (
-                                                                ($startLevel !== null && $k->level < $startLevel)
-                                                                || ($maxLevel !== null && $k->level > $maxLevel)
-                                                            );
-                                                        @endphp
                                                         <td style="padding:4px 6px;">
-                                                            <input type="number" step="0.01" class="form-input" style="width:120px;font-size:11.5px;padding:6px 8px;{{ $outOfRange ? 'opacity:0.4;' : 'border-color:#042c6c;' }}{{ $errors->has("jabatanMatrix.{$p->id}|{$k->id}") ? 'border-color:#dc2626;' : '' }}" wire:model="jabatanMatrix.{{ $p->id }}|{{ $k->id }}" @disabled($outOfRange) @if ($outOfRange) title="Kelas {{ $k->name }} di luar jangkauan pangkat {{ $p->name }} ({{ $startLevel ?? '?' }}–{{ $maxLevel ?? '?' }})" @endif>
+                                                            <input type="number" step="0.01" class="form-input" style="width:120px;font-size:11.5px;padding:6px 8px;border-color:#042c6c;{{ $errors->has("jabatanMatrix.{$p->id}|{$k->id}") ? 'border-color:#dc2626;' : '' }}" wire:model="jabatanMatrix.{{ $p->id }}|{{ $k->id }}">
                                                         </td>
                                                     @endforeach
                                                 </tr>

@@ -93,14 +93,15 @@ enum PayrollComponentEnum: string
     }
 
     /**
-     * FEE_CLAIM & PAJAK_JASA_DOKTER murni data-driven (jalan kalau ada baris fee_items yang
-     * belum lunas, berhenti sendiri kalau tidak ada) — TIDAK butuh baris `company_payroll_
-     * components` untuk di-toggle admin. Dipakai buat exclude keduanya dari daftar toggle UI
-     * (lihat planning Fase 1 §3.1).
+     * FEE_CLAIM murni data-driven (jalan kalau ada baris fee_items yang belum lunas, berhenti
+     * sendiri kalau tidak ada) — TIDAK butuh baris `company_payroll_components` untuk
+     * di-toggle admin. Dipakai buat exclude dari daftar toggle UI (lihat planning Fase 1
+     * §3.1). PAJAK_JASA_DOKTER sekarang bisa di-toggle per company seperti komponen lain —
+     * FeeClaimCalculator cek `company_payroll_components` sebelum motong pajaknya.
      */
     public static function alwaysOn(): array
     {
-        return [self::FEE_CLAIM, self::PAJAK_JASA_DOKTER];
+        return [self::FEE_CLAIM];
     }
 
     /**
@@ -136,6 +137,7 @@ enum PayrollComponentEnum: string
             self::IZIN_TERLAMBAT_PULANG_CEPAT => ['izin_potongan_flat'],
             self::PAJAK_JASA_DOKTER => ['pajak_jasa_dokter_rate'],
             self::INSENTIF => ['insentif_metode'],
+            self::LEMBUR => ['lembur_metode', 'lembur_minimum_jam'],
             default => [],
         };
     }

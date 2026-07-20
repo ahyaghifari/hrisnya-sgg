@@ -16,7 +16,7 @@ class PendingApprovalsCard extends Component
 
         $moduleIds = $activities->pluck('snapshot.module_id')->filter()->values();
 
-        $requests = AttendanceRequests::with('user')
+        $requests = AttendanceRequests::with(['user', 'leaveDetails', 'permissionDetails', 'overtimeDetails'])
             ->whereIn('id', $moduleIds)
             ->orderByDesc('created_at')
             ->get();

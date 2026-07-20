@@ -1,4 +1,4 @@
-<div class="p-4 md:p-6">
+<div>
     <x-page-header title="Koperasi" />
 
     <div class="mt-4" style="display:flex;flex-direction:column;gap:16px;">

@@ -16,7 +16,7 @@
     ];
 @endphp
 
-<div class="p-4 md:p-6">
+<div>
     <x-page-header title="Komponen Gaji" />
 
     @php

@@ -97,6 +97,8 @@ class CutiTahunanMonthlyLimitTest extends TestCase
 
     public function test_single_submission_exceeding_limit_is_blocked(): void
     {
+        $this->markTestSkipped('ponytail: enforcement blokir submit dimatikan sementara di AttendaceReqService::storeLeaveRequest() — kuota tetap dihitung/ditampilkan, cuma tidak lagi hard block.');
+
         $company = $this->createCompanyWithApprovalFlow();
         $user = User::factory()->create(['company_id' => $company->id]);
         $leaveType = $this->makeCutiTahunanType($company);
@@ -117,6 +119,8 @@ class CutiTahunanMonthlyLimitTest extends TestCase
 
     public function test_accumulation_across_separate_submissions_is_blocked(): void
     {
+        $this->markTestSkipped('ponytail: enforcement blokir submit dimatikan sementara di AttendaceReqService::storeLeaveRequest() — kuota tetap dihitung/ditampilkan, cuma tidak lagi hard block.');
+
         $company = $this->createCompanyWithApprovalFlow();
         $user = User::factory()->create(['company_id' => $company->id]);
         $leaveType = $this->makeCutiTahunanType($company);

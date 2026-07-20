@@ -5,7 +5,6 @@ namespace App\Services\Attendance;
 use App\Enum\Attendance\AttendanceSettingEnum;
 use App\Enum\Attendance\LeaveTypeCategoryEnum;
 use App\Enum\Attendance\PermissionTypeCategoryEnum;
-use App\Models\ApprovalManagement\MasterApprovalFlows;
 use App\Models\Attendance\AttendanceRequestLeaveDetails;
 use App\Models\Attendance\AttendanceRequestPermissionDetails;
 use App\Models\Attendance\AttendanceRequests;
@@ -16,7 +15,6 @@ use App\Repositories\Attendance\AttendanceReqRepository;
 use App\Repositories\Attendance\LeaveReqRepository;
 use App\Repositories\Attendance\OvertimeReqRepository;
 use App\Repositories\Attendance\PermissionReqRepository;
-use App\Repositories\User\UserRepository;
 use App\Services\Approval\ApprovalCreationService;
 use App\Services\Notification\NotificationService;
 use Carbon\Carbon;
@@ -83,6 +81,8 @@ class AttendaceReqService
             'max' => $maxPerPeriode,
             'used' => $used,
             'available' => $maxPerPeriode > 0 ? max(0, $maxPerPeriode - $used) : null,
+            'period_start' => $periodStart,
+            'period_end' => $periodEnd,
         ];
     }
 
@@ -175,7 +175,11 @@ class AttendaceReqService
 
         $leaveType = $this->leaveReqRepository->getLeaveTypeById($data['type_id']);
 
-        $this->assertWithinCutiTahunanMonthlyLimit($actingUser, $leaveType, $data);
+        // ponytail: enforcement blokir submit dimatikan sementara atas permintaan user — kuota
+        // tetap dihitung & ditampilkan ke approver (getCutiTahunanPeriodeUsage), cuma tidak lagi
+        // mencegah pemohon submit. Nyalakan lagi dengan uncomment baris di bawah kalau kuota mau
+        // jadi hard block lagi.
+        // $this->assertWithinCutiTahunanMonthlyLimit($actingUser, $leaveType, $data);
 
         $request = $this->attendanceReqRepository->storeAttendanceRequest([
             'user_id' => $userId,
@@ -223,6 +227,49 @@ class AttendaceReqService
     }
 
     /**
+     * Pemakaian kuota Cuti Tahunan per-periode (AttendanceSettingEnum::CUTI_TAHUNAN_MAX_PER_BULAN)
+     * untuk 1 leave type pada periode yang mengandung $referenceDate — dipakai bareng oleh
+     * assertWithinCutiTahunanMonthlyLimit (validasi submit, saat ini dimatikan sementara) DAN
+     * info kuota pemohon di halaman approval (§8). Null kalau leave type ini bukan kategori
+     * Tahunan (aturan ini memang tidak berlaku). "used" cuma menghitung status APPROVED
+     * (konsisten dengan getLeaveUserBalance) — pengajuan yang masih in_review/submitted BELUM
+     * mengurangi kuota periode sampai benar-benar diputuskan final.
+     *
+     * @return array{max: int, used: int, available: ?int, period_start: Carbon, period_end: Carbon}|null
+     */
+    public function getCutiTahunanPeriodeUsage(User $user, string $leaveTypeId, ?string $referenceDate = null): ?array
+    {
+        $leaveType = $this->leaveReqRepository->getLeaveTypeById($leaveTypeId);
+
+        if (! $leaveType || $leaveType->category !== LeaveTypeCategoryEnum::TAHUNAN->value) {
+            return null;
+        }
+
+        $maxPerBulan = (int) Setting::resolve(AttendanceSettingEnum::CUTI_TAHUNAN_MAX_PER_BULAN->value, $user->company_id, default: 0);
+
+        $anchor = $referenceDate ? Carbon::parse($referenceDate) : now();
+        [$periodStart, $periodEnd] = AttendancePeriodResolver::resolve($anchor, $user->company_id);
+
+        $used = (int) AttendanceRequestLeaveDetails::query()
+            ->where('leave_type_id', $leaveTypeId)
+            ->whereBetween('start_date', [$periodStart->toDateString(), $periodEnd->toDateString()])
+            ->whereIn('request_id', AttendanceRequests::query()
+                ->select('id')
+                ->where('user_id', $user->id)
+                ->where('type', 'leave')
+                ->where('status', 'approved'))
+            ->sum('total_days');
+
+        return [
+            'max' => $maxPerBulan,
+            'used' => $used,
+            'available' => $maxPerBulan > 0 ? max(0, $maxPerBulan - $used) : null,
+            'period_start' => $periodStart,
+            'period_end' => $periodEnd,
+        ];
+    }
+
+    /**
      * Setting AttendanceSettingEnum::CUTI_TAHUNAN_MAX_PER_BULAN (module attendance,
      * company-scoped) — batas AKUMULASI hari Cuti Tahunan (jenis cuti berkategori
      * LeaveTypeCategoryEnum::TAHUNAN, lihat m_leave_types.category) yang boleh diajukan 1 user
@@ -237,9 +284,9 @@ class AttendaceReqService
             return;
         }
 
-        $maxPerBulan = (int) Setting::resolve(AttendanceSettingEnum::CUTI_TAHUNAN_MAX_PER_BULAN->value, $actingUser->company_id, default: 0);
+        $usage = $this->getCutiTahunanPeriodeUsage($actingUser, $leaveType->id, $data['start_date']);
 
-        if ($maxPerBulan <= 0) {
+        if (! $usage || $usage['max'] <= 0) {
             return;
         }
 
@@ -247,20 +294,8 @@ class AttendaceReqService
         $end = ! empty($data['end_date']) ? Carbon::parse($data['end_date']) : $start->copy();
         $newDays = $start->diffInDays($end) + 1;
 
-        [$periodStart, $periodEnd] = AttendancePeriodResolver::resolve($start->copy(), $actingUser->company_id);
-
-        $existingDays = (int) AttendanceRequestLeaveDetails::query()
-            ->where('leave_type_id', $data['type_id'])
-            ->whereBetween('start_date', [$periodStart->toDateString(), $periodEnd->toDateString()])
-            ->whereIn('request_id', AttendanceRequests::query()
-                ->select('id')
-                ->where('user_id', $actingUser->id)
-                ->where('type', 'leave')
-                ->whereNotIn('status', ['rejected', 'cancelled', 'failed']))
-            ->sum('total_days');
-
-        if ($existingDays + $newDays > $maxPerBulan) {
-            throw new \Exception("Melebihi batas Cuti Tahunan periode ini (maksimal {$maxPerBulan} hari, sudah diajukan {$existingDays} hari, pengajuan ini {$newDays} hari).");
+        if ($usage['used'] + $newDays > $usage['max']) {
+            throw new \Exception("Melebihi batas Cuti Tahunan periode ini (maksimal {$usage['max']} hari, sudah diajukan {$usage['used']} hari, pengajuan ini {$newDays} hari).");
         }
     }
 
@@ -322,7 +357,11 @@ class AttendaceReqService
 
         $permissionType = $this->permissionReqRepository->getPermissionTypeById($data['type_id']);
 
-        $this->assertWithinIzinPeriodeLimit($actingUser, $permissionType, $data);
+        // ponytail: enforcement blokir submit dimatikan sementara atas permintaan user — kuota
+        // tetap dihitung & ditampilkan ke approver (getIzinPeriodeUsage), cuma tidak lagi
+        // mencegah pemohon submit. Nyalakan lagi dengan uncomment baris di bawah kalau kuota mau
+        // jadi hard block lagi.
+        // $this->assertWithinIzinPeriodeLimit($actingUser, $permissionType, $data);
 
         $request = $this->attendanceReqRepository->storeAttendanceRequest([
             'user_id' => $userId,

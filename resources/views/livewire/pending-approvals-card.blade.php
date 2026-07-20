@@ -20,42 +20,61 @@
             </span>
         </div>
 
+        @php
+            $typeLabel = fn (string $type) => ['leave' => 'Cuti', 'permission' => 'Izin', 'overtime' => 'Lembur'][$type] ?? $type;
+            $typeIcon = fn (string $type) => ['leave' => 'fa-umbrella-beach', 'permission' => 'fa-clock', 'overtime' => 'fa-briefcase-clock'][$type] ?? 'fa-file-lines';
+            $typeTile = fn (string $type) => ['leave' => 'neutral', 'permission' => 'warn', 'overtime' => 'done'][$type] ?? 'neutral';
+            // Keterangan: jenis SPESIFIK di dalam kategori (mis. "Cuti Tahunan", bukan cuma
+            // "Cuti") — sekaligus kolom ini yang jadi tempat konteks buat modul approval lain
+            // (bukan cuma attendance_request) kalau nanti kartu ini dipakai lintas modul, supaya
+            // approver tidak cuma lihat "Cuti/Izin/Lembur" tanpa tahu detailnya apa.
+            $keterangan = fn ($request) => match ($request->type) {
+                'leave' => $request->leaveDetails->first()?->leave_type ?? '-',
+                'permission' => $request->permissionDetails->first()?->permission_type ?? '-',
+                'overtime' => $request->overtimeDetails->first()?->overtime_type ?? '-',
+                default => '-',
+            };
+        @endphp
+
         <!-- MOBILE: card manual -->
         <div class="md:hidden">
-            @php
-                $typeLabel = fn (string $type) => ['leave' => 'Cuti', 'permission' => 'Izin', 'overtime' => 'Lembur'][$type] ?? $type;
-                $typeIcon = fn (string $type) => ['leave' => 'fa-umbrella-beach', 'permission' => 'fa-clock', 'overtime' => 'fa-briefcase-clock'][$type] ?? 'fa-file-lines';
-                $typeTile = fn (string $type) => ['leave' => 'neutral', 'permission' => 'warn', 'overtime' => 'done'][$type] ?? 'neutral';
-            @endphp
             @foreach ($requests as $request)
                 <a href="{{ route('my-attendance-requests.show', ['record' => $request->id]) }}" wire:navigate class="pwa-list-row" style="text-decoration:none;">
                     <div class="pwa-tile-icon {{ $typeTile($request->type) }}"><i class="fa-solid {{ $typeIcon($request->type) }}"></i></div>
                     <div style="flex:1;min-width:0;">
                         <p style="font-size:13px;font-weight:600;color:var(--text-heading);">{{ $typeLabel($request->type) }} · {{ $request->user->name }}</p>
-                        <p style="font-size:11px;color:var(--text-muted);margin-top:2px;">{{ $request->created_at->translatedFormat('d M Y') }}</p>
+                        <p style="font-size:11px;color:var(--text-muted);margin-top:2px;">{{ $keterangan($request) }} &middot; {{ $request->created_at->translatedFormat('d M Y') }}</p>
                     </div>
                     <i class="fa-solid fa-chevron-right"></i>
                 </a>
             @endforeach
         </div>
 
-        <!-- DESKTOP: table -->
+        <!-- DESKTOP: table (font/padding lebih rapat daripada .data-table default — kartu ini
+        sengaja lebih padat karena bisa banyak baris menumpuk di dashboard) -->
         <div class="hidden md:block" style="overflow-x:auto;">
-            <table class="data-table">
+            <table class="data-table" style="min-width:560px;">
                 <thead>
-                    <tr><th>Jenis</th><th>Pemohon</th><th>Tanggal Pengajuan</th><th></th></tr>
+                    <tr>
+                        <th style="padding:8px 14px;font-size:10px;">Jenis</th>
+                        <th style="padding:8px 14px;font-size:10px;">Keterangan</th>
+                        <th style="padding:8px 14px;font-size:10px;">Pemohon</th>
+                        <th style="padding:8px 14px;font-size:10px;">Tanggal Pengajuan</th>
+                        <th style="padding:8px 14px;font-size:10px;"></th>
+                    </tr>
                 </thead>
                 <tbody>
                     @foreach ($requests as $request)
                         <tr>
-                            <td class="text-sm font-semibold text-slate-800">
-                                {{ ['leave' => 'Cuti', 'permission' => 'Izin', 'overtime' => 'Lembur'][$request->type] ?? $request->type }}
+                            <td style="padding:9px 14px;font-size:12px;font-weight:600;color:var(--text-heading);white-space:nowrap;">
+                                {{ $typeLabel($request->type) }}
                             </td>
-                            <td class="text-sm text-slate-600">{{ $request->user->name }}</td>
-                            <td class="text-sm text-slate-500 whitespace-nowrap">{{ $request->created_at->translatedFormat('d M Y') }}</td>
-                            <td>
+                            <td style="padding:9px 14px;font-size:11.5px;color:var(--text-body);">{{ $keterangan($request) }}</td>
+                            <td style="padding:9px 14px;font-size:11.5px;color:var(--text-muted);">{{ $request->user->name }}</td>
+                            <td style="padding:9px 14px;font-size:11.5px;color:var(--text-faint);white-space:nowrap;">{{ $request->created_at->translatedFormat('d M Y') }}</td>
+                            <td style="padding:9px 14px;">
                                 <a href="{{ route('my-attendance-requests.show', ['record' => $request->id]) }}" wire:navigate
-                                    style="font-size:12.5px;font-weight:600;color:var(--brand);text-decoration:none;white-space:nowrap;">
+                                    style="font-size:11.5px;font-weight:600;color:var(--brand);text-decoration:none;white-space:nowrap;">
                                     Tinjau <i class="fa-solid fa-arrow-right text-xs"></i>
                                 </a>
                             </td>

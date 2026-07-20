@@ -12,6 +12,24 @@
         </div>
     </div>
 
+    @if ($usage)
+        <div style="background:var(--warn-soft-bg);border:1px solid var(--warn-soft-border);border-radius:14px;padding:14px 18px;display:flex;align-items:flex-start;gap:14px;margin-bottom:20px;">
+            <div style="width:36px;height:36px;background:var(--warn-soft-bg);border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                <i class="fa-solid fa-circle-info" style="color:var(--warn-soft-text);font-size:14px;"></i>
+            </div>
+            <div>
+                <p style="font-size:12.5px;font-weight:700;color:var(--warn-soft-text);margin:0 0 6px;">Kuota Izin Periode Ini</p>
+                @if ($usage['max'] > 0)
+                    <span class="saldo-pill" style="background:var(--warn-soft-bg);border-color:var(--warn-soft-border);color:var(--warn-soft-text);">
+                        <i class="fa-solid fa-calendar-days" style="font-size:10px;"></i> Sisa <strong>{{ $usage['available'] }} hari</strong> dari {{ $usage['max'] }} hari (periode {{ $usage['period_start']->translatedFormat('d M') }} – {{ $usage['period_end']->translatedFormat('d M Y') }})
+                    </span>
+                @else
+                    <span style="font-size:11.5px;color:var(--text-muted);">Tidak dibatasi.</span>
+                @endif
+            </div>
+        </div>
+    @endif
+
     <form wire:submit="submit">
         <!-- Keterangan Izin -->
         <div class="form-card">
@@ -22,7 +40,7 @@
             <div style="display:flex;flex-direction:column;gap:18px;">
                 <div>
                     <label class="form-label">Jenis Izin <span style="color:var(--danger-text);">*</span></label>
-                    <select class="form-input" wire:model="permission_type_id">
+                    <select class="form-input" wire:model.live="permission_type_id">
                         <option value="">Pilih jenis izin</option>
                         @foreach ($this->permissionTypes as $type)
                             <option value="{{ $type->id }}">{{ $type->name }}</option>
@@ -32,7 +50,7 @@
                 </div>
                 <div>
                     <label class="form-label">Tanggal Izin <span style="color:var(--danger-text);">*</span></label>
-                    <input type="date" class="form-input" wire:model="date">
+                    <input type="date" class="form-input" wire:model.live="date">
                     @error('date') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
                 </div>
                 <div>
