@@ -65,6 +65,12 @@ class EmployeeAttendanceStatistics extends Component
             return true;
         }
 
+        // HC/Kepegawaian company-wide (bukan cuma atasan lihat bawahan) — dibatasi ke
+        // company sendiri, konsisten dengan scoping EmployeeResource di admin.
+        if ($user->can(\App\Enum\CustomPermissionEnum::SISTEM_KEPEGAWAIAN->value) && $user->company_id === $record->company_id) {
+            return true;
+        }
+
         return app(OrgHierarchyService::class)
             ->subordinates($user)
             ->whereKey($record->id)

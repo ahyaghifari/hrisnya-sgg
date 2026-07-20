@@ -15,6 +15,10 @@ use App\Livewire\Kanban\CreateKanbanBoard;
 use App\Livewire\Kanban\KanbanBoardDetail;
 use App\Livewire\Kanban\KanbanBoardsList;
 use App\Livewire\Kanban\KanbanPersonalTasks;
+use App\Livewire\Kepegawaian\CreateKaryawan;
+use App\Livewire\Kepegawaian\DocumentFormPage;
+use App\Livewire\Kepegawaian\DocumentsPage;
+use App\Livewire\Kepegawaian\KaryawanPage;
 use App\Livewire\Keuangan\IncentivesPage;
 use App\Livewire\Keuangan\KoperasiPage;
 use App\Livewire\Keuangan\MappingKomponenGajiPage;
@@ -80,8 +84,25 @@ Route::middleware(['auth', 'portal.access'])->group(function () {
     Route::get('/my-staff/{record}/edit', EditMyEmployee::class)
         ->name('my-staff.edit');
 
-    Route::get('/my-staff/{record}', EmployeeAttendanceStatistics::class)
-        ->name('my-staff.show');
+    // Halaman detail karyawan dipakai 2 entry point: MyStaff (bawahan) & Karyawan (company-wide,
+    // lihat grup route Kepegawaian di bawah) — makanya path-nya /karyawan, bukan /my-staff.
+    Route::get('/karyawan/{record}', EmployeeAttendanceStatistics::class)
+        ->name('karyawan.show');
+
+    Route::get('/kepegawaian/karyawan', KaryawanPage::class)
+        ->name('kepegawaian.karyawan');
+
+    Route::get('/kepegawaian/karyawan/tambah', CreateKaryawan::class)
+        ->name('kepegawaian.karyawan.create');
+
+    Route::get('/kepegawaian/dokumen', DocumentsPage::class)
+        ->name('kepegawaian.dokumen');
+
+    Route::get('/kepegawaian/dokumen/tambah', DocumentFormPage::class)
+        ->name('kepegawaian.dokumen.create');
+
+    Route::get('/kepegawaian/dokumen/{record}/edit', DocumentFormPage::class)
+        ->name('kepegawaian.dokumen.edit');
 
     Route::get('/pengajuan-absensi', MyAttendanceRequests::class)
         ->name('my-attendance-requests');

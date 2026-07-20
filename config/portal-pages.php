@@ -67,13 +67,42 @@ return [
         'guard' => 'canAccessKaryawanMenu',
     ],
 
-    'my-staff.show' => [
+    'karyawan.show' => [
         'label' => 'Detail Karyawan',
         'permission' => null,
-        // Tidak pakai 'canAccessKaryawanMenu' di sini — halaman ini sekarang dipakai juga
-        // buat "Data Diri" (lihat data sendiri, tombol di Dashboard), bukan cuma atasan
-        // lihat bawahan. Guard per-record (bawahan ATAU diri sendiri) dicek di
+        // Tidak pakai guard tunggal di sini — halaman ini dipakai 3 entry point ("Data Diri",
+        // MyStaff/bawahan, Kepegawaian/company-wide). Guard per-record dicek di
         // EmployeeAttendanceStatistics::canManage(), bukan di level registry ini.
+        'guard' => null,
+    ],
+
+    'kepegawaian.karyawan' => [
+        'label' => 'Karyawan',
+        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_KEPEGAWAIAN->value,
+        'guard' => null,
+    ],
+
+    'kepegawaian.karyawan.create' => [
+        'label' => 'Tambah Karyawan',
+        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_KEPEGAWAIAN->value,
+        'guard' => null,
+    ],
+
+    'kepegawaian.dokumen' => [
+        'label' => 'Dokumen Kepegawaian',
+        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_KEPEGAWAIAN->value,
+        'guard' => null,
+    ],
+
+    'kepegawaian.dokumen.create' => [
+        'label' => 'Tambah Dokumen',
+        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_KEPEGAWAIAN->value,
+        'guard' => null,
+    ],
+
+    'kepegawaian.dokumen.edit' => [
+        'label' => 'Edit Dokumen',
+        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_KEPEGAWAIAN->value,
         'guard' => null,
     ],
 

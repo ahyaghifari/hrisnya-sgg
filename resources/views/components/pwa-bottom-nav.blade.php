@@ -3,6 +3,7 @@
     $canSubmitAttendance = ! auth()->user()->canBrowseAllCompanies();
     $canAccessKeuangan = auth()->user()->can(\App\Enum\CustomPermissionEnum::SISTEM_KEUANGAN->value);
     $canAccessAbsensi = auth()->user()->can(\App\Enum\CustomPermissionEnum::SISTEM_ABSENSI->value);
+    $canAccessKepegawaian = auth()->user()->can(\App\Enum\CustomPermissionEnum::SISTEM_KEPEGAWAIAN->value);
 
     $navPhotoPath = auth()->user()->profile?->profile_picture[0] ?? null;
     $navPhotoUrl = $navPhotoPath && is_string($navPhotoPath) ? \Illuminate\Support\Facades\Storage::url($navPhotoPath) : null;
@@ -85,6 +86,7 @@
         @endif
 
         @if ($canAccessKeuangan)
+            <span class="pwa-menu-grid-divider">Sistem Keuangan</span>
             <a href="{{ route('keuangan.periode-gaji') }}" wire:navigate class="pwa-menu-grid-item">
                 <span class="pwa-menu-grid-icon navy"><i class="fa-solid fa-calendar-days"></i></span>
                 <span class="pwa-menu-grid-label">Periode Gaji</span>
@@ -108,6 +110,7 @@
         @endif
 
         @if ($canAccessAbsensi)
+            <span class="pwa-menu-grid-divider">Sistem Absensi</span>
             <a href="{{ route('presensi.jadwal') }}" wire:navigate class="pwa-menu-grid-item">
                 <span class="pwa-menu-grid-icon indigo"><i class="fa-solid fa-calendar-days"></i></span>
                 <span class="pwa-menu-grid-label">Jadwal</span>
@@ -119,6 +122,30 @@
             <a href="{{ route('presensi.pengaturan') }}" wire:navigate class="pwa-menu-grid-item">
                 <span class="pwa-menu-grid-icon gold"><i class="fa-solid fa-gear"></i></span>
                 <span class="pwa-menu-grid-label">Pengaturan Absensi</span>
+            </a>
+        @endif
+
+        @if ($canAccessKepegawaian)
+            <span class="pwa-menu-grid-divider">Sistem Kepegawaian</span>
+            <a href="{{ route('kepegawaian.karyawan') }}" wire:navigate class="pwa-menu-grid-item">
+                <span class="pwa-menu-grid-icon violet"><i class="fa-solid fa-users"></i></span>
+                <span class="pwa-menu-grid-label">Karyawan</span>
+            </a>
+            <a href="{{ route('kepegawaian.dokumen') }}" wire:navigate class="pwa-menu-grid-item">
+                <span class="pwa-menu-grid-icon indigo"><i class="fa-solid fa-folder-open"></i></span>
+                <span class="pwa-menu-grid-label">Dokumen</span>
+            </a>
+            <a href="{{ route('my-attendance-requests.permission') }}" wire:navigate class="pwa-menu-grid-item">
+                <span class="pwa-menu-grid-icon navy"><i class="fa-solid fa-file-lines"></i></span>
+                <span class="pwa-menu-grid-label">Izin</span>
+            </a>
+            <a href="{{ route('my-attendance-requests.leave') }}" wire:navigate class="pwa-menu-grid-item">
+                <span class="pwa-menu-grid-icon teal"><i class="fa-solid fa-umbrella-beach"></i></span>
+                <span class="pwa-menu-grid-label">Cuti</span>
+            </a>
+            <a href="{{ route('my-attendance-requests.overtime') }}" wire:navigate class="pwa-menu-grid-item">
+                <span class="pwa-menu-grid-icon gold"><i class="fa-solid fa-business-time"></i></span>
+                <span class="pwa-menu-grid-label">Lembur</span>
             </a>
         @endif
 

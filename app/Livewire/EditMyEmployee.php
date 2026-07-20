@@ -39,6 +39,10 @@ class EditMyEmployee extends Component implements HasSchemas
             return true;
         }
 
+        if ($user->can(\App\Enum\CustomPermissionEnum::SISTEM_KEPEGAWAIAN->value) && $user->company_id === $record->company_id) {
+            return true;
+        }
+
         return app(OrgHierarchyService::class)
             ->subordinates($user)
             ->whereKey($record->id)

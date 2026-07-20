@@ -150,15 +150,22 @@
             @else
                 <div class="pwa-scroll-row" style="padding-left:16px;padding-right:16px;">
                     @foreach ($this->myTrainings as $courseUser)
-                        <a href="{{ route('pelatihan.show', ['course' => $courseUser->course_id]) }}" wire:navigate style="text-decoration:none;flex:0 0 215px;scroll-snap-align:start;">
-                            <div class="pwa-course-chip">
-                                <div class="pwa-tile-icon neutral" style="margin-bottom:10px;"><i class="fa-solid fa-graduation-cap"></i></div>
-                                <p class="pwa-course-title">{{ $courseUser->course->title }}</p>
-                                <p class="pwa-course-sub">{{ $courseUser->course->category?->name ?? 'Umum' }}</p>
+                        @php $accent = $this->categoryAccent($courseUser->course->category?->name); @endphp
+                        <a href="{{ route('pelatihan.show', ['course' => $courseUser->course_id]) }}" wire:navigate class="course-card-mini accent-{{ $accent }}">
+                            <div class="course-card-mini-media">
+                                @if ($courseUser->course->thumbnail)
+                                    <img src="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($courseUser->course->thumbnail) }}" alt="">
+                                @else
+                                    <i class="fa-solid fa-graduation-cap"></i>
+                                @endif
+                            </div>
+                            <div class="course-card-mini-body">
+                                <span class="course-card-mini-eyebrow">{{ $courseUser->course->category?->name ?? 'Umum' }}</span>
+                                <p class="course-card-mini-title">{{ $courseUser->course->title }}</p>
                                 @if ($courseUser->status === 'in_progress')
                                     <div class="progress-track"><div class="progress-fill" style="width:{{ $courseUser->progress }}%;background:#047C54;"></div></div>
                                 @endif
-                                <span class="badge {{ $trainingBadgeClass($courseUser->status) }}" style="margin-top:8px;">{{ $trainingStatusLabel($courseUser->status) }}</span>
+                                <span class="badge {{ $trainingBadgeClass($courseUser->status) }}">{{ $trainingStatusLabel($courseUser->status) }}</span>
                             </div>
                         </a>
                     @endforeach

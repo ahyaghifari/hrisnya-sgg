@@ -70,6 +70,10 @@
                                     <i class="fa-solid fa-sack-dollar text-xs"></i> Penggajian <i class="fa-solid fa-chevron-down text-[10px]"></i>
                                 </a>
                                 <div class="dropdown-menu">
+                                    {{-- Skeleton nav — halaman dashboard per modul belum dibangun, lihat
+                                         planning/2026-07-20-portal-modul-kepegawaian-karyawan-dan-navigasi-dashboard.md §5.3 --}}
+                                    <span class="dropdown-item" style="opacity:.5;cursor:not-allowed;" title="Segera hadir"><i class="fa-solid fa-chart-line"></i> Dashboard <span style="font-size:9px;">(segera)</span></span>
+                                    <div style="height:1px;background:var(--border-soft);margin:6px 8px;"></div>
                                     <a href="{{ route('keuangan.periode-gaji') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-calendar-days"></i> Periode Gaji</a>
                                     <a href="{{ route('keuangan.payroll') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-money-check-dollar"></i> Payroll</a>
                                     <div style="height:1px;background:var(--border-soft);margin:6px 8px;"></div>
@@ -88,6 +92,8 @@
                                     <i class="fa-solid fa-calendar-check text-xs"></i> Absensi <i class="fa-solid fa-chevron-down text-[10px]"></i>
                                 </a>
                                 <div class="dropdown-menu">
+                                    <span class="dropdown-item" style="opacity:.5;cursor:not-allowed;" title="Segera hadir"><i class="fa-solid fa-chart-line"></i> Dashboard <span style="font-size:9px;">(segera)</span></span>
+                                    <div style="height:1px;background:var(--border-soft);margin:6px 8px;"></div>
                                     <a href="{{ route('presensi.jadwal') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-calendar-days"></i> Jadwal</a>
                                     <a href="{{ route('presensi.hari-libur') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-flag"></i> Hari Libur & Cuti Bersama</a>
                                     <a href="{{ route('presensi.pengaturan') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-gear"></i> Pengaturan Absensi</a>
@@ -96,10 +102,15 @@
                         @endif
                         @if ($canAccessKepegawaian)
                             <div class="dropdown">
-                                <a href="#" class="nav-item nav-item-pink {{ request()->routeIs('my-attendance-requests*') ? 'active' : '' }}">
+                                <a href="#" class="nav-item nav-item-pink {{ request()->routeIs(['kepegawaian.*', 'karyawan.show', 'my-attendance-requests.permission', 'my-attendance-requests.leave', 'my-attendance-requests.overtime']) ? 'active' : '' }}">
                                     <i class="fa-solid fa-id-card-clip text-xs"></i> Kepegawaian <i class="fa-solid fa-chevron-down text-[10px]"></i>
                                 </a>
                                 <div class="dropdown-menu">
+                                    <span class="dropdown-item" style="opacity:.5;cursor:not-allowed;" title="Segera hadir"><i class="fa-solid fa-chart-line"></i> Dashboard <span style="font-size:9px;">(segera)</span></span>
+                                    <div style="height:1px;background:var(--border-soft);margin:6px 8px;"></div>
+                                    <a href="{{ route('kepegawaian.karyawan') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-users"></i> Karyawan</a>
+                                    <a href="{{ route('kepegawaian.dokumen') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-folder-open"></i> Dokumen</a>
+                                    <div style="height:1px;background:var(--border-soft);margin:6px 8px;"></div>
                                     <a href="{{ route('my-attendance-requests.permission') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-file-lines"></i> Izin</a>
                                     <a href="{{ route('my-attendance-requests.leave') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-umbrella-beach"></i> Cuti</a>
                                     <a href="{{ route('my-attendance-requests.overtime') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-business-time"></i> Lembur</a>

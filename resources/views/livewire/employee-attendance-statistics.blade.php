@@ -1,6 +1,13 @@
 @php
     $isSelf = $record->id === auth()->id();
-    $backRoute = $isSelf && ! auth()->user()->canAccessKaryawanMenu() ? route('dashboard') : route('my-staff');
+    // Halaman ini punya 2 entry point selain "Data Diri": MyStaff (bawahan) & Kepegawaian
+    // (company-wide) — asal-halaman dikirim lewat query string ?from=karyawan supaya tombol
+    // Kembali balik ke list yang benar, bukan selalu ke MyStaff.
+    $backRoute = match (true) {
+        $isSelf && ! auth()->user()->canAccessKaryawanMenu() => route('dashboard'),
+        request()->query('from') === 'karyawan' => route('kepegawaian.karyawan'),
+        default => route('my-staff'),
+    };
 @endphp
 <div x-data="{ tab: 'profil' }">
 <x-page-header

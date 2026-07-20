@@ -89,6 +89,37 @@
         document.addEventListener('livewire:navigated', pwaUpdateOfflineState);
         pwaUpdateOfflineState();
 
+        // ponytail: mitigasi "GET method not allowed for livewire/update" yang kadang muncul
+        // kalau user reload manual (F5) persis saat sebuah update Livewire (mis. ganti filter)
+        // masih menggantung — reload di tengah request itu kadang bikin browser mengarah ke
+        // endpoint AJAX-nya sendiri alih-alih halaman aslinya. Bukan perbaikan akar masalah
+        // (itu ada di internal Livewire), cuma menahan user reload selagi masih ada request
+        // yang jalan lewat dialog konfirmasi browser bawaan. Upgrade livewire/livewire kalau
+        // versi lebih baru sudah menutup race condition-nya.
+        window.__pendingLivewireRequests = 0;
+        document.addEventListener('livewire:init', () => {
+            Livewire.hook('request', ({ respond, fail }) => {
+                window.__pendingLivewireRequests++;
+                // respond() tidak terpanggil kalau fetch()-nya sendiri gagal total (network
+                // error/offline) — cuma fail() yang jalan di kasus itu. Guard `settled` supaya
+                // tidak dobel-kurang kalau dua-duanya sempat terpanggil untuk request yang sama.
+                let settled = false;
+                let release = () => {
+                    if (settled) return;
+                    settled = true;
+                    window.__pendingLivewireRequests = Math.max(0, window.__pendingLivewireRequests - 1);
+                };
+                respond(release);
+                fail(release);
+            });
+        });
+        window.addEventListener('beforeunload', (e) => {
+            if (window.__pendingLivewireRequests > 0) {
+                e.preventDefault();
+                e.returnValue = '';
+            }
+        });
+
         function pwaTickClock() {
             const el = document.getElementById('live-clock');
             if (el) el.textContent = new Date().toLocaleTimeString('id-ID');

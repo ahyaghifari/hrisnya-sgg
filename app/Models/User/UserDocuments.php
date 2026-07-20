@@ -5,6 +5,7 @@ namespace App\Models\User;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Storage;
 
 /**
@@ -12,7 +13,7 @@ use Illuminate\Support\Facades\Storage;
  */
 class UserDocuments extends Model
 {
-    use HasUlids;
+    use HasUlids, SoftDeletes;
 
     protected $table = 'user_documents';
 

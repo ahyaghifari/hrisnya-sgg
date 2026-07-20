@@ -39,7 +39,7 @@
                     $photoPath = $employee->profile?->profile_picture[0] ?? null;
                     $photoUrl = $photoPath && is_string($photoPath) ? \Illuminate\Support\Facades\Storage::url($photoPath) : null;
                 @endphp
-                <a href="{{ route('my-staff.show', ['record' => $employee]) }}" wire:navigate class="pwa-list-row" style="text-decoration:none;">
+                <a href="{{ route('karyawan.show', ['record' => $employee]) }}" wire:navigate class="pwa-list-row" style="text-decoration:none;">
                     @if ($photoUrl)
                         <img src="{{ $photoUrl }}" alt="{{ $employee->name }}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;flex-shrink:0;">
                     @else
@@ -127,7 +127,7 @@
                                 <td style="padding:9px 14px;white-space:nowrap;">{{ $employee->company?->name ?? '-' }}</td>
                             @endif
                             <td style="padding:9px 14px;text-align:center;white-space:nowrap;">
-                                <a href="{{ route('my-staff.show', ['record' => $employee]) }}" wire:navigate class="btn-ghost" style="padding:5px 10px;font-size:11px;" title="Lihat">
+                                <a href="{{ route('karyawan.show', ['record' => $employee]) }}" wire:navigate class="btn-ghost" style="padding:5px 10px;font-size:11px;" title="Lihat">
                                     <i class="fa-solid fa-chart-bar"></i>
                                 </a>
                                 <a href="{{ route('my-staff.edit', ['record' => $employee]) }}" wire:navigate class="btn-ghost" style="padding:5px 10px;font-size:11px;" title="Edit">

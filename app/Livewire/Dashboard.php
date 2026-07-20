@@ -39,6 +39,19 @@ class Dashboard extends Component
             ->get();
     }
 
+    // Sama persis dengan TrainingList::categoryAccent() (halaman /pelatihan) — warna aksen
+    // per kategori harus konsisten di kedua tempat, jadi hash-nya disamakan.
+    public function categoryAccent(?string $categoryName): string
+    {
+        $palette = ['navy', 'green', 'rust', 'teal', 'gold'];
+
+        if (! $categoryName) {
+            return $palette[0];
+        }
+
+        return $palette[crc32($categoryName) % count($palette)];
+    }
+
     public function render()
     {
         return view('livewire.dashboard');

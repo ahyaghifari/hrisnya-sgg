@@ -481,6 +481,19 @@ html.dark .course-card-seal.is-pending, html.dark .course-hero-seal.is-pending {
     .course-card:hover .course-card-cta i { transform: none; }
 }
 
+/* Versi ringkas .course-card — dipakai di scroll row "Pelatihan Saya" halaman Beranda, bahasa
+   visual sama (spine warna aksen kiri, media thumbnail, eyebrow kategori) tapi dipadatkan buat
+   kartu kecil di carousel, bukan grid course-card penuh. Reuse --accent/--accent-fill dari
+   .accent-* yang sama, jadi warna kategori tetap konsisten dengan halaman Pelatihan. */
+.course-card-mini { position: relative; display: block; flex: 0 0 168px; scroll-snap-align: start; background: var(--surface); border: 1px solid var(--border-soft); border-radius: 14px; overflow: hidden; box-shadow: var(--shadow-card); text-decoration: none; }
+.course-card-mini::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--accent-fill); z-index: 2; }
+.course-card-mini-media { height: 56px; display: flex; align-items: center; justify-content: center; background: var(--accent-fill); }
+.course-card-mini-media img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.course-card-mini-media i { font-size: 20px; color: #fff; opacity: 0.55; }
+.course-card-mini-body { padding: 10px 11px; display: flex; flex-direction: column; gap: 4px; }
+.course-card-mini-eyebrow { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: var(--accent); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.course-card-mini-title { font-size: 12.5px; font-weight: 700; line-height: 1.3; color: var(--text-heading); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
 /* ── Detail Pelatihan (halaman /pelatihan/{course}) — kelanjutan visual course-card:
    spine kategori sama, seal sertifikasi versi besar jadi centerpiece hero kalau sudah
    diikuti (folder rumah sakit yang "distempel approved"). Sesi pertemuan dirender sebagai
@@ -678,6 +691,12 @@ html.dark .quiz-review-option.is-wrong-selected i { color: #f87171; }
 .pwa-menu-grid-icon.violet { background: linear-gradient(135deg, #5b21b6 0%, #7c3aed 100%); }
 .pwa-menu-grid-icon.teal { background: linear-gradient(135deg, #0f766e 0%, #14b8a6 100%); }
 .pwa-menu-grid-icon.indigo { background: linear-gradient(135deg, #3730a3 0%, #4f46e5 100%); }
+
+/* Label pemisah antar-grup di sheet Menu mobile (mis. "Sistem Keuangan" sebelum tile Periode
+   Gaji/Payroll/dst) — span 3 kolom grid, konsisten sama divider dropdown desktop tapi versi
+   teks karena grid mobile tidak punya <hr> alami di antar baris. */
+.pwa-menu-grid-divider { grid-column: 1 / -1; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); border-top: 1px solid var(--border-soft); padding-top: 14px; margin-top: 2px; }
+.pwa-menu-grid-divider:first-child { border-top: none; padding-top: 0; margin-top: 0; }
 
 /* ── PAGE BACKGROUND DECO ── */
 .page-deco { position: fixed; inset: 0; pointer-events: none; overflow: hidden; z-index: 0; }
