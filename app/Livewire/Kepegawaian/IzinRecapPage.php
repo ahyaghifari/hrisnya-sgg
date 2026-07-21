@@ -113,6 +113,7 @@ class IzinRecapPage extends Component
                 'category_label' => $categories[$detail->permissionType?->category] ?? 'Lainnya',
                 'start_time' => $detail->start_time,
                 'end_time' => $detail->end_time,
+                'purpose' => $detail->purpose,
             ])->sortBy('date')->values()->all();
 
             foreach ($group as $detail) {

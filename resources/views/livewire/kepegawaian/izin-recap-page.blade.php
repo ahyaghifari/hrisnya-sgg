@@ -115,10 +115,13 @@ diajukan (bukan cuma angka rekap di tabel). --}}
 
             <div style="display:flex;flex-direction:column;gap:8px;max-height:360px;overflow-y:auto;">
                 @foreach ($selectedRow['items'] as $item)
-                    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border-radius:10px;background:var(--surface-alt);">
+                    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;padding:10px 12px;border-radius:10px;background:var(--surface-alt);">
                         <div style="min-width:0;">
                             <p style="font-size:12.5px;font-weight:600;color:var(--text-heading);margin:0;">{{ $item['type_name'] }}</p>
                             <p style="font-size:11px;color:var(--text-muted);margin:2px 0 0;">{{ $item['category_label'] }} &middot; {{ $item['start_time'] }} - {{ $item['end_time'] }}</p>
+                            @if ($item['purpose'])
+                                <p style="font-size:11px;color:var(--text-body);margin:4px 0 0;font-style:italic;">"{{ $item['purpose'] }}"</p>
+                            @endif
                         </div>
                         <span style="font-size:11.5px;font-weight:700;color:var(--brand);white-space:nowrap;">
                             {{ \Illuminate\Support\Carbon::parse($item['date'])->translatedFormat('d M Y') }}
