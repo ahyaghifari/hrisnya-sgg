@@ -16,10 +16,12 @@ use Maatwebsite\Excel\Facades\Excel;
 
 /**
  * Tab "Detail Penjadwalan" di ScheduleDetailPage — roster harian per periode (bulan), tabel
- * karyawan x tanggal. Edit manual per sel SELALU boleh menimpa (koreksi admin). Tombol
- * "Generate dari Template" cuma muncul kalau $schedule->use_template — insertOrIgnore lewat
- * firstOrCreate, TIDAK PERNAH menimpa baris yang sudah ada (bisa hasil tukar shift/koreksi
- * manual), sesuai aturan planning/2026-07-18-restrukturisasi-jadwal-schedules.md §2.11.
+ * karyawan x tanggal. Edit manual per sel CUMA boleh kalau jadwal ini tidak pakai Template
+ * (use_template=false) — kalau pakai Template, sel dikunci read-only, roster wajib lewat
+ * "Generate dari Template" (insertOrIgnore lewat firstOrCreate, TIDAK PERNAH menimpa baris
+ * yang sudah ada), dan koreksi sesudahnya rencananya lewat alur Pengajuan Tukar Shift (belum
+ * dibangun), bukan timpa bebas per sel lagi. Lihat aturan generate di
+ * planning/2026-07-18-restrukturisasi-jadwal-schedules.md §2.11.
  */
 class ScheduleShiftRosterTab extends Component
 {
@@ -35,6 +37,15 @@ class ScheduleShiftRosterTab extends Component
     /** Posisi hari di TEMPLATE yang berlaku PAS di $rotationStartDate — mis. rotasi baru mau
      * dimulai dari hari ke-3 pola (bukan selalu dari hari ke-1). Default 1. */
     public int $rotationStartDay = 1;
+
+    /** Sel di grid CUMA bisa diedit setelah tombol "Mulai Isi Jadwal" diklik (editMode=true) —
+     * bukan lagi langsung nyimpen tiap ganti sel. Perubahan ditampung di $draft dulu, baru
+     * ditulis ke DB sekaligus pas tombol "Simpan" diklik (saveRoster()). Cuma relevan buat
+     * jadwal yang TIDAK pakai Template (lihat setCell/generateFromTemplate). */
+    public bool $editMode = false;
+
+    /** @var array<string, array<string, string>> draft [user_id => [date => shift_type_id/'off'/'']] selama editMode. */
+    public array $draft = [];
 
     public function mount(Schedule $schedule): void
     {
@@ -113,25 +124,102 @@ class ScheduleShiftRosterTab extends Component
         return $roster;
     }
 
-    /** Edit manual 1 sel — SELALU boleh menimpa (koreksi admin), beda dari generate. Value 'off'
-     * disimpan eksplisit (off_day=true, shift_type_id=null), beda dari kosong yang menghapus baris. */
+    /** Masuk mode edit — salin roster tersimpan saat ini ke $draft (sel kosong default ''),
+     * supaya select di grid punya nilai awal yang benar sebelum diubah user. */
+    public function startEdit(): void
+    {
+        if ($this->schedule->use_template) {
+            return;
+        }
+
+        $roster = $this->roster;
+
+        $this->draft = collect($this->employees)->mapWithKeys(function ($employee) use ($roster) {
+            $row = collect($this->dates)->mapWithKeys(fn ($date) => [
+                $date->toDateString() => $roster[$employee->id][$date->toDateString()] ?? '',
+            ])->all();
+
+            return [$employee->id => $row];
+        })->all();
+
+        $this->editMode = true;
+    }
+
+    public function cancelEdit(): void
+    {
+        $this->editMode = false;
+        $this->draft = [];
+    }
+
+    /** Tulis $draft ke DB sekaligus — cuma sel yang nilainya beda dari roster tersimpan (hindari
+     * update percuma ke sel yang tidak diubah). Reuse setCell() per sel biar logic persist-nya
+     * satu tempat (guard use_template, delete-kalau-kosong, dst tidak dobel). */
+    public function saveRoster(): void
+    {
+        if (! $this->editMode || $this->schedule->use_template) {
+            return;
+        }
+
+        $currentRoster = $this->roster;
+        $changed = 0;
+
+        foreach ($this->draft as $userId => $row) {
+            foreach ($row as $date => $value) {
+                $before = $currentRoster[$userId][$date] ?? '';
+
+                if ($before === $value) {
+                    continue;
+                }
+
+                $this->setCell($userId, $date, $value ?: null);
+                $changed++;
+            }
+        }
+
+        $this->editMode = false;
+        $this->draft = [];
+
+        Notification::make()
+            ->title('Jadwal berhasil disimpan')
+            ->body("{$changed} sel diubah.")
+            ->success()
+            ->send();
+    }
+
+    /** Edit manual 1 sel — CUMA boleh kalau jadwal ini tidak pakai Template (use_template=false).
+     * Kalau pakai Template, roster harus diisi lewat Generate — perubahan sesudahnya rencananya
+     * lewat alur Pengajuan Tukar Shift (belum dibangun), bukan timpa bebas per sel lagi. Guard di
+     * sini (bukan cuma disable tombol di UI) supaya tidak bisa dipanggil langsung lewat Livewire.
+     * Value 'off' disimpan eksplisit (off_day=true, shift_type_id=null), beda dari kosong yang
+     * menghapus baris. Pakai whereDate() (bukan where('date', ...) polos) — kolom `date` di-cast
+     * 'date' pada model tapi dibandingkan sebagai string mentah di query, jadi match-nya
+     * tergantung driver DB (MySQL toleran, sebagian lain tidak) kalau pakai equality biasa. */
     public function setCell(string $userId, string $date, ?string $value): void
     {
+        if ($this->schedule->use_template) {
+            return;
+        }
+
+        $existing = ScheduleShiftAssignment::where('user_id', $userId)->whereDate('date', $date)->first();
+
         if (! $value) {
-            ScheduleShiftAssignment::where('user_id', $userId)->where('date', $date)->delete();
+            $existing?->delete();
 
             return;
         }
 
-        ScheduleShiftAssignment::updateOrCreate(
-            ['user_id' => $userId, 'date' => $date],
-            [
-                'company_id' => $this->schedule->company_id,
-                'shift_type_id' => $value === 'off' ? null : $value,
-                'off_day' => $value === 'off',
-                'created_by' => Auth::id(),
-            ]
-        );
+        $attributes = [
+            'company_id' => $this->schedule->company_id,
+            'shift_type_id' => $value === 'off' ? null : $value,
+            'off_day' => $value === 'off',
+            'created_by' => Auth::id(),
+        ];
+
+        if ($existing) {
+            $existing->update($attributes);
+        } else {
+            ScheduleShiftAssignment::create($attributes + ['user_id' => $userId, 'date' => $date]);
+        }
     }
 
     /** Isi roster 1 periode dari rotasi tiap karyawan — insertOrIgnore lewat firstOrCreate,

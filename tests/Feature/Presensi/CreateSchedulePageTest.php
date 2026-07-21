@@ -207,7 +207,7 @@ class CreateSchedulePageTest extends TestCase
         $this->assertSoftDeleted('schedule_shift_types', ['schedule_id' => $schedule->id, 'code' => 'M']);
     }
 
-    public function test_shift_save_persists_selected_employees_and_does_not_redirect(): void
+    public function test_shift_save_persists_selected_employees_and_redirects_to_show_only_on_first_create(): void
     {
         $user = $this->actingAsAbsensi();
         $company = $this->makeCompany();
@@ -222,16 +222,20 @@ class CreateSchedulePageTest extends TestCase
             ->call('nextStep')
             ->set('name', 'Jadwal Shift Karyawan')
             ->set('selectedEmployeeIds', [$emp1->id, $emp2->id])
-            ->call('save')
-            ->assertNoRedirect();
+            ->call('save');
 
         $schedule = Schedule::where('name', 'Jadwal Shift Karyawan')->first();
         $this->assertNotNull($schedule);
+
+        // Baru dibuat -> langsung pindah ke halaman Lihat Jadwal.
+        $component->assertRedirect(route('presensi.jadwal.show', $schedule));
+
         $this->assertDatabaseHas('schedule_assignments', ['schedule_id' => $schedule->id, 'user_id' => $emp1->id]);
         $this->assertDatabaseHas('schedule_assignments', ['schedule_id' => $schedule->id, 'user_id' => $emp2->id]);
         $this->assertDatabaseMissing('schedule_assignments', ['schedule_id' => $schedule->id, 'user_id' => $emp3->id]);
 
-        // Save kedua (setelah stay di halaman) meng-update pilihan, bukan bikin schedule baru.
+        // Save kedua (sudah dalam mode Edit) meng-update pilihan, bukan bikin schedule baru,
+        // dan TIDAK redirect lagi (beda dari save pertama).
         $component->set('selectedEmployeeIds', [$emp2->id, $emp3->id])->call('save')->assertNoRedirect();
 
         $this->assertSame(1, Schedule::where('name', 'Jadwal Shift Karyawan')->count());

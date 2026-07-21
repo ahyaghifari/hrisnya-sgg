@@ -18,6 +18,7 @@ use App\Livewire\Kanban\KanbanPersonalTasks;
 use App\Livewire\Kepegawaian\CreateKaryawan;
 use App\Livewire\Kepegawaian\DocumentFormPage;
 use App\Livewire\Kepegawaian\DocumentsPage;
+use App\Livewire\Kepegawaian\IzinRecapPage;
 use App\Livewire\Kepegawaian\KaryawanPage;
 use App\Livewire\Keuangan\IncentivesPage;
 use App\Livewire\Keuangan\KoperasiPage;
@@ -103,6 +104,9 @@ Route::middleware(['auth', 'portal.access'])->group(function () {
 
     Route::get('/kepegawaian/dokumen/{record}/edit', DocumentFormPage::class)
         ->name('kepegawaian.dokumen.edit');
+
+    Route::get('/kepegawaian/rekap-izin', IzinRecapPage::class)
+        ->name('kepegawaian.rekap-izin');
 
     Route::get('/pengajuan-absensi', MyAttendanceRequests::class)
         ->name('my-attendance-requests');

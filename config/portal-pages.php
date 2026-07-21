@@ -106,6 +106,12 @@ return [
         'guard' => null,
     ],
 
+    'kepegawaian.rekap-izin' => [
+        'label' => 'Rekap Izin',
+        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_KEPEGAWAIAN->value,
+        'guard' => null,
+    ],
+
     'my-attendance-requests' => [
         'label' => 'Pengajuan Absensi',
         'permission' => null,

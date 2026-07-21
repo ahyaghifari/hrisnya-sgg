@@ -279,7 +279,12 @@ button.nav-item[type="submit"]:hover {
 /* Sumber: planning/web-attendance/demo/dashboard.html                */
 /* ═══════════════════════════════════════════════════════════════ */
 
-body.site { font-family: 'Plus Jakarta Sans', sans-serif; background: var(--surface-page); min-height: 100vh; }
+/* Jaring pengaman terhadap scroll horizontal tidak sengaja di level halaman (mis. flex row
+   ber-min-width kebesaran di layar sempit) — widget yang MEMANG butuh scroll horizontal
+   (tabel, roster jadwal, .doc-type-nav, carousel Pelatihan, dst) sudah scoped sendiri lewat
+   overflow-x:auto di wrapper masing-masing, jadi tidak kepengaruh. */
+html { overflow-x: hidden; }
+body.site { font-family: 'Plus Jakarta Sans', sans-serif; background: var(--surface-page); min-height: 100vh; overflow-x: hidden; }
 
 /* ── NAV ──
    z-index di atas .page-content (100, lihat komentar di sana) supaya nav & dropdown-nya tidak
@@ -715,6 +720,13 @@ html.dark .quiz-review-option.is-wrong-selected i { color: #f87171; }
     .deco-a, .deco-b, .deco-c, .deco-d { animation: none; }
 }
 
+/* Warna navy/hijau solid di atas terlalu redup/kotor di atas --surface-page gelap — pakai
+   varian terang yang sama dengan --brand/--brand-success dark mode, opacity dinaikkan
+   sedikit supaya tetap kebaca sebagai glow lembut, bukan smudge nyaris tak terlihat. */
+html.dark .deco-a, html.dark .deco-b { background: #6ea8e0; opacity: 0.09; }
+html.dark .deco-c { border-color: #6ea8e0; opacity: 0.08; }
+html.dark .deco-d { background: #34d399; opacity: 0.09; }
+
 /* ── CONTAINER ──
    SENGAJA tidak dikasih z-index sama sekali (cuma `position:relative`) — `position:relative`
    TANPA `z-index` eksplisit TIDAK membuat stacking context baru, jadi anak-anaknya (termasuk
@@ -930,6 +942,9 @@ html.dark .ts-dropdown .active { background: rgba(110,168,224,0.16); }
 .app-pager-btn:hover { opacity: 0.85; }
 .app-pager-btn.is-disabled { background: var(--border-soft); color: var(--text-faint); cursor: default; }
 .app-pager-info { font-size: 12.5px; color: var(--text-muted); font-weight: 600; }
+/* Nonaktifkan klik paginasi selagi komponen masih proses request Livewire lain — cegah race
+   wire:navigate vs request pending, lihat komentar di livewire/partials/pagination.blade.php. */
+.app-pager-busy { opacity: 0.5; pointer-events: none; }
 
 /* Layar kecil: tombol jadi bulat ikon-saja (label teks disembunyikan) supaya tidak sempit/wrap. */
 @media (max-width: 480px) {

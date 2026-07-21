@@ -10,12 +10,8 @@
 </head>
 <body class="site min-h-screen relative overflow-hidden">
 
-    <!-- Background decoration -->
-    <div class="fixed inset-0 pointer-events-none overflow-hidden" aria-hidden="true">
-        <div class="absolute -top-52 -right-52 w-[640px] h-[640px] rounded-full bg-[#042c6c] opacity-5"></div>
-        <div class="absolute -bottom-36 -left-36 w-[480px] h-[480px] rounded-full bg-[#042c6c] opacity-[0.035]"></div>
-        <div class="absolute top-2/5 left-[5%] w-60 h-60 rounded-full border-[30px] border-[#042c6c] opacity-[0.03]"></div>
-        <div class="absolute bottom-1/5 right-[8%] w-24 h-24 rounded-2xl bg-[#1a56c4] opacity-[0.04] rotate-[25deg]"></div>
+    <div class="page-deco" aria-hidden="true">
+        <div class="deco-a"></div><div class="deco-b"></div><div class="deco-c"></div><div class="deco-d"></div>
     </div>
 
     <div class="relative z-10 min-h-screen flex items-center justify-center px-5 py-10">
@@ -32,10 +28,13 @@
 
             <!-- Card -->
             <div class="relative bg-white rounded-[20px] px-9 pt-9 pb-8 shadow-[0_4px_6px_rgba(4,44,108,0.04),0_1px_3px_rgba(0,0,0,0.06)] border border-slate-200/70 overflow-hidden">
-                <div class="absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-[#042c6c] to-[#1a56c4]"></div>
+                {{-- Border atas kartu login disamakan dengan border bawah navigasi portal
+                (.topnav::after di app.css) — identitas visual yang sama antara halaman login
+                dan portal setelah masuk. --}}
+                <div class="absolute top-0 left-0 right-0 h-[3px]" style="background:linear-gradient(90deg, #042c6c 0%, #042c6c 55%, #047C54 78%, #B9308C 100%);"></div>
 
                 <div class="text-xl font-bold text-slate-800 mb-1">Selamat Datang</div>
-                {{-- <div class="text-[13px] text-slate-500 mb-7">Masuk untuk menga</div> --}}
+                <div class="text-[11px] text-slate-500 mb-4">Masuk untuk mengakses portal karyawan Syifa Global Group</div>
 
                 @if ($errors->any())
                     <div class="flex items-center gap-2.5 bg-red-50 border border-red-200 rounded-[10px] px-3.5 py-2.5 mb-5 text-[13px] text-red-600">

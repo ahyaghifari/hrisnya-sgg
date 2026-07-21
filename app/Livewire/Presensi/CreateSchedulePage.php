@@ -23,9 +23,10 @@ use Livewire\Component;
  * Dipakai dobel buat Create (`/presensi/jadwal/tambah`, `$schedule` null) dan Edit
  * (`/presensi/jadwal/{schedule}/edit`) — beda dari Create, Edit langsung lompat ke step 2
  * (tipe jadwal dikunci, tidak bisa diganti setelah ada baris hari tersimpan) dan `save()`
- * meng-update baris yang sudah ada alih-alih bikin baru. Shift adalah pengecualian: `save()`
- * SENGAJA tidak redirect (lihat method save()), jadi begitu jadwal shift pertama kali
- * tersimpan, halaman ini otomatis masuk mode Edit juga supaya save berikutnya meng-update.
+ * meng-update baris yang sudah ada alih-alih bikin baru. Shift yang BARU dibuat langsung
+ * redirect ke halaman Lihat Jadwal (lihat method save()) — tab Template Shift/Detail
+ * Penjadwalan di sana yang sekarang jadi tempat nambah baris shift & karyawan, bukan lagi di
+ * halaman ini. Save berikutnya (sudah dalam mode Edit) tetap di halaman ini seperti tipe lain.
  */
 class CreateSchedulePage extends Component
 {
@@ -160,9 +161,20 @@ class CreateSchedulePage extends Component
         });
 
         if ($this->scheduleType === ScheduleType::SHIFT->value) {
-            // Sengaja TIDAK redirect — halaman ini dipakai buat nambah baris shift & karyawan
-            // berkali-kali sebelum pindah, atas permintaan user.
+            // Baru dibuat (belum pernah punya editingScheduleId) -> langsung pindah ke halaman
+            // Lihat Jadwal (tab Template Shift/Detail Penjadwalan di sana sekarang jadi tempat
+            // nambah baris shift & karyawan, bukan lagi di halaman ini). Save berikutnya
+            // (sudah dalam mode Edit) tetap di halaman ini seperti biasa.
+            $wasCreating = ! $this->editingScheduleId;
             $this->editingScheduleId = $schedule->id;
+
+            if ($wasCreating) {
+                Notification::make()->title('Jadwal shift berhasil dibuat')->success()->send();
+
+                $this->redirect(route('presensi.jadwal.show', $schedule), navigate: true);
+
+                return;
+            }
 
             Notification::make()->title('Jadwal shift berhasil disimpan')->success()->send();
 

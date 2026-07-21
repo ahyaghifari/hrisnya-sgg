@@ -135,7 +135,7 @@
                 <span class="pwa-menu-grid-icon indigo"><i class="fa-solid fa-folder-open"></i></span>
                 <span class="pwa-menu-grid-label">Dokumen</span>
             </a>
-            <a href="{{ route('my-attendance-requests.permission') }}" wire:navigate class="pwa-menu-grid-item">
+            <a href="{{ route('kepegawaian.rekap-izin') }}" wire:navigate class="pwa-menu-grid-item">
                 <span class="pwa-menu-grid-icon navy"><i class="fa-solid fa-file-lines"></i></span>
                 <span class="pwa-menu-grid-label">Izin</span>
             </a>

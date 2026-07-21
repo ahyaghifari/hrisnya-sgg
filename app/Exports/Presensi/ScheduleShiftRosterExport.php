@@ -83,7 +83,7 @@ class ScheduleShiftRosterExport implements FromArray, WithStyles, WithColumnWidt
         // Baris judul + keterangan disisipkan di atas grid ("Karyawan" + tanggal) yang datang
         // dari array() — sama pola dengan AttendanceHistoryExport.
         $sheet->insertNewRowBefore(1, 2);
-        $sheet->setCellValue('A1', "Detail Penjadwalan — {$this->schedule->name}");
+        $sheet->setCellValue('A1', "Penjadwalan — {$this->schedule->name}");
         $sheet->setCellValue('A2', "Periode: {$this->periodLabel} | Keterangan: {$this->legendText()}");
         $sheet->mergeCells("A1:{$lastCol}1");
         $sheet->mergeCells("A2:{$lastCol}2");
@@ -103,7 +103,7 @@ class ScheduleShiftRosterExport implements FromArray, WithStyles, WithColumnWidt
 
         $sheet->getStyle("A3:{$lastCol}3")->applyFromArray([
             'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
-            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '2563eb']],
+            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '2595eb']],
             'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
             'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'FFFFFF']]],
         ]);

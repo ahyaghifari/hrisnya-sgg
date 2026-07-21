@@ -30,6 +30,21 @@
                 <button type="button" wire:click="generateFromTemplate" wire:confirm="Generate roster {{ $this->periodLabel }} dari template, mulai hari ke-{{ $rotationStartDay }} pada tanggal yang dipilih? Tanggal yang sudah punya roster (manual/koreksi) TIDAK akan ditimpa." class="btn-primary" style="font-size:11px;padding:7px 12px;white-space:nowrap;">
                     <i class="fa-solid fa-wand-magic-sparkles"></i> Generate
                 </button>
+            @else
+                {{-- Jadwal tanpa Template — sel dikunci sampai "Mulai Isi Jadwal" diklik,
+                perubahan ditampung dulu, baru ditulis ke DB pas "Simpan". --}}
+                @if (! $editMode)
+                    <button type="button" wire:click="startEdit" class="btn-primary" style="font-size:11px;padding:7px 12px;white-space:nowrap;">
+                        <i class="fa-solid fa-pen"></i> Mulai Isi Jadwal
+                    </button>
+                @else
+                    <button type="button" wire:click="cancelEdit" class="btn-ghost" style="font-size:11px;padding:7px 12px;white-space:nowrap;">
+                        Batal
+                    </button>
+                    <button type="button" wire:click="saveRoster" class="btn-primary" style="font-size:11px;padding:7px 12px;white-space:nowrap;">
+                        <i class="fa-solid fa-floppy-disk"></i> Simpan
+                    </button>
+                @endif
             @endif
         </div>
     </div>
@@ -69,16 +84,29 @@
                                 // kosong, BUKAN Libur — tampilan netral, tidak ditulis ke DB. "off" = eksplisit
                                 // disimpan sebagai off_day=true (baru dapat huruf "L" + warna merah), konsisten
                                 // dengan rotasi di tab Template Shift yang memang nyimpen off_day.
-                                $current = $userRoster[$date->toDateString()] ?? '';
+                                // editMode aktif -> baca/tulis dari $draft (belum tersimpan). Selain itu (locked
+                                // atau belum mulai edit) -> baca dari roster tersimpan, cuma buat ditampilkan.
+                                $current = $editMode
+                                    ? ($draft[$employee->id][$date->toDateString()] ?? '')
+                                    : ($userRoster[$date->toDateString()] ?? '');
                                 $isOff = $current === 'off';
                                 $currentType = $schedule->shiftTypes->firstWhere('id', $current);
                                 $currentColor = $currentType?->color;
                                 $currentFontColor = $isOff ? '#7f1d1d' : ($currentType?->font_color ?: 'var(--text-body)');
+                                $locked = $schedule->use_template || ! $editMode;
                             @endphp
                             <td style="padding:2px;text-align:center;">
                                 <select
-                                    wire:change="setCell('{{ $employee->id }}', '{{ $date->toDateString() }}', $event.target.value)"
-                                    style="width:48px;padding:5px 1px;font-size:9.5px;text-align:center;font-weight:700;border:none;border-radius:5px;cursor:pointer;color:{{ $currentFontColor }};{{ $isOff ? 'background:color-mix(in srgb, #dc2626 55%, white);' : ($currentColor ? "background:{$currentColor};" : 'background:var(--surface-alt);') }}">
+                                    @if ($editMode)
+                                        wire:model="draft.{{ $employee->id }}.{{ $date->toDateString() }}"
+                                    @endif
+                                    @disabled($locked)
+                                    @if ($schedule->use_template)
+                                        title="Jadwal ini pakai Template Shift — isi lewat tombol Generate, bukan edit manual per sel."
+                                    @elseif (! $editMode)
+                                        title="Klik &quot;Mulai Isi Jadwal&quot; dulu buat mengubah."
+                                    @endif
+                                    style="width:48px;padding:5px 1px;font-size:9.5px;text-align:center;font-weight:700;border:none;border-radius:5px;{{ $locked ? 'cursor:not-allowed;opacity:0.7;' : 'cursor:pointer;' }}color:{{ $currentFontColor }};{{ $isOff ? 'background:color-mix(in srgb, #dc2626 55%, white);' : ($currentColor ? "background:{$currentColor};" : 'background:var(--surface-alt);') }}">
                                     <option value="" {{ $current === '' ? 'selected' : '' }}>-</option>
                                     @foreach ($schedule->shiftTypes as $shiftType)
                                         <option value="{{ $shiftType->id }}" {{ $current === $shiftType->id ? 'selected' : '' }}>{{ $shiftType->code }}</option>
