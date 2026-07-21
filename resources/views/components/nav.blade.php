@@ -5,12 +5,13 @@
     $canAccessMaster = auth()->user()->can(\App\Enum\CustomPermissionEnum::SISTEM_MASTER->value);
     $canAccessAbsensi = auth()->user()->can(\App\Enum\CustomPermissionEnum::SISTEM_ABSENSI->value);
     $canAccessKepegawaian = auth()->user()->can(\App\Enum\CustomPermissionEnum::SISTEM_KEPEGAWAIAN->value);
+    $canAccessLms = auth()->user()->can(\App\Enum\CustomPermissionEnum::SISTEM_LMS->value);
     // Murni permission Shield (bukan hasSubordinates() seperti MyStaff) — siapa yang boleh
     // bikin Coaching ditentukan lewat checklist role di /admin/roles, bukan otomatis dari
     // struktur organisasi. Lihat planning/2026-07-18-portal-coaching-counseling.md §3.2.
     
     $canManageCoaching = auth()->user()->can('Create:Coaching');
-    $showRoleRow = $canSeeKaryawanMenu || $canAccessKeuangan || $canAccessMaster || $canAccessAbsensi || $canAccessKepegawaian || $canManageCoaching;
+    $showRoleRow = $canSeeKaryawanMenu || $canAccessKeuangan || $canAccessMaster || $canAccessAbsensi || $canAccessKepegawaian || $canAccessLms || $canManageCoaching;
     $initials = collect(explode(' ', auth()->user()->name))
         ->map(fn ($part) => mb_substr($part, 0, 1))
         ->take(2)
@@ -110,10 +111,23 @@
                                     <div style="height:1px;background:var(--border-soft);margin:6px 8px;"></div>
                                     <a href="{{ route('kepegawaian.karyawan') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-users"></i> Karyawan</a>
                                     <a href="{{ route('kepegawaian.dokumen') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-folder-open"></i> Dokumen</a>
+                                    @if (auth()->user()->can('ViewAny:UserTransition'))
+                                        <a href="{{ route('kepegawaian.mutasi-karyawan') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-right-left"></i> Perubahan Status</a>
+                                    @endif
                                     <div style="height:1px;background:var(--border-soft);margin:6px 8px;"></div>
                                     <a href="{{ route('kepegawaian.rekap-izin') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-file-lines"></i> Izin</a>
                                     <a href="{{ route('my-attendance-requests.leave') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-umbrella-beach"></i> Cuti</a>
                                     <a href="{{ route('my-attendance-requests.overtime') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-business-time"></i> Lembur</a>
+                                </div>
+                            </div>
+                        @endif
+                        @if ($canAccessLms)
+                            <div class="dropdown">
+                                <a href="#" class="nav-item nav-item-teal {{ request()->routeIs(['pelatihan.master-honorarium']) ? 'active' : '' }}">
+                                    <i class="fa-solid fa-graduation-cap text-xs"></i> Learning Management System <i class="fa-solid fa-chevron-down text-[10px]"></i>
+                                </a>
+                                <div class="dropdown-menu">
+                                    <a href="{{ route('pelatihan.master-honorarium') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-sack-dollar"></i> Master Honorarium</a>
                                 </div>
                             </div>
                         @endif

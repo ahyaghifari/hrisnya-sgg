@@ -16,10 +16,13 @@ use App\Livewire\Kanban\KanbanBoardDetail;
 use App\Livewire\Kanban\KanbanBoardsList;
 use App\Livewire\Kanban\KanbanPersonalTasks;
 use App\Livewire\Kepegawaian\CreateKaryawan;
+use App\Livewire\Kepegawaian\CreateUserTransitionPage;
 use App\Livewire\Kepegawaian\DocumentFormPage;
 use App\Livewire\Kepegawaian\DocumentsPage;
 use App\Livewire\Kepegawaian\IzinRecapPage;
 use App\Livewire\Kepegawaian\KaryawanPage;
+use App\Livewire\Kepegawaian\UserTransitionDetailPage;
+use App\Livewire\Kepegawaian\UserTransitionsPage;
 use App\Livewire\Keuangan\IncentivesPage;
 use App\Livewire\Keuangan\KoperasiPage;
 use App\Livewire\Keuangan\MappingKomponenGajiPage;
@@ -30,6 +33,7 @@ use App\Livewire\Keuangan\SalaryComponentsPage;
 use App\Livewire\MyAttendanceRequests;
 use App\Livewire\MyEmployees;
 use App\Livewire\OrganizationStructure;
+use App\Livewire\Pelatihan\MasterHonorariumPage;
 use App\Livewire\Pelatihan\QuizAttempt;
 use App\Livewire\Pelatihan\TrainingDetail;
 use App\Livewire\Pelatihan\TrainingList;
@@ -107,6 +111,15 @@ Route::middleware(['auth', 'portal.access'])->group(function () {
 
     Route::get('/kepegawaian/rekap-izin', IzinRecapPage::class)
         ->name('kepegawaian.rekap-izin');
+
+    Route::get('/kepegawaian/perubahan-status', UserTransitionsPage::class)
+        ->name('kepegawaian.mutasi-karyawan');
+
+    Route::get('/kepegawaian/perubahan-status/tambah', CreateUserTransitionPage::class)
+        ->name('kepegawaian.mutasi-karyawan.create');
+
+    Route::get('/kepegawaian/perubahan-status/{record}', UserTransitionDetailPage::class)
+        ->name('kepegawaian.mutasi-karyawan.show');
 
     Route::get('/pengajuan-absensi', MyAttendanceRequests::class)
         ->name('my-attendance-requests');
@@ -213,6 +226,11 @@ Route::middleware(['auth', 'portal.access'])->group(function () {
     // ditangkap sebagai {course} dan gagal resolve (404) sebelum sempat sampai ke route ini.
     Route::get('/pelatihan/quiz/{meetingQuiz}', QuizAttempt::class)
         ->name('pelatihan.quiz');
+
+    // Belum ada link masuk di nav manapun (dropdown LMS menyusul) — diakses lewat URL
+    // langsung dulu, sama seperti pola presensi.kalender-libur.
+    Route::get('/pelatihan/master-honorarium', MasterHonorariumPage::class)
+        ->name('pelatihan.master-honorarium');
 
     Route::get('/pelatihan/{course}', TrainingDetail::class)
         ->name('pelatihan.show');

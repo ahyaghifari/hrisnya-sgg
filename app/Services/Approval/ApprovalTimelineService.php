@@ -2,21 +2,23 @@
 
 namespace App\Services\Approval;
 
-use App\Models\Attendance\AttendanceRequests;
 use App\Models\Master\JobPositions;
 use App\Models\Role;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Model;
 
 class ApprovalTimelineService
 {
     /**
-     * Bangun timeline visual: Diajukan -> tiap step approval -> selesai.
+     * Bangun timeline visual: Diajukan -> tiap step approval -> selesai. Generik lintas modul —
+     * cuma butuh relasi approvalSnapshot()/approvalHistories()/user() dan kolom created_at
+     * (dipakai attendance_request maupun user_transition), bukan spesifik ke 1 model.
      * Step yang sudah lewat diisi nama+tanggal dari approvalHistories, step yang
      * belum dilewati dibiarkan kosong (belum ada aktor/tanggal).
      *
      * @return array<int, array{label: string, actor: ?string, date: mixed, state: string}>
      */
-    public function build(AttendanceRequests $request): array
+    public function build(Model $request): array
     {
         $request->loadMissing(['approvalSnapshot.activity', 'approvalHistories', 'user']);
 

@@ -112,6 +112,24 @@ return [
         'guard' => null,
     ],
 
+    'kepegawaian.mutasi-karyawan' => [
+        'label' => 'Perubahan Status Karyawan',
+        'permission' => 'ViewAny:UserTransition',
+        'guard' => null,
+    ],
+
+    'kepegawaian.mutasi-karyawan.create' => [
+        'label' => 'Ajukan Perubahan Status Karyawan',
+        'permission' => 'Create:UserTransition',
+        'guard' => null,
+    ],
+
+    'kepegawaian.mutasi-karyawan.show' => [
+        'label' => 'Detail Perubahan Status Karyawan',
+        'permission' => 'View:UserTransition',
+        'guard' => null,
+    ],
+
     'my-attendance-requests' => [
         'label' => 'Pengajuan Absensi',
         'permission' => null,
@@ -256,6 +274,12 @@ return [
     'pelatihan' => [
         'label' => 'Pelatihan',
         'permission' => null,
+        'guard' => null,
+    ],
+
+    'pelatihan.master-honorarium' => [
+        'label' => 'Master Honorarium',
+        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_LMS->value,
         'guard' => null,
     ],
 

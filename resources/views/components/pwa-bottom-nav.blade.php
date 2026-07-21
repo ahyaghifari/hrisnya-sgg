@@ -4,6 +4,7 @@
     $canAccessKeuangan = auth()->user()->can(\App\Enum\CustomPermissionEnum::SISTEM_KEUANGAN->value);
     $canAccessAbsensi = auth()->user()->can(\App\Enum\CustomPermissionEnum::SISTEM_ABSENSI->value);
     $canAccessKepegawaian = auth()->user()->can(\App\Enum\CustomPermissionEnum::SISTEM_KEPEGAWAIAN->value);
+    $canAccessLms = auth()->user()->can(\App\Enum\CustomPermissionEnum::SISTEM_LMS->value);
 
     $navPhotoPath = auth()->user()->profile?->profile_picture[0] ?? null;
     $navPhotoUrl = $navPhotoPath && is_string($navPhotoPath) ? \Illuminate\Support\Facades\Storage::url($navPhotoPath) : null;
@@ -135,6 +136,12 @@
                 <span class="pwa-menu-grid-icon indigo"><i class="fa-solid fa-folder-open"></i></span>
                 <span class="pwa-menu-grid-label">Dokumen</span>
             </a>
+            @if (auth()->user()->can('ViewAny:UserTransition'))
+                <a href="{{ route('kepegawaian.mutasi-karyawan') }}" wire:navigate class="pwa-menu-grid-item">
+                    <span class="pwa-menu-grid-icon gold"><i class="fa-solid fa-right-left"></i></span>
+                    <span class="pwa-menu-grid-label">Perubahan Status</span>
+                </a>
+            @endif
             <a href="{{ route('kepegawaian.rekap-izin') }}" wire:navigate class="pwa-menu-grid-item">
                 <span class="pwa-menu-grid-icon navy"><i class="fa-solid fa-file-lines"></i></span>
                 <span class="pwa-menu-grid-label">Izin</span>
@@ -146,6 +153,14 @@
             <a href="{{ route('my-attendance-requests.overtime') }}" wire:navigate class="pwa-menu-grid-item">
                 <span class="pwa-menu-grid-icon gold"><i class="fa-solid fa-business-time"></i></span>
                 <span class="pwa-menu-grid-label">Lembur</span>
+            </a>
+        @endif
+
+        @if ($canAccessLms)
+            <span class="pwa-menu-grid-divider">Learning Management System</span>
+            <a href="{{ route('pelatihan.master-honorarium') }}" wire:navigate class="pwa-menu-grid-item">
+                <span class="pwa-menu-grid-icon teal"><i class="fa-solid fa-sack-dollar"></i></span>
+                <span class="pwa-menu-grid-label">Master Honorarium</span>
             </a>
         @endif
 
