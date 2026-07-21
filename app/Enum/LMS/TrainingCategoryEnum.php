@@ -41,6 +41,15 @@ enum TrainingCategoryEnum: string
         return array_values(array_filter(self::cases(), fn (self $case) => $case->usesScoredHonor()));
     }
 
+    /**
+     * Umum/Sertifikasi-Dokter Umum/Dokter Spesialis — 3 tipe tetap Pelatihan Internal.
+     * Eksternal dikecualikan karena bukan kategori pelatihan (LmsCategories khusus internal).
+     */
+    public static function internalCases(): array
+    {
+        return array_values(array_filter(self::cases(), fn (self $case) => $case !== self::EKSTERNAL));
+    }
+
     /** Solid/soft/text dipakai buat tab & badge — beda warna per konteks biar tidak ketuker. */
     public function color(): array
     {

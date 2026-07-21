@@ -1,8 +1,8 @@
 @use('App\Enum\LMS\TrainingCategoryEnum')
 @php $activeColor = TrainingCategoryEnum::from($context)->color(); @endphp
 
-<div class="p-4 md:p-6">
-    <x-page-header title="Master Honorarium" />
+<div>
+    <x-page-header title="Honorarium" />
 
     <p style="font-size:12.5px;color:var(--text-muted);margin:6px 0 18px;max-width:70ch;">
         Variabel, kategori, dan range skor honorarium — khusus Dokter Spesialis & Biaya Pelatihan Eksternal

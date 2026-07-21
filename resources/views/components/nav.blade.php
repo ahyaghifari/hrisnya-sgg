@@ -123,11 +123,13 @@
                         @endif
                         @if ($canAccessLms)
                             <div class="dropdown">
-                                <a href="#" class="nav-item nav-item-teal {{ request()->routeIs(['pelatihan.master-honorarium']) ? 'active' : '' }}">
+                                <a href="#" class="nav-item nav-item-teal {{ request()->routeIs(['pelatihan.honorarium', 'pelatihan.kategori', 'pelatihan.kelola']) ? 'active' : '' }}">
                                     <i class="fa-solid fa-graduation-cap text-xs"></i> Learning Management System <i class="fa-solid fa-chevron-down text-[10px]"></i>
                                 </a>
                                 <div class="dropdown-menu">
-                                    <a href="{{ route('pelatihan.master-honorarium') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-sack-dollar"></i> Master Honorarium</a>
+                                    <a href="{{ route('pelatihan.kelola') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-book"></i> Pelatihan</a>
+                                    <a href="{{ route('pelatihan.kategori') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-tags"></i> Kategori Pelatihan</a>
+                                    <a href="{{ route('pelatihan.honorarium') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-sack-dollar"></i> Honorarium</a>
                                 </div>
                             </div>
                         @endif

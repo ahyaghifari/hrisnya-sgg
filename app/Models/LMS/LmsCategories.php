@@ -2,6 +2,7 @@
 
 namespace App\Models\LMS;
 
+use App\Enum\LMS\TrainingCategoryEnum;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 
@@ -16,7 +17,15 @@ class LmsCategories extends Model
 
     protected $fillable = [
         'name',
+        'training_category',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'training_category' => TrainingCategoryEnum::class,
+        ];
+    }
 
     public function courses()
     {

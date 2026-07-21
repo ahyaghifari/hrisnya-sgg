@@ -33,7 +33,11 @@ use App\Livewire\Keuangan\SalaryComponentsPage;
 use App\Livewire\MyAttendanceRequests;
 use App\Livewire\MyEmployees;
 use App\Livewire\OrganizationStructure;
-use App\Livewire\Pelatihan\MasterHonorariumPage;
+use App\Livewire\LMS\CreateLmsCourse;
+use App\Livewire\LMS\LmsCategoriesPage;
+use App\Livewire\LMS\LmsCourseDetailPage;
+use App\Livewire\LMS\LmsCoursesPage;
+use App\Livewire\LMS\MasterHonorariumPage;
 use App\Livewire\Pelatihan\QuizAttempt;
 use App\Livewire\Pelatihan\TrainingDetail;
 use App\Livewire\Pelatihan\TrainingList;
@@ -227,10 +231,20 @@ Route::middleware(['auth', 'portal.access'])->group(function () {
     Route::get('/pelatihan/quiz/{meetingQuiz}', QuizAttempt::class)
         ->name('pelatihan.quiz');
 
-    // Belum ada link masuk di nav manapun (dropdown LMS menyusul) — diakses lewat URL
-    // langsung dulu, sama seperti pola presensi.kalender-libur.
-    Route::get('/pelatihan/master-honorarium', MasterHonorariumPage::class)
-        ->name('pelatihan.master-honorarium');
+    Route::get('/lms/honorarium', MasterHonorariumPage::class)
+        ->name('pelatihan.honorarium');
+
+    Route::get('/lms/kategori', LmsCategoriesPage::class)
+        ->name('pelatihan.kategori');
+
+    Route::get('/lms/pelatihan', LmsCoursesPage::class)
+        ->name('pelatihan.kelola');
+
+    Route::get('/lms/pelatihan/tambah', CreateLmsCourse::class)
+        ->name('pelatihan.kelola.create');
+
+    Route::get('/lms/pelatihan/{course}', LmsCourseDetailPage::class)
+        ->name('pelatihan.kelola.show');
 
     Route::get('/pelatihan/{course}', TrainingDetail::class)
         ->name('pelatihan.show');

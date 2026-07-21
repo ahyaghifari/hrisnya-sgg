@@ -1,9 +1,9 @@
 <?php
 
-namespace Tests\Feature\Pelatihan;
+namespace Tests\Feature\LMS;
 
 use App\Enum\LMS\TrainingCategoryEnum;
-use App\Livewire\Pelatihan\MasterHonorariumPage;
+use App\Livewire\LMS\MasterHonorariumPage;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;

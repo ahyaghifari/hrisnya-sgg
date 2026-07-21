@@ -277,8 +277,32 @@ return [
         'guard' => null,
     ],
 
-    'pelatihan.master-honorarium' => [
-        'label' => 'Master Honorarium',
+    'pelatihan.honorarium' => [
+        'label' => 'Honorarium',
+        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_LMS->value,
+        'guard' => null,
+    ],
+
+    'pelatihan.kategori' => [
+        'label' => 'Kategori Pelatihan',
+        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_LMS->value,
+        'guard' => null,
+    ],
+
+    'pelatihan.kelola' => [
+        'label' => 'Pelatihan',
+        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_LMS->value,
+        'guard' => null,
+    ],
+
+    'pelatihan.kelola.create' => [
+        'label' => 'Tambah Pelatihan',
+        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_LMS->value,
+        'guard' => null,
+    ],
+
+    'pelatihan.kelola.show' => [
+        'label' => 'Detail Pelatihan',
         'permission' => \App\Enum\CustomPermissionEnum::SISTEM_LMS->value,
         'guard' => null,
     ],

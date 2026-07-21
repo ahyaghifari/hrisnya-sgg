@@ -929,6 +929,12 @@ textarea.form-input { resize: none; }
 html.dark .ts-dropdown .active { background: rgba(110,168,224,0.16); }
 .ts-wrapper.plugin-clear_button .clear-button { color: var(--text-faint); opacity: 1; visibility: visible; }
 
+/* Tag terpilih di multi-select (mis. Kompetensi Terkait) — pill navy selaras brand. */
+.ts-wrapper.multi .ts-control > div.item { background: rgba(4,44,108,0.08); color: #042c6c; border: none; border-radius: 7px; padding: 3px 6px 3px 10px; font-size: 12.5px; font-weight: 600; }
+html.dark .ts-wrapper.multi .ts-control > div.item { background: rgba(110,168,224,0.16); color: #6ea8e0; }
+.ts-wrapper.plugin-remove_button .item .remove { border-left: none; margin-left: 6px; padding: 0 4px; color: inherit; opacity: .65; }
+.ts-wrapper.plugin-remove_button .item .remove:hover { opacity: 1; background: transparent; }
+
 /* Filter status Pelatihan (Semua/Diikuti/Belum Diikuti) — pill warna pekat + teks putih. */
 .pelatihan-filter-nav { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
 .pelatihan-filter-btn { padding: 9px 16px; border-radius: 999px; border: none; font-size: 12.5px; font-weight: 700; color: #fff; cursor: pointer; transition: all 0.15s; opacity: 0.55; font-family: inherit; }

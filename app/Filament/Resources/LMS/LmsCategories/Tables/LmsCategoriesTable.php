@@ -22,6 +22,12 @@ class LmsCategoriesTable
                     ->wrap()
                     ->limit(50),
 
+                TextColumn::make('training_category')
+                    ->label('Jenis Pelatihan')
+                    ->badge()
+                    ->formatStateUsing(fn ($state) => $state?->label() ?? '-')
+                    ->placeholder('-'),
+
                 TextColumn::make('courses_count')
                     ->label('Jumlah Pelatihan')
                     ->counts('courses')

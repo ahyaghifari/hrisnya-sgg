@@ -16,6 +16,7 @@ function initTomSelects() {
             create: false,
             allowEmptyOption: true,
             placeholder: el.dataset.placeholder || "",
+            plugins: el.multiple ? ["remove_button"] : [],
         });
     });
 }

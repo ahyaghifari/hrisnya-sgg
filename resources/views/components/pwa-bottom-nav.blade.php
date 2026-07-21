@@ -158,9 +158,17 @@
 
         @if ($canAccessLms)
             <span class="pwa-menu-grid-divider">Learning Management System</span>
-            <a href="{{ route('pelatihan.master-honorarium') }}" wire:navigate class="pwa-menu-grid-item">
+            <a href="{{ route('pelatihan.kelola') }}" wire:navigate class="pwa-menu-grid-item">
+                <span class="pwa-menu-grid-icon teal"><i class="fa-solid fa-book"></i></span>
+                <span class="pwa-menu-grid-label">Pelatihan</span>
+            </a>
+            <a href="{{ route('pelatihan.kategori') }}" wire:navigate class="pwa-menu-grid-item">
+                <span class="pwa-menu-grid-icon teal"><i class="fa-solid fa-tags"></i></span>
+                <span class="pwa-menu-grid-label">Kategori Pelatihan</span>
+            </a>
+            <a href="{{ route('pelatihan.honorarium') }}" wire:navigate class="pwa-menu-grid-item">
                 <span class="pwa-menu-grid-icon teal"><i class="fa-solid fa-sack-dollar"></i></span>
-                <span class="pwa-menu-grid-label">Master Honorarium</span>
+                <span class="pwa-menu-grid-label">Honorarium</span>
             </a>
         @endif
 

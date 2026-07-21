@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Livewire\Pelatihan;
+namespace App\Livewire\LMS;
 
 use App\Enum\CustomPermissionEnum;
 use App\Enum\LMS\TrainingCategoryEnum;
@@ -233,6 +233,6 @@ class MasterHonorariumPage extends Component
 
     public function render()
     {
-        return view('livewire.pelatihan.master-honorarium-page');
+        return view('livewire.lms.master-honorarium-page');
     }
 }
