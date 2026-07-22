@@ -16,8 +16,11 @@ class PendingApprovalsCard extends Component
 
         $moduleIds = $activities->pluck('snapshot.module_id')->filter()->values();
 
+        // user_id nullable (nullOnDelete) - kalau user pengaju sudah dihapus, jangan tampilkan
+        // baris ini (tidak ada nama pemohon buat ditampilkan), daripada crash null->name.
         $requests = AttendanceRequests::with(['user', 'leaveDetails', 'permissionDetails', 'overtimeDetails'])
             ->whereIn('id', $moduleIds)
+            ->whereHas('user')
             ->orderByDesc('created_at')
             ->get();
 

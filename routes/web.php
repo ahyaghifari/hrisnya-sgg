@@ -54,6 +54,7 @@ use App\Http\Controllers\Pwa\PushSubscriptionController;
 use App\Livewire\Pwa\Akun as PwaAkun;
 use App\Livewire\Pwa\NotificationSettingsPage;
 use App\Livewire\Pwa\UbahPassword as PwaUbahPassword;
+use App\Livewire\RiwayatApprovalPage;
 use App\Livewire\SubmitLeaveRequest;
 use App\Livewire\SubmitOvertimeRequest;
 use App\Livewire\SubmitPermissionRequest;
@@ -98,6 +99,9 @@ Route::middleware(['auth', 'portal.access'])->group(function () {
 
     Route::get('/my-staff/{record}/edit', EditMyEmployee::class)
         ->name('my-staff.edit');
+
+    Route::get('/riwayat-approval', RiwayatApprovalPage::class)
+        ->name('riwayat-approval');
 
     // Halaman detail karyawan dipakai 2 entry point: MyStaff (bawahan) & Karyawan (company-wide,
     // lihat grup route Kepegawaian di bawah) — makanya path-nya /karyawan, bukan /my-staff.

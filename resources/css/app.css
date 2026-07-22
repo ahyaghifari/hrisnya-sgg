@@ -745,14 +745,19 @@ html.dark .deco-d { background: #34d399; opacity: 0.09; }
 /* Room for the fixed .pwa-bottom-nav so page content doesn't render underneath it. */
 @media (max-width: 767.98px) { .page-content { padding-bottom: calc(84px + env(safe-area-inset-bottom)); } }
 
-/* ── BENTO GRID ── */
-.bento { display: grid; grid-template-columns: 1fr; gap: 16px; }
+/* ── BENTO GRID ──
+   minmax(0, ...) BUKAN cuma "1fr" - track grid 1fr polos implicit minmax(auto, 1fr), artinya
+   lebar minimum track = max-content lebar isinya. Kartu yang isinya ada overflow-x:auto sendiri
+   (mis. timeline status pengajuan, tiap step min-width:120px) jadi mendorong track (dan
+   viewport mobile) melebar, bukan discroll di dalam kartunya sendiri. minmax(0, ...) matiin
+   floor "auto" itu, biar overflow-x:auto anak yang menangani, bukan grid track-nya. */
+.bento { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
 @media (min-width: 640px) {
-    .bento { grid-template-columns: 1fr 1fr; }
+    .bento { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
     .bento-welcome, .bento-absensi, .bento-recent, .bento-pending-approvals, .bento-status-pengajuan { grid-column: 1 / 3; }
 }
 @media (min-width: 1024px) {
-    .bento { grid-template-columns: 1fr 2fr; grid-template-rows: auto auto auto auto auto; }
+    .bento { grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); grid-template-rows: auto auto auto auto auto; }
     .bento-welcome { grid-column: 1/-1; grid-row: 1; }
     .bento-status-pengajuan { grid-column: 1/-1; grid-row: 2; }
     .bento-absensi { grid-column: 1; grid-row: 3; }
