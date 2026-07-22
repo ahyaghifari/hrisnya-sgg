@@ -2,46 +2,19 @@
 
 namespace App\Services\Notification;
 
-use App\Enum\NotificationTypeEnum;
-use App\Models\DatabaseNotification;
+use App\Notifications\LeaveRequestSubmitted;
+use App\Notifications\OvertimeRequestSubmitted;
+use App\Notifications\PermissionRequestSubmitted;
 use App\Models\User;
-use Illuminate\Support\Str;
 
 class NotificationService
 {
-    public function __construct(protected NotificationPreferenceService $preferenceService) {}
-
     public function sendOvertimeRequestNotification(
         User $approver,
         array $requestData,
         string $requesterName
     ): void {
-        if (! $this->preferenceService->isEnabled($approver, NotificationTypeEnum::APPROVAL_NEEDS_ACTION)) {
-            return;
-        }
-
-        $notificationId = Str::uuid();
-
-        DatabaseNotification::create([
-            'id' => $notificationId,
-            'type' => 'App\\Notifications\\OvertimeRequestSubmitted',
-            'notifiable_type' => 'App\\Models\\User',
-            'notifiable_id' => $approver->id,
-            'data' => [
-                'title' => 'Pengajuan Lembur Baru',
-                'body' => "Pengajuan lembur dari {$requesterName} memerlukan persetujuan Anda",
-                'request_type' => 'overtime',
-                'request_id' => $requestData['request_id'],
-                'requester_name' => $requesterName,
-                'overtime_type' => $requestData['overtime_type'],
-                'date' => $requestData['date'],
-                'start_time' => $requestData['start_time'],
-                'end_time' => $requestData['end_time'],
-                'created_at' => now()->toISOString(),
-            ],
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
+        $approver->notify(new OvertimeRequestSubmitted($requestData, $requesterName));
     }
 
     public function sendLeaveRequestNotification(
@@ -49,31 +22,7 @@ class NotificationService
         array $requestData,
         string $requesterName
     ): void {
-        if (! $this->preferenceService->isEnabled($approver, NotificationTypeEnum::APPROVAL_NEEDS_ACTION)) {
-            return;
-        }
-
-        $notificationId = Str::uuid();
-
-        DatabaseNotification::create([
-            'id' => $notificationId,
-            'type' => 'App\\Notifications\\LeaveRequestSubmitted',
-            'notifiable_type' => 'App\\Models\\User',
-            'notifiable_id' => $approver->id,
-            'data' => [
-                'title' => 'Pengajuan Cuti Baru',
-                'body' => "Pengajuan cuti dari {$requesterName} memerlukan persetujuan Anda",
-                'request_type' => 'leave',
-                'request_id' => $requestData['request_id'],
-                'requester_name' => $requesterName,
-                'leave_type' => $requestData['leave_type'],
-                'start_date' => $requestData['start_date'],
-                'end_date' => $requestData['end_date'],
-                'created_at' => now()->toISOString(),
-            ],
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
+        $approver->notify(new LeaveRequestSubmitted($requestData, $requesterName));
     }
 
     public function sendPermissionRequestNotification(
@@ -81,33 +30,7 @@ class NotificationService
         array $requestData,
         string $requesterName
     ): void {
-        if (! $this->preferenceService->isEnabled($approver, NotificationTypeEnum::APPROVAL_NEEDS_ACTION)) {
-            return;
-        }
-
-        $notificationId = Str::uuid();
-
-        DatabaseNotification::create([
-            'id' => $notificationId,
-            'type' => 'App\\Notifications\\PermissionRequestSubmitted',
-            'notifiable_type' => 'App\\Models\\User',
-            'notifiable_id' => $approver->id,
-            'data' => [
-                'title' => 'Pengajuan Izin Baru',
-                'body' => "Pengajuan izin dari {$requesterName} memerlukan persetujuan Anda",
-                'request_type' => 'permission',
-                'request_id' => $requestData['request_id'],
-                'requester_name' => $requesterName,
-                'permission_type' => $requestData['permission_type'],
-                'date' => $requestData['date'],
-                'start_time' => $requestData['start_time'],
-                'end_time' => $requestData['end_time'],
-                'purpose' => $requestData['purpose'],
-                'created_at' => now()->toISOString(),
-            ],
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
+        $approver->notify(new PermissionRequestSubmitted($requestData, $requesterName));
     }
 
     public function getFirstApproverFromSnapshot($snapshot): ?User
@@ -117,18 +40,18 @@ class NotificationService
         }
 
         $activity = $snapshot->activity;
-        
+
         switch ($activity->approver_type) {
             case 'user':
                 return User::find($activity->approver_ref_id);
-                
+
             case 'role':
                 // For role-based approval, get the first user with that role
                 $roleId = $activity->approver_ref_id;
                 $query = User::whereHas('roles', function ($q) use ($roleId) {
                     $q->where('id', $roleId);
                 });
-                
+
                 // If scope is specific department, filter by department
                 if ($activity->scope_type === 'specific_department') {
                     $departmentId = $activity->scope_ref_id;
@@ -136,14 +59,14 @@ class NotificationService
                         $q->where('id', $departmentId);
                     });
                 }
-                
+
                 return $query->first();
-                
+
             case 'job_position':
                 return User::whereHas('profile.jobPosition', function ($q) use ($activity) {
                     $q->where('id', $activity->approver_ref_id);
                 })->first();
-                
+
             default:
                 return null;
         }
