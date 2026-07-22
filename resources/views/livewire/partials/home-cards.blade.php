@@ -39,19 +39,8 @@
         <livewire:my-attendance-status-card />
     </div>
 
-    <!-- PRESENSI: placeholder statis, belum ada endpoint/data clock-in nyata -->
-    <div id="absen-section" class="absen-card bento-absensi">
-        <div class="a-deco-1"></div><div class="a-deco-2"></div><div class="a-deco-3"></div>
-        <div style="position:relative;z-index:1;display:flex;align-items:center;justify-content:space-between;">
-            <span class="absen-label">
-                <i class="fa-regular fa-clock"></i> Presensi Hari Ini
-            </span>
-        </div>
-        <div style="position:relative;z-index:1;">
-            <p class="absen-title">Belum terintegrasi otomatis</p>
-            <p class="absen-sub">Presensi clock-in/out belum tersambung ke sistem ini.</p>
-        </div>
-    </div>
+    <!-- PRESENSI: status hari ini (jadwal + libur/cuti/izin + jam presensi asli) -->
+    <x-today-attendance-card :status="$this->todayAttendanceStatus" id="absen-section" class="bento-absensi" />
 
     {{-- Cuti Tahunan + Jumlah Izin + Jumlah Lembur, berdampingan dengan presensi di layar lebar.
     Dua variasi ukuran (LeaveBalanceCard/AttendanceStatCards menghitung style-nya di server lewat

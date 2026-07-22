@@ -103,7 +103,7 @@
                         @endif
                         @if ($canAccessKepegawaian)
                             <div class="dropdown">
-                                <a href="#" class="nav-item nav-item-pink {{ request()->routeIs(['kepegawaian.*', 'karyawan.show', 'my-attendance-requests.permission', 'my-attendance-requests.leave', 'my-attendance-requests.overtime']) ? 'active' : '' }}">
+                                <a href="#" class="nav-item nav-item-pink {{ request()->routeIs(['kepegawaian.*', 'karyawan.show']) ? 'active' : '' }}">
                                     <i class="fa-solid fa-id-card-clip text-xs"></i> Kepegawaian <i class="fa-solid fa-chevron-down text-[10px]"></i>
                                 </a>
                                 <div class="dropdown-menu">
@@ -115,9 +115,9 @@
                                         <a href="{{ route('kepegawaian.mutasi-karyawan') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-right-left"></i> Perubahan Status</a>
                                     @endif
                                     <div style="height:1px;background:var(--border-soft);margin:6px 8px;"></div>
-                                    <a href="{{ route('kepegawaian.rekap-izin') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-file-lines"></i> Izin</a>
-                                    <a href="{{ route('my-attendance-requests.leave') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-umbrella-beach"></i> Cuti</a>
-                                    <a href="{{ route('my-attendance-requests.overtime') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-business-time"></i> Lembur</a>
+                                    <a href="{{ route('kepegawaian.rekap-izin') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-file-lines"></i> Rekap Izin</a>
+                                    <a href="{{ route('kepegawaian.rekap-cuti') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-umbrella-beach"></i> Rekap Cuti</a>
+                                    <a href="{{ route('kepegawaian.rekap-lembur') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-business-time"></i> Rekap Lembur</a>
                                 </div>
                             </div>
                         @endif

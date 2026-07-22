@@ -243,41 +243,7 @@
     <h3 style="font-size:14px;font-weight:800;color:var(--text-heading);margin-bottom:12px;">Presensi</h3>
 
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;margin-bottom:16px;align-items:stretch;">
-        <div class="absen-card" style="min-height:0;">
-            <div class="a-deco-1"></div><div class="a-deco-2"></div><div class="a-deco-3"></div>
-            <div style="position:relative;z-index:1;">
-                <span style="font-size:11px;font-weight:700;color:rgba(255,255,255,0.75);text-transform:uppercase;letter-spacing:0.05em;">
-                    <i class="fa-regular fa-clock"></i> Presensi Hari Ini
-                </span>
-                <p style="font-size:11.5px;color:rgba(255,255,255,0.6);margin-top:3px;">{{ now()->translatedFormat('d F Y') }}</p>
-            </div>
-
-            @if ($todayPresence)
-                <div style="position:relative;z-index:1;display:flex;gap:28px;">
-                    <div>
-                        <p style="font-size:11px;color:rgba(255,255,255,0.6);margin-bottom:2px;">Jam Masuk</p>
-                        <p style="font-size:24px;font-weight:800;color:#fff;letter-spacing:-0.5px;">{{ $formatJam($todayPresence->check_in_time) }}</p>
-                    </div>
-                    <div>
-                        <p style="font-size:11px;color:rgba(255,255,255,0.6);margin-bottom:2px;">Jam Keluar</p>
-                        <p style="font-size:24px;font-weight:800;color:#fff;letter-spacing:-0.5px;">{{ $formatJam($todayPresence->check_out_time) }}</p>
-                    </div>
-                </div>
-                <div style="position:relative;z-index:1;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-                    <span style="display:inline-block;padding:4px 12px;border-radius:99px;background:rgba(255,255,255,0.16);color:#fff;font-size:11.5px;font-weight:700;">
-                        {{ \App\Enum\AttendanceStatus::from($todayPresence->status)->getLabel() }}
-                    </span>
-                    @if ($todayPresence->late_minutes > 0)
-                        <span style="font-size:12px;color:rgba(255,255,255,0.75);">Terlambat {{ $todayPresence->late_minutes }} menit</span>
-                    @endif
-                </div>
-            @else
-                <div style="position:relative;z-index:1;">
-                    <p style="font-size:14px;font-weight:600;color:#fff;">Belum ada data presensi</p>
-                    <p style="font-size:11.5px;color:rgba(255,255,255,0.65);margin-top:4px;">Karyawan belum melakukan presensi hari ini.</p>
-                </div>
-            @endif
-        </div>
+        <x-today-attendance-card :status="$this->todayAttendanceStatus" style="min-height:0;" />
 
         <div class="card-surface">
             <p style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:12px;">Indeks Presensi Periode Ini</p>
@@ -291,65 +257,156 @@
         </div>
     </div>
 
-    <!-- Data Presensi -->
-    <div class="card-surface-flush" style="margin-bottom:28px;">
-        <div style="padding:18px 20px 14px;border-bottom:1px solid var(--border-soft);">
-            <h4 style="font-size:13.5px;font-weight:700;color:var(--text-heading);margin:0;">Data Presensi</h4>
+    <!-- Data Presensi: kalender kiri, tabel kanan (stack di mobile - kalender duluan) -->
+    <style>
+        .presensi-layout { display:grid; grid-template-columns:1fr; gap:16px; align-items:start; margin-bottom:28px; }
+        @media (min-width: 1024px) { .presensi-layout { grid-template-columns:320px 1fr; } }
+    </style>
+    <div class="presensi-layout">
+        {{-- Kiri: kalender bulan berjalan, gabungan presensi harian + pengajuan cuti/izin/lembur --}}
+        <div style="background:var(--surface);border-radius:12px;box-shadow:var(--shadow-card);padding:14px;position:sticky;top:16px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+                <button type="button" wire:click="prevMonth" class="btn-ghost" style="padding:5px 10px;font-size:12px;"><i class="fa-solid fa-chevron-left"></i></button>
+                <span style="font-size:13px;font-weight:700;color:var(--text-heading);">{{ $this->calendarMonthLabel }}</span>
+                <button type="button" wire:click="nextMonth" class="btn-ghost" style="padding:5px 10px;font-size:12px;"><i class="fa-solid fa-chevron-right"></i></button>
+            </div>
+
+            <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;font-size:10px;font-weight:700;color:var(--text-faint);text-align:center;margin-bottom:4px;">
+                <span>Sen</span><span>Sel</span><span>Rab</span><span>Kam</span><span>Jum</span><span>Sab</span><span>Min</span>
+            </div>
+
+            @php
+                $requestTypeMeta = [
+                    'leave' => ['label' => 'Cuti', 'color' => '#1a56c4'],
+                    'permission' => ['label' => 'Izin', 'color' => '#d97706'],
+                    'overtime' => ['label' => 'Lembur', 'color' => '#047C54'],
+                ];
+            @endphp
+            <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;">
+                @foreach ($this->calendarDays as $cell)
+                    @if ($cell === null)
+                        <div></div>
+                    @else
+                        @php
+                            $attendance = $cell['attendance'];
+                            $requests = $cell['requests'];
+                            $primaryRequest = $requests->first();
+
+                            // Prioritas warna sel: pengajuan (cuti/izin/lembur) di atas presensi biasa -
+                            // pengajuan menjelaskan KENAPA hari itu tidak presensi normal.
+                            if ($primaryRequest) {
+                                $meta = $requestTypeMeta[$primaryRequest['type']];
+                                $isPending = $primaryRequest['status'] !== 'approved';
+                                $cellStyle = "background:color-mix(in srgb, {$meta['color']} " . ($isPending ? '10' : '16') . "%, var(--surface));"
+                                    . "color:{$meta['color']};font-weight:700;"
+                                    . ($isPending ? "border:1.5px dashed {$meta['color']};" : '');
+                            } elseif ($attendance) {
+                                $statusColor = match ($attendance->status) {
+                                    'present' => '#047C54', 'late' => '#d97706', 'absent' => '#dc2626', default => '#64748b',
+                                };
+                                $cellStyle = "background:color-mix(in srgb, {$statusColor} 12%, var(--surface));color:{$statusColor};font-weight:700;";
+                            } else {
+                                $cellStyle = 'color:var(--text-muted);';
+                            }
+
+                            $tooltipParts = collect();
+                            if ($attendance) {
+                                $tooltipParts->push(\App\Enum\AttendanceStatus::from($attendance->status)->getLabel());
+                            }
+                            foreach ($requests as $marker) {
+                                $meta = $requestTypeMeta[$marker['type']];
+                                $statusLabel = \App\Enum\AttendanceReqStatus::from($marker['status'])->getLabel();
+                                $tooltipParts->push("{$meta['label']} ({$statusLabel})");
+                            }
+                        @endphp
+                        <div
+                            @if ($tooltipParts->isNotEmpty()) title="{{ $tooltipParts->implode(', ') }}" @endif
+                            style="aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:8px;font-size:11px;{{ $cellStyle }}
+                                {{ $cell['date']->isToday() ? 'box-shadow:inset 0 0 0 1.5px #042c6c;' : '' }}">
+                            {{ $cell['date']->day }}
+                            @if ($primaryRequest || $attendance)
+                                <span style="width:4px;height:4px;border-radius:50%;background:currentColor;margin-top:1px;"></span>
+                            @endif
+                        </div>
+                    @endif
+                @endforeach
+            </div>
+
+            <div style="margin-top:12px;display:flex;flex-wrap:wrap;gap:8px 14px;">
+                @foreach ($requestTypeMeta as $meta)
+                    <span style="font-size:10.5px;color:var(--text-muted);display:inline-flex;align-items:center;gap:4px;">
+                        <span style="width:7px;height:7px;border-radius:50%;background:{{ $meta['color'] }};display:inline-block;"></span>{{ $meta['label'] }}
+                    </span>
+                @endforeach
+            </div>
         </div>
-        <div style="overflow-x:auto;">
-            <table class="data-table">
-                <thead>
-                    <tr><th>Tanggal</th><th>Jam Masuk</th><th>Jam Keluar</th><th>Status</th></tr>
-                </thead>
-                <tbody>
-                    @forelse ($this->presenceRecords as $presence)
-                        <tr>
-                            <td class="text-sm text-slate-500 whitespace-nowrap">{{ \Carbon\Carbon::parse($presence->date)->translatedFormat('d M Y') }}</td>
-                            <td class="text-sm font-semibold text-slate-800">{{ $formatJam($presence->check_in_time) }}</td>
-                            <td class="text-sm font-semibold text-slate-800">{{ $formatJam($presence->check_out_time) }}</td>
-                            <td>
-                                <span class="badge {{ $presenceBadge($presence->status) }}">
-                                    {{ \App\Enum\AttendanceStatus::from($presence->status)->getLabel() }}
-                                </span>
-                            </td>
-                        </tr>
-                    @empty
-                        <tr><td colspan="4" class="text-center text-sm text-slate-500 py-6">Tidak ada data presensi pada periode ini.</td></tr>
-                    @endforelse
-                </tbody>
-            </table>
+
+        {{-- Kanan: tabel data presensi harian (attendance_records) --}}
+        <div class="card-surface-flush">
+            <div style="padding:18px 20px 14px;border-bottom:1px solid var(--border-soft);">
+                <h4 style="font-size:13.5px;font-weight:700;color:var(--text-heading);margin:0;">Data Presensi</h4>
+            </div>
+            <div style="overflow-x:auto;">
+                <table class="data-table">
+                    <thead>
+                        <tr><th>Tanggal</th><th>Jam Masuk</th><th>Jam Keluar</th><th>Status</th></tr>
+                    </thead>
+                    <tbody>
+                        @forelse ($this->presenceRecords as $presence)
+                            <tr>
+                                <td class="text-sm text-slate-500 whitespace-nowrap">{{ \Carbon\Carbon::parse($presence->date)->translatedFormat('d M Y') }}</td>
+                                <td class="text-sm font-semibold text-slate-800">{{ $formatJam($presence->check_in_time) }}</td>
+                                <td class="text-sm font-semibold text-slate-800">{{ $formatJam($presence->check_out_time) }}</td>
+                                <td>
+                                    <span class="badge {{ $presenceBadge($presence->status) }}">
+                                        {{ \App\Enum\AttendanceStatus::from($presence->status)->getLabel() }}
+                                    </span>
+                                </td>
+                            </tr>
+                        @empty
+                            <tr><td colspan="4" class="text-center text-sm text-slate-500 py-6">Tidak ada data presensi pada periode ini.</td></tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 
     <!-- Section: Absensi -->
     <h3 style="font-size:14px;font-weight:800;color:var(--text-heading);margin-bottom:12px;">Absensi</h3>
 
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:16px;">
-        <div class="stat-card">
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:16px;">
+        <div class="stat-card" style="display:flex;align-items:center;gap:14px;padding:18px 20px;">
             <div class="stat-card-deco" style="background:#1a56c4;"></div>
-            <div style="width:36px;height:36px;background:#dbeafe;border-radius:10px;display:flex;align-items:center;justify-content:center;margin-bottom:16px;">
-                <i class="fa-solid fa-umbrella-beach" style="color:#1a56c4;font-size:14px;"></i>
+            <div style="flex-shrink:0;width:44px;height:44px;background:#dbeafe;border-radius:12px;display:flex;align-items:center;justify-content:center;">
+                <i class="fa-solid fa-umbrella-beach" style="color:#1a56c4;font-size:16px;"></i>
             </div>
-            <p style="font-size:38px;font-weight:800;color:var(--text-heading);letter-spacing:-1.5px;line-height:1;">{{ $this->stats['leave'] }}</p>
-            <p style="font-size:13px;font-weight:600;color:var(--text-muted);margin-top:6px;">Cuti</p>
+            <div style="min-width:0;">
+                <p style="font-size:26px;font-weight:800;color:var(--text-heading);letter-spacing:-0.8px;line-height:1;">{{ $this->stats['leave'] }}</p>
+                <p style="font-size:12.5px;font-weight:600;color:var(--text-muted);margin-top:4px;">Cuti</p>
+            </div>
         </div>
 
-        <div class="stat-card">
+        <div class="stat-card" style="display:flex;align-items:center;gap:14px;padding:18px 20px;">
             <div class="stat-card-deco" style="background:#d97706;"></div>
-            <div style="width:36px;height:36px;background:#fef3c7;border-radius:10px;display:flex;align-items:center;justify-content:center;margin-bottom:16px;">
-                <i class="fa-solid fa-clock" style="color:#d97706;font-size:14px;"></i>
+            <div style="flex-shrink:0;width:44px;height:44px;background:#fef3c7;border-radius:12px;display:flex;align-items:center;justify-content:center;">
+                <i class="fa-solid fa-clock" style="color:#d97706;font-size:16px;"></i>
             </div>
-            <p style="font-size:38px;font-weight:800;color:var(--text-heading);letter-spacing:-1.5px;line-height:1;">{{ $this->stats['permission'] }}</p>
-            <p style="font-size:13px;font-weight:600;color:var(--text-muted);margin-top:6px;">Izin</p>
+            <div style="min-width:0;">
+                <p style="font-size:26px;font-weight:800;color:var(--text-heading);letter-spacing:-0.8px;line-height:1;">{{ $this->stats['permission'] }}</p>
+                <p style="font-size:12.5px;font-weight:600;color:var(--text-muted);margin-top:4px;">Izin</p>
+            </div>
         </div>
 
-        <div class="stat-card">
+        <div class="stat-card" style="display:flex;align-items:center;gap:14px;padding:18px 20px;">
             <div class="stat-card-deco" style="background:#047C54;"></div>
-            <div style="width:36px;height:36px;background:#dcfce7;border-radius:10px;display:flex;align-items:center;justify-content:center;margin-bottom:16px;">
-                <i class="fa-solid fa-briefcase-clock" style="color:#15803d;font-size:14px;"></i>
+            <div style="flex-shrink:0;width:44px;height:44px;background:#dcfce7;border-radius:12px;display:flex;align-items:center;justify-content:center;">
+                <i class="fa-solid fa-briefcase-clock" style="color:#15803d;font-size:16px;"></i>
             </div>
-            <p style="font-size:38px;font-weight:800;color:var(--text-heading);letter-spacing:-1.5px;line-height:1;">{{ $this->stats['overtime'] }}</p>
-            <p style="font-size:13px;font-weight:600;color:var(--text-muted);margin-top:6px;">Lembur</p>
+            <div style="min-width:0;">
+                <p style="font-size:26px;font-weight:800;color:var(--text-heading);letter-spacing:-0.8px;line-height:1;">{{ $this->stats['overtime'] }}</p>
+                <p style="font-size:12.5px;font-weight:600;color:var(--text-muted);margin-top:4px;">Lembur</p>
+            </div>
         </div>
     </div>
 

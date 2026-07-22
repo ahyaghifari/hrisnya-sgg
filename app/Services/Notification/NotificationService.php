@@ -2,19 +2,26 @@
 
 namespace App\Services\Notification;
 
+use App\Enum\NotificationTypeEnum;
 use App\Models\DatabaseNotification;
 use App\Models\User;
 use Illuminate\Support\Str;
 
 class NotificationService
 {
+    public function __construct(protected NotificationPreferenceService $preferenceService) {}
+
     public function sendOvertimeRequestNotification(
         User $approver,
         array $requestData,
         string $requesterName
     ): void {
+        if (! $this->preferenceService->isEnabled($approver, NotificationTypeEnum::APPROVAL_NEEDS_ACTION)) {
+            return;
+        }
+
         $notificationId = Str::uuid();
-        
+
         DatabaseNotification::create([
             'id' => $notificationId,
             'type' => 'App\\Notifications\\OvertimeRequestSubmitted',
@@ -42,8 +49,12 @@ class NotificationService
         array $requestData,
         string $requesterName
     ): void {
+        if (! $this->preferenceService->isEnabled($approver, NotificationTypeEnum::APPROVAL_NEEDS_ACTION)) {
+            return;
+        }
+
         $notificationId = Str::uuid();
-        
+
         DatabaseNotification::create([
             'id' => $notificationId,
             'type' => 'App\\Notifications\\LeaveRequestSubmitted',
@@ -70,8 +81,12 @@ class NotificationService
         array $requestData,
         string $requesterName
     ): void {
+        if (! $this->preferenceService->isEnabled($approver, NotificationTypeEnum::APPROVAL_NEEDS_ACTION)) {
+            return;
+        }
+
         $notificationId = Str::uuid();
-        
+
         DatabaseNotification::create([
             'id' => $notificationId,
             'type' => 'App\\Notifications\\PermissionRequestSubmitted',

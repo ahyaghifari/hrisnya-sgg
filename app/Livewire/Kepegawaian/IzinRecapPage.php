@@ -27,6 +27,7 @@ class IzinRecapPage extends Component
     public ?string $date_from = null;
     public ?string $date_to = null;
     public ?string $selectedUserId = null;
+    public string $search = '';
 
     public function mount(): void
     {
@@ -130,11 +131,10 @@ class IzinRecapPage extends Component
             ];
         })
             ->sortByDesc('total')
-            ->values()
-            ->all();
+            ->values();
 
-        // Card perhitungan keseluruhan — total per kategori + grand total, dijumlah dari
-        // seluruh baris karyawan di atas (bukan query terpisah, biar selalu konsisten).
+        // Total keseluruhan (kartu ringkasan) dihitung dari SEMUA baris sebelum difilter cari
+        // nama — supaya angka overview tidak diam-diam berubah cuma karena user lagi ngetik cari.
         $overallCounts = $emptyCounts;
         foreach ($rows as $row) {
             foreach ($row['counts'] as $key => $value) {
@@ -142,13 +142,24 @@ class IzinRecapPage extends Component
             }
         }
 
+        $search = trim($this->search);
+        if ($search !== '') {
+            $rows = $rows->filter(fn ($row) => str_contains(mb_strtolower($row['user']->name), mb_strtolower($search))
+                || str_contains(mb_strtolower($row['user']->nip ?? ''), mb_strtolower($search)));
+        }
+
+        $maxTotal = $rows->max('total') ?: 1;
+        $rows = $rows->map(fn ($row) => $row + ['bar_percent' => (int) round($row['total'] / $maxTotal * 100)])
+            ->values()
+            ->all();
+
         return [
             'categories' => $categories,
             'rows' => $rows,
             'overall' => [
                 'counts' => $overallCounts,
                 'total' => array_sum($overallCounts),
-                'employee_count' => count($rows),
+                'employee_count' => $grouped->count(),
             ],
             'ready' => true,
         ];

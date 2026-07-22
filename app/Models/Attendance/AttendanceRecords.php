@@ -31,6 +31,13 @@ class AttendanceRecords extends Model
         'permission_minutes',
         'status',
         'source',
+        'is_auto_calculated',
+        'work_day_weight',
+    ];
+
+    protected $casts = [
+        'is_auto_calculated' => 'boolean',
+        'work_day_weight'    => 'decimal:1',
     ];
 
     public function user()

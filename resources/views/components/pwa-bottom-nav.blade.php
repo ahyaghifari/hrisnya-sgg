@@ -33,7 +33,7 @@
 
         @if ($canSubmitAttendance)
             <a href="{{ route('my-attendance-requests') }}" wire:navigate class="pwa-bottom-nav-item {{ request()->routeIs('my-attendance-requests*') ? 'active' : '' }}">
-                <i class="fa-solid fa-file-lines"></i> Pengajuan Absensi
+                <i class="fa-solid fa-file-lines"></i> Absensi
             </a>
         @else
             <a href="{{ route('organization-structure') }}" wire:navigate class="pwa-bottom-nav-item {{ request()->routeIs('organization-structure') ? 'active' : '' }}">
@@ -144,15 +144,15 @@
             @endif
             <a href="{{ route('kepegawaian.rekap-izin') }}" wire:navigate class="pwa-menu-grid-item">
                 <span class="pwa-menu-grid-icon navy"><i class="fa-solid fa-file-lines"></i></span>
-                <span class="pwa-menu-grid-label">Izin</span>
+                <span class="pwa-menu-grid-label">Rekap Izin</span>
             </a>
-            <a href="{{ route('my-attendance-requests.leave') }}" wire:navigate class="pwa-menu-grid-item">
+            <a href="{{ route('kepegawaian.rekap-cuti') }}" wire:navigate class="pwa-menu-grid-item">
                 <span class="pwa-menu-grid-icon teal"><i class="fa-solid fa-umbrella-beach"></i></span>
-                <span class="pwa-menu-grid-label">Cuti</span>
+                <span class="pwa-menu-grid-label">Rekap Cuti</span>
             </a>
-            <a href="{{ route('my-attendance-requests.overtime') }}" wire:navigate class="pwa-menu-grid-item">
+            <a href="{{ route('kepegawaian.rekap-lembur') }}" wire:navigate class="pwa-menu-grid-item">
                 <span class="pwa-menu-grid-icon gold"><i class="fa-solid fa-business-time"></i></span>
-                <span class="pwa-menu-grid-label">Lembur</span>
+                <span class="pwa-menu-grid-label">Rekap Lembur</span>
             </a>
         @endif
 

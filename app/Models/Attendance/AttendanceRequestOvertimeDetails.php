@@ -24,4 +24,9 @@ class AttendanceRequestOvertimeDetails extends Model
         'end_time',
         'total_hours',
     ];
+
+    public function attendanceRequest()
+    {
+        return $this->belongsTo(AttendanceRequests::class, 'request_id', 'id');
+    }
 }

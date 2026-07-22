@@ -56,6 +56,14 @@
     <i class="fa-solid fa-chevron-right"></i>
 </a>
 
+<a href="{{ route('akun.notifikasi') }}" wire:navigate class="pwa-list-row" style="background:var(--surface);border-radius:16px;box-shadow:var(--shadow-card);text-decoration:none;margin-bottom:16px;border-bottom:none;">
+    <div class="pwa-tile-icon neutral"><i class="fa-solid fa-bell"></i></div>
+    <div style="flex:1;min-width:0;">
+        <p style="font-size:13.5px;font-weight:600;color:var(--text-heading);margin:0;">Pengaturan Notifikasi</p>
+    </div>
+    <i class="fa-solid fa-chevron-right"></i>
+</a>
+
 <form method="POST" action="{{ route('logout') }}">
     @csrf
     <button type="submit" style="width:100%;display:flex;align-items:center;justify-content:center;gap:8px;background:var(--danger-soft-bg) !important;color:var(--danger-soft-text) !important;border:none;border-radius:12px;padding:13px;font-size:13.5px;font-weight:700;cursor:pointer;">

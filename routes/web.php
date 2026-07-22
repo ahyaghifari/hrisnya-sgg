@@ -17,10 +17,12 @@ use App\Livewire\Kanban\KanbanBoardsList;
 use App\Livewire\Kanban\KanbanPersonalTasks;
 use App\Livewire\Kepegawaian\CreateKaryawan;
 use App\Livewire\Kepegawaian\CreateUserTransitionPage;
+use App\Livewire\Kepegawaian\CutiRecapPage;
 use App\Livewire\Kepegawaian\DocumentFormPage;
 use App\Livewire\Kepegawaian\DocumentsPage;
 use App\Livewire\Kepegawaian\IzinRecapPage;
 use App\Livewire\Kepegawaian\KaryawanPage;
+use App\Livewire\Kepegawaian\LemburRecapPage;
 use App\Livewire\Kepegawaian\UserTransitionDetailPage;
 use App\Livewire\Kepegawaian\UserTransitionsPage;
 use App\Livewire\Keuangan\IncentivesPage;
@@ -50,6 +52,7 @@ use App\Livewire\Presensi\ScheduleDetailPage;
 use App\Livewire\Presensi\SchedulesPage;
 use App\Http\Controllers\Pwa\PushSubscriptionController;
 use App\Livewire\Pwa\Akun as PwaAkun;
+use App\Livewire\Pwa\NotificationSettingsPage;
 use App\Livewire\Pwa\UbahPassword as PwaUbahPassword;
 use App\Livewire\SubmitLeaveRequest;
 use App\Livewire\SubmitOvertimeRequest;
@@ -75,6 +78,9 @@ Route::middleware(['auth', 'portal.access'])->group(function () {
 
     Route::get('/akun/ubah-password', PwaUbahPassword::class)
         ->name('akun.ubah-password');
+
+    Route::get('/akun/notifikasi', NotificationSettingsPage::class)
+        ->name('akun.notifikasi');
 
     Route::post('/push/subscribe', [PushSubscriptionController::class, 'store'])
         ->name('push.subscribe');
@@ -115,6 +121,12 @@ Route::middleware(['auth', 'portal.access'])->group(function () {
 
     Route::get('/kepegawaian/rekap-izin', IzinRecapPage::class)
         ->name('kepegawaian.rekap-izin');
+
+    Route::get('/kepegawaian/rekap-cuti', CutiRecapPage::class)
+        ->name('kepegawaian.rekap-cuti');
+
+    Route::get('/kepegawaian/rekap-lembur', LemburRecapPage::class)
+        ->name('kepegawaian.rekap-lembur');
 
     Route::get('/kepegawaian/perubahan-status', UserTransitionsPage::class)
         ->name('kepegawaian.mutasi-karyawan');

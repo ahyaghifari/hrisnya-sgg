@@ -5,6 +5,7 @@ namespace App\Livewire;
 use App\Enum\AttendanceReqStatus;
 use App\Enum\AttendanceStatus;
 use App\Exports\Attendance\AttendanceHistoryExport;
+use App\Livewire\Concerns\ResolvesTodayAttendanceStatus;
 use App\Models\Attendance\AttendanceRecords;
 use App\Models\Attendance\AttendanceRequests;
 use App\Models\User;
@@ -12,17 +13,22 @@ use App\Models\User\UserDocuments;
 use App\Services\Attendance\AttendaceReqService;
 use App\Services\Attendance\AttendancePeriodResolver;
 use App\Services\OrgHierarchyService;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
 use Maatwebsite\Excel\Facades\Excel;
 
 class EmployeeAttendanceStatistics extends Component
 {
+    use ResolvesTodayAttendanceStatus;
+
     public User $record;
 
     public ?string $date_from = null;
     public ?string $date_to = null;
     public string $status = 'approved';
+
+    public string $calendarMonth;
 
     public function mount(?User $record = null): void
     {
@@ -49,6 +55,8 @@ class EmployeeAttendanceStatistics extends Component
         [$periodStart, $periodEnd] = AttendancePeriodResolver::resolve(now(), $this->record->company_id);
         $this->date_from = $periodStart->toDateString();
         $this->date_to = $periodEnd->toDateString();
+
+        $this->calendarMonth = now()->format('Y-m');
     }
 
     protected function canManage(User $record): bool
@@ -134,6 +142,11 @@ class EmployeeAttendanceStatistics extends Component
             ->first();
     }
 
+    public function getTodayAttendanceStatusProperty(): array
+    {
+        return $this->todayAttendanceStatus($this->record, $this->todayPresence);
+    }
+
     public function getPresenceRecordsProperty()
     {
         return AttendanceRecords::query()
@@ -141,6 +154,117 @@ class EmployeeAttendanceStatistics extends Component
             ->whereBetween('date', [$this->date_from, $this->date_to])
             ->orderByDesc('date')
             ->get();
+    }
+
+    public function getCalendarMonthLabelProperty(): string
+    {
+        return Carbon::parse($this->calendarMonth . '-01')->locale('id')->translatedFormat('F Y');
+    }
+
+    public function prevMonth(): void
+    {
+        $this->calendarMonth = Carbon::parse($this->calendarMonth . '-01')->subMonthNoOverflow()->format('Y-m');
+    }
+
+    public function nextMonth(): void
+    {
+        $this->calendarMonth = Carbon::parse($this->calendarMonth . '-01')->addMonthNoOverflow()->format('Y-m');
+    }
+
+    /**
+     * Grid kalender bulan berjalan, Senin-Minggu, sama pola dengan HolidaysPage - sel null buat
+     * padding sebelum tanggal 1 & setelah tanggal terakhir. Tiap sel bawa presensi hari itu
+     * (attendance_records) DAN pengajuan yang menyentuh hari itu (approved/submitted/in_review -
+     * bukan cuma approved, biar kelihatan juga yang masih proses persetujuan).
+     *
+     * @return array<int, array{date: Carbon, attendance: ?AttendanceRecords, requests: \Illuminate\Support\Collection}|null>
+     */
+    public function getCalendarDaysProperty(): array
+    {
+        $start = Carbon::parse($this->calendarMonth . '-01');
+        $end   = $start->copy()->endOfMonth();
+
+        $attendanceByDate = AttendanceRecords::query()
+            ->where('user_id', $this->record->id)
+            ->whereBetween('date', [$start->toDateString(), $end->toDateString()])
+            ->get()
+            ->keyBy(fn (AttendanceRecords $r) => Carbon::parse($r->date)->toDateString());
+
+        $requestsByDate = $this->requestMarkersForMonth($start, $end);
+
+        $leadingBlanks = $start->dayOfWeekIso - 1; // Senin=1 -> 0 blank, Minggu=7 -> 6 blank
+        $cells = array_fill(0, $leadingBlanks, null);
+
+        for ($day = 1; $day <= $end->day; $day++) {
+            $date = $start->copy()->day($day);
+            $dateKey = $date->toDateString();
+            $cells[] = [
+                'date'       => $date,
+                'attendance' => $attendanceByDate->get($dateKey),
+                'requests'   => $requestsByDate->get($dateKey, collect()),
+            ];
+        }
+
+        while (count($cells) % 7 !== 0) {
+            $cells[] = null;
+        }
+
+        return $cells;
+    }
+
+    /**
+     * Kumpulkan marker pengajuan (cuti/izin/lembur, approved+submitted+in_review) yang
+     * menyentuh bulan ini, dikelompokkan per tanggal. Cuti dipakai rentang start_date/end_date
+     * (null end_date = 1 hari), izin/lembur dipakai tanggal tunggal per detail baris.
+     *
+     * @return \Illuminate\Support\Collection<string, \Illuminate\Support\Collection>
+     */
+    private function requestMarkersForMonth(Carbon $start, Carbon $end): \Illuminate\Support\Collection
+    {
+        $activeStatuses = ['approved', 'submitted', 'in_review'];
+        $markers = collect();
+
+        $addMarker = function (string $dateKey, string $type, string $status) use (&$markers) {
+            $existing = $markers->get($dateKey, collect());
+            $markers->put($dateKey, $existing->push(['type' => $type, 'status' => $status]));
+        };
+
+        $requests = AttendanceRequests::query()
+            ->where('user_id', $this->record->id)
+            ->whereIn('status', $activeStatuses)
+            ->whereIn('type', ['leave', 'permission', 'overtime'])
+            ->with(['leaveDetails', 'permissionDetails', 'overtimeDetails'])
+            ->get();
+
+        foreach ($requests as $request) {
+            foreach ($request->leaveDetails as $detail) {
+                $rangeStart = Carbon::parse($detail->start_date);
+                $rangeEnd   = $detail->end_date ? Carbon::parse($detail->end_date) : $rangeStart->copy();
+
+                $clampStart = $rangeStart->lt($start) ? $start->copy() : $rangeStart;
+                $clampEnd   = $rangeEnd->gt($end) ? $end->copy() : $rangeEnd;
+
+                for ($d = $clampStart->copy(); $d->lte($clampEnd); $d->addDay()) {
+                    $addMarker($d->toDateString(), 'leave', $request->status);
+                }
+            }
+
+            foreach ($request->permissionDetails as $detail) {
+                $date = Carbon::parse($detail->date);
+                if ($date->between($start, $end)) {
+                    $addMarker($date->toDateString(), 'permission', $request->status);
+                }
+            }
+
+            foreach ($request->overtimeDetails as $detail) {
+                $date = Carbon::parse($detail->date);
+                if ($date->between($start, $end)) {
+                    $addMarker($date->toDateString(), 'overtime', $request->status);
+                }
+            }
+        }
+
+        return $markers;
     }
 
     public function getDocumentsProperty()

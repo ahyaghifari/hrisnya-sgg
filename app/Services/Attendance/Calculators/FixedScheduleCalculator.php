@@ -1,0 +1,130 @@
+<?php
+
+namespace App\Services\Attendance\Calculators;
+
+use App\Enum\AttendanceStatus;
+use App\Models\Shift\ScheduleFixedDay;
+use App\Services\Attendance\Calculators\Concerns\ComputesWorkDayWeight;
+use Carbon\Carbon;
+
+/**
+ * Tahap 5 (Fixed) pipeline access_logs -> jadwal. Terima array entri dari
+ * AccessLogScheduleReader (sudah punya user/date/check_in/check_out/config), hitung
+ * telat/pulang-cepat/jam-kerja/status pakai kolom "Pengaturan Lanjutan" ScheduleFixedDay,
+ * kembalikan array hasil. Tidak tahu apa-apa soal access_logs atau resolusi jadwal - reusable
+ * untuk sumber input lain selama bentuk entrinya sama.
+ */
+class FixedScheduleCalculator
+{
+    use ComputesWorkDayWeight;
+
+    public function calculate(array $entries): array
+    {
+        return array_map(fn (array $entry) => $this->calculateOne($entry), $entries);
+    }
+
+    private function calculateOne(array $entry): array
+    {
+        /** @var ScheduleFixedDay $config */
+        $config = $entry['config'];
+
+        $start = Carbon::createFromFormat('H:i:s', $config->start_time);
+        $end   = Carbon::createFromFormat('H:i:s', $config->end_time);
+
+        $ci = Carbon::createFromFormat('H:i:s', $entry['check_in']);
+
+        $earliestCheckIn = $start->copy()->subMinutes($config->checkin_buffer_minutes);
+        $latestCheckOut  = $end->copy()->addMinutes($config->checkout_buffer_minutes);
+
+        $lateThreshold = $start->copy()->addMinutes($config->late_tolerance_minutes);
+        $lateMinutes   = $ci->gt($lateThreshold) ? (int) $lateThreshold->diffInMinutes($ci) : 0;
+
+        $earlyLeaveMinutes = 0;
+        $workingMinutes    = null;
+        $overtimeMinutes   = $this->overtimeBefore($config, $start, $ci);
+        $outOfWindow       = $ci->lt($earliestCheckIn);
+
+        if ($entry['check_out']) {
+            $co = Carbon::createFromFormat('H:i:s', $entry['check_out']);
+
+            $earlyThreshold = $end->copy()->subMinutes($config->early_leave_tolerance_minutes);
+            if ($co->lt($earlyThreshold)) {
+                $earlyLeaveMinutes = (int) $co->diffInMinutes($earlyThreshold);
+            }
+
+            $workingMinutes = max(0, (int) $ci->diffInMinutes($co) - $config->break_minutes);
+            if ($config->max_work_minutes) {
+                $workingMinutes = min($workingMinutes, $config->max_work_minutes);
+            }
+
+            $overtimeMinutes += $this->overtimeAfter($config, $end, $co);
+            $outOfWindow = $outOfWindow || $co->gt($latestCheckOut);
+        }
+
+        // status disamakan dengan AttendanceStatus enum (dipakai luas oleh Filament/payroll) -
+        // sama seperti AttendanceImportService::computeMetricsFromCheckTimes(): early leave TIDAK
+        // mengubah status, cuma tercatat di early_leave_minutes. checkout kosong juga tetap
+        // 'present' (karyawan sudah check-in, cuma belum/lupa check-out).
+        // ponytail: lembur auto-hitung dari raw scan TIDAK mengubah status jadi 'overtime' -
+        // beda dari AttendanceImportService yang cuma pakai status overtime untuk pengajuan yang
+        // SUDAH disetujui (AttendanceRequests type=overtime). Auto-deteksi dari scan mentah tidak
+        // boleh menyamai kekuatan approval manusia, cuma tercatat di overtime_minutes.
+        // half_day_threshold_minutes/absent_threshold_minutes/counted_work_days TIDAK mengubah
+        // status (keputusan eksplisit) - cuma menghasilkan work_day_weight terpisah, dipakai
+        // rekap payroll buat jumlah hari kerja efektif, bukan status kehadiran harian.
+        $status = $lateMinutes > 0 ? AttendanceStatus::LATE->value : AttendanceStatus::PRESENT->value;
+
+        return $entry + [
+            'late_minutes'        => $lateMinutes,
+            'early_leave_minutes' => $earlyLeaveMinutes,
+            'working_minutes'     => $workingMinutes,
+            'overtime_minutes'    => $overtimeMinutes > 0 ? $overtimeMinutes : null,
+            'work_day_weight'     => $this->workDayWeight($config, $workingMinutes),
+            'status'              => $status,
+            'out_of_window'       => $outOfWindow,
+        ];
+    }
+
+    /**
+     * Lembur SEBELUM jam masuk: check-in lebih awal dari start_time - overtime_before_min,
+     * dibatasi jendela overtime_before_max, overtime_before_break dikurangkan dari durasinya
+     * (sama pola dengan break_minutes dikurangkan dari jam kerja biasa).
+     */
+    private function overtimeBefore(ScheduleFixedDay $config, Carbon $start, Carbon $ci): int
+    {
+        if ($config->overtime_before_max <= 0) {
+            return 0;
+        }
+
+        $countedFrom = $start->copy()->subMinutes($config->overtime_before_max);
+        $countedTo   = $start->copy()->subMinutes($config->overtime_before_min);
+        $effectiveCi = $ci->gt($countedFrom) ? $ci : $countedFrom;
+
+        if ($effectiveCi->gte($countedTo)) {
+            return 0;
+        }
+
+        return max(0, (int) $effectiveCi->diffInMinutes($countedTo) - $config->overtime_before_break);
+    }
+
+    /**
+     * Lembur SETELAH jam pulang: check-out lebih lambat dari end_time + overtime_after_min,
+     * dibatasi jendela overtime_after_max, overtime_after_break dikurangkan dari durasinya.
+     */
+    private function overtimeAfter(ScheduleFixedDay $config, Carbon $end, Carbon $co): int
+    {
+        if ($config->overtime_after_max <= 0) {
+            return 0;
+        }
+
+        $countedFrom  = $end->copy()->addMinutes($config->overtime_after_min);
+        $countedTo    = $end->copy()->addMinutes($config->overtime_after_max);
+        $effectiveCo  = $co->lt($countedTo) ? $co : $countedTo;
+
+        if ($effectiveCo->lte($countedFrom)) {
+            return 0;
+        }
+
+        return max(0, (int) $countedFrom->diffInMinutes($effectiveCo) - $config->overtime_after_break);
+    }
+}

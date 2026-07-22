@@ -6,12 +6,14 @@ use App\Enum\AttendanceReqStatus;
 use App\Enum\Task\TaskStatus;
 use App\Models\Shift\ShiftSwapRequests;
 use App\Models\User;
+use App\Notifications\ApprovalNeedsAction;
 use App\Notifications\RequestStatusChanged;
 use App\Repositories\Approval\ApprovalActivityRepository;
 use App\Repositories\Approval\ApprovalHistoryRepository;
 use App\Repositories\Approval\ApprovalSnapshotRepository;
 use App\Repositories\Attendance\AttendanceReqRepository;
 use App\Repositories\Task\TaskRepository;
+use App\Services\Notification\NotificationService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
@@ -23,6 +25,7 @@ class ApprovalFlowService
         protected ApprovalHistoryRepository $historyRepo,
         protected AttendanceReqRepository $attendanceReqRepository,
         protected TaskRepository $taskRepository,
+        protected NotificationService $notificationService,
     ) {}
 
     public function getNextApprover($snapshot): ?array
@@ -179,6 +182,17 @@ class ApprovalFlowService
                     'current_step_order' => $next['step_order'],
                     'status' => 'in_review',
                 ]);
+
+                // Kabari approver step berikutnya - snapshot->activity di-refresh dulu biar
+                // getFirstApproverFromSnapshot() resolve dari data step BARU (bukan step lama
+                // yang baru saja selesai), meski namanya "First" method ini generik: baca
+                // activity apa adanya saat dipanggil.
+                $snapshot->refresh();
+                $nextApprover = $this->notificationService->getFirstApproverFromSnapshot($snapshot);
+                if ($nextApprover) {
+                    $requesterName = User::find($snapshot->created_by)?->name ?? 'Seseorang';
+                    $nextApprover->notify(new ApprovalNeedsAction($snapshot->module_type, $snapshot->module_id, $requesterName));
+                }
 
             } else {
                 $activity = $this->activityRepo->update($activity, [

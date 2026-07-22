@@ -25,7 +25,9 @@ class AttendanceRecordRepository
             'overtime_minutes'    => $data['overtime_minutes'] ?? null,
             'permission_minutes'  => $data['permission_minutes'] ?? null,
             'status'              => $data['status'] ?? 'present',
-            'source'              => 'import',
+            'source'              => $data['source'] ?? 'import',
+            'is_auto_calculated'  => $data['is_auto_calculated'] ?? false,
+            'work_day_weight'     => $data['work_day_weight'] ?? null,
         ];
         
         // Log the data being saved

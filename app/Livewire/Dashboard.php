@@ -2,6 +2,7 @@
 
 namespace App\Livewire;
 
+use App\Livewire\Concerns\ResolvesTodayAttendanceStatus;
 use App\Models\Kanban\KanbanTask;
 use App\Models\LMS\LmsCourseUsers;
 use Illuminate\Support\Facades\Auth;
@@ -11,6 +12,13 @@ use Livewire\Component;
 #[Layout('components.layout', ['title' => 'Beranda'])]
 class Dashboard extends Component
 {
+    use ResolvesTodayAttendanceStatus;
+
+    public function getTodayAttendanceStatusProperty(): array
+    {
+        return $this->todayAttendanceStatus(Auth::user());
+    }
+
     public function getRecentKanbanTasksProperty()
     {
         $userId = Auth::id();

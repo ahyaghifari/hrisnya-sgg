@@ -1,0 +1,165 @@
+<?php
+
+namespace App\Livewire\Concerns;
+
+use App\Enum\Attendance\PermissionTypeCategoryEnum;
+use App\Models\Attendance\AttendanceRecords;
+use App\Models\Attendance\AttendanceRequests;
+use App\Models\Master\Attendance\Holidays;
+use App\Models\User;
+use App\Services\Attendance\ScheduleResolver;
+use Carbon\Carbon;
+
+/**
+ * Status presensi "hari ini" untuk 1 user - gabungan jadwal (Fixed/Flexible/Shift), hari libur
+ * (dari jadwal ATAU m_holidays), cuti/izin yang approved hari ini, dan data attendance_records
+ * asli kalau ada. Dipakai bareng oleh Dashboard (kartu Presensi Hari Ini di home) dan
+ * EmployeeAttendanceStatistics (kartu sama di tab Presensi & Absensi, Data Diri) - sengaja 1
+ * tempat biar aturan prioritas (Libur > Cuti > Izin Seharian > Izin biasa > normal) konsisten
+ * di kedua tampilan, bukan 2 logic terpisah yang bisa mencong.
+ */
+trait ResolvesTodayAttendanceStatus
+{
+    /**
+     * @return array{
+     *     schedule_type_label: ?string,
+     *     schedule_name: ?string,
+     *     schedule_detail: ?string,
+     *     state: 'holiday'|'leave'|'full_day_permission'|'permission'|'no_schedule'|'normal',
+     *     color: 'red'|'blue'|'yellow'|'green'|'gray',
+     *     note: ?string,
+     *     attendance: ?AttendanceRecords,
+     * }
+     */
+    protected function todayAttendanceStatus(User $user, ?AttendanceRecords $attendance = null): array
+    {
+        $todayStr = Carbon::today()->toDateString();
+
+        $resolved = app(ScheduleResolver::class)->resolveForUserDate($user, $todayStr);
+
+        $scheduleTypeLabel = match ($resolved['type'] ?? null) {
+            'fixed'    => 'Jadwal Tetap',
+            'flexible' => 'Jadwal Fleksibel',
+            'shift'    => 'Jadwal Shift',
+            default    => null,
+        };
+
+        $scheduleName = $resolved['schedule']->name ?? null;
+
+        // Detail singkat yang paling relevan per tipe: Fixed/Shift jam kerjanya (kapan aja
+        // scan-nya harus di rentang ini), Flexible target minimal jam kerja (kapan aja boleh
+        // scan, yang penting total jam kerjanya cukup).
+        $scheduleDetail = match ($resolved['type'] ?? null) {
+            'fixed' => isset($resolved['config'])
+                ? substr($resolved['config']->start_time, 0, 5) . '–' . substr($resolved['config']->end_time, 0, 5)
+                : null,
+            'shift' => isset($resolved['config'])
+                ? $resolved['config']->name . ' ' . substr($resolved['config']->start_time, 0, 5) . '–' . substr($resolved['config']->end_time, 0, 5)
+                : null,
+            'flexible' => isset($resolved['config']) && $resolved['config']->min_work_minutes > 0
+                ? 'min. ' . $this->formatMinutesAsHours($resolved['config']->min_work_minutes)
+                : null,
+            default => null,
+        };
+
+        $attendance ??= AttendanceRecords::where('user_id', $user->id)->where('date', $todayStr)->first();
+
+        $holiday      = Holidays::where('date', $todayStr)->first();
+        $isScheduleOff = (bool) ($resolved['is_off_day'] ?? false);
+
+        if ($holiday || $isScheduleOff) {
+            return [
+                'schedule_type_label' => $scheduleTypeLabel,
+                'schedule_name'       => $scheduleName,
+                'schedule_detail'     => $scheduleDetail,
+                'state'          => 'holiday',
+                'color'          => 'red',
+                'note'           => $holiday?->name ?? 'Hari libur sesuai jadwal',
+                'attendance'     => $attendance,
+            ];
+        }
+
+        $leave = AttendanceRequests::query()
+            ->where('user_id', $user->id)
+            ->where('type', 'leave')
+            ->where('status', 'approved')
+            ->whereHas('leaveDetails', fn ($q) => $q
+                ->where(fn ($q2) => $q2->whereNotNull('end_date')->where('start_date', '<=', $todayStr)->where('end_date', '>=', $todayStr))
+                ->orWhere(fn ($q2) => $q2->whereNull('end_date')->where('start_date', $todayStr))
+            )
+            ->with('leaveDetails')
+            ->first();
+
+        if ($leave) {
+            return [
+                'schedule_type_label' => $scheduleTypeLabel,
+                'schedule_name'       => $scheduleName,
+                'schedule_detail'     => $scheduleDetail,
+                'state'          => 'leave',
+                'color'          => 'blue',
+                'note'           => 'Cuti - ' . ($leave->leaveDetails->first()?->leave_type ?? 'Cuti'),
+                'attendance'     => $attendance,
+            ];
+        }
+
+        $permission = AttendanceRequests::query()
+            ->where('user_id', $user->id)
+            ->where('type', 'permission')
+            ->where('status', 'approved')
+            ->whereHas('permissionDetails', fn ($q) => $q->where('date', $todayStr))
+            ->with(['permissionDetails' => fn ($q) => $q->where('date', $todayStr), 'permissionDetails.permissionType'])
+            ->first();
+
+        if ($permission) {
+            $detail   = $permission->permissionDetails->first();
+            $label    = $detail?->permission_type ?? $detail?->permissionType?->name ?? 'Izin';
+            $isFullDay = $detail?->permissionType?->category === PermissionTypeCategoryEnum::IZIN_SEHARIAN->value;
+
+            return [
+                'schedule_type_label' => $scheduleTypeLabel,
+                'schedule_name'       => $scheduleName,
+                'schedule_detail'     => $scheduleDetail,
+                'state'          => $isFullDay ? 'full_day_permission' : 'permission',
+                'color'          => $isFullDay ? 'yellow' : 'green',
+                'note'           => "Izin - {$label}",
+                'attendance'     => $attendance,
+            ];
+        }
+
+        // Tidak ada jadwal ketemu sama sekali (belum di-assign lewat ScheduleAssignment/roster
+        // Shift) - beda dari "libur" (yang berarti ADA jadwal tapi hari ini off). Ganti isi
+        // kartu jadi pesan eksplisit, bukan diam-diam nampilin jam presensi tanpa konteks jadwal.
+        if (! $resolved) {
+            return [
+                'schedule_type_label' => null,
+                'schedule_name'       => null,
+                'schedule_detail'     => null,
+                'state'               => 'no_schedule',
+                'color'               => 'gray',
+                'note'                => 'Anda belum memiliki jadwal, silakan hubungi pihak terkait.',
+                'attendance'          => $attendance,
+            ];
+        }
+
+        return [
+            'schedule_type_label' => $scheduleTypeLabel,
+            'schedule_name'       => $scheduleName,
+            'schedule_detail'     => $scheduleDetail,
+            'state'               => 'normal',
+            'color'               => 'green',
+            'note'                => null,
+            'attendance'          => $attendance,
+        ];
+    }
+
+    /**
+     * 420 -> "7 jam", 450 -> "7 jam 30 menit".
+     */
+    private function formatMinutesAsHours(int $minutes): string
+    {
+        $hours = intdiv($minutes, 60);
+        $rest  = $minutes % 60;
+
+        return $rest > 0 ? "{$hours} jam {$rest} menit" : "{$hours} jam";
+    }
+}

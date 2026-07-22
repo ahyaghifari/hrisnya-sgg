@@ -2,6 +2,8 @@
 
 namespace App\Notifications;
 
+use App\Enum\NotificationTypeEnum;
+use App\Services\Notification\NotificationPreferenceService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Notification;
@@ -21,6 +23,17 @@ class RequestStatusChanged extends Notification implements ShouldQueue
 
     public function via(object $notifiable): array
     {
+        $type = match ($this->status) {
+            'approved' => NotificationTypeEnum::APPROVAL_APPROVED,
+            'rejected' => NotificationTypeEnum::APPROVAL_REJECTED,
+            'cancelled' => NotificationTypeEnum::APPROVAL_CANCELLED,
+            default => null,
+        };
+
+        if ($type && ! app(NotificationPreferenceService::class)->isEnabled($notifiable, $type)) {
+            return [];
+        }
+
         return ['database', WebPushChannel::class];
     }
 
