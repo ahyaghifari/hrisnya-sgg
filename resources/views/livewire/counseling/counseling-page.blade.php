@@ -1,6 +1,12 @@
 <div>
     <x-page-header title="Counseling" size="lg" />
 
+    <div style="display:flex;justify-content:flex-end;margin-bottom:16px;">
+        <button type="button" wire:click="openConsultModal" class="btn-primary">
+            <i class="fa-solid fa-comment-medical"></i> Konsul
+        </button>
+    </div>
+
     <div class="pwa-list">
         @forelse ($counselings as $counseling)
             <div class="pwa-list-row">
@@ -26,4 +32,23 @@
             </div>
         @endforelse
     </div>
+
+    @if ($showConsultModal)
+        <div class="modal-overlay" wire:click="closeConsultModal">
+            <div class="modal-box modal-box-lg" onclick="event.stopPropagation()">
+                <h3 style="font-size:16px;font-weight:700;color:var(--text-heading);margin:0 0 14px;">Konsul</h3>
+                <form wire:submit="submitConsult" style="display:flex;flex-direction:column;gap:14px;">
+                    <div>
+                        <label class="form-label">Keluhan / Yang ingin dikonsultasikan *</label>
+                        <textarea class="form-input" rows="5" wire:model="issue" placeholder="Ceritakan keluhan atau hal yang ingin Anda konsultasikan..."></textarea>
+                        @error('issue') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
+                    </div>
+                    <div style="display:flex;justify-content:flex-end;gap:10px;">
+                        <button type="button" wire:click="closeConsultModal" class="btn-ghost">Batal</button>
+                        <button type="submit" class="btn-primary">Kirim</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    @endif
 </div>
