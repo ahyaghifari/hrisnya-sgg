@@ -93,14 +93,18 @@
             @endphp
             @forelse ($this->recentTasks as $task)
                 @php
-                    $isOverdue = $task->due_date && $task->due_date->lt(now()->startOfDay());
+                    // Task::due_date sengaja tidak di-cast ke date (lihat komentar di model) —
+                    // Carbon::parse() manual di sini, bukan panggil method Carbon langsung di
+                    // kolom mentah.
+                    $dueDate = $task->due_date ? \Carbon\Carbon::parse($task->due_date) : null;
+                    $isOverdue = $dueDate && $dueDate->lt(now()->startOfDay());
                     $accent = $isOverdue ? '#be123c' : $statusColorHex($task->status);
                 @endphp
                 <a href="{{ route('tugas') }}" wire:navigate class="pwa-list-row" style="text-decoration:none;border-left:4px solid {{ $accent }};padding-left:12px;">
                     <div style="flex:1;min-width:0;">
                         <p class="pwa-row-title">{{ \Illuminate\Support\Str::limit($task->requirement, 50) }}</p>
                         <span style="display:inline-flex;align-items:center;font-size:11px;font-weight:700;color:{{ $accent }};margin-top:4px;">
-                            {{ $isOverdue ? 'Overdue · ' . $task->due_date->translatedFormat('j M') : $statusLabel($task->status) }}
+                            {{ $isOverdue ? 'Overdue · ' . $dueDate->translatedFormat('j M') : $statusLabel($task->status) }}
                         </span>
                     </div>
                     <i class="fa-solid fa-chevron-right"></i>

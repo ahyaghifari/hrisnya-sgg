@@ -152,6 +152,17 @@ class AttendanceRequestDetail extends Component
         return null;
     }
 
+    /** Warning masa kerja minimal (AttendanceSettingEnum::CUTI_MIN_MASA_KERJA_BULAN) — cuma
+     * relevan buat pengajuan Cuti, ditampilkan ke approver, tidak memblokir apa pun. */
+    public function getTenureWarningProperty(): ?string
+    {
+        if ($this->record->type !== 'leave') {
+            return null;
+        }
+
+        return app(AttendaceReqService::class)->getMinimumTenureWarning($this->record->user);
+    }
+
     public function render()
     {
         return view('livewire.attendance-request-detail')

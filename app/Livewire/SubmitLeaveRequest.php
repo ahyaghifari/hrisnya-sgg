@@ -29,6 +29,11 @@ class SubmitLeaveRequest extends Component
         return LeaveTypes::where('company_id', Auth::user()->company_id)->get();
     }
 
+    public function getTenureWarningProperty(): ?string
+    {
+        return app(AttendaceReqService::class)->getMinimumTenureWarning(Auth::user());
+    }
+
     public function updatedLeaveTypeId(): void
     {
         $this->refreshQuota();
@@ -102,7 +107,6 @@ class SubmitLeaveRequest extends Component
 
     public function render()
     {
-        return view('livewire.submit-leave-request')
-            ->layout('components.layout', ['title' => 'Pengajuan Cuti']);
+        return view('livewire.submit-leave-request')->layout('components.layout', ['title' => 'Pengajuan Cuti']);
     }
 }

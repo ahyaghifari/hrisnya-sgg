@@ -14,6 +14,15 @@
         </div>
     </div>
 
+    @if ($this->tenureWarning)
+        <div style="background:var(--danger-soft-bg);border:1px solid var(--danger-soft-border);border-radius:14px;padding:14px 18px;display:flex;align-items:flex-start;gap:14px;margin-bottom:20px;">
+            <div style="width:36px;height:36px;background:var(--danger-soft-bg);border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                <i class="fa-solid fa-triangle-exclamation" style="color:var(--danger-soft-text);font-size:14px;"></i>
+            </div>
+            <p style="font-size:12.5px;font-weight:600;color:var(--danger-soft-text);margin:0;">{{ $this->tenureWarning }}</p>
+        </div>
+    @endif
+
     @if ($balance)
         <div style="background:var(--info-soft-bg);border:1px solid var(--info-soft-border);border-radius:14px;padding:14px 18px;display:flex;align-items:flex-start;gap:14px;margin-bottom:20px;">
             <div style="width:36px;height:36px;background:var(--info-soft-bg);border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">

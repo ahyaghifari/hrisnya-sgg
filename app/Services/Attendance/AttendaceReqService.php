@@ -270,6 +270,37 @@ class AttendaceReqService
     }
 
     /**
+     * Setting AttendanceSettingEnum::CUTI_MIN_MASA_KERJA_BULAN (module attendance,
+     * company-scoped) — TIDAK memblokir submit (sengaja, sama seperti kuota Cuti
+     * Tahunan/Izin di atas), cuma dipakai buat tampilkan warning ke pemohon (form pengajuan)
+     * dan approver (detail pengajuan) kalau masa kerja user (dihitung dari
+     * UserProfiles::joining_date) belum mencapai minimal sekian bulan. 0/tidak diset/
+     * joining_date kosong = tidak ada warning.
+     */
+    public function getMinimumTenureWarning(User $user): ?string
+    {
+        $minMonths = (int) Setting::resolve(AttendanceSettingEnum::CUTI_MIN_MASA_KERJA_BULAN->value, $user->company_id, default: 0);
+
+        if ($minMonths <= 0) {
+            return null;
+        }
+
+        $joiningDate = $user->profile?->joining_date;
+
+        if (! $joiningDate) {
+            return null;
+        }
+
+        $monthsWorked = (int) Carbon::parse($joiningDate)->diffInMonths(Carbon::now());
+
+        if ($monthsWorked >= $minMonths) {
+            return null;
+        }
+
+        return "Masa kerja {$user->name} baru {$monthsWorked} bulan (minimal kebijakan perusahaan: {$minMonths} bulan) — pertimbangkan sebelum menyetujui.";
+    }
+
+    /**
      * Setting AttendanceSettingEnum::CUTI_TAHUNAN_MAX_PER_BULAN (module attendance,
      * company-scoped) — batas AKUMULASI hari Cuti Tahunan (jenis cuti berkategori
      * LeaveTypeCategoryEnum::TAHUNAN, lihat m_leave_types.category) yang boleh diajukan 1 user

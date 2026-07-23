@@ -43,6 +43,15 @@ Redesign: angka "Sisa" jadi fokus utama (besar, warna status) + progress bar, ri
 jadi chip kecil di bawahnya — supaya approver bisa ambil keputusan sekilas lihat, tidak perlu
 baca daftar angka satu-satu. Cuma relevan SAAT approver mau memutuskan — begitu sudah
 disetujui/ditolak/dibatalkan, kuota ini tidak lagi jadi pertimbangan apa pun, jadi disembunyikan. --}}
+@if ($this->tenureWarning)
+    <div style="background:var(--danger-soft-bg);border:1px solid var(--danger-soft-border);border-radius:14px;padding:14px 18px;display:flex;align-items:flex-start;gap:14px;margin-bottom:16px;">
+        <div style="width:36px;height:36px;background:var(--danger-soft-bg);border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            <i class="fa-solid fa-triangle-exclamation" style="color:var(--danger-soft-text);font-size:14px;"></i>
+        </div>
+        <p style="font-size:12.5px;font-weight:600;color:var(--danger-soft-text);margin:0;">{{ $this->tenureWarning }}</p>
+    </div>
+@endif
+
 @if ($this->quotaInfo && $this->canApprove)
     @php
         $kind = $this->quotaInfo['kind'];
