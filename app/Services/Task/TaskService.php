@@ -7,10 +7,17 @@ use App\Enum\Task\TaskStatus;
 use App\Models\ApprovalManagement\MasterApprovalFlows;
 use App\Models\Setting;
 use App\Models\Task\Task;
+use App\Models\Task\TaskAttachment;
 use App\Models\Task\TaskChecklistItem;
 use App\Models\Task\TaskProject;
 use App\Models\Task\TaskProjectMember;
+use App\Models\Task\TaskReview;
 use App\Models\User;
+use App\Notifications\TaskAssigned;
+use App\Notifications\TaskCommented;
+use App\Notifications\TaskReviewDecided;
+use App\Notifications\TaskReviewerAssigned;
+use App\Notifications\TaskProjectMemberAdded;
 use App\Repositories\Approval\ApprovalSnapshotRepository;
 use App\Repositories\Master\DepartmentRepository;
 use App\Repositories\Task\TaskRepository;
@@ -21,6 +28,7 @@ use App\Services\OrgHierarchyService;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
@@ -64,11 +72,12 @@ class TaskService
             }
 
             if ($assignedTo !== $user->id) {
-                $isAllowed = $project
-                    ? $this->canAccessProject($project, User::find($assignedTo))
-                    : $this->orgHierarchyService->subordinates($user)->where('id', $assignedTo)->exists();
-
-                abort_unless($isAllowed, 403, $project ? 'Orang itu bukan anggota project ini.' : 'Hanya bisa menugaskan ke bawahan sendiri.');
+                if ($project) {
+                    abort_unless($this->canAssignInProject($project, $user), 403, 'Kamu tidak punya izin menugaskan ke anggota lain di project ini — cuma owner atau anggota yang ditandai "Assigner" yang boleh.');
+                    abort_unless($this->canAccessProject($project, User::find($assignedTo)), 403, 'Orang itu bukan anggota project ini.');
+                } else {
+                    abort_unless($this->orgHierarchyService->subordinates($user)->where('id', $assignedTo)->exists(), 403, 'Hanya bisa menugaskan ke bawahan sendiri.');
+                }
             }
 
             $departmentId = $user->profile?->department?->id;
@@ -96,8 +105,30 @@ class TaskService
                 $task->checklistItems()->create(['title' => $title]);
             }
 
+            $this->assignReviewers($task, $data['reviewer_ids'] ?? []);
+
+            if ($assignedTo !== $user->id) {
+                User::find($assignedTo)?->notify(new TaskAssigned($task, $user->name));
+            }
+
             return $task;
         });
+    }
+
+    /** Reviewer portal dipilih manual saat bikin task (bukan auto dari created_by) — and-sign,
+     * lihat TaskService::approveReview()/rejectReview(). Dipanggil dari createCasualTask() &
+     * createFormalTask(), bukan dari createTask()/createSelfTask() (jalur mobile, tetap pakai
+     * sla_reviewer_id tunggal). */
+    private function assignReviewers(Task $task, array $reviewerIds): void
+    {
+        foreach (array_unique($reviewerIds) as $reviewerId) {
+            $task->reviews()->create([
+                'reviewer_id' => $reviewerId,
+                'status' => TaskReview::STATUS_PENDING,
+            ]);
+
+            User::find($reviewerId)?->notify(new TaskReviewerAssigned($task, $task->createdBy?->name ?? '-'));
+        }
     }
 
     /**
@@ -133,6 +164,8 @@ class TaskService
                     'user_id' => $memberId,
                     'role' => TaskProjectMember::ROLE_MEMBER,
                 ]);
+
+                User::find($memberId)?->notify(new TaskProjectMemberAdded($project, $user->name));
             }
 
             return $project;
@@ -149,14 +182,34 @@ class TaskService
         return $project->members()->where('user_id', $user->id)->where('role', TaskProjectMember::ROLE_OWNER)->exists();
     }
 
+    /** Owner selalu boleh assign; member biasa cuma kalau ditandai is_assigner oleh owner. */
+    public function canAssignInProject(TaskProject $project, User $user): bool
+    {
+        $member = $project->members()->where('user_id', $user->id)->first();
+
+        return $member?->canAssign() ?? false;
+    }
+
     public function addProjectMember(TaskProject $project, string $userId, User $actor): void
     {
         abort_unless($this->canManageProjectMembers($project, $actor), 403);
 
-        TaskProjectMember::firstOrCreate([
+        $member = TaskProjectMember::firstOrCreate([
             'project_id' => $project->id,
             'user_id' => $userId,
         ], ['role' => TaskProjectMember::ROLE_MEMBER]);
+
+        if ($member->wasRecentlyCreated) {
+            User::find($userId)?->notify(new TaskProjectMemberAdded($project, $actor->name));
+        }
+    }
+
+    /** Cuma owner yang boleh menunjuk/cabut status "Assigner" member lain. */
+    public function setProjectMemberAssigner(TaskProject $project, string $userId, bool $isAssigner, User $actor): void
+    {
+        abort_unless($this->canManageProjectMembers($project, $actor), 403);
+
+        $project->members()->where('user_id', $userId)->update(['is_assigner' => $isAssigner]);
     }
 
     public function removeProjectMember(TaskProject $project, string $userId, User $actor): void
@@ -177,7 +230,8 @@ class TaskService
     public function getProjectTasks(TaskProject $project): Collection
     {
         return $project->tasks()
-            ->with(['assignedTo', 'createdBy', 'checklistItems'])
+            ->with(['assignedTo', 'createdBy', 'checklistItems', 'comments.user'])
+            ->withCount(['attachments', 'reviews'])
             ->orderBy('position')
             ->orderByDesc('created_at')
             ->get();
@@ -210,7 +264,6 @@ class TaskService
                 'created_by' => $user->id,
                 'is_self_assigned' => false,
                 'status' => TaskStatus::PENDING->value,
-                'sla_reviewer_id' => $user->id,
             ]);
 
             foreach ($data['checklist'] ?? [] as $title) {
@@ -220,6 +273,8 @@ class TaskService
 
                 $task->checklistItems()->create(['title' => $title]);
             }
+
+            $this->assignReviewers($task, $data['reviewer_ids'] ?? []);
 
             $this->approvalCreationService->createSnapshot(
                 moduleType: 'task_request',
@@ -292,7 +347,11 @@ class TaskService
             if ($request->hasFile('attachments')) {
                 foreach ($request->file('attachments') as $file) {
                     $path = $file->store('tasks/attachments', 'public');
-                    $this->taskRepository->addAttachment($task->id, $path);
+                    $this->taskRepository->addAttachment($task->id, [
+                        'file_path' => $path,
+                        'file_name' => $file->getClientOriginalName(),
+                        'uploaded_by' => $user->id,
+                    ]);
                 }
             }
 
@@ -422,11 +481,84 @@ class TaskService
     }
 
     /**
+     * And-sign: reviewer approve baris miliknya, task Complete cuma kalau SEMUA baris
+     * task_reviews sudah approved. Khusus portal — jalur mobile tetap pakai reviewTask().
+     */
+    public function approveReview(Task $task, User $user, int $rating, ?string $comment): void
+    {
+        abort_unless($task->status === TaskStatus::REVIEW->value, 422, 'Tugas ini tidak sedang ditinjau.');
+
+        $row = $task->reviews()->where('reviewer_id', $user->id)->where('status', TaskReview::STATUS_PENDING)->first();
+        abort_unless($row, 403, 'Kamu tidak punya review yang menunggu untuk tugas ini.');
+
+        $row->update([
+            'status' => TaskReview::STATUS_APPROVED,
+            'rating' => $rating,
+            'comment' => $comment,
+            'decided_at' => now(),
+        ]);
+
+        $allApproved = ! $task->reviews()->where('status', '!=', TaskReview::STATUS_APPROVED)->exists();
+
+        if ($allApproved) {
+            $task->update([
+                'status' => TaskStatus::COMPLETE->value,
+                'completed_date' => now(),
+                'is_overdue' => $task->due_date && now()->gt($task->due_date),
+            ]);
+        }
+
+        if ($task->assigned_to && $task->assigned_to !== $user->id) {
+            User::find($task->assigned_to)?->notify(new TaskReviewDecided($task, $user->name, true));
+        }
+    }
+
+    /**
+     * Kebalikan approveReview() — reviewer manapun (atau pembuat task, walau bukan reviewer
+     * terdaftar) tolak hasil kerja & kembalikan task ke IN_PROGRESS, bukan status REJECTED
+     * (itu terminal, dipakai jalur approval formal — beda konsep). Reject bersifat ringan:
+     * baris reviewer LAIN yang sudah approved TIDAK direset — mereka tidak perlu vote ulang,
+     * cuma baris yang reject ini yang akan direset ke pending saat task disubmit lagi ke
+     * REVIEW (lihat moveStatus()). Catatan ("kenapa ditolak") tetap disimpan di kolom
+     * `rejected_reason` di Task (dari sesi sebelumnya) — cuma ditampilkan ke assigned_to.
+     */
+    public function rejectReview(Task $task, User $user, string $note): void
+    {
+        abort_unless($task->status === TaskStatus::REVIEW->value, 422, 'Tugas ini tidak sedang ditinjau.');
+
+        $row = $task->reviews()->where('reviewer_id', $user->id)->first();
+        abort_unless($row || $task->created_by === $user->id, 403, 'Kamu tidak punya izin menolak tinjauan tugas ini.');
+
+        $row?->update([
+            'status' => TaskReview::STATUS_REJECTED,
+            'rejected_note' => $note,
+            'decided_at' => now(),
+        ]);
+
+        $task->update([
+            'status' => TaskStatus::IN_PROGRESS->value,
+            'rejected_reason' => $note,
+            'rejection_note_by' => $user->id,
+            'rejection_note_at' => now(),
+        ]);
+
+        if ($task->assigned_to && $task->assigned_to !== $user->id) {
+            User::find($task->assigned_to)?->notify(new TaskReviewDecided($task, $user->name, false));
+        }
+    }
+
+    /**
      * Task yang tampil di halaman Tugas portal — gabungan task milik user (assigned_to atau
      * created_by) dan, kalau dia punya bawahan, task yang assigned_to bawahannya (reuse
      * OrgHierarchyService, pengganti board membership Kanban lama).
      */
-    public function getPortalTasks(User $user, string $scope = 'saya'): Collection
+    /**
+     * $riwayatStatus cuma dipakai kalau $scope === 'riwayat' — beda dari saya/dibuat/tim
+     * (langsung 1 tampilan gabungan), Riwayat di sidebar itu section sendiri (sejajar Project)
+     * isinya 1 tombol per status (Selesai/Ditolak), jadi query-nya perlu tahu status MANA yang
+     * lagi dipilih, bukan gabungan semua status riwayat sekaligus.
+     */
+    public function getPortalTasks(User $user, string $scope = 'saya', ?string $riwayatStatus = null): Collection
     {
         return Task::query()
             ->where('company_id', $user->company_id)
@@ -435,6 +567,19 @@ class TaskService
             ->when($scope === 'tim', function ($q) use ($user) {
                 $subordinateIds = $this->orgHierarchyService->subordinates($user)->pluck('id');
                 $q->whereIn('assigned_to', $subordinateIds);
+            })
+            ->when($scope === 'riwayat', function ($q) use ($user, $riwayatStatus) {
+                $subordinateIds = $this->orgHierarchyService->subordinates($user)->pluck('id');
+                $status = in_array($riwayatStatus, [TaskStatus::COMPLETE->value, TaskStatus::REJECTED->value], true)
+                    ? $riwayatStatus
+                    : TaskStatus::COMPLETE->value;
+
+                $q->where('status', $status)
+                    ->where(function ($q2) use ($user, $subordinateIds) {
+                        $q2->where('assigned_to', $user->id)
+                            ->orWhere('created_by', $user->id)
+                            ->orWhereIn('assigned_to', $subordinateIds);
+                    });
             })
             ->orderBy('position')
             ->orderByDesc('created_at')
@@ -455,6 +600,7 @@ class TaskService
 
         abort_if($task->status === TaskStatus::PENDING->value, 422, 'Tugas masih menunggu approval.');
         abort_if($task->status === TaskStatus::COMPLETE->value, 422, 'Tugas yang sudah selesai tidak bisa dipindah lagi.');
+        abort_if($newStatus === TaskStatus::COMPLETE->value && $task->reviews()->exists(), 422, 'Tugas ini butuh review dulu.');
 
         $order = TaskStatus::BOARD_ORDER;
         $currentIndex = array_search(TaskStatus::from($task->status), $order, true);
@@ -472,6 +618,17 @@ class TaskService
             $updateData['is_overdue'] = $task->due_date && Carbon::now()->gt($task->due_date);
         }
 
+        if ($newStatus === TaskStatus::REVIEW->value) {
+            // Submit/resubmit ke tinjauan — reviewer yang tadi reject boleh vote ulang,
+            // yang sudah approved dari ronde sebelumnya TIDAK direset (reject ringan, lihat
+            // rejectReview()).
+            $task->reviews()->where('status', TaskReview::STATUS_REJECTED)->update([
+                'status' => TaskReview::STATUS_PENDING,
+                'rejected_note' => null,
+                'decided_at' => null,
+            ]);
+        }
+
         $this->taskRepository->update($task->id, $updateData);
     }
 
@@ -486,5 +643,41 @@ class TaskService
             'user_id' => $user->id,
             'comment' => $comment,
         ]);
+
+        $recipientIds = collect([$task->assigned_to, $task->created_by])
+            ->filter()
+            ->unique()
+            ->reject(fn ($id) => $id === $user->id);
+
+        foreach ($recipientIds as $recipientId) {
+            User::find($recipientId)?->notify(new TaskCommented($task, $user->name, $comment));
+        }
+    }
+
+    public function addFileAttachment(Task $task, User $user, UploadedFile $file): void
+    {
+        $path = $file->store('tasks/attachments', 'public');
+
+        $this->taskRepository->addAttachment($task->id, [
+            'type' => TaskAttachment::TYPE_FILE,
+            'file_path' => $path,
+            'file_name' => $file->getClientOriginalName(),
+            'uploaded_by' => $user->id,
+        ]);
+    }
+
+    public function addLinkAttachment(Task $task, User $user, string $url, ?string $label): void
+    {
+        $this->taskRepository->addAttachment($task->id, [
+            'type' => TaskAttachment::TYPE_LINK,
+            'url' => $url,
+            'file_name' => $label ?: $url,
+            'uploaded_by' => $user->id,
+        ]);
+    }
+
+    public function removeAttachment(string $attachmentId): void
+    {
+        $this->taskRepository->deleteAttachment($attachmentId);
     }
 }

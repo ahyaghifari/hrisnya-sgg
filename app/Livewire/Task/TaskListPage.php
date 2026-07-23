@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Url;
 use Livewire\Component;
+use Livewire\WithFileUploads;
 
 /**
  * Halaman "Tugas" portal — pengganti modul Kanban. Board/List cuma mode tampilan atas
@@ -25,8 +26,14 @@ use Livewire\Component;
 #[Layout('components.layout', ['title' => 'Tugas'])]
 class TaskListPage extends Component
 {
-    public string $scope = 'saya'; // saya | dibuat | tim
+    use WithFileUploads;
+
+    public string $scope = 'saya'; // saya | dibuat | tim | riwayat
     public string $view = 'board'; // board | list
+
+    // Cuma dipakai kalau scope === 'riwayat' — section sendiri di sidebar (sejajar Project),
+    // isinya 1 tombol per status, bukan tampilan gabungan seperti saya/dibuat/tim.
+    public ?string $riwayatStatus = null;
 
     #[Url]
     public ?string $activeProjectId = null;
@@ -40,11 +47,22 @@ class TaskListPage extends Component
     public array $checklist = [];
     public bool $requiresApproval = false;
     public ?string $service_id = null;
+    public array $reviewerIds = [];
 
     // Modal detail task
     public ?string $selectedTaskId = null;
     public string $newComment = '';
     public string $newChecklistTitle = '';
+    public ?int $reviewRating = null;
+    public ?string $reviewComment = null;
+    public bool $showRejectForm = false;
+    public string $rejectNote = '';
+
+    // Modal Lampiran (terpisah dari modal detail)
+    public ?string $attachmentsTaskId = null;
+    public $newAttachmentFile = null;
+    public string $newAttachmentLink = '';
+    public string $newAttachmentLinkLabel = '';
 
     // Modal "Project Baru"
     public bool $showProjectModal = false;
@@ -119,6 +137,16 @@ class TaskListPage extends Component
             ->get(['id', 'name']);
     }
 
+    // Reviewer dipilih manual saat bikin task — pool-nya semua user 1 company (bukan
+    // TaskService::getReviewers() lama, itu department-scoped buat kebutuhan mobile beda).
+    public function getReviewerOptionsProperty()
+    {
+        return User::query()
+            ->where('company_id', Auth::user()->company_id)
+            ->orderBy('name')
+            ->get(['id', 'name']);
+    }
+
     public function getCanManageProjectMembersProperty(): bool
     {
         if (! $this->activeProject) {
@@ -136,8 +164,9 @@ class TaskListPage extends Component
             return $service->getProjectTasks($this->activeProject);
         }
 
-        return $service->getPortalTasks(Auth::user(), $this->scope)
-            ->load(['assignedTo', 'createdBy', 'checklistItems']);
+        return $service->getPortalTasks(Auth::user(), $this->scope, $this->riwayatStatus)
+            ->load(['assignedTo', 'createdBy', 'checklistItems', 'comments.user'])
+            ->loadCount(['attachments', 'reviews']);
     }
 
     public function getTasksByStatusProperty(): array
@@ -153,6 +182,20 @@ class TaskListPage extends Component
     {
         $this->scope = $scope;
         $this->activeProjectId = null;
+        $this->riwayatStatus = null;
+        unset($this->tasks);
+    }
+
+    /** Riwayat itu section sendiri di sidebar (sejajar Project) — 1 tombol per status,
+     * bukan 1 tombol gabungan kayak saya/dibuat/tim. */
+    public function selectRiwayatStatus(string $status): void
+    {
+        $this->scope = 'riwayat';
+        $this->riwayatStatus = $status;
+        $this->activeProjectId = null;
+        // Board 2 kolom (Selesai/Ditolak doang) kurang berguna buat riwayat 1 status — List
+        // langsung kebaca lewat badge kolom Status yang sudah ada.
+        $this->view = 'list';
         unset($this->tasks);
     }
 
@@ -167,7 +210,7 @@ class TaskListPage extends Component
 
     public function openCreateTask(): void
     {
-        $this->reset(['requirement', 'due_date', 'assigned_to', 'checklist', 'service_id', 'newChecklistTitle']);
+        $this->reset(['requirement', 'due_date', 'assigned_to', 'checklist', 'service_id', 'newChecklistTitle', 'reviewerIds']);
         $this->priority = TaskPriority::MEDIUM->value;
         $this->requiresApproval = app(TaskService::class)->requiresApprovalByDefault(Auth::user()->company_id);
         $this->showTaskModal = true;
@@ -219,6 +262,7 @@ class TaskListPage extends Component
                     'priority' => $data['priority'],
                     'due_date' => $data['due_date'],
                     'checklist' => $this->checklist,
+                    'reviewer_ids' => $this->reviewerIds,
                 ]);
 
                 Notification::make()->title('Tugas diajukan, menunggu approval')->success()->send();
@@ -235,6 +279,7 @@ class TaskListPage extends Component
                     'assigned_to' => $data['assigned_to'] ?? null,
                     'project_id' => $this->activeProjectId,
                     'checklist' => $this->checklist,
+                    'reviewer_ids' => $this->reviewerIds,
                 ]);
 
                 Notification::make()->title('Tugas berhasil dibuat')->success()->send();
@@ -265,6 +310,8 @@ class TaskListPage extends Component
     {
         $this->selectedTaskId = $taskId;
         $this->newComment = '';
+        $this->showRejectForm = false;
+        $this->rejectNote = '';
     }
 
     public function closeTaskDetail(): void
@@ -278,8 +325,61 @@ class TaskListPage extends Component
             return null;
         }
 
-        return Task::with(['assignedTo', 'createdBy', 'checklistItems', 'comments.user', 'attachments', 'proofs'])
+        return Task::with(['assignedTo', 'createdBy', 'checklistItems', 'comments.user', 'attachments', 'proofs', 'reviews.reviewer', 'rejectionNoteBy'])
             ->find($this->selectedTaskId);
+    }
+
+    /** Baris task_reviews milik user yang login, buat selectedTask — null kalau dia bukan reviewer. */
+    public function getMyReviewRowProperty()
+    {
+        if (! $this->selectedTask) {
+            return null;
+        }
+
+        return $this->selectedTask->reviews->firstWhere('reviewer_id', Auth::id());
+    }
+
+    public function submitReview(string $taskId): void
+    {
+        $data = $this->validate([
+            'reviewRating' => ['required', 'integer', 'min:1', 'max:5'],
+            'reviewComment' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        try {
+            app(TaskService::class)->approveReview(Task::findOrFail($taskId), Auth::user(), $data['reviewRating'], $data['reviewComment']);
+            $this->reset(['reviewRating', 'reviewComment']);
+            unset($this->tasks, $this->selectedTask);
+            Notification::make()->title('Review terkirim')->success()->send();
+        } catch (\Throwable $e) {
+            Notification::make()->title($e->getMessage() ?: 'Gagal mengirim review')->danger()->send();
+        }
+    }
+
+    public function openRejectForm(): void
+    {
+        $this->showRejectForm = true;
+        $this->rejectNote = '';
+    }
+
+    public function cancelRejectForm(): void
+    {
+        $this->showRejectForm = false;
+        $this->rejectNote = '';
+    }
+
+    public function submitReject(string $taskId): void
+    {
+        $data = $this->validate(['rejectNote' => ['required', 'string', 'max:1000']]);
+
+        try {
+            app(TaskService::class)->rejectReview(Task::findOrFail($taskId), Auth::user(), $data['rejectNote']);
+            $this->reset(['showRejectForm', 'rejectNote']);
+            unset($this->tasks, $this->selectedTask);
+            Notification::make()->title('Tugas dikembalikan ke pelaksana')->success()->send();
+        } catch (\Throwable $e) {
+            Notification::make()->title($e->getMessage() ?: 'Gagal menolak tinjauan')->danger()->send();
+        }
     }
 
     public function toggleChecklistItem(string $itemId): void
@@ -288,14 +388,66 @@ class TaskListPage extends Component
         app(TaskService::class)->toggleChecklistItem($item);
     }
 
-    public function addComment(): void
+    public function addComment(string $taskId): void
     {
-        if (trim($this->newComment) === '' || ! $this->selectedTask) {
+        if (trim($this->newComment) === '') {
             return;
         }
 
-        app(TaskService::class)->addComment($this->selectedTask, Auth::user(), $this->newComment);
+        app(TaskService::class)->addComment(Task::findOrFail($taskId), Auth::user(), $this->newComment);
         $this->newComment = '';
+        unset($this->tasks);
+    }
+
+    public function openAttachments(string $taskId): void
+    {
+        $this->attachmentsTaskId = $taskId;
+    }
+
+    public function closeAttachments(): void
+    {
+        $this->attachmentsTaskId = null;
+    }
+
+    public function getAttachmentsTaskProperty(): ?Task
+    {
+        if (! $this->attachmentsTaskId) {
+            return null;
+        }
+
+        return Task::with('attachments')->find($this->attachmentsTaskId);
+    }
+
+    public function uploadFileAttachment(): void
+    {
+        if (! $this->newAttachmentFile || ! $this->attachmentsTask) {
+            return;
+        }
+
+        $this->validate(['newAttachmentFile' => ['file', 'max:10240']]);
+
+        app(TaskService::class)->addFileAttachment($this->attachmentsTask, Auth::user(), $this->newAttachmentFile);
+        $this->reset(['newAttachmentFile']);
+        unset($this->attachmentsTask, $this->tasks);
+    }
+
+    public function addLinkAttachment(): void
+    {
+        if (trim($this->newAttachmentLink) === '' || ! $this->attachmentsTask) {
+            return;
+        }
+
+        $this->validate(['newAttachmentLink' => ['url']]);
+
+        app(TaskService::class)->addLinkAttachment($this->attachmentsTask, Auth::user(), $this->newAttachmentLink, $this->newAttachmentLinkLabel ?: null);
+        $this->reset(['newAttachmentLink', 'newAttachmentLinkLabel']);
+        unset($this->attachmentsTask, $this->tasks);
+    }
+
+    public function removeAttachment(string $attachmentId): void
+    {
+        app(TaskService::class)->removeAttachment($attachmentId);
+        unset($this->attachmentsTask, $this->tasks);
     }
 
     public function openCreateProjectModal(): void
@@ -369,6 +521,20 @@ class TaskListPage extends Component
             unset($this->projectMembers, $this->companyUsers);
         } catch (\Throwable $e) {
             Notification::make()->title($e->getMessage() ?: 'Gagal mengeluarkan anggota')->danger()->send();
+        }
+    }
+
+    public function toggleAssigner(string $userId, bool $isAssigner): void
+    {
+        if (! $this->activeProject) {
+            return;
+        }
+
+        try {
+            app(TaskService::class)->setProjectMemberAssigner($this->activeProject, $userId, $isAssigner, Auth::user());
+            unset($this->projectMembers);
+        } catch (\Throwable $e) {
+            Notification::make()->title($e->getMessage() ?: 'Gagal mengubah izin assign')->danger()->send();
         }
     }
 

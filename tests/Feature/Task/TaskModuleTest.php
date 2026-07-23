@@ -11,7 +11,9 @@ use App\Models\Task\TaskProjectMember;
 use App\Models\User;
 use App\Services\Task\TaskService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
@@ -226,5 +228,329 @@ class TaskModuleTest extends TestCase
             'assigned_to' => $outsider->id,
             'project_id' => $project->id,
         ]);
+    }
+
+    public function test_project_member_without_assigner_flag_cannot_assign_to_others(): void
+    {
+        $company = $this->makeCompany();
+        $owner = User::factory()->create(['company_id' => $company->id]);
+        $member = User::factory()->create(['company_id' => $company->id]);
+        $peer = User::factory()->create(['company_id' => $company->id]);
+        Auth::login($owner);
+
+        $service = app(TaskService::class);
+        $project = $service->createProject(['name' => 'Project E', 'member_ids' => [$member->id, $peer->id]]);
+
+        Auth::login($member->fresh());
+
+        $this->expectException(\Symfony\Component\HttpKernel\Exception\HttpException::class);
+        $service->createCasualTask([
+            'requirement' => 'Kerjaan buat peer',
+            'assigned_to' => $peer->id,
+            'project_id' => $project->id,
+        ]);
+    }
+
+    public function test_project_member_without_assigner_flag_can_still_self_assign(): void
+    {
+        $company = $this->makeCompany();
+        $owner = User::factory()->create(['company_id' => $company->id]);
+        $member = User::factory()->create(['company_id' => $company->id]);
+        Auth::login($owner);
+
+        $service = app(TaskService::class);
+        $project = $service->createProject(['name' => 'Project F', 'member_ids' => [$member->id]]);
+
+        Auth::login($member->fresh());
+
+        $task = $service->createCasualTask([
+            'requirement' => 'Kerjaan sendiri',
+            'assigned_to' => $member->id,
+            'project_id' => $project->id,
+        ]);
+
+        $this->assertSame($member->id, $task->assigned_to);
+    }
+
+    public function test_project_member_with_assigner_flag_can_assign_to_others(): void
+    {
+        $company = $this->makeCompany();
+        $owner = User::factory()->create(['company_id' => $company->id]);
+        $member = User::factory()->create(['company_id' => $company->id]);
+        $peer = User::factory()->create(['company_id' => $company->id]);
+        Auth::login($owner);
+
+        $service = app(TaskService::class);
+        $project = $service->createProject(['name' => 'Project G', 'member_ids' => [$member->id, $peer->id]]);
+
+        $service->setProjectMemberAssigner($project, $member->id, true, $owner);
+
+        Auth::login($member->fresh());
+
+        $task = $service->createCasualTask([
+            'requirement' => 'Kerjaan buat peer',
+            'assigned_to' => $peer->id,
+            'project_id' => $project->id,
+        ]);
+
+        $this->assertSame($peer->id, $task->assigned_to);
+    }
+
+    public function test_only_owner_can_set_assigner_flag(): void
+    {
+        $company = $this->makeCompany();
+        $owner = User::factory()->create(['company_id' => $company->id]);
+        $member = User::factory()->create(['company_id' => $company->id]);
+        $another = User::factory()->create(['company_id' => $company->id]);
+        Auth::login($owner);
+
+        $service = app(TaskService::class);
+        $project = $service->createProject(['name' => 'Project H', 'member_ids' => [$member->id, $another->id]]);
+
+        $this->expectException(\Symfony\Component\HttpKernel\Exception\HttpException::class);
+        $service->setProjectMemberAssigner($project, $another->id, true, $member->fresh());
+    }
+
+    public function test_casual_task_reviewer_ids_are_assigned_manually(): void
+    {
+        $company = $this->makeCompany();
+        $creator = User::factory()->create(['company_id' => $company->id]);
+        $peer = User::factory()->create(['company_id' => $company->id]);
+        $reviewerA = User::factory()->create(['company_id' => $company->id]);
+        $reviewerB = User::factory()->create(['company_id' => $company->id]);
+        Auth::login($creator);
+
+        $service = app(TaskService::class);
+        $project = $service->createProject(['name' => 'Project E', 'member_ids' => [$peer->id]]);
+
+        $forOther = $service->createCasualTask([
+            'requirement' => 'Kerjaan buat teman project',
+            'assigned_to' => $peer->id,
+            'project_id' => $project->id,
+            'reviewer_ids' => [$reviewerA->id, $reviewerB->id],
+        ]);
+        $this->assertCount(2, $forOther->reviews);
+        $this->assertTrue($forOther->reviews->every(fn ($row) => $row->status === 'pending'));
+
+        $forSelf = $service->createCasualTask(['requirement' => 'Kerjaan sendiri']);
+        $this->assertCount(0, $forSelf->reviews);
+    }
+
+    public function test_move_status_blocks_review_to_complete_when_reviewer_required(): void
+    {
+        $company = $this->makeCompany();
+        $reviewer = User::factory()->create(['company_id' => $company->id]);
+        $assignee = User::factory()->create(['company_id' => $company->id]);
+
+        $task = Task::create([
+            'code' => 'TSK00005',
+            'company_id' => $company->id,
+            'created_by' => $reviewer->id,
+            'assigned_to' => $assignee->id,
+            'status' => TaskStatus::REVIEW->value,
+        ]);
+        $task->reviews()->create(['reviewer_id' => $reviewer->id, 'status' => 'pending']);
+
+        $this->expectException(\Symfony\Component\HttpKernel\Exception\HttpException::class);
+        app(TaskService::class)->moveStatus($task, TaskStatus::COMPLETE->value, $assignee);
+    }
+
+    public function test_approve_review_completes_task_only_when_all_reviewers_approved(): void
+    {
+        $company = $this->makeCompany();
+        $creator = User::factory()->create(['company_id' => $company->id]);
+        $assignee = User::factory()->create(['company_id' => $company->id]);
+        $reviewerA = User::factory()->create(['company_id' => $company->id]);
+        $reviewerB = User::factory()->create(['company_id' => $company->id]);
+
+        $task = Task::create([
+            'code' => 'TSK00030', 'company_id' => $company->id,
+            'created_by' => $creator->id, 'assigned_to' => $assignee->id,
+            'status' => TaskStatus::REVIEW->value,
+        ]);
+        $task->reviews()->create(['reviewer_id' => $reviewerA->id, 'status' => 'pending']);
+        $task->reviews()->create(['reviewer_id' => $reviewerB->id, 'status' => 'pending']);
+
+        $service = app(TaskService::class);
+
+        $service->approveReview($task, $reviewerA, 5, 'Mantap');
+        $this->assertSame(TaskStatus::REVIEW->value, $task->fresh()->status);
+
+        $service->approveReview($task, $reviewerB, 4, null);
+        $this->assertSame(TaskStatus::COMPLETE->value, $task->fresh()->status);
+    }
+
+    public function test_reject_review_keeps_other_approved_reviewer_decision(): void
+    {
+        $company = $this->makeCompany();
+        $creator = User::factory()->create(['company_id' => $company->id]);
+        $assignee = User::factory()->create(['company_id' => $company->id]);
+        $reviewerA = User::factory()->create(['company_id' => $company->id]);
+        $reviewerB = User::factory()->create(['company_id' => $company->id]);
+
+        $task = Task::create([
+            'code' => 'TSK00031', 'company_id' => $company->id,
+            'created_by' => $creator->id, 'assigned_to' => $assignee->id,
+            'status' => TaskStatus::REVIEW->value,
+        ]);
+        $task->reviews()->create(['reviewer_id' => $reviewerA->id, 'status' => 'pending']);
+        $task->reviews()->create(['reviewer_id' => $reviewerB->id, 'status' => 'pending']);
+
+        $service = app(TaskService::class);
+        $service->approveReview($task, $reviewerA, 5, null);
+        $service->rejectReview($task, $reviewerB, 'Belum sesuai spesifikasi.');
+
+        $this->assertSame(TaskStatus::IN_PROGRESS->value, $task->fresh()->status);
+        $this->assertSame('approved', $task->reviews()->where('reviewer_id', $reviewerA->id)->first()->status);
+        $this->assertSame('rejected', $task->reviews()->where('reviewer_id', $reviewerB->id)->first()->status);
+
+        // Disubmit ulang ke tinjauan — baris yang rejected balik pending, yang approved tetap.
+        $service->moveStatus($task->fresh(), TaskStatus::REVIEW->value, $assignee);
+
+        $this->assertSame('approved', $task->reviews()->where('reviewer_id', $reviewerA->id)->first()->status);
+        $this->assertSame('pending', $task->reviews()->where('reviewer_id', $reviewerB->id)->first()->status);
+
+        // Reviewer yang tadi reject sekarang approve — task langsung Complete, reviewer A tidak perlu vote ulang.
+        $service->approveReview($task->fresh(), $reviewerB, 4, null);
+        $this->assertSame(TaskStatus::COMPLETE->value, $task->fresh()->status);
+    }
+
+    public function test_review_task_sets_status_complete(): void
+    {
+        $company = $this->makeCompany();
+        $reviewer = User::factory()->create(['company_id' => $company->id]);
+        $assignee = User::factory()->create(['company_id' => $company->id]);
+
+        $task = Task::create([
+            'code' => 'TSK00006',
+            'company_id' => $company->id,
+            'created_by' => $reviewer->id,
+            'assigned_to' => $assignee->id,
+            'sla_reviewer_id' => $reviewer->id,
+            'status' => TaskStatus::REVIEW->value,
+        ]);
+
+        Auth::login($reviewer);
+        app(TaskService::class)->reviewTask($task->id, (object) ['rating' => 5, 'comment' => 'Mantap']);
+
+        $this->assertSame(TaskStatus::COMPLETE->value, $task->fresh()->status);
+        $this->assertDatabaseHas('task_reviews', [
+            'task_id' => $task->id,
+            'reviewer_id' => $reviewer->id,
+            'rating' => 5,
+        ]);
+    }
+
+    public function test_file_attachment_can_be_added_and_removed(): void
+    {
+        Storage::fake('public');
+
+        $company = $this->makeCompany();
+        $user = User::factory()->create(['company_id' => $company->id]);
+        Auth::login($user);
+
+        $task = app(TaskService::class)->createCasualTask(['requirement' => 'Kerjaan dengan lampiran']);
+
+        $file = UploadedFile::fake()->create('dokumen.pdf', 100);
+        app(TaskService::class)->addFileAttachment($task, $user, $file);
+
+        $attachment = $task->attachments()->first();
+        $this->assertNotNull($attachment);
+        $this->assertSame('dokumen.pdf', $attachment->file_name);
+        Storage::disk('public')->assertExists($attachment->file_path);
+
+        app(TaskService::class)->removeAttachment($attachment->id);
+
+        $this->assertDatabaseMissing('task_attachments', ['id' => $attachment->id]);
+        Storage::disk('public')->assertMissing($attachment->file_path);
+    }
+
+    public function test_link_attachment_can_be_added(): void
+    {
+        $company = $this->makeCompany();
+        $user = User::factory()->create(['company_id' => $company->id]);
+        Auth::login($user);
+
+        $task = app(TaskService::class)->createCasualTask(['requirement' => 'Kerjaan dengan link']);
+
+        app(TaskService::class)->addLinkAttachment($task, $user, 'https://example.com/dokumen', 'Dokumen Referensi');
+
+        $this->assertDatabaseHas('task_attachments', [
+            'task_id' => $task->id,
+            'type' => 'link',
+            'url' => 'https://example.com/dokumen',
+            'file_name' => 'Dokumen Referensi',
+        ]);
+    }
+
+    public function test_riwayat_scope_filters_by_1_status_yang_dipilih(): void
+    {
+        $company = $this->makeCompany();
+        $user = User::factory()->create(['company_id' => $company->id]);
+        Auth::login($user);
+
+        Task::create([
+            'code' => 'TSK00010', 'company_id' => $company->id,
+            'created_by' => $user->id, 'assigned_to' => $user->id,
+            'status' => TaskStatus::TODO->value,
+        ]);
+        $complete = Task::create([
+            'code' => 'TSK00011', 'company_id' => $company->id,
+            'created_by' => $user->id, 'assigned_to' => $user->id,
+            'status' => TaskStatus::COMPLETE->value,
+        ]);
+        $rejected = Task::create([
+            'code' => 'TSK00012', 'company_id' => $company->id,
+            'created_by' => $user->id, 'assigned_to' => $user->id,
+            'status' => TaskStatus::REJECTED->value,
+        ]);
+
+        $service = app(TaskService::class);
+
+        $selesai = $service->getPortalTasks($user, 'riwayat', TaskStatus::COMPLETE->value);
+        $this->assertEqualsCanonicalizing([$complete->id], $selesai->pluck('id')->all());
+
+        $ditolak = $service->getPortalTasks($user, 'riwayat', TaskStatus::REJECTED->value);
+        $this->assertEqualsCanonicalizing([$rejected->id], $ditolak->pluck('id')->all());
+    }
+
+    public function test_reject_review_returns_task_to_in_progress_with_private_note(): void
+    {
+        $company = $this->makeCompany();
+        $reviewer = User::factory()->create(['company_id' => $company->id]);
+        $assignee = User::factory()->create(['company_id' => $company->id]);
+
+        $task = Task::create([
+            'code' => 'TSK00020', 'company_id' => $company->id,
+            'created_by' => $reviewer->id, 'assigned_to' => $assignee->id,
+            'sla_reviewer_id' => $reviewer->id,
+            'status' => TaskStatus::REVIEW->value,
+        ]);
+
+        app(TaskService::class)->rejectReview($task, $reviewer, 'Datanya belum lengkap, tolong dicek lagi.');
+
+        $fresh = $task->fresh();
+        $this->assertSame(TaskStatus::IN_PROGRESS->value, $fresh->status);
+        $this->assertSame('Datanya belum lengkap, tolong dicek lagi.', $fresh->rejected_reason);
+        $this->assertSame($reviewer->id, $fresh->rejection_note_by);
+        $this->assertNotNull($fresh->rejection_note_at);
+    }
+
+    public function test_reject_review_forbidden_for_non_reviewer_non_creator(): void
+    {
+        $company = $this->makeCompany();
+        $reviewer = User::factory()->create(['company_id' => $company->id]);
+        $assignee = User::factory()->create(['company_id' => $company->id]);
+        $stranger = User::factory()->create(['company_id' => $company->id]);
+
+        $task = Task::create([
+            'code' => 'TSK00021', 'company_id' => $company->id,
+            'created_by' => $reviewer->id, 'assigned_to' => $assignee->id,
+            'sla_reviewer_id' => $reviewer->id,
+            'status' => TaskStatus::REVIEW->value,
+        ]);
+
+        $this->expectException(\Symfony\Component\HttpKernel\Exception\HttpException::class);
+        app(TaskService::class)->rejectReview($task, $stranger, 'Coba tolak punya orang lain.');
     }
 }

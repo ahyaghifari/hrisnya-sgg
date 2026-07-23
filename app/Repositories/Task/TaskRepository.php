@@ -100,12 +100,31 @@ class TaskRepository
         }
     }
 
-    public function addAttachment(string $taskId, string $path): TaskAttachment
+    public function addAttachment(string $taskId, array $data): TaskAttachment
     {
         return TaskAttachment::create([
             'task_id' => $taskId,
-            'file_path' => $path,
+            'type' => $data['type'] ?? TaskAttachment::TYPE_FILE,
+            'file_path' => $data['file_path'] ?? null,
+            'file_name' => $data['file_name'] ?? null,
+            'url' => $data['url'] ?? null,
+            'uploaded_by' => $data['uploaded_by'] ?? null,
         ]);
+    }
+
+    public function deleteAttachment(string $attachmentId): void
+    {
+        $attachment = TaskAttachment::find($attachmentId);
+
+        if (! $attachment) {
+            return;
+        }
+
+        if ($attachment->file_path && Storage::disk('public')->exists($attachment->file_path)) {
+            Storage::disk('public')->delete($attachment->file_path);
+        }
+
+        $attachment->delete();
     }
 
     public function addReview(string $taskId, array $reviewData): TaskReview

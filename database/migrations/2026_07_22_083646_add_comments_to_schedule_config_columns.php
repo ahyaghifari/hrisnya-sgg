@@ -20,6 +20,12 @@ return new class extends Migration
      */
     public function up(): void
     {
+        // ponytail: COMMENT MySQL murni metadata dokumentasi, tidak ada di SQLite (dipakai
+        // test suite via phpunit.xml) - skip di driver lain, tidak mengubah schema produksi.
+        if (DB::connection()->getDriverName() !== 'mysql') {
+            return;
+        }
+
         foreach ($this->columnDefinitions() as $table => $columns) {
             foreach ($columns as $column => [$definition, $comment]) {
                 DB::statement(sprintf(
@@ -35,6 +41,10 @@ return new class extends Migration
 
     public function down(): void
     {
+        if (DB::connection()->getDriverName() !== 'mysql') {
+            return;
+        }
+
         foreach ($this->columnDefinitions() as $table => $columns) {
             foreach ($columns as $column => [$definition]) {
                 DB::statement(sprintf(

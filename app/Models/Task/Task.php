@@ -39,6 +39,8 @@ class Task extends Model
         'priority',
         'position',
         'rejected_reason',
+        'rejection_note_by',
+        'rejection_note_at',
         'risk_level',
         'total_cost',
         'unit_cost',
@@ -100,9 +102,21 @@ class Task extends Model
         return $this->belongsTo(User::class, 'sla_reviewer_id');
     }
 
+    public function rejectionNoteBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'rejection_note_by');
+    }
+
     public function review(): HasOne
     {
         return $this->hasOne(TaskReview::class, 'task_id');
+    }
+
+    // Portal (multi-reviewer, and-sign) pakai reviews() — review() hasOne di atas dipertahankan
+    // buat kontrak mobile API (TaskDetailResource dkk) yang masih asumsi 1 reviewer per task.
+    public function reviews(): HasMany
+    {
+        return $this->hasMany(TaskReview::class, 'task_id');
     }
 
     public function approvedBy(): BelongsTo

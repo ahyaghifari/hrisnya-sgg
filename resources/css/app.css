@@ -927,10 +927,15 @@ textarea.form-input { resize: none; }
 .ts-wrapper.single .ts-control, .ts-wrapper.multi .ts-control { padding: 10px 14px; border: 1.5px solid var(--border); border-radius: 11px; font-size: 13.5px; color: var(--text-heading); background: var(--surface); font-family: inherit; box-shadow: none; }
 .ts-wrapper.single .ts-control:after { border-color: var(--text-faint) transparent transparent transparent; }
 .ts-wrapper.focus .ts-control { border-color: #042c6c; box-shadow: 0 0 0 3px rgba(4,44,108,0.08); }
-.ts-dropdown { border: 1.5px solid var(--border); border-radius: 11px; margin-top: 4px; background: var(--surface); box-shadow: var(--shadow-card); overflow: hidden; font-family: inherit; }
-.ts-dropdown .ts-dropdown-content { padding: 4px; }
-.ts-dropdown [data-selectable], .ts-dropdown .no-results { padding: 8px 10px; font-size: 13px; color: var(--text-heading); border-radius: 8px; }
-.ts-dropdown .active { background: #eef2fb; color: var(--brand); }
+/* Selector 2-level (bukan cuma .ts-dropdown) SENGAJA — tom-select.css bawaan (diimpor lewat
+   app.js, load SETELAH app.css ini di layout) punya .ts-dropdown{background:#fff} spesifisitas
+   sama persis, jadi menang berdasar urutan load kalau cuma 1 class. Dulu bikin dropdown tetap
+   putih di dark mode walau teksnya sudah ikut var(--text-heading) terang -> teks terang di atas
+   putih, tidak kebaca. */
+.ts-wrapper .ts-dropdown { border: 1.5px solid var(--border); border-radius: 11px; margin-top: 4px; background: var(--surface); box-shadow: var(--shadow-card); overflow: hidden; font-family: inherit; }
+.ts-wrapper .ts-dropdown .ts-dropdown-content { padding: 4px; }
+.ts-wrapper .ts-dropdown [data-selectable], .ts-wrapper .ts-dropdown .no-results { padding: 8px 10px; font-size: 13px; color: var(--text-heading); border-radius: 8px; }
+.ts-wrapper .ts-dropdown .active { background: #eef2fb; color: var(--brand); }
 html.dark .ts-dropdown .active { background: rgba(110,168,224,0.16); }
 .ts-wrapper.plugin-clear_button .clear-button { color: var(--text-faint); opacity: 1; visibility: visible; }
 
@@ -1021,6 +1026,9 @@ html.dark .ts-wrapper.multi .ts-control > div.item { background: rgba(110,168,22
 .btn-ghost:disabled { opacity: 0.4; cursor: not-allowed; background: transparent; }
 .btn-secondary { display: inline-flex; align-items: center; justify-content: center; gap: 8px; background: #475569; color: white; font-weight: 700; font-size: 13.5px; padding: 12px 28px; border-radius: 12px; border: none; cursor: pointer; transition: all 0.15s; font-family: inherit; text-decoration: none; }
 .btn-secondary:hover { background: #334155; transform: translateY(-1px); box-shadow: 0 4px 14px rgba(51,65,85,0.25); }
+
+/* Varian kecil, ditumpuk di atas btn-primary/btn-ghost/btn-secondary (mis. class="btn-primary btn-sm") */
+.btn-sm { padding: 7px 14px; font-size: 12px; border-radius: 9px; }
 .btn-success { display: inline-flex; align-items: center; justify-content: center; gap: 8px; background: linear-gradient(135deg, #047C54 0%, #024732 100%); color: white; font-weight: 700; font-size: 13.5px; padding: 12px 28px; border-radius: 12px; border: none; cursor: pointer; transition: all 0.15s; font-family: inherit; text-decoration: none; }
 .btn-success:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(4,124,84,0.3); }
 

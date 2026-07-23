@@ -18,6 +18,13 @@ enum NotificationTypeEnum: string
     case APPROVAL_REJECTED = 'approval_rejected';
     case APPROVAL_CANCELLED = 'approval_cancelled';
 
+    // Task portal — lihat App\Services\Task\TaskService.
+    case TASK_ASSIGNED = 'task_assigned';
+    case TASK_REVIEW_DECIDED = 'task_review_decided';
+    case TASK_REVIEWER_ASSIGNED = 'task_reviewer_assigned';
+    case TASK_COMMENTED = 'task_commented';
+    case TASK_PROJECT_MEMBER_ADDED = 'task_project_member_added';
+
     public function label(): string
     {
         return match ($this) {
@@ -25,6 +32,11 @@ enum NotificationTypeEnum: string
             self::APPROVAL_APPROVED => 'Pengajuan Saya Disetujui',
             self::APPROVAL_REJECTED => 'Pengajuan Saya Ditolak',
             self::APPROVAL_CANCELLED => 'Pengajuan Saya Dibatalkan',
+            self::TASK_ASSIGNED => 'Tugas Baru Ditugaskan ke Saya',
+            self::TASK_REVIEW_DECIDED => 'Tugas Saya Direview',
+            self::TASK_REVIEWER_ASSIGNED => 'Saya Diminta Jadi Reviewer',
+            self::TASK_COMMENTED => 'Komentar Baru di Tugas Saya',
+            self::TASK_PROJECT_MEMBER_ADDED => 'Ditambahkan ke Project',
         };
     }
 
@@ -35,6 +47,11 @@ enum NotificationTypeEnum: string
             self::APPROVAL_APPROVED => 'Dikirim ke Anda saat pengajuan yang Anda buat disetujui sampai selesai.',
             self::APPROVAL_REJECTED => 'Dikirim ke Anda saat pengajuan yang Anda buat ditolak salah satu approver.',
             self::APPROVAL_CANCELLED => 'Dikirim ke Anda saat pengajuan yang Anda buat dibatalkan.',
+            self::TASK_ASSIGNED => 'Dikirim saat orang lain menugaskan sebuah tugas ke Anda.',
+            self::TASK_REVIEW_DECIDED => 'Dikirim saat tugas yang Anda kerjakan disetujui atau ditolak reviewer.',
+            self::TASK_REVIEWER_ASSIGNED => 'Dikirim saat Anda ditunjuk sebagai reviewer sebuah tugas.',
+            self::TASK_COMMENTED => 'Dikirim saat ada komentar baru di tugas yang Anda kerjakan/buat.',
+            self::TASK_PROJECT_MEMBER_ADDED => 'Dikirim saat Anda dimasukkan sebagai anggota sebuah project tugas.',
         };
     }
 }

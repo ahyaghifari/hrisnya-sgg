@@ -18,7 +18,18 @@ class TaskProjectMember extends Model
         'project_id',
         'user_id',
         'role',
+        'is_assigner',
     ];
+
+    protected $casts = [
+        'is_assigner' => 'boolean',
+    ];
+
+    /** Owner otomatis boleh assign — is_assigner cuma relevan buat member biasa. */
+    public function canAssign(): bool
+    {
+        return $this->role === self::ROLE_OWNER || $this->is_assigner;
+    }
 
     public function project(): BelongsTo
     {
