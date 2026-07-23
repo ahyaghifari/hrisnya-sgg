@@ -2,6 +2,7 @@
 
 namespace App\Services\Task;
 
+use App\Enum\Approval\ApprovalModuleEnum;
 use App\Enum\Task\TaskSettingEnum;
 use App\Enum\Task\TaskStatus;
 use App\Models\ApprovalManagement\MasterApprovalFlows;
@@ -247,7 +248,7 @@ class TaskService
             $user = Auth::user();
 
             $masterFlow = $this->approvalSnapshotRepository->findMasterApprovalFlowByCompany(
-                moduleType: 'task_request',
+                moduleType: ApprovalModuleEnum::TASK_REQUEST->value,
                 companyId: $user->company_id
             );
 
@@ -277,7 +278,7 @@ class TaskService
             $this->assignReviewers($task, $data['reviewer_ids'] ?? []);
 
             $this->approvalCreationService->createSnapshot(
-                moduleType: 'task_request',
+                moduleType: ApprovalModuleEnum::TASK_REQUEST->value,
                 moduleId: $task->id,
                 flow: $masterFlow,
                 createdBy: $user->id,
@@ -324,7 +325,7 @@ class TaskService
             $user = Auth::user();
 
             $masterFlow = $this->approvalSnapshotRepository->findMasterApprovalFlowByCompany(
-                moduleType: 'task_request',
+                moduleType: ApprovalModuleEnum::TASK_REQUEST->value,
                 companyId: auth('sanctum')->user()->company_id
             );
 
@@ -357,7 +358,7 @@ class TaskService
 
             // Create approval snapshot
             $this->approvalCreationService->createSnapshot(
-                moduleType: 'task_request',
+                moduleType: ApprovalModuleEnum::TASK_REQUEST->value,
                 moduleId: $task->id,
                 flow: $masterFlow,
                 createdBy: $user->id,

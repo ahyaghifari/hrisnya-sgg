@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Enum\CustomPermissionEnum;
 use App\Livewire\SubmitLeaveRequest;
 use App\Livewire\SubmitOvertimeRequest;
 use App\Livewire\SubmitPermissionRequest;
@@ -15,6 +16,7 @@ use App\Models\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
+use Spatie\Permission\Models\Permission;
 use Tests\TestCase;
 
 class AttendanceRequestPortalTest extends TestCase
@@ -55,7 +57,17 @@ class AttendanceRequestPortalTest extends TestCase
 
     private function createEmployee(Companies $company): User
     {
-        return User::factory()->create(['company_id' => $company->id]);
+        $user = User::factory()->create(['company_id' => $company->id]);
+
+        // PENGAJUAN_ABSENSI_SAYA menggerbangi halaman submission sejak sesi row-1-nav — dibuat
+        // eksplisit di sini (bukan diasumsikan default) karena role test ini dibuat mentah tanpa
+        // permission apa pun.
+        Permission::firstOrCreate(['name' => CustomPermissionEnum::PENGAJUAN_ABSENSI_SAYA->value, 'guard_name' => 'web']);
+        $role = Role::firstOrCreate(['name' => 'Employee Attendance Test', 'guard_name' => 'web']);
+        $role->givePermissionTo(CustomPermissionEnum::PENGAJUAN_ABSENSI_SAYA->value);
+        $user->assignRole($role);
+
+        return $user;
     }
 
     public function test_regular_employee_can_access_submission_pages(): void

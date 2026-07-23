@@ -20,6 +20,7 @@ class ManpowerRequests extends Model
 
     protected $fillable = [
         'company_id',
+        'requested_by',
         'job_position_id',
         'type',
         'quantity',
@@ -31,6 +32,11 @@ class ManpowerRequests extends Model
     public function company()
     {
         return $this->belongsTo(\App\Models\Master\Companies::class, 'company_id');
+    }
+
+    public function user()
+    {
+        return $this->belongsTo(\App\Models\User::class, 'requested_by');
     }
 
     public function jobPosition()

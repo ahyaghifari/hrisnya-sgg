@@ -2,6 +2,7 @@
 
 namespace App\Services\Attendance;
 
+use App\Enum\Approval\ApprovalModuleEnum;
 use App\Enum\Attendance\AttendanceSettingEnum;
 use App\Enum\Attendance\LeaveTypeCategoryEnum;
 use App\Enum\Attendance\PermissionTypeCategoryEnum;
@@ -94,7 +95,7 @@ class AttendaceReqService
         $status = 'in_review';
 
         $masterFlow = $this->approvalSnapshotRepository->resolveApprovalFlowForUser(
-            moduleType: 'attendance_request',
+            moduleType: ApprovalModuleEnum::ATTENDANCE_REQUEST->value,
             companyId: $actingUser->company_id,
             userId: $userId
         );
@@ -129,7 +130,7 @@ class AttendaceReqService
 
         // Create approval snapshot
         $snapshot = $this->approvalCreationService->createSnapshot(
-            moduleType: 'attendance_request',
+            moduleType: ApprovalModuleEnum::ATTENDANCE_REQUEST->value,
             moduleId: $request->id,
             flow: $masterFlow,
             createdBy: $userId,
@@ -164,7 +165,7 @@ class AttendaceReqService
         $status = 'in_review';
 
         $masterFlow = $this->approvalSnapshotRepository->resolveApprovalFlowForUser(
-            moduleType: 'attendance_request',
+            moduleType: ApprovalModuleEnum::ATTENDANCE_REQUEST->value,
             companyId: $actingUser->company_id,
             userId: $userId
         );
@@ -200,7 +201,7 @@ class AttendaceReqService
 
         // Create approval snapshot
         $snapshot = $this->approvalCreationService->createSnapshot(
-            moduleType: 'attendance_request',
+            moduleType: ApprovalModuleEnum::ATTENDANCE_REQUEST->value,
             moduleId: $request->id,
             flow: $masterFlow,
             createdBy: $userId,
@@ -377,7 +378,7 @@ class AttendaceReqService
         $status = 'in_review';
 
         $masterFlow = $this->approvalSnapshotRepository->resolveApprovalFlowForUser(
-            moduleType: 'attendance_request',
+            moduleType: ApprovalModuleEnum::ATTENDANCE_REQUEST->value,
             companyId: $actingUser->company_id,
             userId: $userId
         );
@@ -418,7 +419,7 @@ class AttendaceReqService
 
         // Create approval snapshot
         $snapshot = $this->approvalCreationService->createSnapshot(
-            moduleType: 'attendance_request',
+            moduleType: ApprovalModuleEnum::ATTENDANCE_REQUEST->value,
             moduleId: $request->id,
             flow: $masterFlow,
             createdBy: $userId,

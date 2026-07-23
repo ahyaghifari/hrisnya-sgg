@@ -40,4 +40,18 @@ class CounselingService
             ]);
         });
     }
+
+    // --- Sisi HC (portal /counseling/kelola) — balas keluhan karyawan. Alur identik dengan
+    // admin Filament CounselingForm (isi response+solution), plus tandai selesai (DONE) di sini
+    // karena admin tidak punya status transition eksplisit selain edit field biasa.
+    public function respond(Counseling $counseling, string $response, string $solution): void
+    {
+        $counseling->update([
+            'response' => $response,
+            'solution' => $solution,
+            'status' => CounselingStatus::DONE->value,
+            'responded_by' => Auth::id(),
+            'responded_at' => now(),
+        ]);
+    }
 }

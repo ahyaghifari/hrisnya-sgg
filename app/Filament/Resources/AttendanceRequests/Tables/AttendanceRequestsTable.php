@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\AttendanceRequests\Tables;
 
+use App\Enum\Approval\ApprovalModuleEnum;
 use App\Enum\AttendanceReqStatus;
 use App\Filament\Resources\AttendanceRequests\AttendanceRequestResource;
 use App\Helpers\PermissionHelper;
@@ -65,7 +66,7 @@ class AttendanceRequestsTable
                     ->modalSubmitActionLabel('Ya, Hapus')
                     ->action(function ($record) {
                         DB::transaction(function () use ($record) {
-                            ApprovalSnapshots::where('module_type', 'attendance_request')
+                            ApprovalSnapshots::where('module_type', ApprovalModuleEnum::ATTENDANCE_REQUEST->value)
                                 ->where('module_id', $record->id)
                                 ->each(fn ($snapshot) => $snapshot->delete());
 

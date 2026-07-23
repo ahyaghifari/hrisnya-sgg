@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Enum\CustomPermissionEnum;
 use App\Models\Permission;
+use App\Models\Role;
 use Illuminate\Database\Seeder;
 
 /**
@@ -27,5 +28,31 @@ class CustomPermissionsSeeder extends Seeder
                 'guard_name' => 'web',
             ]);
         }
+
+        $this->bootstrapSelfServicePermissions();
+    }
+
+    /**
+     * PELATIHAN_SAYA, PENGAJUAN_ABSENSI_SAYA, COACHING_COUNSELING_SAYA menggerbangi nav baris 1
+     * (Pelatihan, Pengajuan Absensi, Counseling, Coaching Saya) yang SEBELUMNYA terbuka buat
+     * siapa saja yang login (tanpa permission). Supaya tidak ada role yang tiba-tiba kehilangan
+     * akses begitu gerbang ini aktif, ketiga permission ini di-assign otomatis ke SEMUA role yang
+     * sudah ada saat seeder ini jalan — bukan pola umum permission manual lain (yang sengaja
+     * dibiarkan kosong, di-assign manual lewat /admin/roles). Role baru ke depannya tetap harus
+     * di-assign manual seperti biasa.
+     */
+    private function bootstrapSelfServicePermissions(): void
+    {
+        $names = [
+            CustomPermissionEnum::PELATIHAN_SAYA->value,
+            CustomPermissionEnum::PENGAJUAN_ABSENSI_SAYA->value,
+            CustomPermissionEnum::COACHING_COUNSELING_SAYA->value,
+        ];
+
+        $permissions = Permission::whereIn('name', $names)->where('guard_name', 'web')->get();
+
+        Role::where('guard_name', 'web')->get()->each(
+            fn (Role $role) => $role->givePermissionTo($permissions)
+        );
     }
 }

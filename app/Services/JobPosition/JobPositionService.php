@@ -2,6 +2,7 @@
 
 namespace App\Services\JobPosition;
 
+use App\Enum\Approval\ApprovalModuleEnum;
 use App\Models\ApprovalManagement\ApprovalSnapshots;
 use App\Models\ApprovalManagement\MasterApprovalFlows;
 use App\Models\Master\JobPositions;
@@ -28,7 +29,7 @@ class JobPositionService
         $requestBy = $userId;
 
         $masterFlow = $this->approvalSnapshotRepository->findMasterApprovalFlowByCompany(
-            moduleType: 'jobposition_request',
+            moduleType: ApprovalModuleEnum::JOBPOSITION_REQUEST->value,
             companyId: Auth::user()->company_id
         );
 
@@ -44,7 +45,7 @@ class JobPositionService
         ]);
 
         $this->approvalCreationService->createSnapshot(
-            moduleType: 'jobposition_request',
+            moduleType: ApprovalModuleEnum::JOBPOSITION_REQUEST->value,
             moduleId: $jobPositions->id,
             flow: $masterFlow,
             createdBy: $userId,

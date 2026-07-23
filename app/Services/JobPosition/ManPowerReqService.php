@@ -2,6 +2,8 @@
 
 namespace App\Services\JobPosition;
 
+use App\Enum\Approval\ApprovalModuleEnum;
+use App\Enum\JobPositionReqStatus;
 use App\Enum\ManpowerRequestType;
 use App\Models\ApprovalManagement\ApprovalSnapshots;
 use App\Models\ApprovalManagement\MasterApprovalFlows;
@@ -22,10 +24,57 @@ class ManPowerReqService
         protected ApprovalSnapshotRepository $approvalSnapshotRepository,
         protected ApprovalFlowService $approvalFlowService,
     ) {}
-    
+
+    /** Dipakai portal — bikin record lalu, kalau $submit, langsung ajukan approval. */
+    public function create(array $data, bool $submit): ManpowerRequests
+    {
+        $data['status'] = $submit ? JobPositionReqStatus::REQUESTED->value : JobPositionReqStatus::DRAFT->value;
+        $data['requested_by'] = Auth::id();
+
+        $manpowerRequest = $this->manpowerReqRepository->create($data);
+
+        if ($submit) {
+            $this->requestManPower($manpowerRequest);
+        }
+
+        return $manpowerRequest;
+    }
+
+    /** Jaga-jaga snapshot belum terbuat (draft yang baru diajukan ulang) + sinkronkan step kalau
+     * master flow berubah selagi masih requested — pola sama dengan UserTransitionService. */
+    public function ensureApprovalSnapshot(ManpowerRequests $manpowerRequests): void
+    {
+        if (! $manpowerRequests->approvalSnapshot) {
+            return;
+        }
+
+        $inFinalState = in_array($manpowerRequests->status, [
+            JobPositionReqStatus::APPROVED->value,
+            JobPositionReqStatus::REJECTED->value,
+        ], true);
+
+        if (! $inFinalState && ! $this->approvalFlowService->checkStepsSync($manpowerRequests->approvalSnapshot)) {
+            $this->approvalFlowService->syncStepsFromMaster($manpowerRequests->approvalSnapshot);
+        }
+    }
+
+    public function reject(ManpowerRequests $manpowerRequests, string $note, string $actorId): void
+    {
+        $this->approvalFlowService->advanceStep(
+            snapshot: ApprovalSnapshots::find($manpowerRequests->approvalSnapshot->id),
+            actorId: $actorId,
+            note: $note,
+            action: JobPositionReqStatus::REJECTED->value,
+        );
+
+        $this->manpowerReqRepository->update($manpowerRequests, [
+            'status' => JobPositionReqStatus::REJECTED->value,
+        ]);
+    }
+
     public function requestManPower(ManpowerRequests $manpowerRequests): object
     {
-        $type = $manpowerRequests->type . '_request';
+        $type = ApprovalModuleEnum::from($manpowerRequests->type . '_request')->value;
 
         $masterFlow = $this->approvalSnapshotRepository->findMasterApprovalFlowByCompany(
             moduleType: $type,

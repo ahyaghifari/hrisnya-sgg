@@ -41,11 +41,7 @@ class ApprovalNeedsAction extends Notification implements ShouldQueue
 
     protected function body(): string
     {
-        $label = match ($this->moduleType) {
-            'task_request' => 'Pengajuan tugas',
-            'swap_shift_request' => 'Pengajuan tukar shift',
-            default => 'Pengajuan absensi',
-        };
+        $label = \App\Enum\Approval\ApprovalModuleEnum::tryFrom($this->moduleType)?->notificationLabel() ?? 'Pengajuan';
 
         return "{$label} dari {$this->requesterName} memerlukan persetujuan Anda";
     }

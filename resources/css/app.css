@@ -337,6 +337,10 @@ html.dark .nav-item-navy-outline:hover, html.dark .nav-item-navy-outline.active 
 .nav-item-teal:hover, .nav-item-teal.active { color: #fff; background: #0d5f58; }
 html.dark .nav-item-teal:hover, html.dark .nav-item-teal.active { background: #14b8a6; }
 
+.nav-item-gold { color: #fff; background: #b45309; }
+.nav-item-gold:hover, .nav-item-gold.active { color: #fff; background: #92400e; }
+html.dark .nav-item-gold:hover, html.dark .nav-item-gold.active { background: #d97706; }
+
 /* Baris 2 nav desktop (role/jabatan) — nested di .nav-middle (bukan full-bleed lagi), pill
    abu-abu yang cuma selebar isinya, nempel tepat di bawah baris karyawan. Background & teks
    theme-aware (var(--border)/var(--text-muted)) — abu-abu terang di light mode, abu-abu gelap
@@ -344,7 +348,7 @@ html.dark .nav-item-teal:hover, html.dark .nav-item-teal.active { background: #1
 .topnav-row2 { display: flex; align-items: center; gap: 8px; background: var(--border); border: 1px solid var(--border-soft); border-radius: 10px; padding: 4px 8px; flex-wrap: wrap; }
 @media (min-width: 768px) { .topnav-row2 { gap: 16px; } }
 .topnav-row2 .nav-item { padding: 4px 10px; font-size: 12px; border-radius: 7px; gap: 4px; color: var(--text-muted); }
-.topnav-row2 .nav-item-green, .topnav-row2 .nav-item-sky, .topnav-row2 .nav-item-navy, .topnav-row2 .nav-item-orange, .topnav-row2 .nav-item-pink, .topnav-row2 .nav-item-teal { color: #fff; }
+.topnav-row2 .nav-item-green, .topnav-row2 .nav-item-sky, .topnav-row2 .nav-item-navy, .topnav-row2 .nav-item-orange, .topnav-row2 .nav-item-pink, .topnav-row2 .nav-item-teal, .topnav-row2 .nav-item-gold { color: #fff; }
 .dropdown { position: relative; }
 .dropdown-menu { position: absolute; top: calc(100% + 10px); left: 50%; transform: translateX(-50%) translateY(-4px); background: var(--surface); border-radius: 14px; padding: 6px; box-shadow: 0 8px 30px rgba(4,44,108,0.12), 0 0 0 1px rgba(4,44,108,0.06); min-width: 180px; opacity: 0; visibility: hidden; transition: all 0.15s; z-index: 210; }
 .dropdown-menu.dropdown-menu-right { left: auto; right: 0; transform: translateY(-4px); }

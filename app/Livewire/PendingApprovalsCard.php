@@ -2,6 +2,7 @@
 
 namespace App\Livewire;
 
+use App\Enum\Approval\ApprovalModuleEnum;
 use App\Models\Attendance\AttendanceRequests;
 use App\Services\Approval\ApprovalPermissionService;
 use Illuminate\Support\Facades\Auth;
@@ -12,7 +13,7 @@ class PendingApprovalsCard extends Component
     public function render()
     {
         $activities = app(ApprovalPermissionService::class)
-            ->pendingApprovalsFor(Auth::user(), 'attendance_request');
+            ->pendingApprovalsFor(Auth::user(), ApprovalModuleEnum::ATTENDANCE_REQUEST->value);
 
         $moduleIds = $activities->pluck('snapshot.module_id')->filter()->values();
 

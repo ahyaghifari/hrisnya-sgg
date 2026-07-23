@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Portal;
 
+use App\Enum\CustomPermissionEnum;
 use App\Enum\LsmCourseStatus;
 use App\Models\LMS\LmsCategories;
 use App\Models\LMS\LmsCourses;
@@ -9,8 +10,10 @@ use App\Models\LMS\LmsCourseUsers;
 use App\Models\LMS\LmsMaterials;
 use App\Models\LMS\LmsMeetings;
 use App\Models\LMS\Trainer\Trainers;
+use App\Models\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Spatie\Permission\Models\Permission;
 use Tests\TestCase;
 
 class TrainingTest extends TestCase
@@ -27,6 +30,14 @@ class TrainingTest extends TestCase
     public function test_user_sees_published_course_but_not_draft(): void
     {
         $user = User::factory()->create();
+
+        // '/pelatihan' digerbangi PELATIHAN_SAYA sejak sesi row-1-nav — dibuat eksplisit di sini
+        // karena test ini akses lewat HTTP get() (kena middleware), beda dari test filter lain
+        // di file ini yang pakai Livewire::test() langsung (bypass middleware).
+        Permission::firstOrCreate(['name' => CustomPermissionEnum::PELATIHAN_SAYA->value, 'guard_name' => 'web']);
+        $role = Role::firstOrCreate(['name' => 'Employee Training Test', 'guard_name' => 'web']);
+        $role->givePermissionTo(CustomPermissionEnum::PELATIHAN_SAYA->value);
+        $user->assignRole($role);
 
         $published = LmsCourses::create([
             'code' => 'PUB01',

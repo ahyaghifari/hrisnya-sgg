@@ -2,6 +2,7 @@
 
 namespace App\Models\Job;
 
+use App\Enum\Recruitment\JobOpeningStatus;
 use App\Models\Candidate\CandidateJobApplications;
 use App\Models\Master\Companies;
 use App\Models\Master\JobPositions;
@@ -21,9 +22,25 @@ class JobOpenings extends Model
         'job_position_id',
         'quota',
         'is_active',
+        'opened_at',
         'description',
         'requirements',
     ];
+
+    protected $casts = [
+        'opened_at' => 'datetime',
+    ];
+
+    /** Status portal (Menunggu Dibuka/Sedang Dibuka/Sudah Ditutup) — turunan dari `opened_at` +
+     * `is_active`, bukan kolom sendiri. `is_active` tetap dipakai apa adanya oleh admin Filament. */
+    public function openingStatus(): JobOpeningStatus
+    {
+        if (! $this->opened_at) {
+            return JobOpeningStatus::WAITING;
+        }
+
+        return $this->is_active ? JobOpeningStatus::OPEN : JobOpeningStatus::CLOSED;
+    }
 
     public function jobPosition()
     {

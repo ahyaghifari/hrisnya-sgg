@@ -2,6 +2,7 @@
 
 namespace App\Models\Task;
 
+use App\Enum\Approval\ApprovalModuleEnum;
 use App\Enum\Task\TaskPriority;
 use App\Models\ApprovalManagement\ApprovalHistories;
 use App\Models\ApprovalManagement\ApprovalSnapshots;
@@ -127,7 +128,7 @@ class Task extends Model
     public function approvalSnapshot(): HasOne
     {
         return $this->hasOne(ApprovalSnapshots::class,'module_id', 'id')
-            ->where('module_type', 'task_request');
+            ->where('module_type', ApprovalModuleEnum::TASK_REQUEST->value);
     }
 
     public function approvalHistories(): MorphMany

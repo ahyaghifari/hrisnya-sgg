@@ -2,6 +2,7 @@
 
 namespace App\Models\Shift;
 
+use App\Enum\Approval\ApprovalModuleEnum;
 use App\Models\ApprovalManagement\ApprovalHistories;
 use App\Models\ApprovalManagement\ApprovalSnapshots;
 use App\Models\Concerns\BelongsToCompany;
@@ -76,12 +77,12 @@ class ShiftSwapRequests extends Model
     public function approvalSnapshot()
     {
         return $this->hasOne(ApprovalSnapshots::class, 'module_id', 'id')
-            ->where('module_type', 'swap_shift_request');
+            ->where('module_type', ApprovalModuleEnum::SWAP_SHIFT_REQUEST->value);
     }
 
     public function approvalHistories()
     {
         return $this->hasMany(ApprovalHistories::class, 'requestable_id', 'id')
-            ->where('requestable_type', 'swap_shift_request');
+            ->where('requestable_type', ApprovalModuleEnum::SWAP_SHIFT_REQUEST->value);
     }
 }

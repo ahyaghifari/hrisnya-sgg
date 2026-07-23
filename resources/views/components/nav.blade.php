@@ -6,12 +6,23 @@
     $canAccessAbsensi = auth()->user()->can(\App\Enum\CustomPermissionEnum::SISTEM_ABSENSI->value);
     $canAccessKepegawaian = auth()->user()->can(\App\Enum\CustomPermissionEnum::SISTEM_KEPEGAWAIAN->value);
     $canAccessLms = auth()->user()->can(\App\Enum\CustomPermissionEnum::SISTEM_LMS->value);
-    // Murni permission Shield (bukan hasSubordinates() seperti MyStaff) — siapa yang boleh
-    // bikin Coaching ditentukan lewat checklist role di /admin/roles, bukan otomatis dari
-    // struktur organisasi. Lihat planning/2026-07-18-portal-coaching-counseling.md §3.2.
-    
-    $canManageCoaching = auth()->user()->can('Create:Coaching');
-    $showRoleRow = $canSeeKaryawanMenu || $canAccessKeuangan || $canAccessMaster || $canAccessAbsensi || $canAccessKepegawaian || $canAccessLms || $canManageCoaching;
+    $canAccessRekrutmen = auth()->user()->can(\App\Enum\CustomPermissionEnum::SISTEM_REKRUTMEN->value);
+    // Gerbang baris 1 — 3 permission terpisah (Pelatihan/Pengajuan Absensi/Coaching&Counseling),
+    // dulu terbuka buat siapa saja yang login. Beranda & Tugas tetap dikecualikan (selalu bebas
+    // akses). Lihat CustomPermissionsSeeder::bootstrapSelfServicePermissions() soal kenapa
+    // ketiganya di-assign otomatis ke semua role existing.
+    $canAccessPelatihanSaya = auth()->user()->can(\App\Enum\CustomPermissionEnum::PELATIHAN_SAYA->value);
+    $canAccessPengajuanAbsensiSaya = auth()->user()->can(\App\Enum\CustomPermissionEnum::PENGAJUAN_ABSENSI_SAYA->value);
+    $canAccessCoachingCounselingSaya = auth()->user()->can(\App\Enum\CustomPermissionEnum::COACHING_COUNSELING_SAYA->value);
+    // Dropdown "Coaching & Counseling" digerbangi SISTEM_COACHING_COUNSELING (pola sama
+    // SISTEM_REKRUTMEN dkk — gerbang dropdown-nya), tapi link di dalamnya tetap dicek granular
+    // lewat permission Shield masing-masing (siapa yang bisa kelola Coaching/Counseling
+    // ditentukan lewat checklist role di /admin/roles). Lihat
+    // planning/2026-07-18-portal-coaching-counseling.md §3.2.
+    $canAccessCoachingCounseling = auth()->user()->can(\App\Enum\CustomPermissionEnum::SISTEM_COACHING_COUNSELING->value);
+    $canManageCoaching = auth()->user()->can('ViewAny:Coaching');
+    $canManageCounseling = auth()->user()->can('ViewAny:Counseling');
+    $showRoleRow = $canSeeKaryawanMenu || $canAccessKeuangan || $canAccessMaster || $canAccessAbsensi || $canAccessKepegawaian || $canAccessLms || $canAccessRekrutmen || $canAccessCoachingCounseling;
     $initials = collect(explode(' ', auth()->user()->name))
         ->map(fn ($part) => mb_substr($part, 0, 1))
         ->take(2)
@@ -29,7 +40,9 @@
         </a>
 
         <div class="nav-middle">
-        {{-- Baris 1: milik karyawan sendiri — sama buat semua orang, tidak tergantung role/permission apa pun. --}}
+        {{-- Baris 1: milik karyawan sendiri. Beranda & Tugas selalu bebas akses; Pelatihan,
+             Pengajuan Absensi, dan Counseling+Coaching Saya masing-masing digerbangi permission
+             sendiri (lihat variabel $canAccess*Saya di atas). --}}
             <div class="nav-links">
                 <a href="{{ route('dashboard') }}" wire:navigate class="nav-item {{ request()->routeIs('dashboard') ? 'active' : '' }}">
                     <i class="fa-solid fa-house text-xs"></i> Beranda
@@ -37,20 +50,24 @@
                 <a href="{{ route('tugas') }}" wire:navigate class="nav-item {{ request()->routeIs('tugas*') ? 'active' : '' }}">
                     <i class="fa-solid fa-table-columns text-xs"></i> Tugas
                 </a>
-                <a href="{{ route('pelatihan') }}" wire:navigate class="nav-item {{ request()->routeIs('pelatihan*') ? 'active' : '' }}">
-                    <i class="fa-solid fa-graduation-cap text-xs"></i> Pelatihan
-                </a>
-                @if ($canSubmitAttendance)
+                @if ($canAccessPelatihanSaya)
+                    <a href="{{ route('pelatihan') }}" wire:navigate class="nav-item {{ request()->routeIs('pelatihan*') ? 'active' : '' }}">
+                        <i class="fa-solid fa-graduation-cap text-xs"></i> Pelatihan
+                    </a>
+                @endif
+                @if ($canAccessPengajuanAbsensiSaya && $canSubmitAttendance)
                     <a href="{{ route('my-attendance-requests') }}" wire:navigate class="nav-item {{ request()->routeIs('my-attendance-requests*') ? 'active' : '' }}">
                         <i class="fa-solid fa-file-lines text-xs"></i> Pengajuan Absensi
                     </a>
                 @endif
-                <a href="{{ route('counseling') }}" wire:navigate class="nav-item {{ request()->routeIs('counseling*') ? 'active' : '' }}">
-                    <i class="fa-solid fa-comment-dots text-xs"></i> Counseling
-                </a>
-                <a href="{{ route('coaching.saya') }}" wire:navigate class="nav-item {{ request()->routeIs('coaching.saya*') ? 'active' : '' }}">
-                    <i class="fa-solid fa-user-check text-xs"></i> Coaching Saya
-                </a>
+                @if ($canAccessCoachingCounselingSaya)
+                    <a href="{{ route('counseling') }}" wire:navigate class="nav-item {{ request()->routeIs('counseling*') ? 'active' : '' }}">
+                        <i class="fa-solid fa-comment-dots text-xs"></i> Counseling
+                    </a>
+                    <a href="{{ route('coaching.saya') }}" wire:navigate class="nav-item {{ request()->routeIs('coaching.saya*') ? 'active' : '' }}">
+                        <i class="fa-solid fa-user-check text-xs"></i> Coaching Saya
+                    </a>
+                @endif
             </div>
             @if ($showRoleRow)
                 <div class="topnav-row2">
@@ -62,11 +79,20 @@
                                 <i class="fa-solid fa-clock-rotate-left text-xs"></i> Riwayat Approval
                             </a>
                         @endif
-                        {{-- ponytail: tombol Coaching disembunyikan sementara, aktifkan lagi ganti @if ($canManageCoaching) --}}
-                        @if (false && $canManageCoaching)
-                            <a href="{{ route('coaching') }}" wire:navigate class="nav-item nav-item-orange {{ request()->routeIs('coaching*') ? 'active' : '' }}">
-                                <i class="fa-solid fa-clipboard-check text-xs"></i> Coaching
-                            </a>
+                        @if ($canAccessCoachingCounseling)
+                            <div class="dropdown">
+                                <a href="#" class="nav-item nav-item-orange {{ request()->routeIs(['coaching', 'coaching.create', 'coaching.show', 'counseling.kelola*']) ? 'active' : '' }}">
+                                    <i class="fa-solid fa-comment-dots text-xs"></i> Coaching & Counseling <i class="fa-solid fa-chevron-down text-[10px]"></i>
+                                </a>
+                                <div class="dropdown-menu">
+                                    @if ($canManageCoaching)
+                                        <a href="{{ route('coaching') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-clipboard-check"></i> Coaching</a>
+                                    @endif
+                                    @if ($canManageCounseling)
+                                        <a href="{{ route('counseling.kelola') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-comments"></i> Kelola Counseling</a>
+                                    @endif
+                                </div>
+                            </div>
                         @endif
                         @if ($canAccessKeuangan)
                             <div class="dropdown">
@@ -114,7 +140,7 @@
                                     <i class="fa-solid fa-id-card-clip text-xs"></i> Kepegawaian <i class="fa-solid fa-chevron-down text-[10px]"></i>
                                 </a>
                                 <div class="dropdown-menu">
-                                    <span class="dropdown-item" style="opacity:.5;cursor:not-allowed;" title="Segera hadir"><i class="fa-solid fa-chart-line"></i> Dashboard <span style="font-size:9px;">(segera)</span></span>
+                                    <a href="{{ route('kepegawaian.dashboard') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-chart-line"></i> Dashboard</a>
                                     <div style="height:1px;background:var(--border-soft);margin:6px 8px;"></div>
                                     <a href="{{ route('kepegawaian.karyawan') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-users"></i> Karyawan</a>
                                     <a href="{{ route('kepegawaian.dokumen') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-folder-open"></i> Dokumen</a>
@@ -133,6 +159,18 @@
                                     <a href="{{ route('pelatihan.kelola') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-book"></i> Pelatihan</a>
                                     <a href="{{ route('pelatihan.kategori') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-tags"></i> Kategori Pelatihan</a>
                                     <a href="{{ route('pelatihan.honorarium') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-sack-dollar"></i> Honorarium</a>
+                                </div>
+                            </div>
+                        @endif
+                        {{-- ponytail: dropdown Rekrutmen disembunyikan sementara, aktifkan lagi ganti @if ($canAccessRekrutmen) --}}
+                        @if (false && $canAccessRekrutmen)
+                            <div class="dropdown">
+                                <a href="#" class="nav-item nav-item-gold {{ request()->routeIs('rekrutmen.*') ? 'active' : '' }}">
+                                    <i class="fa-solid fa-user-plus text-xs"></i> Rekrutmen <i class="fa-solid fa-chevron-down text-[10px]"></i>
+                                </a>
+                                <div class="dropdown-menu">
+                                    <a href="{{ route('rekrutmen.lowongan') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-briefcase"></i> Lowongan Kerja</a>
+                                    <a href="{{ route('rekrutmen.permintaan-tenaga-kerja') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-right-left"></i> Permintaan Tenaga Kerja</a>
                                 </div>
                             </div>
                         @endif

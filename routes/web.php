@@ -5,8 +5,12 @@ use App\Http\Controllers\AttendanceTemplateController;
 use App\Http\Controllers\EmployeeImportController;
 use App\Http\Controllers\PayrollManualLineTemplateController;
 use App\Livewire\AttendanceRequestDetail;
+use App\Livewire\Coaching\CoachingDetailPage;
 use App\Livewire\Coaching\CoachingPage;
+use App\Livewire\Coaching\CreateCoachingPage;
 use App\Livewire\Coaching\MyCoachingPage;
+use App\Livewire\Counseling\CounselingDetailPage;
+use App\Livewire\Counseling\CounselingManagePage;
 use App\Livewire\Counseling\CounselingPage;
 use App\Livewire\Dashboard;
 use App\Livewire\EditMyEmployee;
@@ -17,6 +21,7 @@ use App\Livewire\Kepegawaian\CreateUserTransitionPage;
 use App\Livewire\Kepegawaian\DocumentFormPage;
 use App\Livewire\Kepegawaian\DocumentsPage;
 use App\Livewire\Kepegawaian\KaryawanPage;
+use App\Livewire\Kepegawaian\KepegawaianDashboardPage;
 use App\Livewire\Kepegawaian\UserTransitionDetailPage;
 use App\Livewire\Kepegawaian\UserTransitionsPage;
 use App\Livewire\Keuangan\IncentivesPage;
@@ -47,6 +52,13 @@ use App\Livewire\Presensi\LemburRecapPage;
 use App\Livewire\Presensi\ScheduleAssignmentsPage;
 use App\Livewire\Presensi\ScheduleDetailPage;
 use App\Livewire\Presensi\SchedulesPage;
+use App\Livewire\Rekrutmen\CandidateApplicationDetailPage;
+use App\Livewire\Rekrutmen\EditJobOpeningPage;
+use App\Livewire\Rekrutmen\CreateManpowerRequestPage;
+use App\Livewire\Rekrutmen\JobOpeningDetailPage;
+use App\Livewire\Rekrutmen\JobOpeningsPage;
+use App\Livewire\Rekrutmen\ManpowerRequestDetailPage;
+use App\Livewire\Rekrutmen\ManpowerRequestsPage;
 use App\Http\Controllers\Pwa\PushSubscriptionController;
 use App\Livewire\Pwa\Akun as PwaAkun;
 use App\Livewire\Pwa\NotificationSettingsPage;
@@ -106,6 +118,9 @@ Route::middleware(['auth', 'portal.access'])->group(function () {
     // lihat grup route Kepegawaian di bawah) — makanya path-nya /karyawan, bukan /my-staff.
     Route::get('/karyawan/{record}', EmployeeAttendanceStatistics::class)
         ->name('karyawan.show');
+
+    Route::get('/kepegawaian/dashboard', KepegawaianDashboardPage::class)
+        ->name('kepegawaian.dashboard');
 
     Route::get('/kepegawaian/karyawan', KaryawanPage::class)
         ->name('kepegawaian.karyawan');
@@ -226,8 +241,20 @@ Route::middleware(['auth', 'portal.access'])->group(function () {
     Route::get('/coaching', CoachingPage::class)
         ->name('coaching');
 
+    Route::get('/coaching/tambah', CreateCoachingPage::class)
+        ->name('coaching.create');
+
+    Route::get('/coaching/{record}', CoachingDetailPage::class)
+        ->name('coaching.show');
+
     Route::get('/counseling', CounselingPage::class)
         ->name('counseling');
+
+    Route::get('/counseling/kelola', CounselingManagePage::class)
+        ->name('counseling.kelola');
+
+    Route::get('/counseling/kelola/{record}', CounselingDetailPage::class)
+        ->name('counseling.kelola.show');
 
     Route::get('/tugas', TaskListPage::class)
         ->name('tugas');
@@ -260,6 +287,27 @@ Route::middleware(['auth', 'portal.access'])->group(function () {
 
     Route::get('/pelatihan/{course}', TrainingDetail::class)
         ->name('pelatihan.show');
+
+    Route::get('/rekrutmen/lowongan', JobOpeningsPage::class)
+        ->name('rekrutmen.lowongan');
+
+    Route::get('/rekrutmen/lowongan/{record}/edit', EditJobOpeningPage::class)
+        ->name('rekrutmen.lowongan.edit');
+
+    Route::get('/rekrutmen/lowongan/kandidat/{record}', CandidateApplicationDetailPage::class)
+        ->name('rekrutmen.lowongan.kandidat');
+
+    Route::get('/rekrutmen/lowongan/{record}', JobOpeningDetailPage::class)
+        ->name('rekrutmen.lowongan.show');
+
+    Route::get('/rekrutmen/permintaan-tenaga-kerja', ManpowerRequestsPage::class)
+        ->name('rekrutmen.permintaan-tenaga-kerja');
+
+    Route::get('/rekrutmen/permintaan-tenaga-kerja/tambah', CreateManpowerRequestPage::class)
+        ->name('rekrutmen.permintaan-tenaga-kerja.create');
+
+    Route::get('/rekrutmen/permintaan-tenaga-kerja/{record}', ManpowerRequestDetailPage::class)
+        ->name('rekrutmen.permintaan-tenaga-kerja.show');
 });
 
 Route::get('/attendance/template/download', [AttendanceTemplateController::class, 'downloadTemplate'])

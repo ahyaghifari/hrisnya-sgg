@@ -2,6 +2,7 @@
 
 namespace App\Models\User;
 
+use App\Enum\Approval\ApprovalModuleEnum;
 use App\Enum\UserTransitionTypeEnum;
 use App\Models\ApprovalManagement\ApprovalHistories;
 use App\Models\ApprovalManagement\ApprovalSnapshots;
@@ -94,7 +95,7 @@ class UserTransition extends Model
     public function approvalSnapshot(): HasOne
     {
         return $this->hasOne(ApprovalSnapshots::class,'module_id', 'id')
-            ->where('module_type', 'user_transition');
+            ->where('module_type', ApprovalModuleEnum::USER_TRANSITION->value);
     }
 
     public function approvalHistories(): MorphMany

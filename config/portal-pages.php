@@ -76,6 +76,12 @@ return [
         'guard' => null,
     ],
 
+    'kepegawaian.dashboard' => [
+        'label' => 'Dashboard Kepegawaian',
+        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_KEPEGAWAIAN->value,
+        'guard' => null,
+    ],
+
     'kepegawaian.karyawan' => [
         'label' => 'Karyawan',
         'permission' => \App\Enum\CustomPermissionEnum::SISTEM_KEPEGAWAIAN->value,
@@ -126,31 +132,31 @@ return [
 
     'my-attendance-requests' => [
         'label' => 'Pengajuan Absensi',
-        'permission' => null,
+        'permission' => \App\Enum\CustomPermissionEnum::PENGAJUAN_ABSENSI_SAYA->value,
         'guard' => null,
     ],
 
     'my-attendance-requests.leave' => [
         'label' => 'Ajukan Cuti',
-        'permission' => null,
+        'permission' => \App\Enum\CustomPermissionEnum::PENGAJUAN_ABSENSI_SAYA->value,
         'guard' => null,
     ],
 
     'my-attendance-requests.permission' => [
         'label' => 'Ajukan Izin',
-        'permission' => null,
+        'permission' => \App\Enum\CustomPermissionEnum::PENGAJUAN_ABSENSI_SAYA->value,
         'guard' => null,
     ],
 
     'my-attendance-requests.overtime' => [
         'label' => 'Ajukan Lembur',
-        'permission' => null,
+        'permission' => \App\Enum\CustomPermissionEnum::PENGAJUAN_ABSENSI_SAYA->value,
         'guard' => null,
     ],
 
     'my-attendance-requests.show' => [
         'label' => 'Detail Pengajuan',
-        'permission' => null,
+        'permission' => \App\Enum\CustomPermissionEnum::PENGAJUAN_ABSENSI_SAYA->value,
         'guard' => null,
     ],
 
@@ -258,22 +264,47 @@ return [
 
     'coaching.saya' => [
         'label' => 'Coaching Saya',
-        'permission' => null,
+        'permission' => \App\Enum\CustomPermissionEnum::COACHING_COUNSELING_SAYA->value,
         'guard' => null,
     ],
 
     'coaching' => [
         'label' => 'Coaching',
         // Murni permission Shield (bukan guard hasSubordinates() seperti 'my-staff') — siapa
-        // yang bisa bikin Coaching ditentukan lewat checklist role di /admin/roles. Lihat
+        // yang bisa kelola Coaching ditentukan lewat checklist role di /admin/roles (1 role
+        // khusus per company, company-wide, bukan scoped subordinates/departemen). Lihat
         // planning/2026-07-18-portal-coaching-counseling.md §3.2.
+        'permission' => 'ViewAny:Coaching',
+        'guard' => null,
+    ],
+
+    'coaching.create' => [
+        'label' => 'Buat Coaching',
         'permission' => 'Create:Coaching',
+        'guard' => null,
+    ],
+
+    'coaching.show' => [
+        'label' => 'Detail Coaching',
+        'permission' => 'View:Coaching',
         'guard' => null,
     ],
 
     'counseling' => [
         'label' => 'Counseling',
-        'permission' => null,
+        'permission' => \App\Enum\CustomPermissionEnum::COACHING_COUNSELING_SAYA->value,
+        'guard' => null,
+    ],
+
+    'counseling.kelola' => [
+        'label' => 'Kelola Counseling',
+        'permission' => 'ViewAny:Counseling',
+        'guard' => null,
+    ],
+
+    'counseling.kelola.show' => [
+        'label' => 'Detail Counseling',
+        'permission' => 'View:Counseling',
         'guard' => null,
     ],
 
@@ -291,7 +322,7 @@ return [
 
     'pelatihan' => [
         'label' => 'Pelatihan',
-        'permission' => null,
+        'permission' => \App\Enum\CustomPermissionEnum::PELATIHAN_SAYA->value,
         'guard' => null,
     ],
 
@@ -327,7 +358,7 @@ return [
 
     'pelatihan.show' => [
         'label' => 'Detail Pelatihan',
-        'permission' => null,
+        'permission' => \App\Enum\CustomPermissionEnum::PELATIHAN_SAYA->value,
         'guard' => null,
     ],
 
@@ -336,6 +367,48 @@ return [
     'pelatihan.quiz' => [
         'label' => 'Quiz',
         'permission' => null,
+        'guard' => null,
+    ],
+
+    'rekrutmen.lowongan' => [
+        'label' => 'Lowongan Kerja',
+        'permission' => 'ViewAny:JobOpenings',
+        'guard' => null,
+    ],
+
+    'rekrutmen.lowongan.edit' => [
+        'label' => 'Edit Lowongan Kerja',
+        'permission' => 'Update:JobOpenings',
+        'guard' => null,
+    ],
+
+    'rekrutmen.lowongan.show' => [
+        'label' => 'Detail Lowongan Kerja',
+        'permission' => 'View:JobOpenings',
+        'guard' => null,
+    ],
+
+    'rekrutmen.lowongan.kandidat' => [
+        'label' => 'Detail Kandidat',
+        'permission' => 'View:JobOpenings',
+        'guard' => null,
+    ],
+
+    'rekrutmen.permintaan-tenaga-kerja' => [
+        'label' => 'Permintaan Tenaga Kerja',
+        'permission' => 'ViewAny:ManpowerRequests',
+        'guard' => null,
+    ],
+
+    'rekrutmen.permintaan-tenaga-kerja.create' => [
+        'label' => 'Ajukan Permintaan Tenaga Kerja',
+        'permission' => 'Create:ManpowerRequests',
+        'guard' => null,
+    ],
+
+    'rekrutmen.permintaan-tenaga-kerja.show' => [
+        'label' => 'Detail Permintaan Tenaga Kerja',
+        'permission' => 'View:ManpowerRequests',
         'guard' => null,
     ],
 

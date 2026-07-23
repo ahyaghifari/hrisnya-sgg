@@ -49,11 +49,7 @@ class RequestStatusChanged extends Notification implements ShouldQueue
 
     protected function body(): string
     {
-        $label = match ($this->moduleType) {
-            'task_request' => 'Pengajuan tugas',
-            'swap_shift_request' => 'Pengajuan tukar shift',
-            default => 'Pengajuan absensi',
-        };
+        $label = \App\Enum\Approval\ApprovalModuleEnum::tryFrom($this->moduleType)?->notificationLabel() ?? 'Pengajuan';
 
         return match ($this->status) {
             'approved' => "{$label} Anda disetujui oleh {$this->actorName}",

@@ -2,6 +2,7 @@
 
 namespace App\Services\Shift;
 
+use App\Enum\Approval\ApprovalModuleEnum;
 use App\Models\Shift\ShiftScheduleAssignments;
 use App\Models\Shift\ShiftSwapRequests;
 use App\Models\User;
@@ -157,7 +158,7 @@ class ShiftSwapRequestService
     private function createApprovalSnapshot(ShiftSwapRequests $swapRequest, $user): void
     {
         $masterFlow = $this->approvalSnapshotRepository->resolveApprovalFlowForUser(
-            moduleType: 'swap_shift_request',
+            moduleType: ApprovalModuleEnum::SWAP_SHIFT_REQUEST->value,
             companyId:  $user->company_id,
             userId:     $user->id,
         );
@@ -169,7 +170,7 @@ class ShiftSwapRequestService
         }
 
         $this->approvalCreationService->createSnapshot(
-            moduleType: 'swap_shift_request',
+            moduleType: ApprovalModuleEnum::SWAP_SHIFT_REQUEST->value,
             moduleId:   $swapRequest->id,
             flow:       $masterFlow,
             createdBy:  $user->id,

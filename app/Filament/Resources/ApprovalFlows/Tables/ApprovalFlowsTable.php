@@ -24,20 +24,7 @@ class ApprovalFlowsTable
                 
                 TextColumn::make('module')
                     ->label('Modul')
-                    ->formatStateUsing
-                    (function ($state) {
-                        $map = [
-                            'attendance_request' => 'Permintaan Izin, Cuti, Lembur',
-                            'task_request' => 'Permintaan Penugasan Individu',
-                            'jobposition_request' => 'Penambahan/Perubahan Jabatan',
-                            'approval_candidate_applicant' => 'Persetujuan Pelamar Kerja',
-                            'user_transition' => 'Perubahan Status Karyawan',
-                            'swap_shift_request' => 'Permintaan Tukar Shift',
-                            'additional_employee_request' => 'Permintaan Penambahan Karyawan',
-                            'employee_replacement_request' => 'Permintaan Penggantian Karyawan',
-                        ];
-                        return $map[$state] ?? $state;
-                    })
+                    ->formatStateUsing(fn ($state) => \App\Enum\Approval\ApprovalModuleEnum::tryFrom($state)?->label() ?? $state)
                     ->searchable()
                     ->sortable(),
 

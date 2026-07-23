@@ -2,6 +2,7 @@
 
 namespace App\Models\Master;
 
+use App\Enum\Approval\ApprovalModuleEnum;
 use App\Models\ApprovalManagement\ApprovalHistories;
 use App\Models\ApprovalManagement\ApprovalSnapshots;
 use App\Models\User;
@@ -129,7 +130,7 @@ class JobPositions extends Model
     public function approvalSnapshots()
     {
         return $this->hasMany(ApprovalSnapshots::class, 'module_id', 'id')
-            ->where('module_type', 'jobposition_request');
+            ->where('module_type', ApprovalModuleEnum::JOBPOSITION_REQUEST->value);
     }
 
     public function approvalHistories()

@@ -71,6 +71,5 @@ class Coaching extends Model
             ->values();
 
         return $data;
-        dd($data);
     }
 }

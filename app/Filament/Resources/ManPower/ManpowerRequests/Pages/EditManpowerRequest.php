@@ -7,7 +7,6 @@ use App\Enum\ManpowerRequestType;
 use App\Filament\Resources\ManPower\JobPositions\JobPositionResource;
 use App\Filament\Resources\ManPower\ManpowerRequests\ManpowerRequestResource;
 use App\Services\JobPosition\ManPowerReqService;
-use App\Services\Approval\ApprovalFlowService;
 use Filament\Actions\Action;
 use Filament\Actions\DeleteAction;
 use Filament\Forms\Components\Textarea;
@@ -24,19 +23,7 @@ class EditManpowerRequest extends EditRecord
     {
         parent::mount($record);
 
-        if ($this->record->approvalSnapshot) {
-            $approvalService = app(ApprovalFlowService::class);
-            $checkStep = $approvalService->checkStepsSync($this->record->approvalSnapshot);
-
-            if (
-                !$checkStep
-                && $this->record->status !== JobPositionReqStatus::APPROVED->value
-                && $this->record->status !== JobPositionReqStatus::REJECTED->value
-            ) {
-                $approvalService->syncStepsFromMaster($this->record->approvalSnapshot);
-                $this->record->update(['is_flow_changed' => true]);
-            }
-        }
+        app(ManPowerReqService::class)->ensureApprovalSnapshot($this->record);
 
         $this->record->load(['approvalSnapshot.activity', 'approvalHistories']);
     }

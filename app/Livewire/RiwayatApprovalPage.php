@@ -2,6 +2,7 @@
 
 namespace App\Livewire;
 
+use App\Enum\Approval\ApprovalModuleEnum;
 use App\Models\Attendance\AttendanceRequests;
 use App\Models\ApprovalManagement\ApprovalHistories;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -47,7 +48,7 @@ class RiwayatApprovalPage extends Component
     {
         $histories = ApprovalHistories::query()
             ->where('actor_id', Auth::id())
-            ->where('requestable_type', 'attendance_request')
+            ->where('requestable_type', ApprovalModuleEnum::ATTENDANCE_REQUEST->value)
             ->whereIn('action', ['approved', 'rejected'])
             ->orderByDesc('created_at')
             ->get();

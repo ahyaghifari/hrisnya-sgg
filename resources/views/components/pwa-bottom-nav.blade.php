@@ -5,6 +5,12 @@
     $canAccessAbsensi = auth()->user()->can(\App\Enum\CustomPermissionEnum::SISTEM_ABSENSI->value);
     $canAccessKepegawaian = auth()->user()->can(\App\Enum\CustomPermissionEnum::SISTEM_KEPEGAWAIAN->value);
     $canAccessLms = auth()->user()->can(\App\Enum\CustomPermissionEnum::SISTEM_LMS->value);
+    $canAccessRekrutmen = auth()->user()->can(\App\Enum\CustomPermissionEnum::SISTEM_REKRUTMEN->value);
+    $canAccessPelatihanSaya = auth()->user()->can(\App\Enum\CustomPermissionEnum::PELATIHAN_SAYA->value);
+    $canAccessPengajuanAbsensiSaya = auth()->user()->can(\App\Enum\CustomPermissionEnum::PENGAJUAN_ABSENSI_SAYA->value);
+    $canAccessCoachingCounseling = auth()->user()->can(\App\Enum\CustomPermissionEnum::SISTEM_COACHING_COUNSELING->value);
+    $canManageCoaching = auth()->user()->can('ViewAny:Coaching');
+    $canManageCounseling = auth()->user()->can('ViewAny:Counseling');
 
     $navPhotoPath = auth()->user()->profile?->profile_picture[0] ?? null;
     $navPhotoUrl = $navPhotoPath && is_string($navPhotoPath) ? \Illuminate\Support\Facades\Storage::url($navPhotoPath) : null;
@@ -31,7 +37,7 @@
             <span>Menu</span>
         </div>
 
-        @if ($canSubmitAttendance)
+        @if ($canSubmitAttendance && $canAccessPengajuanAbsensiSaya)
             <a href="{{ route('my-attendance-requests') }}" wire:navigate class="pwa-bottom-nav-item {{ request()->routeIs('my-attendance-requests*') ? 'active' : '' }}">
                 <i class="fa-solid fa-file-lines"></i> Absensi
             </a>
@@ -64,10 +70,12 @@
             <span class="pwa-menu-grid-label">Tugas</span>
         </a>
 
-        <a href="{{ route('pelatihan') }}" wire:navigate class="pwa-menu-grid-item">
-            <span class="pwa-menu-grid-icon teal"><i class="fa-solid fa-graduation-cap"></i></span>
-            <span class="pwa-menu-grid-label">Pelatihan</span>
-        </a>
+        @if ($canAccessPelatihanSaya)
+            <a href="{{ route('pelatihan') }}" wire:navigate class="pwa-menu-grid-item">
+                <span class="pwa-menu-grid-icon teal"><i class="fa-solid fa-graduation-cap"></i></span>
+                <span class="pwa-menu-grid-label">Pelatihan</span>
+            </a>
+        @endif
     </div>
 </div>
 
@@ -140,6 +148,10 @@
 
         @if ($canAccessKepegawaian)
             <span class="pwa-menu-grid-divider">Sistem Kepegawaian</span>
+            <a href="{{ route('kepegawaian.dashboard') }}" wire:navigate class="pwa-menu-grid-item">
+                <span class="pwa-menu-grid-icon navy"><i class="fa-solid fa-chart-line"></i></span>
+                <span class="pwa-menu-grid-label">Dashboard</span>
+            </a>
             <a href="{{ route('kepegawaian.karyawan') }}" wire:navigate class="pwa-menu-grid-item">
                 <span class="pwa-menu-grid-icon violet"><i class="fa-solid fa-users"></i></span>
                 <span class="pwa-menu-grid-label">Karyawan</span>
@@ -169,6 +181,35 @@
             <a href="{{ route('pelatihan.honorarium') }}" wire:navigate class="pwa-menu-grid-item">
                 <span class="pwa-menu-grid-icon teal"><i class="fa-solid fa-sack-dollar"></i></span>
                 <span class="pwa-menu-grid-label">Honorarium</span>
+            </a>
+        @endif
+
+        @if ($canAccessCoachingCounseling)
+            <span class="pwa-menu-grid-divider">Coaching & Counseling</span>
+            @if ($canManageCoaching)
+                <a href="{{ route('coaching') }}" wire:navigate class="pwa-menu-grid-item">
+                    <span class="pwa-menu-grid-icon indigo"><i class="fa-solid fa-clipboard-check"></i></span>
+                    <span class="pwa-menu-grid-label">Coaching</span>
+                </a>
+            @endif
+            @if ($canManageCounseling)
+                <a href="{{ route('counseling.kelola') }}" wire:navigate class="pwa-menu-grid-item">
+                    <span class="pwa-menu-grid-icon indigo"><i class="fa-solid fa-comments"></i></span>
+                    <span class="pwa-menu-grid-label">Kelola Counseling</span>
+                </a>
+            @endif
+        @endif
+
+        {{-- ponytail: menu Rekrutmen disembunyikan sementara, aktifkan lagi ganti @if ($canAccessRekrutmen) --}}
+        @if (false && $canAccessRekrutmen)
+            <span class="pwa-menu-grid-divider">Rekrutmen</span>
+            <a href="{{ route('rekrutmen.lowongan') }}" wire:navigate class="pwa-menu-grid-item">
+                <span class="pwa-menu-grid-icon gold"><i class="fa-solid fa-briefcase"></i></span>
+                <span class="pwa-menu-grid-label">Lowongan Kerja</span>
+            </a>
+            <a href="{{ route('rekrutmen.permintaan-tenaga-kerja') }}" wire:navigate class="pwa-menu-grid-item">
+                <span class="pwa-menu-grid-icon gold"><i class="fa-solid fa-right-left"></i></span>
+                <span class="pwa-menu-grid-label">Permintaan Tenaga Kerja</span>
             </a>
         @endif
 

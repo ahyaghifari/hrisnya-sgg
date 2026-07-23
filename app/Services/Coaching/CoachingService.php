@@ -56,4 +56,34 @@ class CoachingService
             return $this->coachingRepository->getDetail($coachingId, Auth::id());
         });
     }
+
+    // --- Sisi HC (portal /coaching) — beda dari method di atas (sisi karyawan yang dibina,
+    // scoped user_id via CoachingRepository). Method di bawah ini dipakai HC bikin coaching
+    // untuk siapa saja & approve/reject bukti, jadi tidak lewat repository yang di-scope
+    // user_id. Alur & efek identik dengan admin Filament (CreateCoaching/EditCoaching).
+
+    public function create(array $data): Coaching
+    {
+        $data['status'] = CoachingStatus::IN_PROGRESS->value;
+
+        return Coaching::create($data);
+    }
+
+    public function approve(Coaching $coaching): void
+    {
+        $coaching->update(['status' => CoachingStatus::COMPLETED->value]);
+
+        $coaching->proofs()
+            ->where('status', CoachingStatus::SUBMITTED->value)
+            ->update(['status' => CoachingStatus::COMPLETED->value]);
+    }
+
+    public function reject(Coaching $coaching): void
+    {
+        $coaching->update(['status' => CoachingStatus::REJECTED->value]);
+
+        $coaching->proofs()
+            ->where('status', CoachingStatus::SUBMITTED->value)
+            ->update(['status' => CoachingStatus::REJECTED->value]);
+    }
 }

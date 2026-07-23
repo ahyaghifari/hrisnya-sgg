@@ -2,6 +2,7 @@
 
 namespace App\Services\Approval;
 
+use App\Enum\Approval\ApprovalModuleEnum;
 use App\Enum\AttendanceReqStatus;
 use App\Enum\Task\TaskStatus;
 use App\Models\Shift\ShiftSwapRequests;
@@ -88,7 +89,7 @@ class ApprovalFlowService
                 }
 
                 //Task
-                if ($snapshot->module_type === 'task_request') {
+                if ($snapshot->module_type === ApprovalModuleEnum::TASK_REQUEST->value) {
                     $taskRequest = $this->taskRepository->findTaskById($snapshot->module_id);
                     if ($taskRequest) {
                         $this->taskRepository->update($snapshot->module_id, [
@@ -99,7 +100,7 @@ class ApprovalFlowService
                 }
 
                 // Shift Swap Request
-                if ($snapshot->module_type === 'swap_shift_request') {
+                if ($snapshot->module_type === ApprovalModuleEnum::SWAP_SHIFT_REQUEST->value) {
                     ShiftSwapRequests::where('id', $snapshot->module_id)->update([
                         'status' => 'rejected',
                         'rejected_by' => $actorId,
@@ -213,7 +214,7 @@ class ApprovalFlowService
                 }
 
                 //Task
-                if ($snapshot->module_type === 'task_request') {
+                if ($snapshot->module_type === ApprovalModuleEnum::TASK_REQUEST->value) {
                     $taskRequest = $this->taskRepository->findTaskById($snapshot->module_id);
                     if ($taskRequest) {
                         $this->taskRepository->update($snapshot->module_id, [
@@ -227,7 +228,7 @@ class ApprovalFlowService
                 }
 
                 // Shift Swap Request
-                if ($snapshot->module_type === 'swap_shift_request') {
+                if ($snapshot->module_type === ApprovalModuleEnum::SWAP_SHIFT_REQUEST->value) {
                     $swapRequest = ShiftSwapRequests::with(['reqSchedule', 'targetSchedule'])
                         ->find($snapshot->module_id);
                     if ($swapRequest) {

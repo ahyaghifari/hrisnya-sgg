@@ -18,6 +18,11 @@ enum CustomPermissionEnum: string
     case SISTEM_KEPEGAWAIAN = 'sistem_kepegawaian';
     case SISTEM_LMS = 'sistem_lms';
     case SISTEM_TUGAS = 'sistem_tugas';
+    case SISTEM_REKRUTMEN = 'sistem_rekrutmen';
+    case SISTEM_COACHING_COUNSELING = 'sistem_coaching_counseling';
+    case PELATIHAN_SAYA = 'pelatihan_saya';
+    case PENGAJUAN_ABSENSI_SAYA = 'pengajuan_absensi_saya';
+    case COACHING_COUNSELING_SAYA = 'coaching_counseling_saya';
 
     // Verb non-CRUD (approve/import/report) - dideklarasikan juga di
     // config/filament-shield.php 'custom_permissions' supaya Shield tidak menganggapnya yatim.
@@ -39,6 +44,11 @@ enum CustomPermissionEnum: string
             self::SISTEM_KEPEGAWAIAN => 'Sistem Kepegawaian',
             self::SISTEM_LMS => 'Sistem LMS',
             self::SISTEM_TUGAS => 'Sistem Tugas',
+            self::SISTEM_REKRUTMEN => 'Sistem Rekrutmen',
+            self::SISTEM_COACHING_COUNSELING => 'Sistem Coaching & Counseling',
+            self::PELATIHAN_SAYA => 'Pelatihan Saya',
+            self::PENGAJUAN_ABSENSI_SAYA => 'Pengajuan Absensi Saya',
+            self::COACHING_COUNSELING_SAYA => 'Coaching & Counseling Saya',
             self::APPROVE_PENGAJUAN_ABSENSI => 'Approve Pengajuan Absensi',
             self::VIEW_REPORT_DATA_ABSENSI => 'Lihat Laporan Data Absensi',
             self::IMPORT_DATA_ABSENSI => 'Import Data Absensi',

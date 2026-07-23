@@ -2,6 +2,7 @@
 
 namespace App\Models\Attendance;
 
+use App\Enum\Approval\ApprovalModuleEnum;
 use App\Models\ApprovalManagement\ApprovalHistories;
 use App\Models\ApprovalManagement\ApprovalSnapshots;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
@@ -56,7 +57,7 @@ class AttendanceRequests extends Model
     public function approvalSnapshot()
     {
         return $this->hasOne(ApprovalSnapshots::class,'module_id', 'id')
-            ->where('module_type', 'attendance_request');
+            ->where('module_type', ApprovalModuleEnum::ATTENDANCE_REQUEST->value);
     }
 
     public function approvalHistories()

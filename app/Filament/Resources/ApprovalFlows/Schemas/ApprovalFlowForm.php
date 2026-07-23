@@ -44,16 +44,7 @@ class ApprovalFlowForm
                         Select::make('module')
                             ->label('Modul')
                             ->helperText('Pilih modul bisnis yang akan menggunakan alur persetujuan ini.')
-                            ->options([
-                                'attendance_request' => 'Permintaan Izin, Cuti, Lembur',
-                                'task_request' => 'Permintaan Penugasan Individu',
-                                'jobposition_request' => 'Penambahan/Perubahan Jabatan',
-                                'approval_candidate_applicant' => 'Persetujuan Pelamar Kerja',
-                                'user_transition' => 'Perubahan Status Karyawan',
-                                'swap_shift_request' => 'Permintaan Tukar Shift',
-                                'additional_employee_request' => 'Permintaan Penambahan Karyawan',
-                                'employee_replacement_request' => 'Permintaan Penggantian Karyawan',
-                            ])
+                            ->options(\App\Enum\Approval\ApprovalModuleEnum::options())
                             ->rule(function ($get, $record) {
                                 return function ($attribute, $value, $fail) use ($get, $record) {
                                     $flowType = $get('flow_type');

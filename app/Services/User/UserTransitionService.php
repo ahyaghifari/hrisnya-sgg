@@ -2,6 +2,7 @@
 
 namespace App\Services\User;
 
+use App\Enum\Approval\ApprovalModuleEnum;
 use App\Enum\UserTransitionStatusEnum;
 use App\Enum\UserTransitionTypeEnum;
 use App\Models\Master\JobPositions;
@@ -69,7 +70,7 @@ class UserTransitionService
         }
 
         $masterFlow = $this->approvalSnapshotRepository->findMasterApprovalFlowByCompany(
-            moduleType: 'user_transition',
+            moduleType: ApprovalModuleEnum::USER_TRANSITION->value,
             companyId: $actingUser->company_id,
         );
 
@@ -78,7 +79,7 @@ class UserTransitionService
         }
 
         $this->approvalCreationService->createSnapshot(
-            moduleType: 'user_transition',
+            moduleType: ApprovalModuleEnum::USER_TRANSITION->value,
             moduleId: $transition->id,
             flow: $masterFlow,
             createdBy: $actingUser->id,
@@ -95,14 +96,14 @@ class UserTransitionService
     {
         if (! $transition->approvalSnapshot) {
             $masterFlow = $this->approvalSnapshotRepository->resolveApprovalFlowForUser(
-                moduleType: 'user_transition',
+                moduleType: ApprovalModuleEnum::USER_TRANSITION->value,
                 companyId: $transition->company_id,
                 userId: $transition->created_by,
             );
 
             if ($masterFlow) {
                 $this->approvalCreationService->createSnapshot(
-                    moduleType: 'user_transition',
+                    moduleType: ApprovalModuleEnum::USER_TRANSITION->value,
                     moduleId: $transition->id,
                     flow: $masterFlow,
                     createdBy: $transition->created_by,
