@@ -192,6 +192,28 @@ disetujui/ditolak/dibatalkan, kuota ini tidak lagi jadi pertimbangan apa pun, ja
     </div>
 @endif
 
+@if ($this->canApprove && $record->attachments->isNotEmpty())
+    <div style="background:var(--surface);border-radius:16px;box-shadow:var(--shadow-card);padding:18px;margin-bottom:16px;">
+        {!! $sectionHeader('fa-paperclip', 'Lampiran') !!}
+        <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:12px;">
+            @foreach ($record->attachments as $attachment)
+                @if ($attachment->is_image)
+                    <div x-data="{ open: false }" style="display:contents;">
+                        <img src="{{ $attachment->file_url }}" @click="open = true" style="width:88px;height:88px;object-fit:cover;border-radius:10px;cursor:pointer;border:1px solid var(--border-soft);">
+                        <div x-show="open" x-cloak @click="open = false" style="position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:10000;display:flex;align-items:center;justify-content:center;padding:24px;">
+                            <img src="{{ $attachment->file_url }}" style="max-width:90vw;max-height:90vh;border-radius:8px;object-fit:contain;" @click.stop>
+                        </div>
+                    </div>
+                @else
+                    <a href="{{ $attachment->file_url }}" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:10px;border:1px solid var(--border-soft);font-size:12.5px;color:#1a56c4;text-decoration:none;">
+                        <i class="fa-solid fa-file"></i> {{ basename($attachment->file_path) }}
+                    </a>
+                @endif
+            @endforeach
+        </div>
+    </div>
+@endif
+
 @if ($this->canApprove)
     <div style="background:var(--surface);border-radius:16px;box-shadow:var(--shadow-card);padding:18px;margin-bottom:16px;">
         <h3 style="font-size:13.5px;font-weight:700;color:var(--text-heading);margin:0 0 14px;">Aksi Persetujuan</h3>
@@ -235,10 +257,32 @@ disetujui/ditolak/dibatalkan, kuota ini tidak lagi jadi pertimbangan apa pun, ja
     <div style="background:var(--surface);border-radius:16px;box-shadow:var(--shadow-card);padding:18px;">
         {!! $sectionHeader('fa-file-lines', 'Informasi Pengajuan') !!}
         {!! $renderField('Tipe Request', $typeLabel) !!}
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;padding:10px 0;">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;padding:10px 0;{{ ! $this->canApprove && $record->attachments->isNotEmpty() ? 'border-bottom:1px solid var(--border-soft);' : '' }}">
             <span style="font-size:12.5px;color:var(--text-muted);">Status</span>
             <span class="badge {{ $statusBadge }}">{{ $statusLabel }}</span>
         </div>
+
+        @if (! $this->canApprove && $record->attachments->isNotEmpty())
+            <div style="padding:10px 0 0;">
+                <p style="font-size:12.5px;color:var(--text-muted);margin:0 0 8px;">Lampiran</p>
+                <div style="display:flex;flex-wrap:wrap;gap:8px;">
+                    @foreach ($record->attachments as $attachment)
+                        @if ($attachment->is_image)
+                            <div x-data="{ open: false }" style="display:contents;">
+                                <img src="{{ $attachment->file_url }}" @click="open = true" style="width:64px;height:64px;object-fit:cover;border-radius:8px;cursor:pointer;border:1px solid var(--border-soft);">
+                                <div x-show="open" x-cloak @click="open = false" style="position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:10000;display:flex;align-items:center;justify-content:center;padding:24px;">
+                                    <img src="{{ $attachment->file_url }}" style="max-width:90vw;max-height:90vh;border-radius:8px;object-fit:contain;" @click.stop>
+                                </div>
+                            </div>
+                        @else
+                            <a href="{{ $attachment->file_url }}" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:6px;padding:8px 12px;border-radius:8px;border:1px solid var(--border-soft);font-size:11.5px;color:#1a56c4;text-decoration:none;">
+                                <i class="fa-solid fa-file"></i> {{ basename($attachment->file_path) }}
+                            </a>
+                        @endif
+                    @endforeach
+                </div>
+            </div>
+        @endif
     </div>
 
     @php

@@ -22,7 +22,7 @@ class AttendanceRequestDetail extends Component
 
     public function mount(AttendanceRequests $record): void
     {
-        $record->load(['approvalSnapshot.activity', 'approvalHistories']);
+        $record->load(['approvalSnapshot.activity', 'approvalHistories', 'attachments']);
 
         abort_unless($this->canAccess($record, Auth::user()), 403);
 
@@ -101,7 +101,7 @@ class AttendanceRequestDetail extends Component
             $this->note = null;
 
             $this->record->refresh();
-            $this->record->load(['approvalSnapshot.activity', 'approvalHistories']);
+            $this->record->load(['approvalSnapshot.activity', 'approvalHistories', 'attachments']);
 
             Notification::make()
                 ->title('Berhasil diproses')
