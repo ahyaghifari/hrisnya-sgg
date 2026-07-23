@@ -219,7 +219,7 @@ class ApprovalFlowService
                         $this->taskRepository->update($snapshot->module_id, [
                             'assigned_to' => $additionalData['assigned_to'],
                             'due_date' => $additionalData['due_date'],
-                            'status' => TaskStatus::IN_PROGRESS->value,
+                            'status' => TaskStatus::TODO->value,
                             'responded_date' => now(),
                             'approved_by' => Auth::id(),
                         ]);

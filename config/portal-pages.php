@@ -265,9 +265,15 @@ return [
         'guard' => null,
     ],
 
-    'kanban' => [
-        'label' => 'Kanban',
+    'tugas' => [
+        'label' => 'Tugas',
         'permission' => null,
+        'guard' => null,
+    ],
+
+    'tugas.pengaturan' => [
+        'label' => 'Pengaturan Tugas',
+        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_TUGAS->value,
         'guard' => null,
     ],
 
@@ -321,23 +327,4 @@ return [
         'guard' => null,
     ],
 
-    'kanban.create' => [
-        'label' => 'Buat Board',
-        'permission' => null,
-        'guard' => null,
-    ],
-
-    'kanban.personal' => [
-        'label' => 'Tugas Pribadi',
-        'permission' => null,
-        'guard' => null,
-    ],
-
-    'kanban.show' => [
-        'label' => 'Detail Board',
-        'permission' => null,
-        // Akses per-board dicek manual di KanbanBoardDetail::mount() (pola sama seperti
-        // my-staff.show) — keanggotaan board itu spesifik per-record, bukan gate global.
-        'guard' => null,
-    ],
 ];

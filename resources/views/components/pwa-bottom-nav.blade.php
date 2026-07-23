@@ -20,7 +20,7 @@
             <i class="fa-solid fa-house"></i> Beranda
         </a>
 
-        <button type="button" onclick="togglePwaTugasSheet()" class="pwa-bottom-nav-item {{ request()->routeIs(['kanban*', 'pelatihan*']) ? 'active' : '' }}" style="border:none;background:none;padding:0;">
+        <button type="button" onclick="togglePwaTugasSheet()" class="pwa-bottom-nav-item {{ request()->routeIs(['tugas*', 'pelatihan*']) ? 'active' : '' }}" style="border:none;background:none;padding:0;">
             <i class="fa-solid fa-list-check"></i> Penugasan
         </button>
 
@@ -59,9 +59,9 @@
 
     {{-- 2 kolom saja (bukan 3 seperti sheet Menu) — cuma 2 item untuk sekarang. --}}
     <div class="pwa-menu-grid" style="grid-template-columns: repeat(2, 1fr);">
-        <a href="{{ route('kanban') }}" wire:navigate class="pwa-menu-grid-item">
+        <a href="{{ route('tugas') }}" wire:navigate class="pwa-menu-grid-item">
             <span class="pwa-menu-grid-icon navy"><i class="fa-solid fa-table-columns"></i></span>
-            <span class="pwa-menu-grid-label">Penugasan</span>
+            <span class="pwa-menu-grid-label">Tugas</span>
         </a>
 
         <a href="{{ route('pelatihan') }}" wire:navigate class="pwa-menu-grid-item">

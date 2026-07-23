@@ -1,12 +1,12 @@
 <?php
 
-namespace App\Models\Kanban;
+namespace App\Models\Task;
 
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class KanbanTaskItem extends Model
+class TaskChecklistItem extends Model
 {
     use HasUlids;
 
@@ -23,6 +23,6 @@ class KanbanTaskItem extends Model
 
     public function task(): BelongsTo
     {
-        return $this->belongsTo(KanbanTask::class, 'task_id');
+        return $this->belongsTo(Task::class, 'task_id');
     }
 }

@@ -2,8 +2,9 @@
 
 namespace App\Livewire;
 
+use App\Enum\Task\TaskStatus;
 use App\Livewire\Concerns\ResolvesTodayAttendanceStatus;
-use App\Models\Kanban\KanbanTask;
+use App\Models\Task\Task;
 use App\Models\LMS\LmsCourseUsers;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
@@ -19,17 +20,15 @@ class Dashboard extends Component
         return $this->todayAttendanceStatus(Auth::user());
     }
 
-    public function getRecentKanbanTasksProperty()
+    public function getRecentTasksProperty()
     {
         $userId = Auth::id();
 
-        return KanbanTask::with('board')
-            ->where(function ($q) use ($userId) {
+        return Task::where(function ($q) use ($userId) {
                 $q->where('created_by', $userId)
-                    ->orWhere('assigned_to', $userId)
-                    ->orWhereHas('members', fn ($q) => $q->where('user_id', $userId));
+                    ->orWhere('assigned_to', $userId);
             })
-            ->whereIn('status', [KanbanTask::STATUS_TODO, KanbanTask::STATUS_IN_PROGRESS, KanbanTask::STATUS_REVIEW])
+            ->whereIn('status', [TaskStatus::TODO->value, TaskStatus::IN_PROGRESS->value, TaskStatus::REVIEW->value])
             ->orderByDesc('created_at')
             ->limit(4)
             ->get();

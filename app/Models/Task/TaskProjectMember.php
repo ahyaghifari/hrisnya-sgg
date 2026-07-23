@@ -1,25 +1,28 @@
 <?php
 
-namespace App\Models\Kanban;
+namespace App\Models\Task;
 
 use App\Models\User;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class KanbanTaskComment extends Model
+class TaskProjectMember extends Model
 {
     use HasUlids;
 
+    public const ROLE_OWNER = 'owner';
+    public const ROLE_MEMBER = 'member';
+
     protected $fillable = [
-        'task_id',
+        'project_id',
         'user_id',
-        'comment',
+        'role',
     ];
 
-    public function task(): BelongsTo
+    public function project(): BelongsTo
     {
-        return $this->belongsTo(KanbanTask::class, 'task_id');
+        return $this->belongsTo(TaskProject::class, 'project_id');
     }
 
     public function user(): BelongsTo

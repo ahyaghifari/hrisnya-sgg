@@ -2,6 +2,7 @@
 
 namespace App\Models\Task;
 
+use App\Enum\Task\TaskPriority;
 use App\Models\ApprovalManagement\ApprovalHistories;
 use App\Models\ApprovalManagement\ApprovalSnapshots;
 use App\Models\Master\Companies;
@@ -28,12 +29,15 @@ class Task extends Model
         'company_id',
         'department_id',
         'service_id',
+        'project_id',
         'assigned_to',
         'approved_by',
         'sla_reviewer_id',
         'requirement',
         'is_self_assigned',
         'status',
+        'priority',
+        'position',
         'rejected_reason',
         'risk_level',
         'total_cost',
@@ -47,6 +51,18 @@ class Task extends Model
         'root_cause',
         'solution',
         'created_by',
+    ];
+
+    // status sengaja TIDAK di-cast ke enum — banyak tempat (Filament infolist, query builder,
+    // ApprovalFlowService) sudah nyimpen/baca sebagai string mentah, cast enum bakal mecahin
+    // TaskStatus::tryFrom($state) yang butuh string bukan object enum.
+    // due_date/responded_date/started_date/completed_date sengaja TIDAK di-cast ke date —
+    // App\Http\Resources\Task\TaskDetailResource & TaskListResource (dipakai mobile API)
+    // nge-return kolom ini mentah-mentah; cast bakal ubah format JSON-nya jadi ISO datetime,
+    // beda kontrak dari yang mobile app sudah biasa terima. Format tanggal di view portal
+    // pakai Carbon::parse() manual, bukan mengandalkan cast model.
+    protected $casts = [
+        'priority' => TaskPriority::class,
     ];
 
     public function attachments(): HasMany
@@ -67,6 +83,16 @@ class Task extends Model
     public function assignedTo(): BelongsTo
     {
         return $this->belongsTo(User::class, 'assigned_to');
+    }
+
+    public function createdBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function project(): BelongsTo
+    {
+        return $this->belongsTo(TaskProject::class, 'project_id');
     }
 
     public function slaReviewer(): BelongsTo
@@ -126,5 +152,15 @@ class Task extends Model
     public function company()
     {
         return $this->belongsTo(Companies::class, 'company_id');
+    }
+
+    public function checklistItems(): HasMany
+    {
+        return $this->hasMany(TaskChecklistItem::class, 'task_id')->orderBy('position')->orderBy('created_at');
+    }
+
+    public function comments(): HasMany
+    {
+        return $this->hasMany(TaskComment::class, 'task_id')->orderBy('created_at');
     }
 }

@@ -34,8 +34,8 @@
                 <a href="{{ route('dashboard') }}" wire:navigate class="nav-item {{ request()->routeIs('dashboard') ? 'active' : '' }}">
                     <i class="fa-solid fa-house text-xs"></i> Beranda
                 </a>
-                <a href="{{ route('kanban') }}" wire:navigate class="nav-item {{ request()->routeIs('kanban*') ? 'active' : '' }}">
-                    <i class="fa-solid fa-table-columns text-xs"></i> Penugasan
+                <a href="{{ route('tugas') }}" wire:navigate class="nav-item {{ request()->routeIs('tugas*') ? 'active' : '' }}">
+                    <i class="fa-solid fa-table-columns text-xs"></i> Tugas
                 </a>
                 <a href="{{ route('pelatihan') }}" wire:navigate class="nav-item {{ request()->routeIs('pelatihan*') ? 'active' : '' }}">
                     <i class="fa-solid fa-graduation-cap text-xs"></i> Pelatihan

@@ -1,3 +1,5 @@
+> **STATUS: SUPERSEDED (2026-07-23).** Rancangan di dokumen ini (2 tabel `kanban_boards`/`kanban_tasks` terpisah dari `task_records`) memang jadi dasar implementasi awal, tapi ~10 hari kemudian modul Kanban ini **dihapus total** dan dilebur balik ke `task_records` (alasan: user tidak mau ada 2 sistem task berbeda). Dokumen pengganti, baca sejarah lengkap & state final di [`manajemen-tugas-dan-project.md`](manajemen-tugas-dan-project.md). Dokumen ini dibiarkan sebagai jejak sejarah kenapa desain awal begini, bukan referensi state saat ini.
+
 # Integrasi Sistem Kanban (Project & Individual) — Analisis & Rancangan Skema (2026-07-13)
 
 Dokumen ini menjawab permintaan: "bisa dibuat task yang sifatnya per-project (kanban board ala Trello/Lark) sekaligus per-individu?" — hasil analisis kode berjalan (`task_records` dan modul sekitarnya) plus rancangan skema baru untuk menjawab kebutuhan tersebut, ditulis **sebelum implementasi** untuk direview dulu.

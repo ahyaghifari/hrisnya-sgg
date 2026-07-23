@@ -11,10 +11,6 @@ use App\Livewire\Counseling\CounselingPage;
 use App\Livewire\Dashboard;
 use App\Livewire\EditMyEmployee;
 use App\Livewire\EmployeeAttendanceStatistics;
-use App\Livewire\Kanban\CreateKanbanBoard;
-use App\Livewire\Kanban\KanbanBoardDetail;
-use App\Livewire\Kanban\KanbanBoardsList;
-use App\Livewire\Kanban\KanbanPersonalTasks;
 use App\Livewire\Kepegawaian\CreateKaryawan;
 use App\Livewire\Kepegawaian\CreateUserTransitionPage;
 use App\Livewire\Kepegawaian\CutiRecapPage;
@@ -58,6 +54,8 @@ use App\Livewire\RiwayatApprovalPage;
 use App\Livewire\SubmitLeaveRequest;
 use App\Livewire\SubmitOvertimeRequest;
 use App\Livewire\SubmitPermissionRequest;
+use App\Livewire\Task\TaskListPage;
+use App\Livewire\Task\TaskSettingsPage;
 use Illuminate\Support\Facades\Route;
 
 
@@ -227,17 +225,11 @@ Route::middleware(['auth', 'portal.access'])->group(function () {
     Route::get('/counseling', CounselingPage::class)
         ->name('counseling');
 
-    Route::get('/kanban', KanbanBoardsList::class)
-        ->name('kanban');
+    Route::get('/tugas', TaskListPage::class)
+        ->name('tugas');
 
-    Route::get('/kanban/baru', CreateKanbanBoard::class)
-        ->name('kanban.create');
-
-    Route::get('/kanban/pribadi', KanbanPersonalTasks::class)
-        ->name('kanban.personal');
-
-    Route::get('/kanban/{board}', KanbanBoardDetail::class)
-        ->name('kanban.show');
+    Route::get('/tugas/pengaturan', TaskSettingsPage::class)
+        ->name('tugas.pengaturan');
 
     Route::get('/pelatihan', TrainingList::class)
         ->name('pelatihan');

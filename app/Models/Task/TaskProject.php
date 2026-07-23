@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Models\Kanban;
+namespace App\Models\Task;
 
 use App\Models\Master\Companies;
 use App\Models\User;
@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-class KanbanBoard extends Model
+class TaskProject extends Model
 {
     use HasUlids, SoftDeletes;
 
@@ -34,11 +34,11 @@ class KanbanBoard extends Model
 
     public function members(): HasMany
     {
-        return $this->hasMany(KanbanBoardMember::class, 'board_id');
+        return $this->hasMany(TaskProjectMember::class, 'project_id');
     }
 
     public function tasks(): HasMany
     {
-        return $this->hasMany(KanbanTask::class, 'board_id');
+        return $this->hasMany(Task::class, 'project_id');
     }
 }

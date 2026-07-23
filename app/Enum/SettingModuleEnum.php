@@ -11,12 +11,14 @@ enum SettingModuleEnum: string
 {
     case PAYROLL = 'payroll';
     case ATTENDANCE = 'attendance';
+    case TASK = 'task';
 
     public function label(): string
     {
         return match ($this) {
             self::PAYROLL => 'Payroll',
             self::ATTENDANCE => 'Absensi',
+            self::TASK => 'Tugas',
         };
     }
 }
