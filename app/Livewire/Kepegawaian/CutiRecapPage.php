@@ -3,7 +3,6 @@
 namespace App\Livewire\Kepegawaian;
 
 use App\Enum\CustomPermissionEnum;
-use App\Helpers\PermissionHelper;
 use App\Models\Attendance\AttendanceRequestLeaveDetails;
 use App\Models\Attendance\AttendanceRequests;
 use App\Models\Master\Companies;
@@ -33,7 +32,14 @@ class CutiRecapPage extends Component
     {
         abort_unless(Auth::user()->can(CustomPermissionEnum::SISTEM_KEPEGAWAIAN->value), 403);
 
-        if (! PermissionHelper::hasGlobalRole(Auth::user())) {
+        if (! Auth::user()->canFilterByCompany()) {
+            $this->companyId = Auth::user()->company_id;
+        }
+    }
+
+    public function updatedCompanyId(): void
+    {
+        if (! Auth::user()->canFilterByCompany()) {
             $this->companyId = Auth::user()->company_id;
         }
     }
@@ -45,7 +51,7 @@ class CutiRecapPage extends Component
 
     public function getCanBrowseAllCompaniesProperty(): bool
     {
-        return PermissionHelper::hasGlobalRole(Auth::user());
+        return Auth::user()->canFilterByCompany();
     }
 
     public function openDetail(string $userId): void

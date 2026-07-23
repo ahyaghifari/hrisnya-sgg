@@ -67,7 +67,7 @@
 
             <div>
                 <label class="form-label">Perusahaan</label>
-                <select wire:model="company_id" class="form-input" @disabled(! $isGlobal)>
+                <select wire:model="company_id" class="form-input" @disabled(! auth()->user()->canFilterByCompany())>
                     <option value="">Pilih perusahaan...</option>
                     @foreach ($this->companyOptions as $id => $companyName)
                         <option value="{{ $id }}">{{ $companyName }}</option>

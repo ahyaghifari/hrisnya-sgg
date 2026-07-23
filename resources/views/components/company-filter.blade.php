@@ -1,5 +1,6 @@
 @props(['companies', 'label' => 'Perusahaan'])
 
+@if (auth()->user()->canFilterByCompany())
 <div>
     <label class="form-label">{{ $label }}</label>
     <select {{ $attributes->merge(['class' => 'form-input', 'style' => 'min-width:220px;']) }}>
@@ -8,3 +9,4 @@
         @endforeach
     </select>
 </div>
+@endif

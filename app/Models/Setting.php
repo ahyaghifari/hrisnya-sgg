@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\LogsAuditChanges;
 use App\Models\Master\Companies;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
@@ -16,6 +17,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class Setting extends Model
 {
     use HasUlids;
+    use LogsAuditChanges;
 
     protected $table = 'settings';
 
@@ -55,5 +57,30 @@ class Setting extends Model
             'boolean' => filter_var($row->value, FILTER_VALIDATE_BOOLEAN),
             default => $row->value,
         };
+    }
+
+    protected function auditModule(): string
+    {
+        return $this->module;
+    }
+
+    protected function auditCompanyId(): ?string
+    {
+        return $this->company_id;
+    }
+
+    protected function auditKey(): string
+    {
+        return $this->key;
+    }
+
+    protected function auditLabel(): ?string
+    {
+        return $this->label;
+    }
+
+    protected function auditWatchedAttribute(): string
+    {
+        return 'value';
     }
 }

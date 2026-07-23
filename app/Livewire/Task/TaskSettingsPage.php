@@ -4,6 +4,7 @@ namespace App\Livewire\Task;
 
 use App\Enum\CustomPermissionEnum;
 use App\Enum\Task\TaskSettingEnum;
+use App\Models\AuditLog;
 use App\Models\Master\Companies;
 use App\Models\Setting;
 use Filament\Notifications\Notification;
@@ -23,17 +24,23 @@ class TaskSettingsPage extends Component
     /** @var array<string, string> TaskSettingEnum value => value (company terpilih) */
     public array $values = [];
 
+    public ?string $viewingAuditKey = null;
+
     public function mount(): void
     {
         abort_unless(Auth::user()->can(CustomPermissionEnum::SISTEM_TUGAS->value), 403);
 
-        $this->companyId = Auth::user()->company_id ?? Companies::orderBy('code')->value('id');
+        $this->companyId = Auth::user()->canFilterByCompany()
+            ? (Auth::user()->company_id ?? Companies::orderBy('code')->value('id'))
+            : Auth::user()->company_id;
 
         $this->loadCompanyState();
     }
 
     public function selectCompany(string $companyId): void
     {
+        abort_unless(Auth::user()->canFilterByCompany(), 403);
+
         $this->companyId = $companyId;
         $this->loadCompanyState();
     }
@@ -58,6 +65,30 @@ class TaskSettingsPage extends Component
     public function getCompaniesProperty()
     {
         return Companies::orderBy('code')->get();
+    }
+
+    public function openAuditLog(string $key): void
+    {
+        $this->viewingAuditKey = $key;
+    }
+
+    public function closeAuditLog(): void
+    {
+        $this->viewingAuditKey = null;
+    }
+
+    public function getAuditLogsProperty()
+    {
+        if (! $this->viewingAuditKey) {
+            return collect();
+        }
+
+        return AuditLog::where('company_id', $this->companyId)
+            ->where('key', $this->viewingAuditKey)
+            ->with('user')
+            ->orderByDesc('created_at')
+            ->limit(50)
+            ->get();
     }
 
     /** @return TaskSettingEnum[] */

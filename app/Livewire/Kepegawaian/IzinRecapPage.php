@@ -4,7 +4,6 @@ namespace App\Livewire\Kepegawaian;
 
 use App\Enum\Attendance\PermissionTypeCategoryEnum;
 use App\Enum\CustomPermissionEnum;
-use App\Helpers\PermissionHelper;
 use App\Models\Attendance\AttendanceRequestPermissionDetails;
 use App\Models\Attendance\AttendanceRequests;
 use App\Models\Master\Companies;
@@ -33,13 +32,20 @@ class IzinRecapPage extends Component
     {
         abort_unless(Auth::user()->can(CustomPermissionEnum::SISTEM_KEPEGAWAIAN->value), 403);
 
-        if (! PermissionHelper::hasGlobalRole(Auth::user())) {
+        if (! Auth::user()->canFilterByCompany()) {
             $this->companyId = Auth::user()->company_id;
         }
 
         // Filter tanggal sengaja kosong dulu — user pilih sendiri Dari/Sampai Tanggal, bukan
         // otomatis ke periode berjalan (AttendancePeriodResolver masih dipakai kalau nanti
         // mau dibalikin defaultnya, cuma tidak di-pre-fill di sini untuk saat ini).
+    }
+
+    public function updatedCompanyId(): void
+    {
+        if (! Auth::user()->canFilterByCompany()) {
+            $this->companyId = Auth::user()->company_id;
+        }
     }
 
     public function getCompanyOptionsProperty()
@@ -49,7 +55,7 @@ class IzinRecapPage extends Component
 
     public function getCanBrowseAllCompaniesProperty(): bool
     {
-        return PermissionHelper::hasGlobalRole(Auth::user());
+        return Auth::user()->canFilterByCompany();
     }
 
     public function openDetail(string $userId): void

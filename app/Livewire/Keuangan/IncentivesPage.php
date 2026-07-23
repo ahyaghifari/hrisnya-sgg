@@ -43,7 +43,16 @@ class IncentivesPage extends Component
     {
         abort_unless(Auth::user()->can(CustomPermissionEnum::SISTEM_KEUANGAN->value), 403);
 
-        $this->companyId = Auth::user()->company_id ?? Companies::orderBy('code')->value('id');
+        $this->companyId = Auth::user()->canFilterByCompany()
+            ? (Auth::user()->company_id ?? Companies::orderBy('code')->value('id'))
+            : Auth::user()->company_id;
+    }
+
+    public function updatedCompanyId(): void
+    {
+        if (! Auth::user()->canFilterByCompany()) {
+            $this->companyId = Auth::user()->company_id;
+        }
     }
 
     public function setStatusFilter(string $status): void

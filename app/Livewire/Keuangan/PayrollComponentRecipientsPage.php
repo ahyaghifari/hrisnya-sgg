@@ -33,12 +33,16 @@ class PayrollComponentRecipientsPage extends Component
     {
         abort_unless(Auth::user()->can(CustomPermissionEnum::SISTEM_KEUANGAN->value), 403);
 
-        $this->companyId = Auth::user()->company_id ?? Companies::orderBy('code')->value('id');
+        $this->companyId = Auth::user()->canFilterByCompany()
+            ? (Auth::user()->company_id ?? Companies::orderBy('code')->value('id'))
+            : Auth::user()->company_id;
         $this->loadCompanyState();
     }
 
     public function selectCompany(string $companyId): void
     {
+        abort_unless(Auth::user()->canFilterByCompany(), 403);
+
         $this->companyId = $companyId;
         $this->activeComponent = null;
         $this->loadCompanyState();

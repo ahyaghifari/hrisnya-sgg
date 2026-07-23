@@ -6,6 +6,7 @@ use App\Enum\CustomPermissionEnum;
 use App\Enum\Payroll\PayrollComponentEnum;
 use App\Filament\Resources\Payroll\ExtraHourAllowances\Schemas\ExtraHourAllowancesForm;
 use App\Filament\Resources\Payroll\ExtraHourAllowances\Tables\ExtraHourAllowancesTable;
+use App\Models\AuditLog;
 use App\Models\Master\Companies;
 use App\Models\Master\Kelas;
 use App\Models\Master\Pangkats;
@@ -80,15 +81,21 @@ class MappingKomponenGajiPage extends Component implements HasActions, HasSchema
     /** @var array<string,string> pangkat_id => amount_per_hour (base rate rumus TL/TM) */
     public array $lemburRateValues = [];
 
+    public ?string $viewingAuditKey = null;
+
     public function mount(): void
     {
         abort_unless(Auth::user()->can(CustomPermissionEnum::SISTEM_KEUANGAN->value), 403);
 
-        $this->companyId = Auth::user()->company_id ?? Companies::orderBy('code')->value('id');
+        $this->companyId = Auth::user()->canFilterByCompany()
+            ? (Auth::user()->company_id ?? Companies::orderBy('code')->value('id'))
+            : Auth::user()->company_id;
     }
 
     public function selectCompany(string $companyId): void
     {
+        abort_unless(Auth::user()->canFilterByCompany(), 403);
+
         $this->companyId = $companyId;
         $this->activeComponent = null;
     }
@@ -106,6 +113,30 @@ class MappingKomponenGajiPage extends Component implements HasActions, HasSchema
             'lembur' => $this->loadLemburRates(),
             default => null, // kelebihan_jam_kerja dirender lewat $this->table()
         };
+    }
+
+    public function openAuditLog(string $key): void
+    {
+        $this->viewingAuditKey = $key;
+    }
+
+    public function closeAuditLog(): void
+    {
+        $this->viewingAuditKey = null;
+    }
+
+    public function getAuditLogsProperty()
+    {
+        if (! $this->viewingAuditKey) {
+            return collect();
+        }
+
+        return AuditLog::where('company_id', $this->companyId)
+            ->where('key', $this->viewingAuditKey)
+            ->with('user')
+            ->orderByDesc('created_at')
+            ->limit(50)
+            ->get();
     }
 
     /** @return array<int, array{key:string,label:string,icon:string}> */

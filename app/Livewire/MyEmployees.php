@@ -39,7 +39,7 @@ class MyEmployees extends Component
     // Sumber data yang sama dipakai desktop (tabel) dan mobile (card manual).
     protected function baseQuery()
     {
-        if (Auth::user()->canBrowseAllCompanies()) {
+        if (Auth::user()->canFilterByCompany()) {
             if (! $this->companyId) {
                 return User::query()->whereRaw('1 = 0');
             }
@@ -76,7 +76,7 @@ class MyEmployees extends Component
     public function render()
     {
         return view('livewire.my-employees', [
-            'canBrowseAllCompanies' => Auth::user()->canBrowseAllCompanies(),
+            'canBrowseAllCompanies' => Auth::user()->canFilterByCompany(),
         ]);
     }
 }

@@ -55,12 +55,18 @@ class PayrollsPage extends Component
     {
         abort_unless(Auth::user()->can(CustomPermissionEnum::SISTEM_KEUANGAN->value), 403);
 
-        $this->companyId = Auth::user()->company_id ?? Companies::orderBy('code')->value('id');
+        $this->companyId = Auth::user()->canFilterByCompany()
+            ? (Auth::user()->company_id ?? Companies::orderBy('code')->value('id'))
+            : Auth::user()->company_id;
     }
 
     /** Ganti company -> pilihan periode lama tidak relevan lagi. */
     public function updatedCompanyId(): void
     {
+        if (! Auth::user()->canFilterByCompany()) {
+            $this->companyId = Auth::user()->company_id;
+        }
+
         $this->periodId = null;
     }
 

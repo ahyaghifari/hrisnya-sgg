@@ -9,6 +9,7 @@
 
     <div class="doc-type-layout">
         {{-- Kolom kiri: perusahaan --}}
+        @if (auth()->user()->canFilterByCompany())
         <div class="doc-type-nav">
             @foreach ($this->companies as $company)
                 <button type="button" wire:click="selectCompany('{{ $company->id }}')" class="doc-type-btn {{ $companyId === $company->id ? 'is-active' : '' }}">
@@ -16,6 +17,7 @@
                 </button>
             @endforeach
         </div>
+        @endif
 
         {{-- Kolom tengah: komponen gaji --}}
         <div class="doc-type-nav" style="width:240px;">

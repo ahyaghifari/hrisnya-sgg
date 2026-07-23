@@ -153,8 +153,8 @@
 
 @if ($advancedShiftIndex !== null)
     @php $advRow = $shiftTypes[$advancedShiftIndex] ?? []; @endphp
-    <div style="position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:100;display:flex;align-items:center;justify-content:center;padding:16px;" wire:click="closeAdvancedShift">
-        <div style="background:var(--surface);border-radius:14px;max-width:640px;width:100%;max-height:90vh;overflow-y:auto;" onclick="event.stopPropagation()">
+    <div class="modal-overlay" wire:click="closeAdvancedShift">
+        <div class="modal-box" style="padding:0;max-width:640px;" onclick="event.stopPropagation()">
             <div style="display:flex;align-items:center;justify-content:space-between;padding:18px 22px;border-bottom:1px solid var(--border-soft);">
                 <h3 style="font-size:15px;font-weight:700;color:var(--text-heading);margin:0;">
                     Pengaturan Lanjutan — {{ $advRow['name'] ?: 'Shift' }}

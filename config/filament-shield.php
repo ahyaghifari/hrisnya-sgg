@@ -248,6 +248,7 @@ return [
         'import_data_absensi',
         'approve_pengajuan_pelatihan',
         'approve_manajemen_lowongan_kerja',
+        'lihat_perusahaan_lain',
     ],
 
     /*

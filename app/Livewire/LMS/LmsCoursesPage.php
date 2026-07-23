@@ -3,7 +3,6 @@
 namespace App\Livewire\LMS;
 
 use App\Enum\CustomPermissionEnum;
-use App\Helpers\PermissionHelper;
 use App\Models\LMS\LmsCategories;
 use App\Models\LMS\LmsCourses;
 use Illuminate\Support\Facades\Auth;
@@ -40,7 +39,7 @@ class LmsCoursesPage extends Component
     {
         abort_unless(Auth::user()->can(CustomPermissionEnum::SISTEM_LMS->value), 403);
 
-        if (! PermissionHelper::hasGlobalRole(Auth::user())) {
+        if (! Auth::user()->canFilterByCompany()) {
             $this->companyId = Auth::user()->company_id;
         }
     }
@@ -59,7 +58,7 @@ class LmsCoursesPage extends Component
 
         if ($this->companyId) {
             $query->where('company_id', $this->companyId);
-        } elseif (! PermissionHelper::hasGlobalRole(Auth::user())) {
+        } elseif (! Auth::user()->canFilterByCompany()) {
             $query->where('company_id', Auth::user()->company_id);
         }
 

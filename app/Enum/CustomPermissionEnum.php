@@ -27,6 +27,7 @@ enum CustomPermissionEnum: string
     case IMPORT_DATA_ABSENSI = 'import_data_absensi';
     case APPROVE_PENGAJUAN_PELATIHAN = 'approve_pengajuan_pelatihan';
     case APPROVE_MANAJEMEN_LOWONGAN_KERJA = 'approve_manajemen_lowongan_kerja';
+    case LIHAT_PERUSAHAAN_LAIN = 'lihat_perusahaan_lain';
 
     public function label(): string
     {
@@ -43,6 +44,7 @@ enum CustomPermissionEnum: string
             self::IMPORT_DATA_ABSENSI => 'Import Data Absensi',
             self::APPROVE_PENGAJUAN_PELATIHAN => 'Approve Pengajuan Pelatihan',
             self::APPROVE_MANAJEMEN_LOWONGAN_KERJA => 'Approve Manajemen Lowongan Kerja',
+            self::LIHAT_PERUSAHAAN_LAIN => 'Lihat Perusahaan Lain',
         };
     }
 }

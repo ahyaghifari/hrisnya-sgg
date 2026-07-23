@@ -70,8 +70,8 @@
     </div>
 
     @if ($showFormModal)
-        <div style="position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:50;display:flex;align-items:center;justify-content:center;padding:16px;" wire:click="closeFormModal">
-            <div style="background:var(--surface);border-radius:14px;padding:20px;max-width:420px;width:100%;max-height:90vh;overflow-y:auto;" onclick="event.stopPropagation()">
+        <div class="modal-overlay" wire:click="closeFormModal">
+            <div class="modal-box" onclick="event.stopPropagation()">
                 <h3 style="font-size:16px;font-weight:700;color:var(--text-heading);margin:0 0 14px;">
                     {{ $editingId ? 'Ubah Periode Gaji' : 'Tambah Periode Gaji' }}
                 </h3>

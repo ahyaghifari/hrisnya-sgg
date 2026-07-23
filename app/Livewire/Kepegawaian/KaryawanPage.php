@@ -29,13 +29,17 @@ class KaryawanPage extends Component
     {
         abort_unless(Auth::user()->can(CustomPermissionEnum::SISTEM_KEPEGAWAIAN->value), 403);
 
-        if (! PermissionHelper::hasGlobalRole(Auth::user())) {
+        if (! Auth::user()->canFilterByCompany()) {
             $this->companyId = Auth::user()->company_id;
         }
     }
 
     public function updatedCompanyId(): void
     {
+        if (! Auth::user()->canFilterByCompany()) {
+            $this->companyId = Auth::user()->company_id;
+        }
+
         $this->departmentId = null;
     }
 
@@ -68,7 +72,7 @@ class KaryawanPage extends Component
 
         if ($this->companyId) {
             $query->where('company_id', $this->companyId);
-        } elseif (! PermissionHelper::hasGlobalRole(Auth::user())) {
+        } elseif (! Auth::user()->canFilterByCompany()) {
             $query->where('company_id', Auth::user()->company_id);
         }
 
@@ -122,7 +126,7 @@ class KaryawanPage extends Component
     public function render()
     {
         return view('livewire.kepegawaian.karyawan-page', [
-            'canBrowseAllCompanies' => PermissionHelper::hasGlobalRole(Auth::user()),
+            'canBrowseAllCompanies' => Auth::user()->canFilterByCompany(),
         ]);
     }
 }

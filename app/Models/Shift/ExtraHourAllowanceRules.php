@@ -3,6 +3,7 @@
 namespace App\Models\Shift;
 
 use App\Models\Concerns\BelongsToCompany;
+use App\Models\Concerns\LogsAuditChanges;
 use App\Models\Master\Companies;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
@@ -17,6 +18,7 @@ class ExtraHourAllowanceRules extends Model
 {
     use HasUlids, SoftDeletes;
     use BelongsToCompany;
+    use LogsAuditChanges;
 
     protected $table = 'extra_hour_rules';
 
@@ -35,5 +37,30 @@ class ExtraHourAllowanceRules extends Model
     public function allowanceable(): MorphTo
     {
         return $this->morphTo();
+    }
+
+    protected function auditModule(): string
+    {
+        return 'payroll_mapping';
+    }
+
+    protected function auditCompanyId(): ?string
+    {
+        return $this->company_id;
+    }
+
+    protected function auditKey(): string
+    {
+        return 'extra_hour:' . $this->allowanceable_type . ':' . $this->allowanceable_id;
+    }
+
+    protected function auditLabel(): ?string
+    {
+        return 'Kelebihan Jam Kerja — ' . ($this->allowanceable?->name ?? '-');
+    }
+
+    protected function auditWatchedAttribute(): string
+    {
+        return 'amount_per_hour';
     }
 }

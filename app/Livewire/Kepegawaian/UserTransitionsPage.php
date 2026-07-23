@@ -4,7 +4,6 @@ namespace App\Livewire\Kepegawaian;
 
 use App\Enum\UserTransitionStatusEnum;
 use App\Enum\UserTransitionTypeEnum;
-use App\Helpers\PermissionHelper;
 use App\Models\Master\Companies;
 use App\Models\User\UserTransition;
 use Illuminate\Support\Facades\Auth;
@@ -33,7 +32,7 @@ class UserTransitionsPage extends Component
     {
         abort_unless(Auth::user()->can('ViewAny:UserTransition'), 403);
 
-        if (! PermissionHelper::hasGlobalRole(Auth::user())) {
+        if (! Auth::user()->canFilterByCompany()) {
             $this->companyId = Auth::user()->company_id;
         }
     }
@@ -52,6 +51,10 @@ class UserTransitionsPage extends Component
 
     public function updatedCompanyId(): void
     {
+        if (! Auth::user()->canFilterByCompany()) {
+            $this->companyId = Auth::user()->company_id;
+        }
+
         $this->resetPage();
     }
 
@@ -67,7 +70,7 @@ class UserTransitionsPage extends Component
 
     public function getCanBrowseAllCompaniesProperty(): bool
     {
-        return PermissionHelper::hasGlobalRole(Auth::user());
+        return Auth::user()->canFilterByCompany();
     }
 
     public function getCanCreateProperty(): bool

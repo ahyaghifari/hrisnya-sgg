@@ -5,6 +5,7 @@ namespace App\Livewire\Keuangan;
 use App\Enum\CustomPermissionEnum;
 use App\Enum\Payroll\GlobalPayrollSettingEnum;
 use App\Enum\Payroll\PayrollComponentEnum;
+use App\Models\AuditLog;
 use App\Models\Master\Companies;
 use App\Models\Payroll\CompanyPayrollComponent;
 use App\Models\Setting;
@@ -44,13 +45,18 @@ class SalaryComponentsPage extends Component
     /** @var array<string, string> GlobalPayrollSettingEnum value => value (selalu global) */
     public array $globalValues = [];
 
+    public ?string $viewingAuditKey = null;
+
     public function mount(): void
     {
         abort_unless(Auth::user()->can(CustomPermissionEnum::SISTEM_KEUANGAN->value), 403);
 
         // Default ke company sendiri kalau ada, biar familiar buat user scoped 1 company —
-        // tapi tetap boleh pindah ke company manapun lewat tombol kiri (lihat getCompaniesProperty()).
-        $this->companyId = Auth::user()->company_id ?? Companies::orderBy('code')->value('id');
+        // tapi tetap boleh pindah ke company manapun lewat tombol kiri (lihat getCompaniesProperty()),
+        // KECUALI tidak punya permission lihat_perusahaan_lain -> dikunci ke company sendiri.
+        $this->companyId = Auth::user()->canFilterByCompany()
+            ? (Auth::user()->company_id ?? Companies::orderBy('code')->value('id'))
+            : Auth::user()->company_id;
 
         $this->loadGlobalValues();
         $this->loadCompanyState();
@@ -58,6 +64,8 @@ class SalaryComponentsPage extends Component
 
     public function selectCompany(string $companyId): void
     {
+        abort_unless(Auth::user()->canFilterByCompany(), 403);
+
         $this->companyId = $companyId;
         $this->expandedComponent = null;
         $this->loadCompanyState();
@@ -150,6 +158,38 @@ class SalaryComponentsPage extends Component
     public function getCompaniesProperty()
     {
         return Companies::orderBy('code')->get();
+    }
+
+    public function openAuditLog(string $key): void
+    {
+        $this->viewingAuditKey = $key;
+    }
+
+    public function closeAuditLog(): void
+    {
+        $this->viewingAuditKey = null;
+    }
+
+    /** Setting Global (GlobalPayrollSettingEnum) company_id-nya selalu NULL — riwayatnya
+     * dicari di sana, bukan di company yang lagi dipilih kiri. */
+    public function getAuditLogsProperty()
+    {
+        if (! $this->viewingAuditKey) {
+            return collect();
+        }
+
+        $isGlobalKey = collect(GlobalPayrollSettingEnum::cases())->contains(fn ($e) => $e->value === $this->viewingAuditKey);
+
+        return AuditLog::where('key', $this->viewingAuditKey)
+            ->when(
+                $isGlobalKey,
+                fn ($q) => $q->whereNull('company_id'),
+                fn ($q) => $q->where('company_id', $this->companyId)
+            )
+            ->with('user')
+            ->orderByDesc('created_at')
+            ->limit(50)
+            ->get();
     }
 
     /** @return array<int, array{component: PayrollComponentEnum, disabled: bool, alwaysOn: bool}> */

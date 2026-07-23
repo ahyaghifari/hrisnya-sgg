@@ -35,6 +35,7 @@
         <div class="doc-type-layout">
             {{-- Kiri: perusahaan — balik ke lebar default .doc-type-nav (210px desktop, full
             width scroll horizontal di mobile). Sesuai urutan tabel (kode), bukan alfabetis. --}}
+            @if (auth()->user()->canFilterByCompany())
             <div class="doc-type-nav">
                 @foreach ($this->companies as $company)
                     <button type="button" wire:click="selectCompany('{{ $company->id }}')" class="doc-type-btn {{ $companyId === $company->id ? 'is-active' : '' }}">
@@ -43,6 +44,7 @@
                     </button>
                 @endforeach
             </div>
+            @endif
 
             {{-- Kanan: daftar komponen dipecah 2 kolom di desktop (Pendapatan / Potongan),
             numpuk 1 kolom di mobile. Klik kartu buat expand panel "Pengaturan" yang sengaja
@@ -79,7 +81,12 @@
                             @foreach ($flexibleValues as $key => $value)
                                 @php $meta = $this->flexibleSettingMeta[$key] ?? null; @endphp
                                 <div>
-                                    <label class="form-label">{{ $meta?->label ?? $key }}</label>
+                                    <label class="form-label" style="display:inline-flex;align-items:center;gap:5px;">
+                                        {{ $meta?->label ?? $key }}
+                                        <button type="button" wire:click="openAuditLog('{{ $key }}')" title="Riwayat" style="background:none;border:none;color:var(--text-faint);cursor:pointer;font-size:10px;padding:0;">
+                                            <i class="fa-solid fa-clock-rotate-left"></i>
+                                        </button>
+                                    </label>
                                     <input type="{{ $inputType($meta?->type) }}" step="0.01" class="form-input" wire:model="flexibleValues.{{ $key }}">
                                 </div>
                             @endforeach
@@ -120,7 +127,12 @@
                 <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;">
                     @foreach (\App\Enum\Payroll\GlobalPayrollSettingEnum::cases() as $g)
                         <div>
-                            <label class="form-label">{{ $g->label() }}</label>
+                            <label class="form-label" style="display:inline-flex;align-items:center;gap:5px;">
+                                {{ $g->label() }}
+                                <button type="button" wire:click="openAuditLog('{{ $g->value }}')" title="Riwayat" style="background:none;border:none;color:var(--text-faint);cursor:pointer;font-size:10px;padding:0;">
+                                    <i class="fa-solid fa-clock-rotate-left"></i>
+                                </button>
+                            </label>
                             <div style="position:relative;">
                                 <i class="fa-solid {{ $globalIcons[$g->value] ?? 'fa-percent' }}" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--text-faint);font-size:12px;"></i>
                                 <input type="number" step="0.01" class="form-input" style="padding-left:32px;" wire:model="globalValues.{{ $g->value }}">
@@ -140,4 +152,6 @@
             </div>
         </div>
     </div>
+
+    @include('livewire.partials.audit-log-modal')
 </div>

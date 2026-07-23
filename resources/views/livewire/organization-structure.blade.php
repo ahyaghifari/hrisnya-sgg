@@ -1,7 +1,6 @@
 <div>
 <x-page-header title="Struktur Organisasi" />
 
-@if ($this->showCompanyFilter)
     <div class="mb-6 max-w-sm">
         <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Pilih Perusahaan</label>
         <select wire:model.live="companyId" class="w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-slate-400 focus:ring-slate-400">
@@ -11,7 +10,6 @@
             @endforeach
         </select>
     </div>
-@endif
 
 <livewire:organization-chart-widget :company-id="$companyId" :key="'org-chart-'.$companyId" />
 

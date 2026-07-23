@@ -14,6 +14,7 @@
     <x-page-header title="Mapping Komponen Gaji" />
 
     <div class="mt-4 doc-type-layout">
+        @if (auth()->user()->canFilterByCompany())
         <div class="doc-type-nav">
             @foreach ($this->companies as $company)
                 <button type="button" wire:click="selectCompany('{{ $company->id }}')" class="doc-type-btn {{ $companyId === $company->id ? 'is-active' : '' }}">
@@ -21,6 +22,7 @@
                 </button>
             @endforeach
         </div>
+        @endif
 
         <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:16px;">
             @if (empty($this->activeComponents))
@@ -47,7 +49,12 @@
                             <div style="display:flex;flex-direction:column;gap:14px;">
                                 @foreach ($this->pangkats as $p)
                                     <div style="border:1px solid var(--border-soft);border-radius:10px;padding:10px 12px;">
-                                        <p style="font-size:12.5px;font-weight:700;margin:0 0 8px;">{{ $p->name }}</p>
+                                        <p style="font-size:12.5px;font-weight:700;margin:0 0 8px;display:flex;align-items:center;gap:6px;">
+                                            {{ $p->name }}
+                                            <button type="button" wire:click="openAuditLog('gaji_pokok:{{ $p->id }}')" title="Riwayat" style="background:none;border:none;color:var(--text-faint);cursor:pointer;font-size:10px;padding:0;">
+                                                <i class="fa-solid fa-clock-rotate-left"></i>
+                                            </button>
+                                        </p>
                                         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;">
                                             <div>
                                                 <label class="form-label" style="font-size:10.5px;">Base Salary (Rp)</label>
@@ -93,7 +100,12 @@
                                 @foreach ($this->pangkats as $p)
                                     <div>
                                         <div style="display:flex;align-items:center;gap:10px;">
-                                            <span style="flex:1;font-size:12.5px;font-weight:600;">{{ $p->name }}</span>
+                                            <span style="flex:1;font-size:12.5px;font-weight:600;display:flex;align-items:center;gap:6px;">
+                                                {{ $p->name }}
+                                                <button type="button" wire:click="openAuditLog('bpjs:{{ $p->id }}')" title="Riwayat" style="background:none;border:none;color:var(--text-faint);cursor:pointer;font-size:10px;padding:0;">
+                                                    <i class="fa-solid fa-clock-rotate-left"></i>
+                                                </button>
+                                            </span>
                                             <select class="form-input" style="max-width:260px;font-size:12.5px;padding:7px 10px;" wire:model="bpjsValues.{{ $p->id }}">
                                                 <option value="">Belum dipetakan (tidak ada potongan)</option>
                                                 <option value="ump">UMP</option>
@@ -117,7 +129,12 @@
                                 @foreach ($this->kelasList as $k)
                                     <div>
                                         <div style="display:flex;align-items:center;gap:10px;">
-                                            <span style="flex:1;font-size:12.5px;font-weight:600;">{{ $k->name }}</span>
+                                            <span style="flex:1;font-size:12.5px;font-weight:600;display:flex;align-items:center;gap:6px;">
+                                                {{ $k->name }}
+                                                <button type="button" wire:click="openAuditLog('transport:{{ $k->id }}')" title="Riwayat" style="background:none;border:none;color:var(--text-faint);cursor:pointer;font-size:10px;padding:0;">
+                                                    <i class="fa-solid fa-clock-rotate-left"></i>
+                                                </button>
+                                            </span>
                                             <input type="number" step="0.01" class="form-input" style="max-width:220px;font-size:12.5px;padding:7px 10px;" wire:model="transportValues.{{ $k->id }}" placeholder="Belum diisi">
                                         </div>
                                         @error("transportValues.{$k->id}") <p style="font-size:11px;color:#dc2626;margin:2px 0 0;text-align:right;">{{ $message }}</p> @enderror
@@ -178,6 +195,9 @@
                                             <span style="font-size:11px;color:var(--text-faint);">s/d</span>
                                             <input type="number" class="form-input" style="max-width:120px;font-size:12.5px;padding:7px 10px;" wire:model="tenureRows.{{ $i }}.max_years" placeholder="Tanpa batas">
                                             <input type="number" step="0.01" class="form-input" style="max-width:200px;font-size:12.5px;padding:7px 10px;" wire:model="tenureRows.{{ $i }}.amount" placeholder="Nominal (Rp)">
+                                            @if ($row['id'])
+                                                <button type="button" wire:click="openAuditLog('tenure:{{ $row['id'] }}')" title="Riwayat" style="border:none;background:none;color:var(--text-faint);cursor:pointer;padding:6px;font-size:11px;"><i class="fa-solid fa-clock-rotate-left"></i></button>
+                                            @endif
                                             <button type="button" wire:click="removeTenureRow({{ $i }})" style="border:none;background:none;color:#dc2626;cursor:pointer;padding:6px;"><i class="fa-solid fa-trash"></i></button>
                                         </div>
                                         @error("tenureRows.{$i}.min_years") <p style="font-size:11px;color:#dc2626;margin:2px 0 0;">{{ $message }}</p> @enderror
@@ -204,7 +224,12 @@
                                 @foreach ($this->pangkats as $p)
                                     <div>
                                         <div style="display:flex;align-items:center;gap:10px;">
-                                            <span style="flex:1;font-size:12.5px;font-weight:600;">{{ $p->name }}</span>
+                                            <span style="flex:1;font-size:12.5px;font-weight:600;display:flex;align-items:center;gap:6px;">
+                                                {{ $p->name }}
+                                                <button type="button" wire:click="openAuditLog('lembur_rate:{{ $p->id }}')" title="Riwayat" style="background:none;border:none;color:var(--text-faint);cursor:pointer;font-size:10px;padding:0;">
+                                                    <i class="fa-solid fa-clock-rotate-left"></i>
+                                                </button>
+                                            </span>
                                             <input type="number" step="0.01" class="form-input" style="max-width:220px;font-size:12.5px;padding:7px 10px;" wire:model="lemburRateValues.{{ $p->id }}" placeholder="Base rate (Rp)">
                                         </div>
                                         @error("lemburRateValues.{$p->id}") <p style="font-size:11px;color:#dc2626;margin:2px 0 0;text-align:right;">{{ $message }}</p> @enderror
@@ -226,4 +251,6 @@
             @endif
         </div>
     </div>
+
+    @include('livewire.partials.audit-log-modal')
 </div>

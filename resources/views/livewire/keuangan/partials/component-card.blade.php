@@ -13,6 +13,9 @@
         <div style="flex:1;min-width:0;">
             <p style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:0;">
                 <span style="font-size:12px;font-weight:600;color:{{ $accent['solid'] }};">{{ $component->label() }}</span>
+                <button type="button" wire:click.stop="openAuditLog('{{ $component->value }}')" title="Riwayat" style="background:none;border:none;color:var(--text-faint);cursor:pointer;font-size:10px;padding:0;">
+                    <i class="fa-solid fa-clock-rotate-left"></i>
+                </button>
             </p>
             @if ($item['disabled'] || $item['alwaysOn'])
                 <p style="font-size:10px;color:var(--text-muted);margin:2px 0 0;">
@@ -46,7 +49,12 @@
                 @foreach ($required as $key)
                     @php $meta = $this->requiredSettingMeta[$key] ?? null; @endphp
                     <div>
-                        <label class="form-label" style="font-size:10.5px;">{{ $meta?->label ?? $key }}</label>
+                        <label class="form-label" style="font-size:10.5px;display:inline-flex;align-items:center;gap:5px;">
+                            {{ $meta?->label ?? $key }}
+                            <button type="button" wire:click="openAuditLog('{{ $key }}')" title="Riwayat" style="background:none;border:none;color:var(--text-faint);cursor:pointer;font-size:10px;padding:0;">
+                                <i class="fa-solid fa-clock-rotate-left"></i>
+                            </button>
+                        </label>
                         @if ($key === 'insentif_metode')
                             <select class="form-input" style="font-size:12px;padding:7px 10px;" wire:model="settingValues.{{ $key }}">
                                 <option value="master">Master (tabel Insentif, input manual)</option>

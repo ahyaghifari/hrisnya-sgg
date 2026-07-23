@@ -3,7 +3,6 @@
 namespace App\Livewire;
 
 use App\Filament\Resources\Master\JobPositions\JobPositionResource;
-use App\Helpers\PermissionHelper;
 use App\Models\Master\Companies;
 use App\Models\Master\JobPositions;
 use Illuminate\Support\Facades\Auth;
@@ -37,20 +36,7 @@ class OrganizationStructure extends Component
 
     public function getCompanyOptionsProperty()
     {
-        $user = Auth::user();
-
-        if ($user && $user->company_id && !PermissionHelper::hasGlobalRole($user)) {
-            return Companies::where('id', $user->company_id)->pluck('name', 'id');
-        }
-
         return Companies::pluck('name', 'id');
-    }
-
-    public function getShowCompanyFilterProperty(): bool
-    {
-        $user = Auth::user();
-
-        return !($user && $user->company_id && !PermissionHelper::hasGlobalRole($user));
     }
 
     public function render()

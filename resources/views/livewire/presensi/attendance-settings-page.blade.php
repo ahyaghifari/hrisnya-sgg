@@ -4,6 +4,7 @@
     <div class="mt-4">
         <div class="doc-type-layout">
             {{-- Kiri: perusahaan — pola sama halaman Komponen Gaji, warna sky khusus halaman ini. --}}
+            @if (auth()->user()->canFilterByCompany())
             <div class="doc-type-nav">
                 @foreach ($this->companies as $company)
                     <button type="button" wire:click="selectCompany('{{ $company->id }}')" class="doc-type-btn doc-type-btn-sky {{ $companyId === $company->id ? 'is-active' : '' }}">
@@ -12,6 +13,7 @@
                     </button>
                 @endforeach
             </div>
+            @endif
 
             {{-- Kanan: form flat, semua AttendanceSettingEnum company-scoped, tanpa lapis
             toggle/expand komponen (beda dari Komponen Gaji yang punya banyak komponen). List
@@ -22,7 +24,12 @@
                         @foreach ($this->settings as $setting)
                             <div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px 20px;padding:14px 0;{{ ! $loop->last ? 'border-bottom:1px solid var(--border-soft);' : '' }}">
                                 <div style="flex:1;min-width:220px;">
-                                    <label class="form-label" style="margin:0;">{{ $setting->label() }}</label>
+                                    <label class="form-label" style="margin:0;display:inline-flex;align-items:center;gap:6px;">
+                                        {{ $setting->label() }}
+                                        <button type="button" wire:click="openAuditLog('{{ $setting->value }}')" title="Riwayat" style="background:none;border:none;color:var(--text-faint);cursor:pointer;font-size:11px;padding:0;">
+                                            <i class="fa-solid fa-clock-rotate-left"></i>
+                                        </button>
+                                    </label>
                                     <p style="font-size:11px;color:var(--text-muted);margin:2px 0 0;">{{ $setting->helperText() }}</p>
                                 </div>
                                 <input type="number" class="form-input" style="max-width:180px;" wire:model="values.{{ $setting->value }}">
@@ -36,5 +43,7 @@
                 </div>
             </div>
         </div>
+
+        @include('livewire.partials.audit-log-modal')
     </div>
 </div>

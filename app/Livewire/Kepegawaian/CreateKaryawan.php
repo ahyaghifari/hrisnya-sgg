@@ -4,7 +4,6 @@ namespace App\Livewire\Kepegawaian;
 
 use App\Enum\CustomPermissionEnum;
 use App\Enum\OrgStructurLevel;
-use App\Helpers\PermissionHelper;
 use App\Models\Master\Banks;
 use App\Models\Master\Companies;
 use App\Models\Master\EmployeeTypes;
@@ -89,13 +88,17 @@ class CreateKaryawan extends Component
     {
         abort_unless(Auth::user()->can(CustomPermissionEnum::SISTEM_KEPEGAWAIAN->value), 403);
 
-        if (! PermissionHelper::hasGlobalRole(Auth::user())) {
+        if (! Auth::user()->canFilterByCompany()) {
             $this->company_id = Auth::user()->company_id;
         }
     }
 
     public function updatedCompanyId(): void
     {
+        if (! Auth::user()->canFilterByCompany()) {
+            $this->company_id = Auth::user()->company_id;
+        }
+
         $this->role_ids = [];
         $this->department_id = null;
         $this->division_id = null;

@@ -41,7 +41,7 @@ class DocumentsPage extends Component
     {
         abort_unless(Auth::user()->can(CustomPermissionEnum::SISTEM_KEPEGAWAIAN->value), 403);
 
-        if (! PermissionHelper::hasGlobalRole(Auth::user())) {
+        if (! Auth::user()->canFilterByCompany()) {
             $this->companyId = Auth::user()->company_id;
         }
     }
@@ -60,6 +60,10 @@ class DocumentsPage extends Component
 
     public function updatedCompanyId(): void
     {
+        if (! Auth::user()->canFilterByCompany()) {
+            $this->companyId = Auth::user()->company_id;
+        }
+
         $this->resetPage();
     }
 
@@ -152,7 +156,7 @@ class DocumentsPage extends Component
     public function render()
     {
         return view('livewire.kepegawaian.documents-page', [
-            'canBrowseAllCompanies' => PermissionHelper::hasGlobalRole(Auth::user()),
+            'canBrowseAllCompanies' => Auth::user()->canFilterByCompany(),
         ]);
     }
 }

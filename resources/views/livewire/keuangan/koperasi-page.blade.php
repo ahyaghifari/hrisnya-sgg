@@ -88,8 +88,8 @@
 
     {{-- Modal Tambah Anggota --}}
     @if ($showAddModal)
-        <div style="position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:100;display:flex;align-items:center;justify-content:center;padding:16px;" wire:click="closeAddModal">
-            <div style="background:var(--surface);border-radius:14px;padding:20px;max-width:420px;width:100%;max-height:90vh;overflow-y:auto;" onclick="event.stopPropagation()">
+        <div class="modal-overlay" wire:click="closeAddModal">
+            <div class="modal-box" onclick="event.stopPropagation()">
                 <h3 style="font-size:16px;font-weight:700;color:var(--text-heading);margin:0 0 14px;">Tambah Anggota Koperasi</h3>
 
                 <div style="display:flex;flex-direction:column;gap:12px;">
@@ -123,8 +123,8 @@
 
     {{-- Modal Ubah Amount (satu atau beberapa baris yang dicentang) --}}
     @if ($showEditModal)
-        <div style="position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:100;display:flex;align-items:center;justify-content:center;padding:16px;" wire:click="closeEditModal">
-            <div style="background:var(--surface);border-radius:14px;padding:20px;max-width:380px;width:100%;" onclick="event.stopPropagation()">
+        <div class="modal-overlay" wire:click="closeEditModal">
+            <div class="modal-box" style="max-width:380px;" onclick="event.stopPropagation()">
                 <h3 style="font-size:16px;font-weight:700;color:var(--text-heading);margin:0 0 14px;">
                     Ubah Amount ({{ count($editingIds) }} anggota)
                 </h3>

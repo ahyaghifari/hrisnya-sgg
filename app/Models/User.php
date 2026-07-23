@@ -149,6 +149,12 @@ class User extends Authenticatable implements FilamentUser
         return $this->hasRole('Direktur') && \App\Helpers\PermissionHelper::hasGlobalRole($this);
     }
 
+    /** Boleh lihat/pilih filter perusahaan lain di portal, bukan cuma company sendiri. */
+    public function canFilterByCompany(): bool
+    {
+        return $this->can(\App\Enum\CustomPermissionEnum::LIHAT_PERUSAHAAN_LAIN->value);
+    }
+
     /**
      * Dulu ditulis ulang di dua tempat (nav.blade.php & MyEmployees::mount()) dengan kondisi
      * yang sama persis — disatukan di sini supaya nav dan guard halaman tidak bisa beda sendiri.

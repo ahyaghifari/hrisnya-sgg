@@ -4,7 +4,6 @@ namespace App\Livewire\Kepegawaian;
 
 use App\Enum\OrgStructurLevel;
 use App\Enum\UserTransitionTypeEnum;
-use App\Helpers\PermissionHelper;
 use App\Models\Master\Companies;
 use App\Models\Master\JobPositions;
 use App\Models\Master\OrgStructure;
@@ -69,7 +68,7 @@ class CreateUserTransitionPage extends Component
     {
         abort_unless(Auth::user()->can('Create:UserTransition'), 403);
 
-        if (! PermissionHelper::hasGlobalRole(Auth::user())) {
+        if (! Auth::user()->canFilterByCompany()) {
             $this->companyId = Auth::user()->company_id;
         }
 
@@ -81,6 +80,13 @@ class CreateUserTransitionPage extends Component
         }
     }
 
+    public function updatedCompanyId(): void
+    {
+        if (! Auth::user()->canFilterByCompany()) {
+            $this->companyId = Auth::user()->company_id;
+        }
+    }
+
     public function getCompanyOptionsProperty()
     {
         return Companies::pluck('name', 'id');
@@ -88,7 +94,7 @@ class CreateUserTransitionPage extends Component
 
     public function getCanBrowseAllCompaniesProperty(): bool
     {
-        return PermissionHelper::hasGlobalRole(Auth::user());
+        return Auth::user()->canFilterByCompany();
     }
 
     public function getEmployeesProperty()
