@@ -172,7 +172,7 @@
                                 <a href="{{ route('karyawan.show', ['record' => $employee, 'from' => 'karyawan']) }}" wire:navigate class="btn-ghost" style="padding:5px 10px;font-size:11px;" title="Lihat">
                                     <i class="fa-solid fa-chart-bar"></i>
                                 </a>
-                                <a href="{{ route('my-staff.edit', ['record' => $employee]) }}" wire:navigate class="btn-ghost" style="padding:5px 10px;font-size:11px;" title="Edit">
+                                <a href="{{ route('kepegawaian.karyawan.edit', ['record' => $employee]) }}" wire:navigate class="btn-ghost" style="padding:5px 10px;font-size:11px;" title="Edit">
                                     <i class="fa-solid fa-pen"></i>
                                 </a>
                             @endif

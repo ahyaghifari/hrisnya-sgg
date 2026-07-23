@@ -120,6 +120,18 @@
                 <span class="pwa-menu-grid-icon navy"><i class="fa-solid fa-flag"></i></span>
                 <span class="pwa-menu-grid-label">Hari Libur & Cuti Bersama</span>
             </a>
+            <a href="{{ route('presensi.rekap-izin') }}" wire:navigate class="pwa-menu-grid-item">
+                <span class="pwa-menu-grid-icon navy"><i class="fa-solid fa-file-lines"></i></span>
+                <span class="pwa-menu-grid-label">Rekap Izin</span>
+            </a>
+            <a href="{{ route('presensi.rekap-cuti') }}" wire:navigate class="pwa-menu-grid-item">
+                <span class="pwa-menu-grid-icon teal"><i class="fa-solid fa-umbrella-beach"></i></span>
+                <span class="pwa-menu-grid-label">Rekap Cuti</span>
+            </a>
+            <a href="{{ route('presensi.rekap-lembur') }}" wire:navigate class="pwa-menu-grid-item">
+                <span class="pwa-menu-grid-icon gold"><i class="fa-solid fa-business-time"></i></span>
+                <span class="pwa-menu-grid-label">Rekap Lembur</span>
+            </a>
             <a href="{{ route('presensi.pengaturan') }}" wire:navigate class="pwa-menu-grid-item">
                 <span class="pwa-menu-grid-icon gold"><i class="fa-solid fa-gear"></i></span>
                 <span class="pwa-menu-grid-label">Pengaturan Absensi</span>
@@ -142,18 +154,6 @@
                     <span class="pwa-menu-grid-label">Perubahan Status</span>
                 </a>
             @endif
-            <a href="{{ route('kepegawaian.rekap-izin') }}" wire:navigate class="pwa-menu-grid-item">
-                <span class="pwa-menu-grid-icon navy"><i class="fa-solid fa-file-lines"></i></span>
-                <span class="pwa-menu-grid-label">Rekap Izin</span>
-            </a>
-            <a href="{{ route('kepegawaian.rekap-cuti') }}" wire:navigate class="pwa-menu-grid-item">
-                <span class="pwa-menu-grid-icon teal"><i class="fa-solid fa-umbrella-beach"></i></span>
-                <span class="pwa-menu-grid-label">Rekap Cuti</span>
-            </a>
-            <a href="{{ route('kepegawaian.rekap-lembur') }}" wire:navigate class="pwa-menu-grid-item">
-                <span class="pwa-menu-grid-icon gold"><i class="fa-solid fa-business-time"></i></span>
-                <span class="pwa-menu-grid-label">Rekap Lembur</span>
-            </a>
         @endif
 
         @if ($canAccessLms)

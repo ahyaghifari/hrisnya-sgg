@@ -12,13 +12,11 @@ use App\Livewire\Dashboard;
 use App\Livewire\EditMyEmployee;
 use App\Livewire\EmployeeAttendanceStatistics;
 use App\Livewire\Kepegawaian\CreateKaryawan;
+use App\Livewire\Kepegawaian\EditKaryawan;
 use App\Livewire\Kepegawaian\CreateUserTransitionPage;
-use App\Livewire\Kepegawaian\CutiRecapPage;
 use App\Livewire\Kepegawaian\DocumentFormPage;
 use App\Livewire\Kepegawaian\DocumentsPage;
-use App\Livewire\Kepegawaian\IzinRecapPage;
 use App\Livewire\Kepegawaian\KaryawanPage;
-use App\Livewire\Kepegawaian\LemburRecapPage;
 use App\Livewire\Kepegawaian\UserTransitionDetailPage;
 use App\Livewire\Kepegawaian\UserTransitionsPage;
 use App\Livewire\Keuangan\IncentivesPage;
@@ -41,8 +39,11 @@ use App\Livewire\Pelatihan\TrainingDetail;
 use App\Livewire\Pelatihan\TrainingList;
 use App\Livewire\Presensi\AttendanceSettingsPage;
 use App\Livewire\Presensi\CreateSchedulePage;
+use App\Livewire\Presensi\CutiRecapPage;
 use App\Livewire\Presensi\HolidayCalendarPage;
 use App\Livewire\Presensi\HolidaysPage;
+use App\Livewire\Presensi\IzinRecapPage;
+use App\Livewire\Presensi\LemburRecapPage;
 use App\Livewire\Presensi\ScheduleAssignmentsPage;
 use App\Livewire\Presensi\ScheduleDetailPage;
 use App\Livewire\Presensi\SchedulesPage;
@@ -112,6 +113,9 @@ Route::middleware(['auth', 'portal.access'])->group(function () {
     Route::get('/kepegawaian/karyawan/tambah', CreateKaryawan::class)
         ->name('kepegawaian.karyawan.create');
 
+    Route::get('/kepegawaian/karyawan/{record}/edit', EditKaryawan::class)
+        ->name('kepegawaian.karyawan.edit');
+
     Route::get('/kepegawaian/dokumen', DocumentsPage::class)
         ->name('kepegawaian.dokumen');
 
@@ -120,15 +124,6 @@ Route::middleware(['auth', 'portal.access'])->group(function () {
 
     Route::get('/kepegawaian/dokumen/{record}/edit', DocumentFormPage::class)
         ->name('kepegawaian.dokumen.edit');
-
-    Route::get('/kepegawaian/rekap-izin', IzinRecapPage::class)
-        ->name('kepegawaian.rekap-izin');
-
-    Route::get('/kepegawaian/rekap-cuti', CutiRecapPage::class)
-        ->name('kepegawaian.rekap-cuti');
-
-    Route::get('/kepegawaian/rekap-lembur', LemburRecapPage::class)
-        ->name('kepegawaian.rekap-lembur');
 
     Route::get('/kepegawaian/perubahan-status', UserTransitionsPage::class)
         ->name('kepegawaian.mutasi-karyawan');
@@ -209,6 +204,15 @@ Route::middleware(['auth', 'portal.access'])->group(function () {
 
     Route::get('/presensi/hari-libur', HolidaysPage::class)
         ->name('presensi.hari-libur');
+
+    Route::get('/presensi/rekap-izin', IzinRecapPage::class)
+        ->name('presensi.rekap-izin');
+
+    Route::get('/presensi/rekap-cuti', CutiRecapPage::class)
+        ->name('presensi.rekap-cuti');
+
+    Route::get('/presensi/rekap-lembur', LemburRecapPage::class)
+        ->name('presensi.rekap-lembur');
 
     // Read-only, permission null (guard/self-service biasa) — versi karyawan biasa dari
     // halaman kelola di atas. Belum ada link masuk di nav manapun, lihat

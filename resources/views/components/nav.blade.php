@@ -93,13 +93,17 @@
                         @if ($canAccessAbsensi)
                             <div class="dropdown">
                                 <a href="#" class="nav-item nav-item-sky {{ request()->routeIs('presensi.*') ? 'active' : '' }}">
-                                    <i class="fa-solid fa-calendar-check text-xs"></i> Absensi <i class="fa-solid fa-chevron-down text-[10px]"></i>
+                                    <i class="fa-solid fa-calendar-check text-xs"></i> Presensi & Absensi <i class="fa-solid fa-chevron-down text-[10px]"></i>
                                 </a>
                                 <div class="dropdown-menu">
-                                    <span class="dropdown-item" style="opacity:.5;cursor:not-allowed;" title="Segera hadir"><i class="fa-solid fa-chart-line"></i> Dashboard <span style="font-size:9px;">(segera)</span></span>
-                                    <div style="height:1px;background:var(--border-soft);margin:6px 8px;"></div>
+                                    <div style="font-size:10.5px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em;padding:6px 12px 4px;">Presensi</div>
                                     <a href="{{ route('presensi.jadwal') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-calendar-days"></i> Jadwal</a>
                                     <a href="{{ route('presensi.hari-libur') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-flag"></i> Hari Libur & Cuti Bersama</a>
+
+                                    <div style="font-size:10.5px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em;padding:10px 12px 4px;">Absensi</div>
+                                    <a href="{{ route('presensi.rekap-izin') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-file-lines"></i> Rekap Izin</a>
+                                    <a href="{{ route('presensi.rekap-cuti') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-umbrella-beach"></i> Rekap Cuti</a>
+                                    <a href="{{ route('presensi.rekap-lembur') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-business-time"></i> Rekap Lembur</a>
                                     <a href="{{ route('presensi.pengaturan') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-gear"></i> Pengaturan Absensi</a>
                                 </div>
                             </div>
@@ -117,10 +121,6 @@
                                     @if (auth()->user()->can('ViewAny:UserTransition'))
                                         <a href="{{ route('kepegawaian.mutasi-karyawan') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-right-left"></i> Perubahan Status</a>
                                     @endif
-                                    <div style="height:1px;background:var(--border-soft);margin:6px 8px;"></div>
-                                    <a href="{{ route('kepegawaian.rekap-izin') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-file-lines"></i> Rekap Izin</a>
-                                    <a href="{{ route('kepegawaian.rekap-cuti') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-umbrella-beach"></i> Rekap Cuti</a>
-                                    <a href="{{ route('kepegawaian.rekap-lembur') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-business-time"></i> Rekap Lembur</a>
                                 </div>
                             </div>
                         @endif

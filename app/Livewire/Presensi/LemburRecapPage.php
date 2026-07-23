@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Livewire\Kepegawaian;
+namespace App\Livewire\Presensi;
 
 use App\Enum\CustomPermissionEnum;
 use App\Models\Attendance\AttendanceRequestOvertimeDetails;
@@ -28,7 +28,7 @@ class LemburRecapPage extends Component
 
     public function mount(): void
     {
-        abort_unless(Auth::user()->can(CustomPermissionEnum::SISTEM_KEPEGAWAIAN->value), 403);
+        abort_unless(Auth::user()->can(CustomPermissionEnum::SISTEM_ABSENSI->value), 403);
 
         if (! Auth::user()->canFilterByCompany()) {
             $this->companyId = Auth::user()->company_id;
@@ -151,6 +151,6 @@ class LemburRecapPage extends Component
 
     public function render()
     {
-        return view('livewire.kepegawaian.lembur-recap-page');
+        return view('livewire.presensi.lembur-recap-page');
     }
 }

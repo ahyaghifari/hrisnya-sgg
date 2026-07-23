@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Livewire\Kepegawaian;
+namespace App\Livewire\Presensi;
 
 use App\Enum\CustomPermissionEnum;
 use App\Models\Attendance\AttendanceRequestLeaveDetails;
@@ -30,7 +30,7 @@ class CutiRecapPage extends Component
 
     public function mount(): void
     {
-        abort_unless(Auth::user()->can(CustomPermissionEnum::SISTEM_KEPEGAWAIAN->value), 403);
+        abort_unless(Auth::user()->can(CustomPermissionEnum::SISTEM_ABSENSI->value), 403);
 
         if (! Auth::user()->canFilterByCompany()) {
             $this->companyId = Auth::user()->company_id;
@@ -179,6 +179,6 @@ class CutiRecapPage extends Component
 
     public function render()
     {
-        return view('livewire.kepegawaian.cuti-recap-page');
+        return view('livewire.presensi.cuti-recap-page');
     }
 }

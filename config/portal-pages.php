@@ -106,12 +106,6 @@ return [
         'guard' => null,
     ],
 
-    'kepegawaian.rekap-izin' => [
-        'label' => 'Rekap Izin',
-        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_KEPEGAWAIAN->value,
-        'guard' => null,
-    ],
-
     'kepegawaian.mutasi-karyawan' => [
         'label' => 'Perubahan Status Karyawan',
         'permission' => 'ViewAny:UserTransition',
@@ -223,6 +217,24 @@ return [
 
     'presensi.pengaturan' => [
         'label' => 'Pengaturan Absensi',
+        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_ABSENSI->value,
+        'guard' => null,
+    ],
+
+    'presensi.rekap-izin' => [
+        'label' => 'Rekap Izin',
+        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_ABSENSI->value,
+        'guard' => null,
+    ],
+
+    'presensi.rekap-cuti' => [
+        'label' => 'Rekap Cuti',
+        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_ABSENSI->value,
+        'guard' => null,
+    ],
+
+    'presensi.rekap-lembur' => [
+        'label' => 'Rekap Lembur',
         'permission' => \App\Enum\CustomPermissionEnum::SISTEM_ABSENSI->value,
         'guard' => null,
     ],

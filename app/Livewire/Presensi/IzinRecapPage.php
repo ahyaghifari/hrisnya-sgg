@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Livewire\Kepegawaian;
+namespace App\Livewire\Presensi;
 
 use App\Enum\Attendance\PermissionTypeCategoryEnum;
 use App\Enum\CustomPermissionEnum;
@@ -30,7 +30,7 @@ class IzinRecapPage extends Component
 
     public function mount(): void
     {
-        abort_unless(Auth::user()->can(CustomPermissionEnum::SISTEM_KEPEGAWAIAN->value), 403);
+        abort_unless(Auth::user()->can(CustomPermissionEnum::SISTEM_ABSENSI->value), 403);
 
         if (! Auth::user()->canFilterByCompany()) {
             $this->companyId = Auth::user()->company_id;
@@ -173,6 +173,6 @@ class IzinRecapPage extends Component
 
     public function render()
     {
-        return view('livewire.kepegawaian.izin-recap-page');
+        return view('livewire.presensi.izin-recap-page');
     }
 }

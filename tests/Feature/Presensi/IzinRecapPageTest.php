@@ -1,10 +1,10 @@
 <?php
 
-namespace Tests\Feature\Kepegawaian;
+namespace Tests\Feature\Presensi;
 
 use App\Enum\Attendance\PermissionTypeCategoryEnum;
 use App\Enum\CustomPermissionEnum;
-use App\Livewire\Kepegawaian\IzinRecapPage;
+use App\Livewire\Presensi\IzinRecapPage;
 use App\Models\Attendance\AttendanceRequestPermissionDetails;
 use App\Models\Attendance\AttendanceRequests;
 use App\Models\Master\Attendance\PermissionTypes;
@@ -22,9 +22,9 @@ class IzinRecapPageTest extends TestCase
 
     private function actingAsKepegawaian(string $companyId): User
     {
-        Permission::firstOrCreate(['name' => CustomPermissionEnum::SISTEM_KEPEGAWAIAN->value, 'guard_name' => 'web']);
-        $role = Role::firstOrCreate(['name' => 'Kepegawaian Test', 'guard_name' => 'web']);
-        $role->givePermissionTo(CustomPermissionEnum::SISTEM_KEPEGAWAIAN->value);
+        Permission::firstOrCreate(['name' => CustomPermissionEnum::SISTEM_ABSENSI->value, 'guard_name' => 'web']);
+        $role = Role::firstOrCreate(['name' => 'Absensi Test', 'guard_name' => 'web']);
+        $role->givePermissionTo(CustomPermissionEnum::SISTEM_ABSENSI->value);
 
         $user = User::factory()->create(['company_id' => $companyId]);
         $user->assignRole($role);
