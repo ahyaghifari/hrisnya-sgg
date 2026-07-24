@@ -12,6 +12,7 @@ use App\Models\Payroll\CompanyPayrollComponent;
 use App\Models\Payroll\Payroll;
 use App\Models\Payroll\PayrollPeriod;
 use App\Models\Setting;
+use App\Notifications\PayrollPaid;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
@@ -180,8 +181,18 @@ class PayrollsPage extends Component
     {
         abort_unless($this->canUpdatePayroll, 403);
 
-        $count = Payroll::whereIn('id', $this->selected)->where('is_paid', false)->update(['is_paid' => true]);
+        // Ambil dulu SEBELUM update masal — butuh tahu persis baris mana yang benar-benar
+        // berubah dari belum ke sudah dibayar, biar tidak notifikasi ulang yang sudah dibayar
+        // sebelumnya (bisa ikut kecentang tapi tidak seharusnya dianggap "baru dibayar").
+        $newlyPaid = Payroll::whereIn('id', $this->selected)->where('is_paid', false)->with(['user', 'payrollPeriod'])->get();
 
+        Payroll::whereIn('id', $newlyPaid->pluck('id'))->update(['is_paid' => true]);
+
+        foreach ($newlyPaid as $payroll) {
+            $payroll->user?->notify(new PayrollPaid($payroll));
+        }
+
+        $count = $newlyPaid->count();
         $this->selected = [];
 
         Notification::make()

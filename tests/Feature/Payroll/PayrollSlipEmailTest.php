@@ -96,6 +96,9 @@ class PayrollSlipEmailTest extends TestCase
 
         $this->assertSame('17123', $slip['password']);
         $this->assertStringStartsWith('%PDF', $slip['binary']);
+        // Format: SLIPGAJI-{bulan periode}{tahun periode}-{NIP}_{NAMA KARYAWAN} — periode
+        // makePaidPayroll() berakhir 2026-06-30.
+        $this->assertSame('SLIPGAJI-062026-20260001123_' . strtoupper($payroll->user->name) . '.pdf', $slip['filename']);
     }
 
     // ── Job ───────────────────────────────────────────────────────────────

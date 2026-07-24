@@ -25,6 +25,10 @@ enum NotificationTypeEnum: string
     case TASK_COMMENTED = 'task_commented';
     case TASK_PROJECT_MEMBER_ADDED = 'task_project_member_added';
 
+    // Ke karyawan, saat payroll-nya ditandai sudah dibayar (App\Jobs tidak terlibat — dikirim
+    // langsung saat tombol "Tandai Sudah Dibayar" diklik, TERPISAH dari email slip gaji).
+    case PAYROLL_PAID = 'payroll_paid';
+
     public function label(): string
     {
         return match ($this) {
@@ -37,6 +41,7 @@ enum NotificationTypeEnum: string
             self::TASK_REVIEWER_ASSIGNED => 'Saya Diminta Jadi Reviewer',
             self::TASK_COMMENTED => 'Komentar Baru di Tugas Saya',
             self::TASK_PROJECT_MEMBER_ADDED => 'Ditambahkan ke Project',
+            self::PAYROLL_PAID => 'Gaji Saya Sudah Dibayar',
         };
     }
 
@@ -52,6 +57,7 @@ enum NotificationTypeEnum: string
             self::TASK_REVIEWER_ASSIGNED => 'Dikirim saat Anda ditunjuk sebagai reviewer sebuah tugas.',
             self::TASK_COMMENTED => 'Dikirim saat ada komentar baru di tugas yang Anda kerjakan/buat.',
             self::TASK_PROJECT_MEMBER_ADDED => 'Dikirim saat Anda dimasukkan sebagai anggota sebuah project tugas.',
+            self::PAYROLL_PAID => 'Dikirim saat payroll Anda ditandai sudah dibayar oleh finance.',
         };
     }
 }

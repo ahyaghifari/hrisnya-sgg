@@ -39,11 +39,19 @@ class PayrollService
             function () use ($pdf) {
                 echo $pdf->stream();
             },
-            'slip-gaji-' . str_replace(' ', '-', strtolower($payroll->user->name)) . '.pdf',
+            $this->slipFilename($payroll),
             [
                 'Content-Type' => 'application/pdf',
             ]
         );
+    }
+
+    /** Format: SLIPGAJI-{bulan periode}{tahun periode}-{NIP}_{NAMA KARYAWAN}.pdf */
+    private function slipFilename(Payroll $payroll): string
+    {
+        $period = $payroll->payrollPeriod->end_date->format('mY');
+
+        return "SLIPGAJI-{$period}-{$payroll->user->nip}_" . strtoupper($payroll->user->name) . '.pdf';
     }
 
     /**
@@ -88,7 +96,7 @@ class PayrollService
         return [
             'binary' => $pdf->output(),
             'password' => $password,
-            'filename' => 'slip-gaji-' . str_replace(' ', '-', strtolower($payroll->user->name)) . '.pdf',
+            'filename' => $this->slipFilename($payroll),
         ];
     }
 
@@ -105,7 +113,7 @@ class PayrollService
             'rows' => $this->componentRows($payroll),
         ]);
 
-        return $pdf->stream('slip-gaji-' . str_replace(' ', '-', strtolower($payroll->user->name)) . '.pdf');
+        return $pdf->stream($this->slipFilename($payroll));
     }
 
     /**

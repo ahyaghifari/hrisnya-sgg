@@ -10,6 +10,7 @@ use App\Models\Payroll\Payroll;
 use App\Models\Payroll\PayrollComponentRecipient;
 use App\Models\Payroll\PayrollManualLine;
 use App\Models\Setting;
+use App\Notifications\PayrollPaid;
 use App\Services\Payroll\PayrollService;
 use Filament\Notifications\Notification;
 use Illuminate\Database\UniqueConstraintViolationException;
@@ -120,6 +121,8 @@ class PayrollDetailPage extends Component
 
         $this->payroll->update(['is_paid' => true]);
         $this->payroll->refresh();
+
+        $this->payroll->user?->notify(new PayrollPaid($this->payroll));
 
         Notification::make()
             ->title('Payroll ditandai sudah dibayar')

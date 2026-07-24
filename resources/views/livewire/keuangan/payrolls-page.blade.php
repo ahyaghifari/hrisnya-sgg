@@ -66,7 +66,10 @@
                         <tr style="border-bottom:1.5px solid var(--border);">
                             @if ($this->canUpdatePayroll)
                                 <th style="text-align:left;padding:10px 14px;width:36px;">
-                                    <input type="checkbox" wire:click="toggleSelectAll($event.target.checked)">
+                                    <span class="custom-checkbox" style="--accent:#042c6c;">
+                                        <input type="checkbox" wire:click="toggleSelectAll($event.target.checked)">
+                                        <span class="box"><i class="fa-solid fa-check"></i></span>
+                                    </span>
                                 </th>
                             @endif
                             <th style="text-align:left;padding:10px 14px;white-space:nowrap;">Nama Karyawan</th>
@@ -83,7 +86,10 @@
                             <tr wire:key="'payroll-'.{{ $payroll->id }}" style="border-bottom:1px solid var(--border-soft);">
                                 @if ($this->canUpdatePayroll)
                                     <td style="padding:9px 14px;">
-                                        <input type="checkbox" wire:model="selected" value="{{ $payroll->id }}">
+                                        <span class="custom-checkbox" style="--accent:#042c6c;">
+                                            <input type="checkbox" wire:model.live="selected" value="{{ $payroll->id }}">
+                                            <span class="box"><i class="fa-solid fa-check"></i></span>
+                                        </span>
                                     </td>
                                 @endif
                                 <td style="padding:9px 14px;white-space:nowrap;">
