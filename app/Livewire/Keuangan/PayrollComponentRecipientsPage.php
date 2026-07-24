@@ -6,6 +6,7 @@ use App\Enum\CustomPermissionEnum;
 use App\Enum\Payroll\PayrollComponentEnum;
 use App\Models\Master\Companies;
 use App\Models\Master\EmployeeTypes;
+use App\Models\Payroll\CompanyPayrollComponent;
 use App\Models\Payroll\PayrollComponentRecipient;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\Auth;
@@ -73,11 +74,28 @@ class PayrollComponentRecipientsPage extends Component
             ->all();
     }
 
-    /** @return array<int, PayrollComponentEnum> */
+    /**
+     * Cuma komponen yang AKTIF (toggle ON di halaman Komponen Gaji) buat company terpilih yang
+     * ditampilkan — sebelumnya semua PayrollComponentEnum ditampilkan tanpa filter, jadi
+     * komponen yang company ini tidak pakai sama sekali tetap muncul di sini dan bisa diisi
+     * penerimanya padahal tidak akan pernah dipakai PayrollService::runComponent().
+     *
+     * @return array<int, PayrollComponentEnum>
+     */
     public function getComponentsProperty(): array
     {
+        if (! $this->companyId) {
+            return [];
+        }
+
+        $activeValues = CompanyPayrollComponent::query()
+            ->where('company_id', $this->companyId)
+            ->where('is_active', true)
+            ->pluck('component');
+
         return collect(PayrollComponentEnum::cases())
             ->reject(fn (PayrollComponentEnum $c) => $c === PayrollComponentEnum::FEE_CLAIM)
+            ->filter(fn (PayrollComponentEnum $c) => $activeValues->contains($c->value))
             ->values()
             ->all();
     }

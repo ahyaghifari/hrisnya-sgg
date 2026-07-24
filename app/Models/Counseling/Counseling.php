@@ -26,7 +26,12 @@ class Counseling extends Model
         'responded_by',
     ];
 
-
+    protected function casts(): array
+    {
+        return [
+            'responded_at' => 'datetime',
+        ];
+    }
 
     public function user(): BelongsTo
     {
