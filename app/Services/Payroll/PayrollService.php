@@ -47,6 +47,52 @@ class PayrollService
     }
 
     /**
+     * Password buka PDF slip gaji terenkripsi: 2 digit tanggal lahir + 3 digit terakhir NIP.
+     * Null kalau salah satu datanya belum diisi — pemanggil wajib cek sebelum kirim email.
+     */
+    public function slipPassword(User $user): ?string
+    {
+        $dob = $user->profile?->date_of_birth;
+
+        if (! $dob || ! $user->nip) {
+            return null;
+        }
+
+        $day = str_pad((string) \Carbon\Carbon::parse($dob)->day, 2, '0', STR_PAD_LEFT);
+        $nipLast3 = str_pad(substr($user->nip, -3), 3, '0', STR_PAD_LEFT);
+
+        return $day . $nipLast3;
+    }
+
+    /**
+     * PDF slip gaji dengan password buka (encryption bawaan CPDF backend dompdf, lihat
+     * PDF::setEncryption() di barryvdh/laravel-dompdf) — dipakai lampiran email, BUKAN
+     * download()/preview() biasa yang tetap tanpa password.
+     *
+     * @return array{binary: string, password: string, filename: string}
+     */
+    public function encryptedSlip(Payroll $payroll): array
+    {
+        $password = $this->slipPassword($payroll->user);
+
+        if (! $password) {
+            throw new \RuntimeException('Karyawan ini belum punya tanggal lahir atau NIP lengkap — tidak bisa membuat slip gaji terenkripsi.');
+        }
+
+        $pdf = Pdf::loadView('pdf.payroll.payroll', [
+            'payroll' => $payroll,
+            'rows' => $this->componentRows($payroll),
+        ]);
+        $pdf->setEncryption($password);
+
+        return [
+            'binary' => $pdf->output(),
+            'password' => $password,
+            'filename' => 'slip-gaji-' . str_replace(' ', '-', strtolower($payroll->user->name)) . '.pdf',
+        ];
+    }
+
+    /**
      * Beda dari download() — dompdf stream() defaultnya Content-Disposition: inline (buka di
      * tab baru/PDF viewer browser), TIDAK dibungkus response()->streamDownload() yang selalu
      * memaksa attachment. Dipakai tombol "Preview Slip Gaji" (link biasa target=_blank, bukan

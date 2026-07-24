@@ -6,6 +6,7 @@ use App\Enum\CustomPermissionEnum;
 use App\Enum\Payroll\PayrollComponentEnum;
 use App\Imports\Payroll\BonImport;
 use App\Imports\Payroll\IncentiveImport;
+use App\Jobs\SendPayrollSlipJob;
 use App\Models\Master\Companies;
 use App\Models\Payroll\CompanyPayrollComponent;
 use App\Models\Payroll\Payroll;
@@ -40,6 +41,8 @@ class PayrollsPage extends Component
     public ?string $periodId = null;
     public string $search = '';
 
+    public array $selected = [];
+
     public bool $showImportModal = false;
     public ?string $importType = null; // 'insentif' | 'bon'
     public ?string $importPeriodId = null;
@@ -68,6 +71,17 @@ class PayrollsPage extends Component
         }
 
         $this->periodId = null;
+        $this->selected = [];
+    }
+
+    public function updatedPeriodId(): void
+    {
+        $this->selected = [];
+    }
+
+    public function toggleSelectAll(bool $checked): void
+    {
+        $this->selected = $checked ? $this->payrolls->pluck('id')->all() : [];
     }
 
     public function getCompaniesProperty()
@@ -137,6 +151,72 @@ class PayrollsPage extends Component
     public function getCanImportPayrollProperty(): bool
     {
         return Auth::user()->can('create', Payroll::class);
+    }
+
+    /**
+     * Ability class-level (bukan cek instance tertentu) — pakai permission Shield mentah
+     * ('Update:Payroll') langsung, sama seperti yang dicek PayrollPolicy::update() untuk
+     * satu payroll, karena Gate::can('update', Payroll::class) tanpa instance tidak bisa
+     * dipakai (policy method-nya wajib parameter $payroll).
+     */
+    public function getCanUpdatePayrollProperty(): bool
+    {
+        return Auth::user()->can('Update:Payroll');
+    }
+
+    /** Tombol "Kirim Slip Gaji ke Email" cuma tampil kalau SEMUA baris yang dicentang sudah dibayar. */
+    public function getSelectedAllPaidProperty(): bool
+    {
+        if ($this->selected === []) {
+            return false;
+        }
+
+        return ! Payroll::whereIn('id', $this->selected)->where('is_paid', false)->exists();
+    }
+
+    // ── Ceklis massal: tandai dibayar & kirim slip ke email ─────────────────
+
+    public function markSelectedAsPaid(): void
+    {
+        abort_unless($this->canUpdatePayroll, 403);
+
+        $count = Payroll::whereIn('id', $this->selected)->where('is_paid', false)->update(['is_paid' => true]);
+
+        $this->selected = [];
+
+        Notification::make()
+            ->title("{$count} payroll ditandai sudah dibayar")
+            ->success()
+            ->send();
+    }
+
+    /** Dispatch job per karyawan (queue) — karyawan tanpa email dilewati, bukan bikin batch gagal semua. */
+    public function sendSlipsToSelected(): void
+    {
+        abort_unless($this->canUpdatePayroll, 403);
+        abort_unless($this->selectedAllPaid, 403, 'Semua payroll yang dipilih harus sudah dibayar dulu.');
+
+        $payrolls = Payroll::whereIn('id', $this->selected)->with('user')->get();
+        $skipped = 0;
+
+        foreach ($payrolls as $payroll) {
+            if (! $payroll->user?->email) {
+                $skipped++;
+
+                continue;
+            }
+
+            SendPayrollSlipJob::dispatch($payroll->id, Auth::id());
+        }
+
+        $sentCount = $payrolls->count() - $skipped;
+        $this->selected = [];
+
+        Notification::make()
+            ->title("{$sentCount} slip gaji sedang dikirim")
+            ->body($skipped > 0 ? "{$skipped} dilewati karena karyawan belum punya email." : 'Diproses via queue — email akan terkirim dalam beberapa saat.')
+            ->success()
+            ->send();
     }
 
     public function openImportModal(string $type): void

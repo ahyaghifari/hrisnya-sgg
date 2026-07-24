@@ -46,10 +46,29 @@
                 </div>
             </div>
 
+            @if (count($selected) > 0 && $this->canUpdatePayroll)
+                <div style="display:flex;align-items:center;gap:10px;background:var(--surface-soft,#f8fafc);border:1px solid var(--border);border-radius:10px;padding:8px 14px;margin-top:12px;flex-wrap:wrap;">
+                    <span style="font-size:12.5px;font-weight:600;">{{ count($selected) }} dipilih</span>
+                    <button type="button" wire:click="markSelectedAsPaid" wire:confirm="Tandai {{ count($selected) }} payroll terpilih sudah dibayar?" class="btn-ghost" style="padding:5px 12px;font-size:11.5px;">
+                        <i class="fa-solid fa-check"></i> Tandai Sudah Dibayar
+                    </button>
+                    @if ($this->selectedAllPaid)
+                        <button type="button" wire:click="sendSlipsToSelected" wire:confirm="Kirim slip gaji ke email {{ count($selected) }} karyawan terpilih?" class="btn-ghost" style="padding:5px 12px;font-size:11.5px;color:#2563eb;">
+                            <i class="fa-solid fa-envelope"></i> Kirim Slip Gaji ke Email
+                        </button>
+                    @endif
+                </div>
+            @endif
+
             <div style="background:var(--surface);border-radius:12px;box-shadow:var(--shadow-card);overflow-x:auto;margin-top:16px;">
                 <table style="width:100%;border-collapse:collapse;font-size:12.5px;">
                     <thead>
                         <tr style="border-bottom:1.5px solid var(--border);">
+                            @if ($this->canUpdatePayroll)
+                                <th style="text-align:left;padding:10px 14px;width:36px;">
+                                    <input type="checkbox" wire:click="toggleSelectAll($event.target.checked)">
+                                </th>
+                            @endif
                             <th style="text-align:left;padding:10px 14px;white-space:nowrap;">Nama Karyawan</th>
                             <th style="text-align:left;padding:10px 14px;white-space:nowrap;">Periode</th>
                             <th style="text-align:right;padding:10px 14px;white-space:nowrap;">Gaji Kotor</th>
@@ -62,6 +81,11 @@
                     <tbody>
                         @forelse ($this->payrolls as $payroll)
                             <tr wire:key="'payroll-'.{{ $payroll->id }}" style="border-bottom:1px solid var(--border-soft);">
+                                @if ($this->canUpdatePayroll)
+                                    <td style="padding:9px 14px;">
+                                        <input type="checkbox" wire:model="selected" value="{{ $payroll->id }}">
+                                    </td>
+                                @endif
                                 <td style="padding:9px 14px;white-space:nowrap;">
                                     <span style="font-weight:600;">{{ $payroll->user?->name ?? '-' }}</span>
                                     <span style="display:block;font-size:10.5px;color:var(--text-faint);">{{ $payroll->user?->nip ?? '-' }}</span>
@@ -74,6 +98,9 @@
                                     <span style="display:inline-block;padding:3px 10px;border-radius:99px;font-size:11px;font-weight:600;background:{{ $payroll->is_paid ? 'rgba(4,124,84,0.1)' : 'rgba(217,119,6,0.1)' }};color:{{ $payroll->is_paid ? '#047C54' : '#d97706' }};">
                                         {{ $payroll->is_paid ? 'Sudah Dibayar' : 'Belum Dibayar' }}
                                     </span>
+                                    @if ($payroll->slip_sent_at)
+                                        <span style="display:block;font-size:9.5px;color:var(--text-faint);margin-top:2px;"><i class="fa-solid fa-envelope-circle-check"></i> Terkirim</span>
+                                    @endif
                                 </td>
                                 <td style="padding:9px 14px;text-align:center;white-space:nowrap;">
                                     <a href="{{ route('keuangan.payroll.show', $payroll->id) }}" wire:navigate class="btn-ghost" style="padding:5px 12px;font-size:11.5px;">Lihat</a>
@@ -81,7 +108,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="7" style="padding:24px;text-align:center;color:var(--text-faint);">Belum ada payroll untuk filter ini.</td>
+                                <td colspan="{{ $this->canUpdatePayroll ? 8 : 7 }}" style="padding:24px;text-align:center;color:var(--text-faint);">Belum ada payroll untuk filter ini.</td>
                             </tr>
                         @endforelse
                     </tbody>

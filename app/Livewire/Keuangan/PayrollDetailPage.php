@@ -4,6 +4,7 @@ namespace App\Livewire\Keuangan;
 
 use App\Enum\CustomPermissionEnum;
 use App\Enum\Payroll\PayrollComponentEnum;
+use App\Jobs\SendPayrollSlipJob;
 use App\Models\Payroll\CompanyPayrollComponent;
 use App\Models\Payroll\Payroll;
 use App\Models\Payroll\PayrollComponentRecipient;
@@ -129,6 +130,30 @@ class PayrollDetailPage extends Component
     public function downloadSlip()
     {
         return app(PayrollService::class)->download($this->payroll);
+    }
+
+    /** Cuma boleh dikirim setelah ditandai dibayar — sama gate-nya dengan tombol di halaman list. */
+    public function sendSlipEmail(): void
+    {
+        abort_unless(Auth::user()->can('update', $this->payroll), 403);
+        abort_unless($this->payroll->is_paid, 403, 'Payroll harus ditandai sudah dibayar dulu sebelum slip bisa dikirim.');
+
+        if (! $this->payroll->user->email) {
+            Notification::make()
+                ->title('Karyawan ini belum punya email')
+                ->danger()
+                ->send();
+
+            return;
+        }
+
+        SendPayrollSlipJob::dispatch($this->payroll->id, Auth::id());
+
+        Notification::make()
+            ->title('Slip gaji sedang dikirim')
+            ->body('Diproses via queue — email akan terkirim dalam beberapa saat.')
+            ->success()
+            ->send();
     }
 
     public function openManualLineModal(string $component, ?string $lineId = null): void

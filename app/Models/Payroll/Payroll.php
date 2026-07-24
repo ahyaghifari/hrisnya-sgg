@@ -25,12 +25,14 @@ class Payroll extends Model
         'total_deductions',
         'net_salary',
         'is_paid',
+        'slip_sent_at',
         'generated_by',
         'generated_at',
     ];
 
     protected $casts = [
         'generated_at' => 'datetime',
+        'slip_sent_at' => 'datetime',
     ];
 
     public function user(): BelongsTo

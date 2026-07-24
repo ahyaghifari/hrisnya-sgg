@@ -28,6 +28,11 @@
                     <span style="display:inline-block;padding:3px 10px;border-radius:99px;font-size:11px;font-weight:600;background:{{ $payroll->is_paid ? 'rgba(4,124,84,0.1)' : 'rgba(217,119,6,0.1)' }};color:{{ $payroll->is_paid ? '#047C54' : '#d97706' }};">
                         {{ $payroll->is_paid ? 'Sudah Dibayar' : 'Belum Dibayar' }}
                     </span>
+                    @if ($payroll->slip_sent_at)
+                        <p style="font-size:10.5px;color:var(--text-muted);margin:4px 0 0;">
+                            <i class="fa-solid fa-envelope-circle-check"></i> Slip terkirim {{ $payroll->slip_sent_at->translatedFormat('d M Y H:i') }}
+                        </p>
+                    @endif
                 </div>
                 <div>
                     <p style="font-size:10.5px;color:var(--text-faint);margin:0 0 2px;text-transform:uppercase;letter-spacing:0.03em;">Terakhir Digenerate</p>
@@ -66,6 +71,11 @@
                 <button type="button" wire:click="downloadSlip" class="btn-ghost" style="padding:6px 12px;font-size:11px;">
                     <i class="fa-solid fa-download"></i> Download Slip Gaji
                 </button>
+                @if ($payroll->is_paid && $this->canEditPayroll)
+                    <button type="button" wire:click="sendSlipEmail" wire:confirm="Kirim slip gaji ke email {{ $payroll->user?->email }}?" class="btn-ghost" style="padding:6px 12px;font-size:11px;color:#2563eb;">
+                        <i class="fa-solid fa-envelope"></i> {{ $payroll->slip_sent_at ? 'Kirim Ulang' : 'Kirim' }} Slip ke Email
+                    </button>
+                @endif
             </div>
         </div>
 
