@@ -1,4 +1,4 @@
-<div class="p-4 md:p-6">
+<div >
     <x-page-header title="Insentif" />
 
     <div class="mt-4" style="display:flex;flex-direction:column;gap:16px;">
@@ -37,12 +37,6 @@
                     @endif
                 </div>
 
-                <div class="pelatihan-filter-nav" style="margin-top:12px;">
-                    <button type="button" wire:click="setStatusFilter('')" class="pelatihan-filter-btn navy {{ $statusFilter === '' ? 'is-active' : '' }}">Semua Status</button>
-                    <button type="button" wire:click="setStatusFilter('belum')" class="pelatihan-filter-btn rust {{ $statusFilter === 'belum' ? 'is-active' : '' }}">Belum Diproses</button>
-                    <button type="button" wire:click="setStatusFilter('sudah')" class="pelatihan-filter-btn green {{ $statusFilter === 'sudah' ? 'is-active' : '' }}">Sudah Diproses</button>
-                </div>
-
                 <div style="background:var(--surface);border-radius:12px;box-shadow:var(--shadow-card);overflow-x:auto;margin-top:16px;">
                     <table style="width:100%;border-collapse:collapse;font-size:12.5px;">
                         <thead>
@@ -52,7 +46,6 @@
                                 <th style="text-align:left;padding:10px 14px;white-space:nowrap;">Nama Program</th>
                                 <th style="text-align:left;padding:10px 14px;white-space:nowrap;">Tanggal</th>
                                 <th style="text-align:right;padding:10px 14px;white-space:nowrap;">Nominal</th>
-                                <th style="text-align:center;padding:10px 14px;white-space:nowrap;">Status</th>
                                 <th style="text-align:center;padding:10px 14px;white-space:nowrap;">Aksi</th>
                             </tr>
                         </thead>
@@ -61,36 +54,27 @@
                                 <tr wire:key="'incentive-'.{{ $incentive->id }}" style="border-bottom:1px solid var(--border-soft);">
                                     <td style="padding:9px 14px;white-space:nowrap;">{{ $incentive->user?->company?->name ?? '-' }}</td>
                                     <td style="padding:9px 14px;font-weight:600;white-space:nowrap;">{{ $incentive->user?->name ?? '-' }}</td>
-                                    <td style="padding:9px 14px;white-space:nowrap;">{{ $incentive->name }}</td>
-                                    <td style="padding:9px 14px;white-space:nowrap;">{{ $incentive->incentive_date?->format('d M Y') }}</td>
+                                    <td style="padding:9px 14px;white-space:nowrap;">{{ $incentive->name ?? '-' }}</td>
+                                    <td style="padding:9px 14px;white-space:nowrap;">{{ $incentive->incentive_date?->format('d M Y') ?? '-' }}</td>
                                     <td style="padding:9px 14px;text-align:right;white-space:nowrap;">Rp {{ number_format($incentive->amount, 0, ',', '.') }}</td>
                                     <td style="padding:9px 14px;text-align:center;white-space:nowrap;">
-                                        <span style="font-weight:600;color:{{ $incentive->is_processed ? '#047C54' : '#d97706' }};">
-                                            {{ $incentive->is_processed ? 'Sudah Diproses' : 'Belum Diproses' }}
-                                        </span>
-                                    </td>
-                                    <td style="padding:9px 14px;text-align:center;white-space:nowrap;">
-                                        @if (! $incentive->is_processed)
-                                            <div style="display:inline-flex;gap:6px;">
-                                                @can('update', $incentive)
-                                                    <button type="button" wire:click="openEditModal('{{ $incentive->id }}')" class="btn-ghost" style="padding:5px 12px;font-size:11.5px;">
-                                                        <i class="fa-solid fa-pen"></i> Edit
-                                                    </button>
-                                                @endcan
-                                                @can('delete', $incentive)
-                                                    <button type="button" wire:click="removeIncentive('{{ $incentive->id }}')" wire:confirm="Hapus insentif ini?" class="btn-ghost" style="padding:5px 12px;font-size:11.5px;color:#dc2626;">
-                                                        <i class="fa-solid fa-trash"></i> Hapus
-                                                    </button>
-                                                @endcan
-                                            </div>
-                                        @else
-                                            <span style="color:var(--text-faint);">-</span>
-                                        @endif
+                                        <div style="display:inline-flex;gap:6px;">
+                                            @can('update', $incentive)
+                                                <button type="button" wire:click="openEditModal('{{ $incentive->id }}')" class="btn-ghost" style="padding:5px 12px;font-size:11.5px;">
+                                                    <i class="fa-solid fa-pen"></i> Edit
+                                                </button>
+                                            @endcan
+                                            @can('delete', $incentive)
+                                                <button type="button" wire:click="removeIncentive('{{ $incentive->id }}')" wire:confirm="Hapus insentif ini?" class="btn-ghost" style="padding:5px 12px;font-size:11.5px;color:#dc2626;">
+                                                    <i class="fa-solid fa-trash"></i> Hapus
+                                                </button>
+                                            @endcan
+                                        </div>
                                     </td>
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="7" style="padding:24px;text-align:center;color:var(--text-faint);">Belum ada insentif untuk perusahaan ini.</td>
+                                    <td colspan="6" style="padding:24px;text-align:center;color:var(--text-faint);">Belum ada insentif untuk perusahaan ini.</td>
                                 </tr>
                             @endforelse
                         </tbody>
@@ -110,7 +94,7 @@
 
                 <div style="display:flex;flex-direction:column;gap:12px;">
                     <div>
-                        <label class="form-label">Penerima</label>
+                        <label class="form-label">Penerima <span style="color:var(--danger-text);">*</span></label>
                         <div wire:ignore>
                             <select data-tom-select data-placeholder="-- Pilih Karyawan --" wire:model="formUserId">
                                 <option value="">-- Pilih Karyawan --</option>
@@ -123,6 +107,18 @@
                     </div>
 
                     <div>
+                        <label class="form-label">Nominal <span style="color:var(--danger-text);">*</span></label>
+                        <input type="number" step="0.01" min="0" class="form-input" wire:model="formAmount" placeholder="500000">
+                        @error('formAmount') <p style="font-size:11px;color:#dc2626;margin-top:4px;">{{ $message }}</p> @enderror
+                    </div>
+
+                    <div style="display:flex;align-items:center;gap:10px;margin:2px 0;">
+                        <div style="flex:1;height:1px;background:var(--border-soft);"></div>
+                        <span style="font-size:10.5px;color:var(--text-faint);text-transform:uppercase;letter-spacing:0.03em;">Opsional</span>
+                        <div style="flex:1;height:1px;background:var(--border-soft);"></div>
+                    </div>
+
+                    <div>
                         <label class="form-label">Nama Program</label>
                         <input type="text" class="form-input" wire:model="formName">
                         @error('formName') <p style="font-size:11px;color:#dc2626;margin-top:4px;">{{ $message }}</p> @enderror
@@ -130,14 +126,9 @@
 
                     <div>
                         <label class="form-label">Tanggal</label>
-                        <input type="date" class="form-input" wire:model="formDate">
+                        <input type="date" class="form-input" wire:model="formDate" placeholder="Default: hari ini">
+                        <p style="font-size:10.5px;color:var(--text-faint);margin-top:4px;">Kosongkan buat pakai tanggal hari ini.</p>
                         @error('formDate') <p style="font-size:11px;color:#dc2626;margin-top:4px;">{{ $message }}</p> @enderror
-                    </div>
-
-                    <div>
-                        <label class="form-label">Nominal</label>
-                        <input type="number" step="0.01" min="0" class="form-input" wire:model="formAmount" placeholder="500000">
-                        @error('formAmount') <p style="font-size:11px;color:#dc2626;margin-top:4px;">{{ $message }}</p> @enderror
                     </div>
 
                     <div>

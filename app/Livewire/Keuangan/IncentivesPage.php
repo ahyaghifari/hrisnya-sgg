@@ -28,9 +28,6 @@ class IncentivesPage extends Component
     public ?string $companyId = null;
     public string $search = '';
 
-    /** '' = semua, 'belum' = belum diproses, 'sudah' = sudah diproses. */
-    public string $statusFilter = '';
-
     public bool $showFormModal = false;
     public ?string $editingId = null;
     public ?string $formUserId = null;
@@ -53,11 +50,6 @@ class IncentivesPage extends Component
         if (! Auth::user()->canFilterByCompany()) {
             $this->companyId = Auth::user()->company_id;
         }
-    }
-
-    public function setStatusFilter(string $status): void
-    {
-        $this->statusFilter = $status;
     }
 
     public function getCompaniesProperty()
@@ -90,8 +82,6 @@ class IncentivesPage extends Component
             ->when($search !== '', fn ($q) => $q->where(fn ($q2) => $q2
                 ->where('name', 'like', "%{$search}%")
                 ->orWhereHas('user', fn ($q3) => $q3->where('name', 'like', "%{$search}%"))))
-            ->when($this->statusFilter === 'belum', fn ($q) => $q->where('is_processed', false))
-            ->when($this->statusFilter === 'sudah', fn ($q) => $q->where('is_processed', true))
             ->with('user.company')
             ->orderByDesc('incentive_date')
             ->get();
@@ -130,7 +120,6 @@ class IncentivesPage extends Component
         $incentive = Incentive::findOrFail($id);
 
         abort_unless(Auth::user()->can('update', $incentive), 403);
-        abort_if($incentive->is_processed, 403, 'Insentif yang sudah diproses tidak bisa diedit.');
 
         $this->editingId = $incentive->id;
         $this->formUserId = $incentive->user_id;
@@ -155,22 +144,25 @@ class IncentivesPage extends Component
 
         $this->validate([
             'formUserId' => 'required|exists:users,id',
-            'formName' => 'required|string|max:255',
-            'formDate' => 'required|date',
             'formAmount' => 'required|numeric|min:0.01',
+            'formName' => 'nullable|string|max:255',
+            'formDate' => 'nullable|date',
             'formNote' => 'nullable|string',
         ], [], [
             'formUserId' => 'penerima',
+            'formAmount' => 'nominal',
             'formName' => 'nama program',
             'formDate' => 'tanggal',
-            'formAmount' => 'nominal',
             'formNote' => 'catatan',
         ]);
 
         $data = [
             'user_id' => $this->formUserId,
             'name' => $this->formName,
-            'incentive_date' => $this->formDate,
+            // Tanggal dipakai IncentiveCalculator buat nentuin insentif ini masuk periode
+            // payroll yang mana — kalau admin tidak isi, default ke hari ini (bukan dibiarkan
+            // null) supaya tetap ke-generate di periode berjalan.
+            'incentive_date' => $this->formDate ?: now()->toDateString(),
             'amount' => $this->formAmount,
             'note' => $this->formNote,
         ];
@@ -194,7 +186,6 @@ class IncentivesPage extends Component
         $incentive = Incentive::findOrFail($id);
 
         abort_unless(Auth::user()->can('delete', $incentive), 403);
-        abort_if($incentive->is_processed, 403, 'Insentif yang sudah diproses tidak bisa dihapus.');
 
         $incentive->delete();
 

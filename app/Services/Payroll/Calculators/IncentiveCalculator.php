@@ -14,10 +14,10 @@ use App\Models\User;
 /**
  * Metode ditentukan setting `insentif_metode` (company-scoped, lihat requiredSettings() di
  * PayrollComponentEnum::INSENTIF). "master" (Holding): nominal tetap, input manual ke tabel
- * `incentives`, dibaca di sini. "import" (RSU, perhitungan dinamis): dibaca dari
- * `payroll_manual_lines` (component=insentif) — App\Imports\Payroll\IncentiveImport menulis ke
- * situ (bukan langsung ke payroll_items lagi), jadi baris ini ikut ke-generate ulang normal
- * kalau periode di-regenerate, sama seperti Koperasi/Bon.
+ * `incentives`, dibaca di sini BY TANGGAL per periode — TIDAK ada flag "sudah dipakai"
+ * (is_processed dicabut total), jadi baris ini ikut ke-generate ulang normal kalau periode
+ * di-regenerate, sama seperti "import" (RSU, dibaca dari `payroll_manual_lines`
+ * component=insentif — App\Imports\Payroll\IncentiveImport menulis ke situ) dan Koperasi/Bon.
  */
 class IncentiveCalculator implements PayrollComponentCalculator
 {
@@ -33,7 +33,6 @@ class IncentiveCalculator implements PayrollComponentCalculator
 
         $incentives = Incentive::query()
             ->where('user_id', $user->id)
-            ->where('is_processed', false)
             ->whereBetween('incentive_date', [$period->start_date, $period->end_date])
             ->get();
 
@@ -60,8 +59,6 @@ class IncentiveCalculator implements PayrollComponentCalculator
         ]);
 
         $context->addEarning($totalAmount);
-
-        Incentive::query()->whereIn('id', $incentives->pluck('id'))->update(['is_processed' => true]);
     }
 
     private function calculateFromImport(User $user, Payroll $payroll, PayrollPeriod $period, PayrollContext $context): void

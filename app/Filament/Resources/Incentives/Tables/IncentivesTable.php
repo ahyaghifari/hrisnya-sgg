@@ -10,7 +10,6 @@ use Filament\Actions\EditAction;
 use Filament\Actions\ViewAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
-use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Table;
 use Illuminate\Support\Facades\Auth;
 
@@ -40,11 +39,6 @@ class IncentivesTable
                     ->label('Nominal')
                     ->money('IDR', true)
                     ->sortable(),
-                TextColumn::make('is_processed')
-                    ->label('Status')
-                    ->badge()
-                    ->formatStateUsing(fn (bool $state) => $state ? 'Sudah Diproses' : 'Belum Diproses')
-                    ->color(fn (bool $state) => $state ? 'success' : 'warning'),
             ])
             ->filters([
                 SelectFilter::make('company_id')
@@ -58,12 +52,6 @@ class IncentivesTable
                     ))
                     ->default(fn () => PermissionHelper::hasGlobalRole(Auth::user()) ? Auth::user()->company_id : null)
                     ->visible(fn () => PermissionHelper::hasGlobalRole(Auth::user())),
-
-                TernaryFilter::make('is_processed')
-                    ->label('Status')
-                    ->trueLabel('Sudah Diproses')
-                    ->falseLabel('Belum Diproses')
-                    ->placeholder('Semua Status'),
             ])
             ->recordActions([
                 ViewAction::make()
@@ -77,14 +65,12 @@ class IncentivesTable
                     ->fillForm(fn (Incentive $record) => [
                         ...$record->attributesToArray(),
                         'company_id' => $record->user?->company_id,
-                    ])
-                    ->visible(fn (Incentive $record) => ! $record->is_processed),
+                    ]),
 
                 DeleteAction::make()
                     ->label('Hapus')
                     ->slideOver()
-                    ->modalWidth('md')
-                    ->visible(fn (Incentive $record) => ! $record->is_processed),
+                    ->modalWidth('md'),
             ]);
     }
 }

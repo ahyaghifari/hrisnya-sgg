@@ -69,24 +69,26 @@ class IncentivesPageTest extends TestCase
         $this->assertDatabaseHas('incentives', ['user_id' => $employee->id, 'name' => 'Insentif Juli', 'amount' => 500000]);
     }
 
-    public function test_cannot_edit_processed_incentive(): void
+    public function test_can_create_incentive_with_only_required_fields(): void
     {
         $finance = $this->actingAsFinance(withCrudPermission: true);
         $company = $this->makeCompany();
         $employee = User::factory()->create(['company_id' => $company->id]);
-        $incentive = Incentive::create([
-            'user_id' => $employee->id,
-            'name' => 'Insentif Juli',
-            'incentive_date' => '2026-07-15',
-            'amount' => 500000,
-            'is_processed' => true,
-        ]);
+        \App\Models\User\UserProfiles::create(['user_id' => $employee->id]);
 
         Livewire::actingAs($finance)
             ->test(IncentivesPage::class)
             ->set('companyId', $company->id)
-            ->call('openEditModal', $incentive->id)
-            ->assertForbidden();
+            ->call('openCreateModal')
+            ->set('formUserId', $employee->id)
+            ->set('formAmount', '250000')
+            ->call('saveForm');
+
+        // Nama Program & Tanggal opsional — tanggal default ke hari ini kalau dikosongkan.
+        $incentive = \App\Models\Incentive\Incentive::where('user_id', $employee->id)->firstOrFail();
+        $this->assertSame(250000.0, (float) $incentive->amount);
+        $this->assertNull($incentive->name);
+        $this->assertSame(now()->toDateString(), $incentive->incentive_date->toDateString());
     }
 
     public function test_without_crud_permission_cannot_open_create_modal(): void
@@ -99,7 +101,7 @@ class IncentivesPageTest extends TestCase
             ->assertForbidden();
     }
 
-    public function test_can_delete_unprocessed_incentive(): void
+    public function test_can_delete_incentive(): void
     {
         $finance = $this->actingAsFinance(withCrudPermission: true);
         $company = $this->makeCompany();
@@ -109,7 +111,6 @@ class IncentivesPageTest extends TestCase
             'name' => 'Insentif Juli',
             'incentive_date' => '2026-07-15',
             'amount' => 500000,
-            'is_processed' => false,
         ]);
 
         Livewire::actingAs($finance)

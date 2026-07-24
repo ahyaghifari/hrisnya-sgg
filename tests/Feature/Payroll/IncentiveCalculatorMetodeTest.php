@@ -35,7 +35,6 @@ class IncentiveCalculatorMetodeTest extends TestCase
             'name' => 'Insentif Juli',
             'incentive_date' => '2026-07-15',
             'amount' => 300000,
-            'is_processed' => false,
         ]);
 
         return [$company, $user, $period, $payroll];
@@ -63,8 +62,9 @@ class IncentiveCalculatorMetodeTest extends TestCase
 
         $this->assertSame(0.0, $context->grossSalary);
         $this->assertDatabaseMissing('payroll_items', ['payroll_id' => $payroll->id, 'source_type' => 'insentif']);
-        // Baris incentives (dipakai metode "master") tidak ikut ditandai processed.
-        $this->assertDatabaseHas('incentives', ['user_id' => $payroll->user_id, 'is_processed' => false]);
+        // Metode "import" tidak menyentuh tabel incentives sama sekali — baris yang dibuat
+        // buat metode "master" di makeSetup() tetap utuh tanpa diapa-apakan.
+        $this->assertDatabaseHas('incentives', ['user_id' => $payroll->user_id, 'amount' => 300000]);
     }
 
     public function test_import_metode_reads_from_manual_line(): void
@@ -84,6 +84,29 @@ class IncentiveCalculatorMetodeTest extends TestCase
 
         $this->assertSame(700000.0, $context->grossSalary);
         $this->assertDatabaseHas('payroll_items', ['payroll_id' => $payroll->id, 'source_type' => 'insentif', 'amount' => 700000]);
+    }
+
+    /**
+     * is_processed sudah dicabut total dari metode "master" — baris incentives dibaca BY
+     * TANGGAL per periode, bukan "konsumsi sekali lalu terkunci", jadi regenerate periode yang
+     * sama (payroll lama dihapus, dihitung ulang) harus menghasilkan nominal identik, bukan 0.
+     */
+    public function test_master_metode_is_regenerate_safe(): void
+    {
+        [, , $period, $payroll] = $this->makeSetup();
+        Setting::create(['company_id' => $period->company_id, 'key' => 'insentif_metode', 'module' => 'payroll', 'type' => 'string', 'value' => 'master', 'label' => 'Metode Insentif']);
+
+        $firstContext = new PayrollContext();
+        (new IncentiveCalculator())->calculate($payroll->user, $payroll, $period, $firstContext);
+        $this->assertSame(300000.0, $firstContext->grossSalary);
+
+        // Simulasikan regenerate: payroll_items lama dihapus, payroll dihitung ulang.
+        $payroll->items()->delete();
+
+        $secondContext = new PayrollContext();
+        (new IncentiveCalculator())->calculate($payroll->user, $payroll->fresh(), $period, $secondContext);
+
+        $this->assertSame(300000.0, $secondContext->grossSalary);
     }
 
     public function test_defaults_to_master_when_setting_missing(): void

@@ -2,7 +2,6 @@
 
 namespace App\Filament\Resources\Incentives\Schemas;
 
-use Filament\Infolists\Components\IconEntry;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
@@ -38,22 +37,12 @@ class IncentiveInfolist
                             ->placeholder('-')
                             ->columnSpanFull(),
 
-                    ])
-                    ->columns(1),
-
-                Section::make('Status')
-                    ->schema([
-
-                        IconEntry::make('is_processed')
-                            ->label('Sudah Diproses')
-                            ->boolean(),
-
                         TextEntry::make('updated_at')
                             ->label('Terakhir Diubah')
                             ->dateTime(),
 
                     ])
-                    ->columns(2),
+                    ->columns(1),
             ]);
     }
 }

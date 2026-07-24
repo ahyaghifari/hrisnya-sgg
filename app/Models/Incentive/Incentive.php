@@ -27,14 +27,12 @@ class Incentive extends Model
         'incentive_date',
         'amount',
         'note',
-        'is_processed',
     ];
 
     protected function casts(): array
     {
         return [
             'incentive_date' => 'date',
-            'is_processed' => 'boolean',
         ];
     }
 
