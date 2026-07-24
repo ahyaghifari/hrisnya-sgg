@@ -56,6 +56,11 @@ class ScheduleShiftRosterTab extends Component
         $this->rotationStartDate = now()->startOfMonth()->toDateString();
     }
 
+    public function getCanEditJadwalProperty(): bool
+    {
+        return Auth::user()->can(CustomPermissionEnum::KELOLA_JADWAL_SHIFT->value);
+    }
+
     public function updatedPeriod(): void
     {
         $this->rotationStartDate = Carbon::createFromFormat('Y-m', $this->period)->startOfMonth()->toDateString();
@@ -128,6 +133,8 @@ class ScheduleShiftRosterTab extends Component
      * supaya select di grid punya nilai awal yang benar sebelum diubah user. */
     public function startEdit(): void
     {
+        abort_unless(Auth::user()->can(CustomPermissionEnum::KELOLA_JADWAL_SHIFT->value), 403);
+
         if ($this->schedule->use_template) {
             return;
         }
@@ -156,6 +163,8 @@ class ScheduleShiftRosterTab extends Component
      * satu tempat (guard use_template, delete-kalau-kosong, dst tidak dobel). */
     public function saveRoster(): void
     {
+        abort_unless(Auth::user()->can(CustomPermissionEnum::KELOLA_JADWAL_SHIFT->value), 403);
+
         if (! $this->editMode || $this->schedule->use_template) {
             return;
         }
@@ -196,6 +205,8 @@ class ScheduleShiftRosterTab extends Component
      * tergantung driver DB (MySQL toleran, sebagian lain tidak) kalau pakai equality biasa. */
     public function setCell(string $userId, string $date, ?string $value): void
     {
+        abort_unless(Auth::user()->can(CustomPermissionEnum::KELOLA_JADWAL_SHIFT->value), 403);
+
         if ($this->schedule->use_template) {
             return;
         }
@@ -226,6 +237,8 @@ class ScheduleShiftRosterTab extends Component
      * tidak pernah menimpa baris yang sudah ada. */
     public function generateFromTemplate(): void
     {
+        abort_unless(Auth::user()->can(CustomPermissionEnum::KELOLA_JADWAL_SHIFT->value), 403);
+
         if (! $this->schedule->use_template) {
             return;
         }

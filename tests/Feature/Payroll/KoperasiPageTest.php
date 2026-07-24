@@ -20,8 +20,16 @@ class KoperasiPageTest extends TestCase
     private function actingAsFinance(): User
     {
         Permission::firstOrCreate(['name' => CustomPermissionEnum::SISTEM_KEUANGAN->value, 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'Create:UserKoperasi', 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'Update:UserKoperasi', 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'Delete:UserKoperasi', 'guard_name' => 'web']);
         $role = Role::firstOrCreate(['name' => 'Keuangan Koperasi Test', 'guard_name' => 'web']);
-        $role->givePermissionTo(CustomPermissionEnum::SISTEM_KEUANGAN->value);
+        $role->givePermissionTo([
+            CustomPermissionEnum::SISTEM_KEUANGAN->value,
+            'Create:UserKoperasi',
+            'Update:UserKoperasi',
+            'Delete:UserKoperasi',
+        ]);
 
         $user = User::factory()->create();
         $user->assignRole($role);

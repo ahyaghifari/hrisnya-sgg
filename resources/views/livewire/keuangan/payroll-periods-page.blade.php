@@ -47,13 +47,17 @@
                                                     <i class="fa-solid fa-pen"></i> Edit
                                                 </button>
                                             @endcan
-                                            <button type="button" wire:click="generatePayroll('{{ $period->id }}')" wire:confirm="Generate payroll untuk semua karyawan aktif di perusahaan ini? Aksi ini tidak bisa dibatalkan." class="btn-ghost" style="padding:5px 12px;font-size:11.5px;color:#047C54;">
-                                                <i class="fa-solid fa-cog"></i> Generate Payroll
-                                            </button>
+                                            @if ($this->canGeneratePayroll)
+                                                <button type="button" wire:click="generatePayroll('{{ $period->id }}')" wire:confirm="Generate payroll untuk semua karyawan aktif di perusahaan ini? Aksi ini tidak bisa dibatalkan." class="btn-ghost" style="padding:5px 12px;font-size:11.5px;color:#047C54;">
+                                                    <i class="fa-solid fa-cog"></i> Generate Payroll
+                                                </button>
+                                            @endif
                                         @else
-                                            <button type="button" wire:click="regeneratePayroll('{{ $period->id }}')" wire:confirm="Hapus dan generate ulang seluruh payroll yang BELUM dibayar di periode ini? Payroll yang sudah dibayar tidak akan terpengaruh." class="btn-ghost" style="padding:5px 12px;font-size:11.5px;color:#d97706;">
-                                                <i class="fa-solid fa-arrow-rotate-right"></i> Regenerate Payroll
-                                            </button>
+                                            @if ($this->canGeneratePayroll)
+                                                <button type="button" wire:click="regeneratePayroll('{{ $period->id }}')" wire:confirm="Hapus dan generate ulang seluruh payroll yang BELUM dibayar di periode ini? Payroll yang sudah dibayar tidak akan terpengaruh." class="btn-ghost" style="padding:5px 12px;font-size:11.5px;color:#d97706;">
+                                                    <i class="fa-solid fa-arrow-rotate-right"></i> Regenerate Payroll
+                                                </button>
+                                            @endif
                                         @endif
                                     </div>
                                 </td>

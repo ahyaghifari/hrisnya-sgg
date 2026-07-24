@@ -87,6 +87,7 @@ class CreateKaryawan extends Component
     public function mount(): void
     {
         abort_unless(Auth::user()->can(CustomPermissionEnum::SISTEM_KEPEGAWAIAN->value), 403);
+        abort_unless(Auth::user()->can('create', User::class), 403);
 
         if (! Auth::user()->canFilterByCompany()) {
             $this->company_id = Auth::user()->company_id;

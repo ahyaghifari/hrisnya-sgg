@@ -19,7 +19,7 @@ enum GlobalPayrollSettingEnum: string
     public function label(): string
     {
         return match ($this) {
-            self::UMP => 'UMP (Upah Minimum Provinsi)',
+            self::UMP => 'UMK (Upah Minimum Kota Banjarbaru)',
             self::BPJS_KESEHATAN_RATE => 'Rate BPJS Kesehatan (%)',
             self::BPJS_KETENAGAKERJAAN_RATE => 'Rate BPJS Ketenagakerjaan (%)',
         };

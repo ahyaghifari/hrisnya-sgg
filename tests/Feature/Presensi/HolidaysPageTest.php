@@ -24,8 +24,11 @@ class HolidaysPageTest extends TestCase
     private function actingAsAbsensi(): User
     {
         Permission::firstOrCreate(['name' => CustomPermissionEnum::SISTEM_ABSENSI->value, 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'Create:Holidays', 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'Update:Holidays', 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'Delete:Holidays', 'guard_name' => 'web']);
         $role = Role::firstOrCreate(['name' => 'Absensi Holidays Test', 'guard_name' => 'web']);
-        $role->givePermissionTo(CustomPermissionEnum::SISTEM_ABSENSI->value);
+        $role->givePermissionTo([CustomPermissionEnum::SISTEM_ABSENSI->value, 'Create:Holidays', 'Update:Holidays', 'Delete:Holidays']);
 
         $user = User::factory()->create();
         $user->assignRole($role);

@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Roles\Schemas;
 
+use App\Enum\CustomPermissionEnum;
 use App\Helpers\PermissionHelper;
 use App\Models\Master\Companies;
 use Filament\Facades\Filament;
@@ -19,6 +20,62 @@ use UnitEnum;
 
 class RoleForm
 {
+    /**
+     * Gerbang baca SISTEM_* (portal karyawan) dikelompokkan bareng permission "anak"-nya
+     * (EDIT_* custom + Shield Verb:Subject buat model yang tidak punya Filament Resource,
+     * mis. UserKoperasi). Static supaya bisa dipakai ulang di EditRole::mutateFormDataBeforeFill()
+     * — field key checkbox HARUS sama persis antara sini dan sana, kalau tidak checkbox tampil
+     * kosong walau role sudah punya permission-nya (data tidak hilang, cuma UI-nya salah).
+     *
+     * @return array<string, array<int, string>>
+     */
+    public static function portalGroups(): array
+    {
+        return [
+            CustomPermissionEnum::SISTEM_KEUANGAN->value => [
+                CustomPermissionEnum::EDIT_MAPPING_KOMPONEN_GAJI->value,
+                CustomPermissionEnum::EDIT_PENERIMA_KOMPONEN_GAJI->value,
+                CustomPermissionEnum::EDIT_KOMPONEN_GAJI->value,
+                CustomPermissionEnum::EDIT_KOMPONEN_GAJI_GLOBAL->value,
+                CustomPermissionEnum::GENERATE_PAYROLL->value,
+                'Create:UserKoperasi',
+                'Update:UserKoperasi',
+                'Delete:UserKoperasi',
+            ],
+            CustomPermissionEnum::SISTEM_KEPEGAWAIAN->value => [],
+            CustomPermissionEnum::SISTEM_ABSENSI->value => [
+                CustomPermissionEnum::EDIT_PENGATURAN_ABSENSI->value,
+                CustomPermissionEnum::KELOLA_JADWAL_SHIFT->value,
+                'Create:Schedule',
+                'Update:Schedule',
+                'Delete:Schedule',
+            ],
+            CustomPermissionEnum::SISTEM_LMS->value => [
+                CustomPermissionEnum::EDIT_DETAIL_KURSUS_LMS->value,
+                CustomPermissionEnum::EDIT_HONORARIUM_LMS->value,
+            ],
+            CustomPermissionEnum::SISTEM_TUGAS->value => [
+                CustomPermissionEnum::EDIT_PENGATURAN_TUGAS->value,
+            ],
+            CustomPermissionEnum::SISTEM_REKRUTMEN->value => [],
+            CustomPermissionEnum::SISTEM_COACHING_COUNSELING->value => [],
+        ];
+    }
+
+    /** Field key checkbox untuk 1 nama permission — dipakai RoleForm sendiri & EditRole (prefill). */
+    public static function fieldKeyFor(string $permissionName): string
+    {
+        foreach (self::portalGroups() as $coarseName => $childNames) {
+            if ($permissionName === $coarseName || in_array($permissionName, $childNames, true)) {
+                return 'portal_' . Str::snake($coarseName) . '_has_permissions';
+            }
+        }
+
+        $subject = explode(':', $permissionName)[1] ?? 'Lainnya';
+
+        return Str::snake($subject) . '_has_permissions';
+    }
+
     public static function configure(Schema $schema): Schema
     {
         return $schema
@@ -104,9 +161,49 @@ class RoleForm
                             }
                         }
 
-                        $groups = Permission::query()
-                            ->orderBy('id')
-                            ->get()
+                        $labelFor = function (string $name) use ($actionLabels): string {
+                            if ($custom = CustomPermissionEnum::tryFrom($name)) {
+                                return $custom->label();
+                            }
+
+                            [$action, $subject] = array_pad(explode(':', $name, 2), 2, null);
+
+                            if ($subject === null) {
+                                return Str::headline($name);
+                            }
+
+                            return ($actionLabels[$action] ?? $action) . ' ' . Str::headline($subject);
+                        };
+
+                        // Centang gerbang SISTEM_* -> semua permission anaknya ikut tercentang
+                        // otomatis (lihat afterStateUpdated di bawah), baru boleh dicentang ulang
+                        // satu-satu mana yang mau dicabut.
+                        $portalGroups = self::portalGroups();
+
+                        $portalPermissionNames = collect($portalGroups)
+                            ->flatMap(fn (array $children, string $coarse) => [$coarse, ...$children])
+                            ->all();
+
+                        $allPermissions = Permission::query()->orderBy('id')->get();
+
+                        // Container admin (dari navigationGroup Resource) yang dilebur JADI SATU
+                        // dengan section portal SISTEM_* senama — centang "Sistem Keuangan", bukan
+                        // cuma EDIT_* custom yang ikut tercentang, tapi semua permission Create/
+                        // Update/Delete/dst di grup admin "Keuangan" juga ikut (boleh dicentang
+                        // ulang satu-satu). Container yang tidak ada padanan SISTEM_*-nya
+                        // (Manajemen Organisasi, Manajemen Pengguna) tetap berdiri sendiri seperti
+                        // sebelumnya.
+                        $containerMerge = [
+                            'Keuangan' => CustomPermissionEnum::SISTEM_KEUANGAN->value,
+                            'Kepegawaian' => CustomPermissionEnum::SISTEM_KEPEGAWAIAN->value,
+                            'LMS' => CustomPermissionEnum::SISTEM_LMS->value,
+                            'Presensi & Absensi' => CustomPermissionEnum::SISTEM_ABSENSI->value,
+                            'Master' => CustomPermissionEnum::SISTEM_MASTER->value,
+                        ];
+                        $mergedContainerByCoarse = array_flip($containerMerge);
+
+                        $groups = $allPermissions
+                            ->reject(fn ($permission) => in_array($permission->name, $portalPermissionNames, true))
                             ->groupBy(fn ($permission) => explode(':', $permission->name)[1] ?? 'Lainnya');
 
                         // Urutan container ditampilkan
@@ -174,10 +271,96 @@ class RoleForm
                                 ->schema([$checkboxList]);
                         }
 
+                        // Section portal SISTEM_* — gabungkan checkbox coarse+EDIT_* custom DENGAN
+                        // seluruh Fieldset container admin senama (kalau ada, lihat $containerMerge
+                        // di atas), supaya "Sistem Keuangan" jadi SATU section utuh, bukan dua
+                        // section terpisah yang isinya tumpang tindih.
+                        $portalSections = [];
+                        foreach ($portalGroups as $coarseName => $childNames) {
+                            $mergedContainer = $mergedContainerByCoarse[$coarseName] ?? null;
+                            $mergedFieldKeys = $mergedContainer ? ($containerFieldKeys[$mergedContainer] ?? []) : [];
+
+                            $groupPermissions = $allPermissions->whereIn('name', [$coarseName, ...$childNames]);
+
+                            if ($groupPermissions->isEmpty() && $mergedFieldKeys === []) {
+                                continue;
+                            }
+
+                            $options = $groupPermissions
+                                ->sortBy(fn ($permission) => $permission->name === $coarseName ? 0 : 1)
+                                ->mapWithKeys(fn ($permission) => [$permission->name => $labelFor($permission->name)])
+                                ->all();
+
+                            $fieldKey = 'portal_' . Str::snake($coarseName) . '_has_permissions';
+
+                            // Semua field yang ikut ter-cascade/toggle bareng coarse permission ini
+                            // — field sendiri (coarse + EDIT_* custom) + tiap subject Shield yang
+                            // masuk container admin senama.
+                            $allFieldKeys = [$fieldKey => array_keys($options)] + $mergedFieldKeys;
+
+                            $selectAllToggle = Toggle::make('toggle_all_portal_' . Str::snake($coarseName))
+                                ->label('Pilih Semua')
+                                ->inline(false)
+                                ->live()
+                                ->dehydrated(false)
+                                ->afterStateHydrated(function ($component, callable $get) use ($allFieldKeys) {
+                                    foreach ($allFieldKeys as $key => $allNames) {
+                                        $current = $get($key) ?? [];
+                                        if (count(array_intersect($allNames, $current)) !== count($allNames)) {
+                                            $component->state(false);
+                                            return;
+                                        }
+                                    }
+                                    $component->state(! empty($allFieldKeys));
+                                })
+                                ->afterStateUpdated(function (bool $state, callable $set) use ($allFieldKeys) {
+                                    foreach ($allFieldKeys as $key => $allNames) {
+                                        $set($key, $state ? $allNames : []);
+                                    }
+                                })
+                                ->disabled(fn ($get) => $get('name') === 'super_admin');
+
+                            $portalCheckboxList = CheckboxList::make($fieldKey)
+                                ->label('Pilih Hak Akses')
+                                ->options($options)
+                                ->columns(2)
+                                ->live()
+                                ->afterStateUpdated(function (?array $state, ?array $old, callable $set) use ($coarseName, $childNames, $fieldKey, $mergedFieldKeys) {
+                                    $state ??= [];
+                                    $old ??= [];
+
+                                    if (in_array($coarseName, $state, true) && ! in_array($coarseName, $old, true)) {
+                                        $set($fieldKey, array_values(array_unique([...$state, ...$childNames])));
+
+                                        foreach ($mergedFieldKeys as $key => $allNames) {
+                                            $set($key, $allNames);
+                                        }
+                                    }
+                                })
+                                ->disabled(fn ($get) => $get('name') === 'super_admin');
+
+                            $portalSections[] = Section::make($labelFor($coarseName))
+                                ->description('Centang "' . $labelFor($coarseName) . '" untuk buka akses baca halaman portal-nya sekaligus semua hak edit di bawahnya (termasuk menu admin terkait kalau ada) — boleh dicentang ulang satu-satu mana yang tidak perlu.')
+                                ->collapsible()
+                                ->collapsed()
+                                ->columnSpanFull()
+                                ->schema([
+                                    $selectAllToggle,
+                                    $portalCheckboxList,
+                                    ...($mergedContainer ? ($containerSubSections[$mergedContainer] ?? []) : []),
+                                ]);
+                        }
+
                         $groupSections = [];
 
                         foreach ($containerOrder as $containerName) {
                             if (empty($containerSubSections[$containerName])) {
+                                continue;
+                            }
+
+                            // Container yang sudah dilebur ke section portal SISTEM_* di atas
+                            // tidak dirender lagi berdiri sendiri di sini.
+                            if (array_key_exists($containerName, $containerMerge)) {
                                 continue;
                             }
 
@@ -213,7 +396,7 @@ class RoleForm
                                 ->schema([$selectAllToggle, ...$containerSubSections[$containerName]]);
                         }
 
-                        array_push($groupSections, ...$ungroupedSections);
+                        array_push($groupSections, ...$portalSections, ...$ungroupedSections);
 
                         return Section::make('Hak Akses')
                             ->description('Form ini digunakan untuk mengatur hak akses (permissions) yang dimiliki oleh role ini.')

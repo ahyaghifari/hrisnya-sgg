@@ -29,7 +29,29 @@ class CustomPermissionsSeeder extends Seeder
             ]);
         }
 
+        $this->seedManualPolicyPermissions();
         $this->bootstrapSelfServicePermissions();
+    }
+
+    /**
+     * Permission format Shield "Verb:Subject" tapi untuk model yang TIDAK punya Filament
+     * Resource (jadi `shield:generate` tidak pernah menyentuhnya) — Policy-nya ditulis manual
+     * di app/Policies/**, baris permission-nya dijamin ada di sini. Tambahkan subject baru ke
+     * $subjects kalau ada Policy manual baru dengan pola sama.
+     */
+    private function seedManualPolicyPermissions(): void
+    {
+        $subjects = ['UserKoperasi', 'Schedule'];
+        $verbs = ['ViewAny', 'View', 'Create', 'Update', 'Delete'];
+
+        foreach ($subjects as $subject) {
+            foreach ($verbs as $verb) {
+                Permission::firstOrCreate([
+                    'name' => "{$verb}:{$subject}",
+                    'guard_name' => 'web',
+                ]);
+            }
+        }
     }
 
     /**

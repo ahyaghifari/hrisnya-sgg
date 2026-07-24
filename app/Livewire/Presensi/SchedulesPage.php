@@ -83,9 +83,16 @@ class SchedulesPage extends Component
         return ScheduleAssignment::where('schedule_id', $schedule->id)->exists();
     }
 
+    public function getCanCreateScheduleProperty(): bool
+    {
+        return Auth::user()->can('create', Schedule::class);
+    }
+
     public function deleteSchedule(string $id): void
     {
         $schedule = Schedule::findOrFail($id);
+
+        abort_unless(Auth::user()->can('delete', $schedule), 403);
 
         abort_if(
             $this->hasAttendanceHistory($schedule),

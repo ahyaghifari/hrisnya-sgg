@@ -48,6 +48,7 @@ class CreateLmsCourse extends Component
     public function mount(): void
     {
         abort_unless(Auth::user()->can(CustomPermissionEnum::SISTEM_LMS->value), 403);
+        abort_unless(Auth::user()->can('create', LmsCourses::class), 403);
     }
 
     public function toggleOneDay(): void

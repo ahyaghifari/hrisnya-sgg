@@ -37,9 +37,11 @@
                         @endforeach
                     </div>
 
-                    <button type="button" wire:click="save" wire:loading.attr="disabled" wire:target="save" class="btn-primary" style="justify-content:center;align-self:flex-start;padding-left:20px;padding-right:20px;margin-top:18px;">
-                        <i class="fa-solid fa-floppy-disk"></i> Simpan
-                    </button>
+                    @if ($this->canEditSettings)
+                        <button type="button" wire:click="save" wire:loading.attr="disabled" wire:target="save" class="btn-primary" style="justify-content:center;align-self:flex-start;padding-left:20px;padding-right:20px;margin-top:18px;">
+                            <i class="fa-solid fa-floppy-disk"></i> Simpan
+                        </button>
+                    @endif
                 </div>
             </div>
         </div>

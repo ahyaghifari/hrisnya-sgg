@@ -104,8 +104,15 @@ class AttendanceSettingsPage extends Component
         return AttendanceSettingEnum::cases();
     }
 
+    public function getCanEditSettingsProperty(): bool
+    {
+        return Auth::user()->can(CustomPermissionEnum::EDIT_PENGATURAN_ABSENSI->value);
+    }
+
     public function save(): void
     {
+        abort_unless(Auth::user()->can(CustomPermissionEnum::EDIT_PENGATURAN_ABSENSI->value), 403);
+
         if (! $this->companyId) {
             return;
         }

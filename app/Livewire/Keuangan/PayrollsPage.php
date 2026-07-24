@@ -134,8 +134,15 @@ class PayrollsPage extends Component
             ->get();
     }
 
+    public function getCanImportPayrollProperty(): bool
+    {
+        return Auth::user()->can('create', Payroll::class);
+    }
+
     public function openImportModal(string $type): void
     {
+        abort_unless(Auth::user()->can('create', Payroll::class), 403);
+
         $this->importType = $type;
         $this->importPeriodId = null;
         $this->importFile = null;
@@ -171,6 +178,8 @@ class PayrollsPage extends Component
 
     private function previewImport(): void
     {
+        abort_unless(Auth::user()->can('create', Payroll::class), 403);
+
         $this->importPreviewRows = [];
         $this->discardStoredImportFile();
 
@@ -196,6 +205,8 @@ class PayrollsPage extends Component
     /** Tombol "Simpan" di pratinjau -> baru di sini datanya benar-benar ditulis ke database. */
     public function confirmImport(): void
     {
+        abort_unless(Auth::user()->can('create', Payroll::class), 403);
+
         if ($this->importStoredPath === null || ! $this->importGuardPasses()) {
             return;
         }

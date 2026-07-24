@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Roles\Pages;
 
 use App\Filament\Resources\Roles\RoleResource;
+use App\Filament\Resources\Roles\Schemas\RoleForm;
 use Filament\Actions\DeleteAction;
 use Filament\Resources\Pages\EditRecord;
 use Illuminate\Database\Eloquent\Model;
@@ -30,12 +31,13 @@ class EditRole extends EditRecord
     }
 
     /**
-     * Preload the role's current permissions into the form data before fill. Grouping logic
-     * HARUS sama persis dengan RoleForm.php (Verb:Subject -> field key dari Subject, permission
-     * manual tanpa titik dua -> grup "Lainnya") — dulu di sini pakai split underscore yang tidak
-     * pernah cocok, jadi checkbox selalu tampil kosong walau role sudah punya banyak permission
-     * (dan bisa ketimpa hilang total kalau admin save tanpa sadar, karena syncPermissions()
-     * mengganti total, bukan menambah).
+     * Preload the role's current permissions into the form data before fill. Field key per
+     * permission HARUS sama persis dengan RoleForm.php — makanya dipusatkan lewat
+     * RoleForm::fieldKeyFor() (Verb:Subject -> field key dari Subject, permission SISTEM_xxx /
+     * anaknya -> grup "portal_xxx", sisanya -> grup "Lainnya") — dulu di sini pakai split
+     * underscore sendiri yang tidak pernah cocok, jadi checkbox selalu tampil kosong walau role
+     * sudah punya banyak permission (dan bisa ketimpa hilang total kalau admin save tanpa sadar,
+     * karena syncPermissions() mengganti total, bukan menambah).
      *
      * @param array<string, mixed> $data
      * @return array<string, mixed>
@@ -46,8 +48,7 @@ class EditRole extends EditRecord
             $permissionNames = $this->getRecord()->permissions->pluck('name')->toArray();
 
             foreach ($permissionNames as $permission) {
-                $subject = explode(':', $permission)[1] ?? 'Lainnya';
-                $key = \Illuminate\Support\Str::snake($subject) . '_has_permissions';
+                $key = RoleForm::fieldKeyFor($permission);
 
                 if (! array_key_exists($key, $data)) {
                     $data[$key] = [];

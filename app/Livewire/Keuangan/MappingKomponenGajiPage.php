@@ -115,6 +115,16 @@ class MappingKomponenGajiPage extends Component implements HasActions, HasSchema
         };
     }
 
+    public function getCanEditMappingProperty(): bool
+    {
+        return Auth::user()->can(CustomPermissionEnum::EDIT_MAPPING_KOMPONEN_GAJI->value);
+    }
+
+    private function assertCanEdit(): void
+    {
+        abort_unless(Auth::user()->can(CustomPermissionEnum::EDIT_MAPPING_KOMPONEN_GAJI->value), 403);
+    }
+
     public function openAuditLog(string $key): void
     {
         $this->viewingAuditKey = $key;
@@ -202,6 +212,8 @@ class MappingKomponenGajiPage extends Component implements HasActions, HasSchema
 
     public function saveGajiPokok(): void
     {
+        $this->assertCanEdit();
+
         $this->validate([
             'gajiPokokValues.*' => $this->nonNegativeAmountRule(),
             'startKelasIdValues.*' => 'nullable|exists:m_kelas,id',
@@ -263,6 +275,8 @@ class MappingKomponenGajiPage extends Component implements HasActions, HasSchema
 
     public function saveBpjs(): void
     {
+        $this->assertCanEdit();
+
         $this->validate([
             'bpjsValues.*' => Rule::in(['', 'ump', 'declared_value']),
         ], [], ['bpjsValues.*' => 'basis BPJS']);
@@ -291,6 +305,8 @@ class MappingKomponenGajiPage extends Component implements HasActions, HasSchema
 
     public function saveTransport(): void
     {
+        $this->assertCanEdit();
+
         $this->validate([
             'transportValues.*' => $this->nonNegativeAmountRule(),
         ], [], ['transportValues.*' => 'nominal transportasi']);
@@ -319,6 +335,8 @@ class MappingKomponenGajiPage extends Component implements HasActions, HasSchema
 
     public function saveLemburRates(): void
     {
+        $this->assertCanEdit();
+
         $this->validate([
             'lemburRateValues.*' => $this->nonNegativeAmountRule(),
         ], [], ['lemburRateValues.*' => 'base rate lembur']);
@@ -358,6 +376,8 @@ class MappingKomponenGajiPage extends Component implements HasActions, HasSchema
 
     public function saveJabatan(): void
     {
+        $this->assertCanEdit();
+
         $this->validate([
             'jabatanMatrix.*' => $this->nonNegativeAmountRule(),
         ], [], ['jabatanMatrix.*' => 'nominal tunjangan jabatan']);
@@ -398,11 +418,15 @@ class MappingKomponenGajiPage extends Component implements HasActions, HasSchema
 
     public function addTenureRow(): void
     {
+        $this->assertCanEdit();
+
         $this->tenureRows[] = ['id' => null, 'min_years' => '', 'max_years' => '', 'amount' => ''];
     }
 
     public function removeTenureRow(int $index): void
     {
+        $this->assertCanEdit();
+
         $row = $this->tenureRows[$index] ?? null;
 
         if ($row && $row['id']) {
@@ -415,6 +439,8 @@ class MappingKomponenGajiPage extends Component implements HasActions, HasSchema
 
     public function saveTenure(): void
     {
+        $this->assertCanEdit();
+
         $this->validate([
             'tenureRows.*.min_years' => $this->nonNegativeIntegerRule(),
             'tenureRows.*.max_years' => $this->nonNegativeIntegerRule(),

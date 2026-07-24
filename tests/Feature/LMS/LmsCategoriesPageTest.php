@@ -20,8 +20,11 @@ class LmsCategoriesPageTest extends TestCase
     private function actingAsLmsAdmin(): User
     {
         Permission::firstOrCreate(['name' => 'sistem_lms', 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'Create:LmsCategories', 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'Update:LmsCategories', 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'Delete:LmsCategories', 'guard_name' => 'web']);
         $role = Role::firstOrCreate(['name' => 'LMS Categories Test', 'guard_name' => 'web']);
-        $role->givePermissionTo('sistem_lms');
+        $role->givePermissionTo(['sistem_lms', 'Create:LmsCategories', 'Update:LmsCategories', 'Delete:LmsCategories']);
 
         $user = User::factory()->create();
         $user->assignRole($role);

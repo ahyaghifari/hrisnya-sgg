@@ -18,8 +18,9 @@ class MasterHonorariumPageTest extends TestCase
     private function actingAsLmsAdmin(): User
     {
         Permission::firstOrCreate(['name' => 'sistem_lms', 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'edit_honorarium_lms', 'guard_name' => 'web']);
         $role = Role::firstOrCreate(['name' => 'LMS Honorarium Test', 'guard_name' => 'web']);
-        $role->givePermissionTo('sistem_lms');
+        $role->givePermissionTo(['sistem_lms', 'edit_honorarium_lms']);
 
         $user = User::factory()->create();
         $user->assignRole($role);

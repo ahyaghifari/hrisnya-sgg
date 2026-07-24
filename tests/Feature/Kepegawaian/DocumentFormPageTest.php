@@ -22,8 +22,9 @@ class DocumentFormPageTest extends TestCase
     private function actingAsKepegawaian(string $companyId): User
     {
         Permission::firstOrCreate(['name' => CustomPermissionEnum::SISTEM_KEPEGAWAIAN->value, 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'Create:UserDocuments', 'guard_name' => 'web']);
         $role = Role::firstOrCreate(['name' => 'Kepegawaian Test', 'guard_name' => 'web']);
-        $role->givePermissionTo(CustomPermissionEnum::SISTEM_KEPEGAWAIAN->value);
+        $role->givePermissionTo([CustomPermissionEnum::SISTEM_KEPEGAWAIAN->value, 'Create:UserDocuments']);
 
         $user = User::factory()->create(['company_id' => $companyId]);
         $user->assignRole($role);

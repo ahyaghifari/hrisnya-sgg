@@ -109,8 +109,20 @@ class KoperasiPage extends Component
 
     // ── Tambah Anggota ──────────────────────────────────────────────────────
 
+    public function getCanCreateKoperasiProperty(): bool
+    {
+        return Auth::user()->can('create', UserKoperasi::class);
+    }
+
+    public function getCanUpdateKoperasiProperty(): bool
+    {
+        return Auth::user()->can('update', UserKoperasi::class);
+    }
+
     public function openAddModal(): void
     {
+        abort_unless(Auth::user()->can('create', UserKoperasi::class), 403);
+
         $this->addUserId = null;
         $this->addAmount = null;
         $this->resetErrorBag();
@@ -124,6 +136,8 @@ class KoperasiPage extends Component
 
     public function saveAdd(): void
     {
+        abort_unless(Auth::user()->can('create', UserKoperasi::class), 403);
+
         $this->validate([
             'addUserId' => 'required|exists:users,id',
             'addAmount' => 'required|numeric|min:0.01',
@@ -174,6 +188,8 @@ class KoperasiPage extends Component
 
     public function openEditModal(?string $id = null): void
     {
+        abort_unless(Auth::user()->can('update', $id ? UserKoperasi::findOrFail($id) : UserKoperasi::class), 403);
+
         $this->editingIds = $id ? [$id] : $this->selected;
 
         if ($this->editingIds === []) {
@@ -192,6 +208,8 @@ class KoperasiPage extends Component
 
     public function saveEdit(): void
     {
+        abort_unless(Auth::user()->can('update', UserKoperasi::class), 403);
+
         $this->validate([
             'editAmount' => 'required|numeric|min:0.01',
         ], [], [
@@ -215,12 +233,19 @@ class KoperasiPage extends Component
     public function toggleActive(string $id): void
     {
         $member = UserKoperasi::findOrFail($id);
+
+        abort_unless(Auth::user()->can('update', $member), 403);
+
         $member->update(['is_active' => ! $member->is_active]);
     }
 
     public function removeMember(string $id): void
     {
-        UserKoperasi::whereKey($id)->delete();
+        $member = UserKoperasi::findOrFail($id);
+
+        abort_unless(Auth::user()->can('delete', $member), 403);
+
+        $member->delete();
         $this->selected = array_values(array_diff($this->selected, [$id]));
 
         Notification::make()

@@ -37,8 +37,9 @@ class LmsCourseDetailPageTest extends TestCase
     private function actingAsLmsAdmin(string $companyId): User
     {
         Permission::firstOrCreate(['name' => 'sistem_lms', 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'edit_detail_kursus_lms', 'guard_name' => 'web']);
         $role = Role::firstOrCreate(['name' => 'LMS Course Detail Test', 'guard_name' => 'web']);
-        $role->givePermissionTo('sistem_lms');
+        $role->givePermissionTo(['sistem_lms', 'edit_detail_kursus_lms']);
 
         $user = User::factory()->create(['company_id' => $companyId]);
         $user->assignRole($role);

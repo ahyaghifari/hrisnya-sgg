@@ -35,6 +35,7 @@ class EditKaryawan extends Component implements HasSchemas
             Auth::user()->canFilterByCompany() || Auth::user()->company_id === $record->company_id,
             403
         );
+        abort_unless(Auth::user()->can('update', $record), 403);
 
         $this->record = $record;
 

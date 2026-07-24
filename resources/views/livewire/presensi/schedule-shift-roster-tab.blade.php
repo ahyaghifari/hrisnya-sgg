@@ -27,23 +27,27 @@
                     </select>
                     @error('rotationStartDay') <p style="font-size:9.5px;color:#dc2626;margin-top:2px;">{{ $message }}</p> @enderror
                 </div>
-                <button type="button" wire:click="generateFromTemplate" wire:confirm="Generate roster {{ $this->periodLabel }} dari template, mulai hari ke-{{ $rotationStartDay }} pada tanggal yang dipilih? Tanggal yang sudah punya roster (manual/koreksi) TIDAK akan ditimpa." class="btn-primary" style="font-size:11px;padding:7px 12px;white-space:nowrap;">
-                    <i class="fa-solid fa-wand-magic-sparkles"></i> Generate
-                </button>
+                @if ($this->canEditJadwal)
+                    <button type="button" wire:click="generateFromTemplate" wire:confirm="Generate roster {{ $this->periodLabel }} dari template, mulai hari ke-{{ $rotationStartDay }} pada tanggal yang dipilih? Tanggal yang sudah punya roster (manual/koreksi) TIDAK akan ditimpa." class="btn-primary" style="font-size:11px;padding:7px 12px;white-space:nowrap;">
+                        <i class="fa-solid fa-wand-magic-sparkles"></i> Generate
+                    </button>
+                @endif
             @else
                 {{-- Jadwal tanpa Template — sel dikunci sampai "Mulai Isi Jadwal" diklik,
                 perubahan ditampung dulu, baru ditulis ke DB pas "Simpan". --}}
-                @if (! $editMode)
-                    <button type="button" wire:click="startEdit" class="btn-primary" style="font-size:11px;padding:7px 12px;white-space:nowrap;">
-                        <i class="fa-solid fa-pen"></i> Mulai Isi Jadwal
-                    </button>
-                @else
-                    <button type="button" wire:click="cancelEdit" class="btn-ghost" style="font-size:11px;padding:7px 12px;white-space:nowrap;">
-                        Batal
-                    </button>
-                    <button type="button" wire:click="saveRoster" class="btn-primary" style="font-size:11px;padding:7px 12px;white-space:nowrap;">
-                        <i class="fa-solid fa-floppy-disk"></i> Simpan
-                    </button>
+                @if ($this->canEditJadwal)
+                    @if (! $editMode)
+                        <button type="button" wire:click="startEdit" class="btn-primary" style="font-size:11px;padding:7px 12px;white-space:nowrap;">
+                            <i class="fa-solid fa-pen"></i> Mulai Isi Jadwal
+                        </button>
+                    @else
+                        <button type="button" wire:click="cancelEdit" class="btn-ghost" style="font-size:11px;padding:7px 12px;white-space:nowrap;">
+                            Batal
+                        </button>
+                        <button type="button" wire:click="saveRoster" class="btn-primary" style="font-size:11px;padding:7px 12px;white-space:nowrap;">
+                            <i class="fa-solid fa-floppy-disk"></i> Simpan
+                        </button>
+                    @endif
                 @endif
             @endif
         </div>

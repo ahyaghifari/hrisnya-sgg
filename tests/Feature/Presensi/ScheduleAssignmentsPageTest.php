@@ -29,8 +29,9 @@ class ScheduleAssignmentsPageTest extends TestCase
     private function actingAsAbsensi(): User
     {
         Permission::firstOrCreate(['name' => CustomPermissionEnum::SISTEM_ABSENSI->value, 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'Update:Schedule', 'guard_name' => 'web']);
         $role = Role::firstOrCreate(['name' => 'Absensi Schedule Test', 'guard_name' => 'web']);
-        $role->givePermissionTo(CustomPermissionEnum::SISTEM_ABSENSI->value);
+        $role->givePermissionTo([CustomPermissionEnum::SISTEM_ABSENSI->value, 'Update:Schedule']);
 
         $user = User::factory()->create();
         $user->assignRole($role);

@@ -37,6 +37,7 @@ class ScheduleAssignmentsPage extends Component
     public function mount(Schedule $schedule): void
     {
         abort_unless(Auth::user()->can(CustomPermissionEnum::SISTEM_ABSENSI->value), 403);
+        abort_unless(Auth::user()->can('update', $schedule), 403);
 
         $this->schedule = $schedule;
         $this->effectiveFrom = now()->toDateString();

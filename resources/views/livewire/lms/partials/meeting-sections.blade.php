@@ -2,15 +2,17 @@
      (course multi-hari) maupun langsung tanpa collapse (course 1 hari). Butuh $meeting. --}}
 <h5 style="font-size:12.5px;font-weight:700;color:var(--text-heading);margin:0 0 12px;">Detail Pertemuan</h5>
 @include('livewire.lms.partials.meeting-detail-form')
-<div style="display:flex;justify-content:flex-end;margin-top:12px;">
-    <button type="button" wire:click="saveMeeting" class="btn-primary" style="padding:7px 16px;font-size:12px;">Simpan Detail</button>
-</div>
+@if ($this->canEditDetail)
+    <div style="display:flex;justify-content:flex-end;margin-top:12px;">
+        <button type="button" wire:click="saveMeeting" class="btn-primary" style="padding:7px 16px;font-size:12px;">Simpan Detail</button>
+    </div>
+@endif
 
 <div style="border-top:1px solid var(--border-soft);margin:18px 0;"></div>
 
 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
     <h5 style="font-size:12.5px;font-weight:700;color:var(--text-heading);margin:0;">Materi Pertemuan</h5>
-    @if ($addingMaterialForMeetingId !== $meeting->id)
+    @if ($addingMaterialForMeetingId !== $meeting->id && $this->canEditDetail)
         <button type="button" wire:click="openAddMaterialForm('{{ $meeting->id }}')" class="btn-ghost" style="padding:5px 10px;font-size:11px;">
             <i class="fa-solid fa-plus"></i> Materi
         </button>
@@ -44,9 +46,11 @@
 @forelse ($meeting->materials as $material)
     <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border-soft);font-size:12.5px;">
         <span><i class="fa-solid fa-file-lines" style="color:var(--text-faint);"></i> {{ $material->title }}</span>
-        <button type="button" wire:click="removeMaterial('{{ $material->id }}')" wire:confirm="Hapus materi ini?" class="btn-ghost" style="padding:4px 8px;font-size:11px;color:#dc2626;">
-            <i class="fa-solid fa-trash"></i>
-        </button>
+        @if ($this->canEditDetail)
+            <button type="button" wire:click="removeMaterial('{{ $material->id }}')" wire:confirm="Hapus materi ini?" class="btn-ghost" style="padding:4px 8px;font-size:11px;color:#dc2626;">
+                <i class="fa-solid fa-trash"></i>
+            </button>
+        @endif
     </div>
 @empty
     <p style="font-size:12px;color:var(--text-faint);margin:0;">Belum ada materi.</p>
@@ -56,7 +60,7 @@
 
 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
     <h5 style="font-size:12.5px;font-weight:700;color:var(--text-heading);margin:0;">Quiz</h5>
-    @if ($addingQuizForMeetingId !== $meeting->id)
+    @if ($addingQuizForMeetingId !== $meeting->id && $this->canEditDetail)
         <button type="button" wire:click="openAddQuizForm('{{ $meeting->id }}')" class="btn-ghost" style="padding:5px 10px;font-size:11px;">
             <i class="fa-solid fa-plus"></i> Quiz
         </button>
@@ -89,9 +93,11 @@
 @forelse ($meeting->quizzes as $meetingQuiz)
     <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border-soft);font-size:12.5px;">
         <span><i class="fa-solid fa-circle-question" style="color:var(--text-faint);"></i> {{ $meetingQuiz->quiz?->title ?? '-' }} <span style="color:var(--text-faint);">({{ $meetingQuiz->duration }} menit)</span></span>
-        <button type="button" wire:click="removeQuiz('{{ $meetingQuiz->id }}')" wire:confirm="Hapus quiz ini?" class="btn-ghost" style="padding:4px 8px;font-size:11px;color:#dc2626;">
-            <i class="fa-solid fa-trash"></i>
-        </button>
+        @if ($this->canEditDetail)
+            <button type="button" wire:click="removeQuiz('{{ $meetingQuiz->id }}')" wire:confirm="Hapus quiz ini?" class="btn-ghost" style="padding:4px 8px;font-size:11px;color:#dc2626;">
+                <i class="fa-solid fa-trash"></i>
+            </button>
+        @endif
     </div>
 @empty
     <p style="font-size:12px;color:var(--text-faint);margin:0;">Belum ada quiz.</p>

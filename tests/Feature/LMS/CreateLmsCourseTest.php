@@ -30,8 +30,9 @@ class CreateLmsCourseTest extends TestCase
         $company->save();
 
         Permission::firstOrCreate(['name' => 'sistem_lms', 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'Create:LmsCourses', 'guard_name' => 'web']);
         $role = Role::firstOrCreate(['name' => 'LMS Create Course Test', 'guard_name' => 'web']);
-        $role->givePermissionTo('sistem_lms');
+        $role->givePermissionTo(['sistem_lms', 'Create:LmsCourses']);
 
         $user = User::factory()->create(['company_id' => $company->id]);
         $user->assignRole($role);

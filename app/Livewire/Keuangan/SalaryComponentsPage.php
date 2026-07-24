@@ -266,8 +266,15 @@ class SalaryComponentsPage extends Component
      * ulang panel Global tiap submit. User eksplisit minta simpan per company, bukan sekali
      * tombol nyimpen segalanya.
      */
+    public function getCanEditComponentsProperty(): bool
+    {
+        return Auth::user()->can(CustomPermissionEnum::EDIT_KOMPONEN_GAJI->value);
+    }
+
     public function save(): void
     {
+        abort_unless(Auth::user()->can(CustomPermissionEnum::EDIT_KOMPONEN_GAJI->value), 403);
+
         if (! $this->companyId) {
             return;
         }
@@ -295,8 +302,15 @@ class SalaryComponentsPage extends Component
             ->send();
     }
 
+    public function getCanEditGlobalSettingsProperty(): bool
+    {
+        return Auth::user()->can(CustomPermissionEnum::EDIT_KOMPONEN_GAJI_GLOBAL->value);
+    }
+
     public function saveGlobal(): void
     {
+        abort_unless(Auth::user()->can(CustomPermissionEnum::EDIT_KOMPONEN_GAJI_GLOBAL->value), 403);
+
         foreach ($this->globalValues as $key => $value) {
             $this->upsertSetting(null, $key, $value);
         }

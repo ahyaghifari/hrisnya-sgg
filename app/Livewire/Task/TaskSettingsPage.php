@@ -97,8 +97,15 @@ class TaskSettingsPage extends Component
         return TaskSettingEnum::cases();
     }
 
+    public function getCanEditSettingsProperty(): bool
+    {
+        return Auth::user()->can(CustomPermissionEnum::EDIT_PENGATURAN_TUGAS->value);
+    }
+
     public function save(): void
     {
+        abort_unless(Auth::user()->can(CustomPermissionEnum::EDIT_PENGATURAN_TUGAS->value), 403);
+
         if (! $this->companyId) {
             return;
         }

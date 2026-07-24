@@ -15,9 +15,11 @@
                     <input type="search" wire:model.live.debounce.300ms="search" class="form-input" placeholder="Nama hari libur..." style="min-width:200px;">
                 </div>
 
-                <button type="button" wire:click="openCreateModal" class="btn-primary" style="padding:9px 18px;font-size:12.5px;">
-                    <i class="fa-solid fa-plus"></i> Tambah Hari Libur
-                </button>
+                @if ($this->canCreateHoliday)
+                    <button type="button" wire:click="openCreateModal" class="btn-primary" style="padding:9px 18px;font-size:12.5px;">
+                        <i class="fa-solid fa-plus"></i> Tambah Hari Libur
+                    </button>
+                @endif
             </div>
 
             <div style="background:var(--surface);border-radius:12px;box-shadow:var(--shadow-card);overflow-x:auto;">
@@ -44,12 +46,16 @@
                                 </td>
                                 <td style="padding:9px 14px;text-align:center;white-space:nowrap;">
                                     <div style="display:inline-flex;gap:6px;">
-                                        <button type="button" wire:click="openEditModal('{{ $holiday->id }}')" class="btn-ghost" style="padding:5px 12px;font-size:11.5px;">
-                                            <i class="fa-solid fa-pen"></i> Edit
-                                        </button>
-                                        <button type="button" wire:click="removeHoliday('{{ $holiday->id }}')" wire:confirm="Hapus hari libur ini?" class="btn-ghost" style="padding:5px 12px;font-size:11.5px;color:#dc2626;">
-                                            <i class="fa-solid fa-trash"></i> Hapus
-                                        </button>
+                                        @can('update', $holiday)
+                                            <button type="button" wire:click="openEditModal('{{ $holiday->id }}')" class="btn-ghost" style="padding:5px 12px;font-size:11.5px;">
+                                                <i class="fa-solid fa-pen"></i> Edit
+                                            </button>
+                                        @endcan
+                                        @can('delete', $holiday)
+                                            <button type="button" wire:click="removeHoliday('{{ $holiday->id }}')" wire:confirm="Hapus hari libur ini?" class="btn-ghost" style="padding:5px 12px;font-size:11.5px;color:#dc2626;">
+                                                <i class="fa-solid fa-trash"></i> Hapus
+                                            </button>
+                                        @endcan
                                     </div>
                                 </td>
                             </tr>

@@ -97,8 +97,15 @@ class HolidaysPage extends Component
 
     // ── Tambah/Ubah ──────────────────────────────────────────────────────────
 
+    public function getCanCreateHolidayProperty(): bool
+    {
+        return Auth::user()->can('create', Holidays::class);
+    }
+
     public function openCreateModal(): void
     {
+        abort_unless(Auth::user()->can('create', Holidays::class), 403);
+
         $this->editingId = null;
         $this->formName = null;
         $this->formDate = null;
@@ -110,6 +117,8 @@ class HolidaysPage extends Component
     public function openEditModal(string $id): void
     {
         $holiday = Holidays::findOrFail($id);
+
+        abort_unless(Auth::user()->can('update', $holiday), 403);
 
         $this->editingId = $holiday->id;
         $this->formName = $holiday->name;
@@ -126,6 +135,10 @@ class HolidaysPage extends Component
 
     public function saveForm(): void
     {
+        $ability = $this->editingId ? 'update' : 'create';
+        $subject = $this->editingId ? Holidays::findOrFail($this->editingId) : Holidays::class;
+        abort_unless(Auth::user()->can($ability, $subject), 403);
+
         $this->validate([
             'formName' => 'required|string|max:255',
             'formDate' => 'required|date',
@@ -157,7 +170,11 @@ class HolidaysPage extends Component
 
     public function removeHoliday(string $id): void
     {
-        Holidays::whereKey($id)->delete();
+        $holiday = Holidays::findOrFail($id);
+
+        abort_unless(Auth::user()->can('delete', $holiday), 403);
+
+        $holiday->delete();
 
         Notification::make()
             ->title('Hari libur berhasil dihapus')

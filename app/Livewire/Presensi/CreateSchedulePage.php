@@ -53,8 +53,12 @@ class CreateSchedulePage extends Component
         // "schedule" tidak diisi sama sekali — ->exists yang benar-benar bedain mode Edit vs
         // Tambah, bukan null-check polos.
         if (! $schedule || ! $schedule->exists) {
+            abort_unless(Auth::user()->can('create', Schedule::class), 403);
+
             return;
         }
+
+        abort_unless(Auth::user()->can('update', $schedule), 403);
 
         $this->editingScheduleId = $schedule->id;
         $this->companyId = $schedule->company_id;

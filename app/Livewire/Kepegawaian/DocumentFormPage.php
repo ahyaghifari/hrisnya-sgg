@@ -63,6 +63,8 @@ class DocumentFormPage extends Component
             $this->reason = $record->details['reason'] ?? '';
             $this->set_in = $record->details['set_in'] ?? '';
         } else {
+            abort_unless(Auth::user()->can('create', UserDocuments::class), 403);
+
             $this->document_type = request()->query('type', 'other');
         }
     }

@@ -144,8 +144,15 @@ class PayrollPeriodsPage extends Component
 
     // ── Generate / Regenerate ───────────────────────────────────────────────
 
+    public function getCanGeneratePayrollProperty(): bool
+    {
+        return Auth::user()->can(CustomPermissionEnum::GENERATE_PAYROLL->value);
+    }
+
     public function generatePayroll(string $id): void
     {
+        abort_unless(Auth::user()->can(CustomPermissionEnum::GENERATE_PAYROLL->value), 403);
+
         GeneratePayrollJob::dispatch($id, Auth::id());
 
         Notification::make()
@@ -157,6 +164,8 @@ class PayrollPeriodsPage extends Component
 
     public function regeneratePayroll(string $id): void
     {
+        abort_unless(Auth::user()->can(CustomPermissionEnum::GENERATE_PAYROLL->value), 403);
+
         RegeneratePayrollJob::dispatch($id, Auth::id());
 
         Notification::make()

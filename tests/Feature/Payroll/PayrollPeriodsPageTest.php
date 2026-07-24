@@ -29,9 +29,10 @@ class PayrollPeriodsPageTest extends TestCase
         Permission::firstOrCreate(['name' => CustomPermissionEnum::SISTEM_KEUANGAN->value, 'guard_name' => 'web']);
         Permission::firstOrCreate(['name' => 'Create:PayrollPeriod', 'guard_name' => 'web']);
         Permission::firstOrCreate(['name' => 'Update:PayrollPeriod', 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => CustomPermissionEnum::GENERATE_PAYROLL->value, 'guard_name' => 'web']);
 
         $role = Role::firstOrCreate(['name' => 'Keuangan Periode Test', 'guard_name' => 'web']);
-        $role->givePermissionTo(CustomPermissionEnum::SISTEM_KEUANGAN->value);
+        $role->givePermissionTo([CustomPermissionEnum::SISTEM_KEUANGAN->value, CustomPermissionEnum::GENERATE_PAYROLL->value]);
 
         if ($withCrudPermission) {
             $role->givePermissionTo(['Create:PayrollPeriod', 'Update:PayrollPeriod']);

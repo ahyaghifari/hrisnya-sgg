@@ -90,7 +90,9 @@
                                     <p style="font-size:11.5px;color:var(--text-faint);">Belum ada data Pangkat untuk perusahaan ini.</p>
                                 @endif
                             </div>
-                            <button type="button" wire:click="saveGajiPokok" wire:loading.attr="disabled" wire:target="saveGajiPokok" class="btn-primary" style="margin-top:14px;padding:9px 20px;font-size:12.5px;">Simpan</button>
+                            @if ($this->canEditMapping)
+                                <button type="button" wire:click="saveGajiPokok" wire:loading.attr="disabled" wire:target="saveGajiPokok" class="btn-primary" style="margin-top:14px;padding:9px 20px;font-size:12.5px;">Simpan</button>
+                            @endif
                         @endif
 
                         {{-- BPJS --}}
@@ -119,7 +121,9 @@
                                     <p style="font-size:11.5px;color:var(--text-faint);">Belum ada data Pangkat untuk perusahaan ini.</p>
                                 @endif
                             </div>
-                            <button type="button" wire:click="saveBpjs" wire:loading.attr="disabled" wire:target="saveBpjs" class="btn-primary" style="margin-top:14px;padding:9px 20px;font-size:12.5px;">Simpan</button>
+                            @if ($this->canEditMapping)
+                                <button type="button" wire:click="saveBpjs" wire:loading.attr="disabled" wire:target="saveBpjs" class="btn-primary" style="margin-top:14px;padding:9px 20px;font-size:12.5px;">Simpan</button>
+                            @endif
                         @endif
 
                         {{-- Tunjangan Transportasi --}}
@@ -144,7 +148,9 @@
                                     <p style="font-size:11.5px;color:var(--text-faint);">Belum ada data Kelas untuk perusahaan ini.</p>
                                 @endif
                             </div>
-                            <button type="button" wire:click="saveTransport" wire:loading.attr="disabled" wire:target="saveTransport" class="btn-primary" style="margin-top:14px;padding:9px 20px;font-size:12.5px;">Simpan</button>
+                            @if ($this->canEditMapping)
+                                <button type="button" wire:click="saveTransport" wire:loading.attr="disabled" wire:target="saveTransport" class="btn-primary" style="margin-top:14px;padding:9px 20px;font-size:12.5px;">Simpan</button>
+                            @endif
                         @endif
 
                         {{-- Tunjangan Jabatan (matrix pangkat x kelas) --}}
@@ -180,7 +186,9 @@
                                 @if ($errors->has('jabatanMatrix.*'))
                                     <p style="font-size:11px;color:#dc2626;margin-top:8px;">Ada nominal yang tidak valid (kotak bergaris merah) — perbaiki dulu sebelum simpan.</p>
                                 @endif
-                                <button type="button" wire:click="saveJabatan" wire:loading.attr="disabled" wire:target="saveJabatan" class="btn-primary" style="margin-top:14px;padding:9px 20px;font-size:12.5px;">Simpan</button>
+                                @if ($this->canEditMapping)
+                                    <button type="button" wire:click="saveJabatan" wire:loading.attr="disabled" wire:target="saveJabatan" class="btn-primary" style="margin-top:14px;padding:9px 20px;font-size:12.5px;">Simpan</button>
+                                @endif
                             @endif
                         @endif
 
@@ -198,7 +206,9 @@
                                             @if ($row['id'])
                                                 <button type="button" wire:click="openAuditLog('tenure:{{ $row['id'] }}')" title="Riwayat" style="border:none;background:none;color:var(--text-faint);cursor:pointer;padding:6px;font-size:11px;"><i class="fa-solid fa-clock-rotate-left"></i></button>
                                             @endif
-                                            <button type="button" wire:click="removeTenureRow({{ $i }})" style="border:none;background:none;color:#dc2626;cursor:pointer;padding:6px;"><i class="fa-solid fa-trash"></i></button>
+                                            @if ($this->canEditMapping)
+                                                <button type="button" wire:click="removeTenureRow({{ $i }})" style="border:none;background:none;color:#dc2626;cursor:pointer;padding:6px;"><i class="fa-solid fa-trash"></i></button>
+                                            @endif
                                         </div>
                                         @error("tenureRows.{$i}.min_years") <p style="font-size:11px;color:#dc2626;margin:2px 0 0;">{{ $message }}</p> @enderror
                                         @error("tenureRows.{$i}.max_years") <p style="font-size:11px;color:#dc2626;margin:2px 0 0;">{{ $message }}</p> @enderror
@@ -210,8 +220,10 @@
                                 @endif
                             </div>
                             <div style="display:flex;gap:10px;margin-top:14px;">
-                                <button type="button" wire:click="addTenureRow" class="btn-ghost" style="padding:9px 16px;font-size:12.5px;"><i class="fa-solid fa-plus"></i> Tambah Jenjang</button>
-                                <button type="button" wire:click="saveTenure" wire:loading.attr="disabled" wire:target="saveTenure" class="btn-primary" style="padding:9px 20px;font-size:12.5px;">Simpan</button>
+                                @if ($this->canEditMapping)
+                                    <button type="button" wire:click="addTenureRow" class="btn-ghost" style="padding:9px 16px;font-size:12.5px;"><i class="fa-solid fa-plus"></i> Tambah Jenjang</button>
+                                    <button type="button" wire:click="saveTenure" wire:loading.attr="disabled" wire:target="saveTenure" class="btn-primary" style="padding:9px 20px;font-size:12.5px;">Simpan</button>
+                                @endif
                             </div>
                         @endif
 
@@ -239,7 +251,9 @@
                                     <p style="font-size:11.5px;color:var(--text-faint);">Belum ada data Pangkat untuk perusahaan ini.</p>
                                 @endif
                             </div>
-                            <button type="button" wire:click="saveLemburRates" wire:loading.attr="disabled" wire:target="saveLemburRates" class="btn-primary" style="margin-top:14px;padding:9px 20px;font-size:12.5px;">Simpan</button>
+                            @if ($this->canEditMapping)
+                                <button type="button" wire:click="saveLemburRates" wire:loading.attr="disabled" wire:target="saveLemburRates" class="btn-primary" style="margin-top:14px;padding:9px 20px;font-size:12.5px;">Simpan</button>
+                            @endif
                         @endif
 
                         {{-- Kelebihan Jam Kerja — reuse Filament table+action --}}

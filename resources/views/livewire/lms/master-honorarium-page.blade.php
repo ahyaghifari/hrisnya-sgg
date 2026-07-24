@@ -38,14 +38,16 @@
                     <h3 style="font-size:14px;font-weight:700;color:var(--text-heading);margin:0;">Variabel & Kategori</h3>
                     <p style="font-size:11px;color:var(--text-faint);margin:1px 0 0;">Tiap kategori punya skor acuan sendiri — total skornya dicocokkan ke tabel Honorarium di samping.</p>
                 </div>
-                <div style="display:flex;gap:6px;">
-                    <button type="button" wire:click="openVariableModal" class="btn-xs" style="border:none;color:#fff;font-weight:600;cursor:pointer;background:{{ $activeColor['solid'] }};white-space:nowrap;">
-                        <i class="fa-solid fa-plus"></i> Variabel
-                    </button>
-                    <button type="button" wire:click="openCategoryModal" class="btn-xs" style="border:1.5px solid {{ $activeColor['solid'] }};color:{{ $activeColor['text'] }};font-weight:600;cursor:pointer;background:{{ $activeColor['soft'] }};white-space:nowrap;">
-                        <i class="fa-solid fa-plus"></i> Kategori
-                    </button>
-                </div>
+                @if ($this->canEditHonorarium)
+                    <div style="display:flex;gap:6px;">
+                        <button type="button" wire:click="openVariableModal" class="btn-xs" style="border:none;color:#fff;font-weight:600;cursor:pointer;background:{{ $activeColor['solid'] }};white-space:nowrap;">
+                            <i class="fa-solid fa-plus"></i> Variabel
+                        </button>
+                        <button type="button" wire:click="openCategoryModal" class="btn-xs" style="border:1.5px solid {{ $activeColor['solid'] }};color:{{ $activeColor['text'] }};font-weight:600;cursor:pointer;background:{{ $activeColor['soft'] }};white-space:nowrap;">
+                            <i class="fa-solid fa-plus"></i> Kategori
+                        </button>
+                    </div>
+                @endif
             </div>
 
             <div style="overflow-x:auto;">
@@ -68,22 +70,26 @@
                                             @if ($variable->description)
                                                 <div style="font-weight:400;font-size:11px;color:var(--text-faint);margin-top:2px;white-space:normal;">{{ $variable->description }}</div>
                                             @endif
-                                            <div style="margin-top:6px;display:flex;gap:4px;">
-                                                <button type="button" wire:click="openCategoryModal('{{ $variable->id }}')" class="btn-ghost btn-xs" title="Tambah kategori ke variabel ini">
-                                                    <i class="fa-solid fa-plus"></i>
-                                                </button>
-                                                <button type="button" wire:click="deleteVariable('{{ $variable->id }}')" wire:confirm="Hapus variabel ini beserta kategorinya?" class="btn-ghost btn-xs" style="color:#dc2626;" title="Hapus variabel">
-                                                    <i class="fa-solid fa-trash"></i>
-                                                </button>
-                                            </div>
+                                            @if ($this->canEditHonorarium)
+                                                <div style="margin-top:6px;display:flex;gap:4px;">
+                                                    <button type="button" wire:click="openCategoryModal('{{ $variable->id }}')" class="btn-ghost btn-xs" title="Tambah kategori ke variabel ini">
+                                                        <i class="fa-solid fa-plus"></i>
+                                                    </button>
+                                                    <button type="button" wire:click="deleteVariable('{{ $variable->id }}')" wire:confirm="Hapus variabel ini beserta kategorinya?" class="btn-ghost btn-xs" style="color:#dc2626;" title="Hapus variabel">
+                                                        <i class="fa-solid fa-trash"></i>
+                                                    </button>
+                                                </div>
+                                            @endif
                                         </td>
                                     @endif
                                     <td style="padding:7px 10px;">{{ $category->name }}</td>
                                     <td style="padding:7px 10px;text-align:center;font-weight:600;">{{ $category->score }}</td>
                                     <td style="padding:7px 10px;text-align:center;white-space:nowrap;">
-                                        <button type="button" wire:click="deleteCategory('{{ $category->id }}')" wire:confirm="Hapus kategori ini?" class="btn-ghost btn-xs" style="color:#dc2626;">
-                                            <i class="fa-solid fa-trash"></i>
-                                        </button>
+                                        @if ($this->canEditHonorarium)
+                                            <button type="button" wire:click="deleteCategory('{{ $category->id }}')" wire:confirm="Hapus kategori ini?" class="btn-ghost btn-xs" style="color:#dc2626;">
+                                                <i class="fa-solid fa-trash"></i>
+                                            </button>
+                                        @endif
                                     </td>
                                 </tr>
                             @empty
@@ -93,14 +99,16 @@
                                         @if ($variable->description)
                                             <div style="font-weight:400;font-size:11px;color:var(--text-faint);margin-top:2px;white-space:normal;">{{ $variable->description }}</div>
                                         @endif
-                                        <div style="margin-top:6px;display:flex;gap:4px;">
-                                            <button type="button" wire:click="openCategoryModal('{{ $variable->id }}')" class="btn-ghost btn-xs" title="Tambah kategori ke variabel ini">
-                                                <i class="fa-solid fa-plus"></i>
-                                            </button>
-                                            <button type="button" wire:click="deleteVariable('{{ $variable->id }}')" wire:confirm="Hapus variabel ini?" class="btn-ghost btn-xs" style="color:#dc2626;" title="Hapus variabel">
-                                                <i class="fa-solid fa-trash"></i>
-                                            </button>
-                                        </div>
+                                        @if ($this->canEditHonorarium)
+                                            <div style="margin-top:6px;display:flex;gap:4px;">
+                                                <button type="button" wire:click="openCategoryModal('{{ $variable->id }}')" class="btn-ghost btn-xs" title="Tambah kategori ke variabel ini">
+                                                    <i class="fa-solid fa-plus"></i>
+                                                </button>
+                                                <button type="button" wire:click="deleteVariable('{{ $variable->id }}')" wire:confirm="Hapus variabel ini?" class="btn-ghost btn-xs" style="color:#dc2626;" title="Hapus variabel">
+                                                    <i class="fa-solid fa-trash"></i>
+                                                </button>
+                                            </div>
+                                        @endif
                                     </td>
                                     <td colspan="3" style="padding:9px 10px;color:var(--text-faint);font-style:italic;">Belum ada kategori.</td>
                                 </tr>
@@ -122,9 +130,11 @@
                     <h3 style="font-size:14px;font-weight:700;color:var(--text-heading);margin:0;">Honorarium</h3>
                     <p style="font-size:11px;color:var(--text-faint);margin:1px 0 0;">Total skor &rarr; nominal</p>
                 </div>
-                <button type="button" wire:click="openRangeModal" class="btn-xs" style="border:none;color:#fff;font-weight:600;cursor:pointer;background:{{ $activeColor['solid'] }};">
-                    <i class="fa-solid fa-plus"></i>
-                </button>
+                @if ($this->canEditHonorarium)
+                    <button type="button" wire:click="openRangeModal" class="btn-xs" style="border:none;color:#fff;font-weight:600;cursor:pointer;background:{{ $activeColor['solid'] }};">
+                        <i class="fa-solid fa-plus"></i>
+                    </button>
+                @endif
             </div>
 
             <div style="overflow-x:auto;">
@@ -144,9 +154,11 @@
                                 </td>
                                 <td style="padding:7px 8px;font-weight:600;white-space:nowrap;">Rp{{ number_format($range->honor_amount, 0, ',', '.') }}</td>
                                 <td style="padding:7px 8px;text-align:center;white-space:nowrap;">
-                                    <button type="button" wire:click="deleteRange('{{ $range->id }}')" wire:confirm="Hapus range ini?" class="btn-ghost btn-xs" style="color:#dc2626;">
-                                        <i class="fa-solid fa-trash"></i>
-                                    </button>
+                                    @if ($this->canEditHonorarium)
+                                        <button type="button" wire:click="deleteRange('{{ $range->id }}')" wire:confirm="Hapus range ini?" class="btn-ghost btn-xs" style="color:#dc2626;">
+                                            <i class="fa-solid fa-trash"></i>
+                                        </button>
+                                    @endif
                                 </td>
                             </tr>
                         @empty

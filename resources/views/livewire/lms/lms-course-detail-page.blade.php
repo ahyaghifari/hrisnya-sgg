@@ -49,7 +49,7 @@
 
     @if ($tab === 'peserta')
         <div style="display:flex;justify-content:flex-end;margin-bottom:14px;">
-            @if (! $showAddParticipantForm)
+            @if (! $showAddParticipantForm && $this->canEditDetail)
                 <button type="button" wire:click="openAddParticipantForm" class="btn-primary" style="padding:9px 18px;font-size:12.5px;">
                     <i class="fa-solid fa-user-plus"></i> Tambah Peserta
                 </button>
@@ -94,21 +94,23 @@
                                 <span class="badge" style="background:var(--surface-muted);color:var(--text-muted);">{{ CourseUserStatus::tryFrom($participant->status)?->getLabel() ?? $participant->status }}</span>
                             </td>
                             <td style="padding:9px 14px;text-align:center;white-space:nowrap;">
-                                <div style="display:inline-flex;gap:6px;">
-                                    @if ($participant->status !== CourseUserStatus::APPROVED->value)
-                                        <button type="button" wire:click="approveParticipant('{{ $participant->id }}')" class="btn-ghost" style="padding:5px 10px;font-size:11px;color:var(--brand-success);" title="Setujui">
-                                            <i class="fa-solid fa-check"></i>
+                                @if ($this->canEditDetail)
+                                    <div style="display:inline-flex;gap:6px;">
+                                        @if ($participant->status !== CourseUserStatus::APPROVED->value)
+                                            <button type="button" wire:click="approveParticipant('{{ $participant->id }}')" class="btn-ghost" style="padding:5px 10px;font-size:11px;color:var(--brand-success);" title="Setujui">
+                                                <i class="fa-solid fa-check"></i>
+                                            </button>
+                                        @endif
+                                        @if ($participant->status !== CourseUserStatus::CANCELED->value)
+                                            <button type="button" wire:click="cancelParticipant('{{ $participant->id }}')" wire:confirm="Batalkan keikutsertaan peserta ini?" class="btn-ghost" style="padding:5px 10px;font-size:11px;" title="Batalkan">
+                                                <i class="fa-solid fa-ban"></i>
+                                            </button>
+                                        @endif
+                                        <button type="button" wire:click="removeParticipant('{{ $participant->id }}')" wire:confirm="Hapus peserta ini dari pelatihan?" class="btn-ghost" style="padding:5px 10px;font-size:11px;color:#dc2626;" title="Hapus">
+                                            <i class="fa-solid fa-trash"></i>
                                         </button>
-                                    @endif
-                                    @if ($participant->status !== CourseUserStatus::CANCELED->value)
-                                        <button type="button" wire:click="cancelParticipant('{{ $participant->id }}')" wire:confirm="Batalkan keikutsertaan peserta ini?" class="btn-ghost" style="padding:5px 10px;font-size:11px;" title="Batalkan">
-                                            <i class="fa-solid fa-ban"></i>
-                                        </button>
-                                    @endif
-                                    <button type="button" wire:click="removeParticipant('{{ $participant->id }}')" wire:confirm="Hapus peserta ini dari pelatihan?" class="btn-ghost" style="padding:5px 10px;font-size:11px;color:#dc2626;" title="Hapus">
-                                        <i class="fa-solid fa-trash"></i>
-                                    </button>
-                                </div>
+                                    </div>
+                                @endif
                             </td>
                         </tr>
                     @empty
@@ -123,7 +125,7 @@
     @elseif ($tab === 'pertemuan')
         @if (! $this->isSingleDayCourse)
             <div style="display:flex;justify-content:flex-end;margin-bottom:14px;">
-                @if (! $showAddMeetingForm)
+                @if (! $showAddMeetingForm && $this->canEditDetail)
                     <button type="button" wire:click="openAddMeetingForm" class="btn-primary" style="padding:9px 18px;font-size:12.5px;">
                         <i class="fa-solid fa-plus"></i> Tambah Pertemuan
                     </button>

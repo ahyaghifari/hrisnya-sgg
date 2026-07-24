@@ -108,8 +108,15 @@ class PayrollDetailPage extends Component
             ->get();
     }
 
+    public function getCanEditPayrollProperty(): bool
+    {
+        return Auth::user()->can('update', $this->payroll);
+    }
+
     public function markAsPaid(): void
     {
+        abort_unless(Auth::user()->can('update', $this->payroll), 403);
+
         $this->payroll->update(['is_paid' => true]);
         $this->payroll->refresh();
 
@@ -126,6 +133,8 @@ class PayrollDetailPage extends Component
 
     public function openManualLineModal(string $component, ?string $lineId = null): void
     {
+        abort_unless(Auth::user()->can('update', $this->payroll), 403);
+
         $this->manualLineComponent = $component;
         $this->editingManualLineId = $lineId;
 
@@ -152,6 +161,7 @@ class PayrollDetailPage extends Component
 
     public function saveManualLine(): void
     {
+        abort_unless(Auth::user()->can('update', $this->payroll), 403);
         abort_if($this->payroll->is_paid, 403, 'Payroll yang sudah dibayar tidak bisa diubah.');
         abort_unless($this->componentEligibleForThisEmployee($this->manualLineComponent), 403, 'Tipe karyawan ini belum terdaftar sebagai penerima komponen ini di halaman Penerima Komponen Gaji.');
 
@@ -205,6 +215,7 @@ class PayrollDetailPage extends Component
 
     public function deleteManualLine(string $lineId): void
     {
+        abort_unless(Auth::user()->can('update', $this->payroll), 403);
         abort_if($this->payroll->is_paid, 403, 'Payroll yang sudah dibayar tidak bisa diubah.');
 
         PayrollManualLine::where('id', $lineId)
@@ -222,6 +233,7 @@ class PayrollDetailPage extends Component
     /** Regenerate payroll SATU karyawan ini saja — ID payroll berubah, jadi redirect ke yang baru. */
     public function regeneratePayroll()
     {
+        abort_unless(Auth::user()->can('update', $this->payroll), 403);
         abort_if($this->payroll->is_paid, 403, 'Payroll yang sudah dibayar tidak bisa di-regenerate.');
 
         $newPayroll = app(PayrollService::class)->regenerateSinglePayroll($this->payroll, Auth::id());

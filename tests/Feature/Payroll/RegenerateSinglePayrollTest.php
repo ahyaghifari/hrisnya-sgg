@@ -23,8 +23,9 @@ class RegenerateSinglePayrollTest extends TestCase
     private function actingAsFinance(): User
     {
         Permission::firstOrCreate(['name' => CustomPermissionEnum::SISTEM_KEUANGAN->value, 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'Update:Payroll', 'guard_name' => 'web']);
         $role = Role::firstOrCreate(['name' => 'Keuangan Regenerate Test', 'guard_name' => 'web']);
-        $role->givePermissionTo(CustomPermissionEnum::SISTEM_KEUANGAN->value);
+        $role->givePermissionTo([CustomPermissionEnum::SISTEM_KEUANGAN->value, 'Update:Payroll']);
 
         $user = User::factory()->create();
         $user->assignRole($role);

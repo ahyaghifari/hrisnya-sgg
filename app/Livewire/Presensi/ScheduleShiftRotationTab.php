@@ -77,8 +77,15 @@ class ScheduleShiftRotationTab extends Component
             ->values();
     }
 
+    public function getCanEditJadwalProperty(): bool
+    {
+        return Auth::user()->can(CustomPermissionEnum::KELOLA_JADWAL_SHIFT->value);
+    }
+
     public function activateTemplate(): void
     {
+        abort_unless(Auth::user()->can(CustomPermissionEnum::KELOLA_JADWAL_SHIFT->value), 403);
+
         $this->schedule->update(['use_template' => true]);
         $this->schedule->refresh();
         $this->loadRows();
@@ -88,6 +95,8 @@ class ScheduleShiftRotationTab extends Component
 
     public function deactivateTemplate(): void
     {
+        abort_unless(Auth::user()->can(CustomPermissionEnum::KELOLA_JADWAL_SHIFT->value), 403);
+
         $this->schedule->update(['use_template' => false]);
         $this->schedule->refresh();
 
@@ -96,6 +105,8 @@ class ScheduleShiftRotationTab extends Component
 
     public function addDayColumn(): void
     {
+        abort_unless(Auth::user()->can(CustomPermissionEnum::KELOLA_JADWAL_SHIFT->value), 403);
+
         $this->dayCount++;
 
         foreach ($this->rows as $userId => $row) {
@@ -105,6 +116,8 @@ class ScheduleShiftRotationTab extends Component
 
     public function removeDayColumn(): void
     {
+        abort_unless(Auth::user()->can(CustomPermissionEnum::KELOLA_JADWAL_SHIFT->value), 403);
+
         if ($this->dayCount <= 1) {
             return;
         }
@@ -118,6 +131,8 @@ class ScheduleShiftRotationTab extends Component
 
     public function saveRotation(): void
     {
+        abort_unless(Auth::user()->can(CustomPermissionEnum::KELOLA_JADWAL_SHIFT->value), 403);
+
         DB::transaction(function () {
             foreach ($this->rows as $userId => $row) {
                 $keepIds = [];

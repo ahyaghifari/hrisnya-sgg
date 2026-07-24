@@ -52,14 +52,14 @@
             </div>
 
             <div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap;">
-                @unless ($payroll->is_paid)
+                @if (!$payroll->is_paid && $this->canEditPayroll)
                     <button type="button" wire:click="markAsPaid" wire:confirm="Tandai payroll ini sudah dibayar?" class="btn-primary" style="padding:6px 12px;font-size:11px;">
                         <i class="fa-solid fa-check"></i> Tandai Sudah Dibayar
                     </button>
                     <button type="button" wire:click="regeneratePayroll" wire:confirm="Hapus dan hitung ulang payroll karyawan ini saja? Payroll karyawan lain di periode ini tidak terpengaruh." class="btn-ghost" style="padding:6px 12px;font-size:11px;color:#d97706;">
                         <i class="fa-solid fa-arrow-rotate-right"></i> Regenerate Payroll Ini
                     </button>
-                @endunless
+                @endif
                 <a href="{{ route('keuangan.payroll.preview', $payroll->id) }}" target="_blank" class="btn-ghost" style="padding:6px 12px;font-size:11px;">
                     <i class="fa-solid fa-eye"></i> Preview Slip Gaji
                 </a>
@@ -81,7 +81,7 @@
                                 <div style="display:flex;justify-content:space-between;gap:8px;font-size:12.5px;">
                                     <span style="color:{{ $row['hasValue'] ? 'var(--text-body)' : 'var(--text-faint)' }};">
                                         {{ $row['label'] }}
-                                        @if (($row['component'] ?? null) === \App\Enum\Payroll\PayrollComponentEnum::INSENTIF->value && $this->insentifAktif && ! $payroll->is_paid && $this->insentifManualLines->isEmpty())
+                                        @if (($row['component'] ?? null) === \App\Enum\Payroll\PayrollComponentEnum::INSENTIF->value && $this->insentifAktif && ! $payroll->is_paid && $this->insentifManualLines->isEmpty() && $this->canEditPayroll)
                                             <button type="button" wire:click="openManualLineModal('insentif')" title="Tambah Insentif untuk payroll ini" style="border:none;background:#047C54;color:#fff;padding:2px 7px;border-radius:5px;font-size:10px;font-weight:600;cursor:pointer;">+ Tambah</button>
                                         @endif
                                     </span>
@@ -98,12 +98,12 @@
                                         @foreach ($this->insentifManualLines as $line)
                                             <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;font-size:11px;color:var(--text-muted);">
                                                 <span>Rp{{ number_format($line->amount, 0, ',', '.') }}{{ $line->note ? " ({$line->note})" : '' }}</span>
-                                                @unless ($payroll->is_paid)
+                                                @if (!$payroll->is_paid && $this->canEditPayroll)
                                                     <span style="display:flex;gap:4px;flex-shrink:0;">
                                                         <button type="button" wire:click="openManualLineModal('insentif', '{{ $line->id }}')" title="Ubah" style="border:1px solid var(--border);background:none;color:#047C54;cursor:pointer;padding:2px 7px;border-radius:5px;font-size:10px;"><i class="fa-solid fa-pen"></i> Ubah</button>
                                                         <button type="button" wire:click="deleteManualLine('{{ $line->id }}')" wire:confirm="Hapus baris Insentif ini?" title="Hapus" style="border:1px solid var(--border);background:none;color:#dc2626;cursor:pointer;padding:2px 7px;border-radius:5px;font-size:10px;"><i class="fa-solid fa-trash"></i> Hapus</button>
                                                     </span>
-                                                @endunless
+                                                @endif
                                             </div>
                                         @endforeach
                                     </div>
@@ -129,7 +129,7 @@
                                 <div style="display:flex;justify-content:space-between;gap:8px;font-size:12.5px;">
                                     <span style="color:{{ $row['hasValue'] ? 'var(--text-body)' : 'var(--text-faint)' }};">
                                         {{ $row['label'] }}
-                                        @if (($row['component'] ?? null) === \App\Enum\Payroll\PayrollComponentEnum::BON->value && $this->bonAktif && ! $payroll->is_paid && $this->bonManualLines->isEmpty())
+                                        @if (($row['component'] ?? null) === \App\Enum\Payroll\PayrollComponentEnum::BON->value && $this->bonAktif && ! $payroll->is_paid && $this->bonManualLines->isEmpty() && $this->canEditPayroll)
                                             <button type="button" wire:click="openManualLineModal('bon')" title="Tambah Bon untuk payroll ini" style="border:none;background:#d97706;color:#fff;padding:2px 7px;border-radius:5px;font-size:10px;font-weight:600;cursor:pointer;">+ Tambah</button>
                                         @endif
                                     </span>
@@ -146,12 +146,12 @@
                                         @foreach ($this->bonManualLines as $line)
                                             <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;font-size:11px;color:var(--text-muted);">
                                                 <span>Rp{{ number_format($line->amount, 0, ',', '.') }}{{ $line->note ? " ({$line->note})" : '' }}</span>
-                                                @unless ($payroll->is_paid)
+                                                @if (!$payroll->is_paid && $this->canEditPayroll)
                                                     <span style="display:flex;gap:4px;flex-shrink:0;">
                                                         <button type="button" wire:click="openManualLineModal('bon', '{{ $line->id }}')" title="Ubah" style="border:1px solid var(--border);background:none;color:#d97706;cursor:pointer;padding:2px 7px;border-radius:5px;font-size:10px;"><i class="fa-solid fa-pen"></i> Ubah</button>
                                                         <button type="button" wire:click="deleteManualLine('{{ $line->id }}')" wire:confirm="Hapus baris Bon ini?" title="Hapus" style="border:1px solid var(--border);background:none;color:#dc2626;cursor:pointer;padding:2px 7px;border-radius:5px;font-size:10px;"><i class="fa-solid fa-trash"></i> Hapus</button>
                                                     </span>
-                                                @endunless
+                                                @endif
                                             </div>
                                         @endforeach
                                     </div>

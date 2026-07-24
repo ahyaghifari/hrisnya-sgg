@@ -49,7 +49,7 @@
                         @foreach ($this->employeeTypes as $type)
                             <label style="display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--border-soft);border-radius:8px;cursor:pointer;">
                                 <span class="custom-checkbox" style="--accent:#042c6c;">
-                                    <input type="checkbox" wire:model="selected.{{ $activeComponent }}" value="{{ $type->id }}">
+                                    <input type="checkbox" wire:model="selected.{{ $activeComponent }}" value="{{ $type->id }}" @disabled(!$this->canEditRecipients)>
                                     <span class="box"><i class="fa-solid fa-check"></i></span>
                                 </span>
                                 <span style="font-size:12.5px;color:var(--text-body);">{{ $type->name }}</span>
@@ -59,9 +59,11 @@
                 @endif
             </div>
 
-            <button type="button" wire:click="save" wire:loading.attr="disabled" wire:target="save" class="btn-primary" style="margin-top:14px;padding:9px 20px;font-size:12.5px;">
-                Simpan — {{ $this->companies->firstWhere('id', $companyId)?->name }}
-            </button>
+            @if ($this->canEditRecipients)
+                <button type="button" wire:click="save" wire:loading.attr="disabled" wire:target="save" class="btn-primary" style="margin-top:14px;padding:9px 20px;font-size:12.5px;">
+                    Simpan — {{ $this->companies->firstWhere('id', $companyId)?->name }}
+                </button>
+            @endif
         </div>
     </div>
 </div>

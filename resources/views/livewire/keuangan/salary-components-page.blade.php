@@ -94,9 +94,11 @@
                     </div>
                 @endif
 
-                <button type="button" wire:click="save" wire:loading.attr="disabled" wire:target="save" class="btn-primary" style="justify-content:center;align-self:flex-start;padding-left:20px;padding-right:20px;">
-                    <i class="fa-solid fa-floppy-disk"></i> Simpan Komponen {{ $this->companies->firstWhere('id', $companyId)->name ?? '' }}
-                </button>
+                @if ($this->canEditComponents)
+                    <button type="button" wire:click="save" wire:loading.attr="disabled" wire:target="save" class="btn-primary" style="justify-content:center;align-self:flex-start;padding-left:20px;padding-right:20px;">
+                        <i class="fa-solid fa-floppy-disk"></i> Simpan Komponen {{ $this->companies->firstWhere('id', $companyId)->name ?? '' }}
+                    </button>
+                @endif
             </div>
         </div>
 
@@ -135,7 +137,7 @@
                             </label>
                             <div style="position:relative;">
                                 <i class="fa-solid {{ $globalIcons[$g->value] ?? 'fa-percent' }}" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--text-faint);font-size:12px;"></i>
-                                <input type="number" step="0.01" class="form-input" style="padding-left:32px;" wire:model="globalValues.{{ $g->value }}">
+                                <input type="number" step="0.01" class="form-input" style="padding-left:32px;" wire:model="globalValues.{{ $g->value }}" @disabled(!$this->canEditGlobalSettings)>
                             </div>
                         </div>
                     @endforeach
@@ -146,9 +148,11 @@
                     <p style="font-size:11.5px;color:var(--warn-soft-text);margin:0;">Perubahan di sini langsung berlaku ke semua perusahaan tanpa terkecuali.</p>
                 </div>
 
-                <button type="button" wire:click="saveGlobal" wire:loading.attr="disabled" wire:target="saveGlobal" class="btn-primary" style="justify-content:center;padding-left:20px;padding-right:20px;margin-top:14px;">
-                    <i class="fa-solid fa-floppy-disk"></i> Simpan Pengaturan Global
-                </button>
+                @if ($this->canEditGlobalSettings)
+                    <button type="button" wire:click="saveGlobal" wire:loading.attr="disabled" wire:target="saveGlobal" class="btn-primary" style="justify-content:center;padding-left:20px;padding-right:20px;margin-top:14px;">
+                        <i class="fa-solid fa-floppy-disk"></i> Simpan Pengaturan Global
+                    </button>
+                @endif
             </div>
         </div>
     </div>

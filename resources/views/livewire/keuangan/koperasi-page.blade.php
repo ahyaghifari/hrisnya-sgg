@@ -20,13 +20,15 @@
                     <button type="button" wire:click="export" wire:loading.attr="disabled" wire:target="export" class="btn-ghost" style="padding:9px 16px;font-size:12.5px;">
                         <i class="fa-solid fa-file-excel"></i> Export
                     </button>
-                    <button type="button" wire:click="openAddModal" class="btn-primary" style="padding:9px 18px;font-size:12.5px;">
-                        <i class="fa-solid fa-plus"></i> Tambah Anggota Koperasi
-                    </button>
+                    @if ($this->canCreateKoperasi)
+                        <button type="button" wire:click="openAddModal" class="btn-primary" style="padding:9px 18px;font-size:12.5px;">
+                            <i class="fa-solid fa-plus"></i> Tambah Anggota Koperasi
+                        </button>
+                    @endif
                 </div>
             </div>
 
-            @if (count($selected) > 0)
+            @if (count($selected) > 0 && $this->canUpdateKoperasi)
                 <div style="display:flex;align-items:center;gap:10px;background:var(--surface-soft,#f8fafc);border:1px solid var(--border);border-radius:10px;padding:8px 14px;margin-top:12px;">
                     <span style="font-size:12.5px;font-weight:600;">{{ count($selected) }} dipilih</span>
                     <button type="button" wire:click="openEditModal" class="btn-ghost" style="padding:5px 12px;font-size:11.5px;">
@@ -59,19 +61,29 @@
                                 <td style="padding:9px 14px;white-space:nowrap;">{{ $member->user?->nip ?? '-' }}</td>
                                 <td style="padding:9px 14px;text-align:right;white-space:nowrap;">Rp {{ number_format($member->amount, 0, ',', '.') }}</td>
                                 <td style="padding:9px 14px;text-align:center;white-space:nowrap;">
-                                    <button type="button" wire:click="toggleActive('{{ $member->id }}')" wire:confirm="Ubah status keanggotaan koperasi ini?"
-                                        style="border:none;background:none;cursor:pointer;font-weight:600;color:{{ $member->is_active ? '#047C54' : 'var(--text-faint)' }};">
-                                        {{ $member->is_active ? 'Aktif' : 'Nonaktif' }}
-                                    </button>
+                                    @can('update', $member)
+                                        <button type="button" wire:click="toggleActive('{{ $member->id }}')" wire:confirm="Ubah status keanggotaan koperasi ini?"
+                                            style="border:none;background:none;cursor:pointer;font-weight:600;color:{{ $member->is_active ? '#047C54' : 'var(--text-faint)' }};">
+                                            {{ $member->is_active ? 'Aktif' : 'Nonaktif' }}
+                                        </button>
+                                    @else
+                                        <span style="font-weight:600;color:{{ $member->is_active ? '#047C54' : 'var(--text-faint)' }};">
+                                            {{ $member->is_active ? 'Aktif' : 'Nonaktif' }}
+                                        </span>
+                                    @endcan
                                 </td>
                                 <td style="padding:9px 14px;text-align:center;white-space:nowrap;">
                                     <div style="display:inline-flex;gap:6px;">
-                                        <button type="button" wire:click="openEditModal('{{ $member->id }}')" class="btn-ghost" style="padding:5px 12px;font-size:11.5px;">
-                                            <i class="fa-solid fa-pen"></i> Edit
-                                        </button>
-                                        <button type="button" wire:click="removeMember('{{ $member->id }}')" wire:confirm="Hapus anggota ini dari koperasi? Riwayat payroll sebelumnya tidak terpengaruh." class="btn-ghost" style="padding:5px 12px;font-size:11.5px;color:#dc2626;">
-                                            <i class="fa-solid fa-trash"></i> Hapus
-                                        </button>
+                                        @can('update', $member)
+                                            <button type="button" wire:click="openEditModal('{{ $member->id }}')" class="btn-ghost" style="padding:5px 12px;font-size:11.5px;">
+                                                <i class="fa-solid fa-pen"></i> Edit
+                                            </button>
+                                        @endcan
+                                        @can('delete', $member)
+                                            <button type="button" wire:click="removeMember('{{ $member->id }}')" wire:confirm="Hapus anggota ini dari koperasi? Riwayat payroll sebelumnya tidak terpengaruh." class="btn-ghost" style="padding:5px 12px;font-size:11.5px;color:#dc2626;">
+                                                <i class="fa-solid fa-trash"></i> Hapus
+                                            </button>
+                                        @endcan
                                     </div>
                                 </td>
                             </tr>

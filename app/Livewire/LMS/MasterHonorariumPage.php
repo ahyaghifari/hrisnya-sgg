@@ -56,6 +56,16 @@ class MasterHonorariumPage extends Component
         $this->context = TrainingCategoryEnum::scoredCases()[0]->value;
     }
 
+    public function getCanEditHonorariumProperty(): bool
+    {
+        return Auth::user()->can(CustomPermissionEnum::EDIT_HONORARIUM_LMS->value);
+    }
+
+    private function assertCanEdit(): void
+    {
+        abort_unless(Auth::user()->can(CustomPermissionEnum::EDIT_HONORARIUM_LMS->value), 403);
+    }
+
     public function setContext(string $context): void
     {
         if (TrainingCategoryEnum::tryFrom($context) === null) {
@@ -111,6 +121,8 @@ class MasterHonorariumPage extends Component
 
     public function saveVariable(): void
     {
+        $this->assertCanEdit();
+
         $validated = $this->validate([
             'newVariable.name' => 'required|string|max:255',
             'newVariable.description' => 'nullable|string',
@@ -129,6 +141,8 @@ class MasterHonorariumPage extends Component
 
     public function deleteVariable(string $id): void
     {
+        $this->assertCanEdit();
+
         LmsHonorariumVariable::where('context', $this->context)->findOrFail($id)->delete();
 
         Notification::make()->title('Variabel dihapus')->success()->send();
@@ -136,6 +150,8 @@ class MasterHonorariumPage extends Component
 
     public function saveCategory(): void
     {
+        $this->assertCanEdit();
+
         $validated = $this->validate([
             'newCategory.variable_id' => 'required|exists:lms_honorarium_variables,id',
             'newCategory.name' => 'required|string|max:255',
@@ -153,6 +169,8 @@ class MasterHonorariumPage extends Component
 
     public function deleteCategory(string $id): void
     {
+        $this->assertCanEdit();
+
         LmsHonorariumCategory::whereHas('variable', fn ($q) => $q->where('context', $this->context))
             ->findOrFail($id)
             ->delete();
@@ -162,6 +180,8 @@ class MasterHonorariumPage extends Component
 
     public function saveRange(): void
     {
+        $this->assertCanEdit();
+
         if ($this->rangeIsSingle) {
             $this->newRange['max_score'] = $this->newRange['min_score'];
         }
@@ -186,6 +206,8 @@ class MasterHonorariumPage extends Component
 
     public function deleteRange(string $id): void
     {
+        $this->assertCanEdit();
+
         LmsHonorarium::where('context', $this->context)->findOrFail($id)->delete();
 
         Notification::make()->title('Range honorarium dihapus')->success()->send();

@@ -46,8 +46,15 @@ class LmsCategoriesPage extends Component
         return TrainingCategoryEnum::internalCases();
     }
 
+    public function getCanCreateCategoryProperty(): bool
+    {
+        return Auth::user()->can('create', LmsCategories::class);
+    }
+
     public function openCreateModal(): void
     {
+        abort_unless(Auth::user()->can('create', LmsCategories::class), 403);
+
         $this->editingId = null;
         $this->formName = '';
         $this->formTrainingCategory = null;
@@ -58,6 +65,8 @@ class LmsCategoriesPage extends Component
     public function openEditModal(string $id): void
     {
         $category = LmsCategories::findOrFail($id);
+
+        abort_unless(Auth::user()->can('update', $category), 403);
 
         $this->editingId = $category->id;
         $this->formName = $category->name;
@@ -73,6 +82,10 @@ class LmsCategoriesPage extends Component
 
     public function saveForm(): void
     {
+        $ability = $this->editingId ? 'update' : 'create';
+        $subject = $this->editingId ? LmsCategories::findOrFail($this->editingId) : LmsCategories::class;
+        abort_unless(Auth::user()->can($ability, $subject), 403);
+
         $validated = $this->validate([
             'formName' => 'required|string|max:255',
             'formTrainingCategory' => 'nullable|string|in:'.implode(',', array_column(TrainingCategoryEnum::internalCases(), 'value')),
@@ -103,6 +116,8 @@ class LmsCategoriesPage extends Component
     public function removeCategory(string $id): void
     {
         $category = LmsCategories::withCount('courses')->findOrFail($id);
+
+        abort_unless(Auth::user()->can('delete', $category), 403);
 
         if ($category->courses_count > 0) {
             Notification::make()

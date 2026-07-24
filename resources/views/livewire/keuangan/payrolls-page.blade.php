@@ -33,12 +33,12 @@
                          master `user_koperasi` (halaman Koperasi) yang otomatis sync ke
                          payroll_manual_lines tiap Generate, jadi input manual per periode di
                          sini jadi redundan. Disembunyikan dulu, bukan dihapus permanen. --}}
-                    @if ($this->insentifMetode === 'import')
+                    @if ($this->insentifMetode === 'import' && $this->canImportPayroll)
                         <button type="button" wire:click="openImportModal('insentif')" style="display:inline-flex;align-items:center;gap:6px;padding:9px 16px;font-size:12.5px;font-weight:600;border:none;border-radius:12px;cursor:pointer;background:#047C54;color:#fff;">
                             <i class="fa-solid fa-hand-holding-dollar"></i> Import Insentif
                         </button>
                     @endif
-                    @if ($this->bonAktif)
+                    @if ($this->bonAktif && $this->canImportPayroll)
                         <button type="button" wire:click="openImportModal('bon')" style="display:inline-flex;align-items:center;gap:6px;padding:9px 16px;font-size:12.5px;font-weight:600;border:none;border-radius:12px;cursor:pointer;background:#d97706;color:#fff;">
                             <i class="fa-solid fa-money-bill-transfer"></i> Import Bon
                         </button>

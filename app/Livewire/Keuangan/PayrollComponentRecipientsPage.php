@@ -99,8 +99,15 @@ class PayrollComponentRecipientsPage extends Component
      * (semua komponen sekaligus, bukan cuma yang lagi di-expand) — sesuai permintaan "hapus
      * lalu buat yang baru", bukan diff/upsert per baris.
      */
+    public function getCanEditRecipientsProperty(): bool
+    {
+        return Auth::user()->can(CustomPermissionEnum::EDIT_PENERIMA_KOMPONEN_GAJI->value);
+    }
+
     public function save(): void
     {
+        abort_unless(Auth::user()->can(CustomPermissionEnum::EDIT_PENERIMA_KOMPONEN_GAJI->value), 403);
+
         if (! $this->companyId) {
             return;
         }

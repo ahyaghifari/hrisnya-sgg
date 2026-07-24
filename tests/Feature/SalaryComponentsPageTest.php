@@ -26,8 +26,9 @@ class SalaryComponentsPageTest extends TestCase
     private function actingAsFinance(): User
     {
         Permission::firstOrCreate(['name' => CustomPermissionEnum::SISTEM_KEUANGAN->value, 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => CustomPermissionEnum::EDIT_KOMPONEN_GAJI->value, 'guard_name' => 'web']);
         $role = Role::firstOrCreate(['name' => 'Keuangan Test', 'guard_name' => 'web']);
-        $role->givePermissionTo(CustomPermissionEnum::SISTEM_KEUANGAN->value);
+        $role->givePermissionTo([CustomPermissionEnum::SISTEM_KEUANGAN->value, CustomPermissionEnum::EDIT_KOMPONEN_GAJI->value]);
 
         $user = User::factory()->create();
         $user->assignRole($role);

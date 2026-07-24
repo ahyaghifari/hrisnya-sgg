@@ -91,6 +91,16 @@ class LmsCourseDetailPage extends Component
         }
     }
 
+    public function getCanEditDetailProperty(): bool
+    {
+        return Auth::user()->can(CustomPermissionEnum::EDIT_DETAIL_KURSUS_LMS->value);
+    }
+
+    private function assertCanEdit(): void
+    {
+        abort_unless(Auth::user()->can(CustomPermissionEnum::EDIT_DETAIL_KURSUS_LMS->value), 403);
+    }
+
     public function setTab(string $tab): void
     {
         $this->tab = $tab;
@@ -131,6 +141,8 @@ class LmsCourseDetailPage extends Component
 
     public function addParticipants(): void
     {
+        $this->assertCanEdit();
+
         $this->validate([
             'selectedUserIds' => ['required', 'array', 'min:1'],
             'selectedUserIds.*' => ['exists:users,id'],
@@ -154,6 +166,8 @@ class LmsCourseDetailPage extends Component
 
     public function approveParticipant(string $id): void
     {
+        $this->assertCanEdit();
+
         $participant = LmsCourseUsers::where('course_id', $this->course->id)->findOrFail($id);
         $participant->update(['status' => CourseUserStatus::APPROVED->value, 'enrolled_at' => now()]);
 
@@ -162,6 +176,8 @@ class LmsCourseDetailPage extends Component
 
     public function cancelParticipant(string $id): void
     {
+        $this->assertCanEdit();
+
         $participant = LmsCourseUsers::where('course_id', $this->course->id)->findOrFail($id);
         $participant->update(['status' => CourseUserStatus::CANCELED->value]);
 
@@ -170,6 +186,8 @@ class LmsCourseDetailPage extends Component
 
     public function removeParticipant(string $id): void
     {
+        $this->assertCanEdit();
+
         LmsCourseUsers::where('course_id', $this->course->id)->findOrFail($id)->delete();
 
         Notification::make()->title('Peserta dihapus dari pelatihan')->success()->send();
@@ -259,6 +277,8 @@ class LmsCourseDetailPage extends Component
 
     public function saveMeeting(): void
     {
+        $this->assertCanEdit();
+
         $validated = $this->validate($this->meetingRules());
 
         $data = [
@@ -303,6 +323,8 @@ class LmsCourseDetailPage extends Component
 
     public function saveMaterial(): void
     {
+        $this->assertCanEdit();
+
         $validated = $this->validate([
             'materialTitle' => ['required', 'string', 'max:255'],
             'materialFile' => ['required', 'file', 'max:20480', 'mimes:pdf,doc,docx,ppt,pptx'],
@@ -325,6 +347,8 @@ class LmsCourseDetailPage extends Component
 
     public function removeMaterial(string $id): void
     {
+        $this->assertCanEdit();
+
         $material = LmsMaterials::whereHas('meeting', fn ($q) => $q->where('course_id', $this->course->id))->findOrFail($id);
 
         if ($material->file_path) {
@@ -367,6 +391,8 @@ class LmsCourseDetailPage extends Component
 
     public function saveQuiz(): void
     {
+        $this->assertCanEdit();
+
         $validated = $this->validate([
             'quizId' => ['required', 'exists:lms_quizzes,id'],
             'quizDuration' => ['required', 'integer', 'min:1'],
@@ -386,6 +412,8 @@ class LmsCourseDetailPage extends Component
 
     public function removeQuiz(string $id): void
     {
+        $this->assertCanEdit();
+
         LmsMeetingQuizzes::whereHas('meeting', fn ($q) => $q->where('course_id', $this->course->id))->findOrFail($id)->delete();
 
         Notification::make()->title('Quiz dihapus')->success()->send();

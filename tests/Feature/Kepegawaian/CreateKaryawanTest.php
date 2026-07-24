@@ -20,8 +20,9 @@ class CreateKaryawanTest extends TestCase
     private function actingAsKepegawaian(string $companyId): User
     {
         Permission::firstOrCreate(['name' => CustomPermissionEnum::SISTEM_KEPEGAWAIAN->value, 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'Create:User', 'guard_name' => 'web']);
         $role = SpatieRole::firstOrCreate(['name' => 'Kepegawaian Test', 'guard_name' => 'web']);
-        $role->givePermissionTo(CustomPermissionEnum::SISTEM_KEPEGAWAIAN->value);
+        $role->givePermissionTo([CustomPermissionEnum::SISTEM_KEPEGAWAIAN->value, 'Create:User']);
 
         $user = User::factory()->create(['company_id' => $companyId]);
         $user->assignRole($role);

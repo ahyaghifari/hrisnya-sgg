@@ -29,8 +29,9 @@ class ScheduleShiftRosterTabTest extends TestCase
     private function actingAsAbsensi(): User
     {
         Permission::firstOrCreate(['name' => CustomPermissionEnum::SISTEM_ABSENSI->value, 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => CustomPermissionEnum::KELOLA_JADWAL_SHIFT->value, 'guard_name' => 'web']);
         $role = Role::firstOrCreate(['name' => 'Absensi Roster Manual Test', 'guard_name' => 'web']);
-        $role->givePermissionTo(CustomPermissionEnum::SISTEM_ABSENSI->value);
+        $role->givePermissionTo([CustomPermissionEnum::SISTEM_ABSENSI->value, CustomPermissionEnum::KELOLA_JADWAL_SHIFT->value]);
 
         $user = User::factory()->create();
         $user->assignRole($role);

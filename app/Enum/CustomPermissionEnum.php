@@ -34,6 +34,33 @@ enum CustomPermissionEnum: string
     case APPROVE_MANAJEMEN_LOWONGAN_KERJA = 'approve_manajemen_lowongan_kerja';
     case LIHAT_PERUSAHAAN_LAIN = 'lihat_perusahaan_lain';
 
+    // Gerbang EDIT untuk halaman portal yang modelnya tidak punya Filament Resource/Policy
+    // sendiri (config singleton, mapping, dsb) — mount() halamannya cuma cek SISTEM_* (akses
+    // baca), permission di bawah ini yang membedakan siapa yang boleh menyimpan/menghapus.
+    case EDIT_MAPPING_KOMPONEN_GAJI = 'edit_mapping_komponen_gaji';
+    case EDIT_PENERIMA_KOMPONEN_GAJI = 'edit_penerima_komponen_gaji';
+    case EDIT_KOMPONEN_GAJI = 'edit_komponen_gaji';
+    case EDIT_KOMPONEN_GAJI_GLOBAL = 'edit_komponen_gaji_global';
+    case EDIT_DETAIL_KURSUS_LMS = 'edit_detail_kursus_lms';
+    case EDIT_HONORARIUM_LMS = 'edit_honorarium_lms';
+    case EDIT_PENGATURAN_ABSENSI = 'edit_pengaturan_absensi';
+    case EDIT_PENGATURAN_TUGAS = 'edit_pengaturan_tugas';
+
+    /**
+     * Beda dari Update:Schedule (edit header jadwal, ubah karyawan yang dipasangkan) — ini
+     * khusus buat karu/kepala ruangan yang cuma perlu kelola Template Rotasi + generate +
+     * detail penjadwalan (roster) SATU jadwal shift yang sudah ada, tanpa perlu bisa ubah
+     * jadwal/pengguna-nya. Cuma berlaku di tab "Template Shift" & "Detail Penjadwalan"
+     * (ScheduleShiftRotationTab & ScheduleShiftRosterTab) — keduanya cuma tampil untuk jadwal
+     * bertipe Shift.
+     */
+    case KELOLA_JADWAL_SHIFT = 'kelola_jadwal_shift';
+
+    /** Generate/regenerate payroll (PayrollPeriodsPage) — aksi berat/sensitif (nulis ratusan
+     * baris payroll sekaligus), sengaja dipisah dari Update:PayrollPeriod (yang cuma ubah
+     * tanggal periode) supaya bisa dikasih ke role finance yang lebih terbatas. */
+    case GENERATE_PAYROLL = 'generate_payroll';
+
     public function label(): string
     {
         return match
@@ -55,6 +82,16 @@ enum CustomPermissionEnum: string
             self::APPROVE_PENGAJUAN_PELATIHAN => 'Approve Pengajuan Pelatihan',
             self::APPROVE_MANAJEMEN_LOWONGAN_KERJA => 'Approve Manajemen Lowongan Kerja',
             self::LIHAT_PERUSAHAAN_LAIN => 'Lihat Perusahaan Lain',
+            self::EDIT_MAPPING_KOMPONEN_GAJI => 'Edit Mapping Komponen Gaji',
+            self::EDIT_PENERIMA_KOMPONEN_GAJI => 'Edit Penerima Komponen Gaji',
+            self::EDIT_KOMPONEN_GAJI => 'Edit Komponen Gaji',
+            self::EDIT_KOMPONEN_GAJI_GLOBAL => 'Edit Pengaturan Global Komponen Gaji',
+            self::EDIT_DETAIL_KURSUS_LMS => 'Edit Detail Kursus LMS',
+            self::EDIT_HONORARIUM_LMS => 'Edit Honorarium LMS',
+            self::EDIT_PENGATURAN_ABSENSI => 'Edit Pengaturan Absensi',
+            self::EDIT_PENGATURAN_TUGAS => 'Edit Pengaturan Tugas',
+            self::KELOLA_JADWAL_SHIFT => 'Kelola Jadwal Shift (Template & Roster)',
+            self::GENERATE_PAYROLL => 'Generate/Regenerate Payroll',
         };
     }
 }

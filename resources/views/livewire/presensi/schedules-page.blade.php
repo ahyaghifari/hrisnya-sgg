@@ -9,9 +9,11 @@
         <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;justify-content:space-between;">
             <x-company-filter :companies="$this->companies" wire:model.live="companyId" />
 
-            <a href="{{ route('presensi.jadwal.tambah') }}" wire:navigate class="btn-primary" style="text-decoration:none;">
-                <i class="fa-solid fa-plus"></i> Tambah Jadwal
-            </a>
+            @if ($this->canCreateSchedule)
+                <a href="{{ route('presensi.jadwal.tambah') }}" wire:navigate class="btn-primary" style="text-decoration:none;">
+                    <i class="fa-solid fa-plus"></i> Tambah Jadwal
+                </a>
+            @endif
         </div>
 
         <div style="background:var(--surface);border-radius:12px;box-shadow:var(--shadow-card);overflow-x:auto;margin-top:16px;{{ $this->schedules->isEmpty() ? 'display:none;' : '' }}">
@@ -43,17 +45,21 @@
                                     <a href="{{ route('presensi.jadwal.show', $schedule) }}" wire:navigate style="padding:5px 12px;font-size:11.5px;border-radius:8px;text-decoration:none;display:inline-flex;align-items:center;gap:5px;background:#0284c7;color:#fff;">
                                         <i class="fa-solid fa-eye"></i> Lihat
                                     </a>
-                                    <a href="{{ route('presensi.jadwal.pengguna', $schedule) }}" wire:navigate style="padding:5px 12px;font-size:11.5px;border-radius:8px;text-decoration:none;display:inline-flex;align-items:center;gap:5px;background:#047C54;color:#fff;">
-                                        <i class="fa-solid fa-users-gear"></i> Atur Pengguna
-                                    </a>
-                                    <a href="{{ route('presensi.jadwal.edit', $schedule) }}" wire:navigate class="btn-ghost" style="padding:5px 12px;font-size:11.5px;">
-                                        <i class="fa-solid fa-pen"></i> Edit
-                                    </a>
-                                    @unless ($this->hasAttendanceHistory($schedule))
-                                        <button type="button" wire:click="deleteSchedule('{{ $schedule->id }}')" wire:confirm="Hapus jadwal &quot;{{ $schedule->name }}&quot;? Semua pengaturan hari & penempatan jabatannya ikut terhapus." class="btn-ghost" style="padding:5px 12px;font-size:11.5px;color:#dc2626;">
-                                            <i class="fa-solid fa-trash"></i> Hapus
-                                        </button>
-                                    @endunless
+                                    @can('update', $schedule)
+                                        <a href="{{ route('presensi.jadwal.pengguna', $schedule) }}" wire:navigate style="padding:5px 12px;font-size:11.5px;border-radius:8px;text-decoration:none;display:inline-flex;align-items:center;gap:5px;background:#047C54;color:#fff;">
+                                            <i class="fa-solid fa-users-gear"></i> Atur Pengguna
+                                        </a>
+                                        <a href="{{ route('presensi.jadwal.edit', $schedule) }}" wire:navigate class="btn-ghost" style="padding:5px 12px;font-size:11.5px;">
+                                            <i class="fa-solid fa-pen"></i> Edit
+                                        </a>
+                                    @endcan
+                                    @can('delete', $schedule)
+                                        @unless ($this->hasAttendanceHistory($schedule))
+                                            <button type="button" wire:click="deleteSchedule('{{ $schedule->id }}')" wire:confirm="Hapus jadwal &quot;{{ $schedule->name }}&quot;? Semua pengaturan hari & penempatan jabatannya ikut terhapus." class="btn-ghost" style="padding:5px 12px;font-size:11.5px;color:#dc2626;">
+                                                <i class="fa-solid fa-trash"></i> Hapus
+                                            </button>
+                                        @endunless
+                                    @endcan
                                 </div>
                             </td>
                         </tr>
