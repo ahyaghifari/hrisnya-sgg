@@ -159,9 +159,9 @@ class IncentivesPage extends Component
         $data = [
             'user_id' => $this->formUserId,
             'name' => $this->formName,
-            // Tanggal dipakai IncentiveCalculator buat nentuin insentif ini masuk periode
-            // payroll yang mana — kalau admin tidak isi, default ke hari ini (bukan dibiarkan
-            // null) supaya tetap ke-generate di periode berjalan.
+            // Sekadar keterangan "diterima sejak kapan" — IncentiveCalculator tidak lagi
+            // memfilter berdasarkan tanggal ini (lihat is_active), default ke hari ini kalau
+            // tidak diisi.
             'incentive_date' => $this->formDate ?: now()->toDateString(),
             'amount' => $this->formAmount,
             'note' => $this->formNote,
@@ -170,7 +170,7 @@ class IncentivesPage extends Component
         if ($this->editingId) {
             Incentive::whereKey($this->editingId)->update($data);
         } else {
-            Incentive::create($data);
+            Incentive::create([...$data, 'is_active' => true]);
         }
 
         $this->showFormModal = false;
@@ -179,6 +179,15 @@ class IncentivesPage extends Component
             ->title($this->editingId ? 'Insentif berhasil diubah' : 'Insentif baru berhasil ditambahkan')
             ->success()
             ->send();
+    }
+
+    public function toggleActive(string $id): void
+    {
+        $incentive = Incentive::findOrFail($id);
+
+        abort_unless(Auth::user()->can('update', $incentive), 403);
+
+        $incentive->update(['is_active' => ! $incentive->is_active]);
     }
 
     public function removeIncentive(string $id): void

@@ -46,6 +46,7 @@
                                 <th style="text-align:left;padding:10px 14px;white-space:nowrap;">Nama Program</th>
                                 <th style="text-align:left;padding:10px 14px;white-space:nowrap;">Tanggal</th>
                                 <th style="text-align:right;padding:10px 14px;white-space:nowrap;">Nominal</th>
+                                <th style="text-align:center;padding:10px 14px;white-space:nowrap;">Status</th>
                                 <th style="text-align:center;padding:10px 14px;white-space:nowrap;">Aksi</th>
                             </tr>
                         </thead>
@@ -58,8 +59,16 @@
                                     <td style="padding:9px 14px;white-space:nowrap;">{{ $incentive->incentive_date?->format('d M Y') ?? '-' }}</td>
                                     <td style="padding:9px 14px;text-align:right;white-space:nowrap;">Rp {{ number_format($incentive->amount, 0, ',', '.') }}</td>
                                     <td style="padding:9px 14px;text-align:center;white-space:nowrap;">
+                                        <span style="padding:3px 10px;border-radius:999px;font-size:11px;font-weight:600;{{ $incentive->is_active ? 'background:rgba(22,163,74,0.1);color:#16a34a;' : 'background:rgba(107,114,128,0.1);color:#6b7280;' }}">
+                                            {{ $incentive->is_active ? 'Aktif' : 'Nonaktif' }}
+                                        </span>
+                                    </td>
+                                    <td style="padding:9px 14px;text-align:center;white-space:nowrap;">
                                         <div style="display:inline-flex;gap:6px;">
                                             @can('update', $incentive)
+                                                <button type="button" wire:click="toggleActive('{{ $incentive->id }}')" class="btn-ghost" style="padding:5px 12px;font-size:11.5px;">
+                                                    <i class="fa-solid fa-power-off"></i> {{ $incentive->is_active ? 'Nonaktifkan' : 'Aktifkan' }}
+                                                </button>
                                                 <button type="button" wire:click="openEditModal('{{ $incentive->id }}')" class="btn-ghost" style="padding:5px 12px;font-size:11.5px;">
                                                     <i class="fa-solid fa-pen"></i> Edit
                                                 </button>
@@ -74,7 +83,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="6" style="padding:24px;text-align:center;color:var(--text-faint);">Belum ada insentif untuk perusahaan ini.</td>
+                                    <td colspan="7" style="padding:24px;text-align:center;color:var(--text-faint);">Belum ada insentif untuk perusahaan ini.</td>
                                 </tr>
                             @endforelse
                         </tbody>

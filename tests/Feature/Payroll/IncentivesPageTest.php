@@ -66,7 +66,26 @@ class IncentivesPageTest extends TestCase
             ->set('formAmount', '500000')
             ->call('saveForm');
 
-        $this->assertDatabaseHas('incentives', ['user_id' => $employee->id, 'name' => 'Insentif Juli', 'amount' => 500000]);
+        $this->assertDatabaseHas('incentives', ['user_id' => $employee->id, 'name' => 'Insentif Juli', 'amount' => 500000, 'is_active' => true]);
+    }
+
+    public function test_can_toggle_incentive_active(): void
+    {
+        $finance = $this->actingAsFinance(withCrudPermission: true);
+        $company = $this->makeCompany();
+        $employee = User::factory()->create(['company_id' => $company->id]);
+        $incentive = Incentive::create([
+            'user_id' => $employee->id,
+            'amount' => 500000,
+            'is_active' => true,
+        ]);
+
+        Livewire::actingAs($finance)
+            ->test(IncentivesPage::class)
+            ->set('companyId', $company->id)
+            ->call('toggleActive', $incentive->id);
+
+        $this->assertDatabaseHas('incentives', ['id' => $incentive->id, 'is_active' => false]);
     }
 
     public function test_can_create_incentive_with_only_required_fields(): void

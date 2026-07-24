@@ -35,6 +35,7 @@ class IncentiveCalculatorMetodeTest extends TestCase
             'name' => 'Insentif Juli',
             'incentive_date' => '2026-07-15',
             'amount' => 300000,
+            'is_active' => true,
         ]);
 
         return [$company, $user, $period, $payroll];
@@ -87,9 +88,41 @@ class IncentiveCalculatorMetodeTest extends TestCase
     }
 
     /**
-     * is_processed sudah dicabut total dari metode "master" — baris incentives dibaca BY
-     * TANGGAL per periode, bukan "konsumsi sekali lalu terkunci", jadi regenerate periode yang
-     * sama (payroll lama dihapus, dihitung ulang) harus menghasilkan nominal identik, bukan 0.
+     * Metode "master" jadi roster ala Koperasi — tanggal cuma keterangan, TIDAK dipakai buat
+     * memfilter periode payroll. Baris di luar bulan periode tetap ikut selama is_active=true.
+     */
+    public function test_master_metode_ignores_period_date_range(): void
+    {
+        [, $user, $period, $payroll] = $this->makeSetup();
+        Setting::create(['company_id' => $period->company_id, 'key' => 'insentif_metode', 'module' => 'payroll', 'type' => 'string', 'value' => 'master', 'label' => 'Metode Insentif']);
+
+        // Baris tambahan dengan tanggal jauh di luar periode Juli (periode payroll di
+        // makeSetup() adalah 2026-07-01 s/d 2026-07-31).
+        Incentive::create(['user_id' => $user->id, 'incentive_date' => '2026-01-01', 'amount' => 100000, 'is_active' => true]);
+
+        $context = new PayrollContext();
+        (new IncentiveCalculator())->calculate($payroll->user, $payroll, $period, $context);
+
+        $this->assertSame(400000.0, $context->grossSalary);
+    }
+
+    public function test_master_metode_excludes_inactive_rows(): void
+    {
+        [, $user, $period, $payroll] = $this->makeSetup();
+        Setting::create(['company_id' => $period->company_id, 'key' => 'insentif_metode', 'module' => 'payroll', 'type' => 'string', 'value' => 'master', 'label' => 'Metode Insentif']);
+
+        Incentive::create(['user_id' => $user->id, 'incentive_date' => '2026-07-15', 'amount' => 999999, 'is_active' => false]);
+
+        $context = new PayrollContext();
+        (new IncentiveCalculator())->calculate($payroll->user, $payroll, $period, $context);
+
+        // Cuma baris aktif dari makeSetup() (300000) yang dihitung.
+        $this->assertSame(300000.0, $context->grossSalary);
+    }
+
+    /**
+     * Baris roster tidak "terkonsumsi sekali" — regenerate periode yang sama (payroll lama
+     * dihapus, dihitung ulang) harus menghasilkan nominal identik, bukan 0.
      */
     public function test_master_metode_is_regenerate_safe(): void
     {

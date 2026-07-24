@@ -13,11 +13,12 @@ use App\Models\User;
 
 /**
  * Metode ditentukan setting `insentif_metode` (company-scoped, lihat requiredSettings() di
- * PayrollComponentEnum::INSENTIF). "master" (Holding): nominal tetap, input manual ke tabel
- * `incentives`, dibaca di sini BY TANGGAL per periode — TIDAK ada flag "sudah dipakai"
- * (is_processed dicabut total), jadi baris ini ikut ke-generate ulang normal kalau periode
- * di-regenerate, sama seperti "import" (RSU, dibaca dari `payroll_manual_lines`
- * component=insentif — App\Imports\Payroll\IncentiveImport menulis ke situ) dan Koperasi/Bon.
+ * PayrollComponentEnum::INSENTIF). "master" (Holding): roster ala Koperasi (`user_koperasi`) —
+ * semua baris `is_active=true` milik karyawan ikut DIJUMLAHKAN setiap Generate/Regenerate,
+ * TIDAK difilter tanggal periode sama sekali. `incentive_date` cuma keterangan "diterima sejak
+ * kapan", bukan syarat. Nonaktifkan lewat toggle di halaman Insentif kalau mau berhenti.
+ * "import" (RSU) dibaca dari `payroll_manual_lines` component=insentif —
+ * App\Imports\Payroll\IncentiveImport menulis ke situ.
  */
 class IncentiveCalculator implements PayrollComponentCalculator
 {
@@ -33,7 +34,7 @@ class IncentiveCalculator implements PayrollComponentCalculator
 
         $incentives = Incentive::query()
             ->where('user_id', $user->id)
-            ->whereBetween('incentive_date', [$period->start_date, $period->end_date])
+            ->where('is_active', true)
             ->get();
 
         if ($incentives->isEmpty()) {
