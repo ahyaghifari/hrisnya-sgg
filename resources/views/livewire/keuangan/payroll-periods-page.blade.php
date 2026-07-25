@@ -119,7 +119,7 @@
 
                     <div>
                         <label class="form-label">Penandatangan</label>
-                        <select class="form-input" wire:model="formSignerId">
+                        <select data-tom-select data-placeholder="-- Pilih Penandatangan --" class="form-input" wire:model="formSignerId">
                             <option value="">Belum ditentukan</option>
                             @foreach ($this->signerOptions as $user)
                                 <option value="{{ $user->id }}">{{ $user->name }}</option>
@@ -153,7 +153,7 @@
 
                     <div>
                         <label class="form-label">Penandatangan</label>
-                        <select class="form-input" wire:model="signerFormSignerId">
+                        <select data-tom-select data-placeholder="-- Pilih Penandatangan --" class="form-input" wire:model="signerFormSignerId">
                             <option value="">Belum ditentukan</option>
                             @foreach ($this->signerOptions as $user)
                                 <option value="{{ $user->id }}">{{ $user->name }}</option>
