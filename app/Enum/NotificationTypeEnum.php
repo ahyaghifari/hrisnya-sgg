@@ -45,6 +45,18 @@ enum NotificationTypeEnum: string
         };
     }
 
+    /** Dipakai buat mengelompokkan halaman Pengaturan Notifikasi — bukan kategori "resmi" di
+     * model manapun, cuma pengelompokan tampilan. */
+    public function group(): string
+    {
+        return match (true) {
+            str_starts_with($this->value, 'approval_') => 'Absensi',
+            str_starts_with($this->value, 'task_') => 'Tugas',
+            str_starts_with($this->value, 'payroll_') => 'Penggajian',
+            default => 'Lainnya',
+        };
+    }
+
     public function description(): string
     {
         return match ($this) {

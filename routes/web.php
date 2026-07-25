@@ -27,6 +27,7 @@ use App\Livewire\Kepegawaian\UserTransitionsPage;
 use App\Livewire\Keuangan\IncentivesPage;
 use App\Livewire\Keuangan\KoperasiPage;
 use App\Livewire\Keuangan\MappingKomponenGajiPage;
+use App\Livewire\Keuangan\PayrollDashboardPage;
 use App\Livewire\Keuangan\PayrollDetailPage;
 use App\Livewire\Keuangan\PayrollPeriodsPage;
 use App\Livewire\Keuangan\PayrollsPage;
@@ -164,6 +165,9 @@ Route::middleware(['auth', 'portal.access'])->group(function () {
     Route::get('/pengajuan-absensi/{record}', AttendanceRequestDetail::class)
         ->name('my-attendance-requests.show');
 
+    Route::get('/keuangan/dashboard', PayrollDashboardPage::class)
+        ->name('keuangan.dashboard');
+
     Route::get('/keuangan/periode-gaji', PayrollPeriodsPage::class)
         ->name('keuangan.periode-gaji');
 
@@ -198,6 +202,9 @@ Route::middleware(['auth', 'portal.access'])->group(function () {
 
     Route::get('/keuangan/mapping-komponen-gaji', MappingKomponenGajiPage::class)
         ->name('keuangan.mapping-komponen-gaji');
+
+    Route::get('/presensi/dashboard', \App\Livewire\Presensi\AttendanceDashboardPage::class)
+        ->name('presensi.dashboard');
 
     Route::get('/presensi/jadwal', SchedulesPage::class)
         ->name('presensi.jadwal');

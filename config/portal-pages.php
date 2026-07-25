@@ -160,6 +160,12 @@ return [
         'guard' => null,
     ],
 
+    'keuangan.dashboard' => [
+        'label' => 'Dashboard Penggajian',
+        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_KEUANGAN->value,
+        'guard' => null,
+    ],
+
     'keuangan.periode-gaji' => [
         'label' => 'Periode Gaji',
         'permission' => \App\Enum\CustomPermissionEnum::SISTEM_KEUANGAN->value,
@@ -209,6 +215,12 @@ return [
         'guard' => null,
     ],
 
+    'presensi.dashboard' => [
+        'label' => 'Dashboard Presensi',
+        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_ABSENSI->value,
+        'guard' => null,
+    ],
+
     'presensi.jadwal' => [
         'label' => 'Jadwal',
         'permission' => \App\Enum\CustomPermissionEnum::SISTEM_ABSENSI->value,
@@ -228,19 +240,19 @@ return [
     ],
 
     'presensi.rekap-izin' => [
-        'label' => 'Rekap Izin',
+        'label' => 'Izin',
         'permission' => \App\Enum\CustomPermissionEnum::SISTEM_ABSENSI->value,
         'guard' => null,
     ],
 
     'presensi.rekap-cuti' => [
-        'label' => 'Rekap Cuti',
+        'label' => 'Cuti',
         'permission' => \App\Enum\CustomPermissionEnum::SISTEM_ABSENSI->value,
         'guard' => null,
     ],
 
     'presensi.rekap-lembur' => [
-        'label' => 'Rekap Lembur',
+        'label' => 'Lembur',
         'permission' => \App\Enum\CustomPermissionEnum::SISTEM_ABSENSI->value,
         'guard' => null,
     ],
