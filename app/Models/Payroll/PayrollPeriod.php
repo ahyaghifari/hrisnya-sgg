@@ -27,6 +27,7 @@ class PayrollPeriod extends Model
         'payment_date',
         'processed_at',
         'generated_by',
+        'signer_id',
     ];
 
     protected $casts = [
@@ -49,5 +50,10 @@ class PayrollPeriod extends Model
     public function generatedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'generated_by');
+    }
+
+    public function signer(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'signer_id');
     }
 }

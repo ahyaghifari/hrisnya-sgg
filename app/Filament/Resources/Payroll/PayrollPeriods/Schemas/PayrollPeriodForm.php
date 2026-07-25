@@ -26,6 +26,13 @@ class PayrollPeriodForm
                     ->label('Sampai Tanggal')
                     ->required()
                     ->afterOrEqual('start_date'),
+
+                Forms\Components\Select::make('signer_id')
+                    ->label('Penandatangan')
+                    ->relationship('signer', 'name')
+                    ->searchable()
+                    ->preload()
+                    ->helperText('Nama yang muncul di bagian "Dibuat oleh" slip gaji - terpisah dari siapa yang menekan Generate.'),
             ]);
     }
 }

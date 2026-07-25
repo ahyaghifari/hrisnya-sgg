@@ -363,10 +363,16 @@
     <!-- SIGN -->
     <div class="signature">
         <div>
+            @php
+                // signer_id dipilih manual di form Periode Gaji, terpisah dari generated_by
+                // (siapa terakhir klik Generate/Regenerate) - fallback ke generatedBy lalu ke
+                // nama default kalau periode lama belum diisi signer-nya.
+                $signer = $payroll->payrollPeriod->signer ?? $payroll->payrollPeriod->generatedBy;
+            @endphp
             Dibuat oleh,
             <span class="ttd-space">&nbsp;</span>
-            <strong>{{ $payroll->payrollPeriod->generatedBy?->name ?? 'NOOR AFINI, SE' }}</strong><br>
-            {{ $payroll->payrollPeriod->generatedBy?->activeJobPosition?->jobPosition?->name ?? 'Accounting' }}
+            <strong>{{ $signer?->name ?? 'NOOR AFINI, SE' }}</strong><br>
+            {{ $signer?->activeJobPosition?->jobPosition?->name ?? 'Accounting' }}
         </div>
         <div>
             Diterima oleh,

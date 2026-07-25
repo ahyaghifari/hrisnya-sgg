@@ -114,6 +114,32 @@ class PayrollPeriodsPageTest extends TestCase
         ]);
     }
 
+    /**
+     * signer_id sengaja terpisah dari generated_by (App\Jobs\GeneratePayrollJob mengisi
+     * generated_by otomatis pakai Auth::id() tiap kali Generate/Regenerate diklik) - ini yang
+     * dipilih manual buat "Dibuat oleh" di slip gaji, harus tetap tersimpan apa adanya.
+     */
+    public function test_user_with_crud_permission_can_set_signer(): void
+    {
+        $finance = $this->actingAsFinance(withCrudPermission: true);
+        $company = $this->makeCompany();
+        $signer = User::factory()->create(['name' => 'Kepala Keuangan']);
+
+        Livewire::actingAs($finance)
+            ->test(PayrollPeriodsPage::class)
+            ->call('openCreateModal')
+            ->set('formCompanyId', $company->id)
+            ->set('formStartDate', '2026-09-01')
+            ->set('formEndDate', '2026-09-30')
+            ->set('formSignerId', $signer->id)
+            ->call('saveForm');
+
+        $this->assertDatabaseHas('payroll_periods', [
+            'company_id' => $company->id,
+            'signer_id' => $signer->id,
+        ]);
+    }
+
     public function test_user_without_crud_permission_cannot_open_create_modal(): void
     {
         $finance = $this->actingAsFinance(withCrudPermission: false);

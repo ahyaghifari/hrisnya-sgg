@@ -7,6 +7,7 @@ use App\Jobs\GeneratePayrollJob;
 use App\Jobs\RegeneratePayrollJob;
 use App\Models\Master\Companies;
 use App\Models\Payroll\PayrollPeriod;
+use App\Models\User;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
@@ -30,6 +31,7 @@ class PayrollPeriodsPage extends Component
     public ?string $formStartDate = null;
     public ?string $formEndDate = null;
     public ?string $formPaymentDate = null;
+    public ?string $formSignerId = null;
 
     public function mount(): void
     {
@@ -50,6 +52,12 @@ class PayrollPeriodsPage extends Component
     public function getCompaniesProperty()
     {
         return Companies::orderBy('code')->get();
+    }
+
+    /** Opsi Penandatangan - dipisah dari generated_by (siapa klik Generate), dipilih manual. */
+    public function getSignerOptionsProperty()
+    {
+        return User::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']);
     }
 
     public function getPeriodsProperty()
@@ -78,6 +86,7 @@ class PayrollPeriodsPage extends Component
         $this->formStartDate = null;
         $this->formEndDate = null;
         $this->formPaymentDate = null;
+        $this->formSignerId = null;
         $this->resetErrorBag();
         $this->showFormModal = true;
     }
@@ -94,6 +103,7 @@ class PayrollPeriodsPage extends Component
         $this->formStartDate = $period->start_date->format('Y-m-d');
         $this->formEndDate = $period->end_date->format('Y-m-d');
         $this->formPaymentDate = $period->payment_date?->format('Y-m-d');
+        $this->formSignerId = $period->signer_id;
         $this->resetErrorBag();
         $this->showFormModal = true;
     }
@@ -114,11 +124,13 @@ class PayrollPeriodsPage extends Component
             'formStartDate' => 'required|date',
             'formEndDate' => 'required|date|after_or_equal:formStartDate',
             'formPaymentDate' => 'nullable|date',
+            'formSignerId' => 'nullable|exists:users,id',
         ], [], [
             'formCompanyId' => 'perusahaan',
             'formStartDate' => 'dari tanggal',
             'formEndDate' => 'sampai tanggal',
             'formPaymentDate' => 'tanggal bayar',
+            'formSignerId' => 'penandatangan',
         ]);
 
         $data = [
@@ -126,6 +138,7 @@ class PayrollPeriodsPage extends Component
             'start_date' => $this->formStartDate,
             'end_date' => $this->formEndDate,
             'payment_date' => $this->formPaymentDate,
+            'signer_id' => $this->formSignerId,
         ];
 
         if ($this->editingId) {

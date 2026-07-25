@@ -108,6 +108,18 @@
                         <input type="date" class="form-input" wire:model="formPaymentDate">
                         @error('formPaymentDate') <p style="font-size:11px;color:#dc2626;margin-top:4px;">{{ $message }}</p> @enderror
                     </div>
+
+                    <div>
+                        <label class="form-label">Penandatangan</label>
+                        <select class="form-input" wire:model="formSignerId">
+                            <option value="">Belum ditentukan</option>
+                            @foreach ($this->signerOptions as $user)
+                                <option value="{{ $user->id }}">{{ $user->name }}</option>
+                            @endforeach
+                        </select>
+                        <p style="font-size:11px;color:var(--text-muted);margin-top:4px;">Nama yang muncul di bagian "Dibuat oleh" slip gaji - terpisah dari siapa yang menekan Generate.</p>
+                        @error('formSignerId') <p style="font-size:11px;color:#dc2626;margin-top:4px;">{{ $message }}</p> @enderror
+                    </div>
                 </div>
 
                 <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px;">
