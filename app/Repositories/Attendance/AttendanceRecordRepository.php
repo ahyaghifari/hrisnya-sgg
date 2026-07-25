@@ -42,6 +42,30 @@ class AttendanceRecordRepository
         );
     }
 
+    /**
+     * Simpan hasil satu entri dari FixedScheduleCalculator/FlexibleScheduleCalculator (dipakai
+     * App\Console\Commands\ProcessAccessLogsSchedule dan App\Console\Commands\SyncAccessLogsAttendance,
+     * biar mapping-nya cuma ada di satu tempat).
+     */
+    public function saveCalculatedResult(array $r, string $source): AttendanceRecords
+    {
+        return $this->updateOrCreate([
+            'nip'                 => $r['user']->nip,
+            'date'                => $r['date'],
+            'user_id'             => $r['user']->id,
+            'check_in_time'       => $r['check_in'],
+            'check_out_time'      => $r['check_out'],
+            'working_minutes'     => $r['working_minutes'],
+            'late_minutes'        => $r['late_minutes'],
+            'early_leave_minutes' => $r['early_leave_minutes'],
+            'overtime_minutes'    => $r['overtime_minutes'],
+            'work_day_weight'     => $r['work_day_weight'],
+            'status'              => $r['status'],
+            'source'              => $source,
+            'is_auto_calculated'  => true,
+        ]);
+    }
+
     public function findByEmployeeCodeAndDate(string $employeeCode, string $date): ?AttendanceRecords
     {
         return AttendanceRecords::where('nip', $employeeCode)

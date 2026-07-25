@@ -20,6 +20,14 @@ return Application::configure(basePath: dirname(__DIR__))
         // Reset yearly leave balances on January 1st every year at midnight
         $schedule->command('leave:reset-balance yearly')
             ->yearlyOn(1, 1, '00:00');
+
+        // Proses access_logs -> attendance_records tiap menit, incremental (lihat
+        // AccessLogScheduleReader::readAndGroupIncremental + SyncAccessLog watermark - tidak
+        // scan ulang semua baris tiap kali). Langsung lewat cron (bukan queue), sesuai keputusan
+        // user - tidak perlu proses queue:work tambahan cuma buat ini.
+        $schedule->command('attendance:sync-access-logs')
+            ->everyMinute()
+            ->withoutOverlapping();
     })
     ->withMiddleware(function (Middleware $middleware) {
         // NB: statefulApi() cuma nge-set flag; middleware Sanctum-nya baru masuk ke grup 'api'
