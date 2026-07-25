@@ -88,6 +88,29 @@ class PayrollPeriodsTable
                             ->send();
                     }),
 
+                // Langkah 1 dari 2 kalau mau hapus periode yang sudah ada payroll dibayar -
+                // set is_paid=false semua payroll di periode ini, supaya guard di deletePeriod
+                // (di bawah) lolos. Dipisah dari deletePeriod sendiri (bukan bypass langsung)
+                // supaya ada jeda/konfirmasi eksplisit sebelum status "sudah dibayar" dicabut.
+                Action::make('unmarkAsPaid')
+                    ->label('Batalkan Status Dibayar')
+                    ->icon('heroicon-o-arrow-uturn-left')
+                    ->color('danger')
+                    ->requiresConfirmation()
+                    ->modalHeading('Batalkan Status Dibayar')
+                    ->modalDescription('Ini akan menandai SEMUA payroll di periode ini sebagai BELUM dibayar, walau sudah pernah ditandai dibayar sebelumnya. Dipakai kalau memang mau menghapus periode ini nanti. Tidak menghapus data payroll-nya, cuma status is_paid.')
+                    ->modalSubmitActionLabel('Ya, Batalkan Status Dibayar')
+                    ->visible(fn ($record) => $record->payrolls()->where('is_paid', true)->exists())
+                    ->action(function ($record) {
+                        $count = $record->payrolls()->where('is_paid', true)->update(['is_paid' => false]);
+
+                        Notification::make()
+                            ->title('Status dibayar dibatalkan')
+                            ->body("{$count} payroll di periode ini ditandai belum dibayar.")
+                            ->warning()
+                            ->send();
+                    }),
+
                 // Bersih total: hapus payrolls (payroll_items ikut cascade DB) +
                 // payroll_manual_lines (cascade DB dari payroll_period_id) + periode-nya
                 // sendiri. Ditolak kalau ada payroll is_paid=true di periode ini — payroll yang

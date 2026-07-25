@@ -115,14 +115,12 @@
                             </div>
                         @endif
                         @if ($canAccessAbsensi)
-                            <a href="{{ route('presensi.dashboard') }}" wire:navigate class="nav-item nav-item-sky {{ request()->routeIs('presensi.dashboard*') ? 'active' : '' }}">
-                                <i class="fa-solid fa-chart-line text-xs"></i> Dashboard Presensi
-                            </a>
                             <div class="dropdown">
-                                <a href="#" class="nav-item nav-item-sky {{ request()->routeIs('presensi.*') && ! request()->routeIs('presensi.dashboard*') ? 'active' : '' }}">
+                                <a href="#" class="nav-item nav-item-sky {{ request()->routeIs('presensi.*') ? 'active' : '' }}">
                                     <i class="fa-solid fa-calendar-check text-xs"></i> Presensi & Absensi <i class="fa-solid fa-chevron-down text-[10px]"></i>
                                 </a>
                                 <div class="dropdown-menu">
+                                    <a href="{{ route('presensi.dashboard') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-chart-line"></i> Dashboard</a>
                                     <div style="font-size:10.5px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em;padding:6px 12px 4px;">Presensi</div>
                                     <a href="{{ route('presensi.jadwal') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-calendar-days"></i> Jadwal</a>
                                     <a href="{{ route('presensi.hari-libur') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-flag"></i> Hari Libur & Cuti Bersama</a>
