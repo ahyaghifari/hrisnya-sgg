@@ -3,8 +3,80 @@ import { apiFetch } from "./api";
 import TomSelect from "tom-select";
 import "tom-select/dist/css/tom-select.css";
 import List from "list.js";
+import Cropper from "cropperjs";
+import "cropperjs/dist/cropper.css";
 
 window.apiFetch = apiFetch;
+
+// Alpine component dipakai x-photo-upload-cropper.blade.php — crop foto profil (rasio 1:1)
+// SEBELUM di-upload ke Livewire, dipanggil lewat $wire.upload() manual (bukan wire:model di
+// <input> aslinya, biar file yang dikirim adalah hasil crop, bukan file mentah).
+window.photoCropper = function (wireModel) {
+    return {
+        cropping: false,
+        uploading: false,
+        previewUrl: null,
+        cropper: null,
+        selectedFileName: "photo.jpg",
+
+        onFileSelected(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            this.selectedFileName = file.name || "photo.jpg";
+
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                this.cropping = true;
+                this.$nextTick(() => {
+                    this.$refs.cropImage.src = ev.target.result;
+                    if (this.cropper) this.cropper.destroy();
+                    this.cropper = new Cropper(this.$refs.cropImage, {
+                        aspectRatio: 1,
+                        viewMode: 1,
+                        background: false,
+                        autoCropArea: 1,
+                    });
+                });
+            };
+            reader.readAsDataURL(file);
+        },
+
+        cancelCrop() {
+            this.cropping = false;
+            if (this.cropper) {
+                this.cropper.destroy();
+                this.cropper = null;
+            }
+            this.$refs.fileInput.value = "";
+        },
+
+        confirmCrop() {
+            if (!this.cropper) return;
+
+            this.cropper.getCroppedCanvas({ width: 512, height: 512 }).toBlob((blob) => {
+                if (!blob) return;
+
+                const baseName = this.selectedFileName.replace(/\.[^.]+$/, "") || "photo";
+                const file = new File([blob], `${baseName}.jpg`, { type: "image/jpeg" });
+
+                this.previewUrl = URL.createObjectURL(blob);
+                this.uploading = true;
+                this.cropping = false;
+                this.cropper.destroy();
+                this.cropper = null;
+                this.$refs.fileInput.value = "";
+
+                this.$wire.upload(
+                    wireModel,
+                    file,
+                    () => { this.uploading = false; },
+                    () => { this.uploading = false; },
+                );
+            }, "image/jpeg", 0.9);
+        },
+    };
+};
 
 function initTomSelects() {
     document.querySelectorAll("select[data-tom-select]").forEach((el) => {

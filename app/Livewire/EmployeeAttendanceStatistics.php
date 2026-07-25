@@ -5,6 +5,7 @@ namespace App\Livewire;
 use App\Enum\AttendanceReqStatus;
 use App\Enum\AttendanceStatus;
 use App\Exports\Attendance\AttendanceHistoryExport;
+use App\Livewire\Concerns\HandlesProfilePhotoUpload;
 use App\Livewire\Concerns\ResolvesTodayAttendanceStatus;
 use App\Models\Attendance\AttendanceRecords;
 use App\Models\Attendance\AttendanceRequests;
@@ -21,6 +22,7 @@ use Maatwebsite\Excel\Facades\Excel;
 class EmployeeAttendanceStatistics extends Component
 {
     use ResolvesTodayAttendanceStatus;
+    use HandlesProfilePhotoUpload;
 
     public User $record;
 

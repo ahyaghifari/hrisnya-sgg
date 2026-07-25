@@ -285,6 +285,15 @@ button.nav-item[type="submit"]:hover {
    overflow-x:auto di wrapper masing-masing, jadi tidak kepengaruh. */
 html { overflow-x: hidden; }
 body.site { font-family: 'Plus Jakarta Sans', sans-serif; background: var(--surface-page); min-height: 100vh; overflow-x: hidden; }
+[x-cloak] { display: none !important; }
+
+.photo-cropper-overlay { position: fixed; inset: 0; background: rgba(15,23,42,0.6); z-index: 200; display: flex; align-items: center; justify-content: center; padding: 16px; }
+.photo-cropper-box { background: var(--surface); border-radius: 16px; padding: 20px; width: 100%; max-width: 420px; }
+.photo-cropper-canvas-wrap { width: 100%; max-height: 320px; overflow: hidden; border-radius: 12px; background: #000; }
+@media (min-width: 768px) {
+    .photo-cropper-box { max-width: 640px; padding: 28px; }
+    .photo-cropper-canvas-wrap { max-height: 520px; }
+}
 
 /* ── NAV ──
    z-index di atas .page-content (100, lihat komentar di sana) supaya nav & dropdown-nya tidak

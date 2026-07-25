@@ -70,6 +70,47 @@ class EmployeeAttendanceStatisticsTest extends TestCase
             ->assertSee('Cuti Tahunan');
     }
 
+    /**
+     * Regresi keamanan: HandlesProfilePhotoUpload::updatedPhoto() harus abort 403 kalau
+     * $record bukan diri sendiri, meski komponennya sama dan bisa dibuka manager buat lihat
+     * data staf-nya (test_manager_can_view_subordinate_statistics di atas) - kalau ini tidak
+     * dicek, manager yang buka Data Diri staf bisa nge-upload foto atas nama staf tsb.
+     */
+    public function test_manager_cannot_upload_photo_for_subordinate(): void
+    {
+        $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
+
+        $managerPosition = JobPositions::create(['company_id' => $company->id, 'name' => 'Manager', 'planned_manpower' => 1]);
+        $staffPosition = JobPositions::create(['company_id' => $company->id, 'name' => 'Staff', 'planned_manpower' => 1, 'parent_id' => $managerPosition->id]);
+
+        $manager = User::factory()->create(['company_id' => $company->id]);
+        $this->assignJobPosition($manager, $managerPosition);
+
+        $staff = User::factory()->create(['company_id' => $company->id]);
+        $this->assignJobPosition($staff, $staffPosition);
+
+        $this->actingAs($manager);
+
+        Livewire::test(EmployeeAttendanceStatistics::class, ['record' => $staff])
+            ->set('photo', \Illuminate\Http\UploadedFile::fake()->image('photo.jpg'))
+            ->assertForbidden();
+    }
+
+    public function test_owner_can_upload_own_photo_via_data_diri(): void
+    {
+        $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
+        $staff = User::factory()->create(['company_id' => $company->id]);
+        \App\Models\User\UserProfiles::create(['user_id' => $staff->id]);
+
+        $this->actingAs($staff);
+
+        Livewire::test(EmployeeAttendanceStatistics::class, ['record' => $staff])
+            ->set('photo', \Illuminate\Http\UploadedFile::fake()->image('photo.jpg'))
+            ->assertHasNoErrors();
+
+        $this->assertNotNull($staff->fresh()->profile->fresh()->profile_picture[0] ?? null);
+    }
+
     public function test_status_filter_excludes_non_matching_requests(): void
     {
         $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);

@@ -123,7 +123,13 @@
     {{-- Kartu identitas: jawaban cepat untuk "siapa orang ini" sebelum menyelami detail --}}
     <div class="card-surface" style="margin-bottom:20px;">
         <div style="display:flex;flex-wrap:wrap;align-items:flex-start;gap:16px;">
-            @if ($photoUrl)
+            @if ($record->id === auth()->id())
+                {{-- Cuma pemilik akun yang boleh edit foto sendiri di sini - HC/atasan yang buka
+                Data Diri orang lain cuma lihat foto (@else di bawah), ditegakkan juga di server
+                lewat abort_unless di HandlesProfilePhotoUpload::updatedPhoto(). --}}
+                <x-photo-upload-cropper :avatar-url="$photoUrl" :initials="$initials ?: '?'" :size="56" />
+                @error('photo') <p style="color:var(--danger-text);font-size:11px;margin-top:4px;width:100%;">{{ $message }}</p> @enderror
+            @elseif ($photoUrl)
                 <img src="{{ $photoUrl }}" alt="{{ $record->name }}" style="flex-shrink:0;width:56px;height:56px;border-radius:50%;object-fit:cover;">
             @else
                 <div style="flex-shrink:0;width:56px;height:56px;border-radius:50%;background:#042c6c;color:#fff;font-weight:800;font-size:17px;display:flex;align-items:center;justify-content:center;">

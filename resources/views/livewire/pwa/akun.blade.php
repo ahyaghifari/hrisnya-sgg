@@ -16,22 +16,7 @@
 {{-- Header identitas — ringkas, cuma preview. Detail lengkap ada di halaman Data Diri sendiri. --}}
 <div style="background:var(--surface);border-radius:16px;box-shadow:var(--shadow-card);padding:18px;margin-bottom:16px;">
     <div style="display:flex;align-items:center;gap:14px;">
-        <label style="position:relative;flex-shrink:0;cursor:pointer;">
-            @if ($photo)
-                <img src="{{ $photo->temporaryUrl() }}" alt="{{ $record->name }}" style="width:56px;height:56px;border-radius:50%;object-fit:cover;opacity:0.6;">
-            @elseif ($photoUrl)
-                <img src="{{ $photoUrl }}" alt="{{ $record->name }}" style="width:56px;height:56px;border-radius:50%;object-fit:cover;">
-            @else
-                <div style="width:56px;height:56px;border-radius:50%;background:#042c6c;color:#fff;font-weight:800;font-size:17px;display:flex;align-items:center;justify-content:center;">
-                    {{ $initials ?: '?' }}
-                </div>
-            @endif
-            <div style="position:absolute;bottom:-2px;right:-2px;width:20px;height:20px;border-radius:50%;background:#042c6c;border:2px solid var(--surface);display:flex;align-items:center;justify-content:center;">
-                <i class="fa-solid fa-camera" style="color:#fff;font-size:9px;" wire:loading.remove wire:target="photo"></i>
-                <i class="fa-solid fa-spinner fa-spin" style="color:#fff;font-size:9px;" wire:loading wire:target="photo"></i>
-            </div>
-            <input type="file" wire:model="photo" accept="image/*" style="position:absolute;inset:0;opacity:0;width:56px;height:56px;cursor:pointer;">
-        </label>
+        <x-photo-upload-cropper :avatar-url="$photoUrl" :initials="$initials ?: '?'" :size="56" />
         <div style="min-width:0;flex:1;">
             <h2 style="font-size:16px;font-weight:800;color:var(--text-heading);letter-spacing:-0.3px;margin:0;">{{ $record->name }}</h2>
             <p style="font-size:12.5px;color:var(--text-muted);margin-top:3px;">
