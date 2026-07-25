@@ -182,6 +182,37 @@ class PayrollPeriodsPageTest extends TestCase
             ->assertForbidden();
     }
 
+    /**
+     * Penandatangan & Tanggal Bayar murni informasional (tidak dipakai perhitungan payroll),
+     * jadi sengaja TIDAK ikut abort_if(processed_at) seperti openEditModal - tetap bisa diubah
+     * lewat modal terpisah (openSignerModal/saveSignerModal) walau periode sudah digenerate.
+     */
+    public function test_can_update_signer_and_payment_date_on_processed_period(): void
+    {
+        $finance = $this->actingAsFinance(withCrudPermission: true);
+        $company = $this->makeCompany();
+        $signer = User::factory()->create(['name' => 'Kepala Keuangan']);
+        $period = PayrollPeriod::create([
+            'company_id' => $company->id,
+            'start_date' => '2026-07-01',
+            'end_date' => '2026-07-31',
+            'processed_at' => now(),
+        ]);
+
+        Livewire::actingAs($finance)
+            ->test(PayrollPeriodsPage::class)
+            ->call('openSignerModal', $period->id)
+            ->set('signerFormPaymentDate', '2026-08-05')
+            ->set('signerFormSignerId', $signer->id)
+            ->call('saveSignerModal');
+
+        $this->assertDatabaseHas('payroll_periods', [
+            'id' => $period->id,
+            'signer_id' => $signer->id,
+            'payment_date' => '2026-08-05 00:00:00',
+        ]);
+    }
+
     public function test_generate_payroll_dispatches_job(): void
     {
         \Illuminate\Support\Facades\Bus::fake();

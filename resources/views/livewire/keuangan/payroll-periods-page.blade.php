@@ -59,6 +59,14 @@
                                                 </button>
                                             @endif
                                         @endif
+
+                                        {{-- Penandatangan & Tanggal Bayar murni informasional (tidak dipakai perhitungan),
+                                        jadi selalu bisa diubah kapan saja - tidak ikut terkunci begitu periode digenerate. --}}
+                                        @can('update', $period)
+                                            <button type="button" wire:click="openSignerModal('{{ $period->id }}')" class="btn-ghost" style="padding:5px 12px;font-size:11.5px;">
+                                                <i class="fa-solid fa-signature"></i> Penandatangan
+                                            </button>
+                                        @endcan
                                     </div>
                                 </td>
                             </tr>
@@ -125,6 +133,40 @@
                 <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px;">
                     <button type="button" wire:click="closeFormModal" class="btn-ghost">Batal</button>
                     <button type="button" wire:click="saveForm" class="btn-primary">Simpan</button>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    @if ($showSignerModal)
+        <div class="modal-overlay" wire:click="closeSignerModal">
+            <div class="modal-box" onclick="event.stopPropagation()">
+                <h3 style="font-size:16px;font-weight:700;color:var(--text-heading);margin:0 0 4px;">Penandatangan & Tanggal Bayar</h3>
+                <p style="font-size:11.5px;color:var(--text-muted);margin:0 0 14px;">Dua field ini murni informasional, boleh diubah kapan saja - termasuk setelah payroll digenerate.</p>
+
+                <div style="display:flex;flex-direction:column;gap:12px;">
+                    <div>
+                        <label class="form-label">Tanggal Bayar</label>
+                        <input type="date" class="form-input" wire:model="signerFormPaymentDate">
+                        @error('signerFormPaymentDate') <p style="font-size:11px;color:#dc2626;margin-top:4px;">{{ $message }}</p> @enderror
+                    </div>
+
+                    <div>
+                        <label class="form-label">Penandatangan</label>
+                        <select class="form-input" wire:model="signerFormSignerId">
+                            <option value="">Belum ditentukan</option>
+                            @foreach ($this->signerOptions as $user)
+                                <option value="{{ $user->id }}">{{ $user->name }}</option>
+                            @endforeach
+                        </select>
+                        <p style="font-size:11px;color:var(--text-muted);margin-top:4px;">Nama yang muncul di bagian "Dibuat oleh" slip gaji - terpisah dari siapa yang menekan Generate.</p>
+                        @error('signerFormSignerId') <p style="font-size:11px;color:#dc2626;margin-top:4px;">{{ $message }}</p> @enderror
+                    </div>
+                </div>
+
+                <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px;">
+                    <button type="button" wire:click="closeSignerModal" class="btn-ghost">Batal</button>
+                    <button type="button" wire:click="saveSignerModal" class="btn-primary">Simpan</button>
                 </div>
             </div>
         </div>

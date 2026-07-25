@@ -8,6 +8,7 @@ use App\Models\Payroll\Payroll;
 use Filament\Actions\Action;
 use Filament\Actions\EditAction;
 use Filament\Actions\ViewAction;
+use Filament\Forms;
 use Filament\Notifications\Notification;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
@@ -52,6 +53,36 @@ class PayrollPeriodsTable
                 EditAction::make()
                     ->authorize('update')
                     ->visible(fn ($record) => is_null($record->processed_at)),
+                // Penandatangan & Tanggal Bayar murni informasional (tidak dipakai perhitungan
+                // payroll), jadi sengaja TIDAK ikut abort/visible(processed_at) seperti
+                // EditAction di atas — tetap bisa diubah kapan saja, termasuk pasca-generate.
+                Action::make('editSignerAndPayment')
+                    ->label('Penandatangan')
+                    ->icon('heroicon-o-pencil-square')
+                    ->authorize('update')
+                    ->schema([
+                        Forms\Components\DatePicker::make('payment_date')
+                            ->label('Tanggal Bayar'),
+                        Forms\Components\Select::make('signer_id')
+                            ->label('Penandatangan')
+                            ->relationship('signer', 'name')
+                            ->searchable()
+                            ->preload()
+                            ->helperText('Nama yang muncul di bagian "Dibuat oleh" slip gaji - terpisah dari siapa yang menekan Generate.'),
+                    ])
+                    ->fillForm(fn ($record) => [
+                        'payment_date' => $record->payment_date,
+                        'signer_id' => $record->signer_id,
+                    ])
+                    ->action(function ($record, array $data) {
+                        $record->update($data);
+
+                        Notification::make()
+                            ->title('Penandatangan & tanggal bayar berhasil diubah')
+                            ->success()
+                            ->send();
+                    }),
+
                 Action::make('generatePayroll')
                     ->label('Generate Payroll')
                     ->icon('heroicon-o-cog-6-tooth')

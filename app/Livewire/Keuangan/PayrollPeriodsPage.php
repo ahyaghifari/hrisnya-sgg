@@ -33,6 +33,11 @@ class PayrollPeriodsPage extends Component
     public ?string $formPaymentDate = null;
     public ?string $formSignerId = null;
 
+    public bool $showSignerModal = false;
+    public ?string $signerEditingId = null;
+    public ?string $signerFormPaymentDate = null;
+    public ?string $signerFormSignerId = null;
+
     public function mount(): void
     {
         abort_unless(Auth::user()->can(CustomPermissionEnum::SISTEM_KEUANGAN->value), 403);
@@ -151,6 +156,56 @@ class PayrollPeriodsPage extends Component
 
         Notification::make()
             ->title($this->editingId ? 'Periode berhasil diubah' : 'Periode baru berhasil ditambahkan')
+            ->success()
+            ->send();
+    }
+
+    // ── Penandatangan & Tanggal Bayar (bisa diubah kapan saja) ──────────────
+    // Sengaja modal TERPISAH dari openEditModal/saveForm di atas - dua field ini murni
+    // informasional (tampil di slip / jadwal transfer), tidak dipakai perhitungan payroll sama
+    // sekali, jadi tidak perlu ikut terkunci abort_if(processed_at) seperti company/start/end
+    // yang memang jadi dasar perhitungan dan tidak boleh berubah pasca-generate.
+
+    public function openSignerModal(string $id): void
+    {
+        $period = PayrollPeriod::findOrFail($id);
+
+        abort_unless(Auth::user()->can('update', $period), 403);
+
+        $this->signerEditingId = $period->id;
+        $this->signerFormPaymentDate = $period->payment_date?->format('Y-m-d');
+        $this->signerFormSignerId = $period->signer_id;
+        $this->resetErrorBag();
+        $this->showSignerModal = true;
+    }
+
+    public function closeSignerModal(): void
+    {
+        $this->showSignerModal = false;
+    }
+
+    public function saveSignerModal(): void
+    {
+        $period = PayrollPeriod::findOrFail($this->signerEditingId);
+        abort_unless(Auth::user()->can('update', $period), 403);
+
+        $this->validate([
+            'signerFormPaymentDate' => 'nullable|date',
+            'signerFormSignerId' => 'nullable|exists:users,id',
+        ], [], [
+            'signerFormPaymentDate' => 'tanggal bayar',
+            'signerFormSignerId' => 'penandatangan',
+        ]);
+
+        $period->update([
+            'payment_date' => $this->signerFormPaymentDate,
+            'signer_id' => $this->signerFormSignerId,
+        ]);
+
+        $this->showSignerModal = false;
+
+        Notification::make()
+            ->title('Penandatangan & tanggal bayar berhasil diubah')
             ->success()
             ->send();
     }
