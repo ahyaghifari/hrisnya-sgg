@@ -8,9 +8,12 @@ use App\Repositories\LMS\QuizRepository;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Component;
+use Livewire\WithPagination;
 
 class TrainingDetail extends Component
 {
+    use WithPagination;
+
     public LmsCourses $course;
 
     public ?string $courseUserId = null;
@@ -37,6 +40,11 @@ class TrainingDetail extends Component
                 ->pluck('is_attended', 'meeting_id')
                 ->toArray();
         }
+    }
+
+    public function updatedMemberSearch(): void
+    {
+        $this->resetPage('membersPage');
     }
 
     public function getIsFollowedProperty(): bool

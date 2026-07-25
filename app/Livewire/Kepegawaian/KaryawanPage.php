@@ -11,6 +11,7 @@ use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
+use Livewire\WithPagination;
 
 /**
  * Daftar SEMUA karyawan company (bukan cuma bawahan seperti MyEmployees/MyStaff) — padanan
@@ -20,6 +21,8 @@ use Livewire\Component;
 #[Layout('components.layout', ['title' => 'Karyawan'])]
 class KaryawanPage extends Component
 {
+    use WithPagination;
+
     public ?string $companyId = null;
     public ?string $departmentId = null;
     public string $search = '';
@@ -41,6 +44,17 @@ class KaryawanPage extends Component
         }
 
         $this->departmentId = null;
+        $this->resetPage();
+    }
+
+    public function updatedDepartmentId(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatedSearch(): void
+    {
+        $this->resetPage();
     }
 
     public function getCompanyOptionsProperty()
@@ -62,6 +76,7 @@ class KaryawanPage extends Component
     public function setStatus(string $status): void
     {
         $this->status = $status;
+        $this->resetPage();
     }
 
     protected function baseQuery()

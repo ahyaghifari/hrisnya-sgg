@@ -129,6 +129,54 @@ class KaryawanPageTest extends TestCase
         $this->assertFalse($employee->fresh()->trashed());
     }
 
+    /**
+     * Regresi: KaryawanPage sebelumnya paginate() tanpa trait Livewire\WithPagination —
+     * Livewire skip total path-resolver-nya buat komponen begitu (lihat
+     * SupportPagination::skip()), jadi link paginasi dibuat pakai URL request AJAX
+     * yang lagi berjalan (/livewire/update) alih-alih URL halaman asli, dan browser
+     * berakhir GET ke /livewire/update?page=2 -> 405 Method Not Allowed. Ganti company/filter
+     * pas masih di halaman >1 (tanpa reset ke halaman 1) adalah pemicu paling gampang kena.
+     */
+    public function test_changing_company_filter_resets_pagination_to_first_page(): void
+    {
+        $company = $this->makeCompany();
+        $hc = $this->actingAsKepegawaian($company->id);
+
+        User::factory()->count(15)->create(['company_id' => $company->id]);
+
+        $this->actingAs($hc);
+
+        $component = Livewire::test(KaryawanPage::class)
+            ->call('gotoPage', 2);
+
+        $this->assertSame(2, $component->instance()->getPage());
+
+        $component->set('companyId', $company->id);
+
+        $this->assertSame(1, $component->instance()->getPage());
+    }
+
+    /**
+     * Regresi: href paginasi sebelumnya dibangun dari $paginator->previousPageUrl()/nextPageUrl(),
+     * yang di bawah Livewire pakai path resolver Livewire::originalPath() (tanpa leading slash).
+     * Browser resolve href relatif tanpa slash depan itu terhadap "direktori" URL saat ini, bukan
+     * root, jadi /kepegawaian/karyawan?page=2 berubah jadi /kepegawaian/kepegawaian/karyawan?page=2.
+     * Fix: bangun href dari Livewire::originalUrl() (absolut) di pagination.blade.php.
+     */
+    public function test_pagination_links_do_not_duplicate_path_segment(): void
+    {
+        $company = $this->makeCompany();
+        $hc = $this->actingAsKepegawaian($company->id);
+
+        User::factory()->count(15)->create(['company_id' => $company->id]);
+
+        $response = $this->actingAs($hc)->get(route('kepegawaian.karyawan'));
+
+        $response->assertOk();
+        $response->assertSee('href="http://localhost/kepegawaian/karyawan?page=2"', false);
+        $response->assertDontSee('/kepegawaian/kepegawaian/karyawan', false);
+    }
+
     public function test_cannot_restore_employee_from_other_company(): void
     {
         $companyA = $this->makeCompany('AAA');

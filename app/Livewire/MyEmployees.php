@@ -8,6 +8,7 @@ use App\Services\OrgHierarchyService;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
+use Livewire\WithPagination;
 
 /**
  * Tabel desktop dulu reuse Filament (EmployeesTable + InteractsWithTable) — dicabut total,
@@ -21,6 +22,8 @@ use Livewire\Component;
 #[Layout('components.layout', ['title' => 'MyStaff'])]
 class MyEmployees extends Component
 {
+    use WithPagination;
+
     public ?string $companyId = null;
     public string $search = '';
 
@@ -29,6 +32,16 @@ class MyEmployees extends Component
         $user = Auth::user();
 
         abort_unless($user->canAccessKaryawanMenu(), 403);
+    }
+
+    public function updatedCompanyId(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatedSearch(): void
+    {
+        $this->resetPage();
     }
 
     public function getCompanyOptionsProperty()
