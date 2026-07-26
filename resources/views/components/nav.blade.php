@@ -34,7 +34,7 @@
     <div class="topnav-inner">
         <a href="{{ route('dashboard') }}" wire:navigate class="nav-brand">
             <img src="{{ asset('assets/app-icon.png') }}" alt="Syifa Global Group" class="nav-brand-icon-light" style="height:48px;width:auto;">
-            <img src="{{ asset('assets/app-icon-dark.png') }}" alt="Syifa Global Group" class="nav-brand-icon-dark" style="height:48px;width:auto;">
+            <img src="{{ asset('assets/app-icon-dark-v2.png') }}" alt="Syifa Global Group" class="nav-brand-icon-dark" style="height:48px;width:auto;">
         </a>
 
         <div class="nav-middle">

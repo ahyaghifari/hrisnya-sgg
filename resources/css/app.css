@@ -759,10 +759,17 @@ html.dark .deco-d { background: #34d399; opacity: 0.09; }
    dalamnya malah kekunci di bawah nav). .page-deco (fixed, z-index:0) tetap kekalahan natural
    lewat urutan DOM (dirender sebelum .page-content di layout.blade.php), tidak butuh z-index
    eksplisit di sini. */
-.page-content { max-width: 1400px; margin: 0 auto; padding: 24px 16px; position: relative; min-height: 100vh; }
+.page-content { max-width: 1400px; margin: 0 auto; padding: 24px 16px; position: relative; min-height: 100vh; transition: opacity 150ms ease-in-out; opacity: 1; }
 @media (min-width: 768px) { .page-content { padding: 32px 40px; } }
 /* Room for the fixed .pwa-bottom-nav so page content doesn't render underneath it. */
 @media (max-width: 767.98px) { .page-content { padding-bottom: calc(84px + env(safe-area-inset-bottom)); } }
+
+/* Fade transisi antar-halaman wire:navigate — class-nya di <html> (persisten lewat morph, sama
+   pola dengan html.dark), BUKAN di .page-content sendiri (elemen itu yang di-morph, kalau
+   class-nya nempel di situ dia ikut hilang pas konten baru masuk, transisinya jadi tidak kelihatan).
+   Durasi sengaja pendek (150ms) — animasi transisi halaman yang kelamaan malah terasa app-nya
+   lambat, bukan mulus (lihat app.js untuk pemicu livewire:navigate/livewire:navigated). */
+html.lw-navigating .page-content { opacity: 0; }
 
 /* ── BENTO GRID ──
    minmax(0, ...) BUKAN cuma "1fr" - track grid 1fr polos implicit minmax(auto, 1fr), artinya

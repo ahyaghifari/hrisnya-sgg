@@ -8,6 +8,17 @@ import "cropperjs/dist/cropper.css";
 
 window.apiFetch = apiFetch;
 
+// Fade transisi antar-halaman wire:navigate — class ditaruh di <html> (lihat komentar CSS
+// .lw-navigating di app.css), bukan di .page-content, supaya tidak ikut ke-morph hilang saat
+// konten baru masuk. "livewire:navigate" nembak pas navigasi MULAI (fade out), "livewire:navigated"
+// nembak pas morph SELESAI & halaman baru siap (fade in).
+document.addEventListener("livewire:navigate", () => {
+    document.documentElement.classList.add("lw-navigating");
+});
+document.addEventListener("livewire:navigated", () => {
+    document.documentElement.classList.remove("lw-navigating");
+});
+
 // Alpine component dipakai x-photo-upload-cropper.blade.php — crop foto profil (rasio 1:1)
 // SEBELUM di-upload ke Livewire, dipanggil lewat $wire.upload() manual (bukan wire:model di
 // <input> aslinya, biar file yang dikirim adalah hasil crop, bukan file mentah).

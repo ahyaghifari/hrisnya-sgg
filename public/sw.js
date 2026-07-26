@@ -2,7 +2,7 @@
 // (page navigations + build assets) is cached, so offline reloads show the last-seen
 // version instead of the browser's no-connection page. Not stale-while-revalidate or
 // precaching; upgrade to Workbox if per-route strategies are needed later.
-const CACHE = 'hris-runtime-v6';
+const CACHE = 'hris-runtime-v7';
 
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', (event) => {
@@ -44,7 +44,7 @@ self.addEventListener('push', (event) => {
             // cuma dari channel alpha PNG ini sebagai siluet monokrom (warnanya diabaikan di situ,
             // dipakai apa adanya kalau browser tampilkan versi berwarna); kalau background-nya
             // opaque, seluruh kotak dianggap "terisi" dan tampil kotak putih polos, bukan logo.
-            badge: payload.badge || '/pwa/icons/badge-192.png',
+            badge: payload.badge || '/pwa/icons/badge-192-v2.png',
             data: payload.data || {},
         })
     );
