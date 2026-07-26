@@ -47,12 +47,19 @@ class LmsQuizzes extends Model
     {
         return $this->belongsToMany(LmsQuestionBanks::class, 'lms_quiz_questions', 'quiz_id', 'question_bank_id')
             ->using(LmsQuizQuestions::class)
-            ->withTimestamps();
+            ->withPivot('sort_order')
+            ->withTimestamps()
+            ->orderByPivot('sort_order');
     }
 
     public function pivotTable()
     {
-        return $this->hasMany(LmsQuizQuestions::class, 'quiz_id', 'id');
+        return $this->hasMany(LmsQuizQuestions::class, 'quiz_id', 'id')->orderBy('sort_order');
+    }
+
+    public function meetingUsages()
+    {
+        return $this->hasMany(LmsMeetingQuizzes::class, 'quiz_id', 'id');
     }
 
     /**

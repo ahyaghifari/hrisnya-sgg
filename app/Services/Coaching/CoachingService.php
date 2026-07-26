@@ -7,6 +7,10 @@ use App\Enum\CounselingStatus;
 use App\Models\Coaching\Coaching;
 use App\Models\Coaching\CoachingProof;
 use App\Models\Counseling\Counseling;
+use App\Models\User;
+use App\Notifications\CoachingAssigned;
+use App\Notifications\CoachingProofSubmitted;
+use App\Notifications\CoachingReviewDecided;
 use App\Repositories\Coaching\CoachingRepository;
 use App\Repositories\Counseling\CounselingRepository;
 use Illuminate\Database\Eloquent\Collection;
@@ -33,7 +37,7 @@ class CoachingService
 
     public function update(string $coachingId, $request)
     {
-        return DB::transaction(function () use ($coachingId, $request) {
+        $coaching = DB::transaction(function () use ($coachingId, $request) {
             $coaching = $this->coachingRepository->getDetail($coachingId, Auth::id());
 
             if ($request->hasFile('proofs')) {
@@ -55,6 +59,40 @@ class CoachingService
 
             return $this->coachingRepository->getDetail($coachingId, Auth::id());
         });
+
+        User::find($coaching->coach_by)?->notify(new CoachingProofSubmitted($coaching));
+
+        return $coaching;
+    }
+
+    /**
+     * Padanan update() di atas, tapi buat portal Livewire ("Coaching Saya") — beda dari
+     * Illuminate\Http\Request (mobile), Livewire\WithFileUploads kasih array TemporaryUploadedFile
+     * langsung (tidak lewat request()->file()), jadi butuh method terpisah alih-alih maksa
+     * signature yang sama. Efeknya identik: simpan tiap file sebagai CoachingProof(SUBMITTED),
+     * lalu tandai Coaching-nya SUBMITTED juga.
+     */
+    public function uploadProofs(Coaching $coaching, array $files): Coaching
+    {
+        $coaching = DB::transaction(function () use ($coaching, $files) {
+            foreach ($files as $file) {
+                $path = $file->store('coachings/proofs', 'public');
+
+                $this->coachingRepository->addProof(
+                    $coaching->id,
+                    $path,
+                    CoachingStatus::SUBMITTED->value
+                );
+            }
+
+            $this->coachingRepository->updateStatus($coaching->id, CoachingStatus::SUBMITTED->value);
+
+            return $coaching->refresh();
+        });
+
+        User::find($coaching->coach_by)?->notify(new CoachingProofSubmitted($coaching));
+
+        return $coaching;
     }
 
     // --- Sisi HC (portal /coaching) — beda dari method di atas (sisi karyawan yang dibina,
@@ -66,9 +104,18 @@ class CoachingService
     {
         $data['status'] = CoachingStatus::IN_PROGRESS->value;
 
-        return Coaching::create($data);
+        $coaching = Coaching::create($data);
+
+        User::find($coaching->user_id)?->notify(new CoachingAssigned($coaching));
+
+        return $coaching;
     }
 
+    /**
+     * Bukti yang sudah diunggah ikut ditandai statusnya (SUBMITTED -> COMPLETED/REJECTED) —
+     * dikembalikan lagi (instruksi user 2026-07-26) setelah sempat disederhanakan jadi
+     * "status Coaching saja" di sesi sebelumnya.
+     */
     public function approve(Coaching $coaching): void
     {
         $coaching->update(['status' => CoachingStatus::COMPLETED->value]);
@@ -76,6 +123,8 @@ class CoachingService
         $coaching->proofs()
             ->where('status', CoachingStatus::SUBMITTED->value)
             ->update(['status' => CoachingStatus::COMPLETED->value]);
+
+        User::find($coaching->user_id)?->notify(new CoachingReviewDecided($coaching, approved: true));
     }
 
     public function reject(Coaching $coaching): void
@@ -85,5 +134,7 @@ class CoachingService
         $coaching->proofs()
             ->where('status', CoachingStatus::SUBMITTED->value)
             ->update(['status' => CoachingStatus::REJECTED->value]);
+
+        User::find($coaching->user_id)?->notify(new CoachingReviewDecided($coaching, approved: false));
     }
 }

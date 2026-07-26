@@ -33,11 +33,15 @@ class AttendanceRecords extends Model
         'source',
         'is_auto_calculated',
         'work_day_weight',
+        'meets_target',
+        'out_of_window',
     ];
 
     protected $casts = [
         'is_auto_calculated' => 'boolean',
         'work_day_weight'    => 'decimal:1',
+        'meets_target'       => 'boolean',
+        'out_of_window'      => 'boolean',
     ];
 
     public function user()

@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Counseling;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StoreCounselingRequest extends FormRequest
 {
@@ -23,6 +24,7 @@ class StoreCounselingRequest extends FormRequest
     {
         return [
             'issue' => 'required|string',
+            'counselor_id' => ['required', 'exists:users,id', Rule::notIn([$this->user()?->id])],
         ];
     }
 }

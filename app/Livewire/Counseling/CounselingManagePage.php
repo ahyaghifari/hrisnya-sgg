@@ -4,42 +4,27 @@ namespace App\Livewire\Counseling;
 
 use App\Enum\CounselingStatus;
 use App\Models\Counseling\Counseling;
-use App\Models\Master\Companies;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 use Livewire\WithPagination;
 
 /**
- * "Kelola Counseling" (HC) — list company-wide semua keluhan karyawan, gerbang permission Shield
- * `ViewAny:Counseling`. Padanan portal dari `/admin/counselings`.
+ * "Counseling" (sisi konselor) — list keluhan yang DITUJUKAN ke karyawan yang login sebagai
+ * konselor (`counselor_id = auth()->id()`), BUKAN lagi company-wide (dulu gerbang permission
+ * Shield `ViewAny:Counseling`, sebelum ada penunjukan konselor per karyawan). Isi keluhan
+ * rahasia — sengaja TIDAK ada filter company/lihat-semua di sini, termasuk Super Admin cuma
+ * lihat punya sendiri sebagai konselor (lihat Counseling::isVisibleTo(), instruksi user
+ * 2026-07-26). Search cuma di nama karyawan, bukan isi keluhan (issue tidak boleh ke-index
+ * bebas walau cuma buat search sendiri, biar tidak ada celah kebiasaan search luas dulu).
  */
-#[Layout('components.layout', ['title' => 'Kelola Counseling'])]
+#[Layout('components.layout', ['title' => 'Counseling'])]
 class CounselingManagePage extends Component
 {
     use WithPagination;
 
-    public ?string $companyId = null;
     public string $status = '';
     public string $search = '';
-
-    public function mount(): void
-    {
-        abort_unless(Auth::user()->can('ViewAny:Counseling'), 403);
-
-        if (! Auth::user()->canFilterByCompany()) {
-            $this->companyId = Auth::user()->company_id;
-        }
-    }
-
-    public function updatedCompanyId(): void
-    {
-        if (! Auth::user()->canFilterByCompany()) {
-            $this->companyId = Auth::user()->company_id;
-        }
-
-        $this->resetPage();
-    }
 
     public function setStatus(string $status): void
     {
@@ -52,16 +37,6 @@ class CounselingManagePage extends Component
         $this->resetPage();
     }
 
-    public function getCompanyOptionsProperty()
-    {
-        return Companies::pluck('name', 'id');
-    }
-
-    public function getCanBrowseAllCompaniesProperty(): bool
-    {
-        return Auth::user()->canFilterByCompany();
-    }
-
     public function getStatusesProperty(): array
     {
         return CounselingStatus::cases();
@@ -72,11 +47,9 @@ class CounselingManagePage extends Component
         $search = trim($this->search);
 
         return Counseling::query()
-            ->when($this->companyId, fn ($q) => $q->where('company_id', $this->companyId))
+            ->where('counselor_id', Auth::id())
             ->when($this->status, fn ($q) => $q->where('status', $this->status))
-            ->when($search !== '', fn ($q) => $q->where(fn ($q2) => $q2
-                ->where('issue', 'like', "%{$search}%")
-                ->orWhereHas('user', fn ($q3) => $q3->where('name', 'like', "%{$search}%"))))
+            ->when($search !== '', fn ($q) => $q->whereHas('user', fn ($q2) => $q2->where('name', 'like', "%{$search}%")))
             ->with('user');
     }
 

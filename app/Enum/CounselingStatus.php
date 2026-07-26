@@ -12,7 +12,7 @@ enum CounselingStatus: string implements HasLabel
     public function getLabel(): string
     {
         return match ($this) {
-            self::PENDING => 'Tertunda',
+            self::PENDING => 'Menunggu Respon',
             self::DONE => 'Selesai',
         };
     }

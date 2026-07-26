@@ -2,7 +2,6 @@
 
 namespace App\Http\Resources\Coaching;
 
-use App\Enum\CoachingStatus;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -28,22 +27,18 @@ class CoachingDetailResource extends JsonResource
         ];
     }
 
+    /**
+     * Grouped per tanggal upload saja — status Coaching sendiri yang jadi satu-satunya sumber
+     * kebenaran, bukan status per-bukti (lihat Coaching::getGroupedProofsAttribute()).
+     */
     protected function groupedProofs()
     {
         return $this->proofs
-            ->groupBy(function ($proof) {
-                return $proof->created_at->format('Y-m-d');
-            })
-            ->map(function ($items, $date) {
-                return $items->groupBy('status')->map(function ($statusItems, $status) use ($date) {
-                    return [
-                        'date' => $date,
-                        'status' => $status,
-                        'proofs' => CoachingProofResource::collection($statusItems),
-                    ];
-                })->values();
-            })
-            ->flatten(1)
+            ->groupBy(fn ($proof) => $proof->created_at->format('Y-m-d'))
+            ->map(fn ($items, $date) => [
+                'date' => $date,
+                'proofs' => CoachingProofResource::collection($items),
+            ])
             ->values();
     }
 }

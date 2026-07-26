@@ -210,4 +210,77 @@ class EmployeeAttendanceStatisticsTest extends TestCase
             ->call('export')
             ->assertFileDownloaded();
     }
+
+    private function makePayroll(User $user, bool $isPaid, array $periodOverrides = []): \App\Models\Payroll\Payroll
+    {
+        $period = \App\Models\Payroll\PayrollPeriod::create(array_merge([
+            'company_id' => $user->company_id,
+            'start_date' => now()->subMonth()->startOfMonth()->toDateString(),
+            'end_date' => now()->subMonth()->endOfMonth()->toDateString(),
+        ], $periodOverrides));
+
+        return \App\Models\Payroll\Payroll::create([
+            'user_id' => $user->id,
+            'payroll_period_id' => $period->id,
+            'gross_salary' => 5000000,
+            'total_deductions' => 500000,
+            'net_salary' => 4500000,
+            'is_paid' => $isPaid,
+        ]);
+    }
+
+    /**
+     * Regresi: Livewire::test(EmployeeAttendanceStatistics::class) TANPA param 'record' balik
+     * 403 (quirk khusus test harness Livewire, sudah ditemukan sebelumnya di komponen lain
+     * sesi ini) — tapi rute HTTP /data-diri yang beneran (tanpa segment {record}) harus tetap
+     * jalan normal di request asli, karena mount() dipanggil tanpa argumen sama sekali, bukan
+     * lewat resolusi implicit-binding yang bikin quirk itu muncul di test harness.
+     */
+    public function test_data_diri_route_loads_via_real_http_request(): void
+    {
+        $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
+        $user = User::factory()->create(['company_id' => $company->id]);
+
+        $this->actingAs($user)
+            ->get(route('data-diri'))
+            ->assertOk()
+            ->assertSee('Data Diri');
+    }
+
+    public function test_payroll_tab_shows_only_paid_history_for_self(): void
+    {
+        $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
+        $user = User::factory()->create(['company_id' => $company->id]);
+
+        $paid = $this->makePayroll($user, true);
+        $this->makePayroll($user, false);
+
+        $this->actingAs($user);
+
+        Livewire::test(EmployeeAttendanceStatistics::class, ['record' => $user])
+            ->assertSee('Penggajian')
+            ->assertSee('Rp4.500.000')
+            ->assertSee(route('data-diri.penggajian.show', $paid->id), false);
+    }
+
+    public function test_payroll_tab_hidden_when_viewing_subordinate(): void
+    {
+        $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
+
+        $managerPosition = JobPositions::create(['company_id' => $company->id, 'name' => 'Manager', 'planned_manpower' => 1]);
+        $staffPosition = JobPositions::create(['company_id' => $company->id, 'name' => 'Staff', 'planned_manpower' => 1, 'parent_id' => $managerPosition->id]);
+
+        $manager = User::factory()->create(['company_id' => $company->id]);
+        $this->assignJobPosition($manager, $managerPosition);
+
+        $staff = User::factory()->create(['company_id' => $company->id]);
+        $this->assignJobPosition($staff, $staffPosition);
+
+        $this->makePayroll($staff, true);
+
+        $this->actingAs($manager);
+
+        Livewire::test(EmployeeAttendanceStatistics::class, ['record' => $staff])
+            ->assertDontSee('Penggajian');
+    }
 }

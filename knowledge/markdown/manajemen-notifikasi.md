@@ -4,7 +4,9 @@ Dokumen ini murni referensi teknis: **jenis notifikasi apa saja yang ada, kapan 
 
 ## Ringkasan
 
-Semua notifikasi di project ini (per 2026-07-22) berasal dari 1 sumber: **alur approval** (cuti/izin/lembur, dan modul lain yang lewat `ApprovalFlowService`). Belum ada notifikasi dari modul lain (LMS, Kanban, dst) — jadi cakupan `NotificationTypeEnum` sengaja masih kecil (4 case), didesain gampang ditambah nanti tanpa migration baru.
+**Catatan 2026-07-26**: klaim "cuma 1 sumber (approval)" di paragraf awal dokumen ini sudah usang — `NotificationTypeEnum` sekarang juga punya notifikasi Task (`task_*`), Payroll (`payroll_paid`), dan Coaching/Counseling (`coaching_*`/`counseling_*`, lihat `knowledge/markdown/analisis-coaching-counseling-redesign.md` §3 untuk detailnya). Mekanisme intinya (§2-§4 di bawah: `via()` gating preferensi, tabel `user_notification_preferences`, halaman Pengaturan Notifikasi) TETAP berlaku sama persis untuk semua jenis baru itu — cuma tabel §1 di bawah yang belum di-update lengkap, jangan dianggap `NotificationTypeEnum` masih 4 case.
+
+Semua notifikasi di project ini (per 2026-07-22) berasal dari 1 sumber: **alur approval** (cuti/izin/lembur, dan modul lain yang lewat `ApprovalFlowService`). ~~Belum ada notifikasi dari modul lain (LMS, Kanban, dst) — jadi cakupan `NotificationTypeEnum` sengaja masih kecil (4 case), didesain gampang ditambah nanti tanpa migration baru.~~ (lihat catatan di atas)
 
 Ada 2 jalur pengiriman berbeda yang **tidak simetris** (temuan penting, lihat §5):
 - **Jalur "approver pertama"** (submit-time) — `NotificationService`, masih pakai `DatabaseNotification::create()` mentah, **cuma channel `database`**, tidak lewat WebPush.
@@ -18,6 +20,12 @@ Ada 2 jalur pengiriman berbeda yang **tidak simetris** (temuan penting, lihat §
 | `APPROVAL_APPROVED` | Requester (pembuat pengajuan) | Pengajuan disetujui sampai selesai (step terakhir/`is_final`) |
 | `APPROVAL_REJECTED` | Requester | Pengajuan ditolak salah satu approver (di step manapun) |
 | `APPROVAL_CANCELLED` | Requester | Pengajuan dibatalkan sendiri oleh requester |
+| `TASK_ASSIGNED`, `TASK_REVIEW_DECIDED`, `TASK_REVIEWER_ASSIGNED`, `TASK_COMMENTED`, `TASK_PROJECT_MEMBER_ADDED` | Karyawan terkait tugas/Kanban | Lihat `App\Services\Task\TaskService` — belum didokumentasikan detail di sini |
+| `PAYROLL_PAID` | Karyawan pemilik payroll | Saat payroll ditandai sudah dibayar (`PayrollDetailPage`/`PayrollsPage`) |
+| `COACHING_ASSIGNED` | Karyawan yang dibina | `CoachingService::create()` — atasan/HC buat sesi coaching baru |
+| `COACHING_PROOF_SUBMITTED` | Coach (`coach_by`) | `CoachingService::update()`/`uploadProofs()` — karyawan ajukan bukti pelaksanaan |
+| `COACHING_REVIEW_DECIDED` | Karyawan yang dibina | `CoachingService::approve()`/`reject()` |
+| `COUNSELING_RECEIVED` | Konselor yang ditunjuk | `CounselingService::create()` — karyawan submit Konsul (isi keluhan TIDAK disertakan di body notifikasi, rahasia) |
 
 `label()` dan `description()` di enum ini yang ditampilkan di halaman Pengaturan Notifikasi (§4) — bukan cuma dekorasi, jadi kalau tambah case baru, isi 2 method itu juga.
 

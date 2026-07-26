@@ -4,14 +4,17 @@ namespace App\Livewire\LMS;
 
 use App\Enum\CourseUserStatus;
 use App\Enum\CustomPermissionEnum;
+use App\Enum\LMS\TrainingCategoryEnum;
 use App\Helpers\PermissionHelper;
 use App\Models\LMS\LmsCourses;
 use App\Models\LMS\LmsCourseUsers;
 use App\Models\LMS\LmsMaterials;
 use App\Models\LMS\LmsMeetingQuizzes;
 use App\Models\LMS\LmsQuizzes;
+use App\Models\LMS\Trainer\TrainerAssessmentResults;
 use App\Models\LMS\Trainer\Trainers;
 use App\Models\User;
+use App\Services\LMS\MeetingHonorariumService;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
@@ -57,6 +60,8 @@ class LmsCourseDetailPage extends Component
     public ?string $meetingTrainerId = null;
     public ?string $meetingStartDate = null;
     public ?string $meetingEndDate = null;
+    public ?string $meetingStartTime = null;
+    public ?string $meetingEndTime = null;
 
     public ?string $addingMaterialForMeetingId = null;
     public string $materialTitle = '';
@@ -65,6 +70,12 @@ class LmsCourseDetailPage extends Component
     public ?string $addingQuizForMeetingId = null;
     public ?string $quizId = null;
     public ?int $quizDuration = null;
+
+    // Tab "Penilaian dan Gaji Pemateri" — pola picker sama seperti Pertemuan: course 1 hari
+    // langsung preload satu-satunya pertemuan, course multi-pertemuan pilih dulu.
+    public ?string $selectedHonorMeetingId = null;
+    public array $honorCategorySelections = []; // variable_id => category_id (jalur scored)
+    public string $honorFixedAmount = ''; // jalur fixed (Umum/Sertifikasi Dokter Umum)
 
     public function mount(LmsCourses $course): void
     {
@@ -87,6 +98,10 @@ class LmsCourseDetailPage extends Component
                 $this->meetingTitle = $meeting->title;
                 $this->meetingDescription = $meeting->description ?? '';
                 $this->meetingTrainerId = $meeting->trainer_id;
+                $this->meetingStartTime = $meeting->start_time ? substr($meeting->start_time, 0, 5) : null;
+                $this->meetingEndTime = $meeting->end_time ? substr($meeting->end_time, 0, 5) : null;
+
+                $this->selectHonorMeeting($meeting->id);
             }
         }
     }
@@ -200,7 +215,19 @@ class LmsCourseDetailPage extends Component
 
     public function getTrainerOptionsProperty()
     {
-        return Trainers::orderBy('name')->pluck('name', 'id');
+        $options = Trainers::where('is_active', true)->orderBy('name')->pluck('name', 'id');
+
+        // Kalau pertemuan yang sedang diedit pemateri-nya sudah dinonaktifkan, tetap tampilkan
+        // di daftar (supaya pilihan yang tersimpan tidak hilang begitu saja dari dropdown) —
+        // tidak dipaksa ganti, admin baru ganti kalau memang mau.
+        if ($this->meetingTrainerId && ! $options->has($this->meetingTrainerId)) {
+            $inactiveTrainer = Trainers::find($this->meetingTrainerId);
+            if ($inactiveTrainer) {
+                $options->put($inactiveTrainer->id, $inactiveTrainer->name . ' (nonaktif)');
+            }
+        }
+
+        return $options;
     }
 
     private function resetMeetingForm(): void
@@ -210,6 +237,8 @@ class LmsCourseDetailPage extends Component
         $this->meetingTrainerId = null;
         $this->meetingStartDate = null;
         $this->meetingEndDate = null;
+        $this->meetingStartTime = null;
+        $this->meetingEndTime = null;
         $this->resetErrorBag();
     }
 
@@ -253,6 +282,8 @@ class LmsCourseDetailPage extends Component
         $this->meetingTrainerId = $meeting->trainer_id;
         $this->meetingStartDate = $meeting->start_date;
         $this->meetingEndDate = $meeting->end_date;
+        $this->meetingStartTime = $meeting->start_time ? substr($meeting->start_time, 0, 5) : null;
+        $this->meetingEndTime = $meeting->end_time ? substr($meeting->end_time, 0, 5) : null;
         $this->resetErrorBag();
     }
 
@@ -261,6 +292,8 @@ class LmsCourseDetailPage extends Component
         $rules = [
             'meetingDescription' => ['nullable', 'string'],
             'meetingTrainerId' => ['required', 'exists:trainers,id'],
+            'meetingStartTime' => ['required', 'date_format:H:i'],
+            'meetingEndTime' => ['required', 'date_format:H:i', 'after:meetingStartTime'],
         ];
 
         if ($this->isSingleDayCourse) {
@@ -288,6 +321,8 @@ class LmsCourseDetailPage extends Component
             'attendance_type' => 'offline',
             'start_date' => $this->isSingleDayCourse ? $this->course->start_date : $validated['meetingStartDate'],
             'end_date' => $this->isSingleDayCourse ? $this->course->end_date : $validated['meetingEndDate'],
+            'start_time' => $validated['meetingStartTime'],
+            'end_time' => $validated['meetingEndTime'],
         ];
 
         if ($this->editingMeetingId) {
@@ -427,6 +462,116 @@ class LmsCourseDetailPage extends Component
     public function getAverageRatingProperty(): float
     {
         return round($this->feedbacks->avg('rating') ?? 0, 2);
+    }
+
+    public function getHonorContextProperty(): ?TrainingCategoryEnum
+    {
+        return $this->course->category?->training_category;
+    }
+
+    public function getUsesScoredHonorProperty(): bool
+    {
+        return $this->honorContext?->usesScoredHonor() ?? false;
+    }
+
+    public function getSelectedHonorMeetingProperty()
+    {
+        if (! $this->selectedHonorMeetingId) {
+            return null;
+        }
+
+        return $this->course->meetings()->with('trainer')->find($this->selectedHonorMeetingId);
+    }
+
+    public function getHonorVariablesProperty()
+    {
+        if (! $this->usesScoredHonor || ! $this->honorContext) {
+            return collect();
+        }
+
+        return app(MeetingHonorariumService::class)->variablesForContext($this->honorContext->value);
+    }
+
+    /** Hasil final yang sudah tersimpan (kalau ada) untuk trainer pertemuan yang lagi dipilih. */
+    public function getExistingHonorResultProperty(): ?TrainerAssessmentResults
+    {
+        $meeting = $this->selectedHonorMeeting;
+
+        if (! $meeting || ! $meeting->trainer_id) {
+            return null;
+        }
+
+        return TrainerAssessmentResults::where('course_id', $this->course->id)
+            ->where('trainer_id', $meeting->trainer_id)
+            ->first();
+    }
+
+    public function selectHonorMeeting(string $meetingId): void
+    {
+        $this->selectedHonorMeetingId = $meetingId;
+        $this->honorCategorySelections = [];
+        $this->honorFixedAmount = '';
+        $this->resetErrorBag();
+
+        $meeting = $this->selectedHonorMeeting;
+        if (! $meeting) {
+            return;
+        }
+
+        if ($this->usesScoredHonor) {
+            $assessment = $meeting->honorariumAssessment()->with('details')->first();
+            if ($assessment) {
+                foreach ($assessment->details as $detail) {
+                    $this->honorCategorySelections[$detail->variable_id] = $detail->category_id;
+                }
+            }
+        } else {
+            $result = $this->existingHonorResult;
+            if ($result) {
+                $this->honorFixedAmount = (string) $result->honor_amount;
+            }
+        }
+    }
+
+    public function saveHonorScored(): void
+    {
+        $this->assertCanEdit();
+
+        $meeting = $this->selectedHonorMeeting;
+        abort_unless($meeting, 404);
+
+        $variableIds = $this->honorVariables->pluck('id');
+
+        foreach ($variableIds as $variableId) {
+            if (empty($this->honorCategorySelections[$variableId])) {
+                $this->addError('honorCategorySelections', 'Semua variabel wajib dipilih salah satu kategorinya.');
+
+                return;
+            }
+        }
+
+        app(MeetingHonorariumService::class)->saveScoredAssessment(
+            $meeting,
+            array_intersect_key($this->honorCategorySelections, array_flip($variableIds->all()))
+        );
+
+        Notification::make()->title('Penilaian honorarium berhasil disimpan')->success()->send();
+    }
+
+    public function saveHonorFixed(): void
+    {
+        $this->assertCanEdit();
+
+        $meeting = $this->selectedHonorMeeting;
+        abort_unless($meeting, 404);
+
+        $validated = $this->validate([
+            'honorFixedAmount' => ['required', 'numeric', 'min:0'],
+        ]);
+
+        app(MeetingHonorariumService::class)->saveFixedAmount($meeting, (float) $validated['honorFixedAmount']);
+
+        Notification::make()->title('Gaji pemateri berhasil disimpan')->success()->send();
     }
 
     public function render()

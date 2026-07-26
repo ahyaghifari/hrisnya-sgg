@@ -4,6 +4,8 @@ namespace App\Services\Counseling;
 
 use App\Enum\CounselingStatus;
 use App\Models\Counseling\Counseling;
+use App\Models\User;
+use App\Notifications\CounselingReceived;
 use App\Repositories\Counseling\CounselingRepository;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Auth;
@@ -29,16 +31,21 @@ class CounselingService
 
     public function create($request)
     {
-        return DB::transaction(function () use ($request) {
+        $counseling = DB::transaction(function () use ($request) {
             $user = Auth::user();
 
             return $this->counselingRepository->create([
                 'user_id' => $user->id,
+                'counselor_id' => $request->counselor_id,
                 'company_id' => $user->company_id,
                 'issue' => $request->issue,
                 'status' => CounselingStatus::PENDING->value,
             ]);
         });
+
+        User::find($counseling->counselor_id)?->notify(new CounselingReceived($counseling));
+
+        return $counseling;
     }
 
     // --- Sisi HC (portal /counseling/kelola) — balas keluhan karyawan. Alur identik dengan

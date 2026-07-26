@@ -4,8 +4,6 @@ namespace App\Filament\Resources\LMS\LmsCourses\Pages;
 
 use App\Enum\LsmCourseStatus;
 use App\Filament\Resources\LMS\LmsCourses\LmsCoursesResource;
-use App\Models\LMS\Trainer\TrainerAssessmentDetails;
-use App\Services\LMS\TrainerAssessmentService;
 use Filament\Actions\Action;
 use Filament\Resources\Pages\CreateRecord;
 
@@ -65,11 +63,6 @@ class CreateLmsCourses extends CreateRecord
         ];
     }
 
-    protected function afterCreate(): void
-    {
-        $service = app(TrainerAssessmentService::class);
-        $service->generateTrainerAssessmentResult($this->record->id);
-    }
 }
 
 

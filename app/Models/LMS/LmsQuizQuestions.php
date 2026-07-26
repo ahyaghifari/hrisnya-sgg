@@ -18,6 +18,7 @@ class LmsQuizQuestions extends Pivot
     protected $fillable = [
         'quiz_id',
         'question_bank_id',
+        'sort_order',
     ];
 
     protected static function boot()

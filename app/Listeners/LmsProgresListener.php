@@ -107,26 +107,12 @@ class LmsProgresListener implements ShouldQueue
                 $courseUser->completed_at = now();
             }
 
-            $existingHistory = $this->courseRepositories->getUserHistoryByUserIdAndCourseId(
-                $courseUser->user_id,
-                $courseUser->course_id,
-            );
-
             $isePassed = $this->checkUserIsPassed($courseUser->course, $totalScore);
 
-            if (!$existingHistory) {
-                $historyData = [
-                    'user_id' => $courseUser->user_id,
-                    'course_id' => $courseUser->course_id,
-                    'schedule_id' => null,
-                    'score' => $courseUser->score,
-                    'is_passed' => $isePassed,
-                    'passed_at' => $isePassed ? now() : null,
-                    'certificate_url' => null,
-                    'archived_at' => now(),
-                ];
-
-                $this->courseRepositories->storeUserHistory($historyData);
+            // "archived_at" jadi satu-satunya penanda "sudah pernah diproses selesai" — dulu
+            // dicek lewat ada/tidaknya baris LmsUserHistories terpisah (lihat migration
+            // consolidate_lms_user_histories_into_lms_course_users).
+            if (is_null($courseUser->archived_at)) {
                 $this->courseService->updateRanking(
                     $courseUser->user_id,
                     $courseUser->course_id,
@@ -139,6 +125,7 @@ class LmsProgresListener implements ShouldQueue
                     [
                         'is_passed' => $isePassed,
                         'passed_at' => $isePassed ? now() : null,
+                        'archived_at' => now(),
                     ]
                 );
             }

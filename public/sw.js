@@ -2,7 +2,7 @@
 // (page navigations + build assets) is cached, so offline reloads show the last-seen
 // version instead of the browser's no-connection page. Not stale-while-revalidate or
 // precaching; upgrade to Workbox if per-route strategies are needed later.
-const CACHE = 'hris-runtime-v4';
+const CACHE = 'hris-runtime-v6';
 
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', (event) => {
@@ -38,7 +38,13 @@ self.addEventListener('push', (event) => {
         self.registration.showNotification(payload.title || 'HRIS Syifa Global', {
             body: payload.body || '',
             icon: payload.icon || '/pwa/icons/icon-192-v3.png',
-            badge: '/pwa/icons/icon-192-v3.png',
+            // badge-192.png: cuma mark "S" (di-crop dari icon-512-v3.png, warna asli
+            // dipertahankan), background BENAR-BENAR transparan — WAJIB begini, bukan
+            // icon-192-v3.png (background putih solid/opaque). Android render badge status-bar
+            // cuma dari channel alpha PNG ini sebagai siluet monokrom (warnanya diabaikan di situ,
+            // dipakai apa adanya kalau browser tampilkan versi berwarna); kalau background-nya
+            // opaque, seluruh kotak dianggap "terisi" dan tampil kotak putih polos, bukan logo.
+            badge: payload.badge || '/pwa/icons/badge-192.png',
             data: payload.data || {},
         })
     );

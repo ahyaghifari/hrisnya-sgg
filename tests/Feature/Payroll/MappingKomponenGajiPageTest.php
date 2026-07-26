@@ -31,8 +31,13 @@ class MappingKomponenGajiPageTest extends TestCase
     {
         Permission::firstOrCreate(['name' => CustomPermissionEnum::SISTEM_KEUANGAN->value, 'guard_name' => 'web']);
         Permission::firstOrCreate(['name' => CustomPermissionEnum::EDIT_MAPPING_KOMPONEN_GAJI->value, 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => CustomPermissionEnum::LIHAT_PERUSAHAAN_LAIN->value, 'guard_name' => 'web']);
         $role = Role::firstOrCreate(['name' => 'Keuangan Mapping Test', 'guard_name' => 'web']);
-        $role->givePermissionTo([CustomPermissionEnum::SISTEM_KEUANGAN->value, CustomPermissionEnum::EDIT_MAPPING_KOMPONEN_GAJI->value]);
+        $role->givePermissionTo([
+            CustomPermissionEnum::SISTEM_KEUANGAN->value,
+            CustomPermissionEnum::EDIT_MAPPING_KOMPONEN_GAJI->value,
+            CustomPermissionEnum::LIHAT_PERUSAHAAN_LAIN->value,
+        ]);
 
         $user = User::factory()->create();
         $user->assignRole($role);

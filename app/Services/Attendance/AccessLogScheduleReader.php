@@ -155,12 +155,17 @@ class AccessLogScheduleReader
                 // (min buat jaga-jaga clock skew), dan sekarang pasti ada >=2 scan total, jadi
                 // check_out selalu terisi.
                 $checkIn = $existingRecord->check_in_time ? min($existingRecord->check_in_time, $newFirst) : $newFirst;
+                $hadCheckOutBefore = filled($existingRecord->check_out_time);
                 $priorCheckOut = $existingRecord->check_out_time ?: $existingRecord->check_in_time;
                 $checkOut = $priorCheckOut ? max($priorCheckOut, $newLast) : $newLast;
+                $isNewCheckIn = false;
+                $isNewCheckOut = ! $hadCheckOutBefore && filled($checkOut);
             } else {
                 // Belum pernah ada record -> scan baru INI satu-satunya sumber info hari itu.
                 $checkIn = $newFirst;
                 $checkOut = $rowsForDay->count() > 1 ? $newLast : null;
+                $isNewCheckIn = true;
+                $isNewCheckOut = filled($checkOut);
             }
 
             $entries[] = [
@@ -168,6 +173,11 @@ class AccessLogScheduleReader
                 'date' => $date,
                 'check_in' => $checkIn,
                 'check_out' => $checkOut,
+                // Dipakai SyncAccessLogsAttendance buat kirim notifikasi check-in/check-out cuma
+                // sekali per event (bukan tiap batch incremental yang cuma numpang lewat) - lihat
+                // App\Notifications\AttendanceCheckedIn/AttendanceCheckedOut.
+                'is_new_checkin' => $isNewCheckIn,
+                'is_new_checkout' => $isNewCheckOut,
             ];
         }
 

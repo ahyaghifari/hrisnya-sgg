@@ -2,7 +2,6 @@
 
 namespace App\Filament\Resources\Coachings\Schemas;
 
-use App\Enum\CoachingStatus;
 use App\Models\User;
 use Carbon\Carbon;
 use Filament\Forms\Components\DatePicker;
@@ -69,6 +68,7 @@ class CoachingForm
                     DatePicker::make('improvement_due_date')
                         ->label('Deadline Perbaikan')
                         ->required()
+                        ->minDate(now())
                         ->columnSpanFull(),
                 ])
                 ->columnSpanFull(),
@@ -171,15 +171,6 @@ class CoachingForm
                                 ->size('lg')
                                 ->weight('bold'),
 
-                            TextEntry::make('status')
-                                ->hiddenLabel()
-                                ->badge()
-                                ->label(fn ($state) => CoachingStatus::tryFrom($state)?->getLabel())
-                                ->color(fn ($state) => CoachingStatus::tryFrom($state)?->getColor())
-                                ->icon(fn ($state) => CoachingStatus::tryFrom($state)?->getIcon()
-                                )
-                                ->alignEnd(),
-
                             RepeatableEntry::make('proofs')
                                 ->hiddenLabel()
                                 ->schema([
@@ -191,6 +182,12 @@ class CoachingForm
                                             'class' =>
                                                 'w-full h-full object-cover rounded-lg border border-gray-200 shadow-sm overflow-hidden',
                                         ]),
+                                    TextEntry::make('status')
+                                        ->hiddenLabel()
+                                        ->badge()
+                                        ->formatStateUsing(fn ($state) => \App\Enum\CoachingStatus::tryFrom($state)?->getLabel() ?? $state)
+                                        ->color(fn ($state) => \App\Enum\CoachingStatus::tryFrom($state)?->getColor() ?? 'gray')
+                                        ->alignCenter(),
                                 ])
                                 ->grid(4)
                                 ->columnSpanFull(),

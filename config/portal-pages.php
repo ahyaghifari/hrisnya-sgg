@@ -281,24 +281,25 @@ return [
     ],
 
     'coaching' => [
+        // Dua jalur akses beda scope (instruksi user 2026-07-26): permission Shield
+        // ViewAny:Coaching (role HC khusus, company-wide) ATAU sekadar punya bawahan (scoped ke
+        // bawahannya sendiri). Permission null di sini supaya middleware tidak nge-block jalur
+        // kedua — gate & scope sesungguhnya ada di CoachingPage/CreateCoachingPage/
+        // CoachingDetailPage.
         'label' => 'Coaching',
-        // Murni permission Shield (bukan guard hasSubordinates() seperti 'my-staff') — siapa
-        // yang bisa kelola Coaching ditentukan lewat checklist role di /admin/roles (1 role
-        // khusus per company, company-wide, bukan scoped subordinates/departemen). Lihat
-        // planning/2026-07-18-portal-coaching-counseling.md §3.2.
-        'permission' => 'ViewAny:Coaching',
+        'permission' => null,
         'guard' => null,
     ],
 
     'coaching.create' => [
         'label' => 'Buat Coaching',
-        'permission' => 'Create:Coaching',
+        'permission' => null,
         'guard' => null,
     ],
 
     'coaching.show' => [
         'label' => 'Detail Coaching',
-        'permission' => 'View:Coaching',
+        'permission' => null,
         'guard' => null,
     ],
 
@@ -309,14 +310,19 @@ return [
     ],
 
     'counseling.kelola' => [
-        'label' => 'Kelola Counseling',
-        'permission' => 'ViewAny:Counseling',
+        // Bukan lagi gate permission Shield 'ViewAny:Counseling' company-wide — konselor bisa
+        // siapa saja (karyawan menunjuk sendiri saat konsul), gate sesungguhnya ada di dalam
+        // CounselingManagePage/CounselingDetailPage (counselor_id === auth()->id()). Permission
+        // null di sini supaya middleware tidak nge-block counselor yang tidak punya permission
+        // itu — lihat instruksi user 2026-07-26.
+        'label' => 'Counseling',
+        'permission' => null,
         'guard' => null,
     ],
 
     'counseling.kelola.show' => [
         'label' => 'Detail Counseling',
-        'permission' => 'View:Counseling',
+        'permission' => null,
         'guard' => null,
     ],
 
@@ -346,6 +352,75 @@ return [
 
     'pelatihan.kategori' => [
         'label' => 'Kategori Pelatihan',
+        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_LMS->value,
+        'guard' => null,
+    ],
+
+    // Baseline Pelatihan — padanan portal dari Filament LmsCourseBaselinesResource. SISTEM_LMS
+    // gerbang akses halaman, per-aksi Create/Update/Delete dicek via Policy Shield
+    // (LmsCourseBaselinesPolicy) langsung di dalam LmsCourseBaselinesPage.
+    'pelatihan.baseline' => [
+        'label' => 'Baseline Pelatihan',
+        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_LMS->value,
+        'guard' => null,
+    ],
+
+    // Laporan Pelatihan — padanan portal dari Filament TrainingReportResource. Halaman
+    // read-only (filter + export Excel), tidak ada Create/Update/Delete jadi cukup SISTEM_LMS.
+    'pelatihan.laporan' => [
+        'label' => 'Laporan Pelatihan',
+        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_LMS->value,
+        'guard' => null,
+    ],
+
+    // Bank Soal — padanan portal dari Filament QuestionBanksResource. SISTEM_LMS gerbang akses
+    // halaman (baca list), per-aksi Create/Update/Delete:LmsQuestionBanks dicek terpisah di
+    // dalam BankSoalPage/CreateBankSoal (Policy Shield, format sudah di-rename dari 'QuestionBanks'
+    // → 'LmsQuestionBanks' via migration 2026_07_14_150000_rename_question_banks_permissions).
+    'pelatihan.bank-soal' => [
+        'label' => 'Bank Soal',
+        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_LMS->value,
+        'guard' => null,
+    ],
+
+    'pelatihan.bank-soal.create' => [
+        'label' => 'Tambah Bank Soal',
+        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_LMS->value,
+        'guard' => null,
+    ],
+
+    // Kuis — padanan portal dari Filament QuizzesResource. Otorisasi CRUD sesungguhnya lewat
+    // Policy Shield (ViewAny/Create/Update/Delete:LmsQuizzes) di dalam komponennya sendiri, sama
+    // seperti Bank Soal — 'permission' di sini cuma gate akses halaman.
+    'pelatihan.kuis' => [
+        'label' => 'Kuis',
+        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_LMS->value,
+        'guard' => null,
+    ],
+
+    'pelatihan.kuis.create' => [
+        'label' => 'Buat Kuis',
+        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_LMS->value,
+        'guard' => null,
+    ],
+
+    'pelatihan.kuis.edit' => [
+        'label' => 'Ubah Kuis',
+        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_LMS->value,
+        'guard' => null,
+    ],
+
+    // Otorisasi CRUD sesungguhnya lewat Policy Shield (ViewAny/Create/Update/Delete:Trainers,
+    // lihat App\Filament\Resources\LMS\Trainers\TrainersResource) — SISTEM_LMS di sini cuma
+    // gerbang akses baca halamannya, sama pola dengan pelatihan.kategori/pelatihan.kelola.
+    'pelatihan.pemateri' => [
+        'label' => 'Pemateri',
+        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_LMS->value,
+        'guard' => null,
+    ],
+
+    'pelatihan.pemateri.show' => [
+        'label' => 'Detail Pemateri',
         'permission' => \App\Enum\CustomPermissionEnum::SISTEM_LMS->value,
         'guard' => null,
     ],

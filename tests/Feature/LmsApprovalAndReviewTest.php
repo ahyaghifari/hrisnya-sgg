@@ -11,7 +11,6 @@ use App\Models\LMS\LmsMeetings;
 use App\Models\LMS\LmsQuizQuestions;
 use App\Models\LMS\LmsQuizUserResults;
 use App\Models\LMS\LmsQuizzes;
-use App\Models\LMS\LmsUserHistories;
 use App\Models\LMS\LmsQuestionBanks;
 use App\Models\LMS\LmsQuestionOptions;
 use App\Models\Master\Companies;
@@ -184,9 +183,10 @@ class LmsApprovalAndReviewTest extends TestCase
         $user = User::factory()->create(['company_id' => $company->id]);
         ['course' => $course] = $this->makeCourseWithMeeting($company);
 
-        LmsUserHistories::create([
+        LmsCourseUsers::create([
             'user_id' => $user->id,
             'course_id' => $course->id,
+            'status' => CourseUserStatus::APPROVED->value,
             'certificate_url' => 'certificates/x/y.pdf',
             'is_passed' => false,
         ]);
@@ -194,7 +194,7 @@ class LmsApprovalAndReviewTest extends TestCase
         $url = app(CourseUserService::class)->getDownloadableCertificateUrl($user->id, $course->id);
         $this->assertNull($url);
 
-        LmsUserHistories::where('user_id', $user->id)->where('course_id', $course->id)->update(['is_passed' => true]);
+        LmsCourseUsers::where('user_id', $user->id)->where('course_id', $course->id)->update(['is_passed' => true]);
 
         $url = app(CourseUserService::class)->getDownloadableCertificateUrl($user->id, $course->id);
         $this->assertSame('certificates/x/y.pdf', $url);

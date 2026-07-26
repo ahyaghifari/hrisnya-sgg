@@ -74,8 +74,8 @@ class LmsCourseDueDateTest extends TestCase
 
         $this->actingAs($user, 'sanctum');
 
-        $completedOverdueCourse->load('courseUsers.user.profile', 'category', 'meetings', 'userHistories', 'feedbacks');
-        $overdueCourse->load('courseUsers.user.profile', 'category', 'meetings', 'userHistories', 'feedbacks');
+        $completedOverdueCourse->load('courseUsers.user.profile', 'category', 'meetings', 'feedbacks');
+        $overdueCourse->load('courseUsers.user.profile', 'category', 'meetings', 'feedbacks');
 
         $completedArray = (new CourseDetailsResource($completedOverdueCourse))->toArray(Request::create('/'));
         $this->assertFalse($completedArray['is_overdue']);

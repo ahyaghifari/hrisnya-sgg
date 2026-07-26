@@ -1,7 +1,7 @@
 <div>
 <x-page-header title="Buat Coaching" subtitle="Catat sesi pembinaan untuk karyawan" :back="route('coaching')" />
 
-<form wire:submit="save" style="max-width:720px;">
+<form wire:submit="save">
     <div class="form-card">
         <div class="section-head">
             <div class="section-icon"><i class="fa-solid fa-id-card" style="color:var(--brand);font-size:12px;"></i></div>
@@ -22,7 +22,7 @@
 
             <div>
                 <label class="form-label">Karyawan <span style="color:var(--danger-text);">*</span></label>
-                <select wire:model="user_id" class="form-input" @disabled(! $companyId)>
+                <select wire:key="user-id-{{ $companyId }}" data-tom-select data-placeholder="Pilih karyawan" wire:model="user_id" class="form-input" @disabled(! $companyId)>
                     <option value="">Pilih karyawan</option>
                     @foreach ($this->employeeOptions as $id => $name)
                         <option value="{{ $id }}">{{ $name }}</option>
@@ -33,9 +33,9 @@
 
             <div>
                 <label class="form-label">Coach <span style="color:var(--danger-text);">*</span></label>
-                <select wire:model="coach_by" class="form-input" @disabled(! $companyId)>
+                <select wire:key="coach-by-{{ $companyId }}" data-tom-select data-placeholder="Pilih coach" wire:model="coach_by" class="form-input" @disabled(! $companyId)>
                     <option value="">Pilih coach</option>
-                    @foreach ($this->employeeOptions as $id => $name)
+                    @foreach ($this->coachOptions as $id => $name)
                         <option value="{{ $id }}">{{ $name }}</option>
                     @endforeach
                 </select>

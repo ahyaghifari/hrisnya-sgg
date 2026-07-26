@@ -3,10 +3,14 @@
 namespace Tests\Feature\Payroll;
 
 use App\Enum\CustomPermissionEnum;
+use App\Enum\Payroll\PayrollComponentEnum;
 use App\Livewire\Keuangan\KoperasiPage;
 use App\Models\Master\Companies;
+use App\Models\Master\EmployeeTypes;
+use App\Models\Payroll\PayrollComponentRecipient;
 use App\Models\Payroll\UserKoperasi;
 use App\Models\User;
+use App\Models\User\UserProfiles;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 use Spatie\Permission\Models\Permission;
@@ -54,6 +58,9 @@ class KoperasiPageTest extends TestCase
         $finance = $this->actingAsFinance();
         $company = $this->makeCompany();
         $employee = User::factory()->create(['company_id' => $company->id, 'is_active' => true]);
+        $employeeType = EmployeeTypes::create(['name' => 'Tetap', 'company_id' => $company->id]);
+        UserProfiles::create(['user_id' => $employee->id, 'employee_type_id' => $employeeType->id]);
+        PayrollComponentRecipient::create(['company_id' => $company->id, 'component' => PayrollComponentEnum::KOPERASI->value, 'employee_type_id' => $employeeType->id]);
 
         Livewire::actingAs($finance)
             ->test(KoperasiPage::class)

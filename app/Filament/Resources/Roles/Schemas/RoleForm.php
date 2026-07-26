@@ -58,7 +58,9 @@ class RoleForm
                 CustomPermissionEnum::EDIT_PENGATURAN_TUGAS->value,
             ],
             CustomPermissionEnum::SISTEM_REKRUTMEN->value => [],
-            CustomPermissionEnum::SISTEM_COACHING_COUNSELING->value => [],
+            CustomPermissionEnum::SISTEM_COACHING_COUNSELING->value => [
+                CustomPermissionEnum::COACHING_KARYAWAN_LAINNYA->value,
+            ],
         ];
     }
 

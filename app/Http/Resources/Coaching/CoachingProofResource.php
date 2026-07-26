@@ -17,6 +17,7 @@ class CoachingProofResource extends JsonResource
         return [
             'id' => $this->id,
             'file_url' => $this->file_url,
+            'status' => $this->status,
         ];
     }
 }

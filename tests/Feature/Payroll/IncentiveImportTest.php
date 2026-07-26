@@ -2,11 +2,15 @@
 
 namespace Tests\Feature\Payroll;
 
+use App\Enum\Payroll\PayrollComponentEnum;
 use App\Imports\Payroll\IncentiveImport;
 use App\Models\Master\Companies;
+use App\Models\Master\EmployeeTypes;
 use App\Models\Payroll\Payroll;
+use App\Models\Payroll\PayrollComponentRecipient;
 use App\Models\Payroll\PayrollPeriod;
 use App\Models\User;
+use App\Models\User\UserProfiles;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Collection;
 use Tests\TestCase;
@@ -26,6 +30,9 @@ class IncentiveImportTest extends TestCase
     {
         $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
         $user = User::factory()->create(['company_id' => $company->id, 'nip' => $nip]);
+        $employeeType = EmployeeTypes::create(['name' => 'Tetap', 'company_id' => $company->id]);
+        UserProfiles::create(['user_id' => $user->id, 'employee_type_id' => $employeeType->id]);
+        PayrollComponentRecipient::create(['company_id' => $company->id, 'component' => PayrollComponentEnum::INSENTIF->value, 'employee_type_id' => $employeeType->id]);
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31', 'processed_at' => now()]);
         $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id, 'gross_salary' => 3_000_000, 'net_salary' => 3_000_000]);
 

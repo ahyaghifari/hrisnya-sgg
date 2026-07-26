@@ -24,6 +24,13 @@ enum CustomPermissionEnum: string
     case PENGAJUAN_ABSENSI_SAYA = 'pengajuan_absensi_saya';
     case COACHING_COUNSELING_SAYA = 'coaching_counseling_saya';
 
+    /** Beda dari sekadar "punya bawahan" (CoachingPage/CreateCoachingPage/CoachingDetailPage
+     * default scope ke OrgHierarchyService::subordinates()) — permission ini kasih akses
+     * mengcoaching SEMUA karyawan company tanpa terkecuali, dipakai buat role seperti HC yang
+     * bukan atasan langsung siapa-siapa di struktur organisasi tapi tetap perlu bisa coaching
+     * siapa saja. */
+    case COACHING_KARYAWAN_LAINNYA = 'coaching_karyawan_lainnya';
+
     // Verb non-CRUD (approve/import/report) - dideklarasikan juga di
     // config/filament-shield.php 'custom_permissions' supaya Shield tidak menganggapnya yatim.
     // Sebelumnya dijaga lewat PermissionsSeeder.php lama (sudah dihapus), dipindah ke sini.
@@ -76,6 +83,7 @@ enum CustomPermissionEnum: string
             self::PELATIHAN_SAYA => 'Pelatihan Saya',
             self::PENGAJUAN_ABSENSI_SAYA => 'Pengajuan Absensi Saya',
             self::COACHING_COUNSELING_SAYA => 'Coaching & Counseling Saya',
+            self::COACHING_KARYAWAN_LAINNYA => 'Coaching Karyawan Lainnya (Semua Karyawan, Bukan Cuma Bawahan)',
             self::APPROVE_PENGAJUAN_ABSENSI => 'Approve Pengajuan Absensi',
             self::VIEW_REPORT_DATA_ABSENSI => 'Lihat Laporan Data Absensi',
             self::IMPORT_DATA_ABSENSI => 'Import Data Absensi',

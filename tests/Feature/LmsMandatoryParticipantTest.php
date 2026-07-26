@@ -74,7 +74,7 @@ class LmsMandatoryParticipantTest extends TestCase
         ]);
 
         $this->actingAs($user, 'sanctum');
-        $course->load('courseUsers.user.profile', 'category', 'meetings', 'userHistories', 'feedbacks');
+        $course->load('courseUsers.user.profile', 'category', 'meetings', 'feedbacks');
 
         $listArray = (new CoursesResource($course))->toArray(Request::create('/'));
         $this->assertTrue($listArray['is_mandatory']);

@@ -30,6 +30,8 @@ class LmsCourseUsers extends Model
         'completed_at',
         'is_passed',
         'passed_at',
+        'certificate_url',
+        'archived_at',
     ];
 
     protected static function booted(): void

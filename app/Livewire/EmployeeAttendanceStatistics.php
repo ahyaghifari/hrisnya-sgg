@@ -9,6 +9,7 @@ use App\Livewire\Concerns\HandlesProfilePhotoUpload;
 use App\Livewire\Concerns\ResolvesTodayAttendanceStatus;
 use App\Models\Attendance\AttendanceRecords;
 use App\Models\Attendance\AttendanceRequests;
+use App\Models\Payroll\Payroll;
 use App\Models\User;
 use App\Models\User\UserDocuments;
 use App\Services\Attendance\AttendaceReqService;
@@ -267,6 +268,22 @@ class EmployeeAttendanceStatistics extends Component
         }
 
         return $markers;
+    }
+
+    /**
+     * Riwayat gaji yang sudah dibayarkan — cuma dipanggil dari tab "Penggajian" yang cuma
+     * tampil kalau $isSelf (lihat blade), tapi tetap di-scope ke $this->record->id di sini
+     * juga supaya computed property ini sendiri tidak pernah bocor data payroll orang lain.
+     */
+    public function getMyPayrollHistoryProperty()
+    {
+        return Payroll::query()
+            ->where('user_id', $this->record->id)
+            ->where('is_paid', true)
+            ->with('payrollPeriod')
+            ->get()
+            ->sortByDesc(fn (Payroll $p) => $p->payrollPeriod?->end_date)
+            ->values();
     }
 
     public function getDocumentsProperty()

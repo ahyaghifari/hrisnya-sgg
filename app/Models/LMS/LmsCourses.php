@@ -101,11 +101,6 @@ class LmsCourses extends Model
         }
     }
 
-    public function schedules()
-    {
-        return $this->hasMany(LmsCourseSchedules::class, 'course_id', 'id');
-    }
-
     public function competencies()
     {
         return $this->belongsToMany(Competencies::class, 'lms_course_competencies', 'lms_course_id', 'competency_id')->withTimestamps();
@@ -114,11 +109,6 @@ class LmsCourses extends Model
     public function feedbacks()
     {
         return $this->hasMany(LmsCourseFeedbacks::class, 'course_id', 'id');
-    }
-
-    public function userHistories()
-    {
-        return $this->hasMany(LmsUserHistories::class, 'course_id', 'id');
     }
 
     protected static function booted()
@@ -130,8 +120,6 @@ class LmsCourses extends Model
                 $model->first_start_date = null;
                 $model->last_end_date = null;
                 $model->next_run_date = null;
-
-                $model->schedules()->delete();
             }
         });
     }

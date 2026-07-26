@@ -78,4 +78,9 @@ class LmsQuestionBanks extends Model
     {
         return $this->belongsTo(LmsCategories::class, 'category_id');
     }
+
+    public function answers()
+    {
+        return $this->hasMany(LmsQuizUserAnswers::class, 'question_id');
+    }
 }

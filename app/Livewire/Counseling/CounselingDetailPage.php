@@ -11,8 +11,12 @@ use Livewire\Attributes\Layout;
 use Livewire\Component;
 
 /**
- * Detail Counseling (HC) — lihat keluhan + form balas (response+solution) kalau masih PENDING,
- * read-only kalau sudah DONE. Padanan CounselingForm admin, delegasi ke CounselingService::respond().
+ * Detail Counseling — dua sisi beda hak (instruksi user 2026-07-26): konselor bisa balas
+ * (response+solution) kalau masih PENDING, karyawan yang konsul (user_id) cuma bisa lihat
+ * read-only (issue miliknya + status/tanggapan begitu sudah dibalas) — dia sebelumnya sama
+ * sekali tidak punya halaman detail, cuma preview terpotong di list. Gate BUKAN lagi permission
+ * Shield `View:Counseling`/company — murni ikut Counseling::isVisibleTo() (user_id ATAU
+ * counselor_id), termasuk Super Admin tidak bisa buka punya orang lain.
  */
 #[Layout('components.layout', ['title' => 'Detail Counseling'])]
 class CounselingDetailPage extends Component
@@ -23,24 +27,31 @@ class CounselingDetailPage extends Component
 
     public function mount(Counseling $record): void
     {
-        abort_unless(Auth::user()->can('View:Counseling'), 403);
+        abort_unless($record->isVisibleTo(Auth::id()), 403);
 
-        abort_unless(
-            Auth::user()->canFilterByCompany() || $record->company_id === Auth::user()->company_id,
-            403
-        );
-
-        $record->load(['user', 'respondedBy']);
+        $record->load(['user', 'counselor', 'respondedBy']);
 
         $this->record = $record;
         $this->response = (string) $record->response;
         $this->solution = (string) $record->solution;
     }
 
+    public function getIsCounselorProperty(): bool
+    {
+        return $this->record->counselor_id === Auth::id();
+    }
+
     public function getCanRespondProperty(): bool
     {
         return $this->record->status === CounselingStatus::PENDING->value
-            && Auth::user()->can('Update:Counseling');
+            && $this->isCounselor;
+    }
+
+    /** Tombol "Kembali" beda tujuan tergantung yang buka: konselor -> inbox-nya, karyawan yang
+     * konsul -> riwayat konsul pribadinya. */
+    public function getBackRouteProperty(): string
+    {
+        return $this->isCounselor ? route('counseling.kelola') : route('counseling');
     }
 
     public function submitResponse(): void

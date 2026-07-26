@@ -5,10 +5,14 @@ namespace App\Services\LMS;
 use App\Enum\CourseUserStatus;
 use App\Events\LmsProgresUpdated;
 use App\Models\LMS\LmsMeetingQuizzes;
+use App\Models\LMS\LmsQuizQuestions;
+use App\Models\LMS\LmsQuizzes;
 use App\Repositories\LMS\CourseRepository;
 use App\Repositories\LMS\CourseUserRepository;
 use App\Repositories\LMS\MeetingUserRepository;
 use App\Repositories\LMS\QuizRepository;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class QuizService
 {
@@ -205,6 +209,84 @@ class QuizService
         ]);
 
         $this->updateMeetingUserData($userId, $this->quizRepo->getMeetingQuizById($meetingQuizId)->meeting_id);
+    }
+
+    /**
+     * ---- Bagian di bawah ini untuk portal CreateQuiz/QuizzesPage (authoring kuis) ----
+     * Method-method di atas (getQuizDetail/submitQuiz/dst) untuk peserta MENGERJAKAN kuis;
+     * ini untuk admin/portal MEMBUAT/MENGUBAH kuisnya. Sengaja digabung di 1 class yang sama
+     * (bukan service baru) supaya tidak ada 2 "QuizService" yang membingungkan.
+     */
+
+    /**
+     * @param  string[]  $orderedQuestionIds  urutan tampil soal di kuis ini
+     */
+    public function create(array $data, array $orderedQuestionIds): LmsQuizzes
+    {
+        return DB::transaction(function () use ($data, $orderedQuestionIds) {
+            $quiz = LmsQuizzes::create([
+                'category_id' => $data['category_id'],
+                'title' => $data['title'],
+                'created_by' => $data['created_by'] ?? Auth::id(),
+            ]);
+
+            $this->syncQuestions($quiz, $orderedQuestionIds);
+
+            return $quiz->fresh();
+        });
+    }
+
+    /**
+     * @param  string[]  $orderedQuestionIds
+     */
+    public function updateQuiz(string $id, array $data, array $orderedQuestionIds): LmsQuizzes
+    {
+        $quiz = LmsQuizzes::findOrFail($id);
+
+        return DB::transaction(function () use ($quiz, $data, $orderedQuestionIds) {
+            $quiz->update([
+                'category_id' => $data['category_id'],
+                'title' => $data['title'],
+            ]);
+
+            $this->syncQuestions($quiz, $orderedQuestionIds);
+
+            return $quiz->fresh();
+        });
+    }
+
+    /**
+     * Hapus kuis yang tidak dipakai di pelatihan manapun. FK lms_meeting_quizzes->lms_quizzes
+     * pakai cascadeOnDelete (bukan restrict), jadi kalau tidak dijaga di sini hapus kuis akan
+     * diam-diam ikut menghapus riwayat hasil kuis peserta (lms_quiz_user_answers/results via
+     * meeting_quiz_id). Admin EditQuiz.php belum punya guard ini — sengaja tidak diikuti.
+     */
+    public function deleteQuiz(string $id): void
+    {
+        $quiz = LmsQuizzes::findOrFail($id);
+
+        if (LmsMeetingQuizzes::where('quiz_id', $id)->exists()) {
+            throw new \RuntimeException('Kuis ini sudah digunakan di pelatihan dan tidak bisa dihapus.');
+        }
+
+        $quiz->delete();
+    }
+
+    /**
+     * @param  string[]  $orderedQuestionIds
+     */
+    protected function syncQuestions(LmsQuizzes $quiz, array $orderedQuestionIds): void
+    {
+        $quiz->pivotTable()->whereNotIn('question_bank_id', $orderedQuestionIds)->delete();
+
+        foreach ($orderedQuestionIds as $index => $questionId) {
+            LmsQuizQuestions::updateOrCreate(
+                ['quiz_id' => $quiz->id, 'question_bank_id' => $questionId],
+                ['sort_order' => $index]
+            );
+        }
+
+        $quiz->updateTotalScore();
     }
 
     public function updateMeetingUserData($userId, $meetingId)

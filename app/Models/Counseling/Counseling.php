@@ -17,6 +17,7 @@ class Counseling extends Model
 
     protected $fillable = [
         'user_id',
+        'counselor_id',
         'company_id',
         'issue',
         'response',
@@ -36,6 +37,21 @@ class Counseling extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id');
+    }
+
+    public function counselor(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'counselor_id');
+    }
+
+    /**
+     * Isi keluhan/tanggapan bersifat rahasia — cuma karyawan yang konsul dan konselor yang
+     * ditunjuk yang boleh baca, TERMASUK Super Admin tidak boleh (lihat instruksi user
+     * 2026-07-26, bukan cuma permission Shield biasa). Dipakai portal & admin Filament.
+     */
+    public function isVisibleTo(?string $userId): bool
+    {
+        return $userId !== null && ($userId === $this->user_id || $userId === $this->counselor_id);
     }
 
     public function company(): BelongsTo

@@ -28,6 +28,8 @@ class AttendanceRecordRepository
             'source'              => $data['source'] ?? 'import',
             'is_auto_calculated'  => $data['is_auto_calculated'] ?? false,
             'work_day_weight'     => $data['work_day_weight'] ?? null,
+            'meets_target'        => $data['meets_target'] ?? null,
+            'out_of_window'       => $data['out_of_window'] ?? false,
         ];
         
         // Log the data being saved
@@ -60,6 +62,10 @@ class AttendanceRecordRepository
             'early_leave_minutes' => $r['early_leave_minutes'],
             'overtime_minutes'    => $r['overtime_minutes'],
             'work_day_weight'     => $r['work_day_weight'],
+            // meets_target cuma dihasilkan FlexibleScheduleCalculator - Fixed tidak punya
+            // key ini sama sekali di array hasilnya (konsepnya memang tidak berlaku untuk Fixed).
+            'meets_target'        => $r['meets_target'] ?? null,
+            'out_of_window'       => $r['out_of_window'] ?? false,
             'status'              => $r['status'],
             'source'              => $source,
             'is_auto_calculated'  => true,

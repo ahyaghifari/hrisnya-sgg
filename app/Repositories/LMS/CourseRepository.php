@@ -7,7 +7,6 @@ use App\Models\LMS\LmsCourseFeedbacks;
 use App\Models\LMS\LmsCourses;
 use App\Models\LMS\LmsMeetings;
 use App\Models\LMS\LmsRankings;
-use App\Models\LMS\LmsUserHistories;
 
 class CourseRepository
 {
@@ -38,7 +37,7 @@ class CourseRepository
 
     public function getCourseById(string $id)
     {
-        return LmsCourses::with('category', 'meetings', 'userHistories', 'meetings.materials', 'meetings.quizzes.quiz', 'meetings.attendance', 'courseUsers.meetingUsers')->find($id)->fresh();
+        return LmsCourses::with('category', 'meetings', 'meetings.materials', 'meetings.quizzes.quiz', 'meetings.attendance', 'courseUsers.meetingUsers')->find($id)->fresh();
     }
 
     public function getMeetingByCourseId(string $courseId)
@@ -56,11 +55,6 @@ class CourseRepository
         LmsCourseFeedbacks::create($data);
     }
 
-    public function storeUserHistory(array $data)
-    {
-        LmsUserHistories::create($data);
-    }
-
     public function upsertCourseRanking(array $data)
     {
         LmsRankings::updateOrCreate(
@@ -73,13 +67,6 @@ class CourseRepository
                 'calculated_at' => $data['calculated_at'],
             ]
         );
-    }
-
-    public function getUserHistoryByUserIdAndCourseId(string $userId, string $courseId)
-    {
-        return LmsUserHistories::where('user_id', $userId)
-            ->where('course_id', $courseId)
-            ->first();
     }
 
     public function getRanksByUserId(array $filters = [])

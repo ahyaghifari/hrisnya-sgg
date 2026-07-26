@@ -14,14 +14,12 @@
     $canAccessPelatihanSaya = auth()->user()->can(\App\Enum\CustomPermissionEnum::PELATIHAN_SAYA->value);
     $canAccessPengajuanAbsensiSaya = auth()->user()->can(\App\Enum\CustomPermissionEnum::PENGAJUAN_ABSENSI_SAYA->value);
     $canAccessCoachingCounselingSaya = auth()->user()->can(\App\Enum\CustomPermissionEnum::COACHING_COUNSELING_SAYA->value);
-    // Dropdown "Coaching & Counseling" digerbangi SISTEM_COACHING_COUNSELING (pola sama
-    // SISTEM_REKRUTMEN dkk — gerbang dropdown-nya), tapi link di dalamnya tetap dicek granular
-    // lewat permission Shield masing-masing (siapa yang bisa kelola Coaching/Counseling
-    // ditentukan lewat checklist role di /admin/roles). Lihat
-    // planning/2026-07-18-portal-coaching-counseling.md §3.2.
-    $canAccessCoachingCounseling = auth()->user()->can(\App\Enum\CustomPermissionEnum::SISTEM_COACHING_COUNSELING->value);
-    $canManageCoaching = auth()->user()->can('ViewAny:Coaching');
-    $canManageCounseling = auth()->user()->can('ViewAny:Counseling');
+    // Dropdown "Coaching & Counseling" (row 2) — SATU rule sama persis MyStaff/Riwayat Approval
+    // ($canSeeKaryawanMenu, "punya bawahan"), bukan lagi gerbang permission Shield terpisah
+    // (instruksi user 2026-07-26). Konsekuensinya: karyawan biasa (bukan atasan) yang ditunjuk
+    // jadi konselor TIDAK lihat dropdown ini — jalur masuknya lewat tombol "Konsul ke Saya" di
+    // halaman personal Counseling Saya (/counseling) sendiri, lihat CounselingPage.
+    $canAccessCoachingCounseling = $canSeeKaryawanMenu;
     $showRoleRow = $canSeeKaryawanMenu || $canAccessKeuangan || $canAccessMaster || $canAccessAbsensi || $canAccessKepegawaian || $canAccessLms || $canAccessRekrutmen || $canAccessCoachingCounseling;
     $initials = collect(explode(' ', auth()->user()->name))
         ->map(fn ($part) => mb_substr($part, 0, 1))
@@ -61,12 +59,15 @@
                     </a>
                 @endif
                 @if ($canAccessCoachingCounselingSaya)
-                    <a href="{{ route('counseling') }}" wire:navigate class="nav-item {{ request()->routeIs('counseling*') ? 'active' : '' }}">
-                        <i class="fa-solid fa-comment-dots text-xs"></i> Counseling
-                    </a>
-                    <a href="{{ route('coaching.saya') }}" wire:navigate class="nav-item {{ request()->routeIs('coaching.saya*') ? 'active' : '' }}">
-                        <i class="fa-solid fa-user-check text-xs"></i> Coaching Saya
-                    </a>
+                    <div class="dropdown">
+                        <a href="#" class="nav-item {{ request()->routeIs(['counseling*', 'coaching.saya*']) ? 'active' : '' }}">
+                            <i class="fa-solid fa-comment-dots text-xs"></i> Pembinaan Saya <i class="fa-solid fa-chevron-down text-[10px]"></i>
+                        </a>
+                        <div class="dropdown-menu">
+                            <a href="{{ route('counseling') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-comment-dots"></i> Counseling Saya</a>
+                            <a href="{{ route('coaching.saya') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-user-check"></i> Coaching Saya</a>
+                        </div>
+                    </div>
                 @endif
             </div>
             @if ($showRoleRow)
@@ -75,24 +76,22 @@
                             <a href="{{ route('my-staff') }}" wire:navigate class="nav-item nav-item-navy {{ request()->routeIs('my-staff*') ? 'active' : '' }}">
                                 <i class="fa-solid fa-users text-xs"></i> MyStaff
                             </a>
-                            <a href="{{ route('riwayat-approval') }}" wire:navigate class="nav-item nav-item-orange {{ request()->routeIs('riwayat-approval*') ? 'active' : '' }}">
-                                <i class="fa-solid fa-clock-rotate-left text-xs"></i> Riwayat Approval
-                            </a>
                         @endif
                         @if ($canAccessCoachingCounseling)
                             <div class="dropdown">
-                                <a href="#" class="nav-item nav-item-orange {{ request()->routeIs(['coaching', 'coaching.create', 'coaching.show', 'counseling.kelola*']) ? 'active' : '' }}">
+                                <a href="#" class="nav-item nav-item-indigo {{ request()->routeIs(['coaching', 'coaching.create', 'coaching.show', 'counseling.kelola*']) ? 'active' : '' }}">
                                     <i class="fa-solid fa-comment-dots text-xs"></i> Coaching & Counseling <i class="fa-solid fa-chevron-down text-[10px]"></i>
                                 </a>
                                 <div class="dropdown-menu">
-                                    @if ($canManageCoaching)
-                                        <a href="{{ route('coaching') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-clipboard-check"></i> Coaching</a>
-                                    @endif
-                                    @if ($canManageCounseling)
-                                        <a href="{{ route('counseling.kelola') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-comments"></i> Kelola Counseling</a>
-                                    @endif
+                                    <a href="{{ route('coaching') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-clipboard-check"></i> Coaching</a>
+                                    <a href="{{ route('counseling.kelola') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-comments"></i> Counseling</a>
                                 </div>
                             </div>
+                        @endif
+                        @if ($canSeeKaryawanMenu)
+                            <a href="{{ route('riwayat-approval') }}" wire:navigate class="nav-item nav-item-orange {{ request()->routeIs('riwayat-approval*') ? 'active' : '' }}">
+                                <i class="fa-solid fa-clock-rotate-left text-xs"></i> Riwayat Approval
+                            </a>
                         @endif
                         @if ($canAccessKeuangan)
                             <div class="dropdown">
@@ -151,13 +150,18 @@
                         @endif
                         @if ($canAccessLms)
                             <div class="dropdown">
-                                <a href="#" class="nav-item nav-item-teal {{ request()->routeIs(['pelatihan.honorarium', 'pelatihan.kategori', 'pelatihan.kelola']) ? 'active' : '' }}">
+                                <a href="#" class="nav-item nav-item-teal {{ request()->routeIs(['pelatihan.honorarium', 'pelatihan.kategori', 'pelatihan.kelola', 'pelatihan.pemateri', 'pelatihan.bank-soal', 'pelatihan.kuis', 'pelatihan.baseline', 'pelatihan.laporan']) ? 'active' : '' }}">
                                     <i class="fa-solid fa-graduation-cap text-xs"></i> Learning Management System <i class="fa-solid fa-chevron-down text-[10px]"></i>
                                 </a>
                                 <div class="dropdown-menu">
                                     <a href="{{ route('pelatihan.kelola') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-book"></i> Pelatihan</a>
                                     <a href="{{ route('pelatihan.kategori') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-tags"></i> Kategori Pelatihan</a>
+                                    <a href="{{ route('pelatihan.pemateri') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-chalkboard-user"></i> Pemateri</a>
+                                    <a href="{{ route('pelatihan.bank-soal') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-clipboard-list"></i> Bank Soal</a>
+                                    <a href="{{ route('pelatihan.kuis') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-list-check"></i> Kuis</a>
                                     <a href="{{ route('pelatihan.honorarium') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-sack-dollar"></i> Honorarium</a>
+                                    <a href="{{ route('pelatihan.baseline') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-bullseye"></i> Baseline Pelatihan</a>
+                                    <a href="{{ route('pelatihan.laporan') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-chart-bar"></i> Laporan</a>
                                 </div>
                             </div>
                         @endif

@@ -8,10 +8,7 @@ use App\Models\LMS\LmsCourses;
 use App\Models\LMS\LmsCourseUsers;
 use App\Models\LMS\LmsQuizzes;
 use App\Models\LMS\LmsMeetingQuizzes;
-use App\Models\LMS\Trainer\TrainerAssessmentDetails;
 use App\Models\LMS\Trainer\Trainers;
-use App\Models\LMS\Trainer\TrainerScoreCategories;
-use App\Models\LMS\Trainer\TrainerScoreVariables;
 use App\Models\User;
 use App\Services\LMS\QrCodeService;
 use Filament\Actions\Action;
@@ -233,11 +230,11 @@ class LmsCoursesForm
                                 ]),
 
                                 Select::make('trainer_id')
-                                    ->label('Pilih Trainer')
-                                    ->relationship('trainer', 'name')
+                                    ->label('Pilih Pemateri')
+                                    ->relationship('trainer', 'name', modifyQueryUsing: fn ($query) => $query->where('is_active', true))
                                     ->searchable()
                                     ->preload()
-                                    ->placeholder('Pilih trainer dari daftar')
+                                    ->placeholder('Pilih pemateri dari daftar')
                                     ->required()
                                     ->reactive()
                                     ->afterStateUpdated(function ($state, callable $set) {
@@ -352,8 +349,6 @@ class LmsCoursesForm
                                             ->minValue(1)
                                     ])
                             ]),
-
-                            self::trainerAssessmentSchema()
                         ]),
                     ])
                     ->extraItemActions([
@@ -740,79 +735,4 @@ class LmsCoursesForm
             ]);
     }
 
-    private static function trainerAssessmentSchema(): Tab
-    {
-        return Tab::make('trainer_assessment')
-            ->label('Penilaian Trainer')
-            ->schema([
-                Grid::make(1)
-                    ->relationship('trainerAssessments')
-                    ->schema([
-                        Hidden::make('trainer_id')
-                            ->default(function (callable $get) {
-                                return $get('../../trainer_id');
-                            })
-                            ->dehydrated(true),
-
-                        Repeater::make('details')
-                            ->relationship('details')
-                            ->hiddenLabel()
-                            ->itemLabel('Variabel Penilaian')
-                            ->addActionLabel('Tambah Variabel')
-                            ->columns(2)
-                            ->schema([
-                                Select::make('variable_id')
-                                    ->label('Variabel')
-                                    ->options(function (callable $get) {
-                                        return TrainerScoreVariables::orderBy('name')->pluck('name', 'id')->toArray();
-                                    })
-                                    ->searchable()
-                                    ->preload()
-                                    ->columns(1)
-                                    ->required()
-                                    ->placeholder('Pilih variabel penilaian')
-                                    ->afterStateUpdated(function ($state, callable $set, callable $get) {
-                                        $variableId = $state;
-                                        if ($variableId) {
-                                            $variable = TrainerScoreVariables::find($variableId);
-                                            if ($variable) {
-                                                $set('type', $variable->type);
-                                            }
-                                        } else {
-                                            $set('type', null);
-                                        }
-                                    }),
-
-                                Select::make('category_id')
-                                    ->label('Kategori')
-                                    ->options(function (callable $get) {
-                                        return TrainerScoreCategories::where('variable_id', $get('variable_id'))
-                                            ->orderBy('name')->pluck('name', 'id')->toArray();
-                                    })
-                                    ->searchable()
-                                    ->preload()
-                                    ->columns(1)
-                                    ->required()
-                                    ->placeholder('Pilih kategori penilaian')
-                                    ->afterStateUpdated(function ($state, callable $set, callable $get) {
-                                        $categoryId = $state;
-                                        if ($categoryId) {
-                                            $category = TrainerScoreCategories::find($categoryId);
-                                            if ($category) {
-                                                $set('score', $category->score);
-                                            }
-                                        } else {
-                                            $set('score', null);
-                                        }
-                                    }),
-
-                                Hidden::make('type')
-                                    ->dehydrated(true),
-
-                                Hidden::make('score')
-                                    ->dehydrated(true),
-                            ])
-                    ])
-            ]);
-    }
 }

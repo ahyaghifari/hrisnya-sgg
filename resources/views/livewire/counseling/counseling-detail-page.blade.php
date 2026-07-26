@@ -1,5 +1,5 @@
 <div>
-<x-page-header title="Detail Counseling" :subtitle="$record->user?->name" :back="route('counseling.kelola')" />
+<x-page-header title="Detail Counseling" :subtitle="$record->user?->name" :back="$this->backRoute" />
 
 @php
     $status = \App\Enum\CounselingStatus::tryFrom($record->status);
@@ -10,6 +10,10 @@
     <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;padding:10px 0;border-bottom:1px solid var(--border-soft);">
         <span style="font-size:12.5px;color:var(--text-muted);">Karyawan</span>
         <span style="font-size:13.5px;font-weight:600;color:var(--text-body);">{{ $record->user?->name ?? '-' }}</span>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;padding:10px 0;border-bottom:1px solid var(--border-soft);">
+        <span style="font-size:12.5px;color:var(--text-muted);">Konselor</span>
+        <span style="font-size:13.5px;font-weight:600;color:var(--text-body);">{{ $record->counselor?->name ?? '-' }}</span>
     </div>
     <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;padding:10px 0;border-bottom:1px solid var(--border-soft);">
         <span style="font-size:12.5px;color:var(--text-muted);">Tanggal Dilaporkan</span>
@@ -59,6 +63,12 @@
             <span style="font-size:12.5px;color:var(--text-muted);">Dibalas Oleh</span>
             <span style="font-size:12.5px;color:var(--text-body);">{{ $record->respondedBy?->name ?? '-' }} &middot; {{ $record->responded_at?->translatedFormat('d M Y H:i') }}</span>
         </div>
+    </div>
+@else
+    {{-- Karyawan yang konsul (bukan konselor), status masih pending — belum ada apa pun buat
+         ditampilkan/diklik selain menunggu. --}}
+    <div style="background:var(--surface);border-radius:16px;box-shadow:var(--shadow-card);padding:18px;text-align:center;color:var(--text-muted);font-size:13px;">
+        <i class="fa-solid fa-hourglass-half" style="margin-right:6px;"></i> Menunggu respon dari konselor.
     </div>
 @endif
 </div>

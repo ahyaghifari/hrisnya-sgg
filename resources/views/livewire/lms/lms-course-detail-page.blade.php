@@ -45,6 +45,7 @@
         <button type="button" wire:click="setTab('peserta')" class="lms-course-tab {{ $tab === 'peserta' ? 'is-active' : '' }}">Peserta</button>
         <button type="button" wire:click="setTab('pertemuan')" class="lms-course-tab {{ $tab === 'pertemuan' ? 'is-active' : '' }}">Pertemuan</button>
         <button type="button" wire:click="setTab('umpan-balik')" class="lms-course-tab {{ $tab === 'umpan-balik' ? 'is-active' : '' }}">Umpan Balik</button>
+        <button type="button" wire:click="setTab('penilaian')" class="lms-course-tab {{ $tab === 'penilaian' ? 'is-active' : '' }}">Penilaian dan Gaji Pemateri</button>
     </div>
 
     @if ($tab === 'peserta')
@@ -167,6 +168,9 @@
                                     @if ($meeting->end_date && $meeting->end_date !== $meeting->start_date)
                                         &ndash; {{ \Carbon\Carbon::parse($meeting->end_date)->translatedFormat('d M Y') }}
                                     @endif
+                                    @if ($meeting->start_time)
+                                        &middot; {{ substr($meeting->start_time, 0, 5) }}@if ($meeting->end_time)-{{ substr($meeting->end_time, 0, 5) }}@endif
+                                    @endif
                                     @if ($meeting->trainer?->name)
                                         &middot; {{ $meeting->trainer->name }}
                                     @endif
@@ -186,7 +190,7 @@
                 @endforelse
             </div>
         @endif
-    @else
+    @elseif ($tab === 'umpan-balik')
         <div style="background:var(--surface);border-radius:12px;box-shadow:var(--shadow-card);padding:18px;margin-bottom:14px;display:flex;align-items:center;gap:10px;">
             <i class="fa-solid fa-star" style="color:#eab308;font-size:18px;"></i>
             <div>
@@ -219,5 +223,7 @@
                 </tbody>
             </table>
         </div>
+    @elseif ($tab === 'penilaian')
+        @include('livewire.lms.partials.meeting-honorarium-tab')
     @endif
 </div>

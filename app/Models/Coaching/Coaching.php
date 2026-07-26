@@ -49,27 +49,16 @@ class Coaching extends Model
         return $this->hasMany(CoachingProof::class, 'coaching_id')->latest();
     }
 
+    /**
+     * Grouped per tanggal upload saja — bukan lagi per status (status Coaching sendiri yang
+     * jadi satu-satunya sumber kebenaran, bukti yang sudah diunggah tidak "berubah status"
+     * kalau ditolak, tetap satu kumpulan bukti yang sama, lihat CoachingService::reject()).
+     */
     public function getGroupedProofsAttribute()
     {
-        $data = $this->proofs
-            ->groupBy(function ($proof) {
-                return $proof->created_at->format('Y-m-d');
-            })
-            ->map(function ($items, $date) {
-
-                return $items->groupBy('status')->map(function ($statusItems, $status) use ($date) {
-                    $enum = \App\Enum\CoachingStatus::tryFrom($status);
-
-                    return [
-                        'date' => $date,
-                        'status' => $status,
-                        'proofs' => $statusItems,
-                    ];
-                })->values();
-            })
-            ->flatten(1)
+        return $this->proofs
+            ->groupBy(fn ($proof) => $proof->created_at->format('Y-m-d'))
+            ->map(fn ($items, $date) => ['date' => $date, 'proofs' => $items])
             ->values();
-
-        return $data;
     }
 }

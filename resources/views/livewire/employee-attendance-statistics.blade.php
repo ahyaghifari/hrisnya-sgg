@@ -34,6 +34,12 @@
         <i class="fa-solid fa-folder-open"></i>
         <span>Dokumen</span>
     </button>
+    @if ($isSelf)
+        <button type="button" @click="tab = 'penggajian'" class="section-nav-btn gold" :class="{ 'is-active': tab === 'penggajian' }">
+            <i class="fa-solid fa-money-check-dollar"></i>
+            <span>Penggajian</span>
+        </button>
+    @endif
 </div>
 
 <!-- Tab: Profil -->
@@ -535,4 +541,36 @@
         </div>
     </div>
 </div>
+
+@if ($isSelf)
+    <!-- Tab: Penggajian — cuma diri sendiri, riwayat payroll yang sudah dibayar -->
+    <div x-show="tab === 'penggajian'">
+        @php $payrollHistory = $this->myPayrollHistory; @endphp
+        @if ($payrollHistory->isEmpty())
+            <div class="pwa-list" style="padding:32px 16px;text-align:center;">
+                <p style="font-size:13px;color:var(--text-muted);margin:0;">Belum ada riwayat gaji yang tercatat sebagai dibayar.</p>
+            </div>
+        @else
+            <div class="pwa-list">
+                @foreach ($payrollHistory as $payroll)
+                    <a href="{{ route('data-diri.penggajian.show', $payroll->id) }}" wire:navigate class="pwa-list-row" style="text-decoration:none;">
+                        <div class="pwa-tile-icon warn"><i class="fa-solid fa-money-check-dollar"></i></div>
+                        <div style="flex:1;min-width:0;">
+                            <p style="font-size:13px;font-weight:600;color:var(--text-heading);">
+                                {{ $payroll->payrollPeriod->start_date->translatedFormat('d M Y') }} - {{ $payroll->payrollPeriod->end_date->translatedFormat('d M Y') }}
+                            </p>
+                            <p style="font-size:11px;color:var(--text-muted);margin-top:2px;">
+                                @if ($payroll->payrollPeriod->payment_date)
+                                    Dibayar {{ $payroll->payrollPeriod->payment_date->translatedFormat('d M Y') }} &middot;
+                                @endif
+                                Gaji Bersih Rp{{ number_format($payroll->net_salary, 0, ',', '.') }}
+                            </p>
+                        </div>
+                        <i class="fa-solid fa-chevron-right" style="color:var(--text-faint);font-size:12px;"></i>
+                    </a>
+                @endforeach
+            </div>
+        @endif
+    </div>
+@endif
 </div>

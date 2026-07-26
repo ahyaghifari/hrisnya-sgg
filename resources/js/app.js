@@ -96,6 +96,68 @@ function initTomSelects() {
 document.addEventListener("DOMContentLoaded", initTomSelects);
 document.addEventListener("livewire:navigated", initTomSelects);
 
+// Trix rich editor (CDN, lihat layout.blade.php) — dipakai form Bank Soal LMS.
+// Pola: <trix-editor input="trix-{id}"> + <input type="hidden" id="trix-{id}" wire:model="...">.
+//
+// Trix otomatis sync ke <input hidden> pada event "trix-change", TAPI Livewire tidak otomatis
+// tangkap perubahan value <input hidden> yang di-set via JS — wire:model dengarkan "input"
+// event yang naik ke elemen itu. Re-dispatch "input" manual ke hidden input saat trix-change.
+//
+// Container trix-editor dibungkus <div wire:ignore> di blade supaya Livewire tidak morph
+// toolbar Trix (yang di-generate oleh Trix sendiri, bukan Livewire) — tanpa wire:ignore,
+// morph.updated nembak terus dan menghancurkan toolbar.
+//
+// Tracking pakai WeakSet (bukan attribute data-*), supaya tidak ada DOM mutation yang memicu
+// morph loop Livewire.
+const trixWired = new WeakSet();
+
+function wireTrixEditor(editor) {
+    if (trixWired.has(editor)) return;
+    trixWired.add(editor);
+
+    const inputId = editor.getAttribute("input");
+    const hiddenInput = inputId ? document.getElementById(inputId) : null;
+
+    // Isi Trix dari hidden input kalau hidden input sudah punya value (mis. modal edit dibuka
+    // setelah Livewire morph isi wire:model). Trix render duluan, value datang belakanggan.
+    if (hiddenInput && hiddenInput.value && editor.editor) {
+        editor.editor.loadHTML(hiddenInput.value);
+    }
+
+    editor.addEventListener("trix-change", () => {
+        if (hiddenInput) {
+            hiddenInput.value = editor.value;
+            hiddenInput.dispatchEvent(new Event("input", { bubbles: true }));
+        }
+    });
+
+    // Bank Soal tidak butuh gambar inline — tolak attachment file, biarkan cuma teks formatted.
+    editor.addEventListener("trix-attachment-add", (event) => {
+        if (event.attachment && event.attachment.file) {
+            event.attachment.remove();
+        }
+    });
+}
+
+function initTrixEditors() {
+    // Trix script (CDN) mungkin belum selesai load pada DOMContentLoaded pertama — cek dulu.
+    if (typeof window.Trix === "undefined") return;
+
+    document.querySelectorAll("trix-editor").forEach(wireTrixEditor);
+}
+
+document.addEventListener("DOMContentLoaded", initTrixEditors);
+document.addEventListener("livewire:navigated", initTrixEditors);
+document.addEventListener("trix-initialize", (e) => {
+    // Trix nembak "trix-initialize" tiap editor baru di-create — pastikan langsung di-wire.
+    if (e.target && e.target.tagName === "TRIX-EDITOR") {
+        wireTrixEditor(e.target);
+    }
+});
+document.addEventListener("livewire:init", () => {
+    Livewire.hook("morph.added", () => initTrixEditors());
+});
+
 // Tabel cari/sortir/pagination instan di browser (List.js, headless - tidak maksa style).
 // Company/period tetap difilter lewat Livewire (butuh query server), tapi cari/sortir/ganti
 // halaman tidak roundtrip lagi begitu barisnya sudah di layar.

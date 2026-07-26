@@ -15,6 +15,7 @@ class Trainers extends Model
     protected $fillable = [
         'user_id',
         'type',
+        'is_active',
         'name',
         'expertise',
         'email',
@@ -23,8 +24,25 @@ class Trainers extends Model
         'address',
     ];
 
+    protected function casts(): array
+    {
+        return [
+            'is_active' => 'boolean',
+        ];
+    }
+
     public function user()
     {
         return $this->belongsTo(\App\Models\User::class, 'user_id');
+    }
+
+    public function meetings()
+    {
+        return $this->hasMany(\App\Models\LMS\LmsMeetings::class, 'trainer_id');
+    }
+
+    public function assessmentResults()
+    {
+        return $this->hasMany(TrainerAssessmentResults::class, 'trainer_id');
     }
 }

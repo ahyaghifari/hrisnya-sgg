@@ -35,11 +35,19 @@ use App\Livewire\Keuangan\SalaryComponentsPage;
 use App\Livewire\MyAttendanceRequests;
 use App\Livewire\MyEmployees;
 use App\Livewire\OrganizationStructure;
+use App\Livewire\LMS\BankSoalPage;
+use App\Livewire\LMS\CreateBankSoal;
 use App\Livewire\LMS\CreateLmsCourse;
+use App\Livewire\LMS\CreateQuiz;
 use App\Livewire\LMS\LmsCategoriesPage;
+use App\Livewire\LMS\LmsCourseBaselinesPage;
 use App\Livewire\LMS\LmsCourseDetailPage;
 use App\Livewire\LMS\LmsCoursesPage;
 use App\Livewire\LMS\MasterHonorariumPage;
+use App\Livewire\LMS\QuizzesPage;
+use App\Livewire\LMS\TrainerDetailPage;
+use App\Livewire\LMS\TrainersPage;
+use App\Livewire\LMS\TrainingReportPage;
 use App\Livewire\Pelatihan\QuizAttempt;
 use App\Livewire\Pelatihan\TrainingDetail;
 use App\Livewire\Pelatihan\TrainingList;
@@ -102,6 +110,18 @@ Route::middleware(['auth', 'portal.access'])->group(function () {
 
     Route::get('/data-diri', EmployeeAttendanceStatistics::class)
         ->name('data-diri');
+
+    Route::get('/data-diri/penggajian/{payroll}', \App\Livewire\Keuangan\MyPayrollSlipPage::class)
+        ->name('data-diri.penggajian.show');
+
+    Route::get('/data-diri/penggajian/{payroll}/preview', function (\App\Models\Payroll\Payroll $payroll) {
+        abort_unless(
+            $payroll->user_id === \Illuminate\Support\Facades\Auth::id() && $payroll->is_paid,
+            403
+        );
+
+        return app(\App\Services\Payroll\PayrollService::class)->preview($payroll);
+    })->name('data-diri.penggajian.preview');
 
     Route::get('/struktur-organisasi', OrganizationStructure::class)
         ->name('organization-structure');
@@ -242,26 +262,31 @@ Route::middleware(['auth', 'portal.access'])->group(function () {
     Route::get('/presensi/kalender-libur', HolidayCalendarPage::class)
         ->name('presensi.kalender-libur');
 
-    Route::get('/coaching-saya', MyCoachingPage::class)
+    Route::get('/coaching', MyCoachingPage::class)
         ->name('coaching.saya');
-
-    Route::get('/coaching', CoachingPage::class)
-        ->name('coaching');
-
-    Route::get('/coaching/tambah', CreateCoachingPage::class)
-        ->name('coaching.create');
-
-    Route::get('/coaching/{record}', CoachingDetailPage::class)
-        ->name('coaching.show');
 
     Route::get('/counseling', CounselingPage::class)
         ->name('counseling');
 
-    Route::get('/counseling/kelola', CounselingManagePage::class)
-        ->name('counseling.kelola');
+    // Sisi konselor/atasan (row 2 nav, "Coaching & Counseling") — beda prefix dari sisi
+    // personal (/coaching, /counseling) di atas, biar ketahuan dari URL-nya ini bukan
+    // halaman self-service.
+    Route::prefix('pembinaan')->group(function () {
+        Route::get('/coaching', CoachingPage::class)
+            ->name('coaching');
 
-    Route::get('/counseling/kelola/{record}', CounselingDetailPage::class)
-        ->name('counseling.kelola.show');
+        Route::get('/coaching/tambah', CreateCoachingPage::class)
+            ->name('coaching.create');
+
+        Route::get('/coaching/{record}', CoachingDetailPage::class)
+            ->name('coaching.show');
+
+        Route::get('/counseling', CounselingManagePage::class)
+            ->name('counseling.kelola');
+
+        Route::get('/counseling/{record}', CounselingDetailPage::class)
+            ->name('counseling.kelola.show');
+    });
 
     Route::get('/tugas', TaskListPage::class)
         ->name('tugas');
@@ -282,6 +307,37 @@ Route::middleware(['auth', 'portal.access'])->group(function () {
 
     Route::get('/lms/kategori', LmsCategoriesPage::class)
         ->name('pelatihan.kategori');
+
+    Route::get('/lms/baseline', LmsCourseBaselinesPage::class)
+        ->name('pelatihan.baseline');
+
+    Route::get('/lms/laporan', TrainingReportPage::class)
+        ->name('pelatihan.laporan');
+
+    // Bank Soal — padanan portal dari Filament QuestionBanksResource (/admin/lms/question-banks).
+    // "tambah" harus didaftarkan SEBELUM wildcard /lms/bank-soal/{soal} kalau nanti ditambah.
+    Route::get('/lms/bank-soal', BankSoalPage::class)
+        ->name('pelatihan.bank-soal');
+
+    Route::get('/lms/bank-soal/tambah', CreateBankSoal::class)
+        ->name('pelatihan.bank-soal.create');
+
+    // Kuis — padanan portal dari Filament QuizzesResource (/admin/lms/quizzes).
+    // "tambah" harus didaftarkan SEBELUM wildcard /lms/kuis/{kuis} kalau nanti ditambah.
+    Route::get('/lms/kuis', QuizzesPage::class)
+        ->name('pelatihan.kuis');
+
+    Route::get('/lms/kuis/tambah', CreateQuiz::class)
+        ->name('pelatihan.kuis.create');
+
+    Route::get('/lms/kuis/{quiz}/ubah', CreateQuiz::class)
+        ->name('pelatihan.kuis.edit');
+
+    Route::get('/lms/pemateri', TrainersPage::class)
+        ->name('pelatihan.pemateri');
+
+    Route::get('/lms/pemateri/{trainer}', TrainerDetailPage::class)
+        ->name('pelatihan.pemateri.show');
 
     Route::get('/lms/pelatihan', LmsCoursesPage::class)
         ->name('pelatihan.kelola');

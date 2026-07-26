@@ -4,8 +4,6 @@ namespace App\Filament\Resources\LMS\LmsCourses\Pages;
 
 use App\Enum\LsmCourseStatus;
 use App\Filament\Resources\LMS\LmsCourses\LmsCoursesResource;
-use App\Models\LMS\Trainer\TrainerAssessmentDetails;
-use App\Services\LMS\TrainerAssessmentService;
 use Filament\Actions\Action;
 use Filament\Actions\DeleteAction;
 use Filament\Resources\Pages\EditRecord;
@@ -72,11 +70,5 @@ class EditLmsCourses extends EditRecord
                     $this->save();
                 }),
         ];
-    }
-
-    protected function afterSave(): void
-    {
-        $service = app(TrainerAssessmentService::class);
-        $service->generateTrainerAssessmentResult($this->record->id);
     }
 }

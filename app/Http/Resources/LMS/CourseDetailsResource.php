@@ -27,13 +27,6 @@ class CourseDetailsResource extends JsonResource
             ? CourseUserStatus::from($courseUser->status) 
             : null;
 
-        // Check for certificate URL from user history
-        $certificateUrl = null;
-        if ($this->userHistories && $this->userHistories->isNotEmpty()) {
-            $history = $this->userHistories->firstWhere('user_id', $authId);
-            $certificateUrl = $history?->certificate_url ?? null;
-        }
-
         $feedbackUser = $this->feedbacks
             ? $this->feedbacks->firstWhere('user_id', $authId)
             : null;
@@ -57,8 +50,8 @@ class CourseDetailsResource extends JsonResource
             "meetings" => $this->meetings ? MeetingsResource::collection($this->meetings) : null,
         ];
 
-        if ($this->userHistories && $this->userHistories->isNotEmpty()) {
-            $result["certificate_url"] = $certificateUrl ? asset(Storage::url($certificateUrl)) : null;
+        if ($courseUser) {
+            $result["certificate_url"] = $courseUser->certificate_url ? asset(Storage::url($courseUser->certificate_url)) : null;
         }
 
         return $result;

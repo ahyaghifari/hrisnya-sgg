@@ -19,6 +19,17 @@ use Illuminate\Support\Facades\Auth;
 
 class CounselingsTable
 {
+    /**
+     * Isi keluhan/tanggapan RAHASIA — cuma karyawan yang konsul & konselor yang ditunjuk yang
+     * boleh baca (lihat Counseling::isVisibleTo()), TERMASUK Admin/Super Admin panel ini tidak
+     * boleh, walau Shield permission-nya lengkap (instruksi user 2026-07-26). Dipakai di semua
+     * kolom/field issue/response/solution di table & infolist ini.
+     */
+    private static function redacted($record, ?string $value): string
+    {
+        return $record->isVisibleTo(Auth::id()) ? (string) ($value ?? '-') : '🔒 Rahasia';
+    }
+
     public static function configure(Table $table): Table
     {
         return $table
@@ -28,6 +39,10 @@ class CounselingsTable
                     ->searchable()
                     ->sortable(),
 
+                TextColumn::make('counselor.name')
+                    ->label('Konselor')
+                    ->sortable(),
+
                 TextColumn::make('company.name')
                     ->label('Company')
                     ->sortable()
@@ -35,8 +50,8 @@ class CounselingsTable
 
                 TextColumn::make('issue')
                     ->label('Issue')
-                    ->limit(30)
-                    ->searchable(),
+                    ->formatStateUsing(fn ($record, $state) => self::redacted($record, $state))
+                    ->limit(30),
 
                 BadgeColumn::make('status')
                     ->label('Status')
@@ -82,13 +97,20 @@ class CounselingsTable
                             ->schema([
                                 TextEntry::make('issue')
                                     ->label('Issue')
+                                    ->formatStateUsing(fn ($record, $state) => self::redacted($record, $state))
                                     ->columnSpanFull(),
                             ]),
 
                         Section::make('Tanggapan')
                             ->schema([
-                                TextEntry::make('response')->label('Response')->columnSpanFull(),
-                                TextEntry::make('solution')->label('Solution')->columnSpanFull(),
+                                TextEntry::make('response')
+                                    ->label('Response')
+                                    ->formatStateUsing(fn ($record, $state) => self::redacted($record, $state))
+                                    ->columnSpanFull(),
+                                TextEntry::make('solution')
+                                    ->label('Solution')
+                                    ->formatStateUsing(fn ($record, $state) => self::redacted($record, $state))
+                                    ->columnSpanFull(),
                             ]),
 
                         Section::make('Detail Tanggapan')
@@ -104,7 +126,7 @@ class CounselingsTable
                     ->slideOver()
                     ->modalWidth('md')
                     ->modalHeading('Tanggapan')
-                    ->visible(fn ($record) => $record->status == CounselingStatus::PENDING->value)
+                    ->visible(fn ($record) => $record->status == CounselingStatus::PENDING->value && $record->counselor_id === Auth::id())
                     ->using(function ($record, array $data) {
                         $record->update([
                             'response'      => $data['response'],

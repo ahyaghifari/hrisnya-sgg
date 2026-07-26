@@ -106,10 +106,11 @@ class PayrollSlipEmailTest extends TestCase
     public function test_job_sends_mail_and_stamps_slip_sent_at(): void
     {
         Mail::fake();
-        [, , $payroll] = $this->makePaidPayroll();
-        $sender = User::factory()->create(['name' => 'Noor Afini']);
+        [$company, $period, $payroll] = $this->makePaidPayroll();
+        $signer = User::factory()->create(['name' => 'Noor Afini', 'company_id' => $company->id]);
+        $period->update(['signer_id' => $signer->id]);
 
-        (new SendPayrollSlipJob($payroll->id, $sender->id))->handle(app(PayrollService::class));
+        (new SendPayrollSlipJob($payroll->id))->handle(app(PayrollService::class));
 
         Mail::assertSent(PayrollSlipMail::class, fn (PayrollSlipMail $mail) => $mail->hasTo($payroll->user->email) && $mail->senderName === 'Noor Afini');
         $this->assertNotNull($payroll->fresh()->slip_sent_at);
@@ -120,9 +121,8 @@ class PayrollSlipEmailTest extends TestCase
         Mail::fake();
         [, , $payroll] = $this->makePaidPayroll();
         $payroll->update(['is_paid' => false]);
-        $sender = User::factory()->create();
 
-        (new SendPayrollSlipJob($payroll->id, $sender->id))->handle(app(PayrollService::class));
+        (new SendPayrollSlipJob($payroll->id))->handle(app(PayrollService::class));
 
         Mail::assertNothingSent();
         $this->assertNull($payroll->fresh()->slip_sent_at);
@@ -152,7 +152,7 @@ class PayrollSlipEmailTest extends TestCase
             ->test(PayrollDetailPage::class, ['payroll' => $payroll])
             ->call('sendSlipEmail');
 
-        Queue::assertPushed(SendPayrollSlipJob::class, fn ($job) => $job->payrollId === $payroll->id && $job->senderUserId === $finance->id);
+        Queue::assertPushed(SendPayrollSlipJob::class, fn ($job) => $job->payrollId === $payroll->id);
     }
 
     // ── PayrollsPage (ceklis massal) ─────────────────────────────────────────

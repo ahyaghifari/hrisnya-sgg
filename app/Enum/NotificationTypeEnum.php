@@ -29,6 +29,18 @@ enum NotificationTypeEnum: string
     // langsung saat tombol "Tandai Sudah Dibayar" diklik, TERPISAH dari email slip gaji).
     case PAYROLL_PAID = 'payroll_paid';
 
+    // Coaching & Counseling — lihat App\Services\Coaching\CoachingService, App\Services\Counseling\CounselingService.
+    case COUNSELING_RECEIVED = 'counseling_received';
+    case COACHING_ASSIGNED = 'coaching_assigned';
+    case COACHING_PROOF_SUBMITTED = 'coaching_proof_submitted';
+    case COACHING_REVIEW_DECIDED = 'coaching_review_decided';
+
+    // Absensi otomatis dari access_logs (mesin absensi) — lihat
+    // App\Console\Commands\SyncAccessLogsAttendance.
+    case ATTENDANCE_CHECKED_IN = 'attendance_checked_in';
+    case ATTENDANCE_CHECKED_OUT = 'attendance_checked_out';
+    case ATTENDANCE_SCAN_REJECTED = 'attendance_scan_rejected';
+
     public function label(): string
     {
         return match ($this) {
@@ -42,6 +54,13 @@ enum NotificationTypeEnum: string
             self::TASK_COMMENTED => 'Komentar Baru di Tugas Saya',
             self::TASK_PROJECT_MEMBER_ADDED => 'Ditambahkan ke Project',
             self::PAYROLL_PAID => 'Gaji Saya Sudah Dibayar',
+            self::COUNSELING_RECEIVED => 'Ada Karyawan Konsul ke Saya',
+            self::COACHING_ASSIGNED => 'Saya Mendapatkan Coaching',
+            self::COACHING_PROOF_SUBMITTED => 'Bukti Coaching Menunggu Persetujuan Saya',
+            self::COACHING_REVIEW_DECIDED => 'Coaching Saya Disetujui/Ditolak',
+            self::ATTENDANCE_CHECKED_IN => 'Absensi Masuk Tercatat',
+            self::ATTENDANCE_CHECKED_OUT => 'Absensi Pulang Tercatat',
+            self::ATTENDANCE_SCAN_REJECTED => 'Absensi Saya Tidak Diproses',
         };
     }
 
@@ -50,9 +69,10 @@ enum NotificationTypeEnum: string
     public function group(): string
     {
         return match (true) {
-            str_starts_with($this->value, 'approval_') => 'Absensi',
+            str_starts_with($this->value, 'approval_'), str_starts_with($this->value, 'attendance_') => 'Absensi',
             str_starts_with($this->value, 'task_') => 'Tugas',
             str_starts_with($this->value, 'payroll_') => 'Penggajian',
+            str_starts_with($this->value, 'counseling_'), str_starts_with($this->value, 'coaching_') => 'Coaching & Counseling',
             default => 'Lainnya',
         };
     }
@@ -70,6 +90,13 @@ enum NotificationTypeEnum: string
             self::TASK_COMMENTED => 'Dikirim saat ada komentar baru di tugas yang Anda kerjakan/buat.',
             self::TASK_PROJECT_MEMBER_ADDED => 'Dikirim saat Anda dimasukkan sebagai anggota sebuah project tugas.',
             self::PAYROLL_PAID => 'Dikirim saat payroll Anda ditandai sudah dibayar oleh finance.',
+            self::COUNSELING_RECEIVED => 'Dikirim saat ada karyawan yang menunjuk Anda sebagai konselor untuk konsul.',
+            self::COACHING_ASSIGNED => 'Dikirim saat atasan/HC membuat sesi coaching baru untuk Anda.',
+            self::COACHING_PROOF_SUBMITTED => 'Dikirim ke coach saat karyawan yang dibina mengajukan bukti pelaksanaan.',
+            self::COACHING_REVIEW_DECIDED => 'Dikirim saat coach menyetujui atau menolak bukti coaching yang Anda ajukan.',
+            self::ATTENDANCE_CHECKED_IN => 'Dikirim saat mesin absensi mencatat Anda check-in.',
+            self::ATTENDANCE_CHECKED_OUT => 'Dikirim saat mesin absensi mencatat Anda check-out.',
+            self::ATTENDANCE_SCAN_REJECTED => 'Dikirim saat scan absensi Anda tidak bisa diproses sistem (mis. jadwal tidak ditemukan), beserta alasannya.',
         };
     }
 }

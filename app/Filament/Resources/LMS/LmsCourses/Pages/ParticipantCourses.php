@@ -6,7 +6,6 @@ use App\Enum\CourseUserStatus;
 use App\Filament\Resources\LMS\LmsCourses\LmsCoursesResource;
 use App\Models\LMS\LmsCourses;
 use App\Models\LMS\LmsCourseUsers;
-use App\Models\LMS\LmsUserHistories;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
 use Filament\Forms\Components\FileUpload;
@@ -166,7 +165,7 @@ class ParticipantCourses extends Page implements HasTable
                         ->label('Unggah Sertifikat')
                         ->icon('heroicon-o-document-arrow-up')
                         ->color('primary')
-                        ->disabled(fn (LmsCourseUsers $record): bool => LmsUserHistories::where('user_id', $record->user_id)->where('course_id', $record->course_id)->whereNotNull('certificate_url')->exists())
+                        ->disabled(fn (LmsCourseUsers $record): bool => filled($record->certificate_url))
                         ->modalHeading('Unggah Sertifikat Peserta')
                         ->visible(fn (LmsCourseUsers $record): bool => $record->status === CourseUserStatus::COMPLETED->value)
                         ->schema([
@@ -179,16 +178,8 @@ class ParticipantCourses extends Page implements HasTable
                                 ->required(),
                         ])
                         ->action(function (array $data, LmsCourseUsers $record): void {
-                            LmsUserHistories::updateOrCreate(
-                                [
-                                    'user_id' => $record->user_id,
-                                    'course_id' => $record->course_id,
-                                ],
-                                [
-                                    'certificate_url' => $data['certificate_file'],
-                                ]
-                            );
-    
+                            $record->update(['certificate_url' => $data['certificate_file']]);
+
                             Notification::make()
                                 ->title('Sertifikat berhasil diunggah')
                                 ->success()

@@ -3,11 +3,16 @@
 namespace Tests\Feature\LMS;
 
 use App\Enum\CourseUserStatus;
+use App\Enum\LMS\TrainingCategoryEnum;
 use App\Livewire\LMS\LmsCourseDetailPage;
 use App\Models\LMS\LmsCategories;
 use App\Models\LMS\LmsCourses;
 use App\Models\LMS\LmsCourseUsers;
 use App\Models\LMS\LmsQuizzes;
+use App\Models\LMS\Trainer\LmsHonorarium;
+use App\Models\LMS\Trainer\LmsHonorariumCategory;
+use App\Models\LMS\Trainer\LmsHonorariumVariable;
+use App\Models\LMS\Trainer\Trainers;
 use App\Models\Master\Companies;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -56,6 +61,94 @@ class LmsCourseDetailPageTest extends TestCase
             'source_type' => 'internal',
             'status' => 'published',
         ]);
+    }
+
+    public function test_saves_fixed_honor_amount_for_non_scored_category(): void
+    {
+        $company = $this->makeCompany('CPA', 'Company A');
+        $admin = $this->actingAsLmsAdmin($company->id);
+        $category = LmsCategories::create(['name' => 'Umum', 'training_category' => TrainingCategoryEnum::UMUM]);
+        $course = $this->makeCourse($company->id);
+        $course->update(['category_id' => $category->id, 'start_date' => '2026-08-10', 'end_date' => '2026-08-10']);
+        $trainer = Trainers::create(['type' => 'internal', 'name' => 'Trainer Uji', 'is_active' => true]);
+        $course->meetings()->create([
+            'title' => 'Pelatihan Uji',
+            'trainer_id' => $trainer->id,
+            'start_date' => '2026-08-10',
+            'end_date' => '2026-08-10',
+        ]);
+        $course->refresh();
+
+        Livewire::actingAs($admin)
+            ->test(LmsCourseDetailPage::class, ['course' => $course])
+            ->call('setTab', 'penilaian')
+            ->assertSet('usesScoredHonor', false)
+            ->set('honorFixedAmount', '500000')
+            ->call('saveHonorFixed')
+            ->assertHasNoErrors();
+
+        $this->assertDatabaseHas('trainer_assessment_results', [
+            'course_id' => $course->id,
+            'trainer_id' => $trainer->id,
+            'honor_amount' => 500000,
+        ]);
+    }
+
+    public function test_saves_scored_honor_amount_matching_range(): void
+    {
+        $company = $this->makeCompany('CPA', 'Company A');
+        $admin = $this->actingAsLmsAdmin($company->id);
+        $category = LmsCategories::create(['name' => 'Eksternal', 'training_category' => TrainingCategoryEnum::EKSTERNAL]);
+        $course = $this->makeCourse($company->id);
+        $course->update(['category_id' => $category->id, 'start_date' => '2026-08-10', 'end_date' => '2026-08-10']);
+        $trainer = Trainers::create(['type' => 'external', 'name' => 'Trainer Eksternal', 'is_active' => true]);
+        $course->meetings()->create([
+            'title' => 'Pelatihan Uji',
+            'trainer_id' => $trainer->id,
+            'start_date' => '2026-08-10',
+            'end_date' => '2026-08-10',
+        ]);
+        $course->refresh();
+
+        $variable = LmsHonorariumVariable::create(['context' => 'eksternal', 'name' => 'Lama Praktik']);
+        $catLow = LmsHonorariumCategory::create(['variable_id' => $variable->id, 'name' => '< 10 Tahun', 'score' => 1]);
+        $catHigh = LmsHonorariumCategory::create(['variable_id' => $variable->id, 'name' => '10-19 Tahun', 'score' => 5]);
+        LmsHonorarium::create(['context' => 'eksternal', 'min_score' => 0, 'max_score' => 2, 'honor_amount' => 100000]);
+        LmsHonorarium::create(['context' => 'eksternal', 'min_score' => 3, 'max_score' => 10, 'honor_amount' => 300000]);
+
+        Livewire::actingAs($admin)
+            ->test(LmsCourseDetailPage::class, ['course' => $course])
+            ->call('setTab', 'penilaian')
+            ->assertSet('usesScoredHonor', true)
+            ->set("honorCategorySelections.{$variable->id}", $catHigh->id)
+            ->call('saveHonorScored')
+            ->assertHasNoErrors();
+
+        $this->assertDatabaseHas('trainer_assessment_results', [
+            'course_id' => $course->id,
+            'trainer_id' => $trainer->id,
+            'honor_amount' => 300000,
+        ]);
+
+        $this->assertDatabaseHas('lms_meeting_honorarium_details', [
+            'variable_id' => $variable->id,
+            'category_id' => $catHigh->id,
+            'score' => 5,
+        ]);
+    }
+
+    public function test_honorarium_tab_requires_selecting_a_meeting_for_multi_day_course(): void
+    {
+        $company = $this->makeCompany('CPA', 'Company A');
+        $admin = $this->actingAsLmsAdmin($company->id);
+        $course = $this->makeCourse($company->id);
+        $course->meetings()->create(['title' => 'Sesi 1', 'start_date' => '2026-08-10', 'end_date' => '2026-08-11']);
+        $course->refresh();
+
+        Livewire::actingAs($admin)
+            ->test(LmsCourseDetailPage::class, ['course' => $course])
+            ->call('setTab', 'penilaian')
+            ->assertSee('Pilih pertemuan dulu');
     }
 
     public function test_user_without_permission_is_forbidden(): void
@@ -195,6 +288,8 @@ class LmsCourseDetailPageTest extends TestCase
             ->set('meetingTrainerId', $trainer->id)
             ->set('meetingStartDate', '2026-08-11')
             ->set('meetingEndDate', '2026-08-11')
+            ->set('meetingStartTime', '08:00')
+            ->set('meetingEndTime', '10:00')
             ->call('saveMeeting')
             ->assertSee('Sesi Hari Kedua');
 
@@ -203,7 +298,26 @@ class LmsCourseDetailPageTest extends TestCase
             'title' => 'Sesi Hari Kedua',
             'trainer_id' => $trainer->id,
             'attendance_type' => 'offline',
+            'start_time' => '08:00',
+            'end_time' => '10:00',
         ]);
+    }
+
+    public function test_trainer_options_excludes_inactive_trainers(): void
+    {
+        $company = $this->makeCompany('CPA', 'Company A');
+        $admin = $this->actingAsLmsAdmin($company->id);
+        $course = $this->makeCourse($company->id);
+        $active = \App\Models\LMS\Trainer\Trainers::create(['type' => 'internal', 'name' => 'Trainer Aktif', 'is_active' => true]);
+        $inactive = \App\Models\LMS\Trainer\Trainers::create(['type' => 'internal', 'name' => 'Trainer Nonaktif', 'is_active' => false]);
+
+        $options = Livewire::actingAs($admin)
+            ->test(LmsCourseDetailPage::class, ['course' => $course])
+            ->call('setTab', 'pertemuan')
+            ->instance()->trainerOptions;
+
+        $this->assertTrue($options->has($active->id));
+        $this->assertFalse($options->has($inactive->id));
     }
 
     public function test_add_meeting_requires_trainer(): void
@@ -243,6 +357,8 @@ class LmsCourseDetailPageTest extends TestCase
             ->call('setTab', 'pertemuan')
             ->assertDontSee('Judul Pertemuan')
             ->set('meetingTrainerId', $trainer->id)
+            ->set('meetingStartTime', '08:00')
+            ->set('meetingEndTime', '10:00')
             ->call('saveMeeting');
 
         $this->assertDatabaseHas('lms_meetings', [

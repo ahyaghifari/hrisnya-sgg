@@ -2,7 +2,8 @@
      Absensi sengaja tidak ada field-nya (dipaksa 'offline' di saveMeeting()). Tanggal Mulai/
      Selesai & Judul Pertemuan cuma muncul kalau course-nya lebih dari 1 hari
      (isSingleDayCourse) — course 1 hari cuma py 1 pertemuan, judulnya otomatis ikut judul
-     pelatihan, langsung ke Trainer (wajib dipilih). --}}
+     pelatihan, langsung ke Pemateri (wajib dipilih). Jam Mulai/Selesai SELALU muncul, baik
+     1 hari maupun banyak pertemuan. --}}
 <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;">
     @if (! $this->isSingleDayCourse)
         <div style="grid-column:1 / -1;">
@@ -13,13 +14,15 @@
     @endif
 
     <div>
-        <label class="form-label">Trainer <span style="color:var(--danger-text);">*</span></label>
-        <select wire:model="meetingTrainerId" class="form-input">
-            <option value="">-- Pilih Trainer --</option>
-            @foreach ($this->trainerOptions as $id => $name)
-                <option value="{{ $id }}">{{ $name }}</option>
-            @endforeach
-        </select>
+        <label class="form-label">Pemateri <span style="color:var(--danger-text);">*</span></label>
+        <div wire:ignore>
+            <select wire:model="meetingTrainerId" data-tom-select data-placeholder="-- Pilih Pemateri --" class="form-input">
+                <option value="">-- Pilih Pemateri --</option>
+                @foreach ($this->trainerOptions as $id => $name)
+                    <option value="{{ $id }}">{{ $name }}</option>
+                @endforeach
+            </select>
+        </div>
         @error('meetingTrainerId') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
     </div>
 
@@ -36,6 +39,18 @@
             @error('meetingEndDate') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
         </div>
     @endif
+
+    <div>
+        <label class="form-label">Jam Mulai <span style="color:var(--danger-text);">*</span></label>
+        <input type="time" wire:model="meetingStartTime" class="form-input">
+        @error('meetingStartTime') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
+    </div>
+
+    <div>
+        <label class="form-label">Jam Selesai <span style="color:var(--danger-text);">*</span></label>
+        <input type="time" wire:model="meetingEndTime" class="form-input">
+        @error('meetingEndTime') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
+    </div>
 
     <div style="grid-column:1 / -1;">
         <label class="form-label">Deskripsi / Materi (opsional)</label>

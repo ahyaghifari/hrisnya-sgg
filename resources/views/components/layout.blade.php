@@ -24,6 +24,13 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    {{-- Trix rich editor (CDN jsdelivr, tanpa npm build) — dipakai form Bank Soal LMS untuk input
+       pertanyaan. Trix auto-attach ke <trix-editor> + <input type="hidden"> yang ter-link via
+       `input` attribute. Catatan: Trix 2.x pakai path "dist/trix.umd.min.js" (bukan trix.min.js
+       seperti 1.x) — cdnjs tidak host file ini buat 2.x, makunya pakai jsdelivr. TANPA defer:
+       script blocking supaya window.Trix pasti ready sebelum Livewire morph hook jalan. --}}
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/trix@2.1.15/dist/trix.css">
+    <script src="https://cdn.jsdelivr.net/npm/trix@2.1.15/dist/trix.umd.min.js"></script>
     @livewireStyles
     @filamentStyles
     @filamentScripts

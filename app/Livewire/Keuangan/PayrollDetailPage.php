@@ -150,7 +150,7 @@ class PayrollDetailPage extends Component
             return;
         }
 
-        SendPayrollSlipJob::dispatch($this->payroll->id, Auth::id());
+        SendPayrollSlipJob::dispatch($this->payroll->id);
 
         Notification::make()
             ->title('Slip gaji sedang dikirim')

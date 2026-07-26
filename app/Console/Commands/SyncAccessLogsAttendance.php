@@ -2,7 +2,11 @@
 
 namespace App\Console\Commands;
 
+use App\Models\Attendance\AttendanceRecords;
 use App\Models\Attendance\SyncAccessLog;
+use App\Notifications\AttendanceCheckedIn;
+use App\Notifications\AttendanceCheckedOut;
+use App\Notifications\AttendanceScanRejected;
 use App\Repositories\Attendance\AttendanceRecordRepository;
 use App\Services\Attendance\AccessLogScheduleReader;
 use App\Services\Attendance\Calculators\FixedScheduleCalculator;
@@ -39,14 +43,26 @@ class SyncAccessLogsAttendance extends Command
 
         $fixedCount = 0;
         foreach ($fixedCalculator->calculate($result['buckets']['fixed']) as $r) {
-            $repo->saveCalculatedResult($r, 'access_logs_fixed');
+            $record = $repo->saveCalculatedResult($r, 'access_logs_fixed');
+            $this->notifyCheckInOut($r, $record);
             $fixedCount++;
         }
 
         $flexibleCount = 0;
         foreach ($flexibleCalculator->calculate($result['buckets']['flexible']) as $r) {
-            $repo->saveCalculatedResult($r, 'access_logs_flexible');
+            $record = $repo->saveCalculatedResult($r, 'access_logs_flexible');
+            $this->notifyCheckInOut($r, $record);
             $flexibleCount++;
+        }
+
+        // Scan yang user-nya ketemu tapi jadwalnya TIDAK ketemu untuk tanggal itu - tidak
+        // pernah masuk ke buckets manapun jadi tidak pernah tersimpan ke attendance_records.
+        // Kabari karyawannya langsung supaya tidak diam-diam dianggap tidak absen.
+        foreach ($result['unresolved_schedule'] as $entry) {
+            $entry['user']->notify(new AttendanceScanRejected(
+                $entry['date'],
+                'jadwal Anda tidak ditemukan untuk tanggal ini, hubungi HR/atasan Anda.'
+            ));
         }
 
         $watermark->update(['last_synced_at' => $result['max_synced_at']]);
@@ -54,5 +70,21 @@ class SyncAccessLogsAttendance extends Command
         $this->info("Sync selesai: {$fixedCount} fixed, {$flexibleCount} flexible disimpan. Watermark -> {$result['max_synced_at']}.");
 
         return Command::SUCCESS;
+    }
+
+    /**
+     * @param  array{user: \App\Models\User, is_new_checkin: bool, is_new_checkout: bool}  $r
+     */
+    private function notifyCheckInOut(array $r, AttendanceRecords $record): void
+    {
+        // Pakai $r['user'] (sudah di-load AccessLogScheduleReader::resolveUsers()) bukan
+        // $record->user, supaya tidak query ulang lewat relasi cuma buat notify.
+        if ($r['is_new_checkin']) {
+            $r['user']->notify(new AttendanceCheckedIn($record));
+        }
+
+        if ($r['is_new_checkout']) {
+            $r['user']->notify(new AttendanceCheckedOut($record));
+        }
     }
 }

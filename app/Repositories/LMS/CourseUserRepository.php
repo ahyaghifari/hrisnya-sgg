@@ -5,7 +5,6 @@ namespace App\Repositories\LMS;
 use App\Enum\CourseUserStatus;
 use App\Models\LMS\LmsCourses;
 use App\Models\LMS\LmsCourseUsers;
-use App\Models\LMS\LmsUserHistories;
 
 class CourseUserRepository
 {
@@ -52,9 +51,11 @@ class CourseUserRepository
     public function getFollowedCoursesByUserId(string $userId, array $filters = [])
     {
         if (isset($filters['type']) && $filters['type'] === 'completed') {
-            // Ambil course dari relasi LmsUserHistories
-            return LmsCourses::whereHas('userHistories', function ($query) use ($userId) {
-                $query->where('user_id', $userId);
+            // "Selesai & sudah diarsipkan" — dulu dicek lewat relasi LmsUserHistories terpisah,
+            // sekarang cukup archived_at di lms_course_users sendiri (lihat migration
+            // consolidate_lms_user_histories_into_lms_course_users).
+            return LmsCourses::whereHas('courseUsers', function ($query) use ($userId) {
+                $query->where('user_id', $userId)->whereNotNull('archived_at');
             })->get();
         }
 
@@ -71,7 +72,7 @@ class CourseUserRepository
 
     public function getCertificateHistory(string $userId, string $courseUserId)
     {
-        return LmsUserHistories::where('user_id', $userId)
+        return LmsCourseUsers::where('user_id', $userId)
             ->where('course_id', $courseUserId)
             ->first();
     }

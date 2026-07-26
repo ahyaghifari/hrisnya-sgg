@@ -4,7 +4,6 @@ namespace App\Jobs;
 
 use App\Mail\PayrollSlipMail;
 use App\Models\Payroll\Payroll;
-use App\Models\User;
 use App\Services\Payroll\PayrollService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -14,10 +13,6 @@ use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 
-/**
- * Nama & jabatan pengirim di email diambil dari user yang MENGKLIK tombol kirim (bukan
- * generatedBy payroll) — dikirim sebagai ID biar job tetap ringan di-serialize ke antrean.
- */
 class SendPayrollSlipJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
@@ -27,26 +22,30 @@ class SendPayrollSlipJob implements ShouldQueue
 
     public function __construct(
         public string $payrollId,
-        public string $senderUserId,
     ) {}
 
     public function handle(PayrollService $service): void
     {
-        $payroll = Payroll::with(['user.profile', 'payrollPeriod'])->find($this->payrollId);
+        $payroll = Payroll::with([
+            'user.profile',
+            'payrollPeriod.signer.activeJobPosition.jobPosition',
+            'payrollPeriod.generatedBy.activeJobPosition.jobPosition',
+        ])->find($this->payrollId);
 
         if (! $payroll || ! $payroll->is_paid || ! $payroll->user?->email) {
             return;
         }
 
-        $sender = User::with('activeJobPosition.jobPosition')->find($this->senderUserId);
+        // Sama seperti PDF slip: signer_id dipilih manual di Periode Gaji, fallback ke generatedBy kalau kosong.
+        $sender = $payroll->payrollPeriod->signer ?? $payroll->payrollPeriod->generatedBy;
         $slip = $service->encryptedSlip($payroll);
 
         Mail::to($payroll->user->email)->send(new PayrollSlipMail(
             $payroll,
             $slip['binary'],
             $slip['filename'],
-            $sender?->name ?? '-',
-            $sender?->activeJobPosition?->jobPosition?->name,
+            $sender?->name ?? 'NOOR AFINI, SE',
+            $sender?->activeJobPosition?->jobPosition?->name ?? 'Accounting',
         ));
 
         $payroll->update(['slip_sent_at' => now()]);

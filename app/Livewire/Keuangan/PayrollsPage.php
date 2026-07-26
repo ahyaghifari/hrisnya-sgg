@@ -217,7 +217,7 @@ class PayrollsPage extends Component
                 continue;
             }
 
-            SendPayrollSlipJob::dispatch($payroll->id, Auth::id());
+            SendPayrollSlipJob::dispatch($payroll->id);
         }
 
         $sentCount = $payrolls->count() - $skipped;

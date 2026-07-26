@@ -70,9 +70,9 @@ class LmsMeetings extends Model
         return $this->belongsTo(Trainers::class, 'trainer_id', 'id');
     }
 
-    public function trainerAssessments()
+    public function honorariumAssessment()
     {
-        return $this->hasOne(\App\Models\LMS\Trainer\TrainerAssessments::class, 'meeting_id', 'id');
+        return $this->hasOne(\App\Models\LMS\Trainer\LmsMeetingHonorariumAssessment::class, 'meeting_id', 'id');
     }
 
     protected static function booted()

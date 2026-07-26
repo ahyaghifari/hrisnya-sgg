@@ -350,6 +350,12 @@ html.dark .nav-item-teal:hover, html.dark .nav-item-teal.active { background: #1
 .nav-item-gold:hover, .nav-item-gold.active { color: #fff; background: #92400e; }
 html.dark .nav-item-gold:hover, html.dark .nav-item-gold.active { background: #d97706; }
 
+/* Sama indigo yang dipakai ikon Coaching/Counseling di grid menu mobile (pwa-menu-grid-icon
+   .indigo) — biar 1 identitas warna dipakai konsisten desktop & mobile untuk domain ini. */
+.nav-item-indigo { color: #fff; background: #4338ca; }
+.nav-item-indigo:hover, .nav-item-indigo.active { color: #fff; background: #3730a3; }
+html.dark .nav-item-indigo:hover, html.dark .nav-item-indigo.active { background: #4f46e5; }
+
 /* Baris 2 nav desktop (role/jabatan) — nested di .nav-middle (bukan full-bleed lagi), pill
    abu-abu yang cuma selebar isinya, nempel tepat di bawah baris karyawan. Background & teks
    theme-aware (var(--border)/var(--text-muted)) — abu-abu terang di light mode, abu-abu gelap
@@ -357,7 +363,7 @@ html.dark .nav-item-gold:hover, html.dark .nav-item-gold.active { background: #d
 .topnav-row2 { display: flex; align-items: center; gap: 8px; background: var(--border); border: 1px solid var(--border-soft); border-radius: 10px; padding: 4px 8px; flex-wrap: wrap; }
 @media (min-width: 768px) { .topnav-row2 { gap: 16px; } }
 .topnav-row2 .nav-item { padding: 4px 10px; font-size: 12px; border-radius: 7px; gap: 4px; color: var(--text-muted); }
-.topnav-row2 .nav-item-green, .topnav-row2 .nav-item-sky, .topnav-row2 .nav-item-navy, .topnav-row2 .nav-item-orange, .topnav-row2 .nav-item-pink, .topnav-row2 .nav-item-teal, .topnav-row2 .nav-item-gold { color: #fff; }
+.topnav-row2 .nav-item-green, .topnav-row2 .nav-item-sky, .topnav-row2 .nav-item-navy, .topnav-row2 .nav-item-orange, .topnav-row2 .nav-item-pink, .topnav-row2 .nav-item-teal, .topnav-row2 .nav-item-gold, .topnav-row2 .nav-item-indigo { color: #fff; }
 .dropdown { position: relative; }
 .dropdown-menu { position: absolute; top: calc(100% + 10px); left: 50%; transform: translateX(-50%) translateY(-4px); background: var(--surface); border-radius: 14px; padding: 6px; box-shadow: 0 8px 30px rgba(4,44,108,0.12), 0 0 0 1px rgba(4,44,108,0.06); min-width: 180px; opacity: 0; visibility: hidden; transition: all 0.15s; z-index: 210; }
 .dropdown-menu.dropdown-menu-right { left: auto; right: 0; transform: translateY(-4px); }
@@ -936,7 +942,12 @@ html.dark .border-slate-200, html.dark .border-slate-300 { border-color: var(--b
 select.form-input { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24'%3E%3Cpath fill='%2394a3b8' d='M7 10l5 5 5-5z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 14px center; padding-right: 36px; }
 textarea.form-input { resize: none; }
 
-/* Tom Select — dibuat selaras dengan .form-input (dipakai filter kategori Pelatihan, dst). */
+/* Tom Select — dibuat selaras dengan .form-input (dipakai filter kategori Pelatihan, dst).
+   Tom Select nyalin classList <select> aslinya (termasuk "form-input") ke .ts-wrapper — tanpa
+   baris di bawah ini, box .form-input (border/padding/background) nempel di wrapper SEKALIGUS
+   di .ts-control anaknya, jadi kelihatan kotak dalam kotak. Matikan box punya wrapper, biarkan
+   cuma .ts-control yang tampil sebagai kotaknya. */
+.ts-wrapper.form-input { width: 100%; padding: 0; border: none; border-radius: 0; background: none; }
 .ts-wrapper.single .ts-control, .ts-wrapper.multi .ts-control { padding: 10px 14px; border: 1.5px solid var(--border); border-radius: 11px; font-size: 13.5px; color: var(--text-heading); background: var(--surface); font-family: inherit; box-shadow: none; }
 .ts-wrapper.single .ts-control:after { border-color: var(--text-faint) transparent transparent transparent; }
 .ts-wrapper.focus .ts-control { border-color: #042c6c; box-shadow: 0 0 0 3px rgba(4,44,108,0.08); }
@@ -1077,6 +1088,9 @@ html.dark .theme-toggle-icons .fa-moon { display: none; }
 .section-nav-btn.teal { background: rgba(15,118,110,0.06); color: #0f766e; border-color: rgba(15,118,110,0.16); }
 .section-nav-btn.teal:hover { background: rgba(15,118,110,0.12); }
 .section-nav-btn.teal.is-active { background: #0f766e; color: #fff; border-color: #0f766e; box-shadow: 0 4px 12px rgba(15,118,110,0.28); }
+.section-nav-btn.gold { background: rgba(180,83,9,0.06); color: #b45309; border-color: rgba(180,83,9,0.16); }
+.section-nav-btn.gold:hover { background: rgba(180,83,9,0.12); }
+.section-nav-btn.gold.is-active { background: #b45309; color: #fff; border-color: #b45309; box-shadow: 0 4px 12px rgba(180,83,9,0.28); }
 @media (max-width: 479px) { .section-nav { gap: 6px; } .section-nav-btn { flex: 1 1 auto; padding: 10px 12px; font-size: 12px; } }
 
 /* Pill tidak-aktif (section-nav-btn, doc-type-btn) pakai tint alpha rendah di atas warna
@@ -1091,6 +1105,8 @@ html.dark .section-nav-btn.rust { background: rgba(251,146,60,0.16); color: #fdb
 html.dark .section-nav-btn.rust:hover { background: rgba(251,146,60,0.26); }
 html.dark .section-nav-btn.teal { background: rgba(45,212,191,0.16); color: #5eead4; border-color: rgba(45,212,191,0.4); }
 html.dark .section-nav-btn.teal:hover { background: rgba(45,212,191,0.26); }
+html.dark .section-nav-btn.gold { background: rgba(251,191,36,0.16); color: #fcd34d; border-color: rgba(251,191,36,0.4); }
+html.dark .section-nav-btn.gold:hover { background: rgba(251,191,36,0.26); }
 
 /* ── DOCUMENT TYPE FILTER (tab Dokumen: pilih jenis dokumen di kiri, dokumen dari jenis
    itu di kanan — sama seperti menu "Jenis Dokumen" di Filament sebelumnya). Mobile: pill

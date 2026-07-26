@@ -8,9 +8,11 @@
     $canAccessRekrutmen = auth()->user()->can(\App\Enum\CustomPermissionEnum::SISTEM_REKRUTMEN->value);
     $canAccessPelatihanSaya = auth()->user()->can(\App\Enum\CustomPermissionEnum::PELATIHAN_SAYA->value);
     $canAccessPengajuanAbsensiSaya = auth()->user()->can(\App\Enum\CustomPermissionEnum::PENGAJUAN_ABSENSI_SAYA->value);
-    $canAccessCoachingCounseling = auth()->user()->can(\App\Enum\CustomPermissionEnum::SISTEM_COACHING_COUNSELING->value);
-    $canManageCoaching = auth()->user()->can('ViewAny:Coaching');
-    $canManageCounseling = auth()->user()->can('ViewAny:Counseling');
+    // Sama seperti nav.blade.php — SATU rule sama persis MyStaff ($canSeeKaryawanMenu, "punya
+    // bawahan"), bukan gerbang permission Shield terpisah lagi (instruksi 2026-07-26). Karyawan
+    // biasa yang ditunjuk jadi konselor akses lewat tombol "Konsul ke Saya" di halaman personal
+    // Counseling Saya (/counseling), bukan lewat section ini.
+    $canAccessCoachingCounseling = $canSeeKaryawanMenu;
 
     $navPhotoPath = auth()->user()->profile?->profile_picture[0] ?? null;
     $navPhotoUrl = $navPhotoPath && is_string($navPhotoPath) ? \Illuminate\Support\Facades\Storage::url($navPhotoPath) : null;
@@ -186,26 +188,42 @@
                 <span class="pwa-menu-grid-icon teal"><i class="fa-solid fa-tags"></i></span>
                 <span class="pwa-menu-grid-label">Kategori Pelatihan</span>
             </a>
+            <a href="{{ route('pelatihan.pemateri') }}" wire:navigate class="pwa-menu-grid-item">
+                <span class="pwa-menu-grid-icon teal"><i class="fa-solid fa-chalkboard-user"></i></span>
+                <span class="pwa-menu-grid-label">Pemateri</span>
+            </a>
+            <a href="{{ route('pelatihan.bank-soal') }}" wire:navigate class="pwa-menu-grid-item">
+                <span class="pwa-menu-grid-icon teal"><i class="fa-solid fa-clipboard-list"></i></span>
+                <span class="pwa-menu-grid-label">Bank Soal</span>
+            </a>
+            <a href="{{ route('pelatihan.kuis') }}" wire:navigate class="pwa-menu-grid-item">
+                <span class="pwa-menu-grid-icon teal"><i class="fa-solid fa-list-check"></i></span>
+                <span class="pwa-menu-grid-label">Kuis</span>
+            </a>
             <a href="{{ route('pelatihan.honorarium') }}" wire:navigate class="pwa-menu-grid-item">
                 <span class="pwa-menu-grid-icon teal"><i class="fa-solid fa-sack-dollar"></i></span>
                 <span class="pwa-menu-grid-label">Honorarium</span>
+            </a>
+            <a href="{{ route('pelatihan.baseline') }}" wire:navigate class="pwa-menu-grid-item">
+                <span class="pwa-menu-grid-icon teal"><i class="fa-solid fa-bullseye"></i></span>
+                <span class="pwa-menu-grid-label">Baseline Pelatihan</span>
+            </a>
+            <a href="{{ route('pelatihan.laporan') }}" wire:navigate class="pwa-menu-grid-item">
+                <span class="pwa-menu-grid-icon teal"><i class="fa-solid fa-chart-bar"></i></span>
+                <span class="pwa-menu-grid-label">Laporan</span>
             </a>
         @endif
 
         @if ($canAccessCoachingCounseling)
             <span class="pwa-menu-grid-divider">Coaching & Counseling</span>
-            @if ($canManageCoaching)
-                <a href="{{ route('coaching') }}" wire:navigate class="pwa-menu-grid-item">
-                    <span class="pwa-menu-grid-icon indigo"><i class="fa-solid fa-clipboard-check"></i></span>
-                    <span class="pwa-menu-grid-label">Coaching</span>
-                </a>
-            @endif
-            @if ($canManageCounseling)
-                <a href="{{ route('counseling.kelola') }}" wire:navigate class="pwa-menu-grid-item">
-                    <span class="pwa-menu-grid-icon indigo"><i class="fa-solid fa-comments"></i></span>
-                    <span class="pwa-menu-grid-label">Kelola Counseling</span>
-                </a>
-            @endif
+            <a href="{{ route('coaching') }}" wire:navigate class="pwa-menu-grid-item">
+                <span class="pwa-menu-grid-icon indigo"><i class="fa-solid fa-clipboard-check"></i></span>
+                <span class="pwa-menu-grid-label">Coaching</span>
+            </a>
+            <a href="{{ route('counseling.kelola') }}" wire:navigate class="pwa-menu-grid-item">
+                <span class="pwa-menu-grid-icon indigo"><i class="fa-solid fa-comments"></i></span>
+                <span class="pwa-menu-grid-label">Counseling</span>
+            </a>
         @endif
 
         {{-- ponytail: menu Rekrutmen disembunyikan sementara, aktifkan lagi ganti @if ($canAccessRekrutmen) --}}

@@ -5,6 +5,15 @@
 @endphp
 
 <div class="p-4 md:p-6">
+    <style>
+        .payroll-slip-columns { display:grid; grid-template-columns:1fr; gap:20px; }
+        @media (min-width: 640px) {
+            .payroll-slip-columns { grid-template-columns:1fr 1fr; gap:0; }
+            .payroll-slip-col-left { padding-right:16px; border-right:1px dashed var(--border); }
+            .payroll-slip-col-right { padding-left:16px; }
+        }
+    </style>
+
     <div style="display:flex;flex-direction:column;gap:16px;">
         <a href="{{ route('keuangan.payroll') }}" wire:navigate style="font-size:12.5px;color:var(--text-muted);text-decoration:none;"><i class="fa-solid fa-arrow-left"></i> Kembali ke daftar Payroll</a>
 
@@ -80,8 +89,8 @@
         </div>
 
         <div style="background:var(--surface);border-radius:12px;box-shadow:var(--shadow-card);padding:18px;">
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:0;">
-                <div style="padding-right:16px;border-right:1px dashed var(--border);">
+            <div class="payroll-slip-columns">
+                <div class="payroll-slip-col-left">
                     <p style="display:flex;align-items:center;gap:6px;font-size:10.5px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;color:#047C54;margin:0 0 10px;">
                         <i class="fa-solid fa-arrow-trend-up"></i> Pendapatan
                     </p>
@@ -129,7 +138,7 @@
                     </div>
                 </div>
 
-                <div style="padding-left:16px;">
+                <div class="payroll-slip-col-right">
                     <p style="display:flex;align-items:center;gap:6px;font-size:10.5px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;color:#dc2626;margin:0 0 10px;">
                         <i class="fa-solid fa-arrow-trend-down"></i> Potongan
                     </p>
