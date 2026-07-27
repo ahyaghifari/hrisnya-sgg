@@ -20,7 +20,7 @@ class CustomPermissionsSeeder extends Seeder
         }
 
         $this->seedManualPolicyPermissions();
-        $this->bootstrapSelfServicePermissions();
+        // $this->bootstrapSelfServicePermissions();
     }
 
     /**

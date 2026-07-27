@@ -165,6 +165,8 @@ class DashboardTest extends TestCase
             'total_days' => 4,
         ]);
 
+        $this->grantPermission($user, CustomPermissionEnum::PENGAJUAN_ABSENSI_SAYA);
+
         $response = $this->actingAs($user)->get('/');
 
         $response->assertOk();

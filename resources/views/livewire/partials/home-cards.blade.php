@@ -47,32 +47,36 @@
     {{-- Cuti Tahunan + Jumlah Izin + Jumlah Lembur, berdampingan dengan presensi di layar lebar.
     Dua variasi ukuran (LeaveBalanceCard/AttendanceStatCards menghitung style-nya di server lewat
     prop `compact`, jadi tidak bisa satu markup untuk semua breakpoint) — visibility diatur lewat
-    class .bento-side-stats(-compact) di app.css, bukan Tailwind md:hidden (lihat komentar di sana). --}}
-    <div class="bento-side-stats-compact">
-        <livewire:leave-balance-card
-            type-keyword="tahunan"
-            label="Sisa Cuti Tahunan"
-            icon="fa-sun"
-            color="var(--brand)"
-            icon-bg="rgba(4,44,108,0.1)"
-            grid-class=""
-            :compact="true"
-            :key="'leave-balance-tahunan-compact'"
-        />
-        <livewire:attendance-stat-cards :compact="true" :key="'attendance-stat-cards-compact'" />
-    </div>
-    <div class="bento-side-stats">
-        <livewire:leave-balance-card
-            type-keyword="tahunan"
-            label="Sisa Cuti Tahunan"
-            icon="fa-sun"
-            color="var(--brand)"
-            icon-bg="rgba(4,44,108,0.1)"
-            grid-class=""
-            :key="'leave-balance-tahunan'"
-        />
-        <livewire:attendance-stat-cards :key="'attendance-stat-cards'" />
-    </div>
+    class .bento-side-stats(-compact) di app.css, bukan Tailwind md:hidden (lihat komentar di sana).
+    Sama seperti card Pengajuan Absensi Saya, ikut disembunyikan tanpa permission itu - isinya
+    murni statistik cuti/izin/lembur (domain Pengajuan Absensi), bukan hal terpisah. --}}
+    @if ($this->canPengajuanAbsensi)
+        <div class="bento-side-stats-compact">
+            <livewire:leave-balance-card
+                type-keyword="tahunan"
+                label="Sisa Cuti Tahunan"
+                icon="fa-sun"
+                color="var(--brand)"
+                icon-bg="rgba(4,44,108,0.1)"
+                grid-class=""
+                :compact="true"
+                :key="'leave-balance-tahunan-compact'"
+            />
+            <livewire:attendance-stat-cards :compact="true" :key="'attendance-stat-cards-compact'" />
+        </div>
+        <div class="bento-side-stats">
+            <livewire:leave-balance-card
+                type-keyword="tahunan"
+                label="Sisa Cuti Tahunan"
+                icon="fa-sun"
+                color="var(--brand)"
+                icon-bg="rgba(4,44,108,0.1)"
+                grid-class=""
+                :key="'leave-balance-tahunan'"
+            />
+            <livewire:attendance-stat-cards :key="'attendance-stat-cards'" />
+        </div>
+    @endif
 
     {{-- <livewire:recent-requests-card /> --}}
 
@@ -169,7 +173,6 @@
         @endif
     </div>
 
-    {{-- <livewire:pending-approvals-card /> --}}
 
 </div>
 

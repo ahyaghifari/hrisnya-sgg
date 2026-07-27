@@ -166,7 +166,7 @@
                             </div>
                         @endif
                         {{-- ponytail: dropdown Rekrutmen disembunyikan sementara, aktifkan lagi ganti @if ($canAccessRekrutmen) --}}
-                        @if (false && $canAccessRekrutmen)
+                        @if ($canAccessRekrutmen)
                             <div class="dropdown">
                                 <a href="#" class="nav-item nav-item-gold {{ request()->routeIs('rekrutmen.*') ? 'active' : '' }}">
                                     <i class="fa-solid fa-user-plus text-xs"></i> Rekrutmen <i class="fa-solid fa-chevron-down text-[10px]"></i>
