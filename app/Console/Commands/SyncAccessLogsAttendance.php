@@ -65,6 +65,15 @@ class SyncAccessLogsAttendance extends Command
             ));
         }
 
+        // Scan dari device yang tidak terdaftar (atau terdaftar tapi beda company) - diblokir
+        // total, tidak ikut dihitung/disimpan (lihat AccessLogScheduleReader::groupAndBucket).
+        foreach ($result['rejected_device'] as $entry) {
+            $entry['user']->notify(new AttendanceScanRejected(
+                $entry['date'],
+                'device absensi yang Anda pakai tidak terdaftar untuk perusahaan Anda, hubungi HR/admin.'
+            ));
+        }
+
         $watermark->update(['last_synced_at' => $result['max_synced_at']]);
 
         $this->info("Sync selesai: {$fixedCount} fixed, {$flexibleCount} flexible disimpan. Watermark -> {$result['max_synced_at']}.");

@@ -3,6 +3,7 @@
 namespace App\Services\Attendance;
 
 use App\Models\Attendance\AttendanceRecords;
+use App\Models\Master\Attendance\AttendanceDevice;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 
@@ -26,6 +27,7 @@ class AccessLogScheduleReader
      *     buckets: array{fixed: array, flexible: array, shift: array, off: array},
      *     unmatched_users: array<string,int>,
      *     unresolved_schedule: array,
+     *     rejected_device: array,
      * }
      */
     public function readAndGroup(string $fromDate, string $toDate, ?string $nip = null): array
@@ -45,6 +47,7 @@ class AccessLogScheduleReader
      *     buckets: array{fixed: array, flexible: array, shift: array, off: array},
      *     unmatched_users: array<string,int>,
      *     unresolved_schedule: array,
+     *     rejected_device: array,
      *     max_synced_at: ?string,
      * }
      */
@@ -61,8 +64,17 @@ class AccessLogScheduleReader
 
         $buckets = ['fixed' => [], 'flexible' => [], 'shift' => [], 'off' => []];
         $unresolvedSchedule = [];
+        $rejectedDevice = [];
+        $devicesByCompany = [];
 
         foreach ($withUser as $entry) {
+            // Device tidak dikenal/beda company -> blokir total, jangan sampai ikut
+            // dihitung/disimpan ke attendance_records (pola sama dengan unresolved_schedule).
+            if ($this->hasUnrecognizedDevice($entry, $devicesByCompany)) {
+                $rejectedDevice[] = $entry;
+                continue;
+            }
+
             $resolved = $this->scheduleResolver->resolveForUserDate($entry['user'], $entry['date'], ignoreEffectiveDate: true);
 
             if (! $resolved) {
@@ -78,6 +90,7 @@ class AccessLogScheduleReader
             'buckets' => $buckets,
             'unmatched_users' => $unmatchedUsers,
             'unresolved_schedule' => $unresolvedSchedule,
+            'rejected_device' => $rejectedDevice,
         ];
     }
 
@@ -99,11 +112,12 @@ class AccessLogScheduleReader
         foreach ($scanGroups as $key => $rows) {
             [$employeeId, $date] = explode('|', $key, 2);
             $entries[] = [
-                'employee_id' => $employeeId,
-                'date'        => $date,
-                'check_in'    => $rows->first()->access_time,
-                'check_out'   => $rows->count() > 1 ? $rows->last()->access_time : null,
-                'scan_count'  => $rows->count(),
+                'employee_id'   => $employeeId,
+                'date'          => $date,
+                'check_in'      => $rows->first()->access_time,
+                'check_out'     => $rows->count() > 1 ? $rows->last()->access_time : null,
+                'scan_count'    => $rows->count(),
+                'device_names'  => $rows->pluck('device_name')->filter()->unique()->values()->all(),
             ];
         }
 
@@ -178,10 +192,44 @@ class AccessLogScheduleReader
                 // App\Notifications\AttendanceCheckedIn/AttendanceCheckedOut.
                 'is_new_checkin' => $isNewCheckIn,
                 'is_new_checkout' => $isNewCheckOut,
+                'device_names' => $rowsForDay->pluck('device_name')->filter()->unique()->values()->all(),
             ];
         }
 
         return [$entries, $maxSyncedAt];
+    }
+
+    /**
+     * Cek device_name yang muncul di scan hari itu ($entry['device_names']) terhadap
+     * attendance_devices aktif milik company user - device_names kosong (baris lama tanpa
+     * device_name) atau semuanya cocok = lolos. $devicesByCompany dipakai sebagai cache
+     * per-request supaya company yang sama tidak query attendance_devices berulang.
+     */
+    private function hasUnrecognizedDevice(array $entry, array &$devicesByCompany): bool
+    {
+        if (empty($entry['device_names'])) {
+            return false;
+        }
+
+        $companyId = $entry['user']->company_id;
+
+        if (! array_key_exists($companyId, $devicesByCompany)) {
+            $devicesByCompany[$companyId] = AttendanceDevice::query()
+                ->where('company_id', $companyId)
+                ->where('is_active', true)
+                ->pluck('name')
+                ->all();
+        }
+
+        $knownNames = $devicesByCompany[$companyId];
+
+        foreach ($entry['device_names'] as $deviceName) {
+            if (! in_array($deviceName, $knownNames, true)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

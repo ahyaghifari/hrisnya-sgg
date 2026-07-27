@@ -51,7 +51,7 @@ class ApprovalFlowService
             $activity = $snapshot->activity;
             $activity->refresh();
 
-            $actorName = User::find($actorId)?->name;
+            $actorName = User::find($actorId)?->name ?? 'Seseorang';
 
             // Log step sekarang
             $this->historyRepo->create([

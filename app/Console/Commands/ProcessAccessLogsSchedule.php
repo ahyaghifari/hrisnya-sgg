@@ -68,6 +68,7 @@ class ProcessAccessLogsSchedule extends Command
         $this->line('  Shift (belum ada calculator)   : ' . count($result['buckets']['shift']));
         $this->line('  Libur            : ' . count($result['buckets']['off']));
         $this->line('  Jadwal tidak ditemukan: ' . count($result['unresolved_schedule']));
+        $this->line('  Device tidak dikenal (diblokir): ' . count($result['rejected_device']));
         $this->line('  User tidak ditemukan (employee_id unik): ' . count($result['unmatched_users']));
 
         return Command::SUCCESS;
