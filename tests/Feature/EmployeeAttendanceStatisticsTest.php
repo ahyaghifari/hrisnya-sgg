@@ -2,16 +2,20 @@
 
 namespace Tests\Feature;
 
+use App\Enum\EmployeeTypeCategory;
 use App\Livewire\EmployeeAttendanceStatistics;
 use App\Models\Attendance\AttendanceRequestLeaveDetails;
 use App\Models\Attendance\AttendanceRequests;
 use App\Models\Master\Companies;
+use App\Models\Master\EmployeeTypes;
 use App\Models\Master\JobPositions;
 use App\Models\User;
 use App\Models\User\UserDocuments;
 use App\Models\User\UserJobPositions;
+use App\Models\User\UserProfiles;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 class EmployeeAttendanceStatisticsTest extends TestCase
@@ -26,6 +30,21 @@ class EmployeeAttendanceStatisticsTest extends TestCase
             'start_date' => now()->subYear(),
             'status' => 'active',
         ]);
+    }
+
+    // Tab Absensi/Riwayat Pengajuan/Dokumen/Penggajian di Data Diri cuma tampil kalau tipe
+    // karyawan user itu SUDAH diisi (apa pun kategorinya) - lihat
+    // EmployeeAttendanceStatistics::getShowExtraTabsProperty(). Test yang mengasumsikan tab itu
+    // tampil harus assign tipe karyawan eksplisit di sini, user factory mentah tidak punya.
+    private function assignEmployeeType(User $user, Companies $company): void
+    {
+        $employeeType = EmployeeTypes::create([
+            'company_id' => $company->id,
+            'name' => 'Tetap',
+            'category' => EmployeeTypeCategory::TETAP->value,
+        ]);
+
+        UserProfiles::updateOrCreate(['user_id' => $user->id], ['employee_type_id' => $employeeType->id]);
     }
 
     private function createLeaveRequest(User $user, string $status = 'approved'): AttendanceRequests
@@ -182,6 +201,8 @@ class EmployeeAttendanceStatisticsTest extends TestCase
             'file_path' => 'user-documents/' . $otherStaff->id . '/skk.pdf',
         ]);
 
+        $this->assignEmployeeType($staff, $company);
+
         $this->actingAs($manager);
 
         Livewire::test(EmployeeAttendanceStatistics::class, ['record' => $staff])
@@ -255,6 +276,8 @@ class EmployeeAttendanceStatisticsTest extends TestCase
         $paid = $this->makePayroll($user, true);
         $this->makePayroll($user, false);
 
+        $this->assignEmployeeType($user, $company);
+
         $this->actingAs($user);
 
         Livewire::test(EmployeeAttendanceStatistics::class, ['record' => $user])
@@ -282,5 +305,50 @@ class EmployeeAttendanceStatisticsTest extends TestCase
 
         Livewire::test(EmployeeAttendanceStatistics::class, ['record' => $staff])
             ->assertDontSee('Penggajian');
+    }
+
+    public function test_extra_tabs_hidden_when_employee_type_not_set(): void
+    {
+        $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
+        $user = User::factory()->create(['company_id' => $company->id]);
+
+        $this->actingAs($user);
+
+        Livewire::test(EmployeeAttendanceStatistics::class, ['record' => $user])
+            ->assertSee('Presensi')
+            ->assertDontSee('Presensi & Absensi')
+            ->assertDontSee('Riwayat Pengajuan')
+            ->assertDontSee('Dokumen')
+            ->assertDontSee('Penggajian');
+    }
+
+    #[DataProvider('employeeTypeCategoryProvider')]
+    public function test_extra_tabs_visible_for_any_employee_type_category(EmployeeTypeCategory $category): void
+    {
+        $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
+        $user = User::factory()->create(['company_id' => $company->id]);
+
+        $employeeType = EmployeeTypes::create([
+            'company_id' => $company->id,
+            'name' => $category->getLabel(),
+            'category' => $category->value,
+        ]);
+        UserProfiles::create(['user_id' => $user->id, 'employee_type_id' => $employeeType->id]);
+
+        $this->actingAs($user);
+
+        Livewire::test(EmployeeAttendanceStatistics::class, ['record' => $user])
+            ->assertSee('Presensi & Absensi')
+            ->assertSee('Riwayat Pengajuan')
+            ->assertSee('Dokumen');
+    }
+
+    public static function employeeTypeCategoryProvider(): array
+    {
+        return [
+            'tetap' => [EmployeeTypeCategory::TETAP],
+            'kontrak' => [EmployeeTypeCategory::KONTRAK],
+            'orientasi' => [EmployeeTypeCategory::ORIENTASI],
+        ];
     }
 }

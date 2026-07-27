@@ -165,12 +165,18 @@ trait HandlesDayScheduleForm
     {
         $row = $this->days[$dayOfWeek] ?? [];
 
-        return [
+        $bullets = [
             sprintf('Dihitung kerja : <strong>%d</strong>', (int) ($row['counted_work_days'] ?? 1)),
             sprintf('Maksimal Durasi Kerja : <strong>%d (Menit)</strong>', (int) ($row[$this->maxDurationField()] ?? 0)),
             sprintf('Hadir setengah hari, jika durasi kerja kurang dari : <strong>%d (Menit)</strong>', (int) ($row['half_day_threshold_minutes'] ?? 0)),
             sprintf('Dihitung tidak hadir, jika durasi kerja kurang dari : <strong>%d (Menit)</strong>', (int) ($row['absent_threshold_minutes'] ?? 0)),
         ];
+
+        if ($this->scheduleType === ScheduleType::FIXED->value && (int) ($row['min_work_minutes'] ?? 0) > 0) {
+            $bullets[] = sprintf('Scan pulang ditolak, jika durasi kerja kurang dari : <strong>%d (Menit)</strong>', (int) $row['min_work_minutes']);
+        }
+
+        return $bullets;
     }
 
     /** Geser "H:i" sejumlah menit (boleh negatif) — dipakai hitung batas scan/jendela lembur di tooltip Rincian. */
@@ -212,6 +218,7 @@ trait HandlesDayScheduleForm
                     'is_off_day' => $isOff,
                     'start_time' => '08:00',
                     'break_minutes' => 60,
+                    'min_work_minutes' => 0,
                     'end_time' => '16:00',
                     'overtime_before_min' => 0,
                     'overtime_before_break' => 0,

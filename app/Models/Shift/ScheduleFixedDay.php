@@ -22,6 +22,7 @@ class ScheduleFixedDay extends Model
         'is_off_day',
         'start_time',
         'break_minutes',
+        'min_work_minutes',
         'end_time',
         'overtime_before_min',
         'overtime_before_break',

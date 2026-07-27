@@ -24,21 +24,23 @@
     </button>
     <button type="button" @click="tab = 'statistik'" class="section-nav-btn green" :class="{ 'is-active': tab === 'statistik' }">
         <i class="fa-solid fa-clock"></i>
-        <span>Presensi &amp; Absensi</span>
+        <span>{{ $this->showExtraTabs ? 'Presensi & Absensi' : 'Presensi' }}</span>
     </button>
-    <button type="button" @click="tab = 'riwayat'" class="section-nav-btn rust" :class="{ 'is-active': tab === 'riwayat' }">
-        <i class="fa-solid fa-clock-rotate-left"></i>
-        <span>Riwayat Pengajuan</span>
-    </button>
-    <button type="button" @click="tab = 'dokumen'" class="section-nav-btn teal" :class="{ 'is-active': tab === 'dokumen' }">
-        <i class="fa-solid fa-folder-open"></i>
-        <span>Dokumen</span>
-    </button>
-    @if ($isSelf)
-        <button type="button" @click="tab = 'penggajian'" class="section-nav-btn gold" :class="{ 'is-active': tab === 'penggajian' }">
-            <i class="fa-solid fa-money-check-dollar"></i>
-            <span>Penggajian</span>
+    @if ($this->showExtraTabs)
+        <button type="button" @click="tab = 'riwayat'" class="section-nav-btn rust" :class="{ 'is-active': tab === 'riwayat' }">
+            <i class="fa-solid fa-clock-rotate-left"></i>
+            <span>Riwayat Pengajuan</span>
         </button>
+        <button type="button" @click="tab = 'dokumen'" class="section-nav-btn teal" :class="{ 'is-active': tab === 'dokumen' }">
+            <i class="fa-solid fa-folder-open"></i>
+            <span>Dokumen</span>
+        </button>
+        @if ($isSelf)
+            <button type="button" @click="tab = 'penggajian'" class="section-nav-btn gold" :class="{ 'is-active': tab === 'penggajian' }">
+                <i class="fa-solid fa-money-check-dollar"></i>
+                <span>Penggajian</span>
+            </button>
+        @endif
     @endif
 </div>
 
@@ -384,69 +386,72 @@
         </div>
     </div>
 
-    <!-- Section: Absensi -->
-    <h3 style="font-size:14px;font-weight:800;color:var(--text-heading);margin-bottom:12px;">Absensi</h3>
+    @if ($this->showExtraTabs)
+        <!-- Section: Absensi -->
+        <h3 style="font-size:14px;font-weight:800;color:var(--text-heading);margin-bottom:12px;">Absensi</h3>
 
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:16px;">
-        <div class="stat-card" style="display:flex;align-items:center;gap:14px;padding:18px 20px;">
-            <div class="stat-card-deco" style="background:#1a56c4;"></div>
-            <div style="flex-shrink:0;width:44px;height:44px;background:#dbeafe;border-radius:12px;display:flex;align-items:center;justify-content:center;">
-                <i class="fa-solid fa-umbrella-beach" style="color:#1a56c4;font-size:16px;"></i>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:16px;">
+            <div class="stat-card" style="display:flex;align-items:center;gap:14px;padding:18px 20px;">
+                <div class="stat-card-deco" style="background:#1a56c4;"></div>
+                <div style="flex-shrink:0;width:44px;height:44px;background:#dbeafe;border-radius:12px;display:flex;align-items:center;justify-content:center;">
+                    <i class="fa-solid fa-umbrella-beach" style="color:#1a56c4;font-size:16px;"></i>
+                </div>
+                <div style="min-width:0;">
+                    <p style="font-size:26px;font-weight:800;color:var(--text-heading);letter-spacing:-0.8px;line-height:1;">{{ $this->stats['leave'] }}</p>
+                    <p style="font-size:12.5px;font-weight:600;color:var(--text-muted);margin-top:4px;">Cuti</p>
+                </div>
             </div>
-            <div style="min-width:0;">
-                <p style="font-size:26px;font-weight:800;color:var(--text-heading);letter-spacing:-0.8px;line-height:1;">{{ $this->stats['leave'] }}</p>
-                <p style="font-size:12.5px;font-weight:600;color:var(--text-muted);margin-top:4px;">Cuti</p>
+
+            <div class="stat-card" style="display:flex;align-items:center;gap:14px;padding:18px 20px;">
+                <div class="stat-card-deco" style="background:#d97706;"></div>
+                <div style="flex-shrink:0;width:44px;height:44px;background:#fef3c7;border-radius:12px;display:flex;align-items:center;justify-content:center;">
+                    <i class="fa-solid fa-clock" style="color:#d97706;font-size:16px;"></i>
+                </div>
+                <div style="min-width:0;">
+                    <p style="font-size:26px;font-weight:800;color:var(--text-heading);letter-spacing:-0.8px;line-height:1;">{{ $this->stats['permission'] }}</p>
+                    <p style="font-size:12.5px;font-weight:600;color:var(--text-muted);margin-top:4px;">Izin</p>
+                </div>
+            </div>
+
+            <div class="stat-card" style="display:flex;align-items:center;gap:14px;padding:18px 20px;">
+                <div class="stat-card-deco" style="background:#047C54;"></div>
+                <div style="flex-shrink:0;width:44px;height:44px;background:#dcfce7;border-radius:12px;display:flex;align-items:center;justify-content:center;">
+                    <i class="fa-solid fa-briefcase-clock" style="color:#15803d;font-size:16px;"></i>
+                </div>
+                <div style="min-width:0;">
+                    <p style="font-size:26px;font-weight:800;color:var(--text-heading);letter-spacing:-0.8px;line-height:1;">{{ $this->stats['overtime'] }}</p>
+                    <p style="font-size:12.5px;font-weight:600;color:var(--text-muted);margin-top:4px;">Lembur</p>
+                </div>
             </div>
         </div>
 
-        <div class="stat-card" style="display:flex;align-items:center;gap:14px;padding:18px 20px;">
-            <div class="stat-card-deco" style="background:#d97706;"></div>
-            <div style="flex-shrink:0;width:44px;height:44px;background:#fef3c7;border-radius:12px;display:flex;align-items:center;justify-content:center;">
-                <i class="fa-solid fa-clock" style="color:#d97706;font-size:16px;"></i>
-            </div>
-            <div style="min-width:0;">
-                <p style="font-size:26px;font-weight:800;color:var(--text-heading);letter-spacing:-0.8px;line-height:1;">{{ $this->stats['permission'] }}</p>
-                <p style="font-size:12.5px;font-weight:600;color:var(--text-muted);margin-top:4px;">Izin</p>
-            </div>
+        <!-- Saldo Cuti (kondisi sekarang, tidak tunduk filter tanggal/status) -->
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;">
+            <livewire:leave-balance-card
+                type-keyword="tahunan"
+                label="Cuti Tahunan"
+                icon="fa-sun"
+                color="var(--brand)"
+                icon-bg="rgba(4,44,108,0.1)"
+                grid-class=""
+                :user-id="$record->id"
+                :key="'leave-balance-tahunan-'.$record->id"
+            />
+            <livewire:leave-balance-card
+                type-keyword="sakit"
+                label="Cuti Sakit"
+                icon="fa-heart-pulse"
+                color="var(--brand-success)"
+                icon-bg="rgba(4,124,84,0.1)"
+                grid-class=""
+                :user-id="$record->id"
+                :key="'leave-balance-sakit-'.$record->id"
+            />
         </div>
-
-        <div class="stat-card" style="display:flex;align-items:center;gap:14px;padding:18px 20px;">
-            <div class="stat-card-deco" style="background:#047C54;"></div>
-            <div style="flex-shrink:0;width:44px;height:44px;background:#dcfce7;border-radius:12px;display:flex;align-items:center;justify-content:center;">
-                <i class="fa-solid fa-briefcase-clock" style="color:#15803d;font-size:16px;"></i>
-            </div>
-            <div style="min-width:0;">
-                <p style="font-size:26px;font-weight:800;color:var(--text-heading);letter-spacing:-0.8px;line-height:1;">{{ $this->stats['overtime'] }}</p>
-                <p style="font-size:12.5px;font-weight:600;color:var(--text-muted);margin-top:4px;">Lembur</p>
-            </div>
-        </div>
-    </div>
-
-    <!-- Saldo Cuti (kondisi sekarang, tidak tunduk filter tanggal/status) -->
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;">
-        <livewire:leave-balance-card
-            type-keyword="tahunan"
-            label="Cuti Tahunan"
-            icon="fa-sun"
-            color="var(--brand)"
-            icon-bg="rgba(4,44,108,0.1)"
-            grid-class=""
-            :user-id="$record->id"
-            :key="'leave-balance-tahunan-'.$record->id"
-        />
-        <livewire:leave-balance-card
-            type-keyword="sakit"
-            label="Cuti Sakit"
-            icon="fa-heart-pulse"
-            color="var(--brand-success)"
-            icon-bg="rgba(4,124,84,0.1)"
-            grid-class=""
-            :user-id="$record->id"
-            :key="'leave-balance-sakit-'.$record->id"
-        />
-    </div>
+    @endif
 </div>
 
+@if ($this->showExtraTabs)
 <!-- Tab: Riwayat Pengajuan -->
 <div x-show="tab === 'riwayat'">
     <div class="card-surface-flush">
@@ -541,8 +546,9 @@
         </div>
     </div>
 </div>
+@endif
 
-@if ($isSelf)
+@if ($isSelf && $this->showExtraTabs)
     <!-- Tab: Penggajian — cuma diri sendiri, riwayat payroll yang sudah dibayar -->
     <div x-show="tab === 'penggajian'">
         @php $payrollHistory = $this->myPayrollHistory; @endphp

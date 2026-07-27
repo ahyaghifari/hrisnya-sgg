@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Master\EmployeeTypes\Schemas;
 
+use App\Enum\EmployeeTypeCategory;
 use App\Models\Master\Companies;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
@@ -35,6 +36,17 @@ class EmployeeTypeForm
                     ->required()
                     ->maxLength(255)
                     ->columnSpanFull(),
+
+                Select::make('category')
+                    ->label('Kategori')
+                    ->helperText('Karyawan Orientasi cuma lihat tab Profil & Presensi di halaman Data Diri (tanpa Absensi/Riwayat Pengajuan/Dokumen/Penggajian).')
+                    ->options(self::categoryOptions())
+                    ->columnSpanFull(),
             ]);
+    }
+
+    private static function categoryOptions(): array
+    {
+        return collect(EmployeeTypeCategory::cases())->mapWithKeys(fn ($c) => [$c->value => $c->getLabel()])->all();
     }
 }

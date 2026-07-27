@@ -97,7 +97,8 @@ class ProcessAccessLogsSchedule extends Command
             $r['work_day_weight'] ?? '-',
             $label,
             $r['status'],
-            $r['out_of_window'] ? ' [scan masuk/pulang di luar jendela valid]' : ''
+            ($r['out_of_window'] ? ' [scan masuk/pulang di luar jendela valid]' : '')
+                . (! empty($r['checkout_rejected']) ? ' [checkout ditolak: durasi kerja di bawah minimum]' : '')
         ));
     }
 

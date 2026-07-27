@@ -811,6 +811,16 @@ html.lw-navigating .page-content { opacity: 0; }
 .bento-task-kursus { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr; gap: 16px; margin-top: 4vh; }
 @media (min-width: 768px) { .bento-task-kursus { grid-template-columns: 1fr 1fr; margin-top: 0; } }
 
+/* Permission PENGAJUAN_ABSENSI_SAYA/PELATIHAN_SAYA tidak ada -> card terkait tidak dirender sama
+   sekali (lihat home-cards.blade.php) - card di sebelahnya melebar mengisi kolom yang kosong,
+   bukan dibiarkan sempit berdampingan dengan ruang kosong. Cuma relevan >=1024px/768px karena di
+   breakpoint sempit kedua card ini memang sudah full-width/bertumpuk secara default. */
+@media (min-width: 1024px) {
+    .bento.no-pengajuan .bento-absensi { grid-column: 1 / -1; }
+    .bento.no-pengajuan .bento-side-stats { grid-column: 1 / -1; grid-row: 4; }
+}
+@media (min-width: 768px) { .bento-task-kursus.no-pelatihan { grid-template-columns: 1fr; } }
+
 /* ── WELCOME CARD ── */
 .welcome-card { background: linear-gradient(135deg, #042c6c 0%, #0b47a1 100%); border-radius: 20px; padding: 32px; position: relative; overflow: hidden; }
 .w-deco-1 { position: absolute; top: -80px; right: -80px; width: 280px; height: 280px; border-radius: 50%; background: #fff; opacity: 0.06; }

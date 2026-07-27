@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Portal;
 
+use App\Enum\CustomPermissionEnum;
 use App\Enum\LsmCourseStatus;
 use App\Models\Attendance\AttendanceRequestLeaveDetails;
 use App\Models\Attendance\AttendanceRequests;
@@ -12,11 +13,25 @@ use App\Models\Master\Attendance\LeaveTypes;
 use App\Models\Master\Companies;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Spatie\Permission\Models\Permission;
+use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 class DashboardTest extends TestCase
 {
     use RefreshDatabase;
+
+    // Card "Pengajuan Absensi Saya"/"Pelatihan Saya" di home-cards sekarang digerbangi
+    // permission ini (lihat App\Livewire\Dashboard::getCanPengajuanAbsensiProperty()/
+    // getCanPelatihanSayaProperty()) - user factory mentah tidak otomatis punya permission apa
+    // pun, jadi test yang mengasumsikan card itu tampil harus grant eksplisit di sini.
+    private function grantPermission(User $user, CustomPermissionEnum $permission): void
+    {
+        Permission::firstOrCreate(['name' => $permission->value, 'guard_name' => 'web']);
+        $role = Role::firstOrCreate(['name' => 'Dashboard Test ' . $permission->value, 'guard_name' => 'web']);
+        $role->givePermissionTo($permission->value);
+        $user->assignRole($role);
+    }
 
     public function test_guest_is_redirected_to_login(): void
     {
@@ -65,6 +80,40 @@ class DashboardTest extends TestCase
 
         $response->assertOk();
         $response->assertDontSee('Admin Panel');
+    }
+
+    public function test_pengajuan_card_hidden_without_permission_and_absensi_spans_full_width(): void
+    {
+        $user = User::factory()->create();
+
+        $response = $this->actingAs($user)->get('/');
+
+        $response->assertOk();
+        $response->assertDontSee('bento-status-pengajuan', false);
+        $response->assertSee('no-pengajuan', false);
+    }
+
+    public function test_pengajuan_card_visible_with_permission(): void
+    {
+        $user = User::factory()->create();
+        $this->grantPermission($user, CustomPermissionEnum::PENGAJUAN_ABSENSI_SAYA);
+
+        $response = $this->actingAs($user)->get('/');
+
+        $response->assertOk();
+        $response->assertSee('bento-status-pengajuan', false);
+        $response->assertDontSee('no-pengajuan', false);
+    }
+
+    public function test_pelatihan_card_hidden_without_permission_and_tugas_spans_full_width(): void
+    {
+        $user = User::factory()->create();
+
+        $response = $this->actingAs($user)->get('/');
+
+        $response->assertOk();
+        $response->assertDontSee('Pelatihan Saya');
+        $response->assertSee('no-pelatihan', false);
     }
 
     public function test_admin_panel_link_visible_for_admin_role(): void
@@ -149,6 +198,8 @@ class DashboardTest extends TestCase
             'total_days' => 1,
         ]);
 
+        $this->grantPermission($user, CustomPermissionEnum::PENGAJUAN_ABSENSI_SAYA);
+
         $response = $this->actingAs($user)->get('/');
 
         $response->assertOk();
@@ -167,6 +218,8 @@ class DashboardTest extends TestCase
         LmsCourseUsers::create(['user_id' => $user->id, 'course_id' => $ongoing->id, 'status' => 'in_progress', 'progress' => 40, 'score' => 0, 'enrolled_at' => now()]);
         LmsCourseUsers::create(['user_id' => $user->id, 'course_id' => $member->id, 'status' => 'approved', 'progress' => 0, 'score' => 0, 'enrolled_at' => now()]);
         LmsCourseUsers::create(['user_id' => $user->id, 'course_id' => $done->id, 'status' => 'completed', 'progress' => 100, 'score' => 90, 'enrolled_at' => now()]);
+
+        $this->grantPermission($user, CustomPermissionEnum::PELATIHAN_SAYA);
 
         $response = $this->actingAs($user)->get('/');
 

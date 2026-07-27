@@ -13,6 +13,11 @@ use Carbon\Carbon;
  * telat/pulang-cepat/jam-kerja/status pakai kolom "Pengaturan Lanjutan" ScheduleFixedDay,
  * kembalikan array hasil. Tidak tahu apa-apa soal access_logs atau resolusi jadwal - reusable
  * untuk sumber input lain selama bentuk entrinya sama.
+ *
+ * min_work_minutes (opsional, default 0=nonaktif) - kalau durasi kerja checkout ini di bawah
+ * minimum, checkout DITOLAK (bukan cuma ditandai): $entry['check_out'] dipaksa null dan
+ * 'checkout_rejected' => true dikembalikan, dikonsumsi SyncAccessLogsAttendance supaya tidak
+ * menimpa check_out_time attendance_records & tidak mengirim notifikasi checkout palsu.
  */
 class FixedScheduleCalculator
 {
@@ -43,23 +48,38 @@ class FixedScheduleCalculator
         $workingMinutes    = null;
         $overtimeMinutes   = $this->overtimeBefore($config, $start, $ci);
         $outOfWindow       = $ci->lt($earliestCheckIn);
+        $checkOut          = $entry['check_out'];
+        $checkoutRejected  = false;
 
-        if ($entry['check_out']) {
-            $co = Carbon::createFromFormat('H:i:s', $entry['check_out']);
+        if ($checkOut) {
+            $co = Carbon::createFromFormat('H:i:s', $checkOut);
 
             $earlyThreshold = $end->copy()->subMinutes($config->early_leave_tolerance_minutes);
-            if ($co->lt($earlyThreshold)) {
-                $earlyLeaveMinutes = (int) $co->diffInMinutes($earlyThreshold);
-            }
+            $earlyLeaveCandidate = $co->lt($earlyThreshold) ? (int) $co->diffInMinutes($earlyThreshold) : 0;
 
-            $workingMinutes = max(0, (int) $ci->diffInMinutes($co) - $config->break_minutes);
+            $rawWorkingMinutes = max(0, (int) $ci->diffInMinutes($co) - $config->break_minutes);
             if ($config->max_work_minutes) {
-                $workingMinutes = min($workingMinutes, $config->max_work_minutes);
+                $rawWorkingMinutes = min($rawWorkingMinutes, $config->max_work_minutes);
             }
 
-            $overtimeMinutes += $this->overtimeAfter($config, $end, $co);
-            $outOfWindow = $outOfWindow || $co->gt($latestCheckOut);
+            $overtimeAfter = $this->overtimeAfter($config, $end, $co);
+
+            if ($config->min_work_minutes > 0 && ($rawWorkingMinutes + $overtimeAfter) < $config->min_work_minutes) {
+                // Durasi kerja belum memenuhi minimum - tolak scan checkout ini, biarkan
+                // check_out_time attendance_records tetap kosong (atau nilai sebelumnya) sampai
+                // ada scan checkout berikutnya yang bikin durasinya cukup. Beda dari out_of_window
+                // yang cuma menandai - di sini datanya sendiri sengaja tidak dipakai.
+                $checkoutRejected = true;
+                $checkOut = null;
+            } else {
+                $earlyLeaveMinutes = $earlyLeaveCandidate;
+                $workingMinutes    = $rawWorkingMinutes;
+                $overtimeMinutes  += $overtimeAfter;
+                $outOfWindow       = $outOfWindow || $co->gt($latestCheckOut);
+            }
         }
+
+        $entry['check_out'] = $checkOut;
 
         // status disamakan dengan AttendanceStatus enum (dipakai luas oleh Filament/payroll) -
         // sama seperti AttendanceImportService::computeMetricsFromCheckTimes(): early leave TIDAK
@@ -82,6 +102,7 @@ class FixedScheduleCalculator
             'work_day_weight'     => $this->workDayWeight($config, $workingMinutes),
             'status'              => $status,
             'out_of_window'       => $outOfWindow,
+            'checkout_rejected'   => $checkoutRejected,
         ];
     }
 

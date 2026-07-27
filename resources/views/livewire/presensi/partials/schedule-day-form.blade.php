@@ -200,6 +200,13 @@
                         <input type="number" min="0" class="form-input" wire:model="days.{{ $advancedDay }}.absent_threshold_minutes">
                         <p style="font-size:10px;color:var(--text-faint);margin-top:3px;">Durasi kerja di bawah ini terhitung 0 hari kerja (alpha).</p>
                     </div>
+                    @if ($scheduleType === 'fixed')
+                        <div>
+                            <label class="form-label">Minimal Durasi Kerja (Menit)</label>
+                            <input type="number" min="0" class="form-input" wire:model="days.{{ $advancedDay }}.min_work_minutes">
+                            <p style="font-size:10px;color:var(--text-faint);margin-top:3px;">Scan pulang di bawah durasi ini DITOLAK (bukan cuma ditandai) - jam pulang tidak tersimpan sampai ada scan berikutnya yang cukup. Isi 0 buat nonaktifkan.</p>
+                        </div>
+                    @endif
                 </div>
             </div>
 

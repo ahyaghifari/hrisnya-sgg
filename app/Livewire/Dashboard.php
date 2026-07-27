@@ -2,6 +2,7 @@
 
 namespace App\Livewire;
 
+use App\Enum\CustomPermissionEnum;
 use App\Enum\Task\TaskStatus;
 use App\Livewire\Concerns\ResolvesTodayAttendanceStatus;
 use App\Models\Task\Task;
@@ -18,6 +19,21 @@ class Dashboard extends Component
     public function getTodayAttendanceStatusProperty(): array
     {
         return $this->todayAttendanceStatus(Auth::user());
+    }
+
+    // Card "Pengajuan Absensi Saya" & "Pelatihan Saya" di home-cards disembunyikan kalau user
+    // tidak punya permission ini (dipakai juga sebagai gerbang halaman terkait di
+    // config/portal-pages.php) - saat disembunyikan, card di sebelahnya (Presensi/Tugas Saya)
+    // melebar mengisi kolom yang kosong, lihat modifier class .no-pengajuan/.no-pelatihan di
+    // resources/css/app.css.
+    public function getCanPengajuanAbsensiProperty(): bool
+    {
+        return (bool) Auth::user()?->can(CustomPermissionEnum::PENGAJUAN_ABSENSI_SAYA->value);
+    }
+
+    public function getCanPelatihanSayaProperty(): bool
+    {
+        return (bool) Auth::user()?->can(CustomPermissionEnum::PELATIHAN_SAYA->value);
     }
 
     public function getRecentTasksProperty()

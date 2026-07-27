@@ -21,9 +21,9 @@ use Illuminate\Support\Str;
  * SyncAccessLog::watermark(), bukan scan ulang semua baris hari itu tiap kali dipanggil (lihat
  * AccessLogScheduleReader::readAndGroupIncremental).
  *
- * Semua jejak eksekusi (mulai cron sampai per-NIP yang diproses/ditolak) masuk ke channel log
- * terpisah `attendance_sync` (config/logging.php) - lihat storage/logs/attendance-sync-*.log,
- * bukan tercampur laravel.log biasa, karena command ini jalan tiap menit.
+ * Log cuma ditulis ke channel `attendance_sync` (config/logging.php) kalau MEMANG ada access_logs
+ * baru buat diproses - run kosong (mayoritas menit, tidak ada scan baru) sengaja tidak menulis
+ * apapun ke file log, supaya isinya tetap padat/gampang ditelusuri.
  */
 class SyncAccessLogsAttendance extends Command
 {
@@ -37,30 +37,34 @@ class SyncAccessLogsAttendance extends Command
         FlexibleScheduleCalculator $flexibleCalculator,
         AttendanceRecordRepository $repo,
     ): int {
-        $log = Log::channel('attendance_sync');
-
-        // runId cuma buat gampang grep 1 eksekusi utuh dari banyak baris log yang saling
-        // berselang (beberapa run bisa overlap penulisan kalau durasinya kebetulan lewat 1 menit).
-        $runId = (string) Str::ulid();
-
         $watermark = SyncAccessLog::watermark();
         $since = $watermark->last_synced_at?->toDateTimeString();
-
-        $log->info("[{$runId}] cron diterima, mulai sync. watermark_sebelumnya=" . ($since ?? '(belum pernah sync)'));
 
         $result = $reader->readAndGroupIncremental($since);
 
         if ($result['max_synced_at'] === null) {
-            $log->info("[{$runId}] selesai: tidak ada access_logs baru.");
             $this->info('Tidak ada access_logs baru sejak sync terakhir.');
 
             return Command::SUCCESS;
         }
 
+        $log = Log::channel('attendance_sync');
+        // runId cuma buat gampang grep 1 eksekusi utuh dari banyak baris log yang saling
+        // berselang (beberapa run bisa overlap penulisan kalau durasinya kebetulan lewat 1 menit).
+        $runId = (string) Str::ulid();
+
+        $log->info("[{$runId}] access_logs baru terdeteksi. watermark_sebelumnya=" . ($since ?? '(belum pernah sync)'));
+
         $fixedCount = 0;
         foreach ($fixedCalculator->calculate($result['buckets']['fixed']) as $r) {
             $record = $repo->saveCalculatedResult($r, 'access_logs_fixed');
-            $log->info("[{$runId}] diproses (fixed): nip={$r['user']->nip} nama={$r['user']->name} tanggal={$r['date']} status={$r['status']} checkin={$r['check_in']} checkout=" . ($r['check_out'] ?? '-'));
+
+            if (! empty($r['checkout_rejected'])) {
+                $log->warning("[{$runId}] checkout ditolak (durasi kerja di bawah minimum): nip={$r['user']->nip} tanggal={$r['date']}");
+            } else {
+                $log->info("[{$runId}] diproses (fixed): nip={$r['user']->nip} nama={$r['user']->name} tanggal={$r['date']} status={$r['status']} checkin={$r['check_in']} checkout=" . ($r['check_out'] ?? '-'));
+            }
+
             $this->notifyCheckInOut($r, $record);
             $fixedCount++;
         }
@@ -126,7 +130,10 @@ class SyncAccessLogsAttendance extends Command
             $r['user']->notify(new AttendanceCheckedIn($record));
         }
 
-        if ($r['is_new_checkout']) {
+        // checkout_rejected (FixedScheduleCalculator) => check_out_time TIDAK ikut tersimpan
+        // biarpun is_new_checkout true (dihitung reader SEBELUM calculator menolaknya) - jangan
+        // kirim notifikasi checkout yang datanya sendiri tidak benar-benar tersimpan.
+        if ($r['is_new_checkout'] && empty($r['checkout_rejected'])) {
             $r['user']->notify(new AttendanceCheckedOut($record));
         }
     }

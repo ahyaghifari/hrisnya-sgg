@@ -2,6 +2,7 @@
 
 namespace App\Models\Master;
 
+use App\Enum\EmployeeTypeCategory;
 use App\Helpers\PermissionHelper;
 use App\Models\User\UserProfiles;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
@@ -19,7 +20,12 @@ class EmployeeTypes extends Model
 
     protected $fillable = [
         'name',
+        'category',
         'company_id',
+    ];
+
+    protected $casts = [
+        'category' => EmployeeTypeCategory::class,
     ];
 
     protected static function boot(): void

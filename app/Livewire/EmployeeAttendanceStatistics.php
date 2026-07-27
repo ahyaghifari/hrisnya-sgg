@@ -4,6 +4,7 @@ namespace App\Livewire;
 
 use App\Enum\AttendanceReqStatus;
 use App\Enum\AttendanceStatus;
+use App\Enum\EmployeeTypeCategory;
 use App\Exports\Attendance\AttendanceHistoryExport;
 use App\Livewire\Concerns\HandlesProfilePhotoUpload;
 use App\Livewire\Concerns\ResolvesTodayAttendanceStatus;
@@ -86,6 +87,15 @@ class EmployeeAttendanceStatistics extends Component
             ->subordinates($user)
             ->whereKey($record->id)
             ->exists();
+    }
+
+    // Tab Absensi/Riwayat Pengajuan/Dokumen/Penggajian dibatasi HANYA kalau tipe karyawan
+    // belum diisi sama sekali (null) - ketiga kategori (Tetap/Kontrak/Orientasi) semuanya
+    // dapat akses penuh begitu tipe karyawannya di-set, apa pun kategorinya. Keputusan
+    // sengaja: null dianggap "belum lengkap datanya", bukan diam-diam dapat akses penuh.
+    public function getShowExtraTabsProperty(): bool
+    {
+        return $this->record->profile?->employeeType?->category !== null;
     }
 
     /**

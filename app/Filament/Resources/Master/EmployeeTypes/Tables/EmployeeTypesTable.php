@@ -25,6 +25,12 @@ class EmployeeTypesTable
             ->columns([
                 TextColumn::make('name')->label('Nama Tipe Karyawan')->searchable()->sortable(),
 
+                TextColumn::make('category')
+                    ->label('Kategori')
+                    ->badge()
+                    ->placeholder('-')
+                    ->color(fn ($state) => $state?->value === 'orientasi' ? 'warning' : 'gray'),
+
                 TextColumn::make('user_profiles_count')
                     ->label('Jumlah Karyawan')
                     ->counts('userProfiles')

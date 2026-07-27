@@ -5,7 +5,7 @@
     <button type="button" onclick="pwaDismissPushBanner()" style="background:none;border:none;color:var(--text-faint);font-size:12px;cursor:pointer;">Nanti</button>
 </div>
 
-<div class="bento pwa-bento">
+<div class="bento pwa-bento {{ ! $this->canPengajuanAbsensi ? 'no-pengajuan' : '' }} {{ ! $this->canPelatihanSaya ? 'no-pelatihan' : '' }}">
 
     <!-- WELCOME CARD (server-rendered, bukan domain attendance) -->
     <div class="welcome-card bento-welcome">
@@ -35,9 +35,11 @@
         </div>
     </div>
 
-    <div class="bento-status-pengajuan">
-        <livewire:my-attendance-status-card />
-    </div>
+    @if ($this->canPengajuanAbsensi)
+        <div class="bento-status-pengajuan">
+            <livewire:my-attendance-status-card />
+        </div>
+    @endif
 
     <!-- PRESENSI: status hari ini (jadwal + libur/cuti/izin + jam presensi asli) -->
     <x-today-attendance-card :status="$this->todayAttendanceStatus" id="absen-section" class="bento-absensi" />
@@ -77,7 +79,7 @@
     {{-- MyKanban: task terkini dari kanban pribadi maupun board (bukan lagi placeholder statis).
     Sekelompok dengan welcome/presensi/saldo di grid .bento yang sama (bukan section terpisah di
     luar grid), supaya breakpoint-nya konsisten: 1 kolom di mobile, 2 kolom berdampingan di desktop. --}}
-    <div class="bento-task-kursus">
+    <div class="bento-task-kursus {{ ! $this->canPelatihanSaya ? 'no-pelatihan' : '' }}">
         <div class="pwa-list">
             <div class="pwa-card-header pwa-card-header-navy">
                 <div class="pwa-card-header-deco-1"></div><div class="pwa-card-header-deco-2"></div>
@@ -119,6 +121,7 @@
             @endforelse
         </div>
 
+        @if ($this->canPelatihanSaya)
         <div class="pwa-list" style="padding-bottom:16px;">
             <div class="pwa-card-header pwa-card-header-violet" style="margin-bottom:14px;">
                 <div class="pwa-card-header-deco-1"></div><div class="pwa-card-header-deco-2"></div>
@@ -163,6 +166,7 @@
                 </div>
             @endif
         </div>
+        @endif
     </div>
 
     {{-- <livewire:pending-approvals-card /> --}}
