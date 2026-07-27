@@ -71,6 +71,7 @@ class Candidates extends Authenticatable implements CanResetPassword, MustVerify
         return [
             'password' => 'hashed',
             'is_onboarded' => 'boolean',
+            'birth_date' => 'date',
         ];
     }
 

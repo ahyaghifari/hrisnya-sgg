@@ -36,7 +36,9 @@ class ApprovalTimelineService
 
         $timeline = [[
             'label' => 'Diajukan',
-            'actor' => $request->user->name,
+            // Nullable - user pengaju bisa sudah dihapus (lihat pola sama di
+            // ApprovalFlowService::advanceStep()), jangan sampai timeline gagal render.
+            'actor' => $request->user?->name ?? 'Seseorang',
             'date' => $request->created_at,
             'state' => 'done',
         ]];

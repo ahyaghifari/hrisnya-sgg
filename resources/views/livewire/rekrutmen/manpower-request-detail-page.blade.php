@@ -1,7 +1,8 @@
 <div>
 <x-page-header title="Detail Permintaan Tenaga Kerja" :back="route('rekrutmen.permintaan-tenaga-kerja')" />
 
-<x-approval-timeline :timeline="$this->timeline" />
+{{-- Timeline dimatikan sementara (bukan dihapus) - lihat App\Livewire\Rekrutmen\ManpowerRequestDetailPage::getTimelineProperty() --}}
+{{-- <x-approval-timeline :timeline="$this->timeline" /> --}}
 
 @php
     $status = \App\Enum\JobPositionReqStatus::tryFrom($record->status);
