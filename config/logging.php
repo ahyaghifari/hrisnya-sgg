@@ -73,6 +73,17 @@ return [
             'replace_placeholders' => true,
         ],
 
+        // Dipisah dari laravel.log biasa karena attendance:sync-access-logs jalan tiap menit
+        // lewat cron (bootstrap/app.php) - kalau digabung ke channel default, jejak sync bakal
+        // tenggelam di antara log request/command lain dalam hitungan jam.
+        'attendance_sync' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/attendance-sync.log'),
+            'level' => 'info',
+            'days' => 14,
+            'replace_placeholders' => true,
+        ],
+
         'slack' => [
             'driver' => 'slack',
             'url' => env('LOG_SLACK_WEBHOOK_URL'),

@@ -24,6 +24,7 @@ class JobPositions extends Model
     protected $fillable = [
         'company_id',
         'org_structure_id',
+        'is_internship',
         'name',
         'level',
         'parent_id',

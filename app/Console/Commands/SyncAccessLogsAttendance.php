@@ -12,12 +12,18 @@ use App\Services\Attendance\AccessLogScheduleReader;
 use App\Services\Attendance\Calculators\FixedScheduleCalculator;
 use App\Services\Attendance\Calculators\FlexibleScheduleCalculator;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 /**
  * Dijalankan tiap menit lewat scheduler (lihat bootstrap/app.php), langsung lewat cron - bukan
  * queue. Incremental - cuma baca access_logs yang lebih baru dari watermark
  * SyncAccessLog::watermark(), bukan scan ulang semua baris hari itu tiap kali dipanggil (lihat
  * AccessLogScheduleReader::readAndGroupIncremental).
+ *
+ * Semua jejak eksekusi (mulai cron sampai per-NIP yang diproses/ditolak) masuk ke channel log
+ * terpisah `attendance_sync` (config/logging.php) - lihat storage/logs/attendance-sync-*.log,
+ * bukan tercampur laravel.log biasa, karena command ini jalan tiap menit.
  */
 class SyncAccessLogsAttendance extends Command
 {
@@ -31,11 +37,21 @@ class SyncAccessLogsAttendance extends Command
         FlexibleScheduleCalculator $flexibleCalculator,
         AttendanceRecordRepository $repo,
     ): int {
-        $watermark = SyncAccessLog::watermark();
+        $log = Log::channel('attendance_sync');
 
-        $result = $reader->readAndGroupIncremental($watermark->last_synced_at?->toDateTimeString());
+        // runId cuma buat gampang grep 1 eksekusi utuh dari banyak baris log yang saling
+        // berselang (beberapa run bisa overlap penulisan kalau durasinya kebetulan lewat 1 menit).
+        $runId = (string) Str::ulid();
+
+        $watermark = SyncAccessLog::watermark();
+        $since = $watermark->last_synced_at?->toDateTimeString();
+
+        $log->info("[{$runId}] cron diterima, mulai sync. watermark_sebelumnya=" . ($since ?? '(belum pernah sync)'));
+
+        $result = $reader->readAndGroupIncremental($since);
 
         if ($result['max_synced_at'] === null) {
+            $log->info("[{$runId}] selesai: tidak ada access_logs baru.");
             $this->info('Tidak ada access_logs baru sejak sync terakhir.');
 
             return Command::SUCCESS;
@@ -44,6 +60,7 @@ class SyncAccessLogsAttendance extends Command
         $fixedCount = 0;
         foreach ($fixedCalculator->calculate($result['buckets']['fixed']) as $r) {
             $record = $repo->saveCalculatedResult($r, 'access_logs_fixed');
+            $log->info("[{$runId}] diproses (fixed): nip={$r['user']->nip} nama={$r['user']->name} tanggal={$r['date']} status={$r['status']} checkin={$r['check_in']} checkout=" . ($r['check_out'] ?? '-'));
             $this->notifyCheckInOut($r, $record);
             $fixedCount++;
         }
@@ -51,6 +68,7 @@ class SyncAccessLogsAttendance extends Command
         $flexibleCount = 0;
         foreach ($flexibleCalculator->calculate($result['buckets']['flexible']) as $r) {
             $record = $repo->saveCalculatedResult($r, 'access_logs_flexible');
+            $log->info("[{$runId}] diproses (flexible): nip={$r['user']->nip} nama={$r['user']->name} tanggal={$r['date']} status={$r['status']} checkin={$r['check_in']} checkout=" . ($r['check_out'] ?? '-'));
             $this->notifyCheckInOut($r, $record);
             $flexibleCount++;
         }
@@ -59,6 +77,7 @@ class SyncAccessLogsAttendance extends Command
         // pernah masuk ke buckets manapun jadi tidak pernah tersimpan ke attendance_records.
         // Kabari karyawannya langsung supaya tidak diam-diam dianggap tidak absen.
         foreach ($result['unresolved_schedule'] as $entry) {
+            $log->warning("[{$runId}] ditolak (jadwal tidak ditemukan): nip={$entry['employee_id']} tanggal={$entry['date']}");
             $entry['user']->notify(new AttendanceScanRejected(
                 $entry['date'],
                 'jadwal Anda tidak ditemukan untuk tanggal ini, hubungi HR/atasan Anda.'
@@ -68,13 +87,28 @@ class SyncAccessLogsAttendance extends Command
         // Scan dari device yang tidak terdaftar (atau terdaftar tapi beda company) - diblokir
         // total, tidak ikut dihitung/disimpan (lihat AccessLogScheduleReader::groupAndBucket).
         foreach ($result['rejected_device'] as $entry) {
+            $devices = implode(', ', $entry['device_names']);
+            $log->warning("[{$runId}] ditolak (device tidak dikenal): nip={$entry['employee_id']} tanggal={$entry['date']} device={$devices}");
             $entry['user']->notify(new AttendanceScanRejected(
                 $entry['date'],
                 'device absensi yang Anda pakai tidak terdaftar untuk perusahaan Anda, hubungi HR/admin.'
             ));
         }
 
+        // employee_id di access_logs yang sama sekali tidak match users.nip manapun - tidak ada
+        // User buat dikabari, jadi ini satu-satunya jejaknya.
+        foreach ($result['unmatched_users'] as $employeeId => $scanCount) {
+            $log->warning("[{$runId}] dilewati (NIP tidak dikenal di sistem): employee_id={$employeeId} jumlah_scan={$scanCount}");
+        }
+
         $watermark->update(['last_synced_at' => $result['max_synced_at']]);
+
+        $summary = "[{$runId}] selesai: fixed={$fixedCount} flexible={$flexibleCount} "
+            . 'jadwal_tidak_ditemukan=' . count($result['unresolved_schedule']) . ' '
+            . 'device_tidak_dikenal=' . count($result['rejected_device']) . ' '
+            . 'nip_tidak_dikenal=' . count($result['unmatched_users']) . ' '
+            . "watermark_baru={$result['max_synced_at']}";
+        $log->info($summary);
 
         $this->info("Sync selesai: {$fixedCount} fixed, {$flexibleCount} flexible disimpan. Watermark -> {$result['max_synced_at']}.");
 
