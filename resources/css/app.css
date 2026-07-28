@@ -778,17 +778,23 @@ html.lw-navigating .page-content { opacity: 0; }
    viewport mobile) melebar, bukan discroll di dalam kartunya sendiri. minmax(0, ...) matiin
    floor "auto" itu, biar overflow-x:auto anak yang menangani, bukan grid track-nya. */
 .bento { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
+/* Wrapper Livewire my-attendance-status-card kadang render kosong (tidak ada pengajuan pending)
+   tapi tetap masuk grid item -> gap 16px di atas+bawah row kosong = 32px jarak yang kelihatan
+   berlebih. display:none saat kosong biar row-nya tidak makan tempat sama sekali. */
+.bento-status-pengajuan:not(:has(.timeline-card)) { display: none; }
 @media (min-width: 640px) {
     .bento { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
     .bento-welcome, .bento-absensi, .bento-recent, .bento-pending-approvals, .bento-status-pengajuan { grid-column: 1 / 3; }
 }
 @media (min-width: 1024px) {
-    .bento { grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); grid-template-rows: auto auto auto auto auto; }
-    .bento-welcome { grid-column: 1/-1; grid-row: 1; }
-    .bento-status-pengajuan { grid-column: 1/-1; grid-row: 2; }
-    .bento-absensi { grid-column: 1; grid-row: 3; }
-    .bento-pending-approvals { grid-column: 1/-1; grid-row: 4; }
-    .bento-recent  { grid-column: 1/-1; grid-row: 5; }
+    /* Tanpa grid-template-rows/grid-row angka tetap - biar row auto-flow ngikutin DOM order.
+       Row bernomor tetap bikin track "hantu" (ikut kena gap 2x walau kosong) pas salah satu
+       card kondisional (mis. bento-status-pengajuan) tidak render/kosong. absensi & side-stats
+       tetap otomatis satu baris karena berurutan di DOM (col1 lalu col2, auto-placement grid
+       ngisi kolom yang kosong di baris yang sama sebelum pindah baris baru). */
+    .bento { grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); }
+    .bento-welcome, .bento-status-pengajuan, .bento-pending-approvals, .bento-recent { grid-column: 1/-1; }
+    .bento-absensi { grid-column: 1; }
 }
 
 /* Cuti Tahunan + Jumlah Izin + Jumlah Lembur, di samping presensi pada layar lebar (>=1024px),
@@ -803,7 +809,7 @@ html.lw-navigating .page-content { opacity: 0; }
 
 .bento-side-stats { display: none; grid-template-columns: repeat(2, 1fr); gap: 16px; }
 @media (min-width: 768px) { .bento-side-stats { display: grid; grid-column: 1 / -1; } }
-@media (min-width: 1024px) { .bento-side-stats { grid-column: 2; grid-row: 3; grid-template-columns: repeat(3, 1fr); } }
+@media (min-width: 1024px) { .bento-side-stats { grid-column: 2; grid-template-columns: repeat(3, 1fr); } }
 
 /* Task Saya + Kursus Saya: satu kolom bertumpuk di mobile, berdampingan 2 kolom di desktop.
    Full-width row-nya sendiri di bawah welcome/presensi/saldo, terlepas dari jumlah kolom
