@@ -204,6 +204,10 @@
                 <span class="pwa-menu-grid-icon teal"><i class="fa-solid fa-sack-dollar"></i></span>
                 <span class="pwa-menu-grid-label">Honorarium</span>
             </a>
+            <a href="{{ route('pelatihan.evaluasi') }}" wire:navigate class="pwa-menu-grid-item">
+                <span class="pwa-menu-grid-icon teal"><i class="fa-solid fa-star"></i></span>
+                <span class="pwa-menu-grid-label">Pertanyaan Evaluasi</span>
+            </a>
             <a href="{{ route('pelatihan.baseline') }}" wire:navigate class="pwa-menu-grid-item">
                 <span class="pwa-menu-grid-icon teal"><i class="fa-solid fa-bullseye"></i></span>
                 <span class="pwa-menu-grid-label">Baseline Pelatihan</span>
@@ -211,6 +215,10 @@
             <a href="{{ route('pelatihan.laporan') }}" wire:navigate class="pwa-menu-grid-item">
                 <span class="pwa-menu-grid-icon teal"><i class="fa-solid fa-chart-bar"></i></span>
                 <span class="pwa-menu-grid-label">Laporan</span>
+            </a>
+            <a href="{{ route('pelatihan.pengaturan') }}" wire:navigate class="pwa-menu-grid-item">
+                <span class="pwa-menu-grid-icon teal"><i class="fa-solid fa-gear"></i></span>
+                <span class="pwa-menu-grid-label">Pengaturan LMS</span>
             </a>
         @endif
 

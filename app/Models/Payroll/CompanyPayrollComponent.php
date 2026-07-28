@@ -15,6 +15,23 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * bukan di-seed penuh 20 baris x company dari awal.
  *
  * @mixin IdeHelperCompanyPayrollComponent
+ * @property string $id
+ * @property string $company_id
+ * @property string $component
+ * @property bool $is_active
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read Companies $company
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|CompanyPayrollComponent newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|CompanyPayrollComponent newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|CompanyPayrollComponent query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|CompanyPayrollComponent whereCompanyId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|CompanyPayrollComponent whereComponent($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|CompanyPayrollComponent whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|CompanyPayrollComponent whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|CompanyPayrollComponent whereIsActive($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|CompanyPayrollComponent whereUpdatedAt($value)
+ * @mixin \Eloquent
  */
 class CompanyPayrollComponent extends Model
 {

@@ -43,10 +43,9 @@ Route::middleware('auth:sanctum')->group(function () {
 
         Route::post('/meeting/{meetingId}/clock-in', [\App\Http\Controllers\Api\LMS\AttendanceController::class, 'clockIn'])->name('lms.attendance.clock-in');
 
+        Route::get('/courses/feedback-questions', [\App\Http\Controllers\Api\LMS\CourseController::class, 'getFeedbackQuestions']);
         Route::post('/courses/feedback', [\App\Http\Controllers\Api\LMS\CourseController::class, 'storeFeedback']);
         Route::get('/followed-courses', [\App\Http\Controllers\Api\LMS\CourseUserController::class, 'getFollowedCourses']);
-
-        Route::get('/ranks', [\App\Http\Controllers\Api\LMS\CourseController::class, 'getRanksByUserId']);
 
         Route::get('/courses/{courseUserId}/certificate', [\App\Http\Controllers\Api\LMS\CourseUserController::class, 'downloadCertificate']);
     });

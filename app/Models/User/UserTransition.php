@@ -19,6 +19,58 @@ use Illuminate\Support\Facades\Auth;
 
 /**
  * @mixin IdeHelperUserTransition
+ * @property string $id
+ * @property string $number
+ * @property string $status
+ * @property string $company_id
+ * @property string $user_id
+ * @property string $transition_type
+ * @property string|null $transitionable_id
+ * @property string|null $transitionable_type
+ * @property int|null $role_id
+ * @property string|null $old_value
+ * @property string|null $effective_date
+ * @property string|null $reason
+ * @property string|null $manager_comment
+ * @property string $created_by
+ * @property string|null $approved_by
+ * @property string|null $approved_at
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, ApprovalHistories> $approvalHistories
+ * @property-read int|null $approval_histories_count
+ * @property-read ApprovalSnapshots|null $approvalSnapshot
+ * @property-read User|null $approvedBy
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\User\UserTransitionAttachment> $attachments
+ * @property-read int|null $attachments_count
+ * @property-read Companies $company
+ * @property-read User|null $createdBy
+ * @property-read \App\Models\User\UserTransitionDetail|null $detail
+ * @property-read \App\Models\Role|null $role
+ * @property-read Model|\Eloquent|null $transitionable
+ * @property-read User|null $user
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserTransition newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserTransition newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserTransition query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserTransition whereApprovedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserTransition whereApprovedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserTransition whereCompanyId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserTransition whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserTransition whereCreatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserTransition whereEffectiveDate($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserTransition whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserTransition whereManagerComment($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserTransition whereNumber($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserTransition whereOldValue($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserTransition whereReason($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserTransition whereRoleId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserTransition whereStatus($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserTransition whereTransitionType($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserTransition whereTransitionableId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserTransition whereTransitionableType($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserTransition whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserTransition whereUserId($value)
+ * @mixin \Eloquent
  */
 class UserTransition extends Model
 {

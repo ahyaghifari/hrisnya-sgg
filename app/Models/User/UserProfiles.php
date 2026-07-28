@@ -10,6 +10,96 @@ use Illuminate\Database\Eloquent\Model;
 
 /**
  * @mixin IdeHelperUserProfiles
+ * @property string $id
+ * @property string $user_id
+ * @property string|null $nickname
+ * @property string|null $gender
+ * @property string|null $place_of_birth
+ * @property string|null $date_of_birth
+ * @property string|null $no_nik
+ * @property string|null $no_kk
+ * @property string|null $no_bpjs_kes
+ * @property string|null $no_bpjs_ket
+ * @property string|null $bank_account_number
+ * @property string|null $bank_account_name
+ * @property string|null $npwp
+ * @property string|null $country
+ * @property string|null $province
+ * @property string|null $city
+ * @property string|null $district
+ * @property string|null $village
+ * @property string|null $address
+ * @property string|null $postal_code
+ * @property string|null $rt
+ * @property string|null $rw
+ * @property string|null $phone
+ * @property string|null $whatsapp
+ * @property string|null $religion_id
+ * @property string|null $bank_id
+ * @property string|null $org_structure_id
+ * @property string|null $job_position_id
+ * @property string|null $pangkat_id
+ * @property string|null $golongan_id
+ * @property string|null $kelas_id
+ * @property string|null $employee_type_id
+ * @property string|null $business_unit_id
+ * @property array<array-key, mixed>|null $profile_picture
+ * @property string|null $joining_date
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read \App\Models\Master\Banks|null $bank
+ * @property-read \App\Models\Master\EmployeeTypes|null $employeeType
+ * @property-read mixed $department
+ * @property-read mixed $division
+ * @property-read mixed $sub_division
+ * @property-read \App\Models\Master\Golongans|null $golongan
+ * @property-read \App\Models\Master\JobPositions|null $jobPosition
+ * @property-read \App\Models\Master\Kelas|null $kelas
+ * @property-read OrgStructure|null $orgStructure
+ * @property-read \App\Models\Master\Pangkats|null $pangkat
+ * @property-read Religions|null $religion
+ * @property-read User|null $user
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserProfiles newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserProfiles newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserProfiles query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserProfiles whereAddress($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserProfiles whereBankAccountName($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserProfiles whereBankAccountNumber($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserProfiles whereBankId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserProfiles whereBusinessUnitId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserProfiles whereCity($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserProfiles whereCountry($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserProfiles whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserProfiles whereDateOfBirth($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserProfiles whereDistrict($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserProfiles whereEmployeeTypeId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserProfiles whereGender($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserProfiles whereGolonganId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserProfiles whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserProfiles whereJobPositionId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserProfiles whereJoiningDate($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserProfiles whereKelasId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserProfiles whereNickname($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserProfiles whereNoBpjsKes($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserProfiles whereNoBpjsKet($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserProfiles whereNoKk($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserProfiles whereNoNik($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserProfiles whereNpwp($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserProfiles whereOrgStructureId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserProfiles wherePangkatId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserProfiles wherePhone($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserProfiles wherePlaceOfBirth($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserProfiles wherePostalCode($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserProfiles whereProfilePicture($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserProfiles whereProvince($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserProfiles whereReligionId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserProfiles whereRt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserProfiles whereRw($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserProfiles whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserProfiles whereUserId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserProfiles whereVillage($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserProfiles whereWhatsapp($value)
+ * @mixin \Eloquent
  */
 class UserProfiles extends Model
 {

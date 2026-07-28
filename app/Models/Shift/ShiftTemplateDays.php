@@ -7,6 +7,26 @@ use Illuminate\Database\Eloquent\Model;
 
 /**
  * @mixin IdeHelperShiftTemplateDays
+ * @property string $id
+ * @property string $shift_template_id
+ * @property int $day_number
+ * @property string|null $shift_id
+ * @property bool $is_off_day
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read \App\Models\Shift\MasterShift|null $shift
+ * @property-read \App\Models\Shift\ShiftTemplates|null $shiftTemplate
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ShiftTemplateDays newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ShiftTemplateDays newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ShiftTemplateDays query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ShiftTemplateDays whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ShiftTemplateDays whereDayNumber($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ShiftTemplateDays whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ShiftTemplateDays whereIsOffDay($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ShiftTemplateDays whereShiftId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ShiftTemplateDays whereShiftTemplateId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ShiftTemplateDays whereUpdatedAt($value)
+ * @mixin \Eloquent
  */
 class ShiftTemplateDays extends Model
 {

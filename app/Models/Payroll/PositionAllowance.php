@@ -13,6 +13,24 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * Matriks Tunjangan Jabatan (pangkat x kelas -> nominal).
  *
  * @mixin IdeHelperPositionAllowance
+ * @property string $id
+ * @property string $pangkat_id
+ * @property string $kelas_id
+ * @property numeric $amount
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read Kelas $kelas
+ * @property-read Pangkats $pangkat
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PositionAllowance newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PositionAllowance newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PositionAllowance query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PositionAllowance whereAmount($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PositionAllowance whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PositionAllowance whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PositionAllowance whereKelasId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PositionAllowance wherePangkatId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PositionAllowance whereUpdatedAt($value)
+ * @mixin \Eloquent
  */
 class PositionAllowance extends Model
 {

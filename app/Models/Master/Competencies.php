@@ -9,6 +9,27 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * @mixin IdeHelperCompetencies
+ * @property string $id
+ * @property string $name
+ * @property string|null $type
+ * @property string|null $description
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read \App\Models\Master\JobPositionCompetencies|null $pivot
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Master\JobPositions> $jobPositions
+ * @property-read int|null $job_positions_count
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Master\JobPositionCompetencies> $positionCompetencies
+ * @property-read int|null $position_competencies_count
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Competencies newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Competencies newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Competencies query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Competencies whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Competencies whereDescription($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Competencies whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Competencies whereName($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Competencies whereType($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Competencies whereUpdatedAt($value)
+ * @mixin \Eloquent
  */
 class Competencies extends Model
 {

@@ -10,6 +10,21 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * @mixin IdeHelperPangkatBpjsBasis
+ * @property string $id
+ * @property string $pangkat_id
+ * @property string $bpjs_basis
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read Pangkats $pangkat
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PangkatBpjsBasis newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PangkatBpjsBasis newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PangkatBpjsBasis query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PangkatBpjsBasis whereBpjsBasis($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PangkatBpjsBasis whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PangkatBpjsBasis whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PangkatBpjsBasis wherePangkatId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PangkatBpjsBasis whereUpdatedAt($value)
+ * @mixin \Eloquent
  */
 class PangkatBpjsBasis extends Model
 {

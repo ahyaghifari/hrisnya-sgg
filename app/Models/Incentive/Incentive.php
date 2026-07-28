@@ -15,6 +15,29 @@ use Illuminate\Support\Facades\Auth;
  * lewat relasi user, bukan kolom company_id yang bisa nyasar dari data aslinya.
  *
  * @mixin IdeHelperIncentive
+ * @property string $id
+ * @property string $user_id
+ * @property string|null $name
+ * @property string|null $note
+ * @property \Illuminate\Support\Carbon|null $incentive_date
+ * @property numeric $amount
+ * @property bool $is_active
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read User|null $user
+ * @method static Builder<static>|Incentive newModelQuery()
+ * @method static Builder<static>|Incentive newQuery()
+ * @method static Builder<static>|Incentive query()
+ * @method static Builder<static>|Incentive whereAmount($value)
+ * @method static Builder<static>|Incentive whereCreatedAt($value)
+ * @method static Builder<static>|Incentive whereId($value)
+ * @method static Builder<static>|Incentive whereIncentiveDate($value)
+ * @method static Builder<static>|Incentive whereIsActive($value)
+ * @method static Builder<static>|Incentive whereName($value)
+ * @method static Builder<static>|Incentive whereNote($value)
+ * @method static Builder<static>|Incentive whereUpdatedAt($value)
+ * @method static Builder<static>|Incentive whereUserId($value)
+ * @mixin \Eloquent
  */
 class Incentive extends Model
 {

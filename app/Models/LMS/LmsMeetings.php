@@ -2,13 +2,61 @@
 
 namespace App\Models\LMS;
 
+use App\Enum\LMS\LmsSettingEnum;
 use App\Models\LMS\Trainer\Trainers;
+use App\Models\Setting;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Carbon;
 
 /**
  * @mixin IdeHelperLmsMeetings
+ * @property string $id
+ * @property int|null $sort_order
+ * @property string $course_id
+ * @property string $type_trainer internal, external
+ * @property string|null $trainer_id
+ * @property string|null $trainer_employee_id
+ * @property string $title
+ * @property string|null $description
+ * @property string|null $start_date
+ * @property string|null $end_date
+ * @property string|null $start_time
+ * @property string|null $end_time
+ * @property string $attendance_type online, offline, hybrid
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read \App\Models\LMS\LmsMeetingAttendances|null $attendance
+ * @property-read \App\Models\LMS\LmsCourses|null $course
+ * @property-read \App\Models\LMS\Trainer\LmsMeetingHonorariumAssessment|null $honorariumAssessment
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\LMS\LmsMaterials> $materials
+ * @property-read int|null $materials_count
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\LMS\LmsCourseMeetingUsers> $meetingUsers
+ * @property-read int|null $meeting_users_count
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\LMS\LmsMeetingQuizzes> $quizzes
+ * @property-read int|null $quizzes_count
+ * @property-read Trainers|null $trainer
+ * @property-read User|null $trainerEmployee
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|LmsMeetings newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|LmsMeetings newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|LmsMeetings query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|LmsMeetings whereAttendanceType($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|LmsMeetings whereCourseId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|LmsMeetings whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|LmsMeetings whereDescription($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|LmsMeetings whereEndDate($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|LmsMeetings whereEndTime($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|LmsMeetings whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|LmsMeetings whereSortOrder($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|LmsMeetings whereStartDate($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|LmsMeetings whereStartTime($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|LmsMeetings whereTitle($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|LmsMeetings whereTrainerEmployeeId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|LmsMeetings whereTrainerId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|LmsMeetings whereTypeTrainer($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|LmsMeetings whereUpdatedAt($value)
+ * @mixin \Eloquent
  */
 class LmsMeetings extends Model
 {
@@ -28,6 +76,7 @@ class LmsMeetings extends Model
         'end_date',
         'start_time',
         'end_time',
+        'jp',
         'attendance_type',
     ];
     
@@ -75,12 +124,31 @@ class LmsMeetings extends Model
         return $this->hasOne(\App\Models\LMS\Trainer\LmsMeetingHonorariumAssessment::class, 'meeting_id', 'id');
     }
 
+    /**
+     * 1 JP = sekian menit (setting `menit_1_jp`, default 45) — durasi start_time-end_time
+     * dibagi angka itu lalu dibulatkan. Dihitung ulang tiap save supaya kalau setting-nya
+     * berubah, JP pertemuan lama tidak ikut ter-update sendiri (snapshot saat disimpan).
+     */
+    public function calculateJp(): ?int
+    {
+        if (! $this->start_time || ! $this->end_time) {
+            return null;
+        }
+
+        $minutes = Carbon::parse($this->start_time)->diffInMinutes(Carbon::parse($this->end_time));
+        $minutesPerJp = Setting::resolve(LmsSettingEnum::MENIT_1_JP->value, null, (int) LmsSettingEnum::MENIT_1_JP->default());
+
+        return $minutesPerJp > 0 ? (int) round($minutes / $minutesPerJp) : null;
+    }
+
     protected static function booted()
     {
         static::saving(function ($meeting) {
             if (is_null($meeting->sort_order)) {
             $meeting->sort_order = static::max('sort_order') + 1;
             }
+
+            $meeting->jp = $meeting->calculateJp();
         });
 
         static::saved(function ($meeting) {

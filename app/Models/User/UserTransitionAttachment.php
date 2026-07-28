@@ -9,6 +9,22 @@ use Illuminate\Support\Facades\Storage;
 
 /**
  * @mixin IdeHelperUserTransitionAttachment
+ * @property string $id
+ * @property string $user_transition_id
+ * @property string $file_path
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read string $file_url
+ * @property-read \App\Models\User\UserTransition $transition
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserTransitionAttachment newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserTransitionAttachment newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserTransitionAttachment query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserTransitionAttachment whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserTransitionAttachment whereFilePath($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserTransitionAttachment whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserTransitionAttachment whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserTransitionAttachment whereUserTransitionId($value)
+ * @mixin \Eloquent
  */
 class UserTransitionAttachment extends Model
 {

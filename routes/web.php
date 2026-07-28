@@ -43,6 +43,8 @@ use App\Livewire\LMS\LmsCategoriesPage;
 use App\Livewire\LMS\LmsCourseBaselinesPage;
 use App\Livewire\LMS\LmsCourseDetailPage;
 use App\Livewire\LMS\LmsCoursesPage;
+use App\Livewire\LMS\LmsFeedbackQuestionsPage;
+use App\Livewire\LMS\LmsSettingsPage;
 use App\Livewire\LMS\MasterHonorariumPage;
 use App\Livewire\LMS\QuizzesPage;
 use App\Livewire\LMS\TrainerDetailPage;
@@ -304,6 +306,12 @@ Route::middleware(['auth', 'portal.access'])->group(function () {
 
     Route::get('/lms/honorarium', MasterHonorariumPage::class)
         ->name('pelatihan.honorarium');
+
+    Route::get('/lms/evaluasi', LmsFeedbackQuestionsPage::class)
+        ->name('pelatihan.evaluasi');
+
+    Route::get('/lms/pengaturan', LmsSettingsPage::class)
+        ->name('pelatihan.pengaturan');
 
     Route::get('/lms/kategori', LmsCategoriesPage::class)
         ->name('pelatihan.kategori');

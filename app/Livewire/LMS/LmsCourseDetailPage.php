@@ -5,8 +5,11 @@ namespace App\Livewire\LMS;
 use App\Enum\CourseUserStatus;
 use App\Enum\CustomPermissionEnum;
 use App\Enum\LMS\TrainingCategoryEnum;
+use App\Enum\LsmCourseStatus;
+use App\Exports\LMS\MeetingAttendanceExport;
 use App\Helpers\PermissionHelper;
 use App\Models\LMS\LmsCourses;
+use App\Models\LMS\LmsCourseMeetingUsers;
 use App\Models\LMS\LmsCourseUsers;
 use App\Models\LMS\LmsMaterials;
 use App\Models\LMS\LmsMeetingQuizzes;
@@ -21,6 +24,7 @@ use Illuminate\Support\Facades\Storage;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 use Livewire\WithFileUploads;
+use Maatwebsite\Excel\Facades\Excel;
 
 /**
  * Halaman detail Pelatihan portal — tujuan redirect setelah Tambah Pelatihan (CreateLmsCourse).
@@ -51,6 +55,7 @@ class LmsCourseDetailPage extends Component
 
     public bool $showAddParticipantForm = false;
     public array $selectedUserIds = [];
+    public string $participantSearch = '';
 
     public ?string $expandedMeetingId = null;
     public ?string $editingMeetingId = null;
@@ -62,6 +67,26 @@ class LmsCourseDetailPage extends Component
     public ?string $meetingEndDate = null;
     public ?string $meetingStartTime = null;
     public ?string $meetingEndTime = null;
+
+    // Modal "Tambah Pemateri" — quick-create langsung dari tab Pertemuan, field & validasi
+    // sama persis TrainersPage (/lms/pemateri), tanpa perlu pindah halaman.
+    public bool $showCreateTrainerModal = false;
+    public string $trainerName = '';
+    public string $trainerType = 'external';
+    public ?string $trainerUserId = null;
+    public string $trainerExpertise = '';
+    public string $trainerEmail = '';
+    public string $trainerPhone = '';
+    public string $trainerCompany = '';
+    public string $trainerAddress = '';
+
+    // Mode Absensi — checklist manual Absen Masuk/Pulang + Keterangan per peserta, per
+    // pertemuan (beda dari clock-in mobile otomatis, lihat migration kolomnya). Cuma 1 pertemuan
+    // bisa dalam mode ini di satu waktu (sama seperti accordion, cukup 1 state di-share).
+    public ?string $attendanceMeetingId = null;
+    public array $attendanceForm = []; // user_id => ['masuk'=>bool,'pulang'=>bool,'keterangan'=>string]
+    public string $attendanceSearch = '';
+    public ?string $attendanceViewMeetingId = null; // tombol "Lihat" — read-only, beda dari attendanceMeetingId (mode isi/edit)
 
     public ?string $addingMaterialForMeetingId = null;
     public string $materialTitle = '';
@@ -128,9 +153,40 @@ class LmsCourseDetailPage extends Component
 
     public function getParticipantsProperty()
     {
+        $search = trim($this->participantSearch);
+
         return LmsCourseUsers::where('course_id', $this->course->id)
             ->with('user')
+            ->when($search !== '', fn ($q) => $q->whereHas('user', fn ($q) => $q->where('name', 'like', "%{$search}%")))
             ->get();
+    }
+
+    /** Sengaja tidak ikut $participantSearch — dipakai Mode Absensi supaya daftar peserta yang
+     * ditandai tidak diam-diam berkurang gara-gara filter pencarian tab Peserta masih kepakai. */
+    public function getAllParticipantsProperty()
+    {
+        return LmsCourseUsers::where('course_id', $this->course->id)->with('user')->get();
+    }
+
+    /** Cuma filter tampilan baris di Mode Absensi — $attendanceForm tetap mencakup semua
+     * peserta (dibangun sekali saat openAttendanceMode), jadi ganti kata kunci cari tidak
+     * membuang centang yang sudah ditandai pada peserta yang sedang tersembunyi. */
+    public function getAttendanceParticipantsProperty()
+    {
+        $search = trim($this->attendanceSearch);
+
+        if ($search === '') {
+            return $this->allParticipants;
+        }
+
+        return $this->allParticipants->filter(
+            fn ($participant) => str_contains(strtolower((string) $participant->user?->name), strtolower($search))
+        );
+    }
+
+    public function getCourseHasAnyQuizProperty(): bool
+    {
+        return LmsMeetingQuizzes::whereHas('meeting', fn ($q) => $q->where('course_id', $this->course->id))->exists();
     }
 
     public function getAvailableUserOptionsProperty()
@@ -213,6 +269,55 @@ class LmsCourseDetailPage extends Component
         return $this->course->meetings()->with(['materials', 'quizzes.quiz', 'trainer'])->orderBy('start_date')->get();
     }
 
+    public function getTotalJpProperty(): int
+    {
+        return (int) $this->meetings->sum('jp');
+    }
+
+    public function getTotalDurationMinutesProperty(): int
+    {
+        return $this->meetings->sum(function ($meeting) {
+            if (! $meeting->start_time || ! $meeting->end_time) {
+                return 0;
+            }
+
+            return \Carbon\Carbon::parse($meeting->start_time)->diffInMinutes(\Carbon\Carbon::parse($meeting->end_time));
+        });
+    }
+
+    /**
+     * Syarat publish: minimal 1 peserta, dan tiap pertemuan wajib sudah punya pemateri +
+     * jam mulai/selesai. Dipakai buat checklist di header (tombol Publish baru muncul kalau
+     * semua item ini lolos) — dicek ulang juga di publishCourse() supaya tidak bisa dilewati
+     * lewat cara lain (mis. request langsung).
+     */
+    public function getPublishChecklistProperty(): array
+    {
+        return [
+            'hasParticipant' => LmsCourseUsers::where('course_id', $this->course->id)->exists(),
+            'meetingsComplete' => $this->meetings->isNotEmpty() && $this->meetings->every(
+                fn ($meeting) => $meeting->trainer_id && $meeting->start_time && $meeting->end_time
+            ),
+        ];
+    }
+
+    public function getCanPublishProperty(): bool
+    {
+        return ! in_array(false, $this->publishChecklist, true);
+    }
+
+    public function publishCourse(): void
+    {
+        $this->assertCanEdit();
+
+        abort_unless($this->canPublish, 403);
+
+        $this->course->update(['status' => LsmCourseStatus::Published->value]);
+        $this->course->refresh();
+
+        Notification::make()->title('Pelatihan berhasil dipublish')->success()->send();
+    }
+
     public function getTrainerOptionsProperty()
     {
         $options = Trainers::where('is_active', true)->orderBy('name')->pluck('name', 'id');
@@ -228,6 +333,84 @@ class LmsCourseDetailPage extends Component
         }
 
         return $options;
+    }
+
+    public function getEmployeeOptionsProperty()
+    {
+        return User::where('is_active', true)->orderBy('name')->pluck('name', 'id');
+    }
+
+    public function getCanCreateTrainerProperty(): bool
+    {
+        return Auth::user()->can('create', Trainers::class);
+    }
+
+    public function openCreateTrainerModal(): void
+    {
+        abort_unless(Auth::user()->can('create', Trainers::class), 403);
+
+        $this->resetTrainerForm();
+        $this->showCreateTrainerModal = true;
+    }
+
+    public function closeCreateTrainerModal(): void
+    {
+        $this->showCreateTrainerModal = false;
+    }
+
+    public function saveTrainer(): void
+    {
+        abort_unless(Auth::user()->can('create', Trainers::class), 403);
+
+        $validated = $this->validate([
+            'trainerName' => 'required|string|max:255',
+            'trainerType' => 'required|in:internal,external',
+            'trainerUserId' => 'nullable|exists:users,id',
+            'trainerExpertise' => 'nullable|string|max:255',
+            'trainerEmail' => 'nullable|email|max:255',
+            'trainerPhone' => 'nullable|string|max:255',
+            'trainerCompany' => 'nullable|string|max:255',
+            'trainerAddress' => 'nullable|string',
+        ], [], [
+            'trainerName' => 'nama',
+            'trainerType' => 'tipe',
+            'trainerUserId' => 'karyawan',
+            'trainerExpertise' => 'keahlian',
+            'trainerEmail' => 'email',
+            'trainerPhone' => 'telepon',
+            'trainerCompany' => 'perusahaan asal',
+            'trainerAddress' => 'alamat',
+        ]);
+
+        $trainer = Trainers::create([
+            'name' => $validated['trainerName'],
+            'type' => $validated['trainerType'],
+            'is_active' => true,
+            'user_id' => $validated['trainerUserId'] ?: null,
+            'expertise' => $validated['trainerExpertise'] ?: null,
+            'email' => $validated['trainerEmail'] ?: null,
+            'phone' => $validated['trainerPhone'] ?: null,
+            'company' => $validated['trainerCompany'] ?: null,
+            'address' => $validated['trainerAddress'] ?: null,
+        ]);
+
+        $this->meetingTrainerId = $trainer->id;
+        $this->showCreateTrainerModal = false;
+
+        Notification::make()->title('Pemateri baru berhasil ditambahkan')->success()->send();
+    }
+
+    private function resetTrainerForm(): void
+    {
+        $this->trainerName = '';
+        $this->trainerType = 'external';
+        $this->trainerUserId = null;
+        $this->trainerExpertise = '';
+        $this->trainerEmail = '';
+        $this->trainerPhone = '';
+        $this->trainerCompany = '';
+        $this->trainerAddress = '';
+        $this->resetErrorBag();
     }
 
     private function resetMeetingForm(): void
@@ -452,6 +635,125 @@ class LmsCourseDetailPage extends Component
         LmsMeetingQuizzes::whereHas('meeting', fn ($q) => $q->where('course_id', $this->course->id))->findOrFail($id)->delete();
 
         Notification::make()->title('Quiz dihapus')->success()->send();
+    }
+
+    /** "Isi Absensi" cuma boleh dipakai kalau pelatihan sudah dipublish — sebelum publish,
+     * peserta/pertemuan bisa masih berubah-ubah, absensi belum relevan untuk diisi. */
+    public function getCanFillAttendanceProperty(): bool
+    {
+        return $this->canEditDetail && $this->course->status === LsmCourseStatus::Published->value;
+    }
+
+    public function openAttendanceView(string $meetingId): void
+    {
+        $this->attendanceMeetingId = null;
+        $this->attendanceViewMeetingId = $meetingId;
+    }
+
+    public function closeAttendanceView(): void
+    {
+        $this->attendanceViewMeetingId = null;
+    }
+
+    public function getAttendanceViewRowsProperty()
+    {
+        if (! $this->attendanceViewMeetingId) {
+            return collect();
+        }
+
+        return $this->buildAttendanceRows($this->attendanceViewMeetingId);
+    }
+
+    private function buildAttendanceRows(string $meetingId)
+    {
+        $existing = LmsCourseMeetingUsers::where('meeting_id', $meetingId)
+            ->whereIn('user_id', $this->allParticipants->pluck('user_id'))
+            ->get()
+            ->keyBy('user_id');
+
+        return $this->allParticipants->map(function ($participant) use ($existing) {
+            $row = $existing->get($participant->user_id);
+
+            return (object) [
+                'name' => $participant->user?->name ?? '-',
+                'masuk' => (bool) $row?->absen_masuk,
+                'pulang' => (bool) $row?->absen_pulang,
+                'keterangan' => $row?->keterangan_kehadiran,
+            ];
+        });
+    }
+
+    public function exportAttendance(string $meetingId)
+    {
+        $meeting = $this->course->meetings()->findOrFail($meetingId);
+
+        $rows = $this->buildAttendanceRows($meetingId)->map(fn ($row) => (array) $row)->all();
+
+        $fileName = 'Absensi - ' . $this->course->title . ' - ' . $meeting->title . '.xlsx';
+
+        return Excel::download(
+            new MeetingAttendanceExport(
+                rows: $rows,
+                courseTitle: $this->course->title,
+                meetingTitle: $meeting->title,
+                meetingDate: $meeting->start_date ? \Carbon\Carbon::parse($meeting->start_date)->translatedFormat('d M Y') : null,
+            ),
+            $fileName
+        );
+    }
+
+    public function openAttendanceMode(string $meetingId): void
+    {
+        abort_unless($this->canFillAttendance, 403);
+
+        $this->attendanceViewMeetingId = null;
+
+        $existing = LmsCourseMeetingUsers::where('meeting_id', $meetingId)
+            ->whereIn('user_id', $this->allParticipants->pluck('user_id'))
+            ->get()
+            ->keyBy('user_id');
+
+        $this->attendanceForm = $this->allParticipants->mapWithKeys(function ($participant) use ($existing) {
+            $row = $existing->get($participant->user_id);
+
+            return [$participant->user_id => [
+                'masuk' => (bool) $row?->absen_masuk,
+                'pulang' => (bool) $row?->absen_pulang,
+                'keterangan' => (string) ($row?->keterangan_kehadiran ?? ''),
+            ]];
+        })->all();
+
+        $this->attendanceMeetingId = $meetingId;
+        $this->attendanceSearch = '';
+    }
+
+    public function closeAttendanceMode(): void
+    {
+        $this->attendanceMeetingId = null;
+        $this->attendanceForm = [];
+        $this->attendanceSearch = '';
+    }
+
+    public function saveAttendance(): void
+    {
+        abort_unless($this->canFillAttendance, 403);
+
+        $meeting = $this->course->meetings()->findOrFail($this->attendanceMeetingId);
+
+        foreach ($this->attendanceForm as $userId => $entry) {
+            LmsCourseMeetingUsers::updateOrCreate(
+                ['course_id' => $this->course->id, 'meeting_id' => $meeting->id, 'user_id' => $userId],
+                [
+                    'absen_masuk' => (bool) ($entry['masuk'] ?? false),
+                    'absen_pulang' => (bool) ($entry['pulang'] ?? false),
+                    'keterangan_kehadiran' => $entry['keterangan'] !== '' ? $entry['keterangan'] : null,
+                ]
+            );
+        }
+
+        $this->closeAttendanceMode();
+
+        Notification::make()->title('Absensi berhasil disimpan')->success()->send();
     }
 
     public function getFeedbacksProperty()

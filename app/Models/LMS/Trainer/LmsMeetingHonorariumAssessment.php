@@ -11,6 +11,29 @@ use Illuminate\Database\Eloquent\Model;
  * detail berubah, total_score & honor_amount dihitung ulang (recalculate()) lalu hasil akhirnya
  * di-upsert ke TrainerAssessmentResults (course_id+trainer_id, tabel yang sama dipakai halaman
  * admin "Gaji Trainer") supaya tidak perlu tabel tampilan honor terpisah.
+ *
+ * @property string $id
+ * @property string $meeting_id
+ * @property string|null $trainer_id
+ * @property int $total_score
+ * @property float $honor_amount
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\LMS\Trainer\LmsMeetingHonorariumDetail> $details
+ * @property-read int|null $details_count
+ * @property-read LmsMeetings $meeting
+ * @property-read \App\Models\LMS\Trainer\Trainers|null $trainer
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|LmsMeetingHonorariumAssessment newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|LmsMeetingHonorariumAssessment newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|LmsMeetingHonorariumAssessment query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|LmsMeetingHonorariumAssessment whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|LmsMeetingHonorariumAssessment whereHonorAmount($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|LmsMeetingHonorariumAssessment whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|LmsMeetingHonorariumAssessment whereMeetingId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|LmsMeetingHonorariumAssessment whereTotalScore($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|LmsMeetingHonorariumAssessment whereTrainerId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|LmsMeetingHonorariumAssessment whereUpdatedAt($value)
+ * @mixin \Eloquent
  */
 class LmsMeetingHonorariumAssessment extends Model
 {

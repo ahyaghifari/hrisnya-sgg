@@ -15,6 +15,95 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
  * @mixin IdeHelperJobPositions
+ * @property string $id
+ * @property string $company_id
+ * @property string|null $org_structure_id
+ * @property string|null $code
+ * @property string $name
+ * @property string|null $description
+ * @property string|null $qualification
+ * @property int|null $job_evaluation_score
+ * @property int|null $workload_score
+ * @property string|null $file_workload_analysis
+ * @property int|null $planned_manpower
+ * @property int $approved_manpower
+ * @property int|null $actual_manpower
+ * @property int|null $level
+ * @property string|null $parent_id
+ * @property int $is_draft
+ * @property string $status
+ * @property string|null $request_type
+ * @property string|null $request_by
+ * @property string|null $approved_by
+ * @property string|null $approved_at
+ * @property string|null $rejected_at
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property \Illuminate\Support\Carbon|null $deleted_at
+ * @property string|null $pangkat_id
+ * @property string|null $golongan_id
+ * @property string|null $kelas_id
+ * @property int|null $role_id
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, ApprovalHistories> $approvalHistories
+ * @property-read int|null $approval_histories_count
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, ApprovalSnapshots> $approvalSnapshots
+ * @property-read int|null $approval_snapshots_count
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, JobPositions> $children
+ * @property-read int|null $children_count
+ * @property-read \App\Models\Master\Companies $company
+ * @property-read \App\Models\Master\JobPositionCompetencies|null $pivot
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Master\Competencies> $competencies
+ * @property-read int|null $competencies_count
+ * @property-read \App\Models\Role|null $defaultRole
+ * @property-read int $competency_count
+ * @property-read string $competency_names
+ * @property-read \App\Models\Master\Golongans|null $golongan
+ * @property-read \App\Models\Master\Kelas|null $kelas
+ * @property-read \App\Models\Master\OrgStructure|null $orgStructure
+ * @property-read \App\Models\Master\Pangkats|null $pangkat
+ * @property-read JobPositions|null $parent
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Master\JobPositionCompetencies> $positionCompetencies
+ * @property-read int|null $position_competencies_count
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\User\UserJobPositions> $userAssignments
+ * @property-read int|null $user_assignments_count
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, UserProfiles> $users
+ * @property-read int|null $users_count
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|JobPositions newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|JobPositions newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|JobPositions onlyTrashed()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|JobPositions query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|JobPositions whereActualManpower($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|JobPositions whereApprovedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|JobPositions whereApprovedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|JobPositions whereApprovedManpower($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|JobPositions whereCode($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|JobPositions whereCompanyId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|JobPositions whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|JobPositions whereDeletedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|JobPositions whereDescription($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|JobPositions whereFileWorkloadAnalysis($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|JobPositions whereGolonganId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|JobPositions whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|JobPositions whereIsDraft($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|JobPositions whereJobEvaluationScore($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|JobPositions whereKelasId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|JobPositions whereLevel($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|JobPositions whereName($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|JobPositions whereOrgStructureId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|JobPositions wherePangkatId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|JobPositions whereParentId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|JobPositions wherePlannedManpower($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|JobPositions whereQualification($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|JobPositions whereRejectedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|JobPositions whereRequestBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|JobPositions whereRequestType($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|JobPositions whereRoleId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|JobPositions whereStatus($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|JobPositions whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|JobPositions whereWorkloadScore($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|JobPositions withTrashed(bool $withTrashed = true)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|JobPositions withoutTrashed()
+ * @mixin \Eloquent
  */
 class JobPositions extends Model
 {

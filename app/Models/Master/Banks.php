@@ -9,6 +9,23 @@ use Illuminate\Support\Facades\Auth;
 
 /**
  * @mixin IdeHelperBanks
+ * @property string $id
+ * @property string $code
+ * @property string $name
+ * @property string|null $company_id
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read \App\Models\Master\Companies|null $company
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Banks newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Banks newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Banks query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Banks whereCode($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Banks whereCompanyId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Banks whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Banks whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Banks whereName($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Banks whereUpdatedAt($value)
+ * @mixin \Eloquent
  */
 class Banks extends Model
 {

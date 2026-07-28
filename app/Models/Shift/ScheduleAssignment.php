@@ -13,8 +13,39 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * Assign Fixed/Flexible — dual-target: tepat 1 dari `user_id`/`job_position_id` harus terisi
  * (divalidasi di form/action pemanggil, BUKAN di model — belum ada UI yang menulis ke tabel ini
  * sesi ini, jadi belum ada tempat yang tepat buat validasi ini dipasang, lihat planning §2.6).
+ *
  * Beda dari ScheduleShiftAssignment — tidak per-tanggal, cukup 1 baris per target dengan
  * riwayat lewat effective_from/effective_until.
+ *
+ * @property string $id
+ * @property string $company_id
+ * @property string|null $user_id
+ * @property string|null $job_position_id
+ * @property string $schedule_id
+ * @property \Illuminate\Support\Carbon $effective_from
+ * @property \Illuminate\Support\Carbon|null $effective_until
+ * @property string|null $created_by
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read Companies $company
+ * @property-read User|null $creator
+ * @property-read JobPositions|null $jobPosition
+ * @property-read \App\Models\Shift\Schedule|null $schedule
+ * @property-read User|null $user
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ScheduleAssignment newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ScheduleAssignment newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ScheduleAssignment query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ScheduleAssignment whereCompanyId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ScheduleAssignment whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ScheduleAssignment whereCreatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ScheduleAssignment whereEffectiveFrom($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ScheduleAssignment whereEffectiveUntil($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ScheduleAssignment whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ScheduleAssignment whereJobPositionId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ScheduleAssignment whereScheduleId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ScheduleAssignment whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ScheduleAssignment whereUserId($value)
+ * @mixin \Eloquent
  */
 class ScheduleAssignment extends Model
 {

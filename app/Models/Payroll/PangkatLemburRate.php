@@ -10,6 +10,21 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * @mixin IdeHelperPangkatLemburRate
+ * @property string $id
+ * @property string $pangkat_id
+ * @property numeric $amount_per_hour
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read Pangkats $pangkat
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PangkatLemburRate newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PangkatLemburRate newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PangkatLemburRate query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PangkatLemburRate whereAmountPerHour($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PangkatLemburRate whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PangkatLemburRate whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PangkatLemburRate wherePangkatId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PangkatLemburRate whereUpdatedAt($value)
+ * @mixin \Eloquent
  */
 class PangkatLemburRate extends Model
 {

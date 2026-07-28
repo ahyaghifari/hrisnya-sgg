@@ -102,3 +102,112 @@
 @empty
     <p style="font-size:12px;color:var(--text-faint);margin:0;">Belum ada quiz.</p>
 @endforelse
+
+<div style="border-top:1px solid var(--border-soft);margin:18px 0;"></div>
+
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+    <h5 style="font-size:12.5px;font-weight:700;color:var(--text-heading);margin:0;">Absensi Peserta</h5>
+    <div style="display:flex;gap:6px;">
+        @if ($attendanceViewMeetingId === $meeting->id)
+            <button type="button" wire:click="closeAttendanceView" class="btn-ghost" style="padding:5px 10px;font-size:11px;">
+                <i class="fa-solid fa-xmark"></i> Tutup
+            </button>
+        @else
+            <button type="button" wire:click="openAttendanceView('{{ $meeting->id }}')" class="btn-ghost" style="padding:5px 10px;font-size:11px;">
+                <i class="fa-solid fa-eye"></i> Lihat
+            </button>
+        @endif
+
+        @if ($attendanceMeetingId === $meeting->id)
+            <button type="button" wire:click="closeAttendanceMode" class="btn-ghost" style="padding:5px 10px;font-size:11px;">
+                <i class="fa-solid fa-xmark"></i> Tutup Isi Absensi
+            </button>
+        @else
+            <button type="button" wire:click="openAttendanceMode('{{ $meeting->id }}')" class="btn-ghost" @disabled(! $this->canFillAttendance) style="padding:5px 10px;font-size:11px;" title="{{ $this->canFillAttendance ? '' : 'Pelatihan harus dipublish dulu sebelum absensi bisa diisi' }}">
+                <i class="fa-solid fa-clipboard-check"></i> Isi Absensi
+            </button>
+        @endif
+
+        <button type="button" wire:click="exportAttendance('{{ $meeting->id }}')" class="btn-ghost" style="padding:5px 10px;font-size:11px;">
+            <i class="fa-solid fa-file-excel"></i> Export Excel
+        </button>
+    </div>
+</div>
+
+@if ($attendanceViewMeetingId === $meeting->id)
+    <div style="background:var(--surface-alt);border-radius:10px;padding:14px;overflow-x:auto;margin-bottom:14px;">
+        <table style="width:100%;border-collapse:collapse;font-size:12.5px;">
+            <thead>
+                <tr style="border-bottom:1.5px solid var(--border);">
+                    <th style="text-align:left;padding:8px 10px;white-space:nowrap;">Nama Peserta</th>
+                    <th style="text-align:center;padding:8px 10px;white-space:nowrap;">Absen Masuk</th>
+                    <th style="text-align:center;padding:8px 10px;white-space:nowrap;">Absen Pulang</th>
+                    <th style="text-align:left;padding:8px 10px;">Keterangan Kehadiran</th>
+                </tr>
+            </thead>
+            <tbody>
+                @forelse ($this->attendanceViewRows as $row)
+                    <tr style="border-bottom:1px solid var(--border-soft);">
+                        <td style="padding:8px 10px;font-weight:600;white-space:nowrap;">{{ $row->name }}</td>
+                        <td style="padding:8px 10px;text-align:center;font-size:15px;">{{ $row->masuk ? '✅' : '❌' }}</td>
+                        <td style="padding:8px 10px;text-align:center;font-size:15px;">{{ $row->pulang ? '✅' : '❌' }}</td>
+                        <td style="padding:8px 10px;color:var(--text-muted);">{{ $row->keterangan ?: '-' }}</td>
+                    </tr>
+                @empty
+                    <tr>
+                        <td colspan="4" style="padding:16px;text-align:center;color:var(--text-faint);">Belum ada peserta.</td>
+                    </tr>
+                @endforelse
+            </tbody>
+        </table>
+    </div>
+@endif
+
+@if ($attendanceMeetingId === $meeting->id)
+    <div style="background:var(--surface-alt);border-radius:10px;padding:14px;">
+        <input type="search" wire:model.live.debounce.300ms="attendanceSearch" class="form-input" placeholder="Cari nama peserta..." style="width:100%;margin-bottom:12px;">
+
+        <div style="overflow-x:auto;">
+            <table style="width:100%;border-collapse:collapse;font-size:12.5px;">
+                <thead>
+                    <tr style="border-bottom:1.5px solid var(--border);">
+                        <th style="text-align:left;padding:8px 10px;white-space:nowrap;">Nama Peserta</th>
+                        <th style="text-align:center;padding:8px 10px;white-space:nowrap;">Absen Masuk</th>
+                        <th style="text-align:center;padding:8px 10px;white-space:nowrap;">Absen Pulang</th>
+                        <th style="text-align:left;padding:8px 10px;">Keterangan Kehadiran</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse ($this->attendanceParticipants as $participant)
+                        <tr wire:key="'attendance-'.{{ $participant->user_id }}" style="border-bottom:1px solid var(--border-soft);">
+                            <td style="padding:8px 10px;font-weight:600;white-space:nowrap;">{{ $participant->user?->name ?? '-' }}</td>
+                            <td style="padding:8px 10px;text-align:center;">
+                                <label class="custom-checkbox" style="width:24px;height:24px;">
+                                    <input type="checkbox" wire:model="attendanceForm.{{ $participant->user_id }}.masuk">
+                                    <span class="box"><i class="fa-solid fa-check"></i></span>
+                                </label>
+                            </td>
+                            <td style="padding:8px 10px;text-align:center;">
+                                <label class="custom-checkbox" style="width:24px;height:24px;">
+                                    <input type="checkbox" wire:model="attendanceForm.{{ $participant->user_id }}.pulang">
+                                    <span class="box"><i class="fa-solid fa-check"></i></span>
+                                </label>
+                            </td>
+                            <td style="padding:8px 10px;">
+                                <input type="text" class="form-input" style="font-size:12px;padding:6px 10px;" placeholder="mis. ada tugas..." wire:model="attendanceForm.{{ $participant->user_id }}.keterangan">
+                            </td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="4" style="padding:16px;text-align:center;color:var(--text-faint);">{{ trim($attendanceSearch) !== '' ? 'Tidak ada peserta yang cocok.' : 'Belum ada peserta.' }}</td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+
+        <div style="display:flex;justify-content:flex-end;margin-top:12px;">
+            <button type="button" wire:click="saveAttendance" class="btn-primary" style="padding:7px 16px;font-size:12px;">Simpan Absensi</button>
+        </div>
+    </div>
+@endif

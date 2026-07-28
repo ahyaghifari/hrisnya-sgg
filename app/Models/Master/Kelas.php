@@ -13,6 +13,26 @@ use Illuminate\Support\Facades\Auth;
 
 /**
  * @mixin IdeHelperKelas
+ * @property string $id
+ * @property string $name
+ * @property int|null $level
+ * @property string|null $company_id
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read \App\Models\Master\Companies|null $company
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, PositionAllowance> $positionAllowances
+ * @property-read int|null $position_allowances_count
+ * @property-read TransportAllowance|null $transportAllowance
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Kelas newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Kelas newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Kelas query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Kelas whereCompanyId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Kelas whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Kelas whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Kelas whereLevel($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Kelas whereName($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Kelas whereUpdatedAt($value)
+ * @mixin \Eloquent
  */
 class Kelas extends Model
 {

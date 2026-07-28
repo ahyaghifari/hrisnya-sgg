@@ -11,6 +11,43 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * @mixin IdeHelperPayroll
+ * @property string $id
+ * @property string $user_id
+ * @property string $payroll_period_id
+ * @property numeric $gross_salary
+ * @property numeric $total_deductions
+ * @property numeric $net_salary
+ * @property int $is_paid
+ * @property \Illuminate\Support\Carbon|null $slip_sent_at
+ * @property string|null $generated_by
+ * @property \Illuminate\Support\Carbon|null $generated_at
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Payroll\PayrollItem> $deductionItems
+ * @property-read int|null $deduction_items_count
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Payroll\PayrollItem> $earningItems
+ * @property-read int|null $earning_items_count
+ * @property-read User|null $generatedBy
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Payroll\PayrollItem> $items
+ * @property-read int|null $items_count
+ * @property-read \App\Models\Payroll\PayrollPeriod $payrollPeriod
+ * @property-read User|null $user
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Payroll newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Payroll newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Payroll query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Payroll whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Payroll whereGeneratedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Payroll whereGeneratedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Payroll whereGrossSalary($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Payroll whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Payroll whereIsPaid($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Payroll whereNetSalary($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Payroll wherePayrollPeriodId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Payroll whereSlipSentAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Payroll whereTotalDeductions($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Payroll whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Payroll whereUserId($value)
+ * @mixin \Eloquent
  */
 class Payroll extends Model
 {

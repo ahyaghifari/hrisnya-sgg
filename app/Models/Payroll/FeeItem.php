@@ -15,6 +15,32 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * PayrollComponentEnum tertutup, tidak ada lagi "link ke baris katalog" buat FeeItem.
  *
  * @mixin IdeHelperFeeItem
+ * @property string $id
+ * @property string $submission_id
+ * @property string|null $user_id
+ * @property bool $is_manual
+ * @property string $name
+ * @property numeric $amount
+ * @property bool $is_paid
+ * @property string|null $notes
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read \App\Models\Payroll\FeeSubmission $submission
+ * @property-read User|null $user
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|FeeItem newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|FeeItem newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|FeeItem query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|FeeItem whereAmount($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|FeeItem whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|FeeItem whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|FeeItem whereIsManual($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|FeeItem whereIsPaid($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|FeeItem whereName($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|FeeItem whereNotes($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|FeeItem whereSubmissionId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|FeeItem whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|FeeItem whereUserId($value)
+ * @mixin \Eloquent
  */
 class FeeItem extends Model
 {

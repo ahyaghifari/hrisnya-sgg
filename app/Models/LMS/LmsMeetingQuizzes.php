@@ -7,6 +7,28 @@ use Illuminate\Database\Eloquent\Model;
 
 /**
  * @mixin IdeHelperLmsMeetingQuizzes
+ * @property string $id
+ * @property string $meeting_id
+ * @property string $quiz_id
+ * @property int|null $sort_order
+ * @property int|null $duration
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read \App\Models\LMS\LmsMeetings $meeting
+ * @property-read \App\Models\LMS\LmsQuizzes $quiz
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\LMS\LmsQuizUserResults> $results
+ * @property-read int|null $results_count
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|LmsMeetingQuizzes newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|LmsMeetingQuizzes newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|LmsMeetingQuizzes query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|LmsMeetingQuizzes whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|LmsMeetingQuizzes whereDuration($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|LmsMeetingQuizzes whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|LmsMeetingQuizzes whereMeetingId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|LmsMeetingQuizzes whereQuizId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|LmsMeetingQuizzes whereSortOrder($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|LmsMeetingQuizzes whereUpdatedAt($value)
+ * @mixin \Eloquent
  */
 class LmsMeetingQuizzes extends Model
 {

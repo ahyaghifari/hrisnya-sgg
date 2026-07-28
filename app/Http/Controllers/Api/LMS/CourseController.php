@@ -8,7 +8,6 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\LMS\CategoriesResource;
 use App\Http\Resources\LMS\CourseDetailsResource;
 use App\Http\Resources\LMS\CoursesResource;
-use App\Http\Resources\LMS\RankResource;
 use App\Services\LMS\CourseService;
 use Illuminate\Http\Request;
 
@@ -84,11 +83,24 @@ class CourseController extends Controller
         }
     }
 
+    public function getFeedbackQuestions()
+    {
+        try {
+            $questions = $this->courseService->getFeedbackQuestions();
+
+            return ApiResponseHelper::success($questions, 'Feedback questions retrieved successfully.');
+        } catch (\Exception $e) {
+            return ApiResponseHelper::error('An error occurred while retrieving feedback questions.', 500, ['error' => $e->getMessage()]);
+        }
+    }
+
     public function storeFeedback(Request $request)
     {
         $request->validate([
             'course_id' => 'required|string|exists:lms_courses,id',
-            'rating' => 'required|integer|min:1|max:5',
+            'answers' => 'required|array|min:1',
+            'answers.*.question_id' => 'required|string|exists:lms_feedback_questions,id',
+            'answers.*.score' => 'required|integer|min:1|max:5',
             'feedback' => 'nullable|string',
         ]);
 
@@ -98,7 +110,7 @@ class CourseController extends Controller
             $this->courseService->storeFeedback([
                 'user_id' => $userId,
                 'course_id' => $request->input('course_id'),
-                'rating' => $request->input('rating'),
+                'answers' => $request->input('answers'),
                 'feedback' => $request->input('feedback'),
             ]);
 
@@ -108,18 +120,4 @@ class CourseController extends Controller
         }
     }
 
-    public function getRanksByUserId(array $filters = [])
-    {
-        try {
-            $ranks = $this->courseService->getRanksByUserId($filters);
-    
-            if ($ranks->isEmpty()) {
-                return ApiResponseHelper::notFound('No rankings found for the user.');
-            }
-
-            return ApiResponseHelper::success(RankResource::collection($ranks), 'User rankings retrieved successfully.');
-        } catch (\Exception $e) {
-            return ApiResponseHelper::error('An error occurred while retrieving user rankings.', 500, ['error' => $e->getMessage()]);
-        }
-    }
 }

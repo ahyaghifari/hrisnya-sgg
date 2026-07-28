@@ -4,7 +4,6 @@ namespace App\Services\LMS;
 
 use App\Events\LmsProgresUpdated;
 use App\Models\LMS\LmsCourses;
-use App\Models\LMS\LmsRankings;
 use App\Repositories\LMS\CourseRepository;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -37,41 +36,14 @@ class CourseService
         return $course;
     }
 
+    public function getFeedbackQuestions()
+    {
+        return $this->courseRepositories->getActiveFeedbackQuestions();
+    }
+
     public function storeFeedback(array $data)
     {
-        return $this->courseRepositories->storeFeedback($data);
-    }
-
-    public function updateRanking(string $userId, string $courseId, int $score): void
-    {
-        DB::transaction(function () use ($userId, $courseId, $score) {
-            $rankData = [
-                'course_id' => $courseId,
-                'user_id' => $userId,
-                'total_score' => $score,
-                'calculated_at' => now(),
-            ];
-            
-            $this->courseRepositories->upsertCourseRanking($rankData);
-
-            $this->recalculateCourseRanking($courseId);
-        });
-    }
-    
-    protected function recalculateCourseRanking(string $courseId): void
-    {
-        $rankings = LmsRankings::where('course_id', $courseId)
-            ->orderByDesc('total_score')
-            ->get();
-
-        foreach ($rankings as $index => $ranking) {
-            $ranking->update(['rank' => $index + 1]);
-        }
-    }
-
-    public function getRanksByUserId(array $filters = [])
-    {
-        return $this->courseRepositories->getRanksByUserId($filters);
+        return DB::transaction(fn () => $this->courseRepositories->storeFeedback($data));
     }
 
     public function getSuggestionsKeywords(string $partialKeyword, int $limit = 5)

@@ -52,6 +52,7 @@ enum CustomPermissionEnum: string
     case EDIT_HONORARIUM_LMS = 'edit_honorarium_lms';
     case EDIT_PENGATURAN_ABSENSI = 'edit_pengaturan_absensi';
     case EDIT_PENGATURAN_TUGAS = 'edit_pengaturan_tugas';
+    case EDIT_PENGATURAN_LMS = 'edit_pengaturan_lms';
 
     /**
      * Beda dari Update:Schedule (edit header jadwal, ubah karyawan yang dipasangkan) — ini
@@ -98,6 +99,7 @@ enum CustomPermissionEnum: string
             self::EDIT_HONORARIUM_LMS => 'Edit Honorarium LMS',
             self::EDIT_PENGATURAN_ABSENSI => 'Edit Pengaturan Absensi',
             self::EDIT_PENGATURAN_TUGAS => 'Edit Pengaturan Tugas',
+            self::EDIT_PENGATURAN_LMS => 'Edit Pengaturan LMS',
             self::KELOLA_JADWAL_SHIFT => 'Kelola Jadwal Shift (Template & Roster)',
             self::GENERATE_PAYROLL => 'Generate/Regenerate Payroll',
         };

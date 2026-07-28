@@ -9,6 +9,46 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
  * @mixin IdeHelperCandidateJobApplications
+ * @property string $id
+ * @property string $candidate_id
+ * @property string $job_vacancy_id
+ * @property string $current_stage
+ * @property string $status
+ * @property string|null $approval_status
+ * @property string|null $approved_by
+ * @property \Illuminate\Support\Carbon|null $approved_at
+ * @property \Illuminate\Support\Carbon $applied_at
+ * @property \Illuminate\Support\Carbon|null $finished_at
+ * @property \Illuminate\Support\Carbon|null $deleted_at
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property array<array-key, mixed>|null $metadata
+ * @property-read \App\Models\User|null $approver
+ * @property-read \App\Models\Candidate\Candidates|null $candidate
+ * @property-read JobOpenings|null $jobVacancy
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Candidate\CandidateRecruitmentProcess> $recruitmentProcesses
+ * @property-read int|null $recruitment_processes_count
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|CandidateJobApplications newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|CandidateJobApplications newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|CandidateJobApplications onlyTrashed()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|CandidateJobApplications query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|CandidateJobApplications whereAppliedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|CandidateJobApplications whereApprovalStatus($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|CandidateJobApplications whereApprovedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|CandidateJobApplications whereApprovedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|CandidateJobApplications whereCandidateId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|CandidateJobApplications whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|CandidateJobApplications whereCurrentStage($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|CandidateJobApplications whereDeletedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|CandidateJobApplications whereFinishedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|CandidateJobApplications whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|CandidateJobApplications whereJobVacancyId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|CandidateJobApplications whereMetadata($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|CandidateJobApplications whereStatus($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|CandidateJobApplications whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|CandidateJobApplications withTrashed(bool $withTrashed = true)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|CandidateJobApplications withoutTrashed()
+ * @mixin \Eloquent
  */
 class CandidateJobApplications extends Model
 {

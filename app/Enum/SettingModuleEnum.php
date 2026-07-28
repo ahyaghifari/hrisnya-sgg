@@ -12,6 +12,7 @@ enum SettingModuleEnum: string
     case PAYROLL = 'payroll';
     case ATTENDANCE = 'attendance';
     case TASK = 'task';
+    case LMS = 'lms';
 
     public function label(): string
     {
@@ -19,6 +20,7 @@ enum SettingModuleEnum: string
             self::PAYROLL => 'Payroll',
             self::ATTENDANCE => 'Absensi',
             self::TASK => 'Tugas',
+            self::LMS => 'LMS',
         };
     }
 }

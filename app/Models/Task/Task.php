@@ -19,6 +19,96 @@ use Illuminate\Support\Carbon;
 
 /**
  * @mixin IdeHelperTask
+ * @property string $id
+ * @property string $code
+ * @property string $company_id
+ * @property string|null $department_id
+ * @property string|null $service_id
+ * @property string|null $project_id
+ * @property string|null $assigned_to
+ * @property string|null $approved_by
+ * @property string|null $sla_reviewer_id
+ * @property string|null $requirement
+ * @property int $is_self_assigned
+ * @property string|null $status
+ * @property string|null $rejected_reason
+ * @property string|null $rejection_note_by
+ * @property string|null $rejection_note_at
+ * @property string|null $risk_level
+ * @property TaskPriority $priority
+ * @property int $position
+ * @property int $total_cost
+ * @property int $unit_cost
+ * @property string|null $due_date
+ * @property string|null $responded_date
+ * @property string|null $started_date
+ * @property string|null $completed_date
+ * @property int $is_overdue
+ * @property string|null $collaboration_note
+ * @property string|null $root_cause
+ * @property string|null $solution
+ * @property string|null $created_by
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, ApprovalHistories> $approvalHistories
+ * @property-read int|null $approval_histories_count
+ * @property-read ApprovalSnapshots|null $approvalSnapshot
+ * @property-read User|null $approvedBy
+ * @property-read User|null $assignedTo
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Task\TaskAttachment> $attachments
+ * @property-read int|null $attachments_count
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Task\TaskChecklistItem> $checklistItems
+ * @property-read int|null $checklist_items_count
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Task\TaskComment> $comments
+ * @property-read int|null $comments_count
+ * @property-read Companies $company
+ * @property-read User|null $createdBy
+ * @property-read int|null $duration
+ * @property-read int|null $overdue_days
+ * @property-read \App\Models\Task\TaskProject|null $project
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Task\TaskProof> $proofs
+ * @property-read int|null $proofs_count
+ * @property-read User|null $rejectionNoteBy
+ * @property-read \App\Models\Task\TaskReview|null $review
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Task\TaskReview> $reviews
+ * @property-read int|null $reviews_count
+ * @property-read TaskService|null $service
+ * @property-read User|null $slaReviewer
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Task newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Task newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Task query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Task whereApprovedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Task whereAssignedTo($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Task whereCode($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Task whereCollaborationNote($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Task whereCompanyId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Task whereCompletedDate($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Task whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Task whereCreatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Task whereDepartmentId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Task whereDueDate($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Task whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Task whereIsOverdue($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Task whereIsSelfAssigned($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Task wherePosition($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Task wherePriority($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Task whereProjectId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Task whereRejectedReason($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Task whereRejectionNoteAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Task whereRejectionNoteBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Task whereRequirement($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Task whereRespondedDate($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Task whereRiskLevel($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Task whereRootCause($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Task whereServiceId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Task whereSlaReviewerId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Task whereSolution($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Task whereStartedDate($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Task whereStatus($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Task whereTotalCost($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Task whereUnitCost($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Task whereUpdatedAt($value)
+ * @mixin \Eloquent
  */
 class Task extends Model
 {

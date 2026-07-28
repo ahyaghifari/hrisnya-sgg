@@ -10,6 +10,21 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * @mixin IdeHelperTransportAllowance
+ * @property string $id
+ * @property string $kelas_id
+ * @property numeric $amount
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read Kelas $kelas
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TransportAllowance newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TransportAllowance newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TransportAllowance query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TransportAllowance whereAmount($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TransportAllowance whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TransportAllowance whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TransportAllowance whereKelasId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TransportAllowance whereUpdatedAt($value)
+ * @mixin \Eloquent
  */
 class TransportAllowance extends Model
 {

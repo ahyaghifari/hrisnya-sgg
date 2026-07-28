@@ -3,10 +3,11 @@
 namespace App\Repositories\LMS;
 
 use App\Models\LMS\LmsCategories;
+use App\Models\LMS\LmsCourseFeedbackAnswer;
 use App\Models\LMS\LmsCourseFeedbacks;
 use App\Models\LMS\LmsCourses;
+use App\Models\LMS\LmsFeedbackQuestion;
 use App\Models\LMS\LmsMeetings;
-use App\Models\LMS\LmsRankings;
 
 class CourseRepository
 {
@@ -50,59 +51,31 @@ class CourseRepository
         return LmsMeetings::find($meetingId);
     }
 
+    public function getActiveFeedbackQuestions()
+    {
+        return LmsFeedbackQuestion::where('is_active', true)
+            ->orderBy('sort_order')
+            ->get();
+    }
+
     public function storeFeedback(array $data)
     {
-        LmsCourseFeedbacks::create($data);
-    }
+        $courseFeedback = LmsCourseFeedbacks::create([
+            'course_id' => $data['course_id'],
+            'user_id' => $data['user_id'],
+            'rating' => round(collect($data['answers'])->avg('score')),
+            'feedback' => $data['feedback'] ?? null,
+        ]);
 
-    public function upsertCourseRanking(array $data)
-    {
-        LmsRankings::updateOrCreate(
-            [
-                'user_id' => $data['user_id'],
-                'course_id' => $data['course_id'],
-            ],
-            [
-                'total_score' => $data['total_score'],
-                'calculated_at' => $data['calculated_at'],
-            ]
-        );
-    }
-
-    public function getRanksByUserId(array $filters = [])
-    {
-        $query = LmsRankings::with('course', 'user.profile');
-
-        if (isset($filters['type']) && $filters['type'] === 'internal' && isset($filters['company_id'])) {
-            $query->whereHas('user', function ($q) use ($filters) {
-                $q->where('company_id', $filters['company_id']);
-            });
+        foreach ($data['answers'] as $answer) {
+            LmsCourseFeedbackAnswer::create([
+                'course_feedback_id' => $courseFeedback->id,
+                'question_id' => $answer['question_id'],
+                'score' => $answer['score'],
+            ]);
         }
 
-        $rankings = $query->get();
-
-        $groupedByUser = $rankings->groupBy('user_id')->map(function ($userRankings) {
-            $firstRanking = $userRankings->first();
-            $avgScore = $userRankings->avg('total_score');
-
-            $ranking = clone $firstRanking;
-            $ranking->average_total_score = round($avgScore, 2);
-            $ranking->courses_count = $userRankings->count();
-
-            return $ranking;
-        });
-
-        $sortedRankings = $groupedByUser->sortBy([
-            ['average_total_score', 'desc'],
-            ['user.name', 'asc']
-        ])->values();
-
-        $rank = 1;
-        foreach ($sortedRankings as $ranking) {
-            $ranking->recalculated_rank = $rank++;
-        }
-
-        return $sortedRankings;
+        return $courseFeedback;
     }
 
     public function getSuggestionsKeywords(string $partialKeyword, int $limit = 5)

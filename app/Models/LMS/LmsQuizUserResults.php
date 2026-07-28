@@ -8,6 +8,44 @@ use Illuminate\Database\Eloquent\Model;
 
 /**
  * @mixin IdeHelperLmsQuizUserResults
+ * @property string $id
+ * @property string $meeting_quiz_id
+ * @property string $quiz_id
+ * @property string $user_id
+ * @property int $total_score
+ * @property int $max_score
+ * @property int $correct_count
+ * @property int $wrong_count
+ * @property int $is_completed
+ * @property string $status
+ * @property string|null $reviewed_by
+ * @property string|null $reviewed_at
+ * @property string|null $completed_at
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read \App\Models\LMS\LmsMeetingQuizzes $meetingQuiz
+ * @property-read \App\Models\LMS\LmsQuizzes $quiz
+ * @property-read User|null $reviewer
+ * @property-read User|null $user
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|LmsQuizUserResults newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|LmsQuizUserResults newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|LmsQuizUserResults query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|LmsQuizUserResults whereCompletedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|LmsQuizUserResults whereCorrectCount($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|LmsQuizUserResults whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|LmsQuizUserResults whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|LmsQuizUserResults whereIsCompleted($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|LmsQuizUserResults whereMaxScore($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|LmsQuizUserResults whereMeetingQuizId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|LmsQuizUserResults whereQuizId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|LmsQuizUserResults whereReviewedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|LmsQuizUserResults whereReviewedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|LmsQuizUserResults whereStatus($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|LmsQuizUserResults whereTotalScore($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|LmsQuizUserResults whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|LmsQuizUserResults whereUserId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|LmsQuizUserResults whereWrongCount($value)
+ * @mixin \Eloquent
  */
 class LmsQuizUserResults extends Model
 {

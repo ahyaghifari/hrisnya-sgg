@@ -113,12 +113,6 @@ class LmsProgresListener implements ShouldQueue
             // dicek lewat ada/tidaknya baris LmsUserHistories terpisah (lihat migration
             // consolidate_lms_user_histories_into_lms_course_users).
             if (is_null($courseUser->archived_at)) {
-                $this->courseService->updateRanking(
-                    $courseUser->user_id,
-                    $courseUser->course_id,
-                    $totalScore
-                );
-
                 $this->courseUserService->updateByUserIdAndCourseId(
                     $courseUser->user_id,
                     $courseUser->course_id,

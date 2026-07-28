@@ -9,6 +9,21 @@ use Illuminate\Support\Facades\Auth;
 
 /**
  * @mixin IdeHelperGolongans
+ * @property string $id
+ * @property string $name
+ * @property string|null $company_id
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read \App\Models\Master\Companies|null $company
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Golongans newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Golongans newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Golongans query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Golongans whereCompanyId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Golongans whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Golongans whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Golongans whereName($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Golongans whereUpdatedAt($value)
+ * @mixin \Eloquent
  */
 class Golongans extends Model
 {

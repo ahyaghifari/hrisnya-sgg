@@ -14,6 +14,24 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * kombinasi company+component tertentu = TIDAK ADA yang eligible (default ketat, disengaja).
  *
  * @mixin IdeHelperPayrollComponentRecipient
+ * @property string $id
+ * @property string $company_id
+ * @property string $component
+ * @property string $employee_type_id
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read Companies $company
+ * @property-read EmployeeTypes $employeeType
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PayrollComponentRecipient newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PayrollComponentRecipient newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PayrollComponentRecipient query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PayrollComponentRecipient whereCompanyId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PayrollComponentRecipient whereComponent($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PayrollComponentRecipient whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PayrollComponentRecipient whereEmployeeTypeId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PayrollComponentRecipient whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PayrollComponentRecipient whereUpdatedAt($value)
+ * @mixin \Eloquent
  */
 class PayrollComponentRecipient extends Model
 {

@@ -17,6 +17,36 @@ use Illuminate\Support\Facades\Auth;
 
 /**
  * @mixin IdeHelperPangkats
+ * @property string $id
+ * @property string $name
+ * @property string|null $company_id
+ * @property string|null $start_kelas_id
+ * @property string|null $max_kelas_id
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read PangkatBpjsBasis|null $bpjsBasis
+ * @property-read \App\Models\Master\Companies|null $company
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Master\JobPositions> $jobPositions
+ * @property-read int|null $job_positions_count
+ * @property-read PangkatLemburRate|null $lemburRate
+ * @property-read \App\Models\Master\Kelas|null $maxKelas
+ * @property-read PangkatSalary|null $pangkatSalary
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, PositionAllowance> $positionAllowances
+ * @property-read int|null $position_allowances_count
+ * @property-read \App\Models\Master\Kelas|null $startKelas
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, UserProfiles> $userProfiles
+ * @property-read int|null $user_profiles_count
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Pangkats newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Pangkats newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Pangkats query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Pangkats whereCompanyId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Pangkats whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Pangkats whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Pangkats whereMaxKelasId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Pangkats whereName($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Pangkats whereStartKelasId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Pangkats whereUpdatedAt($value)
+ * @mixin \Eloquent
  */
 class Pangkats extends Model
 {

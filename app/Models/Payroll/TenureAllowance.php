@@ -12,6 +12,25 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * Bracket Tunjangan Masa Kerja (tahun kerja -> nominal, per company).
  *
  * @mixin IdeHelperTenureAllowance
+ * @property string $id
+ * @property string $company_id
+ * @property int $min_years
+ * @property int|null $max_years
+ * @property numeric $amount
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read Companies $company
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TenureAllowance newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TenureAllowance newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TenureAllowance query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TenureAllowance whereAmount($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TenureAllowance whereCompanyId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TenureAllowance whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TenureAllowance whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TenureAllowance whereMaxYears($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TenureAllowance whereMinYears($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TenureAllowance whereUpdatedAt($value)
+ * @mixin \Eloquent
  */
 class TenureAllowance extends Model
 {
