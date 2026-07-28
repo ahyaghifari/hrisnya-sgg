@@ -127,7 +127,12 @@ class DocumentsPage extends Component
 
     public function getDocumentsProperty()
     {
-        return $this->baseQuery()->orderByDesc('issued_date')->paginate(10);
+        return $this->baseQuery()->orderByDesc('issued_date')->paginate(10)->appends([
+            'companyId' => $this->companyId,
+            'search' => $this->search,
+            'documentType' => $this->documentType,
+            'status' => $this->status,
+        ]);
     }
 
     public function delete(string $id): void

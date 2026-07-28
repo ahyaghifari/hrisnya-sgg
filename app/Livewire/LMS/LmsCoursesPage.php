@@ -89,7 +89,11 @@ class LmsCoursesPage extends Component
 
     public function getCoursesProperty()
     {
-        return $this->baseQuery()->orderByDesc('created_at')->paginate(10);
+        return $this->baseQuery()->orderByDesc('created_at')->paginate(10)->appends([
+            'companyId' => $this->companyId,
+            'categoryId' => $this->categoryId,
+            'search' => $this->search,
+        ]);
     }
 
     public function render()

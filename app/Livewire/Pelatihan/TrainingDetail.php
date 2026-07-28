@@ -80,7 +80,10 @@ class TrainingDetail extends Component
                 fn ($q2) => $q2->where('name', 'like', '%' . $this->memberSearch . '%')
             ))
             ->orderBy('enrolled_at')
-            ->paginate(10, ['*'], 'membersPage');
+            ->paginate(10, ['*'], 'membersPage')
+            ->appends([
+                'memberSearch' => $this->memberSearch,
+            ]);
     }
 
     // ponytail: sama persis dengan TrainingList::memberAvatars() — pure helper kecil, duplikasi

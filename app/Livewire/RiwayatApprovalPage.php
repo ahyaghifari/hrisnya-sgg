@@ -82,12 +82,28 @@ class RiwayatApprovalPage extends Component
 
         $page = $this->getPage();
 
+        // request()->url()/query() TIDAK dipakai di sini - selama render lewat AJAX Livewire
+        // (mis. filter search/typeFilter berubah), request() menunjuk endpoint internal
+        // /livewire/update (bukan URL halaman ini), bikin link paginasi rusak & filter hilang.
+        // Livewire::originalPath() balikin path halaman yang benar di kedua kondisi (full-load
+        // maupun AJAX) - dipakai TANPA originalUrl() (sudah absolut lengkap scheme+host) supaya
+        // formatnya konsisten dengan Paginator::currentPathResolver() bawaan Livewire (path
+        // relatif tanpa leading slash), yang jadi asumsi normalisasi di
+        // livewire/partials/pagination.blade.php. Query dibangun manual dari property #[Url]
+        // milik komponen ini sendiri - itu sumber kebenaran yang selalu akurat, tidak bergantung
+        // ambient request state.
         return new LengthAwarePaginator(
             $filtered->forPage($page, $this->perPage)->values(),
             $filtered->count(),
             $this->perPage,
             $page,
-            ['path' => request()->url(), 'query' => request()->query()]
+            [
+                'path' => \Livewire\Livewire::originalPath(),
+                'query' => [
+                    'search' => $this->search,
+                    'typeFilter' => $this->typeFilter,
+                ],
+            ]
         );
     }
 

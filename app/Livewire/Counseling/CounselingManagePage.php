@@ -62,7 +62,10 @@ class CounselingManagePage extends Component
 
     public function getCounselingsProperty()
     {
-        return $this->baseQuery()->latest()->paginate(10);
+        return $this->baseQuery()->latest()->paginate(10)->appends([
+            'status' => $this->status,
+            'search' => $this->search,
+        ]);
     }
 
     public function render()

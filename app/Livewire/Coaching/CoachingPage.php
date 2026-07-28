@@ -129,7 +129,11 @@ class CoachingPage extends Component
 
     public function getCoachingsProperty()
     {
-        return $this->baseQuery()->latest()->paginate(10);
+        return $this->baseQuery()->latest()->paginate(10)->appends([
+            'companyId' => $this->companyId,
+            'status' => $this->status,
+            'search' => $this->search,
+        ]);
     }
 
     public function render()

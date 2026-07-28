@@ -5,6 +5,8 @@ namespace App\Models\Master;
 use App\Helpers\PermissionHelper;
 use App\Models\Payroll\PositionAllowance;
 use App\Models\Payroll\TransportAllowance;
+use App\Models\User\UserProfiles;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -80,5 +82,23 @@ class Kelas extends Model
     public function positionAllowances(): HasMany
     {
         return $this->hasMany(PositionAllowance::class, 'kelas_id');
+    }
+
+    /** Karyawan yang kelas_id-nya langsung kelas ini (beda dari lewat Pangkat - lihat
+     * pangkatsInRange()). */
+    public function userProfiles(): HasMany
+    {
+        return $this->hasMany(UserProfiles::class, 'kelas_id');
+    }
+
+    /** Pangkat itu SENDIRI tidak punya kelas_id - dia punya rentang start_kelas_id..max_kelas_id
+     * (lihat Pangkats::startKelas()/maxKelas()). Kelas ini "termasuk" 1 Pangkat kalau level
+     * kelas ini berada di antara level start & max Pangkat tsb (inclusive). Bukan relasi FK
+     * langsung, makanya query manual (whereHas ke 2 relasi Kelas lain), bukan hasMany biasa. */
+    public function pangkatsInRange(): Builder
+    {
+        return Pangkats::query()
+            ->whereHas('startKelas', fn ($q) => $q->where('level', '<=', $this->level))
+            ->whereHas('maxKelas', fn ($q) => $q->where('level', '>=', $this->level));
     }
 }

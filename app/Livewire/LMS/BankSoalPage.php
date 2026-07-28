@@ -89,7 +89,10 @@ class BankSoalPage extends Component
 
     public function getSoalProperty()
     {
-        return $this->baseQuery()->orderByDesc('created_at')->paginate(10);
+        return $this->baseQuery()->orderByDesc('created_at')->paginate(10)->appends([
+            'search' => $this->search,
+            'categoryId' => $this->categoryId,
+        ]);
     }
 
     public function getViewingSoalProperty()

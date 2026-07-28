@@ -71,7 +71,10 @@ class MyAttendanceRequests extends Component
 
     public function getRequestsProperty()
     {
-        return $this->baseQuery()->orderByDesc('created_at')->paginate(10);
+        return $this->baseQuery()->orderByDesc('created_at')->paginate(10)->appends([
+            'type' => $this->type,
+            'status' => $this->status,
+        ]);
     }
 
     public function keterangan(AttendanceRequests $record): string

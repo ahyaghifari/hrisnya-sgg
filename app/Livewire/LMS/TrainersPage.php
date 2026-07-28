@@ -65,7 +65,11 @@ class TrainersPage extends Component
             ->where('is_active', $this->status === 'aktif')
             ->when($search !== '', fn ($q) => $q->where('name', 'like', "%{$search}%"))
             ->orderBy('name')
-            ->paginate(10);
+            ->paginate(10)
+            ->appends([
+                'search' => $this->search,
+                'status' => $this->status,
+            ]);
     }
 
     public function setStatus(string $status): void

@@ -1,5 +1,6 @@
 @php
     $isGlobal = \App\Helpers\PermissionHelper::hasGlobalRole(auth()->user());
+    $isEdit = (bool) $record;
     $steps = [
         1 => ['label' => 'Akun & Peran', 'icon' => 'fa-user-lock', 'color' => 'navy'],
         2 => ['label' => 'Data Pribadi', 'icon' => 'fa-id-card', 'color' => 'green'],
@@ -7,7 +8,7 @@
     ];
 @endphp
 <div>
-<x-page-header title="Tambah Karyawan" subtitle="Langkah {{ $step }} dari 3" :back="route('kepegawaian.karyawan')" />
+<x-page-header :title="$isEdit ? 'Edit Karyawan' : 'Tambah Karyawan'" subtitle="Langkah {{ $step }} dari 3" :back="route('kepegawaian.karyawan')" />
 
 <!-- Indikator step: pola sama .section-nav-btn yang dipakai halaman detail karyawan, cuma
      di sini juga jadi navigasi mundur (klik step yang sudah dilewati). -->
@@ -50,8 +51,8 @@
             </div>
 
             <div>
-                <label class="form-label">Kata Sandi Awal</label>
-                <input type="password" wire:model="password" class="form-input" placeholder="Minimal 8 karakter">
+                <label class="form-label">{{ $isEdit ? 'Ganti Kata Sandi' : 'Kata Sandi Awal' }}</label>
+                <input type="password" wire:model="password" class="form-input" placeholder="{{ $isEdit ? 'Kosongkan jika tidak ingin mengubah' : 'Minimal 8 karakter' }}">
                 @error('password') <p style="color:var(--danger-text);font-size:12px;margin-top:5px;">{{ $message }}</p> @enderror
             </div>
 
@@ -329,7 +330,7 @@
                 </button>
             @else
                 <button type="button" wire:click="save" class="btn-primary" wire:loading.attr="disabled" wire:target="save">
-                    <i class="fa-solid fa-check"></i> Simpan Karyawan
+                    <i class="fa-solid fa-check"></i> {{ $isEdit ? 'Simpan Perubahan' : 'Simpan Karyawan' }}
                 </button>
             @endif
         </div>

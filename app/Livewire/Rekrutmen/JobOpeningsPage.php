@@ -73,7 +73,10 @@ class JobOpeningsPage extends Component
 
     public function getJobOpeningsProperty()
     {
-        return $this->baseQuery()->latest()->paginate(10);
+        return $this->baseQuery()->latest()->paginate(10)->appends([
+            'companyId' => $this->companyId,
+            'search' => $this->search,
+        ]);
     }
 
     public function render()

@@ -116,7 +116,11 @@ class ManpowerRequestsPage extends Component
 
     public function getRequestsProperty()
     {
-        return $this->baseQuery()->latest()->paginate(10);
+        return $this->baseQuery()->latest()->paginate(10)->appends([
+            'companyId' => $this->companyId,
+            'tab' => $this->tab,
+            'search' => $this->search,
+        ]);
     }
 
     public function render()

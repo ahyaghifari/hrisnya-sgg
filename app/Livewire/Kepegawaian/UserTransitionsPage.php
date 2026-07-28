@@ -125,7 +125,12 @@ class UserTransitionsPage extends Component
 
     public function getTransitionsProperty()
     {
-        return $this->baseQuery()->latest()->paginate(10);
+        return $this->baseQuery()->latest()->paginate(10)->appends([
+            'companyId' => $this->companyId,
+            'type' => $this->type,
+            'status' => $this->status,
+            'search' => $this->search,
+        ]);
     }
 
     public function render()
