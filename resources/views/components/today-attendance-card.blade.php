@@ -27,11 +27,6 @@
             <span class="absen-label"><i class="fa-regular fa-clock"></i> Presensi Hari Ini</span>
             <p style="font-size:11.5px;color:rgba(255,255,255,0.7);margin-top:3px;">{{ $subLine }}</p>
         </div>
-        @if ($status['schedule_type_label'])
-            <span style="flex-shrink:0;display:inline-block;padding:3px 10px;border-radius:99px;background:rgba(255,255,255,0.18);color:#fff;font-size:10.5px;font-weight:700;white-space:nowrap;">
-                {{ $status['schedule_type_label'] }}
-            </span>
-        @endif
     </div>
 
     @if (in_array($status['state'], ['holiday', 'leave', 'full_day_permission', 'no_schedule']))
@@ -72,11 +67,4 @@
             @endif
         </div>
     @endif
-
-    {{-- Keterangan permanen - presensi belum ditarik otomatis dari mesin absen (Hikvision dkk),
-    masih hasil import/tes manual. Tampil di semua state biar tidak disalahpahami sebagai
-    clock-in real-time sungguhan. --}}
-    <p style="position:relative;z-index:1;font-size:10px;color:rgba(255,255,255,0.55);margin-top:12px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.15);">
-        <i class="fa-solid fa-circle-info" style="margin-right:4px;"></i>Presensi otomatis (clock-in/out) belum terintegrasi ke sistem ini.
-    </p>
 </div>

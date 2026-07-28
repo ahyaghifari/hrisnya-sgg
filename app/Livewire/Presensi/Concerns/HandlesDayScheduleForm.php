@@ -44,6 +44,9 @@ trait HandlesDayScheduleForm
             $data = $row->toArray();
             $data['start_time'] = $this->formatTime($data['start_time'] ?? null);
             $data['end_time'] = $this->formatTime($data['end_time'] ?? null);
+            if ($this->scheduleType === ScheduleType::FLEXIBLE->value) {
+                $data['late_checkin_deadline'] = $this->formatTime($data['late_checkin_deadline'] ?? null);
+            }
             $this->days[$row->day_of_week] = $data;
         }
     }
@@ -93,13 +96,6 @@ trait HandlesDayScheduleForm
         return self::DAY_LABELS[$dayOfWeek];
     }
 
-    /** Nama kolom "Maksimal Durasi Kerja" beda per tabel — flexible sudah punya max_work_minutes
-     * sendiri sebagai field JAM KERJA biasa, jadi field lanjutannya dikasih nama beda. */
-    public function maxDurationField(): string
-    {
-        return $this->scheduleType === ScheduleType::FLEXIBLE->value ? 'max_work_minutes_cap' : 'max_work_minutes';
-    }
-
     public function openAdvanced(int $dayOfWeek): void
     {
         $this->advancedDay = $dayOfWeek;
@@ -128,12 +124,18 @@ trait HandlesDayScheduleForm
         $row = $this->days[$dayOfWeek] ?? [];
 
         if ($this->scheduleType === ScheduleType::FLEXIBLE->value) {
-            return [
+            $lines = [
                 ['icon' => 'fa-tower-broadcast', 'html' => "Jendela absensi <strong>{$this->flexibleCheckinFrom}</strong> &ndash; <strong>{$this->flexibleCheckinUntil}</strong>"],
                 ['icon' => 'fa-business-time', 'html' => sprintf('Total jam kerja <strong>%d&ndash;%d menit</strong>', (int) ($row['min_work_minutes'] ?? 0), (int) ($row['max_work_minutes'] ?? 0))],
                 ['icon' => 'fa-utensils', 'html' => sprintf('Istirahat <strong>%d menit</strong>', (int) ($row['break_minutes'] ?? 0))],
                 ['icon' => 'fa-hourglass-half', 'html' => sprintf('Lembur dihitung <strong>%d&ndash;%d menit</strong> (toleransi %d menit)', (int) ($row['overtime_min_minutes'] ?? 0), (int) ($row['overtime_max_minutes'] ?? 0), (int) ($row['overtime_break_minutes'] ?? 0))],
             ];
+
+            if (! empty($row['late_checkin_deadline'])) {
+                $lines[] = ['icon' => 'fa-clock', 'html' => "Batas jam masuk <strong>{$row['late_checkin_deadline']}</strong>, lewat dari itu dianggap telat"];
+            }
+
+            return $lines;
         }
 
         $lines = [
@@ -160,19 +162,27 @@ trait HandlesDayScheduleForm
         return $lines;
     }
 
-    /** Bullet list bawah tooltip — sama buat Fixed & Flexible, niru contoh fingerspot.io. */
+    /** Bullet list bawah tooltip. Flexible disederhanakan jadi 2 bullet saja (migration
+     * 2026_07_28_190000) - Fixed tetap 4-5 bullet seperti semula, niru contoh fingerspot.io. */
     public function dayDetailBullets(int $dayOfWeek): array
     {
         $row = $this->days[$dayOfWeek] ?? [];
 
+        if ($this->scheduleType === ScheduleType::FLEXIBLE->value) {
+            return [
+                sprintf('Dihitung kerja : <strong>%d</strong>', (int) ($row['counted_work_days'] ?? 1)),
+                sprintf('Hadir setengah hari, jika durasi kerja kurang dari : <strong>%d (Menit)</strong>', (int) ($row['half_day_threshold_minutes'] ?? 0)),
+            ];
+        }
+
         $bullets = [
             sprintf('Dihitung kerja : <strong>%d</strong>', (int) ($row['counted_work_days'] ?? 1)),
-            sprintf('Maksimal Durasi Kerja : <strong>%d (Menit)</strong>', (int) ($row[$this->maxDurationField()] ?? 0)),
+            sprintf('Maksimal Durasi Kerja : <strong>%d (Menit)</strong>', (int) ($row['max_work_minutes'] ?? 0)),
             sprintf('Hadir setengah hari, jika durasi kerja kurang dari : <strong>%d (Menit)</strong>', (int) ($row['half_day_threshold_minutes'] ?? 0)),
             sprintf('Dihitung tidak hadir, jika durasi kerja kurang dari : <strong>%d (Menit)</strong>', (int) ($row['absent_threshold_minutes'] ?? 0)),
         ];
 
-        if ($this->scheduleType === ScheduleType::FIXED->value && (int) ($row['min_work_minutes'] ?? 0) > 0) {
+        if ((int) ($row['min_work_minutes'] ?? 0) > 0) {
             $bullets[] = sprintf('Scan pulang ditolak, jika durasi kerja kurang dari : <strong>%d (Menit)</strong>', (int) $row['min_work_minutes']);
         }
 
@@ -198,21 +208,15 @@ trait HandlesDayScheduleForm
     {
         $this->days = [];
 
-        // 8 field "Pengaturan Lanjutan" — default niru KONFIGURASI JADWAL FIXED/FLEXIBLE.png
-        // di knowledge/absensi (batas absensi 150/210 menit, toleransi 5 menit, dst).
-        $advanced = [
-            'checkin_buffer_minutes' => 150,
-            'checkout_buffer_minutes' => 210,
-            'late_tolerance_minutes' => 5,
-            'early_leave_tolerance_minutes' => 0,
-            'counted_work_days' => 1,
-            'half_day_threshold_minutes' => 0,
-            'absent_threshold_minutes' => 0,
-        ];
-
         foreach (range(0, 6) as $dow) {
             $isOff = $dow === 0;
 
+            // Default niru KONFIGURASI JADWAL FIXED/FLEXIBLE.png di knowledge/absensi (batas
+            // absensi 150/210 menit, toleransi 5 menit, dst). Flexible "Pengaturan Lanjutan"
+            // disederhanakan jadi 2 field saja (counted_work_days + half_day_threshold_minutes)
+            // sejak migration 2026_07_28_190000 - 6 field lama (checkin/checkout buffer,
+            // late/early tolerance, max_work_minutes_cap, absent_threshold_minutes) sudah
+            // dihapus dari tabel, jangan dipakai lagi di sini.
             $this->days[$dow] = $this->scheduleType === ScheduleType::FIXED->value
                 ? [
                     'is_off_day' => $isOff,
@@ -226,7 +230,13 @@ trait HandlesDayScheduleForm
                     'overtime_after_min' => 120,
                     'overtime_after_break' => 0,
                     'overtime_after_max' => 240,
-                    ...$advanced,
+                    'checkin_buffer_minutes' => 150,
+                    'checkout_buffer_minutes' => 210,
+                    'late_tolerance_minutes' => 5,
+                    'early_leave_tolerance_minutes' => 0,
+                    'counted_work_days' => 1,
+                    'half_day_threshold_minutes' => 0,
+                    'absent_threshold_minutes' => 0,
                     'max_work_minutes' => 480,
                 ]
                 : [
@@ -237,8 +247,9 @@ trait HandlesDayScheduleForm
                     'overtime_break_minutes' => 0,
                     'overtime_min_minutes' => 0,
                     'overtime_max_minutes' => 0,
-                    ...$advanced,
-                    'max_work_minutes_cap' => 480,
+                    'counted_work_days' => 1,
+                    'half_day_threshold_minutes' => 0,
+                    'late_checkin_deadline' => null,
                 ];
         }
     }

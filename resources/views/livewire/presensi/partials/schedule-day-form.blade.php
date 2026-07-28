@@ -130,7 +130,6 @@
 @if ($advancedDay !== null)
     @php
         $advRow = $days[$advancedDay] ?? [];
-        $maxField = $this->maxDurationField();
     @endphp
     <div class="modal-overlay" wire:click="closeAdvanced">
         <div class="modal-box" style="padding:0;max-width:760px;" onclick="event.stopPropagation()">
@@ -143,72 +142,102 @@
                 </button>
             </div>
 
-            <div style="display:grid;grid-template-columns:220px 1fr;gap:0;">
-                {{-- Ringkasan, niru panel krem di KONFIGURASI JADWAL FIXED/FLEXIBLE.png --}}
-                <div style="background:var(--warn-soft-bg);padding:18px;font-size:11px;color:var(--warn-soft-text);line-height:1.9;">
-                    <p style="font-weight:700;margin:0 0 8px;">{{ $this->dayLabel($advancedDay) }}</p>
-                    <p style="margin:0;"><i class="fa-solid fa-tower-broadcast" style="width:14px;"></i> Batas mulai bisa scan masuk <strong>{{ $advRow['checkin_buffer_minutes'] ?? 0 }} menit</strong> sebelum jadwal</p>
-                    <p style="margin:0;"><i class="fa-solid fa-tower-broadcast" style="width:14px;"></i> Batas akhir bisa scan pulang <strong>{{ $advRow['checkout_buffer_minutes'] ?? 0 }} menit</strong> sesudah jadwal</p>
-                    <hr style="border:none;border-top:1px solid rgba(0,0,0,0.08);margin:10px 0;">
-                    <p style="margin:0;">&bull; Dihitung kerja: <strong>{{ $advRow['counted_work_days'] ?? 1 }}</strong></p>
-                    <p style="margin:0;">&bull; Maksimal durasi kerja: <strong>{{ $advRow[$maxField] ?? 0 }} menit</strong></p>
-                    <p style="margin:0;">&bull; Setengah hari jika kurang dari: <strong>{{ $advRow['half_day_threshold_minutes'] ?? 0 }} menit</strong></p>
-                    <p style="margin:0;">&bull; Tidak hadir jika kurang dari: <strong>{{ $advRow['absent_threshold_minutes'] ?? 0 }} menit</strong></p>
+            @if ($scheduleType === 'flexible')
+                {{-- Disederhanakan jadi 2 field saja (migration 2026_07_28_190000) - 6 field lama
+                     (buffer/toleransi/cap/alpha) sudah tidak relevan buat Flexible & kolomnya
+                     sudah dihapus dari tabel. Batas jam masuk pindah ke late_checkin_deadline. --}}
+                <div style="display:grid;grid-template-columns:220px 1fr;gap:0;">
+                    <div style="background:var(--warn-soft-bg);padding:18px;font-size:11px;color:var(--warn-soft-text);line-height:1.9;">
+                        <p style="font-weight:700;margin:0 0 8px;">{{ $this->dayLabel($advancedDay) }}</p>
+                        <p style="margin:0;">&bull; Dihitung kerja: <strong>{{ $advRow['counted_work_days'] ?? 1 }}</strong></p>
+                        <p style="margin:0;">&bull; Setengah hari jika kurang dari: <strong>{{ $advRow['half_day_threshold_minutes'] ?? 0 }} menit</strong></p>
+                        <p style="margin:0;">&bull; Batas jam masuk: <strong>{{ $advRow['late_checkin_deadline'] ?? '-' }}</strong></p>
+                    </div>
+
+                    <div style="padding:18px 22px;display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+                        <div>
+                            <label class="form-label">Dihitung Kerja (Hari)</label>
+                            <input type="number" min="0" class="form-input" wire:model="days.{{ $advancedDay }}.counted_work_days">
+                            <p style="font-size:10px;color:var(--text-faint);margin-top:3px;">Contoh: diisi 2, absensi hari ini terhitung 2 hari kerja.</p>
+                        </div>
+                        <div>
+                            <label class="form-label">Setengah Hari Jika Kurang Dari (Menit)</label>
+                            <input type="number" min="0" class="form-input" wire:model="days.{{ $advancedDay }}.half_day_threshold_minutes">
+                            <p style="font-size:10px;color:var(--text-faint);margin-top:3px;">Durasi kerja di bawah ini terhitung setengah hari.</p>
+                        </div>
+                        <div>
+                            <label class="form-label">Batas Jam Masuk</label>
+                            <input type="time" class="form-input" wire:model="days.{{ $advancedDay }}.late_checkin_deadline">
+                            <p style="font-size:10px;color:var(--text-faint);margin-top:3px;">Check-in lewat dari jam ini dianggap telat. Kosongkan kalau tidak ada batas.</p>
+                        </div>
+                    </div>
                 </div>
-
-                <div style="padding:18px 22px;display:grid;grid-template-columns:1fr 1fr;gap:14px;">
-                    <div>
-                        <label class="form-label">Batas Mulai Absensi Masuk (Menit)</label>
-                        <input type="number" min="0" class="form-input" wire:model="days.{{ $advancedDay }}.checkin_buffer_minutes">
-                        <p style="font-size:10px;color:var(--text-faint);margin-top:3px;">Batas waktu absensi awal sebelum jadwal masuk kerja.</p>
-                    </div>
-                    <div>
-                        <label class="form-label">Batas Akhir Absensi Pulang (Menit)</label>
-                        <input type="number" min="0" class="form-input" wire:model="days.{{ $advancedDay }}.checkout_buffer_minutes">
-                        <p style="font-size:10px;color:var(--text-faint);margin-top:3px;">Batas waktu absensi akhir sesudah jadwal pulang kerja.</p>
-                    </div>
-
-                    <div>
-                        <label class="form-label">Toleransi Terlambat (Menit)</label>
-                        <input type="number" min="0" class="form-input" wire:model="days.{{ $advancedDay }}.late_tolerance_minutes">
-                        <p style="font-size:10px;color:var(--text-faint);margin-top:3px;">Batas toleransi keterlambatan sesudah jam masuk kerja.</p>
-                    </div>
-                    <div>
-                        <label class="form-label">Toleransi Pulang Cepat (Menit)</label>
-                        <input type="number" min="0" class="form-input" wire:model="days.{{ $advancedDay }}.early_leave_tolerance_minutes">
-                        <p style="font-size:10px;color:var(--text-faint);margin-top:3px;">Batas toleransi pulang cepat sebelum jadwal pulang kerja.</p>
+            @else
+                <div style="display:grid;grid-template-columns:220px 1fr;gap:0;">
+                    {{-- Ringkasan, niru panel krem di KONFIGURASI JADWAL FIXED/FLEXIBLE.png --}}
+                    <div style="background:var(--warn-soft-bg);padding:18px;font-size:11px;color:var(--warn-soft-text);line-height:1.9;">
+                        <p style="font-weight:700;margin:0 0 8px;">{{ $this->dayLabel($advancedDay) }}</p>
+                        <p style="margin:0;"><i class="fa-solid fa-tower-broadcast" style="width:14px;"></i> Batas mulai bisa scan masuk <strong>{{ $advRow['checkin_buffer_minutes'] ?? 0 }} menit</strong> sebelum jadwal</p>
+                        <p style="margin:0;"><i class="fa-solid fa-tower-broadcast" style="width:14px;"></i> Batas akhir bisa scan pulang <strong>{{ $advRow['checkout_buffer_minutes'] ?? 0 }} menit</strong> sesudah jadwal</p>
+                        <hr style="border:none;border-top:1px solid rgba(0,0,0,0.08);margin:10px 0;">
+                        <p style="margin:0;">&bull; Dihitung kerja: <strong>{{ $advRow['counted_work_days'] ?? 1 }}</strong></p>
+                        <p style="margin:0;">&bull; Maksimal durasi kerja: <strong>{{ $advRow['max_work_minutes'] ?? 0 }} menit</strong></p>
+                        <p style="margin:0;">&bull; Setengah hari jika kurang dari: <strong>{{ $advRow['half_day_threshold_minutes'] ?? 0 }} menit</strong></p>
+                        <p style="margin:0;">&bull; Tidak hadir jika kurang dari: <strong>{{ $advRow['absent_threshold_minutes'] ?? 0 }} menit</strong></p>
                     </div>
 
-                    <div>
-                        <label class="form-label">Dihitung Kerja (Hari)</label>
-                        <input type="number" min="0" class="form-input" wire:model="days.{{ $advancedDay }}.counted_work_days">
-                        <p style="font-size:10px;color:var(--text-faint);margin-top:3px;">Contoh: diisi 2, absensi hari ini terhitung 2 hari kerja.</p>
-                    </div>
-                    <div>
-                        <label class="form-label">Maksimal Durasi Kerja (Menit)</label>
-                        <input type="number" min="0" class="form-input" wire:model="days.{{ $advancedDay }}.{{ $maxField }}">
-                        <p style="font-size:10px;color:var(--text-faint);margin-top:3px;">Durasi kerja di atas ini dipotong ke nilai ini.</p>
-                    </div>
+                    <div style="padding:18px 22px;display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+                        <div>
+                            <label class="form-label">Batas Mulai Absensi Masuk (Menit)</label>
+                            <input type="number" min="0" class="form-input" wire:model="days.{{ $advancedDay }}.checkin_buffer_minutes">
+                            <p style="font-size:10px;color:var(--text-faint);margin-top:3px;">Batas waktu absensi awal sebelum jadwal masuk kerja.</p>
+                        </div>
+                        <div>
+                            <label class="form-label">Batas Akhir Absensi Pulang (Menit)</label>
+                            <input type="number" min="0" class="form-input" wire:model="days.{{ $advancedDay }}.checkout_buffer_minutes">
+                            <p style="font-size:10px;color:var(--text-faint);margin-top:3px;">Batas waktu absensi akhir sesudah jadwal pulang kerja.</p>
+                        </div>
 
-                    <div>
-                        <label class="form-label">Setengah Hari Jika Kurang Dari (Menit)</label>
-                        <input type="number" min="0" class="form-input" wire:model="days.{{ $advancedDay }}.half_day_threshold_minutes">
-                        <p style="font-size:10px;color:var(--text-faint);margin-top:3px;">Durasi kerja di bawah ini terhitung setengah hari.</p>
-                    </div>
-                    <div>
-                        <label class="form-label">Tidak Hadir Jika Kurang Dari (Menit)</label>
-                        <input type="number" min="0" class="form-input" wire:model="days.{{ $advancedDay }}.absent_threshold_minutes">
-                        <p style="font-size:10px;color:var(--text-faint);margin-top:3px;">Durasi kerja di bawah ini terhitung 0 hari kerja (alpha).</p>
-                    </div>
-                    @if ($scheduleType === 'fixed')
+                        <div>
+                            <label class="form-label">Toleransi Terlambat (Menit)</label>
+                            <input type="number" min="0" class="form-input" wire:model="days.{{ $advancedDay }}.late_tolerance_minutes">
+                            <p style="font-size:10px;color:var(--text-faint);margin-top:3px;">Batas toleransi keterlambatan sesudah jam masuk kerja.</p>
+                        </div>
+                        <div>
+                            <label class="form-label">Toleransi Pulang Cepat (Menit)</label>
+                            <input type="number" min="0" class="form-input" wire:model="days.{{ $advancedDay }}.early_leave_tolerance_minutes">
+                            <p style="font-size:10px;color:var(--text-faint);margin-top:3px;">Batas toleransi pulang cepat sebelum jadwal pulang kerja.</p>
+                        </div>
+
+                        <div>
+                            <label class="form-label">Dihitung Kerja (Hari)</label>
+                            <input type="number" min="0" class="form-input" wire:model="days.{{ $advancedDay }}.counted_work_days">
+                            <p style="font-size:10px;color:var(--text-faint);margin-top:3px;">Contoh: diisi 2, absensi hari ini terhitung 2 hari kerja.</p>
+                        </div>
+                        <div>
+                            <label class="form-label">Maksimal Durasi Kerja (Menit)</label>
+                            <input type="number" min="0" class="form-input" wire:model="days.{{ $advancedDay }}.max_work_minutes">
+                            <p style="font-size:10px;color:var(--text-faint);margin-top:3px;">Durasi kerja di atas ini dipotong ke nilai ini.</p>
+                        </div>
+
+                        <div>
+                            <label class="form-label">Setengah Hari Jika Kurang Dari (Menit)</label>
+                            <input type="number" min="0" class="form-input" wire:model="days.{{ $advancedDay }}.half_day_threshold_minutes">
+                            <p style="font-size:10px;color:var(--text-faint);margin-top:3px;">Durasi kerja di bawah ini terhitung setengah hari.</p>
+                        </div>
+                        <div>
+                            <label class="form-label">Tidak Hadir Jika Kurang Dari (Menit)</label>
+                            <input type="number" min="0" class="form-input" wire:model="days.{{ $advancedDay }}.absent_threshold_minutes">
+                            <p style="font-size:10px;color:var(--text-faint);margin-top:3px;">Durasi kerja di bawah ini terhitung 0 hari kerja (alpha).</p>
+                        </div>
                         <div>
                             <label class="form-label">Minimal Durasi Kerja (Menit)</label>
                             <input type="number" min="0" class="form-input" wire:model="days.{{ $advancedDay }}.min_work_minutes">
                             <p style="font-size:10px;color:var(--text-faint);margin-top:3px;">Scan pulang di bawah durasi ini DITOLAK (bukan cuma ditandai) - jam pulang tidak tersimpan sampai ada scan berikutnya yang cukup. Isi 0 buat nonaktifkan.</p>
                         </div>
-                    @endif
+                    </div>
                 </div>
-            </div>
+            @endif
 
             <div style="display:flex;justify-content:flex-end;padding:14px 22px;border-top:1px solid var(--border-soft);">
                 <button type="button" wire:click="closeAdvanced" class="btn-primary">Selesai</button>
