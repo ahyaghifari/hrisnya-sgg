@@ -4,8 +4,8 @@ namespace App\Repositories\LMS;
 
 use App\Models\LMS\LmsMeetingQuizzes;
 use App\Models\LMS\LmsQuizQuestions;
-use App\Models\LMS\LmsQuizUserAnswers;
-use App\Models\LMS\LmsQuizUserResults;
+use App\Models\LMS\LmsQuizAnswers;
+use App\Models\LMS\LmsQuizResults;
 use App\Models\LMS\LmsQuestionOptions;
 
 class QuizRepository
@@ -34,37 +34,37 @@ class QuizRepository
 
     public function saveUserAnswer(array $data)
     {
-        return LmsQuizUserAnswers::create($data);
+        return LmsQuizAnswers::create($data);
     }
 
     public function saveUserResult(array $data)
     {
-        return LmsQuizUserResults::updateOrCreate(
+        return LmsQuizResults::updateOrCreate(
             [
                 'meeting_quiz_id' => $data['meeting_quiz_id'],
-                'user_id' => $data['user_id'],
+                'respondent_id' => $data['respondent_id'],
             ],
             $data
         );
     }
 
-    public function findUserResultByMeetingQuizId(string $meetingQuizId, string $userId)
+    public function findUserResultByMeetingQuizId(string $meetingQuizId, string $respondentId)
     {
-        return LmsQuizUserResults::where('meeting_quiz_id', $meetingQuizId)
-            ->where('user_id', $userId)
+        return LmsQuizResults::where('meeting_quiz_id', $meetingQuizId)
+            ->where('respondent_id', $respondentId)
             ->first();
     }
 
     public function getUserResultsByMeetingId(string $meetingId)
     {
-        return LmsQuizUserResults::whereHas('meetingQuiz', function ($query) use ($meetingId) {
+        return LmsQuizResults::whereHas('meetingQuiz', function ($query) use ($meetingId) {
             $query->where('meeting_id', $meetingId);
         })->get();
     }
 
     public function getPendingReviewResults()
     {
-        return LmsQuizUserResults::with(['user', 'quiz', 'meetingQuiz.meeting.course'])
+        return LmsQuizResults::with(['respondent', 'quiz', 'meetingQuiz.meeting.course'])
             ->where('status', 'pending_review')
             ->latest('completed_at')
             ->get();
@@ -72,27 +72,27 @@ class QuizRepository
 
     public function findResultById(string $resultId)
     {
-        return LmsQuizUserResults::with(['user', 'quiz', 'meetingQuiz.meeting.course'])->find($resultId);
+        return LmsQuizResults::with(['respondent', 'quiz', 'meetingQuiz.meeting.course'])->find($resultId);
     }
 
-    public function getEssayAnswers(string $meetingQuizId, string $userId)
+    public function getEssayAnswers(string $meetingQuizId, string $respondentId)
     {
-        return LmsQuizUserAnswers::with('question')
+        return LmsQuizAnswers::with('question')
             ->where('meeting_quiz_id', $meetingQuizId)
-            ->where('user_id', $userId)
+            ->where('respondent_id', $respondentId)
             ->whereHas('question', fn ($q) => $q->where('type', 'essay'))
             ->get();
     }
 
-    public function getAllAnswers(string $meetingQuizId, string $userId)
+    public function getAllAnswers(string $meetingQuizId, string $respondentId)
     {
-        return LmsQuizUserAnswers::where('meeting_quiz_id', $meetingQuizId)
-            ->where('user_id', $userId)
+        return LmsQuizAnswers::where('meeting_quiz_id', $meetingQuizId)
+            ->where('respondent_id', $respondentId)
             ->get();
     }
 
     public function updateAnswerScore(string $answerId, int $earnedPoints)
     {
-        return LmsQuizUserAnswers::where('id', $answerId)->update(['earned_points' => $earnedPoints]);
+        return LmsQuizAnswers::where('id', $answerId)->update(['earned_points' => $earnedPoints]);
     }
 }

@@ -3,6 +3,7 @@
 namespace App\Services\LMS;
 
 use App\Events\LmsProgresUpdated;
+use App\Models\LMS\LmsCourseFeedbacks;
 use App\Models\LMS\LmsCourses;
 use App\Repositories\LMS\CourseRepository;
 use Illuminate\Support\Facades\Auth;
@@ -41,8 +42,21 @@ class CourseService
         return $this->courseRepositories->getActiveFeedbackQuestions();
     }
 
+    /**
+     * 1 respondent cuma boleh submit umpan balik 1x per course — dicek di sini (bukan
+     * dibiarkan gagal di constraint database, karena lms_course_feedbacks memang tidak
+     * punya unique constraint) supaya pesannya jelas alih-alih exception generik.
+     */
     public function storeFeedback(array $data)
     {
+        $alreadySubmitted = LmsCourseFeedbacks::where('course_id', $data['course_id'])
+            ->where('respondent_id', $data['respondent_id'])
+            ->exists();
+
+        if ($alreadySubmitted) {
+            throw new \RuntimeException('Umpan balik untuk pelatihan ini sudah pernah diisi.');
+        }
+
         return DB::transaction(fn () => $this->courseRepositories->storeFeedback($data));
     }
 

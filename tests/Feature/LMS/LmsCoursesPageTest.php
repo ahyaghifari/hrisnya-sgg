@@ -146,4 +146,29 @@ class LmsCoursesPageTest extends TestCase
             ->assertSee('Pelatihan Internal')
             ->assertDontSee('Pelatihan Eksternal');
     }
+
+    /**
+     * Regresi: LmsCoursesPage tidak pakai WithPagination trait, tapi pagination-nya tetap pakai
+     * wire:navigate (full page-visit) — komponen di-mount ULANG dari URL tiap pindah halaman.
+     * Tanpa #[Url], filter `categoryId` hilang. Test GET langsung (bukan Livewire::test) biar
+     * simulasi mount dari URL yang sebenarnya kejadian saat wire:navigate.
+     */
+    public function test_category_filter_is_read_from_url_on_page_load(): void
+    {
+        $company = $this->makeCompany('CPA', 'Company A');
+        $admin = $this->actingAsLmsAdmin($company->id);
+        $categoryIt = LmsCategories::create(['name' => 'IT']);
+        $categoryHr = LmsCategories::create(['name' => 'Kepegawaian']);
+
+        for ($i = 1; $i <= 15; $i++) {
+            $this->makeCourse($company->id, "TRN-IT-{$i}", "Pelatihan IT {$i}", ['category_id' => $categoryIt->id]);
+        }
+        $this->makeCourse($company->id, 'TRN-HR', 'Pelatihan HR', ['category_id' => $categoryHr->id]);
+
+        $response = $this->actingAs($admin)->get(route('pelatihan.kelola', ['categoryId' => $categoryIt->id, 'page' => 2]));
+
+        $response->assertOk();
+        $response->assertSee('Pelatihan IT 11');
+        $response->assertDontSee('Pelatihan HR');
+    }
 }

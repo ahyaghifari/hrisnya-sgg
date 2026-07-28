@@ -96,7 +96,7 @@
                     @endif
                 </div>
                 <p style="font-size:12.5px;color:var(--text-body);margin:0 0 6px;white-space:pre-line;">{{ $review->feedback ?: '-' }}</p>
-                <span style="font-size:11px;color:var(--text-muted);">{{ $review->user?->name ?? 'Anonim' }} &middot; {{ $review->created_at->translatedFormat('d M Y') }}</span>
+                <span style="font-size:11px;color:var(--text-muted);">{{ $review->respondent?->name ?? 'Anonim' }} &middot; {{ $review->created_at->translatedFormat('d M Y') }}</span>
             </div>
         @empty
             <div class="pwa-list-row" style="opacity:0.7;">

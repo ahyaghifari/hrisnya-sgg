@@ -222,7 +222,7 @@ trait HandlesDayScheduleForm
                     'is_off_day' => $isOff,
                     'start_time' => '08:00',
                     'break_minutes' => 60,
-                    'min_work_minutes' => 0,
+                    'min_work_minutes' => 300,
                     'end_time' => '16:00',
                     'overtime_before_min' => 0,
                     'overtime_before_break' => 0,

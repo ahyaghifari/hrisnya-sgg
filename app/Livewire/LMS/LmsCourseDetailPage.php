@@ -13,6 +13,7 @@ use App\Models\LMS\LmsCourseMeetingUsers;
 use App\Models\LMS\LmsCourseUsers;
 use App\Models\LMS\LmsMaterials;
 use App\Models\LMS\LmsMeetingQuizzes;
+use App\Models\LMS\LmsQuizResults;
 use App\Models\LMS\LmsQuizzes;
 use App\Models\LMS\Trainer\TrainerAssessmentResults;
 use App\Models\LMS\Trainer\Trainers;
@@ -95,12 +96,24 @@ class LmsCourseDetailPage extends Component
     public ?string $addingQuizForMeetingId = null;
     public ?string $quizId = null;
     public ?int $quizDuration = null;
+    public bool $quizIsGraduationRequirement = false;
 
     // Tab "Penilaian dan Gaji Pemateri" — pola picker sama seperti Pertemuan: course 1 hari
     // langsung preload satu-satunya pertemuan, course multi-pertemuan pilih dulu.
     public ?string $selectedHonorMeetingId = null;
     public array $honorCategorySelections = []; // variable_id => category_id (jalur scored)
     public string $honorFixedAmount = ''; // jalur fixed (Umum/Sertifikasi Dokter Umum)
+
+    // Modal "Lihat QR" kuis/umpan balik publik — token dibuat otomatis saat publish (§4),
+    // modal ini cuma menampilkan QR + link mentah untuk disalin.
+    public ?string $qrModalUrl = null;
+    public ?string $qrModalTitle = null;
+    public ?string $qrModalLink = null;
+
+    // Modal hasil kuis (tab Pertemuan) — 1 modal dipakai 2 mode: 'summary' (rangkuman angka)
+    // & 'list' (tabel semua yang mengerjakan, karyawan maupun respondent publik).
+    public ?string $quizResultsMeetingQuizId = null;
+    public ?string $quizResultsMode = null;
 
     public function mount(LmsCourses $course): void
     {
@@ -111,6 +124,15 @@ class LmsCourseDetailPage extends Component
         );
 
         $this->course = $course->load(['category', 'competencies']);
+
+        // Self-healing: kalau course sudah Published tapi token QR belum ada (mis. requires_feedback
+        // baru diaktifkan belakangan, atau kuis baru ditambahkan setelah publish), lengkapi di sini
+        // — bukan cuma sekali saat transisi Draft->Published, karena tombol Publish sudah hilang
+        // begitu Published, jadi tidak ada jalur lain untuk generate token buat course lama.
+        if ($this->course->status === LsmCourseStatus::Published->value) {
+            $this->generatePublicTokens();
+            $this->course->refresh();
+        }
 
         // Course 1 hari cuma pernah punya 1 pertemuan (tombol "Tambah Pertemuan" disembunyikan)
         // — langsung preload form Detail Pertemuan-nya, tidak perlu klik accordion buat expand.
@@ -143,6 +165,10 @@ class LmsCourseDetailPage extends Component
 
     public function setTab(string $tab): void
     {
+        if ($tab === 'umpan-balik' && ! $this->course->requires_feedback) {
+            return;
+        }
+
         $this->tab = $tab;
     }
 
@@ -182,11 +208,6 @@ class LmsCourseDetailPage extends Component
         return $this->allParticipants->filter(
             fn ($participant) => str_contains(strtolower((string) $participant->user?->name), strtolower($search))
         );
-    }
-
-    public function getCourseHasAnyQuizProperty(): bool
-    {
-        return LmsMeetingQuizzes::whereHas('meeting', fn ($q) => $q->where('course_id', $this->course->id))->exists();
     }
 
     public function getAvailableUserOptionsProperty()
@@ -259,6 +280,8 @@ class LmsCourseDetailPage extends Component
     {
         $this->assertCanEdit();
 
+        abort_if($this->course->status === LsmCourseStatus::Published->value, 403);
+
         LmsCourseUsers::where('course_id', $this->course->id)->findOrFail($id)->delete();
 
         Notification::make()->title('Peserta dihapus dari pelatihan')->success()->send();
@@ -315,7 +338,99 @@ class LmsCourseDetailPage extends Component
         $this->course->update(['status' => LsmCourseStatus::Published->value]);
         $this->course->refresh();
 
+        $this->generatePublicTokens();
+
         Notification::make()->title('Pelatihan berhasil dipublish')->success()->send();
+    }
+
+    /**
+     * Token QR kuis/umpan balik publik — tidak ada tombol "Publish Kuis"/"Publish Umpan Balik"
+     * terpisah, lihat planning §4. Dipanggil dari publishCourse() (saat transisi Draft->Published)
+     * DAN dari mount() (self-healing untuk course yang sudah Published lebih dulu, lihat
+     * komentar di mount()). Idempotent: cuma mengisi yang masih kosong, tidak pernah menimpa
+     * token yang sudah ada.
+     */
+    private function generatePublicTokens(): void
+    {
+        LmsMeetingQuizzes::whereHas('meeting', fn ($q) => $q->where('course_id', $this->course->id))
+            ->whereNull('public_token')
+            ->get()
+            ->each(fn ($meetingQuiz) => $meetingQuiz->update(['public_token' => \Illuminate\Support\Str::random(40)]));
+
+        if ($this->course->requires_feedback && ! $this->course->feedback_public_token) {
+            $this->course->update(['feedback_public_token' => \Illuminate\Support\Str::random(40)]);
+        }
+    }
+
+    public function showQuizQr(string $meetingQuizId): void
+    {
+        $meetingQuiz = LmsMeetingQuizzes::findOrFail($meetingQuizId);
+        abort_if(! $meetingQuiz->public_token, 404);
+
+        $this->qrModalTitle = 'QR Kuis: ' . $meetingQuiz->quiz->title;
+        $this->qrModalLink = route('lms.public.quiz', ['token' => $meetingQuiz->public_token]);
+        $this->qrModalUrl = app(\App\Services\LMS\QrCodeService::class)->getQuizQrUrl($meetingQuiz->id, $meetingQuiz->public_token);
+    }
+
+    public function showFeedbackQr(): void
+    {
+        abort_if(! $this->course->feedback_public_token, 404);
+
+        $this->qrModalTitle = 'QR Umpan Balik: ' . $this->course->title;
+        $this->qrModalLink = route('lms.public.feedback', ['token' => $this->course->feedback_public_token]);
+        $this->qrModalUrl = app(\App\Services\LMS\QrCodeService::class)->getFeedbackQrUrl($this->course->id, $this->course->feedback_public_token);
+    }
+
+    public function closeQrModal(): void
+    {
+        $this->qrModalUrl = null;
+        $this->qrModalTitle = null;
+        $this->qrModalLink = null;
+    }
+
+    public function showQuizResultsSummary(string $meetingQuizId): void
+    {
+        $this->quizResultsMeetingQuizId = $meetingQuizId;
+        $this->quizResultsMode = 'summary';
+    }
+
+    public function showQuizResultsList(string $meetingQuizId): void
+    {
+        $this->quizResultsMeetingQuizId = $meetingQuizId;
+        $this->quizResultsMode = 'list';
+    }
+
+    public function closeQuizResultsModal(): void
+    {
+        $this->quizResultsMeetingQuizId = null;
+        $this->quizResultsMode = null;
+    }
+
+    public function getQuizResultsProperty()
+    {
+        if (! $this->quizResultsMeetingQuizId) {
+            return collect();
+        }
+
+        return LmsQuizResults::where('meeting_quiz_id', $this->quizResultsMeetingQuizId)
+            ->with('respondent')
+            ->latest('completed_at')
+            ->get();
+    }
+
+    public function getQuizResultsSummaryProperty(): array
+    {
+        $results = $this->quizResults;
+
+        return [
+            'total' => $results->count(),
+            'employee_count' => $results->filter(fn ($r) => $r->respondent?->user_id)->count(),
+            'public_count' => $results->filter(fn ($r) => ! $r->respondent?->user_id)->count(),
+            'avg_score' => $results->isEmpty() ? 0 : round($results->avg('total_score'), 1),
+            'max_score' => $results->max('total_score') ?? 0,
+            'min_score' => $results->min('total_score') ?? 0,
+            'pending_review' => $results->where('status', 'pending_review')->count(),
+        ];
     }
 
     public function getTrainerOptionsProperty()
@@ -583,6 +698,7 @@ class LmsCourseDetailPage extends Component
         $this->addingQuizForMeetingId = $meetingId;
         $this->quizId = null;
         $this->quizDuration = null;
+        $this->quizIsGraduationRequirement = false;
         $this->resetErrorBag();
     }
 
@@ -621,6 +737,7 @@ class LmsCourseDetailPage extends Component
         $meeting->quizzes()->create([
             'quiz_id' => $validated['quizId'],
             'duration' => $validated['quizDuration'],
+            'is_graduation_requirement' => $this->quizIsGraduationRequirement,
         ]);
 
         $this->addingQuizForMeetingId = null;
@@ -632,7 +749,11 @@ class LmsCourseDetailPage extends Component
     {
         $this->assertCanEdit();
 
-        LmsMeetingQuizzes::whereHas('meeting', fn ($q) => $q->where('course_id', $this->course->id))->findOrFail($id)->delete();
+        $meetingQuiz = LmsMeetingQuizzes::whereHas('meeting', fn ($q) => $q->where('course_id', $this->course->id))->findOrFail($id);
+
+        abort_if($meetingQuiz->results()->exists(), 403);
+
+        $meetingQuiz->delete();
 
         Notification::make()->title('Quiz dihapus')->success()->send();
     }
@@ -758,7 +879,7 @@ class LmsCourseDetailPage extends Component
 
     public function getFeedbacksProperty()
     {
-        return $this->course->feedbacks()->with('user')->latest()->get();
+        return $this->course->feedbacks()->with('respondent')->latest()->get();
     }
 
     public function getAverageRatingProperty(): float

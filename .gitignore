@@ -31,3 +31,4 @@ _ide_helper_models.php
 /test-results
 /playwright-report
 /.zcode
+/database/dumps/

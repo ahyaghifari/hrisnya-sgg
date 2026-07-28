@@ -9,6 +9,7 @@ use App\Models\Master\Companies;
 use App\Models\User\UserDocuments;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -23,9 +24,19 @@ class DocumentsPage extends Component
 {
     use WithPagination;
 
+    // Pagination di sini pakai wire:navigate (lihat livewire/partials/pagination.blade.php),
+    // yaitu full page-visit yang bikin komponen di-mount ULANG dari URL. Tanpa #[Url], filter
+    // ini ikut hilang begitu pindah halaman paginasi.
+    #[Url]
     public ?string $companyId = null;
+
+    #[Url]
     public string $search = '';
+
+    #[Url]
     public string $documentType = 'resignation';
+
+    #[Url]
     public string $status = 'aktif';
 
     /** @var array<int, UserDocumentType> */

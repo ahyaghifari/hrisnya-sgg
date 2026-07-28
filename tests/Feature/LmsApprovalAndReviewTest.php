@@ -9,7 +9,7 @@ use App\Models\LMS\LmsCourseUsers;
 use App\Models\LMS\LmsMeetingQuizzes;
 use App\Models\LMS\LmsMeetings;
 use App\Models\LMS\LmsQuizQuestions;
-use App\Models\LMS\LmsQuizUserResults;
+use App\Models\LMS\LmsQuizResults;
 use App\Models\LMS\LmsQuizzes;
 use App\Models\LMS\LmsQuestionBanks;
 use App\Models\LMS\LmsQuestionOptions;
@@ -19,6 +19,7 @@ use App\Repositories\LMS\CourseUserRepository;
 use App\Services\LMS\CourseUserService;
 use App\Services\LMS\MeetingAttendanceService;
 use App\Services\LMS\QuizService;
+use App\Services\LMS\RespondentService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 use Tests\TestCase;
@@ -99,9 +100,10 @@ class LmsApprovalAndReviewTest extends TestCase
         $this->assertFalse($checkin['success']);
         $this->assertDatabaseMissing('lms_meeting_attendances', ['meeting_id' => $meeting->id, 'user_id' => $user->id]);
 
-        $submit = app(QuizService::class)->submitQuiz($meetingQuiz->id, [], $user->id);
+        $respondent = app(RespondentService::class)->resolveForEmployee($user->id, $course->id);
+        $submit = app(QuizService::class)->submitQuiz($meetingQuiz->id, [], $respondent->id, $user->id);
         $this->assertFalse($submit['success']);
-        $this->assertDatabaseMissing('lms_quiz_user_results', ['meeting_quiz_id' => $meetingQuiz->id, 'user_id' => $user->id]);
+        $this->assertDatabaseMissing('lms_quiz_results', ['meeting_quiz_id' => $meetingQuiz->id, 'respondent_id' => $respondent->id]);
 
         $courseUser->update(['status' => CourseUserStatus::APPROVED->value]);
 
@@ -121,25 +123,26 @@ class LmsApprovalAndReviewTest extends TestCase
         app(CourseUserRepository::class)->assignUserToCourse($user->id, $course->id);
         LmsCourseUsers::where('user_id', $user->id)->update(['status' => CourseUserStatus::APPROVED->value]);
 
+        $respondent = app(RespondentService::class)->resolveForEmployee($user->id, $course->id);
         $result = app(QuizService::class)->submitQuiz($meetingQuiz->id, [
             ['question_id' => $essayQuestion->id, 'answer_text' => 'Jawaban esai peserta'],
-        ], $user->id);
+        ], $respondent->id, $user->id);
 
         $this->assertTrue($result['has_essay']);
         $this->assertSame('pending_review', $result['status']);
 
-        $storedResult = LmsQuizUserResults::where('meeting_quiz_id', $meetingQuiz->id)->where('user_id', $user->id)->first();
+        $storedResult = LmsQuizResults::where('meeting_quiz_id', $meetingQuiz->id)->where('respondent_id', $respondent->id)->first();
         $this->assertSame('pending_review', $storedResult->status);
         $this->assertSame(0, $storedResult->total_score);
 
-        $essayAnswer = \App\Models\LMS\LmsQuizUserAnswers::where('meeting_quiz_id', $meetingQuiz->id)
-            ->where('user_id', $user->id)
+        $essayAnswer = \App\Models\LMS\LmsQuizAnswers::where('meeting_quiz_id', $meetingQuiz->id)
+            ->where('respondent_id', $respondent->id)
             ->where('question_id', $essayQuestion->id)
             ->firstOrFail();
 
         app(QuizService::class)->reviewEssayAnswers(
             $meetingQuiz->id,
-            $user->id,
+            $respondent->id,
             [$essayAnswer->id => 15],
             $admin->id,
         );
@@ -162,18 +165,19 @@ class LmsApprovalAndReviewTest extends TestCase
         app(CourseUserRepository::class)->assignUserToCourse($user->id, $course->id);
         LmsCourseUsers::where('user_id', $user->id)->update(['status' => CourseUserStatus::APPROVED->value]);
 
+        $respondent = app(RespondentService::class)->resolveForEmployee($user->id, $course->id);
         app(QuizService::class)->submitQuiz($meetingQuiz->id, [
             ['question_id' => $essayQuestion->id, 'answer_text' => 'Jawaban'],
-        ], $user->id);
+        ], $respondent->id, $user->id);
 
-        $essayAnswer = \App\Models\LMS\LmsQuizUserAnswers::where('meeting_quiz_id', $meetingQuiz->id)
-            ->where('user_id', $user->id)
+        $essayAnswer = \App\Models\LMS\LmsQuizAnswers::where('meeting_quiz_id', $meetingQuiz->id)
+            ->where('respondent_id', $respondent->id)
             ->firstOrFail();
 
         // max_score soal ini 20, dicoba kasih 999 — harus diclamp ke 20.
-        app(QuizService::class)->reviewEssayAnswers($meetingQuiz->id, $user->id, [$essayAnswer->id => 999], $admin->id);
+        app(QuizService::class)->reviewEssayAnswers($meetingQuiz->id, $respondent->id, [$essayAnswer->id => 999], $admin->id);
 
-        $storedResult = LmsQuizUserResults::where('meeting_quiz_id', $meetingQuiz->id)->where('user_id', $user->id)->first();
+        $storedResult = LmsQuizResults::where('meeting_quiz_id', $meetingQuiz->id)->where('respondent_id', $respondent->id)->first();
         $this->assertSame(20, $storedResult->total_score);
     }
 

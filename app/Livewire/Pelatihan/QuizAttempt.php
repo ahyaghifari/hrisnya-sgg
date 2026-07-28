@@ -4,11 +4,13 @@ namespace App\Livewire\Pelatihan;
 
 use App\Enum\CourseUserStatus;
 use App\Models\LMS\LmsMeetingQuizzes;
-use App\Models\LMS\LmsQuizUserAnswers;
-use App\Models\LMS\LmsQuizUserResults;
+use App\Models\LMS\LmsQuizAnswers;
+use App\Models\LMS\LmsQuizResults;
+use App\Models\LMS\LmsRespondent;
 use App\Repositories\LMS\CourseUserRepository;
 use App\Repositories\LMS\QuizRepository;
 use App\Services\LMS\QuizService;
+use App\Services\LMS\RespondentService;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Session;
@@ -20,11 +22,13 @@ class QuizAttempt extends Component
 
     public bool $blocked = false;
 
-    public ?LmsQuizUserResults $result = null;
+    public ?LmsQuizResults $result = null;
 
     public ?string $quizTitle = null;
     public ?int $duration = null;
     public ?string $trainerName = null;
+
+    public string $respondentId;
 
     /** @var array<int, array{id: string, no: int, question_text: string, options: array}> soal pilihan ganda saja */
     public array $questions = [];
@@ -41,6 +45,10 @@ class QuizAttempt extends Component
 
         $this->meetingQuiz = $meetingQuiz;
 
+        $this->respondentId = app(RespondentService::class)
+            ->resolveForEmployee(Auth::id(), $meetingQuiz->meeting->course_id, LmsRespondent::CATEGORY_KUIS)
+            ->id;
+
         // Header (judul, trainer, waktu pelaksanaan) tetap tampil di ketiga state (blocked/
         // hasil/form) — makanya di-set duluan sebelum gate approval & cek "sudah submit".
         $this->quizTitle = $meetingQuiz->quiz?->title;
@@ -52,7 +60,7 @@ class QuizAttempt extends Component
         // berubah dari "approved" ke "in_progress"/"completed" begitu quiz/attendance
         // pertama diselesaikan (lewat LmsProgresListener) — kalau gate approval dicek duluan,
         // user yang baru saja submit malah keblokir lihat hasilnya sendiri di kunjungan berikutnya.
-        $existingResult = app(QuizRepository::class)->findUserResultByMeetingQuizId($meetingQuiz->id, Auth::id());
+        $existingResult = app(QuizRepository::class)->findUserResultByMeetingQuizId($meetingQuiz->id, $this->respondentId);
 
         if ($existingResult) {
             $this->result = $existingResult;
@@ -71,7 +79,7 @@ class QuizAttempt extends Component
             return;
         }
 
-        $quiz = app(QuizService::class)->getQuizDetail($meetingQuiz->id, Auth::id());
+        $quiz = app(QuizService::class)->getQuizDetail($meetingQuiz->id);
 
         // Soal essay tidak dirender di portal dulu — selalu 0 poin & tanpa jalur review yang
         // berfungsi di backend, jadi tidak ada gunanya ditampilkan sebagai form isian.
@@ -108,8 +116,8 @@ class QuizAttempt extends Component
     // Detail per soal buat halaman hasil: pilihan user, benar/salah, dan opsi mana yang benar.
     protected function buildReview(string $meetingQuizId): array
     {
-        return LmsQuizUserAnswers::where('meeting_quiz_id', $meetingQuizId)
-            ->where('user_id', Auth::id())
+        return LmsQuizAnswers::where('meeting_quiz_id', $meetingQuizId)
+            ->where('respondent_id', $this->respondentId)
             ->with('question.options')
             ->get()
             ->filter(fn ($answer) => $answer->question && $answer->question->type !== 'essay')
@@ -154,9 +162,9 @@ class QuizAttempt extends Component
             ->values()
             ->all();
 
-        app(QuizService::class)->submitQuiz($this->meetingQuiz->id, $payload, Auth::id());
+        app(QuizService::class)->submitQuiz($this->meetingQuiz->id, $payload, $this->respondentId, Auth::id());
 
-        $this->result = app(QuizRepository::class)->findUserResultByMeetingQuizId($this->meetingQuiz->id, Auth::id());
+        $this->result = app(QuizRepository::class)->findUserResultByMeetingQuizId($this->meetingQuiz->id, $this->respondentId);
         $this->review = $this->buildReview($this->meetingQuiz->id);
         $this->questions = [];
         Session::forget($this->sessionKey());

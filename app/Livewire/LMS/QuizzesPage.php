@@ -9,6 +9,7 @@ use App\Services\LMS\QuizService;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\Url;
 use Livewire\Component;
 
 /**
@@ -24,7 +25,13 @@ use Livewire\Component;
 #[Layout('components.layout', ['title' => 'Kuis'])]
 class QuizzesPage extends Component
 {
+    // Pagination di sini pakai wire:navigate (lihat livewire/partials/pagination.blade.php),
+    // yaitu full page-visit yang bikin komponen di-mount ULANG dari URL. Tanpa #[Url], filter
+    // ini ikut hilang begitu pindah halaman paginasi.
+    #[Url]
     public string $search = '';
+
+    #[Url]
     public ?string $categoryId = null;
 
     // Modal view (read-only)

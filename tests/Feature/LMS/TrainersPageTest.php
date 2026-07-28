@@ -185,4 +185,26 @@ class TrainersPageTest extends TestCase
 
         $this->assertCount(10, $component->instance()->trainers->items());
     }
+
+    /**
+     * Regresi: pagination di halaman ini pakai wire:navigate (full page-visit), yang bikin
+     * komponen di-mount ULANG dari URL — tanpa #[Url] filter `status` hilang begitu pindah
+     * halaman. Test GET langsung (bukan Livewire::test) biar simulasi mount dari URL yang
+     * sebenarnya kejadian saat wire:navigate.
+     */
+    public function test_status_filter_is_read_from_url_on_page_load(): void
+    {
+        $admin = $this->actingAsLmsAdmin();
+
+        for ($i = 1; $i <= 15; $i++) {
+            Trainers::create(['name' => sprintf('Pemateri Nonaktif %02d', $i), 'type' => 'external', 'is_active' => false]);
+        }
+        Trainers::create(['name' => 'Pemateri Aktif', 'type' => 'external', 'is_active' => true]);
+
+        $response = $this->actingAs($admin)->get(route('pelatihan.pemateri', ['status' => 'tidak_aktif', 'page' => 2]));
+
+        $response->assertOk();
+        $response->assertSee('Pemateri Nonaktif 11');
+        $response->assertDontSee('Pemateri Aktif');
+    }
 }

@@ -45,6 +45,8 @@ class CreateLmsCourse extends Component
     public ?string $start_date = null;
     public ?string $end_date = null;
 
+    public bool $requires_feedback = false;
+
     public function mount(): void
     {
         abort_unless(Auth::user()->can(CustomPermissionEnum::SISTEM_LMS->value), 403);
@@ -54,6 +56,11 @@ class CreateLmsCourse extends Component
     public function toggleOneDay(): void
     {
         $this->is_one_day = ! $this->is_one_day;
+    }
+
+    public function toggleRequiresFeedback(): void
+    {
+        $this->requires_feedback = ! $this->requires_feedback;
     }
 
     public function getCategoryOptionsProperty()
@@ -81,6 +88,7 @@ class CreateLmsCourse extends Component
             'is_one_day' => ['required', 'boolean'],
             'start_date' => ['required', 'date'],
             'end_date' => ['required_if:is_one_day,false', 'nullable', 'date', 'after_or_equal:start_date'],
+            'requires_feedback' => ['required', 'boolean'],
         ];
     }
 
@@ -102,6 +110,7 @@ class CreateLmsCourse extends Component
             'thumbnail' => $thumbnailPath,
             'type' => 'seasonal',
             'status' => LsmCourseStatus::Draft->value,
+            'requires_feedback' => $validated['requires_feedback'],
         ]);
 
         $course->competencies()->sync($validated['competencyIds']);

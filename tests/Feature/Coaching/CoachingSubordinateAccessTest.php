@@ -194,6 +194,41 @@ class CoachingSubordinateAccessTest extends TestCase
             ->assertSee('Coaching bawahan');
     }
 
+    /**
+     * Regresi: pagination di halaman ini pakai wire:navigate (full page-visit), yang bikin
+     * komponen di-mount ULANG dari URL — tanpa #[Url] filter `status` hilang begitu pindah
+     * halaman. Test GET langsung (bukan Livewire::test) biar simulasi mount dari URL yang
+     * sebenarnya kejadian saat wire:navigate.
+     */
+    public function test_status_filter_is_read_from_url_on_page_load(): void
+    {
+        Permission::firstOrCreate(['name' => \App\Enum\CustomPermissionEnum::COACHING_KARYAWAN_LAINNYA->value, 'guard_name' => 'web']);
+        $role = Role::firstOrCreate(['name' => 'HC Coaching Pagination Test', 'guard_name' => 'web']);
+        $role->givePermissionTo(\App\Enum\CustomPermissionEnum::COACHING_KARYAWAN_LAINNYA->value);
+
+        $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
+        $hc = User::factory()->create(['company_id' => $company->id]);
+        $hc->assignRole($role);
+        $employee = User::factory()->create(['company_id' => $company->id]);
+
+        for ($i = 1; $i <= 15; $i++) {
+            Coaching::create([
+                'company_id' => $company->id, 'user_id' => $employee->id, 'coach_by' => $hc->id,
+                'title' => "Coaching Selesai {$i}", 'improvement_due_date' => now()->addWeek(), 'status' => 'completed',
+            ]);
+        }
+        Coaching::create([
+            'company_id' => $company->id, 'user_id' => $employee->id, 'coach_by' => $hc->id,
+            'title' => 'Coaching Berjalan', 'improvement_due_date' => now()->addWeek(), 'status' => 'in_progress',
+        ]);
+
+        $response = $this->actingAs($hc)->get(route('coaching', ['status' => 'completed', 'page' => 2]));
+
+        $response->assertOk();
+        $response->assertSee('Coaching Selesai 11');
+        $response->assertDontSee('Coaching Berjalan');
+    }
+
     public function test_manager_cannot_view_non_subordinate_coaching_detail(): void
     {
         [$manager, , $outsider, $company] = $this->makeManagerWithSubordinate();

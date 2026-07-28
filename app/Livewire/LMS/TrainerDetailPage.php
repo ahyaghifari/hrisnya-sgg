@@ -52,7 +52,7 @@ class TrainerDetailPage extends Component
     public function getReviewsProperty()
     {
         return LmsCourseFeedbacks::whereIn('course_id', $this->courseIds())
-            ->with(['user', 'course'])
+            ->with(['respondent', 'course'])
             ->latest()
             ->get();
     }

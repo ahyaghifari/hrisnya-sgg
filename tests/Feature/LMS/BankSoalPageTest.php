@@ -302,12 +302,18 @@ class BankSoalPageTest extends TestCase
         $meeting = \App\Models\LMS\LmsMeetings::create(['course_id' => $course->id, 'title' => 'Sesi B']);
         $meetingQuiz = \App\Models\LMS\LmsMeetingQuizzes::create(['meeting_id' => $meeting->id, 'quiz_id' => $quiz->id]);
         $user = User::factory()->create();
+        $respondent = \App\Models\LMS\LmsRespondent::create([
+            'course_id' => $course->id,
+            'user_id' => $user->id,
+            'name' => $user->name,
+            'category' => \App\Models\LMS\LmsRespondent::CATEGORY_KUIS,
+        ]);
 
-        \App\Models\LMS\LmsQuizUserAnswers::create([
+        \App\Models\LMS\LmsQuizAnswers::create([
             'meeting_quiz_id' => $meetingQuiz->id,
             'quiz_id' => $quiz->id,
             'question_id' => $question->id,
-            'user_id' => $user->id,
+            'respondent_id' => $respondent->id,
             'user_answer' => 'A',
             'is_correct' => true,
             'earned_points' => 100,
@@ -344,6 +350,30 @@ class BankSoalPageTest extends TestCase
             ->call('openEditModal', $question->id);
 
         $this->assertDatabaseHas('lms_question_banks', ['id' => $question->id]); // tidak crash
+    }
+
+    /**
+     * Regresi: BankSoalPage tidak pakai WithPagination trait, tapi pagination-nya tetap pakai
+     * wire:navigate (full page-visit) — komponen di-mount ULANG dari URL tiap pindah halaman.
+     * Tanpa #[Url], filter `categoryId` hilang. Test GET langsung (bukan Livewire::test) biar
+     * simulasi mount dari URL yang sebenarnya kejadian saat wire:navigate.
+     */
+    public function test_category_filter_is_read_from_url_on_page_load(): void
+    {
+        $admin = $this->actingAsLmsAdmin();
+        $catIt = LmsCategories::create(['name' => 'IT']);
+        $catHr = LmsCategories::create(['name' => 'Kepegawaian']);
+
+        for ($i = 1; $i <= 15; $i++) {
+            $this->makeQuestion("<p>Soal IT {$i}</p>", ['category_id' => $catIt->id]);
+        }
+        $this->makeQuestion('<p>Soal HR 1</p>', ['category_id' => $catHr->id]);
+
+        $response = $this->actingAs($admin)->get(route('pelatihan.bank-soal', ['categoryId' => $catIt->id, 'page' => 2]));
+
+        $response->assertOk();
+        $response->assertSee('Soal IT 11');
+        $response->assertDontSee('Soal HR 1');
     }
 
     public function test_edit_modal_set_correct_option_unchecks_others(): void

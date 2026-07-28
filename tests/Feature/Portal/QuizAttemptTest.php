@@ -10,7 +10,8 @@ use App\Models\LMS\LmsMeetings;
 use App\Models\LMS\LmsQuestionBanks;
 use App\Models\LMS\LmsQuestionOptions;
 use App\Models\LMS\LmsQuizQuestions;
-use App\Models\LMS\LmsQuizUserResults;
+use App\Models\LMS\LmsQuizResults;
+use App\Models\LMS\LmsRespondent;
 use App\Models\LMS\LmsQuizzes;
 use App\Enum\QuestionType;
 use App\Models\LMS\Trainer\Trainers;
@@ -103,9 +104,11 @@ class QuizAttemptTest extends TestCase
             ->set("answers.$questionId", $correctOptionId)
             ->call('submit');
 
+        $respondentId = LmsRespondent::where('course_id', $course->id)->where('user_id', $user->id)->value('id');
+
         $this->assertSame(
             1,
-            LmsQuizUserResults::where('meeting_quiz_id', $meetingQuiz->id)->where('user_id', $user->id)->count()
+            LmsQuizResults::where('meeting_quiz_id', $meetingQuiz->id)->where('respondent_id', $respondentId)->count()
         );
 
         $response = $this->actingAs($user)->get('/pelatihan/quiz/' . $meetingQuiz->id);

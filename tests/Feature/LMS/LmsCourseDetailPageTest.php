@@ -8,7 +8,9 @@ use App\Livewire\LMS\LmsCourseDetailPage;
 use App\Models\LMS\LmsCategories;
 use App\Models\LMS\LmsCourses;
 use App\Models\LMS\LmsCourseUsers;
+use App\Models\LMS\LmsQuizResults;
 use App\Models\LMS\LmsQuizzes;
+use App\Models\LMS\LmsRespondent;
 use App\Models\LMS\Trainer\LmsHonorarium;
 use App\Models\LMS\Trainer\LmsHonorariumCategory;
 use App\Models\LMS\Trainer\LmsHonorariumVariable;
@@ -236,6 +238,55 @@ class LmsCourseDetailPageTest extends TestCase
         ]);
     }
 
+    public function test_delete_participant_button_hidden_and_blocked_when_course_published(): void
+    {
+        $company = $this->makeCompany('CPG', 'Company G');
+        $admin = $this->actingAsLmsAdmin($company->id);
+        $course = $this->makeCourse($company->id); // makeCourse() -> status published by default
+        $employee = User::factory()->create(['company_id' => $company->id, 'name' => 'Peserta Published']);
+
+        $participant = LmsCourseUsers::create([
+            'course_id' => $course->id,
+            'user_id' => $employee->id,
+            'is_mandatory' => true,
+            'status' => CourseUserStatus::APPROVED->value,
+            'score' => 0,
+        ]);
+
+        Livewire::actingAs($admin)
+            ->test(LmsCourseDetailPage::class, ['course' => $course])
+            ->assertSee('Peserta Published')
+            ->assertDontSeeHtml("wire:click=\"removeParticipant('{$participant->id}')\"")
+            ->call('removeParticipant', $participant->id)
+            ->assertForbidden();
+
+        $this->assertDatabaseHas('lms_course_users', ['id' => $participant->id]);
+    }
+
+    public function test_delete_participant_button_shown_and_works_when_course_draft(): void
+    {
+        $company = $this->makeCompany('CPH', 'Company H');
+        $admin = $this->actingAsLmsAdmin($company->id);
+        $course = $this->makeCourse($company->id);
+        $course->update(['status' => \App\Enum\LsmCourseStatus::Draft->value]);
+        $employee = User::factory()->create(['company_id' => $company->id]);
+
+        $participant = LmsCourseUsers::create([
+            'course_id' => $course->id,
+            'user_id' => $employee->id,
+            'is_mandatory' => true,
+            'status' => CourseUserStatus::APPROVED->value,
+            'score' => 0,
+        ]);
+
+        Livewire::actingAs($admin)
+            ->test(LmsCourseDetailPage::class, ['course' => $course])
+            ->assertSeeHtml("wire:click=\"removeParticipant('{$participant->id}')\"")
+            ->call('removeParticipant', $participant->id);
+
+        $this->assertDatabaseMissing('lms_course_users', ['id' => $participant->id]);
+    }
+
     public function test_shows_meetings_tab(): void
     {
         $company = $this->makeCompany('CPA', 'Company A');
@@ -451,15 +502,179 @@ class LmsCourseDetailPageTest extends TestCase
             ->assertDontSee('Quiz A');
     }
 
+    public function test_saving_quiz_with_graduation_requirement_checked_persists_flag(): void
+    {
+        $company = $this->makeCompany('CPF', 'Company F');
+        $admin = $this->actingAsLmsAdmin($company->id);
+        $category = LmsCategories::create(['name' => 'Kategori F']);
+        $course = $this->makeCourse($company->id);
+        $course->update(['category_id' => $category->id, 'start_date' => '2026-08-10', 'end_date' => '2026-08-10']);
+        $meeting = $course->meetings()->create([
+            'title' => 'Sesi Utama',
+            'start_date' => '2026-08-10',
+            'end_date' => '2026-08-10',
+        ]);
+        $quiz = LmsQuizzes::create(['category_id' => $category->id, 'title' => 'Quiz Kelulusan']);
+
+        Livewire::actingAs($admin)
+            ->test(LmsCourseDetailPage::class, ['course' => $course])
+            ->call('setTab', 'pertemuan')
+            ->call('toggleMeetingAccordion', $meeting->id)
+            ->call('openAddQuizForm', $meeting->id)
+            ->set('quizId', $quiz->id)
+            ->set('quizDuration', 20)
+            ->set('quizIsGraduationRequirement', true)
+            ->call('saveQuiz')
+            ->assertSee('Penentu Kelulusan');
+
+        $this->assertDatabaseHas('lms_meeting_quizzes', [
+            'meeting_id' => $meeting->id,
+            'quiz_id' => $quiz->id,
+            'is_graduation_requirement' => true,
+        ]);
+    }
+
+    public function test_quiz_results_summary_and_list_modals_show_employee_and_public_results(): void
+    {
+        $company = $this->makeCompany('CPI', 'Company I');
+        $admin = $this->actingAsLmsAdmin($company->id);
+        $course = $this->makeCourse($company->id);
+        $meeting = $course->meetings()->create(['title' => 'Sesi Utama']);
+        $quiz = LmsQuizzes::create(['title' => 'Quiz Hasil']);
+        $meetingQuiz = \App\Models\LMS\LmsMeetingQuizzes::create(['meeting_id' => $meeting->id, 'quiz_id' => $quiz->id]);
+
+        $employee = User::factory()->create(['company_id' => $company->id, 'name' => 'Karyawan Uji']);
+        $employeeRespondent = LmsRespondent::create([
+            'course_id' => $course->id,
+            'user_id' => $employee->id,
+            'name' => $employee->name,
+            'category' => LmsRespondent::CATEGORY_KUIS,
+        ]);
+        LmsQuizResults::create([
+            'meeting_quiz_id' => $meetingQuiz->id,
+            'quiz_id' => $quiz->id,
+            'respondent_id' => $employeeRespondent->id,
+            'total_score' => 80,
+            'max_score' => 100,
+            'correct_count' => 4,
+            'wrong_count' => 1,
+            'is_completed' => true,
+            'status' => 'completed',
+        ]);
+
+        $publicRespondent = LmsRespondent::create([
+            'course_id' => $course->id,
+            'name' => 'Tamu Publik',
+            'category' => LmsRespondent::CATEGORY_KUIS,
+        ]);
+        LmsQuizResults::create([
+            'meeting_quiz_id' => $meetingQuiz->id,
+            'quiz_id' => $quiz->id,
+            'respondent_id' => $publicRespondent->id,
+            'total_score' => 60,
+            'max_score' => 100,
+            'correct_count' => 3,
+            'wrong_count' => 2,
+            'is_completed' => true,
+            'status' => 'completed',
+        ]);
+
+        $component = Livewire::actingAs($admin)
+            ->test(LmsCourseDetailPage::class, ['course' => $course])
+            ->call('showQuizResultsSummary', $meetingQuiz->id)
+            ->assertSet('quizResultsMode', 'summary')
+            ->assertSee('Rangkuman Hasil Kuis')
+            ->assertSee('70'); // rata-rata (80+60)/2
+
+        $summary = $component->instance()->quizResultsSummary;
+        $this->assertSame(2, $summary['total']);
+        $this->assertSame(1, $summary['employee_count']);
+        $this->assertSame(1, $summary['public_count']);
+
+        $component->call('showQuizResultsList', $meetingQuiz->id)
+            ->assertSet('quizResultsMode', 'list')
+            ->assertSee('Karyawan Uji')
+            ->assertSee('Tamu Publik')
+            ->assertSee('Karyawan')
+            ->assertSee('Publik');
+
+        $component->call('closeQuizResultsModal')
+            ->assertSet('quizResultsMeetingQuizId', null);
+    }
+
+    public function test_delete_quiz_button_hidden_and_blocked_once_answered(): void
+    {
+        $company = $this->makeCompany('CPJ', 'Company J');
+        $admin = $this->actingAsLmsAdmin($company->id);
+        $course = $this->makeCourse($company->id);
+        $meeting = $course->meetings()->create(['title' => 'Sesi Utama']);
+        $quiz = LmsQuizzes::create(['title' => 'Quiz Terjawab']);
+        $meetingQuiz = \App\Models\LMS\LmsMeetingQuizzes::create(['meeting_id' => $meeting->id, 'quiz_id' => $quiz->id]);
+
+        $respondent = LmsRespondent::create([
+            'course_id' => $course->id,
+            'name' => 'Tamu',
+            'category' => LmsRespondent::CATEGORY_KUIS,
+        ]);
+        LmsQuizResults::create([
+            'meeting_quiz_id' => $meetingQuiz->id,
+            'quiz_id' => $quiz->id,
+            'respondent_id' => $respondent->id,
+            'total_score' => 100,
+            'max_score' => 100,
+            'is_completed' => true,
+            'status' => 'completed',
+        ]);
+
+        Livewire::actingAs($admin)
+            ->test(LmsCourseDetailPage::class, ['course' => $course])
+            ->call('setTab', 'pertemuan')
+            ->call('toggleMeetingAccordion', $meeting->id)
+            ->assertDontSeeHtml("wire:click=\"removeQuiz('{$meetingQuiz->id}')\"")
+            ->call('removeQuiz', $meetingQuiz->id)
+            ->assertForbidden();
+
+        $this->assertDatabaseHas('lms_meeting_quizzes', ['id' => $meetingQuiz->id]);
+    }
+
+    public function test_delete_quiz_button_shown_and_works_when_unanswered(): void
+    {
+        $company = $this->makeCompany('CPK', 'Company K');
+        $admin = $this->actingAsLmsAdmin($company->id);
+        $category = LmsCategories::create(['name' => 'Kategori K']);
+        $course = $this->makeCourse($company->id);
+        $course->update(['category_id' => $category->id]);
+        $meeting = $course->meetings()->create(['title' => 'Sesi Utama']);
+        $quiz = LmsQuizzes::create(['category_id' => $category->id, 'title' => 'Quiz Belum Terjawab']);
+        $meetingQuiz = \App\Models\LMS\LmsMeetingQuizzes::create(['meeting_id' => $meeting->id, 'quiz_id' => $quiz->id]);
+
+        Livewire::actingAs($admin)
+            ->test(LmsCourseDetailPage::class, ['course' => $course])
+            ->call('setTab', 'pertemuan')
+            ->call('toggleMeetingAccordion', $meeting->id)
+            ->assertSeeHtml("wire:click=\"removeQuiz('{$meetingQuiz->id}')\"")
+            ->call('removeQuiz', $meetingQuiz->id);
+
+        $this->assertDatabaseMissing('lms_meeting_quizzes', ['id' => $meetingQuiz->id]);
+    }
+
     public function test_shows_feedback_tab(): void
     {
         $company = $this->makeCompany('CPA', 'Company A');
         $admin = $this->actingAsLmsAdmin($company->id);
         $course = $this->makeCourse($company->id);
+        $course->update(['requires_feedback' => true]);
         $employee = User::factory()->create(['company_id' => $company->id]);
 
-        $course->feedbacks()->create([
+        $respondent = LmsRespondent::create([
+            'course_id' => $course->id,
             'user_id' => $employee->id,
+            'name' => $employee->name,
+            'category' => LmsRespondent::CATEGORY_UMPAN_BALIK,
+        ]);
+
+        $course->feedbacks()->create([
+            'respondent_id' => $respondent->id,
             'rating' => 5,
             'feedback' => 'Sangat bagus',
         ]);
@@ -468,5 +683,85 @@ class LmsCourseDetailPageTest extends TestCase
             ->test(LmsCourseDetailPage::class, ['course' => $course])
             ->call('setTab', 'umpan-balik')
             ->assertSee('Sangat bagus');
+    }
+
+    public function test_umpan_balik_tab_and_qr_button_hidden_when_requires_feedback_false(): void
+    {
+        $company = $this->makeCompany('CPD', 'Company D');
+        $admin = $this->actingAsLmsAdmin($company->id);
+        $course = $this->makeCourse($company->id);
+        $course->update(['requires_feedback' => false, 'feedback_public_token' => 'leftover-token']);
+
+        Livewire::actingAs($admin)
+            ->test(LmsCourseDetailPage::class, ['course' => $course])
+            ->assertDontSee('Umpan Balik')
+            ->assertDontSee('QR Umpan Balik')
+            ->call('setTab', 'umpan-balik')
+            ->assertSet('tab', 'peserta');
+    }
+
+    public function test_umpan_balik_tab_and_qr_button_shown_when_requires_feedback_true(): void
+    {
+        $company = $this->makeCompany('CPE', 'Company E');
+        $admin = $this->actingAsLmsAdmin($company->id);
+        $course = $this->makeCourse($company->id);
+        $course->update(['requires_feedback' => true, 'feedback_public_token' => 'active-token']);
+
+        Livewire::actingAs($admin)
+            ->test(LmsCourseDetailPage::class, ['course' => $course])
+            ->assertSee('Umpan Balik')
+            ->assertSee('QR Umpan Balik')
+            ->call('setTab', 'umpan-balik')
+            ->assertSet('tab', 'umpan-balik');
+    }
+
+    public function test_publishing_course_generates_public_tokens_for_quiz_and_feedback(): void
+    {
+        $company = $this->makeCompany('CPB', 'Company B');
+        $admin = $this->actingAsLmsAdmin($company->id);
+        $course = $this->makeCourse($company->id);
+        $course->update(['status' => \App\Enum\LsmCourseStatus::Draft->value, 'requires_feedback' => true]);
+
+        $trainer = Trainers::create(['type' => 'internal', 'name' => 'Trainer Uji', 'is_active' => true]);
+        $meeting = $course->meetings()->create([
+            'title' => 'Sesi 1',
+            'trainer_id' => $trainer->id,
+            'start_time' => '09:00',
+            'end_time' => '11:00',
+        ]);
+        $quiz = LmsQuizzes::create(['title' => 'Quiz Publish Test']);
+        $meetingQuiz = \App\Models\LMS\LmsMeetingQuizzes::create(['meeting_id' => $meeting->id, 'quiz_id' => $quiz->id]);
+
+        $employee = User::factory()->create(['company_id' => $company->id]);
+        LmsCourseUsers::create(['course_id' => $course->id, 'user_id' => $employee->id, 'status' => 'approved']);
+
+        Livewire::actingAs($admin)
+            ->test(LmsCourseDetailPage::class, ['course' => $course])
+            ->call('publishCourse')
+            ->assertHasNoErrors();
+
+        $course->refresh();
+        $meetingQuiz->refresh();
+
+        $this->assertNotNull($meetingQuiz->public_token);
+        $this->assertNotNull($course->feedback_public_token);
+        $this->assertSame(\App\Enum\LsmCourseStatus::Published->value, $course->status);
+    }
+
+    public function test_opening_already_published_course_self_heals_missing_feedback_token(): void
+    {
+        $company = $this->makeCompany('CPC', 'Company C');
+        $admin = $this->actingAsLmsAdmin($company->id);
+        // requires_feedback diaktifkan SETELAH course sudah published (mis. lewat toggle di form
+        // Tambah Pelatihan yang baru dibuat belakangan) — tombol Publish sudah tidak ada lagi,
+        // jadi token cuma bisa dilengkapi lewat self-healing di mount().
+        $course = $this->makeCourse($company->id);
+        $course->update(['status' => \App\Enum\LsmCourseStatus::Published->value, 'requires_feedback' => true]);
+
+        $this->assertNull($course->feedback_public_token);
+
+        Livewire::actingAs($admin)->test(LmsCourseDetailPage::class, ['course' => $course]);
+
+        $this->assertNotNull($course->fresh()->feedback_public_token);
     }
 }

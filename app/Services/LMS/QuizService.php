@@ -34,7 +34,11 @@ class QuizService
         $this->courseRepositories = $courseRepositories;
     }
 
-    public function getQuizDetail(string $meetingQuizId, string $userId)
+    /**
+     * $excludeEssay = true untuk kuis publik (§7.4 planning) — soal esai tidak pernah
+     * dikirim/diterima di jalur publik, cuma pilihan ganda.
+     */
+    public function getQuizDetail(string $meetingQuizId, bool $excludeEssay = false)
     {
         $meetingQuiz = $this->quizRepo->getMeetingQuizById($meetingQuizId);
         if (!$meetingQuiz) return null;
@@ -42,11 +46,15 @@ class QuizService
         $quiz = $meetingQuiz->quiz;
         $questions = $quiz->questions->sortBy('sort_order');
 
+        if ($excludeEssay) {
+            $questions = $questions->reject(fn ($q) => $q->type === 'essay');
+        }
+
         $formattedQuestions = $questions->values()->map(function ($q, $index) {
             $options = $q->options->shuffle()->map(function ($o, $optionIndex) {
                 return [
                     'id' => $o->id,
-                    'text' => chr(65 + $optionIndex) . '. ' . $o->option_text
+                    'text' => chr(65 + $optionIndex) . '. ' . $this->cleanOptionText($o->option_text)
                 ];
             });
 
@@ -54,7 +62,7 @@ class QuizService
                 'id' => $q->id,
                 'no' => $index + 1,
                 'type' => $q->type,
-                'question_text' => $q->question,
+                'question_text' => trim(strip_tags($q->question)),
                 'options' => $q->type !== 'essay' ? $options : []
             ];
         });
@@ -67,9 +75,15 @@ class QuizService
         ];
     }
 
-    public function submitQuiz(string $meetingQuizId, array $answers, string $userId)
+    /**
+     * $employeeUserId cuma diisi untuk peserta terdaftar (portal/mobile) — dipakai untuk
+     * validasi enrollment (CourseUserStatus::APPROVED) dan update progress pertemuan.
+     * Jalur publik memanggil dengan $employeeUserId = null: tanpa validasi enrollment,
+     * tanpa update progress (lms_course_meeting_users tidak pernah menyentuh respondent publik).
+     */
+    public function submitQuiz(string $meetingQuizId, array $answers, string $respondentId, ?string $employeeUserId = null)
     {
-        $existingResult = $this->quizRepo->findUserResultByMeetingQuizId($meetingQuizId, $userId);
+        $existingResult = $this->quizRepo->findUserResultByMeetingQuizId($meetingQuizId, $respondentId);
         if ($existingResult) {
             return [
                 'is_submitted' => true,
@@ -82,13 +96,16 @@ class QuizService
 
         $meetingQuiz = $this->quizRepo->getMeetingQuizById($meetingQuizId);
         $meeting = $this->courseRepositories->getMeetingById($meetingQuiz->meeting_id);
-        $courseUser = $this->courseUserRepository->getByUserIdAndCourseId($userId, $meeting->course_id);
 
-        if (!$courseUser || $courseUser->status !== CourseUserStatus::APPROVED->value) {
-            return [
-                'success' => false,
-                'message' => 'Your course enrollment has not been approved yet.',
-            ];
+        if ($employeeUserId) {
+            $courseUser = $this->courseUserRepository->getByUserIdAndCourseId($employeeUserId, $meeting->course_id);
+
+            if (!$courseUser || $courseUser->status !== CourseUserStatus::APPROVED->value) {
+                return [
+                    'success' => false,
+                    'message' => 'Your course enrollment has not been approved yet.',
+                ];
+            }
         }
 
         $quiz = $meetingQuiz->quiz;
@@ -136,7 +153,7 @@ class QuizService
                 'meeting_quiz_id' => $meetingQuizId,
                 'quiz_id' => $quiz->id,
                 'question_id' => $question->id,
-                'user_id' => $userId,
+                'respondent_id' => $respondentId,
                 'user_answer' => $userAnswer,
                 'is_correct' => $isCorrect,
                 'earned_points' => $earnedPoints
@@ -148,7 +165,7 @@ class QuizService
         $this->quizRepo->saveUserResult([
             'meeting_quiz_id' => $meetingQuizId,
             'quiz_id' => $quiz->id,
-            'user_id' => $userId,
+            'respondent_id' => $respondentId,
             'total_score' => $totalAutoScore,
             'max_score' => $maxAutoScore,
             'correct_count' => $correct_count,
@@ -158,7 +175,9 @@ class QuizService
             'status' => $status,
         ]);
 
-        $this->updateMeetingUserData($userId, $meetingQuiz->meeting_id);
+        if ($employeeUserId) {
+            $this->updateMeetingUserData($employeeUserId, $meetingQuiz->meeting_id);
+        }
 
         return [
             'user_score' => $totalAutoScore,
@@ -169,16 +188,18 @@ class QuizService
     }
 
     /**
-     * Admin menilai jawaban esai satu attempt quiz (1 meeting_quiz + 1 user). $scores: [answer_id => skor].
+     * Admin menilai jawaban esai satu attempt quiz (1 meeting_quiz + 1 respondent). $scores: [answer_id => skor].
      * Skor MC yang sudah tersimpan tidak disentuh — cuma earned_points esai yang diupdate, lalu
      * total_score di-summasi ulang dari SEMUA jawaban (MC + esai) supaya konsisten dengan submitQuiz().
+     * Esai cuma pernah muncul di jalur peserta terdaftar (kuis publik tidak pernah kirim esai),
+     * jadi $result->respondent->user_id selalu terisi di sini.
      */
-    public function reviewEssayAnswers(string $meetingQuizId, string $userId, array $scores, string $reviewerId): void
+    public function reviewEssayAnswers(string $meetingQuizId, string $respondentId, array $scores, string $reviewerId): void
     {
-        $result = $this->quizRepo->findUserResultByMeetingQuizId($meetingQuizId, $userId);
+        $result = $this->quizRepo->findUserResultByMeetingQuizId($meetingQuizId, $respondentId);
         abort_unless($result && $result->status === 'pending_review', 404);
 
-        $essayAnswers = $this->quizRepo->getEssayAnswers($meetingQuizId, $userId);
+        $essayAnswers = $this->quizRepo->getEssayAnswers($meetingQuizId, $respondentId);
 
         foreach ($essayAnswers as $answer) {
             if (!array_key_exists($answer->id, $scores)) {
@@ -191,12 +212,12 @@ class QuizService
             $this->quizRepo->updateAnswerScore($answer->id, $earnedPoints);
         }
 
-        $totalScore = $this->quizRepo->getAllAnswers($meetingQuizId, $userId)->sum('earned_points');
+        $totalScore = $this->quizRepo->getAllAnswers($meetingQuizId, $respondentId)->sum('earned_points');
 
         $this->quizRepo->saveUserResult([
             'meeting_quiz_id' => $meetingQuizId,
             'quiz_id' => $result->quiz_id,
-            'user_id' => $userId,
+            'respondent_id' => $respondentId,
             'total_score' => $totalScore,
             'max_score' => $result->max_score,
             'correct_count' => $result->correct_count,
@@ -208,7 +229,11 @@ class QuizService
             'reviewed_at' => now(),
         ]);
 
-        $this->updateMeetingUserData($userId, $this->quizRepo->getMeetingQuizById($meetingQuizId)->meeting_id);
+        $employeeUserId = $result->respondent->user_id ?? null;
+
+        if ($employeeUserId) {
+            $this->updateMeetingUserData($employeeUserId, $this->quizRepo->getMeetingQuizById($meetingQuizId)->meeting_id);
+        }
     }
 
     /**
@@ -258,7 +283,7 @@ class QuizService
     /**
      * Hapus kuis yang tidak dipakai di pelatihan manapun. FK lms_meeting_quizzes->lms_quizzes
      * pakai cascadeOnDelete (bukan restrict), jadi kalau tidak dijaga di sini hapus kuis akan
-     * diam-diam ikut menghapus riwayat hasil kuis peserta (lms_quiz_user_answers/results via
+     * diam-diam ikut menghapus riwayat hasil kuis peserta (lms_quiz_answers/results via
      * meeting_quiz_id). Admin EditQuiz.php belum punya guard ini — sengaja tidak diikuti.
      */
     public function deleteQuiz(string $id): void
@@ -270,6 +295,20 @@ class QuizService
         }
 
         $quiz->delete();
+    }
+
+    /**
+     * Sebagian soal lama diketik dengan huruf pilihan sudah menempel di teksnya sendiri
+     * (mis. "A. Untuk memenuhi persyaratan akreditasi") — kalau dibiarkan, huruf itu ikut
+     * ter-acak posisinya waktu shuffle() di atas, sementara huruf baru yang ditambahkan
+     * (chr(65+$optionIndex)) mengikuti posisi SETELAH shuffle, jadi dua-duanya beda dan
+     * salah satunya jadi tidak sinkron. Buang huruf lama sebelum huruf baru ditambahkan.
+     */
+    protected function cleanOptionText(?string $text): string
+    {
+        $text = trim(strip_tags($text ?? ''));
+
+        return preg_replace('/^[A-Za-z][\.\)]\s*/', '', $text);
     }
 
     /**

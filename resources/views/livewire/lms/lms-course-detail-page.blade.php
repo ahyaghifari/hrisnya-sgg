@@ -84,17 +84,133 @@
             @endif
         </div>
 
-        @if ($statusCase === LsmCourseStatus::Draft && $this->canPublish && $this->canEditDetail)
-            <button type="button" wire:click="publishCourse" wire:confirm="Publish pelatihan ini? Setelah dipublish, pelatihan akan tampil ke peserta." class="btn-primary" style="padding:9px 18px;font-size:12.5px;">
-                <i class="fa-solid fa-paper-plane"></i> Publish
-            </button>
-        @endif
+        <div style="display:flex;gap:8px;">
+            @if ($course->requires_feedback && $course->feedback_public_token)
+                <button type="button" wire:click="showFeedbackQr" class="btn-ghost" style="padding:9px 18px;font-size:12.5px;">
+                    <i class="fa-solid fa-qrcode"></i> QR Umpan Balik
+                </button>
+            @endif
+
+            @if ($statusCase === LsmCourseStatus::Draft && $this->canPublish && $this->canEditDetail)
+                <button type="button" wire:click="publishCourse" wire:confirm="Publish pelatihan ini? Setelah dipublish, pelatihan akan tampil ke peserta." class="btn-primary" style="padding:9px 18px;font-size:12.5px;">
+                    <i class="fa-solid fa-paper-plane"></i> Publish
+                </button>
+            @endif
+        </div>
     </div>
+
+    @if ($qrModalUrl)
+        <div class="modal-overlay" wire:click.self="closeQrModal">
+            <div style="background:var(--surface);border-radius:14px;padding:24px;max-width:360px;width:100%;text-align:center;margin-top:10vh;">
+                <p style="font-size:13.5px;font-weight:700;color:var(--text-heading);margin-bottom:14px;">{{ $qrModalTitle }}</p>
+                <img src="{{ $qrModalUrl }}" alt="QR Code" style="width:100%;max-width:280px;margin:0 auto 14px;display:block;">
+                <p style="font-size:11px;color:var(--text-muted);word-break:break-all;margin-bottom:16px;">{{ $qrModalLink }}</p>
+                <button type="button" wire:click="closeQrModal" class="btn-ghost" style="padding:8px 18px;font-size:12.5px;">Tutup</button>
+            </div>
+        </div>
+    @endif
+
+    @if ($quizResultsMeetingQuizId)
+        <div class="modal-overlay" wire:click.self="closeQuizResultsModal">
+            <div style="background:var(--surface);border-radius:14px;padding:24px;max-width:680px;width:100%;margin-top:6vh;max-height:85vh;overflow-y:auto;">
+                @if ($quizResultsMode === 'summary')
+                    <p style="font-size:13.5px;font-weight:700;color:var(--text-heading);margin-bottom:16px;">
+                        <i class="fa-solid fa-chart-simple" style="color:var(--text-faint);"></i> Rangkuman Hasil Kuis
+                    </p>
+
+                    <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(150px, 1fr));gap:14px;margin-bottom:8px;">
+                        <div style="background:var(--surface-muted);border-radius:10px;padding:14px;">
+                            <p style="font-size:11px;color:var(--text-faint);margin:0 0 6px;text-transform:uppercase;letter-spacing:.03em;">
+                                <i class="fa-solid fa-users"></i> Total Peserta
+                            </p>
+                            <p style="font-size:20px;font-weight:800;color:var(--text-heading);margin:0 0 8px;">{{ $this->quizResultsSummary['total'] }}</p>
+                            <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                                <span class="badge badge-cancelled"><i class="fa-solid fa-id-badge"></i> {{ $this->quizResultsSummary['employee_count'] }} Karyawan</span>
+                                <span class="badge" style="background:#dbeafe;color:#1d4ed8;"><i class="fa-solid fa-globe"></i> {{ $this->quizResultsSummary['public_count'] }} Publik</span>
+                            </div>
+                        </div>
+                        <div style="background:var(--surface-muted);border-radius:10px;padding:14px;">
+                            <p style="font-size:11px;color:var(--text-faint);margin:0 0 6px;text-transform:uppercase;letter-spacing:.03em;">
+                                <i class="fa-solid fa-chart-line"></i> Rata-rata Skor
+                            </p>
+                            <p style="font-size:20px;font-weight:800;color:var(--text-heading);margin:0;">{{ $this->quizResultsSummary['avg_score'] }}</p>
+                        </div>
+                        <div style="background:var(--surface-muted);border-radius:10px;padding:14px;">
+                            <p style="font-size:11px;color:var(--text-faint);margin:0 0 6px;text-transform:uppercase;letter-spacing:.03em;">
+                                <i class="fa-solid fa-arrow-up-wide-short"></i> Tertinggi / Terendah
+                            </p>
+                            <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                                <span class="badge badge-approved">{{ $this->quizResultsSummary['max_score'] }}</span>
+                                <span class="badge badge-cancelled">{{ $this->quizResultsSummary['min_score'] }}</span>
+                            </div>
+                        </div>
+                        @if ($this->quizResultsSummary['pending_review'] > 0)
+                            <div style="background:var(--surface-muted);border-radius:10px;padding:14px;">
+                                <p style="font-size:11px;color:var(--text-faint);margin:0 0 6px;text-transform:uppercase;letter-spacing:.03em;">
+                                    <i class="fa-solid fa-pen-to-square"></i> Esai Belum Dinilai
+                                </p>
+                                <span class="badge badge-pending">{{ $this->quizResultsSummary['pending_review'] }} menunggu</span>
+                            </div>
+                        @endif
+                    </div>
+                @else
+                    <p style="font-size:13.5px;font-weight:700;color:var(--text-heading);margin-bottom:16px;">Hasil Kuis — Seluruh Peserta &amp; Responden</p>
+
+                    <div style="overflow-x:auto;">
+                        <table style="width:100%;border-collapse:collapse;font-size:12px;">
+                            <thead>
+                                <tr style="border-bottom:1.5px solid var(--border);">
+                                    <th style="text-align:left;padding:8px 10px;white-space:nowrap;">Nama</th>
+                                    <th style="text-align:left;padding:8px 10px;white-space:nowrap;">Asal</th>
+                                    <th style="text-align:center;padding:8px 10px;white-space:nowrap;">Skor</th>
+                                    <th style="text-align:center;padding:8px 10px;white-space:nowrap;">Benar/Salah</th>
+                                    <th style="text-align:center;padding:8px 10px;white-space:nowrap;">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @forelse ($this->quizResults as $result)
+                                    <tr style="border-bottom:1px solid var(--border-soft);">
+                                        <td style="padding:8px 10px;font-weight:600;white-space:nowrap;">{{ $result->respondent?->name ?? '-' }}</td>
+                                        <td style="padding:8px 10px;white-space:nowrap;">
+                                            @if ($result->respondent?->user_id)
+                                                <span class="badge badge-cancelled"><i class="fa-solid fa-id-badge"></i> Karyawan</span>
+                                            @else
+                                                <span class="badge" style="background:#dbeafe;color:#1d4ed8;"><i class="fa-solid fa-globe"></i> Publik</span>
+                                            @endif
+                                        </td>
+                                        <td style="padding:8px 10px;text-align:center;white-space:nowrap;">{{ $result->total_score }}/{{ $result->max_score }}</td>
+                                        <td style="padding:8px 10px;text-align:center;white-space:nowrap;">{{ $result->correct_count }}/{{ $result->wrong_count }}</td>
+                                        <td style="padding:8px 10px;text-align:center;white-space:nowrap;">
+                                            @if ($result->status === 'pending_review')
+                                                <span class="badge badge-pending"><i class="fa-solid fa-pen-to-square"></i> Belum Dinilai</span>
+                                            @else
+                                                <span class="badge badge-approved"><i class="fa-solid fa-circle-check"></i> Selesai</span>
+                                            @endif
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="5" style="padding:20px;text-align:center;color:var(--text-faint);">Belum ada yang mengerjakan kuis ini.</td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                @endif
+
+                <div style="display:flex;justify-content:flex-end;margin-top:16px;">
+                    <button type="button" wire:click="closeQuizResultsModal" class="btn-ghost" style="padding:8px 18px;font-size:12.5px;">Tutup</button>
+                </div>
+            </div>
+        </div>
+    @endif
 
     <div style="border-bottom:1px solid var(--border-soft);margin-bottom:18px;">
         <button type="button" wire:click="setTab('peserta')" class="lms-course-tab {{ $tab === 'peserta' ? 'is-active' : '' }}">Peserta</button>
         <button type="button" wire:click="setTab('pertemuan')" class="lms-course-tab {{ $tab === 'pertemuan' ? 'is-active' : '' }}">Pertemuan</button>
-        <button type="button" wire:click="setTab('umpan-balik')" class="lms-course-tab {{ $tab === 'umpan-balik' ? 'is-active' : '' }}">Umpan Balik</button>
+        @if ($course->requires_feedback)
+            <button type="button" wire:click="setTab('umpan-balik')" class="lms-course-tab {{ $tab === 'umpan-balik' ? 'is-active' : '' }}">Umpan Balik</button>
+        @endif
         <button type="button" wire:click="setTab('penilaian')" class="lms-course-tab {{ $tab === 'penilaian' ? 'is-active' : '' }}">Penilaian dan Gaji Pemateri</button>
     </div>
 
@@ -136,9 +252,6 @@
                 <thead>
                     <tr style="border-bottom:1.5px solid var(--border);">
                         <th style="text-align:left;padding:10px 14px;white-space:nowrap;">Nama Peserta</th>
-                        @if ($this->courseHasAnyQuiz)
-                            <th style="text-align:center;padding:10px 14px;white-space:nowrap;">Skor Kuis</th>
-                        @endif
                         <th style="text-align:center;padding:10px 14px;white-space:nowrap;">Status</th>
                         <th style="text-align:center;padding:10px 14px;white-space:nowrap;">Aksi</th>
                     </tr>
@@ -147,9 +260,6 @@
                     @forelse ($this->participants as $participant)
                         <tr wire:key="'participant-'.{{ $participant->id }}" style="border-bottom:1px solid var(--border-soft);">
                             <td style="padding:9px 14px;font-weight:600;">{{ $participant->user?->name ?? '-' }}</td>
-                            @if ($this->courseHasAnyQuiz)
-                                <td style="padding:9px 14px;text-align:center;">{{ $participant->score }}</td>
-                            @endif
                             <td style="padding:9px 14px;text-align:center;">
                                 <span class="badge" style="background:var(--surface-muted);color:var(--text-muted);">{{ CourseUserStatus::tryFrom($participant->status)?->getLabel() ?? $participant->status }}</span>
                             </td>
@@ -166,16 +276,18 @@
                                                 <i class="fa-solid fa-ban"></i>
                                             </button>
                                         @endif
-                                        <button type="button" wire:click="removeParticipant('{{ $participant->id }}')" wire:confirm="Hapus peserta ini dari pelatihan?" class="btn-ghost" style="padding:5px 10px;font-size:11px;color:#dc2626;" title="Hapus">
-                                            <i class="fa-solid fa-trash"></i>
-                                        </button>
+                                        @if ($statusCase !== LsmCourseStatus::Published)
+                                            <button type="button" wire:click="removeParticipant('{{ $participant->id }}')" wire:confirm="Hapus peserta ini dari pelatihan?" class="btn-ghost" style="padding:5px 10px;font-size:11px;color:#dc2626;" title="Hapus">
+                                                <i class="fa-solid fa-trash"></i>
+                                            </button>
+                                        @endif
                                     </div>
                                 @endif
                             </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="{{ $this->courseHasAnyQuiz ? 4 : 3 }}" style="padding:24px;text-align:center;color:var(--text-faint);">{{ trim($participantSearch) !== '' ? 'Tidak ada peserta yang cocok untuk pencarian ini.' : 'Belum ada peserta.' }}</td>
+                            <td colspan="3" style="padding:24px;text-align:center;color:var(--text-faint);">{{ trim($participantSearch) !== '' ? 'Tidak ada peserta yang cocok untuk pencarian ini.' : 'Belum ada peserta.' }}</td>
                         </tr>
                     @endforelse
                 </tbody>
@@ -273,7 +385,7 @@
                 <tbody>
                     @forelse ($this->feedbacks as $feedback)
                         <tr wire:key="'feedback-'.{{ $feedback->id }}" style="border-bottom:1px solid var(--border-soft);">
-                            <td style="padding:9px 14px;font-weight:600;white-space:nowrap;">{{ $feedback->user?->name ?? '-' }}</td>
+                            <td style="padding:9px 14px;font-weight:600;white-space:nowrap;">{{ $feedback->respondent?->name ?? '-' }}</td>
                             <td style="padding:9px 14px;text-align:center;">{{ $feedback->rating }}</td>
                             <td style="padding:9px 14px;">{{ $feedback->feedback ?: '-' }}</td>
                         </tr>

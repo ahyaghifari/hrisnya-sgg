@@ -6,6 +6,7 @@ use App\Enum\AttendanceReqStatus;
 use App\Models\Attendance\AttendanceRequests;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -21,7 +22,13 @@ class MyAttendanceRequests extends Component
 {
     use WithPagination;
 
+    // Pagination di sini pakai wire:navigate (lihat livewire/partials/pagination.blade.php),
+    // yaitu full page-visit yang bikin komponen di-mount ULANG dari URL. Tanpa #[Url], filter
+    // ini ikut hilang begitu pindah halaman paginasi.
+    #[Url]
     public string $type = '';
+
+    #[Url]
     public string $status = '';
 
     public function mount(): void

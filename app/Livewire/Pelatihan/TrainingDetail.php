@@ -7,6 +7,7 @@ use App\Repositories\LMS\CourseUserRepository;
 use App\Repositories\LMS\QuizRepository;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
+use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -19,6 +20,10 @@ class TrainingDetail extends Component
     public ?string $courseUserId = null;
     public ?string $courseUserStatus = null;
 
+    // Pagination member list di sini pakai wire:navigate (lihat livewire/partials/pagination.blade.php),
+    // yaitu full page-visit yang bikin komponen di-mount ULANG dari URL. Tanpa #[Url], filter
+    // ini ikut hilang begitu pindah halaman paginasi.
+    #[Url]
     public string $memberSearch = '';
 
     /** @var array<string, bool> meeting_id => is_attended */

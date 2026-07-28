@@ -7,6 +7,7 @@ use App\Models\LMS\LmsCategories;
 use App\Models\LMS\LmsCourses;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\Url;
 use Livewire\Component;
 
 /**
@@ -31,8 +32,16 @@ use Livewire\Component;
 #[Layout('components.layout', ['title' => 'Pelatihan'])]
 class LmsCoursesPage extends Component
 {
+    // Pagination di sini pakai wire:navigate (lihat livewire/partials/pagination.blade.php),
+    // yaitu full page-visit yang bikin komponen di-mount ULANG dari URL. Tanpa #[Url], filter
+    // ini ikut hilang begitu pindah halaman paginasi.
+    #[Url]
     public ?string $companyId = null;
+
+    #[Url]
     public ?string $categoryId = null;
+
+    #[Url]
     public string $search = '';
 
     public function mount(): void

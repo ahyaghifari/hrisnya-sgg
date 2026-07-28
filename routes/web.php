@@ -92,6 +92,13 @@ Route::post('/logout', [LoginController::class, 'destroy'])
     ->middleware('auth')
     ->name('logout');
 
+// Publik (tanpa login) — kuis & umpan balik via QR, lihat planning §5. Throttle generous
+// (bukan 5/menit seperti /login) karena banyak orang bisa buka bareng dari 1 QR di 1 ruangan.
+Route::middleware('throttle:20,1')->prefix('publik')->group(function () {
+    Route::get('/kuis/{token}', \App\Livewire\LMS\PublicQuizPage::class)->name('lms.public.quiz');
+    Route::get('/umpan-balik/{token}', \App\Livewire\LMS\PublicFeedbackPage::class)->name('lms.public.feedback');
+});
+
 Route::middleware(['auth', 'portal.access'])->group(function () {
     Route::get('/', Dashboard::class)
         ->name('dashboard');
