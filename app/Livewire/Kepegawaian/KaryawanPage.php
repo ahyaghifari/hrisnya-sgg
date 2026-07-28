@@ -10,6 +10,7 @@ use App\Models\Master\OrgStructure;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -23,9 +24,21 @@ class KaryawanPage extends Component
 {
     use WithPagination;
 
+    // Pagination di sini pakai wire:navigate (lihat livewire/partials/pagination.blade.php),
+    // yaitu full page-visit yang bikin komponen di-mount ULANG dari URL — bukan wire:click
+    // di komponen yang sama. Tanpa #[Url], filter yang bukan bagian dari URL query string ikut
+    // hilang begitu pindah halaman paginasi. #[Url] menyimpan nilainya di query string supaya
+    // filter tetap kebawa lintas navigasi paginasi.
+    #[Url]
     public ?string $companyId = null;
+
+    #[Url]
     public ?string $departmentId = null;
+
+    #[Url]
     public string $search = '';
+
+    #[Url]
     public string $status = 'aktif';
 
     public function mount(): void

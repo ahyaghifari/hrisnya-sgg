@@ -213,6 +213,42 @@ class CounselingConfidentialityTest extends TestCase
             ->assertSet('canRespond', false);
     }
 
+    /**
+     * Regresi: pagination di halaman ini pakai wire:navigate (full page-visit), yang bikin
+     * komponen di-mount ULANG dari URL — tanpa #[Url] filter `status` hilang begitu pindah
+     * halaman. Test GET langsung (bukan Livewire::test) biar simulasi mount dari URL yang
+     * sebenarnya kejadian saat wire:navigate.
+     */
+    public function test_status_filter_is_read_from_url_on_page_load(): void
+    {
+        $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
+        $employee = User::factory()->create(['company_id' => $company->id]);
+        $counselor = User::factory()->create(['company_id' => $company->id]);
+
+        for ($i = 1; $i <= 15; $i++) {
+            Counseling::create([
+                'user_id' => $employee->id,
+                'counselor_id' => $counselor->id,
+                'company_id' => $company->id,
+                'issue' => "Keluhan selesai {$i}",
+                'status' => 'done',
+            ]);
+        }
+        Counseling::create([
+            'user_id' => $employee->id,
+            'counselor_id' => $counselor->id,
+            'company_id' => $company->id,
+            'issue' => 'Keluhan pending',
+            'status' => 'pending',
+        ]);
+
+        $response = $this->actingAs($counselor)->get(route('counseling.kelola', ['status' => 'done', 'page' => 2]));
+
+        $response->assertOk();
+        $response->assertSee('Keluhan selesai 11');
+        $response->assertDontSee('Keluhan pending');
+    }
+
     public function test_inbox_button_hidden_when_all_assigned_consults_already_done(): void
     {
         $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);

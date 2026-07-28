@@ -16,7 +16,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property-read \App\Models\LMS\LmsMeetings $meeting
  * @property-read \App\Models\LMS\LmsQuizzes $quiz
- * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\LMS\LmsQuizUserResults> $results
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\LMS\LmsQuizResults> $results
  * @property-read int|null $results_count
  * @method static \Illuminate\Database\Eloquent\Builder<static>|LmsMeetingQuizzes newModelQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|LmsMeetingQuizzes newQuery()
@@ -41,6 +41,8 @@ class LmsMeetingQuizzes extends Model
         'quiz_id',
         'sort_order',
         'duration',
+        'public_token',
+        'is_graduation_requirement',
     ];
 
     public function meeting()
@@ -55,7 +57,7 @@ class LmsMeetingQuizzes extends Model
 
     public function results()
     {
-        return $this->hasMany(LmsQuizUserResults::class, 'meeting_quiz_id', 'id');
+        return $this->hasMany(LmsQuizResults::class, 'meeting_quiz_id', 'id');
     }
 
     protected static function booted()

@@ -181,6 +181,30 @@ class QuizzesPageTest extends TestCase
         $this->assertDatabaseHas('lms_quizzes', ['id' => $quiz->id]);
     }
 
+    /**
+     * Regresi: QuizzesPage tidak pakai WithPagination trait, tapi pagination-nya tetap pakai
+     * wire:navigate (full page-visit) — komponen di-mount ULANG dari URL tiap pindah halaman.
+     * Tanpa #[Url], filter `categoryId` hilang. Test GET langsung (bukan Livewire::test) biar
+     * simulasi mount dari URL yang sebenarnya kejadian saat wire:navigate.
+     */
+    public function test_category_filter_is_read_from_url_on_page_load(): void
+    {
+        $admin = $this->actingAsLmsAdmin();
+        $catA = LmsCategories::create(['name' => 'Kategori A']);
+        $catB = LmsCategories::create(['name' => 'Kategori B']);
+
+        for ($i = 1; $i <= 15; $i++) {
+            $this->makeQuiz("Kuis A {$i}", ['category_id' => $catA->id]);
+        }
+        $this->makeQuiz('Kuis B 1', ['category_id' => $catB->id]);
+
+        $response = $this->actingAs($admin)->get(route('pelatihan.kuis', ['categoryId' => $catA->id, 'page' => 2]));
+
+        $response->assertOk();
+        $response->assertSee('Kuis A 11');
+        $response->assertDontSee('Kuis B 1');
+    }
+
     public function test_delete_button_hidden_when_quiz_used_in_a_meeting(): void
     {
         $admin = $this->actingAsLmsAdmin(['Delete:LmsQuizzes']);

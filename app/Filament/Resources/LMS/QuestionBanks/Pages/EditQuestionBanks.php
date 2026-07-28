@@ -16,7 +16,7 @@ class EditQuestionBanks extends EditRecord
     {
         return [
             // Soal yang sudah pernah dipakai di kuis (atau punya riwayat jawaban peserta) tidak
-            // boleh dihapus — FK ke lms_quiz_questions & lms_quiz_user_answers pakai
+            // boleh dihapus — FK ke lms_quiz_questions & lms_quiz_answers pakai
             // cascadeOnDelete, jadi hapus di sini bisa diam-diam menghapus riwayat kuis peserta.
             // Lihat guard yang sama di QuestionBankService::delete() (portal BankSoalPage).
             DeleteAction::make()

@@ -118,6 +118,16 @@
             @endif
         </div>
 
+        <div style="border-top:1px solid var(--border-soft);margin:24px 0 20px;"></div>
+
+        <div class="toggle-wrapper" wire:click="toggleRequiresFeedback">
+            <div class="toggle {{ $requires_feedback ? 'on' : '' }}"></div>
+            <div>
+                <p style="font-size:13.5px;font-weight:600;color:var(--text-body);margin:0 0 2px;">Aktifkan umpan balik publik</p>
+                <p style="font-size:12px;color:var(--text-muted);margin:0;">QR umpan balik dibuat otomatis begitu pelatihan di-publish, bisa dibagikan ke peserta lewat link/QR tanpa perlu login.</p>
+            </div>
+        </div>
+
         <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:28px;padding-top:20px;border-top:1px solid var(--border-soft);">
             <button type="button" wire:click="save" class="btn-primary" wire:loading.attr="disabled" wire:target="save,thumbnail">
                 <i class="fa-solid fa-check"></i> Simpan

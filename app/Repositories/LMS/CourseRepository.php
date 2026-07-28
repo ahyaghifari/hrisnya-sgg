@@ -62,7 +62,7 @@ class CourseRepository
     {
         $courseFeedback = LmsCourseFeedbacks::create([
             'course_id' => $data['course_id'],
-            'user_id' => $data['user_id'],
+            'respondent_id' => $data['respondent_id'],
             'rating' => round(collect($data['answers'])->avg('score')),
             'feedback' => $data['feedback'] ?? null,
         ]);

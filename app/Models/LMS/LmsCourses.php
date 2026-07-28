@@ -107,6 +107,7 @@ class LmsCourses extends Model
         'due_date',
         'minimum_score',
         'requires_feedback',
+        'feedback_public_token',
         'competency_id',
         'start_time',
         'end_time',

@@ -109,4 +109,40 @@ class UserTransitionsPageTest extends TestCase
         $this->assertSame(2, $counts->get(UserTransitionTypeEnum::PROMOTION->value));
         $this->assertSame(1, $counts->get(UserTransitionTypeEnum::TERMINATION->value));
     }
+
+    /**
+     * Regresi: pagination di halaman ini pakai wire:navigate (full page-visit), yang bikin
+     * komponen di-mount ULANG dari URL — tanpa #[Url] filter `type` hilang begitu pindah
+     * halaman. Test GET langsung (bukan Livewire::test) biar simulasi mount dari URL yang
+     * sebenarnya kejadian saat wire:navigate.
+     */
+    public function test_type_filter_is_read_from_url_on_page_load(): void
+    {
+        $company = $this->makeCompany();
+        $hc = $this->actingAsHc($company->id);
+        $promoted = User::factory()->create(['company_id' => $company->id, 'name' => 'Karyawan Promosi']);
+        $terminated = User::factory()->create(['company_id' => $company->id, 'name' => 'Karyawan PHK']);
+
+        // created_at eksplisit menaik (T/1 paling lama) — baseQuery pakai ->latest(), jadi
+        // urutan tampil deterministik terlepas dari kecepatan eksekusi test (dua create() yang
+        // kebetulan dapat timestamp detik yang sama bisa membalik urutan tie-break).
+        for ($i = 1; $i <= 15; $i++) {
+            UserTransition::create([
+                'company_id' => $company->id, 'user_id' => $terminated->id, 'created_by' => $hc->id,
+                'number' => "T/{$i}", 'status' => 'pending', 'transition_type' => UserTransitionTypeEnum::TERMINATION->value,
+                'created_at' => now()->subMinutes(20 - $i),
+            ]);
+        }
+        UserTransition::create([
+            'company_id' => $company->id, 'user_id' => $promoted->id, 'created_by' => $hc->id,
+            'number' => 'P/1', 'status' => 'pending', 'transition_type' => UserTransitionTypeEnum::PROMOTION->value,
+            'created_at' => now(),
+        ]);
+
+        $response = $this->actingAs($hc)->get(route('kepegawaian.mutasi-karyawan', ['type' => UserTransitionTypeEnum::TERMINATION->value, 'page' => 2]));
+
+        $response->assertOk();
+        $response->assertSee('T/1', false);
+        $response->assertDontSee('P/1');
+    }
 }

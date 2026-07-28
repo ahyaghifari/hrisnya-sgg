@@ -101,7 +101,7 @@ class QuestionBankService
      * Hapus soal — options ikut terhapus via FK cascadeOnDelete di migration.
      *
      * Guard: soal yang sudah pernah dipakai di kuis manapun tidak boleh dihapus. FK
-     * lms_quiz_questions & lms_quiz_user_answers ke lms_question_banks pakai cascadeOnDelete
+     * lms_quiz_questions & lms_quiz_answers ke lms_question_banks pakai cascadeOnDelete
      * (bukan restrict), jadi kalau tidak dijaga di sini, hapus soal akan diam-diam ikut
      * menghapus riwayat jawaban peserta kuis. Quiz tidak pernah detach soal (syncWithoutDetaching
      * di QuizForm), jadi quizzes()->exists() sudah cukup, tapi answers()->exists() dicek juga

@@ -73,10 +73,4 @@
         </div>
     @endif
 
-    {{-- Keterangan permanen - presensi belum ditarik otomatis dari mesin absen (Hikvision dkk),
-    masih hasil import/tes manual. Tampil di semua state biar tidak disalahpahami sebagai
-    clock-in real-time sungguhan. --}}
-    <p style="position:relative;z-index:1;font-size:10px;color:rgba(255,255,255,0.55);margin-top:12px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.15);">
-        <i class="fa-solid fa-circle-info" style="margin-right:4px;"></i>Presensi otomatis (clock-in/out) belum terintegrasi ke sistem ini.
-    </p>
 </div>

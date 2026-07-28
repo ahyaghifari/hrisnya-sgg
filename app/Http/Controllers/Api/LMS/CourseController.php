@@ -8,13 +8,16 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\LMS\CategoriesResource;
 use App\Http\Resources\LMS\CourseDetailsResource;
 use App\Http\Resources\LMS\CoursesResource;
+use App\Models\LMS\LmsRespondent;
 use App\Services\LMS\CourseService;
+use App\Services\LMS\RespondentService;
 use Illuminate\Http\Request;
 
 class CourseController extends Controller
 {
     public function __construct(
-        protected CourseService $courseService
+        protected CourseService $courseService,
+        protected RespondentService $respondentService
     ) {}
 
     public function getListCategories()
@@ -106,10 +109,13 @@ class CourseController extends Controller
 
         try {
             $userId = auth('sanctum')->user()->id;
+            $courseId = $request->input('course_id');
+
+            $respondent = $this->respondentService->resolveForEmployee($userId, $courseId, LmsRespondent::CATEGORY_UMPAN_BALIK);
 
             $this->courseService->storeFeedback([
-                'user_id' => $userId,
-                'course_id' => $request->input('course_id'),
+                'respondent_id' => $respondent->id,
+                'course_id' => $courseId,
                 'answers' => $request->input('answers'),
                 'feedback' => $request->input('feedback'),
             ]);

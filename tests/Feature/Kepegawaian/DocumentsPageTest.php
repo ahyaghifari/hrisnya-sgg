@@ -172,4 +172,37 @@ class DocumentsPageTest extends TestCase
 
         $this->assertFalse($document->fresh()->trashed());
     }
+
+    /**
+     * Regresi: pagination di halaman ini pakai wire:navigate (full page-visit), yang bikin
+     * komponen di-mount ULANG dari URL — tanpa #[Url] filter companyId hilang begitu pindah
+     * halaman. Test GET langsung dengan query param companyId + page=2 (bukan Livewire::test)
+     * biar simulasi mount dari URL yang sebenarnya kejadian saat wire:navigate.
+     */
+    public function test_company_filter_is_read_from_url_on_page_load(): void
+    {
+        $companyA = $this->makeCompany('CFA');
+        $companyB = $this->makeCompany('CFB');
+
+        Permission::firstOrCreate(['name' => CustomPermissionEnum::SISTEM_KEPEGAWAIAN->value, 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => CustomPermissionEnum::LIHAT_PERUSAHAAN_LAIN->value, 'guard_name' => 'web']);
+        $role = Role::firstOrCreate(['name' => 'Kepegawaian Multi Company Test', 'guard_name' => 'web']);
+        $role->givePermissionTo([CustomPermissionEnum::SISTEM_KEPEGAWAIAN->value, CustomPermissionEnum::LIHAT_PERUSAHAAN_LAIN->value]);
+        $hc = User::factory()->create(['company_id' => $companyA->id]);
+        $hc->assignRole($role);
+
+        $employeeA = User::factory()->create(['company_id' => $companyA->id, 'name' => 'Karyawan A']);
+        $employeeB = User::factory()->create(['company_id' => $companyB->id, 'name' => 'Karyawan B']);
+
+        for ($i = 1; $i <= 15; $i++) {
+            $this->makeDocument($employeeA, 'resignation', ['document_number' => "DOC-A-{$i}"]);
+        }
+        $this->makeDocument($employeeB, 'resignation', ['document_number' => 'DOC-B-1']);
+
+        $response = $this->actingAs($hc)->get(route('kepegawaian.dokumen', ['companyId' => $companyA->id, 'page' => 2]));
+
+        $response->assertOk();
+        $response->assertSee('DOC-A-11');
+        $response->assertDontSee('DOC-B-1');
+    }
 }

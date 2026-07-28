@@ -33,6 +33,19 @@ class KaryawanPageTest extends TestCase
         return Companies::create(['code' => $code, 'name' => "Company {$code}", 'location' => 'Test', 'is_active' => true]);
     }
 
+    private function actingAsMultiCompanyKepegawaian(): User
+    {
+        Permission::firstOrCreate(['name' => CustomPermissionEnum::SISTEM_KEPEGAWAIAN->value, 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => CustomPermissionEnum::LIHAT_PERUSAHAAN_LAIN->value, 'guard_name' => 'web']);
+        $role = Role::firstOrCreate(['name' => 'Kepegawaian Multi Company Test', 'guard_name' => 'web']);
+        $role->givePermissionTo([CustomPermissionEnum::SISTEM_KEPEGAWAIAN->value, CustomPermissionEnum::LIHAT_PERUSAHAAN_LAIN->value]);
+
+        $user = User::factory()->create();
+        $user->assignRole($role);
+
+        return $user;
+    }
+
     public function test_user_without_permission_is_forbidden(): void
     {
         $company = $this->makeCompany();
@@ -175,6 +188,34 @@ class KaryawanPageTest extends TestCase
         $response->assertOk();
         $response->assertSee('href="http://localhost/kepegawaian/karyawan?page=2"', false);
         $response->assertDontSee('/kepegawaian/kepegawaian/karyawan', false);
+    }
+
+    /**
+     * Regresi bug dilaporkan user: pindah halaman paginasi lewat wire:navigate (lihat komentar
+     * di partials/pagination.blade.php) itu full page-visit yang me-mount ULANG komponen dari
+     * URL, bukan wire:click di komponen yang sama — filter company/department/search/status
+     * yang bukan bagian dari query string ikut hilang begitu pindah halaman. Fix: properti
+     * filter itu di-#[Url], jadi Livewire JS otomatis nulis nilainya ke query string browser
+     * (pushState) begitu berubah — link paginasi berikutnya (dibangun dari path yang browser
+     * kirim balik) otomatis ikut membawanya. Livewire::test() tidak menjalankan JS beneran,
+     * jadi yang bisa+perlu dites di level PHP: begitu browser SUDAH ada di URL dengan
+     * companyId+page (state yang seharusnya terjadi setelah pushState+klik paginasi), mount()
+     * harus benar membaca & menerapkan filter itu — bukan mengembalikannya ke default.
+     */
+    public function test_company_and_department_filter_are_read_from_url_on_page_load(): void
+    {
+        $companyA = $this->makeCompany('CFA');
+        $companyB = $this->makeCompany('CFB');
+        $hc = $this->actingAsMultiCompanyKepegawaian();
+
+        User::factory()->count(15)->create(['company_id' => $companyA->id, 'name' => 'Karyawan A']);
+        User::factory()->count(5)->create(['company_id' => $companyB->id, 'name' => 'Karyawan B']);
+
+        $response = $this->actingAs($hc)->get(route('kepegawaian.karyawan', ['companyId' => $companyA->id, 'page' => 2]));
+
+        $response->assertOk();
+        $response->assertSee('Karyawan A');
+        $response->assertDontSee('Karyawan B');
     }
 
     public function test_cannot_restore_employee_from_other_company(): void

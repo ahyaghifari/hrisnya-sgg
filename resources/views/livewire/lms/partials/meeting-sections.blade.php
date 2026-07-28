@@ -83,6 +83,14 @@
         <input type="number" wire:model="quizDuration" class="form-input" min="1">
         @error('quizDuration') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
 
+        <div style="display:flex;align-items:center;gap:8px;margin-top:12px;">
+            <label class="custom-checkbox" style="width:20px;height:20px;">
+                <input type="checkbox" wire:model="quizIsGraduationRequirement">
+                <span class="box"><i class="fa-solid fa-check"></i></span>
+            </label>
+            <span style="font-size:12px;color:var(--text-body);">Kuis penentu kelulusan (skor kuis ini ikut menentukan lulus/tidaknya peserta)</span>
+        </div>
+
         <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px;">
             <button type="button" wire:click="closeAddQuizForm" class="btn-ghost" style="padding:6px 12px;font-size:11.5px;">Batal</button>
             <button type="button" wire:click="saveQuiz" class="btn-primary" style="padding:6px 14px;font-size:11.5px;">Simpan</button>
@@ -92,12 +100,30 @@
 
 @forelse ($meeting->quizzes as $meetingQuiz)
     <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border-soft);font-size:12.5px;">
-        <span><i class="fa-solid fa-circle-question" style="color:var(--text-faint);"></i> {{ $meetingQuiz->quiz?->title ?? '-' }} <span style="color:var(--text-faint);">({{ $meetingQuiz->duration }} menit)</span></span>
-        @if ($this->canEditDetail)
-            <button type="button" wire:click="removeQuiz('{{ $meetingQuiz->id }}')" wire:confirm="Hapus quiz ini?" class="btn-ghost" style="padding:4px 8px;font-size:11px;color:#dc2626;">
-                <i class="fa-solid fa-trash"></i>
+        <span>
+            <i class="fa-solid fa-circle-question" style="color:var(--text-faint);"></i> {{ $meetingQuiz->quiz?->title ?? '-' }} <span style="color:var(--text-faint);">({{ $meetingQuiz->duration }} menit)</span>
+            @if ($meetingQuiz->is_graduation_requirement)
+                <span class="badge" style="background:#fef3c7;color:#92400e;margin-left:6px;">Penentu Kelulusan</span>
+            @endif
+        </span>
+        <div style="display:flex;gap:6px;">
+            <button type="button" wire:click="showQuizResultsSummary('{{ $meetingQuiz->id }}')" class="btn-ghost" style="padding:4px 8px;font-size:11px;">
+                <i class="fa-solid fa-chart-simple"></i> Rangkuman
             </button>
-        @endif
+            <button type="button" wire:click="showQuizResultsList('{{ $meetingQuiz->id }}')" class="btn-ghost" style="padding:4px 8px;font-size:11px;">
+                <i class="fa-solid fa-list"></i> Hasil Peserta
+            </button>
+            @if ($meetingQuiz->public_token)
+                <button type="button" wire:click="showQuizQr('{{ $meetingQuiz->id }}')" class="btn-ghost" style="padding:4px 8px;font-size:11px;">
+                    <i class="fa-solid fa-qrcode"></i> Lihat QR
+                </button>
+            @endif
+            @if ($this->canEditDetail && ! $meetingQuiz->results()->exists())
+                <button type="button" wire:click="removeQuiz('{{ $meetingQuiz->id }}')" wire:confirm="Hapus quiz ini?" class="btn-ghost" style="padding:4px 8px;font-size:11px;color:#dc2626;">
+                    <i class="fa-solid fa-trash"></i>
+                </button>
+            @endif
+        </div>
     </div>
 @empty
     <p style="font-size:12px;color:var(--text-faint);margin:0;">Belum ada quiz.</p>

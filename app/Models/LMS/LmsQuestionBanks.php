@@ -17,7 +17,7 @@ use Illuminate\Support\Facades\Auth;
  * @property string|null $created_by
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
- * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\LMS\LmsQuizUserAnswers> $answers
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\LMS\LmsQuizAnswers> $answers
  * @property-read int|null $answers_count
  * @property-read \App\Models\LMS\LmsCategories|null $category
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\LMS\LmsQuestionOptions> $options
@@ -111,6 +111,6 @@ class LmsQuestionBanks extends Model
 
     public function answers()
     {
-        return $this->hasMany(LmsQuizUserAnswers::class, 'question_id');
+        return $this->hasMany(LmsQuizAnswers::class, 'question_id');
     }
 }

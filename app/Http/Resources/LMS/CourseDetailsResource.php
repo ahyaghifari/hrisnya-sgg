@@ -28,7 +28,7 @@ class CourseDetailsResource extends JsonResource
             : null;
 
         $feedbackUser = $this->feedbacks
-            ? $this->feedbacks->firstWhere('user_id', $authId)
+            ? $this->feedbacks->first(fn ($feedback) => $feedback->respondent?->user_id === $authId)
             : null;
 
         $result = [

@@ -85,4 +85,60 @@ class AttendanceRequestListTest extends TestCase
             ->assertDontSee($staff->name)
             ->assertDontSee('Cuti Sakit');
     }
+
+    /**
+     * Regresi: pagination di halaman ini pakai wire:navigate (full page-visit), yang bikin
+     * komponen di-mount ULANG dari URL — tanpa #[Url] filter `type` hilang begitu pindah
+     * halaman. Test GET langsung (bukan Livewire::test) biar simulasi mount dari URL yang
+     * sebenarnya kejadian saat wire:navigate.
+     */
+    public function test_type_filter_is_read_from_url_on_page_load(): void
+    {
+        $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
+        $staffPosition = JobPositions::create(['company_id' => $company->id, 'name' => 'Staff', 'planned_manpower' => 1]);
+
+        $employee = User::factory()->create(['company_id' => $company->id]);
+        $this->assignJobPosition($employee, $staffPosition);
+
+        // PENGAJUAN_ABSENSI_SAYA menggerbangi halaman ini (config/portal-pages.php) — Livewire::test()
+        // di test lain di file ini bypass middleware, tapi GET biasa (dibutuhkan buat simulasi
+        // wire:navigate) lewat middleware sungguhan jadi permission-nya harus eksplisit.
+        \Spatie\Permission\Models\Permission::firstOrCreate(['name' => \App\Enum\CustomPermissionEnum::PENGAJUAN_ABSENSI_SAYA->value, 'guard_name' => 'web']);
+        $role = \Spatie\Permission\Models\Role::firstOrCreate(['name' => 'Employee Attendance List Test', 'guard_name' => 'web']);
+        $role->givePermissionTo(\App\Enum\CustomPermissionEnum::PENGAJUAN_ABSENSI_SAYA->value);
+        $employee->assignRole($role);
+
+        for ($i = 1; $i <= 15; $i++) {
+            $request = AttendanceRequests::create([
+                'user_id' => $employee->id,
+                'type' => 'leave',
+                'status' => 'in_review',
+            ]);
+            AttendanceRequestLeaveDetails::create([
+                'request_id' => $request->id,
+                'leave_type' => "Cuti Tahunan {$i}",
+                'start_date' => now()->addDay()->toDateString(),
+                'end_date' => now()->addDay()->toDateString(),
+                'total_days' => 1,
+            ]);
+        }
+
+        $overtime = AttendanceRequests::create([
+            'user_id' => $employee->id,
+            'type' => 'overtime',
+            'status' => 'in_review',
+        ]);
+        \App\Models\Attendance\AttendanceRequestOvertimeDetails::create([
+            'request_id' => $overtime->id,
+            'overtime_type' => 'Lembur Marker',
+            'start_time' => now()->addDay(),
+            'end_time' => now()->addDay()->addHours(2),
+        ]);
+
+        $response = $this->actingAs($employee)->get(route('my-attendance-requests', ['type' => 'leave', 'page' => 2]));
+
+        $response->assertOk();
+        $response->assertSee('Cuti Tahunan 11');
+        $response->assertDontSee('Lembur Marker');
+    }
 }

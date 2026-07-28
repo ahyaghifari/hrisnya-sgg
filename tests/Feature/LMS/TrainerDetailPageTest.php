@@ -6,6 +6,7 @@ use App\Livewire\LMS\TrainerDetailPage;
 use App\Models\LMS\LmsCourseFeedbacks;
 use App\Models\LMS\LmsCourses;
 use App\Models\LMS\LmsMeetings;
+use App\Models\LMS\LmsRespondent;
 use App\Models\LMS\Trainer\Trainers;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -50,9 +51,16 @@ class TrainerDetailPageTest extends TestCase
         LmsMeetings::create(['course_id' => $course->id, 'trainer_id' => $trainer->id, 'title' => 'Sesi 1']);
         LmsMeetings::create(['course_id' => $course->id, 'trainer_id' => $trainer->id, 'title' => 'Sesi 2']);
 
-        LmsCourseFeedbacks::create([
+        $respondent = LmsRespondent::create([
             'course_id' => $course->id,
             'user_id' => $participant->id,
+            'name' => $participant->name,
+            'category' => LmsRespondent::CATEGORY_UMPAN_BALIK,
+        ]);
+
+        LmsCourseFeedbacks::create([
+            'course_id' => $course->id,
+            'respondent_id' => $respondent->id,
             'rating' => 5,
             'feedback' => 'Sangat jelas penjelasannya.',
         ]);
