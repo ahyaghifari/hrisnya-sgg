@@ -8,16 +8,20 @@
     Menonaktifkan klik selama window itu mencegah race-nya kejadian sama sekali, tidak cuma
     menahan gejalanya. --}}
     @php
-        // $paginator->previousPageUrl()/nextPageUrl() TIDAK dipakai langsung — Livewire nge-set
+        // $paginator->previousPageUrl()/nextPageUrl()/url() dipakai (bukan Livewire::originalUrl())
+        // supaya query string filter (#[Url] properties seperti companyId/search/status di
+        // halaman pemanggil) IKUT terbawa lintas paginasi - komponen pemanggil yang punya filter
+        // WAJIB panggil ->appends([...]) di paginate()-nya (lihat KaryawanPage/MyEmployees
+        // getEmployeesProperty()), partial ini generik tidak tahu nama field filternya.
+        //
+        // Path-nya sendiri tetap butuh normalisasi leading slash: Livewire nge-set
         // Paginator::currentPathResolver() ke Livewire::originalPath() yang balikin path TANPA
-        // leading slash (mis. "kepegawaian/karyawan", bukan "/kepegawaian/karyawan"). Laravel's
-        // Paginator::url() concat path itu apa adanya jadi href, jadi <a href="kepegawaian/karyawan?page=2">
-        // — browser resolve href relatif TANPA slash depan itu terhadap "direktori" URL saat ini
-        // (base "/kepegawaian/"), bukan root, hasilnya jadi /kepegawaian/kepegawaian/karyawan.
-        // Livewire::originalUrl() balikin versi ABSOLUT yang benar, dipakai sebagai base di sini.
-        $pagerBase = \Livewire\Livewire::originalUrl();
-        $pagerPageName = $paginator->getPageName();
-        $pagerUrl = fn (int $page) => $pagerBase . (str_contains($pagerBase, '?') ? '&' : '?') . $pagerPageName . '=' . $page;
+        // leading slash (mis. "kepegawaian/karyawan"), jadi $paginator->url() menghasilkan href
+        // relatif "kepegawaian/karyawan?...". Browser resolve href relatif itu terhadap
+        // "direktori" URL saat ini (base "/kepegawaian/"), bukan root, hasilnya jadi
+        // /kepegawaian/kepegawaian/karyawan. url()->to() dengan leading slash dipaksa memaksa
+        // jadi absolute path yang benar.
+        $pagerUrl = fn (int $page) => url()->to('/' . ltrim($paginator->url($page), '/'));
     @endphp
     <nav class="app-pager" wire:loading.class="app-pager-busy">
         @if ($paginator->onFirstPage())

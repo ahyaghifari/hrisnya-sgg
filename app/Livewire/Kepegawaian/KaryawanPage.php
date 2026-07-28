@@ -136,7 +136,12 @@ class KaryawanPage extends Component
 
     public function getEmployeesProperty()
     {
-        return $this->baseQuery()->orderBy('name')->paginate(10);
+        return $this->baseQuery()->orderBy('name')->paginate(10)->appends([
+            'companyId' => $this->companyId,
+            'departmentId' => $this->departmentId,
+            'search' => $this->search,
+            'status' => $this->status,
+        ]);
     }
 
     public function restore(string $id): void

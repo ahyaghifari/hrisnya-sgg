@@ -90,7 +90,11 @@ class MyEmployees extends Component
     {
         return $this->baseQuery()
             ->orderBy('name')
-            ->paginate(10);
+            ->paginate(10)
+            ->appends([
+                'companyId' => $this->companyId,
+                'search' => $this->search,
+            ]);
     }
 
     public function render()
