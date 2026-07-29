@@ -49,7 +49,6 @@ class EmployeeAttendanceStatistics extends Component
             'profile.orgStructure.parent.parent',
             'profile.jobPosition',
             'profile.pangkat',
-            'profile.golongan',
             'profile.kelas',
             'profile.employeeType',
         ]);

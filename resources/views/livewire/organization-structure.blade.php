@@ -81,7 +81,7 @@
                     </div>
                     <div class="p-3 rounded-lg border border-gray-200 flex flex-col items-center justify-center text-center">
                         <span class="text-xs text-gray-500 uppercase tracking-wider">Golongan</span>
-                        <span class="mt-1 flex-1 font-semibold text-gray-900">{{ $this->selectedJobDetail->golongan?->name ?? '-' }}</span>
+                        <span class="mt-1 flex-1 font-semibold text-gray-900">{{ $this->selectedJobDetail->pangkat?->golongan ?? '-' }}</span>
                     </div>
                     <div class="p-3 rounded-lg border border-gray-200 flex flex-col items-center justify-center text-center">
                         <span class="text-xs text-gray-500 uppercase tracking-wider">Kelas</span>

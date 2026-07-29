@@ -389,23 +389,9 @@ class EmployeeForm
                                         return;
                                     }
 
-                                    $query->where('company_id', $companyId);
+                                    $query->where('company_id', $companyId)->orderByDesc('level');
                                 })
 
-                                ->searchable()
-                                ->preload(),
-
-                            Select::make('golongan_id')
-                                ->label('Golongan')
-                                ->relationship('golongan', 'name', function ($query, $get) {
-                                    $companyId = $get('../company_id') ?? Auth::user()->company_id;
-                                    if (!$companyId) {
-                                        $query->whereRaw('0 = 1');
-                                        return;
-                                    }
-
-                                    $query->where('company_id', $companyId);
-                                })
                                 ->searchable()
                                 ->preload(),
 

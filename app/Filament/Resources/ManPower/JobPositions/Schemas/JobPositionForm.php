@@ -5,7 +5,6 @@ namespace App\Filament\Resources\ManPower\JobPositions\Schemas;
 use App\Enum\JobPositionReqStatus;
 use App\Enum\OrgStructurLevel;
 use App\Models\Master\Companies;
-use App\Models\Master\Golongans;
 use App\Models\Master\JobPositions;
 use App\Models\Master\Kelas;
 use App\Models\Master\OrgStructure;
@@ -229,7 +228,7 @@ class JobPositionForm
         return [
             Grid::make(2)
                 ->schema([
-                    Section::make('Pangkat, Golongan, Kelas')
+                    Section::make('Pangkat, Kelas')
                         ->schema([
                             Select::make('pangkat_id')
                                 ->label('Pangkat')
@@ -239,26 +238,12 @@ class JobPositionForm
                                     $companyId = $record?->company_id ?? $userCompanyId;
                                     return Pangkats::where(
                                         'company_id', $companyId
-                                    )->pluck('name', 'id');
+                                    )->orderByDesc('level')->pluck('name', 'id');
                                 })
                                 ->preload()
                                 ->disabled(fn ($record) => $record && $record->status !== JobPositionReqStatus::DRAFT->value)
                                 ->searchable(),
-        
-                            Select::make('golongan_id')
-                                ->label('Golongan')
-                                ->relationship('golongan')
-                                ->options(function ($record) {
-                                    $userCompanyId = Auth::user()->company_id;
-                                    $companyId = $record?->company_id ?? $userCompanyId;
-                                    return Golongans::where(
-                                        'company_id', $companyId
-                                    )->pluck('name', 'id');
-                                })
-                                ->preload()
-                                ->disabled(fn ($record) => $record && $record->status !== JobPositionReqStatus::DRAFT->value)
-                                ->searchable(),
-        
+
                             Select::make('kelas_id')
                                 ->label('Kelas')
                                 ->relationship('kelas')

@@ -34,6 +34,8 @@ class IzinRecapPage extends Component
 
         if (! Auth::user()->canFilterByCompany()) {
             $this->companyId = Auth::user()->company_id;
+        } elseif ($this->companyId === null) {
+            $this->companyId = Auth::user()->company_id;
         }
 
         // Filter tanggal sengaja kosong dulu — user pilih sendiri Dari/Sampai Tanggal, bukan

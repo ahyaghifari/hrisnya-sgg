@@ -1,5 +1,5 @@
 <div>
-<x-page-header title="Ajukan Permintaan Tenaga Kerja" :subtitle="$tab === 'quota' ? 'Penambahan Kuota' : 'Penambahan / Penggantian Karyawan'" :back="route('rekrutmen.permintaan-tenaga-kerja', ['tab' => $tab])" />
+<x-page-header title="Ajukan Permintaan Tenaga Kerja" :subtitle="$tab === 'quota' ? 'Penambahan Kuota' : 'Penambahan / Penggantian Karyawan'" :back="route('kepegawaian.permintaan', ['tab' => $tab])" />
 
 <form wire:submit="submit">
     <div class="form-card">
@@ -68,7 +68,7 @@
     </div>
 
     <div style="display:flex;align-items:center;justify-content:space-between;margin-top:20px;gap:12px;flex-wrap:wrap;">
-        <a href="{{ route('rekrutmen.permintaan-tenaga-kerja', ['tab' => $tab]) }}" wire:navigate class="btn-ghost"><i class="fa-solid fa-arrow-left" style="font-size:12px;"></i> Kembali</a>
+        <a href="{{ route('kepegawaian.permintaan', ['tab' => $tab]) }}" wire:navigate class="btn-ghost"><i class="fa-solid fa-arrow-left" style="font-size:12px;"></i> Kembali</a>
         <div style="display:flex;gap:10px;">
             <button type="button" wire:click="saveDraft" class="btn-ghost"><i class="fa-solid fa-floppy-disk" style="font-size:12px;"></i> Simpan Draft</button>
             <button type="submit" class="btn-primary"><i class="fa-solid fa-paper-plane" style="font-size:12px;"></i> Ajukan</button>

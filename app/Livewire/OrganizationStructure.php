@@ -26,7 +26,7 @@ class OrganizationStructure extends Component
     public function openJobDetail(string $jobId): void
     {
         $this->selectedJobId = $jobId;
-        $this->selectedJobDetail = JobPositions::with(['orgStructure', 'parent', 'children', 'pangkat', 'golongan', 'kelas', 'userAssignments.user'])->find($jobId);
+        $this->selectedJobDetail = JobPositions::with(['orgStructure', 'parent', 'children', 'pangkat', 'kelas', 'userAssignments.user'])->find($jobId);
     }
 
     public function editJob(string $jobId): void

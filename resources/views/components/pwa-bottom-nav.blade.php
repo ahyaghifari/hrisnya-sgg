@@ -5,7 +5,6 @@
     $canAccessAbsensi = auth()->user()->can(\App\Enum\CustomPermissionEnum::SISTEM_ABSENSI->value);
     $canAccessKepegawaian = auth()->user()->can(\App\Enum\CustomPermissionEnum::SISTEM_KEPEGAWAIAN->value);
     $canAccessLms = auth()->user()->can(\App\Enum\CustomPermissionEnum::SISTEM_LMS->value);
-    $canAccessRekrutmen = auth()->user()->can(\App\Enum\CustomPermissionEnum::SISTEM_REKRUTMEN->value);
     $canAccessPelatihanSaya = auth()->user()->can(\App\Enum\CustomPermissionEnum::PELATIHAN_SAYA->value);
     $canAccessPengajuanAbsensiSaya = auth()->user()->can(\App\Enum\CustomPermissionEnum::PENGAJUAN_ABSENSI_SAYA->value);
     // Sama seperti nav.blade.php — SATU rule sama persis MyStaff ($canSeeKaryawanMenu, "punya
@@ -170,6 +169,10 @@
                 <span class="pwa-menu-grid-icon violet"><i class="fa-solid fa-users"></i></span>
                 <span class="pwa-menu-grid-label">Karyawan</span>
             </a>
+            <a href="{{ route('kepegawaian.jabatan') }}" wire:navigate class="pwa-menu-grid-item">
+                <span class="pwa-menu-grid-icon violet"><i class="fa-solid fa-id-card-clip"></i></span>
+                <span class="pwa-menu-grid-label">Jabatan</span>
+            </a>
             <a href="{{ route('kepegawaian.dokumen') }}" wire:navigate class="pwa-menu-grid-item">
                 <span class="pwa-menu-grid-icon indigo"><i class="fa-solid fa-folder-open"></i></span>
                 <span class="pwa-menu-grid-label">Dokumen</span>
@@ -178,6 +181,18 @@
                 <a href="{{ route('kepegawaian.mutasi-karyawan') }}" wire:navigate class="pwa-menu-grid-item">
                     <span class="pwa-menu-grid-icon gold"><i class="fa-solid fa-right-left"></i></span>
                     <span class="pwa-menu-grid-label">Perubahan Status</span>
+                </a>
+            @endif
+            @if (auth()->user()->can('ViewAny:JobOpenings'))
+                <a href="{{ route('kepegawaian.lowongan') }}" wire:navigate class="pwa-menu-grid-item">
+                    <span class="pwa-menu-grid-icon gold"><i class="fa-solid fa-briefcase"></i></span>
+                    <span class="pwa-menu-grid-label">Lowongan Kerja</span>
+                </a>
+            @endif
+            @if (auth()->user()->can('ViewAny:ManpowerRequests'))
+                <a href="{{ route('kepegawaian.permintaan') }}" wire:navigate class="pwa-menu-grid-item">
+                    <span class="pwa-menu-grid-icon gold"><i class="fa-solid fa-right-left"></i></span>
+                    <span class="pwa-menu-grid-label">Permintaan Tenaga Kerja</span>
                 </a>
             @endif
         @endif
@@ -238,18 +253,6 @@
             </a>
         @endif
 
-        {{-- ponytail: menu Rekrutmen disembunyikan sementara, aktifkan lagi ganti @if ($canAccessRekrutmen) --}}
-        @if (false && $canAccessRekrutmen)
-            <span class="pwa-menu-grid-divider">Rekrutmen</span>
-            <a href="{{ route('rekrutmen.lowongan') }}" wire:navigate class="pwa-menu-grid-item">
-                <span class="pwa-menu-grid-icon gold"><i class="fa-solid fa-briefcase"></i></span>
-                <span class="pwa-menu-grid-label">Lowongan Kerja</span>
-            </a>
-            <a href="{{ route('rekrutmen.permintaan-tenaga-kerja') }}" wire:navigate class="pwa-menu-grid-item">
-                <span class="pwa-menu-grid-icon gold"><i class="fa-solid fa-right-left"></i></span>
-                <span class="pwa-menu-grid-label">Permintaan Tenaga Kerja</span>
-            </a>
-        @endif
 
         @if ($canSubmitAttendance)
             <a href="{{ route('organization-structure') }}" wire:navigate class="pwa-menu-grid-item">

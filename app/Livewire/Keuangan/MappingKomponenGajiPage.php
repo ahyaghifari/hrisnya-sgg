@@ -185,7 +185,7 @@ class MappingKomponenGajiPage extends Component implements HasActions, HasSchema
 
     public function getPangkatsProperty()
     {
-        return $this->companyId ? Pangkats::where('company_id', $this->companyId)->orderBy('name')->get() : collect();
+        return $this->companyId ? Pangkats::where('company_id', $this->companyId)->orderByDesc('level')->get() : collect();
     }
 
     public function getKelasListProperty()

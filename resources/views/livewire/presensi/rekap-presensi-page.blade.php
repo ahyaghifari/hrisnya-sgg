@@ -12,11 +12,13 @@
 <div>
 <x-page-header title="Rekap Presensi" subtitle="Rekap kehadiran karyawan - mode harian atau bulanan" />
 
-<div style="display:flex;justify-content:flex-end;margin-bottom:12px;">
-    <button type="button" wire:click="openSyncModal" class="btn-primary">
-        <i class="fa-solid fa-arrow-rotate-right"></i> Sync Presensi
-    </button>
-</div>
+@if ($this->canSync)
+    <div style="display:flex;justify-content:flex-end;margin-bottom:12px;">
+        <button type="button" wire:click="openSyncModal" class="btn-primary">
+            <i class="fa-solid fa-arrow-rotate-right"></i> Sync Presensi
+        </button>
+    </div>
+@endif
 
 <div style="display:inline-flex;gap:2px;background:var(--surface-alt);padding:3px;border-radius:8px;margin-bottom:16px;">
     <button type="button" wire:click="setMode('harian')" style="padding:4px 12px;font-size:11.5px;font-weight:600;border:none;border-radius:6px;cursor:pointer;font-family:inherit;background:{{ $mode === 'harian' ? 'var(--surface)' : 'transparent' }};color:{{ $mode === 'harian' ? 'var(--text-heading)' : 'var(--text-muted)' }};box-shadow:{{ $mode === 'harian' ? 'var(--shadow-card)' : 'none' }};">Hari Ini</button>
@@ -221,7 +223,7 @@
     </div>
 @endif
 
-@if ($showSyncModal)
+@if ($showSyncModal && $this->canSync)
     <div class="modal-overlay" wire:click="closeSyncModal">
         <div class="modal-box" onclick="event.stopPropagation()">
             <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:14px;">

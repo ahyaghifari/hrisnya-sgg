@@ -61,7 +61,13 @@ class RekapPresensiPage extends Component
     {
         abort_unless(Auth::user()->can(CustomPermissionEnum::SISTEM_ABSENSI->value), 403);
 
+        // Admin (bukan Super Admin) TETAP dikunci ke company sendiri, apapun isi companyId
+        // dari query string (proteksi, bukan cuma default). Super Admin boleh lihat semua
+        // perusahaan, tapi default awal (belum ada companyId di query string) diarahkan ke
+        // company dia sendiri dulu - bukan langsung nampilin semua company sekaligus.
         if (! Auth::user()->canFilterByCompany()) {
+            $this->companyId = Auth::user()->company_id;
+        } elseif ($this->companyId === null) {
             $this->companyId = Auth::user()->company_id;
         }
 
@@ -84,8 +90,15 @@ class RekapPresensiPage extends Component
         $this->resetPage();
     }
 
+    public function getCanSyncProperty(): bool
+    {
+        return Auth::user()->can(CustomPermissionEnum::SYNC_DATA_ABSENSI->value);
+    }
+
     public function openSyncModal(): void
     {
+        abort_unless($this->canSync, 403);
+
         $this->syncDate = now()->toDateString();
         $this->syncFromTime = '08:00';
         $this->syncResultMessage = null;
@@ -118,6 +131,8 @@ class RekapPresensiPage extends Component
         FlexibleScheduleCalculator $flexibleCalculator,
         AttendanceRecordRepository $repo,
     ): void {
+        abort_unless($this->canSync, 403);
+
         $this->validate([
             'syncDate' => ['required', 'date'],
             'syncFromTime' => ['required', 'date_format:H:i'],
@@ -214,7 +229,7 @@ class RekapPresensiPage extends Component
 
         $search = trim($this->search);
         if ($search !== '') {
-            $query->where(fn ($q) => $q->where('name', 'like', "%{$search}%")->orWhere('nip', 'like', "%{$search}%"));
+            $query->where(fn ($q) => $q->where('users.name', 'like', "%{$search}%")->orWhere('users.nip', 'like', "%{$search}%"));
         }
 
         return $query;

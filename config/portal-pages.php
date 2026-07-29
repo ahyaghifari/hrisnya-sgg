@@ -130,6 +130,24 @@ return [
         'guard' => null,
     ],
 
+    'kepegawaian.jabatan' => [
+        'label' => 'Jabatan',
+        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_KEPEGAWAIAN->value,
+        'guard' => null,
+    ],
+
+    'kepegawaian.jabatan.tambah' => [
+        'label' => 'Ajukan Jabatan Baru',
+        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_KEPEGAWAIAN->value,
+        'guard' => null,
+    ],
+
+    'kepegawaian.jabatan.edit' => [
+        'label' => 'Edit Jabatan',
+        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_KEPEGAWAIAN->value,
+        'guard' => null,
+    ],
+
     'my-attendance-requests' => [
         'label' => 'Pengajuan Absensi',
         'permission' => \App\Enum\CustomPermissionEnum::PENGAJUAN_ABSENSI_SAYA->value,
@@ -463,43 +481,43 @@ return [
         'guard' => null,
     ],
 
-    'rekrutmen.lowongan' => [
+    'kepegawaian.lowongan' => [
         'label' => 'Lowongan Kerja',
         'permission' => 'ViewAny:JobOpenings',
         'guard' => null,
     ],
 
-    'rekrutmen.lowongan.edit' => [
+    'kepegawaian.lowongan.edit' => [
         'label' => 'Edit Lowongan Kerja',
         'permission' => 'Update:JobOpenings',
         'guard' => null,
     ],
 
-    'rekrutmen.lowongan.show' => [
+    'kepegawaian.lowongan.show' => [
         'label' => 'Detail Lowongan Kerja',
         'permission' => 'View:JobOpenings',
         'guard' => null,
     ],
 
-    'rekrutmen.lowongan.kandidat' => [
+    'kepegawaian.lowongan.kandidat' => [
         'label' => 'Detail Kandidat',
         'permission' => 'View:JobOpenings',
         'guard' => null,
     ],
 
-    'rekrutmen.permintaan-tenaga-kerja' => [
+    'kepegawaian.permintaan' => [
         'label' => 'Permintaan Tenaga Kerja',
         'permission' => 'ViewAny:ManpowerRequests',
         'guard' => null,
     ],
 
-    'rekrutmen.permintaan-tenaga-kerja.create' => [
+    'kepegawaian.permintaan.create' => [
         'label' => 'Ajukan Permintaan Tenaga Kerja',
         'permission' => 'Create:ManpowerRequests',
         'guard' => null,
     ],
 
-    'rekrutmen.permintaan-tenaga-kerja.show' => [
+    'kepegawaian.permintaan.show' => [
         'label' => 'Detail Permintaan Tenaga Kerja',
         'permission' => 'View:ManpowerRequests',
         'guard' => null,

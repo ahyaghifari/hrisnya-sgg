@@ -4,7 +4,6 @@ namespace Tests\Feature;
 
 use App\Filament\Resources\Employees\Pages\CreateEmployee;
 use App\Models\Master\Companies;
-use App\Models\Master\Golongans;
 use App\Models\Master\JobPositions;
 use App\Models\Master\Kelas;
 use App\Models\Master\OrgStructure;
@@ -39,8 +38,7 @@ class EmployeeFormTest extends TestCase
 
         $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
         JobPositions::create(['name' => 'Staff', 'company_id' => $company->id]);
-        Pangkats::create(['name' => 'Perawat', 'company_id' => $company->id]);
-        Golongans::create(['name' => 'Golongan I', 'company_id' => $company->id]);
+        Pangkats::create(['name' => 'Perawat', 'golongan' => 'III/a', 'company_id' => $company->id]);
         Kelas::create(['name' => 'Kelas A', 'company_id' => $company->id]);
         OrgStructure::create(['name' => 'Departemen A', 'company_id' => $company->id, 'level' => 1]);
 
@@ -57,10 +55,6 @@ class EmployeeFormTest extends TestCase
         $this->assertNotEmpty(
             $this->fieldByPathSuffix($schema, 'pangkat_id')->getSearchResults('Perawat'),
             'Pangkat harusnya nemu "Perawat" di company yang dipilih.'
-        );
-        $this->assertNotEmpty(
-            $this->fieldByPathSuffix($schema, 'golongan_id')->getSearchResults('Golongan'),
-            'Golongan harusnya nemu "Golongan I" di company yang dipilih.'
         );
         $this->assertNotEmpty(
             $this->fieldByPathSuffix($schema, 'kelas_id')->getSearchResults('Kelas'),

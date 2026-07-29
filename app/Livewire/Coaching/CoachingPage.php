@@ -50,6 +50,8 @@ class CoachingPage extends Component
 
         if (! $this->canBrowseAllCompanies) {
             $this->companyId = Auth::user()->company_id;
+        } elseif ($this->companyId === null) {
+            $this->companyId = Auth::user()->company_id;
         }
     }
 

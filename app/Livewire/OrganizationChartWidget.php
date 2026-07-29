@@ -31,7 +31,7 @@ class OrganizationChartWidget extends Widget implements HasSchemas
     public function getCompanyProperty(): ?Companies
     {
         return $this->companyId
-            ? Companies::with('jobPositions.pangkat', 'jobPositions.golongan', 'jobPositions.kelas')->find($this->companyId)
+            ? Companies::with('jobPositions.pangkat', 'jobPositions.kelas')->find($this->companyId)
             : null;
     }
 
@@ -45,7 +45,7 @@ class OrganizationChartWidget extends Widget implements HasSchemas
         try {
             $jobs = \App\Models\Master\JobPositions::where('company_id', $this->companyId)
                 ->where('is_draft', false)
-                ->with(['pangkat', 'golongan', 'kelas', 'parent', 'children', 'orgStructure'])
+                ->with(['pangkat', 'kelas', 'parent', 'children', 'orgStructure'])
                 ->get();
 
             // Handle users relationship secara safe
@@ -96,7 +96,7 @@ class OrganizationChartWidget extends Widget implements HasSchemas
                     $q->where('company_id', $this->companyId)
                       ->where('is_draft', false);
                 })
-                ->with(['pangkat', 'golongan', 'kelas'])
+                ->with(['pangkat', 'kelas'])
                 ->get();
 
             // Handle users relationship secara safe

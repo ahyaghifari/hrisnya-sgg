@@ -68,6 +68,17 @@ class PangkatsResource extends BaseCompanyResource
                     ->required()
                     ->maxLength(255),
 
+                TextInput::make('golongan')
+                    ->label('Golongan')
+                    ->placeholder('Contoh: III/a')
+                    ->maxLength(255),
+
+                TextInput::make('level')
+                    ->label('Level (Urutan Pangkat)')
+                    ->helperText('Makin tinggi angkanya, makin tinggi jenjang pangkat ini - dipakai buat sortir tertinggi ke terendah.')
+                    ->numeric()
+                    ->required(),
+
                 Select::make('start_kelas_id')
                     ->label('Kelas Dasar')
                     ->required()
@@ -94,11 +105,14 @@ class PangkatsResource extends BaseCompanyResource
             ->columns([
                 static::companyTableColumn(),
                 TextColumn::make('name')->label('Nama Pangkat')->searchable()->sortable(),
+                TextColumn::make('golongan')->label('Golongan')->searchable()->sortable()->placeholder('-'),
+                TextColumn::make('level')->label('Level')->sortable()->alignCenter(),
                 TextColumn::make('startKelas.name')->label('Kelas Dasar')->sortable(),
                 TextColumn::make('maxKelas.name')->label('Kelas Maksimal')->sortable(),
                 TextColumn::make('job_positions_count')->label('Jumlah Posisi')->alignCenter()->sortable(),
                 TextColumn::make('user_profiles_count')->label('Jumlah Karyawan')->alignCenter()->sortable(),
             ])
+            ->defaultSort('level', 'desc')
             ->filters([
                 static::companyTableFilter(),
             ])

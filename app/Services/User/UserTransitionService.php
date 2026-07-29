@@ -178,7 +178,6 @@ class UserTransitionService
             $user->profile->update([
                 'job_position_id' => $jobPosition->id,
                 'pangkat_id' => $jobPosition->pangkat_id,
-                'golongan_id' => $jobPosition->golongan_id,
                 'kelas_id' => $jobPosition->kelas_id,
             ]);
 
@@ -201,7 +200,6 @@ class UserTransitionService
             $user->profile->update([
                 'job_position_id' => null,
                 'pangkat_id' => null,
-                'golongan_id' => null,
                 'kelas_id' => null,
                 'org_structure_id' => null,
                 'employee_type_id' => null,

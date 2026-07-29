@@ -3,7 +3,7 @@
 
 @if ($this->canCreate)
     <div style="display:flex;justify-content:flex-end;margin-bottom:16px;">
-        <a href="{{ route('rekrutmen.permintaan-tenaga-kerja.create', ['tab' => $tab]) }}" wire:navigate class="btn-primary">
+        <a href="{{ route('kepegawaian.permintaan.create', ['tab' => $tab]) }}" wire:navigate class="btn-primary">
             <i class="fa-solid fa-plus"></i> Ajukan Permintaan
         </a>
     </div>
@@ -65,7 +65,7 @@
                                 default => 'badge-pending',
                             };
                         @endphp
-                        <a href="{{ route('rekrutmen.permintaan-tenaga-kerja.show', $req) }}" wire:navigate class="pwa-list-row" style="text-decoration:none;">
+                        <a href="{{ route('kepegawaian.permintaan.show', $req) }}" wire:navigate class="pwa-list-row" style="text-decoration:none;">
                             <div class="pwa-tile-icon neutral"><i class="fa-solid fa-right-left"></i></div>
                             <div style="flex:1;min-width:0;">
                                 <p style="font-size:13px;font-weight:600;color:var(--text-heading);">{{ $req->jobPosition?->name ?? '-' }}</p>
@@ -119,7 +119,7 @@
                                 <td style="padding:9px 14px;text-align:center;white-space:nowrap;">{{ $req->quantity }}</td>
                                 <td style="padding:9px 14px;text-align:center;white-space:nowrap;"><span class="badge {{ $badge }}">{{ $status?->label() ?? $req->status }}</span></td>
                                 <td style="padding:9px 14px;text-align:center;white-space:nowrap;">
-                                    <a href="{{ route('rekrutmen.permintaan-tenaga-kerja.show', $req) }}" wire:navigate class="btn-ghost" style="padding:5px 10px;font-size:11px;" title="Lihat"><i class="fa-solid fa-arrow-right"></i></a>
+                                    <a href="{{ route('kepegawaian.permintaan.show', $req) }}" wire:navigate class="btn-ghost" style="padding:5px 10px;font-size:11px;" title="Lihat"><i class="fa-solid fa-arrow-right"></i></a>
                                 </td>
                             </tr>
                         @endforeach

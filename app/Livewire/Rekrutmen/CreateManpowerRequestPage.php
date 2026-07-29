@@ -130,7 +130,7 @@ class CreateManpowerRequestPage extends Component
                 ->success()
                 ->send();
 
-            $this->redirect(route('rekrutmen.permintaan-tenaga-kerja', ['tab' => $this->tab]), navigate: true);
+            $this->redirect(route('kepegawaian.permintaan', ['tab' => $this->tab]), navigate: true);
         } catch (\Exception $e) {
             Notification::make()->title('Error: ' . $e->getMessage())->danger()->send();
         }

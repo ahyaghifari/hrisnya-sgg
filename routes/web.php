@@ -180,6 +180,15 @@ Route::middleware(['auth', 'portal.access'])->group(function () {
     Route::get('/kepegawaian/perubahan-status/{record}', UserTransitionDetailPage::class)
         ->name('kepegawaian.mutasi-karyawan.show');
 
+    Route::get('/kepegawaian/jabatan', \App\Livewire\Kepegawaian\JabatanPage::class)
+        ->name('kepegawaian.jabatan');
+
+    Route::get('/kepegawaian/jabatan/tambah', \App\Livewire\Kepegawaian\CreateJabatanPage::class)
+        ->name('kepegawaian.jabatan.tambah');
+
+    Route::get('/kepegawaian/jabatan/{record}/edit', \App\Livewire\Kepegawaian\EditJabatanPage::class)
+        ->name('kepegawaian.jabatan.edit');
+
     Route::get('/pengajuan-absensi', MyAttendanceRequests::class)
         ->name('my-attendance-requests');
 
@@ -370,26 +379,31 @@ Route::middleware(['auth', 'portal.access'])->group(function () {
     Route::get('/pelatihan/{course}', TrainingDetail::class)
         ->name('pelatihan.show');
 
-    Route::get('/rekrutmen/lowongan', JobOpeningsPage::class)
-        ->name('rekrutmen.lowongan');
+    // Rekrutmen digabung ke bawah Kepegawaian (permission SISTEM_REKRUTMEN dihapus, gerbang
+    // dropdown-nya sekarang ikut $canAccessKepegawaian di nav.blade.php) - path & route name
+    // dipindah dari /rekrutmen/... ke /kepegawaian/..., tapi kelas Livewire-nya sendiri
+    // dibiarkan tetap di namespace App\Livewire\Rekrutmen (cuma rename routing/nav, bukan
+    // reorganisasi folder).
+    Route::get('/kepegawaian/lowongan', JobOpeningsPage::class)
+        ->name('kepegawaian.lowongan');
 
-    Route::get('/rekrutmen/lowongan/{record}/edit', EditJobOpeningPage::class)
-        ->name('rekrutmen.lowongan.edit');
+    Route::get('/kepegawaian/lowongan/{record}/edit', EditJobOpeningPage::class)
+        ->name('kepegawaian.lowongan.edit');
 
-    Route::get('/rekrutmen/lowongan/kandidat/{record}', CandidateApplicationDetailPage::class)
-        ->name('rekrutmen.lowongan.kandidat');
+    Route::get('/kepegawaian/lowongan/kandidat/{record}', CandidateApplicationDetailPage::class)
+        ->name('kepegawaian.lowongan.kandidat');
 
-    Route::get('/rekrutmen/lowongan/{record}', JobOpeningDetailPage::class)
-        ->name('rekrutmen.lowongan.show');
+    Route::get('/kepegawaian/lowongan/{record}', JobOpeningDetailPage::class)
+        ->name('kepegawaian.lowongan.show');
 
-    Route::get('/rekrutmen/permintaan-tenaga-kerja', ManpowerRequestsPage::class)
-        ->name('rekrutmen.permintaan-tenaga-kerja');
+    Route::get('/kepegawaian/permintaan', ManpowerRequestsPage::class)
+        ->name('kepegawaian.permintaan');
 
-    Route::get('/rekrutmen/permintaan-tenaga-kerja/tambah', CreateManpowerRequestPage::class)
-        ->name('rekrutmen.permintaan-tenaga-kerja.create');
+    Route::get('/kepegawaian/permintaan/tambah', CreateManpowerRequestPage::class)
+        ->name('kepegawaian.permintaan.create');
 
-    Route::get('/rekrutmen/permintaan-tenaga-kerja/{record}', ManpowerRequestDetailPage::class)
-        ->name('rekrutmen.permintaan-tenaga-kerja.show');
+    Route::get('/kepegawaian/permintaan/{record}', ManpowerRequestDetailPage::class)
+        ->name('kepegawaian.permintaan.show');
 });
 
 Route::get('/attendance/template/download', [AttendanceTemplateController::class, 'downloadTemplate'])

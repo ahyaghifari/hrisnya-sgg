@@ -180,8 +180,9 @@
 
 <script>
 function pwaDismissPushBanner() {
+    // Sengaja TIDAK disimpan ke localStorage (dulu disupres 7 hari) - banner harus tetap
+    // muncul lagi di kunjungan/reload berikutnya selama notifikasi belum benar-benar aktif.
     document.getElementById('push-notif-banner').style.display = 'none';
-    localStorage.setItem('pushBannerDismissedAt', Date.now());
 }
 
 function urlBase64ToUint8Array(base64String) {
@@ -220,10 +221,8 @@ async function pwaSubscribeToPush() {
 
 document.addEventListener('DOMContentLoaded', async () => {
     const banner = document.getElementById('push-notif-banner');
-    const dismissedAt = localStorage.getItem('pushBannerDismissedAt');
-    const dismissedRecently = dismissedAt && (Date.now() - dismissedAt) < 7 * 24 * 60 * 60 * 1000;
 
-    if (!('serviceWorker' in navigator) || !('PushManager' in window) || dismissedRecently) {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
         return;
     }
     if (Notification.permission !== 'default') {

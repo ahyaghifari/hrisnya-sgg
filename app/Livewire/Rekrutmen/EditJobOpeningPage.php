@@ -89,7 +89,7 @@ class EditJobOpeningPage extends Component
 
         Notification::make()->title('Draft lowongan kerja disimpan')->success()->send();
 
-        $this->redirect(route('rekrutmen.lowongan.show', $this->record), navigate: true);
+        $this->redirect(route('kepegawaian.lowongan.show', $this->record), navigate: true);
     }
 
     public function publish(): void
@@ -100,7 +100,7 @@ class EditJobOpeningPage extends Component
 
         Notification::make()->title('Lowongan kerja dibuka — sekarang tampil ke kandidat')->success()->send();
 
-        $this->redirect(route('rekrutmen.lowongan.show', $this->record), navigate: true);
+        $this->redirect(route('kepegawaian.lowongan.show', $this->record), navigate: true);
     }
 
     public function close(): void
@@ -111,7 +111,7 @@ class EditJobOpeningPage extends Component
 
         Notification::make()->title('Lowongan kerja ditutup')->success()->send();
 
-        $this->redirect(route('rekrutmen.lowongan.show', $this->record), navigate: true);
+        $this->redirect(route('kepegawaian.lowongan.show', $this->record), navigate: true);
     }
 
     public function render()

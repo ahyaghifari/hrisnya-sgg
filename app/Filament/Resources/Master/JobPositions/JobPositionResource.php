@@ -10,11 +10,13 @@ use App\Filament\Resources\Master\JobPositions\Pages\ListJobPositions;
 use App\Models\Master\JobPositions;
 use App\Models\Master\Kelas;
 use App\Models\Master\OrgStructure;
+use App\Models\Master\Pangkats;
 use BackedEnum;
 use Filament\Actions\Action;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Hidden;
+use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\RichEditor;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
@@ -213,17 +215,15 @@ class JobPositionResource extends BaseCompanyResource
                     ->schema([
                         Select::make('pangkat_id')
                             ->label('Pangkat')
-                            ->relationship('pangkat', 'name')
+                            ->relationship('pangkat', 'name', fn ($query) => $query->orderByDesc('level'))
                             ->searchable()
                             ->preload()
+                            ->live()
                             ->disabled(fn ($record) => static::lockedAfterDraft($record)),
 
-                        Select::make('golongan_id')
+                        Placeholder::make('pangkat_golongan')
                             ->label('Golongan')
-                            ->relationship('golongan', 'name')
-                            ->searchable()
-                            ->preload()
-                            ->disabled(fn ($record) => static::lockedAfterDraft($record)),
+                            ->content(fn (Get $get) => Pangkats::find($get('pangkat_id'))?->golongan ?? '-'),
 
                         Select::make('kelas_id')
                             ->label('Kelas')

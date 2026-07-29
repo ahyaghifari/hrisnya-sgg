@@ -1,11 +1,11 @@
 <div>
-<x-page-header title="Detail Lowongan Kerja" :subtitle="$record->jobPosition?->name" :back="route('rekrutmen.lowongan')" />
+<x-page-header title="Detail Lowongan Kerja" :subtitle="$record->jobPosition?->name" :back="route('kepegawaian.lowongan')" />
 
 @php $openingStatus = $record->openingStatus(); @endphp
 
 @if ($this->canEdit)
     <div style="display:flex;justify-content:flex-end;margin-bottom:16px;">
-        <a href="{{ route('rekrutmen.lowongan.edit', $record) }}" wire:navigate class="btn-primary">
+        <a href="{{ route('kepegawaian.lowongan.edit', $record) }}" wire:navigate class="btn-primary">
             @if ($openingStatus === \App\Enum\Recruitment\JobOpeningStatus::WAITING)
                 <i class="fa-solid fa-bullhorn"></i> Buka Lowongan
             @else
@@ -62,7 +62,7 @@
             @php
                 $status = \App\Enum\Recruitment\ProcessStatus::tryFrom($applicant->status);
             @endphp
-            <a href="{{ route('rekrutmen.lowongan.kandidat', $applicant) }}" wire:navigate class="pwa-list-row" style="text-decoration:none;">
+            <a href="{{ route('kepegawaian.lowongan.kandidat', $applicant) }}" wire:navigate class="pwa-list-row" style="text-decoration:none;">
                 <div class="pwa-tile-icon neutral"><i class="fa-solid fa-user"></i></div>
                 <div style="flex:1;min-width:0;">
                     <p style="font-size:13px;font-weight:600;color:var(--text-heading);">{{ $applicant->candidate?->name ?? '-' }}</p>

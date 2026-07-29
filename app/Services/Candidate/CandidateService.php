@@ -57,7 +57,6 @@ class CandidateService
             'org_structure_id' => $jobPosition->org_structure_id,
             'job_position_id' => $jobPosition->id,
             'pangkat_id' => $jobPosition->pangkat_id,
-            'golongan_id' => $jobPosition->golongan_id,
             'kelas_id' => $jobPosition->kelas_id,
             'employee_type_id' => $candidateData['employee_type_id'],
         ];

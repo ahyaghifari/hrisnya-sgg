@@ -19,6 +19,8 @@ use Illuminate\Support\Facades\Auth;
  * @mixin IdeHelperPangkats
  * @property string $id
  * @property string $name
+ * @property string|null $golongan
+ * @property int|null $level
  * @property string|null $company_id
  * @property string|null $start_kelas_id
  * @property string|null $max_kelas_id
@@ -56,6 +58,8 @@ class Pangkats extends Model
 
     protected $fillable = [
         'name',
+        'golongan',
+        'level',
         'company_id',
         'start_kelas_id',
         'max_kelas_id',

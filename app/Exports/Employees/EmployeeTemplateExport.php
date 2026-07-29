@@ -6,7 +6,6 @@ use App\Exports\Employees\Sheets\EmployeeTemplateSheet;
 use App\Exports\Employees\Sheets\MasterDataSheet;
 use App\Models\Master\Banks;
 use App\Models\Master\EmployeeTypes;
-use App\Models\Master\Golongans;
 use App\Models\Master\JobPositions;
 use App\Models\Master\Kelas;
 use App\Models\Master\OrgStructure;
@@ -28,7 +27,6 @@ class EmployeeTemplateExport implements WithMultipleSheets
         $orgStructure = OrgStructure::when($cid, fn ($q) => $q->where('company_id', $cid))->orderBy('name')->value('name');
         $jobPosition = JobPositions::when($cid, fn ($q) => $q->where('company_id', $cid))->orderBy('name')->value('name');
         $pangkat     = Pangkats::when($cid, fn ($q) => $q->where('company_id', $cid))->orderBy('name')->value('name');
-        $golongan    = Golongans::when($cid, fn ($q) => $q->where('company_id', $cid))->orderBy('name')->value('name');
         $kelas       = Kelas::when($cid, fn ($q) => $q->where('company_id', $cid))->orderBy('name')->value('name');
         $employeeType = EmployeeTypes::when($cid, fn ($q) => $q->where('company_id', $cid))->orderBy('name')->value('name');
         $role        = Role::when($cid, fn ($q) => $q->where('company_id', $cid))->orderBy('name')->value('name');
@@ -65,7 +63,6 @@ class EmployeeTemplateExport implements WithMultipleSheets
             $orgStructure ?? '',     // Org Struktur
             $jobPosition ?? '',      // Jabatan
             $pangkat ?? '',          // Pangkat
-            $golongan ?? '',         // Golongan
             $kelas ?? '',            // Kelas
             $employeeType ?? '',     // Tipe Karyawan
             '2024-01-01',            // Tanggal Bergabung
@@ -115,16 +112,7 @@ class EmployeeTemplateExport implements WithMultipleSheets
                 'Pangkat',
                 'Nama Pangkat',
                 Pangkats::when($cid, fn ($q) => $q->where('company_id', $cid))
-                    ->orderBy('name')
-                    ->pluck('name')
-                    ->toArray()
-            ),
-
-            new MasterDataSheet(
-                'Golongan',
-                'Nama Golongan',
-                Golongans::when($cid, fn ($q) => $q->where('company_id', $cid))
-                    ->orderBy('name')
+                    ->orderByDesc('level')
                     ->pluck('name')
                     ->toArray()
             ),

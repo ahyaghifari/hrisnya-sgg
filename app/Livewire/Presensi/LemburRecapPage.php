@@ -32,6 +32,8 @@ class LemburRecapPage extends Component
 
         if (! Auth::user()->canFilterByCompany()) {
             $this->companyId = Auth::user()->company_id;
+        } elseif ($this->companyId === null) {
+            $this->companyId = Auth::user()->company_id;
         }
     }
 

@@ -33,7 +33,7 @@ class UserResource extends JsonResource
             'sub_division' => $this->profile->sub_division->name ?? null,
             'position' => $this->profile->position->name ?? null,
             'pangkat' => $this->profile->pangkat->name ?? null,
-            'golongan' => $this->profile->golongan->name ?? null,
+            'golongan' => $this->profile->pangkat->golongan ?? null,
             'employee_type' => $this->profile->employeeType->name ?? null,
         ];
     }

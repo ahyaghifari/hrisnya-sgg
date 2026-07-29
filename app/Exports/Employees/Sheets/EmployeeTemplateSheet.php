@@ -33,11 +33,10 @@ class EmployeeTemplateSheet implements FromArray, WithHeadings, WithTitle, WithS
      *  AC   = col 29  (Org Struktur)
      *  AD   = col 30  (Jabatan)
      *  AE   = col 31  (Pangkat)
-     *  AF   = col 32  (Golongan)
-     *  AG   = col 33  (Kelas)
-     *  AH   = col 34  (Tipe Karyawan)
-     *  AI   = col 35  (Tanggal Bergabung)
-     *  AJ   = col 36  (Role)
+     *  AF   = col 32  (Kelas)
+     *  AG   = col 33  (Tipe Karyawan)
+     *  AH   = col 34  (Tanggal Bergabung)
+     *  AI   = col 35  (Role)
      */
     public function headings(): array
     {
@@ -73,11 +72,10 @@ class EmployeeTemplateSheet implements FromArray, WithHeadings, WithTitle, WithS
             'Org Struktur',                // AC (dropdown → sheet Org_Struktur)
             'Jabatan',                     // AD (dropdown → sheet Jabatan)
             'Pangkat',                     // AE (dropdown → sheet Pangkat)
-            'Golongan',                    // AF (dropdown → sheet Golongan)
-            'Kelas',                       // AG (dropdown → sheet Kelas)
-            'Tipe Karyawan',               // AH (dropdown → sheet Tipe_Karyawan)
-            'Tanggal Bergabung',           // AI (YYYY-MM-DD)
-            'Role',                        // AJ (dropdown → sheet Role)
+            'Kelas',                       // AF (dropdown → sheet Kelas)
+            'Tipe Karyawan',               // AG (dropdown → sheet Tipe_Karyawan)
+            'Tanggal Bergabung',           // AH (YYYY-MM-DD)
+            'Role',                        // AI (dropdown → sheet Role)
         ];
     }
 
@@ -144,10 +142,9 @@ class EmployeeTemplateSheet implements FromArray, WithHeadings, WithTitle, WithS
                     'AC' => 'Org_Struktur',
                     'AD' => 'Jabatan',
                     'AE' => 'Pangkat',
-                    'AF' => 'Golongan',
-                    'AG' => 'Kelas',
-                    'AH' => 'Tipe_Karyawan',
-                    'AJ' => 'Role',
+                    'AF' => 'Kelas',
+                    'AG' => 'Tipe_Karyawan',
+                    'AI' => 'Role',
                 ];
 
                 foreach ($sheetDropdowns as $col => $masterSheet) {
@@ -166,8 +163,7 @@ class EmployeeTemplateSheet implements FromArray, WithHeadings, WithTitle, WithS
                     'P' => 16, 'Q' => 18, 'R' => 18, 'S' => 18, 'T' => 18,
                     'U' => 30, 'V' => 12, 'W' => 8,  'X' => 8,  'Y' => 18,
                     'Z' => 18, 'AA' => 20, 'AB' => 20, 'AC' => 22, 'AD' => 22,
-                    'AE' => 18, 'AF' => 18, 'AG' => 15, 'AH' => 20, 'AI' => 20,
-                    'AJ' => 20,
+                    'AE' => 18, 'AF' => 15, 'AG' => 20, 'AH' => 20, 'AI' => 20,
                 ];
 
                 foreach ($widths as $col => $width) {

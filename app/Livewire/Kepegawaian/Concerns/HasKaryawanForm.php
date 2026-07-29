@@ -6,7 +6,6 @@ use App\Enum\OrgStructurLevel;
 use App\Models\Master\Banks;
 use App\Models\Master\Companies;
 use App\Models\Master\EmployeeTypes;
-use App\Models\Master\Golongans;
 use App\Models\Master\JobPositions;
 use App\Models\Master\Kelas;
 use App\Models\Master\OrgStructure;
@@ -74,7 +73,6 @@ trait HasKaryawanForm
     public ?string $sub_division_id = null;
     public ?string $job_position_id = null;
     public ?string $pangkat_id = null;
-    public ?string $golongan_id = null;
     public ?string $kelas_id = null;
     public ?string $employee_type_id = null;
     public ?string $joining_date = null;
@@ -91,7 +89,6 @@ trait HasKaryawanForm
         $this->sub_division_id = null;
         $this->job_position_id = null;
         $this->pangkat_id = null;
-        $this->golongan_id = null;
         $this->kelas_id = null;
         $this->employee_type_id = null;
     }
@@ -183,16 +180,12 @@ trait HasKaryawanForm
             return collect();
         }
 
-        return Pangkats::where('company_id', $this->company_id)->pluck('name', 'id');
+        return Pangkats::where('company_id', $this->company_id)->orderByDesc('level')->pluck('name', 'id');
     }
 
-    public function getGolonganOptionsProperty()
+    public function getSelectedPangkatProperty(): ?Pangkats
     {
-        if (! $this->company_id) {
-            return collect();
-        }
-
-        return Golongans::where('company_id', $this->company_id)->pluck('name', 'id');
+        return $this->pangkat_id ? Pangkats::find($this->pangkat_id) : null;
     }
 
     public function getKelasOptionsProperty()
@@ -252,10 +245,12 @@ trait HasKaryawanForm
 
     public function goToStep(int $step): void
     {
-        // Cuma boleh lompat ke step yang sudah pernah divalidasi (mundur), tidak boleh
-        // skip maju tanpa lewat validasi step di antaranya.
-        if ($step < $this->step) {
-            $this->step = $step;
+        // Edit ($record sudah ada) - datanya sudah lengkap/valid dari awal, jadi bebas lompat
+        // ke step manapun tanpa harus urut. Create tetap wizard sekuensial: cuma boleh mundur
+        // ke step yang sudah pernah divalidasi, tidak boleh skip maju tanpa lewat validasi
+        // step di antaranya (lihat nextStep()).
+        if ($this->record || $step < $this->step) {
+            $this->step = max(1, min(3, $step));
         }
     }
 

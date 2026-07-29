@@ -4,7 +4,6 @@ namespace App\Imports\Employees;
 
 use App\Models\Master\Banks;
 use App\Models\Master\EmployeeTypes;
-use App\Models\Master\Golongans;
 use App\Models\Master\JobPositions;
 use App\Models\Master\Kelas;
 use App\Models\Master\OrgStructure;
@@ -43,7 +42,6 @@ class EmployeeImport implements ToCollection, WithHeadingRow
         $orgStructures = OrgStructure::when($cid, fn ($q) => $q->where('company_id', $cid))->pluck('id', 'name');
         $jobPositions = JobPositions::when($cid, fn ($q) => $q->where('company_id', $cid))->pluck('id', 'name');
         $pangkats     = Pangkats::when($cid, fn ($q) => $q->where('company_id', $cid))->pluck('id', 'name');
-        $golongans    = Golongans::when($cid, fn ($q) => $q->where('company_id', $cid))->pluck('id', 'name');
         $kelasData    = Kelas::when($cid, fn ($q) => $q->where('company_id', $cid))->pluck('id', 'name');
         $employeeTypes = EmployeeTypes::when($cid, fn ($q) => $q->where('company_id', $cid))->pluck('id', 'name');
 
@@ -59,7 +57,7 @@ class EmployeeImport implements ToCollection, WithHeadingRow
                 DB::transaction(function () use (
                     $row, $cid,
                     $religions, $banks, $orgStructures, $jobPositions,
-                    $pangkats, $golongans, $kelasData, $employeeTypes
+                    $pangkats, $kelasData, $employeeTypes
                 ) {
                     $name  = trim((string) ($row['nama'] ?? ''));
                     $nip   = $row['nip'] ?: null;
@@ -149,7 +147,6 @@ class EmployeeImport implements ToCollection, WithHeadingRow
                             'org_structure_id'     => $orgStructures[$row['org_struktur'] ?? ''] ?? null,
                             'job_position_id'      => $jobPositionId,
                             'pangkat_id'           => $pangkats[$row['pangkat'] ?? ''] ?? null,
-                            'golongan_id'          => $golongans[$row['golongan'] ?? ''] ?? null,
                             'kelas_id'             => $kelasData[$row['kelas'] ?? ''] ?? null,
                             'employee_type_id'     => $employeeTypes[$row['tipe_karyawan'] ?? ''] ?? null,
                             'joining_date'         => $joiningDate,

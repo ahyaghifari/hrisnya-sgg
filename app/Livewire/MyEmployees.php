@@ -39,6 +39,13 @@ class MyEmployees extends Component
         $user = Auth::user();
 
         abort_unless($user->canAccessKaryawanMenu(), 403);
+
+        // Super Admin defaultnya diarahkan ke company sendiri dulu (bukan list kosong sampai
+        // pilih manual, lihat baseQuery() - companyId kosong = whereRaw('1=0')), tapi tetap
+        // bisa pindah company lain lewat dropdown.
+        if ($user->canFilterByCompany() && $this->companyId === null) {
+            $this->companyId = $user->company_id;
+        }
     }
 
     public function updatedCompanyId(): void

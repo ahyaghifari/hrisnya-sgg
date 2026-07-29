@@ -83,7 +83,6 @@ class CreateKaryawan extends Component
             'org_structure_id' => $orgStructureId,
             'job_position_id' => $this->job_position_id,
             'pangkat_id' => $this->pangkat_id,
-            'golongan_id' => $this->golongan_id,
             'kelas_id' => $this->kelas_id,
             'employee_type_id' => $this->employee_type_id,
             'joining_date' => $this->joining_date ?: null,

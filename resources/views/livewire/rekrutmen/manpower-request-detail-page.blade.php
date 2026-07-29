@@ -1,5 +1,5 @@
 <div>
-<x-page-header title="Detail Permintaan Tenaga Kerja" :back="route('rekrutmen.permintaan-tenaga-kerja')" />
+<x-page-header title="Detail Permintaan Tenaga Kerja" :back="route('kepegawaian.permintaan')" />
 
 {{-- Timeline dimatikan sementara (bukan dihapus) - lihat App\Livewire\Rekrutmen\ManpowerRequestDetailPage::getTimelineProperty() --}}
 {{-- <x-approval-timeline :timeline="$this->timeline" /> --}}

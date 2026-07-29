@@ -69,7 +69,6 @@ class EditKaryawan extends Component
             $this->whatsapp = $profile->whatsapp ?? '';
             $this->job_position_id = $profile->job_position_id;
             $this->pangkat_id = $profile->pangkat_id;
-            $this->golongan_id = $profile->golongan_id;
             $this->kelas_id = $profile->kelas_id;
             $this->employee_type_id = $profile->employee_type_id;
             $this->joining_date = $profile->joining_date;
@@ -109,7 +108,9 @@ class EditKaryawan extends Component
 
     public function save(): void
     {
-        $this->validate($this->rulesForStep(1));
+        // Bisa disimpan dari step manapun (tidak lagi wizard sekuensial di Edit, lihat
+        // HasKaryawanForm::goToStep()) - validasi step 1 & 3 sekaligus, bukan cuma step aktif.
+        $this->validate(array_merge($this->rulesForStep(1), $this->rulesForStep(3)));
         $this->assertJobPositionQuota();
 
         $orgStructureId = $this->sub_division_id ?? $this->division_id ?? $this->department_id;
@@ -156,7 +157,6 @@ class EditKaryawan extends Component
             'org_structure_id' => $orgStructureId,
             'job_position_id' => $this->job_position_id,
             'pangkat_id' => $this->pangkat_id,
-            'golongan_id' => $this->golongan_id,
             'kelas_id' => $this->kelas_id,
             'employee_type_id' => $this->employee_type_id,
             'joining_date' => $this->joining_date ?: null,

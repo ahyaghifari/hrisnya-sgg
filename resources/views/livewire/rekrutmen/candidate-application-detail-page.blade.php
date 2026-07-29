@@ -1,5 +1,5 @@
 <div x-data="{ tab: 'detail' }">
-<x-page-header title="Detail Kandidat" :subtitle="$applicant->candidate?->name" :back="route('rekrutmen.lowongan.show', $applicant->jobVacancy)" />
+<x-page-header title="Detail Kandidat" :subtitle="$applicant->candidate?->name" :back="route('kepegawaian.lowongan.show', $applicant->jobVacancy)" />
 
 @php
     $candidate = $applicant->candidate;

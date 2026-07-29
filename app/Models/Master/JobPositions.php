@@ -41,7 +41,6 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property \Illuminate\Support\Carbon|null $deleted_at
  * @property string|null $pangkat_id
- * @property string|null $golongan_id
  * @property string|null $kelas_id
  * @property int|null $role_id
  * @property-read \Illuminate\Database\Eloquent\Collection<int, ApprovalHistories> $approvalHistories
@@ -57,7 +56,6 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property-read \App\Models\Role|null $defaultRole
  * @property-read int $competency_count
  * @property-read string $competency_names
- * @property-read \App\Models\Master\Golongans|null $golongan
  * @property-read \App\Models\Master\Kelas|null $kelas
  * @property-read \App\Models\Master\OrgStructure|null $orgStructure
  * @property-read \App\Models\Master\Pangkats|null $pangkat
@@ -82,7 +80,6 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @method static \Illuminate\Database\Eloquent\Builder<static>|JobPositions whereDeletedAt($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|JobPositions whereDescription($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|JobPositions whereFileWorkloadAnalysis($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|JobPositions whereGolonganId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|JobPositions whereId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|JobPositions whereIsDraft($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|JobPositions whereJobEvaluationScore($value)
@@ -126,7 +123,6 @@ class JobPositions extends Model
         'approved_manpower',
         'actual_manpower',
         'pangkat_id',
-        'golongan_id',
         'kelas_id',
         'role_id',
         'file_workload_analysis',
@@ -195,11 +191,6 @@ class JobPositions extends Model
     public function pangkat()
     {
         return $this->belongsTo(Pangkats::class, 'pangkat_id');
-    }
-
-    public function golongan()
-    {
-        return $this->belongsTo(Golongans::class, 'golongan_id');
     }
 
     public function kelas()

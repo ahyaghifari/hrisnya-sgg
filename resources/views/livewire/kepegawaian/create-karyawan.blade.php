@@ -16,10 +16,10 @@
     @foreach ($steps as $n => $meta)
         <button
             type="button"
-            @if ($n < $step) wire:click="goToStep({{ $n }})" @endif
-            @if ($n > $step) disabled @endif
+            @if ($isEdit || $n < $step) wire:click="goToStep({{ $n }})" @endif
+            @if (! $isEdit && $n > $step) disabled @endif
             class="section-nav-btn {{ $meta['color'] }} {{ $n === $step ? 'is-active' : '' }}"
-            style="{{ $n < $step ? 'cursor:pointer;' : ($n > $step ? 'opacity:.45;cursor:not-allowed;' : '') }}"
+            style="{{ $isEdit || $n < $step ? 'cursor:pointer;' : ($n > $step ? 'opacity:.45;cursor:not-allowed;' : '') }}"
         >
             <i class="fa-solid {{ $meta['icon'] }}"></i>
             <span>{{ $n }}. {{ $meta['label'] }}</span>
@@ -274,7 +274,7 @@
             </div>
             <div>
                 <label class="form-label">Pangkat</label>
-                <select wire:model="pangkat_id" class="form-input">
+                <select wire:model.live="pangkat_id" class="form-input">
                     <option value="">Pilih...</option>
                     @foreach ($this->pangkatOptions as $id => $pangkatName)
                         <option value="{{ $id }}">{{ $pangkatName }}</option>
@@ -283,12 +283,8 @@
             </div>
             <div>
                 <label class="form-label">Golongan</label>
-                <select wire:model="golongan_id" class="form-input">
-                    <option value="">Pilih...</option>
-                    @foreach ($this->golonganOptions as $id => $golonganName)
-                        <option value="{{ $id }}">{{ $golonganName }}</option>
-                    @endforeach
-                </select>
+                <p style="font-size:11.5px;color:var(--text-muted);margin-top:5px;">Otomatis ikut Pangkat yang dipilih.</p>
+                <input type="text" value="{{ $this->selectedPangkat?->golongan ?? '-' }}" class="form-input" disabled>
             </div>
             <div>
                 <label class="form-label">Kelas</label>
@@ -323,12 +319,13 @@
                 </button>
             @endif
         </div>
-        <div>
-            @if ($step < 3)
+        <div style="display:flex;gap:10px;">
+            @if (! $isEdit && $step < 3)
                 <button type="button" wire:click="nextStep" class="btn-primary" wire:loading.attr="disabled" wire:target="nextStep">
                     Lanjut <i class="fa-solid fa-arrow-right"></i>
                 </button>
             @else
+                {{-- Edit: bebas simpan dari step manapun, tidak perlu sampai step 3 dulu. --}}
                 <button type="button" wire:click="save" class="btn-primary" wire:loading.attr="disabled" wire:target="save">
                     <i class="fa-solid fa-check"></i> {{ $isEdit ? 'Simpan Perubahan' : 'Simpan Karyawan' }}
                 </button>

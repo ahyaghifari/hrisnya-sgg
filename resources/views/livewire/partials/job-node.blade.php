@@ -47,8 +47,8 @@
         
         {{-- Card Body --}}
         <div class="p-3 text-xs text-gray-600 flex flex-col gap-2">
-            @if(($jobData['job']->pangkat && $jobData['job']->pangkat->name) || 
-                ($jobData['job']->golongan && $jobData['job']->golongan->name) || 
+            @if(($jobData['job']->pangkat && $jobData['job']->pangkat->name) ||
+                ($jobData['job']->pangkat && $jobData['job']->pangkat->golongan) ||
                 ($jobData['job']->kelas && $jobData['job']->kelas->name))
                 <div class="bg-gray-50 rounded-lg p-2.5 space-y-1.5 border border-gray-100">
                     @if($jobData['job']->pangkat && $jobData['job']->pangkat->name)
@@ -57,10 +57,10 @@
                             <span class="font-semibold text-gray-900 text-right">{{ $jobData['job']->pangkat->name }}</span>
                         </div>
                     @endif
-                    @if($jobData['job']->golongan && $jobData['job']->golongan->name)
+                    @if($jobData['job']->pangkat && $jobData['job']->pangkat->golongan)
                         <div class="flex justify-between items-center group">
                             <span class="font-medium text-gray-500 group-hover:text-primary-600 transition-colors">Golongan</span>
-                            <span class="font-semibold text-gray-900 text-right">{{ $jobData['job']->golongan->name }}</span>
+                            <span class="font-semibold text-gray-900 text-right">{{ $jobData['job']->pangkat->golongan }}</span>
                         </div>
                     @endif
                     @if($jobData['job']->kelas && $jobData['job']->kelas->name)

@@ -6,7 +6,6 @@
     $canAccessAbsensi = auth()->user()->can(\App\Enum\CustomPermissionEnum::SISTEM_ABSENSI->value);
     $canAccessKepegawaian = auth()->user()->can(\App\Enum\CustomPermissionEnum::SISTEM_KEPEGAWAIAN->value);
     $canAccessLms = auth()->user()->can(\App\Enum\CustomPermissionEnum::SISTEM_LMS->value);
-    $canAccessRekrutmen = auth()->user()->can(\App\Enum\CustomPermissionEnum::SISTEM_REKRUTMEN->value);
     // Gerbang baris 1 — 3 permission terpisah (Pelatihan/Pengajuan Absensi/Coaching&Counseling),
     // dulu terbuka buat siapa saja yang login. Beranda & Tugas tetap dikecualikan (selalu bebas
     // akses). Lihat CustomPermissionsSeeder::bootstrapSelfServicePermissions() soal kenapa
@@ -20,7 +19,7 @@
     // jadi konselor TIDAK lihat dropdown ini — jalur masuknya lewat tombol "Konsul ke Saya" di
     // halaman personal Counseling Saya (/counseling) sendiri, lihat CounselingPage.
     $canAccessCoachingCounseling = $canSeeKaryawanMenu;
-    $showRoleRow = $canSeeKaryawanMenu || $canAccessKeuangan || $canAccessMaster || $canAccessAbsensi || $canAccessKepegawaian || $canAccessLms || $canAccessRekrutmen || $canAccessCoachingCounseling;
+    $showRoleRow = $canSeeKaryawanMenu || $canAccessKeuangan || $canAccessMaster || $canAccessAbsensi || $canAccessKepegawaian || $canAccessLms || $canAccessCoachingCounseling;
     $initials = collect(explode(' ', auth()->user()->name))
         ->map(fn ($part) => mb_substr($part, 0, 1))
         ->take(2)
@@ -142,9 +141,20 @@
                                     <a href="{{ route('kepegawaian.dashboard') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-chart-line"></i> Dashboard</a>
                                     <div style="height:1px;background:var(--border-soft);margin:6px 8px;"></div>
                                     <a href="{{ route('kepegawaian.karyawan') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-users"></i> Karyawan</a>
+                                    <a href="{{ route('kepegawaian.jabatan') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-id-card-clip"></i> Jabatan</a>
                                     <a href="{{ route('kepegawaian.dokumen') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-folder-open"></i> Dokumen</a>
                                     @if (auth()->user()->can('ViewAny:UserTransition'))
                                         <a href="{{ route('kepegawaian.mutasi-karyawan') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-right-left"></i> Perubahan Status</a>
+                                    @endif
+                                    @if (auth()->user()->can('ViewAny:JobOpenings') || auth()->user()->can('ViewAny:ManpowerRequests'))
+                                        <div style="height:1px;background:var(--border-soft);margin:6px 8px;"></div>
+                                        <div style="font-size:10.5px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em;padding:6px 12px 4px;">Rekrutmen</div>
+                                        @if (auth()->user()->can('ViewAny:JobOpenings'))
+                                            <a href="{{ route('kepegawaian.lowongan') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-briefcase"></i> Lowongan Kerja</a>
+                                        @endif
+                                        @if (auth()->user()->can('ViewAny:ManpowerRequests'))
+                                            <a href="{{ route('kepegawaian.permintaan') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-right-left"></i> Permintaan Tenaga Kerja</a>
+                                        @endif
                                     @endif
                                 </div>
                             </div>
@@ -165,18 +175,6 @@
                                     <a href="{{ route('pelatihan.baseline') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-bullseye"></i> Baseline Pelatihan</a>
                                     <a href="{{ route('pelatihan.laporan') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-chart-bar"></i> Laporan</a>
                                     <a href="{{ route('pelatihan.pengaturan') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-gear"></i> Pengaturan LMS</a>
-                                </div>
-                            </div>
-                        @endif
-                        {{-- ponytail: dropdown Rekrutmen disembunyikan sementara, aktifkan lagi ganti @if ($canAccessRekrutmen) --}}
-                        @if ($canAccessRekrutmen)
-                            <div class="dropdown">
-                                <a href="#" class="nav-item nav-item-gold {{ request()->routeIs('rekrutmen.*') ? 'active' : '' }}">
-                                    <i class="fa-solid fa-user-plus text-xs"></i> Rekrutmen <i class="fa-solid fa-chevron-down text-[10px]"></i>
-                                </a>
-                                <div class="dropdown-menu">
-                                    <a href="{{ route('rekrutmen.lowongan') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-briefcase"></i> Lowongan Kerja</a>
-                                    <a href="{{ route('rekrutmen.permintaan-tenaga-kerja') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-right-left"></i> Permintaan Tenaga Kerja</a>
                                 </div>
                             </div>
                         @endif

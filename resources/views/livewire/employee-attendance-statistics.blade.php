@@ -11,7 +11,7 @@
 @endphp
 <div x-data="{ tab: 'profil' }">
 <x-page-header
-    :title="$isSelf ? 'Data Diri' : 'MyStaff - ' . $record->name"
+    :title="$isSelf ? 'Data Diri' : $record->name"
     :subtitle="$record->profile?->jobPosition?->name ?? 'Karyawan'"
     :back="$backRoute"
 />
@@ -98,7 +98,7 @@
             'Sub Divisi' => $profile?->subDivision?->name,
             'Jabatan' => $profile?->jobPosition?->name,
             'Pangkat' => $profile?->pangkat?->name,
-            'Golongan' => $profile?->golongan?->name,
+            'Golongan' => $profile?->pangkat?->golongan,
             'Kelas' => $profile?->kelas?->name,
             'Tipe Karyawan' => $profile?->employeeType?->name,
             'Tanggal Bergabung' => $profile?->joining_date ? \Carbon\Carbon::parse($profile->joining_date)->translatedFormat('d F Y') : null,

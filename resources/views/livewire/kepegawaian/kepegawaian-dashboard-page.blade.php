@@ -200,7 +200,7 @@
             @endforelse
 
             <div style="margin-top:16px;display:flex;justify-content:space-between;">
-                <a href="{{ route('rekrutmen.permintaan-tenaga-kerja') }}" wire:navigate class="btn-ghost" style="font-size:12px;"><i class="fa-solid fa-right-left"></i> Ajukan Permintaan Tenaga Kerja</a>
+                <a href="{{ route('kepegawaian.permintaan') }}" wire:navigate class="btn-ghost" style="font-size:12px;"><i class="fa-solid fa-right-left"></i> Ajukan Permintaan Tenaga Kerja</a>
                 <button type="button" wire:click="closeModal" class="btn-ghost">Tutup</button>
             </div>
         </div>

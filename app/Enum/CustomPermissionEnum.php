@@ -18,7 +18,6 @@ enum CustomPermissionEnum: string
     case SISTEM_KEPEGAWAIAN = 'sistem_kepegawaian';
     case SISTEM_LMS = 'sistem_lms';
     case SISTEM_TUGAS = 'sistem_tugas';
-    case SISTEM_REKRUTMEN = 'sistem_rekrutmen';
     case SISTEM_COACHING_COUNSELING = 'sistem_coaching_counseling';
     case PELATIHAN_SAYA = 'pelatihan_saya';
     case PENGAJUAN_ABSENSI_SAYA = 'pengajuan_absensi_saya';
@@ -51,6 +50,7 @@ enum CustomPermissionEnum: string
     case EDIT_DETAIL_KURSUS_LMS = 'edit_detail_kursus_lms';
     case EDIT_HONORARIUM_LMS = 'edit_honorarium_lms';
     case EDIT_PENGATURAN_ABSENSI = 'edit_pengaturan_absensi';
+    case SYNC_DATA_ABSENSI = 'sync_data_absensi';
     case EDIT_PENGATURAN_TUGAS = 'edit_pengaturan_tugas';
     case EDIT_PENGATURAN_LMS = 'edit_pengaturan_lms';
 
@@ -79,7 +79,6 @@ enum CustomPermissionEnum: string
             self::SISTEM_KEPEGAWAIAN => 'Sistem Kepegawaian',
             self::SISTEM_LMS => 'Sistem LMS',
             self::SISTEM_TUGAS => 'Sistem Tugas',
-            self::SISTEM_REKRUTMEN => 'Sistem Rekrutmen',
             self::SISTEM_COACHING_COUNSELING => 'Sistem Coaching & Counseling',
             self::PELATIHAN_SAYA => 'Pelatihan Saya',
             self::PENGAJUAN_ABSENSI_SAYA => 'Pengajuan Absensi Saya',
@@ -98,6 +97,7 @@ enum CustomPermissionEnum: string
             self::EDIT_DETAIL_KURSUS_LMS => 'Edit Detail Kursus LMS',
             self::EDIT_HONORARIUM_LMS => 'Edit Honorarium LMS',
             self::EDIT_PENGATURAN_ABSENSI => 'Edit Pengaturan Absensi',
+            self::SYNC_DATA_ABSENSI => 'Sync Data Absensi (dari Access Logs)',
             self::EDIT_PENGATURAN_TUGAS => 'Edit Pengaturan Tugas',
             self::EDIT_PENGATURAN_LMS => 'Edit Pengaturan LMS',
             self::KELOLA_JADWAL_SHIFT => 'Kelola Jadwal Shift (Template & Roster)',

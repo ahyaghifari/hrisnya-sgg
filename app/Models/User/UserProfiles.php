@@ -39,7 +39,6 @@ use Illuminate\Database\Eloquent\Model;
  * @property string|null $org_structure_id
  * @property string|null $job_position_id
  * @property string|null $pangkat_id
- * @property string|null $golongan_id
  * @property string|null $kelas_id
  * @property string|null $employee_type_id
  * @property string|null $business_unit_id
@@ -52,7 +51,6 @@ use Illuminate\Database\Eloquent\Model;
  * @property-read mixed $department
  * @property-read mixed $division
  * @property-read mixed $sub_division
- * @property-read \App\Models\Master\Golongans|null $golongan
  * @property-read \App\Models\Master\JobPositions|null $jobPosition
  * @property-read \App\Models\Master\Kelas|null $kelas
  * @property-read OrgStructure|null $orgStructure
@@ -74,7 +72,6 @@ use Illuminate\Database\Eloquent\Model;
  * @method static \Illuminate\Database\Eloquent\Builder<static>|UserProfiles whereDistrict($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|UserProfiles whereEmployeeTypeId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|UserProfiles whereGender($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|UserProfiles whereGolonganId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|UserProfiles whereId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|UserProfiles whereJobPositionId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|UserProfiles whereJoiningDate($value)
@@ -136,7 +133,6 @@ class UserProfiles extends Model
         'org_structure_id',
         'job_position_id',
         'pangkat_id',
-        'golongan_id',
         'kelas_id',
         'employee_type_id',
         'profile_picture',
@@ -219,11 +215,6 @@ class UserProfiles extends Model
     public function pangkat()
     {
         return $this->belongsTo(\App\Models\Master\Pangkats::class, 'pangkat_id', 'id');
-    }
-
-    public function golongan()
-    {
-        return $this->belongsTo(\App\Models\Master\Golongans::class, 'golongan_id', 'id');
     }
 
     public function kelas()

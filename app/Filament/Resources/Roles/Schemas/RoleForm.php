@@ -46,6 +46,7 @@ class RoleForm
             CustomPermissionEnum::SISTEM_ABSENSI->value => [
                 CustomPermissionEnum::EDIT_PENGATURAN_ABSENSI->value,
                 CustomPermissionEnum::KELOLA_JADWAL_SHIFT->value,
+                CustomPermissionEnum::SYNC_DATA_ABSENSI->value,
                 'Create:Schedule',
                 'Update:Schedule',
                 'Delete:Schedule',
@@ -57,7 +58,6 @@ class RoleForm
             CustomPermissionEnum::SISTEM_TUGAS->value => [
                 CustomPermissionEnum::EDIT_PENGATURAN_TUGAS->value,
             ],
-            CustomPermissionEnum::SISTEM_REKRUTMEN->value => [],
             CustomPermissionEnum::SISTEM_COACHING_COUNSELING->value => [
                 CustomPermissionEnum::COACHING_KARYAWAN_LAINNYA->value,
             ],
