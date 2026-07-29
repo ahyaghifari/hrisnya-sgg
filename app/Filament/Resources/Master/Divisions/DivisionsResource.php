@@ -28,7 +28,7 @@ class DivisionsResource extends BaseCompanyResource
 
     protected static ?string $navigationLabel = 'Divisi';
 
-    protected static string|UnitEnum|null $navigationGroup = 'Master';
+    protected static string|UnitEnum|null $navigationGroup = 'Master Perusahaan';
 
     protected static ?int $navigationSort = 3;
 
@@ -92,11 +92,6 @@ class DivisionsResource extends BaseCompanyResource
                 TextColumn::make('capacity')->label('Kapasitas')->alignCenter(),
             ])
             ->filters([
-                // company_id & parent_id digabung 1 Filter (bukan 2 SelectFilter terpisah) -
-                // $get('company_id') di options() parent_id cuma bisa baca sibling field yang
-                // satu container/schema yang sama; 2 SelectFilter terpisah TIDAK berbagi
-                // container, $get() lintas-filter crash ("container must not be accessed before
-                // initialization"). Digabung di sini supaya cascading company->departemen jalan.
                 Filter::make('org_scope')
                     ->schema([
                         Select::make('company_id')

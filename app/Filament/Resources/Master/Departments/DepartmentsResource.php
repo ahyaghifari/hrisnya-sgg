@@ -31,7 +31,7 @@ class DepartmentsResource extends BaseCompanyResource
 
     protected static ?string $navigationLabel = 'Departemen';
 
-    protected static string|UnitEnum|null $navigationGroup = 'Master';
+    protected static string|UnitEnum|null $navigationGroup = 'Master Perusahaan';
 
     protected static ?int $navigationSort = 2;
 

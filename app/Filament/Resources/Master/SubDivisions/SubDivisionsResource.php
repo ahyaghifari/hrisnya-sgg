@@ -38,7 +38,7 @@ class SubDivisionsResource extends BaseCompanyResource
 
     protected static ?string $navigationLabel = 'Sub Divisi';
 
-    protected static string|UnitEnum|null $navigationGroup = 'Master';
+    protected static string|UnitEnum|null $navigationGroup = 'Master Perusahaan';
 
     protected static ?int $navigationSort = 4;
 

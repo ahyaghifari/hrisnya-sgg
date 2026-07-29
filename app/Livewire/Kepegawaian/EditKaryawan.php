@@ -15,17 +15,6 @@ use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 
-/**
- * Edit dari halaman Karyawan (semua karyawan company, bukan cuma bawahan) — beda dari
- * EditMyEmployee (khusus My Staff, permission subordinate-based). Scoping akses di sini
- * disamakan dengan KaryawanPage::baseQuery(): SISTEM_KEPEGAWAIAN + company sendiri, atau
- * canFilterByCompany() buat yang boleh lintas company.
- *
- * Sekarang pakai form yang SAMA dengan Tambah Karyawan (HasKaryawanForm + view
- * create-karyawan.blade.php), bukan lagi Filament schema (EmployeeForm) - supaya UI dan field
- * konsisten create/edit. Bug lama: role tidak ke-load otomatis saat edit (harus pilih ulang
- * padahal sudah ada), sekarang di-fix di mount() ini ($this->role_ids diisi dari $record->roles).
- */
 #[Layout('components.layout', ['title' => 'Edit Karyawan'])]
 class EditKaryawan extends Component
 {

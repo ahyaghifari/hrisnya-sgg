@@ -4,45 +4,27 @@ namespace App\Filament\Resources\Master\JobPositions\Pages;
 
 use App\Enum\JobPositionReqStatus;
 use App\Filament\Resources\Master\JobPositions\JobPositionResource;
-use App\Services\JobPosition\JobPositionService;
-use Filament\Actions\Action;
-use Filament\Notifications\Notification;
 use Filament\Resources\Pages\CreateRecord;
 
 class CreateJobPosition extends CreateRecord
 {
     protected static string $resource = JobPositionResource::class;
-    protected static ?string $title = 'Buat Jabatan Baru';
-    
+
+    protected static ?string $title = 'Ajukan Jabatan Baru';
+
     protected function getRedirectUrl(): string
     {
         return $this->getResource()::getUrl('index');
     }
 
-    protected function getFormActions(): array
+    /** DB default kolom status = 'pending' (bukan 'draft') - tanpa ini, jabatan yang baru
+     * dibuat langsung terkunci di form Edit (lockedAfterDraft() di JobPositionResource
+     * membandingkan ke DRAFT). Submit ke approval flow (JobPositionService::requestJobPosition())
+     * ditunda - bukan bagian task ini. */
+    protected function mutateFormDataBeforeCreate(array $data): array
     {
-        return [
-            Action::make('create')
-                ->label('Simpan')
-                ->requiresConfirmation()
-                ->modalHeading('Konfirmasi Simpan Data')
-                ->modalDescription('Apakah Anda yakin ingin menyimpan data ini?')
-                ->tooltip('Data akan disimpan dan diajukan untuk proses persetujuan.')
-                ->action(function () {
-                    $this->create();
+        $data['status'] = JobPositionReqStatus::DRAFT->value;
 
-                    Notification::make()
-                        ->title('Data berhasil disimpan')
-                        ->success()
-                        ->send();
-
-                    $this->redirect($this->getRedirectUrl());
-                }),
-
-            Action::make('cancel')
-                ->label('Batal')
-                ->color('gray')
-                ->url($this->getRedirectUrl()),
-        ];
+        return $data;
     }
 }

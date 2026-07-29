@@ -2,12 +2,6 @@
 
 namespace App\Enum\Approval;
 
-/**
- * Satu sumber kebenaran untuk `module` (`master_approval_flows.module`, `approval_snapshots.module_type`,
- * dst) dipakai Approval Engine generik lintas fitur. Sebelumnya string literal ditulis ulang di
- * banyak tempat (ApprovalFlowForm, ApprovalFlowsTable, ApprovalNeedsAction, RequestStatusChanged,
- * dan tiap service pembuat snapshot) — gampang nyimpang kalau diedit manual satu-satu.
- */
 enum ApprovalModuleEnum: string
 {
     case ATTENDANCE_REQUEST = 'attendance_request';

@@ -33,7 +33,7 @@ class KelasResource extends BaseCompanyResource
 
     protected static ?string $navigationLabel = 'Kelas';
 
-    protected static string|UnitEnum|null $navigationGroup = 'Master';
+    protected static string|UnitEnum|null $navigationGroup = 'Master Perusahaan';
 
     protected static ?int $navigationSort = 5;
 
