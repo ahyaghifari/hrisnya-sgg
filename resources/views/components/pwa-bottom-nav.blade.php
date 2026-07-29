@@ -138,6 +138,10 @@
                 <span class="pwa-menu-grid-icon navy"><i class="fa-solid fa-flag"></i></span>
                 <span class="pwa-menu-grid-label">Hari Libur & Cuti Bersama</span>
             </a>
+            <a href="{{ route('presensi.rekap-presensi') }}" wire:navigate class="pwa-menu-grid-item">
+                <span class="pwa-menu-grid-icon navy"><i class="fa-solid fa-clipboard-list"></i></span>
+                <span class="pwa-menu-grid-label">Rekap Presensi</span>
+            </a>
             <a href="{{ route('presensi.rekap-izin') }}" wire:navigate class="pwa-menu-grid-item">
                 <span class="pwa-menu-grid-icon navy"><i class="fa-solid fa-file-lines"></i></span>
                 <span class="pwa-menu-grid-label">Izin</span>

@@ -60,6 +60,7 @@ use App\Livewire\Presensi\HolidayCalendarPage;
 use App\Livewire\Presensi\HolidaysPage;
 use App\Livewire\Presensi\IzinRecapPage;
 use App\Livewire\Presensi\LemburRecapPage;
+use App\Livewire\Presensi\RekapPresensiPage;
 use App\Livewire\Presensi\ScheduleAssignmentsPage;
 use App\Livewire\Presensi\ScheduleDetailPage;
 use App\Livewire\Presensi\SchedulesPage;
@@ -264,6 +265,9 @@ Route::middleware(['auth', 'portal.access'])->group(function () {
 
     Route::get('/presensi/rekap-lembur', LemburRecapPage::class)
         ->name('presensi.rekap-lembur');
+
+    Route::get('/presensi/rekap-presensi', RekapPresensiPage::class)
+        ->name('presensi.rekap-presensi');
 
     // Read-only, permission null (guard/self-service biasa) — versi karyawan biasa dari
     // halaman kelola di atas. Belum ada link masuk di nav manapun, lihat

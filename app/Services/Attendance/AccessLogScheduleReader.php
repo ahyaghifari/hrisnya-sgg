@@ -30,9 +30,9 @@ class AccessLogScheduleReader
      *     rejected_device: array,
      * }
      */
-    public function readAndGroup(string $fromDate, string $toDate, ?string $nip = null): array
+    public function readAndGroup(string $fromDate, string $toDate, ?string $nip = null, ?string $fromTime = null): array
     {
-        return $this->groupAndBucket($this->readAndGroupScans($fromDate, $toDate, $nip));
+        return $this->groupAndBucket($this->readAndGroupScans($fromDate, $toDate, $nip, $fromTime));
     }
 
     /**
@@ -97,12 +97,18 @@ class AccessLogScheduleReader
     /**
      * Tahap 1: ambil access_logs, kelompokkan per employee_id + tanggal.
      * Scan pertama = check-in, scan terakhir = check-out (kalau cuma 1 scan, check-out null).
+     * $fromTime (format "H:i:s") - dipakai sync manual RekapPresensiPage buat abaikan scan
+     * sebelum jam tertentu (mis. scan test/salah sebelum device benar2 online), BUKAN dipakai
+     * pipeline otomatis (SyncAccessLogsAttendance selalu null di sini).
      */
-    private function readAndGroupScans(string $fromDate, string $toDate, ?string $nip): array
+    private function readAndGroupScans(string $fromDate, string $toDate, ?string $nip, ?string $fromTime = null): array
     {
         $query = DB::table('access_logs')->whereBetween('access_date', [$fromDate, $toDate]);
         if ($nip) {
             $query->where('employee_id', $nip);
+        }
+        if ($fromTime) {
+            $query->where('access_time', '>=', $fromTime);
         }
 
         $scanGroups = $query->orderBy('access_datetime')->get()

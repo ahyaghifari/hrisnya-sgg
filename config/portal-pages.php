@@ -257,6 +257,12 @@ return [
         'guard' => null,
     ],
 
+    'presensi.rekap-presensi' => [
+        'label' => 'Rekap Presensi',
+        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_ABSENSI->value,
+        'guard' => null,
+    ],
+
     'presensi.hari-libur' => [
         'label' => 'Hari Libur & Cuti Bersama',
         // Direlokasi dari 'master.hari-libur' (permission SISTEM_MASTER) ke grup Presensi &
