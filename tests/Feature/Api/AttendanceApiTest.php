@@ -5,6 +5,7 @@ namespace Tests\Feature\Api;
 use App\Models\Attendance\AttendanceRequestLeaveDetails;
 use App\Models\Attendance\AttendanceRequests;
 use App\Models\Attendance\LeaveUserBalances;
+use App\Models\Master\Attendance\Holidays;
 use App\Models\Master\Attendance\LeaveTypes;
 use App\Models\Master\Companies;
 use App\Models\User;
@@ -125,5 +126,48 @@ class AttendanceApiTest extends TestCase
 
         $response->assertOk();
         $response->assertJsonFragment(['name' => 'Cuti Tahunan']);
+    }
+
+    public function test_guest_can_access_holiday_endpoints(): void
+    {
+        $this->getJson('/api/attendance/holidays')->assertOk();
+    }
+
+    public function test_authenticated_user_can_list_holidays_and_collective_leaves(): void
+    {
+        $user = User::factory()->create();
+        Holidays::create([
+            'date' => '2026-07-20',
+            'name' => 'Hari Raya Idul Adha',
+            'is_collective_leave' => true,
+        ]);
+        Holidays::create([
+            'date' => '2026-07-21',
+            'name' => 'Hari Libur Nasional',
+            'is_collective_leave' => false,
+        ]);
+
+        $response = $this->actingAs($user, 'sanctum')->getJson('/api/attendance/holidays?from=2026-07-01&to=2026-07-31');
+
+        $response->assertOk();
+        $response->assertJsonCount(2, 'data');
+        $response->assertJsonFragment(['name' => 'Hari Raya Idul Adha', 'is_collective_leave' => true]);
+        $response->assertJsonFragment(['name' => 'Hari Libur Nasional', 'is_collective_leave' => false]);
+    }
+
+    public function test_independence_day_api_returns_hari_kemerdekaan(): void
+    {
+        Holidays::create([
+            'date' => '2026-08-17',
+            'name' => 'Hari Kemerdekaan',
+            'is_collective_leave' => false,
+        ]);
+
+        $response = $this->getJson('/api/attendance/holidays/kemerdekaan');
+
+        $response->assertOk();
+        $response->assertJsonPath('data.date', '2026-08-17');
+        $response->assertJsonPath('data.name', 'Hari Kemerdekaan');
+        $response->assertJsonPath('data.is_collective_leave', false);
     }
 }

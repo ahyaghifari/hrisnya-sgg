@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\Attendance\AttendanceRequestController;
+use App\Http\Controllers\Api\Attendance\HolidayController;
 use App\Http\Controllers\Api\Coaching\CoachingController;
 use App\Http\Controllers\Api\Counseling\CounselingController;
 use App\Http\Controllers\Api\JobOpening\JobOpeningController;
@@ -25,6 +26,11 @@ Route::prefix('master')->group(function () {
         Route::get('attendance/request-types', [AttendanceRequestController::class, 'getMasterAttendanceReqTypes']);
         Route::get('departments/other', [TaskController::class, 'getOtherDepartments']);
     });
+});
+
+Route::prefix('attendance')->group(function () {
+    Route::get('/holidays', [HolidayController::class, 'index']);
+    Route::get('/holidays/kemerdekaan', [HolidayController::class, 'showIndependenceDay']);
 });
 
 Route::middleware('auth:sanctum')->group(function () {
