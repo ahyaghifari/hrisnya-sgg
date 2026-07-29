@@ -44,4 +44,9 @@ class AttendanceRequestLeaveDetails extends Model
         'end_date',
         'total_days',
     ];
+
+    public function request()
+    {
+        return $this->belongsTo(AttendanceRequests::class, 'request_id');
+    }
 }

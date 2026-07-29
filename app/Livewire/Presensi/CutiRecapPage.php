@@ -9,19 +9,28 @@ use App\Models\Master\Companies;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\Url;
 use Livewire\Component;
+use Livewire\WithPagination;
 
 /**
- * Rekap seluruh pengajuan Cuti (APPROVED) dalam 1 periode — matrix karyawan x jenis cuti.
- * Beda dari IzinRecapPage: jenis cuti TIDAK dipetakan ke enum tetap (LeaveTypeCategoryEnum cuma
- * punya 1 case, "tahunan" - tidak representatif buat semua jenis cuti), jadi kolom kategori di
- * sini dinamis dari nama jenis cuti (leave_type) yang benar-benar muncul di data periode itu.
- * Angka yang dihitung = HARI cuti yang jatuh dalam periode filter (diclamp ke rentang filter,
- * bukan total_days penuh kalau requestnya sebagian di luar periode).
+ * Rekap seluruh pengajuan Cuti (APPROVED) — 2 mode: "matrix" (ringkasan karyawan x jenis cuti,
+ * 1 periode) dan "table" (histori flat semua pengajuan cuti, terbaru dulu, tanpa terikat 1
+ * periode - mirip riwauat-cuti-sebelum-update-hris.png). Beda dari IzinRecapPage: jenis cuti
+ * TIDAK dipetakan ke enum tetap (LeaveTypeCategoryEnum cuma punya 1 case, "tahunan" - tidak
+ * representatif buat semua jenis cuti), jadi kolom kategori di mode matrix dinamis dari nama
+ * jenis cuti (leave_type) yang benar-benar muncul di data periode itu. Angka yang dihitung di
+ * mode matrix = HARI cuti yang jatuh dalam periode filter (diclamp ke rentang filter, bukan
+ * total_days penuh kalau requestnya sebagian di luar periode).
  */
 #[Layout('components.layout', ['title' => 'Rekap Cuti'])]
 class CutiRecapPage extends Component
 {
+    use WithPagination;
+
+    #[Url]
+    public string $mode = 'matrix';
+
     public ?string $companyId = null;
     public ?string $date_from = null;
     public ?string $date_to = null;
@@ -39,11 +48,24 @@ class CutiRecapPage extends Component
         }
     }
 
+    public function setMode(string $mode): void
+    {
+        $this->mode = $mode;
+        $this->resetPage();
+    }
+
     public function updatedCompanyId(): void
     {
         if (! Auth::user()->canFilterByCompany()) {
             $this->companyId = Auth::user()->company_id;
         }
+
+        $this->resetPage();
+    }
+
+    public function updatedSearch(): void
+    {
+        $this->resetPage();
     }
 
     public function getCompanyOptionsProperty()
@@ -177,6 +199,38 @@ class CutiRecapPage extends Component
             ],
             'ready' => true,
         ];
+    }
+
+    /**
+     * Mode "table" - histori flat semua pengajuan cuti approved, terbaru (Awal Cuti) di atas.
+     * Sengaja TIDAK diikat date_from/date_to (itu punya mode matrix) - ini memang histori penuh,
+     * company+search saja yang membatasi.
+     */
+    public function getHistoryProperty()
+    {
+        return AttendanceRequestLeaveDetails::query()
+            ->whereHas('request', function ($q) {
+                $q->where('type', 'leave')
+                    ->where('status', 'approved')
+                    ->when($this->companyId, fn ($q2) => $q2->whereHas('user', fn ($q3) => $q3->where('company_id', $this->companyId)));
+            })
+            ->when(trim($this->search) !== '', function ($q) {
+                $search = trim($this->search);
+                $q->whereHas('request.user', fn ($q2) => $q2->where('name', 'like', "%{$search}%")->orWhere('nip', 'like', "%{$search}%"));
+            })
+            ->with([
+                'request.user.company',
+                'request.user.profile.jobPosition',
+                'request.user.profile.orgStructure.parent.parent',
+            ])
+            ->orderByDesc('start_date')
+            ->orderByDesc('created_at')
+            ->paginate(20)
+            ->appends([
+                'mode' => $this->mode,
+                'companyId' => $this->companyId,
+                'search' => $this->search,
+            ]);
     }
 
     public function render()

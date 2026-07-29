@@ -45,7 +45,7 @@
                     <div style="background:var(--surface);border-radius:12px;box-shadow:var(--shadow-card);padding:16px;">
                         {{-- Gaji Pokok --}}
                         @if ($activeComponent === 'gaji_pokok')
-                            <p style="font-size:11px;color:var(--text-muted);margin:0 0 12px;">Gaji pokok per pangkat = Base Salary x (1 + persen kenaikan per kelas x langkah kelas). Langkah kelas dihitung dari "Kelas Mulai" pangkat ini, mentok di "Kelas Maksimal". Persen kenaikannya sendiri berlaku 1 nilai untuk semua pangkat di company ini — atur di halaman Komponen Gaji.</p>
+                            <p style="font-size:11px;color:var(--text-muted);margin:0 0 12px;">Gaji pokok per pangkat = Base Salary x (1 + persen kenaikan per kelas x langkah kelas). Langkah kelas dihitung dari "Kelas Dasar" pangkat ini, mentok di "Kelas Maksimal" — keduanya diatur lewat halaman Pangkat (Master Perusahaan), di sini cuma keterangan. Persen kenaikannya sendiri berlaku 1 nilai untuk semua pangkat di company ini — atur di halaman Komponen Gaji.</p>
                             <div style="display:flex;flex-direction:column;gap:14px;">
                                 @foreach ($this->pangkats as $p)
                                     <div style="border:1px solid var(--border-soft);border-radius:10px;padding:10px 12px;">
@@ -62,26 +62,12 @@
                                                 @error("gajiPokokValues.{$p->id}") <p style="font-size:10.5px;color:#dc2626;margin-top:2px;">{{ $message }}</p> @enderror
                                             </div>
                                             <div>
-                                                <label class="form-label" style="font-size:10.5px;">Kelas Mulai</label>
-                                                <select class="form-input" style="font-size:12.5px;padding:7px 10px;" wire:model="startKelasIdValues.{{ $p->id }}">
-                                                    <option value="">Belum diisi</option>
-                                                    @foreach ($this->kelasList as $k)
-                                                        @continue($k->level === null)
-                                                        <option value="{{ $k->id }}">{{ $k->name }}</option>
-                                                    @endforeach
-                                                </select>
-                                                @error("startKelasIdValues.{$p->id}") <p style="font-size:10.5px;color:#dc2626;margin-top:2px;">{{ $message }}</p> @enderror
+                                                <label class="form-label" style="font-size:10.5px;">Kelas Dasar</label>
+                                                <p style="font-size:12.5px;color:var(--text-body);margin:0;padding:7px 10px;background:var(--surface-alt);border-radius:8px;">{{ $p->startKelas?->name ?? 'Belum diatur' }}</p>
                                             </div>
                                             <div>
                                                 <label class="form-label" style="font-size:10.5px;">Kelas Maksimal</label>
-                                                <select class="form-input" style="font-size:12.5px;padding:7px 10px;" wire:model="maxKelasIdValues.{{ $p->id }}">
-                                                    <option value="">Tanpa batas</option>
-                                                    @foreach ($this->kelasList as $k)
-                                                        @continue($k->level === null)
-                                                        <option value="{{ $k->id }}">{{ $k->name }}</option>
-                                                    @endforeach
-                                                </select>
-                                                @error("maxKelasIdValues.{$p->id}") <p style="font-size:10.5px;color:#dc2626;margin-top:2px;">{{ $message }}</p> @enderror
+                                                <p style="font-size:12.5px;color:var(--text-body);margin:0;padding:7px 10px;background:var(--surface-alt);border-radius:8px;">{{ $p->maxKelas?->name ?? 'Belum diatur' }}</p>
                                             </div>
                                         </div>
                                     </div>
@@ -155,7 +141,7 @@
 
                         {{-- Tunjangan Jabatan (matrix pangkat x kelas) --}}
                         @if ($activeComponent === 'tunjangan_jabatan')
-                            <p style="font-size:11px;color:var(--text-muted);margin:0 0 12px;">Matriks nominal tunjangan jabatan — 1 nilai per kombinasi Pangkat x Kelas. Kombinasi yang dikosongkan tidak menghasilkan tunjangan.</p>
+                            <p style="font-size:11px;color:var(--text-muted);margin:0 0 12px;">Matriks nominal tunjangan jabatan — 1 nilai per kombinasi Pangkat x Kelas. Kombinasi yang dikosongkan tidak menghasilkan tunjangan. Kotak abu-abu (terkunci) berarti Kelas itu di luar rentang Kelas Dasar/Maksimal Pangkat-nya (diatur di halaman Pangkat).</p>
                             @if ($this->pangkats->isEmpty() || $this->kelasList->isEmpty())
                                 <p style="font-size:11.5px;color:var(--text-faint);">Butuh data Pangkat DAN Kelas untuk perusahaan ini dulu.</p>
                             @else
@@ -174,8 +160,13 @@
                                                 <tr>
                                                     <td style="padding:6px 10px;font-weight:600;white-space:nowrap;position:sticky;left:0;background:var(--surface);z-index:1;border-right:1.5px solid var(--border);">{{ $p->name }}</td>
                                                     @foreach ($this->kelasList as $k)
-                                                        <td style="padding:4px 6px;">
-                                                            <input type="number" step="0.01" class="form-input" style="width:120px;font-size:11.5px;padding:6px 8px;border-color:#042c6c;{{ $errors->has("jabatanMatrix.{$p->id}|{$k->id}") ? 'border-color:#dc2626;' : '' }}" wire:model="jabatanMatrix.{{ $p->id }}|{{ $k->id }}">
+                                                        @php $inRange = $this->kelasInPangkatRange($p, $k); @endphp
+                                                        <td style="padding:4px 6px;{{ $inRange ? '' : 'background:var(--surface-alt);' }}">
+                                                            @if ($inRange)
+                                                                <input type="number" step="0.01" class="form-input" style="width:120px;font-size:11.5px;padding:6px 8px;border-color:#042c6c;{{ $errors->has("jabatanMatrix.{$p->id}|{$k->id}") ? 'border-color:#dc2626;' : '' }}" wire:model="jabatanMatrix.{{ $p->id }}|{{ $k->id }}">
+                                                            @else
+                                                                <input type="number" step="0.01" class="form-input" style="width:120px;font-size:11.5px;padding:6px 8px;color:var(--text-faint);" value="{{ $jabatanMatrix[$p->id . '|' . $k->id] ?? '' }}" disabled title="Kelas ini di luar rentang Kelas Dasar/Maksimal pangkat {{ $p->name }}">
+                                                            @endif
                                                         </td>
                                                     @endforeach
                                                 </tr>

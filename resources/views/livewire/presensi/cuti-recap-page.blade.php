@@ -11,7 +11,12 @@
     $typeStyle = fn (string $type) => $palette[crc32($type) % count($palette)];
 @endphp
 <div>
-<x-page-header title="Rekap Cuti" subtitle="Rekap seluruh pengajuan cuti yang sudah disetujui dalam 1 periode" />
+<x-page-header title="Rekap Cuti" :subtitle="$mode === 'matrix' ? 'Ringkasan karyawan x jenis cuti dalam 1 periode' : 'Histori seluruh pengajuan cuti yang sudah disetujui, terbaru di atas'" />
+
+<div style="display:inline-flex;gap:2px;background:var(--surface-alt);padding:3px;border-radius:8px;margin-bottom:16px;">
+    <button type="button" wire:click="setMode('matrix')" style="padding:4px 12px;font-size:11.5px;font-weight:600;border:none;border-radius:6px;cursor:pointer;font-family:inherit;background:{{ $mode === 'matrix' ? 'var(--surface)' : 'transparent' }};color:{{ $mode === 'matrix' ? 'var(--text-heading)' : 'var(--text-muted)' }};box-shadow:{{ $mode === 'matrix' ? 'var(--shadow-card)' : 'none' }};">Ringkasan</button>
+    <button type="button" wire:click="setMode('table')" style="padding:4px 12px;font-size:11.5px;font-weight:600;border:none;border-radius:6px;cursor:pointer;font-family:inherit;background:{{ $mode === 'table' ? 'var(--surface)' : 'transparent' }};color:{{ $mode === 'table' ? 'var(--text-heading)' : 'var(--text-muted)' }};box-shadow:{{ $mode === 'table' ? 'var(--shadow-card)' : 'none' }};">Tabel Historis</button>
+</div>
 
 <div class="mb-4" style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;">
     @if ($this->canBrowseAllCompanies)
@@ -26,17 +31,84 @@
         </div>
     @endif
 
-    <div style="min-width:170px;">
-        <label class="form-label">Dari Tanggal</label>
-        <input type="date" class="form-input" wire:model.live="date_from">
-    </div>
+    @if ($mode === 'matrix')
+        <div style="min-width:170px;">
+            <label class="form-label">Dari Tanggal</label>
+            <input type="date" class="form-input" wire:model.live="date_from">
+        </div>
 
-    <div style="min-width:170px;">
-        <label class="form-label">Sampai Tanggal</label>
-        <input type="date" class="form-input" wire:model.live="date_to">
-    </div>
+        <div style="min-width:170px;">
+            <label class="form-label">Sampai Tanggal</label>
+            <input type="date" class="form-input" wire:model.live="date_to">
+        </div>
+    @else
+        <div style="min-width:220px;flex:1;">
+            <label class="form-label">Cari</label>
+            <div style="position:relative;">
+                <i class="fa-solid fa-magnifying-glass" style="position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--text-faint);font-size:13px;"></i>
+                <input type="search" wire:model.live.debounce.300ms="search" class="form-input" placeholder="Cari nama atau NIP..." style="padding-left:38px;">
+            </div>
+        </div>
+    @endif
 </div>
 
+@if ($mode === 'table')
+    @php $history = $this->history; @endphp
+    <div style="background:var(--surface);border-radius:12px;box-shadow:var(--shadow-card);overflow:hidden;">
+        <div style="overflow-x:auto;">
+            <table class="data-table" style="min-width:900px;font-size:12px;">
+                <thead>
+                    <tr>
+                        <th>Karyawan</th>
+                        <th>Jabatan</th>
+                        <th>Departemen</th>
+                        @if ($this->canBrowseAllCompanies)
+                            <th>Perusahaan</th>
+                        @endif
+                        <th>Jenis Cuti</th>
+                        <th style="text-align:center;">Awal Cuti</th>
+                        <th style="text-align:center;">Akhir Cuti</th>
+                        <th style="text-align:center;">Lama (Hari)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse ($history as $detail)
+                        @php $user = $detail->request?->user; @endphp
+                        <tr>
+                            <td style="white-space:nowrap;">
+                                <p style="font-weight:600;color:var(--text-heading);margin:0;">{{ $user?->name ?? '-' }}</p>
+                                <span style="font-size:11px;color:var(--text-muted);">{{ $user?->nip }}</span>
+                            </td>
+                            <td>{{ $user?->profile?->jobPosition?->name ?? '-' }}</td>
+                            <td>{{ $user?->profile?->department?->name ?? '-' }}</td>
+                            @if ($this->canBrowseAllCompanies)
+                                <td>{{ $user?->company?->name ?? '-' }}</td>
+                            @endif
+                            <td>{{ $detail->leave_type ?? '-' }}</td>
+                            <td style="text-align:center;white-space:nowrap;">{{ \Illuminate\Support\Carbon::parse($detail->start_date)->translatedFormat('d M Y') }}</td>
+                            <td style="text-align:center;white-space:nowrap;">{{ $detail->end_date ? \Illuminate\Support\Carbon::parse($detail->end_date)->translatedFormat('d M Y') : '-' }}</td>
+                            @php $days = (float) $detail->total_days; @endphp
+                            <td style="text-align:center;font-weight:700;color:var(--text-heading);">{{ $days == (int) $days ? (int) $days : number_format($days, 1, ',', '.') }}</td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="{{ $this->canBrowseAllCompanies ? 8 : 7 }}" style="padding:32px;text-align:center;color:var(--text-faint);">
+                                @if ($search !== '')
+                                    Tidak ada karyawan yang cocok dengan pencarian "{{ $search }}".
+                                @else
+                                    Belum ada histori cuti yang disetujui.
+                                @endif
+                            </td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+        <div style="padding:12px 16px;border-top:1px solid var(--border-soft);">
+            {{ $history->links('livewire.partials.pagination') }}
+        </div>
+    </div>
+@else
 @php $recap = $this->recap; @endphp
 
 @if (! $recap['ready'])
@@ -171,8 +243,9 @@
     </div>
 </div>
 @endif
+@endif
 
-@php $selectedRow = collect($recap['rows'] ?? [])->firstWhere('user.id', $selectedUserId); @endphp
+@php $selectedRow = $mode === 'matrix' ? collect($recap['rows'] ?? [])->firstWhere('user.id', $selectedUserId) : null; @endphp
 @if ($selectedRow)
     <div class="modal-overlay" wire:click="closeDetail">
         <div class="modal-box" onclick="event.stopPropagation()">

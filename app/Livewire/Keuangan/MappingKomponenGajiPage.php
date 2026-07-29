@@ -60,12 +60,6 @@ class MappingKomponenGajiPage extends Component implements HasActions, HasSchema
     /** @var array<string,string> pangkat_id => base_salary */
     public array $gajiPokokValues = [];
 
-    /** @var array<string,string> pangkat_id => start_kelas_id (kelas terendah pangkat ini) */
-    public array $startKelasIdValues = [];
-
-    /** @var array<string,string> pangkat_id => max_kelas_id (kelas tertinggi pangkat ini) */
-    public array $maxKelasIdValues = [];
-
     /** @var array<string,string> pangkat_id => 'ump'|'declared_value'|'' (kosong = hapus mapping) */
     public array $bpjsValues = [];
 
@@ -185,7 +179,29 @@ class MappingKomponenGajiPage extends Component implements HasActions, HasSchema
 
     public function getPangkatsProperty()
     {
-        return $this->companyId ? Pangkats::where('company_id', $this->companyId)->orderByDesc('level')->get() : collect();
+        return $this->companyId
+            ? Pangkats::where('company_id', $this->companyId)->with(['startKelas', 'maxKelas'])->orderByDesc('level')->get()
+            : collect();
+    }
+
+    /** Kelas ini ada di rentang start_kelas..max_kelas Pangkat (dibandingkan lewat level, sama
+     * pola Kelas::pangkatsInRange()) - Pangkat yang belum diisi salah satu batasnya dianggap
+     * tanpa batasan di sisi itu (tidak mengunci apa-apa), bukan malah dikunci total. */
+    public function kelasInPangkatRange(Pangkats $p, Kelas $k): bool
+    {
+        if ($k->level === null) {
+            return true;
+        }
+
+        if ($p->startKelas && $k->level < $p->startKelas->level) {
+            return false;
+        }
+
+        if ($p->maxKelas && $k->level > $p->maxKelas->level) {
+            return false;
+        }
+
+        return true;
     }
 
     public function getKelasListProperty()
@@ -200,14 +216,6 @@ class MappingKomponenGajiPage extends Component implements HasActions, HasSchema
         $this->gajiPokokValues = $this->pangkats
             ->mapWithKeys(fn (Pangkats $p) => [$p->id => (string) ($p->pangkatSalary?->base_salary ?? '')])
             ->all();
-
-        $this->startKelasIdValues = $this->pangkats
-            ->mapWithKeys(fn (Pangkats $p) => [$p->id => (string) ($p->start_kelas_id ?? '')])
-            ->all();
-
-        $this->maxKelasIdValues = $this->pangkats
-            ->mapWithKeys(fn (Pangkats $p) => [$p->id => (string) ($p->max_kelas_id ?? '')])
-            ->all();
     }
 
     public function saveGajiPokok(): void
@@ -216,33 +224,9 @@ class MappingKomponenGajiPage extends Component implements HasActions, HasSchema
 
         $this->validate([
             'gajiPokokValues.*' => $this->nonNegativeAmountRule(),
-            'startKelasIdValues.*' => 'nullable|exists:m_kelas,id',
-            'maxKelasIdValues.*' => 'nullable|exists:m_kelas,id',
         ], [], [
             'gajiPokokValues.*' => 'nominal gaji pokok',
-            'startKelasIdValues.*' => 'kelas mulai',
-            'maxKelasIdValues.*' => 'kelas maksimal',
         ]);
-
-        $kelasLevels = Kelas::whereIn('id', [...array_values($this->startKelasIdValues), ...array_values($this->maxKelasIdValues)])
-            ->pluck('level', 'id');
-
-        foreach ($this->pangkats as $p) {
-            $pangkatId = $p->id;
-
-            $startId = $this->startKelasIdValues[$pangkatId] ?? '';
-            $maxId = $this->maxKelasIdValues[$pangkatId] ?? '';
-            $startLevel = $startId !== '' ? $kelasLevels->get($startId) : null;
-            $maxLevel = $maxId !== '' ? $kelasLevels->get($maxId) : null;
-
-            if ($startLevel !== null && $maxLevel !== null && $maxLevel < $startLevel) {
-                $this->addError("maxKelasIdValues.{$pangkatId}", '"Kelas Maksimal" tidak boleh lebih kecil (levelnya) dari "Kelas Mulai".');
-            }
-        }
-
-        if ($this->getErrorBag()->isNotEmpty()) {
-            return;
-        }
 
         foreach ($this->gajiPokokValues as $pangkatId => $value) {
             if ($value === '' || $value === null) {
@@ -250,15 +234,6 @@ class MappingKomponenGajiPage extends Component implements HasActions, HasSchema
             }
 
             PangkatSalary::updateOrCreate(['pangkat_id' => $pangkatId], ['base_salary' => $value]);
-        }
-
-        foreach ($this->pangkats as $p) {
-            $pangkatId = $p->id;
-
-            $p->update([
-                'start_kelas_id' => $this->startKelasIdValues[$pangkatId] !== '' ? $this->startKelasIdValues[$pangkatId] : null,
-                'max_kelas_id' => $this->maxKelasIdValues[$pangkatId] !== '' ? $this->maxKelasIdValues[$pangkatId] : null,
-            ]);
         }
 
         $this->notifySaved();
@@ -382,12 +357,24 @@ class MappingKomponenGajiPage extends Component implements HasActions, HasSchema
             'jabatanMatrix.*' => $this->nonNegativeAmountRule(),
         ], [], ['jabatanMatrix.*' => 'nominal tunjangan jabatan']);
 
+        $pangkatsById = $this->pangkats->keyBy('id');
+        $kelasById = $this->kelasList->keyBy('id');
+
         foreach ($this->jabatanMatrix as $key => $value) {
             if ($value === '' || $value === null) {
                 continue;
             }
 
             [$pangkatId, $kelasId] = explode('|', $key, 2);
+
+            // Kombinasi di luar rentang start_kelas..max_kelas Pangkat-nya dikunci di UI
+            // (lihat kelasInPangkatRange() & blade), tapi tetap dijaga di sini juga - jaga-jaga
+            // request langsung/race condition, bukan cuma mengandalkan disabled di client.
+            $p = $pangkatsById->get($pangkatId);
+            $k = $kelasById->get($kelasId);
+            if ($p && $k && ! $this->kelasInPangkatRange($p, $k)) {
+                continue;
+            }
 
             PositionAllowance::updateOrCreate(
                 ['pangkat_id' => $pangkatId, 'kelas_id' => $kelasId],
