@@ -189,6 +189,9 @@ Route::middleware(['auth', 'portal.access'])->group(function () {
     Route::get('/kepegawaian/jabatan/{record}/edit', \App\Livewire\Kepegawaian\EditJabatanPage::class)
         ->name('kepegawaian.jabatan.edit');
 
+    Route::get('/kepegawaian/job-evaluation', \App\Livewire\Kepegawaian\JobEvaluationPage::class)
+        ->name('kepegawaian.job-evaluation');
+
     Route::get('/pengajuan-absensi', MyAttendanceRequests::class)
         ->name('my-attendance-requests');
 
@@ -241,6 +244,9 @@ Route::middleware(['auth', 'portal.access'])->group(function () {
 
     Route::get('/keuangan/mapping-komponen-gaji', MappingKomponenGajiPage::class)
         ->name('keuangan.mapping-komponen-gaji');
+
+    Route::get('/keuangan/omset', \App\Livewire\Keuangan\OmsetPage::class)
+        ->name('keuangan.omset');
 
     Route::get('/presensi/dashboard', \App\Livewire\Presensi\AttendanceDashboardPage::class)
         ->name('presensi.dashboard');

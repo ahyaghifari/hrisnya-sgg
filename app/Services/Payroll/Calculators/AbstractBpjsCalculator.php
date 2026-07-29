@@ -13,8 +13,8 @@ use App\Models\User;
  * Basis potongan dibaca dari `pangkat.bpjsBasis` (tabel `pangkat_bpjs_bases`, 1:1 ke
  * m_pangkats, diisi lewat halaman Komponen Gaji — bukan form Pangkat biasa). Belum
  * di-mapping (relasi kosong) = auto SKIP, tidak ada potongan sama sekali — bukan fallback ke
- * UMP. 'ump' -> GlobalPayrollSettingEnum::UMP (selalu global), 'declared_value' ->
- * Setting('bpjs_declared_value', company-scoped).
+ * UMP. 'ump' & 'declared_value' sama-sama Setting company-scoped (fallback ke baris global
+ * kalau company belum override) — bukan GlobalPayrollSettingEnum, karena UMP beda tiap company.
  */
 abstract class AbstractBpjsCalculator implements PayrollComponentCalculator
 {
@@ -32,7 +32,7 @@ abstract class AbstractBpjsCalculator implements PayrollComponentCalculator
         }
 
         $basis = match ($bpjsBasis) {
-            'ump' => Setting::resolve(GlobalPayrollSettingEnum::UMP->value, null),
+            'ump' => Setting::resolve('ump', $period->company_id),
             'declared_value' => Setting::resolve('bpjs_declared_value', $period->company_id),
             default => null,
         };

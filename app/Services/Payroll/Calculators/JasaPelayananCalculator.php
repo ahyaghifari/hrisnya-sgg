@@ -2,20 +2,24 @@
 
 namespace App\Services\Payroll\Calculators;
 
+use App\Enum\JobPositionReqStatus;
 use App\Enum\Payroll\PayrollComponentEnum;
-use App\Models\Master\JobEvaluationCompanies;
+use App\Models\Master\JobPositions;
+use App\Models\Payroll\OmsetDetail;
 use App\Models\Payroll\Payroll;
 use App\Models\Payroll\PayrollItem;
 use App\Models\Payroll\PayrollPeriod;
-use App\Models\Payroll\ServiceFeePool;
 use App\Models\User;
-use Carbon\Carbon;
 
 /**
- * Rasio JE user / total JE company x pool "Total Jaspel" bulan itu — logic sama persis
- * PayrollService::handleServiceFeeComponent() lama, cuma sumber pool pindah dari
- * salary_component_assignments (Company) ke service_fee_pools (Fase 1, tabel baru — pool ini
- * angka BULANAN, bukan config stabil, lihat planning §3.3).
+ * Rasio JE user / total JE company x Total Omset periode itu — logic sama persis
+ * PayrollService::handleServiceFeeComponent() lama. Total JE company dihitung LIVE
+ * (SUM job_evaluation_score semua jabatan APPROVED company itu, bukan input manual terpisah
+ * — job_evaluation_companies lama sudah tidak dipakai). job_evaluation_score sendiri diedit
+ * satu-satunya di Kepegawaian (App\Livewire\Kepegawaian\JobEvaluationPage), bukan di sini.
+ * Total Omset dijumlah dari omset_details per periode (rincian per kategori, dikelola di
+ * Mapping Komponen Gaji + halaman Omset di Keuangan — service_fee_pools lama sudah tidak
+ * dipakai).
  */
 class JasaPelayananCalculator implements PayrollComponentCalculator
 {
@@ -29,30 +33,22 @@ class JasaPelayananCalculator implements PayrollComponentCalculator
 
         $userJeScore = (float) $jobPosition->job_evaluation_score;
 
-        $periodDate = Carbon::parse($period->start_date);
-
-        $companyJe = JobEvaluationCompanies::query()
+        $totalCompanyJe = (float) JobPositions::query()
             ->where('company_id', $period->company_id)
-            ->where('month', $periodDate->monthName)
-            ->where('year', $periodDate->year)
-            ->first();
+            ->where('status', JobPositionReqStatus::APPROVED->value)
+            ->sum('job_evaluation_score');
 
-        if (! $companyJe || $companyJe->score <= 0) {
+        if ($totalCompanyJe <= 0) {
             return;
         }
 
-        $totalCompanyJe = (float) $companyJe->score;
-
-        $pool = ServiceFeePool::query()
-            ->where('company_id', $period->company_id)
+        $totalCompanyServiceFee = (float) OmsetDetail::query()
             ->where('payroll_period_id', $period->id)
-            ->first();
+            ->sum('amount');
 
-        if (! $pool || $pool->total_amount <= 0) {
+        if ($totalCompanyServiceFee <= 0) {
             return;
         }
-
-        $totalCompanyServiceFee = (float) $pool->total_amount;
 
         $ratio = $userJeScore / $totalCompanyJe;
         $amount = round($ratio * $totalCompanyServiceFee, 2);

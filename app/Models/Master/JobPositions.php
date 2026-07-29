@@ -5,6 +5,7 @@ namespace App\Models\Master;
 use App\Enum\Approval\ApprovalModuleEnum;
 use App\Models\ApprovalManagement\ApprovalHistories;
 use App\Models\ApprovalManagement\ApprovalSnapshots;
+use App\Models\Concerns\LogsAuditChanges;
 use App\Models\User;
 use App\Models\User\UserProfiles;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
@@ -105,6 +106,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class JobPositions extends Model
 {
     use HasUlids, SoftDeletes;
+    use LogsAuditChanges;
 
     protected $table = 'm_job_positions';
     protected $fillable = [
@@ -224,5 +226,33 @@ class JobPositions extends Model
         return $this->hasMany(\App\Models\User\UserJobPositions::class, 'job_position_id', 'id')
             ->whereNull('end_date')
             ->where('status', 'active');
+    }
+
+    // ── Riwayat perubahan JE (job_evaluation_score) — dipakai tab Riwayat halaman Job
+    // Evaluation (Kepegawaian). JE jarang berubah, tapi tetap butuh jejak siapa & kapan. ──
+
+    protected function auditModule(): string
+    {
+        return 'kepegawaian';
+    }
+
+    protected function auditCompanyId(): ?string
+    {
+        return $this->company_id;
+    }
+
+    protected function auditKey(): string
+    {
+        return 'job_evaluation_score:' . $this->id;
+    }
+
+    protected function auditLabel(): ?string
+    {
+        return 'JE Jabatan — ' . $this->name;
+    }
+
+    protected function auditWatchedAttribute(): string
+    {
+        return 'job_evaluation_score';
     }
 }

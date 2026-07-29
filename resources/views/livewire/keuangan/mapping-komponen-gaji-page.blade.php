@@ -247,6 +247,38 @@
                             @endif
                         @endif
 
+                        {{-- Jasa Pelayanan — cuma kelola KATEGORI Omset di sini (nama saja). Nominal
+                             per kategori per periode diisi finance di halaman input Omset Rumah
+                             Sakit terpisah, bukan di sini. --}}
+                        @if ($activeComponent === 'jasa_pelayanan')
+                            <p style="font-size:11px;color:var(--text-muted);margin:0 0 12px;">Kategori Omset (mis. Rawat Inap, Rawat Jalan, Farmasi) untuk perusahaan ini — jadi baris tetap di halaman input Omset Rumah Sakit bulanan. Nominal per kategori diisi di sana, bukan di sini.</p>
+                            <div style="display:flex;flex-direction:column;gap:8px;">
+                                @foreach ($omsetCategoryRows as $i => $row)
+                                    <div>
+                                        <div style="display:flex;align-items:center;gap:8px;">
+                                            <input type="text" class="form-input" style="max-width:280px;font-size:12.5px;padding:7px 10px;" wire:model="omsetCategoryRows.{{ $i }}.name" placeholder="Nama kategori (mis. Rawat Inap)">
+                                            @if ($row['id'])
+                                                <button type="button" wire:click="openAuditLog('omset_category:{{ $row['id'] }}')" title="Riwayat" style="border:none;background:none;color:var(--text-faint);cursor:pointer;padding:6px;font-size:11px;"><i class="fa-solid fa-clock-rotate-left"></i></button>
+                                            @endif
+                                            @if ($this->canEditMapping)
+                                                <button type="button" wire:click="removeOmsetCategoryRow({{ $i }})" style="border:none;background:none;color:#dc2626;cursor:pointer;padding:6px;"><i class="fa-solid fa-trash"></i></button>
+                                            @endif
+                                        </div>
+                                        @error("omsetCategoryRows.{$i}.name") <p style="font-size:11px;color:#dc2626;margin:2px 0 0;">{{ $message }}</p> @enderror
+                                    </div>
+                                @endforeach
+                                @if (empty($omsetCategoryRows))
+                                    <p style="font-size:11.5px;color:var(--text-faint);">Belum ada kategori. Klik "Tambah Kategori" di bawah.</p>
+                                @endif
+                            </div>
+                            <div style="display:flex;gap:10px;margin-top:14px;">
+                                @if ($this->canEditMapping)
+                                    <button type="button" wire:click="addOmsetCategoryRow" class="btn-ghost" style="padding:9px 16px;font-size:12.5px;"><i class="fa-solid fa-plus"></i> Tambah Kategori</button>
+                                    <button type="button" wire:click="saveOmsetCategories" wire:loading.attr="disabled" wire:target="saveOmsetCategories" class="btn-primary" style="padding:9px 20px;font-size:12.5px;">Simpan</button>
+                                @endif
+                            </div>
+                        @endif
+
                         {{-- Kelebihan Jam Kerja — reuse Filament table+action --}}
                         @if ($activeComponent === 'kelebihan_jam_kerja')
                             {{ $this->table }}

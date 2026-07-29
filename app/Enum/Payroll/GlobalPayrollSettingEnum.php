@@ -12,14 +12,12 @@ use App\Enum\SettingTypeEnum;
  */
 enum GlobalPayrollSettingEnum: string
 {
-    case UMP = 'ump';
     case BPJS_KESEHATAN_RATE = 'bpjs_kesehatan_rate';
     case BPJS_KETENAGAKERJAAN_RATE = 'bpjs_ketenagakerjaan_rate';
 
     public function label(): string
     {
         return match ($this) {
-            self::UMP => 'UMK (Upah Minimum Kota Banjarbaru)',
             self::BPJS_KESEHATAN_RATE => 'Rate BPJS Kesehatan (%)',
             self::BPJS_KETENAGAKERJAAN_RATE => 'Rate BPJS Ketenagakerjaan (%)',
         };

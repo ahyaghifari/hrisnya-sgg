@@ -3,9 +3,12 @@
 namespace App\Livewire\Keuangan;
 
 use App\Enum\CustomPermissionEnum;
+use App\Enum\Payroll\PayrollComponentEnum;
 use App\Jobs\GeneratePayrollJob;
 use App\Jobs\RegeneratePayrollJob;
 use App\Models\Master\Companies;
+use App\Models\Payroll\CompanyPayrollComponent;
+use App\Models\Payroll\OmsetDetail;
 use App\Models\Payroll\PayrollPeriod;
 use App\Models\User;
 use Filament\Notifications\Notification;
@@ -208,6 +211,35 @@ class PayrollPeriodsPage extends Component
             ->title('Penandatangan & tanggal bayar berhasil diubah')
             ->success()
             ->send();
+    }
+
+    // ── Peringatan Omset Jasa Pelayanan — sekadar indikator, TIDAK memblokir Generate.
+    // JasaPelayananCalculator sendiri sudah aman skip diam-diam kalau omset kosong, dan
+    // filosofi sistem ini (Koperasi/Bon/Insentif-import) memang "isi kapan saja, efeknya
+    // baru masuk pas Generate/Regenerate berikutnya" - bukan dikunci nunggu data lengkap. ──
+
+    /** @return array<string> company_id yang komponen Jasa Pelayanan-nya aktif */
+    public function getJaspelActiveCompanyIdsProperty(): array
+    {
+        return CompanyPayrollComponent::query()
+            ->where('component', PayrollComponentEnum::JASA_PELAYANAN->value)
+            ->where('is_active', true)
+            ->pluck('company_id')
+            ->all();
+    }
+
+    /** @return array<string> payroll_period_id yang omsetnya masih kosong/nol */
+    public function getPeriodsMissingOmsetProperty(): array
+    {
+        $periodIds = $this->periods->pluck('id');
+
+        $filled = OmsetDetail::query()
+            ->whereIn('payroll_period_id', $periodIds)
+            ->groupBy('payroll_period_id')
+            ->havingRaw('SUM(amount) > 0')
+            ->pluck('payroll_period_id');
+
+        return $periodIds->diff($filled)->values()->all();
     }
 
     // ── Generate / Regenerate ───────────────────────────────────────────────

@@ -148,6 +148,12 @@ return [
         'guard' => null,
     ],
 
+    'kepegawaian.job-evaluation' => [
+        'label' => 'Job Evaluation',
+        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_KEPEGAWAIAN->value,
+        'guard' => null,
+    ],
+
     'my-attendance-requests' => [
         'label' => 'Pengajuan Absensi',
         'permission' => \App\Enum\CustomPermissionEnum::PENGAJUAN_ABSENSI_SAYA->value,
@@ -229,6 +235,12 @@ return [
 
     'keuangan.mapping-komponen-gaji' => [
         'label' => 'Mapping Komponen Gaji',
+        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_KEUANGAN->value,
+        'guard' => null,
+    ],
+
+    'keuangan.omset' => [
+        'label' => 'Omset',
         'permission' => \App\Enum\CustomPermissionEnum::SISTEM_KEUANGAN->value,
         'guard' => null,
     ],

@@ -121,7 +121,6 @@
             <div style="padding:18px;">
                 @php
                     $globalIcons = [
-                        'ump' => 'fa-sack-dollar',
                         'bpjs_kesehatan_rate' => 'fa-heart-pulse',
                         'bpjs_ketenagakerjaan_rate' => 'fa-hard-hat',
                     ];

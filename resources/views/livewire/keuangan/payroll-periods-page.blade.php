@@ -38,6 +38,11 @@
                                     <span style="font-weight:600;color:{{ $period->processed_at ? '#047C54' : 'var(--text-faint)' }};">
                                         {{ $period->processed_at ? $period->processed_at->translatedFormat('d M Y H:i') : 'Belum digenerate' }}
                                     </span>
+                                    @if (in_array($period->company_id, $this->jaspelActiveCompanyIds) && in_array($period->id, $this->periodsMissingOmset))
+                                        <span title="Omset Jasa Pelayanan belum diisi untuk periode ini" style="display:inline-flex;align-items:center;gap:4px;margin-left:8px;padding:2px 8px;border-radius:999px;background:var(--warn-soft-bg);color:var(--warn-soft-text);font-size:10.5px;font-weight:600;">
+                                            <i class="fa-solid fa-triangle-exclamation"></i> Omset belum diisi
+                                        </span>
+                                    @endif
                                 </td>
                                 <td style="padding:9px 14px;text-align:center;white-space:nowrap;">
                                     <div style="display:inline-flex;gap:6px;">
@@ -67,6 +72,12 @@
                                                 <i class="fa-solid fa-signature"></i> Penandatangan
                                             </button>
                                         @endcan
+
+                                        @if (in_array($period->company_id, $this->jaspelActiveCompanyIds))
+                                            <a href="{{ route('keuangan.omset') }}" wire:navigate class="btn-ghost" style="padding:5px 12px;font-size:11.5px;text-decoration:none;">
+                                                <i class="fa-solid fa-hand-holding-medical"></i> Omset
+                                            </a>
+                                        @endif
                                     </div>
                                 </td>
                             </tr>

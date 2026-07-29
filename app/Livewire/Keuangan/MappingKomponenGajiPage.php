@@ -11,6 +11,7 @@ use App\Models\Master\Companies;
 use App\Models\Master\Kelas;
 use App\Models\Master\Pangkats;
 use App\Models\Payroll\CompanyPayrollComponent;
+use App\Models\Payroll\OmsetCategory;
 use App\Models\Payroll\PangkatBpjsBasis;
 use App\Models\Payroll\PangkatLemburRate;
 use App\Models\Payroll\PangkatSalary;
@@ -72,6 +73,9 @@ class MappingKomponenGajiPage extends Component implements HasActions, HasSchema
     /** @var array<int,array{id:?string,min_years:string,max_years:string,amount:string}> */
     public array $tenureRows = [];
 
+    /** @var array<int,array{id:?string,name:string}> */
+    public array $omsetCategoryRows = [];
+
     /** @var array<string,string> pangkat_id => amount_per_hour (base rate rumus TL/TM) */
     public array $lemburRateValues = [];
 
@@ -105,6 +109,7 @@ class MappingKomponenGajiPage extends Component implements HasActions, HasSchema
             'tunjangan_jabatan' => $this->loadJabatan(),
             'tunjangan_masa_kerja' => $this->loadTenure(),
             'lembur' => $this->loadLemburRates(),
+            'jasa_pelayanan' => $this->loadOmsetCategories(),
             default => null, // kelebihan_jam_kerja dirender lewat $this->table()
         };
     }
@@ -163,6 +168,7 @@ class MappingKomponenGajiPage extends Component implements HasActions, HasSchema
             ['key' => 'bpjs', 'label' => 'BPJS (Kesehatan & Ketenagakerjaan)', 'icon' => 'fa-briefcase-medical', 'match' => [PayrollComponentEnum::BPJS_KESEHATAN, PayrollComponentEnum::BPJS_KETENAGAKERJAAN]],
             ['key' => 'kelebihan_jam_kerja', 'label' => 'Kelebihan Jam Kerja', 'icon' => 'fa-business-time', 'match' => [PayrollComponentEnum::KELEBIHAN_JAM_KERJA]],
             ['key' => 'lembur', 'label' => 'Lembur', 'icon' => 'fa-clock', 'match' => [PayrollComponentEnum::LEMBUR]],
+            ['key' => 'jasa_pelayanan', 'label' => 'Jasa Pelayanan', 'icon' => 'fa-hand-holding-medical', 'match' => [PayrollComponentEnum::JASA_PELAYANAN]],
         ];
 
         return collect($defs)
@@ -494,6 +500,69 @@ class MappingKomponenGajiPage extends Component implements HasActions, HasSchema
             } else {
                 $created = TenureAllowance::create($data);
                 $this->tenureRows[$i]['id'] = $created->id;
+            }
+        }
+
+        $this->notifySaved();
+    }
+
+    // ── Jasa Pelayanan: Kategori Omset (omset_categories, daftar nama per company) — cuma
+    // kelola KATEGORI di sini; nominal per kategori per periode diisi di halaman input
+    // Omset Rumah Sakit yang terpisah (belum dibangun), sama seperti daftar kategori di sini
+    // cuma jadi baris tetap yang dipakai halaman itu. ──
+
+    private function loadOmsetCategories(): void
+    {
+        $this->omsetCategoryRows = OmsetCategory::query()
+            ->where('company_id', $this->companyId)
+            ->orderBy('name')
+            ->get()
+            ->map(fn (OmsetCategory $r) => ['id' => $r->id, 'name' => $r->name])
+            ->values()
+            ->all();
+    }
+
+    public function addOmsetCategoryRow(): void
+    {
+        $this->assertCanEdit();
+
+        $this->omsetCategoryRows[] = ['id' => null, 'name' => ''];
+    }
+
+    public function removeOmsetCategoryRow(int $index): void
+    {
+        $this->assertCanEdit();
+
+        $row = $this->omsetCategoryRows[$index] ?? null;
+
+        if ($row && $row['id']) {
+            OmsetCategory::where('id', $row['id'])->delete();
+        }
+
+        unset($this->omsetCategoryRows[$index]);
+        $this->omsetCategoryRows = array_values($this->omsetCategoryRows);
+    }
+
+    public function saveOmsetCategories(): void
+    {
+        $this->assertCanEdit();
+
+        $this->validate([
+            'omsetCategoryRows.*.name' => 'nullable|string|max:100',
+        ], [], [
+            'omsetCategoryRows.*.name' => 'nama kategori',
+        ]);
+
+        foreach ($this->omsetCategoryRows as $i => $row) {
+            if ($row['name'] === '') {
+                continue;
+            }
+
+            if ($row['id']) {
+                OmsetCategory::where('id', $row['id'])->update(['name' => $row['name']]);
+            } else {
+                $created = OmsetCategory::create(['company_id' => $this->companyId, 'name' => $row['name']]);
+                $this->omsetCategoryRows[$i]['id'] = $created->id;
             }
         }
 
