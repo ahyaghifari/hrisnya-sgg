@@ -28,7 +28,7 @@ class IzinSeharianCalculator implements PayrollComponentCalculator
             ->where('status', AttendanceReqStatus::APPROVED->value)
             ->whereHas('permissionDetails', function ($q) use ($period) {
                 $q->whereBetween('date', [$period->start_date, $period->end_date])
-                    ->whereHas('permissionType', fn ($q2) => $q2->where('category', PermissionTypeCategoryEnum::IZIN_SEHARIAN->value));
+                    ->where('category', PermissionTypeCategoryEnum::IZIN_SEHARIAN->value);
             })
             ->count();
 

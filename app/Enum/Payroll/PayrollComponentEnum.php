@@ -83,7 +83,7 @@ enum PayrollComponentEnum: string
             self::BPJS_KESEHATAN => 'BPJS Kesehatan',
             self::BPJS_KETENAGAKERJAAN => 'BPJS Ketenagakerjaan',
             self::KETERLAMBATAN => 'Keterlambatan',
-            self::IZIN_TERLAMBAT_PULANG_CEPAT => 'Izin Terlambat Masuk / Pulang Cepat',
+            self::IZIN_TERLAMBAT_PULANG_CEPAT => 'Izin Meninggalkan Jam Kerja',
             self::IZIN_SEHARIAN => 'Izin Seharian',
             self::CUTI => 'Cuti',
             self::PAJAK_JASA_DOKTER => 'Pajak Jasa Dokter',
@@ -110,8 +110,10 @@ enum PayrollComponentEnum: string
      * sebagai disabled + keterangan "Belum tersedia", bukan disembunyikan.
      *
      * IZIN_SEHARIAN sudah pindah dari sini (Calculator-nya sudah ada, lihat planning Fase 2
-     * §4) — IZIN_MENINGGALKAN_JAM_KERJA sudah dihapus total dari enum ini (final: tidak ada
-     * dampak payroll sama sekali, lihat analisis-payroll-4 §7B.4), bukan lagi "belum tersedia".
+     * §4). Kategori absensi IZIN_MENINGGALKAN_JAM_KERJA (PermissionTypeCategoryEnum, sub-jenis
+     * "tengah hari") SEMPAT final tidak ada dampak payroll (analisis-payroll-4 §7B.4) — direvisi
+     * lagi 2026-07-31, sekarang digabung ke komponen IZIN_TERLAMBAT_PULANG_CEPAT lewat
+     * IzinMeninggalkanJamKerjaCalculator (lihat knowledge/markdown/rencana-izin-empat-kategori.md).
      */
     public static function notYetAvailable(): array
     {

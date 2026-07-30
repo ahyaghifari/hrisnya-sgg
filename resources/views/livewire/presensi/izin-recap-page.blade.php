@@ -210,9 +210,19 @@ diajukan (bukan cuma angka rekap di tabel). --}}
                                 <p style="font-size:12.5px;font-weight:600;color:var(--text-heading);margin:0;">{{ $item['type_name'] }}</p>
                                 <span style="font-size:11.5px;font-weight:700;color:{{ $itemStyle['color'] }};white-space:nowrap;">
                                     {{ \Illuminate\Support\Carbon::parse($item['date'])->translatedFormat('d M Y') }}
+                                    @if ($item['end_date'])
+                                        &ndash; {{ \Illuminate\Support\Carbon::parse($item['end_date'])->translatedFormat('d M Y') }}
+                                    @endif
                                 </span>
                             </div>
-                            <p style="font-size:11px;color:var(--text-muted);margin:2px 0 0;">{{ $item['category_label'] }} &middot; {{ $item['start_time'] }} - {{ $item['end_time'] }}</p>
+                            <p style="font-size:11px;color:var(--text-muted);margin:2px 0 0;">
+                                {{ $item['category_label'] }}
+                                @if ($item['end_date'])
+                                    &middot; {{ $item['total_days'] }} hari
+                                @else
+                                    &middot; {{ $item['start_time'] }} - {{ $item['end_time'] }}
+                                @endif
+                            </p>
                             @if ($item['purpose'])
                                 <p style="font-size:11px;color:var(--text-body);margin:4px 0 0;font-style:italic;">"{{ $item['purpose'] }}"</p>
                             @endif

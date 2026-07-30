@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property string|null $company_id
  * @property string $name
  * @property string|null $category
+ * @property int|null $default_days
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property-read Companies|null $company
@@ -36,6 +37,7 @@ class PermissionTypes extends Model
         'company_id',
         'name',
         'category',
+        'default_days',
     ];
 
     public function company()

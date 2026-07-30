@@ -29,7 +29,7 @@ class PayrollCalculatorRegistry
         PayrollComponentEnum::BPJS_KESEHATAN->value => BpjsKesehatanCalculator::class,
         PayrollComponentEnum::BPJS_KETENAGAKERJAAN->value => BpjsKetenagakerjaanCalculator::class,
         PayrollComponentEnum::KETERLAMBATAN->value => KeterlambatanCalculator::class,
-        PayrollComponentEnum::IZIN_TERLAMBAT_PULANG_CEPAT->value => IzinTerlambatPulangCepatCalculator::class,
+        PayrollComponentEnum::IZIN_TERLAMBAT_PULANG_CEPAT->value => IzinMeninggalkanJamKerjaCalculator::class,
         PayrollComponentEnum::IZIN_SEHARIAN->value => IzinSeharianCalculator::class,
         PayrollComponentEnum::CUTI->value => CutiCalculator::class,
         PayrollComponentEnum::KOPERASI->value => KoperasiCalculator::class,

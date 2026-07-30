@@ -305,7 +305,9 @@ disetujui/ditolak/dibatalkan, kuota ini tidak lagi jadi pertimbangan apa pun, ja
         <div style="background:var(--surface);border-radius:16px;box-shadow:var(--shadow-card);padding:18px;">
             {!! $sectionHeader('fa-clock', 'Detail Izin') !!}
             {!! $renderField('Tipe Izin', $permission->permission_type) !!}
-            {!! $renderField('Tanggal', $formatDate($permission->date)) !!}
+            {!! $renderField($permission->end_date ? 'Tanggal Mulai' : 'Tanggal', $formatDate($permission->date)) !!}
+            {!! $renderField('Tanggal Selesai', $formatDate($permission->end_date)) !!}
+            {!! $renderField('Total Hari', $permission->total_days ? "{$permission->total_days} hari" : null, false) !!}
             {!! $renderField('Waktu Mulai', $permission->start_time) !!}
             {!! $renderField('Waktu Selesai', $permission->end_time) !!}
             {!! $renderField('Lokasi', $permission->location) !!}

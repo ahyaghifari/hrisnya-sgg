@@ -40,11 +40,13 @@ class IzinRecapPageTest extends TestCase
     private function makePermissionRequest(User $user, string $permissionTypeId, string $date, string $status): void
     {
         $request = AttendanceRequests::create(['user_id' => $user->id, 'type' => 'permission', 'status' => $status]);
+        $permissionType = PermissionTypes::find($permissionTypeId);
 
         AttendanceRequestPermissionDetails::create([
             'request_id' => $request->id,
             'permission_type_id' => $permissionTypeId,
-            'permission_type' => PermissionTypes::find($permissionTypeId)->name,
+            'permission_type' => $permissionType->name,
+            'category' => $permissionType->category,
             'date' => $date,
             'start_time' => '08:00',
             'end_time' => '09:00',

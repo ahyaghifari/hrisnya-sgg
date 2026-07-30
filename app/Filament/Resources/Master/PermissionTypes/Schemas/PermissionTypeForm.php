@@ -2,7 +2,7 @@
 
 namespace App\Filament\Resources\Master\PermissionTypes\Schemas;
 
-use App\Enum\Attendance\PermissionTypeCategoryEnum;
+use App\Enum\Attendance\PermissionGroupEnum;
 use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
@@ -26,9 +26,9 @@ class PermissionTypeForm
 
                 Select::make('category')
                     ->label('Kategori')
-                    ->options(collect(PermissionTypeCategoryEnum::cases())->mapWithKeys(fn ($c) => [$c->value => $c->label()]))
+                    ->options(collect(PermissionGroupEnum::masterCategories())->mapWithKeys(fn ($c) => [$c->value => $c->label()]))
                     ->placeholder('Tidak ada kategori khusus')
-                    ->helperText('Pilih kategori kalau jenis izin ini mau ikut kena aturan batas gabungan (setting `izin_max_per_periode`, belum ada UI-nya sendiri).')
+                    ->helperText('Cuma dipakai untuk jenis izin di bawah kelompok Meninggalkan Jam Kerja (Terlambat/Pulang Cepat/Tengah Hari) & Izin Khusus - kelompok lain (Tidak Masuk Seharian, Sakit) tidak butuh master, kategorinya otomatis dari kelompok yang dipilih di form pengajuan.')
                     ->columnSpanFull(),
             ]);
     }

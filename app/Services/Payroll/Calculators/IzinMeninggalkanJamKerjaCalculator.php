@@ -5,13 +5,20 @@ namespace App\Services\Payroll\Calculators;
 use App\Enum\Attendance\PermissionTypeCategoryEnum;
 use App\Enum\Payroll\PayrollComponentEnum;
 
-class IzinTerlambatPulangCepatCalculator extends AbstractIzinFlatCalculator
+/**
+ * Digabung dari IzinTerlambatPulangCepatCalculator (sebelumnya cuma proses 2 kategori) +
+ * IZIN_MENINGGALKAN_JAM_KERJA (sub-jenis "tengah hari", sebelumnya sengaja TIDAK ada dampak
+ * payroll) - sekarang ketiganya 1 komponen potongan yang sama, matching kelompok Izin
+ * Meninggalkan Jam Kerja di form pengajuan (PermissionGroupEnum::MENINGGALKAN_JAM_KERJA).
+ */
+class IzinMeninggalkanJamKerjaCalculator extends AbstractIzinFlatCalculator
 {
     protected function permissionTypeCategories(): array
     {
         return [
             PermissionTypeCategoryEnum::IZIN_TERLAMBAT_MASUK->value,
             PermissionTypeCategoryEnum::IZIN_PULANG_CEPAT->value,
+            PermissionTypeCategoryEnum::IZIN_MENINGGALKAN_JAM_KERJA->value,
         ];
     }
 

@@ -53,6 +53,7 @@ class IzinSeharianCalculatorTest extends TestCase
         AttendanceRequestPermissionDetails::create([
             'request_id' => $request->id,
             'permission_type_id' => $permissionType->id,
+            'category' => $permissionType->category,
             'date' => $date,
         ]);
     }

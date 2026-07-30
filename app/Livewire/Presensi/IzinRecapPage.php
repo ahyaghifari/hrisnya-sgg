@@ -103,7 +103,7 @@ class IzinRecapPage extends Component
                 ->where('type', 'permission')
                 ->where('status', 'approved')
                 ->when($this->companyId, fn ($q) => $q->whereHas('user', fn ($q2) => $q2->where('company_id', $this->companyId))))
-            ->with(['attendanceRequest.user', 'permissionType'])
+            ->with(['attendanceRequest.user'])
             ->get();
 
         $grouped = $details
@@ -118,15 +118,17 @@ class IzinRecapPage extends Component
             // karyawan), bukan cuma angka rekap di tabel.
             $items = $group->map(fn ($detail) => [
                 'date' => $detail->date,
-                'type_name' => $detail->permission_type ?? $detail->permissionType?->name,
-                'category_label' => $categories[$detail->permissionType?->category] ?? 'Lainnya',
+                'end_date' => $detail->end_date,
+                'total_days' => $detail->total_days,
+                'type_name' => $detail->permission_type,
+                'category_label' => $categories[$detail->category] ?? 'Lainnya',
                 'start_time' => $detail->start_time,
                 'end_time' => $detail->end_time,
                 'purpose' => $detail->purpose,
             ])->sortBy('date')->values()->all();
 
             foreach ($group as $detail) {
-                $category = $detail->permissionType?->category;
+                $category = $detail->category;
                 $key = ($category && array_key_exists($category, $counts)) ? $category : 'lainnya';
                 $counts[$key]++;
             }

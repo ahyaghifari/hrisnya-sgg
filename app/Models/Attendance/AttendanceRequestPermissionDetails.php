@@ -12,7 +12,10 @@ use Illuminate\Database\Eloquent\Model;
  * @property string $request_id
  * @property string|null $permission_type_id
  * @property string|null $permission_type
+ * @property string|null $category
  * @property string|null $date
+ * @property string|null $end_date
+ * @property string|null $total_days
  * @property string|null $start_time
  * @property string|null $end_time
  * @property string|null $purpose
@@ -54,7 +57,10 @@ class AttendanceRequestPermissionDetails extends Model
         'request_id',
         'permission_type_id',
         'permission_type',
+        'category',
         'date',
+        'end_date',
+        'total_days',
         'start_time',
         'end_time',
         'purpose',

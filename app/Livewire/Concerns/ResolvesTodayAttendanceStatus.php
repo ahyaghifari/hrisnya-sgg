@@ -107,13 +107,13 @@ trait ResolvesTodayAttendanceStatus
             ->where('type', 'permission')
             ->where('status', 'approved')
             ->whereHas('permissionDetails', fn ($q) => $q->where('date', $todayStr))
-            ->with(['permissionDetails' => fn ($q) => $q->where('date', $todayStr), 'permissionDetails.permissionType'])
+            ->with(['permissionDetails' => fn ($q) => $q->where('date', $todayStr)])
             ->first();
 
         if ($permission) {
             $detail   = $permission->permissionDetails->first();
-            $label    = $detail?->permission_type ?? $detail?->permissionType?->name ?? 'Izin';
-            $isFullDay = $detail?->permissionType?->category === PermissionTypeCategoryEnum::IZIN_SEHARIAN->value;
+            $label    = $detail?->permission_type ?? 'Izin';
+            $isFullDay = $detail?->category === PermissionTypeCategoryEnum::IZIN_SEHARIAN->value;
 
             return [
                 'schedule_type_label' => $scheduleTypeLabel,

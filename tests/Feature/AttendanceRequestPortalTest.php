@@ -146,6 +146,7 @@ class AttendanceRequestPortalTest extends TestCase
         $this->actingAs($user);
 
         Livewire::test(SubmitPermissionRequest::class)
+            ->set('group', 'meninggalkan_jam_kerja')
             ->set('permission_type_id', $permissionType->id)
             ->set('date', now()->toDateString())
             ->set('start_time', '09:00')

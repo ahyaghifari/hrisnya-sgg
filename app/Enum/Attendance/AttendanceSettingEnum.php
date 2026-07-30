@@ -11,17 +11,21 @@ use App\Enum\SettingTypeEnum;
  */
 enum AttendanceSettingEnum: string
 {
-    case PERIOD_CUTOFF_DAY = 'attendance_period_cutoff_day';
+    case PERIOD_START_DAY = 'attendance_period_start_day';
+    case PERIOD_END_DAY = 'attendance_period_end_day';
     case CUTI_TAHUNAN_MAX_PER_BULAN = 'cuti_tahunan_max_per_bulan';
-    case IZIN_MAX_PER_PERIODE = 'izin_max_per_periode';
+    case IZIN_MAX_PER_PERIODE_JAM_KERJA = 'izin_max_per_periode_jam_kerja';
+    case IZIN_MAX_PER_PERIODE_SEHARIAN = 'izin_max_per_periode_seharian';
     case CUTI_MIN_MASA_KERJA_BULAN = 'cuti_min_masa_kerja_bulan';
 
     public function label(): string
     {
         return match ($this) {
-            self::PERIOD_CUTOFF_DAY => 'Tanggal Cutoff Periode Absensi',
-            self::CUTI_TAHUNAN_MAX_PER_BULAN => 'Batas Cuti Tahunan per Periode (Hari)',
-            self::IZIN_MAX_PER_PERIODE => 'Batas Izin per Periode (Hari)',
+            self::PERIOD_START_DAY => 'Tanggal Awal Periode Absensi',
+            self::PERIOD_END_DAY => 'Tanggal Akhir Periode Absensi',
+            self::CUTI_TAHUNAN_MAX_PER_BULAN => 'Batas Cuti Tahunan per Bulan (Hari)',
+            self::IZIN_MAX_PER_PERIODE_JAM_KERJA => 'Batas Izin Meninggalkan Jam Kerja per Periode (Hari)',
+            self::IZIN_MAX_PER_PERIODE_SEHARIAN => 'Batas Izin Tidak Masuk Seharian per Periode (Hari)',
             self::CUTI_MIN_MASA_KERJA_BULAN => 'Minimal Masa Kerja untuk Bisa Cuti (Bulan)',
         };
     }
@@ -29,9 +33,11 @@ enum AttendanceSettingEnum: string
     public function helperText(): string
     {
         return match ($this) {
-            self::PERIOD_CUTOFF_DAY => 'Tanggal mulai periode absensi/cuti bulanan. 1 = ikut kalender biasa (tanggal 1 s/d akhir bulan). Contoh: 21 = periode berjalan tanggal 21 s/d tanggal 20 bulan berikutnya.',
-            self::CUTI_TAHUNAN_MAX_PER_BULAN => 'Total hari Cuti Tahunan (akumulasi semua pengajuan) yang boleh diajukan 1 user dalam 1 periode. 0 = tidak dibatasi.',
-            self::IZIN_MAX_PER_PERIODE => 'Jumlah maksimum pengajuan izin (Terlambat Masuk, Pulang Cepat, Meninggalkan Jam Kerja, Izin Seharian — digabung jadi 1 kuota) dalam 1 periode. 0 = tidak dibatasi.',
+            self::PERIOD_START_DAY => 'Tanggal mulai periode absensi/izin bulanan. Contoh: 26 = periode dimulai tanggal 26.',
+            self::PERIOD_END_DAY => 'Tanggal akhir periode absensi/izin bulanan. Kalau lebih kecil dari Tanggal Awal, otomatis dianggap tanggal itu di bulan berikutnya. Contoh: awal=26, akhir=25 -> periode 26 bulan ini s/d 25 bulan depan.',
+            self::CUTI_TAHUNAN_MAX_PER_BULAN => 'Total hari Cuti Tahunan (akumulasi semua pengajuan) yang boleh diajukan 1 user dalam 1 bulan kalender. 0 = tidak dibatasi.',
+            self::IZIN_MAX_PER_PERIODE_JAM_KERJA => 'Jumlah maksimum pengajuan Izin Meninggalkan Jam Kerja (Terlambat Masuk, Pulang Cepat, Meninggalkan Jam Kerja Tengah Hari — digabung jadi 1 kuota) dalam 1 periode. 0 = tidak dibatasi.',
+            self::IZIN_MAX_PER_PERIODE_SEHARIAN => 'Jumlah maksimum pengajuan Izin Tidak Masuk Seharian dalam 1 periode. 0 = tidak dibatasi.',
             self::CUTI_MIN_MASA_KERJA_BULAN => 'Karyawan baru boleh mengajukan cuti (jenis apa pun) setelah bekerja minimal sekian bulan, dihitung dari Tanggal Bergabung. 0 = tidak dibatasi, boleh cuti sejak hari pertama.',
         };
     }
@@ -44,9 +50,11 @@ enum AttendanceSettingEnum: string
     public function default(): string
     {
         return match ($this) {
-            self::PERIOD_CUTOFF_DAY => '1',
+            self::PERIOD_START_DAY => '1',
+            self::PERIOD_END_DAY => '31',
             self::CUTI_TAHUNAN_MAX_PER_BULAN => '0',
-            self::IZIN_MAX_PER_PERIODE => '2',
+            self::IZIN_MAX_PER_PERIODE_JAM_KERJA => '2',
+            self::IZIN_MAX_PER_PERIODE_SEHARIAN => '2',
             self::CUTI_MIN_MASA_KERJA_BULAN => '0',
         };
     }

@@ -39,46 +39,102 @@
             </div>
             <div style="display:flex;flex-direction:column;gap:18px;">
                 <div>
-                    <label class="form-label">Jenis Izin <span style="color:var(--danger-text);">*</span></label>
-                    <select class="form-input" wire:model.live="permission_type_id">
-                        <option value="">Pilih jenis izin</option>
-                        @foreach ($this->permissionTypes as $type)
-                            <option value="{{ $type->id }}">{{ $type->name }}</option>
+                    <label class="form-label">Kelompok Izin <span style="color:var(--danger-text);">*</span></label>
+                    <select class="form-input" wire:model.live="group">
+                        <option value="">Pilih kelompok izin</option>
+                        @foreach ($this->kelompokOptions as $value => $label)
+                            <option value="{{ $value }}">{{ $label }}</option>
                         @endforeach
                     </select>
-                    @error('permission_type_id') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
+                    @error('group') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
                 </div>
-                <div>
-                    <label class="form-label">Tanggal Izin <span style="color:var(--danger-text);">*</span></label>
-                    <input type="date" class="form-input" wire:model.live="date">
-                    @error('date') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
-                </div>
-                <div>
-                    <label class="form-label">Jam Izin <span style="color:var(--danger-text);">*</span></label>
-                    <div class="time-grid">
-                        <div>
-                            <input type="time" class="form-input" wire:model="start_time">
-                            <p style="font-size:11.5px;color:var(--text-muted);margin:5px 0 0;">Jam Mulai</p>
-                            @error('start_time') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
-                        </div>
-                        <div class="time-arrow"><i class="fa-solid fa-arrow-right"></i></div>
-                        <div>
-                            <input type="time" class="form-input" wire:model="end_time">
-                            <p style="font-size:11.5px;color:var(--text-muted);margin:5px 0 0;">Jam Berakhir</p>
-                            @error('end_time') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
-                        </div>
+
+                @if ($group && $this->subJenisOptions->isNotEmpty())
+                    <div>
+                        <label class="form-label">Jenis Izin <span style="color:var(--danger-text);">*</span></label>
+                        <select class="form-input" wire:model.live="permission_type_id">
+                            <option value="">Pilih jenis izin</option>
+                            @foreach ($this->subJenisOptions as $type)
+                                <option value="{{ $type->id }}">{{ $type->name }}</option>
+                            @endforeach
+                        </select>
+                        @error('permission_type_id') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
                     </div>
-                </div>
-                <div>
-                    <label class="form-label">Keperluan Izin</label>
-                    <textarea class="form-input" rows="3" placeholder="Masukkan keperluan izin..." wire:model="purpose"></textarea>
-                </div>
-                <div>
-                    <label class="form-label">Lokasi Izin</label>
-                    <input type="text" class="form-input" placeholder="Masukkan lokasi izin" wire:model="location">
-                </div>
+                @endif
+
+                @if ($group)
+                    <div>
+                        <label class="form-label">{{ in_array($group, ['sakit', 'khusus']) ? 'Tanggal Mulai' : 'Tanggal Izin' }} <span style="color:var(--danger-text);">*</span></label>
+                        <input type="date" class="form-input" wire:model.live="date">
+                        @error('date') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
+                    </div>
+
+                    @if (in_array($group, ['sakit', 'khusus']))
+                        <div>
+                            <label class="form-label">Tanggal Selesai <span style="color:var(--danger-text);">*</span></label>
+                            <input type="date" class="form-input" wire:model="end_date">
+                            @error('end_date') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
+                        </div>
+                    @endif
+
+                    @if ($group === 'meninggalkan_jam_kerja')
+                        <div>
+                            <label class="form-label">Jam Izin <span style="color:var(--danger-text);">*</span></label>
+                            <div class="time-grid">
+                                <div>
+                                    <input type="time" class="form-input" wire:model="start_time">
+                                    <p style="font-size:11.5px;color:var(--text-muted);margin:5px 0 0;">Jam Mulai</p>
+                                    @error('start_time') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
+                                </div>
+                                <div class="time-arrow"><i class="fa-solid fa-arrow-right"></i></div>
+                                <div>
+                                    <input type="time" class="form-input" wire:model="end_time">
+                                    <p style="font-size:11.5px;color:var(--text-muted);margin:5px 0 0;">Jam Berakhir</p>
+                                    @error('end_time') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
+                                </div>
+                            </div>
+                        </div>
+                    @endif
+
+                    <div>
+                        <label class="form-label">Keperluan Izin</label>
+                        <textarea class="form-input" rows="3" placeholder="Masukkan keperluan izin..." wire:model="purpose"></textarea>
+                    </div>
+                    <div>
+                        <label class="form-label">Lokasi Izin</label>
+                        <input type="text" class="form-input" placeholder="Masukkan lokasi izin" wire:model="location">
+                    </div>
+                @endif
             </div>
         </div>
+
+        @if (in_array($group, ['sakit', 'khusus']))
+            <!-- Lampiran -->
+            <div class="form-card">
+                <div class="section-head">
+                    <div class="section-icon"><i class="fa-solid fa-paperclip" style="color:var(--brand);font-size:12px;"></i></div>
+                    <span class="section-title">Lampiran{{ $group === 'sakit' ? ' (wajib kalau > 2 hari)' : ' (opsional)' }}</span>
+                </div>
+                <label class="upload-zone" style="display:block;">
+                    <i class="fa-solid fa-cloud-arrow-up" style="font-size:32px;color:var(--text-faint);margin-bottom:10px;display:block;"></i>
+                    <p style="font-size:13.5px;font-weight:600;color:var(--text-body);margin:0 0 4px;">Klik untuk upload file</p>
+                    <p style="font-size:12px;color:var(--text-muted);margin:0;">PDF, JPG, PNG &middot; Maks. 10MB per file</p>
+                    <input type="file" style="display:none;" multiple accept=".pdf,.jpg,.jpeg,.png" wire:model="attachments">
+                </label>
+                @error('attachments') <p style="color:var(--danger-text);font-size:12px;margin-top:8px;">{{ $message }}</p> @enderror
+                @error('attachments.*') <p style="color:var(--danger-text);font-size:12px;margin-top:8px;">{{ $message }}</p> @enderror
+
+                @if ($attachments)
+                    <div style="display:flex;flex-direction:column;gap:6px;margin-top:12px;">
+                        @foreach ($attachments as $file)
+                            <div style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--text-body);">
+                                <i class="fa-solid fa-file" style="color:var(--text-faint);"></i> {{ $file->getClientOriginalName() }}
+                            </div>
+                        @endforeach
+                    </div>
+                @endif
+            </div>
+        @endif
 
         <!-- Pengganti -->
         <div class="form-card">

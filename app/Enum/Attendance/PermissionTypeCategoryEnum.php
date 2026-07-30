@@ -13,6 +13,8 @@ enum PermissionTypeCategoryEnum: string
     case IZIN_PULANG_CEPAT = 'izin_pulang_cepat';
     case IZIN_SEHARIAN = 'izin_seharian';
     case IZIN_MENINGGALKAN_JAM_KERJA = 'izin_meninggalkan_jam_kerja';
+    case IZIN_SAKIT = 'izin_sakit';
+    case IZIN_KHUSUS = 'izin_khusus';
 
     public function label(): string
     {
@@ -21,6 +23,8 @@ enum PermissionTypeCategoryEnum: string
             self::IZIN_PULANG_CEPAT => 'Izin Pulang Cepat',
             self::IZIN_SEHARIAN => 'Izin Seharian',
             self::IZIN_MENINGGALKAN_JAM_KERJA => 'Izin Meninggalkan Jam Kerja',
+            self::IZIN_SAKIT => 'Izin Sakit',
+            self::IZIN_KHUSUS => 'Izin Khusus',
         };
     }
 }
