@@ -4,27 +4,36 @@ namespace App\Livewire;
 
 use App\Enum\AttendanceReqStatus;
 use App\Enum\AttendanceStatus;
+use App\Enum\CustomPermissionEnum;
 use App\Enum\EmployeeTypeCategory;
 use App\Exports\Attendance\AttendanceHistoryExport;
 use App\Livewire\Concerns\HandlesProfilePhotoUpload;
 use App\Livewire\Concerns\ResolvesTodayAttendanceStatus;
+use App\Models\AuditLog;
 use App\Models\Attendance\AttendanceRecords;
 use App\Models\Attendance\AttendanceRequests;
+use App\Models\Master\Religions;
 use App\Models\Payroll\Payroll;
 use App\Models\User;
 use App\Models\User\UserDocuments;
+use App\Models\User\UserProfileDocument;
 use App\Services\Attendance\AttendaceReqService;
 use App\Services\Attendance\AttendancePeriodResolver;
 use App\Services\OrgHierarchyService;
 use Carbon\Carbon;
+use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Session;
+use Illuminate\Support\Facades\Storage;
 use Livewire\Component;
+use Livewire\WithFileUploads;
 use Maatwebsite\Excel\Facades\Excel;
 
 class EmployeeAttendanceStatistics extends Component
 {
     use ResolvesTodayAttendanceStatus;
     use HandlesProfilePhotoUpload;
+    use WithFileUploads;
 
     public User $record;
 
@@ -33,6 +42,36 @@ class EmployeeAttendanceStatistics extends Component
     public string $status = 'approved';
 
     public string $calendarMonth;
+
+    // ── Edit Data Diri (self-service, lihat saveProfil()) ──
+    public bool $editingProfil = false;
+    public ?string $email = null;
+    public ?string $nickname = null;
+    public ?string $gender = null;
+    public ?string $religion_id = null;
+    public ?string $place_of_birth = null;
+    public ?string $date_of_birth = null;
+    public ?string $no_nik = null;
+    public ?string $no_kk = null;
+    public ?string $no_bpjs_kes = null;
+    public ?string $no_bpjs_ket = null;
+    public ?string $npwp = null;
+    public ?string $phone = null;
+    public ?string $whatsapp = null;
+    public ?string $country = null;
+    public ?string $province = null;
+    public ?string $city = null;
+    public ?string $district = null;
+    public ?string $village = null;
+    public ?string $postal_code = null;
+    public ?string $rt = null;
+    public ?string $rw = null;
+    public ?string $address = null;
+
+    // ── Tambah lampiran (label bebas, bukan tipe tetap) ──
+    public string $newDocumentLabel = '';
+    /** @var \Livewire\Features\SupportFileUploads\TemporaryUploadedFile|null */
+    public $newDocumentFile = null;
 
     public function mount(?User $record = null): void
     {
@@ -60,6 +99,230 @@ class EmployeeAttendanceStatistics extends Component
         $this->date_to = $periodEnd->toDateString();
 
         $this->calendarMonth = now()->format('Y-m');
+
+        if ($this->record->id === Auth::id()) {
+            $this->fillProfilForm();
+        }
+    }
+
+    private function fillProfilForm(): void
+    {
+        $profile = $this->record->profile;
+
+        $this->email = $this->record->email;
+        $this->nickname = $profile?->nickname;
+        $this->gender = $profile?->gender;
+        $this->religion_id = $profile?->religion_id;
+        $this->place_of_birth = $profile?->place_of_birth;
+        $this->date_of_birth = $profile?->date_of_birth;
+        $this->no_nik = $profile?->no_nik;
+        $this->no_kk = $profile?->no_kk;
+        $this->no_bpjs_kes = $profile?->no_bpjs_kes;
+        $this->no_bpjs_ket = $profile?->no_bpjs_ket;
+        $this->npwp = $profile?->npwp;
+        $this->phone = $profile?->phone;
+        $this->whatsapp = $profile?->whatsapp;
+        $this->country = $profile?->country;
+        $this->province = $profile?->province;
+        $this->city = $profile?->city;
+        $this->district = $profile?->district;
+        $this->village = $profile?->village;
+        $this->postal_code = $profile?->postal_code;
+        $this->rt = $profile?->rt;
+        $this->rw = $profile?->rw;
+        $this->address = $profile?->address;
+    }
+
+    public function getReligionOptionsProperty()
+    {
+        return Religions::pluck('name', 'id');
+    }
+
+    public function startEditProfil(): void
+    {
+        abort_unless($this->record->id === Auth::id(), 403);
+
+        $this->fillProfilForm();
+        $this->editingProfil = true;
+    }
+
+    public function cancelEditProfil(): void
+    {
+        $this->fillProfilForm();
+        $this->editingProfil = false;
+    }
+
+    /**
+     * Rekening bank SENGAJA tidak masuk sini — dipakai transfer gaji, cuma boleh diubah HC/admin
+     * lewat Kepegawaian (lihat diskusi sesi 2026-07-30), bukan self-service. Email BEDA
+     * penanganan dari field profil lain: dia kolom `users.email` (dipakai login), jadi
+     * disimpan terpisah dari $profile->update(), dan kalau nilainya benar-benar berubah,
+     * user di-logout paksa sesudahnya (lihat peringatan di blade) supaya session lama yang
+     * masih terikat ke email sebelumnya tidak menggantung.
+     */
+    public function saveProfil()
+    {
+        abort_unless($this->record->id === Auth::id(), 403);
+
+        $data = $this->validate([
+            'email' => ['required', 'email', 'max:255', \Illuminate\Validation\Rule::unique('users', 'email')->ignore($this->record->id)],
+            'nickname' => ['nullable', 'string', 'max:100'],
+            'gender' => ['nullable', 'in:laki_laki,perempuan'],
+            'religion_id' => ['nullable', 'exists:m_religions,id'],
+            'place_of_birth' => ['nullable', 'string', 'max:100'],
+            'date_of_birth' => ['nullable', 'date'],
+            'no_nik' => ['nullable', 'string', 'max:50'],
+            'no_kk' => ['nullable', 'string', 'max:50'],
+            'no_bpjs_kes' => ['nullable', 'string', 'max:50'],
+            'no_bpjs_ket' => ['nullable', 'string', 'max:50'],
+            'npwp' => ['nullable', 'string', 'max:50'],
+            'phone' => ['nullable', 'string', 'max:20'],
+            'whatsapp' => ['nullable', 'string', 'max:20'],
+            'country' => ['nullable', 'string', 'max:100'],
+            'province' => ['nullable', 'string', 'max:100'],
+            'city' => ['nullable', 'string', 'max:100'],
+            'district' => ['nullable', 'string', 'max:100'],
+            'village' => ['nullable', 'string', 'max:100'],
+            'postal_code' => ['nullable', 'string', 'max:10'],
+            'rt' => ['nullable', 'string', 'max:5'],
+            'rw' => ['nullable', 'string', 'max:5'],
+            'address' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        $profile = $this->record->profile;
+
+        if (! $profile) {
+            $this->addError('nickname', 'Profil belum tersedia, hubungi HC.');
+
+            return;
+        }
+
+        $newEmail = $data['email'];
+        unset($data['email']);
+        $emailChanged = $newEmail !== $this->record->email;
+
+        $profile->update($data);
+
+        if ($emailChanged) {
+            $this->record->update(['email' => $newEmail]);
+
+            Auth::guard('web')->logout();
+            Session::invalidate();
+            // Notification::make() (Filament) flash-nya tidak akan selamat lewat
+            // Session::invalidate() di atas - pakai flash biasa yang dibaca auth.login.blade,
+            // ditulis SETELAH invalidate supaya tidak ikut kehapus.
+            Session::flash('status', 'Email berhasil diubah, silakan login lagi dengan email baru.');
+            Session::regenerateToken();
+
+            return redirect()->route('login');
+        }
+
+        $this->record->refresh();
+        $this->record->load('profile.religion');
+        $this->editingProfil = false;
+
+        Notification::make()->title('Data diri berhasil diperbarui')->success()->send();
+    }
+
+    /** Pemilik akun selalu boleh; selain itu WAJIB permission eksplisit
+     * `lihat_lampiran_identitas_karyawan` — beda dari sekadar bisa buka Data Diri orang lain
+     * (atasan/HC), lihat komentar di CustomPermissionEnum. */
+    public function getCanViewProfileDocumentsProperty(): bool
+    {
+        return $this->record->id === Auth::id()
+            || Auth::user()->can(CustomPermissionEnum::LIHAT_LAMPIRAN_IDENTITAS_KARYAWAN->value);
+    }
+
+    public function getProfileDocumentsProperty()
+    {
+        if (! $this->canViewProfileDocuments) {
+            return collect();
+        }
+
+        return UserProfileDocument::query()
+            ->where('user_id', $this->record->id)
+            ->orderBy('created_at')
+            ->get();
+    }
+
+    /**
+     * Lampiran bebas (bukan cuma KTP/KK) — karyawan tulis sendiri labelnya lalu pilih file, 1
+     * baris baru per submit (bukan upsert per tipe seperti sebelumnya, karena tidak ada lagi
+     * konsep tipe tetap). Kotak "Tambah Lampiran" di blade tetap sama baik saat daftar kosong
+     * (jadi satu-satunya kotak yang tampil) maupun sudah ada lampiran lain (jadi kotak "tambah
+     * lagi").
+     */
+    public function addProfileDocument(): void
+    {
+        abort_unless($this->record->id === Auth::id(), 403);
+
+        $this->validate([
+            'newDocumentLabel' => ['required', 'string', 'max:100'],
+            'newDocumentFile' => ['required', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+        ]);
+
+        $path = $this->newDocumentFile->store('profile-documents/' . $this->record->id, 'public');
+
+        UserProfileDocument::create([
+            'user_id' => $this->record->id,
+            'label' => $this->newDocumentLabel,
+            'file_path' => $path,
+        ]);
+
+        $this->newDocumentLabel = '';
+        $this->newDocumentFile = null;
+
+        Notification::make()->title('Lampiran berhasil diunggah')->success()->send();
+    }
+
+    public function deleteProfileDocument(string $documentId): void
+    {
+        abort_unless($this->record->id === Auth::id(), 403);
+
+        $document = UserProfileDocument::query()
+            ->where('user_id', $this->record->id)
+            ->findOrFail($documentId);
+
+        Storage::disk('public')->delete($document->file_path);
+        $document->delete();
+
+        Notification::make()->title('Lampiran dihapus')->success()->send();
+    }
+
+    /** Pemilik akun selalu boleh; selain itu HC (`sistem_kepegawaian`, dibatasi company sendiri
+     * sama seperti EmployeeResource) atau yang bisa lihat lintas company — BUKAN atasan biasa,
+     * sekalipun atasan bisa buka Data Diri bawahannya untuk tab lain (lihat canManage()). */
+    public function getCanViewAuditHistoryProperty(): bool
+    {
+        if ($this->record->id === Auth::id()) {
+            return true;
+        }
+
+        $user = Auth::user();
+
+        return $user->canBrowseAllCompanies()
+            || ($user->can(CustomPermissionEnum::SISTEM_KEPEGAWAIAN->value) && $user->company_id === $this->record->company_id);
+    }
+
+    /**
+     * Gabungan riwayat User + UserProfiles (LogsFieldAuditChanges di kedua model menulis ke
+     * `audit_logs` dengan key berprefix user_id yang sama) — 1 query cukup, apa pun tabel asal
+     * fieldnya. Dibatasi 100 baris terakhir, cukup untuk kebutuhan "siapa mengubah apa
+     * terakhir" tanpa perlu pagination di versi pertama ini.
+     */
+    public function getAuditHistoryProperty()
+    {
+        if (! $this->canViewAuditHistory) {
+            return collect();
+        }
+
+        return AuditLog::query()
+            ->where('module', 'data_karyawan')
+            ->where('key', 'like', $this->record->id . ':%')
+            ->with('user')
+            ->orderByDesc('created_at')
+            ->limit(100)
+            ->get();
     }
 
     protected function canManage(User $record): bool

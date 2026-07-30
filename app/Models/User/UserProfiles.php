@@ -2,6 +2,7 @@
 
 namespace App\Models\User;
 
+use App\Models\Concerns\LogsFieldAuditChanges;
 use App\Models\Master\OrgStructure;
 use App\Models\Master\Religions;
 use App\Models\User;
@@ -101,6 +102,7 @@ use Illuminate\Database\Eloquent\Model;
 class UserProfiles extends Model
 {
     use HasUlids;
+    use LogsFieldAuditChanges;
 
     protected $table = 'user_profiles';
 
@@ -225,5 +227,58 @@ class UserProfiles extends Model
     public function employeeType()
     {
         return $this->belongsTo(\App\Models\Master\EmployeeTypes::class, 'employee_type_id', 'id');
+    }
+
+    protected function auditModule(): string
+    {
+        return 'data_karyawan';
+    }
+
+    protected function auditCompanyId(): ?string
+    {
+        return $this->user?->company_id;
+    }
+
+    protected function auditRecordKey(): string
+    {
+        return $this->user_id;
+    }
+
+    /** profile_picture sengaja tidak diikutkan — isinya path file, bukan data identitas yang
+     * perlu dibandingkan lama/baru seperti field lain. */
+    protected function auditFieldLabels(): array
+    {
+        return [
+            'nickname' => 'Nama Panggilan',
+            'gender' => 'Jenis Kelamin',
+            'religion_id' => 'Agama',
+            'place_of_birth' => 'Tempat Lahir',
+            'date_of_birth' => 'Tanggal Lahir',
+            'no_nik' => 'No. NIK',
+            'no_kk' => 'No. KK',
+            'no_bpjs_kes' => 'No. BPJS Kesehatan',
+            'no_bpjs_ket' => 'No. BPJS Ketenagakerjaan',
+            'bank_id' => 'Bank',
+            'bank_account_number' => 'No. Rekening Bank',
+            'bank_account_name' => 'Nama Pemilik Rekening',
+            'npwp' => 'NPWP',
+            'country' => 'Negara',
+            'province' => 'Provinsi',
+            'city' => 'Kota/Kabupaten',
+            'district' => 'Kecamatan',
+            'village' => 'Kelurahan/Desa',
+            'address' => 'Alamat',
+            'postal_code' => 'Kode Pos',
+            'rt' => 'RT',
+            'rw' => 'RW',
+            'phone' => 'No. Telepon',
+            'whatsapp' => 'No. WhatsApp',
+            'org_structure_id' => 'Struktur Organisasi',
+            'job_position_id' => 'Jabatan',
+            'pangkat_id' => 'Pangkat',
+            'kelas_id' => 'Kelas',
+            'employee_type_id' => 'Tipe Karyawan',
+            'joining_date' => 'Tanggal Bergabung',
+        ];
     }
 }

@@ -42,6 +42,12 @@
             </button>
         @endif
     @endif
+    @if ($this->canViewAuditHistory)
+        <button type="button" @click="tab = 'riwayatdata'" class="section-nav-btn navy" :class="{ 'is-active': tab === 'riwayatdata' }">
+            <i class="fa-solid fa-clock-rotate-left"></i>
+            <span>Riwayat Perubahan</span>
+        </button>
+    @endif
 </div>
 
 <!-- Tab: Profil -->
@@ -169,38 +175,227 @@
         </div>
     </div>
 
-    {{-- Rincian: dikelompokkan per kartu supaya tiap topik bisa dipindai sendiri-sendiri --}}
-    <div style="display:flex;flex-wrap:wrap;gap:20px;margin-bottom:20px;">
-        <div class="card-surface" style="flex:2 1 340px;">
-            {!! $sectionHeader('fa-id-card', 'Informasi Pribadi') !!}
-            @foreach ($pribadi as $label => $value)
-                {!! $renderField($label, $value, !$loop->last) !!}
-            @endforeach
-        </div>
+    @if ($isSelf && $editingProfil)
+        {{-- Mode edit: Informasi Pribadi + Kontak + Alamat dalam 1 form. Rekening bank TIDAK
+        ikut di sini (lihat komentar saveProfil()) - tetap cuma bisa diubah HC/admin. --}}
+        <div class="card-surface" style="margin-bottom:20px;">
+            <form wire:submit="saveProfil">
+                {!! $sectionHeader('fa-id-card', 'Informasi Pribadi') !!}
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-bottom:6px;">
+                    <div>
+                        <label class="form-label">Email</label>
+                        <input type="email" class="form-input" wire:model="email">
+                        @error('email') <p style="color:var(--danger-text);font-size:11px;margin-top:4px;">{{ $message }}</p> @enderror
+                    </div>
+                </div>
+                <p style="font-size:11.5px;color:#92400e;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:8px 10px;margin:0 0 20px;">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                    Kalau email diubah, Anda akan otomatis logout setelah Simpan dan harus login lagi pakai email baru.
+                </p>
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-bottom:20px;">
+                    <div>
+                        <label class="form-label">Nama Panggilan</label>
+                        <input type="text" class="form-input" wire:model="nickname">
+                        @error('nickname') <p style="color:var(--danger-text);font-size:11px;margin-top:4px;">{{ $message }}</p> @enderror
+                    </div>
+                    <div>
+                        <label class="form-label">Jenis Kelamin</label>
+                        <select class="form-input" wire:model="gender">
+                            <option value="">-- Pilih --</option>
+                            <option value="laki_laki">Laki-laki</option>
+                            <option value="perempuan">Perempuan</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="form-label">Agama</label>
+                        <select class="form-input" wire:model="religion_id">
+                            <option value="">-- Pilih --</option>
+                            @foreach ($this->religionOptions as $id => $name)
+                                <option value="{{ $id }}">{{ $name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div>
+                        <label class="form-label">Tempat Lahir</label>
+                        <input type="text" class="form-input" wire:model="place_of_birth">
+                    </div>
+                    <div>
+                        <label class="form-label">Tanggal Lahir</label>
+                        <input type="date" class="form-input" wire:model="date_of_birth">
+                        @error('date_of_birth') <p style="color:var(--danger-text);font-size:11px;margin-top:4px;">{{ $message }}</p> @enderror
+                    </div>
+                    <div>
+                        <label class="form-label">No. NIK</label>
+                        <input type="text" class="form-input" wire:model="no_nik">
+                    </div>
+                    <div>
+                        <label class="form-label">No. KK</label>
+                        <input type="text" class="form-input" wire:model="no_kk">
+                    </div>
+                    <div>
+                        <label class="form-label">No. BPJS Kesehatan</label>
+                        <input type="text" class="form-input" wire:model="no_bpjs_kes">
+                    </div>
+                    <div>
+                        <label class="form-label">No. BPJS Ketenagakerjaan</label>
+                        <input type="text" class="form-input" wire:model="no_bpjs_ket">
+                    </div>
+                    <div>
+                        <label class="form-label">NPWP</label>
+                        <input type="text" class="form-input" wire:model="npwp">
+                    </div>
+                </div>
+                <p style="font-size:11.5px;color:var(--text-muted);margin:-8px 0 20px;">
+                    Rekening bank tidak bisa diubah sendiri — hubungi HC kalau perlu diperbarui.
+                </p>
 
-        <div class="card-surface" style="flex:1 1 220px;align-self:flex-start;">
-            {!! $sectionHeader('fa-phone', 'Kontak') !!}
-            @foreach ($kontak as $label => $value)
-                {!! $renderField($label, $value, !$loop->last) !!}
-            @endforeach
-        </div>
-    </div>
+                {!! $sectionHeader('fa-phone', 'Kontak') !!}
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-bottom:20px;">
+                    <div>
+                        <label class="form-label">No. Telepon</label>
+                        <input type="text" class="form-input" wire:model="phone">
+                    </div>
+                    <div>
+                        <label class="form-label">No. WhatsApp</label>
+                        <input type="text" class="form-input" wire:model="whatsapp">
+                    </div>
+                </div>
 
-    <div class="card-surface" style="margin-bottom:20px;">
-        {!! $sectionHeader('fa-location-dot', 'Alamat') !!}
-        <p style="font-size:13.5px;font-weight:500;color:var(--text-body);line-height:1.6;margin:0;">
-            {{ $alamatLengkap ?: 'Alamat belum diisi' }}
-        </p>
-        @if (collect($alamatDetail)->filter()->isNotEmpty())
-            <div style="display:flex;flex-wrap:wrap;gap:6px 28px;margin-top:12px;">
-                @foreach ($alamatDetail as $label => $value)
-                    @if ($value)
-                        <span style="font-size:12.5px;color:var(--text-muted);"><span style="color:var(--text-muted);">{{ $label }}:</span> <span style="font-weight:600;color:var(--text-body);">{{ $value }}</span></span>
+                {!! $sectionHeader('fa-location-dot', 'Alamat') !!}
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-bottom:14px;">
+                    <div style="grid-column:1/-1;">
+                        <label class="form-label">Alamat</label>
+                        <textarea class="form-input" rows="2" wire:model="address"></textarea>
+                    </div>
+                    <div>
+                        <label class="form-label">Provinsi</label>
+                        <input type="text" class="form-input" wire:model="province">
+                    </div>
+                    <div>
+                        <label class="form-label">Kota/Kabupaten</label>
+                        <input type="text" class="form-input" wire:model="city">
+                    </div>
+                    <div>
+                        <label class="form-label">Kecamatan</label>
+                        <input type="text" class="form-input" wire:model="district">
+                    </div>
+                    <div>
+                        <label class="form-label">Kelurahan/Desa</label>
+                        <input type="text" class="form-input" wire:model="village">
+                    </div>
+                    <div>
+                        <label class="form-label">RT/RW</label>
+                        <div style="display:flex;gap:8px;">
+                            <input type="text" class="form-input" wire:model="rt" placeholder="RT">
+                            <input type="text" class="form-input" wire:model="rw" placeholder="RW">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="form-label">Kode Pos</label>
+                        <input type="text" class="form-input" wire:model="postal_code">
+                    </div>
+                </div>
+
+                <div style="display:flex;gap:10px;">
+                    <button type="submit" class="btn-primary">
+                        <i class="fa-solid fa-check"></i> Simpan
+                    </button>
+                    <button type="button" wire:click="cancelEditProfil" class="btn-secondary">
+                        Batal
+                    </button>
+                </div>
+            </form>
+        </div>
+    @else
+        {{-- Rincian: dikelompokkan per kartu supaya tiap topik bisa dipindai sendiri-sendiri --}}
+        <div style="display:flex;flex-wrap:wrap;gap:20px;margin-bottom:20px;">
+            <div class="card-surface" style="flex:2 1 340px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;">
+                    {!! $sectionHeader('fa-id-card', 'Informasi Pribadi') !!}
+                    @if ($isSelf)
+                        <button type="button" wire:click="startEditProfil" style="background:none;border:none;color:var(--brand);font-size:12.5px;font-weight:600;cursor:pointer;">
+                            <i class="fa-solid fa-pen"></i> Ubah
+                        </button>
                     @endif
+                </div>
+                @foreach ($pribadi as $label => $value)
+                    {!! $renderField($label, $value, !$loop->last) !!}
+                @endforeach
+            </div>
+
+            <div class="card-surface" style="flex:1 1 220px;align-self:flex-start;">
+                {!! $sectionHeader('fa-phone', 'Kontak') !!}
+                @foreach ($kontak as $label => $value)
+                    {!! $renderField($label, $value, !$loop->last) !!}
+                @endforeach
+            </div>
+        </div>
+
+        <div class="card-surface" style="margin-bottom:20px;">
+            {!! $sectionHeader('fa-location-dot', 'Alamat') !!}
+            <p style="font-size:13.5px;font-weight:500;color:var(--text-body);line-height:1.6;margin:0;">
+                {{ $alamatLengkap ?: 'Alamat belum diisi' }}
+            </p>
+            @if (collect($alamatDetail)->filter()->isNotEmpty())
+                <div style="display:flex;flex-wrap:wrap;gap:6px 28px;margin-top:12px;">
+                    @foreach ($alamatDetail as $label => $value)
+                        @if ($value)
+                            <span style="font-size:12.5px;color:var(--text-muted);"><span style="color:var(--text-muted);">{{ $label }}:</span> <span style="font-weight:600;color:var(--text-body);">{{ $value }}</span></span>
+                        @endif
+                    @endforeach
+                </div>
+            @endif
+        </div>
+    @endif
+
+    {{-- Lampiran bebas (label ditulis sendiri oleh karyawan, bukan tipe tetap seperti KTP/KK
+    saja) — terpisah dari tab "Dokumen" yang isinya surat resmi terbitan admin (lihat
+    UserProfileDocument). Kartu ini disembunyikan total dari atasan/HC yang tidak punya
+    permission lihat_lampiran_identitas_karyawan, meskipun mereka bisa buka Data Diri karyawan
+    itu untuk tab lain. --}}
+    @if ($this->canViewProfileDocuments)
+    <div class="card-surface" style="margin-bottom:20px;">
+        {!! $sectionHeader('fa-paperclip', 'Lampiran') !!}
+
+        @if ($this->profileDocuments->isNotEmpty())
+            <div class="pwa-list" style="margin-bottom:14px;">
+                @foreach ($this->profileDocuments as $doc)
+                    <div class="pwa-list-row">
+                        <div class="pwa-tile-icon neutral"><i class="fa-solid fa-file-lines"></i></div>
+                        <a href="{{ $doc->file_url }}" target="_blank" rel="noopener" style="flex:1;min-width:0;text-decoration:none;">
+                            <p style="font-size:13px;font-weight:600;color:var(--text-heading);margin:0;">{{ $doc->label }}</p>
+                        </a>
+                        @if ($isSelf)
+                            <button type="button" wire:click="deleteProfileDocument('{{ $doc->id }}')" wire:confirm="Hapus lampiran ini?" style="background:none;border:none;color:var(--danger-text);cursor:pointer;padding:6px;">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+                        @endif
+                    </div>
                 @endforeach
             </div>
         @endif
+
+        @if ($isSelf)
+            {{-- Satu kotak tambah lampiran, dipakai berulang - jadi satu-satunya kotak yang
+            tampil kalau daftar di atas masih kosong, atau "tambah lagi" kalau sudah ada isinya. --}}
+            <div style="border:1px dashed var(--border-soft);border-radius:12px;padding:14px;display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;">
+                <div style="flex:1;min-width:160px;">
+                    <label class="form-label">Nama Lampiran</label>
+                    <input type="text" class="form-input" wire:model="newDocumentLabel" placeholder="Contoh: KTP, KK, Ijazah">
+                    @error('newDocumentLabel') <p style="color:var(--danger-text);font-size:11px;margin-top:4px;">{{ $message }}</p> @enderror
+                </div>
+                <div style="flex:1;min-width:160px;">
+                    <label class="form-label">File</label>
+                    <input type="file" wire:model="newDocumentFile" accept="image/*,.pdf" class="form-input" style="padding:6px;">
+                    @error('newDocumentFile') <p style="color:var(--danger-text);font-size:11px;margin-top:4px;">{{ $message }}</p> @enderror
+                </div>
+                <button type="button" wire:click="addProfileDocument" wire:loading.attr="disabled" wire:target="addProfileDocument,newDocumentFile" class="btn-primary">
+                    <i class="fa-solid fa-plus"></i> Tambah
+                </button>
+            </div>
+        @endif
     </div>
+    @endif
 
     <div class="card-surface">
         {!! $sectionHeader('fa-briefcase', 'Informasi Pekerjaan') !!}
@@ -574,6 +769,41 @@
                         </div>
                         <i class="fa-solid fa-chevron-right" style="color:var(--text-faint);font-size:12px;"></i>
                     </a>
+                @endforeach
+            </div>
+        @endif
+    </div>
+@endif
+
+@if ($this->canViewAuditHistory)
+    {{-- Riwayat perubahan data akun/profil/pekerjaan — gabungan User + UserProfiles (lihat
+    LogsFieldAuditChanges), mencatat siapa pun yang mengubah (karyawan sendiri via halaman ini,
+    atau admin/HC lewat Kepegawaian/Filament) karena hook-nya di level model. --}}
+    <div x-show="tab === 'riwayatdata'">
+        @php $auditHistory = $this->auditHistory; @endphp
+        @if ($auditHistory->isEmpty())
+            <div class="pwa-list" style="padding:32px 16px;text-align:center;">
+                <p style="font-size:13px;color:var(--text-muted);margin:0;">Belum ada riwayat perubahan data.</p>
+            </div>
+        @else
+            <div class="pwa-list">
+                @foreach ($auditHistory as $entry)
+                    <div class="pwa-list-row" style="align-items:flex-start;">
+                        <div class="pwa-tile-icon navy"><i class="fa-solid fa-pen"></i></div>
+                        <div style="flex:1;min-width:0;">
+                            <p style="font-size:13px;font-weight:600;color:var(--text-heading);margin:0;">{{ $entry->label ?? $entry->key }}</p>
+                            <p style="font-size:12px;color:var(--text-body);margin-top:3px;">
+                                {{ $entry->old_value ?: '(kosong)' }}
+                                <i class="fa-solid fa-arrow-right" style="font-size:10px;color:var(--text-faint);margin:0 4px;"></i>
+                                {{ $entry->new_value ?: '(kosong)' }}
+                            </p>
+                            <p style="font-size:11px;color:var(--text-muted);margin-top:4px;">
+                                {{ $entry->created_at->translatedFormat('d M Y H:i') }}
+                                &middot;
+                                oleh {{ $entry->user?->id === $record->id ? 'karyawan sendiri' : ($entry->user?->name ?? 'Sistem') }}
+                            </p>
+                        </div>
+                    </div>
                 @endforeach
             </div>
         @endif

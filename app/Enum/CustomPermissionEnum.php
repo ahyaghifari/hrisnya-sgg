@@ -69,6 +69,12 @@ enum CustomPermissionEnum: string
      * tanggal periode) supaya bisa dikasih ke role finance yang lebih terbatas. */
     case GENERATE_PAYROLL = 'generate_payroll';
 
+    /** Lihat lampiran KTP/KK karyawan lain di halaman Data Diri (kartu "Lampiran Identitas") —
+     * dipisah dari akses baca Data Diri secara umum (atasan/HC yang biasa buka Data Diri
+     * bawahannya TIDAK otomatis bisa lihat lampiran ini kecuali dikasih permission ini secara
+     * eksplisit). Pemilik akun selalu bisa lihat/unggah lampirannya sendiri, tanpa permission ini. */
+    case LIHAT_LAMPIRAN_IDENTITAS_KARYAWAN = 'lihat_lampiran_identitas_karyawan';
+
     public function label(): string
     {
         return match
@@ -102,6 +108,7 @@ enum CustomPermissionEnum: string
             self::EDIT_PENGATURAN_LMS => 'Edit Pengaturan LMS',
             self::KELOLA_JADWAL_SHIFT => 'Kelola Jadwal Shift (Template & Roster)',
             self::GENERATE_PAYROLL => 'Generate/Regenerate Payroll',
+            self::LIHAT_LAMPIRAN_IDENTITAS_KARYAWAN => 'Lihat Lampiran Identitas Karyawan (KTP/KK)',
         };
     }
 }

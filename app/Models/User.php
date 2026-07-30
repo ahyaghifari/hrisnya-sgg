@@ -4,6 +4,7 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 
+use App\Models\Concerns\LogsFieldAuditChanges;
 use App\Models\Master\Companies;
 use App\Models\Payroll\UserKoperasi;
 use App\Models\Shift\ShiftScheduleAssignments;
@@ -91,6 +92,7 @@ class User extends Authenticatable implements FilamentUser
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasFactory, Notifiable, HasPushSubscriptions, HasUlids, HasRoles, HasApiTokens, SoftDeletes;
+    use LogsFieldAuditChanges;
 
     /**
      * The attributes that are mass assignable.
@@ -224,5 +226,36 @@ class User extends Authenticatable implements FilamentUser
     public function canAccessKaryawanMenu(): bool
     {
         return $this->hasSubordinates() || $this->canBrowseAllCompanies();
+    }
+
+    protected function auditModule(): string
+    {
+        return 'data_karyawan';
+    }
+
+    protected function auditCompanyId(): ?string
+    {
+        return $this->company_id;
+    }
+
+    /** Sama dengan UserProfiles::auditRecordKey() - keduanya dituliskan dengan prefix user_id
+     * yang sama supaya 1 query bisa gabungkan riwayat akun + profil 1 orang, lihat
+     * EmployeeAttendanceStatistics::getAuditHistoryProperty(). */
+    protected function auditRecordKey(): string
+    {
+        return $this->id;
+    }
+
+    /** password/remember_token sengaja tidak diikutkan (jangan pernah log hash password),
+     * begitu juga type_nakes (jarang dipakai/tidak relevan buat karyawan biasa). */
+    protected function auditFieldLabels(): array
+    {
+        return [
+            'name' => 'Nama',
+            'email' => 'Email',
+            'nip' => 'NIP',
+            'company_id' => 'Perusahaan',
+            'is_active' => 'Status Aktif',
+        ];
     }
 }

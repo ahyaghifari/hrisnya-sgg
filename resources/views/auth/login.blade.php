@@ -43,6 +43,13 @@
                     </div>
                 @endif
 
+                @if (session('status'))
+                    <div class="flex items-center gap-2.5 bg-emerald-50 border border-emerald-200 rounded-[10px] px-3.5 py-2.5 mb-5 text-[13px] text-emerald-700">
+                        <i class="fas fa-circle-check"></i>
+                        {{ session('status') }}
+                    </div>
+                @endif
+
                 <form action="{{ route('login') }}" method="POST">
                     @csrf
 
