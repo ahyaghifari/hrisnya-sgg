@@ -31,7 +31,7 @@ class PayrollSettingsSeeder extends Seeder
             ['key' => 'keterlambatan_grace_count', 'module' => 'payroll', 'type' => 'integer', 'value' => '0', 'label' => 'Kompensasi Terlambat (kali/bulan)', 'description' => 'Jumlah keterlambatan pertama dalam 1 bulan yang tidak kena denda.'],
             ['key' => 'izin_potongan_flat', 'module' => 'payroll', 'type' => 'decimal', 'value' => '10000', 'label' => 'Potongan Izin Terlambat Masuk/Pulang Cepat', 'description' => 'Potongan flat per kejadian, tanpa kompensasi/grace.'],
             ['key' => 'pajak_jasa_dokter_rate', 'module' => 'payroll', 'type' => 'decimal', 'value' => '0', 'label' => 'Rate Pajak Jasa Dokter (%)', 'description' => 'Persentase potongan pajak dari total klaim fee (jasa dokter, dst) per periode.'],
-            ['key' => 'insentif_metode', 'module' => 'payroll', 'type' => 'string', 'value' => 'master', 'label' => 'Metode Insentif', 'description' => '"Master" = input manual lewat tabel Insentif (dipakai Holding). "Import" = upload Excel per periode SETELAH payroll digenerate, dicocokkan lewat NIP (dipakai RSU, perhitungannya dinamis).'],
+            ['key' => 'insentif_metode', 'module' => 'payroll', 'type' => 'string', 'value' => 'master', 'label' => 'Metode Insentif', 'description' => '"Master" = input manual lewat tabel Insentif (dipakai Holding). "Import" = upload Excel per periode SETELAH payroll digenerate, dicocokkan lewat NIP (dipakai RSU, perhitungannya dinamis). "Otomatis" = dihitung dari selisih matriks Tunjangan Jabatan Lama vs Baru sesuai pangkat/kelas karyawan saat itu, tanpa input manual per orang.'],
         ];
 
         // Setting module `attendance` (izin_max_per_periode, cuti_tahunan_max_per_bulan, dst)

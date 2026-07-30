@@ -15,6 +15,7 @@ use App\Models\Payroll\OmsetCategory;
 use App\Models\Payroll\PangkatBpjsBasis;
 use App\Models\Payroll\PangkatLemburRate;
 use App\Models\Payroll\PangkatSalary;
+use App\Models\Payroll\LegacyPositionAllowance;
 use App\Models\Payroll\PositionAllowance;
 use App\Models\Payroll\TenureAllowance;
 use App\Models\Payroll\TransportAllowance;
@@ -69,6 +70,9 @@ class MappingKomponenGajiPage extends Component implements HasActions, HasSchema
 
     /** @var array<string,string> "pangkatId|kelasId" => amount */
     public array $jabatanMatrix = [];
+
+    /** @var array<string,string> "pangkatId|kelasId" => amount, dipakai IncentiveCalculator metode "auto" (lihat §Tunjangan Jabatan Lama) */
+    public array $jabatanLegacyMatrix = [];
 
     /** @var array<int,array{id:?string,min_years:string,max_years:string,amount:string}> */
     public array $tenureRows = [];
@@ -345,12 +349,19 @@ class MappingKomponenGajiPage extends Component implements HasActions, HasSchema
             ->get()
             ->keyBy(fn (PositionAllowance $r) => $r->pangkat_id . '|' . $r->kelas_id);
 
+        $existingLegacy = LegacyPositionAllowance::query()
+            ->whereIn('pangkat_id', $pangkats->pluck('id'))
+            ->get()
+            ->keyBy(fn (LegacyPositionAllowance $r) => $r->pangkat_id . '|' . $r->kelas_id);
+
         $this->jabatanMatrix = [];
+        $this->jabatanLegacyMatrix = [];
 
         foreach ($pangkats as $p) {
             foreach ($kelasList as $k) {
                 $key = $p->id . '|' . $k->id;
                 $this->jabatanMatrix[$key] = (string) ($existing[$key]->amount ?? '');
+                $this->jabatanLegacyMatrix[$key] = (string) ($existingLegacy[$key]->amount ?? '');
             }
         }
     }
@@ -383,6 +394,36 @@ class MappingKomponenGajiPage extends Component implements HasActions, HasSchema
             }
 
             PositionAllowance::updateOrCreate(
+                ['pangkat_id' => $pangkatId, 'kelas_id' => $kelasId],
+                ['amount' => $value]
+            );
+        }
+
+        $this->notifySaved();
+    }
+
+    /**
+     * Tunjangan Jabatan LAMA (legacy_position_allowances) — cuma dipakai IncentiveCalculator
+     * metode "auto": selisih (lama - baru) jadi Insentif penutup transisi, dihitung live per
+     * pangkat_id/kelas_id karyawan saat Generate. TIDAK dikunci rentang Kelas Dasar/Maksimal
+     * Pangkat seperti matrix baru — data lama independen dari rentang yang berlaku sekarang.
+     */
+    public function saveJabatanLegacy(): void
+    {
+        $this->assertCanEdit();
+
+        $this->validate([
+            'jabatanLegacyMatrix.*' => $this->nonNegativeAmountRule(),
+        ], [], ['jabatanLegacyMatrix.*' => 'nominal tunjangan jabatan lama']);
+
+        foreach ($this->jabatanLegacyMatrix as $key => $value) {
+            if ($value === '' || $value === null) {
+                continue;
+            }
+
+            [$pangkatId, $kelasId] = explode('|', $key, 2);
+
+            LegacyPositionAllowance::updateOrCreate(
                 ['pangkat_id' => $pangkatId, 'kelas_id' => $kelasId],
                 ['amount' => $value]
             );

@@ -59,6 +59,7 @@
                             <select class="form-input" style="font-size:12px;padding:7px 10px;" wire:model="settingValues.{{ $key }}">
                                 <option value="master">Master (tabel Insentif, input manual)</option>
                                 <option value="import">Import (upload Excel per periode setelah generate)</option>
+                                <option value="auto">Otomatis (selisih Tunjangan Jabatan lama vs baru)</option>
                             </select>
                         @else
                             <input type="{{ $inputType($meta?->type) }}" step="0.01" class="form-input" style="font-size:12px;padding:7px 10px;" wire:model="settingValues.{{ $key }}">

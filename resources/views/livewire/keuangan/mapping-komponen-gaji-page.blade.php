@@ -180,6 +180,48 @@
                                 @if ($this->canEditMapping)
                                     <button type="button" wire:click="saveJabatan" wire:loading.attr="disabled" wire:target="saveJabatan" class="btn-primary" style="margin-top:14px;padding:9px 20px;font-size:12.5px;">Simpan</button>
                                 @endif
+
+                                {{-- Tunjangan Jabatan LAMA — dipakai buat Insentif metode "Otomatis" (halaman
+                                     Komponen Gaji): selisih (lama - baru) per Pangkat/Kelas karyawan otomatis
+                                     jadi Insentif penutup transisi tiap Generate/Regenerate. Sengaja TIDAK
+                                     dikunci rentang Kelas Dasar/Maksimal seperti matrix di atas — data lama
+                                     independen dari rentang yang berlaku sekarang. --}}
+                                <div style="margin-top:28px;padding-top:20px;border-top:1.5px dashed var(--border);">
+                                    <p style="font-size:12.5px;font-weight:700;margin:0 0 6px;display:flex;align-items:center;gap:6px;">
+                                        <i class="fa-solid fa-clock-rotate-left" style="color:var(--text-faint);"></i> Tunjangan Jabatan Lama
+                                    </p>
+                                    <p style="font-size:11px;color:var(--text-muted);margin:0 0 12px;">Dipakai buat <strong>Insentif</strong> — kalau metode Insentif perusahaan ini diatur ke "Otomatis" (halaman Komponen Gaji), selisih nominal lama di sini dikurangi Tunjangan Jabatan baru di atas otomatis jadi Insentif penutup transisi per karyawan, dihitung ulang tiap Generate/Regenerate sesuai Pangkat/Kelas karyawan saat itu. Semua kombinasi terbuka (tidak dikunci rentang Kelas Dasar/Maksimal seperti matrix di atas).</p>
+                                    <div style="overflow-x:auto;">
+                                        <table style="border-collapse:collapse;width:100%;font-size:11.5px;">
+                                            <thead>
+                                                <tr>
+                                                    <th style="text-align:left;padding:6px 10px;border-bottom:1.5px solid var(--border);white-space:nowrap;position:sticky;left:0;background:var(--surface);z-index:1;border-right:1.5px solid var(--border);">Pangkat \ Kelas</th>
+                                                    @foreach ($this->kelasList as $k)
+                                                        <th style="text-align:left;padding:6px 10px;border-bottom:1.5px solid var(--border);white-space:nowrap;">{{ $k->name }}</th>
+                                                    @endforeach
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                @foreach ($this->pangkats as $p)
+                                                    <tr>
+                                                        <td style="padding:6px 10px;font-weight:600;white-space:nowrap;position:sticky;left:0;background:var(--surface);z-index:1;border-right:1.5px solid var(--border);">{{ $p->name }}</td>
+                                                        @foreach ($this->kelasList as $k)
+                                                            <td style="padding:4px 6px;">
+                                                                <input type="number" step="0.01" class="form-input" style="width:120px;font-size:11.5px;padding:6px 8px;{{ $errors->has("jabatanLegacyMatrix.{$p->id}|{$k->id}") ? 'border-color:#dc2626;' : '' }}" wire:model="jabatanLegacyMatrix.{{ $p->id }}|{{ $k->id }}">
+                                                            </td>
+                                                        @endforeach
+                                                    </tr>
+                                                @endforeach
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    @if ($errors->has('jabatanLegacyMatrix.*'))
+                                        <p style="font-size:11px;color:#dc2626;margin-top:8px;">Ada nominal yang tidak valid (kotak bergaris merah) — perbaiki dulu sebelum simpan.</p>
+                                    @endif
+                                    @if ($this->canEditMapping)
+                                        <button type="button" wire:click="saveJabatanLegacy" wire:loading.attr="disabled" wire:target="saveJabatanLegacy" class="btn-primary" style="margin-top:14px;padding:9px 20px;font-size:12.5px;">Simpan</button>
+                                    @endif
+                                </div>
                             @endif
                         @endif
 
