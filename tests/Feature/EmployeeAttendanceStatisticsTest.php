@@ -359,11 +359,10 @@ class EmployeeAttendanceStatisticsTest extends TestCase
     {
         $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
         $staff = User::factory()->create(['company_id' => $company->id]);
-        $bank = \App\Models\Master\Banks::create(['code' => 'BLM', 'name' => 'Bank Lama']);
         UserProfiles::create([
             'user_id' => $staff->id,
             'no_nik' => 'nik-lama',
-            'bank_id' => $bank->id,
+            'bank_name' => 'Bank Lama',
             'bank_account_number' => '111111',
         ]);
 

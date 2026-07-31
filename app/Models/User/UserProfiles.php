@@ -23,6 +23,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property string|null $no_bpjs_ket
  * @property string|null $bank_account_number
  * @property string|null $bank_account_name
+ * @property string|null $bank_name
  * @property string|null $npwp
  * @property string|null $country
  * @property string|null $province
@@ -36,7 +37,6 @@ use Illuminate\Database\Eloquent\Model;
  * @property string|null $phone
  * @property string|null $whatsapp
  * @property string|null $religion_id
- * @property string|null $bank_id
  * @property string|null $org_structure_id
  * @property string|null $job_position_id
  * @property string|null $pangkat_id
@@ -47,7 +47,6 @@ use Illuminate\Database\Eloquent\Model;
  * @property string|null $joining_date
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
- * @property-read \App\Models\Master\Banks|null $bank
  * @property-read \App\Models\Master\EmployeeTypes|null $employeeType
  * @property-read mixed $department
  * @property-read mixed $division
@@ -64,7 +63,7 @@ use Illuminate\Database\Eloquent\Model;
  * @method static \Illuminate\Database\Eloquent\Builder<static>|UserProfiles whereAddress($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|UserProfiles whereBankAccountName($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|UserProfiles whereBankAccountNumber($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|UserProfiles whereBankId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserProfiles whereBankName($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|UserProfiles whereBusinessUnitId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|UserProfiles whereCity($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|UserProfiles whereCountry($value)
@@ -118,6 +117,7 @@ class UserProfiles extends Model
         'no_bpjs_ket',
         'bank_account_number',
         'bank_account_name',
+        'bank_name',
         'npwp',
         'country',
         'province',
@@ -131,7 +131,6 @@ class UserProfiles extends Model
         'phone',
         'whatsapp',
         'religion_id',
-        'bank_id',
         'org_structure_id',
         'job_position_id',
         'pangkat_id',
@@ -166,11 +165,6 @@ class UserProfiles extends Model
         return $this->belongsTo(Religions::class, 'religion_id', 'id');
     }
 
-    public function bank()
-    {
-        return $this->belongsTo(\App\Models\Master\Banks::class, 'bank_id', 'id');
-    }
-    
     public function orgStructure()
     {
         return $this->belongsTo(OrgStructure::class, 'org_structure_id');
@@ -258,7 +252,7 @@ class UserProfiles extends Model
             'no_kk' => 'No. KK',
             'no_bpjs_kes' => 'No. BPJS Kesehatan',
             'no_bpjs_ket' => 'No. BPJS Ketenagakerjaan',
-            'bank_id' => 'Bank',
+            'bank_name' => 'Bank',
             'bank_account_number' => 'No. Rekening Bank',
             'bank_account_name' => 'Nama Pemilik Rekening',
             'npwp' => 'NPWP',

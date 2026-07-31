@@ -2,7 +2,6 @@
 
 namespace App\Imports\Employees;
 
-use App\Models\Master\Banks;
 use App\Models\Master\EmployeeTypes;
 use App\Models\Master\JobPositions;
 use App\Models\Master\Kelas;
@@ -38,7 +37,6 @@ class EmployeeImport implements ToCollection, WithHeadingRow
         $cid = $this->companyId;
 
         $religions    = Religions::when($cid, fn ($q) => $q->where('company_id', $cid))->pluck('id', 'name');
-        $banks        = Banks::when($cid, fn ($q) => $q->where('company_id', $cid))->pluck('id', 'name');
         $orgStructures = OrgStructure::when($cid, fn ($q) => $q->where('company_id', $cid))->pluck('id', 'name');
         $jobPositions = JobPositions::when($cid, fn ($q) => $q->where('company_id', $cid))->pluck('id', 'name');
         $pangkats     = Pangkats::when($cid, fn ($q) => $q->where('company_id', $cid))->pluck('id', 'name');
@@ -56,7 +54,7 @@ class EmployeeImport implements ToCollection, WithHeadingRow
             try {
                 DB::transaction(function () use (
                     $row, $cid,
-                    $religions, $banks, $orgStructures, $jobPositions,
+                    $religions, $orgStructures, $jobPositions,
                     $pangkats, $kelasData, $employeeTypes
                 ) {
                     $name  = trim((string) ($row['nama'] ?? ''));
@@ -143,7 +141,7 @@ class EmployeeImport implements ToCollection, WithHeadingRow
                             'phone'                => $row['no_telepon'] ?: null,
                             'whatsapp'             => $row['no_whatsapp'] ?: null,
                             'religion_id'          => $religions[$row['agama'] ?? ''] ?? null,
-                            'bank_id'              => $banks[$row['bank'] ?? ''] ?? null,
+                            'bank_name'            => $row['bank'] ?: null,
                             'org_structure_id'     => $orgStructures[$row['org_struktur'] ?? ''] ?? null,
                             'job_position_id'      => $jobPositionId,
                             'pangkat_id'           => $pangkats[$row['pangkat'] ?? ''] ?? null,

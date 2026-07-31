@@ -84,7 +84,6 @@ class EmployeeAttendanceStatistics extends Component
             'company',
             'roles',
             'profile.religion',
-            'profile.bank',
             'profile.orgStructure.parent.parent',
             'profile.jobPosition',
             'profile.pangkat',

@@ -4,7 +4,6 @@ namespace App\Exports\Employees;
 
 use App\Exports\Employees\Sheets\EmployeeTemplateSheet;
 use App\Exports\Employees\Sheets\MasterDataSheet;
-use App\Models\Master\Banks;
 use App\Models\Master\EmployeeTypes;
 use App\Models\Master\JobPositions;
 use App\Models\Master\Kelas;
@@ -23,7 +22,6 @@ class EmployeeTemplateExport implements WithMultipleSheets
         $cid = $this->companyId;
 
         $religion    = Religions::when($cid, fn ($q) => $q->where('company_id', $cid))->orderBy('name')->value('name');
-        $bank        = Banks::when($cid, fn ($q) => $q->where('company_id', $cid))->orderBy('name')->value('name');
         $orgStructure = OrgStructure::when($cid, fn ($q) => $q->where('company_id', $cid))->orderBy('name')->value('name');
         $jobPosition = JobPositions::when($cid, fn ($q) => $q->where('company_id', $cid))->orderBy('name')->value('name');
         $pangkat     = Pangkats::when($cid, fn ($q) => $q->where('company_id', $cid))->orderBy('name')->value('name');
@@ -59,7 +57,7 @@ class EmployeeTemplateExport implements WithMultipleSheets
             '081234567890',          // No Telepon
             '081234567890',          // No WhatsApp
             $religion ?? '',         // Agama
-            $bank ?? '',             // Bank
+            'BCA',                   // Bank
             $orgStructure ?? '',     // Org Struktur
             $jobPosition ?? '',      // Jabatan
             $pangkat ?? '',          // Pangkat
@@ -76,15 +74,6 @@ class EmployeeTemplateExport implements WithMultipleSheets
                 'Agama',
                 'Nama Agama',
                 Religions::when($cid, fn ($q) => $q->where('company_id', $cid))
-                    ->orderBy('name')
-                    ->pluck('name')
-                    ->toArray()
-            ),
-
-            new MasterDataSheet(
-                'Bank',
-                'Nama Bank',
-                Banks::when($cid, fn ($q) => $q->where('company_id', $cid))
                     ->orderBy('name')
                     ->pluck('name')
                     ->toArray()

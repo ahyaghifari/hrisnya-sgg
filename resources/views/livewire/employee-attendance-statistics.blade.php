@@ -81,7 +81,7 @@
             'No. BPJS Kesehatan' => $profile?->no_bpjs_kes,
             'No. BPJS Ketenagakerjaan' => $profile?->no_bpjs_ket,
             'NPWP' => $profile?->npwp,
-            'Bank' => $profile?->bank?->name ? "{$profile->bank->name} — {$profile->bank_account_number} a.n. {$profile->bank_account_name}" : null,
+            'Bank' => $profile?->bank_name ? "{$profile->bank_name} — {$profile->bank_account_number} a.n. {$profile->bank_account_name}" : null,
         ];
 
         $kontak = [

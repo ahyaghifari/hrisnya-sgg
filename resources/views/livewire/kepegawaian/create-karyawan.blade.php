@@ -163,12 +163,8 @@
             </div>
             <div>
                 <label class="form-label">Bank</label>
-                <select wire:model="bank_id" class="form-input">
-                    <option value="">Pilih...</option>
-                    @foreach ($this->bankOptions as $id => $bankName)
-                        <option value="{{ $id }}">{{ $bankName }}</option>
-                    @endforeach
-                </select>
+                <input type="text" wire:model="bank_name" class="form-input" maxlength="100" placeholder="Mis. BCA">
+
             </div>
             <div>
                 <label class="form-label">No. Rekening</label>

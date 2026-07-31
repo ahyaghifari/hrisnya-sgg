@@ -65,7 +65,7 @@ class CreateKaryawan extends Component
             'no_bpjs_kes' => $this->no_bpjs_kes ?: null,
             'no_bpjs_ket' => $this->no_bpjs_ket ?: null,
             'npwp' => $this->npwp ?: null,
-            'bank_id' => $this->bank_id,
+            'bank_name' => $this->bank_name ?: null,
             'bank_account_number' => $this->bank_account_number ?: null,
             'bank_account_name' => $this->bank_account_name ?: null,
             'country' => $this->country ?: null,

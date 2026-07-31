@@ -3,7 +3,6 @@
 namespace App\Livewire\Kepegawaian\Concerns;
 
 use App\Enum\OrgStructurLevel;
-use App\Models\Master\Banks;
 use App\Models\Master\Companies;
 use App\Models\Master\EmployeeTypes;
 use App\Models\Master\JobPositions;
@@ -52,7 +51,7 @@ trait HasKaryawanForm
     public string $no_bpjs_kes = '';
     public string $no_bpjs_ket = '';
     public string $npwp = '';
-    public ?string $bank_id = null;
+    public string $bank_name = '';
     public string $bank_account_number = '';
     public string $bank_account_name = '';
     public string $country = 'Indonesia';
@@ -125,11 +124,6 @@ trait HasKaryawanForm
     public function getReligionOptionsProperty()
     {
         return Religions::pluck('name', 'id');
-    }
-
-    public function getBankOptionsProperty()
-    {
-        return Banks::pluck('name', 'id');
     }
 
     public function getDepartmentOptionsProperty()

@@ -68,7 +68,7 @@ class EmployeeTemplateSheet implements FromArray, WithHeadings, WithTitle, WithS
             'No Telepon',                  // Y
             'No WhatsApp',                 // Z
             'Agama',                       // AA (dropdown → sheet Agama)
-            'Bank',                        // AB (dropdown → sheet Bank)
+            'Bank',                        // AB (isian bebas)
             'Org Struktur',                // AC (dropdown → sheet Org_Struktur)
             'Jabatan',                     // AD (dropdown → sheet Jabatan)
             'Pangkat',                     // AE (dropdown → sheet Pangkat)
@@ -138,7 +138,6 @@ class EmployeeTemplateSheet implements FromArray, WithHeadings, WithTitle, WithS
                 // ── Dropdowns linked to master-data sheets ───────────────────
                 $sheetDropdowns = [
                     'AA' => 'Agama',
-                    'AB' => 'Bank',
                     'AC' => 'Org_Struktur',
                     'AD' => 'Jabatan',
                     'AE' => 'Pangkat',
