@@ -142,10 +142,25 @@ class AttendanceRequestDetail extends Component
 
         if ($this->record->type === 'permission' && $this->record->permissionDetails->isNotEmpty()) {
             $permission = $this->record->permissionDetails->first();
+            $category = $permission->category ? \App\Enum\Attendance\PermissionTypeCategoryEnum::tryFrom($permission->category) : null;
+            $group = $category ? \App\Enum\Attendance\PermissionGroupEnum::fromCategory($category) : null;
+
+            // Tanpa category (jenis izin custom lama tanpa kategori) tidak ada kelompok yang
+            // bisa ditentukan - getIzinPeriodeUsage() sekarang wajib PermissionGroupEnum, jadi
+            // info kuota memang tidak relevan/tidak bisa dihitung untuk kasus ini.
+            if (! $group) {
+                return null;
+            }
+
+            $usage = $service->getIzinPeriodeUsage($this->record->user, $group, $permission->date);
+
+            if (! $usage) {
+                return null;
+            }
 
             return [
                 'kind' => 'permission',
-                'usage' => $service->getIzinPeriodeUsage($this->record->user, $permission->date),
+                'usage' => $usage,
             ];
         }
 

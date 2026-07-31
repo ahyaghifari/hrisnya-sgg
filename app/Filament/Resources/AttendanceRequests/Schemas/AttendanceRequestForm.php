@@ -425,7 +425,15 @@ class AttendanceRequestForm
 
         if ($record->type === 'permission' && $record->permissionDetails->isNotEmpty()) {
             $permission = $record->permissionDetails->first();
-            $usage = $service->getIzinPeriodeUsage($record->user, $permission->date);
+            $category = $permission->category ? \App\Enum\Attendance\PermissionTypeCategoryEnum::tryFrom($permission->category) : null;
+            $group = $category ? \App\Enum\Attendance\PermissionGroupEnum::fromCategory($category) : null;
+            $usage = $group ? $service->getIzinPeriodeUsage($record->user, $group, $permission->date) : null;
+
+            // Tanpa category, atau kelompok yang memang tidak ada limit (Sakit/Khusus) - tidak
+            // ada info kuota yang relevan untuk ditampilkan.
+            if (! $usage) {
+                return [];
+            }
 
             return [
                 'quota' => $usage['max'] > 0 ? "{$usage['max']} hari" : 'Tidak dibatasi',
