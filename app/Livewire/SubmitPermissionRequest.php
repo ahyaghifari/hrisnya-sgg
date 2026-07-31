@@ -68,6 +68,13 @@ class SubmitPermissionRequest extends Component
             ->get();
     }
 
+    /** Jenis izin (level 2) yang lagi dipilih - dipakai blade buat tampilkan `description` di
+     * bawah dropdown kalau ada isinya (mis. syarat, jumlah hari, dokumen pendukung). */
+    public function getSelectedTypeProperty(): ?PermissionTypes
+    {
+        return $this->permission_type_id ? PermissionTypes::find($this->permission_type_id) : null;
+    }
+
     public function updatedGroup(): void
     {
         $this->permission_type_id = null;

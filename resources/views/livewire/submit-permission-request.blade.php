@@ -59,6 +59,11 @@
                             @endforeach
                         </select>
                         @error('permission_type_id') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
+                        @if ($this->selectedType?->description)
+                            <p style="font-size:12px;color:var(--text-muted);margin-top:6px;background:var(--surface-alt);border-radius:8px;padding:8px 10px;">
+                                <i class="fa-solid fa-circle-info" style="margin-right:4px;"></i>{{ $this->selectedType->description }}
+                            </p>
+                        @endif
                     </div>
                 @endif
 
