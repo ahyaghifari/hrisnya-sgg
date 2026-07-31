@@ -296,7 +296,7 @@ disetujui/ditolak/dibatalkan, kuota ini tidak lagi jadi pertimbangan apa pun, ja
             {!! $renderField('Tipe Cuti', $leave->leave_type) !!}
             {!! $renderField('Tanggal Mulai', $formatDate($leave->start_date)) !!}
             {!! $renderField('Tanggal Selesai', $formatDate($leave->end_date)) !!}
-            {!! $renderField('Total Hari', $leave->total_days ? "{$leave->total_days} hari" : null, false) !!}
+            {!! $renderField('Total Hari', $leave->total_days ? ((int) $leave->total_days) . ' hari' : null, false) !!}
         </div>
     @endif
 
@@ -307,7 +307,7 @@ disetujui/ditolak/dibatalkan, kuota ini tidak lagi jadi pertimbangan apa pun, ja
             {!! $renderField('Tipe Izin', $permission->permission_type) !!}
             {!! $renderField($permission->end_date ? 'Tanggal Mulai' : 'Tanggal', $formatDate($permission->date)) !!}
             {!! $renderField('Tanggal Selesai', $formatDate($permission->end_date)) !!}
-            {!! $renderField('Total Hari', $permission->total_days ? "{$permission->total_days} hari" : null, false) !!}
+            {!! $renderField('Total Hari', $permission->total_days ? ((int) $permission->total_days) . ' hari' : null, false) !!}
             {!! $renderField('Waktu Mulai', $permission->start_time) !!}
             {!! $renderField('Waktu Selesai', $permission->end_time) !!}
             {!! $renderField('Lokasi', $permission->location) !!}

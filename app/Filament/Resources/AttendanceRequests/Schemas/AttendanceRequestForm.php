@@ -340,7 +340,7 @@ class AttendanceRequestForm
 
                             TextEntry::make('leaveDetails.0.total_days')
                                 ->label('Total Hari')
-                                ->numeric()
+                                ->numeric(decimalPlaces: 0)
                                 ->suffix(' hari'),
                         ]),
                 ]),
