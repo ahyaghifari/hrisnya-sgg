@@ -19,7 +19,7 @@ enum PermissionGroupEnum: string
     {
         return match ($this) {
             self::MENINGGALKAN_JAM_KERJA => 'Izin Meninggalkan Jam Kerja',
-            self::TIDAK_MASUK_SEHARIAN => 'Izin Tidak Masuk Seharian',
+            self::TIDAK_MASUK_SEHARIAN => 'Izin Tidak Masuk',
             self::SAKIT => 'Izin Sakit',
             self::KHUSUS => 'Izin Khusus',
         };

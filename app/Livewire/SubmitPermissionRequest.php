@@ -153,7 +153,9 @@ class SubmitPermissionRequest extends Component
         $group = $this->currentGroup();
         $isRentang = $group?->isRentangTanggal() ?? false;
         $wajibJam = $group === PermissionGroupEnum::MENINGGALKAN_JAM_KERJA;
-        $wajibLampiran = $group === PermissionGroupEnum::SAKIT && $this->totalDays() > 2;
+        // Hari pertama sakit belum wajib lampiran, tapi begitu masuk hari ke-2 (total_days > 1)
+        // wajib surat/bukti sakit - dikonfirmasi user 2026-07-31.
+        $wajibLampiran = $group === PermissionGroupEnum::SAKIT && $this->totalDays() > 1;
         $butuhMaster = $group?->hasSubKategori() ?? false;
 
         return [
