@@ -28,7 +28,8 @@ class EmployeesTable
                     ->label('')
                     ->disk('public')
                     ->getStateUsing(fn ($record) => $record->profile?->profile_picture[0] ?? null)
-                    ->circular(),
+                    ->circular()
+                    ->size(40),
                 TextColumn::make('name')
                     ->description(fn ($record) => $record->email)
                     ->label('Nama')

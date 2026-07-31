@@ -27,7 +27,7 @@ class AttendanceRecordResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedCalendarDays;
 
-    protected static string | UnitEnum | null $navigationGroup = 'Manajemen Organisasi';
+    protected static string | UnitEnum | null $navigationGroup = 'Presensi & Absensi';
 
     protected static ?string $navigationLabel = 'Data Absensi';
 

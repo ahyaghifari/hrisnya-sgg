@@ -2,9 +2,11 @@
 
 namespace App\Filament\Resources\ExtraShiftAssignments;
 
+use App\Enum\HideableModuleEnum;
 use App\Filament\Resources\ExtraShiftAssignments\Pages\ManageExtraShiftAssignments;
 use App\Helpers\PermissionHelper;
 use App\Models\Master\Companies;
+use App\Models\Setting;
 use App\Models\Shift\ExtraShiftAssignment;
 use App\Models\Shift\ScheduleAssignment;
 use App\Models\Shift\ScheduleShiftType;
@@ -44,6 +46,16 @@ class ExtraShiftAssignmentResource extends Resource
     protected static string|UnitEnum|null $navigationGroup = 'Presensi & Absensi';
 
     protected static ?int $navigationSort = 5;
+
+    /**
+     * Extra Shift bisa disembunyikan per company lewat App\Filament\Pages\ModuleVisibilitySettings
+     * (mis. Holding belum pakai). Default aktif kalau belum pernah diatur.
+     */
+    public static function canAccess(): bool
+    {
+        return parent::canAccess()
+            && Setting::resolve(HideableModuleEnum::EXTRA_SHIFT->value, Auth::user()?->company_id, true);
+    }
 
     public static function form(Schema $schema): Schema
     {
