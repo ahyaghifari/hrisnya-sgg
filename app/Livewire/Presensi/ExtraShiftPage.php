@@ -18,9 +18,10 @@ use Livewire\Component;
  * transisi jam antar-shift (disengaja disederhanakan) dan tidak menyentuh
  * schedule_shift_assignments sama sekali - extra shift berdiri sendiri di tabel terpisah.
  *
- * Karyawan dipilih dulu (dibatasi ke yang jadwalnya tipe Shift), baru dropdown jenis shift
- * kebaca otomatis dari jadwal MILIK karyawan itu sendiri (lewat schedule_assignments) - bukan
- * dari 1 jadwal yang dipilih manual duluan, karena karyawan beda bisa beda schedule.
+ * Urutan pilih: karyawan (yang extra shift) -> karyawan yang diambil shiftnya (covering_user_id,
+ * WAJIB diisi di alur ini) -> baru dropdown jenis shift kebaca dari jadwal MILIK karyawan yang
+ * diambil shiftnya itu (lewat schedule_assignments), karena shift yang di-cover memang shift
+ * milik dia, bukan milik karyawan yang menggantikan.
  */
 #[Layout('components.layout', ['title' => 'Extra Shift'])]
 class ExtraShiftPage extends Component
@@ -89,17 +90,29 @@ class ExtraShiftPage extends Component
 
     public function updatedUserId(): void
     {
+        $this->reset(['covering_user_id', 'shift_type_id']);
+    }
+
+    public function updatedCoveringUserId(): void
+    {
         $this->shift_type_id = null;
     }
 
-    /** Jenis shift yang bisa diambil - dari jadwal MILIK karyawan yang dipilih di dropdown. */
+    /** Pilihan "karyawan yang diambil shiftnya" - sama daftar dengan employees, minus karyawan
+     * yang sudah dipilih di atas (tidak masuk akal cover shift sendiri). */
+    public function getCoveringOptionsProperty()
+    {
+        return $this->employees->reject(fn ($emp) => $emp->id === $this->user_id)->values();
+    }
+
+    /** Jenis shift yang bisa diambil - dari jadwal MILIK karyawan yang shift-nya di-cover. */
     public function getShiftTypesProperty()
     {
-        if (! $this->user_id) {
+        if (! $this->covering_user_id) {
             return collect();
         }
 
-        $assignment = ScheduleAssignment::where('user_id', $this->user_id)
+        $assignment = ScheduleAssignment::where('user_id', $this->covering_user_id)
             ->whereHas('schedule', fn ($q) => $q->where('schedule_type', 'shift'))
             ->with('schedule.shiftTypes')
             ->first();
@@ -138,7 +151,7 @@ class ExtraShiftPage extends Component
 
         $data = $this->validate([
             'user_id' => ['required', 'exists:users,id'],
-            'covering_user_id' => ['nullable', 'exists:users,id', 'different:user_id'],
+            'covering_user_id' => ['required', 'exists:users,id', 'different:user_id'],
             'shift_type_id' => ['required', 'exists:schedule_shift_types,id'],
             'date' => ['required', 'date'],
             'reason' => ['nullable', 'string', 'max:500'],

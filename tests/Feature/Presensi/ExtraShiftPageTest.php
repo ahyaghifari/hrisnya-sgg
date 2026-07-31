@@ -77,16 +77,18 @@ class ExtraShiftPageTest extends TestCase
         Livewire::test(ExtraShiftPage::class)->assertForbidden();
     }
 
-    public function test_shift_types_are_scoped_to_selected_employees_own_schedule(): void
+    public function test_shift_types_are_scoped_to_covering_employees_own_schedule(): void
     {
         $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
         $admin = $this->actingAsPengelola($company->id);
-        ['pagi' => $pagi, 'siang' => $siang, 'employee' => $employee] = $this->makeShiftEmployee($company);
+        ['employee' => $employee] = $this->makeShiftEmployee($company);
+        ['pagi' => $pagi, 'siang' => $siang, 'employee' => $colleague] = $this->makeShiftEmployee($company);
 
         $this->actingAs($admin);
 
         $component = Livewire::test(ExtraShiftPage::class)
-            ->set('user_id', $employee->id);
+            ->set('user_id', $employee->id)
+            ->set('covering_user_id', $colleague->id);
 
         $shiftTypeIds = $component->get('shiftTypes')->pluck('id')->all();
 
@@ -97,15 +99,15 @@ class ExtraShiftPageTest extends TestCase
     {
         $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
         $admin = $this->actingAsPengelola($company->id);
-        ['siang' => $siang, 'employee' => $employee] = $this->makeShiftEmployee($company);
-        $colleague = User::factory()->create(['company_id' => $company->id]);
+        ['employee' => $employee] = $this->makeShiftEmployee($company);
+        ['siang' => $siang, 'employee' => $colleague] = $this->makeShiftEmployee($company);
 
         $this->actingAs($admin);
 
         Livewire::test(ExtraShiftPage::class)
             ->set('user_id', $employee->id)
-            ->set('shift_type_id', $siang->id)
             ->set('covering_user_id', $colleague->id)
+            ->set('shift_type_id', $siang->id)
             ->set('date', '2026-08-10')
             ->set('reason', 'Rekan shift siang izin')
             ->call('assign')

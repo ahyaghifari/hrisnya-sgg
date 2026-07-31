@@ -60,7 +60,7 @@
     {{-- Modal Tambah --}}
     @if ($showAddModal)
         <div class="modal-overlay" wire:click="closeAddModal">
-            <div class="modal-box" onclick="event.stopPropagation()">
+            <div class="modal-box modal-box-lg" onclick="event.stopPropagation()">
                 <h3 style="font-size:16px;font-weight:700;color:var(--text-heading);margin:0 0 6px;">Tambah Extra Shift</h3>
                 <p style="font-size:12px;color:var(--text-muted);margin:0 0 16px;">
                     Tugaskan karyawan cover 1 shift tambahan di luar jadwal normalnya hari itu — langsung tersimpan, tidak perlu approval (kamu yang menugaskan).
@@ -79,9 +79,20 @@
                     </div>
 
                     <div>
-                        <label class="form-label">Shift yang Diambil</label>
-                        <select class="form-input" wire:model="shift_type_id" @disabled(!$user_id)>
+                        <label class="form-label">Karyawan yang Diambil Shiftnya</label>
+                        <select class="form-input" wire:model.live="covering_user_id" @disabled(!$user_id)>
                             <option value="">{{ $user_id ? '-- Pilih --' : 'Pilih karyawan dulu' }}</option>
+                            @foreach ($this->coveringOptions as $emp)
+                                <option value="{{ $emp->id }}">{{ $emp->name }}</option>
+                            @endforeach
+                        </select>
+                        @error('covering_user_id') <p style="color:var(--danger-text);font-size:11px;margin-top:4px;">{{ $message }}</p> @enderror
+                    </div>
+
+                    <div>
+                        <label class="form-label">Shift yang Diambil</label>
+                        <select class="form-input" wire:model="shift_type_id" @disabled(!$covering_user_id)>
+                            <option value="">{{ $covering_user_id ? '-- Pilih --' : 'Pilih karyawan yang diambil shiftnya dulu' }}</option>
                             @foreach ($this->shiftTypes as $type)
                                 <option value="{{ $type->id }}">{{ $type->name }} ({{ \Illuminate\Support\Str::substr($type->start_time, 0, 5) }}-{{ \Illuminate\Support\Str::substr($type->end_time, 0, 5) }})</option>
                             @endforeach
@@ -93,17 +104,6 @@
                         <label class="form-label">Tanggal</label>
                         <input type="date" class="form-input" wire:model="date">
                         @error('date') <p style="color:var(--danger-text);font-size:11px;margin-top:4px;">{{ $message }}</p> @enderror
-                    </div>
-
-                    <div>
-                        <label class="form-label">Menggantikan (opsional)</label>
-                        <select class="form-input" wire:model="covering_user_id">
-                            <option value="">-- Tidak ada --</option>
-                            @foreach ($this->employees as $emp)
-                                <option value="{{ $emp->id }}">{{ $emp->name }}</option>
-                            @endforeach
-                        </select>
-                        @error('covering_user_id') <p style="color:var(--danger-text);font-size:11px;margin-top:4px;">{{ $message }}</p> @enderror
                     </div>
 
                     <div>

@@ -10,7 +10,6 @@ use App\Models\Setting;
 use App\Models\Shift\ExtraShiftAssignment;
 use App\Models\Shift\ScheduleAssignment;
 use App\Models\Shift\ScheduleShiftType;
-use App\Models\User;
 use BackedEnum;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
@@ -87,18 +86,38 @@ class ExtraShiftAssignmentResource extends Resource
                     ->searchable()
                     ->required()
                     ->live()
+                    ->afterStateUpdated(function (callable $set) {
+                        $set('covering_user_id', null);
+                        $set('shift_type_id', null);
+                    }),
+
+                // Urutan: karyawan (yang extra shift) -> karyawan yang diambil shiftnya -> baru
+                // shift_type kebaca dari jadwal MILIK karyawan yang diambil shiftnya itu - sama
+                // logika ExtraShiftPage::getShiftTypesProperty().
+                Select::make('covering_user_id')
+                    ->label('Karyawan yang Diambil Shiftnya')
+                    ->options(fn (callable $get) => $get('company_id')
+                        ? ScheduleAssignment::whereNotNull('user_id')
+                            ->where('user_id', '!=', $get('user_id'))
+                            ->whereHas('schedule', fn ($q) => $q->where('schedule_type', 'shift')->where('company_id', $get('company_id')))
+                            ->with('user')
+                            ->get()
+                            ->pluck('user.name', 'user.id')
+                        : [])
+                    ->searchable()
+                    ->required()
+                    ->live()
+                    ->disabled(fn (callable $get) => ! $get('user_id'))
                     ->afterStateUpdated(fn (callable $set) => $set('shift_type_id', null)),
 
-                // Jenis shift kebaca dari jadwal MILIK karyawan yang dipilih, bukan 1 jadwal
-                // yang dipilih manual duluan - sama logika ExtraShiftPage::getShiftTypesProperty().
                 Select::make('shift_type_id')
                     ->label('Shift yang Diambil')
                     ->options(function (callable $get) {
-                        if (! $get('user_id')) {
+                        if (! $get('covering_user_id')) {
                             return [];
                         }
 
-                        $assignment = ScheduleAssignment::where('user_id', $get('user_id'))
+                        $assignment = ScheduleAssignment::where('user_id', $get('covering_user_id'))
                             ->whereHas('schedule', fn ($q) => $q->where('schedule_type', 'shift'))
                             ->with('schedule.shiftTypes')
                             ->first();
@@ -109,19 +128,12 @@ class ExtraShiftAssignmentResource extends Resource
                             ]);
                     })
                     ->required()
-                    ->disabled(fn (callable $get) => ! $get('user_id')),
+                    ->disabled(fn (callable $get) => ! $get('covering_user_id')),
 
                 DatePicker::make('date')
                     ->label('Tanggal')
                     ->required()
                     ->default(now()),
-
-                Select::make('covering_user_id')
-                    ->label('Menggantikan (opsional)')
-                    ->options(fn (callable $get) => $get('company_id')
-                        ? User::where('company_id', $get('company_id'))->pluck('name', 'id')
-                        : [])
-                    ->searchable(),
 
                 Textarea::make('reason')
                     ->label('Alasan')
