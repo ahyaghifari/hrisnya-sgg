@@ -6,6 +6,7 @@ use App\Enum\CustomPermissionEnum;
 use App\Models\Master\Companies;
 use App\Models\Shift\ExtraShiftAssignment;
 use App\Models\Shift\ScheduleAssignment;
+use App\Models\Shift\ScheduleShiftAssignment;
 use App\Models\User;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\Auth;
@@ -19,9 +20,11 @@ use Livewire\Component;
  * schedule_shift_assignments sama sekali - extra shift berdiri sendiri di tabel terpisah.
  *
  * Urutan pilih: karyawan (yang extra shift) -> karyawan yang diambil shiftnya (covering_user_id,
- * WAJIB diisi di alur ini) -> baru dropdown jenis shift kebaca dari jadwal MILIK karyawan yang
- * diambil shiftnya itu (lewat schedule_assignments), karena shift yang di-cover memang shift
- * milik dia, bukan milik karyawan yang menggantikan.
+ * WAJIB diisi di alur ini) -> baru daftar ROSTER REAL milik karyawan yang diambil shiftnya itu
+ * (schedule_shift_assignments, hari ini s/d roster yang sudah di-generate), 1 baris = 1 pilihan
+ * yang langsung set date + shift_type_id sekaligus. Bukan lagi pilih jenis shift generik dari
+ * template rotasi + input tanggal bebas - roster generik tidak menjamin tanggal itu benar-benar
+ * dijadwalkan shift tsb.
  */
 #[Layout('components.layout', ['title' => 'Extra Shift'])]
 class ExtraShiftPage extends Component
@@ -32,6 +35,7 @@ class ExtraShiftPage extends Component
 
     public ?string $user_id = null;
     public ?string $covering_user_id = null;
+    public ?string $roster_id = null;
     public ?string $shift_type_id = null;
     public ?string $date = null;
     public ?string $reason = null;
@@ -43,8 +47,6 @@ class ExtraShiftPage extends Component
         $this->companyId = Auth::user()->canFilterByCompany()
             ? (Auth::user()->company_id ?? Companies::orderBy('code')->value('id'))
             : Auth::user()->company_id;
-
-        $this->date = now()->toDateString();
     }
 
     public function getCanManageProperty(): bool
@@ -90,12 +92,12 @@ class ExtraShiftPage extends Component
 
     public function updatedUserId(): void
     {
-        $this->reset(['covering_user_id', 'shift_type_id']);
+        $this->reset(['covering_user_id', 'roster_id', 'shift_type_id', 'date']);
     }
 
     public function updatedCoveringUserId(): void
     {
-        $this->shift_type_id = null;
+        $this->reset(['roster_id', 'shift_type_id', 'date']);
     }
 
     /** Pilihan "karyawan yang diambil shiftnya" - sama daftar dengan employees, minus karyawan
@@ -105,19 +107,30 @@ class ExtraShiftPage extends Component
         return $this->employees->reject(fn ($emp) => $emp->id === $this->user_id)->values();
     }
 
-    /** Jenis shift yang bisa diambil - dari jadwal MILIK karyawan yang shift-nya di-cover. */
-    public function getShiftTypesProperty()
+    /** Roster REAL (tanggal + shift yang benar-benar dijadwalkan) milik karyawan yang di-cover,
+     * dari hari ini s/d roster yang sudah di-generate - bukan lagi jenis shift generik dari
+     * template rotasi. */
+    public function getRosterOptionsProperty()
     {
         if (! $this->covering_user_id) {
             return collect();
         }
 
-        $assignment = ScheduleAssignment::where('user_id', $this->covering_user_id)
-            ->whereHas('schedule', fn ($q) => $q->where('schedule_type', 'shift'))
-            ->with('schedule.shiftTypes')
-            ->first();
+        return ScheduleShiftAssignment::where('user_id', $this->covering_user_id)
+            ->where('off_day', false)
+            ->whereNotNull('shift_type_id')
+            ->whereDate('date', '>=', now()->toDateString())
+            ->with('shiftType')
+            ->orderBy('date')
+            ->get();
+    }
 
-        return $assignment?->schedule?->shiftTypes ?? collect();
+    public function updatedRosterId(): void
+    {
+        $roster = $this->rosterOptions->firstWhere('id', $this->roster_id);
+
+        $this->shift_type_id = $roster?->shift_type_id;
+        $this->date = $roster?->date?->toDateString();
     }
 
     public function getExtraShiftsProperty()
@@ -135,8 +148,7 @@ class ExtraShiftPage extends Component
     {
         abort_unless($this->canManage, 403);
 
-        $this->reset(['user_id', 'covering_user_id', 'shift_type_id', 'reason']);
-        $this->date = now()->toDateString();
+        $this->reset(['user_id', 'covering_user_id', 'roster_id', 'shift_type_id', 'date', 'reason']);
         $this->showAddModal = true;
     }
 
@@ -152,10 +164,11 @@ class ExtraShiftPage extends Component
         $data = $this->validate([
             'user_id' => ['required', 'exists:users,id'],
             'covering_user_id' => ['required', 'exists:users,id', 'different:user_id'],
+            'roster_id' => ['required', 'exists:schedule_shift_assignments,id'],
             'shift_type_id' => ['required', 'exists:schedule_shift_types,id'],
             'date' => ['required', 'date'],
             'reason' => ['nullable', 'string', 'max:500'],
-        ]);
+        ], [], ['roster_id' => 'shift yang diambil']);
 
         $user = User::findOrFail($data['user_id']);
 
@@ -171,7 +184,7 @@ class ExtraShiftPage extends Component
             'created_by' => Auth::id(),
         ]);
 
-        $this->reset(['user_id', 'covering_user_id', 'shift_type_id', 'reason']);
+        $this->reset(['user_id', 'covering_user_id', 'roster_id', 'shift_type_id', 'date', 'reason']);
         $this->showAddModal = false;
 
         Notification::make()->title('Extra shift berhasil ditambahkan')->success()->send();

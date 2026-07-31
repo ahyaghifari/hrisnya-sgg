@@ -31,23 +31,7 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use UnitEnum;
 
-/**
- * Jabatan terhubung ke ApprovalFlows (module JOBPOSITION_REQUEST, "Penambahan/Perubahan
- * Jabatan") - bikin/edit di sini sebenarnya PENGAJUAN, bukan CRUD polos. Field terkunci
- * (lockedAfterDraft()) dipertahankan dari versi Wizard lama, cuma sekarang 1 form
- * (4 Section, bukan Wizard 3 step): Struktur Organisasi, Detail Jabatan, Job Evaluation,
- * Analisis Beban Kerja.
- *
- * Kuota Karyawan (planned_manpower) CUMA bisa diisi saat pengajuan baru (create) - begitu
- * sudah ada (edit), field ini terkunci permanen. Perubahan kuota setelah itu HARUS lewat
- * approval terpisah (ADDITIONAL_QUOTA_REQUEST/EMPLOYEE_REPLACEMENT_REQUEST), bukan edit
- * langsung di sini - dua jalur perubahan kuota yang sama akan saling tabrak kalau dibiarkan
- * terbuka. Realisasi Karyawan (actual_manpower) cuma relevan setelah ada histori
- * penempatan, jadi disembunyikan total saat create.
- *
- * UserAssignmentsRelationManager (assign karyawan ke jabatan) DIHAPUS - dikelola di tempat
- * lain (halaman Karyawan/portal), bukan lagi dari sini.
- */
+
 class JobPositionResource extends BaseCompanyResource
 {
     protected static ?string $model = JobPositions::class;

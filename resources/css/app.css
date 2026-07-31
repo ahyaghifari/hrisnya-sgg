@@ -1086,6 +1086,9 @@ html.dark .ts-wrapper.multi .ts-control > div.item { background: rgba(110,168,22
 .btn-sm { padding: 7px 14px; font-size: 12px; border-radius: 9px; }
 .btn-success { display: inline-flex; align-items: center; justify-content: center; gap: 8px; background: linear-gradient(135deg, #047C54 0%, #024732 100%); color: white; font-weight: 700; font-size: 13.5px; padding: 12px 28px; border-radius: 12px; border: none; cursor: pointer; transition: all 0.15s; font-family: inherit; text-decoration: none; }
 .btn-success:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(4,124,84,0.3); }
+.btn-info { display: inline-flex; align-items: center; justify-content: center; gap: 8px; background: #0284c7; color: white; font-weight: 700; font-size: 13.5px; padding: 12px 28px; border-radius: 12px; border: none; cursor: pointer; transition: all 0.15s; font-family: inherit; text-decoration: none; }
+.btn-info:hover { background: #036ba1; transform: translateY(-1px); box-shadow: 0 4px 14px rgba(2,132,199,0.3); }
+.btn-info:disabled { opacity: 0.6; cursor: not-allowed; transform: none; box-shadow: none; }
 
 /* ── THEME TOGGLE ── */
 .theme-toggle-btn { position: relative; width: 36px; height: 36px; border-radius: 10px; border: 1.5px solid var(--border-soft); display: flex; align-items: center; justify-content: center; color: var(--text-muted); background: var(--surface); cursor: pointer; font-size: 14px; }

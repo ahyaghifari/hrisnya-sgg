@@ -9,11 +9,10 @@ use App\Models\Master\Companies;
 use App\Models\Setting;
 use App\Models\Shift\ExtraShiftAssignment;
 use App\Models\Shift\ScheduleAssignment;
-use App\Models\Shift\ScheduleShiftType;
+use App\Models\Shift\ScheduleShiftAssignment;
 use BackedEnum;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
-use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
@@ -110,30 +109,41 @@ class ExtraShiftAssignmentResource extends Resource
                     ->disabled(fn (callable $get) => ! $get('user_id'))
                     ->afterStateUpdated(fn (callable $set) => $set('shift_type_id', null)),
 
-                Select::make('shift_type_id')
-                    ->label('Shift yang Diambil')
+                // Roster REAL (tanggal + shift yang benar-benar dijadwalkan) milik karyawan yang
+                // di-cover, hari ini s/d roster yang sudah di-generate - sama logika
+                // ExtraShiftPage::getRosterOptionsProperty(). Pilihan ini nge-set shift_type_id
+                // & date sekaligus lewat 2 field Hidden di bawah, bukan kolom asli.
+                Select::make('roster_id')
+                    ->label('Tanggal & Shift yang Diambil')
                     ->options(function (callable $get) {
                         if (! $get('covering_user_id')) {
                             return [];
                         }
 
-                        $assignment = ScheduleAssignment::where('user_id', $get('covering_user_id'))
-                            ->whereHas('schedule', fn ($q) => $q->where('schedule_type', 'shift'))
-                            ->with('schedule.shiftTypes')
-                            ->first();
-
-                        return ($assignment?->schedule?->shiftTypes ?? collect())
-                            ->mapWithKeys(fn (ScheduleShiftType $type) => [
-                                $type->id => "{$type->name} (" . substr($type->start_time, 0, 5) . '-' . substr($type->end_time, 0, 5) . ')',
+                        return ScheduleShiftAssignment::where('user_id', $get('covering_user_id'))
+                            ->where('off_day', false)
+                            ->whereNotNull('shift_type_id')
+                            ->whereDate('date', '>=', now()->toDateString())
+                            ->with('shiftType')
+                            ->orderBy('date')
+                            ->get()
+                            ->mapWithKeys(fn (ScheduleShiftAssignment $roster) => [
+                                $roster->id => $roster->date->translatedFormat('d M Y') . ' - ' . $roster->shiftType?->name
+                                    . ' (' . substr($roster->shiftType?->start_time, 0, 5) . '-' . substr($roster->shiftType?->end_time, 0, 5) . ')',
                             ]);
                     })
                     ->required()
-                    ->disabled(fn (callable $get) => ! $get('covering_user_id')),
+                    ->live()
+                    ->dehydrated(false)
+                    ->disabled(fn (callable $get) => ! $get('covering_user_id'))
+                    ->afterStateUpdated(function (callable $set, $state) {
+                        $roster = $state ? ScheduleShiftAssignment::find($state) : null;
+                        $set('shift_type_id', $roster?->shift_type_id);
+                        $set('date', $roster?->date?->toDateString());
+                    }),
 
-                DatePicker::make('date')
-                    ->label('Tanggal')
-                    ->required()
-                    ->default(now()),
+                Hidden::make('shift_type_id'),
+                Hidden::make('date'),
 
                 Textarea::make('reason')
                     ->label('Alasan')

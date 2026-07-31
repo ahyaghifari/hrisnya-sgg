@@ -90,20 +90,18 @@
                     </div>
 
                     <div>
-                        <label class="form-label">Shift yang Diambil</label>
-                        <select class="form-input" wire:model="shift_type_id" @disabled(!$covering_user_id)>
+                        <label class="form-label">Tanggal & Shift yang Diambil</label>
+                        <select class="form-input" wire:model.live="roster_id" @disabled(!$covering_user_id)>
                             <option value="">{{ $covering_user_id ? '-- Pilih --' : 'Pilih karyawan yang diambil shiftnya dulu' }}</option>
-                            @foreach ($this->shiftTypes as $type)
-                                <option value="{{ $type->id }}">{{ $type->name }} ({{ \Illuminate\Support\Str::substr($type->start_time, 0, 5) }}-{{ \Illuminate\Support\Str::substr($type->end_time, 0, 5) }})</option>
-                            @endforeach
+                            @forelse ($this->rosterOptions as $roster)
+                                <option value="{{ $roster->id }}">{{ \Carbon\Carbon::parse($roster->date)->translatedFormat('d M Y') }} - {{ $roster->shiftType?->name }} ({{ \Illuminate\Support\Str::substr($roster->shiftType?->start_time, 0, 5) }}-{{ \Illuminate\Support\Str::substr($roster->shiftType?->end_time, 0, 5) }})</option>
+                            @empty
+                                @if ($covering_user_id)
+                                    <option value="" disabled>Belum ada roster shift ke depan untuk karyawan ini</option>
+                                @endif
+                            @endforelse
                         </select>
-                        @error('shift_type_id') <p style="color:var(--danger-text);font-size:11px;margin-top:4px;">{{ $message }}</p> @enderror
-                    </div>
-
-                    <div>
-                        <label class="form-label">Tanggal</label>
-                        <input type="date" class="form-input" wire:model="date">
-                        @error('date') <p style="color:var(--danger-text);font-size:11px;margin-top:4px;">{{ $message }}</p> @enderror
+                        @error('roster_id') <p style="color:var(--danger-text);font-size:11px;margin-top:4px;">{{ $message }}</p> @enderror
                     </div>
 
                     <div>

@@ -8,6 +8,7 @@ use App\Models\Master\Companies;
 use App\Models\Shift\ExtraShiftAssignment;
 use App\Models\Shift\Schedule;
 use App\Models\Shift\ScheduleAssignment;
+use App\Models\Shift\ScheduleShiftAssignment;
 use App\Models\Shift\ScheduleShiftType;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -67,6 +68,17 @@ class ExtraShiftPageTest extends TestCase
         return compact('schedule', 'pagi', 'siang', 'employee');
     }
 
+    private function seedRoster(Companies $company, User $user, ScheduleShiftType $type, string $date, bool $offDay = false): ScheduleShiftAssignment
+    {
+        return ScheduleShiftAssignment::create([
+            'company_id' => $company->id,
+            'user_id' => $user->id,
+            'shift_type_id' => $offDay ? null : $type->id,
+            'off_day' => $offDay,
+            'date' => $date,
+        ]);
+    }
+
     public function test_user_without_permission_is_forbidden(): void
     {
         $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
@@ -77,12 +89,18 @@ class ExtraShiftPageTest extends TestCase
         Livewire::test(ExtraShiftPage::class)->assertForbidden();
     }
 
-    public function test_shift_types_are_scoped_to_covering_employees_own_schedule(): void
+    public function test_roster_options_are_scoped_to_covering_employees_future_shifts(): void
     {
         $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
         $admin = $this->actingAsPengelola($company->id);
         ['employee' => $employee] = $this->makeShiftEmployee($company);
         ['pagi' => $pagi, 'siang' => $siang, 'employee' => $colleague] = $this->makeShiftEmployee($company);
+
+        $pagiRoster = $this->seedRoster($company, $colleague, $pagi, now()->addDay()->toDateString());
+        $siangRoster = $this->seedRoster($company, $colleague, $siang, now()->addDays(2)->toDateString());
+        // Tidak boleh muncul: sudah lewat, dan hari libur.
+        $this->seedRoster($company, $colleague, $pagi, now()->subDay()->toDateString());
+        $this->seedRoster($company, $colleague, $pagi, now()->addDays(3)->toDateString(), offDay: true);
 
         $this->actingAs($admin);
 
@@ -90,9 +108,9 @@ class ExtraShiftPageTest extends TestCase
             ->set('user_id', $employee->id)
             ->set('covering_user_id', $colleague->id);
 
-        $shiftTypeIds = $component->get('shiftTypes')->pluck('id')->all();
+        $rosterIds = $component->get('rosterOptions')->pluck('id')->all();
 
-        $this->assertEqualsCanonicalizing([$pagi->id, $siang->id], $shiftTypeIds);
+        $this->assertEqualsCanonicalizing([$pagiRoster->id, $siangRoster->id], $rosterIds);
     }
 
     public function test_assigning_extra_shift_creates_approved_row_immediately(): void
@@ -101,14 +119,14 @@ class ExtraShiftPageTest extends TestCase
         $admin = $this->actingAsPengelola($company->id);
         ['employee' => $employee] = $this->makeShiftEmployee($company);
         ['siang' => $siang, 'employee' => $colleague] = $this->makeShiftEmployee($company);
+        $roster = $this->seedRoster($company, $colleague, $siang, now()->addDay()->toDateString());
 
         $this->actingAs($admin);
 
         Livewire::test(ExtraShiftPage::class)
             ->set('user_id', $employee->id)
             ->set('covering_user_id', $colleague->id)
-            ->set('shift_type_id', $siang->id)
-            ->set('date', '2026-08-10')
+            ->set('roster_id', $roster->id)
             ->set('reason', 'Rekan shift siang izin')
             ->call('assign')
             ->assertHasNoErrors();
@@ -119,6 +137,8 @@ class ExtraShiftPageTest extends TestCase
         $this->assertSame('approved', $row->status);
         $this->assertSame('assigned', $row->source);
         $this->assertSame($colleague->id, $row->covering_user_id);
+        $this->assertSame($siang->id, $row->shift_type_id);
+        $this->assertSame($roster->date->toDateString(), $row->date);
         $this->assertSame($admin->id, $row->created_by);
     }
 

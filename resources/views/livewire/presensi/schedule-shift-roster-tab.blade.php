@@ -6,13 +6,18 @@
                 <input type="month" wire:model.live="period" class="form-input" style="max-width:180px;">
             </div>
             <span style="font-size:12.5px;font-weight:700;color:var(--text-heading);margin-top:16px;">{{ $this->periodLabel }}</span>
-            <button type="button" wire:click="exportExcel" class="btn-ghost" style="font-size:11px;padding:7px 12px;white-space:nowrap;margin-top:16px;">
+            <button type="button" wire:click="exportExcel" class="btn-success" style="font-size:11px;padding:7px 12px;white-space:nowrap;margin-top:16px;">
                 <i class="fa-solid fa-file-excel"></i> Export Excel
             </button>
             @if ($this->canEditJadwal)
-                <button type="button" wire:click="resetPeriod" wire:confirm="Hapus SEMUA roster {{ $this->periodLabel }} (termasuk yang sudah dikoreksi manual)? Tindakan ini tidak bisa dibatalkan." class="btn-ghost" style="font-size:11px;padding:7px 12px;white-space:nowrap;margin-top:16px;color:var(--danger-text);">
-                    <i class="fa-solid fa-rotate-left"></i> Reset Jadwal
-                </button>
+                <div style="margin-top:16px;">
+                    <label class="btn-info" style="font-size:11px;padding:7px 12px;white-space:nowrap;cursor:pointer;margin:0;">
+                        <i class="fa-solid fa-file-import"></i> Import Excel
+                        <input type="file" wire:model="importFile" accept=".xlsx,.xls" style="display:none;">
+                    </label>
+                    <div wire:loading wire:target="importFile" style="font-size:10.5px;color:var(--text-muted);margin-top:2px;">Mengimpor...</div>
+                    @error('importFile') <div style="font-size:10.5px;color:var(--danger-text);margin-top:2px;">{{ $message }}</div> @enderror
+                </div>
             @endif
         </div>
 
@@ -37,22 +42,23 @@
                         <i class="fa-solid fa-wand-magic-sparkles"></i> Generate
                     </button>
                 @endif
-            @else
-                {{-- Jadwal tanpa Template — sel dikunci sampai "Mulai Isi Jadwal" diklik,
-                perubahan ditampung dulu, baru ditulis ke DB pas "Simpan". --}}
-                @if ($this->canEditJadwal)
-                    @if (! $editMode)
-                        <button type="button" wire:click="startEdit" class="btn-primary" style="font-size:11px;padding:7px 12px;white-space:nowrap;">
-                            <i class="fa-solid fa-pen"></i> Mulai Isi Jadwal
-                        </button>
-                    @else
-                        <button type="button" wire:click="cancelEdit" class="btn-ghost" style="font-size:11px;padding:7px 12px;white-space:nowrap;">
-                            Batal
-                        </button>
-                        <button type="button" wire:click="saveRoster" class="btn-primary" style="font-size:11px;padding:7px 12px;white-space:nowrap;">
-                            <i class="fa-solid fa-floppy-disk"></i> Simpan
-                        </button>
-                    @endif
+            @endif
+
+            {{-- Edit manual per sel — kebuka buat jadwal Template maupun manual. Sel dikunci
+            sampai "Mulai Isi Jadwal" diklik, perubahan ditampung dulu, baru ditulis ke DB pas
+            "Simpan". --}}
+            @if ($this->canEditJadwal)
+                @if (! $editMode)
+                    <button type="button" wire:click="startEdit" class="btn-primary" style="font-size:11px;padding:7px 12px;white-space:nowrap;">
+                        <i class="fa-solid fa-pen"></i> Isi Jadwal
+                    </button>
+                @else
+                    <button type="button" wire:click="cancelEdit" class="btn-ghost" style="font-size:11px;padding:7px 12px;white-space:nowrap;">
+                        Batal
+                    </button>
+                    <button type="button" wire:click="saveRoster" class="btn-primary" style="font-size:11px;padding:7px 12px;white-space:nowrap;">
+                        <i class="fa-solid fa-floppy-disk"></i> Simpan
+                    </button>
                 @endif
             @endif
         </div>
@@ -86,7 +92,7 @@
                 @forelse ($this->employees as $employee)
                     @php $userRoster = $this->roster[$employee->id] ?? []; @endphp
                     <tr wire:key="'roster-{{ $employee->id }}'" style="border-bottom:1px solid var(--border-soft);">
-                        <td style="padding:6px 10px;white-space:nowrap;font-weight:600;position:sticky;left:0;background:var(--surface);">{{ $employee->name }}</td>
+                        <td style="padding:6px 10px;white-space:nowrap;font-weight:600;position:sticky;left:0;background:var(--surface);z-index:1;">{{ $employee->name }}</td>
                         @foreach ($this->dates as $date)
                             @php
                                 // Kosong (belum ada baris ScheduleShiftAssignment sama sekali) = benar-benar
@@ -102,7 +108,7 @@
                                 $currentType = $schedule->shiftTypes->firstWhere('id', $current);
                                 $currentColor = $currentType?->color;
                                 $currentFontColor = $isOff ? '#7f1d1d' : ($currentType?->font_color ?: 'var(--text-body)');
-                                $locked = $schedule->use_template || ! $editMode;
+                                $locked = ! $editMode;
                             @endphp
                             <td style="padding:2px;text-align:center;">
                                 <select
@@ -110,9 +116,7 @@
                                         wire:model="draft.{{ $employee->id }}.{{ $date->toDateString() }}"
                                     @endif
                                     @disabled($locked)
-                                    @if ($schedule->use_template)
-                                        title="Jadwal ini pakai Template Shift — isi lewat tombol Generate, bukan edit manual per sel."
-                                    @elseif (! $editMode)
+                                    @if (! $editMode)
                                         title="Klik &quot;Mulai Isi Jadwal&quot; dulu buat mengubah."
                                     @endif
                                     style="width:48px;padding:5px 1px;font-size:9.5px;text-align:center;font-weight:700;border:none;border-radius:5px;{{ $locked ? 'cursor:not-allowed;opacity:0.7;' : 'cursor:pointer;' }}color:{{ $currentFontColor }};{{ $isOff ? 'background:color-mix(in srgb, #dc2626 55%, white);' : ($currentColor ? "background:{$currentColor};" : 'background:var(--surface-alt);') }}">
@@ -133,4 +137,42 @@
             </tbody>
         </table>
     </div>
+
+    <div style="margin-top:12px;display:flex;gap:8px;">
+        <button type="button" wire:click="toggleLogs" class="btn-ghost" style="font-size:11px;padding:7px 12px;white-space:nowrap;">
+            <i class="fa-solid fa-clock-rotate-left"></i> {{ $showLogs ? 'Sembunyikan' : 'Lihat' }} Riwayat Perubahan
+        </button>
+        @if ($this->canEditJadwal)
+            <button type="button" wire:click="resetPeriod" wire:confirm="Hapus SEMUA roster {{ $this->periodLabel }} (termasuk yang sudah dikoreksi manual)? Tindakan ini tidak bisa dibatalkan." class="btn-ghost" style="font-size:11px;padding:7px 12px;white-space:nowrap;color:var(--danger-text);">
+                <i class="fa-solid fa-rotate-left"></i> Reset Jadwal
+            </button>
+        @endif
+    </div>
+
+    @if ($showLogs)
+        <div style="background:var(--surface);border-radius:12px;box-shadow:var(--shadow-card);overflow:auto;max-height:400px;margin-top:10px;">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Waktu</th>
+                        <th>Keterangan</th>
+                        <th>Diubah Oleh</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse ($this->rosterLogs as $log)
+                        <tr>
+                            <td style="white-space:nowrap;">{{ $log->created_at->translatedFormat('d M Y H:i') }}</td>
+                            <td>{{ $this->describeRosterLog($log) }}</td>
+                            <td>{{ $log->changedBy?->name ?? '-' }}</td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="3" style="padding:20px;text-align:center;color:var(--text-faint);">Belum ada riwayat perubahan di periode ini.</td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+    @endif
 </div>

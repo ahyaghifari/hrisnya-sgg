@@ -9,18 +9,23 @@ use App\Models\Master\Companies;
 use App\Models\Shift\Schedule;
 use App\Models\Shift\ScheduleAssignment;
 use App\Models\Shift\ScheduleShiftAssignment;
+use App\Models\Shift\ScheduleShiftRosterLog;
+use App\Models\Shift\ScheduleShiftRotation;
 use App\Models\Shift\ScheduleShiftType;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Livewire\Livewire;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 /**
- * Verifikasi edit manual per-sel di tab Detail Penjadwalan (setCell) — CUMA boleh kalau
- * use_template=false. Kalau use_template=true, sel dikunci read-only, koreksi rencananya lewat
- * alur Pengajuan Tukar Shift (belum dibangun), bukan timpa bebas per sel lagi.
+ * Verifikasi edit manual per-sel di tab Detail Penjadwalan (setCell) — berlaku buat jadwal
+ * Template maupun manual, termasuk import Excel (lihat class-level docblock di
+ * ScheduleShiftRosterTab).
  */
 class ScheduleShiftRosterTabTest extends TestCase
 {
@@ -128,7 +133,7 @@ class ScheduleShiftRosterTabTest extends TestCase
         );
     }
 
-    public function test_manual_cell_edit_is_blocked_when_schedule_uses_template(): void
+    public function test_manual_cell_edit_also_works_when_schedule_uses_template(): void
     {
         $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
         $schedule = Schedule::create([
@@ -146,10 +151,12 @@ class ScheduleShiftRosterTabTest extends TestCase
         Livewire::actingAs($user)
             ->test(ScheduleShiftRosterTab::class, ['schedule' => $schedule])
             ->assertSee('Mulai Dari')
+            ->assertSee('Mulai Isi Jadwal')
             ->call('setCell', $employee->id, $date, $shiftType->id);
 
-        $this->assertFalse(
-            ScheduleShiftAssignment::where('user_id', $employee->id)->whereDate('date', $date)->exists()
+        $this->assertTrue(
+            ScheduleShiftAssignment::where('user_id', $employee->id)
+                ->whereDate('date', $date)->where('shift_type_id', $shiftType->id)->exists()
         );
     }
 
@@ -239,7 +246,220 @@ class ScheduleShiftRosterTabTest extends TestCase
         );
     }
 
-    public function test_start_edit_is_blocked_when_schedule_uses_template(): void
+    public function test_reset_period_logs_deleted_rows_with_reset_source(): void
+    {
+        [$schedule, $shiftType, $employee] = $this->makeManualShiftSchedule();
+        $user = $this->actingAsAbsensi();
+        $date = now()->startOfMonth()->addDays(4)->toDateString();
+
+        ScheduleShiftAssignment::create([
+            'company_id' => $schedule->company_id, 'user_id' => $employee->id,
+            'date' => $date, 'shift_type_id' => $shiftType->id, 'off_day' => false,
+        ]);
+
+        Livewire::actingAs($user)
+            ->test(ScheduleShiftRosterTab::class, ['schedule' => $schedule])
+            ->call('resetPeriod');
+
+        $this->assertTrue(
+            ScheduleShiftRosterLog::where('schedule_id', $schedule->id)
+                ->where('user_id', $employee->id)
+                ->whereDate('date', $date)
+                ->where('old_value', $shiftType->id)
+                ->whereNull('new_value')
+                ->where('source', 'reset')
+                ->where('changed_by', $user->id)
+                ->exists()
+        );
+    }
+
+    public function test_describe_roster_log_reads_as_a_human_sentence_for_empty_to_filled(): void
+    {
+        [$schedule, $shiftType, $employee] = $this->makeManualShiftSchedule();
+        $user = $this->actingAsAbsensi();
+        $date = now()->startOfMonth()->addDays(4)->toDateString();
+
+        $component = Livewire::actingAs($user)
+            ->test(ScheduleShiftRosterTab::class, ['schedule' => $schedule])
+            ->call('startEdit')
+            ->set("draft.{$employee->id}.{$date}", $shiftType->id)
+            ->call('saveRoster');
+
+        $log = ScheduleShiftRosterLog::where('schedule_id', $schedule->id)->where('user_id', $employee->id)->first();
+
+        $this->assertStringContainsString('Mengisi jadwal Budi Santoso', $component->instance()->describeRosterLog($log));
+        $this->assertStringContainsString($shiftType->code, $component->instance()->describeRosterLog($log));
+    }
+
+    public function test_save_roster_logs_changed_cells_with_manual_source(): void
+    {
+        [$schedule, $shiftType, $employee] = $this->makeManualShiftSchedule();
+        $user = $this->actingAsAbsensi();
+        $date = now()->startOfMonth()->addDays(4)->toDateString();
+
+        Livewire::actingAs($user)
+            ->test(ScheduleShiftRosterTab::class, ['schedule' => $schedule])
+            ->call('startEdit')
+            ->set("draft.{$employee->id}.{$date}", $shiftType->id)
+            ->call('saveRoster');
+
+        $this->assertTrue(
+            ScheduleShiftRosterLog::where('schedule_id', $schedule->id)
+                ->where('user_id', $employee->id)
+                ->whereDate('date', $date)
+                ->whereNull('old_value')
+                ->where('new_value', $shiftType->id)
+                ->where('source', 'manual')
+                ->exists()
+        );
+    }
+
+    public function test_generate_from_template_logs_newly_filled_cells_with_generate_source(): void
+    {
+        $company = Companies::create(['code' => 'GEN', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
+        $schedule = Schedule::create([
+            'company_id' => $company->id,
+            'name' => 'Jadwal Shift Rotasi',
+            'schedule_type' => ScheduleType::SHIFT->value,
+            'use_template' => true,
+        ]);
+        $shiftType = ScheduleShiftType::create(['schedule_id' => $schedule->id, 'code' => 'P', 'name' => 'Pagi', 'start_time' => '07:00', 'end_time' => '15:00']);
+        $employee = User::factory()->create(['company_id' => $company->id, 'name' => 'Budi Santoso']);
+        ScheduleAssignment::create(['company_id' => $company->id, 'schedule_id' => $schedule->id, 'user_id' => $employee->id, 'effective_from' => now()->startOfMonth()]);
+        ScheduleShiftRotation::create([
+            'schedule_id' => $schedule->id, 'user_id' => $employee->id, 'day' => 1, 'shift_type_id' => $shiftType->id, 'off_day' => false,
+        ]);
+        $user = $this->actingAsAbsensi();
+
+        Livewire::actingAs($user)
+            ->test(ScheduleShiftRosterTab::class, ['schedule' => $schedule])
+            ->set('rotationStartDate', now()->startOfMonth()->toDateString())
+            ->set('rotationStartDay', 1)
+            ->call('generateFromTemplate');
+
+        $this->assertTrue(
+            ScheduleShiftRosterLog::where('schedule_id', $schedule->id)
+                ->where('user_id', $employee->id)
+                ->whereDate('date', now()->startOfMonth()->toDateString())
+                ->whereNull('old_value')
+                ->where('new_value', $shiftType->id)
+                ->where('source', 'generate')
+                ->exists()
+        );
+    }
+
+    /** Bikin xlsx grid persis format ScheduleShiftRosterExport (2 baris judul, baris 3 header,
+     * baris 4.. data) - $cells: [rowIndex 0-based dari data => [colIndex 0-based dari kolom
+     * tanggal pertama => kode shift]]. */
+    private function makeRosterImportFile(array $employeeNames, array $cells): UploadedFile
+    {
+        $spreadsheet = new Spreadsheet;
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->fromArray(['judul'], null, 'A1');
+        $sheet->fromArray(['periode'], null, 'A2');
+        $sheet->fromArray(['Karyawan'], null, 'A3');
+
+        foreach ($employeeNames as $i => $name) {
+            $row = 4 + $i;
+            $sheet->setCellValue("A{$row}", $name);
+
+            foreach ($cells[$i] ?? [] as $colIndex => $code) {
+                $sheet->setCellValueByColumnAndRow($colIndex + 2, $row, $code);
+            }
+        }
+
+        $path = storage_path('framework/testing/roster-import-'.uniqid().'.xlsx');
+        (new Xlsx($spreadsheet))->save($path);
+
+        // UploadedFile::fake()->createWithContent() (bukan `new UploadedFile(...)` polos) - Livewire's
+        // file upload testing helper butuh properti public $name yang cuma ada di
+        // Illuminate\Http\Testing\File (dikembalikan fake()->...), bukan di UploadedFile dasar.
+        return UploadedFile::fake()->createWithContent('roster-import.xlsx', file_get_contents($path));
+    }
+
+    public function test_import_excel_stages_into_draft_without_saving_until_save_roster_is_called(): void
+    {
+        [$schedule, $shiftType, $employee] = $this->makeManualShiftSchedule();
+        $user = $this->actingAsAbsensi();
+        $firstDate = now()->startOfMonth();
+
+        // Kolom 0 -> tanggal 1 (shift kode), kolom 1 -> tanggal 2 ("L" = Libur).
+        $file = $this->makeRosterImportFile(['Budi Santoso'], [
+            [0 => $shiftType->code, 1 => 'L'],
+        ]);
+
+        $component = Livewire::actingAs($user)
+            ->test(ScheduleShiftRosterTab::class, ['schedule' => $schedule])
+            ->set('importFile', $file)
+            ->assertSet('editMode', true);
+
+        $this->assertSame($shiftType->id, $component->get('draft')[$employee->id][$firstDate->toDateString()]);
+        $this->assertSame('off', $component->get('draft')[$employee->id][$firstDate->copy()->addDay()->toDateString()]);
+
+        // Belum disimpan ke DB - masih tertampung di draft sampai user klik Simpan.
+        $this->assertFalse(ScheduleShiftAssignment::where('user_id', $employee->id)->exists());
+
+        $component->call('saveRoster');
+
+        $this->assertTrue(
+            ScheduleShiftAssignment::where('user_id', $employee->id)
+                ->whereDate('date', $firstDate->toDateString())
+                ->where('shift_type_id', $shiftType->id)->where('off_day', false)->exists()
+        );
+        $this->assertTrue(
+            ScheduleShiftAssignment::where('user_id', $employee->id)
+                ->whereDate('date', $firstDate->copy()->addDay()->toDateString())
+                ->whereNull('shift_type_id')->where('off_day', true)->exists()
+        );
+    }
+
+    public function test_import_excel_skips_unrecognized_shift_codes_and_keeps_existing_value(): void
+    {
+        [$schedule, $shiftType, $employee] = $this->makeManualShiftSchedule();
+        $user = $this->actingAsAbsensi();
+        $date = now()->startOfMonth();
+
+        ScheduleShiftAssignment::create([
+            'company_id' => $schedule->company_id, 'user_id' => $employee->id,
+            'date' => $date->toDateString(), 'shift_type_id' => $shiftType->id, 'off_day' => false,
+        ]);
+
+        // "ZZ" bukan kode shift yang dikenal di schedule ini - sel itu harus dilewati, bukan
+        // dikosongkan.
+        $file = $this->makeRosterImportFile(['Budi Santoso'], [[0 => 'ZZ']]);
+
+        $component = Livewire::actingAs($user)
+            ->test(ScheduleShiftRosterTab::class, ['schedule' => $schedule])
+            ->set('importFile', $file);
+
+        $this->assertSame($shiftType->id, $component->get('draft')[$employee->id][$date->toDateString()]);
+    }
+
+    public function test_import_excel_also_works_when_schedule_uses_template(): void
+    {
+        $company = Companies::create(['code' => 'TPL', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
+        $schedule = Schedule::create([
+            'company_id' => $company->id,
+            'name' => 'Jadwal Shift Rotasi',
+            'schedule_type' => ScheduleType::SHIFT->value,
+            'use_template' => true,
+        ]);
+        $shiftType = ScheduleShiftType::create(['schedule_id' => $schedule->id, 'code' => 'P', 'name' => 'Pagi', 'start_time' => '07:00', 'end_time' => '15:00']);
+        $employee = User::factory()->create(['company_id' => $company->id, 'name' => 'Budi Santoso']);
+        ScheduleAssignment::create(['company_id' => $company->id, 'schedule_id' => $schedule->id, 'user_id' => $employee->id, 'effective_from' => now()->startOfMonth()]);
+        $user = $this->actingAsAbsensi();
+
+        $file = $this->makeRosterImportFile(['Budi Santoso'], [[0 => $shiftType->code]]);
+
+        $component = Livewire::actingAs($user)
+            ->test(ScheduleShiftRosterTab::class, ['schedule' => $schedule])
+            ->set('importFile', $file)
+            ->assertSet('editMode', true);
+
+        $this->assertSame($shiftType->id, $component->get('draft')[$employee->id][now()->startOfMonth()->toDateString()]);
+    }
+
+    public function test_start_edit_also_works_when_schedule_uses_template(): void
     {
         $company = Companies::create(['code' => 'TPL', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
         $schedule = Schedule::create([
@@ -253,6 +473,6 @@ class ScheduleShiftRosterTabTest extends TestCase
         Livewire::actingAs($user)
             ->test(ScheduleShiftRosterTab::class, ['schedule' => $schedule])
             ->call('startEdit')
-            ->assertSet('editMode', false);
+            ->assertSet('editMode', true);
     }
 }
