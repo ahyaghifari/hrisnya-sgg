@@ -144,7 +144,7 @@ class CutiRecapPage extends Component
                         continue;
                     }
 
-                    $days = $clampStart->diffInDays($clampEnd) + 1;
+                    $days = $this->countDaysExcludingSunday($clampStart, $clampEnd);
                     $type = $detail->leave_type ?: 'Lainnya';
 
                     $counts[$type] = ($counts[$type] ?? 0) + $days;
@@ -199,6 +199,21 @@ class CutiRecapPage extends Component
             ],
             'ready' => true,
         ];
+    }
+
+    /** Minggu tidak dihitung sebagai hari cuti terpakai (Sabtu tetap dihitung, dikonfirmasi
+     * user - beda dari perhitungan hari kerja lain di sistem ini yang mengecualikan Sabtu+Minggu). */
+    private function countDaysExcludingSunday(Carbon $start, Carbon $end): int
+    {
+        $days = 0;
+
+        for ($date = $start->copy(); $date->lte($end); $date->addDay()) {
+            if (! $date->isSunday()) {
+                $days++;
+            }
+        }
+
+        return $days;
     }
 
     /**
