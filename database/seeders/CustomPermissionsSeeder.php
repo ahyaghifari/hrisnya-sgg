@@ -27,14 +27,14 @@ class CustomPermissionsSeeder extends Seeder
      * Permission format Shield "Verb:Subject" buat model yang Policy-nya ditulis manual di
      * app/Policies/** (5 verb saja, bukan 9 verb bawaan shield:generate) — baris permission-nya
      * dijamin ada di sini alih-alih lewat `shield:generate`. Awalnya khusus model tanpa
-     * Filament Resource (Schedule), tapi UserKoperasi & BpjsDependent tetap dipertahankan di
-     * sini juga walau sekarang punya Resource (UserKoperasiResource/BpjsDependentResource) -
-     * supaya policy manualnya (5 verb) tidak perlu diganti ke pola shield 9-verb. Tambahkan
-     * subject baru ke $subjects kalau ada Policy manual baru dengan pola sama.
+     * Filament Resource (Schedule), tapi UserKoperasi/BpjsDependent/ExtraShiftAssignment tetap
+     * dipertahankan di sini juga walau sekarang punya Resource sendiri - supaya policy
+     * manualnya (5 verb) tidak perlu diganti ke pola shield 9-verb. Tambahkan subject baru ke
+     * $subjects kalau ada Policy manual baru dengan pola sama.
      */
     private function seedManualPolicyPermissions(): void
     {
-        $subjects = ['UserKoperasi', 'Schedule', 'BpjsDependent'];
+        $subjects = ['UserKoperasi', 'Schedule', 'BpjsDependent', 'ExtraShiftAssignment'];
         $verbs = ['ViewAny', 'View', 'Create', 'Update', 'Delete'];
 
         foreach ($subjects as $subject) {
