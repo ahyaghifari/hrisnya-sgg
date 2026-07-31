@@ -287,6 +287,12 @@ return [
         'guard' => null,
     ],
 
+    'presensi.extra-shift' => [
+        'label' => 'Extra Shift',
+        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_ABSENSI->value,
+        'guard' => null,
+    ],
+
     'presensi.rekap-presensi' => [
         'label' => 'Rekap Presensi',
         'permission' => \App\Enum\CustomPermissionEnum::SISTEM_ABSENSI->value,

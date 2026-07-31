@@ -57,6 +57,7 @@ use App\Livewire\Presensi\AttendanceSettingsPage;
 use App\Livewire\Presensi\CreateSchedulePage;
 use App\Livewire\Presensi\CutiRecapPage;
 use App\Livewire\Presensi\HolidayCalendarPage;
+use App\Livewire\Presensi\ExtraShiftPage;
 use App\Livewire\Presensi\HolidaysPage;
 use App\Livewire\Presensi\IzinRecapPage;
 use App\Livewire\Presensi\LemburRecapPage;
@@ -274,6 +275,9 @@ Route::middleware(['auth', 'portal.access'])->group(function () {
 
     Route::get('/presensi/hari-libur', HolidaysPage::class)
         ->name('presensi.hari-libur');
+
+    Route::get('/presensi/extra-shift', ExtraShiftPage::class)
+        ->name('presensi.extra-shift');
 
     Route::get('/presensi/rekap-izin', IzinRecapPage::class)
         ->name('presensi.rekap-izin');
