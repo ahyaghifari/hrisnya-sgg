@@ -23,9 +23,13 @@ class RoleForm
     /**
      * Gerbang baca SISTEM_* (portal karyawan) dikelompokkan bareng permission "anak"-nya
      * (EDIT_* custom + Shield Verb:Subject buat model yang tidak punya Filament Resource,
-     * mis. UserKoperasi). Static supaya bisa dipakai ulang di EditRole::mutateFormDataBeforeFill()
+     * mis. Schedule). Static supaya bisa dipakai ulang di EditRole::mutateFormDataBeforeFill()
      * — field key checkbox HARUS sama persis antara sini dan sana, kalau tidak checkbox tampil
      * kosong walau role sudah punya permission-nya (data tidak hilang, cuma UI-nya salah).
+     *
+     * UserKoperasi & BpjsDependent TIDAK di-list manual di sini (beda dari Schedule) — keduanya
+     * sekarang punya Filament Resource (navigationGroup 'Keuangan'), jadi otomatis ke-merge ke
+     * section "Sistem Keuangan" lewat $containerMerge di bawah, tidak perlu di-hardcode.
      *
      * @return array<string, array<int, string>>
      */
@@ -38,9 +42,20 @@ class RoleForm
                 CustomPermissionEnum::EDIT_KOMPONEN_GAJI->value,
                 CustomPermissionEnum::EDIT_KOMPONEN_GAJI_GLOBAL->value,
                 CustomPermissionEnum::GENERATE_PAYROLL->value,
-                'Create:UserKoperasi',
-                'Update:UserKoperasi',
-                'Delete:UserKoperasi',
+                // Sisa permission shield "SalaryComponents" dari Resource lama (tabel
+                // salary_components sudah dihapus total di Payroll Fase 1, digantikan
+                // PayrollComponentEnum) - Resource-nya sudah tidak ada jadi tidak ke-container
+                // otomatis, cuma di-list manual di sini biar tidak nangkring sendirian.
+                'ViewAny:SalaryComponents',
+                'View:SalaryComponents',
+                'Create:SalaryComponents',
+                'Update:SalaryComponents',
+                'Delete:SalaryComponents',
+                'Restore:SalaryComponents',
+                'RestoreAny:SalaryComponents',
+                'ForceDelete:SalaryComponents',
+                'Replicate:SalaryComponents',
+                'Reorder:SalaryComponents',
             ],
             CustomPermissionEnum::SISTEM_KEPEGAWAIAN->value => [],
             CustomPermissionEnum::SISTEM_ABSENSI->value => [

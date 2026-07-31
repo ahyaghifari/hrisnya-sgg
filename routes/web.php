@@ -237,6 +237,9 @@ Route::middleware(['auth', 'portal.access'])->group(function () {
     Route::get('/keuangan/koperasi', KoperasiPage::class)
         ->name('keuangan.koperasi');
 
+    Route::get('/keuangan/tanggungan-bpjs', \App\Livewire\Keuangan\BpjsDependentsPage::class)
+        ->name('keuangan.tanggungan-bpjs');
+
     Route::get('/keuangan/payroll/import-template/{type}', [PayrollManualLineTemplateController::class, 'downloadTemplate'])
         ->whereIn('type', ['bon', 'insentif'])
         ->name('keuangan.payroll.import-template');

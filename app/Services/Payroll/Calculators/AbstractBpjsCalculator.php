@@ -23,6 +23,12 @@ abstract class AbstractBpjsCalculator implements PayrollComponentCalculator
     abstract protected function componentLabel(): string;
     abstract protected function componentType(): string;
 
+    /** Dikali ke amount akhir — cuma BPJS Kesehatan yang override ini (lihat tanggungan). */
+    protected function multiplier(User $user): float
+    {
+        return 1.0;
+    }
+
     public function calculate(User $user, Payroll $payroll, PayrollPeriod $period, PayrollContext $context): void
     {
         $bpjsBasis = $user->profile?->pangkat?->bpjsBasis?->bpjs_basis;
@@ -47,10 +53,18 @@ abstract class AbstractBpjsCalculator implements PayrollComponentCalculator
             return;
         }
 
-        $amount = round((float) $basis * (float) $rate / 100, 2);
+        $multiplier = $this->multiplier($user);
+
+        $amount = round((float) $basis * (float) $rate / 100 * $multiplier, 2);
 
         if ($amount <= 0) {
             return;
+        }
+
+        $note = "Basis: {$bpjsBasis}";
+
+        if ($multiplier > 1.0) {
+            $note .= ' (x' . rtrim(rtrim(number_format($multiplier, 2, '.', ''), '0'), '.') . ' tanggungan)';
         }
 
         PayrollItem::create([
@@ -61,7 +75,7 @@ abstract class AbstractBpjsCalculator implements PayrollComponentCalculator
             'unit' => 'persen',
             'unit_amount' => $basis,
             'amount' => $amount,
-            'note' => "Basis: {$bpjsBasis}",
+            'note' => $note,
             'source_type' => $this->componentValue(),
         ]);
 

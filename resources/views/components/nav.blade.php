@@ -94,7 +94,7 @@
                         @endif
                         @if ($canAccessKeuangan)
                             <div class="dropdown">
-                                <a href="#" class="nav-item nav-item-green {{ request()->routeIs(['keuangan.dashboard*', 'keuangan.periode-gaji*', 'keuangan.payroll*', 'keuangan.komponen-gaji*', 'keuangan.penerima-komponen-gaji*', 'keuangan.insentif*', 'keuangan.mapping-komponen-gaji*', 'keuangan.koperasi*', 'keuangan.omset*']) ? 'active' : '' }}">
+                                <a href="#" class="nav-item nav-item-green {{ request()->routeIs(['keuangan.dashboard*', 'keuangan.periode-gaji*', 'keuangan.payroll*', 'keuangan.komponen-gaji*', 'keuangan.penerima-komponen-gaji*', 'keuangan.insentif*', 'keuangan.mapping-komponen-gaji*', 'keuangan.koperasi*', 'keuangan.omset*', 'keuangan.tanggungan-bpjs*']) ? 'active' : '' }}">
                                     <i class="fa-solid fa-sack-dollar text-xs"></i> Penggajian <i class="fa-solid fa-chevron-down text-[10px]"></i>
                                 </a>
                                 <div class="dropdown-menu">
@@ -110,6 +110,7 @@
                                     <div style="height:1px;background:var(--border-soft);margin:6px 8px;"></div>
                                     <a href="{{ route('keuangan.insentif') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-hand-holding-dollar"></i> Insentif</a>
                                     <a href="{{ route('keuangan.koperasi') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-people-group"></i> Koperasi</a>
+                                    <a href="{{ route('keuangan.tanggungan-bpjs') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-house-medical"></i> Tanggungan BPJS</a>
                                 </div>
                             </div>
                         @endif
