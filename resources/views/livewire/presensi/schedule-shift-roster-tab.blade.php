@@ -9,6 +9,11 @@
             <button type="button" wire:click="exportExcel" class="btn-ghost" style="font-size:11px;padding:7px 12px;white-space:nowrap;margin-top:16px;">
                 <i class="fa-solid fa-file-excel"></i> Export Excel
             </button>
+            @if ($this->canEditJadwal)
+                <button type="button" wire:click="resetPeriod" wire:confirm="Hapus SEMUA roster {{ $this->periodLabel }} (termasuk yang sudah dikoreksi manual)? Tindakan ini tidak bisa dibatalkan." class="btn-ghost" style="font-size:11px;padding:7px 12px;white-space:nowrap;margin-top:16px;color:var(--danger-text);">
+                    <i class="fa-solid fa-rotate-left"></i> Reset Jadwal
+                </button>
+            @endif
         </div>
 
         <div style="display:flex;align-items:flex-end;gap:6px;">

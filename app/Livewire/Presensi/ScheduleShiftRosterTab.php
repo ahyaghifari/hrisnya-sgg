@@ -298,6 +298,29 @@ class ScheduleShiftRosterTab extends Component
             ->send();
     }
 
+    /** Hapus semua baris roster (termasuk yang sudah dikoreksi manual) di periode terpilih,
+     * biar bisa di-generate ulang dari awal. Berlaku buat jadwal Template maupun manual. */
+    public function resetPeriod(): void
+    {
+        abort_unless(Auth::user()->can(CustomPermissionEnum::KELOLA_JADWAL_SHIFT->value), 403);
+
+        $start = Carbon::createFromFormat('Y-m', $this->period)->startOfMonth()->toDateString();
+        $end = Carbon::createFromFormat('Y-m', $this->period)->endOfMonth()->toDateString();
+
+        $deleted = ScheduleShiftAssignment::whereIn('user_id', $this->employees->pluck('id'))
+            ->whereBetween('date', [$start, $end])
+            ->delete();
+
+        $this->editMode = false;
+        $this->draft = [];
+
+        Notification::make()
+            ->title('Jadwal direset')
+            ->body("{$deleted} baris roster {$this->periodLabel} dihapus.")
+            ->success()
+            ->send();
+    }
+
     public function exportExcel()
     {
         return Excel::download(

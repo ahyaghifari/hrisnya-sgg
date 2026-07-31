@@ -211,6 +211,34 @@ class ScheduleShiftRosterTabTest extends TestCase
         );
     }
 
+    public function test_reset_period_deletes_all_roster_rows_in_selected_month(): void
+    {
+        [$schedule, $shiftType, $employee] = $this->makeManualShiftSchedule();
+        $user = $this->actingAsAbsensi();
+        $dateInside = now()->startOfMonth()->addDays(4)->toDateString();
+        $dateOutside = now()->startOfMonth()->subMonth()->addDays(4)->toDateString();
+
+        ScheduleShiftAssignment::create([
+            'company_id' => $schedule->company_id, 'user_id' => $employee->id,
+            'date' => $dateInside, 'shift_type_id' => $shiftType->id, 'off_day' => false,
+        ]);
+        ScheduleShiftAssignment::create([
+            'company_id' => $schedule->company_id, 'user_id' => $employee->id,
+            'date' => $dateOutside, 'shift_type_id' => $shiftType->id, 'off_day' => false,
+        ]);
+
+        Livewire::actingAs($user)
+            ->test(ScheduleShiftRosterTab::class, ['schedule' => $schedule])
+            ->call('resetPeriod');
+
+        $this->assertFalse(
+            ScheduleShiftAssignment::where('user_id', $employee->id)->whereDate('date', $dateInside)->exists()
+        );
+        $this->assertTrue(
+            ScheduleShiftAssignment::where('user_id', $employee->id)->whereDate('date', $dateOutside)->exists()
+        );
+    }
+
     public function test_start_edit_is_blocked_when_schedule_uses_template(): void
     {
         $company = Companies::create(['code' => 'TPL', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
