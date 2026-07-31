@@ -2,8 +2,10 @@
 
 namespace App\Livewire;
 
+use App\Enum\Attendance\AttendanceSettingEnum;
 use App\Enum\Attendance\PermissionGroupEnum;
 use App\Models\Master\Attendance\PermissionTypes;
+use App\Models\Setting;
 use App\Services\Attendance\AttendaceReqService;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\Auth;
@@ -148,6 +150,36 @@ class SubmitPermissionRequest extends Component
         return \Carbon\Carbon::parse($this->date)->diffInDays(\Carbon\Carbon::parse($this->end_date)) + 1;
     }
 
+    /** Durasi maksimum Izin Meninggalkan Jam Kerja (berlaku sama untuk semua sub-jenisnya:
+     * Terlambat Masuk, Pulang Cepat, Meninggalkan Jam Kerja Tengah Hari) - setting
+     * izin_meninggalkan_jam_kerja_max_jam, company-scoped, 0 = tidak dibatasi. */
+    private function maxDurationRule(): \Closure
+    {
+        return function (string $attribute, mixed $value, \Closure $fail): void {
+            if (! $this->start_time || ! $value) {
+                return;
+            }
+
+            $maxJam = (int) Setting::resolve(
+                AttendanceSettingEnum::IZIN_MENINGGALKAN_JAM_KERJA_MAX_JAM->value,
+                Auth::user()->company_id,
+                default: (int) AttendanceSettingEnum::IZIN_MENINGGALKAN_JAM_KERJA_MAX_JAM->default()
+            );
+
+            if ($maxJam <= 0) {
+                return;
+            }
+
+            $start = \Carbon\Carbon::parse($this->start_time);
+            $end = \Carbon\Carbon::parse($value);
+            $jam = $start->diffInMinutes($end) / 60;
+
+            if ($jam > $maxJam) {
+                $fail("Durasi izin maksimal {$maxJam} jam.");
+            }
+        };
+    }
+
     protected function rules(): array
     {
         $group = $this->currentGroup();
@@ -167,7 +199,12 @@ class SubmitPermissionRequest extends Component
             'date' => ['required', 'date'],
             'end_date' => [$isRentang ? 'required' : 'nullable', 'date', 'after_or_equal:date'],
             'start_time' => [$wajibJam ? 'required' : 'nullable', 'date_format:H:i'],
-            'end_time' => [$wajibJam ? 'required' : 'nullable', 'date_format:H:i', 'after:start_time'],
+            'end_time' => [
+                $wajibJam ? 'required' : 'nullable',
+                'date_format:H:i',
+                'after:start_time',
+                ...($wajibJam ? [$this->maxDurationRule()] : []),
+            ],
             'purpose' => ['nullable', 'string'],
             'location' => ['nullable', 'string'],
             'substitute_user_name' => ['nullable', 'string'],

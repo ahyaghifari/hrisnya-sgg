@@ -39,9 +39,9 @@
             </div>
             <div style="display:flex;flex-direction:column;gap:18px;">
                 <div>
-                    <label class="form-label">Kelompok Izin <span style="color:var(--danger-text);">*</span></label>
+                    <label class="form-label">Kategori Izin <span style="color:var(--danger-text);">*</span></label>
                     <select class="form-input" wire:model.live="group">
-                        <option value="">Pilih kelompok izin</option>
+                        <option value="">Pilih kategori izin</option>
                         @foreach ($this->kelompokOptions as $value => $label)
                             <option value="{{ $value }}">{{ $label }}</option>
                         @endforeach
