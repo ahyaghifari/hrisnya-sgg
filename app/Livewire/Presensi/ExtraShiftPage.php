@@ -27,6 +27,8 @@ class ExtraShiftPage extends Component
 {
     public ?string $companyId = null;
 
+    public bool $showAddModal = false;
+
     public ?string $user_id = null;
     public ?string $covering_user_id = null;
     public ?string $shift_type_id = null;
@@ -116,6 +118,20 @@ class ExtraShiftPage extends Component
             ->get();
     }
 
+    public function openAddModal(): void
+    {
+        abort_unless($this->canManage, 403);
+
+        $this->reset(['user_id', 'covering_user_id', 'shift_type_id', 'reason']);
+        $this->date = now()->toDateString();
+        $this->showAddModal = true;
+    }
+
+    public function closeAddModal(): void
+    {
+        $this->showAddModal = false;
+    }
+
     public function assign(): void
     {
         abort_unless($this->canManage, 403);
@@ -143,6 +159,7 @@ class ExtraShiftPage extends Component
         ]);
 
         $this->reset(['user_id', 'covering_user_id', 'shift_type_id', 'reason']);
+        $this->showAddModal = false;
 
         Notification::make()->title('Extra shift berhasil ditambahkan')->success()->send();
     }
