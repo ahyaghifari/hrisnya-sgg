@@ -1,0 +1,30 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::table('user_profiles', function (Blueprint $table) {
+            $table->date('contract_end_date')->nullable()->after('joining_date');
+        });
+
+        Schema::table('user_transitions', function (Blueprint $table) {
+            $table->date('contract_end_date')->nullable()->after('effective_date');
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::table('user_profiles', function (Blueprint $table) {
+            $table->dropColumn('contract_end_date');
+        });
+
+        Schema::table('user_transitions', function (Blueprint $table) {
+            $table->dropColumn('contract_end_date');
+        });
+    }
+};

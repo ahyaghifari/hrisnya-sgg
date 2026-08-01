@@ -1,7 +1,7 @@
 <div>
-<x-page-header title="Ajukan Perubahan Status Karyawan" subtitle="Promosi, Demosi, Mutasi, atau PHK" :back="route('kepegawaian.mutasi-karyawan')" />
+<x-page-header title="Ajukan Perubahan Status Karyawan" subtitle="Promosi, Demosi, Mutasi, PHK, Perubahan Kelas, Perubahan Status Kepegawaian, atau Perpanjangan Kontrak" :back="route('kepegawaian.mutasi-karyawan')" />
 
-<form wire:submit="submit" style="max-width:720px;">
+<form wire:submit="submit">
     <div class="form-card">
         <div class="section-head">
             <div class="section-icon"><i class="fa-solid fa-id-card" style="color:var(--brand);font-size:12px;"></i></div>
@@ -20,9 +20,9 @@
                 </div>
             @endif
 
-            <div>
+            <div wire:key="user-id-wrap-{{ $companyId }}">
                 <label class="form-label">Karyawan <span style="color:var(--danger-text);">*</span></label>
-                <select wire:model.live="user_id" class="form-input" @disabled(! $companyId)>
+                <select data-tom-select data-placeholder="Pilih karyawan" wire:model.live="user_id" class="form-input" @disabled(! $companyId)>
                     <option value="">Pilih karyawan</option>
                     @foreach ($this->employees as $employee)
                         <option value="{{ $employee->id }}">{{ $employee->name }} ({{ $employee->nip }})</option>
@@ -215,6 +215,96 @@
                 <span class="section-title">Komentar Manager/Kepegawaian</span>
             </div>
             <textarea wire:model="manager_comment" class="form-input" rows="3"></textarea>
+        </div>
+    @endif
+
+    @if ($transition_type === 'kelas_change')
+        <div class="form-card">
+            <div class="section-head">
+                <div class="section-icon"><i class="fa-solid fa-arrow-trend-up" style="color:var(--brand);font-size:12px;"></i></div>
+                <span class="section-title">Perubahan Kelas</span>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:16px;">
+                <div>
+                    <label class="form-label">Kelas Saat Ini</label>
+                    <p style="font-size:13.5px;font-weight:600;color:var(--text-body);margin:0;">{{ $this->currentKelas ?? '-' }}</p>
+                </div>
+                <div>
+                    <label class="form-label">Kelas Baru <span style="color:var(--danger-text);">*</span></label>
+                    <select wire:model.live="transitionable_id" class="form-input" @disabled(! $user_id)>
+                        <option value="">Pilih kelas baru</option>
+                        @foreach ($this->kelasOptions as $id => $name)
+                            <option value="{{ $id }}">{{ $name }}</option>
+                        @endforeach
+                    </select>
+                    @error('transitionable_id') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
+                </div>
+                <div>
+                    <label class="form-label">Tanggal Efektif <span style="color:var(--danger-text);">*</span></label>
+                    <input type="date" wire:model="effective_date" class="form-input">
+                    @error('effective_date') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
+                </div>
+                <div>
+                    <label class="form-label">Alasan</label>
+                    <textarea wire:model="reason" class="form-input" rows="2" placeholder="Alasan perubahan kelas (opsional)"></textarea>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    @if ($transition_type === 'employment_status_change')
+        <div class="form-card">
+            <div class="section-head">
+                <div class="section-icon"><i class="fa-solid fa-id-card" style="color:var(--brand);font-size:12px;"></i></div>
+                <span class="section-title">Perubahan Status Kepegawaian</span>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:16px;">
+                <div>
+                    <label class="form-label">Status Saat Ini</label>
+                    <p style="font-size:13.5px;font-weight:600;color:var(--text-body);margin:0;">{{ $this->currentEmployeeType ?? '-' }}</p>
+                </div>
+                <div>
+                    <label class="form-label">Status Baru <span style="color:var(--danger-text);">*</span></label>
+                    <select wire:model.live="transitionable_id" class="form-input" @disabled(! $user_id)>
+                        <option value="">Pilih status baru</option>
+                        @foreach ($this->employeeTypeOptions as $id => $name)
+                            <option value="{{ $id }}">{{ $name }}</option>
+                        @endforeach
+                    </select>
+                    @error('transitionable_id') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
+                    <p style="font-size:11px;color:var(--text-muted);margin-top:4px;">Kelas otomatis mengikuti kelas minimal dari Pangkat karyawan, tidak perlu dipilih manual.</p>
+                </div>
+                <div>
+                    <label class="form-label">Tanggal Efektif <span style="color:var(--danger-text);">*</span></label>
+                    <input type="date" wire:model="effective_date" class="form-input">
+                    @error('effective_date') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
+                    <p style="font-size:11px;color:var(--text-muted);margin-top:4px;">Kalau status barunya Kontrak, tanggal kontrak berakhir otomatis dihitung dari tanggal ini + durasi perpanjangan (Pengaturan Kepegawaian) - tidak perlu diisi manual.</p>
+                </div>
+                <div>
+                    <label class="form-label">Alasan</label>
+                    <textarea wire:model="reason" class="form-input" rows="2" placeholder="Alasan perubahan status (opsional)"></textarea>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    @if ($transition_type === 'contract_extension')
+        <div class="form-card">
+            <div class="section-head">
+                <div class="section-icon"><i class="fa-solid fa-calendar-days" style="color:var(--brand);font-size:12px;"></i></div>
+                <span class="section-title">Perpanjangan Kontrak</span>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:16px;">
+                <div>
+                    <label class="form-label">Kontrak Sebelumnya Sampai</label>
+                    <p style="font-size:13.5px;font-weight:600;color:var(--text-body);margin:0;">{{ $this->currentContractEndDate ?? '-' }}</p>
+                    <p style="font-size:11px;color:var(--text-muted);margin-top:4px;">Tanggal kontrak baru otomatis dihitung dari tanggal ini + durasi perpanjangan (Pengaturan Kepegawaian) begitu disetujui - tidak perlu diisi manual.</p>
+                </div>
+                <div>
+                    <label class="form-label">Alasan</label>
+                    <textarea wire:model="reason" class="form-input" rows="2" placeholder="Alasan perpanjangan (opsional)"></textarea>
+                </div>
+            </div>
         </div>
     @endif
 

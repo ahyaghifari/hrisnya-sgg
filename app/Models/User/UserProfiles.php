@@ -138,6 +138,7 @@ class UserProfiles extends Model
         'employee_type_id',
         'profile_picture',
         'joining_date',
+        'contract_end_date',
     ];
 
     protected $casts = [

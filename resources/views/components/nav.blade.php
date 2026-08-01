@@ -150,6 +150,9 @@
                                     @if (auth()->user()->can('ViewAny:UserTransition'))
                                         <a href="{{ route('kepegawaian.mutasi-karyawan') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-right-left"></i> Perubahan Status</a>
                                     @endif
+                                    @if (auth()->user()->can(\App\Enum\CustomPermissionEnum::SISTEM_KEPEGAWAIAN->value))
+                                        <a href="{{ route('kepegawaian.pengaturan') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-gear"></i> Pengaturan Kepegawaian</a>
+                                    @endif
                                     @if (auth()->user()->can('ViewAny:JobOpenings') || auth()->user()->can('ViewAny:ManpowerRequests'))
                                         <div style="height:1px;background:var(--border-soft);margin:6px 8px;"></div>
                                         <div style="font-size:10.5px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em;padding:6px 12px 4px;">Rekrutmen</div>

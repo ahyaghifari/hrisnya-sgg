@@ -13,6 +13,7 @@ enum SettingModuleEnum: string
     case ATTENDANCE = 'attendance';
     case TASK = 'task';
     case LMS = 'lms';
+    case KEPEGAWAIAN = 'kepegawaian';
 
     public function label(): string
     {
@@ -21,6 +22,7 @@ enum SettingModuleEnum: string
             self::ATTENDANCE => 'Absensi',
             self::TASK => 'Tugas',
             self::LMS => 'LMS',
+            self::KEPEGAWAIAN => 'Kepegawaian',
         };
     }
 }

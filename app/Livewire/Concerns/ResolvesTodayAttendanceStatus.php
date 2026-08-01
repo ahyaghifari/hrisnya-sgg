@@ -29,6 +29,9 @@ trait ResolvesTodayAttendanceStatus
      *     color: 'red'|'blue'|'yellow'|'green'|'gray',
      *     note: ?string,
      *     attendance: ?AttendanceRecords,
+     *     late_minutes_label: ?string,
+     *     flexible_min_work_label: ?string,
+     *     flexible_target_checkout: ?string,
      * }
      */
     protected function todayAttendanceStatus(User $user, ?AttendanceRecords $attendance = null): array
@@ -64,6 +67,26 @@ trait ResolvesTodayAttendanceStatus
 
         $attendance ??= AttendanceRecords::where('user_id', $user->id)->where('date', $todayStr)->first();
 
+        // Terlambat ditampilkan sebagai "X menit" kalau < 1 jam, atau "X jam Y menit" kalau
+        // >= 1 jam - lebih gampang dibaca daripada mentah "353 menit".
+        $lateMinutesLabel = $attendance && $attendance->late_minutes > 0
+            ? $this->formatMinutesAsHours($attendance->late_minutes)
+            : null;
+
+        // Jadwal Flexible: target minimal jam kerja + jam pulang yang harus dicapai supaya
+        // memenuhi target itu, dihitung dari jam masuk aktual hari ini.
+        $flexibleMinWorkLabel   = null;
+        $flexibleTargetCheckout = null;
+        if (($resolved['type'] ?? null) === 'flexible' && ($resolved['config']->min_work_minutes ?? 0) > 0) {
+            $flexibleMinWorkLabel = $this->formatMinutesAsHours($resolved['config']->min_work_minutes);
+
+            if ($attendance?->check_in_time) {
+                $flexibleTargetCheckout = Carbon::parse($attendance->check_in_time)
+                    ->addMinutes($resolved['config']->min_work_minutes)
+                    ->format('H:i');
+            }
+        }
+
         $holiday      = Holidays::where('date', $todayStr)->first();
         $isScheduleOff = (bool) ($resolved['is_off_day'] ?? false);
 
@@ -76,6 +99,9 @@ trait ResolvesTodayAttendanceStatus
                 'color'          => 'red',
                 'note'           => $holiday?->name ?? 'Hari libur sesuai jadwal',
                 'attendance'     => $attendance,
+                'late_minutes_label'       => $lateMinutesLabel,
+                'flexible_min_work_label'  => $flexibleMinWorkLabel,
+                'flexible_target_checkout' => $flexibleTargetCheckout,
             ];
         }
 
@@ -99,6 +125,9 @@ trait ResolvesTodayAttendanceStatus
                 'color'          => 'blue',
                 'note'           => 'Cuti - ' . ($leave->leaveDetails->first()?->leave_type ?? 'Cuti'),
                 'attendance'     => $attendance,
+                'late_minutes_label'       => $lateMinutesLabel,
+                'flexible_min_work_label'  => $flexibleMinWorkLabel,
+                'flexible_target_checkout' => $flexibleTargetCheckout,
             ];
         }
 
@@ -123,6 +152,9 @@ trait ResolvesTodayAttendanceStatus
                 'color'          => $isFullDay ? 'yellow' : 'green',
                 'note'           => "Izin - {$label}",
                 'attendance'     => $attendance,
+                'late_minutes_label'       => $lateMinutesLabel,
+                'flexible_min_work_label'  => $flexibleMinWorkLabel,
+                'flexible_target_checkout' => $flexibleTargetCheckout,
             ];
         }
 
@@ -138,6 +170,9 @@ trait ResolvesTodayAttendanceStatus
                 'color'               => 'gray',
                 'note'                => 'Anda belum memiliki jadwal, silakan hubungi pihak terkait.',
                 'attendance'          => $attendance,
+                'late_minutes_label'       => $lateMinutesLabel,
+                'flexible_min_work_label'  => $flexibleMinWorkLabel,
+                'flexible_target_checkout' => $flexibleTargetCheckout,
             ];
         }
 
@@ -149,16 +184,23 @@ trait ResolvesTodayAttendanceStatus
             'color'               => 'green',
             'note'                => null,
             'attendance'          => $attendance,
+            'late_minutes_label'       => $lateMinutesLabel,
+            'flexible_min_work_label'  => $flexibleMinWorkLabel,
+            'flexible_target_checkout' => $flexibleTargetCheckout,
         ];
     }
 
     /**
-     * 420 -> "7 jam", 450 -> "7 jam 30 menit".
+     * 35 -> "35 menit", 420 -> "7 jam", 450 -> "7 jam 30 menit".
      */
     private function formatMinutesAsHours(int $minutes): string
     {
         $hours = intdiv($minutes, 60);
         $rest  = $minutes % 60;
+
+        if ($hours === 0) {
+            return "{$rest} menit";
+        }
 
         return $rest > 0 ? "{$hours} jam {$rest} menit" : "{$hours} jam";
     }

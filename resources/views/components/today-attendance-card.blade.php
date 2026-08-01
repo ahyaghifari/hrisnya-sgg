@@ -46,12 +46,20 @@
                 <p style="font-size:24px;font-weight:800;color:#fff;letter-spacing:-0.5px;">{{ $formatJam($attendance->check_out_time) }}</p>
             </div>
         </div>
+        @if ($status['flexible_min_work_label'])
+            <div style="position:relative;z-index:1;font-size:12px;color:rgba(255,255,255,0.85);">
+                Min. jam kerja: <strong>{{ $status['flexible_min_work_label'] }}</strong>
+                @if ($status['flexible_target_checkout'] && ! $attendance->check_out_time)
+                    · absen pulang jam <strong>{{ $status['flexible_target_checkout'] }}</strong> untuk mencapai target
+                @endif
+            </div>
+        @endif
         <div style="position:relative;z-index:1;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
             <span style="display:inline-block;padding:4px 12px;border-radius:99px;background:rgba(255,255,255,0.16);color:#fff;font-size:11.5px;font-weight:700;">
                 {{ \App\Enum\AttendanceStatus::from($attendance->status)->getLabel() }}
             </span>
             @if ($attendance->late_minutes > 0)
-                <span style="font-size:12px;color:rgba(255,255,255,0.75);">Terlambat {{ $attendance->late_minutes }} menit</span>
+                <span style="font-size:12px;color:rgba(255,255,255,0.75);">Terlambat {{ $status['late_minutes_label'] }}</span>
             @endif
             @if ($status['note'])
                 {{-- Izin biasa (bukan izin seharian) tetap hijau, tapi keterangan izinnya tetap ditampilkan --}}

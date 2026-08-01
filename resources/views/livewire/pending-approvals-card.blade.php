@@ -21,29 +21,25 @@
         </div>
 
         @php
-            $typeLabel = fn (string $type) => ['leave' => 'Cuti', 'permission' => 'Izin', 'overtime' => 'Lembur'][$type] ?? $type;
-            $typeIcon = fn (string $type) => ['leave' => 'fa-umbrella-beach', 'permission' => 'fa-clock', 'overtime' => 'fa-briefcase-clock'][$type] ?? 'fa-file-lines';
-            $typeTile = fn (string $type) => ['leave' => 'neutral', 'permission' => 'warn', 'overtime' => 'done'][$type] ?? 'neutral';
-            // Keterangan: jenis SPESIFIK di dalam kategori (mis. "Cuti Tahunan", bukan cuma
-            // "Cuti") — sekaligus kolom ini yang jadi tempat konteks buat modul approval lain
-            // (bukan cuma attendance_request) kalau nanti kartu ini dipakai lintas modul, supaya
-            // approver tidak cuma lihat "Cuti/Izin/Lembur" tanpa tahu detailnya apa.
-            $keterangan = fn ($request) => match ($request->type) {
-                'leave' => $request->leaveDetails->first()?->leave_type ?? '-',
-                'permission' => $request->permissionDetails->first()?->permission_type ?? '-',
-                'overtime' => $request->overtimeDetails->first()?->overtime_type ?? '-',
-                default => '-',
-            };
+            // Badge warna beda per modul - kuning buat Izin/Cuti/Lembur (attendance_request),
+            // biru sistem buat Perubahan Status Karyawan (user_transition) - biar approver bisa
+            // langsung bedakan tanpa baca teks, kartu ini gabungan lintas-modul.
+            $badgeStyle = fn (string $badge) => $badge === 'blue'
+                ? 'background:rgba(4,44,108,0.1);color:#042c6c;'
+                : 'background:rgba(217,119,6,0.12);color:#92400e;';
         @endphp
 
         <!-- MOBILE: card manual -->
         <div class="md:hidden">
             @foreach ($requests as $request)
-                <a href="{{ route('my-attendance-requests.show', ['record' => $request->id]) }}" wire:navigate class="pwa-list-row" style="text-decoration:none;">
-                    <div class="pwa-tile-icon {{ $typeTile($request->type) }}"><i class="fa-solid {{ $typeIcon($request->type) }}"></i></div>
+                <a href="{{ $request->url }}" wire:navigate class="pwa-list-row" style="text-decoration:none;">
+                    <div class="pwa-tile-icon {{ $request->tile }}"><i class="fa-solid {{ $request->icon }}"></i></div>
                     <div style="flex:1;min-width:0;">
-                        <p style="font-size:13px;font-weight:600;color:var(--text-heading);">{{ $typeLabel($request->type) }} · {{ $request->user->name }}</p>
-                        <p style="font-size:11px;color:var(--text-muted);margin-top:2px;">{{ $keterangan($request) }} &middot; {{ $request->created_at->translatedFormat('d M Y') }}</p>
+                        <p style="font-size:13px;font-weight:600;color:var(--text-heading);">
+                            <span style="display:inline-block;padding:2px 8px;border-radius:99px;font-size:10px;font-weight:700;{{ $badgeStyle($request->badge) }}">{{ $request->label }}</span>
+                            {{ $request->user_name }}
+                        </p>
+                        <p style="font-size:11px;color:var(--text-muted);margin-top:2px;">{{ $request->keterangan }} &middot; {{ $request->created_at->translatedFormat('d M Y') }}</p>
                     </div>
                     <i class="fa-solid fa-chevron-right"></i>
                 </a>
@@ -66,14 +62,14 @@
                 <tbody>
                     @foreach ($requests as $request)
                         <tr>
-                            <td style="padding:9px 14px;font-size:12px;font-weight:600;color:var(--text-heading);white-space:nowrap;">
-                                {{ $typeLabel($request->type) }}
+                            <td style="padding:9px 14px;white-space:nowrap;">
+                                <span style="display:inline-block;padding:3px 10px;border-radius:99px;font-size:11px;font-weight:700;{{ $badgeStyle($request->badge) }}">{{ $request->label }}</span>
                             </td>
-                            <td style="padding:9px 14px;font-size:11.5px;color:var(--text-body);">{{ $keterangan($request) }}</td>
-                            <td style="padding:9px 14px;font-size:11.5px;color:var(--text-muted);">{{ $request->user->name }}</td>
+                            <td style="padding:9px 14px;font-size:11.5px;color:var(--text-body);">{{ $request->keterangan }}</td>
+                            <td style="padding:9px 14px;font-size:11.5px;color:var(--text-muted);">{{ $request->user_name }}</td>
                             <td style="padding:9px 14px;font-size:11.5px;color:var(--text-faint);white-space:nowrap;">{{ $request->created_at->translatedFormat('d M Y') }}</td>
                             <td style="padding:9px 14px;">
-                                <a href="{{ route('my-attendance-requests.show', ['record' => $request->id]) }}" wire:navigate
+                                <a href="{{ $request->url }}" wire:navigate
                                     style="font-size:11.5px;font-weight:600;color:var(--brand);text-decoration:none;white-space:nowrap;">
                                     Tinjau <i class="fa-solid fa-arrow-right text-xs"></i>
                                 </a>

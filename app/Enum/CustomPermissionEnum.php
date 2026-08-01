@@ -53,6 +53,7 @@ enum CustomPermissionEnum: string
     case SYNC_DATA_ABSENSI = 'sync_data_absensi';
     case EDIT_PENGATURAN_TUGAS = 'edit_pengaturan_tugas';
     case EDIT_PENGATURAN_LMS = 'edit_pengaturan_lms';
+    case EDIT_PENGATURAN_KEPEGAWAIAN = 'edit_pengaturan_kepegawaian';
 
     /**
      * Beda dari Update:Schedule (edit header jadwal, ubah karyawan yang dipasangkan) — ini
@@ -106,6 +107,7 @@ enum CustomPermissionEnum: string
             self::SYNC_DATA_ABSENSI => 'Sync Data Absensi (dari Access Logs)',
             self::EDIT_PENGATURAN_TUGAS => 'Edit Pengaturan Tugas',
             self::EDIT_PENGATURAN_LMS => 'Edit Pengaturan LMS',
+            self::EDIT_PENGATURAN_KEPEGAWAIAN => 'Edit Pengaturan Kepegawaian',
             self::KELOLA_JADWAL_SHIFT => 'Kelola Jadwal Shift (Template & Roster)',
             self::GENERATE_PAYROLL => 'Generate/Regenerate Payroll',
             self::LIHAT_LAMPIRAN_IDENTITAS_KARYAWAN => 'Lihat Lampiran Identitas Karyawan (KTP/KK)',

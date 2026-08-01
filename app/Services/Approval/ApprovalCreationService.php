@@ -2,12 +2,15 @@
 
 namespace App\Services\Approval;
 
+use App\Enum\Approval\ApprovalModuleEnum;
 use App\Models\ApprovalManagement\ApprovalSnapshots;
 use App\Models\ApprovalManagement\MasterApprovalFlows;
 use App\Models\User;
+use App\Notifications\ApprovalNeedsAction;
 use App\Repositories\Approval\ApprovalActivityRepository;
 use App\Repositories\Approval\ApprovalHistoryRepository;
 use App\Repositories\Approval\ApprovalSnapshotRepository;
+use App\Services\Notification\NotificationService;
 use Illuminate\Support\Facades\DB;
 
 class ApprovalCreationService
@@ -15,7 +18,8 @@ class ApprovalCreationService
     public function __construct(
         protected ApprovalSnapshotRepository $snapshotRepo,
         protected ApprovalActivityRepository $activityRepo,
-        protected ApprovalHistoryRepository $historyRepo
+        protected ApprovalHistoryRepository $historyRepo,
+        protected NotificationService $notificationService,
     ) {}
 
     public function createSnapshot(
@@ -83,6 +87,21 @@ class ApprovalCreationService
                     'flow_version' => $flow->version ?? 1,
                 ],
             ]);
+
+            // Kabari approver step pertama - sebelumnya tidak ada notifikasi apa pun dikirim
+            // saat pengajuan baru dibuat (cuma dikirim saat advanceStep ke step berikutnya),
+            // jadi approver pertama baru tahu ada pengajuan kalau kebetulan buka listnya sendiri.
+            // ATTENDANCE_REQUEST dikecualikan - AttendaceReqService sudah kirim notifikasi
+            // submit sendiri (LeaveRequestSubmitted/PermissionRequestSubmitted/
+            // OvertimeRequestSubmitted), jangan dobel.
+            if ($firstStep && $moduleType !== ApprovalModuleEnum::ATTENDANCE_REQUEST->value) {
+                $snapshot->refresh();
+                $firstApprover = $this->notificationService->getFirstApproverFromSnapshot($snapshot);
+                if ($firstApprover) {
+                    $requesterName = User::find($createdBy)?->name ?? 'Seseorang';
+                    $firstApprover->notify(new ApprovalNeedsAction($moduleType, $moduleId, $requesterName));
+                }
+            }
 
             return $snapshot;
         });

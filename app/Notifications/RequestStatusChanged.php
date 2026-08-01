@@ -82,3 +82,4 @@ class RequestStatusChanged extends Notification implements ShouldQueue
             ->action('Lihat', 'view');
     }
 }
+

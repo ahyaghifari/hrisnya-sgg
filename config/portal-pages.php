@@ -148,6 +148,12 @@ return [
         'guard' => null,
     ],
 
+    'kepegawaian.pengaturan' => [
+        'label' => 'Pengaturan Kepegawaian',
+        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_KEPEGAWAIAN->value,
+        'guard' => null,
+    ],
+
     'kepegawaian.job-evaluation' => [
         'label' => 'Job Evaluation',
         'permission' => \App\Enum\CustomPermissionEnum::SISTEM_KEPEGAWAIAN->value,

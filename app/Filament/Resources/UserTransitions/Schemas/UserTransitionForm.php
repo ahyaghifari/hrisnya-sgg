@@ -4,8 +4,11 @@ namespace App\Filament\Resources\UserTransitions\Schemas;
 
 use App\Enum\OrgStructurLevel;
 use App\Enum\UserTransitionTypeEnum;
+use App\Enum\EmployeeTypeCategory;
 use App\Models\Master\Companies;
+use App\Models\Master\EmployeeTypes;
 use App\Models\Master\JobPositions;
+use App\Models\Master\Kelas;
 use App\Models\Master\OrgStructure;
 use App\Models\User;
 use Filament\Forms\Components\DatePicker;
@@ -20,6 +23,8 @@ use Filament\Infolists\Components\TextEntry;
 use Filament\Resources\Pages\CreateRecord;
 use Filament\Schemas\Components\Fieldset;
 use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Text;
+use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
 use Illuminate\Support\Facades\Auth;
 
@@ -44,10 +49,20 @@ class UserTransitionForm
                 ->schema([
                     Select::make('user_id')
                         ->label('Karyawan')
-                        ->relationship('user', 'name', function ($query) {
+                        ->relationship('user', 'name', function ($query, Get $get) {
                             $query->where('company_id', auth()->user()->company_id);
+
+                            // Perubahan Status Kepegawaian khusus buat karyawan Orientasi (naik
+                            // jadi Kontrak/Tetap) - kebalikan dari jenis transisi lain yang
+                            // khusus Tetap/Kontrak (Orientasi tidak relevan buat Promosi/dst).
+                            $categories = $get('transition_type') === UserTransitionTypeEnum::EMPLOYMENT_STATUS_CHANGE->value
+                                ? [EmployeeTypeCategory::ORIENTASI->value]
+                                : [EmployeeTypeCategory::TETAP->value, EmployeeTypeCategory::KONTRAK->value];
+
+                            $query->whereHas('profile.employeeType', fn ($q) => $q->whereIn('category', $categories));
                         })
                         ->searchable()
+                        ->reactive()
                         ->required(),
 
                     Select::make('transition_type')
@@ -57,6 +72,9 @@ class UserTransitionForm
                             UserTransitionTypeEnum::DEMOTION->value => UserTransitionTypeEnum::DEMOTION->label(),
                             UserTransitionTypeEnum::MUTATION->value => UserTransitionTypeEnum::MUTATION->label(),
                             UserTransitionTypeEnum::TERMINATION->value => UserTransitionTypeEnum::TERMINATION->label(),
+                            UserTransitionTypeEnum::KELAS_CHANGE->value => UserTransitionTypeEnum::KELAS_CHANGE->label(),
+                            UserTransitionTypeEnum::EMPLOYMENT_STATUS_CHANGE->value => UserTransitionTypeEnum::EMPLOYMENT_STATUS_CHANGE->label(),
+                            UserTransitionTypeEnum::CONTRACT_EXTENSION->value => UserTransitionTypeEnum::CONTRACT_EXTENSION->label(),
                         ])
                         ->default(fn () => request()->query('type'))
                         ->reactive()
@@ -336,6 +354,99 @@ class UserTransitionForm
                 ->columns(1)
                 ->columnSpanFull(),
 
+            Section::make('Perubahan Kelas')
+                ->icon('heroicon-o-arrow-trending-up')
+                ->visible(fn ($get) =>
+                in_array($get('transition_type'), [
+                    UserTransitionTypeEnum::KELAS_CHANGE->value,
+                ])
+                )
+                ->schema([
+                    Select::make('transitionable_id')
+                        ->label('Kelas Baru')
+                        ->options(function (callable $get) {
+                            $userId = $get('user_id');
+                            $user = $userId ? User::find($userId) : null;
+
+                            if (! $user) {
+                                return [];
+                            }
+
+                            return Kelas::where('company_id', $user->company_id)->pluck('name', 'id');
+                        })
+                        ->required()
+                        ->searchable(),
+                    DatePicker::make('effective_date')
+                        ->label('Tanggal Efektif')
+                        ->required()
+                        ->native(false)
+                        ->displayFormat('d M Y')
+                        ->closeOnDateSelection(),
+                    Textarea::make('reason')
+                        ->label('Alasan')
+                        ->rows(2)
+                        ->columnSpanFull(),
+                ])
+                ->columns(2)
+                ->columnSpanFull(),
+
+            Section::make('Perubahan Status Kepegawaian')
+                ->icon('heroicon-o-identification')
+                ->visible(fn ($get) =>
+                in_array($get('transition_type'), [
+                    UserTransitionTypeEnum::EMPLOYMENT_STATUS_CHANGE->value,
+                ])
+                )
+                ->schema([
+                    Select::make('transitionable_id')
+                        ->label('Status Baru')
+                        ->options(function (callable $get) {
+                            $userId = $get('user_id');
+                            $user = $userId ? User::find($userId) : null;
+
+                            if (! $user) {
+                                return [];
+                            }
+
+                            return EmployeeTypes::where('company_id', $user->company_id)
+                                ->whereIn('category', [EmployeeTypeCategory::TETAP->value, EmployeeTypeCategory::KONTRAK->value])
+                                ->pluck('name', 'id');
+                        })
+                        ->reactive()
+                        ->required()
+                        ->searchable(),
+                    DatePicker::make('effective_date')
+                        ->label('Tanggal Efektif')
+                        ->required()
+                        ->native(false)
+                        ->displayFormat('d M Y')
+                        ->closeOnDateSelection()
+                        ->helperText('Kalau status barunya Kontrak, "Kontrak Berlaku Sampai" otomatis dihitung dari tanggal ini + durasi perpanjangan (Pengaturan Kepegawaian) - tidak diisi manual.'),
+                    Textarea::make('reason')
+                        ->label('Alasan')
+                        ->rows(2)
+                        ->columnSpanFull(),
+                ])
+                ->columns(2)
+                ->columnSpanFull(),
+
+            Section::make('Perpanjangan Kontrak')
+                ->icon('heroicon-o-calendar-days')
+                ->visible(fn ($get) =>
+                in_array($get('transition_type'), [
+                    UserTransitionTypeEnum::CONTRACT_EXTENSION->value,
+                ])
+                )
+                ->schema([
+                    Text::make('Tanggal kontrak baru dihitung otomatis (durasi perpanjangan dari Pengaturan Kepegawaian, disambung dari tanggal kontrak yang berjalan sekarang) begitu pengajuan disetujui - tidak ada tanggal yang perlu diisi manual di sini.'),
+                    Textarea::make('reason')
+                        ->label('Alasan')
+                        ->rows(2)
+                        ->columnSpanFull(),
+                ])
+                ->columns(1)
+                ->columnSpanFull(),
+
             Section::make('Lampiran')
                 ->icon('heroicon-o-paper-clip')
                 ->visible(fn ($get) =>
@@ -344,6 +455,9 @@ class UserTransitionForm
                     UserTransitionTypeEnum::DEMOTION->value,
                     UserTransitionTypeEnum::TERMINATION->value,
                     UserTransitionTypeEnum::PROMOTION->value,
+                    UserTransitionTypeEnum::KELAS_CHANGE->value,
+                    UserTransitionTypeEnum::EMPLOYMENT_STATUS_CHANGE->value,
+                    UserTransitionTypeEnum::CONTRACT_EXTENSION->value,
                 ])
                 )
                 ->schema([
@@ -547,6 +661,66 @@ class UserTransitionForm
                 ->schema([
                     TextEntry::make('transitionable.name')
                         ->label('Department Baru'),
+                ])
+                ->columnSpanFull(),
+
+            Section::make('Perubahan Kelas')
+                ->visible(fn ($record) =>
+                    $record->transition_type === UserTransitionTypeEnum::KELAS_CHANGE->value
+                )
+                ->icon('heroicon-o-arrow-trending-up')
+                ->columns(2)
+                ->schema([
+                    TextEntry::make('old_value')
+                        ->label('Kelas Sebelumnya'),
+                    TextEntry::make('transitionable.name')
+                        ->label('Kelas Baru'),
+                    TextEntry::make('effective_date')
+                        ->label('Tanggal Efektif'),
+                    TextEntry::make('reason')
+                        ->label('Alasan')
+                        ->placeholder('-'),
+                ])
+                ->columnSpanFull(),
+
+            Section::make('Perubahan Status Kepegawaian')
+                ->visible(fn ($record) =>
+                    $record->transition_type === UserTransitionTypeEnum::EMPLOYMENT_STATUS_CHANGE->value
+                )
+                ->icon('heroicon-o-identification')
+                ->columns(2)
+                ->schema([
+                    TextEntry::make('old_value')
+                        ->label('Status Sebelumnya'),
+                    TextEntry::make('transitionable.name')
+                        ->label('Status Baru'),
+                    TextEntry::make('effective_date')
+                        ->label('Tanggal Efektif'),
+                    TextEntry::make('contract_end_date')
+                        ->label('Kontrak Berlaku Sampai')
+                        ->placeholder('-'),
+                    TextEntry::make('reason')
+                        ->label('Alasan')
+                        ->placeholder('-')
+                        ->columnSpanFull(),
+                ])
+                ->columnSpanFull(),
+
+            Section::make('Perpanjangan Kontrak')
+                ->visible(fn ($record) =>
+                    $record->transition_type === UserTransitionTypeEnum::CONTRACT_EXTENSION->value
+                )
+                ->icon('heroicon-o-calendar-days')
+                ->columns(2)
+                ->schema([
+                    TextEntry::make('old_value')
+                        ->label('Kontrak Sebelumnya Sampai'),
+                    TextEntry::make('contract_end_date')
+                        ->label('Kontrak Baru Sampai'),
+                    TextEntry::make('reason')
+                        ->label('Alasan')
+                        ->placeholder('-')
+                        ->columnSpanFull(),
                 ])
                 ->columnSpanFull(),
 

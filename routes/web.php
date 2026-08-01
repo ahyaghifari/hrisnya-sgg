@@ -193,6 +193,9 @@ Route::middleware(['auth', 'portal.access'])->group(function () {
     Route::get('/kepegawaian/job-evaluation', \App\Livewire\Kepegawaian\JobEvaluationPage::class)
         ->name('kepegawaian.job-evaluation');
 
+    Route::get('/kepegawaian/pengaturan', \App\Livewire\Kepegawaian\EmploymentSettingsPage::class)
+        ->name('kepegawaian.pengaturan');
+
     Route::get('/pengajuan-absensi', MyAttendanceRequests::class)
         ->name('my-attendance-requests');
 

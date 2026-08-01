@@ -57,7 +57,9 @@ class RoleForm
                 'Replicate:SalaryComponents',
                 'Reorder:SalaryComponents',
             ],
-            CustomPermissionEnum::SISTEM_KEPEGAWAIAN->value => [],
+            CustomPermissionEnum::SISTEM_KEPEGAWAIAN->value => [
+                CustomPermissionEnum::EDIT_PENGATURAN_KEPEGAWAIAN->value,
+            ],
             CustomPermissionEnum::SISTEM_ABSENSI->value => [
                 CustomPermissionEnum::EDIT_PENGATURAN_ABSENSI->value,
                 CustomPermissionEnum::KELOLA_JADWAL_SHIFT->value,

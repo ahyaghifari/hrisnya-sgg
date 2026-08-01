@@ -98,6 +98,21 @@ class UserTransitionResource extends Resource
                 ->url(static::getUrl('index', ['type' => UserTransitionTypeEnum::TERMINATION->value]))
                 ->icon(static::getNavigationIcon())
                 ->isActiveWhen(fn (): bool => request()->get('type') === UserTransitionTypeEnum::TERMINATION->value),
+
+            NavigationItem::make('Perubahan Kelas')
+                ->url(static::getUrl('index', ['type' => UserTransitionTypeEnum::KELAS_CHANGE->value]))
+                ->icon(static::getNavigationIcon())
+                ->isActiveWhen(fn (): bool => request()->get('type') === UserTransitionTypeEnum::KELAS_CHANGE->value),
+
+            NavigationItem::make('Perubahan Status Kepegawaian')
+                ->url(static::getUrl('index', ['type' => UserTransitionTypeEnum::EMPLOYMENT_STATUS_CHANGE->value]))
+                ->icon(static::getNavigationIcon())
+                ->isActiveWhen(fn (): bool => request()->get('type') === UserTransitionTypeEnum::EMPLOYMENT_STATUS_CHANGE->value),
+
+            NavigationItem::make('Perpanjangan Kontrak')
+                ->url(static::getUrl('index', ['type' => UserTransitionTypeEnum::CONTRACT_EXTENSION->value]))
+                ->icon(static::getNavigationIcon())
+                ->isActiveWhen(fn (): bool => request()->get('type') === UserTransitionTypeEnum::CONTRACT_EXTENSION->value),
         ];
     }
 }

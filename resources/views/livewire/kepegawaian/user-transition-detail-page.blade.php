@@ -88,6 +88,36 @@
         </div>
     @endif
 
+    @if ($record->transition_type === 'kelas_change')
+        <div style="background:var(--surface);border-radius:16px;box-shadow:var(--shadow-card);padding:18px;">
+            {!! $sectionHeader('fa-arrow-trend-up', 'Perubahan Kelas') !!}
+            {!! $renderField('Kelas Sebelumnya', $record->old_value) !!}
+            {!! $renderField('Kelas Baru', $record->transitionable?->name) !!}
+            {!! $renderField('Tanggal Efektif', $formatDate($record->effective_date)) !!}
+            {!! $renderField('Alasan', $record->reason, false) !!}
+        </div>
+    @endif
+
+    @if ($record->transition_type === 'employment_status_change')
+        <div style="background:var(--surface);border-radius:16px;box-shadow:var(--shadow-card);padding:18px;">
+            {!! $sectionHeader('fa-id-card', 'Perubahan Status Kepegawaian') !!}
+            {!! $renderField('Status Sebelumnya', $record->old_value) !!}
+            {!! $renderField('Status Baru', $record->transitionable?->name) !!}
+            {!! $renderField('Tanggal Efektif', $formatDate($record->effective_date)) !!}
+            {!! $renderField('Kontrak Berlaku Sampai', $formatDate($record->contract_end_date)) !!}
+            {!! $renderField('Alasan', $record->reason, false) !!}
+        </div>
+    @endif
+
+    @if ($record->transition_type === 'contract_extension')
+        <div style="background:var(--surface);border-radius:16px;box-shadow:var(--shadow-card);padding:18px;">
+            {!! $sectionHeader('fa-calendar-days', 'Perpanjangan Kontrak') !!}
+            {!! $renderField('Kontrak Sebelumnya Sampai', $formatDate($record->old_value)) !!}
+            {!! $renderField('Kontrak Baru Sampai', $formatDate($record->contract_end_date)) !!}
+            {!! $renderField('Alasan', $record->reason, false) !!}
+        </div>
+    @endif
+
     @if ($record->transition_type === 'demotion')
         <div style="background:var(--surface);border-radius:16px;box-shadow:var(--shadow-card);padding:18px;">
             {!! $sectionHeader('fa-triangle-exclamation', 'Alasan Penilaian Demosi') !!}

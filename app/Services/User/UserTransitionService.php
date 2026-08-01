@@ -3,15 +3,21 @@
 namespace App\Services\User;
 
 use App\Enum\Approval\ApprovalModuleEnum;
+use App\Enum\EmployeeTypeCategory;
+use App\Enum\Kepegawaian\KepegawaianSettingEnum;
 use App\Enum\UserTransitionStatusEnum;
 use App\Enum\UserTransitionTypeEnum;
+use App\Models\Master\EmployeeTypes;
 use App\Models\Master\JobPositions;
+use App\Models\Master\Kelas;
 use App\Models\Master\OrgStructure;
+use App\Models\Setting;
 use App\Models\User;
 use App\Models\User\UserTransition;
 use App\Repositories\Approval\ApprovalSnapshotRepository;
 use App\Services\Approval\ApprovalCreationService;
 use App\Services\Approval\ApprovalFlowService;
+use Carbon\Carbon;
 
 /**
  * Logic Perubahan Status Karyawan (Promosi/Demosi/Mutasi/PHK) — dipakai BERSAMA oleh admin
@@ -59,6 +65,34 @@ class UserTransitionService
             $data['old_value'] = $targetUser->profile?->orgStructure?->name;
         }
 
+        if ($data['transition_type'] === UserTransitionTypeEnum::KELAS_CHANGE->value) {
+            $data['transitionable_type'] = Kelas::class;
+            $data['old_value'] = $targetUser->profile?->kelas?->name;
+        }
+
+        if ($data['transition_type'] === UserTransitionTypeEnum::EMPLOYMENT_STATUS_CHANGE->value) {
+            $data['transitionable_type'] = EmployeeTypes::class;
+            $data['old_value'] = $targetUser->profile?->employeeType?->name;
+
+            // contract_end_date dihitung otomatis (bukan input manual) - cuma relevan kalau
+            // status barunya Kontrak.
+            $newEmployeeType = EmployeeTypes::find($data['transitionable_id']);
+            $data['contract_end_date'] = $newEmployeeType?->category === EmployeeTypeCategory::KONTRAK
+                ? $this->resolveContractEndDate($targetUser, Carbon::parse($data['effective_date']), $actingUser->company_id)->toDateString()
+                : null;
+        }
+
+        if ($data['transition_type'] === UserTransitionTypeEnum::CONTRACT_EXTENSION->value) {
+            $data['old_value'] = $targetUser->profile?->contract_end_date;
+
+            // Anchor dari tanggal kontrak SEKARANG (atau hari ini kalau sudah lewat/belum ada),
+            // bukan dari effective_date - perpanjangan menyambung dari kontrak yang berjalan.
+            $anchor = $targetUser->profile?->contract_end_date
+                ? Carbon::parse($targetUser->profile->contract_end_date)->max(Carbon::today())
+                : Carbon::today();
+            $data['contract_end_date'] = $this->resolveContractEndDate($targetUser, $anchor, $actingUser->company_id)->toDateString();
+        }
+
         $transition = UserTransition::create($data);
 
         if (! empty($detailData)) {
@@ -88,6 +122,49 @@ class UserTransitionService
         );
 
         return $transition;
+    }
+
+    /**
+     * Hitung tanggal berakhir kontrak otomatis (anchor + durasi perpanjangan dari
+     * KepegawaianSettingEnum::PERPANJANGAN_KONTRAK_BULAN), sekaligus validasi 2 batas company-
+     * scoped: total masa kerja Kontrak dari Tanggal Bergabung (MAX_KONTRAK_TAHUN) dan usia
+     * pensiun dari Tanggal Lahir (USIA_PENSIUN_TAHUN) - throw kalau melanggar, gagal-cepat
+     * sebelum record dibuat. 0 di setting = tidak dibatasi.
+     */
+    private function resolveContractEndDate(User $user, Carbon $anchor, ?string $companyId): Carbon
+    {
+        $months = (int) Setting::resolve(
+            KepegawaianSettingEnum::PERPANJANGAN_KONTRAK_BULAN->value,
+            $companyId,
+            default: (int) KepegawaianSettingEnum::PERPANJANGAN_KONTRAK_BULAN->default()
+        );
+        $contractEndDate = $anchor->copy()->addMonths($months);
+
+        $maxTahun = (int) Setting::resolve(
+            KepegawaianSettingEnum::MAX_KONTRAK_TAHUN->value,
+            $companyId,
+            default: (int) KepegawaianSettingEnum::MAX_KONTRAK_TAHUN->default()
+        );
+        if ($maxTahun > 0 && $user->profile?->joining_date) {
+            $maxEndDate = Carbon::parse($user->profile->joining_date)->addYears($maxTahun);
+            if ($contractEndDate->greaterThan($maxEndDate)) {
+                throw new \Exception("Melebihi batas maksimal {$maxTahun} tahun sebagai karyawan Kontrak (dihitung dari Tanggal Bergabung), maksimal sampai {$maxEndDate->translatedFormat('d F Y')}.");
+            }
+        }
+
+        $usiaPensiun = (int) Setting::resolve(
+            KepegawaianSettingEnum::USIA_PENSIUN_TAHUN->value,
+            $companyId,
+            default: (int) KepegawaianSettingEnum::USIA_PENSIUN_TAHUN->default()
+        );
+        if ($usiaPensiun > 0 && $user->profile?->date_of_birth) {
+            $ageAtEnd = Carbon::parse($user->profile->date_of_birth)->diffInYears($contractEndDate);
+            if ($ageAtEnd >= $usiaPensiun) {
+                throw new \Exception("Karyawan akan mencapai usia pensiun ({$usiaPensiun} tahun) sebelum {$contractEndDate->translatedFormat('d F Y')}.");
+            }
+        }
+
+        return $contractEndDate;
     }
 
     /** Buat approval snapshot kalau belum ada (jaga-jaga, sama seperti EditUserTransition::mount()
@@ -190,6 +267,42 @@ class UserTransitionService
 
         if ($type === UserTransitionTypeEnum::MUTATION->value) {
             $user->profile?->update(['org_structure_id' => $transition->transitionable_id]);
+
+            return;
+        }
+
+        if ($type === UserTransitionTypeEnum::KELAS_CHANGE->value) {
+            $user->profile?->update(['kelas_id' => $transition->transitionable_id]);
+
+            return;
+        }
+
+        if ($type === UserTransitionTypeEnum::EMPLOYMENT_STATUS_CHANGE->value) {
+            $newEmployeeType = EmployeeTypes::find($transition->transitionable_id);
+
+            $updates = ['employee_type_id' => $transition->transitionable_id];
+
+            // Kelas otomatis ikut minimal kelas dari Pangkat yang sudah di-assign ke karyawan
+            // (Pangkats::startKelas()) - bukan dipilih manual, dikonfirmasi user: pangkat sudah
+            // menentukan kelas minimalnya.
+            $startKelasId = $user->profile?->pangkat?->start_kelas_id;
+            if ($startKelasId) {
+                $updates['kelas_id'] = $startKelasId;
+            }
+
+            // contract_end_date cuma relevan buat status Kontrak - kosongkan kalau target
+            // statusnya Tetap (atau kategori lain), isi kalau Kontrak.
+            $updates['contract_end_date'] = $newEmployeeType?->category === EmployeeTypeCategory::KONTRAK
+                ? $transition->contract_end_date
+                : null;
+
+            $user->profile?->update($updates);
+
+            return;
+        }
+
+        if ($type === UserTransitionTypeEnum::CONTRACT_EXTENSION->value) {
+            $user->profile?->update(['contract_end_date' => $transition->contract_end_date]);
 
             return;
         }
