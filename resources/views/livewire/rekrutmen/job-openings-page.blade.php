@@ -37,7 +37,7 @@
                 <a href="{{ route('kepegawaian.lowongan.show', $opening) }}" wire:navigate class="pwa-list-row" style="text-decoration:none;">
                     <div class="pwa-tile-icon neutral"><i class="fa-solid fa-briefcase"></i></div>
                     <div style="flex:1;min-width:0;">
-                        <p style="font-size:13px;font-weight:600;color:var(--text-heading);">{{ $opening->jobPosition?->name ?? '-' }}</p>
+                        <p style="font-size:13px;font-weight:600;color:var(--text-heading);">{{ $opening->display_name }}</p>
                         <p style="font-size:11px;color:var(--text-muted);margin-top:2px;">{{ $opening->jobPosition?->orgStructure?->name ?? '-' }} &middot; Kuota {{ $opening->quota }} &middot; {{ $opening->applicants_count }} pelamar</p>
                     </div>
                     <span class="badge {{ $opening->openingStatus()->getBadgeClass() }}">{{ $opening->openingStatus()->getLabel() }}</span>
@@ -71,7 +71,7 @@
             <tbody>
                 @foreach ($jobOpenings as $opening)
                     <tr wire:key="'jo-'.{{ $opening->id }}" style="border-bottom:1px solid var(--border-soft);">
-                        <td style="padding:9px 14px;white-space:nowrap;font-weight:600;">{{ $opening->jobPosition?->name ?? '-' }}</td>
+                        <td style="padding:9px 14px;white-space:nowrap;font-weight:600;">{{ $opening->display_name }}</td>
                         <td style="padding:9px 14px;white-space:nowrap;">{{ $opening->jobPosition?->orgStructure?->name ?? '-' }}</td>
                         @if ($this->canBrowseAllCompanies)
                             <td style="padding:9px 14px;white-space:nowrap;">{{ $opening->company?->name ?? '-' }}</td>

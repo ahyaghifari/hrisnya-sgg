@@ -1,12 +1,12 @@
 <div>
 <x-page-header title="Edit Lowongan Kerja" subtitle="Posisi, kuota, deskripsi, dan persyaratan lowongan" :back="route('kepegawaian.lowongan.show', $record)" />
 
-<div style="max-width:720px;margin-bottom:16px;display:flex;align-items:center;gap:10px;">
+<div style="margin-bottom:16px;display:flex;align-items:center;gap:10px;">
     <span style="font-size:12px;color:var(--text-muted);">Status:</span>
     <span class="badge {{ $this->status->getBadgeClass() }}">{{ $this->status->getLabel() }}</span>
 </div>
 
-<div style="max-width:720px;">
+<div>
     <div class="form-card">
         <div class="section-head">
             <div class="section-icon"><i class="fa-solid fa-briefcase" style="color:var(--brand);font-size:12px;"></i></div>
@@ -23,13 +23,20 @@
 
             <div>
                 <label class="form-label">Posisi Jabatan <span style="color:var(--danger-text);">*</span></label>
-                <select wire:model="job_position_id" class="form-input">
+                <select wire:model.live="job_position_id" class="form-input">
                     <option value="">Pilih posisi jabatan</option>
                     @foreach ($this->jobPositionOptions as $id => $name)
                         <option value="{{ $id }}">{{ $name }}</option>
                     @endforeach
                 </select>
                 @error('job_position_id') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
+            </div>
+
+            <div>
+                <label class="form-label">Nama Lain Lowongan</label>
+                <input type="text" wire:model="alias" class="form-input" placeholder="Contoh: Perawat (kalau nama jabatan asli terlalu panjang)">
+                <p style="font-size:11px;color:var(--text-muted);margin-top:4px;">Opsional - nama ringkas yang tampil ke kandidat, menggantikan nama jabatan asli. Kosong = pakai nama jabatan.</p>
+                @error('alias') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
             </div>
 
             <div>

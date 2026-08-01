@@ -30,7 +30,7 @@ class JobOpeningWidget extends Widget implements HasForms, HasInfolists
             ->get();
 
         $sections = $jobOpenings->map(function ($jobOpening) {
-            return Section::make($jobOpening->jobPosition->name . ' - ' . $jobOpening->jobPosition->orgStructure->name ?? 'Job Position')
+            return Section::make($jobOpening->display_name . ' - ' . $jobOpening->jobPosition->orgStructure->name ?? 'Job Position')
                 ->description($jobOpening->company->name ?? 'Company')
                 ->icon('heroicon-o-briefcase')
                 ->iconColor('primary')
@@ -40,7 +40,7 @@ class JobOpeningWidget extends Widget implements HasForms, HasInfolists
                             TextEntry::make('description')
                                 ->hiddenLabel()
                                 ->columnSpanFull()
-                                ->state("Lowongan Posisi {$jobOpening->jobPosition->name} di {$jobOpening->company->name}"),
+                                ->state("Lowongan Posisi {$jobOpening->display_name} di {$jobOpening->company->name}"),
 
                             Action::make('apply')
                                 ->label('Detail Lowongan')

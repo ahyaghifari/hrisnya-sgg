@@ -17,7 +17,7 @@ class JobOpeningDetailResource extends JsonResource
         return [
             'id' => $this->id,
             'company' => $this->company->name,
-            'job_position' => $this->jobPosition->name,
+            'job_position' => $this->display_name,
             'description' => $this->description,
             'requirements' => $this->requirements
         ];

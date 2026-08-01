@@ -26,6 +26,7 @@ class EditJobOpeningPage extends Component
 
     public ?string $company_id = null;
     public ?string $job_position_id = null;
+    public string $alias = '';
     public int $quota = 1;
     public string $description = '';
     public string $requirements = '';
@@ -42,9 +43,21 @@ class EditJobOpeningPage extends Component
         $this->record = $record;
         $this->company_id = $record->company_id;
         $this->job_position_id = $record->job_position_id;
+        $this->alias = (string) $record->alias;
         $this->quota = $record->quota;
         $this->description = (string) $record->description;
         $this->requirements = (string) $record->requirements;
+    }
+
+    /** Ganti posisi jabatan -> isi ulang deskripsi/persyaratan dari master jabatan baru, tapi
+     * cuma kalau field masih kosong (jangan timpa yang sudah diedit manual). */
+    public function updatedJobPositionId(): void
+    {
+        if ($this->description === '' && $this->requirements === '') {
+            $jobPosition = JobPositions::find($this->job_position_id);
+            $this->description = (string) $jobPosition?->description;
+            $this->requirements = (string) $jobPosition?->qualification;
+        }
     }
 
     public function getCompanyOptionsProperty()
@@ -75,6 +88,7 @@ class EditJobOpeningPage extends Component
     {
         return [
             'job_position_id' => ['required', 'exists:m_job_positions,id'],
+            'alias' => ['nullable', 'string', 'max:255'],
             'quota' => ['required', 'integer', 'min:1'],
             'description' => ['nullable', 'string'],
             'requirements' => ['nullable', 'string'],

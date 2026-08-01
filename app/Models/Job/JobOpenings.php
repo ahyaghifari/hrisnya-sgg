@@ -53,12 +53,19 @@ class JobOpenings extends Model
     protected $fillable = [
         'company_id',
         'job_position_id',
+        'alias',
         'quota',
         'is_active',
         'opened_at',
         'description',
         'requirements',
     ];
+
+    /** Nama tampilan candidate-facing - fallback ke nama jabatan asli kalau alias kosong. */
+    public function getDisplayNameAttribute(): string
+    {
+        return $this->alias ?: ($this->jobPosition?->name ?? '-');
+    }
 
     protected $casts = [
         'opened_at' => 'datetime',

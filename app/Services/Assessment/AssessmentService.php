@@ -14,6 +14,31 @@ class AssessmentService
         protected AssessmentRepository $assessmentRepository
     ) {}
 
+    public function ensureAssessmentScoresExist(AssessmentUsers $assessmentUser): void
+    {
+        $assessment = $assessmentUser->assessments;
+
+        if (!$assessment || !$assessment->template) {
+            return;
+        }
+
+        $templateItems = $assessment->template->templateItems()->orderBy('sort_order')->get();
+
+        foreach ($templateItems as $templateItem) {
+            AssessmentScores::firstOrCreate(
+                [
+                    'assessment_user_id' => $assessmentUser->id,
+                    'template_item_id' => $templateItem->id,
+                ],
+                [
+                    'score' => null,
+                    'weighted_score' => null,
+                    'comment' => null,
+                ]
+            );
+        }
+    }
+
     public function calculateUserAssessmentScore(string $assessmentUserId): array
     {
         try {

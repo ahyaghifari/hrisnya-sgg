@@ -49,7 +49,7 @@ class JobVacancyForm
                 })
                 ->columnSpanFull(),
 
-                Section::make(fn ($record) => $record ? $record->jobPosition->name . ' - ' . $record->jobPosition->orgStructure->name : 'Detail Lowongan Kerja')
+                Section::make(fn ($record) => $record ? $record->display_name . ' - ' . $record->jobPosition->orgStructure->name : 'Detail Lowongan Kerja')
                     ->headerActions([
                         Action::make('apply')
                             ->label('Lamar Pekerjaan')

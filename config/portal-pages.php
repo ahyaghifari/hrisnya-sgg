@@ -76,6 +76,62 @@ return [
         'guard' => null,
     ],
 
+    // Guard per-record dicek di dalam AssessmentUserForm::mount() sendiri (pola sama seperti
+    // 'karyawan.show') — bisa diakses karyawan yang dinilai maupun atasan langsungnya.
+    'assessment.show' => [
+        'label' => 'Penilaian Karyawan',
+        'permission' => null,
+        'guard' => null,
+    ],
+
+    'penilaian.template' => [
+        'label' => 'Template Penilaian',
+        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_PENILAIAN_KARYAWAN->value,
+        'guard' => null,
+    ],
+
+    'penilaian.template.create' => [
+        'label' => 'Tambah Template Penilaian',
+        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_PENILAIAN_KARYAWAN->value,
+        'guard' => null,
+    ],
+
+    'penilaian.template.edit' => [
+        'label' => 'Edit Template Penilaian',
+        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_PENILAIAN_KARYAWAN->value,
+        'guard' => null,
+    ],
+
+    'penilaian.daftar' => [
+        'label' => 'Daftar Penilaian',
+        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_PENILAIAN_KARYAWAN->value,
+        'guard' => null,
+    ],
+
+    'penilaian.daftar.tambah' => [
+        'label' => 'Tambah Penilaian',
+        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_PENILAIAN_KARYAWAN->value,
+        'guard' => null,
+    ],
+
+    'penilaian.jadwal' => [
+        'label' => 'Jadwal Penilaian',
+        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_PENILAIAN_KARYAWAN->value,
+        'guard' => null,
+    ],
+
+    'penilaian.jadwal.create' => [
+        'label' => 'Tambah Jadwal Penilaian',
+        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_PENILAIAN_KARYAWAN->value,
+        'guard' => null,
+    ],
+
+    'penilaian.jadwal.edit' => [
+        'label' => 'Edit Jadwal Penilaian',
+        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_PENILAIAN_KARYAWAN->value,
+        'guard' => null,
+    ],
+
     'kepegawaian.dashboard' => [
         'label' => 'Dashboard Kepegawaian',
         'permission' => \App\Enum\CustomPermissionEnum::SISTEM_KEPEGAWAIAN->value,

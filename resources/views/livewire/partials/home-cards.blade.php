@@ -22,7 +22,7 @@
             </div>
             
             <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end;">
-                <a href="{{ route('data-diri') }}" wire:navigate class="data-diri-btn">
+                <a href="{{ route('data-diri') }}" wire:navigate class="data-diri-btn gold">
                     <i class="fa-solid fa-id-card"></i> Data Diri
                 </a>
                 @if (auth()->user()->hasRole(['Admin', 'Super Admin']))

@@ -1,5 +1,5 @@
 <div>
-<x-page-header title="Detail Lowongan Kerja" :subtitle="$record->jobPosition?->name" :back="route('kepegawaian.lowongan')" />
+<x-page-header title="Detail Lowongan Kerja" :subtitle="$record->display_name" :back="route('kepegawaian.lowongan')" />
 
 @php $openingStatus = $record->openingStatus(); @endphp
 
@@ -20,6 +20,12 @@
         <span style="font-size:12.5px;color:var(--text-muted);">Posisi</span>
         <span style="font-size:13.5px;font-weight:600;color:var(--text-body);">{{ $record->jobPosition?->name ?? '-' }}</span>
     </div>
+    @if ($record->alias)
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;padding:10px 0;border-bottom:1px solid var(--border-soft);">
+            <span style="font-size:12.5px;color:var(--text-muted);">Nama Tampilan</span>
+            <span style="font-size:13.5px;font-weight:600;color:var(--text-body);">{{ $record->alias }}</span>
+        </div>
+    @endif
     <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;padding:10px 0;border-bottom:1px solid var(--border-soft);">
         <span style="font-size:12.5px;color:var(--text-muted);">Unit</span>
         <span style="font-size:13.5px;font-weight:600;color:var(--text-body);">{{ $record->jobPosition?->orgStructure?->name ?? '-' }}</span>

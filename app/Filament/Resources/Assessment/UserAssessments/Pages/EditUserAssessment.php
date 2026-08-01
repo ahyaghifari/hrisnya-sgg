@@ -23,36 +23,9 @@ class EditUserAssessment extends EditRecord
 
     protected function mutateFormDataBeforeFill(array $data): array
     {
-        // Ensure assessment scores exist for all template items
-        $this->ensureAssessmentScoresExist();
-        
+        app(AssessmentService::class)->ensureAssessmentScoresExist($this->record);
+
         return $data;
-    }
-
-    protected function ensureAssessmentScoresExist(): void
-    {
-        $assessmentUser = $this->record;
-        $assessment = $assessmentUser->assessments;
-        
-        if (!$assessment || !$assessment->template) {
-            return;
-        }
-
-        $templateItems = $assessment->template->templateItems()->orderBy('sort_order')->get();
-        
-        foreach ($templateItems as $templateItem) {
-            \App\Models\Assessment\AssessmentScores::firstOrCreate(
-                [
-                    'assessment_user_id' => $assessmentUser->id,
-                    'template_item_id' => $templateItem->id,
-                ],
-                [
-                    'score' => null,
-                    'weighted_score' => null,
-                    'comment' => null,
-                ]
-            );
-        }
     }
 
     protected function afterSave(): void

@@ -48,6 +48,10 @@
             <span>Riwayat Perubahan</span>
         </button>
     @endif
+    <button type="button" @click="tab = 'penilaian'" class="section-nav-btn rust" :class="{ 'is-active': tab === 'penilaian' }">
+        <i class="fa-solid fa-clipboard-check"></i>
+        <span>Penilaian</span>
+    </button>
 </div>
 
 <!-- Tab: Profil -->
@@ -809,4 +813,36 @@
         @endif
     </div>
 @endif
+
+<!-- Tab: Penilaian — histori read-only. Bikin/tunjuk penilaian baru sekarang lewat halaman
+     terpusat "Daftar Penilaian" (Sistem Penilaian Karyawan), bukan dari sini lagi. -->
+<div x-show="tab === 'penilaian'">
+    @php $assessmentsList = $this->assessmentsList; @endphp
+    @if ($assessmentsList->isEmpty())
+        <div class="pwa-list" style="padding:32px 16px;text-align:center;">
+            <p style="font-size:13px;color:var(--text-muted);margin:0;">Belum ada penilaian tercatat.</p>
+        </div>
+    @else
+        <div class="pwa-list">
+            @foreach ($assessmentsList as $row)
+                <a href="{{ route('assessment.show', $row->id) }}" wire:navigate class="pwa-list-row" style="text-decoration:none;">
+                    <div class="pwa-tile-icon rust"><i class="fa-solid fa-clipboard-check"></i></div>
+                    <div style="flex:1;min-width:0;">
+                        <p style="font-size:13px;font-weight:600;color:var(--text-heading);margin:0;">{{ $row->assessments->name }}</p>
+                        <p style="font-size:11px;color:var(--text-muted);margin-top:2px;">
+                            @if ($row->final_score !== null)
+                                {{ number_format($row->final_score, 2) }} &middot; {{ $row->final_category }}
+                            @elseif (! $isSelf)
+                                Belum dinilai — isi sekarang
+                            @else
+                                Menunggu diisi
+                            @endif
+                        </p>
+                    </div>
+                    <i class="fa-solid fa-chevron-right" style="color:var(--text-faint);font-size:12px;"></i>
+                </a>
+            @endforeach
+        </div>
+    @endif
+</div>
 </div>
