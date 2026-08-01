@@ -110,7 +110,7 @@ class CreateUserTransitionPage extends Component
     }
 
     /**
-     * Perubahan Status Kepegawaian khusus buat karyawan Orientasi (naik jadi Kontrak/Tetap) -
+     * Pengangkatan Orientasi khusus buat karyawan Orientasi (naik jadi Kontrak/Tetap) -
      * populasinya kebalikan dari jenis transisi lain (yang khusus Tetap/Kontrak, Orientasi tidak
      * relevan buat Promosi/Demosi/dst).
      */
@@ -188,7 +188,7 @@ class CreateUserTransitionPage extends Component
 
     public function getCurrentContractEndDateProperty(): ?string
     {
-        $date = $this->getTargetUser()?->profile?->contract_end_date;
+        $date = $this->getTargetUser()?->currentContract?->contract_end_date;
 
         return $date ? \Illuminate\Support\Carbon::parse($date)->translatedFormat('d F Y') : null;
     }
@@ -261,6 +261,21 @@ class CreateUserTransitionPage extends Component
                 Notification::make()
                     ->title('Gagal membuat pengajuan')
                     ->body('Perpanjangan Kontrak cuma berlaku untuk karyawan berstatus Kontrak.')
+                    ->danger()
+                    ->send();
+
+                return;
+            }
+        }
+
+        // Guard sama seperti CONTRACT_EXTENSION di atas - employee picker (getEmployeesProperty())
+        // sudah membatasi ke kategori Orientasi saja, ini jaga-jaga defense-in-depth di sisi submit.
+        if ($this->transition_type === UserTransitionTypeEnum::EMPLOYMENT_STATUS_CHANGE->value) {
+            $target = $this->getTargetUser();
+            if ($target?->profile?->employeeType?->category !== EmployeeTypeCategory::ORIENTASI) {
+                Notification::make()
+                    ->title('Gagal membuat pengajuan')
+                    ->body('Pengangkatan Orientasi cuma berlaku untuk karyawan berstatus Orientasi.')
                     ->danger()
                     ->send();
 

@@ -5,7 +5,6 @@ namespace Tests\Feature\Payroll;
 use App\Models\Incentive\Incentive;
 use App\Models\Master\Companies;
 use App\Models\Payroll\Payroll;
-use App\Models\Payroll\PayrollManualLine;
 use App\Models\Payroll\PayrollPeriod;
 use App\Models\Setting;
 use App\Models\User;
@@ -16,8 +15,8 @@ use Tests\TestCase;
 
 /**
  * Setting `insentif_metode` menentukan apakah IncentiveCalculator baca dari tabel `incentives`
- * ("master", Holding) atau dari `payroll_manual_lines` component=insentif ("import", RSU —
- * ditulis lewat IncentiveImport, lihat IncentiveImportTest).
+ * ("master", Holding) atau dihitung live dari selisih Tunjangan Jabatan ("auto", RSU). Metode
+ * "import" (dari payroll_manual_lines) SUDAH DIHAPUS - lihat docblock IncentiveCalculator.
  */
 class IncentiveCalculatorMetodeTest extends TestCase
 {
@@ -53,38 +52,17 @@ class IncentiveCalculatorMetodeTest extends TestCase
         $this->assertDatabaseHas('payroll_items', ['payroll_id' => $payroll->id, 'source_type' => 'insentif', 'amount' => 300000]);
     }
 
-    public function test_import_metode_ignores_incentives_table_when_no_manual_line(): void
+    public function test_unknown_metode_falls_back_to_master(): void
     {
+        // Metode "import" sudah dihapus - value string itu (atau apa pun selain 'auto') sekarang
+        // jatuh ke perilaku default 'master', bukan dispatch ke jalur lain.
         [, , $period, $payroll] = $this->makeSetup();
         Setting::create(['company_id' => $period->company_id, 'key' => 'insentif_metode', 'module' => 'payroll', 'type' => 'string', 'value' => 'import', 'label' => 'Metode Insentif']);
 
         $context = new PayrollContext();
         (new IncentiveCalculator())->calculate($payroll->user, $payroll, $period, $context);
 
-        $this->assertSame(0.0, $context->grossSalary);
-        $this->assertDatabaseMissing('payroll_items', ['payroll_id' => $payroll->id, 'source_type' => 'insentif']);
-        // Metode "import" tidak menyentuh tabel incentives sama sekali — baris yang dibuat
-        // buat metode "master" di makeSetup() tetap utuh tanpa diapa-apakan.
-        $this->assertDatabaseHas('incentives', ['user_id' => $payroll->user_id, 'amount' => 300000]);
-    }
-
-    public function test_import_metode_reads_from_manual_line(): void
-    {
-        [, , $period, $payroll] = $this->makeSetup();
-        Setting::create(['company_id' => $period->company_id, 'key' => 'insentif_metode', 'module' => 'payroll', 'type' => 'string', 'value' => 'import', 'label' => 'Metode Insentif']);
-        PayrollManualLine::create([
-            'payroll_period_id' => $period->id,
-            'user_id' => $payroll->user_id,
-            'component' => 'insentif',
-            'amount' => 700000,
-            'note' => 'Import Excel (RSU)',
-        ]);
-
-        $context = new PayrollContext();
-        (new IncentiveCalculator())->calculate($payroll->user, $payroll, $period, $context);
-
-        $this->assertSame(700000.0, $context->grossSalary);
-        $this->assertDatabaseHas('payroll_items', ['payroll_id' => $payroll->id, 'source_type' => 'insentif', 'amount' => 700000]);
+        $this->assertSame(300000.0, $context->grossSalary);
     }
 
     /**

@@ -33,12 +33,7 @@
                          master `user_koperasi` (halaman Koperasi) yang otomatis sync ke
                          payroll_manual_lines tiap Generate, jadi input manual per periode di
                          sini jadi redundan. Disembunyikan dulu, bukan dihapus permanen. --}}
-                    @if ($this->insentifMetode === 'import' && $this->canImportPayroll)
-                        <button type="button" wire:click="openImportModal('insentif')" style="display:inline-flex;align-items:center;gap:6px;padding:9px 16px;font-size:12.5px;font-weight:600;border:none;border-radius:12px;cursor:pointer;background:#047C54;color:#fff;">
-                            <i class="fa-solid fa-hand-holding-dollar"></i> Import Insentif
-                        </button>
-                    @endif
-                    @if ($this->bonAktif && $this->canImportPayroll)
+                    @if ($this->bonAktif && $this->bonMetode === 'simple' && $this->canImportPayroll)
                         <button type="button" wire:click="openImportModal('bon')" style="display:inline-flex;align-items:center;gap:6px;padding:9px 16px;font-size:12.5px;font-weight:600;border:none;border-radius:12px;cursor:pointer;background:#d97706;color:#fff;">
                             <i class="fa-solid fa-money-bill-transfer"></i> Import Bon
                         </button>
@@ -128,7 +123,7 @@
             <div class="modal-box modal-box-xl" onclick="event.stopPropagation()" style="display:flex;flex-direction:column;gap:14px;">
                 <div style="display:flex;align-items:center;justify-content:space-between;">
                     <h3 style="font-size:18px;font-weight:700;color:var(--text-heading);margin:0;">
-                        Import {{ $importType === 'insentif' ? 'Insentif' : 'Bon' }}
+                        Import Bon
                     </h3>
                     <button type="button" wire:click="closeImportModal" class="btn-ghost" style="padding:6px 12px;font-size:12px;">
                         <i class="fa-solid fa-xmark"></i> Tutup
@@ -139,17 +134,17 @@
                     Perusahaan: <strong>{{ $this->companies->firstWhere('id', $companyId)?->name }}</strong>
                 </p>
 
-                @if ($importType === 'insentif' && $this->insentifMetode !== 'import')
-                    <div style="background:rgba(217,119,6,0.08);border:1px solid rgba(217,119,6,0.3);border-radius:10px;padding:12px 14px;font-size:12.5px;color:#92400e;">
-                        <i class="fa-solid fa-triangle-exclamation"></i>
-                        Metode Insentif perusahaan ini masih <strong>"Master"</strong> (input manual lewat halaman Insentif), bukan "Import".
-                        Ubah dulu di halaman Komponen Gaji kalau memang mau pakai import Excel.
-                    </div>
-                @elseif ($importType === 'bon' && ! $this->bonAktif)
+                @if (! $this->bonAktif)
                     <div style="background:rgba(217,119,6,0.08);border:1px solid rgba(217,119,6,0.3);border-radius:10px;padding:12px 14px;font-size:12.5px;color:#92400e;">
                         <i class="fa-solid fa-triangle-exclamation"></i>
                         Komponen <strong>Bon</strong> belum aktif untuk perusahaan ini.
                         Aktifkan dulu di halaman Komponen Gaji kalau memang mau pakai Bon.
+                    </div>
+                @elseif ($this->bonMetode !== 'simple')
+                    <div style="background:rgba(217,119,6,0.08);border:1px solid rgba(217,119,6,0.3);border-radius:10px;padding:12px 14px;font-size:12.5px;color:#92400e;">
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                        Metode Bon perusahaan ini <strong>"Detail"</strong>, bukan "Simple". Import Excel tidak berlaku -
+                        tambahkan rincian Bon satu-satu lewat halaman detail payroll karyawan.
                     </div>
                 @else
                     <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">

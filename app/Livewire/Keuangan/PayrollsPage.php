@@ -5,7 +5,6 @@ namespace App\Livewire\Keuangan;
 use App\Enum\CustomPermissionEnum;
 use App\Enum\Payroll\PayrollComponentEnum;
 use App\Imports\Payroll\BonImport;
-use App\Imports\Payroll\IncentiveImport;
 use App\Jobs\SendPayrollSlipJob;
 use App\Models\Master\Companies;
 use App\Models\Payroll\CompanyPayrollComponent;
@@ -25,10 +24,11 @@ use Maatwebsite\Excel\Facades\Excel;
  * Halaman hasil Generate Payroll — dibangun custom (BUKAN reuse Filament Table) atas
  * permintaan eksplisit user, beda dari SalaryComponentsPage/IncentivesPage/dst di modul ini.
  * Filter perusahaan + periode, tombol "Lihat" ke halaman detail (PayrollDetailPage). Tombol
- * header (Import Insentif/Import Bon) muncul kondisional sesuai konfigurasi company yang lagi
- * dipilih — bukan statis buat semua company, dan buka modal (bukan navigasi ke halaman lain)
- * atas permintaan user. Input manual per baris (bukan import) cuma ada di halaman detail
- * payroll (PayrollDetailPage), tidak di sini. Cari/company/period semuanya lewat Livewire
+ * header (Import Bon) muncul kondisional sesuai konfigurasi company yang lagi dipilih — bukan
+ * statis buat semua company, dan buka modal (bukan navigasi ke halaman lain) atas permintaan
+ * user. Import Insentif SUDAH DIHAPUS (lihat docblock IncentiveCalculator). Input manual per
+ * baris (bukan import) cuma ada di halaman detail payroll (PayrollDetailPage), tidak di sini.
+ * Cari/company/period semuanya lewat Livewire
  * (server-side) — SEBELUMNYA cari pakai List.js di browser, tapi List.js kedapatan mengunci
  * baris tbody-nya sendiri sehingga tidak ikut ke-morph Livewire begitu company/periode ganti
  * (baris karyawan lama nyangkut terus), jadi dicabut.
@@ -45,7 +45,7 @@ class PayrollsPage extends Component
     public array $selected = [];
 
     public bool $showImportModal = false;
-    public ?string $importType = null; // 'insentif' | 'bon'
+    public ?string $importType = null; // 'bon' - satu-satunya import yang tersisa (Insentif import sudah dihapus)
     public ?string $importPeriodId = null;
     public $importFile;
     public array $importErrors = [];
@@ -115,12 +115,6 @@ class PayrollsPage extends Component
             ->get();
     }
 
-    /** Metode insentif company terpilih — tombol Import Insentif cuma tampil kalau 'import'. */
-    public function getInsentifMetodeProperty(): string
-    {
-        return (string) Setting::resolve('insentif_metode', $this->companyId, default: 'master');
-    }
-
     /** Tombol Import Bon cuma tampil kalau komponen Bon aktif buat company ini. */
     public function getBonAktifProperty(): bool
     {
@@ -133,6 +127,14 @@ class PayrollsPage extends Component
             ->where('component', PayrollComponentEnum::BON->value)
             ->where('is_active', true)
             ->exists();
+    }
+
+    /** Import Bon cuma buat mode "Simple" (1 baris) - mode "Detail" (rincian satu-satu) HARUS
+     *  lewat halaman detail payroll manual, supaya tiap baris punya keterangan sendiri dan tidak
+     *  ada risiko import menimpa/menduplikasi rincian yang sudah diinput manual. */
+    public function getBonMetodeProperty(): string
+    {
+        return (string) Setting::resolve('bon_metode', $this->companyId, default: 'simple');
     }
 
     /** Cuma periode yang sudah digenerate (processed_at) yang boleh ditempeli import. */
@@ -330,29 +332,27 @@ class PayrollsPage extends Component
         }
     }
 
-    private function makeImport(bool $preview): IncentiveImport|BonImport
+    private function makeImport(bool $preview): BonImport
     {
-        return $this->importType === 'insentif'
-            ? new IncentiveImport($this->importPeriodId, $preview)
-            : new BonImport($this->importPeriodId, $preview);
+        return new BonImport($this->importPeriodId, $preview);
     }
 
     private function importGuardPasses(): bool
     {
-        if ($this->importType === 'insentif' && $this->insentifMetode !== 'import') {
+        if (! $this->bonAktif) {
             Notification::make()
-                ->title('Metode insentif company ini bukan "import"')
-                ->body('Ubah setting "Metode Insentif" di halaman Komponen Gaji dulu kalau memang mau pakai import Excel.')
+                ->title('Komponen Bon belum aktif untuk company ini')
+                ->body('Aktifkan dulu di halaman Komponen Gaji kalau memang mau pakai Bon.')
                 ->danger()
                 ->send();
 
             return false;
         }
 
-        if ($this->importType === 'bon' && ! $this->bonAktif) {
+        if ($this->bonMetode !== 'simple') {
             Notification::make()
-                ->title('Komponen Bon belum aktif untuk company ini')
-                ->body('Aktifkan dulu di halaman Komponen Gaji kalau memang mau pakai Bon.')
+                ->title('Metode Bon company ini "Detail", bukan "Simple"')
+                ->body('Import Excel cuma buat mode Simple - untuk mode Detail, tambahkan rincian Bon satu-satu lewat halaman detail payroll karyawan.')
                 ->danger()
                 ->send();
 

@@ -10,6 +10,7 @@ use App\Models\Master\Pangkats;
 use App\Models\Payroll\Payroll;
 use App\Models\Payroll\PayrollPeriod;
 use App\Models\Payroll\PangkatLemburRate;
+use App\Models\Setting;
 use App\Models\User;
 use App\Models\User\UserProfiles;
 use App\Services\Payroll\Calculators\LemburCalculator;
@@ -90,6 +91,22 @@ class LemburCalculatorPerPangkatTest extends TestCase
         (new LemburCalculator())->calculate($s['user'], $s['payroll'], $s['period'], $context);
 
         $expected = round(3_500_000 / (31 * 7) * 7.5, 2); // clamp ke 4 jam -> multiplier 7,5
+        $this->assertSame($expected, $context->grossSalary);
+    }
+
+    public function test_minimum_hours_setting_overrides_default_2(): void
+    {
+        // Company set lembur_minimum_jam = 3 - lembur 1,5 jam harusnya dihitung setara 3 jam
+        // (multiplier 5,5), BUKAN default 2 jam (multiplier 3,5) - membuktikan setting benar-benar
+        // dibaca, tidak hardcode lagi.
+        $s = $this->makeSetup(hours: 1.5);
+        PangkatLemburRate::create(['pangkat_id' => $s['pangkat']->id, 'amount_per_hour' => 3_500_000]);
+        Setting::create(['company_id' => $s['company']->id, 'key' => 'lembur_minimum_jam', 'module' => 'payroll', 'type' => 'integer', 'value' => '3', 'label' => 'Minimum Jam Lembur']);
+
+        $context = new PayrollContext();
+        (new LemburCalculator())->calculate($s['user'], $s['payroll'], $s['period'], $context);
+
+        $expected = round(3_500_000 / (31 * 7) * 5.5, 2); // clamp ke 3 jam -> multiplier 5,5
         $this->assertSame($expected, $context->grossSalary);
     }
 }

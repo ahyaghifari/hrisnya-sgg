@@ -9,7 +9,9 @@ use App\Models\Attendance\AttendanceRequests;
 use App\Models\Master\Attendance\PermissionTypes;
 use App\Models\Master\Companies;
 use App\Models\Payroll\Payroll;
+use App\Models\Payroll\PayrollItem;
 use App\Models\Payroll\PayrollPeriod;
+use App\Models\Setting;
 use App\Models\User;
 use App\Services\Payroll\Calculators\IzinSeharianCalculator;
 use App\Services\Payroll\Calculators\PayrollContext;
@@ -134,5 +136,41 @@ class IzinSeharianCalculatorTest extends TestCase
 
         $this->assertSame(0.0, $context->totalDeductions);
         $this->assertDatabaseMissing('payroll_items', ['payroll_id' => $payroll->id]);
+    }
+
+    public function test_gaji_pokok_metode_uses_gaji_pokok_payroll_item_not_gross(): void
+    {
+        $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
+        Setting::create(['company_id' => $company->id, 'key' => 'izin_seharian_metode', 'module' => 'payroll', 'type' => 'string', 'value' => 'gaji_pokok', 'label' => 'Metode Izin Seharian']);
+        Setting::create(['company_id' => $company->id, 'key' => 'kepegawaian_hari_kerja_efektif_per_bulan', 'module' => 'kepegawaian', 'type' => 'integer', 'value' => '26', 'label' => 'Hari Kerja Efektif per Bulan']);
+        // persen dibiarkan default (70) - tidak di-seed, harus fallback ke default enum.
+
+        $user = User::factory()->create(['company_id' => $company->id]);
+        $period = $this->makePeriod($company->id, '2026-07-01', '2026-07-31');
+        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+
+        // Baris Gaji Pokok yang SEHARUSNYA sudah dibuat GajiPokokCalculator sebelum Izin Seharian
+        // jalan (urutan orchestrator PayrollService) - disimulasikan langsung di sini.
+        PayrollItem::create([
+            'payroll_id' => $payroll->id,
+            'name' => 'Gaji Pokok',
+            'type' => 'earning',
+            'quantity' => 1,
+            'amount' => 3_000_000,
+            'source_type' => 'gaji_pokok',
+        ]);
+
+        $this->makeApprovedIzinSeharian($user, $company->id, '2026-07-10');
+
+        // Gross salary tinggi sengaja diisi buat pastikan metode 'gaji_pokok' TIDAK terpengaruh
+        // gross - kalau salah pakai formula 'keseluruhan', hasilnya akan beda jauh.
+        $context = new PayrollContext();
+        $context->addEarning(50_000_000);
+
+        (new IzinSeharianCalculator())->calculate($user, $payroll, $period, $context);
+
+        // (3.000.000 / 26) * 70% = 80.769,23..., dibulatkan 2 desimal
+        $expected = round((3_000_000 / 26) * 0.7, 2);
+        $this->assertSame($expected, $context->totalDeductions);
     }
 }

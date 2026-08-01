@@ -87,6 +87,7 @@ class UserTransition extends Model
         'role_id',
         'old_value',
         'effective_date',
+        'contract_start_date',
         'contract_end_date',
         'reason',
         'file_path',

@@ -9,7 +9,9 @@ class PayrollManualLineTemplateController extends Controller
 {
     public function downloadTemplate(string $type)
     {
-        abort_unless(in_array($type, ['bon', 'insentif'], true), 404);
+        // Insentif Import sudah dihapus (lihat docblock IncentiveCalculator) - cuma Bon yang
+        // masih pakai template ini.
+        abort_unless($type === 'bon', 404);
 
         return Excel::download(new PayrollManualLineTemplateExport, "template_import_{$type}.xlsx");
     }

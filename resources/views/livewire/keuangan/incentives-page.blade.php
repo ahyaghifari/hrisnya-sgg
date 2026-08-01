@@ -15,8 +15,8 @@
         @elseif ($this->insentifMetode !== 'master')
             <div style="background:rgba(217,119,6,0.08);border:1px solid rgba(217,119,6,0.3);border-radius:10px;padding:14px 16px;font-size:12.5px;color:#92400e;">
                 <i class="fa-solid fa-triangle-exclamation"></i>
-                Perusahaan ini memakai metode Insentif <strong>"Import"</strong> (bukan "Master"), jadi halaman ini tidak berlaku
-                untuknya. Insentif untuk perusahaan ini diisi lewat upload Excel di halaman <strong>Payroll &gt; Import Insentif</strong>.
+                Perusahaan ini memakai metode Insentif <strong>"Otomatis"</strong> (bukan "Master"), jadi halaman ini tidak berlaku
+                untuknya — nominalnya dihitung otomatis dari selisih Tunjangan Jabatan lama vs baru, tidak diisi manual.
                 Ubah setting "Metode Insentif" di halaman Komponen Gaji kalau memang mau pakai input manual di sini.
             </div>
         @else

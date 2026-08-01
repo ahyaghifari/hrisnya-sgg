@@ -9,6 +9,7 @@ use App\Models\Attendance\AttendanceRequests;
 use App\Models\Payroll\Payroll;
 use App\Models\Payroll\PayrollItem;
 use App\Models\Payroll\PayrollPeriod;
+use App\Models\Setting;
 use App\Models\User;
 use Carbon\Carbon;
 
@@ -17,8 +18,13 @@ use Carbon\Carbon;
  * awalnya cuma 2 base rate tetap (3,5jt/3jt), sekarang digeneralisasi jadi 1 base rate per
  * pangkat apa pun (`pangkat_lembur_rates.amount_per_hour`, diisi lewat Mapping Komponen Gaji,
  * pola sama Gaji Pokok). Per kejadian lembur: base rate ÷ (hari dalam bulan × 7) × multiplier
- * dari jam lembur (clamp 2-4 jam → 3,5-7,5x). Satu-satunya metode Lembur di sistem ini —
+ * dari jam lembur (clamp minimum-4 jam → 3,5-7,5x). Satu-satunya metode Lembur di sistem ini —
  * mekanisme shift-based (ShiftOvertimeCosts) lama sudah tidak dipakai lagi.
+ *
+ * Batas minimum jam (`lembur_minimum_jam`, company-scoped, default 2) DIBACA dari setting yang
+ * sama yang dipakai buat label di slip gaji ("Lembur >X Jam", lihat PayrollService::
+ * componentRows()) - sebelumnya slip mencetak label dari setting tapi hitungannya hardcode 2,
+ * jadi bisa beda dari yang tertulis kalau company override settingnya.
  */
 class LemburCalculator implements PayrollComponentCalculator
 {
@@ -29,6 +35,8 @@ class LemburCalculator implements PayrollComponentCalculator
         if (! $baseRate || $baseRate <= 0) {
             return;
         }
+
+        $minimumJam = (int) Setting::resolve('lembur_minimum_jam', $period->company_id, default: 2);
 
         $overtimeRequests = AttendanceRequests::query()
             ->where('user_id', $user->id)
@@ -44,12 +52,12 @@ class LemburCalculator implements PayrollComponentCalculator
 
         foreach ($overtimeRequests as $request) {
             foreach ($request->overtimeDetails as $detail) {
-                $this->processDetail($payroll, $context, $detail, (float) $baseRate);
+                $this->processDetail($payroll, $context, $detail, (float) $baseRate, $minimumJam);
             }
         }
     }
 
-    private function processDetail(Payroll $payroll, PayrollContext $context, AttendanceRequestOvertimeDetails $detail, float $baseRate): void
+    private function processDetail(Payroll $payroll, PayrollContext $context, AttendanceRequestOvertimeDetails $detail, float $baseRate, int $minimumJam): void
     {
         $date = Carbon::parse($detail->date);
         $hours = (int) floor((float) $detail->total_hours); // ROUNDDOWN(jam, 0) di Excel
@@ -58,9 +66,10 @@ class LemburCalculator implements PayrollComponentCalculator
             return;
         }
 
-        // Multiplier meng-clamp jam ke minimum 2 (lembur <2 jam tetap dihitung setara 2 jam,
-        // bukan ditolak) — perilaku asli Excel, bukan bug.
-        $multiplier = (min(max($hours, 2), 4) * 2) - 0.5;
+        // Multiplier meng-clamp jam ke minimum settingan (lembur di bawah itu tetap dihitung
+        // setara jam minimum, bukan ditolak) — perilaku asli Excel, bukan bug. Maksimal tetap
+        // dikunci di 4 jam (belum ada permintaan buat itu configurable juga).
+        $multiplier = (min(max($hours, $minimumJam), 4) * 2) - 0.5;
         $divisor = $date->daysInMonth * 7;
         $amount = round($baseRate / $divisor * $multiplier, 2);
 

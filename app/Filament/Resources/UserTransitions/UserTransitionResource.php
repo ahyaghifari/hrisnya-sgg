@@ -104,7 +104,7 @@ class UserTransitionResource extends Resource
                 ->icon(static::getNavigationIcon())
                 ->isActiveWhen(fn (): bool => request()->get('type') === UserTransitionTypeEnum::KELAS_CHANGE->value),
 
-            NavigationItem::make('Perubahan Status Kepegawaian')
+            NavigationItem::make('Pengangkatan Orientasi')
                 ->url(static::getUrl('index', ['type' => UserTransitionTypeEnum::EMPLOYMENT_STATUS_CHANGE->value]))
                 ->icon(static::getNavigationIcon())
                 ->isActiveWhen(fn (): bool => request()->get('type') === UserTransitionTypeEnum::EMPLOYMENT_STATUS_CHANGE->value),

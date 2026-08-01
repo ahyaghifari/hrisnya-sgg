@@ -100,9 +100,6 @@
                                 <div style="display:flex;justify-content:space-between;gap:8px;font-size:12.5px;">
                                     <span style="color:{{ $row['hasValue'] ? 'var(--text-body)' : 'var(--text-faint)' }};">
                                         {{ $row['label'] }}
-                                        @if (($row['component'] ?? null) === \App\Enum\Payroll\PayrollComponentEnum::INSENTIF->value && $this->insentifAktif && ! $payroll->is_paid && $this->insentifManualLines->isEmpty() && $this->canEditPayroll)
-                                            <button type="button" wire:click="openManualLineModal('insentif')" title="Tambah Insentif untuk payroll ini" style="border:none;background:#047C54;color:#fff;padding:2px 7px;border-radius:5px;font-size:10px;font-weight:600;cursor:pointer;">+ Tambah</button>
-                                        @endif
                                     </span>
                                     <span style="white-space:nowrap;text-align:right;">
                                         <span style="font-weight:{{ $row['hasValue'] ? '700' : '500' }};color:{{ $row['hasValue'] ? '#047C54' : 'var(--text-faint)' }};">Rp{{ number_format($row['amount'], 0, ',', '.') }}</span>
@@ -111,22 +108,6 @@
                                         @endif
                                     </span>
                                 </div>
-
-                                @if (($row['component'] ?? null) === \App\Enum\Payroll\PayrollComponentEnum::INSENTIF->value && $this->insentifManualLines->isNotEmpty())
-                                    <div style="display:flex;flex-direction:column;gap:3px;margin:4px 0 0 10px;">
-                                        @foreach ($this->insentifManualLines as $line)
-                                            <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;font-size:11px;color:var(--text-muted);">
-                                                <span>Rp{{ number_format($line->amount, 0, ',', '.') }}{{ $line->note ? " ({$line->note})" : '' }}</span>
-                                                @if (!$payroll->is_paid && $this->canEditPayroll)
-                                                    <span style="display:flex;gap:4px;flex-shrink:0;">
-                                                        <button type="button" wire:click="openManualLineModal('insentif', '{{ $line->id }}')" title="Ubah" style="border:1px solid var(--border);background:none;color:#047C54;cursor:pointer;padding:2px 7px;border-radius:5px;font-size:10px;"><i class="fa-solid fa-pen"></i> Ubah</button>
-                                                        <button type="button" wire:click="deleteManualLine('{{ $line->id }}')" wire:confirm="Hapus baris Insentif ini?" title="Hapus" style="border:1px solid var(--border);background:none;color:#dc2626;cursor:pointer;padding:2px 7px;border-radius:5px;font-size:10px;"><i class="fa-solid fa-trash"></i> Hapus</button>
-                                                    </span>
-                                                @endif
-                                            </div>
-                                        @endforeach
-                                    </div>
-                                @endif
                             </div>
                         @empty
                             <p style="font-size:11.5px;color:var(--text-faint);margin:0;">Tidak ada komponen pendapatan.</p>
@@ -148,7 +129,7 @@
                                 <div style="display:flex;justify-content:space-between;gap:8px;font-size:12.5px;">
                                     <span style="color:{{ $row['hasValue'] ? 'var(--text-body)' : 'var(--text-faint)' }};">
                                         {{ $row['label'] }}
-                                        @if (($row['component'] ?? null) === \App\Enum\Payroll\PayrollComponentEnum::BON->value && $this->bonAktif && ! $payroll->is_paid && $this->bonManualLines->isEmpty() && $this->canEditPayroll)
+                                        @if (($row['component'] ?? null) === \App\Enum\Payroll\PayrollComponentEnum::BON->value && $this->bonAktif && ! $payroll->is_paid && ($this->bonMetode === 'detail' || $this->bonManualLines->isEmpty()) && $this->canEditPayroll)
                                             <button type="button" wire:click="openManualLineModal('bon')" title="Tambah Bon untuk payroll ini" style="border:none;background:#d97706;color:#fff;padding:2px 7px;border-radius:5px;font-size:10px;font-weight:600;cursor:pointer;">+ Tambah</button>
                                         @endif
                                     </span>
@@ -189,7 +170,7 @@
         </div>
     </div>
 
-    @php $manualLineLabel = $manualLineComponent === \App\Enum\Payroll\PayrollComponentEnum::BON->value ? 'Bon' : 'Insentif'; @endphp
+    @php $manualLineLabel = 'Bon'; @endphp
     @if ($showManualLineModal)
         <div class="modal-overlay" wire:click="closeManualLineModal">
             <div class="modal-box" onclick="event.stopPropagation()">

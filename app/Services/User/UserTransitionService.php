@@ -13,6 +13,7 @@ use App\Models\Master\Kelas;
 use App\Models\Master\OrgStructure;
 use App\Models\Setting;
 use App\Models\User;
+use App\Models\User\UserContract;
 use App\Models\User\UserTransition;
 use App\Repositories\Approval\ApprovalSnapshotRepository;
 use App\Services\Approval\ApprovalCreationService;
@@ -74,22 +75,30 @@ class UserTransitionService
             $data['transitionable_type'] = EmployeeTypes::class;
             $data['old_value'] = $targetUser->profile?->employeeType?->name;
 
-            // contract_end_date dihitung otomatis (bukan input manual) - cuma relevan kalau
-            // status barunya Kontrak.
+            // contract_start_date/contract_end_date dihitung otomatis (bukan input manual) - cuma
+            // relevan kalau status barunya Kontrak. Start = Tanggal Efektif itu sendiri (anchor
+            // yang sama dipakai buat hitung end date).
             $newEmployeeType = EmployeeTypes::find($data['transitionable_id']);
+            $effectiveDate = Carbon::parse($data['effective_date']);
+            $data['contract_start_date'] = $newEmployeeType?->category === EmployeeTypeCategory::KONTRAK
+                ? $effectiveDate->toDateString()
+                : null;
             $data['contract_end_date'] = $newEmployeeType?->category === EmployeeTypeCategory::KONTRAK
-                ? $this->resolveContractEndDate($targetUser, Carbon::parse($data['effective_date']), $actingUser->company_id)->toDateString()
+                ? $this->resolveContractEndDate($targetUser, $effectiveDate, $actingUser->company_id)->toDateString()
                 : null;
         }
 
         if ($data['transition_type'] === UserTransitionTypeEnum::CONTRACT_EXTENSION->value) {
-            $data['old_value'] = $targetUser->profile?->contract_end_date;
+            $currentContractEndDate = $targetUser->currentContract?->contract_end_date;
+            $data['old_value'] = $currentContractEndDate;
 
             // Anchor dari tanggal kontrak SEKARANG (atau hari ini kalau sudah lewat/belum ada),
             // bukan dari effective_date - perpanjangan menyambung dari kontrak yang berjalan.
-            $anchor = $targetUser->profile?->contract_end_date
-                ? Carbon::parse($targetUser->profile->contract_end_date)->max(Carbon::today())
+            // Anchor itu sendiri jadi contract_start_date (mulai term kontrak baru).
+            $anchor = $currentContractEndDate
+                ? Carbon::parse($currentContractEndDate)->max(Carbon::today())
                 : Carbon::today();
+            $data['contract_start_date'] = $anchor->toDateString();
             $data['contract_end_date'] = $this->resolveContractEndDate($targetUser, $anchor, $actingUser->company_id)->toDateString();
         }
 
@@ -290,19 +299,37 @@ class UserTransitionService
                 $updates['kelas_id'] = $startKelasId;
             }
 
-            // contract_end_date cuma relevan buat status Kontrak - kosongkan kalau target
-            // statusnya Tetap (atau kategori lain), isi kalau Kontrak.
-            $updates['contract_end_date'] = $newEmployeeType?->category === EmployeeTypeCategory::KONTRAK
-                ? $transition->contract_end_date
-                : null;
-
             $user->profile?->update($updates);
+
+            // Ledger riwayat kontrak (UserContract) cuma dicatat kalau status barunya Kontrak -
+            // "kontrak aktif saat ini" dibaca lewat User::currentContract(), bukan kolom di profile.
+            // Orientasi->Tetap langsung tidak pernah "berkontrak", tidak ada periode buat dicatat.
+            if ($newEmployeeType?->category === EmployeeTypeCategory::KONTRAK) {
+                UserContract::create([
+                    'user_id' => $user->id,
+                    'company_id' => $transition->company_id,
+                    'employee_type_id' => $newEmployeeType->id,
+                    'contract_start_date' => $transition->contract_start_date,
+                    'contract_end_date' => $transition->contract_end_date,
+                    'source_transition_id' => $transition->id,
+                ]);
+            }
 
             return;
         }
 
         if ($type === UserTransitionTypeEnum::CONTRACT_EXTENSION->value) {
-            $user->profile?->update(['contract_end_date' => $transition->contract_end_date]);
+            // Perpanjangan Kontrak selalu tipe karyawan Kontrak (guard sudah cek ini di
+            // CreateUserTransitionPage::submit()) - employee_type_id ambil dari kondisi
+            // user SAAT INI, bukan transitionable_id (tidak dipakai buat jenis transisi ini).
+            UserContract::create([
+                'user_id' => $user->id,
+                'company_id' => $transition->company_id,
+                'employee_type_id' => $user->profile->employee_type_id,
+                'contract_start_date' => $transition->contract_start_date,
+                'contract_end_date' => $transition->contract_end_date,
+                'source_transition_id' => $transition->id,
+            ]);
 
             return;
         }

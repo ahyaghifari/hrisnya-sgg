@@ -140,6 +140,8 @@ enum PayrollComponentEnum: string
             self::PAJAK_JASA_DOKTER => ['pajak_jasa_dokter_rate'],
             self::INSENTIF => ['insentif_metode'],
             self::LEMBUR => ['lembur_metode', 'lembur_minimum_jam'],
+            self::IZIN_SEHARIAN => ['izin_seharian_metode', 'izin_seharian_persen_gaji_pokok'],
+            self::BON => ['bon_metode'],
             default => [],
         };
     }

@@ -1,5 +1,5 @@
 <div>
-<x-page-header title="Ajukan Perubahan Status Karyawan" subtitle="Promosi, Demosi, Mutasi, PHK, Perubahan Kelas, Perubahan Status Kepegawaian, atau Perpanjangan Kontrak" :back="route('kepegawaian.mutasi-karyawan')" />
+<x-page-header title="Ajukan Perubahan Status Karyawan" subtitle="Promosi, Demosi, Mutasi, PHK, Perubahan Kelas, Pengangkatan Orientasi, atau Perpanjangan Kontrak" :back="route('kepegawaian.mutasi-karyawan')" />
 
 <form wire:submit="submit">
     <div class="form-card">
@@ -20,14 +20,23 @@
                 </div>
             @endif
 
-            <div wire:key="user-id-wrap-{{ $companyId }}">
+            {{-- wire:ignore: Tom Select nyuntik DOM sendiri di luar render Blade - tanpa ini,
+            morph Livewire yang dipicu wire:model.live="user_id" (submit apapun di halaman ini)
+            bakal hapus DOM suntikan Tom Select, kelihatan kayak field-nya hilang. wire:key
+            include companyId+transition_type supaya kalau salah satunya ganti (opsi $this->employees
+            juga berubah, lihat getEmployeesProperty()), div ini di-generate ulang dari nol dan
+            Tom Select ter-inisialisasi ulang dengan opsi yang benar. --}}
+            <div>
                 <label class="form-label">Karyawan <span style="color:var(--danger-text);">*</span></label>
-                <select data-tom-select data-placeholder="Pilih karyawan" wire:model.live="user_id" class="form-input" @disabled(! $companyId)>
-                    <option value="">Pilih karyawan</option>
-                    @foreach ($this->employees as $employee)
-                        <option value="{{ $employee->id }}">{{ $employee->name }} ({{ $employee->nip }})</option>
-                    @endforeach
-                </select>
+                <div wire:key="user-id-wrap-{{ $companyId }}-{{ $transition_type }}" wire:ignore>
+                    <select data-tom-select data-placeholder="Pilih karyawan" wire:model.live="user_id" class="form-input" @disabled(! $companyId)>
+                        <option value="">Pilih karyawan</option>
+                        @foreach ($this->employees as $employee)
+                            <option value="{{ $employee->id }}">{{ $employee->name }} ({{ $employee->nip }})</option>
+                        @endforeach
+                    </select>
+                </div>
+                {{-- @error di luar wire:ignore supaya pesan validasi tetap ter-update oleh morph Livewire. --}}
                 @error('user_id') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
             </div>
 
@@ -256,7 +265,7 @@
         <div class="form-card">
             <div class="section-head">
                 <div class="section-icon"><i class="fa-solid fa-id-card" style="color:var(--brand);font-size:12px;"></i></div>
-                <span class="section-title">Perubahan Status Kepegawaian</span>
+                <span class="section-title">Pengangkatan Orientasi</span>
             </div>
             <div style="display:flex;flex-direction:column;gap:16px;">
                 <div>

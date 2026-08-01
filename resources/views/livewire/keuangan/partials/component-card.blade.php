@@ -47,6 +47,10 @@
             </p>
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;">
                 @foreach ($required as $key)
+                    {{-- izin_seharian_persen_gaji_pokok cuma relevan buat metode 'gaji_pokok' -
+                    disembunyikan kalau company ini pakai metode 'keseluruhan' (tidak dipakai sama
+                    sekali di IzinSeharianCalculator::calculateFromKeseluruhan()). --}}
+                    @continue ($key === 'izin_seharian_persen_gaji_pokok' && ($settingValues['izin_seharian_metode'] ?? 'keseluruhan') !== 'gaji_pokok')
                     @php $meta = $this->requiredSettingMeta[$key] ?? null; @endphp
                     <div>
                         <label class="form-label" style="font-size:10.5px;display:inline-flex;align-items:center;gap:5px;">
@@ -58,8 +62,17 @@
                         @if ($key === 'insentif_metode')
                             <select class="form-input" style="font-size:12px;padding:7px 10px;" wire:model="settingValues.{{ $key }}">
                                 <option value="master">Master (tabel Insentif, input manual)</option>
-                                <option value="import">Import (upload Excel per periode setelah generate)</option>
                                 <option value="auto">Otomatis (selisih Tunjangan Jabatan lama vs baru)</option>
+                            </select>
+                        @elseif ($key === 'izin_seharian_metode')
+                            <select class="form-input" style="font-size:12px;padding:7px 10px;" wire:model.live="settingValues.{{ $key }}">
+                                <option value="keseluruhan">Potong dari Keseluruhan (gross salary)</option>
+                                <option value="gaji_pokok">Potong dari Gaji Pokok</option>
+                            </select>
+                        @elseif ($key === 'bon_metode')
+                            <select class="form-input" style="font-size:12px;padding:7px 10px;" wire:model="settingValues.{{ $key }}">
+                                <option value="simple">Simple (1 baris nominal per periode)</option>
+                                <option value="detail">Detail (rincian potongan satu-satu)</option>
                             </select>
                         @else
                             <input type="{{ $inputType($meta?->type) }}" step="0.01" class="form-input" style="font-size:12px;padding:7px 10px;" wire:model="settingValues.{{ $key }}">

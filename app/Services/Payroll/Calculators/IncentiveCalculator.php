@@ -7,7 +7,6 @@ use App\Models\Incentive\Incentive;
 use App\Models\Payroll\LegacyPositionAllowance;
 use App\Models\Payroll\Payroll;
 use App\Models\Payroll\PayrollItem;
-use App\Models\Payroll\PayrollManualLine;
 use App\Models\Payroll\PayrollPeriod;
 use App\Models\Payroll\PositionAllowance;
 use App\Models\Setting;
@@ -19,13 +18,18 @@ use App\Models\User;
  * semua baris `is_active=true` milik karyawan ikut DIJUMLAHKAN setiap Generate/Regenerate,
  * TIDAK difilter tanggal periode sama sekali. `incentive_date` cuma keterangan "diterima sejak
  * kapan", bukan syarat. Nonaktifkan lewat toggle di halaman Insentif kalau mau berhenti.
- * "import" (RSU) dibaca dari `payroll_manual_lines` component=insentif —
- * App\Imports\Payroll\IncentiveImport menulis ke situ.
  * "auto" (RSU, kompensasi transisi Tunjangan Jabatan lama->baru): dihitung LIVE dari
  * legacy_position_allowances - position_allowances berdasarkan pangkat_id/kelas_id karyawan
  * SAAT INI, dikunci minimal 0 (lihat calculateFromLegacyGap()). Naik pangkat/kelas otomatis
  * mengecilkan/menghilangkan gap-nya karena dihitung ulang dari kombinasi baru tiap Generate,
  * bukan nominal yang dikunci permanen per orang.
+ *
+ * Metode "import" (dari payroll_manual_lines lewat upload Excel) SUDAH DIHAPUS - satu-satunya
+ * jalur non-master (import) rawan baris hilang/dobel begitu unique constraint
+ * payroll_manual_lines dilonggarkan (lihat migration 2026_08_01_160000_*), dan dashboard payroll
+ * hardcode asumsi metode "master" sehingga company "import" tidak pernah terlihat datanya di
+ * situ. Company yang sebelumnya pakai "import" harus pindah ke "master" (roster Insentif) atau
+ * "auto".
  */
 class IncentiveCalculator implements PayrollComponentCalculator
 {
@@ -35,12 +39,6 @@ class IncentiveCalculator implements PayrollComponentCalculator
 
         if ($metode === 'auto') {
             $this->calculateFromLegacyGap($user, $payroll, $context);
-
-            return;
-        }
-
-        if ($metode !== 'master') {
-            $this->calculateFromImport($user, $payroll, $period, $context);
 
             return;
         }
@@ -108,30 +106,5 @@ class IncentiveCalculator implements PayrollComponentCalculator
         ]);
 
         $context->addEarning($gap);
-    }
-
-    private function calculateFromImport(User $user, Payroll $payroll, PayrollPeriod $period, PayrollContext $context): void
-    {
-        $line = PayrollManualLine::query()
-            ->where('user_id', $user->id)
-            ->where('payroll_period_id', $period->id)
-            ->where('component', PayrollComponentEnum::INSENTIF->value)
-            ->first();
-
-        if (! $line || (float) $line->amount <= 0) {
-            return;
-        }
-
-        PayrollItem::create([
-            'payroll_id' => $payroll->id,
-            'name' => PayrollComponentEnum::INSENTIF->label(),
-            'type' => PayrollComponentEnum::INSENTIF->type()->value,
-            'quantity' => 1,
-            'amount' => $line->amount,
-            'note' => $line->note,
-            'source_type' => PayrollComponentEnum::INSENTIF->value,
-        ]);
-
-        $context->addEarning((float) $line->amount);
     }
 }

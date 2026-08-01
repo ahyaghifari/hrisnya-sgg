@@ -57,7 +57,7 @@ class IncentivesPage extends Component
         return Companies::orderBy('code')->get();
     }
 
-    /** Halaman ini cuma buat company metode "master" — company "import" pakai halaman Payroll > Import Insentif. */
+    /** Halaman ini cuma buat company metode "master" — company "auto" dihitung otomatis dari selisih Tunjangan Jabatan, tidak diisi manual. */
     public function getInsentifMetodeProperty(): string
     {
         return (string) Setting::resolve('insentif_metode', $this->companyId, default: 'master');

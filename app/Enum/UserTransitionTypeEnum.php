@@ -9,6 +9,16 @@ enum UserTransitionTypeEnum: string
     case MUTATION = 'mutation';
     case TERMINATION = 'termination';
     case KELAS_CHANGE = 'kelas_change';
+
+    /**
+     * Label "Pengangkatan Orientasi" - value/nama case sengaja TIDAK diubah (masih
+     * `employment_status_change`) supaya data lama (transition_type di DB) tetap valid, cuma
+     * labelnya yang diganti karena sebelumnya menyesatkan ("Perubahan Status Kepegawaian"
+     * kedengarannya generik). Fungsinya SELALU khusus Orientasi naik ke Kontrak/Tetap - BUKAN
+     * buat Kontrak ke Tetap (itu perlu pertimbangan lebih banyak, tidak di-cover jenis transisi
+     * ini). Employee picker (CreateUserTransitionPage::getEmployeesProperty()) sudah membatasi ke
+     * kategori Orientasi saja, plus guard eksplisit di submit() - lihat komentar di sana.
+     */
     case EMPLOYMENT_STATUS_CHANGE = 'employment_status_change';
     case CONTRACT_EXTENSION = 'contract_extension';
 
@@ -20,7 +30,7 @@ enum UserTransitionTypeEnum: string
             self::MUTATION => 'Mutasi (Perusahaan)',
             self::TERMINATION => 'PHK',
             self::KELAS_CHANGE => 'Perubahan Kelas',
-            self::EMPLOYMENT_STATUS_CHANGE => 'Perubahan Status Kepegawaian',
+            self::EMPLOYMENT_STATUS_CHANGE => 'Pengangkatan Orientasi',
             self::CONTRACT_EXTENSION => 'Perpanjangan Kontrak',
         };
     }

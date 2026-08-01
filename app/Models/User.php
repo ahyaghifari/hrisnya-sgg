@@ -192,6 +192,19 @@ class User extends Authenticatable implements FilamentUser
         return $this->hasMany(UserJobPositions::class, 'user_id', 'id');
     }
 
+    /** Riwayat kontrak (1 baris = 1 periode/tahun kontrak yang sudah disetujui), lihat UserContract. */
+    public function contracts(): HasMany
+    {
+        return $this->hasMany(\App\Models\User\UserContract::class, 'user_id', 'id');
+    }
+
+    /** Kontrak paling baru (periode aktif saat ini) - pola sama activeJobPosition() di bawah. */
+    public function currentContract(): HasOne
+    {
+        return $this->hasOne(\App\Models\User\UserContract::class, 'user_id', 'id')
+            ->latestOfMany('contract_start_date');
+    }
+
     public function activeJobPosition(): HasOne
     {
         return $this->hasOne(UserJobPositions::class, 'user_id', 'id')

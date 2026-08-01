@@ -13,7 +13,6 @@ use App\Models\Setting;
 use App\Notifications\PayrollPaid;
 use App\Services\Payroll\PayrollService;
 use Filament\Notifications\Notification;
-use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
@@ -24,7 +23,7 @@ class PayrollDetailPage extends Component
     public Payroll $payroll;
 
     public bool $showManualLineModal = false;
-    public ?string $manualLineComponent = null; // 'bon' | 'insentif'
+    public ?string $manualLineComponent = null; // 'bon' - satu-satunya manual line yang tersisa (Insentif import sudah dihapus)
     public ?string $editingManualLineId = null;
     public ?string $manualLineAmount = null;
     public ?string $manualLineNote = null;
@@ -56,19 +55,11 @@ class PayrollDetailPage extends Component
         return $this->componentEligibleForThisEmployee(PayrollComponentEnum::BON->value);
     }
 
-    /** Tombol "+ Tambah" di baris Insentif cuma tampil kalau metode company = "import" — kalau
-     *  "master", input manualnya lewat halaman Insentif (master data), bukan di sini — DITAMBAH
-     *  dua gate yang sama seperti Bon (aktif di Komponen Gaji + terdaftar di Penerima Komponen
-     *  Gaji untuk tipe karyawan ini). */
-    public function getInsentifMetodeProperty(): string
+    /** "Simple" = 1 baris nominal per periode (default, seperti sebelumnya). "Detail" = boleh
+     *  banyak baris rincian potongan - lihat guard di saveManualLine(). */
+    public function getBonMetodeProperty(): string
     {
-        return (string) Setting::resolve('insentif_metode', $this->payroll->payrollPeriod->company_id, default: 'master');
-    }
-
-    public function getInsentifAktifProperty(): bool
-    {
-        return $this->insentifMetode === 'import'
-            && $this->componentEligibleForThisEmployee(PayrollComponentEnum::INSENTIF->value);
+        return (string) Setting::resolve('bon_metode', $this->payroll->payrollPeriod->company_id, default: 'simple');
     }
 
     private function componentEligibleForThisEmployee(string $component): bool
@@ -92,12 +83,6 @@ class PayrollDetailPage extends Component
     public function getBonManualLinesProperty()
     {
         return $this->manualLinesFor(PayrollComponentEnum::BON->value);
-    }
-
-    /** Baris Insentif manual (metode import) punya karyawan ini di periode ini. */
-    public function getInsentifManualLinesProperty()
-    {
-        return $this->manualLinesFor(PayrollComponentEnum::INSENTIF->value);
     }
 
     private function manualLinesFor(string $component)
@@ -199,7 +184,7 @@ class PayrollDetailPage extends Component
             'manualLineAmount' => 'nominal',
         ]);
 
-        $label = $this->manualLineComponent === PayrollComponentEnum::BON->value ? 'Bon' : 'Insentif';
+        $label = 'Bon';
 
         if ($this->editingManualLineId) {
             PayrollManualLine::where('id', $this->editingManualLineId)
@@ -211,25 +196,22 @@ class PayrollDetailPage extends Component
                     'note' => $this->manualLineNote,
                 ]);
         } else {
-            abort_if($this->manualLinesFor($this->manualLineComponent)->isNotEmpty(), 403, "Karyawan ini sudah punya baris {$label} untuk periode ini — ubah baris yang ada, bukan menambah baru.");
-
-            // Cek isNotEmpty() di atas cuma pencegahan cepat di UI, BUKAN jaminan atomik — dua
-            // klik/tab bersamaan bisa dua-duanya lolos sebelum salah satu commit. Constraint
-            // unique di DB (migrasi payroll_manual_lines_period_user_component_unique) yang
-            // jadi jaminan sesungguhnya; kalau race benar-benar kejadian, insert kedua akan
-            // gagal kena constraint itu, ditangkap di sini jadi pesan yang enak dibaca.
-            try {
-                PayrollManualLine::create([
-                    'payroll_period_id' => $this->payroll->payroll_period_id,
-                    'user_id' => $this->payroll->user_id,
-                    'component' => $this->manualLineComponent,
-                    'amount' => $this->manualLineAmount,
-                    'note' => $this->manualLineNote,
-                    'created_by' => Auth::id(),
-                ]);
-            } catch (UniqueConstraintViolationException) {
-                abort(409, "Karyawan ini sudah punya baris {$label} untuk periode ini — coba muat ulang halaman.");
+            // Bon mode "Detail" boleh banyak baris (rincian potongan satu-satu), mode "Simple"
+            // tetap dibatasi 1 baris per periode seperti sebelumnya. Guard ini murni di kode -
+            // constraint unique DB sudah dilonggarkan (migration 2026_08_01_160000_*) supaya
+            // Bon Detail bisa insert banyak baris.
+            if ($this->bonMetode !== 'detail') {
+                abort_if($this->manualLinesFor($this->manualLineComponent)->isNotEmpty(), 403, "Karyawan ini sudah punya baris {$label} untuk periode ini — ubah baris yang ada, bukan menambah baru.");
             }
+
+            PayrollManualLine::create([
+                'payroll_period_id' => $this->payroll->payroll_period_id,
+                'user_id' => $this->payroll->user_id,
+                'component' => $this->manualLineComponent,
+                'amount' => $this->manualLineAmount,
+                'note' => $this->manualLineNote,
+                'created_by' => Auth::id(),
+            ]);
         }
 
         $this->showManualLineModal = false;

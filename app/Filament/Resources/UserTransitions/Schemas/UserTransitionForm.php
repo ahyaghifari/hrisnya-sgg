@@ -52,7 +52,7 @@ class UserTransitionForm
                         ->relationship('user', 'name', function ($query, Get $get) {
                             $query->where('company_id', auth()->user()->company_id);
 
-                            // Perubahan Status Kepegawaian khusus buat karyawan Orientasi (naik
+                            // Pengangkatan Orientasi khusus buat karyawan Orientasi (naik
                             // jadi Kontrak/Tetap) - kebalikan dari jenis transisi lain yang
                             // khusus Tetap/Kontrak (Orientasi tidak relevan buat Promosi/dst).
                             $categories = $get('transition_type') === UserTransitionTypeEnum::EMPLOYMENT_STATUS_CHANGE->value
@@ -390,7 +390,7 @@ class UserTransitionForm
                 ->columns(2)
                 ->columnSpanFull(),
 
-            Section::make('Perubahan Status Kepegawaian')
+            Section::make('Pengangkatan Orientasi')
                 ->icon('heroicon-o-identification')
                 ->visible(fn ($get) =>
                 in_array($get('transition_type'), [
@@ -683,7 +683,7 @@ class UserTransitionForm
                 ])
                 ->columnSpanFull(),
 
-            Section::make('Perubahan Status Kepegawaian')
+            Section::make('Pengangkatan Orientasi')
                 ->visible(fn ($record) =>
                     $record->transition_type === UserTransitionTypeEnum::EMPLOYMENT_STATUS_CHANGE->value
                 )
@@ -696,6 +696,9 @@ class UserTransitionForm
                         ->label('Status Baru'),
                     TextEntry::make('effective_date')
                         ->label('Tanggal Efektif'),
+                    TextEntry::make('contract_start_date')
+                        ->label('Kontrak Berlaku Mulai')
+                        ->placeholder('-'),
                     TextEntry::make('contract_end_date')
                         ->label('Kontrak Berlaku Sampai')
                         ->placeholder('-'),
@@ -715,6 +718,8 @@ class UserTransitionForm
                 ->schema([
                     TextEntry::make('old_value')
                         ->label('Kontrak Sebelumnya Sampai'),
+                    TextEntry::make('contract_start_date')
+                        ->label('Kontrak Baru Mulai'),
                     TextEntry::make('contract_end_date')
                         ->label('Kontrak Baru Sampai'),
                     TextEntry::make('reason')

@@ -8,8 +8,8 @@ use Maatwebsite\Excel\Concerns\WithStyles;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
 /**
- * Template Excel untuk import Bon/Insentif (kolom sama persis untuk keduanya —
- * lihat App\Imports\Payroll\BonImport / IncentiveImport).
+ * Template Excel untuk import Bon (lihat App\Imports\Payroll\BonImport). Import Insentif sudah
+ * dihapus - dulu pakai template yang sama (kolom identik), sekarang cuma Bon.
  */
 class PayrollManualLineTemplateExport implements FromArray, WithHeadings, WithStyles
 {
