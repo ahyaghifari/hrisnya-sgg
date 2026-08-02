@@ -11,6 +11,7 @@ use App\Models\Payroll\PayrollItem;
 use App\Models\Payroll\PayrollPeriod;
 use App\Models\Setting;
 use App\Models\User;
+use App\Services\Attendance\AttendancePeriodResolver;
 use Carbon\Carbon;
 
 /**
@@ -38,15 +39,19 @@ class LemburCalculator implements PayrollComponentCalculator
 
         $minimumJam = (int) Setting::resolve('lembur_minimum_jam', $period->company_id, default: 2);
 
+        // Window absensi (21-20 default, dari Pengaturan Absensi) - BUKAN literal start_date/
+        // end_date PayrollPeriod, sama fix-nya kayak kalkulator Izin/Keterlambatan (2026-08-02).
+        [$attendancePeriodStart, $attendancePeriodEnd] = AttendancePeriodResolver::resolve($period->end_date, $period->company_id);
+
         $overtimeRequests = AttendanceRequests::query()
             ->where('user_id', $user->id)
             ->where('type', 'overtime')
             ->where('status', AttendanceReqStatus::APPROVED->value)
-            ->whereHas('overtimeDetails', function ($q) use ($period) {
-                $q->whereBetween('date', [$period->start_date, $period->end_date]);
+            ->whereHas('overtimeDetails', function ($q) use ($attendancePeriodStart, $attendancePeriodEnd) {
+                $q->whereBetween('date', [$attendancePeriodStart, $attendancePeriodEnd]);
             })
-            ->with(['overtimeDetails' => function ($q) use ($period) {
-                $q->whereBetween('date', [$period->start_date, $period->end_date]);
+            ->with(['overtimeDetails' => function ($q) use ($attendancePeriodStart, $attendancePeriodEnd) {
+                $q->whereBetween('date', [$attendancePeriodStart, $attendancePeriodEnd]);
             }])
             ->get();
 

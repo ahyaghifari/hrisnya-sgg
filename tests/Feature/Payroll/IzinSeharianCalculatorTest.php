@@ -121,6 +121,31 @@ class IzinSeharianCalculatorTest extends TestCase
         $this->assertDatabaseMissing('payroll_items', ['payroll_id' => $payroll->id]);
     }
 
+    public function test_uses_attendance_period_window_not_literal_payroll_period_dates(): void
+    {
+        // Sama seperti kasus Izin Meninggalkan Jam Kerja: window pengecekan harus ikut
+        // Pengaturan Absensi (21-20), bukan literal start_date/end_date PayrollPeriod (1-31
+        // kalender yang diketik admin).
+        $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
+        Setting::create(['company_id' => $company->id, 'key' => 'attendance_period_start_day', 'module' => 'attendance', 'type' => 'integer', 'value' => '21', 'label' => 'x']);
+        Setting::create(['company_id' => $company->id, 'key' => 'attendance_period_end_day', 'module' => 'attendance', 'type' => 'integer', 'value' => '20', 'label' => 'x']);
+
+        $user = User::factory()->create(['company_id' => $company->id]);
+        $period = $this->makePeriod($company->id, '2026-05-01', '2026-05-31');
+        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+
+        $this->makeApprovedIzinSeharian($user, $company->id, '2026-05-14'); // di dalam window 21 Apr - 20 Mei
+        $this->makeApprovedIzinSeharian($user, $company->id, '2026-05-25'); // di luar window itu
+
+        $context = new PayrollContext();
+        $context->addEarning(3_100_000);
+
+        (new IzinSeharianCalculator())->calculate($user, $payroll, $period, $context);
+
+        // Cuma 1 kejadian (14 Mei) yang kehitung.
+        $this->assertSame(100_000.0, $context->totalDeductions);
+    }
+
     public function test_no_deduction_when_gross_salary_is_zero(): void
     {
         $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);

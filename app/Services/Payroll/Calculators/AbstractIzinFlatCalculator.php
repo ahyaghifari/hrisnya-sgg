@@ -9,6 +9,7 @@ use App\Models\Payroll\PayrollItem;
 use App\Models\Payroll\PayrollPeriod;
 use App\Models\Setting;
 use App\Models\User;
+use App\Services\Attendance\AttendancePeriodResolver;
 
 /**
  * Potongan flat per kejadian, TANPA kompensasi/grace (beda dari Keterlambatan) — langsung
@@ -36,12 +37,20 @@ abstract class AbstractIzinFlatCalculator implements PayrollComponentCalculator
             return;
         }
 
+        // Window pengecekan tanggal izin BUKAN literal start_date/end_date PayrollPeriod (itu
+        // diketik bebas admin pas bikin periode gaji, bisa aja 1-31 kalender) - dipakai window
+        // "periode Izin" dari Pengaturan Absensi (AttendanceSettingEnum::PERIOD_START_DAY/END_DAY,
+        // default 21-20), sama seperti yang dipakai buat kuota Izin - biar konsisten dan tidak ada
+        // izin yang "tertinggal" cuma karena periode gaji ditulis beda dari periode absensi
+        // company itu (2026-08-02).
+        [$izinPeriodStart, $izinPeriodEnd] = AttendancePeriodResolver::resolve($period->end_date, $period->company_id);
+
         $count = AttendanceRequests::query()
             ->where('user_id', $user->id)
             ->where('type', 'permission')
             ->where('status', AttendanceReqStatus::APPROVED->value)
-            ->whereHas('permissionDetails', function ($q) use ($period) {
-                $q->whereBetween('date', [$period->start_date, $period->end_date])
+            ->whereHas('permissionDetails', function ($q) use ($izinPeriodStart, $izinPeriodEnd) {
+                $q->whereBetween('date', [$izinPeriodStart, $izinPeriodEnd])
                     ->whereIn('category', $this->permissionTypeCategories());
             })
             ->count();

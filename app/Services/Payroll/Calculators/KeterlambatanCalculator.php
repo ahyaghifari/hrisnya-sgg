@@ -9,6 +9,7 @@ use App\Models\Payroll\PayrollItem;
 use App\Models\Payroll\PayrollPeriod;
 use App\Models\Setting;
 use App\Models\User;
+use App\Services\Attendance\AttendancePeriodResolver;
 
 /**
  * Setiap telat > threshold menit dipotong flat, TAPI dengan kompensasi (grace): N kejadian
@@ -29,9 +30,13 @@ class KeterlambatanCalculator implements PayrollComponentCalculator
             return;
         }
 
+        // Window absensi (21-20 default, dari Pengaturan Absensi) - BUKAN literal start_date/
+        // end_date PayrollPeriod, sama fix-nya kayak kalkulator Izin (2026-08-02).
+        [$attendancePeriodStart, $attendancePeriodEnd] = AttendancePeriodResolver::resolve($period->end_date, $period->company_id);
+
         $lateRecords = AttendanceRecords::query()
             ->where('user_id', $user->id)
-            ->whereBetween('date', [$period->start_date, $period->end_date])
+            ->whereBetween('date', [$attendancePeriodStart, $attendancePeriodEnd])
             ->where('status', 'late')
             ->whereNotNull('check_in_time')
             ->when($thresholdMinutes > 0, fn ($q) => $q->where(fn ($q2) => $q2->whereNull('late_minutes')->orWhere('late_minutes', '>', $thresholdMinutes)))

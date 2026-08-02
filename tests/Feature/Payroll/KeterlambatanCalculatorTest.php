@@ -115,6 +115,26 @@ class KeterlambatanCalculatorTest extends TestCase
         $this->assertSame(0.0, $context->totalDeductions);
     }
 
+    public function test_uses_attendance_period_window_not_literal_payroll_period_dates(): void
+    {
+        $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
+        Setting::create(['company_id' => $company->id, 'key' => 'keterlambatan_denda', 'module' => 'payroll', 'type' => 'decimal', 'value' => '25000', 'label' => 'x']);
+        Setting::create(['company_id' => $company->id, 'key' => 'attendance_period_start_day', 'module' => 'attendance', 'type' => 'integer', 'value' => '21', 'label' => 'x']);
+        Setting::create(['company_id' => $company->id, 'key' => 'attendance_period_end_day', 'module' => 'attendance', 'type' => 'integer', 'value' => '20', 'label' => 'x']);
+
+        $user = User::factory()->create(['company_id' => $company->id]);
+        $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-05-01', 'end_date' => '2026-05-31']);
+        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+
+        $this->makeLateRecord($user, '2026-05-14', 10); // di dalam window 21 Apr - 20 Mei
+        $this->makeLateRecord($user, '2026-05-25', 10); // di luar window itu
+
+        $context = new PayrollContext();
+        (new KeterlambatanCalculator())->calculate($user, $payroll, $period, $context);
+
+        $this->assertSame(25_000.0, $context->totalDeductions);
+    }
+
     public function test_no_denda_setting_skips_entirely(): void
     {
         $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);

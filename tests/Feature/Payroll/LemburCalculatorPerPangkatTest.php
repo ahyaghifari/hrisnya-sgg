@@ -94,6 +94,32 @@ class LemburCalculatorPerPangkatTest extends TestCase
         $this->assertSame($expected, $context->grossSalary);
     }
 
+    public function test_uses_attendance_period_window_not_literal_payroll_period_dates(): void
+    {
+        $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
+        Setting::create(['company_id' => $company->id, 'key' => 'attendance_period_start_day', 'module' => 'attendance', 'type' => 'integer', 'value' => '21', 'label' => 'x']);
+        Setting::create(['company_id' => $company->id, 'key' => 'attendance_period_end_day', 'module' => 'attendance', 'type' => 'integer', 'value' => '20', 'label' => 'x']);
+        $pangkat = Pangkats::create(['name' => 'Perawat', 'company_id' => $company->id]);
+        PangkatLemburRate::create(['pangkat_id' => $pangkat->id, 'amount_per_hour' => 3_500_000]);
+        $user = User::factory()->create(['company_id' => $company->id]);
+        UserProfiles::create(['user_id' => $user->id, 'pangkat_id' => $pangkat->id]);
+        $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-05-01', 'end_date' => '2026-05-31']);
+        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+
+        $inWindow = AttendanceRequests::create(['user_id' => $user->id, 'type' => 'overtime', 'status' => AttendanceReqStatus::APPROVED->value]);
+        AttendanceRequestOvertimeDetails::create(['request_id' => $inWindow->id, 'date' => '2026-05-14', 'total_hours' => 3.0]);
+
+        $outsideWindow = AttendanceRequests::create(['user_id' => $user->id, 'type' => 'overtime', 'status' => AttendanceReqStatus::APPROVED->value]);
+        AttendanceRequestOvertimeDetails::create(['request_id' => $outsideWindow->id, 'date' => '2026-05-25', 'total_hours' => 3.0]);
+
+        $context = new PayrollContext();
+        (new LemburCalculator())->calculate($user, $payroll, $period, $context);
+
+        // Cuma lembur 14 Mei (di dalam window 21 Apr - 20 Mei) yang kehitung.
+        $expected = round(3_500_000 / (31 * 7) * 5.5, 2);
+        $this->assertSame($expected, $context->grossSalary);
+    }
+
     public function test_minimum_hours_setting_overrides_default_2(): void
     {
         // Company set lembur_minimum_jam = 3 - lembur 1,5 jam harusnya dihitung setara 3 jam
