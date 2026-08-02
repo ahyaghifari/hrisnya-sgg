@@ -16,6 +16,7 @@ use Livewire\Attributes\Layout;
 use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\WithFileUploads;
+use Livewire\WithPagination;
 
 /**
  * Halaman "Tugas" portal — pengganti modul Kanban. Board/List cuma mode tampilan atas
@@ -27,13 +28,11 @@ use Livewire\WithFileUploads;
 class TaskListPage extends Component
 {
     use WithFileUploads;
+    use WithPagination;
 
-    public string $scope = 'saya'; // saya | dibuat | tim | riwayat
+    public string $scope = 'todo'; // todo | saya | individu | tim - lihat TaskService::getPortalTasks()
     public string $view = 'board'; // board | list
-
-    // Cuma dipakai kalau scope === 'riwayat' — section sendiri di sidebar (sejajar Project),
-    // isinya 1 tombol per status, bukan tampilan gabungan seperti saya/dibuat/tim.
-    public ?string $riwayatStatus = null;
+    public string $search = ''; // filter board by kebutuhan/nama assignee
 
     #[Url]
     public ?string $activeProjectId = null;
@@ -45,21 +44,29 @@ class TaskListPage extends Component
     public string $priority = 'medium';
     public ?string $assigned_to = null;
     public array $checklist = [];
-    public bool $requiresApproval = false;
-    public ?string $service_id = null;
-    public array $reviewerIds = [];
+    // "Butuh Approval Saya" - opt-in, kalau dicentang task wajib mampir REVIEW sebelum COMPLETE
+    // (creator minta ditinjau ulang sebelum beneran selesai). Lepas dari alur approval formal
+    // (MasterApprovalFlows/service_id) - itu punya jalur sendiri, sengaja dilepas dari modal
+    // quick-create ini (2026-08-02).
+    public bool $needsReview = false;
+    // Relevan cuma kalau needsReview true: kasih tahu creator pas pelaksana ajukan review.
+    public bool $notifyOnReview = false;
+    // Relevan cuma kalau needsReview false: kasih tahu creator pas pelaksana langsung selesaikan.
+    public bool $notifyOnComplete = false;
 
     // Modal detail task
     public ?string $selectedTaskId = null;
     public string $newComment = '';
     public string $newChecklistTitle = '';
-    public ?int $reviewRating = null;
-    public ?string $reviewComment = null;
-    public bool $showRejectForm = false;
-    public string $rejectNote = '';
 
-    // Modal Lampiran (terpisah dari modal detail)
-    public ?string $attachmentsTaskId = null;
+    // Modal "Edit Tugas"
+    public bool $showEditTaskModal = false;
+    public ?string $editTaskId = null;
+    public string $editRequirement = '';
+    public ?string $editDueDate = null;
+    public string $editPriority = 'medium';
+
+    // Lampiran - inline di modal detail (bukan modal terpisah lagi, 2026-08-02, ala Trello)
     public $newAttachmentFile = null;
     public string $newAttachmentLink = '';
     public string $newAttachmentLinkLabel = '';
@@ -75,10 +82,14 @@ class TaskListPage extends Component
     public bool $showMembersModal = false;
     public ?string $newProjectMemberId = null;
 
+    // Modal "Ganti Background" board
+    public bool $showBgModal = false;
+    public string $bgType = 'color';
+    public string $bgColor = '#0f172a';
+    public $bgImage = null;
+
     public function mount(): void
     {
-        $this->requiresApproval = app(TaskService::class)->requiresApprovalByDefault(Auth::user()->company_id);
-
         if ($this->activeProjectId && ! app(TaskService::class)->canAccessProject(TaskProject::findOrFail($this->activeProjectId), Auth::user())) {
             $this->activeProjectId = null;
         }
@@ -96,11 +107,6 @@ class TaskListPage extends Component
         }
 
         return app(OrgHierarchyService::class)->subordinates(Auth::user())->get(['id', 'name']);
-    }
-
-    public function getTaskServicesProperty()
-    {
-        return app(TaskService::class)->getAllTaskServices();
     }
 
     public function getMyProjectsProperty()
@@ -137,16 +143,6 @@ class TaskListPage extends Component
             ->get(['id', 'name']);
     }
 
-    // Reviewer dipilih manual saat bikin task — pool-nya semua user 1 company (bukan
-    // TaskService::getReviewers() lama, itu department-scoped buat kebutuhan mobile beda).
-    public function getReviewerOptionsProperty()
-    {
-        return User::query()
-            ->where('company_id', Auth::user()->company_id)
-            ->orderBy('name')
-            ->get(['id', 'name']);
-    }
-
     public function getCanManageProjectMembersProperty(): bool
     {
         if (! $this->activeProject) {
@@ -160,13 +156,35 @@ class TaskListPage extends Component
     {
         $service = app(TaskService::class);
 
-        if ($this->activeProject) {
-            return $service->getProjectTasks($this->activeProject);
+        $tasks = $this->activeProject
+            ? $service->getProjectTasks($this->activeProject)
+            : $service->getPortalTasks(Auth::user(), $this->scope)
+                ->load(['assignedTo.profile', 'createdBy', 'checklistItems', 'comments.user'])
+                ->loadCount('attachments');
+
+        // Search cuma aktif buat tab Penugasan Individu.
+        $search = ($this->activeProject || $this->scope !== 'individu') ? '' : trim($this->search);
+        if ($search === '') {
+            return $tasks;
         }
 
-        return $service->getPortalTasks(Auth::user(), $this->scope, $this->riwayatStatus)
-            ->load(['assignedTo', 'createdBy', 'checklistItems', 'comments.user'])
-            ->loadCount(['attachments', 'reviews']);
+        return $tasks->filter(fn ($task) => str_contains(strtolower($task->requirement ?? ''), strtolower($search))
+            || str_contains(strtolower($task->assignedTo?->name ?? ''), strtolower($search)))->values();
+    }
+
+    /**
+     * Kunci penyimpanan background board. Todo Saya/Tugas Saya/Penugasan Individu berbagi 1
+     * background (bukan per-tab) - board pribadi vs project punya kustomisasi terpisah, tiap
+     * project ULID-nya sendiri.
+     */
+    public function getBoardKeyProperty(): string
+    {
+        return $this->activeProjectId ?: 'personal';
+    }
+
+    public function getBoardBackgroundProperty()
+    {
+        return app(TaskService::class)->getBoardBackground(Auth::user(), $this->boardKey);
     }
 
     public function getTasksByStatusProperty(): array
@@ -178,29 +196,32 @@ class TaskListPage extends Component
             ->all();
     }
 
+    /** Riwayat (task COMPLETE H+1 ke atas) - cuma buat scope todo/saya/individu, bukan project. */
+    public function getHistoryTasksProperty()
+    {
+        if ($this->activeProject) {
+            return null;
+        }
+
+        return app(TaskService::class)->getHistoryTasks(Auth::user(), $this->scope);
+    }
+
     public function selectScope(string $scope): void
     {
         $this->scope = $scope;
         $this->activeProjectId = null;
-        $this->riwayatStatus = null;
-        unset($this->tasks);
-    }
-
-    /** Riwayat itu section sendiri di sidebar (sejajar Project) — 1 tombol per status,
-     * bukan 1 tombol gabungan kayak saya/dibuat/tim. */
-    public function selectRiwayatStatus(string $status): void
-    {
-        $this->scope = 'riwayat';
-        $this->riwayatStatus = $status;
-        $this->activeProjectId = null;
-        // Board 2 kolom (Selesai/Ditolak doang) kurang berguna buat riwayat 1 status — List
-        // langsung kebaca lewat badge kolom Status yang sudah ada.
-        $this->view = 'list';
+        $this->resetPage();
         unset($this->tasks);
     }
 
     public function selectProject(string $projectId): void
     {
+        // String kosong = pilihan placeholder "Pilih Project" di dropdown - balik ke tab biasa.
+        if ($projectId === '') {
+            $this->selectScope($this->scope);
+            return;
+        }
+
         $project = TaskProject::findOrFail($projectId);
         abort_unless(app(TaskService::class)->canAccessProject($project, Auth::user()), 403);
 
@@ -210,9 +231,11 @@ class TaskListPage extends Component
 
     public function openCreateTask(): void
     {
-        $this->reset(['requirement', 'due_date', 'assigned_to', 'checklist', 'service_id', 'newChecklistTitle', 'reviewerIds']);
+        $this->reset(['requirement', 'due_date', 'assigned_to', 'checklist', 'newChecklistTitle']);
         $this->priority = TaskPriority::MEDIUM->value;
-        $this->requiresApproval = app(TaskService::class)->requiresApprovalByDefault(Auth::user()->company_id);
+        $this->needsReview = false;
+        $this->notifyOnReview = false;
+        $this->notifyOnComplete = false;
         $this->showTaskModal = true;
     }
 
@@ -237,56 +260,43 @@ class TaskListPage extends Component
         $this->checklist = array_values($this->checklist);
     }
 
+    /** Assign wajib pilih orang (ngga boleh "saya sendiri") pas nugasin ke bawahan, bukan project. */
+    protected function assignedToRequiredForSubordinate(): bool
+    {
+        return $this->hasSubordinates && ! $this->activeProject && $this->scope !== 'todo';
+    }
+
     protected function taskRules(): array
     {
         return [
             'requirement' => ['required', 'string'],
             'due_date' => ['nullable', 'date'],
             'priority' => ['required', 'in:' . implode(',', array_column(TaskPriority::cases(), 'value'))],
-            'assigned_to' => ['nullable', 'string'],
-            'service_id' => [$this->requiresApproval ? 'required' : 'nullable', 'string'],
+            'assigned_to' => [$this->assignedToRequiredForSubordinate() ? 'required' : 'nullable', 'string'],
         ];
     }
 
     public function createTask(): void
     {
         $data = $this->validate($this->taskRules());
-        $service = app(TaskService::class);
 
-        if ($this->requiresApproval) {
-            try {
-                $service->createFormalTask([
-                    'department_id' => Auth::user()->profile?->department?->id,
-                    'service_id' => $data['service_id'],
-                    'requirement' => $data['requirement'],
-                    'priority' => $data['priority'],
-                    'due_date' => $data['due_date'],
-                    'checklist' => $this->checklist,
-                    'reviewer_ids' => $this->reviewerIds,
-                ]);
+        try {
+            app(TaskService::class)->createCasualTask([
+                'requirement' => $data['requirement'],
+                'priority' => $data['priority'],
+                'due_date' => $data['due_date'],
+                'assigned_to' => $data['assigned_to'] ?? null,
+                'project_id' => $this->activeProjectId,
+                'needs_review' => $this->needsReview,
+                'notify_creator_on_review' => $this->needsReview && $this->notifyOnReview,
+                'notify_creator_on_complete' => ! $this->needsReview && $this->notifyOnComplete,
+                'checklist' => $this->checklist,
+            ]);
 
-                Notification::make()->title('Tugas diajukan, menunggu approval')->success()->send();
-            } catch (\Throwable $e) {
-                Notification::make()->title($e->getMessage())->danger()->send();
-                return;
-            }
-        } else {
-            try {
-                $service->createCasualTask([
-                    'requirement' => $data['requirement'],
-                    'priority' => $data['priority'],
-                    'due_date' => $data['due_date'],
-                    'assigned_to' => $data['assigned_to'] ?? null,
-                    'project_id' => $this->activeProjectId,
-                    'checklist' => $this->checklist,
-                    'reviewer_ids' => $this->reviewerIds,
-                ]);
-
-                Notification::make()->title('Tugas berhasil dibuat')->success()->send();
-            } catch (\Throwable $e) {
-                Notification::make()->title($e->getMessage() ?: 'Tidak bisa membuat tugas ini')->danger()->send();
-                return;
-            }
+            Notification::make()->title('Tugas berhasil dibuat')->success()->send();
+        } catch (\Throwable $e) {
+            Notification::make()->title($e->getMessage() ?: 'Tidak bisa membuat tugas ini')->danger()->send();
+            return;
         }
 
         $this->showTaskModal = false;
@@ -303,15 +313,69 @@ class TaskListPage extends Component
             Notification::make()->title($e->getMessage() ?: 'Tidak bisa memindahkan tugas ini')->danger()->send();
         }
 
-        unset($this->tasks);
+        unset($this->tasks, $this->historyTasks);
+    }
+
+    public function deleteTask(string $taskId): void
+    {
+        try {
+            app(TaskService::class)->deleteTask(Task::findOrFail($taskId), Auth::user());
+            $this->selectedTaskId = null;
+            Notification::make()->title('Tugas dihapus')->success()->send();
+        } catch (\Throwable $e) {
+            Notification::make()->title($e->getMessage() ?: 'Tidak bisa menghapus tugas ini')->danger()->send();
+        }
+
+        unset($this->tasks, $this->historyTasks);
+    }
+
+    public function openEditTask(string $taskId): void
+    {
+        $task = Task::findOrFail($taskId);
+
+        $this->editTaskId = $task->id;
+        $this->editRequirement = $task->requirement ?? '';
+        $this->editDueDate = $task->due_date;
+        $this->editPriority = $task->priority?->value ?? TaskPriority::MEDIUM->value;
+        $this->showEditTaskModal = true;
+    }
+
+    public function closeEditTaskModal(): void
+    {
+        $this->showEditTaskModal = false;
+        $this->editTaskId = null;
+    }
+
+    public function updateTaskDetails(): void
+    {
+        $data = $this->validate([
+            'editRequirement' => ['required', 'string'],
+            'editDueDate' => ['nullable', 'date'],
+            'editPriority' => ['required', 'in:' . implode(',', array_column(TaskPriority::cases(), 'value'))],
+        ]);
+
+        try {
+            app(TaskService::class)->updateTaskDetails(Task::findOrFail($this->editTaskId), [
+                'requirement' => $data['editRequirement'],
+                'due_date' => $data['editDueDate'],
+                'priority' => $data['editPriority'],
+            ], Auth::user());
+
+            Notification::make()->title('Tugas berhasil diubah')->success()->send();
+        } catch (\Throwable $e) {
+            Notification::make()->title($e->getMessage() ?: 'Tidak bisa mengubah tugas ini')->danger()->send();
+            return;
+        }
+
+        $this->showEditTaskModal = false;
+        $this->editTaskId = null;
+        unset($this->tasks, $this->selectedTask);
     }
 
     public function openTaskDetail(string $taskId): void
     {
         $this->selectedTaskId = $taskId;
         $this->newComment = '';
-        $this->showRejectForm = false;
-        $this->rejectNote = '';
     }
 
     public function closeTaskDetail(): void
@@ -325,67 +389,24 @@ class TaskListPage extends Component
             return null;
         }
 
-        return Task::with(['assignedTo', 'createdBy', 'checklistItems', 'comments.user', 'attachments', 'proofs', 'reviews.reviewer', 'rejectionNoteBy'])
+        return Task::with(['assignedTo', 'createdBy', 'checklistItems', 'comments.user', 'attachments', 'proofs', 'rejectionNoteBy'])
             ->find($this->selectedTaskId);
-    }
-
-    /** Baris task_reviews milik user yang login, buat selectedTask — null kalau dia bukan reviewer. */
-    public function getMyReviewRowProperty()
-    {
-        if (! $this->selectedTask) {
-            return null;
-        }
-
-        return $this->selectedTask->reviews->firstWhere('reviewer_id', Auth::id());
-    }
-
-    public function submitReview(string $taskId): void
-    {
-        $data = $this->validate([
-            'reviewRating' => ['required', 'integer', 'min:1', 'max:5'],
-            'reviewComment' => ['nullable', 'string', 'max:1000'],
-        ]);
-
-        try {
-            app(TaskService::class)->approveReview(Task::findOrFail($taskId), Auth::user(), $data['reviewRating'], $data['reviewComment']);
-            $this->reset(['reviewRating', 'reviewComment']);
-            unset($this->tasks, $this->selectedTask);
-            Notification::make()->title('Review terkirim')->success()->send();
-        } catch (\Throwable $e) {
-            Notification::make()->title($e->getMessage() ?: 'Gagal mengirim review')->danger()->send();
-        }
-    }
-
-    public function openRejectForm(): void
-    {
-        $this->showRejectForm = true;
-        $this->rejectNote = '';
-    }
-
-    public function cancelRejectForm(): void
-    {
-        $this->showRejectForm = false;
-        $this->rejectNote = '';
-    }
-
-    public function submitReject(string $taskId): void
-    {
-        $data = $this->validate(['rejectNote' => ['required', 'string', 'max:1000']]);
-
-        try {
-            app(TaskService::class)->rejectReview(Task::findOrFail($taskId), Auth::user(), $data['rejectNote']);
-            $this->reset(['showRejectForm', 'rejectNote']);
-            unset($this->tasks, $this->selectedTask);
-            Notification::make()->title('Tugas dikembalikan ke pelaksana')->success()->send();
-        } catch (\Throwable $e) {
-            Notification::make()->title($e->getMessage() ?: 'Gagal menolak tinjauan')->danger()->send();
-        }
     }
 
     public function toggleChecklistItem(string $itemId): void
     {
         $item = TaskChecklistItem::findOrFail($itemId);
         app(TaskService::class)->toggleChecklistItem($item);
+    }
+
+    public function rateTask(string $taskId, int $rating): void
+    {
+        try {
+            app(TaskService::class)->rateTask(Task::findOrFail($taskId), $rating, Auth::user());
+            unset($this->selectedTask, $this->tasks);
+        } catch (\Throwable $e) {
+            Notification::make()->title($e->getMessage() ?: 'Tidak bisa memberi rating')->danger()->send();
+        }
     }
 
     public function addComment(string $taskId): void
@@ -399,55 +420,36 @@ class TaskListPage extends Component
         unset($this->tasks);
     }
 
-    public function openAttachments(string $taskId): void
-    {
-        $this->attachmentsTaskId = $taskId;
-    }
-
-    public function closeAttachments(): void
-    {
-        $this->attachmentsTaskId = null;
-    }
-
-    public function getAttachmentsTaskProperty(): ?Task
-    {
-        if (! $this->attachmentsTaskId) {
-            return null;
-        }
-
-        return Task::with('attachments')->find($this->attachmentsTaskId);
-    }
-
     public function uploadFileAttachment(): void
     {
-        if (! $this->newAttachmentFile || ! $this->attachmentsTask) {
+        if (! $this->newAttachmentFile || ! $this->selectedTask) {
             return;
         }
 
         $this->validate(['newAttachmentFile' => ['file', 'max:10240']]);
 
-        app(TaskService::class)->addFileAttachment($this->attachmentsTask, Auth::user(), $this->newAttachmentFile);
+        app(TaskService::class)->addFileAttachment($this->selectedTask, Auth::user(), $this->newAttachmentFile);
         $this->reset(['newAttachmentFile']);
-        unset($this->attachmentsTask, $this->tasks);
+        unset($this->selectedTask, $this->tasks);
     }
 
     public function addLinkAttachment(): void
     {
-        if (trim($this->newAttachmentLink) === '' || ! $this->attachmentsTask) {
+        if (trim($this->newAttachmentLink) === '' || ! $this->selectedTask) {
             return;
         }
 
         $this->validate(['newAttachmentLink' => ['url']]);
 
-        app(TaskService::class)->addLinkAttachment($this->attachmentsTask, Auth::user(), $this->newAttachmentLink, $this->newAttachmentLinkLabel ?: null);
+        app(TaskService::class)->addLinkAttachment($this->selectedTask, Auth::user(), $this->newAttachmentLink, $this->newAttachmentLinkLabel ?: null);
         $this->reset(['newAttachmentLink', 'newAttachmentLinkLabel']);
-        unset($this->attachmentsTask, $this->tasks);
+        unset($this->selectedTask, $this->tasks);
     }
 
     public function removeAttachment(string $attachmentId): void
     {
         app(TaskService::class)->removeAttachment($attachmentId);
-        unset($this->attachmentsTask, $this->tasks);
+        unset($this->selectedTask, $this->tasks);
     }
 
     public function openCreateProjectModal(): void
@@ -482,6 +484,44 @@ class TaskListPage extends Component
         unset($this->myProjects, $this->tasks);
 
         Notification::make()->title('Project berhasil dibuat')->success()->send();
+    }
+
+    public function openBgModal(): void
+    {
+        $current = $this->boardBackground;
+        $this->bgType = $current?->type ?? 'color';
+        $this->bgColor = $current?->type === 'color' ? $current->value : '#0f172a';
+        $this->bgImage = null;
+        $this->showBgModal = true;
+    }
+
+    public function closeBgModal(): void
+    {
+        $this->showBgModal = false;
+    }
+
+    public function saveBoardBackground(): void
+    {
+        $service = app(TaskService::class);
+
+        if ($this->bgType === 'image') {
+            $this->validate(['bgImage' => ['required', 'image', 'max:4096']]);
+            $service->setBoardBackgroundImage(Auth::user(), $this->boardKey, $this->bgImage);
+        } else {
+            $this->validate(['bgColor' => ['required', 'regex:/^#[0-9a-fA-F]{6}$/']]);
+            $service->setBoardBackgroundColor(Auth::user(), $this->boardKey, $this->bgColor);
+        }
+
+        unset($this->boardBackground);
+        $this->showBgModal = false;
+        Notification::make()->title('Background board diperbarui')->success()->send();
+    }
+
+    public function removeBoardBackground(): void
+    {
+        app(TaskService::class)->removeBoardBackground(Auth::user(), $this->boardKey);
+        unset($this->boardBackground);
+        $this->showBgModal = false;
     }
 
     public function openMembersModal(): void

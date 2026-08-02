@@ -27,14 +27,16 @@ use Illuminate\Support\Carbon;
  * @property string|null $project_id
  * @property string|null $assigned_to
  * @property string|null $approved_by
- * @property string|null $sla_reviewer_id
  * @property string|null $requirement
  * @property int $is_self_assigned
+ * @property bool $needs_review
+ * @property bool $notify_creator_on_review
+ * @property bool $notify_creator_on_complete
  * @property string|null $status
+ * @property int|null $rating
  * @property string|null $rejected_reason
  * @property string|null $rejection_note_by
  * @property string|null $rejection_note_at
- * @property string|null $risk_level
  * @property TaskPriority $priority
  * @property int $position
  * @property int $total_cost
@@ -44,9 +46,6 @@ use Illuminate\Support\Carbon;
  * @property string|null $started_date
  * @property string|null $completed_date
  * @property int $is_overdue
- * @property string|null $collaboration_note
- * @property string|null $root_cause
- * @property string|null $solution
  * @property string|null $created_by
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
@@ -69,18 +68,13 @@ use Illuminate\Support\Carbon;
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Task\TaskProof> $proofs
  * @property-read int|null $proofs_count
  * @property-read User|null $rejectionNoteBy
- * @property-read \App\Models\Task\TaskReview|null $review
- * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Task\TaskReview> $reviews
- * @property-read int|null $reviews_count
  * @property-read TaskService|null $service
- * @property-read User|null $slaReviewer
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Task newModelQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Task newQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Task query()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Task whereApprovedBy($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Task whereAssignedTo($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Task whereCode($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Task whereCollaborationNote($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Task whereCompanyId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Task whereCompletedDate($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Task whereCreatedAt($value)
@@ -98,11 +92,7 @@ use Illuminate\Support\Carbon;
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Task whereRejectionNoteBy($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Task whereRequirement($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Task whereRespondedDate($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Task whereRiskLevel($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Task whereRootCause($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Task whereServiceId($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Task whereSlaReviewerId($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Task whereSolution($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Task whereStartedDate($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Task whereStatus($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Task whereTotalCost($value)
@@ -123,16 +113,18 @@ class Task extends Model
         'project_id',
         'assigned_to',
         'approved_by',
-        'sla_reviewer_id',
         'requirement',
         'is_self_assigned',
+        'needs_review',
+        'notify_creator_on_review',
+        'notify_creator_on_complete',
         'status',
+        'rating',
         'priority',
         'position',
         'rejected_reason',
         'rejection_note_by',
         'rejection_note_at',
-        'risk_level',
         'total_cost',
         'unit_cost',
         'due_date',
@@ -140,22 +132,19 @@ class Task extends Model
         'started_date',
         'completed_date',
         'is_overdue',
-        'collaboration_note',
-        'root_cause',
-        'solution',
         'created_by',
     ];
 
     // status sengaja TIDAK di-cast ke enum — banyak tempat (Filament infolist, query builder,
     // ApprovalFlowService) sudah nyimpen/baca sebagai string mentah, cast enum bakal mecahin
     // TaskStatus::tryFrom($state) yang butuh string bukan object enum.
-    // due_date/responded_date/started_date/completed_date sengaja TIDAK di-cast ke date —
-    // App\Http\Resources\Task\TaskDetailResource & TaskListResource (dipakai mobile API)
-    // nge-return kolom ini mentah-mentah; cast bakal ubah format JSON-nya jadi ISO datetime,
-    // beda kontrak dari yang mobile app sudah biasa terima. Format tanggal di view portal
-    // pakai Carbon::parse() manual, bukan mengandalkan cast model.
+    // due_date/responded_date/started_date/completed_date sengaja TIDAK di-cast ke date - format
+    // tanggal di view portal pakai Carbon::parse() manual, bukan mengandalkan cast model.
     protected $casts = [
         'priority' => TaskPriority::class,
+        'needs_review' => 'boolean',
+        'notify_creator_on_review' => 'boolean',
+        'notify_creator_on_complete' => 'boolean',
     ];
 
     public function attachments(): HasMany
@@ -188,26 +177,9 @@ class Task extends Model
         return $this->belongsTo(TaskProject::class, 'project_id');
     }
 
-    public function slaReviewer(): BelongsTo
-    {
-        return $this->belongsTo(User::class, 'sla_reviewer_id');
-    }
-
     public function rejectionNoteBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'rejection_note_by');
-    }
-
-    public function review(): HasOne
-    {
-        return $this->hasOne(TaskReview::class, 'task_id');
-    }
-
-    // Portal (multi-reviewer, and-sign) pakai reviews() — review() hasOne di atas dipertahankan
-    // buat kontrak mobile API (TaskDetailResource dkk) yang masih asumsi 1 reviewer per task.
-    public function reviews(): HasMany
-    {
-        return $this->hasMany(TaskReview::class, 'task_id');
     }
 
     public function approvedBy(): BelongsTo

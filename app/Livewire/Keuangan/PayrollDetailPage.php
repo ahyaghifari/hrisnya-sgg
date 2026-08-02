@@ -2,9 +2,12 @@
 
 namespace App\Livewire\Keuangan;
 
+use App\Enum\Attendance\PermissionTypeCategoryEnum;
+use App\Enum\AttendanceReqStatus;
 use App\Enum\CustomPermissionEnum;
 use App\Enum\Payroll\PayrollComponentEnum;
 use App\Jobs\SendPayrollSlipJob;
+use App\Models\Attendance\AttendanceRequests;
 use App\Models\Payroll\CompanyPayrollComponent;
 use App\Models\Payroll\Payroll;
 use App\Models\Payroll\PayrollComponentRecipient;
@@ -39,6 +42,50 @@ class PayrollDetailPage extends Component
     public function getComponentRowsProperty(): array
     {
         return app(PayrollService::class)->componentRows($this->payroll);
+    }
+
+    /**
+     * Metode Izin Seharian "gaji_pokok" diam-diam jadi Rp0 kalau karyawan itu punya izin tapi
+     * TIDAK punya PayrollItem Gaji Pokok (pangkat/kelas kosong, atau tidak terdaftar sebagai
+     * penerima Gaji Pokok) - lihat IzinSeharianGajiPokokCalculator::rateHarian(). Bukan bug
+     * (tidak ada dasar hitung ya tidak dipotong), tapi berbahaya kalau senyap: finance bisa
+     * kelewat karyawan yang izin berkali-kali tapi tidak pernah kepotong. Munculin sebagai
+     * warning eksplisit di halaman detail, BUKAN di slip PDF (per keputusan user).
+     */
+    public function getIzinSeharianGajiPokokWarningProperty(): ?string
+    {
+        $companyId = $this->payroll->payrollPeriod->company_id;
+        $metode = Setting::resolve('izin_seharian_metode', $companyId, default: 'keseluruhan');
+
+        if ($metode !== 'gaji_pokok') {
+            return null;
+        }
+
+        $period = $this->payroll->payrollPeriod;
+
+        $izinCount = AttendanceRequests::query()
+            ->where('user_id', $this->payroll->user_id)
+            ->where('type', 'permission')
+            ->where('status', AttendanceReqStatus::APPROVED->value)
+            ->whereHas('permissionDetails', function ($q) use ($period) {
+                $q->whereBetween('date', [$period->start_date, $period->end_date])
+                    ->where('category', PermissionTypeCategoryEnum::IZIN_SEHARIAN->value);
+            })
+            ->count();
+
+        if ($izinCount <= 0) {
+            return null;
+        }
+
+        $hasGajiPokok = $this->payroll->items()
+            ->where('source_type', PayrollComponentEnum::GAJI_POKOK->value)
+            ->exists();
+
+        if ($hasGajiPokok) {
+            return null;
+        }
+
+        return "Karyawan ini punya {$izinCount} kejadian Izin Seharian di periode ini, tapi TIDAK ada potongan - metode Izin Seharian company ini \"Gaji Pokok\", dan karyawan ini belum punya baris Gaji Pokok (cek Pangkat/Kelas di profil, atau status penerima Gaji Pokok di halaman Penerima Komponen Gaji).";
     }
 
     /**

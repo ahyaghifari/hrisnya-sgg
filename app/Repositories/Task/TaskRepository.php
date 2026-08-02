@@ -2,52 +2,14 @@
 
 namespace App\Repositories\Task;
 
-use App\Enum\Task\TaskRiskLevel;
 use App\Models\Task\Task;
 use App\Models\Task\TaskAttachment;
 use App\Models\Task\TaskProof;
-use App\Models\Task\TaskReview;
 use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\Storage;
 
 class TaskRepository
 {
-    public function getTasksByUser(string $userId, ?string $code = null, ?bool $isHighRisk = false): Collection
-    {
-        return Task::query()
-            ->where(function ($query) use ($userId) {
-                $query->where('assigned_to', $userId)
-                    ->orWhere('sla_reviewer_id', $userId);
-            })
-            ->when($code, function ($query, $code) {
-                $query->where('code', 'like', '%' . $code . '%');
-            })
-            ->when($isHighRisk, function ($query) {
-                $query->where('risk_level', TaskRiskLevel::HIGH->value)
-                    ->orWhere('is_overdue', true);
-            })
-            ->orderByDesc('created_at')
-            ->get();
-    }
-
-    public function getTaskDetailByUser(string $taskId, string $userId): Task
-    {
-        $task = Task::query()
-            ->where('id', $taskId)
-            ->where(function ($q) use ($userId) {
-                $q->where('assigned_to', $userId)
-                    ->orWhere('sla_reviewer_id', $userId);
-            })
-            ->first();
-
-        if (! $task) {
-            throw new ModelNotFoundException();
-        }
-
-        return $task;
-    }
-
     public function getCompletedTasksByUser(string $userId): Collection
     {
         return Task::where('assigned_to', $userId)
@@ -125,15 +87,5 @@ class TaskRepository
         }
 
         $attachment->delete();
-    }
-
-    public function addReview(string $taskId, array $reviewData): TaskReview
-    {
-        return TaskReview::create([
-            'task_id' => $taskId,
-            'reviewer_id' => $reviewData['reviewer_id'],
-            'rating' => $reviewData['rating'],
-            'comment' => $reviewData['comment'] ?? null,
-        ]);
     }
 }

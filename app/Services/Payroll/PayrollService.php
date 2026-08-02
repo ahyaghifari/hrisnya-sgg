@@ -381,17 +381,23 @@ class PayrollService
             ->get();
 
         foreach ($koperasiRows as $row) {
-            PayrollManualLine::updateOrCreate(
-                [
-                    'payroll_period_id' => $period->id,
-                    'user_id' => $row->user_id,
-                    'component' => PayrollComponentEnum::KOPERASI->value,
-                ],
-                [
-                    'amount' => $row->amount,
-                    'note' => 'Auto-sync dari Koperasi',
-                ]
-            );
+            $key = [
+                'payroll_period_id' => $period->id,
+                'user_id' => $row->user_id,
+                'component' => PayrollComponentEnum::KOPERASI->value,
+            ];
+
+            // Delete-then-create, bukan updateOrCreate. Koperasi selalu 1 nilai (bukan rincian
+            // kayak Bon mode Detail) - kalau somehow ada >1 baris nyasar (constraint unique sudah
+            // dilonggarkan, lihat migration 2026_08_01_160000_*), updateOrCreate cuma nimpa baris
+            // PERTAMA yang match, sisanya tetap ada dan ikut dijumlah KoperasiCalculator (loop
+            // semua baris) - dobel hitung senyap. Delete dulu memastikan selalu tepat 1 baris.
+            PayrollManualLine::where($key)->delete();
+            PayrollManualLine::create([
+                ...$key,
+                'amount' => $row->amount,
+                'note' => 'Auto-sync dari Koperasi',
+            ]);
         }
     }
 

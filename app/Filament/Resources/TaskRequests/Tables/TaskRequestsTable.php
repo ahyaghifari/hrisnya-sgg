@@ -2,7 +2,6 @@
 
 namespace App\Filament\Resources\TaskRequests\Tables;
 
-use App\Enum\Task\TaskRiskLevel;
 use App\Enum\Task\TaskStatus;
 use App\Helpers\PermissionHelper;
 use Filament\Actions\BulkActionGroup;
@@ -41,13 +40,6 @@ class TaskRequestsTable
                     ->dateTime('d M Y H:i')
                     ->sortable(),
 
-                TextColumn::make('risk_level')
-                    ->label('Risk')
-                    ->badge()
-                    ->color(fn ($state) => TaskRiskLevel::tryFrom($state)?->getColor())
-                    ->placeholder('-')
-                    ->formatStateUsing(fn ($state) => TaskRiskLevel::tryFrom($state)?->getLabel() ?? '-'),
-
                 IconColumn::make('is_self_assigned')
                     ->label('Self Assigned')
                     ->boolean(),
@@ -67,14 +59,6 @@ class TaskRequestsTable
                     ->searchable()
                     ->default(fn () => PermissionHelper::hasGlobalRole(\Illuminate\Support\Facades\Auth::user()) ? \Illuminate\Support\Facades\Auth::user()->company_id : null)
                     ->visible(fn () => PermissionHelper::hasGlobalRole(\Illuminate\Support\Facades\Auth::user())),
-
-                SelectFilter::make('risk_level')
-                    ->label('Risk Level')
-                    ->options([
-                        'low' => 'Low',
-                        'medium' => 'Medium',
-                        'high' => 'High',
-                    ]),
             ])
             ->recordActions([
                 EditAction::make()->hiddenLabel(),

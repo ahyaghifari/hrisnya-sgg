@@ -11,7 +11,6 @@ use App\Models\Payroll\PayrollPeriod;
 use App\Models\Setting;
 use App\Models\Shift\ExtraHourAllowanceRules;
 use App\Models\User;
-use Illuminate\Support\Facades\Log;
 
 /**
  * Logic sama persis PayrollService::handleExtraHourAllowanceComponent() lama — cuma sumber
@@ -33,7 +32,6 @@ class KelebihanJamKerjaCalculator implements PayrollComponentCalculator
         $minWorkingHours = Setting::resolve('min_total_working_hours_per_month', $period->company_id, default: 0);
 
         $excessHours = ceil($totalWorkingHours - $minWorkingHours);
-        Log::info("KelebihanJamKerjaCalculator: User {$user->id} - Total Working Hours: {$totalWorkingHours}, Minimum Required: {$minWorkingHours}, Excess Hours: {$excessHours}");
 
         if ($excessHours <= 0) {
             return;

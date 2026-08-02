@@ -7,19 +7,22 @@ use App\Filament\Resources\AttendanceRequests\Pages\EditAttendanceRequest;
 use App\Filament\Resources\AttendanceRequests\Pages\ListAttendanceRequests;
 use App\Filament\Resources\AttendanceRequests\Schemas\AttendanceRequestForm;
 use App\Filament\Resources\AttendanceRequests\Tables\AttendanceRequestsTable;
-use App\Helpers\PermissionHelper;
+use App\Filament\Resources\BaseResource;
 use App\Models\Attendance\AttendanceRequests;
 use BackedEnum;
 use Filament\Navigation\NavigationItem;
-use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Facades\Auth;
 use UnitEnum;
 
-class AttendanceRequestResource extends Resource
+/**
+ * Company-nya di sini bukan kolom langsung (attendance_requests tidak punya company_id, cuma
+ * lewat relasi user) - jadi extend BaseResource (helper isSuperAdmin()/companyId()/user()) BUKAN
+ * BaseCompanyResource (itu asumsi company_id kolom sendiri di tabel, lihat komentarnya).
+ */
+class AttendanceRequestResource extends BaseResource
 {
     protected static ?string $model = AttendanceRequests::class;
 
@@ -37,16 +40,14 @@ class AttendanceRequestResource extends Resource
 
     public static function getEloquentQuery(): Builder
     {
-        $user = Auth::user();
-
         $query = parent::getEloquentQuery()->with([
             'user.company',
             'approvalSnapshot.activity'
         ]);
 
-        if ($user && $user->company_id && !PermissionHelper::hasGlobalRole($user)) {
-            $query->whereHas('user', function ($q) use ($user) {
-                $q->where('company_id', $user->company_id);
+        if (! static::isSuperAdmin() && static::companyId()) {
+            $query->whereHas('user', function ($q) {
+                $q->where('company_id', static::companyId());
             });
         }
 
@@ -71,49 +72,27 @@ class AttendanceRequestResource extends Resource
 
     public static function getNavigationItems(): array
     {
-        $user = Auth::user();
-        $canApprove = static::canApprove();
-
-        $getCount = function (string $type) use ($user, $canApprove) {
-            $query = AttendanceRequests::where('type', $type)
-                ->where('status', 'in_review');
-
-            if ($canApprove) {
-                $query->whereHas('user', function ($q) use ($user) {
-                    $q->where('company_id', $user->company_id);
-                });
-            } else {
-                $query->where('user_id', $user->id);
-            }
-
-            $count = $query->count();
-            return $count > 0 ? (string) $count : 0;
-        };
-
         return [
             NavigationItem::make('Izin')
                 ->label('Izin')
-                ->url(static::getUrl('index', ['type' => 'permission', 'tab' => '0']))
+                ->url(static::getUrl('index', ['type' => 'permission']))
                 ->icon('heroicon-o-calendar-date-range')
                 ->isActiveWhen(fn (): bool => request()->query('type') === 'permission')
-                ->group(static::getNavigationGroup())
-                ->badge($getCount('permission')),
+                ->group(static::getNavigationGroup()),
 
             NavigationItem::make('Cuti')
                 ->label('Cuti')
-                ->url(static::getUrl('index', ['type' => 'leave', 'tab' => '1']))
+                ->url(static::getUrl('index', ['type' => 'leave']))
                 ->icon('heroicon-o-calendar-date-range')
                 ->isActiveWhen(fn (): bool => request()->query('type') === 'leave')
-                ->group(static::getNavigationGroup())
-                ->badge($getCount('leave')),
+                ->group(static::getNavigationGroup()),
 
             NavigationItem::make('Lembur')
                 ->label('Lembur')
-                ->url(static::getUrl('index', ['type' => 'overtime', 'tab' => '1']))
+                ->url(static::getUrl('index', ['type' => 'overtime']))
                 ->icon('heroicon-o-calendar-date-range')
                 ->isActiveWhen(fn (): bool => request()->query('type') === 'overtime')
-                ->group(static::getNavigationGroup())
-                ->badge($getCount('overtime')),
+                ->group(static::getNavigationGroup()),
         ];
     }
 

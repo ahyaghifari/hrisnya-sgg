@@ -65,7 +65,7 @@ return [
 
     'providers' => [
         'users' => [
-            'driver' => 'eloquent',
+            'driver' => 'eloquent_karyawan_aware',
             'model' => env('AUTH_MODEL', App\Models\User::class),
         ],
 

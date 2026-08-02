@@ -8,6 +8,9 @@ use App\Enum\Payroll\PayrollComponentEnum;
 use App\Models\AuditLog;
 use App\Models\Master\Companies;
 use App\Models\Payroll\CompanyPayrollComponent;
+use App\Models\Payroll\Payroll;
+use App\Models\Payroll\PayrollManualLine;
+use App\Models\Payroll\PayrollPeriod;
 use App\Models\Setting;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\Auth;
@@ -294,12 +297,63 @@ class SalaryComponentsPage extends Component
             $this->upsertSetting($this->companyId, $key, $value);
         }
 
+        // Ganti bon_metode ke 'simple' - baris sisa dari mode 'detail' (>1 baris per periode)
+        // digabung dulu, supaya Import Excel (updateOrCreate 1 baris) atau tampilan halaman
+        // detail payroll gak salah baca baris yang ketinggalan. Lihat consolidateBonManualLines().
+        if (($this->settingValues['bon_metode'] ?? null) === 'simple') {
+            $this->consolidateBonManualLines($this->companyId);
+        }
+
         $companyName = $this->companies->firstWhere('id', $this->companyId)?->name ?? 'perusahaan ini';
 
         Notification::make()
             ->title("Komponen gaji {$companyName} berhasil disimpan")
             ->success()
             ->send();
+    }
+
+    /**
+     * Baris Bon >1 per (periode, user) - peninggalan mode 'detail' - digabung jadi 1 baris
+     * (amount = sum semua, sisanya dihapus) begitu company pindah ke mode 'simple'. Tanpa ini,
+     * updateOrCreate di BonImport (simple = 1 baris) cuma nimpa baris PERTAMA yang match,
+     * sisanya tetap kehitung AbstractManualLineCalculator - dobel hitung senyap.
+     *
+     * Periode yang payroll-nya SUDAH dibayar (is_paid=true) dilewati - data historis yang sudah
+     * dibayar tidak boleh diubah lagi, biarkan apa adanya.
+     */
+    private function consolidateBonManualLines(string $companyId): void
+    {
+        $periodIds = PayrollPeriod::where('company_id', $companyId)->pluck('id');
+
+        $groups = PayrollManualLine::query()
+            ->whereIn('payroll_period_id', $periodIds)
+            ->where('component', PayrollComponentEnum::BON->value)
+            ->get()
+            ->groupBy(fn ($line) => "{$line->payroll_period_id}|{$line->user_id}");
+
+        foreach ($groups as $lines) {
+            if ($lines->count() <= 1) {
+                continue;
+            }
+
+            $first = $lines->first();
+
+            $isPaid = Payroll::query()
+                ->where('payroll_period_id', $first->payroll_period_id)
+                ->where('user_id', $first->user_id)
+                ->value('is_paid');
+
+            if ($isPaid) {
+                continue;
+            }
+
+            $first->update([
+                'amount' => $lines->sum('amount'),
+                'note' => "Digabung otomatis dari {$lines->count()} baris (ganti mode Bon ke Simple)",
+            ]);
+
+            $lines->skip(1)->each->delete();
+        }
     }
 
     public function getCanEditGlobalSettingsProperty(): bool

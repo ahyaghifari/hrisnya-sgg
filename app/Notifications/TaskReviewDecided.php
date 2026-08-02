@@ -8,16 +8,16 @@ use App\Services\Notification\NotificationPreferenceService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Notification;
+use Illuminate\Support\Str;
 use NotificationChannels\WebPush\WebPushChannel;
 use NotificationChannels\WebPush\WebPushMessage;
 
-/** Ke pelaksana tugas (assigned_to), saat reviewer approve/reject tugasnya — lihat
- * TaskService::approveReview()/rejectReview(). */
+/** Ke pelaksana, saat creator mutusin task yang di-REVIEW: approve (ke COMPLETE) atau kembalikan (ke IN_PROGRESS). */
 class TaskReviewDecided extends Notification implements ShouldQueue
 {
     use Queueable;
 
-    public function __construct(protected Task $task, protected string $reviewerName, protected bool $approved) {}
+    public function __construct(protected Task $task, protected bool $approved, protected string $deciderName) {}
 
     public function via(object $notifiable): array
     {
@@ -30,14 +30,16 @@ class TaskReviewDecided extends Notification implements ShouldQueue
 
     protected function title(): string
     {
-        return $this->approved ? 'Tugas Disetujui' : 'Tugas Ditolak Reviewer';
+        return $this->approved ? '🎉 Tugas Disetujui!' : 'Tugas Dikembalikan';
     }
 
     protected function body(): string
     {
+        $name = Str::limit($this->task->requirement, 60);
+
         return $this->approved
-            ? "{$this->reviewerName} menyetujui tugas {$this->task->code}"
-            : "{$this->reviewerName} menolak tugas {$this->task->code}, perlu direvisi";
+            ? "Mantap! \"{$name}\" disetujui {$this->deciderName} dan sudah resmi selesai. Kerja bagus! 🎊✨"
+            : "{$this->deciderName} mengembalikan \"{$name}\" buat direvisi lagi.";
     }
 
     public function toDatabase(object $notifiable): array

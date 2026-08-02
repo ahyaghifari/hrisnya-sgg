@@ -13,6 +13,7 @@ use App\Models\User\UserDocuments;
 use App\Models\User\UserJobPositions;
 use App\Models\User\UserProfiles;
 use Filament\Models\Contracts\FilamentUser;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -138,6 +139,15 @@ class User extends Authenticatable implements FilamentUser
     {
         parent::boot();
 
+        // Default query User buang 4 akun yang bukan karyawan (Direktur, istri Direktur, 2x
+        // Super Admin) - jadi tidak perlu panggil scope manual di tiap tempat yang menarik
+        // daftar karyawan. Login tetap jalan buat 4 akun ini karena
+        // App\Auth\KaryawanAwareUserProvider (config('auth.providers.users.driver')) bypass
+        // scope ini lewat withoutGlobalScope('non_karyawan') pas retrieve buat auth.
+        static::addGlobalScope('non_karyawan', function (Builder $builder) {
+            $builder->whereNotIn('users.id', self::NON_KARYAWAN_IDS);
+        });
+
         static::creating(function ($model) {
             if (empty($model->id)) {
                 $model->id = (string) \Illuminate\Support\Str::ulid();
@@ -246,6 +256,14 @@ class User extends Authenticatable implements FilamentUser
     {
         return $this->hasSubordinates() || $this->canBrowseAllCompanies();
     }
+
+    /** ID akun yang bukan karyawan (Direktur, istri Direktur, 2x Super Admin) - dibuang dari
+     * User::query() lewat global scope 'non_karyawan' di boot(). */
+    public const NON_KARYAWAN_IDS = [
+        '01kd7ak9xv7tk1fzbeyraxfpze', // presiden direktur
+        '01kn1dtp3y66yy00gmwvt2m2e1', // sekretaris direktur
+        '01k8271ym5edqp4jm1kvwrdrr0', // Super Admin
+    ];
 
     protected function auditModule(): string
     {

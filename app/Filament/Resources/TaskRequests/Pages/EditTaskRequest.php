@@ -2,7 +2,6 @@
 
 namespace App\Filament\Resources\TaskRequests\Pages;
 
-use App\Enum\Task\TaskStatus;
 use App\Filament\Resources\TaskRequests\TaskRequestResource;
 use App\Models\User;
 use App\Services\Approval\ApprovalFlowService;
@@ -35,7 +34,7 @@ class EditTaskRequest extends EditRecord
                 ->visible(function ($record) {
                     $user = Auth::user();
 
-                    return $record->status === TaskStatus::PENDING->value
+                    return $record->approvalSnapshot?->status === 'in_review'
                         && app(ApprovalPermissionService::class)
                             ->canApprove($record->approvalSnapshot->id, $user);
                 })
@@ -94,7 +93,7 @@ class EditTaskRequest extends EditRecord
                 ->visible(function ($record) {
                     $user = Auth::user();
 
-                    return $record->status === TaskStatus::PENDING->value
+                    return $record->approvalSnapshot?->status === 'in_review'
                         && app(ApprovalPermissionService::class)
                             ->canApprove($record->approvalSnapshot->id, $user);
                 })

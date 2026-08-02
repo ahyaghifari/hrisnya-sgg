@@ -12,6 +12,7 @@ use App\Models\Attendance\AttendanceRequestPermissionDetails;
 use App\Models\Attendance\AttendanceRequests;
 use App\Models\Setting;
 use App\Models\User;
+use App\Repositories\Approval\ApprovalHistoryRepository;
 use App\Repositories\Approval\ApprovalSnapshotRepository;
 use App\Repositories\Attendance\AttendanceReqRepository;
 use App\Repositories\Attendance\LeaveReqRepository;
@@ -30,6 +31,7 @@ class AttendaceReqService
         protected PermissionReqRepository $permissionReqRepository,
         protected ApprovalCreationService $approvalCreationService,
         protected ApprovalSnapshotRepository $approvalSnapshotRepository,
+        protected ApprovalHistoryRepository $approvalHistoryRepository,
         protected NotificationService $notificationService,
     ) {}
 
@@ -109,25 +111,30 @@ class AttendaceReqService
         ];
     }
 
-    public function storeOvertimeRequest(array $data, ?User $actingUser = null): object
+    public function storeOvertimeRequest(array $data, ?User $actingUser = null, bool $skipApproval = false, ?string $note = null, ?User $createdBy = null): object
     {
         $actingUser ??= auth('sanctum')->user();
+        $createdBy ??= $actingUser;
         $userId = $actingUser->id;
         $type = 'overtime';
-        $status = 'in_review';
+        $status = $skipApproval ? 'approved' : 'in_review';
 
-        $masterFlow = $this->approvalSnapshotRepository->resolveApprovalFlowForUser(
-            moduleType: ApprovalModuleEnum::ATTENDANCE_REQUEST->value,
-            companyId: $actingUser->company_id,
-            userId: $userId
-        );
+        $masterFlow = null;
+        if (! $skipApproval) {
+            $masterFlow = $this->approvalSnapshotRepository->resolveApprovalFlowForUser(
+                moduleType: ApprovalModuleEnum::ATTENDANCE_REQUEST->value,
+                companyId: $actingUser->company_id,
+                userId: $userId
+            );
 
-        if (!$masterFlow) {
-            throw new \Exception('No active approval flow found for attendance requests for this company.');
+            if (!$masterFlow) {
+                throw new \Exception('No active approval flow found for attendance requests for this company.');
+            }
         }
 
         $request = $this->attendanceReqRepository->storeAttendanceRequest([
             'user_id' => $userId,
+            'created_by' => $createdBy->id,
             'type' => $type,
             'status' => $status,
         ]);
@@ -149,6 +156,24 @@ class AttendaceReqService
         ];
 
         $this->overtimeReqRepository->storeOvertimeRequest($overtimeData);
+
+        if ($skipApproval) {
+            $this->attendanceReqRepository->updateAttendanceRequest($request, [
+                'approved_by' => $createdBy->id,
+                'approved_at' => now(),
+            ]);
+
+            $this->approvalHistoryRepository->create([
+                'requestable_type' => ApprovalModuleEnum::ATTENDANCE_REQUEST->value,
+                'requestable_id' => $request->id,
+                'action' => 'approved',
+                'actor_id' => $createdBy->id,
+                'actor_name' => $createdBy->name,
+                'note' => $note,
+            ]);
+
+            return $this->overtimeReqRepository->findAttendanceReqOvertimeDetail($request->id);
+        }
 
         // Create approval snapshot
         $snapshot = $this->approvalCreationService->createSnapshot(
@@ -179,21 +204,25 @@ class AttendaceReqService
         return $this->overtimeReqRepository->findAttendanceReqOvertimeDetail($request->id);
     }
 
-    public function storeLeaveRequest(array $data, ?User $actingUser = null): object
+    public function storeLeaveRequest(array $data, ?User $actingUser = null, bool $skipApproval = false, ?string $note = null, ?User $createdBy = null): object
     {
         $actingUser ??= auth('sanctum')->user();
+        $createdBy ??= $actingUser;
         $userId = $actingUser->id;
         $type = 'leave';
-        $status = 'in_review';
+        $status = $skipApproval ? 'approved' : 'in_review';
 
-        $masterFlow = $this->approvalSnapshotRepository->resolveApprovalFlowForUser(
-            moduleType: ApprovalModuleEnum::ATTENDANCE_REQUEST->value,
-            companyId: $actingUser->company_id,
-            userId: $userId
-        );
+        $masterFlow = null;
+        if (! $skipApproval) {
+            $masterFlow = $this->approvalSnapshotRepository->resolveApprovalFlowForUser(
+                moduleType: ApprovalModuleEnum::ATTENDANCE_REQUEST->value,
+                companyId: $actingUser->company_id,
+                userId: $userId
+            );
 
-        if (!$masterFlow) {
-            throw new \Exception('No active approval flow found for attendance requests for this company.');
+            if (!$masterFlow) {
+                throw new \Exception('No active approval flow found for attendance requests for this company.');
+            }
         }
 
         $leaveType = $this->leaveReqRepository->getLeaveTypeById($data['type_id']);
@@ -206,6 +235,7 @@ class AttendaceReqService
 
         $request = $this->attendanceReqRepository->storeAttendanceRequest([
             'user_id' => $userId,
+            'created_by' => $createdBy->id,
             'type' => $type,
             'status' => $status,
         ]);
@@ -220,6 +250,24 @@ class AttendaceReqService
         ];
 
         $this->leaveReqRepository->storeLeaveRequest($leaveData);
+
+        if ($skipApproval) {
+            $this->attendanceReqRepository->updateAttendanceRequest($request, [
+                'approved_by' => $createdBy->id,
+                'approved_at' => now(),
+            ]);
+
+            $this->approvalHistoryRepository->create([
+                'requestable_type' => ApprovalModuleEnum::ATTENDANCE_REQUEST->value,
+                'requestable_id' => $request->id,
+                'action' => 'approved',
+                'actor_id' => $createdBy->id,
+                'actor_name' => $createdBy->name,
+                'note' => $note,
+            ]);
+
+            return $this->leaveReqRepository->findAttendanceReqLeaveDetail($request->id);
+        }
 
         // Create approval snapshot
         $snapshot = $this->approvalCreationService->createSnapshot(
@@ -404,21 +452,33 @@ class AttendaceReqService
         }
     }
 
-    public function storePermissionRequest(array $data, ?User $actingUser = null): object
+    /**
+     * @param bool $skipApproval Dibuat langsung oleh admin (bukan pengajuan mandiri) tanpa lewat
+     *   approval flow — status langsung 'approved', $note WAJIB diisi (divalidasi pemanggil).
+     *   Lihat knowledge/changes untuk konteks: admin butuh cara input Izin manual (misal data
+     *   susulan/koreksi) tanpa memaksa lewat approval berjenjang.
+     * @param User|null $createdBy Admin yang membuat, dicatat di riwayat & approved_by. Default
+     *   $actingUser kalau tidak diisi (pengajuan mandiri biasa).
+     */
+    public function storePermissionRequest(array $data, ?User $actingUser = null, bool $skipApproval = false, ?string $note = null, ?User $createdBy = null): object
     {
         $actingUser ??= auth('sanctum')->user();
+        $createdBy ??= $actingUser;
         $userId = $actingUser->id;
         $type = 'permission';
-        $status = 'in_review';
+        $status = $skipApproval ? 'approved' : 'in_review';
 
-        $masterFlow = $this->approvalSnapshotRepository->resolveApprovalFlowForUser(
-            moduleType: ApprovalModuleEnum::ATTENDANCE_REQUEST->value,
-            companyId: $actingUser->company_id,
-            userId: $userId
-        );
+        $masterFlow = null;
+        if (! $skipApproval) {
+            $masterFlow = $this->approvalSnapshotRepository->resolveApprovalFlowForUser(
+                moduleType: ApprovalModuleEnum::ATTENDANCE_REQUEST->value,
+                companyId: $actingUser->company_id,
+                userId: $userId
+            );
 
-        if (!$masterFlow) {
-            throw new \Exception('No active approval flow found for attendance requests for this company.');
+            if (!$masterFlow) {
+                throw new \Exception('No active approval flow found for attendance requests for this company.');
+            }
         }
 
         // permission_type_id cuma ada untuk kelompok yang punya master (Meninggalkan Jam Kerja &
@@ -436,6 +496,7 @@ class AttendaceReqService
 
         $request = $this->attendanceReqRepository->storeAttendanceRequest([
             'user_id' => $userId,
+            'created_by' => $createdBy->id,
             'type' => $type,
             'status' => $status,
         ]);
@@ -458,6 +519,28 @@ class AttendaceReqService
         ];
 
         $this->permissionReqRepository->storePermissionRequest($permissionData);
+
+        if ($skipApproval) {
+            // Dibuat langsung oleh admin, tidak lewat approval flow - tandai approved langsung
+            // + catat 1 baris riwayat (snapshot_id null, lihat migration
+            // make_snapshot_id_nullable_on_approval_histories_table) supaya tetap kelihatan di
+            // tab "Riwayat Approval" kenapa & oleh siapa izin ini langsung disetujui.
+            $this->attendanceReqRepository->updateAttendanceRequest($request, [
+                'approved_by' => $createdBy->id,
+                'approved_at' => now(),
+            ]);
+
+            $this->approvalHistoryRepository->create([
+                'requestable_type' => ApprovalModuleEnum::ATTENDANCE_REQUEST->value,
+                'requestable_id' => $request->id,
+                'action' => 'approved',
+                'actor_id' => $createdBy->id,
+                'actor_name' => $createdBy->name,
+                'note' => $note,
+            ]);
+
+            return $this->permissionReqRepository->findAttendanceReqPermissionDetail($request->id);
+        }
 
         // Create approval snapshot
         $snapshot = $this->approvalCreationService->createSnapshot(

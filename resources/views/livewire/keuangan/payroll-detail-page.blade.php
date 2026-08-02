@@ -17,6 +17,13 @@
     <div style="display:flex;flex-direction:column;gap:16px;">
         <a href="{{ route('keuangan.payroll') }}" wire:navigate style="font-size:12.5px;color:var(--text-muted);text-decoration:none;"><i class="fa-solid fa-arrow-left"></i> Kembali ke daftar Payroll</a>
 
+        @if ($this->izinSeharianGajiPokokWarning)
+            <div style="background:rgba(220,38,38,0.08);border:1px solid rgba(220,38,38,0.3);border-radius:10px;padding:12px 14px;font-size:12.5px;color:#991b1b;">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+                {{ $this->izinSeharianGajiPokokWarning }}
+            </div>
+        @endif
+
         <div style="background:var(--surface);border-radius:12px;box-shadow:var(--shadow-card);padding:18px;max-width:760px;">
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;">
                 <div>

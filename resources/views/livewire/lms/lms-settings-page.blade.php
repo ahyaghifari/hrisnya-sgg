@@ -2,7 +2,7 @@
     <x-page-header title="Pengaturan LMS" />
 
     <div class="mt-4">
-        <div style="background:var(--surface);border-radius:16px;box-shadow:var(--shadow-card);padding:18px;max-width:640px;">
+        <div style="background:var(--surface);border-radius:16px;box-shadow:var(--shadow-card);padding:18px;">
             <div style="display:flex;flex-direction:column;">
                 @foreach ($this->settings as $setting)
                     <div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px 20px;padding:14px 0;{{ ! $loop->last ? 'border-bottom:1px solid var(--border-soft);' : '' }}">

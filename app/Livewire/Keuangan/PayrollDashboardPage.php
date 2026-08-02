@@ -10,6 +10,7 @@ use App\Models\Payroll\Payroll;
 use App\Models\Payroll\PayrollItem;
 use App\Models\Payroll\PayrollPeriod;
 use App\Models\Payroll\UserKoperasi;
+use App\Models\Setting;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
@@ -153,6 +154,19 @@ class PayrollDashboardPage extends Component
                 'percent' => (int) round($row->total / $max * 100),
             ];
         });
+    }
+
+    /**
+     * Tabel `incentives` cuma sumber data buat metode 'master' - company metode 'auto' dihitung
+     * LIVE per user saat payroll di-generate (selisih Tunjangan Jabatan lama vs baru, tidak ada
+     * baris master sama sekali), jadi card "Insentif Aktif" TIDAK PERNAH bisa merepresentasikan
+     * company metode itu lewat query ini. Dulu diam-diam nunjukkan 0 orang/Rp0 - sekarang
+     * di-flag eksplisit lewat getInsentifMetodeProperty(), blade nampilin pesan bukan angka
+     * yang menyesatkan.
+     */
+    public function getInsentifMetodeProperty(): string
+    {
+        return (string) Setting::resolve('insentif_metode', $this->companyId, default: 'master');
     }
 
     protected function scopedIncentives()

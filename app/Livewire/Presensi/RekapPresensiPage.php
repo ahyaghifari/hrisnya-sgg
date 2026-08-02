@@ -221,8 +221,7 @@ class RekapPresensiPage extends Component
     protected function baseUserQuery(): Builder
     {
         return User::query()
-            ->when($this->companyId, fn ($q) => $q->where('company_id', $this->companyId))
-            ->when(config('attendance.excluded_nips'), fn ($q, $nips) => $q->whereNotIn('users.nip', $nips));
+            ->when($this->companyId, fn ($q) => $q->where('company_id', $this->companyId));
     }
 
     protected function filteredUserQuery(): Builder

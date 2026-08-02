@@ -7,6 +7,7 @@ use App\Services\Attendance\AttendaceReqService;
 use Filament\Actions\Action;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\CreateRecord;
+use Filament\Support\Enums\Alignment;
 use Illuminate\Support\Facades\Auth;
 
 class CreateAttendanceRequest extends CreateRecord
@@ -20,6 +21,11 @@ class CreateAttendanceRequest extends CreateRecord
 
         $type = request()->query('type');
         $this->type = $type;
+    }
+
+    public function getFormActionsAlignment(): string | Alignment
+    {
+        return Alignment::End;
     }
 
     public function getTitle(): string
@@ -51,24 +57,41 @@ class CreateAttendanceRequest extends CreateRecord
                                 'is_one_day' => $state['is_one_day'] ?? true,
                                 'start_date' => $state['start_date'] ?? null,
                                 'end_date' => ($state['is_one_day'] ?? true) ? ($state['start_date'] ?? null) : ($state['end_date'] ?? null),
-                            ], Auth::user()),
+                            ],
+                                \App\Models\User::findOrFail($state['target_user_id']),
+                                skipApproval: ! ($state['need_approval'] ?? true),
+                                note: $state['note'] ?? null,
+                                createdBy: Auth::user(),
+                            ),
                             'overtime' => $service->storeOvertimeRequest([
                                 'type_id' => $state['overtime_type_id'] ?? null,
                                 'date' => $state['date'] ?? null,
                                 'tasks' => $state['tasks'] ?? null,
                                 'attachments' => $state['attachments'] ?? null,
-                            ], Auth::user()),
+                            ],
+                                \App\Models\User::findOrFail($state['target_user_id']),
+                                skipApproval: ! ($state['need_approval'] ?? true),
+                                note: $state['note'] ?? null,
+                                createdBy: Auth::user(),
+                            ),
                             default => $service->storePermissionRequest([
                                 'type_id' => $state['permission_type_id'] ?? null,
+                                'category' => $state['category'] ?? null,
                                 'date' => $state['date'] ?? null,
+                                'end_date' => $state['end_date'] ?? null,
                                 'start_time' => $state['start_time'] ?? null,
                                 'end_time' => $state['end_time'] ?? null,
                                 'purpose' => $state['purpose'] ?? null,
                                 'location' => $state['location'] ?? null,
-                                'substitute_user_id' => $state['substitute_user_id'] ?? null,
-                                'substitute_user_name' => $state['substitute_user_name'] ?? null,
-                                'substitute_task' => $state['substitute_task'] ?? null,
-                            ], Auth::user()),
+                                'substitute_user_name' => ($state['with_substitute'] ?? false) ? ($state['substitute_user_name'] ?? null) : null,
+                                'substitute_task' => ($state['with_substitute'] ?? false) ? ($state['substitute_task'] ?? null) : null,
+                                'attachments' => $state['attachments'] ?? null,
+                            ],
+                                \App\Models\User::findOrFail($state['target_user_id']),
+                                skipApproval: ! ($state['need_approval'] ?? true),
+                                note: $state['note'] ?? null,
+                                createdBy: Auth::user(),
+                            ),
                         };
 
                         $this->redirect($this->getResource()::getUrl('index', ['type' => $this->type]));

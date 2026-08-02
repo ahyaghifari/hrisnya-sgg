@@ -59,6 +59,7 @@ class AttendanceRequests extends Model
 
     protected $fillable = [
         'user_id',
+        'created_by',
         'type',
         'reason',
         'status',
@@ -72,6 +73,11 @@ class AttendanceRequests extends Model
     public function user()
     {
         return $this->belongsTo(\App\Models\User::class, 'user_id', 'id');
+    }
+
+    public function createdBy()
+    {
+        return $this->belongsTo(\App\Models\User::class, 'created_by', 'id');
     }
 
     public function overtimeDetails()

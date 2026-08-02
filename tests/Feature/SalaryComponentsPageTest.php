@@ -7,6 +7,9 @@ use App\Enum\Payroll\PayrollComponentEnum;
 use App\Livewire\Keuangan\SalaryComponentsPage;
 use App\Models\Master\Companies;
 use App\Models\Payroll\CompanyPayrollComponent;
+use App\Models\Payroll\Payroll;
+use App\Models\Payroll\PayrollManualLine;
+use App\Models\Payroll\PayrollPeriod;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
@@ -110,5 +113,53 @@ class SalaryComponentsPageTest extends TestCase
             'company_id' => $companyB->id,
             'component' => PayrollComponentEnum::GAJI_POKOK->value,
         ]);
+    }
+
+    public function test_switching_bon_metode_to_simple_consolidates_leftover_detail_lines(): void
+    {
+        $finance = $this->actingAsFinance();
+        $company = $this->makeCompany();
+        $user = User::factory()->create(['company_id' => $company->id]);
+        $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
+        Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id, 'is_paid' => false]);
+
+        // 3 baris sisa dari mode 'detail'.
+        PayrollManualLine::create(['payroll_period_id' => $period->id, 'user_id' => $user->id, 'component' => 'bon', 'amount' => 200000, 'note' => 'Bon tgl 5']);
+        PayrollManualLine::create(['payroll_period_id' => $period->id, 'user_id' => $user->id, 'component' => 'bon', 'amount' => 150000, 'note' => 'Ganti kerugian']);
+        PayrollManualLine::create(['payroll_period_id' => $period->id, 'user_id' => $user->id, 'component' => 'bon', 'amount' => 50000, 'note' => 'Titip beli']);
+
+        Livewire::actingAs($finance)
+            ->test(SalaryComponentsPage::class)
+            ->call('selectCompany', $company->id)
+            ->call('toggleExpand', PayrollComponentEnum::BON->value)
+            ->set('settingValues.bon_metode', 'simple')
+            ->call('save');
+
+        $lines = PayrollManualLine::where('payroll_period_id', $period->id)->where('component', 'bon')->get();
+
+        $this->assertCount(1, $lines);
+        $this->assertSame(400000.0, (float) $lines->first()->amount);
+    }
+
+    public function test_switching_bon_metode_to_simple_skips_paid_period(): void
+    {
+        $finance = $this->actingAsFinance();
+        $company = $this->makeCompany();
+        $user = User::factory()->create(['company_id' => $company->id]);
+        $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
+        Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id, 'is_paid' => true]);
+
+        PayrollManualLine::create(['payroll_period_id' => $period->id, 'user_id' => $user->id, 'component' => 'bon', 'amount' => 200000]);
+        PayrollManualLine::create(['payroll_period_id' => $period->id, 'user_id' => $user->id, 'component' => 'bon', 'amount' => 150000]);
+
+        Livewire::actingAs($finance)
+            ->test(SalaryComponentsPage::class)
+            ->call('selectCompany', $company->id)
+            ->call('toggleExpand', PayrollComponentEnum::BON->value)
+            ->set('settingValues.bon_metode', 'simple')
+            ->call('save');
+
+        // Periode sudah dibayar - baris historisnya dibiarkan apa adanya, tetap 2 baris.
+        $this->assertCount(2, PayrollManualLine::where('payroll_period_id', $period->id)->where('component', 'bon')->get());
     }
 }

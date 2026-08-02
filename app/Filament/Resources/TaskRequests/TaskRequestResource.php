@@ -2,7 +2,6 @@
 
 namespace App\Filament\Resources\TaskRequests;
 
-use App\Enum\Task\TaskStatus;
 use App\Filament\Resources\TaskRequests\Pages\CreateTaskRequest;
 use App\Filament\Resources\TaskRequests\Pages\EditTaskRequest;
 use App\Filament\Resources\TaskRequests\Pages\ListTaskRequests;
@@ -35,7 +34,7 @@ class TaskRequestResource extends Resource
 
     public static function getNavigationBadge(): ?string
     {
-        return static::$model::where('status', TaskStatus::PENDING->name)->count() ?: 0;
+        return static::$model::whereHas('approvalSnapshot', fn (Builder $q) => $q->where('status', 'in_review'))->count() ?: 0;
     }
 
     public static function form(Schema $schema): Schema

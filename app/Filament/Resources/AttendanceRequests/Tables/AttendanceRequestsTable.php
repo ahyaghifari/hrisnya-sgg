@@ -2,19 +2,11 @@
 
 namespace App\Filament\Resources\AttendanceRequests\Tables;
 
-use App\Enum\Approval\ApprovalModuleEnum;
 use App\Enum\AttendanceReqStatus;
 use App\Filament\Resources\AttendanceRequests\AttendanceRequestResource;
-use App\Helpers\PermissionHelper;
-use App\Models\ApprovalManagement\ApprovalSnapshots;
-use Filament\Actions\Action;
-use Filament\Actions\BulkActionGroup;
-use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
-use Filament\Notifications\Notification;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
-use Illuminate\Support\Facades\DB;
 
 class AttendanceRequestsTable
 {
@@ -40,49 +32,16 @@ class AttendanceRequestsTable
                     ->relationship('user.company', 'name')
                     ->preload()
                     ->searchable()
-                    ->default(fn () => PermissionHelper::hasGlobalRole(\Illuminate\Support\Facades\Auth::user()) ? \Illuminate\Support\Facades\Auth::user()->company_id : null)
-                    ->visible(fn () => PermissionHelper::hasGlobalRole(\Illuminate\Support\Facades\Auth::user())),
+                    ->visible(fn () => AttendanceRequestResource::isSuperAdmin()),
             ])
             ->recordActions([
+                // Hapus dipindah ke halaman detail (EditAttendanceRequest) - cuma tampil di situ
+                // buat pengajuan yang dibuat admin, lihat gate created_by di sana.
                 EditAction::make()->hiddenLabel()
                     ->url(fn ($record) => AttendanceRequestResource::getUrl('edit', [
                         'record' => $record,
                         'type' => $record->type,
                     ])),
-
-                // Bersih total, buat kebutuhan tes ulang: hapus snapshot approval (activities +
-                // histories ikut cascade DB dari snapshot_id) dulu, baru pengajuannya sendiri
-                // (leave/permission/overtime detail ikut cascade DB dari request_id). Snapshot
-                // TIDAK punya FK asli ke attendance_requests (module_id cuma string generik,
-                // dipakai lintas modul approval), jadi harus dicari manual, bukan otomatis ikut hapus.
-                Action::make('deleteRequest')
-                    ->label('Hapus')
-                    ->hiddenLabel()
-                    ->icon('heroicon-o-trash')
-                    ->color('danger')
-                    ->requiresConfirmation()
-                    ->modalHeading('Hapus Pengajuan')
-                    ->modalDescription('Ini akan menghapus PERMANEN pengajuan ini beserta detail (cuti/izin/lembur), snapshot approval, dan riwayatnya. Tidak bisa dibatalkan.')
-                    ->modalSubmitActionLabel('Ya, Hapus')
-                    ->action(function ($record) {
-                        DB::transaction(function () use ($record) {
-                            ApprovalSnapshots::where('module_type', ApprovalModuleEnum::ATTENDANCE_REQUEST->value)
-                                ->where('module_id', $record->id)
-                                ->each(fn ($snapshot) => $snapshot->delete());
-
-                            $record->delete();
-                        });
-
-                        Notification::make()
-                            ->title('Pengajuan berhasil dihapus')
-                            ->success()
-                            ->send();
-                    }),
-            ])
-            ->toolbarActions([
-                BulkActionGroup::make([
-                    DeleteBulkAction::make(),
-                ]),
             ]);
     }
 

@@ -5,8 +5,6 @@ use App\Http\Controllers\Api\Attendance\HolidayController;
 use App\Http\Controllers\Api\Coaching\CoachingController;
 use App\Http\Controllers\Api\Counseling\CounselingController;
 use App\Http\Controllers\Api\JobOpening\JobOpeningController;
-use App\Http\Controllers\Api\Task\TaskController;
-use App\Http\Controllers\Api\Task\TaskReportController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('auth')->group(function () {
@@ -21,10 +19,9 @@ Route::prefix('auth')->group(function () {
 });
 
 Route::prefix('master')->group(function () {
-    
+
     Route::middleware('auth:sanctum')->group(function () {
         Route::get('attendance/request-types', [AttendanceRequestController::class, 'getMasterAttendanceReqTypes']);
-        Route::get('departments/other', [TaskController::class, 'getOtherDepartments']);
     });
 });
 
@@ -65,25 +62,6 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/permission', [AttendanceRequestController::class, 'storePermissionRequest']);
 
         Route::get('/leave/balance/{typeId}', [AttendanceRequestController::class, 'getLeaveUserBalance']);
-    });
-
-    Route::prefix('tasks')->group(function () {
-        Route::prefix('reports')->group(function () {
-            Route::get('/', [TaskReportController::class, 'getReports']);
-            Route::get('/{id}', [TaskReportController::class, 'getDetailReport']);
-            Route::put('/{id}/quote', [TaskReportController::class, 'updateQuote']);
-        });
-
-        Route::get('/services', [TaskController::class, 'getMasterTaskService']);
-        Route::get('/reviewers', [TaskController::class, 'getReviewers']);
-
-        Route::post('/self', [TaskController::class, 'storeSelfTask']);
-        Route::get('/{id}', [TaskController::class, 'getTaskDetail']);
-        Route::put('/{id}', [TaskController::class, 'updateTask']);
-        Route::put('/{id}/review', [TaskController::class, 'reviewTask']);
-        Route::post('/', [TaskController::class, 'storeTask']);
-
-        Route::get('/', [TaskController::class, 'getTasks']);
     });
 
     Route::prefix('counselings')->group(function () {

@@ -2,8 +2,10 @@
 
 namespace Tests\Feature\Task;
 
+use App\Enum\Approval\ApprovalModuleEnum;
 use App\Enum\Task\TaskSettingEnum;
 use App\Enum\Task\TaskStatus;
+use App\Models\ApprovalManagement\ApprovalSnapshots;
 use App\Models\Master\Companies;
 use App\Models\Setting;
 use App\Models\Task\Task;
@@ -62,6 +64,10 @@ class TaskModuleTest extends TestCase
         ]);
     }
 
+    /**
+     * BOARD_ORDER sekarang TODO -> IN_PROGRESS -> COMPLETE langsung (tanpa tahap REVIEW, dihapus
+     * 2026-08-02 bareng TaskReview - satu-satunya pemakai, app mobile lama, sudah ditinggal).
+     */
     public function test_move_status_only_one_step_forward(): void
     {
         $company = $this->makeCompany();
@@ -73,19 +79,46 @@ class TaskModuleTest extends TestCase
             'company_id' => $company->id,
             'created_by' => $user->id,
             'assigned_to' => $user->id,
+            'needs_review' => true,
             'status' => TaskStatus::TODO->value,
         ]);
 
         $service = app(TaskService::class);
 
         $service->moveStatus($task, TaskStatus::IN_PROGRESS->value, $user);
-        $this->assertSame(TaskStatus::IN_PROGRESS->value, $task->fresh()->status);
+        $task = $task->fresh();
+        $this->assertSame(TaskStatus::IN_PROGRESS->value, $task->status);
 
-        $this->expectException(\Symfony\Component\HttpKernel\Exception\HttpException::class);
+        $service->moveStatus($task, TaskStatus::REVIEW->value, $user);
+        $task = $task->fresh();
+        $this->assertSame(TaskStatus::REVIEW->value, $task->status);
+
         $service->moveStatus($task, TaskStatus::COMPLETE->value, $user);
+        $this->assertSame(TaskStatus::COMPLETE->value, $task->fresh()->status);
     }
 
-    public function test_move_status_allows_pulling_back_from_review_to_in_progress(): void
+    public function test_move_status_skips_review_when_needs_review_false(): void
+    {
+        $company = $this->makeCompany();
+        $creator = User::factory()->create(['company_id' => $company->id]);
+        $assignee = User::factory()->create(['company_id' => $company->id]);
+        Auth::login($assignee);
+
+        $task = Task::create([
+            'code' => 'TSK00099',
+            'company_id' => $company->id,
+            'created_by' => $creator->id,
+            'assigned_to' => $assignee->id,
+            'needs_review' => false,
+            'status' => TaskStatus::IN_PROGRESS->value,
+        ]);
+
+        app(TaskService::class)->moveStatus($task, TaskStatus::COMPLETE->value, $assignee);
+
+        $this->assertSame(TaskStatus::COMPLETE->value, $task->fresh()->status);
+    }
+
+    public function test_move_status_rejects_skipping_a_step(): void
     {
         $company = $this->makeCompany();
         $user = User::factory()->create(['company_id' => $company->id]);
@@ -96,12 +129,11 @@ class TaskModuleTest extends TestCase
             'company_id' => $company->id,
             'created_by' => $user->id,
             'assigned_to' => $user->id,
-            'status' => TaskStatus::REVIEW->value,
+            'status' => TaskStatus::TODO->value,
         ]);
 
-        app(TaskService::class)->moveStatus($task, TaskStatus::IN_PROGRESS->value, $user);
-
-        $this->assertSame(TaskStatus::IN_PROGRESS->value, $task->fresh()->status);
+        $this->expectException(\Symfony\Component\HttpKernel\Exception\HttpException::class);
+        app(TaskService::class)->moveStatus($task, TaskStatus::COMPLETE->value, $user);
     }
 
     public function test_move_status_locked_when_pending_approval(): void
@@ -114,11 +146,31 @@ class TaskModuleTest extends TestCase
             'code' => 'TSK00003',
             'company_id' => $company->id,
             'created_by' => $user->id,
-            'status' => TaskStatus::PENDING->value,
+            'assigned_to' => $user->id,
+            'status' => TaskStatus::TODO->value,
+        ]);
+
+        $flow = \App\Models\ApprovalManagement\MasterApprovalFlows::create([
+            'company_id' => $company->id,
+            'name' => 'Flow Test',
+            'module' => ApprovalModuleEnum::TASK_REQUEST->value,
+            'flow_type' => 'default',
+            'is_active' => true,
+        ]);
+
+        ApprovalSnapshots::create([
+            'module_type' => ApprovalModuleEnum::TASK_REQUEST->value,
+            'module_id' => $task->id,
+            'flow_id' => $flow->id,
+            'flow_name' => $flow->name,
+            'steps_snapshot' => [],
+            'status' => 'in_review',
+            'company_id' => $company->id,
+            'created_by' => $user->id,
         ]);
 
         $this->expectException(\Symfony\Component\HttpKernel\Exception\HttpException::class);
-        app(TaskService::class)->moveStatus($task, TaskStatus::TODO->value, $user);
+        app(TaskService::class)->moveStatus($task, TaskStatus::IN_PROGRESS->value, $user);
     }
 
     public function test_move_status_forbidden_for_non_owner(): void
@@ -137,6 +189,110 @@ class TaskModuleTest extends TestCase
 
         $this->expectException(\Symfony\Component\HttpKernel\Exception\HttpException::class);
         app(TaskService::class)->moveStatus($task, TaskStatus::IN_PROGRESS->value, $stranger);
+    }
+
+    public function test_move_status_at_todo_only_assignee_allowed(): void
+    {
+        $company = $this->makeCompany();
+        $creator = User::factory()->create(['company_id' => $company->id]);
+        $assignee = User::factory()->create(['company_id' => $company->id]);
+
+        $task = Task::create([
+            'code' => 'TSK00005',
+            'company_id' => $company->id,
+            'created_by' => $creator->id,
+            'assigned_to' => $assignee->id,
+            'status' => TaskStatus::TODO->value,
+        ]);
+
+        $this->expectException(\Symfony\Component\HttpKernel\Exception\HttpException::class);
+        app(TaskService::class)->moveStatus($task, TaskStatus::IN_PROGRESS->value, $creator);
+    }
+
+    public function test_move_status_review_can_go_back_to_in_progress(): void
+    {
+        $company = $this->makeCompany();
+        $creator = User::factory()->create(['company_id' => $company->id]);
+        $assignee = User::factory()->create(['company_id' => $company->id]);
+
+        $task = Task::create([
+            'code' => 'TSK00006',
+            'company_id' => $company->id,
+            'created_by' => $creator->id,
+            'assigned_to' => $assignee->id,
+            'needs_review' => true,
+            'status' => TaskStatus::REVIEW->value,
+        ]);
+
+        app(TaskService::class)->moveStatus($task, TaskStatus::IN_PROGRESS->value, $creator);
+
+        $this->assertSame(TaskStatus::IN_PROGRESS->value, $task->fresh()->status);
+    }
+
+    public function test_move_status_at_review_only_creator_allowed(): void
+    {
+        $company = $this->makeCompany();
+        $creator = User::factory()->create(['company_id' => $company->id]);
+        $assignee = User::factory()->create(['company_id' => $company->id]);
+
+        $task = Task::create([
+            'code' => 'TSK00007',
+            'company_id' => $company->id,
+            'created_by' => $creator->id,
+            'assigned_to' => $assignee->id,
+            'needs_review' => true,
+            'status' => TaskStatus::REVIEW->value,
+        ]);
+
+        $this->expectException(\Symfony\Component\HttpKernel\Exception\HttpException::class);
+        app(TaskService::class)->moveStatus($task, TaskStatus::COMPLETE->value, $assignee);
+    }
+
+    public function test_rate_task_only_creator_after_complete(): void
+    {
+        $company = $this->makeCompany();
+        $creator = User::factory()->create(['company_id' => $company->id]);
+        $assignee = User::factory()->create(['company_id' => $company->id]);
+
+        $task = Task::create([
+            'code' => 'TSK00008',
+            'company_id' => $company->id,
+            'created_by' => $creator->id,
+            'assigned_to' => $assignee->id,
+            'status' => TaskStatus::COMPLETE->value,
+        ]);
+
+        app(TaskService::class)->rateTask($task, 4, $creator);
+        $this->assertSame(4, $task->fresh()->rating);
+
+        $notCompleteTask = Task::create([
+            'code' => 'TSK00009',
+            'company_id' => $company->id,
+            'created_by' => $creator->id,
+            'assigned_to' => $assignee->id,
+            'status' => TaskStatus::TODO->value,
+        ]);
+
+        $this->expectException(\Symfony\Component\HttpKernel\Exception\HttpException::class);
+        app(TaskService::class)->rateTask($notCompleteTask, 5, $creator);
+    }
+
+    public function test_rate_task_forbidden_for_non_creator(): void
+    {
+        $company = $this->makeCompany();
+        $creator = User::factory()->create(['company_id' => $company->id]);
+        $assignee = User::factory()->create(['company_id' => $company->id]);
+
+        $task = Task::create([
+            'code' => 'TSK00010',
+            'company_id' => $company->id,
+            'created_by' => $creator->id,
+            'assigned_to' => $assignee->id,
+            'status' => TaskStatus::COMPLETE->value,
+        ]);
+
+        $this->expectException(\Symfony\Component\HttpKernel\Exception\HttpException::class);
+        app(TaskService::class)->rateTask($task, 3, $assignee);
     }
 
     public function test_requires_approval_default_follows_company_setting(): void
@@ -311,136 +467,6 @@ class TaskModuleTest extends TestCase
         $service->setProjectMemberAssigner($project, $another->id, true, $member->fresh());
     }
 
-    public function test_casual_task_reviewer_ids_are_assigned_manually(): void
-    {
-        $company = $this->makeCompany();
-        $creator = User::factory()->create(['company_id' => $company->id]);
-        $peer = User::factory()->create(['company_id' => $company->id]);
-        $reviewerA = User::factory()->create(['company_id' => $company->id]);
-        $reviewerB = User::factory()->create(['company_id' => $company->id]);
-        Auth::login($creator);
-
-        $service = app(TaskService::class);
-        $project = $service->createProject(['name' => 'Project E', 'member_ids' => [$peer->id]]);
-
-        $forOther = $service->createCasualTask([
-            'requirement' => 'Kerjaan buat teman project',
-            'assigned_to' => $peer->id,
-            'project_id' => $project->id,
-            'reviewer_ids' => [$reviewerA->id, $reviewerB->id],
-        ]);
-        $this->assertCount(2, $forOther->reviews);
-        $this->assertTrue($forOther->reviews->every(fn ($row) => $row->status === 'pending'));
-
-        $forSelf = $service->createCasualTask(['requirement' => 'Kerjaan sendiri']);
-        $this->assertCount(0, $forSelf->reviews);
-    }
-
-    public function test_move_status_blocks_review_to_complete_when_reviewer_required(): void
-    {
-        $company = $this->makeCompany();
-        $reviewer = User::factory()->create(['company_id' => $company->id]);
-        $assignee = User::factory()->create(['company_id' => $company->id]);
-
-        $task = Task::create([
-            'code' => 'TSK00005',
-            'company_id' => $company->id,
-            'created_by' => $reviewer->id,
-            'assigned_to' => $assignee->id,
-            'status' => TaskStatus::REVIEW->value,
-        ]);
-        $task->reviews()->create(['reviewer_id' => $reviewer->id, 'status' => 'pending']);
-
-        $this->expectException(\Symfony\Component\HttpKernel\Exception\HttpException::class);
-        app(TaskService::class)->moveStatus($task, TaskStatus::COMPLETE->value, $assignee);
-    }
-
-    public function test_approve_review_completes_task_only_when_all_reviewers_approved(): void
-    {
-        $company = $this->makeCompany();
-        $creator = User::factory()->create(['company_id' => $company->id]);
-        $assignee = User::factory()->create(['company_id' => $company->id]);
-        $reviewerA = User::factory()->create(['company_id' => $company->id]);
-        $reviewerB = User::factory()->create(['company_id' => $company->id]);
-
-        $task = Task::create([
-            'code' => 'TSK00030', 'company_id' => $company->id,
-            'created_by' => $creator->id, 'assigned_to' => $assignee->id,
-            'status' => TaskStatus::REVIEW->value,
-        ]);
-        $task->reviews()->create(['reviewer_id' => $reviewerA->id, 'status' => 'pending']);
-        $task->reviews()->create(['reviewer_id' => $reviewerB->id, 'status' => 'pending']);
-
-        $service = app(TaskService::class);
-
-        $service->approveReview($task, $reviewerA, 5, 'Mantap');
-        $this->assertSame(TaskStatus::REVIEW->value, $task->fresh()->status);
-
-        $service->approveReview($task, $reviewerB, 4, null);
-        $this->assertSame(TaskStatus::COMPLETE->value, $task->fresh()->status);
-    }
-
-    public function test_reject_review_keeps_other_approved_reviewer_decision(): void
-    {
-        $company = $this->makeCompany();
-        $creator = User::factory()->create(['company_id' => $company->id]);
-        $assignee = User::factory()->create(['company_id' => $company->id]);
-        $reviewerA = User::factory()->create(['company_id' => $company->id]);
-        $reviewerB = User::factory()->create(['company_id' => $company->id]);
-
-        $task = Task::create([
-            'code' => 'TSK00031', 'company_id' => $company->id,
-            'created_by' => $creator->id, 'assigned_to' => $assignee->id,
-            'status' => TaskStatus::REVIEW->value,
-        ]);
-        $task->reviews()->create(['reviewer_id' => $reviewerA->id, 'status' => 'pending']);
-        $task->reviews()->create(['reviewer_id' => $reviewerB->id, 'status' => 'pending']);
-
-        $service = app(TaskService::class);
-        $service->approveReview($task, $reviewerA, 5, null);
-        $service->rejectReview($task, $reviewerB, 'Belum sesuai spesifikasi.');
-
-        $this->assertSame(TaskStatus::IN_PROGRESS->value, $task->fresh()->status);
-        $this->assertSame('approved', $task->reviews()->where('reviewer_id', $reviewerA->id)->first()->status);
-        $this->assertSame('rejected', $task->reviews()->where('reviewer_id', $reviewerB->id)->first()->status);
-
-        // Disubmit ulang ke tinjauan — baris yang rejected balik pending, yang approved tetap.
-        $service->moveStatus($task->fresh(), TaskStatus::REVIEW->value, $assignee);
-
-        $this->assertSame('approved', $task->reviews()->where('reviewer_id', $reviewerA->id)->first()->status);
-        $this->assertSame('pending', $task->reviews()->where('reviewer_id', $reviewerB->id)->first()->status);
-
-        // Reviewer yang tadi reject sekarang approve — task langsung Complete, reviewer A tidak perlu vote ulang.
-        $service->approveReview($task->fresh(), $reviewerB, 4, null);
-        $this->assertSame(TaskStatus::COMPLETE->value, $task->fresh()->status);
-    }
-
-    public function test_review_task_sets_status_complete(): void
-    {
-        $company = $this->makeCompany();
-        $reviewer = User::factory()->create(['company_id' => $company->id]);
-        $assignee = User::factory()->create(['company_id' => $company->id]);
-
-        $task = Task::create([
-            'code' => 'TSK00006',
-            'company_id' => $company->id,
-            'created_by' => $reviewer->id,
-            'assigned_to' => $assignee->id,
-            'sla_reviewer_id' => $reviewer->id,
-            'status' => TaskStatus::REVIEW->value,
-        ]);
-
-        Auth::login($reviewer);
-        app(TaskService::class)->reviewTask($task->id, (object) ['rating' => 5, 'comment' => 'Mantap']);
-
-        $this->assertSame(TaskStatus::COMPLETE->value, $task->fresh()->status);
-        $this->assertDatabaseHas('task_reviews', [
-            'task_id' => $task->id,
-            'reviewer_id' => $reviewer->id,
-            'rating' => 5,
-        ]);
-    }
-
     public function test_file_attachment_can_be_added_and_removed(): void
     {
         Storage::fake('public');
@@ -483,74 +509,231 @@ class TaskModuleTest extends TestCase
         ]);
     }
 
-    public function test_riwayat_scope_filters_by_1_status_yang_dipilih(): void
+    /**
+     * 3 scope portal (tab horizontal, 2026-08-02): 'todo' = catatan pribadi (self-assigned),
+     * 'saya' = SEMUA yang assigned ke aku (superset dari 'todo', termasuk yang di-assign orang
+     * lain), 'individu' = "Penugasan Individu" - yang AKU assign ke orang lain.
+     */
+    public function test_portal_scopes_todo_saya_and_individu(): void
     {
         $company = $this->makeCompany();
-        $user = User::factory()->create(['company_id' => $company->id]);
-        Auth::login($user);
+        $boss = User::factory()->create(['company_id' => $company->id]);
+        $staff = User::factory()->create(['company_id' => $company->id]);
+        Auth::login($boss);
 
-        Task::create([
+        $todo = Task::create([
             'code' => 'TSK00010', 'company_id' => $company->id,
-            'created_by' => $user->id, 'assigned_to' => $user->id,
-            'status' => TaskStatus::TODO->value,
+            'created_by' => $boss->id, 'assigned_to' => $boss->id,
+            'is_self_assigned' => true, 'status' => TaskStatus::TODO->value,
         ]);
-        $complete = Task::create([
+        $assignedByOther = Task::create([
             'code' => 'TSK00011', 'company_id' => $company->id,
-            'created_by' => $user->id, 'assigned_to' => $user->id,
-            'status' => TaskStatus::COMPLETE->value,
+            'created_by' => $staff->id, 'assigned_to' => $boss->id,
+            'is_self_assigned' => false, 'status' => TaskStatus::TODO->value,
         ]);
-        $rejected = Task::create([
+        $individu = Task::create([
             'code' => 'TSK00012', 'company_id' => $company->id,
-            'created_by' => $user->id, 'assigned_to' => $user->id,
-            'status' => TaskStatus::REJECTED->value,
+            'created_by' => $boss->id, 'assigned_to' => $staff->id,
+            'is_self_assigned' => false, 'status' => TaskStatus::TODO->value,
         ]);
 
         $service = app(TaskService::class);
 
-        $selesai = $service->getPortalTasks($user, 'riwayat', TaskStatus::COMPLETE->value);
-        $this->assertEqualsCanonicalizing([$complete->id], $selesai->pluck('id')->all());
+        // 'todo' cuma yang self-assigned.
+        $this->assertEqualsCanonicalizing([$todo->id], $service->getPortalTasks($boss, 'todo')->pluck('id')->all());
 
-        $ditolak = $service->getPortalTasks($user, 'riwayat', TaskStatus::REJECTED->value);
-        $this->assertEqualsCanonicalizing([$rejected->id], $ditolak->pluck('id')->all());
+        // 'saya' = yang di-assign ORANG LAIN ke aku, bukan self-assigned (dipisah dari 'todo').
+        $this->assertEqualsCanonicalizing(
+            [$assignedByOther->id],
+            $service->getPortalTasks($boss, 'saya')->pluck('id')->all()
+        );
+
+        // 'individu' = yang AKU assign ke orang lain.
+        $this->assertEqualsCanonicalizing([$individu->id], $service->getPortalTasks($boss, 'individu')->pluck('id')->all());
     }
 
-    public function test_reject_review_returns_task_to_in_progress_with_private_note(): void
+    public function test_portal_scope_tim_shows_tasks_assigned_to_subordinates(): void
     {
         $company = $this->makeCompany();
-        $reviewer = User::factory()->create(['company_id' => $company->id]);
-        $assignee = User::factory()->create(['company_id' => $company->id]);
+        $hcManager = User::factory()->create(['company_id' => $company->id]);
+        $supervisor = User::factory()->create(['company_id' => $company->id]);
+        $staff = User::factory()->create(['company_id' => $company->id]);
+        $outsider = User::factory()->create(['company_id' => $company->id]);
 
-        $task = Task::create([
-            'code' => 'TSK00020', 'company_id' => $company->id,
-            'created_by' => $reviewer->id, 'assigned_to' => $assignee->id,
-            'sla_reviewer_id' => $reviewer->id,
-            'status' => TaskStatus::REVIEW->value,
+        // Fake OrgHierarchyService::subordinates() - hierarchy nyata (JobPosition/OrgStructure)
+        // ngga dites di file ini, terlalu berat buat setup; scope 'tim' cuma butuh subordinates()
+        // ngembaliin query User yang bener.
+        $fakeOrgHierarchy = \Mockery::mock(\App\Services\OrgHierarchyService::class);
+        $fakeOrgHierarchy->shouldReceive('subordinates')
+            ->andReturn(User::query()->whereIn('id', [$supervisor->id, $staff->id]));
+        $this->app->instance(\App\Services\OrgHierarchyService::class, $fakeOrgHierarchy);
+
+        $doneBySupervisor = Task::create([
+            'code' => 'TSK00013', 'company_id' => $company->id,
+            'created_by' => $hcManager->id, 'assigned_to' => $supervisor->id,
+            'status' => TaskStatus::TODO->value,
+        ]);
+        $doneByStaffForPeer = Task::create([
+            'code' => 'TSK00014', 'company_id' => $company->id,
+            'created_by' => $supervisor->id, 'assigned_to' => $staff->id,
+            'status' => TaskStatus::TODO->value,
+        ]);
+        $doneByOutsider = Task::create([
+            'code' => 'TSK00015', 'company_id' => $company->id,
+            'created_by' => $hcManager->id, 'assigned_to' => $outsider->id,
+            'status' => TaskStatus::TODO->value,
         ]);
 
-        app(TaskService::class)->rejectReview($task, $reviewer, 'Datanya belum lengkap, tolong dicek lagi.');
+        $tasks = app(TaskService::class)->getPortalTasks($hcManager, 'tim');
 
-        $fresh = $task->fresh();
-        $this->assertSame(TaskStatus::IN_PROGRESS->value, $fresh->status);
-        $this->assertSame('Datanya belum lengkap, tolong dicek lagi.', $fresh->rejected_reason);
-        $this->assertSame($reviewer->id, $fresh->rejection_note_by);
-        $this->assertNotNull($fresh->rejection_note_at);
+        $this->assertEqualsCanonicalizing(
+            [$doneBySupervisor->id, $doneByStaffForPeer->id],
+            $tasks->pluck('id')->all()
+        );
+        $this->assertFalse($tasks->contains('id', $doneByOutsider->id));
     }
 
-    public function test_reject_review_forbidden_for_non_reviewer_non_creator(): void
+    public function test_history_tasks_only_shows_completed_older_than_a_day(): void
     {
         $company = $this->makeCompany();
-        $reviewer = User::factory()->create(['company_id' => $company->id]);
-        $assignee = User::factory()->create(['company_id' => $company->id]);
-        $stranger = User::factory()->create(['company_id' => $company->id]);
+        $user = User::factory()->create(['company_id' => $company->id]);
+
+        $recentComplete = Task::create([
+            'code' => 'TSK00020', 'company_id' => $company->id,
+            'created_by' => $user->id, 'assigned_to' => $user->id, 'is_self_assigned' => true,
+            'status' => TaskStatus::COMPLETE->value, 'completed_date' => now()->subHours(2),
+        ]);
+        $oldComplete = Task::create([
+            'code' => 'TSK00021', 'company_id' => $company->id,
+            'created_by' => $user->id, 'assigned_to' => $user->id, 'is_self_assigned' => true,
+            'status' => TaskStatus::COMPLETE->value, 'completed_date' => now()->subDays(3),
+        ]);
+        $stillTodo = Task::create([
+            'code' => 'TSK00022', 'company_id' => $company->id,
+            'created_by' => $user->id, 'assigned_to' => $user->id, 'is_self_assigned' => true,
+            'status' => TaskStatus::TODO->value,
+        ]);
+
+        $service = app(TaskService::class);
+
+        // Board (getPortalTasks): recent-complete masih nongol, yang lama udah ngga.
+        $boardIds = $service->getPortalTasks($user, 'todo')->pluck('id')->all();
+        $this->assertContains($recentComplete->id, $boardIds);
+        $this->assertContains($stillTodo->id, $boardIds);
+        $this->assertNotContains($oldComplete->id, $boardIds);
+
+        // Riwayat (getHistoryTasks): kebalikannya.
+        $historyIds = $service->getHistoryTasks($user, 'todo')->pluck('id')->all();
+        $this->assertContains($oldComplete->id, $historyIds);
+        $this->assertNotContains($recentComplete->id, $historyIds);
+        $this->assertNotContains($stillTodo->id, $historyIds);
+    }
+
+    public function test_delete_task_self_assigned_always_allowed(): void
+    {
+        $company = $this->makeCompany();
+        $user = User::factory()->create(['company_id' => $company->id]);
 
         $task = Task::create([
-            'code' => 'TSK00021', 'company_id' => $company->id,
-            'created_by' => $reviewer->id, 'assigned_to' => $assignee->id,
-            'sla_reviewer_id' => $reviewer->id,
-            'status' => TaskStatus::REVIEW->value,
+            'code' => 'TSK00023', 'company_id' => $company->id,
+            'created_by' => $user->id, 'assigned_to' => $user->id, 'is_self_assigned' => true,
+            'status' => TaskStatus::COMPLETE->value,
+        ]);
+
+        app(TaskService::class)->deleteTask($task, $user);
+
+        $this->assertDatabaseMissing('task_records', ['id' => $task->id]);
+    }
+
+    public function test_delete_task_individu_blocked_after_review(): void
+    {
+        $company = $this->makeCompany();
+        $creator = User::factory()->create(['company_id' => $company->id]);
+        $assignee = User::factory()->create(['company_id' => $company->id]);
+
+        $task = Task::create([
+            'code' => 'TSK00024', 'company_id' => $company->id,
+            'created_by' => $creator->id, 'assigned_to' => $assignee->id,
+            'needs_review' => true, 'status' => TaskStatus::REVIEW->value,
         ]);
 
         $this->expectException(\Symfony\Component\HttpKernel\Exception\HttpException::class);
-        app(TaskService::class)->rejectReview($task, $stranger, 'Coba tolak punya orang lain.');
+        app(TaskService::class)->deleteTask($task, $creator);
+    }
+
+    public function test_delete_task_individu_allowed_before_review(): void
+    {
+        $company = $this->makeCompany();
+        $creator = User::factory()->create(['company_id' => $company->id]);
+        $assignee = User::factory()->create(['company_id' => $company->id]);
+
+        $task = Task::create([
+            'code' => 'TSK00025', 'company_id' => $company->id,
+            'created_by' => $creator->id, 'assigned_to' => $assignee->id,
+            'status' => TaskStatus::IN_PROGRESS->value,
+        ]);
+
+        app(TaskService::class)->deleteTask($task, $creator);
+
+        $this->assertDatabaseMissing('task_records', ['id' => $task->id]);
+    }
+
+    public function test_update_task_details_locked_after_complete(): void
+    {
+        $company = $this->makeCompany();
+        $creator = User::factory()->create(['company_id' => $company->id]);
+        $assignee = User::factory()->create(['company_id' => $company->id]);
+
+        $task = Task::create([
+            'code' => 'TSK00026', 'company_id' => $company->id,
+            'created_by' => $creator->id, 'assigned_to' => $assignee->id,
+            'requirement' => 'lama', 'status' => TaskStatus::IN_PROGRESS->value,
+        ]);
+
+        app(TaskService::class)->updateTaskDetails($task, [
+            'requirement' => 'baru', 'priority' => 'high', 'due_date' => null,
+        ], $creator);
+        $this->assertSame('baru', $task->fresh()->requirement);
+
+        $task->update(['status' => TaskStatus::COMPLETE->value]);
+        $this->expectException(\Symfony\Component\HttpKernel\Exception\HttpException::class);
+        app(TaskService::class)->updateTaskDetails($task, [
+            'requirement' => 'gagal', 'priority' => 'low', 'due_date' => null,
+        ], $creator);
+    }
+
+    public function test_move_status_revert_complete_within_24h_for_no_review_task(): void
+    {
+        $company = $this->makeCompany();
+        $creator = User::factory()->create(['company_id' => $company->id]);
+        $assignee = User::factory()->create(['company_id' => $company->id]);
+
+        $task = Task::create([
+            'code' => 'TSK00027', 'company_id' => $company->id,
+            'created_by' => $creator->id, 'assigned_to' => $assignee->id,
+            'needs_review' => false, 'status' => TaskStatus::COMPLETE->value,
+            'completed_date' => now()->subHours(5),
+        ]);
+
+        app(TaskService::class)->moveStatus($task, TaskStatus::IN_PROGRESS->value, $creator);
+
+        $this->assertSame(TaskStatus::IN_PROGRESS->value, $task->fresh()->status);
+    }
+
+    public function test_move_status_revert_complete_blocked_after_24h(): void
+    {
+        $company = $this->makeCompany();
+        $creator = User::factory()->create(['company_id' => $company->id]);
+        $assignee = User::factory()->create(['company_id' => $company->id]);
+
+        $task = Task::create([
+            'code' => 'TSK00028', 'company_id' => $company->id,
+            'created_by' => $creator->id, 'assigned_to' => $assignee->id,
+            'needs_review' => false, 'status' => TaskStatus::COMPLETE->value,
+            'completed_date' => now()->subHours(30),
+        ]);
+
+        $this->expectException(\Symfony\Component\HttpKernel\Exception\HttpException::class);
+        app(TaskService::class)->moveStatus($task, TaskStatus::IN_PROGRESS->value, $creator);
     }
 }

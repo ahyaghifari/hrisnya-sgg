@@ -80,7 +80,6 @@ class AdminPanelProvider extends PanelProvider
                 NavigationGroup::make()->label('Keuangan'),
                 NavigationGroup::make()->label('LMS'),
                 NavigationGroup::make()->label('Manajemen Pengguna'),
-                NavigationGroup::make()->label('Internship')->collapsed(),
                 NavigationGroup::make()->label('Master')->collapsed(),
             ])
             ->middleware([

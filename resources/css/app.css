@@ -926,6 +926,7 @@ html.dark .border-slate-200, html.dark .border-slate-300 { border-color: var(--b
 .badge-pending  { background: #fef9c3; color: #a16207; }
 .badge-rejected { background: #fee2e2; color: #b91c1c; }
 .badge-cancelled { background: #f1f5f9; color: #64748b; }
+.badge-info { background: #dbeafe; color: #1a56c4; }
 
 /* ── PROGRESS ── */
 .progress-track { height: 5px; background: var(--border); border-radius: 99px; overflow: hidden; }

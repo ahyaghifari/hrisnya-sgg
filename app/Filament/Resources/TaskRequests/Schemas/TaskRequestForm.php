@@ -2,7 +2,6 @@
 
 namespace App\Filament\Resources\TaskRequests\Schemas;
 
-use App\Enum\Task\TaskRiskLevel;
 use App\Enum\Task\TaskStatus;
 use Filament\Infolists\Components\ImageEntry;
 use Filament\Infolists\Components\RepeatableEntry;
@@ -22,12 +21,6 @@ class TaskRequestForm
                     ->schema([
                         TextEntry::make('code')->label('Kode Tugas'),
                         TextEntry::make('service.name')->label('Layanan Tugas'),
-                        TextEntry::make('risk_level')
-                            ->label('Tingkat Risiko')
-                            ->placeholder('-')
-                            ->badge()
-                            ->color(fn($state) => TaskRiskLevel::tryFrom($state)?->getColor())
-                            ->formatStateUsing(fn($state) => TaskRiskLevel::tryFrom($state)?->getLabel()),
                         TextEntry::make('status')
                             ->label('Status')
                             ->badge()
@@ -42,7 +35,6 @@ class TaskRequestForm
                     ->schema([
                         TextEntry::make('assignedTo.name')->label('Diberikan Kepada')->placeholder('-'),
                         TextEntry::make('approvedBy.name')->label('Disetujui Oleh')->placeholder('-'),
-                        TextEntry::make('slaReviewer.name')->label('Reviewer SLA')->placeholder('-'),
                         TextEntry::make('is_self_assigned')
                             ->label('Penugasan Diri Sendiri')
                             ->formatStateUsing(fn($state) => $state ? 'Ya' : 'Tidak'),
@@ -122,22 +114,7 @@ class TaskRequestForm
                             }),
                     ]),
 
-                Section::make('Review')
-                    ->icon('heroicon-o-star')
-                    ->columns(2)
-                    ->schema([
-                        TextEntry::make('review.reviewer.name')->label('Reviewer')->placeholder('-'),
-                        TextEntry::make('review.rating')
-                            ->label('Rating')
-                            ->placeholder('-')
-                            ->formatStateUsing(fn($state) => $state ? str_repeat('⭐', $state) : '-'),
-                        TextEntry::make('review.comment')
-                            ->label('Komentar')
-                            ->columnSpanFull()
-                            ->placeholder('-'),
-                    ]),
-
-                Section::make('Biaya & Catatan')
+                Section::make('Biaya')
                     ->icon('heroicon-o-banknotes')
                     ->columns(2)
                     ->schema([
@@ -148,32 +125,6 @@ class TaskRequestForm
                         TextEntry::make('total_cost')
                             ->label('Total Biaya')
                             ->money('IDR', true)
-                            ->placeholder('-'),
-                        TextEntry::make('collaboration_note')
-                            ->label('Catatan Kolaborasi')
-                            ->columnSpanFull()
-                            ->placeholder('-')
-                            ->alignJustify(),
-                        TextEntry::make('root_cause')
-                            ->label('Akar Permasalahan')
-                            ->placeholder('-')
-                            ->columnSpanFull()
-                            ->alignJustify(),
-                        TextEntry::make('solution')
-                            ->label('Solusi')
-                            ->placeholder('-')
-                            ->columnSpanFull()
-                            ->alignJustify(),
-                    ]),
-                Section::make('Lainnya')
-                    ->icon('heroicon-o-user-group')
-                    ->columns(2)
-                    ->schema([
-                        TextEntry::make('slaReviewer.profile.department.name')
-                            ->label('Department')
-                            ->placeholder('-'),
-                        TextEntry::make('slaReviewer.profile.division.name')
-                            ->label('Division')
                             ->placeholder('-'),
                     ]),
             ]);

@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\AttendanceRequests\Schemas;
 
 use App\Enum\AttendanceReqStatus;
+use App\Filament\Resources\AttendanceRequests\AttendanceRequestResource;
 use App\Services\Attendance\AttendaceReqService;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\FileUpload;
@@ -17,12 +18,10 @@ use Filament\Forms\Components\Toggle;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Infolists\Components\RepeatableEntry;
 use Filament\Resources\Pages\CreateRecord;
-use Filament\Schemas\Components\Fieldset;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Tabs;
 use Filament\Schemas\Schema;
-use Filament\Support\Icons\Heroicon;
 use Illuminate\Support\Facades\Auth;
 
 class AttendanceRequestForm
@@ -56,15 +55,67 @@ class AttendanceRequestForm
         ];
     }
 
+    /**
+     * Field admin buat pilih perusahaan (Super Admin doang, Admin biasa auto company sendiri),
+     * karyawan target (di-filter dari company itu), toggle Perlu Approval, dan Catatan (wajib
+     * kalau tanpa approval) - dipakai bareng oleh Cuti/Izin/Lembur, lihat storeLeaveRequest()/
+     * storePermissionRequest()/storeOvertimeRequest() param $skipApproval/$note/$createdBy.
+     */
+    private static function adminAssignmentFields(): array
+    {
+        return [
+            Select::make('target_company_id')
+                ->label('Perusahaan')
+                ->options(fn () => \App\Models\Master\Companies::pluck('name', 'id'))
+                ->default(fn () => AttendanceRequestResource::isSuperAdmin() ? null : AttendanceRequestResource::companyId())
+                ->visible(fn () => AttendanceRequestResource::isSuperAdmin())
+                ->required(fn () => AttendanceRequestResource::isSuperAdmin())
+                ->searchable()
+                ->preload()
+                ->reactive()
+                ->afterStateUpdated(fn (callable $set) => $set('target_user_id', null)),
+
+            Select::make('target_user_id')
+                ->label('Karyawan')
+                ->options(function (callable $get) {
+                    $companyId = $get('target_company_id');
+
+                    if (! $companyId) {
+                        return [];
+                    }
+
+                    return \App\Models\User::where('company_id', $companyId)->pluck('name', 'id');
+                })
+                ->searchable()
+                ->preload()
+                ->reactive()
+                ->required(),
+
+            Toggle::make('need_approval')
+                ->label('Perlu Approval')
+                ->default(true)
+                ->reactive()
+                ->inline(false),
+
+            Textarea::make('note')
+                ->label('Catatan')
+                ->helperText('Wajib diisi kalau pengajuan ini langsung disetujui tanpa approval — alasan kenapa dibuat langsung.')
+                ->rows(2)
+                ->visible(fn (callable $get) => ! $get('need_approval'))
+                ->required(fn (callable $get) => ! $get('need_approval')),
+        ];
+    }
+
     public static function leaveFormSchema(): array
     {
         return [
-            Section::make('Form Pengajuan Cuti')
+            \Filament\Schemas\Components\Group::make()
                 ->visible(fn (callable $get) => $get('type') === 'leave')
                 ->columnSpanFull()
-                ->icon(Heroicon::OutlinedCalendarDays)
-                ->columns(2)
+                ->columns(1)
                 ->schema([
+                    ...self::adminAssignmentFields(),
+
                     Select::make('leave_type_id')
                         ->label('Jenis Cuti')
                         ->options(fn () => \App\Models\Master\Attendance\LeaveTypes::pluck('name', 'id'))
@@ -99,12 +150,13 @@ class AttendanceRequestForm
     public static function overtimeFormSchema(): array
     {
         return [
-            Section::make('Form Pengajuan Lembur')
+            \Filament\Schemas\Components\Group::make()
                 ->visible(fn (callable $get) => $get('type') === 'overtime')
                 ->columnSpanFull()
-                ->icon(Heroicon::OutlinedClock)
-                ->columns(2)
+                ->columns(1)
                 ->schema([
+                    ...self::adminAssignmentFields(),
+
                     Select::make('overtime_type_id')
                         ->label('Jenis Lembur')
                         ->options(fn () => \App\Models\Master\Attendance\OvertimeTypes::pluck('name', 'id'))
@@ -148,76 +200,156 @@ class AttendanceRequestForm
         ];
     }
 
+    /** Mirror App\Enum\Attendance\PermissionGroupEnum::from(), null-safe buat closure form. */
+    private static function groupFrom(?string $value): ?\App\Enum\Attendance\PermissionGroupEnum
+    {
+        return $value ? \App\Enum\Attendance\PermissionGroupEnum::from($value) : null;
+    }
+
+    /** Mirror SubmitPermissionRequest::totalDays() - dipakai validasi wajib-lampiran Sakit >1 hari. */
+    private static function totalDays(callable $get): int
+    {
+        $date = $get('date');
+
+        if (! $date) {
+            return 0;
+        }
+
+        if (! $get('end_date')) {
+            return 1;
+        }
+
+        return \Carbon\Carbon::parse($date)->diffInDays(\Carbon\Carbon::parse($get('end_date'))) + 1;
+    }
+
+    /**
+     * Sama persis dengan form pengajuan Izin di portal karyawan (App\Livewire\SubmitPermissionRequest
+     * + resources/views/livewire/submit-permission-request.blade.php) - 2 level pilihan kelompok/jenis,
+     * field kondisional per kelompok (lihat knowledge/markdown/rencana-izin-empat-kategori.md). Beda
+     * cuma tambahan "Buat Untuk & Persetujuan" di atas (khusus admin) dan 1 kolom penuh (boleh scroll
+     * panjang, bukan 2 kolom seperti Cuti/Lembur).
+     */
     public static function permissionFormSchema(): array
     {
         return [
-            Section::make('Form Pengajuan Izin')
+            \Filament\Schemas\Components\Group::make()
                 ->visible(fn (callable $get) => $get('type') === 'permission')
                 ->columnSpanFull()
-                ->icon(Heroicon::OutlinedDocumentCheck)
-                ->columns(2)
+                ->columns(1)
                 ->schema([
-                    Fieldset::make('Detail Izin')
-                        ->columns(1)
-                        ->schema([
-                            Select::make('permission_type_id')
-                                ->label('Tipe Izin')
-                                ->options(function () {
-                                    return \App\Models\Master\Attendance\PermissionTypes::pluck('name', 'id');
-                                })
-                                ->searchable()
-                                ->preload()
-                                ->reactive()
-                                ->required()
-                                ->afterStateUpdated(fn ($state, callable $set) => $set('permission_type', $state ? \App\Models\Master\Attendance\PermissionTypes::find($state)?->name : null)),
+                    ...self::adminAssignmentFields(),
 
-                            Hidden::make('permission_type')
-                                ->label('Tipe Izin')
-                                ->live()
-                                ->reactive()
-                                ->default(fn (callable $get) => \App\Models\Master\Attendance\PermissionTypes::find($get('permission_type_id'))?->name)
-                                ->disabled(),
+                    Select::make('group')
+                        ->label('Kelompok Izin')
+                        ->options(fn () => collect(\App\Enum\Attendance\PermissionGroupEnum::cases())->mapWithKeys(fn ($g) => [$g->value => $g->label()])->all())
+                        ->reactive()
+                        ->required()
+                        ->afterStateUpdated(function ($state, callable $set) {
+                            $set('permission_type_id', null);
+                            $set('category', null);
+                            $set('end_date', null);
+                            $set('start_time', null);
+                            $set('end_time', null);
+                            $set('attachments', null);
 
-                            Textarea::make('purpose')
-                                ->label('Keperluan Izin')
-                                ->rows(3)
-                                ->required(),
+                            $group = self::groupFrom($state);
 
-                            TextInput::make('location')
-                                ->label('Lokasi Izin')
-                                ->required(),
-                        ]),
+                            // Kelompok flat (Tidak Masuk Seharian, Sakit) tidak lewat master sama
+                            // sekali - category langsung dari kelompoknya (lihat updatedGroup()
+                            // di SubmitPermissionRequest, versi portalnya).
+                            if ($group && ! $group->hasSubKategori()) {
+                                $set('category', $group->categories()[0]->value);
+                            }
+                        }),
 
-                    Fieldset::make('Waktu Izin')
-                        ->schema([
-                            DatePicker::make('date')
-                                ->label('Tanggal')
-                                ->columnSpanFull()
-                                ->minDate(now()->subDay())
-                                ->required(),
+                    Select::make('permission_type_id')
+                        ->label('Jenis Izin')
+                        ->visible(fn (callable $get) => self::groupFrom($get('group'))?->hasSubKategori() ?? false)
+                        ->required(fn (callable $get) => self::groupFrom($get('group'))?->hasSubKategori() ?? false)
+                        ->options(function (callable $get) {
+                            $group = self::groupFrom($get('group'));
 
-                            TimePicker::make('start_time')
-                                ->label('Waktu Mulai')
-                                ->required(),
+                            if (! $group || ! $group->hasSubKategori()) {
+                                return [];
+                            }
 
-                            TimePicker::make('end_time')
-                                ->label('Waktu Selesai')
-                                ->required(),
-                        ]),
+                            $categoryValues = array_map(fn ($c) => $c->value, $group->categories());
+                            $companyId = $get('target_company_id');
 
-                    Fieldset::make('Pengganti Tugas')
-                        ->columnSpanFull()
-                        ->schema([
-                            TextInput::make('substitute_user_name')
-                                ->label('Nama Pengganti')
-                                ->required(),
+                            return \App\Models\Master\Attendance\PermissionTypes::where('company_id', $companyId)
+                                ->whereIn('category', $categoryValues)
+                                ->pluck('name', 'id');
+                        })
+                        ->searchable()
+                        ->preload()
+                        ->reactive()
+                        ->afterStateUpdated(function ($state, callable $set, callable $get) {
+                            $type = $state ? \App\Models\Master\Attendance\PermissionTypes::find($state) : null;
+                            $set('category', $type?->category);
 
-                            Textarea::make('substitute_task')
-                                ->label('Tugas Pengganti')
-                                ->rows(3)
-                                ->required(),
-                        ])
-                ])
+                            // Prefill end_date dari default_days Izin Khusus - cuma prefill, tetap
+                            // bebas diubah manual (rencana-izin-empat-kategori.md §2).
+                            if (self::groupFrom($get('group')) === \App\Enum\Attendance\PermissionGroupEnum::KHUSUS && $type?->default_days && $get('date')) {
+                                $set('end_date', \Carbon\Carbon::parse($get('date'))->addDays($type->default_days - 1)->toDateString());
+                            }
+                        }),
+
+                    Hidden::make('category'),
+
+                    DatePicker::make('date')
+                        ->label(fn (callable $get) => self::groupFrom($get('group'))?->isRentangTanggal() ? 'Tanggal Mulai' : 'Tanggal')
+                        ->minDate(now()->subDay())
+                        ->reactive()
+                        ->required(),
+
+                    DatePicker::make('end_date')
+                        ->label('Tanggal Selesai')
+                        ->visible(fn (callable $get) => self::groupFrom($get('group'))?->isRentangTanggal() ?? false)
+                        ->required(fn (callable $get) => self::groupFrom($get('group'))?->isRentangTanggal() ?? false)
+                        ->minDate(fn (callable $get) => $get('date')),
+
+                    TimePicker::make('start_time')
+                        ->label('Waktu Mulai')
+                        ->visible(fn (callable $get) => self::groupFrom($get('group')) === \App\Enum\Attendance\PermissionGroupEnum::MENINGGALKAN_JAM_KERJA)
+                        ->required(fn (callable $get) => self::groupFrom($get('group')) === \App\Enum\Attendance\PermissionGroupEnum::MENINGGALKAN_JAM_KERJA),
+
+                    TimePicker::make('end_time')
+                        ->label('Waktu Selesai')
+                        ->visible(fn (callable $get) => self::groupFrom($get('group')) === \App\Enum\Attendance\PermissionGroupEnum::MENINGGALKAN_JAM_KERJA)
+                        ->required(fn (callable $get) => self::groupFrom($get('group')) === \App\Enum\Attendance\PermissionGroupEnum::MENINGGALKAN_JAM_KERJA),
+
+                    Textarea::make('purpose')
+                        ->label('Keperluan Izin')
+                        ->rows(3),
+
+                    TextInput::make('location')
+                        ->label('Lokasi Izin'),
+
+                    Toggle::make('with_substitute')
+                        ->label('Ada Pengganti Tugas?')
+                        ->default(false)
+                        ->reactive()
+                        ->inline(false),
+
+                    TextInput::make('substitute_user_name')
+                        ->label('Nama Pengganti')
+                        ->visible(fn (callable $get) => (bool) $get('with_substitute')),
+
+                    Textarea::make('substitute_task')
+                        ->label('Tugas Pengganti')
+                        ->rows(3)
+                        ->visible(fn (callable $get) => (bool) $get('with_substitute')),
+
+                    FileUpload::make('attachments')
+                        ->label('Lampiran')
+                        ->multiple()
+                        ->storeFiles(false)
+                        ->acceptedFileTypes(['application/pdf', 'image/jpeg', 'image/png'])
+                        ->maxSize(10240)
+                        ->helperText('PDF/JPG/PNG, maksimal 10MB per file.')
+                        ->visible(fn (callable $get) => self::groupFrom($get('group'))?->bolehLampiran() ?? false)
+                        ->required(fn (callable $get) => self::groupFrom($get('group')) === \App\Enum\Attendance\PermissionGroupEnum::SAKIT && self::totalDays($get) > 1),
+                ]),
         ];
     }
 

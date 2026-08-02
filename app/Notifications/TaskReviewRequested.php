@@ -12,15 +12,15 @@ use Illuminate\Support\Str;
 use NotificationChannels\WebPush\WebPushChannel;
 use NotificationChannels\WebPush\WebPushMessage;
 
-class TaskReviewerAssigned extends Notification implements ShouldQueue
+class TaskReviewRequested extends Notification implements ShouldQueue
 {
     use Queueable;
 
-    public function __construct(protected Task $task, protected string $creatorName) {}
+    public function __construct(protected Task $task, protected string $assigneeName) {}
 
     public function via(object $notifiable): array
     {
-        if (! app(NotificationPreferenceService::class)->isEnabled($notifiable, NotificationTypeEnum::TASK_REVIEWER_ASSIGNED)) {
+        if (! app(NotificationPreferenceService::class)->isEnabled($notifiable, NotificationTypeEnum::TASK_REVIEW_REQUESTED)) {
             return [];
         }
 
@@ -29,12 +29,12 @@ class TaskReviewerAssigned extends Notification implements ShouldQueue
 
     protected function title(): string
     {
-        return 'Diminta Jadi Reviewer';
+        return 'Pengajuan Review Tugas';
     }
 
     protected function body(): string
     {
-        return "{$this->creatorName} meminta Anda mereview: " . Str::limit($this->task->requirement, 80);
+        return "{$this->assigneeName} mengajukan review: " . Str::limit($this->task->requirement, 80);
     }
 
     public function toDatabase(object $notifiable): array

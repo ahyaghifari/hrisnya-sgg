@@ -9,29 +9,29 @@ use App\Models\ApprovalManagement\MasterApprovalFlows;
 use App\Models\Setting;
 use App\Models\Task\Task;
 use App\Models\Task\TaskAttachment;
+use App\Models\Task\TaskBoardBackground;
 use App\Models\Task\TaskChecklistItem;
 use App\Models\Task\TaskProject;
 use App\Models\Task\TaskProjectMember;
-use App\Models\Task\TaskReview;
 use App\Models\User;
 use App\Notifications\TaskAssigned;
 use App\Notifications\TaskCommented;
-use App\Notifications\TaskReviewDecided;
-use App\Notifications\TaskReviewerAssigned;
+use App\Notifications\TaskCompletedByAssignee;
 use App\Notifications\TaskProjectMemberAdded;
+use App\Notifications\TaskReviewDecided;
+use App\Notifications\TaskReviewRequested;
 use App\Repositories\Approval\ApprovalSnapshotRepository;
 use App\Repositories\Master\DepartmentRepository;
 use App\Repositories\Task\TaskRepository;
 use App\Repositories\Task\TaskServiceRepository;
-use App\Repositories\User\UserRepository;
 use App\Services\Approval\ApprovalCreationService;
 use App\Services\OrgHierarchyService;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 class TaskService
 {
@@ -41,7 +41,6 @@ class TaskService
         protected DepartmentRepository $departmentRepository,
         protected ApprovalCreationService $approvalCreationService,
         protected ApprovalSnapshotRepository $approvalSnapshotRepository,
-        protected UserRepository $userRepository,
         protected OrgHierarchyService $orgHierarchyService,
     ) {}
 
@@ -94,6 +93,9 @@ class TaskService
                 'created_by' => $user->id,
                 'assigned_to' => $assignedTo,
                 'is_self_assigned' => $assignedTo === $user->id,
+                'needs_review' => (bool) ($data['needs_review'] ?? false),
+                'notify_creator_on_review' => (bool) ($data['notify_creator_on_review'] ?? false),
+                'notify_creator_on_complete' => (bool) ($data['notify_creator_on_complete'] ?? false),
                 'responded_date' => Carbon::now(),
                 'status' => TaskStatus::TODO->value,
             ]);
@@ -106,30 +108,12 @@ class TaskService
                 $task->checklistItems()->create(['title' => $title]);
             }
 
-            $this->assignReviewers($task, $data['reviewer_ids'] ?? []);
-
             if ($assignedTo !== $user->id) {
                 User::find($assignedTo)?->notify(new TaskAssigned($task, $user->name));
             }
 
             return $task;
         });
-    }
-
-    /** Reviewer portal dipilih manual saat bikin task (bukan auto dari created_by) — and-sign,
-     * lihat TaskService::approveReview()/rejectReview(). Dipanggil dari createCasualTask() &
-     * createFormalTask(), bukan dari createTask()/createSelfTask() (jalur mobile, tetap pakai
-     * sla_reviewer_id tunggal). */
-    private function assignReviewers(Task $task, array $reviewerIds): void
-    {
-        foreach (array_unique($reviewerIds) as $reviewerId) {
-            $task->reviews()->create([
-                'reviewer_id' => $reviewerId,
-                'status' => TaskReview::STATUS_PENDING,
-            ]);
-
-            User::find($reviewerId)?->notify(new TaskReviewerAssigned($task, $task->createdBy?->name ?? '-'));
-        }
     }
 
     /**
@@ -231,8 +215,8 @@ class TaskService
     public function getProjectTasks(TaskProject $project): Collection
     {
         return $project->tasks()
-            ->with(['assignedTo', 'createdBy', 'checklistItems', 'comments.user'])
-            ->withCount(['attachments', 'reviews'])
+            ->with(['assignedTo.profile', 'createdBy', 'checklistItems', 'comments.user'])
+            ->withCount('attachments')
             ->orderBy('position')
             ->orderByDesc('created_at')
             ->get();
@@ -264,7 +248,7 @@ class TaskService
                 'due_date' => $data['due_date'] ?? null,
                 'created_by' => $user->id,
                 'is_self_assigned' => false,
-                'status' => TaskStatus::PENDING->value,
+                'status' => TaskStatus::TODO->value,
             ]);
 
             foreach ($data['checklist'] ?? [] as $title) {
@@ -274,8 +258,6 @@ class TaskService
 
                 $task->checklistItems()->create(['title' => $title]);
             }
-
-            $this->assignReviewers($task, $data['reviewer_ids'] ?? []);
 
             $this->approvalCreationService->createSnapshot(
                 moduleType: ApprovalModuleEnum::TASK_REQUEST->value,
@@ -295,107 +277,6 @@ class TaskService
         return $this->taskServiceRepository->getAllTaskServices();
     }
 
-    public function getOtherDepartments(): Collection
-    {
-        $user = Auth::user();
-        return $this->departmentRepository->getOtherDepartmentsByUserId($user->id);
-    }
-
-    public function getReviewers(): Collection
-    {
-        $user = Auth::user();
-        return $this->userRepository->getReviewers($user);
-    }
-
-    public function getTasks(?string $code = null, ?bool $isHighRisk = false): Collection
-    {
-        $user = Auth::user();
-        return $this->taskRepository->getTasksByUser($user->id, $code, $isHighRisk);
-    }
-
-    public function getTaskDetail(string $taskId): Task
-    {
-        $user = Auth::user();
-        return $this->taskRepository->getTaskDetailByUser($taskId, $user->id);
-    }
-
-    public function createTask(Request $request)
-    {
-        return DB::transaction(function () use ($request) {
-            $user = Auth::user();
-
-            $masterFlow = $this->approvalSnapshotRepository->findMasterApprovalFlowByCompany(
-                moduleType: ApprovalModuleEnum::TASK_REQUEST->value,
-                companyId: auth('sanctum')->user()->company_id
-            );
-
-            if (!$masterFlow) {
-                throw new \Exception('No active approval flow found for task requests for this company.');
-            }
-
-            $task = $this->taskRepository->create([
-                'code' => $this->generateCode($request->department_id),
-                'service_id' => $request->service_id,
-                'department_id' => $request->department_id,
-                'company_id' => $user->company_id,
-                'requirement' => $request->requirement,
-                'created_by' => $user->id,
-                'is_self_assigned' => false,
-                'status' => TaskStatus::PENDING->value,
-                'sla_reviewer_id' => $user->id
-            ]);
-
-            if ($request->hasFile('attachments')) {
-                foreach ($request->file('attachments') as $file) {
-                    $path = $file->store('tasks/attachments', 'public');
-                    $this->taskRepository->addAttachment($task->id, [
-                        'file_path' => $path,
-                        'file_name' => $file->getClientOriginalName(),
-                        'uploaded_by' => $user->id,
-                    ]);
-                }
-            }
-
-            // Create approval snapshot
-            $this->approvalCreationService->createSnapshot(
-                moduleType: ApprovalModuleEnum::TASK_REQUEST->value,
-                moduleId: $task->id,
-                flow: $masterFlow,
-                createdBy: $user->id,
-                companyId: auth('sanctum')->user()->company_id,
-                userId: $user->id
-            );
-
-            return $task->load('attachments');
-        });
-    }
-
-    public function createSelfTask(Request $request)
-    {
-        return DB::transaction(function () use ($request) {
-            $user = Auth::user();
-
-            $task = $this->taskRepository->create([
-                'code' => $this->generateCode($user->profile->department->id),
-                'service_id' => $request->service_id,
-                'department_id' => $user->profile->department->id,
-                'company_id' => $user->company_id,
-                'requirement' => $request->requirement,
-                'due_date' => $request->due_date,
-                'total_cost' => $request->total_cost,
-                'unit_cost' => $request->unit_cost,
-                'sla_reviewer_id' => $request->sla_reviewer_id,
-                'created_by' => auth()->id(),
-                'assigned_to' => auth()->id(),
-                'is_self_assigned' => true,
-                'responded_date' => Carbon::now(),
-                'status' => TaskStatus::IN_PROGRESS->value,
-            ]);
-
-            return $task->load('attachments');
-        });
-    }
-
     private function generateCode(?string $departmentId): string
     {
         $department = $departmentId ? $this->departmentRepository->getDepartmentById($departmentId) : null;
@@ -413,184 +294,105 @@ class TaskService
         return $prefix . $nextNumber;
     }
 
-    public function updateTask(string $taskId, $request)
-    {
-        return DB::transaction(function () use ($taskId, $request) {
-            $user = Auth::user();
-            $task = $this->taskRepository->getTaskDetailByUser($taskId, $user->id);
-
-            $updateData = $request->only([
-                'completed_date',
-                'total_cost',
-                'unit_cost',
-                'risk_level',
-                'collaboration_note',
-                'root_cause',
-                'solution',
-            ]);
-
-            $updateData['is_overdue'] = $task->due_date && $request->completed_at > $task->due_date;
-
-            $this->taskRepository->update($taskId, $updateData);
-
-            if ($request->filled('proofs_to_delete')) {
-                $this->taskRepository->deleteProofs($request->proofs_to_delete);
-            }
-
-            if ($request->hasFile('proofs')) {
-                foreach ($request->file('proofs') as $file) {
-                    $path = $file->store('tasks/proofs', 'public');
-                    $this->taskRepository->addProof($taskId, $path);
-                }
-            }
-
-            return $this->taskRepository->getTaskDetailByUser($taskId, $user->id);
-        });
-    }
-
-    public function reviewTask(string $taskId, $request)
-    {
-        return DB::transaction(function () use ($taskId, $request) {
-            $user = Auth::user();
-
-            $task = $this->taskRepository->getTaskDetailByUser($taskId, $user->id);
-
-            if ($task->sla_reviewer_id !== $user->id) {
-                throw new \Exception('You are not authorized to review this task.');
-            }
-
-            if ($task->review) {
-                throw new \Exception('This task has already been reviewed.');
-            }
-
-            $reviewData = [
-                'task_id' => $taskId,
-                'reviewer_id' => $user->id,
-                'rating' => $request->rating,
-                'comment' => $request->comment,
-            ];
-
-            $this->taskRepository->addReview($taskId, $reviewData);
-
-            $updateData = [
-                'status' => TaskStatus::COMPLETE->value,
-            ];
-            $this->taskRepository->update($taskId, $updateData);
-
-            return $this->taskRepository->getTaskDetailByUser($taskId, $user->id);
-        });
-    }
-
     /**
-     * And-sign: reviewer approve baris miliknya, task Complete cuma kalau SEMUA baris
-     * task_reviews sudah approved. Khusus portal — jalur mobile tetap pakai reviewTask().
+     * Task yang tampil di halaman Tugas portal — scope (tab horizontal, bukan sidebar lagi,
+     * 2026-08-02):
+     * - 'todo' = catatan pribadi (is_self_assigned=true, assigned_to = aku SENDIRI yang assign).
+     * - 'saya' = yang di-assign ORANG LAIN/atasan ke aku (assigned_to = aku, is_self_assigned=false)
+     *   - bukan superset dari 'todo' lagi (dipisah 2026-08-02), murni tugas "kiriman" orang lain.
+     * - 'individu' = "Penugasan Individu", tugas yang AKU assign ke ORANG LAIN (created_by = aku,
+     *   assigned_to != aku).
+     * - 'tim' = "Tim Saya" (2026-08-02) - task yang DIKERJAKAN bawahan (rekursif seluruh hierarki
+     *   di bawahku, lewat OrgHierarchyService::subordinates), siapapun yang nugasin - oversight
+     *   murni, aku ngga harus jadi creator/assignee-nya.
      */
-    public function approveReview(Task $task, User $user, int $rating, ?string $comment): void
-    {
-        abort_unless($task->status === TaskStatus::REVIEW->value, 422, 'Tugas ini tidak sedang ditinjau.');
-
-        $row = $task->reviews()->where('reviewer_id', $user->id)->where('status', TaskReview::STATUS_PENDING)->first();
-        abort_unless($row, 403, 'Kamu tidak punya review yang menunggu untuk tugas ini.');
-
-        $row->update([
-            'status' => TaskReview::STATUS_APPROVED,
-            'rating' => $rating,
-            'comment' => $comment,
-            'decided_at' => now(),
-        ]);
-
-        $allApproved = ! $task->reviews()->where('status', '!=', TaskReview::STATUS_APPROVED)->exists();
-
-        if ($allApproved) {
-            $task->update([
-                'status' => TaskStatus::COMPLETE->value,
-                'completed_date' => now(),
-                'is_overdue' => $task->due_date && now()->gt($task->due_date),
-            ]);
-        }
-
-        if ($task->assigned_to && $task->assigned_to !== $user->id) {
-            User::find($task->assigned_to)?->notify(new TaskReviewDecided($task, $user->name, true));
-        }
-    }
-
-    /**
-     * Kebalikan approveReview() — reviewer manapun (atau pembuat task, walau bukan reviewer
-     * terdaftar) tolak hasil kerja & kembalikan task ke IN_PROGRESS, bukan status REJECTED
-     * (itu terminal, dipakai jalur approval formal — beda konsep). Reject bersifat ringan:
-     * baris reviewer LAIN yang sudah approved TIDAK direset — mereka tidak perlu vote ulang,
-     * cuma baris yang reject ini yang akan direset ke pending saat task disubmit lagi ke
-     * REVIEW (lihat moveStatus()). Catatan ("kenapa ditolak") tetap disimpan di kolom
-     * `rejected_reason` di Task (dari sesi sebelumnya) — cuma ditampilkan ke assigned_to.
-     */
-    public function rejectReview(Task $task, User $user, string $note): void
-    {
-        abort_unless($task->status === TaskStatus::REVIEW->value, 422, 'Tugas ini tidak sedang ditinjau.');
-
-        $row = $task->reviews()->where('reviewer_id', $user->id)->first();
-        abort_unless($row || $task->created_by === $user->id, 403, 'Kamu tidak punya izin menolak tinjauan tugas ini.');
-
-        $row?->update([
-            'status' => TaskReview::STATUS_REJECTED,
-            'rejected_note' => $note,
-            'decided_at' => now(),
-        ]);
-
-        $task->update([
-            'status' => TaskStatus::IN_PROGRESS->value,
-            'rejected_reason' => $note,
-            'rejection_note_by' => $user->id,
-            'rejection_note_at' => now(),
-        ]);
-
-        if ($task->assigned_to && $task->assigned_to !== $user->id) {
-            User::find($task->assigned_to)?->notify(new TaskReviewDecided($task, $user->name, false));
-        }
-    }
-
-    /**
-     * Task yang tampil di halaman Tugas portal — gabungan task milik user (assigned_to atau
-     * created_by) dan, kalau dia punya bawahan, task yang assigned_to bawahannya (reuse
-     * OrgHierarchyService, pengganti board membership Kanban lama).
-     */
-    /**
-     * $riwayatStatus cuma dipakai kalau $scope === 'riwayat' — beda dari saya/dibuat/tim
-     * (langsung 1 tampilan gabungan), Riwayat di sidebar itu section sendiri (sejajar Project)
-     * isinya 1 tombol per status (Selesai/Ditolak), jadi query-nya perlu tahu status MANA yang
-     * lagi dipilih, bukan gabungan semua status riwayat sekaligus.
-     */
-    public function getPortalTasks(User $user, string $scope = 'saya', ?string $riwayatStatus = null): Collection
+    private function scopedTaskQuery(User $user, string $scope)
     {
         return Task::query()
             ->where('company_id', $user->company_id)
-            ->when($scope === 'saya', fn ($q) => $q->where('assigned_to', $user->id))
-            ->when($scope === 'dibuat', fn ($q) => $q->where('created_by', $user->id))
-            ->when($scope === 'tim', function ($q) use ($user) {
-                $subordinateIds = $this->orgHierarchyService->subordinates($user)->pluck('id');
-                $q->whereIn('assigned_to', $subordinateIds);
-            })
-            ->when($scope === 'riwayat', function ($q) use ($user, $riwayatStatus) {
-                $subordinateIds = $this->orgHierarchyService->subordinates($user)->pluck('id');
-                $status = in_array($riwayatStatus, [TaskStatus::COMPLETE->value, TaskStatus::REJECTED->value], true)
-                    ? $riwayatStatus
-                    : TaskStatus::COMPLETE->value;
+            ->when($scope === 'todo', fn ($q) => $q->where('assigned_to', $user->id)->where('is_self_assigned', true))
+            ->when($scope === 'saya', fn ($q) => $q->where('assigned_to', $user->id)->where('is_self_assigned', false))
+            ->when($scope === 'individu', fn ($q) => $q->where('created_by', $user->id)->where(function ($q2) use ($user) {
+                $q2->whereNull('assigned_to')->orWhere('assigned_to', '!=', $user->id);
+            }))
+            // 'tim' = task yang DIKERJAKAN bawahan (rekursif, seluruh hierarki di bawah user),
+            // siapapun yang nugasin - buat oversight atasan (mis. HC Manager liat kerjaan Supervisor
+            // ke staff-nya, staff ke anak magang, dst), bukan cuma langsung ke user.
+            ->when($scope === 'tim', fn ($q) => $q->whereIn('assigned_to', $this->orgHierarchyService->subordinates($user)->pluck('id')));
+    }
 
-                $q->where('status', $status)
-                    ->where(function ($q2) use ($user, $subordinateIds) {
-                        $q2->where('assigned_to', $user->id)
-                            ->orWhere('created_by', $user->id)
-                            ->orWhereIn('assigned_to', $subordinateIds);
-                    });
+    /**
+     * Task yang tampil di board - task COMPLETE yang udah lewat H+1 dari completed_date pindah
+     * ke riwayat (getHistoryTasks), ngga nongol di board lagi (2026-08-02).
+     */
+    public function getPortalTasks(User $user, string $scope = 'saya'): Collection
+    {
+        return $this->scopedTaskQuery($user, $scope)
+            ->where(function ($q) {
+                $q->where('status', '!=', TaskStatus::COMPLETE->value)
+                    ->orWhere('completed_date', '>', Carbon::now()->subDay());
             })
             ->orderBy('position')
             ->orderByDesc('created_at')
             ->get();
     }
 
+    /** Riwayat - task COMPLETE yang udah lewat H+1 dari completed_date, dipaginate. */
+    public function getHistoryTasks(User $user, string $scope, int $perPage = 10)
+    {
+        return $this->scopedTaskQuery($user, $scope)
+            ->where('status', TaskStatus::COMPLETE->value)
+            ->where('completed_date', '<=', Carbon::now()->subDay())
+            ->orderByDesc('completed_date')
+            ->paginate($perPage);
+    }
+
+    /**
+     * Edit requirement/due_date/priority. Creator (atau diri sendiri buat Todo Saya) boleh edit
+     * selama task belum COMPLETE.
+     */
+    public function updateTaskDetails(Task $task, array $data, User $user): void
+    {
+        $isOwner = $task->is_self_assigned ? $task->assigned_to === $user->id : $task->created_by === $user->id;
+        abort_unless($isOwner, 403);
+        abort_if($task->status === TaskStatus::COMPLETE->value, 422, 'Tugas yang sudah selesai tidak bisa diedit.');
+
+        $this->taskRepository->update($task->id, [
+            'requirement' => $data['requirement'],
+            'due_date' => $data['due_date'] ?? null,
+            'priority' => $data['priority'],
+        ]);
+    }
+
+    /**
+     * Todo Saya (self-assigned) bebas dihapus kapan pun. Penugasan Individu cuma boleh dihapus
+     * creator-nya sebelum tahap REVIEW (masih TODO/IN_PROGRESS).
+     */
+    public function deleteTask(Task $task, User $user): void
+    {
+        if ($task->is_self_assigned) {
+            abort_unless($task->assigned_to === $user->id, 403);
+        } else {
+            abort_unless($task->created_by === $user->id, 403);
+            abort_unless(
+                in_array($task->status, [TaskStatus::TODO->value, TaskStatus::IN_PROGRESS->value], true),
+                422,
+                'Tugas yang sudah masuk review/selesai tidak bisa dihapus.'
+            );
+        }
+
+        $task->delete();
+    }
+
     /**
      * Pindah status task di board. Aturan: cuma assigned_to/created_by yang boleh, cuma maju
-     * 1 langkah berurutan di TaskStatus::BOARD_ORDER, boleh mundur 1 langkah dari REVIEW ke
-     * IN_PROGRESS, COMPLETE terkunci, PENDING tidak movable (nunggu approve).
+     * 1 langkah berurutan - KECUALI dari REVIEW, boleh mundur ke IN_PROGRESS (creator kirim
+     * balik buat direvisi) selain maju ke COMPLETE (creator approve). Task self-assigned
+     * ("Todo Saya") atau needs_review=false (pembuat ngga minta ditinjau ulang - "Butuh Approval
+     * Saya" ngga dicentang saat bikin) lewatin REVIEW (BOARD_ORDER_SELF_ASSIGNED:
+     * TODO -> IN_PROGRESS -> COMPLETE), task lain lewat BOARD_ORDER penuh termasuk REVIEW.
+     * Task formal yang masih nunggu approval (approvalSnapshot->status === 'in_review') belum
+     * movable - status kerja & status approval dipisah sejak 2026-08-02 (TaskStatus cuma 4 case).
      */
     public function moveStatus(Task $task, string $newStatus, User $user): void
     {
@@ -599,18 +401,52 @@ class TaskService
             403
         );
 
-        abort_if($task->status === TaskStatus::PENDING->value, 422, 'Tugas masih menunggu approval.');
-        abort_if($task->status === TaskStatus::COMPLETE->value, 422, 'Tugas yang sudah selesai tidak bisa dipindah lagi.');
-        abort_if($newStatus === TaskStatus::COMPLETE->value && $task->reviews()->exists(), 422, 'Tugas ini butuh review dulu.');
+        // Di TODO ("belum dikerjakan") cuma yang ditugaskan yang boleh mulai - creator ngga bisa
+        // gesa-gesa mindahin status tugas orang lain sebelum pelaksananya sendiri yang mulai.
+        abort_if(
+            $task->status === TaskStatus::TODO->value && $task->assigned_to !== $user->id,
+            403,
+            'Cuma yang ditugaskan yang bisa mengubah status tugas ini.'
+        );
 
-        $order = TaskStatus::BOARD_ORDER;
+        // Di REVIEW cuma creator yang boleh mutusin (kembalikan buat direvisi atau selesaikan) -
+        // pelaksana udah nyerahin, giliran pembuat tugas yang menilai.
+        abort_if(
+            $task->status === TaskStatus::REVIEW->value && $task->created_by !== $user->id,
+            403,
+            'Cuma pembuat tugas yang bisa menilai tugas yang sedang di-review.'
+        );
+
+        abort_if($task->approvalSnapshot?->status === 'in_review', 422, 'Tugas masih menunggu approval.');
+
+        // Task tanpa review yang baru aja diselesaikan pelaksana (< 24 jam) boleh dikembalikan
+        // creator ke IN_PROGRESS - "salah pencet"/butuh revisi lagi padahal ngga ada tahap review.
+        if (
+            $task->status === TaskStatus::COMPLETE->value
+            && $newStatus === TaskStatus::IN_PROGRESS->value
+            && ! $task->is_self_assigned
+            && ! $task->needs_review
+            && $task->created_by === $user->id
+            && $task->completed_date
+            && Carbon::parse($task->completed_date)->gt(Carbon::now()->subDay())
+        ) {
+            $this->taskRepository->update($task->id, ['status' => $newStatus, 'completed_date' => null, 'is_overdue' => false]);
+            return;
+        }
+
+        abort_if($task->status === TaskStatus::COMPLETE->value, 422, 'Tugas yang sudah selesai tidak bisa dipindah lagi.');
+
+        if ($task->status === TaskStatus::REVIEW->value && $newStatus === TaskStatus::IN_PROGRESS->value) {
+            $this->taskRepository->update($task->id, ['status' => $newStatus]);
+            $task->assignedTo?->notify(new TaskReviewDecided($task, false, $user->name));
+            return;
+        }
+
+        $order = ($task->is_self_assigned || ! $task->needs_review) ? TaskStatus::BOARD_ORDER_SELF_ASSIGNED : TaskStatus::BOARD_ORDER;
         $currentIndex = array_search(TaskStatus::from($task->status), $order, true);
         $nextStatus = $order[$currentIndex + 1] ?? null;
 
-        $isNextStep = $nextStatus?->value === $newStatus;
-        $isPullBack = $task->status === TaskStatus::REVIEW->value && $newStatus === TaskStatus::IN_PROGRESS->value;
-
-        abort_unless($isNextStep || $isPullBack, 422, 'Tugas hanya bisa dipindah 1 langkah berurutan.');
+        abort_unless($nextStatus?->value === $newStatus, 422, 'Tugas hanya bisa dipindah 1 langkah berurutan.');
 
         $updateData = ['status' => $newStatus];
 
@@ -619,15 +455,19 @@ class TaskService
             $updateData['is_overdue'] = $task->due_date && Carbon::now()->gt($task->due_date);
         }
 
-        if ($newStatus === TaskStatus::REVIEW->value) {
-            // Submit/resubmit ke tinjauan — reviewer yang tadi reject boleh vote ulang,
-            // yang sudah approved dari ronde sebelumnya TIDAK direset (reject ringan, lihat
-            // rejectReview()).
-            $task->reviews()->where('status', TaskReview::STATUS_REJECTED)->update([
-                'status' => TaskReview::STATUS_PENDING,
-                'rejected_note' => null,
-                'decided_at' => null,
-            ]);
+        // Notifikasi opt-in ke creator (dicentang pas bikin tugas) - review diajukan, atau tugas
+        // langsung diselesaikan pelaksana tanpa tahap review.
+        if ($task->status === TaskStatus::IN_PROGRESS->value && $newStatus === TaskStatus::REVIEW->value && $task->notify_creator_on_review) {
+            $task->createdBy?->notify(new TaskReviewRequested($task, $task->assignedTo?->name ?? '-'));
+        }
+        if ($task->status === TaskStatus::IN_PROGRESS->value && $newStatus === TaskStatus::COMPLETE->value && ! $task->is_self_assigned && $task->notify_creator_on_complete) {
+            $task->createdBy?->notify(new TaskCompletedByAssignee($task, $task->assignedTo?->name ?? '-'));
+        }
+
+        // Creator approve dari REVIEW -> COMPLETE - kabari pelaksana, selalu (bukan opt-in, beda
+        // dari 2 notif di atas yang emang sengaja opsional buat creator).
+        if ($task->status === TaskStatus::REVIEW->value && $newStatus === TaskStatus::COMPLETE->value) {
+            $task->assignedTo?->notify(new TaskReviewDecided($task, true, $user->name));
         }
 
         $this->taskRepository->update($task->id, $updateData);
@@ -636,6 +476,16 @@ class TaskService
     public function toggleChecklistItem(TaskChecklistItem $item): void
     {
         $item->update(['is_done' => ! $item->is_done]);
+    }
+
+    /** Rating bintang 1-5 dari creator ke pelaksana, opsional, cuma buat task yang udah COMPLETE. */
+    public function rateTask(Task $task, int $rating, User $user): void
+    {
+        abort_unless($task->created_by === $user->id, 403, 'Cuma pembuat tugas yang bisa kasih rating.');
+        abort_unless($task->status === TaskStatus::COMPLETE->value, 422, 'Tugas belum selesai.');
+        abort_unless($rating >= 1 && $rating <= 5, 422, 'Rating harus 1-5.');
+
+        $this->taskRepository->update($task->id, ['rating' => $rating]);
     }
 
     public function addComment(Task $task, User $user, string $comment): void
@@ -680,5 +530,48 @@ class TaskService
     public function removeAttachment(string $attachmentId): void
     {
         $this->taskRepository->deleteAttachment($attachmentId);
+    }
+
+    /** $boardKey: 'todo' | 'saya' | 'individu' atau ULID TaskProject. */
+    public function getBoardBackground(User $user, string $boardKey): ?TaskBoardBackground
+    {
+        return TaskBoardBackground::where('user_id', $user->id)->where('board_key', $boardKey)->first();
+    }
+
+    public function setBoardBackgroundColor(User $user, string $boardKey, string $hex): TaskBoardBackground
+    {
+        return TaskBoardBackground::updateOrCreate(
+            ['user_id' => $user->id, 'board_key' => $boardKey],
+            ['type' => 'color', 'value' => $hex]
+        );
+    }
+
+    public function setBoardBackgroundImage(User $user, string $boardKey, UploadedFile $file): TaskBoardBackground
+    {
+        $old = $this->getBoardBackground($user, $boardKey);
+        if ($old?->type === 'image') {
+            Storage::disk('public')->delete($old->value);
+        }
+
+        $path = $file->store('tasks/board-backgrounds', 'public');
+
+        return TaskBoardBackground::updateOrCreate(
+            ['user_id' => $user->id, 'board_key' => $boardKey],
+            ['type' => 'image', 'value' => $path]
+        );
+    }
+
+    public function removeBoardBackground(User $user, string $boardKey): void
+    {
+        $bg = $this->getBoardBackground($user, $boardKey);
+        if (! $bg) {
+            return;
+        }
+
+        if ($bg->type === 'image') {
+            Storage::disk('public')->delete($bg->value);
+        }
+
+        $bg->delete();
     }
 }

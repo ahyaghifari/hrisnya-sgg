@@ -2,14 +2,17 @@
 
 namespace App\Filament\Resources\AttendanceRequests\Pages;
 
+use App\Enum\Approval\ApprovalModuleEnum;
 use App\Enum\AttendanceReqStatus;
 use App\Filament\Resources\AttendanceRequests\AttendanceRequestResource;
+use App\Models\ApprovalManagement\ApprovalSnapshots;
 use App\Services\Approval\ApprovalFlowService;
 use Filament\Actions\Action;
-use Filament\Actions\DeleteAction;
 use Filament\Forms\Components\Textarea;
+use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class EditAttendanceRequest extends EditRecord
 {
@@ -23,13 +26,18 @@ class EditAttendanceRequest extends EditRecord
 
         $this->type = request()->query('type');
 
-        $approvalService = app(ApprovalFlowService::class);
-        $checkStep = $approvalService->checkStepsSync($this->record->approvalSnapshot);
-        if (!$checkStep && $this->record->status !== AttendanceReqStatus::APPROVED->value && $this->record->status !== AttendanceReqStatus::REJECTED->value) {
-            $approvalService->syncStepsFromMaster($this->record->approvalSnapshot);
-            $this->record->update([
-                'is_flow_changed' => true,
-            ]);
+        // Pengajuan yang dibuat admin langsung tanpa approval (lihat AttendaceReqService::
+        // storePermissionRequest $skipApproval) tidak punya approvalSnapshot sama sekali -
+        // tidak ada flow buat di-sync.
+        if ($this->record->approvalSnapshot) {
+            $approvalService = app(ApprovalFlowService::class);
+            $checkStep = $approvalService->checkStepsSync($this->record->approvalSnapshot);
+            if (!$checkStep && $this->record->status !== AttendanceReqStatus::APPROVED->value && $this->record->status !== AttendanceReqStatus::REJECTED->value) {
+                $approvalService->syncStepsFromMaster($this->record->approvalSnapshot);
+                $this->record->update([
+                    'is_flow_changed' => true,
+                ]);
+            }
         }
 
         $this->record->load(['approvalSnapshot.activity', 'approvalHistories']);
@@ -42,6 +50,40 @@ class EditAttendanceRequest extends EditRecord
         return $data;
     }
 
+    protected function getHeaderActions(): array
+    {
+        return [
+            // Cuma boleh hapus pengajuan yang dibuat admin lewat /admin (created_by beda dari
+            // user_id pemilik izin/cuti/lembur) - pengajuan mandiri karyawan lewat portal
+            // (created_by === user_id) tetap bisa diedit tapi tidak bisa dihapus dari sini.
+            Action::make('deleteRequest')
+                ->label('Hapus')
+                ->icon('heroicon-o-trash')
+                ->color('danger')
+                ->requiresConfirmation()
+                ->modalHeading('Hapus Pengajuan')
+                ->modalDescription('Ini akan menghapus PERMANEN pengajuan ini beserta detail (cuti/izin/lembur), snapshot approval, dan riwayatnya. Tidak bisa dibatalkan.')
+                ->modalSubmitActionLabel('Ya, Hapus')
+                ->visible(fn ($record) => $record->created_by && $record->created_by !== $record->user_id)
+                ->action(function ($record) {
+                    DB::transaction(function () use ($record) {
+                        ApprovalSnapshots::where('module_type', ApprovalModuleEnum::ATTENDANCE_REQUEST->value)
+                            ->where('module_id', $record->id)
+                            ->each(fn ($snapshot) => $snapshot->delete());
+
+                        $record->delete();
+                    });
+
+                    Notification::make()
+                        ->title('Pengajuan berhasil dihapus')
+                        ->success()
+                        ->send();
+
+                    $this->redirect(AttendanceRequestResource::getUrl('index', ['type' => $this->type]));
+                }),
+        ];
+    }
+
     public function getFormActions(): array
     {
         return [
@@ -49,7 +91,7 @@ class EditAttendanceRequest extends EditRecord
                 ->label('Approve')
                 ->color('success')
                 ->requiresConfirmation()
-                ->visible(fn ($record) => app(\App\Services\Approval\ApprovalPermissionService::class)
+                ->visible(fn ($record) => $record->approvalSnapshot && app(\App\Services\Approval\ApprovalPermissionService::class)
                     ->canApprove($record->approvalSnapshot->id, Auth::user())
                 )
                 ->schema([
@@ -92,7 +134,7 @@ class EditAttendanceRequest extends EditRecord
                 ->label('Reject')
                 ->color('danger')
                 ->requiresConfirmation()
-                ->visible(fn ($record) => app(\App\Services\Approval\ApprovalPermissionService::class)
+                ->visible(fn ($record) => $record->approvalSnapshot && app(\App\Services\Approval\ApprovalPermissionService::class)
                     ->canApprove($record->approvalSnapshot->id, Auth::user())
                 )
                 ->schema([
@@ -135,7 +177,7 @@ class EditAttendanceRequest extends EditRecord
                 ->label('Batalkan')
                 ->color('gray')
                 ->requiresConfirmation()
-                ->visible(fn ($record) => app(\App\Services\Approval\ApprovalPermissionService::class)
+                ->visible(fn ($record) => $record->approvalSnapshot && app(\App\Services\Approval\ApprovalPermissionService::class)
                     ->canApprove($record->approvalSnapshot->id, Auth::user())
                 )
                 ->schema([

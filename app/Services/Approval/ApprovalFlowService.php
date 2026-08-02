@@ -92,8 +92,9 @@ class ApprovalFlowService
                 if ($snapshot->module_type === ApprovalModuleEnum::TASK_REQUEST->value) {
                     $taskRequest = $this->taskRepository->findTaskById($snapshot->module_id);
                     if ($taskRequest) {
+                        // Status kerja task (TaskStatus) tidak punya case REJECTED lagi -
+                        // "ditolak" cukup direpresentasikan lewat approvalSnapshot->status di atas.
                         $this->taskRepository->update($snapshot->module_id, [
-                            'status' => TaskStatus::REJECTED->value,
                             'responded_date' => now(),
                         ]);
                     }

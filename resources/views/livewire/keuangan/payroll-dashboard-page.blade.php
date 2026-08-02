@@ -54,14 +54,23 @@
 
     {{-- Stat strip datar, bukan tile gradient bulat — dua kartu tipis berbatas garis, angka mono. --}}
     <div class="grid grid-cols-1 md:grid-cols-2" style="gap:12px;margin-bottom:16px;">
-        <button type="button" wire:click="openModal('insentif')" style="text-align:left;border:1px solid var(--border);background:var(--surface);border-radius:12px;padding:16px 18px;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:space-between;">
-            <div>
+        @if ($this->insentifMetode === 'master')
+            <button type="button" wire:click="openModal('insentif')" style="text-align:left;border:1px solid var(--border);background:var(--surface);border-radius:12px;padding:16px 18px;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:space-between;">
+                <div>
+                    <p style="font-size:11px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:0.05em;margin:0 0 6px;"><i class="fa-solid fa-hand-holding-dollar"></i> Insentif Aktif</p>
+                    <span style="font-family:ui-monospace,'SFMono-Regular',Menlo,monospace;font-size:20px;font-weight:800;color:var(--text-heading);">{{ $this->activeIncentiveCount }}</span>
+                    <span style="font-size:11px;color:var(--text-muted);"> orang &middot; Rp {{ number_format($this->activeIncentiveTotal, 0, ',', '.') }}</span>
+                </div>
+                <i class="fa-solid fa-chevron-right" style="color:var(--text-faint);font-size:12px;"></i>
+            </button>
+        @else
+            {{-- Metode 'auto' dihitung live per user saat generate payroll, tidak ada tabel
+                 master buat direkap di sini - jangan nunjukkan 0 orang/Rp0 yang menyesatkan. --}}
+            <div style="border:1px dashed var(--border);background:var(--surface);border-radius:12px;padding:16px 18px;">
                 <p style="font-size:11px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:0.05em;margin:0 0 6px;"><i class="fa-solid fa-hand-holding-dollar"></i> Insentif Aktif</p>
-                <span style="font-family:ui-monospace,'SFMono-Regular',Menlo,monospace;font-size:20px;font-weight:800;color:var(--text-heading);">{{ $this->activeIncentiveCount }}</span>
-                <span style="font-size:11px;color:var(--text-muted);"> orang &middot; Rp {{ number_format($this->activeIncentiveTotal, 0, ',', '.') }}</span>
+                <p style="font-size:11.5px;color:var(--text-faint);margin:0;">Metode Insentif company ini "Otomatis" - dihitung live per karyawan saat payroll digenerate, tidak ada rekap di sini. Lihat per slip gaji.</p>
             </div>
-            <i class="fa-solid fa-chevron-right" style="color:var(--text-faint);font-size:12px;"></i>
-        </button>
+        @endif
 
         <button type="button" wire:click="openModal('koperasi')" style="text-align:left;border:1px solid var(--border);background:var(--surface);border-radius:12px;padding:16px 18px;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:space-between;">
             <div>

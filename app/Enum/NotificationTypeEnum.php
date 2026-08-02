@@ -24,6 +24,8 @@ enum NotificationTypeEnum: string
     case TASK_REVIEWER_ASSIGNED = 'task_reviewer_assigned';
     case TASK_COMMENTED = 'task_commented';
     case TASK_PROJECT_MEMBER_ADDED = 'task_project_member_added';
+    case TASK_REVIEW_REQUESTED = 'task_review_requested';
+    case TASK_COMPLETED_BY_ASSIGNEE = 'task_completed_by_assignee';
 
     // Ke karyawan, saat payroll-nya ditandai sudah dibayar (App\Jobs tidak terlibat — dikirim
     // langsung saat tombol "Tandai Sudah Dibayar" diklik, TERPISAH dari email slip gaji).
@@ -53,6 +55,8 @@ enum NotificationTypeEnum: string
             self::TASK_REVIEWER_ASSIGNED => 'Saya Diminta Jadi Reviewer',
             self::TASK_COMMENTED => 'Komentar Baru di Tugas Saya',
             self::TASK_PROJECT_MEMBER_ADDED => 'Ditambahkan ke Project',
+            self::TASK_REVIEW_REQUESTED => 'Pelaksana Mengajukan Review Tugas',
+            self::TASK_COMPLETED_BY_ASSIGNEE => 'Pelaksana Menyelesaikan Tugas',
             self::PAYROLL_PAID => 'Gaji Saya Sudah Dibayar',
             self::COUNSELING_RECEIVED => 'Ada Karyawan Konsul ke Saya',
             self::COACHING_ASSIGNED => 'Saya Mendapatkan Coaching',
@@ -89,6 +93,8 @@ enum NotificationTypeEnum: string
             self::TASK_REVIEWER_ASSIGNED => 'Dikirim saat Anda ditunjuk sebagai reviewer sebuah tugas.',
             self::TASK_COMMENTED => 'Dikirim saat ada komentar baru di tugas yang Anda kerjakan/buat.',
             self::TASK_PROJECT_MEMBER_ADDED => 'Dikirim saat Anda dimasukkan sebagai anggota sebuah project tugas.',
+            self::TASK_REVIEW_REQUESTED => 'Dikirim ke pembuat tugas saat pelaksana mengajukan tugas untuk direview (kalau dicentang saat bikin tugas).',
+            self::TASK_COMPLETED_BY_ASSIGNEE => 'Dikirim ke pembuat tugas saat pelaksana menandai tugas selesai tanpa review (kalau dicentang saat bikin tugas).',
             self::PAYROLL_PAID => 'Dikirim saat payroll Anda ditandai sudah dibayar oleh finance.',
             self::COUNSELING_RECEIVED => 'Dikirim saat ada karyawan yang menunjuk Anda sebagai konselor untuk konsul.',
             self::COACHING_ASSIGNED => 'Dikirim saat atasan/HC membuat sesi coaching baru untuk Anda.',

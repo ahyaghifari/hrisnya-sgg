@@ -7,16 +7,16 @@ use App\Livewire\Presensi\RekapPresensiPage;
 use App\Models\Master\Companies;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\DB;
 use Livewire\Livewire;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 /**
- * config('attendance.excluded_nips') (mis. Direktur/Super Admin) harus hilang total dari rekap
- * presensi - bukan cuma tidak wajib presensi, tapi tidak ikut ditampilkan/dihitung sama sekali
- * (lihat RekapPresensiPage::baseUserQuery()).
+ * User::NON_KARYAWAN_IDS (Direktur/Super Admin) dibuang lewat global scope 'non_karyawan' -
+ * jadi tidak pernah muncul di daftar/rekap karyawan manapun, termasuk rekap presensi (lihat
+ * User::boot()).
  */
 class RekapPresensiPageExcludedNipTest extends TestCase
 {
@@ -34,15 +34,15 @@ class RekapPresensiPageExcludedNipTest extends TestCase
         return $user;
     }
 
-    public function test_excluded_nip_is_hidden_from_daily_rows_and_stats(): void
+    public function test_non_karyawan_account_is_hidden_from_daily_rows_and_stats(): void
     {
         $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
         $viewer = $this->actingAsAbsensi($company->id);
 
-        $director = User::factory()->create(['company_id' => $company->id, 'name' => 'Direktur Utama', 'nip' => '00001']);
-        $staff = User::factory()->create(['company_id' => $company->id, 'name' => 'Staff Biasa', 'nip' => '00002']);
+        $director = User::factory()->create(['company_id' => $company->id, 'name' => 'Direktur Utama']);
+        DB::table('users')->where('id', $director->id)->update(['id' => User::NON_KARYAWAN_IDS[0]]);
 
-        Config::set('attendance.excluded_nips', ['00001']);
+        $staff = User::factory()->create(['company_id' => $company->id, 'name' => 'Staff Biasa']);
 
         $this->actingAs($viewer);
 
@@ -50,20 +50,5 @@ class RekapPresensiPageExcludedNipTest extends TestCase
             ->assertSee($staff->name)
             ->assertDontSee($director->name)
             ->assertSet('todayStats.total_employees', 2); // viewer + staff, direktur tidak ikut kehitung
-    }
-
-    public function test_no_excluded_nips_configured_shows_everyone(): void
-    {
-        $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
-        $viewer = $this->actingAsAbsensi($company->id);
-
-        $director = User::factory()->create(['company_id' => $company->id, 'name' => 'Direktur Utama', 'nip' => '00001']);
-
-        Config::set('attendance.excluded_nips', []);
-
-        $this->actingAs($viewer);
-
-        Livewire::test(RekapPresensiPage::class)
-            ->assertSee($director->name);
     }
 }
