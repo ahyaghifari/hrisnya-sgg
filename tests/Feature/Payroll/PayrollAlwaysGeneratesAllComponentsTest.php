@@ -19,10 +19,13 @@ use Tests\TestCase;
 
 /**
  * PayrollService::runComponent() sekarang WAJIB nyisain baris payroll_items (Rp0 kalau perlu)
- * buat SETIAP komponen yang aktif+eligible, bukan diam-diam hilang cuma karena Calculator-nya
- * tidak menghasilkan apa-apa (2026-08-02). Test-test Calculator per-unit yang sudah ada
- * (assertDatabaseMissing) TETAP valid tanpa diubah - itu menguji Calculator sendiri, bukan hasil
- * akhir lewat orchestrator penuh (generatePayroll()) seperti di sini.
+ * buat SETIAP komponen yang AKTIF di company ini - lepas dari status "Penerima Komponen Gaji"
+ * tipe karyawan itu (2026-08-02). PayrollComponentRecipient cuma nge-gate PERHITUNGAN/pembayaran
+ * (Calculator dipanggil atau tidak), BUKAN keberadaan barisnya - tipe karyawan yang belum
+ * terdaftar sebagai penerima tetap dapat baris Rp0, bukan hilang total. Test-test Calculator
+ * per-unit yang sudah ada (assertDatabaseMissing) TETAP valid tanpa diubah - itu menguji
+ * Calculator sendiri, bukan hasil akhir lewat orchestrator penuh (generatePayroll()) seperti
+ * di sini.
  */
 class PayrollAlwaysGeneratesAllComponentsTest extends TestCase
 {
@@ -50,6 +53,40 @@ class PayrollAlwaysGeneratesAllComponentsTest extends TestCase
         $payroll = Payroll::where('user_id', $user->id)->where('payroll_period_id', $period->id)->firstOrFail();
 
         $this->assertDatabaseHas('payroll_items', ['payroll_id' => $payroll->id, 'source_type' => 'cuti', 'amount' => 0]);
+    }
+
+    public function test_not_registered_as_recipient_still_gets_zero_row_but_not_paid(): void
+    {
+        [$company, $employeeType] = $this->makeCompanyAndEmployeeType();
+        Setting::create(['company_id' => $company->id, 'key' => 'keterlambatan_denda', 'module' => 'payroll', 'type' => 'decimal', 'value' => '25000', 'label' => 'x']);
+        Setting::create(['company_id' => $company->id, 'key' => 'attendance_period_start_day', 'module' => 'attendance', 'type' => 'integer', 'value' => '1', 'label' => 'x']);
+        Setting::create(['company_id' => $company->id, 'key' => 'attendance_period_end_day', 'module' => 'attendance', 'type' => 'integer', 'value' => '31', 'label' => 'x']);
+        CompanyPayrollComponent::create(['company_id' => $company->id, 'component' => PayrollComponentEnum::GAJI_POKOK->value, 'is_active' => true]);
+        CompanyPayrollComponent::create(['company_id' => $company->id, 'component' => PayrollComponentEnum::KETERLAMBATAN->value, 'is_active' => true]);
+        // Cuma didaftarkan penerima Gaji Pokok - SENGAJA TIDAK didaftarkan penerima Keterlambatan
+        // (Perilaku Orientasi di kasus nyata: tipe karyawan cuma penerima sebagian komponen).
+        PayrollComponentRecipient::create(['company_id' => $company->id, 'component' => PayrollComponentEnum::GAJI_POKOK->value, 'employee_type_id' => $employeeType->id]);
+
+        $user = User::factory()->create(['company_id' => $company->id, 'is_active' => true]);
+        UserProfiles::create(['user_id' => $user->id, 'employee_type_id' => $employeeType->id]);
+        $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
+
+        // Data telat NYATA ada - tapi karena bukan penerima Keterlambatan, tidak boleh kepotong.
+        AttendanceRecords::create([
+            'user_id' => $user->id, 'nip' => $user->nip, 'date' => '2026-07-05',
+            'check_in_time' => '08:30:00', 'status' => 'late', 'late_minutes' => 20,
+        ]);
+
+        app(PayrollService::class)->generatePayroll($period);
+        $payroll = Payroll::where('user_id', $user->id)->where('payroll_period_id', $period->id)->firstOrFail();
+
+        // Baris Keterlambatan tetap ADA (Rp0) meski bukan penerima - "penerima cuma nentuin
+        // dibayar atau tidak, bukan nentuin barisnya ada atau tidak".
+        $this->assertDatabaseHas('payroll_items', [
+            'payroll_id' => $payroll->id,
+            'source_type' => 'keterlambatan',
+            'amount' => 0,
+        ]);
     }
 
     public function test_gaji_pokok_without_pangkat_kelas_still_creates_zero_row(): void
@@ -88,7 +125,7 @@ class PayrollAlwaysGeneratesAllComponentsTest extends TestCase
             'payroll_id' => $payroll->id,
             'source_type' => 'keterlambatan',
             'amount' => 0,
-            'name' => 'Keterlambatan >10 Menit',
+            'name' => 'Keterlambatan > 10 menit',
         ]);
     }
 
@@ -118,7 +155,7 @@ class PayrollAlwaysGeneratesAllComponentsTest extends TestCase
             'payroll_id' => $payroll->id,
             'source_type' => 'keterlambatan',
             'amount' => 25000,
-            'name' => 'Keterlambatan >10 Menit',
+            'name' => 'Keterlambatan > 10 menit',
         ]);
     }
 
@@ -140,7 +177,7 @@ class PayrollAlwaysGeneratesAllComponentsTest extends TestCase
             'payroll_id' => $payroll->id,
             'source_type' => 'lembur',
             'amount' => 0,
-            'name' => 'Lembur (Dihitung >2 Jam)',
+            'name' => 'Lembur (Dihitung > 2 jam)',
         ]);
     }
 

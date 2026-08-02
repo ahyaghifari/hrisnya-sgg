@@ -69,6 +69,7 @@ abstract class AbstractIzinFlatCalculator implements PayrollComponentCalculator
             'unit' => 'kejadian',
             'unit_amount' => $flatAmount,
             'amount' => $amount,
+            'note' => "{$count}x/Bulan",
             'source_type' => $this->componentValue(),
         ]);
 

@@ -55,20 +55,54 @@ class LemburCalculator implements PayrollComponentCalculator
             }])
             ->get();
 
+        // Digabung jadi 1 baris payroll_items per payroll (bukan 1 baris per tanggal lembur lagi,
+        // 2026-08-02) - nama baris cukup "Lembur (Dihitung > X jam)" tanpa daftar tanggal, rincian
+        // per kejadian tetap ada di note.
+        $totalAmount = 0.0;
+        $totalHours = 0;
+        $noteLines = [];
+
         foreach ($overtimeRequests as $request) {
             foreach ($request->overtimeDetails as $detail) {
-                $this->processDetail($payroll, $context, $detail, (float) $baseRate, $minimumJam);
+                $result = $this->calculateDetail($detail, (float) $baseRate, $minimumJam);
+
+                if (! $result) {
+                    continue;
+                }
+
+                $totalAmount += $result['amount'];
+                $totalHours += $result['hours'];
+                $noteLines[] = $result['note'];
             }
         }
+
+        if ($totalAmount <= 0) {
+            return;
+        }
+
+        PayrollItem::create([
+            'payroll_id' => $payroll->id,
+            'name' => PayrollComponentEnum::LEMBUR->defaultRowName($period->company_id),
+            'type' => PayrollComponentEnum::LEMBUR->type()->value,
+            'quantity' => $totalHours,
+            'unit' => 'jam',
+            'unit_amount' => round($baseRate, 2),
+            'amount' => round($totalAmount, 2),
+            'note' => implode('; ', $noteLines),
+            'source_type' => PayrollComponentEnum::LEMBUR->value,
+        ]);
+
+        $context->addEarning(round($totalAmount, 2));
     }
 
-    private function processDetail(Payroll $payroll, PayrollContext $context, AttendanceRequestOvertimeDetails $detail, float $baseRate, int $minimumJam): void
+    /** @return array{amount: float, hours: int, note: string}|null */
+    private function calculateDetail(AttendanceRequestOvertimeDetails $detail, float $baseRate, int $minimumJam): ?array
     {
         $date = Carbon::parse($detail->date);
         $hours = (int) floor((float) $detail->total_hours); // ROUNDDOWN(jam, 0) di Excel
 
         if ($hours <= 0) {
-            return;
+            return null;
         }
 
         // Multiplier meng-clamp jam ke minimum settingan (lembur di bawah itu tetap dihitung
@@ -79,28 +113,15 @@ class LemburCalculator implements PayrollComponentCalculator
         $amount = round($baseRate / $divisor * $multiplier, 2);
 
         if ($amount <= 0) {
-            return;
+            return null;
         }
 
         $dateLabel = $date->locale('id')->isoFormat('D MMMM YYYY');
 
-        PayrollItem::create([
-            'payroll_id' => $payroll->id,
-            'name' => "Lembur - {$dateLabel} ({$hours} jam)",
-            'type' => PayrollComponentEnum::LEMBUR->type()->value,
-            'quantity' => $hours,
-            'unit' => 'jam',
-            'unit_amount' => round($baseRate / $divisor, 4),
+        return [
             'amount' => $amount,
-            'note' => sprintf(
-                'Base rate: Rp%s, dibagi %d hari x 7, dikali multiplier %.1f',
-                number_format($baseRate, 0, ',', '.'),
-                $date->daysInMonth,
-                $multiplier
-            ),
-            'source_type' => PayrollComponentEnum::LEMBUR->value,
-        ]);
-
-        $context->addEarning($amount);
+            'hours' => $hours,
+            'note' => "{$dateLabel} ({$hours} jam): Rp" . number_format($amount, 0, ',', '.'),
+        ];
     }
 }

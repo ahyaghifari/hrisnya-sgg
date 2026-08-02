@@ -64,7 +64,7 @@ class KeterlambatanCalculator implements PayrollComponentCalculator
             'unit' => 'kejadian',
             'unit_amount' => $denda,
             'amount' => $amount,
-            'note' => "Total telat {$lateCount}x, kompensasi {$graceCount}x, kena denda {$chargeableCount}x",
+            'note' => "Total telat {$lateCount}x, kompensasi {$graceCount}x, kena denda {$chargeableCount}x, {$chargeableCount}x/Bulan",
             'source_type' => PayrollComponentEnum::KETERLAMBATAN->value,
         ]);
 

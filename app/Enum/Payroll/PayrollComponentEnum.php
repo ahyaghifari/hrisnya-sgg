@@ -161,9 +161,25 @@ enum PayrollComponentEnum: string
         return match ($this) {
             self::BPJS_KESEHATAN => $this->label() . ' ' . Setting::resolve(GlobalPayrollSettingEnum::BPJS_KESEHATAN_RATE->value, null, default: 0) . '%',
             self::BPJS_KETENAGAKERJAAN => $this->label() . ' ' . Setting::resolve(GlobalPayrollSettingEnum::BPJS_KETENAGAKERJAAN_RATE->value, null, default: 0) . '%',
-            self::KETERLAMBATAN => $this->label() . ' >' . (int) Setting::resolve('keterlambatan_threshold_menit', $companyId, default: 0) . ' Menit',
-            self::LEMBUR => $this->label() . ' (Dihitung >' . (int) Setting::resolve('lembur_minimum_jam', $companyId, default: 2) . ' Jam)',
+            self::KETERLAMBATAN => $this->label() . ' > ' . (int) Setting::resolve('keterlambatan_threshold_menit', $companyId, default: 0) . ' menit',
+            self::LEMBUR => $this->label() . ' (Dihitung > ' . (int) Setting::resolve('lembur_minimum_jam', $companyId, default: 2) . ' jam)',
             default => $this->label(),
+        };
+    }
+
+    /**
+     * Note default "0x/Bulan"/"0x/Hari" buat baris fallback Rp0 (0 kejadian) di
+     * PayrollService::runComponent() - dulu disintesis live di componentRows(), sekarang dibekukan
+     * di baris itu sendiri saat digenerate (2026-08-02), sama filosofinya kayak defaultRowName().
+     * Kalkulator yang beneran punya kejadian (Keterlambatan/IzinTerlambatPulangCepat/IzinSeharian)
+     * nulis notenya sendiri dengan hitungan real - method ini cuma dipakai fallback.
+     */
+    public function defaultRowNote(): ?string
+    {
+        return match ($this) {
+            self::KETERLAMBATAN, self::IZIN_TERLAMBAT_PULANG_CEPAT => '0x/Bulan',
+            self::CUTI, self::IZIN_SEHARIAN => '0x/Hari',
+            default => null,
         };
     }
 }

@@ -70,6 +70,7 @@ abstract class AbstractIzinSeharianCalculator implements PayrollComponentCalcula
             'unit' => 'hari',
             'unit_amount' => round($rateHarian, 2),
             'amount' => $amount,
+            'note' => "{$count}x/Hari",
             'source_type' => PayrollComponentEnum::IZIN_SEHARIAN->value,
         ]);
 

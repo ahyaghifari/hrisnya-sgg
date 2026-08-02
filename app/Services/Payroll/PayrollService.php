@@ -128,9 +128,19 @@ class PayrollService
      */
     public function componentRows(Payroll $payroll): array
     {
+        // Urutan tampil ikut urutan deklarasi PayrollComponentEnum (urutan yang sama dipakai di
+        // halaman Komponen Gaji) - BUKAN urutan baris payroll_items di DB (itu ikut urutan
+        // Calculator jalan/CompanyPayrollComponent, bisa beda-beda, jangan sampai keliatan kacau/
+        // alfabetis). Item tanpa source_type (adjustment manual) ditaruh paling akhir.
+        $order = collect(PayrollComponentEnum::cases())->map(fn ($c) => $c->value)->flip();
+
+        $items = $payroll->items->sortBy(
+            fn ($item) => $item->source_type ? ($order[$item->source_type] ?? PHP_INT_MAX) : PHP_INT_MAX
+        );
+
         $rows = ['earnings' => [], 'deductions' => []];
 
-        foreach ($payroll->items as $item) {
+        foreach ($items as $item) {
             $key = $item->type === PayrollComponentTypeEnum::EARNING->value ? 'earnings' : 'deductions';
 
             $rows[$key][] = [
@@ -343,31 +353,34 @@ class PayrollService
         PayrollPeriod $period,
         PayrollContext $context
     ): void {
-        // Halaman "Penerima Komponen Gaji" — TIDAK ADA baris terdaftar utk kombinasi
-        // company+component ini = TIDAK ADA yang eligible (default ketat, disengaja — lihat
-        // App\Models\Payroll\PayrollComponentRecipient).
-        if (! PayrollComponentRecipient::isEligible($companyComponent->company_id, $companyComponent->component, $user->profile?->employee_type_id)) {
-            return;
-        }
-
         $component = PayrollComponentEnum::tryFrom($companyComponent->component);
 
         if (! $component) {
             return;
         }
 
-        $calculatorClass = PayrollCalculatorRegistry::resolve($component);
+        // Halaman "Penerima Komponen Gaji" — TIDAK ADA baris terdaftar utk kombinasi
+        // company+component ini = TIDAK eligible MENERIMA (default ketat, disengaja — lihat
+        // App\Models\Payroll\PayrollComponentRecipient). Ini cuma nge-gate perhitungan/pembayaran
+        // (Calculator tidak dipanggil sama sekali), BUKAN keberadaan barisnya — komponen yang
+        // aktif di company ini tetap harus tampil sebagai baris Rp0 di slip meski tipe karyawan
+        // ini belum terdaftar sebagai penerima (2026-08-02, per keputusan user: "penerima cuma
+        // nentuin dia dapat uang atau tidak, bukan nentuin barisnya ada atau tidak").
+        $isEligible = PayrollComponentRecipient::isEligible($companyComponent->company_id, $companyComponent->component, $user->profile?->employee_type_id);
 
-        if (! $calculatorClass) {
-            return; // belum ada Calculator (§2.2 planning Fase 1), skip aman
+        if ($isEligible) {
+            $calculatorClass = PayrollCalculatorRegistry::resolve($component);
+
+            if ($calculatorClass) {
+                app($calculatorClass)->calculate($user, $payroll, $period, $context);
+            }
         }
 
-        app($calculatorClass)->calculate($user, $payroll, $period, $context);
-
-        // Komponen ini aktif+eligible tapi Calculator-nya tidak bikin baris sama sekali (hasil
-        // nol/data belum lengkap) - tetap harus KELIHATAN di slip sebagai Rp0, bukan hilang
-        // total (2026-08-02). Fee Claim/Pajak Jasa Dokter TIDAK lewat method ini (alwaysOn, lihat
-        // generateForUser()), jadi otomatis tidak kena aturan ini.
+        // Komponen ini aktif tapi belum ada barisnya sama sekali — baik karena tipe karyawan ini
+        // bukan penerima, atau eligible tapi Calculator-nya tidak menghasilkan apa-apa (nol/data
+        // belum lengkap). Tetap harus KELIHATAN di slip sebagai Rp0, bukan hilang total. Fee
+        // Claim/Pajak Jasa Dokter TIDAK lewat method ini (alwaysOn, lihat generateForUser()),
+        // jadi otomatis tidak kena aturan ini.
         if (! $payroll->items()->where('source_type', $component->value)->exists()) {
             PayrollItem::create([
                 'payroll_id' => $payroll->id,
@@ -375,6 +388,7 @@ class PayrollService
                 'type' => $component->type()->value,
                 'quantity' => 0,
                 'amount' => 0,
+                'note' => $component->defaultRowNote(),
                 'source_type' => $component->value,
             ]);
         }

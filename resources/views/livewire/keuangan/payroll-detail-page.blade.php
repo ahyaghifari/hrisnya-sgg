@@ -115,11 +115,6 @@
                                         @endif
                                     </span>
                                 </div>
-                                @if (($row['component'] ?? null) === \App\Enum\Payroll\PayrollComponentEnum::GAJI_POKOK->value && $this->gajiPokokNote)
-                                    {{-- Rincian perhitungan (base + kelas + prorate kalau kena) - cuma di sini, sengaja
-                                    tidak ikut ke slip PDF (per keputusan user, lihat getGajiPokokNoteProperty()). --}}
-                                    <p style="font-size:10.5px;color:var(--text-faint);margin:2px 0 0;font-style:italic;">{{ $this->gajiPokokNote }}</p>
-                                @endif
                             </div>
                         @empty
                             <p style="font-size:11.5px;color:var(--text-faint);margin:0;">Tidak ada komponen pendapatan.</p>
