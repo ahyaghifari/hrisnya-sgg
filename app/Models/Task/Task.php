@@ -111,6 +111,7 @@ class Task extends Model
         'department_id',
         'service_id',
         'project_id',
+        'list_id',
         'assigned_to',
         'approved_by',
         'requirement',
@@ -175,6 +176,11 @@ class Task extends Model
     public function project(): BelongsTo
     {
         return $this->belongsTo(TaskProject::class, 'project_id');
+    }
+
+    public function list(): BelongsTo
+    {
+        return $this->belongsTo(TaskList::class, 'list_id');
     }
 
     public function rejectionNoteBy(): BelongsTo

@@ -22,6 +22,7 @@
     "dependencies": {
         "cropperjs": "^1.6.2",
         "list.js": "^2.3.1",
+        "sortablejs": "^1.15.7",
         "tom-select": "^2.6.2"
     }
 }

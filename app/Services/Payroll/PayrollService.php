@@ -138,6 +138,16 @@ class PayrollService
             fn ($item) => $item->source_type ? ($order[$item->source_type] ?? PHP_INT_MAX) : PHP_INT_MAX
         );
 
+        // Komponen yang note-nya tetap ditampilkan di slip (keterangan jumlah kejadian, mis.
+        // "2x/Bulan"/"1x/Hari") - komponen lain notenya disembunyikan di tampilan slip walau
+        // tetap tersimpan utuh di payroll_items.
+        $notedComponents = [
+            PayrollComponentEnum::KETERLAMBATAN->value,
+            PayrollComponentEnum::IZIN_TERLAMBAT_PULANG_CEPAT->value,
+            PayrollComponentEnum::IZIN_SEHARIAN->value,
+            PayrollComponentEnum::CUTI->value,
+        ];
+
         $rows = ['earnings' => [], 'deductions' => []];
 
         foreach ($items as $item) {
@@ -146,7 +156,7 @@ class PayrollService
             $rows[$key][] = [
                 'component' => $item->source_type,
                 'label' => $item->name,
-                'note' => $item->note,
+                'note' => in_array($item->source_type, $notedComponents, true) ? $item->note : null,
                 'amount' => (float) $item->amount,
                 'hasValue' => (float) $item->amount > 0,
             ];

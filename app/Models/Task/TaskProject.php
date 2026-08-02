@@ -74,4 +74,9 @@ class TaskProject extends Model
     {
         return $this->hasMany(Task::class, 'project_id');
     }
+
+    public function lists(): HasMany
+    {
+        return $this->hasMany(TaskList::class, 'project_id')->orderBy('position');
+    }
 }

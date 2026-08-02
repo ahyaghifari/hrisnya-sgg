@@ -33,14 +33,14 @@ class PayrollPaid extends Notification implements ShouldQueue
 
     protected function title(): string
     {
-        return 'Gaji Sudah Dibayar';
+        return 'Gaji Sudah Dibayar 🎉';
     }
 
     protected function body(): string
     {
         $period = $this->payroll->payrollPeriod->end_date->translatedFormat('F Y');
 
-        return "Gaji Anda periode {$period} sudah ditandai dibayar.";
+        return "Kabar baik! Gaji Anda periode {$period} sudah dibayarkan. Terima kasih atas kerja keras Anda.";
     }
 
     public function toDatabase(object $notifiable): array

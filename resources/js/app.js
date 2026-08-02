@@ -5,6 +5,7 @@ import "tom-select/dist/css/tom-select.css";
 import List from "list.js";
 import Cropper from "cropperjs";
 import "cropperjs/dist/cropper.css";
+import Sortable from "sortablejs";
 
 window.apiFetch = apiFetch;
 
@@ -366,4 +367,60 @@ document.addEventListener("livewire:init", () => {
     // tidak pernah lewat DOMContentLoaded/livewire:navigated — initListTables sudah guard
     // listInstances.has(el.id) jadi aman dipanggil berkali-kali.
     Livewire.hook("morph.added", () => initListTables());
+
+    // Board Tugas: drag-and-drop card. Kontainer card ([data-list-id]/[data-status-list]) pakai
+    // wire:ignore.self supaya SortableJS bebas manipulasi DOM tanpa direbut Livewire, tapi
+    // children-nya (card) TETAP di-morph normal - itu justru yang bikin "bounce back" jalan kalau
+    // moveTaskStatus() nolak drag ilegal (server re-render balikin card ke kolom asal).
+    Livewire.hook("morph.added", () => initTaskBoardSortables());
+    Livewire.hook("morph.updated", () => initTaskBoardSortables());
 });
+document.addEventListener("livewire:navigated", initTaskBoardSortables);
+
+function taskBoardWireId(el) {
+    return el.closest("[wire\\:id]")?.getAttribute("wire:id") ?? null;
+}
+
+function initTaskBoardSortables() {
+    // List custom Board - semua anggota Board boleh drag, satu grup per komponen Livewire (biar
+    // card ngga bisa "nyasar" ke Board lain kalau kebetulan lebih dari 1 instance ke-render).
+    document.querySelectorAll("[data-list-id]").forEach((el) => {
+        if (el._sortable) return;
+
+        const wireId = taskBoardWireId(el);
+        el._sortable = Sortable.create(el, {
+            group: "task-board-lists-" + (wireId || "default"),
+            animation: 150,
+            onEnd(evt) {
+                if (!wireId) return;
+
+                const payload = {};
+                payload[evt.from.dataset.listId] = Array.from(evt.from.children).map((c) => c.dataset.taskId);
+                if (evt.to !== evt.from) {
+                    payload[evt.to.dataset.listId] = Array.from(evt.to.children).map((c) => c.dataset.taskId);
+                }
+
+                Livewire.find(wireId).call("moveCardsAcrossLists", payload);
+            },
+        });
+    });
+
+    // Board personal (status fixed TODO/IN_PROGRESS/REVIEW/COMPLETE) - drag cuma opsi TAMBAHAN,
+    // tombol/dropdown status yang sudah ada tetap dipertahankan. Drag yang melanggar aturan
+    // moveStatus() (loncat step, bukan assignee/creator yang berhak) otomatis "keplanting balik"
+    // ke kolom asal lewat morph berikutnya - tidak ada revert logic manual di sini.
+    document.querySelectorAll("[data-status-list]").forEach((el) => {
+        if (el._sortable) return;
+
+        const wireId = taskBoardWireId(el);
+        el._sortable = Sortable.create(el, {
+            group: "task-board-status-" + (wireId || "default"),
+            animation: 150,
+            onEnd(evt) {
+                if (!wireId || evt.from === evt.to) return;
+
+                Livewire.find(wireId).call("moveTaskStatus", evt.item.dataset.taskId, evt.to.dataset.statusList);
+            },
+        });
+    });
+}

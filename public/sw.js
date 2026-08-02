@@ -54,11 +54,18 @@ self.addEventListener('notificationclick', (event) => {
     event.notification.close();
     const requestId = event.notification.data?.request_id;
     const requestType = event.notification.data?.request_type;
-    // request_type 'leave'/'permission'/'overtime' (Izin/Cuti/Lembur) -> halaman detail
-    // pengajuan absensi; 'user_transition' (Perubahan Status Karyawan) -> halaman detail
-    // transisi, beda route sama sekali.
-    const url = requestId
-        ? (requestType === 'user_transition' ? `/kepegawaian/perubahan-status/${requestId}` : `/pengajuan-absensi/${requestId}`)
-        : '/';
+    const payrollId = event.notification.data?.payroll_id;
+
+    let url = '/';
+    if (payrollId) {
+        // Notifikasi Gaji Sudah Dibayar -> halaman detail slip gaji karyawan sendiri.
+        url = `/data-diri/penggajian/${payrollId}`;
+    } else if (requestId) {
+        // request_type 'leave'/'permission'/'overtime' (Izin/Cuti/Lembur) -> halaman detail
+        // pengajuan absensi; 'user_transition' (Perubahan Status Karyawan) -> halaman detail
+        // transisi, beda route sama sekali.
+        url = requestType === 'user_transition' ? `/kepegawaian/perubahan-status/${requestId}` : `/pengajuan-absensi/${requestId}`;
+    }
+
     event.waitUntil(clients.openWindow(url));
 });

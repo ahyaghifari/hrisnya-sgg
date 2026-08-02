@@ -6,6 +6,7 @@ use App\Enum\Task\TaskPriority;
 use App\Enum\Task\TaskStatus;
 use App\Models\Task\Task;
 use App\Models\Task\TaskChecklistItem;
+use App\Models\Task\TaskList;
 use App\Models\Task\TaskProject;
 use App\Models\User;
 use App\Services\OrgHierarchyService;
@@ -81,6 +82,12 @@ class TaskListPage extends Component
     // Modal "Kelola Anggota"
     public bool $showMembersModal = false;
     public ?string $newProjectMemberId = null;
+
+    // List custom Board - form tambah List baru + inline rename (dua-duanya owner-only, dicek
+    // ulang di TaskService, ini cuma state form).
+    public string $newListName = '';
+    public ?string $editingListId = null;
+    public string $editingListName = '';
 
     // Modal "Ganti Background" board
     public bool $showBgModal = false;
@@ -193,6 +200,20 @@ class TaskListPage extends Component
 
         return collect(TaskStatus::cases())
             ->mapWithKeys(fn (TaskStatus $status) => [$status->value => $tasks->where('status', $status->value)->values()])
+            ->all();
+    }
+
+    /** Kolom List custom Board (Trello-style) - analog tasksByStatus, cuma aktif kalau di Board. */
+    public function getTasksByListProperty(): array
+    {
+        if (! $this->activeProject) {
+            return [];
+        }
+
+        $tasks = $this->tasks;
+
+        return $this->activeProject->lists
+            ->mapWithKeys(fn (TaskList $list) => [$list->id => $tasks->where('list_id', $list->id)->values()])
             ->all();
     }
 
@@ -309,6 +330,12 @@ class TaskListPage extends Component
 
         try {
             app(TaskService::class)->moveStatus($task, $status, Auth::user());
+
+            // Baru selesai & belum dirating - buka modal detail otomatis buat creator supaya
+            // langsung bisa kasih rating (opsional, tetap bisa ditutup tanpa rating).
+            if ($status === TaskStatus::COMPLETE->value && $task->created_by === Auth::id() && ! $task->rating) {
+                $this->openTaskDetail($taskId);
+            }
         } catch (\Throwable $e) {
             Notification::make()->title($e->getMessage() ?: 'Tidak bisa memindahkan tugas ini')->danger()->send();
         }
@@ -484,6 +511,141 @@ class TaskListPage extends Component
         unset($this->myProjects, $this->tasks);
 
         Notification::make()->title('Project berhasil dibuat')->success()->send();
+    }
+
+    public function createList(): void
+    {
+        if (! $this->activeProject || trim($this->newListName) === '') {
+            return;
+        }
+
+        try {
+            app(TaskService::class)->createList($this->activeProject, trim($this->newListName), Auth::user());
+            $this->newListName = '';
+            unset($this->myProjects, $this->tasks);
+        } catch (\Throwable $e) {
+            Notification::make()->title($e->getMessage() ?: 'Tidak bisa membuat List')->danger()->send();
+        }
+    }
+
+    public function startEditList(string $listId): void
+    {
+        $list = TaskList::findOrFail($listId);
+        $this->editingListId = $listId;
+        $this->editingListName = $list->name;
+    }
+
+    public function cancelEditList(): void
+    {
+        $this->editingListId = null;
+        $this->editingListName = '';
+    }
+
+    public function renameList(): void
+    {
+        if (! $this->editingListId || trim($this->editingListName) === '') {
+            return;
+        }
+
+        try {
+            app(TaskService::class)->renameList(TaskList::findOrFail($this->editingListId), trim($this->editingListName), Auth::user());
+            unset($this->myProjects);
+        } catch (\Throwable $e) {
+            Notification::make()->title($e->getMessage() ?: 'Tidak bisa mengubah nama List')->danger()->send();
+        }
+
+        $this->editingListId = null;
+        $this->editingListName = '';
+    }
+
+    public function deleteList(string $listId): void
+    {
+        try {
+            app(TaskService::class)->deleteList(TaskList::findOrFail($listId), Auth::user());
+            unset($this->myProjects, $this->tasks);
+        } catch (\Throwable $e) {
+            Notification::make()->title($e->getMessage() ?: 'Tidak bisa menghapus List')->danger()->send();
+        }
+    }
+
+    public function markListFinal(string $listId): void
+    {
+        try {
+            app(TaskService::class)->setListFinal(TaskList::findOrFail($listId), Auth::user());
+            unset($this->myProjects);
+        } catch (\Throwable $e) {
+            Notification::make()->title($e->getMessage() ?: 'Tidak bisa menandai List ini')->danger()->send();
+        }
+    }
+
+    public function moveListLeft(string $listId): void
+    {
+        $this->swapListPosition($listId, -1);
+    }
+
+    public function moveListRight(string $listId): void
+    {
+        $this->swapListPosition($listId, 1);
+    }
+
+    private function swapListPosition(string $listId, int $direction): void
+    {
+        if (! $this->activeProject) {
+            return;
+        }
+
+        $ids = $this->activeProject->lists->pluck('id')->values()->all();
+        $index = array_search($listId, $ids, true);
+
+        if ($index === false) {
+            return;
+        }
+
+        $swapWith = $index + $direction;
+        if ($swapWith < 0 || $swapWith >= count($ids)) {
+            return;
+        }
+
+        [$ids[$index], $ids[$swapWith]] = [$ids[$swapWith], $ids[$index]];
+
+        try {
+            app(TaskService::class)->reorderLists($this->activeProject, $ids, Auth::user());
+            unset($this->myProjects);
+        } catch (\Throwable $e) {
+            Notification::make()->title($e->getMessage() ?: 'Tidak bisa mengurutkan List')->danger()->send();
+        }
+    }
+
+    /**
+     * Dipanggil dari drag-and-drop (SortableJS) - $listsPayload: [list_id => [task_id,...], ...].
+     * Reuse logic auto-buka modal rating yang sudah ada di moveTaskStatus() (task yang baru saja
+     * COMPLETE, actor creator, belum ada rating).
+     */
+    public function moveCardsAcrossLists(array $listsPayload): void
+    {
+        try {
+            app(TaskService::class)->moveCardsAcrossLists($listsPayload, Auth::user());
+        } catch (\Throwable $e) {
+            Notification::make()->title($e->getMessage() ?: 'Tidak bisa memindahkan tugas ini')->danger()->send();
+            unset($this->tasks);
+            return;
+        }
+
+        foreach (array_keys($listsPayload) as $listId) {
+            $list = TaskList::find($listId);
+            if (! $list?->is_final) {
+                continue;
+            }
+
+            foreach ($listsPayload[$listId] as $taskId) {
+                $task = Task::find($taskId);
+                if ($task && $task->created_by === Auth::id() && ! $task->rating) {
+                    $this->openTaskDetail($taskId);
+                }
+            }
+        }
+
+        unset($this->tasks, $this->historyTasks);
     }
 
     public function openBgModal(): void

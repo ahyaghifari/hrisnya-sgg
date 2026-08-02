@@ -11,6 +11,7 @@ use App\Models\Task\Task;
 use App\Models\Task\TaskAttachment;
 use App\Models\Task\TaskBoardBackground;
 use App\Models\Task\TaskChecklistItem;
+use App\Models\Task\TaskList;
 use App\Models\Task\TaskProject;
 use App\Models\Task\TaskProjectMember;
 use App\Models\User;
@@ -82,10 +83,19 @@ class TaskService
 
             $departmentId = $user->profile?->department?->id;
 
+            // Task di dalam Board masuk List pertama (position terkecil) kalau tidak dipilih
+            // eksplisit - Board tidak pakai step-order REVIEW sama sekali, jadi needs_review
+            // dipaksa false di sini juga (bukan cuma disembunyikan di UI).
+            $listId = $data['list_id'] ?? null;
+            if ($project && ! $listId) {
+                $listId = $project->lists()->orderBy('position')->value('id');
+            }
+
             $task = $this->taskRepository->create([
                 'code' => $this->generateCode($departmentId),
                 'department_id' => $departmentId,
                 'project_id' => $project?->id,
+                'list_id' => $project ? $listId : null,
                 'company_id' => $user->company_id,
                 'requirement' => $data['requirement'],
                 'priority' => $data['priority'] ?? 'medium',
@@ -93,8 +103,8 @@ class TaskService
                 'created_by' => $user->id,
                 'assigned_to' => $assignedTo,
                 'is_self_assigned' => $assignedTo === $user->id,
-                'needs_review' => (bool) ($data['needs_review'] ?? false),
-                'notify_creator_on_review' => (bool) ($data['notify_creator_on_review'] ?? false),
+                'needs_review' => $project ? false : (bool) ($data['needs_review'] ?? false),
+                'notify_creator_on_review' => $project ? false : (bool) ($data['notify_creator_on_review'] ?? false),
                 'notify_creator_on_complete' => (bool) ($data['notify_creator_on_complete'] ?? false),
                 'responded_date' => Carbon::now(),
                 'status' => TaskStatus::TODO->value,
@@ -153,7 +163,125 @@ class TaskService
                 User::find($memberId)?->notify(new TaskProjectMemberAdded($project, $user->name));
             }
 
+            // Board baru langsung siap pakai - List terakhir ditandai "Selesai" (is_final), owner
+            // masih bebas ubah/hapus/tambah List sesudahnya.
+            foreach (['To Do', 'Sedang Dikerjakan', 'Selesai'] as $i => $name) {
+                $project->lists()->create([
+                    'name' => $name,
+                    'position' => $i,
+                    'is_final' => $name === 'Selesai',
+                ]);
+            }
+
             return $project;
+        });
+    }
+
+    /** Bikin List baru di Board - owner-only. */
+    public function createList(TaskProject $project, string $name, User $actor): TaskList
+    {
+        abort_unless($this->canManageProjectMembers($project, $actor), 403);
+
+        $position = ((int) $project->lists()->max('position')) + 1;
+
+        return $project->lists()->create(['name' => $name, 'position' => $position]);
+    }
+
+    /** Ubah nama List - owner-only. */
+    public function renameList(TaskList $list, string $name, User $actor): void
+    {
+        abort_unless($this->canManageProjectMembers($list->project, $actor), 403);
+
+        $list->update(['name' => $name]);
+    }
+
+    /** Hapus List - owner-only, cuma boleh kalau List-nya sudah kosong. */
+    public function deleteList(TaskList $list, User $actor): void
+    {
+        abort_unless($this->canManageProjectMembers($list->project, $actor), 403);
+        abort_if($list->tasks()->exists(), 422, 'Pindahkan task keluar dari List ini dulu sebelum menghapusnya.');
+
+        $list->delete();
+    }
+
+    /** Reorder List (kolom) di 1 Board - owner-only, $orderedListIds = urutan akhir yang diinginkan. */
+    public function reorderLists(TaskProject $project, array $orderedListIds, User $actor): void
+    {
+        abort_unless($this->canManageProjectMembers($project, $actor), 403);
+
+        foreach (array_values($orderedListIds) as $index => $listId) {
+            TaskList::where('id', $listId)->where('project_id', $project->id)->update(['position' => $index]);
+        }
+    }
+
+    /** Tandai 1 List sebagai "Selesai" (max 1 per Board) - owner-only. */
+    public function setListFinal(TaskList $list, User $actor): void
+    {
+        abort_unless($this->canManageProjectMembers($list->project, $actor), 403);
+
+        DB::transaction(function () use ($list) {
+            TaskList::where('project_id', $list->project_id)->update(['is_final' => false]);
+            $list->update(['is_final' => true]);
+        });
+    }
+
+    /**
+     * Pindah/reorder card antar List di 1 Board - semua anggota Board boleh (beda dari kelola
+     * struktur List yang owner-only), konsisten kayak drag-card di Trello asli.
+     * $listsPayload: [list_id => [task_id, task_id, ...], ...] - 1 entry kalau cuma reorder dalam
+     * 1 List, 2 entry kalau task pindah List (target + sisa List asal).
+     *
+     * List yang jadi `is_final` diperlakukan setara status COMPLETE (reuse alur rating/notifikasi
+     * lama yang gate di $task->status, lihat TaskService::moveStatus()/rateTask()) - card yang
+     * masuk situ dapat status=complete, keluar lagi balik ke in_progress. Tidak ada batas 24 jam
+     * kayak moveStatus() - Board lebih casual, siapa saja anggota boleh reopen kapan saja.
+     */
+    public function moveCardsAcrossLists(array $listsPayload, User $actor): void
+    {
+        if (empty($listsPayload)) {
+            return;
+        }
+
+        $lists = TaskList::whereIn('id', array_keys($listsPayload))->get()->keyBy('id');
+        abort_unless($lists->count() === count($listsPayload), 404);
+
+        $projectIds = $lists->pluck('project_id')->unique();
+        abort_unless($projectIds->count() === 1, 422, 'List harus berasal dari Board yang sama.');
+
+        $project = TaskProject::findOrFail($projectIds->first());
+        abort_unless($this->canAccessProject($project, $actor), 403);
+
+        DB::transaction(function () use ($listsPayload, $lists) {
+            foreach ($listsPayload as $listId => $taskIds) {
+                $list = $lists->get($listId);
+
+                foreach (array_values($taskIds) as $index => $taskId) {
+                    $task = Task::find($taskId);
+                    if (! $task) {
+                        continue;
+                    }
+
+                    $updateData = ['list_id' => $listId, 'position' => $index];
+
+                    if ($task->list_id !== $listId) {
+                        if ($list->is_final) {
+                            $updateData['status'] = TaskStatus::COMPLETE->value;
+                            $updateData['completed_date'] = Carbon::now();
+                            $updateData['is_overdue'] = $task->due_date && Carbon::now()->gt($task->due_date);
+
+                            if ($task->notify_creator_on_complete && $task->assigned_to !== $task->created_by) {
+                                $task->createdBy?->notify(new TaskCompletedByAssignee($task, $task->assignedTo?->name ?? '-'));
+                            }
+                        } elseif ($task->list?->is_final) {
+                            $updateData['status'] = TaskStatus::IN_PROGRESS->value;
+                            $updateData['completed_date'] = null;
+                            $updateData['is_overdue'] = false;
+                        }
+                    }
+
+                    $this->taskRepository->update($task->id, $updateData);
+                }
+            }
         });
     }
 
@@ -215,7 +343,7 @@ class TaskService
     public function getProjectTasks(TaskProject $project): Collection
     {
         return $project->tasks()
-            ->with(['assignedTo.profile', 'createdBy', 'checklistItems', 'comments.user'])
+            ->with(['assignedTo.profile', 'createdBy', 'checklistItems', 'comments.user', 'list'])
             ->withCount('attachments')
             ->orderBy('position')
             ->orderByDesc('created_at')
