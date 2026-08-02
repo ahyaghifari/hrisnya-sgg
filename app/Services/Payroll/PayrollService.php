@@ -7,10 +7,10 @@ use App\Enum\Payroll\PayrollComponentTypeEnum;
 use App\Models\Payroll\CompanyPayrollComponent;
 use App\Models\Payroll\Payroll;
 use App\Models\Payroll\PayrollComponentRecipient;
+use App\Models\Payroll\PayrollItem;
 use App\Models\Payroll\PayrollManualLine;
 use App\Models\Payroll\PayrollPeriod;
 use App\Models\Payroll\UserKoperasi;
-use App\Models\Setting;
 use App\Models\User;
 use App\Services\Payroll\Calculators\FeeClaimCalculator;
 use App\Services\Payroll\Calculators\PayrollCalculatorRegistry;
@@ -117,111 +117,29 @@ class PayrollService
     }
 
     /**
-     * Seluruh komponen gaji yang TERDAFTAR aktif untuk company payroll ini (halaman Komponen
-     * Gaji) + yang selalu aktif (Fee Claim dkk) — bukan cuma yang kebetulan menghasilkan
-     * PayrollItem. Komponen yang tidak menghasilkan apa-apa buat karyawan ini tetap tampil
-     * dengan Rp 0. Dipakai bareng oleh halaman detail portal (PayrollDetailPage) dan PDF slip
-     * gaji, supaya keduanya selalu menampilkan daftar komponen yang sama persis.
+     * @return array{earnings: array<int, array{component: ?string, label: string, note: ?string, amount: float, hasValue: bool}>, deductions: array<int, array{component: ?string, label: string, note: ?string, amount: float, hasValue: bool}>}
      *
-     * @return array{earnings: array<int, array{label: string, note: ?string, amount: float, hasValue: bool}>, deductions: array<int, array{label: string, note: ?string, amount: float, hasValue: bool}>}
+     * Load langsung dari payroll_items — tidak lagi cek company_payroll_components/toggle
+     * aktif sama sekali (2026-08-02). Sejak runComponent() menjamin tiap komponen aktif+eligible
+     * SELALU punya baris (Rp0 kalau perlu, lihat PayrollComponentEnum::defaultRowName()), baris
+     * yang tersimpan itu SENDIRI sudah lengkap & akurat secara historis — tidak perlu direkonstruksi
+     * ulang dari kondisi toggle/setting SAAT INI. Efek samping yang disengaja: payroll lama tetap
+     * tampil apa adanya walau company belakangan mematikan toggle komponennya (integritas historis).
      */
     public function componentRows(Payroll $payroll): array
     {
-        $companyId = $payroll->payrollPeriod->company_id;
+        $rows = ['earnings' => [], 'deductions' => []];
 
-        $activeComponents = CompanyPayrollComponent::query()
-            ->where('company_id', $companyId)
-            ->where('is_active', true)
-            ->pluck('component');
-
-        // Sengaja TIDAK ikut PayrollComponentEnum::alwaysOn() di sini — itu cuma soal
-        // Calculator-nya jalan tanpa dicek toggle, bukan berarti komponennya "ada" buat
-        // company ini. Fee Claim/Pajak Jasa Dokter cuma boleh muncul di slip kalau memang
-        // menghasilkan angka nyata (ditangani di bagian bawah), bukan sebagai baris Rp 0
-        // untuk company yang tidak punya baris fee_items sama sekali (mis. Holding).
-        $applicable = collect(PayrollComponentEnum::cases())
-            ->filter(fn (PayrollComponentEnum $c) => $activeComponents->contains($c->value));
-
-        $items = $payroll->items;
-
-        $sums = $items->whereNotNull('source_type')
-            ->groupBy('source_type')
-            ->map(fn ($group) => (float) $group->sum('amount'));
-
-        $quantities = $items->whereNotNull('source_type')
-            ->groupBy('source_type')
-            ->map(fn ($group) => (int) $group->sum('quantity'));
-
-        // Aturan yang lagi berlaku ditempel LANGSUNG ke label (bukan lagi anotasi terpisah) —
-        // diminta eksplisit buat Lembur, BPJS, & toleransi menit Keterlambatan.
-        $labelFor = function (PayrollComponentEnum $c) use ($companyId): string {
-            return match ($c) {
-                PayrollComponentEnum::LEMBUR => $c->label() . ' >' . (int) Setting::resolve('lembur_minimum_jam', $companyId, default: 2) . ' Jam',
-                PayrollComponentEnum::BPJS_KESEHATAN => $c->label() . ' ' . Setting::resolve('bpjs_kesehatan_rate', $companyId, default: 0) . '%',
-                PayrollComponentEnum::BPJS_KETENAGAKERJAAN => $c->label() . ' ' . Setting::resolve('bpjs_ketenagakerjaan_rate', $companyId, default: 0) . '%',
-                PayrollComponentEnum::KETERLAMBATAN => $c->label() . ' >' . (int) Setting::resolve('keterlambatan_threshold_menit', $companyId, default: 0) . ' Menit',
-                default => $c->label(),
-            };
-        };
-
-        // Jumlah kejadian ("NxBulan"/"NxHari") ditampilkan terpisah di sisi kanan (sejajar
-        // nominal), bukan nempel di label — dibaca dari quantity PayrollItem yang sudah
-        // dihitung Calculator, bukan dihitung ulang di sini.
-        $noteFor = function (PayrollComponentEnum $c) use ($quantities): ?string {
-            return match ($c) {
-                PayrollComponentEnum::KETERLAMBATAN,
-                PayrollComponentEnum::IZIN_TERLAMBAT_PULANG_CEPAT => ($quantities[$c->value] ?? 0) . 'x/Bulan',
-                PayrollComponentEnum::CUTI,
-                PayrollComponentEnum::IZIN_SEHARIAN => ($quantities[$c->value] ?? 0) . 'x/Hari',
-                default => null,
-            };
-        };
-
-        $buildRows = function (PayrollComponentTypeEnum $type) use ($applicable, $sums, $labelFor, $noteFor) {
-            return $applicable
-                ->filter(fn (PayrollComponentEnum $c) => $c->type() === $type)
-                ->map(fn (PayrollComponentEnum $c) => [
-                    'component' => $c->value,
-                    'label' => $labelFor($c),
-                    'note' => $noteFor($c),
-                    'amount' => $sums[$c->value] ?? 0.0,
-                    'hasValue' => isset($sums[$c->value]) && $sums[$c->value] > 0,
-                ])
-                ->values()
-                ->all();
-        };
-
-        $rows = [
-            'earnings' => $buildRows(PayrollComponentTypeEnum::EARNING),
-            'deductions' => $buildRows(PayrollComponentTypeEnum::DEDUCTION),
-        ];
-
-        // Adjustment manual (lewat "Add Adjustment" di /admin) tidak terikat komponen manapun
-        // (source_type null) — tetap ditampilkan apa adanya, bukan digabung ke baris 0 di atas.
-        foreach ($items->whereNull('source_type') as $item) {
+        foreach ($payroll->items as $item) {
             $key = $item->type === PayrollComponentTypeEnum::EARNING->value ? 'earnings' : 'deductions';
-            $rows[$key][] = ['label' => $item->name, 'note' => null, 'amount' => (float) $item->amount, 'hasValue' => true];
-        }
 
-        // Komponen yang TIDAK di-toggle aktif (mis. Fee Claim/Pajak Jasa Dokter, data-driven,
-        // tidak lewat toggle company_payroll_components sama sekali) tapi ternyata beneran
-        // menghasilkan uang buat payroll ini — tetap harus muncul, jangan sampai potongan/
-        // pendapatan nyata hilang dari slip cuma karena tidak "terdaftar" di Komponen Gaji.
-        $applicableValues = $applicable->map(fn (PayrollComponentEnum $c) => $c->value);
-
-        foreach ($sums as $sourceType => $amount) {
-            if ($amount <= 0 || $applicableValues->contains($sourceType)) {
-                continue;
-            }
-
-            $enum = PayrollComponentEnum::tryFrom($sourceType);
-
-            if (! $enum) {
-                continue;
-            }
-
-            $key = $enum->type() === PayrollComponentTypeEnum::EARNING ? 'earnings' : 'deductions';
-            $rows[$key][] = ['label' => $enum->label(), 'note' => $noteFor($enum), 'amount' => $amount, 'hasValue' => true];
+            $rows[$key][] = [
+                'component' => $item->source_type,
+                'label' => $item->name,
+                'note' => $item->note,
+                'amount' => (float) $item->amount,
+                'hasValue' => (float) $item->amount > 0,
+            ];
         }
 
         return $rows;
@@ -237,7 +155,8 @@ class PayrollService
                 ->where('is_paid', false)
                 ->delete();
 
-            // Re-run generation — payrollAlreadyExists() will skip paid ones.
+            // Re-run generation — generatePayroll() sendiri juga sudah skip yang paid & hapus-
+            // ulang yang belum dibayar, jadi baris di atas sebenarnya redundan tapi tidak masalah.
             $this->generatePayroll($period, $generatedByUserId);
         });
     }
@@ -259,8 +178,23 @@ class PayrollService
             $this->syncKoperasiManualLines($period, $users);
 
             foreach ($users as $user) {
-                if ($this->payrollAlreadyExists($user, $period)) {
-                    continue;
+                // Payroll yang SUDAH DIBAYAR dikunci total, tidak boleh disentuh lagi. Payroll
+                // yang BELUM dibayar dihapus & digenerate ulang dari nol (bukan di-skip) - kalau
+                // di-skip, klik "Generate" di halaman Periode Gaji ini tidak akan pernah
+                // menerapkan perbaikan Calculator (mis. fix prorate Gaji Pokok/window Izin) ke
+                // payroll yang kebetulan sudah ada baris lamanya, cuma "Regenerate" (yang
+                // eksplisit hapus dulu) yang kena - membingungkan, disamakan di sini (2026-08-02).
+                $existing = Payroll::query()
+                    ->where('user_id', $user->id)
+                    ->where('payroll_period_id', $period->id)
+                    ->first();
+
+                if ($existing) {
+                    if ($existing->is_paid) {
+                        continue;
+                    }
+
+                    $existing->delete(); // payroll_items ikut terhapus lewat cascadeOnDelete
                 }
 
                 // Tipe karyawan yang tidak terdaftar sebagai penerima komponen APA PUN (belum
@@ -401,13 +335,6 @@ class PayrollService
         }
     }
 
-    private function payrollAlreadyExists(User $user, PayrollPeriod $period): bool
-    {
-        return Payroll::query()
-            ->where('user_id', $user->id)
-            ->where('payroll_period_id', $period->id)
-            ->exists();
-    }
 
     private function runComponent(
         CompanyPayrollComponent $companyComponent,
@@ -436,5 +363,20 @@ class PayrollService
         }
 
         app($calculatorClass)->calculate($user, $payroll, $period, $context);
+
+        // Komponen ini aktif+eligible tapi Calculator-nya tidak bikin baris sama sekali (hasil
+        // nol/data belum lengkap) - tetap harus KELIHATAN di slip sebagai Rp0, bukan hilang
+        // total (2026-08-02). Fee Claim/Pajak Jasa Dokter TIDAK lewat method ini (alwaysOn, lihat
+        // generateForUser()), jadi otomatis tidak kena aturan ini.
+        if (! $payroll->items()->where('source_type', $component->value)->exists()) {
+            PayrollItem::create([
+                'payroll_id' => $payroll->id,
+                'name' => $component->defaultRowName($companyComponent->company_id),
+                'type' => $component->type()->value,
+                'quantity' => 0,
+                'amount' => 0,
+                'source_type' => $component->value,
+            ]);
+        }
     }
 }

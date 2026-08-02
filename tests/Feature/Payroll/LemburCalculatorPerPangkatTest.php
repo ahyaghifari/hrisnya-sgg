@@ -106,11 +106,14 @@ class LemburCalculatorPerPangkatTest extends TestCase
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-05-01', 'end_date' => '2026-05-31']);
         $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
 
+        $beforeWindow = AttendanceRequests::create(['user_id' => $user->id, 'type' => 'overtime', 'status' => AttendanceReqStatus::APPROVED->value]);
+        AttendanceRequestOvertimeDetails::create(['request_id' => $beforeWindow->id, 'date' => '2026-04-15', 'total_hours' => 3.0]); // sebelum window - JANGAN kehitung
+
         $inWindow = AttendanceRequests::create(['user_id' => $user->id, 'type' => 'overtime', 'status' => AttendanceReqStatus::APPROVED->value]);
-        AttendanceRequestOvertimeDetails::create(['request_id' => $inWindow->id, 'date' => '2026-05-14', 'total_hours' => 3.0]);
+        AttendanceRequestOvertimeDetails::create(['request_id' => $inWindow->id, 'date' => '2026-05-14', 'total_hours' => 3.0]); // HARUS kehitung
 
         $outsideWindow = AttendanceRequests::create(['user_id' => $user->id, 'type' => 'overtime', 'status' => AttendanceReqStatus::APPROVED->value]);
-        AttendanceRequestOvertimeDetails::create(['request_id' => $outsideWindow->id, 'date' => '2026-05-25', 'total_hours' => 3.0]);
+        AttendanceRequestOvertimeDetails::create(['request_id' => $outsideWindow->id, 'date' => '2026-05-25', 'total_hours' => 3.0]); // setelah window (window salah lama: Mei21-Jun20) - JANGAN kehitung
 
         $context = new PayrollContext();
         (new LemburCalculator())->calculate($user, $payroll, $period, $context);

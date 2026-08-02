@@ -106,9 +106,12 @@ class InsentifAutoEndToEndTest extends TestCase
 
         $payroll = Payroll::where('user_id', $employee->id)->where('payroll_period_id', $period->id)->firstOrFail();
 
-        $this->assertDatabaseMissing('payroll_items', [
+        // Insentif tetap dapat baris Rp0 (bukan hilang total) - komponen ini aktif+eligible,
+        // cuma hasil hitungnya nol (2026-08-02, "semua komponen mesti digenerate meskipun kosong").
+        $this->assertDatabaseHas('payroll_items', [
             'payroll_id' => $payroll->id,
             'source_type' => PayrollComponentEnum::INSENTIF->value,
+            'amount' => 0,
         ]);
         $this->assertSame(0.0, (float) $payroll->gross_salary);
 

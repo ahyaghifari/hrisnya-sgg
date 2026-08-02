@@ -126,8 +126,9 @@ class KeterlambatanCalculatorTest extends TestCase
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-05-01', 'end_date' => '2026-05-31']);
         $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
 
-        $this->makeLateRecord($user, '2026-05-14', 10); // di dalam window 21 Apr - 20 Mei
-        $this->makeLateRecord($user, '2026-05-25', 10); // di luar window itu
+        $this->makeLateRecord($user, '2026-04-15', 10); // sebelum window - JANGAN kehitung
+        $this->makeLateRecord($user, '2026-05-14', 10); // di dalam window 21 Apr - 20 Mei - HARUS kehitung
+        $this->makeLateRecord($user, '2026-05-25', 10); // setelah window (window salah lama: Mei21-Jun20) - JANGAN kehitung
 
         $context = new PayrollContext();
         (new KeterlambatanCalculator())->calculate($user, $payroll, $period, $context);

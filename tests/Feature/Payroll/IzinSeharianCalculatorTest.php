@@ -134,8 +134,9 @@ class IzinSeharianCalculatorTest extends TestCase
         $period = $this->makePeriod($company->id, '2026-05-01', '2026-05-31');
         $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
 
-        $this->makeApprovedIzinSeharian($user, $company->id, '2026-05-14'); // di dalam window 21 Apr - 20 Mei
-        $this->makeApprovedIzinSeharian($user, $company->id, '2026-05-25'); // di luar window itu
+        $this->makeApprovedIzinSeharian($user, $company->id, '2026-04-15'); // sebelum window - JANGAN kehitung
+        $this->makeApprovedIzinSeharian($user, $company->id, '2026-05-14'); // di dalam window 21 Apr - 20 Mei - HARUS kehitung
+        $this->makeApprovedIzinSeharian($user, $company->id, '2026-05-25'); // setelah window (window salah lama: Mei21-Jun20) - JANGAN kehitung
 
         $context = new PayrollContext();
         $context->addEarning(3_100_000);

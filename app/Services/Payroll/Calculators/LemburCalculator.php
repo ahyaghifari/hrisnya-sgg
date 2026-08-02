@@ -41,7 +41,7 @@ class LemburCalculator implements PayrollComponentCalculator
 
         // Window absensi (21-20 default, dari Pengaturan Absensi) - BUKAN literal start_date/
         // end_date PayrollPeriod, sama fix-nya kayak kalkulator Izin/Keterlambatan (2026-08-02).
-        [$attendancePeriodStart, $attendancePeriodEnd] = AttendancePeriodResolver::resolve($period->end_date, $period->company_id);
+        [$attendancePeriodStart, $attendancePeriodEnd] = AttendancePeriodResolver::resolve($period->start_date, $period->company_id);
 
         $overtimeRequests = AttendanceRequests::query()
             ->where('user_id', $user->id)

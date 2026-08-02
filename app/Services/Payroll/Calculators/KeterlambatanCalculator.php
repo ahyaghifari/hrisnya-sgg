@@ -32,7 +32,7 @@ class KeterlambatanCalculator implements PayrollComponentCalculator
 
         // Window absensi (21-20 default, dari Pengaturan Absensi) - BUKAN literal start_date/
         // end_date PayrollPeriod, sama fix-nya kayak kalkulator Izin (2026-08-02).
-        [$attendancePeriodStart, $attendancePeriodEnd] = AttendancePeriodResolver::resolve($period->end_date, $period->company_id);
+        [$attendancePeriodStart, $attendancePeriodEnd] = AttendancePeriodResolver::resolve($period->start_date, $period->company_id);
 
         $lateRecords = AttendanceRecords::query()
             ->where('user_id', $user->id)
@@ -58,7 +58,7 @@ class KeterlambatanCalculator implements PayrollComponentCalculator
 
         PayrollItem::create([
             'payroll_id' => $payroll->id,
-            'name' => PayrollComponentEnum::KETERLAMBATAN->label(),
+            'name' => PayrollComponentEnum::KETERLAMBATAN->defaultRowName($period->company_id),
             'type' => PayrollComponentEnum::KETERLAMBATAN->type()->value,
             'quantity' => $chargeableCount,
             'unit' => 'kejadian',

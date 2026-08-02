@@ -43,7 +43,7 @@ abstract class AbstractIzinFlatCalculator implements PayrollComponentCalculator
         // default 21-20), sama seperti yang dipakai buat kuota Izin - biar konsisten dan tidak ada
         // izin yang "tertinggal" cuma karena periode gaji ditulis beda dari periode absensi
         // company itu (2026-08-02).
-        [$izinPeriodStart, $izinPeriodEnd] = AttendancePeriodResolver::resolve($period->end_date, $period->company_id);
+        [$izinPeriodStart, $izinPeriodEnd] = AttendancePeriodResolver::resolve($period->start_date, $period->company_id);
 
         $count = AttendanceRequests::query()
             ->where('user_id', $user->id)

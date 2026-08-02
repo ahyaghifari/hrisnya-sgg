@@ -3,6 +3,7 @@
 namespace App\Services\Payroll\Calculators;
 
 use App\Enum\Payroll\GlobalPayrollSettingEnum;
+use App\Enum\Payroll\PayrollComponentEnum;
 use App\Models\Payroll\Payroll;
 use App\Models\Payroll\PayrollItem;
 use App\Models\Payroll\PayrollPeriod;
@@ -69,7 +70,7 @@ abstract class AbstractBpjsCalculator implements PayrollComponentCalculator
 
         PayrollItem::create([
             'payroll_id' => $payroll->id,
-            'name' => $this->componentLabel(),
+            'name' => PayrollComponentEnum::from($this->componentValue())->defaultRowName(null),
             'type' => $this->componentType(),
             'quantity' => $rate,
             'unit' => 'persen',

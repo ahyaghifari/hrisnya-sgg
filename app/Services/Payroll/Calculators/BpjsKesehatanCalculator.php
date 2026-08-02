@@ -6,6 +6,7 @@ use App\Enum\Payroll\GlobalPayrollSettingEnum;
 use App\Enum\Payroll\PayrollComponentEnum;
 use App\Models\Payroll\BpjsDependent;
 use App\Models\Payroll\Payroll;
+use App\Models\Payroll\PayrollItem;
 use App\Models\Payroll\PayrollPeriod;
 use App\Models\User;
 use Carbon\Carbon;
@@ -15,13 +16,24 @@ class BpjsKesehatanCalculator extends AbstractBpjsCalculator
     /**
      * Bulan pertama (Tanggal Bergabung jatuh di tengah periode ini, sama syaratnya dengan
      * prorate Gaji Pokok di GajiPokokCalculator) — BPJS Kesehatan TIDAK dipotong sama sekali
-     * (Rp0), bukan diprorate. Bulan-bulan berikutnya potong normal.
+     * (Rp0), bukan diprorate. Bulan-bulan berikutnya potong normal. Tetap bikin baris Rp0 +
+     * catatan penjelasan (2026-08-02) - biar kelihatan alasannya, bukan hilang total dari slip.
      */
     public function calculate(User $user, Payroll $payroll, PayrollPeriod $period, PayrollContext $context): void
     {
         $joiningDate = $user->profile?->joining_date ? Carbon::parse($user->profile->joining_date) : null;
 
         if ($joiningDate && $joiningDate->gt($period->start_date) && $joiningDate->lte($period->end_date)) {
+            PayrollItem::create([
+                'payroll_id' => $payroll->id,
+                'name' => PayrollComponentEnum::BPJS_KESEHATAN->defaultRowName(null),
+                'type' => PayrollComponentEnum::BPJS_KESEHATAN->type()->value,
+                'quantity' => 0,
+                'amount' => 0,
+                'note' => "Karyawan baru bergabung {$joiningDate->format('d-m-Y')} — belum wajib BPJS bulan pertama",
+                'source_type' => PayrollComponentEnum::BPJS_KESEHATAN->value,
+            ]);
+
             return;
         }
 

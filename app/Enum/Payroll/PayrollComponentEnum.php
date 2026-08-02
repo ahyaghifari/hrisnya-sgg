@@ -2,6 +2,8 @@
 
 namespace App\Enum\Payroll;
 
+use App\Models\Setting;
+
 /**
  * Vocabulary TERTUTUP komponen payroll — dunia komponen gaji perusahaan ini dikenal/finite
  * (~20 komponen), bukan sesuatu yang admin bikin bebas kapan saja. Menggantikan
@@ -84,7 +86,7 @@ enum PayrollComponentEnum: string
             self::BPJS_KETENAGAKERJAAN => 'BPJS Ketenagakerjaan',
             self::KETERLAMBATAN => 'Keterlambatan',
             self::IZIN_TERLAMBAT_PULANG_CEPAT => 'Izin Meninggalkan Jam Kerja',
-            self::IZIN_SEHARIAN => 'Izin Seharian',
+            self::IZIN_SEHARIAN => 'Izin Tidak Masuk',
             self::CUTI => 'Cuti',
             self::PAJAK_JASA_DOKTER => 'Pajak Jasa Dokter',
             self::KOPERASI => 'Koperasi',
@@ -143,6 +145,25 @@ enum PayrollComponentEnum: string
             self::IZIN_SEHARIAN => ['izin_seharian_metode', 'izin_seharian_persen_gaji_pokok'],
             self::BON => ['bon_metode'],
             default => [],
+        };
+    }
+
+    /**
+     * Nama baris payroll_items yang membekukan rate/threshold pada SAAT digenerate (BPJS/
+     * Keterlambatan/Lembur) — dipakai baik oleh Calculator (baris asli) maupun fallback Rp0 di
+     * PayrollService::runComponent() saat Calculator tidak membuat baris sama sekali. Sengaja
+     * TIDAK live-reconstruct di componentRows() lagi (2026-08-02) - kalau master setting berubah
+     * bulan depan, slip bulan lalu jangan ikut berubah. BPJS pakai company_id null (global),
+     * cocok cara AbstractBpjsCalculator sendiri resolve rate-nya.
+     */
+    public function defaultRowName(?string $companyId): string
+    {
+        return match ($this) {
+            self::BPJS_KESEHATAN => $this->label() . ' ' . Setting::resolve(GlobalPayrollSettingEnum::BPJS_KESEHATAN_RATE->value, null, default: 0) . '%',
+            self::BPJS_KETENAGAKERJAAN => $this->label() . ' ' . Setting::resolve(GlobalPayrollSettingEnum::BPJS_KETENAGAKERJAAN_RATE->value, null, default: 0) . '%',
+            self::KETERLAMBATAN => $this->label() . ' >' . (int) Setting::resolve('keterlambatan_threshold_menit', $companyId, default: 0) . ' Menit',
+            self::LEMBUR => $this->label() . ' (Dihitung >' . (int) Setting::resolve('lembur_minimum_jam', $companyId, default: 2) . ' Jam)',
+            default => $this->label(),
         };
     }
 }

@@ -31,7 +31,7 @@ abstract class AbstractIzinSeharianCalculator implements PayrollComponentCalcula
         // diketik bebas admin pas bikin periode gaji) - dipakai window "periode Izin" dari
         // Pengaturan Absensi (AttendanceSettingEnum::PERIOD_START_DAY/END_DAY, default 21-20),
         // sama seperti yang dipakai buat kuota Izin (2026-08-02).
-        [$izinPeriodStart, $izinPeriodEnd] = AttendancePeriodResolver::resolve($period->end_date, $period->company_id);
+        [$izinPeriodStart, $izinPeriodEnd] = AttendancePeriodResolver::resolve($period->start_date, $period->company_id);
 
         // Hitung berapa kali karyawan ini punya pengajuan Izin (kategori Izin Seharian) yang
         // sudah APPROVED dan tanggalnya jatuh di dalam periode Izin ini.
