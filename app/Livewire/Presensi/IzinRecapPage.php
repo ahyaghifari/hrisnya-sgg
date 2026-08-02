@@ -7,6 +7,7 @@ use App\Enum\CustomPermissionEnum;
 use App\Models\Attendance\AttendanceRequestPermissionDetails;
 use App\Models\Attendance\AttendanceRequests;
 use App\Models\Master\Companies;
+use App\Services\Attendance\AttendancePeriodResolver;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
@@ -38,9 +39,9 @@ class IzinRecapPage extends Component
             $this->companyId = Auth::user()->company_id;
         }
 
-        // Filter tanggal sengaja kosong dulu — user pilih sendiri Dari/Sampai Tanggal, bukan
-        // otomatis ke periode berjalan (AttendancePeriodResolver masih dipakai kalau nanti
-        // mau dibalikin defaultnya, cuma tidak di-pre-fill di sini untuk saat ini).
+        [$periodStart, $periodEnd] = AttendancePeriodResolver::resolve(now(), $this->companyId);
+        $this->date_from = $periodStart->toDateString();
+        $this->date_to = $periodEnd->toDateString();
     }
 
     public function updatedCompanyId(): void

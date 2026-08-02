@@ -140,16 +140,18 @@ class IzinRecapPageTest extends TestCase
         $this->assertSame($employeeA->id, $recap['rows'][0]['user']->id);
     }
 
-    public function test_recap_shows_not_ready_state_when_dates_not_selected(): void
+    public function test_mount_defaults_date_range_to_current_attendance_period(): void
     {
         $company = $this->makeCompany();
         $hc = $this->actingAsKepegawaian($company->id);
 
         $this->actingAs($hc);
 
-        $recap = Livewire::test(IzinRecapPage::class)->get('recap');
+        $component = Livewire::test(IzinRecapPage::class);
+        [$periodStart, $periodEnd] = \App\Services\Attendance\AttendancePeriodResolver::resolve(now(), $company->id);
 
-        $this->assertFalse($recap['ready']);
-        $this->assertCount(0, $recap['rows']);
+        $this->assertSame($periodStart->toDateString(), $component->get('date_from'));
+        $this->assertSame($periodEnd->toDateString(), $component->get('date_to'));
+        $this->assertTrue($component->get('recap')['ready']);
     }
 }

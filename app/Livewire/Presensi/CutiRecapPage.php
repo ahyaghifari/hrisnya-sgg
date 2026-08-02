@@ -6,6 +6,7 @@ use App\Enum\CustomPermissionEnum;
 use App\Models\Attendance\AttendanceRequestLeaveDetails;
 use App\Models\Attendance\AttendanceRequests;
 use App\Models\Master\Companies;
+use App\Services\Attendance\AttendancePeriodResolver;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
@@ -46,6 +47,10 @@ class CutiRecapPage extends Component
         } elseif ($this->companyId === null) {
             $this->companyId = Auth::user()->company_id;
         }
+
+        [$periodStart, $periodEnd] = AttendancePeriodResolver::resolve(now(), $this->companyId);
+        $this->date_from = $periodStart->toDateString();
+        $this->date_to = $periodEnd->toDateString();
     }
 
     public function setMode(string $mode): void

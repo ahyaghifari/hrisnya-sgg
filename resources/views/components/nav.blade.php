@@ -98,20 +98,26 @@
                                 <a href="#" class="nav-item nav-item-green {{ request()->routeIs(['keuangan.dashboard*', 'keuangan.periode-gaji*', 'keuangan.payroll*', 'keuangan.komponen-gaji*', 'keuangan.penerima-komponen-gaji*', 'keuangan.insentif*', 'keuangan.mapping-komponen-gaji*', 'keuangan.koperasi*', 'keuangan.omset*', 'keuangan.tanggungan-bpjs*']) ? 'active' : '' }}">
                                     <i class="fa-solid fa-sack-dollar text-xs"></i> Penggajian <i class="fa-solid fa-chevron-down text-[10px]"></i>
                                 </a>
-                                <div class="dropdown-menu">
-                                    <a href="{{ route('keuangan.dashboard') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-chart-line"></i> Dashboard</a>
-                                    <div style="height:1px;background:var(--border-soft);margin:6px 8px;"></div>
-                                    <a href="{{ route('keuangan.periode-gaji') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-calendar-days"></i> Periode Gaji</a>
-                                    <a href="{{ route('keuangan.payroll') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-money-check-dollar"></i> Payroll</a>
-                                     <a href="{{ route('keuangan.omset') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-hand-holding-medical"></i> Omset</a>
-                                    <div style="height:1px;background:var(--border-soft);margin:6px 8px;"></div>
-                                    <a href="{{ route('keuangan.komponen-gaji') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-sack-dollar"></i> Komponen Gaji</a>
-                                    <a href="{{ route('keuangan.penerima-komponen-gaji') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-users-gear"></i> Penerima Komponen Gaji</a>
-                                    <a href="{{ route('keuangan.mapping-komponen-gaji') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-diagram-project"></i> Mapping Komponen Gaji</a>
-                                    <div style="height:1px;background:var(--border-soft);margin:6px 8px;"></div>
-                                    <a href="{{ route('keuangan.insentif') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-hand-holding-dollar"></i> Insentif</a>
-                                    <a href="{{ route('keuangan.koperasi') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-people-group"></i> Koperasi</a>
-                                    <a href="{{ route('keuangan.tanggungan-bpjs') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-house-medical"></i> Tanggungan BPJS</a>
+                                <div class="dropdown-menu dropdown-menu-columns">
+                                    <div class="dropdown-col">
+                                        <div class="dropdown-col-label">Payroll</div>
+                                        <a href="{{ route('keuangan.dashboard') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-chart-line"></i> Dashboard</a>
+                                        <a href="{{ route('keuangan.periode-gaji') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-calendar-days"></i> Periode Gaji</a>
+                                        <a href="{{ route('keuangan.payroll') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-money-check-dollar"></i> Payroll</a>
+                                        <a href="{{ route('keuangan.omset') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-hand-holding-medical"></i> Omset</a>
+                                    </div>
+                                    <div class="dropdown-col">
+                                        <div class="dropdown-col-label">Tunjangan & Potongan</div>
+                                        <a href="{{ route('keuangan.insentif') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-hand-holding-dollar"></i> Insentif</a>
+                                        <a href="{{ route('keuangan.koperasi') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-people-group"></i> Koperasi</a>
+                                        <a href="{{ route('keuangan.tanggungan-bpjs') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-house-medical"></i> Tanggungan BPJS</a>
+                                    </div>
+                                    <div class="dropdown-col">
+                                        <div class="dropdown-col-label">Pengaturan Komponen</div>
+                                        <a href="{{ route('keuangan.komponen-gaji') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-sack-dollar"></i> Komponen Gaji</a>
+                                        <a href="{{ route('keuangan.penerima-komponen-gaji') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-users-gear"></i> Penerima Komponen Gaji</a>
+                                        <a href="{{ route('keuangan.mapping-komponen-gaji') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-diagram-project"></i> Mapping Komponen Gaji</a>
+                                    </div>
                                 </div>
                             </div>
                         @endif
@@ -120,19 +126,24 @@
                                 <a href="#" class="nav-item nav-item-sky {{ request()->routeIs('presensi.*') ? 'active' : '' }}">
                                     <i class="fa-solid fa-calendar-check text-xs"></i> Presensi & Absensi <i class="fa-solid fa-chevron-down text-[10px]"></i>
                                 </a>
-                                <div class="dropdown-menu">
-                                    <a href="{{ route('presensi.dashboard') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-chart-line"></i> Dashboard</a>
-                                    <div style="font-size:10.5px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em;padding:6px 12px 4px;">Presensi</div>
-                                    <a href="{{ route('presensi.jadwal') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-calendar-days"></i> Jadwal</a>
-                                    <a href="{{ route('presensi.extra-shift') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-user-clock"></i> Extra Shift</a>
-                                    <a href="{{ route('presensi.hari-libur') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-flag"></i> Hari Libur & Cuti Bersama</a>
-                                    <a href="{{ route('presensi.rekap-presensi') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-clipboard-list"></i> Rekap Presensi</a>
-
-                                    <div style="font-size:10.5px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em;padding:10px 12px 4px;">Absensi</div>
-                                    <a href="{{ route('presensi.rekap-izin') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-file-lines"></i> Izin</a>
-                                    <a href="{{ route('presensi.rekap-cuti') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-umbrella-beach"></i> Cuti</a>
-                                    <a href="{{ route('presensi.rekap-lembur') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-business-time"></i> Lembur</a>
-                                    <a href="{{ route('presensi.pengaturan') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-gear"></i> Pengaturan Absensi</a>
+                                <div class="dropdown-menu dropdown-menu-columns">
+                                    <div class="dropdown-col">
+                                        <a href="{{ route('presensi.dashboard') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-chart-line"></i> Dashboard</a>
+                                        <a href="{{ route('presensi.pengaturan') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-gear"></i> Pengaturan Absensi</a>
+                                    </div>
+                                    <div class="dropdown-col">
+                                        <div class="dropdown-col-label">Presensi</div>
+                                        <a href="{{ route('presensi.jadwal') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-calendar-days"></i> Jadwal</a>
+                                        <a href="{{ route('presensi.extra-shift') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-user-clock"></i> Extra Shift</a>
+                                        <a href="{{ route('presensi.hari-libur') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-flag"></i> Hari Libur & Cuti Bersama</a>
+                                        <a href="{{ route('presensi.rekap-presensi') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-clipboard-list"></i> Rekap Presensi</a>
+                                    </div>
+                                    <div class="dropdown-col">
+                                        <div class="dropdown-col-label">Absensi</div>
+                                        <a href="{{ route('presensi.rekap-izin') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-file-lines"></i> Izin</a>
+                                        <a href="{{ route('presensi.rekap-cuti') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-umbrella-beach"></i> Cuti</a>
+                                        <a href="{{ route('presensi.rekap-lembur') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-business-time"></i> Lembur</a>
+                                    </div>
                                 </div>
                             </div>
                         @endif
@@ -141,28 +152,33 @@
                                 <a href="#" class="nav-item nav-item-pink {{ request()->routeIs(['kepegawaian.*', 'karyawan.show']) ? 'active' : '' }}">
                                     <i class="fa-solid fa-id-card-clip text-xs"></i> Kepegawaian <i class="fa-solid fa-chevron-down text-[10px]"></i>
                                 </a>
-                                <div class="dropdown-menu">
-                                    <a href="{{ route('kepegawaian.dashboard') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-chart-line"></i> Dashboard</a>
-                                    <div style="height:1px;background:var(--border-soft);margin:6px 8px;"></div>
-                                    <a href="{{ route('kepegawaian.karyawan') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-users"></i> Karyawan</a>
-                                    <a href="{{ route('kepegawaian.jabatan') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-id-card-clip"></i> Jabatan</a>
-                                    <a href="{{ route('kepegawaian.job-evaluation') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-table-list"></i> Job Evaluation</a>
-                                    <a href="{{ route('kepegawaian.dokumen') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-folder-open"></i> Dokumen</a>
-                                    @if (auth()->user()->can('ViewAny:UserTransition'))
-                                        <a href="{{ route('kepegawaian.mutasi-karyawan') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-right-left"></i> Perubahan Status</a>
-                                    @endif
-                                    @if (auth()->user()->can(\App\Enum\CustomPermissionEnum::SISTEM_KEPEGAWAIAN->value))
-                                        <a href="{{ route('kepegawaian.pengaturan') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-gear"></i> Pengaturan Kepegawaian</a>
-                                    @endif
+                                <div class="dropdown-menu dropdown-menu-columns">
+                                    <div class="dropdown-col">
+                                        <a href="{{ route('kepegawaian.dashboard') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-chart-line"></i> Dashboard</a>
+                                        <a href="{{ route('kepegawaian.karyawan') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-users"></i> Karyawan</a>
+                                        @if (auth()->user()->can(\App\Enum\CustomPermissionEnum::SISTEM_KEPEGAWAIAN->value))
+                                            <a href="{{ route('kepegawaian.pengaturan') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-gear"></i> Pengaturan Kepegawaian</a>
+                                        @endif
+                                    </div>
+                                    <div class="dropdown-col">
+                                        <div class="dropdown-col-label">Jabatan</div>
+                                        <a href="{{ route('kepegawaian.jabatan') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-id-card-clip"></i> Jabatan</a>
+                                        <a href="{{ route('kepegawaian.job-evaluation') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-table-list"></i> Job Evaluation</a>
+                                        <a href="{{ route('kepegawaian.dokumen') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-folder-open"></i> Dokumen</a>
+                                        @if (auth()->user()->can('ViewAny:UserTransition'))
+                                            <a href="{{ route('kepegawaian.mutasi-karyawan') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-right-left"></i> Perubahan Status</a>
+                                        @endif
+                                    </div>
                                     @if (auth()->user()->can('ViewAny:JobOpenings') || auth()->user()->can('ViewAny:ManpowerRequests'))
-                                        <div style="height:1px;background:var(--border-soft);margin:6px 8px;"></div>
-                                        <div style="font-size:10.5px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em;padding:6px 12px 4px;">Rekrutmen</div>
-                                        @if (auth()->user()->can('ViewAny:JobOpenings'))
-                                            <a href="{{ route('kepegawaian.lowongan') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-briefcase"></i> Lowongan Kerja</a>
-                                        @endif
-                                        @if (auth()->user()->can('ViewAny:ManpowerRequests'))
-                                            <a href="{{ route('kepegawaian.permintaan') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-right-left"></i> Permintaan Tenaga Kerja</a>
-                                        @endif
+                                        <div class="dropdown-col">
+                                            <div class="dropdown-col-label">Rekrutmen</div>
+                                            @if (auth()->user()->can('ViewAny:JobOpenings'))
+                                                <a href="{{ route('kepegawaian.lowongan') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-briefcase"></i> Lowongan Kerja</a>
+                                            @endif
+                                            @if (auth()->user()->can('ViewAny:ManpowerRequests'))
+                                                <a href="{{ route('kepegawaian.permintaan') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-right-left"></i> Permintaan Tenaga Kerja</a>
+                                            @endif
+                                        </div>
                                     @endif
                                 </div>
                             </div>
@@ -172,17 +188,26 @@
                                 <a href="#" class="nav-item nav-item-teal {{ request()->routeIs(['pelatihan.honorarium', 'pelatihan.kategori', 'pelatihan.kelola', 'pelatihan.pemateri', 'pelatihan.bank-soal', 'pelatihan.kuis', 'pelatihan.evaluasi', 'pelatihan.baseline', 'pelatihan.laporan', 'pelatihan.pengaturan']) ? 'active' : '' }}">
                                     <i class="fa-solid fa-graduation-cap text-xs"></i> Learning Management System <i class="fa-solid fa-chevron-down text-[10px]"></i>
                                 </a>
-                                <div class="dropdown-menu">
-                                    <a href="{{ route('pelatihan.kelola') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-book"></i> Pelatihan</a>
-                                    <a href="{{ route('pelatihan.kategori') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-tags"></i> Kategori Pelatihan</a>
-                                    <a href="{{ route('pelatihan.pemateri') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-chalkboard-user"></i> Pemateri</a>
-                                    <a href="{{ route('pelatihan.bank-soal') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-clipboard-list"></i> Bank Soal</a>
-                                    <a href="{{ route('pelatihan.kuis') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-list-check"></i> Kuis</a>
-                                    <a href="{{ route('pelatihan.honorarium') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-sack-dollar"></i> Honorarium</a>
-                                    <a href="{{ route('pelatihan.evaluasi') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-star"></i> Pertanyaan Evaluasi</a>
-                                    <a href="{{ route('pelatihan.baseline') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-bullseye"></i> Baseline Pelatihan</a>
-                                    <a href="{{ route('pelatihan.laporan') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-chart-bar"></i> Laporan</a>
-                                    <a href="{{ route('pelatihan.pengaturan') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-gear"></i> Pengaturan LMS</a>
+                                <div class="dropdown-menu dropdown-menu-columns">
+                                    <div class="dropdown-col">
+                                        <div class="dropdown-col-label">Pelatihan</div>
+                                        <a href="{{ route('pelatihan.kelola') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-book"></i> Pelatihan</a>
+                                        <a href="{{ route('pelatihan.kategori') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-tags"></i> Kategori Pelatihan</a>
+                                        <a href="{{ route('pelatihan.pemateri') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-chalkboard-user"></i> Pemateri</a>
+                                        <a href="{{ route('pelatihan.pengaturan') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-gear"></i> Pengaturan LMS</a>
+                                    </div>
+                                    <div class="dropdown-col">
+                                        <div class="dropdown-col-label">Kuis & Evaluasi</div>
+                                        <a href="{{ route('pelatihan.bank-soal') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-clipboard-list"></i> Bank Soal</a>
+                                        <a href="{{ route('pelatihan.kuis') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-list-check"></i> Kuis</a>
+                                        <a href="{{ route('pelatihan.evaluasi') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-star"></i> Pertanyaan Evaluasi</a>
+                                        <a href="{{ route('pelatihan.baseline') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-bullseye"></i> Baseline Pelatihan</a>
+                                    </div>
+                                    <div class="dropdown-col">
+                                        <div class="dropdown-col-label">Honor & Laporan</div>
+                                        <a href="{{ route('pelatihan.honorarium') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-sack-dollar"></i> Honorarium</a>
+                                        <a href="{{ route('pelatihan.laporan') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-chart-bar"></i> Laporan</a>
+                                    </div>
                                 </div>
                             </div>
                         @endif
