@@ -2,7 +2,6 @@
 
 namespace App\Services\Payroll\Calculators;
 
-use App\Enum\Kepegawaian\KepegawaianSettingEnum;
 use App\Enum\Payroll\PayrollComponentEnum;
 use App\Models\Payroll\Payroll;
 use App\Models\Payroll\PayrollItem;
@@ -29,10 +28,11 @@ use Carbon\Carbon;
  * Prorate bulan pertama — berlaku untuk SEMUA kategori karyawan (bukan cuma Orientasi lagi):
  * kalau Tanggal Bergabung jatuh di tengah periode berjalan (join belakangan dari tanggal mulai
  * periode gaji), gaji_pokok dikali (hari kerja efektif sejak Tanggal Bergabung s.d. akhir
- * periode / KepegawaianSettingEnum::HARI_KERJA_EFEKTIF_PER_BULAN). Pembagi itu angka tetap
- * yang diisi admin di Pengaturan Kepegawaian (company-scoped, default 25) — BUKAN dihitung dari
- * kalender/jadwal. Pembilang dihitung sederhana: hari Senin-Sabtu (exclude Minggu saja, tanpa
- * lihat jadwal/roster/hari libur per karyawan) dari Tanggal Bergabung s.d. akhir periode.
+ * periode / jumlah hari di BULAN Tanggal Bergabung, mis. 30 buat Juni, 31 buat Juli) — dikoreksi
+ * 2026-08-02, sebelumnya pembagi pakai angka tetap KepegawaianSettingEnum::HARI_KERJA_EFEKTIF_PER_BULAN,
+ * sekarang jumlah hari kalender bulan itu. Pembilang dihitung sederhana: hari Senin-Sabtu
+ * (exclude Minggu saja, tanpa lihat jadwal/roster/hari libur per karyawan) dari Tanggal Bergabung
+ * s.d. akhir periode.
  */
 class GajiPokokCalculator implements PayrollComponentCalculator
 {
@@ -93,25 +93,17 @@ class GajiPokokCalculator implements PayrollComponentCalculator
             && $joiningDate->gt($period->start_date)
             && $joiningDate->lte($period->end_date)
         ) {
-            // Angka tetap "hari kerja efektif per bulan" yang diisi admin di Pengaturan Kepegawaian
-            // (company-scoped) - dipakai sebagai pembagi, BUKAN dihitung ulang dari kalender.
-            $hariKerjaEfektifPerBulan = (int) Setting::resolve(
-                KepegawaianSettingEnum::HARI_KERJA_EFEKTIF_PER_BULAN->value,
-                $period->company_id,
-                default: KepegawaianSettingEnum::HARI_KERJA_EFEKTIF_PER_BULAN->default()
-            );
+            // Pembagi = jumlah hari kalender di BULAN Tanggal Bergabung (30/31/28/29, tergantung
+            // bulannya) - bukan angka tetap dari setting lagi.
+            $daysInJoiningMonth = $joiningDate->daysInMonth;
 
-            // Guard pembagian dengan nol - kalau admin isi 0 (harusnya tidak mungkin lewat UI, tapi
-            // jaga-jaga), lewati prorate sama sekali dan biarkan Gaji Pokok penuh 1 bulan.
-            if ($hariKerjaEfektifPerBulan > 0) {
-                // Jumlah hari kerja (Senin-Sabtu) sejak Tanggal Bergabung sampai akhir periode ini.
-                $workedDays = $this->countWorkDays($joiningDate, $period->end_date);
-                // Rasio dikunci maksimal 1 (100%) - kalau workedDays kebetulan melebihi
-                // hariKerjaEfektifPerBulan (mis. bulan panjang), tidak boleh dibayar lebih dari 1 bulan penuh.
-                $amount = round($amount * min(1, $workedDays / $hariKerjaEfektifPerBulan), 2);
-                // Catatan prorate ditambahkan supaya kelihatan di slip gaji kenapa nominalnya dipotong.
-                $note .= ", prorate bulan pertama {$workedDays}/{$hariKerjaEfektifPerBulan} hari kerja sejak {$joiningDate->format('d-m-Y')}";
-            }
+            // Jumlah hari kerja (Senin-Sabtu) sejak Tanggal Bergabung sampai akhir periode ini.
+            $workedDays = $this->countWorkDays($joiningDate, $period->end_date);
+            // Rasio dikunci maksimal 1 (100%) - kalau workedDays kebetulan melebihi jumlah hari
+            // di bulan itu, tidak boleh dibayar lebih dari 1 bulan penuh.
+            $amount = round($amount * min(1, $workedDays / $daysInJoiningMonth), 2);
+            // Catatan prorate ditambahkan supaya kelihatan di slip gaji kenapa nominalnya dipotong.
+            $note .= ", prorate bulan pertama {$workedDays}/{$daysInJoiningMonth} hari sejak {$joiningDate->format('d-m-Y')}";
         }
 
         // Kalau hasil akhir tetap 0 (mis. base_salary 0), jangan generate PayrollItem sama sekali -

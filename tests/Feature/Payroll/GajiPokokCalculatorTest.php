@@ -73,7 +73,6 @@ class GajiPokokCalculatorTest extends TestCase
     public function test_prorates_when_joining_date_falls_mid_period(): void
     {
         $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
-        Setting::create(['company_id' => $company->id, 'key' => 'kepegawaian_hari_kerja_efektif_per_bulan', 'module' => 'kepegawaian', 'type' => 'integer', 'value' => '26', 'label' => 'Hari Kerja Efektif per Bulan']);
 
         $kelas1 = Kelas::create(['name' => 'Kelas I', 'company_id' => $company->id, 'level' => 1]);
         $pangkat = Pangkats::create(['name' => 'Perawat', 'company_id' => $company->id, 'start_kelas_id' => $kelas1->id, 'max_kelas_id' => $kelas1->id]);
@@ -91,8 +90,8 @@ class GajiPokokCalculatorTest extends TestCase
         $context = new PayrollContext();
         (new GajiPokokCalculator())->calculate($user, $payroll, $period, $context);
 
-        // 5 hari kerja / 26 hari kerja efektif per bulan * 3.000.000
-        $this->assertSame(round(3_000_000 * 5 / 26, 2), $context->grossSalary);
+        // 5 hari kerja / 31 hari (Juli) * 3.000.000 - pembagi jumlah hari kalender bulan bergabung.
+        $this->assertSame(round(3_000_000 * 5 / 31, 2), $context->grossSalary);
     }
 
     public function test_no_prorate_when_joining_date_before_period_start(): void
@@ -119,7 +118,6 @@ class GajiPokokCalculatorTest extends TestCase
     public function test_prorates_regardless_of_employee_category(): void
     {
         $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
-        Setting::create(['company_id' => $company->id, 'key' => 'kepegawaian_hari_kerja_efektif_per_bulan', 'module' => 'kepegawaian', 'type' => 'integer', 'value' => '26', 'label' => 'Hari Kerja Efektif per Bulan']);
 
         $kelas1 = Kelas::create(['name' => 'Kelas I', 'company_id' => $company->id, 'level' => 1]);
         $pangkat = Pangkats::create(['name' => 'Perawat', 'company_id' => $company->id, 'start_kelas_id' => $kelas1->id, 'max_kelas_id' => $kelas1->id]);
@@ -137,7 +135,7 @@ class GajiPokokCalculatorTest extends TestCase
         $context = new PayrollContext();
         (new GajiPokokCalculator())->calculate($user, $payroll, $period, $context);
 
-        // 5 hari kerja / 26 hari kerja efektif per bulan * 3.000.000
-        $this->assertSame(round(3_000_000 * 5 / 26, 2), $context->grossSalary);
+        // 5 hari kerja / 31 hari (Juli) * 3.000.000
+        $this->assertSame(round(3_000_000 * 5 / 31, 2), $context->grossSalary);
     }
 }
