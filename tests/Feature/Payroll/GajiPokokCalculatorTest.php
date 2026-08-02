@@ -116,7 +116,7 @@ class GajiPokokCalculatorTest extends TestCase
         $this->assertSame(3_000_000.0, $context->grossSalary);
     }
 
-    public function test_no_prorate_when_employee_category_is_not_orientasi(): void
+    public function test_prorates_regardless_of_employee_category(): void
     {
         $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
         Setting::create(['company_id' => $company->id, 'key' => 'kepegawaian_hari_kerja_efektif_per_bulan', 'module' => 'kepegawaian', 'type' => 'integer', 'value' => '26', 'label' => 'Hari Kerja Efektif per Bulan']);
@@ -127,8 +127,8 @@ class GajiPokokCalculatorTest extends TestCase
         $tetap = EmployeeTypes::create(['name' => 'Tetap', 'company_id' => $company->id, 'category' => 'tetap']);
 
         $user = User::factory()->create(['company_id' => $company->id]);
-        // Joining date sama-sama jatuh di tengah periode kayak test prorate, tapi kategori Tetap -
-        // harus TETAP dapat gaji pokok penuh, tidak di-prorate.
+        // Joining date jatuh di tengah periode, kategori Tetap - tetap harus di-prorate karena
+        // prorate sekarang murni berdasar jarak tanggal bergabung ke akhir periode, lepas dari kategori.
         UserProfiles::create(['user_id' => $user->id, 'pangkat_id' => $pangkat->id, 'kelas_id' => $kelas1->id, 'employee_type_id' => $tetap->id, 'joining_date' => '2026-07-27']);
 
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
@@ -137,6 +137,7 @@ class GajiPokokCalculatorTest extends TestCase
         $context = new PayrollContext();
         (new GajiPokokCalculator())->calculate($user, $payroll, $period, $context);
 
-        $this->assertSame(3_000_000.0, $context->grossSalary);
+        // 5 hari kerja / 26 hari kerja efektif per bulan * 3.000.000
+        $this->assertSame(round(3_000_000 * 5 / 26, 2), $context->grossSalary);
     }
 }

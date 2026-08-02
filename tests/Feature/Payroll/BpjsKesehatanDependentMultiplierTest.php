@@ -90,4 +90,25 @@ class BpjsKesehatanDependentMultiplierTest extends TestCase
 
         $this->assertSame(30_000.0, $context->totalDeductions);
     }
+
+    public function test_zero_when_joining_date_falls_mid_period(): void
+    {
+        $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
+        Setting::create(['company_id' => $company->id, 'key' => 'ump', 'module' => 'payroll', 'type' => 'decimal', 'value' => '3000000', 'label' => 'UMP']);
+        Setting::create(['company_id' => null, 'key' => 'bpjs_kesehatan_rate', 'module' => 'payroll', 'type' => 'decimal', 'value' => '1', 'label' => 'Rate BPJS Kesehatan']);
+
+        $pangkat = Pangkats::create(['name' => 'Perawat', 'company_id' => $company->id]);
+        PangkatBpjsBasis::create(['pangkat_id' => $pangkat->id, 'bpjs_basis' => 'ump']);
+
+        $user = User::factory()->create(['company_id' => $company->id]);
+        UserProfiles::create(['user_id' => $user->id, 'pangkat_id' => $pangkat->id, 'joining_date' => '2026-07-27']);
+
+        $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
+        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+
+        $context = new PayrollContext();
+        (new BpjsKesehatanCalculator())->calculate($user, $payroll, $period, $context);
+
+        $this->assertSame(0.0, $context->totalDeductions);
+    }
 }

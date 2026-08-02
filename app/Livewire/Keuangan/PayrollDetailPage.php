@@ -89,6 +89,20 @@ class PayrollDetailPage extends Component
     }
 
     /**
+     * Rincian perhitungan Gaji Pokok (base + kenaikan kelas + prorate bulan pertama kalau kena) -
+     * GajiPokokCalculator sudah nulis ini ke PayrollItem->note, tapi PayrollService::componentRows()
+     * sengaja TIDAK membacanya (note itu juga dipakai slip PDF, dan detail prorate ini per
+     * keputusan user cukup di halaman sistem, tidak usah di PDF). Jadi dibaca langsung di sini,
+     * ditampilkan cuma di halaman detail, bukan lewat componentRows().
+     */
+    public function getGajiPokokNoteProperty(): ?string
+    {
+        return $this->payroll->items()
+            ->where('source_type', PayrollComponentEnum::GAJI_POKOK->value)
+            ->value('note');
+    }
+
+    /**
      * Tombol "+ Tambah" di baris Bon cuma tampil kalau LOLOS DUA gate — sama persis yang dicek
      * PayrollService::runComponent() sebelum Calculator jalan: (1) komponen Bon aktif di
      * Komponen Gaji untuk company ini, DAN (2) tipe karyawan pemilik payroll ini terdaftar

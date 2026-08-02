@@ -2,7 +2,6 @@
 
 namespace App\Services\Payroll\Calculators;
 
-use App\Enum\EmployeeTypeCategory;
 use App\Enum\Kepegawaian\KepegawaianSettingEnum;
 use App\Enum\Payroll\PayrollComponentEnum;
 use App\Models\Payroll\Payroll;
@@ -27,15 +26,13 @@ use Carbon\Carbon;
  * ADDITIVE, bukan compound — dikonfirmasi user (analisis-payroll-4 §7.3): naik 2x kelas =
  * +16% dari base, BUKAN base*1.08^2.
  *
- * Prorate bulan pertama — HANYA untuk tipe karyawan ORIENTASI (EmployeeTypeCategory::ORIENTASI),
- * SELALU aktif untuk kategori itu (bukan opsional): kalau Tanggal Bergabung jatuh di tengah
- * periode berjalan (join belakangan dari tanggal mulai periode gaji), gaji_pokok dikali (hari
- * kerja efektif sejak Tanggal Bergabung s.d. akhir periode / KepegawaianSettingEnum::
- * HARI_KERJA_EFEKTIF_PER_BULAN). Pembagi itu angka tetap yang diisi admin di Pengaturan
- * Kepegawaian (company-scoped, default 25) — BUKAN dihitung dari kalender/jadwal. Pembilang
- * dihitung sederhana: hari Senin-Sabtu (exclude Minggu saja, tanpa lihat jadwal/roster/hari
- * libur per karyawan) dari Tanggal Bergabung s.d. akhir periode. Karyawan Kontrak/Tetap tidak
- * pernah di-prorate lewat jalur ini walau joining_date-nya jatuh di tengah periode.
+ * Prorate bulan pertama — berlaku untuk SEMUA kategori karyawan (bukan cuma Orientasi lagi):
+ * kalau Tanggal Bergabung jatuh di tengah periode berjalan (join belakangan dari tanggal mulai
+ * periode gaji), gaji_pokok dikali (hari kerja efektif sejak Tanggal Bergabung s.d. akhir
+ * periode / KepegawaianSettingEnum::HARI_KERJA_EFEKTIF_PER_BULAN). Pembagi itu angka tetap
+ * yang diisi admin di Pengaturan Kepegawaian (company-scoped, default 25) — BUKAN dihitung dari
+ * kalender/jadwal. Pembilang dihitung sederhana: hari Senin-Sabtu (exclude Minggu saja, tanpa
+ * lihat jadwal/roster/hari libur per karyawan) dari Tanggal Bergabung s.d. akhir periode.
  */
 class GajiPokokCalculator implements PayrollComponentCalculator
 {
@@ -86,15 +83,13 @@ class GajiPokokCalculator implements PayrollComponentCalculator
         // Tanggal Bergabung karyawan - kolom ini string biasa di DB (bukan di-cast Carbon oleh model),
         // jadi harus di-parse manual di sini sebelum dipakai untuk perbandingan tanggal.
         $joiningDate = $user->profile?->joining_date ? Carbon::parse($user->profile->joining_date) : null;
-        // Kategori tipe karyawan (Tetap/Kontrak/Orientasi) - prorate cuma berlaku buat Orientasi.
-        $employeeCategory = $user->profile?->employeeType?->category;
 
-        // Syarat prorate: (1) kategori karyawan Orientasi, (2) Tanggal Bergabung ADA, (3) Tanggal
-        // Bergabung jatuh SETELAH awal periode (baru masuk di tengah bulan, bukan sudah dari awal),
-        // dan (4) Tanggal Bergabung masih di dalam rentang periode ini (bukan periode yang sudah lewat).
+        // Syarat prorate: (1) Tanggal Bergabung ADA, (2) Tanggal Bergabung jatuh SETELAH awal
+        // periode (baru masuk di tengah bulan, bukan sudah dari awal), dan (3) Tanggal Bergabung
+        // masih di dalam rentang periode ini (bukan periode yang sudah lewat). Berlaku untuk
+        // semua kategori karyawan.
         if (
-            $employeeCategory === EmployeeTypeCategory::ORIENTASI
-            && $joiningDate
+            $joiningDate
             && $joiningDate->gt($period->start_date)
             && $joiningDate->lte($period->end_date)
         ) {
