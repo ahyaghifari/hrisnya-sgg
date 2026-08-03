@@ -91,6 +91,16 @@ class TaskService
                 $listId = $project->lists()->orderBy('position')->value('id');
             }
 
+            // Reviewer (siapa yang boleh kasih rating) cuma relevan untuk task di dalam Project -
+            // creator boleh pilih anggota project lain jadi reviewer, bukan cuma dirinya sendiri.
+            // Null = fallback ke creator sendiri (lihat rateTask()).
+            $reviewerId = $data['reviewer_id'] ?? null;
+            if ($reviewerId && $project) {
+                abort_unless($this->canAccessProject($project, User::find($reviewerId)), 403, 'Orang itu bukan anggota project ini.');
+            } elseif (! $project) {
+                $reviewerId = null;
+            }
+
             $task = $this->taskRepository->create([
                 'code' => $this->generateCode($departmentId),
                 'department_id' => $departmentId,
@@ -101,6 +111,7 @@ class TaskService
                 'priority' => $data['priority'] ?? 'medium',
                 'due_date' => $data['due_date'] ?? null,
                 'created_by' => $user->id,
+                'reviewer_id' => $reviewerId,
                 'assigned_to' => $assignedTo,
                 'is_self_assigned' => $assignedTo === $user->id,
                 'needs_review' => $project ? false : (bool) ($data['needs_review'] ?? false),
@@ -687,7 +698,11 @@ class TaskService
     /** Rating bintang 1-5 dari creator ke pelaksana, opsional, cuma buat task yang udah COMPLETE. */
     public function rateTask(Task $task, int $rating, User $user): void
     {
-        abort_unless($task->created_by === $user->id, 403, 'Cuma pembuat tugas yang bisa kasih rating.');
+        // reviewer_id (dipilih creator saat bikin task di Project) yang berhak rating kalau
+        // diisi - fallback ke creator sendiri (task pribadi, atau project task tanpa reviewer
+        // dipilih eksplisit).
+        $allowedRaterId = $task->reviewer_id ?? $task->created_by;
+        abort_unless($allowedRaterId === $user->id, 403, 'Kamu tidak berhak kasih rating untuk tugas ini.');
         abort_unless($task->status === TaskStatus::COMPLETE->value, 422, 'Tugas belum selesai.');
         abort_unless($rating >= 1 && $rating <= 5, 422, 'Rating harus 1-5.');
 

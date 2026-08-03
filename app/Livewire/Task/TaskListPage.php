@@ -48,6 +48,9 @@ class TaskListPage extends Component
     public string $priority = 'medium';
     public ?string $assigned_to = null;
     public array $checklist = [];
+    // Reviewer (siapa yang boleh kasih rating) - cuma relevan buat task di dalam Project, null =
+    // fallback ke creator sendiri (lihat TaskService::rateTask()).
+    public ?string $reviewerId = null;
     // "Butuh Approval Saya" - opt-in, kalau dicentang task wajib mampir REVIEW sebelum COMPLETE
     // (creator minta ditinjau ulang sebelum beneran selesai). Lepas dari alur approval formal
     // (MasterApprovalFlows/service_id) - itu punya jalur sendiri, sengaja dilepas dari modal
@@ -258,7 +261,7 @@ class TaskListPage extends Component
 
     public function openCreateTask(): void
     {
-        $this->reset(['requirement', 'due_date', 'assigned_to', 'checklist', 'newChecklistTitle']);
+        $this->reset(['requirement', 'due_date', 'assigned_to', 'checklist', 'newChecklistTitle', 'reviewerId']);
         $this->priority = TaskPriority::MEDIUM->value;
         $this->needsReview = false;
         $this->notifyOnReview = false;
@@ -314,6 +317,7 @@ class TaskListPage extends Component
                 'due_date' => $data['due_date'],
                 'assigned_to' => $data['assigned_to'] ?? null,
                 'project_id' => $this->activeProjectId,
+                'reviewer_id' => $this->reviewerId,
                 'needs_review' => $this->needsReview,
                 'notify_creator_on_review' => $this->needsReview && $this->notifyOnReview,
                 'notify_creator_on_complete' => ! $this->needsReview && $this->notifyOnComplete,
@@ -337,9 +341,11 @@ class TaskListPage extends Component
         try {
             app(TaskService::class)->moveStatus($task, $status, Auth::user());
 
-            // Baru selesai & belum dirating - buka modal detail otomatis buat creator supaya
-            // langsung bisa kasih rating (opsional, tetap bisa ditutup tanpa rating).
-            if ($status === TaskStatus::COMPLETE->value && $task->created_by === Auth::id() && ! $task->rating) {
+            // Baru selesai & belum dirating - buka modal detail otomatis buat yang berhak rating
+            // (reviewer kalau dipilih, fallback ke creator) supaya langsung bisa kasih rating
+            // (opsional, tetap bisa ditutup tanpa rating).
+            $allowedRaterId = $task->reviewer_id ?? $task->created_by;
+            if ($status === TaskStatus::COMPLETE->value && $allowedRaterId === Auth::id() && ! $task->rating) {
                 $this->openTaskDetail($taskId);
             }
         } catch (\Throwable $e) {
@@ -425,7 +431,7 @@ class TaskListPage extends Component
             return null;
         }
 
-        return Task::with(['assignedTo', 'createdBy', 'checklistItems', 'comments.user', 'attachments', 'proofs', 'rejectionNoteBy'])
+        return Task::with(['assignedTo', 'createdBy', 'reviewer', 'checklistItems', 'comments.user', 'attachments', 'proofs', 'rejectionNoteBy'])
             ->find($this->selectedTaskId);
     }
 
@@ -725,7 +731,7 @@ class TaskListPage extends Component
 
             foreach ($listsPayload[$listId] as $taskId) {
                 $task = Task::find($taskId);
-                if ($task && $task->created_by === Auth::id() && ! $task->rating) {
+                if ($task && ($task->reviewer_id ?? $task->created_by) === Auth::id() && ! $task->rating) {
                     $this->openTaskDetail($taskId);
                 }
             }

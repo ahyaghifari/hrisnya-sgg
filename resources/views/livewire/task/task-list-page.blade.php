@@ -411,6 +411,20 @@
                         </div>
                     </div>
 
+                    <div>
+                        <label class="form-label">Reviewer (yang berhak kasih rating)</label>
+                        <div wire:ignore>
+                            <select data-tom-select data-placeholder="Saya sendiri (pembuat tugas)" wire:model="reviewerId">
+                                <option value="">Saya sendiri (pembuat tugas)</option>
+                                @foreach ($this->projectMembers as $member)
+                                    @continue($member->user_id === auth()->id())
+                                    <option value="{{ $member->user_id }}">{{ $member->user?->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <p style="font-size:11px;color:var(--text-muted);margin-top:4px;">Kalau diisi, cuma orang ini yang bisa kasih rating begitu tugas selesai - bukan cuma kamu sebagai pembuat.</p>
+                    </div>
+
                     <div style="display:flex;align-items:center;gap:10px;">
                         <label class="custom-checkbox" style="--accent:#042c6c;">
                             <input type="checkbox" wire:model="notifyOnComplete">
@@ -566,6 +580,7 @@
                         <div style="font-size:11.5px;color:var(--text-muted);margin-bottom:18px;">
                             Dibuat oleh {{ $task->createdBy?->name ?? '-' }}
                             @if ($task->assignedTo) &middot; ditugaskan ke {{ $task->assignedTo->name }} @endif
+                            @if ($task->reviewer_id) &middot; reviewer {{ $task->reviewer?->name }} @endif
                         </div>
 
                         @if ($task->status === \App\Enum\Task\TaskStatus::COMPLETE->value)
@@ -577,7 +592,7 @@
                                         @endfor
                                         <span style="font-size:12px;color:var(--text-muted);margin-left:4px;">({{ $task->rating }}/5)</span>
                                     </div>
-                                @elseif ($task->created_by === auth()->id())
+                                @elseif (($task->reviewer_id ?? $task->created_by) === auth()->id())
                                     <div x-data="{ hover: 0 }">
                                         <p style="font-size:12.5px;font-weight:600;margin:0 0 6px;">Kasih rating buat pelaksana <span style="color:var(--text-muted);font-weight:400;">(opsional)</span></p>
                                         <div style="display:flex;gap:4px;">

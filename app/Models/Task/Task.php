@@ -134,6 +134,7 @@ class Task extends Model
         'completed_date',
         'is_overdue',
         'created_by',
+        'reviewer_id',
     ];
 
     // status sengaja TIDAK di-cast ke enum — banyak tempat (Filament infolist, query builder,
@@ -171,6 +172,13 @@ class Task extends Model
     public function createdBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    /** Siapa yang boleh kasih rating - kalau null, fallback ke createdBy (lihat
+     * TaskService::rateTask()). Cuma relevan untuk task di dalam Project. */
+    public function reviewer(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'reviewer_id');
     }
 
     public function project(): BelongsTo
