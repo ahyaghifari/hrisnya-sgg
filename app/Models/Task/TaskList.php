@@ -17,6 +17,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string $id
  * @property string $project_id
  * @property string $name
+ * @property string|null $color
  * @property int $position
  * @property bool $is_final
  * @property-read TaskProject $project
@@ -29,6 +30,7 @@ class TaskList extends Model
     protected $fillable = [
         'project_id',
         'name',
+        'color',
         'position',
         'is_final',
     ];

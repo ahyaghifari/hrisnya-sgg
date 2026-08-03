@@ -115,6 +115,11 @@
                 @endif
                 @if ($this->activeProject)
                     <button type="button" wire:click="openMembersModal" class="btn-ghost btn-sm"><i class="fa-solid fa-users"></i> Anggota ({{ $this->projectMembers->count() }})</button>
+                    @if ($this->canManageProjectMembers)
+                        <button type="button" wire:click="deleteProject" wire:confirm="Hapus/nonaktifkan Board &quot;{{ $this->activeProject->name }}&quot;? Board akan hilang dari daftar semua anggota - task di dalamnya tidak ikut terhapus, tapi jadi tidak bisa diakses lagi." class="btn-ghost btn-sm" style="color:var(--danger-text);" title="Hapus/Nonaktifkan Board">
+                            <i class="fa-solid fa-box-archive"></i> Hapus Board
+                        </button>
+                    @endif
                 @endif
                 <div style="display:flex;gap:6px;">
                     <button type="button" wire:click="$set('view', 'board')" class="btn-sm {{ $view === 'board' ? 'btn-primary' : 'btn-ghost' }}"><i class="fa-solid fa-table-columns"></i> Board</button>
@@ -123,7 +128,7 @@
                 @if ($view === 'board')
                     <button type="button" wire:click="openBgModal" class="btn-ghost btn-sm" title="Ganti Background Board"><i class="fa-solid fa-palette"></i></button>
                 @endif
-                @if ($this->activeProject || $scope !== 'tim')
+                @if ($this->activeProject || ! in_array($scope, ['tim', 'saya'], true))
                     <button type="button" wire:click="openCreateTask" class="btn-primary btn-sm"><i class="fa-solid fa-plus" style="font-size:12px;"></i> Tugas Baru</button>
                 @endif
             </div>
@@ -145,7 +150,7 @@
                     @if ($this->activeProject)
                         @foreach ($this->activeProject->lists as $list)
                             <div style="flex:0 0 280px;min-width:280px;background:var(--surface);border-radius:12px;overflow:hidden;">
-                                <div style="background:{{ $list->is_final ? '#047C54' : '#475569' }};padding:10px 12px;display:flex;align-items:center;gap:6px;">
+                                <div style="background:{{ $list->color ?: ($list->is_final ? '#047C54' : '#475569') }};padding:10px 12px;display:flex;align-items:center;gap:6px;">
                                     @if ($editingListId === $list->id)
                                         <input type="text" wire:model="editingListName" wire:keydown.enter="renameList" wire:keydown.escape="cancelEditList" class="form-input" style="font-size:12px;padding:3px 6px;height:auto;flex:1;" autofocus>
                                         <button type="button" wire:click="renameList" style="background:none;border:none;color:#fff;cursor:pointer;"><i class="fa-solid fa-check"></i></button>
@@ -164,6 +169,10 @@
                                                 <div class="dropdown-menu dropdown-menu-right">
                                                     <button type="button" wire:click="moveListLeft('{{ $list->id }}')" class="dropdown-item"><i class="fa-solid fa-arrow-left"></i> Geser Kiri</button>
                                                     <button type="button" wire:click="moveListRight('{{ $list->id }}')" class="dropdown-item"><i class="fa-solid fa-arrow-right"></i> Geser Kanan</button>
+                                                    <label class="dropdown-item" style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                                                        <i class="fa-solid fa-palette"></i> Ubah Warna
+                                                        <input type="color" value="{{ $list->color ?: ($list->is_final ? '#047C54' : '#475569') }}" onchange="$wire.changeListColor('{{ $list->id }}', $event.target.value)" style="margin-left:auto;width:22px;height:22px;padding:0;border:none;cursor:pointer;">
+                                                    </label>
                                                     @unless ($list->is_final)
                                                         <button type="button" wire:click="markListFinal('{{ $list->id }}')" class="dropdown-item"><i class="fa-solid fa-flag-checkered"></i> Tandai Selesai</button>
                                                     @endunless
@@ -206,6 +215,7 @@
                         @if ($this->canManageProjectMembers)
                             <div style="flex:0 0 240px;min-width:240px;background:var(--surface);border-radius:12px;padding:10px;">
                                 <div style="display:flex;gap:6px;">
+                                    <input type="color" wire:model="newListColor" style="width:32px;height:32px;padding:0;border:none;border-radius:6px;cursor:pointer;flex-shrink:0;">
                                     <input type="text" class="form-input" style="font-size:12.5px;" wire:model="newListName" wire:keydown.enter="createList" placeholder="Nama List baru...">
                                     <button type="button" wire:click="createList" class="btn-ghost btn-sm"><i class="fa-solid fa-plus"></i></button>
                                 </div>
@@ -596,17 +606,44 @@
 
                     <div style="margin-bottom:18px;">
                         <h4 style="font-size:16px;font-weight:700;margin:0 0 10px;">Checklist</h4>
+                        @php
+                            $isTaskCreator = auth()->id() === $task->created_by;
+                            $isTaskAssignee = auth()->id() === $task->assigned_to;
+                            $canToggleChecklist = $isTaskCreator || $isTaskAssignee;
+                            // Pemberi tugas boleh edit/hapus item siapa pun. Pelaksana (bukan
+                            // sekaligus pemberi tugas) cuma boleh edit/hapus item yang dia buat
+                            // sendiri - tidak boleh utak-atik item bikinan pemberi tugas.
+                            $canModifyItem = fn ($item) => $isTaskCreator || ($isTaskAssignee && ($item->created_by ?? $task->created_by) === auth()->id());
+                        @endphp
                         @forelse ($task->checklistItems as $item)
-                            <label style="display:flex;align-items:center;gap:10px;font-size:15px;margin-bottom:8px;">
-                                <span class="custom-checkbox task-checklist-checkbox" style="--accent:#042c6c;">
-                                    <input type="checkbox" wire:click="toggleChecklistItem('{{ $item->id }}')" @checked($item->is_done)>
-                                    <span class="box"><i class="fa-solid fa-check"></i></span>
-                                </span>
-                                <span style="{{ $item->is_done ? 'text-decoration:line-through;color:var(--text-muted);' : '' }}">{{ $item->title }}</span>
-                            </label>
+                            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+                                @if ($editingChecklistItemId === $item->id)
+                                    <input type="text" wire:model="editingChecklistItemTitle" wire:keydown.enter="updateChecklistItem" wire:keydown.escape="cancelEditChecklistItem" class="form-input" style="font-size:13px;padding:4px 8px;height:auto;flex:1;" autofocus>
+                                    <button type="button" wire:click="updateChecklistItem" style="background:none;border:none;color:var(--brand-success);cursor:pointer;"><i class="fa-solid fa-check"></i></button>
+                                    <button type="button" wire:click="cancelEditChecklistItem" style="background:none;border:none;color:var(--text-faint);cursor:pointer;"><i class="fa-solid fa-xmark"></i></button>
+                                @else
+                                    <label style="display:flex;align-items:center;gap:10px;font-size:15px;flex:1;min-width:0;{{ $canToggleChecklist ? '' : 'opacity:0.6;cursor:not-allowed;' }}">
+                                        <span class="custom-checkbox task-checklist-checkbox" style="--accent:#042c6c;">
+                                            <input type="checkbox" @if ($canToggleChecklist) wire:click="toggleChecklistItem('{{ $item->id }}')" @else disabled @endif @checked($item->is_done)>
+                                            <span class="box"><i class="fa-solid fa-check"></i></span>
+                                        </span>
+                                        <span style="{{ $item->is_done ? 'text-decoration:line-through;color:var(--text-muted);' : '' }}">{{ $item->title }}</span>
+                                    </label>
+                                    @if ($canModifyItem($item))
+                                        <button type="button" wire:click="startEditChecklistItem('{{ $item->id }}', @js($item->title))" style="background:none;border:none;color:var(--text-faint);cursor:pointer;padding:2px;" title="Ubah"><i class="fa-solid fa-pen" style="font-size:11px;"></i></button>
+                                        <button type="button" wire:click="deleteChecklistItem('{{ $item->id }}')" wire:confirm="Hapus item checklist ini?" style="background:none;border:none;color:var(--text-faint);cursor:pointer;padding:2px;" title="Hapus"><i class="fa-solid fa-trash" style="font-size:11px;"></i></button>
+                                    @endif
+                                @endif
+                            </div>
                         @empty
                             <p style="font-size:14px;color:var(--text-muted);">Tidak ada checklist.</p>
                         @endforelse
+                        @if ($canToggleChecklist)
+                            <div style="display:flex;gap:6px;margin-top:8px;">
+                                <input type="text" class="form-input" style="font-size:12.5px;" wire:model="newChecklistTitle" wire:keydown.enter.prevent="addChecklistItemToTask('{{ $task->id }}')" placeholder="Tambah item checklist...">
+                                <button type="button" wire:click="addChecklistItemToTask('{{ $task->id }}')" class="btn-ghost btn-sm">Tambah</button>
+                            </div>
+                        @endif
                     </div>
 
                     <div x-data="{ showAddAttachment: false }" style="margin-bottom:18px;">

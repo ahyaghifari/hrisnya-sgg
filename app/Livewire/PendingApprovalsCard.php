@@ -6,11 +6,12 @@ use App\Enum\Approval\ApprovalModuleEnum;
 use App\Enum\CourseUserStatus;
 use App\Enum\CustomPermissionEnum;
 use App\Enum\UserTransitionTypeEnum;
-use App\Filament\Resources\LMS\LmsCourses\LmsCoursesResource;
 use App\Models\Attendance\AttendanceRequests;
 use App\Models\LMS\LmsCourseUsers;
 use App\Models\User\UserTransition;
 use App\Services\Approval\ApprovalPermissionService;
+use App\Services\LMS\CourseUserService;
+use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
 
@@ -21,9 +22,63 @@ class PendingApprovalsCard extends Component
      * Lembur/Perubahan Status). Null (default) = semua modul, dipakai di dashboard/MyStaff. */
     public ?array $only = null;
 
+    // Pelatihan approve/reject langsung dari modal di kartu ini - tidak perlu masuk admin panel
+    // cuma buat approve satu pengajuan (beda dari Izin/Cuti/Lembur/Perubahan Status yang sudah
+    // punya halaman detail portal sendiri buat ditinjau).
+    public ?string $reviewingEnrollmentId = null;
+
     private function wants(string $module): bool
     {
         return $this->only === null || in_array($module, $this->only, true);
+    }
+
+    public function openReviewModal(string $enrollmentId): void
+    {
+        $this->reviewingEnrollmentId = $enrollmentId;
+    }
+
+    public function closeReviewModal(): void
+    {
+        $this->reviewingEnrollmentId = null;
+    }
+
+    public function getReviewingEnrollmentProperty(): ?LmsCourseUsers
+    {
+        return $this->reviewingEnrollmentId
+            ? LmsCourseUsers::with(['user', 'course'])->find($this->reviewingEnrollmentId)
+            : null;
+    }
+
+    public function approveEnrollment(): void
+    {
+        if (! $this->reviewingEnrollment) {
+            return;
+        }
+
+        try {
+            app(CourseUserService::class)->approveEnrollment($this->reviewingEnrollment, Auth::user());
+            Notification::make()->title('Pendaftaran disetujui')->success()->send();
+        } catch (\Throwable $e) {
+            Notification::make()->title($e->getMessage() ?: 'Tidak bisa menyetujui pendaftaran ini')->danger()->send();
+        }
+
+        $this->reviewingEnrollmentId = null;
+    }
+
+    public function rejectEnrollment(): void
+    {
+        if (! $this->reviewingEnrollment) {
+            return;
+        }
+
+        try {
+            app(CourseUserService::class)->rejectEnrollment($this->reviewingEnrollment, Auth::user());
+            Notification::make()->title('Pendaftaran ditolak')->success()->send();
+        } catch (\Throwable $e) {
+            Notification::make()->title($e->getMessage() ?: 'Tidak bisa menolak pendaftaran ini')->danger()->send();
+        }
+
+        $this->reviewingEnrollmentId = null;
     }
 
     public function render()
@@ -73,6 +128,7 @@ class PendingApprovalsCard extends Component
                     'user_name' => $request->user->name,
                     'created_at' => $request->created_at,
                     'url' => route('my-attendance-requests.show', ['record' => $request->id]),
+                    'modal' => false,
                     'external' => false,
                 ]);
         }
@@ -104,6 +160,7 @@ class PendingApprovalsCard extends Component
                     'user_name' => $transition->user->name,
                     'created_at' => $transition->created_at,
                     'url' => route('kepegawaian.mutasi-karyawan.show', $transition),
+                    'modal' => false,
                     'external' => false,
                 ]);
         }
@@ -130,10 +187,12 @@ class PendingApprovalsCard extends Component
                     // konsisten sama created_at (Carbon) yang dipakai baris lain, dipakai bareng
                     // buat sortByDesc & ->translatedFormat() di blade.
                     'created_at' => $enrollment->enrolled_at ? \Illuminate\Support\Carbon::parse($enrollment->enrolled_at) : $enrollment->created_at,
-                    'url' => LmsCoursesResource::getUrl('participants', ['record' => $enrollment->course_id]),
-                    // Link keluar dari portal SPA ke admin panel Filament - jangan wire:navigate
-                    // (beda app shell sama sekali, morph Livewire bisa rusak), full page load biasa.
-                    'external' => true,
+                    // Approve/reject lewat modal langsung di kartu ini (bukan link) - lihat
+                    // openReviewModal()/approveEnrollment()/rejectEnrollment().
+                    'id' => $enrollment->id,
+                    'modal' => true,
+                    'url' => null,
+                    'external' => false,
                 ]);
         }
 

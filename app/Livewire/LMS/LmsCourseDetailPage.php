@@ -164,6 +164,19 @@ class LmsCourseDetailPage extends Component
         abort_unless(Auth::user()->can(CustomPermissionEnum::EDIT_DETAIL_KURSUS_LMS->value), 403);
     }
 
+    /** Approve/tolak pendaftaran peserta - permission approval sendiri (sama dipakai
+     * PendingApprovalsCard/PendingCourseEnrollmentWidget), bukan cuma yang boleh edit detail
+     * pelatihan - HC yang cuma pegang izin approve tetap bisa approve dari halaman ini. */
+    public function getCanApproveEnrollmentProperty(): bool
+    {
+        return Auth::user()->can(CustomPermissionEnum::APPROVE_PENGAJUAN_PELATIHAN->value);
+    }
+
+    private function assertCanApproveEnrollment(): void
+    {
+        abort_unless($this->canEditDetail || $this->canApproveEnrollment, 403);
+    }
+
     public function setTab(string $tab): void
     {
         if ($tab === 'umpan-balik' && ! $this->course->requires_feedback) {
@@ -259,7 +272,7 @@ class LmsCourseDetailPage extends Component
 
     public function approveParticipant(string $id): void
     {
-        $this->assertCanEdit();
+        $this->assertCanApproveEnrollment();
 
         $participant = LmsCourseUsers::where('course_id', $this->course->id)->findOrFail($id);
         app(CourseUserService::class)->approveEnrollment($participant, Auth::user());
@@ -269,7 +282,7 @@ class LmsCourseDetailPage extends Component
 
     public function cancelParticipant(string $id): void
     {
-        $this->assertCanEdit();
+        $this->assertCanApproveEnrollment();
 
         $participant = LmsCourseUsers::where('course_id', $this->course->id)->findOrFail($id);
         app(CourseUserService::class)->rejectEnrollment($participant, Auth::user());

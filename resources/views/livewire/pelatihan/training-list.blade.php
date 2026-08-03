@@ -1,10 +1,6 @@
 <div>
 <x-page-header title="Daftar Pelatihan" />
 
-<div style="margin-bottom:16px;">
-    <livewire:pending-approvals-card :only="['lms_course_enrollment']" />
-</div>
-
 {{--
     List.js (headless, lihat resources/js/app.js) urus cari/filter kategori/filter status
     ikut/pagination — semua instan di browser, tidak ada satu pun yang roundtrip ke Livewire

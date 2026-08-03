@@ -3,6 +3,10 @@
 <div>
     <x-page-header title="Pelatihan" subtitle="Daftar pelatihan LMS" />
 
+    <div style="margin-bottom:16px;">
+        <livewire:pending-approvals-card :only="['lms_course_enrollment']" />
+    </div>
+
     <style>
         .lms-courses-table tbody tr:nth-child(even) { background: rgba(0,0,0,0.045); }
         html.dark .lms-courses-table tbody tr:nth-child(even) { background: rgba(255,255,255,0.045); }

@@ -264,8 +264,8 @@
                                 <span class="badge" style="background:var(--surface-muted);color:var(--text-muted);">{{ CourseUserStatus::tryFrom($participant->status)?->getLabel() ?? $participant->status }}</span>
                             </td>
                             <td style="padding:9px 14px;text-align:center;white-space:nowrap;">
-                                @if ($this->canEditDetail)
-                                    <div style="display:inline-flex;gap:6px;">
+                                <div style="display:inline-flex;gap:6px;">
+                                    @if ($this->canEditDetail || $this->canApproveEnrollment)
                                         @if ($participant->status !== CourseUserStatus::APPROVED->value)
                                             <button type="button" wire:click="approveParticipant('{{ $participant->id }}')" class="btn-ghost" style="padding:5px 10px;font-size:11px;color:var(--brand-success);" title="Setujui">
                                                 <i class="fa-solid fa-check"></i>
@@ -276,13 +276,13 @@
                                                 <i class="fa-solid fa-ban"></i>
                                             </button>
                                         @endif
-                                        @if ($statusCase !== LsmCourseStatus::Published)
-                                            <button type="button" wire:click="removeParticipant('{{ $participant->id }}')" wire:confirm="Hapus peserta ini dari pelatihan?" class="btn-ghost" style="padding:5px 10px;font-size:11px;color:#dc2626;" title="Hapus">
-                                                <i class="fa-solid fa-trash"></i>
-                                            </button>
-                                        @endif
-                                    </div>
-                                @endif
+                                    @endif
+                                    @if ($this->canEditDetail && $statusCase !== LsmCourseStatus::Published)
+                                        <button type="button" wire:click="removeParticipant('{{ $participant->id }}')" wire:confirm="Hapus peserta ini dari pelatihan?" class="btn-ghost" style="padding:5px 10px;font-size:11px;color:#dc2626;" title="Hapus">
+                                            <i class="fa-solid fa-trash"></i>
+                                        </button>
+                                    @endif
+                                </div>
                             </td>
                         </tr>
                     @empty

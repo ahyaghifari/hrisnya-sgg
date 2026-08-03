@@ -9,12 +9,14 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 /**
  * @property string $id
  * @property string $task_id
+ * @property string|null $created_by
  * @property string $title
  * @property bool $is_done
  * @property int $position
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property-read \App\Models\Task\Task $task
+ * @property-read \App\Models\User|null $creator
  * @method static \Illuminate\Database\Eloquent\Builder<static>|TaskChecklistItem newModelQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|TaskChecklistItem newQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|TaskChecklistItem query()
@@ -33,6 +35,7 @@ class TaskChecklistItem extends Model
 
     protected $fillable = [
         'task_id',
+        'created_by',
         'title',
         'is_done',
         'position',
@@ -45,5 +48,10 @@ class TaskChecklistItem extends Model
     public function task(): BelongsTo
     {
         return $this->belongsTo(Task::class, 'task_id');
+    }
+
+    public function creator(): BelongsTo
+    {
+        return $this->belongsTo(\App\Models\User::class, 'created_by');
     }
 }

@@ -3,6 +3,7 @@
 namespace App\Livewire;
 
 use App\Enum\CustomPermissionEnum;
+use App\Enum\LsmCourseStatus;
 use App\Enum\Task\TaskStatus;
 use App\Livewire\Concerns\ResolvesTodayAttendanceStatus;
 use App\Models\Task\Task;
@@ -52,11 +53,14 @@ class Dashboard extends Component
 
     // Pelatihan yang sedang dijalani (in_progress) atau sudah jadi member tapi belum mulai
     // (requested/approved) — completed/canceled sengaja dikecualikan, itu bukan "saat ini".
+    // Course yang belum Published (masih Draft) juga dikecualikan - kartu ini cuma buat
+    // pelatihan yang beneran sudah bisa diikuti, bukan yang masih disiapkan HC.
     public function getMyTrainingsProperty()
     {
         return LmsCourseUsers::with('course.category')
             ->where('user_id', Auth::id())
             ->whereIn('status', ['requested', 'approved', 'in_progress'])
+            ->whereHas('course', fn ($q) => $q->where('status', LsmCourseStatus::Published->value))
             ->orderByDesc('enrolled_at')
             ->limit(4)
             ->get();

@@ -115,7 +115,7 @@ class TaskService
                     continue;
                 }
 
-                $task->checklistItems()->create(['title' => $title]);
+                $task->checklistItems()->create(['title' => $title, 'created_by' => $user->id]);
             }
 
             if ($assignedTo !== $user->id) {
@@ -177,14 +177,33 @@ class TaskService
         });
     }
 
+    /** Hapus/nonaktifkan Board - owner-only. Soft-delete (TaskProject pakai SoftDeletes) - board
+     * langsung hilang dari daftar Board siapa pun (getMyProjects() otomatis exclude yang
+     * trashed), task di dalamnya tetap ada di database (bukan ikut terhapus), cuma jadi tidak
+     * bisa diakses lagi karena board-nya sendiri sudah tidak muncul di mana pun. */
+    public function deleteProject(TaskProject $project, User $actor): void
+    {
+        abort_unless($this->canManageProjectMembers($project, $actor), 403);
+
+        $project->delete();
+    }
+
     /** Bikin List baru di Board - owner-only. */
-    public function createList(TaskProject $project, string $name, User $actor): TaskList
+    public function createList(TaskProject $project, string $name, User $actor, ?string $color = null): TaskList
     {
         abort_unless($this->canManageProjectMembers($project, $actor), 403);
 
         $position = ((int) $project->lists()->max('position')) + 1;
 
-        return $project->lists()->create(['name' => $name, 'position' => $position]);
+        return $project->lists()->create(['name' => $name, 'color' => $color, 'position' => $position]);
+    }
+
+    /** Ubah warna header List - owner-only. */
+    public function updateListColor(TaskList $list, string $color, User $actor): void
+    {
+        abort_unless($this->canManageProjectMembers($list->project, $actor), 403);
+
+        $list->update(['color' => $color]);
     }
 
     /** Ubah nama List - owner-only. */
@@ -384,7 +403,7 @@ class TaskService
                     continue;
                 }
 
-                $task->checklistItems()->create(['title' => $title]);
+                $task->checklistItems()->create(['title' => $title, 'created_by' => $user->id]);
             }
 
             $this->approvalCreationService->createSnapshot(
@@ -438,6 +457,11 @@ class TaskService
     {
         return Task::query()
             ->where('company_id', $user->company_id)
+            // Tab personal (Todo Saya/Tugas Saya/Penugasan Individu/Tim Saya) cuma buat task
+            // di luar Board - task di dalam Project (termasuk yang self-assigned, dibuat &
+            // dikerjakan orang yang sama) tetap eksklusif di board-nya sendiri, tidak boleh
+            // "bocor" ke sini walau kondisi assigned_to/is_self_assigned-nya kebetulan cocok.
+            ->whereNull('project_id')
             ->when($scope === 'todo', fn ($q) => $q->where('assigned_to', $user->id)->where('is_self_assigned', true))
             ->when($scope === 'saya', fn ($q) => $q->where('assigned_to', $user->id)->where('is_self_assigned', false))
             ->when($scope === 'individu', fn ($q) => $q->where('created_by', $user->id)->where(function ($q2) use ($user) {
@@ -601,9 +625,63 @@ class TaskService
         $this->taskRepository->update($task->id, $updateData);
     }
 
-    public function toggleChecklistItem(TaskChecklistItem $item): void
+    public function toggleChecklistItem(TaskChecklistItem $item, User $user): void
     {
+        $task = $item->task;
+        abort_unless($task->assigned_to === $user->id || $task->created_by === $user->id, 403, 'Cuma pelaksana atau pembuat tugas yang bisa ceklis checklist ini.');
+
         $item->update(['is_done' => ! $item->is_done]);
+    }
+
+    /** Tambah item checklist ke task yang SUDAH ADA (beda dari checklist awal yang diisi pas
+     * bikin task) - pelaksana boleh nambah (dia yang paling tahu detail kerjaannya), pembuat
+     * juga boleh (termasuk atasan yang menugaskan ke bawahan di Penugasan Individu - dia
+     * "pembuat" task itu meski bukan yang mengerjakan). Guard sama persis toggleChecklistItem(). */
+    public function addChecklistItem(Task $task, string $title, User $user): TaskChecklistItem
+    {
+        abort_unless($task->assigned_to === $user->id || $task->created_by === $user->id, 403, 'Cuma pelaksana atau pembuat tugas yang bisa menambah checklist ini.');
+        abort_if(trim($title) === '', 422, 'Judul checklist tidak boleh kosong.');
+
+        return $task->checklistItems()->create(['title' => trim($title), 'created_by' => $user->id]);
+    }
+
+    /** Pelaksana boleh edit/hapus checklist yang dia buat sendiri, tapi TIDAK boleh utak-atik
+     * checklist yang dibuat pemberi tugas (creator) - pemberi tugas yang menetapkan syarat kerja,
+     * pelaksana cuma boleh nambah catatan kerjanya sendiri. Pemberi tugas sendiri boleh edit/hapus
+     * item siapa pun di task-nya (tetap yang punya otoritas penuh). Item lama tanpa created_by
+     * (sebelum kolom ini ada) dianggap milik pemberi tugas - default paling aman. */
+    public function canModifyChecklistItem(TaskChecklistItem $item, User $user): bool
+    {
+        $task = $item->task;
+        $isCreator = $task->created_by === $user->id;
+        $isAssignee = $task->assigned_to === $user->id;
+
+        if (! $isCreator && ! $isAssignee) {
+            return false;
+        }
+
+        if ($isCreator) {
+            return true;
+        }
+
+        $itemOwnerId = $item->created_by ?? $task->created_by;
+
+        return $itemOwnerId === $user->id;
+    }
+
+    public function updateChecklistItem(TaskChecklistItem $item, string $title, User $user): void
+    {
+        abort_unless($this->canModifyChecklistItem($item, $user), 403, 'Kamu tidak bisa mengubah checklist ini.');
+        abort_if(trim($title) === '', 422, 'Judul checklist tidak boleh kosong.');
+
+        $item->update(['title' => trim($title)]);
+    }
+
+    public function deleteChecklistItem(TaskChecklistItem $item, User $user): void
+    {
+        abort_unless($this->canModifyChecklistItem($item, $user), 403, 'Kamu tidak bisa menghapus checklist ini.');
+
+        $item->delete();
     }
 
     /** Rating bintang 1-5 dari creator ke pelaksana, opsional, cuma buat task yang udah COMPLETE. */

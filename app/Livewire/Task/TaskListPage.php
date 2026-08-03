@@ -62,6 +62,8 @@ class TaskListPage extends Component
     public ?string $selectedTaskId = null;
     public string $newComment = '';
     public string $newChecklistTitle = '';
+    public ?string $editingChecklistItemId = null;
+    public string $editingChecklistItemTitle = '';
 
     // Modal "Edit Tugas"
     public bool $showEditTaskModal = false;
@@ -89,6 +91,7 @@ class TaskListPage extends Component
     // List custom Board - form tambah List baru + inline rename (dua-duanya owner-only, dicek
     // ulang di TaskService, ini cuma state form).
     public string $newListName = '';
+    public string $newListColor = '#475569';
     public ?string $editingListId = null;
     public string $editingListName = '';
 
@@ -406,6 +409,9 @@ class TaskListPage extends Component
     {
         $this->selectedTaskId = $taskId;
         $this->newComment = '';
+        $this->newChecklistTitle = '';
+        $this->editingChecklistItemId = null;
+        $this->editingChecklistItemTitle = '';
     }
 
     public function closeTaskDetail(): void
@@ -426,7 +432,69 @@ class TaskListPage extends Component
     public function toggleChecklistItem(string $itemId): void
     {
         $item = TaskChecklistItem::findOrFail($itemId);
-        app(TaskService::class)->toggleChecklistItem($item);
+
+        try {
+            app(TaskService::class)->toggleChecklistItem($item, Auth::user());
+            unset($this->selectedTask, $this->tasks);
+        } catch (\Throwable $e) {
+            Notification::make()->title($e->getMessage() ?: 'Tidak bisa mengubah checklist ini')->danger()->send();
+        }
+    }
+
+    public function addChecklistItemToTask(string $taskId): void
+    {
+        if (trim($this->newChecklistTitle) === '') {
+            return;
+        }
+
+        try {
+            app(TaskService::class)->addChecklistItem(Task::findOrFail($taskId), $this->newChecklistTitle, Auth::user());
+            $this->newChecklistTitle = '';
+            unset($this->selectedTask, $this->tasks);
+        } catch (\Throwable $e) {
+            Notification::make()->title($e->getMessage() ?: 'Tidak bisa menambah checklist ini')->danger()->send();
+        }
+    }
+
+    public function startEditChecklistItem(string $itemId, string $currentTitle): void
+    {
+        $this->editingChecklistItemId = $itemId;
+        $this->editingChecklistItemTitle = $currentTitle;
+    }
+
+    public function cancelEditChecklistItem(): void
+    {
+        $this->editingChecklistItemId = null;
+        $this->editingChecklistItemTitle = '';
+    }
+
+    public function updateChecklistItem(): void
+    {
+        if (! $this->editingChecklistItemId) {
+            return;
+        }
+
+        try {
+            $item = TaskChecklistItem::findOrFail($this->editingChecklistItemId);
+            app(TaskService::class)->updateChecklistItem($item, $this->editingChecklistItemTitle, Auth::user());
+            unset($this->selectedTask, $this->tasks);
+        } catch (\Throwable $e) {
+            Notification::make()->title($e->getMessage() ?: 'Tidak bisa mengubah checklist ini')->danger()->send();
+        }
+
+        $this->editingChecklistItemId = null;
+        $this->editingChecklistItemTitle = '';
+    }
+
+    public function deleteChecklistItem(string $itemId): void
+    {
+        try {
+            $item = TaskChecklistItem::findOrFail($itemId);
+            app(TaskService::class)->deleteChecklistItem($item, Auth::user());
+            unset($this->selectedTask, $this->tasks);
+        } catch (\Throwable $e) {
+            Notification::make()->title($e->getMessage() ?: 'Tidak bisa menghapus checklist ini')->danger()->send();
+        }
     }
 
     public function rateTask(string $taskId, int $rating): void
@@ -527,11 +595,22 @@ class TaskListPage extends Component
         }
 
         try {
-            app(TaskService::class)->createList($this->activeProject, trim($this->newListName), Auth::user());
+            app(TaskService::class)->createList($this->activeProject, trim($this->newListName), Auth::user(), $this->newListColor);
             $this->newListName = '';
+            $this->newListColor = '#475569';
             unset($this->myProjects, $this->tasks);
         } catch (\Throwable $e) {
             Notification::make()->title($e->getMessage() ?: 'Tidak bisa membuat List')->danger()->send();
+        }
+    }
+
+    public function changeListColor(string $listId, string $color): void
+    {
+        try {
+            app(TaskService::class)->updateListColor(TaskList::findOrFail($listId), $color, Auth::user());
+            unset($this->myProjects);
+        } catch (\Throwable $e) {
+            Notification::make()->title($e->getMessage() ?: 'Tidak bisa mengubah warna List')->danger()->send();
         }
     }
 
@@ -716,6 +795,22 @@ class TaskListPage extends Component
             unset($this->projectMembers, $this->companyUsers);
         } catch (\Throwable $e) {
             Notification::make()->title($e->getMessage() ?: 'Gagal menambah anggota')->danger()->send();
+        }
+    }
+
+    public function deleteProject(): void
+    {
+        if (! $this->activeProject) {
+            return;
+        }
+
+        try {
+            app(TaskService::class)->deleteProject($this->activeProject, Auth::user());
+            $this->activeProjectId = null;
+            unset($this->myProjects, $this->tasks);
+            Notification::make()->title('Board dihapus')->success()->send();
+        } catch (\Throwable $e) {
+            Notification::make()->title($e->getMessage() ?: 'Tidak bisa menghapus Board ini')->danger()->send();
         }
     }
 
