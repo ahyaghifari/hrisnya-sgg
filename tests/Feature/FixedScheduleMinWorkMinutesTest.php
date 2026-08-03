@@ -8,9 +8,11 @@ use App\Models\Shift\Schedule;
 use App\Models\Shift\ScheduleAssignment;
 use App\Models\Shift\ScheduleFixedDay;
 use App\Models\User;
+use App\Notifications\AttendanceScanRejected;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Notification;
 use Tests\TestCase;
 
 /**
@@ -70,6 +72,8 @@ class FixedScheduleMinWorkMinutesTest extends TestCase
 
     public function test_checkout_below_minimum_work_duration_is_rejected(): void
     {
+        Notification::fake();
+
         $company = Companies::create(['code' => 'FMW', 'name' => 'Company FMW', 'location' => 'Test', 'is_active' => true]);
         $date = Carbon::parse('2026-08-03');
         $user = $this->makeFixedUser($company, 'FIX001', minWorkMinutes: 240);
@@ -84,6 +88,12 @@ class FixedScheduleMinWorkMinutesTest extends TestCase
 
         $this->assertSame('08:00:00', $record->check_in_time);
         $this->assertNull($record->check_out_time);
+
+        Notification::assertSentTo(
+            $user,
+            AttendanceScanRejected::class,
+            fn (AttendanceScanRejected $n) => str_contains($n->toDatabase($user)['reason'], '240 menit')
+        );
     }
 
     public function test_later_valid_checkout_is_accepted_after_earlier_rejection(): void

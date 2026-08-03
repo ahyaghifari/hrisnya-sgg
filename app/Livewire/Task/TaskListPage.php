@@ -31,6 +31,9 @@ class TaskListPage extends Component
     use WithFileUploads;
     use WithPagination;
 
+    // #[Url] biar notifikasi (klik push notif TaskAssigned/dst) bisa deep-link langsung ke tab
+    // yang benar, mis. /tugas?scope=saya - lihat public/sw.js notificationclick.
+    #[Url]
     public string $scope = 'todo'; // todo | saya | individu | tim - lihat TaskService::getPortalTasks()
     public string $view = 'board'; // board | list
     public string $search = ''; // filter board by kebutuhan/nama assignee
@@ -442,9 +445,13 @@ class TaskListPage extends Component
             return;
         }
 
-        app(TaskService::class)->addComment(Task::findOrFail($taskId), Auth::user(), $this->newComment);
-        $this->newComment = '';
-        unset($this->tasks);
+        try {
+            app(TaskService::class)->addComment(Task::findOrFail($taskId), Auth::user(), $this->newComment);
+            $this->newComment = '';
+            unset($this->tasks, $this->selectedTask);
+        } catch (\Throwable $e) {
+            Notification::make()->title($e->getMessage() ?: 'Tidak bisa mengirim komentar')->danger()->send();
+        }
     }
 
     public function uploadFileAttachment(): void

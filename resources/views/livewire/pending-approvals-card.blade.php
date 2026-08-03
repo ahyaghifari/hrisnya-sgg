@@ -22,17 +22,20 @@
 
         @php
             // Badge warna beda per modul - kuning buat Izin/Cuti/Lembur (attendance_request),
-            // biru sistem buat Perubahan Status Karyawan (user_transition) - biar approver bisa
-            // langsung bedakan tanpa baca teks, kartu ini gabungan lintas-modul.
-            $badgeStyle = fn (string $badge) => $badge === 'blue'
-                ? 'background:rgba(4,44,108,0.1);color:#042c6c;'
-                : 'background:rgba(217,119,6,0.12);color:#92400e;';
+            // biru sistem buat Perubahan Status Karyawan (user_transition), ungu buat Pelatihan
+            // (lms_course_enrollment) - biar approver bisa langsung bedakan tanpa baca teks,
+            // kartu ini gabungan lintas-modul.
+            $badgeStyle = fn (string $badge) => match ($badge) {
+                'blue' => 'background:rgba(4,44,108,0.1);color:#042c6c;',
+                'purple' => 'background:rgba(126,34,206,0.1);color:#7e22ce;',
+                default => 'background:rgba(217,119,6,0.12);color:#92400e;',
+            };
         @endphp
 
         <!-- MOBILE: card manual -->
         <div class="md:hidden">
             @foreach ($requests as $request)
-                <a href="{{ $request->url }}" wire:navigate class="pwa-list-row" style="text-decoration:none;">
+                <a href="{{ $request->url }}" @unless ($request->external) wire:navigate @endunless class="pwa-list-row" style="text-decoration:none;">
                     <div class="pwa-tile-icon {{ $request->tile }}"><i class="fa-solid {{ $request->icon }}"></i></div>
                     <div style="flex:1;min-width:0;">
                         <p style="font-size:13px;font-weight:600;color:var(--text-heading);">
@@ -69,7 +72,7 @@
                             <td style="padding:9px 14px;font-size:11.5px;color:var(--text-muted);">{{ $request->user_name }}</td>
                             <td style="padding:9px 14px;font-size:11.5px;color:var(--text-faint);white-space:nowrap;">{{ $request->created_at->translatedFormat('d M Y') }}</td>
                             <td style="padding:9px 14px;">
-                                <a href="{{ $request->url }}" wire:navigate
+                                <a href="{{ $request->url }}" @unless ($request->external) wire:navigate @endunless
                                     style="font-size:11.5px;font-weight:600;color:var(--brand);text-decoration:none;white-space:nowrap;">
                                     Tinjau <i class="fa-solid fa-arrow-right text-xs"></i>
                                 </a>

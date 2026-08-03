@@ -616,8 +616,21 @@ class TaskService
         $this->taskRepository->update($task->id, ['rating' => $rating]);
     }
 
+    /** Task di dalam Project: semua anggota project boleh komentar (kolaboratif). Task pribadi:
+     * cuma pelaksana/pembuat. */
+    public function canCommentOnTask(Task $task, User $user): bool
+    {
+        if ($task->project_id) {
+            return $this->canAccessProject($task->project, $user);
+        }
+
+        return in_array($user->id, [$task->assigned_to, $task->created_by], true);
+    }
+
     public function addComment(Task $task, User $user, string $comment): void
     {
+        abort_unless($this->canCommentOnTask($task, $user), 403, 'Kamu tidak bisa komentar di tugas ini.');
+
         $task->comments()->create([
             'user_id' => $user->id,
             'comment' => $comment,

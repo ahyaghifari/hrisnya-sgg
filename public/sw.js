@@ -55,11 +55,16 @@ self.addEventListener('notificationclick', (event) => {
     const requestId = event.notification.data?.request_id;
     const requestType = event.notification.data?.request_type;
     const payrollId = event.notification.data?.payroll_id;
+    const projectId = event.notification.data?.project_id;
 
     let url = '/';
     if (payrollId) {
         // Notifikasi Gaji Sudah Dibayar -> halaman detail slip gaji karyawan sendiri.
         url = `/data-diri/penggajian/${payrollId}`;
+    } else if (requestType === 'task') {
+        // Task di dalam Project/Board -> langsung ke board-nya; task pribadi/penugasan individu
+        // (tidak ada project_id) -> halaman Tugas, tab "Tugas Saya".
+        url = projectId ? `/tugas?activeProjectId=${projectId}` : '/tugas?scope=saya';
     } else if (requestId) {
         // request_type 'leave'/'permission'/'overtime' (Izin/Cuti/Lembur) -> halaman detail
         // pengajuan absensi; 'user_transition' (Perubahan Status Karyawan) -> halaman detail

@@ -49,7 +49,7 @@ class RekapPresensiPage extends Component
 
     public string $syncDate = '';
 
-    public string $syncFromTime = '08:00';
+    public string $syncFromTime = '06:00';
 
     public ?string $syncResultMessage = null;
 

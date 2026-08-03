@@ -41,6 +41,7 @@ class TaskProjectMemberAdded extends Notification implements ShouldQueue
         return [
             'title' => $this->title(),
             'body' => $this->body(),
+            'request_type' => 'task',
             'project_id' => $this->project->id,
             'created_at' => now()->toISOString(),
         ];
@@ -52,7 +53,7 @@ class TaskProjectMemberAdded extends Notification implements ShouldQueue
             ->title($this->title())
             ->icon('/pwa/icons/icon-192-v3.png')
             ->body($this->body())
-            ->data(['project_id' => $this->project->id])
+            ->data(['request_type' => 'task', 'project_id' => $this->project->id])
             ->action('Lihat', 'view');
     }
 }

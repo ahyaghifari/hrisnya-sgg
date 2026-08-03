@@ -6,6 +6,7 @@ use App\Enum\CourseUserStatus;
 use App\Filament\Resources\LMS\LmsCourses\LmsCoursesResource;
 use App\Models\LMS\LmsCourses;
 use App\Models\LMS\LmsCourseUsers;
+use App\Services\LMS\CourseUserService;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
 use Filament\Forms\Components\FileUpload;
@@ -144,7 +145,7 @@ class ParticipantCourses extends Page implements HasTable
                         ->requiresConfirmation()
                         ->visible(fn (LmsCourseUsers $record): bool => $record->status === CourseUserStatus::REQUESTED->value)
                         ->action(function (LmsCourseUsers $record): void {
-                            $record->update(['status' => CourseUserStatus::APPROVED->value]);
+                            app(CourseUserService::class)->approveEnrollment($record, auth()->user());
 
                             Notification::make()->title('Pendaftaran disetujui')->success()->send();
                         }),
@@ -156,7 +157,7 @@ class ParticipantCourses extends Page implements HasTable
                         ->requiresConfirmation()
                         ->visible(fn (LmsCourseUsers $record): bool => $record->status === CourseUserStatus::REQUESTED->value)
                         ->action(function (LmsCourseUsers $record): void {
-                            $record->update(['status' => CourseUserStatus::CANCELED->value]);
+                            app(CourseUserService::class)->rejectEnrollment($record, auth()->user());
 
                             Notification::make()->title('Pendaftaran ditolak')->danger()->send();
                         }),

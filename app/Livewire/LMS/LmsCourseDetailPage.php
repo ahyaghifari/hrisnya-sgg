@@ -18,6 +18,7 @@ use App\Models\LMS\LmsQuizzes;
 use App\Models\LMS\Trainer\TrainerAssessmentResults;
 use App\Models\LMS\Trainer\Trainers;
 use App\Models\User;
+use App\Services\LMS\CourseUserService;
 use App\Services\LMS\MeetingHonorariumService;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\Auth;
@@ -261,7 +262,7 @@ class LmsCourseDetailPage extends Component
         $this->assertCanEdit();
 
         $participant = LmsCourseUsers::where('course_id', $this->course->id)->findOrFail($id);
-        $participant->update(['status' => CourseUserStatus::APPROVED->value, 'enrolled_at' => now()]);
+        app(CourseUserService::class)->approveEnrollment($participant, Auth::user());
 
         Notification::make()->title('Peserta disetujui')->success()->send();
     }
@@ -271,7 +272,7 @@ class LmsCourseDetailPage extends Component
         $this->assertCanEdit();
 
         $participant = LmsCourseUsers::where('course_id', $this->course->id)->findOrFail($id);
-        $participant->update(['status' => CourseUserStatus::CANCELED->value]);
+        app(CourseUserService::class)->rejectEnrollment($participant, Auth::user());
 
         Notification::make()->title('Keikutsertaan peserta dibatalkan')->success()->send();
     }

@@ -45,8 +45,9 @@ class LmsCourseDetailPageTest extends TestCase
     {
         Permission::firstOrCreate(['name' => 'sistem_lms', 'guard_name' => 'web']);
         Permission::firstOrCreate(['name' => 'edit_detail_kursus_lms', 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'approve_pengajuan_pelatihan', 'guard_name' => 'web']);
         $role = Role::firstOrCreate(['name' => 'LMS Course Detail Test', 'guard_name' => 'web']);
-        $role->givePermissionTo(['sistem_lms', 'edit_detail_kursus_lms']);
+        $role->givePermissionTo(['sistem_lms', 'edit_detail_kursus_lms', 'approve_pengajuan_pelatihan']);
 
         $user = User::factory()->create(['company_id' => $companyId]);
         $user->assignRole($role);

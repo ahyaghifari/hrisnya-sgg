@@ -263,6 +263,7 @@ class User extends Authenticatable implements FilamentUser
         '01kd7ak9xv7tk1fzbeyraxfpze', // presiden direktur
         '01kn1dtp3y66yy00gmwvt2m2e1', // sekretaris direktur
         '01k8271ym5edqp4jm1kvwrdrr0', // Super Admin
+        '01kd7ak92rg69yksst3js4apx2', // Super Admin
     ];
 
     protected function auditModule(): string

@@ -5,9 +5,12 @@ namespace App\Services\LMS;
 use App\Events\LmsProgresUpdated;
 use App\Models\LMS\LmsCourseFeedbacks;
 use App\Models\LMS\LmsCourses;
+use App\Models\User;
+use App\Notifications\CoursePublished;
 use App\Repositories\LMS\CourseRepository;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Notification;
 
 class CourseService
 {
@@ -108,5 +111,20 @@ class CourseService
 
             return $newCourse->fresh();
         });
+    }
+
+    /**
+     * Course belum ada peserta terdaftar saat publish (peserta self-enroll lewat API), jadi
+     * yang dikabari adalah semua karyawan aktif — dibatasi ke perusahaan course kalau
+     * company_id-nya diisi.
+     */
+    public function notifyCoursePublished(LmsCourses $course): void
+    {
+        $recipients = User::query()
+            ->where('is_active', true)
+            ->when($course->company_id, fn ($query) => $query->where('company_id', $course->company_id))
+            ->get();
+
+        Notification::send($recipients, new CoursePublished($course));
     }
 }

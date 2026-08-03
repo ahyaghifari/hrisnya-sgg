@@ -2,6 +2,11 @@
 
 namespace App\Services\LMS;
 
+use App\Enum\CourseUserStatus;
+use App\Enum\CustomPermissionEnum;
+use App\Models\LMS\LmsCourseUsers;
+use App\Models\User;
+use App\Notifications\CourseEnrollmentApproved;
 use App\Repositories\LMS\CourseRepository;
 use App\Repositories\LMS\CourseUserRepository;
 
@@ -51,5 +56,26 @@ class CourseUserService
         }
 
         return $history->certificate_url;
+    }
+
+    /**
+     * Satu-satunya jalur untuk menyetujui pendaftaran (dipakai widget approval, halaman Peserta
+     * di course, dan detail course) - supaya permission check dan notifikasi ke peserta
+     * konsisten di semua tempat, bukan diduplikasi per entry point.
+     */
+    public function approveEnrollment(LmsCourseUsers $courseUser, User $actor): void
+    {
+        abort_unless($actor->can(CustomPermissionEnum::APPROVE_PENGAJUAN_PELATIHAN->value), 403, 'Anda tidak punya izin approve pengajuan pelatihan.');
+
+        $courseUser->update(['status' => CourseUserStatus::APPROVED->value]);
+
+        $courseUser->user?->notify(new CourseEnrollmentApproved($courseUser->course));
+    }
+
+    public function rejectEnrollment(LmsCourseUsers $courseUser, User $actor): void
+    {
+        abort_unless($actor->can(CustomPermissionEnum::APPROVE_PENGAJUAN_PELATIHAN->value), 403, 'Anda tidak punya izin approve pengajuan pelatihan.');
+
+        $courseUser->update(['status' => CourseUserStatus::CANCELED->value]);
     }
 }

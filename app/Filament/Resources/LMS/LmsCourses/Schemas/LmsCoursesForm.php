@@ -10,6 +10,7 @@ use App\Models\LMS\LmsQuizzes;
 use App\Models\LMS\LmsMeetingQuizzes;
 use App\Models\LMS\Trainer\Trainers;
 use App\Models\User;
+use App\Services\LMS\CourseUserService;
 use App\Services\LMS\QrCodeService;
 use Filament\Actions\Action;
 use Filament\Forms\Components\CheckboxList;
@@ -574,9 +575,7 @@ class LmsCoursesForm
 
                                             $userModel = LmsCourseUsers::find($user['id']);
                                             if ($userModel) {
-                                                $userModel->status = CourseUserStatus::APPROVED->value;
-                                                $userModel->enrolled_at = now();
-                                                $userModel->save();
+                                                app(CourseUserService::class)->approveEnrollment($userModel, auth()->user());
 
                                                 $items[$itemKey]['status'] = CourseUserStatus::APPROVED->value;
                                                 $component->state($items);
@@ -617,8 +616,7 @@ class LmsCoursesForm
 
                                             $userModel = LmsCourseUsers::find($user['id']);
                                             if ($userModel) {
-                                                $userModel->status = CourseUserStatus::CANCELED->value;
-                                                $userModel->save();
+                                                app(CourseUserService::class)->rejectEnrollment($userModel, auth()->user());
 
                                                 $items[$itemKey]['status'] = CourseUserStatus::CANCELED->value;
                                                 $component->state($items);

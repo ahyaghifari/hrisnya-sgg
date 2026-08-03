@@ -4,6 +4,7 @@ namespace App\Filament\Resources\LMS\LmsCourses\Pages;
 
 use App\Enum\LsmCourseStatus;
 use App\Filament\Resources\LMS\LmsCourses\LmsCoursesResource;
+use App\Services\LMS\CourseService;
 use Filament\Actions\Action;
 use Filament\Resources\Pages\CreateRecord;
 
@@ -59,6 +60,8 @@ class CreateLmsCourses extends CreateRecord
                     }
 
                     $this->create();
+
+                    app(CourseService::class)->notifyCoursePublished($this->record);
                 }),
         ];
     }

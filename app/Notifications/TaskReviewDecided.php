@@ -47,7 +47,9 @@ class TaskReviewDecided extends Notification implements ShouldQueue
         return [
             'title' => $this->title(),
             'body' => $this->body(),
+            'request_type' => 'task',
             'task_id' => $this->task->id,
+            'project_id' => $this->task->project_id,
             'created_at' => now()->toISOString(),
         ];
     }
@@ -58,7 +60,7 @@ class TaskReviewDecided extends Notification implements ShouldQueue
             ->title($this->title())
             ->icon('/pwa/icons/icon-192-v3.png')
             ->body($this->body())
-            ->data(['task_id' => $this->task->id])
+            ->data(['request_type' => 'task', 'task_id' => $this->task->id, 'project_id' => $this->task->project_id])
             ->action('Lihat', 'view');
     }
 }

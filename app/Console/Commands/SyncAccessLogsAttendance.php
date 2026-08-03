@@ -132,9 +132,15 @@ class SyncAccessLogsAttendance extends Command
 
         // checkout_rejected (FixedScheduleCalculator) => check_out_time TIDAK ikut tersimpan
         // biarpun is_new_checkout true (dihitung reader SEBELUM calculator menolaknya) - jangan
-        // kirim notifikasi checkout yang datanya sendiri tidak benar-benar tersimpan.
+        // kirim notifikasi checkout yang datanya sendiri tidak benar-benar tersimpan, kabari
+        // pakai AttendanceScanRejected supaya karyawan tahu kenapa checkout-nya tidak tercatat.
         if ($r['is_new_checkout'] && empty($r['checkout_rejected'])) {
             $r['user']->notify(new AttendanceCheckedOut($record));
+        } elseif ($r['is_new_checkout'] && ! empty($r['checkout_rejected'])) {
+            $r['user']->notify(new AttendanceScanRejected(
+                $r['date'],
+                "durasi kerja Anda belum memenuhi minimum ({$r['config']->min_work_minutes} menit), silakan scan pulang lagi setelah durasi kerja tercukupi."
+            ));
         }
     }
 }

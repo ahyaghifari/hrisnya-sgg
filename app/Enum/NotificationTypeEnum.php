@@ -43,6 +43,14 @@ enum NotificationTypeEnum: string
     case ATTENDANCE_CHECKED_OUT = 'attendance_checked_out';
     case ATTENDANCE_SCAN_REJECTED = 'attendance_scan_rejected';
 
+    // Ke semua karyawan aktif, saat pelatihan LMS baru di-publish — lihat
+    // App\Filament\Resources\LMS\LmsCourses\Pages\CreateLmsCourses / EditLmsCourses.
+    case COURSE_PUBLISHED = 'course_published';
+
+    // Ke peserta, saat pendaftarannya ke sebuah pelatihan disetujui approver — lihat
+    // App\Services\LMS\CourseUserService::approveEnrollment().
+    case COURSE_ENROLLMENT_APPROVED = 'course_enrollment_approved';
+
     public function label(): string
     {
         return match ($this) {
@@ -65,6 +73,8 @@ enum NotificationTypeEnum: string
             self::ATTENDANCE_CHECKED_IN => 'Absensi Masuk Tercatat',
             self::ATTENDANCE_CHECKED_OUT => 'Absensi Pulang Tercatat',
             self::ATTENDANCE_SCAN_REJECTED => 'Absensi Saya Tidak Diproses',
+            self::COURSE_PUBLISHED => 'Pelatihan Baru Tersedia',
+            self::COURSE_ENROLLMENT_APPROVED => 'Pendaftaran Pelatihan Saya Disetujui',
         };
     }
 
@@ -77,6 +87,7 @@ enum NotificationTypeEnum: string
             str_starts_with($this->value, 'task_') => 'Tugas',
             str_starts_with($this->value, 'payroll_') => 'Penggajian',
             str_starts_with($this->value, 'counseling_'), str_starts_with($this->value, 'coaching_') => 'Coaching & Counseling',
+            str_starts_with($this->value, 'course_') => 'Pelatihan',
             default => 'Lainnya',
         };
     }
@@ -103,6 +114,8 @@ enum NotificationTypeEnum: string
             self::ATTENDANCE_CHECKED_IN => 'Dikirim saat mesin absensi mencatat Anda check-in.',
             self::ATTENDANCE_CHECKED_OUT => 'Dikirim saat mesin absensi mencatat Anda check-out.',
             self::ATTENDANCE_SCAN_REJECTED => 'Dikirim saat scan absensi Anda tidak bisa diproses sistem (mis. jadwal tidak ditemukan), beserta alasannya.',
+            self::COURSE_PUBLISHED => 'Dikirim ke Anda saat ada pelatihan LMS baru yang di-publish dan bisa Anda ikuti.',
+            self::COURSE_ENROLLMENT_APPROVED => 'Dikirim ke Anda saat pendaftaran Anda ke sebuah pelatihan disetujui approver.',
         };
     }
 }

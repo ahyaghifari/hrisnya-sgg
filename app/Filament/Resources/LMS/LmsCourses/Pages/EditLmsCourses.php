@@ -4,6 +4,7 @@ namespace App\Filament\Resources\LMS\LmsCourses\Pages;
 
 use App\Enum\LsmCourseStatus;
 use App\Filament\Resources\LMS\LmsCourses\LmsCoursesResource;
+use App\Services\LMS\CourseService;
 use Filament\Actions\Action;
 use Filament\Actions\DeleteAction;
 use Filament\Resources\Pages\EditRecord;
@@ -51,8 +52,9 @@ class EditLmsCourses extends EditRecord
                 ->label('Save & Publish')
                 ->color('primary')
                 ->action(function () {
+                    $wasPublished = $this->record->status === LsmCourseStatus::Published->value;
                     $this->data['status'] = LsmCourseStatus::Published->value;
-                    
+
                     if (isset($this->data['meetings']) && is_array($this->data['meetings'])) {
                         $this->data['meetings'] = array_filter(
                             $this->data['meetings'],
@@ -68,6 +70,10 @@ class EditLmsCourses extends EditRecord
                     }
 
                     $this->save();
+
+                    if (! $wasPublished) {
+                        app(CourseService::class)->notifyCoursePublished($this->record);
+                    }
                 }),
         ];
     }

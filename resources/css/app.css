@@ -1,4 +1,4 @@
-﻿@import 'tailwindcss';
+@import 'tailwindcss';
 @import './syifa-theme.css';
 @plugin '@tailwindcss/forms';
 
