@@ -828,13 +828,13 @@
 
 @if ($showMembersModal && $this->activeProject)
     <div class="modal-overlay" wire:click="closeMembersModal">
-        <div class="modal-box" onclick="event.stopPropagation()">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+        <div class="modal-box" style="height:90vh;max-height:90vh;display:flex;flex-direction:column;" onclick="event.stopPropagation()">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-shrink:0;">
                 <h3 style="font-size:16px;font-weight:700;color:var(--text-heading);margin:0;">Anggota {{ $this->activeProject->name }}</h3>
                 <button type="button" wire:click="closeMembersModal" class="btn-ghost" style="padding:4px 8px;"><i class="fa-solid fa-xmark"></i></button>
             </div>
 
-            <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px;">
+            <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px;flex:1;overflow-y:auto;min-height:0;">
                 @foreach ($this->projectMembers as $member)
                     <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
                         <div style="display:flex;align-items:center;gap:8px;">
@@ -862,7 +862,7 @@
             </div>
 
             @if ($this->canManageProjectMembers)
-                <div style="display:flex;gap:6px;align-items:flex-start;">
+                <div style="display:flex;gap:6px;align-items:flex-start;flex-shrink:0;">
                     <div wire:ignore style="flex:1;">
                         <select data-tom-select data-placeholder="-- Pilih orang --" wire:model="newProjectMemberId">
                             <option value=""></option>

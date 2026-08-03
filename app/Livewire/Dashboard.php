@@ -45,6 +45,11 @@ class Dashboard extends Component
                 $q->where('created_by', $userId)
                     ->orWhere('assigned_to', $userId);
             })
+            // Task di dalam Project/Board dikecualikan - kartu ini cuma buat task personal
+            // (Todo Saya/Tugas Saya), sama seperti TaskService::scopedTaskQuery(). Task board
+            // eksklusif dilihat dari board-nya sendiri, termasuk otomatis tersaring kalau
+            // board-nya sudah dihapus/nonaktif (soft-deleted) - tidak perlu cek terpisah.
+            ->whereNull('project_id')
             ->whereIn('status', [TaskStatus::TODO->value, TaskStatus::IN_PROGRESS->value, TaskStatus::REVIEW->value])
             ->orderByDesc('created_at')
             ->limit(4)
