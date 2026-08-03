@@ -49,6 +49,27 @@
     .task-checklist-checkbox .box { border-radius: 6px; }
     .task-checklist-checkbox .box i { font-size: 12px; }
 
+    /* Modal detail task di HP: layar penuh (bukan kotak ngambang kekecilan), 2 kolom
+    (isi task + komentar) ditumpuk vertikal, komentar dapat garis atas bukan garis kiri. */
+    @media (max-width: 767.98px) {
+        .task-detail-modal-wide,
+        .task-create-modal-wide {
+            max-width: 100%;
+            width: 100%;
+            height: 100%;
+            max-height: 100%;
+            margin: 0;
+            border-radius: 0;
+        }
+        .task-detail-body { flex-direction: column !important; gap: 20px !important; }
+        .task-detail-comments {
+            flex: 1 1 auto !important;
+            border-left: none !important;
+            border-top: 1px solid var(--border-soft);
+            padding-left: 0 !important;
+            padding-top: 16px;
+        }
+    }
 </style>
 
 <x-page-header title="Tugas" subtitle="" />
@@ -549,9 +570,9 @@
     @endphp
     <div class="modal-overlay" wire:click="closeTaskDetail">
         <div class="modal-box task-detail-modal-wide" onclick="event.stopPropagation()">
-            <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;">
+            <div style="display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:16px;">
                 <h3 style="font-size:22px;font-weight:700;color:var(--text-heading);margin:0;">{{ $task->code }}</h3>
-                <div style="display:flex;gap:6px;">
+                <div style="display:flex;flex-wrap:wrap;gap:6px;">
                     @if ($canRevertComplete)
                         <button type="button" wire:click="moveTaskStatus('{{ $task->id }}', '{{ \App\Enum\Task\TaskStatus::IN_PROGRESS->value }}')" class="btn-ghost btn-sm" title="Kembalikan ke Sedang Dalam Proses (masih < 24 jam)"><i class="fa-solid fa-rotate-left"></i> Kembalikan</button>
                     @endif
@@ -565,7 +586,7 @@
                 </div>
             </div>
 
-            <div style="{{ $task->is_self_assigned ? '' : 'display:flex;gap:24px;' }}">
+            <div class="task-detail-body" style="{{ $task->is_self_assigned ? '' : 'display:flex;gap:24px;' }}">
                 <div style="flex:1;min-width:0;">
                     <p style="font-size:16px;color:var(--text-heading);margin:0 0 14px;">{{ $task->requirement }}</p>
 
@@ -720,7 +741,7 @@
 
                 @unless ($task->is_self_assigned)
                     {{-- Komentar ala Trello, kolom kanan terpisah — cuma buat task yang bukan self-assigned. --}}
-                    <div style="flex:0 0 400px;border-left:1px solid var(--border-soft);padding-left:24px;">
+                    <div class="task-detail-comments" style="flex:0 0 400px;border-left:1px solid var(--border-soft);padding-left:24px;">
                         <h4 style="font-size:16px;font-weight:700;margin:0 0 12px;"><i class="fa-regular fa-comment"></i> Komentar ({{ $task->comments->count() }})</h4>
                         <div style="display:flex;gap:8px;margin-bottom:14px;">
                             <input type="text" class="form-input" style="font-size:13.5px;" wire:model="newComment" wire:keydown.enter.prevent="addComment('{{ $task->id }}')" placeholder="Tulis komentar...">

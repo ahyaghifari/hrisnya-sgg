@@ -13,7 +13,6 @@ use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
 use Filament\Widgets\AccountWidget;
 use App\Filament\Widgets\NotificationWidget;
-use App\Filament\Widgets\PendingCourseEnrollmentWidget;
 use Guava\Calendar\CalendarPlugin;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
@@ -72,7 +71,6 @@ class AdminPanelProvider extends PanelProvider
             ->widgets([
                 AccountWidget::class,
                 NotificationWidget::class,
-                PendingCourseEnrollmentWidget::class,
             ])
             ->navigationGroups([
                 NavigationGroup::make()->label('Master Perusahaan'),

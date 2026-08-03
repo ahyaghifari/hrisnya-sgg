@@ -45,7 +45,7 @@ class CreateLmsCourse extends Component
     public ?string $start_date = null;
     public ?string $end_date = null;
 
-    public bool $requires_feedback = false;
+    public bool $requires_feedback = true;
 
     public function mount(): void
     {

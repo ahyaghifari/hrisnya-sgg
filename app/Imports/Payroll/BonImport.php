@@ -19,8 +19,10 @@ use Maatwebsite\Excel\Concerns\WithHeadingRow;
  * digenerate untuk periode ini. Baris yang NIP-nya tidak match user, atau user itu belum punya
  * Payroll di periode ini, di-skip & dilaporkan sebagai error.
  *
- * TIDAK langsung mengubah payroll_items/total Payroll — baru ke-apply setelah Generate/
- * Regenerate dijalankan ulang untuk periode ini.
+ * TIDAK langsung mengubah payroll_items/total Payroll di sini — class ini cuma nulis
+ * payroll_manual_lines mentah. PayrollsPage::confirmImport() yang regenerate payroll tiap user
+ * yang berhasil (getSuccessUserIds()) begitu import ini selesai, supaya nominalnya langsung
+ * masuk tanpa perlu klik Regenerate manual satu-satu.
  *
  * Idempotent per (periode, user): upload ulang untuk NIP yang sama MENGGANTI nominal
  * sebelumnya (bukan menambah baris baru) — supaya revisi file tidak dobel-hitung.
@@ -41,6 +43,9 @@ class BonImport implements ToCollection, WithHeadingRow
     private array $errors = [];
     private int $successCount = 0;
     private array $previewRows = [];
+    /** @var array<int, string> user_id yang baris-nya berhasil diimport - dipakai
+     * PayrollsPage::confirmImport() buat regenerate payroll otomatis (mode Bon "Simple"). */
+    private array $successUserIds = [];
 
     public function __construct(
         protected string $payrollPeriodId,
@@ -98,6 +103,7 @@ class BonImport implements ToCollection, WithHeadingRow
             });
 
             $this->successCount++;
+            $this->successUserIds[] = $user->id;
         }
     }
 
@@ -143,6 +149,12 @@ class BonImport implements ToCollection, WithHeadingRow
     public function getSuccessCount(): int
     {
         return $this->successCount;
+    }
+
+    /** @return array<int, string> */
+    public function getSuccessUserIds(): array
+    {
+        return $this->successUserIds;
     }
 
     public function getPreview(): array

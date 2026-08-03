@@ -165,8 +165,8 @@ class LmsCourseDetailPage extends Component
     }
 
     /** Approve/tolak pendaftaran peserta - permission approval sendiri (sama dipakai
-     * PendingApprovalsCard/PendingCourseEnrollmentWidget), bukan cuma yang boleh edit detail
-     * pelatihan - HC yang cuma pegang izin approve tetap bisa approve dari halaman ini. */
+     * PendingApprovalsCard di portal), bukan cuma yang boleh edit detail pelatihan - HC yang
+     * cuma pegang izin approve tetap bisa approve dari halaman ini. */
     public function getCanApproveEnrollmentProperty(): bool
     {
         return Auth::user()->can(CustomPermissionEnum::APPROVE_PENGAJUAN_PELATIHAN->value);

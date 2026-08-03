@@ -68,18 +68,18 @@ class LemburCalculatorPerPangkatTest extends TestCase
         $this->assertDatabaseMissing('payroll_items', ['payroll_id' => $s['payroll']->id]);
     }
 
-    public function test_hours_below_2_still_computed_as_minimum_2_not_skipped(): void
+    public function test_hours_below_minimum_are_rejected_not_computed(): void
     {
-        // Perilaku asli Excel: multiplier meng-clamp ke minimum 2 jam, BUKAN menolak lembur
-        // di bawah 2 jam.
+        // Lembur di bawah lembur_minimum_jam (default 2) DITOLAK sama sekali, tidak dihitung
+        // setara jam minimum (2026-08-03: exclusion, bukan clamp lagi).
         $s = $this->makeSetup(hours: 1.5);
         PangkatLemburRate::create(['pangkat_id' => $s['pangkat']->id, 'amount_per_hour' => 3_500_000]);
 
         $context = new PayrollContext();
         (new LemburCalculator())->calculate($s['user'], $s['payroll'], $s['period'], $context);
 
-        $expected = round(3_500_000 / (31 * 7) * 3.5, 2); // floor(1.5)=1 jam -> clamp ke 2 -> multiplier 3,5
-        $this->assertSame($expected, $context->grossSalary);
+        $this->assertSame(0.0, $context->grossSalary);
+        $this->assertDatabaseMissing('payroll_items', ['payroll_id' => $s['payroll']->id]);
     }
 
     public function test_hours_above_4_capped_at_maximum_multiplier(): void
@@ -125,17 +125,15 @@ class LemburCalculatorPerPangkatTest extends TestCase
 
     public function test_minimum_hours_setting_overrides_default_2(): void
     {
-        // Company set lembur_minimum_jam = 3 - lembur 1,5 jam harusnya dihitung setara 3 jam
-        // (multiplier 5,5), BUKAN default 2 jam (multiplier 3,5) - membuktikan setting benar-benar
-        // dibaca, tidak hardcode lagi.
-        $s = $this->makeSetup(hours: 1.5);
+        // Company set lembur_minimum_jam = 3 - lembur 2 jam sekarang DITOLAK (di bawah minimum 3),
+        // padahal di atas default 2 - membuktikan setting benar-benar dibaca, tidak hardcode lagi.
+        $s = $this->makeSetup(hours: 2.0);
         PangkatLemburRate::create(['pangkat_id' => $s['pangkat']->id, 'amount_per_hour' => 3_500_000]);
         Setting::create(['company_id' => $s['company']->id, 'key' => 'lembur_minimum_jam', 'module' => 'payroll', 'type' => 'integer', 'value' => '3', 'label' => 'Minimum Jam Lembur']);
 
         $context = new PayrollContext();
         (new LemburCalculator())->calculate($s['user'], $s['payroll'], $s['period'], $context);
 
-        $expected = round(3_500_000 / (31 * 7) * 5.5, 2); // clamp ke 3 jam -> multiplier 5,5
-        $this->assertSame($expected, $context->grossSalary);
+        $this->assertSame(0.0, $context->grossSalary);
     }
 }

@@ -17,8 +17,9 @@ return new class extends Migration
         // sebelum fitur "tambah item ke task yang sudah ada" ada).
         DB::statement('
             UPDATE task_checklist_items
-            INNER JOIN task_records ON task_records.id = task_checklist_items.task_id
-            SET task_checklist_items.created_by = task_records.created_by
+            SET created_by = (
+                SELECT task_records.created_by FROM task_records WHERE task_records.id = task_checklist_items.task_id
+            )
             WHERE task_checklist_items.created_by IS NULL
         ');
     }

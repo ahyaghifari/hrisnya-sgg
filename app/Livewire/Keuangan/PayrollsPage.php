@@ -12,6 +12,7 @@ use App\Models\Payroll\Payroll;
 use App\Models\Payroll\PayrollPeriod;
 use App\Models\Setting;
 use App\Notifications\PayrollPaid;
+use App\Services\Payroll\PayrollService;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
@@ -317,10 +318,31 @@ class PayrollsPage extends Component
         $this->importPreviewRows = [];
         $this->reset('importFile');
 
+        // Mode Bon "Simple" (satu-satunya yang boleh lewat import Excel, lihat
+        // importGuardPasses()) - regenerate langsung tiap payroll yang baris-nya berhasil
+        // diimport, supaya nominalnya langsung masuk tanpa perlu klik Regenerate manual.
+        $regeneratedCount = 0;
+        if ($import->getSuccessUserIds() !== []) {
+            $payrollService = app(PayrollService::class);
+            $payrolls = Payroll::where('payroll_period_id', $this->importPeriodId)
+                ->whereIn('user_id', $import->getSuccessUserIds())
+                ->with(['user.profile', 'payrollPeriod'])
+                ->get();
+
+            foreach ($payrolls as $payroll) {
+                try {
+                    $payrollService->regenerateSinglePayroll($payroll, Auth::id());
+                    $regeneratedCount++;
+                } catch (\Throwable $e) {
+                    $this->importErrors[] = "NIP {$payroll->user?->nip}: berhasil diimport tapi gagal regenerate payroll - {$e->getMessage()}";
+                }
+            }
+        }
+
         if ($this->importErrors === []) {
             Notification::make()
                 ->title('Import berhasil')
-                ->body("{$this->importSuccessCount} baris berhasil diimport. Jalankan Generate/Regenerate Payroll untuk periode ini supaya nominalnya masuk ke payroll.")
+                ->body("{$this->importSuccessCount} baris berhasil diimport, {$regeneratedCount} payroll otomatis di-regenerate.")
                 ->success()
                 ->send();
         } else {

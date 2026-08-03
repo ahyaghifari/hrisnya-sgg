@@ -19,13 +19,16 @@ use Carbon\Carbon;
  * awalnya cuma 2 base rate tetap (3,5jt/3jt), sekarang digeneralisasi jadi 1 base rate per
  * pangkat apa pun (`pangkat_lembur_rates.amount_per_hour`, diisi lewat Mapping Komponen Gaji,
  * pola sama Gaji Pokok). Per kejadian lembur: base rate ÷ (hari dalam bulan × 7) × multiplier
- * dari jam lembur (clamp minimum-4 jam → 3,5-7,5x). Satu-satunya metode Lembur di sistem ini —
+ * dari jam lembur (2-4 jam → 3,5-7,5x, di bawah minimum ditolak). Satu-satunya metode Lembur di sistem ini —
  * mekanisme shift-based (ShiftOvertimeCosts) lama sudah tidak dipakai lagi.
  *
  * Batas minimum jam (`lembur_minimum_jam`, company-scoped, default 2) DIBACA dari setting yang
  * sama yang dipakai buat label di slip gaji ("Lembur >X Jam", lihat PayrollService::
  * componentRows()) - sebelumnya slip mencetak label dari setting tapi hitungannya hardcode 2,
  * jadi bisa beda dari yang tertulis kalau company override settingnya.
+ *
+ * Lembur di bawah `lembur_minimum_jam` DITOLAK (tidak dihitung sama sekali), bukan di-clamp naik
+ * ke minimum lagi (2026-08-03) — harus benar-benar capai minimum jam dulu baru dapat lembur.
  */
 class LemburCalculator implements PayrollComponentCalculator
 {
@@ -101,14 +104,12 @@ class LemburCalculator implements PayrollComponentCalculator
         $date = Carbon::parse($detail->date);
         $hours = (int) floor((float) $detail->total_hours); // ROUNDDOWN(jam, 0) di Excel
 
-        if ($hours <= 0) {
+        if ($hours <= 0 || $hours < $minimumJam) {
             return null;
         }
 
-        // Multiplier meng-clamp jam ke minimum settingan (lembur di bawah itu tetap dihitung
-        // setara jam minimum, bukan ditolak) — perilaku asli Excel, bukan bug. Maksimal tetap
-        // dikunci di 4 jam (belum ada permintaan buat itu configurable juga).
-        $multiplier = (min(max($hours, $minimumJam), 4) * 2) - 0.5;
+        // Multiplier clamp maksimal di 4 jam (belum ada permintaan buat itu configurable juga).
+        $multiplier = (min($hours, 4) * 2) - 0.5;
         $divisor = $date->daysInMonth * 7;
         $amount = round($baseRate / $divisor * $multiplier, 2);
 
