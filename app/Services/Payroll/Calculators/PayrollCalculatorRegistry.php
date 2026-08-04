@@ -26,6 +26,7 @@ class PayrollCalculatorRegistry
         PayrollComponentEnum::INSENTIF->value => IncentiveCalculator::class,
         PayrollComponentEnum::LEMBUR->value => LemburCalculator::class,
         PayrollComponentEnum::JASA_PELAYANAN->value => JasaPelayananCalculator::class,
+        PayrollComponentEnum::JASA_UNIT->value => JasaUnitCalculator::class,
         PayrollComponentEnum::BPJS_KESEHATAN->value => BpjsKesehatanCalculator::class,
         PayrollComponentEnum::BPJS_KETENAGAKERJAAN->value => BpjsKetenagakerjaanCalculator::class,
         PayrollComponentEnum::KETERLAMBATAN->value => KeterlambatanCalculator::class,

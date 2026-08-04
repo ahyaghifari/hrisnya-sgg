@@ -39,6 +39,8 @@ use App\Livewire\LMS\BankSoalPage;
 use App\Livewire\LMS\CreateBankSoal;
 use App\Livewire\LMS\CreateLmsCourse;
 use App\Livewire\LMS\CreateQuiz;
+use App\Livewire\LMS\ExternalTrainingDetailPage;
+use App\Livewire\LMS\ExternalTrainingsPage;
 use App\Livewire\LMS\LmsCategoriesPage;
 use App\Livewire\LMS\LmsCourseBaselinesPage;
 use App\Livewire\LMS\LmsCourseDetailPage;
@@ -50,9 +52,12 @@ use App\Livewire\LMS\QuizzesPage;
 use App\Livewire\LMS\TrainerDetailPage;
 use App\Livewire\LMS\TrainersPage;
 use App\Livewire\LMS\TrainingReportPage;
+use App\Livewire\Pelatihan\MyTrainingRequests;
 use App\Livewire\Pelatihan\QuizAttempt;
+use App\Livewire\Pelatihan\SubmitTrainingRequest;
 use App\Livewire\Pelatihan\TrainingDetail;
 use App\Livewire\Pelatihan\TrainingList;
+use App\Livewire\Pelatihan\TrainingRequestDetail;
 use App\Livewire\Presensi\AttendanceSettingsPage;
 use App\Livewire\Presensi\CreateSchedulePage;
 use App\Livewire\Presensi\CutiRecapPage;
@@ -284,6 +289,12 @@ Route::middleware(['auth', 'portal.access'])->group(function () {
     Route::get('/keuangan/omset', \App\Livewire\Keuangan\OmsetPage::class)
         ->name('keuangan.omset');
 
+    Route::get('/keuangan/jasa-unit-types', \App\Livewire\Keuangan\JasaUnitTypesPage::class)
+        ->name('keuangan.jasa-unit-types');
+
+    Route::get('/keuangan/jasa-unit', \App\Livewire\Keuangan\JasaUnitInputPage::class)
+        ->name('keuangan.jasa-unit');
+
     Route::get('/presensi/dashboard', \App\Livewire\Presensi\AttendanceDashboardPage::class)
         ->name('presensi.dashboard');
 
@@ -369,8 +380,23 @@ Route::middleware(['auth', 'portal.access'])->group(function () {
     Route::get('/pelatihan/quiz/{meetingQuiz}', QuizAttempt::class)
         ->name('pelatihan.quiz');
 
+    Route::get('/pelatihan/pengajuan-saya', MyTrainingRequests::class)
+        ->name('pelatihan.pengajuan-saya');
+
+    Route::get('/pelatihan/pengajuan-saya/{record}', TrainingRequestDetail::class)
+        ->name('pelatihan.pengajuan-saya.show');
+
+    Route::get('/pelatihan/pengajuan', SubmitTrainingRequest::class)
+        ->name('pelatihan.pengajuan');
+
     Route::get('/lms/honorarium', MasterHonorariumPage::class)
         ->name('pelatihan.honorarium');
+
+    Route::get('/lms/pelatihan-eksternal', ExternalTrainingsPage::class)
+        ->name('pelatihan.eksternal');
+
+    Route::get('/lms/pelatihan-eksternal/{record}', ExternalTrainingDetailPage::class)
+        ->name('pelatihan.eksternal.show');
 
     Route::get('/lms/evaluasi', LmsFeedbackQuestionsPage::class)
         ->name('pelatihan.evaluasi');

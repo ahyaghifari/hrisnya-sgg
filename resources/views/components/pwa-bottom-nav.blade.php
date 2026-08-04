@@ -117,9 +117,17 @@
                 <span class="pwa-menu-grid-icon teal"><i class="fa-solid fa-diagram-project"></i></span>
                 <span class="pwa-menu-grid-label">Mapping Komponen Gaji</span>
             </a>
+            <a href="{{ route('keuangan.jasa-unit-types') }}" wire:navigate class="pwa-menu-grid-item">
+                <span class="pwa-menu-grid-icon teal"><i class="fa-solid fa-hospital-user"></i></span>
+                <span class="pwa-menu-grid-label">Jasa Unit</span>
+            </a>
             <a href="{{ route('keuangan.insentif') }}" wire:navigate class="pwa-menu-grid-item">
                 <span class="pwa-menu-grid-icon green"><i class="fa-solid fa-hand-holding-dollar"></i></span>
                 <span class="pwa-menu-grid-label">Insentif</span>
+            </a>
+            <a href="{{ route('keuangan.jasa-unit') }}" wire:navigate class="pwa-menu-grid-item">
+                <span class="pwa-menu-grid-icon teal"><i class="fa-solid fa-hospital-user"></i></span>
+                <span class="pwa-menu-grid-label">Input Jasa Unit</span>
             </a>
         @endif
 
@@ -210,6 +218,10 @@
             <a href="{{ route('pelatihan.pemateri') }}" wire:navigate class="pwa-menu-grid-item">
                 <span class="pwa-menu-grid-icon teal"><i class="fa-solid fa-chalkboard-user"></i></span>
                 <span class="pwa-menu-grid-label">Pemateri</span>
+            </a>
+            <a href="{{ route('pelatihan.eksternal') }}" wire:navigate class="pwa-menu-grid-item">
+                <span class="pwa-menu-grid-icon teal"><i class="fa-solid fa-plane-departure"></i></span>
+                <span class="pwa-menu-grid-label">Pelatihan Eksternal</span>
             </a>
             <a href="{{ route('pelatihan.bank-soal') }}" wire:navigate class="pwa-menu-grid-item">
                 <span class="pwa-menu-grid-icon teal"><i class="fa-solid fa-clipboard-list"></i></span>
