@@ -63,9 +63,11 @@ class PermissionsTable
 
                 // Cuma keliatan buat permission yang BUKAN format Shield (Verb:Subject) —
                 // peninggalan seeder lama, aman dihapus karena tidak ada kode yang cek lagi.
+                // Disembunyikan juga kalau masih di-assign ke role manapun, biar gak ninggalin
+                // role dengan permission yatim.
                 DeleteAction::make()
                     ->label('Hapus')
-                    ->visible(fn (Permission $record) => ! str_contains($record->name, ':')),
+                    ->visible(fn (Permission $record) => ! str_contains($record->name, ':') && ! $record->roles()->exists()),
             ]);
     }
 }

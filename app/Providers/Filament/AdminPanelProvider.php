@@ -73,13 +73,13 @@ class AdminPanelProvider extends PanelProvider
                 NotificationWidget::class,
             ])
             ->navigationGroups([
-                NavigationGroup::make()->label('Master Perusahaan'),
-                NavigationGroup::make()->label('Karyawan'),
+                NavigationGroup::make()->label('Master Perusahaan')->collapsed(),
+                NavigationGroup::make()->label('Manajemen Pengguna'),
                 NavigationGroup::make()->label('Kepegawaian'),
+                NavigationGroup::make()->label('Presensi & Absensi'),
                 NavigationGroup::make()->label('Manajemen Organisasi'),
                 NavigationGroup::make()->label('Keuangan'),
                 NavigationGroup::make()->label('LMS'),
-                NavigationGroup::make()->label('Manajemen Pengguna'),
                 NavigationGroup::make()->label('Master')->collapsed(),
             ])
             ->middleware([

@@ -6,39 +6,6 @@ use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
 
-/**
- * @mixin IdeHelperLmsQuestionBanks
- * @property string $id
- * @property string|null $category_id
- * @property string $question
- * @property string $type
- * @property int $max_score
- * @property int $min_score
- * @property string|null $created_by
- * @property \Illuminate\Support\Carbon|null $created_at
- * @property \Illuminate\Support\Carbon|null $updated_at
- * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\LMS\LmsQuizAnswers> $answers
- * @property-read int|null $answers_count
- * @property-read \App\Models\LMS\LmsCategories|null $category
- * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\LMS\LmsQuestionOptions> $options
- * @property-read int|null $options_count
- * @property-read \App\Models\LMS\LmsQuizQuestions|null $pivot
- * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\LMS\LmsQuizzes> $quizzes
- * @property-read int|null $quizzes_count
- * @method static \Illuminate\Database\Eloquent\Builder<static>|LmsQuestionBanks newModelQuery()
- * @method static \Illuminate\Database\Eloquent\Builder<static>|LmsQuestionBanks newQuery()
- * @method static \Illuminate\Database\Eloquent\Builder<static>|LmsQuestionBanks query()
- * @method static \Illuminate\Database\Eloquent\Builder<static>|LmsQuestionBanks whereCategoryId($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|LmsQuestionBanks whereCreatedAt($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|LmsQuestionBanks whereCreatedBy($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|LmsQuestionBanks whereId($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|LmsQuestionBanks whereMaxScore($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|LmsQuestionBanks whereMinScore($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|LmsQuestionBanks whereQuestion($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|LmsQuestionBanks whereType($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|LmsQuestionBanks whereUpdatedAt($value)
- * @mixin \Eloquent
- */
 class LmsQuestionBanks extends Model
 {
     use HasUlids;

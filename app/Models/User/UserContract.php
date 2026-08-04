@@ -16,14 +16,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * UserProfiles::contract_start_date/contract_end_date (cuma kontrak AKTIF saat ini, dibaca cepat
  * tanpa JOIN) - tabel ini buat query "riwayat kontrak tahun ke berapa" tanpa filter
  * transition_type+status ke user_transitions setiap saat.
- *
- * @property string $id
- * @property string $user_id
- * @property string $company_id
- * @property string $employee_type_id
- * @property string $contract_start_date
- * @property string $contract_end_date
- * @property string|null $source_transition_id
  */
 class UserContract extends Model
 {

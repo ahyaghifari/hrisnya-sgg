@@ -8,36 +8,6 @@ use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 use Symfony\Component\Console\Question\Question;
 
-/**
- * @mixin IdeHelperLmsQuizzes
- * @property string $id
- * @property string|null $category_id
- * @property string $title
- * @property int $total_score
- * @property string|null $created_by
- * @property \Illuminate\Support\Carbon|null $created_at
- * @property \Illuminate\Support\Carbon|null $updated_at
- * @property-read \App\Models\LMS\LmsCategories|null $category
- * @property-read User|null $createdBy
- * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\LMS\LmsMeetingQuizzes> $meetingUsages
- * @property-read int|null $meeting_usages_count
- * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\LMS\LmsQuizQuestions> $pivotTable
- * @property-read int|null $pivot_table_count
- * @property-read \App\Models\LMS\LmsQuizQuestions|null $pivot
- * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\LMS\LmsQuestionBanks> $questions
- * @property-read int|null $questions_count
- * @method static \Illuminate\Database\Eloquent\Builder<static>|LmsQuizzes newModelQuery()
- * @method static \Illuminate\Database\Eloquent\Builder<static>|LmsQuizzes newQuery()
- * @method static \Illuminate\Database\Eloquent\Builder<static>|LmsQuizzes query()
- * @method static \Illuminate\Database\Eloquent\Builder<static>|LmsQuizzes whereCategoryId($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|LmsQuizzes whereCreatedAt($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|LmsQuizzes whereCreatedBy($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|LmsQuizzes whereId($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|LmsQuizzes whereTitle($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|LmsQuizzes whereTotalScore($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|LmsQuizzes whereUpdatedAt($value)
- * @mixin \Eloquent
- */
 class LmsQuizzes extends Model
 {
     use HasUlids;

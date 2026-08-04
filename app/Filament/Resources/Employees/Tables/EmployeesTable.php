@@ -7,8 +7,6 @@ use App\Filament\Resources\Employees\EmployeeResource;
 use App\Helpers\PermissionHelper;
 use App\Models\Master\OrgStructure;
 use App\Models\User;
-use Filament\Actions\BulkActionGroup;
-use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Tables\Columns\ImageColumn;
 use Filament\Tables\Columns\TextColumn;
@@ -109,11 +107,6 @@ class EmployeesTable
             ->recordActions([
                 EditAction::make()
                     ->visible(fn ($record) => EmployeeResource::canEdit($record)),
-            ])
-            ->toolbarActions([
-                BulkActionGroup::make([
-                    DeleteBulkAction::make(),
-                ]),
             ]);
     }
 }

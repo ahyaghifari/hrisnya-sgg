@@ -4,21 +4,15 @@ namespace App\Filament\Resources\Employees\Schemas;
 
 use App\Enum\OrgStructurLevel;
 use App\Helpers\PermissionHelper;
-use App\Models\Attendance\LeaveUserBalances;
 use App\Models\Role;
 use App\Models\Master\OrgStructure;
 use App\Models\User;
-use Carbon\Carbon;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
-use Filament\Infolists\Components\RepeatableEntry;
-use Filament\Infolists\Components\TextEntry;
-use Filament\Support\Enums\FontWeight;
-use Filament\Schemas\Components\Fieldset;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Wizard;
@@ -96,6 +90,7 @@ class EmployeeForm
                                 });
                             })
                             ->default(fn (?User $record) => $record?->roles->pluck('id')->toArray() ?? [])
+                            ->afterStateHydrated(fn ($component, ?User $record) => $component->state($record?->roles->pluck('id')->toArray() ?? []))
                             ->required()
                             ->searchable()
                             ->preload()
@@ -426,54 +421,6 @@ class EmployeeForm
                             DatePicker::make('joining_date')
                                 ->label('Tanggal Bergabung'),
                         ]),
-
-                        Section::make('Informasi Lainnya')
-                            ->schema([
-                                Fieldset::make('Kuota Cuti')
-                                    ->columnSpanFull()
-                                    ->schema([
-                                        RepeatableEntry::make('leave_quota')
-                                            ->hiddenLabel()
-                                            ->state(function ($record) {
-                                                if (!$record) return [];
-
-                                                // "used" dihitung live (bukan baca kolom LeaveUserBalances::used
-                                                // yang sudah tidak ditulis lagi saat submit) — lihat
-                                                // LeaveReqRepository::getLeaveUserBalance().
-                                                return LeaveUserBalances::where('user_id', $record->id)
-                                                    ->with('leaveType')
-                                                    ->get()
-                                                    ->each(function ($balance) {
-                                                        $balance->used = app(\App\Services\Attendance\AttendaceReqService::class)
-                                                            ->getLeaveUserBalance($balance->user_id, $balance->leave_type_id)['used'];
-                                                    });
-                                            })
-                                            ->schema([
-                                                TextEntry::make('leaveType.name')
-                                                    ->label('Jenis Cuti')
-                                                    ->belowContent(fn ($record) => Carbon::parse($record->period_start)->format('Y'))
-                                                    ->weight(FontWeight::SemiBold),
-
-                                                TextEntry::make('quota')
-                                                    ->label('Kuota')
-                                                    ->badge()
-                                                    ->color('info'),
-
-                                                TextEntry::make('used')
-                                                    ->label('Terpakai')
-                                                    ->badge()
-                                                    ->color('danger'),
-
-                                                TextEntry::make('sisa')
-                                                    ->label('Sisa')
-                                                    ->badge()
-                                                    ->color('success')
-                                                    ->state(fn ($record) => ($record->quota ?? 0) - ($record->used ?? 0)),
-                                            ])
-                                            ->columns(4)
-                                            ->columnSpanFull(),
-                                    ])
-                            ])
                     ]),
                 ])->columnSpanFull()->skippable(),
             ]);

@@ -13,15 +13,6 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * dianggap "Selesai" (max 1 per board, lihat TaskService::setListFinal()) — task yang masuk List
  * ini dapat `status=complete` juga supaya alur rating/notifikasi lama (yang gate di status) bisa
  * dipakai ulang tanpa perubahan.
- *
- * @property string $id
- * @property string $project_id
- * @property string $name
- * @property string|null $color
- * @property int $position
- * @property bool $is_final
- * @property-read TaskProject $project
- * @property-read \Illuminate\Database\Eloquent\Collection<int, Task> $tasks
  */
 class TaskList extends Model
 {

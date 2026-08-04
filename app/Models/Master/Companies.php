@@ -5,35 +5,6 @@ namespace App\Models\Master;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 
-/**
- * @mixin IdeHelperCompanies
- * @property string $id
- * @property string $code
- * @property string $name
- * @property string $location
- * @property int $is_active
- * @property \Illuminate\Support\Carbon|null $created_at
- * @property \Illuminate\Support\Carbon|null $updated_at
- * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Master\OrgStructure> $departments
- * @property-read int|null $departments_count
- * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Master\JobEvaluationCompanies> $jobEvaluations
- * @property-read int|null $job_evaluations_count
- * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Master\JobPositions> $jobPositions
- * @property-read int|null $job_positions_count
- * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Master\OrgStructure> $orgStructure
- * @property-read int|null $org_structure_count
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Companies newModelQuery()
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Companies newQuery()
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Companies query()
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Companies whereCode($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Companies whereCreatedAt($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Companies whereId($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Companies whereIsActive($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Companies whereLocation($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Companies whereName($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Companies whereUpdatedAt($value)
- * @mixin \Eloquent
- */
 class Companies extends Model
 {
     use HasUlids;

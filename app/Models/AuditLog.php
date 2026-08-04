@@ -8,35 +8,6 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\Auth;
 
-/**
- * @mixin IdeHelperAuditLog
- * @property string $id
- * @property string|null $company_id
- * @property string|null $user_id
- * @property string $module
- * @property string $key
- * @property string|null $label
- * @property string|null $old_value
- * @property string|null $new_value
- * @property \Illuminate\Support\Carbon|null $created_at
- * @property \Illuminate\Support\Carbon|null $updated_at
- * @property-read Companies|null $company
- * @property-read \App\Models\User|null $user
- * @method static \Illuminate\Database\Eloquent\Builder<static>|AuditLog newModelQuery()
- * @method static \Illuminate\Database\Eloquent\Builder<static>|AuditLog newQuery()
- * @method static \Illuminate\Database\Eloquent\Builder<static>|AuditLog query()
- * @method static \Illuminate\Database\Eloquent\Builder<static>|AuditLog whereCompanyId($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|AuditLog whereCreatedAt($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|AuditLog whereId($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|AuditLog whereKey($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|AuditLog whereLabel($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|AuditLog whereModule($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|AuditLog whereNewValue($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|AuditLog whereOldValue($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|AuditLog whereUpdatedAt($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|AuditLog whereUserId($value)
- * @mixin \Eloquent
- */
 class AuditLog extends Model
 {
     use HasUlids;

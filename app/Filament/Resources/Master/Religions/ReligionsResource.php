@@ -2,69 +2,89 @@
 
 namespace App\Filament\Resources\Master\Religions;
 
-use App\Filament\Resources\Master\Religions\Pages\CreateReligions;
-use App\Filament\Resources\Master\Religions\Pages\EditReligions;
-use App\Filament\Resources\Master\Religions\Pages\ListReligions;
-use App\Filament\Resources\Master\Religions\Schemas\ReligionsForm;
-use App\Filament\Resources\Master\Religions\Tables\ReligionsTable;
-use App\Helpers\PermissionHelper;
+use App\Filament\Resources\BaseResource;
+use App\Filament\Resources\Master\Religions\Pages\ManageReligions;
 use App\Models\Master\Religions;
 use BackedEnum;
-use Filament\Resources\Resource;
+use Filament\Actions\DeleteAction;
+use Filament\Actions\EditAction;
+use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
+use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Facades\Auth;
 use UnitEnum;
 
-class ReligionsResource extends Resource
+class ReligionsResource extends BaseResource
 {
     protected static ?string $model = Religions::class;
 
-    protected static ?string $navigationLabel = "Agama";
+    protected static ?string $navigationLabel = 'Agama';
 
-    protected static string | UnitEnum | null $navigationGroup = 'Master';
+    protected static string|UnitEnum|null $navigationGroup = 'Master';
 
     protected static ?int $navigationSort = 9;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedGlobeAsiaAustralia;
 
+    protected static ?string $recordTitleAttribute = 'name';
+
+    public static function getModelLabel(): string
+    {
+        return 'Agama';
+    }
+
     public static function form(Schema $schema): Schema
     {
-        return ReligionsForm::configure($schema);
+        return $schema
+            ->components([
+                TextInput::make('name')
+                    ->label('Nama Agama')
+                    ->required()
+                    ->maxLength(255)
+                    ->columnSpanFull(),
+            ]);
     }
 
     public static function table(Table $table): Table
     {
-        return ReligionsTable::configure($table);
+        return $table
+            ->columns([
+                TextColumn::make('name')
+                    ->label('Nama Agama')
+                    ->searchable()
+                    ->sortable()
+                    ->wrap()
+                    ->limit(50),
+                TextColumn::make('user_profiles_count')
+                    ->label('Jumlah Karyawan')
+                    ->counts('userProfiles')
+                    ->badge()
+                    ->color(fn (int $state): string => $state > 0 ? 'info' : 'gray')
+                    ->sortable(),
+            ])
+            ->recordActions([
+                EditAction::make(),
+                DeleteAction::make()
+                    ->visible(fn (Religions $record) => static::canDelete($record)),
+            ]);
     }
 
-    public static function getRelations(): array
+    public static function getEloquentQuery(): \Illuminate\Database\Eloquent\Builder
     {
-        return [
-            //
-        ];
+        return parent::getEloquentQuery()
+            ->withCount('userProfiles');
     }
 
     public static function getPages(): array
     {
         return [
-            'index' => ListReligions::route('/'),
-            // 'create' => CreateReligions::route('/create'),
-            // 'edit' => EditReligions::route('/{record}/edit'),
+            'index' => ManageReligions::route('/'),
         ];
     }
 
-    public static function getEloquentQuery(): Builder
+    public static function canDelete(\Illuminate\Database\Eloquent\Model $record): bool
     {
-        $query = parent::getEloquentQuery();
-
-        $user = Auth::user();
-        if ($user && $user->company_id && !PermissionHelper::hasGlobalRole($user)) {
-            $query->where('company_id', $user->company_id);
-        }
-
-        return $query;
+        return ! $record->userProfiles()->exists();
     }
 }

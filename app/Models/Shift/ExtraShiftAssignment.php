@@ -18,17 +18,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * Sengaja tabel terpisah dari schedule_shift_assignments (bukan baris ke-2 di tabel itu) -
  * schedule_shift_assignments punya unique(user_id, date), tidak bisa nampung shift ke-2 di
  * tanggal yang sama.
- *
- * @property string $id
- * @property string $company_id
- * @property string $user_id
- * @property string|null $covering_user_id
- * @property string $shift_type_id
- * @property string $date
- * @property string $status
- * @property string $source
- * @property string|null $reason
- * @property string $created_by
  */
 class ExtraShiftAssignment extends Model
 {

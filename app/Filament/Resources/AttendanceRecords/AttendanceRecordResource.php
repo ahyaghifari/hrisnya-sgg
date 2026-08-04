@@ -86,7 +86,7 @@ class AttendanceRecordResource extends Resource
         $items[] = NavigationItem::make()
             ->label('Data Absensi')
             ->icon(static::$navigationIcon)
-            ->group('Kepegawaian')
+            ->group('Presensi & Absensi')
             ->sort(3)
             ->url(static::getUrl('index', ['type' => 'report']))
             ->isActiveWhen(fn (): bool => (

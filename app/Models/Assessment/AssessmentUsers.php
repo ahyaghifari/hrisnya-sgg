@@ -8,42 +8,6 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Auth;
 
-/**
- * @mixin IdeHelperAssessmentUsers
- * @property string $id
- * @property string $assessment_id
- * @property string $target_id
- * @property string $created_by
- * @property string $status
- * @property string|null $submitted_at
- * @property numeric|null $final_score
- * @property string|null $final_category
- * @property \Illuminate\Support\Carbon|null $deleted_at
- * @property \Illuminate\Support\Carbon|null $created_at
- * @property \Illuminate\Support\Carbon|null $updated_at
- * @property-read \App\Models\Assessment\Assessments|null $assessments
- * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Assessment\AssessmentScores> $scores
- * @property-read int|null $scores_count
- * @property-read \App\Models\User|null $target
- * @method static Builder<static>|AssessmentUsers newModelQuery()
- * @method static Builder<static>|AssessmentUsers newQuery()
- * @method static Builder<static>|AssessmentUsers onlyTrashed()
- * @method static Builder<static>|AssessmentUsers query()
- * @method static Builder<static>|AssessmentUsers whereAssessmentId($value)
- * @method static Builder<static>|AssessmentUsers whereCreatedAt($value)
- * @method static Builder<static>|AssessmentUsers whereCreatedBy($value)
- * @method static Builder<static>|AssessmentUsers whereDeletedAt($value)
- * @method static Builder<static>|AssessmentUsers whereFinalCategory($value)
- * @method static Builder<static>|AssessmentUsers whereFinalScore($value)
- * @method static Builder<static>|AssessmentUsers whereId($value)
- * @method static Builder<static>|AssessmentUsers whereStatus($value)
- * @method static Builder<static>|AssessmentUsers whereSubmittedAt($value)
- * @method static Builder<static>|AssessmentUsers whereTargetId($value)
- * @method static Builder<static>|AssessmentUsers whereUpdatedAt($value)
- * @method static Builder<static>|AssessmentUsers withTrashed(bool $withTrashed = true)
- * @method static Builder<static>|AssessmentUsers withoutTrashed()
- * @mixin \Eloquent
- */
 class AssessmentUsers extends Model
 {
     use HasUlids, SoftDeletes;

@@ -16,33 +16,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * Tanggal mulai (anchor) SENGAJA tidak disimpan di sini — tabel ini murni pola, tanggal
  * mulainya ditentukan user tiap kali generate 1 periode (lihat ScheduleShiftRosterTab), bukan
  * bagian dari template.
- *
- * @property string $id
- * @property string $schedule_id
- * @property string $user_id
- * @property string|null $shift_type_id
- * @property bool $off_day
- * @property int $day
- * @property string|null $created_by
- * @property \Illuminate\Support\Carbon|null $created_at
- * @property \Illuminate\Support\Carbon|null $updated_at
- * @property-read User|null $creator
- * @property-read \App\Models\Shift\Schedule|null $schedule
- * @property-read \App\Models\Shift\ScheduleShiftType|null $shiftType
- * @property-read User|null $user
- * @method static \Illuminate\Database\Eloquent\Builder<static>|ScheduleShiftRotation newModelQuery()
- * @method static \Illuminate\Database\Eloquent\Builder<static>|ScheduleShiftRotation newQuery()
- * @method static \Illuminate\Database\Eloquent\Builder<static>|ScheduleShiftRotation query()
- * @method static \Illuminate\Database\Eloquent\Builder<static>|ScheduleShiftRotation whereCreatedAt($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|ScheduleShiftRotation whereCreatedBy($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|ScheduleShiftRotation whereDay($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|ScheduleShiftRotation whereId($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|ScheduleShiftRotation whereOffDay($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|ScheduleShiftRotation whereScheduleId($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|ScheduleShiftRotation whereShiftTypeId($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|ScheduleShiftRotation whereUpdatedAt($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|ScheduleShiftRotation whereUserId($value)
- * @mixin \Eloquent
  */
 class ScheduleShiftRotation extends Model
 {

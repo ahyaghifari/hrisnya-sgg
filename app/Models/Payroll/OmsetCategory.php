@@ -11,13 +11,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 /**
  * Kategori Omset (Rawat Inap, Rawat Jalan, dst), per company — dipakai sebagai baris tetap
  * di halaman input Omset Rumah Sakit (Jasa Pelayanan).
- *
- * @property string $id
- * @property string $company_id
- * @property string $name
- * @property \Illuminate\Support\Carbon|null $created_at
- * @property \Illuminate\Support\Carbon|null $updated_at
- * @property-read Companies $company
  */
 class OmsetCategory extends Model
 {

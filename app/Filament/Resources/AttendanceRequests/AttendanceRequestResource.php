@@ -26,7 +26,7 @@ class AttendanceRequestResource extends BaseResource
 {
     protected static ?string $model = AttendanceRequests::class;
 
-    protected static string | UnitEnum | null $navigationGroup = 'Manajemen Organisasi';
+    protected static string | UnitEnum | null $navigationGroup = 'Presensi & Absensi';
 
     public static function form(Schema $schema): Schema
     {

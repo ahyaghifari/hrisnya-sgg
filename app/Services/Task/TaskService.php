@@ -2,10 +2,8 @@
 
 namespace App\Services\Task;
 
-use App\Enum\Approval\ApprovalModuleEnum;
 use App\Enum\Task\TaskSettingEnum;
 use App\Enum\Task\TaskStatus;
-use App\Models\ApprovalManagement\MasterApprovalFlows;
 use App\Models\Setting;
 use App\Models\Task\Task;
 use App\Models\Task\TaskAttachment;
@@ -21,11 +19,8 @@ use App\Notifications\TaskCompletedByAssignee;
 use App\Notifications\TaskProjectMemberAdded;
 use App\Notifications\TaskReviewDecided;
 use App\Notifications\TaskReviewRequested;
-use App\Repositories\Approval\ApprovalSnapshotRepository;
 use App\Repositories\Master\DepartmentRepository;
 use App\Repositories\Task\TaskRepository;
-use App\Repositories\Task\TaskServiceRepository;
-use App\Services\Approval\ApprovalCreationService;
 use App\Services\OrgHierarchyService;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Collection;
@@ -37,11 +32,8 @@ use Illuminate\Support\Facades\Storage;
 class TaskService
 {
     public function __construct(
-        protected TaskServiceRepository $taskServiceRepository,
         protected TaskRepository $taskRepository,
         protected DepartmentRepository $departmentRepository,
-        protected ApprovalCreationService $approvalCreationService,
-        protected ApprovalSnapshotRepository $approvalSnapshotRepository,
         protected OrgHierarchyService $orgHierarchyService,
     ) {}
 
@@ -378,61 +370,6 @@ class TaskService
             ->orderBy('position')
             ->orderByDesc('created_at')
             ->get();
-    }
-
-    /**
-     * Dipakai portal (web guard) — versi createTask() yang butuh approval, tanpa bergantung
-     * ke guard 'sanctum' (itu punya createTask() mobile API, cuma resolve lewat web session).
-     */
-    public function createFormalTask(array $data): Task
-    {
-        return DB::transaction(function () use ($data) {
-            $user = Auth::user();
-
-            $masterFlow = $this->approvalSnapshotRepository->findMasterApprovalFlowByCompany(
-                moduleType: ApprovalModuleEnum::TASK_REQUEST->value,
-                companyId: $user->company_id
-            );
-
-            abort_if(! $masterFlow, 422, 'Belum ada alur approval tugas untuk company ini — hubungi admin, atau matikan toggle "Butuh Approval".');
-
-            $task = $this->taskRepository->create([
-                'code' => $this->generateCode($data['department_id']),
-                'service_id' => $data['service_id'],
-                'department_id' => $data['department_id'],
-                'company_id' => $user->company_id,
-                'requirement' => $data['requirement'],
-                'priority' => $data['priority'] ?? 'medium',
-                'due_date' => $data['due_date'] ?? null,
-                'created_by' => $user->id,
-                'is_self_assigned' => false,
-                'status' => TaskStatus::TODO->value,
-            ]);
-
-            foreach ($data['checklist'] ?? [] as $title) {
-                if (trim((string) $title) === '') {
-                    continue;
-                }
-
-                $task->checklistItems()->create(['title' => $title, 'created_by' => $user->id]);
-            }
-
-            $this->approvalCreationService->createSnapshot(
-                moduleType: ApprovalModuleEnum::TASK_REQUEST->value,
-                moduleId: $task->id,
-                flow: $masterFlow,
-                createdBy: $user->id,
-                companyId: $user->company_id,
-                userId: $user->id
-            );
-
-            return $task;
-        });
-    }
-
-    public function getAllTaskServices(): Collection
-    {
-        return $this->taskServiceRepository->getAllTaskServices();
     }
 
     private function generateCode(?string $departmentId): string

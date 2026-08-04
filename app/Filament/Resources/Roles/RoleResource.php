@@ -2,23 +2,20 @@
 
 namespace App\Filament\Resources\Roles;
 
+use App\Filament\Resources\BaseCompanyResource;
 use App\Filament\Resources\Roles\Pages\CreateRole;
 use App\Filament\Resources\Roles\Pages\EditRole;
 use App\Filament\Resources\Roles\Pages\ListRoles;
 use App\Filament\Resources\Roles\Schemas\RoleForm;
 use App\Filament\Resources\Roles\Tables\RolesTable;
-use App\Helpers\PermissionHelper;
 use App\Models\Role;
 use BackedEnum;
-use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Facades\Auth;
 use UnitEnum;
 
-class RoleResource extends Resource
+class RoleResource extends BaseCompanyResource
 {
     protected static ?string $model = Role::class;
 
@@ -54,15 +51,4 @@ class RoleResource extends Resource
         ];
     }
 
-    public static function getEloquentQuery(): Builder
-    {
-        $query = parent::getEloquentQuery();
-
-        $user = Auth::user();
-        if ($user && $user->company_id && !PermissionHelper::hasGlobalRole($user)) {
-            $query->where('company_id', $user->company_id);
-        }
-
-        return $query;
-    }
 }

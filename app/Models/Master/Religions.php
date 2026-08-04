@@ -3,28 +3,11 @@
 namespace App\Models\Master;
 
 use App\Helpers\PermissionHelper;
+use App\Models\User\UserProfiles;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
 
-/**
- * @mixin IdeHelperReligions
- * @property string $id
- * @property string $name
- * @property string|null $company_id
- * @property \Illuminate\Support\Carbon|null $created_at
- * @property \Illuminate\Support\Carbon|null $updated_at
- * @property-read \App\Models\Master\Companies|null $company
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Religions newModelQuery()
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Religions newQuery()
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Religions query()
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Religions whereCompanyId($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Religions whereCreatedAt($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Religions whereId($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Religions whereName($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Religions whereUpdatedAt($value)
- * @mixin \Eloquent
- */
 class Religions extends Model
 {
     use HasUlids;
@@ -60,5 +43,10 @@ class Religions extends Model
     public function company()
     {
         return $this->belongsTo(Companies::class, 'company_id');
+    }
+
+    public function userProfiles()
+    {
+        return $this->hasMany(UserProfiles::class, 'religion_id');
     }
 }

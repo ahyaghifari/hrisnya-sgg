@@ -9,27 +9,6 @@ use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
 
-/**
- * @mixin IdeHelperEmployeeTypes
- * @property string $id
- * @property string $name
- * @property string|null $company_id
- * @property \Illuminate\Support\Carbon|null $created_at
- * @property \Illuminate\Support\Carbon|null $updated_at
- * @property EmployeeTypeCategory $category
- * @property-read \App\Models\Master\Companies|null $company
- * @property-read \Illuminate\Database\Eloquent\Collection<int, UserProfiles> $userProfiles
- * @property-read int|null $user_profiles_count
- * @method static \Illuminate\Database\Eloquent\Builder<static>|EmployeeTypes newModelQuery()
- * @method static \Illuminate\Database\Eloquent\Builder<static>|EmployeeTypes newQuery()
- * @method static \Illuminate\Database\Eloquent\Builder<static>|EmployeeTypes query()
- * @method static \Illuminate\Database\Eloquent\Builder<static>|EmployeeTypes whereCompanyId($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|EmployeeTypes whereCreatedAt($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|EmployeeTypes whereId($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|EmployeeTypes whereName($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|EmployeeTypes whereUpdatedAt($value)
- * @mixin \Eloquent
- */
 class EmployeeTypes extends Model
 {
     use HasUlids;

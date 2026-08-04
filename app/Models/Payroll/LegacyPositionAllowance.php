@@ -13,12 +13,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * Matriks Tunjangan Jabatan LAMA (pangkat x kelas -> nominal), dipakai IncentiveCalculator
  * metode "auto" sebagai pembanding buat hitung selisih penutup transisi. Lihat PositionAllowance
  * (versi baru) untuk struktur padanannya.
- *
- * @mixin IdeHelperLegacyPositionAllowance
- * @property string $id
- * @property string $pangkat_id
- * @property string $kelas_id
- * @property numeric $amount
  */
 class LegacyPositionAllowance extends Model
 {
