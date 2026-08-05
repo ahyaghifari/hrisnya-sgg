@@ -2,9 +2,11 @@
 
 namespace App\Livewire\Presensi;
 
+use App\Enum\AttendanceReqStatus;
 use App\Enum\AttendanceStatus;
 use App\Enum\CustomPermissionEnum;
 use App\Models\Attendance\AttendanceRecords;
+use App\Models\Attendance\AttendanceRequests;
 use App\Models\Master\Companies;
 use App\Models\User;
 use App\Notifications\AttendanceCheckedIn;
@@ -460,6 +462,65 @@ class RekapPresensiPage extends Component
             ->whereBetween('date', [$from, $to])
             ->orderBy('date')
             ->get();
+    }
+
+    /**
+     * Peta tanggal -> pengajuan Cuti/Izin karyawan terpilih (approved/masih diproses -
+     * submitted/in_review ikut, ditolak/dibatalkan/gagal TIDAK) dalam periode - dipakai modal
+     * detail buat baris berstatus 'absent': ada kemungkinan sebenarnya lagi Cuti/Izin (belum
+     * sempat diproses sync/approval) vs benar-benar mangkir tanpa pengajuan sama sekali.
+     *
+     * @return array<string, array{type: string, label: string, status: AttendanceReqStatus}>
+     */
+    public function getSelectedUserLeaveOrPermissionDatesProperty(): array
+    {
+        if (! $this->selectedUserId) {
+            return [];
+        }
+
+        [$from, $to] = $this->monthRange;
+        $fromDate = Carbon::parse($from);
+        $toDate = Carbon::parse($to);
+
+        $consideredStatuses = [
+            AttendanceReqStatus::APPROVED->value,
+            AttendanceReqStatus::SUBMITTED->value,
+            AttendanceReqStatus::IN_REVIEW->value,
+        ];
+
+        $requests = AttendanceRequests::query()
+            ->where('user_id', $this->selectedUserId)
+            ->whereIn('type', ['leave', 'permission'])
+            ->whereIn('status', $consideredStatuses)
+            ->with(['leaveDetails', 'permissionDetails'])
+            ->get();
+
+        $map = [];
+
+        foreach ($requests as $request) {
+            $status = AttendanceReqStatus::from($request->status);
+            $label = $request->type === 'leave' ? 'Cuti' : 'Izin';
+
+            foreach ($request->leaveDetails as $detail) {
+                $start = Carbon::parse($detail->start_date)->max($fromDate);
+                $end = Carbon::parse($detail->end_date ?? $detail->start_date)->min($toDate);
+
+                for ($d = $start->copy(); $d->lte($end); $d->addDay()) {
+                    $map[$d->toDateString()] = ['type' => 'leave', 'label' => $label, 'status' => $status];
+                }
+            }
+
+            foreach ($request->permissionDetails as $detail) {
+                $start = Carbon::parse($detail->date)->max($fromDate);
+                $end = Carbon::parse($detail->end_date ?? $detail->date)->min($toDate);
+
+                for ($d = $start->copy(); $d->lte($end); $d->addDay()) {
+                    $map[$d->toDateString()] = ['type' => 'permission', 'label' => $label, 'status' => $status];
+                }
+            }
+        }
+
+        return $map;
     }
 
     public function render()

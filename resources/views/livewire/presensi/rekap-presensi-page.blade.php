@@ -315,8 +315,18 @@ per-tanggal dalam periode yang lagi ditampilkan, bukan cuma angka agregat di tab
             </div>
 
             <div style="display:flex;flex-direction:column;gap:6px;max-height:420px;overflow-y:auto;">
+                @php $leaveOrPermissionDates = $this->selectedUserLeaveOrPermissionDates; @endphp
                 @forelse ($this->selectedUserDetailRows as $detail)
-                    @php $style = $statusStyle[$detail->status] ?? ['label' => $detail->status ?? '-', 'color' => '#64748b', 'bg' => 'rgba(100,116,139,0.1)']; @endphp
+                    @php
+                        $style = $statusStyle[$detail->status] ?? ['label' => $detail->status ?? '-', 'color' => '#64748b', 'bg' => 'rgba(100,116,139,0.1)'];
+                        $possibleLeave = $detail->status === \App\Enum\AttendanceStatus::ABSENT->value ? ($leaveOrPermissionDates[$detail->date] ?? null) : null;
+                        // Absent TAPI ada pengajuan Cuti/Izin (approved/masih diproses) di tanggal itu -
+                        // kemungkinan cuma belum sempat ke-sync/approve, jangan ditampilkan merah tegas
+                        // seolah pasti mangkir. Absent TANPA pengajuan sama sekali -> tetap merah ($style asli).
+                        if ($possibleLeave) {
+                            $style = ['label' => $style['label'], 'color' => '#b45309', 'bg' => 'rgba(180,83,9,0.1)'];
+                        }
+                    @endphp
                     <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 12px;border-radius:9px;background:var(--surface-alt);">
                         <div style="min-width:0;">
                             <p style="font-size:12.5px;font-weight:600;color:var(--text-heading);margin:0;">{{ \Illuminate\Support\Carbon::parse($detail->date)->translatedFormat('D, d M Y') }}</p>
@@ -331,6 +341,11 @@ per-tanggal dalam periode yang lagi ditampilkan, bukan cuma angka agregat di tab
                                     &middot; telat {{ $detail->late_minutes }} mnt
                                 @endif
                             </p>
+                            @if ($possibleLeave)
+                                <p style="font-size:11px;color:#b45309;margin:2px 0 0;font-weight:600;">
+                                    <i class="fa-solid fa-circle-question"></i> Kemungkinan {{ $possibleLeave['label'] }} ({{ $possibleLeave['status']->getLabel() }}) - belum tentu benar-benar mangkir
+                                </p>
+                            @endif
                         </div>
                         <span style="flex-shrink:0;display:inline-flex;align-items:center;padding:3px 10px;border-radius:99px;background:{{ $style['bg'] }};color:{{ $style['color'] }};font-size:11px;font-weight:700;">{{ $style['label'] }}</span>
                     </div>
