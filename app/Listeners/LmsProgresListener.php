@@ -6,7 +6,6 @@ use App\Enum\CourseUserStatus;
 use App\Events\LmsProgresUpdated;
 use App\Repositories\LMS\CourseRepository;
 use App\Services\LMS\CourseService;
-use App\Services\LMS\CourseUserService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Support\Facades\Log;
@@ -18,8 +17,7 @@ class LmsProgresListener implements ShouldQueue
     public function __construct(
         protected \App\Repositories\LMS\QuizRepository $quizRepo,
         protected CourseRepository $courseRepositories,
-        protected CourseService $courseService,
-        protected CourseUserService $courseUserService
+        protected CourseService $courseService
     ) {}
     
     public function handle(LmsProgresUpdated $event): void
@@ -94,51 +92,22 @@ class LmsProgresListener implements ShouldQueue
         return (int) round($finalScore);
     }
 
+    /**
+     * "Selesai" (completed_at + status COMPLETED) sengaja TIDAK dihitung otomatis di sini lagi —
+     * absensi & quiz masih diisi manual oleh L&D lewat halaman pertemuan (absen_masuk/
+     * absen_pulang), jadi is_completed per-meeting bukan sinyal yang bisa dipercaya. L&D
+     * menandai selesai manual lewat CourseUserService::markCompleted().
+     */
     private function checkCourseCompletion($courseUser, int $totalScore): string
     {
-        $meetingUsers = $courseUser->meetingUsers;
-        
-        $allCompleted = $meetingUsers->every(function ($meetingUser) {
-            return $meetingUser->is_completed === 1;
-        });
-
-        if ($allCompleted) {
-            if (is_null($courseUser->completed_at)) {
-                $courseUser->completed_at = now();
-            }
-
-            $isePassed = $this->checkUserIsPassed($courseUser->course, $totalScore);
-
-            // "archived_at" jadi satu-satunya penanda "sudah pernah diproses selesai" — dulu
-            // dicek lewat ada/tidaknya baris LmsUserHistories terpisah (lihat migration
-            // consolidate_lms_user_histories_into_lms_course_users).
-            if (is_null($courseUser->archived_at)) {
-                $this->courseUserService->updateByUserIdAndCourseId(
-                    $courseUser->user_id,
-                    $courseUser->course_id,
-                    [
-                        'is_passed' => $isePassed,
-                        'passed_at' => $isePassed ? now() : null,
-                        'archived_at' => now(),
-                    ]
-                );
-            }
-
+        if ($courseUser->status === CourseUserStatus::COMPLETED->value) {
             return CourseUserStatus::COMPLETED->value;
-        } else {
-            $courseUser->completed_at = null;
-            
-            if ($courseUser->status === CourseUserStatus::REQUESTED->value) {
-                return CourseUserStatus::REQUESTED->value;
-            }
-
-            return CourseUserStatus::IN_PROGRESS->value;
         }
-    }
 
-    public function checkUserIsPassed($course, int $score): bool
-    {
-        $passingScore = $course->minimum_score ?? 70;
-        return $score >= $passingScore;
+        if ($courseUser->status === CourseUserStatus::REQUESTED->value) {
+            return CourseUserStatus::REQUESTED->value;
+        }
+
+        return CourseUserStatus::IN_PROGRESS->value;
     }
 }

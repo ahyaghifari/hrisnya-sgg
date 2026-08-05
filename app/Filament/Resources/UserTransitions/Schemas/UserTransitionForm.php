@@ -421,7 +421,30 @@ class UserTransitionForm
                         ->native(false)
                         ->displayFormat('d M Y')
                         ->closeOnDateSelection()
+                        ->reactive()
                         ->helperText('Kalau status barunya Kontrak, "Kontrak Berlaku Sampai" otomatis dihitung dari tanggal ini + durasi perpanjangan (Pengaturan Kepegawaian) - tidak diisi manual.'),
+                    Text::make(function (Get $get) {
+                        $newEmployeeType = $get('transitionable_id') ? EmployeeTypes::find($get('transitionable_id')) : null;
+                        $user = $get('user_id') ? User::find($get('user_id')) : null;
+
+                        if (! $user || ! $get('effective_date') || $newEmployeeType?->category !== EmployeeTypeCategory::KONTRAK) {
+                            return null;
+                        }
+
+                        try {
+                            $endDate = app(\App\Services\User\UserTransitionService::class)->resolveContractEndDate(
+                                $user,
+                                \Carbon\Carbon::parse($get('effective_date')),
+                                $user->company_id,
+                            );
+
+                            return 'Kontrak akan berakhir pada ' . $endDate->translatedFormat('d F Y') . '.';
+                        } catch (\Exception $e) {
+                            return $e->getMessage();
+                        }
+                    })
+                        ->weight('bold')
+                        ->columnSpanFull(),
                     Textarea::make('reason')
                         ->label('Alasan')
                         ->rows(2)

@@ -105,7 +105,7 @@ class TrainingReportPageTest extends TestCase
         ]);
         LmsCourseMeetingUsers::create([
             'user_id' => $employee->id, 'course_id' => $course->id, 'meeting_id' => $meeting->id,
-            'is_completed' => true,
+            'absen_masuk' => true, 'absen_pulang' => true,
         ]);
 
         $baseline = LmsCourseBaselines::create([

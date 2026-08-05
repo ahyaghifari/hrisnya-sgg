@@ -263,7 +263,7 @@ class TrainingReportPage extends Page implements HasForms, HasTable
             $courseIdList = $courses->pluck('id')
                 ->map(fn ($id) => "'{$id}'")->implode(',');
 
-            // Total completed training hours (sum of meeting durations where is_completed = 1)
+            // Total completed training hours (sum of meeting durations where admin sudah absen masuk & pulang manual)
             $query->selectRaw("
                 COALESCE((
                     SELECT ROUND(SUM(GREATEST(0, TIMESTAMPDIFF(MINUTE, lm.start_time, lm.end_time))) / 60.0, 2)
@@ -271,7 +271,8 @@ class TrainingReportPage extends Page implements HasForms, HasTable
                     INNER JOIN lms_meetings lm ON lcmu.meeting_id = lm.id
                     WHERE lcmu.user_id = users.id
                     AND lcmu.course_id IN ({$courseIdList})
-                    AND lcmu.is_completed = 1
+                    AND lcmu.absen_masuk = 1
+                    AND lcmu.absen_pulang = 1
                     AND lm.start_time IS NOT NULL
                     AND lm.end_time IS NOT NULL
                 ), 0) as total_training_hours

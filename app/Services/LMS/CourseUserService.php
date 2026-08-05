@@ -78,4 +78,29 @@ class CourseUserService
 
         $courseUser->update(['status' => CourseUserStatus::CANCELED->value]);
     }
+
+    /**
+     * completed_at ditandai manual oleh L&D di sini, bukan otomatis dari absensi/quiz —
+     * kehadiran masih diisi manual (absen_masuk/absen_pulang) jadi tidak ada sinyal otomatis
+     * yang bisa dipercaya untuk "kursus ini selesai".
+     */
+    public function markCompleted(LmsCourseUsers $courseUser, User $actor): void
+    {
+        abort_unless($actor->can(CustomPermissionEnum::EDIT_DETAIL_KURSUS_LMS->value), 403, 'Anda tidak punya izin menandai pelatihan selesai.');
+
+        $courseUser->update([
+            'status' => CourseUserStatus::COMPLETED->value,
+            'completed_at' => now(),
+        ]);
+    }
+
+    public function unmarkCompleted(LmsCourseUsers $courseUser, User $actor): void
+    {
+        abort_unless($actor->can(CustomPermissionEnum::EDIT_DETAIL_KURSUS_LMS->value), 403, 'Anda tidak punya izin membatalkan status selesai pelatihan.');
+
+        $courseUser->update([
+            'status' => CourseUserStatus::APPROVED->value,
+            'completed_at' => null,
+        ]);
+    }
 }

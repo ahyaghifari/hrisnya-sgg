@@ -162,6 +162,31 @@ class ParticipantCourses extends Page implements HasTable
                             Notification::make()->title('Pendaftaran ditolak')->danger()->send();
                         }),
 
+                    Action::make('mark_completed')
+                        ->label('Tandai Selesai')
+                        ->icon('heroicon-o-flag')
+                        ->color('success')
+                        ->requiresConfirmation()
+                        ->modalDescription('Absensi masih diisi manual, jadi status selesai perlu ditandai manual oleh L&D. Tandai pelatihan ini selesai untuk peserta?')
+                        ->visible(fn (LmsCourseUsers $record): bool => in_array($record->status, [CourseUserStatus::APPROVED->value, CourseUserStatus::IN_PROGRESS->value], true))
+                        ->action(function (LmsCourseUsers $record): void {
+                            app(CourseUserService::class)->markCompleted($record, auth()->user());
+
+                            Notification::make()->title('Pelatihan ditandai selesai')->success()->send();
+                        }),
+
+                    Action::make('unmark_completed')
+                        ->label('Batalkan Selesai')
+                        ->icon('heroicon-o-arrow-uturn-left')
+                        ->color('warning')
+                        ->requiresConfirmation()
+                        ->visible(fn (LmsCourseUsers $record): bool => $record->status === CourseUserStatus::COMPLETED->value)
+                        ->action(function (LmsCourseUsers $record): void {
+                            app(CourseUserService::class)->unmarkCompleted($record, auth()->user());
+
+                            Notification::make()->title('Status selesai dibatalkan')->success()->send();
+                        }),
+
                     Action::make('upload_certificate')
                         ->label('Unggah Sertifikat')
                         ->icon('heroicon-o-document-arrow-up')

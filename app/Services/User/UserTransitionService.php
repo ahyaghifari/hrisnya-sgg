@@ -140,7 +140,7 @@ class UserTransitionService
      * pensiun dari Tanggal Lahir (USIA_PENSIUN_TAHUN) - throw kalau melanggar, gagal-cepat
      * sebelum record dibuat. 0 di setting = tidak dibatasi.
      */
-    private function resolveContractEndDate(User $user, Carbon $anchor, ?string $companyId): Carbon
+    public function resolveContractEndDate(User $user, Carbon $anchor, ?string $companyId): Carbon
     {
         $months = (int) Setting::resolve(
             KepegawaianSettingEnum::PERPANJANGAN_KONTRAK_BULAN->value,

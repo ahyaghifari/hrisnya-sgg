@@ -20,7 +20,8 @@ use Maatwebsite\Excel\Facades\Excel;
 /**
  * "Laporan Pelatihan" — padanan portal dari Filament TrainingReportResource (halaman filter
  * tunggal, bukan CRUD). Pilih periode Baseline Pelatihan aktif → tabel matriks karyawan × kursus
- * (ikut jendela start_date baseline), total jam pelatihan (dari pertemuan yang is_completed),
+ * (ikut jendela start_date baseline), total jam pelatihan (dari pertemuan yang sudah diabsen
+ * manual masuk & pulang oleh L&D — absen_masuk/absen_pulang, bukan is_completed),
  * jam belum terpenuhi vs min_hours baseline, dan total pelatihan diikuti. Export Excel pakai
  * class export yang SAMA dengan admin (App\Exports\LMS\TrainingReportExport) — tidak
  * di-duplikasi, cuma dipanggil ulang dengan data dari komponen ini.
@@ -129,7 +130,8 @@ class TrainingReportPage extends Component
             ->groupBy('user_id');
 
         $completedMeetingUsers = LmsCourseMeetingUsers::whereIn('course_id', $courseIds)
-            ->where('is_completed', true)
+            ->where('absen_masuk', true)
+            ->where('absen_pulang', true)
             ->with('meeting:id,start_time,end_time')
             ->get()
             ->groupBy('user_id');

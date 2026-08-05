@@ -1,16 +1,16 @@
 <div>
 <x-page-header title="Daftar Pelatihan" />
 
+@if (auth()->user()->can(\App\Enum\CustomPermissionEnum::AJUKAN_PELATIHAN->value))
 <div style="display:flex;justify-content:flex-start;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
     <a href="{{ route('pelatihan.pengajuan-saya') }}" wire:navigate class="btn-ghost" style="padding:5px 10px;font-size:11.5px;">
         <i class="fa-solid fa-clipboard-list" style="font-size:11px;"></i> Pengajuan Saya
     </a>
-    @if (auth()->user()->can(\App\Enum\CustomPermissionEnum::AJUKAN_PELATIHAN->value))
-        <a href="{{ route('pelatihan.pengajuan') }}" wire:navigate class="btn-primary" style="padding:5px 10px;font-size:11.5px;">
+    <a href="{{ route('pelatihan.pengajuan') }}" wire:navigate class="btn-primary" style="padding:5px 10px;font-size:11.5px;">
             <i class="fa-solid fa-plus" style="font-size:11px;"></i> Ajukan Pelatihan
         </a>
-    @endif
-</div>
+    </div>
+@endif
 
 {{--
     List.js (headless, lihat resources/js/app.js) urus cari/filter kategori/filter status

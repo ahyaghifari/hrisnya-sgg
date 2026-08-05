@@ -472,6 +472,7 @@ class LmsCoursesForm
                                                 // persetujuan, beda dari self-enroll API yang masih butuh direview.
                                                 'status' => CourseUserStatus::APPROVED->value,
                                                 'score' => 0,
+                                                'enrolled_at' => now(),
                                             ]);
                                         }
                                     }

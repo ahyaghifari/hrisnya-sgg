@@ -285,9 +285,12 @@
                 </div>
                 <div>
                     <label class="form-label">Tanggal Efektif <span style="color:var(--danger-text);">*</span></label>
-                    <input type="date" wire:model="effective_date" class="form-input">
+                    <input type="date" wire:model.live="effective_date" class="form-input">
                     @error('effective_date') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
                     <p style="font-size:11px;color:var(--text-muted);margin-top:4px;">Kalau status barunya Kontrak, tanggal kontrak berakhir otomatis dihitung dari tanggal ini + durasi perpanjangan (Pengaturan Kepegawaian) - tidak perlu diisi manual.</p>
+                    @if ($this->contractEndPreview)
+                        <p style="font-size:12px;font-weight:600;color:var(--brand);margin-top:4px;">{{ $this->contractEndPreview }}</p>
+                    @endif
                 </div>
                 <div>
                     <label class="form-label">Alasan</label>

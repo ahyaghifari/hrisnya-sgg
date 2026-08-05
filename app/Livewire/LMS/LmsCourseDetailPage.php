@@ -261,6 +261,7 @@ class LmsCourseDetailPage extends Component
                 'is_mandatory' => true,
                 'status' => CourseUserStatus::APPROVED->value,
                 'score' => 0,
+                'enrolled_at' => now(),
             ]);
         }
 

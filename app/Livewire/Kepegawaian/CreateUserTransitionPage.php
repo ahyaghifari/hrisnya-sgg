@@ -193,6 +193,35 @@ class CreateUserTransitionPage extends Component
         return $date ? \Illuminate\Support\Carbon::parse($date)->translatedFormat('d F Y') : null;
     }
 
+    /** Preview "Kontrak Berlaku Sampai" saat status baru = Kontrak & tanggal efektif sudah diisi -
+     * dihitung pakai logic yang sama dengan yang dipakai saat submit (UserTransitionService),
+     * termasuk pesan error kalau melanggar batas masa kerja/usia pensiun. */
+    public function getContractEndPreviewProperty(): ?string
+    {
+        if ($this->transition_type !== UserTransitionTypeEnum::EMPLOYMENT_STATUS_CHANGE->value) {
+            return null;
+        }
+
+        $target = $this->getTargetUser();
+        $newEmployeeType = $this->transitionable_id ? EmployeeTypes::find($this->transitionable_id) : null;
+
+        if (! $target || ! $this->effective_date || $newEmployeeType?->category !== EmployeeTypeCategory::KONTRAK) {
+            return null;
+        }
+
+        try {
+            $endDate = app(UserTransitionService::class)->resolveContractEndDate(
+                $target,
+                \Illuminate\Support\Carbon::parse($this->effective_date),
+                $target->company_id,
+            );
+
+            return 'Kontrak akan berakhir pada ' . $endDate->translatedFormat('d F Y') . '.';
+        } catch (\Exception $e) {
+            return $e->getMessage();
+        }
+    }
+
     public function updatedUserId(): void
     {
         $this->transitionable_id = null;
