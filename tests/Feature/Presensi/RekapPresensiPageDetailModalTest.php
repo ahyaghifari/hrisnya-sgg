@@ -19,8 +19,11 @@ use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 /**
- * Klik baris di mode Periode (bulanan) buka modal rincian absensi harian - cuma baris
- * attendance_records karyawan itu, dalam window date_from/date_to yang lagi ditampilkan.
+ * Klik baris di mode Periode (bulanan) buka modal rincian absensi harian - SATU baris per
+ * tanggal kalender dalam window date_from/date_to (bukan cuma tanggal yang kebetulan punya
+ * baris attendance_records), karena approve Cuti/Izin TIDAK otomatis bikin baris
+ * attendance_records - kalau modal cuma nampilin baris yang ADA, Cuti multi-hari yang
+ * karyawannya tidak pernah scan sepanjang cuti itu (kasus umum) malah hilang dari tabel.
  */
 class RekapPresensiPageDetailModalTest extends TestCase
 {
@@ -38,38 +41,103 @@ class RekapPresensiPageDetailModalTest extends TestCase
         return $user;
     }
 
-    public function test_clicking_row_shows_only_that_users_records_within_period(): void
+    public function test_shows_one_row_per_calendar_date_in_period_with_correct_record_data(): void
     {
         $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
         $viewer = $this->actingAsAbsensi($company->id);
         $employee = User::factory()->create(['company_id' => $company->id, 'name' => 'Budi Santoso']);
         $otherEmployee = User::factory()->create(['company_id' => $company->id, 'name' => 'Lainnya']);
 
+        // Day 1 & 3 punya baris attendance_records, day 2 sengaja TIDAK punya sama sekali.
         AttendanceRecords::create(['user_id' => $employee->id, 'nip' => $employee->nip, 'date' => '2026-07-05', 'check_in_time' => '08:00:00', 'check_out_time' => '17:00:00', 'status' => AttendanceStatus::PRESENT->value]);
-        AttendanceRecords::create(['user_id' => $employee->id, 'nip' => $employee->nip, 'date' => '2026-07-06', 'check_in_time' => '08:15:00', 'check_out_time' => '17:00:00', 'status' => AttendanceStatus::LATE->value, 'late_minutes' => 15]);
-        // Di luar periode - tidak boleh ikut muncul.
-        AttendanceRecords::create(['user_id' => $employee->id, 'nip' => $employee->nip, 'date' => '2026-08-01', 'check_in_time' => '08:00:00', 'check_out_time' => '17:00:00', 'status' => AttendanceStatus::PRESENT->value]);
-        // Karyawan lain - tidak boleh ikut muncul.
-        AttendanceRecords::create(['user_id' => $otherEmployee->id, 'nip' => $otherEmployee->nip, 'date' => '2026-07-05', 'check_in_time' => '08:00:00', 'check_out_time' => '17:00:00', 'status' => AttendanceStatus::PRESENT->value]);
+        AttendanceRecords::create(['user_id' => $employee->id, 'nip' => $employee->nip, 'date' => '2026-07-07', 'check_in_time' => '08:15:00', 'check_out_time' => '17:00:00', 'status' => AttendanceStatus::LATE->value, 'late_minutes' => 15]);
+        // Karyawan lain - tidak boleh mempengaruhi baris employee ini.
+        AttendanceRecords::create(['user_id' => $otherEmployee->id, 'nip' => $otherEmployee->nip, 'date' => '2026-07-06', 'check_in_time' => '08:00:00', 'check_out_time' => '17:00:00', 'status' => AttendanceStatus::PRESENT->value]);
 
         $this->actingAs($viewer);
 
-        Livewire::test(RekapPresensiPage::class)
-            ->set('date_from', '2026-07-01')
-            ->set('date_to', '2026-07-31')
+        $component = Livewire::test(RekapPresensiPage::class)
+            ->set('date_from', '2026-07-05')
+            ->set('date_to', '2026-07-07')
             ->call('openDetail', $employee->id)
             ->assertSet('selectedUserId', $employee->id)
             ->assertSee('Budi Santoso');
 
-        $component = Livewire::test(RekapPresensiPage::class)
-            ->set('date_from', '2026-07-01')
-            ->set('date_to', '2026-07-31')
-            ->call('openDetail', $employee->id);
-
         $rows = $component->instance()->selectedUserDetailRows;
 
-        $this->assertCount(2, $rows);
-        $this->assertSame(['2026-07-05', '2026-07-06'], $rows->pluck('date')->map(fn ($d) => (string) $d)->all());
+        $this->assertCount(3, $rows);
+        $this->assertSame(['2026-07-05', '2026-07-06', '2026-07-07'], $rows->pluck('date')->all());
+
+        $day1 = $rows->firstWhere('date', '2026-07-05');
+        $day2 = $rows->firstWhere('date', '2026-07-06');
+        $day3 = $rows->firstWhere('date', '2026-07-07');
+
+        $this->assertTrue($day1->has_record);
+        $this->assertSame(AttendanceStatus::PRESENT->value, $day1->status);
+
+        $this->assertFalse($day2->has_record);
+        $this->assertNull($day2->status);
+
+        $this->assertTrue($day3->has_record);
+        $this->assertSame(AttendanceStatus::LATE->value, $day3->status);
+    }
+
+    /**
+     * Reproduksi laporan bug: Cuti 3 hari (range) yang karyawannya sama sekali tidak scan
+     * sepanjang cuti itu (tidak ada baris attendance_records) - sebelumnya hilang total dari
+     * modal karena modal cuma nampilin baris yang ADA di attendance_records. Sekarang harus
+     * tetap muncul (via full-calendar), dan ke-cocokkan ke pengajuan Cuti-nya lewat
+     * selectedUserLeaveOrPermissionDates untuk SEMUA tanggal di rentang cuti itu, bukan cuma
+     * tanggal awal/akhirnya.
+     */
+    public function test_multi_day_leave_range_with_zero_attendance_records_is_still_matched(): void
+    {
+        $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
+        $viewer = $this->actingAsAbsensi($company->id);
+        $employee = User::factory()->create(['company_id' => $company->id]);
+
+        // TIDAK ada baris attendance_records sama sekali untuk 2026-07-10 s/d 2026-07-12.
+        $request = AttendanceRequests::create(['user_id' => $employee->id, 'type' => 'leave', 'status' => AttendanceReqStatus::APPROVED->value]);
+        AttendanceRequestLeaveDetails::create(['request_id' => $request->id, 'start_date' => '2026-07-10', 'end_date' => '2026-07-12', 'total_days' => 3]);
+
+        $this->actingAs($viewer);
+
+        $map = Livewire::test(RekapPresensiPage::class)
+            ->set('date_from', '2026-07-01')
+            ->set('date_to', '2026-07-31')
+            ->call('openDetail', $employee->id)
+            ->instance()
+            ->selectedUserLeaveOrPermissionDates;
+
+        foreach (['2026-07-10', '2026-07-11', '2026-07-12'] as $date) {
+            $this->assertArrayHasKey($date, $map, "Tanggal {$date} (di tengah rentang cuti) harusnya ikut ke-cocokkan.");
+            $this->assertSame('leave', $map[$date]['type']);
+        }
+    }
+
+    /** Cuti yang MULAI sebelum periode terpilih dan berakhir DI DALAM periode - tetap harus
+     * ke-cocokkan untuk bagian yang overlap dengan periode. */
+    public function test_leave_range_starting_before_selected_period_is_clamped_and_matched(): void
+    {
+        $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
+        $viewer = $this->actingAsAbsensi($company->id);
+        $employee = User::factory()->create(['company_id' => $company->id]);
+
+        $request = AttendanceRequests::create(['user_id' => $employee->id, 'type' => 'leave', 'status' => AttendanceReqStatus::APPROVED->value]);
+        AttendanceRequestLeaveDetails::create(['request_id' => $request->id, 'start_date' => '2026-06-28', 'end_date' => '2026-07-03', 'total_days' => 6]);
+
+        $this->actingAs($viewer);
+
+        $map = Livewire::test(RekapPresensiPage::class)
+            ->set('date_from', '2026-07-01')
+            ->set('date_to', '2026-07-31')
+            ->call('openDetail', $employee->id)
+            ->instance()
+            ->selectedUserLeaveOrPermissionDates;
+
+        $this->assertArrayNotHasKey('2026-06-28', $map); // di luar periode, tidak usah muncul di map
+        $this->assertArrayHasKey('2026-07-01', $map);
+        $this->assertArrayHasKey('2026-07-03', $map);
     }
 
     public function test_absent_day_with_approved_leave_is_flagged_as_possible_leave(): void

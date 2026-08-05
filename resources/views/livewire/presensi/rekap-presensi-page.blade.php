@@ -330,13 +330,31 @@ per-tanggal dalam periode yang lagi ditampilkan, bukan cuma angka agregat di tab
                         @php $leaveOrPermissionDates = $this->selectedUserLeaveOrPermissionDates; @endphp
                         @forelse ($this->selectedUserDetailRows as $detail)
                             @php
-                                $style = $statusStyle[$detail->status] ?? ['label' => $detail->status ?? '-', 'color' => '#64748b', 'bg' => 'rgba(100,116,139,0.1)'];
-                                $possibleLeave = $detail->status === \App\Enum\AttendanceStatus::ABSENT->value ? ($leaveOrPermissionDates[$detail->date] ?? null) : null;
-                                // Absent TAPI ada pengajuan Cuti/Izin (approved/masih diproses) di tanggal itu -
-                                // kemungkinan cuma belum sempat ke-sync/approve, jangan ditampilkan merah tegas
-                                // seolah pasti mangkir. Absent TANPA pengajuan sama sekali -> tetap merah ($style asli).
-                                if ($possibleLeave) {
-                                    $style = ['label' => $style['label'], 'color' => '#b45309', 'bg' => 'rgba(180,83,9,0.15)'];
+                                $foundLeave = $leaveOrPermissionDates[$detail->date] ?? null;
+
+                                if (! $detail->has_record) {
+                                    // Tidak ada baris attendance_records SAMA SEKALI untuk tanggal ini - wajar
+                                    // untuk Cuti/Izin (approval tidak nulis attendance_records). Ada pengajuan
+                                    // -> tampilkan langsung sebagai Cuti/Izin (bukan cuma "kemungkinan", karena
+                                    // memang tidak ada data presensi yang bertentangan). Tidak ada pengajuan
+                                    // sama sekali -> abu-abu "Tidak Ada Data" (belum tentu absen, cuma belum
+                                    // pernah ke-sync/scan).
+                                    if ($foundLeave) {
+                                        $style = $foundLeave['type'] === 'leave' ? $statusStyle['leave'] : $statusStyle['permit'];
+                                    } else {
+                                        $style = ['label' => 'Tidak Ada Data', 'color' => '#94a3b8', 'bg' => 'rgba(148,163,184,0.1)'];
+                                    }
+                                    $possibleLeave = null;
+                                } else {
+                                    $style = $statusStyle[$detail->status] ?? ['label' => $detail->status ?? '-', 'color' => '#64748b', 'bg' => 'rgba(100,116,139,0.1)'];
+                                    // Baris ADA tapi statusnya 'absent' dan TETAP ada pengajuan Cuti/Izin di
+                                    // tanggal itu - kontradiksi (mestinya kalau sync jalan benar, baris begini
+                                    // dikecualikan - lihat syncAbsentStatus()), tampilkan hedged "Kemungkinan",
+                                    // bukan Cuti/Izin pasti, karena ada baris presensi nyata yang bilang absent.
+                                    $possibleLeave = $detail->status === \App\Enum\AttendanceStatus::ABSENT->value ? $foundLeave : null;
+                                    if ($possibleLeave) {
+                                        $style = ['label' => $style['label'], 'color' => '#b45309', 'bg' => 'rgba(180,83,9,0.15)'];
+                                    }
                                 }
                             @endphp
                             <tr style="background:{{ $style['bg'] }};">
@@ -352,7 +370,9 @@ per-tanggal dalam periode yang lagi ditampilkan, bukan cuma angka agregat di tab
                                 <td style="text-align:center;">{{ $detail->check_out_time ? \Illuminate\Support\Str::substr($detail->check_out_time, 0, 5) : '–' }}</td>
                                 <td>
                                     @if ($possibleLeave)
-                                        <span style="color:#b45309;font-weight:600;"><i class="fa-solid fa-circle-question"></i> Kemungkinan {{ $possibleLeave['label'] }} ({{ $possibleLeave['status']->getLabel() }})</span>
+                                        <span style="color:#b45309;font-weight:600;"><i class="fa-solid fa-circle-question"></i> Kemungkinan {{ $possibleLeave['label'] }} ({{ $possibleLeave['status']->getLabel() }}) - ada baris presensi absent</span>
+                                    @elseif ($foundLeave)
+                                        <span style="color:{{ $foundLeave['type'] === 'leave' ? $statusStyle['leave']['color'] : $statusStyle['permit']['color'] }};font-weight:600;"><i class="fa-solid fa-circle-check"></i> Mengajukan {{ $foundLeave['label'] }} ({{ $foundLeave['status']->getLabel() }})</span>
                                     @else
                                         <span style="color:var(--text-faint);">–</span>
                                     @endif

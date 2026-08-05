@@ -446,9 +446,17 @@ class RekapPresensiPage extends Component
         return $this->baseUserQuery()->find($this->selectedUserId, ['id', 'name', 'nip']);
     }
 
-    /** Baris attendance_records karyawan terpilih, per tanggal, dalam periode (date_from/date_to)
-     * yang lagi ditampilkan - ini yang bikin modal "rincian absensi" beda dari sekadar angka
-     * agregat di tabel monthlyRows. */
+    /**
+     * SATU baris per TANGGAL KALENDER dalam periode (date_from/date_to), bukan cuma tanggal yang
+     * kebetulan punya baris attendance_records - approve Cuti/Izin TIDAK otomatis bikin baris
+     * attendance_records (tidak ada listener/job yang nulis ke sana saat approval, cuma pipeline
+     * scan/sync/import yang nulis), jadi kalau modal cuma nampilin baris yang ADA di
+     * attendance_records, tanggal Cuti multi-hari yang karyawannya sama sekali tidak
+     * scan sepanjang cuti itu (kasus paling umum) malah HILANG dari tabel - cross-check Cuti/Izin
+     * di kolom paling kanan jadi kelihatan "tidak jalan" padahal barisnya memang tidak pernah
+     * muncul. Tanggal tanpa baris attendance_records ditandai `has_record = false`, status null -
+     * blade yang mutuskan tampilannya (dicocokkan ke selectedUserLeaveOrPermissionDates juga).
+     */
     public function getSelectedUserDetailRowsProperty()
     {
         if (! $this->selectedUserId) {
@@ -457,11 +465,30 @@ class RekapPresensiPage extends Component
 
         [$from, $to] = $this->monthRange;
 
-        return AttendanceRecords::query()
+        $records = AttendanceRecords::query()
             ->where('user_id', $this->selectedUserId)
             ->whereBetween('date', [$from, $to])
-            ->orderBy('date')
-            ->get();
+            ->get()
+            ->keyBy('date');
+
+        $days = collect();
+
+        for ($d = Carbon::parse($from); $d->lte(Carbon::parse($to)); $d->addDay()) {
+            $dateStr = $d->toDateString();
+            $record = $records->get($dateStr);
+
+            $days->push((object) [
+                'date' => $dateStr,
+                'has_record' => (bool) $record,
+                'status' => $record?->status,
+                'check_in_time' => $record?->check_in_time,
+                'check_out_time' => $record?->check_out_time,
+                'late_minutes' => $record?->late_minutes,
+                'working_minutes' => $record?->working_minutes,
+            ]);
+        }
+
+        return $days;
     }
 
     /**
