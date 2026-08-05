@@ -7,6 +7,7 @@ use App\Enum\AttendanceReqStatus;
 use App\Enum\CustomPermissionEnum;
 use App\Enum\Payroll\PayrollComponentEnum;
 use App\Jobs\SendPayrollSlipJob;
+use App\Models\AuditLog;
 use App\Models\Attendance\AttendanceRequests;
 use App\Models\Payroll\CompanyPayrollComponent;
 use App\Models\Payroll\Payroll;
@@ -147,6 +148,13 @@ class PayrollDetailPage extends Component
         return Auth::user()->can('update', $this->payroll);
     }
 
+    /** Gerbang KHUSUS baris penyesuaian manual (Bon) — lebih sempit dari canEditPayroll (dipakai
+     * juga oleh markAsPaid/regenerate/dst), supaya bisa dikasih ke lebih sedikit orang. */
+    public function getCanEditAdjustmentProperty(): bool
+    {
+        return $this->canEditPayroll && Auth::user()->can(CustomPermissionEnum::EDIT_PAYROLL_ADJUSTMENT->value);
+    }
+
     public function markAsPaid(): void
     {
         abort_unless(Auth::user()->can('update', $this->payroll), 403);
@@ -193,7 +201,7 @@ class PayrollDetailPage extends Component
 
     public function openManualLineModal(string $component, ?string $lineId = null): void
     {
-        abort_unless(Auth::user()->can('update', $this->payroll), 403);
+        abort_unless($this->canEditAdjustment, 403);
 
         $this->manualLineComponent = $component;
         $this->editingManualLineId = $lineId;
@@ -221,27 +229,34 @@ class PayrollDetailPage extends Component
 
     public function saveManualLine(): void
     {
-        abort_unless(Auth::user()->can('update', $this->payroll), 403);
+        abort_unless($this->canEditAdjustment, 403);
         abort_if($this->payroll->is_paid, 403, 'Payroll yang sudah dibayar tidak bisa diubah.');
         abort_unless($this->componentEligibleForThisEmployee($this->manualLineComponent), 403, 'Tipe karyawan ini belum terdaftar sebagai penerima komponen ini di halaman Penerima Komponen Gaji.');
 
         $this->validate([
             'manualLineAmount' => 'required|numeric|min:0.01',
+            'manualLineNote' => 'required|string|max:500',
         ], [], [
             'manualLineAmount' => 'nominal',
+            'manualLineNote' => 'catatan',
         ]);
 
         $label = 'Bon';
 
         if ($this->editingManualLineId) {
-            PayrollManualLine::where('id', $this->editingManualLineId)
+            $line = PayrollManualLine::where('id', $this->editingManualLineId)
                 ->where('user_id', $this->payroll->user_id)
                 ->where('payroll_period_id', $this->payroll->payroll_period_id)
-                ->firstOrFail()
-                ->update([
-                    'amount' => $this->manualLineAmount,
-                    'note' => $this->manualLineNote,
-                ]);
+                ->firstOrFail();
+
+            $oldAmount = (string) $line->amount;
+
+            $line->update([
+                'amount' => $this->manualLineAmount,
+                'note' => $this->manualLineNote,
+            ]);
+
+            $this->recordAdjustmentAudit($line->id, $oldAmount, (string) $this->manualLineAmount);
         } else {
             // Bon mode "Detail" boleh banyak baris (rincian potongan satu-satu), mode "Simple"
             // tetap dibatasi 1 baris per periode seperti sebelumnya. Guard ini murni di kode -
@@ -251,7 +266,7 @@ class PayrollDetailPage extends Component
                 abort_if($this->manualLinesFor($this->manualLineComponent)->isNotEmpty(), 403, "Karyawan ini sudah punya baris {$label} untuk periode ini — ubah baris yang ada, bukan menambah baru.");
             }
 
-            PayrollManualLine::create([
+            $line = PayrollManualLine::create([
                 'payroll_period_id' => $this->payroll->payroll_period_id,
                 'user_id' => $this->payroll->user_id,
                 'component' => $this->manualLineComponent,
@@ -259,6 +274,8 @@ class PayrollDetailPage extends Component
                 'note' => $this->manualLineNote,
                 'created_by' => Auth::id(),
             ]);
+
+            $this->recordAdjustmentAudit($line->id, null, (string) $this->manualLineAmount);
         }
 
         $this->showManualLineModal = false;
@@ -272,19 +289,47 @@ class PayrollDetailPage extends Component
 
     public function deleteManualLine(string $lineId): void
     {
-        abort_unless(Auth::user()->can('update', $this->payroll), 403);
+        abort_unless($this->canEditAdjustment, 403);
         abort_if($this->payroll->is_paid, 403, 'Payroll yang sudah dibayar tidak bisa diubah.');
 
-        PayrollManualLine::where('id', $lineId)
+        $line = PayrollManualLine::where('id', $lineId)
             ->where('user_id', $this->payroll->user_id)
             ->where('payroll_period_id', $this->payroll->payroll_period_id)
-            ->delete();
+            ->firstOrFail();
+
+        $oldAmount = (string) $line->amount;
+        $line->delete();
+
+        $this->recordAdjustmentAudit($lineId, $oldAmount, null);
 
         Notification::make()
             ->title('Berhasil dihapus')
             ->body('Klik "Regenerate Payroll Ini" supaya perubahannya masuk ke payroll.')
             ->success()
             ->send();
+    }
+
+    /**
+     * Jejak "siapa ubah nominal adjustment manual apa, kapan" — sengaja dicatat eksplisit di
+     * sini (bukan lewat trait LogsAuditChanges yang nempel di model), karena PayrollManualLine
+     * juga dipakai untuk input rutin Koperasi/Bon impor Excel (BonImport) yang BUKAN
+     * "penyesuaian" — kalau trait ditempel ke modelnya, tiap import Excel bulanan ikut kecatat
+     * jadi log penuh noise. Cuma jalur manual dari halaman ini (openManualLineModal) yang
+     * dianggap adjustment dan dicatat.
+     */
+    private function recordAdjustmentAudit(string $lineId, ?string $oldAmount, ?string $newAmount): void
+    {
+        $label = 'Bon — ' . $this->payroll->user->name
+            . ($this->manualLineNote ? " ({$this->manualLineNote})" : '');
+
+        AuditLog::record(
+            'payroll_adjustment',
+            $this->payroll->payrollPeriod->company_id,
+            'payroll_manual_line:' . $lineId,
+            $label,
+            $oldAmount,
+            $newAmount,
+        );
     }
 
     /** Regenerate payroll SATU karyawan ini saja — ID payroll berubah, jadi redirect ke yang baru. */

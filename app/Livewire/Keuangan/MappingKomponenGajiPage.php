@@ -194,26 +194,6 @@ class MappingKomponenGajiPage extends Component implements HasActions, HasSchema
             : collect();
     }
 
-    /** Kelas ini ada di rentang start_kelas..max_kelas Pangkat (dibandingkan lewat level, sama
-     * pola Kelas::pangkatsInRange()) - Pangkat yang belum diisi salah satu batasnya dianggap
-     * tanpa batasan di sisi itu (tidak mengunci apa-apa), bukan malah dikunci total. */
-    public function kelasInPangkatRange(Pangkats $p, Kelas $k): bool
-    {
-        if ($k->level === null) {
-            return true;
-        }
-
-        if ($p->startKelas && $k->level < $p->startKelas->level) {
-            return false;
-        }
-
-        if ($p->maxKelas && $k->level > $p->maxKelas->level) {
-            return false;
-        }
-
-        return true;
-    }
-
     public function getKelasListProperty()
     {
         return $this->companyId ? Kelas::where('company_id', $this->companyId)->orderBy('level')->get() : collect();
@@ -374,24 +354,12 @@ class MappingKomponenGajiPage extends Component implements HasActions, HasSchema
             'jabatanMatrix.*' => $this->nonNegativeAmountRule(),
         ], [], ['jabatanMatrix.*' => 'nominal tunjangan jabatan']);
 
-        $pangkatsById = $this->pangkats->keyBy('id');
-        $kelasById = $this->kelasList->keyBy('id');
-
         foreach ($this->jabatanMatrix as $key => $value) {
             if ($value === '' || $value === null) {
                 continue;
             }
 
             [$pangkatId, $kelasId] = explode('|', $key, 2);
-
-            // Kombinasi di luar rentang start_kelas..max_kelas Pangkat-nya dikunci di UI
-            // (lihat kelasInPangkatRange() & blade), tapi tetap dijaga di sini juga - jaga-jaga
-            // request langsung/race condition, bukan cuma mengandalkan disabled di client.
-            $p = $pangkatsById->get($pangkatId);
-            $k = $kelasById->get($kelasId);
-            if ($p && $k && ! $this->kelasInPangkatRange($p, $k)) {
-                continue;
-            }
 
             PositionAllowance::updateOrCreate(
                 ['pangkat_id' => $pangkatId, 'kelas_id' => $kelasId],

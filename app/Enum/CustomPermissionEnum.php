@@ -48,6 +48,13 @@ enum CustomPermissionEnum: string
     case EDIT_PENERIMA_KOMPONEN_GAJI = 'edit_penerima_komponen_gaji';
     case EDIT_KOMPONEN_GAJI = 'edit_komponen_gaji';
     case EDIT_KOMPONEN_GAJI_GLOBAL = 'edit_komponen_gaji_global';
+
+    /** Tambah/ubah/hapus baris penyesuaian manual di payroll SATU karyawan (baris Bon di
+     * PayrollDetailPage, "Add Adjustment" di Filament PayrollItemsRelationManager) — dipisah
+     * dari Update:Payroll (yang juga dipakai markAsPaid/regenerate/dst) supaya bisa dikasih ke
+     * lebih sedikit orang. Tetap butuh Update:Payroll juga (dicek dulu sebelum ini) - permission
+     * ini mempersempit, bukan pengganti. */
+    case EDIT_PAYROLL_ADJUSTMENT = 'edit_payroll_adjustment';
     case EDIT_DETAIL_KURSUS_LMS = 'edit_detail_kursus_lms';
     case EDIT_HONORARIUM_LMS = 'edit_honorarium_lms';
     case EDIT_PENGATURAN_ABSENSI = 'edit_pengaturan_absensi';
@@ -103,6 +110,7 @@ enum CustomPermissionEnum: string
             self::EDIT_PENERIMA_KOMPONEN_GAJI => 'Edit Penerima Komponen Gaji',
             self::EDIT_KOMPONEN_GAJI => 'Edit Komponen Gaji',
             self::EDIT_KOMPONEN_GAJI_GLOBAL => 'Edit Pengaturan Global Komponen Gaji',
+            self::EDIT_PAYROLL_ADJUSTMENT => 'Edit Penyesuaian Manual Payroll (Adjustment)',
             self::EDIT_DETAIL_KURSUS_LMS => 'Edit Detail Kursus LMS',
             self::EDIT_HONORARIUM_LMS => 'Edit Honorarium LMS',
             self::EDIT_PENGATURAN_ABSENSI => 'Edit Pengaturan Absensi',

@@ -5,6 +5,7 @@ namespace Tests\Feature\Payroll;
 use App\Enum\CustomPermissionEnum;
 use App\Enum\Payroll\PayrollComponentEnum;
 use App\Livewire\Keuangan\PayrollDetailPage;
+use App\Models\AuditLog;
 use App\Models\Master\Companies;
 use App\Models\Master\EmployeeTypes;
 use App\Models\Payroll\CompanyPayrollComponent;
@@ -34,7 +35,23 @@ class PayrollDetailPageManualLineTest extends TestCase
     {
         Permission::firstOrCreate(['name' => CustomPermissionEnum::SISTEM_KEUANGAN->value, 'guard_name' => 'web']);
         Permission::firstOrCreate(['name' => 'Update:Payroll', 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => CustomPermissionEnum::EDIT_PAYROLL_ADJUSTMENT->value, 'guard_name' => 'web']);
         $role = Role::firstOrCreate(['name' => 'Keuangan Payroll Test', 'guard_name' => 'web']);
+        $role->givePermissionTo([CustomPermissionEnum::SISTEM_KEUANGAN->value, 'Update:Payroll', CustomPermissionEnum::EDIT_PAYROLL_ADJUSTMENT->value]);
+
+        $user = User::factory()->create();
+        $user->assignRole($role);
+
+        return $user;
+    }
+
+    /** Finance biasa tanpa EDIT_PAYROLL_ADJUSTMENT — bisa lihat Detail Payroll (SISTEM_KEUANGAN +
+     * Update:Payroll) tapi TIDAK boleh nambah/ubah/hapus baris penyesuaian manual. */
+    private function actingAsFinanceWithoutAdjustmentPermission(): User
+    {
+        Permission::firstOrCreate(['name' => CustomPermissionEnum::SISTEM_KEUANGAN->value, 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'Update:Payroll', 'guard_name' => 'web']);
+        $role = Role::firstOrCreate(['name' => 'Keuangan Payroll Test Terbatas', 'guard_name' => 'web']);
         $role->givePermissionTo([CustomPermissionEnum::SISTEM_KEUANGAN->value, 'Update:Payroll']);
 
         $user = User::factory()->create();
@@ -75,6 +92,7 @@ class PayrollDetailPageManualLineTest extends TestCase
             ->test(PayrollDetailPage::class, ['payroll' => $payroll])
             ->call('openManualLineModal', 'bon')
             ->set('manualLineAmount', '100000')
+            ->set('manualLineNote', 'Bon tanggal 5')
             ->call('saveManualLine');
 
         $this->assertSame(1, \App\Models\Payroll\PayrollManualLine::where('payroll_period_id', $payroll->payroll_period_id)->count());
@@ -83,6 +101,7 @@ class PayrollDetailPageManualLineTest extends TestCase
             ->test(PayrollDetailPage::class, ['payroll' => $payroll])
             ->call('openManualLineModal', 'bon')
             ->set('manualLineAmount', '50000')
+            ->set('manualLineNote', 'Ganti kerugian barang')
             ->call('saveManualLine')
             ->assertForbidden();
 
@@ -122,5 +141,40 @@ class PayrollDetailPageManualLineTest extends TestCase
         $this->assertSame(2, \App\Models\Payroll\PayrollManualLine::where('payroll_period_id', $payroll->payroll_period_id)
             ->where('component', PayrollComponentEnum::BON->value)
             ->count());
+    }
+
+    public function test_user_without_adjustment_permission_cannot_open_or_save_manual_line(): void
+    {
+        $finance = $this->actingAsFinanceWithoutAdjustmentPermission();
+        $payroll = $this->makePayrollForBon();
+
+        Livewire::actingAs($finance)
+            ->test(PayrollDetailPage::class, ['payroll' => $payroll])
+            ->call('openManualLineModal', 'bon')
+            ->assertForbidden();
+
+        $this->assertSame(0, \App\Models\Payroll\PayrollManualLine::where('payroll_period_id', $payroll->payroll_period_id)->count());
+    }
+
+    public function test_saving_manual_line_writes_audit_log_entry(): void
+    {
+        $finance = $this->actingAsFinance();
+        $payroll = $this->makePayrollForBon();
+
+        Livewire::actingAs($finance)
+            ->test(PayrollDetailPage::class, ['payroll' => $payroll])
+            ->call('openManualLineModal', 'bon')
+            ->set('manualLineAmount', '100000')
+            ->set('manualLineNote', 'Koreksi kesalahan hitung lembur')
+            ->call('saveManualLine')
+            ->assertOk();
+
+        $log = AuditLog::where('module', 'payroll_adjustment')->first();
+
+        $this->assertNotNull($log);
+        $this->assertSame($finance->id, $log->user_id);
+        $this->assertNull($log->old_value);
+        $this->assertSame('100000', $log->new_value);
+        $this->assertStringContainsString('Koreksi kesalahan hitung lembur', $log->label);
     }
 }

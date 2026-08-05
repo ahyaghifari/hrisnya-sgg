@@ -136,7 +136,7 @@
                                 <div style="display:flex;justify-content:space-between;gap:8px;font-size:12.5px;">
                                     <span style="color:{{ $row['hasValue'] ? 'var(--text-body)' : 'var(--text-faint)' }};">
                                         {{ $row['label'] }}
-                                        @if (($row['component'] ?? null) === \App\Enum\Payroll\PayrollComponentEnum::BON->value && $this->bonAktif && ! $payroll->is_paid && ($this->bonMetode === 'detail' || $this->bonManualLines->isEmpty()) && $this->canEditPayroll)
+                                        @if (($row['component'] ?? null) === \App\Enum\Payroll\PayrollComponentEnum::BON->value && $this->bonAktif && ! $payroll->is_paid && ($this->bonMetode === 'detail' || $this->bonManualLines->isEmpty()) && $this->canEditAdjustment)
                                             <button type="button" wire:click="openManualLineModal('bon')" title="Tambah Bon untuk payroll ini" style="border:none;background:#d97706;color:#fff;padding:2px 7px;border-radius:5px;font-size:10px;font-weight:600;cursor:pointer;">+ Tambah</button>
                                         @endif
                                     </span>
@@ -153,7 +153,7 @@
                                         @foreach ($this->bonManualLines as $line)
                                             <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;font-size:11px;color:var(--text-muted);">
                                                 <span>Rp{{ number_format($line->amount, 0, ',', '.') }}{{ $line->note ? " ({$line->note})" : '' }}</span>
-                                                @if (!$payroll->is_paid && $this->canEditPayroll)
+                                                @if (!$payroll->is_paid && $this->canEditAdjustment)
                                                     <span style="display:flex;gap:4px;flex-shrink:0;">
                                                         <button type="button" wire:click="openManualLineModal('bon', '{{ $line->id }}')" title="Ubah" style="border:1px solid var(--border);background:none;color:#d97706;cursor:pointer;padding:2px 7px;border-radius:5px;font-size:10px;"><i class="fa-solid fa-pen"></i> Ubah</button>
                                                         <button type="button" wire:click="deleteManualLine('{{ $line->id }}')" wire:confirm="Hapus baris Bon ini?" title="Hapus" style="border:1px solid var(--border);background:none;color:#dc2626;cursor:pointer;padding:2px 7px;border-radius:5px;font-size:10px;"><i class="fa-solid fa-trash"></i> Hapus</button>
@@ -192,8 +192,9 @@
                     </div>
 
                     <div>
-                        <label class="form-label">Catatan (opsional)</label>
+                        <label class="form-label">Catatan (wajib diisi — alasan perubahan)</label>
                         <textarea class="form-input" rows="2" wire:model="manualLineNote"></textarea>
+                        @error('manualLineNote') <p style="font-size:11px;color:#dc2626;margin-top:4px;">{{ $message }}</p> @enderror
                     </div>
                 </div>
 

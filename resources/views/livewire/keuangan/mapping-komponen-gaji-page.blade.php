@@ -141,7 +141,7 @@
 
                         {{-- Tunjangan Jabatan (matrix pangkat x kelas) --}}
                         @if ($activeComponent === 'tunjangan_jabatan')
-                            <p style="font-size:11px;color:var(--text-muted);margin:0 0 12px;">Matriks nominal tunjangan jabatan — 1 nilai per kombinasi Pangkat x Kelas. Kombinasi yang dikosongkan tidak menghasilkan tunjangan. Kotak abu-abu (terkunci) berarti Kelas itu di luar rentang Kelas Dasar/Maksimal Pangkat-nya (diatur di halaman Pangkat).</p>
+                            <p style="font-size:11px;color:var(--text-muted);margin:0 0 12px;">Matriks nominal tunjangan jabatan — 1 nilai per kombinasi Pangkat x Kelas, semua kombinasi terbuka untuk diisi. Kombinasi yang dikosongkan tidak menghasilkan tunjangan.</p>
                             @if ($this->pangkats->isEmpty() || $this->kelasList->isEmpty())
                                 <p style="font-size:11.5px;color:var(--text-faint);">Butuh data Pangkat DAN Kelas untuk perusahaan ini dulu.</p>
                             @else
@@ -160,13 +160,8 @@
                                                 <tr>
                                                     <td style="padding:6px 10px;font-weight:600;white-space:nowrap;position:sticky;left:0;background:var(--surface);z-index:1;border-right:1.5px solid var(--border);">{{ $p->name }}</td>
                                                     @foreach ($this->kelasList as $k)
-                                                        @php $inRange = $this->kelasInPangkatRange($p, $k); @endphp
-                                                        <td style="padding:4px 6px;{{ $inRange ? '' : 'background:var(--surface-alt);' }}">
-                                                            @if ($inRange)
-                                                                <input type="number" step="0.01" class="form-input" style="width:120px;font-size:11.5px;padding:6px 8px;border-color:#042c6c;{{ $errors->has("jabatanMatrix.{$p->id}|{$k->id}") ? 'border-color:#dc2626;' : '' }}" wire:model="jabatanMatrix.{{ $p->id }}|{{ $k->id }}">
-                                                            @else
-                                                                <input type="number" step="0.01" class="form-input" style="width:120px;font-size:11.5px;padding:6px 8px;color:var(--text-faint);" value="{{ $jabatanMatrix[$p->id . '|' . $k->id] ?? '' }}" disabled title="Kelas ini di luar rentang Kelas Dasar/Maksimal pangkat {{ $p->name }}">
-                                                            @endif
+                                                        <td style="padding:4px 6px;">
+                                                            <input type="number" step="0.01" class="form-input" style="width:120px;font-size:11.5px;padding:6px 8px;{{ $errors->has("jabatanMatrix.{$p->id}|{$k->id}") ? 'border-color:#dc2626;' : '' }}" wire:model="jabatanMatrix.{{ $p->id }}|{{ $k->id }}">
                                                         </td>
                                                     @endforeach
                                                 </tr>

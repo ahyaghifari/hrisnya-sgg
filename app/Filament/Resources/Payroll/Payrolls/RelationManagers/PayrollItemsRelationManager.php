@@ -2,8 +2,11 @@
 
 namespace App\Filament\Resources\Payroll\Payrolls\RelationManagers;
 
+use App\Enum\CustomPermissionEnum;
 use App\Enum\Payroll\PayrollComponentEnum;
 use App\Filament\Resources\Payroll\Payrolls\PayrollResource;
+use App\Models\AuditLog;
+use Illuminate\Support\Facades\Auth;
 use Filament\Actions\AssociateAction;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\CreateAction;
@@ -103,6 +106,7 @@ class PayrollItemsRelationManager extends RelationManager
                     ->label('Add Adjustment')
                     ->icon('heroicon-o-plus-circle')
                     ->color('warning')
+                    ->authorize(fn () => Auth::user()->can(CustomPermissionEnum::EDIT_PAYROLL_ADJUSTMENT->value))
                     ->modalHeading('Add Payroll Adjustment')
                     ->modalDescription('This item will be treated as a manual payroll adjustment.')
                     ->schema([
@@ -145,6 +149,21 @@ class PayrollItemsRelationManager extends RelationManager
                             $payroll->increment('total_deductions', $data['amount']);
                             $payroll->decrement('net_salary', $data['amount']);
                         }
+
+                        // Jejak "siapa nambah adjustment apa" — dicatat eksplisit di sini (bukan
+                        // lewat trait LogsAuditChanges di model PayrollItem), karena PayrollItem
+                        // juga dibuat massal oleh Calculator tiap Generate/Regenerate payroll -
+                        // kalau trait ditempel ke modelnya, tiap generate (ratusan baris per
+                        // employee x semua employee) ikut kecatat, log jadi penuh noise. Cuma
+                        // jalur "Add Adjustment" manual ini yang dianggap penyesuaian.
+                        AuditLog::record(
+                            'payroll_adjustment',
+                            $payroll->payrollPeriod?->company_id,
+                            'payroll_item:' . $record->id,
+                            $record->name . ' — ' . $payroll->user?->name . ' (' . $data['note'] . ')',
+                            null,
+                            (string) $record->amount,
+                        );
 
                         $livewire->dispatch('refresh');
                     }),
