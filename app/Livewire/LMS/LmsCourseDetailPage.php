@@ -59,6 +59,10 @@ class LmsCourseDetailPage extends Component
     public array $selectedUserIds = [];
     public string $participantSearch = '';
 
+    /** id lms_course_users yang dicentang di ceklis tab Peserta, dasar aksi "Tandai Selesai
+     * (Terpilih)" — direset tiap kali tandai selesai berhasil atau pencarian berubah. */
+    public array $selectedParticipantIds = [];
+
     public ?string $expandedMeetingId = null;
     public ?string $editingMeetingId = null;
     public bool $showAddMeetingForm = false;
@@ -300,6 +304,65 @@ class LmsCourseDetailPage extends Component
         LmsCourseUsers::where('course_id', $this->course->id)->findOrFail($id)->delete();
 
         Notification::make()->title('Peserta dihapus dari pelatihan')->success()->send();
+    }
+
+    /** Absensi/quiz masih diisi manual, jadi "selesai" per peserta juga ditandai manual di
+     * sini oleh L&D — lihat CourseUserService::markCompleted(). */
+    public function markParticipantCompleted(string $id): void
+    {
+        $this->assertCanEdit();
+
+        $participant = LmsCourseUsers::where('course_id', $this->course->id)->findOrFail($id);
+        app(CourseUserService::class)->markCompleted($participant, Auth::user());
+
+        Notification::make()->title('Peserta ditandai selesai')->success()->send();
+    }
+
+    public function unmarkParticipantCompleted(string $id): void
+    {
+        $this->assertCanEdit();
+
+        $participant = LmsCourseUsers::where('course_id', $this->course->id)->findOrFail($id);
+        app(CourseUserService::class)->unmarkCompleted($participant, Auth::user());
+
+        Notification::make()->title('Status selesai peserta dibatalkan')->success()->send();
+    }
+
+    /** Peserta yang masih bisa ditandai selesai (Approved/In Progress) — dasar ceklis "Pilih
+     * Semua" di tab Peserta, supaya select-all tidak ikut mencentang yang sudah Completed/Canceled. */
+    public function getEligibleParticipantIdsProperty(): array
+    {
+        return LmsCourseUsers::where('course_id', $this->course->id)
+            ->whereIn('status', [CourseUserStatus::APPROVED->value, CourseUserStatus::IN_PROGRESS->value])
+            ->pluck('id')
+            ->all();
+    }
+
+    public function toggleSelectAllParticipants(): void
+    {
+        $this->selectedParticipantIds = count($this->selectedParticipantIds) < count($this->eligibleParticipantIds)
+            ? $this->eligibleParticipantIds
+            : [];
+    }
+
+    /** Selesaikan pelatihan untuk peserta yang dicentang saja — dipakai kalau L&D tidak perlu
+     * menandai satu-satu lewat aksi baris, tapi juga tidak mau langsung menyelesaikan semua
+     * peserta sekaligus (mis. sebagian belum ikut ujian/pertemuan terakhir). */
+    public function markSelectedParticipantsCompleted(): void
+    {
+        $this->assertCanEdit();
+
+        $service = app(CourseUserService::class);
+
+        LmsCourseUsers::where('course_id', $this->course->id)
+            ->whereIn('id', $this->selectedParticipantIds)
+            ->whereIn('status', [CourseUserStatus::APPROVED->value, CourseUserStatus::IN_PROGRESS->value])
+            ->get()
+            ->each(fn (LmsCourseUsers $participant) => $service->markCompleted($participant, Auth::user()));
+
+        $this->selectedParticipantIds = [];
+
+        Notification::make()->title('Peserta terpilih ditandai selesai')->success()->send();
     }
 
     public function getMeetingsProperty()

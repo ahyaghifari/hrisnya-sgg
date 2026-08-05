@@ -96,6 +96,12 @@
                     <i class="fa-solid fa-paper-plane"></i> Publish
                 </button>
             @endif
+
+            @if ($this->canEditDetail && count($selectedParticipantIds))
+                <button type="button" wire:click="markSelectedParticipantsCompleted" wire:confirm="Tandai {{ count($selectedParticipantIds) }} peserta terpilih selesai pelatihan?" class="btn-ghost" style="padding:9px 18px;font-size:12.5px;color:var(--brand-success);">
+                    <i class="fa-solid fa-flag-checkered"></i> Tandai Selesai ({{ count($selectedParticipantIds) }})
+                </button>
+            @endif
         </div>
     </div>
 
@@ -251,6 +257,11 @@
             <table style="width:100%;border-collapse:collapse;font-size:12.5px;">
                 <thead>
                     <tr style="border-bottom:1.5px solid var(--border);">
+                        @if ($this->canEditDetail)
+                            <th style="text-align:center;padding:10px 14px;white-space:nowrap;">
+                                <input type="checkbox" wire:click="toggleSelectAllParticipants" @checked(count($selectedParticipantIds) > 0 && count($selectedParticipantIds) >= count($this->eligibleParticipantIds)) title="Pilih Semua">
+                            </th>
+                        @endif
                         <th style="text-align:left;padding:10px 14px;white-space:nowrap;">Nama Peserta</th>
                         <th style="text-align:center;padding:10px 14px;white-space:nowrap;">Status</th>
                         <th style="text-align:center;padding:10px 14px;white-space:nowrap;">Aksi</th>
@@ -259,6 +270,13 @@
                 <tbody>
                     @forelse ($this->participants as $participant)
                         <tr wire:key="'participant-'.{{ $participant->id }}" style="border-bottom:1px solid var(--border-soft);">
+                            @if ($this->canEditDetail)
+                                <td style="padding:9px 14px;text-align:center;">
+                                    @if (in_array($participant->status, [CourseUserStatus::APPROVED->value, CourseUserStatus::IN_PROGRESS->value], true))
+                                        <input type="checkbox" wire:model.live="selectedParticipantIds" value="{{ $participant->id }}">
+                                    @endif
+                                </td>
+                            @endif
                             <td style="padding:9px 14px;font-weight:600;">{{ $participant->user?->name ?? '-' }}</td>
                             <td style="padding:9px 14px;text-align:center;">
                                 <span class="badge" style="background:var(--surface-muted);color:var(--text-muted);">{{ CourseUserStatus::tryFrom($participant->status)?->getLabel() ?? $participant->status }}</span>
@@ -274,6 +292,17 @@
                                         @if ($participant->status !== CourseUserStatus::CANCELED->value)
                                             <button type="button" wire:click="cancelParticipant('{{ $participant->id }}')" wire:confirm="Batalkan keikutsertaan peserta ini?" class="btn-ghost" style="padding:5px 10px;font-size:11px;" title="Batalkan">
                                                 <i class="fa-solid fa-ban"></i>
+                                            </button>
+                                        @endif
+                                    @endif
+                                    @if ($this->canEditDetail)
+                                        @if (in_array($participant->status, [CourseUserStatus::APPROVED->value, CourseUserStatus::IN_PROGRESS->value], true))
+                                            <button type="button" wire:click="markParticipantCompleted('{{ $participant->id }}')" wire:confirm="Tandai peserta ini selesai pelatihan?" class="btn-ghost" style="padding:5px 10px;font-size:11px;color:var(--brand-success);" title="Tandai Selesai">
+                                                <i class="fa-solid fa-flag-checkered"></i>
+                                            </button>
+                                        @elseif ($participant->status === CourseUserStatus::COMPLETED->value)
+                                            <button type="button" wire:click="unmarkParticipantCompleted('{{ $participant->id }}')" wire:confirm="Batalkan status selesai peserta ini?" class="btn-ghost" style="padding:5px 10px;font-size:11px;color:#d97706;" title="Batalkan Selesai">
+                                                <i class="fa-solid fa-rotate-left"></i>
                                             </button>
                                         @endif
                                     @endif
