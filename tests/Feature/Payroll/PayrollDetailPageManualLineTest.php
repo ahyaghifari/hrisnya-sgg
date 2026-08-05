@@ -125,6 +125,7 @@ class PayrollDetailPageManualLineTest extends TestCase
         Livewire::actingAs($finance)
             ->test(PayrollDetailPage::class, ['payroll' => $payroll])
             ->call('openManualLineModal', 'bon')
+            ->set('manualLineLabel', 'Angsuran Motor')
             ->set('manualLineAmount', '100000')
             ->set('manualLineNote', 'Bon tanggal 5')
             ->call('saveManualLine')
@@ -133,14 +134,62 @@ class PayrollDetailPageManualLineTest extends TestCase
         Livewire::actingAs($finance)
             ->test(PayrollDetailPage::class, ['payroll' => $payroll])
             ->call('openManualLineModal', 'bon')
+            ->set('manualLineLabel', 'Titipan Koperasi')
             ->set('manualLineAmount', '50000')
             ->set('manualLineNote', 'Ganti kerugian barang')
             ->call('saveManualLine')
             ->assertOk();
 
-        $this->assertSame(2, \App\Models\Payroll\PayrollManualLine::where('payroll_period_id', $payroll->payroll_period_id)
+        $lines = \App\Models\Payroll\PayrollManualLine::where('payroll_period_id', $payroll->payroll_period_id)
             ->where('component', PayrollComponentEnum::BON->value)
-            ->count());
+            ->get();
+
+        $this->assertCount(2, $lines);
+        $this->assertSame(['Angsuran Motor', 'Titipan Koperasi'], $lines->pluck('label')->sort()->values()->all());
+    }
+
+    public function test_bon_detail_mode_requires_nama_potongan(): void
+    {
+        $finance = $this->actingAsFinance();
+        $payroll = $this->makePayrollForBon();
+
+        Setting::create([
+            'company_id' => $payroll->payrollPeriod->company_id,
+            'key' => 'bon_metode',
+            'module' => 'payroll',
+            'type' => 'string',
+            'value' => 'detail',
+            'label' => 'Metode Bon',
+        ]);
+
+        Livewire::actingAs($finance)
+            ->test(PayrollDetailPage::class, ['payroll' => $payroll])
+            ->call('openManualLineModal', 'bon')
+            ->set('manualLineAmount', '100000')
+            ->set('manualLineNote', 'Bon tanggal 5')
+            // manualLineLabel sengaja dikosongkan
+            ->call('saveManualLine')
+            ->assertHasErrors(['manualLineLabel']);
+
+        $this->assertSame(0, \App\Models\Payroll\PayrollManualLine::where('payroll_period_id', $payroll->payroll_period_id)->count());
+    }
+
+    /** Bon mode Simple TIDAK butuh Nama Potongan - label boleh kosong, fallback ke "Bon". */
+    public function test_bon_simple_mode_does_not_require_nama_potongan(): void
+    {
+        $finance = $this->actingAsFinance();
+        $payroll = $this->makePayrollForBon();
+
+        Livewire::actingAs($finance)
+            ->test(PayrollDetailPage::class, ['payroll' => $payroll])
+            ->call('openManualLineModal', 'bon')
+            ->set('manualLineAmount', '100000')
+            ->set('manualLineNote', 'Bon tanggal 5')
+            ->call('saveManualLine')
+            ->assertHasNoErrors(['manualLineLabel']);
+
+        $line = \App\Models\Payroll\PayrollManualLine::where('payroll_period_id', $payroll->payroll_period_id)->first();
+        $this->assertNull($line->label);
     }
 
     public function test_user_without_adjustment_permission_cannot_open_or_save_manual_line(): void

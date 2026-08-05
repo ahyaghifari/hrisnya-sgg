@@ -35,25 +35,36 @@
 
                 <div style="background:var(--surface);border-radius:12px;box-shadow:var(--shadow-card);padding:16px;">
                     <p style="font-size:13px;font-weight:700;color:var(--text-heading);margin:0 0 4px;"><i class="fa-solid fa-hospital-user"></i> Jasa Unit per Karyawan</p>
-                    <p style="font-size:11px;color:var(--text-muted);margin:0 0 12px;">Pilih karyawan, jasa (difilter sesuai divisi karyawan itu), lalu nominal — bisa tambah beberapa baris untuk karyawan yang sama atau berbeda. Kelola daftar jasa & divisinya di halaman <a href="{{ route('keuangan.jasa-unit-types') }}" wire:navigate style="color:#042c6c;font-weight:600;">Jasa Unit</a>.</p>
+                    <p style="font-size:11px;color:var(--text-muted);margin:0 0 12px;">Pilih divisi, karyawan (difilter sesuai divisi itu), jasa (difilter sesuai divisi itu juga), lalu nominal — bisa tambah beberapa baris. Kelola daftar jasa & divisinya di halaman <a href="{{ route('keuangan.jasa-unit-types') }}" wire:navigate style="color:#042c6c;font-weight:600;">Jasa Unit</a>.</p>
 
                     <div style="display:flex;flex-direction:column;gap:10px;">
                         @foreach ($rows as $i => $row)
-                            @php $jasaOptions = $this->jasaOptionsFor($row['user_id']); @endphp
-                            <div style="display:flex;align-items:flex-start;gap:8px;flex-wrap:wrap;">
-                                <div style="flex:1;min-width:220px;" wire:ignore>
-                                    <select data-tom-select data-placeholder="-- Pilih Karyawan --" wire:model.live="rows.{{ $i }}.user_id">
-                                        <option value="">-- Pilih Karyawan --</option>
-                                        @foreach ($this->employees as $user)
-                                            <option value="{{ $user->id }}">{{ $user->name }} ({{ $user->nip }})</option>
+                            @php
+                                $rowEmployees = $this->employeesFor($row['org_structure_id']);
+                                $jasaOptions = $this->jasaOptionsFor($row['org_structure_id']);
+                            @endphp
+                            <div wire:key="jasa-unit-row-{{ $row['id'] ?? 'new-' . $i }}" style="display:flex;align-items:flex-start;gap:8px;flex-wrap:wrap;">
+                                <div style="flex:1;min-width:180px;">
+                                    <select class="form-input" style="font-size:12.5px;padding:7px 10px;" wire:model.live="rows.{{ $i }}.org_structure_id">
+                                        <option value="">-- Pilih Divisi --</option>
+                                        @foreach ($this->divisions as $division)
+                                            <option value="{{ $division->id }}">{{ $division->name }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                                <div style="flex:1;min-width:220px;">
+                                    <select class="form-input" style="font-size:12.5px;padding:7px 10px;" wire:model="rows.{{ $i }}.user_id" @disabled($rowEmployees->isEmpty())>
+                                        <option value="">{{ $rowEmployees->isEmpty() ? '-- Pilih divisi dulu --' : '-- Pilih Karyawan --' }}</option>
+                                        @foreach ($rowEmployees as $user)
+                                            <option value="{{ $user->id }}" @selected($row['user_id'] === $user->id)>{{ $user->name }} ({{ $user->nip }})</option>
                                         @endforeach
                                     </select>
                                 </div>
                                 <div style="flex:1;min-width:220px;">
                                     <select class="form-input" style="font-size:12.5px;padding:7px 10px;" wire:model="rows.{{ $i }}.jasa_unit_type_id" @disabled($jasaOptions->isEmpty())>
-                                        <option value="">{{ $jasaOptions->isEmpty() ? '-- Pilih karyawan dulu --' : '-- Pilih Jasa --' }}</option>
+                                        <option value="">{{ $jasaOptions->isEmpty() ? '-- Pilih divisi dulu --' : '-- Pilih Jasa --' }}</option>
                                         @foreach ($jasaOptions as $jasa)
-                                            <option value="{{ $jasa->id }}">{{ $jasa->name }}</option>
+                                            <option value="{{ $jasa->id }}" @selected($row['jasa_unit_type_id'] === $jasa->id)>{{ $jasa->name }}</option>
                                         @endforeach
                                     </select>
                                 </div>

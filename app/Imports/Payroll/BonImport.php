@@ -27,12 +27,12 @@ use Maatwebsite\Excel\Concerns\WithHeadingRow;
  * Idempotent per (periode, user): upload ulang untuk NIP yang sama MENGGANTI nominal
  * sebelumnya (bukan menambah baris baru) — supaya revisi file tidak dobel-hitung.
  *
- * HANYA buat setting `bon_metode` = 'simple' (default) — company dengan mode 'detail' harus
- * tambah rincian Bon satu-satu lewat halaman detail payroll (PayrollDetailPage), supaya tiap
- * baris punya keterangan sendiri dan tidak ada risiko import menimpa/menduplikasi rincian yang
- * sudah diinput manual. Gate utamanya di PayrollsPage::importGuardPasses() (tombol "Import Bon"
- * disembunyikan sama sekali kalau mode Detail) — validateRow() di sini jadi lapis kedua kalau
- * class ini dipanggil langsung (bukan lewat UI), bukan cuma sembunyikan tombol.
+ * HANYA buat setting `bon_metode` = 'simple' (default) — company dengan mode 'detail' pakai
+ * BonDetailImport (sibling class, format kolom nip/nama_potongan/nominal, upsert per nama
+ * potongan bukan per user) atau tambah rincian satu-satu lewat halaman detail payroll
+ * (PayrollDetailPage). Gate utamanya di PayrollsPage::makeImport() (pilih class sesuai
+ * bon_metode) — validateRow() di sini jadi lapis kedua kalau class ini dipanggil langsung
+ * (bukan lewat UI), bukan cuma andalkan pemilihan class di pemanggil.
  *
  * Mode `preview: true` cuma memvalidasi tiap baris (termasuk NIP tidak ditemukan) tanpa
  * menulis apa pun ke database — dipakai buat tampilkan pratinjau sebelum user klik "Simpan"
@@ -110,7 +110,7 @@ class BonImport implements ToCollection, WithHeadingRow
     private function validateRow(?User $user, float $amount, string $nip, ?string $companyId): ?string
     {
         if (Setting::resolve('bon_metode', $companyId, default: 'simple') === 'detail') {
-            return "NIP {$nip}: company ini pakai mode Bon \"Detail\" - import Excel tidak berlaku, tambah rincian Bon lewat halaman detail payroll.";
+            return "NIP {$nip}: company ini pakai mode Bon \"Detail\" - gunakan Import Bon (otomatis pakai format rincian nip/nama_potongan/nominal untuk mode ini) atau tambah rincian lewat halaman detail payroll.";
         }
 
         if (! $user) {

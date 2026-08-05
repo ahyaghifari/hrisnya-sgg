@@ -31,6 +31,9 @@ class PayrollDetailPage extends Component
     public ?string $editingManualLineId = null;
     public ?string $manualLineAmount = null;
     public ?string $manualLineNote = null;
+    /** Nama tampilan baris ini di slip (jadi payroll_items.name) - cuma dipakai & wajib diisi
+     * untuk Bon mode Detail, lihat getBonMetodeProperty(). */
+    public ?string $manualLineLabel = null;
 
     public function mount(Payroll $payroll): void
     {
@@ -213,9 +216,11 @@ class PayrollDetailPage extends Component
                 ->firstOrFail();
             $this->manualLineAmount = (string) $line->amount;
             $this->manualLineNote = $line->note;
+            $this->manualLineLabel = $line->label;
         } else {
             $this->manualLineAmount = null;
             $this->manualLineNote = null;
+            $this->manualLineLabel = null;
         }
 
         $this->resetErrorBag();
@@ -233,12 +238,19 @@ class PayrollDetailPage extends Component
         abort_if($this->payroll->is_paid, 403, 'Payroll yang sudah dibayar tidak bisa diubah.');
         abort_unless($this->componentEligibleForThisEmployee($this->manualLineComponent), 403, 'Tipe karyawan ini belum terdaftar sebagai penerima komponen ini di halaman Penerima Komponen Gaji.');
 
+        // Nama Potongan cuma wajib untuk Bon mode Detail (jadi payroll_items.name, ganti "Bon"
+        // generik) - Koperasi & Bon Simple tetap fallback ke label komponen bawaan, tidak perlu
+        // diisi (lihat AbstractManualLineCalculator).
+        $labelRequired = $this->manualLineComponent === PayrollComponentEnum::BON->value && $this->bonMetode === 'detail';
+
         $this->validate([
             'manualLineAmount' => 'required|numeric|min:0.01',
             'manualLineNote' => 'required|string|max:500',
+            'manualLineLabel' => $labelRequired ? 'required|string|max:150' : 'nullable|string|max:150',
         ], [], [
             'manualLineAmount' => 'nominal',
             'manualLineNote' => 'catatan',
+            'manualLineLabel' => 'nama potongan',
         ]);
 
         $label = 'Bon';
@@ -254,6 +266,7 @@ class PayrollDetailPage extends Component
             $line->update([
                 'amount' => $this->manualLineAmount,
                 'note' => $this->manualLineNote,
+                'label' => $this->manualLineLabel,
             ]);
 
             $this->recordAdjustmentAudit($line->id, $oldAmount, (string) $this->manualLineAmount);
@@ -272,6 +285,7 @@ class PayrollDetailPage extends Component
                 'component' => $this->manualLineComponent,
                 'amount' => $this->manualLineAmount,
                 'note' => $this->manualLineNote,
+                'label' => $this->manualLineLabel,
                 'created_by' => Auth::id(),
             ]);
 
@@ -319,7 +333,7 @@ class PayrollDetailPage extends Component
      */
     private function recordAdjustmentAudit(string $lineId, ?string $oldAmount, ?string $newAmount): void
     {
-        $label = 'Bon — ' . $this->payroll->user->name
+        $label = ($this->manualLineLabel ?: 'Bon') . ' — ' . $this->payroll->user->name
             . ($this->manualLineNote ? " ({$this->manualLineNote})" : '');
 
         AuditLog::record(

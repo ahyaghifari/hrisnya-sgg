@@ -136,9 +136,6 @@
                                 <div style="display:flex;justify-content:space-between;gap:8px;font-size:12.5px;">
                                     <span style="color:{{ $row['hasValue'] ? 'var(--text-body)' : 'var(--text-faint)' }};">
                                         {{ $row['label'] }}
-                                        @if (($row['component'] ?? null) === \App\Enum\Payroll\PayrollComponentEnum::BON->value && $this->bonAktif && ! $payroll->is_paid && ($this->bonMetode === 'detail' || $this->bonManualLines->isEmpty()) && $this->canEditAdjustment)
-                                            <button type="button" wire:click="openManualLineModal('bon')" title="Tambah Bon untuk payroll ini" style="border:none;background:#d97706;color:#fff;padding:2px 7px;border-radius:5px;font-size:10px;font-weight:600;cursor:pointer;">+ Tambah</button>
-                                        @endif
                                     </span>
                                     <span style="white-space:nowrap;text-align:right;">
                                         <span style="font-weight:{{ $row['hasValue'] ? '700' : '500' }};color:{{ $row['hasValue'] ? '#dc2626' : 'var(--text-faint)' }};">Rp{{ number_format($row['amount'], 0, ',', '.') }}</span>
@@ -147,12 +144,27 @@
                                         @endif
                                     </span>
                                 </div>
+                            </div>
+                        @empty
+                            <p style="font-size:11.5px;color:var(--text-faint);margin:0;">Tidak ada komponen potongan.</p>
+                        @endforelse
 
-                                @if (($row['component'] ?? null) === \App\Enum\Payroll\PayrollComponentEnum::BON->value && $this->bonManualLines->isNotEmpty())
-                                    <div style="display:flex;flex-direction:column;gap:3px;margin:4px 0 0 10px;">
+                        {{-- Editor Bon (+Tambah / Ubah / Hapus) — DIPINDAH KELUAR dari loop $rows['deductions']
+                        di atas (2026-08-05): tiap baris Bon (mode Detail) sekarang bisa punya NAMA sendiri
+                        (bukan selalu "Bon"), jadi kalau blok ini masih di dalam loop & dicocokkan per-$row,
+                        dia bakal render ULANG utuh untuk SETIAP baris Bon yang ada — render SEKALI saja
+                        di sini, tidak lagi bergantung ke $row tertentu. --}}
+                        @if ($this->bonAktif)
+                            <div style="margin-top:2px;">
+                                @if (! $payroll->is_paid && ($this->bonMetode === 'detail' || $this->bonManualLines->isEmpty()) && $this->canEditAdjustment)
+                                    <button type="button" wire:click="openManualLineModal('bon')" title="Tambah Bon untuk payroll ini" style="border:none;background:#d97706;color:#fff;padding:2px 7px;border-radius:5px;font-size:10px;font-weight:600;cursor:pointer;">+ Tambah Bon</button>
+                                @endif
+
+                                @if ($this->bonManualLines->isNotEmpty())
+                                    <div style="display:flex;flex-direction:column;gap:3px;margin-top:4px;">
                                         @foreach ($this->bonManualLines as $line)
                                             <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;font-size:11px;color:var(--text-muted);">
-                                                <span>Rp{{ number_format($line->amount, 0, ',', '.') }}{{ $line->note ? " ({$line->note})" : '' }}</span>
+                                                <span>{{ $line->label ? "{$line->label}: " : '' }}Rp{{ number_format($line->amount, 0, ',', '.') }}{{ $line->note ? " ({$line->note})" : '' }}</span>
                                                 @if (!$payroll->is_paid && $this->canEditAdjustment)
                                                     <span style="display:flex;gap:4px;flex-shrink:0;">
                                                         <button type="button" wire:click="openManualLineModal('bon', '{{ $line->id }}')" title="Ubah" style="border:1px solid var(--border);background:none;color:#d97706;cursor:pointer;padding:2px 7px;border-radius:5px;font-size:10px;"><i class="fa-solid fa-pen"></i> Ubah</button>
@@ -164,9 +176,7 @@
                                     </div>
                                 @endif
                             </div>
-                        @empty
-                            <p style="font-size:11.5px;color:var(--text-faint);margin:0;">Tidak ada komponen potongan.</p>
-                        @endforelse
+                        @endif
                     </div>
                     <div style="display:flex;justify-content:space-between;gap:8px;font-size:12.5px;font-weight:700;margin-top:10px;padding-top:8px;border-top:1px solid var(--border-soft);">
                         <span>Subtotal</span>
@@ -185,6 +195,14 @@
                 <p style="font-size:11.5px;color:var(--text-muted);margin:0 0 14px;">Untuk {{ $payroll->user?->name }} — periode {{ $payroll->payrollPeriod->start_date->format('d M Y') }} - {{ $payroll->payrollPeriod->end_date->format('d M Y') }}.</p>
 
                 <div style="display:flex;flex-direction:column;gap:12px;">
+                    @if ($manualLineComponent === \App\Enum\Payroll\PayrollComponentEnum::BON->value && $this->bonMetode === 'detail')
+                        <div>
+                            <label class="form-label">Nama Potongan (tampil di slip, gantikan "Bon")</label>
+                            <input type="text" class="form-input" wire:model="manualLineLabel" placeholder="mis. Angsuran Motor">
+                            @error('manualLineLabel') <p style="font-size:11px;color:#dc2626;margin-top:4px;">{{ $message }}</p> @enderror
+                        </div>
+                    @endif
+
                     <div>
                         <label class="form-label">Nominal (Rp)</label>
                         <input type="number" step="0.01" class="form-input" wire:model="manualLineAmount" placeholder="0">

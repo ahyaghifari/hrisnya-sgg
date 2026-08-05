@@ -20,6 +20,7 @@ class PayrollManualLine extends Model
         'payroll_period_id',
         'user_id',
         'component',
+        'label',
         'amount',
         'note',
         'created_by',

@@ -50,10 +50,10 @@
         </div>
 
         @if ($this->canSync)
-            <button type="button" wire:click="syncAbsentStatus" wire:loading.attr="disabled" wire:target="syncAbsentStatus"
-                wire:confirm="Tandai 'Tidak Hadir' semua baris presensi di periode ini yang jam masuk/pulangnya kosong (Cuti/Sakit/Izin tidak ikut berubah)?"
-                class="btn-ghost" title="Cek baris presensi periode ini - tandai 'Tidak Hadir' kalau jam masuk atau pulang kosong">
-                <i class="fa-solid fa-user-clock"></i> Sync Absent Periode Ini
+            <button type="button" wire:click="syncPeriodAttendance" wire:loading.attr="disabled" wire:target="syncPeriodAttendance"
+                wire:confirm="Tandai 'Tidak Hadir' baris yang jam masuk/pulangnya kosong (Cuti/Sakit/Izin tidak ikut berubah), dan hitung ulang jam kerja (istirahat ikut terhitung) untuk semua baris yang punya jam masuk & pulang di periode ini?"
+                class="btn-ghost" title="Sync periode ini: tandai 'Tidak Hadir' kalau jam masuk/pulang kosong, hitung ulang jam kerja (istirahat ikut terhitung)">
+                <i class="fa-solid fa-user-clock"></i> Sync Periode Ini
             </button>
         @endif
     @endif
@@ -349,7 +349,7 @@ per-tanggal dalam periode yang lagi ditampilkan, bukan cuma angka agregat di tab
                                     $style = $statusStyle[$detail->status] ?? ['label' => $detail->status ?? '-', 'color' => '#64748b', 'bg' => 'rgba(100,116,139,0.1)'];
                                     // Baris ADA tapi statusnya 'absent' dan TETAP ada pengajuan Cuti/Izin di
                                     // tanggal itu - kontradiksi (mestinya kalau sync jalan benar, baris begini
-                                    // dikecualikan - lihat syncAbsentStatus()), tampilkan hedged "Kemungkinan",
+                                    // dikecualikan - lihat syncPeriodAttendance()), tampilkan hedged "Kemungkinan",
                                     // bukan Cuti/Izin pasti, karena ada baris presensi nyata yang bilang absent.
                                     $possibleLeave = $detail->status === \App\Enum\AttendanceStatus::ABSENT->value ? $foundLeave : null;
                                     if ($possibleLeave) {

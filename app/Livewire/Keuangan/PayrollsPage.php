@@ -4,6 +4,7 @@ namespace App\Livewire\Keuangan;
 
 use App\Enum\CustomPermissionEnum;
 use App\Enum\Payroll\PayrollComponentEnum;
+use App\Imports\Payroll\BonDetailImport;
 use App\Imports\Payroll\BonImport;
 use App\Jobs\SendPayrollSlipJob;
 use App\Models\Master\Companies;
@@ -354,9 +355,15 @@ class PayrollsPage extends Component
         }
     }
 
-    private function makeImport(bool $preview): BonImport
+    /** Pilih class import sesuai bon_metode company yang lagi dipilih - BonImport (Simple, 1
+     * baris/user, kolom nip/nama/nominal) atau BonDetailImport (Detail, banyak baris rincian
+     * bernama per user, kolom nip/nama_potongan/nominal). Interface publik kedua class sama
+     * persis jadi kode pemanggil (previewImport/confirmImport) tidak perlu tahu bedanya. */
+    private function makeImport(bool $preview): BonImport|BonDetailImport
     {
-        return new BonImport($this->importPeriodId, $preview);
+        return $this->bonMetode === 'detail'
+            ? new BonDetailImport($this->importPeriodId, $preview)
+            : new BonImport($this->importPeriodId, $preview);
     }
 
     private function importGuardPasses(): bool
@@ -365,16 +372,6 @@ class PayrollsPage extends Component
             Notification::make()
                 ->title('Komponen Bon belum aktif untuk company ini')
                 ->body('Aktifkan dulu di halaman Komponen Gaji kalau memang mau pakai Bon.')
-                ->danger()
-                ->send();
-
-            return false;
-        }
-
-        if ($this->bonMetode !== 'simple') {
-            Notification::make()
-                ->title('Metode Bon company ini "Detail", bukan "Simple"')
-                ->body('Import Excel cuma buat mode Simple - untuk mode Detail, tambahkan rincian Bon satu-satu lewat halaman detail payroll karyawan.')
                 ->danger()
                 ->send();
 

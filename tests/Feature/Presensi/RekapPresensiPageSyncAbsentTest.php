@@ -15,9 +15,12 @@ use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 /**
- * syncAbsentStatus() cuma UPDATE baris attendance_records yang SUDAH ADA di periode terpilih -
- * check_in_time ATAU check_out_time null jadi 'absent', KECUALI baris yang statusnya sudah
+ * syncPeriodAttendance() UPDATE baris attendance_records yang SUDAH ADA di periode terpilih -
+ * (1) check_in_time ATAU check_out_time null jadi 'absent', KECUALI baris yang statusnya sudah
  * leave/sick/permit (Cuti/Sakit/Izin disetujui - wajar juga null, jangan ditimpa jadi "mangkir").
+ * (2) working_minutes dihitung ULANG dari durasi mentah check_out - check_in (istirahat ikut
+ * terhitung, tidak dipotong) untuk SEMUA baris yang punya check-in & check-out, termasuk yang
+ * sudah punya nilai working_minutes sebelumnya.
  */
 class RekapPresensiPageSyncAbsentTest extends TestCase
 {
@@ -66,7 +69,7 @@ class RekapPresensiPageSyncAbsentTest extends TestCase
         Livewire::test(RekapPresensiPage::class)
             ->set('date_from', '2026-07-01')
             ->set('date_to', '2026-07-31')
-            ->call('syncAbsentStatus');
+            ->call('syncPeriodAttendance');
 
         $this->assertSame(AttendanceStatus::ABSENT->value, $noCheckIn->refresh()->status);
         $this->assertSame(AttendanceStatus::ABSENT->value, $noCheckOut->refresh()->status);
@@ -89,9 +92,66 @@ class RekapPresensiPageSyncAbsentTest extends TestCase
         Livewire::test(RekapPresensiPage::class)
             ->set('date_from', '2026-07-01')
             ->set('date_to', '2026-07-31')
-            ->call('syncAbsentStatus');
+            ->call('syncPeriodAttendance');
 
         $this->assertSame(AttendanceStatus::PRESENT->value, $outsideRange->refresh()->status);
+    }
+
+    public function test_recalculates_working_minutes_as_raw_duration_including_break(): void
+    {
+        $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
+        $viewer = $this->actingAsAbsensi($company->id);
+        $employee = User::factory()->create(['company_id' => $company->id]);
+
+        // 08:00 - 17:00 = 540 menit mentah (9 jam), TIDAK dipotong istirahat sama sekali.
+        $record = $this->record($employee, '2026-07-05', '08:00:00', '17:00:00', AttendanceStatus::PRESENT->value);
+        AttendanceRecords::where('id', $record->id)->update(['working_minutes' => 480]); // nilai lama (sudah dipotong 1 jam istirahat) - harus ditimpa
+
+        $this->actingAs($viewer);
+
+        Livewire::test(RekapPresensiPage::class)
+            ->set('date_from', '2026-07-01')
+            ->set('date_to', '2026-07-31')
+            ->call('syncPeriodAttendance');
+
+        $this->assertSame(540, $record->refresh()->working_minutes);
+    }
+
+    public function test_recalculates_working_minutes_across_midnight(): void
+    {
+        $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
+        $viewer = $this->actingAsAbsensi($company->id);
+        $employee = User::factory()->create(['company_id' => $company->id]);
+
+        // Shift malam: masuk 22:00, pulang 06:00 (hari berikutnya) = 480 menit.
+        $record = $this->record($employee, '2026-07-05', '22:00:00', '06:00:00', AttendanceStatus::PRESENT->value);
+
+        $this->actingAs($viewer);
+
+        Livewire::test(RekapPresensiPage::class)
+            ->set('date_from', '2026-07-01')
+            ->set('date_to', '2026-07-31')
+            ->call('syncPeriodAttendance');
+
+        $this->assertSame(480, $record->refresh()->working_minutes);
+    }
+
+    public function test_does_not_recalculate_working_minutes_when_check_out_missing(): void
+    {
+        $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
+        $viewer = $this->actingAsAbsensi($company->id);
+        $employee = User::factory()->create(['company_id' => $company->id]);
+
+        $record = $this->record($employee, '2026-07-05', '08:00:00', null, AttendanceStatus::PRESENT->value);
+
+        $this->actingAs($viewer);
+
+        Livewire::test(RekapPresensiPage::class)
+            ->set('date_from', '2026-07-01')
+            ->set('date_to', '2026-07-31')
+            ->call('syncPeriodAttendance');
+
+        $this->assertNull($record->refresh()->working_minutes);
     }
 
     public function test_user_without_sync_permission_cannot_run_it(): void
@@ -109,7 +169,7 @@ class RekapPresensiPageSyncAbsentTest extends TestCase
         Livewire::test(RekapPresensiPage::class)
             ->set('date_from', '2026-07-01')
             ->set('date_to', '2026-07-31')
-            ->call('syncAbsentStatus')
+            ->call('syncPeriodAttendance')
             ->assertForbidden();
     }
 }

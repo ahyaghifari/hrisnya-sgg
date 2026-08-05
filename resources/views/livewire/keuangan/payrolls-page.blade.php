@@ -140,16 +140,21 @@
                         Komponen <strong>Bon</strong> belum aktif untuk perusahaan ini.
                         Aktifkan dulu di halaman Komponen Gaji kalau memang mau pakai Bon.
                     </div>
-                @elseif ($this->bonMetode !== 'simple')
-                    <div style="background:rgba(217,119,6,0.08);border:1px solid rgba(217,119,6,0.3);border-radius:10px;padding:12px 14px;font-size:12.5px;color:#92400e;">
-                        <i class="fa-solid fa-triangle-exclamation"></i>
-                        Metode Bon perusahaan ini <strong>"Detail"</strong>, bukan "Simple". Import Excel tidak berlaku -
-                        tambahkan rincian Bon satu-satu lewat halaman detail payroll karyawan.
-                    </div>
                 @else
+                    @if ($this->bonMetode === 'detail')
+                        <div style="background:rgba(4,44,108,0.06);border:1px solid rgba(4,44,108,0.2);border-radius:10px;padding:10px 14px;font-size:12px;color:#042c6c;">
+                            <i class="fa-solid fa-circle-info"></i>
+                            Metode Bon perusahaan ini <strong>"Detail"</strong> — tiap baris Excel jadi 1 rincian potongan bernama (bukan digabung "Bon"). NIP + nama potongan yang sama akan MENIMPA nominal sebelumnya, bukan dobel baris.
+                        </div>
+                    @endif
+
                     <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
-                        <p style="font-size:11.5px;color:var(--text-muted);margin:0;">Kolom wajib: <code>nip</code>, <code>nominal</code>. Kolom <code>nama</code> opsional — cuma buat pembanding dengan nama di sistem.</p>
-                        <a href="{{ route('keuangan.payroll.import-template', $importType) }}" class="btn-ghost" style="padding:6px 12px;font-size:11.5px;white-space:nowrap;">
+                        @if ($this->bonMetode === 'detail')
+                            <p style="font-size:11.5px;color:var(--text-muted);margin:0;">Kolom wajib: <code>nip</code>, <code>nama_potongan</code>, <code>nominal</code>.</p>
+                        @else
+                            <p style="font-size:11.5px;color:var(--text-muted);margin:0;">Kolom wajib: <code>nip</code>, <code>nominal</code>. Kolom <code>nama</code> opsional — cuma buat pembanding dengan nama di sistem.</p>
+                        @endif
+                        <a href="{{ route('keuangan.payroll.import-template', $importType) }}?mode={{ $this->bonMetode }}" class="btn-ghost" style="padding:6px 12px;font-size:11.5px;white-space:nowrap;">
                             <i class="fa-solid fa-file-arrow-down"></i> Download Template
                         </a>
                     </div>
@@ -191,8 +196,13 @@
                                         <tr style="border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--surface);">
                                             <th style="text-align:left;padding:6px 10px;">Baris</th>
                                             <th style="text-align:left;padding:6px 10px;">NIP</th>
-                                            <th style="text-align:left;padding:6px 10px;">Nama Import</th>
-                                            <th style="text-align:left;padding:6px 10px;">Nama di Sistem</th>
+                                            @if ($this->bonMetode === 'detail')
+                                                <th style="text-align:left;padding:6px 10px;">Nama Potongan</th>
+                                                <th style="text-align:left;padding:6px 10px;">Nama di Sistem</th>
+                                            @else
+                                                <th style="text-align:left;padding:6px 10px;">Nama Import</th>
+                                                <th style="text-align:left;padding:6px 10px;">Nama di Sistem</th>
+                                            @endif
                                             <th style="text-align:right;padding:6px 10px;">Nominal</th>
                                             <th style="text-align:left;padding:6px 10px;">Status</th>
                                         </tr>
@@ -200,18 +210,23 @@
                                     <tbody>
                                         @foreach ($importPreviewRows as $row)
                                             @php
-                                                $namaBeda = $row['nama_import'] && $row['nama_sistem'] && strcasecmp(trim($row['nama_import']), trim($row['nama_sistem'])) !== 0;
+                                                $namaBeda = ($row['nama_import'] ?? null) && $row['nama_sistem'] && strcasecmp(trim($row['nama_import']), trim($row['nama_sistem'])) !== 0;
                                             @endphp
                                             <tr style="border-bottom:1px solid var(--border-soft);{{ $row['error'] ? 'background:rgba(220,38,38,0.06);' : '' }}">
                                                 <td style="padding:6px 10px;">{{ $row['row'] }}</td>
                                                 <td style="padding:6px 10px;">{{ $row['nip'] }}</td>
-                                                <td style="padding:6px 10px;">{{ $row['nama_import'] ?: '-' }}</td>
-                                                <td style="padding:6px 10px;{{ $namaBeda ? 'color:#d97706;font-weight:600;' : '' }}">
-                                                    {{ $row['nama_sistem'] ?? '-' }}
-                                                    @if ($namaBeda)
-                                                        <i class="fa-solid fa-triangle-exclamation" title="Nama import beda dengan nama di sistem"></i>
-                                                    @endif
-                                                </td>
+                                                @if ($this->bonMetode === 'detail')
+                                                    <td style="padding:6px 10px;">{{ $row['nama_potongan'] ?: '-' }}</td>
+                                                    <td style="padding:6px 10px;">{{ $row['nama_sistem'] ?? '-' }}</td>
+                                                @else
+                                                    <td style="padding:6px 10px;">{{ $row['nama_import'] ?: '-' }}</td>
+                                                    <td style="padding:6px 10px;{{ $namaBeda ? 'color:#d97706;font-weight:600;' : '' }}">
+                                                        {{ $row['nama_sistem'] ?? '-' }}
+                                                        @if ($namaBeda)
+                                                            <i class="fa-solid fa-triangle-exclamation" title="Nama import beda dengan nama di sistem"></i>
+                                                        @endif
+                                                    </td>
+                                                @endif
                                                 <td style="padding:6px 10px;text-align:right;">Rp{{ number_format($row['nominal'], 0, ',', '.') }}</td>
                                                 <td style="padding:6px 10px;">
                                                     @if ($row['error'])

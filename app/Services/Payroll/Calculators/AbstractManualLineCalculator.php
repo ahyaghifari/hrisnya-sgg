@@ -12,7 +12,9 @@ use App\Models\User;
 /**
  * Input manual finance lewat `payroll_manual_lines` (Koperasi/Bon = potongan, Insentif metode
  * "import" = pendapatan — lihat IncentiveCalculator), tidak ada rumus otomatis sama sekali.
- * Calculator ini cuma "menyalin" baris manual yang sudah diinput ke payroll_items.
+ * Calculator ini cuma "menyalin" baris manual yang sudah diinput ke payroll_items — nama baris
+ * di slip pakai `label` per baris kalau diisi (Bon mode Detail: nama potongan spesifik, mis.
+ * "Angsuran Motor"), fallback ke `componentLabel()` kalau kosong (Koperasi & Bon mode Simple).
  */
 abstract class AbstractManualLineCalculator implements PayrollComponentCalculator
 {
@@ -37,7 +39,7 @@ abstract class AbstractManualLineCalculator implements PayrollComponentCalculato
 
             PayrollItem::create([
                 'payroll_id' => $payroll->id,
-                'name' => $this->componentLabel(),
+                'name' => $line->label ?: $this->componentLabel(),
                 'type' => $this->componentType(),
                 'quantity' => 1,
                 'amount' => $amount,

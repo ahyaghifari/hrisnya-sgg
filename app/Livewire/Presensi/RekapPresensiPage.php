@@ -219,15 +219,23 @@ class RekapPresensiPage extends Component
     }
 
     /**
-     * Betulkan status baris attendance_records yang SUDAH ADA di periode terpilih (companyId
-     * ikut kalau lagi dipilih) - kalau check_in_time ATAU check_out_time null, statusnya
-     * ditandai 'absent'. Cuti/Sakit/Izin yang disetujui (status leave/sick/permit) SENGAJA
-     * dikecualikan, biar tidak salah timpa jadi "mangkir" padahal memang tidak masuk kerja
-     * dengan alasan yang disetujui - keduanya juga wajar check_in/check_out-nya null. Tidak
-     * membuat baris baru untuk tanggal yang sama sekali tidak ada datanya (2026-08-05,
+     * Betulkan baris attendance_records yang SUDAH ADA di periode terpilih (companyId ikut
+     * kalau lagi dipilih) - 2 hal:
+     *
+     * 1. Status: kalau check_in_time ATAU check_out_time null, statusnya ditandai 'absent'.
+     *    Cuti/Sakit/Izin yang disetujui (status leave/sick/permit) SENGAJA dikecualikan, biar
+     *    tidak salah timpa jadi "mangkir" padahal memang tidak masuk kerja dengan alasan yang
+     *    disetujui - keduanya juga wajar check_in/check_out-nya null.
+     * 2. Jam kerja: buat SEMUA baris yang punya check_in_time DAN check_out_time, working_minutes
+     *    dihitung ULANG dari durasi mentah check_out - check_in (jam istirahat IKUT terhitung
+     *    sebagai jam kerja, tidak dipotong) - dikonfirmasi user 2026-08-05, timpa nilai lama
+     *    kalau ada. Lintas tengah malam (check_out < check_in) dianggap nyambung ke hari
+     *    berikutnya, sama pola dengan FlexibleScheduleCalculator.
+     *
+     * Tidak membuat baris baru untuk tanggal yang sama sekali tidak ada datanya (2026-08-05,
      * dikonfirmasi user).
      */
-    public function syncAbsentStatus(): void
+    public function syncPeriodAttendance(): void
     {
         abort_unless($this->canSync, 403);
         abort_unless($this->date_from && $this->date_to, 422);
@@ -238,14 +246,30 @@ class RekapPresensiPage extends Component
             AttendanceStatus::PERMIT->value,
         ];
 
-        $affected = $this->scopedRecordsForRange($this->date_from, $this->date_to)
+        $absentAffected = $this->scopedRecordsForRange($this->date_from, $this->date_to)
             ->whereNotIn('status', $excludedStatuses)
             ->where(fn ($q) => $q->whereNull('check_in_time')->orWhereNull('check_out_time'))
             ->update(['status' => AttendanceStatus::ABSENT->value]);
 
+        $recordsToRecalculate = $this->scopedRecordsForRange($this->date_from, $this->date_to)
+            ->whereNotNull('check_in_time')
+            ->whereNotNull('check_out_time')
+            ->get();
+
+        foreach ($recordsToRecalculate as $record) {
+            $ci = Carbon::createFromFormat('H:i:s', $record->check_in_time);
+            $co = Carbon::createFromFormat('H:i:s', $record->check_out_time);
+
+            if ($co->lt($ci)) {
+                $co->addDay();
+            }
+
+            $record->update(['working_minutes' => (int) $ci->diffInMinutes($co)]);
+        }
+
         Notification::make()
-            ->title($affected > 0 ? "{$affected} baris presensi ditandai Tidak Hadir" : 'Tidak ada baris yang perlu diubah')
-            ->body('Baris berstatus Cuti/Sakit/Izin tidak ikut diubah.')
+            ->title('Sync periode selesai')
+            ->body("{$absentAffected} baris ditandai Tidak Hadir, {$recordsToRecalculate->count()} baris jam kerja dihitung ulang (istirahat ikut terhitung). Baris Cuti/Sakit/Izin tidak ikut diubah.")
             ->success()
             ->send();
     }
