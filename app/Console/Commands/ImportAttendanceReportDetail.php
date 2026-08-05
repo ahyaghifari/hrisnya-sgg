@@ -34,6 +34,12 @@ class ImportAttendanceReportDetail extends Command
         'Izin'  => AttendanceStatus::PERMIT->value,
     ];
 
+    // ponytail: nama/ID-NIK di file tidak cocok otomatis (gelar/ejaan beda dari database),
+    // dikonfirmasi manual. Tambah baris di sini kalau ketemu kasus serupa lagi.
+    private const MANUAL_NIP_OVERRIDES = [
+        'Muhammad Immawan Nuryahdi' => '02022022420',
+    ];
+
     public function handle(AttendanceRecordRepository $repository): int
     {
         $path = $this->argument('path');
@@ -179,7 +185,15 @@ class ImportAttendanceReportDetail extends Command
             ->get(['id', 'name', 'nip'])
             ->filter(fn (User $u) => $this->normalizeName($u->name) === $normalizedTarget);
 
-        return $matches->count() === 1 ? $matches->first() : null;
+        if ($matches->count() === 1) {
+            return $matches->first();
+        }
+
+        if ($overrideNip = self::MANUAL_NIP_OVERRIDES[$reportName] ?? null) {
+            return User::where('nip', $overrideNip)->first();
+        }
+
+        return null;
     }
 
     private function normalizeName(string $name): string

@@ -131,7 +131,7 @@ class GajiPokokCalculator implements PayrollComponentCalculator
     /** Hari Senin-Sabtu dari $from s.d. $to (inklusif) - Minggu di-exclude, tanpa lihat hari libur/jadwal. */
     private function countWorkDays(Carbon $from, Carbon $to): int
     {
-        // Counter hari kerja yang ditemukan.
+        // Counter hari kerja yang ditemukan
         $count = 0;
 
         // Iterasi tiap tanggal dari $from sampai $to (inklusif), satu hari per langkah.
