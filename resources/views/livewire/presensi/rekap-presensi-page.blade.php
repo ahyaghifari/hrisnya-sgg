@@ -301,7 +301,7 @@
 per-tanggal dalam periode yang lagi ditampilkan, bukan cuma angka agregat di tabel. --}}
 @if ($this->selectedUser)
     <div class="modal-overlay" wire:click="closeDetail">
-        <div class="modal-box" onclick="event.stopPropagation()">
+        <div class="modal-box modal-box-xl" onclick="event.stopPropagation()">
             <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:14px;">
                 <div>
                     <h3 style="font-size:15px;font-weight:700;color:var(--text-heading);margin:0;">{{ $this->selectedUser->name }}</h3>
@@ -314,44 +314,57 @@ per-tanggal dalam periode yang lagi ditampilkan, bukan cuma angka agregat di tab
                 <button type="button" wire:click="closeDetail" class="btn-ghost" style="padding:6px 10px;"><i class="fa-solid fa-xmark"></i></button>
             </div>
 
-            <div style="display:flex;flex-direction:column;gap:6px;max-height:420px;overflow-y:auto;">
-                @php $leaveOrPermissionDates = $this->selectedUserLeaveOrPermissionDates; @endphp
-                @forelse ($this->selectedUserDetailRows as $detail)
-                    @php
-                        $style = $statusStyle[$detail->status] ?? ['label' => $detail->status ?? '-', 'color' => '#64748b', 'bg' => 'rgba(100,116,139,0.1)'];
-                        $possibleLeave = $detail->status === \App\Enum\AttendanceStatus::ABSENT->value ? ($leaveOrPermissionDates[$detail->date] ?? null) : null;
-                        // Absent TAPI ada pengajuan Cuti/Izin (approved/masih diproses) di tanggal itu -
-                        // kemungkinan cuma belum sempat ke-sync/approve, jangan ditampilkan merah tegas
-                        // seolah pasti mangkir. Absent TANPA pengajuan sama sekali -> tetap merah ($style asli).
-                        if ($possibleLeave) {
-                            $style = ['label' => $style['label'], 'color' => '#b45309', 'bg' => 'rgba(180,83,9,0.1)'];
-                        }
-                    @endphp
-                    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 12px;border-radius:9px;background:var(--surface-alt);">
-                        <div style="min-width:0;">
-                            <p style="font-size:12.5px;font-weight:600;color:var(--text-heading);margin:0;">{{ \Illuminate\Support\Carbon::parse($detail->date)->translatedFormat('D, d M Y') }}</p>
-                            <p style="font-size:11px;color:var(--text-muted);margin:2px 0 0;">
-                                {{ $detail->check_in_time ? \Illuminate\Support\Str::substr($detail->check_in_time, 0, 5) : '–' }}
-                                &ndash;
-                                {{ $detail->check_out_time ? \Illuminate\Support\Str::substr($detail->check_out_time, 0, 5) : '–' }}
-                                @if ($detail->working_minutes)
-                                    &middot; {{ round($detail->working_minutes / 60, 1) }} jam kerja
-                                @endif
-                                @if ($detail->late_minutes)
-                                    &middot; telat {{ $detail->late_minutes }} mnt
-                                @endif
-                            </p>
-                            @if ($possibleLeave)
-                                <p style="font-size:11px;color:#b45309;margin:2px 0 0;font-weight:600;">
-                                    <i class="fa-solid fa-circle-question"></i> Kemungkinan {{ $possibleLeave['label'] }} ({{ $possibleLeave['status']->getLabel() }}) - belum tentu benar-benar mangkir
-                                </p>
-                            @endif
-                        </div>
-                        <span style="flex-shrink:0;display:inline-flex;align-items:center;padding:3px 10px;border-radius:99px;background:{{ $style['bg'] }};color:{{ $style['color'] }};font-size:11px;font-weight:700;">{{ $style['label'] }}</span>
-                    </div>
-                @empty
-                    <p style="font-size:12px;color:var(--text-faint);text-align:center;padding:24px 0;">Tidak ada baris presensi untuk karyawan ini di periode tersebut.</p>
-                @endforelse
+            <div style="max-height:65vh;overflow-y:auto;overflow-x:auto;">
+                <table class="data-table" style="min-width:720px;font-size:12px;">
+                    <thead>
+                        <tr>
+                            <th>Tanggal</th>
+                            <th>Keterangan Hadir</th>
+                            <th style="text-align:center;">Jam Kerja</th>
+                            <th style="text-align:center;">Absen Masuk</th>
+                            <th style="text-align:center;">Absen Pulang</th>
+                            <th>Keterangan Cuti/Izin</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @php $leaveOrPermissionDates = $this->selectedUserLeaveOrPermissionDates; @endphp
+                        @forelse ($this->selectedUserDetailRows as $detail)
+                            @php
+                                $style = $statusStyle[$detail->status] ?? ['label' => $detail->status ?? '-', 'color' => '#64748b', 'bg' => 'rgba(100,116,139,0.1)'];
+                                $possibleLeave = $detail->status === \App\Enum\AttendanceStatus::ABSENT->value ? ($leaveOrPermissionDates[$detail->date] ?? null) : null;
+                                // Absent TAPI ada pengajuan Cuti/Izin (approved/masih diproses) di tanggal itu -
+                                // kemungkinan cuma belum sempat ke-sync/approve, jangan ditampilkan merah tegas
+                                // seolah pasti mangkir. Absent TANPA pengajuan sama sekali -> tetap merah ($style asli).
+                                if ($possibleLeave) {
+                                    $style = ['label' => $style['label'], 'color' => '#b45309', 'bg' => 'rgba(180,83,9,0.15)'];
+                                }
+                            @endphp
+                            <tr style="background:{{ $style['bg'] }};">
+                                <td style="white-space:nowrap;font-weight:600;color:var(--text-heading);">{{ \Illuminate\Support\Carbon::parse($detail->date)->translatedFormat('D, d M Y') }}</td>
+                                <td style="white-space:nowrap;font-weight:700;color:{{ $style['color'] }};">
+                                    {{ $style['label'] }}
+                                    @if ($detail->late_minutes)
+                                        <span style="font-weight:400;color:var(--text-muted);">(telat {{ $detail->late_minutes }} mnt)</span>
+                                    @endif
+                                </td>
+                                <td style="text-align:center;">{{ $detail->working_minutes ? round($detail->working_minutes / 60, 1) . ' jam' : '–' }}</td>
+                                <td style="text-align:center;">{{ $detail->check_in_time ? \Illuminate\Support\Str::substr($detail->check_in_time, 0, 5) : '–' }}</td>
+                                <td style="text-align:center;">{{ $detail->check_out_time ? \Illuminate\Support\Str::substr($detail->check_out_time, 0, 5) : '–' }}</td>
+                                <td>
+                                    @if ($possibleLeave)
+                                        <span style="color:#b45309;font-weight:600;"><i class="fa-solid fa-circle-question"></i> Kemungkinan {{ $possibleLeave['label'] }} ({{ $possibleLeave['status']->getLabel() }})</span>
+                                    @else
+                                        <span style="color:var(--text-faint);">–</span>
+                                    @endif
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="6" style="padding:24px;text-align:center;color:var(--text-faint);">Tidak ada baris presensi untuk karyawan ini di periode tersebut.</td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>
