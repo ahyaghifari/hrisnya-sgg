@@ -1065,6 +1065,17 @@ html.dark .ts-wrapper.multi .ts-control > div.item { background: rgba(110,168,22
 .custom-checkbox input:disabled ~ .box { opacity: 0.5; cursor: not-allowed; }
 .custom-checkbox input:focus-visible ~ .box { outline: 2px solid var(--accent, #042c6c); outline-offset: 2px; }
 
+/* Varian bulat dari .custom-checkbox di atas, buat grup radio (mis. penilaian skor Ikatan
+   Dinas) — titik solid di tengah pas checked, bukan ikon check. */
+.custom-radio { position: relative; display: inline-flex; width: 19px; height: 19px; flex-shrink: 0; cursor: pointer; }
+.custom-radio input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; z-index: 1; }
+.custom-radio .dot { position: absolute; inset: 0; border: 1.5px solid var(--border); border-radius: 50%; background: var(--surface); transition: all 0.15s; }
+.custom-radio .dot::after { content: ''; position: absolute; inset: 5px; border-radius: 50%; background: #fff; transform: scale(0); transition: all 0.15s; }
+.custom-radio input:checked ~ .dot { background: var(--accent, #042c6c); border-color: var(--accent, #042c6c); }
+.custom-radio input:checked ~ .dot::after { transform: scale(1); }
+.custom-radio input:disabled ~ .dot { opacity: 0.5; cursor: not-allowed; }
+.custom-radio input:focus-visible ~ .dot { outline: 2px solid var(--accent, #042c6c); outline-offset: 2px; }
+
 .saldo-pill { display: inline-flex; align-items: center; gap: 5px; background: var(--info-soft-bg); border: 1px solid var(--info-soft-border); color: var(--info-soft-text); font-size: 12px; font-weight: 600; padding: 5px 11px; border-radius: 99px; }
 
 /* ── MODAL ──

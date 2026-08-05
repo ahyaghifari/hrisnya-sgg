@@ -5,6 +5,7 @@ namespace App\Services\Approval;
 use App\Enum\Approval\ApprovalModuleEnum;
 use App\Enum\AttendanceReqStatus;
 use App\Enum\Task\TaskStatus;
+use App\Models\LMS\TrainingRequests;
 use App\Models\Shift\ShiftSwapRequests;
 use App\Models\User;
 use App\Notifications\ApprovalNeedsAction;
@@ -103,6 +104,15 @@ class ApprovalFlowService
                 // Shift Swap Request
                 if ($snapshot->module_type === ApprovalModuleEnum::SWAP_SHIFT_REQUEST->value) {
                     ShiftSwapRequests::where('id', $snapshot->module_id)->update([
+                        'status' => 'rejected',
+                        'rejected_by' => $actorId,
+                        'rejected_at' => now(),
+                    ]);
+                }
+
+                // Training Request
+                if ($snapshot->module_type === ApprovalModuleEnum::TRAINING_REQUEST->value) {
+                    TrainingRequests::where('id', $snapshot->module_id)->update([
                         'status' => 'rejected',
                         'rejected_by' => $actorId,
                         'rejected_at' => now(),
@@ -285,6 +295,15 @@ class ApprovalFlowService
                             $swapRequest->reqSchedule->update(['user_id' => $swapRequest->target_id]);
                         }
                     }
+                }
+
+                // Training Request
+                if ($snapshot->module_type === ApprovalModuleEnum::TRAINING_REQUEST->value) {
+                    TrainingRequests::where('id', $snapshot->module_id)->update([
+                        'status' => 'approved',
+                        'approved_by' => $actorId,
+                        'approved_at' => now(),
+                    ]);
                 }
 
                 $this->historyRepo->create([

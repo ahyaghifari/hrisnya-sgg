@@ -221,9 +221,13 @@ class TrainingReportPage extends Page implements HasForms, HasTable
             return new Collection();
         }
 
-        return LmsCourses::where('company_id', $baseline->company_id)
-            ->where('start_date', '>=', $baseline->start_date)
-            ->where('start_date', '<=', $baseline->end_date)
+        $courseIds = LmsCourseUsers::whereHas('user', fn ($q) => $q->where('company_id', $baseline->company_id))
+            ->whereDate('enrolled_at', '>=', $baseline->start_date)
+            ->whereDate('enrolled_at', '<=', $baseline->end_date)
+            ->distinct()
+            ->pluck('course_id');
+
+        return LmsCourses::whereIn('id', $courseIds)
             ->orderBy('start_date')
             ->get();
     }
@@ -370,10 +374,14 @@ class TrainingReportPage extends Page implements HasForms, HasTable
             ];
         }
 
-        // Courses whose start_date falls within the baseline period for that company
-        $courses = LmsCourses::where('company_id', $baseline->company_id)
-            ->where('start_date', '>=', $baseline->start_date)
-            ->where('start_date', '<=', $baseline->end_date)
+        // Courses ditentukan dari siapa yang enroll (karyawan company baseline), bukan company_id course itu sendiri
+        $courseIds = LmsCourseUsers::whereHas('user', fn ($q) => $q->where('company_id', $baseline->company_id))
+            ->whereDate('enrolled_at', '>=', $baseline->start_date)
+            ->whereDate('enrolled_at', '<=', $baseline->end_date)
+            ->distinct()
+            ->pluck('course_id');
+
+        $courses = LmsCourses::whereIn('id', $courseIds)
             ->orderBy('start_date')
             ->get();
 

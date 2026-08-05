@@ -24,9 +24,9 @@ class ApprovalFlowResource extends Resource
 
     protected static ?string $navigationLabel = "Manajemen Persetujuan";
 
-    protected static string | UnitEnum | null $navigationGroup = 'Manajemen Organisasi';
+    protected static string | UnitEnum | null $navigationGroup = 'Master Perusahaan';
 
-    protected static ?int $navigationSort = 9;
+    protected static ?int $navigationSort = 14;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedBarsArrowDown;
 

@@ -8,6 +8,7 @@ use App\Enum\CustomPermissionEnum;
 use App\Enum\UserTransitionTypeEnum;
 use App\Models\Attendance\AttendanceRequests;
 use App\Models\LMS\LmsCourseUsers;
+use App\Models\LMS\TrainingRequests;
 use App\Models\User\UserTransition;
 use App\Services\Approval\ApprovalPermissionService;
 use App\Services\LMS\CourseUserService;
@@ -196,7 +197,32 @@ class PendingApprovalsCard extends Component
                 ]);
         }
 
-        $requests = $attendanceRequests->concat($transitions)->concat($courseEnrollments)->sortByDesc('created_at')->values();
+        $trainingRequests = collect();
+        if ($this->wants('training_request')) {
+            $trainingIds = $permissionService
+                ->pendingApprovalsFor(Auth::user(), ApprovalModuleEnum::TRAINING_REQUEST->value)
+                ->pluck('snapshot.module_id')->filter()->values();
+
+            $trainingRequests = TrainingRequests::with('user')
+                ->whereIn('id', $trainingIds)
+                ->whereHas('user')
+                ->get()
+                ->map(fn ($request) => (object) [
+                    'module' => 'training_request',
+                    'badge' => 'purple',
+                    'label' => 'Pelatihan Eksternal',
+                    'icon' => 'fa-plane-departure',
+                    'tile' => 'neutral',
+                    'keterangan' => $request->title,
+                    'user_name' => $request->user->name,
+                    'created_at' => $request->created_at,
+                    'url' => route('pelatihan.pengajuan-saya.show', ['record' => $request->id]),
+                    'modal' => false,
+                    'external' => false,
+                ]);
+        }
+
+        $requests = $attendanceRequests->concat($transitions)->concat($courseEnrollments)->concat($trainingRequests)->sortByDesc('created_at')->values();
 
         return view('livewire.pending-approvals-card', ['requests' => $requests]);
     }

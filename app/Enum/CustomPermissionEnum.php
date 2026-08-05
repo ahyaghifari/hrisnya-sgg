@@ -21,6 +21,7 @@ enum CustomPermissionEnum: string
     case SISTEM_COACHING_COUNSELING = 'sistem_coaching_counseling';
     case SISTEM_PENILAIAN_KARYAWAN = 'sistem_penilaian_karyawan';
     case PELATIHAN_SAYA = 'pelatihan_saya';
+    case AJUKAN_PELATIHAN = 'ajukan_pelatihan';
     case PENGAJUAN_ABSENSI_SAYA = 'pengajuan_absensi_saya';
     case COACHING_COUNSELING_SAYA = 'coaching_counseling_saya';
 
@@ -97,6 +98,7 @@ enum CustomPermissionEnum: string
             self::SISTEM_COACHING_COUNSELING => 'Sistem Coaching & Counseling',
             self::SISTEM_PENILAIAN_KARYAWAN => 'Sistem Penilaian Karyawan',
             self::PELATIHAN_SAYA => 'Pelatihan Saya',
+            self::AJUKAN_PELATIHAN => 'Ajukan Pelatihan (Eksternal)',
             self::PENGAJUAN_ABSENSI_SAYA => 'Pengajuan Absensi Saya',
             self::COACHING_COUNSELING_SAYA => 'Coaching & Counseling Saya',
             self::COACHING_KARYAWAN_LAINNYA => 'Coaching Karyawan Lainnya (Semua Karyawan, Bukan Cuma Bawahan)',

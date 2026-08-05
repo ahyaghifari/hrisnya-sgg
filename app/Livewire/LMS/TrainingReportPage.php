@@ -94,9 +94,13 @@ class TrainingReportPage extends Component
             return collect();
         }
 
-        return LmsCourses::where('company_id', $baseline->company_id)
-            ->where('start_date', '>=', $baseline->start_date)
-            ->where('start_date', '<=', $baseline->end_date)
+        $courseIds = LmsCourseUsers::whereHas('user', fn ($q) => $q->where('company_id', $baseline->company_id))
+            ->whereDate('enrolled_at', '>=', $baseline->start_date)
+            ->whereDate('enrolled_at', '<=', $baseline->end_date)
+            ->distinct()
+            ->pluck('course_id');
+
+        return LmsCourses::whereIn('id', $courseIds)
             ->orderBy('start_date')
             ->get();
     }
