@@ -68,6 +68,9 @@ class RekapPresensiPage extends Component
 
     public array $syncNewRecords = [];
 
+    /** Karyawan yang lagi dibuka detail hariannya (modal, mode bulanan) - null = modal tertutup. */
+    public ?string $selectedUserId = null;
+
     public function mount(): void
     {
         abort_unless(Auth::user()->can(CustomPermissionEnum::SISTEM_ABSENSI->value), 403);
@@ -418,6 +421,45 @@ class RekapPresensiPage extends Component
             ->orderBy('users.name')
             ->paginate(15)
             ->appends($this->queryAppends());
+    }
+
+    // --- Modal detail harian (klik baris di mode bulanan) ---
+
+    public function openDetail(string $userId): void
+    {
+        $this->selectedUserId = $userId;
+    }
+
+    public function closeDetail(): void
+    {
+        $this->selectedUserId = null;
+    }
+
+    public function getSelectedUserProperty(): ?User
+    {
+        if (! $this->selectedUserId) {
+            return null;
+        }
+
+        return $this->baseUserQuery()->find($this->selectedUserId, ['id', 'name', 'nip']);
+    }
+
+    /** Baris attendance_records karyawan terpilih, per tanggal, dalam periode (date_from/date_to)
+     * yang lagi ditampilkan - ini yang bikin modal "rincian absensi" beda dari sekadar angka
+     * agregat di tabel monthlyRows. */
+    public function getSelectedUserDetailRowsProperty()
+    {
+        if (! $this->selectedUserId) {
+            return collect();
+        }
+
+        [$from, $to] = $this->monthRange;
+
+        return AttendanceRecords::query()
+            ->where('user_id', $this->selectedUserId)
+            ->whereBetween('date', [$from, $to])
+            ->orderBy('date')
+            ->get();
     }
 
     public function render()
