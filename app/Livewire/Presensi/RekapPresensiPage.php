@@ -11,8 +11,10 @@ use App\Notifications\AttendanceCheckedIn;
 use App\Notifications\AttendanceCheckedOut;
 use App\Repositories\Attendance\AttendanceRecordRepository;
 use App\Services\Attendance\AccessLogScheduleReader;
+use App\Services\Attendance\AttendancePeriodResolver;
 use App\Services\Attendance\Calculators\FixedScheduleCalculator;
 use App\Services\Attendance\Calculators\FlexibleScheduleCalculator;
+use Filament\Notifications\Notification;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
@@ -24,9 +26,15 @@ use Livewire\WithPagination;
 /**
  * Rekap presensi portal - padanan /admin/attendance-records?type=report tapi dengan 2 mode:
  * "harian" (data attendance_records hari ini apa adanya, per baris) dan "bulanan" (agregat per
- * karyawan 1 bulan, mirror App\Filament\...\AttendanceReport::applyAttendanceMetrics() tapi query
- * di-parameterize pakai selectRaw(..., $bindings) - bukan string-interpolate raw SQL seperti versi
- * admin - dan kolom dipangkas ke yang penting saja (tanpa early_leave/overtime aktual toggleable).
+ * karyawan 1 periode, mirror App\Filament\...\AttendanceReport::applyAttendanceMetrics() tapi
+ * query di-parameterize pakai selectRaw(..., $bindings) - bukan string-interpolate raw SQL
+ * seperti versi admin - dan kolom dipangkas ke yang penting saja (tanpa early_leave/overtime
+ * aktual toggleable).
+ *
+ * Mode "bulanan" pakai window PERIODE (date_from/date_to bebas pilih), default-nya ikut cutoff
+ * company (AttendancePeriodResolver, sama seperti Rekap Izin - IzinRecapPage) - BUKAN bulan
+ * kalender 1-akhir bulan seperti sebelumnya, supaya konsisten dengan definisi "periode" yang
+ * dipakai di seluruh modul absensi/payroll (2026-08-05).
  */
 #[Layout('components.layout', ['title' => 'Rekap Presensi'])]
 class RekapPresensiPage extends Component
@@ -43,7 +51,10 @@ class RekapPresensiPage extends Component
     public string $search = '';
 
     #[Url]
-    public string $month = '';
+    public ?string $date_from = null;
+
+    #[Url]
+    public ?string $date_to = null;
 
     public bool $showSyncModal = false;
 
@@ -71,8 +82,13 @@ class RekapPresensiPage extends Component
             $this->companyId = Auth::user()->company_id;
         }
 
-        if ($this->month === '') {
-            $this->month = now()->format('Y-m');
+        // Default periode bulanan ikut cutoff company (AttendancePeriodResolver), sama seperti
+        // Rekap Izin - konsisten dengan periode absensi/kuota izin, bukan bulan kalender polos.
+        // Cuma di-default kalau belum ada di query string (mis. dari link "Bulanan" halaman lain).
+        if ($this->date_from === null || $this->date_to === null) {
+            [$periodStart, $periodEnd] = AttendancePeriodResolver::resolve(now(), $this->companyId);
+            $this->date_from = $periodStart->toDateString();
+            $this->date_to = $periodEnd->toDateString();
         }
     }
 
@@ -197,7 +213,44 @@ class RekapPresensiPage extends Component
         }
     }
 
-    public function updatedMonth(): void
+    /**
+     * Betulkan status baris attendance_records yang SUDAH ADA di periode terpilih (companyId
+     * ikut kalau lagi dipilih) - kalau check_in_time ATAU check_out_time null, statusnya
+     * ditandai 'absent'. Cuti/Sakit/Izin yang disetujui (status leave/sick/permit) SENGAJA
+     * dikecualikan, biar tidak salah timpa jadi "mangkir" padahal memang tidak masuk kerja
+     * dengan alasan yang disetujui - keduanya juga wajar check_in/check_out-nya null. Tidak
+     * membuat baris baru untuk tanggal yang sama sekali tidak ada datanya (2026-08-05,
+     * dikonfirmasi user).
+     */
+    public function syncAbsentStatus(): void
+    {
+        abort_unless($this->canSync, 403);
+        abort_unless($this->date_from && $this->date_to, 422);
+
+        $excludedStatuses = [
+            AttendanceStatus::LEAVE->value,
+            AttendanceStatus::SICK->value,
+            AttendanceStatus::PERMIT->value,
+        ];
+
+        $affected = $this->scopedRecordsForRange($this->date_from, $this->date_to)
+            ->whereNotIn('status', $excludedStatuses)
+            ->where(fn ($q) => $q->whereNull('check_in_time')->orWhereNull('check_out_time'))
+            ->update(['status' => AttendanceStatus::ABSENT->value]);
+
+        Notification::make()
+            ->title($affected > 0 ? "{$affected} baris presensi ditandai Tidak Hadir" : 'Tidak ada baris yang perlu diubah')
+            ->body('Baris berstatus Cuti/Sakit/Izin tidak ikut diubah.')
+            ->success()
+            ->send();
+    }
+
+    public function updatedDateFrom(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatedDateTo(): void
     {
         $this->resetPage();
     }
@@ -249,7 +302,8 @@ class RekapPresensiPage extends Component
             'mode' => $this->mode,
             'companyId' => $this->companyId,
             'search' => $this->search,
-            'month' => $this->month,
+            'date_from' => $this->date_from,
+            'date_to' => $this->date_to,
         ];
     }
 
@@ -299,14 +353,11 @@ class RekapPresensiPage extends Component
             ->appends($this->queryAppends());
     }
 
-    // --- Mode bulanan ---
+    // --- Mode bulanan (sebenarnya per-periode, ikut cutoff company - lihat mount()) ---
 
     public function getMonthRangeProperty(): array
     {
-        $start = Carbon::parse($this->month . '-01')->startOfMonth();
-        $end = $start->copy()->endOfMonth();
-
-        return [$start->toDateString(), $end->toDateString()];
+        return [$this->date_from, $this->date_to];
     }
 
     public function getMonthlyStatsProperty(): array

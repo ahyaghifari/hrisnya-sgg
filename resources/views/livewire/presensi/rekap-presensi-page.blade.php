@@ -12,7 +12,7 @@
 <div>
 <x-page-header title="Rekap Presensi" subtitle="Rekap kehadiran karyawan - mode harian atau bulanan" />
 
-@if ($this->canSync)
+@if ($this->canSync && $mode === 'harian')
     <div style="display:flex;justify-content:flex-end;margin-bottom:12px;">
         <button type="button" wire:click="openSyncModal" class="btn-primary">
             <i class="fa-solid fa-arrow-rotate-right"></i> Sync Presensi
@@ -22,7 +22,7 @@
 
 <div style="display:inline-flex;gap:2px;background:var(--surface-alt);padding:3px;border-radius:8px;margin-bottom:16px;">
     <button type="button" wire:click="setMode('harian')" style="padding:4px 12px;font-size:11.5px;font-weight:600;border:none;border-radius:6px;cursor:pointer;font-family:inherit;background:{{ $mode === 'harian' ? 'var(--surface)' : 'transparent' }};color:{{ $mode === 'harian' ? 'var(--text-heading)' : 'var(--text-muted)' }};box-shadow:{{ $mode === 'harian' ? 'var(--shadow-card)' : 'none' }};">Hari Ini</button>
-    <button type="button" wire:click="setMode('bulanan')" style="padding:4px 12px;font-size:11.5px;font-weight:600;border:none;border-radius:6px;cursor:pointer;font-family:inherit;background:{{ $mode === 'bulanan' ? 'var(--surface)' : 'transparent' }};color:{{ $mode === 'bulanan' ? 'var(--text-heading)' : 'var(--text-muted)' }};box-shadow:{{ $mode === 'bulanan' ? 'var(--shadow-card)' : 'none' }};">Bulanan</button>
+    <button type="button" wire:click="setMode('bulanan')" style="padding:4px 12px;font-size:11.5px;font-weight:600;border:none;border-radius:6px;cursor:pointer;font-family:inherit;background:{{ $mode === 'bulanan' ? 'var(--surface)' : 'transparent' }};color:{{ $mode === 'bulanan' ? 'var(--text-heading)' : 'var(--text-muted)' }};box-shadow:{{ $mode === 'bulanan' ? 'var(--shadow-card)' : 'none' }};">Periode</button>
 </div>
 
 <div class="mb-4" style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;">
@@ -40,9 +40,22 @@
 
     @if ($mode === 'bulanan')
         <div style="min-width:170px;">
-            <label class="form-label">Bulan</label>
-            <input type="month" class="form-input" wire:model.live="month">
+            <label class="form-label">Dari Tanggal</label>
+            <input type="date" class="form-input" wire:model.live="date_from">
         </div>
+
+        <div style="min-width:170px;">
+            <label class="form-label">Sampai Tanggal</label>
+            <input type="date" class="form-input" wire:model.live="date_to">
+        </div>
+
+        @if ($this->canSync)
+            <button type="button" wire:click="syncAbsentStatus" wire:loading.attr="disabled" wire:target="syncAbsentStatus"
+                wire:confirm="Tandai 'Tidak Hadir' semua baris presensi di periode ini yang jam masuk/pulangnya kosong (Cuti/Sakit/Izin tidak ikut berubah)?"
+                class="btn-ghost" title="Cek baris presensi periode ini - tandai 'Tidak Hadir' kalau jam masuk atau pulang kosong">
+                <i class="fa-solid fa-user-clock"></i> Sync Absent Periode Ini
+            </button>
+        @endif
     @endif
 
     <div style="min-width:220px;flex:1;">

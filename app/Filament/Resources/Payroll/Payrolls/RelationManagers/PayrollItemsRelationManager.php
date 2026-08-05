@@ -6,6 +6,8 @@ use App\Enum\CustomPermissionEnum;
 use App\Enum\Payroll\PayrollComponentEnum;
 use App\Filament\Resources\Payroll\Payrolls\PayrollResource;
 use App\Models\AuditLog;
+use App\Models\Payroll\Payroll;
+use App\Models\Payroll\PayrollItem;
 use Illuminate\Support\Facades\Auth;
 use Filament\Actions\AssociateAction;
 use Filament\Actions\BulkActionGroup;
@@ -30,6 +32,13 @@ class PayrollItemsRelationManager extends RelationManager
 {
     protected $listeners = ['refreshRelation' => '$refresh'];
     protected static string $relationship = 'items';
+
+    /** Snapshot amount/type SEBELUM EditAction menimpa record - dipakai after() buat hitung
+     * delta ke total payroll (gross/deductions/net), karena by the time after() jalan, $record
+     * sudah keburu ke-update ke nilai baru. */
+    private ?float $editingOldAmount = null;
+
+    private ?string $editingOldType = null;
 
     public function form(Schema $schema): Schema
     {
@@ -142,33 +151,95 @@ class PayrollItemsRelationManager extends RelationManager
                     ->after(function ($record, array $data, $livewire) {
                         $payroll = $this->getOwnerRecord();
 
-                        if ($data['type'] === 'earning') {
-                            $payroll->increment('gross_salary', $data['amount']);
-                            $payroll->increment('net_salary', $data['amount']);
-                        } else {
-                            $payroll->increment('total_deductions', $data['amount']);
-                            $payroll->decrement('net_salary', $data['amount']);
-                        }
+                        $this->applyToPayrollTotals($payroll, $data['type'], (float) $data['amount']);
+                        $this->recordAdjustmentLog($payroll, $record, null, (string) $record->amount, $data['note']);
 
-                        // Jejak "siapa nambah adjustment apa" — dicatat eksplisit di sini (bukan
-                        // lewat trait LogsAuditChanges di model PayrollItem), karena PayrollItem
-                        // juga dibuat massal oleh Calculator tiap Generate/Regenerate payroll -
-                        // kalau trait ditempel ke modelnya, tiap generate (ratusan baris per
-                        // employee x semua employee) ikut kecatat, log jadi penuh noise. Cuma
-                        // jalur "Add Adjustment" manual ini yang dianggap penyesuaian.
-                        AuditLog::record(
-                            'payroll_adjustment',
-                            $payroll->payrollPeriod?->company_id,
-                            'payroll_item:' . $record->id,
-                            $record->name . ' — ' . $payroll->user?->name . ' (' . $data['note'] . ')',
-                            null,
-                            (string) $record->amount,
+                        $livewire->dispatch('refresh');
+                    }),
+            ])
+            ->recordActions([
+                EditAction::make()
+                    ->authorize(fn () => Auth::user()->can(CustomPermissionEnum::EDIT_PAYROLL_ADJUSTMENT->value))
+                    ->modalHeading('Edit Payroll Item')
+                    ->modalDescription('Perubahan pada baris ini (termasuk baris hasil kalkulator) akan tercatat ke audit log. Catatan alasan wajib diisi.')
+                    ->schema([
+                        TextInput::make('name')
+                            ->label('Component Name')
+                            ->required(),
+
+                        Select::make('type')
+                            ->options([
+                                'earning' => 'Earning',
+                                'deduction' => 'Deduction',
+                            ])
+                            ->required(),
+
+                        TextInput::make('amount')
+                            ->numeric()
+                            ->required()
+                            ->prefix('IDR'),
+
+                        Textarea::make('note')
+                            ->label('Catatan (alasan perubahan)')
+                            ->required()
+                            ->rows(3),
+                    ])
+                    ->before(function ($record) {
+                        $this->editingOldAmount = (float) $record->amount;
+                        $this->editingOldType = $record->type;
+                    })
+                    ->after(function ($record, array $data, $livewire) {
+                        $payroll = $this->getOwnerRecord();
+
+                        // Batalkan kontribusi nilai LAMA dulu (bisa jadi type-nya juga berubah,
+                        // earning <-> deduction), baru tambahkan nilai BARU - biar benar juga
+                        // kalau adminnya sekalian ganti earning jadi deduction atau sebaliknya.
+                        $this->applyToPayrollTotals($payroll, $this->editingOldType, -$this->editingOldAmount);
+                        $this->applyToPayrollTotals($payroll, $data['type'], (float) $data['amount']);
+
+                        $this->recordAdjustmentLog(
+                            $payroll,
+                            $record,
+                            (string) $this->editingOldAmount,
+                            (string) $data['amount'],
+                            $data['note'],
                         );
 
                         $livewire->dispatch('refresh');
                     }),
             ])
             ->bulkActions([]);
+    }
+
+    /** @param float $amount Positif = tambahkan kontribusi ke total, negatif = batalkan. */
+    private function applyToPayrollTotals(Payroll $payroll, string $type, float $amount): void
+    {
+        if ($type === 'earning') {
+            $payroll->increment('gross_salary', $amount);
+            $payroll->increment('net_salary', $amount);
+        } else {
+            $payroll->increment('total_deductions', $amount);
+            $payroll->increment('net_salary', -$amount);
+        }
+    }
+
+    /**
+     * Jejak "siapa ubah/nambah adjustment apa" — dicatat eksplisit di sini (bukan lewat trait
+     * LogsAuditChanges di model PayrollItem), karena PayrollItem juga dibuat massal oleh
+     * Calculator tiap Generate/Regenerate payroll - kalau trait ditempel ke modelnya, tiap
+     * generate (ratusan baris per employee x semua employee) ikut kecatat, log jadi penuh
+     * noise. Cuma jalur "Add Adjustment"/Edit manual ini yang dianggap penyesuaian.
+     */
+    private function recordAdjustmentLog(Payroll $payroll, PayrollItem $record, ?string $oldAmount, string $newAmount, string $note): void
+    {
+        AuditLog::record(
+            'payroll_adjustment',
+            $payroll->payrollPeriod?->company_id,
+            'payroll_item:' . $record->id,
+            $record->name . ' — ' . $payroll->user?->name . ' (' . $note . ')',
+            $oldAmount,
+            $newAmount,
+        );
     }
 
     public function isReadOnly(): bool

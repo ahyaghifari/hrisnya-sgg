@@ -11,6 +11,7 @@ use App\Models\Payroll\PayrollPeriod;
 use App\Models\Setting;
 use App\Models\Shift\ExtraHourAllowanceRules;
 use App\Models\User;
+use App\Services\Attendance\AttendancePeriodResolver;
 
 /**
  * Logic sama persis PayrollService::handleExtraHourAllowanceComponent() lama — cuma sumber
@@ -21,9 +22,14 @@ class KelebihanJamKerjaCalculator implements PayrollComponentCalculator
 {
     public function calculate(User $user, Payroll $payroll, PayrollPeriod $period, PayrollContext $context): void
     {
+        // Window jam kerja BUKAN literal start_date/end_date PayrollPeriod (itu diketik bebas
+        // admin pas bikin periode gaji, bisa aja 1-31 kalender) - dipakai window periode absensi
+        // dari Pengaturan Absensi, sama seperti Keterlambatan/Izin/Lembur (2026-08-05, konsistensi).
+        [$attendancePeriodStart, $attendancePeriodEnd] = AttendancePeriodResolver::resolve($period->start_date, $period->company_id);
+
         $totalWorkingMinutes = (float) AttendanceRecords::query()
             ->where('user_id', $user->id)
-            ->whereBetween('date', [$period->start_date, $period->end_date])
+            ->whereBetween('date', [$attendancePeriodStart, $attendancePeriodEnd])
             ->whereNotNull('working_minutes')
             ->sum('working_minutes');
 
