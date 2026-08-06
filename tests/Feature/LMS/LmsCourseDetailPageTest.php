@@ -17,7 +17,9 @@ use App\Models\LMS\Trainer\LmsHonorariumVariable;
 use App\Models\LMS\Trainer\Trainers;
 use App\Models\Master\Companies;
 use App\Models\User;
+use App\Notifications\CourseParticipantEnrolled;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Notification;
 use Livewire\Livewire;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
@@ -747,6 +749,40 @@ class LmsCourseDetailPageTest extends TestCase
         $this->assertNotNull($meetingQuiz->public_token);
         $this->assertNotNull($course->feedback_public_token);
         $this->assertSame(\App\Enum\LsmCourseStatus::Published->value, $course->status);
+    }
+
+    public function test_publishing_course_notifies_only_added_participants(): void
+    {
+        Notification::fake();
+
+        $company = $this->makeCompany('CPC', 'Company C');
+        $admin = $this->actingAsLmsAdmin($company->id);
+        $course = $this->makeCourse($company->id);
+        $course->update(['status' => \App\Enum\LsmCourseStatus::Draft->value]);
+
+        // getPublishChecklistProperty() butuh peserta DAN minimal 1 meeting lengkap
+        // (trainer+jam) - tanpa ini publishCourse() abort(403) diam-diam sebelum sempat kirim
+        // notifikasi (Livewire tidak melempar exception itu ke assertHasNoErrors()).
+        $trainer = Trainers::create(['type' => 'internal', 'name' => 'Trainer Uji', 'is_active' => true]);
+        $course->meetings()->create([
+            'title' => 'Sesi 1', 'trainer_id' => $trainer->id, 'start_time' => '09:00', 'end_time' => '11:00',
+        ]);
+
+        $participant = User::factory()->create(['company_id' => $company->id]);
+        LmsCourseUsers::create(['course_id' => $course->id, 'user_id' => $participant->id, 'status' => 'approved']);
+
+        $notParticipant = User::factory()->create(['company_id' => $company->id]);
+
+        Livewire::actingAs($admin)
+            ->test(LmsCourseDetailPage::class, ['course' => $course])
+            ->call('publishCourse')
+            ->assertHasNoErrors();
+
+        $course->refresh();
+        $this->assertSame(\App\Enum\LsmCourseStatus::Published->value, $course->status);
+
+        Notification::assertSentTo($participant, CourseParticipantEnrolled::class);
+        Notification::assertNotSentTo($notParticipant, CourseParticipantEnrolled::class);
     }
 
     public function test_opening_already_published_course_self_heals_missing_feedback_token(): void

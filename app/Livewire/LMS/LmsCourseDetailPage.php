@@ -18,6 +18,7 @@ use App\Models\LMS\LmsQuizzes;
 use App\Models\LMS\Trainer\TrainerAssessmentResults;
 use App\Models\LMS\Trainer\Trainers;
 use App\Models\User;
+use App\Services\LMS\CourseService;
 use App\Services\LMS\CourseUserService;
 use App\Services\LMS\MeetingHonorariumService;
 use Filament\Notifications\Notification;
@@ -417,6 +418,12 @@ class LmsCourseDetailPage extends Component
         $this->course->refresh();
 
         $this->generatePublicTokens();
+
+        // Peserta di jalur portal ini sudah ditambahkan admin SEBELUM publish (beda dari jalur
+        // Filament admin yang belum ada peserta terdaftar saat publish, makanya broadcast ke
+        // semua karyawan) - jadi yang dikabari cukup peserta yang sudah terdaftar, bukan semua
+        // karyawan aktif. Lihat CourseService::notifyParticipantsEnrolled() (2026-08-06).
+        app(CourseService::class)->notifyParticipantsEnrolled($this->course);
 
         Notification::make()->title('Pelatihan berhasil dipublish')->success()->send();
     }

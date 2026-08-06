@@ -6,6 +6,7 @@ use App\Events\LmsProgresUpdated;
 use App\Models\LMS\LmsCourseFeedbacks;
 use App\Models\LMS\LmsCourses;
 use App\Models\User;
+use App\Notifications\CourseParticipantEnrolled;
 use App\Notifications\CoursePublished;
 use App\Repositories\LMS\CourseRepository;
 use Illuminate\Support\Facades\Auth;
@@ -126,5 +127,21 @@ class CourseService
             ->get();
 
         Notification::send($recipients, new CoursePublished($course));
+    }
+
+    /**
+     * Ke peserta yang sudah DITAMBAHKAN admin (LmsCourseUsers, jalur portal
+     * LmsCourseDetailPage::addParticipants() - status approved langsung, bukan self-enroll) saat
+     * pelatihannya dipublish - beda dari notifyCoursePublished() yang broadcast ke semua karyawan
+     * aktif tanpa peduli status keanggotaan (dipakai jalur admin Filament yang belum ada peserta
+     * terdaftar saat publish di sana).
+     */
+    public function notifyParticipantsEnrolled(LmsCourses $course): void
+    {
+        $recipients = User::query()
+            ->whereIn('id', $course->courseUsers()->pluck('user_id'))
+            ->get();
+
+        Notification::send($recipients, new CourseParticipantEnrolled($course));
     }
 }

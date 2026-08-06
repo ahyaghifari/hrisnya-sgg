@@ -51,6 +51,12 @@ enum NotificationTypeEnum: string
     // App\Services\LMS\CourseUserService::approveEnrollment().
     case COURSE_ENROLLMENT_APPROVED = 'course_enrollment_approved';
 
+    // Ke peserta yang DITAMBAHKAN admin (bukan self-enroll) ke pelatihan portal, saat
+    // pelatihannya dipublish — lihat App\Livewire\LMS\LmsCourseDetailPage::publishCourse().
+    // Beda dari COURSE_PUBLISHED yang broadcast ke SEMUA karyawan aktif tanpa peduli status
+    // keanggotaan (jalur admin Filament, belum ada peserta terdaftar saat publish di sana).
+    case COURSE_PARTICIPANT_ENROLLED = 'course_participant_enrolled';
+
     public function label(): string
     {
         return match ($this) {
@@ -75,6 +81,7 @@ enum NotificationTypeEnum: string
             self::ATTENDANCE_SCAN_REJECTED => 'Absensi Saya Tidak Diproses',
             self::COURSE_PUBLISHED => 'Pelatihan Baru Tersedia',
             self::COURSE_ENROLLMENT_APPROVED => 'Pendaftaran Pelatihan Saya Disetujui',
+            self::COURSE_PARTICIPANT_ENROLLED => 'Diikutkan ke Pelatihan',
         };
     }
 
@@ -116,6 +123,7 @@ enum NotificationTypeEnum: string
             self::ATTENDANCE_SCAN_REJECTED => 'Dikirim saat scan absensi Anda tidak bisa diproses sistem (mis. jadwal tidak ditemukan), beserta alasannya.',
             self::COURSE_PUBLISHED => 'Dikirim ke Anda saat ada pelatihan LMS baru yang di-publish dan bisa Anda ikuti.',
             self::COURSE_ENROLLMENT_APPROVED => 'Dikirim ke Anda saat pendaftaran Anda ke sebuah pelatihan disetujui approver.',
+            self::COURSE_PARTICIPANT_ENROLLED => 'Dikirim ke Anda saat admin menambahkan Anda sebagai peserta pelatihan yang baru dipublish.',
         };
     }
 }
