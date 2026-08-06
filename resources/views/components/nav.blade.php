@@ -2,7 +2,6 @@
     $canSeeKaryawanMenu = auth()->user()->canAccessKaryawanMenu();
     $canSubmitAttendance = ! auth()->user()->canBrowseAllCompanies();
     $canAccessKeuangan = auth()->user()->can(\App\Enum\CustomPermissionEnum::SISTEM_KEUANGAN->value);
-    $canAccessMaster = auth()->user()->can(\App\Enum\CustomPermissionEnum::SISTEM_MASTER->value);
     $canAccessAbsensi = auth()->user()->can(\App\Enum\CustomPermissionEnum::SISTEM_ABSENSI->value);
     $canAccessKepegawaian = auth()->user()->can(\App\Enum\CustomPermissionEnum::SISTEM_KEPEGAWAIAN->value);
     $canAccessLms = auth()->user()->can(\App\Enum\CustomPermissionEnum::SISTEM_LMS->value);
@@ -23,7 +22,7 @@
     // jadi konselor TIDAK lihat dropdown ini — jalur masuknya lewat tombol "Konsul ke Saya" di
     // halaman personal Counseling Saya (/counseling) sendiri, lihat CounselingPage.
     $canAccessCoachingCounseling = $canSeeKaryawanMenu;
-    $showRoleRow = $canSeeKaryawanMenu || $canAccessKeuangan || $canAccessMaster || $canAccessAbsensi || $canAccessKepegawaian || $canAccessLms || $canAccessCoachingCounseling || $canAccessPenilaian || $canAccessHakAkses;
+    $showRoleRow = $canSeeKaryawanMenu || $canAccessKeuangan || $canAccessAbsensi || $canAccessKepegawaian || $canAccessLms || $canAccessCoachingCounseling || $canAccessPenilaian || $canAccessHakAkses;
     $initials = collect(explode(' ', auth()->user()->name))
         ->map(fn ($part) => mb_substr($part, 0, 1))
         ->take(2)

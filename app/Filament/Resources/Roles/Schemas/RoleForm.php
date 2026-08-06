@@ -71,6 +71,7 @@ class RoleForm
             CustomPermissionEnum::SISTEM_LMS->value => [
                 CustomPermissionEnum::EDIT_DETAIL_KURSUS_LMS->value,
                 CustomPermissionEnum::EDIT_HONORARIUM_LMS->value,
+                CustomPermissionEnum::EDIT_PENGATURAN_LMS->value,
             ],
             CustomPermissionEnum::SISTEM_TUGAS->value => [
                 CustomPermissionEnum::EDIT_PENGATURAN_TUGAS->value,
@@ -96,6 +97,7 @@ class RoleForm
         return [
             CustomPermissionEnum::TUGAS_SAYA->value,
             CustomPermissionEnum::PELATIHAN_SAYA->value,
+            CustomPermissionEnum::AJUKAN_PELATIHAN->value,
             CustomPermissionEnum::PENGAJUAN_ABSENSI_SAYA->value,
             CustomPermissionEnum::COACHING_COUNSELING_SAYA->value,
         ];
@@ -183,7 +185,6 @@ class RoleForm
             'Kepegawaian' => CustomPermissionEnum::SISTEM_KEPEGAWAIAN->value,
             'LMS' => CustomPermissionEnum::SISTEM_LMS->value,
             'Presensi & Absensi' => CustomPermissionEnum::SISTEM_ABSENSI->value,
-            'Master' => CustomPermissionEnum::SISTEM_MASTER->value,
         ];
     }
 
