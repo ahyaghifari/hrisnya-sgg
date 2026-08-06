@@ -22,7 +22,13 @@
     </div>
 </div>
 
-@if ($blocked)
+@if ($locked)
+    <div class="pwa-list" style="padding:32px 16px;text-align:center;">
+        <i class="fa-solid fa-lock" style="font-size:22px;color:var(--text-faint);margin-bottom:10px;"></i>
+        <p style="font-size:13px;font-weight:600;color:var(--text-heading);margin-bottom:4px;">Kuis belum dibuka</p>
+        <p style="font-size:12.5px;color:var(--text-muted);margin:0;">Admin/pemateri belum membuka kuis ini untuk dikerjakan.</p>
+    </div>
+@elseif ($blocked)
     <div class="pwa-list" style="padding:32px 16px;text-align:center;">
         <i class="fa-solid fa-lock" style="font-size:22px;color:var(--text-faint);margin-bottom:10px;"></i>
         <p style="font-size:13px;font-weight:600;color:var(--text-heading);margin-bottom:4px;">Belum bisa mengerjakan kuis ini</p>

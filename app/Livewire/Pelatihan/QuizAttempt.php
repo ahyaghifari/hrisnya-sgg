@@ -22,6 +22,8 @@ class QuizAttempt extends Component
 
     public bool $blocked = false;
 
+    public bool $locked = false;
+
     public ?LmsQuizResults $result = null;
 
     public ?string $quizTitle = null;
@@ -65,6 +67,15 @@ class QuizAttempt extends Component
         if ($existingResult) {
             $this->result = $existingResult;
             $this->review = $this->buildReview($meetingQuiz->id);
+
+            return;
+        }
+
+        // Gate kunci — kuis baru default terkunci untuk peserta yang login (portal), admin
+        // buka manual lewat tombol "Buka" di halaman detail pelatihan. Akses publik lewat
+        // QR/token (PublicQuizPage) TIDAK kena gate ini, sengaja beda jalur.
+        if (! $meetingQuiz->is_unlocked) {
+            $this->locked = true;
 
             return;
         }

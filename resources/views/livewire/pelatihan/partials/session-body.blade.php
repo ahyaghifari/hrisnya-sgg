@@ -6,15 +6,17 @@
     @endif
 @endif
 
+{{-- ponytail (2026-08-06): akses kuis/materi buat karyawan login DIPARKIR dulu, publik
+     (QR/token) yang jadi jalur utama sekarang - bagian ini murni tampilan/info, tidak ada
+     link/aksi apapun. Backend-nya (is_unlocked, route pelatihan.quiz, QuizAttempt) tetap ada
+     kalau nanti mau diaktifkan lagi, tinggal balikin <a>/wire:navigate di sini. --}}
 @if ($meeting->materials->isNotEmpty())
     <div class="course-materials">
         @foreach ($meeting->materials as $material)
-            <a href="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($material->file_path) }}"
-                target="_blank" rel="noopener" class="course-material-row">
+            <div class="course-material-row" style="cursor:default;">
                 <div class="course-material-icon"><i class="fa-solid fa-file"></i></div>
                 <span class="course-material-name">{{ $material->title ?? $material->file_name }}</span>
-                <i class="fa-solid fa-chevron-right"></i>
-            </a>
+            </div>
         @endforeach
     </div>
 @endif
@@ -22,14 +24,10 @@
 @if ($meeting->quizzes->isNotEmpty())
     <div class="course-materials">
         @foreach ($meeting->quizzes as $meetingQuiz)
-            <a href="{{ route('pelatihan.quiz', ['meetingQuiz' => $meetingQuiz->id]) }}" wire:navigate class="course-material-row">
+            <div class="course-material-row" style="cursor:default;">
                 <div class="course-material-icon is-quiz"><i class="fa-solid fa-clipboard-question"></i></div>
                 <span class="course-material-name">{{ $meetingQuiz->quiz->title ?? 'Kuis' }}</span>
-                @if ($quizAttempted($meetingQuiz->id))
-                    <span class="badge badge-approved">Selesai</span>
-                @endif
-                <i class="fa-solid fa-chevron-right"></i>
-            </a>
+            </div>
         @endforeach
     </div>
 @endif

@@ -42,7 +42,7 @@ class QuizAttemptTest extends TestCase
 
         LmsQuizQuestions::create(['quiz_id' => $quiz->id, 'question_bank_id' => $question->id]);
 
-        $meetingQuiz = LmsMeetingQuizzes::create(['meeting_id' => $meeting->id, 'quiz_id' => $quiz->id, 'duration' => 10]);
+        $meetingQuiz = LmsMeetingQuizzes::create(['meeting_id' => $meeting->id, 'quiz_id' => $quiz->id, 'duration' => 10, 'is_unlocked' => true]);
 
         return ['meetingQuiz' => $meetingQuiz, 'correctOptionId' => $correctOption->id];
     }
@@ -208,12 +208,28 @@ class QuizAttemptTest extends TestCase
         $quiz = LmsQuizzes::create(['title' => 'Quiz Esai', 'total_score' => 0]);
         $question = LmsQuestionBanks::create(['question' => 'Jelaskan BHD', 'type' => QuestionType::Essay, 'max_score' => 10, 'min_score' => 0]);
         LmsQuizQuestions::create(['quiz_id' => $quiz->id, 'question_bank_id' => $question->id]);
-        $meetingQuiz = LmsMeetingQuizzes::create(['meeting_id' => $meeting->id, 'quiz_id' => $quiz->id]);
+        $meetingQuiz = LmsMeetingQuizzes::create(['meeting_id' => $meeting->id, 'quiz_id' => $quiz->id, 'is_unlocked' => true]);
 
         $response = $this->actingAs($user)->get('/pelatihan/quiz/' . $meetingQuiz->id);
 
         $response->assertOk();
         $response->assertSee('Belum ada soal pilihan ganda di kuis ini.');
+        $response->assertDontSee('Kirim Jawaban');
+    }
+
+    public function test_locked_quiz_shows_locked_message_even_for_approved_user(): void
+    {
+        $user = User::factory()->create();
+        $course = LmsCourses::create(['code' => 'Q08', 'title' => 'Kursus Quiz', 'status' => LsmCourseStatus::Published->value]);
+        $meeting = LmsMeetings::create(['course_id' => $course->id, 'title' => 'Pertemuan 1']);
+        $quiz = LmsQuizzes::create(['title' => 'Quiz Terkunci', 'total_score' => 0]);
+        $meetingQuiz = LmsMeetingQuizzes::create(['meeting_id' => $meeting->id, 'quiz_id' => $quiz->id]);
+        $this->approveUserForCourse($user, $course);
+
+        $response = $this->actingAs($user)->get('/pelatihan/quiz/' . $meetingQuiz->id);
+
+        $response->assertOk();
+        $response->assertSee('Kuis belum dibuka');
         $response->assertDontSee('Kirim Jawaban');
     }
 }

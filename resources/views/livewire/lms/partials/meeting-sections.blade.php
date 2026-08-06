@@ -45,12 +45,22 @@
 
 @forelse ($meeting->materials as $material)
     <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border-soft);font-size:12.5px;">
-        <span><i class="fa-solid fa-file-lines" style="color:var(--text-faint);"></i> {{ $material->title }}</span>
-        @if ($this->canEditDetail)
-            <button type="button" wire:click="removeMaterial('{{ $material->id }}')" wire:confirm="Hapus materi ini?" class="btn-ghost" style="padding:4px 8px;font-size:11px;color:#dc2626;">
-                <i class="fa-solid fa-trash"></i>
-            </button>
-        @endif
+        <span>
+            <i class="fa-solid fa-file-lines" style="color:var(--text-faint);"></i> {{ $material->title }}
+            @if (! $material->is_unlocked)
+                <span class="badge" style="background:#f3f4f6;color:#6b7280;margin-left:6px;"><i class="fa-solid fa-lock"></i> Terkunci</span>
+            @endif
+        </span>
+        <div style="display:flex;gap:6px;">
+            @if ($this->canEditDetail)
+                <button type="button" wire:click="toggleMaterialLock('{{ $material->id }}')" class="btn-ghost" style="padding:4px 8px;font-size:11px;">
+                    <i class="fa-solid fa-{{ $material->is_unlocked ? 'lock' : 'lock-open' }}"></i> {{ $material->is_unlocked ? 'Kunci' : 'Buka' }}
+                </button>
+                <button type="button" wire:click="removeMaterial('{{ $material->id }}')" wire:confirm="Hapus materi ini?" class="btn-ghost" style="padding:4px 8px;font-size:11px;color:#dc2626;">
+                    <i class="fa-solid fa-trash"></i>
+                </button>
+            @endif
+        </div>
     </div>
 @empty
     <p style="font-size:12px;color:var(--text-faint);margin:0;">Belum ada materi.</p>
@@ -105,6 +115,9 @@
             @if ($meetingQuiz->is_graduation_requirement)
                 <span class="badge" style="background:#fef3c7;color:#92400e;margin-left:6px;">Penentu Kelulusan</span>
             @endif
+            @if (! $meetingQuiz->is_unlocked)
+                <span class="badge" style="background:#f3f4f6;color:#6b7280;margin-left:6px;"><i class="fa-solid fa-lock"></i> Terkunci</span>
+            @endif
         </span>
         <div style="display:flex;gap:6px;">
             <button type="button" wire:click="showQuizResultsSummary('{{ $meetingQuiz->id }}')" class="btn-ghost" style="padding:4px 8px;font-size:11px;">
@@ -113,6 +126,11 @@
             <button type="button" wire:click="showQuizResultsList('{{ $meetingQuiz->id }}')" class="btn-ghost" style="padding:4px 8px;font-size:11px;">
                 <i class="fa-solid fa-list"></i> Hasil Peserta
             </button>
+            @if ($this->canEditDetail)
+                <button type="button" wire:click="toggleQuizLock('{{ $meetingQuiz->id }}')" class="btn-ghost" style="padding:4px 8px;font-size:11px;">
+                    <i class="fa-solid fa-{{ $meetingQuiz->is_unlocked ? 'lock' : 'lock-open' }}"></i> {{ $meetingQuiz->is_unlocked ? 'Kunci' : 'Buka' }}
+                </button>
+            @endif
             @if ($meetingQuiz->public_token)
                 <button type="button" wire:click="showQuizQr('{{ $meetingQuiz->id }}')" class="btn-ghost" style="padding:4px 8px;font-size:11px;">
                     <i class="fa-solid fa-qrcode"></i> Lihat QR

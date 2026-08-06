@@ -778,6 +778,16 @@ class LmsCourseDetailPage extends Component
         Notification::make()->title('Materi dihapus')->success()->send();
     }
 
+    /** Materi/quiz baru default TERKUNCI untuk peserta yang login (portal karyawan) - akses
+     * publik lewat QR/token TIDAK kena gate ini (lihat QuizAttempt::mount() vs PublicQuizPage). */
+    public function toggleMaterialLock(string $id): void
+    {
+        $this->assertCanEdit();
+
+        $material = LmsMaterials::whereHas('meeting', fn ($q) => $q->where('course_id', $this->course->id))->findOrFail($id);
+        $material->update(['is_unlocked' => ! $material->is_unlocked]);
+    }
+
     public function openAddQuizForm(string $meetingId): void
     {
         $this->addingQuizForMeetingId = $meetingId;
@@ -825,6 +835,13 @@ class LmsCourseDetailPage extends Component
             'is_graduation_requirement' => $this->quizIsGraduationRequirement,
         ]);
 
+        // Quiz bisa ditambah setelah publish (tidak wajib bareng) - generate token QR-nya
+        // sekarang juga, jangan tunggu reload halaman (mount() self-heal), soalnya showQuizQr()
+        // langsung 404 kalau public_token masih kosong.
+        if ($this->course->status === LsmCourseStatus::Published->value) {
+            $this->generatePublicTokens();
+        }
+
         $this->addingQuizForMeetingId = null;
 
         Notification::make()->title('Quiz berhasil ditambahkan')->success()->send();
@@ -841,6 +858,14 @@ class LmsCourseDetailPage extends Component
         $meetingQuiz->delete();
 
         Notification::make()->title('Quiz dihapus')->success()->send();
+    }
+
+    public function toggleQuizLock(string $id): void
+    {
+        $this->assertCanEdit();
+
+        $meetingQuiz = LmsMeetingQuizzes::whereHas('meeting', fn ($q) => $q->where('course_id', $this->course->id))->findOrFail($id);
+        $meetingQuiz->update(['is_unlocked' => ! $meetingQuiz->is_unlocked]);
     }
 
     /** "Isi Absensi" cuma boleh dipakai kalau pelatihan sudah dipublish — sebelum publish,

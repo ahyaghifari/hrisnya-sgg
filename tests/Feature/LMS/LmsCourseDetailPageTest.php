@@ -661,6 +661,28 @@ class LmsCourseDetailPageTest extends TestCase
         $this->assertDatabaseMissing('lms_meeting_quizzes', ['id' => $meetingQuiz->id]);
     }
 
+    public function test_toggle_quiz_lock_flips_is_unlocked(): void
+    {
+        $company = $this->makeCompany('CPL', 'Company L');
+        $admin = $this->actingAsLmsAdmin($company->id);
+        $category = LmsCategories::create(['name' => 'Kategori L']);
+        $course = $this->makeCourse($company->id);
+        $course->update(['category_id' => $category->id]);
+        $meeting = $course->meetings()->create(['title' => 'Sesi Utama']);
+        $quiz = LmsQuizzes::create(['category_id' => $category->id, 'title' => 'Quiz Terkunci']);
+        $meetingQuiz = \App\Models\LMS\LmsMeetingQuizzes::create(['meeting_id' => $meeting->id, 'quiz_id' => $quiz->id]);
+
+        $this->assertFalse($meetingQuiz->fresh()->is_unlocked);
+
+        Livewire::actingAs($admin)
+            ->test(LmsCourseDetailPage::class, ['course' => $course])
+            ->call('setTab', 'pertemuan')
+            ->call('toggleMeetingAccordion', $meeting->id)
+            ->call('toggleQuizLock', $meetingQuiz->id);
+
+        $this->assertTrue($meetingQuiz->fresh()->is_unlocked);
+    }
+
     public function test_shows_feedback_tab(): void
     {
         $company = $this->makeCompany('CPA', 'Company A');

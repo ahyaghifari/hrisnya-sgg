@@ -56,11 +56,16 @@ self.addEventListener('notificationclick', (event) => {
     const requestType = event.notification.data?.request_type;
     const payrollId = event.notification.data?.payroll_id;
     const projectId = event.notification.data?.project_id;
+    const courseId = event.notification.data?.course_id;
 
     let url = '/';
     if (payrollId) {
         // Notifikasi Gaji Sudah Dibayar -> halaman detail slip gaji karyawan sendiri.
         url = `/data-diri/penggajian/${payrollId}`;
+    } else if (courseId) {
+        // CoursePublished/CourseParticipantEnrolled/CourseEnrollmentApproved -> halaman detail
+        // pelatihan (self-service karyawan, bukan halaman kelola admin).
+        url = `/pelatihan/${courseId}`;
     } else if (requestType === 'task') {
         // Task di dalam Project/Board -> langsung ke board-nya; task pribadi/penugasan individu
         // (tidak ada project_id) -> halaman Tugas, tab "Tugas Saya".

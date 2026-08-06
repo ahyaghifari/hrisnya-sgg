@@ -19,10 +19,12 @@ class LmsMaterials extends Model
         'file_path',
         'file_type',
         'file_name',
+        'is_unlocked',
     ];
 
     protected $casts = [
         'content' => 'string',
+        'is_unlocked' => 'boolean',
     ];
 
     public function meeting()

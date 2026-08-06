@@ -244,7 +244,7 @@ class TrainingTest extends TestCase
         $response->assertSee('dr. Andi Wijaya');
     }
 
-    public function test_detail_page_shows_meeting_and_material_link(): void
+    public function test_detail_page_shows_meeting_and_material_as_display_only(): void
     {
         $user = User::factory()->create();
 
@@ -270,7 +270,10 @@ class TrainingTest extends TestCase
         $response->assertOk();
         $response->assertSee('Pertemuan 1');
         $response->assertSee('Materi PDF');
-        $response->assertSee('storage/lms/materials/dummy.pdf', false);
+
+        // Materi cuma tampilan, bukan link diklik - akses beneran cuma lewat QR publik
+        // (§lock system 2026-08-06), jadi tidak boleh ada href ke file storage-nya di sini.
+        $response->assertDontSee('storage/lms/materials/dummy.pdf', false);
     }
 
     public function test_detail_page_shows_all_meetings_as_accordion_when_more_than_one(): void

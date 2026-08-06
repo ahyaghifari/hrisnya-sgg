@@ -18,6 +18,11 @@ class LmsMeetingQuizzes extends Model
         'duration',
         'public_token',
         'is_graduation_requirement',
+        'is_unlocked',
+    ];
+
+    protected $casts = [
+        'is_unlocked' => 'boolean',
     ];
 
     public function meeting()
