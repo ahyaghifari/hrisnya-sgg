@@ -17,7 +17,7 @@ use App\Services\Payroll\Calculators\Concerns\ProratesFirstMonth;
  * atas maxKelas dianggap sudah mentok di kelas maksimal pangkat itu (tidak terus membesar tanpa
  * batas kalau ada kesalahan assign kelas terlalu tinggi ke seorang karyawan).
  *
- * Persentase kenaikan per kelas itu SATU nilai per company (setting `gaji_pokok_kenaikan_per_kelas`,
+ * Persentase kenaikan per kelas itu SAT nilai per company (setting `gaji_pokok_kenaikan_per_kelas`,
  * halaman Komponen Gaji) — sama untuk semua pangkat di company itu, beda company boleh beda
  * persen. start_kelas_id/max_kelas_id (FK ke m_kelas) tetap per-pangkat (halaman Mapping
  * Komponen Gaji, tab Gaji Pokok), karena rentang kelas memang beda tiap pangkat.
