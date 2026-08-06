@@ -115,6 +115,30 @@ class GajiPokokCalculatorTest extends TestCase
         $this->assertSame(3_000_000.0, $context->grossSalary);
     }
 
+    public function test_prorates_using_hari_kerja_efektif_divisor_when_configured(): void
+    {
+        $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
+        Setting::create(['company_id' => $company->id, 'key' => 'prorate_metode', 'module' => 'payroll', 'type' => 'string', 'value' => 'hari_kerja_efektif', 'label' => 'Metode Pembagi Prorate Karyawan Baru']);
+        Setting::create(['company_id' => $company->id, 'key' => 'kepegawaian_hari_kerja_efektif_per_bulan', 'module' => 'kepegawaian', 'type' => 'integer', 'value' => '25', 'label' => 'Hari Kerja Efektif per Bulan']);
+
+        $kelas1 = Kelas::create(['name' => 'Kelas I', 'company_id' => $company->id, 'level' => 1]);
+        $pangkat = Pangkats::create(['name' => 'Perawat', 'company_id' => $company->id, 'start_kelas_id' => $kelas1->id, 'max_kelas_id' => $kelas1->id]);
+        PangkatSalary::create(['pangkat_id' => $pangkat->id, 'base_salary' => 3_000_000]);
+
+        $user = User::factory()->create(['company_id' => $company->id]);
+        UserProfiles::create(['user_id' => $user->id, 'pangkat_id' => $pangkat->id, 'kelas_id' => $kelas1->id, 'joining_date' => '2026-07-27']);
+
+        $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
+        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+
+        $context = new PayrollContext();
+        (new GajiPokokCalculator())->calculate($user, $payroll, $period, $context);
+
+        // 5 hari kerja / 25 (setting Hari Kerja Efektif per Bulan) * 3.000.000 - BUKAN dibagi 31
+        // (hari kalender Juli) karena company ini pakai metode 'hari_kerja_efektif'.
+        $this->assertSame(round(3_000_000 * 5 / 25, 2), $context->grossSalary);
+    }
+
     public function test_prorates_regardless_of_employee_category(): void
     {
         $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);

@@ -8,7 +8,7 @@ use App\Models\Payroll\PayrollItem;
 use App\Models\Payroll\PayrollPeriod;
 use App\Models\Setting;
 use App\Models\User;
-use Carbon\Carbon;
+use App\Services\Payroll\Calculators\Concerns\ProratesFirstMonth;
 
 /**
  * gaji_pokok = pangkat_salaries.base_salary * (1 + gaji_pokok_kenaikan_per_kelas% * steps)
@@ -25,17 +25,14 @@ use Carbon\Carbon;
  * ADDITIVE, bukan compound — dikonfirmasi user (analisis-payroll-4 §7.3): naik 2x kelas =
  * +16% dari base, BUKAN base*1.08^2.
  *
- * Prorate bulan pertama — berlaku untuk SEMUA kategori karyawan (bukan cuma Orientasi lagi):
- * kalau Tanggal Bergabung jatuh di tengah periode berjalan (join belakangan dari tanggal mulai
- * periode gaji), gaji_pokok dikali (hari kerja efektif sejak Tanggal Bergabung s.d. akhir
- * periode / jumlah hari di BULAN Tanggal Bergabung, mis. 30 buat Juni, 31 buat Juli) — dikoreksi
- * 2026-08-02, sebelumnya pembagi pakai angka tetap KepegawaianSettingEnum::HARI_KERJA_EFEKTIF_PER_BULAN,
- * sekarang jumlah hari kalender bulan itu. Pembilang dihitung sederhana: hari Senin-Sabtu
- * (exclude Minggu saja, tanpa lihat jadwal/roster/hari libur per karyawan) dari Tanggal Bergabung
- * s.d. akhir periode.
+ * Prorate bulan pertama — berlaku untuk SEMUA kategori karyawan (bukan cuma Orientasi lagi),
+ * logic-nya di ProratesFirstMonth (dipakai bareng Tunjangan Jabatan/Transportasi/Masa Kerja
+ * juga, dikonfirmasi user 2026-08-05 - awalnya cuma Gaji Pokok).
  */
 class GajiPokokCalculator implements PayrollComponentCalculator
 {
+    use ProratesFirstMonth;
+
     public function calculate(User $user, Payroll $payroll, PayrollPeriod $period, PayrollContext $context): void
     {
         // Gaji Pokok butuh Pangkat (jenjang jabatan) + Kelas (level dalam pangkat itu) - dua-duanya
@@ -80,30 +77,9 @@ class GajiPokokCalculator implements PayrollComponentCalculator
         // Catatan yang tampil di slip gaji, dimulai dari base + jumlah langkah kenaikan kelas.
         $note = "Base Rp" . number_format((float) $pangkatSalary->base_salary, 0, ',', '.') . ", kelas +{$steps} langkah";
 
-        // Tanggal Bergabung karyawan - kolom ini string biasa di DB (bukan di-cast Carbon oleh model),
-        // jadi harus di-parse manual di sini sebelum dipakai untuk perbandingan tanggal.
-        $joiningDate = $user->profile?->joining_date ? Carbon::parse($user->profile->joining_date) : null;
-
-        // Syarat prorate: (1) Tanggal Bergabung ADA, (2) Tanggal Bergabung jatuh SETELAH awal
-        // periode (baru masuk di tengah bulan, bukan sudah dari awal), dan (3) Tanggal Bergabung
-        // masih di dalam rentang periode ini (bukan periode yang sudah lewat). Berlaku untuk
-        // semua kategori karyawan.
-        if (
-            $joiningDate
-            && $joiningDate->gt($period->start_date)
-            && $joiningDate->lte($period->end_date)
-        ) {
-            // Pembagi = jumlah hari kalender di BULAN Tanggal Bergabung (30/31/28/29, tergantung
-            // bulannya) - bukan angka tetap dari setting lagi.
-            $daysInJoiningMonth = $joiningDate->daysInMonth;
-
-            // Jumlah hari kerja (Senin-Sabtu) sejak Tanggal Bergabung sampai akhir periode ini.
-            $workedDays = $this->countWorkDays($joiningDate, $period->end_date);
-            // Rasio dikunci maksimal 1 (100%) - kalau workedDays kebetulan melebihi jumlah hari
-            // di bulan itu, tidak boleh dibayar lebih dari 1 bulan penuh.
-            $amount = round($amount * min(1, $workedDays / $daysInJoiningMonth), 2);
-            // Catatan prorate ditambahkan supaya kelihatan di slip gaji kenapa nominalnya dipotong.
-            $note .= ", prorate bulan pertama {$workedDays}/{$daysInJoiningMonth} hari sejak {$joiningDate->format('d-m-Y')}";
+        if ($prorate = $this->firstMonthProrate($user, $period)) {
+            $amount = round($amount * $prorate['ratio'], 2);
+            $note .= ', ' . $prorate['note'];
         }
 
         // Kalau hasil akhir tetap 0 (mis. base_salary 0), jangan generate PayrollItem sama sekali -
@@ -126,23 +102,5 @@ class GajiPokokCalculator implements PayrollComponentCalculator
         // Tambahkan ke akumulator gross salary payroll berjalan (dipakai komponen lain, mis. potongan
         // yang basisnya persentase dari gross).
         $context->addEarning($amount);
-    }
-
-    /** Hari Senin-Sabtu dari $from s.d. $to (inklusif) - Minggu di-exclude, tanpa lihat hari libur/jadwal. */
-    private function countWorkDays(Carbon $from, Carbon $to): int
-    {
-        // Counter hari kerja yang ditemukan
-        $count = 0;
-
-        // Iterasi tiap tanggal dari $from sampai $to (inklusif), satu hari per langkah.
-        for ($date = $from->copy(); $date->lte($to); $date->addDay()) {
-            // Semua hari dihitung kerja KECUALI Minggu - tidak melihat hari libur nasional atau
-            // jadwal/roster spesifik karyawan (sengaja sederhana, lihat docblock kelas).
-            if (! $date->isSunday()) {
-                $count++;
-            }
-        }
-
-        return $count;
     }
 }

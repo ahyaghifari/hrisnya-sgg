@@ -87,7 +87,14 @@
                                             <i class="fa-solid fa-clock-rotate-left"></i>
                                         </button>
                                     </label>
-                                    <input type="{{ $inputType($meta?->type) }}" step="0.01" class="form-input" wire:model="flexibleValues.{{ $key }}">
+                                    @if ($key === 'prorate_metode')
+                                        <select class="form-input" wire:model="flexibleValues.{{ $key }}">
+                                            <option value="kalender">Kalender (hari dalam bulan)</option>
+                                            <option value="hari_kerja_efektif">Hari Kerja Efektif (Pengaturan Kepegawaian)</option>
+                                        </select>
+                                    @else
+                                        <input type="{{ $inputType($meta?->type) }}" step="0.01" class="form-input" wire:model="flexibleValues.{{ $key }}">
+                                    @endif
                                 </div>
                             @endforeach
                         </div>

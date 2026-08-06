@@ -8,9 +8,14 @@ use App\Models\Payroll\PayrollItem;
 use App\Models\Payroll\PayrollPeriod;
 use App\Models\Payroll\TransportAllowance;
 use App\Models\User;
+use App\Services\Payroll\Calculators\Concerns\ProratesFirstMonth;
 
+/** Ikut diprorate bulan pertama kalau karyawan baru bergabung di tengah periode
+ * (ProratesFirstMonth, dikonfirmasi user 2026-08-05). */
 class TunjanganTransportasiCalculator implements PayrollComponentCalculator
 {
+    use ProratesFirstMonth;
+
     public function calculate(User $user, Payroll $payroll, PayrollPeriod $period, PayrollContext $context): void
     {
         $kelasId = $user->profile?->kelas_id;
@@ -26,6 +31,16 @@ class TunjanganTransportasiCalculator implements PayrollComponentCalculator
         }
 
         $amount = (float) $allowance->amount;
+        $note = null;
+
+        if ($prorate = $this->firstMonthProrate($user, $period)) {
+            $amount = round($amount * $prorate['ratio'], 2);
+            $note = ucfirst($prorate['note']);
+        }
+
+        if ($amount <= 0) {
+            return;
+        }
 
         PayrollItem::create([
             'payroll_id' => $payroll->id,
@@ -33,6 +48,7 @@ class TunjanganTransportasiCalculator implements PayrollComponentCalculator
             'type' => PayrollComponentEnum::TUNJANGAN_TRANSPORTASI->type()->value,
             'quantity' => 1,
             'amount' => $amount,
+            'note' => $note,
             'source_type' => PayrollComponentEnum::TUNJANGAN_TRANSPORTASI->value,
         ]);
 

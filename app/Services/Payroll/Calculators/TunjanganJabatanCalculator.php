@@ -8,13 +8,17 @@ use App\Models\Payroll\PayrollItem;
 use App\Models\Payroll\PayrollPeriod;
 use App\Models\Payroll\PositionAllowance;
 use App\Models\User;
+use App\Services\Payroll\Calculators\Concerns\ProratesFirstMonth;
 
 /**
  * Lookup langsung matriks pangkat x kelas. Tidak ketemu baris = skip (0 baris), wajar kalau
- * finance belum isi kombinasi itu — bukan error.
+ * finance belum isi kombinasi itu — bukan error. Ikut diprorate bulan pertama kalau karyawan
+ * baru bergabung di tengah periode (ProratesFirstMonth, dikonfirmasi user 2026-08-05).
  */
 class TunjanganJabatanCalculator implements PayrollComponentCalculator
 {
+    use ProratesFirstMonth;
+
     public function calculate(User $user, Payroll $payroll, PayrollPeriod $period, PayrollContext $context): void
     {
         $pangkatId = $user->profile?->pangkat_id;
@@ -34,6 +38,16 @@ class TunjanganJabatanCalculator implements PayrollComponentCalculator
         }
 
         $amount = (float) $allowance->amount;
+        $note = null;
+
+        if ($prorate = $this->firstMonthProrate($user, $period)) {
+            $amount = round($amount * $prorate['ratio'], 2);
+            $note = ucfirst($prorate['note']);
+        }
+
+        if ($amount <= 0) {
+            return;
+        }
 
         PayrollItem::create([
             'payroll_id' => $payroll->id,
@@ -41,6 +55,7 @@ class TunjanganJabatanCalculator implements PayrollComponentCalculator
             'type' => PayrollComponentEnum::TUNJANGAN_JABATAN->type()->value,
             'quantity' => 1,
             'amount' => $amount,
+            'note' => $note,
             'source_type' => PayrollComponentEnum::TUNJANGAN_JABATAN->value,
         ]);
 

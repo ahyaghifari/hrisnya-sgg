@@ -55,6 +55,12 @@
                 class="btn-ghost" title="Sync periode ini: tandai 'Tidak Hadir' kalau jam masuk/pulang kosong, hitung ulang jam kerja (istirahat ikut terhitung)">
                 <i class="fa-solid fa-user-clock"></i> Sync Periode Ini
             </button>
+
+            <button type="button" wire:click="recalculateWorkingHours" wire:loading.attr="disabled" wire:target="recalculateWorkingHours"
+                wire:confirm="Hitung ulang jam kerja semua baris di periode ini sesuai jadwal masing-masing karyawan (Fixed/Flexible, istirahat dipotong sesuai jadwalnya)? Status kehadiran TIDAK ikut diubah. Karyawan berjadwal Shift belum ditangani tombol ini."
+                class="btn-ghost" title="Hitung ulang jam kerja sesuai jadwal asli tiap karyawan (istirahat dipotong) - tidak mengubah status kehadiran">
+                <i class="fa-solid fa-clock-rotate-left"></i> Hitung Ulang Jam Kerja
+            </button>
         @endif
     @endif
 

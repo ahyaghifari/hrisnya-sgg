@@ -38,6 +38,24 @@ class TunjanganTransportasiCalculatorTest extends TestCase
         $this->assertDatabaseHas('payroll_items', ['payroll_id' => $payroll->id, 'source_type' => 'tunjangan_transportasi', 'amount' => 300000]);
     }
 
+    public function test_prorates_when_joining_date_falls_mid_period(): void
+    {
+        $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
+        $kelas = Kelas::create(['name' => 'Kelas III', 'company_id' => $company->id, 'level' => 3]);
+        TransportAllowance::create(['kelas_id' => $kelas->id, 'amount' => 300000]);
+
+        $user = User::factory()->create(['company_id' => $company->id]);
+        UserProfiles::create(['user_id' => $user->id, 'kelas_id' => $kelas->id, 'joining_date' => '2026-07-27']);
+
+        $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
+        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+
+        $context = new PayrollContext();
+        (new TunjanganTransportasiCalculator())->calculate($user, $payroll, $period, $context);
+
+        $this->assertSame(round(300_000 * 5 / 31, 2), $context->grossSalary);
+    }
+
     public function test_no_kelas_skips_entirely(): void
     {
         $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);

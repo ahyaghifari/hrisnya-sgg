@@ -56,6 +56,24 @@ class TunjanganMasaKerjaCalculatorTest extends TestCase
         $this->assertSame(500_000.0, $context->grossSalary);
     }
 
+    public function test_prorates_when_joining_date_falls_mid_period(): void
+    {
+        $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
+        TenureAllowance::create(['company_id' => $company->id, 'min_years' => 0, 'max_years' => 4, 'amount' => 100000]);
+
+        $user = User::factory()->create(['company_id' => $company->id]);
+        // Baru bergabung 27 Juli - bracket 0 tahun DAN prorate bulan pertama dua-duanya kena.
+        UserProfiles::create(['user_id' => $user->id, 'joining_date' => '2026-07-27']);
+
+        $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
+        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+
+        $context = new PayrollContext();
+        (new TunjanganMasaKerjaCalculator())->calculate($user, $payroll, $period, $context);
+
+        $this->assertSame(round(100_000 * 5 / 31, 2), $context->grossSalary);
+    }
+
     public function test_no_joining_date_skips_entirely(): void
     {
         $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);

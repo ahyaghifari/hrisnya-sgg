@@ -16,6 +16,7 @@ use App\Services\Attendance\AccessLogScheduleReader;
 use App\Services\Attendance\AttendancePeriodResolver;
 use App\Services\Attendance\Calculators\FixedScheduleCalculator;
 use App\Services\Attendance\Calculators\FlexibleScheduleCalculator;
+use App\Services\Attendance\ScheduleResolver;
 use Filament\Notifications\Notification;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
@@ -270,6 +271,80 @@ class RekapPresensiPage extends Component
         Notification::make()
             ->title('Sync periode selesai')
             ->body("{$absentAffected} baris ditandai Tidak Hadir, {$recordsToRecalculate->count()} baris jam kerja dihitung ulang (istirahat ikut terhitung). Baris Cuti/Sakit/Izin tidak ikut diubah.")
+            ->success()
+            ->send();
+    }
+
+    /**
+     * Hitung ulang working_minutes SEMUA baris di periode terpilih yang punya check-in & check-
+     * out, pakai rumus jadwal ASLI tiap karyawan (FixedScheduleCalculator/FlexibleScheduleCalculator
+     * via ScheduleResolver, sama persis yang dipakai pipeline sync harian) - beda dari
+     * syncPeriodAttendance() yang durasi mentah tanpa potong istirahat. Di sini istirahat DIPOTONG
+     * sesuai config jadwal masing-masing (Fixed/Flexible beda field break_minutes-nya sendiri-
+     * sendiri), dan status TIDAK disentuh sama sekali (2026-08-05, tombol terpisah sesuai arahan
+     * user). Karyawan berjadwal Shift dilewati (shift belum - "nanti dulu"), begitu juga yang
+     * jadwalnya tidak ketemu/hari itu libur menurut jadwal (tidak ada dasar hitung resminya).
+     */
+    public function recalculateWorkingHours(
+        FixedScheduleCalculator $fixedCalculator,
+        FlexibleScheduleCalculator $flexibleCalculator,
+        ScheduleResolver $resolver,
+    ): void {
+        abort_unless($this->canSync, 403);
+        abort_unless($this->date_from && $this->date_to, 422);
+
+        $records = $this->scopedRecordsForRange($this->date_from, $this->date_to)
+            ->whereNotNull('check_in_time')
+            ->whereNotNull('check_out_time')
+            ->with('user')
+            ->get();
+
+        $updated = 0;
+        $skipped = 0;
+
+        foreach ($records as $record) {
+            if (! $record->user) {
+                $skipped++;
+
+                continue;
+            }
+
+            $resolved = $resolver->resolveForUserDate($record->user, $record->date);
+
+            if (! $resolved || ($resolved['is_off_day'] ?? false) || ! isset($resolved['config'])) {
+                $skipped++;
+
+                continue;
+            }
+
+            $entry = [
+                'check_in' => $record->check_in_time,
+                'check_out' => $record->check_out_time,
+                'config' => $resolved['config'],
+                'schedule' => $resolved['schedule'] ?? null,
+            ];
+
+            $result = match ($resolved['type']) {
+                'fixed' => $fixedCalculator->calculate([$entry])[0] ?? null,
+                'flexible' => $flexibleCalculator->calculate([$entry])[0] ?? null,
+                default => null, // shift - belum ditangani di sini, "nanti dulu"
+            };
+
+            // working_minutes null berarti checkout ditolak kalkulator (di bawah min_work_minutes,
+            // khusus Fixed) - biarkan nilai lama, jangan ditimpa null.
+            if (! $result || $result['working_minutes'] === null) {
+                $skipped++;
+
+                continue;
+            }
+
+            $record->update(['working_minutes' => $result['working_minutes']]);
+            $updated++;
+        }
+
+        Notification::make()
+            ->title('Jam kerja dihitung ulang')
+            ->body("{$updated} baris diperbarui sesuai jadwal masing-masing (istirahat dipotong), {$skipped} baris dilewati (jadwal Shift/tidak ditemukan/di bawah minimum jam kerja).")
             ->success()
             ->send();
     }

@@ -74,7 +74,11 @@ trait ResolvesTodayAttendanceStatus
             : null;
 
         // Jadwal Flexible: target minimal jam kerja + jam pulang yang harus dicapai supaya
-        // memenuhi target itu, dihitung dari jam masuk aktual hari ini.
+        // memenuhi target itu, dihitung dari jam masuk aktual hari ini. Target checkout IKUT
+        // menambahkan break_minutes - FlexibleScheduleCalculator mengurangi waktu istirahat dari
+        // working_minutes yang benar-benar dihitung, jadi karyawan butuh hadir LEBIH LAMA dari
+        // sekadar min_work_minutes buat menutupi jam istirahatnya juga. Tanpa ini, target
+        // checkout yang ditampilkan lebih awal dari yang sebenarnya dibutuhkan (2026-08-05).
         $flexibleMinWorkLabel   = null;
         $flexibleTargetCheckout = null;
         if (($resolved['type'] ?? null) === 'flexible' && ($resolved['config']->min_work_minutes ?? 0) > 0) {
@@ -82,7 +86,7 @@ trait ResolvesTodayAttendanceStatus
 
             if ($attendance?->check_in_time) {
                 $flexibleTargetCheckout = Carbon::parse($attendance->check_in_time)
-                    ->addMinutes($resolved['config']->min_work_minutes)
+                    ->addMinutes($resolved['config']->min_work_minutes + $resolved['config']->break_minutes)
                     ->format('H:i');
             }
         }
