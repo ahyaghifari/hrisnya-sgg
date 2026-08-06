@@ -3,7 +3,6 @@
 namespace App\Filament\Resources\ManPower\JobPositions;
 
 use App\Enum\JobPositionReqStatus;
-use App\Filament\Clusters\ManPowerPlaning\ManPowerPlaningCluster;
 use App\Filament\Resources\ManPower\JobPositions\Pages\CreateJobPosition;
 use App\Filament\Resources\ManPower\JobPositions\Pages\EditJobPosition;
 use App\Filament\Resources\ManPower\JobPositions\Pages\ListJobPositions;
@@ -18,12 +17,13 @@ use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
+use UnitEnum;
 
 class JobPositionResource extends Resource
 {
     protected static ?string $model = JobPositions::class;
 
-    protected static ?string $cluster = ManPowerPlaningCluster::class;
+    protected static string | UnitEnum | null $navigationGroup = 'Kepegawaian';
 
     protected static ?string $navigationLabel = 'Jabatan';
 

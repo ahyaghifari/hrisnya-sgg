@@ -26,6 +26,17 @@
                 </div>
 
                 <div>
+                    <label class="form-label">Jabatan <span style="color:var(--danger-text);">*</span></label>
+                    <select class="form-input" wire:model="job_position_id">
+                        <option value="">Pilih jabatan</option>
+                        @foreach ($this->jobPositions as $id => $jobPositionName)
+                            <option value="{{ $id }}">{{ $jobPositionName }}</option>
+                        @endforeach
+                    </select>
+                    @error('job_position_id') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
+                </div>
+
+                <div>
                     <label class="form-label">Deskripsi</label>
                     <textarea class="form-input" rows="3" wire:model="description"></textarea>
                 </div>

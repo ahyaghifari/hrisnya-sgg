@@ -42,14 +42,4 @@ class RolePolicy
         return $authUser->can('Restore:Role');
     }
 
-    public function forceDelete(AuthUser $authUser, Role $role): bool
-    {
-        return $authUser->can('ForceDelete:Role');
-    }
-
-    public function restoreAny(AuthUser $authUser, Role $role): bool
-    {
-        return $authUser->can('RestoreAny:Role');
-    }
-
 }

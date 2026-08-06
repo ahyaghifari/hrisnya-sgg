@@ -2,18 +2,19 @@
 
 namespace App\Filament\Resources\LMS\LmsCategories;
 
-use App\Filament\Resources\LMS\LmsCategories\Pages\CreateLmsCategories;
-use App\Filament\Resources\LMS\LmsCategories\Pages\EditLmsCategories;
-use App\Filament\Resources\LMS\LmsCategories\Pages\ListLmsCategories;
-use App\Filament\Resources\LMS\LmsCategories\Schemas\LmsCategoriesForm;
-use App\Filament\Resources\LMS\LmsCategories\Tables\LmsCategoriesTable;
+use App\Enum\LMS\TrainingCategoryEnum;
+use App\Filament\Resources\LMS\LmsCategories\Pages\ManageLmsCategories;
 use App\Models\LMS\LmsCategories;
 use BackedEnum;
+use Filament\Actions\DeleteAction;
+use Filament\Actions\EditAction;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\TextInput;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
+use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
-use Illuminate\Support\Facades\Auth;
 use UnitEnum;
 
 class LmsCategoriesResource extends Resource
@@ -22,9 +23,9 @@ class LmsCategoriesResource extends Resource
 
     protected static ?string $slug = 'lms/lms-categories';
 
-    protected static ?string $navigationLabel = "Kategori";
+    protected static ?string $navigationLabel = 'Kategori';
 
-    protected static string | UnitEnum | null $navigationGroup = 'LMS';
+    protected static string|UnitEnum|null $navigationGroup = 'LMS';
 
     protected static ?int $navigationSort = 1;
 
@@ -32,12 +33,58 @@ class LmsCategoriesResource extends Resource
 
     public static function form(Schema $schema): Schema
     {
-        return LmsCategoriesForm::configure($schema);
+        return $schema
+            ->components([
+                TextInput::make('name')
+                    ->label('Nama Kategori')
+                    ->required()
+                    ->maxLength(255)
+                    ->columnSpanFull(),
+
+                Select::make('training_category')
+                    ->label('Jenis Pelatihan')
+                    ->helperText('Menentukan skema honor pelatihan yang memakai kategori ini.')
+                    ->options(collect(TrainingCategoryEnum::internalCases())->mapWithKeys(fn ($case) => [$case->value => $case->label()]))
+                    ->native(false)
+                    ->columnSpanFull(),
+            ]);
     }
 
     public static function table(Table $table): Table
     {
-        return LmsCategoriesTable::configure($table);
+        return $table
+            ->columns([
+                TextColumn::make('name')
+                    ->label('Nama Kategori')
+                    ->searchable()
+                    ->sortable()
+                    ->wrap()
+                    ->limit(50),
+
+                TextColumn::make('training_category')
+                    ->label('Jenis Pelatihan')
+                    ->badge()
+                    ->formatStateUsing(fn ($state) => $state?->label() ?? '-')
+                    ->placeholder('-'),
+
+                TextColumn::make('courses_count')
+                    ->label('Jumlah Pelatihan')
+                    ->counts('courses')
+                    ->sortable()
+                    ->alignCenter(),
+            ])
+            ->filters([
+                //
+            ])
+            ->recordActions([
+                EditAction::make()
+                    ->hiddenLabel()
+                    ->visible(fn ($record) => static::canEdit($record)),
+
+                DeleteAction::make()
+                    ->hiddenLabel()
+                    ->visible(fn (LmsCategories $record) => static::canDelete($record) && $record->courses_count === 0),
+            ]);
     }
 
     public static function getRelations(): array
@@ -50,9 +97,7 @@ class LmsCategoriesResource extends Resource
     public static function getPages(): array
     {
         return [
-            'index' => ListLmsCategories::route('/'),
-            // 'create' => CreateLmsCategories::route('/create'),
-            // 'edit' => EditLmsCategories::route('/{record}/edit'),
+            'index' => ManageLmsCategories::route('/'),
         ];
     }
 }

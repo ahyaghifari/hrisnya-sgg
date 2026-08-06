@@ -61,6 +61,12 @@ return [
         'guard' => 'canAccessKaryawanMenu',
     ],
 
+    'hak-akses' => [
+        'label' => 'Hak Akses',
+        'permission' => \App\Enum\CustomPermissionEnum::KELOLA_HAK_AKSES->value,
+        'guard' => null,
+    ],
+
     'my-staff.edit' => [
         'label' => 'Edit Karyawan',
         'permission' => null,
@@ -432,7 +438,7 @@ return [
 
     'tugas' => [
         'label' => 'Tugas',
-        'permission' => null,
+        'permission' => \App\Enum\CustomPermissionEnum::TUGAS_SAYA->value,
         'guard' => null,
     ],
 

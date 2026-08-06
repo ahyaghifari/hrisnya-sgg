@@ -81,6 +81,112 @@ class RoleForm
         ];
     }
 
+    /**
+     * Permission "akses menu dasar" nav baris 1 portal karyawan (Tugas/Pelatihan/Pengajuan
+     * Absensi/Pembinaan Saya) — flat, BUKAN pola coarse-gate+children kayak portalGroups()
+     * (keempatnya independen, bukan 1 gerbang yang mengunci turunannya). Dikelompokkan jadi
+     * 1 root "Sistem Dasar Karyawan" di RoleForm::configure() & PermissionTreeBuilder biar
+     * tidak nyasar ke bucket "Lainnya" (permission custom snake_case tanpa ':' otomatis
+     * masuk situ kalau tidak di-exclude manual).
+     *
+     * @return array<int, string>
+     */
+    public static function baseEmployeePermissions(): array
+    {
+        return [
+            CustomPermissionEnum::TUGAS_SAYA->value,
+            CustomPermissionEnum::PELATIHAN_SAYA->value,
+            CustomPermissionEnum::PENGAJUAN_ABSENSI_SAYA->value,
+            CustomPermissionEnum::COACHING_COUNSELING_SAYA->value,
+        ];
+    }
+
+    /**
+     * Override/paksa container untuk subject TERTENTU, dipakai buat 2 kasus:
+     * 1) Resource-nya di bawah Filament Cluster (getNavigationGroup() balik null buat
+     *    Resource ber-cluster, tidak ke-deteksi otomatis lewat navigationGroup).
+     * 2) Subject yang SAMA SEKALI tidak punya Filament Resource (Policy manual/permission
+     *    Shield lama tanpa Resource aktif) tapi tetap masuk akal dikelompokkan ke 1
+     *    container tertentu — lihat applySubjectOverrides().
+     *
+     * ShiftOvertimeCosts/ShiftScheduleAssignments/ShiftSwapRequests/ShiftTemplates: tidak
+     * ada Resource-nya (dicek 2026-08-07), tapi user eksplisit minta dikelompokkan ke
+     * "Jadwal" (bukan dihapus kayak MasterShift/ExtraHourAllowanceRules yang beneran
+     * orphan) - kemungkinan aksesnya nempel di halaman Jadwal/Schedule (ScheduleShiftRotationTab
+     * dkk, digerbangi KELOLA_JADWAL_SHIFT), bukan Resource CRUD terpisah.
+     *
+     * @return array<string, string>
+     */
+    public static function subjectContainerOverrides(): array
+    {
+        return [
+            'ShiftOvertimeCosts' => 'Jadwal',
+            'ShiftScheduleAssignments' => 'Jadwal',
+            'ShiftSwapRequests' => 'Jadwal',
+            'ShiftTemplates' => 'Jadwal',
+        ];
+    }
+
+    /**
+     * Terapkan subjectContainerOverrides() ke $subjectMeta — beda dari override inline di
+     * dalam loop scan Resource (yang cuma jalan kalau subject-nya PUNYA Resource), method
+     * ini juga bikin entry baru buat subject yang sama sekali tidak ada Resource-nya, biar
+     * tetap masuk 1 container alih-alih jadi "ungrouped" sendirian.
+     *
+     * @param array<string, array{label: string, container: ?string}> $subjectMeta
+     * @return array<string, array{label: string, container: ?string}>
+     */
+    public static function applySubjectOverrides(array $subjectMeta): array
+    {
+        foreach (self::subjectContainerOverrides() as $subject => $container) {
+            $subjectMeta[$subject]['container'] = $container;
+            $subjectMeta[$subject]['label'] ??= Str::headline($subject);
+        }
+
+        return $subjectMeta;
+    }
+
+    /**
+     * Label per verb Shield (ViewAny/View/Create/dst) — dipakai RoleForm sendiri &
+     * PermissionTreeBuilder (portal /hak-akses) supaya label leaf permission konsisten
+     * di admin panel maupun portal. Cuma verb yang benar-benar di-generate
+     * (config/filament-shield.php generator.singular) — DeleteAny/ForceDelete/
+     * ForceDeleteAny/RestoreAny/Replicate sengaja tidak dimasukkan, tidak pernah ada di DB.
+     *
+     * @return array<string, string>
+     */
+    public static function actionLabels(): array
+    {
+        return [
+            'ViewAny' => 'Akses Menu',
+            'View' => 'Lihat Detail',
+            'Create' => 'Buat Data',
+            'Update' => 'Edit Data',
+            'Delete' => 'Hapus Data',
+            'Restore' => 'Pulihkan Data',
+            'Reorder' => 'Urutkan Data',
+        ];
+    }
+
+    /**
+     * Container admin (dari navigationGroup Resource) yang dilebur JADI SATU dengan section
+     * portal SISTEM_* senama — lihat pemakaian di configure() untuk penjelasan lengkap.
+     * Dipakai juga oleh PermissionTreeBuilder (portal /hak-akses) supaya peleburan container
+     * sama persis antara admin panel & portal.
+     *
+     * @return array<string, string>
+     */
+    public static function containerMerge(): array
+    {
+        return [
+            'Keuangan' => CustomPermissionEnum::SISTEM_KEUANGAN->value,
+            'Kepegawaian' => CustomPermissionEnum::SISTEM_KEPEGAWAIAN->value,
+            'LMS' => CustomPermissionEnum::SISTEM_LMS->value,
+            'Presensi & Absensi' => CustomPermissionEnum::SISTEM_ABSENSI->value,
+            'Master' => CustomPermissionEnum::SISTEM_MASTER->value,
+        ];
+    }
+
     /** Field key checkbox untuk 1 nama permission — dipakai RoleForm sendiri & EditRole (prefill). */
     public static function fieldKeyFor(string $permissionName): string
     {
@@ -88,6 +194,10 @@ class RoleForm
             if ($permissionName === $coarseName || in_array($permissionName, $childNames, true)) {
                 return 'portal_' . Str::snake($coarseName) . '_has_permissions';
             }
+        }
+
+        if (in_array($permissionName, self::baseEmployeePermissions(), true)) {
+            return 'sistem_dasar_karyawan_has_permissions';
         }
 
         $subject = explode(':', $permissionName)[1] ?? 'Lainnya';
@@ -138,20 +248,7 @@ class RoleForm
                     // yang memakai model tsb — bukan tebak-tebakan dari nama permission — supaya
                     // tetap akurat walau Resource baru ditambah/dipindah, tanpa perlu di-maintain manual.
                     (function () {
-                        $actionLabels = [
-                            'ViewAny' => 'Akses Menu',
-                            'View' => 'Lihat Detail',
-                            'Create' => 'Buat Data',
-                            'Update' => 'Edit Data',
-                            'Delete' => 'Hapus Data',
-                            'DeleteAny' => 'Hapus Massal',
-                            'ForceDelete' => 'Hapus Permanen',
-                            'ForceDeleteAny' => 'Hapus Permanen Massal',
-                            'Restore' => 'Pulihkan Data',
-                            'RestoreAny' => 'Pulihkan Massal',
-                            'Replicate' => 'Duplikasi Data',
-                            'Reorder' => 'Urutkan Data',
-                        ];
+                        $actionLabels = self::actionLabels();
 
                         $actionOrder = array_keys($actionLabels);
 
@@ -179,6 +276,8 @@ class RoleForm
                                 ];
                             }
                         }
+
+                        $subjectMeta = self::applySubjectOverrides($subjectMeta);
 
                         $labelFor = function (string $name) use ($actionLabels): string {
                             if ($custom = CustomPermissionEnum::tryFrom($name)) {
@@ -212,22 +311,18 @@ class RoleForm
                         // ulang satu-satu). Container yang tidak ada padanan SISTEM_*-nya
                         // (Manajemen Organisasi, Manajemen Pengguna) tetap berdiri sendiri seperti
                         // sebelumnya.
-                        $containerMerge = [
-                            'Keuangan' => CustomPermissionEnum::SISTEM_KEUANGAN->value,
-                            'Kepegawaian' => CustomPermissionEnum::SISTEM_KEPEGAWAIAN->value,
-                            'LMS' => CustomPermissionEnum::SISTEM_LMS->value,
-                            'Presensi & Absensi' => CustomPermissionEnum::SISTEM_ABSENSI->value,
-                            'Master' => CustomPermissionEnum::SISTEM_MASTER->value,
-                        ];
+                        $containerMerge = self::containerMerge();
                         $mergedContainerByCoarse = array_flip($containerMerge);
+                        $baseEmployeePermissions = self::baseEmployeePermissions();
 
                         $groups = $allPermissions
                             ->reject(fn ($permission) => in_array($permission->name, $portalPermissionNames, true))
+                            ->reject(fn ($permission) => in_array($permission->name, $baseEmployeePermissions, true))
                             ->groupBy(fn ($permission) => explode(':', $permission->name)[1] ?? 'Lainnya');
 
                         // Urutan container ditampilkan
                         $containerOrder = [
-                            'Kepegawaian', 'Manajemen Organisasi',
+                            'Kepegawaian', 'Penilaian Karyawan', 'Manajemen Organisasi',
                             'Manajemen Pengguna', 'Keuangan', 'LMS', 'Master',
                         ];
 
@@ -415,7 +510,32 @@ class RoleForm
                                 ->schema([$selectAllToggle, ...$containerSubSections[$containerName]]);
                         }
 
-                        array_push($groupSections, ...$portalSections, ...$ungroupedSections);
+                        // Section "Sistem Dasar Karyawan" — akses menu dasar nav baris 1 portal
+                        // (Tugas/Pelatihan/Pengajuan Absensi/Pembinaan Saya), 4 permission
+                        // independen jadi 1 CheckboxList polos (bukan cascade gate kayak
+                        // portalSections). Field key-nya HARUS 'sistem_dasar_karyawan_has_permissions'
+                        // - sama persis fieldKeyFor(), kalau beda checkbox prefill EditRole kosong.
+                        $baseEmployeeOptions = $allPermissions
+                            ->whereIn('name', $baseEmployeePermissions)
+                            ->mapWithKeys(fn ($permission) => [$permission->name => $labelFor($permission->name)])
+                            ->all();
+
+                        $baseEmployeeSections = $baseEmployeeOptions === [] ? [] : [
+                            Section::make('Sistem Dasar Karyawan')
+                                ->description('Akses menu dasar nav baris 1 portal karyawan (Tugas, Pelatihan, Pengajuan Absensi, Pembinaan Saya).')
+                                ->collapsible()
+                                ->collapsed()
+                                ->columnSpanFull()
+                                ->schema([
+                                    CheckboxList::make('sistem_dasar_karyawan_has_permissions')
+                                        ->label('Pilih Hak Akses')
+                                        ->options($baseEmployeeOptions)
+                                        ->columns(2)
+                                        ->disabled(fn ($get) => $get('name') === 'super_admin'),
+                                ]),
+                        ];
+
+                        array_push($groupSections, ...$baseEmployeeSections, ...$portalSections, ...$ungroupedSections);
 
                         return Section::make('Hak Akses')
                             ->description('Form ini digunakan untuk mengatur hak akses (permissions) yang dimiliki oleh role ini.')

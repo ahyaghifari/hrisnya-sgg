@@ -42,14 +42,4 @@ class AttendanceRecordsPolicy
         return $authUser->can('Restore:AttendanceRecords');
     }
 
-    public function forceDelete(AuthUser $authUser, AttendanceRecords $attendanceRecords): bool
-    {
-        return $authUser->can('ForceDelete:AttendanceRecords');
-    }
-
-    public function restoreAny(AuthUser $authUser, AttendanceRecords $attendanceRecords): bool
-    {
-        return $authUser->can('RestoreAny:AttendanceRecords');
-    }
-
 }

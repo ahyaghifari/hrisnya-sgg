@@ -42,14 +42,4 @@ class UserDocumentsPolicy
         return $authUser->can('Restore:UserDocuments');
     }
 
-    public function forceDelete(AuthUser $authUser, UserDocuments $userDocuments): bool
-    {
-        return $authUser->can('ForceDelete:UserDocuments');
-    }
-
-    public function restoreAny(AuthUser $authUser, UserDocuments $userDocuments): bool
-    {
-        return $authUser->can('RestoreAny:UserDocuments');
-    }
-
 }

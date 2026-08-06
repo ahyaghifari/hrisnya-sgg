@@ -39,6 +39,11 @@ class Companies extends Model
         return $this->hasMany(OrgStructure::class, 'company_id', 'id');
     }
 
+    public function payrollComponents()
+    {
+        return $this->hasMany(\App\Models\Payroll\CompanyPayrollComponent::class, 'company_id');
+    }
+
     /**
      * Get departments (level 1) for this company
      */

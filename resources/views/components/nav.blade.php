@@ -7,10 +7,13 @@
     $canAccessKepegawaian = auth()->user()->can(\App\Enum\CustomPermissionEnum::SISTEM_KEPEGAWAIAN->value);
     $canAccessLms = auth()->user()->can(\App\Enum\CustomPermissionEnum::SISTEM_LMS->value);
     $canAccessPenilaian = auth()->user()->can(\App\Enum\CustomPermissionEnum::SISTEM_PENILAIAN_KARYAWAN->value);
-    // Gerbang baris 1 — 3 permission terpisah (Pelatihan/Pengajuan Absensi/Coaching&Counseling),
-    // dulu terbuka buat siapa saja yang login. Beranda & Tugas tetap dikecualikan (selalu bebas
-    // akses). Lihat CustomPermissionsSeeder::bootstrapSelfServicePermissions() soal kenapa
-    // ketiganya di-assign otomatis ke semua role existing.
+    $canAccessHakAkses = auth()->user()->can(\App\Enum\CustomPermissionEnum::KELOLA_HAK_AKSES->value);
+    // Gerbang baris 1 — 4 permission terpisah (Tugas/Pelatihan/Pengajuan Absensi/
+    // Coaching&Counseling), dulu terbuka buat siapa saja yang login. Beranda tetap dikecualikan
+    // (selalu bebas akses). TUGAS_SAYA baru (2026-08-07) - diassign otomatis ke semua role
+    // existing lewat migration, sama pola CustomPermissionsSeeder::bootstrapSelfServicePermissions()
+    // yang dipakai 3 permission lain di bawah ini.
+    $canAccessTugasSaya = auth()->user()->can(\App\Enum\CustomPermissionEnum::TUGAS_SAYA->value);
     $canAccessPelatihanSaya = auth()->user()->can(\App\Enum\CustomPermissionEnum::PELATIHAN_SAYA->value);
     $canAccessPengajuanAbsensiSaya = auth()->user()->can(\App\Enum\CustomPermissionEnum::PENGAJUAN_ABSENSI_SAYA->value);
     $canAccessCoachingCounselingSaya = auth()->user()->can(\App\Enum\CustomPermissionEnum::COACHING_COUNSELING_SAYA->value);
@@ -20,7 +23,7 @@
     // jadi konselor TIDAK lihat dropdown ini — jalur masuknya lewat tombol "Konsul ke Saya" di
     // halaman personal Counseling Saya (/counseling) sendiri, lihat CounselingPage.
     $canAccessCoachingCounseling = $canSeeKaryawanMenu;
-    $showRoleRow = $canSeeKaryawanMenu || $canAccessKeuangan || $canAccessMaster || $canAccessAbsensi || $canAccessKepegawaian || $canAccessLms || $canAccessCoachingCounseling || $canAccessPenilaian;
+    $showRoleRow = $canSeeKaryawanMenu || $canAccessKeuangan || $canAccessMaster || $canAccessAbsensi || $canAccessKepegawaian || $canAccessLms || $canAccessCoachingCounseling || $canAccessPenilaian || $canAccessHakAkses;
     $initials = collect(explode(' ', auth()->user()->name))
         ->map(fn ($part) => mb_substr($part, 0, 1))
         ->take(2)
@@ -38,16 +41,18 @@
         </a>
 
         <div class="nav-middle">
-        {{-- Baris 1: milik karyawan sendiri. Beranda & Tugas selalu bebas akses; Pelatihan,
+        {{-- Baris 1: milik karyawan sendiri. Beranda selalu bebas akses; Tugas, Pelatihan,
              Pengajuan Absensi, dan Counseling+Coaching Saya masing-masing digerbangi permission
              sendiri (lihat variabel $canAccess*Saya di atas). --}}
             <div class="nav-links">
                 <a href="{{ route('dashboard') }}" wire:navigate class="nav-item {{ request()->routeIs('dashboard') ? 'active' : '' }}">
                     <i class="fa-solid fa-house text-xs"></i> Beranda
                 </a>
-                <a href="{{ route('tugas') }}" wire:navigate class="nav-item {{ request()->routeIs('tugas*') ? 'active' : '' }}">
-                    <i class="fa-solid fa-table-columns text-xs"></i> Tugas
-                </a>
+                @if ($canAccessTugasSaya)
+                    <a href="{{ route('tugas') }}" wire:navigate class="nav-item {{ request()->routeIs('tugas*') ? 'active' : '' }}">
+                        <i class="fa-solid fa-table-columns text-xs"></i> Tugas
+                    </a>
+                @endif
                 @if ($canAccessPelatihanSaya)
                     <a href="{{ route('pelatihan') }}" wire:navigate class="nav-item {{ request()->routeIs('pelatihan*') ? 'active' : '' }}">
                         <i class="fa-solid fa-graduation-cap text-xs"></i> Pelatihan
@@ -196,7 +201,7 @@
                                         <a href="{{ route('pelatihan.kelola') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-book"></i> Pelatihan</a>
                                         <a href="{{ route('pelatihan.kategori') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-tags"></i> Kategori Pelatihan</a>
                                         <a href="{{ route('pelatihan.pemateri') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-chalkboard-user"></i> Pemateri</a>
-                                        <a href="{{ route('pelatihan.eksternal') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-plane-departure"></i> Pelatihan Eksternal</a>
+                                        {{-- TODO: route pelatihan.eksternal nonaktif sementara, class Livewire belum dibuat --}}
                                         <a href="{{ route('pelatihan.pengaturan') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-gear"></i> Pengaturan LMS</a>
                                     </div>
                                     <div class="dropdown-col">
@@ -225,6 +230,11 @@
                                     <a href="{{ route('penilaian.template') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-file-lines"></i> Template Penilaian</a>
                                 </div>
                             </div>
+                        @endif
+                        @if ($canAccessHakAkses)
+                            <a href="{{ route('hak-akses') }}" wire:navigate class="nav-item nav-item-sky {{ request()->routeIs('hak-akses*') ? 'active' : '' }}">
+                                <i class="fa-solid fa-shield-halved text-xs"></i> Hak Akses
+                            </a>
                         @endif
                 </div>
             @endif

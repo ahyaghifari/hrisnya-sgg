@@ -42,14 +42,4 @@ class OvertimeTypesPolicy
         return $authUser->can('Restore:OvertimeTypes');
     }
 
-    public function forceDelete(AuthUser $authUser, OvertimeTypes $overtimeTypes): bool
-    {
-        return $authUser->can('ForceDelete:OvertimeTypes');
-    }
-
-    public function restoreAny(AuthUser $authUser, OvertimeTypes $overtimeTypes): bool
-    {
-        return $authUser->can('RestoreAny:OvertimeTypes');
-    }
-
 }

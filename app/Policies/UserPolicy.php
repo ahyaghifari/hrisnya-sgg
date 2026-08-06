@@ -39,14 +39,4 @@ class UserPolicy
         return $authUser->can('Restore:User');
     }
 
-    public function forceDelete(AuthUser $authUser): bool
-    {
-        return $authUser->can('ForceDelete:User');
-    }
-
-    public function restoreAny(AuthUser $authUser): bool
-    {
-        return $authUser->can('RestoreAny:User');
-    }
-
 }

@@ -9,17 +9,14 @@ use App\Filament\Resources\Assessment\Assessments\Pages\ViewAssessment;
 use App\Filament\Resources\Assessment\Assessments\RelationManagers\UserAssessmentsRelationManager;
 use App\Filament\Resources\Assessment\Assessments\Schemas\AssessmentForm;
 use App\Filament\Resources\Assessment\Assessments\Tables\AssessmentsTable;
-use App\Filament\Clusters\Assessment\AssessmentCluster;
 use App\Helpers\PermissionHelper;
 use App\Models\Assessment\Assessments;
-use App\Models\Assessment\AssessmentTypes;
 use BackedEnum;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Repeater\TableColumn;
 use Filament\Infolists\Components\RepeatableEntry;
 use Filament\Infolists\Components\TextEntry;
-use Filament\Navigation\NavigationItem;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
@@ -35,7 +32,11 @@ class AssessmentResource extends Resource
 {
     protected static ?string $model = Assessments::class;
 
-    protected static ?string $cluster = AssessmentCluster::class;
+    protected static string|UnitEnum|null $navigationGroup = 'Penilaian Karyawan';
+
+    protected static ?string $navigationLabel = 'Jadwal Penilaian';
+
+    protected static ?int $navigationSort = 1;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
 
@@ -76,20 +77,6 @@ class AssessmentResource extends Resource
         }
 
         return $query;
-    }
-
-    public static function getNavigationItems(): array
-    {
-        return AssessmentTypes::all()
-            ->map(function ($type) {
-                return NavigationItem::make()
-                    ->label($type->name)
-                    ->icon(static::$navigationIcon)
-                    ->group('List Assessments')
-                    ->url(static::getUrl('index', ['type' => $type->code]))
-                    ->isActiveWhen(fn (): bool => request()->get('type') === $type->code);
-            })
-            ->toArray();
     }
 
     public static function infolist(Schema $schema): Schema

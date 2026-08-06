@@ -42,14 +42,4 @@ class FeeSubmissionPolicy
         return $authUser->can('Restore:FeeSubmission');
     }
 
-    public function forceDelete(AuthUser $authUser, FeeSubmission $feeSubmission): bool
-    {
-        return $authUser->can('ForceDelete:FeeSubmission');
-    }
-
-    public function restoreAny(AuthUser $authUser, FeeSubmission $feeSubmission): bool
-    {
-        return $authUser->can('RestoreAny:FeeSubmission');
-    }
-
 }

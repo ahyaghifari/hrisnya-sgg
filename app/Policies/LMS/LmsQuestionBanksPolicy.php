@@ -42,14 +42,4 @@ class LmsQuestionBanksPolicy
         return $authUser->can('Restore:LmsQuestionBanks');
     }
 
-    public function forceDelete(AuthUser $authUser, LmsQuestionBanks $lmsQuestionBanks): bool
-    {
-        return $authUser->can('ForceDelete:LmsQuestionBanks');
-    }
-
-    public function restoreAny(AuthUser $authUser, LmsQuestionBanks $lmsQuestionBanks): bool
-    {
-        return $authUser->can('RestoreAny:LmsQuestionBanks');
-    }
-
 }

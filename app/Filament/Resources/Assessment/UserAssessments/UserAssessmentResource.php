@@ -7,7 +7,6 @@ use App\Filament\Resources\Assessment\UserAssessments\Pages\EditUserAssessment;
 use App\Filament\Resources\Assessment\UserAssessments\Pages\ListUserAssessments;
 use App\Filament\Resources\Assessment\UserAssessments\Schemas\UserAssessmentForm;
 use App\Filament\Resources\Assessment\UserAssessments\Tables\UserAssessmentsTable;
-use App\Filament\Clusters\Assessment\AssessmentCluster;
 use App\Models\Assessment\AssessmentUsers;
 use App\Models\Assessment\UserAssessment;
 use BackedEnum;
@@ -17,12 +16,13 @@ use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Gate;
+use UnitEnum;
 
 class UserAssessmentResource extends Resource
 {
     protected static ?string $model = AssessmentUsers::class;
 
-    protected static ?string $cluster = AssessmentCluster::class;
+    protected static string|UnitEnum|null $navigationGroup = 'Penilaian Karyawan';
 
     protected static bool $shouldRegisterNavigation = false;
 

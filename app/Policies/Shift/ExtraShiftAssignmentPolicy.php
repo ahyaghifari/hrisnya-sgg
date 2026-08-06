@@ -42,14 +42,4 @@ class ExtraShiftAssignmentPolicy
         return $authUser->can('Restore:ExtraShiftAssignment');
     }
 
-    public function forceDelete(AuthUser $authUser, ExtraShiftAssignment $extraShiftAssignment): bool
-    {
-        return $authUser->can('ForceDelete:ExtraShiftAssignment');
-    }
-
-    public function restoreAny(AuthUser $authUser, ExtraShiftAssignment $extraShiftAssignment): bool
-    {
-        return $authUser->can('RestoreAny:ExtraShiftAssignment');
-    }
-
 }

@@ -20,6 +20,7 @@ enum CustomPermissionEnum: string
     case SISTEM_TUGAS = 'sistem_tugas';
     case SISTEM_COACHING_COUNSELING = 'sistem_coaching_counseling';
     case SISTEM_PENILAIAN_KARYAWAN = 'sistem_penilaian_karyawan';
+    case TUGAS_SAYA = 'tugas_saya';
     case PELATIHAN_SAYA = 'pelatihan_saya';
     case AJUKAN_PELATIHAN = 'ajukan_pelatihan';
     case PENGAJUAN_ABSENSI_SAYA = 'pengajuan_absensi_saya';
@@ -85,6 +86,12 @@ enum CustomPermissionEnum: string
      * eksplisit). Pemilik akun selalu bisa lihat/unggah lampirannya sendiri, tanpa permission ini. */
     case LIHAT_LAMPIRAN_IDENTITAS_KARYAWAN = 'lihat_lampiran_identitas_karyawan';
 
+    /** Gerbang halaman portal Hak Akses (`/hak-akses`, tree permission per role) — buka
+     * halaman, pilih company/role, centang/simpan permission. Bukan Update:Role (Shield CRUD
+     * biasa) supaya bisa dikasih ke role terbatas tanpa otomatis dapat semua akses Role
+     * Resource lain di Filament admin. */
+    case KELOLA_HAK_AKSES = 'kelola_hak_akses';
+
     public function label(): string
     {
         return match
@@ -97,6 +104,7 @@ enum CustomPermissionEnum: string
             self::SISTEM_TUGAS => 'Sistem Tugas',
             self::SISTEM_COACHING_COUNSELING => 'Sistem Coaching & Counseling',
             self::SISTEM_PENILAIAN_KARYAWAN => 'Sistem Penilaian Karyawan',
+            self::TUGAS_SAYA => 'Tugas Saya',
             self::PELATIHAN_SAYA => 'Pelatihan Saya',
             self::AJUKAN_PELATIHAN => 'Ajukan Pelatihan (Eksternal)',
             self::PENGAJUAN_ABSENSI_SAYA => 'Pengajuan Absensi Saya',
@@ -123,6 +131,7 @@ enum CustomPermissionEnum: string
             self::KELOLA_JADWAL_SHIFT => 'Kelola Jadwal Shift (Template & Roster)',
             self::GENERATE_PAYROLL => 'Generate/Regenerate Payroll',
             self::LIHAT_LAMPIRAN_IDENTITAS_KARYAWAN => 'Lihat Lampiran Identitas Karyawan (KTP/KK)',
+            self::KELOLA_HAK_AKSES => 'Kelola Hak Akses (Portal)',
         };
     }
 }

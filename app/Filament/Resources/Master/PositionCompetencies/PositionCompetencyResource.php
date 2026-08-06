@@ -17,6 +17,7 @@ class PositionCompetencyResource extends Resource
     protected static ?string $model = JobPositions::class;
 
     protected static ?string $navigationLabel = 'Jabatan & Kompetensi';
+    protected static bool $shouldRegisterNavigation = false;
     protected static string | UnitEnum | null $navigationGroup = 'LMS';
     protected static ?int $navigationSort = 16;
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedAcademicCap;

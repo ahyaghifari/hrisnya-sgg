@@ -28,4 +28,9 @@ class AssessmentTypes extends Model
             $model->code = 'ASSTYPE-' . str_pad($nextNumber, 4, '0', STR_PAD_LEFT);
         });
     }
+
+    public function templates()
+    {
+        return $this->hasMany(AssessmentTemplates::class, 'type_id');
+    }
 }

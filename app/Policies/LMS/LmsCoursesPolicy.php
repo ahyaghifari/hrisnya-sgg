@@ -42,14 +42,4 @@ class LmsCoursesPolicy
         return $authUser->can('Restore:LmsCourses');
     }
 
-    public function forceDelete(AuthUser $authUser, LmsCourses $lmsCourses): bool
-    {
-        return $authUser->can('ForceDelete:LmsCourses');
-    }
-
-    public function restoreAny(AuthUser $authUser, LmsCourses $lmsCourses): bool
-    {
-        return $authUser->can('RestoreAny:LmsCourses');
-    }
-
 }

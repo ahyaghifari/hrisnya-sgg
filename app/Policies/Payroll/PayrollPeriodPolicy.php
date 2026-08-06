@@ -42,14 +42,4 @@ class PayrollPeriodPolicy
         return $authUser->can('Restore:PayrollPeriod');
     }
 
-    public function forceDelete(AuthUser $authUser, PayrollPeriod $payrollPeriod): bool
-    {
-        return $authUser->can('ForceDelete:PayrollPeriod');
-    }
-
-    public function restoreAny(AuthUser $authUser, PayrollPeriod $payrollPeriod): bool
-    {
-        return $authUser->can('RestoreAny:PayrollPeriod');
-    }
-
 }

@@ -42,14 +42,4 @@ class JobPositionsPolicy
         return $authUser->can('Restore:JobPositions');
     }
 
-    public function forceDelete(AuthUser $authUser, JobPositions $jobPositions): bool
-    {
-        return $authUser->can('ForceDelete:JobPositions');
-    }
-
-    public function restoreAny(AuthUser $authUser, JobPositions $jobPositions): bool
-    {
-        return $authUser->can('RestoreAny:JobPositions');
-    }
-
 }

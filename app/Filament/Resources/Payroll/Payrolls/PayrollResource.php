@@ -59,7 +59,7 @@ class PayrollResource extends Resource
     {
         return [
             'index' => ListPayrolls::route('/'),
-            //'create' => CreatePayroll::route('/create'),
+            'create' => CreatePayroll::route('/create'),
             'view' => ViewPayroll::route('/{record}'),
             //'edit' => EditPayroll::route('/{record}/edit'),
         ];

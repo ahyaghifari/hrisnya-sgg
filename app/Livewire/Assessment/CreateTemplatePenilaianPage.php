@@ -6,6 +6,7 @@ use App\Enum\CustomPermissionEnum;
 use App\Models\Assessment\AssessmentTemplateItems;
 use App\Models\Assessment\AssessmentTemplates;
 use App\Models\Assessment\AssessmentTypes;
+use App\Models\Master\JobPositions;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -23,6 +24,7 @@ class CreateTemplatePenilaianPage extends Component
 {
     public string $name = '';
     public ?string $type_id = null;
+    public ?string $job_position_id = null;
     public ?string $description = null;
     public bool $is_active = true;
 
@@ -57,11 +59,17 @@ class CreateTemplatePenilaianPage extends Component
         return AssessmentTypes::orderBy('name')->pluck('name', 'id');
     }
 
+    public function getJobPositionsProperty()
+    {
+        return JobPositions::where('company_id', Auth::user()->company_id)->orderBy('name')->pluck('name', 'id');
+    }
+
     protected function rules(): array
     {
         return [
             'name' => ['required', 'string', 'max:255'],
             'type_id' => ['required', 'exists:assessment_types,id'],
+            'job_position_id' => ['required', 'exists:m_job_positions,id'],
             'description' => ['nullable', 'string'],
             'is_active' => ['boolean'],
             'items' => ['required', 'array', 'min:1'],
@@ -79,8 +87,8 @@ class CreateTemplatePenilaianPage extends Component
 
         DB::transaction(function () use ($data) {
             $template = AssessmentTemplates::create([
-                'company_id' => Auth::user()->company_id,
                 'type_id' => $data['type_id'],
+                'job_position_id' => $data['job_position_id'],
                 'name' => $data['name'],
                 'description' => $data['description'],
                 'is_active' => $data['is_active'],

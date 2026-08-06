@@ -42,14 +42,4 @@ class PangkatsPolicy
         return $authUser->can('Restore:Pangkats');
     }
 
-    public function forceDelete(AuthUser $authUser, Pangkats $pangkats): bool
-    {
-        return $authUser->can('ForceDelete:Pangkats');
-    }
-
-    public function restoreAny(AuthUser $authUser, Pangkats $pangkats): bool
-    {
-        return $authUser->can('RestoreAny:Pangkats');
-    }
-
 }

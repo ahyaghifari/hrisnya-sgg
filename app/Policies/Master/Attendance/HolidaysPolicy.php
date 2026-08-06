@@ -42,14 +42,4 @@ class HolidaysPolicy
         return $authUser->can('Restore:Holidays');
     }
 
-    public function forceDelete(AuthUser $authUser, Holidays $holidays): bool
-    {
-        return $authUser->can('ForceDelete:Holidays');
-    }
-
-    public function restoreAny(AuthUser $authUser, Holidays $holidays): bool
-    {
-        return $authUser->can('RestoreAny:Holidays');
-    }
-
 }

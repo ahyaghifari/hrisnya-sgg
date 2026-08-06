@@ -42,14 +42,4 @@ class ReligionsPolicy
         return $authUser->can('Restore:Religions');
     }
 
-    public function forceDelete(AuthUser $authUser, Religions $religions): bool
-    {
-        return $authUser->can('ForceDelete:Religions');
-    }
-
-    public function restoreAny(AuthUser $authUser, Religions $religions): bool
-    {
-        return $authUser->can('RestoreAny:Religions');
-    }
-
 }

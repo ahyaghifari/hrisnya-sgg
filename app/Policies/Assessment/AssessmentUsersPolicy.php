@@ -42,14 +42,4 @@ class AssessmentUsersPolicy
         return $authUser->can('Restore:AssessmentUsers');
     }
 
-    public function forceDelete(AuthUser $authUser, AssessmentUsers $assessmentUsers): bool
-    {
-        return $authUser->can('ForceDelete:AssessmentUsers');
-    }
-
-    public function restoreAny(AuthUser $authUser, AssessmentUsers $assessmentUsers): bool
-    {
-        return $authUser->can('RestoreAny:AssessmentUsers');
-    }
-
 }

@@ -42,14 +42,4 @@ class TrainersPolicy
         return $authUser->can('Restore:Trainers');
     }
 
-    public function forceDelete(AuthUser $authUser, Trainers $trainers): bool
-    {
-        return $authUser->can('ForceDelete:Trainers');
-    }
-
-    public function restoreAny(AuthUser $authUser, Trainers $trainers): bool
-    {
-        return $authUser->can('RestoreAny:Trainers');
-    }
-
 }

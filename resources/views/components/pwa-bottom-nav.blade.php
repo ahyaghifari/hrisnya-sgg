@@ -5,6 +5,7 @@
     $canAccessAbsensi = auth()->user()->can(\App\Enum\CustomPermissionEnum::SISTEM_ABSENSI->value);
     $canAccessKepegawaian = auth()->user()->can(\App\Enum\CustomPermissionEnum::SISTEM_KEPEGAWAIAN->value);
     $canAccessLms = auth()->user()->can(\App\Enum\CustomPermissionEnum::SISTEM_LMS->value);
+    $canAccessTugasSaya = auth()->user()->can(\App\Enum\CustomPermissionEnum::TUGAS_SAYA->value);
     $canAccessPelatihanSaya = auth()->user()->can(\App\Enum\CustomPermissionEnum::PELATIHAN_SAYA->value);
     $canAccessPengajuanAbsensiSaya = auth()->user()->can(\App\Enum\CustomPermissionEnum::PENGAJUAN_ABSENSI_SAYA->value);
     // Sama seperti nav.blade.php — SATU rule sama persis MyStaff ($canSeeKaryawanMenu, "punya
@@ -12,6 +13,7 @@
     // biasa yang ditunjuk jadi konselor akses lewat tombol "Konsul ke Saya" di halaman personal
     // Counseling Saya (/counseling), bukan lewat section ini.
     $canAccessCoachingCounseling = $canSeeKaryawanMenu;
+    $canAccessHakAkses = auth()->user()->can(\App\Enum\CustomPermissionEnum::KELOLA_HAK_AKSES->value);
 
     $navPhotoPath = auth()->user()->profile?->profile_picture[0] ?? null;
     $navPhotoUrl = $navPhotoPath && is_string($navPhotoPath) ? \Illuminate\Support\Facades\Storage::url($navPhotoPath) : null;
@@ -27,9 +29,11 @@
             <i class="fa-solid fa-house"></i> Beranda
         </a>
 
-        <button type="button" onclick="togglePwaTugasSheet()" class="pwa-bottom-nav-item {{ request()->routeIs(['tugas*', 'pelatihan*']) ? 'active' : '' }}" style="border:none;background:none;padding:0;">
-            <i class="fa-solid fa-list-check"></i> Penugasan
-        </button>
+        @if ($canAccessTugasSaya || $canAccessPelatihanSaya)
+            <button type="button" onclick="togglePwaTugasSheet()" class="pwa-bottom-nav-item {{ request()->routeIs(['tugas*', 'pelatihan*']) ? 'active' : '' }}" style="border:none;background:none;padding:0;">
+                <i class="fa-solid fa-list-check"></i> Penugasan
+            </button>
+        @endif
 
         <div class="pwa-bottom-nav-center">
             <button type="button" class="pwa-bottom-nav-center-btn" onclick="togglePwaMenuSheet()" aria-label="Menu">
@@ -66,10 +70,12 @@
 
     {{-- 2 kolom saja (bukan 3 seperti sheet Menu) — cuma 2 item untuk sekarang. --}}
     <div class="pwa-menu-grid" style="grid-template-columns: repeat(2, 1fr);">
-        <a href="{{ route('tugas') }}" wire:navigate class="pwa-menu-grid-item">
-            <span class="pwa-menu-grid-icon navy"><i class="fa-solid fa-table-columns"></i></span>
-            <span class="pwa-menu-grid-label">Tugas</span>
-        </a>
+        @if ($canAccessTugasSaya)
+            <a href="{{ route('tugas') }}" wire:navigate class="pwa-menu-grid-item">
+                <span class="pwa-menu-grid-icon navy"><i class="fa-solid fa-table-columns"></i></span>
+                <span class="pwa-menu-grid-label">Tugas</span>
+            </a>
+        @endif
 
         @if ($canAccessPelatihanSaya)
             <a href="{{ route('pelatihan') }}" wire:navigate class="pwa-menu-grid-item">
@@ -219,10 +225,7 @@
                 <span class="pwa-menu-grid-icon teal"><i class="fa-solid fa-chalkboard-user"></i></span>
                 <span class="pwa-menu-grid-label">Pemateri</span>
             </a>
-            <a href="{{ route('pelatihan.eksternal') }}" wire:navigate class="pwa-menu-grid-item">
-                <span class="pwa-menu-grid-icon teal"><i class="fa-solid fa-plane-departure"></i></span>
-                <span class="pwa-menu-grid-label">Pelatihan Eksternal</span>
-            </a>
+            {{-- TODO: route pelatihan.eksternal nonaktif sementara, class Livewire belum dibuat --}}
             <a href="{{ route('pelatihan.bank-soal') }}" wire:navigate class="pwa-menu-grid-item">
                 <span class="pwa-menu-grid-icon teal"><i class="fa-solid fa-clipboard-list"></i></span>
                 <span class="pwa-menu-grid-label">Bank Soal</span>
@@ -270,6 +273,14 @@
             <a href="{{ route('organization-structure') }}" wire:navigate class="pwa-menu-grid-item">
                 <span class="pwa-menu-grid-icon teal"><i class="fa-solid fa-sitemap"></i></span>
                 <span class="pwa-menu-grid-label">Struktur Organisasi</span>
+            </a>
+        @endif
+
+        @if ($canAccessHakAkses)
+            <span class="pwa-menu-grid-divider">Manajemen Pengguna</span>
+            <a href="{{ route('hak-akses') }}" wire:navigate class="pwa-menu-grid-item">
+                <span class="pwa-menu-grid-icon sky"><i class="fa-solid fa-shield-halved"></i></span>
+                <span class="pwa-menu-grid-label">Hak Akses</span>
             </a>
         @endif
     </div>

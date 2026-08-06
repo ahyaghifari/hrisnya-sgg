@@ -727,6 +727,7 @@ html.dark .quiz-review-option.is-wrong-selected i { color: #f87171; }
 .pwa-menu-grid-icon.violet { background: linear-gradient(135deg, #5b21b6 0%, #7c3aed 100%); }
 .pwa-menu-grid-icon.teal { background: linear-gradient(135deg, #0f766e 0%, #14b8a6 100%); }
 .pwa-menu-grid-icon.indigo { background: linear-gradient(135deg, #3730a3 0%, #4f46e5 100%); }
+.pwa-menu-grid-icon.sky { background: linear-gradient(135deg, #026aa3 0%, #0284c7 100%); }
 
 /* Label pemisah antar-grup di sheet Menu mobile (mis. "Sistem Keuangan" sebelum tile Periode
    Gaji/Payroll/dst) — span 3 kolom grid, konsisten sama divider dropdown desktop tapi versi

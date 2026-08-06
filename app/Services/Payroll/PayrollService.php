@@ -235,6 +235,34 @@ class PayrollService
     }
 
     /**
+     * Buat SATU payroll manual di luar alur Generate periode — dipakai tombol "Buat Payroll" di
+     * halaman daftar Payroll. Reuse pipeline Calculator yang sama (generateForUser()), bukan
+     * Payroll::create() polos, supaya payroll_items tetap lengkap & konsisten dengan hasil
+     * Generate biasa.
+     */
+    public function generateSingleForUser(User $user, PayrollPeriod $period, ?string $generatedByUserId = null): Payroll
+    {
+        if (Payroll::where('user_id', $user->id)->where('payroll_period_id', $period->id)->exists()) {
+            throw new \RuntimeException('Karyawan ini sudah punya payroll di periode ini.');
+        }
+
+        if (! PayrollComponentRecipient::isRegisteredAnywhere($period->company_id, $user->profile?->employee_type_id)) {
+            throw new \RuntimeException('Tipe karyawan ini belum terdaftar sebagai penerima komponen gaji apa pun — atur dulu di halaman Penerima Komponen Gaji.');
+        }
+
+        return DB::transaction(function () use ($user, $period, $generatedByUserId) {
+            $activeComponents = CompanyPayrollComponent::query()
+                ->where('company_id', $period->company_id)
+                ->where('is_active', true)
+                ->get();
+
+            $this->syncKoperasiManualLines($period, collect([$user]));
+
+            return $this->generateForUser($user, $period, $activeComponents, $generatedByUserId);
+        });
+    }
+
+    /**
      * Regenerate SATU payroll saja (bukan seluruh periode) — dipakai tombol "Regenerate" per
      * karyawan di halaman detail payroll. Payroll yang sudah dibayar tidak boleh disentuh.
      */

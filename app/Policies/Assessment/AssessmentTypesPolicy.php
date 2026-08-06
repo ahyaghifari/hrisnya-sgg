@@ -42,14 +42,4 @@ class AssessmentTypesPolicy
         return $authUser->can('Restore:AssessmentTypes');
     }
 
-    public function forceDelete(AuthUser $authUser, AssessmentTypes $assessmentTypes): bool
-    {
-        return $authUser->can('ForceDelete:AssessmentTypes');
-    }
-
-    public function restoreAny(AuthUser $authUser, AssessmentTypes $assessmentTypes): bool
-    {
-        return $authUser->can('RestoreAny:AssessmentTypes');
-    }
-
 }

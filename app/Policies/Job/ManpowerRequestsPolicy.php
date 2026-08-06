@@ -42,14 +42,4 @@ class ManpowerRequestsPolicy
         return $authUser->can('Restore:ManpowerRequests');
     }
 
-    public function forceDelete(AuthUser $authUser, ManpowerRequests $manpowerRequests): bool
-    {
-        return $authUser->can('ForceDelete:ManpowerRequests');
-    }
-
-    public function restoreAny(AuthUser $authUser, ManpowerRequests $manpowerRequests): bool
-    {
-        return $authUser->can('RestoreAny:ManpowerRequests');
-    }
-
 }

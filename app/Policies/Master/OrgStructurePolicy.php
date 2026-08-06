@@ -42,14 +42,4 @@ class OrgStructurePolicy
         return $authUser->can('Restore:OrgStructure');
     }
 
-    public function forceDelete(AuthUser $authUser, OrgStructure $orgStructure): bool
-    {
-        return $authUser->can('ForceDelete:OrgStructure');
-    }
-
-    public function restoreAny(AuthUser $authUser, OrgStructure $orgStructure): bool
-    {
-        return $authUser->can('RestoreAny:OrgStructure');
-    }
-
 }
