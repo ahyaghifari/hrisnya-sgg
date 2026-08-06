@@ -52,14 +52,4 @@ class ExtraHourAllowanceRulesPolicy
         return $authUser->can('RestoreAny:ExtraHourAllowanceRules');
     }
 
-    public function replicate(AuthUser $authUser, ExtraHourAllowanceRules $extraHourAllowanceRules): bool
-    {
-        return $authUser->can('Replicate:ExtraHourAllowanceRules');
-    }
-
-    public function reorder(AuthUser $authUser): bool
-    {
-        return $authUser->can('Reorder:ExtraHourAllowanceRules');
-    }
-
 }

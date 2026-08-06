@@ -52,14 +52,4 @@ class AssessmentTypesPolicy
         return $authUser->can('RestoreAny:AssessmentTypes');
     }
 
-    public function replicate(AuthUser $authUser, AssessmentTypes $assessmentTypes): bool
-    {
-        return $authUser->can('Replicate:AssessmentTypes');
-    }
-
-    public function reorder(AuthUser $authUser): bool
-    {
-        return $authUser->can('Reorder:AssessmentTypes');
-    }
-
 }

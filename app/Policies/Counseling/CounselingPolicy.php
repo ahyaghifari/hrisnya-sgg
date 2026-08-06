@@ -52,14 +52,4 @@ class CounselingPolicy
         return $authUser->can('RestoreAny:Counseling');
     }
 
-    public function replicate(AuthUser $authUser, Counseling $counseling): bool
-    {
-        return $authUser->can('Replicate:Counseling');
-    }
-
-    public function reorder(AuthUser $authUser): bool
-    {
-        return $authUser->can('Reorder:Counseling');
-    }
-
 }

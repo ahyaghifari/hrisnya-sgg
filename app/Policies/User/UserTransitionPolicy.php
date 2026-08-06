@@ -52,14 +52,4 @@ class UserTransitionPolicy
         return $authUser->can('RestoreAny:UserTransition');
     }
 
-    public function replicate(AuthUser $authUser, UserTransition $userTransition): bool
-    {
-        return $authUser->can('Replicate:UserTransition');
-    }
-
-    public function reorder(AuthUser $authUser): bool
-    {
-        return $authUser->can('Reorder:UserTransition');
-    }
-
 }

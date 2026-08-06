@@ -52,14 +52,4 @@ class TaskPolicy
         return $authUser->can('RestoreAny:Task');
     }
 
-    public function replicate(AuthUser $authUser, Task $task): bool
-    {
-        return $authUser->can('Replicate:Task');
-    }
-
-    public function reorder(AuthUser $authUser): bool
-    {
-        return $authUser->can('Reorder:Task');
-    }
-
 }

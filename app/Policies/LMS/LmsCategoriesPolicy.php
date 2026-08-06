@@ -52,14 +52,4 @@ class LmsCategoriesPolicy
         return $authUser->can('RestoreAny:LmsCategories');
     }
 
-    public function replicate(AuthUser $authUser, LmsCategories $lmsCategories): bool
-    {
-        return $authUser->can('Replicate:LmsCategories');
-    }
-
-    public function reorder(AuthUser $authUser): bool
-    {
-        return $authUser->can('Reorder:LmsCategories');
-    }
-
 }

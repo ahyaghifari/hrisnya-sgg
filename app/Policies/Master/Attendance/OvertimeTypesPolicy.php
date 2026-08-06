@@ -52,14 +52,4 @@ class OvertimeTypesPolicy
         return $authUser->can('RestoreAny:OvertimeTypes');
     }
 
-    public function replicate(AuthUser $authUser, OvertimeTypes $overtimeTypes): bool
-    {
-        return $authUser->can('Replicate:OvertimeTypes');
-    }
-
-    public function reorder(AuthUser $authUser): bool
-    {
-        return $authUser->can('Reorder:OvertimeTypes');
-    }
-
 }

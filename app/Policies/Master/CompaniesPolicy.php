@@ -52,14 +52,4 @@ class CompaniesPolicy
         return $authUser->can('RestoreAny:Companies');
     }
 
-    public function replicate(AuthUser $authUser, Companies $companies): bool
-    {
-        return $authUser->can('Replicate:Companies');
-    }
-
-    public function reorder(AuthUser $authUser): bool
-    {
-        return $authUser->can('Reorder:Companies');
-    }
-
 }

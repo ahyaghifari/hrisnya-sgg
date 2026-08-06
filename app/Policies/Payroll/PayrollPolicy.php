@@ -52,14 +52,4 @@ class PayrollPolicy
         return $authUser->can('RestoreAny:Payroll');
     }
 
-    public function replicate(AuthUser $authUser, Payroll $payroll): bool
-    {
-        return $authUser->can('Replicate:Payroll');
-    }
-
-    public function reorder(AuthUser $authUser): bool
-    {
-        return $authUser->can('Reorder:Payroll');
-    }
-
 }

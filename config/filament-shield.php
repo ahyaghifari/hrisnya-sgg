@@ -133,10 +133,12 @@ return [
         'methods' => [
             'viewAny', 'view', 'create', 'update', 'delete', 
             // 'deleteAny',
-             'restore',
-            'forceDelete', 
+            'restore',
+            // 'forceDelete', 
             // 'forceDeleteAny', 
-            'restoreAny', 'replicate', 'reorder',
+            // 'restoreAny', 
+            // 'replicate', 
+            // 'reorder',
         ],
         'single_parameter_methods' => [
             'viewAny',

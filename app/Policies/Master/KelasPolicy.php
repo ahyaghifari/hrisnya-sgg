@@ -52,14 +52,4 @@ class KelasPolicy
         return $authUser->can('RestoreAny:Kelas');
     }
 
-    public function replicate(AuthUser $authUser, Kelas $kelas): bool
-    {
-        return $authUser->can('Replicate:Kelas');
-    }
-
-    public function reorder(AuthUser $authUser): bool
-    {
-        return $authUser->can('Reorder:Kelas');
-    }
-
 }

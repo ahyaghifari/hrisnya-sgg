@@ -52,14 +52,4 @@ class MasterApprovalFlowsPolicy
         return $authUser->can('RestoreAny:MasterApprovalFlows');
     }
 
-    public function replicate(AuthUser $authUser, MasterApprovalFlows $masterApprovalFlows): bool
-    {
-        return $authUser->can('Replicate:MasterApprovalFlows');
-    }
-
-    public function reorder(AuthUser $authUser): bool
-    {
-        return $authUser->can('Reorder:MasterApprovalFlows');
-    }
-
 }

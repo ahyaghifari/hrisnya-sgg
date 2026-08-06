@@ -52,14 +52,4 @@ class RolePolicy
         return $authUser->can('RestoreAny:Role');
     }
 
-    public function replicate(AuthUser $authUser, Role $role): bool
-    {
-        return $authUser->can('Replicate:Role');
-    }
-
-    public function reorder(AuthUser $authUser): bool
-    {
-        return $authUser->can('Reorder:Role');
-    }
-
 }

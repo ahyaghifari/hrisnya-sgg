@@ -52,14 +52,4 @@ class JobPositionsPolicy
         return $authUser->can('RestoreAny:JobPositions');
     }
 
-    public function replicate(AuthUser $authUser, JobPositions $jobPositions): bool
-    {
-        return $authUser->can('Replicate:JobPositions');
-    }
-
-    public function reorder(AuthUser $authUser): bool
-    {
-        return $authUser->can('Reorder:JobPositions');
-    }
-
 }

@@ -4,22 +4,14 @@ declare(strict_types=1);
 
 namespace App\Policies\Payroll;
 
+use Illuminate\Foundation\Auth\User as AuthUser;
 use App\Models\Payroll\UserKoperasi;
 use Illuminate\Auth\Access\HandlesAuthorization;
-use Illuminate\Foundation\Auth\User as AuthUser;
 
-/**
- * UserKoperasi tidak punya Filament Resource (roster koperasi cuma dikelola lewat portal,
- * lihat KoperasiPage) jadi permission-nya tidak auto-digenerate `shield:generate` — dibuat
- * manual di sini, tetap pakai konvensi penamaan ability "Verb:Subject" yang sama supaya
- * konsisten & otomatis muncul di RoleForm (/admin/roles). $userKoperasi nullable di
- * update/delete supaya bisa dipakai baik untuk cek per-baris maupun cek visibilitas tombol
- * generik (tanpa instance spesifik, mis. tombol "Ubah Amount" massal).
- */
 class UserKoperasiPolicy
 {
     use HandlesAuthorization;
-
+    
     public function viewAny(AuthUser $authUser): bool
     {
         return $authUser->can('ViewAny:UserKoperasi');
@@ -35,13 +27,29 @@ class UserKoperasiPolicy
         return $authUser->can('Create:UserKoperasi');
     }
 
-    public function update(AuthUser $authUser, ?UserKoperasi $userKoperasi = null): bool
+    public function update(AuthUser $authUser, UserKoperasi $userKoperasi): bool
     {
         return $authUser->can('Update:UserKoperasi');
     }
 
-    public function delete(AuthUser $authUser, ?UserKoperasi $userKoperasi = null): bool
+    public function delete(AuthUser $authUser, UserKoperasi $userKoperasi): bool
     {
         return $authUser->can('Delete:UserKoperasi');
     }
+
+    public function restore(AuthUser $authUser, UserKoperasi $userKoperasi): bool
+    {
+        return $authUser->can('Restore:UserKoperasi');
+    }
+
+    public function forceDelete(AuthUser $authUser, UserKoperasi $userKoperasi): bool
+    {
+        return $authUser->can('ForceDelete:UserKoperasi');
+    }
+
+    public function restoreAny(AuthUser $authUser, UserKoperasi $userKoperasi): bool
+    {
+        return $authUser->can('RestoreAny:UserKoperasi');
+    }
+
 }

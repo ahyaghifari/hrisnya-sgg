@@ -52,14 +52,4 @@ class FeeSubmissionPolicy
         return $authUser->can('RestoreAny:FeeSubmission');
     }
 
-    public function replicate(AuthUser $authUser, FeeSubmission $feeSubmission): bool
-    {
-        return $authUser->can('Replicate:FeeSubmission');
-    }
-
-    public function reorder(AuthUser $authUser): bool
-    {
-        return $authUser->can('Reorder:FeeSubmission');
-    }
-
 }

@@ -52,14 +52,4 @@ class PayrollPeriodPolicy
         return $authUser->can('RestoreAny:PayrollPeriod');
     }
 
-    public function replicate(AuthUser $authUser, PayrollPeriod $payrollPeriod): bool
-    {
-        return $authUser->can('Replicate:PayrollPeriod');
-    }
-
-    public function reorder(AuthUser $authUser): bool
-    {
-        return $authUser->can('Reorder:PayrollPeriod');
-    }
-
 }

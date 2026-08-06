@@ -52,14 +52,4 @@ class LmsQuizzesPolicy
         return $authUser->can('RestoreAny:LmsQuizzes');
     }
 
-    public function replicate(AuthUser $authUser, LmsQuizzes $lmsQuizzes): bool
-    {
-        return $authUser->can('Replicate:LmsQuizzes');
-    }
-
-    public function reorder(AuthUser $authUser): bool
-    {
-        return $authUser->can('Reorder:LmsQuizzes');
-    }
-
 }

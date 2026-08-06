@@ -52,14 +52,4 @@ class AssessmentTemplatesPolicy
         return $authUser->can('RestoreAny:AssessmentTemplates');
     }
 
-    public function replicate(AuthUser $authUser, AssessmentTemplates $assessmentTemplates): bool
-    {
-        return $authUser->can('Replicate:AssessmentTemplates');
-    }
-
-    public function reorder(AuthUser $authUser): bool
-    {
-        return $authUser->can('Reorder:AssessmentTemplates');
-    }
-
 }

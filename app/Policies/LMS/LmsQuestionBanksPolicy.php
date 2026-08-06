@@ -52,14 +52,4 @@ class LmsQuestionBanksPolicy
         return $authUser->can('RestoreAny:LmsQuestionBanks');
     }
 
-    public function replicate(AuthUser $authUser, LmsQuestionBanks $lmsQuestionBanks): bool
-    {
-        return $authUser->can('Replicate:LmsQuestionBanks');
-    }
-
-    public function reorder(AuthUser $authUser): bool
-    {
-        return $authUser->can('Reorder:LmsQuestionBanks');
-    }
-
 }

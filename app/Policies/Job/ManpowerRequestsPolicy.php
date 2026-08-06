@@ -52,14 +52,4 @@ class ManpowerRequestsPolicy
         return $authUser->can('RestoreAny:ManpowerRequests');
     }
 
-    public function replicate(AuthUser $authUser, ManpowerRequests $manpowerRequests): bool
-    {
-        return $authUser->can('Replicate:ManpowerRequests');
-    }
-
-    public function reorder(AuthUser $authUser): bool
-    {
-        return $authUser->can('Reorder:ManpowerRequests');
-    }
-
 }

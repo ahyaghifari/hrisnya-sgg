@@ -52,14 +52,4 @@ class PangkatsPolicy
         return $authUser->can('RestoreAny:Pangkats');
     }
 
-    public function replicate(AuthUser $authUser, Pangkats $pangkats): bool
-    {
-        return $authUser->can('Replicate:Pangkats');
-    }
-
-    public function reorder(AuthUser $authUser): bool
-    {
-        return $authUser->can('Reorder:Pangkats');
-    }
-
 }

@@ -52,14 +52,4 @@ class LmsFeedbackQuestionPolicy
         return $authUser->can('RestoreAny:LmsFeedbackQuestion');
     }
 
-    public function replicate(AuthUser $authUser, LmsFeedbackQuestion $lmsFeedbackQuestion): bool
-    {
-        return $authUser->can('Replicate:LmsFeedbackQuestion');
-    }
-
-    public function reorder(AuthUser $authUser): bool
-    {
-        return $authUser->can('Reorder:LmsFeedbackQuestion');
-    }
-
 }

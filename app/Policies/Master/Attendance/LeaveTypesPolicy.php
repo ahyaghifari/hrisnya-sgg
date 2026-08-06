@@ -52,14 +52,4 @@ class LeaveTypesPolicy
         return $authUser->can('RestoreAny:LeaveTypes');
     }
 
-    public function replicate(AuthUser $authUser, LeaveTypes $leaveTypes): bool
-    {
-        return $authUser->can('Replicate:LeaveTypes');
-    }
-
-    public function reorder(AuthUser $authUser): bool
-    {
-        return $authUser->can('Reorder:LeaveTypes');
-    }
-
 }

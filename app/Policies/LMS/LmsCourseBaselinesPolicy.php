@@ -52,14 +52,4 @@ class LmsCourseBaselinesPolicy
         return $authUser->can('RestoreAny:LmsCourseBaselines');
     }
 
-    public function replicate(AuthUser $authUser, LmsCourseBaselines $lmsCourseBaselines): bool
-    {
-        return $authUser->can('Replicate:LmsCourseBaselines');
-    }
-
-    public function reorder(AuthUser $authUser): bool
-    {
-        return $authUser->can('Reorder:LmsCourseBaselines');
-    }
-
 }

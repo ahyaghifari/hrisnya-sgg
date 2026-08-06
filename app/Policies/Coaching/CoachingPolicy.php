@@ -52,14 +52,4 @@ class CoachingPolicy
         return $authUser->can('RestoreAny:Coaching');
     }
 
-    public function replicate(AuthUser $authUser, Coaching $coaching): bool
-    {
-        return $authUser->can('Replicate:Coaching');
-    }
-
-    public function reorder(AuthUser $authUser): bool
-    {
-        return $authUser->can('Reorder:Coaching');
-    }
-
 }

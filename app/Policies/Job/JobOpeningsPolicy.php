@@ -52,14 +52,4 @@ class JobOpeningsPolicy
         return $authUser->can('RestoreAny:JobOpenings');
     }
 
-    public function replicate(AuthUser $authUser, JobOpenings $jobOpenings): bool
-    {
-        return $authUser->can('Replicate:JobOpenings');
-    }
-
-    public function reorder(AuthUser $authUser): bool
-    {
-        return $authUser->can('Reorder:JobOpenings');
-    }
-
 }

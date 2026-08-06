@@ -52,14 +52,4 @@ class CompetenciesPolicy
         return $authUser->can('RestoreAny:Competencies');
     }
 
-    public function replicate(AuthUser $authUser, Competencies $competencies): bool
-    {
-        return $authUser->can('Replicate:Competencies');
-    }
-
-    public function reorder(AuthUser $authUser): bool
-    {
-        return $authUser->can('Reorder:Competencies');
-    }
-
 }

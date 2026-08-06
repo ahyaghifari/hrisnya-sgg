@@ -52,14 +52,4 @@ class AttendanceRecordsPolicy
         return $authUser->can('RestoreAny:AttendanceRecords');
     }
 
-    public function replicate(AuthUser $authUser, AttendanceRecords $attendanceRecords): bool
-    {
-        return $authUser->can('Replicate:AttendanceRecords');
-    }
-
-    public function reorder(AuthUser $authUser): bool
-    {
-        return $authUser->can('Reorder:AttendanceRecords');
-    }
-
 }

@@ -52,14 +52,4 @@ class TrainerAssessmentResultsPolicy
         return $authUser->can('RestoreAny:TrainerAssessmentResults');
     }
 
-    public function replicate(AuthUser $authUser, TrainerAssessmentResults $trainerAssessmentResults): bool
-    {
-        return $authUser->can('Replicate:TrainerAssessmentResults');
-    }
-
-    public function reorder(AuthUser $authUser): bool
-    {
-        return $authUser->can('Reorder:TrainerAssessmentResults');
-    }
-
 }

@@ -52,14 +52,4 @@ class PermissionTypesPolicy
         return $authUser->can('RestoreAny:PermissionTypes');
     }
 
-    public function replicate(AuthUser $authUser, PermissionTypes $permissionTypes): bool
-    {
-        return $authUser->can('Replicate:PermissionTypes');
-    }
-
-    public function reorder(AuthUser $authUser): bool
-    {
-        return $authUser->can('Reorder:PermissionTypes');
-    }
-
 }

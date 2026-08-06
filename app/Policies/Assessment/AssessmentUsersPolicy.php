@@ -52,14 +52,4 @@ class AssessmentUsersPolicy
         return $authUser->can('RestoreAny:AssessmentUsers');
     }
 
-    public function replicate(AuthUser $authUser, AssessmentUsers $assessmentUsers): bool
-    {
-        return $authUser->can('Replicate:AssessmentUsers');
-    }
-
-    public function reorder(AuthUser $authUser): bool
-    {
-        return $authUser->can('Reorder:AssessmentUsers');
-    }
-
 }

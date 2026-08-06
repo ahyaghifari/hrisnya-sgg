@@ -52,14 +52,4 @@ class UserDocumentsPolicy
         return $authUser->can('RestoreAny:UserDocuments');
     }
 
-    public function replicate(AuthUser $authUser, UserDocuments $userDocuments): bool
-    {
-        return $authUser->can('Replicate:UserDocuments');
-    }
-
-    public function reorder(AuthUser $authUser): bool
-    {
-        return $authUser->can('Reorder:UserDocuments');
-    }
-
 }

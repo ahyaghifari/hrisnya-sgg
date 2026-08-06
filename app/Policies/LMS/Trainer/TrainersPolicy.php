@@ -52,14 +52,4 @@ class TrainersPolicy
         return $authUser->can('RestoreAny:Trainers');
     }
 
-    public function replicate(AuthUser $authUser, Trainers $trainers): bool
-    {
-        return $authUser->can('Replicate:Trainers');
-    }
-
-    public function reorder(AuthUser $authUser): bool
-    {
-        return $authUser->can('Reorder:Trainers');
-    }
-
 }

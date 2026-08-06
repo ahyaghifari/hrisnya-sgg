@@ -52,14 +52,4 @@ class ReligionsPolicy
         return $authUser->can('RestoreAny:Religions');
     }
 
-    public function replicate(AuthUser $authUser, Religions $religions): bool
-    {
-        return $authUser->can('Replicate:Religions');
-    }
-
-    public function reorder(AuthUser $authUser): bool
-    {
-        return $authUser->can('Reorder:Religions');
-    }
-
 }

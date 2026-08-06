@@ -52,14 +52,4 @@ class ShiftOvertimeCostsPolicy
         return $authUser->can('RestoreAny:ShiftOvertimeCosts');
     }
 
-    public function replicate(AuthUser $authUser, ShiftOvertimeCosts $shiftOvertimeCosts): bool
-    {
-        return $authUser->can('Replicate:ShiftOvertimeCosts');
-    }
-
-    public function reorder(AuthUser $authUser): bool
-    {
-        return $authUser->can('Reorder:ShiftOvertimeCosts');
-    }
-
 }

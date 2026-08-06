@@ -52,14 +52,4 @@ class IncentivePolicy
         return $authUser->can('RestoreAny:Incentive');
     }
 
-    public function replicate(AuthUser $authUser, Incentive $incentive): bool
-    {
-        return $authUser->can('Replicate:Incentive');
-    }
-
-    public function reorder(AuthUser $authUser): bool
-    {
-        return $authUser->can('Reorder:Incentive');
-    }
-
 }

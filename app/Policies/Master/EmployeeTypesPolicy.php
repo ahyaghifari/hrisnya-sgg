@@ -52,14 +52,4 @@ class EmployeeTypesPolicy
         return $authUser->can('RestoreAny:EmployeeTypes');
     }
 
-    public function replicate(AuthUser $authUser, EmployeeTypes $employeeTypes): bool
-    {
-        return $authUser->can('Replicate:EmployeeTypes');
-    }
-
-    public function reorder(AuthUser $authUser): bool
-    {
-        return $authUser->can('Reorder:EmployeeTypes');
-    }
-
 }

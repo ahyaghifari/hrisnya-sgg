@@ -52,14 +52,4 @@ class PermissionPolicy
         return $authUser->can('RestoreAny:Permission');
     }
 
-    public function replicate(AuthUser $authUser, Permission $permission): bool
-    {
-        return $authUser->can('Replicate:Permission');
-    }
-
-    public function reorder(AuthUser $authUser): bool
-    {
-        return $authUser->can('Reorder:Permission');
-    }
-
 }

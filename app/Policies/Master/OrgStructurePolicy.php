@@ -52,14 +52,4 @@ class OrgStructurePolicy
         return $authUser->can('RestoreAny:OrgStructure');
     }
 
-    public function replicate(AuthUser $authUser, OrgStructure $orgStructure): bool
-    {
-        return $authUser->can('Replicate:OrgStructure');
-    }
-
-    public function reorder(AuthUser $authUser): bool
-    {
-        return $authUser->can('Reorder:OrgStructure');
-    }
-
 }

@@ -52,14 +52,4 @@ class HolidaysPolicy
         return $authUser->can('RestoreAny:Holidays');
     }
 
-    public function replicate(AuthUser $authUser, Holidays $holidays): bool
-    {
-        return $authUser->can('Replicate:Holidays');
-    }
-
-    public function reorder(AuthUser $authUser): bool
-    {
-        return $authUser->can('Reorder:Holidays');
-    }
-
 }
