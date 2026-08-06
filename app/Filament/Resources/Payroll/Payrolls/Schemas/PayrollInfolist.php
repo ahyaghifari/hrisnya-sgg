@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Payroll\Payrolls\Schemas;
 
+use App\Models\AuditLog;
 use Filament\Infolists\Components\IconEntry;
 use Filament\Infolists\Components\RepeatableEntry;
 use Filament\Infolists\Components\TextEntry;
@@ -67,6 +68,32 @@ class PayrollInfolist
                                 ->color('success'),
                         ]),
                     ]),
+
+                Section::make('Riwayat Pembayaran')
+                    ->schema([
+                        RepeatableEntry::make('paymentHistory')
+                            ->label('')
+                            ->state(fn ($record) => AuditLog::where('key', 'payroll:' . $record->id)
+                                ->where('module', 'payroll_payment')
+                                ->orderByDesc('created_at')
+                                ->with('user')
+                                ->get())
+                            ->schema([
+                                TextEntry::make('new_value')
+                                    ->label('Status')
+                                    ->badge()
+                                    ->color(fn ($state) => $state === 'Sudah Dibayar' ? 'success' : 'danger'),
+
+                                TextEntry::make('user.name')
+                                    ->label('Oleh'),
+
+                                TextEntry::make('created_at')
+                                    ->label('Waktu')
+                                    ->dateTime('d M Y H:i'),
+                            ])
+                            ->columns(3),
+                    ])
+                    ->visible(fn ($record) => AuditLog::where('key', 'payroll:' . $record->id)->where('module', 'payroll_payment')->exists()),
             ]);
     }
 }

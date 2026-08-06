@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Payroll\Payrolls\Tables;
 
 use App\Helpers\PermissionHelper;
+use App\Models\AuditLog;
 use App\Models\Payroll\Payroll;
 use App\Services\Payroll\PayrollService;
 use Carbon\Carbon;
@@ -77,7 +78,39 @@ class PayrollsTable
                     ->color('success')
                     ->requiresConfirmation()
                     ->visible(fn ($record) => ! $record->is_paid)
-                    ->action(fn ($record) => $record->update(['is_paid' => true])),
+                    ->action(function (Payroll $record) {
+                        $record->update(['is_paid' => true]);
+
+                        AuditLog::record(
+                            'payroll_payment',
+                            $record->payrollPeriod->company_id,
+                            'payroll:' . $record->id,
+                            $record->user->name . ' — ' . Carbon::parse($record->payrollPeriod->start_date)->format('M Y'),
+                            'Belum Dibayar',
+                            'Sudah Dibayar'
+                        );
+                    }),
+
+                Action::make('cancelPaid')
+                    ->label('Batalkan Pembayaran')
+                    ->icon('heroicon-o-x-circle')
+                    ->color('danger')
+                    ->requiresConfirmation()
+                    ->modalDescription('Notifikasi "Gaji Sudah Dibayar" yang sudah terkirim ke karyawan TIDAK ditarik balik - aksi ini cuma membalikkan status Paid dan tercatat di audit log.')
+                    ->visible(fn (Payroll $record) => $record->is_paid)
+                    ->action(function (Payroll $record) {
+                        $record->update(['is_paid' => false]);
+
+                        AuditLog::record(
+                            'payroll_payment',
+                            $record->payrollPeriod->company_id,
+                            'payroll:' . $record->id,
+                            $record->user->name . ' — ' . Carbon::parse($record->payrollPeriod->start_date)->format('M Y'),
+                            'Sudah Dibayar',
+                            'Dibatalkan'
+                        );
+                    }),
+
                 Action::make('downloadSlip')
                     ->label('Download Slip')
                     ->icon('heroicon-o-arrow-down-tray')
