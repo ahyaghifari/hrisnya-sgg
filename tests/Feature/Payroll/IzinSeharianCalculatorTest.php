@@ -168,6 +168,9 @@ class IzinSeharianCalculatorTest extends TestCase
     {
         $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
         Setting::create(['company_id' => $company->id, 'key' => 'izin_seharian_metode', 'module' => 'payroll', 'type' => 'string', 'value' => 'gaji_pokok', 'label' => 'Metode Izin Seharian']);
+        // Pembagi sekarang ikut prorate_metode (ResolvesProrateDivisor, bukan selalu hari kerja
+        // efektif lagi) - set eksplisit ke 'hari_kerja_efektif' biar test ini tetap menguji jalur itu.
+        Setting::create(['company_id' => $company->id, 'key' => 'prorate_metode', 'module' => 'payroll', 'type' => 'string', 'value' => 'hari_kerja_efektif', 'label' => 'Metode Pembagi Prorate Karyawan Baru']);
         Setting::create(['company_id' => $company->id, 'key' => 'kepegawaian_hari_kerja_efektif_per_bulan', 'module' => 'kepegawaian', 'type' => 'integer', 'value' => '26', 'label' => 'Hari Kerja Efektif per Bulan']);
         // persen dibiarkan default (70) - tidak di-seed, harus fallback ke default enum.
 
@@ -198,5 +201,52 @@ class IzinSeharianCalculatorTest extends TestCase
         // (3.000.000 / 26) * 70% = 80.769,23..., dibulatkan 2 desimal
         $expected = round((3_000_000 / 26) * 0.7, 2);
         $this->assertSame($expected, $context->totalDeductions);
+    }
+
+    public function test_gaji_pokok_metode_defaults_to_calendar_days_when_prorate_metode_not_set(): void
+    {
+        $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
+        Setting::create(['company_id' => $company->id, 'key' => 'izin_seharian_metode', 'module' => 'payroll', 'type' => 'string', 'value' => 'gaji_pokok', 'label' => 'Metode Izin Seharian']);
+        // prorate_metode SENGAJA tidak di-set - default 'kalender', BUKAN lagi selalu hari kerja efektif.
+
+        $user = User::factory()->create(['company_id' => $company->id]);
+        $period = $this->makePeriod($company->id, '2026-07-01', '2026-07-31');
+        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+
+        PayrollItem::create([
+            'payroll_id' => $payroll->id, 'name' => 'Gaji Pokok', 'type' => 'earning',
+            'quantity' => 1, 'amount' => 3_100_000, 'source_type' => 'gaji_pokok',
+        ]);
+
+        $this->makeApprovedIzinSeharian($user, $company->id, '2026-07-10');
+
+        $context = new PayrollContext();
+        $context->addEarning(50_000_000); // dibuktikan tidak dipakai, sama seperti test di atas
+
+        (new IzinSeharianCalculator())->calculate($user, $payroll, $period, $context);
+
+        // (3.100.000 / 31 hari kalender Juli) * 70% = 70.000
+        $this->assertSame(70_000.0, $context->totalDeductions);
+    }
+
+    public function test_keseluruhan_metode_uses_hari_kerja_efektif_when_configured(): void
+    {
+        $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
+        Setting::create(['company_id' => $company->id, 'key' => 'prorate_metode', 'module' => 'payroll', 'type' => 'string', 'value' => 'hari_kerja_efektif', 'label' => 'Metode Pembagi Prorate Karyawan Baru']);
+        Setting::create(['company_id' => $company->id, 'key' => 'kepegawaian_hari_kerja_efektif_per_bulan', 'module' => 'kepegawaian', 'type' => 'integer', 'value' => '25', 'label' => 'Hari Kerja Efektif per Bulan']);
+
+        $user = User::factory()->create(['company_id' => $company->id]);
+        $period = $this->makePeriod($company->id, '2026-07-01', '2026-07-31');
+        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+
+        $this->makeApprovedIzinSeharian($user, $company->id, '2026-07-10');
+
+        $context = new PayrollContext();
+        $context->addEarning(2_500_000);
+
+        (new IzinSeharianCalculator())->calculate($user, $payroll, $period, $context);
+
+        // rate_harian = 2.500.000 / 25 (hari kerja efektif, BUKAN 31 hari kalender Juli) = 100.000
+        $this->assertSame(100_000.0, $context->totalDeductions);
     }
 }

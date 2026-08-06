@@ -2,30 +2,36 @@
 
 namespace App\Services\Payroll\Calculators;
 
-use App\Enum\Kepegawaian\KepegawaianSettingEnum;
 use App\Enum\Payroll\PayrollComponentEnum;
 use App\Models\Payroll\Payroll;
 use App\Models\Payroll\PayrollItem;
 use App\Models\Payroll\PayrollPeriod;
 use App\Models\Setting;
 use App\Models\User;
+use App\Services\Payroll\Calculators\Concerns\ResolvesProrateDivisor;
 
 /**
  * Metode 'gaji_pokok' (rumus RS lain, beda dari 'keseluruhan'):
- *   rate_harian = (Gaji Pokok / Hari Kerja Efektif per Bulan) x persen_potongan
+ *   rate_harian = (Gaji Pokok / PEMBAGI) x persen_potongan
  *
  * Beda dari IzinSeharianKeseluruhanCalculator: basisnya Gaji Pokok SAJA (bukan gross), dan ADA
  * persentase configurable (setting `izin_seharian_persen_gaji_pokok`, default 70) - metode
  * 'keseluruhan' tidak ada persen sama sekali.
  *
- * "Hari Kerja Efektif per Bulan" reuse setting yang sama dipakai prorate Gaji Pokok Orientasi
- * (KepegawaianSettingEnum::HARI_KERJA_EFEKTIF_PER_BULAN), supaya tidak dobel setting untuk
- * konsep yang sama. Nominal Gaji Pokok diambil dari PayrollItem yang sudah dibuat
- * GajiPokokCalculator di payroll ini (Gaji Pokok jalan duluan sebelum deduction manapun),
- * bukan dihitung ulang - otomatis ikut prorate kalau karyawan itu Orientasi bulan pertama.
+ * PEMBAGI company-scoped lewat setting `prorate_metode` (ResolvesProrateDivisor, sama sumbernya
+ * dengan Gaji Pokok/Tunjangan/IzinSeharianKeseluruhanCalculator - dikonfirmasi user 2026-08-05).
+ * Sebelumnya SELALU pakai KepegawaianSettingEnum::HARI_KERJA_EFEKTIF_PER_BULAN tanpa bisa
+ * diganti - sekarang cuma dipakai kalau company itu set `prorate_metode` = 'hari_kerja_efektif',
+ * default-nya (kalender) sama seperti komponen lain.
+ *
+ * Nominal Gaji Pokok diambil dari PayrollItem yang sudah dibuat GajiPokokCalculator di payroll
+ * ini (Gaji Pokok jalan duluan sebelum deduction manapun), bukan dihitung ulang - otomatis ikut
+ * prorate kalau karyawan itu baru bergabung bulan pertama.
  */
 class IzinSeharianGajiPokokCalculator extends AbstractIzinSeharianCalculator
 {
+    use ResolvesProrateDivisor;
+
     protected function rateHarian(User $user, Payroll $payroll, PayrollPeriod $period, PayrollContext $context): float
     {
         $gajiPokok = (float) PayrollItem::query()
@@ -37,19 +43,15 @@ class IzinSeharianGajiPokokCalculator extends AbstractIzinSeharianCalculator
             return 0.0;
         }
 
-        $hariKerjaEfektifPerBulan = (int) Setting::resolve(
-            KepegawaianSettingEnum::HARI_KERJA_EFEKTIF_PER_BULAN->value,
-            $period->company_id,
-            default: KepegawaianSettingEnum::HARI_KERJA_EFEKTIF_PER_BULAN->default()
-        );
+        $divisor = $this->prorateDivisor($period, $period->end_date);
 
-        if ($hariKerjaEfektifPerBulan <= 0) {
+        if ($divisor <= 0) {
             return 0.0;
         }
 
         // Persentase dari rate harian Gaji Pokok yang dipotong per hari izin (default 70%).
         $persen = (float) Setting::resolve('izin_seharian_persen_gaji_pokok', $period->company_id, default: '70') / 100;
 
-        return ($gajiPokok / $hariKerjaEfektifPerBulan) * $persen;
+        return ($gajiPokok / $divisor) * $persen;
     }
 }

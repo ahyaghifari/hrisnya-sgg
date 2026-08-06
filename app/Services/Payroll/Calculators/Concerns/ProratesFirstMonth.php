@@ -2,9 +2,7 @@
 
 namespace App\Services\Payroll\Calculators\Concerns;
 
-use App\Enum\Kepegawaian\KepegawaianSettingEnum;
 use App\Models\Payroll\PayrollPeriod;
-use App\Models\Setting;
 use App\Models\User;
 use Carbon\Carbon;
 
@@ -14,17 +12,18 @@ use Carbon\Carbon;
  * Kerja (dikonfirmasi user 2026-08-05, awalnya cuma Gaji Pokok). Rasio & pembagi SATU sumber
  * di sini supaya keempatnya konsisten, bukan hitung ulang beda-beda di tiap Calculator.
  *
- * PEMBAGI company-scoped lewat setting `prorate_metode` (halaman Komponen Gaji, section
- * "Pengaturan Lainnya" — setara UMP, bukan punya 1 komponen tertentu):
- * - 'kalender' (default) = jumlah hari kalender di BULAN Tanggal Bergabung (28-31).
- * - 'hari_kerja_efektif' = angka TETAP dari KepegawaianSettingEnum::HARI_KERJA_EFEKTIF_PER_BULAN
- *   (Pengaturan Kepegawaian, default 25) - sama pembaginya dengan IzinSeharianGajiPokokCalculator.
+ * PEMBAGI di-resolve lewat ResolvesProrateDivisor (setting `prorate_metode`, sama sumbernya
+ * dengan IzinSeharianKeseluruhanCalculator/IzinSeharianGajiPokokCalculator - dikonfirmasi user
+ * 2026-08-05, awalnya cuma dipakai di sini), referensi bulannya BULAN Tanggal Bergabung
+ * (bukan bulan periode - relevan kalau periode custom cutoff-nya lintas bulan).
  *
  * Pembilang: hari Senin-Sabtu (exclude Minggu saja, tanpa lihat jadwal/roster/hari libur per
  * karyawan - sengaja sederhana) dari Tanggal Bergabung s.d. akhir periode.
  */
 trait ProratesFirstMonth
 {
+    use ResolvesProrateDivisor;
+
     /**
      * @return array{ratio: float, note: string}|null null = tidak perlu diprorate (karyawan
      * lama, atau Tanggal Bergabung belum diisi / di luar periode ini).
@@ -40,19 +39,7 @@ trait ProratesFirstMonth
             return null;
         }
 
-        $metode = Setting::resolve('prorate_metode', $period->company_id, default: 'kalender');
-
-        if ($metode === 'hari_kerja_efektif') {
-            $divisor = (int) Setting::resolve(
-                KepegawaianSettingEnum::HARI_KERJA_EFEKTIF_PER_BULAN->value,
-                $period->company_id,
-                default: KepegawaianSettingEnum::HARI_KERJA_EFEKTIF_PER_BULAN->default()
-            );
-            $divisorLabel = 'hari kerja efektif';
-        } else {
-            $divisor = $joiningDate->daysInMonth;
-            $divisorLabel = 'hari kalender';
-        }
+        $divisor = $this->prorateDivisor($period, $joiningDate);
 
         if ($divisor <= 0) {
             return null;
@@ -65,7 +52,7 @@ trait ProratesFirstMonth
 
         return [
             'ratio' => $ratio,
-            'note' => "prorate bulan pertama {$workedDays}/{$divisor} {$divisorLabel} sejak {$joiningDate->format('d-m-Y')}",
+            'note' => "prorate bulan pertama {$workedDays}/{$divisor} {$this->prorateDivisorLabel($period)} sejak {$joiningDate->format('d-m-Y')}",
         ];
     }
 
