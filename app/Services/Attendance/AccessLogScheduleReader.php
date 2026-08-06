@@ -5,13 +5,15 @@ namespace App\Services\Attendance;
 use App\Models\Attendance\AttendanceRecords;
 use App\Models\Master\Attendance\AttendanceDevice;
 use App\Models\User;
+use Carbon\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Tahap 1-4 pipeline access_logs -> jadwal: baca access_logs, cari user (batch), cari jadwal
- * per (user, tanggal) lewat ScheduleResolver, lalu kelompokkan per tipe jadwal (fixed/flexible/
- * shift) supaya masing2 diserahkan ke calculator-nya sendiri (lihat
- * App\Services\Attendance\Calculators\*).
+ * Tahap 1-4 pipeline access_logs -> jadwal: baca access_logs, cari user (batch), pasangkan
+ * check-in/check-out per (user, tanggal shift) lewat pairScansForEmployee(), cari jadwal per
+ * (user, tanggal) lewat ScheduleResolver, lalu kelompokkan per tipe jadwal (fixed/flexible/shift)
+ * supaya masing2 diserahkan ke calculator-nya sendiri (lihat App\Services\Attendance\Calculators\*).
  *
  * ponytail: effective_from/effective_until pada ScheduleAssignment sengaja DIABAIKAN di sini
  * (lihat parameter $ignoreEffectiveDate di ScheduleResolver) - keputusan eksplisit user untuk
@@ -32,7 +34,9 @@ class AccessLogScheduleReader
      */
     public function readAndGroup(string $fromDate, string $toDate, ?string $nip = null, ?string $fromTime = null): array
     {
-        return $this->groupAndBucket($this->readAndGroupScans($fromDate, $toDate, $nip, $fromTime));
+        [$entries, $unmatchedUsers] = $this->readAndGroupScans($fromDate, $toDate, $nip, $fromTime);
+
+        return $this->groupAndBucket($entries, $unmatchedUsers);
     }
 
     /**
@@ -53,21 +57,23 @@ class AccessLogScheduleReader
      */
     public function readAndGroupIncremental(?string $sinceDatetime): array
     {
-        [$rawEntries, $maxSyncedAt] = $this->readAndGroupScansIncremental($sinceDatetime);
+        [$rawEntries, $unmatchedUsers, $maxSyncedAt] = $this->readAndGroupScansIncremental($sinceDatetime);
 
-        return $this->groupAndBucket($rawEntries) + ['max_synced_at' => $maxSyncedAt];
+        return $this->groupAndBucket($rawEntries, $unmatchedUsers) + ['max_synced_at' => $maxSyncedAt];
     }
 
-    private function groupAndBucket(array $rawEntries): array
+    /**
+     * Tahap 3-4: cek device + resolusi jadwal per entri (yang sudah dipasangkan check-in/
+     * check-out-nya, sudah bawa 'user'), lalu kelompokkan ke bucket per tipe jadwal.
+     */
+    private function groupAndBucket(array $entriesWithUser, array $unmatchedUsers): array
     {
-        [$withUser, $unmatchedUsers] = $this->resolveUsers($rawEntries);
-
         $buckets = ['fixed' => [], 'flexible' => [], 'shift' => [], 'off' => []];
         $unresolvedSchedule = [];
         $rejectedDevice = [];
         $devicesByCompany = [];
 
-        foreach ($withUser as $entry) {
+        foreach ($entriesWithUser as $entry) {
             // Device tidak dikenal/beda company -> blokir total, jangan sampai ikut
             // dihitung/disimpan ke attendance_records (pola sama dengan unresolved_schedule).
             if ($this->hasUnrecognizedDevice($entry, $devicesByCompany)) {
@@ -95,11 +101,14 @@ class AccessLogScheduleReader
     }
 
     /**
-     * Tahap 1: ambil access_logs, kelompokkan per employee_id + tanggal.
-     * Scan pertama = check-in, scan terakhir = check-out (kalau cuma 1 scan, check-out null).
-     * $fromTime (format "H:i:s") - dipakai sync manual RekapPresensiPage buat abaikan scan
-     * sebelum jam tertentu (mis. scan test/salah sebelum device benar2 online), BUKAN dipakai
-     * pipeline otomatis (SyncAccessLogsAttendance selalu null di sini).
+     * Tahap 1-2: ambil access_logs, cari User per employee_id, lalu pasangkan check-in/check-out
+     * per (user, tanggal shift) lewat pairScansForEmployee() - lihat docblock method itu untuk
+     * kenapa tidak bisa sekadar "scan pertama/terakhir per access_date". $fromTime (format
+     * "H:i:s") - dipakai sync manual RekapPresensiPage buat abaikan scan sebelum jam tertentu
+     * (mis. scan test/salah sebelum device benar2 online), BUKAN dipakai pipeline otomatis
+     * (SyncAccessLogsAttendance selalu null di sini).
+     *
+     * @return array{0: array, 1: array<string,int>} [entries (bawa 'user'), unmatched_users]
      */
     private function readAndGroupScans(string $fromDate, string $toDate, ?string $nip, ?string $fromTime = null): array
     {
@@ -111,32 +120,107 @@ class AccessLogScheduleReader
             $query->where('access_time', '>=', $fromTime);
         }
 
-        $scanGroups = $query->orderBy('access_datetime')->get()
-            ->groupBy(fn ($row) => $row->employee_id . '|' . $row->access_date);
+        $rows = $query->orderBy('access_datetime')->get();
+
+        [$withUser, $unmatchedUsers] = $this->resolveUsersForRows($rows);
 
         $entries = [];
-        foreach ($scanGroups as $key => $rows) {
-            [$employeeId, $date] = explode('|', $key, 2);
+        foreach ($withUser->groupBy('employee_id') as $rowsForEmployee) {
+            $entries = array_merge($entries, $this->pairScansForEmployee($rowsForEmployee->first()->user, $rowsForEmployee));
+        }
+
+        return [$entries, $unmatchedUsers];
+    }
+
+    /**
+     * Pasangkan scan check-in/check-out 1 karyawan per tanggal SHIFT (bukan per tanggal kalender
+     * scan-nya) - shift yang melewati tengah malam (mis. 23:00-08:00) bikin scan check-out jatuh
+     * di access_date BESOK, bukan hari yang sama dengan check-in-nya. Kalau cuma dikelompokkan
+     * per access_date mentah (cara lama), scan check-out itu jadi entri terpisah dan salah dibaca
+     * sebagai check-in untuk tanggal besok. Di sini: kalau tanggal itu cuma py 1 scan DAN jadwal
+     * shift-nya is_overnight=true, scan pertama tanggal besoknya "dipinjam" jadi check-out hari
+     * ini (dan tidak dipakai lagi buat entri tanggal besok itu sendiri).
+     *
+     * @return array<int, array{employee_id: string, date: string, check_in: string, check_out: ?string, scan_count: int, device_names: array, user: User}>
+     */
+    private function pairScansForEmployee(User $user, Collection $rows): array
+    {
+        $byDate = $rows->groupBy('access_date');
+        $dates  = $byDate->keys()->sort()->values();
+
+        $consumedFirstScan = [];
+        $entries = [];
+
+        foreach ($dates as $date) {
+            $dayScans = $byDate->get($date);
+            if (! empty($consumedFirstScan[$date])) {
+                $dayScans = $dayScans->slice(1)->values();
+            }
+
+            if ($dayScans->isEmpty()) {
+                continue;
+            }
+
+            $checkIn      = $dayScans->first()->access_time;
+            $deviceNames  = $dayScans->pluck('device_name')->filter()->unique()->values();
+            $checkOut     = null;
+            $scanCount    = $dayScans->count();
+
+            if ($dayScans->count() > 1) {
+                $checkOut = $dayScans->last()->access_time;
+            } elseif ($this->isOvernightShiftDay($user, $date)) {
+                $nextDate  = Carbon::parse($date)->addDay()->toDateString();
+                $nextScans = $byDate->get($nextDate);
+
+                if ($nextScans && $nextScans->isNotEmpty() && empty($consumedFirstScan[$nextDate])) {
+                    $checkOut = $nextScans->first()->access_time;
+                    $consumedFirstScan[$nextDate] = true;
+                    $deviceNames = $deviceNames->push($nextScans->first()->device_name)->filter()->unique()->values();
+                    $scanCount++;
+                }
+            }
+
             $entries[] = [
-                'employee_id'   => $employeeId,
-                'date'          => $date,
-                'check_in'      => $rows->first()->access_time,
-                'check_out'     => $rows->count() > 1 ? $rows->last()->access_time : null,
-                'scan_count'    => $rows->count(),
-                'device_names'  => $rows->pluck('device_name')->filter()->unique()->values()->all(),
+                'employee_id'  => $user->nip,
+                'date'         => $date,
+                'check_in'     => $checkIn,
+                'check_out'    => $checkOut,
+                'scan_count'   => $scanCount,
+                'device_names' => $deviceNames->all(),
+                'user'         => $user,
             ];
         }
 
         return $entries;
     }
 
+    private function isOvernightShiftDay(User $user, string $date): bool
+    {
+        $resolved = $this->scheduleResolver->resolveForUserDate($user, $date, ignoreEffectiveDate: true);
+
+        return $resolved
+            && $resolved['type'] === 'shift'
+            && ! ($resolved['is_off_day'] ?? false)
+            && (bool) ($resolved['config']->is_overnight ?? false);
+    }
+
     /**
-     * Versi incremental Tahap 1 - cuma ambil baris access_logs baru (access_datetime > since),
+     * Versi incremental Tahap 1-2 - cuma ambil baris access_logs baru (access_datetime > since),
      * lalu merge check_in/check_out-nya dengan attendance_records yang sudah ada (kalau ada)
      * biar check_in dari batch sebelumnya tidak hilang cuma karena batch ini cuma bawa scan
-     * check-out.
+     * check-out. Shift is_overnight yang checkout-nya jatuh di access_date besok ditangani lewat
+     * lookback ke attendance_records tanggal SEBELUMNYA (lihat blok "lookback checkout shift
+     * semalam" di bawah) - pola sama dengan pairScansForEmployee() versi batch, tapi di sini
+     * "hari sebelumnya" bisa saja sudah tersimpan dari sync run yang lalu (bukan dalam batch
+     * baris baru yang sama), jadi harus dicek ke DB, bukan cuma ke sesama baris baru.
      *
-     * @return array{0: array, 1: ?string} [entries, max_synced_at (null kalau tidak ada baris baru)]
+     * ponytail: kalau cron sempat mati beberapa jam PAS lagi ada shift overnight (check-in DAN
+     * check-out-nya sama2 baru dalam 1 batch, keduanya belum pernah tersimpan), lookback ini
+     * tidak nyambung (belum ada attendance_records buat hari check-in-nya). Kasusnya sangat
+     * jarang (butuh downtime cron berjam-jam persis pas ada shift semalam) - tambahkan pairing
+     * batch-internal kalau ternyata kejadian.
+     *
+     * @return array{0: array, 1: array<string,int>, 2: ?string} [entries (bawa 'user'), unmatched_users, max_synced_at]
      */
     private function readAndGroupScansIncremental(?string $sinceDatetime): array
     {
@@ -148,27 +232,57 @@ class AccessLogScheduleReader
         $rows = $query->orderBy('access_datetime')->get();
 
         if ($rows->isEmpty()) {
-            return [[], null];
+            return [[], [], null];
         }
 
         $maxSyncedAt = $rows->max('access_datetime');
-        $scanGroups = $rows->groupBy(fn ($row) => $row->employee_id . '|' . $row->access_date);
 
-        $pairs = collect($scanGroups->keys())->map(fn ($key) => explode('|', $key, 2));
+        [$withUser, $unmatchedUsers] = $this->resolveUsersForRows($rows);
+
+        $scanGroups = $withUser->groupBy(fn ($row) => $row->employee_id . '|' . $row->access_date);
+
+        $dates = $scanGroups->keys()->map(fn ($key) => explode('|', $key, 2)[1]);
+        $lookbackDates = $dates->map(fn ($date) => Carbon::parse($date)->subDay()->toDateString());
+        $employeeIds = $scanGroups->keys()->map(fn ($key) => explode('|', $key, 2)[0]);
+
         $existing = AttendanceRecords::query()
-            ->whereIn('nip', $pairs->pluck(0)->unique()->values())
-            ->whereIn('date', $pairs->pluck(1)->unique()->values())
+            ->whereIn('nip', $employeeIds->unique()->values())
+            ->whereIn('date', $dates->merge($lookbackDates)->unique()->values())
             ->get()
             ->keyBy(fn ($r) => $r->nip . '|' . $r->date);
 
         $entries = [];
         foreach ($scanGroups as $key => $rowsForDay) {
             [$employeeId, $date] = explode('|', $key, 2);
+            $user = $rowsForDay->first()->user;
 
             $newFirst = $rowsForDay->first()->access_time;
-            $newLast = $rowsForDay->last()->access_time;
+            $newLast  = $rowsForDay->last()->access_time;
 
             $existingRecord = $existing->get($employeeId . '|' . $date);
+
+            // Lookback checkout shift semalam: scan tunggal ini bisa jadi bukan check-in hari
+            // ini, tapi check-out shift overnight yang check-in-nya kemarin (masih terbuka -
+            // check_out_time kosong).
+            if (! $existingRecord && $rowsForDay->count() === 1) {
+                $prevDate = Carbon::parse($date)->subDay()->toDateString();
+                $prevRecord = $existing->get($employeeId . '|' . $prevDate);
+
+                if ($prevRecord && ! $prevRecord->check_out_time && $this->isOvernightShiftDay($user, $prevDate)) {
+                    $entries[] = [
+                        'employee_id' => $employeeId,
+                        'date' => $prevDate,
+                        'check_in' => $prevRecord->check_in_time,
+                        'check_out' => $newFirst,
+                        'is_new_checkin' => false,
+                        'is_new_checkout' => true,
+                        'device_names' => $rowsForDay->pluck('device_name')->filter()->unique()->values()->all(),
+                        'user' => $user,
+                    ];
+
+                    continue;
+                }
+            }
 
             if ($existingRecord) {
                 // Sudah ada scan sebelumnya buat (nip,date) ini -> check_in dianggap sudah benar
@@ -199,10 +313,11 @@ class AccessLogScheduleReader
                 'is_new_checkin' => $isNewCheckIn,
                 'is_new_checkout' => $isNewCheckOut,
                 'device_names' => $rowsForDay->pluck('device_name')->filter()->unique()->values()->all(),
+                'user' => $user,
             ];
         }
 
-        return [$entries, $maxSyncedAt];
+        return [$entries, $unmatchedUsers, $maxSyncedAt];
     }
 
     /**
@@ -239,26 +354,30 @@ class AccessLogScheduleReader
     }
 
     /**
-     * Tahap 2: cari User untuk semua employee_id sekaligus (1 query, bukan per-baris).
+     * Tahap 2: cari User untuk semua employee_id sekaligus (1 query, bukan per-baris), attach
+     * ke tiap baris raw (bukan ke entri yang sudah dikelompokkan - dibutuhkan lebih awal sekarang
+     * karena pairScansForEmployee() perlu User buat resolveForUserDate()).
+     *
+     * @return array{0: Collection, 1: array<string,int>} [rows yang usernya ketemu (ada ->user), unmatched_users]
      */
-    private function resolveUsers(array $rawEntries): array
+    private function resolveUsersForRows(Collection $rows): array
     {
-        $employeeIds = collect($rawEntries)->pluck('employee_id')->unique()->values();
+        $employeeIds = $rows->pluck('employee_id')->unique()->values();
         $users       = User::whereIn('nip', $employeeIds)->get()->keyBy('nip');
 
-        $withUser       = [];
+        $withUser       = collect();
         $unmatchedUsers = [];
 
-        foreach ($rawEntries as $entry) {
-            $user = $users->get($entry['employee_id']);
+        foreach ($rows as $row) {
+            $user = $users->get($row->employee_id);
 
             if (! $user) {
-                $unmatchedUsers[$entry['employee_id']] = ($unmatchedUsers[$entry['employee_id']] ?? 0) + 1;
+                $unmatchedUsers[$row->employee_id] = ($unmatchedUsers[$row->employee_id] ?? 0) + 1;
                 continue;
             }
 
-            $entry['user'] = $user;
-            $withUser[]    = $entry;
+            $row->user = $user;
+            $withUser->push($row);
         }
 
         return [$withUser, $unmatchedUsers];

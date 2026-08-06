@@ -26,7 +26,7 @@ class ScheduleResolver
     {
         $shiftAssignment = ScheduleShiftAssignment::with('shiftType.schedule')
             ->where('user_id', $user->id)
-            ->where('date', $date)
+            ->whereDate('date', $date)
             ->first();
 
         if ($shiftAssignment) {

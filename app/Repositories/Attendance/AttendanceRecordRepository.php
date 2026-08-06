@@ -45,7 +45,7 @@ class AttendanceRecordRepository
     }
 
     /**
-     * Simpan hasil satu entri dari FixedScheduleCalculator/FlexibleScheduleCalculator (dipakai
+     * Simpan hasil satu entri dari FixedScheduleCalculator/FlexibleScheduleCalculator/ShiftScheduleCalculator (dipakai
      * App\Console\Commands\ProcessAccessLogsSchedule dan App\Console\Commands\SyncAccessLogsAttendance,
      * biar mapping-nya cuma ada di satu tempat).
      */

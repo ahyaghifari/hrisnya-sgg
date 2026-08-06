@@ -11,6 +11,7 @@ use App\Repositories\Attendance\AttendanceRecordRepository;
 use App\Services\Attendance\AccessLogScheduleReader;
 use App\Services\Attendance\Calculators\FixedScheduleCalculator;
 use App\Services\Attendance\Calculators\FlexibleScheduleCalculator;
+use App\Services\Attendance\Calculators\ShiftScheduleCalculator;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -35,6 +36,7 @@ class SyncAccessLogsAttendance extends Command
         AccessLogScheduleReader $reader,
         FixedScheduleCalculator $fixedCalculator,
         FlexibleScheduleCalculator $flexibleCalculator,
+        ShiftScheduleCalculator $shiftCalculator,
         AttendanceRecordRepository $repo,
     ): int {
         $watermark = SyncAccessLog::watermark();
@@ -77,6 +79,14 @@ class SyncAccessLogsAttendance extends Command
             $flexibleCount++;
         }
 
+        $shiftCount = 0;
+        foreach ($shiftCalculator->calculate($result['buckets']['shift']) as $r) {
+            $record = $repo->saveCalculatedResult($r, 'access_logs_shift');
+            $log->info("[{$runId}] diproses (shift): nip={$r['user']->nip} nama={$r['user']->name} tanggal={$r['date']} status={$r['status']} checkin={$r['check_in']} checkout=" . ($r['check_out'] ?? '-'));
+            $this->notifyCheckInOut($r, $record);
+            $shiftCount++;
+        }
+
         // Scan yang user-nya ketemu tapi jadwalnya TIDAK ketemu untuk tanggal itu - tidak
         // pernah masuk ke buckets manapun jadi tidak pernah tersimpan ke attendance_records.
         // Kabari karyawannya langsung supaya tidak diam-diam dianggap tidak absen.
@@ -107,14 +117,14 @@ class SyncAccessLogsAttendance extends Command
 
         $watermark->update(['last_synced_at' => $result['max_synced_at']]);
 
-        $summary = "[{$runId}] selesai: fixed={$fixedCount} flexible={$flexibleCount} "
+        $summary = "[{$runId}] selesai: fixed={$fixedCount} flexible={$flexibleCount} shift={$shiftCount} "
             . 'jadwal_tidak_ditemukan=' . count($result['unresolved_schedule']) . ' '
             . 'device_tidak_dikenal=' . count($result['rejected_device']) . ' '
             . 'nip_tidak_dikenal=' . count($result['unmatched_users']) . ' '
             . "watermark_baru={$result['max_synced_at']}";
         $log->info($summary);
 
-        $this->info("Sync selesai: {$fixedCount} fixed, {$flexibleCount} flexible disimpan. Watermark -> {$result['max_synced_at']}.");
+        $this->info("Sync selesai: {$fixedCount} fixed, {$flexibleCount} flexible, {$shiftCount} shift disimpan. Watermark -> {$result['max_synced_at']}.");
 
         return Command::SUCCESS;
     }

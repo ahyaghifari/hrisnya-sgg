@@ -16,6 +16,7 @@ use App\Services\Attendance\AccessLogScheduleReader;
 use App\Services\Attendance\AttendancePeriodResolver;
 use App\Services\Attendance\Calculators\FixedScheduleCalculator;
 use App\Services\Attendance\Calculators\FlexibleScheduleCalculator;
+use App\Services\Attendance\Calculators\ShiftScheduleCalculator;
 use App\Services\Attendance\ScheduleResolver;
 use Filament\Notifications\Notification;
 use Illuminate\Database\Eloquent\Builder;
@@ -151,6 +152,7 @@ class RekapPresensiPage extends Component
         AccessLogScheduleReader $reader,
         FixedScheduleCalculator $fixedCalculator,
         FlexibleScheduleCalculator $flexibleCalculator,
+        ShiftScheduleCalculator $shiftCalculator,
         AttendanceRecordRepository $repo,
     ): void {
         abort_unless($this->canSync, 403);
@@ -188,9 +190,16 @@ class RekapPresensiPage extends Component
             $flexibleCount++;
         }
 
+        $shiftCount = 0;
+        foreach ($shiftCalculator->calculate($filterCompany($result['buckets']['shift'])) as $r) {
+            $record = $repo->saveCalculatedResult($r, 'access_logs_shift');
+            $this->collectIfNew($record, $r['user'], $newRecords);
+            $shiftCount++;
+        }
+
         $this->syncNewRecords = $newRecords;
         $this->syncResultType = 'success';
-        $this->syncResultMessage = "Sync selesai: {$fixedCount} jadwal tetap, {$flexibleCount} jadwal fleksibel diproses, "
+        $this->syncResultMessage = "Sync selesai: {$fixedCount} jadwal tetap, {$flexibleCount} jadwal fleksibel, {$shiftCount} jadwal shift diproses, "
             . count($newRecords) . ' presensi baru tercatat.';
     }
 
@@ -277,17 +286,18 @@ class RekapPresensiPage extends Component
 
     /**
      * Hitung ulang working_minutes SEMUA baris di periode terpilih yang punya check-in & check-
-     * out, pakai rumus jadwal ASLI tiap karyawan (FixedScheduleCalculator/FlexibleScheduleCalculator
-     * via ScheduleResolver, sama persis yang dipakai pipeline sync harian) - beda dari
-     * syncPeriodAttendance() yang durasi mentah tanpa potong istirahat. Di sini istirahat DIPOTONG
-     * sesuai config jadwal masing-masing (Fixed/Flexible beda field break_minutes-nya sendiri-
-     * sendiri), dan status TIDAK disentuh sama sekali (2026-08-05, tombol terpisah sesuai arahan
-     * user). Karyawan berjadwal Shift dilewati (shift belum - "nanti dulu"), begitu juga yang
-     * jadwalnya tidak ketemu/hari itu libur menurut jadwal (tidak ada dasar hitung resminya).
+     * out, pakai rumus jadwal ASLI tiap karyawan (FixedScheduleCalculator/FlexibleScheduleCalculator/
+     * ShiftScheduleCalculator via ScheduleResolver, sama persis yang dipakai pipeline sync harian) -
+     * beda dari syncPeriodAttendance() yang durasi mentah tanpa potong istirahat. Di sini istirahat
+     * DIPOTONG sesuai config jadwal masing-masing (beda field break_minutes-nya sendiri-sendiri),
+     * dan status TIDAK disentuh sama sekali (2026-08-05, tombol terpisah sesuai arahan user).
+     * Karyawan yang jadwalnya tidak ketemu/hari itu libur menurut jadwal dilewati (tidak ada dasar
+     * hitung resminya).
      */
     public function recalculateWorkingHours(
         FixedScheduleCalculator $fixedCalculator,
         FlexibleScheduleCalculator $flexibleCalculator,
+        ShiftScheduleCalculator $shiftCalculator,
         ScheduleResolver $resolver,
     ): void {
         abort_unless($this->canSync, 403);
@@ -327,7 +337,8 @@ class RekapPresensiPage extends Component
             $result = match ($resolved['type']) {
                 'fixed' => $fixedCalculator->calculate([$entry])[0] ?? null,
                 'flexible' => $flexibleCalculator->calculate([$entry])[0] ?? null,
-                default => null, // shift - belum ditangani di sini, "nanti dulu"
+                'shift' => $shiftCalculator->calculate([$entry])[0] ?? null,
+                default => null,
             };
 
             // working_minutes null berarti checkout ditolak kalkulator (di bawah min_work_minutes,
@@ -344,7 +355,7 @@ class RekapPresensiPage extends Component
 
         Notification::make()
             ->title('Jam kerja dihitung ulang')
-            ->body("{$updated} baris diperbarui sesuai jadwal masing-masing (istirahat dipotong), {$skipped} baris dilewati (jadwal Shift/tidak ditemukan/di bawah minimum jam kerja).")
+            ->body("{$updated} baris diperbarui sesuai jadwal masing-masing (istirahat dipotong), {$skipped} baris dilewati (jadwal tidak ditemukan/di bawah minimum jam kerja).")
             ->success()
             ->send();
     }
