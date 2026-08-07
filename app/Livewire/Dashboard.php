@@ -37,6 +37,11 @@ class Dashboard extends Component
         return (bool) Auth::user()?->can(CustomPermissionEnum::PELATIHAN_SAYA->value);
     }
 
+    public function getCanTugasSayaProperty(): bool
+    {
+        return (bool) Auth::user()?->can(CustomPermissionEnum::TUGAS_SAYA->value);
+    }
+
     public function getRecentTasksProperty()
     {
         $userId = Auth::id();

@@ -35,6 +35,22 @@ class LoginTest extends TestCase
         $response->assertRedirect('/');
     }
 
+    public function test_users_can_authenticate_using_nip(): void
+    {
+        $user = User::factory()->create([
+            'nip' => '1234567890',
+            'password' => Hash::make('password'),
+        ]);
+
+        $response = $this->post('/login', [
+            'email' => $user->nip,
+            'password' => 'password',
+        ]);
+
+        $this->assertAuthenticatedAs($user);
+        $response->assertRedirect('/');
+    }
+
     public function test_users_cannot_authenticate_with_invalid_password(): void
     {
         $user = User::factory()->create([

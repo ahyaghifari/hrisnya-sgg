@@ -1,4 +1,23 @@
 @props(['title' => 'Syifa Employee Portal'])
+@php
+    // Gate SISTEM_* dihitung SEKALI di sini, dioper ke <x-nav>/<x-pwa-bottom-nav> lewat prop
+    // $gates - keduanya selalu dirender bareng tiap request (cuma disembunyikan via CSS
+    // breakpoint md:, lihat di bawah), jadi tanpa ini permission-nya kecek dobel percuma.
+    $navGates = [
+        'canSeeKaryawanMenu' => auth()->user()->canAccessKaryawanMenu(),
+        'canSubmitAttendance' => ! auth()->user()->canBrowseAllCompanies(),
+        'canAccessKeuangan' => auth()->user()->can(\App\Enum\CustomPermissionEnum::SISTEM_KEUANGAN->value),
+        'canAccessAbsensi' => auth()->user()->can(\App\Enum\CustomPermissionEnum::SISTEM_ABSENSI->value),
+        'canAccessKepegawaian' => auth()->user()->can(\App\Enum\CustomPermissionEnum::SISTEM_KEPEGAWAIAN->value),
+        'canAccessLms' => auth()->user()->can(\App\Enum\CustomPermissionEnum::SISTEM_LMS->value),
+        'canAccessPenilaian' => auth()->user()->can(\App\Enum\CustomPermissionEnum::SISTEM_PENILAIAN_KARYAWAN->value),
+        'canAccessHakAkses' => auth()->user()->can(\App\Enum\CustomPermissionEnum::KELOLA_HAK_AKSES->value),
+        'canAccessTugasSaya' => auth()->user()->can(\App\Enum\CustomPermissionEnum::TUGAS_SAYA->value),
+        'canAccessPelatihanSaya' => auth()->user()->can(\App\Enum\CustomPermissionEnum::PELATIHAN_SAYA->value),
+        'canAccessPengajuanAbsensiSaya' => auth()->user()->can(\App\Enum\CustomPermissionEnum::PENGAJUAN_ABSENSI_SAYA->value),
+        'canAccessPembinaanSaya' => auth()->user()->can(\App\Enum\CustomPermissionEnum::PEMBINAAN_SAYA->value),
+    ];
+@endphp
 <!DOCTYPE html>
 <html lang="id">
 <head>
@@ -44,7 +63,7 @@
     </div>
 
     <div class="hidden md:block">
-        <x-nav />
+        <x-nav :gates="$navGates" />
     </div>
     <div class="md:hidden">
         <x-pwa-app-bar :title="$title" />
@@ -59,7 +78,7 @@
     </div>
 
     <div class="md:hidden">
-        <x-pwa-bottom-nav />
+        <x-pwa-bottom-nav :gates="$navGates" />
     </div>
 
     @livewire('notifications')

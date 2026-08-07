@@ -40,6 +40,13 @@ class UserRepository
         return User::where('email', $email)->first();
     }
 
+    public function findByLogin(string $login): ?User
+    {
+        return filter_var($login, FILTER_VALIDATE_EMAIL)
+            ? $this->findByEmail($login)
+            : User::where('nip', $login)->first();
+    }
+
     public function getReviewers($user): Collection
     {
         $department = $user->profile?->department;

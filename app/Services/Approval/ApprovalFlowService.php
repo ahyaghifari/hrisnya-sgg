@@ -138,9 +138,8 @@ class ApprovalFlowService
             }
 
             if ($action === 'cancelled') {
-                // Catatan ejaan: approval_activities pakai 'canceled' (1 L), approval_snapshots pakai 'cancelled' (2 L) — beda enum per tabel.
                 $activity = $this->activityRepo->update($activity, [
-                    'status' => 'canceled',
+                    'status' => 'cancelled',
                     'acted_by' => $actorId,
                     'acted_at' => now(),
                     'note' => $note,

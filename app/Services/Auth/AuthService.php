@@ -15,7 +15,7 @@ class AuthService
 
     public function login(array $credentials): ?string
     {
-        $user = $this->userRepository->findByEmail($credentials['email']);
+        $user = $this->userRepository->findByLogin($credentials['email']);
 
         if (!$user || !password_verify($credentials['password'], $user->password)) {
         return null;

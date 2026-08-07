@@ -48,7 +48,7 @@ class CustomPermissionsSeeder extends Seeder
     }
 
     /**
-     * PELATIHAN_SAYA, PENGAJUAN_ABSENSI_SAYA, COACHING_COUNSELING_SAYA menggerbangi nav baris 1
+     * PELATIHAN_SAYA, PENGAJUAN_ABSENSI_SAYA, PEMBINAAN_SAYA menggerbangi nav baris 1
      * (Pelatihan, Pengajuan Absensi, Counseling, Coaching Saya) yang SEBELUMNYA terbuka buat
      * siapa saja yang login (tanpa permission). Supaya tidak ada role yang tiba-tiba kehilangan
      * akses begitu gerbang ini aktif, ketiga permission ini di-assign otomatis ke SEMUA role yang
@@ -61,7 +61,7 @@ class CustomPermissionsSeeder extends Seeder
         $names = [
             CustomPermissionEnum::PELATIHAN_SAYA->value,
             CustomPermissionEnum::PENGAJUAN_ABSENSI_SAYA->value,
-            CustomPermissionEnum::COACHING_COUNSELING_SAYA->value,
+            CustomPermissionEnum::PEMBINAAN_SAYA->value,
         ];
 
         $permissions = Permission::whereIn('name', $names)->where('guard_name', 'web')->get();

@@ -58,9 +58,11 @@ class RoleForm
                 'Reorder:SalaryComponents',
             ],
             CustomPermissionEnum::SISTEM_KEPEGAWAIAN->value => [
+                CustomPermissionEnum::LIHAT_PENGATURAN_KEPEGAWAIAN->value,
                 CustomPermissionEnum::EDIT_PENGATURAN_KEPEGAWAIAN->value,
             ],
             CustomPermissionEnum::SISTEM_ABSENSI->value => [
+                CustomPermissionEnum::LIHAT_PENGATURAN_ABSENSI->value,
                 CustomPermissionEnum::EDIT_PENGATURAN_ABSENSI->value,
                 CustomPermissionEnum::KELOLA_JADWAL_SHIFT->value,
                 CustomPermissionEnum::SYNC_DATA_ABSENSI->value,
@@ -99,7 +101,7 @@ class RoleForm
             CustomPermissionEnum::PELATIHAN_SAYA->value,
             CustomPermissionEnum::AJUKAN_PELATIHAN->value,
             CustomPermissionEnum::PENGAJUAN_ABSENSI_SAYA->value,
-            CustomPermissionEnum::COACHING_COUNSELING_SAYA->value,
+            CustomPermissionEnum::PEMBINAAN_SAYA->value,
         ];
     }
 

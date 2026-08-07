@@ -54,13 +54,13 @@
                     @csrf
 
                     <div class="mb-4.5">
-                        <label class="block text-[13px] font-semibold text-slate-700 mb-1.5" for="email">Email</label>
+                        <label class="block text-[13px] font-semibold text-slate-700 mb-1.5" for="email">Email atau NIP</label>
                         <div class="relative">
                             <i class="fas fa-envelope absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-[13px] pointer-events-none"></i>
                             <input
                                 class="block w-full rounded-[10px] border-slate-200 bg-slate-50 pl-9 pr-3.5 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 focus:border-[#042c6c] focus:bg-white focus:ring-4 focus:ring-[#042c6c]/[0.07]"
-                                type="email" id="email" name="email" value="{{ old('email') }}"
-                                placeholder="nama@syifaglobal.com" autocomplete="email" required autofocus>
+                                type="text" id="email" name="email" value="{{ old('email') }}"
+                                placeholder="nama@syifaglobal.com atau NIP" autocomplete="username" required autofocus>
                         </div>
                     </div>
 

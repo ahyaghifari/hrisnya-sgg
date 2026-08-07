@@ -8,20 +8,32 @@
 <div class="bento pwa-bento {{ ! $this->canPengajuanAbsensi ? 'no-pengajuan' : '' }} {{ ! $this->canPelatihanSaya ? 'no-pelatihan' : '' }}">
 
     <!-- WELCOME CARD (server-rendered, bukan domain attendance) -->
+    @php
+        $profilePhotoPath = auth()->user()->profile?->profile_picture[0] ?? null;
+        $profilePhotoUrl = $profilePhotoPath && is_string($profilePhotoPath) ? \Illuminate\Support\Facades\Storage::url($profilePhotoPath) : null;
+    @endphp
     <div class="welcome-card bento-welcome">
         <div class="w-deco-1"></div><div class="w-deco-2"></div><div class="w-deco-4"></div>
         <div style="position:relative;z-index:1;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;">
-            <div>
-                <p class="welcome-greeting">Selamat datang kembali 👋</p>
-                <h2 class="welcome-name">{{ auth()->user()->name }}</h2>
-                <p class="welcome-meta">
-                    {{ auth()->user()->profile?->jobPosition?->name ?? 'Karyawan' }}
-                    &nbsp;·&nbsp; NIP {{ auth()->user()->nip }}
-                    &nbsp;·&nbsp; {{ auth()->user()->company?->name ?? '-' }}
-                </p>
+            <div style="display:flex;align-items:center;gap:14px;">
+                {{-- Foto profil cuma ditampilkan kalau memang sudah upload - tidak ada fallback
+                inisial/placeholder di sini (beda dari x-avatar), biar welcome-card tidak boros
+                ruang untuk user yang belum punya foto. --}}
+                @if ($profilePhotoUrl)
+                    <img src="{{ $profilePhotoUrl }}" alt="{{ auth()->user()->name }}" class="welcome-avatar">
+                @endif
+                <div>
+                    <p class="welcome-greeting">Selamat datang kembali 👋</p>
+                    <h2 class="welcome-name">{{ auth()->user()->name }}</h2>
+                    <p class="welcome-meta">
+                        {{ auth()->user()->profile?->jobPosition?->name ?? 'Karyawan' }}
+                        &nbsp;·&nbsp; NIP {{ auth()->user()->nip }}
+                        &nbsp;·&nbsp; {{ auth()->user()->company?->name ?? '-' }}
+                    </p>
+                </div>
             </div>
-            
-            <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end;">
+
+            <div class="welcome-actions">
                 <a href="{{ route('data-diri') }}" wire:navigate class="data-diri-btn gold">
                     <i class="fa-solid fa-id-card"></i> Data Diri
                 </a>
@@ -30,7 +42,6 @@
                         <i class="fa-solid fa-gauge"></i> Admin Panel
                     </a>
                 @endif
-                <a href="{{ route('organization-structure') }}" wire:navigate class="qa-btn">Struktur Organisasi</a>
             </div>
         </div>
     </div>
@@ -82,8 +93,13 @@
 
     {{-- MyKanban: task terkini dari kanban pribadi maupun board (bukan lagi placeholder statis).
     Sekelompok dengan welcome/presensi/saldo di grid .bento yang sama (bukan section terpisah di
-    luar grid), supaya breakpoint-nya konsisten: 1 kolom di mobile, 2 kolom berdampingan di desktop. --}}
-    <div class="bento-task-kursus {{ ! $this->canPelatihanSaya ? 'no-pelatihan' : '' }}">
+    luar grid), supaya breakpoint-nya konsisten: 1 kolom di mobile, 2 kolom berdampingan di desktop.
+    Tugas Saya disembunyikan tanpa permission TUGAS_SAYA, sama seperti Pengajuan Absensi/Pelatihan
+    Saya di atas - kalau keduanya (Tugas & Pelatihan) tidak ada permission, seluruh section ini
+    tidak dirender sama sekali, bukan dibiarkan jadi kotak kosong. --}}
+    @if ($this->canTugasSaya || $this->canPelatihanSaya)
+    <div class="bento-task-kursus {{ ! $this->canPelatihanSaya ? 'no-pelatihan' : '' }} {{ ! $this->canTugasSaya ? 'no-tugas' : '' }}">
+        @if ($this->canTugasSaya)
         <div class="pwa-list">
             <div class="pwa-card-header pwa-card-header-navy">
                 <div class="pwa-card-header-deco-1"></div><div class="pwa-card-header-deco-2"></div>
@@ -124,6 +140,7 @@
                 </div>
             @endforelse
         </div>
+        @endif
 
         @if ($this->canPelatihanSaya)
         <div class="pwa-list" style="padding-bottom:16px;">
@@ -172,7 +189,15 @@
         </div>
         @endif
     </div>
+    @endif
 
+    <div class="pwa-list" style="grid-column:1/-1;">
+        <a href="{{ route('organization-structure') }}" wire:navigate class="pwa-list-row" style="text-decoration:none;">
+            <i class="fa-solid fa-sitemap" style="width:16px;text-align:center;color:var(--brand);"></i>
+            <span class="pwa-row-title" style="flex:1;">Struktur Organisasi</span>
+            <i class="fa-solid fa-chevron-right"></i>
+        </a>
+    </div>
 
 </div>
 

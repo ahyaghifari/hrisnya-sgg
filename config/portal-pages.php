@@ -67,12 +67,6 @@ return [
         'guard' => null,
     ],
 
-    'my-staff.edit' => [
-        'label' => 'Edit Karyawan',
-        'permission' => null,
-        'guard' => 'canAccessKaryawanMenu',
-    ],
-
     'karyawan.show' => [
         'label' => 'Detail Karyawan',
         'permission' => null,
@@ -260,7 +254,7 @@ return [
 
     'keuangan.periode-gaji' => [
         'label' => 'Periode Gaji',
-        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_KEUANGAN->value,
+        'permission' => 'ViewAny:PayrollPeriod',
         'guard' => null,
     ],
 
@@ -333,7 +327,7 @@ return [
 
     'presensi.pengaturan' => [
         'label' => 'Pengaturan Absensi',
-        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_ABSENSI->value,
+        'permission' => \App\Enum\CustomPermissionEnum::LIHAT_PENGATURAN_ABSENSI->value,
         'guard' => null,
     ],
 
@@ -386,7 +380,7 @@ return [
 
     'coaching.saya' => [
         'label' => 'Coaching Saya',
-        'permission' => \App\Enum\CustomPermissionEnum::COACHING_COUNSELING_SAYA->value,
+        'permission' => \App\Enum\CustomPermissionEnum::PEMBINAAN_SAYA->value,
         'guard' => null,
     ],
 
@@ -415,7 +409,7 @@ return [
 
     'counseling' => [
         'label' => 'Counseling',
-        'permission' => \App\Enum\CustomPermissionEnum::COACHING_COUNSELING_SAYA->value,
+        'permission' => \App\Enum\CustomPermissionEnum::PEMBINAAN_SAYA->value,
         'guard' => null,
     ],
 

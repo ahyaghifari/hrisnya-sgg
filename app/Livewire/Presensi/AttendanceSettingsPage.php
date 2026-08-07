@@ -31,7 +31,7 @@ class AttendanceSettingsPage extends Component
 
     public function mount(): void
     {
-        abort_unless(Auth::user()->can(CustomPermissionEnum::SISTEM_ABSENSI->value), 403);
+        abort_unless(Auth::user()->can(CustomPermissionEnum::LIHAT_PENGATURAN_ABSENSI->value), 403);
 
         $this->companyId = Auth::user()->canFilterByCompany()
             ? (Auth::user()->company_id ?? Companies::orderBy('code')->value('id'))
@@ -67,7 +67,7 @@ class AttendanceSettingsPage extends Component
 
     /**
      * Semua company selalu tampil, terlepas dari canBrowseAllCompanies() — halaman ini sudah
-     * digerbangi permission sistem_absensi sendiri (dicek di mount()), pola sama SalaryComponentsPage.
+     * digerbangi permission lihat_pengaturan_absensi sendiri (dicek di mount()), pola sama SalaryComponentsPage.
      */
     public function getCompaniesProperty()
     {

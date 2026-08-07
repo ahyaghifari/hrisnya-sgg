@@ -2,7 +2,12 @@
 
 namespace Tests\Feature\Payroll;
 
+use App\Enum\Attendance\PermissionTypeCategoryEnum;
+use App\Enum\AttendanceReqStatus;
 use App\Models\Attendance\AttendanceRecords;
+use App\Models\Attendance\AttendanceRequestPermissionDetails;
+use App\Models\Attendance\AttendanceRequests;
+use App\Models\Master\Attendance\PermissionTypes;
 use App\Models\Master\Companies;
 use App\Models\Payroll\Payroll;
 use App\Models\Payroll\PayrollPeriod;
@@ -134,6 +139,30 @@ class KeterlambatanCalculatorTest extends TestCase
         (new KeterlambatanCalculator())->calculate($user, $payroll, $period, $context);
 
         $this->assertSame(25_000.0, $context->totalDeductions);
+    }
+
+    public function test_date_covered_by_approved_izin_terlambat_masuk_is_not_charged(): void
+    {
+        $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
+        Setting::create(['company_id' => $company->id, 'key' => 'keterlambatan_denda', 'module' => 'payroll', 'type' => 'decimal', 'value' => '25000', 'label' => 'x']);
+
+        $user = User::factory()->create(['company_id' => $company->id]);
+        $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
+        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+
+        $this->makeLateRecord($user, '2026-07-05', 10); // ditutup izin - JANGAN kena denda
+        $this->makeLateRecord($user, '2026-07-10', 15); // tidak ada izin - HARUS kena denda
+
+        $category = PermissionTypeCategoryEnum::IZIN_TERLAMBAT_MASUK->value;
+        $permissionType = PermissionTypes::create(['company_id' => $company->id, 'name' => $category, 'category' => $category]);
+        $request = AttendanceRequests::create(['user_id' => $user->id, 'type' => 'permission', 'status' => AttendanceReqStatus::APPROVED->value]);
+        AttendanceRequestPermissionDetails::create(['request_id' => $request->id, 'permission_type_id' => $permissionType->id, 'category' => $category, 'date' => '2026-07-05']);
+
+        $context = new PayrollContext();
+        (new KeterlambatanCalculator())->calculate($user, $payroll, $period, $context);
+
+        $this->assertSame(25_000.0, $context->totalDeductions);
+        $this->assertDatabaseHas('payroll_items', ['payroll_id' => $payroll->id, 'source_type' => 'keterlambatan', 'quantity' => 1, 'amount' => 25000]);
     }
 
     public function test_no_denda_setting_skips_entirely(): void

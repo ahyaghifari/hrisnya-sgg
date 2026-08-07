@@ -28,7 +28,11 @@
                                     </label>
                                     <p style="font-size:11px;color:var(--text-muted);margin:2px 0 0;">{{ $setting->helperText() }}</p>
                                 </div>
-                                <input type="number" class="form-input" style="max-width:180px;" wire:model="values.{{ $setting->value }}">
+                                @if ($this->canEditSettings)
+                                    <input type="number" class="form-input" style="max-width:180px;" wire:model="values.{{ $setting->value }}">
+                                @else
+                                    <span style="font-weight:600;min-width:180px;">{{ $values[$setting->value] ?? '-' }}</span>
+                                @endif
                             </div>
                         @endforeach
                     </div>

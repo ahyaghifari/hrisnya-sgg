@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Route;
 
 Route::prefix('auth')->group(function () {
 
-    Route::post('/login', [\App\Http\Controllers\Api\AuthJController::class, 'login']);
+    Route::post('/login', [\App\Http\Controllers\Api\AuthController::class, 'login']);
     Route::post('/request-reset-password', [\App\Http\Controllers\Api\AuthController::class, 'requestPasswordReset']);
     Route::post('/reset-password', [\App\Http\Controllers\Api\AuthController::class, 'resetPassword']);
 

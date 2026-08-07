@@ -1,19 +1,11 @@
+@props(['gates'])
 @php
-    $canSeeKaryawanMenu = auth()->user()->canAccessKaryawanMenu();
-    $canSubmitAttendance = ! auth()->user()->canBrowseAllCompanies();
-    $canAccessKeuangan = auth()->user()->can(\App\Enum\CustomPermissionEnum::SISTEM_KEUANGAN->value);
-    $canAccessAbsensi = auth()->user()->can(\App\Enum\CustomPermissionEnum::SISTEM_ABSENSI->value);
-    $canAccessKepegawaian = auth()->user()->can(\App\Enum\CustomPermissionEnum::SISTEM_KEPEGAWAIAN->value);
-    $canAccessLms = auth()->user()->can(\App\Enum\CustomPermissionEnum::SISTEM_LMS->value);
-    $canAccessTugasSaya = auth()->user()->can(\App\Enum\CustomPermissionEnum::TUGAS_SAYA->value);
-    $canAccessPelatihanSaya = auth()->user()->can(\App\Enum\CustomPermissionEnum::PELATIHAN_SAYA->value);
-    $canAccessPengajuanAbsensiSaya = auth()->user()->can(\App\Enum\CustomPermissionEnum::PENGAJUAN_ABSENSI_SAYA->value);
-    // Sama seperti nav.blade.php — SATU rule sama persis MyStaff ($canSeeKaryawanMenu, "punya
-    // bawahan"), bukan gerbang permission Shield terpisah lagi (instruksi 2026-07-26). Karyawan
-    // biasa yang ditunjuk jadi konselor akses lewat tombol "Konsul ke Saya" di halaman personal
-    // Counseling Saya (/counseling), bukan lewat section ini.
-    $canAccessCoachingCounseling = $canSeeKaryawanMenu;
-    $canAccessHakAkses = auth()->user()->can(\App\Enum\CustomPermissionEnum::KELOLA_HAK_AKSES->value);
+    // Gate SISTEM_* sudah dihitung sekali di layout.blade.php ($navGates), dioper ke sini lewat
+    // prop $gates supaya tidak dicek dobel dengan <x-nav> yang selalu dirender bareng (cuma
+    // disembunyikan CSS md:, lihat layout.blade.php). Gerbang spesifik/turunan
+    // (ViewAny:PayrollPeriod, ViewAny:UserTransition, dll) tetap dihitung di dalam
+    // <x-pwa-nav.xxx-menu> masing-masing, bukan di sini.
+    extract($gates);
 
     $navPhotoPath = auth()->user()->profile?->profile_picture[0] ?? null;
     $navPhotoUrl = $navPhotoPath && is_string($navPhotoPath) ? \Illuminate\Support\Facades\Storage::url($navPhotoPath) : null;
@@ -95,179 +87,28 @@
 
     <div class="pwa-menu-grid">
         @if ($canSeeKaryawanMenu)
-            <a href="{{ route('my-staff') }}" wire:navigate class="pwa-menu-grid-item">
-                <span class="pwa-menu-grid-icon navy"><i class="fa-solid fa-users"></i></span>
-                <span class="pwa-menu-grid-label">MyStaff</span>
-            </a>
+            <x-pwa-nav.mystaff-item />
         @endif
 
         @if ($canAccessKeuangan)
-            <span class="pwa-menu-grid-divider">Sistem Keuangan</span>
-            <a href="{{ route('keuangan.dashboard') }}" wire:navigate class="pwa-menu-grid-item">
-                <span class="pwa-menu-grid-icon navy"><i class="fa-solid fa-chart-line"></i></span>
-                <span class="pwa-menu-grid-label">Dashboard</span>
-            </a>
-            <a href="{{ route('keuangan.periode-gaji') }}" wire:navigate class="pwa-menu-grid-item">
-                <span class="pwa-menu-grid-icon navy"><i class="fa-solid fa-calendar-days"></i></span>
-                <span class="pwa-menu-grid-label">Periode Gaji</span>
-            </a>
-            <a href="{{ route('keuangan.payroll') }}" wire:navigate class="pwa-menu-grid-item">
-                <span class="pwa-menu-grid-icon indigo"><i class="fa-solid fa-money-check-dollar"></i></span>
-                <span class="pwa-menu-grid-label">Payroll</span>
-            </a>
-            <a href="{{ route('keuangan.komponen-gaji') }}" wire:navigate class="pwa-menu-grid-item">
-                <span class="pwa-menu-grid-icon gold"><i class="fa-solid fa-sack-dollar"></i></span>
-                <span class="pwa-menu-grid-label">Komponen Gaji</span>
-            </a>
-            <a href="{{ route('keuangan.mapping-komponen-gaji') }}" wire:navigate class="pwa-menu-grid-item">
-                <span class="pwa-menu-grid-icon teal"><i class="fa-solid fa-diagram-project"></i></span>
-                <span class="pwa-menu-grid-label">Mapping Komponen Gaji</span>
-            </a>
-            <a href="{{ route('keuangan.jasa-unit-types') }}" wire:navigate class="pwa-menu-grid-item">
-                <span class="pwa-menu-grid-icon teal"><i class="fa-solid fa-hospital-user"></i></span>
-                <span class="pwa-menu-grid-label">Jasa Unit</span>
-            </a>
-            <a href="{{ route('keuangan.insentif') }}" wire:navigate class="pwa-menu-grid-item">
-                <span class="pwa-menu-grid-icon green"><i class="fa-solid fa-hand-holding-dollar"></i></span>
-                <span class="pwa-menu-grid-label">Insentif</span>
-            </a>
-            <a href="{{ route('keuangan.jasa-unit') }}" wire:navigate class="pwa-menu-grid-item">
-                <span class="pwa-menu-grid-icon teal"><i class="fa-solid fa-hospital-user"></i></span>
-                <span class="pwa-menu-grid-label">Input Jasa Unit</span>
-            </a>
+            <x-pwa-nav.keuangan-menu />
         @endif
 
         @if ($canAccessAbsensi)
-            <span class="pwa-menu-grid-divider">Sistem Absensi</span>
-            <a href="{{ route('presensi.dashboard') }}" wire:navigate class="pwa-menu-grid-item">
-                <span class="pwa-menu-grid-icon navy"><i class="fa-solid fa-chart-line"></i></span>
-                <span class="pwa-menu-grid-label">Dashboard</span>
-            </a>
-            <a href="{{ route('presensi.jadwal') }}" wire:navigate class="pwa-menu-grid-item">
-                <span class="pwa-menu-grid-icon indigo"><i class="fa-solid fa-calendar-days"></i></span>
-                <span class="pwa-menu-grid-label">Jadwal</span>
-            </a>
-            <a href="{{ route('presensi.hari-libur') }}" wire:navigate class="pwa-menu-grid-item">
-                <span class="pwa-menu-grid-icon navy"><i class="fa-solid fa-flag"></i></span>
-                <span class="pwa-menu-grid-label">Hari Libur & Cuti Bersama</span>
-            </a>
-            <a href="{{ route('presensi.rekap-presensi') }}" wire:navigate class="pwa-menu-grid-item">
-                <span class="pwa-menu-grid-icon navy"><i class="fa-solid fa-clipboard-list"></i></span>
-                <span class="pwa-menu-grid-label">Rekap Presensi</span>
-            </a>
-            <a href="{{ route('presensi.rekap-izin') }}" wire:navigate class="pwa-menu-grid-item">
-                <span class="pwa-menu-grid-icon navy"><i class="fa-solid fa-file-lines"></i></span>
-                <span class="pwa-menu-grid-label">Izin</span>
-            </a>
-            <a href="{{ route('presensi.rekap-cuti') }}" wire:navigate class="pwa-menu-grid-item">
-                <span class="pwa-menu-grid-icon teal"><i class="fa-solid fa-umbrella-beach"></i></span>
-                <span class="pwa-menu-grid-label">Cuti</span>
-            </a>
-            <a href="{{ route('presensi.rekap-lembur') }}" wire:navigate class="pwa-menu-grid-item">
-                <span class="pwa-menu-grid-icon gold"><i class="fa-solid fa-business-time"></i></span>
-                <span class="pwa-menu-grid-label">Lembur</span>
-            </a>
-            <a href="{{ route('presensi.pengaturan') }}" wire:navigate class="pwa-menu-grid-item">
-                <span class="pwa-menu-grid-icon gold"><i class="fa-solid fa-gear"></i></span>
-                <span class="pwa-menu-grid-label">Pengaturan Absensi</span>
-            </a>
+            <x-pwa-nav.absensi-menu />
         @endif
 
         @if ($canAccessKepegawaian)
-            <span class="pwa-menu-grid-divider">Sistem Kepegawaian</span>
-            <a href="{{ route('kepegawaian.dashboard') }}" wire:navigate class="pwa-menu-grid-item">
-                <span class="pwa-menu-grid-icon navy"><i class="fa-solid fa-chart-line"></i></span>
-                <span class="pwa-menu-grid-label">Dashboard</span>
-            </a>
-            <a href="{{ route('kepegawaian.karyawan') }}" wire:navigate class="pwa-menu-grid-item">
-                <span class="pwa-menu-grid-icon violet"><i class="fa-solid fa-users"></i></span>
-                <span class="pwa-menu-grid-label">Karyawan</span>
-            </a>
-            <a href="{{ route('kepegawaian.jabatan') }}" wire:navigate class="pwa-menu-grid-item">
-                <span class="pwa-menu-grid-icon violet"><i class="fa-solid fa-id-card-clip"></i></span>
-                <span class="pwa-menu-grid-label">Jabatan</span>
-            </a>
-            <a href="{{ route('kepegawaian.dokumen') }}" wire:navigate class="pwa-menu-grid-item">
-                <span class="pwa-menu-grid-icon indigo"><i class="fa-solid fa-folder-open"></i></span>
-                <span class="pwa-menu-grid-label">Dokumen</span>
-            </a>
-            @if (auth()->user()->can('ViewAny:UserTransition'))
-                <a href="{{ route('kepegawaian.mutasi-karyawan') }}" wire:navigate class="pwa-menu-grid-item">
-                    <span class="pwa-menu-grid-icon gold"><i class="fa-solid fa-right-left"></i></span>
-                    <span class="pwa-menu-grid-label">Perubahan Status</span>
-                </a>
-            @endif
-            @if (auth()->user()->can('ViewAny:JobOpenings'))
-                <a href="{{ route('kepegawaian.lowongan') }}" wire:navigate class="pwa-menu-grid-item">
-                    <span class="pwa-menu-grid-icon gold"><i class="fa-solid fa-briefcase"></i></span>
-                    <span class="pwa-menu-grid-label">Lowongan Kerja</span>
-                </a>
-            @endif
-            @if (auth()->user()->can('ViewAny:ManpowerRequests'))
-                <a href="{{ route('kepegawaian.permintaan') }}" wire:navigate class="pwa-menu-grid-item">
-                    <span class="pwa-menu-grid-icon gold"><i class="fa-solid fa-right-left"></i></span>
-                    <span class="pwa-menu-grid-label">Permintaan Tenaga Kerja</span>
-                </a>
-            @endif
+            <x-pwa-nav.kepegawaian-menu />
         @endif
 
         @if ($canAccessLms)
-            <span class="pwa-menu-grid-divider">Learning Management System</span>
-            <a href="{{ route('pelatihan.kelola') }}" wire:navigate class="pwa-menu-grid-item">
-                <span class="pwa-menu-grid-icon teal"><i class="fa-solid fa-book"></i></span>
-                <span class="pwa-menu-grid-label">Pelatihan</span>
-            </a>
-            <a href="{{ route('pelatihan.kategori') }}" wire:navigate class="pwa-menu-grid-item">
-                <span class="pwa-menu-grid-icon teal"><i class="fa-solid fa-tags"></i></span>
-                <span class="pwa-menu-grid-label">Kategori Pelatihan</span>
-            </a>
-            <a href="{{ route('pelatihan.pemateri') }}" wire:navigate class="pwa-menu-grid-item">
-                <span class="pwa-menu-grid-icon teal"><i class="fa-solid fa-chalkboard-user"></i></span>
-                <span class="pwa-menu-grid-label">Pemateri</span>
-            </a>
-            {{-- TODO: route pelatihan.eksternal nonaktif sementara, class Livewire belum dibuat --}}
-            <a href="{{ route('pelatihan.bank-soal') }}" wire:navigate class="pwa-menu-grid-item">
-                <span class="pwa-menu-grid-icon teal"><i class="fa-solid fa-clipboard-list"></i></span>
-                <span class="pwa-menu-grid-label">Bank Soal</span>
-            </a>
-            <a href="{{ route('pelatihan.kuis') }}" wire:navigate class="pwa-menu-grid-item">
-                <span class="pwa-menu-grid-icon teal"><i class="fa-solid fa-list-check"></i></span>
-                <span class="pwa-menu-grid-label">Kuis</span>
-            </a>
-            <a href="{{ route('pelatihan.honorarium') }}" wire:navigate class="pwa-menu-grid-item">
-                <span class="pwa-menu-grid-icon teal"><i class="fa-solid fa-sack-dollar"></i></span>
-                <span class="pwa-menu-grid-label">Honorarium</span>
-            </a>
-            <a href="{{ route('pelatihan.evaluasi') }}" wire:navigate class="pwa-menu-grid-item">
-                <span class="pwa-menu-grid-icon teal"><i class="fa-solid fa-star"></i></span>
-                <span class="pwa-menu-grid-label">Pertanyaan Evaluasi</span>
-            </a>
-            <a href="{{ route('pelatihan.baseline') }}" wire:navigate class="pwa-menu-grid-item">
-                <span class="pwa-menu-grid-icon teal"><i class="fa-solid fa-bullseye"></i></span>
-                <span class="pwa-menu-grid-label">Baseline Pelatihan</span>
-            </a>
-            <a href="{{ route('pelatihan.laporan') }}" wire:navigate class="pwa-menu-grid-item">
-                <span class="pwa-menu-grid-icon teal"><i class="fa-solid fa-chart-bar"></i></span>
-                <span class="pwa-menu-grid-label">Laporan</span>
-            </a>
-            <a href="{{ route('pelatihan.pengaturan') }}" wire:navigate class="pwa-menu-grid-item">
-                <span class="pwa-menu-grid-icon teal"><i class="fa-solid fa-gear"></i></span>
-                <span class="pwa-menu-grid-label">Pengaturan LMS</span>
-            </a>
+            <x-pwa-nav.lms-menu />
         @endif
 
-        @if ($canAccessCoachingCounseling)
-            <span class="pwa-menu-grid-divider">Coaching & Counseling</span>
-            <a href="{{ route('coaching') }}" wire:navigate class="pwa-menu-grid-item">
-                <span class="pwa-menu-grid-icon indigo"><i class="fa-solid fa-clipboard-check"></i></span>
-                <span class="pwa-menu-grid-label">Coaching</span>
-            </a>
-            <a href="{{ route('counseling.kelola') }}" wire:navigate class="pwa-menu-grid-item">
-                <span class="pwa-menu-grid-icon indigo"><i class="fa-solid fa-comments"></i></span>
-                <span class="pwa-menu-grid-label">Counseling</span>
-            </a>
+        @if ($canSeeKaryawanMenu)
+            <x-pwa-nav.coaching-counseling-menu />
         @endif
-
 
         @if ($canSubmitAttendance)
             <a href="{{ route('organization-structure') }}" wire:navigate class="pwa-menu-grid-item">

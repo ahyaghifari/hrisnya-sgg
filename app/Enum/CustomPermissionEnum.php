@@ -23,7 +23,7 @@ enum CustomPermissionEnum: string
     case PELATIHAN_SAYA = 'pelatihan_saya';
     case AJUKAN_PELATIHAN = 'ajukan_pelatihan';
     case PENGAJUAN_ABSENSI_SAYA = 'pengajuan_absensi_saya';
-    case COACHING_COUNSELING_SAYA = 'coaching_counseling_saya';
+    case PEMBINAAN_SAYA = 'pembinaan_saya';
 
     /** Beda dari sekadar "punya bawahan" (CoachingPage/CreateCoachingPage/CoachingDetailPage
      * default scope ke OrgHierarchyService::subordinates()) — permission ini kasih akses
@@ -59,10 +59,21 @@ enum CustomPermissionEnum: string
     case EDIT_DETAIL_KURSUS_LMS = 'edit_detail_kursus_lms';
     case EDIT_HONORARIUM_LMS = 'edit_honorarium_lms';
     case EDIT_PENGATURAN_ABSENSI = 'edit_pengaturan_absensi';
+
+    /** Buka halaman Pengaturan Absensi (read-only) - beda dari EDIT_PENGATURAN_ABSENSI yang
+     * menggerbangi simpan. Tanpa permission ini, halamannya 403 sama sekali (bukan cuma
+     * disembunyikan tombol simpannya) - dipisah supaya role yang cuma perlu approve/lihat
+     * absensi (sistem_absensi) tidak otomatis bisa buka pengaturan cutoff/kuota perusahaan. */
+    case LIHAT_PENGATURAN_ABSENSI = 'lihat_pengaturan_absensi';
     case SYNC_DATA_ABSENSI = 'sync_data_absensi';
     case EDIT_PENGATURAN_TUGAS = 'edit_pengaturan_tugas';
     case EDIT_PENGATURAN_LMS = 'edit_pengaturan_lms';
     case EDIT_PENGATURAN_KEPEGAWAIAN = 'edit_pengaturan_kepegawaian';
+
+    /** Buka halaman Pengaturan Kepegawaian (read-only) - beda dari EDIT_PENGATURAN_KEPEGAWAIAN
+     * yang menggerbangi simpan. Tanpa permission ini, halamannya 403 sama sekali (bukan cuma
+     * disembunyikan tombol simpan/input-nya), sama seperti pola LIHAT_PENGATURAN_ABSENSI. */
+    case LIHAT_PENGATURAN_KEPEGAWAIAN = 'lihat_pengaturan_kepegawaian';
 
     /**
      * Beda dari Update:Schedule (edit header jadwal, ubah karyawan yang dipasangkan) — ini
@@ -106,7 +117,7 @@ enum CustomPermissionEnum: string
             self::PELATIHAN_SAYA => 'Pelatihan Saya',
             self::AJUKAN_PELATIHAN => 'Ajukan Pelatihan (Eksternal)',
             self::PENGAJUAN_ABSENSI_SAYA => 'Pengajuan Absensi Saya',
-            self::COACHING_COUNSELING_SAYA => 'Coaching & Counseling Saya',
+            self::PEMBINAAN_SAYA => 'Pembinaan Saya',
             self::COACHING_KARYAWAN_LAINNYA => 'Coaching Karyawan Lainnya (Semua Karyawan, Bukan Cuma Bawahan)',
             self::APPROVE_PENGAJUAN_ABSENSI => 'Approve Pengajuan Absensi',
             self::VIEW_REPORT_DATA_ABSENSI => 'Lihat Laporan Data Absensi',
@@ -122,10 +133,12 @@ enum CustomPermissionEnum: string
             self::EDIT_DETAIL_KURSUS_LMS => 'Edit Detail Kursus LMS',
             self::EDIT_HONORARIUM_LMS => 'Edit Honorarium LMS',
             self::EDIT_PENGATURAN_ABSENSI => 'Edit Pengaturan Absensi',
+            self::LIHAT_PENGATURAN_ABSENSI => 'Lihat Pengaturan Absensi',
             self::SYNC_DATA_ABSENSI => 'Sync Data Absensi (dari Access Logs)',
             self::EDIT_PENGATURAN_TUGAS => 'Edit Pengaturan Tugas',
             self::EDIT_PENGATURAN_LMS => 'Edit Pengaturan LMS',
             self::EDIT_PENGATURAN_KEPEGAWAIAN => 'Edit Pengaturan Kepegawaian',
+            self::LIHAT_PENGATURAN_KEPEGAWAIAN => 'Lihat Pengaturan Kepegawaian',
             self::KELOLA_JADWAL_SHIFT => 'Kelola Jadwal Shift (Template & Roster)',
             self::GENERATE_PAYROLL => 'Generate/Regenerate Payroll',
             self::LIHAT_LAMPIRAN_IDENTITAS_KARYAWAN => 'Lihat Lampiran Identitas Karyawan (KTP/KK)',

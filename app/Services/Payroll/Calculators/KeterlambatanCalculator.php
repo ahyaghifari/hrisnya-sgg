@@ -2,8 +2,11 @@
 
 namespace App\Services\Payroll\Calculators;
 
+use App\Enum\Attendance\PermissionTypeCategoryEnum;
+use App\Enum\AttendanceReqStatus;
 use App\Enum\Payroll\PayrollComponentEnum;
 use App\Models\Attendance\AttendanceRecords;
+use App\Models\Attendance\AttendanceRequests;
 use App\Models\Payroll\Payroll;
 use App\Models\Payroll\PayrollItem;
 use App\Models\Payroll\PayrollPeriod;
@@ -42,6 +45,25 @@ class KeterlambatanCalculator implements PayrollComponentCalculator
             ->when($thresholdMinutes > 0, fn ($q) => $q->where(fn ($q2) => $q2->whereNull('late_minutes')->orWhere('late_minutes', '>', $thresholdMinutes)))
             ->orderBy('date')
             ->get();
+
+        // Tanggal yang sudah ditutup Izin Terlambat Masuk (approved) tidak boleh kena denda
+        // juga - izin itu justru komponen potongan sendiri (IzinMeninggalkanJamKerjaCalculator),
+        // kena dua-duanya = double dip untuk kejadian telat yang sama.
+        $excusedDates = AttendanceRequests::query()
+            ->where('user_id', $user->id)
+            ->where('type', 'permission')
+            ->where('status', AttendanceReqStatus::APPROVED->value)
+            ->whereHas('permissionDetails', function ($q) use ($attendancePeriodStart, $attendancePeriodEnd) {
+                $q->whereBetween('date', [$attendancePeriodStart, $attendancePeriodEnd])
+                    ->where('category', PermissionTypeCategoryEnum::IZIN_TERLAMBAT_MASUK->value);
+            })
+            ->with(['permissionDetails' => fn ($q) => $q->where('category', PermissionTypeCategoryEnum::IZIN_TERLAMBAT_MASUK->value)])
+            ->get()
+            ->flatMap(fn ($request) => $request->permissionDetails->pluck('date'))
+            ->map(fn ($date) => (string) $date)
+            ->all();
+
+        $lateRecords = $lateRecords->reject(fn ($record) => in_array((string) $record->date, $excusedDates, true));
 
         $lateCount = $lateRecords->count();
 

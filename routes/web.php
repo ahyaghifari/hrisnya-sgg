@@ -13,7 +13,6 @@ use App\Livewire\Counseling\CounselingDetailPage;
 use App\Livewire\Counseling\CounselingManagePage;
 use App\Livewire\Counseling\CounselingPage;
 use App\Livewire\Dashboard;
-use App\Livewire\EditMyEmployee;
 use App\Livewire\EmployeeAttendanceStatistics;
 use App\Livewire\Kepegawaian\CreateKaryawan;
 use App\Livewire\Kepegawaian\EditKaryawan;
@@ -144,9 +143,6 @@ Route::middleware(['auth', 'portal.access'])->group(function () {
 
     Route::get('/my-staff', MyEmployees::class)
         ->name('my-staff');
-
-    Route::get('/my-staff/{record}/edit', EditMyEmployee::class)
-        ->name('my-staff.edit');
 
     Route::get('/riwayat-approval', RiwayatApprovalPage::class)
         ->name('riwayat-approval');
@@ -383,25 +379,23 @@ Route::middleware(['auth', 'portal.access'])->group(function () {
     Route::get('/pelatihan/quiz/{meetingQuiz}', QuizAttempt::class)
         ->name('pelatihan.quiz');
 
-    // TODO: class Livewire belum dibuat (ketinggalan commit f1aed8d), app gagal boot kalau
-    // diaktifkan - komentari dulu sampai file-nya beneran ada.
-    // Route::get('/pelatihan/pengajuan-saya', MyTrainingRequests::class)
-    //     ->name('pelatihan.pengajuan-saya');
+    Route::get('/pelatihan/pengajuan-saya', MyTrainingRequests::class)
+        ->name('pelatihan.pengajuan-saya');
 
-    // Route::get('/pelatihan/pengajuan-saya/{record}', TrainingRequestDetail::class)
-    //     ->name('pelatihan.pengajuan-saya.show');
+    Route::get('/pelatihan/pengajuan-saya/{record}', TrainingRequestDetail::class)
+        ->name('pelatihan.pengajuan-saya.show');
 
-    // Route::get('/pelatihan/pengajuan', SubmitTrainingRequest::class)
-    //     ->name('pelatihan.pengajuan');
+    Route::get('/pelatihan/pengajuan', SubmitTrainingRequest::class)
+        ->name('pelatihan.pengajuan');
 
     Route::get('/lms/honorarium', MasterHonorariumPage::class)
         ->name('pelatihan.honorarium');
 
-    // Route::get('/lms/pelatihan-eksternal', ExternalTrainingsPage::class)
-    //     ->name('pelatihan.eksternal');
+    Route::get('/lms/pelatihan-eksternal', ExternalTrainingsPage::class)
+        ->name('pelatihan.eksternal');
 
-    // Route::get('/lms/pelatihan-eksternal/{record}', ExternalTrainingDetailPage::class)
-    //     ->name('pelatihan.eksternal.show');
+    Route::get('/lms/pelatihan-eksternal/{record}', ExternalTrainingDetailPage::class)
+        ->name('pelatihan.eksternal.show');
 
     Route::get('/lms/evaluasi', LmsFeedbackQuestionsPage::class)
         ->name('pelatihan.evaluasi');

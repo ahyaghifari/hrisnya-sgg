@@ -24,6 +24,8 @@ class AttendanceRequests extends Model
         'approved_at',
         'cancelled_by',
         'cancelled_at',
+        'rejected_by',
+        'rejected_at',
         'is_flow_changed',
     ];
 
