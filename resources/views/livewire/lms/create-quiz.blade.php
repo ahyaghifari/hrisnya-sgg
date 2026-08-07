@@ -42,9 +42,11 @@
                 <div style="background:var(--surface);border-radius:12px;box-shadow:var(--shadow-card);padding:16px 18px;">
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:8px;">
                         <label class="form-label" style="margin:0;">Pilih dari Bank Soal</label>
-                        <button type="button" wire:click="openNewQuestionModal" class="btn-ghost" style="padding:5px 10px;font-size:11.5px;white-space:nowrap;">
-                            <i class="fa-solid fa-plus"></i> Buat Soal Baru
-                        </button>
+                        @if ($this->canCreateQuestion)
+                            <button type="button" wire:click="openNewQuestionModal" class="btn-ghost" style="padding:5px 10px;font-size:11.5px;white-space:nowrap;">
+                                <i class="fa-solid fa-plus"></i> Buat Soal Baru
+                            </button>
+                        @endif
                     </div>
 
                     <div style="position:relative;margin-bottom:10px;">

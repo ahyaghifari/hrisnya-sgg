@@ -2,7 +2,6 @@
 
 namespace App\Livewire\Kepegawaian;
 
-use App\Enum\CustomPermissionEnum;
 use App\Enum\JobPositionReqStatus;
 use App\Livewire\Kepegawaian\Concerns\HasJabatanForm;
 use App\Models\Master\JobPositions;
@@ -28,7 +27,7 @@ class CreateJabatanPage extends Component
 
     public function mount(): void
     {
-        abort_unless(Auth::user()->can(CustomPermissionEnum::SISTEM_KEPEGAWAIAN->value), 403);
+        abort_unless(Auth::user()->can('create', JobPositions::class), 403);
 
         if (! Auth::user()->canFilterByCompany()) {
             $this->company_id = Auth::user()->company_id;

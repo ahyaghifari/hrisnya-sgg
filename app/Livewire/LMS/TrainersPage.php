@@ -2,7 +2,6 @@
 
 namespace App\Livewire\LMS;
 
-use App\Enum\CustomPermissionEnum;
 use App\Models\LMS\Trainer\Trainers;
 use App\Models\User;
 use Filament\Notifications\Notification;
@@ -51,7 +50,7 @@ class TrainersPage extends Component
 
     public function mount(): void
     {
-        abort_unless(Auth::user()->can(CustomPermissionEnum::SISTEM_LMS->value), 403);
+        abort_unless(Auth::user()->can('viewAny', Trainers::class), 403);
     }
 
     public function getTrainersProperty()

@@ -41,6 +41,14 @@ class RoleForm
                 CustomPermissionEnum::EDIT_PENERIMA_KOMPONEN_GAJI->value,
                 CustomPermissionEnum::EDIT_KOMPONEN_GAJI->value,
                 CustomPermissionEnum::EDIT_KOMPONEN_GAJI_GLOBAL->value,
+                CustomPermissionEnum::LIHAT_KOMPONEN_GAJI->value,
+                CustomPermissionEnum::LIHAT_PENERIMA_KOMPONEN_GAJI->value,
+                CustomPermissionEnum::LIHAT_MAPPING_KOMPONEN_GAJI->value,
+                CustomPermissionEnum::LIHAT_OMSET->value,
+                CustomPermissionEnum::KELOLA_OMSET->value,
+                CustomPermissionEnum::LIHAT_INPUT_JASA_UNIT->value,
+                CustomPermissionEnum::KELOLA_INPUT_JASA_UNIT->value,
+                CustomPermissionEnum::EDIT_PAYROLL_ADJUSTMENT->value,
                 CustomPermissionEnum::GENERATE_PAYROLL->value,
                 // Sisa permission shield "SalaryComponents" dari Resource lama (tabel
                 // salary_components sudah dihapus total di Payroll Fase 1, digantikan
@@ -60,20 +68,28 @@ class RoleForm
             CustomPermissionEnum::SISTEM_KEPEGAWAIAN->value => [
                 CustomPermissionEnum::LIHAT_PENGATURAN_KEPEGAWAIAN->value,
                 CustomPermissionEnum::EDIT_PENGATURAN_KEPEGAWAIAN->value,
+                CustomPermissionEnum::LIHAT_JOB_EVALUATION->value,
+                CustomPermissionEnum::KELOLA_JOB_EVALUATION->value,
+                CustomPermissionEnum::LIHAT_LAMPIRAN_IDENTITAS_KARYAWAN->value,
             ],
             CustomPermissionEnum::SISTEM_ABSENSI->value => [
                 CustomPermissionEnum::LIHAT_PENGATURAN_ABSENSI->value,
                 CustomPermissionEnum::EDIT_PENGATURAN_ABSENSI->value,
                 CustomPermissionEnum::KELOLA_JADWAL_SHIFT->value,
                 CustomPermissionEnum::SYNC_DATA_ABSENSI->value,
-                'Create:Schedule',
-                'Update:Schedule',
-                'Delete:Schedule',
+                // Create/Update/Delete:Schedule TIDAK di-list manual lagi di sini (2026-08-07) -
+                // Schedule sekarang punya ScheduleResource beneran (navigationGroup 'Presensi &
+                // Absensi'), jadi ke-5 verb-nya (ViewAny/View/Create/Update/Delete) otomatis
+                // ke-merge jadi 1 subject node "Schedule" di bawah root Sistem Absensi lewat
+                // containerMerge, tidak perlu di-hardcode di sini.
             ],
             CustomPermissionEnum::SISTEM_LMS->value => [
                 CustomPermissionEnum::EDIT_DETAIL_KURSUS_LMS->value,
                 CustomPermissionEnum::EDIT_HONORARIUM_LMS->value,
+                CustomPermissionEnum::LIHAT_HONORARIUM_LMS->value,
                 CustomPermissionEnum::EDIT_PENGATURAN_LMS->value,
+                CustomPermissionEnum::LIHAT_PENGATURAN_LMS->value,
+                CustomPermissionEnum::LIHAT_LAPORAN_PELATIHAN->value,
             ],
             CustomPermissionEnum::SISTEM_TUGAS->value => [
                 CustomPermissionEnum::EDIT_PENGATURAN_TUGAS->value,
@@ -81,6 +97,10 @@ class RoleForm
             CustomPermissionEnum::SISTEM_COACHING_COUNSELING->value => [
                 CustomPermissionEnum::COACHING_KARYAWAN_LAINNYA->value,
             ],
+            // Tidak ada child custom permission - grup ini cuma pembungkus supaya container
+            // admin 'Penilaian Karyawan' (navigationGroup 4 Assessment Resource) ke-merge jadi
+            // 1 section sama container portal ini, lihat containerMerge().
+            CustomPermissionEnum::SISTEM_PENILAIAN_KARYAWAN->value => [],
         ];
     }
 
@@ -128,6 +148,9 @@ class RoleForm
             'ShiftScheduleAssignments' => 'Jadwal',
             'ShiftSwapRequests' => 'Jadwal',
             'ShiftTemplates' => 'Jadwal',
+            // PayrollComponents: Filament Page (bukan Resource), jadi navigationGroup-nya
+            // (sudah 'Keuangan') tidak ke-scan lewat getResources() - paksa manual.
+            'PayrollComponents' => 'Keuangan',
         ];
     }
 
@@ -187,6 +210,7 @@ class RoleForm
             'Kepegawaian' => CustomPermissionEnum::SISTEM_KEPEGAWAIAN->value,
             'LMS' => CustomPermissionEnum::SISTEM_LMS->value,
             'Presensi & Absensi' => CustomPermissionEnum::SISTEM_ABSENSI->value,
+            'Penilaian Karyawan' => CustomPermissionEnum::SISTEM_PENILAIAN_KARYAWAN->value,
         ];
     }
 

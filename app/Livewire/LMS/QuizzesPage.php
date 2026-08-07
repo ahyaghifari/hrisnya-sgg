@@ -2,7 +2,6 @@
 
 namespace App\Livewire\LMS;
 
-use App\Enum\CustomPermissionEnum;
 use App\Models\LMS\LmsCategories;
 use App\Models\LMS\LmsQuizzes;
 use App\Services\LMS\QuizService;
@@ -19,8 +18,8 @@ use Livewire\Component;
  * halaman CreateQuiz (route pelatihan.kuis.edit) supaya bisa mengelola ulang soal & urutannya,
  * bukan cuma ganti judul/kategori.
  *
- * Otorisasi: akses halaman via SISTEM_LMS (mount). Per-aksi pakai permission Shield string
- * ('Update:LmsQuizzes' / 'Delete:LmsQuizzes'), Policy LmsQuizzesPolicy sudah ada dari Shield.
+ * Otorisasi: akses halaman via ViewAny:LmsQuizzes (mount). Per-aksi pakai permission Shield
+ * string ('Update:LmsQuizzes' / 'Delete:LmsQuizzes'), Policy LmsQuizzesPolicy sudah ada dari Shield.
  */
 #[Layout('components.layout', ['title' => 'Kuis'])]
 class QuizzesPage extends Component
@@ -39,7 +38,7 @@ class QuizzesPage extends Component
 
     public function mount(): void
     {
-        abort_unless(Auth::user()->can(CustomPermissionEnum::SISTEM_LMS->value), 403);
+        abort_unless(Auth::user()->can('ViewAny:LmsQuizzes'), 403);
     }
 
     public function getCategoryOptionsProperty()

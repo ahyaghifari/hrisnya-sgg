@@ -2,7 +2,6 @@
 
 namespace App\Livewire\LMS;
 
-use App\Enum\CustomPermissionEnum;
 use App\Enum\LsmCourseStatus;
 use App\Models\LMS\LmsCategories;
 use App\Models\LMS\LmsCourses;
@@ -49,7 +48,6 @@ class CreateLmsCourse extends Component
 
     public function mount(): void
     {
-        abort_unless(Auth::user()->can(CustomPermissionEnum::SISTEM_LMS->value), 403);
         abort_unless(Auth::user()->can('create', LmsCourses::class), 403);
     }
 

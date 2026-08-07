@@ -2,7 +2,6 @@
 
 namespace App\Livewire\LMS;
 
-use App\Enum\CustomPermissionEnum;
 use App\Helpers\PermissionHelper;
 use App\Models\LMS\LmsCourseBaselines;
 use App\Models\Master\Companies;
@@ -42,7 +41,7 @@ class LmsCourseBaselinesPage extends Component
 
     public function mount(): void
     {
-        abort_unless(Auth::user()->can(CustomPermissionEnum::SISTEM_LMS->value), 403);
+        abort_unless(Auth::user()->can('viewAny', LmsCourseBaselines::class), 403);
     }
 
     public function getIsGlobalRoleProperty(): bool

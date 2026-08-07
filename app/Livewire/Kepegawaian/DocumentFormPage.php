@@ -2,7 +2,6 @@
 
 namespace App\Livewire\Kepegawaian;
 
-use App\Enum\CustomPermissionEnum;
 use App\Enum\UserDocumentType;
 use App\Helpers\PermissionHelper;
 use App\Models\Master\Companies;
@@ -40,14 +39,13 @@ class DocumentFormPage extends Component
 
     public function mount(?UserDocuments $record = null): void
     {
-        abort_unless(Auth::user()->can(CustomPermissionEnum::SISTEM_KEPEGAWAIAN->value), 403);
-
         if (! PermissionHelper::hasGlobalRole(Auth::user())) {
             $this->company_id = Auth::user()->company_id;
         }
 
         if ($record?->exists) {
             abort_unless($this->canManage($record), 403);
+            abort_unless(Auth::user()->can('update', $record), 403);
 
             $this->record = $record;
             $this->user_id = $record->user_id;

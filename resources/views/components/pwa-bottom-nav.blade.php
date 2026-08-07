@@ -110,6 +110,10 @@
             <x-pwa-nav.coaching-counseling-menu />
         @endif
 
+        @if ($canAccessPenilaian)
+            <x-pwa-nav.penilaian-menu />
+        @endif
+
         @if ($canSubmitAttendance)
             <a href="{{ route('organization-structure') }}" wire:navigate class="pwa-menu-grid-item">
                 <span class="pwa-menu-grid-icon teal"><i class="fa-solid fa-sitemap"></i></span>

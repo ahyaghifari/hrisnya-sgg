@@ -2,7 +2,6 @@
 
 namespace App\Livewire\Kepegawaian;
 
-use App\Enum\CustomPermissionEnum;
 use App\Enum\UserDocumentType;
 use App\Helpers\PermissionHelper;
 use App\Models\Master\Companies;
@@ -50,7 +49,7 @@ class DocumentsPage extends Component
 
     public function mount(): void
     {
-        abort_unless(Auth::user()->can(CustomPermissionEnum::SISTEM_KEPEGAWAIAN->value), 403);
+        abort_unless(Auth::user()->can('viewAny', UserDocuments::class), 403);
 
         if (! Auth::user()->canFilterByCompany()) {
             $this->companyId = Auth::user()->company_id;
@@ -142,6 +141,7 @@ class DocumentsPage extends Component
         $document = UserDocuments::findOrFail($id);
 
         abort_unless($this->canManage($document), 403);
+        abort_unless(Auth::user()->can('delete', $document), 403);
 
         // Soft-delete (UserDocuments::class pakai SoftDeletes) — berkas fisiknya SENGAJA
         // tidak ikut dihapus supaya kalau baris ini dipulihkan lagi, link ke file-nya masih
@@ -154,6 +154,7 @@ class DocumentsPage extends Component
         $document = UserDocuments::onlyTrashed()->findOrFail($id);
 
         abort_unless($this->canManage($document), 403);
+        abort_unless(Auth::user()->can('restore', $document), 403);
 
         $document->restore();
     }

@@ -1,5 +1,5 @@
 <div>
-<x-page-header title="Ajukan Permintaan Tenaga Kerja" :subtitle="$tab === 'quota' ? 'Penambahan Kuota' : 'Penambahan / Penggantian Karyawan'" :back="route('kepegawaian.permintaan', ['tab' => $tab])" />
+<x-page-header title="Ajukan Permintaan Tenaga Kerja" subtitle="Penambahan kuota, karyawan, atau penggantian karyawan" :back="route('kepegawaian.permintaan')" />
 
 <form wire:submit="submit">
     <div class="form-card">
@@ -21,6 +21,17 @@
             @endif
 
             <div>
+                <label class="form-label">Tipe Permintaan <span style="color:var(--danger-text);">*</span></label>
+                <select wire:model="type" class="form-input">
+                    <option value="">Pilih tipe permintaan</option>
+                    @foreach (\App\Enum\ManpowerRequestType::cases() as $requestType)
+                        <option value="{{ $requestType->value }}">{{ $requestType->getLabel() }}</option>
+                    @endforeach
+                </select>
+                @error('type') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
+            </div>
+
+            <div>
                 <label class="form-label">Jabatan <span style="color:var(--danger-text);">*</span></label>
                 <select wire:model.live="job_position_id" class="form-input" @disabled(! $companyId)>
                     <option value="">Pilih jabatan</option>
@@ -30,18 +41,6 @@
                 </select>
                 @error('job_position_id') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
             </div>
-
-            @if ($tab === 'employee_change')
-                <div>
-                    <label class="form-label">Tipe Perubahan <span style="color:var(--danger-text);">*</span></label>
-                    <select wire:model="type" class="form-input">
-                        <option value="">Pilih tipe perubahan</option>
-                        <option value="{{ \App\Enum\ManpowerRequestType::ADDITIONAL_EMPLOYEE->value }}">{{ \App\Enum\ManpowerRequestType::ADDITIONAL_EMPLOYEE->getLabel() }}</option>
-                        <option value="{{ \App\Enum\ManpowerRequestType::EMPLOYEE_REPLACEMENT->value }}">{{ \App\Enum\ManpowerRequestType::EMPLOYEE_REPLACEMENT->getLabel() }}</option>
-                    </select>
-                    @error('type') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
-                </div>
-            @endif
 
             <div>
                 <label class="form-label">Jumlah <span style="color:var(--danger-text);">*</span></label>
@@ -68,7 +67,7 @@
     </div>
 
     <div style="display:flex;align-items:center;justify-content:space-between;margin-top:20px;gap:12px;flex-wrap:wrap;">
-        <a href="{{ route('kepegawaian.permintaan', ['tab' => $tab]) }}" wire:navigate class="btn-ghost"><i class="fa-solid fa-arrow-left" style="font-size:12px;"></i> Kembali</a>
+        <a href="{{ route('kepegawaian.permintaan') }}" wire:navigate class="btn-ghost"><i class="fa-solid fa-arrow-left" style="font-size:12px;"></i> Kembali</a>
         <div style="display:flex;gap:10px;">
             <button type="button" wire:click="saveDraft" class="btn-ghost"><i class="fa-solid fa-floppy-disk" style="font-size:12px;"></i> Simpan Draft</button>
             <button type="submit" class="btn-primary"><i class="fa-solid fa-paper-plane" style="font-size:12px;"></i> Ajukan</button>

@@ -2,7 +2,6 @@
 
 namespace App\Livewire\Presensi;
 
-use App\Enum\CustomPermissionEnum;
 use App\Enum\ScheduleType;
 use App\Models\Shift\Schedule;
 use App\Models\Shift\ScheduleAssignment;
@@ -41,7 +40,7 @@ class ScheduleDetailPage extends Component
 
     public function mount(Schedule $schedule): void
     {
-        abort_unless(Auth::user()->can(CustomPermissionEnum::SISTEM_ABSENSI->value), 403);
+        abort_unless(Auth::user()->can('view', $schedule), 403);
 
         $this->schedule = $schedule;
 

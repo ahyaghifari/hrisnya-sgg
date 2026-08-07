@@ -2,7 +2,6 @@
 
 namespace App\Livewire\Presensi;
 
-use App\Enum\CustomPermissionEnum;
 use App\Enum\ScheduleType;
 use App\Models\Master\Companies;
 use App\Models\Shift\Schedule;
@@ -28,7 +27,7 @@ class SchedulesPage extends Component
 
     public function mount(): void
     {
-        abort_unless(Auth::user()->can(CustomPermissionEnum::SISTEM_ABSENSI->value), 403);
+        abort_unless(Auth::user()->can('ViewAny:Schedule'), 403);
 
         $this->companyId = Auth::user()->canFilterByCompany()
             ? (Auth::user()->company_id ?? Companies::orderBy('code')->value('id'))

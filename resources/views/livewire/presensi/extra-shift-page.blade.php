@@ -4,7 +4,7 @@
     <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;justify-content:space-between;margin-bottom:16px;">
         <x-company-filter wire:model.live="companyId" :companies="$this->companies" />
 
-        @if ($this->canManage)
+        @if ($this->canCreate)
             <button type="button" wire:click="openAddModal" class="btn-primary" style="padding:9px 18px;font-size:12.5px;">
                 <i class="fa-solid fa-plus"></i> Tambah Extra Shift
             </button>
@@ -25,7 +25,7 @@
                         <th>Menggantikan</th>
                         <th>Alasan</th>
                         <th>Ditugaskan Oleh</th>
-                        @if ($this->canManage)
+                        @if ($this->canDelete)
                             <th></th>
                         @endif
                     </tr>
@@ -39,7 +39,7 @@
                             <td>{{ $row->coveringUser?->name ?? '-' }}</td>
                             <td>{{ $row->reason ?: '-' }}</td>
                             <td>{{ $row->createdBy?->name }}</td>
-                            @if ($this->canManage)
+                            @if ($this->canDelete)
                                 <td>
                                     <button type="button" wire:click="delete('{{ $row->id }}')" wire:confirm="Hapus extra shift ini?" style="background:none;border:none;color:var(--danger-text);cursor:pointer;">
                                         <i class="fa-solid fa-trash"></i>

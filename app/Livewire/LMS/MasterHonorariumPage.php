@@ -51,7 +51,7 @@ class MasterHonorariumPage extends Component
 
     public function mount(): void
     {
-        abort_unless(Auth::user()->can(CustomPermissionEnum::SISTEM_LMS->value), 403);
+        abort_unless(Auth::user()->can(CustomPermissionEnum::LIHAT_HONORARIUM_LMS->value), 403);
 
         $this->context = TrainingCategoryEnum::scoredCases()[0]->value;
     }

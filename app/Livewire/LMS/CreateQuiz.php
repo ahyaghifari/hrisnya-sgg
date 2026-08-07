@@ -2,7 +2,6 @@
 
 namespace App\Livewire\LMS;
 
-use App\Enum\CustomPermissionEnum;
 use App\Enum\QuestionType;
 use App\Models\LMS\LmsCategories;
 use App\Models\LMS\LmsQuestionBanks;
@@ -61,8 +60,6 @@ class CreateQuiz extends Component
      */
     public function mount(?string $quiz = null): void
     {
-        abort_unless(Auth::user()->can(CustomPermissionEnum::SISTEM_LMS->value), 403);
-
         if ($quiz) {
             $model = LmsQuizzes::findOrFail($quiz);
 
@@ -154,8 +151,15 @@ class CreateQuiz extends Component
             = [$this->selectedQuestionIds[$b], $this->selectedQuestionIds[$a]];
     }
 
+    public function getCanCreateQuestionProperty(): bool
+    {
+        return Auth::user()->can('Create:LmsQuestionBanks');
+    }
+
     public function openNewQuestionModal(): void
     {
+        abort_unless($this->canCreateQuestion, 403);
+
         if (! $this->categoryId) {
             return;
         }
@@ -222,6 +226,10 @@ class CreateQuiz extends Component
 
     public function saveNewQuestion(QuestionBankService $service): void
     {
+        // "+ Buat Soal Baru" nyimpen langsung ke Bank Soal (bukan cuma Kuis) - butuh
+        // Create:LmsQuestionBanks sendiri, bukan cuma Create/Update:LmsQuizzes dari mount().
+        abort_unless(Auth::user()->can('Create:LmsQuestionBanks'), 403);
+
         $validated = $this->validate([
             'newQuestion' => ['required', 'string'],
             'newType' => ['required', 'in:' . implode(',', array_column(QuestionType::cases(), 'value'))],

@@ -2,7 +2,6 @@
 
 namespace App\Livewire\LMS;
 
-use App\Enum\CustomPermissionEnum;
 use App\Models\LMS\LmsCategories;
 use App\Models\LMS\LmsCourses;
 use Illuminate\Support\Facades\Auth;
@@ -46,7 +45,7 @@ class LmsCoursesPage extends Component
 
     public function mount(): void
     {
-        abort_unless(Auth::user()->can(CustomPermissionEnum::SISTEM_LMS->value), 403);
+        abort_unless(Auth::user()->can('viewAny', LmsCourses::class), 403);
 
         if (! Auth::user()->canFilterByCompany()) {
             $this->companyId = Auth::user()->company_id;

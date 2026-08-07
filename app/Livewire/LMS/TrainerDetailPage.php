@@ -2,7 +2,6 @@
 
 namespace App\Livewire\LMS;
 
-use App\Enum\CustomPermissionEnum;
 use App\Models\LMS\LmsCourseFeedbacks;
 use App\Models\LMS\LmsCourses;
 use App\Models\LMS\Trainer\Trainers;
@@ -25,7 +24,7 @@ class TrainerDetailPage extends Component
 
     public function mount(Trainers $trainer): void
     {
-        abort_unless(Auth::user()->can(CustomPermissionEnum::SISTEM_LMS->value), 403);
+        abort_unless(Auth::user()->can('view', $trainer), 403);
 
         $trainer->load('user');
 

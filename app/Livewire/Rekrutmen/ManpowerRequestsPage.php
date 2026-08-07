@@ -2,7 +2,6 @@
 
 namespace App\Livewire\Rekrutmen;
 
-use App\Enum\JobPositionReqStatus;
 use App\Enum\ManpowerRequestType;
 use App\Models\Job\ManpowerRequests;
 use App\Models\Master\Companies;
@@ -13,9 +12,9 @@ use Livewire\Component;
 use Livewire\WithPagination;
 
 /**
- * List Permintaan Tenaga Kerja versi portal — padanan ManpowerRequestResource admin. Nav kiri
- * "Kuota" vs "Perubahan Karyawan" (query param `?type=`) — pola sama seperti
- * ListManpowerRequests admin (badge diambil dari getNavigationItems()).
+ * List Permintaan Tenaga Kerja versi portal — padanan ManpowerRequestResource admin. Filter
+ * Tipe (select biasa, tanpa count, di kiri kolom Perusahaan/Cari) + badge tipe di tiap baris
+ * (instruksi user 2026-08-07).
  */
 #[Layout('components.layout', ['title' => 'Permintaan Tenaga Kerja'])]
 class ManpowerRequestsPage extends Component
@@ -29,7 +28,7 @@ class ManpowerRequestsPage extends Component
     public ?string $companyId = null;
 
     #[Url]
-    public string $tab = 'quota';
+    public string $type = '';
 
     #[Url]
     public string $search = '';
@@ -43,15 +42,6 @@ class ManpowerRequestsPage extends Component
         } elseif ($this->companyId === null) {
             $this->companyId = Auth::user()->company_id;
         }
-
-        $tab = request()->query('tab', 'quota');
-        $this->tab = in_array($tab, ['quota', 'employee_change'], true) ? $tab : 'quota';
-    }
-
-    public function setTab(string $tab): void
-    {
-        $this->tab = $tab;
-        $this->resetPage();
     }
 
     public function updatedCompanyId(): void
@@ -68,9 +58,21 @@ class ManpowerRequestsPage extends Component
         $this->resetPage();
     }
 
+    public function updatedType(): void
+    {
+        $this->resetPage();
+    }
+
     public function getCompanyOptionsProperty()
     {
         return Companies::pluck('name', 'id');
+    }
+
+    public function getTypeOptionsProperty(): array
+    {
+        return collect(ManpowerRequestType::cases())
+            ->mapWithKeys(fn (ManpowerRequestType $type) => [$type->value => $type->getLabel()])
+            ->all();
     }
 
     public function getCanBrowseAllCompaniesProperty(): bool
@@ -83,35 +85,13 @@ class ManpowerRequestsPage extends Component
         return Auth::user()->can('Create:ManpowerRequests');
     }
 
-    public function getQuotaCountProperty(): int
-    {
-        return ManpowerRequests::query()
-            ->when($this->companyId, fn ($q) => $q->where('company_id', $this->companyId))
-            ->where('type', ManpowerRequestType::ADDITIONAL_QUOTA->value)
-            ->where('status', JobPositionReqStatus::REQUESTED->value)
-            ->count();
-    }
-
-    public function getEmployeeChangeCountProperty(): int
-    {
-        return ManpowerRequests::query()
-            ->when($this->companyId, fn ($q) => $q->where('company_id', $this->companyId))
-            ->whereIn('type', [ManpowerRequestType::ADDITIONAL_EMPLOYEE->value, ManpowerRequestType::EMPLOYEE_REPLACEMENT->value])
-            ->where('status', JobPositionReqStatus::REQUESTED->value)
-            ->count();
-    }
-
     protected function baseQuery()
     {
         $search = trim($this->search);
 
-        $typeFilter = $this->tab === 'quota'
-            ? [ManpowerRequestType::ADDITIONAL_QUOTA->value]
-            : [ManpowerRequestType::ADDITIONAL_EMPLOYEE->value, ManpowerRequestType::EMPLOYEE_REPLACEMENT->value];
-
         return ManpowerRequests::query()
-            ->whereIn('type', $typeFilter)
             ->when($this->companyId, fn ($q) => $q->where('company_id', $this->companyId))
+            ->when($this->type !== '', fn ($q) => $q->where('type', $this->type))
             ->when($search !== '', fn ($q) => $q->whereHas('jobPosition', fn ($q2) => $q2->where('name', 'like', "%{$search}%")))
             ->with(['jobPosition.orgStructure', 'company']);
     }
@@ -120,7 +100,7 @@ class ManpowerRequestsPage extends Component
     {
         return $this->baseQuery()->latest()->paginate(10)->appends([
             'companyId' => $this->companyId,
-            'tab' => $this->tab,
+            'type' => $this->type,
             'search' => $this->search,
         ]);
     }

@@ -45,7 +45,7 @@
                                     <td style="padding:5px 8px;color:var(--text-faint);">{{ $i + 1 }}</td>
                                     <td style="padding:5px 8px;font-weight:600;">{{ $p->name }}</td>
                                     <td style="padding:5px 8px;">
-                                        <input type="number" class="form-input" style="font-size:11.5px;padding:5px 8px;" wire:model="jeValues.{{ $p->id }}">
+                                        <input type="number" class="form-input" style="font-size:11.5px;padding:5px 8px;" wire:model="jeValues.{{ $p->id }}" @disabled(! $this->canManage)>
                                         @error("jeValues.{$p->id}") <p style="font-size:10.5px;color:#dc2626;margin:2px 0 0;">{{ $message }}</p> @enderror
                                     </td>
                                 </tr>
@@ -56,7 +56,9 @@
 
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px;padding-top:12px;border-top:1px dashed var(--border-soft);">
                     <span style="font-size:12px;font-weight:700;">Total JE: {{ number_format($this->totalJe) }}</span>
-                    <button type="button" wire:click="saveJe" wire:loading.attr="disabled" wire:target="saveJe" class="btn-primary" style="padding:9px 20px;font-size:12.5px;">Simpan</button>
+                    @if ($this->canManage)
+                        <button type="button" wire:click="saveJe" wire:loading.attr="disabled" wire:target="saveJe" class="btn-primary" style="padding:9px 20px;font-size:12.5px;">Simpan</button>
+                    @endif
                 </div>
             @endif
         </div>

@@ -77,7 +77,7 @@ class RekapPresensiPage extends Component
 
     public function mount(): void
     {
-        abort_unless(Auth::user()->can(CustomPermissionEnum::SISTEM_ABSENSI->value), 403);
+        abort_unless(Auth::user()->can(CustomPermissionEnum::VIEW_REPORT_DATA_ABSENSI->value), 403);
 
         // Admin (bukan Super Admin) TETAP dikunci ke company sendiri, apapun isi companyId
         // dari query string (proteksi, bukan cuma default). Super Admin boleh lihat semua

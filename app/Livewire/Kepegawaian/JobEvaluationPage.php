@@ -29,7 +29,7 @@ class JobEvaluationPage extends Component
 
     public function mount(): void
     {
-        abort_unless(Auth::user()->can(CustomPermissionEnum::SISTEM_KEPEGAWAIAN->value), 403);
+        abort_unless(Auth::user()->can(CustomPermissionEnum::LIHAT_JOB_EVALUATION->value), 403);
 
         $this->companyId = Auth::user()->canFilterByCompany()
             ? (Auth::user()->company_id ?? Companies::orderBy('code')->value('id'))
@@ -97,8 +97,15 @@ class JobEvaluationPage extends Component
             ->get();
     }
 
+    public function getCanManageProperty(): bool
+    {
+        return Auth::user()->can(CustomPermissionEnum::KELOLA_JOB_EVALUATION->value);
+    }
+
     public function saveJe(): void
     {
+        abort_unless($this->canManage, 403);
+
         $this->validate([
             'jeValues.*' => $this->nonNegativeIntegerRule(),
         ], [], ['jeValues.*' => 'JE score']);

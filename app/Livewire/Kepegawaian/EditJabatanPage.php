@@ -2,7 +2,6 @@
 
 namespace App\Livewire\Kepegawaian;
 
-use App\Enum\CustomPermissionEnum;
 use App\Livewire\Kepegawaian\Concerns\HasJabatanForm;
 use App\Models\Master\JobPositions;
 use Filament\Notifications\Notification;
@@ -24,12 +23,11 @@ class EditJabatanPage extends Component
 
     public function mount(JobPositions $record): void
     {
-        abort_unless(Auth::user()->can(CustomPermissionEnum::SISTEM_KEPEGAWAIAN->value), 403);
-
         abort_unless(
             Auth::user()->canFilterByCompany() || Auth::user()->company_id === $record->company_id,
             403
         );
+        abort_unless(Auth::user()->can('update', $record), 403);
 
         $this->fillFromRecord($record);
     }

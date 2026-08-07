@@ -3,28 +3,24 @@
 
 @if ($this->canCreate)
     <div style="display:flex;justify-content:flex-end;margin-bottom:16px;">
-        <a href="{{ route('kepegawaian.permintaan.create', ['tab' => $tab]) }}" wire:navigate class="btn-primary">
+        <a href="{{ route('kepegawaian.permintaan.create') }}" wire:navigate class="btn-primary">
             <i class="fa-solid fa-plus"></i> Ajukan Permintaan
         </a>
     </div>
 @endif
 
-<div class="doc-type-layout">
-    <div class="doc-type-nav">
-        <button type="button" wire:click="setTab('quota')" class="doc-type-btn doc-type-btn-navy {{ $tab === 'quota' ? 'is-active' : '' }}">
-            <i class="fa-solid fa-users-gear"></i>
-            <span>Kuota</span>
-            <span class="doc-type-count">{{ $this->quotaCount }}</span>
-        </button>
-        <button type="button" wire:click="setTab('employee_change')" class="doc-type-btn doc-type-btn-navy {{ $tab === 'employee_change' ? 'is-active' : '' }}" style="white-space:normal;">
-            <i class="fa-solid fa-right-left"></i>
-            <span>Perubahan Karyawan</span>
-            <span class="doc-type-count">{{ $this->employeeChangeCount }}</span>
-        </button>
-    </div>
+<div>
+    <div class="mb-4" style="display:flex;flex-wrap:wrap;gap:12px;">
+            <div style="min-width:200px;">
+                <label class="form-label">Tipe</label>
+                <select wire:model.live="type" class="form-input">
+                    <option value="">Semua Tipe</option>
+                    @foreach ($this->typeOptions as $value => $label)
+                        <option value="{{ $value }}">{{ $label }}</option>
+                    @endforeach
+                </select>
+            </div>
 
-    <div style="flex:1;min-width:0;">
-        <div class="mb-4" style="display:flex;flex-wrap:wrap;gap:12px;">
             @if ($this->canBrowseAllCompanies)
                 <div style="min-width:220px;">
                     <label class="form-label">Perusahaan</label>
@@ -64,12 +60,17 @@
                                 \App\Enum\JobPositionReqStatus::REJECTED => 'badge-rejected',
                                 default => 'badge-pending',
                             };
+                            $type = \App\Enum\ManpowerRequestType::from($req->type);
+                            $typeBadge = $type === \App\Enum\ManpowerRequestType::ADDITIONAL_QUOTA ? 'badge-info' : 'badge-cancelled';
                         @endphp
                         <a href="{{ route('kepegawaian.permintaan.show', $req) }}" wire:navigate class="pwa-list-row" style="text-decoration:none;">
                             <div class="pwa-tile-icon neutral"><i class="fa-solid fa-right-left"></i></div>
                             <div style="flex:1;min-width:0;">
                                 <p style="font-size:13px;font-weight:600;color:var(--text-heading);">{{ $req->jobPosition?->name ?? '-' }}</p>
-                                <p style="font-size:11px;color:var(--text-muted);margin-top:2px;">{{ \App\Enum\ManpowerRequestType::from($req->type)->getLabel() }} &middot; Jumlah {{ $req->quantity }}</p>
+                                <p style="font-size:11px;color:var(--text-muted);margin-top:4px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+                                    <span class="badge {{ $typeBadge }}">{{ $type->getLabel() }}</span>
+                                    Jumlah {{ $req->quantity }}
+                                </p>
                             </div>
                             <span class="badge {{ $badge }}">{{ $status?->label() ?? $req->status }}</span>
                         </a>
@@ -108,6 +109,8 @@
                                     \App\Enum\JobPositionReqStatus::REJECTED => 'badge-rejected',
                                     default => 'badge-pending',
                                 };
+                                $type = \App\Enum\ManpowerRequestType::from($req->type);
+                                $typeBadge = $type === \App\Enum\ManpowerRequestType::ADDITIONAL_QUOTA ? 'badge-info' : 'badge-cancelled';
                             @endphp
                             <tr wire:key="'mr-'.{{ $req->id }}" style="border-bottom:1px solid var(--border-soft);">
                                 <td style="padding:9px 14px;white-space:nowrap;font-weight:600;">{{ $req->jobPosition?->name ?? '-' }}</td>
@@ -115,7 +118,7 @@
                                 @if ($this->canBrowseAllCompanies)
                                     <td style="padding:9px 14px;white-space:nowrap;">{{ $req->company?->name ?? '-' }}</td>
                                 @endif
-                                <td style="padding:9px 14px;white-space:nowrap;">{{ \App\Enum\ManpowerRequestType::from($req->type)->getLabel() }}</td>
+                                <td style="padding:9px 14px;white-space:nowrap;"><span class="badge {{ $typeBadge }}">{{ $type->getLabel() }}</span></td>
                                 <td style="padding:9px 14px;text-align:center;white-space:nowrap;">{{ $req->quantity }}</td>
                                 <td style="padding:9px 14px;text-align:center;white-space:nowrap;"><span class="badge {{ $badge }}">{{ $status?->label() ?? $req->status }}</span></td>
                                 <td style="padding:9px 14px;text-align:center;white-space:nowrap;">
@@ -138,5 +141,4 @@
             </div>
         </div>
     </div>
-</div>
 </div>

@@ -2,7 +2,6 @@
 
 namespace App\Livewire\LMS;
 
-use App\Enum\CustomPermissionEnum;
 use App\Enum\QuestionType;
 use App\Models\LMS\LmsCategories;
 use App\Models\LMS\LmsQuestionBanks;
@@ -25,8 +24,8 @@ use Livewire\Component;
  * Pola list persis LmsCoursesPage (TANPA WithPagination, lihat komentar di file itu soal dobel
  * segment). Pola modal edit persis TrainersPage ($editingId + form fields + saveEdit()).
  *
- * Otorisasi: akses halaman via SISTEM_LMS (mount). Per-aksi pakai permission Shield string
- * ('Update:LmsQuestionBanks' / 'Delete:LmsQuestionBanks') — Policy LmsQuestionBanksPolicy
+ * Otorisasi: akses halaman via ViewAny:LmsQuestionBanks (mount). Per-aksi pakai permission
+ * Shield string ('Update:LmsQuestionBanks' / 'Delete:LmsQuestionBanks') — Policy LmsQuestionBanksPolicy
  * di-generate Shield, format permission sudah di-rename dari 'QuestionBanks' → 'LmsQuestionBanks'
  * (migration 2026_07_14_150000_rename_question_banks_permissions.php).
  */
@@ -57,7 +56,7 @@ class BankSoalPage extends Component
 
     public function mount(): void
     {
-        abort_unless(Auth::user()->can(CustomPermissionEnum::SISTEM_LMS->value), 403);
+        abort_unless(Auth::user()->can('ViewAny:LmsQuestionBanks'), 403);
     }
 
     public function getCategoryOptionsProperty()

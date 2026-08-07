@@ -2,7 +2,6 @@
 
 namespace App\Livewire\Kepegawaian;
 
-use App\Enum\CustomPermissionEnum;
 use App\Models\Master\Companies;
 use App\Models\Master\JobPositions;
 use Illuminate\Database\Eloquent\Builder;
@@ -32,7 +31,7 @@ class JabatanPage extends Component
 
     public function mount(): void
     {
-        abort_unless(Auth::user()->can(CustomPermissionEnum::SISTEM_KEPEGAWAIAN->value), 403);
+        abort_unless(Auth::user()->can('viewAny', JobPositions::class), 403);
 
         if (! Auth::user()->canFilterByCompany()) {
             $this->companyId = Auth::user()->company_id;

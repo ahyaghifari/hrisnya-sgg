@@ -2,7 +2,6 @@
 
 namespace App\Livewire\Presensi;
 
-use App\Enum\CustomPermissionEnum;
 use App\Models\Master\Attendance\Holidays;
 use Carbon\Carbon;
 use Filament\Notifications\Notification;
@@ -34,7 +33,7 @@ class HolidaysPage extends Component
 
     public function mount(): void
     {
-        abort_unless(Auth::user()->can(CustomPermissionEnum::SISTEM_ABSENSI->value), 403);
+        abort_unless(Auth::user()->can('viewAny', Holidays::class), 403);
 
         $this->calendarMonth = now()->format('Y-m');
     }

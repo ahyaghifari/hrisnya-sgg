@@ -1,5 +1,12 @@
 @php
-    $canViewKaryawan = auth()->user()->can('ViewAny:Karyawan');
+    $canViewKaryawan = auth()->user()->can('ViewAny:User');
+    $canViewPengaturanKepegawaian = auth()->user()->can(\App\Enum\CustomPermissionEnum::LIHAT_PENGATURAN_KEPEGAWAIAN->value);
+    $canViewJabatan = auth()->user()->can('ViewAny:JobPositions');
+    $canViewJobEvaluation = auth()->user()->can(\App\Enum\CustomPermissionEnum::LIHAT_JOB_EVALUATION->value);
+    $canViewDokumen = auth()->user()->can('ViewAny:UserDocuments');
+    $canViewLowonganKerja = auth()->user()->can('ViewAny:JobOpenings');
+    $canViewPerubahanStatus = auth()->user()->can('ViewAny:EmployeeMutations');
+    $canViewPermintaanTenagaKerja = auth()->user()->can('ViewAny:ManpowerRequests');
 @endphp
 
 <div class="dropdown">
@@ -12,26 +19,32 @@
             @if ($canViewKaryawan)
                 <a href="{{ route('kepegawaian.karyawan') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-users"></i> Karyawan</a>
             @endif
-            @if (auth()->user()->can(\App\Enum\CustomPermissionEnum::LIHAT_PENGATURAN_KEPEGAWAIAN->value))
+            @if ($canViewPengaturanKepegawaian)
                 <a href="{{ route('kepegawaian.pengaturan') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-gear"></i> Pengaturan Kepegawaian</a>
             @endif
         </div>
         <div class="dropdown-col">
             <div class="dropdown-col-label">Jabatan</div>
-            <a href="{{ route('kepegawaian.jabatan') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-id-card-clip"></i> Jabatan</a>
-            <a href="{{ route('kepegawaian.job-evaluation') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-table-list"></i> Job Evaluation</a>
-            <a href="{{ route('kepegawaian.dokumen') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-folder-open"></i> Dokumen</a>
-            @if (auth()->user()->can('ViewAny:UserTransition'))
+            @if ($canViewJabatan)
+                <a href="{{ route('kepegawaian.jabatan') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-id-card-clip"></i> Jabatan</a>
+            @endif
+            @if ($canViewJobEvaluation)
+                <a href="{{ route('kepegawaian.job-evaluation') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-table-list"></i> Job Evaluation</a>
+            @endif
+            @if ($canViewDokumen)
+                <a href="{{ route('kepegawaian.dokumen') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-folder-open"></i> Dokumen</a>
+            @endif
+            @if ($canViewPerubahanStatus)
                 <a href="{{ route('kepegawaian.mutasi-karyawan') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-right-left"></i> Perubahan Status</a>
             @endif
         </div>
-        @if (auth()->user()->can('ViewAny:JobOpenings') || auth()->user()->can('ViewAny:ManpowerRequests'))
+        @if ($canViewLowonganKerja || $canViewPermintaanTenagaKerja)
             <div class="dropdown-col">
                 <div class="dropdown-col-label">Rekrutmen</div>
-                @if (auth()->user()->can('ViewAny:JobOpenings'))
+                @if ($canViewLowonganKerja)
                     <a href="{{ route('kepegawaian.lowongan') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-briefcase"></i> Lowongan Kerja</a>
                 @endif
-                @if (auth()->user()->can('ViewAny:ManpowerRequests'))
+                @if ($canViewPermintaanTenagaKerja)
                     <a href="{{ route('kepegawaian.permintaan') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-right-left"></i> Permintaan Tenaga Kerja</a>
                 @endif
             </div>

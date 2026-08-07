@@ -40,7 +40,7 @@ class CutiRecapPage extends Component
 
     public function mount(): void
     {
-        abort_unless(Auth::user()->can(CustomPermissionEnum::SISTEM_ABSENSI->value), 403);
+        abort_unless(Auth::user()->can(CustomPermissionEnum::VIEW_REPORT_DATA_ABSENSI->value), 403);
 
         if (! Auth::user()->canFilterByCompany()) {
             $this->companyId = Auth::user()->company_id;

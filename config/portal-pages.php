@@ -140,31 +140,39 @@ return [
 
     'kepegawaian.karyawan' => [
         'label' => 'Karyawan',
-        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_KEPEGAWAIAN->value,
+        'permission' => 'ViewAny:User',
+        'guard' => null,
+    ],
+
+    // Belum terdaftar sebelumnya (route lolos tanpa cek middleware, gate murni di mount()) -
+    // ditambahkan sekalian, sama pola migrasi Keuangan/Presensi (2026-08-07).
+    'kepegawaian.karyawan.edit' => [
+        'label' => 'Edit Karyawan',
+        'permission' => 'Update:User',
         'guard' => null,
     ],
 
     'kepegawaian.karyawan.create' => [
         'label' => 'Tambah Karyawan',
-        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_KEPEGAWAIAN->value,
+        'permission' => 'Create:User',
         'guard' => null,
     ],
 
     'kepegawaian.dokumen' => [
         'label' => 'Dokumen Kepegawaian',
-        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_KEPEGAWAIAN->value,
+        'permission' => 'ViewAny:UserDocuments',
         'guard' => null,
     ],
 
     'kepegawaian.dokumen.create' => [
         'label' => 'Tambah Dokumen',
-        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_KEPEGAWAIAN->value,
+        'permission' => 'Create:UserDocuments',
         'guard' => null,
     ],
 
     'kepegawaian.dokumen.edit' => [
         'label' => 'Edit Dokumen',
-        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_KEPEGAWAIAN->value,
+        'permission' => 'Update:UserDocuments',
         'guard' => null,
     ],
 
@@ -188,19 +196,19 @@ return [
 
     'kepegawaian.jabatan' => [
         'label' => 'Jabatan',
-        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_KEPEGAWAIAN->value,
+        'permission' => 'ViewAny:JobPositions',
         'guard' => null,
     ],
 
     'kepegawaian.jabatan.tambah' => [
         'label' => 'Ajukan Jabatan Baru',
-        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_KEPEGAWAIAN->value,
+        'permission' => 'Create:JobPositions',
         'guard' => null,
     ],
 
     'kepegawaian.jabatan.edit' => [
         'label' => 'Edit Jabatan',
-        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_KEPEGAWAIAN->value,
+        'permission' => 'Update:JobPositions',
         'guard' => null,
     ],
 
@@ -212,7 +220,7 @@ return [
 
     'kepegawaian.job-evaluation' => [
         'label' => 'Job Evaluation',
-        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_KEPEGAWAIAN->value,
+        'permission' => \App\Enum\CustomPermissionEnum::LIHAT_JOB_EVALUATION->value,
         'guard' => null,
     ],
 
@@ -343,13 +351,33 @@ return [
 
     'presensi.jadwal' => [
         'label' => 'Jadwal',
-        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_ABSENSI->value,
+        'permission' => 'ViewAny:Schedule',
+        'guard' => null,
+    ],
+
+    // Belum terdaftar sebelumnya (route lolos tanpa cek middleware, gate murni di mount()) -
+    // ditambahkan sekalian, sama pola migrasi Keuangan (2026-08-07).
+    'presensi.jadwal.show' => [
+        'label' => 'Detail Jadwal',
+        'permission' => 'View:Schedule',
+        'guard' => null,
+    ],
+
+    'presensi.jadwal.edit' => [
+        'label' => 'Edit Jadwal',
+        'permission' => 'Update:Schedule',
+        'guard' => null,
+    ],
+
+    'presensi.jadwal.pengguna' => [
+        'label' => 'Penempatan Karyawan Jadwal',
+        'permission' => 'Update:Schedule',
         'guard' => null,
     ],
 
     'presensi.jadwal.tambah' => [
         'label' => 'Tambah Jadwal',
-        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_ABSENSI->value,
+        'permission' => 'Create:Schedule',
         'guard' => null,
     ],
 
@@ -361,31 +389,31 @@ return [
 
     'presensi.rekap-izin' => [
         'label' => 'Izin',
-        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_ABSENSI->value,
+        'permission' => \App\Enum\CustomPermissionEnum::VIEW_REPORT_DATA_ABSENSI->value,
         'guard' => null,
     ],
 
     'presensi.rekap-cuti' => [
         'label' => 'Cuti',
-        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_ABSENSI->value,
+        'permission' => \App\Enum\CustomPermissionEnum::VIEW_REPORT_DATA_ABSENSI->value,
         'guard' => null,
     ],
 
     'presensi.rekap-lembur' => [
         'label' => 'Lembur',
-        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_ABSENSI->value,
+        'permission' => \App\Enum\CustomPermissionEnum::VIEW_REPORT_DATA_ABSENSI->value,
         'guard' => null,
     ],
 
     'presensi.extra-shift' => [
         'label' => 'Extra Shift',
-        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_ABSENSI->value,
+        'permission' => 'ViewAny:ExtraShiftAssignment',
         'guard' => null,
     ],
 
     'presensi.rekap-presensi' => [
         'label' => 'Rekap Presensi',
-        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_ABSENSI->value,
+        'permission' => \App\Enum\CustomPermissionEnum::VIEW_REPORT_DATA_ABSENSI->value,
         'guard' => null,
     ],
 
@@ -393,7 +421,9 @@ return [
         'label' => 'Hari Libur & Cuti Bersama',
         // Direlokasi dari 'master.hari-libur' (permission SISTEM_MASTER) ke grup Presensi &
         // Absensi, dikonfirmasi user — lihat planning/2026-07-19-revisi-absensi-cutoff-kuota-izin-widget-pimpinan.md §9.2.
-        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_ABSENSI->value,
+        // Gerbang SISTEM_ABSENSI diganti ViewAny:Holidays (2026-08-07) - HolidayResource+Policy
+        // sudah ada dari awal, tinggal dipakai.
+        'permission' => 'ViewAny:Holidays',
         'guard' => null,
     ],
 
@@ -478,13 +508,13 @@ return [
 
     'pelatihan.honorarium' => [
         'label' => 'Honorarium',
-        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_LMS->value,
+        'permission' => \App\Enum\CustomPermissionEnum::LIHAT_HONORARIUM_LMS->value,
         'guard' => null,
     ],
 
     'pelatihan.kategori' => [
         'label' => 'Kategori Pelatihan',
-        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_LMS->value,
+        'permission' => 'ViewAny:LmsCategories',
         'guard' => null,
     ],
 
@@ -493,7 +523,21 @@ return [
     // (LmsCourseBaselinesPolicy) langsung di dalam LmsCourseBaselinesPage.
     'pelatihan.baseline' => [
         'label' => 'Baseline Pelatihan',
-        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_LMS->value,
+        'permission' => 'ViewAny:LmsCourseBaselines',
+        'guard' => null,
+    ],
+
+    'pelatihan.evaluasi' => [
+        'label' => 'Pertanyaan Evaluasi',
+        'permission' => 'ViewAny:LmsFeedbackQuestion',
+        'guard' => null,
+    ],
+
+    // Belum terdaftar sebelumnya (route lolos tanpa cek middleware, gate murni di mount()) -
+    // ditambahkan sekalian, sama pola migrasi modul lain (2026-08-07).
+    'pelatihan.pengaturan' => [
+        'label' => 'Pengaturan LMS',
+        'permission' => \App\Enum\CustomPermissionEnum::LIHAT_PENGATURAN_LMS->value,
         'guard' => null,
     ],
 
@@ -501,7 +545,7 @@ return [
     // read-only (filter + export Excel), tidak ada Create/Update/Delete jadi cukup SISTEM_LMS.
     'pelatihan.laporan' => [
         'label' => 'Laporan Pelatihan',
-        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_LMS->value,
+        'permission' => \App\Enum\CustomPermissionEnum::LIHAT_LAPORAN_PELATIHAN->value,
         'guard' => null,
     ],
 
@@ -511,13 +555,13 @@ return [
     // → 'LmsQuestionBanks' via migration 2026_07_14_150000_rename_question_banks_permissions).
     'pelatihan.bank-soal' => [
         'label' => 'Bank Soal',
-        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_LMS->value,
+        'permission' => 'ViewAny:LmsQuestionBanks',
         'guard' => null,
     ],
 
     'pelatihan.bank-soal.create' => [
         'label' => 'Tambah Bank Soal',
-        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_LMS->value,
+        'permission' => 'Create:LmsQuestionBanks',
         'guard' => null,
     ],
 
@@ -526,19 +570,19 @@ return [
     // seperti Bank Soal — 'permission' di sini cuma gate akses halaman.
     'pelatihan.kuis' => [
         'label' => 'Kuis',
-        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_LMS->value,
+        'permission' => 'ViewAny:LmsQuizzes',
         'guard' => null,
     ],
 
     'pelatihan.kuis.create' => [
         'label' => 'Buat Kuis',
-        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_LMS->value,
+        'permission' => 'Create:LmsQuizzes',
         'guard' => null,
     ],
 
     'pelatihan.kuis.edit' => [
         'label' => 'Ubah Kuis',
-        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_LMS->value,
+        'permission' => 'Update:LmsQuizzes',
         'guard' => null,
     ],
 
@@ -547,31 +591,31 @@ return [
     // gerbang akses baca halamannya, sama pola dengan pelatihan.kategori/pelatihan.kelola.
     'pelatihan.pemateri' => [
         'label' => 'Pemateri',
-        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_LMS->value,
+        'permission' => 'ViewAny:Trainers',
         'guard' => null,
     ],
 
     'pelatihan.pemateri.show' => [
         'label' => 'Detail Pemateri',
-        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_LMS->value,
+        'permission' => 'View:Trainers',
         'guard' => null,
     ],
 
     'pelatihan.kelola' => [
         'label' => 'Pelatihan',
-        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_LMS->value,
+        'permission' => 'ViewAny:LmsCourses',
         'guard' => null,
     ],
 
     'pelatihan.kelola.create' => [
         'label' => 'Tambah Pelatihan',
-        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_LMS->value,
+        'permission' => 'Create:LmsCourses',
         'guard' => null,
     ],
 
     'pelatihan.kelola.show' => [
         'label' => 'Detail Pelatihan',
-        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_LMS->value,
+        'permission' => 'View:LmsCourses',
         'guard' => null,
     ],
 

@@ -16,6 +16,11 @@ use Livewire\WithFileUploads;
  * Form Ajukan Permintaan Tenaga Kerja — padanan CreateManpowerRequest admin. Beda dari admin:
  * `job_position_id` difilter per company (bug lintas company di admin, lihat
  * planning/eager-pondering-turtle.md), dan 2 tombol aksi eksplisit (submit / simpan draft).
+ *
+ * Tipe permintaan (Penambahan Kuota/Penambahan Karyawan/Penggantian Karyawan) dipilih
+ * langsung lewat 1 select "Tipe Permintaan" - sebelumnya digerbangi query param `?tab=` yang
+ * cuma bisa dicapai dari link tertentu di halaman list, ketauan bikin 2 tipe lain jadi
+ * "tidak pernah muncul" begitu link listnya berubah (2026-08-07).
  */
 #[Layout('components.layout', ['title' => 'Ajukan Permintaan Tenaga Kerja'])]
 class CreateManpowerRequestPage extends Component
@@ -23,7 +28,6 @@ class CreateManpowerRequestPage extends Component
     use WithFileUploads;
 
     public ?string $companyId = null;
-    public string $tab = 'quota';
     public ?string $job_position_id = null;
     public string $type = '';
     public int $quantity = 1;
@@ -37,10 +41,6 @@ class CreateManpowerRequestPage extends Component
         if (! Auth::user()->canFilterByCompany()) {
             $this->companyId = Auth::user()->company_id;
         }
-
-        $tab = request()->query('tab', 'quota');
-        $this->tab = in_array($tab, ['quota', 'employee_change'], true) ? $tab : 'quota';
-        $this->type = $this->tab === 'quota' ? ManpowerRequestType::ADDITIONAL_QUOTA->value : '';
     }
 
     public function updatedCompanyId(): void
@@ -102,11 +102,11 @@ class CreateManpowerRequestPage extends Component
             'file' => ['nullable', 'file', 'max:10240'],
         ];
 
-        if ($this->tab === 'quota') {
-            return $rules;
+        // Penambahan Kuota = nambah kuota itu sendiri, tidak dibatasi kuota tersedia.
+        // Penambahan/Penggantian Karyawan = mengisi slot yang SUDAH ada, dibatasi sisa kuota.
+        if ($this->type !== ManpowerRequestType::ADDITIONAL_QUOTA->value) {
+            $rules['quantity'][] = 'max:' . max($this->availableQuota, 1);
         }
-
-        $rules['quantity'][] = 'max:' . max($this->availableQuota, 1);
 
         return $rules;
     }
@@ -130,7 +130,7 @@ class CreateManpowerRequestPage extends Component
                 ->success()
                 ->send();
 
-            $this->redirect(route('kepegawaian.permintaan', ['tab' => $this->tab]), navigate: true);
+            $this->redirect(route('kepegawaian.permintaan'), navigate: true);
         } catch (\Exception $e) {
             Notification::make()->title('Error: ' . $e->getMessage())->danger()->send();
         }

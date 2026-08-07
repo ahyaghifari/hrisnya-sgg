@@ -2,7 +2,6 @@
 
 namespace App\Livewire\Kepegawaian;
 
-use App\Enum\CustomPermissionEnum;
 use App\Livewire\Kepegawaian\Concerns\HasKaryawanForm;
 use App\Models\Role;
 use App\Models\User;
@@ -30,7 +29,6 @@ class CreateKaryawan extends Component
 
     public function mount(): void
     {
-        abort_unless(Auth::user()->can(CustomPermissionEnum::SISTEM_KEPEGAWAIAN->value), 403);
         abort_unless(Auth::user()->can('create', User::class), 403);
 
         if (! Auth::user()->canFilterByCompany()) {

@@ -2,7 +2,6 @@
 
 namespace App\Livewire\Kepegawaian;
 
-use App\Enum\CustomPermissionEnum;
 use App\Enum\OrgStructurLevel;
 use App\Helpers\PermissionHelper;
 use App\Models\Master\Companies;
@@ -43,7 +42,7 @@ class KaryawanPage extends Component
 
     public function mount(): void
     {
-        abort_unless(Auth::user()->can(CustomPermissionEnum::SISTEM_KEPEGAWAIAN->value), 403);
+        abort_unless(Auth::user()->can('viewAny', User::class), 403);
 
         if (! Auth::user()->canFilterByCompany()) {
             $this->companyId = Auth::user()->company_id;
@@ -154,6 +153,7 @@ class KaryawanPage extends Component
             PermissionHelper::hasGlobalRole(Auth::user()) || $employee->company_id === Auth::user()->company_id,
             403
         );
+        abort_unless(Auth::user()->can('restore', User::class), 403);
 
         $employee->restore();
     }

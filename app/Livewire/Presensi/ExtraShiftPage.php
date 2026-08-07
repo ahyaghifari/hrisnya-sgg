@@ -2,7 +2,6 @@
 
 namespace App\Livewire\Presensi;
 
-use App\Enum\CustomPermissionEnum;
 use App\Models\Master\Companies;
 use App\Models\Shift\ExtraShiftAssignment;
 use App\Models\Shift\ScheduleAssignment;
@@ -42,16 +41,16 @@ class ExtraShiftPage extends Component
 
     public function mount(): void
     {
-        abort_unless(Auth::user()->can(CustomPermissionEnum::SISTEM_ABSENSI->value), 403);
+        abort_unless(Auth::user()->can('viewAny', ExtraShiftAssignment::class), 403);
 
         $this->companyId = Auth::user()->canFilterByCompany()
             ? (Auth::user()->company_id ?? Companies::orderBy('code')->value('id'))
             : Auth::user()->company_id;
     }
 
-    public function getCanManageProperty(): bool
+    public function getCanCreateProperty(): bool
     {
-        return Auth::user()->can(CustomPermissionEnum::KELOLA_JADWAL_SHIFT->value);
+        return Auth::user()->can('create', ExtraShiftAssignment::class);
     }
 
     public function getCanBrowseAllCompaniesProperty(): bool
@@ -146,7 +145,7 @@ class ExtraShiftPage extends Component
 
     public function openAddModal(): void
     {
-        abort_unless($this->canManage, 403);
+        abort_unless($this->canCreate, 403);
 
         $this->reset(['user_id', 'covering_user_id', 'roster_id', 'shift_type_id', 'date', 'reason']);
         $this->showAddModal = true;
@@ -159,7 +158,7 @@ class ExtraShiftPage extends Component
 
     public function assign(): void
     {
-        abort_unless($this->canManage, 403);
+        abort_unless($this->canCreate, 403);
 
         $data = $this->validate([
             'user_id' => ['required', 'exists:users,id'],
@@ -192,14 +191,21 @@ class ExtraShiftPage extends Component
 
     public function delete(string $id): void
     {
-        abort_unless($this->canManage, 403);
-
-        ExtraShiftAssignment::query()
+        $extraShift = ExtraShiftAssignment::query()
             ->when($this->companyId, fn ($q) => $q->where('company_id', $this->companyId))
-            ->findOrFail($id)
-            ->delete();
+            ->findOrFail($id);
+
+        abort_unless(Auth::user()->can('delete', $extraShift), 403);
+
+        $extraShift->delete();
 
         Notification::make()->title('Extra shift dihapus')->success()->send();
+    }
+
+    
+    public function getCanDeleteProperty(): bool
+    {
+        return Auth::user()->can('Delete:ExtraShiftAssignment');
     }
 
     public function render()

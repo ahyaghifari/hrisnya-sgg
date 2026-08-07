@@ -2,7 +2,6 @@
 
 namespace App\Livewire\Presensi;
 
-use App\Enum\CustomPermissionEnum;
 use App\Enum\ScheduleType;
 use App\Livewire\Presensi\Concerns\HandlesDayScheduleForm;
 use App\Livewire\Presensi\Concerns\HandlesShiftScheduleForm;
@@ -45,8 +44,6 @@ class CreateSchedulePage extends Component
 
     public function mount(?Schedule $schedule = null): void
     {
-        abort_unless(Auth::user()->can(CustomPermissionEnum::SISTEM_ABSENSI->value), 403);
-
         $this->companyId = Auth::user()->company_id ?? Companies::orderBy('code')->value('id');
 
         // Livewire suntik instance Schedule KOSONG (bukan null) kalau parameter route/test

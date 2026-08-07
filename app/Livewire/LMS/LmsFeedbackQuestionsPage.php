@@ -2,7 +2,6 @@
 
 namespace App\Livewire\LMS;
 
-use App\Enum\CustomPermissionEnum;
 use App\Models\LMS\LmsFeedbackQuestion;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\Auth;
@@ -25,7 +24,7 @@ class LmsFeedbackQuestionsPage extends Component
 
     public function mount(): void
     {
-        abort_unless(Auth::user()->can(CustomPermissionEnum::SISTEM_LMS->value), 403);
+        abort_unless(Auth::user()->can('viewAny', LmsFeedbackQuestion::class), 403);
     }
 
     public function getQuestionsProperty()
@@ -138,7 +137,7 @@ class LmsFeedbackQuestionsPage extends Component
 
     private function swapWithNeighbor(string $id, string $direction): void
     {
-        abort_unless(Auth::user()->can(CustomPermissionEnum::SISTEM_LMS->value), 403);
+        abort_unless(Auth::user()->can('Update:LmsFeedbackQuestion'), 403);
 
         $ordered = LmsFeedbackQuestion::orderBy('sort_order')->get(['id', 'sort_order']);
         $index = $ordered->search(fn ($q) => $q->id === $id);

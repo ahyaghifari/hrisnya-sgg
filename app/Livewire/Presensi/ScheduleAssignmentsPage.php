@@ -2,7 +2,6 @@
 
 namespace App\Livewire\Presensi;
 
-use App\Enum\CustomPermissionEnum;
 use App\Models\Master\JobPositions;
 use App\Models\Master\OrgStructure;
 use App\Models\Shift\Schedule;
@@ -36,7 +35,6 @@ class ScheduleAssignmentsPage extends Component
 
     public function mount(Schedule $schedule): void
     {
-        abort_unless(Auth::user()->can(CustomPermissionEnum::SISTEM_ABSENSI->value), 403);
         abort_unless(Auth::user()->can('update', $schedule), 403);
 
         $this->schedule = $schedule;

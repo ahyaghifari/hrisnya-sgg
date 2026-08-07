@@ -72,6 +72,15 @@ enum CustomPermissionEnum: string
     case LIHAT_INPUT_JASA_UNIT = 'lihat_input_jasa_unit';
     case KELOLA_INPUT_JASA_UNIT = 'kelola_input_jasa_unit';
 
+    /** Halaman Job Evaluation (`/kepegawaian/job-evaluation`, edit job_evaluation_score per
+     * Jabatan, dipakai JasaPelayananCalculator sebagai pembagi rasio Jasa Pelayanan) - murni
+     * konfigurasi, JobPositions sendiri sudah punya Resource+Policy (ViewAny/Update:JobPositions)
+     * tapi itu buat CRUD Jabatan, bukan buat skor JE-nya - dipisah permission sendiri, sama
+     * pola LIHAT_OMSET/KELOLA_OMSET. Dulu numpang SISTEM_KEPEGAWAIAN buat lihat DAN simpan
+     * (saveJe() sebelumnya malah tanpa cek apapun). */
+    case LIHAT_JOB_EVALUATION = 'lihat_job_evaluation';
+    case KELOLA_JOB_EVALUATION = 'kelola_job_evaluation';
+
     /** Tambah/ubah/hapus baris penyesuaian manual di payroll SATU karyawan (baris Bon di
      * PayrollDetailPage, "Add Adjustment" di Filament PayrollItemsRelationManager) — dipisah
      * dari Update:Payroll (yang juga dipakai markAsPaid/regenerate/dst) supaya bisa dikasih ke
@@ -79,7 +88,15 @@ enum CustomPermissionEnum: string
      * ini mempersempit, bukan pengganti. */
     case EDIT_PAYROLL_ADJUSTMENT = 'edit_payroll_adjustment';
     case EDIT_DETAIL_KURSUS_LMS = 'edit_detail_kursus_lms';
+
+    /** Buka halaman Master Honorarium (read-only) - beda dari EDIT_HONORARIUM_LMS yang
+     * menggerbangi simpan. Tanpa permission ini, halamannya 403 sama sekali. */
+    case LIHAT_HONORARIUM_LMS = 'lihat_honorarium_lms';
     case EDIT_HONORARIUM_LMS = 'edit_honorarium_lms';
+
+    /** Buka halaman Laporan Pelatihan (`/lms/laporan`) - laporan read-only murni, tidak ada
+     * gerbang EDIT pasangannya (tidak ada aksi tulis di halaman ini). */
+    case LIHAT_LAPORAN_PELATIHAN = 'lihat_laporan_pelatihan';
     case EDIT_PENGATURAN_ABSENSI = 'edit_pengaturan_absensi';
 
     /** Buka halaman Pengaturan Absensi (read-only) - beda dari EDIT_PENGATURAN_ABSENSI yang
@@ -96,6 +113,11 @@ enum CustomPermissionEnum: string
      * yang menggerbangi simpan. Tanpa permission ini, halamannya 403 sama sekali (bukan cuma
      * disembunyikan tombol simpan/input-nya), sama seperti pola LIHAT_PENGATURAN_ABSENSI. */
     case LIHAT_PENGATURAN_KEPEGAWAIAN = 'lihat_pengaturan_kepegawaian';
+
+    /** Buka halaman Pengaturan LMS (read-only) - beda dari EDIT_PENGATURAN_LMS yang
+     * menggerbangi simpan. Tanpa permission ini, halamannya 403 sama sekali, sama pola
+     * LIHAT_PENGATURAN_ABSENSI/LIHAT_PENGATURAN_KEPEGAWAIAN. */
+    case LIHAT_PENGATURAN_LMS = 'lihat_pengaturan_lms';
 
     /**
      * Beda dari Update:Schedule (edit header jadwal, ubah karyawan yang dipasangkan) — ini
@@ -158,14 +180,19 @@ enum CustomPermissionEnum: string
             self::KELOLA_OMSET => 'Kelola Omset',
             self::LIHAT_INPUT_JASA_UNIT => 'Lihat Input Jasa Unit',
             self::KELOLA_INPUT_JASA_UNIT => 'Kelola Input Jasa Unit',
+            self::LIHAT_JOB_EVALUATION => 'Lihat Job Evaluation',
+            self::KELOLA_JOB_EVALUATION => 'Kelola Job Evaluation',
             self::EDIT_PAYROLL_ADJUSTMENT => 'Edit Penyesuaian Manual Payroll (Adjustment)',
             self::EDIT_DETAIL_KURSUS_LMS => 'Edit Detail Kursus LMS',
+            self::LIHAT_HONORARIUM_LMS => 'Lihat Honorarium LMS',
             self::EDIT_HONORARIUM_LMS => 'Edit Honorarium LMS',
+            self::LIHAT_LAPORAN_PELATIHAN => 'Lihat Laporan Pelatihan',
             self::EDIT_PENGATURAN_ABSENSI => 'Edit Pengaturan Absensi',
             self::LIHAT_PENGATURAN_ABSENSI => 'Lihat Pengaturan Absensi',
             self::SYNC_DATA_ABSENSI => 'Sync Data Absensi (dari Access Logs)',
             self::EDIT_PENGATURAN_TUGAS => 'Edit Pengaturan Tugas',
             self::EDIT_PENGATURAN_LMS => 'Edit Pengaturan LMS',
+            self::LIHAT_PENGATURAN_LMS => 'Lihat Pengaturan LMS',
             self::EDIT_PENGATURAN_KEPEGAWAIAN => 'Edit Pengaturan Kepegawaian',
             self::LIHAT_PENGATURAN_KEPEGAWAIAN => 'Lihat Pengaturan Kepegawaian',
             self::KELOLA_JADWAL_SHIFT => 'Kelola Jadwal Shift (Template & Roster)',

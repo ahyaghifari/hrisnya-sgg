@@ -123,11 +123,11 @@ class LmsCourseDetailPage extends Component
 
     public function mount(LmsCourses $course): void
     {
-        abort_unless(Auth::user()->can(CustomPermissionEnum::SISTEM_LMS->value), 403);
         abort_unless(
             PermissionHelper::hasGlobalRole(Auth::user()) || $course->company_id === Auth::user()->company_id,
             403
         );
+        abort_unless(Auth::user()->can('view', $course), 403);
 
         $this->course = $course->load(['category', 'competencies']);
 

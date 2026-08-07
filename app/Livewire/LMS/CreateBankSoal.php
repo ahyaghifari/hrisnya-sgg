@@ -2,7 +2,6 @@
 
 namespace App\Livewire\LMS;
 
-use App\Enum\CustomPermissionEnum;
 use App\Enum\QuestionType;
 use App\Models\LMS\LmsCategories;
 use App\Services\LMS\QuestionBankService;
@@ -24,7 +23,7 @@ use Livewire\Component;
  * Kategori: shared 1 kategori untuk semua soal di batch ini (`$categoryId` di atas form) —
  * keputusan simpel dari rencana awal. Kalau perlu per-soal, ubah jadi field per-row nanti.
  *
- * Otorisasi: SISTEM_LMS (akses halaman LMS) + Create:LmsQuestionBanks (Policy Shield).
+ * Otorisasi: Create:LmsQuestionBanks (Policy Shield).
  * Tipe soal per-row pakai wire:model.live supaya show/hide opsi vs skor otomatis (pola Filament live()).
  */
 #[Layout('components.layout', ['title' => 'Tambah Bank Soal'])]
@@ -37,7 +36,6 @@ class CreateBankSoal extends Component
 
     public function mount(): void
     {
-        abort_unless(Auth::user()->can(CustomPermissionEnum::SISTEM_LMS->value), 403);
         abort_unless(Auth::user()->can('Create:LmsQuestionBanks'), 403);
 
         // Mulai dengan 1 row kosong biar form tidak benar-benar kosong saat pertama buka
