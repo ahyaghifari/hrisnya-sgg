@@ -25,7 +25,8 @@ use Livewire\Component;
  * kolom JasaUnitDetail) - cuma dipakai buat menyempitkan pilihan karyawan/jasa saat input,
  * TIDAK disimpan (kalau butuh tahu divisi karyawan setelah tersimpan, baca dari jabatan
  * aktifnya, bukan dari sini). Pola bulk-row sama persis tenureRows/omsetCategoryRows di
- * MappingKomponenGajiPage, gate simpan reuse EDIT_MAPPING_KOMPONEN_GAJI seperti OmsetPage.
+ * MappingKomponenGajiPage, gate simpan KELOLA_INPUT_JASA_UNIT (permission sendiri, sama pola
+ * dengan LIHAT_OMSET/KELOLA_OMSET di OmsetPage).
  *
  * Dropdown karyawan SENGAJA native <select> biasa, bukan tom-select (data-tom-select +
  * wire:ignore) seperti pola di halaman lain (mis. KoperasiPage) - di sini daftar karyawannya
@@ -46,7 +47,7 @@ class JasaUnitInputPage extends Component
 
     public function mount(): void
     {
-        abort_unless(Auth::user()->can(CustomPermissionEnum::SISTEM_KEUANGAN->value), 403);
+        abort_unless(Auth::user()->can(CustomPermissionEnum::LIHAT_INPUT_JASA_UNIT->value), 403);
 
         $this->companyId = Auth::user()->canFilterByCompany()
             ? (Auth::user()->company_id ?? $this->companies->value('id'))
@@ -197,7 +198,7 @@ class JasaUnitInputPage extends Component
 
     public function getCanEditProperty(): bool
     {
-        return Auth::user()->can(CustomPermissionEnum::EDIT_MAPPING_KOMPONEN_GAJI->value);
+        return Auth::user()->can(CustomPermissionEnum::KELOLA_INPUT_JASA_UNIT->value);
     }
 
     public function addRow(): void

@@ -34,7 +34,7 @@ class OmsetPage extends Component
 
     public function mount(): void
     {
-        abort_unless(Auth::user()->can(CustomPermissionEnum::SISTEM_KEUANGAN->value), 403);
+        abort_unless(Auth::user()->can(CustomPermissionEnum::LIHAT_OMSET->value), 403);
 
         $this->companyId = Auth::user()->canFilterByCompany()
             ? (Auth::user()->company_id ?? $this->companies->value('id'))
@@ -140,7 +140,7 @@ class OmsetPage extends Component
 
     public function getCanEditProperty(): bool
     {
-        return Auth::user()->can(CustomPermissionEnum::EDIT_MAPPING_KOMPONEN_GAJI->value);
+        return Auth::user()->can(CustomPermissionEnum::KELOLA_OMSET->value);
     }
 
     public function saveOmset(): void

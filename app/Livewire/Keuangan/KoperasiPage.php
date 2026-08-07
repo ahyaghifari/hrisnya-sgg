@@ -2,7 +2,6 @@
 
 namespace App\Livewire\Keuangan;
 
-use App\Enum\CustomPermissionEnum;
 use App\Enum\Payroll\PayrollComponentEnum;
 use App\Exports\Payroll\KoperasiExport;
 use App\Models\Master\Companies;
@@ -41,7 +40,7 @@ class KoperasiPage extends Component
 
     public function mount(): void
     {
-        abort_unless(Auth::user()->can(CustomPermissionEnum::SISTEM_KEUANGAN->value), 403);
+        abort_unless(Auth::user()->can('viewAny', UserKoperasi::class), 403);
 
         $this->companyId = Auth::user()->canFilterByCompany()
             ? (Auth::user()->company_id ?? Companies::orderBy('code')->value('id'))

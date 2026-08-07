@@ -257,7 +257,7 @@ Route::middleware(['auth', 'portal.access'])->group(function () {
         ->name('keuangan.payroll.show');
 
     Route::get('/keuangan/payroll/{payroll}/preview', function (\App\Models\Payroll\Payroll $payroll) {
-        abort_unless(\Illuminate\Support\Facades\Auth::user()->can(\App\Enum\CustomPermissionEnum::SISTEM_KEUANGAN->value), 403);
+        abort_unless(\Illuminate\Support\Facades\Auth::user()->can('view', $payroll), 403);
 
         return app(\App\Services\Payroll\PayrollService::class)->preview($payroll);
     })->name('keuangan.payroll.preview');

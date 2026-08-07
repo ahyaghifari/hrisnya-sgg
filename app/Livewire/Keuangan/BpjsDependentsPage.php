@@ -2,7 +2,6 @@
 
 namespace App\Livewire\Keuangan;
 
-use App\Enum\CustomPermissionEnum;
 use App\Models\Master\Companies;
 use App\Models\Payroll\BpjsDependent;
 use App\Models\User;
@@ -34,7 +33,7 @@ class BpjsDependentsPage extends Component
 
     public function mount(): void
     {
-        abort_unless(Auth::user()->can(CustomPermissionEnum::SISTEM_KEUANGAN->value), 403);
+        abort_unless(Auth::user()->can('viewAny', BpjsDependent::class), 403);
 
         $this->companyId = Auth::user()->canFilterByCompany()
             ? (Auth::user()->company_id ?? Companies::orderBy('code')->value('id'))

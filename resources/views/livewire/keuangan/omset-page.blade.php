@@ -36,7 +36,12 @@
                 {{-- Rincian Omset --}}
                 <div style="background:var(--surface);border-radius:12px;box-shadow:var(--shadow-card);padding:16px;">
                     <p style="font-size:13px;font-weight:700;color:var(--text-heading);margin:0 0 4px;"><i class="fa-solid fa-hand-holding-medical"></i> Rincian Omset</p>
-                    <p style="font-size:11px;color:var(--text-muted);margin:0 0 12px;">Nominal omset per kategori untuk periode ini — dijumlah jadi Total Omset dipakai perhitungan Jasa Pelayanan. Kelola daftar kategorinya di halaman <a href="{{ route('keuangan.mapping-komponen-gaji') }}" wire:navigate style="color:#042c6c;font-weight:600;">Mapping Komponen Gaji</a>.</p>
+                    <p style="font-size:11px;color:var(--text-muted);margin:0 0 12px;">
+                        Nominal omset per kategori untuk periode ini — dijumlah jadi Total Omset dipakai perhitungan Jasa Pelayanan.
+                        @can(\App\Enum\CustomPermissionEnum::LIHAT_MAPPING_KOMPONEN_GAJI->value)
+                            Kelola daftar kategorinya di halaman <a href="{{ route('keuangan.mapping-komponen-gaji') }}" wire:navigate style="color:#042c6c;font-weight:600;">Mapping Komponen Gaji</a>.
+                        @endcan
+                    </p>
 
                     @if ($this->categories->isEmpty())
                         <p style="font-size:11.5px;color:var(--text-faint);">Belum ada Kategori Omset untuk perusahaan ini.</p>

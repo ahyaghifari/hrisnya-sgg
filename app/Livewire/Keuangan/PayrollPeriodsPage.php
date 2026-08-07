@@ -16,13 +16,6 @@ use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 
-/**
- * Versi portal dari PayrollPeriodResource (/admin/payroll-periods) — dibangun custom Livewire
- * page, BUKAN lagi reuse Table/Action Filament seperti sebelumnya. Company difilter lewat
- * Livewire (server-side) — SEBELUMNYA List.js dipasang buat sort+pagination di browser, tapi
- * List.js mengunci baris tbody-nya sendiri sehingga tidak ikut ke-morph Livewire tiap company
- * ganti (baris lama nyangkut terus), jadi dicabut.
- */
 #[Layout('components.layout', ['title' => 'Periode Gaji'])]
 class PayrollPeriodsPage extends Component
 {
@@ -164,11 +157,6 @@ class PayrollPeriodsPage extends Component
     }
 
     // ── Penandatangan & Tanggal Bayar (bisa diubah kapan saja) ──────────────
-    // Sengaja modal TERPISAH dari openEditModal/saveForm di atas - dua field ini murni
-    // informasional (tampil di slip / jadwal transfer), tidak dipakai perhitungan payroll sama
-    // sekali, jadi tidak perlu ikut terkunci abort_if(processed_at) seperti company/start/end
-    // yang memang jadi dasar perhitungan dan tidak boleh berubah pasca-generate.
-
     public function openSignerModal(string $id): void
     {
         $period = PayrollPeriod::findOrFail($id);
@@ -272,6 +260,24 @@ class PayrollPeriodsPage extends Component
             ->title('Regenerate payroll dimulai')
             ->body('Payroll yang belum dibayar sedang digenerate ulang di latar belakang.')
             ->warning()
+            ->send();
+    }
+
+    // Cuma boleh kalau belum pernah digenerate (processed_at null) - belum ada Payroll yang
+    // nyantol ke periode ini sama sekali, jadi tidak perlu cascade delete kayak deletePeriod
+    // versi admin (yang juga izinkan hapus pasca-generate selama belum ada yang dibayar).
+    public function deletePeriod(string $id): void
+    {
+        $period = PayrollPeriod::findOrFail($id);
+
+        abort_unless(Auth::user()->can('delete', $period), 403);
+        abort_if($period->processed_at, 403, 'Periode yang sudah digenerate tidak bisa dihapus.');
+
+        $period->delete();
+
+        Notification::make()
+            ->title('Periode gaji berhasil dihapus')
+            ->success()
             ->send();
     }
 

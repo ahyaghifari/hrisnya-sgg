@@ -50,6 +50,28 @@ enum CustomPermissionEnum: string
     case EDIT_KOMPONEN_GAJI = 'edit_komponen_gaji';
     case EDIT_KOMPONEN_GAJI_GLOBAL = 'edit_komponen_gaji_global';
 
+    /** Gerbang LIHAT (mount()) buat 3 halaman di atas - dulu numpang SISTEM_KEUANGAN, sekarang
+     * punya permission sendiri, pasangan dari EDIT_KOMPONEN_GAJI/EDIT_PENERIMA_KOMPONEN_GAJI/
+     * EDIT_MAPPING_KOMPONEN_GAJI yang sudah lebih dulu ada. */
+    case LIHAT_KOMPONEN_GAJI = 'lihat_komponen_gaji';
+    case LIHAT_PENERIMA_KOMPONEN_GAJI = 'lihat_penerima_komponen_gaji';
+    case LIHAT_MAPPING_KOMPONEN_GAJI = 'lihat_mapping_komponen_gaji';
+
+    /** Halaman Omset (`/keuangan/omset`, rincian omset per kategori per periode gaji, dijumlah
+     * jadi Total Omset dipakai JasaPelayananCalculator) — model-nya (OmsetDetail/OmsetCategory)
+     * tidak punya Filament Resource/Policy sendiri, jadi 2 permission manual: LIHAT_OMSET
+     * gerbang mount() halaman (dulu SISTEM_KEUANGAN), KELOLA_OMSET gerbang simpan (dulu numpang
+     * EDIT_MAPPING_KOMPONEN_GAJI, sekarang dipisah punya sendiri). */
+    case LIHAT_OMSET = 'lihat_omset';
+    case KELOLA_OMSET = 'kelola_omset';
+
+    /** Halaman Input Jasa Unit (`/keuangan/jasa-unit`, input nominal jasa unit per org
+     * structure/karyawan per periode gaji) — sama pola dengan LIHAT_OMSET/KELOLA_OMSET: model-nya
+     * tidak punya Filament Resource/Policy sendiri, dulu numpang SISTEM_KEUANGAN (lihat) +
+     * EDIT_MAPPING_KOMPONEN_GAJI (kelola), sekarang punya permission sendiri. */
+    case LIHAT_INPUT_JASA_UNIT = 'lihat_input_jasa_unit';
+    case KELOLA_INPUT_JASA_UNIT = 'kelola_input_jasa_unit';
+
     /** Tambah/ubah/hapus baris penyesuaian manual di payroll SATU karyawan (baris Bon di
      * PayrollDetailPage, "Add Adjustment" di Filament PayrollItemsRelationManager) — dipisah
      * dari Update:Payroll (yang juga dipakai markAsPaid/regenerate/dst) supaya bisa dikasih ke
@@ -129,6 +151,13 @@ enum CustomPermissionEnum: string
             self::EDIT_PENERIMA_KOMPONEN_GAJI => 'Edit Penerima Komponen Gaji',
             self::EDIT_KOMPONEN_GAJI => 'Edit Komponen Gaji',
             self::EDIT_KOMPONEN_GAJI_GLOBAL => 'Edit Pengaturan Global Komponen Gaji',
+            self::LIHAT_KOMPONEN_GAJI => 'Lihat Komponen Gaji',
+            self::LIHAT_PENERIMA_KOMPONEN_GAJI => 'Lihat Penerima Komponen Gaji',
+            self::LIHAT_MAPPING_KOMPONEN_GAJI => 'Lihat Mapping Komponen Gaji',
+            self::LIHAT_OMSET => 'Lihat Omset',
+            self::KELOLA_OMSET => 'Kelola Omset',
+            self::LIHAT_INPUT_JASA_UNIT => 'Lihat Input Jasa Unit',
+            self::KELOLA_INPUT_JASA_UNIT => 'Kelola Input Jasa Unit',
             self::EDIT_PAYROLL_ADJUSTMENT => 'Edit Penyesuaian Manual Payroll (Adjustment)',
             self::EDIT_DETAIL_KURSUS_LMS => 'Edit Detail Kursus LMS',
             self::EDIT_HONORARIUM_LMS => 'Edit Honorarium LMS',

@@ -260,50 +260,78 @@ return [
 
     'keuangan.payroll' => [
         'label' => 'Payroll',
-        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_KEUANGAN->value,
+        'permission' => 'ViewAny:Payroll',
         'guard' => null,
     ],
 
     'keuangan.payroll.show' => [
         'label' => 'Detail Payroll',
-        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_KEUANGAN->value,
+        'permission' => 'View:Payroll',
         'guard' => null,
     ],
 
     'keuangan.payroll.preview' => [
         'label' => 'Preview Slip Gaji',
-        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_KEUANGAN->value,
+        'permission' => 'View:Payroll',
         'guard' => null,
     ],
 
     'keuangan.komponen-gaji' => [
         'label' => 'Komponen Gaji',
-        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_KEUANGAN->value,
+        'permission' => \App\Enum\CustomPermissionEnum::LIHAT_KOMPONEN_GAJI->value,
         'guard' => null,
     ],
 
     'keuangan.penerima-komponen-gaji' => [
         'label' => 'Penerima Komponen Gaji',
-        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_KEUANGAN->value,
+        'permission' => \App\Enum\CustomPermissionEnum::LIHAT_PENERIMA_KOMPONEN_GAJI->value,
         'guard' => null,
     ],
 
     'keuangan.insentif' => [
         'label' => 'Insentif',
-        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_KEUANGAN->value,
+        'permission' => 'ViewAny:Incentive',
         'guard' => null,
     ],
 
 
     'keuangan.mapping-komponen-gaji' => [
         'label' => 'Mapping Komponen Gaji',
-        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_KEUANGAN->value,
+        'permission' => \App\Enum\CustomPermissionEnum::LIHAT_MAPPING_KOMPONEN_GAJI->value,
         'guard' => null,
     ],
 
     'keuangan.omset' => [
         'label' => 'Omset',
-        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_KEUANGAN->value,
+        'permission' => \App\Enum\CustomPermissionEnum::LIHAT_OMSET->value,
+        'guard' => null,
+    ],
+
+    // Belum terdaftar sebelumnya (route lolos tanpa cek middleware, gate murni di mount()) -
+    // ditambahkan sekalian biar konsisten & kena middleware EnsurePortalPageAccess juga.
+    'keuangan.jasa-unit' => [
+        'label' => 'Input Jasa Unit',
+        'permission' => \App\Enum\CustomPermissionEnum::LIHAT_INPUT_JASA_UNIT->value,
+        'guard' => null,
+    ],
+
+    // Belum terdaftar sebelumnya (sama seperti keuangan.jasa-unit di atas).
+    'keuangan.koperasi' => [
+        'label' => 'Koperasi',
+        'permission' => 'ViewAny:UserKoperasi',
+        'guard' => null,
+    ],
+
+    'keuangan.tanggungan-bpjs' => [
+        'label' => 'Tanggungan BPJS',
+        'permission' => 'ViewAny:BpjsDependent',
+        'guard' => null,
+    ],
+
+    // Belum terdaftar sebelumnya (sama seperti keuangan.jasa-unit/koperasi di atas).
+    'keuangan.jasa-unit-types' => [
+        'label' => 'Jasa Unit',
+        'permission' => 'ViewAny:JasaUnitType',
         'guard' => null,
     ],
 

@@ -29,13 +29,14 @@ class PayrollPeriodsPageTest extends TestCase
         Permission::firstOrCreate(['name' => CustomPermissionEnum::SISTEM_KEUANGAN->value, 'guard_name' => 'web']);
         Permission::firstOrCreate(['name' => 'Create:PayrollPeriod', 'guard_name' => 'web']);
         Permission::firstOrCreate(['name' => 'Update:PayrollPeriod', 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'Delete:PayrollPeriod', 'guard_name' => 'web']);
         Permission::firstOrCreate(['name' => CustomPermissionEnum::GENERATE_PAYROLL->value, 'guard_name' => 'web']);
 
         $role = Role::firstOrCreate(['name' => 'Keuangan Periode Test', 'guard_name' => 'web']);
         $role->givePermissionTo([CustomPermissionEnum::SISTEM_KEUANGAN->value, CustomPermissionEnum::GENERATE_PAYROLL->value]);
 
         if ($withCrudPermission) {
-            $role->givePermissionTo(['Create:PayrollPeriod', 'Update:PayrollPeriod']);
+            $role->givePermissionTo(['Create:PayrollPeriod', 'Update:PayrollPeriod', 'Delete:PayrollPeriod']);
         }
 
         $user = User::factory()->create();
@@ -211,6 +212,66 @@ class PayrollPeriodsPageTest extends TestCase
             'signer_id' => $signer->id,
             'payment_date' => '2026-08-05 00:00:00',
         ]);
+    }
+
+    public function test_delete_button_hidden_without_permission_but_visible_with_it(): void
+    {
+        $company = $this->makeCompany();
+        PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
+
+        Livewire::actingAs($this->actingAsFinance(withCrudPermission: false))
+            ->test(PayrollPeriodsPage::class)
+            ->assertDontSee('Hapus');
+
+        Livewire::actingAs($this->actingAsFinance(withCrudPermission: true))
+            ->test(PayrollPeriodsPage::class)
+            ->assertSee('Hapus');
+    }
+
+    public function test_user_with_permission_can_delete_unprocessed_period(): void
+    {
+        $finance = $this->actingAsFinance(withCrudPermission: true);
+        $company = $this->makeCompany();
+        $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
+
+        Livewire::actingAs($finance)
+            ->test(PayrollPeriodsPage::class)
+            ->call('deletePeriod', $period->id);
+
+        $this->assertDatabaseMissing('payroll_periods', ['id' => $period->id]);
+    }
+
+    public function test_cannot_delete_already_processed_period(): void
+    {
+        $finance = $this->actingAsFinance(withCrudPermission: true);
+        $company = $this->makeCompany();
+        $period = PayrollPeriod::create([
+            'company_id' => $company->id,
+            'start_date' => '2026-07-01',
+            'end_date' => '2026-07-31',
+            'processed_at' => now(),
+        ]);
+
+        Livewire::actingAs($finance)
+            ->test(PayrollPeriodsPage::class)
+            ->call('deletePeriod', $period->id)
+            ->assertForbidden();
+
+        $this->assertDatabaseHas('payroll_periods', ['id' => $period->id]);
+    }
+
+    public function test_user_without_permission_cannot_delete_period(): void
+    {
+        $finance = $this->actingAsFinance(withCrudPermission: false);
+        $company = $this->makeCompany();
+        $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
+
+        Livewire::actingAs($finance)
+            ->test(PayrollPeriodsPage::class)
+            ->call('deletePeriod', $period->id)
+            ->assertForbidden();
+
+        $this->assertDatabaseHas('payroll_periods', ['id' => $period->id]);
     }
 
     public function test_generate_payroll_dispatches_job(): void

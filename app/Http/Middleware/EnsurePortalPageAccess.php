@@ -14,8 +14,12 @@ class EnsurePortalPageAccess
 {
     public function handle(Request $request, Closure $next): Response
     {
+        // Bukan config("portal-pages.{$routeName}") - nama route (mis. "keuangan.periode-gaji")
+        // mengandung titik sendiri, jadi dot-notation config() salah mengurainya jadi 3 level
+        // nested alih-alih satu key flat. Selalu null, middleware ini tidak pernah benar-benar
+        // jalan sejak awal dibuat sampai baris ini diperbaiki (2026-08-07).
         $routeName = $request->route()?->getName();
-        $config = $routeName ? config("portal-pages.{$routeName}") : null;
+        $config = $routeName ? (config('portal-pages')[$routeName] ?? null) : null;
 
         if ($config) {
             $user = $request->user();

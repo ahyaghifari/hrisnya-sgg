@@ -28,7 +28,10 @@
             @if (empty($this->activeComponents))
                 <div style="background:var(--surface);border-radius:12px;box-shadow:var(--shadow-card);padding:24px;text-align:center;color:var(--text-muted);font-size:12.5px;">
                     <i class="fa-solid fa-circle-info"></i>
-                    Belum ada komponen gaji yang aktif untuk perusahaan ini. Aktifkan dulu di halaman <a href="{{ route('keuangan.komponen-gaji') }}" wire:navigate style="color:#042c6c;font-weight:600;">Komponen Gaji</a>.
+                    Belum ada komponen gaji yang aktif untuk perusahaan ini.
+                    @can(\App\Enum\CustomPermissionEnum::LIHAT_KOMPONEN_GAJI->value)
+                        Aktifkan dulu di halaman <a href="{{ route('keuangan.komponen-gaji') }}" wire:navigate style="color:#042c6c;font-weight:600;">Komponen Gaji</a>.
+                    @endcan
                 </div>
             @else
                 <div style="display:flex;flex-wrap:wrap;gap:8px;">

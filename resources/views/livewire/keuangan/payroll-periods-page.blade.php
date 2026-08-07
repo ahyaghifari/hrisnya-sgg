@@ -57,6 +57,11 @@
                                                     <i class="fa-solid fa-cog"></i> Generate Payroll
                                                 </button>
                                             @endif
+                                            @can('delete', $period)
+                                                <button type="button" wire:click="deletePeriod('{{ $period->id }}')" wire:confirm="Hapus periode gaji ini? Aksi ini tidak bisa dibatalkan." class="btn-ghost" style="padding:5px 12px;font-size:11.5px;color:#dc2626;">
+                                                    <i class="fa-solid fa-trash"></i> Hapus
+                                                </button>
+                                            @endcan
                                         @else
                                             @if ($this->canGeneratePayroll)
                                                 <button type="button" wire:click="regeneratePayroll('{{ $period->id }}')" wire:confirm="Hapus dan generate ulang seluruh payroll yang BELUM dibayar di periode ini? Payroll yang sudah dibayar tidak akan terpengaruh." class="btn-ghost" style="padding:5px 12px;font-size:11.5px;color:#d97706;">
@@ -73,7 +78,7 @@
                                             </button>
                                         @endcan
 
-                                        @if (in_array($period->company_id, $this->jaspelActiveCompanyIds))
+                                        @if (in_array($period->company_id, $this->jaspelActiveCompanyIds) && auth()->user()->can(\App\Enum\CustomPermissionEnum::LIHAT_OMSET->value))
                                             <a href="{{ route('keuangan.omset') }}" wire:navigate class="btn-ghost" style="padding:5px 12px;font-size:11.5px;text-decoration:none;">
                                                 <i class="fa-solid fa-hand-holding-medical"></i> Omset
                                             </a>

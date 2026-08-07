@@ -37,7 +37,7 @@ class PayrollDetailPage extends Component
 
     public function mount(Payroll $payroll): void
     {
-        abort_unless(Auth::user()->can(CustomPermissionEnum::SISTEM_KEUANGAN->value), 403);
+        abort_unless(Auth::user()->can('view', $payroll), 403);
 
         $this->payroll = $payroll->load(['user', 'payrollPeriod.company', 'items']);
     }

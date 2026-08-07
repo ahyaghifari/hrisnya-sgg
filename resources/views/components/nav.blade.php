@@ -1,8 +1,5 @@
 @props(['gates'])
 @php
-    // Gate SISTEM_* sudah dihitung sekali di layout.blade.php ($navGates), dioper ke sini lewat
-    // prop $gates supaya tidak dicek dobel dengan <x-pwa-bottom-nav> yang selalu dirender bareng
-    // (cuma disembunyikan CSS md:, lihat layout.blade.php).
     extract($gates);
     $showRoleRow = $canSeeKaryawanMenu || $canAccessKeuangan || $canAccessAbsensi || $canAccessKepegawaian || $canAccessLms || $canAccessPenilaian || $canAccessHakAkses;
     $initials = collect(explode(' ', auth()->user()->name))

@@ -16,7 +16,10 @@
             @if ($this->companies->isEmpty())
                 <div style="background:var(--surface);border-radius:12px;box-shadow:var(--shadow-card);padding:24px;text-align:center;color:var(--text-muted);font-size:12.5px;">
                     <i class="fa-solid fa-circle-info"></i>
-                    Belum ada perusahaan dengan komponen Jasa Unit aktif. Aktifkan dulu di halaman <a href="{{ route('keuangan.komponen-gaji') }}" wire:navigate style="color:#042c6c;font-weight:600;">Komponen Gaji</a>.
+                    Belum ada perusahaan dengan komponen Jasa Unit aktif.
+                    @can(\App\Enum\CustomPermissionEnum::LIHAT_KOMPONEN_GAJI->value)
+                        Aktifkan dulu di halaman <a href="{{ route('keuangan.komponen-gaji') }}" wire:navigate style="color:#042c6c;font-weight:600;">Komponen Gaji</a>.
+                    @endcan
                 </div>
             @elseif ($this->periods->isEmpty())
                 <div style="background:var(--surface);border-radius:12px;box-shadow:var(--shadow-card);padding:24px;text-align:center;color:var(--text-muted);font-size:12.5px;">
@@ -35,7 +38,12 @@
 
                 <div style="background:var(--surface);border-radius:12px;box-shadow:var(--shadow-card);padding:16px;">
                     <p style="font-size:13px;font-weight:700;color:var(--text-heading);margin:0 0 4px;"><i class="fa-solid fa-hospital-user"></i> Jasa Unit per Karyawan</p>
-                    <p style="font-size:11px;color:var(--text-muted);margin:0 0 12px;">Pilih divisi, karyawan (difilter sesuai divisi itu), jasa (difilter sesuai divisi itu juga), lalu nominal — bisa tambah beberapa baris. Kelola daftar jasa & divisinya di halaman <a href="{{ route('keuangan.jasa-unit-types') }}" wire:navigate style="color:#042c6c;font-weight:600;">Jasa Unit</a>.</p>
+                    <p style="font-size:11px;color:var(--text-muted);margin:0 0 12px;">
+                        Pilih divisi, karyawan (difilter sesuai divisi itu), jasa (difilter sesuai divisi itu juga), lalu nominal — bisa tambah beberapa baris.
+                        @can('viewAny', \App\Models\Payroll\JasaUnitType::class)
+                            Kelola daftar jasa & divisinya di halaman <a href="{{ route('keuangan.jasa-unit-types') }}" wire:navigate style="color:#042c6c;font-weight:600;">Jasa Unit</a>.
+                        @endcan
+                    </p>
 
                     <div style="display:flex;flex-direction:column;gap:10px;">
                         @foreach ($rows as $i => $row)

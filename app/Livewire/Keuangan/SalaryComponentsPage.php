@@ -52,7 +52,7 @@ class SalaryComponentsPage extends Component
 
     public function mount(): void
     {
-        abort_unless(Auth::user()->can(CustomPermissionEnum::SISTEM_KEUANGAN->value), 403);
+        abort_unless(Auth::user()->can(CustomPermissionEnum::LIHAT_KOMPONEN_GAJI->value), 403);
 
         // Default ke company sendiri kalau ada, biar familiar buat user scoped 1 company —
         // tapi tetap boleh pindah ke company manapun lewat tombol kiri (lihat getCompaniesProperty()),
@@ -154,7 +154,7 @@ class SalaryComponentsPage extends Component
 
     /**
      * Semua company selalu tampil di sini, terlepas dari canBrowseAllCompanies() — halaman
-     * ini sudah digerbangi permission sistem_keuangan sendiri (dicek di mount()), jadi
+     * ini sudah digerbangi permission LIHAT_KOMPONEN_GAJI sendiri (dicek di mount()), jadi
      * pembatasan tambahan per-role di sini cuma bikin susah tanpa manfaat keamanan ekstra.
      * 1 company bisa punya susunan komponen gaji beda dari company lain.
      */

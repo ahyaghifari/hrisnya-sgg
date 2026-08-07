@@ -1,8 +1,20 @@
 @php
-    // Periode Gaji digerbangi ViewAny:PayrollPeriod (Shield) sendiri, bukan SISTEM_KEUANGAN -
+    // Periode Gaji & Payroll digerbangi ViewAny:<Resource> (Shield) sendiri, bukan SISTEM_KEUANGAN -
     // dihitung di sini (bukan di nav.blade.php) karena ini gerbang spesifik satu sub-halaman,
     // bukan permission SISTEM_* umum.
     $canViewPayrollPeriod = auth()->user()->can('ViewAny:PayrollPeriod');
+    $canViewPayroll = auth()->user()->can('ViewAny:Payroll');
+    // Omset - permission manual (LIHAT_OMSET/KELOLA_OMSET), bukan Shield ViewAny (model-nya
+    // tidak punya Filament Resource/Policy sendiri).
+    $canViewOmset = auth()->user()->can(\App\Enum\CustomPermissionEnum::LIHAT_OMSET->value);
+    $canViewInputJasaUnit = auth()->user()->can(\App\Enum\CustomPermissionEnum::LIHAT_INPUT_JASA_UNIT->value);
+    $canViewIncentive = auth()->user()->can('ViewAny:Incentive');
+    $canViewKomponenGaji = auth()->user()->can(\App\Enum\CustomPermissionEnum::LIHAT_KOMPONEN_GAJI->value);
+    $canViewPenerimaKomponenGaji = auth()->user()->can(\App\Enum\CustomPermissionEnum::LIHAT_PENERIMA_KOMPONEN_GAJI->value);
+    $canViewMappingKomponenGaji = auth()->user()->can(\App\Enum\CustomPermissionEnum::LIHAT_MAPPING_KOMPONEN_GAJI->value);
+    $canViewKoperasi = auth()->user()->can('ViewAny:UserKoperasi');
+    $canViewBpjsDependent = auth()->user()->can('ViewAny:BpjsDependent');
+    $canViewJasaUnitType = auth()->user()->can('ViewAny:JasaUnitType');
 @endphp
 
 <div class="dropdown">
@@ -16,22 +28,42 @@
             @if ($canViewPayrollPeriod)
                 <a href="{{ route('keuangan.periode-gaji') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-calendar-days"></i> Periode Gaji</a>
             @endif
-            <a href="{{ route('keuangan.payroll') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-money-check-dollar"></i> Payroll</a>
-            <a href="{{ route('keuangan.omset') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-hand-holding-medical"></i> Omset</a>
-            <a href="{{ route('keuangan.jasa-unit') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-hospital-user"></i> Input Jasa Unit</a>
+            @if ($canViewPayroll)
+                <a href="{{ route('keuangan.payroll') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-money-check-dollar"></i> Payroll</a>
+            @endif
+            @if ($canViewOmset)
+                <a href="{{ route('keuangan.omset') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-hand-holding-medical"></i> Omset</a>
+            @endif
+            @if ($canViewInputJasaUnit)
+                <a href="{{ route('keuangan.jasa-unit') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-hospital-user"></i> Input Jasa Unit</a>
+            @endif
         </div>
         <div class="dropdown-col">
             <div class="dropdown-col-label">Tunjangan & Potongan</div>
-            <a href="{{ route('keuangan.insentif') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-hand-holding-dollar"></i> Insentif</a>
-            <a href="{{ route('keuangan.jasa-unit-types') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-hospital-user"></i> Jasa Unit</a>
-            <a href="{{ route('keuangan.koperasi') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-people-group"></i> Koperasi</a>
-            <a href="{{ route('keuangan.tanggungan-bpjs') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-house-medical"></i> Tanggungan BPJS</a>
+            @if ($canViewIncentive)
+                <a href="{{ route('keuangan.insentif') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-hand-holding-dollar"></i> Insentif</a>
+            @endif
+            @if ($canViewJasaUnitType)
+                <a href="{{ route('keuangan.jasa-unit-types') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-hospital-user"></i> Jasa Unit</a>
+            @endif
+            @if ($canViewKoperasi)
+                <a href="{{ route('keuangan.koperasi') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-people-group"></i> Koperasi</a>
+            @endif
+            @if ($canViewBpjsDependent)
+                <a href="{{ route('keuangan.tanggungan-bpjs') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-house-medical"></i> Tanggungan BPJS</a>
+            @endif
         </div>
         <div class="dropdown-col">
             <div class="dropdown-col-label">Pengaturan Komponen</div>
-            <a href="{{ route('keuangan.komponen-gaji') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-sack-dollar"></i> Komponen Gaji</a>
-            <a href="{{ route('keuangan.penerima-komponen-gaji') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-users-gear"></i> Penerima Komponen Gaji</a>
-            <a href="{{ route('keuangan.mapping-komponen-gaji') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-diagram-project"></i> Mapping Komponen Gaji</a>
+            @if ($canViewKomponenGaji)
+                <a href="{{ route('keuangan.komponen-gaji') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-sack-dollar"></i> Komponen Gaji</a>
+            @endif
+            @if ($canViewPenerimaKomponenGaji)
+                <a href="{{ route('keuangan.penerima-komponen-gaji') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-users-gear"></i> Penerima Komponen Gaji</a>
+            @endif
+            @if ($canViewMappingKomponenGaji)
+                <a href="{{ route('keuangan.mapping-komponen-gaji') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-diagram-project"></i> Mapping Komponen Gaji</a>
+            @endif
         </div>
     </div>
 </div>

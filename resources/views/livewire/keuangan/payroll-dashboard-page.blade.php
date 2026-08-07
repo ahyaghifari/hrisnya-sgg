@@ -178,7 +178,9 @@
             @endforelse
 
             <div style="margin-top:16px;display:flex;justify-content:space-between;">
-                <a href="{{ route('keuangan.insentif') }}" wire:navigate class="btn-ghost" style="font-size:12px;"><i class="fa-solid fa-hand-holding-dollar"></i> Kelola Insentif</a>
+                @can('viewAny', \App\Models\Incentive\Incentive::class)
+                    <a href="{{ route('keuangan.insentif') }}" wire:navigate class="btn-ghost" style="font-size:12px;"><i class="fa-solid fa-hand-holding-dollar"></i> Kelola Insentif</a>
+                @endcan
                 <button type="button" wire:click="closeModal" class="btn-ghost">Tutup</button>
             </div>
         </div>
@@ -201,7 +203,9 @@
             @endforelse
 
             <div style="margin-top:16px;display:flex;justify-content:space-between;">
-                <a href="{{ route('keuangan.koperasi') }}" wire:navigate class="btn-ghost" style="font-size:12px;"><i class="fa-solid fa-people-group"></i> Kelola Koperasi</a>
+                @can('viewAny', \App\Models\Payroll\UserKoperasi::class)
+                    <a href="{{ route('keuangan.koperasi') }}" wire:navigate class="btn-ghost" style="font-size:12px;"><i class="fa-solid fa-people-group"></i> Kelola Koperasi</a>
+                @endcan
                 <button type="button" wire:click="closeModal" class="btn-ghost">Tutup</button>
             </div>
         </div>

@@ -2,7 +2,6 @@
 
 namespace App\Livewire\Keuangan;
 
-use App\Enum\CustomPermissionEnum;
 use App\Enum\OrgStructurLevel;
 use App\Models\AuditLog;
 use App\Models\Master\Companies;
@@ -33,7 +32,7 @@ class JasaUnitTypesPage extends Component
 
     public function mount(): void
     {
-        abort_unless(Auth::user()->can(CustomPermissionEnum::SISTEM_KEUANGAN->value), 403);
+        abort_unless(Auth::user()->can('viewAny', JasaUnitType::class), 403);
 
         $this->companyId = Auth::user()->canFilterByCompany()
             ? (Auth::user()->company_id ?? Companies::orderBy('code')->value('id'))
@@ -67,12 +66,16 @@ class JasaUnitTypesPage extends Component
 
     public function getCanEditProperty(): bool
     {
-        return Auth::user()->can(CustomPermissionEnum::EDIT_MAPPING_KOMPONEN_GAJI->value);
+        // Bukan can('update', JasaUnitType::class) - halaman ini bulk-edit banyak baris
+        // sekaligus (bukan 1 record spesifik), Policy::update() butuh instance model asli,
+        // ArgumentCountError kalau dipanggil tanpa instance. Cek nama permission-nya langsung
+        // (persis yang dipanggil Policy::update() di baliknya, jadi hasilnya identik).
+        return Auth::user()->can('Update:JasaUnitType');
     }
 
     private function assertCanEdit(): void
     {
-        abort_unless(Auth::user()->can(CustomPermissionEnum::EDIT_MAPPING_KOMPONEN_GAJI->value), 403);
+        abort_unless(Auth::user()->can('Update:JasaUnitType'), 403);
     }
 
     private function loadRows(): void
