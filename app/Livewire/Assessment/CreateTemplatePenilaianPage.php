@@ -2,7 +2,6 @@
 
 namespace App\Livewire\Assessment;
 
-use App\Enum\CustomPermissionEnum;
 use App\Models\Assessment\AssessmentTemplateItems;
 use App\Models\Assessment\AssessmentTemplates;
 use App\Models\Assessment\AssessmentTypes;
@@ -33,7 +32,7 @@ class CreateTemplatePenilaianPage extends Component
 
     public function mount(): void
     {
-        abort_unless(Auth::user()->can(CustomPermissionEnum::SISTEM_PENILAIAN_KARYAWAN->value), 403);
+        abort_unless(Auth::user()->can('create', AssessmentTemplates::class), 403);
 
         $this->items = [$this->emptyItem()];
     }

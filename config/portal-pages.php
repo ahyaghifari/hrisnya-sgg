@@ -86,49 +86,49 @@ return [
 
     'penilaian.template' => [
         'label' => 'Template Penilaian',
-        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_PENILAIAN_KARYAWAN->value,
+        'permission' => 'ViewAny:AssessmentTemplates',
         'guard' => null,
     ],
 
     'penilaian.template.create' => [
         'label' => 'Tambah Template Penilaian',
-        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_PENILAIAN_KARYAWAN->value,
+        'permission' => 'Create:AssessmentTemplates',
         'guard' => null,
     ],
 
     'penilaian.template.edit' => [
         'label' => 'Edit Template Penilaian',
-        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_PENILAIAN_KARYAWAN->value,
+        'permission' => 'Update:AssessmentTemplates',
         'guard' => null,
     ],
 
     'penilaian.daftar' => [
         'label' => 'Daftar Penilaian',
-        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_PENILAIAN_KARYAWAN->value,
+        'permission' => 'ViewAny:AssessmentUsers',
         'guard' => null,
     ],
 
     'penilaian.daftar.tambah' => [
         'label' => 'Tambah Penilaian',
-        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_PENILAIAN_KARYAWAN->value,
+        'permission' => 'Create:AssessmentUsers',
         'guard' => null,
     ],
 
     'penilaian.jadwal' => [
         'label' => 'Jadwal Penilaian',
-        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_PENILAIAN_KARYAWAN->value,
+        'permission' => 'ViewAny:Assessments',
         'guard' => null,
     ],
 
     'penilaian.jadwal.create' => [
         'label' => 'Tambah Jadwal Penilaian',
-        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_PENILAIAN_KARYAWAN->value,
+        'permission' => 'Create:Assessments',
         'guard' => null,
     ],
 
     'penilaian.jadwal.edit' => [
         'label' => 'Edit Jadwal Penilaian',
-        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_PENILAIAN_KARYAWAN->value,
+        'permission' => 'Update:Assessments',
         'guard' => null,
     ],
 

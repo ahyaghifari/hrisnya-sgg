@@ -2,7 +2,6 @@
 
 namespace App\Livewire\Assessment;
 
-use App\Enum\CustomPermissionEnum;
 use App\Models\Assessment\AssessmentTemplates;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
@@ -21,7 +20,7 @@ class TemplatePenilaianPage extends Component
 
     public function mount(): void
     {
-        abort_unless(Auth::user()->can(CustomPermissionEnum::SISTEM_PENILAIAN_KARYAWAN->value), 403);
+        abort_unless(Auth::user()->can('viewAny', AssessmentTemplates::class), 403);
     }
 
     public function updatedSearch(): void

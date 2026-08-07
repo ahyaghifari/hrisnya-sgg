@@ -2,7 +2,6 @@
 
 namespace App\Livewire\Assessment;
 
-use App\Enum\CustomPermissionEnum;
 use App\Models\Assessment\AssessmentTemplates;
 use App\Models\Assessment\Assessments;
 use App\Models\Master\JobPositions;
@@ -24,7 +23,7 @@ class CreateJadwalPenilaianPage extends Component
 
     public function mount(): void
     {
-        abort_unless(Auth::user()->can(CustomPermissionEnum::SISTEM_PENILAIAN_KARYAWAN->value), 403);
+        abort_unless(Auth::user()->can('create', Assessments::class), 403);
     }
 
     public function getTemplatesProperty()

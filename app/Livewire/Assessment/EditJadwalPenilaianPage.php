@@ -2,7 +2,6 @@
 
 namespace App\Livewire\Assessment;
 
-use App\Enum\CustomPermissionEnum;
 use App\Models\Assessment\AssessmentTemplates;
 use App\Models\Assessment\Assessments;
 use App\Models\Master\JobPositions;
@@ -25,7 +24,7 @@ class EditJadwalPenilaianPage extends Component
 
     public function mount(Assessments $assessment): void
     {
-        abort_unless(Auth::user()->can(CustomPermissionEnum::SISTEM_PENILAIAN_KARYAWAN->value), 403);
+        abort_unless(Auth::user()->can('update', $assessment), 403);
 
         $this->assessment = $assessment;
         $this->name = $assessment->name;

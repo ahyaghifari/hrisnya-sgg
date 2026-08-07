@@ -2,7 +2,6 @@
 
 namespace App\Livewire\Assessment;
 
-use App\Enum\CustomPermissionEnum;
 use App\Models\Assessment\Assessments;
 use App\Models\Assessment\AssessmentUsers;
 use Illuminate\Support\Facades\Auth;
@@ -29,7 +28,7 @@ class DaftarPenilaianPage extends Component
 
     public function mount(): void
     {
-        abort_unless(Auth::user()->can(CustomPermissionEnum::SISTEM_PENILAIAN_KARYAWAN->value), 403);
+        abort_unless(Auth::user()->can('viewAny', AssessmentUsers::class), 403);
     }
 
     public function updatedJadwalId(): void

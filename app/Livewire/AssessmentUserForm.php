@@ -2,7 +2,6 @@
 
 namespace App\Livewire;
 
-use App\Enum\CustomPermissionEnum;
 use App\Models\Assessment\AssessmentScores;
 use App\Models\Assessment\AssessmentUsers;
 use App\Services\Assessment\AssessmentService;
@@ -35,7 +34,7 @@ class AssessmentUserForm extends Component
         // pantau progress dari halaman "Daftar Penilaian" terpusat — tapi TIDAK otomatis boleh
         // ISI nilai (lihat $canEdit di bawah, tetap cuma atasan langsung, biar integritas nilai
         // tetap dari orang yang benar-benar menilai).
-        $canView = Auth::user()->can(CustomPermissionEnum::SISTEM_PENILAIAN_KARYAWAN->value);
+        $canView = Auth::user()->can('view', $assessmentUser);
 
         abort_unless($this->isSelf || $isManager || $canView, 403);
         // Jadwal (Assessments) ATAU karyawan targetnya (User) bisa sudah soft-deleted setelah
