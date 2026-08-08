@@ -28,13 +28,27 @@ class TaskSettingsPage extends Component
 
     public function mount(): void
     {
-        abort_unless(Auth::user()->can(CustomPermissionEnum::SISTEM_TUGAS->value), 403);
+        // SISTEM_TUGAS dihapus (2026-08-08, orphan - halaman ini tidak pernah dilink di nav
+        // manapun) - EDIT_PENGATURAN_TUGAS jadi satu-satunya gerbang, tidak perlu permission
+        // "lihat" terpisah karena halaman ini murni pengaturan (tidak ada konten buat dibaca
+        // tanpa bisa diedit).
+        abort_unless(Auth::user()->can(CustomPermissionEnum::EDIT_PENGATURAN_TUGAS->value), 403);
 
         $this->companyId = Auth::user()->canFilterByCompany()
             ? (Auth::user()->company_id ?? Companies::orderBy('code')->value('id'))
             : Auth::user()->company_id;
 
         $this->loadCompanyState();
+    }
+
+    // Gerbang di selectCompany() saja tidak cukup - Livewire property bisa di-$set langsung
+    // dari request yang di-craft (lewat hook updated*, bukan lewat method public), jadi
+    // companyId perlu divalidasi ulang di sini juga.
+    public function updatedCompanyId(): void
+    {
+        if (! Auth::user()->canFilterByCompany()) {
+            $this->companyId = Auth::user()->company_id;
+        }
     }
 
     public function selectCompany(string $companyId): void

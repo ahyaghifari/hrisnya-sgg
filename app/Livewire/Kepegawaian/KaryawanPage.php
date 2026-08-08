@@ -95,9 +95,16 @@ class KaryawanPage extends Component
 
     protected function baseQuery()
     {
-        // Default cuma karyawan aktif (query normal, exclude soft-deleted otomatis) — "Tidak
-        // Aktif" khusus nampilin yang sudah dinonaktifkan/dihapus, buat dipulihkan kalau perlu.
-        $query = $this->status === 'tidak_aktif' ? User::onlyTrashed() : User::query();
+        // 3 tab beda konsep, jangan dicampur:
+        // - aktif: is_active=true, belum dihapus (default)
+        // - tidak_aktif: is_active=false TAPI masih ada di sistem (di-nonaktifkan lewat toggle
+        //   Edit Karyawan) - beda dari arsip, karyawan ini masih bisa diaktifkan lagi kapan saja
+        // - arsip: soft-deleted (dihapus) - dulu ini yang salah dipakai buat tab "Tidak Aktif"
+        $query = match ($this->status) {
+            'tidak_aktif' => User::query()->where('is_active', false),
+            'arsip' => User::onlyTrashed(),
+            default => User::query()->where('is_active', true),
+        };
 
         if ($this->companyId) {
             $query->where('company_id', $this->companyId);
@@ -145,6 +152,7 @@ class KaryawanPage extends Component
         ]);
     }
 
+    /** Pulihkan karyawan yang sudah DIHAPUS (soft-deleted, tab Arsip) - beda dari activate(). */
     public function restore(string $id): void
     {
         $employee = User::onlyTrashed()->findOrFail($id);
@@ -156,6 +164,21 @@ class KaryawanPage extends Component
         abort_unless(Auth::user()->can('restore', User::class), 403);
 
         $employee->restore();
+    }
+
+    /** Aktifkan lagi karyawan yang di-nonaktifkan (is_active=false, tab Tidak Aktif) - beda dari
+     * restore(), karyawan ini tidak pernah dihapus sama sekali. */
+    public function activate(string $id): void
+    {
+        $employee = User::where('is_active', false)->findOrFail($id);
+
+        abort_unless(
+            PermissionHelper::hasGlobalRole(Auth::user()) || $employee->company_id === Auth::user()->company_id,
+            403
+        );
+        abort_unless(Auth::user()->can('update', User::class), 403);
+
+        $employee->update(['is_active' => true]);
     }
 
     public function render()

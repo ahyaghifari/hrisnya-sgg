@@ -91,9 +91,6 @@ class RoleForm
                 CustomPermissionEnum::LIHAT_PENGATURAN_LMS->value,
                 CustomPermissionEnum::LIHAT_LAPORAN_PELATIHAN->value,
             ],
-            CustomPermissionEnum::SISTEM_TUGAS->value => [
-                CustomPermissionEnum::EDIT_PENGATURAN_TUGAS->value,
-            ],
             CustomPermissionEnum::SISTEM_COACHING_COUNSELING->value => [
                 CustomPermissionEnum::COACHING_KARYAWAN_LAINNYA->value,
             ],

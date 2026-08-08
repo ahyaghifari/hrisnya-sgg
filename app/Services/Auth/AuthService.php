@@ -21,6 +21,10 @@ class AuthService
         return null;
         }
 
+        if (!$user->is_active) {
+            throw new \RuntimeException('account_inactive');
+        }
+
         return $user->createToken('auth_token')->plainTextToken;
     }
 

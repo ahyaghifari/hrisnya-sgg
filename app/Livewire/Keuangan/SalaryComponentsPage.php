@@ -65,6 +65,16 @@ class SalaryComponentsPage extends Component
         $this->loadCompanyState();
     }
 
+    // Gerbang di selectCompany() saja tidak cukup - Livewire property bisa di-$set langsung
+    // dari request yang di-craft (lewat hook updated*, bukan lewat method public), jadi
+    // companyId perlu divalidasi ulang di sini juga.
+    public function updatedCompanyId(): void
+    {
+        if (! Auth::user()->canFilterByCompany()) {
+            $this->companyId = Auth::user()->company_id;
+        }
+    }
+
     public function selectCompany(string $companyId): void
     {
         abort_unless(Auth::user()->canFilterByCompany(), 403);

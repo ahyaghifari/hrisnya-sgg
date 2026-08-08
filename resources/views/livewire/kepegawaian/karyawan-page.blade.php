@@ -7,12 +7,16 @@
     </a>
 </div>
 
-{{-- Filter status: default Aktif (query normal, exclude soft-deleted) — Tidak Aktif khusus
-     nampilin karyawan yang sudah dinonaktifkan/dihapus, buat dipulihkan kalau perlu. Sengaja
-     kecil/plain (bukan .section-nav-btn), ini cuma filter sekunder, bukan navigasi utama. --}}
+{{-- Filter status - 3 konsep beda, jangan dicampur:
+     - Aktif: is_active=true, belum dihapus (default)
+     - Tidak Aktif: is_active=false tapi masih ada di sistem (toggle Edit Karyawan) - bisa
+       diaktifkan lagi kapan saja
+     - Arsip: soft-deleted (dihapus), cuma bisa dipulihkan, bukan diaktifkan langsung.
+     Sengaja kecil/plain (bukan .section-nav-btn), ini cuma filter sekunder, bukan navigasi utama. --}}
 <div style="display:inline-flex;gap:2px;background:var(--surface-alt);padding:3px;border-radius:8px;margin-bottom:14px;">
-    <button type="button" wire:click="setStatus('aktif')" style="padding:4px 12px;font-size:11.5px;font-weight:600;border:none;border-radius:6px;cursor:pointer;font-family:inherit;background:{{ $status === 'aktif' ? 'var(--surface)' : 'transparent' }};color:{{ $status === 'aktif' ? 'var(--text-heading)' : 'var(--text-muted)' }};box-shadow:{{ $status === 'aktif' ? 'var(--shadow-card)' : 'none' }};">Aktif</button>
-    <button type="button" wire:click="setStatus('tidak_aktif')" style="padding:4px 12px;font-size:11.5px;font-weight:600;border:none;border-radius:6px;cursor:pointer;font-family:inherit;background:{{ $status === 'tidak_aktif' ? 'var(--surface)' : 'transparent' }};color:{{ $status === 'tidak_aktif' ? 'var(--text-heading)' : 'var(--text-muted)' }};box-shadow:{{ $status === 'tidak_aktif' ? 'var(--shadow-card)' : 'none' }};">Tidak Aktif</button>
+    <button type="button" wire:click="setStatus('aktif')" style="padding:4px 12px;font-size:11.5px;font-weight:600;border:none;border-radius:6px;cursor:pointer;font-family:inherit;background:{{ $status === 'aktif' ? 'var(--brand-success)' : 'transparent' }};color:{{ $status === 'aktif' ? '#fff' : 'var(--text-muted)' }};box-shadow:{{ $status === 'aktif' ? 'var(--shadow-card)' : 'none' }};">Aktif</button>
+    <button type="button" wire:click="setStatus('tidak_aktif')" style="padding:4px 12px;font-size:11.5px;font-weight:600;border:none;border-radius:6px;cursor:pointer;font-family:inherit;background:{{ $status === 'tidak_aktif' ? '#b45309' : 'transparent' }};color:{{ $status === 'tidak_aktif' ? '#fff' : 'var(--text-muted)' }};box-shadow:{{ $status === 'tidak_aktif' ? 'var(--shadow-card)' : 'none' }};">Tidak Aktif</button>
+    <button type="button" wire:click="setStatus('arsip')" style="padding:4px 12px;font-size:11.5px;font-weight:600;border:none;border-radius:6px;cursor:pointer;font-family:inherit;background:{{ $status === 'arsip' ? '#64748b' : 'transparent' }};color:{{ $status === 'arsip' ? '#fff' : 'var(--text-muted)' }};box-shadow:{{ $status === 'arsip' ? 'var(--shadow-card)' : 'none' }};">Arsip</button>
 </div>
 
 <div class="mb-4" style="display:flex;flex-wrap:wrap;gap:12px;">
@@ -69,16 +73,22 @@
                     $photoPath = $employee->profile?->profile_picture[0] ?? null;
                     $photoUrl = $photoPath && is_string($photoPath) ? \Illuminate\Support\Facades\Storage::url($photoPath) : null;
                 @endphp
-                @if ($status === 'tidak_aktif')
+                @if ($status === 'tidak_aktif' || $status === 'arsip')
                     <div class="pwa-list-row">
                         <div class="pwa-tile-icon neutral" style="border-radius:50%;font-size:12px;font-weight:700;">{{ $initials ?: '?' }}</div>
                         <div style="flex:1;min-width:0;">
                             <p style="font-size:13px;font-weight:600;color:var(--text-heading);">{{ $employee->name }}</p>
                             <p style="font-size:11px;color:var(--text-muted);margin-top:2px;">{{ $employee->nip ?: 'NIP belum diisi' }}</p>
                         </div>
-                        <button type="button" wire:click="restore('{{ $employee->id }}')" wire:confirm="Pulihkan karyawan ini?" class="btn-ghost" style="padding:5px 9px;font-size:11px;color:var(--brand-success);" title="Pulihkan">
-                            <i class="fa-solid fa-rotate-left"></i>
-                        </button>
+                        @if ($status === 'tidak_aktif')
+                            <button type="button" wire:click="activate('{{ $employee->id }}')" wire:confirm="Aktifkan lagi karyawan ini?" class="btn-ghost" style="padding:5px 9px;font-size:11px;color:var(--brand-success);" title="Aktifkan">
+                                <i class="fa-solid fa-user-check"></i>
+                            </button>
+                        @else
+                            <button type="button" wire:click="restore('{{ $employee->id }}')" wire:confirm="Pulihkan karyawan ini?" class="btn-ghost" style="padding:5px 9px;font-size:11px;color:var(--brand-success);" title="Pulihkan">
+                                <i class="fa-solid fa-rotate-left"></i>
+                            </button>
+                        @endif
                     </div>
                 @else
                     <a href="{{ route('karyawan.show', ['record' => $employee, 'from' => 'karyawan']) }}" wire:navigate class="pwa-list-row" style="text-decoration:none;">
@@ -165,6 +175,10 @@
                         @endif
                         <td style="padding:9px 14px;text-align:center;white-space:nowrap;">
                             @if ($status === 'tidak_aktif')
+                                <button type="button" wire:click="activate('{{ $employee->id }}')" wire:confirm="Aktifkan lagi karyawan ini?" class="btn-ghost" style="padding:5px 10px;font-size:11px;color:var(--brand-success);" title="Aktifkan">
+                                    <i class="fa-solid fa-user-check"></i>
+                                </button>
+                            @elseif ($status === 'arsip')
                                 <button type="button" wire:click="restore('{{ $employee->id }}')" wire:confirm="Pulihkan karyawan ini?" class="btn-ghost" style="padding:5px 10px;font-size:11px;color:var(--brand-success);" title="Pulihkan">
                                     <i class="fa-solid fa-rotate-left"></i>
                                 </button>

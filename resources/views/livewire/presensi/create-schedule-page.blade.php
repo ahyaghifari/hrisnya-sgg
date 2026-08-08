@@ -165,7 +165,7 @@
                     <span style="font-size:10.5px;font-weight:700;letter-spacing:0.03em;color:var(--text-faint);white-space:nowrap;">{{ $editingScheduleId ? 'MODE EDIT' : 'LANGKAH 2/2' }}</span>
                 </div>
 
-                <div style="display:grid;grid-template-columns:2fr 1fr;gap:14px;">
+                <div style="display:grid;grid-template-columns:{{ auth()->user()->canFilterByCompany() ? '2fr 1fr' : '1fr' }};gap:14px;">
                     <div>
                         <label class="form-label">Nama Jadwal</label>
                         <input type="text" wire:model="name" class="schedule-name-input"
@@ -174,15 +174,17 @@
                         @error('name') <p style="font-size:11px;color:#dc2626;margin-top:4px;">{{ $message }}</p> @enderror
                     </div>
 
-                    <div>
-                        <label class="form-label">Perusahaan</label>
-                        <select class="form-input" wire:model.live="companyId">
-                            @foreach ($this->companies as $company)
-                                <option value="{{ $company->id }}">{{ $company->name }}</option>
-                            @endforeach
-                        </select>
-                        @error('companyId') <p style="font-size:11px;color:#dc2626;margin-top:4px;">{{ $message }}</p> @enderror
-                    </div>
+                    @if (auth()->user()->canFilterByCompany())
+                        <div>
+                            <label class="form-label">Perusahaan</label>
+                            <select class="form-input" wire:model.live="companyId">
+                                @foreach ($this->companies as $company)
+                                    <option value="{{ $company->id }}">{{ $company->name }}</option>
+                                @endforeach
+                            </select>
+                            @error('companyId') <p style="font-size:11px;color:#dc2626;margin-top:4px;">{{ $message }}</p> @enderror
+                        </div>
+                    @endif
                 </div>
 
                 @if ($scheduleType === 'flexible')

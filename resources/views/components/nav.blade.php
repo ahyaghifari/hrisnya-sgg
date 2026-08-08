@@ -74,9 +74,7 @@
                             <x-nav.penilaian-dropdown />
                         @endif
                         @if ($canAccessHakAkses)
-                            <a href="{{ route('hak-akses') }}" wire:navigate class="nav-item nav-item-sky {{ request()->routeIs('hak-akses*') ? 'active' : '' }}">
-                                <i class="fa-solid fa-shield-halved text-xs"></i> Hak Akses
-                            </a>
+                            <x-nav.manajemen-pengguna-dropdown />
                         @endif
                 </div>
             @endif

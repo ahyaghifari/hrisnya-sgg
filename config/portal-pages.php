@@ -67,6 +67,12 @@ return [
         'guard' => null,
     ],
 
+    'role' => [
+        'label' => 'Role',
+        'permission' => 'ViewAny:Role',
+        'guard' => null,
+    ],
+
     'karyawan.show' => [
         'label' => 'Detail Karyawan',
         'permission' => null,
@@ -496,7 +502,7 @@ return [
 
     'tugas.pengaturan' => [
         'label' => 'Pengaturan Tugas',
-        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_TUGAS->value,
+        'permission' => \App\Enum\CustomPermissionEnum::EDIT_PENGATURAN_TUGAS->value,
         'guard' => null,
     ],
 

@@ -150,6 +150,9 @@ Route::middleware(['auth', 'portal.access'])->group(function () {
     Route::get('/hak-akses', \App\Livewire\RoleAccess\RoleAccessTreePage::class)
         ->name('hak-akses');
 
+    Route::get('/role', \App\Livewire\RoleAccess\RolesPage::class)
+        ->name('role');
+
     // Halaman detail karyawan dipakai 2 entry point: MyStaff (bawahan) & Karyawan (company-wide,
     // lihat grup route Kepegawaian di bawah) — makanya path-nya /karyawan, bukan /my-staff.
     Route::get('/karyawan/{record}', EmployeeAttendanceStatistics::class)

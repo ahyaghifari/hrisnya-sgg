@@ -3,7 +3,6 @@
 namespace App\Livewire\Kepegawaian;
 
 use App\Enum\UserDocumentType;
-use App\Helpers\PermissionHelper;
 use App\Models\Master\Companies;
 use App\Models\User;
 use App\Models\User\UserDocuments;
@@ -39,7 +38,7 @@ class DocumentFormPage extends Component
 
     public function mount(?UserDocuments $record = null): void
     {
-        if (! PermissionHelper::hasGlobalRole(Auth::user())) {
+        if (! Auth::user()->canFilterByCompany()) {
             $this->company_id = Auth::user()->company_id;
         }
 
@@ -69,7 +68,7 @@ class DocumentFormPage extends Component
 
     protected function canManage(UserDocuments $document): bool
     {
-        if (PermissionHelper::hasGlobalRole(Auth::user())) {
+        if (Auth::user()->canFilterByCompany()) {
             return true;
         }
 
@@ -83,6 +82,14 @@ class DocumentFormPage extends Component
 
     public function updatedCompanyId(): void
     {
+        // Re-kunci - property Livewire bisa di-$set langsung dari request yang di-craft (lewat
+        // hook updated*, tanpa lewat elemen <select> yang memang disembunyikan di blade buat
+        // user non-global), jadi company_id perlu divalidasi ulang di sini juga, bukan cuma
+        // percaya blade-nya tidak nampilin pilihan lain.
+        if (! Auth::user()->canFilterByCompany()) {
+            $this->company_id = Auth::user()->company_id;
+        }
+
         $this->user_id = null;
     }
 
@@ -117,7 +124,24 @@ class DocumentFormPage extends Component
     protected function rules(): array
     {
         return [
-            'user_id' => ['required', 'exists:users,id'],
+            // exists:users,id doang cuma cek karyawannya ada, TIDAK cek company_id-nya -
+            // ditambah closure di bawah biar user non-global tidak bisa nempelin dokumen ke
+            // karyawan perusahaan lain lewat user_id yang di-tamper (company_id sendiri sudah
+            // dikunci di updatedCompanyId()/save(), tapi user_id-nya juga perlu ikut divalidasi).
+            'user_id' => ['required', 'exists:users,id', function (string $attribute, mixed $value, \Closure $fail): void {
+                if (Auth::user()->canFilterByCompany()) {
+                    return;
+                }
+
+                $belongsToOwnCompany = User::withTrashed()
+                    ->whereKey($value)
+                    ->where('company_id', Auth::user()->company_id)
+                    ->exists();
+
+                if (! $belongsToOwnCompany) {
+                    $fail('Karyawan tidak ditemukan di perusahaan Anda.');
+                }
+            }],
             'document_number' => ['required', 'string', 'max:255'],
             'issued_date' => ['required', 'date'],
             'file' => [$this->record ? 'nullable' : 'required', 'file', 'max:10240', 'mimes:pdf,jpg,jpeg,png'],
@@ -127,6 +151,10 @@ class DocumentFormPage extends Component
 
     public function save(): void
     {
+        if (! Auth::user()->canFilterByCompany()) {
+            $this->company_id = Auth::user()->company_id;
+        }
+
         $this->validate();
 
         $user = User::find($this->user_id);
@@ -180,7 +208,7 @@ class DocumentFormPage extends Component
     {
         return view('livewire.kepegawaian.document-form-page', [
             'documentTypeLabel' => UserDocumentType::tryFrom($this->document_type)?->label() ?? $this->document_type,
-            'canBrowseAllCompanies' => PermissionHelper::hasGlobalRole(Auth::user()),
+            'canBrowseAllCompanies' => Auth::user()->canFilterByCompany(),
         ]);
     }
 }

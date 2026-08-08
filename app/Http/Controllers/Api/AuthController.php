@@ -18,14 +18,20 @@ class AuthController extends Controller
     {
         try {
             $credentials = $request->only('email', 'password');
-            
+
             $token = $this->authService->login($credentials);
-    
+
             if (!$token) {
                 return ApiResponseHelper::error('Email or password is incorrect', 401);
             }
-    
+
             return ApiResponseHelper::success(['token' => $token], 'Login successful');
+        } catch (\RuntimeException $e) {
+            if ($e->getMessage() === 'account_inactive') {
+                return ApiResponseHelper::error('Akun Anda sudah dinonaktifkan. Hubungi HC/Admin perusahaan.', 403);
+            }
+
+            return ApiResponseHelper::error('An error occurred during login', 500, $e->getMessage());
         } catch (\Exception $e) {
             return ApiResponseHelper::error('An error occurred during login', 500, $e->getMessage());
         }

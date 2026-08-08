@@ -21,8 +21,8 @@
 @endif
 
 <div style="display:inline-flex;gap:2px;background:var(--surface-alt);padding:3px;border-radius:8px;margin-bottom:16px;">
-    <button type="button" wire:click="setMode('harian')" style="padding:4px 12px;font-size:11.5px;font-weight:600;border:none;border-radius:6px;cursor:pointer;font-family:inherit;background:{{ $mode === 'harian' ? 'var(--surface)' : 'transparent' }};color:{{ $mode === 'harian' ? 'var(--text-heading)' : 'var(--text-muted)' }};box-shadow:{{ $mode === 'harian' ? 'var(--shadow-card)' : 'none' }};">Hari Ini</button>
-    <button type="button" wire:click="setMode('bulanan')" style="padding:4px 12px;font-size:11.5px;font-weight:600;border:none;border-radius:6px;cursor:pointer;font-family:inherit;background:{{ $mode === 'bulanan' ? 'var(--surface)' : 'transparent' }};color:{{ $mode === 'bulanan' ? 'var(--text-heading)' : 'var(--text-muted)' }};box-shadow:{{ $mode === 'bulanan' ? 'var(--shadow-card)' : 'none' }};">Periode</button>
+    <button type="button" wire:click="setMode('harian')" style="padding:4px 12px;font-size:11.5px;font-weight:600;border:none;border-radius:6px;cursor:pointer;font-family:inherit;background:{{ $mode === 'harian' ? 'var(--brand)' : 'transparent' }};color:{{ $mode === 'harian' ? '#fff' : 'var(--text-muted)' }};box-shadow:{{ $mode === 'harian' ? 'var(--shadow-card)' : 'none' }};">Hari Ini</button>
+    <button type="button" wire:click="setMode('bulanan')" style="padding:4px 12px;font-size:11.5px;font-weight:600;border:none;border-radius:6px;cursor:pointer;font-family:inherit;background:{{ $mode === 'bulanan' ? 'var(--brand-success)' : 'transparent' }};color:{{ $mode === 'bulanan' ? '#fff' : 'var(--text-muted)' }};box-shadow:{{ $mode === 'bulanan' ? 'var(--shadow-card)' : 'none' }};">Periode</button>
 </div>
 
 <div class="mb-4" style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;">

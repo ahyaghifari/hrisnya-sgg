@@ -31,6 +31,16 @@ class LoginController extends Controller
                 ->onlyInput('email');
         }
 
+        if (! Auth::user()->is_active) {
+            Auth::logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+
+            return back()
+                ->withErrors(['email' => 'Akun Anda sudah dinonaktifkan. Hubungi HC/Admin perusahaan.'])
+                ->onlyInput('email');
+        }
+
         $request->session()->regenerate();
 
         // Portal & panel Filament (/admin) sama-sama pakai guard 'web' yang sama, dan panel

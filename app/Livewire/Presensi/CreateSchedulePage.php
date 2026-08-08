@@ -44,7 +44,9 @@ class CreateSchedulePage extends Component
 
     public function mount(?Schedule $schedule = null): void
     {
-        $this->companyId = Auth::user()->company_id ?? Companies::orderBy('code')->value('id');
+        $this->companyId = Auth::user()->canFilterByCompany()
+            ? (Auth::user()->company_id ?? Companies::orderBy('code')->value('id'))
+            : Auth::user()->company_id;
 
         // Livewire suntik instance Schedule KOSONG (bukan null) kalau parameter route/test
         // "schedule" tidak diisi sama sekali — ->exists yang benar-benar bedain mode Edit vs
@@ -67,6 +69,13 @@ class CreateSchedulePage extends Component
             $this->mountShiftSchedule($schedule);
         } else {
             $this->mountDaySchedule($schedule);
+        }
+    }
+
+    public function updatedCompanyId(): void
+    {
+        if (! Auth::user()->canFilterByCompany()) {
+            $this->companyId = Auth::user()->company_id;
         }
     }
 
@@ -116,6 +125,13 @@ class CreateSchedulePage extends Component
 
     public function save(): void
     {
+        // Re-kunci sebelum persist - bukan cuma percaya updatedCompanyId(), Livewire property
+        // bisa di-$set langsung dari request yang di-craft (lewat hook updated*, bukan lewat
+        // method public biasa), jadi companyId perlu divalidasi ulang persis sebelum ditulis.
+        if (! Auth::user()->canFilterByCompany()) {
+            $this->companyId = Auth::user()->company_id;
+        }
+
         $this->validate([
             'companyId' => 'required',
             'name' => 'required|string|max:255',
