@@ -39,11 +39,20 @@ class CoachingDetailPage extends Component
         $isInvolvedAsSupervisor = $record->coach_by === $user->id
             || app(OrgHierarchyService::class)->subordinates($user)->where('id', $record->user_id)->exists();
 
+        // Subject-nya sendiri (baca/upload bukti coaching miliknya) tidak digerbangi
+        // SISTEM_COACHING_COUNSELING - itu gerbang khusus sisi atasan/coach/HC, bukan
+        // self-service. Kalau bukan subject, wajib punya gerbang itu DULU baru dicek jalur akses
+        // atasan/coach-nya.
         abort_unless(
             $isSubject
-                || $user->can('View:Coaching')
-                || $user->can(CustomPermissionEnum::COACHING_KARYAWAN_LAINNYA->value)
-                || $isInvolvedAsSupervisor,
+                || (
+                    $user->can(CustomPermissionEnum::SISTEM_COACHING_COUNSELING->value)
+                    && (
+                        $user->can('View:Coaching')
+                        || $user->can(CustomPermissionEnum::COACHING_KARYAWAN_LAINNYA->value)
+                        || $isInvolvedAsSupervisor
+                    )
+                ),
             403
         );
 

@@ -1,5 +1,6 @@
 @php
-    $canAccessCoachingCounseling = auth()->user()->canAccessKaryawanMenu();
+    $canAccessCoachingCounseling = auth()->user()->can(\App\Enum\CustomPermissionEnum::SISTEM_COACHING_COUNSELING->value)
+        && auth()->user()->canAccessKaryawanMenu();
 @endphp
 
 <a href="{{ route('my-staff') }}" wire:navigate class="nav-item nav-item-navy {{ request()->routeIs('my-staff*') ? 'active' : '' }}">

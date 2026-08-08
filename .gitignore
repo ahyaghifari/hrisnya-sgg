@@ -32,3 +32,4 @@ _ide_helper_models.php
 /playwright-report
 /.zcode
 /database/dumps/
+/.claude

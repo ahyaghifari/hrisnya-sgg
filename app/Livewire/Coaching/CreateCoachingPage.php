@@ -33,6 +33,8 @@ class CreateCoachingPage extends Component
 
     public function mount(): void
     {
+        abort_unless(Auth::user()->can(CustomPermissionEnum::SISTEM_COACHING_COUNSELING->value), 403);
+
         abort_unless(
             Auth::user()->can('Create:Coaching')
                 || Auth::user()->can(CustomPermissionEnum::COACHING_KARYAWAN_LAINNYA->value)

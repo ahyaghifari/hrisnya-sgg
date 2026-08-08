@@ -106,7 +106,7 @@
             <x-pwa-nav.lms-menu />
         @endif
 
-        @if ($canSeeKaryawanMenu)
+        @if ($canSeeKaryawanMenu && auth()->user()->can(\App\Enum\CustomPermissionEnum::SISTEM_COACHING_COUNSELING->value))
             <x-pwa-nav.coaching-counseling-menu />
         @endif
 
