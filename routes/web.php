@@ -109,6 +109,9 @@ Route::middleware(['auth', 'portal.access'])->group(function () {
     Route::get('/', Dashboard::class)
         ->name('dashboard');
 
+    Route::get('/notifikasi', \App\Livewire\NotificationsPage::class)
+        ->name('notifikasi');
+
     Route::get('/akun', PwaAkun::class)
         ->name('akun');
 
