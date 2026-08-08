@@ -5,6 +5,7 @@ namespace App\Livewire\RoleAccess;
 use App\Helpers\PermissionHelper;
 use App\Models\Master\Companies;
 use App\Models\Role;
+use App\Models\User;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
@@ -29,6 +30,7 @@ class RolesPage extends Component
     public ?string $formCompanyId = null;
 
     public bool $showUsersModal = false;
+    public ?string $usersModalRoleId = null;
     public ?string $usersModalRoleName = null;
     public array $usersModalUsers = [];
 
@@ -114,14 +116,41 @@ class RolesPage extends Component
 
         abort_unless(Auth::user()->can('view', $role), 403);
 
+        $this->usersModalRoleId = $role->id;
         $this->usersModalRoleName = $role->name;
-        $this->usersModalUsers = $role->users()->orderBy('name')->get(['name', 'email', 'nip'])->toArray();
+        $this->usersModalUsers = $role->users()->orderBy('name')->get(['id', 'name', 'email', 'nip'])->toArray();
         $this->showUsersModal = true;
     }
 
     public function closeUsersModal(): void
     {
         $this->showUsersModal = false;
+    }
+
+    public function getCanManageUsersModalProperty(): bool
+    {
+        if (! $this->usersModalRoleId) {
+            return false;
+        }
+
+        return Auth::user()->can('update', Role::findOrFail($this->usersModalRoleId));
+    }
+
+    public function removeUserFromRole(string $userId): void
+    {
+        $role = Role::findOrFail($this->usersModalRoleId);
+
+        abort_unless(Auth::user()->can('update', $role), 403);
+        abort_if($this->isProtectedRole($role), 403, 'Role Super Admin tidak bisa diubah dari sini.');
+
+        User::findOrFail($userId)->removeRole($role);
+
+        $this->usersModalUsers = $role->users()->orderBy('name')->get(['id', 'name', 'email', 'nip'])->toArray();
+
+        Notification::make()
+            ->title('Role berhasil dilepas dari user')
+            ->success()
+            ->send();
     }
 
     public function saveForm(): void

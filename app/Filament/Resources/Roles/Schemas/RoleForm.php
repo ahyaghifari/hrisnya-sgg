@@ -78,6 +78,7 @@ class RoleForm
                 CustomPermissionEnum::EDIT_PENGATURAN_ABSENSI->value,
                 CustomPermissionEnum::KELOLA_JADWAL_SHIFT->value,
                 CustomPermissionEnum::SYNC_DATA_ABSENSI->value,
+                CustomPermissionEnum::VIEW_REPORT_DATA_ABSENSI->value,
                 // Create/Update/Delete:Schedule TIDAK di-list manual lagi di sini (2026-08-07) -
                 // Schedule sekarang punya ScheduleResource beneran (navigationGroup 'Presensi &
                 // Absensi'), jadi ke-5 verb-nya (ViewAny/View/Create/Update/Delete) otomatis
@@ -91,9 +92,14 @@ class RoleForm
                 CustomPermissionEnum::EDIT_PENGATURAN_LMS->value,
                 CustomPermissionEnum::LIHAT_PENGATURAN_LMS->value,
                 CustomPermissionEnum::LIHAT_LAPORAN_PELATIHAN->value,
+                CustomPermissionEnum::APPROVE_PENGAJUAN_PELATIHAN->value,
             ],
             CustomPermissionEnum::SISTEM_COACHING_COUNSELING->value => [
                 CustomPermissionEnum::COACHING_KARYAWAN_LAINNYA->value,
+            ],
+            CustomPermissionEnum::SISTEM_APPROVAL->value => [
+                CustomPermissionEnum::APPROVE_PENGAJUAN_ABSENSI->value,
+                CustomPermissionEnum::APPROVE_MANAJEMEN_LOWONGAN_KERJA->value,
             ],
             // Tidak ada child custom permission - grup ini cuma pembungkus supaya container
             // admin 'Penilaian Karyawan' (navigationGroup 4 Assessment Resource) ke-merge jadi

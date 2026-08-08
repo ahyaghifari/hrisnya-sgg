@@ -111,9 +111,16 @@
 
                 <div style="max-height:360px;overflow-y:auto;">
                     @forelse ($usersModalUsers as $user)
-                        <div style="padding:8px 0;border-bottom:1px solid var(--border-soft);">
-                            <div style="font-weight:600;font-size:13px;color:var(--text-heading);">{{ $user['name'] }}</div>
-                            <div style="font-size:11.5px;color:var(--text-muted);">{{ $user['email'] }} @if($user['nip']) &middot; NIP {{ $user['nip'] }} @endif</div>
+                        <div wire:key="'usersmodal-'.{{ $user['id'] }}" style="padding:8px 0;border-bottom:1px solid var(--border-soft);display:flex;align-items:center;justify-content:space-between;gap:10px;">
+                            <div>
+                                <div style="font-weight:600;font-size:13px;color:var(--text-heading);">{{ $user['name'] }}</div>
+                                <div style="font-size:11.5px;color:var(--text-muted);">{{ $user['email'] }} @if($user['nip']) &middot; NIP {{ $user['nip'] }} @endif</div>
+                            </div>
+                            @if ($this->canManageUsersModal)
+                                <button type="button" wire:click="removeUserFromRole('{{ $user['id'] }}')" wire:confirm="Lepas role ini dari {{ $user['name'] }}?" class="btn-ghost" style="padding:5px 12px;font-size:11.5px;color:#dc2626;white-space:nowrap;">
+                                    <i class="fa-solid fa-user-minus"></i> Lepas
+                                </button>
+                            @endif
                         </div>
                     @empty
                         <p style="padding:16px 0;text-align:center;color:var(--text-faint);font-size:12.5px;">Belum ada user dengan role ini.</p>

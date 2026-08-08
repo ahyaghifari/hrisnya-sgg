@@ -855,7 +855,9 @@ html.lw-navigating .page-content { opacity: 0; }
 @media (max-width: 639px) {
     .welcome-actions { flex-direction: column; align-items: stretch; width: 100%; }
     .welcome-actions .data-diri-btn { justify-content: center; }
-    .welcome-avatar { width: 40px; height: 40px; }
+    /* Foto profil disembunyikan di mobile (bukan diperkecil) - lebar layar sempit, ruangnya
+       lebih berguna buat nama/meta & tombol aksi (request user). */
+    .welcome-avatar { display: none; }
 }
 
 /* ── ABSENSI CARD ── */
@@ -875,7 +877,9 @@ html.lw-navigating .page-content { opacity: 0; }
     .welcome-name { font-size: 18px; }
     .welcome-meta { font-size: 11.5px; }
     .welcome-qa-label { font-size: 10.5px; }
-    .data-diri-btn { font-size: 11.5px; padding: 6px 12px; border-radius: 10px; gap: 6px; }
+    /* Tombol Data Diri/Admin Panel dibesarkan lagi di mobile (request user) - sisa tombol
+       welcome-card lain (qa-btn dst) tetap dikecilkan seperti sebelumnya. */
+    .data-diri-btn { font-size: 14px; padding: 10px 14px; border-radius: 10px; gap: 6px; }
     .qa-btn-group { gap: 7px; }
     .qa-btn { font-size: 11px; padding: 6px 11px; border-radius: 9px; gap: 6px; }
     .qa-dot { width: 6px; height: 6px; }

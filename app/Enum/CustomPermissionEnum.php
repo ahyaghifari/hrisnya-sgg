@@ -18,6 +18,12 @@ enum CustomPermissionEnum: string
     case SISTEM_LMS = 'sistem_lms';
     case SISTEM_COACHING_COUNSELING = 'sistem_coaching_counseling';
     case SISTEM_PENILAIAN_KARYAWAN = 'sistem_penilaian_karyawan';
+
+    /** Gerbang portal buat permission approve lintas-modul (APPROVE_PENGAJUAN_ABSENSI,
+     * APPROVE_MANAJEMEN_LOWONGAN_KERJA) yang tidak numpang di gerbang SISTEM_* modulnya
+     * masing-masing (2026-08-08, permintaan user - dipisah biar approval bisa didelegasikan
+     * ke role yang bukan pemegang akses penuh modul terkait). */
+    case SISTEM_APPROVAL = 'sistem_approval';
     case TUGAS_SAYA = 'tugas_saya';
     case PELATIHAN_SAYA = 'pelatihan_saya';
     case AJUKAN_PELATIHAN = 'ajukan_pelatihan';
@@ -169,6 +175,7 @@ enum CustomPermissionEnum: string
             self::SISTEM_LMS => 'Sistem LMS',
             self::SISTEM_COACHING_COUNSELING => 'Sistem Coaching & Counseling',
             self::SISTEM_PENILAIAN_KARYAWAN => 'Sistem Penilaian Karyawan',
+            self::SISTEM_APPROVAL => 'Sistem Approval',
             self::TUGAS_SAYA => 'Tugas Saya',
             self::PELATIHAN_SAYA => 'Pelatihan Saya',
             self::AJUKAN_PELATIHAN => 'Ajukan Pelatihan (Eksternal)',
