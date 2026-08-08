@@ -22,7 +22,6 @@ class PayrollCalculatorRegistry
         PayrollComponentEnum::TUNJANGAN_JABATAN->value => TunjanganJabatanCalculator::class,
         PayrollComponentEnum::TUNJANGAN_TRANSPORTASI->value => TunjanganTransportasiCalculator::class,
         PayrollComponentEnum::TUNJANGAN_MASA_KERJA->value => TunjanganMasaKerjaCalculator::class,
-        PayrollComponentEnum::KELEBIHAN_JAM_KERJA->value => KelebihanJamKerjaCalculator::class,
         PayrollComponentEnum::INSENTIF->value => IncentiveCalculator::class,
         PayrollComponentEnum::LEMBUR->value => LemburCalculator::class,
         PayrollComponentEnum::JASA_PELAYANAN->value => JasaPelayananCalculator::class,

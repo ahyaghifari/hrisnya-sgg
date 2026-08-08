@@ -318,11 +318,6 @@
                                 @endif
                             </div>
                         @endif
-
-                        {{-- Kelebihan Jam Kerja — reuse Filament table+action --}}
-                        @if ($activeComponent === 'kelebihan_jam_kerja')
-                            {{ $this->table }}
-                        @endif
                     </div>
                 @endif
             @endif

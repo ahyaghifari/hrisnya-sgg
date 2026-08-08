@@ -23,7 +23,6 @@ enum PayrollComponentEnum: string
     case TUNJANGAN_JABATAN = 'tunjangan_jabatan';
     case TUNJANGAN_TRANSPORTASI = 'tunjangan_transportasi';
     case TUNJANGAN_MASA_KERJA = 'tunjangan_masa_kerja';
-    case KELEBIHAN_JAM_KERJA = 'kelebihan_jam_kerja';
     case INSENTIF = 'insentif';
     case LEMBUR = 'lembur';
     case JASA_PELAYANAN = 'jasa_pelayanan';
@@ -53,7 +52,6 @@ enum PayrollComponentEnum: string
             self::TUNJANGAN_JABATAN,
             self::TUNJANGAN_TRANSPORTASI,
             self::TUNJANGAN_MASA_KERJA,
-            self::KELEBIHAN_JAM_KERJA,
             self::INSENTIF,
             self::LEMBUR,
             self::JASA_PELAYANAN,
@@ -79,7 +77,6 @@ enum PayrollComponentEnum: string
             self::TUNJANGAN_JABATAN => 'Tunjangan Jabatan',
             self::TUNJANGAN_TRANSPORTASI => 'Tunjangan Transportasi',
             self::TUNJANGAN_MASA_KERJA => 'Tunjangan Masa Kerja',
-            self::KELEBIHAN_JAM_KERJA => 'Tunjangan Kelebihan Jam Kerja',
             self::INSENTIF => 'Insentif',
             self::LEMBUR => 'Lembur',
             self::JASA_PELAYANAN => 'Jasa Pelayanan',
@@ -138,7 +135,6 @@ enum PayrollComponentEnum: string
     {
         return match ($this) {
             self::GAJI_POKOK => ['gaji_pokok_kenaikan_per_kelas'],
-            self::KELEBIHAN_JAM_KERJA => ['min_total_working_hours_per_month'],
             self::BPJS_KESEHATAN, self::BPJS_KETENAGAKERJAAN => ['bpjs_declared_value'],
             self::KETERLAMBATAN => ['keterlambatan_threshold_menit', 'keterlambatan_denda', 'keterlambatan_grace_count'],
             self::IZIN_TERLAMBAT_PULANG_CEPAT => ['izin_potongan_flat'],

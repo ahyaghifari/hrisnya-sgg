@@ -4,8 +4,6 @@ namespace App\Livewire\Keuangan;
 
 use App\Enum\CustomPermissionEnum;
 use App\Enum\Payroll\PayrollComponentEnum;
-use App\Filament\Resources\Payroll\ExtraHourAllowances\Schemas\ExtraHourAllowancesForm;
-use App\Filament\Resources\Payroll\ExtraHourAllowances\Tables\ExtraHourAllowancesTable;
 use App\Models\AuditLog;
 use App\Models\Master\Companies;
 use App\Models\Master\Kelas;
@@ -19,20 +17,7 @@ use App\Models\Payroll\LegacyPositionAllowance;
 use App\Models\Payroll\PositionAllowance;
 use App\Models\Payroll\TenureAllowance;
 use App\Models\Payroll\TransportAllowance;
-use App\Models\Shift\ExtraHourAllowanceRules;
-use Closure;
-use Filament\Actions\Action;
-use Filament\Actions\Concerns\InteractsWithActions;
-use Filament\Actions\Contracts\HasActions;
-use Filament\Actions\CreateAction;
-use Filament\Actions\EditAction;
 use Filament\Notifications\Notification;
-use Filament\Schemas\Concerns\InteractsWithSchemas;
-use Filament\Schemas\Contracts\HasSchemas;
-use Filament\Schemas\Schema;
-use Filament\Tables\Concerns\InteractsWithTable;
-use Filament\Tables\Contracts\HasTable;
-use Filament\Tables\Table;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Layout;
@@ -41,8 +26,8 @@ use Livewire\Component;
 /**
  * Satu pintu masuk buat 5 tabel config payroll yang sebelumnya SENGAJA dibiarkan kosong tanpa
  * UI (Fase 0/1/2 — "kerjaan finance lewat UI, bukan migration", lihat
- * planning/2026-07-16-payroll-fase-0-fondasi-data-aman-produksi.md) + 2 komponen yang sudah
- * punya Filament Resource sendiri (Kelebihan Jam Kerja, Lembur), digabung di sini juga biar
+ * planning/2026-07-16-payroll-fase-0-fondasi-data-aman-produksi.md) + Lembur yang sudah
+ * punya Filament Resource sendiri, digabung di sini juga biar
  * 1 pintu masuk lengkap. Struktur: pilih company -> daftar komponen yang AKTIF (toggle ON) di
  * halaman Komponen Gaji untuk company itu -> form spesifik sesuai aturan Calculator masing-masing.
  *
@@ -50,12 +35,8 @@ use Livewire\Component;
  * manapun) tidak muncul di sini — cuma yang punya sumber data pemetaan.
  */
 #[Layout('components.layout', ['title' => 'Mapping Komponen Gaji'])]
-class MappingKomponenGajiPage extends Component implements HasActions, HasSchemas, HasTable
+class MappingKomponenGajiPage extends Component
 {
-    use InteractsWithActions;
-    use InteractsWithSchemas;
-    use InteractsWithTable;
-
     public ?string $companyId = null;
     public ?string $activeComponent = null;
 
@@ -124,7 +105,7 @@ class MappingKomponenGajiPage extends Component implements HasActions, HasSchema
             'tunjangan_masa_kerja' => $this->loadTenure(),
             'lembur' => $this->loadLemburRates(),
             'jasa_pelayanan' => $this->loadOmsetCategories(),
-            default => null, // kelebihan_jam_kerja dirender lewat $this->table()
+            default => null,
         };
     }
 
@@ -180,7 +161,6 @@ class MappingKomponenGajiPage extends Component implements HasActions, HasSchema
             ['key' => 'tunjangan_transportasi', 'label' => 'Tunjangan Transportasi', 'icon' => 'fa-car', 'match' => [PayrollComponentEnum::TUNJANGAN_TRANSPORTASI]],
             ['key' => 'tunjangan_masa_kerja', 'label' => 'Tunjangan Masa Kerja', 'icon' => 'fa-hourglass-half', 'match' => [PayrollComponentEnum::TUNJANGAN_MASA_KERJA]],
             ['key' => 'bpjs', 'label' => 'BPJS (Kesehatan & Ketenagakerjaan)', 'icon' => 'fa-briefcase-medical', 'match' => [PayrollComponentEnum::BPJS_KESEHATAN, PayrollComponentEnum::BPJS_KETENAGAKERJAAN]],
-            ['key' => 'kelebihan_jam_kerja', 'label' => 'Kelebihan Jam Kerja', 'icon' => 'fa-business-time', 'match' => [PayrollComponentEnum::KELEBIHAN_JAM_KERJA]],
             ['key' => 'lembur', 'label' => 'Lembur', 'icon' => 'fa-clock', 'match' => [PayrollComponentEnum::LEMBUR]],
             ['key' => 'jasa_pelayanan', 'label' => 'Jasa Pelayanan', 'icon' => 'fa-hand-holding-medical', 'match' => [PayrollComponentEnum::JASA_PELAYANAN]],
         ];
@@ -586,38 +566,6 @@ class MappingKomponenGajiPage extends Component implements HasActions, HasSchema
         }
 
         $this->notifySaved();
-    }
-
-    // ── Kelebihan Jam Kerja — reuse Filament Form/Table yang sudah ada
-    // (App\Filament\Resources\Payroll\ExtraHourAllowances), sama pola dengan IncentivesPage.php.
-    // modifyQueryUsing dipakai supaya list SELALU mengikuti company yang dipilih di halaman ini,
-    // bukan filter company terpisah di dalam tabelnya sendiri.
-
-    public function table(Table $table): Table
-    {
-        return match ($this->activeComponent) {
-            'kelebihan_jam_kerja' => ExtraHourAllowancesTable::configure($table)
-                ->query(ExtraHourAllowanceRules::query())
-                ->modifyQueryUsing(fn ($query) => $query->where('company_id', $this->companyId))
-                ->headerActions([
-                    CreateAction::make()
-                        ->modalWidth('lg')
-                        ->mutateFormDataUsing(fn (array $data) => [...$data, 'company_id' => $this->companyId]),
-                ]),
-            default => $table->query(CompanyPayrollComponent::query()->whereRaw('1 = 0')),
-        };
-    }
-
-    public function getDefaultActionSchemaResolver(Action $action): ?Closure
-    {
-        if (! ($action instanceof CreateAction || $action instanceof EditAction)) {
-            return null;
-        }
-
-        return match ($this->activeComponent) {
-            'kelebihan_jam_kerja' => fn (Schema $schema): Schema => ExtraHourAllowancesForm::configure($schema),
-            default => null,
-        };
     }
 
     /**
