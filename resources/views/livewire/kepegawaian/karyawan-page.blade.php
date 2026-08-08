@@ -1,7 +1,12 @@
 <div>
 <x-page-header title="Karyawan" subtitle="Data seluruh karyawan perusahaan" />
 
-<div style="display:flex;justify-content:flex-end;margin-bottom:16px;">
+<div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:16px;">
+    @can(\App\Enum\CustomPermissionEnum::IMPORT_KARYAWAN->value)
+        <a href="{{ route('kepegawaian.karyawan.import') }}" wire:navigate class="btn-ghost">
+            <i class="fa-solid fa-file-import"></i> Import Akun
+        </a>
+    @endcan
     <a href="{{ route('kepegawaian.karyawan.create') }}" wire:navigate class="btn-primary">
         <i class="fa-solid fa-user-plus"></i> Tambah Karyawan
     </a>
@@ -88,6 +93,11 @@
                             <button type="button" wire:click="restore('{{ $employee->id }}')" wire:confirm="Pulihkan karyawan ini?" class="btn-ghost" style="padding:5px 9px;font-size:11px;color:var(--brand-success);" title="Pulihkan">
                                 <i class="fa-solid fa-rotate-left"></i>
                             </button>
+                            @can('forceDelete', $employee)
+                                <button type="button" wire:click="forceDeleteEmployee('{{ $employee->id }}')" wire:confirm="Hapus PERMANEN karyawan ini? Data tidak bisa dipulihkan lagi setelah ini." class="btn-ghost" style="padding:5px 9px;font-size:11px;color:#dc2626;" title="Hapus Permanen">
+                                    <i class="fa-solid fa-trash-can"></i>
+                                </button>
+                            @endcan
                         @endif
                     </div>
                 @else
@@ -182,6 +192,11 @@
                                 <button type="button" wire:click="restore('{{ $employee->id }}')" wire:confirm="Pulihkan karyawan ini?" class="btn-ghost" style="padding:5px 10px;font-size:11px;color:var(--brand-success);" title="Pulihkan">
                                     <i class="fa-solid fa-rotate-left"></i>
                                 </button>
+                                @can('forceDelete', $employee)
+                                    <button type="button" wire:click="forceDeleteEmployee('{{ $employee->id }}')" wire:confirm="Hapus PERMANEN karyawan ini? Data tidak bisa dipulihkan lagi setelah ini." class="btn-ghost" style="padding:5px 10px;font-size:11px;color:#dc2626;" title="Hapus Permanen">
+                                        <i class="fa-solid fa-trash-can"></i>
+                                    </button>
+                                @endcan
                             @else
                                 <a href="{{ route('karyawan.show', ['record' => $employee, 'from' => 'karyawan']) }}" wire:navigate class="btn-ghost" style="padding:5px 10px;font-size:11px;" title="Lihat">
                                     <i class="fa-solid fa-chart-bar"></i>

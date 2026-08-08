@@ -71,6 +71,7 @@ class RoleForm
                 CustomPermissionEnum::LIHAT_JOB_EVALUATION->value,
                 CustomPermissionEnum::KELOLA_JOB_EVALUATION->value,
                 CustomPermissionEnum::LIHAT_LAMPIRAN_IDENTITAS_KARYAWAN->value,
+                CustomPermissionEnum::IMPORT_KARYAWAN->value,
             ],
             CustomPermissionEnum::SISTEM_ABSENSI->value => [
                 CustomPermissionEnum::LIHAT_PENGATURAN_ABSENSI->value,

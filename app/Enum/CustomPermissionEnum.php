@@ -41,6 +41,11 @@ enum CustomPermissionEnum: string
     case APPROVE_MANAJEMEN_LOWONGAN_KERJA = 'approve_manajemen_lowongan_kerja';
     case LIHAT_PERUSAHAAN_LAIN = 'lihat_perusahaan_lain';
 
+    /** Import akun dasar karyawan (nama/email/nip saja, lewat halaman
+     * /kepegawaian/karyawan/import) - beda dari Create:User (buat 1 akun manual lewat form)
+     * karena ini operasi massal dengan preview Baru/Berubah/Tidak Ada di File sebelum submit. */
+    case IMPORT_KARYAWAN = 'import_karyawan';
+
     // Gerbang EDIT untuk halaman portal yang modelnya tidak punya Filament Resource/Policy
     // sendiri (config singleton, mapping, dsb) — mount() halamannya cuma cek SISTEM_* (akses
     // baca), permission di bawah ini yang membedakan siapa yang boleh menyimpan/menghapus.
@@ -145,6 +150,15 @@ enum CustomPermissionEnum: string
      * Resource lain di Filament admin. */
     case KELOLA_HAK_AKSES = 'kelola_hak_akses';
 
+    /** Gerbang MASUK ke admin panel Filament (`/admin`) buat role SELAIN "Admin"/"Super Admin"
+     * literal — User::canAccessPanel() cek nama role dulu (jalur utama, hampir semua company
+     * admin lewat sini), permission ini cuma jalur kedua buat kasus khusus (mis. IT Support
+     * yang butuh masuk /admin tanpa dijadikan role "Admin" penuh). TIDAK otomatis dikasih ke
+     * siapa-siapa - role non-Admin/Super-Admin yang belum eksplisit dikasih ini TIDAK bisa
+     * masuk /admin sama sekali (2026-08-08: sebelumnya canAccessPanel() `return true` tanpa
+     * syarat, siapa saja yang login bisa buka /admin - celah ini yang ditutup). */
+    case AKSES_PANEL_ADMIN = 'akses_panel_admin';
+
     public function label(): string
     {
         return match
@@ -167,6 +181,7 @@ enum CustomPermissionEnum: string
             self::APPROVE_PENGAJUAN_PELATIHAN => 'Approve Pengajuan Pelatihan',
             self::APPROVE_MANAJEMEN_LOWONGAN_KERJA => 'Approve Manajemen Lowongan Kerja',
             self::LIHAT_PERUSAHAAN_LAIN => 'Lihat Perusahaan Lain',
+            self::IMPORT_KARYAWAN => 'Import Akun Karyawan',
             self::EDIT_MAPPING_KOMPONEN_GAJI => 'Edit Mapping Komponen Gaji',
             self::EDIT_PENERIMA_KOMPONEN_GAJI => 'Edit Penerima Komponen Gaji',
             self::EDIT_KOMPONEN_GAJI => 'Edit Komponen Gaji',
@@ -197,6 +212,7 @@ enum CustomPermissionEnum: string
             self::GENERATE_PAYROLL => 'Generate/Regenerate Payroll',
             self::LIHAT_LAMPIRAN_IDENTITAS_KARYAWAN => 'Lihat Lampiran Identitas Karyawan (KTP/KK)',
             self::KELOLA_HAK_AKSES => 'Kelola Hak Akses (Portal)',
+            self::AKSES_PANEL_ADMIN => 'Akses Panel Admin (Filament)',
         };
     }
 }

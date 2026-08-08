@@ -164,7 +164,15 @@ class User extends Authenticatable implements FilamentUser
 
     public function canAccessPanel(\Filament\Panel $panel): bool
     {
-        return true;
+        // Jalur utama: role "Admin"/"Super Admin" literal (konvensi nama role project ini,
+        // lihat README). Non-Admin/Super-Admin cuma boleh masuk /admin kalau eksplisit dikasih
+        // permission AKSES_PANEL_ADMIN - bukan otomatis (2026-08-08, sebelumnya method ini
+        // `return true` tanpa syarat sama sekali, siapa saja yang login bisa buka /admin).
+        if ($this->hasRole(['Admin', 'Super Admin'])) {
+            return true;
+        }
+
+        return $this->can(\App\Enum\CustomPermissionEnum::AKSES_PANEL_ADMIN->value);
     }
 
     public function hasSubordinates(): bool

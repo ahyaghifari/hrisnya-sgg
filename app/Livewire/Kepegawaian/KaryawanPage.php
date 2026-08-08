@@ -181,6 +181,38 @@ class KaryawanPage extends Component
         $employee->update(['is_active' => true]);
     }
 
+    /** Hapus PERMANEN karyawan yang sudah di-arsip (soft-deleted) - beda dari restore()/
+     * activate(), tidak bisa dipulihkan lagi setelah ini. Digerbangi permission terpisah
+     * (ForceDelete:User) dari Delete:User biasa (soft-delete) - role yang boleh hapus biasa
+     * belum tentu boleh hapus permanen. */
+    public function forceDeleteEmployee(string $id): void
+    {
+        $employee = User::onlyTrashed()->findOrFail($id);
+
+        abort_unless(
+            PermissionHelper::hasGlobalRole(Auth::user()) || $employee->company_id === Auth::user()->company_id,
+            403
+        );
+        abort_unless(Auth::user()->can('forceDelete', User::class), 403);
+
+        try {
+            $employee->forceDelete();
+        } catch (\Illuminate\Database\QueryException $e) {
+            \Filament\Notifications\Notification::make()
+                ->title('Tidak bisa dihapus permanen')
+                ->body('Karyawan ini masih punya data terkait (presensi, payroll, dll) yang mengunci penghapusan.')
+                ->danger()
+                ->send();
+
+            return;
+        }
+
+        \Filament\Notifications\Notification::make()
+            ->title('Karyawan berhasil dihapus permanen')
+            ->success()
+            ->send();
+    }
+
     public function render()
     {
         return view('livewire.kepegawaian.karyawan-page', [
