@@ -28,6 +28,10 @@ class RolesPage extends Component
     public ?string $formName = null;
     public ?string $formCompanyId = null;
 
+    public bool $showUsersModal = false;
+    public ?string $usersModalRoleName = null;
+    public array $usersModalUsers = [];
+
     public function mount(): void
     {
         abort_unless(Auth::user()->can('viewAny', Role::class), 403);
@@ -102,6 +106,22 @@ class RolesPage extends Component
     public function closeFormModal(): void
     {
         $this->showFormModal = false;
+    }
+
+    public function openUsersModal(string $id): void
+    {
+        $role = Role::findOrFail($id);
+
+        abort_unless(Auth::user()->can('view', $role), 403);
+
+        $this->usersModalRoleName = $role->name;
+        $this->usersModalUsers = $role->users()->orderBy('name')->get(['name', 'email', 'nip'])->toArray();
+        $this->showUsersModal = true;
+    }
+
+    public function closeUsersModal(): void
+    {
+        $this->showUsersModal = false;
     }
 
     public function saveForm(): void

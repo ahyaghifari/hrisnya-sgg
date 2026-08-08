@@ -30,6 +30,11 @@
                             <td style="padding:9px 14px;text-align:center;white-space:nowrap;">{{ $role->permissions_count }}</td>
                             <td style="padding:9px 14px;text-align:center;white-space:nowrap;">
                                 <div style="display:inline-flex;gap:6px;">
+                                    @can('view', $role)
+                                        <button type="button" wire:click="openUsersModal('{{ $role->id }}')" class="btn-ghost" style="padding:5px 12px;font-size:11.5px;">
+                                            <i class="fa-solid fa-users"></i> Lihat User
+                                        </button>
+                                    @endcan
                                     @if (! in_array($role->name, ['super_admin', 'Super Admin'], true))
                                         @can('update', $role)
                                             <button type="button" wire:click="openEditModal('{{ $role->id }}')" class="btn-ghost" style="padding:5px 12px;font-size:11.5px;">
@@ -92,6 +97,31 @@
                 <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px;">
                     <button type="button" wire:click="closeFormModal" class="btn-ghost">Batal</button>
                     <button type="button" wire:click="saveForm" class="btn-primary">Simpan</button>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    @if ($showUsersModal)
+        <div class="modal-overlay" wire:click="closeUsersModal">
+            <div class="modal-box" onclick="event.stopPropagation()">
+                <h3 style="font-size:16px;font-weight:700;color:var(--text-heading);margin:0 0 14px;">
+                    User dengan Role "{{ $usersModalRoleName }}" ({{ count($usersModalUsers) }})
+                </h3>
+
+                <div style="max-height:360px;overflow-y:auto;">
+                    @forelse ($usersModalUsers as $user)
+                        <div style="padding:8px 0;border-bottom:1px solid var(--border-soft);">
+                            <div style="font-weight:600;font-size:13px;color:var(--text-heading);">{{ $user['name'] }}</div>
+                            <div style="font-size:11.5px;color:var(--text-muted);">{{ $user['email'] }} @if($user['nip']) &middot; NIP {{ $user['nip'] }} @endif</div>
+                        </div>
+                    @empty
+                        <p style="padding:16px 0;text-align:center;color:var(--text-faint);font-size:12.5px;">Belum ada user dengan role ini.</p>
+                    @endforelse
+                </div>
+
+                <div style="display:flex;justify-content:flex-end;margin-top:16px;">
+                    <button type="button" wire:click="closeUsersModal" class="btn-ghost">Tutup</button>
                 </div>
             </div>
         </div>

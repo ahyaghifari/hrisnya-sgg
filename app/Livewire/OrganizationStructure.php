@@ -2,7 +2,6 @@
 
 namespace App\Livewire;
 
-use App\Filament\Resources\Master\JobPositions\JobPositionResource;
 use App\Models\Master\Companies;
 use App\Models\Master\JobPositions;
 use Illuminate\Support\Facades\Auth;
@@ -27,11 +26,6 @@ class OrganizationStructure extends Component
     {
         $this->selectedJobId = $jobId;
         $this->selectedJobDetail = JobPositions::with(['orgStructure', 'parent', 'children', 'pangkat', 'kelas', 'userAssignments.user'])->find($jobId);
-    }
-
-    public function editJob(string $jobId): void
-    {
-        redirect()->to(JobPositionResource::getUrl('edit', ['record' => $jobId]));
     }
 
     public function getCompanyOptionsProperty()

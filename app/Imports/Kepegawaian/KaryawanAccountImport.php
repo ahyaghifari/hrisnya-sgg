@@ -157,13 +157,15 @@ class KaryawanAccountImport implements ToCollection, WithHeadingRow
     }
 
     /** !{2 huruf inisial}{nip}# - inisial sama persis pola yang dipakai avatar di seluruh app
-     * (2 huruf pertama tiap kata nama, diambil dari 2 kata pertama). */
+     * (2 huruf pertama tiap kata nama, diambil dari 2 kata pertama). Kalau nama cuma 1 kata,
+     * ambil 2 huruf pertama dari kata itu (bukan cuma 1 huruf). */
     public static function generatePassword(string $name, string $nip): string
     {
-        $initials = collect(preg_split('/\s+/', trim($name)))
-            ->map(fn ($word) => mb_substr($word, 0, 1))
-            ->take(2)
-            ->implode('');
+        $words = preg_split('/\s+/', trim($name));
+
+        $initials = count($words) === 1
+            ? mb_substr($words[0], 0, 2)
+            : collect($words)->map(fn ($word) => mb_substr($word, 0, 1))->take(2)->implode('');
 
         return '!' . strtoupper($initials) . $nip . '#';
     }
