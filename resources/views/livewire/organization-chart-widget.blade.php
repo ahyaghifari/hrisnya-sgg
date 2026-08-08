@@ -1,7 +1,7 @@
 <div>
 @if ($this->company)
 <x-filament::section>
-    <div class="org-zoom-viewport relative w-full rounded-xl border border-gray-200 bg-gray-50/50 overflow-hidden" style="height: 70vh;" data-scale="0.5" data-pan-x="0" data-pan-y="0">
+    <div class="org-zoom-viewport relative w-full rounded-xl border border-gray-200 bg-gray-50/50 overflow-hidden" style="height: 70vh;" data-scale="0.5" data-pan-x="0" data-pan-y="0" data-company-name="{{ $this->company->name }}">
         <div class="org-zoom-toolbar absolute top-3 right-3 z-20 flex items-center gap-1 bg-white rounded-lg shadow-md border border-gray-200 p-1">
             <button type="button" class="org-zoom-btn" data-zoom-action="out" title="Perkecil">
                 <x-heroicon-m-minus class="w-4 h-4" />
@@ -13,6 +13,13 @@
             <div class="w-px h-5 bg-gray-200 mx-0.5"></div>
             <button type="button" class="org-zoom-btn" data-zoom-action="reset" title="Reset tampilan">
                 <x-heroicon-m-arrows-pointing-out class="w-4 h-4" />
+            </button>
+            <div class="w-px h-5 bg-gray-200 mx-0.5"></div>
+            <button type="button" class="org-zoom-btn" data-export-action="image" title="Export sebagai Gambar (PNG)">
+                <x-heroicon-m-photo class="w-4 h-4" />
+            </button>
+            <button type="button" class="org-zoom-btn" data-export-action="pdf" title="Export sebagai PDF (Landscape)">
+                <x-heroicon-m-document-arrow-down class="w-4 h-4" />
             </button>
         </div>
 
@@ -89,6 +96,11 @@
     background-color: #f3f4f6;
     color: #111827;
 }
+.org-zoom-btn:disabled {
+    opacity: 0.4;
+    cursor: wait;
+    pointer-events: none;
+}
 .org-zoom-pan.is-panning {
     cursor: grabbing;
 }
@@ -123,6 +135,16 @@
     }
 }
 </style>
+
+{{-- html2canvas-pro (BUKAN html2canvas biasa) + jsPDF (CDN, tanpa npm build) — dipakai cuma
+     buat tombol export Gambar/PDF di bawah, sama pola Trix di form Bank Soal (lihat DESIGN.md).
+     html2canvas-pro (fork terawat) wajib dipakai, bukan html2canvas original - project ini
+     Tailwind v4 yang default-nya pakai fungsi warna oklch()/color-mix(), html2canvas original
+     `throw` begitu ketemu computed style oklch (tidak didukung), bikin capture gagal total
+     tanpa pesan error apapun ke user (2026-08-08). TANPA defer/async: harus siap sebelum
+     tombol export bisa diklik, chart-nya sendiri kecil jadi tidak masalah blocking. --}}
+<script src="https://cdn.jsdelivr.net/npm/html2canvas-pro@1.5.8/dist/html2canvas-pro.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
@@ -199,8 +221,12 @@ document.addEventListener('DOMContentLoaded', function() {
         };
     }
 
+    function clampScale(scale) {
+        return Math.min(Math.max(scale, 0.05), 2);
+    }
+
     function applyState(viewport, state) {
-        state.scale = Math.min(Math.max(state.scale, 0.05), 2);
+        state.scale = clampScale(state.scale);
         viewport.dataset.scale = state.scale;
         viewport.dataset.panX = state.panX;
         viewport.dataset.panY = state.panY;
@@ -220,6 +246,23 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+    // Zoom yang menjaga titik (pointX, pointY) - koordinat relatif viewport (bukan layar) -
+    // tetap di posisi layar yang sama sebelum & sesudah scale berubah. Dipakai dua tempat:
+    // tombol toolbar (titik tengah viewport) dan scroll wheel (posisi kursor).
+    function zoomAtPoint(viewport, state, pointX, pointY, newScale) {
+        newScale = clampScale(newScale);
+        const oldScale = state.scale;
+
+        const contentX = (pointX - state.panX) / oldScale;
+        const contentY = (pointY - state.panY) / oldScale;
+
+        state.panX = pointX - contentX * newScale;
+        state.panY = pointY - contentY * newScale;
+        state.scale = newScale;
+
+        return state;
+    }
+
     document.addEventListener('click', function (e) {
         const btn = e.target.closest('.org-zoom-btn');
         if (!btn) return;
@@ -229,12 +272,26 @@ document.addEventListener('DOMContentLoaded', function() {
         const state = getState(viewport);
         const action = btn.dataset.zoomAction;
 
-        if (action === 'in') state.scale += 0.15;
-        else if (action === 'out') state.scale -= 0.15;
-        else if (action === 'reset') {
+        if (action === 'reset') {
             state.scale = 0.5;
             state.panX = 0;
             state.panY = 0;
+        } else {
+            const chart = viewport.querySelector('.org-chart-container');
+            const delta = action === 'in' ? 0.08 : -0.08;
+
+            if (chart) {
+                // Titik tengah STRUKTUR (bukan tengah viewport) - offsetWidth/Height itu ukuran
+                // asli sebelum di-scale, jadi (lebar/2, tinggi/2) selalu titik tengah konten
+                // di ruang konten. Diproyeksikan ke koordinat layar pakai pan/scale saat ini,
+                // supaya tetap "tengah struktur" walau user sudah geser-geser (pan).
+                const centerScreenX = state.panX + (chart.offsetWidth / 2) * state.scale;
+                const centerScreenY = state.panY + (chart.offsetHeight / 2) * state.scale;
+
+                zoomAtPoint(viewport, state, centerScreenX, centerScreenY, state.scale + delta);
+            } else {
+                state.scale = clampScale(state.scale + delta);
+            }
         }
 
         applyState(viewport, state);
@@ -246,7 +303,15 @@ document.addEventListener('DOMContentLoaded', function() {
 
         e.preventDefault();
         const state = getState(viewport);
-        state.scale += e.deltaY < 0 ? 0.08 : -0.08;
+
+        // Zoom ke posisi kursor, bukan ke transform-origin (0 0 / pojok kiri-atas).
+        const rect = viewport.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+        const delta = e.deltaY < 0 ? 0.04 : -0.04;
+
+        zoomAtPoint(viewport, state, mouseX, mouseY, state.scale + delta);
+
         applyState(viewport, state);
     }, { passive: false });
 
@@ -282,6 +347,92 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!drag) return;
         drag.pan.classList.remove('is-panning');
         drag = null;
+    });
+
+    /**
+     * Export .org-chart-container APA ADANYA (bukan viewport yang overflow:hidden) - jadi
+     * seluruh struktur ke-capture penuh, bukan cuma bagian yang lagi kelihatan. Transform
+     * di-reset ke scale(1) dulu sebelum capture (posisi garis penghubung dihitung dari
+     * getBoundingClientRect() screen-space, jadi harus digambar ulang di scale 1 juga - lihat
+     * drawOrgChartConnections()), lalu dikembalikan ke tampilan semula setelah selesai.
+     */
+    async function exportChart(viewport, format) {
+        const chart = viewport.querySelector('.org-chart-container');
+        if (!chart) return;
+
+        // html2canvas-pro dimuat lewat <script src> tanpa defer, harusnya sudah siap duluan -
+        // tapi kalau CDN-nya gagal/lambat, gagal diam-diam itu persis yang bikin tombol
+        // "kelihatan tidak ngapa-ngapain" (2026-08-08) - kasih tahu user eksplisit.
+        if (typeof html2canvas === 'undefined' || (format === 'pdf' && typeof window.jspdf === 'undefined')) {
+            alert('Library export belum siap dimuat, coba refresh halaman lalu ulangi.');
+            return;
+        }
+
+        const exportBtn = viewport.querySelector(`[data-export-action="${format}"]`);
+        if (exportBtn) exportBtn.disabled = true;
+
+        const originalTransform = chart.style.transform;
+
+        try {
+            chart.style.transition = 'none';
+            chart.style.transform = 'scale(1)';
+            if (window.__drawOrgChartConnections) window.__drawOrgChartConnections();
+
+            // 2 frame biar browser sempat reflow sebelum di-capture (kalau langsung capture,
+            // kadang masih kepotret di transform lama).
+            await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+
+            const canvas = await html2canvas(chart, { backgroundColor: '#ffffff', scale: 2, useCORS: true });
+
+            const companyName = (viewport.dataset.companyName || 'struktur-organisasi')
+                .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+            const filename = `struktur-organisasi-${companyName}-${new Date().toISOString().slice(0, 10)}`;
+
+            if (format === 'image') {
+                const link = document.createElement('a');
+                link.download = `${filename}.png`;
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+            } else {
+                const { jsPDF } = window.jspdf;
+                const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+                const pageWidth = pdf.internal.pageSize.getWidth();
+                const pageHeight = pdf.internal.pageSize.getHeight();
+                const margin = 10;
+
+                const imgRatio = canvas.width / canvas.height;
+                let imgWidth = pageWidth - margin * 2;
+                let imgHeight = imgWidth / imgRatio;
+                if (imgHeight > pageHeight - margin * 2) {
+                    imgHeight = pageHeight - margin * 2;
+                    imgWidth = imgHeight * imgRatio;
+                }
+
+                pdf.addImage(
+                    canvas.toDataURL('image/png'), 'PNG',
+                    (pageWidth - imgWidth) / 2, (pageHeight - imgHeight) / 2,
+                    imgWidth, imgHeight
+                );
+                pdf.save(`${filename}.pdf`);
+            }
+        } catch (err) {
+            console.error('Gagal export struktur organisasi:', err);
+            alert('Gagal export struktur organisasi: ' + (err?.message || err));
+        } finally {
+            chart.style.transition = '';
+            chart.style.transform = originalTransform;
+            if (window.__drawOrgChartConnections) window.__drawOrgChartConnections();
+            if (exportBtn) exportBtn.disabled = false;
+        }
+    }
+
+    document.addEventListener('click', function (e) {
+        const btn = e.target.closest('[data-export-action]');
+        if (!btn) return;
+        const viewport = getViewport(btn);
+        if (!viewport) return;
+
+        exportChart(viewport, btn.dataset.exportAction);
     });
 })();
 </script>

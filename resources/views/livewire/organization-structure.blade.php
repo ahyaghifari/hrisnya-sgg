@@ -2,8 +2,8 @@
 <x-page-header title="Struktur Organisasi" />
 
     <div class="mb-6 max-w-sm">
-        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Pilih Perusahaan</label>
-        <select wire:model.live="companyId" class="w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-slate-400 focus:ring-slate-400">
+        <label class="form-label">Pilih Perusahaan</label>
+        <select wire:model.live="companyId" class="form-input">
             <option value="">Pilih perusahaan...</option>
             @foreach ($this->companyOptions as $id => $name)
                 <option value="{{ $id }}">{{ $name }}</option>
