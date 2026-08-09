@@ -40,6 +40,22 @@ class ManPowerReqService
         return $manpowerRequest;
     }
 
+    /** Lanjutkan draft yang sudah ada (bukan bikin baris baru) - dipakai halaman yang bisa
+     * "ketemu draft lama, tinggal diisi" (mis. CreateJabatanQuotaPage). */
+    public function updateDraft(ManpowerRequests $manpowerRequest, array $data, bool $submit): ManpowerRequests
+    {
+        $data['status'] = $submit ? JobPositionReqStatus::REQUESTED->value : JobPositionReqStatus::DRAFT->value;
+
+        $this->manpowerReqRepository->update($manpowerRequest, $data);
+        $manpowerRequest->refresh();
+
+        if ($submit) {
+            $this->requestManPower($manpowerRequest);
+        }
+
+        return $manpowerRequest;
+    }
+
     /** Jaga-jaga snapshot belum terbuat (draft yang baru diajukan ulang) + sinkronkan step kalau
      * master flow berubah selagi masih requested — pola sama dengan UserTransitionService. */
     public function ensureApprovalSnapshot(ManpowerRequests $manpowerRequests): void
@@ -98,17 +114,42 @@ class ManPowerReqService
         return $manpowerRequests;
     }
 
+    /**
+     * Efek nyata (nambah actual_manpower / bikin JobOpening) & status APPROVED cuma boleh
+     * terjadi saat step approval yang BENERAN terakhir - bukan tiap kali ada yang klik Setuju
+     * (2026-08-09, sebelumnya dua-duanya dieksekusi unconditionally di awal method, sebelum
+     * advanceStep() sempat nentuin ini step terakhir atau bukan. Akibatnya: flow 2 step, approve
+     * step 1 sudah bikin JobOpening + set status=approved padahal masih nunggu step 2 - approver
+     * step 2 jadi tidak lihat tombol Setuju karena getCanApproveProperty() cek status===requested,
+     * dan kalau step 2 tetap di-approve bakal bikin JobOpening DUPLIKAT).
+     */
     public function approveManPower(
-        ManpowerRequests $manpowerRequests, 
+        ManpowerRequests $manpowerRequests,
         string $status,
         string $note
     ): object
     {
         $userId = Auth::user()->id;
+
+        $snapshot = ApprovalSnapshots::find($manpowerRequests->approvalSnapshot->id);
+
+        $this->approvalFlowService->advanceStep(
+            snapshot: $snapshot,
+            actorId: $userId,
+            note: $note,
+            action: $status,
+        );
+
+        $isFinalStep = $snapshot->refresh()->status === JobPositionReqStatus::APPROVED->value;
+
+        if (! $isFinalStep) {
+            return $manpowerRequests;
+        }
+
         $jobPosition = $this->jobPositionRepo->findJobPositionById($manpowerRequests->job_position_id);
 
         if ($manpowerRequests->type === ManpowerRequestType::ADDITIONAL_QUOTA->value) {
-            $jobPosition = $this->jobPositionRepo->update($jobPosition, [
+            $this->jobPositionRepo->update($jobPosition, [
                 'actual_manpower' => $jobPosition->actual_manpower + $manpowerRequests->quantity,
             ]);
         } else if ($manpowerRequests->type === ManpowerRequestType::ADDITIONAL_EMPLOYEE->value || $manpowerRequests->type === ManpowerRequestType::EMPLOYEE_REPLACEMENT->value) {
@@ -121,15 +162,6 @@ class ManPowerReqService
                 'requirements' => $jobPosition->qualification,
             ]);
         }
-
-        $this->approvalFlowService->advanceStep(
-            snapshot: ApprovalSnapshots::find(
-                $manpowerRequests->approvalSnapshot->id
-            ),
-            actorId: $userId,
-            note: $note,
-            action: $status,
-        );
 
         $this->manpowerReqRepository->update($manpowerRequests, [
             'status' => $status

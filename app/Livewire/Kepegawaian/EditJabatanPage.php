@@ -14,6 +14,9 @@ use Livewire\WithFileUploads;
  * Edit Jabatan portal - padanan EditJobPosition admin. Field terkunci total begitu status
  * bukan lagi draft (getIsLockedProperty(), lihat HasJabatanForm) - pengajuan yang sudah
  * diajukan/disetujui/ditolak tidak boleh diam-diam diubah lewat sini, cuma bisa dilihat.
+ * Kuota (planned_manpower) juga cuma bisa diisi saat pengajuan baru (lihat
+ * jabatan-form-fields.blade.php) - TIDAK bisa diedit lewat sini sama sekali, perubahan kuota
+ * cuma lewat tombol "Ajukan Penambahan Kuota" di tabel Jabatan (JabatanPage).
  */
 #[Layout('components.layout', ['title' => 'Edit Jabatan'])]
 class EditJabatanPage extends Component

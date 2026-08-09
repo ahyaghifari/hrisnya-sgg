@@ -1,5 +1,5 @@
 <div>
-<x-page-header title="Permintaan Tenaga Kerja" subtitle="Penambahan kuota, karyawan, dan penggantian karyawan" />
+<x-page-header title="Permintaan Tenaga Kerja" subtitle="Penambahan karyawan dan penggantian karyawan" />
 
 @if ($this->canCreate)
     <div style="display:flex;justify-content:flex-end;margin-bottom:16px;">
@@ -63,7 +63,7 @@
                             $type = \App\Enum\ManpowerRequestType::from($req->type);
                             $typeBadge = $type === \App\Enum\ManpowerRequestType::ADDITIONAL_QUOTA ? 'badge-info' : 'badge-cancelled';
                         @endphp
-                        <a href="{{ route('kepegawaian.permintaan.show', $req) }}" wire:navigate class="pwa-list-row" style="text-decoration:none;">
+                        <a href="{{ $req->status === 'draft' ? route('kepegawaian.permintaan.create', $req) : route('kepegawaian.permintaan.show', $req) }}" wire:navigate class="pwa-list-row" style="text-decoration:none;">
                             <div class="pwa-tile-icon neutral"><i class="fa-solid fa-right-left"></i></div>
                             <div style="flex:1;min-width:0;">
                                 <p style="font-size:13px;font-weight:600;color:var(--text-heading);">{{ $req->jobPosition?->name ?? '-' }}</p>
@@ -122,7 +122,7 @@
                                 <td style="padding:9px 14px;text-align:center;white-space:nowrap;">{{ $req->quantity }}</td>
                                 <td style="padding:9px 14px;text-align:center;white-space:nowrap;"><span class="badge {{ $badge }}">{{ $status?->label() ?? $req->status }}</span></td>
                                 <td style="padding:9px 14px;text-align:center;white-space:nowrap;">
-                                    <a href="{{ route('kepegawaian.permintaan.show', $req) }}" wire:navigate class="btn-ghost" style="padding:5px 10px;font-size:11px;" title="Lihat"><i class="fa-solid fa-arrow-right"></i></a>
+                                    <a href="{{ $req->status === 'draft' ? route('kepegawaian.permintaan.create', $req) : route('kepegawaian.permintaan.show', $req) }}" wire:navigate class="btn-ghost" style="padding:5px 10px;font-size:11px;" title="{{ $req->status === 'draft' ? 'Lanjutkan' : 'Lihat' }}"><i class="fa-solid {{ $req->status === 'draft' ? 'fa-pen' : 'fa-arrow-right' }}"></i></a>
                                 </td>
                             </tr>
                         @endforeach

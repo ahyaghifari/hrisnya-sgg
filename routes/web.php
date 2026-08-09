@@ -235,6 +235,9 @@ Route::middleware(['auth', 'portal.access'])->group(function () {
     Route::get('/kepegawaian/jabatan/{record}/edit', \App\Livewire\Kepegawaian\EditJabatanPage::class)
         ->name('kepegawaian.jabatan.edit');
 
+    Route::get('/kepegawaian/jabatan/{record}/tambah-kuota', \App\Livewire\Kepegawaian\CreateJabatanQuotaPage::class)
+        ->name('kepegawaian.jabatan.tambah-kuota');
+
     Route::get('/kepegawaian/job-evaluation', \App\Livewire\Kepegawaian\JobEvaluationPage::class)
         ->name('kepegawaian.job-evaluation');
 
@@ -481,7 +484,7 @@ Route::middleware(['auth', 'portal.access'])->group(function () {
     Route::get('/kepegawaian/permintaan', ManpowerRequestsPage::class)
         ->name('kepegawaian.permintaan');
 
-    Route::get('/kepegawaian/permintaan/tambah', CreateManpowerRequestPage::class)
+    Route::get('/kepegawaian/permintaan/tambah/{draft?}', CreateManpowerRequestPage::class)
         ->name('kepegawaian.permintaan.create');
 
     Route::get('/kepegawaian/permintaan/{record}', ManpowerRequestDetailPage::class)

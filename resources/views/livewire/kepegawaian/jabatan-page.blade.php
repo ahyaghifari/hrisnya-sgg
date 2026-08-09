@@ -56,12 +56,17 @@
                     <tr>
                         <td style="font-weight:600;color:var(--text-heading);white-space:nowrap;">{{ $row->name }}</td>
                         <td>{{ $row->orgStructure?->name ?? '-' }}</td>
-                        <td style="text-align:center;">{{ $row->planned_manpower ?? 0 }}</td>
+                        <td style="text-align:center;">{{ $row->actual_manpower ?? 0 }}</td>
                         <td style="text-align:center;">{{ $row->user_assignments_count }}</td>
                         <td style="text-align:center;"><span class="badge {{ $badge }}">{{ ucfirst($row->status) }}</span></td>
                         <td style="text-align:center;white-space:nowrap;">
                             <a href="{{ route('kepegawaian.jabatan.edit', $row) }}" wire:navigate class="btn-ghost" style="padding:5px 10px;font-size:11px;" title="Lihat/Edit"><i class="fa-solid fa-pen"></i></a>
                             <button type="button" wire:click="openHistory('{{ $row->id }}')" class="btn-ghost" style="padding:5px 10px;font-size:11px;" title="Riwayat"><i class="fa-solid fa-clock-rotate-left"></i></button>
+                            @if ($row->status === 'approved')
+                                @can('Create:ManpowerRequests')
+                                    <a href="{{ route('kepegawaian.jabatan.tambah-kuota', $row) }}" wire:navigate class="btn-ghost" style="padding:5px 10px;font-size:11px;" title="Ajukan Penambahan Kuota"><i class="fa-solid fa-square-plus"></i></a>
+                                @endcan
+                            @endif
                         </td>
                     </tr>
                 @empty

@@ -102,7 +102,7 @@
         <div class="section-icon"><i class="fa-solid fa-scale-balanced" style="color:var(--brand);font-size:12px;"></i></div>
         <span class="section-title">Job Evaluation</span>
     </div>
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;">
+    <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;">
         <div>
             <label class="form-label">Pangkat</label>
             <select wire:model.live="pangkat_id" class="form-input" @disabled($disabled || ! $company_id)>

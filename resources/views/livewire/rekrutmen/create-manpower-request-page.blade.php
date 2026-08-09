@@ -1,5 +1,12 @@
 <div>
-<x-page-header title="Ajukan Permintaan Tenaga Kerja" subtitle="Penambahan kuota, karyawan, atau penggantian karyawan" :back="route('kepegawaian.permintaan')" />
+<x-page-header title="Ajukan Permintaan Tenaga Kerja" subtitle="Penambahan karyawan atau penggantian karyawan" :back="route('kepegawaian.permintaan')" />
+
+@if ($draft)
+    <div style="background:var(--warning-soft-bg,rgba(217,119,6,0.1));border:1px solid var(--warning-soft-border,rgba(217,119,6,0.3));border-radius:12px;padding:12px 16px;margin-bottom:16px;display:flex;align-items:center;gap:10px;">
+        <i class="fa-solid fa-file-circle-exclamation" style="color:#d97706;"></i>
+        <p style="font-size:12.5px;color:var(--text-body);margin:0;">Ada draft permintaan yang belum diajukan — lanjutkan isian di bawah.</p>
+    </div>
+@endif
 
 <form wire:submit="submit">
     <div class="form-card">
@@ -22,10 +29,10 @@
 
             <div>
                 <label class="form-label">Tipe Permintaan <span style="color:var(--danger-text);">*</span></label>
-                <select wire:model="type" class="form-input">
+                <select wire:model.live="type" class="form-input">
                     <option value="">Pilih tipe permintaan</option>
-                    @foreach (\App\Enum\ManpowerRequestType::cases() as $requestType)
-                        <option value="{{ $requestType->value }}">{{ $requestType->getLabel() }}</option>
+                    @foreach ($this->typeOptions as $value => $label)
+                        <option value="{{ $value }}">{{ $label }}</option>
                     @endforeach
                 </select>
                 @error('type') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
@@ -33,20 +40,23 @@
 
             <div>
                 <label class="form-label">Jabatan <span style="color:var(--danger-text);">*</span></label>
-                <select wire:model.live="job_position_id" class="form-input" @disabled(! $companyId)>
+                <select wire:model.live="job_position_id" class="form-input" @disabled(! $companyId || ! $type)>
                     <option value="">Pilih jabatan</option>
                     @foreach ($this->jobPositionOptions as $id => $name)
                         <option value="{{ $id }}">{{ $name }}</option>
                     @endforeach
                 </select>
+                @if ($type === \App\Enum\ManpowerRequestType::ADDITIONAL_EMPLOYEE->value)
+                    <p style="font-size:11px;color:var(--text-muted);margin-top:4px;">Cuma jabatan berstatus approved yang kekurangan orang (kuota &gt; karyawan terisi) yang muncul.</p>
+                @endif
                 @error('job_position_id') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
             </div>
 
             <div>
                 <label class="form-label">Jumlah <span style="color:var(--danger-text);">*</span></label>
-                <input type="number" wire:model="quantity" min="1" class="form-input">
-                @if ($job_position_id)
-                    <p style="font-size:11px;color:var(--text-muted);margin-top:4px;">Kuota tersedia: {{ $this->availableQuota }}</p>
+                <input type="number" wire:model="quantity" min="1" class="form-input" @disabled($type === \App\Enum\ManpowerRequestType::ADDITIONAL_EMPLOYEE->value)>
+                @if ($type === \App\Enum\ManpowerRequestType::ADDITIONAL_EMPLOYEE->value && $job_position_id)
+                    <p style="font-size:11px;color:var(--text-muted);margin-top:4px;">Terkunci sesuai kekurangan kuota jabatan ini ({{ $this->availableQuota }}).</p>
                 @endif
                 @error('quantity') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
             </div>
@@ -62,6 +72,11 @@
                 <input type="file" wire:model="file" class="form-input">
                 @error('file') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
                 <div wire:loading wire:target="file" style="font-size:11px;color:var(--text-muted);margin-top:4px;">Mengunggah...</div>
+                @if ($draft?->file_path)
+                    <a href="{{ \Illuminate\Support\Facades\Storage::url($draft->file_path) }}" target="_blank" style="font-size:11.5px;color:var(--brand);margin-top:6px;display:inline-block;">
+                        <i class="fa-solid fa-paperclip"></i> Lihat lampiran draft saat ini
+                    </a>
+                @endif
             </div>
         </div>
     </div>
@@ -69,6 +84,9 @@
     <div style="display:flex;align-items:center;justify-content:space-between;margin-top:20px;gap:12px;flex-wrap:wrap;">
         <a href="{{ route('kepegawaian.permintaan') }}" wire:navigate class="btn-ghost"><i class="fa-solid fa-arrow-left" style="font-size:12px;"></i> Kembali</a>
         <div style="display:flex;gap:10px;">
+            @if ($draft)
+                <button type="button" wire:click="discardDraft" wire:confirm="Batalkan draft permintaan ini? Draft akan dihapus." class="btn-ghost" style="color:var(--danger-text);border-color:var(--danger-soft-border);"><i class="fa-solid fa-trash" style="font-size:12px;"></i> Batalkan</button>
+            @endif
             <button type="button" wire:click="saveDraft" class="btn-ghost"><i class="fa-solid fa-floppy-disk" style="font-size:12px;"></i> Simpan Draft</button>
             <button type="submit" class="btn-primary"><i class="fa-solid fa-paper-plane" style="font-size:12px;"></i> Ajukan</button>
         </div>

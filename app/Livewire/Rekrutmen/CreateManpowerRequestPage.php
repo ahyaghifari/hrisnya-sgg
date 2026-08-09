@@ -2,7 +2,9 @@
 
 namespace App\Livewire\Rekrutmen;
 
+use App\Enum\JobPositionReqStatus;
 use App\Enum\ManpowerRequestType;
+use App\Models\Job\ManpowerRequests;
 use App\Models\Master\Companies;
 use App\Models\Master\JobPositions;
 use App\Services\JobPosition\ManPowerReqService;
@@ -12,20 +14,12 @@ use Livewire\Attributes\Layout;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 
-/**
- * Form Ajukan Permintaan Tenaga Kerja — padanan CreateManpowerRequest admin. Beda dari admin:
- * `job_position_id` difilter per company (bug lintas company di admin, lihat
- * planning/eager-pondering-turtle.md), dan 2 tombol aksi eksplisit (submit / simpan draft).
- *
- * Tipe permintaan (Penambahan Kuota/Penambahan Karyawan/Penggantian Karyawan) dipilih
- * langsung lewat 1 select "Tipe Permintaan" - sebelumnya digerbangi query param `?tab=` yang
- * cuma bisa dicapai dari link tertentu di halaman list, ketauan bikin 2 tipe lain jadi
- * "tidak pernah muncul" begitu link listnya berubah (2026-08-07).
- */
 #[Layout('components.layout', ['title' => 'Ajukan Permintaan Tenaga Kerja'])]
 class CreateManpowerRequestPage extends Component
 {
     use WithFileUploads;
+
+    public ?ManpowerRequests $draft = null;
 
     public ?string $companyId = null;
     public ?string $job_position_id = null;
@@ -34,9 +28,23 @@ class CreateManpowerRequestPage extends Component
     public string $notes = '';
     public $file = null;
 
-    public function mount(): void
+    public function mount(?ManpowerRequests $draft = null): void
     {
         abort_unless(Auth::user()->can('Create:ManpowerRequests'), 403);
+
+        if ($draft) {
+            abort_unless($draft->status === JobPositionReqStatus::DRAFT->value, 404);
+            abort_unless($draft->requested_by === Auth::id(), 403);
+
+            $this->draft = $draft;
+            $this->companyId = $draft->company_id;
+            $this->job_position_id = $draft->job_position_id;
+            $this->type = $draft->type;
+            $this->quantity = $draft->quantity;
+            $this->notes = $draft->notes ?? '';
+
+            return;
+        }
 
         if (! Auth::user()->canFilterByCompany()) {
             $this->companyId = Auth::user()->company_id;
@@ -52,9 +60,21 @@ class CreateManpowerRequestPage extends Component
         $this->job_position_id = null;
     }
 
+    public function updatedType(): void
+    {
+        // Opsi Jabatan beda per tipe (Tambah Karyawan cuma jabatan yang kurang kuota,
+        // Penggantian bebas semua) - reset biar tidak nyangkut pilihan yang sudah tidak valid.
+        $this->job_position_id = null;
+        $this->quantity = 1;
+    }
+
     public function updatedJobPositionId(): void
     {
-        $this->quantity = min($this->quantity, max($this->availableQuota, 0)) ?: 1;
+        // Penambahan Karyawan: jumlah dikunci = persis kekurangan kuota, bukan pilihan bebas.
+        // Penggantian Karyawan: jumlah bebas diisi user (untuk sementara, belum ada pembatasan).
+        if ($this->type === ManpowerRequestType::ADDITIONAL_EMPLOYEE->value) {
+            $this->quantity = max($this->availableQuota, 1);
+        }
     }
 
     public function getCompanyOptionsProperty()
@@ -67,13 +87,34 @@ class CreateManpowerRequestPage extends Component
         return Auth::user()->canFilterByCompany();
     }
 
+    public function getTypeOptionsProperty(): array
+    {
+        return collect(ManpowerRequestType::cases())
+            ->reject(fn (ManpowerRequestType $type) => $type === ManpowerRequestType::ADDITIONAL_QUOTA)
+            ->mapWithKeys(fn (ManpowerRequestType $type) => [$type->value => $type->getLabel()])
+            ->all();
+    }
+
     public function getJobPositionOptionsProperty()
     {
         if (! $this->companyId) {
             return collect();
         }
 
-        return JobPositions::where('company_id', $this->companyId)->pluck('name', 'id');
+        $query = JobPositions::where('company_id', $this->companyId);
+
+        // Penambahan Karyawan cuma boleh ke jabatan yang sudah approved DAN beneran kekurangan
+        // orang (actual_manpower > jumlah karyawan terisi) - Penggantian Karyawan bebas semua
+        // jabatan (belum ada pembatasan, sifatnya ganti orang lama bukan nambah slot).
+        if ($this->type === ManpowerRequestType::ADDITIONAL_EMPLOYEE->value) {
+            return $query->where('status', JobPositionReqStatus::APPROVED->value)
+                ->withCount('userAssignments')
+                ->get()
+                ->filter(fn (JobPositions $jp) => ($jp->actual_manpower ?? 0) > $jp->user_assignments_count)
+                ->pluck('name', 'id');
+        }
+
+        return $query->pluck('name', 'id');
     }
 
     public function getSelectedJobPositionProperty(): ?JobPositions
@@ -102,10 +143,11 @@ class CreateManpowerRequestPage extends Component
             'file' => ['nullable', 'file', 'max:10240'],
         ];
 
-        // Penambahan Kuota = nambah kuota itu sendiri, tidak dibatasi kuota tersedia.
-        // Penambahan/Penggantian Karyawan = mengisi slot yang SUDAH ada, dibatasi sisa kuota.
-        if ($this->type !== ManpowerRequestType::ADDITIONAL_QUOTA->value) {
-            $rules['quantity'][] = 'max:' . max($this->availableQuota, 1);
+        // Penambahan Karyawan: jumlah dikunci sama persis kekurangan kuota (field disabled di
+        // UI), validasi server-side jaga-jaga tetap dipasang biar tidak bisa di-tamper.
+        // Penggantian Karyawan: bebas, belum ada pembatasan (instruksi user 2026-08-09).
+        if ($this->type === ManpowerRequestType::ADDITIONAL_EMPLOYEE->value) {
+            $rules['quantity'][] = 'in:' . max($this->availableQuota, 1);
         }
 
         return $rules;
@@ -123,7 +165,11 @@ class CreateManpowerRequestPage extends Component
         }
 
         try {
-            app(ManPowerReqService::class)->create($data, $submit);
+            if ($this->draft) {
+                app(ManPowerReqService::class)->updateDraft($this->draft, $data, $submit);
+            } else {
+                app(ManPowerReqService::class)->create($data, $submit);
+            }
 
             Notification::make()
                 ->title($submit ? 'Permintaan berhasil diajukan' : 'Draft berhasil disimpan')
@@ -144,6 +190,19 @@ class CreateManpowerRequestPage extends Component
     public function saveDraft(): void
     {
         $this->submitRequest(false);
+    }
+
+    /** Draft belum pernah masuk Approval Engine (snapshot cuma dibuat saat submit) - aman
+     * dihapus langsung, tidak ada approval yang perlu dibatalkan. Model pakai SoftDeletes. */
+    public function discardDraft(): void
+    {
+        abort_unless($this->draft, 404);
+
+        $this->draft->delete();
+
+        Notification::make()->title('Draft permintaan dibatalkan')->success()->send();
+
+        $this->redirect(route('kepegawaian.permintaan'), navigate: true);
     }
 
     public function render()

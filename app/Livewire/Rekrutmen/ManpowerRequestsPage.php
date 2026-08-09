@@ -15,6 +15,12 @@ use Livewire\WithPagination;
  * List Permintaan Tenaga Kerja versi portal — padanan ManpowerRequestResource admin. Filter
  * Tipe (select biasa, tanpa count, di kiri kolom Perusahaan/Cari) + badge tipe di tiap baris
  * (instruksi user 2026-08-07).
+ *
+ * Sengaja EXCLUDE tipe ADDITIONAL_QUOTA (2026-08-09) — halaman ini fokus ke permintaan yang
+ * beneran butuh rekrut (Tambah Karyawan/Penggantian, keduanya buka JobOpenings). Pengajuan
+ * kuota sekarang entry-point-nya di halaman Jabatan (lihat EditJabatanPage::getQuotaRequestsProperty()
+ * + partial jabatan-quota-section), datanya tetap sama-sama di tabel ManpowerRequests, cuma
+ * tempat munculnya beda. Approval Engine & backend TIDAK berubah.
  */
 #[Layout('components.layout', ['title' => 'Permintaan Tenaga Kerja'])]
 class ManpowerRequestsPage extends Component
@@ -71,6 +77,7 @@ class ManpowerRequestsPage extends Component
     public function getTypeOptionsProperty(): array
     {
         return collect(ManpowerRequestType::cases())
+            ->reject(fn (ManpowerRequestType $type) => $type === ManpowerRequestType::ADDITIONAL_QUOTA)
             ->mapWithKeys(fn (ManpowerRequestType $type) => [$type->value => $type->getLabel()])
             ->all();
     }
@@ -90,6 +97,7 @@ class ManpowerRequestsPage extends Component
         $search = trim($this->search);
 
         return ManpowerRequests::query()
+            ->where('type', '!=', ManpowerRequestType::ADDITIONAL_QUOTA->value)
             ->when($this->companyId, fn ($q) => $q->where('company_id', $this->companyId))
             ->when($this->type !== '', fn ($q) => $q->where('type', $this->type))
             ->when($search !== '', fn ($q) => $q->whereHas('jobPosition', fn ($q2) => $q2->where('name', 'like', "%{$search}%")))
