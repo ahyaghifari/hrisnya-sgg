@@ -4,9 +4,11 @@ namespace App\Livewire\Kepegawaian;
 
 use App\Enum\UserTransitionTypeEnum;
 use App\Helpers\PermissionHelper;
+use App\Models\User;
 use App\Models\User\UserTransition;
 use App\Services\Approval\ApprovalPermissionService;
 use App\Services\Approval\ApprovalTimelineService;
+use App\Services\OrgHierarchyService;
 use App\Services\User\UserTransitionService;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\Auth;
@@ -18,6 +20,11 @@ use Livewire\Component;
  * admin (bagian view + form action approve/reject), tapi bukan form edit penuh (field-nya
  * read-only di sini, sama seperti AttendanceRequestDetail). Logic approve/reject reuse
  * UserTransitionService (dipakai bareng admin).
+ *
+ * Gate akses: JADI APPROVER SAJA CUKUP, tidak perlu Shield permission View:UserTransition
+ * terpisah (2026-08-09, dulu blanket can('View:UserTransition') blokir approver legit yang
+ * kebetulan role-nya tidak di-assign permission itu) — pola disamakan dengan
+ * AttendanceRequestDetail::canAccess().
  */
 #[Layout('components.layout', ['title' => 'Detail Perubahan Status Karyawan'])]
 class UserTransitionDetailPage extends Component
@@ -26,17 +33,43 @@ class UserTransitionDetailPage extends Component
 
     public function mount(UserTransition $record): void
     {
-        abort_unless(Auth::user()->can('View:UserTransition'), 403);
-
-        if (! PermissionHelper::hasGlobalRole(Auth::user()) && $record->company_id !== Auth::user()->company_id) {
-            abort(403);
-        }
-
         app(UserTransitionService::class)->ensureApprovalSnapshot($record);
 
         $record->load(['user.profile.jobPosition', 'detail', 'attachments', 'approvalSnapshot.activity', 'approvalHistories']);
 
+        abort_unless($this->canAccess($record, Auth::user()), 403);
+
         $this->record = $record;
+    }
+
+    protected function canAccess(UserTransition $record, User $user): bool
+    {
+        if ($record->created_by === $user->id || $record->user_id === $user->id) {
+            return true;
+        }
+
+        $snapshot = $record->approvalSnapshot;
+
+        if ($snapshot && app(ApprovalPermissionService::class)->hasPermission($snapshot->id, $user)) {
+            return true;
+        }
+
+        if ($record->approvalHistories()->where('actor_id', $user->id)->exists()) {
+            return true;
+        }
+
+        if (PermissionHelper::hasGlobalRole($user)) {
+            return true;
+        }
+
+        if ($record->company_id !== $user->company_id) {
+            return false;
+        }
+
+        return app(OrgHierarchyService::class)
+            ->subordinates($user)
+            ->whereKey($record->user_id)
+            ->exists();
     }
 
     public function getTimelineProperty(): array

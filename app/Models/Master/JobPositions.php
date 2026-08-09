@@ -121,6 +121,11 @@ class JobPositions extends Model
         return $this->hasMany(UserProfiles::class, 'job_position_id');
     }
 
+    public function requestedBy()
+    {
+        return $this->belongsTo(\App\Models\User::class, 'request_by');
+    }
+
     public function approvalSnapshots()
     {
         return $this->hasMany(ApprovalSnapshots::class, 'module_id', 'id')

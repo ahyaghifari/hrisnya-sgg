@@ -6,9 +6,12 @@ use App\Enum\Approval\ApprovalModuleEnum;
 use App\Enum\CourseUserStatus;
 use App\Enum\CustomPermissionEnum;
 use App\Enum\UserTransitionTypeEnum;
+use App\Enum\ManpowerRequestType;
 use App\Models\Attendance\AttendanceRequests;
+use App\Models\Job\ManpowerRequests;
 use App\Models\LMS\LmsCourseUsers;
 use App\Models\LMS\TrainingRequests;
+use App\Models\Master\JobPositions;
 use App\Models\User\UserTransition;
 use App\Services\Approval\ApprovalPermissionService;
 use App\Services\LMS\CourseUserService;
@@ -222,7 +225,93 @@ class PendingApprovalsCard extends Component
                 ]);
         }
 
-        $requests = $attendanceRequests->concat($transitions)->concat($courseEnrollments)->concat($trainingRequests)->sortByDesc('created_at')->values();
+        // Jabatan & Kuota digabung 1 kategori (instruksi user 2026-08-09) - dua module beda
+        // (jobposition_request vs additional_quota_request) tapi sama-sama soal Jabatan, jadi
+        // ditampilkan sebagai 1 jenis badge. CATATAN: jobposition_request BELUM punya halaman
+        // approve/reject di portal (EditJabatanPage cuma view/edit draft, tidak ada tombol
+        // approve) - url-nya sementara ke situ, approver belum bisa benar-benar memproses dari
+        // sini sampai halaman approve-nya dibangun (beda dari additional_quota_request yang
+        // sudah bisa diproses penuh di ManpowerRequestDetailPage).
+        $jabatanKuota = collect();
+        if ($this->wants('jabatan_kuota')) {
+            $quotaIds = $permissionService
+                ->pendingApprovalsFor(Auth::user(), ApprovalModuleEnum::ADDITIONAL_QUOTA_REQUEST->value)
+                ->pluck('snapshot.module_id')->filter()->values();
+
+            $quotaRequests = ManpowerRequests::with(['jobPosition', 'user'])
+                ->whereIn('id', $quotaIds)
+                ->whereHas('user')
+                ->get()
+                ->map(fn ($request) => (object) [
+                    'module' => 'jabatan_kuota',
+                    'badge' => 'blue',
+                    'label' => 'Jabatan & Kuota',
+                    'icon' => 'fa-sitemap',
+                    'tile' => 'neutral',
+                    'keterangan' => 'Penambahan ' . $request->quantity . ' kuota - ' . ($request->jobPosition?->name ?? '-'),
+                    'user_name' => $request->user->name,
+                    'created_at' => $request->created_at,
+                    'url' => route('kepegawaian.permintaan.show', $request),
+                    'modal' => false,
+                    'external' => false,
+                ]);
+
+            $jobPositionIds = $permissionService
+                ->pendingApprovalsFor(Auth::user(), ApprovalModuleEnum::JOBPOSITION_REQUEST->value)
+                ->pluck('snapshot.module_id')->filter()->values();
+
+            $jobPositionRequests = JobPositions::with('requestedBy')
+                ->whereIn('id', $jobPositionIds)
+                ->whereHas('requestedBy')
+                ->get()
+                ->map(fn ($jobPosition) => (object) [
+                    'module' => 'jabatan_kuota',
+                    'badge' => 'blue',
+                    'label' => 'Jabatan & Kuota',
+                    'icon' => 'fa-sitemap',
+                    'tile' => 'neutral',
+                    'keterangan' => 'Pengajuan Jabatan Baru - ' . $jobPosition->name,
+                    'user_name' => $jobPosition->requestedBy->name,
+                    'created_at' => $jobPosition->created_at,
+                    'url' => route('kepegawaian.jabatan.edit', $jobPosition),
+                    'modal' => false,
+                    'external' => false,
+                ]);
+
+            $jabatanKuota = $quotaRequests->concat($jobPositionRequests);
+        }
+
+        // Permintaan Tenaga Kerja (Tambah Karyawan/Penggantian Karyawan) - beda kategori dari
+        // Jabatan & Kuota di atas (instruksi user 2026-08-09). Dua-duanya sudah bisa diproses
+        // penuh di ManpowerRequestDetailPage (approve/reject), jadi url-nya langsung jalan,
+        // beda dari jobposition_request yang masih stopgap.
+        $manpowerRequests = collect();
+        if ($this->wants('manpower_request')) {
+            $manpowerIds = $permissionService
+                ->pendingApprovalsFor(Auth::user(), ApprovalModuleEnum::ADDITIONAL_EMPLOYEE_REQUEST->value)
+                ->concat($permissionService->pendingApprovalsFor(Auth::user(), ApprovalModuleEnum::EMPLOYEE_REPLACEMENT_REQUEST->value))
+                ->pluck('snapshot.module_id')->filter()->values();
+
+            $manpowerRequests = ManpowerRequests::with(['jobPosition', 'user'])
+                ->whereIn('id', $manpowerIds)
+                ->whereHas('user')
+                ->get()
+                ->map(fn ($request) => (object) [
+                    'module' => 'manpower_request',
+                    'badge' => 'yellow',
+                    'label' => 'Permintaan Tenaga Kerja',
+                    'icon' => 'fa-people-arrows',
+                    'tile' => 'neutral',
+                    'keterangan' => ManpowerRequestType::from($request->type)->getLabel() . ' ' . $request->quantity . ' - ' . ($request->jobPosition?->name ?? '-'),
+                    'user_name' => $request->user->name,
+                    'created_at' => $request->created_at,
+                    'url' => route('kepegawaian.permintaan.show', $request),
+                    'modal' => false,
+                    'external' => false,
+                ]);
+        }
+
+        $requests = $attendanceRequests->concat($transitions)->concat($courseEnrollments)->concat($trainingRequests)->concat($jabatanKuota)->concat($manpowerRequests)->sortByDesc('created_at')->values();
 
         return view('livewire.pending-approvals-card', ['requests' => $requests]);
     }

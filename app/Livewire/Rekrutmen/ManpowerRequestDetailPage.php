@@ -4,9 +4,11 @@ namespace App\Livewire\Rekrutmen;
 
 use App\Enum\JobPositionReqStatus;
 use App\Models\Job\ManpowerRequests;
+use App\Models\User;
 use App\Services\Approval\ApprovalPermissionService;
 use App\Services\Approval\ApprovalTimelineService;
 use App\Services\JobPosition\ManPowerReqService;
+use App\Services\OrgHierarchyService;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
@@ -16,6 +18,11 @@ use Livewire\Component;
  * Detail Permintaan Tenaga Kerja + approve/reject — pola persis UserTransitionDetailPage.
  * Beda dari admin (EditManpowerRequest): admin cuma punya approve, di sini juga ada reject
  * (paritas dengan modul approval lain — lihat catatan planning/eager-pondering-turtle.md).
+ *
+ * Gate akses: JADI APPROVER SAJA CUKUP, tidak perlu Shield permission View:ManpowerRequests
+ * terpisah (2026-08-09, dulu blanket can('View:ManpowerRequests') blokir approver legit yang
+ * kebetulan role-nya tidak di-assign permission itu) — pola disamakan dengan
+ * AttendanceRequestDetail::canAccess().
  */
 #[Layout('components.layout', ['title' => 'Detail Permintaan Tenaga Kerja'])]
 class ManpowerRequestDetailPage extends Component
@@ -25,18 +32,43 @@ class ManpowerRequestDetailPage extends Component
 
     public function mount(ManpowerRequests $record): void
     {
-        abort_unless(Auth::user()->can('View:ManpowerRequests'), 403);
-
-        abort_unless(
-            Auth::user()->canFilterByCompany() || $record->company_id === Auth::user()->company_id,
-            403
-        );
-
         app(ManPowerReqService::class)->ensureApprovalSnapshot($record);
 
         $record->load(['company', 'jobPosition.orgStructure', 'user', 'approvalSnapshot.activity', 'approvalHistories']);
 
+        abort_unless($this->canAccess($record, Auth::user()), 403);
+
         $this->record = $record;
+    }
+
+    protected function canAccess(ManpowerRequests $record, User $user): bool
+    {
+        if ($record->requested_by === $user->id) {
+            return true;
+        }
+
+        $snapshot = $record->approvalSnapshot;
+
+        if ($snapshot && app(ApprovalPermissionService::class)->hasPermission($snapshot->id, $user)) {
+            return true;
+        }
+
+        if ($record->approvalHistories()->where('actor_id', $user->id)->exists()) {
+            return true;
+        }
+
+        if ($user->canBrowseAllCompanies()) {
+            return true;
+        }
+
+        if ($record->company_id !== $user->company_id) {
+            return false;
+        }
+
+        return app(OrgHierarchyService::class)
+            ->subordinates($user)
+            ->whereKey($record->requested_by)
+            ->exists();
     }
 
     public function getTimelineProperty(): array
@@ -64,9 +96,9 @@ class ManpowerRequestDetailPage extends Component
                 note: $this->note,
             );
 
-            $this->record->refresh();
-
             Notification::make()->title('Permintaan berhasil disetujui')->success()->send();
+
+            $this->redirect(route('dashboard'), navigate: true);
         } catch (\Exception $e) {
             Notification::make()->title('Gagal menyetujui: ' . $e->getMessage())->danger()->send();
         }
@@ -79,9 +111,9 @@ class ManpowerRequestDetailPage extends Component
         try {
             app(ManPowerReqService::class)->reject($this->record, $this->note, Auth::id());
 
-            $this->record->refresh();
-
             Notification::make()->title('Permintaan ditolak')->success()->send();
+
+            $this->redirect(route('dashboard'), navigate: true);
         } catch (\Exception $e) {
             Notification::make()->title('Gagal menolak: ' . $e->getMessage())->danger()->send();
         }
