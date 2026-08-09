@@ -11,6 +11,21 @@
         style="display:flex;flex-direction:column;gap:16px;"
     >
         <div style="display:flex;flex-direction:column;gap:14px;">
+            <div style="display:flex;gap:8px;">
+                <button type="button" wire:click="$set('mode', 'role')" class="{{ $mode === 'role' ? 'btn-primary' : 'btn-secondary' }}" style="padding:8px 16px;font-size:13px;">
+                    <i class="fa-solid fa-user-group"></i> Lewat Role
+                </button>
+                <button type="button" wire:click="$set('mode', 'user')" class="{{ $mode === 'user' ? 'btn-primary' : 'btn-secondary' }}" style="padding:8px 16px;font-size:13px;">
+                    <i class="fa-solid fa-user"></i> Langsung ke User
+                </button>
+            </div>
+
+            @if ($mode === 'user')
+                <div style="background:rgba(4,44,108,0.07);border:1px solid rgba(4,44,108,0.2);border-radius:10px;padding:12px 16px;font-size:13px;color:#042c6c;">
+                    Ini nambahan izin di LUAR izin dari role user ini — tidak bisa mencabut/override izin yang sudah didapat dari role-nya.
+                </div>
+            @endif
+
             <div class="grid gap-4 md:grid-cols-2">
                 @if (auth()->user()->canFilterByCompany())
                     <div>
@@ -23,17 +38,42 @@
                     </div>
                 @endif
 
+                @if ($mode === 'role')
+                    <div>
+                        <label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px;">Role</label>
+                        <select wire:model.live="roleId" class="form-input">
+                            @forelse ($this->roles as $role)
+                                <option value="{{ $role->id }}">{{ $role->name }}</option>
+                            @empty
+                                <option value="">Belum ada role</option>
+                            @endforelse
+                        </select>
+                    </div>
+                @else
+                    <div>
+                        <label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px;">Cari User</label>
+                        <input type="search" wire:model.live.debounce.300ms="userSearch" class="form-input" placeholder="Nama atau NIP...">
+                    </div>
+                @endif
+            </div>
+
+            @if ($mode === 'user')
                 <div>
-                    <label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px;">Role</label>
-                    <select wire:model.live="roleId" class="form-input">
-                        @forelse ($this->roles as $role)
-                            <option value="{{ $role->id }}">{{ $role->name }}</option>
+                    <label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px;">User</label>
+                    <select wire:model.live="userId" class="form-input">
+                        @forelse ($this->users as $u)
+                            <option value="{{ $u->id }}">{{ $u->name }} ({{ $u->nip }})</option>
                         @empty
-                            <option value="">Belum ada role</option>
+                            <option value="">Tidak ada user cocok</option>
                         @endforelse
                     </select>
+                    @if ($this->selectedUser)
+                        <p style="font-size:11.5px;color:var(--text-muted);margin-top:4px;">
+                            Role saat ini: {{ $this->selectedUser->roles->pluck('name')->join(', ') ?: '-' }}
+                        </p>
+                    @endif
                 </div>
-            </div>
+            @endif
 
             <div style="display:flex;gap:8px;">
                 <button type="button" class="btn-secondary" @click="expandAll()">Buka Semua</button>

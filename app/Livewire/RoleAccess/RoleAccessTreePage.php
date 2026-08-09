@@ -6,6 +6,7 @@ use App\Enum\CustomPermissionEnum;
 use App\Helpers\PermissionHelper;
 use App\Models\Master\Companies;
 use App\Models\Role;
+use App\Models\User;
 use App\Services\RoleAccess\PermissionTreeBuilder;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\Auth;
@@ -18,6 +19,13 @@ use Livewire\Component;
  * puluhan section buat cari 1 permission. RoleForm.php TETAP ada (belum dihapus) - dua
  * tempat ini sengaja berjalan paralel dulu sampai tree ini teruji, keduanya baca/tulis
  * permission Spatie yang sama jadi tidak ada data yang bisa "beda" antara satu dengan lain.
+ *
+ * Mode "User" (2026-08-10) — assign permission LANGSUNG ke 1 user, di luar role-nya. Sengaja
+ * ADDITIVE ONLY (instruksi user): tidak bisa mencabut/override permission yang didapat dari
+ * role lewat sini, cuma nambah ekstra. Tree-nya baca/tulis `getDirectPermissions()`/
+ * `syncPermissions()` milik USER (tabel pivot `model_has_permissions`), method Spatie itu
+ * TIDAK menyentuh `role_has_permissions` sama sekali — jadi aman, gak mungkin sengaja/tidak
+ * sengaja mengubah izin role dari mode ini.
  */
 #[Layout('components.layout', ['title' => 'Hak Akses'])]
 class RoleAccessTreePage extends Component
@@ -25,7 +33,14 @@ class RoleAccessTreePage extends Component
     public ?string $companyId = null;
     public ?string $roleId = null;
 
-    /** @var array<int, string> nama permission yang tercentang buat role terpilih */
+    /** 'role' | 'user' — nentuin tree ini baca/tulis permission Role atau permission langsung
+     * ke User (additive, lihat docblock class). */
+    public string $mode = 'role';
+
+    public ?string $userId = null;
+    public string $userSearch = '';
+
+    /** @var array<int, string> nama permission yang tercentang buat role/user terpilih */
     public array $checked = [];
 
     public function mount(): void
@@ -45,11 +60,29 @@ class RoleAccessTreePage extends Component
     {
         abort_unless(Auth::user()->canFilterByCompany(), 403);
 
-        $this->selectFirstRole();
+        $this->mode === 'role' ? $this->selectFirstRole() : $this->selectFirstUser();
+    }
+
+    /** wire:model.live="mode" (toggle Role/User). */
+    public function updatedMode(): void
+    {
+        $this->mode === 'role' ? $this->selectFirstRole() : $this->selectFirstUser();
+    }
+
+    /** wire:model.live.debounce="userSearch". */
+    public function updatedUserSearch(): void
+    {
+        $this->selectFirstUser();
     }
 
     /** wire:model.live="roleId" (Select Role). */
     public function updatedRoleId(): void
+    {
+        $this->loadChecked();
+    }
+
+    /** wire:model.live="userId" (Select User). */
+    public function updatedUserId(): void
     {
         $this->loadChecked();
     }
@@ -60,8 +93,22 @@ class RoleAccessTreePage extends Component
         $this->loadChecked();
     }
 
+    private function selectFirstUser(): void
+    {
+        $this->userId = $this->users->first()?->id;
+        $this->loadChecked();
+    }
+
     private function loadChecked(): void
     {
+        if ($this->mode === 'user') {
+            $this->checked = $this->userId
+                ? User::findOrFail($this->userId)->getDirectPermissions()->pluck('name')->all()
+                : [];
+
+            return;
+        }
+
         $this->checked = $this->roleId
             ? Role::findOrFail($this->roleId)->permissions->pluck('name')->all()
             : [];
@@ -92,6 +139,33 @@ class RoleAccessTreePage extends Component
         return $this->roleId ? Role::find($this->roleId) : null;
     }
 
+    /** Sama pola scoping getRolesProperty() — dibatasi 50 baris + wajib cari kalau company-nya
+     * ramai, biar select tidak berat/kepanjangan (bukan halaman list, jadi tidak dipaginasi). */
+    public function getUsersProperty()
+    {
+        $user = Auth::user();
+        $search = trim($this->userSearch);
+
+        $query = User::query()->orderBy('name');
+
+        if ($user->company_id && ! PermissionHelper::hasGlobalRole($user)) {
+            $query->where('company_id', $user->company_id);
+        } elseif ($this->companyId) {
+            $query->where('company_id', $this->companyId);
+        }
+
+        if ($search !== '') {
+            $query->where(fn ($q) => $q->where('name', 'like', "%{$search}%")->orWhere('nip', 'like', "%{$search}%"));
+        }
+
+        return $query->limit(50)->get();
+    }
+
+    public function getSelectedUserProperty(): ?User
+    {
+        return $this->userId ? User::find($this->userId) : null;
+    }
+
     public function getTreeProperty(): array
     {
         return PermissionTreeBuilder::build();
@@ -99,6 +173,10 @@ class RoleAccessTreePage extends Component
 
     public function getIsSuperAdminRoleProperty(): bool
     {
+        if ($this->mode === 'user') {
+            return false;
+        }
+
         return $this->selectedRole?->name === 'super_admin' || $this->selectedRole?->name === 'Super Admin';
     }
 
@@ -106,16 +184,37 @@ class RoleAccessTreePage extends Component
     {
         abort_unless(Auth::user()->can(CustomPermissionEnum::KELOLA_HAK_AKSES->value), 403);
 
+        // Tolak nama yang bukan leaf tree valid — cegah role/user dikasih permission random
+        // lewat request tampering (payload array dikirim manual dari client).
+        $validNames = PermissionTreeBuilder::allLeafNames($this->tree);
+        $safeNames = array_values(array_intersect($checkedNames, $validNames));
+
+        if ($this->mode === 'user') {
+            $user = $this->userId ? User::find($this->userId) : null;
+
+            if (! $user) {
+                return;
+            }
+
+            // syncPermissions() di sini cuma nulis tabel pivot model_has_permissions milik
+            // USER ini - TIDAK menyentuh role_has_permissions sama sekali, jadi permission
+            // dari role user itu tetap utuh apa adanya (additive, bukan override).
+            $user->syncPermissions($safeNames);
+            $this->checked = $safeNames;
+
+            Notification::make()
+                ->title("Hak akses tambahan untuk \"{$user->name}\" berhasil disimpan")
+                ->success()
+                ->send();
+
+            return;
+        }
+
         $role = $this->roleId ? Role::find($this->roleId) : null;
 
         if (! $role || $role->name === 'super_admin' || $role->name === 'Super Admin') {
             return;
         }
-
-        // Tolak nama yang bukan leaf tree valid — cegah role dikasih permission random
-        // lewat request tampering (payload array dikirim manual dari client).
-        $validNames = PermissionTreeBuilder::allLeafNames($this->tree);
-        $safeNames = array_values(array_intersect($checkedNames, $validNames));
 
         $role->syncPermissions($safeNames);
         $this->checked = $safeNames;
