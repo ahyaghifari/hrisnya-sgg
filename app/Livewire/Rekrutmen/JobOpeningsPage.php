@@ -4,6 +4,8 @@ namespace App\Livewire\Rekrutmen;
 
 use App\Models\Job\JobOpenings;
 use App\Models\Master\Companies;
+use App\Services\Job\RekrutmenSyncService;
+use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Url;
@@ -62,6 +64,19 @@ class JobOpeningsPage extends Component
         return Auth::user()->canFilterByCompany();
     }
 
+    /** Tombol sederhana ngetes konektivitas ke sistem Rekrutmen eksternal (GET /hris-test) -
+     * lihat RekrutmenSyncService::testConnection() & planning/2026-08-09-integrasi-job-opening-ke-rekrutmen.md. */
+    public function testRekrutmenConnection(): void
+    {
+        $result = app(RekrutmenSyncService::class)->testConnection();
+
+        Notification::make()
+            ->title($result['ok'] ? 'Terhubung' : 'Gagal terhubung')
+            ->body($result['message'])
+            ->{$result['ok'] ? 'success' : 'danger'}()
+            ->send();
+    }
+
     protected function baseQuery()
     {
         $search = trim($this->search);
@@ -69,7 +84,6 @@ class JobOpeningsPage extends Component
         return JobOpenings::query()
             ->when($this->companyId, fn ($q) => $q->where('company_id', $this->companyId))
             ->when($search !== '', fn ($q) => $q->whereHas('jobPosition', fn ($q2) => $q2->where('name', 'like', "%{$search}%")))
-            ->withCount('applicants')
             ->with(['jobPosition.orgStructure', 'company']);
     }
 
@@ -79,6 +93,18 @@ class JobOpeningsPage extends Component
             'companyId' => $this->companyId,
             'search' => $this->search,
         ]);
+    }
+
+    /** Jumlah pelamar per lowongan — SATU-SATUNYA sumber sekarang di halaman ini adalah sistem
+     * Rekrutmen (batch, 1 panggilan buat semua baris di halaman, bukan N+1 per baris).
+     * `applicants_count` lokal HRIS (CandidateJobApplications, panel /candidate HRIS sendiri)
+     * sengaja tidak lagi ditampilkan di sini — ke depannya rekrutmen semua lewat sistem
+     * Rekrutmen eksternal, panel /candidate HRIS bukan jalur utama lagi. */
+    public function getRekrutmenApplicantCountsProperty(): array
+    {
+        $ids = $this->jobOpenings->pluck('id')->all();
+
+        return app(RekrutmenSyncService::class)->getApplicantCounts($ids);
     }
 
     public function render()

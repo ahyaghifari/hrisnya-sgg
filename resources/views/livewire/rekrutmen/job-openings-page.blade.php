@@ -1,6 +1,14 @@
 <div>
 <x-page-header title="Lowongan Kerja" subtitle="Lowongan dibuka otomatis dari Permintaan Tenaga Kerja yang disetujui" />
 
+<div style="display:flex;justify-content:flex-end;margin-bottom:16px;">
+    <button type="button" wire:click="testRekrutmenConnection" wire:loading.attr="disabled" class="btn-ghost" style="padding:5px 10px;font-size:11px;">
+        <i class="fa-solid fa-plug-circle-check" wire:loading.remove wire:target="testRekrutmenConnection"></i>
+        <i class="fa-solid fa-spinner fa-spin" wire:loading wire:target="testRekrutmenConnection"></i>
+        Tes Koneksi Rekrutmen
+    </button>
+</div>
+
 <div class="mb-4" style="display:flex;flex-wrap:wrap;gap:12px;">
     @if ($this->canBrowseAllCompanies)
         <div style="min-width:220px;">
@@ -23,7 +31,10 @@
     </div>
 </div>
 
-@php $jobOpenings = $this->jobOpenings; @endphp
+@php
+    $jobOpenings = $this->jobOpenings;
+    $rekrutmenCounts = $this->rekrutmenApplicantCounts;
+@endphp
 
 <!-- MOBILE: card manual -->
 <div class="md:hidden">
@@ -38,7 +49,7 @@
                     <div class="pwa-tile-icon neutral"><i class="fa-solid fa-briefcase"></i></div>
                     <div style="flex:1;min-width:0;">
                         <p style="font-size:13px;font-weight:600;color:var(--text-heading);">{{ $opening->display_name }}</p>
-                        <p style="font-size:11px;color:var(--text-muted);margin-top:2px;">{{ $opening->jobPosition?->orgStructure?->name ?? '-' }} &middot; Kuota {{ $opening->quota }} &middot; {{ $opening->applicants_count }} pelamar</p>
+                        <p style="font-size:11px;color:var(--text-muted);margin-top:2px;">{{ $opening->jobPosition?->orgStructure?->name ?? '-' }} &middot; Kuota {{ $opening->quota }} &middot; {{ $rekrutmenCounts[$opening->id] ?? '-' }} pelamar</p>
                     </div>
                     <span class="badge {{ $opening->openingStatus()->getBadgeClass() }}">{{ $opening->openingStatus()->getLabel() }}</span>
                 </a>
@@ -77,7 +88,7 @@
                             <td style="padding:9px 14px;white-space:nowrap;">{{ $opening->company?->name ?? '-' }}</td>
                         @endif
                         <td style="padding:9px 14px;text-align:center;white-space:nowrap;">{{ $opening->quota }}</td>
-                        <td style="padding:9px 14px;text-align:center;white-space:nowrap;">{{ $opening->applicants_count }}</td>
+                        <td style="padding:9px 14px;text-align:center;white-space:nowrap;">{{ $rekrutmenCounts[$opening->id] ?? '-' }}</td>
                         <td style="padding:9px 14px;text-align:center;white-space:nowrap;"><span class="badge {{ $opening->openingStatus()->getBadgeClass() }}">{{ $opening->openingStatus()->getLabel() }}</span></td>
                         <td style="padding:9px 14px;text-align:center;white-space:nowrap;">
                             <a href="{{ route('kepegawaian.lowongan.show', $opening) }}" wire:navigate class="btn-ghost" style="padding:5px 10px;font-size:11px;" title="Lihat"><i class="fa-solid fa-arrow-right"></i></a>
