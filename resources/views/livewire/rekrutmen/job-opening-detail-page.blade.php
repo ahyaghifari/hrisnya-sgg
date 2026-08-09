@@ -45,7 +45,7 @@
     @if ($record->description)
         <div style="padding:10px 0;border-bottom:1px solid var(--border-soft);">
             <span style="font-size:12.5px;color:var(--text-muted);display:block;margin-bottom:6px;">Deskripsi</span>
-            <div style="font-size:13px;color:var(--text-body);">{!! $record->description !!}</div>
+            <div style="font-size:13px;color:var(--text-body);white-space:pre-line;">{{ $record->description }}</div>
         </div>
     @endif
     @if ($record->requirements)

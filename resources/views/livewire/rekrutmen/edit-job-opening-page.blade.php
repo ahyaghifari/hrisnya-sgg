@@ -35,14 +35,28 @@
             <div>
                 <label class="form-label">Nama Lain Lowongan</label>
                 <input type="text" wire:model="alias" class="form-input" placeholder="Contoh: Perawat (kalau nama jabatan asli terlalu panjang)">
-                <p style="font-size:11px;color:var(--text-muted);margin-top:4px;">Opsional - nama ringkas yang tampil ke kandidat, menggantikan nama jabatan asli. Kosong = pakai nama jabatan.</p>
+                <p style="font-size:11px;color:var(--text-muted);margin-top:4px;">Opsional - nama ringkas yang tampil di sistem Rekrutmen, menggantikan nama jabatan asli. Kosong = pakai nama jabatan.</p>
                 @error('alias') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
             </div>
 
             <div>
-                <label class="form-label">Kuota <span style="color:var(--danger-text);">*</span></label>
-                <input type="number" wire:model="quota" min="1" class="form-input">
-                @error('quota') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
+                <label class="form-label">Kuota</label>
+                <input type="number" value="{{ $quota }}" class="form-input" disabled>
+                <p style="font-size:11px;color:var(--text-muted);margin-top:4px;">Mengikuti jumlah dari Permintaan Tenaga Kerja yang disetujui, tidak bisa diubah di sini.</p>
+            </div>
+
+            <div>
+                <label class="form-label">Batas Jumlah Pelamar</label>
+                <input type="number" wire:model="max_applicants" min="1" class="form-input" placeholder="Kosong = tidak dibatasi">
+                <p style="font-size:11px;color:var(--text-muted);margin-top:4px;">Dipakai sistem Rekrutmen buat berhenti nerima lamaran begitu jumlah ini tercapai. Kosongkan kalau tidak mau dibatasi.</p>
+                @error('max_applicants') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
+            </div>
+
+            <div>
+                <label class="form-label">Batas Tanggal Lamaran</label>
+                <input type="date" wire:model="application_deadline" class="form-input">
+                <p style="font-size:11px;color:var(--text-muted);margin-top:4px;">Dipakai sistem Rekrutmen buat tutup penerimaan lamaran otomatis setelah tanggal ini. Kosongkan kalau tidak ada batas waktu.</p>
+                @error('application_deadline') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
             </div>
 
             <div>
@@ -53,7 +67,10 @@
 
             <div>
                 <label class="form-label">Persyaratan Lowongan</label>
-                <textarea wire:model="requirements" class="form-input" rows="4" placeholder="Persyaratan kandidat..."></textarea>
+                <div wire:ignore>
+                    <input type="hidden" id="trix-requirements" wire:model="requirements" value="{{ $requirements }}">
+                    <trix-editor input="trix-requirements" style="min-height:100px;"></trix-editor>
+                </div>
                 @error('requirements') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
             </div>
         </div>
@@ -62,12 +79,15 @@
     <div style="display:flex;align-items:center;justify-content:space-between;margin-top:20px;gap:12px;flex-wrap:wrap;">
         <a href="{{ route('kepegawaian.lowongan.show', $record) }}" wire:navigate class="btn-ghost"><i class="fa-solid fa-arrow-left" style="font-size:12px;"></i> Kembali</a>
         <div style="display:flex;gap:10px;flex-wrap:wrap;">
-            <button type="button" wire:click="saveDraft" class="btn-ghost"><i class="fa-solid fa-floppy-disk" style="font-size:12px;"></i> Simpan Draft</button>
+            <button type="button" wire:click="saveDraft" class="btn-ghost">
+                <i class="fa-solid fa-floppy-disk" style="font-size:12px;"></i>
+                {{ $this->status === \App\Enum\Recruitment\JobOpeningStatus::WAITING ? 'Simpan Draft' : 'Simpan Perubahan' }}
+            </button>
 
             @if ($this->status === \App\Enum\Recruitment\JobOpeningStatus::OPEN)
-                <button type="button" wire:click="close" wire:confirm="Tutup lowongan ini? Lowongan tidak akan tampil lagi ke kandidat." class="btn-ghost" style="color:var(--danger-text);border-color:var(--danger-soft-border);"><i class="fa-solid fa-lock" style="font-size:12px;"></i> Tutup Lowongan</button>
+                <button type="button" wire:click="close" wire:confirm="Tutup lowongan ini? Lowongan tidak akan tampil lagi di sistem Rekrutmen." class="btn-ghost" style="color:var(--danger-text);border-color:var(--danger-soft-border);"><i class="fa-solid fa-lock" style="font-size:12px;"></i> Tutup Lowongan</button>
             @else
-                <button type="button" wire:click="publish" wire:confirm="Buka lowongan ini? Lowongan akan langsung tampil ke kandidat." class="btn-primary"><i class="fa-solid fa-bullhorn" style="font-size:12px;"></i> Buka Lowongan</button>
+                <button type="button" wire:click="publish" wire:confirm="Buka lowongan ini? Lowongan akan langsung tampil di sistem Rekrutmen." class="btn-primary"><i class="fa-solid fa-bullhorn" style="font-size:12px;"></i> Buka Lowongan</button>
             @endif
         </div>
     </div>

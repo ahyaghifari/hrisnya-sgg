@@ -19,6 +19,8 @@ class JobOpenings extends Model
         'job_position_id',
         'alias',
         'quota',
+        'max_applicants',
+        'application_deadline',
         'is_active',
         'opened_at',
         'description',
@@ -33,6 +35,7 @@ class JobOpenings extends Model
 
     protected $casts = [
         'opened_at' => 'datetime',
+        'application_deadline' => 'date',
     ];
 
     /** Status portal (Menunggu Dibuka/Sedang Dibuka/Sudah Ditutup) — turunan dari `opened_at` +

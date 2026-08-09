@@ -16,7 +16,7 @@ use Livewire\Component;
  * Form Edit Lowongan Kerja — SENGAJA tidak ada create manual. Lowongan cuma bisa muncul lewat
  * approval Permintaan Tenaga Kerja (`ManPowerReqService::approveManPower()`, auto-create
  * `is_active=false`, `opened_at=null` = "Menunggu Dibuka"). Halaman ini kelola siklus hidupnya:
- * Simpan Draft (field saja, status tidak berubah), Buka Lowongan (publish, tampil ke kandidat),
+ * Simpan Draft (field saja, status tidak berubah), Buka Lowongan (publish, tampil di sistem Rekrutmen),
  * Tutup Lowongan (kalau sedang dibuka).
  */
 #[Layout('components.layout', ['title' => 'Edit Lowongan Kerja'])]
@@ -28,6 +28,8 @@ class EditJobOpeningPage extends Component
     public ?string $job_position_id = null;
     public string $alias = '';
     public int $quota = 1;
+    public ?int $max_applicants = null;
+    public ?string $application_deadline = null;
     public string $description = '';
     public string $requirements = '';
 
@@ -45,6 +47,8 @@ class EditJobOpeningPage extends Component
         $this->job_position_id = $record->job_position_id;
         $this->alias = (string) $record->alias;
         $this->quota = $record->quota;
+        $this->max_applicants = $record->max_applicants;
+        $this->application_deadline = $record->application_deadline?->format('Y-m-d');
         $this->description = (string) $record->description;
         $this->requirements = (string) $record->requirements;
     }
@@ -84,12 +88,17 @@ class EditJobOpeningPage extends Component
         return $this->record->openingStatus();
     }
 
+    /** Kuota SENGAJA tidak masuk sini - mengikuti quantity dari Permintaan Tenaga Kerja yang
+     * disetujui (sudah benar sejak dibuat di ManPowerReqService::approveManPower()), tidak boleh
+     * diedit bebas di sini biar tidak menyimpang dari yang sudah disetujui approver. Property
+     * $quota tetap ada buat ditampilkan (read-only), cuma tidak divalidasi/disimpan dari form. */
     protected function rules(): array
     {
         return [
             'job_position_id' => ['required', 'exists:m_job_positions,id'],
             'alias' => ['nullable', 'string', 'max:255'],
-            'quota' => ['required', 'integer', 'min:1'],
+            'max_applicants' => ['nullable', 'integer', 'min:1'],
+            'application_deadline' => ['nullable', 'date', 'after_or_equal:today'],
             'description' => ['nullable', 'string'],
             'requirements' => ['nullable', 'string'],
         ];
@@ -101,7 +110,11 @@ class EditJobOpeningPage extends Component
 
         app(JobOpeningService::class)->saveDraft($this->record, $data);
 
-        Notification::make()->title('Draft lowongan kerja disimpan')->success()->send();
+        $title = $this->status === JobOpeningStatus::WAITING
+            ? 'Draft lowongan kerja disimpan'
+            : 'Perubahan disimpan — ikut ke-update di sistem Rekrutmen';
+
+        Notification::make()->title($title)->success()->send();
 
         $this->redirect(route('kepegawaian.lowongan.show', $this->record), navigate: true);
     }
@@ -112,7 +125,7 @@ class EditJobOpeningPage extends Component
 
         app(JobOpeningService::class)->publish($this->record, $data);
 
-        Notification::make()->title('Lowongan kerja dibuka — sekarang tampil ke kandidat')->success()->send();
+        Notification::make()->title('Lowongan kerja dibuka — sekarang tampil di sistem Rekrutmen')->success()->send();
 
         $this->redirect(route('kepegawaian.lowongan.show', $this->record), navigate: true);
     }
