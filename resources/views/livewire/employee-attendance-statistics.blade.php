@@ -85,7 +85,6 @@
             'No. BPJS Kesehatan' => $profile?->no_bpjs_kes,
             'No. BPJS Ketenagakerjaan' => $profile?->no_bpjs_ket,
             'NPWP' => $profile?->npwp,
-            'Bank' => $profile?->bank_name ? "{$profile->bank_name} — {$profile->bank_account_number} a.n. {$profile->bank_account_name}" : null,
         ];
 
         $kontak = [
@@ -323,8 +322,16 @@
                     @endif
                 </div>
                 @foreach ($pribadi as $label => $value)
-                    {!! $renderField($label, $value, !$loop->last) !!}
+                    {!! $renderField($label, $value, !$loop->last || $isSelf) !!}
                 @endforeach
+                {{-- No. Rekening SENGAJA cuma tampil untuk pemilik akun sendiri - atasan/HC yang
+                buka Data Diri bawahan lewat MyStaff tidak boleh lihat ini (instruksi user
+                2026-08-10), beda dari field pribadi lain di atas yang memang boleh dilihat
+                atasan/HC. Read-only murni, tidak ada tombol edit - perubahan rekening tetap
+                cuma lewat HC/admin (lihat catatan di EmployeeAttendanceStatistics::saveProfil()). --}}
+                @if ($isSelf)
+                    {!! $renderField('No. Rekening', $profile?->bank_name ? "{$profile->bank_name} — {$profile->bank_account_number} a.n. {$profile->bank_account_name}" : null, false) !!}
+                @endif
             </div>
 
             <div class="card-surface" style="flex:1 1 220px;align-self:flex-start;">

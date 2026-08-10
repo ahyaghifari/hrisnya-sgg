@@ -213,9 +213,9 @@ class UserTransitionService
         }
     }
 
-    public function approve(UserTransition $transition, string $actorId): void
+    public function approve(UserTransition $transition, string $actorId, ?string $note = null): void
     {
-        $this->approvalFlowService->advanceStep($transition->approvalSnapshot, $actorId, null, 'approved');
+        $this->approvalFlowService->advanceStep($transition->approvalSnapshot, $actorId, $note, 'approved');
 
         $transition->update([
             'status' => UserTransitionStatusEnum::APPROVED->value,

@@ -3,6 +3,8 @@
 namespace App\Livewire\Rekrutmen;
 
 use App\Models\Job\JobOpenings;
+use App\Services\Job\RekrutmenSyncService;
+use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
@@ -35,6 +37,26 @@ class JobOpeningDetailPage extends Component
     public function getCanEditProperty(): bool
     {
         return Auth::user()->can('Update:JobOpenings');
+    }
+
+    /** Sync manual ke sistem Rekrutmen eksternal - normalnya otomatis tiap Simpan/Publish/Tutup
+     * (JobOpeningService, lihat RekrutmenSyncService::sync()) tapi gagalnya cuma dicatat log,
+     * tidak pernah kelihatan user (sengaja non-fatal). Tombol ini buat re-trigger manual kalau
+     * curiga sync sebelumnya gagal (mis. Rekrutmen sempat down), hasilnya kali ini DITAMPILKAN
+     * ke user - beda dari sync otomatis yang diam-diam. Gerbang sama dengan edit (aksi
+     * maintenance, bukan sekadar lihat).
+     */
+    public function syncToRekrutmen(): void
+    {
+        abort_unless($this->canEdit, 403);
+
+        $result = app(RekrutmenSyncService::class)->sync($this->record);
+
+        Notification::make()
+            ->title($result['ok'] ? 'Berhasil disinkronkan ke Rekrutmen' : 'Gagal sinkronisasi')
+            ->body($result['message'])
+            ->{$result['ok'] ? 'success' : 'danger'}()
+            ->send();
     }
 
     public function render()

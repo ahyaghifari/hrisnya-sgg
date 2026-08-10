@@ -4,7 +4,12 @@
 @php $openingStatus = $record->openingStatus(); @endphp
 
 @if ($this->canEdit)
-    <div style="display:flex;justify-content:flex-end;margin-bottom:16px;">
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:16px;">
+        <button type="button" wire:click="syncToRekrutmen" wire:loading.attr="disabled" class="btn-ghost" title="Kirim ulang data lowongan ini ke sistem Rekrutmen">
+            <i class="fa-solid fa-rotate" wire:loading.remove wire:target="syncToRekrutmen"></i>
+            <i class="fa-solid fa-spinner fa-spin" wire:loading wire:target="syncToRekrutmen"></i>
+            Sync ke Rekrutmen
+        </button>
         <a href="{{ route('kepegawaian.lowongan.edit', $record) }}" wire:navigate class="btn-primary">
             @if ($openingStatus === \App\Enum\Recruitment\JobOpeningStatus::WAITING)
                 <i class="fa-solid fa-bullhorn"></i> Buka Lowongan

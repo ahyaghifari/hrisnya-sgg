@@ -85,7 +85,7 @@ class JabatanPage extends Component
 
     protected function baseQuery(): Builder
     {
-        $query = JobPositions::query()->with(['orgStructure']);
+        $query = JobPositions::query()->with(['orgStructure', 'pendingQuotaRequest']);
 
         if ($this->companyId) {
             $query->where('company_id', $this->companyId);

@@ -64,7 +64,11 @@
                             <button type="button" wire:click="openHistory('{{ $row->id }}')" class="btn-ghost" style="padding:5px 10px;font-size:11px;" title="Riwayat"><i class="fa-solid fa-clock-rotate-left"></i></button>
                             @if ($row->status === 'approved')
                                 @can('Create:ManpowerRequests')
-                                    <a href="{{ route('kepegawaian.jabatan.tambah-kuota', $row) }}" wire:navigate class="btn-ghost" style="padding:5px 10px;font-size:11px;" title="Ajukan Penambahan Kuota"><i class="fa-solid fa-square-plus"></i></a>
+                                    @if ($row->pendingQuotaRequest)
+                                        <a href="{{ route('kepegawaian.permintaan.show', $row->pendingQuotaRequest) }}" wire:navigate class="btn-ghost" style="padding:5px 10px;font-size:11px;color:#d97706;" title="Sedang diproses - lihat status persetujuan"><i class="fa-solid fa-hourglass-half"></i></a>
+                                    @else
+                                        <a href="{{ route('kepegawaian.jabatan.tambah-kuota', $row) }}" wire:navigate class="btn-ghost" style="padding:5px 10px;font-size:11px;" title="Ajukan Penambahan Kuota"><i class="fa-solid fa-square-plus"></i></a>
+                                    @endif
                                 @endcan
                             @endif
                         </td>

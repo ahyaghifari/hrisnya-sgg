@@ -3,9 +3,12 @@
 namespace App\Models\Master;
 
 use App\Enum\Approval\ApprovalModuleEnum;
+use App\Enum\JobPositionReqStatus;
+use App\Enum\ManpowerRequestType;
 use App\Models\ApprovalManagement\ApprovalHistories;
 use App\Models\ApprovalManagement\ApprovalSnapshots;
 use App\Models\Concerns\LogsAuditChanges;
+use App\Models\Job\ManpowerRequests;
 use App\Models\User;
 use App\Models\User\UserProfiles;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
@@ -126,10 +129,29 @@ class JobPositions extends Model
         return $this->belongsTo(\App\Models\User::class, 'request_by');
     }
 
+    /** Alias requestedBy() - dipakai ApprovalTimelineService::build() yang generik lintas
+     * modul (butuh nama relasi user() yang seragam, sama seperti AttendanceRequests/
+     * ManpowerRequests/UserTransition). */
+    public function user()
+    {
+        return $this->requestedBy();
+    }
+
     public function approvalSnapshots()
     {
         return $this->hasMany(ApprovalSnapshots::class, 'module_id', 'id')
             ->where('module_type', ApprovalModuleEnum::JOBPOSITION_REQUEST->value);
+    }
+
+    /** Versi tunggal approvalSnapshots() (hasMany) di atas - dipakai ApprovalPermissionService/
+     * ApprovalTimelineService yang generik lintas modul (pola sama ManpowerRequests/
+     * UserTransition). latestOfMany() karena secara teori 1 jabatan bisa diajukan ulang lebih
+     * dari sekali (repeat_request di admin) - snapshot terbaru yang relevan. */
+    public function approvalSnapshot()
+    {
+        return $this->hasOne(ApprovalSnapshots::class, 'module_id', 'id')
+            ->where('module_type', ApprovalModuleEnum::JOBPOSITION_REQUEST->value)
+            ->latestOfMany();
     }
 
     public function approvalHistories()
@@ -142,6 +164,19 @@ class JobPositions extends Model
         return $this->hasMany(\App\Models\User\UserJobPositions::class, 'job_position_id', 'id')
             ->whereNull('end_date')
             ->where('status', 'active');
+    }
+
+    /** Pengajuan penambahan kuota (ManpowerRequests type=additional_quota) yang masih dalam
+     * proses persetujuan untuk jabatan ini - dipakai JabatanPage buat arahkan tombol "Ajukan
+     * Penambahan Kuota" ke halaman detail proses yang sudah berjalan, bukan biarkan pengajuan
+     * duplikat (2026-08-10, instruksi user). latestOfMany() karena secara teori bisa ada lebih
+     * dari 1 riwayat pengajuan kuota untuk jabatan yang sama (yang lama sudah selesai). */
+    public function pendingQuotaRequest()
+    {
+        return $this->hasOne(ManpowerRequests::class, 'job_position_id', 'id')
+            ->where('type', ManpowerRequestType::ADDITIONAL_QUOTA->value)
+            ->where('status', JobPositionReqStatus::REQUESTED->value)
+            ->latestOfMany();
     }
 
     // ── Riwayat perubahan JE (job_evaluation_score) — dipakai tab Riwayat halaman Job

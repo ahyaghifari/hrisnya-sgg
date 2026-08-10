@@ -35,6 +35,22 @@ class CreateJabatanQuotaPage extends Component
 
         $this->record = $record;
 
+        // Jaga-jaga akses langsung lewat URL/link lama (bukan cuma tombol di JabatanPage yang
+        // sudah diarahkan ke detail proses) - jabatan yang sudah punya pengajuan kuota REQUESTED
+        // (belum disetujui/ditolak) tidak boleh diajukan ulang, arahkan ke detail proses yang
+        // sedang berjalan (2026-08-10, instruksi user).
+        $pendingRequest = ManpowerRequests::query()
+            ->where('job_position_id', $record->id)
+            ->where('type', ManpowerRequestType::ADDITIONAL_QUOTA->value)
+            ->where('status', JobPositionReqStatus::REQUESTED->value)
+            ->latest()
+            ->first();
+
+        if ($pendingRequest) {
+            $this->redirect(route('kepegawaian.permintaan.show', $pendingRequest), navigate: true);
+            return;
+        }
+
         $this->draft = ManpowerRequests::query()
             ->where('job_position_id', $record->id)
             ->where('type', ManpowerRequestType::ADDITIONAL_QUOTA->value)

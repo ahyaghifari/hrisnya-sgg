@@ -5,6 +5,7 @@ namespace App\Livewire;
 use App\Enum\Approval\ApprovalModuleEnum;
 use App\Enum\CourseUserStatus;
 use App\Enum\CustomPermissionEnum;
+use App\Enum\JobPositionReqStatus;
 use App\Enum\UserTransitionTypeEnum;
 use App\Enum\ManpowerRequestType;
 use App\Models\Attendance\AttendanceRequests;
@@ -13,9 +14,13 @@ use App\Models\LMS\LmsCourseUsers;
 use App\Models\LMS\TrainingRequests;
 use App\Models\Master\JobPositions;
 use App\Models\User\UserTransition;
+use App\Services\Approval\ApprovalFlowService;
 use App\Services\Approval\ApprovalPermissionService;
+use App\Services\JobPosition\ManPowerReqService;
 use App\Services\LMS\CourseUserService;
+use App\Services\User\UserTransitionService;
 use Filament\Notifications\Notification;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
 
@@ -30,6 +35,27 @@ class PendingApprovalsCard extends Component
     // cuma buat approve satu pengajuan (beda dari Izin/Cuti/Lembur/Perubahan Status yang sudah
     // punya halaman detail portal sendiri buat ditinjau).
     public ?string $reviewingEnrollmentId = null;
+
+    public bool $collapsed = false;
+
+    /** Baris terceklis manual, key komposit "{dispatch}:{id}" (lihat buildRequests()) - dipakai
+     * kalau $bulkTypeFilter kosong (mode manual). */
+    public array $selected = [];
+
+    /** Kalau diisi salah satu value 'module' (mis. 'attendance_request'), approve massal
+     * mengabaikan $selected dan memproses SEMUA baris jenis itu yang lagi pending & didukung
+     * bulk - instruksi user: "jika jenis dipilih berarti semua persetujuan akan di approve,
+     * jika tidak berarti hanya yang dipilih nya saja". */
+    public string $bulkTypeFilter = '';
+
+    public bool $showBulkConfirm = false;
+
+    public string $bulkNote = '';
+
+    public function toggleCollapsed(): void
+    {
+        $this->collapsed = ! $this->collapsed;
+    }
 
     private function wants(string $module): bool
     {
@@ -85,7 +111,8 @@ class PendingApprovalsCard extends Component
         $this->reviewingEnrollmentId = null;
     }
 
-    public function render()
+    /** @return Collection<int, object> */
+    protected function buildRequests(): Collection
     {
         $permissionService = app(ApprovalPermissionService::class);
 
@@ -103,6 +130,9 @@ class PendingApprovalsCard extends Component
                 ->whereHas('user')
                 ->get()
                 ->map(fn ($request) => (object) [
+                    'id' => $request->id,
+                    'dispatch' => 'attendance_request',
+                    'bulk_supported' => true,
                     'module' => 'attendance_request',
                     'badge' => 'yellow',
                     'label' => match ($request->type) {
@@ -148,6 +178,9 @@ class PendingApprovalsCard extends Component
                 ->whereHas('user')
                 ->get()
                 ->map(fn ($transition) => (object) [
+                    'id' => $transition->id,
+                    'dispatch' => 'user_transition',
+                    'bulk_supported' => true,
                     'module' => 'user_transition',
                     'badge' => 'blue',
                     'label' => UserTransitionTypeEnum::from($transition->transition_type)->label(),
@@ -180,6 +213,8 @@ class PendingApprovalsCard extends Component
                 ->whereHas('user')
                 ->get()
                 ->map(fn ($enrollment) => (object) [
+                    'dispatch' => 'lms_course_enrollment',
+                    'bulk_supported' => true,
                     'module' => 'lms_course_enrollment',
                     'badge' => 'purple',
                     'label' => 'Pelatihan',
@@ -211,6 +246,9 @@ class PendingApprovalsCard extends Component
                 ->whereHas('user')
                 ->get()
                 ->map(fn ($request) => (object) [
+                    'id' => $request->id,
+                    'dispatch' => 'training_request',
+                    'bulk_supported' => true,
                     'module' => 'training_request',
                     'badge' => 'purple',
                     'label' => 'Pelatihan Eksternal',
@@ -243,6 +281,9 @@ class PendingApprovalsCard extends Component
                 ->whereHas('user')
                 ->get()
                 ->map(fn ($request) => (object) [
+                    'id' => $request->id,
+                    'dispatch' => 'manpower_request',
+                    'bulk_supported' => true,
                     'module' => 'jabatan_kuota',
                     'badge' => 'blue',
                     'label' => 'Jabatan & Kuota',
@@ -265,6 +306,13 @@ class PendingApprovalsCard extends Component
                 ->whereHas('requestedBy')
                 ->get()
                 ->map(fn ($jobPosition) => (object) [
+                    'id' => $jobPosition->id,
+                    // Approve/reject sekarang ADA (EditJabatanPage, 2026-08-10), tapi sengaja
+                    // tidak didukung approve massal - approve butuh input "realisasi kuota
+                    // karyawan" per baris (JobPositionService::approveJobPosition()), tidak ada
+                    // 1 nilai default yang aman dipukul rata ke semua baris kayak note massal.
+                    'dispatch' => 'jobposition_request',
+                    'bulk_supported' => false,
                     'module' => 'jabatan_kuota',
                     'badge' => 'blue',
                     'label' => 'Jabatan & Kuota',
@@ -297,6 +345,9 @@ class PendingApprovalsCard extends Component
                 ->whereHas('user')
                 ->get()
                 ->map(fn ($request) => (object) [
+                    'id' => $request->id,
+                    'dispatch' => 'manpower_request',
+                    'bulk_supported' => true,
                     'module' => 'manpower_request',
                     'badge' => 'yellow',
                     'label' => 'Permintaan Tenaga Kerja',
@@ -312,6 +363,131 @@ class PendingApprovalsCard extends Component
         }
 
         $requests = $attendanceRequests->concat($transitions)->concat($courseEnrollments)->concat($trainingRequests)->concat($jabatanKuota)->concat($manpowerRequests)->sortByDesc('created_at')->values();
+
+        foreach ($requests as $request) {
+            $request->key = $request->dispatch . ':' . $request->id;
+        }
+
+        return $requests;
+    }
+
+    /** Jenis yang muncul di dropdown "Approve per Jenis" - cuma module yang punya minimal 1
+     * baris bulk_supported, biar tidak nawarin jenis yang isinya kosong/tidak didukung. */
+    public function getBulkTypeOptionsProperty(): array
+    {
+        return $this->buildRequests()
+            ->where('bulk_supported', true)
+            ->unique('module')
+            ->pluck('label', 'module')
+            ->all();
+    }
+
+    /** Pilih jenis di dropdown -> centang semua baris jenis itu ke $selected beneran (bukan
+     * cuma logic terpisah di belakang layar) - checkbox tetap wire:model="selected" jadi ikut
+     * kelihatan tercentang, tidak cuma ke-disable doang (laporan user 2026-08-10). Pindah balik
+     * ke "pilih manual" TIDAK mengosongkan $selected - hasil auto-centang tadi jadi titik awal
+     * yang tetap boleh diubah satu-satu. */
+    public function updatedBulkTypeFilter(string $value): void
+    {
+        if ($value === '') {
+            return;
+        }
+
+        $this->selected = $this->buildRequests()
+            ->where('bulk_supported', true)
+            ->where('module', $value)
+            ->pluck('key')
+            ->all();
+    }
+
+    public function getSelectedCountProperty(): int
+    {
+        return count($this->selected);
+    }
+
+    public function openBulkConfirm(): void
+    {
+        if ($this->selectedCount === 0) {
+            return;
+        }
+
+        $this->bulkNote = '';
+        $this->showBulkConfirm = true;
+    }
+
+    public function closeBulkConfirm(): void
+    {
+        $this->showBulkConfirm = false;
+    }
+
+    private function approveOne(object $row): void
+    {
+        $note = trim($this->bulkNote) !== '' ? $this->bulkNote : 'Disetujui massal';
+
+        match ($row->dispatch) {
+            'attendance_request' => app(ApprovalFlowService::class)->advanceStep(
+                AttendanceRequests::findOrFail($row->id)->approvalSnapshot,
+                Auth::id(),
+                $note,
+                'approved',
+            ),
+            'training_request' => app(ApprovalFlowService::class)->advanceStep(
+                TrainingRequests::findOrFail($row->id)->approvalSnapshot,
+                Auth::id(),
+                $note,
+                'approved',
+            ),
+            'user_transition' => app(UserTransitionService::class)->approve(
+                UserTransition::findOrFail($row->id),
+                Auth::id(),
+            ),
+            'lms_course_enrollment' => app(CourseUserService::class)->approveEnrollment(
+                LmsCourseUsers::findOrFail($row->id),
+                Auth::user(),
+            ),
+            'manpower_request' => app(ManPowerReqService::class)->approveManPower(
+                manpowerRequests: ManpowerRequests::findOrFail($row->id),
+                status: JobPositionReqStatus::APPROVED->value,
+                note: $note,
+            ),
+            default => throw new \RuntimeException('Jenis pengajuan ini belum didukung approve massal.'),
+        };
+    }
+
+    /** Baris diambil ULANG (bukan dari render sebelumnya) supaya yang sudah selesai diproses
+     * orang lain sejak halaman dibuka otomatis ke-skip, bukan dicoba approve dobel. */
+    public function confirmBulkApprove(): void
+    {
+        $targets = $this->buildRequests()
+            ->where('bulk_supported', true)
+            ->whereIn('key', $this->selected);
+
+        $success = 0;
+        $failed = 0;
+
+        foreach ($targets as $row) {
+            try {
+                $this->approveOne($row);
+                $success++;
+            } catch (\Throwable $e) {
+                $failed++;
+            }
+        }
+
+        $this->selected = [];
+        $this->bulkTypeFilter = '';
+        $this->bulkNote = '';
+        $this->showBulkConfirm = false;
+
+        Notification::make()
+            ->title($failed > 0 ? "{$success} disetujui, {$failed} gagal diproses" : "{$success} pengajuan berhasil disetujui")
+            ->{$failed > 0 ? 'warning' : 'success'}()
+            ->send();
+    }
+
+    public function render()
+    {
+        $requests = $this->buildRequests();
 
         return view('livewire.pending-approvals-card', ['requests' => $requests]);
     }

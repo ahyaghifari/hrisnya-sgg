@@ -15,11 +15,18 @@
                     <p style="font-size:11.5px;font-weight:600;color:rgba(255,255,255,0.7);margin-top:1px;">Menunggu tindakan Anda</p>
                 </div>
             </div>
-            <span style="position:relative;z-index:1;flex-shrink:0;background:#fff;color:#9a3412;font-size:13px;font-weight:800;min-width:28px;height:28px;padding:0 9px;border-radius:99px;display:flex;align-items:center;justify-content:center;">
-                {{ $requests->count() }}
-            </span>
+            <div style="position:relative;z-index:1;flex-shrink:0;display:flex;align-items:center;gap:8px;">
+                <span style="background:#fff;color:#9a3412;font-size:13px;font-weight:800;min-width:28px;height:28px;padding:0 9px;border-radius:99px;display:flex;align-items:center;justify-content:center;">
+                    {{ $requests->count() }}
+                </span>
+                <button type="button" wire:click="toggleCollapsed" title="{{ $collapsed ? 'Tampilkan' : 'Sembunyikan' }}"
+                    style="background:rgba(255,255,255,0.14);border:none;width:28px;height:28px;border-radius:99px;display:flex;align-items:center;justify-content:center;color:#fff;cursor:pointer;">
+                    <i class="fa-solid {{ $collapsed ? 'fa-chevron-down' : 'fa-chevron-up' }} text-xs"></i>
+                </button>
+            </div>
         </div>
 
+        @if (! $collapsed)
         @php
             // Badge warna beda per modul - kuning buat Izin/Cuti/Lembur (attendance_request),
             // biru sistem buat Perubahan Status Karyawan (user_transition), ungu buat Pelatihan
@@ -30,7 +37,31 @@
                 'purple' => 'background:rgba(126,34,206,0.1);color:#7e22ce;',
                 default => 'background:rgba(217,119,6,0.12);color:#92400e;',
             };
+            // Warna aksen checkbox ikut badge per baris, sama pola .custom-checkbox yang
+            // dipakai halaman Komponen Gaji (component-card.blade.php) - --accent per instance.
+            $accentColor = fn (string $badge) => match ($badge) {
+                'blue' => '#042c6c',
+                'purple' => '#7e22ce',
+                default => '#92400e',
+            };
         @endphp
+
+        @if (count($this->bulkTypeOptions) > 0)
+            {{-- Toolbar approve massal: pilih "Jenis" -> approve SEMUA baris jenis itu, atau
+                 biarkan kosong & centang manual per baris (lihat PendingApprovalsCard::
+                 confirmBulkApprove()). --}}
+            <div style="padding:12px 20px;border-bottom:1px solid var(--border-soft);display:flex;flex-wrap:wrap;align-items:center;gap:10px;">
+                <select wire:model.live="bulkTypeFilter" class="form-input" style="max-width:240px;font-size:12px;padding:6px 10px;">
+                    <option value="">Pilih manual (centang baris)</option>
+                    @foreach ($this->bulkTypeOptions as $module => $label)
+                        <option value="{{ $module }}">Semua "{{ $label }}"</option>
+                    @endforeach
+                </select>
+                <button type="button" wire:click="openBulkConfirm" @disabled($this->selectedCount === 0) class="btn-primary" style="padding:7px 14px;font-size:12px;opacity:{{ $this->selectedCount === 0 ? '0.5' : '1' }};">
+                    <i class="fa-solid fa-check-double"></i> Approve Terpilih ({{ $this->selectedCount }})
+                </button>
+            </div>
+        @endif
 
         <!-- MOBILE: card manual -->
         <div class="md:hidden">
@@ -46,15 +77,25 @@
                     </div>
                     <i class="fa-solid fa-chevron-right"></i>
                 '; @endphp
-                @if ($request->modal)
-                    <button type="button" wire:click="openReviewModal('{{ $request->id }}')" class="pwa-list-row" style="text-decoration:none;width:100%;text-align:left;border:none;background:none;cursor:pointer;font-family:inherit;">
-                        {!! $rowInner !!}
-                    </button>
-                @else
-                    <a href="{{ $request->url }}" @unless ($request->external) wire:navigate @endunless class="pwa-list-row" style="text-decoration:none;">
-                        {!! $rowInner !!}
-                    </a>
-                @endif
+                <div class="pwa-list-row" style="display:flex;align-items:center;gap:10px;">
+                    @if ($request->bulk_supported)
+                        <label class="custom-checkbox" style="--accent:{{ $accentColor($request->badge) }};flex-shrink:0;">
+                            <input type="checkbox" wire:model.live="selected" value="{{ $request->key }}">
+                            <span class="box"><i class="fa-solid fa-check"></i></span>
+                        </label>
+                    @else
+                        <span style="width:19px;flex-shrink:0;"></span>
+                    @endif
+                    @if ($request->modal)
+                        <button type="button" wire:click="openReviewModal('{{ $request->id }}')" style="text-decoration:none;flex:1;display:flex;align-items:center;gap:10px;min-width:0;text-align:left;border:none;background:none;cursor:pointer;font-family:inherit;">
+                            {!! $rowInner !!}
+                        </button>
+                    @else
+                        <a href="{{ $request->url }}" @unless ($request->external) wire:navigate @endunless style="text-decoration:none;flex:1;display:flex;align-items:center;gap:10px;min-width:0;">
+                            {!! $rowInner !!}
+                        </a>
+                    @endif
+                </div>
             @endforeach
         </div>
 
@@ -64,6 +105,7 @@
             <table class="data-table" style="min-width:560px;">
                 <thead>
                     <tr>
+                        <th style="padding:8px 14px;font-size:10px;width:28px;"></th>
                         <th style="padding:8px 14px;font-size:10px;">Jenis</th>
                         <th style="padding:8px 14px;font-size:10px;">Keterangan</th>
                         <th style="padding:8px 14px;font-size:10px;">Pemohon</th>
@@ -74,6 +116,14 @@
                 <tbody>
                     @foreach ($requests as $request)
                         <tr>
+                            <td style="padding:9px 14px;">
+                                @if ($request->bulk_supported)
+                                    <label class="custom-checkbox" style="--accent:{{ $accentColor($request->badge) }};">
+                                        <input type="checkbox" wire:model.live="selected" value="{{ $request->key }}">
+                                        <span class="box"><i class="fa-solid fa-check"></i></span>
+                                    </label>
+                                @endif
+                            </td>
                             <td style="padding:9px 14px;white-space:nowrap;">
                                 <span style="display:inline-block;padding:3px 10px;border-radius:99px;font-size:11px;font-weight:700;{{ $badgeStyle($request->badge) }}">{{ $request->label }}</span>
                             </td>
@@ -98,6 +148,7 @@
                 </tbody>
             </table>
         </div>
+        @endif
     </div>
 
     @if ($this->reviewingEnrollment)
@@ -129,6 +180,34 @@
                     </button>
                     <button type="button" wire:click="rejectEnrollment" wire:confirm="Tolak pendaftaran ini?" class="btn-ghost" style="flex:1;justify-content:center;color:var(--danger-text);border-color:var(--danger-soft-border);">
                         <i class="fa-solid fa-xmark"></i> Tolak
+                    </button>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    @if ($showBulkConfirm)
+        <div class="modal-overlay" wire:click="closeBulkConfirm">
+            <div class="modal-box" onclick="event.stopPropagation()">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+                    <h3 style="font-size:15px;font-weight:700;color:var(--text-heading);margin:0;">Approve {{ $this->selectedCount }} Pengajuan</h3>
+                    <button type="button" wire:click="closeBulkConfirm" style="background:none;border:none;font-size:16px;color:var(--text-faint);cursor:pointer;">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+                <p style="font-size:12.5px;color:var(--text-muted);margin-bottom:12px;">
+                    Pengajuan yang Anda centang akan disetujui. Pengajuan yang butuh tinjauan lebih detail sebaiknya tetap dibuka satu-satu lewat tombol Tinjau.
+                </p>
+                <div style="margin-bottom:16px;">
+                    <label class="form-label">Catatan (opsional)</label>
+                    <textarea wire:model="bulkNote" class="form-input" rows="2" placeholder="Mis. Disetujui sesuai pengajuan"></textarea>
+                </div>
+                <div style="display:flex;gap:10px;">
+                    <button type="button" wire:click="confirmBulkApprove" class="btn-primary" style="flex:1;justify-content:center;">
+                        <i class="fa-solid fa-check"></i> Ya, Setujui Semua
+                    </button>
+                    <button type="button" wire:click="closeBulkConfirm" class="btn-ghost" style="flex:1;justify-content:center;">
+                        Batal
                     </button>
                 </div>
             </div>

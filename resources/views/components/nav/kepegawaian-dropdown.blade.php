@@ -5,7 +5,7 @@
     $canViewJobEvaluation = auth()->user()->can(\App\Enum\CustomPermissionEnum::LIHAT_JOB_EVALUATION->value);
     $canViewDokumen = auth()->user()->can('ViewAny:UserDocuments');
     $canViewLowonganKerja = auth()->user()->can('ViewAny:JobOpenings');
-    $canViewPerubahanStatus = auth()->user()->can('ViewAny:EmployeeMutations');
+    $canViewPerubahanStatus = auth()->user()->can('ViewAny:UserTransition');
     $canViewPermintaanTenagaKerja = auth()->user()->can('ViewAny:ManpowerRequests');
 @endphp
 
