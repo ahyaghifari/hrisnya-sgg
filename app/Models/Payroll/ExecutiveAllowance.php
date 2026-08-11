@@ -19,6 +19,7 @@ class ExecutiveAllowance extends Model
 
     protected $fillable = [
         'user_id',
+        'component',
         'type',
         'label',
         'amount',

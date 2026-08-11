@@ -18,9 +18,9 @@ class ExecutiveAllowanceResource extends Resource
 {
     protected static ?string $model = ExecutiveAllowance::class;
 
-    protected static ?string $navigationLabel = 'Tunjangan Eksekutif';
+    protected static ?string $navigationLabel = 'Eksekutif';
 
-    protected static ?string $modelLabel = 'Tunjangan Eksekutif';
+    protected static ?string $modelLabel = 'Eksekutif';
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedUserGroup;
 

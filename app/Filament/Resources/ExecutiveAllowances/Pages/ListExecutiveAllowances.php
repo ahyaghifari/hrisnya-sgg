@@ -10,7 +10,7 @@ class ListExecutiveAllowances extends ListRecords
 {
     protected static string $resource = ExecutiveAllowanceResource::class;
 
-    protected static ?string $title = 'Tunjangan Eksekutif';
+    protected static ?string $title = 'Penggajian Eksekutif';
 
     protected function getHeaderActions(): array
     {

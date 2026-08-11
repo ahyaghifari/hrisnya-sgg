@@ -46,7 +46,7 @@
                 <a href="{{ route('keuangan.insentif') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-hand-holding-dollar"></i> Insentif</a>
             @endif
             @if ($canViewExecutiveAllowance)
-                <a href="{{ route('keuangan.tunjangan-eksekutif') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-user-tie"></i> Tunjangan Eksekutif</a>
+                <a href="{{ route('keuangan.tunjangan-eksekutif') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-user-tie"></i> Eksekutif</a>
             @endif
             @if ($canViewJasaUnitType)
                 <a href="{{ route('keuangan.jasa-unit-types') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-hospital-user"></i> Jasa Unit</a>

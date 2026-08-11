@@ -93,19 +93,42 @@
                     </div>
 
                     <div>
-                        <label class="form-label">Jenis <span style="color:var(--danger-text);">*</span></label>
-                        <select class="form-input" wire:model="formType">
-                            <option value="earning">Pendapatan</option>
-                            <option value="deduction">Potongan</option>
+                        <label class="form-label">Sumber Label <span style="color:var(--danger-text);">*</span></label>
+                        <select class="form-input" wire:model.live="formSource">
+                            <option value="manual">Manual (tulis label sendiri)</option>
+                            <option value="component">Dari Komponen Gaji</option>
                         </select>
-                        @error('formType') <p style="font-size:11px;color:#dc2626;margin-top:4px;">{{ $message }}</p> @enderror
+                        @error('formSource') <p style="font-size:11px;color:#dc2626;margin-top:4px;">{{ $message }}</p> @enderror
                     </div>
 
-                    <div>
-                        <label class="form-label">Label <span style="color:var(--danger-text);">*</span></label>
-                        <input type="text" class="form-input" wire:model="formLabel" placeholder="mis. BPJS Kesehatan (Nominal Khusus)">
-                        @error('formLabel') <p style="font-size:11px;color:#dc2626;margin-top:4px;">{{ $message }}</p> @enderror
-                    </div>
+                    @if ($formSource === 'component')
+                        <div>
+                            <label class="form-label">Komponen <span style="color:var(--danger-text);">*</span></label>
+                            <select class="form-input" wire:model.live="formComponent">
+                                <option value="">-- Pilih --</option>
+                                @foreach ($this->componentOptions as $value => $label)
+                                    <option value="{{ $value }}">{{ $label }}</option>
+                                @endforeach
+                            </select>
+                            @error('formComponent') <p style="font-size:11px;color:#dc2626;margin-top:4px;">{{ $message }}</p> @enderror
+                            <p style="font-size:11px;color:var(--text-faint);margin-top:4px;">Jenis (Pendapatan/Potongan) & label baris ikut otomatis dari komponen ini.</p>
+                        </div>
+                    @else
+                        <div>
+                            <label class="form-label">Jenis <span style="color:var(--danger-text);">*</span></label>
+                            <select class="form-input" wire:model="formType">
+                                <option value="earning">Pendapatan</option>
+                                <option value="deduction">Potongan</option>
+                            </select>
+                            @error('formType') <p style="font-size:11px;color:#dc2626;margin-top:4px;">{{ $message }}</p> @enderror
+                        </div>
+
+                        <div>
+                            <label class="form-label">Label <span style="color:var(--danger-text);">*</span></label>
+                            <input type="text" class="form-input" wire:model="formLabel" placeholder="mis. BPJS Kesehatan (Nominal Khusus)">
+                            @error('formLabel') <p style="font-size:11px;color:#dc2626;margin-top:4px;">{{ $message }}</p> @enderror
+                        </div>
+                    @endif
 
                     <div>
                         <label class="form-label">Nominal <span style="color:var(--danger-text);">*</span></label>
