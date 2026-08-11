@@ -42,4 +42,9 @@ class MasterApprovalFlowsPolicy
         return $authUser->can('Restore:MasterApprovalFlows');
     }
 
+    public function forceDelete(AuthUser $authUser, MasterApprovalFlows $masterApprovalFlows): bool
+    {
+        return $authUser->can('ForceDelete:MasterApprovalFlows');
+    }
+
 }

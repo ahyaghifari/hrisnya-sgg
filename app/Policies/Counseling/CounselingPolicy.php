@@ -42,4 +42,9 @@ class CounselingPolicy
         return $authUser->can('Restore:Counseling');
     }
 
+    public function forceDelete(AuthUser $authUser, Counseling $counseling): bool
+    {
+        return $authUser->can('ForceDelete:Counseling');
+    }
+
 }

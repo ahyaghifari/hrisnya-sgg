@@ -42,4 +42,9 @@ class PermissionPolicy
         return $authUser->can('Restore:Permission');
     }
 
+    public function forceDelete(AuthUser $authUser, Permission $permission): bool
+    {
+        return $authUser->can('ForceDelete:Permission');
+    }
+
 }

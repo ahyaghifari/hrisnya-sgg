@@ -50,20 +50,6 @@ class RoleForm
                 CustomPermissionEnum::KELOLA_INPUT_JASA_UNIT->value,
                 CustomPermissionEnum::EDIT_PAYROLL_ADJUSTMENT->value,
                 CustomPermissionEnum::GENERATE_PAYROLL->value,
-                // Sisa permission shield "SalaryComponents" dari Resource lama (tabel
-                // salary_components sudah dihapus total di Payroll Fase 1, digantikan
-                // PayrollComponentEnum) - Resource-nya sudah tidak ada jadi tidak ke-container
-                // otomatis, cuma di-list manual di sini biar tidak nangkring sendirian.
-                'ViewAny:SalaryComponents',
-                'View:SalaryComponents',
-                'Create:SalaryComponents',
-                'Update:SalaryComponents',
-                'Delete:SalaryComponents',
-                'Restore:SalaryComponents',
-                'RestoreAny:SalaryComponents',
-                'ForceDelete:SalaryComponents',
-                'Replicate:SalaryComponents',
-                'Reorder:SalaryComponents',
             ],
             CustomPermissionEnum::SISTEM_KEPEGAWAIAN->value => [
                 CustomPermissionEnum::LIHAT_PENGATURAN_KEPEGAWAIAN->value,
@@ -92,14 +78,18 @@ class RoleForm
                 CustomPermissionEnum::EDIT_PENGATURAN_LMS->value,
                 CustomPermissionEnum::LIHAT_PENGATURAN_LMS->value,
                 CustomPermissionEnum::LIHAT_LAPORAN_PELATIHAN->value,
-                CustomPermissionEnum::APPROVE_PENGAJUAN_PELATIHAN->value,
             ],
             CustomPermissionEnum::SISTEM_COACHING_COUNSELING->value => [
                 CustomPermissionEnum::COACHING_KARYAWAN_LAINNYA->value,
             ],
+            // Semua permission APPROVE_* lintas-modul digabung 1 grup "Approver" di sini
+            // (instruksi user 2026-08-11) - sebelumnya APPROVE_PENGAJUAN_PELATIHAN nyempil di
+            // grup SISTEM_LMS sendiri, sekarang konsisten satu tempat sama APPROVE_PENGAJUAN_ABSENSI/
+            // APPROVE_MANAJEMEN_LOWONGAN_KERJA.
             CustomPermissionEnum::SISTEM_APPROVAL->value => [
                 CustomPermissionEnum::APPROVE_PENGAJUAN_ABSENSI->value,
                 CustomPermissionEnum::APPROVE_MANAJEMEN_LOWONGAN_KERJA->value,
+                CustomPermissionEnum::APPROVE_PENGAJUAN_PELATIHAN->value,
             ],
             // Tidak ada child custom permission - grup ini cuma pembungkus supaya container
             // admin 'Penilaian Karyawan' (navigationGroup 4 Assessment Resource) ke-merge jadi
@@ -137,21 +127,23 @@ class RoleForm
      *    Shield lama tanpa Resource aktif) tapi tetap masuk akal dikelompokkan ke 1
      *    container tertentu — lihat applySubjectOverrides().
      *
-     * ShiftOvertimeCosts/ShiftScheduleAssignments/ShiftSwapRequests/ShiftTemplates: tidak
-     * ada Resource-nya (dicek 2026-08-07), tapi user eksplisit minta dikelompokkan ke
-     * "Jadwal" (bukan dihapus kayak MasterShift/ExtraHourAllowanceRules yang beneran
-     * orphan) - kemungkinan aksesnya nempel di halaman Jadwal/Schedule (ScheduleShiftRotationTab
-     * dkk, digerbangi KELOLA_JADWAL_SHIFT), bukan Resource CRUD terpisah.
+     * ShiftScheduleAssignments/ShiftSwapRequests/ShiftTemplates: tidak ada Resource-nya
+     * (dicek 2026-08-07), tapi user eksplisit minta dikelompokkan ke "Jadwal Shift" (bukan
+     * dihapus kayak MasterShift/ExtraHourAllowanceRules yang beneran orphan) - kemungkinan
+     * aksesnya nempel di halaman Jadwal/Schedule (ScheduleShiftRotationTab dkk, digerbangi
+     * KELOLA_JADWAL_SHIFT), bukan Resource CRUD terpisah. ShiftOvertimeCosts SEBALIKNYA
+     * dihapus total (2026-08-11) - model/Policy-nya beneran mati (skema Model tidak sinkron
+     * lagi sama tabel `shift_overtime_costs` asli, tidak ada UI portal/admin yang mengelolanya
+     * sama sekali), digantikan LemburCalculator (base rate per Pangkat, lihat komentarnya).
      *
      * @return array<string, string>
      */
     public static function subjectContainerOverrides(): array
     {
         return [
-            'ShiftOvertimeCosts' => 'Jadwal',
-            'ShiftScheduleAssignments' => 'Jadwal',
-            'ShiftSwapRequests' => 'Jadwal',
-            'ShiftTemplates' => 'Jadwal',
+            'ShiftScheduleAssignments' => 'Jadwal Shift',
+            'ShiftSwapRequests' => 'Jadwal Shift',
+            'ShiftTemplates' => 'Jadwal Shift',
             // PayrollComponents: Filament Page (bukan Resource), jadi navigationGroup-nya
             // (sudah 'Keuangan') tidak ke-scan lewat getResources() - paksa manual.
             'PayrollComponents' => 'Keuangan',

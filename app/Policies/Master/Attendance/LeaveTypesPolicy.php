@@ -42,4 +42,9 @@ class LeaveTypesPolicy
         return $authUser->can('Restore:LeaveTypes');
     }
 
+    public function forceDelete(AuthUser $authUser, LeaveTypes $leaveTypes): bool
+    {
+        return $authUser->can('ForceDelete:LeaveTypes');
+    }
+
 }

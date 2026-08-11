@@ -42,4 +42,9 @@ class LmsFeedbackQuestionPolicy
         return $authUser->can('Restore:LmsFeedbackQuestion');
     }
 
+    public function forceDelete(AuthUser $authUser, LmsFeedbackQuestion $lmsFeedbackQuestion): bool
+    {
+        return $authUser->can('ForceDelete:LmsFeedbackQuestion');
+    }
+
 }

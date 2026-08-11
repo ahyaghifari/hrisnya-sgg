@@ -134,7 +134,7 @@ return [
             'viewAny', 'view', 'create', 'update', 'delete', 
             // 'deleteAny',
             'restore',
-            // 'forceDelete', 
+            'forceDelete', 
             // 'forceDeleteAny', 
             // 'restoreAny', 
             // 'replicate', 

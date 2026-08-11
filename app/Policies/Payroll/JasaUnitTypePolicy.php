@@ -42,4 +42,9 @@ class JasaUnitTypePolicy
         return $authUser->can('Restore:JasaUnitType');
     }
 
+    public function forceDelete(AuthUser $authUser, JasaUnitType $jasaUnitType): bool
+    {
+        return $authUser->can('ForceDelete:JasaUnitType');
+    }
+
 }

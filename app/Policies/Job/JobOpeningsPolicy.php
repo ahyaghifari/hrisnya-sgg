@@ -42,4 +42,9 @@ class JobOpeningsPolicy
         return $authUser->can('Restore:JobOpenings');
     }
 
+    public function forceDelete(AuthUser $authUser, JobOpenings $jobOpenings): bool
+    {
+        return $authUser->can('ForceDelete:JobOpenings');
+    }
+
 }

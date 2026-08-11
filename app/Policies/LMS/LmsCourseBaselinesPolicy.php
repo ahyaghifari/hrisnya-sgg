@@ -42,4 +42,9 @@ class LmsCourseBaselinesPolicy
         return $authUser->can('Restore:LmsCourseBaselines');
     }
 
+    public function forceDelete(AuthUser $authUser, LmsCourseBaselines $lmsCourseBaselines): bool
+    {
+        return $authUser->can('ForceDelete:LmsCourseBaselines');
+    }
+
 }

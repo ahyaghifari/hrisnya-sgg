@@ -42,4 +42,9 @@ class KelasPolicy
         return $authUser->can('Restore:Kelas');
     }
 
+    public function forceDelete(AuthUser $authUser, Kelas $kelas): bool
+    {
+        return $authUser->can('ForceDelete:Kelas');
+    }
+
 }

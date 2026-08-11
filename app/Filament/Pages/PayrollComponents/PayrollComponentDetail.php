@@ -71,7 +71,7 @@ class PayrollComponentDetail extends Page implements HasForms
 
     public function getTitle(): string
     {
-        return 'Komponen Gaji — ' . $this->company->name;
+        return 'Komponen Gaji' . (isset($this->company) ? ' — ' . $this->company->name : '');
     }
 
     protected function getHeaderActions(): array

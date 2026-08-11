@@ -44,7 +44,11 @@
                     <span style="display:inline-block;padding:3px 10px;border-radius:99px;font-size:11px;font-weight:600;background:{{ $payroll->is_paid ? 'rgba(4,124,84,0.1)' : 'rgba(217,119,6,0.1)' }};color:{{ $payroll->is_paid ? '#047C54' : '#d97706' }};">
                         {{ $payroll->is_paid ? 'Sudah Dibayar' : 'Belum Dibayar' }}
                     </span>
-                    @if ($payroll->slip_sent_at)
+                    @if ($payroll->slip_send_failed_at)
+                        <p style="font-size:10.5px;color:#dc2626;margin:4px 0 0;" title="{{ $payroll->slip_send_error }}">
+                            <i class="fa-solid fa-triangle-exclamation"></i> Gagal kirim slip {{ $payroll->slip_send_failed_at->translatedFormat('d M Y H:i') }} — {{ $payroll->slip_send_error }}
+                        </p>
+                    @elseif ($payroll->slip_sent_at)
                         <p style="font-size:10.5px;color:var(--text-muted);margin:4px 0 0;">
                             <i class="fa-solid fa-envelope-circle-check"></i> Slip terkirim {{ $payroll->slip_sent_at->translatedFormat('d M Y H:i') }}
                         </p>

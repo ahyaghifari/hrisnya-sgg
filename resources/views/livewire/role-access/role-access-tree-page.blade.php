@@ -106,8 +106,8 @@
                                 @click="toggleExpand(root)"
                             >
                                 <i class="fa-solid" :class="isExpanded(root) ? 'fa-square-minus' : 'fa-square-plus'" style="color:#64748b;width:14px;font-size:13px;"></i>
-                                <label class="custom-checkbox" @click.stop="toggle(root)">
-                                    <input type="checkbox" :checked="isChecked(root)" x-effect="$el.indeterminate = isIndeterminate(root)" :disabled="locked || isRoleGranted(root)" @click.prevent>
+                                <label class="custom-checkbox" @click.stop.prevent="toggle(root)">
+                                    <input type="checkbox" x-effect="$el.checked = isChecked(root); $el.indeterminate = isIndeterminate(root)" :disabled="locked || isRoleGranted(root)" @click.prevent>
                                     <span class="box"><i class="fa-solid fa-check"></i></span>
                                 </label>
                                 <i class="fa-solid fa-folder" style="color:#94a3b8;font-size:14px;"></i>
@@ -124,8 +124,8 @@
                                             @click="toggleExpand(mid)"
                                         >
                                             <i class="fa-solid" :class="isExpanded(mid) ? 'fa-square-minus' : 'fa-square-plus'" style="color:#94a3b8;width:13px;font-size:12px;"></i>
-                                            <label class="custom-checkbox" @click.stop="toggle(mid)">
-                                                <input type="checkbox" :checked="isChecked(mid)" x-effect="$el.indeterminate = isIndeterminate(mid)" :disabled="locked || isRoleGranted(mid)" @click.prevent>
+                                            <label class="custom-checkbox" @click.stop.prevent="toggle(mid)">
+                                                <input type="checkbox" x-effect="$el.checked = isChecked(mid); $el.indeterminate = isIndeterminate(mid)" :disabled="locked || isRoleGranted(mid)" @click.prevent>
                                                 <span class="box"><i class="fa-solid fa-check"></i></span>
                                             </label>
                                             <i class="fa-solid fa-folder-open" style="color:#94a3b8;font-size:13px;"></i>
@@ -140,8 +140,8 @@
                                                     @click="toggle(leaf)"
                                                 >
                                                     <span style="width:13px;"></span>
-                                                    <label class="custom-checkbox" @click.stop="toggle(leaf)">
-                                                        <input type="checkbox" :checked="isChecked(leaf)" :disabled="locked || isRoleGranted(leaf)" @click.prevent>
+                                                    <label class="custom-checkbox" @click.stop.prevent="toggle(leaf)">
+                                                        <input type="checkbox" x-effect="$el.checked = isChecked(leaf)" :disabled="locked || isRoleGranted(leaf)" @click.prevent>
                                                         <span class="box"><i class="fa-solid fa-check"></i></span>
                                                     </label>
                                                     <i class="fa-solid fa-file-lines" style="color:#94a3b8;font-size:11px;"></i>

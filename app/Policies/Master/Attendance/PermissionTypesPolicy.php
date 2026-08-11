@@ -42,4 +42,9 @@ class PermissionTypesPolicy
         return $authUser->can('Restore:PermissionTypes');
     }
 
+    public function forceDelete(AuthUser $authUser, PermissionTypes $permissionTypes): bool
+    {
+        return $authUser->can('ForceDelete:PermissionTypes');
+    }
+
 }

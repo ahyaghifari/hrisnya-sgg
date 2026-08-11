@@ -42,4 +42,9 @@ class AttendanceDevicePolicy
         return $authUser->can('Restore:AttendanceDevice');
     }
 
+    public function forceDelete(AuthUser $authUser, AttendanceDevice $attendanceDevice): bool
+    {
+        return $authUser->can('ForceDelete:AttendanceDevice');
+    }
+
 }

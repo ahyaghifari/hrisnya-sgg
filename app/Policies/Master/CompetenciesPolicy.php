@@ -42,4 +42,9 @@ class CompetenciesPolicy
         return $authUser->can('Restore:Competencies');
     }
 
+    public function forceDelete(AuthUser $authUser, Competencies $competencies): bool
+    {
+        return $authUser->can('ForceDelete:Competencies');
+    }
+
 }

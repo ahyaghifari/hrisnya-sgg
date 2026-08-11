@@ -42,4 +42,9 @@ class BpjsDependentPolicy
         return $authUser->can('Restore:BpjsDependent');
     }
 
+    public function forceDelete(AuthUser $authUser, BpjsDependent $bpjsDependent): bool
+    {
+        return $authUser->can('ForceDelete:BpjsDependent');
+    }
+
 }

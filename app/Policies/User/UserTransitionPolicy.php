@@ -42,4 +42,9 @@ class UserTransitionPolicy
         return $authUser->can('Restore:UserTransition');
     }
 
+    public function forceDelete(AuthUser $authUser, UserTransition $userTransition): bool
+    {
+        return $authUser->can('ForceDelete:UserTransition');
+    }
+
 }

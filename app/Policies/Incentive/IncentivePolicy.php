@@ -42,4 +42,9 @@ class IncentivePolicy
         return $authUser->can('Restore:Incentive');
     }
 
+    public function forceDelete(AuthUser $authUser, Incentive $incentive): bool
+    {
+        return $authUser->can('ForceDelete:Incentive');
+    }
+
 }

@@ -5,7 +5,9 @@ namespace App\Providers;
 use App\Auth\KaryawanAwareUserProvider;
 use App\Filament\Candidate\Pages\Auth\LoginResponse as AuthLoginResponse;
 use Filament\Auth\Http\Responses\Contracts\LoginResponse;
+use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use NotificationChannels\WebPush\WebPushChannel;
 
@@ -36,5 +38,7 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Auth::provider('eloquent_karyawan_aware', fn ($app, array $config) => new KaryawanAwareUserProvider($app['hash'], $config['model']));
+
+        RateLimiter::for('payroll-slip-email', fn () => Limit::perMinute(35));
     }
 }

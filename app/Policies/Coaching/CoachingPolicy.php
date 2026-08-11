@@ -42,4 +42,9 @@ class CoachingPolicy
         return $authUser->can('Restore:Coaching');
     }
 
+    public function forceDelete(AuthUser $authUser, Coaching $coaching): bool
+    {
+        return $authUser->can('ForceDelete:Coaching');
+    }
+
 }

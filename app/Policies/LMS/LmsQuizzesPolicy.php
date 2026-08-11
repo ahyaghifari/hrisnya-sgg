@@ -42,4 +42,9 @@ class LmsQuizzesPolicy
         return $authUser->can('Restore:LmsQuizzes');
     }
 
+    public function forceDelete(AuthUser $authUser, LmsQuizzes $lmsQuizzes): bool
+    {
+        return $authUser->can('ForceDelete:LmsQuizzes');
+    }
+
 }

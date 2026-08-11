@@ -42,4 +42,9 @@ class PayrollPolicy
         return $authUser->can('Restore:Payroll');
     }
 
+    public function forceDelete(AuthUser $authUser, Payroll $payroll): bool
+    {
+        return $authUser->can('ForceDelete:Payroll');
+    }
+
 }

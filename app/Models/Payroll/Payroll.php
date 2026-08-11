@@ -23,6 +23,8 @@ class Payroll extends Model
         'net_salary',
         'is_paid',
         'slip_sent_at',
+        'slip_send_failed_at',
+        'slip_send_error',
         'generated_by',
         'generated_at',
     ];
@@ -30,6 +32,7 @@ class Payroll extends Model
     protected $casts = [
         'generated_at' => 'datetime',
         'slip_sent_at' => 'datetime',
+        'slip_send_failed_at' => 'datetime',
     ];
 
     public function user(): BelongsTo

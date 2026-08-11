@@ -99,7 +99,9 @@
                                     <span style="display:inline-block;padding:3px 10px;border-radius:99px;font-size:11px;font-weight:600;background:{{ $payroll->is_paid ? 'rgba(4,124,84,0.1)' : 'rgba(217,119,6,0.1)' }};color:{{ $payroll->is_paid ? '#047C54' : '#d97706' }};">
                                         {{ $payroll->is_paid ? 'Sudah Dibayar' : 'Belum Dibayar' }}
                                     </span>
-                                    @if ($payroll->slip_sent_at)
+                                    @if ($payroll->slip_send_failed_at)
+                                        <span title="{{ $payroll->slip_send_error }}" style="display:block;font-size:9.5px;color:#dc2626;margin-top:2px;cursor:help;"><i class="fa-solid fa-triangle-exclamation"></i> Gagal Kirim</span>
+                                    @elseif ($payroll->slip_sent_at)
                                         <span style="display:block;font-size:9.5px;color:var(--text-faint);margin-top:2px;"><i class="fa-solid fa-envelope-circle-check"></i> Terkirim</span>
                                     @endif
                                 </td>

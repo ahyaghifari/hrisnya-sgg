@@ -42,4 +42,9 @@ class TrainerAssessmentResultsPolicy
         return $authUser->can('Restore:TrainerAssessmentResults');
     }
 
+    public function forceDelete(AuthUser $authUser, TrainerAssessmentResults $trainerAssessmentResults): bool
+    {
+        return $authUser->can('ForceDelete:TrainerAssessmentResults');
+    }
+
 }

@@ -176,7 +176,7 @@ enum CustomPermissionEnum: string
             self::SISTEM_LMS => 'Sistem LMS',
             self::SISTEM_COACHING_COUNSELING => 'Sistem Coaching & Counseling',
             self::SISTEM_PENILAIAN_KARYAWAN => 'Sistem Penilaian Karyawan',
-            self::SISTEM_APPROVAL => 'Sistem Approval',
+            self::SISTEM_APPROVAL => 'Approver',
             self::TUGAS_SAYA => 'Tugas Saya',
             self::PELATIHAN_SAYA => 'Pelatihan Saya',
             self::AJUKAN_PELATIHAN => 'Ajukan Pelatihan (Eksternal)',

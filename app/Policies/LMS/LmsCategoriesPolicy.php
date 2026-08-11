@@ -42,4 +42,9 @@ class LmsCategoriesPolicy
         return $authUser->can('Restore:LmsCategories');
     }
 
+    public function forceDelete(AuthUser $authUser, LmsCategories $lmsCategories): bool
+    {
+        return $authUser->can('ForceDelete:LmsCategories');
+    }
+
 }

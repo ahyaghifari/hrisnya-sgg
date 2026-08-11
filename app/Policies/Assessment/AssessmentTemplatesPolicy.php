@@ -42,4 +42,9 @@ class AssessmentTemplatesPolicy
         return $authUser->can('Restore:AssessmentTemplates');
     }
 
+    public function forceDelete(AuthUser $authUser, AssessmentTemplates $assessmentTemplates): bool
+    {
+        return $authUser->can('ForceDelete:AssessmentTemplates');
+    }
+
 }

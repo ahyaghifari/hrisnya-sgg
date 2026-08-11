@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 namespace App\Policies\Payroll;
 
+use Illuminate\Foundation\Auth\User as AuthUser;
 use App\Models\Payroll\ExecutiveAllowance;
 use Illuminate\Auth\Access\HandlesAuthorization;
-use Illuminate\Foundation\Auth\User as AuthUser;
 
 class ExecutiveAllowancePolicy
 {
     use HandlesAuthorization;
-
+    
     public function viewAny(AuthUser $authUser): bool
     {
         return $authUser->can('ViewAny:ExecutiveAllowance');
@@ -41,4 +41,10 @@ class ExecutiveAllowancePolicy
     {
         return $authUser->can('Restore:ExecutiveAllowance');
     }
+
+    public function forceDelete(AuthUser $authUser, ExecutiveAllowance $executiveAllowance): bool
+    {
+        return $authUser->can('ForceDelete:ExecutiveAllowance');
+    }
+
 }

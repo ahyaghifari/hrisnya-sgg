@@ -31,7 +31,7 @@ class TemplatePenilaianPage extends Component
     public function getTemplatesProperty()
     {
         return AssessmentTemplates::query()
-            ->with(['assessmentType', 'company'])
+            ->with('assessmentType')
             ->withCount('templateItems')
             ->when(trim($this->search) !== '', fn ($q) => $q->where('name', 'like', '%' . trim($this->search) . '%'))
             ->orderBy('name')

@@ -42,4 +42,9 @@ class EmployeeTypesPolicy
         return $authUser->can('Restore:EmployeeTypes');
     }
 
+    public function forceDelete(AuthUser $authUser, EmployeeTypes $employeeTypes): bool
+    {
+        return $authUser->can('ForceDelete:EmployeeTypes');
+    }
+
 }

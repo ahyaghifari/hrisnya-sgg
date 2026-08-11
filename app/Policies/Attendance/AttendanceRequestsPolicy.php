@@ -42,4 +42,9 @@ class AttendanceRequestsPolicy
         return $authUser->can('Restore:AttendanceRequests');
     }
 
+    public function forceDelete(AuthUser $authUser, AttendanceRequests $attendanceRequests): bool
+    {
+        return $authUser->can('ForceDelete:AttendanceRequests');
+    }
+
 }

@@ -42,4 +42,9 @@ class UserKoperasiPolicy
         return $authUser->can('Restore:UserKoperasi');
     }
 
+    public function forceDelete(AuthUser $authUser, UserKoperasi $userKoperasi): bool
+    {
+        return $authUser->can('ForceDelete:UserKoperasi');
+    }
+
 }

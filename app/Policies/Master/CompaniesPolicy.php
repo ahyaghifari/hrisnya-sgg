@@ -42,4 +42,9 @@ class CompaniesPolicy
         return $authUser->can('Restore:Companies');
     }
 
+    public function forceDelete(AuthUser $authUser, Companies $companies): bool
+    {
+        return $authUser->can('ForceDelete:Companies');
+    }
+
 }
