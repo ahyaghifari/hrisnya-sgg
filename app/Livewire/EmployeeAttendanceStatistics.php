@@ -13,7 +13,6 @@ use App\Models\AuditLog;
 use App\Models\Attendance\AttendanceRecords;
 use App\Models\Attendance\AttendanceRequests;
 use App\Models\Master\Religions;
-use App\Models\Assessment\AssessmentUsers;
 use App\Models\Payroll\Payroll;
 use App\Models\User;
 use App\Models\User\UserDocuments;
@@ -325,17 +324,6 @@ class EmployeeAttendanceStatistics extends Component
             ->get();
     }
 
-    /** Tab "Penilaian" di sini SEKARANG cuma histori read-only — bikin/tunjuk penilaian baru
-     * dipindah ke halaman terpusat "Daftar Penilaian" (Sistem Penilaian Karyawan, gerbang
-     * SISTEM_PENILAIAN_KARYAWAN), lihat App\Livewire\Assessment\DaftarPenilaianPage. */
-    public function getAssessmentsListProperty()
-    {
-        return AssessmentUsers::where('target_id', $this->record->id)
-            ->whereHas('assessments')
-            ->with('assessments.template.assessmentType')
-            ->latest()
-            ->get();
-    }
 
     protected function canManage(User $record): bool
     {

@@ -12,6 +12,7 @@ use App\Models\Payroll\PayrollManualLine;
 use App\Models\Payroll\PayrollPeriod;
 use App\Models\Payroll\UserKoperasi;
 use App\Models\User;
+use App\Services\Payroll\Calculators\ExecutiveAllowanceCalculator;
 use App\Services\Payroll\Calculators\FeeClaimCalculator;
 use App\Services\Payroll\Calculators\PayrollCalculatorRegistry;
 use App\Services\Payroll\Calculators\PayrollContext;
@@ -190,6 +191,18 @@ class PayrollService
                 ->whereNull('deleted_at')
                 ->get();
 
+            // Presiden Direktur & Sekretaris Direktur sengaja dibuang User::query() biasa lewat
+            // global scope 'non_karyawan' - disertakan eksplisit di sini (bukan withoutGlobalScope
+            // global), instruksi user 2026-08-11. Lihat User::PAYROLL_ELIGIBLE_EXECUTIVE_IDS.
+            $executives = User::withoutGlobalScope('non_karyawan')
+                ->whereIn('id', User::PAYROLL_ELIGIBLE_EXECUTIVE_IDS)
+                ->where('company_id', $period->company_id)
+                ->where('is_active', true)
+                ->whereNull('deleted_at')
+                ->get();
+
+            $users = $users->merge($executives);
+
             $activeComponents = CompanyPayrollComponent::query()
                 ->where('company_id', $period->company_id)
                 ->where('is_active', true)
@@ -339,6 +352,13 @@ class PayrollService
         if ($izinSeharian) {
             $this->runComponent($izinSeharian, $user, $payroll, $period, $context);
         }
+
+        // Always-on sama pola FeeClaimCalculator - roster-nya sendiri (bukan toggle company)
+        // yang menentukan ada-tidaknya baris, aman dipanggil untuk semua user (no-op kalau
+        // roster kosong). Ditaruh paling akhir - baris manual ini konsisten muncul di bagian
+        // bawah slip (source_type null diperlakukan sama seperti manual adjustment lain di
+        // componentRows()).
+        app(ExecutiveAllowanceCalculator::class)->calculate($user, $payroll, $period, $context);
 
         $payroll->update([
             'gross_salary' => $context->grossSalary,

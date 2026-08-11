@@ -7,7 +7,8 @@
             tree: @js($this->tree),
             checked: @entangle('checked'),
             locked: @js($this->isSuperAdminRole),
-        })"J
+            roleGranted: @js($this->roleGrantedPermissions),
+        })"
         style="display:flex;flex-direction:column;gap:16px;"
     >
         <div style="display:flex;flex-direction:column;gap:14px;">
@@ -106,11 +107,12 @@
                             >
                                 <i class="fa-solid" :class="isExpanded(root) ? 'fa-square-minus' : 'fa-square-plus'" style="color:#64748b;width:14px;font-size:13px;"></i>
                                 <label class="custom-checkbox" @click.stop="toggle(root)">
-                                    <input type="checkbox" :checked="isChecked(root)" x-effect="$el.indeterminate = isIndeterminate(root)" :disabled="locked" @click.prevent>
+                                    <input type="checkbox" :checked="isChecked(root)" x-effect="$el.indeterminate = isIndeterminate(root)" :disabled="locked || isRoleGranted(root)" @click.prevent>
                                     <span class="box"><i class="fa-solid fa-check"></i></span>
                                 </label>
                                 <i class="fa-solid fa-folder" style="color:#94a3b8;font-size:14px;"></i>
                                 <span x-text="root.label" style="font-size:14.5px;font-weight:700;"></span>
+                                <span x-show="isRoleGranted(root)" style="font-size:10px;font-weight:700;color:#0369a1;background:rgba(3,105,161,0.1);padding:2px 8px;border-radius:99px;">Dari Role</span>
                             </div>
 
                             <div x-show="isExpanded(root)" style="margin-left:24px;">
@@ -123,11 +125,12 @@
                                         >
                                             <i class="fa-solid" :class="isExpanded(mid) ? 'fa-square-minus' : 'fa-square-plus'" style="color:#94a3b8;width:13px;font-size:12px;"></i>
                                             <label class="custom-checkbox" @click.stop="toggle(mid)">
-                                                <input type="checkbox" :checked="isChecked(mid)" x-effect="$el.indeterminate = isIndeterminate(mid)" :disabled="locked" @click.prevent>
+                                                <input type="checkbox" :checked="isChecked(mid)" x-effect="$el.indeterminate = isIndeterminate(mid)" :disabled="locked || isRoleGranted(mid)" @click.prevent>
                                                 <span class="box"><i class="fa-solid fa-check"></i></span>
                                             </label>
                                             <i class="fa-solid fa-folder-open" style="color:#94a3b8;font-size:13px;"></i>
                                             <span x-text="mid.label" style="font-size:13.5px;font-weight:600;"></span>
+                                            <span x-show="isRoleGranted(mid)" style="font-size:10px;font-weight:700;color:#0369a1;background:rgba(3,105,161,0.1);padding:2px 8px;border-radius:99px;">Dari Role</span>
                                         </div>
 
                                         <div x-show="isExpanded(mid)" style="margin-left:24px;">
@@ -138,11 +141,12 @@
                                                 >
                                                     <span style="width:13px;"></span>
                                                     <label class="custom-checkbox" @click.stop="toggle(leaf)">
-                                                        <input type="checkbox" :checked="isChecked(leaf)" :disabled="locked" @click.prevent>
+                                                        <input type="checkbox" :checked="isChecked(leaf)" :disabled="locked || isRoleGranted(leaf)" @click.prevent>
                                                         <span class="box"><i class="fa-solid fa-check"></i></span>
                                                     </label>
                                                     <i class="fa-solid fa-file-lines" style="color:#94a3b8;font-size:11px;"></i>
                                                     <span x-text="leaf.label" style="font-size:13px;"></span>
+                                                    <span x-show="isRoleGranted(leaf)" style="font-size:10px;font-weight:700;color:#0369a1;background:rgba(3,105,161,0.1);padding:2px 8px;border-radius:99px;">Dari Role</span>
                                                 </div>
                                             </template>
                                         </div>
@@ -165,10 +169,11 @@
 
     @script
     <script>
-        Alpine.data('roleAccessTree', ({ tree, checked, locked }) => ({
+        Alpine.data('roleAccessTree', ({ tree, checked, locked, roleGranted }) => ({
             tree,
             checked,
             locked,
+            roleGranted,
             expanded: {},
 
             leafIds(node) {
@@ -180,22 +185,35 @@
                 return !node.children || node.children.length === 0;
             },
 
+            // Tercentang lewat direct permission ATAU sudah didapat dari role (mode User) -
+            // dua-duanya dianggap "granted" buat tampilan, cuma yang direct yang bisa dicabut.
             isChecked(node) {
                 const ids = this.leafIds(node);
-                return ids.length > 0 && ids.every((id) => this.checked.includes(id));
+                return ids.length > 0 && ids.every((id) => this.checked.includes(id) || this.roleGranted.includes(id));
             },
 
             isIndeterminate(node) {
                 if (this.isChecked(node)) return false;
                 const ids = this.leafIds(node);
-                return ids.some((id) => this.checked.includes(id));
+                return ids.some((id) => this.checked.includes(id) || this.roleGranted.includes(id));
+            },
+
+            // Semua leaf di node ini sudah didapat dari role -> checkbox-nya dikunci + dikasih
+            // badge "Dari Role" (lihat markup), tidak ada yang perlu/bisa ditoggle dari sini.
+            isRoleGranted(node) {
+                const ids = this.leafIds(node);
+                return ids.length > 0 && ids.every((id) => this.roleGranted.includes(id));
             },
 
             toggle(node) {
-                if (this.locked) return;
+                if (this.locked || this.isRoleGranted(node)) return;
 
-                const ids = this.leafIds(node);
-                const willCheck = !this.isChecked(node);
+                // Leaf yang sudah dari role dibiarkan (tidak ikut ditoggle) - node campuran
+                // (sebagian dari role, sebagian belum) tetap bisa diklik buat yang belum saja.
+                const ids = this.leafIds(node).filter((id) => !this.roleGranted.includes(id));
+                if (ids.length === 0) return;
+
+                const willCheck = !ids.every((id) => this.checked.includes(id));
 
                 if (willCheck) {
                     this.checked = [...new Set([...this.checked, ...ids])];

@@ -34,7 +34,7 @@ class CustomPermissionsSeeder extends Seeder
      */
     private function seedManualPolicyPermissions(): void
     {
-        $subjects = ['UserKoperasi', 'Schedule', 'BpjsDependent', 'ExtraShiftAssignment'];
+        $subjects = ['UserKoperasi', 'Schedule', 'BpjsDependent', 'ExtraShiftAssignment', 'ExecutiveAllowance'];
         $verbs = ['ViewAny', 'View', 'Create', 'Update', 'Delete'];
 
         foreach ($subjects as $subject) {

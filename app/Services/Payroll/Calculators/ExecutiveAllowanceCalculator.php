@@ -1,0 +1,54 @@
+<?php
+
+namespace App\Services\Payroll\Calculators;
+
+use App\Enum\Payroll\PayrollComponentTypeEnum;
+use App\Models\Payroll\ExecutiveAllowance;
+use App\Models\Payroll\Payroll;
+use App\Models\Payroll\PayrollItem;
+use App\Models\Payroll\PayrollPeriod;
+use App\Models\User;
+
+/**
+ * Baris pendapatan/potongan manual khusus User::PAYROLL_ELIGIBLE_EXECUTIVE_IDS (Presiden
+ * Direktur & Sekretaris Direktur) - lihat ExecutiveAllowance. Always-on sama pola
+ * FeeClaimCalculator (tidak digate lewat company_payroll_components) karena roster-nya sendiri
+ * yang menentukan ada-tidaknya baris, bukan toggle per company - aman dipanggil untuk SEMUA
+ * user tiap generate, no-op kalau rosternya kosong (karyawan biasa).
+ *
+ * source_type SENGAJA null (bukan salah satu PayrollComponentEnum) - diperlakukan sama seperti
+ * baris manual adjustment lain di PayrollService::componentRows(), ditaruh di akhir urutan slip.
+ */
+class ExecutiveAllowanceCalculator
+{
+    public function calculate(User $user, Payroll $payroll, PayrollPeriod $period, PayrollContext $context): void
+    {
+        $rows = ExecutiveAllowance::where('user_id', $user->id)
+            ->where('is_active', true)
+            ->get();
+
+        foreach ($rows as $row) {
+            $amount = (float) $row->amount;
+
+            if ($amount <= 0) {
+                continue;
+            }
+
+            PayrollItem::create([
+                'payroll_id' => $payroll->id,
+                'name' => $row->label,
+                'type' => $row->type,
+                'quantity' => 1,
+                'amount' => $amount,
+                'note' => $row->note,
+                'source_type' => null,
+            ]);
+
+            if ($row->type === PayrollComponentTypeEnum::EARNING->value) {
+                $context->addEarning($amount);
+            } else {
+                $context->addDeduction($amount);
+            }
+        }
+    }
+}

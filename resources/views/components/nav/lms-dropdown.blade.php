@@ -15,6 +15,7 @@
         <i class="fa-solid fa-graduation-cap text-xs"></i> Learning Management System <i class="fa-solid fa-chevron-down text-[10px]"></i>
     </a>
     <div class="dropdown-menu dropdown-menu-columns">
+        @if ($canViewPelatihan || $canViewKategori || $canViewPemateri || $canViewPengaturanLms)
         <div class="dropdown-col">
             <div class="dropdown-col-label">Pelatihan</div>
             @if ($canViewPelatihan)
@@ -30,6 +31,8 @@
                 <a href="{{ route('pelatihan.pengaturan') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-gear"></i> Pengaturan LMS</a>
             @endif
         </div>
+        @endif
+        @if ($canViewBankSoal || $canViewKuis || $canViewEvaluasi || $canViewBaseline)
         <div class="dropdown-col">
             <div class="dropdown-col-label">Kuis & Evaluasi</div>
             @if ($canViewBankSoal)
@@ -45,6 +48,8 @@
                 <a href="{{ route('pelatihan.baseline') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-bullseye"></i> Baseline Pelatihan</a>
             @endif
         </div>
+        @endif
+        @if ($canViewHonorarium || $canViewLaporan)
         <div class="dropdown-col">
             <div class="dropdown-col-label">Honor & Laporan</div>
             @if ($canViewHonorarium)
@@ -54,5 +59,6 @@
                 <a href="{{ route('pelatihan.laporan') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-chart-bar"></i> Laporan</a>
             @endif
         </div>
+        @endif
     </div>
 </div>

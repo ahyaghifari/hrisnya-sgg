@@ -43,6 +43,12 @@ class RoleAccessTreePage extends Component
     /** @var array<int, string> nama permission yang tercentang buat role/user terpilih */
     public array $checked = [];
 
+    /** @var array<int, string> nama permission yang sudah didapat user dari role-nya (mode
+     * 'user' saja) - ditampilkan tercentang+disabled+badge di tree, TIDAK ikut disimpan lewat
+     * save() (itu murni permission langsung/direct, lihat syncPermissions() di save()) supaya
+     * tidak keliru dikira bisa dicabut dari sini (instruksi user 2026-08-11). */
+    public array $roleGrantedPermissions = [];
+
     public function mount(): void
     {
         abort_unless(Auth::user()->can(CustomPermissionEnum::KELOLA_HAK_AKSES->value), 403);
@@ -102,9 +108,10 @@ class RoleAccessTreePage extends Component
     private function loadChecked(): void
     {
         if ($this->mode === 'user') {
-            $this->checked = $this->userId
-                ? User::findOrFail($this->userId)->getDirectPermissions()->pluck('name')->all()
-                : [];
+            $user = $this->userId ? User::findOrFail($this->userId) : null;
+
+            $this->checked = $user?->getDirectPermissions()->pluck('name')->all() ?? [];
+            $this->roleGrantedPermissions = $user?->getPermissionsViaRoles()->pluck('name')->unique()->values()->all() ?? [];
 
             return;
         }
@@ -112,6 +119,7 @@ class RoleAccessTreePage extends Component
         $this->checked = $this->roleId
             ? Role::findOrFail($this->roleId)->permissions->pluck('name')->all()
             : [];
+        $this->roleGrantedPermissions = [];
     }
 
     /** Sama pola SalaryComponentsPage::getCompaniesProperty() — semua company selalu tampil,

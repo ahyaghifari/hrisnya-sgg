@@ -286,6 +286,9 @@ Route::middleware(['auth', 'portal.access'])->group(function () {
     Route::get('/keuangan/insentif', IncentivesPage::class)
         ->name('keuangan.insentif');
 
+    Route::get('/keuangan/tunjangan-eksekutif', \App\Livewire\Keuangan\ExecutiveAllowancesPage::class)
+        ->name('keuangan.tunjangan-eksekutif');
+
     Route::get('/keuangan/koperasi', KoperasiPage::class)
         ->name('keuangan.koperasi');
 

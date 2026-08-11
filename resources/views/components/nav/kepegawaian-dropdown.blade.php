@@ -23,6 +23,7 @@
                 <a href="{{ route('kepegawaian.pengaturan') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-gear"></i> Pengaturan Kepegawaian</a>
             @endif
         </div>
+        @if ($canViewJabatan || $canViewJobEvaluation || $canViewDokumen || $canViewPerubahanStatus)
         <div class="dropdown-col">
             <div class="dropdown-col-label">Jabatan</div>
             @if ($canViewJabatan)
@@ -38,6 +39,7 @@
                 <a href="{{ route('kepegawaian.mutasi-karyawan') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-right-left"></i> Perubahan Status</a>
             @endif
         </div>
+        @endif
         @if ($canViewLowonganKerja || $canViewPermintaanTenagaKerja)
             <div class="dropdown-col">
                 <div class="dropdown-col-label">Rekrutmen</div>

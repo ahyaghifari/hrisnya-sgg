@@ -367,7 +367,12 @@ html.dark .nav-item-indigo:hover, html.dark .nav-item-indigo.active { background
 .dropdown { position: relative; }
 .dropdown-menu { position: absolute; top: calc(100% + 10px); left: 50%; transform: translateX(-50%) translateY(-4px); background: var(--surface); border-radius: 14px; padding: 6px; box-shadow: 0 8px 30px rgba(4,44,108,0.12), 0 0 0 1px rgba(4,44,108,0.06); min-width: 180px; opacity: 0; visibility: hidden; transition: all 0.15s; z-index: 210; }
 .dropdown-menu.dropdown-menu-right { left: auto; right: 0; transform: translateY(-4px); }
-.dropdown-menu.dropdown-menu-columns { display: grid; grid-template-columns: repeat(3, minmax(190px, 1fr)); gap: 4px 6px; min-width: unset; left: 0; transform: translateY(-4px); }
+/* inline-grid + grid-auto-flow:column (bukan grid-template-columns: repeat(3, ...) yang lama) -
+   lebar dropdown ikut jumlah .dropdown-col yang BENERAN dirender (beberapa kolom disembunyikan
+   @if permission kosong di kepegawaian/keuangan/lms/absensi-dropdown.blade.php), bukan selalu
+   mereservasi 3 track kosong kalau yang render cuma 1-2 kolom (2026-08-11, laporan user - box
+   dropdown kelebaran dengan area kosong pas cuma 1 kolom yang lolos permission). */
+.dropdown-menu.dropdown-menu-columns { display: inline-grid; grid-auto-flow: column; grid-auto-columns: minmax(190px, 240px); gap: 4px 6px; min-width: unset; left: 0; transform: translateY(-4px); }
 .dropdown:hover .dropdown-menu.dropdown-menu-columns { transform: translateY(0); }
 .dropdown-menu.dropdown-menu-columns .dropdown-col { display: flex; flex-direction: column; padding: 4px 6px; }
 .dropdown-col-label { font-size: 10.5px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; padding: 4px 4px 6px; }

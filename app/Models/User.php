@@ -200,13 +200,24 @@ class User extends Authenticatable implements FilamentUser
         return $this->hasSubordinates() || $this->canBrowseAllCompanies();
     }
 
-    /** ID akun yang bukan karyawan (Direktur, istri Direktur, 2x Super Admin) - dibuang dari
-     * User::query() lewat global scope 'non_karyawan' di boot(). */
+    /** ID akun yang bukan karyawan (Presiden Direktur, Sekretaris Direktur, 2x Super Admin) -
+     * dibuang dari User::query() lewat global scope 'non_karyawan' di boot(). */
     public const NON_KARYAWAN_IDS = [
         '01kd7ak9xv7tk1fzbeyraxfpze', // presiden direktur
         '01kn1dtp3y66yy00gmwvt2m2e1', // sekretaris direktur
         '01k8271ym5edqp4jm1kvwrdrr0', // Super Admin
         '01kd7ak92rg69yksst3js4apx2', // Super Admin
+    ];
+
+    /** Subset NON_KARYAWAN_IDS (Presiden Direktur & Sekretaris Direktur SAJA, TIDAK termasuk
+     * 2 akun Super Admin) yang tetap boleh punya payroll - dipakai PayrollService::
+     * generatePayroll() & CreatePayroll.php buat menyertakan mereka lewat
+     * withoutGlobalScope('non_karyawan') secara eksplisit, instruksi user 2026-08-11. Earning
+     * (Gaji Pokok dkk) tetap dihitung normal via Pangkat, potongan biasa otomatis Rp0 (tidak
+     * ada AttendanceRecords/Koperasi dsb), kecuali baris manual di ExecutiveAllowance. */
+    public const PAYROLL_ELIGIBLE_EXECUTIVE_IDS = [
+        '01kd7ak9xv7tk1fzbeyraxfpze', // presiden direktur
+        '01kn1dtp3y66yy00gmwvt2m2e1', // sekretaris direktur
     ];
 
     protected function auditModule(): string

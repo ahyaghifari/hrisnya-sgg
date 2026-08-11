@@ -33,6 +33,23 @@ class FixedScheduleCalculator
         /** @var ScheduleFixedDay $config */
         $config = $entry['config'];
 
+        // Scan tunggal yang sudah masuk jam pulang jadwal (lihat AccessLogScheduleReader::
+        // singleScanIsCheckout()) - check_in sengaja dikosongkan sejak tahap pairing, tidak ada
+        // apa-apa buat dihitung telat/lembur-sebelum/jam-kerja, tapi tetap hadir (instruksi user
+        // 2026-08-10) - bukan absen cuma karena kelewatan scan masuk.
+        if ($entry['check_in'] === null) {
+            return $entry + [
+                'late_minutes'        => 0,
+                'early_leave_minutes' => 0,
+                'working_minutes'     => null,
+                'overtime_minutes'    => null,
+                'work_day_weight'     => $this->workDayWeight($config, null),
+                'status'              => AttendanceStatus::PRESENT->value,
+                'out_of_window'       => false,
+                'checkout_rejected'   => false,
+            ];
+        }
+
         $start = Carbon::createFromFormat('H:i:s', $config->start_time);
         $end   = Carbon::createFromFormat('H:i:s', $config->end_time);
 

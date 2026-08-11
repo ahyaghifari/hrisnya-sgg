@@ -178,6 +178,13 @@ class AccessLogScheduleReader
                     $deviceNames = $deviceNames->push($nextScans->first()->device_name)->filter()->unique()->values();
                     $scanCount++;
                 }
+            } elseif ($this->singleScanIsCheckout($user, $date, $checkIn)) {
+                // Scan tunggal ini waktunya sudah masuk jam pulang jadwal Fixed - karyawan
+                // kemungkinan lupa/lewat scan masuk paginya, bukan berarti dia scan masuk pas
+                // jam pulang. Diperlakukan sebagai check-out saja (check_in tetap kosong), tetap
+                // dihitung hadir - lihat FixedScheduleCalculator untuk kelanjutannya.
+                $checkOut = $checkIn;
+                $checkIn  = null;
             }
 
             $entries[] = [
@@ -202,6 +209,20 @@ class AccessLogScheduleReader
             && $resolved['type'] === 'shift'
             && ! ($resolved['is_off_day'] ?? false)
             && (bool) ($resolved['config']->is_overnight ?? false);
+    }
+
+    /** Scan tunggal di hari jadwal Fixed, waktunya >= jam pulang (end_time) jadwal itu ->
+     * kemungkinan besar itu scan pulang (karyawan lupa/lewat scan masuk), bukan scan masuk yang
+     * kebetulan telat sampai jam pulang (instruksi user 2026-08-10). */
+    private function singleScanIsCheckout(User $user, string $date, string $scanTime): bool
+    {
+        $resolved = $this->scheduleResolver->resolveForUserDate($user, $date, ignoreEffectiveDate: true);
+
+        if (! $resolved || $resolved['type'] !== 'fixed' || ($resolved['is_off_day'] ?? false)) {
+            return false;
+        }
+
+        return $scanTime >= $resolved['config']->end_time;
     }
 
     /**
@@ -294,6 +315,14 @@ class AccessLogScheduleReader
                 $checkOut = $priorCheckOut ? max($priorCheckOut, $newLast) : $newLast;
                 $isNewCheckIn = false;
                 $isNewCheckOut = ! $hadCheckOutBefore && filled($checkOut);
+            } elseif ($rowsForDay->count() === 1 && $this->singleScanIsCheckout($user, $date, $newFirst)) {
+                // Sama pola dengan pairScansForEmployee() versi batch - scan tunggal ini
+                // waktunya sudah masuk jam pulang jadwal Fixed, diperlakukan sebagai check-out
+                // saja (check_in kosong), bukan check-in yang kebetulan telat sampai jam pulang.
+                $checkIn = null;
+                $checkOut = $newFirst;
+                $isNewCheckIn = false;
+                $isNewCheckOut = true;
             } else {
                 // Belum pernah ada record -> scan baru INI satu-satunya sumber info hari itu.
                 $checkIn = $newFirst;

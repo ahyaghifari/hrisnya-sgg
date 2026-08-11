@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Presensi;
 
+use App\Enum\Attendance\PermissionTypeCategoryEnum;
 use App\Enum\AttendanceReqStatus;
 use App\Enum\AttendanceStatus;
 use App\Enum\CustomPermissionEnum;
@@ -232,10 +233,13 @@ class RekapPresensiPage extends Component
      * Betulkan baris attendance_records yang SUDAH ADA di periode terpilih (companyId ikut
      * kalau lagi dipilih) - 2 hal:
      *
-     * 1. Status: kalau check_in_time ATAU check_out_time null, statusnya ditandai 'absent'.
-     *    Cuti/Sakit/Izin yang disetujui (status leave/sick/permit) SENGAJA dikecualikan, biar
-     *    tidak salah timpa jadi "mangkir" padahal memang tidak masuk kerja dengan alasan yang
-     *    disetujui - keduanya juga wajar check_in/check_out-nya null.
+     * 1. Status: kalau check_in_time DAN check_out_time DUA-DUANYA null (sama sekali tidak ada
+     *    presensi), statusnya ditandai 'absent'. Baris yang masih punya salah satu (cuma
+     *    check-in ATAU cuma check-out - mis. lupa scan satu sisinya) TETAP dianggap hadir, tidak
+     *    ikut ditandai absent (instruksi user 2026-08-10). Cuti/Sakit/Izin yang disetujui (status
+     *    leave/sick/permit) SENGAJA dikecualikan, biar tidak salah timpa jadi "mangkir" padahal
+     *    memang tidak masuk kerja dengan alasan yang disetujui - keduanya juga wajar check_in/
+     *    check_out-nya null.
      * 2. Jam kerja: buat SEMUA baris yang punya check_in_time DAN check_out_time, working_minutes
      *    dihitung ULANG dari durasi mentah check_out - check_in (jam istirahat IKUT terhitung
      *    sebagai jam kerja, tidak dipotong) - dikonfirmasi user 2026-08-05, timpa nilai lama
@@ -258,7 +262,8 @@ class RekapPresensiPage extends Component
 
         $absentAffected = $this->scopedRecordsForRange($this->date_from, $this->date_to)
             ->whereNotIn('status', $excludedStatuses)
-            ->where(fn ($q) => $q->whereNull('check_in_time')->orWhereNull('check_out_time'))
+            ->whereNull('check_in_time')
+            ->whereNull('check_out_time')
             ->update(['status' => AttendanceStatus::ABSENT->value]);
 
         $recordsToRecalculate = $this->scopedRecordsForRange($this->date_from, $this->date_to)
@@ -411,6 +416,23 @@ class RekapPresensiPage extends Component
             ->when($this->companyId, fn ($q) => $q->whereHas('user', fn ($q2) => $q2->where('company_id', $this->companyId)));
     }
 
+    /** Buang baris yang tanggalnya sudah ditutup Izin Terlambat Masuk (approved) - konsisten
+     * dengan KeterlambatanCalculator (payroll) & getMonthlyRowsProperty(), supaya angka "jumlah/
+     * menit telat" di ringkasan atas halaman ini juga ikut berkurang (instruksi user 2026-08-10). */
+    protected function excludeExcusedLateDates(Builder $query): Builder
+    {
+        return $query->whereNotExists(function ($q) {
+            $q->select(\Illuminate\Support\Facades\DB::raw(1))
+                ->from('attendance_requests as ar_late')
+                ->join('attendance_req_permission_details as pd_late', 'ar_late.id', '=', 'pd_late.request_id')
+                ->whereColumn('ar_late.user_id', 'attendance_records.user_id')
+                ->whereColumn('pd_late.date', 'attendance_records.date')
+                ->where('ar_late.type', 'permission')
+                ->where('ar_late.status', AttendanceReqStatus::APPROVED->value)
+                ->where('pd_late.category', PermissionTypeCategoryEnum::IZIN_TERLAMBAT_MASUK->value);
+        });
+    }
+
     protected function queryAppends(): array
     {
         return [
@@ -482,8 +504,10 @@ class RekapPresensiPage extends Component
         return [
             'total_employees' => $this->baseUserQuery()->count(),
             'total_present_days' => $this->scopedRecordsForRange($from, $to)->count(),
-            'total_late' => $this->scopedRecordsForRange($from, $to)->where('status', AttendanceStatus::LATE->value)->count(),
-            'total_late_minutes' => (int) $this->scopedRecordsForRange($from, $to)->sum('late_minutes'),
+            'total_late' => $this->excludeExcusedLateDates(
+                $this->scopedRecordsForRange($from, $to)->where('status', AttendanceStatus::LATE->value)
+            )->count(),
+            'total_late_minutes' => (int) $this->excludeExcusedLateDates($this->scopedRecordsForRange($from, $to))->sum('late_minutes'),
             'total_working_hours' => round($this->scopedRecordsForRange($from, $to)->sum('working_minutes') / 60, 1),
         ];
     }
@@ -498,8 +522,22 @@ class RekapPresensiPage extends Component
             ->selectRaw('? as total_days_in_period', [$totalDays])
             ->selectRaw('COUNT(DISTINCT attendance_records.date) as present_count')
             ->selectRaw('(? - COUNT(DISTINCT attendance_records.date)) as absent_count', [$totalDays])
-            ->selectRaw('COUNT(CASE WHEN attendance_records.status = "late" THEN 1 END) as late_count')
-            ->selectRaw('COALESCE(SUM(attendance_records.late_minutes), 0) as total_late_minutes')
+            // Tanggal yang sudah ditutup Izin Terlambat Masuk (approved) tidak ikut dihitung
+            // sebagai keterlambatan di sini - konsisten dengan KeterlambatanCalculator (payroll),
+            // supaya "jumlah/menit telat" yang ditampilkan di rekap ini juga berkurang, bukan
+            // cuma potongan gajinya (instruksi user 2026-08-10).
+            ->selectRaw('COUNT(CASE WHEN attendance_records.status = "late" AND NOT EXISTS (
+                SELECT 1 FROM attendance_requests ar_late
+                INNER JOIN attendance_req_permission_details pd_late ON ar_late.id = pd_late.request_id
+                WHERE ar_late.user_id = users.id AND ar_late.type = "permission" AND ar_late.status = "approved"
+                AND pd_late.category = "izin_terlambat_masuk" AND pd_late.date = attendance_records.date
+            ) THEN 1 END) as late_count')
+            ->selectRaw('COALESCE(SUM(CASE WHEN NOT EXISTS (
+                SELECT 1 FROM attendance_requests ar_late2
+                INNER JOIN attendance_req_permission_details pd_late2 ON ar_late2.id = pd_late2.request_id
+                WHERE ar_late2.user_id = users.id AND ar_late2.type = "permission" AND ar_late2.status = "approved"
+                AND pd_late2.category = "izin_terlambat_masuk" AND pd_late2.date = attendance_records.date
+            ) THEN attendance_records.late_minutes ELSE 0 END), 0) as total_late_minutes')
             ->selectRaw('COALESCE(SUM(attendance_records.working_minutes), 0) as total_working_minutes')
             ->selectRaw('ROUND(AVG(attendance_records.working_minutes) / 60, 1) as avg_working_hours')
             ->selectRaw('COALESCE((
