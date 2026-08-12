@@ -7,7 +7,7 @@ namespace App\Enum;
  * dipakai sebagai gerbang akses global ke suatu fitur (bukan permission CRUD per-Resource
  * biasa). Baris nilainya di database dibuat/dijaga lewat
  * database/seeders/CustomPermissionsSeeder.php — kalau nambah case baru di sini, tambahkan
- * juga ke $permissions di seeder itu lalu jalankan ulang:
+ * juga ke $permissions di seederitu lalu jalankan ulang:
  *   php artisan db:seed --class=CustomPermissionsSeeder
  */
 enum CustomPermissionEnum: string
