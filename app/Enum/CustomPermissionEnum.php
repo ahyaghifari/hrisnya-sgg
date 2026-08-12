@@ -157,6 +157,14 @@ enum CustomPermissionEnum: string
      * Resource lain di Filament admin. */
     case KELOLA_HAK_AKSES = 'kelola_hak_akses';
 
+    /** Halaman portal Gaji Pemateri (`/keuangan/gaji-pemateri`, rekap honor pemateri per
+     * pelatihan dari TrainerAssessmentResults) — link nav berdiri sendiri (bukan dalam dropdown
+     * apapun, sama seperti "Riwayat Approval"), sengaja permission manual sendiri (bukan reuse
+     * ViewAny/Delete:TrainerAssessmentResults milik admin Filament) supaya akses portal bisa
+     * diatur terpisah dari akses admin, sama pola LIHAT_OMSET/KELOLA_OMSET. */
+    case LIHAT_GAJI_PEMATERI = 'lihat_gaji_pemateri';
+    case KELOLA_GAJI_PEMATERI = 'kelola_gaji_pemateri';
+
     /** Gerbang MASUK ke admin panel Filament (`/admin`) buat role SELAIN "Admin"/"Super Admin"
      * literal — User::canAccessPanel() cek nama role dulu (jalur utama, hampir semua company
      * admin lewat sini), permission ini cuma jalur kedua buat kasus khusus (mis. IT Support
@@ -219,6 +227,8 @@ enum CustomPermissionEnum: string
             self::KELOLA_JADWAL_SHIFT => 'Kelola Jadwal Shift (Template & Roster)',
             self::GENERATE_PAYROLL => 'Generate/Regenerate Payroll',
             self::LIHAT_LAMPIRAN_IDENTITAS_KARYAWAN => 'Lihat Lampiran Identitas Karyawan (KTP/KK)',
+            self::LIHAT_GAJI_PEMATERI => 'Lihat Gaji Pemateri',
+            self::KELOLA_GAJI_PEMATERI => 'Kelola Gaji Pemateri',
             self::KELOLA_HAK_AKSES => 'Kelola Hak Akses (Portal)',
             self::AKSES_PANEL_ADMIN => 'Akses Panel Admin (Filament)',
         };

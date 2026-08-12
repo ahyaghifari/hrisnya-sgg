@@ -333,6 +333,12 @@ return [
         'guard' => null,
     ],
 
+    'keuangan.gaji-pemateri' => [
+        'label' => 'Gaji Pemateri',
+        'permission' => \App\Enum\CustomPermissionEnum::LIHAT_GAJI_PEMATERI->value,
+        'guard' => null,
+    ],
+
     // Belum terdaftar sebelumnya (route lolos tanpa cek middleware, gate murni di mount()) -
     // ditambahkan sekalian biar konsisten & kena middleware EnsurePortalPageAccess juga.
     'keuangan.jasa-unit' => [

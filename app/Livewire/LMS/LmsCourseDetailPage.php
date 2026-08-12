@@ -15,6 +15,7 @@ use App\Models\LMS\LmsMaterials;
 use App\Models\LMS\LmsMeetingQuizzes;
 use App\Models\LMS\LmsQuizResults;
 use App\Models\LMS\LmsQuizzes;
+use App\Models\LMS\Trainer\LmsHonorarium;
 use App\Models\LMS\Trainer\TrainerAssessmentResults;
 use App\Models\LMS\Trainer\Trainers;
 use App\Models\User;
@@ -1037,6 +1038,33 @@ class LmsCourseDetailPage extends Component
         return TrainerAssessmentResults::where('course_id', $this->course->id)
             ->where('trainer_id', $meeting->trainer_id)
             ->first();
+    }
+
+    /** Preview live sebelum disimpan — total skor dari kategori yang lagi dipilih user (jalur scored). */
+    public function getHonorPreviewTotalScoreProperty(): int
+    {
+        $total = 0;
+
+        foreach ($this->honorVariables as $variable) {
+            $categoryId = $this->honorCategorySelections[$variable->id] ?? null;
+            $category = $categoryId ? $variable->categories->firstWhere('id', $categoryId) : null;
+            $total += $category->score ?? 0;
+        }
+
+        return $total;
+    }
+
+    /** Honor yang match ke total skor preview di atas — mesin sama dengan recalculate(), cuma belum disimpan. */
+    public function getHonorPreviewAmountProperty(): float
+    {
+        if (! $this->honorContext) {
+            return 0.0;
+        }
+
+        return (float) (LmsHonorarium::where('context', $this->honorContext->value)
+            ->where('min_score', '<=', $this->honorPreviewTotalScore)
+            ->where('max_score', '>=', $this->honorPreviewTotalScore)
+            ->value('honor_amount') ?? 0);
     }
 
     public function selectHonorMeeting(string $meetingId): void

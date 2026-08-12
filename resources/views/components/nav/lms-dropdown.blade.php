@@ -9,9 +9,10 @@
     $canViewBaseline = auth()->user()->can('ViewAny:LmsCourseBaselines');
     $canViewHonorarium = auth()->user()->can(\App\Enum\CustomPermissionEnum::LIHAT_HONORARIUM_LMS->value);
     $canViewLaporan = auth()->user()->can(\App\Enum\CustomPermissionEnum::LIHAT_LAPORAN_PELATIHAN->value);
+    $canViewGajiPemateri = auth()->user()->can(\App\Enum\CustomPermissionEnum::LIHAT_GAJI_PEMATERI->value);
 @endphp
 <div class="dropdown">
-    <a href="#" class="nav-item nav-item-teal {{ request()->routeIs(['pelatihan.honorarium', 'pelatihan.kategori', 'pelatihan.kelola', 'pelatihan.pemateri', 'pelatihan.eksternal*', 'pelatihan.bank-soal', 'pelatihan.kuis', 'pelatihan.evaluasi', 'pelatihan.baseline', 'pelatihan.laporan', 'pelatihan.pengaturan']) ? 'active' : '' }}">
+    <a href="#" class="nav-item nav-item-teal {{ request()->routeIs(['pelatihan.honorarium', 'pelatihan.kategori', 'pelatihan.kelola', 'pelatihan.pemateri', 'pelatihan.eksternal*', 'pelatihan.bank-soal', 'pelatihan.kuis', 'pelatihan.evaluasi', 'pelatihan.baseline', 'pelatihan.laporan', 'pelatihan.pengaturan', 'keuangan.gaji-pemateri']) ? 'active' : '' }}">
         <i class="fa-solid fa-graduation-cap text-xs"></i> Learning Management System <i class="fa-solid fa-chevron-down text-[10px]"></i>
     </a>
     <div class="dropdown-menu dropdown-menu-columns">
@@ -49,11 +50,14 @@
             @endif
         </div>
         @endif
-        @if ($canViewHonorarium || $canViewLaporan)
+        @if ($canViewHonorarium || $canViewLaporan || $canViewGajiPemateri)
         <div class="dropdown-col">
             <div class="dropdown-col-label">Honor & Laporan</div>
             @if ($canViewHonorarium)
                 <a href="{{ route('pelatihan.honorarium') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-sack-dollar"></i> Honorarium</a>
+            @endif
+            @if ($canViewGajiPemateri)
+                <a href="{{ route('keuangan.gaji-pemateri') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-money-check-dollar"></i> Gaji Pemateri</a>
             @endif
             @if ($canViewLaporan)
                 <a href="{{ route('pelatihan.laporan') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-chart-bar"></i> Laporan</a>

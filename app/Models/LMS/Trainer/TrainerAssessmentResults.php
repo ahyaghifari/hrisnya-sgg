@@ -18,6 +18,7 @@ class TrainerAssessmentResults extends Model
         'company_id',
         'course_id',
         'trainer_id',
+        'meeting_id',
         'honor_amount',
         'validity_months',
         'valid_until',
@@ -31,6 +32,11 @@ class TrainerAssessmentResults extends Model
     public function trainer()
     {
         return $this->belongsTo(Trainers::class, 'trainer_id', 'id');
+    }
+
+    public function meeting()
+    {
+        return $this->belongsTo(\App\Models\LMS\LmsMeetings::class, 'meeting_id', 'id');
     }
 
     public function company()

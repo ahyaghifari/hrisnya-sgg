@@ -33,7 +33,7 @@ class PayrollService
     {
         $pdf = Pdf::loadView('pdf.payroll.payroll', [
             'payroll' => $payroll,
-            'rows' => $this->componentRows($payroll),
+            'rows' => $this->componentRows($payroll, compact: true),
         ]);
 
         return response()->streamDownload(
@@ -90,7 +90,7 @@ class PayrollService
 
         $pdf = Pdf::loadView('pdf.payroll.payroll', [
             'payroll' => $payroll,
-            'rows' => $this->componentRows($payroll),
+            'rows' => $this->componentRows($payroll, compact: true),
         ]);
         $pdf->setEncryption($password);
 
@@ -111,7 +111,7 @@ class PayrollService
     {
         $pdf = Pdf::loadView('pdf.payroll.payroll', [
             'payroll' => $payroll,
-            'rows' => $this->componentRows($payroll),
+            'rows' => $this->componentRows($payroll, compact: true),
         ]);
 
         return $pdf->stream($this->slipFilename($payroll));
@@ -127,7 +127,7 @@ class PayrollService
      * ulang dari kondisi toggle/setting SAAT INI. Efek samping yang disengaja: payroll lama tetap
      * tampil apa adanya walau company belakangan mematikan toggle komponennya (integritas historis).
      */
-    public function componentRows(Payroll $payroll): array
+    public function componentRows(Payroll $payroll, bool $compact = false): array
     {
         // Urutan tampil ikut urutan deklarasi PayrollComponentEnum (urutan yang sama dipakai di
         // halaman Komponen Gaji) - BUKAN urutan baris payroll_items di DB (itu ikut urutan
@@ -154,10 +154,18 @@ class PayrollService
         foreach ($items as $item) {
             $key = $item->type === PayrollComponentTypeEnum::EARNING->value ? 'earnings' : 'deductions';
 
+            $note = in_array($item->source_type, $notedComponents, true) ? $item->note : null;
+
+            // Keterlambatan simpan note panjang (breakdown telat/kompensasi/denda) buat halaman
+            // detail - di slip PDF disingkat jadi "Nx/Bulan" senada komponen lain (2026-08-12).
+            if ($compact && $note && $item->source_type === PayrollComponentEnum::KETERLAMBATAN->value) {
+                $note = "{$item->quantity}x/Bulan";
+            }
+
             $rows[$key][] = [
                 'component' => $item->source_type,
                 'label' => $item->name,
-                'note' => in_array($item->source_type, $notedComponents, true) ? $item->note : null,
+                'note' => $note,
                 'amount' => (float) $item->amount,
                 'hasValue' => (float) $item->amount > 0,
             ];

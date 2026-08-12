@@ -58,10 +58,13 @@
                             <label class="form-label">{{ $variable->name }}</label>
                             <div style="display:flex;flex-direction:column;gap:6px;">
                                 @foreach ($variable->categories as $category)
-                                    <label style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--text-body);cursor:pointer;">
-                                        <input type="radio" name="honor-var-{{ $variable->id }}"
-                                            wire:model="honorCategorySelections.{{ $variable->id }}"
-                                            value="{{ $category->id }}">
+                                    <label style="display:flex;align-items:center;gap:9px;font-size:12.5px;color:var(--text-body);cursor:pointer;">
+                                        <span class="custom-radio">
+                                            <input type="radio" name="honor-var-{{ $variable->id }}"
+                                                wire:model.live="honorCategorySelections.{{ $variable->id }}"
+                                                value="{{ $category->id }}">
+                                            <span class="dot"></span>
+                                        </span>
                                         {{ $category->name }}
                                         <span style="color:var(--text-faint);">(skor {{ $category->score }})</span>
                                     </label>
@@ -76,11 +79,19 @@
                 </div>
                 @error('honorCategorySelections') <p style="color:var(--danger-text);font-size:12px;margin-top:8px;">{{ $message }}</p> @enderror
 
-                @if ($this->honorVariables->isNotEmpty() && $this->canEditDetail)
-                    <div style="display:flex;justify-content:flex-end;margin-top:16px;">
-                        <button type="button" wire:click="saveHonorScored" class="btn-primary" style="padding:9px 18px;font-size:12.5px;">
-                            <i class="fa-solid fa-save"></i> Simpan Penilaian
-                        </button>
+                @if ($this->honorVariables->isNotEmpty())
+                    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:16px;padding-top:14px;border-top:1px solid var(--border-soft);flex-wrap:wrap;">
+                        <div>
+                            <p style="font-size:11px;color:var(--text-faint);margin:0;">Total Skor &middot; Gaji Pemateri</p>
+                            <p style="font-size:14.5px;font-weight:700;color:var(--text-heading);margin:2px 0 0;">
+                                {{ $this->honorPreviewTotalScore }} &middot; Rp{{ number_format($this->honorPreviewAmount, 0, ',', '.') }}
+                            </p>
+                        </div>
+                        @if ($this->canEditDetail)
+                            <button type="button" wire:click="saveHonorScored" class="btn-primary" style="padding:9px 18px;font-size:12.5px;">
+                                <i class="fa-solid fa-save"></i> Simpan Penilaian
+                            </button>
+                        @endif
                     </div>
                 @endif
             @else

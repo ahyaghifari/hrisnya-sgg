@@ -63,7 +63,7 @@ class MeetingHonorariumService
 
         return TrainerAssessmentResults::updateOrCreate(
             ['course_id' => $course->id, 'trainer_id' => $meeting->trainer_id],
-            ['company_id' => $course->company_id, 'honor_amount' => $honorAmount]
+            ['company_id' => $course->company_id, 'meeting_id' => $meeting->id, 'honor_amount' => $honorAmount]
         );
     }
 }

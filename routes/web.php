@@ -295,6 +295,11 @@ Route::middleware(['auth', 'portal.access'])->group(function () {
     Route::get('/keuangan/tanggungan-bpjs', \App\Livewire\Keuangan\BpjsDependentsPage::class)
         ->name('keuangan.tanggungan-bpjs');
 
+    // Model & permission-nya Payroll (prefix /keuangan), tapi nav-nya digabung ke dropdown
+    // Learning Management System (lms-dropdown.blade.php), bukan dropdown Penggajian.
+    Route::get('/keuangan/gaji-pemateri', \App\Livewire\Keuangan\GajiPemateriPage::class)
+        ->name('keuangan.gaji-pemateri');
+
     Route::get('/keuangan/payroll/import-template/{type}', [PayrollManualLineTemplateController::class, 'downloadTemplate'])
         ->whereIn('type', ['bon', 'insentif'])
         ->name('keuangan.payroll.import-template');

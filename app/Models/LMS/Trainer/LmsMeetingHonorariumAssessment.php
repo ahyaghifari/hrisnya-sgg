@@ -68,7 +68,7 @@ class LmsMeetingHonorariumAssessment extends Model
 
         TrainerAssessmentResults::updateOrCreate(
             ['course_id' => $course->id, 'trainer_id' => $this->trainer_id],
-            ['company_id' => $course->company_id, 'honor_amount' => $this->honor_amount]
+            ['company_id' => $course->company_id, 'meeting_id' => $this->meeting_id, 'honor_amount' => $this->honor_amount]
         );
     }
 }

@@ -15,11 +15,13 @@ use App\Models\User;
 use App\Services\Attendance\AttendancePeriodResolver;
 
 /**
- * Setiap telat > threshold menit dipotong flat, TAPI dengan kompensasi (grace): N kejadian
- * pertama dalam periode tidak kena denda, baru kejadian ke-(N+1) dst dipotong. Ini FITUR BARU
- * dibanding handleLateArrivalComponent() lama (yang selalu potong dari kejadian pertama) —
- * dikonfirmasi user cuma berlaku Holding (grace=1, di-seed PayrollSettingsSeeder), company
- * lain default grace=0 (perilaku sama seperti sebelumnya).
+ * Setiap telat > threshold menit dipotong flat, TAPI dengan kompensasi (grace): selama jumlah
+ * telat masih <= grace count, TIDAK ada potongan sama sekali. Begitu lolos grace, denda kena
+ * ke SEMUA kejadian telat bulan itu (bukan cuma kelebihan di atas grace) - mis. grace=1: telat
+ * 1x = bebas, telat 2x = 2x denda penuh, telat 3x = 3x denda penuh (dikoreksi 2026-08-12, beda
+ * dari versi awal yang cuma mendenda kelebihannya). Dikonfirmasi user cuma berlaku Holding
+ * (grace=1, di-seed PayrollSettingsSeeder), company lain default grace=0 (langsung kena denda
+ * dari kejadian pertama, grace tidak berlaku).
  */
 class KeterlambatanCalculator implements PayrollComponentCalculator
 {
@@ -71,8 +73,11 @@ class KeterlambatanCalculator implements PayrollComponentCalculator
             return;
         }
 
-        $chargeableCount = $lateCount - $graceCount;
-        $amount = $chargeableCount * (float) $denda;
+        // Begitu lateCount lolos grace, denda kena ke SEMUA kejadian telat (bukan cuma
+        // kelebihannya) - mis. grace=1: telat 1x = bebas, telat 2x = 2x denda penuh, telat
+        // 3x = 3x denda penuh (2026-08-12, beda dari perilaku lama yang cuma mendenda
+        // kelebihan di atas grace).
+        $amount = $lateCount * (float) $denda;
 
         if ($amount <= 0) {
             return;
@@ -82,11 +87,11 @@ class KeterlambatanCalculator implements PayrollComponentCalculator
             'payroll_id' => $payroll->id,
             'name' => PayrollComponentEnum::KETERLAMBATAN->defaultRowName($period->company_id),
             'type' => PayrollComponentEnum::KETERLAMBATAN->type()->value,
-            'quantity' => $chargeableCount,
+            'quantity' => $lateCount,
             'unit' => 'kejadian',
             'unit_amount' => $denda,
             'amount' => $amount,
-            'note' => "Total telat {$lateCount}x, kompensasi {$graceCount}x, kena denda {$chargeableCount}x, {$chargeableCount}x/Bulan",
+            'note' => "Total telat {$lateCount}x, kompensasi {$graceCount}x, {$lateCount}x/Bulan",
             'source_type' => PayrollComponentEnum::KETERLAMBATAN->value,
         ]);
 

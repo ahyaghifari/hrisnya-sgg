@@ -19,8 +19,9 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 /**
- * Denda flat per kejadian telat > threshold menit, dengan kompensasi (grace): N kejadian pertama
- * tidak kena denda, baru ke-(N+1) dst dipotong.
+ * Denda flat per kejadian telat > threshold menit, dengan kompensasi (grace): selama masih
+ * <= grace count TIDAK ada potongan sama sekali; begitu lolos grace, SEMUA kejadian telat
+ * bulan itu kena denda penuh (bukan cuma kelebihan di atas grace).
  */
 class KeterlambatanCalculatorTest extends TestCase
 {
@@ -76,9 +77,9 @@ class KeterlambatanCalculatorTest extends TestCase
         $context = new PayrollContext();
         (new KeterlambatanCalculator())->calculate($user, $payroll, $period, $context);
 
-        // 3 kejadian - 1 grace = 2 kena denda
-        $this->assertSame(50_000.0, $context->totalDeductions);
-        $this->assertDatabaseHas('payroll_items', ['payroll_id' => $payroll->id, 'quantity' => 2]);
+        // 3 kejadian, lolos grace 1 - denda kena ke SEMUA 3 kejadian (bukan cuma kelebihannya)
+        $this->assertSame(75_000.0, $context->totalDeductions);
+        $this->assertDatabaseHas('payroll_items', ['payroll_id' => $payroll->id, 'quantity' => 3]);
     }
 
     public function test_late_count_within_grace_is_not_charged(): void

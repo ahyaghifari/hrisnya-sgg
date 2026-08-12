@@ -361,6 +361,24 @@ per-tanggal dalam periode yang lagi ditampilkan, bukan cuma angka agregat di tab
                                     if ($possibleLeave) {
                                         $style = ['label' => $style['label'], 'color' => '#b45309', 'bg' => 'rgba(180,83,9,0.15)'];
                                     }
+
+                                    // "Tidak tertib" - status Hadir/Terlambat tetap benar (cuma dua kemungkinan
+                                    // status kalau ada baris presensi, lihat FixedScheduleCalculator::
+                                    // calculateOne()), tapi salah satu jam absen kosong - warnanya dibedakan
+                                    // biar kelihatan, bukan disamakan visual dengan Hadir/Terlambat normal
+                                    // yang absennya lengkap. Dua arah:
+                                    // - tidak absen masuk tapi ada absen pulang (scan tunggal di jam pulang
+                                    //   jadwal fixed, lihat AccessLogScheduleReader::singleScanIsCheckout()).
+                                    // - ada absen masuk tapi tidak sempat/lupa absen pulang.
+                                    $isPresentOrLate = in_array($detail->status, [
+                                        \App\Enum\AttendanceStatus::PRESENT->value,
+                                        \App\Enum\AttendanceStatus::LATE->value,
+                                    ], true);
+                                    $tidakAbsenMasuk = $isPresentOrLate && ! $detail->check_in_time && $detail->check_out_time;
+                                    $tidakAbsenPulang = $isPresentOrLate && $detail->check_in_time && ! $detail->check_out_time;
+                                    if ($tidakAbsenMasuk || $tidakAbsenPulang) {
+                                        $style = ['label' => $style['label'], 'color' => '#ca8a04', 'bg' => 'rgba(202,138,4,0.12)'];
+                                    }
                                 }
                             @endphp
                             <tr style="background:{{ $style['bg'] }};">
@@ -369,6 +387,11 @@ per-tanggal dalam periode yang lagi ditampilkan, bukan cuma angka agregat di tab
                                     {{ $style['label'] }}
                                     @if ($detail->late_minutes)
                                         <span style="font-weight:400;color:var(--text-muted);">(telat {{ $detail->late_minutes }} mnt)</span>
+                                    @endif
+                                    @if ($tidakAbsenMasuk ?? false)
+                                        <span style="font-weight:400;color:var(--text-muted);">(tidak absen masuk)</span>
+                                    @elseif ($tidakAbsenPulang ?? false)
+                                        <span style="font-weight:400;color:var(--text-muted);">(tidak absen pulang)</span>
                                     @endif
                                 </td>
                                 <td style="text-align:center;">{{ $detail->working_minutes ? round($detail->working_minutes / 60, 1) . ' jam' : '–' }}</td>
