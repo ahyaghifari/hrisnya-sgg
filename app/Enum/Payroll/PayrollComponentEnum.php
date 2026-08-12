@@ -167,16 +167,20 @@ enum PayrollComponentEnum: string
     }
 
     /**
-     * Note default "0x/Bulan"/"0x/Hari" buat baris fallback Rp0 (0 kejadian) di
-     * PayrollService::runComponent() - dulu disintesis live di componentRows(), sekarang dibekukan
-     * di baris itu sendiri saat digenerate (2026-08-02), sama filosofinya kayak defaultRowName().
-     * Kalkulator yang beneran punya kejadian (Keterlambatan/IzinTerlambatPulangCepat/IzinSeharian)
-     * nulis notenya sendiri dengan hitungan real - method ini cuma dipakai fallback.
+     * Note default "0x/Hari" buat baris fallback Rp0 (0 kejadian) di PayrollService::
+     * runComponent() - dulu disintesis live di componentRows(), sekarang dibekukan di baris itu
+     * sendiri saat digenerate (2026-08-02), sama filosofinya kayak defaultRowName(). Kalkulator
+     * yang beneran punya kejadian nulis notenya sendiri dengan hitungan real - method ini cuma
+     * dipakai fallback.
+     *
+     * Keterlambatan/Izin Meninggalkan Jam Kerja SENGAJA null (2026-08-12, sebelumnya "0x/Bulan")
+     * - kalau tidak ada kejadian sama sekali (atau kejadiannya masih dalam toleransi/grace buat
+     * Keterlambatan), kolom keterangan di slip dibiarkan kosong, bukan menampilkan "0x/Bulan"
+     * yang kesannya seperti ada baris/kejadian padahal tidak ada.
      */
     public function defaultRowNote(): ?string
     {
         return match ($this) {
-            self::KETERLAMBATAN, self::IZIN_TERLAMBAT_PULANG_CEPAT => '0x/Bulan',
             self::CUTI, self::IZIN_SEHARIAN => '0x/Hari',
             default => null,
         };

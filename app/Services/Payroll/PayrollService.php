@@ -242,11 +242,11 @@ class PayrollService
                 // di-assign ke satu pun komponen di halaman "Penerima Komponen Gaji") tidak ikut
                 // digenerate sama sekali — tidak dapat slip gaji, bukan cuma komponen kosong.
                 // Eksekutif PAYROLL_ELIGIBLE_EXECUTIVE_IDS DIKECUALIKAN dari gerbang ini
-                // (2026-08-12) - mereka biasanya tidak punya employee_type_id sama sekali (bukan
-                // "karyawan" biasa), jadi selalu gugur di isRegisteredAnywhere() walau sudah
-                // eksplisit di-whitelist masuk daftar itu - masuk PAYROLL_ELIGIBLE_EXECUTIVE_IDS
-                // itu sendiri SUDAH jadi bukti keikutsertaan, tidak perlu lolos gerbang recipient
-                // employee-type lagi.
+                // (2026-08-12, direvisi) - mereka SENGAJA tidak lewat komponen otomatis apa pun
+                // (lihat generateForUser()), semua pendapatan/potongan diinput manual lewat
+                // halaman Data Eksekutif (ExecutiveAllowanceCalculator) - gerbang recipient
+                // employee-type ini tidak relevan buat mereka, tapi baris Payroll-nya sendiri
+                // tetap harus ada supaya ada tempat nempel input manual itu.
                 $isEligibleExecutive = in_array($user->id, User::PAYROLL_ELIGIBLE_EXECUTIVE_IDS, true);
 
                 if (! $isEligibleExecutive && ! PayrollComponentRecipient::isRegisteredAnywhere($period->company_id, $user->profile?->employee_type_id)) {
@@ -275,7 +275,10 @@ class PayrollService
             throw new \RuntimeException('Karyawan ini sudah punya payroll di periode ini.');
         }
 
-        if (! PayrollComponentRecipient::isRegisteredAnywhere($period->company_id, $user->profile?->employee_type_id)) {
+        // Eksekutif PAYROLL_ELIGIBLE_EXECUTIVE_IDS dikecualikan dari gerbang ini juga (lihat
+        // generateForUser()) - sama alasan seperti di generatePayroll().
+        if (! in_array($user->id, User::PAYROLL_ELIGIBLE_EXECUTIVE_IDS, true)
+            && ! PayrollComponentRecipient::isRegisteredAnywhere($period->company_id, $user->profile?->employee_type_id)) {
             throw new \RuntimeException('Tipe karyawan ini belum terdaftar sebagai penerima komponen gaji apa pun — atur dulu di halaman Penerima Komponen Gaji.');
         }
 
@@ -301,7 +304,10 @@ class PayrollService
             throw new \RuntimeException('Payroll yang sudah dibayar tidak bisa di-regenerate.');
         }
 
-        if (! PayrollComponentRecipient::isRegisteredAnywhere($payroll->payrollPeriod->company_id, $payroll->user->profile?->employee_type_id)) {
+        // Eksekutif PAYROLL_ELIGIBLE_EXECUTIVE_IDS dikecualikan dari gerbang ini juga (lihat
+        // generateForUser()) - sama alasan seperti di generatePayroll().
+        if (! in_array($payroll->user_id, User::PAYROLL_ELIGIBLE_EXECUTIVE_IDS, true)
+            && ! PayrollComponentRecipient::isRegisteredAnywhere($payroll->payrollPeriod->company_id, $payroll->user->profile?->employee_type_id)) {
             throw new \RuntimeException('Tipe karyawan ini belum terdaftar sebagai penerima komponen gaji apa pun — atur dulu di halaman Penerima Komponen Gaji.');
         }
 
@@ -338,6 +344,22 @@ class PayrollService
         ]);
 
         $context = new PayrollContext();
+
+        // Eksekutif PAYROLL_ELIGIBLE_EXECUTIVE_IDS SENGAJA tidak lewat komponen otomatis apa
+        // pun (Gaji Pokok/BPJS/Keterlambatan/Fee Claim/dst) - dari pendapatan sampai potongan
+        // semuanya diinput manual lewat halaman Data Eksekutif (2026-08-12, instruksi user).
+        // Cuma ExecutiveAllowanceCalculator yang jalan buat mereka.
+        if (in_array($user->id, User::PAYROLL_ELIGIBLE_EXECUTIVE_IDS, true)) {
+            app(ExecutiveAllowanceCalculator::class)->calculate($user, $payroll, $period, $context);
+
+            $payroll->update([
+                'gross_salary' => $context->grossSalary,
+                'total_deductions' => $context->totalDeductions,
+                'net_salary' => $context->grossSalary - $context->totalDeductions,
+            ]);
+
+            return $payroll;
+        }
 
         // Urutan WAJIB: semua EARNING dulu -> Fee Claim (earning, always-on) -> semua
         // DEDUCTION kecuali Izin Seharian -> Izin Seharian terakhir. Izin Seharian
