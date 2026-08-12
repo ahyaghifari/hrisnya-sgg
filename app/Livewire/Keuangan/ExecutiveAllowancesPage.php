@@ -21,8 +21,10 @@ class ExecutiveAllowancesPage extends Component
     public bool $showFormModal = false;
     public ?string $editingId = null;
     public ?string $formUserId = null;
-    /** 'component' (pilih dari PayrollComponentEnum) atau 'manual' (label bebas) - lihat saveForm(). */
-    public string $formSource = 'manual';
+    /** 'component' (pilih dari PayrollComponentEnum) atau 'manual' (label bebas) - lihat saveForm().
+     * Default 'component' (2026-08-12, instruksi user) - baris eksekutif kebanyakan memang
+     * komponen gaji baku (Gaji Pokok, dst), Manual cuma buat kasus di luar itu. */
+    public string $formSource = 'component';
     public ?string $formComponent = null;
     public ?string $formType = null;
     public ?string $formLabel = null;
@@ -72,7 +74,7 @@ class ExecutiveAllowancesPage extends Component
 
         $this->editingId = null;
         $this->formUserId = null;
-        $this->formSource = 'manual';
+        $this->formSource = 'component';
         $this->formComponent = null;
         $this->formType = 'earning';
         $this->formLabel = null;

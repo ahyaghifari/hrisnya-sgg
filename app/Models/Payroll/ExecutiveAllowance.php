@@ -36,6 +36,10 @@ class ExecutiveAllowance extends Model
 
     public function user(): BelongsTo
     {
-        return $this->belongsTo(User::class);
+        // withoutGlobalScope('non_karyawan') - baris ini SELALU milik User::
+        // PAYROLL_ELIGIBLE_EXECUTIVE_IDS, yang ID-nya masuk NON_KARYAWAN_IDS (dikeluarkan dari
+        // User::query() biasa) - tanpa ini relasi user() selalu null, kolom "Penerima" tampil
+        // "-" di halaman Tunjangan & Potongan Eksekutif (2026-08-12, sama pola Payroll::user()).
+        return $this->belongsTo(User::class)->withoutGlobalScope('non_karyawan');
     }
 }

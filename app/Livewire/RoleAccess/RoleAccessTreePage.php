@@ -176,7 +176,40 @@ class RoleAccessTreePage extends Component
 
     public function getTreeProperty(): array
     {
-        return PermissionTreeBuilder::build();
+        $tree = PermissionTreeBuilder::build();
+
+        // Permission ExecutiveAllowance ("Data Eksekutif") cuma boleh diassign oleh Super Admin
+        // yang login - selain itu (termasuk Admin company holding) tidak lihat pilihan ini sama
+        // sekali di tree, siapapun role yang lagi diedit (2026-08-12, instruksi user).
+        if (! Auth::user()->hasRole(['super_admin', 'Super Admin'])) {
+            $tree = $this->pruneExecutiveAllowanceNodes($tree);
+        }
+
+        return $tree;
+    }
+
+    /** @param array<int, array> $nodes @return array<int, array> */
+    private function pruneExecutiveAllowanceNodes(array $nodes): array
+    {
+        $pruned = [];
+
+        foreach ($nodes as $node) {
+            if (str_ends_with($node['id'], ':ExecutiveAllowance')) {
+                continue;
+            }
+
+            if (! empty($node['children'])) {
+                $node['children'] = $this->pruneExecutiveAllowanceNodes($node['children']);
+
+                if ($node['children'] === []) {
+                    continue;
+                }
+            }
+
+            $pruned[] = $node;
+        }
+
+        return $pruned;
     }
 
     public function getIsSuperAdminRoleProperty(): bool
@@ -229,6 +262,33 @@ class RoleAccessTreePage extends Component
 
         Notification::make()
             ->title("Hak akses role \"{$role->name}\" berhasil disimpan")
+            ->success()
+            ->send();
+    }
+
+    /**
+     * Role Super Admin sengaja tidak bisa dicentang satu-satu (checkbox terkunci, lihat blade) -
+     * tapi permission BARU (mis. resource baru yang baru dibuat) tidak otomatis nyusul ke role
+     * ini sampai DatabaseSeeder dijalankan ulang manual lewat server. Tombol ini gantinya -
+     * sync role ke SEMUA permission yang ada saat ini (Permission::all(), sama persis logic
+     * "Super Admin gets all permissions" di DatabaseSeeder), dari UI tanpa perlu command server
+     * (2026-08-12, instruksi user).
+     */
+    public function syncSuperAdminPermissions(): void
+    {
+        abort_unless(Auth::user()->can(CustomPermissionEnum::KELOLA_HAK_AKSES->value), 403);
+
+        $role = $this->roleId ? Role::find($this->roleId) : null;
+
+        if (! $role || ! in_array($role->name, ['super_admin', 'Super Admin'], true)) {
+            return;
+        }
+
+        $role->syncPermissions(\Spatie\Permission\Models\Permission::all());
+        $this->loadChecked();
+
+        Notification::make()
+            ->title("Semua hak akses berhasil disinkronkan ke role \"{$role->name}\"")
             ->success()
             ->send();
     }

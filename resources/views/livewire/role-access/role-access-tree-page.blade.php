@@ -82,8 +82,9 @@
             </div>
 
             @if ($this->isSuperAdminRole)
-                <div style="background:rgba(4,44,108,0.07);border:1px solid rgba(4,44,108,0.2);border-radius:10px;padding:14px 16px;font-size:15px;color:#042c6c;">
-                    Role ini otomatis punya semua hak akses — tidak bisa diatur satu-satu di sini.
+                <div style="background:rgba(4,44,108,0.07);border:1px solid rgba(4,44,108,0.2);border-radius:10px;padding:14px 16px;font-size:15px;color:#042c6c;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+                    <span>Role ini otomatis punya semua hak akses — tidak bisa diatur satu-satu di sini. Kalau ada permission baru (mis. dari resource baru) yang belum tercentang, klik tombol ini buat sinkronkan tanpa perlu command server.</span>
+                    <button type="button" class="btn-primary" wire:click="syncSuperAdminPermissions" wire:confirm="Sinkronkan role ini ke SEMUA permission yang ada saat ini?" style="flex-shrink:0;">Sinkronkan Semua Hak Akses</button>
                 </div>
             @endif
 
