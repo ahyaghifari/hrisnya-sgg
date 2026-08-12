@@ -19,7 +19,6 @@ enum CustomPermissionEnum: string
     case SISTEM_COACHING_COUNSELING = 'sistem_coaching_counseling';
     case SISTEM_PENILAIAN_KARYAWAN = 'sistem_penilaian_karyawan';
 
-
     /** Gerbang portal buat permissio approve lintas-modul (APPROVE_PENGAJUAN_ABSENSI,
      * APPROVE_MANAJEMEN_LOWONGAN_KERJA) yang tidak numpang di gerbang SISTEM_* modulnya
      * masing-masing (2026-08-08, permintaan user - dipisah biar approval bisa didelegasikan

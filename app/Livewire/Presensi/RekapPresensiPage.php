@@ -106,6 +106,7 @@ class RekapPresensiPage extends Component
             $this->companyId = Auth::user()->company_id;
         }
 
+        
         $this->resetPage();
     }
 
@@ -290,14 +291,16 @@ class RekapPresensiPage extends Component
     }
 
     /**
-     * Hitung ulang working_minutes SEMUA baris di periode terpilih yang punya check-in & check-
-     * out, pakai rumus jadwal ASLI tiap karyawan (FixedScheduleCalculator/FlexibleScheduleCalculator/
-     * ShiftScheduleCalculator via ScheduleResolver, sama persis yang dipakai pipeline sync harian) -
-     * beda dari syncPeriodAttendance() yang durasi mentah tanpa potong istirahat. Di sini istirahat
-     * DIPOTONG sesuai config jadwal masing-masing (beda field break_minutes-nya sendiri-sendiri),
-     * dan status TIDAK disentuh sama sekali (2026-08-05, tombol terpisah sesuai arahan user).
-     * Karyawan yang jadwalnya tidak ketemu/hari itu libur menurut jadwal dilewati (tidak ada dasar
-     * hitung resminya).
+     * Hitung ulang working_minutes + late_minutes/early_leave_minutes/status SEMUA baris di
+     * periode terpilih yang punya check-in & check-out, pakai rumus jadwal ASLI tiap karyawan
+     * (FixedScheduleCalculator/FlexibleScheduleCalculator/ShiftScheduleCalculator via
+     * ScheduleResolver, sama persis yang dipakai pipeline sync harian) - beda dari
+     * syncPeriodAttendance() yang durasi mentah tanpa potong istirahat & tidak lewat calculator
+     * jadwal sama sekali. Sebelumnya (2026-08-05) status/telat sengaja TIDAK disentuh tombol ini
+     * (working_minutes-only, tombol terpisah) - digabung lagi 2026-08-12 (instruksi user: perlu
+     * cara re-sync late_minutes pakai calculator terbaru tanpa generate ulang dari access_logs
+     * mentah). Karyawan yang jadwalnya tidak ketemu/hari itu libur menurut jadwal dilewati (tidak
+     * ada dasar hitung resminya).
      */
     public function recalculateWorkingHours(
         FixedScheduleCalculator $fixedCalculator,
@@ -354,13 +357,18 @@ class RekapPresensiPage extends Component
                 continue;
             }
 
-            $record->update(['working_minutes' => $result['working_minutes']]);
+            $record->update([
+                'working_minutes' => $result['working_minutes'],
+                'late_minutes' => $result['late_minutes'] ?? 0,
+                'early_leave_minutes' => $result['early_leave_minutes'] ?? 0,
+                'status' => $result['status'] ?? $record->status,
+            ]);
             $updated++;
         }
 
         Notification::make()
-            ->title('Jam kerja dihitung ulang')
-            ->body("{$updated} baris diperbarui sesuai jadwal masing-masing (istirahat dipotong), {$skipped} baris dilewati (jadwal tidak ditemukan/di bawah minimum jam kerja).")
+            ->title('Jam kerja & telat dihitung ulang')
+            ->body("{$updated} baris diperbarui sesuai jadwal masing-masing (istirahat dipotong, telat dihitung ulang), {$skipped} baris dilewati (jadwal tidak ditemukan/di bawah minimum jam kerja).")
             ->success()
             ->send();
     }

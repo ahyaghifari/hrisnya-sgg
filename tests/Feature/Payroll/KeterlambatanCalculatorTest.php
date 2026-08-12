@@ -19,9 +19,11 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 /**
- * Denda flat per kejadian telat > threshold menit, dengan kompensasi (grace): selama masih
- * <= grace count TIDAK ada potongan sama sekali; begitu lolos grace, SEMUA kejadian telat
- * bulan itu kena denda penuh (bukan cuma kelebihan di atas grace).
+ * Denda flat per kejadian telat (toleransi sudah diterapkan sekali di level jadwal -
+ * FixedScheduleCalculator, status cuma 'late' kalau sudah lewat toleransi jadwal - di sini
+ * tidak ada threshold menit kedua, late_minutes manapun yang > 0 dianggap telat), dengan
+ * kompensasi (grace): selama masih <= grace count TIDAK ada potongan sama sekali; begitu lolos
+ * grace, SEMUA kejadian telat bulan itu kena denda penuh (bukan cuma kelebihan di atas grace).
  */
 class KeterlambatanCalculatorTest extends TestCase
 {
@@ -42,7 +44,6 @@ class KeterlambatanCalculatorTest extends TestCase
     public function test_charges_flat_denda_per_late_occurrence_without_grace(): void
     {
         $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
-        Setting::create(['company_id' => $company->id, 'key' => 'keterlambatan_threshold_menit', 'module' => 'payroll', 'type' => 'integer', 'value' => '5', 'label' => 'x']);
         Setting::create(['company_id' => $company->id, 'key' => 'keterlambatan_denda', 'module' => 'payroll', 'type' => 'decimal', 'value' => '25000', 'label' => 'x']);
 
         $user = User::factory()->create(['company_id' => $company->id]);
@@ -62,7 +63,6 @@ class KeterlambatanCalculatorTest extends TestCase
     public function test_grace_count_exempts_first_n_occurrences(): void
     {
         $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
-        Setting::create(['company_id' => $company->id, 'key' => 'keterlambatan_threshold_menit', 'module' => 'payroll', 'type' => 'integer', 'value' => '5', 'label' => 'x']);
         Setting::create(['company_id' => $company->id, 'key' => 'keterlambatan_denda', 'module' => 'payroll', 'type' => 'decimal', 'value' => '25000', 'label' => 'x']);
         Setting::create(['company_id' => $company->id, 'key' => 'keterlambatan_grace_count', 'module' => 'payroll', 'type' => 'integer', 'value' => '1', 'label' => 'x']);
 
@@ -102,23 +102,23 @@ class KeterlambatanCalculatorTest extends TestCase
         $this->assertDatabaseMissing('payroll_items', ['payroll_id' => $payroll->id]);
     }
 
-    public function test_below_threshold_late_minutes_ignored(): void
+    public function test_any_late_minutes_above_zero_counts_no_separate_threshold(): void
     {
         $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
-        Setting::create(['company_id' => $company->id, 'key' => 'keterlambatan_threshold_menit', 'module' => 'payroll', 'type' => 'integer', 'value' => '10', 'label' => 'x']);
         Setting::create(['company_id' => $company->id, 'key' => 'keterlambatan_denda', 'module' => 'payroll', 'type' => 'decimal', 'value' => '25000', 'label' => 'x']);
 
         $user = User::factory()->create(['company_id' => $company->id]);
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
         $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
 
-        // 5 menit telat, di bawah threshold 10 menit - tidak dihitung sama sekali.
-        $this->makeLateRecord($user, '2026-07-05', 5);
+        // Toleransi sudah selesai di level jadwal (status='late' cuma di-set kalau sudah lewat
+        // toleransi) - di sini tidak ada threshold menit kedua, 1 menit pun kena hitung.
+        $this->makeLateRecord($user, '2026-07-05', 1);
 
         $context = new PayrollContext();
         (new KeterlambatanCalculator())->calculate($user, $payroll, $period, $context);
 
-        $this->assertSame(0.0, $context->totalDeductions);
+        $this->assertSame(25_000.0, $context->totalDeductions);
     }
 
     public function test_uses_attendance_period_window_not_literal_payroll_period_dates(): void

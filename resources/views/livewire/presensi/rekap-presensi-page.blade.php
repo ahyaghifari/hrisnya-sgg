@@ -57,9 +57,9 @@
             </button>
 
             <button type="button" wire:click="recalculateWorkingHours" wire:loading.attr="disabled" wire:target="recalculateWorkingHours"
-                wire:confirm="Hitung ulang jam kerja semua baris di periode ini sesuai jadwal masing-masing karyawan (Fixed/Flexible, istirahat dipotong sesuai jadwalnya)? Status kehadiran TIDAK ikut diubah. Karyawan berjadwal Shift belum ditangani tombol ini."
-                class="btn-ghost" title="Hitung ulang jam kerja sesuai jadwal asli tiap karyawan (istirahat dipotong) - tidak mengubah status kehadiran">
-                <i class="fa-solid fa-clock-rotate-left"></i> Hitung Ulang Jam Kerja
+                wire:confirm="Hitung ulang jam kerja, telat, dan pulang cepat semua baris di periode ini sesuai jadwal masing-masing karyawan (istirahat dipotong sesuai jadwalnya)? Status kehadiran (Hadir/Terlambat) ikut diperbarui sesuai hasil hitung ulang."
+                class="btn-ghost" title="Hitung ulang jam kerja, telat, dan status sesuai jadwal asli tiap karyawan (istirahat dipotong)">
+                <i class="fa-solid fa-clock-rotate-left"></i> Hitung Ulang Jam Kerja & Telat
             </button>
         @endif
     @endif
@@ -337,6 +337,10 @@ per-tanggal dalam periode yang lagi ditampilkan, bukan cuma angka agregat di tab
                         @forelse ($this->selectedUserDetailRows as $detail)
                             @php
                                 $foundLeave = $leaveOrPermissionDates[$detail->date] ?? null;
+                                // Reset tiap iterasi - kalau tidak, nilai baris SEBELUMNYA bisa "bocor" ke
+                                // baris ini lewat cabang if(!has_record) yang tidak menyentuh variabel ini.
+                                $tidakAbsenMasuk = false;
+                                $tidakAbsenPulang = false;
 
                                 if (! $detail->has_record) {
                                     // Tidak ada baris attendance_records SAMA SEKALI untuk tanggal ini - wajar

@@ -20,8 +20,9 @@ use Tests\TestCase;
 
 /**
  * recalculateWorkingHours() - tombol TERPISAH dari syncPeriodAttendance(): hitung ulang
- * working_minutes pakai rumus jadwal ASLI tiap karyawan (Fixed/Flexible, istirahat DIPOTONG
- * sesuai config jadwal masing-masing), status kehadiran TIDAK disentuh sama sekali.
+ * working_minutes + late_minutes/early_leave_minutes/status pakai rumus jadwal ASLI tiap
+ * karyawan (Fixed/Flexible, istirahat DIPOTONG sesuai config jadwal masing-masing). Sebelumnya
+ * (2026-08-05) status sengaja tidak disentuh tombol ini - digabung lagi 2026-08-12.
  */
 class RekapPresensiPageRecalculateWorkingHoursTest extends TestCase
 {

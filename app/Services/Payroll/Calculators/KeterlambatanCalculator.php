@@ -27,7 +27,6 @@ class KeterlambatanCalculator implements PayrollComponentCalculator
 {
     public function calculate(User $user, Payroll $payroll, PayrollPeriod $period, PayrollContext $context): void
     {
-        $thresholdMinutes = Setting::resolve('keterlambatan_threshold_menit', $period->company_id, default: 0);
         $denda = Setting::resolve('keterlambatan_denda', $period->company_id, default: 0);
         $graceCount = Setting::resolve('keterlambatan_grace_count', $period->company_id, default: 0);
 
@@ -39,12 +38,18 @@ class KeterlambatanCalculator implements PayrollComponentCalculator
         // end_date PayrollPeriod, sama fix-nya kayak kalkulator Izin (2026-08-02).
         [$attendancePeriodStart, $attendancePeriodEnd] = AttendancePeriodResolver::resolve($period->start_date, $period->company_id);
 
+        // Tidak ada threshold menit terpisah lagi di sini (2026-08-12) - toleransi SUDAH
+        // diterapkan sekali di level jadwal (FixedScheduleCalculator: status cuma jadi 'late'
+        // kalau check-in lewat start_time+late_tolerance_minutes). Begitu status='late' (yang
+        // berarti late_minutes pasti > 0/tidak null), itu sudah dianggap terlambat di sini -
+        // tidak ada gerbang toleransi kedua yang menyaring ulang.
         $lateRecords = AttendanceRecords::query()
             ->where('user_id', $user->id)
             ->whereBetween('date', [$attendancePeriodStart, $attendancePeriodEnd])
             ->where('status', 'late')
             ->whereNotNull('check_in_time')
-            ->when($thresholdMinutes > 0, fn ($q) => $q->where(fn ($q2) => $q2->whereNull('late_minutes')->orWhere('late_minutes', '>', $thresholdMinutes)))
+            ->whereNotNull('late_minutes')
+            ->where('late_minutes', '>', 0)
             ->orderBy('date')
             ->get();
 

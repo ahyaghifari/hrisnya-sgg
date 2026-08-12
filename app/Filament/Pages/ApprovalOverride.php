@@ -47,9 +47,9 @@ class ApprovalOverride extends Page implements HasForms, HasTable
 
     protected static string|UnitEnum|null $navigationGroup = 'Manajemen Pengguna';
 
-    protected static ?string $navigationLabel = 'Approve Paksa';
+    protected static ?string $navigationLabel = 'Approve Persetujuan';
 
-    protected static ?string $title = 'Approve Paksa';
+    protected static ?string $title = 'Approve Persetujuan';
 
     public static function canAccess(): bool
     {
@@ -92,18 +92,18 @@ class ApprovalOverride extends Page implements HasForms, HasTable
             ->defaultSort('created_at', 'asc')
             ->recordActions([
                 Action::make('force_approve')
-                    ->label('Approve Paksa')
+                    ->label('Approve Persetujuan')
                     ->color('warning')
                     ->icon('heroicon-o-bolt')
                     ->requiresConfirmation()
-                    ->modalHeading('Approve Paksa')
+                    ->modalHeading('Approve Persetujuan')
                     ->modalDescription('Ini akan menyetujui step approval saat ini tanpa melalui approver yang sah. Kalau masih ada step berikutnya, pengajuan tetap butuh persetujuan lanjutan.')
                     ->schema([
                         Textarea::make('note')
                             ->label('Catatan (wajib)')
                             ->required()
                             ->rows(3)
-                            ->placeholder('Alasan approve paksa, mis. approver asli tidak kunjung merespons'),
+                            ->placeholder('Alasan approve persetujuan, mis. approver asli tidak kunjung merespons'),
                     ])
                     ->action(function (ApprovalActivities $record, array $data) {
                         try {
