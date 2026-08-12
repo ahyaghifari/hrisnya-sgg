@@ -316,13 +316,17 @@
                 @foreach ($pribadi as $label => $value)
                     {!! $renderField($label, $value, !$loop->last || $isSelf) !!}
                 @endforeach
-                {{-- No. Rekening SENGAJA cuma tampil untuk pemilik akun sendiri - atasan/HC yang
+                {{-- Rekening bank SENGAJA cuma tampil untuk pemilik akun sendiri - atasan/HC yang
                 buka Data Diri bawahan lewat MyStaff tidak boleh lihat ini (instruksi user
                 2026-08-10), beda dari field pribadi lain di atas yang memang boleh dilihat
-                atasan/HC. Read-only murni, tidak ada tombol edit - perubahan rekening tetap
+                atasan/HC. Dipecah jadi 3 baris terpisah (Bank/No. Rekening/Atas Nama, 2026-08-12
+                - sebelumnya digabung 1 baris "No. Rekening") biar tiap bagian jelas kebaca
+                sendiri-sendiri. Read-only murni, tidak ada tombol edit - perubahan rekening tetap
                 cuma lewat HC/admin (lihat catatan di EmployeeAttendanceStatistics::saveProfil()). --}}
                 @if ($isSelf)
-                    {!! $renderField('No. Rekening', $profile?->bank_name ? "{$profile->bank_name} — {$profile->bank_account_number} a.n. {$profile->bank_account_name}" : null, false) !!}
+                    {!! $renderField('Bank', $profile?->bank_name, true) !!}
+                    {!! $renderField('No. Rekening', $profile?->bank_account_number, true) !!}
+                    {!! $renderField('Atas Nama Rekening', $profile?->bank_account_name, false) !!}
                 @endif
             </div>
 

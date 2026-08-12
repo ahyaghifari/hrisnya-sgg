@@ -241,7 +241,15 @@ class PayrollService
                 // Tipe karyawan yang tidak terdaftar sebagai penerima komponen APA PUN (belum
                 // di-assign ke satu pun komponen di halaman "Penerima Komponen Gaji") tidak ikut
                 // digenerate sama sekali — tidak dapat slip gaji, bukan cuma komponen kosong.
-                if (! PayrollComponentRecipient::isRegisteredAnywhere($period->company_id, $user->profile?->employee_type_id)) {
+                // Eksekutif PAYROLL_ELIGIBLE_EXECUTIVE_IDS DIKECUALIKAN dari gerbang ini
+                // (2026-08-12) - mereka biasanya tidak punya employee_type_id sama sekali (bukan
+                // "karyawan" biasa), jadi selalu gugur di isRegisteredAnywhere() walau sudah
+                // eksplisit di-whitelist masuk daftar itu - masuk PAYROLL_ELIGIBLE_EXECUTIVE_IDS
+                // itu sendiri SUDAH jadi bukti keikutsertaan, tidak perlu lolos gerbang recipient
+                // employee-type lagi.
+                $isEligibleExecutive = in_array($user->id, User::PAYROLL_ELIGIBLE_EXECUTIVE_IDS, true);
+
+                if (! $isEligibleExecutive && ! PayrollComponentRecipient::isRegisteredAnywhere($period->company_id, $user->profile?->employee_type_id)) {
                     continue;
                 }
 

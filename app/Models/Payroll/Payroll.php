@@ -37,7 +37,11 @@ class Payroll extends Model
 
     public function user(): BelongsTo
     {
-        return $this->belongsTo(User::class);
+        // withoutGlobalScope('non_karyawan') - Presiden Direktur/Sekretaris Direktur (lihat
+        // User::PAYROLL_ELIGIBLE_EXECUTIVE_IDS) tetap punya baris Payroll walau ID-nya masuk
+        // NON_KARYAWAN_IDS, tanpa ini relasi user() selalu null buat mereka (nama tampil "-"
+        // di semua halaman list/detail payroll) - 2026-08-12.
+        return $this->belongsTo(User::class)->withoutGlobalScope('non_karyawan');
     }
 
     public function payrollPeriod(): BelongsTo
