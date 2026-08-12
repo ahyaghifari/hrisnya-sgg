@@ -241,7 +241,7 @@ class RekapPresensiPage extends Component
      *    leave/sick/permit) SENGAJA dikecualikan, biar tidak salah timpa jadi "mangkir" padahal
      *    memang tidak masuk kerja dengan alasan yang disetujui - keduanya juga wajar check_in/
      *    check_out-nya null.
-     * 2. Jam kerja: buat SEMUA baris yang punya check_in_time DAN check_out_time, working_minutes
+     * 2. Jam kerja: buat SEMUA bars yang punya check_in_time DAN check_out_time, working_minutes
      *    dihitung ULANG dari durasi mentah check_out - check_in (jam istirahat IKUT terhitung
      *    sebagai jam kerja, tidak dipotong) - dikonfirmasi user 2026-08-05, timpa nilai lama
      *    kalau ada. Lintas tengah malam (check_out < check_in) dianggap nyambung ke hari
