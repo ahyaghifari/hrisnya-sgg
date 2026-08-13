@@ -92,7 +92,9 @@
                     <i class="fa-solid fa-download"></i> Download Slip Gaji
                 </button>
                 @if ($payroll->is_paid && $this->canEditPayroll)
-                    <button type="button" wire:click="sendSlipEmail" wire:confirm="Kirim slip gaji ke email {{ $payroll->user?->email }}?" class="btn-ghost" style="padding:6px 12px;font-size:11px;color:#2563eb;">
+                    {{-- Email tujuan sama persis prioritasnya dengan SendPayrollSlipJob - email
+                    pribadi diutamakan, fallback ke email akun kalau kosong. --}}
+                    <button type="button" wire:click="sendSlipEmail" wire:confirm="Kirim slip gaji ke email {{ $payroll->user?->profile?->email_pribadi ?: $payroll->user?->email }}?" class="btn-ghost" style="padding:6px 12px;font-size:11px;color:#2563eb;">
                         <i class="fa-solid fa-envelope"></i> {{ $payroll->slip_sent_at ? 'Kirim Ulang' : 'Kirim' }} Slip ke Email
                     </button>
                 @endif
