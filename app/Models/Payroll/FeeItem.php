@@ -2,6 +2,7 @@
 
 namespace App\Models\Payroll;
 
+use App\Casts\PayrollEncrypted;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
@@ -33,6 +34,7 @@ class FeeItem extends Model
     protected $casts = [
         'is_manual' => 'boolean',
         'is_paid' => 'boolean',
+        'amount' => PayrollEncrypted::class,
     ];
 
     public function submission(): BelongsTo

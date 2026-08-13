@@ -42,8 +42,10 @@ class JasaPelayananCalculator implements PayrollComponentCalculator
             return;
         }
 
+        // `amount` dienkripsi (PayrollEncrypted) - SUM SQL gak bisa jalan, jumlah di PHP.
         $totalCompanyServiceFee = (float) OmsetDetail::query()
             ->where('payroll_period_id', $period->id)
+            ->get(['amount'])
             ->sum('amount');
 
         if ($totalCompanyServiceFee <= 0) {

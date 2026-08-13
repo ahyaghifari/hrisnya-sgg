@@ -102,8 +102,7 @@ class UserKoperasiResource extends Resource
                     ->searchable(),
                 TextColumn::make('amount')
                     ->label('Potongan Per Bulan')
-                    ->money('IDR', true)
-                    ->sortable(),
+                    ->money('IDR', true),
                 IconColumn::make('is_active')
                     ->label('Aktif')
                     ->boolean(),

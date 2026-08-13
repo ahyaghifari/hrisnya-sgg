@@ -142,8 +142,12 @@ class SalaryComponentsPage extends Component
             ->unique()
             ->values();
 
-        $companyRows = Setting::where('company_id', $this->companyId)->whereIn('key', $requiredKeys)->pluck('value', 'key');
-        $globalFallback = Setting::whereNull('company_id')->whereIn('key', $requiredKeys)->pluck('value', 'key');
+        // get()->pluck() (Collection), BUKAN Builder::pluck() langsung - Builder::pluck()
+        // bikin model sintetis yang cuma punya kolom 'value' tanpa 'key', accessor selektif
+        // Setting::value() butuh 'key' di attribute yang sama buat tau harus decrypt atau
+        // tidak (mis. bpjs_declared_value) - tanpa 'key' selalu dianggap plaintext.
+        $companyRows = Setting::where('company_id', $this->companyId)->whereIn('key', $requiredKeys)->get(['key', 'value'])->pluck('value', 'key');
+        $globalFallback = Setting::whereNull('company_id')->whereIn('key', $requiredKeys)->get(['key', 'value'])->pluck('value', 'key');
 
         $this->settingValues = $requiredKeys
             ->mapWithKeys(fn ($key) => [$key => (string) ($companyRows[$key] ?? $globalFallback[$key] ?? '')])

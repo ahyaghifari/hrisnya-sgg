@@ -2,6 +2,7 @@
 
 namespace App\Models\Payroll;
 
+use App\Casts\PayrollEncrypted;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
@@ -31,6 +32,7 @@ class ExecutiveAllowance extends Model
     {
         return [
             'is_active' => 'boolean',
+            'amount' => PayrollEncrypted::class,
         ];
     }
 

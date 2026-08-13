@@ -2,6 +2,7 @@
 
 namespace App\Models\Payroll;
 
+use App\Casts\PayrollEncrypted;
 use App\Models\Concerns\LogsAuditChanges;
 use App\Models\Master\Kelas;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
@@ -18,6 +19,10 @@ class TransportAllowance extends Model
     protected $fillable = [
         'kelas_id',
         'amount',
+    ];
+
+    protected $casts = [
+        'amount' => PayrollEncrypted::class,
     ];
 
     public function kelas(): BelongsTo

@@ -29,8 +29,7 @@ class ExecutiveAllowancesTable
                     ->sortable(),
                 TextColumn::make('amount')
                     ->label('Nominal')
-                    ->money('IDR', true)
-                    ->sortable(),
+                    ->money('IDR', true),
                 IconColumn::make('is_active')
                     ->label('Aktif')
                     ->boolean(),

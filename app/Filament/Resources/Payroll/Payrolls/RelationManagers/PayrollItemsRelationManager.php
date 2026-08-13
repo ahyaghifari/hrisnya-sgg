@@ -211,16 +211,24 @@ class PayrollItemsRelationManager extends RelationManager
             ->bulkActions([]);
     }
 
-    /** @param float $amount Positif = tambahkan kontribusi ke total, negatif = batalkan. */
+    /**
+     * @param float $amount Positif = tambahkan kontribusi ke total, negatif = batalkan.
+     *
+     * Read-modify-write PHP, BUKAN increment()/decrement() - keduanya generate SQL
+     * `UPDATE col = col + ?` mentah di level DB, tidak kompatibel dengan kolom yang di-cast
+     * PayrollEncrypted (nilai di kolom itu ciphertext, bukan angka, gak bisa dijumlah SQL).
+     */
     private function applyToPayrollTotals(Payroll $payroll, string $type, float $amount): void
     {
         if ($type === 'earning') {
-            $payroll->increment('gross_salary', $amount);
-            $payroll->increment('net_salary', $amount);
+            $payroll->gross_salary += $amount;
+            $payroll->net_salary += $amount;
         } else {
-            $payroll->increment('total_deductions', $amount);
-            $payroll->increment('net_salary', -$amount);
+            $payroll->total_deductions += $amount;
+            $payroll->net_salary -= $amount;
         }
+
+        $payroll->save();
     }
 
     /**

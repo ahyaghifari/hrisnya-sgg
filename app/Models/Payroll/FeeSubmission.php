@@ -44,8 +44,9 @@ class FeeSubmission extends Model
         return $this->belongsTo(User::class, 'created_by');
     }
 
+    /** `amount` dienkripsi (PayrollEncrypted) - SUM SQL gak bisa jalan, jumlah di PHP. */
     public function getTotalAmountAttribute(): float
     {
-        return (float) $this->items()->sum('amount');
+        return (float) $this->items()->get(['amount'])->sum('amount');
     }
 }

@@ -84,9 +84,10 @@ class PayrollDashboardPage extends Component
         return $period ? Payroll::where('payroll_period_id', $period->id) : Payroll::query()->whereRaw('1 = 0');
     }
 
+    /** `net_salary` dienkripsi (PayrollEncrypted) - SUM SQL gak bisa jalan, jumlah di PHP. */
     public function getTotalNetPayrollProperty(): float
     {
-        return (float) $this->periodPayrolls()->sum('net_salary');
+        return (float) $this->periodPayrolls()->get()->sum('net_salary');
     }
 
     public function getPayrollCountProperty(): int
@@ -112,20 +113,22 @@ class PayrollDashboardPage extends Component
         return $this->periodPayrolls()->where('is_paid', false)->count();
     }
 
-    /** Buat modal "Belum Dibayar" — maks. 20, urut net terbesar (paling berdampak duluan). */
+    /** Buat modal "Belum Dibayar" — maks. 20, urut net terbesar (paling berdampak duluan).
+     * `net_salary` dienkripsi - sort/limit di PHP setelah get(), bukan SQL. */
     public function getUnpaidPayrollsProperty()
     {
         return $this->periodPayrolls()
             ->where('is_paid', false)
             ->with('user')
-            ->orderByDesc('net_salary')
-            ->limit(20)
-            ->get();
+            ->get()
+            ->sortByDesc('net_salary')
+            ->take(20)
+            ->values();
     }
 
     /** Top 8 komponen (earning+deduction dicampur, diurutkan nilai absolut) periode terpilih —
      * satu-satunya sumber "komposisi payroll" yang datanya benar-benar ada (PayrollItem nyata,
-     * bukan proyeksi/mock). */
+     * bukan proyeksi/mock). `amount` dienkripsi - groupBy/sum/sort semua di PHP, bukan SQL. */
     public function getComponentBreakdownProperty()
     {
         $period = $this->latestPeriod;
@@ -136,11 +139,16 @@ class PayrollDashboardPage extends Component
 
         $rows = PayrollItem::query()
             ->whereIn('payroll_id', Payroll::where('payroll_period_id', $period->id)->pluck('id'))
-            ->selectRaw('source_type, type, sum(amount) as total')
-            ->groupBy('source_type', 'type')
-            ->orderByDesc('total')
-            ->limit(8)
-            ->get();
+            ->get(['source_type', 'type', 'amount'])
+            ->groupBy(fn ($item) => $item->source_type . '|' . $item->type)
+            ->map(fn ($group, $groupKey) => (object) [
+                'source_type' => explode('|', $groupKey, 2)[0],
+                'type' => explode('|', $groupKey, 2)[1],
+                'total' => $group->sum('amount'),
+            ])
+            ->sortByDesc('total')
+            ->take(8)
+            ->values();
 
         $max = $rows->max('total') ?: 1;
 
@@ -181,15 +189,16 @@ class PayrollDashboardPage extends Component
         return $this->scopedIncentives()->count();
     }
 
+    /** `amount` dienkripsi - SUM SQL gak bisa jalan, jumlah di PHP. */
     public function getActiveIncentiveTotalProperty(): float
     {
-        return (float) $this->scopedIncentives()->sum('amount');
+        return (float) $this->scopedIncentives()->get()->sum('amount');
     }
 
-    /** Buat modal "Insentif Aktif". */
+    /** Buat modal "Insentif Aktif". `amount` dienkripsi - sort/limit di PHP setelah get(). */
     public function getActiveIncentivesListProperty()
     {
-        return $this->scopedIncentives()->with('user')->orderByDesc('amount')->limit(20)->get();
+        return $this->scopedIncentives()->with('user')->get()->sortByDesc('amount')->take(20)->values();
     }
 
     protected function scopedKoperasi()
@@ -204,15 +213,16 @@ class PayrollDashboardPage extends Component
         return $this->scopedKoperasi()->count();
     }
 
+    /** `amount` dienkripsi - SUM SQL gak bisa jalan, jumlah di PHP. */
     public function getActiveKoperasiTotalProperty(): float
     {
-        return (float) $this->scopedKoperasi()->sum('amount');
+        return (float) $this->scopedKoperasi()->get()->sum('amount');
     }
 
-    /** Buat modal "Anggota Koperasi Aktif". */
+    /** Buat modal "Anggota Koperasi Aktif". `amount` dienkripsi - sort/limit di PHP setelah get(). */
     public function getActiveKoperasiListProperty()
     {
-        return $this->scopedKoperasi()->with('user')->orderByDesc('amount')->limit(20)->get();
+        return $this->scopedKoperasi()->with('user')->get()->sortByDesc('amount')->take(20)->values();
     }
 
     /** Panel & modal "Periode Terbaru" — riwayat singkat, link ke halaman Periode Gaji buat detail penuh. */

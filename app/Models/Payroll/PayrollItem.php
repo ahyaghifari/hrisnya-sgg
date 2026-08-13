@@ -2,6 +2,7 @@
 
 namespace App\Models\Payroll;
 
+use App\Casts\PayrollEncrypted;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -23,6 +24,11 @@ class PayrollItem extends Model
         'unit',
         'note',
         'source_type',
+    ];
+
+    protected $casts = [
+        'unit_amount' => PayrollEncrypted::class,
+        'amount' => PayrollEncrypted::class,
     ];
 
     public function payroll(): BelongsTo

@@ -34,9 +34,11 @@ class IzinSeharianGajiPokokCalculator extends AbstractIzinSeharianCalculator
 
     protected function rateHarian(User $user, Payroll $payroll, PayrollPeriod $period, PayrollContext $context): float
     {
+        // `amount` dienkripsi (PayrollEncrypted) - SUM SQL gak bisa jalan, jumlah di PHP.
         $gajiPokok = (float) PayrollItem::query()
             ->where('payroll_id', $payroll->id)
             ->where('source_type', PayrollComponentEnum::GAJI_POKOK->value)
+            ->get(['amount'])
             ->sum('amount');
 
         if ($gajiPokok <= 0) {

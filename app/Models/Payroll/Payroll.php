@@ -2,6 +2,7 @@
 
 namespace App\Models\Payroll;
 
+use App\Casts\PayrollEncrypted;
 use App\Enum\Payroll\PayrollComponentTypeEnum;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
@@ -33,6 +34,9 @@ class Payroll extends Model
         'generated_at' => 'datetime',
         'slip_sent_at' => 'datetime',
         'slip_send_failed_at' => 'datetime',
+        'gross_salary' => PayrollEncrypted::class,
+        'total_deductions' => PayrollEncrypted::class,
+        'net_salary' => PayrollEncrypted::class,
     ];
 
     public function user(): BelongsTo

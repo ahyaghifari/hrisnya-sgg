@@ -2,6 +2,7 @@
 
 namespace App\Models\Payroll;
 
+use App\Casts\PayrollEncrypted;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
@@ -25,6 +26,10 @@ class JasaUnitDetail extends Model
         'amount',
         'note',
         'created_by',
+    ];
+
+    protected $casts = [
+        'amount' => PayrollEncrypted::class,
     ];
 
     public function payrollPeriod(): BelongsTo

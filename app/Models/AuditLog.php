@@ -24,6 +24,18 @@ class AuditLog extends Model
         'new_value',
     ];
 
+    /**
+     * Blanket, bukan selektif per-key seperti Setting::value - AuditLog nampung old/new value
+     * dari banyak modul (payroll, kepegawaian, dst, lihat LogsAuditChanges/LogsFieldAuditChanges),
+     * gak difilter/sort berdasarkan isi kolom ini (cuma `key`/`module`, sort `created_at`), jadi
+     * aman dienkripsi semua tanpa refactor SQL. Pakai `encrypted` bawaan Laravel (APP_KEY, bukan
+     * key payroll terpisah) karena datanya lintas modul, bukan payroll doang.
+     */
+    protected $casts = [
+        'old_value' => 'encrypted',
+        'new_value' => 'encrypted',
+    ];
+
     public function company(): BelongsTo
     {
         return $this->belongsTo(Companies::class, 'company_id');

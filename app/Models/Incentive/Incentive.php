@@ -2,6 +2,7 @@
 
 namespace App\Models\Incentive;
 
+use App\Casts\PayrollEncrypted;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
@@ -33,6 +34,7 @@ class Incentive extends Model
         return [
             'incentive_date' => 'date',
             'is_active' => 'boolean',
+            'amount' => PayrollEncrypted::class,
         ];
     }
 

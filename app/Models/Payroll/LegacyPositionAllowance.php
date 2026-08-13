@@ -2,6 +2,7 @@
 
 namespace App\Models\Payroll;
 
+use App\Casts\PayrollEncrypted;
 use App\Models\Concerns\LogsAuditChanges;
 use App\Models\Master\Kelas;
 use App\Models\Master\Pangkats;
@@ -25,6 +26,10 @@ class LegacyPositionAllowance extends Model
         'pangkat_id',
         'kelas_id',
         'amount',
+    ];
+
+    protected $casts = [
+        'amount' => PayrollEncrypted::class,
     ];
 
     public function pangkat(): BelongsTo

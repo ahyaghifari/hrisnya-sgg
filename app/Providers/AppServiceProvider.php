@@ -6,9 +6,12 @@ use App\Auth\KaryawanAwareUserProvider;
 use App\Filament\Candidate\Pages\Auth\LoginResponse as AuthLoginResponse;
 use Filament\Auth\Http\Responses\Contracts\LoginResponse;
 use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Encryption\Encrypter;
+use Illuminate\Encryption\MissingAppKeyException;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Support\Str;
 use NotificationChannels\WebPush\WebPushChannel;
 
 class AppServiceProvider extends ServiceProvider
@@ -19,6 +22,8 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->bind(LoginResponse::class, AuthLoginResponse::class);
+
+        $this->registerPayrollEncrypter();
 
         // ponytail: DB local (hris_db) berisi push_subscriptions asli 4 karyawan (bukan data
         // dummy) - kalau APP_ENV=local, WebPushChannel di-no-op total supaya testing notifikasi
@@ -40,5 +45,37 @@ class AppServiceProvider extends ServiceProvider
         Auth::provider('eloquent_karyawan_aware', fn ($app, array $config) => new KaryawanAwareUserProvider($app['hash'], $config['model']));
 
         RateLimiter::for('payroll-slip-email', fn () => Limit::perMinute(35));
+    }
+
+    /**
+     * Encrypter khusus nominal payroll, key terpisah dari APP_KEY (config/payroll.php) - biar
+     * kompromi APP_KEY (dipakai session/cookie/cache juga) tidak otomatis bongkar nominal
+     * payroll. Pola sama seperti EncryptionServiceProvider bawaan Laravel (parseKey +
+     * previousKeys), cuma pakai config('payroll.*') bukan config('app.*').
+     */
+    private function registerPayrollEncrypter(): void
+    {
+        $this->app->singleton('payroll.encrypter', function ($app) {
+            $config = $app->make('config')->get('payroll');
+
+            return (new Encrypter($this->parsePayrollKey($config['key']), $config['cipher']))
+                ->previousKeys(array_map(
+                    fn ($key) => $this->parsePayrollKey($key),
+                    $config['previous_keys'] ?? []
+                ));
+        });
+    }
+
+    private function parsePayrollKey(?string $key): string
+    {
+        if (empty($key)) {
+            throw new MissingAppKeyException('PAYROLL_ENCRYPTION_KEY belum di-set di .env.');
+        }
+
+        if (Str::startsWith($key, $prefix = 'base64:')) {
+            $key = base64_decode(Str::after($key, $prefix));
+        }
+
+        return $key;
     }
 }

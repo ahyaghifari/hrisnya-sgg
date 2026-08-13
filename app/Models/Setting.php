@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Models\Concerns\LogsAuditChanges;
 use App\Models\Master\Companies;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -28,6 +29,42 @@ class Setting extends Model
         'label',
         'description',
     ];
+
+    /**
+     * Key `settings.value` yang dienkripsi (PayrollEncrypted key, sama seperti nominal payroll
+     * lain). Selektif per-baris, BUKAN blanket 1 kolom - 60+ key lain (persentase, threshold,
+     * string metode) tetap plaintext karena dibaca langsung buat logic kalkulasi
+     * (`Setting::resolve()` dipakai di banyak tempat yang butuh baca cepat tanpa expect
+     * ciphertext).
+     */
+    private const ENCRYPTED_KEYS = ['bpjs_declared_value'];
+
+    /**
+     * Accessor/mutator kondisional berdasarkan `key` di baris yang sama - hanya baris
+     * ENCRYPTED_KEYS yang di-encrypt/decrypt. Butuh `key` sudah ke-set duluan sebelum `value`
+     * (urutan array $fillable pas mass-assignment) - dicek aman untuk 2 jalur tulis yang ada
+     * (Setting::firstOrCreate/updateOrCreate, `key` selalu bagian dari kondisi pencarian,
+     * bukan value yang di-update belakangan).
+     */
+    protected function value(): Attribute
+    {
+        return Attribute::make(
+            get: function (?string $value, array $attributes) {
+                if ($value === null || ! in_array($attributes['key'] ?? null, self::ENCRYPTED_KEYS, true)) {
+                    return $value;
+                }
+
+                return (string) app('payroll.encrypter')->decryptString($value);
+            },
+            set: function (?string $value, array $attributes) {
+                if ($value === null || ! in_array($attributes['key'] ?? null, self::ENCRYPTED_KEYS, true)) {
+                    return $value;
+                }
+
+                return app('payroll.encrypter')->encryptString($value);
+            },
+        );
+    }
 
     public function company(): BelongsTo
     {

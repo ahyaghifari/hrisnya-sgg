@@ -2,6 +2,7 @@
 
 namespace App\Models\Payroll;
 
+use App\Casts\PayrollEncrypted;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -20,6 +21,10 @@ class OmsetDetail extends Model
         'payroll_period_id',
         'omset_category_id',
         'amount',
+    ];
+
+    protected $casts = [
+        'amount' => PayrollEncrypted::class,
     ];
 
     public function payrollPeriod(): BelongsTo

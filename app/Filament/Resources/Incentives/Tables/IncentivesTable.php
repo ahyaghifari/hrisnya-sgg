@@ -37,8 +37,7 @@ class IncentivesTable
                     ->sortable(),
                 TextColumn::make('amount')
                     ->label('Nominal')
-                    ->money('IDR', true)
-                    ->sortable(),
+                    ->money('IDR', true),
             ])
             ->filters([
                 SelectFilter::make('company_id')
