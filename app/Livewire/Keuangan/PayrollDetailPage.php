@@ -184,7 +184,8 @@ class PayrollDetailPage extends Component
         abort_unless(Auth::user()->can('update', $this->payroll), 403);
         abort_unless($this->payroll->is_paid, 403, 'Payroll harus ditandai sudah dibayar dulu sebelum slip bisa dikirim.');
 
-        if (! $this->payroll->user->email) {
+        // Sama fallback dengan SendPayrollSlipJob - email_pribadi diprioritaskan, baru email akun.
+        if (! ($this->payroll->user->profile?->email_pribadi ?: $this->payroll->user->email)) {
             Notification::make()
                 ->title('Karyawan ini belum punya email')
                 ->danger()

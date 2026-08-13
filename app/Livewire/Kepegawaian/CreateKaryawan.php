@@ -77,6 +77,7 @@ class CreateKaryawan extends Component
             'address' => $this->address ?: null,
             'phone' => $this->phone ?: null,
             'whatsapp' => $this->whatsapp ?: null,
+            'email_pribadi' => $this->email_pribadi ?: null,
             'religion_id' => $this->religion_id,
             'org_structure_id' => $orgStructureId,
             'job_position_id' => $this->job_position_id,

@@ -65,6 +65,7 @@ class EditKaryawan extends Component
             $this->address = $profile->address ?? '';
             $this->phone = $profile->phone ?? '';
             $this->whatsapp = $profile->whatsapp ?? '';
+            $this->email_pribadi = $profile->email_pribadi ?? '';
             $this->job_position_id = $profile->job_position_id;
             $this->pangkat_id = $profile->pangkat_id;
             $this->kelas_id = $profile->kelas_id;
@@ -151,6 +152,7 @@ class EditKaryawan extends Component
             'address' => $this->address ?: null,
             'phone' => $this->phone ?: null,
             'whatsapp' => $this->whatsapp ?: null,
+            'email_pribadi' => $this->email_pribadi ?: null,
             'religion_id' => $this->religion_id,
             'org_structure_id' => $orgStructureId,
             'job_position_id' => $this->job_position_id,

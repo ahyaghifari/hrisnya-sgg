@@ -69,6 +69,7 @@
 
         $pribadi = [
             'Nama Panggilan' => $profile?->nickname,
+            'Email Pribadi' => $profile?->email_pribadi,
             'Jenis Kelamin' => match ($profile?->gender) { 'laki_laki' => 'Laki-laki', 'perempuan' => 'Perempuan', default => null },
             'Agama' => $profile?->religion?->name,
             'Tempat, Tanggal Lahir' => $tanggalLahir,
@@ -192,6 +193,11 @@
                         <label class="form-label">Nama Panggilan</label>
                         <input type="text" class="form-input" wire:model="nickname">
                         @error('nickname') <p style="color:var(--danger-text);font-size:11px;margin-top:4px;">{{ $message }}</p> @enderror
+                    </div>
+                    <div>
+                        <label class="form-label">Email Pribadi</label>
+                        <input type="email" class="form-input" wire:model="email_pribadi" placeholder="nama@email.com">
+                        @error('email_pribadi') <p style="color:var(--danger-text);font-size:11px;margin-top:4px;">{{ $message }}</p> @enderror
                     </div>
                     <div>
                         <label class="form-label">Jenis Kelamin</label>

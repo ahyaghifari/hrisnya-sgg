@@ -123,6 +123,12 @@ class EmployeeForm
                                 TextInput::make('nickname')
                                     ->label('Nama Panggilan'),
 
+                                TextInput::make('email_pribadi')
+                                    ->label('Email Pribadi')
+                                    ->email()
+                                    ->maxLength(255)
+                                    ->helperText('Tujuan pengiriman slip gaji.'),
+
                                 Select::make('gender')
                                     ->label('Jenis Kelamin')
                                     ->options([

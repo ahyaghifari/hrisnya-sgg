@@ -58,6 +58,7 @@ class EmployeeAttendanceStatistics extends Component
     public ?string $npwp = null;
     public ?string $phone = null;
     public ?string $whatsapp = null;
+    public ?string $email_pribadi = null;
     public ?string $country = null;
     public ?string $province = null;
     public ?string $city = null;
@@ -121,6 +122,7 @@ class EmployeeAttendanceStatistics extends Component
         $this->npwp = $profile?->npwp;
         $this->phone = $profile?->phone;
         $this->whatsapp = $profile?->whatsapp;
+        $this->email_pribadi = $profile?->email_pribadi;
         $this->country = $profile?->country;
         $this->province = $profile?->province;
         $this->city = $profile?->city;
@@ -177,6 +179,7 @@ class EmployeeAttendanceStatistics extends Component
             'npwp' => ['nullable', 'string', 'max:50'],
             'phone' => ['nullable', 'string', 'max:20'],
             'whatsapp' => ['nullable', 'string', 'max:20'],
+            'email_pribadi' => ['nullable', 'email', 'max:255'],
             'country' => ['nullable', 'string', 'max:100'],
             'province' => ['nullable', 'string', 'max:100'],
             'city' => ['nullable', 'string', 'max:100'],

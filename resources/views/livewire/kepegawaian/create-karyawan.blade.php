@@ -117,6 +117,10 @@
                 <input type="text" wire:model="nickname" class="form-input">
             </div>
             <div>
+                <label class="form-label">Email Pribadi</label>
+                <input type="email" wire:model="email_pribadi" class="form-input" maxlength="255" placeholder="nama@email.com">
+            </div>
+            <div>
                 <label class="form-label">Jenis Kelamin</label>
                 <select wire:model="gender" class="form-input">
                     <option value="">Pilih...</option>

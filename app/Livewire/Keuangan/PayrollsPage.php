@@ -211,11 +211,12 @@ class PayrollsPage extends Component
         abort_unless($this->canUpdatePayroll, 403);
         abort_unless($this->selectedAllPaid, 403, 'Semua payroll yang dipilih harus sudah dibayar dulu.');
 
-        $payrolls = Payroll::whereIn('id', $this->selected)->with('user')->get();
+        $payrolls = Payroll::whereIn('id', $this->selected)->with('user.profile')->get();
         $skipped = 0;
 
         foreach ($payrolls as $payroll) {
-            if (! $payroll->user?->email) {
+            // Sama fallback dengan SendPayrollSlipJob - email_pribadi diprioritaskan, baru email akun.
+            if (! ($payroll->user?->profile?->email_pribadi ?: $payroll->user?->email)) {
                 $skipped++;
 
                 continue;

@@ -65,6 +65,7 @@ trait HasKaryawanForm
     public string $address = '';
     public string $phone = '';
     public string $whatsapp = '';
+    public string $email_pribadi = '';
 
     // Step 3 — Data Pekerjaan
     public ?string $department_id = null;

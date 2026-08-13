@@ -41,7 +41,16 @@ class SendPayrollSlipJob implements ShouldQueue
             'payrollPeriod.generatedBy.activeJobPosition.jobPosition',
         ])->find($this->payrollId);
 
-        if (! $payroll || ! $payroll->is_paid || ! $payroll->user?->email) {
+        if (! $payroll || ! $payroll->is_paid) {
+            return;
+        }
+
+        // Email pribadi (user_profiles.email_pribadi) diprioritaskan buat kirim slip - email akun
+        // (users.email) kadang cuma format standar perusahaan buat login, belum tentu benar-benar
+        // dicek karyawan buat terima dokumen pribadi. Fallback ke email akun kalau kosong.
+        $recipientEmail = $payroll->user?->profile?->email_pribadi ?: $payroll->user?->email;
+
+        if (! $recipientEmail) {
             return;
         }
 
@@ -49,7 +58,7 @@ class SendPayrollSlipJob implements ShouldQueue
         $sender = $payroll->payrollPeriod->signer ?? $payroll->payrollPeriod->generatedBy;
         $slip = $service->encryptedSlip($payroll);
 
-        Mail::to($payroll->user->email)->send(new PayrollSlipMail(
+        Mail::to($recipientEmail)->send(new PayrollSlipMail(
             $payroll,
             $slip['binary'],
             $slip['filename'],

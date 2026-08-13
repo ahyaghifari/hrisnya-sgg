@@ -41,6 +41,7 @@ class UserProfiles extends Model
         'rw',
         'phone',
         'whatsapp',
+        'email_pribadi',
         'religion_id',
         'org_structure_id',
         'job_position_id',
