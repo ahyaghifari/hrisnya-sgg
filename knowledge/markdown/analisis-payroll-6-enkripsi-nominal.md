@@ -146,3 +146,31 @@ Dua pola baru ditemukan yang akan MERUSAK kolom yang sudah masuk daftar confirme
 **Plus** 2 keputusan desain yang belum diambil: strategi `settings.value` (§9.2), dan `AuditLog.old_value`/`new_value` (§9.4, sudah ada solusinya, tinggal eksekusi).
 
 Model master rate yang AMAN LANGSUNG tanpa refactor: `position_allowances`, `transport_allowances`, `legacy_position_allowances`, `jasa_unit_details`, `pangkat_salaries`, `pangkat_lembur_rates`, `tenure_allowances`.
+
+## 10. Scope final — dipersempit ke model payroll berkolom `amount` saja (2026-08-13)
+
+User memutuskan `settings.value` (§9.2) DIKELUARKAN dari scope enkripsi — kasusnya beda kelas (campuran tipe, butuh enkripsi selektif per-key) dan tidak sepadan effortnya. Scope dipersempit jadi: **model yang berkaitan payroll yang punya kolom nominal literal `amount`/`*_amount`**.
+
+Audit ulang (baca kode langsung) menemukan domain baru yang sebelumnya tidak masuk radar: **Payroll Dokter** dan **Honor Trainer/"Gaji Pemateri"**.
+
+**Payroll Dokter** (`doctor_payrolls`, `doctor_payroll_items`, `doctor_fee_items`, `master_doctor_services`, `job_position_salary_components`, `service_fee_pools`, `extra_hour_allowance_rules`) — tabel ADA di migration tapi **tidak ada satu pun model/kode aktif** yang baca/tulis. Sama seperti kasus UMK sebelumnya: dikeluarkan dari scope, tidak perlu ditangani.
+
+**Honor Trainer / Gaji Pemateri** (`app/Filament/Resources/Payroll/TrainerSalaries/`, `app/Livewire/Keuangan/GajiPemateriPage.php`) — domain AKTIF, masuk scope:
+
+| Tabel.kolom | Keterangan | Status |
+|---|---|---|
+| `lms_honorarium.honor_amount` | Rate/lookup skor→honor (master config, bukan transaksi) | Aman langsung |
+| `lms_meeting_honorarium_assessments.honor_amount` | Staging honor per pertemuan, hasil sync dari `lms_honorarium` | Aman langsung |
+| `trainer_assessment_results.honor_amount` | Hasil final, dipakai `GajiPemateriPage`/`TrainerSalaryResource` | **Perlu refactor** — 1 titik: `TrainerSalariesTable.php:33` (`TextColumn::make('honor_amount')->sortable()`) |
+
+Tabel `trainer_score_ranges` sudah di-drop (migration `2026_07_26_223540_drop_legacy_trainer_honorarium_cluster.php`) — tidak relevan. `training_requests.ikatan_dinas_tahun` (dulu bernama `honor_amount`, sudah di-rename) bukan nominal Rupiah — lama ikatan dinas dalam tahun, di luar scope. Tidak ada model di domain trainer ini yang pakai `LogsAuditChanges`/`LogsFieldAuditChanges`, jadi tidak ada risiko kebocoran lewat `audit_logs` di domain ini (beda dengan 7 model core payroll di §9.4).
+
+### 10.1 Daftar final — 13 kolom `amount` di model payroll
+
+**Aman langsung (6)** — bisa langsung dikasih cast `encrypted`, tidak ada SQL yang menyentuh nilainya sendiri:
+`position_allowances.amount`, `legacy_position_allowances.amount`, `transport_allowances.amount`, `jasa_unit_details.amount`, `lms_honorarium.honor_amount`, `lms_meeting_honorarium_assessments.honor_amount`.
+
+**Perlu refactor (7)** — SQL (sum/sortable/where/increment/decrement) menyentuh nilainya sendiri, harus dibereskan dulu sebelum di-cast `encrypted`:
+`incentives.amount`, `user_koperasi.amount`, `fee_items.amount`, `omset_details.amount`, `executive_allowances.amount`, `payroll_items.amount`/`unit_amount`, `trainer_assessment_results.honor_amount`.
+
+Titik refactor trainer (`sortable()` di `TrainerSalariesTable.php:33`) jauh lebih ringan dibanding 12 titik core payroll di §9.5 — cukup hapus `->sortable()` atau ganti jadi sort di PHP setelah `get()`.

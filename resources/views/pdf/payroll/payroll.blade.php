@@ -288,6 +288,9 @@
             <tr><td>NIP</td><td>: {{ $payroll->user->nip ?? '-' }}</td></tr>
             <tr><td>Masa Kerja</td><td>: {{ $masaKerja }}</td></tr>
             <tr><td>Status Karyawan</td><td>: {{ $payroll->user->profile?->employeeType?->name ?? '-' }}</td></tr>
+            @unless (in_array($payroll->user_id, \App\Models\User::PAYROLL_ELIGIBLE_EXECUTIVE_IDS, true))
+                <tr><td>Kelas</td><td>: {{ $payroll->user->profile?->kelas?->name ?? '-' }}</td></tr>
+            @endunless
         </table>
     </div>
 
