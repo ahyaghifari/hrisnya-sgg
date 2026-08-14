@@ -13,6 +13,7 @@ use App\Models\Payroll\CompanyPayrollComponent;
 use App\Models\Payroll\Payroll;
 use App\Models\Payroll\PayrollComponentRecipient;
 use App\Models\Payroll\PayrollManualLine;
+use App\Models\Payroll\PayrollPeriod;
 use App\Models\Setting;
 use App\Notifications\PayrollPaid;
 use App\Services\Payroll\PayrollService;
@@ -34,6 +35,11 @@ class PayrollDetailPage extends Component
     /** Nama tampilan baris ini di slip (jadi payroll_items.name) - cuma dipakai & wajib diisi
      * untuk Bon mode Detail, lihat getBonMetodeProperty(). */
     public ?string $manualLineLabel = null;
+
+    public bool $showCancelPaidModal = false;
+    public ?string $cancelPaidReason = null;
+
+    public bool $showPaymentHistoryModal = false;
 
     public function mount(Payroll $payroll): void
     {
@@ -151,6 +157,41 @@ class PayrollDetailPage extends Component
         return Auth::user()->can('update', $this->payroll);
     }
 
+    /** Periode ini bukan lagi periode terbaru company-nya (sudah ada periode yang dimulai setelah
+     * periode payroll ini) — regenerate penuh dari sini ditutup, biar tidak menimpa histori pakai
+     * config yang sudah berubah sejak saat itu. Koreksi buat periode lampau lewat edit manual per
+     * baris di admin panel (`PayrollItemsRelationManager`), bukan hitung ulang total. */
+    public function getPeriodHasEndedProperty(): bool
+    {
+        return PayrollPeriod::query()
+            ->where('company_id', $this->payroll->payrollPeriod->company_id)
+            ->where('start_date', '>', $this->payroll->payrollPeriod->start_date)
+            ->exists();
+    }
+
+    /** Sama isinya dengan section "Riwayat Pembayaran" di admin panel (PayrollInfolist) - halaman
+     * ini digerbangi permission Shield View:Payroll (lihat PayrollPolicy::view), karyawan lihat
+     * slip sendiri lewat route/komponen terpisah (MyPayrollSlipPage), jadi tidak perlu gerbang
+     * tambahan supaya "karyawan tidak bisa lihat" - itu sudah otomatis lewat pemisahan halaman. */
+    public function getPaymentHistoryProperty()
+    {
+        return AuditLog::where('key', 'payroll:' . $this->payroll->id)
+            ->where('module', 'payroll_payment')
+            ->orderByDesc('created_at')
+            ->with('user')
+            ->get();
+    }
+
+    public function openPaymentHistoryModal(): void
+    {
+        $this->showPaymentHistoryModal = true;
+    }
+
+    public function closePaymentHistoryModal(): void
+    {
+        $this->showPaymentHistoryModal = false;
+    }
+
     /** Gerbang KHUSUS baris penyesuaian manual (Bon) — lebih sempit dari canEditPayroll (dipakai
      * juga oleh markAsPaid/regenerate/dst), supaya bisa dikasih ke lebih sedikit orang. */
     public function getCanEditAdjustmentProperty(): bool
@@ -169,6 +210,57 @@ class PayrollDetailPage extends Component
 
         Notification::make()
             ->title('Payroll ditandai sudah dibayar')
+            ->success()
+            ->send();
+    }
+
+    public function openCancelPaidModal(): void
+    {
+        abort_unless(Auth::user()->can('update', $this->payroll), 403);
+
+        $this->cancelPaidReason = null;
+        $this->resetErrorBag();
+        $this->showCancelPaidModal = true;
+    }
+
+    public function closeCancelPaidModal(): void
+    {
+        $this->showCancelPaidModal = false;
+    }
+
+    /** Kebalikan markAsPaid — buka lagi gerbang is_paid supaya adjustment/regenerate bisa dipakai
+     * lagi (mis. salah tandai, atau ada koreksi nominal setelah terlanjur dibayar). Tidak
+     * menyentuh slip_sent_at - riwayat kapan slip terakhir terkirim tetap ada sebagai jejak, dan
+     * notifikasi "Gaji Sudah Dibayar" yang sudah terkirim TIDAK ditarik balik. Padanan portal
+     * dari aksi "cancelPaid" di admin panel (PayrollsTable) - audit log module sama supaya
+     * riwayatnya menyatu di satu tempat terlepas dari lewat mana dibatalkannya. Alasan wajib
+     * diisi (sama pola dengan Catatan di saveManualLine/PayrollItemsRelationManager), disimpan
+     * di label AuditLog - bukan kolom baru, karena riwayatnya sudah cukup lewat audit_logs. */
+    public function unmarkAsPaid(): void
+    {
+        abort_unless(Auth::user()->can('update', $this->payroll), 403);
+
+        $this->validate([
+            'cancelPaidReason' => 'required|string|max:500',
+        ], [], ['cancelPaidReason' => 'alasan pembatalan']);
+
+        $this->payroll->update(['is_paid' => false]);
+        $this->payroll->refresh();
+
+        AuditLog::record(
+            'payroll_payment',
+            $this->payroll->payrollPeriod->company_id,
+            'payroll:' . $this->payroll->id,
+            $this->payroll->user->name . ' — ' . $this->payroll->payrollPeriod->start_date->format('M Y') . ' (' . $this->cancelPaidReason . ')',
+            'Sudah Dibayar',
+            'Dibatalkan'
+        );
+
+        $this->showCancelPaidModal = false;
+
+        Notification::make()
+            ->title('Tanda sudah dibayar dibatalkan')
+            ->body('Payroll ini sekarang bisa diubah/di-regenerate lagi.')
             ->success()
             ->send();
     }
@@ -237,6 +329,7 @@ class PayrollDetailPage extends Component
     {
         abort_unless($this->canEditAdjustment, 403);
         abort_if($this->payroll->is_paid, 403, 'Payroll yang sudah dibayar tidak bisa diubah.');
+        abort_if($this->periodHasEnded, 403, 'Periode ini sudah bukan periode terbaru — baris manual di sini cuma masuk ke payroll lewat Regenerate, dan itu sudah ditutup untuk periode lampau. Edit manual per baris lewat admin panel (Daftar Payroll > buka payroll ini > tab Payroll Items).');
         abort_unless($this->componentEligibleForThisEmployee($this->manualLineComponent), 403, 'Tipe karyawan ini belum terdaftar sebagai penerima komponen ini di halaman Penerima Komponen Gaji.');
 
         // Nama Potongan cuma wajib untuk Bon mode Detail (jadi payroll_items.name, ganti "Bon"
@@ -306,6 +399,7 @@ class PayrollDetailPage extends Component
     {
         abort_unless($this->canEditAdjustment, 403);
         abort_if($this->payroll->is_paid, 403, 'Payroll yang sudah dibayar tidak bisa diubah.');
+        abort_if($this->periodHasEnded, 403, 'Periode ini sudah bukan periode terbaru — hapus baris manual di sini tidak akan berpengaruh (Regenerate sudah ditutup). Edit manual per baris lewat admin panel (Daftar Payroll > buka payroll ini > tab Payroll Items).');
 
         $line = PayrollManualLine::where('id', $lineId)
             ->where('user_id', $this->payroll->user_id)
@@ -352,6 +446,7 @@ class PayrollDetailPage extends Component
     {
         abort_unless(Auth::user()->can('update', $this->payroll), 403);
         abort_if($this->payroll->is_paid, 403, 'Payroll yang sudah dibayar tidak bisa di-regenerate.');
+        abort_if($this->periodHasEnded, 403, 'Periode ini sudah bukan periode terbaru — regenerate penuh ditutup untuk periode lampau (bisa menghitung ulang pakai config yang sudah berubah sejak saat itu). Koreksi lewat edit manual per baris di admin panel (Daftar Payroll > buka payroll ini > tab Payroll Items).');
 
         $newPayroll = app(PayrollService::class)->regenerateSinglePayroll($this->payroll, Auth::id());
 

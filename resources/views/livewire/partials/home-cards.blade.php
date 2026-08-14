@@ -191,6 +191,47 @@
     </div>
     @endif
 
+    @if ($this->canJadwalShiftSaya)
+    <div class="pwa-list" style="grid-column:1/-1;padding-bottom:16px;">
+        <div class="pwa-card-header pwa-card-header-navy" style="margin-bottom:14px;">
+            <div class="pwa-card-header-deco-1"></div><div class="pwa-card-header-deco-2"></div>
+            <div class="pwa-card-header-content">
+                <span class="pwa-section-title"><i class="fa-solid fa-calendar-days" style="font-size:12px;margin-right:4px;"></i> Jadwal Shift Saya</span>
+                <a href="{{ route('presensi.jadwal-saya') }}" wire:navigate class="pwa-section-link">Kalender Penuh <i class="fa-solid fa-chevron-right" style="font-size:9px;"></i></a>
+            </div>
+        </div>
+        <div style="display:flex;gap:8px;overflow-x:auto;padding:0 16px;">
+            @foreach ($this->upcomingShifts as $day)
+                @php
+                    $schedule = $day['schedule'];
+                    $state = $schedule['state'];
+                    $chipBg = match ($state) {
+                        'holiday' => 'var(--warn-soft-bg)',
+                        'off' => 'var(--danger-soft-bg)',
+                        'scheduled' => $schedule['color'] ? 'color-mix(in srgb, ' . $schedule['color'] . ' 18%, var(--surface))' : 'var(--info-soft-bg)',
+                        default => 'var(--surface-alt)',
+                    };
+                @endphp
+                <div style="flex:0 0 auto;min-width:88px;background:{{ $chipBg }};border-radius:10px;padding:8px 10px;{{ $day['date']->isToday() ? 'box-shadow:inset 0 0 0 2px var(--brand);' : '' }}">
+                    <div style="font-size:10px;color:var(--text-muted);font-weight:600;">{{ $day['date']->translatedFormat('D, j M') }}</div>
+                    @if ($state === 'holiday')
+                        <div style="font-size:10.5px;color:var(--warn-soft-text);font-weight:700;margin-top:2px;">{{ \Illuminate\Support\Str::limit($schedule['label'], 16) }}</div>
+                    @elseif ($state === 'off')
+                        <div style="font-size:10.5px;color:var(--danger-soft-text);font-weight:700;margin-top:2px;">Libur</div>
+                    @elseif ($state === 'scheduled')
+                        <div style="font-size:10.5px;color:var(--text-heading);font-weight:700;margin-top:2px;">{{ \Illuminate\Support\Str::limit($schedule['label'], 16) }}</div>
+                        @if ($schedule['detail'])
+                            <div style="font-size:9.5px;color:var(--text-muted);">{{ $schedule['detail'] }}</div>
+                        @endif
+                    @else
+                        <div style="font-size:10.5px;color:var(--text-faint);margin-top:2px;">–</div>
+                    @endif
+                </div>
+            @endforeach
+        </div>
+    </div>
+    @endif
+
     <div class="pwa-list" style="grid-column:1/-1;">
         <a href="{{ route('organization-structure') }}" wire:navigate class="pwa-list-row" style="text-decoration:none;">
             <i class="fa-solid fa-sitemap" style="width:16px;text-align:center;color:var(--brand);"></i>

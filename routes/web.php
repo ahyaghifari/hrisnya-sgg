@@ -344,6 +344,9 @@ Route::middleware(['auth', 'portal.access'])->group(function () {
     Route::get('/presensi/extra-shift', ExtraShiftPage::class)
         ->name('presensi.extra-shift');
 
+    Route::get('/presensi/jadwal-saya', \App\Livewire\Presensi\JadwalSayaPage::class)
+        ->name('presensi.jadwal-saya');
+
     Route::get('/presensi/rekap-izin', IzinRecapPage::class)
         ->name('presensi.rekap-izin');
 

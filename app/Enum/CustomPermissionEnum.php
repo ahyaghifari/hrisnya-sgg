@@ -173,6 +173,13 @@ enum CustomPermissionEnum: string
      * syarat, siapa saja yang login bisa buka /admin - celah ini yang ditutup). */
     case AKSES_PANEL_ADMIN = 'akses_panel_admin';
 
+    /** Gerbang halaman portal "Jadwal Shift Saya" (`/presensi/jadwal-saya`, kalender bulanan
+     * jadwal pribadi user yang login) + kartu ringkasannya di Dashboard - pola sama
+     * PENGAJUAN_ABSENSI_SAYA/PELATIHAN_SAYA (permission self-service, bukan default-on untuk
+     * semua role seperti 3 itu - permission ini BARU, jadi tetap off sampai di-assign manual
+     * lewat /hak-akses, tidak di-grandfather ke role manapun). */
+    case JADWAL_SHIFT_SAYA = 'jadwal_shift_saya';
+
     public function label(): string
     {
         return match
@@ -230,6 +237,7 @@ enum CustomPermissionEnum: string
             self::KELOLA_GAJI_PEMATERI => 'Kelola Gaji Pemateri',
             self::KELOLA_HAK_AKSES => 'Kelola Hak Akses (Portal)',
             self::AKSES_PANEL_ADMIN => 'Akses Panel Admin (Filament)',
+            self::JADWAL_SHIFT_SAYA => 'Jadwal Shift Saya',
         };
     }
 }

@@ -48,7 +48,7 @@ class PayrollCancelPaidTest extends TestCase
 
         Livewire::actingAs($admin)
             ->test(ListPayrolls::class)
-            ->callTableAction('cancelPaid', $payroll);
+            ->callTableAction('cancelPaid', $payroll, data: ['reason' => 'Salah tandai dibayar']);
 
         $this->assertFalse((bool) $payroll->fresh()->is_paid);
 
@@ -59,6 +59,22 @@ class PayrollCancelPaidTest extends TestCase
             'old_value' => 'Sudah Dibayar',
             'new_value' => 'Dibatalkan',
         ]);
+    }
+
+    public function test_cancel_paid_requires_reason(): void
+    {
+        $admin = $this->actingAsAdmin();
+        $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
+        $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31', 'processed_at' => now()]);
+        $employee = User::factory()->create(['company_id' => $company->id]);
+        $payroll = Payroll::create(['user_id' => $employee->id, 'payroll_period_id' => $period->id, 'gross_salary' => 5000000, 'net_salary' => 4500000, 'is_paid' => true]);
+
+        Livewire::actingAs($admin)
+            ->test(ListPayrolls::class)
+            ->callTableAction('cancelPaid', $payroll, data: ['reason' => ''])
+            ->assertHasTableActionErrors(['reason' => 'required']);
+
+        $this->assertTrue((bool) $payroll->fresh()->is_paid);
     }
 
     public function test_cancel_paid_action_hidden_when_unpaid(): void

@@ -66,4 +66,16 @@ class AuditLog extends Model
             'new_value' => $newValue,
         ]);
     }
+
+    /** Ekstrak alasan dari label berformat "Nama — Konteks (alasan)" - dipakai catatan
+     * pembatalan pembayaran payroll (PayrollsTable::cancelPaid, PayrollDetailPage::unmarkAsPaid).
+     * Bukan kolom terpisah karena cuma dipakai untuk 1 kasus ini, bukan seluruh AuditLog. */
+    public function reasonFromLabel(): ?string
+    {
+        if (! $this->label || ! str_contains($this->label, '(')) {
+            return null;
+        }
+
+        return rtrim(substr($this->label, strpos($this->label, '(') + 1), ')');
+    }
 }

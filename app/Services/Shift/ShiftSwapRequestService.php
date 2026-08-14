@@ -3,7 +3,7 @@
 namespace App\Services\Shift;
 
 use App\Enum\Approval\ApprovalModuleEnum;
-use App\Models\Shift\ShiftScheduleAssignments;
+use App\Models\Shift\ScheduleShiftAssignment;
 use App\Models\Shift\ShiftSwapRequests;
 use App\Models\User;
 use App\Repositories\Approval\ApprovalSnapshotRepository;
@@ -23,7 +23,7 @@ class ShiftSwapRequestService
         $user    = Auth::user();
         $mode    = $data['swap_mode'] ?? 'schedule';
 
-        $reqSchedule = ShiftScheduleAssignments::with('shift')->findOrFail($data['req_schedule_id']);
+        $reqSchedule = ScheduleShiftAssignment::with('shiftType')->findOrFail($data['req_schedule_id']);
 
         if ($mode === 'off_day') {
             return $this->storeOffDay($data, $reqSchedule, $user);
@@ -34,10 +34,10 @@ class ShiftSwapRequestService
 
     private function storeScheduleSwap(
         array $data,
-        ShiftScheduleAssignments $reqSchedule,
+        ScheduleShiftAssignment $reqSchedule,
         $user,
     ): ShiftSwapRequests {
-        $targetSchedule = ShiftScheduleAssignments::with('shift')->findOrFail($data['target_schedule_id']);
+        $targetSchedule = ScheduleShiftAssignment::with('shiftType')->findOrFail($data['target_schedule_id']);
 
         $this->validateScheduleSwapRules($reqSchedule, $targetSchedule);
 
@@ -62,7 +62,7 @@ class ShiftSwapRequestService
 
     private function storeOffDay(
         array $data,
-        ShiftScheduleAssignments $reqSchedule,
+        ScheduleShiftAssignment $reqSchedule,
         $user,
     ): ShiftSwapRequests {
         $targetUserId = $data['target_user_off']
@@ -92,8 +92,8 @@ class ShiftSwapRequestService
     }
 
     private function validateScheduleSwapRules(
-        ShiftScheduleAssignments $reqSchedule,
-        ShiftScheduleAssignments $targetSchedule,
+        ScheduleShiftAssignment $reqSchedule,
+        ScheduleShiftAssignment $targetSchedule,
     ): void {
         // Same calendar month & year
         if ($reqSchedule->date->format('Y-m') !== $targetSchedule->date->format('Y-m')) {
@@ -102,19 +102,24 @@ class ShiftSwapRequestService
             );
         }
 
-        // Ensure neither user has another schedule on the date they would move to
-        if (ShiftScheduleAssignments::where('user_id', $targetSchedule->user_id)
+        // Ensure neither user has another schedule on the date they would move to. Kedua baris
+        // yang terlibat swap ($reqSchedule & $targetSchedule) DIKECUALIKAN dari kedua cek -
+        // penting buat kasus tukar tanggal SAMA (mis. pagi<->siang hari yang sama): baris milik
+        // targetSchedule sendiri akan selalu "match" query pertama (sama-sama di reqSchedule->date
+        // saat tanggalnya sama) kalau cuma reqSchedule->id yang dikecualikan, salah dianggap
+        // konflik padahal itu baris yang memang jadi bagian swap ini.
+        if (ScheduleShiftAssignment::where('user_id', $targetSchedule->user_id)
             ->whereDate('date', $reqSchedule->date)
-            ->where('id', '!=', $reqSchedule->id)
+            ->whereNotIn('id', [$reqSchedule->id, $targetSchedule->id])
             ->exists()) {
             throw new \InvalidArgumentException(
                 'Karyawan tujuan sudah memiliki jadwal lain pada tanggal shift Anda, tidak dapat ditukar.'
             );
         }
 
-        if (ShiftScheduleAssignments::where('user_id', $reqSchedule->user_id)
+        if (ScheduleShiftAssignment::where('user_id', $reqSchedule->user_id)
             ->whereDate('date', $targetSchedule->date)
-            ->where('id', '!=', $targetSchedule->id)
+            ->whereNotIn('id', [$reqSchedule->id, $targetSchedule->id])
             ->exists()) {
             throw new \InvalidArgumentException(
                 'Anda sudah memiliki jadwal lain pada tanggal shift tujuan, tidak dapat ditukar.'
@@ -122,8 +127,8 @@ class ShiftSwapRequestService
         }
 
         // shift_type compatibility: pagi ↔ siang diperbolehkan, malam hanya dengan malam
-        $reqType    = $reqSchedule->shift?->shift_type;
-        $targetType = $targetSchedule->shift?->shift_type;
+        $reqType    = $reqSchedule->shiftType?->shift_type;
+        $targetType = $targetSchedule->shiftType?->shift_type;
 
         $pagiSiang = [\App\Enum\ShiftType::PAGI->value, \App\Enum\ShiftType::SIANG->value];
         $compatible = (in_array($reqType, $pagiSiang) && in_array($targetType, $pagiSiang))
@@ -140,11 +145,11 @@ class ShiftSwapRequestService
     }
 
     private function validateOffDayRules(
-        ShiftScheduleAssignments $reqSchedule,
+        ScheduleShiftAssignment $reqSchedule,
         string $targetUserId,
     ): void {
         // Target must truly have no schedule on req_date
-        $conflict = ShiftScheduleAssignments::where('user_id', $targetUserId)
+        $conflict = ScheduleShiftAssignment::where('user_id', $targetUserId)
             ->whereDate('date', $reqSchedule->date)
             ->exists();
 

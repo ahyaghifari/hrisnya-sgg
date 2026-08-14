@@ -53,12 +53,12 @@ class ShiftSwapRequests extends Model
 
     public function reqSchedule()
     {
-        return $this->belongsTo(ShiftScheduleAssignments::class, 'req_schedule_id');
+        return $this->belongsTo(ScheduleShiftAssignment::class, 'req_schedule_id');
     }
 
     public function targetSchedule()
     {
-        return $this->belongsTo(ShiftScheduleAssignments::class, 'target_schedule_id');
+        return $this->belongsTo(ScheduleShiftAssignment::class, 'target_schedule_id');
     }
 
     public function approver()

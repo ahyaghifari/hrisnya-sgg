@@ -81,9 +81,15 @@
                     <button type="button" wire:click="markAsPaid" wire:confirm="Tandai payroll ini sudah dibayar?" class="btn-primary" style="padding:6px 12px;font-size:11px;">
                         <i class="fa-solid fa-check"></i> Tandai Sudah Dibayar
                     </button>
-                    <button type="button" wire:click="regeneratePayroll" wire:confirm="Hapus dan hitung ulang payroll karyawan ini saja? Payroll karyawan lain di periode ini tidak terpengaruh." class="btn-ghost" style="padding:6px 12px;font-size:11px;color:#d97706;">
-                        <i class="fa-solid fa-arrow-rotate-right"></i> Regenerate Payroll Ini
-                    </button>
+                    @if (! $this->periodHasEnded)
+                        <button type="button" wire:click="regeneratePayroll" wire:confirm="Hapus dan hitung ulang payroll karyawan ini saja? Payroll karyawan lain di periode ini tidak terpengaruh." class="btn-ghost" style="padding:6px 12px;font-size:11px;color:#d97706;">
+                            <i class="fa-solid fa-arrow-rotate-right"></i> Regenerate Payroll Ini
+                        </button>
+                    @else
+                        <a href="{{ route('filament.admin.resources.payroll.payrolls.view', $payroll) }}" target="_blank" class="btn-ghost" style="padding:6px 12px;font-size:11px;color:#d97706;">
+                            <i class="fa-solid fa-arrow-up-right-from-square"></i> Edit Manual di Admin Panel
+                        </a>
+                    @endif
                 @endif
                 <a href="{{ route('keuangan.payroll.preview', $payroll->id) }}" target="_blank" class="btn-ghost" style="padding:6px 12px;font-size:11px;">
                     <i class="fa-solid fa-eye"></i> Preview Slip Gaji
@@ -91,14 +97,28 @@
                 <button type="button" wire:click="downloadSlip" class="btn-ghost" style="padding:6px 12px;font-size:11px;">
                     <i class="fa-solid fa-download"></i> Download Slip Gaji
                 </button>
+                @if ($this->canEditPayroll)
+                    <button type="button" wire:click="openPaymentHistoryModal" class="btn-ghost" style="padding:6px 12px;font-size:11px;">
+                        <i class="fa-solid fa-clock-rotate-left"></i> Riwayat Pembayaran
+                    </button>
+                @endif
                 @if ($payroll->is_paid && $this->canEditPayroll)
                     {{-- Email tujuan sama persis prioritasnya dengan SendPayrollSlipJob - email
                     pribadi diutamakan, fallback ke email akun kalau kosong. --}}
                     <button type="button" wire:click="sendSlipEmail" wire:confirm="Kirim slip gaji ke email {{ $payroll->user?->profile?->email_pribadi ?: $payroll->user?->email }}?" class="btn-ghost" style="padding:6px 12px;font-size:11px;color:#2563eb;">
                         <i class="fa-solid fa-envelope"></i> {{ $payroll->slip_sent_at ? 'Kirim Ulang' : 'Kirim' }} Slip ke Email
                     </button>
+                    <button type="button" wire:click="openCancelPaidModal" class="btn-ghost" style="padding:6px 12px;font-size:11px;color:#dc2626;">
+                        <i class="fa-solid fa-rotate-left"></i> Batalkan Tanda Sudah Dibayar
+                    </button>
                 @endif
             </div>
+
+            @if (!$payroll->is_paid && $this->periodHasEnded && $this->canEditPayroll)
+                <p style="font-size:10.5px;color:var(--text-faint);margin-top:10px;">
+                    <i class="fa-solid fa-circle-info"></i> Periode ini sudah bukan periode terbaru — Regenerate & penyesuaian Bon dari sini ditutup. Koreksi nominal lewat edit manual per baris di admin panel (Daftar Payroll &rarr; buka payroll ini &rarr; tab Payroll Items).
+                </p>
+            @endif
         </div>
 
         <div style="background:var(--surface);border-radius:12px;box-shadow:var(--shadow-card);padding:18px;">
@@ -162,7 +182,7 @@
                         di sini, tidak lagi bergantung ke $row tertentu. --}}
                         @if ($this->bonAktif)
                             <div style="margin-top:2px;">
-                                @if (! $payroll->is_paid && ($this->bonMetode === 'detail' || $this->bonManualLines->isEmpty()) && $this->canEditAdjustment)
+                                @if (! $payroll->is_paid && ! $this->periodHasEnded && ($this->bonMetode === 'detail' || $this->bonManualLines->isEmpty()) && $this->canEditAdjustment)
                                     <button type="button" wire:click="openManualLineModal('bon')" title="Tambah Bon untuk payroll ini" style="border:none;background:#d97706;color:#fff;padding:2px 7px;border-radius:5px;font-size:10px;font-weight:600;cursor:pointer;">+ Tambah Bon</button>
                                 @endif
 
@@ -171,7 +191,7 @@
                                         @foreach ($this->bonManualLines as $line)
                                             <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;font-size:11px;color:var(--text-muted);">
                                                 <span>{{ $line->label ? "{$line->label}: " : '' }}Rp{{ number_format($line->amount, 0, ',', '.') }}{{ $line->note ? " ({$line->note})" : '' }}</span>
-                                                @if (!$payroll->is_paid && $this->canEditAdjustment)
+                                                @if (!$payroll->is_paid && !$this->periodHasEnded && $this->canEditAdjustment)
                                                     <span style="display:flex;gap:4px;flex-shrink:0;">
                                                         <button type="button" wire:click="openManualLineModal('bon', '{{ $line->id }}')" title="Ubah" style="border:1px solid var(--border);background:none;color:#d97706;cursor:pointer;padding:2px 7px;border-radius:5px;font-size:10px;"><i class="fa-solid fa-pen"></i> Ubah</button>
                                                         <button type="button" wire:click="deleteManualLine('{{ $line->id }}')" wire:confirm="Hapus baris Bon ini?" title="Hapus" style="border:1px solid var(--border);background:none;color:#dc2626;cursor:pointer;padding:2px 7px;border-radius:5px;font-size:10px;"><i class="fa-solid fa-trash"></i> Hapus</button>
@@ -227,6 +247,56 @@
                 <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px;">
                     <button type="button" wire:click="closeManualLineModal" class="btn-ghost">Batal</button>
                     <button type="button" wire:click="saveManualLine" class="btn-primary">Simpan</button>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    @if ($showCancelPaidModal)
+        <div class="modal-overlay" wire:click="closeCancelPaidModal">
+            <div class="modal-box" onclick="event.stopPropagation()">
+                <h3 style="font-size:16px;font-weight:700;color:var(--text-heading);margin:0 0 4px;">Batalkan Tanda Sudah Dibayar</h3>
+                <p style="font-size:11.5px;color:var(--text-muted);margin:0 0 14px;">Untuk {{ $payroll->user?->name }} — periode {{ $payroll->payrollPeriod->start_date->format('d M Y') }} - {{ $payroll->payrollPeriod->end_date->format('d M Y') }}. Notifikasi "Gaji Sudah Dibayar" yang sudah terkirim ke karyawan TIDAK ditarik balik.</p>
+
+                <div>
+                    <label class="form-label">Catatan (wajib diisi — alasan pembatalan)</label>
+                    <textarea class="form-input" rows="2" wire:model="cancelPaidReason"></textarea>
+                    @error('cancelPaidReason') <p style="font-size:11px;color:#dc2626;margin-top:4px;">{{ $message }}</p> @enderror
+                </div>
+
+                <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px;">
+                    <button type="button" wire:click="closeCancelPaidModal" class="btn-ghost">Batal</button>
+                    <button type="button" wire:click="unmarkAsPaid" class="btn-primary" style="background:#dc2626;">Batalkan Pembayaran</button>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    @if ($showPaymentHistoryModal)
+        <div class="modal-overlay" wire:click="closePaymentHistoryModal">
+            <div class="modal-box" onclick="event.stopPropagation()">
+                <h3 style="font-size:16px;font-weight:700;color:var(--text-heading);margin:0 0 4px;">Riwayat Pembayaran</h3>
+                <p style="font-size:11.5px;color:var(--text-muted);margin:0 0 14px;">{{ $payroll->user?->name }} — periode {{ $payroll->payrollPeriod->start_date->format('d M Y') }} - {{ $payroll->payrollPeriod->end_date->format('d M Y') }}.</p>
+
+                @forelse ($this->paymentHistory as $entry)
+                    <div style="padding:8px 0;border-top:1px solid var(--border-soft);">
+                        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+                            <span style="display:inline-block;padding:2px 8px;border-radius:99px;font-size:10.5px;font-weight:600;background:{{ $entry->new_value === 'Sudah Dibayar' ? 'rgba(4,124,84,0.1)' : 'rgba(220,38,38,0.1)' }};color:{{ $entry->new_value === 'Sudah Dibayar' ? '#047C54' : '#dc2626' }};">
+                                {{ $entry->new_value }}
+                            </span>
+                            <span style="font-size:10.5px;color:var(--text-faint);">{{ $entry->created_at->translatedFormat('d M Y H:i') }}</span>
+                        </div>
+                        <p style="font-size:11.5px;color:var(--text-body);margin:6px 0 0;">Oleh {{ $entry->user?->name ?? '-' }}</p>
+                        @if ($entry->reasonFromLabel())
+                            <p style="font-size:11.5px;color:var(--text-muted);margin:2px 0 0;">"{{ $entry->reasonFromLabel() }}"</p>
+                        @endif
+                    </div>
+                @empty
+                    <p style="font-size:11.5px;color:var(--text-faint);margin:0;">Belum ada riwayat pembayaran untuk payroll ini.</p>
+                @endforelse
+
+                <div style="display:flex;justify-content:flex-end;margin-top:16px;">
+                    <button type="button" wire:click="closePaymentHistoryModal" class="btn-ghost">Tutup</button>
                 </div>
             </div>
         </div>

@@ -5,9 +5,13 @@ namespace App\Livewire;
 use App\Enum\CustomPermissionEnum;
 use App\Enum\LsmCourseStatus;
 use App\Enum\Task\TaskStatus;
+use App\Livewire\Concerns\ResolvesDayScheduleSummary;
 use App\Livewire\Concerns\ResolvesTodayAttendanceStatus;
 use App\Models\Task\Task;
 use App\Models\LMS\LmsCourseUsers;
+use App\Models\Master\Attendance\Holidays;
+use App\Services\Attendance\ScheduleResolver;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
@@ -16,6 +20,7 @@ use Livewire\Component;
 class Dashboard extends Component
 {
     use ResolvesTodayAttendanceStatus;
+    use ResolvesDayScheduleSummary;
 
     public function getTodayAttendanceStatusProperty(): array
     {
@@ -40,6 +45,46 @@ class Dashboard extends Component
     public function getCanTugasSayaProperty(): bool
     {
         return (bool) Auth::user()?->can(CustomPermissionEnum::TUGAS_SAYA->value);
+    }
+
+    public function getCanJadwalShiftSayaProperty(): bool
+    {
+        return (bool) Auth::user()?->can(CustomPermissionEnum::JADWAL_SHIFT_SAYA->value);
+    }
+
+    /**
+     * 7 hari ke depan (hari ini + 6) - ringkasan kecil di Dashboard, kalender penuh (bisa
+     * navigasi bulan lain) ada di halaman /presensi/jadwal-saya (JadwalSayaPage), yang pakai
+     * trait ResolvesDayScheduleSummary yang sama supaya hasilnya konsisten.
+     */
+    public function getUpcomingShiftsProperty(): array
+    {
+        $user = Auth::user();
+        if (! $user) {
+            return [];
+        }
+
+        $start = now()->startOfDay();
+        $end   = $start->copy()->addDays(6);
+
+        $holidays = Holidays::query()
+            ->whereBetween('date', [$start->toDateString(), $end->toDateString()])
+            ->pluck('name', 'date')
+            ->mapWithKeys(fn ($name, $date) => [Carbon::parse($date)->toDateString() => $name]);
+
+        $resolver = app(ScheduleResolver::class);
+        $days = [];
+
+        for ($cursor = $start->copy(); $cursor->lte($end); $cursor->addDay()) {
+            $dateStr = $cursor->toDateString();
+
+            $days[] = [
+                'date' => $cursor->copy(),
+                'schedule' => $this->resolveDaySchedule($resolver, $user, $dateStr, $holidays->get($dateStr)),
+            ];
+        }
+
+        return $days;
     }
 
     public function getRecentTasksProperty()

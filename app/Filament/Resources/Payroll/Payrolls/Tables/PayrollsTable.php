@@ -12,6 +12,7 @@ use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Actions\ViewAction;
+use Filament\Forms\Components\Textarea;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\Filter;
@@ -95,17 +96,22 @@ class PayrollsTable
                     ->label('Batalkan Pembayaran')
                     ->icon('heroicon-o-x-circle')
                     ->color('danger')
-                    ->requiresConfirmation()
                     ->modalDescription('Notifikasi "Gaji Sudah Dibayar" yang sudah terkirim ke karyawan TIDAK ditarik balik - aksi ini cuma membalikkan status Paid dan tercatat di audit log.')
                     ->visible(fn (Payroll $record) => $record->is_paid)
-                    ->action(function (Payroll $record) {
+                    ->schema([
+                        Textarea::make('reason')
+                            ->label('Catatan (alasan pembatalan)')
+                            ->required()
+                            ->rows(3),
+                    ])
+                    ->action(function (Payroll $record, array $data) {
                         $record->update(['is_paid' => false]);
 
                         AuditLog::record(
                             'payroll_payment',
                             $record->payrollPeriod->company_id,
                             'payroll:' . $record->id,
-                            $record->user->name . ' — ' . Carbon::parse($record->payrollPeriod->start_date)->format('M Y'),
+                            $record->user->name . ' — ' . Carbon::parse($record->payrollPeriod->start_date)->format('M Y') . ' (' . $data['reason'] . ')',
                             'Sudah Dibayar',
                             'Dibatalkan'
                         );

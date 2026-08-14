@@ -435,6 +435,12 @@ return [
         'guard' => null,
     ],
 
+    'presensi.jadwal-saya' => [
+        'label' => 'Jadwal Shift Saya',
+        'permission' => \App\Enum\CustomPermissionEnum::JADWAL_SHIFT_SAYA->value,
+        'guard' => null,
+    ],
+
     'presensi.rekap-presensi' => [
         'label' => 'Rekap Presensi',
         'permission' => \App\Enum\CustomPermissionEnum::VIEW_REPORT_DATA_ABSENSI->value,

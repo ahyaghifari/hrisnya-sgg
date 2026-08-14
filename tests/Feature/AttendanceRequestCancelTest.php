@@ -77,7 +77,7 @@ class AttendanceRequestCancelTest extends TestCase
 
         $this->assertSame('cancelled', $request->status);
         $this->assertSame('cancelled', $request->approvalSnapshot->status);
-        $this->assertSame('canceled', $request->approvalSnapshot->activity->status);
+        $this->assertSame('cancelled', $request->approvalSnapshot->activity->status);
         $this->assertNotNull($request->cancelled_by);
         $this->assertNotNull($request->cancelled_at);
     }

@@ -90,6 +90,11 @@ class PayrollInfolist
                                 TextEntry::make('created_at')
                                     ->label('Waktu')
                                     ->dateTime('d M Y H:i'),
+
+                                TextEntry::make('label')
+                                    ->label('Catatan')
+                                    ->formatStateUsing(fn ($record) => $record->reasonFromLabel() ?? '-')
+                                    ->columnSpanFull(),
                             ])
                             ->columns(3),
                     ])
