@@ -116,6 +116,26 @@ class FixedScheduleMinWorkMinutesTest extends TestCase
         $this->assertSame('16:00:00', $record->check_out_time);
     }
 
+    public function test_checkout_below_minimum_but_past_end_time_is_accepted(): void
+    {
+        $company = Companies::create(['code' => 'FMW4', 'name' => 'Company FMW4', 'location' => 'Test', 'is_active' => true]);
+        $date = Carbon::parse('2026-08-03');
+        $user = $this->makeFixedUser($company, 'FIX004', minWorkMinutes: 240);
+
+        // Checkin 15:30 (telat, jam masuk 08:00), checkout 16:05 -> cuma 35 menit kerja,
+        // di bawah minimum 240, TAPI checkout-nya sudah lewat jam pulang (16:00) - harus tetap
+        // tercatat, bukan ditolak (instruksi user 2026-08-14).
+        $this->insertScan($user, $date, '15:30:00');
+        $this->insertScan($user, $date, '16:05:00');
+
+        $this->artisan('attendance:sync-access-logs')->assertSuccessful();
+
+        $record = AttendanceRecords::where('nip', $user->nip)->where('date', $date->toDateString())->firstOrFail();
+
+        $this->assertSame('15:30:00', $record->check_in_time);
+        $this->assertSame('16:05:00', $record->check_out_time);
+    }
+
     public function test_min_work_minutes_zero_disables_rejection(): void
     {
         $company = Companies::create(['code' => 'FMW3', 'name' => 'Company FMW3', 'location' => 'Test', 'is_active' => true]);

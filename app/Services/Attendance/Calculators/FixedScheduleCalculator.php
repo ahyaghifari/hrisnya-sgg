@@ -81,11 +81,14 @@ class FixedScheduleCalculator
 
             $overtimeAfter = $this->overtimeAfter($config, $end, $co);
 
-            if ($config->min_work_minutes > 0 && ($rawWorkingMinutes + $overtimeAfter) < $config->min_work_minutes) {
-                // Durasi kerja belum memenuhi minimum - tolak scan checkout ini, biarkan
-                // check_out_time attendance_records tetap kosong (atau nilai sebelumnya) sampai
-                // ada scan checkout berikutnya yang bikin durasinya cukup. Beda dari out_of_window
-                // yang cuma menandai - di sini datanya sendiri sengaja tidak dipakai.
+            if ($config->min_work_minutes > 0 && $co->lt($end) && ($rawWorkingMinutes + $overtimeAfter) < $config->min_work_minutes) {
+                // Durasi kerja belum memenuhi minimum DAN scan-nya masih sebelum jam pulang - tolak
+                // scan checkout ini (kemungkinan checkout dini/curang), biarkan check_out_time
+                // attendance_records tetap kosong (atau nilai sebelumnya) sampai ada scan checkout
+                // berikutnya yang bikin durasinya cukup. Beda dari out_of_window yang cuma menandai
+                // - di sini datanya sendiri sengaja tidak dipakai. Scan yang SUDAH lewat jam pulang
+                // tetap diterima walau durasi belum cukup - itu memang jam pulangnya, bukan checkout
+                // dini (instruksi user 2026-08-14).
                 $checkoutRejected = true;
                 $checkOut = null;
             } else {
