@@ -2,7 +2,6 @@
 
 namespace App\Filament\Resources\UserTransitions;
 
-use App\Enum\UserTransitionTypeEnum;
 use App\Filament\Resources\UserTransitions\Pages\CreateUserTransition;
 use App\Filament\Resources\UserTransitions\Pages\EditUserTransition;
 use App\Filament\Resources\UserTransitions\Pages\ListUserTransitions;
@@ -13,7 +12,6 @@ use App\Filament\Resources\UserTransitions\Tables\UserTransitionsTable;
 use App\Helpers\PermissionHelper;
 use App\Models\User\UserTransition;
 use BackedEnum;
-use Filament\Navigation\NavigationItem;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
@@ -29,6 +27,12 @@ class UserTransitionResource extends Resource
     protected static string | UnitEnum | null $navigationGroup = 'Kepegawaian';
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
+
+    protected static ?string $navigationLabel = 'Perubahan Status Karyawan';
+
+    protected static ?string $modelLabel = 'Perubahan Status Karyawan';
+
+    protected static ?string $pluralModelLabel = 'Perubahan Status Karyawan';
 
 
     public static function form(Schema $schema): Schema
@@ -74,45 +78,5 @@ class UserTransitionResource extends Resource
         }
 
         return $query;
-    }
-
-    public static function getNavigationItems(): array
-    {
-        return [
-            NavigationItem::make('Promosi')
-                ->url(static::getUrl('index', ['type' => UserTransitionTypeEnum::PROMOTION->value]))
-                ->icon(static::getNavigationIcon())
-                ->isActiveWhen(fn (): bool => request()->get('type') === UserTransitionTypeEnum::PROMOTION->value),
-
-            NavigationItem::make('Demosi')
-                ->url(static::getUrl('index', ['type' => UserTransitionTypeEnum::DEMOTION->value]))
-                ->icon(static::getNavigationIcon())
-                ->isActiveWhen(fn (): bool => request()->get('type') === UserTransitionTypeEnum::DEMOTION->value),
-
-            NavigationItem::make('Mutasi')
-                ->url(static::getUrl('index', ['type' => UserTransitionTypeEnum::MUTATION->value]))
-                ->icon(static::getNavigationIcon())
-                ->isActiveWhen(fn (): bool => request()->get('type') === UserTransitionTypeEnum::MUTATION->value),
-
-            NavigationItem::make('PHK')
-                ->url(static::getUrl('index', ['type' => UserTransitionTypeEnum::TERMINATION->value]))
-                ->icon(static::getNavigationIcon())
-                ->isActiveWhen(fn (): bool => request()->get('type') === UserTransitionTypeEnum::TERMINATION->value),
-
-            NavigationItem::make('Perubahan Kelas')
-                ->url(static::getUrl('index', ['type' => UserTransitionTypeEnum::KELAS_CHANGE->value]))
-                ->icon(static::getNavigationIcon())
-                ->isActiveWhen(fn (): bool => request()->get('type') === UserTransitionTypeEnum::KELAS_CHANGE->value),
-
-            NavigationItem::make('Pengangkatan Orientasi')
-                ->url(static::getUrl('index', ['type' => UserTransitionTypeEnum::EMPLOYMENT_STATUS_CHANGE->value]))
-                ->icon(static::getNavigationIcon())
-                ->isActiveWhen(fn (): bool => request()->get('type') === UserTransitionTypeEnum::EMPLOYMENT_STATUS_CHANGE->value),
-
-            NavigationItem::make('Perpanjangan Kontrak')
-                ->url(static::getUrl('index', ['type' => UserTransitionTypeEnum::CONTRACT_EXTENSION->value]))
-                ->icon(static::getNavigationIcon())
-                ->isActiveWhen(fn (): bool => request()->get('type') === UserTransitionTypeEnum::CONTRACT_EXTENSION->value),
-        ];
     }
 }

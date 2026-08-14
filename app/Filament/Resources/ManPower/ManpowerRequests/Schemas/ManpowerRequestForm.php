@@ -47,6 +47,12 @@ class ManpowerRequestForm
                             ->options(function () {
                                 return JobPositions::all()->pluck('name', 'id')->toArray();
                             })
+                            ->default(fn () => request()->query('job_position_id'))
+                            ->afterStateHydrated(function ($component, $state) {
+                                if (! $state && request()->query('job_position_id')) {
+                                    $component->state(request()->query('job_position_id'));
+                                }
+                            })
                             ->preload()
                             ->searchable()
                             ->columnSpan(2)

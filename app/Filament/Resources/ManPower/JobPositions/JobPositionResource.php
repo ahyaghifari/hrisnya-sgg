@@ -60,7 +60,7 @@ class JobPositionResource extends Resource
 
     public static function getEloquentQuery(): Builder
     {
-        $query = parent::getEloquentQuery();
+        $query = parent::getEloquentQuery()->with('pendingQuotaRequest');
 
         $user = Auth::user();
         if ($user && $user->company_id && !PermissionHelper::hasGlobalRole($user)) {

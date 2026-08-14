@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\ManPower\JobPositions\Tables;
 
 use App\Filament\Resources\ManPower\JobPositions\JobPositionResource;
+use App\Filament\Resources\ManPower\ManpowerRequests\ManpowerRequestResource;
 use App\Helpers\PermissionHelper;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
@@ -63,6 +64,19 @@ class JobPositionsTable
                     EditAction::make()
                         ->label('View / Edit')
                         ->visible(fn ($record) => JobPositionResource::canEdit($record)),
+
+                    // Padanan tombol "Ajukan Penambahan Kuota" di JabatanPage portal - dipindah
+                    // ke sini dari nav "Kuota" terpisah (ManpowerRequestResource) supaya kuota
+                    // dikelola per-jabatan, bukan daftar lepas. Kalau sudah ada pengajuan yang
+                    // masih diproses, arahkan ke situ (bukan bikin baru) - sama seperti portal.
+                    Action::make('quota_action')
+                        ->label(fn ($record) => $record->pendingQuotaRequest ? 'Status Pengajuan Kuota' : 'Ajukan Penambahan Kuota')
+                        ->icon(fn ($record) => $record->pendingQuotaRequest ? 'heroicon-o-clock' : 'heroicon-o-plus-circle')
+                        ->color(fn ($record) => $record->pendingQuotaRequest ? 'warning' : 'gray')
+                        ->url(fn ($record) => $record->pendingQuotaRequest
+                            ? ManpowerRequestResource::getUrl('edit', ['record' => $record->pendingQuotaRequest])
+                            : ManpowerRequestResource::getUrl('create', ['type' => 'quota', 'job_position_id' => $record->id]))
+                        ->visible(fn () => ManpowerRequestResource::canCreate()),
 
                     Action::make('history_action')
                         ->label('History')

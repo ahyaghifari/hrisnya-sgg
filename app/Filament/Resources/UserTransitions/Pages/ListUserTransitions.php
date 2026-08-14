@@ -2,14 +2,11 @@
 
 namespace App\Filament\Resources\UserTransitions\Pages;
 
-use App\Enum\UserDocumentType;
+use App\Enum\UserTransitionTypeEnum;
 use App\Filament\Resources\UserTransitions\UserTransitionResource;
-use App\Filament\Resources\UserDocuments\UserDocumentResource;
 use Filament\Actions\CreateAction;
 use Filament\Resources\Pages\ListRecords;
-use Illuminate\Contracts\Support\Htmlable;
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Relations\Relation;
+use Filament\Schemas\Components\Tabs\Tab;
 
 class ListUserTransitions extends ListRecords
 {
@@ -18,34 +15,32 @@ class ListUserTransitions extends ListRecords
     protected function getHeaderActions(): array
     {
         return [
-            CreateAction::make()->label('Buat ' . $this->getTitle())
-                ->url(fn (): Htmlable|string => UserTransitionResource::getUrl('create', [
-                    'type' => request()->query('type'),
-                ])),
+            CreateAction::make()
+                ->label('Buat ' . (UserTransitionTypeEnum::tryFrom((string) $this->activeTab)?->label() ?? $this->getTitle()))
+                ->url(fn (): string => UserTransitionResource::getUrl('create', ['type' => $this->activeTab])),
         ];
     }
 
-    public function getTitle(): string
+    /**
+     * Satu halaman buat semua jenis "Perubahan Status Karyawan" (dulu 7 item nav terpisah yang
+     * cuma beda `?type=` - lihat riwayat UserTransitionResource::getNavigationItems()), pola
+     * sama seperti UserTransitionsPage portal (nav kiri jenis transisi + badge jumlah).
+     */
+    public function getTabs(): array
     {
-        $type = request()->query('type');
+        $counts = UserTransitionResource::getEloquentQuery()
+            ->reorder()
+            ->selectRaw('transition_type, count(*) as total')
+            ->groupBy('transition_type')
+            ->pluck('total', 'transition_type');
 
-        if (! $type || ! UserDocumentType::tryFrom($type)) {
-            return 'Dokumen Pengguna';
-        }
-
-        return UserDocumentType::from($type)->label();
-    }
-
-    protected function getTableQuery(): null|Builder|Relation
-    {
-        $query = UserTransitionResource::getEloquentQuery();
-
-        $type = request()->query('type');
-
-        if ($type) {
-            return $query->where('transition_type', $type);
-        }
-
-        return $query->latest();
+        return collect(UserTransitionTypeEnum::cases())
+            ->mapWithKeys(fn (UserTransitionTypeEnum $type) => [
+                $type->value => Tab::make($type->label())
+                    ->icon($type->icon())
+                    ->badge($counts[$type->value] ?? null)
+                    ->query(fn ($query) => $query->where('transition_type', $type->value)),
+            ])
+            ->all();
     }
 }

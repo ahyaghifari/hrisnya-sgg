@@ -32,7 +32,7 @@ class ListManpowerRequests extends ListRecords
                     if ($type === 'quota') {
                         return 'Tambah Perubahan Kuota';
                     } else if ($type === 'employee_change') {
-                        return 'Tambah Perubahan Karyawan';
+                        return 'Tambah Permintaan Tenaga Kerja';
                     }
 
                     return 'Tambah Perubahan Manpower';
@@ -49,7 +49,7 @@ class ListManpowerRequests extends ListRecords
         if ($type === 'quota') {
             return 'Perubahan Kuota';
         } else if ($type === 'employee_change') {
-            return 'Perubahan Karyawan';
+            return 'Permintaan Tenaga Kerja';
         }
 
         return 'Perubahan Manpower';

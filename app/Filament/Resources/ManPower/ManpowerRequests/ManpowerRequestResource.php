@@ -68,19 +68,9 @@ class ManpowerRequestResource extends Resource
         };
 
         return [
-            NavigationItem::make('Kuota')
-                ->label('Kuota')
-                ->icon(self::$navigationIcon)
-                ->sort(2)
-                ->url(static::getUrl('index', ['type' => 'quota']))
-                ->isActiveWhen(fn (): bool => request()->get('type') === 'quota')
-                ->badge(function () use ($getCount) {
-                    $count = $getCount(ManpowerRequestType::ADDITIONAL_QUOTA->value);
-                    return $count > 0 ? (string)$count : '0';
-                }),
-
-            NavigationItem::make('Perubahan Karyawan')
-                ->label('Perubahan Karyawan')
+            NavigationItem::make('Permintaan Tenaga Kerja')
+                ->label('Permintaan Tenaga Kerja')
+                ->group(self::$navigationGroup)
                 ->icon(self::$navigationIcon)
                 ->sort(3)
                 ->url(static::getUrl('index', ['type' => 'employee_change']))
