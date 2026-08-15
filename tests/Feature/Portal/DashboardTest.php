@@ -11,6 +11,11 @@ use App\Models\LMS\LmsCourses;
 use App\Models\LMS\LmsCourseUsers;
 use App\Models\Master\Attendance\LeaveTypes;
 use App\Models\Master\Companies;
+use App\Models\Shift\Schedule;
+use App\Models\Shift\ScheduleAssignment;
+use App\Models\Shift\ScheduleFixedDay;
+use App\Models\Shift\ScheduleShiftAssignment;
+use App\Models\Shift\ScheduleShiftType;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Permission\Models\Permission;
@@ -230,5 +235,52 @@ class DashboardTest extends TestCase
         $response->assertSee('Pelatihan Berjalan');
         $response->assertSee('Pelatihan Belum Mulai');
         $response->assertDontSee('Pelatihan Selesai');
+    }
+
+    // Widget "Jadwal Shift Saya" cuma buat karyawan yang jadwalnya beneran tipe Shift - punya
+    // permission JADWAL_SHIFT_SAYA doang tidak cukup (permission itu tetap dipakai buat gerbang
+    // fitur lain seperti tukar shift), lihat Dashboard::getCanJadwalShiftSayaProperty().
+    public function test_jadwal_shift_widget_visible_for_shift_schedule_employee(): void
+    {
+        $company = Companies::create(['code' => 'SFT', 'name' => 'RS Shift', 'location' => 'Test', 'is_active' => true]);
+        $user = User::factory()->create(['company_id' => $company->id]);
+        $this->grantPermission($user, CustomPermissionEnum::JADWAL_SHIFT_SAYA);
+
+        $schedule = Schedule::create(['company_id' => $company->id, 'name' => 'Jadwal Perawat', 'schedule_type' => 'shift']);
+        $pagi = ScheduleShiftType::create(['schedule_id' => $schedule->id, 'code' => 'PAGI', 'name' => 'Pagi', 'start_time' => '07:00:00', 'end_time' => '15:00:00', 'is_overnight' => false, 'color' => '#22c55e']);
+        ScheduleShiftAssignment::create(['company_id' => $company->id, 'user_id' => $user->id, 'shift_type_id' => $pagi->id, 'date' => now()->toDateString(), 'off_day' => false]);
+
+        $response = $this->actingAs($user)->get('/');
+
+        $response->assertOk();
+        $response->assertSee('Jadwal Shift Saya');
+    }
+
+    public function test_jadwal_shift_widget_hidden_for_fixed_schedule_employee(): void
+    {
+        $company = Companies::create(['code' => 'FXD', 'name' => 'Kantor Fixed', 'location' => 'Test', 'is_active' => true]);
+        $user = User::factory()->create(['company_id' => $company->id]);
+        $this->grantPermission($user, CustomPermissionEnum::JADWAL_SHIFT_SAYA);
+
+        $schedule = Schedule::create(['company_id' => $company->id, 'name' => 'Jadwal Kantor', 'schedule_type' => 'fixed']);
+        ScheduleFixedDay::create(['schedule_id' => $schedule->id, 'day_of_week' => now()->dayOfWeek, 'is_off_day' => false, 'start_time' => '08:00:00', 'end_time' => '17:00:00']);
+        ScheduleAssignment::create(['company_id' => $company->id, 'user_id' => $user->id, 'schedule_id' => $schedule->id, 'effective_from' => now()->subYear()->toDateString()]);
+
+        $response = $this->actingAs($user)->get('/');
+
+        $response->assertOk();
+        $response->assertDontSee('Jadwal Shift Saya');
+    }
+
+    public function test_jadwal_shift_widget_hidden_without_any_schedule_assigned(): void
+    {
+        $company = Companies::create(['code' => 'NON', 'name' => 'Belum Ada Jadwal', 'location' => 'Test', 'is_active' => true]);
+        $user = User::factory()->create(['company_id' => $company->id]);
+        $this->grantPermission($user, CustomPermissionEnum::JADWAL_SHIFT_SAYA);
+
+        $response = $this->actingAs($user)->get('/');
+
+        $response->assertOk();
+        $response->assertDontSee('Jadwal Shift Saya');
     }
 }

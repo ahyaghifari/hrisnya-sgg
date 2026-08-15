@@ -47,9 +47,18 @@ class Dashboard extends Component
         return (bool) Auth::user()?->can(CustomPermissionEnum::TUGAS_SAYA->value);
     }
 
+    /** Widget "Jadwal Shift Saya" cuma buat karyawan yang beneran punya jadwal tipe Shift -
+     * karyawan Fixed/Flexible tetap punya permission JADWAL_SHIFT_SAYA (gate akses halaman/fitur
+     * lain, mis. ajukan tukar shift), tapi widget ini percuma buat mereka (isinya cuma jam kerja
+     * tetap yang sudah mereka tahu, bukan roster shift yang berubah-ubah). Dicek dari
+     * upcomingShifts yang sudah dihitung buat isi widget-nya sendiri - tidak query ulang. */
     public function getCanJadwalShiftSayaProperty(): bool
     {
-        return (bool) Auth::user()?->can(CustomPermissionEnum::JADWAL_SHIFT_SAYA->value);
+        if (! Auth::user()?->can(CustomPermissionEnum::JADWAL_SHIFT_SAYA->value)) {
+            return false;
+        }
+
+        return collect($this->upcomingShifts)->contains(fn ($day) => $day['schedule']['type'] === 'shift');
     }
 
     /**
