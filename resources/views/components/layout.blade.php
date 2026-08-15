@@ -16,6 +16,7 @@
         'canAccessPelatihanSaya' => auth()->user()->can(\App\Enum\CustomPermissionEnum::PELATIHAN_SAYA->value),
         'canAccessPengajuanAbsensiSaya' => auth()->user()->can(\App\Enum\CustomPermissionEnum::PENGAJUAN_ABSENSI_SAYA->value),
         'canAccessPembinaanSaya' => auth()->user()->can(\App\Enum\CustomPermissionEnum::PEMBINAAN_SAYA->value),
+        'canAccessCoachingCounseling' => auth()->user()->can(\App\Enum\CustomPermissionEnum::SISTEM_COACHING_COUNSELING->value),
     ];
 @endphp
 <!DOCTYPE html>

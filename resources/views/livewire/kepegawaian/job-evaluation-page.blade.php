@@ -30,6 +30,7 @@
             @if ($this->jobPositions->isEmpty())
                 <p style="font-size:11.5px;color:var(--text-faint);">Belum ada Jabatan (status Approved) untuk perusahaan ini.</p>
             @else
+                @php $no = 0; @endphp
                 <div style="overflow-x:auto;">
                     <table style="width:100%;border-collapse:collapse;font-size:11.5px;">
                         <thead>
@@ -40,15 +41,23 @@
                             </tr>
                         </thead>
                         <tbody>
-                            @foreach ($this->jobPositions as $i => $p)
-                                <tr style="border-bottom:1px solid var(--border-soft);">
-                                    <td style="padding:5px 8px;color:var(--text-faint);">{{ $i + 1 }}</td>
-                                    <td style="padding:5px 8px;font-weight:600;">{{ $p->name }}</td>
-                                    <td style="padding:5px 8px;">
-                                        <input type="number" class="form-input" style="font-size:11.5px;padding:5px 8px;" wire:model="jeValues.{{ $p->id }}" @disabled(! $this->canManage)>
-                                        @error("jeValues.{$p->id}") <p style="font-size:10.5px;color:#dc2626;margin:2px 0 0;">{{ $message }}</p> @enderror
+                            @foreach ($this->groupedJobPositions as $pangkatName => $positions)
+                                <tr>
+                                    <td colspan="3" style="padding:12px 8px 4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.03em;color:var(--text-faint);border-bottom:1px solid var(--border);">
+                                        {{ $pangkatName }} <span style="font-weight:500;text-transform:none;letter-spacing:normal;">({{ $positions->count() }} jabatan)</span>
                                     </td>
                                 </tr>
+                                @foreach ($positions as $p)
+                                    @php $no++; @endphp
+                                    <tr style="border-bottom:1px solid var(--border-soft);">
+                                        <td style="padding:5px 8px;color:var(--text-faint);">{{ $no }}</td>
+                                        <td style="padding:5px 8px;font-weight:600;">{{ $p->name }}</td>
+                                        <td style="padding:5px 8px;">
+                                            <input type="number" class="form-input" style="font-size:11.5px;padding:5px 8px;" wire:model="jeValues.{{ $p->id }}" @disabled(! $this->canManage)>
+                                            @error("jeValues.{$p->id}") <p style="font-size:10.5px;color:#dc2626;margin:2px 0 0;">{{ $message }}</p> @enderror
+                                        </td>
+                                    </tr>
+                                @endforeach
                             @endforeach
                         </tbody>
                     </table>
