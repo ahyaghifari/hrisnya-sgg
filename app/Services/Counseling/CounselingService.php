@@ -37,9 +37,9 @@ class CounselingService
             return $this->counselingRepository->create([
                 'user_id' => $user->id,
                 'counselor_id' => $request->counselor_id,
-                'company_id' => $user->company_id,
                 'issue' => $request->issue,
                 'status' => CounselingStatus::PENDING->value,
+                'is_secret' => $request->is_secret ?? true,
             ]);
         });
 

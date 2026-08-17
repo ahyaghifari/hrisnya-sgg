@@ -2,7 +2,7 @@
 
 namespace App\Models\Counseling;
 
-use App\Models\Master\Companies;
+use App\Enum\CustomPermissionEnum;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
@@ -15,11 +15,11 @@ class Counseling extends Model
     protected $fillable = [
         'user_id',
         'counselor_id',
-        'company_id',
         'issue',
         'response',
         'solution',
         'status',
+        'is_secret',
         'responded_at',
         'responded_by',
     ];
@@ -28,6 +28,10 @@ class Counseling extends Model
     {
         return [
             'responded_at' => 'datetime',
+            'is_secret' => 'boolean',
+            'issue' => 'encrypted',
+            'response' => 'encrypted',
+            'solution' => 'encrypted',
         ];
     }
 
@@ -42,18 +46,29 @@ class Counseling extends Model
     }
 
     /**
-     * Isi keluhan/tanggapan bersifat rahasia — cuma karyawan yang konsul dan konselor yang
-     * ditunjuk yang boleh baca, TERMASUK Super Admin tidak boleh (lihat instruksi user
-     * 2026-07-26, bukan cuma permission Shield biasa). Dipakai portal & admin Filament.
+     * Record-nya SENDIRI (baris/halaman detail) - siapa pun yang punya akses modul Coaching &
+     * Counseling boleh lihat record ini ADA (status, tanggal, siapa konselornya), TERLEPAS dari
+     * is_secret. Yang dibatasi is_secret cuma ISI-nya, lihat isContentVisibleTo().
      */
-    public function isVisibleTo(?string $userId): bool
+    public function isAccessibleTo(User $user): bool
     {
-        return $userId !== null && ($userId === $this->user_id || $userId === $this->counselor_id);
+        return $user->id === $this->user_id
+            || $user->id === $this->counselor_id
+            || $user->can(CustomPermissionEnum::SISTEM_PEMBINAAN_KARYAWAN->value);
     }
 
-    public function company(): BelongsTo
+    /**
+     * Isi issue/response/solution — identity match (user_id/counselor_id) SELALU boleh baca
+     * terlepas is_secret. Selain itu cuma boleh kalau is_secret=false DAN punya akses modul
+     * (instruksi user 2026-08-17, gantiin gerbang biner lama yang cuma identity match).
+     */
+    public function isContentVisibleTo(User $user): bool
     {
-        return $this->belongsTo(Companies::class, 'company_id');
+        if ($user->id === $this->user_id || $user->id === $this->counselor_id) {
+            return true;
+        }
+
+        return ! $this->is_secret && $user->can(CustomPermissionEnum::SISTEM_PEMBINAAN_KARYAWAN->value);
     }
 
     public function respondedBy(): BelongsTo

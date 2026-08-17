@@ -18,8 +18,9 @@ use Livewire\Component;
  * dipakai App\Http\Controllers\Api\Counseling\CounselingController (mobile).
  *
  * Karyawan menunjuk sendiri "Konselor" (rekan kerja mana pun di company yang sama) saat
- * konsul — isi keluhan+tanggapan bersifat rahasia, cuma dia dan konselor yang ditunjuk yang
- * boleh baca (lihat Counseling::isVisibleTo()), termasuk Super Admin tidak boleh.
+ * konsul, dan pilih sendiri apakah is_secret (default true) — kalau true, isi keluhan+tanggapan
+ * cuma dia & konselor yang ditunjuk yang boleh baca; kalau false, siapa pun yang punya akses
+ * modul Coaching & Counseling juga boleh baca (lihat Counseling::isContentVisibleTo()).
  */
 #[Layout('components.layout', ['title' => 'Counseling'])]
 class CounselingPage extends Component
@@ -27,11 +28,13 @@ class CounselingPage extends Component
     public bool $showConsultModal = false;
     public string $issue = '';
     public string $counselorId = '';
+    public bool $isSecret = true;
 
     public function openConsultModal(): void
     {
         $this->issue = '';
         $this->counselorId = '';
+        $this->isSecret = true;
         $this->showConsultModal = true;
     }
 
@@ -76,6 +79,7 @@ class CounselingPage extends Component
         app(CounselingService::class)->create((object) [
             'issue' => $data['issue'],
             'counselor_id' => $data['counselorId'],
+            'is_secret' => $this->isSecret,
         ]);
 
         $this->showConsultModal = false;

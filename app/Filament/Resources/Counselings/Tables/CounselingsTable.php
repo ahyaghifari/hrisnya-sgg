@@ -19,14 +19,14 @@ use Illuminate\Support\Facades\Auth;
 class CounselingsTable
 {
     /**
-     * Isi keluhan/tanggapan RAHASIA — cuma karyawan yang konsul & konselor yang ditunjuk yang
-     * boleh baca (lihat Counseling::isVisibleTo()), TERMASUK Admin/Super Admin panel ini tidak
-     * boleh, walau Shield permission-nya lengkap (instruksi user 2026-07-26). Dipakai di semua
-     * kolom/field issue/response/solution di table & infolist ini.
+     * Isi keluhan/tanggapan RAHASIA kalau is_secret=true DAN admin ini bukan user_id/counselor_id
+     * record-nya (lihat Counseling::isContentVisibleTo(), redesign 2026-08-17 — sebelumnya biner
+     * total, sekarang tergantung is_secret per record). Dipakai di semua kolom/field
+     * issue/response/solution di table & infolist ini.
      */
     private static function redacted($record, ?string $value): string
     {
-        return $record->isVisibleTo(Auth::id()) ? (string) ($value ?? '-') : '🔒 Rahasia';
+        return $record->isContentVisibleTo(Auth::user()) ? (string) ($value ?? '-') : '🔒 Rahasia';
     }
 
     public static function configure(Table $table): Table
@@ -42,7 +42,7 @@ class CounselingsTable
                     ->label('Konselor')
                     ->sortable(),
 
-                TextColumn::make('company.name')
+                TextColumn::make('user.company.name')
                     ->label('Company')
                     ->sortable()
                     ->searchable(),
@@ -51,6 +51,11 @@ class CounselingsTable
                     ->label('Issue')
                     ->formatStateUsing(fn ($record, $state) => self::redacted($record, $state))
                     ->limit(30),
+
+                BadgeColumn::make('is_secret')
+                    ->label('Rahasia')
+                    ->formatStateUsing(fn (bool $state) => $state ? 'Ya' : 'Tidak')
+                    ->color(fn (bool $state) => $state ? 'danger' : 'gray'),
 
                 BadgeColumn::make('status')
                     ->label('Status')
@@ -80,7 +85,7 @@ class CounselingsTable
                         Section::make('Informasi Konseling')
                             ->schema([
                                 TextEntry::make('user.name')->label('User'),
-                                TextEntry::make('company.name')->label('Company'),
+                                TextEntry::make('user.company.name')->label('Company'),
                                 TextEntry::make('status')
                                     ->label('Status')
                                     ->badge()
@@ -103,11 +108,11 @@ class CounselingsTable
                         Section::make('Tanggapan')
                             ->schema([
                                 TextEntry::make('response')
-                                    ->label('Response')
+                                    ->label('Tanggapan')
                                     ->formatStateUsing(fn ($record, $state) => self::redacted($record, $state))
                                     ->columnSpanFull(),
                                 TextEntry::make('solution')
-                                    ->label('Solution')
+                                    ->label('Solusi')
                                     ->formatStateUsing(fn ($record, $state) => self::redacted($record, $state))
                                     ->columnSpanFull(),
                             ]),

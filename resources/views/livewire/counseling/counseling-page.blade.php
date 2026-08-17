@@ -52,13 +52,22 @@
                                 <option value="{{ $id }}">{{ $name }}</option>
                             @endforeach
                         </select>
-                        <p style="font-size:11.5px;color:var(--text-muted);margin-top:4px;">Isi konsul ini rahasia — cuma Anda dan konselor yang dipilih yang bisa membaca.</p>
                         @error('counselorId') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
                     </div>
                     <div>
                         <label class="form-label">Keluhan / Yang ingin dikonsultasikan *</label>
                         <textarea class="form-input" rows="5" wire:model="issue" placeholder="Ceritakan keluhan atau hal yang ingin Anda konsultasikan..."></textarea>
                         @error('issue') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
+                    </div>
+                    <div>
+                        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                            <span class="custom-checkbox">
+                                <input type="checkbox" wire:model="isSecret">
+                                <span class="box"><i class="fa-solid fa-check"></i></span>
+                            </span>
+                            <span style="font-size:13px;">Rahasia (cuma saya &amp; konselor yang bisa baca isinya)</span>
+                        </label>
+                        <p style="font-size:11.5px;color:var(--text-muted);margin-top:4px;">Kalau tidak dicentang, isi konsul ini bisa dibaca siapa pun yang punya akses ke sistem Coaching &amp; Counseling.</p>
                     </div>
                     <div style="display:flex;justify-content:flex-end;gap:10px;">
                         <button type="button" wire:click="closeConsultModal" class="btn-ghost">Batal</button>

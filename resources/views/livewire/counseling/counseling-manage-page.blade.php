@@ -1,5 +1,9 @@
 <div>
-<x-page-header title="Counseling" subtitle="Keluhan/konsul yang ditujukan ke Anda sebagai konselor" />
+<x-page-header title="Counseling" subtitle="Semua keluhan/konsul di perusahaan ini — isi yang rahasia ditandai terkunci" />
+
+<div style="margin-bottom:14px;">
+    <x-company-filter wire:model.live="companyId" :companies="$this->companies" />
+</div>
 
 <div style="display:inline-flex;gap:2px;background:var(--surface-alt);padding:3px;border-radius:8px;margin-bottom:14px;flex-wrap:wrap;">
     <button type="button" wire:click="setStatus('')" style="padding:4px 12px;font-size:11.5px;font-weight:600;border:none;border-radius:6px;cursor:pointer;font-family:inherit;background:{{ $status === '' ? 'var(--surface)' : 'transparent' }};color:{{ $status === '' ? 'var(--text-heading)' : 'var(--text-muted)' }};box-shadow:{{ $status === '' ? 'var(--shadow-card)' : 'none' }};">Semua</button>
@@ -26,7 +30,11 @@
             <div class="pwa-tile-icon neutral"><i class="fa-solid fa-comment-dots"></i></div>
             <div style="flex:1;min-width:0;">
                 <p class="pwa-row-title">{{ $counseling->user?->name ?? '-' }}</p>
-                <p style="font-size:11.5px;color:var(--text-muted);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ $counseling->issue }}</p>
+                @if ($counseling->isContentVisibleTo(auth()->user()))
+                    <p style="font-size:11.5px;color:var(--text-muted);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ $counseling->issue }}</p>
+                @else
+                    <p style="font-size:11.5px;color:var(--text-faint);margin-top:2px;"><i class="fa-solid fa-lock"></i> Rahasia</p>
+                @endif
             </div>
             <span class="badge {{ $counseling->status === 'done' ? 'badge-approved' : 'badge-pending' }}">
                 {{ \App\Enum\CounselingStatus::tryFrom($counseling->status)?->getLabel() ?? $counseling->status }}

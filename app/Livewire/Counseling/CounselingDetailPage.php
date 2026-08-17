@@ -11,12 +11,13 @@ use Livewire\Attributes\Layout;
 use Livewire\Component;
 
 /**
- * Detail Counseling — dua sisi beda hak (instruksi user 2026-07-26): konselor bisa balas
- * (response+solution) kalau masih PENDING, karyawan yang konsul (user_id) cuma bisa lihat
- * read-only (issue miliknya + status/tanggapan begitu sudah dibalas) — dia sebelumnya sama
- * sekali tidak punya halaman detail, cuma preview terpotong di list. Gate BUKAN lagi permission
- * Shield `View:Counseling`/company — murni ikut Counseling::isVisibleTo() (user_id ATAU
- * counselor_id), termasuk Super Admin tidak bisa buka punya orang lain.
+ * Detail Counseling — dua lapis hak (instruksi user 2026-08-17, redesign dari gerbang biner
+ * lama): siapa pun yang punya akses modul Coaching & Counseling (SISTEM_PEMBINAAN_KARYAWAN)
+ * boleh BUKA halaman ini (Counseling::isAccessibleTo()), tapi isi issue/response/solution cuma
+ * kebaca kalau identity match (user_id/counselor_id) atau is_secret=false
+ * (Counseling::isContentVisibleTo()) — selain itu di-redact "🔒 Rahasia", bukan 403 total.
+ * Konselor bisa balas (response+solution) kalau masih PENDING & isCounselor - itu SELALU
+ * identity match, jadi otomatis subset dari isContentVisibleTo, tidak perlu gate tambahan.
  */
 #[Layout('components.layout', ['title' => 'Detail Counseling'])]
 class CounselingDetailPage extends Component
@@ -27,13 +28,24 @@ class CounselingDetailPage extends Component
 
     public function mount(Counseling $record): void
     {
-        abort_unless($record->isVisibleTo(Auth::id()), 403);
+        abort_unless($record->isAccessibleTo(Auth::user()), 403);
 
         $record->load(['user', 'counselor', 'respondedBy']);
 
         $this->record = $record;
-        $this->response = (string) $record->response;
-        $this->solution = (string) $record->solution;
+
+        // Field respond form ini di-prefill dari record - kalau kontennya tidak boleh dibaca
+        // viewer ini (redacted), JANGAN prefill sama sekali, biar ciphertext-decrypted content
+        // tidak nyangkut di state Livewire (bisa ke-expose ke HTML) buat viewer yang tidak berhak.
+        if ($record->isContentVisibleTo(Auth::user())) {
+            $this->response = (string) $record->response;
+            $this->solution = (string) $record->solution;
+        }
+    }
+
+    public function getIsContentVisibleProperty(): bool
+    {
+        return $this->record->isContentVisibleTo(Auth::user());
     }
 
     public function getIsCounselorProperty(): bool
@@ -56,7 +68,15 @@ class CounselingDetailPage extends Component
 
     public function submitResponse(): void
     {
-        abort_unless($this->canRespond, 403);
+        // Cek langsung ke record (BUKAN lewat $this->canRespond) - computed property getX...
+        // Property Livewire di-memoize sekali per request begitu diakses; kalau guard ini pakai
+        // $this->canRespond, nilainya (true, dihitung dari status masih PENDING) ke-cache dan
+        // dipakai ulang saat render() nanti walau status sudah diubah jadi DONE di bawah -
+        // tombol "Kirim Balasan" jadi nyangkut kelihatan padahal sudah kepencet.
+        abort_unless(
+            $this->record->status === CounselingStatus::PENDING->value && $this->isCounselor,
+            403
+        );
 
         $data = $this->validate([
             'response' => ['required', 'string'],

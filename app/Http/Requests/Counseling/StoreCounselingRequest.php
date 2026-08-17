@@ -25,6 +25,7 @@ class StoreCounselingRequest extends FormRequest
         return [
             'issue' => 'required|string',
             'counselor_id' => ['required', 'exists:users,id', Rule::notIn([$this->user()?->id])],
+            'is_secret' => ['nullable', 'boolean'],
         ];
     }
 }

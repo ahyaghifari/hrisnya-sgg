@@ -13,7 +13,8 @@ use NotificationChannels\WebPush\WebPushMessage;
 
 /**
  * Ke konselor yang ditunjuk, saat karyawan submit Konsul baru — isi keluhan TIDAK disertakan
- * (rahasia, lihat Counseling::isVisibleTo()), notifikasi cuma bilang ada yang perlu ditanggapi.
+ * terlepas is_secret (lihat Counseling::isContentVisibleTo()), notifikasi cuma bilang ada yang
+ * perlu ditanggapi.
  */
 class CounselingReceived extends Notification implements ShouldQueue
 {
