@@ -85,7 +85,7 @@ class RoleForm
                 CustomPermissionEnum::LIHAT_GAJI_PEMATERI->value,
                 CustomPermissionEnum::KELOLA_GAJI_PEMATERI->value,
             ],
-            CustomPermissionEnum::SISTEM_COACHING_COUNSELING->value => [
+            CustomPermissionEnum::SISTEM_PEMBINAAN_KARYAWAN->value => [
                 CustomPermissionEnum::COACHING_KARYAWAN_LAINNYA->value,
             ],
             // Semua permission APPROVE_* lintas-modul digabung 1 grup "Approver" di sini
@@ -150,9 +150,23 @@ class RoleForm
             'ShiftScheduleAssignments' => 'Jadwal Shift',
             'ShiftSwapRequests' => 'Jadwal Shift',
             'ShiftTemplates' => 'Jadwal Shift',
+            // ExtraShiftRule (2026-08-17): portal-only, tidak ada Filament Resource (lihat
+            // ExtraShiftRulePolicy) - tanpa override ini permission-nya jatuh ke ungroupedSections
+            // sendirian, bukan ikut merge ke section "Sistem Absensi" seperti diminta user.
+            'ExtraShiftRule' => 'Presensi & Absensi',
             // PayrollComponents: Filament Page (bukan Resource), jadi navigationGroup-nya
             // (sudah 'Keuangan') tidak ke-scan lewat getResources() - paksa manual.
             'PayrollComponents' => 'Keuangan',
+            // Coaching & Counseling (2026-08-17): CoachingResource/CounselingResource
+            // navigationGroup-nya 'Kepegawaian' (sengaja, itu posisi menu ADMIN SIDEBAR-nya,
+            // TIDAK diubah) - tapi tanpa override ini 7 permission Shield-nya (ViewAny/View/
+            // Create/Update/Delete/Restore/ForceDelete) ikut ke-merge ke section "Sistem
+            // Kepegawaian" di tree /hak-akses & checkbox Role, terpisah dari
+            // COACHING_KARYAWAN_LAINNYA/SISTEM_PEMBINAAN_KARYAWAN yang harusnya satu section.
+            // Override ini CUMA mengubah pengelompokan tree/checkbox, tidak menyentuh posisi
+            // menu admin sidebar sama sekali.
+            'Coaching' => 'Pembinaan Karyawan',
+            'Counseling' => 'Pembinaan Karyawan',
         ];
     }
 
@@ -213,6 +227,7 @@ class RoleForm
             'LMS' => CustomPermissionEnum::SISTEM_LMS->value,
             'Presensi & Absensi' => CustomPermissionEnum::SISTEM_ABSENSI->value,
             'Penilaian Karyawan' => CustomPermissionEnum::SISTEM_PENILAIAN_KARYAWAN->value,
+            'Pembinaan Karyawan' => CustomPermissionEnum::SISTEM_PEMBINAAN_KARYAWAN->value,
         ];
     }
 

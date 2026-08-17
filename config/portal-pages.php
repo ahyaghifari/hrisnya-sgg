@@ -61,6 +61,15 @@ return [
         'guard' => 'canAccessKaryawanMenu',
     ],
 
+    // Halaman TAMBAHAN (instruksi user 2026-08-17) - beda gate dari 'my-staff' di atas, literal
+    // hasSubordinates() saja (BUKAN canAccessKaryawanMenu() yang juga meloloskan
+    // canBrowseAllCompanies()) - lihat App\Livewire\Pembinaan\PembinaanAtasanPage.
+    'my-staff.pembinaan' => [
+        'label' => 'Coaching & Counseling',
+        'permission' => null,
+        'guard' => 'hasSubordinates',
+    ],
+
     'hak-akses' => [
         'label' => 'Hak Akses',
         'permission' => \App\Enum\CustomPermissionEnum::KELOLA_HAK_AKSES->value,

@@ -34,6 +34,7 @@ use App\Livewire\Keuangan\SalaryComponentsPage;
 use App\Livewire\MyAttendanceRequests;
 use App\Livewire\MyEmployees;
 use App\Livewire\OrganizationStructure;
+use App\Livewire\Pembinaan\PembinaanAtasanPage;
 use App\Livewire\LMS\BankSoalPage;
 use App\Livewire\LMS\CreateBankSoal;
 use App\Livewire\LMS\CreateLmsCourse;
@@ -146,6 +147,12 @@ Route::middleware(['auth', 'portal.access'])->group(function () {
 
     Route::get('/my-staff', MyEmployees::class)
         ->name('my-staff');
+
+    // Halaman TAMBAHAN, terpisah dari modul Pembinaan Karyawan (eks-Coaching & Counseling) HC
+    // di grup route prefix('pembinaan') di bawah - lihat gate literal hasSubordinates() di
+    // PembinaanAtasanPage::mount() (instruksi user 2026-08-17).
+    Route::get('/my-staff/pembinaan', PembinaanAtasanPage::class)
+        ->name('my-staff.pembinaan');
 
     Route::get('/riwayat-approval', RiwayatApprovalPage::class)
         ->name('riwayat-approval');

@@ -31,7 +31,7 @@ enum NotificationTypeEnum: string
     // langsung saat tombol "Tandai Sudah Dibayar" diklik, TERPISAH dari email slip gaji).
     case PAYROLL_PAID = 'payroll_paid';
 
-    // Coaching & Counseling — lihat App\Services\Coaching\CoachingService, App\Services\Counseling\CounselingService.
+    // Pembinaan Karyawan — lihat App\Services\Coaching\CoachingService, App\Services\Counseling\CounselingService.
     case COUNSELING_RECEIVED = 'counseling_received';
     case COACHING_ASSIGNED = 'coaching_assigned';
     case COACHING_PROOF_SUBMITTED = 'coaching_proof_submitted';
@@ -42,6 +42,10 @@ enum NotificationTypeEnum: string
     case ATTENDANCE_CHECKED_IN = 'attendance_checked_in';
     case ATTENDANCE_CHECKED_OUT = 'attendance_checked_out';
     case ATTENDANCE_SCAN_REJECTED = 'attendance_scan_rejected';
+
+    // Ke rekan (target_id) yang jadwalnya mau ditukar, kalau setting minta tanggapan diaktifkan -
+    // lihat App\Services\Shift\ShiftSwapRequestService. Opsional, TIDAK menggerbang approval.
+    case SHIFT_SWAP_TARGET_RESPONSE_REQUESTED = 'shift_swap_target_response_requested';
 
     // Ke semua karyawan aktif, saat pelatihan LMS baru di-publish — lihat
     // App\Filament\Resources\LMS\LmsCourses\Pages\CreateLmsCourses / EditLmsCourses.
@@ -79,6 +83,7 @@ enum NotificationTypeEnum: string
             self::ATTENDANCE_CHECKED_IN => 'Absensi Masuk Tercatat',
             self::ATTENDANCE_CHECKED_OUT => 'Absensi Pulang Tercatat',
             self::ATTENDANCE_SCAN_REJECTED => 'Absensi Saya Tidak Diproses',
+            self::SHIFT_SWAP_TARGET_RESPONSE_REQUESTED => 'Diminta Tanggapan Tukar Shift',
             self::COURSE_PUBLISHED => 'Pelatihan Baru Tersedia',
             self::COURSE_ENROLLMENT_APPROVED => 'Pendaftaran Pelatihan Saya Disetujui',
             self::COURSE_PARTICIPANT_ENROLLED => 'Diikutkan ke Pelatihan',
@@ -90,10 +95,10 @@ enum NotificationTypeEnum: string
     public function group(): string
     {
         return match (true) {
-            str_starts_with($this->value, 'approval_'), str_starts_with($this->value, 'attendance_') => 'Absensi',
+            str_starts_with($this->value, 'approval_'), str_starts_with($this->value, 'attendance_'), str_starts_with($this->value, 'shift_swap_') => 'Absensi',
             str_starts_with($this->value, 'task_') => 'Tugas',
             str_starts_with($this->value, 'payroll_') => 'Penggajian',
-            str_starts_with($this->value, 'counseling_'), str_starts_with($this->value, 'coaching_') => 'Coaching & Counseling',
+            str_starts_with($this->value, 'counseling_'), str_starts_with($this->value, 'coaching_') => 'Pembinaan Karyawan',
             str_starts_with($this->value, 'course_') => 'Pelatihan',
             default => 'Lainnya',
         };
@@ -121,6 +126,7 @@ enum NotificationTypeEnum: string
             self::ATTENDANCE_CHECKED_IN => 'Dikirim saat mesin absensi mencatat Anda check-in.',
             self::ATTENDANCE_CHECKED_OUT => 'Dikirim saat mesin absensi mencatat Anda check-out.',
             self::ATTENDANCE_SCAN_REJECTED => 'Dikirim saat scan absensi Anda tidak bisa diproses sistem (mis. jadwal tidak ditemukan), beserta alasannya.',
+            self::SHIFT_SWAP_TARGET_RESPONSE_REQUESTED => 'Dikirim saat rekan kerja mengajukan tukar shift dengan jadwal Anda - tanggapan Anda opsional, tidak menghambat proses persetujuan atasan.',
             self::COURSE_PUBLISHED => 'Dikirim ke Anda saat ada pelatihan LMS baru yang di-publish dan bisa Anda ikuti.',
             self::COURSE_ENROLLMENT_APPROVED => 'Dikirim ke Anda saat pendaftaran Anda ke sebuah pelatihan disetujui approver.',
             self::COURSE_PARTICIPANT_ENROLLED => 'Dikirim ke Anda saat admin menambahkan Anda sebagai peserta pelatihan yang baru dipublish.',
