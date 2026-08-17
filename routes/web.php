@@ -63,6 +63,7 @@ use App\Livewire\Presensi\CreateSchedulePage;
 use App\Livewire\Presensi\CutiRecapPage;
 use App\Livewire\Presensi\HolidayCalendarPage;
 use App\Livewire\Presensi\ExtraShiftPage;
+use App\Livewire\Presensi\ExtraShiftRulePage;
 use App\Livewire\Presensi\HolidaysPage;
 use App\Livewire\Presensi\IzinRecapPage;
 use App\Livewire\Presensi\LemburRecapPage;
@@ -351,8 +352,17 @@ Route::middleware(['auth', 'portal.access'])->group(function () {
     Route::get('/presensi/extra-shift', ExtraShiftPage::class)
         ->name('presensi.extra-shift');
 
+    Route::get('/presensi/extra-shift-rule', ExtraShiftRulePage::class)
+        ->name('presensi.extra-shift-rule');
+
     Route::get('/presensi/jadwal-saya', \App\Livewire\Presensi\JadwalSayaPage::class)
         ->name('presensi.jadwal-saya');
+
+    Route::get('/tukar-shift', \App\Livewire\Presensi\MyShiftSwapRequests::class)
+        ->name('tukar-shift');
+
+    Route::get('/tukar-shift/{record}', \App\Livewire\Presensi\ShiftSwapRequestDetail::class)
+        ->name('tukar-shift.show');
 
     Route::get('/presensi/rekap-izin', IzinRecapPage::class)
         ->name('presensi.rekap-izin');

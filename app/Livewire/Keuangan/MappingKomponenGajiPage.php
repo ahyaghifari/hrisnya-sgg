@@ -10,6 +10,7 @@ use App\Models\Master\Kelas;
 use App\Models\Master\Pangkats;
 use App\Models\Payroll\CompanyPayrollComponent;
 use App\Models\Payroll\OmsetCategory;
+use App\Models\Shift\ExtraShiftRule;
 use App\Models\Payroll\PangkatBpjsBasis;
 use App\Models\Payroll\PangkatLemburRate;
 use App\Models\Payroll\PangkatSalary;
@@ -61,6 +62,9 @@ class MappingKomponenGajiPage extends Component
     /** @var array<int,array{id:?string,name:string}> */
     public array $omsetCategoryRows = [];
 
+    /** @var array<string,string> extra_shift_rule.id => amount */
+    public array $extraShiftAmounts = [];
+
     /** @var array<string,string> pangkat_id => amount_per_hour (base rate rumus TL/TM) */
     public array $lemburRateValues = [];
 
@@ -105,6 +109,7 @@ class MappingKomponenGajiPage extends Component
             'tunjangan_masa_kerja' => $this->loadTenure(),
             'lembur' => $this->loadLemburRates(),
             'jasa_pelayanan' => $this->loadOmsetCategories(),
+            'extra_shift' => $this->loadExtraShiftAmounts(),
             default => null,
         };
     }
@@ -163,6 +168,7 @@ class MappingKomponenGajiPage extends Component
             ['key' => 'bpjs', 'label' => 'BPJS (Kesehatan & Ketenagakerjaan)', 'icon' => 'fa-briefcase-medical', 'match' => [PayrollComponentEnum::BPJS_KESEHATAN, PayrollComponentEnum::BPJS_KETENAGAKERJAAN]],
             ['key' => 'lembur', 'label' => 'Lembur', 'icon' => 'fa-clock', 'match' => [PayrollComponentEnum::LEMBUR]],
             ['key' => 'jasa_pelayanan', 'label' => 'Jasa Pelayanan', 'icon' => 'fa-hand-holding-medical', 'match' => [PayrollComponentEnum::JASA_PELAYANAN]],
+            ['key' => 'extra_shift', 'label' => 'Extra Shift', 'icon' => 'fa-repeat', 'match' => [PayrollComponentEnum::EXTRA_SHIFT]],
         ];
 
         return collect($defs)
@@ -563,6 +569,54 @@ class MappingKomponenGajiPage extends Component
                 $created = OmsetCategory::create(['company_id' => $this->companyId, 'name' => $row['name']]);
                 $this->omsetCategoryRows[$i]['id'] = $created->id;
             }
+        }
+
+        $this->notifySaved();
+    }
+
+    // ── Extra Shift (extra_shift_rules, kelola PASANGAN transisi di Presensi
+    // (ExtraShiftRulePage) — di sini CUMA isi/ubah kolom amount buat pasangan yang SUDAH ada,
+    // tidak bisa tambah/hapus pasangan dari sini. Amount dienkripsi (PayrollEncrypted). ──
+
+    private function loadExtraShiftAmounts(): void
+    {
+        $this->extraShiftAmounts = ExtraShiftRule::where('company_id', $this->companyId)
+            ->orderBy('from_shift_type')
+            ->orderBy('to_shift_type')
+            ->get()
+            ->mapWithKeys(fn (ExtraShiftRule $r) => [$r->id => (string) ($r->amount ?? '')])
+            ->all();
+    }
+
+    public function getExtraShiftRulesProperty()
+    {
+        return ExtraShiftRule::where('company_id', $this->companyId)
+            ->orderBy('from_shift_type')
+            ->orderBy('to_shift_type')
+            ->get();
+    }
+
+    public function saveExtraShiftAmounts(): void
+    {
+        $this->assertCanEdit();
+
+        $this->validate([
+            'extraShiftAmounts.*' => $this->nonNegativeAmountRule(),
+        ], [], [
+            'extraShiftAmounts.*' => 'nominal extra shift',
+        ]);
+
+        // Update lewat instance model (BUKAN Model::where(...)->update() query builder mentah) -
+        // ->update() di query builder toBase() tidak menjalankan cast PayrollEncrypted, nominal
+        // akan kesimpan PLAINTEXT & crash pas dibaca lagi (DecryptException). Instance
+        // fill()->save() yang benar-benar menjalankan cast set().
+        $rules = ExtraShiftRule::where('company_id', $this->companyId)
+            ->whereIn('id', array_keys($this->extraShiftAmounts))
+            ->get()
+            ->keyBy('id');
+
+        foreach ($this->extraShiftAmounts as $ruleId => $value) {
+            $rules->get($ruleId)?->update(['amount' => $value !== '' ? $value : null]);
         }
 
         $this->notifySaved();

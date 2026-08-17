@@ -8,7 +8,10 @@ use App\Models\Master\Companies;
 use App\Models\Master\Kelas;
 use App\Models\Master\Pangkats;
 use App\Models\Payroll\CompanyPayrollComponent;
+use App\Models\Payroll\PositionAllowance;
 use App\Models\Payroll\TenureAllowance;
+use App\Models\Payroll\TransportAllowance;
+use App\Models\Shift\ExtraShiftRule;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
@@ -30,11 +33,13 @@ class MappingKomponenGajiPageTest extends TestCase
     private function actingAsFinance(): User
     {
         Permission::firstOrCreate(['name' => CustomPermissionEnum::SISTEM_KEUANGAN->value, 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => CustomPermissionEnum::LIHAT_MAPPING_KOMPONEN_GAJI->value, 'guard_name' => 'web']);
         Permission::firstOrCreate(['name' => CustomPermissionEnum::EDIT_MAPPING_KOMPONEN_GAJI->value, 'guard_name' => 'web']);
         Permission::firstOrCreate(['name' => CustomPermissionEnum::LIHAT_PERUSAHAAN_LAIN->value, 'guard_name' => 'web']);
         $role = Role::firstOrCreate(['name' => 'Keuangan Mapping Test', 'guard_name' => 'web']);
         $role->givePermissionTo([
             CustomPermissionEnum::SISTEM_KEUANGAN->value,
+            CustomPermissionEnum::LIHAT_MAPPING_KOMPONEN_GAJI->value,
             CustomPermissionEnum::EDIT_MAPPING_KOMPONEN_GAJI->value,
             CustomPermissionEnum::LIHAT_PERUSAHAAN_LAIN->value,
         ]);
@@ -131,7 +136,9 @@ class MappingKomponenGajiPageTest extends TestCase
             ->set("transportValues.{$kelas->id}", 250000)
             ->call('saveTransport');
 
-        $this->assertDatabaseHas('transport_allowances', ['kelas_id' => $kelas->id, 'amount' => 250000]);
+        // amount dienkripsi (PayrollEncrypted) - assertDatabaseHas raw tidak bisa dipakai,
+        // baca lewat model biar cast jalan.
+        $this->assertSame(250000.0, (float) TransportAllowance::where('kelas_id', $kelas->id)->first()->amount);
     }
 
     public function test_save_jabatan_matrix_persists_pangkat_kelas_combination(): void
@@ -148,11 +155,10 @@ class MappingKomponenGajiPageTest extends TestCase
             ->set("jabatanMatrix.{$pangkat->id}|{$kelas->id}", 300000)
             ->call('saveJabatan');
 
-        $this->assertDatabaseHas('position_allowances', [
-            'pangkat_id' => $pangkat->id,
-            'kelas_id' => $kelas->id,
-            'amount' => 300000,
-        ]);
+        // amount dienkripsi (PayrollEncrypted) - assertDatabaseHas raw tidak bisa dipakai.
+        $saved = PositionAllowance::where('pangkat_id', $pangkat->id)->where('kelas_id', $kelas->id)->first();
+        $this->assertNotNull($saved);
+        $this->assertSame(300000.0, (float) $saved->amount);
     }
 
     public function test_tenure_rows_can_be_added_saved_and_removed(): void
@@ -333,5 +339,52 @@ class MappingKomponenGajiPageTest extends TestCase
 
         $this->assertDatabaseHas('tenure_allowances', ['company_id' => $company->id, 'min_years' => 0, 'max_years' => 5]);
         $this->assertDatabaseHas('tenure_allowances', ['company_id' => $company->id, 'min_years' => 6, 'max_years' => null]);
+    }
+
+    public function test_extra_shift_tab_only_appears_if_component_active(): void
+    {
+        $finance = $this->actingAsFinance();
+        $company = $this->makeCompanyWithActiveComponents(['gaji_pokok']);
+
+        Livewire::actingAs($finance)
+            ->test(MappingKomponenGajiPage::class)
+            ->call('selectCompany', $company->id)
+            ->assertDontSee('Extra Shift');
+
+        $company2 = Companies::create(['code' => 'TST2', 'name' => 'Test Company 2', 'location' => 'Test', 'is_active' => true]);
+        CompanyPayrollComponent::create(['company_id' => $company2->id, 'component' => 'extra_shift', 'is_active' => true]);
+
+        Livewire::actingAs($finance)
+            ->test(MappingKomponenGajiPage::class)
+            ->call('selectCompany', $company2->id)
+            ->assertSee('Extra Shift');
+    }
+
+    public function test_extra_shift_amount_is_saved_encrypted_and_readable(): void
+    {
+        $finance = $this->actingAsFinance();
+        $company = $this->makeCompanyWithActiveComponents(['extra_shift']);
+        $rule = ExtraShiftRule::create(['company_id' => $company->id, 'from_shift_type' => 'pagi', 'to_shift_type' => 'siang']);
+
+        Livewire::actingAs($finance)
+            ->test(MappingKomponenGajiPage::class)
+            ->call('selectCompany', $company->id)
+            ->call('selectComponent', 'extra_shift')
+            ->set("extraShiftAmounts.{$rule->id}", 50000)
+            ->call('saveExtraShiftAmounts')
+            ->assertHasNoErrors();
+
+        $fresh = ExtraShiftRule::find($rule->id);
+        $this->assertSame(50000.0, (float) $fresh->amount);
+        // Kolom mentah di DB harus BUKAN plaintext "50000" - harus ciphertext (PayrollEncrypted).
+        $raw = \Illuminate\Support\Facades\DB::table('extra_shift_rules')->where('id', $rule->id)->value('amount');
+        $this->assertNotSame('50000', $raw);
+        $this->assertNotSame('50000.00', $raw);
+    }
+
+    public function test_extra_shift_page_cannot_add_or_remove_pairs(): void
+    {
+        $this->assertFalse(method_exists(MappingKomponenGajiPage::class, 'addExtraShiftRule'));
+        $this->assertFalse(method_exists(MappingKomponenGajiPage::class, 'removeExtraShiftRule'));
     }
 }

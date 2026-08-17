@@ -318,6 +318,34 @@
                                 @endif
                             </div>
                         @endif
+
+                        {{-- Extra Shift — pasangan transisi (Pagi->Siang dst) dikelola di Presensi
+                             (ExtraShiftRulePage), di sini CUMA isi/ubah nominal buat pasangan yang
+                             SUDAH ada, tidak bisa tambah/hapus pasangan dari sini. --}}
+                        @if ($activeComponent === 'extra_shift')
+                            <p style="font-size:11px;color:var(--text-muted);margin:0 0 12px;">
+                                Nominal per pasangan transisi extra shift. Pasangan transisi yang boleh diajukan (mis. Pagi ke Siang) diatur di halaman
+                                <a href="{{ route('presensi.extra-shift-rule') }}" wire:navigate style="color:#042c6c;font-weight:600;">Aturan Extra Shift</a> (Presensi), bukan di sini.
+                            </p>
+                            @if ($this->extraShiftRules->isEmpty())
+                                <p style="font-size:11.5px;color:var(--text-faint);"><i class="fa-solid fa-circle-info"></i> Belum ada pasangan transisi. Tambah dulu di halaman <a href="{{ route('presensi.extra-shift-rule') }}" wire:navigate style="color:#042c6c;font-weight:600;">Aturan Extra Shift</a>.</p>
+                            @else
+                                <div style="display:flex;flex-direction:column;gap:8px;">
+                                    @foreach ($this->extraShiftRules as $rule)
+                                        <div>
+                                            <div style="display:flex;align-items:center;gap:10px;">
+                                                <span style="flex:1;font-size:12.5px;font-weight:600;">{{ $rule->from_shift_type_label }} <i class="fa-solid fa-arrow-right" style="font-size:10px;color:var(--text-faint);"></i> {{ $rule->to_shift_type_label }}</span>
+                                                <input type="number" step="0.01" class="form-input" style="max-width:220px;font-size:12.5px;padding:7px 10px;" wire:model="extraShiftAmounts.{{ $rule->id }}" placeholder="Belum diisi">
+                                            </div>
+                                            @error("extraShiftAmounts.{$rule->id}") <p style="font-size:11px;color:#dc2626;margin:2px 0 0;text-align:right;">{{ $message }}</p> @enderror
+                                        </div>
+                                    @endforeach
+                                </div>
+                                @if ($this->canEditMapping)
+                                    <button type="button" wire:click="saveExtraShiftAmounts" wire:loading.attr="disabled" wire:target="saveExtraShiftAmounts" class="btn-primary" style="margin-top:14px;padding:9px 20px;font-size:12.5px;">Simpan</button>
+                                @endif
+                            @endif
+                        @endif
                     </div>
                 @endif
             @endif

@@ -2,6 +2,7 @@
     $canViewPengaturanAbsensi = auth()->user()->can(\App\Enum\CustomPermissionEnum::LIHAT_PENGATURAN_ABSENSI->value);
     $canViewSchedule = auth()->user()->can('ViewAny:Schedule');
     $canViewExtraShift = auth()->user()->can('ViewAny:ExtraShiftAssignment');
+    $canViewExtraShiftRule = auth()->user()->can('ViewAny:ExtraShiftRule');
     $canViewHolidays = auth()->user()->can('ViewAny:Holidays');
     $canViewRekapAbsensi = auth()->user()->can(\App\Enum\CustomPermissionEnum::VIEW_REPORT_DATA_ABSENSI->value);
 @endphp
@@ -13,6 +14,9 @@
     <div class="dropdown-menu dropdown-menu-columns">
         <div class="dropdown-col">
             <a href="{{ route('presensi.dashboard') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-chart-line"></i> Dashboard</a>
+            @if ($canViewExtraShiftRule)
+            <a href="{{ route('presensi.extra-shift-rule') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-right-left"></i> Aturan Extra Shift</a>
+            @endif
             @if ($canViewPengaturanAbsensi)
             <a href="{{ route('presensi.pengaturan') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-gear"></i> Pengaturan Absensi</a>
             @endif

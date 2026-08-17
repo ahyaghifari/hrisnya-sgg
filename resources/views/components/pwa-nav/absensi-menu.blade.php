@@ -1,6 +1,7 @@
 @php
     $canViewSchedule = auth()->user()->can('ViewAny:Schedule');
     $canViewExtraShift = auth()->user()->can('ViewAny:ExtraShiftAssignment');
+    $canViewExtraShiftRule = auth()->user()->can('ViewAny:ExtraShiftRule');
     $canViewHolidays = auth()->user()->can('ViewAny:Holidays');
     $canViewRekapAbsensi = auth()->user()->can(\App\Enum\CustomPermissionEnum::VIEW_REPORT_DATA_ABSENSI->value);
     $canViewPengaturanAbsensi = auth()->user()->can(\App\Enum\CustomPermissionEnum::LIHAT_PENGATURAN_ABSENSI->value);
@@ -21,6 +22,12 @@
 <a href="{{ route('presensi.extra-shift') }}" wire:navigate class="pwa-menu-grid-item">
     <span class="pwa-menu-grid-icon teal"><i class="fa-solid fa-user-clock"></i></span>
     <span class="pwa-menu-grid-label">Extra Shift</span>
+</a>
+@endif
+@if ($canViewExtraShiftRule)
+<a href="{{ route('presensi.extra-shift-rule') }}" wire:navigate class="pwa-menu-grid-item">
+    <span class="pwa-menu-grid-icon teal"><i class="fa-solid fa-right-left"></i></span>
+    <span class="pwa-menu-grid-label">Aturan Extra Shift</span>
 </a>
 @endif
 @if ($canViewHolidays)
