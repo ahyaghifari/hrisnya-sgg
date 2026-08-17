@@ -122,10 +122,10 @@ class CreateCoachingPage extends Component
             'coach_by' => ['required', 'exists:users,id'],
             'title' => ['required', 'string', 'max:255'],
             'improvement_due_date' => ['required', 'date', 'after_or_equal:today'],
-            'goals' => ['nullable', 'string'],
-            'employee_condition' => ['nullable', 'string'],
-            'solution' => ['nullable', 'string'],
-            'improvement_action' => ['nullable', 'string'],
+            'goals' => ['required', 'string'],
+            'employee_condition' => ['required', 'string'],
+            'solution' => ['required', 'string'],
+            'improvement_action' => ['required', 'string'],
         ];
     }
 
