@@ -202,6 +202,7 @@ class CreateSchedulePageTest extends TestCase
             ->test(CreateSchedulePage::class, ['schedule' => $schedule])
             ->assertCount('shiftTypes', 2)
             ->call('removeShiftType', 1)
+            ->set('shiftPattern', \App\Enum\ShiftPatternEnum::TWO_SHIFT->value)
             ->call('save');
 
         $this->assertSame(1, ScheduleShiftType::where('schedule_id', $schedule->id)->count());

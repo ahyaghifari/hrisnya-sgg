@@ -9,6 +9,7 @@ use App\Models\Shift\ScheduleChangeLog;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\Url;
 use Livewire\Component;
 
 /**
@@ -30,6 +31,9 @@ class ScheduleDetailPage extends Component
 
     public Schedule $schedule;
 
+    // #[Url] biar widget "Jadwal Shift Saya" di Dashboard bisa deep-link langsung ke tab
+    // "Detail Penjadwalan" (?tab=penjadwalan) tanpa user klik tab manual (2026-08-15).
+    #[Url]
     public string $tab = 'jam-kerja';
 
     /** @var array<int, array<string, mixed>> keyed 0..6, isi tergantung schedule_type */

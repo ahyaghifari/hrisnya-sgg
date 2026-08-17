@@ -65,7 +65,11 @@ class ScheduleShiftRosterTab extends Component
 
     public function mount(Schedule $schedule): void
     {
-        abort_unless(Auth::user()->can(CustomPermissionEnum::SISTEM_ABSENSI->value), 403);
+        // Sama persis gerbang ScheduleDetailPage (parent, satu-satunya tempat komponen ini
+        // dirender) - dulu SISTEM_ABSENSI di sini, tapi itu permission BEDA yang karyawan biasa
+        // (mis. perawat) juga sering tidak punya, jadi nested check ini malah nolak user yang
+        // sudah lolos gerbang parent. Reuse SchedulePolicy::view() saja (2026-08-15).
+        abort_unless(Auth::user()->can('view', $schedule), 403);
 
         $this->schedule = $schedule;
         $this->period = now()->format('Y-m');

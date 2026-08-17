@@ -33,10 +33,15 @@ class ScheduleShiftRosterTabTest extends TestCase
 
     private function actingAsAbsensi(): User
     {
+        // View:Schedule (Shield, bukan SISTEM_ABSENSI lagi) yang jadi gerbang ScheduleShiftRosterTab
+        // sejak 2026-08-15 (lihat SchedulePolicy::view()) - SISTEM_ABSENSI/KELOLA_JADWAL_SHIFT
+        // tetap digrant di sini karena beberapa test lain di file ini masih butuh KELOLA_JADWAL_SHIFT
+        // buat cek mode edit.
         Permission::firstOrCreate(['name' => CustomPermissionEnum::SISTEM_ABSENSI->value, 'guard_name' => 'web']);
         Permission::firstOrCreate(['name' => CustomPermissionEnum::KELOLA_JADWAL_SHIFT->value, 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'View:Schedule', 'guard_name' => 'web']);
         $role = Role::firstOrCreate(['name' => 'Absensi Roster Manual Test', 'guard_name' => 'web']);
-        $role->givePermissionTo([CustomPermissionEnum::SISTEM_ABSENSI->value, CustomPermissionEnum::KELOLA_JADWAL_SHIFT->value]);
+        $role->givePermissionTo([CustomPermissionEnum::SISTEM_ABSENSI->value, CustomPermissionEnum::KELOLA_JADWAL_SHIFT->value, 'View:Schedule']);
 
         $user = User::factory()->create();
         $user->assignRole($role);

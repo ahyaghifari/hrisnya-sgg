@@ -15,7 +15,7 @@ enum ShiftType: string implements HasLabel
     {
         return match ($this) {
             self::PAGI => 'Pagi',
-            self::SIANG => 'Siang',
+            self::SIANG => 'Siang/Sore',
             self::MALAM => 'Malam',
         };
     }

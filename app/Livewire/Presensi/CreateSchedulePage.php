@@ -42,6 +42,11 @@ class CreateSchedulePage extends Component
     public string $name = '';
     public string $scheduleType = '';
 
+    /** Pola shift (2 atau 3 shift) - cuma relevan buat scheduleType SHIFT, lihat
+     * App\Enum\ShiftPatternEnum. Null = belum diisi (schedule lama sebelum field ini ada, atau
+     * tipe Fixed/Flexible). */
+    public ?string $shiftPattern = null;
+
     public function mount(?Schedule $schedule = null): void
     {
         $this->companyId = Auth::user()->canFilterByCompany()
@@ -63,6 +68,7 @@ class CreateSchedulePage extends Component
         $this->companyId = $schedule->company_id;
         $this->name = $schedule->name;
         $this->scheduleType = $schedule->schedule_type;
+        $this->shiftPattern = $schedule->shift_pattern;
         $this->step = 2;
 
         if ($this->scheduleType === ScheduleType::SHIFT->value) {
@@ -72,11 +78,22 @@ class CreateSchedulePage extends Component
         }
     }
 
+    /** Ganti perusahaan -> daftar karyawan berubah total, jadi centangan lama & kata kunci/filter
+     * cari lama tidak relevan lagi. Ini SATU-SATUNYA updatedCompanyId() sekarang - dulu ada versi
+     * kedua di trait HandlesShiftScheduleForm yang isinya reset $selectedEmployeeIds/
+     * $employeeSearch, tapi method di class SELALU menang diam-diam kalau namanya sama persis
+     * dengan method trait (PHP tidak error, cuma di-shadow) - punya trait jadi dead code sejak
+     * awal, makanya centangan karyawan tidak pernah kereset pas ganti company. Digabung di sini
+     * (2026-08-16) biar cuma ada 1 sumber kebenaran. */
     public function updatedCompanyId(): void
     {
         if (! Auth::user()->canFilterByCompany()) {
             $this->companyId = Auth::user()->company_id;
         }
+
+        $this->selectedEmployeeIds = [];
+        $this->employeeSearch = '';
+        $this->employeeOrgStructureFilter = '';
     }
 
     /** "08:30:00" (MySQL) atau "08:30" (SQLite, tidak menormalkan TIME) -> selalu "08:30". */
@@ -93,6 +110,12 @@ class CreateSchedulePage extends Component
     public function getScheduleTypesProperty(): array
     {
         return ScheduleType::cases();
+    }
+
+    /** @return \App\Enum\ShiftPatternEnum[] */
+    public function getShiftPatternsProperty(): array
+    {
+        return \App\Enum\ShiftPatternEnum::cases();
     }
 
     public function selectType(string $type): void
@@ -132,14 +155,27 @@ class CreateSchedulePage extends Component
             $this->companyId = Auth::user()->company_id;
         }
 
+        // Mode Edit: perusahaan terkunci total (instruksi user 2026-08-16) - jadwal yang sudah
+        // ada assignment/roster/riwayat presensi terikat ke company_id-nya, ganti company bisa
+        // bikin data itu jadi orphan/salah scope. Select-nya sudah @disabled di blade, ini
+        // gerbang server-side-nya (defense-in-depth, sama pola block di atas) - paksa balik ke
+        // company_id ASLI dari DB, jangan percaya $this->companyId sama sekali di mode Edit.
+        if ($this->editingScheduleId) {
+            $this->companyId = Schedule::findOrFail($this->editingScheduleId)->company_id;
+        }
+
         $this->validate([
             'companyId' => 'required',
             'name' => 'required|string|max:255',
             'scheduleType' => 'required|in:' . implode(',', array_column(ScheduleType::cases(), 'value')),
+            'shiftPattern' => $this->scheduleType === ScheduleType::SHIFT->value
+                ? 'required|in:' . implode(',', array_column(\App\Enum\ShiftPatternEnum::cases(), 'value'))
+                : 'nullable',
         ], [], [
             'companyId' => 'perusahaan',
             'name' => 'nama jadwal',
             'scheduleType' => 'tipe jadwal',
+            'shiftPattern' => 'pola shift',
         ]);
 
         $scheduleData = [
@@ -148,6 +184,7 @@ class CreateSchedulePage extends Component
             'schedule_type' => $this->scheduleType,
             'flexible_checkin_from' => $this->scheduleType === ScheduleType::FLEXIBLE->value ? $this->flexibleCheckinFrom : null,
             'flexible_checkin_until' => $this->scheduleType === ScheduleType::FLEXIBLE->value ? $this->flexibleCheckinUntil : null,
+            'shift_pattern' => $this->scheduleType === ScheduleType::SHIFT->value ? $this->shiftPattern : null,
         ];
 
         $schedule = DB::transaction(function () use ($scheduleData) {

@@ -177,11 +177,14 @@
                     @if (auth()->user()->canFilterByCompany())
                         <div>
                             <label class="form-label">Perusahaan</label>
-                            <select class="form-input" wire:model.live="companyId">
+                            <select class="form-input" wire:model.live="companyId" @disabled($editingScheduleId) style="{{ $editingScheduleId ? 'opacity:0.6;cursor:not-allowed;' : '' }}">
                                 @foreach ($this->companies as $company)
                                     <option value="{{ $company->id }}">{{ $company->name }}</option>
                                 @endforeach
                             </select>
+                            @if ($editingScheduleId)
+                                <p style="font-size:11px;color:var(--text-muted);margin-top:4px;">Perusahaan tidak bisa diganti setelah jadwal dibuat.</p>
+                            @endif
                             @error('companyId') <p style="font-size:11px;color:#dc2626;margin-top:4px;">{{ $message }}</p> @enderror
                         </div>
                     @endif
@@ -195,6 +198,20 @@
                         <span style="color:var(--text-faint);">&ndash;</span>
                         <input type="time" class="form-input" style="padding:6px 10px;font-size:12px;width:auto;" wire:model="flexibleCheckinUntil">
                         <span style="font-size:10.5px;color:var(--text-faint);">berlaku semua hari kerja</span>
+                    </div>
+                @endif
+
+                @if ($scheduleType === 'shift')
+                    <div style="display:flex;align-items:center;gap:10px;margin-top:14px;padding:10px 12px;background:var(--surface-alt);border-radius:10px;">
+                        <i class="fa-solid fa-layer-group" style="color:var(--text-faint);font-size:13px;"></i>
+                        <span style="font-size:11.5px;color:var(--text-muted);white-space:nowrap;">Pola Shift:</span>
+                        <select class="form-input" style="padding:6px 10px;font-size:12px;width:auto;" wire:model="shiftPattern">
+                            <option value="">Pilih pola shift...</option>
+                            @foreach ($this->shiftPatterns as $pattern)
+                                <option value="{{ $pattern->value }}">{{ $pattern->label() }}</option>
+                            @endforeach
+                        </select>
+                        @error('shiftPattern') <span style="font-size:11px;color:#dc2626;">{{ $message }}</span> @enderror
                     </div>
                 @endif
             </div>

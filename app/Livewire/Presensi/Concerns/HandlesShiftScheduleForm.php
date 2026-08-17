@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Presensi\Concerns;
 
+use App\Models\Master\OrgStructure;
 use App\Models\Shift\Schedule;
 use App\Models\Shift\ScheduleAssignment;
 use App\Models\Shift\ScheduleShiftType;
@@ -31,6 +32,11 @@ trait HandlesShiftScheduleForm
      * List.js suka nyisain state/baris lama nyangkut kalau kejadian bareng morph Livewire pas
      * ganti perusahaan (tabelnya diganti total, bukan cuma disaring). */
     public string $employeeSearch = '';
+
+    /** Filter divisi/struktur organisasi (org_structure_id) buat persempit tabel karyawan -
+     * instruksi user 2026-08-16, tambahan di luar kata kunci nama/NIP/jabatan yang sudah ada.
+     * Kosong = semua divisi. */
+    public string $employeeOrgStructureFilter = '';
 
     /** Isi $shiftTypes + $selectedEmployeeIds dari relasi shiftTypes/ScheduleAssignment —
      * dipanggil dari CreateSchedulePage::mount() pas mode Edit. */
@@ -103,14 +109,6 @@ trait HandlesShiftScheduleForm
         return User::where('company_id', $this->companyId)->pluck('id')->all();
     }
 
-    /** Ganti perusahaan -> daftar karyawan berubah total, jadi centangan lama & kata kunci cari
-     * lama tidak relevan lagi. */
-    public function updatedCompanyId(): void
-    {
-        $this->selectedEmployeeIds = [];
-        $this->employeeSearch = '';
-    }
-
     /** Warna default tiap baris baru gantian dari palet ini (bukan hitam semua) — biar langsung
      * kebeda dari awal tanpa user harus pilih warna manual dulu. */
     private const DEFAULT_SHIFT_COLORS = ['#042c6c', '#047C54', '#d97706', '#dc2626', '#7c3aed', '#0284c7'];
@@ -122,6 +120,7 @@ trait HandlesShiftScheduleForm
             'id' => null,
             'code' => '',
             'name' => '',
+            'shift_type' => null,
             'start_time' => '08:00',
             'break_minutes' => 0,
             'end_time' => '16:00',
@@ -167,8 +166,8 @@ trait HandlesShiftScheduleForm
         $this->advancedShiftIndex = null;
     }
 
-    /** Karyawan perusahaan yang lagi dipilih (disaring $employeeSearch kalau diisi) — dicentang
-     * buat dipakaikan jadwal shift ini lewat $selectedEmployeeIds. */
+    /** Karyawan perusahaan yang lagi dipilih (disaring $employeeSearch & $employeeOrgStructureFilter
+     * kalau diisi) — dicentang buat dipakaikan jadwal shift ini lewat $selectedEmployeeIds. */
     public function getCompanyEmployeesProperty()
     {
         if (! $this->companyId) {
@@ -177,6 +176,10 @@ trait HandlesShiftScheduleForm
 
         return User::where('company_id', $this->companyId)
             ->with('activeJobPosition.jobPosition.orgStructure')
+            ->when($this->employeeOrgStructureFilter, fn ($query) => $query->whereHas(
+                'activeJobPosition.jobPosition',
+                fn ($jobQuery) => $jobQuery->where('org_structure_id', $this->employeeOrgStructureFilter)
+            ))
             ->when($this->employeeSearch, function ($query) {
                 $search = $this->employeeSearch;
 
@@ -191,6 +194,17 @@ trait HandlesShiftScheduleForm
             })
             ->orderBy('name')
             ->get(['id', 'name', 'nip']);
+    }
+
+    /** Opsi dropdown filter divisi - divisi/unit company yang lagi dipilih saja (bukan semua
+     * company), diurut nama. */
+    public function getOrgStructureFilterOptionsProperty()
+    {
+        if (! $this->companyId) {
+            return collect();
+        }
+
+        return OrgStructure::where('company_id', $this->companyId)->orderBy('name')->get(['id', 'name']);
     }
 
     /** Karyawan yang sudah dicentang — ditampilkan di tabel terpisah di bawah. Ikut disaring

@@ -18,9 +18,11 @@
                 <th style="text-align:center;padding:10px;white-space:nowrap;">Warna</th>
                 <th style="text-align:center;padding:10px;white-space:nowrap;">Warna Font</th>
                 <th style="text-align:left;padding:10px;white-space:nowrap;">Nama Shift</th>
+                <th style="text-align:center;padding:10px;white-space:nowrap;" title="Dipakai buat validasi Tukar Shift - Pagi&Siang boleh saling tukar, Malam cuma sesama Malam">Kategori</th>
                 <th style="text-align:center;padding:10px;white-space:nowrap;">Masuk</th>
                 <th style="text-align:center;padding:10px;white-space:nowrap;">Istirahat (mnt)</th>
                 <th style="text-align:center;padding:10px;white-space:nowrap;">Pulang</th>
+                <th style="text-align:center;padding:10px;white-space:nowrap;" title="Jam pulang jatuh di hari berikutnya, mis. shift Malam 23:00-07:00">Lewat Tengah Malam</th>
                 <th style="text-align:center;padding:10px 22px 10px 10px;white-space:nowrap;">Aksi</th>
             </tr>
         </thead>
@@ -33,16 +35,30 @@
                     <td style="padding:6px 6px 6px 16px;"><input type="text" maxlength="10" class="form-input" style="width:70px;" wire:model="shiftTypes.{{ $i }}.code" placeholder="Mis. P"></td>
                     <td style="padding:6px;text-align:center;"><input type="color" wire:model="shiftTypes.{{ $i }}.color" style="width:32px;height:28px;padding:2px;border:1px solid var(--border-soft);border-radius:6px;cursor:pointer;background:none;"></td>
                     <td style="padding:6px;text-align:center;"><input type="color" wire:model="shiftTypes.{{ $i }}.font_color" style="width:32px;height:28px;padding:2px;border:1px solid var(--border-soft);border-radius:6px;cursor:pointer;background:none;"></td>
-                    <td style="padding:6px;"><input type="text" class="form-input" wire:model="shiftTypes.{{ $i }}.name" placeholder="Mis. Shift Pagi"></td>
+                    <td style="padding:6px;"><input type="text" class="form-input" style="width:110px;" wire:model="shiftTypes.{{ $i }}.name" placeholder="Mis. Shift Pagi"></td>
+                    <td style="padding:6px;text-align:center;">
+                        <select class="form-input" style="padding:5px 4px;font-size:11px;" wire:model="shiftTypes.{{ $i }}.shift_type">
+                            <option value="">-</option>
+                            @foreach (\App\Enum\ShiftType::cases() as $type)
+                                <option value="{{ $type->value }}">{{ $type->getLabel() }}</option>
+                            @endforeach
+                        </select>
+                    </td>
                     <td style="padding:6px;text-align:center;"><input type="time" class="form-input" style="padding:5px 4px;font-size:11px;text-align:center;" wire:model="shiftTypes.{{ $i }}.start_time"></td>
                     <td style="padding:6px;text-align:center;"><input type="number" min="0" class="form-input" style="{{ $numStyle }}" wire:model="shiftTypes.{{ $i }}.break_minutes"></td>
                     <td style="padding:6px;text-align:center;"><input type="time" class="form-input" style="padding:5px 4px;font-size:11px;text-align:center;" wire:model="shiftTypes.{{ $i }}.end_time"></td>
+                    <td style="padding:6px;text-align:center;">
+                        <label class="custom-checkbox" style="display:inline-flex;">
+                            <input type="checkbox" wire:model="shiftTypes.{{ $i }}.is_overnight">
+                            <span class="box"><i class="fa-solid fa-check"></i></span>
+                        </label>
+                    </td>
                     <td style="padding:6px 22px 6px 6px;text-align:center;white-space:nowrap;">
-                        <button type="button" wire:click="openAdvancedShift({{ $i }})" class="btn-ghost" style="padding:3px 6px;font-size:10px;" title="Pengaturan Lanjutan">
+                        <button type="button" wire:click="openAdvancedShift({{ $i }})" class="btn-ghost" style="padding:8px 12px;font-size:14px;" title="Pengaturan Lanjutan">
                             <i class="fa-solid fa-sliders"></i>
                         </button>
                         @if (count($shiftTypes) > 1)
-                            <button type="button" wire:click="removeShiftType({{ $i }})" class="btn-ghost" style="padding:3px 6px;font-size:10px;color:#dc2626;" title="Hapus">
+                            <button type="button" wire:click="removeShiftType({{ $i }})" class="btn-ghost" style="padding:8px 12px;font-size:14px;color:#dc2626;" title="Hapus">
                                 <i class="fa-solid fa-trash"></i>
                             </button>
                         @endif
@@ -67,9 +83,17 @@
             <p style="font-size:11.5px;font-weight:700;color:var(--text-heading);margin:0;">
                 Karyawan {{ $this->companies->firstWhere('id', $companyId)?->name }}
             </p>
-            <div style="position:relative;">
-                <i class="fa-solid fa-magnifying-glass" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--text-faint);font-size:11px;"></i>
-                <input type="search" wire:model.live.debounce.300ms="employeeSearch" class="form-input" style="width:260px;padding:6px 10px 6px 30px;font-size:11.5px;" placeholder="Cari nama, NIP, jabatan, unit...">
+            <div style="display:flex;gap:8px;">
+                <select wire:model.live="employeeOrgStructureFilter" class="form-input" style="width:170px;padding:6px 10px;font-size:11.5px;">
+                    <option value="">Semua Divisi</option>
+                    @foreach ($this->orgStructureFilterOptions as $org)
+                        <option value="{{ $org->id }}">{{ $org->name }}</option>
+                    @endforeach
+                </select>
+                <div style="position:relative;">
+                    <i class="fa-solid fa-magnifying-glass" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--text-faint);font-size:11px;"></i>
+                    <input type="search" wire:model.live.debounce.300ms="employeeSearch" class="form-input" style="width:220px;padding:6px 10px 6px 30px;font-size:11.5px;" placeholder="Cari nama, NIP, jabatan, unit...">
+                </div>
             </div>
         </div>
 
@@ -218,13 +242,6 @@
                     <input type="number" min="0" class="form-input" wire:model="shiftTypes.{{ $advancedShiftIndex }}.absent_threshold_minutes">
                 </div>
 
-                <div style="grid-column:1 / -1;display:flex;align-items:center;gap:8px;">
-                    <label class="custom-checkbox">
-                        <input type="checkbox" wire:model="shiftTypes.{{ $advancedShiftIndex }}.is_overnight">
-                        <span class="box"><i class="fa-solid fa-check"></i></span>
-                    </label>
-                    <span style="font-size:11.5px;color:var(--text-body);">Shift melewati tengah malam (jam pulang di hari berikutnya)</span>
-                </div>
             </div>
 
             <div style="display:flex;justify-content:flex-end;padding:14px 22px;border-top:1px solid var(--border-soft);">

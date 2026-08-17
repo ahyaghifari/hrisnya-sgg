@@ -19,7 +19,15 @@ class SchedulePolicy
 
     public function view(AuthUser $authUser, Schedule $schedule): bool
     {
-        return $authUser->can('View:Schedule');
+        // Karyawan yang beneran dipakaikan jadwal ini boleh lihat halamannya sendiri (roster
+        // shift + teman-teman se-jadwal) walau bukan admin - lihat User::isAssignedToSchedule()
+        // (2026-08-15). Aksi edit/generate/import tetap digerbangi KELOLA_JADWAL_SHIFT terpisah
+        // di ScheduleShiftRosterTab, bukan dilonggarkan di sini.
+        if ($authUser->can('View:Schedule')) {
+            return true;
+        }
+
+        return method_exists($authUser, 'isAssignedToSchedule') && $authUser->isAssignedToSchedule($schedule);
     }
 
     public function create(AuthUser $authUser): bool

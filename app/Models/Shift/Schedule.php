@@ -25,6 +25,7 @@ class Schedule extends Model
         'company_id',
         'name',
         'schedule_type',
+        'shift_pattern',
         'use_template',
         'color',
         'flexible_checkin_from',

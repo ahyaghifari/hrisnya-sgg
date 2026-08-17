@@ -200,6 +200,41 @@ class User extends Authenticatable implements FilamentUser
         return $this->hasSubordinates() || $this->canBrowseAllCompanies();
     }
 
+    /** Widget "Jadwal Shift Saya" (Dashboard) & halaman kalender penuh (JadwalSayaPage) cuma
+     * relevan buat karyawan yang beneran punya jadwal tipe Shift - dicek dari data jadwal
+     * langsung (bukan permission JADWAL_SHIFT_SAYA lagi, itu ternyata tidak pernah di-assign ke
+     * role manapun jadi widget-nya tidak pernah muncul biarpun jadwalnya shift, instruksi user
+     * 2026-08-15: lepas gate permission, validasi jadwal saja). Sama pola resolusi dengan
+     * ScheduleResolver (roster ScheduleShiftAssignment menang, fallback ScheduleAssignment). */
+    public function hasShiftSchedule(): bool
+    {
+        if (\App\Models\Shift\ScheduleShiftAssignment::where('user_id', $this->id)->exists()) {
+            return true;
+        }
+
+        $assignment = \App\Models\Shift\ScheduleAssignment::resolveForUser($this, now()->toDateString());
+
+        return $assignment && $assignment->schedule->schedule_type === 'shift';
+    }
+
+    /** Karyawan boleh lihat halaman "Detail Jadwal" (`ScheduleDetailPage`) buat 1 Schedule
+     * spesifik walau bukan admin (bukan punya View:Schedule) kalau dia beneran dipakaikan
+     * jadwal itu - lewat ScheduleAssignment (Fixed/Flexible) langsung, atau lewat
+     * ScheduleShiftAssignment yang shift_type-nya nunjuk ke Schedule ini (Shift). Dipakai
+     * SchedulePolicy::view() & ScheduleShiftRosterTab (2026-08-15) - karyawan shift bisa lihat
+     * roster jadwalnya sendiri DAN teman-teman se-jadwal, cuma tidak bisa edit/generate/import
+     * (itu tetap KELOLA_JADWAL_SHIFT, dicek terpisah). */
+    public function isAssignedToSchedule(\App\Models\Shift\Schedule $schedule): bool
+    {
+        if (\App\Models\Shift\ScheduleAssignment::where('user_id', $this->id)->where('schedule_id', $schedule->id)->exists()) {
+            return true;
+        }
+
+        return \App\Models\Shift\ScheduleShiftAssignment::where('user_id', $this->id)
+            ->whereHas('shiftType', fn ($q) => $q->where('schedule_id', $schedule->id))
+            ->exists();
+    }
+
     /** ID akun yang bukan karyawan (Presiden Direktur, Sekretaris Direktur, 2x Super Admin) -
      * dibuang dari User::query() lewat global scope 'non_karyawan' di boot(). */
     public const NON_KARYAWAN_IDS = [
