@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Log;
 class RekrutmenSyncService
 {
     /** Ping sederhana buat ngetes konektivitas ke sistem Rekrutmen, tidak terikat 1 lowongan
-     * tertentu - dipakai tombol "Tes Koneksi Rekrutmen" di JobOpeningsPage (halaman list).
+     * tertentu - dipakai tomol "Tes Koneksi Rekrutmen" di JobOpeningsPage (halaman list).
      *
      * @return array{ok: bool, message: string}
      */
