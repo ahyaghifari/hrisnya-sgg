@@ -15,7 +15,7 @@
     </style>
 
     <div style="display:flex;flex-direction:column;gap:16px;">
-        <a href="{{ route('data-diri') }}" wire:navigate style="font-size:12.5px;color:var(--text-muted);text-decoration:none;"><i class="fa-solid fa-arrow-left"></i> Kembali ke Data Diri</a>
+        <a href="{{ route('data-diri') }}" wire:navigate style="font-size:12.5px;color:var(--text-muted);text-decoration:none;"><i class="fa-solid fa-arrow-left"></i> Kembali ke Profil Saya</a>
 
         <div style="background:var(--surface);border-radius:12px;box-shadow:var(--shadow-card);padding:18px;max-width:760px;">
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;">

@@ -457,6 +457,13 @@ html.dark .dropdown-notif-item:hover, html.dark .dropdown-notif-footer:hover { b
 .pwa-card-header-navy .pwa-section-title, .pwa-card-header-navy .pwa-section-link { color: #fff; }
 .pwa-card-header-navy .pwa-card-header-deco-1, .pwa-card-header-navy .pwa-card-header-deco-2 { background: #fff; }
 
+/* Dipakai widget "Jadwal Shift Saya" di dashboard - sengaja bukan .pwa-card-header-navy (nama
+   kelasnya "navy" tapi isinya gradient magenta/pink, lihat komentar di atas), user minta warna
+   sky biru bukan pink (2026-08-15). */
+.pwa-card-header-sky { background: linear-gradient(130deg, #0ea5e9 0%, #0369a1 100%); }
+.pwa-card-header-sky .pwa-section-title, .pwa-card-header-sky .pwa-section-link { color: #fff; }
+.pwa-card-header-sky .pwa-card-header-deco-1, .pwa-card-header-sky .pwa-card-header-deco-2 { background: #fff; }
+
 /* Icon tile — same square-with-tinted-background pattern as the dashboard stat cards,
    reused here so task/course rows don't read as flatter than the rest of the app. */
 .pwa-tile-icon { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 14px; }
@@ -862,8 +869,8 @@ html.lw-navigating .page-content { opacity: 0; }
 /* Task Saya + Kursus Saya: satu kolom bertumpuk di mobile, berdampingan 2 kolom di desktop.
    Full-width row-nya sendiri di bawah welcome/presensi/saldo, terlepas dari jumlah kolom
    .bento di breakpoint manapun. */
-.bento-task-kursus { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr; gap: 16px; margin-top: 4vh; }
-@media (min-width: 768px) { .bento-task-kursus { grid-template-columns: 1fr 1fr; margin-top: 0; } }
+.bento-task-kursus { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr; gap: 16px; }
+@media (min-width: 768px) { .bento-task-kursus { grid-template-columns: 1fr 1fr; } }
 
 /* Permission PENGAJUAN_ABSENSI_SAYA/PELATIHAN_SAYA tidak ada -> card terkait (termasuk saldo
    cuti/izin/lembur, domain sama dengan Pengajuan Absensi) tidak dirender sama sekali (lihat
@@ -885,8 +892,27 @@ html.lw-navigating .page-content { opacity: 0; }
 .welcome-name { font-size: 22px; font-weight: 800; color: #fff; letter-spacing: -0.5px; }
 .welcome-meta { font-size: 13px; color: rgba(147,197,253,0.75); margin-top: 6px; font-weight: 500; }
 .welcome-qa-label { font-size: 11.5px; color: rgba(147,197,253,0.6); margin-bottom: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; }
-.data-diri-btn { display: inline-flex; align-items: center; gap: 8px; background: #fff; color: #042c6c; font-weight: 700; font-size: 13px; padding: 9px 16px; border-radius: 12px; text-decoration: none; }
-.data-diri-btn.gold { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: #fff; }
+.data-diri-btn { display: inline-flex; align-items: center; gap: 6px; background: #fff; color: #042c6c; font-weight: 700; font-size: 11.5px; padding: 6px 12px; border-radius: 10px; text-decoration: none; }
+.data-diri-btn.gold { background: linear-gradient(135deg, #fde68a 0%, #f5c518 45%, #d4a017 100%); color: #6b4a05; position: relative; overflow: hidden; }
+.data-diri-btn.gold::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -60%;
+    width: 40%;
+    height: 100%;
+    background: linear-gradient(120deg, transparent 0%, rgba(255,255,255,0.65) 50%, transparent 100%);
+    transform: skewX(-20deg);
+    animation: gold-shimmer 6s ease-in-out infinite;
+}
+@keyframes gold-shimmer {
+    0% { left: -60%; }
+    18% { left: 130%; }
+    100% { left: 130%; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .data-diri-btn.gold::after { animation: none; }
+}
 .welcome-avatar { width: 52px; height: 52px; border-radius: 50%; object-fit: cover; border: 2px solid rgba(255,255,255,0.35); flex-shrink: 0; }
 .welcome-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
 /* Mobile: tombol Data Diri (dan Admin Panel kalau ada) jadi satu kolom penuh sendiri-sendiri,
@@ -897,6 +923,28 @@ html.lw-navigating .page-content { opacity: 0; }
     /* Foto profil disembunyikan di mobile (bukan diperkecil) - lebar layar sempit, ruangnya
        lebih berguna buat nama/meta & tombol aksi (request user). */
     .welcome-avatar { display: none; }
+}
+
+/* Desktop: tombol "Profil Saya" diperbesar lagi (beda dari Admin Panel di sebelahnya, yang
+   tetap ukuran kecil) - request user. */
+@media (min-width: 640px) {
+    .welcome-actions .data-diri-btn.gold { font-size: 14px; padding: 11px 22px; border-radius: 12px; gap: 9px; }
+}
+
+/* Widget "Jadwal Shift Saya" (Dashboard) - sel kalender pakai aspect-ratio:1, kalau kolom
+   kalender & kolom legend/tombol Tukar Shift ditumpuk 1 kolom penuh di layar lebar, grid 7
+   kolom (1fr) jadi kotak raksasa. Desktop: pisah jadi 2 kolom bersisian - kalender kolom
+   sendiri (lebarnya sendiri, tidak ngisi sisa ruang), legend+tombol kolom sendiri di
+   sampingnya (request user: "bedakan kolom antara kalender dengan tukar shift"). Mobile tetap
+   1 kolom bertumpuk seperti biasa (default, tidak disentuh media query ini). */
+@media (min-width: 768px) {
+    .jadwal-shift-calendar-wrap { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; align-items: start; }
+    /* Legend lebih gede di desktop (11px -> 13.5px, dot ikut membesar) - request user. */
+    .jadwal-shift-legend-item { font-size: 13.5px !important; gap: 8px !important; }
+    .jadwal-shift-legend-item > span:first-child { width: 10px !important; height: 10px !important; }
+    /* Tombol "Tukar Shift" selebar kontennya sendiri di desktop, bukan width:100% ngisi
+       seluruh kolom kanan (request user) - mobile tetap full-width seperti biasa. */
+    .jadwal-shift-tukar-btn { width: auto !important; }
 }
 
 /* ── ABSENSI CARD ── */

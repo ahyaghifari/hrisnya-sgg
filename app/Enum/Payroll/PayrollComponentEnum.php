@@ -27,6 +27,7 @@ enum PayrollComponentEnum: string
     case LEMBUR = 'lembur';
     case JASA_PELAYANAN = 'jasa_pelayanan';
     case JASA_UNIT = 'jasa_unit';
+    case EXTRA_SHIFT = 'extra_shift';
     case FEE_CLAIM = 'fee_claim';
 
     // POTONGAN
@@ -56,6 +57,7 @@ enum PayrollComponentEnum: string
             self::LEMBUR,
             self::JASA_PELAYANAN,
             self::JASA_UNIT,
+            self::EXTRA_SHIFT,
             self::FEE_CLAIM => PayrollComponentTypeEnum::EARNING,
 
             self::BPJS_KESEHATAN,
@@ -81,6 +83,7 @@ enum PayrollComponentEnum: string
             self::LEMBUR => 'Lembur',
             self::JASA_PELAYANAN => 'Jasa Pelayanan',
             self::JASA_UNIT => 'Jasa Unit',
+            self::EXTRA_SHIFT => 'Extra Shift',
             self::FEE_CLAIM => 'Fee Klaim (Jasa Dokter, dst)',
             self::BPJS_KESEHATAN => 'BPJS Kesehatan',
             self::BPJS_KETENAGAKERJAAN => 'BPJS Ketenagakerjaan',
