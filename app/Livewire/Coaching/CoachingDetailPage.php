@@ -36,28 +36,32 @@ class CoachingDetailPage extends Component
     {
         $user = Auth::user();
         $isSubject = $record->user_id === $user->id;
-        $isInvolvedAsSupervisor = $record->coach_by === $user->id
-            || app(OrgHierarchyService::class)->subordinates($user)->where('id', $record->user_id)->exists();
+        $isCoach = $record->coach_by === $user->id;
+        $isSubordinateManager = app(OrgHierarchyService::class)->subordinates($user)->where('id', $record->user_id)->exists();
 
-        // Subject-nya sendiri (baca/upload bukti coaching miliknya) tidak digerbangi
-        // SISTEM_COACHING_COUNSELING - itu gerbang khusus sisi atasan/coach/HC, bukan
-        // self-service. Kalau bukan subject, wajib punya gerbang itu DULU baru dicek jalur akses
-        // atasan/coach-nya.
+        // Subject-nya sendiri (baca/upload bukti) DAN coach yang ditunjuk (review/approve/reject)
+        // dua-duanya self-contained lewat penunjukan LANGSUNG di record ini - tidak digerbangi
+        // SISTEM_PEMBINAAN_KARYAWAN (instruksi user 2026-08-17: konyol kalau orang yang cuma
+        // ditunjuk jadi coach 1 record harus dikasih akses SELURUH modul Coaching & Counseling
+        // dulu). Yang WAJIB punya gerbang modul itu cuma jalur "lihat coaching orang lain"
+        // (HC company-wide / atasan lewat hierarki bawahan), BUKAN pihak yang memang terlibat
+        // langsung di record ini.
         abort_unless(
             $isSubject
+                || $isCoach
                 || (
-                    $user->can(CustomPermissionEnum::SISTEM_COACHING_COUNSELING->value)
+                    $user->can(CustomPermissionEnum::SISTEM_PEMBINAAN_KARYAWAN->value)
                     && (
                         $user->can('View:Coaching')
                         || $user->can(CustomPermissionEnum::COACHING_KARYAWAN_LAINNYA->value)
-                        || $isInvolvedAsSupervisor
+                        || $isSubordinateManager
                     )
                 ),
             403
         );
 
         abort_unless(
-            $isSubject || $user->canFilterByCompany() || $record->company_id === $user->company_id,
+            $isSubject || $isCoach || $user->canFilterByCompany() || $record->company_id === $user->company_id,
             403
         );
 
@@ -94,7 +98,17 @@ class CoachingDetailPage extends Component
 
     public function submitProofs(): void
     {
-        abort_unless($this->canUpload, 403);
+        // Cek langsung ke record (BUKAN lewat $this->canUpload) - computed property getX...
+        // Property Livewire di-memoize sekali per request begitu diakses; kalau guard ini pakai
+        // $this->canUpload, nilainya ke-cache dan dipakai ulang saat render() nanti walau status
+        // sudah berubah di bawah - form/tombol jadi nyangkut kelihatan padahal sudah dipakai.
+        abort_unless(
+            $this->isSubject && in_array($this->record->status, [
+                CoachingStatus::IN_PROGRESS->value,
+                CoachingStatus::REJECTED->value,
+            ], true),
+            403
+        );
 
         $data = $this->validate([
             'proofs' => ['required', 'array', 'min:1'],
@@ -111,7 +125,11 @@ class CoachingDetailPage extends Component
 
     public function approve(): void
     {
-        abort_unless($this->canReview, 403);
+        // Sama alasan seperti submitProofs() - cek langsung, jangan lewat $this->canReview.
+        abort_unless(
+            $this->record->status === CoachingStatus::SUBMITTED->value && $this->record->coach_by === Auth::id(),
+            403
+        );
 
         app(CoachingService::class)->approve($this->record);
 
@@ -122,7 +140,11 @@ class CoachingDetailPage extends Component
 
     public function reject(): void
     {
-        abort_unless($this->canReview, 403);
+        // Sama alasan seperti submitProofs() - cek langsung, jangan lewat $this->canReview.
+        abort_unless(
+            $this->record->status === CoachingStatus::SUBMITTED->value && $this->record->coach_by === Auth::id(),
+            403
+        );
 
         app(CoachingService::class)->reject($this->record);
 

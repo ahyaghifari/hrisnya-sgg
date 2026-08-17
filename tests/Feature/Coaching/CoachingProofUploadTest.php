@@ -13,6 +13,8 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
+use Spatie\Permission\Models\Permission;
+use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 /**
@@ -26,9 +28,16 @@ class CoachingProofUploadTest extends TestCase
 
     private function makeCoaching(string $status = 'in_progress'): array
     {
+        // Coach (BUKAN subject) digerbangi SISTEM_PEMBINAAN_KARYAWAN di CoachingDetailPage::
+        // mount() - subject sendiri bypass gerbang ini (self-service), coach tidak.
+        Permission::firstOrCreate(['name' => \App\Enum\CustomPermissionEnum::SISTEM_PEMBINAAN_KARYAWAN->value, 'guard_name' => 'web']);
+        $moduleRole = Role::firstOrCreate(['name' => 'Akses Modul Coaching Proof Test', 'guard_name' => 'web']);
+        $moduleRole->givePermissionTo(\App\Enum\CustomPermissionEnum::SISTEM_PEMBINAAN_KARYAWAN->value);
+
         $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
         $employee = User::factory()->create(['company_id' => $company->id]);
         $coach = User::factory()->create(['company_id' => $company->id]);
+        $coach->assignRole($moduleRole);
 
         $coaching = Coaching::create([
             'company_id' => $company->id,
@@ -62,7 +71,12 @@ class CoachingProofUploadTest extends TestCase
         Livewire::actingAs($employee)
             ->test(CoachingDetailPage::class, ['record' => $coaching])
             ->set('proofs', [UploadedFile::fake()->image('bukti.jpg')])
-            ->call('submitProofs');
+            ->call('submitProofs')
+            // Regresi: getCanUploadProperty() sempat ke-memoize (true) sebelum status berubah,
+            // jadi tombol "Ajukan Bukti" masih nongol di render abis submit walau status sudah
+            // SUBMITTED di DB.
+            ->assertSet('canUpload', false)
+            ->assertDontSee('Ajukan Bukti');
 
         $this->assertSame('submitted', $coaching->fresh()->status);
         $this->assertDatabaseHas('coaching_proofs', [
@@ -148,7 +162,13 @@ class CoachingProofUploadTest extends TestCase
 
         Livewire::actingAs($coach)
             ->test(CoachingDetailPage::class, ['record' => $coaching])
-            ->call('approve');
+            ->call('approve')
+            // Regresi: getCanReviewProperty() sempat ke-memoize (true) sebelum status berubah,
+            // jadi tombol "Setujui"/"Tolak" masih nongol di render abis approve walau status
+            // sudah COMPLETED di DB.
+            ->assertSet('canReview', false)
+            ->assertDontSee('Tandai Selesai')
+            ->assertDontSee('Bukti Sudah Diajukan — Perlu Ditinjau');
 
         $this->assertSame('completed', $coaching->fresh()->status);
     }

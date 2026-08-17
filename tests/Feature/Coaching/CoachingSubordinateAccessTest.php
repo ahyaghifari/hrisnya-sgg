@@ -40,11 +40,19 @@ class CoachingSubordinateAccessTest extends TestCase
     /** @return array{0: User, 1: User, 2: User, 3: Companies} manager, subordinate, karyawan lain (bukan bawahan) */
     private function makeManagerWithSubordinate(): array
     {
+        // SISTEM_PEMBINAAN_KARYAWAN - gerbang modul dicek duluan di mount() (CreateCoachingPage/
+        // CoachingDetailPage dkk) SEBELUM gerbang subordinate-only - tanpa ini abort_unless()
+        // 403 di baris pertama, subordinate access-nya sendiri tidak pernah kena tes.
+        Permission::firstOrCreate(['name' => \App\Enum\CustomPermissionEnum::SISTEM_PEMBINAAN_KARYAWAN->value, 'guard_name' => 'web']);
+        $moduleRole = Role::firstOrCreate(['name' => 'Akses Modul Coaching Test', 'guard_name' => 'web']);
+        $moduleRole->givePermissionTo(\App\Enum\CustomPermissionEnum::SISTEM_PEMBINAAN_KARYAWAN->value);
+
         $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
         $managerPosition = JobPositions::create(['company_id' => $company->id, 'name' => 'Manager', 'planned_manpower' => 1]);
         $staffPosition = JobPositions::create(['company_id' => $company->id, 'name' => 'Staff', 'planned_manpower' => 1, 'parent_id' => $managerPosition->id]);
 
         $manager = User::factory()->create(['company_id' => $company->id]);
+        $manager->assignRole($moduleRole);
         $this->assignJobPosition($manager, $managerPosition);
 
         $subordinate = User::factory()->create(['company_id' => $company->id]);
@@ -58,8 +66,12 @@ class CoachingSubordinateAccessTest extends TestCase
     public function test_coaching_karyawan_lainnya_permission_grants_company_wide_access_without_subordinates(): void
     {
         Permission::firstOrCreate(['name' => \App\Enum\CustomPermissionEnum::COACHING_KARYAWAN_LAINNYA->value, 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => \App\Enum\CustomPermissionEnum::SISTEM_PEMBINAAN_KARYAWAN->value, 'guard_name' => 'web']);
         $role = Role::firstOrCreate(['name' => 'HC Coaching Test', 'guard_name' => 'web']);
-        $role->givePermissionTo(\App\Enum\CustomPermissionEnum::COACHING_KARYAWAN_LAINNYA->value);
+        $role->givePermissionTo([
+            \App\Enum\CustomPermissionEnum::COACHING_KARYAWAN_LAINNYA->value,
+            \App\Enum\CustomPermissionEnum::SISTEM_PEMBINAAN_KARYAWAN->value,
+        ]);
 
         $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
         $hc = User::factory()->create(['company_id' => $company->id]); // tidak punya bawahan sama sekali
@@ -84,6 +96,10 @@ class CoachingSubordinateAccessTest extends TestCase
             ->set('coach_by', $hc->id)
             ->set('title', 'Coaching dari HC')
             ->set('improvement_due_date', now()->addWeek()->toDateString())
+            ->set('goals', 'Tujuan')
+            ->set('employee_condition', 'Kondisi')
+            ->set('solution', 'Solusi')
+            ->set('improvement_action', 'Tindakan')
             ->call('save');
 
         $this->assertDatabaseHas('coachings', ['user_id' => $randomEmployee->id, 'title' => 'Coaching dari HC']);
@@ -126,6 +142,10 @@ class CoachingSubordinateAccessTest extends TestCase
             ->set('coach_by', $manager->id)
             ->set('title', 'Perbaikan performa')
             ->set('improvement_due_date', now()->addWeek()->toDateString())
+            ->set('goals', 'Tujuan')
+            ->set('employee_condition', 'Kondisi')
+            ->set('solution', 'Solusi')
+            ->set('improvement_action', 'Tindakan')
             ->call('save');
 
         $this->assertDatabaseHas('coachings', [
@@ -147,6 +167,10 @@ class CoachingSubordinateAccessTest extends TestCase
             ->set('coach_by', $manager->id)
             ->set('title', 'Perbaikan performa')
             ->set('improvement_due_date', now()->addWeek()->toDateString())
+            ->set('goals', 'Tujuan')
+            ->set('employee_condition', 'Kondisi')
+            ->set('solution', 'Solusi')
+            ->set('improvement_action', 'Tindakan')
             ->call('save');
 
         Notification::assertSentTo($subordinate, CoachingAssigned::class);
@@ -162,6 +186,10 @@ class CoachingSubordinateAccessTest extends TestCase
             ->set('coach_by', $manager->id)
             ->set('title', 'Perbaikan performa')
             ->set('improvement_due_date', now()->subDay()->toDateString())
+            ->set('goals', 'Tujuan')
+            ->set('employee_condition', 'Kondisi')
+            ->set('solution', 'Solusi')
+            ->set('improvement_action', 'Tindakan')
             ->call('save')
             ->assertHasErrors(['improvement_due_date']);
     }
@@ -176,6 +204,10 @@ class CoachingSubordinateAccessTest extends TestCase
             ->set('coach_by', $manager->id)
             ->set('title', 'Coba tembus')
             ->set('improvement_due_date', now()->addWeek()->toDateString())
+            ->set('goals', 'Tujuan')
+            ->set('employee_condition', 'Kondisi')
+            ->set('solution', 'Solusi')
+            ->set('improvement_action', 'Tindakan')
             ->call('save')
             ->assertForbidden();
     }
@@ -203,8 +235,12 @@ class CoachingSubordinateAccessTest extends TestCase
     public function test_status_filter_is_read_from_url_on_page_load(): void
     {
         Permission::firstOrCreate(['name' => \App\Enum\CustomPermissionEnum::COACHING_KARYAWAN_LAINNYA->value, 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => \App\Enum\CustomPermissionEnum::SISTEM_PEMBINAAN_KARYAWAN->value, 'guard_name' => 'web']);
         $role = Role::firstOrCreate(['name' => 'HC Coaching Pagination Test', 'guard_name' => 'web']);
-        $role->givePermissionTo(\App\Enum\CustomPermissionEnum::COACHING_KARYAWAN_LAINNYA->value);
+        $role->givePermissionTo([
+            \App\Enum\CustomPermissionEnum::COACHING_KARYAWAN_LAINNYA->value,
+            \App\Enum\CustomPermissionEnum::SISTEM_PEMBINAAN_KARYAWAN->value,
+        ]);
 
         $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
         $hc = User::factory()->create(['company_id' => $company->id]);

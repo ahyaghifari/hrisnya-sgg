@@ -41,12 +41,25 @@ class CoachingPage extends Component
 
     public function mount(): void
     {
-        abort_unless(Auth::user()->can(CustomPermissionEnum::SISTEM_COACHING_COUNSELING->value), 403);
+        $user = Auth::user();
+
+        // Ditunjuk jadi coach di minimal 1 record cukup buat buka list ini SENDIRI (scoped ke
+        // baris dia doang lewat baseQuery() `orWhere('coach_by', ...)` di bawah) - tidak perlu
+        // SISTEM_PEMBINAAN_KARYAWAN (instruksi user 2026-08-17, sama alasan CoachingDetailPage).
+        $isCoachSomewhere = Coaching::where('coach_by', $user->id)->exists();
 
         abort_unless(
-            Auth::user()->can('ViewAny:Coaching')
-                || Auth::user()->can(CustomPermissionEnum::COACHING_KARYAWAN_LAINNYA->value)
-                || Auth::user()->canAccessKaryawanMenu(),
+            $user->can(CustomPermissionEnum::SISTEM_PEMBINAAN_KARYAWAN->value)
+                || $user->canAccessKaryawanMenu()
+                || $isCoachSomewhere,
+            403
+        );
+
+        abort_unless(
+            $user->can('ViewAny:Coaching')
+                || $user->can(CustomPermissionEnum::COACHING_KARYAWAN_LAINNYA->value)
+                || $user->canAccessKaryawanMenu()
+                || $isCoachSomewhere,
             403
         );
 
