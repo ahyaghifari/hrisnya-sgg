@@ -21,7 +21,13 @@ class ApprovalFlowsTable
                     ->label('Nama Alur Persetujuan')
                     ->searchable()
                     ->sortable(),
-                
+
+                TextColumn::make('company.name')
+                    ->label('Perusahaan')
+                    ->searchable()
+                    ->sortable()
+                    ->visible(fn () => PermissionHelper::hasGlobalRole(Auth::user())),
+
                 TextColumn::make('module')
                     ->label('Modul')
                     ->formatStateUsing(fn ($state) => \App\Enum\Approval\ApprovalModuleEnum::tryFrom($state)?->label() ?? $state)

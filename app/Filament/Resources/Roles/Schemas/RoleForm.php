@@ -58,6 +58,10 @@ class RoleForm
                 CustomPermissionEnum::KELOLA_JOB_EVALUATION->value,
                 CustomPermissionEnum::LIHAT_LAMPIRAN_IDENTITAS_KARYAWAN->value,
                 CustomPermissionEnum::IMPORT_KARYAWAN->value,
+                // Portal "Alur Persetujuan" (2026-08-16) - dikelompokkan Kepegawaian atas
+                // instruksi user, meski konsepnya lintas-modul.
+                CustomPermissionEnum::LIHAT_ALUR_PERSETUJUAN->value,
+                CustomPermissionEnum::KELOLA_ALUR_PERSETUJUAN->value,
             ],
             CustomPermissionEnum::SISTEM_ABSENSI->value => [
                 CustomPermissionEnum::LIHAT_PENGATURAN_ABSENSI->value,

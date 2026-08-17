@@ -252,6 +252,15 @@ Route::middleware(['auth', 'portal.access'])->group(function () {
     Route::get('/kepegawaian/pengaturan', \App\Livewire\Kepegawaian\EmploymentSettingsPage::class)
         ->name('kepegawaian.pengaturan');
 
+    Route::get('/kepegawaian/alur-persetujuan', \App\Livewire\Kepegawaian\AlurPersetujuanListPage::class)
+        ->name('kepegawaian.alur-persetujuan');
+
+    Route::get('/kepegawaian/alur-persetujuan/tambah', \App\Livewire\Kepegawaian\AlurPersetujuanFormPage::class)
+        ->name('kepegawaian.alur-persetujuan.tambah');
+
+    Route::get('/kepegawaian/alur-persetujuan/{flow}/edit', \App\Livewire\Kepegawaian\AlurPersetujuanFormPage::class)
+        ->name('kepegawaian.alur-persetujuan.edit');
+
     Route::get('/pengajuan-absensi', MyAttendanceRequests::class)
         ->name('my-attendance-requests');
 

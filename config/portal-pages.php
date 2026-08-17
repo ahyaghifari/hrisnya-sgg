@@ -245,6 +245,24 @@ return [
         'guard' => null,
     ],
 
+    'kepegawaian.alur-persetujuan' => [
+        'label' => 'Alur Persetujuan',
+        'permission' => \App\Enum\CustomPermissionEnum::LIHAT_ALUR_PERSETUJUAN->value,
+        'guard' => null,
+    ],
+
+    'kepegawaian.alur-persetujuan.tambah' => [
+        'label' => 'Tambah Alur Persetujuan',
+        'permission' => \App\Enum\CustomPermissionEnum::KELOLA_ALUR_PERSETUJUAN->value,
+        'guard' => null,
+    ],
+
+    'kepegawaian.alur-persetujuan.edit' => [
+        'label' => 'Edit Alur Persetujuan',
+        'permission' => \App\Enum\CustomPermissionEnum::KELOLA_ALUR_PERSETUJUAN->value,
+        'guard' => null,
+    ],
+
     'kepegawaian.job-evaluation' => [
         'label' => 'Job Evaluation',
         'permission' => \App\Enum\CustomPermissionEnum::LIHAT_JOB_EVALUATION->value,

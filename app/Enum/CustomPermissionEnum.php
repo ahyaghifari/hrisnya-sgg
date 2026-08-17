@@ -91,6 +91,15 @@ enum CustomPermissionEnum: string
     case LIHAT_JOB_EVALUATION = 'lihat_job_evaluation';
     case KELOLA_JOB_EVALUATION = 'kelola_job_evaluation';
 
+    /** Halaman portal "Alur Persetujuan" (`/kepegawaian/alur-persetujuan`) - versi portal dari
+     * admin Filament `ApprovalFlowResource`, dikelompokkan Kepegawaian (instruksi user
+     * 2026-08-16) meski konsepnya lintas-modul (approval flow dipakai banyak modul) - alasan
+     * sama LIHAT_JOB_EVALUATION, halaman config tanpa Filament Resource sendiri. LIHAT = boleh
+     * lihat daftar, KELOLA = boleh tambah/ubah (form tambah/edit digerbangi KELOLA saja, tidak
+     * ada mode lihat-doang di form). */
+    case LIHAT_ALUR_PERSETUJUAN = 'lihat_alur_persetujuan';
+    case KELOLA_ALUR_PERSETUJUAN = 'kelola_alur_persetujuan';
+
     /** Tambah/ubah/hapus baris penyesuaian manual di payroll SATU karyawan (baris Bon di
      * PayrollDetailPage, "Add Adjustment" di Filament PayrollItemsRelationManager) — dipisah
      * dari Update:Payroll (yang juga dipakai markAsPaid/regenerate/dst) supaya bisa dikasih ke
@@ -217,6 +226,8 @@ enum CustomPermissionEnum: string
             self::KELOLA_INPUT_JASA_UNIT => 'Kelola Input Jasa Unit',
             self::LIHAT_JOB_EVALUATION => 'Lihat Job Evaluation',
             self::KELOLA_JOB_EVALUATION => 'Kelola Job Evaluation',
+            self::LIHAT_ALUR_PERSETUJUAN => 'Lihat Alur Persetujuan',
+            self::KELOLA_ALUR_PERSETUJUAN => 'Kelola Alur Persetujuan',
             self::EDIT_PAYROLL_ADJUSTMENT => 'Edit Penyesuaian Manual Payroll (Adjustment)',
             self::EDIT_DETAIL_KURSUS_LMS => 'Edit Detail Kursus LMS',
             self::LIHAT_HONORARIUM_LMS => 'Lihat Honorarium LMS',

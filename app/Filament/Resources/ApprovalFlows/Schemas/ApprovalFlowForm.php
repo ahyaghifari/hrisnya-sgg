@@ -2,8 +2,10 @@
 
 namespace App\Filament\Resources\ApprovalFlows\Schemas;
 
+use App\Helpers\PermissionHelper;
 use App\Models\ApprovalManagement\MasterApprovalFlows;
 use App\Models\ApprovalManagement\MasterApprovalFlowSteps;
+use App\Models\Master\Companies;
 use App\Models\Master\JobPositions;
 use App\Models\Master\OrgStructure;
 use App\Models\Role;
@@ -33,8 +35,26 @@ class ApprovalFlowForm
                     ->columnSpanFull()
                     ->columns(2)
                     ->schema([
+                        // Super Admin (holding, PermissionHelper::hasGlobalRole) bisa pilih mau
+                        // bikin alur buat perusahaan mana - dulu selalu Hidden ke company_id
+                        // Auth::user() sendiri, jadi Super Admin TIDAK PERNAH bisa bikin alur buat
+                        // company lain sama sekali (kekurangan yang dilaporkan user 2026-08-16).
+                        // Admin biasa (company-scoped) tetap Hidden ke company sendiri, tidak
+                        // pernah bisa pilih company lain (sengaja, mereka memang cuma admin 1
+                        // company).
+                        Select::make('company_id')
+                            ->label('Perusahaan')
+                            ->options(fn () => Companies::orderBy('name')->pluck('name', 'id'))
+                            ->searchable()
+                            ->preload()
+                            ->live()
+                            ->required()
+                            ->default(fn () => Auth::user()->company_id)
+                            ->visible(fn () => PermissionHelper::hasGlobalRole(Auth::user())),
+
                         Hidden::make('company_id')
-                            ->default(fn () => Auth::user()->company_id),
+                            ->default(fn () => Auth::user()->company_id)
+                            ->visible(fn () => ! PermissionHelper::hasGlobalRole(Auth::user())),
 
                         TextInput::make('name')
                             ->label('Nama Alur Persetujuan')
@@ -142,8 +162,15 @@ class ApprovalFlowForm
                         ->label('Tambah Langkah Persetujuan')
                         ->slideOver()
                         ->modalWidth('md')
+                        // Modal slide-over ini form TERPISAH (state sendiri, $get di dalamnya
+                        // tidak bisa menjangkau company_id di form utama) - company_id dioper
+                        // manual lewat fillForm supaya dropdown Approver/Departemen di dalam
+                        // modal ini ikut ke-scope ke company yang lagi diedit di form utama,
+                        // bukan selalu company Auth::user() sendiri (kekurangan yang sama
+                        // dilaporkan user 2026-08-16).
+                        ->fillForm(fn ($livewire) => ['company_id' => $livewire->data['company_id'] ?? Auth::user()->company_id])
                         ->schema([
-                            ...self::inputStepSchema(),  
+                            ...self::inputStepSchema(),
                         ])
                         ->action(function (array $data, $livewire) {
                             // Validasi data sebelum menyimpan
@@ -195,23 +222,16 @@ class ApprovalFlowForm
                                 return 'Step Baru';
                             }
 
-                            $companyId = Auth::user()->company_id;
-                            $approverName = '';
-
-                            switch ($state['approver_type']) {
-                                case 'role':
-                                    $approverName = Role::where('company_id', $companyId)
-                                        ->where('id', $state['approver_ref_id'])->value('name') ?? 'Role tidak ditemukan';
-                                    break;
-                                case 'user':
-                                    $approverName = \App\Models\User::where('company_id', $companyId)
-                                        ->where('id', $state['approver_ref_id'])->value('name') ?? 'User tidak ditemukan';
-                                    break;
-                                case 'job_position':
-                                    $approverName = JobPositions::where('company_id', $companyId)
-                                        ->where('id', $state['approver_ref_id'])->value('name') ?? 'Jabatan tidak ditemukan';
-                                    break;
-                            }
+                            // Lookup langsung by ID (ULID unik global, tidak butuh scope
+                            // company_id buat display) - dulu di-scope ke Auth::user()->
+                            // company_id, jadi salah/kosong kalau alur ini punya company LAIN
+                            // dari admin yang lagi login (kekurangan yang sama, 2026-08-16).
+                            $approverName = match ($state['approver_type']) {
+                                'role' => Role::find($state['approver_ref_id'])?->name ?? 'Role tidak ditemukan',
+                                'user' => \App\Models\User::find($state['approver_ref_id'])?->name ?? 'User tidak ditemukan',
+                                'job_position' => JobPositions::find($state['approver_ref_id'])?->name ?? 'Jabatan tidak ditemukan',
+                                default => '',
+                            };
 
                             return "Step {$state['step_order']}: {$approverName}";
                         })
@@ -242,16 +262,14 @@ class ApprovalFlowForm
                                         ->formatStateUsing(function ($state, $record, callable $get) {
                                             if (!$state) return '-';
 
-                                            $companyId = Auth::user()->company_id;
+                                            // Lookup langsung by ID, sama alasan dengan itemLabel
+                                            // di atas - jangan scope ke Auth::user()->company_id.
                                             $approverType = $get('approver_type') ?? $record?->approver_type ?? null;
 
                                             return match ($approverType) {
-                                                'role' => Role::where('company_id', $companyId)
-                                                    ->where('id', $state)->value('name') ?? 'Role tidak ditemukan',
-                                                'user' => \App\Models\User::where('company_id', $companyId)
-                                                    ->where('id', $state)->value('name') ?? 'User tidak ditemukan',
-                                                'job_position' => JobPositions::where('company_id', $companyId)
-                                                    ->where('id', $state)->value('name') ?? 'Jabatan tidak ditemukan',
+                                                'role' => Role::find($state)?->name ?? 'Role tidak ditemukan',
+                                                'user' => \App\Models\User::find($state)?->name ?? 'User tidak ditemukan',
+                                                'job_position' => JobPositions::find($state)?->name ?? 'Jabatan tidak ditemukan',
                                                 default => '-',
                                             };
                                         }),
@@ -291,11 +309,16 @@ class ApprovalFlowForm
                                     $items = $component->getState() ?? [];
                                     $itemKey = $arguments['item'] ?? null;
 
+                                    // company_id dioper juga (sama alasan dengan add_step) -
+                                    // modal edit ini form terpisah juga, tanpa ini dropdown
+                                    // Approver/Departemen balik hardcode ke company Auth::user().
+                                    $companyId = $component->getLivewire()->data['company_id'] ?? Auth::user()->company_id;
+
                                     if ($itemKey === null || !isset($items[$itemKey])) {
-                                        return [];
+                                        return ['company_id' => $companyId];
                                     }
 
-                                    return $items[$itemKey];
+                                    return array_merge($items[$itemKey], ['company_id' => $companyId]);
                                 })
                                 ->action(function (array $data, $arguments, $component) {
                                     try {
@@ -415,6 +438,12 @@ class ApprovalFlowForm
     private static function inputStepSchema(): array
     {
         return [
+            // Dioper dari fillForm() add_step/edit_step (lihat StepSchema()) - company_id
+            // ASLI dari form utama (bukan Auth::user()->company_id), field terpisah di sini
+            // karena modal add_step/edit_step form-nya sendiri, $get tidak bisa lewat batas
+            // form ke form utama (2026-08-16).
+            Hidden::make('company_id'),
+
             Select::make('approver_type')
                 ->label('Sumber')
                 ->options([
@@ -445,7 +474,11 @@ class ApprovalFlowForm
                     $sourceCompany = $get('source_company') ?? 'same_company';
                     if (!$approverType) return [];
 
-                    $companyId = Auth::user()->company_id;
+                    // company_id ASLI dari form utama (dioper via fillForm - lihat Hidden di
+                    // atas), bukan Auth::user()->company_id - dulu selalu company admin yang
+                    // login, jadi Super Admin bikin alur buat company lain tetap lihat daftar
+                    // approver company-nya sendiri, bukan company yang lagi diedit.
+                    $companyId = $get('company_id') ?? Auth::user()->company_id;
 
                     if ($sourceCompany === 'holding_company') {
                         $parentCompanyId = '01J2F0C8KQ9M7D4S8RBX6E1ZVP';
@@ -488,7 +521,7 @@ class ApprovalFlowForm
                     $scopeType = $get('scope_type');
                     if ($scopeType !== 'specific_department') return [];
 
-                    $companyId = Auth::user()->company_id;
+                    $companyId = $get('company_id') ?? Auth::user()->company_id;
                     return OrgStructure::where('company_id', $companyId)
                         ->pluck('name', 'id');
                 })

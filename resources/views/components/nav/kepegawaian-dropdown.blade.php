@@ -1,6 +1,7 @@
 @php
     $canViewKaryawan = auth()->user()->can('ViewAny:User');
     $canViewPengaturanKepegawaian = auth()->user()->can(\App\Enum\CustomPermissionEnum::LIHAT_PENGATURAN_KEPEGAWAIAN->value);
+    $canViewAlurPersetujuan = auth()->user()->can(\App\Enum\CustomPermissionEnum::LIHAT_ALUR_PERSETUJUAN->value);
     $canViewJabatan = auth()->user()->can('ViewAny:JobPositions');
     $canViewJobEvaluation = auth()->user()->can(\App\Enum\CustomPermissionEnum::LIHAT_JOB_EVALUATION->value);
     $canViewDokumen = auth()->user()->can('ViewAny:UserDocuments');
@@ -18,6 +19,9 @@
             <a href="{{ route('kepegawaian.dashboard') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-chart-line"></i> Dashboard</a>
             @if ($canViewKaryawan)
                 <a href="{{ route('kepegawaian.karyawan') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-users"></i> Karyawan</a>
+            @endif
+            @if ($canViewAlurPersetujuan)
+                <a href="{{ route('kepegawaian.alur-persetujuan') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-bars-staggered"></i> Alur Persetujuan</a>
             @endif
             @if ($canViewPengaturanKepegawaian)
                 <a href="{{ route('kepegawaian.pengaturan') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-gear"></i> Pengaturan Kepegawaian</a>
