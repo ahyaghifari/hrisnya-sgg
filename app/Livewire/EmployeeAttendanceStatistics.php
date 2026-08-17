@@ -507,11 +507,13 @@ class EmployeeAttendanceStatistics extends Component
             $markers->put($dateKey, $existing->push(['type' => $type, 'status' => $status]));
         };
 
+        // Lembur sengaja tidak ditandai di kalender ini (2026-08-15, instruksi user) - cuma
+        // Cuti/Izin, lembur bukan alasan "tidak presensi normal" seperti cuti/izin.
         $requests = AttendanceRequests::query()
             ->where('user_id', $this->record->id)
             ->whereIn('status', $activeStatuses)
-            ->whereIn('type', ['leave', 'permission', 'overtime'])
-            ->with(['leaveDetails', 'permissionDetails', 'overtimeDetails'])
+            ->whereIn('type', ['leave', 'permission'])
+            ->with(['leaveDetails', 'permissionDetails'])
             ->get();
 
         foreach ($requests as $request) {
@@ -531,13 +533,6 @@ class EmployeeAttendanceStatistics extends Component
                 $date = Carbon::parse($detail->date);
                 if ($date->between($start, $end)) {
                     $addMarker($date->toDateString(), 'permission', $request->status);
-                }
-            }
-
-            foreach ($request->overtimeDetails as $detail) {
-                $date = Carbon::parse($detail->date);
-                if ($date->between($start, $end)) {
-                    $addMarker($date->toDateString(), 'overtime', $request->status);
                 }
             }
         }

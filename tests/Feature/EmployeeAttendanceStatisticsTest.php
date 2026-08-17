@@ -268,7 +268,7 @@ class EmployeeAttendanceStatisticsTest extends TestCase
         $this->actingAs($user)
             ->get(route('data-diri'))
             ->assertOk()
-            ->assertSee('Data Diri');
+            ->assertSee('Profil Saya');
     }
 
     public function test_payroll_tab_shows_only_paid_history_for_self(): void

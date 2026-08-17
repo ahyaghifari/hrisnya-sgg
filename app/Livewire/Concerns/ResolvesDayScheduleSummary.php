@@ -15,36 +15,39 @@ use App\Services\Attendance\ScheduleResolver;
 trait ResolvesDayScheduleSummary
 {
     /**
-     * @return array{state: 'holiday'|'off'|'scheduled'|'none', label: ?string, detail: ?string, color: ?string, type: ?string}
+     * @return array{state: 'holiday'|'off'|'scheduled'|'none', label: ?string, detail: ?string, color: ?string, type: ?string, code: ?string}
      */
     protected function resolveDaySchedule(ScheduleResolver $resolver, User $user, string $date, ?string $holidayName): array
     {
         $resolved = $resolver->resolveForUserDate($user, $date);
 
         if ($holidayName) {
-            return ['state' => 'holiday', 'label' => $holidayName, 'detail' => null, 'color' => null, 'type' => $resolved['type'] ?? null];
+            return ['state' => 'holiday', 'label' => $holidayName, 'detail' => null, 'color' => null, 'type' => $resolved['type'] ?? null, 'code' => null];
         }
 
         if (! $resolved) {
-            return ['state' => 'none', 'label' => null, 'detail' => null, 'color' => null, 'type' => null];
+            return ['state' => 'none', 'label' => null, 'detail' => null, 'color' => null, 'type' => null, 'code' => null];
         }
 
         // 'type' (fixed/flexible/shift) diteruskan apa adanya walau off_day/holiday — dipakai
         // Dashboard::canJadwalShiftSaya buat cek "karyawan ini beneran jadwal shift atau bukan",
         // bukan cuma nebak dari isi 7 hari yang kebetulan ada 'scheduled'.
         if ($resolved['is_off_day'] ?? false) {
-            return ['state' => 'off', 'label' => 'Libur', 'detail' => null, 'color' => null, 'type' => $resolved['type']];
+            return ['state' => 'off', 'label' => 'Libur', 'detail' => null, 'color' => null, 'type' => $resolved['type'], 'code' => null];
         }
 
         $config = $resolved['config'] ?? null;
 
         return match ($resolved['type']) {
+            // 'code' (mis. PAGI/SIANG/MALAM) cuma ada di shift - dipakai Dashboard widget buat
+            // tampilkan inisial di sel kalender yang kecil, bukan nama shift penuh.
             'shift' => [
                 'state' => 'scheduled',
                 'label' => $config?->name,
                 'detail' => $config ? substr($config->start_time, 0, 5) . '–' . substr($config->end_time, 0, 5) : null,
                 'color' => $config?->color,
                 'type' => 'shift',
+                'code' => $config?->code,
             ],
             'fixed' => [
                 'state' => 'scheduled',
@@ -52,6 +55,7 @@ trait ResolvesDayScheduleSummary
                 'detail' => $config ? substr($config->start_time, 0, 5) . '–' . substr($config->end_time, 0, 5) : null,
                 'color' => null,
                 'type' => 'fixed',
+                'code' => null,
             ],
             'flexible' => [
                 'state' => 'scheduled',
@@ -59,8 +63,9 @@ trait ResolvesDayScheduleSummary
                 'detail' => 'Fleksibel',
                 'color' => null,
                 'type' => 'flexible',
+                'code' => null,
             ],
-            default => ['state' => 'none', 'label' => null, 'detail' => null, 'color' => null, 'type' => null],
+            default => ['state' => 'none', 'label' => null, 'detail' => null, 'color' => null, 'type' => null, 'code' => null],
         };
     }
 }

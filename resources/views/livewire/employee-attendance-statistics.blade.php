@@ -11,7 +11,7 @@
 @endphp
 <div x-data="{ tab: 'profil' }">
 <x-page-header
-    :title="$isSelf ? 'Data Diri' : $record->name"
+    :title="$isSelf ? 'Profil Saya' : $record->name"
     :subtitle="$record->profile?->jobPosition?->name ?? 'Karyawan'"
     :back="$backRoute"
 />
@@ -498,10 +498,10 @@
             </div>
 
             @php
+                // Lembur sengaja tidak ditandai di kalender ini (2026-08-15) - cuma Cuti/Izin.
                 $requestTypeMeta = [
                     'leave' => ['label' => 'Cuti', 'color' => '#1a56c4'],
                     'permission' => ['label' => 'Izin', 'color' => '#d97706'],
-                    'overtime' => ['label' => 'Lembur', 'color' => '#047C54'],
                 ];
             @endphp
             <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;">
