@@ -93,6 +93,11 @@ window.photoCropper = function (wireModel) {
 function initTomSelects() {
     document.querySelectorAll("select[data-tom-select]").forEach((el) => {
         if (el.tomselect) {
+            // Livewire morph.updated nembak pas opsi <select> yang mendasarinya berubah (mis.
+            // dropdown karyawan/coach yang reaktif ke company terpilih) - TomSelect TIDAK
+            // otomatis baca ulang opsi barunya sendiri, widget-nya nyangkut kosong/lama kalau
+            // tidak di-sync manual di sini.
+            el.tomselect.sync();
             return;
         }
 
@@ -356,11 +361,13 @@ document.addEventListener("livewire:init", () => {
 
     // Modal yang dirender kondisional (@if) baru punya elemen <select data-tom-select> setelah
     // Livewire morph — DOMContentLoaded/livewire:navigated saja tidak cukup buat elemen begini.
-    // "morph.added" nembak buat node yang baru masuk DOM (kasus modal @if), "morph.updated"
-    // buat node yang sudah ada tapi di-patch — pasang keduanya (initTomSelects sudah guard
-    // el.tomselect jadi aman dipanggil berkali-kali).
-    Livewire.hook("morph.added", () => initTomSelects());
-    Livewire.hook("morph.updated", () => initTomSelects());
+    // Pakai "morphed" (nembak SEKALI di akhir siklus morph 1 komponen, DOM sudah settle total)
+    // — BUKAN "morph.updated" per-node, itu nembak per elemen selagi morphdom masih jalan,
+    // beresiko kepanggil sebelum <option> anak-anaknya kelar dipatch (initTomSelects().sync()
+    // baca opsi yang masih basi). initTomSelects() sudah guard: elemen baru -> init baru,
+    // elemen yang sudah ada instance TomSelect-nya -> sync() baca ulang opsi dari <select> yang
+    // sekarang, aman dipanggil berkali-kali.
+    Livewire.hook("morphed", () => initTomSelects());
 
     // Sama seperti tom-select di atas: tabel [data-list-table] yang muncul belakangan lewat
     // @if (mis. tabel karyawan di CreateSchedulePage, baru ada di DOM setelah pilih tipe Shift)
