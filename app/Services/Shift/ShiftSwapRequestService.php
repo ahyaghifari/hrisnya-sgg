@@ -3,9 +3,11 @@
 namespace App\Services\Shift;
 
 use App\Enum\Approval\ApprovalModuleEnum;
+use App\Models\Setting;
 use App\Models\Shift\ScheduleShiftAssignment;
 use App\Models\Shift\ShiftSwapRequests;
 use App\Models\User;
+use App\Notifications\ShiftSwapTargetResponseRequested;
 use App\Repositories\Approval\ApprovalSnapshotRepository;
 use App\Services\Approval\ApprovalCreationService;
 use Illuminate\Support\Facades\Auth;
@@ -13,6 +15,15 @@ use Illuminate\Support\Facades\DB;
 
 class ShiftSwapRequestService
 {
+    /** Setting key (App\Models\Setting::resolve()) - kalau ON, target dinotif & bisa kasih
+     * tanggapan Setuju/Tolak lewat App\Livewire\Presensi\ShiftSwapTargetResponseCard, TAPI ini
+     * murni informasi buat approver, TIDAK PERNAH menggerbang/menunda alur approval (lihat
+     * planning/2026-08-16-fitur-tukar-shift.md §A2 - instruksi user: opsional, tidak wajib).
+     * Sengaja bukan case App\Enum\Attendance\AttendanceSettingEnum - enum itu auto-tampil di
+     * AttendanceSettingsPage (iterasi ::cases() generik), toggle ini belum siap diekspos ke UI
+     * admin, dinyalakan manual dulu lewat baris Setting langsung. */
+    public const ASK_TARGET_RESPONSE_SETTING_KEY = 'ask_target_response_tukar_shift';
+
     public function __construct(
         protected ApprovalCreationService $approvalCreationService,
         protected ApprovalSnapshotRepository $approvalSnapshotRepository,
@@ -182,5 +193,25 @@ class ShiftSwapRequestService
             companyId:  $user->company_id,
             userId:     $user->id,
         );
+
+        if (Setting::resolve(self::ASK_TARGET_RESPONSE_SETTING_KEY, $user->company_id, default: false)) {
+            $swapRequest->target?->notify(new ShiftSwapTargetResponseRequested($swapRequest));
+        }
+    }
+
+    /** Rekan (target_id) kasih tanggapan opsional - murni catatan info, TIDAK menyentuh `status`
+     * atau approval snapshot sama sekali (lihat komentar ASK_TARGET_RESPONSE_SETTING_KEY). */
+    public function recordTargetResponse(ShiftSwapRequests $request, User $actor, string $response): void
+    {
+        abort_unless($actor->id === $request->target_id, 403);
+
+        if (! in_array($response, ['accepted', 'declined'], true)) {
+            throw new \InvalidArgumentException('Tanggapan tidak valid.');
+        }
+
+        $request->update([
+            'target_response' => $response,
+            'target_responded_at' => now(),
+        ]);
     }
 }

@@ -237,14 +237,13 @@ class DashboardTest extends TestCase
         $response->assertDontSee('Pelatihan Selesai');
     }
 
-    // Widget "Jadwal Shift Saya" cuma buat karyawan yang jadwalnya beneran tipe Shift - punya
-    // permission JADWAL_SHIFT_SAYA doang tidak cukup (permission itu tetap dipakai buat gerbang
-    // fitur lain seperti tukar shift), lihat Dashboard::getCanJadwalShiftSayaProperty().
+    // Widget "Jadwal Shift Saya" cuma buat karyawan yang jadwalnya beneran tipe Shift - dicek
+    // dari data jadwal langsung, bukan permission JADWAL_SHIFT_SAYA lagi (2026-08-15, permission
+    // itu tidak pernah di-assign ke role manapun), lihat Dashboard::getCanJadwalShiftSayaProperty().
     public function test_jadwal_shift_widget_visible_for_shift_schedule_employee(): void
     {
         $company = Companies::create(['code' => 'SFT', 'name' => 'RS Shift', 'location' => 'Test', 'is_active' => true]);
         $user = User::factory()->create(['company_id' => $company->id]);
-        $this->grantPermission($user, CustomPermissionEnum::JADWAL_SHIFT_SAYA);
 
         $schedule = Schedule::create(['company_id' => $company->id, 'name' => 'Jadwal Perawat', 'schedule_type' => 'shift']);
         $pagi = ScheduleShiftType::create(['schedule_id' => $schedule->id, 'code' => 'PAGI', 'name' => 'Pagi', 'start_time' => '07:00:00', 'end_time' => '15:00:00', 'is_overnight' => false, 'color' => '#22c55e']);
@@ -260,7 +259,6 @@ class DashboardTest extends TestCase
     {
         $company = Companies::create(['code' => 'FXD', 'name' => 'Kantor Fixed', 'location' => 'Test', 'is_active' => true]);
         $user = User::factory()->create(['company_id' => $company->id]);
-        $this->grantPermission($user, CustomPermissionEnum::JADWAL_SHIFT_SAYA);
 
         $schedule = Schedule::create(['company_id' => $company->id, 'name' => 'Jadwal Kantor', 'schedule_type' => 'fixed']);
         ScheduleFixedDay::create(['schedule_id' => $schedule->id, 'day_of_week' => now()->dayOfWeek, 'is_off_day' => false, 'start_time' => '08:00:00', 'end_time' => '17:00:00']);
@@ -276,7 +274,6 @@ class DashboardTest extends TestCase
     {
         $company = Companies::create(['code' => 'NON', 'name' => 'Belum Ada Jadwal', 'location' => 'Test', 'is_active' => true]);
         $user = User::factory()->create(['company_id' => $company->id]);
-        $this->grantPermission($user, CustomPermissionEnum::JADWAL_SHIFT_SAYA);
 
         $response = $this->actingAs($user)->get('/');
 

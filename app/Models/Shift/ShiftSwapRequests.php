@@ -32,6 +32,8 @@ class ShiftSwapRequests extends Model
         'rejected_by',
         'rejected_at',
         'notes',
+        'target_response',
+        'target_responded_at',
     ];
 
     protected $casts = [
@@ -39,9 +41,17 @@ class ShiftSwapRequests extends Model
         'target_date' => 'date',
         'approved_at' => 'datetime',
         'rejected_at' => 'datetime',
+        'target_responded_at' => 'datetime',
     ];
 
     public function requester()
+    {
+        return $this->belongsTo(User::class, 'requester_id');
+    }
+
+    /** Alias requester() - App\Services\Approval\ApprovalTimelineService::build() generik lintas
+     * modul, cuma baca relasi bernama user() (lihat baris $request->user di file itu). */
+    public function user()
     {
         return $this->belongsTo(User::class, 'requester_id');
     }

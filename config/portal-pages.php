@@ -411,7 +411,10 @@ return [
     // ditambahkan sekalian, sama pola migrasi Keuangan (2026-08-07).
     'presensi.jadwal.show' => [
         'label' => 'Detail Jadwal',
-        'permission' => 'View:Schedule',
+        // Bukan blanket permission lagi (2026-08-15) - karyawan yang dipakaikan schedule ini
+        // (mis. perawat jadwal shift) boleh lihat halamannya sendiri walau bukan View:Schedule,
+        // gerbangnya per-record lewat SchedulePolicy::view() di ScheduleDetailPage::mount().
+        'permission' => null,
         'guard' => null,
     ],
 
@@ -463,9 +466,32 @@ return [
         'guard' => null,
     ],
 
+    'presensi.extra-shift-rule' => [
+        'label' => 'Aturan Extra Shift',
+        'permission' => 'ViewAny:ExtraShiftRule',
+        'guard' => null,
+    ],
+
     'presensi.jadwal-saya' => [
         'label' => 'Jadwal Shift Saya',
-        'permission' => \App\Enum\CustomPermissionEnum::JADWAL_SHIFT_SAYA->value,
+        // Bukan permission (JADWAL_SHIFT_SAYA tidak pernah di-assign ke role manapun) - gate
+        // lewat validasi jadwal langsung, lihat User::hasShiftSchedule() (2026-08-15).
+        'permission' => null,
+        'guard' => 'hasShiftSchedule',
+    ],
+
+    'tukar-shift' => [
+        'label' => 'Tukar Shift',
+        'permission' => \App\Enum\CustomPermissionEnum::TUKAR_SHIFT_SAYA->value,
+        'guard' => null,
+    ],
+
+    // Approver yang bukan requester (bukan pemilik TUKAR_SHIFT_SAYA) tetap lolos lewat
+    // canAccess() di ShiftSwapRequestDetail::mount() - pola sama ManpowerRequestDetailPage
+    // (blanket permission di depan buat requester, canAccess() di dalam buat kasus lain).
+    'tukar-shift.show' => [
+        'label' => 'Detail Tukar Shift',
+        'permission' => \App\Enum\CustomPermissionEnum::TUKAR_SHIFT_SAYA->value,
         'guard' => null,
     ],
 

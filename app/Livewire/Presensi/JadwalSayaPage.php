@@ -31,7 +31,9 @@ class JadwalSayaPage extends Component
 
     public function mount(): void
     {
-        abort_unless(Auth::user()->can(\App\Enum\CustomPermissionEnum::JADWAL_SHIFT_SAYA->value), 403);
+        // Gate dari permission JADWAL_SHIFT_SAYA (tidak pernah di-assign ke role manapun) diganti
+        // validasi jadwal langsung (User::hasShiftSchedule()) - instruksi user 2026-08-15.
+        abort_unless(Auth::user()->hasShiftSchedule(), 403);
 
         $this->month = $this->month ?? now()->format('Y-m');
     }

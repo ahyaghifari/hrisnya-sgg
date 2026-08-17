@@ -22,6 +22,25 @@ class Dashboard extends Component
     use ResolvesTodayAttendanceStatus;
     use ResolvesDayScheduleSummary;
 
+    /** Bulan yang ditampilkan widget "Jadwal Shift Saya" (Y-m) - state Livewire biasa, bukan
+     * #[Url], widget ini bagian dari Dashboard bukan halaman sendiri. */
+    public string $calendarMonth = '';
+
+    public function mount(): void
+    {
+        $this->calendarMonth = now()->format('Y-m');
+    }
+
+    public function calendarPrevMonth(): void
+    {
+        $this->calendarMonth = Carbon::createFromFormat('Y-m', $this->calendarMonth)->subMonthNoOverflow()->format('Y-m');
+    }
+
+    public function calendarNextMonth(): void
+    {
+        $this->calendarMonth = Carbon::createFromFormat('Y-m', $this->calendarMonth)->addMonthNoOverflow()->format('Y-m');
+    }
+
     public function getTodayAttendanceStatusProperty(): array
     {
         return $this->todayAttendanceStatus(Auth::user());
@@ -48,52 +67,116 @@ class Dashboard extends Component
     }
 
     /** Widget "Jadwal Shift Saya" cuma buat karyawan yang beneran punya jadwal tipe Shift -
-     * karyawan Fixed/Flexible tetap punya permission JADWAL_SHIFT_SAYA (gate akses halaman/fitur
-     * lain, mis. ajukan tukar shift), tapi widget ini percuma buat mereka (isinya cuma jam kerja
-     * tetap yang sudah mereka tahu, bukan roster shift yang berubah-ubah). Dicek dari
-     * upcomingShifts yang sudah dihitung buat isi widget-nya sendiri - tidak query ulang. */
+     * dicek dari User::hasShiftSchedule() (identitas jadwal karyawan, bukan isi calendarWeeks
+     * bulan yang lagi ditampilkan - kalau dicek dari situ, widget bisa hilang sendiri pas user
+     * navigasi ke bulan yang rosternya kebetulan belum diisi, padahal dia tetap karyawan shift).
+     * Bukan permission JADWAL_SHIFT_SAYA lagi (2026-08-15, permission itu tidak pernah di-assign
+     * ke role manapun jadi widget-nya tidak pernah muncul walau jadwalnya shift). */
     public function getCanJadwalShiftSayaProperty(): bool
     {
-        if (! Auth::user()?->can(CustomPermissionEnum::JADWAL_SHIFT_SAYA->value)) {
-            return false;
+        return (bool) Auth::user()?->hasShiftSchedule();
+    }
+
+    /** Schedule (shift) yang lagi dipakai user, buat link "Lihat Detail Jadwal" widget ke
+     * ScheduleDetailPage (`presensi.jadwal.show`) - karyawan boleh buka halaman itu buat
+     * Schedule ini lewat SchedulePolicy::view() + User::isAssignedToSchedule() (2026-08-15),
+     * biarpun bukan admin. Null kalau entah kenapa tidak ketemu (widget sendiri sudah tidak akan
+     * tampil di kasus itu, lihat canJadwalShiftSaya). */
+    public function getMyScheduleIdProperty(): ?string
+    {
+        $user = Auth::user();
+        if (! $user) {
+            return null;
         }
 
-        return collect($this->upcomingShifts)->contains(fn ($day) => $day['schedule']['type'] === 'shift');
+        $shiftAssignment = \App\Models\Shift\ScheduleShiftAssignment::where('user_id', $user->id)
+            ->whereNotNull('shift_type_id')
+            ->with('shiftType')
+            ->latest('date')
+            ->first();
+
+        if ($shiftAssignment?->shiftType) {
+            return $shiftAssignment->shiftType->schedule_id;
+        }
+
+        return \App\Models\Shift\ScheduleAssignment::resolveForUser($user, now()->toDateString())?->schedule_id;
     }
 
     /**
-     * 7 hari ke depan (hari ini + 6) - ringkasan kecil di Dashboard, kalender penuh (bisa
-     * navigasi bulan lain) ada di halaman /presensi/jadwal-saya (JadwalSayaPage), yang pakai
-     * trait ResolvesDayScheduleSummary yang sama supaya hasilnya konsisten.
+     * Mini-kalender bulan berjalan (bentuk sama dengan JadwalSayaPage::getWeeksProperty()),
+     * navigasi lewat calendarPrevMonth()/calendarNextMonth() - murni jadwal RENCANA (bukan
+     * status realisasi presensi, itu domain lain, lihat ResolvesTodayAttendanceStatus buat kartu
+     * "Presensi Hari Ini" yang terpisah). Tiap sel scheduled bawa 'code' (kode shift, mis. PAGI/
+     * MALAM) buat ditampilkan sebagai inisial di kalender - beda dari JadwalSayaPage yang
+     * nampilin nama shift penuh, di sini ruang selnya kecil (instruksi user 2026-08-15).
      */
-    public function getUpcomingShiftsProperty(): array
+    public function getCalendarWeeksProperty(): array
     {
         $user = Auth::user();
         if (! $user) {
             return [];
         }
 
-        $start = now()->startOfDay();
-        $end   = $start->copy()->addDays(6);
+        $month  = Carbon::createFromFormat('Y-m', $this->calendarMonth);
+        $start  = $month->copy()->startOfMonth();
+        $end    = $month->copy()->endOfMonth();
+
+        $gridStart = $start->copy()->startOfWeek(Carbon::SUNDAY);
+        $gridEnd   = $end->copy()->endOfWeek(Carbon::SUNDAY);
 
         $holidays = Holidays::query()
-            ->whereBetween('date', [$start->toDateString(), $end->toDateString()])
+            ->whereBetween('date', [$gridStart->toDateString(), $gridEnd->toDateString()])
             ->pluck('name', 'date')
             ->mapWithKeys(fn ($name, $date) => [Carbon::parse($date)->toDateString() => $name]);
 
         $resolver = app(ScheduleResolver::class);
-        $days = [];
+        $today = now()->toDateString();
 
-        for ($cursor = $start->copy(); $cursor->lte($end); $cursor->addDay()) {
-            $dateStr = $cursor->toDateString();
+        $weeks = [];
+        $cursor = $gridStart->copy();
 
-            $days[] = [
-                'date' => $cursor->copy(),
-                'schedule' => $this->resolveDaySchedule($resolver, $user, $dateStr, $holidays->get($dateStr)),
-            ];
+        while ($cursor->lte($gridEnd)) {
+            $week = [];
+
+            for ($i = 0; $i < 7; $i++) {
+                $dateStr = $cursor->toDateString();
+                $isCurrentMonth = $cursor->month === $start->month;
+
+                $week[] = [
+                    'date' => $cursor->copy(),
+                    'is_current_month' => $isCurrentMonth,
+                    'is_today' => $dateStr === $today,
+                    'schedule' => $isCurrentMonth
+                        ? $this->resolveDaySchedule($resolver, $user, $dateStr, $holidays->get($dateStr))
+                        : null,
+                ];
+
+                $cursor->addDay();
+            }
+
+            $weeks[] = $week;
         }
 
-        return $days;
+        return $weeks;
+    }
+
+    public function getCalendarMonthLabelProperty(): string
+    {
+        return Carbon::createFromFormat('Y-m', $this->calendarMonth)->translatedFormat('F Y');
+    }
+
+    /** Legend "Detail Jadwal" - kode shift + warna yang beneran muncul di calendarWeeks bulan
+     * ini (bukan daftar statis semua kode shift yang ada, biar legend tidak bengkak buat shift
+     * yang bulan ini tidak dipakai user). */
+    public function getShiftLegendProperty(): array
+    {
+        return collect($this->calendarWeeks)
+            ->flatten(1)
+            ->filter(fn ($day) => $day['is_current_month'] && ($day['schedule']['state'] ?? null) === 'scheduled' && $day['schedule']['code'])
+            ->unique(fn ($day) => $day['schedule']['code'])
+            ->map(fn ($day) => ['code' => $day['schedule']['code'], 'label' => $day['schedule']['label'], 'detail' => $day['schedule']['detail'], 'color' => $day['schedule']['color']])
+            ->values()
+            ->all();
     }
 
     public function getRecentTasksProperty()

@@ -13,6 +13,7 @@ use App\Models\Job\ManpowerRequests;
 use App\Models\LMS\LmsCourseUsers;
 use App\Models\LMS\TrainingRequests;
 use App\Models\Master\JobPositions;
+use App\Models\Shift\ShiftSwapRequests;
 use App\Models\User\UserTransition;
 use App\Services\Approval\ApprovalFlowService;
 use App\Services\Approval\ApprovalPermissionService;
@@ -362,7 +363,38 @@ class PendingApprovalsCard extends Component
                 ]);
         }
 
-        $requests = $attendanceRequests->concat($transitions)->concat($courseEnrollments)->concat($trainingRequests)->concat($jabatanKuota)->concat($manpowerRequests)->sortByDesc('created_at')->values();
+        $shiftSwapRequests = collect();
+        if ($this->wants('shift_swap_request')) {
+            $swapIds = $permissionService
+                ->pendingApprovalsFor(Auth::user(), ApprovalModuleEnum::SWAP_SHIFT_REQUEST->value)
+                ->pluck('snapshot.module_id')->filter()->values();
+
+            $shiftSwapRequests = ShiftSwapRequests::with(['requester', 'target', 'reqSchedule.shiftType', 'targetSchedule.shiftType'])
+                ->whereIn('id', $swapIds)
+                ->whereHas('requester')
+                ->get()
+                ->map(fn ($r) => (object) [
+                    'id' => $r->id,
+                    'dispatch' => 'shift_swap_request',
+                    'bulk_supported' => true,
+                    'module' => 'shift_swap_request',
+                    'badge' => 'blue',
+                    'label' => 'Tukar Shift',
+                    'icon' => 'fa-right-left',
+                    'tile' => 'neutral',
+                    'keterangan' => $r->reqSchedule?->shiftType?->name . ' (' . $r->req_date->translatedFormat('d M') . ')'
+                        . ($r->targetSchedule
+                            ? ' ↔ ' . $r->targetSchedule->shiftType?->name . ' (' . $r->target_date->translatedFormat('d M') . ')'
+                            : ' → diserahkan ke ' . ($r->target?->name ?? '-')),
+                    'user_name' => $r->requester->name,
+                    'created_at' => $r->created_at,
+                    'url' => route('tukar-shift.show', ['record' => $r->id]),
+                    'modal' => false,
+                    'external' => false,
+                ]);
+        }
+
+        $requests = $attendanceRequests->concat($transitions)->concat($courseEnrollments)->concat($trainingRequests)->concat($jabatanKuota)->concat($manpowerRequests)->concat($shiftSwapRequests)->sortByDesc('created_at')->values();
 
         foreach ($requests as $request) {
             $request->key = $request->dispatch . ':' . $request->id;
@@ -433,6 +465,12 @@ class PendingApprovalsCard extends Component
             ),
             'training_request' => app(ApprovalFlowService::class)->advanceStep(
                 TrainingRequests::findOrFail($row->id)->approvalSnapshot,
+                Auth::id(),
+                $note,
+                'approved',
+            ),
+            'shift_swap_request' => app(ApprovalFlowService::class)->advanceStep(
+                ShiftSwapRequests::findOrFail($row->id)->approvalSnapshot,
                 Auth::id(),
                 $note,
                 'approved',

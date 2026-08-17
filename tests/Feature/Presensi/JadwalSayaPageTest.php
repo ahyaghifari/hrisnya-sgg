@@ -2,7 +2,6 @@
 
 namespace Tests\Feature\Presensi;
 
-use App\Enum\CustomPermissionEnum;
 use App\Livewire\Presensi\JadwalSayaPage;
 use App\Models\Master\Attendance\Holidays;
 use App\Models\Master\Companies;
@@ -12,32 +11,35 @@ use App\Models\Shift\ScheduleShiftType;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
-use Spatie\Permission\Models\Permission;
-use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 /**
  * Kalender pribadi "Jadwal Shift Saya" (Fase 1, planning tukar shift/extra shift untuk
- * Perawat/Kepala Ruangan) - cek gerbang permission JADWAL_SHIFT_SAYA dan isi kalender per hari
- * (shift terjadwal/libur/hari libur nasional/tidak ada jadwal).
+ * Perawat/Kepala Ruangan) - cek gerbang User::hasShiftSchedule() (bukan permission lagi,
+ * lihat catatan 2026-08-15) dan isi kalender per hari (shift terjadwal/libur/hari libur
+ * nasional/tidak ada jadwal).
  */
 class JadwalSayaPageTest extends TestCase
 {
     use RefreshDatabase;
 
-    private function actingAsWithPermission(Companies $company): User
+    private function actingAsWithShiftSchedule(Companies $company): User
     {
-        Permission::firstOrCreate(['name' => CustomPermissionEnum::JADWAL_SHIFT_SAYA->value, 'guard_name' => 'web']);
-        $role = Role::firstOrCreate(['name' => 'Jadwal Saya Test', 'guard_name' => 'web']);
-        $role->givePermissionTo(CustomPermissionEnum::JADWAL_SHIFT_SAYA->value);
-
         $user = User::factory()->create(['company_id' => $company->id]);
-        $user->assignRole($role);
+
+        // hasShiftSchedule() cuma butuh 1 baris roster ada, tanggalnya tidak relevan buat gate.
+        ScheduleShiftAssignment::create([
+            'company_id' => $company->id,
+            'user_id' => $user->id,
+            'shift_type_id' => null,
+            'date' => '2020-01-01',
+            'off_day' => true,
+        ]);
 
         return $user;
     }
 
-    public function test_user_without_permission_is_forbidden(): void
+    public function test_user_without_shift_schedule_is_forbidden(): void
     {
         $company = Companies::create(['code' => 'JSW', 'name' => 'RS Test', 'location' => 'Test', 'is_active' => true]);
         $user = User::factory()->create(['company_id' => $company->id]);
@@ -49,7 +51,7 @@ class JadwalSayaPageTest extends TestCase
     public function test_calendar_shows_shift_off_day_and_national_holiday(): void
     {
         $company = Companies::create(['code' => 'JSW2', 'name' => 'RS Test 2', 'location' => 'Test', 'is_active' => true]);
-        $user = $this->actingAsWithPermission($company);
+        $user = $this->actingAsWithShiftSchedule($company);
 
         $schedule = Schedule::create([
             'company_id' => $company->id,
@@ -114,7 +116,7 @@ class JadwalSayaPageTest extends TestCase
     public function test_navigation_changes_month(): void
     {
         $company = Companies::create(['code' => 'JSW3', 'name' => 'RS Test 3', 'location' => 'Test', 'is_active' => true]);
-        $user = $this->actingAsWithPermission($company);
+        $user = $this->actingAsWithShiftSchedule($company);
         $this->actingAs($user);
 
         Livewire::test(JadwalSayaPage::class, ['month' => '2026-08'])

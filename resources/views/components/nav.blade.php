@@ -41,14 +41,19 @@
                         <i class="fa-solid fa-file-lines text-xs"></i> Pengajuan Absensi
                     </a>
                 @endif
+                @if ($canAccessTukarShift)
+                    <a href="{{ route('tukar-shift') }}" wire:navigate class="nav-item {{ request()->routeIs('tukar-shift*') ? 'active' : '' }}">
+                        <i class="fa-solid fa-right-left text-xs"></i> Tukar Shift
+                    </a>
+                @endif
                 @if ($canAccessPembinaanSaya)
                     <div class="dropdown">
                         <a href="#" class="nav-item {{ request()->routeIs(['counseling*', 'coaching.saya*']) ? 'active' : '' }}">
                             <i class="fa-solid fa-comment-dots text-xs"></i> Pembinaan Saya <i class="fa-solid fa-chevron-down text-[10px]"></i>
                         </a>
                         <div class="dropdown-menu">
-                            <a href="{{ route('counseling') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-comment-dots"></i> Counseling Saya</a>
                             <a href="{{ route('coaching.saya') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-user-check"></i> Coaching Saya</a>
+                            <a href="{{ route('counseling') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-comment-dots"></i> Counseling Saya</a>
                         </div>
                     </div>
                 @endif

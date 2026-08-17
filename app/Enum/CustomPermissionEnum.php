@@ -189,6 +189,13 @@ enum CustomPermissionEnum: string
      * lewat /hak-akses, tidak di-grandfather ke role manapun). */
     case JADWAL_SHIFT_SAYA = 'jadwal_shift_saya';
 
+    /** Gerbang halaman portal "Tukar Shift" (`/tukar-shift` riwayat + `/tukar-shift/{id}`
+     * detail) - modal ajukannya sendiri ditaruh di Dashboard (bukan halaman terpisah), gate-nya
+     * lewat User::hasShiftSchedule() bukan permission ini, tapi 2 halaman portal-nya tetap butuh
+     * permission Shield sesuai pola halaman self-service lain (2026-08-16, lihat
+     * planning/2026-08-16-fitur-tukar-shift.md). */
+    case TUKAR_SHIFT_SAYA = 'tukar_shift_saya';
+
     public function label(): string
     {
         return match
@@ -249,6 +256,7 @@ enum CustomPermissionEnum: string
             self::KELOLA_HAK_AKSES => 'Kelola Hak Akses (Portal)',
             self::AKSES_PANEL_ADMIN => 'Akses Panel Admin (Filament)',
             self::JADWAL_SHIFT_SAYA => 'Jadwal Shift Saya',
+            self::TUKAR_SHIFT_SAYA => 'Tukar Shift Saya',
         };
     }
 }
