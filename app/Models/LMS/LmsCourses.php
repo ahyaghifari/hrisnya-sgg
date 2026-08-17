@@ -37,6 +37,7 @@ class LmsCourses extends Model
         'minimum_score',
         'requires_feedback',
         'feedback_public_token',
+        'feedback_unlocked',
         'competency_id',
         'start_time',
         'end_time',

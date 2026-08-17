@@ -91,6 +91,12 @@
                 </button>
             @endif
 
+            @if ($course->requires_feedback && $this->canEditDetail)
+                <button type="button" wire:click="toggleFeedbackLock" class="btn-ghost" style="padding:9px 18px;font-size:12.5px;">
+                    <i class="fa-solid fa-{{ $course->feedback_unlocked ? 'lock' : 'lock-open' }}"></i> {{ $course->feedback_unlocked ? 'Kunci Umpan Balik' : 'Buka Umpan Balik' }}
+                </button>
+            @endif
+
             @if ($statusCase === LsmCourseStatus::Draft && $this->canPublish && $this->canEditDetail)
                 <button type="button" wire:click="publishCourse" wire:confirm="Publish pelatihan ini? Setelah dipublish, pelatihan akan tampil ke peserta." class="btn-primary" style="padding:9px 18px;font-size:12.5px;">
                     <i class="fa-solid fa-paper-plane"></i> Publish

@@ -53,6 +53,7 @@ use App\Livewire\LMS\TrainerDetailPage;
 use App\Livewire\LMS\TrainersPage;
 use App\Livewire\LMS\TrainingReportPage;
 use App\Livewire\Pelatihan\MyTrainingRequests;
+use App\Livewire\Pelatihan\CourseFeedback;
 use App\Livewire\Pelatihan\QuizAttempt;
 use App\Livewire\Pelatihan\SubmitTrainingRequest;
 use App\Livewire\Pelatihan\TrainingDetail;
@@ -429,10 +430,13 @@ Route::middleware(['auth', 'portal.access'])->group(function () {
     Route::get('/pelatihan', TrainingList::class)
         ->name('pelatihan');
 
-    // Didaftarkan sebelum wildcard /pelatihan/{course} di bawah — kalau kebalik, "quiz" akan
-    // ditangkap sebagai {course} dan gagal resolve (404) sebelum sempat sampai ke route ini.
+    // Didaftarkan sebelum wildcard /pelatihan/{course} di bawah — kalau kebalik, "quiz"/"umpan-balik"
+    // akan ditangkap sebagai {course} dan gagal resolve (404) sebelum sempat sampai ke route ini.
     Route::get('/pelatihan/quiz/{meetingQuiz}', QuizAttempt::class)
         ->name('pelatihan.quiz');
+
+    Route::get('/pelatihan/umpan-balik/{course}', CourseFeedback::class)
+        ->name('pelatihan.feedback');
 
     Route::get('/pelatihan/pengajuan-saya', MyTrainingRequests::class)
         ->name('pelatihan.pengajuan-saya');

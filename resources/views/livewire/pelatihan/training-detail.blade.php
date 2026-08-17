@@ -44,6 +44,12 @@
         @else
             <button type="button" wire:click="followCourse" class="course-follow-btn">Ikuti Pelatihan</button>
         @endif
+
+        @if ($this->isFollowed && $course->requires_feedback)
+            <a href="{{ route('pelatihan.feedback', ['course' => $course]) }}" wire:navigate class="course-follow-btn" style="margin-top:8px;display:block;text-align:center;">
+                <i class="fa-solid fa-star"></i> Isi Umpan Balik
+            </a>
+        @endif
     </div>
 </div>
 

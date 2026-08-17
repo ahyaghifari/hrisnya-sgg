@@ -458,6 +458,17 @@ class LmsCourseDetailPage extends Component
         $this->qrModalUrl = app(\App\Services\LMS\QrCodeService::class)->getQuizQrUrl($meetingQuiz->id, $meetingQuiz->public_token);
     }
 
+    /**
+     * Gate portal peserta login (mirror toggleQuizLock) — tidak menggate akses publik lewat
+     * feedback_public_token/QR, sama seperti kuis (lihat komentar QuizAttempt::mount()).
+     */
+    public function toggleFeedbackLock(): void
+    {
+        $this->assertCanEdit();
+
+        $this->course->update(['feedback_unlocked' => ! $this->course->feedback_unlocked]);
+    }
+
     public function showFeedbackQr(): void
     {
         abort_if(! $this->course->feedback_public_token, 404);

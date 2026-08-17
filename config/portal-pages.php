@@ -691,6 +691,14 @@ return [
         'guard' => null,
     ],
 
+    // Gate approval per-record (enrollment, lock) ditegakkan di dalam
+    // App\Livewire\Pelatihan\CourseFeedback sendiri, bukan lewat registry ini.
+    'pelatihan.feedback' => [
+        'label' => 'Umpan Balik',
+        'permission' => null,
+        'guard' => null,
+    ],
+
     'kepegawaian.lowongan' => [
         'label' => 'Lowongan Kerja',
         'permission' => 'ViewAny:JobOpenings',
