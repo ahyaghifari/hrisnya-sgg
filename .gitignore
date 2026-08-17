@@ -34,3 +34,5 @@ _ide_helper_models.php
 /database/dumps/
 /.claude
 /syifa-web-admin-filament
+/another-app
+/HIKSDK
