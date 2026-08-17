@@ -78,10 +78,12 @@ class PermissionTreeBuilder
 
         $allPermissions = Permission::query()->orderBy('id')->get();
 
+        $customSubjectOverrides = RoleForm::customPermissionSubjectOverrides();
+
         $groups = $allPermissions
             ->reject(fn ($permission) => in_array($permission->name, $portalPermissionNames, true))
             ->reject(fn ($permission) => in_array($permission->name, $baseEmployeePermissions, true))
-            ->groupBy(fn ($permission) => explode(':', $permission->name)[1] ?? 'Lainnya');
+            ->groupBy(fn ($permission) => $customSubjectOverrides[$permission->name] ?? explode(':', $permission->name)[1] ?? 'Lainnya');
 
         $containerOrder = [
             'Kepegawaian', 'Penilaian Karyawan', 'Manajemen Organisasi',

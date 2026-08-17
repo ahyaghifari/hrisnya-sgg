@@ -175,6 +175,25 @@ class RoleForm
     }
 
     /**
+     * JADWAL_SHIFT_SAYA/TUKAR_SHIFT_SAYA (custom permission flat, tanpa ':') sebelumnya jatuh
+     * ke subject literal 'Lainnya' pas grouping (`explode(':', $name)[1] ?? 'Lainnya'` selalu
+     * null buat nama tanpa titik dua), jadi nyempil sendirian di section "Akses Lainnya" -
+     * instruksi user 2026-08-17: gabung ke section "Jadwal Shift" yang sudah ada (tempat
+     * ShiftScheduleAssignments/ShiftSwapRequests/ShiftTemplates lewat subjectContainerOverrides()
+     * di atas). Paksa subject-nya ikut 'ShiftSwapRequests' (subject Jadwal Shift yang sudah
+     * ada) supaya nempel di node yang sama, bukan bikin node "Jadwal Shift" duplikat.
+     *
+     * @return array<string, string>
+     */
+    public static function customPermissionSubjectOverrides(): array
+    {
+        return [
+            CustomPermissionEnum::JADWAL_SHIFT_SAYA->value => 'ShiftSwapRequests',
+            CustomPermissionEnum::TUKAR_SHIFT_SAYA->value => 'ShiftSwapRequests',
+        ];
+    }
+
+    /**
      * Terapkan subjectContainerOverrides() ke $subjectMeta — beda dari override inline di
      * dalam loop scan Resource (yang cuma jalan kalau subject-nya PUNYA Resource), method
      * ini juga bikin entry baru buat subject yang sama sekali tidak ada Resource-nya, biar
@@ -248,7 +267,9 @@ class RoleForm
             return 'sistem_dasar_karyawan_has_permissions';
         }
 
-        $subject = explode(':', $permissionName)[1] ?? 'Lainnya';
+        $subject = self::customPermissionSubjectOverrides()[$permissionName]
+            ?? explode(':', $permissionName)[1]
+            ?? 'Lainnya';
 
         return Str::snake($subject) . '_has_permissions';
     }
@@ -363,10 +384,12 @@ class RoleForm
                         $mergedContainerByCoarse = array_flip($containerMerge);
                         $baseEmployeePermissions = self::baseEmployeePermissions();
 
+                        $customSubjectOverrides = self::customPermissionSubjectOverrides();
+
                         $groups = $allPermissions
                             ->reject(fn ($permission) => in_array($permission->name, $portalPermissionNames, true))
                             ->reject(fn ($permission) => in_array($permission->name, $baseEmployeePermissions, true))
-                            ->groupBy(fn ($permission) => explode(':', $permission->name)[1] ?? 'Lainnya');
+                            ->groupBy(fn ($permission) => $customSubjectOverrides[$permission->name] ?? explode(':', $permission->name)[1] ?? 'Lainnya');
 
                         // Urutan container ditampilkan
                         $containerOrder = [
