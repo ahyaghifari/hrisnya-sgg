@@ -325,6 +325,9 @@ Route::middleware(['auth', 'portal.access'])->group(function () {
     Route::get('/keuangan/jasa-unit', \App\Livewire\Keuangan\JasaUnitInputPage::class)
         ->name('keuangan.jasa-unit');
 
+    Route::get('/keuangan/jasa-unit/import-template', [\App\Http\Controllers\JasaUnitDetailTemplateController::class, 'downloadTemplate'])
+        ->name('keuangan.jasa-unit.import-template');
+
     Route::get('/presensi/dashboard', \App\Livewire\Presensi\AttendanceDashboardPage::class)
         ->name('presensi.dashboard');
 

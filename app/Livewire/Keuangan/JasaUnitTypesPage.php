@@ -25,7 +25,7 @@ class JasaUnitTypesPage extends Component
 {
     public ?string $companyId = null;
 
-    /** @var array<int,array{id:?string,name:string,org_structure_ids:array<int,string>}> */
+    /** @var array<int,array{id:?string,name:string,code:string,org_structure_ids:array<int,string>}> */
     public array $rows = [];
 
     public ?string $viewingAuditKey = null;
@@ -104,6 +104,7 @@ class JasaUnitTypesPage extends Component
             ->map(fn (JasaUnitType $r) => [
                 'id' => $r->id,
                 'name' => $r->name,
+                'code' => $r->code ?: '',
                 'org_structure_ids' => $r->orgStructures->pluck('id')->all(),
             ])
             ->values()
@@ -114,7 +115,7 @@ class JasaUnitTypesPage extends Component
     {
         $this->assertCanEdit();
 
-        $this->rows[] = ['id' => null, 'name' => '', 'org_structure_ids' => []];
+        $this->rows[] = ['id' => null, 'name' => '', 'code' => '', 'org_structure_ids' => []];
     }
 
     public function removeRow(int $index): void
@@ -137,20 +138,64 @@ class JasaUnitTypesPage extends Component
 
         $this->validate([
             'rows.*.name' => 'nullable|string|max:150',
+            'rows.*.code' => 'nullable|string|max:50',
         ], [], [
             'rows.*.name' => 'nama jasa',
+            'rows.*.code' => 'kode jasa',
         ]);
+
+        // Kode wajib (kalau baris mau disimpan, ditandai nama terisi) dan unik per company -
+        // dicek manual (bukan Rule::unique per field) karena harus nyilangin 2 sumber: baris
+        // lain di batch yang sama (belum ke-save) DAN baris lain yang sudah ada di DB.
+        $codesInBatch = [];
+
+        foreach ($this->rows as $i => $row) {
+            if ($row['name'] === '') {
+                continue; // baris kosong, tidak akan disimpan - lewati semua cek code juga
+            }
+
+            $code = trim($row['code']);
+
+            if ($code === '') {
+                $this->addError("rows.{$i}.code", 'Kode wajib diisi.');
+
+                continue;
+            }
+
+            if (isset($codesInBatch[$code])) {
+                $this->addError("rows.{$i}.code", 'Kode ini sudah dipakai baris lain di bawah.');
+
+                continue;
+            }
+
+            $codesInBatch[$code] = true;
+
+            $existsElsewhere = JasaUnitType::where('company_id', $this->companyId)
+                ->where('code', $code)
+                ->when($row['id'], fn ($q) => $q->where('id', '!=', $row['id']))
+                ->exists();
+
+            if ($existsElsewhere) {
+                $this->addError("rows.{$i}.code", 'Kode ini sudah dipakai jasa lain.');
+            }
+        }
+
+        if ($this->getErrorBag()->isNotEmpty()) {
+            return;
+        }
 
         foreach ($this->rows as $i => $row) {
             if ($row['name'] === '') {
                 continue;
             }
 
+            $data = ['name' => $row['name'], 'code' => trim($row['code']) ?: null];
+
             if ($row['id']) {
                 $type = JasaUnitType::find($row['id']);
-                $type->update(['name' => $row['name']]);
+                $type->update($data);
             } else {
-                $type = JasaUnitType::create(['company_id' => $this->companyId, 'name' => $row['name']]);
+                $type = JasaUnitType::create($data + ['company_id' => $this->companyId]);
                 $this->rows[$i]['id'] = $type->id;
             }
 

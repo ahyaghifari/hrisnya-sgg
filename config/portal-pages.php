@@ -356,6 +356,13 @@ return [
         'guard' => null,
     ],
 
+    // Belum terdaftar sebelumnya (sama seperti keuangan.jasa-unit/koperasi di atas).
+    'keuangan.jasa-unit-types' => [
+        'label' => 'Jasa Unit',
+        'permission' => 'ViewAny:JasaUnitType',
+        'guard' => null,
+    ],
+
     // Belum terdaftar sebelumnya (sama seperti keuangan.jasa-unit di atas).
     'keuangan.koperasi' => [
         'label' => 'Koperasi',
@@ -369,12 +376,6 @@ return [
         'guard' => null,
     ],
 
-    // Belum terdaftar sebelumnya (sama seperti keuangan.jasa-unit/koperasi di atas).
-    'keuangan.jasa-unit-types' => [
-        'label' => 'Jasa Unit',
-        'permission' => 'ViewAny:JasaUnitType',
-        'guard' => null,
-    ],
 
     'presensi.dashboard' => [
         'label' => 'Dashboard Presensi',

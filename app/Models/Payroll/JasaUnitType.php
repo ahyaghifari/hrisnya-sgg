@@ -26,6 +26,7 @@ class JasaUnitType extends Model
     protected $fillable = [
         'company_id',
         'name',
+        'code',
     ];
 
     public function company(): BelongsTo

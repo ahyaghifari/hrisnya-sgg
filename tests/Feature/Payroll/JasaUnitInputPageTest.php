@@ -25,22 +25,30 @@ use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 /**
- * Alur input Jasa Unit: pilih DIVISI dulu -> karyawan & jasa difilter ke divisi itu (2026-08-05,
- * gantiin alur lama "pilih karyawan -> jasa ke-filter dari divisi karyawan itu" yang kena bug
- * tom-select+wire:ignore "harus pilih karyawan 2x").
+ * Alur input Jasa Unit: pilih KARYAWAN dulu (daftar penuh, tidak difilter divisi) -> jasa
+ * difilter OTOMATIS dari divisi jabatan aktif karyawan itu (2026-08-17, gantiin alur lama
+ * "pilih divisi -> karyawan & jasa difilter ke divisi itu", instruksi user).
  */
 class JasaUnitInputPageTest extends TestCase
 {
     use RefreshDatabase;
 
-    private function actingAsFinance(): User
+    private function actingAsFinance(Companies $company): User
     {
         Permission::firstOrCreate(['name' => CustomPermissionEnum::SISTEM_KEUANGAN->value, 'guard_name' => 'web']);
-        Permission::firstOrCreate(['name' => CustomPermissionEnum::EDIT_MAPPING_KOMPONEN_GAJI->value, 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => CustomPermissionEnum::LIHAT_INPUT_JASA_UNIT->value, 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => CustomPermissionEnum::KELOLA_INPUT_JASA_UNIT->value, 'guard_name' => 'web']);
         $role = Role::firstOrCreate(['name' => 'Jasa Unit Input Test', 'guard_name' => 'web']);
-        $role->givePermissionTo([CustomPermissionEnum::SISTEM_KEUANGAN->value, CustomPermissionEnum::EDIT_MAPPING_KOMPONEN_GAJI->value]);
+        $role->givePermissionTo([
+            CustomPermissionEnum::SISTEM_KEUANGAN->value,
+            CustomPermissionEnum::LIHAT_INPUT_JASA_UNIT->value,
+            CustomPermissionEnum::KELOLA_INPUT_JASA_UNIT->value,
+        ]);
 
-        $user = User::factory()->create();
+        // company_id di-set langsung di user (bukan lewat ->set('companyId', ...) di test) -
+        // canFilterByCompany() false buat user ini, jadi updatedCompanyId() akan MEMAKSA balik
+        // ke company_id user sendiri kalau di-set manual (lihat JasaUnitInputPage::updatedCompanyId()).
+        $user = User::factory()->create(['company_id' => $company->id]);
         $user->assignRole($role);
 
         return $user;
@@ -63,10 +71,10 @@ class JasaUnitInputPageTest extends TestCase
         ]);
     }
 
-    public function test_employees_and_jasa_are_scoped_to_selected_division(): void
+    public function test_eligible_employees_list_is_not_scoped_to_any_division(): void
     {
         $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
-        $viewer = $this->actingAsFinance();
+        $viewer = $this->actingAsFinance($company);
 
         $igd = OrgStructure::create(['company_id' => $company->id, 'name' => 'IGD', 'level' => OrgStructurLevel::LEVEL_DIVISION->value]);
         $ambulan = OrgStructure::create(['company_id' => $company->id, 'name' => 'Ambulan', 'level' => OrgStructurLevel::LEVEL_DIVISION->value]);
@@ -83,54 +91,56 @@ class JasaUnitInputPageTest extends TestCase
         UserProfiles::create(['user_id' => $staffAmbulan->id, 'employee_type_id' => $employeeType->id]);
         $this->placeInDivision($staffAmbulan, $company, $ambulan);
 
-        $jasaPerujuk = JasaUnitType::create(['company_id' => $company->id, 'name' => 'Jasa Perujuk Rawat']);
-        $jasaPerujuk->orgStructures()->sync([$igd->id]);
-        $jasaAmbulan = JasaUnitType::create(['company_id' => $company->id, 'name' => 'Jasa Ambulan']);
-        $jasaAmbulan->orgStructures()->sync([$ambulan->id]);
+        $component = Livewire::actingAs($viewer)->test(JasaUnitInputPage::class);
 
-        $this->actingAs($viewer);
-        $component = Livewire::test(JasaUnitInputPage::class)->set('companyId', $company->id);
-
-        $employeesInIgd = $component->instance()->employeesFor($igd->id);
-        $this->assertCount(1, $employeesInIgd);
-        $this->assertSame('Staf IGD', $employeesInIgd->first()->name);
-
-        $jasaInIgd = $component->instance()->jasaOptionsFor($igd->id);
-        $this->assertCount(1, $jasaInIgd);
-        $this->assertSame('Jasa Perujuk Rawat', $jasaInIgd->first()->name);
-
-        // Belum pilih divisi -> kosong dua-duanya (memaksa urutan divisi dulu).
-        $this->assertCount(0, $component->instance()->employeesFor(null));
-        $this->assertCount(0, $component->instance()->jasaOptionsFor(null));
+        $employees = $component->instance()->eligibleEmployees;
+        $this->assertCount(2, $employees);
     }
 
-    public function test_changing_division_resets_employee_and_jasa_selection_on_that_row(): void
+    public function test_jasa_options_are_scoped_to_selected_employees_division(): void
     {
-        $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
-        $viewer = $this->actingAsFinance();
+        $company = Companies::create(['code' => 'TST2', 'name' => 'Test Company 2', 'location' => 'Test', 'is_active' => true]);
+        $viewer = $this->actingAsFinance($company);
 
         $igd = OrgStructure::create(['company_id' => $company->id, 'name' => 'IGD', 'level' => OrgStructurLevel::LEVEL_DIVISION->value]);
         $ambulan = OrgStructure::create(['company_id' => $company->id, 'name' => 'Ambulan', 'level' => OrgStructurLevel::LEVEL_DIVISION->value]);
 
-        $this->actingAs($viewer);
+        $employeeType = EmployeeTypes::create(['name' => 'Tetap', 'company_id' => $company->id]);
+        $staffIgd = User::factory()->create(['company_id' => $company->id, 'name' => 'Staf IGD']);
+        UserProfiles::create(['user_id' => $staffIgd->id, 'employee_type_id' => $employeeType->id]);
+        $this->placeInDivision($staffIgd, $company, $igd);
 
-        Livewire::test(JasaUnitInputPage::class)
-            ->set('companyId', $company->id)
+        $jasaPerujuk = JasaUnitType::create(['company_id' => $company->id, 'name' => 'Jasa Perujuk Rawat', 'code' => 'JU-1']);
+        $jasaPerujuk->orgStructures()->sync([$igd->id]);
+        $jasaAmbulan = JasaUnitType::create(['company_id' => $company->id, 'name' => 'Jasa Ambulan', 'code' => 'JU-2']);
+        $jasaAmbulan->orgStructures()->sync([$ambulan->id]);
+
+        $component = Livewire::actingAs($viewer)->test(JasaUnitInputPage::class);
+
+        $jasaForStaffIgd = $component->instance()->jasaOptionsFor($staffIgd->id);
+        $this->assertCount(1, $jasaForStaffIgd);
+        $this->assertSame('Jasa Perujuk Rawat', $jasaForStaffIgd->first()->name);
+
+        // Belum pilih karyawan -> kosong (memaksa urutan karyawan dulu).
+        $this->assertCount(0, $component->instance()->jasaOptionsFor(null));
+    }
+
+    public function test_changing_employee_resets_jasa_selection_on_that_row(): void
+    {
+        $company = Companies::create(['code' => 'TST3', 'name' => 'Test Company 3', 'location' => 'Test', 'is_active' => true]);
+        $viewer = $this->actingAsFinance($company);
+
+        Livewire::actingAs($viewer)->test(JasaUnitInputPage::class)
             ->call('addRow')
-            ->set('rows.0.user_id', 'some-user-id')
             ->set('rows.0.jasa_unit_type_id', 'some-jasa-id')
-            ->set('rows.0.org_structure_id', $igd->id)
-            ->assertSet('rows.0.user_id', null)
-            ->assertSet('rows.0.jasa_unit_type_id', null)
-            ->set('rows.0.org_structure_id', $ambulan->id)
-            ->assertSet('rows.0.user_id', null)
+            ->set('rows.0.user_id', 'some-user-id')
             ->assertSet('rows.0.jasa_unit_type_id', null);
     }
 
-    public function test_save_persists_row_and_ignores_org_structure_id(): void
+    public function test_save_persists_row(): void
     {
-        $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
-        $viewer = $this->actingAsFinance();
+        $company = Companies::create(['code' => 'TST4', 'name' => 'Test Company 4', 'location' => 'Test', 'is_active' => true]);
+        $viewer = $this->actingAsFinance($company);
 
         $igd = OrgStructure::create(['company_id' => $company->id, 'name' => 'IGD', 'level' => OrgStructurLevel::LEVEL_DIVISION->value]);
         $employeeType = EmployeeTypes::create(['name' => 'Tetap', 'company_id' => $company->id]);
@@ -141,28 +151,24 @@ class JasaUnitInputPageTest extends TestCase
         UserProfiles::create(['user_id' => $staff->id, 'employee_type_id' => $employeeType->id]);
         $this->placeInDivision($staff, $company, $igd);
 
-        $jasa = JasaUnitType::create(['company_id' => $company->id, 'name' => 'Jasa Perujuk Rawat']);
+        $jasa = JasaUnitType::create(['company_id' => $company->id, 'name' => 'Jasa Perujuk Rawat', 'code' => 'JU-1']);
         $jasa->orgStructures()->sync([$igd->id]);
 
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
 
-        $this->actingAs($viewer);
-
-        Livewire::test(JasaUnitInputPage::class)
-            ->set('companyId', $company->id)
+        Livewire::actingAs($viewer)->test(JasaUnitInputPage::class)
             ->set('periodId', $period->id)
             ->call('addRow')
-            ->set('rows.0.org_structure_id', $igd->id)
             ->set('rows.0.user_id', $staff->id)
             ->set('rows.0.jasa_unit_type_id', $jasa->id)
             ->set('rows.0.amount', '150000')
             ->call('save');
 
-        $this->assertDatabaseHas('jasa_unit_details', [
-            'payroll_period_id' => $period->id,
-            'user_id' => $staff->id,
-            'jasa_unit_type_id' => $jasa->id,
-            'amount' => 150000,
-        ]);
+        $detail = JasaUnitDetail::where('payroll_period_id', $period->id)
+            ->where('user_id', $staff->id)
+            ->where('jasa_unit_type_id', $jasa->id)
+            ->first();
+        $this->assertNotNull($detail);
+        $this->assertSame(150000.0, (float) $detail->amount);
     }
 }

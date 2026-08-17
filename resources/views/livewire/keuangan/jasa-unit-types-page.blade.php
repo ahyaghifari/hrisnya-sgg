@@ -22,6 +22,7 @@
                         <div style="border:1px solid var(--border-soft);border-radius:10px;padding:10px 12px;">
                             <div style="display:flex;align-items:center;gap:8px;">
                                 <input type="text" class="form-input" style="max-width:280px;font-size:12.5px;padding:7px 10px;" wire:model="rows.{{ $i }}.name" placeholder="Nama jasa (mis. Jasa Ambulan)">
+                                <input type="text" class="form-input" style="max-width:140px;font-size:12.5px;padding:7px 10px;" wire:model="rows.{{ $i }}.code" placeholder="Kode">
                                 @if ($row['id'])
                                     <button type="button" wire:click="openAuditLog('jasa_unit_type:{{ $row['id'] }}')" title="Riwayat" style="border:none;background:none;color:var(--text-faint);cursor:pointer;padding:6px;font-size:11px;"><i class="fa-solid fa-clock-rotate-left"></i></button>
                                 @endif
@@ -30,12 +31,13 @@
                                 @endif
                             </div>
                             @error("rows.{$i}.name") <p style="font-size:11px;color:#dc2626;margin:2px 0 0;">{{ $message }}</p> @enderror
+                            @error("rows.{$i}.code") <p style="font-size:11px;color:#dc2626;margin:2px 0 0;">{{ $message }}</p> @enderror
                             <div style="margin-top:8px;">
                                 <label class="form-label" style="font-size:10.5px;">Divisi yang berhak</label>
                                 <div wire:ignore>
                                     <select multiple data-tom-select data-placeholder="-- Pilih divisi --" wire:model="rows.{{ $i }}.org_structure_ids">
                                         @foreach ($this->divisions as $division)
-                                            <option value="{{ $division->id }}">{{ $division->name }}</option>
+                                            <option value="{{ $division->id }}" @selected(in_array($division->id, $row['org_structure_ids']))>{{ $division->name }}</option>
                                         @endforeach
                                     </select>
                                 </div>
