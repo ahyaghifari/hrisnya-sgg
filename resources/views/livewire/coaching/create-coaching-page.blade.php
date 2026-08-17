@@ -63,12 +63,14 @@
         </div>
         <div style="display:flex;flex-direction:column;gap:16px;">
             <div>
-                <label class="form-label">Tujuan Coaching</label>
+                <label class="form-label">Tujuan Coaching <span style="color:var(--danger-text);">*</span></label>
                 <textarea wire:model="goals" class="form-input" rows="3"></textarea>
+                @error('goals') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
             </div>
             <div>
-                <label class="form-label">Kondisi Karyawan</label>
+                <label class="form-label">Kondisi Karyawan <span style="color:var(--danger-text);">*</span></label>
                 <textarea wire:model="employee_condition" class="form-input" rows="3"></textarea>
+                @error('employee_condition') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
             </div>
         </div>
     </div>
@@ -80,12 +82,14 @@
         </div>
         <div style="display:flex;flex-direction:column;gap:16px;">
             <div>
-                <label class="form-label">Solusi</label>
+                <label class="form-label">Solusi <span style="color:var(--danger-text);">*</span></label>
                 <textarea wire:model="solution" class="form-input" rows="3"></textarea>
+                @error('solution') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
             </div>
             <div>
-                <label class="form-label">Tindakan Perbaikan</label>
+                <label class="form-label">Tindakan Perbaikan <span style="color:var(--danger-text);">*</span></label>
                 <textarea wire:model="improvement_action" class="form-input" rows="3"></textarea>
+                @error('improvement_action') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
             </div>
         </div>
     </div>
