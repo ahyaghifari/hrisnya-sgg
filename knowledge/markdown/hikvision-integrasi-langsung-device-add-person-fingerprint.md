@@ -68,6 +68,19 @@ Catatan field (dari dokumentasi resmi, bukan tebakan):
 - Prasyarat: Person (`employeeNo`) harus sudah terdaftar duluan via `UserInfo/Record` sebelum bisa attach fingerprint.
 - Kalau HRIS yang capture langsung dari reader (bukan upload template siap pakai): SDK command `NET_DVR_CAPTURE_FINGERPRINT_INFO` (2504), butuh reader nyambung ke device/PC.
 
+## 3b. Gap Ditemukan Setelah Tes Nyata (2026-08-18): HikCentral Tidak Auto-Sync
+
+Add Person via ISAPI (§3) **sudah berhasil dites langsung ke device fisik** (dari kantor, jaringan `10.10.x` reachable). Tapi terkonfirmasi: Person yang ditambah lewat ISAPI **tidak otomatis muncul di HikCentral** — device dan HikCentral punya database Person terpisah, gak ada auto-sync event-driven dari device → HikCentral (cuma sebaliknya yang biasanya jalan: HikCentral → device). Konsekuensi: kalau push cuma lewat ISAPI ke device, `access_logs` (yang sumbernya dari HikCentral, bukan device langsung) kemungkinan gak kebentuk buat Person itu, dan Person gak muncul di HikCentral UI. Perlu sync/import manual di HikCentral setelah add via device.
+
+**Opsi lanjutan yang sedang dipertimbangkan** (belum dieksekusi):
+1. **Cek fitur "Import/Synchronize Person from Device" di HikCentral** — banyak produk access-control Hikvision punya tombol ini di device management (pull Person yang sudah ada di device masuk ke HikCentral), kemungkinan lebih simpel daripada reverse-engineer create-Person API HikCentral dari nol. **Belum dicek apakah ada & bisa dipanggil via API (bukan cuma klik manual UI)**.
+2. **Reverse-engineer web UI HikCentral** (bukan ISAPI device) — tiru request yang dipakai form "Add Person" di HikCentral sendiri (lewat DevTools Network tab), supaya push cukup 1 kali ke HikCentral dan device di-propagate otomatis olehnya. Keuntungan: HikCentral reachable di `172.x` (WireGuard sudah nyambung, gak perlu akses `10.10.x`). Risiko: private/unsupported API, bisa berubah kalau HikCentral di-update, mungkin ada enkripsi RSA di login.
+3. Manual: tetap double-input (device + HikCentral UI) — paling aman tapi paling banyak kerjaan manual, gak scalable buat banyak karyawan.
+
+**Update 2026-08-18**: Opsi 1 sudah dicoba manual di HikCentral UI (fitur import/sync Person dari device) — **berhasil**, Person yang ditambah via ISAPI langsung ke device sekarang muncul di HikCentral setelah di-sync manual. Jadi flow lengkap yang terverifikasi: Add Person via ISAPI ke device → sync manual di HikCentral UI → Person kebentuk di HikCentral juga. Opsi 2 (reverse-engineer create-Person HikCentral) gak perlu dikejar lagi.
+
+**Next buat otomatisasi**: rekam request yang dipanggil tombol sync/import itu (DevTools Network tab pas diklik) — kemungkinan besar ini juga panggilan API yang lebih murah ditiru daripada full create-Person, karena cuma "pull dari device yang sudah ada" bukan "create baru dari nol".
+
 ## 4. Rencana Lanjutan (Belum Dieksekusi)
 
 1. **Buka akses jaringan ke `10.10.x`** — via kantor langsung (LAN lokal) atau minta admin jaringan tambah rute WireGuard. Blocker utama sebelum semua langkah berikut bisa dites di device asli.

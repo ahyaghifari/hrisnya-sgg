@@ -271,10 +271,11 @@
                 </div>
 
                 <livewire:presensi.shift-swap-request-modal :key="'shift-swap-modal'" />
-            </div>
         </div>
     </div>
     @endif
+
+    <livewire:presensi.team-shift-schedule-card :key="'team-shift-schedule'" />
 
     <div class="pwa-list" style="grid-column:1/-1;">
         <a href="{{ route('organization-structure') }}" wire:navigate class="pwa-list-row" style="text-decoration:none;">

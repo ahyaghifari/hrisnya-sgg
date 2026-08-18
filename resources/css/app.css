@@ -464,6 +464,13 @@ html.dark .dropdown-notif-item:hover, html.dark .dropdown-notif-footer:hover { b
 .pwa-card-header-sky .pwa-section-title, .pwa-card-header-sky .pwa-section-link { color: #fff; }
 .pwa-card-header-sky .pwa-card-header-deco-1, .pwa-card-header-sky .pwa-card-header-deco-2 { background: #fff; }
 
+/* Dipakai widget "Jadwal Shift Tim" di dashboard - warna primary/brand (#042c6c, sama dengan
+   .btn-primary), teks putih. Hardcoded (bukan var(--brand)) sama seperti varian header lain di
+   atas - identitas kartu ini sengaja fixed, tidak ikut berubah pas dark mode. */
+.pwa-card-header-primary { background: linear-gradient(130deg, #042c6c 0%, #021b42 100%); }
+.pwa-card-header-primary .pwa-section-title, .pwa-card-header-primary .pwa-section-link { color: #fff; }
+.pwa-card-header-primary .pwa-card-header-deco-1, .pwa-card-header-primary .pwa-card-header-deco-2 { background: #fff; }
+
 /* Icon tile — same square-with-tinted-background pattern as the dashboard stat cards,
    reused here so task/course rows don't read as flatter than the rest of the app. */
 .pwa-tile-icon { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 14px; }
@@ -945,6 +952,15 @@ html.lw-navigating .page-content { opacity: 0; }
     /* Tombol "Tukar Shift" selebar kontennya sendiri di desktop, bukan width:100% ngisi
        seluruh kolom kanan (request user) - mobile tetap full-width seperti biasa. */
     .jadwal-shift-tukar-btn { width: auto !important; }
+}
+
+/* Widget "Jadwal Shift Tim" (Dashboard) - kartunya sendiri full-width (grid-column:1/-1) di
+   bento, jadi daftar anggota tim yang ditumpuk 1 kolom penuh (mobile) kelihatan boros ruang di
+   layar lebar. Desktop: auto-fill jadi 3-4 kolom tergantung lebar layar (request user), tanpa
+   breakpoint tambahan per lebar spesifik - kolom mengikuti ruang yang tersedia. Mobile tetap 1
+   kolom bertumpuk seperti biasa (default, tidak disentuh media query ini). */
+@media (min-width: 768px) {
+    .team-shift-list { display: grid !important; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
 }
 
 /* ── ABSENSI CARD ── */
