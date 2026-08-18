@@ -36,6 +36,13 @@ class PayrollDetailPage extends Component
      * untuk Bon mode Detail, lihat getBonMetodeProperty(). */
     public ?string $manualLineLabel = null;
 
+    // ── Edit langsung per komponen (bebas komponen apa saja, lihat openComponentEditModal()) ──
+    public bool $showComponentEditModal = false;
+    public ?string $editingComponent = null;
+    public ?string $editingComponentLabel = null;
+    public ?string $componentEditAmount = null;
+    public ?string $componentEditNote = null;
+
     public bool $showCancelPaidModal = false;
     public ?string $cancelPaidReason = null;
 
@@ -391,6 +398,71 @@ class PayrollDetailPage extends Component
         Notification::make()
             ->title($this->editingManualLineId ? "{$label} berhasil diubah" : "{$label} berhasil dicatat")
             ->body('Klik "Regenerate Payroll Ini" supaya nominalnya masuk ke payroll.')
+            ->success()
+            ->send();
+    }
+
+    /**
+     * Edit langsung 1 komponen APAPUN (bukan cuma Bon/manual line) - permintaan user, tombol
+     * "Ubah" muncul di setiap baris pendapatan/potongan yang punya `component` (source_type)
+     * valid. BEDA dari manual line: nulis LANGSUNG ke payroll_items lewat
+     * PayrollService::applyManualRevision() (tidak lewat payroll_manual_lines), jadi TIDAK
+     * butuh Regenerate buat masuk efeknya - sekaligus TIDAK kena gerbang periodHasEnded (yang
+     * sebelumnya cuma relevan buat manual line yang efeknya baru masuk lewat Regenerate).
+     */
+    public function openComponentEditModal(string $component): void
+    {
+        abort_unless($this->canEditAdjustment, 403);
+        abort_if($this->payroll->is_paid, 403, 'Payroll yang sudah dibayar tidak bisa diubah.');
+
+        $enum = PayrollComponentEnum::tryFrom($component);
+        abort_if($enum === null, 404);
+
+        $item = $this->payroll->items()->where('source_type', $component)->first();
+
+        $this->editingComponent = $component;
+        $this->editingComponentLabel = $enum->label();
+        $this->componentEditAmount = $item ? (string) $item->amount : '0';
+        $this->componentEditNote = null;
+
+        $this->resetErrorBag();
+        $this->showComponentEditModal = true;
+    }
+
+    public function closeComponentEditModal(): void
+    {
+        $this->showComponentEditModal = false;
+    }
+
+    public function saveComponentEdit(): void
+    {
+        abort_unless($this->canEditAdjustment, 403);
+        abort_if($this->payroll->is_paid, 403, 'Payroll yang sudah dibayar tidak bisa diubah.');
+        abort_if($this->editingComponent === null, 400);
+
+        $this->validate([
+            'componentEditAmount' => 'required|numeric|min:0',
+            'componentEditNote' => 'required|string|max:500',
+        ], [], [
+            'componentEditAmount' => 'nominal',
+            'componentEditNote' => 'catatan',
+        ]);
+
+        $enum = PayrollComponentEnum::from($this->editingComponent);
+
+        app(PayrollService::class)->applyManualRevision(
+            $this->payroll,
+            $enum,
+            (float) $this->componentEditAmount,
+            $this->componentEditNote,
+            Auth::id(),
+        );
+
+        $this->payroll->refresh();
+        $this->showComponentEditModal = false;
+
+        Notification::make()
+            ->title("{$enum->label()} berhasil diubah")
             ->success()
             ->send();
     }

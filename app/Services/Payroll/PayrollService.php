@@ -177,6 +177,11 @@ class PayrollService
     public function regeneratePayroll(PayrollPeriod $period, ?string $generatedByUserId = null): void
     {
         DB::transaction(function () use ($period, $generatedByUserId) {
+            // Snapshot nilai LAMA dulu (sebelum dihapus) - dipakai bandingkan ke hasil baru
+            // di logRegenerateChanges(), supaya perubahan angka akibat Regenerate (bukan cuma
+            // penyesuaian manual) ikut punya jejak di audit_logs.
+            $before = $this->snapshotPayrollTotals($period);
+
             // Delete only unpaid payrolls; paid payrolls are kept as-is.
             // payroll_items will be removed automatically via cascadeOnDelete.
             Payroll::query()
@@ -187,7 +192,90 @@ class PayrollService
             // Re-run generation — generatePayroll() sendiri juga sudah skip yang paid & hapus-
             // ulang yang belum dibayar, jadi baris di atas sebenarnya redundan tapi tidak masalah.
             $this->generatePayroll($period, $generatedByUserId);
+
+            $this->logRegenerateChanges($period, $before);
         });
+    }
+
+    /** @return Collection<string, array{gross_salary: float, total_deductions: float, net_salary: float}> keyed by user_id */
+    private function snapshotPayrollTotals(PayrollPeriod $period): Collection
+    {
+        return Payroll::query()
+            ->where('payroll_period_id', $period->id)
+            ->where('is_paid', false)
+            ->get()
+            ->keyBy('user_id')
+            ->map(fn (Payroll $p) => [
+                'gross_salary' => (float) $p->gross_salary,
+                'total_deductions' => (float) $p->total_deductions,
+                'net_salary' => (float) $p->net_salary,
+            ]);
+    }
+
+    /**
+     * Bandingkan snapshot SEBELUM Regenerate dengan hasil SESUDAHNYA, 1 baris AuditLog
+     * (module `payroll_regenerate`) per karyawan yang totalnya benar-benar berubah - karyawan
+     * yang angkanya tetap sama TIDAK dicatat (regenerate tanpa perubahan nyata bukan kejadian
+     * yang perlu jejak, sama filosofinya dengan kenapa Calculator sendiri tidak pakai
+     * LogsAuditChanges, lihat docblock PayrollItemsRelationManager). Snapshot per-KOMPONEN
+     * (payroll_items) sengaja tidak diambil - terlalu detail/berisik untuk regenerate massal;
+     * total gross/potongan/bersih sudah cukup buat tahu "ada yang berubah, di payroll siapa,
+     * kapan" - penelusuran detail komponen mana yang berubah tetap bisa dari PayrollItem
+     * saat ini dibanding logika Calculator-nya.
+     *
+     * @param Collection<string, array{gross_salary: float, total_deductions: float, net_salary: float}> $before
+     */
+    private function logRegenerateChanges(PayrollPeriod $period, Collection $before): void
+    {
+        if ($before->isEmpty()) {
+            return;
+        }
+
+        $after = Payroll::query()
+            ->where('payroll_period_id', $period->id)
+            ->whereIn('user_id', $before->keys())
+            ->with('user')
+            ->get();
+
+        foreach ($after as $payroll) {
+            $old = $before->get($payroll->user_id);
+            if ($old === null) {
+                continue;
+            }
+
+            $this->logRegenerateChangeIfAny($period, $payroll, $old);
+        }
+    }
+
+    /** @param array{gross_salary: float, total_deductions: float, net_salary: float} $old */
+    private function logRegenerateChangeIfAny(PayrollPeriod $period, Payroll $payroll, array $old): void
+    {
+        $new = [
+            'gross_salary' => (float) $payroll->gross_salary,
+            'total_deductions' => (float) $payroll->total_deductions,
+            'net_salary' => (float) $payroll->net_salary,
+        ];
+
+        $unchanged = abs($old['gross_salary'] - $new['gross_salary']) < 0.5
+            && abs($old['total_deductions'] - $new['total_deductions']) < 0.5
+            && abs($old['net_salary'] - $new['net_salary']) < 0.5;
+
+        if ($unchanged) {
+            return;
+        }
+
+        $describe = fn (array $v) => 'Gross Rp' . number_format($v['gross_salary'], 0, ',', '.')
+            . ', Potongan Rp' . number_format($v['total_deductions'], 0, ',', '.')
+            . ', Bersih Rp' . number_format($v['net_salary'], 0, ',', '.');
+
+        \App\Models\AuditLog::record(
+            'payroll_regenerate',
+            $period->company_id,
+            'payroll:' . $payroll->id,
+            $payroll->user?->name . ' — ' . $period->start_date?->format('M Y') . ' (regenerate)',
+            $describe($old),
+            $describe($new),
+        );
     }
 
     public function generatePayroll(PayrollPeriod $period, ?string $generatedByUserId = null): void
@@ -315,6 +403,12 @@ class PayrollService
             $period = $payroll->payrollPeriod;
             $user = $payroll->user;
 
+            $old = [
+                'gross_salary' => (float) $payroll->gross_salary,
+                'total_deductions' => (float) $payroll->total_deductions,
+                'net_salary' => (float) $payroll->net_salary,
+            ];
+
             $activeComponents = CompanyPayrollComponent::query()
                 ->where('company_id', $period->company_id)
                 ->where('is_active', true)
@@ -330,7 +424,68 @@ class PayrollService
                 'generated_by' => $generatedByUserId ?? $period->generated_by,
             ]);
 
+            $this->logRegenerateChangeIfAny($period, $newPayroll->load('user'), $old);
+
             return $newPayroll;
+        });
+    }
+
+    /**
+     * Terapkan 1 revisi manual (dari Import Revisi Payroll, lihat PayrollRevisionImport) ke
+     * payroll_items + total payroll. Read-modify-write PHP, BUKAN increment()/decrement() SQL
+     * mentah — kolom nominal payroll di-cast PayrollEncrypted (ciphertext, tidak bisa dijumlah
+     * di level DB), pola sama dengan PayrollItemsRelationManager::applyToPayrollTotals() di
+     * admin panel (cuma dipanggil bulk lewat import, bukan 1-per-1 lewat form Filament).
+     *
+     * SENGAJA menulis langsung ke PayrollItem yang sudah ada (bukan regenerate) - regenerate
+     * akan menjalankan ulang semua Calculator dan menimpa balik nilai manual ini dengan hasil
+     * hitungan otomatis, membatalkan revisinya.
+     */
+    public function applyManualRevision(Payroll $payroll, PayrollComponentEnum $component, float $newAmount, string $note, ?string $updatedByUserId = null): void
+    {
+        if ($payroll->is_paid) {
+            throw new \RuntimeException('Payroll yang sudah dibayar tidak bisa direvisi.');
+        }
+
+        DB::transaction(function () use ($payroll, $component, $newAmount, $note) {
+            $item = $payroll->items()->where('source_type', $component->value)->first();
+            $oldAmount = (float) ($item->amount ?? 0);
+            $type = $component->type()->value;
+
+            if ($item) {
+                $item->amount = $newAmount;
+                $item->note = $note;
+                $item->save();
+            } else {
+                $item = PayrollItem::create([
+                    'payroll_id' => $payroll->id,
+                    'name' => $component->label(),
+                    'type' => $type,
+                    'quantity' => 1,
+                    'amount' => $newAmount,
+                    'note' => $note,
+                    'source_type' => $component->value,
+                ]);
+            }
+
+            $delta = $newAmount - $oldAmount;
+            if ($type === PayrollComponentTypeEnum::EARNING->value) {
+                $payroll->gross_salary += $delta;
+                $payroll->net_salary += $delta;
+            } else {
+                $payroll->total_deductions += $delta;
+                $payroll->net_salary -= $delta;
+            }
+            $payroll->save();
+
+            \App\Models\AuditLog::record(
+                'payroll_adjustment',
+                $payroll->payrollPeriod?->company_id,
+                'payroll_item:' . $item->id,
+                $component->label() . ' — ' . $payroll->user?->name . ' (' . $note . ')',
+                (string) $oldAmount,
+                (string) $newAmount,
+            );
         });
     }
 

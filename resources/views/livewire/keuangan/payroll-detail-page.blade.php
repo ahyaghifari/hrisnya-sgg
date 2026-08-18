@@ -131,8 +131,11 @@
                         @forelse ($rows['earnings'] as $row)
                             <div>
                                 <div style="display:flex;justify-content:space-between;gap:8px;font-size:12.5px;">
-                                    <span style="color:{{ $row['hasValue'] ? 'var(--text-body)' : 'var(--text-faint)' }};">
+                                    <span style="color:{{ $row['hasValue'] ? 'var(--text-body)' : 'var(--text-faint)' }};display:flex;align-items:center;gap:5px;">
                                         {{ $row['label'] }}
+                                        @if ($row['component'] && ! $payroll->is_paid && $this->canEditAdjustment)
+                                            <button type="button" wire:click="openComponentEditModal('{{ $row['component'] }}')" title="Ubah {{ $row['label'] }}" style="border:none;background:none;color:var(--text-faint);cursor:pointer;padding:0;font-size:10px;"><i class="fa-solid fa-pen"></i></button>
+                                        @endif
                                     </span>
                                     <span style="white-space:nowrap;text-align:right;">
                                         <span style="font-weight:{{ $row['hasValue'] ? '700' : '500' }};color:{{ $row['hasValue'] ? '#047C54' : 'var(--text-faint)' }};">Rp{{ number_format($row['amount'], 0, ',', '.') }}</span>
@@ -160,8 +163,11 @@
                         @forelse ($rows['deductions'] as $row)
                             <div>
                                 <div style="display:flex;justify-content:space-between;gap:8px;font-size:12.5px;">
-                                    <span style="color:{{ $row['hasValue'] ? 'var(--text-body)' : 'var(--text-faint)' }};">
+                                    <span style="color:{{ $row['hasValue'] ? 'var(--text-body)' : 'var(--text-faint)' }};display:flex;align-items:center;gap:5px;">
                                         {{ $row['label'] }}
+                                        @if ($row['component'] && ! $payroll->is_paid && $this->canEditAdjustment)
+                                            <button type="button" wire:click="openComponentEditModal('{{ $row['component'] }}')" title="Ubah {{ $row['label'] }}" style="border:none;background:none;color:var(--text-faint);cursor:pointer;padding:0;font-size:10px;"><i class="fa-solid fa-pen"></i></button>
+                                        @endif
                                     </span>
                                     <span style="white-space:nowrap;text-align:right;">
                                         <span style="font-weight:{{ $row['hasValue'] ? '700' : '500' }};color:{{ $row['hasValue'] ? '#dc2626' : 'var(--text-faint)' }};">Rp{{ number_format($row['amount'], 0, ',', '.') }}</span>
@@ -179,10 +185,18 @@
                         di atas (2026-08-05): tiap baris Bon (mode Detail) sekarang bisa punya NAMA sendiri
                         (bukan selalu "Bon"), jadi kalau blok ini masih di dalam loop & dicocokkan per-$row,
                         dia bakal render ULANG utuh untuk SETIAP baris Bon yang ada — render SEKALI saja
-                        di sini, tidak lagi bergantung ke $row tertentu. --}}
-                        @if ($this->bonAktif)
+                        di sini, tidak lagi bergantung ke $row tertentu.
+
+                        Mode "Simple" (2026-08-18): editor ini DISEMBUNYIKAN total - komponen Bon yang aktif
+                        SELALU punya baris di $rows['deductions'] (fallback Rp0, lihat PayrollService::runComponent()),
+                        jadi tombol pensil "Ubah" generik di baris itu sendiri sudah cukup buat isi/ubah nominal
+                        langsung ke payroll_items (lihat openComponentEditModal()) - tidak perlu lagi UI
+                        payroll_manual_lines terpisah untuk kasus "1 nominal per periode" ini. Mode "Detail" TETAP
+                        pakai editor ini - itu satu-satunya cara punya BANYAK baris rincian bernama, tombol edit
+                        generik cuma bisa 1 nilai per komponen. --}}
+                        @if ($this->bonAktif && $this->bonMetode === 'detail')
                             <div style="margin-top:2px;">
-                                @if (! $payroll->is_paid && ! $this->periodHasEnded && ($this->bonMetode === 'detail' || $this->bonManualLines->isEmpty()) && $this->canEditAdjustment)
+                                @if (! $payroll->is_paid && ! $this->periodHasEnded && $this->canEditAdjustment)
                                     <button type="button" wire:click="openManualLineModal('bon')" title="Tambah Bon untuk payroll ini" style="border:none;background:#d97706;color:#fff;padding:2px 7px;border-radius:5px;font-size:10px;font-weight:600;cursor:pointer;">+ Tambah Bon</button>
                                 @endif
 
@@ -247,6 +261,36 @@
                 <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px;">
                     <button type="button" wire:click="closeManualLineModal" class="btn-ghost">Batal</button>
                     <button type="button" wire:click="saveManualLine" class="btn-primary">Simpan</button>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    @if ($showComponentEditModal)
+        <div class="modal-overlay" wire:click="closeComponentEditModal">
+            <div class="modal-box" onclick="event.stopPropagation()">
+                <h3 style="font-size:16px;font-weight:700;color:var(--text-heading);margin:0 0 4px;">Ubah {{ $editingComponentLabel }}</h3>
+                <p style="font-size:11.5px;color:var(--text-muted);margin:0 0 14px;">Untuk {{ $payroll->user?->name }} — periode {{ $payroll->payrollPeriod->start_date->format('d M Y') }} - {{ $payroll->payrollPeriod->end_date->format('d M Y') }}. Langsung tersimpan ke slip ini, TIDAK perlu Regenerate.</p>
+
+                <div style="display:flex;flex-direction:column;gap:12px;">
+                    <div>
+                        <label class="form-label">Nominal Baru (Rp)</label>
+                        <input type="number" step="0.01" class="form-input" wire:model="componentEditAmount" placeholder="0">
+                        @error('componentEditAmount') <p style="font-size:11px;color:#dc2626;margin-top:4px;">{{ $message }}</p> @enderror
+                    </div>
+
+                    <div>
+                        <label class="form-label">Catatan (wajib diisi — alasan perubahan)</label>
+                        <textarea class="form-input" rows="2" wire:model="componentEditNote"></textarea>
+                        @error('componentEditNote') <p style="font-size:11px;color:#dc2626;margin-top:4px;">{{ $message }}</p> @enderror
+                    </div>
+                </div>
+
+                <p style="font-size:10.5px;color:var(--text-faint);margin-top:10px;">Perubahan ini tercatat di audit log (module "payroll_adjustment").</p>
+
+                <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px;">
+                    <button type="button" wire:click="closeComponentEditModal" class="btn-ghost">Batal</button>
+                    <button type="button" wire:click="saveComponentEdit" class="btn-primary">Simpan</button>
                 </div>
             </div>
         </div>

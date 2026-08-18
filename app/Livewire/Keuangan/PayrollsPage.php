@@ -4,8 +4,10 @@ namespace App\Livewire\Keuangan;
 
 use App\Enum\CustomPermissionEnum;
 use App\Enum\Payroll\PayrollComponentEnum;
+use App\Exports\Payroll\PayrollSlipRekapExport;
 use App\Imports\Payroll\BonDetailImport;
 use App\Imports\Payroll\BonImport;
+use App\Imports\Payroll\PayrollRevisionImport;
 use App\Jobs\SendPayrollSlipJob;
 use App\Models\Master\Companies;
 use App\Models\Payroll\CompanyPayrollComponent;
@@ -56,6 +58,15 @@ class PayrollsPage extends Component
     /** Baris hasil parsing file, sebelum disimpan — lihat previewImport()/confirmImport(). */
     public array $importPreviewRows = [];
     public ?string $importStoredPath = null;
+
+    // ── Import Revisi (baca ulang hasil Export Excel yang sudah direvisi finance) ──
+    public bool $showRevisionModal = false;
+    public $revisionFile;
+    public ?string $revisionStoredPath = null;
+    /** @var array<int, array{payroll_id: string, nip: string, nama: string, label: string, component: string, old: float, new: float}> */
+    public array $revisionDiffs = [];
+    public array $revisionErrors = [];
+    public ?int $revisionAppliedCount = null;
 
     public function mount(): void
     {
@@ -115,6 +126,129 @@ class PayrollsPage extends Component
             ->with(['user', 'payrollPeriod'])
             ->orderByDesc('created_at')
             ->get();
+    }
+
+    /** Rekap Excel (format finance, lihat PayrollSlipRekapExport) - butuh 1 periode spesifik
+     *  dipilih, bukan gabungan periode (biar kolom "PERIODE GAJI" & pengelompokan divisi masuk
+     *  akal, satu file = satu bulan gajian seperti kebiasaan finance sekarang). */
+    public function exportExcel()
+    {
+        abort_unless($this->periodId, 400, 'Pilih periode dulu sebelum export.');
+
+        $payrolls = Payroll::where('payroll_period_id', $this->periodId)
+            ->with([
+                'user.profile.jobPosition',
+                'user.profile.pangkat.pangkatSalary',
+                'user.profile.pangkat.startKelas',
+                'user.profile.pangkat.maxKelas',
+                'user.profile.kelas',
+                'user.profile.employeeType',
+                'user.profile.orgStructure.parent.parent',
+                'payrollPeriod',
+                'items',
+            ])
+            ->get();
+
+        $period = PayrollPeriod::find($this->periodId);
+        $filename = 'rekap-gaji-' . str($period?->company?->name . '-' . $period?->start_date?->format('F-Y'))->slug() . '.xlsx';
+
+        return Excel::download(new PayrollSlipRekapExport($payrolls, $period->company_id), $filename);
+    }
+
+    // ── Import Revisi ────────────────────────────────────────────────────────
+
+    public function openRevisionModal(): void
+    {
+        abort_unless($this->canUpdatePayroll, 403);
+        abort_unless($this->periodId, 400, 'Pilih periode dulu sebelum import revisi.');
+
+        $this->revisionFile = null;
+        $this->revisionDiffs = [];
+        $this->revisionErrors = [];
+        $this->revisionAppliedCount = null;
+        $this->discardStoredRevisionFile();
+        $this->resetErrorBag();
+        $this->showRevisionModal = true;
+    }
+
+    public function closeRevisionModal(): void
+    {
+        $this->showRevisionModal = false;
+        $this->discardStoredRevisionFile();
+    }
+
+    /** File dipilih (wire:model) -> langsung parse & tampilkan pratinjau perbedaan, belum
+     *  ditulis ke database sama sekali - lihat PayrollRevisionImport (cuma baca, tidak nulis). */
+    public function updatedRevisionFile(): void
+    {
+        $this->revisionErrors = [];
+        $this->revisionDiffs = [];
+        $this->revisionAppliedCount = null;
+
+        $this->validate([
+            'revisionFile' => 'required|file|mimes:xlsx,xls,csv',
+        ], [], ['revisionFile' => 'file Excel']);
+
+        $this->discardStoredRevisionFile();
+        $this->revisionStoredPath = $this->revisionFile->store('temp-payroll-revisions');
+
+        $period = PayrollPeriod::findOrFail($this->periodId);
+        $import = new PayrollRevisionImport($period);
+        Excel::import($import, Storage::path($this->revisionStoredPath));
+
+        $this->revisionErrors = $import->getErrors();
+        $this->revisionDiffs = $import->getDiffs();
+    }
+
+    /** Tombol "Terapkan Perubahan" di pratinjau - baru di sini nominalnya benar-benar ditulis,
+     *  1 baris diff = 1 pemanggilan PayrollService::applyManualRevision() (regenerate TIDAK
+     *  dipanggil di sini, karena itu akan menimpa balik revisi manual ini - lihat docblock
+     *  method-nya). Payroll yang keburu dibayar SELAMA jeda preview->konfirmasi dilewati diam-diam. */
+    public function confirmRevisionImport(): void
+    {
+        abort_unless($this->canUpdatePayroll, 403);
+
+        if ($this->revisionDiffs === []) {
+            return;
+        }
+
+        $payrollService = app(PayrollService::class);
+        $applied = 0;
+
+        foreach ($this->revisionDiffs as $diff) {
+            $payroll = Payroll::with('payrollPeriod', 'user')->find($diff['payroll_id']);
+            if (! $payroll || $payroll->is_paid) {
+                continue;
+            }
+
+            $payrollService->applyManualRevision(
+                $payroll,
+                PayrollComponentEnum::from($diff['component']),
+                (float) $diff['new'],
+                'Import Revisi Excel',
+                Auth::id(),
+            );
+            $applied++;
+        }
+
+        $this->revisionDiffs = [];
+        $this->revisionAppliedCount = $applied;
+        $this->discardStoredRevisionFile();
+        $this->reset('revisionFile');
+        $this->showRevisionModal = false;
+
+        Notification::make()
+            ->title("{$applied} perubahan diterapkan")
+            ->success()
+            ->send();
+    }
+
+    private function discardStoredRevisionFile(): void
+    {
+        if ($this->revisionStoredPath !== null) {
+            Storage::delete($this->revisionStoredPath);
+            $this->revisionStoredPath = null;
+        }
     }
 
     /** Tombol Import Bon cuma tampil kalau komponen Bon aktif buat company ini. */

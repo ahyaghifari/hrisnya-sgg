@@ -43,6 +43,7 @@ trait HasKaryawanForm
     // Step 2 — Data Pribadi, Alamat, Kontak
     public string $nickname = '';
     public ?string $gender = null;
+    public ?string $marital_status = null;
     public ?string $religion_id = null;
     public string $place_of_birth = '';
     public ?string $date_of_birth = null;

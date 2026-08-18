@@ -33,6 +33,16 @@
                          master `user_koperasi` (halaman Koperasi) yang otomatis sync ke
                          payroll_manual_lines tiap Generate, jadi input manual per periode di
                          sini jadi redundan. Disembunyikan dulu, bukan dihapus permanen. --}}
+                    @if ($periodId)
+                        <button type="button" wire:click="exportExcel" style="display:inline-flex;align-items:center;gap:6px;padding:9px 16px;font-size:12.5px;font-weight:600;border:none;border-radius:12px;cursor:pointer;background:#15803d;color:#fff;">
+                            <i class="fa-solid fa-file-excel"></i> Export Excel
+                        </button>
+                        @if ($this->canUpdatePayroll)
+                            <button type="button" wire:click="openRevisionModal" style="display:inline-flex;align-items:center;gap:6px;padding:9px 16px;font-size:12.5px;font-weight:600;border:none;border-radius:12px;cursor:pointer;background:#0369a1;color:#fff;">
+                                <i class="fa-solid fa-file-import"></i> Import Revisi
+                            </button>
+                        @endif
+                    @endif
                     @if ($this->bonAktif && $this->bonMetode === 'simple' && $this->canImportPayroll)
                         <button type="button" wire:click="openImportModal('bon')" style="display:inline-flex;align-items:center;gap:6px;padding:9px 16px;font-size:12.5px;font-weight:600;border:none;border-radius:12px;cursor:pointer;background:#d97706;color:#fff;">
                             <i class="fa-solid fa-money-bill-transfer"></i> Import Bon
@@ -264,6 +274,91 @@
                             @endif
                         </div>
                     @endif
+                @endif
+            </div>
+        </div>
+    @endif
+
+    @if ($showRevisionModal)
+        <div class="modal-overlay" wire:click="closeRevisionModal">
+            <div class="modal-box modal-box-xl" onclick="event.stopPropagation()" style="display:flex;flex-direction:column;gap:14px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;">
+                    <h3 style="font-size:18px;font-weight:700;color:var(--text-heading);margin:0;">
+                        Import Revisi Payroll
+                    </h3>
+                    <button type="button" wire:click="closeRevisionModal" class="btn-ghost" style="padding:6px 12px;font-size:12px;">
+                        <i class="fa-solid fa-xmark"></i> Tutup
+                    </button>
+                </div>
+
+                <div style="background:rgba(3,105,161,0.06);border:1px solid rgba(3,105,161,0.2);border-radius:10px;padding:10px 14px;font-size:12px;color:#0369a1;">
+                    <i class="fa-solid fa-circle-info"></i>
+                    Upload file hasil <strong>Export Excel</strong> yang sudah direvisi finance — header kolom harus persis sama dengan hasil export (jangan diubah namanya). Cuma kolom nominal komponen (Gaji Pokok, Tunjangan, BPJS, Koperasi, Bon, dst) yang dibaca; kolom hasil hitungan (TOTAL GAJI, Jumlah Terima, dst) diabaikan.
+                </div>
+
+                <div>
+                    <label class="form-label">File Excel Revisi (.xlsx)</label>
+                    <input type="file" class="form-input" wire:model="revisionFile" accept=".xlsx,.xls,.csv">
+                    <p style="font-size:11px;color:var(--text-muted);margin-top:4px;">File akan dipratinjau dulu di bawah — belum ada perubahan tersimpan sampai kamu klik "Terapkan Perubahan".</p>
+                    @error('revisionFile') <p style="font-size:11px;color:#dc2626;margin-top:4px;">{{ $message }}</p> @enderror
+                    <div wire:loading wire:target="revisionFile" style="font-size:11px;color:var(--text-muted);margin-top:4px;">Memproses pratinjau...</div>
+                </div>
+
+                @if ($revisionErrors !== [])
+                    <div style="background:rgba(220,38,38,0.06);border-radius:10px;padding:12px 14px;font-size:12.5px;">
+                        <p style="margin:0 0 4px;font-weight:600;color:#dc2626;">{{ count($revisionErrors) }} baris bermasalah (dilewati):</p>
+                        <ul style="margin:0;padding-left:18px;color:#dc2626;">
+                            @foreach ($revisionErrors as $error)
+                                <li>{{ $error }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @endif
+
+                @if ($revisionDiffs !== [])
+                    <div style="display:flex;flex-direction:column;gap:8px;">
+                        <p style="font-size:12px;margin:0;">
+                            <strong>{{ count($revisionDiffs) }}</strong> perubahan terdeteksi dari <strong>{{ collect($revisionDiffs)->pluck('nip')->unique()->count() }}</strong> karyawan. Periksa dulu sebelum diterapkan.
+                        </p>
+                        <div style="max-height:320px;overflow-y:auto;border:1px solid var(--border);border-radius:10px;">
+                            <table style="width:100%;border-collapse:collapse;font-size:12px;">
+                                <thead>
+                                    <tr style="border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--surface);">
+                                        <th style="text-align:left;padding:6px 10px;">NIP</th>
+                                        <th style="text-align:left;padding:6px 10px;">Nama</th>
+                                        <th style="text-align:left;padding:6px 10px;">Kolom</th>
+                                        <th style="text-align:right;padding:6px 10px;">Nilai Lama</th>
+                                        <th style="text-align:right;padding:6px 10px;">Nilai Baru</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach ($revisionDiffs as $diff)
+                                        <tr style="border-bottom:1px solid var(--border-soft);">
+                                            <td style="padding:6px 10px;">{{ $diff['nip'] }}</td>
+                                            <td style="padding:6px 10px;">{{ $diff['nama'] }}</td>
+                                            <td style="padding:6px 10px;">{{ $diff['label'] }}</td>
+                                            <td style="padding:6px 10px;text-align:right;">Rp{{ number_format($diff['old'], 0, ',', '.') }}</td>
+                                            <td style="padding:6px 10px;text-align:right;font-weight:600;color:#0369a1;">Rp{{ number_format($diff['new'], 0, ',', '.') }}</td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                        <div style="display:flex;justify-content:flex-end;gap:8px;">
+                            <button type="button" wire:click="closeRevisionModal" class="btn-ghost" style="padding:9px 16px;font-size:12.5px;">Batal</button>
+                            <button type="button" wire:click="confirmRevisionImport" style="display:inline-flex;align-items:center;gap:6px;padding:9px 16px;font-size:12.5px;font-weight:600;border:none;border-radius:12px;cursor:pointer;background:#0369a1;color:#fff;">
+                                <i class="fa-solid fa-check"></i> Terapkan Perubahan
+                            </button>
+                        </div>
+                    </div>
+                @elseif ($revisionFile && $revisionErrors === [])
+                    <p style="font-size:12.5px;color:var(--text-muted);margin:0;">Tidak ada perbedaan nominal ditemukan antara file ini dan data payroll saat ini.</p>
+                @endif
+
+                @if ($revisionAppliedCount !== null)
+                    <div style="background:rgba(4,124,84,0.08);border-radius:10px;padding:12px 14px;font-size:12.5px;">
+                        <p style="margin:0;font-weight:600;">{{ $revisionAppliedCount }} perubahan berhasil diterapkan.</p>
+                    </div>
                 @endif
             </div>
         </div>

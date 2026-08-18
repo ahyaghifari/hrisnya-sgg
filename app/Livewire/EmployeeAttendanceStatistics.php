@@ -48,6 +48,7 @@ class EmployeeAttendanceStatistics extends Component
     public ?string $email = null;
     public ?string $nickname = null;
     public ?string $gender = null;
+    public ?string $marital_status = null;
     public ?string $religion_id = null;
     public ?string $place_of_birth = null;
     public ?string $date_of_birth = null;
@@ -112,6 +113,7 @@ class EmployeeAttendanceStatistics extends Component
         $this->email = $this->record->email;
         $this->nickname = $profile?->nickname;
         $this->gender = $profile?->gender;
+        $this->marital_status = $profile?->marital_status;
         $this->religion_id = $profile?->religion_id;
         $this->place_of_birth = $profile?->place_of_birth;
         $this->date_of_birth = $profile?->date_of_birth;
@@ -169,6 +171,7 @@ class EmployeeAttendanceStatistics extends Component
             'email' => ['required', 'email', 'max:255', \Illuminate\Validation\Rule::unique('users', 'email')->ignore($this->record->id)],
             'nickname' => ['nullable', 'string', 'max:100'],
             'gender' => ['nullable', 'in:laki_laki,perempuan'],
+            'marital_status' => ['nullable', 'string', 'max:50'],
             'religion_id' => ['nullable', 'exists:m_religions,id'],
             'place_of_birth' => ['nullable', 'string', 'max:100'],
             'date_of_birth' => ['nullable', 'date'],

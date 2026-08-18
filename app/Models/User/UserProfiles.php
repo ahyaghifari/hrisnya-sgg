@@ -20,6 +20,7 @@ class UserProfiles extends Model
         'user_id',
         'nickname',
         'gender',
+        'marital_status',
         'place_of_birth',
         'date_of_birth',
         'no_nik',
@@ -157,6 +158,7 @@ class UserProfiles extends Model
         return [
             'nickname' => 'Nama Panggilan',
             'gender' => 'Jenis Kelamin',
+            'marital_status' => 'Status Perkawinan',
             'religion_id' => 'Agama',
             'place_of_birth' => 'Tempat Lahir',
             'date_of_birth' => 'Tanggal Lahir',

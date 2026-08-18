@@ -129,6 +129,10 @@
                 </select>
             </div>
             <div>
+                <label class="form-label">Status Perkawinan</label>
+                <input type="text" wire:model="marital_status" class="form-input" maxlength="50">
+            </div>
+            <div>
                 <label class="form-label">Agama</label>
                 <select wire:model="religion_id" class="form-input">
                     <option value="">Pilih...</option>

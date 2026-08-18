@@ -71,6 +71,7 @@
             'Nama Panggilan' => $profile?->nickname,
             'Email Pribadi' => $profile?->email_pribadi,
             'Jenis Kelamin' => match ($profile?->gender) { 'laki_laki' => 'Laki-laki', 'perempuan' => 'Perempuan', default => null },
+            'Status Perkawinan' => $profile?->marital_status,
             'Agama' => $profile?->religion?->name,
             'Tempat, Tanggal Lahir' => $tanggalLahir,
             'No. NIK' => $profile?->no_nik,
@@ -206,6 +207,10 @@
                             <option value="laki_laki">Laki-laki</option>
                             <option value="perempuan">Perempuan</option>
                         </select>
+                    </div>
+                    <div>
+                        <label class="form-label">Status Perkawinan</label>
+                        <input type="text" class="form-input" wire:model="marital_status" maxlength="50">
                     </div>
                     <div>
                         <label class="form-label">Agama</label>
