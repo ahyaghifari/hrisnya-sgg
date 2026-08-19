@@ -7,6 +7,7 @@ use App\Livewire\Presensi\Concerns\HandlesDayScheduleForm;
 use App\Livewire\Presensi\Concerns\HandlesShiftScheduleForm;
 use App\Models\Master\Companies;
 use App\Models\Shift\Schedule;
+use App\Models\User;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -42,6 +43,10 @@ class CreateSchedulePage extends Component
     public string $name = '';
     public string $scheduleType = '';
 
+    /** "Kepala Ruangan" - opsional, dipakai TeamShiftScheduleCard buat resolve link "Detail
+     * Jadwal" ke Schedule yang benar kalau atasan punya bawahan di lebih dari 1 Schedule. */
+    public ?string $headUserId = null;
+
     /** Pola shift (2 atau 3 shift) - cuma relevan buat scheduleType SHIFT, lihat
      * App\Enum\ShiftPatternEnum. Null = belum diisi (schedule lama sebelum field ini ada, atau
      * tipe Fixed/Flexible). */
@@ -69,6 +74,7 @@ class CreateSchedulePage extends Component
         $this->name = $schedule->name;
         $this->scheduleType = $schedule->schedule_type;
         $this->shiftPattern = $schedule->shift_pattern;
+        $this->headUserId = $schedule->head_user_id;
         $this->step = 2;
 
         if ($this->scheduleType === ScheduleType::SHIFT->value) {
@@ -94,6 +100,22 @@ class CreateSchedulePage extends Component
         $this->selectedEmployeeIds = [];
         $this->employeeSearch = '';
         $this->employeeOrgStructureFilter = '';
+        $this->headUserId = null;
+    }
+
+    /** Opsi "Kepala Ruangan" - semua karyawan aktif di company yang lagi dipilih, sama scope-nya
+     *  dengan pemilihan karyawan buat "Atur Pengguna Jadwal" (tidak dibatasi jabatan tertentu,
+     *  kepala ruangan bisa jabatan apa saja). */
+    public function getHeadUserOptionsProperty()
+    {
+        if (! $this->companyId) {
+            return collect();
+        }
+
+        return User::where('company_id', $this->companyId)
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get();
     }
 
     /** "08:30:00" (MySQL) atau "08:30" (SQLite, tidak menormalkan TIME) -> selalu "08:30". */
@@ -185,6 +207,7 @@ class CreateSchedulePage extends Component
             'flexible_checkin_from' => $this->scheduleType === ScheduleType::FLEXIBLE->value ? $this->flexibleCheckinFrom : null,
             'flexible_checkin_until' => $this->scheduleType === ScheduleType::FLEXIBLE->value ? $this->flexibleCheckinUntil : null,
             'shift_pattern' => $this->scheduleType === ScheduleType::SHIFT->value ? $this->shiftPattern : null,
+            'head_user_id' => $this->headUserId ?: null,
         ];
 
         $schedule = DB::transaction(function () use ($scheduleData) {

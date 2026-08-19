@@ -50,6 +50,7 @@ class SchedulesPage extends Component
     {
         return Schedule::query()
             ->when($this->companyId, fn ($q) => $q->where('company_id', $this->companyId))
+            ->with('head')
             ->orderBy('name')
             ->get();
     }

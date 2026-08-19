@@ -32,6 +32,7 @@
             @if ($schedule->schedule_type === 'shift')
                 <button type="button" wire:click="setTab('penjadwalan')" class="schedule-detail-tab {{ $tab === 'penjadwalan' ? 'is-active' : '' }}">Detail Penjadwalan</button>
                 <button type="button" wire:click="setTab('template')" class="schedule-detail-tab {{ $tab === 'template' ? 'is-active' : '' }}">Template Shift</button>
+                <button type="button" wire:click="setTab('extra-shift')" class="schedule-detail-tab {{ $tab === 'extra-shift' ? 'is-active' : '' }}">Extra Shift</button>
             @endif
             <button type="button" wire:click="setTab('kantor')" class="schedule-detail-tab {{ $tab === 'kantor' ? 'is-active' : '' }}">Pengguna</button>
             <button type="button" wire:click="setTab('riwayat')" class="schedule-detail-tab {{ $tab === 'riwayat' ? 'is-active' : '' }}">Riwayat</button>
@@ -54,6 +55,8 @@
         <livewire:presensi.schedule-shift-rotation-tab :schedule="$schedule" :key="'rot-'.$schedule->id" />
     @elseif ($tab === 'penjadwalan')
         <livewire:presensi.schedule-shift-roster-tab :schedule="$schedule" :key="'ros-'.$schedule->id" />
+    @elseif ($tab === 'extra-shift')
+        <livewire:presensi.schedule-extra-shift-tab :schedule="$schedule" :key="'extra-'.$schedule->id" />
     @else
         <div style="background:var(--surface);border-radius:12px;box-shadow:var(--shadow-card);overflow:hidden;">
             @forelse ($this->changeLogs as $log)

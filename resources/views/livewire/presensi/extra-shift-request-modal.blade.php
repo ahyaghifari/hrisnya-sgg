@@ -5,7 +5,7 @@
 
     @if ($showModal)
         <div class="modal-overlay" wire:click="closeModal">
-            <div class="modal-box" onclick="event.stopPropagation()">
+            <div class="modal-box modal-box-lg" onclick="event.stopPropagation()">
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
                     <h3 style="font-size:15px;font-weight:700;color:var(--text-heading);margin:0;">Tambah Extra Shift</h3>
                     <button type="button" wire:click="closeModal" style="background:none;border:none;font-size:16px;color:var(--text-faint);cursor:pointer;">

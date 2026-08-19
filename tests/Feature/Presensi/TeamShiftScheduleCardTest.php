@@ -104,6 +104,38 @@ class TeamShiftScheduleCardTest extends TestCase
         $this->assertSame($unitASchedule->id, $component->get('teamScheduleId'));
     }
 
+    /** head_user_id (2026-08-19) menang atas fallback "Schedule pertama dari roster tim" -
+     *  penting kalau atasan punya bawahan di lebih dari 1 Schedule/unit, biar link "Detail
+     *  Jadwal" tidak nyasar ke unit yang salah. */
+    public function test_team_schedule_id_prefers_schedule_where_user_is_head(): void
+    {
+        $company = Companies::create(['code' => 'TSC3', 'name' => 'RS Team Shift Card Test 3', 'location' => 'Test', 'is_active' => true]);
+
+        $unitASchedule = Schedule::create(['company_id' => $company->id, 'name' => 'Jadwal Unit A', 'schedule_type' => 'shift']);
+        $pagiA = ScheduleShiftType::create(['schedule_id' => $unitASchedule->id, 'code' => 'PAGI', 'name' => 'Pagi', 'start_time' => '07:00:00', 'end_time' => '15:00:00', 'is_overnight' => false]);
+
+        $unitBSchedule = Schedule::create(['company_id' => $company->id, 'name' => 'Jadwal Unit B', 'schedule_type' => 'shift']);
+
+        $kepalaPosition = JobPositions::create(['company_id' => $company->id, 'name' => 'Kepala Ruangan', 'planned_manpower' => 1]);
+        $staffPosition = JobPositions::create(['company_id' => $company->id, 'name' => 'Perawat', 'planned_manpower' => 1, 'parent_id' => $kepalaPosition->id]);
+
+        // Kepala ini di-set sebagai head Unit B, tapi bawahan formalnya kebetulan berjadwal
+        // Unit A (dua kondisi yang bisa saling kontradiksi di skenario nyata) - head_user_id
+        // harus tetap menang.
+        $kepala = User::factory()->create(['company_id' => $company->id]);
+        $this->assignJobPosition($kepala, $kepalaPosition);
+        $unitBSchedule->update(['head_user_id' => $kepala->id]);
+
+        $bawahan = User::factory()->create(['company_id' => $company->id]);
+        $this->assignJobPosition($bawahan, $staffPosition);
+        ScheduleShiftAssignment::create(['company_id' => $company->id, 'user_id' => $bawahan->id, 'shift_type_id' => $pagiA->id, 'date' => now()->toDateString(), 'off_day' => false]);
+
+        $component = Livewire::actingAs($kepala)->test(TeamShiftScheduleCard::class);
+
+        $this->assertSame($unitBSchedule->id, $component->get('teamScheduleId'));
+        $this->assertNotSame($unitASchedule->id, $component->get('teamScheduleId'));
+    }
+
     public function test_navigating_day_shows_holiday(): void
     {
         $company = Companies::create(['code' => 'TSC2', 'name' => 'RS Team Shift Card Test 2', 'location' => 'Test', 'is_active' => true]);

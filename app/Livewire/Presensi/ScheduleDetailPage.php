@@ -22,6 +22,11 @@ use Livewire\Component;
  * kondisi SEBELUM tiap perubahan) — klik 1 baris buka popup nampilin kondisi lama, niru "Riwayat
  * Perubahan Jadwal" fingerspot.io. Popup-nya versi ringkas (tabel polos, TANPA tooltip
  * "Rincian" hover) — snapshot historis tidak perlu interaktivitas selengkap tab Jam Kerja aktif.
+ *
+ * Tab "Extra Shift" (2026-08-19, shift-only, di sebelah Template Shift) — komponen nested
+ * `ScheduleExtraShiftTab`, daftar + tombol tambah Extra Shift SCOPED ke Schedule ini saja
+ * (beda dari ExtraShiftPage yang company-wide dan ExtraShiftRequestModal yang scoped ke tim
+ * atasan) - reuse ResolvesExtraShiftOptions yang sama.
  */
 #[Layout('components.layout', ['title' => 'Lihat Jadwal'])]
 class ScheduleDetailPage extends Component

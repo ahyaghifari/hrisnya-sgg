@@ -6,6 +6,7 @@ use App\Livewire\Concerns\ResolvesDayScheduleSummary;
 use App\Livewire\Concerns\ResolvesShiftTeamMembers;
 use App\Models\Master\Attendance\Holidays;
 use App\Models\Shift\ExtraShiftAssignment;
+use App\Models\Shift\Schedule;
 use App\Models\Shift\ScheduleShiftAssignment;
 use App\Models\User;
 use App\Services\Attendance\ScheduleResolver;
@@ -84,10 +85,23 @@ class TeamShiftScheduleCard extends Component
      * sengaja diambil dari jadwal TIM (bukan jadwal pribadi atasan lewat
      * Dashboard::getMyScheduleIdProperty()), karena atasan sendiri bisa saja tidak punya roster
      * shift apa pun (mis. Kepala Ruangan yang jadwal pribadinya sudah tidak ada), padahal
-     * timnya tetap perlu dilihat detail rosternya. Null kalau tidak ada satu pun anggota tim
-     * yang berjadwal shift - link "Detail Jadwal" ikut tersembunyi di kasus itu. */
+     * timnya tetap perlu dilihat detail rosternya.
+     *
+     * Prioritas 1 (2026-08-19): kalau atasan ini terdaftar sebagai `head_user_id` di 1 Schedule
+     * tertentu, link WAJIB ke situ - tanpa ini, atasan yang bawahannya kepencar di lebih dari 1
+     * Schedule/unit bisa ke-link ke Schedule unit yang salah (asal Schedule pertama yang ketemu
+     * dari roster siapapun, urutan tidak dijamin). Fallback ke logic lama (Schedule pertama dari
+     * roster anggota tim) kalau atasan ini belum di-set sebagai kepala ruangan manapun - null
+     * kalau dua-duanya tidak ketemu, link "Detail Jadwal" ikut tersembunyi di kasus itu. */
     public function getTeamScheduleIdProperty(): ?string
     {
+        $user = Auth::user();
+        $headScheduleId = $user ? Schedule::where('head_user_id', $user->id)->value('id') : null;
+
+        if ($headScheduleId) {
+            return $headScheduleId;
+        }
+
         $memberIds = $this->teamMembers->pluck('id');
 
         if ($memberIds->isEmpty()) {

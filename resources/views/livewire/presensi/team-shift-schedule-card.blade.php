@@ -44,7 +44,7 @@
                         default => 'Belum ada jadwal',
                     };
                 @endphp
-                <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:7px 10px;border-radius:8px;background:var(--surface-alt);">
+                <div style="display:flex;flex-direction:column;align-items:flex-start;gap:4px;padding:7px 10px;border-radius:8px;background:var(--surface-alt);">
                     <span style="font-size:12.5px;font-weight:600;color:var(--text-heading);">{{ $row['user']->name }}</span>
                     <span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:99px;background:{{ $chipBg }};color:{{ $chipText }};white-space:nowrap;">{{ $label }}</span>
                 </div>

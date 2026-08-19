@@ -190,6 +190,18 @@
                     @endif
                 </div>
 
+                <div style="margin-top:14px;max-width:320px;">
+                    <label class="form-label">Kepala Ruangan (opsional)</label>
+                    <select class="form-input" wire:model="headUserId">
+                        <option value="">-- Tidak ada --</option>
+                        @foreach ($this->headUserOptions as $employee)
+                            <option value="{{ $employee->id }}">{{ $employee->name }}</option>
+                        @endforeach
+                    </select>
+                    <p style="font-size:10.5px;color:var(--text-faint);margin-top:4px;">Dipakai widget "Jadwal Shift Tim" di Dashboard supaya tombol "Detail Jadwal" mengarah ke jadwal yang tepat.</p>
+                    @error('headUserId') <p style="font-size:11px;color:#dc2626;margin-top:4px;">{{ $message }}</p> @enderror
+                </div>
+
                 @if ($scheduleType === 'flexible')
                     <div style="display:flex;align-items:center;gap:10px;margin-top:14px;padding:10px 12px;background:var(--surface-alt);border-radius:10px;">
                         <i class="fa-regular fa-clock" style="color:var(--text-faint);font-size:13px;"></i>

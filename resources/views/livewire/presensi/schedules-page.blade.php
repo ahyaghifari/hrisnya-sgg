@@ -22,6 +22,7 @@
                     <tr style="border-bottom:1.5px solid var(--border);">
                         <th style="text-align:left;padding:10px 14px;white-space:nowrap;">Nama Jadwal</th>
                         <th style="text-align:left;padding:10px 14px;white-space:nowrap;">Tipe</th>
+                        <th style="text-align:left;padding:10px 14px;white-space:nowrap;">Kepala Ruangan</th>
                         <th style="text-align:left;padding:10px 14px;white-space:nowrap;">Aksi</th>
                     </tr>
                 </thead>
@@ -39,6 +40,9 @@
                                 <span style="display:inline-block;padding:3px 10px;border-radius:99px;font-size:11px;font-weight:600;background:{{ $typeColor['bg'] }};color:{{ $typeColor['text'] }};">
                                     {{ $this->scheduleTypeLabel($schedule->schedule_type) }}
                                 </span>
+                            </td>
+                            <td style="padding:9px 14px;white-space:nowrap;color:{{ $schedule->head ? 'var(--text-body)' : 'var(--text-faint)' }};">
+                                {{ $schedule->head?->name ?? '-' }}
                             </td>
                             <td style="padding:9px 14px;text-align:left;white-space:nowrap;">
                                 <div style="display:inline-flex;gap:6px;">

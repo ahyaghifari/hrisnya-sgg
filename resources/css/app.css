@@ -958,7 +958,8 @@ html.lw-navigating .page-content { opacity: 0; }
    bento, jadi daftar anggota tim yang ditumpuk 1 kolom penuh (mobile) kelihatan boros ruang di
    layar lebar. Desktop: auto-fill jadi 3-4 kolom tergantung lebar layar (request user), tanpa
    breakpoint tambahan per lebar spesifik - kolom mengikuti ruang yang tersedia. Mobile tetap 1
-   kolom bertumpuk seperti biasa (default, tidak disentuh media query ini). */
+   kolom bertumpuk seperti biasa (default, tidak disentuh media query ini). Tiap item DALAM
+   kolom (nama+jadwal) ditumpuk atas-bawah - lihat .team-shift-item di team-shift-schedule-card.blade.php. */
 @media (min-width: 768px) {
     .team-shift-list { display: grid !important; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
 }

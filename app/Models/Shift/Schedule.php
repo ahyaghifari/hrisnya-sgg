@@ -3,8 +3,10 @@
 namespace App\Models\Shift;
 
 use App\Models\Master\Companies;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -28,6 +30,7 @@ class Schedule extends Model
         'shift_pattern',
         'use_template',
         'color',
+        'head_user_id',
         'flexible_checkin_from',
         'flexible_checkin_until',
     ];
@@ -39,6 +42,14 @@ class Schedule extends Model
     public function company()
     {
         return $this->belongsTo(Companies::class, 'company_id');
+    }
+
+    /** "Kepala Ruangan" - dipakai TeamShiftScheduleCard buat resolve link "Detail Jadwal" ke
+     * Schedule yang benar (lihat migration 2026_08_19_100000). Nullable, jadwal lama boleh
+     * kosong. */
+    public function head(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'head_user_id');
     }
 
     public function fixedDays(): HasMany
