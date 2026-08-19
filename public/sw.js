@@ -61,7 +61,7 @@ self.addEventListener('notificationclick', (event) => {
     let url = '/';
     if (payrollId) {
         // Notifikasi Gaji Sudah Dibayar -> halaman detail slip gaji karyawan sendiri.
-        url = `/data-diri/penggajian/${payrollId}`;
+        url = `/profil-saya/penggajian/${payrollId}`;
     } else if (courseId) {
         // CoursePublished/CourseParticipantEnrolled/CourseEnrollmentApproved -> halaman detail
         // pelatihan (self-service karyawan, bukan halaman kelola admin).

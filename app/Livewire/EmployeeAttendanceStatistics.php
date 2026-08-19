@@ -77,7 +77,7 @@ class EmployeeAttendanceStatistics extends Component
 
     public function mount(?User $record = null): void
     {
-        // Route /data-diri tidak punya segment {record} — otomatis pakai user yang login.
+        // Route /profil-saya tidak punya segment {record} — otomatis pakai user yang login.
         $record ??= Auth::user();
 
         abort_unless($this->canManage($record), 403);
@@ -597,7 +597,7 @@ class EmployeeAttendanceStatistics extends Component
     public function render()
     {
         $title = $this->record->id === Auth::id()
-            ? 'Data Diri'
+            ? 'Profil Saya'
             : "MyStaff - {$this->record->name}";
 
         return view('livewire.employee-attendance-statistics')

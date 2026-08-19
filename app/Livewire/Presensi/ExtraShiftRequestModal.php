@@ -3,21 +3,24 @@
 namespace App\Livewire\Presensi;
 
 use App\Livewire\Concerns\ResolvesShiftTeamMembers;
+use App\Livewire\Presensi\Concerns\ResolvesExtraShiftOptions;
 use App\Models\Shift\ExtraShiftAssignment;
-use App\Models\Shift\ScheduleShiftAssignment;
 use App\Models\User;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
 
 /**
- * Modal "Extra Shift" instan nempel di widget "Jadwal Shift Saya" (Dashboard) - buat atasan
+ * Modal "Extra Shift" instan nempel di widget "Jadwal Shift Tim" (Dashboard) - buat atasan
  * berjadwal shift (mis. Kepala Ruangan) assign extra shift ke bawahannya sendiri tanpa lewat
  * approval, pola sama ExtraShiftPage (halaman admin berdiri sendiri, company-wide) tapi
- * scope karyawannya dipersempit ke tim (ResolvesShiftTeamMembers - bawahan struktur jabatan +
- * karyawan lain yang pakai Schedule sama, lihat catatan di trait itu) + diri sendiri - instruksi
- * user 2026-08-18. Selalu source=assigned/status=approved, sama seperti ExtraShiftPage::assign()
- * - jalur "requested" (pengajuan + approval) belum ada di manapun.
+ * scope karyawannya dipersempit ke tim (ResolvesShiftTeamMembers) + diri sendiri.
+ *
+ * Alur (dirombak 2026-08-19, lihat ResolvesExtraShiftOptions) — Extra Shift BUKAN Tukar Shift,
+ * cuma berpengaruh ke SATU karyawan: pilih karyawan -> pilih tanggal -> sistem tampilkan shift
+ * NORMAL karyawan itu di tanggal itu -> pilih shift tambahan dari daftar yang diizinkan
+ * `extra_shift_rules` (pasangan from/to per company). Selalu source=assigned/status=approved -
+ * jalur "requested" (pengajuan + approval) belum ada di manapun.
  *
  * Role/permission (Create:ExtraShiftAssignment, Shield) belum di-assign ke role manapun saat
  * fitur ini dibuat - user yang akan menyiapkan sendiri lewat /hak-akses. Tombol pembuka di
@@ -27,21 +30,20 @@ use Livewire\Component;
 class ExtraShiftRequestModal extends Component
 {
     use ResolvesShiftTeamMembers;
+    use ResolvesExtraShiftOptions;
 
     public bool $showModal = false;
 
     public ?string $user_id = null;
-    public ?string $covering_user_id = null;
-    public ?string $roster_id = null;
-    public ?string $shift_type_id = null;
     public ?string $date = null;
+    public ?string $shift_type_id = null;
     public ?string $reason = null;
 
     public function openModal(): void
     {
         abort_unless(Auth::user()->can('create', ExtraShiftAssignment::class), 403);
 
-        $this->reset(['user_id', 'covering_user_id', 'roster_id', 'shift_type_id', 'date', 'reason']);
+        $this->reset(['user_id', 'date', 'shift_type_id', 'reason']);
         $this->showModal = true;
     }
 
@@ -52,8 +54,8 @@ class ExtraShiftRequestModal extends Component
 
     /** Tim (lihat ResolvesShiftTeamMembers) + diri sendiri, yang beneran berjadwal shift - beda
      * dari TeamShiftScheduleCard (widget lihat-lihat, semua bawahan tampil apa adanya), di sini
-     * TETAP difilter hasShiftSchedule() karena yang dipilih harus punya roster nyata buat
-     * di-assign/di-cover, bukan sekadar "ada" di daftar tim. */
+     * TETAP difilter hasShiftSchedule() karena yang dipilih harus punya jadwal shift nyata biar
+     * ada basis shift normal buat aturan Extra Shift. */
     public function getEligibleEmployeesProperty()
     {
         $user = Auth::user();
@@ -68,45 +70,35 @@ class ExtraShiftRequestModal extends Component
 
     public function updatedUserId(): void
     {
-        $this->reset(['covering_user_id', 'roster_id', 'shift_type_id', 'date']);
+        $this->reset(['date', 'shift_type_id']);
     }
 
-    /** Karyawan yang shift-nya diambil - daftar sama dengan eligibleEmployees, minus yang sudah
-     * dipilih di atas (tidak masuk akal cover shift sendiri). */
-    public function getCoveringOptionsProperty()
+    public function updatedDate(): void
     {
-        return $this->eligibleEmployees->reject(fn ($emp) => $emp->id === $this->user_id)->values();
+        $this->shift_type_id = null;
     }
 
-    public function updatedCoveringUserId(): void
+    /** @return array{category: string, label: string}|null */
+    public function getNormalShiftProperty(): ?array
     {
-        $this->reset(['roster_id', 'shift_type_id', 'date']);
+        if (! $this->user_id || ! $this->date) {
+            return null;
+        }
+
+        $user = User::find($this->user_id);
+
+        return $user ? $this->resolveNormalShift($user, $this->date) : null;
     }
 
-    /** Roster REAL (tanggal + shift yang benar-benar dijadwalkan) milik karyawan yang di-cover,
-     * dari hari ini s/d roster yang sudah di-generate - sama pola ExtraShiftPage, memastikan
-     * shift yang diambil itu benar-benar ada di jadwal, bukan tanggal/jenis shift bebas. */
-    public function getRosterOptionsProperty()
+    public function getShiftTypeOptionsProperty()
     {
-        if (! $this->covering_user_id) {
+        if (! $this->user_id || ! $this->date) {
             return collect();
         }
 
-        return ScheduleShiftAssignment::where('user_id', $this->covering_user_id)
-            ->where('off_day', false)
-            ->whereNotNull('shift_type_id')
-            ->whereDate('date', '>=', now()->toDateString())
-            ->with('shiftType')
-            ->orderBy('date')
-            ->get();
-    }
+        $user = User::find($this->user_id);
 
-    public function updatedRosterId(): void
-    {
-        $roster = $this->rosterOptions->firstWhere('id', $this->roster_id);
-
-        $this->shift_type_id = $roster?->shift_type_id;
-        $this->date = $roster?->date?->toDateString();
+        return $user ? $this->resolveAllowedExtraShiftTypes($user, $this->date) : collect();
     }
 
     public function submit(): void
@@ -115,19 +107,19 @@ class ExtraShiftRequestModal extends Component
 
         $data = $this->validate([
             'user_id' => ['required', 'exists:users,id'],
-            'covering_user_id' => ['required', 'exists:users,id', 'different:user_id'],
-            'roster_id' => ['required', 'exists:schedule_shift_assignments,id'],
-            'shift_type_id' => ['required', 'exists:schedule_shift_types,id'],
             'date' => ['required', 'date'],
+            'shift_type_id' => ['required', 'exists:schedule_shift_types,id'],
             'reason' => ['nullable', 'string', 'max:500'],
-        ], [], ['roster_id' => 'shift yang diambil']);
+        ]);
 
         $user = User::findOrFail($data['user_id']);
+
+        $allowed = $this->resolveAllowedExtraShiftTypes($user, $data['date']);
+        abort_unless($allowed->contains('id', $data['shift_type_id']), 422, 'Shift yang dipilih tidak sesuai aturan Extra Shift untuk shift normal karyawan ini di tanggal itu.');
 
         ExtraShiftAssignment::create([
             'company_id' => $user->company_id,
             'user_id' => $data['user_id'],
-            'covering_user_id' => $data['covering_user_id'],
             'shift_type_id' => $data['shift_type_id'],
             'date' => $data['date'],
             'status' => 'approved',
@@ -139,7 +131,7 @@ class ExtraShiftRequestModal extends Component
         Notification::make()->title('Extra shift berhasil ditambahkan')->success()->send();
 
         $this->showModal = false;
-        $this->reset(['user_id', 'covering_user_id', 'roster_id', 'shift_type_id', 'date', 'reason']);
+        $this->reset(['user_id', 'date', 'shift_type_id', 'reason']);
     }
 
     public function render()

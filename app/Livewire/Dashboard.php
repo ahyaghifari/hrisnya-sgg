@@ -4,6 +4,7 @@ namespace App\Livewire;
 
 use App\Enum\CustomPermissionEnum;
 use App\Enum\LsmCourseStatus;
+use App\Enum\WidgetPermissionEnum;
 use App\Enum\Task\TaskStatus;
 use App\Livewire\Concerns\ResolvesDayScheduleSummary;
 use App\Livewire\Concerns\ResolvesTodayAttendanceStatus;
@@ -64,6 +65,15 @@ class Dashboard extends Component
     public function getCanTugasSayaProperty(): bool
     {
         return (bool) Auth::user()?->can(CustomPermissionEnum::TUGAS_SAYA->value);
+    }
+
+    /** Widget "Jadwal Shift Tim" (TeamShiftScheduleCard) - SEBELUMNYA otomatis tampil untuk
+     * siapa pun yang punya bawahan, diganti ke permission eksplisit (WidgetPermissionEnum,
+     * bukan CustomPermissionEnum - lihat docblock enum itu) 2026-08-19 supaya lebih mudah
+     * diatur siapa yang lihat, bukan implisit dari struktur organisasi. */
+    public function getCanJadwalShiftTimProperty(): bool
+    {
+        return (bool) Auth::user()?->can(WidgetPermissionEnum::JADWAL_SHIFT_TIM->value);
     }
 
     /** Widget "Jadwal Shift Saya" cuma buat karyawan yang beneran punya jadwal tipe Shift -

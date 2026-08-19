@@ -3,10 +3,13 @@
 namespace Tests\Feature;
 
 use App\Enum\CustomPermissionEnum;
+use App\Enum\WidgetPermissionEnum;
 use App\Filament\Resources\Roles\RoleResource;
 use App\Filament\Resources\Roles\Schemas\RoleForm;
 use App\Models\User;
+use App\Services\RoleAccess\PermissionTreeBuilder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
@@ -70,5 +73,29 @@ class RoleFormPermissionGroupingTest extends TestCase
             'lainnya_has_permissions',
             RoleForm::fieldKeyFor(CustomPermissionEnum::PELATIHAN_SAYA->value)
         );
+    }
+
+    /**
+     * WidgetPermissionEnum (2026-08-19, instruksi user) HARUS otomatis masuk 1 container baru
+     * "Dashboard Widget" di tree /hak-akses - generik dari ::cases(), bukan didaftar manual per
+     * case, supaya widget Dashboard baru ke depan langsung ke-grup tanpa sentuh RoleForm lagi.
+     */
+    public function test_widget_permissions_are_grouped_under_dashboard_widget_container(): void
+    {
+        $this->assertSame('DashboardWidget', RoleForm::customPermissionSubjectOverrides()[WidgetPermissionEnum::JADWAL_SHIFT_TIM->value]);
+        $this->assertSame('Dashboard Widget', RoleForm::subjectContainerOverrides()['DashboardWidget']);
+
+        Permission::firstOrCreate(['name' => WidgetPermissionEnum::JADWAL_SHIFT_TIM->value, 'guard_name' => 'web']);
+
+        $tree = PermissionTreeBuilder::build();
+        $dashboardWidgetContainer = collect($tree)->firstWhere('label', 'Dashboard Widget');
+
+        $this->assertNotNull($dashboardWidgetContainer, 'Container "Dashboard Widget" tidak ditemukan di tree.');
+
+        $leafIds = collect($dashboardWidgetContainer['children'])
+            ->flatMap(fn (array $subject) => collect($subject['children'])->pluck('id'))
+            ->all();
+
+        $this->assertContains(WidgetPermissionEnum::JADWAL_SHIFT_TIM->value, $leafIds);
     }
 }

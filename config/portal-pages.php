@@ -31,8 +31,8 @@ return [
         'guard' => null,
     ],
 
-    'data-diri' => [
-        'label' => 'Data Diri',
+    'profil-saya' => [
+        'label' => 'Profil Saya',
         'permission' => null,
         'guard' => null,
     ],

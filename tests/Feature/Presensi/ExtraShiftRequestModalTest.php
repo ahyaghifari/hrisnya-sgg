@@ -5,6 +5,7 @@ namespace Tests\Feature\Presensi;
 use App\Livewire\Presensi\ExtraShiftRequestModal;
 use App\Models\Master\Companies;
 use App\Models\Master\JobPositions;
+use App\Models\Shift\ExtraShiftRule;
 use App\Models\Shift\Schedule;
 use App\Models\Shift\ScheduleShiftAssignment;
 use App\Models\Shift\ScheduleShiftType;
@@ -47,11 +48,11 @@ class ExtraShiftRequestModalTest extends TestCase
         $company = Companies::create(['code' => 'ESM', 'name' => 'RS Extra Shift Modal Test', 'location' => 'Test', 'is_active' => true]);
 
         $schedule = Schedule::create(['company_id' => $company->id, 'name' => 'Jadwal Perawat Unit A', 'schedule_type' => 'shift']);
-        $pagi = ScheduleShiftType::create(['schedule_id' => $schedule->id, 'code' => 'PAGI', 'name' => 'Pagi', 'start_time' => '07:00:00', 'end_time' => '15:00:00', 'is_overnight' => false]);
+        $pagi = ScheduleShiftType::create(['schedule_id' => $schedule->id, 'code' => 'PAGI', 'name' => 'Pagi', 'shift_type' => 'pagi', 'start_time' => '07:00:00', 'end_time' => '15:00:00', 'is_overnight' => false]);
 
         // Schedule unit LAIN - dipakai outsider, harus tetap tidak ikut kehitung.
         $otherSchedule = Schedule::create(['company_id' => $company->id, 'name' => 'Jadwal Perawat Unit B', 'schedule_type' => 'shift']);
-        $pagiUnitB = ScheduleShiftType::create(['schedule_id' => $otherSchedule->id, 'code' => 'PAGI', 'name' => 'Pagi', 'start_time' => '07:00:00', 'end_time' => '15:00:00', 'is_overnight' => false]);
+        $pagiUnitB = ScheduleShiftType::create(['schedule_id' => $otherSchedule->id, 'code' => 'PAGI', 'name' => 'Pagi', 'shift_type' => 'pagi', 'start_time' => '07:00:00', 'end_time' => '15:00:00', 'is_overnight' => false]);
 
         $kepalaPosition = JobPositions::create(['company_id' => $company->id, 'name' => 'Kepala Ruangan', 'planned_manpower' => 1]);
         $staffPosition = JobPositions::create(['company_id' => $company->id, 'name' => 'Perawat', 'planned_manpower' => 3, 'parent_id' => $kepalaPosition->id]);
@@ -109,25 +110,66 @@ class ExtraShiftRequestModalTest extends TestCase
 
     public function test_submit_creates_approved_extra_shift_assignment(): void
     {
-        [$kepala, $bawahan1, $bawahan2] = $this->makeScenario();
+        [$kepala, , $bawahan2, , , , $pagi] = $this->makeScenario();
 
-        $roster = ScheduleShiftAssignment::where('user_id', $bawahan1->id)->first();
+        $siang = ScheduleShiftType::create(['schedule_id' => $pagi->schedule_id, 'code' => 'SIANG', 'name' => 'Siang', 'shift_type' => 'siang', 'start_time' => '14:00:00', 'end_time' => '22:00:00', 'is_overnight' => false]);
+        ExtraShiftRule::create(['company_id' => $bawahan2->company_id, 'from_shift_type' => 'pagi', 'to_shift_type' => 'siang']);
+
+        // ->value('date') balik objek Carbon (kolom di-cast 'date' di model) - Livewire
+        // ->set() butuh string biasa buat properti ?string $date, bukan objek.
+        $date = ScheduleShiftAssignment::where('user_id', $bawahan2->id)->first()->date->toDateString();
 
         Livewire::actingAs($kepala)->test(ExtraShiftRequestModal::class)
             ->call('openModal')
             ->set('user_id', $bawahan2->id)
-            ->set('covering_user_id', $bawahan1->id)
-            ->set('roster_id', $roster->id)
-            ->call('submit');
+            ->set('date', $date)
+            ->set('shift_type_id', $siang->id)
+            ->call('submit')
+            ->assertHasNoErrors();
 
         $this->assertDatabaseHas('extra_shift_assignments', [
             'user_id' => $bawahan2->id,
-            'covering_user_id' => $bawahan1->id,
-            'shift_type_id' => $roster->shift_type_id,
+            'shift_type_id' => $siang->id,
             'status' => 'approved',
             'source' => 'assigned',
             'created_by' => $kepala->id,
         ]);
+    }
+
+    /** Extra Shift BUKAN Tukar Shift - shift tambahan yang dipilih harus salah satu yang
+     *  diizinkan extra_shift_rules dari shift NORMAL karyawan itu di tanggal itu, bukan bebas
+     *  pilih shift apa pun. */
+    public function test_submit_rejects_shift_type_not_allowed_by_rule(): void
+    {
+        [$kepala, , $bawahan2, , , , $pagi] = $this->makeScenario();
+
+        // Malam sengaja TIDAK dibuatkan ExtraShiftRule dari pagi - harus ditolak.
+        $malam = ScheduleShiftType::create(['schedule_id' => $pagi->schedule_id, 'code' => 'MALAM', 'name' => 'Malam', 'shift_type' => 'malam', 'start_time' => '22:00:00', 'end_time' => '07:00:00', 'is_overnight' => true]);
+
+        $date = ScheduleShiftAssignment::where('user_id', $bawahan2->id)->first()->date->toDateString();
+
+        Livewire::actingAs($kepala)->test(ExtraShiftRequestModal::class)
+            ->call('openModal')
+            ->set('user_id', $bawahan2->id)
+            ->set('date', $date)
+            ->set('shift_type_id', $malam->id)
+            ->call('submit')
+            ->assertStatus(422);
+
+        $this->assertDatabaseCount('extra_shift_assignments', 0);
+    }
+
+    public function test_normal_shift_and_options_are_empty_when_employee_has_no_schedule_on_date(): void
+    {
+        [$kepala, , $bawahan2] = $this->makeScenario();
+
+        $component = Livewire::actingAs($kepala)->test(ExtraShiftRequestModal::class)
+            ->call('openModal')
+            ->set('user_id', $bawahan2->id)
+            ->set('date', now()->addDays(30)->toDateString()); // tanggal tanpa roster sama sekali
+
+        $this->assertNull($component->get('normalShift'));
+        $this->assertCount(0, $component->get('shiftTypeOptions'));
     }
 
     public function test_forbidden_without_create_permission(): void

@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Roles\Schemas;
 
 use App\Enum\CustomPermissionEnum;
+use App\Enum\WidgetPermissionEnum;
 use App\Helpers\PermissionHelper;
 use App\Models\Master\Companies;
 use Filament\Facades\Filament;
@@ -171,6 +172,12 @@ class RoleForm
             // menu admin sidebar sama sekali.
             'Coaching' => 'Pembinaan Karyawan',
             'Counseling' => 'Pembinaan Karyawan',
+            // Semua WidgetPermissionEnum (2026-08-19, instruksi user) numpuk di 1 subject
+            // 'DashboardWidget' -> container "Dashboard Widget" - lihat
+            // customPermissionSubjectOverrides() di bawah, subject-nya digenerate otomatis dari
+            // WidgetPermissionEnum::cases() supaya widget BARU ke depan otomatis masuk grup ini
+            // tanpa perlu baris override manual lagi di sini.
+            'DashboardWidget' => 'Dashboard Widget',
         ];
     }
 
@@ -190,6 +197,11 @@ class RoleForm
         return [
             CustomPermissionEnum::JADWAL_SHIFT_SAYA->value => 'ShiftSwapRequests',
             CustomPermissionEnum::TUKAR_SHIFT_SAYA->value => 'ShiftSwapRequests',
+            // Semua permission WidgetPermissionEnum otomatis ikut subject 'DashboardWidget'
+            // (container "Dashboard Widget", lihat subjectContainerOverrides()) - generik dari
+            // ::cases(), BUKAN didaftar satu-satu, supaya widget Dashboard baru ke depan
+            // (instruksi user: bakal terus nambah) langsung ke-grup tanpa sentuh method ini lagi.
+            ...collect(WidgetPermissionEnum::cases())->mapWithKeys(fn (WidgetPermissionEnum $p) => [$p->value => 'DashboardWidget'])->all(),
         ];
     }
 
@@ -351,6 +363,10 @@ class RoleForm
                         $labelFor = function (string $name) use ($actionLabels): string {
                             if ($custom = CustomPermissionEnum::tryFrom($name)) {
                                 return $custom->label();
+                            }
+
+                            if ($widget = WidgetPermissionEnum::tryFrom($name)) {
+                                return $widget->label();
                             }
 
                             [$action, $subject] = array_pad(explode(':', $name, 2), 2, null);

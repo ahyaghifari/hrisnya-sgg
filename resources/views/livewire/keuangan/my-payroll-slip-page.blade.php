@@ -15,7 +15,7 @@
     </style>
 
     <div style="display:flex;flex-direction:column;gap:16px;">
-        <a href="{{ route('data-diri') }}" wire:navigate style="font-size:12.5px;color:var(--text-muted);text-decoration:none;"><i class="fa-solid fa-arrow-left"></i> Kembali ke Profil Saya</a>
+        <a href="{{ route('profil-saya') }}" wire:navigate style="font-size:12.5px;color:var(--text-muted);text-decoration:none;"><i class="fa-solid fa-arrow-left"></i> Kembali ke Profil Saya</a>
 
         <div style="background:var(--surface);border-radius:12px;box-shadow:var(--shadow-card);padding:18px;max-width:760px;">
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;">
@@ -56,7 +56,7 @@
             </div>
 
             <div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap;">
-                <a href="{{ route('data-diri.penggajian.preview', $payroll->id) }}" target="_blank" class="btn-ghost" style="padding:6px 12px;font-size:11px;">
+                <a href="{{ route('profil-saya.penggajian.preview', $payroll->id) }}" target="_blank" class="btn-ghost" style="padding:6px 12px;font-size:11px;">
                     <i class="fa-solid fa-eye"></i> Preview Slip Gaji
                 </a>
                 <button type="button" wire:click="downloadSlip" class="btn-ghost" style="padding:6px 12px;font-size:11px;">

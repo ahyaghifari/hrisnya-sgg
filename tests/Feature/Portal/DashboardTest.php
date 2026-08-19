@@ -4,6 +4,7 @@ namespace Tests\Feature\Portal;
 
 use App\Enum\CustomPermissionEnum;
 use App\Enum\LsmCourseStatus;
+use App\Enum\WidgetPermissionEnum;
 use App\Models\Attendance\AttendanceRequestLeaveDetails;
 use App\Models\Attendance\AttendanceRequests;
 use App\Models\Attendance\LeaveUserBalances;
@@ -11,12 +12,14 @@ use App\Models\LMS\LmsCourses;
 use App\Models\LMS\LmsCourseUsers;
 use App\Models\Master\Attendance\LeaveTypes;
 use App\Models\Master\Companies;
+use App\Models\Master\JobPositions;
 use App\Models\Shift\Schedule;
 use App\Models\Shift\ScheduleAssignment;
 use App\Models\Shift\ScheduleFixedDay;
 use App\Models\Shift\ScheduleShiftAssignment;
 use App\Models\Shift\ScheduleShiftType;
 use App\Models\User;
+use App\Models\User\UserJobPositions;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
@@ -30,7 +33,7 @@ class DashboardTest extends TestCase
     // permission ini (lihat App\Livewire\Dashboard::getCanPengajuanAbsensiProperty()/
     // getCanPelatihanSayaProperty()) - user factory mentah tidak otomatis punya permission apa
     // pun, jadi test yang mengasumsikan card itu tampil harus grant eksplisit di sini.
-    private function grantPermission(User $user, CustomPermissionEnum $permission): void
+    private function grantPermission(User $user, CustomPermissionEnum|WidgetPermissionEnum $permission): void
     {
         Permission::firstOrCreate(['name' => $permission->value, 'guard_name' => 'web']);
         $role = Role::firstOrCreate(['name' => 'Dashboard Test ' . $permission->value, 'guard_name' => 'web']);
@@ -119,6 +122,42 @@ class DashboardTest extends TestCase
         $response->assertOk();
         $response->assertDontSee('Pelatihan Saya');
         $response->assertSee('no-pelatihan', false);
+    }
+
+    /** Widget "Jadwal Shift Tim" (TeamShiftScheduleCard) digerbangi WidgetPermissionEnum
+     *  (2026-08-19) - lihat Dashboard::getCanJadwalShiftTimProperty(). */
+    public function test_jadwal_shift_tim_widget_hidden_without_permission(): void
+    {
+        $user = User::factory()->create();
+
+        $response = $this->actingAs($user)->get('/');
+
+        $response->assertOk();
+        $response->assertDontSee('Jadwal Shift Tim');
+    }
+
+    public function test_jadwal_shift_tim_widget_visible_with_permission(): void
+    {
+        // Widget-nya sendiri (lihat team-shift-schedule-card.blade.php) MEMBUNGKUS SELURUH
+        // isinya (termasuk judul "Jadwal Shift Tim") dalam `@if ($this->teamMembers->isNotEmpty())`
+        // - user tanpa bawahan sama sekali tidak akan pernah melihat judulnya walau permission-nya
+        // sudah di-grant, jadi butuh minimal 1 bawahan di sini supaya assertion ini valid.
+        $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
+        $managerPosition = JobPositions::create(['company_id' => $company->id, 'name' => 'Manager', 'planned_manpower' => 1]);
+        $staffPosition = JobPositions::create(['company_id' => $company->id, 'name' => 'Staff', 'planned_manpower' => 1, 'parent_id' => $managerPosition->id]);
+
+        $user = User::factory()->create(['company_id' => $company->id]);
+        UserJobPositions::create(['user_id' => $user->id, 'job_position_id' => $managerPosition->id, 'start_date' => now()->subYear(), 'status' => 'active']);
+
+        $staff = User::factory()->create(['company_id' => $company->id]);
+        UserJobPositions::create(['user_id' => $staff->id, 'job_position_id' => $staffPosition->id, 'start_date' => now()->subYear(), 'status' => 'active']);
+
+        $this->grantPermission($user, WidgetPermissionEnum::JADWAL_SHIFT_TIM);
+
+        $response = $this->actingAs($user)->get('/');
+
+        $response->assertOk();
+        $response->assertSee('Jadwal Shift Tim');
     }
 
     public function test_admin_panel_link_visible_for_admin_role(): void

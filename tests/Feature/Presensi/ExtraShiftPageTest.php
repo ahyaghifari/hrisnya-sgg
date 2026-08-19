@@ -6,6 +6,7 @@ use App\Enum\CustomPermissionEnum;
 use App\Livewire\Presensi\ExtraShiftPage;
 use App\Models\Master\Companies;
 use App\Models\Shift\ExtraShiftAssignment;
+use App\Models\Shift\ExtraShiftRule;
 use App\Models\Shift\Schedule;
 use App\Models\Shift\ScheduleAssignment;
 use App\Models\Shift\ScheduleShiftAssignment;
@@ -46,6 +47,7 @@ class ExtraShiftPageTest extends TestCase
             'schedule_id' => $schedule->id,
             'code' => 'PAGI',
             'name' => 'Pagi',
+            'shift_type' => 'pagi',
             'start_time' => '07:00',
             'end_time' => '14:00',
         ]);
@@ -53,6 +55,7 @@ class ExtraShiftPageTest extends TestCase
             'schedule_id' => $schedule->id,
             'code' => 'SIANG',
             'name' => 'Siang',
+            'shift_type' => 'siang',
             'start_time' => '14:00',
             'end_time' => '21:00',
         ]);
@@ -89,44 +92,67 @@ class ExtraShiftPageTest extends TestCase
         Livewire::test(ExtraShiftPage::class)->assertForbidden();
     }
 
-    public function test_roster_options_are_scoped_to_covering_employees_future_shifts(): void
+    public function test_shift_type_options_are_scoped_to_allowed_rules_and_same_schedule(): void
     {
         $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
         $admin = $this->actingAsPengelola($company->id);
-        ['employee' => $employee] = $this->makeShiftEmployee($company);
-        ['pagi' => $pagi, 'siang' => $siang, 'employee' => $colleague] = $this->makeShiftEmployee($company);
+        ['pagi' => $pagi, 'siang' => $siang, 'employee' => $employee] = $this->makeShiftEmployee($company);
+        // Schedule LAIN - siang-nya punya id beda, tidak boleh ikut muncul di opsi employee.
+        ['siang' => $siangOtherSchedule] = $this->makeShiftEmployee($company);
 
-        $pagiRoster = $this->seedRoster($company, $colleague, $pagi, now()->addDay()->toDateString());
-        $siangRoster = $this->seedRoster($company, $colleague, $siang, now()->addDays(2)->toDateString());
-        // Tidak boleh muncul: sudah lewat, dan hari libur.
-        $this->seedRoster($company, $colleague, $pagi, now()->subDay()->toDateString());
-        $this->seedRoster($company, $colleague, $pagi, now()->addDays(3)->toDateString(), offDay: true);
+        $date = now()->addDay()->toDateString();
+        $this->seedRoster($company, $employee, $pagi, $date);
+
+        ExtraShiftRule::create(['company_id' => $company->id, 'from_shift_type' => 'pagi', 'to_shift_type' => 'siang']);
 
         $this->actingAs($admin);
 
         $component = Livewire::test(ExtraShiftPage::class)
             ->set('user_id', $employee->id)
-            ->set('covering_user_id', $colleague->id);
+            ->set('date', $date);
 
-        $rosterIds = $component->get('rosterOptions')->pluck('id')->all();
+        $optionIds = $component->get('shiftTypeOptions')->pluck('id')->all();
 
-        $this->assertEqualsCanonicalizing([$pagiRoster->id, $siangRoster->id], $rosterIds);
+        $this->assertSame([$siang->id], $optionIds);
+        $this->assertNotContains($siangOtherSchedule->id, $optionIds);
+    }
+
+    public function test_shift_type_options_empty_when_employee_off_day_on_date(): void
+    {
+        $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
+        $admin = $this->actingAsPengelola($company->id);
+        ['pagi' => $pagi, 'employee' => $employee] = $this->makeShiftEmployee($company);
+
+        $date = now()->addDay()->toDateString();
+        $this->seedRoster($company, $employee, $pagi, $date, offDay: true);
+        ExtraShiftRule::create(['company_id' => $company->id, 'from_shift_type' => 'pagi', 'to_shift_type' => 'siang']);
+
+        $this->actingAs($admin);
+
+        $component = Livewire::test(ExtraShiftPage::class)
+            ->set('user_id', $employee->id)
+            ->set('date', $date);
+
+        $this->assertNull($component->get('normalShift'));
+        $this->assertCount(0, $component->get('shiftTypeOptions'));
     }
 
     public function test_assigning_extra_shift_creates_approved_row_immediately(): void
     {
         $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
         $admin = $this->actingAsPengelola($company->id);
-        ['employee' => $employee] = $this->makeShiftEmployee($company);
-        ['siang' => $siang, 'employee' => $colleague] = $this->makeShiftEmployee($company);
-        $roster = $this->seedRoster($company, $colleague, $siang, now()->addDay()->toDateString());
+        ['pagi' => $pagi, 'siang' => $siang, 'employee' => $employee] = $this->makeShiftEmployee($company);
+
+        $date = now()->addDay()->toDateString();
+        $this->seedRoster($company, $employee, $pagi, $date);
+        ExtraShiftRule::create(['company_id' => $company->id, 'from_shift_type' => 'pagi', 'to_shift_type' => 'siang']);
 
         $this->actingAs($admin);
 
         Livewire::test(ExtraShiftPage::class)
             ->set('user_id', $employee->id)
-            ->set('covering_user_id', $colleague->id)
-            ->set('roster_id', $roster->id)
+            ->set('date', $date)
+            ->set('shift_type_id', $siang->id)
             ->set('reason', 'Rekan shift siang izin')
             ->call('assign')
             ->assertHasNoErrors();
@@ -136,9 +162,8 @@ class ExtraShiftPageTest extends TestCase
         $this->assertNotNull($row);
         $this->assertSame('approved', $row->status);
         $this->assertSame('assigned', $row->source);
-        $this->assertSame($colleague->id, $row->covering_user_id);
         $this->assertSame($siang->id, $row->shift_type_id);
-        $this->assertSame($roster->date->toDateString(), $row->date);
+        $this->assertSame($date, $row->date->toDateString());
         $this->assertSame($admin->id, $row->created_by);
     }
 

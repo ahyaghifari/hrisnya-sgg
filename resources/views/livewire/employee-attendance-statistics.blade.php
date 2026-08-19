@@ -770,7 +770,7 @@
         @else
             <div class="pwa-list">
                 @foreach ($payrollHistory as $payroll)
-                    <a href="{{ route('data-diri.penggajian.show', $payroll->id) }}" wire:navigate class="pwa-list-row" style="text-decoration:none;">
+                    <a href="{{ route('profil-saya.penggajian.show', $payroll->id) }}" wire:navigate class="pwa-list-row" style="text-decoration:none;">
                         <div class="pwa-tile-icon warn"><i class="fa-solid fa-money-check-dollar"></i></div>
                         <div style="flex:1;min-width:0;">
                             <p style="font-size:13px;font-weight:600;color:var(--text-heading);">

@@ -27,37 +27,37 @@
 
                     @if ($user_id)
                         <div>
-                            <label class="form-label">2. Shift Siapa yang Diambil</label>
-                            @if ($this->coveringOptions->isEmpty())
-                                <p style="font-size:12px;color:var(--text-muted);">Tidak ada rekan lain di tim ini yang berjadwal shift.</p>
-                            @else
-                                <select wire:model.live="covering_user_id" class="form-input">
-                                    <option value="">Pilih karyawan...</option>
-                                    @foreach ($this->coveringOptions as $emp)
-                                        <option value="{{ $emp->id }}">{{ $emp->name }} ({{ $emp->nip }})</option>
-                                    @endforeach
-                                </select>
-                            @endif
-                            @error('covering_user_id') <p style="color:var(--danger-text);font-size:11.5px;margin-top:4px;">{{ $message }}</p> @enderror
+                            <label class="form-label">2. Tanggal</label>
+                            <input type="date" wire:model.live="date" class="form-input">
+                            @error('date') <p style="color:var(--danger-text);font-size:11.5px;margin-top:4px;">{{ $message }}</p> @enderror
                         </div>
                     @endif
 
-                    @if ($covering_user_id)
+                    @if ($user_id && $date)
                         <div>
-                            <label class="form-label">3. Shift yang Diambil</label>
-                            @if ($this->rosterOptions->isEmpty())
-                                <p style="font-size:12px;color:var(--text-muted);">Karyawan ini tidak punya jadwal shift ke depan.</p>
+                            <label class="form-label">Shift Normal di Tanggal Ini</label>
+                            @if ($this->normalShift)
+                                <p style="font-size:12.5px;margin:0;padding:8px 10px;background:var(--surface-soft,#f8fafc);border-radius:8px;">{{ $this->normalShift['label'] }}</p>
                             @else
-                                <select wire:model.live="roster_id" class="form-input">
+                                <p style="font-size:12px;color:var(--danger-text);margin:0;">Karyawan ini tidak punya jadwal shift (atau libur) di tanggal ini — extra shift butuh basis shift normal, pilih tanggal lain.</p>
+                            @endif
+                        </div>
+                    @endif
+
+                    @if ($this->normalShift)
+                        <div>
+                            <label class="form-label">3. Shift Tambahan (Extra Shift)</label>
+                            @if ($this->shiftTypeOptions->isEmpty())
+                                <p style="font-size:12px;color:var(--text-muted);">Belum ada aturan Extra Shift dari "{{ $this->normalShift['label'] }}" untuk company ini — atur dulu di halaman Extra Shift (Aturan).</p>
+                            @else
+                                <select wire:model.live="shift_type_id" class="form-input">
                                     <option value="">Pilih shift...</option>
-                                    @foreach ($this->rosterOptions as $roster)
-                                        <option value="{{ $roster->id }}">
-                                            {{ $roster->date->translatedFormat('d M Y (D)') }} — {{ $roster->shiftType?->name }}
-                                        </option>
+                                    @foreach ($this->shiftTypeOptions as $type)
+                                        <option value="{{ $type->id }}">{{ $type->name }} ({{ \Illuminate\Support\Str::substr($type->start_time, 0, 5) }}–{{ \Illuminate\Support\Str::substr($type->end_time, 0, 5) }})</option>
                                     @endforeach
                                 </select>
                             @endif
-                            @error('roster_id') <p style="color:var(--danger-text);font-size:11.5px;margin-top:4px;">{{ $message }}</p> @enderror
+                            @error('shift_type_id') <p style="color:var(--danger-text);font-size:11.5px;margin-top:4px;">{{ $message }}</p> @enderror
                         </div>
                     @endif
 

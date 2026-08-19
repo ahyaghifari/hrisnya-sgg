@@ -27,10 +27,13 @@ use Livewire\Component;
  * atasannya justru perlu tahu itu). Yang belum punya jadwal apa pun tampil dengan status
  * "Belum ada jadwal" (lihat resolveDaySchedule() state 'none'), bukan disembunyikan.
  *
- * Read-only, tidak digerbangi permission khusus (beda dari ExtraShiftRequestModal yang butuh
- * Create:ExtraShiftAssignment) - siapa pun yang punya bawahan otomatis lihat widget ini, sama
- * seperti kartu "Butuh Persetujuan Anda" yang juga tidak butuh permission terpisah selain "punya
- * bawahan/jadi approver".
+ * Read-only. Kemunculannya digerbangi permission `WidgetPermissionEnum::JADWAL_SHIFT_TIM`
+ * (2026-08-19, sebelumnya otomatis tampil untuk siapa pun yang punya bawahan tanpa permission
+ * terpisah - diganti eksplisit atas instruksi user, biar lebih gampang diatur siapa yang lihat)
+ * - gate-nya ada di `Dashboard::getCanJadwalShiftTimProperty()` + `@if` yang membungkus tag
+ * `<livewire:presensi.team-shift-schedule-card>` di home-cards.blade.php, BUKAN di class ini
+ * sendiri (widget ini tidak punya route/entry point lain yang bisa diakses langsung selain
+ * lewat include itu, jadi tidak perlu abort_unless ulang di sini).
  */
 class TeamShiftScheduleCard extends Component
 {

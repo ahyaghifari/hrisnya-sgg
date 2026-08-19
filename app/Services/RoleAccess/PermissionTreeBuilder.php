@@ -67,6 +67,10 @@ class PermissionTreeBuilder
                 return $custom->label();
             }
 
+            if ($widget = \App\Enum\WidgetPermissionEnum::tryFrom($name)) {
+                return $widget->label();
+            }
+
             [$action, $subject] = array_pad(explode(':', $name, 2), 2, null);
 
             if ($subject === null) {

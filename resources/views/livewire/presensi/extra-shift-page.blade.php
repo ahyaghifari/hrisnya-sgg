@@ -21,8 +21,7 @@
                     <tr>
                         <th>Tanggal</th>
                         <th>Karyawan</th>
-                        <th>Shift</th>
-                        <th>Menggantikan</th>
+                        <th>Shift Tambahan</th>
                         <th>Alasan</th>
                         <th>Ditugaskan Oleh</th>
                         @if ($this->canDelete)
@@ -36,7 +35,6 @@
                             <td>{{ \Carbon\Carbon::parse($row->date)->translatedFormat('d M Y') }}</td>
                             <td>{{ $row->user?->name }}</td>
                             <td>{{ $row->shiftType?->name }}</td>
-                            <td>{{ $row->coveringUser?->name ?? '-' }}</td>
                             <td>{{ $row->reason ?: '-' }}</td>
                             <td>{{ $row->createdBy?->name }}</td>
                             @if ($this->canDelete)
@@ -49,7 +47,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="7" class="text-center text-sm text-slate-500 py-6">Belum ada extra shift tercatat.</td>
+                            <td colspan="6" class="text-center text-sm text-slate-500 py-6">Belum ada extra shift tercatat.</td>
                         </tr>
                     @endforelse
                 </tbody>
@@ -79,29 +77,35 @@
                     </div>
 
                     <div>
-                        <label class="form-label">Karyawan yang Diambil Shiftnya</label>
-                        <select class="form-input" wire:model.live="covering_user_id" @disabled(!$user_id)>
-                            <option value="">{{ $user_id ? '-- Pilih --' : 'Pilih karyawan dulu' }}</option>
-                            @foreach ($this->coveringOptions as $emp)
-                                <option value="{{ $emp->id }}">{{ $emp->name }}</option>
-                            @endforeach
-                        </select>
-                        @error('covering_user_id') <p style="color:var(--danger-text);font-size:11px;margin-top:4px;">{{ $message }}</p> @enderror
+                        <label class="form-label">Tanggal</label>
+                        <input type="date" class="form-input" wire:model.live="date" @disabled(!$user_id)>
+                        @error('date') <p style="color:var(--danger-text);font-size:11px;margin-top:4px;">{{ $message }}</p> @enderror
                     </div>
 
+                    @if ($user_id && $date)
+                        <div>
+                            <label class="form-label">Shift Normal di Tanggal Ini</label>
+                            @if ($this->normalShift)
+                                <p style="font-size:12.5px;margin:0;padding:8px 10px;background:var(--surface-soft,#f8fafc);border-radius:8px;">{{ $this->normalShift['label'] }}</p>
+                            @else
+                                <p style="font-size:12px;color:var(--danger-text);margin:0;">Karyawan ini tidak punya jadwal shift (atau libur) di tanggal ini — extra shift butuh basis shift normal, pilih tanggal lain.</p>
+                            @endif
+                        </div>
+                    @endif
+
                     <div>
-                        <label class="form-label">Tanggal & Shift yang Diambil</label>
-                        <select class="form-input" wire:model.live="roster_id" @disabled(!$covering_user_id)>
-                            <option value="">{{ $covering_user_id ? '-- Pilih --' : 'Pilih karyawan yang diambil shiftnya dulu' }}</option>
-                            @forelse ($this->rosterOptions as $roster)
-                                <option value="{{ $roster->id }}">{{ \Carbon\Carbon::parse($roster->date)->translatedFormat('d M Y') }} - {{ $roster->shiftType?->name }} ({{ \Illuminate\Support\Str::substr($roster->shiftType?->start_time, 0, 5) }}-{{ \Illuminate\Support\Str::substr($roster->shiftType?->end_time, 0, 5) }})</option>
+                        <label class="form-label">Shift Tambahan (Extra Shift)</label>
+                        <select class="form-input" wire:model.live="shift_type_id" @disabled(!$this->normalShift)>
+                            <option value="">{{ $this->normalShift ? '-- Pilih --' : 'Pilih karyawan & tanggal dulu' }}</option>
+                            @forelse ($this->shiftTypeOptions as $type)
+                                <option value="{{ $type->id }}">{{ $type->name }} ({{ \Illuminate\Support\Str::substr($type->start_time, 0, 5) }}-{{ \Illuminate\Support\Str::substr($type->end_time, 0, 5) }})</option>
                             @empty
-                                @if ($covering_user_id)
-                                    <option value="" disabled>Belum ada roster shift ke depan untuk karyawan ini</option>
+                                @if ($this->normalShift)
+                                    <option value="" disabled>Belum ada aturan Extra Shift dari "{{ $this->normalShift['label'] }}" untuk company ini</option>
                                 @endif
                             @endforelse
                         </select>
-                        @error('roster_id') <p style="color:var(--danger-text);font-size:11px;margin-top:4px;">{{ $message }}</p> @enderror
+                        @error('shift_type_id') <p style="color:var(--danger-text);font-size:11px;margin-top:4px;">{{ $message }}</p> @enderror
                     </div>
 
                     <div>

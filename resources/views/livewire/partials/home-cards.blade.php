@@ -34,7 +34,7 @@
             </div>
 
             <div class="welcome-actions">
-                <a href="{{ route('data-diri') }}" wire:navigate class="data-diri-btn gold">
+                <a href="{{ route('profil-saya') }}" wire:navigate class="data-diri-btn gold">
                     <i class="fa-solid fa-id-card"></i> Profil Saya
                 </a>
                 @if (auth()->user()->hasRole(['Admin', 'Super Admin']))
@@ -275,7 +275,9 @@
     </div>
     @endif
 
-    <livewire:presensi.team-shift-schedule-card :key="'team-shift-schedule'" />
+    @if ($this->canJadwalShiftTim)
+        <livewire:presensi.team-shift-schedule-card :key="'team-shift-schedule'" />
+    @endif
 
     <div class="pwa-list" style="grid-column:1/-1;">
         <a href="{{ route('organization-structure') }}" wire:navigate class="pwa-list-row" style="text-decoration:none;">

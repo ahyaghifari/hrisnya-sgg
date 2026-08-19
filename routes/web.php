@@ -129,20 +129,25 @@ Route::middleware(['auth', 'portal.access'])->group(function () {
     Route::delete('/push/subscribe', [PushSubscriptionController::class, 'destroy'])
         ->name('push.unsubscribe');
 
-    Route::get('/data-diri', EmployeeAttendanceStatistics::class)
-        ->name('data-diri');
+    Route::get('/profil-saya', EmployeeAttendanceStatistics::class)
+        ->name('profil-saya');
 
-    Route::get('/data-diri/penggajian/{payroll}', \App\Livewire\Keuangan\MyPayrollSlipPage::class)
-        ->name('data-diri.penggajian.show');
+    Route::get('/profil-saya/penggajian/{payroll}', \App\Livewire\Keuangan\MyPayrollSlipPage::class)
+        ->name('profil-saya.penggajian.show');
 
-    Route::get('/data-diri/penggajian/{payroll}/preview', function (\App\Models\Payroll\Payroll $payroll) {
+    Route::get('/profil-saya/penggajian/{payroll}/preview', function (\App\Models\Payroll\Payroll $payroll) {
         abort_unless(
             $payroll->user_id === \Illuminate\Support\Facades\Auth::id() && $payroll->is_paid,
             403
         );
 
         return app(\App\Services\Payroll\PayrollService::class)->preview($payroll);
-    })->name('data-diri.penggajian.preview');
+    })->name('profil-saya.penggajian.preview');
+
+    // Path lama /data-diri masih bisa dibookmark orang - redirect permanen ke path baru,
+    // bukan dihapus begitu saja (rename 2026-08-19, label sudah lama "Profil Saya" di nav,
+    // URL-nya baru sekarang disamakan).
+    Route::redirect('/data-diri', '/profil-saya', 301);
 
     Route::get('/struktur-organisasi', OrganizationStructure::class)
         ->name('organization-structure');

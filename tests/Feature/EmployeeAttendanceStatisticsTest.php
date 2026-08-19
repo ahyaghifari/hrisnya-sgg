@@ -256,19 +256,31 @@ class EmployeeAttendanceStatisticsTest extends TestCase
     /**
      * Regresi: Livewire::test(EmployeeAttendanceStatistics::class) TANPA param 'record' balik
      * 403 (quirk khusus test harness Livewire, sudah ditemukan sebelumnya di komponen lain
-     * sesi ini) — tapi rute HTTP /data-diri yang beneran (tanpa segment {record}) harus tetap
+     * sesi ini) — tapi rute HTTP /profil-saya yang beneran (tanpa segment {record}) harus tetap
      * jalan normal di request asli, karena mount() dipanggil tanpa argumen sama sekali, bukan
      * lewat resolusi implicit-binding yang bikin quirk itu muncul di test harness.
      */
-    public function test_data_diri_route_loads_via_real_http_request(): void
+    public function test_profil_saya_route_loads_via_real_http_request(): void
     {
         $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
         $user = User::factory()->create(['company_id' => $company->id]);
 
         $this->actingAs($user)
-            ->get(route('data-diri'))
+            ->get(route('profil-saya'))
             ->assertOk()
             ->assertSee('Profil Saya');
+    }
+
+    /** Path lama /data-diri (sebelum rename 2026-08-19) tetap bisa dibuka - redirect 301,
+     *  bukan 404, biar bookmark/notifikasi lama tidak mati. */
+    public function test_legacy_data_diri_path_redirects_to_profil_saya(): void
+    {
+        $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
+        $user = User::factory()->create(['company_id' => $company->id]);
+
+        $this->actingAs($user)
+            ->get('/data-diri')
+            ->assertRedirect('/profil-saya');
     }
 
     public function test_payroll_tab_shows_only_paid_history_for_self(): void
@@ -286,7 +298,7 @@ class EmployeeAttendanceStatisticsTest extends TestCase
         Livewire::test(EmployeeAttendanceStatistics::class, ['record' => $user])
             ->assertSee('Penggajian')
             ->assertSee('Rp4.500.000')
-            ->assertSee(route('data-diri.penggajian.show', $paid->id), false);
+            ->assertSee(route('profil-saya.penggajian.show', $paid->id), false);
     }
 
     public function test_payroll_tab_hidden_when_viewing_subordinate(): void
