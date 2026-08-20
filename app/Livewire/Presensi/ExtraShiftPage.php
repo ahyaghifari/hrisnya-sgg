@@ -118,6 +118,19 @@ class ExtraShiftPage extends Component
         return $user ? $this->resolveAllowedExtraShiftTypes($user, $this->date) : collect();
     }
 
+    /** Beda pesan dari "belum ada aturan" - karyawan ini SUDAH punya extra shift lain di
+     * tanggal itu, bukan soal rule-nya kosong. */
+    public function getAlreadyHasExtraShiftProperty(): bool
+    {
+        if (! $this->user_id || ! $this->date) {
+            return false;
+        }
+
+        $user = User::find($this->user_id);
+
+        return $user ? $this->hasExtraShiftOnDate($user, $this->date) : false;
+    }
+
     public function getExtraShiftsProperty()
     {
         return ExtraShiftAssignment::query()

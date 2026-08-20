@@ -96,8 +96,24 @@ class ShiftSwapRequestDetailTest extends TestCase
             ->assertOk();
     }
 
-    public function test_approver_approves_and_schedules_are_swapped(): void
+    /** Rekan (target) sekarang jadi approver PERTAMA sungguhan (2026-08-20) - approver master
+     * flow belum bisa apa-apa sebelum rekan setuju duluan. */
+    public function test_target_approves_first_then_approver_approves_and_schedules_are_swapped(): void
     {
+        Livewire::actingAs($this->approver)
+            ->test(ShiftSwapRequestDetail::class, ['record' => $this->swapRequest])
+            ->assertSet('canApprove', false);
+
+        Livewire::actingAs($this->target)
+            ->test(ShiftSwapRequestDetail::class, ['record' => $this->swapRequest])
+            ->assertSet('canApprove', true)
+            ->call('chooseAction', 'approve')
+            ->set('note', 'Rekan setuju')
+            ->call('confirmAction');
+
+        $this->assertSame('in_review', $this->swapRequest->fresh()->status, 'Belum final, masih nunggu approver master flow.');
+
+        $this->swapRequest->refresh();
         Livewire::actingAs($this->approver)
             ->test(ShiftSwapRequestDetail::class, ['record' => $this->swapRequest])
             ->assertSet('canApprove', true)
@@ -108,8 +124,26 @@ class ShiftSwapRequestDetailTest extends TestCase
         $this->assertSame('approved', $this->swapRequest->fresh()->status);
     }
 
+    public function test_target_rejects_marks_status_rejected_immediately(): void
+    {
+        Livewire::actingAs($this->target)
+            ->test(ShiftSwapRequestDetail::class, ['record' => $this->swapRequest])
+            ->call('chooseAction', 'reject')
+            ->set('note', 'Rekan tidak setuju')
+            ->call('confirmAction');
+
+        $this->assertSame('rejected', $this->swapRequest->fresh()->status);
+    }
+
     public function test_approver_rejects_marks_status_rejected(): void
     {
+        Livewire::actingAs($this->target)
+            ->test(ShiftSwapRequestDetail::class, ['record' => $this->swapRequest])
+            ->call('chooseAction', 'approve')
+            ->set('note', 'Rekan setuju')
+            ->call('confirmAction');
+
+        $this->swapRequest->refresh();
         Livewire::actingAs($this->approver)
             ->test(ShiftSwapRequestDetail::class, ['record' => $this->swapRequest])
             ->call('chooseAction', 'reject')

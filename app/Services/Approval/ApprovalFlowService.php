@@ -6,9 +6,9 @@ use App\Enum\Approval\ApprovalModuleEnum;
 use App\Enum\AttendanceReqStatus;
 use App\Enum\Task\TaskStatus;
 use App\Models\LMS\TrainingRequests;
-use App\Models\Shift\ScheduleShiftAssignment;
 use App\Models\Shift\ShiftSwapRequests;
 use App\Models\User;
+use App\Services\Shift\ShiftSwapRequestService;
 use App\Notifications\ApprovalNeedsAction;
 use App\Notifications\RequestStatusChanged;
 use App\Repositories\Approval\ApprovalActivityRepository;
@@ -249,55 +249,11 @@ class ApprovalFlowService
                             'approved_at' => now(),
                         ]);
 
-                        if ($swapRequest->reqSchedule && $swapRequest->targetSchedule) {
-                            $reqSchedule    = $swapRequest->reqSchedule;
-                            $targetSchedule = $swapRequest->targetSchedule;
-
-                            // Guard: re-check for schedule conflicts that may have arisen since
-                            // submission. Kedua baris yang terlibat swap dikecualikan dari kedua
-                            // cek (sama seperti ShiftSwapRequestService::validateScheduleSwapRules)
-                            // - kasus tukar tanggal SAMA butuh ini, kalau tidak baris pasangannya
-                            // sendiri selalu "match" jadi salah dianggap konflik.
-                            if (ScheduleShiftAssignment::where('user_id', $targetSchedule->user_id)
-                                ->whereDate('date', $reqSchedule->date)
-                                ->whereNotIn('id', [$reqSchedule->id, $targetSchedule->id])
-                                ->exists()) {
-                                throw new \RuntimeException(
-                                    'Karyawan tujuan sudah memiliki jadwal pada tanggal shift pemohon, tidak dapat diselesaikan.'
-                                );
-                            }
-
-                            if (ScheduleShiftAssignment::where('user_id', $reqSchedule->user_id)
-                                ->whereDate('date', $targetSchedule->date)
-                                ->whereNotIn('id', [$reqSchedule->id, $targetSchedule->id])
-                                ->exists()) {
-                                throw new \RuntimeException(
-                                    'Pemohon sudah memiliki jadwal pada tanggal shift tujuan, tidak dapat diselesaikan.'
-                                );
-                            }
-
-                            if ($reqSchedule->date->equalTo($targetSchedule->date)) {
-                                // Same-date swap (e.g. pagi ↔ siang on the same day).
-                                // Swapping user_id would hit the (user_id, date) unique constraint,
-                                // so swap shift_type_id instead — same logical result.
-                                $reqShiftTypeId    = $reqSchedule->shift_type_id;
-                                $targetShiftTypeId = $targetSchedule->shift_type_id;
-                                $reqSchedule->update(['shift_type_id' => $targetShiftTypeId]);
-                                $targetSchedule->update(['shift_type_id' => $reqShiftTypeId]);
-                            } else {
-                                // Different-date swap: swap user_id so each employee moves
-                                // to the other's date/shift slot.
-                                $reqUserId    = $reqSchedule->user_id;
-                                $targetUserId = $targetSchedule->user_id;
-                                $reqSchedule->update(['user_id' => $targetUserId]);
-                                $targetSchedule->update(['user_id' => $reqUserId]);
-                            }
-
-                        } elseif ($swapRequest->reqSchedule && !$swapRequest->targetSchedule) {
-                            // Off-day transfer: requester gives their shift to the target employee.
-                            // Update req_schedule's user_id to target; requester becomes off (no record).
-                            $swapRequest->reqSchedule->update(['user_id' => $swapRequest->target_id]);
-                        }
+                        // Eksekusi beneran (termasuk re-cek konflik & fallback Extra Shift buat
+                        // tukar beda tanggal) dipindah ke ShiftSwapRequestService::executeApprovedSwap()
+                        // - satu sumber kebenaran yang sama juga dipakai buat validasi pas
+                        // pengajuan (lihat ShiftSwapRequestService::validateScheduleSwapRules()).
+                        app(ShiftSwapRequestService::class)->executeApprovedSwap($swapRequest);
                     }
                 }
 

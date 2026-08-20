@@ -4,9 +4,7 @@ namespace App\Livewire\Presensi;
 
 use App\Models\Shift\ScheduleAssignment;
 use App\Models\Shift\ScheduleShiftAssignment;
-use App\Models\User;
 use App\Services\Shift\ShiftSwapRequestService;
-use Carbon\Carbon;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
@@ -14,37 +12,76 @@ use Livewire\Component;
 /**
  * Modal "Tukar Shift" nempel di bawah widget "Jadwal Shift Saya" (Dashboard, lihat
  * resources/views/livewire/partials/home-cards.blade.php) - bukan halaman terpisah, instruksi
- * user 2026-08-16. Alur SEDERHANA, tanpa pilihan "mode" (instruksi user 2026-08-16 - dulu ada 2
- * mode schedule/off_day yang bikin bingung, sekarang cuma jalur tukar 2 jadwal): cari rekan ->
- * pilih jadwal REKAN yang mau ditukar -> pilih jadwal SENDIRI penggantinya (harus bulan yang
- * sama - boleh tanggal sama atau beda, lihat ShiftSwapRequestService::validateScheduleSwapRules).
+ * user 2026-08-16. Alur (2026-08-20, urutan final): pilih tanggal shift SENDIRI dulu (reqDate,
+ * default besok, tidak bisa kurang dari hari ini) -> pilih mode tanggal sama/beda -> kalau beda,
+ * isi dulu tanggal shift REKAN (targetDate) -> baru cari rekan (TomSelect), opsinya SUDAH
+ * difilter ke yang punya jadwal shift persis di tanggal EFEKTIF itu (reqDate kalau mode sama,
+ * targetDate kalau beda) - lihat getEffectiveTargetDateProperty()/getTargetCandidatesProperty().
  * Pencarian rekan DIBATASI ke sesama pemakai jadwal shift yang SAMA dengan user login (instruksi
- * user 2026-08-16) - lihat getTargetCandidatesProperty()/myScheduleId().
- * Submit lewat ShiftSwapRequestService::store() yang sudah ada (backend dibangun 2026-08-14/15).
+ * user 2026-08-16) - lihat myScheduleId().
+ * Submit lewat ShiftSwapRequestService::store() yang sudah ada - kompatibilitas tipe shift & (buat
+ * tanggal beda) fallback Extra Shift kalau rekan/pemohon TERNYATA sudah punya jadwal lain di
+ * tanggal tujuan, semua dicek di situ (lihat ShiftSwapRequestService::validateScheduleSwapRules /
+ * executeApprovedSwap).
  */
 class ShiftSwapRequestModal extends Component
 {
     public bool $showModal = false;
 
-    public string $targetSearch = '';
+    /** Tanggal shift SENDIRI yang mau ditukar - default besok, tidak boleh kurang dari hari ini.
+     * Dipilih LEBIH DULU - daftar rekan di bawah baru muncul setelah ini terisi. */
+    public string $reqDate = '';
 
     public ?string $targetUserId = null;
 
-    public ?string $targetScheduleId = null;
+    /** 'same' = rekan ditukar di tanggal yang sama dengan reqDate, 'different' = rekan punya
+     * tanggal shift sendiri (targetDate). */
+    public string $dateMode = 'same';
 
-    public ?string $reqScheduleId = null;
+    public ?string $targetDate = null;
 
     public ?string $notes = null;
 
+    public function mount(): void
+    {
+        $this->resetForm();
+    }
+
     public function openModal(): void
     {
-        $this->reset(['targetSearch', 'targetUserId', 'targetScheduleId', 'reqScheduleId', 'notes']);
+        $this->resetForm();
         $this->showModal = true;
     }
 
     public function closeModal(): void
     {
         $this->showModal = false;
+    }
+
+    private function resetForm(): void
+    {
+        $this->reset(['targetUserId', 'targetDate', 'notes']);
+        $this->reqDate = now()->addDay()->toDateString();
+        $this->dateMode = 'same';
+    }
+
+    /** Ganti tanggal/mode -> rekan yang sebelumnya dipilih bisa jadi tidak lagi punya jadwal di
+     * tanggal EFEKTIF yang baru, jadi direset biar tidak nyangkut kombinasi yang sudah tidak
+     * relevan (rekan selalu dipilih PALING TERAKHIR, setelah tanggal efektifnya jelas). */
+    public function updatedReqDate(): void
+    {
+        $this->targetUserId = null;
+    }
+
+    public function updatedDateMode(): void
+    {
+        $this->targetUserId = null;
+        $this->targetDate = null;
+    }
+
+    public function updatedTargetDate(): void
+    {
+        $this->targetUserId = null;
     }
 
     /** Schedule (shift) yang lagi dipakai user login - sama pola
@@ -67,16 +104,19 @@ class ShiftSwapRequestModal extends Component
         return ScheduleAssignment::resolveForUser($user, now()->toDateString())?->schedule_id;
     }
 
-    /** Cari rekan kerja by nama/NIP, exclude diri sendiri - pola sama App\Livewire\Presensi\
-     * Concerns\HandlesShiftScheduleForm (employeeSearch). Cuma jalan kalau sudah ketik minimal
-     * 2 karakter, biar tidak nge-load semua karyawan pas modal baru dibuka. Dibatasi ke rekan
-     * yang PAKAI JADWAL SHIFT YANG SAMA (instruksi user 2026-08-16, ganti dari batasan divisi
-     * sebelumnya) - tukar shift cuma masuk akal sesama pemakai 1 jadwal/roster, company_id ikut
-     * lewat relasi shiftType->schedule (Schedule cuma dipakai 1 company). User yang jadwal
-     * shift-nya tidak ketemu (belum di-assign) sengaja dapat hasil kosong. */
+    public function getEffectiveTargetDateProperty(): ?string
+    {
+        return $this->dateMode === 'different' ? $this->targetDate : $this->reqDate;
+    }
+
+    /** Rekan sejadwal yang PUNYA jadwal shift di tanggal EFEKTIF (reqDate kalau mode sama,
+     * targetDate kalau beda) - dipilih lewat TomSelect, label langsung nampilin nama shift-nya
+     * biar user tahu apa yang akan ditukar tanpa buka langkah berikutnya dulu. Baris
+     * ScheduleShiftAssignment (bukan cuma keanggotaan roster) - satu baris per user per tanggal
+     * (unique user_id+date) jadi otomatis 1 opsi per rekan. */
     public function getTargetCandidatesProperty()
     {
-        if (mb_strlen(trim($this->targetSearch)) < 2) {
+        if (! $this->effectiveTargetDate) {
             return collect();
         }
 
@@ -86,98 +126,83 @@ class ShiftSwapRequestModal extends Component
             return collect();
         }
 
-        $candidateIds = ScheduleShiftAssignment::whereHas('shiftType', fn ($q) => $q->where('schedule_id', $scheduleId))
+        return ScheduleShiftAssignment::whereHas('shiftType', fn ($q) => $q->where('schedule_id', $scheduleId))
+            ->whereDate('date', $this->effectiveTargetDate)
+            ->whereNotNull('shift_type_id')
             ->where('user_id', '!=', Auth::id())
-            ->distinct()
-            ->pluck('user_id');
-
-        return User::whereIn('id', $candidateIds)
-            ->where(function ($q) {
-                $q->where('name', 'like', "%{$this->targetSearch}%")
-                    ->orWhere('nip', 'like', "%{$this->targetSearch}%");
-            })
-            ->orderBy('name')
-            ->limit(15)
-            ->get();
+            ->with(['user', 'shiftType'])
+            ->get()
+            ->filter(fn ($row) => $row->user)
+            ->sortBy('user.name')
+            ->values();
     }
 
-    public function selectTarget(string $userId): void
+    /** Jadwal shift SENDIRI di reqDate - null kalau libur/tidak ada jadwal di tanggal itu. */
+    public function getReqShiftProperty(): ?ScheduleShiftAssignment
     {
-        $this->targetUserId = $userId;
-        $this->targetSearch = '';
-        $this->targetScheduleId = null;
-        $this->reqScheduleId = null;
+        if (! $this->reqDate) {
+            return null;
+        }
+
+        return ScheduleShiftAssignment::where('user_id', Auth::id())
+            ->whereDate('date', $this->reqDate)
+            ->whereNotNull('shift_type_id')
+            ->with('shiftType')
+            ->first();
     }
 
-    public function clearTarget(): void
+    /** Jadwal shift REKAN di tanggal efektifnya - null kalau libur/tidak ada jadwal di tanggal
+     * itu (dipakai blade buat kasih tahu user sebelum submit, service tetap validasi ulang). Buat
+     * mode 'same' ini pasti ketemu (rekan sudah difilter dari targetCandidates), tapi tetap
+     * di-resolve ulang di sini biar 1 sumber kebenaran sama dengan mode 'different'. */
+    public function getTargetShiftProperty(): ?ScheduleShiftAssignment
     {
-        $this->targetUserId = null;
-        $this->targetScheduleId = null;
-        $this->reqScheduleId = null;
-    }
-
-    /** Jadwal shift REKAN, tanggal >= hari ini - dipilih LEBIH DULU (instruksi user), baru
-     * setelah ini jadwal sendiri difilter ke bulan yang sama. */
-    public function getTargetShiftsProperty()
-    {
-        if (! $this->targetUserId) {
-            return collect();
+        if (! $this->targetUserId || ! $this->effectiveTargetDate) {
+            return null;
         }
 
         return ScheduleShiftAssignment::where('user_id', $this->targetUserId)
-            ->where('date', '>=', now()->toDateString())
+            ->whereDate('date', $this->effectiveTargetDate)
             ->whereNotNull('shift_type_id')
-            ->with('shiftType')
-            ->orderBy('date')
-            ->get();
-    }
-
-    /** Ganti jadwal rekan -> reset pilihan jadwal sendiri, biar tidak nyangkut kombinasi lama
-     * yang bulannya sudah tidak relevan. */
-    public function updatedTargetScheduleId(): void
-    {
-        $this->reqScheduleId = null;
-    }
-
-    /** Jadwal SENDIRI, difilter ke BULAN YANG SAMA dengan jadwal rekan yang sudah dipilih -
-     * ShiftSwapRequestService::validateScheduleSwapRules() cuma izinkan tukar dalam bulan yang
-     * sama (boleh tanggal sama atau beda), jadi opsi di luar itu percuma ditawarkan. */
-    public function getMyShiftsProperty()
-    {
-        if (! $this->targetScheduleId) {
-            return collect();
-        }
-
-        $targetShift = ScheduleShiftAssignment::find($this->targetScheduleId);
-        if (! $targetShift) {
-            return collect();
-        }
-
-        $monthStart = Carbon::parse($targetShift->date)->startOfMonth();
-        $monthEnd = Carbon::parse($targetShift->date)->endOfMonth();
-
-        return ScheduleShiftAssignment::where('user_id', Auth::id())
-            ->whereBetween('date', [$monthStart->toDateString(), $monthEnd->toDateString()])
-            ->whereNotNull('shift_type_id')
-            ->with('shiftType')
-            ->orderBy('date')
-            ->get();
+            ->with(['shiftType', 'user'])
+            ->first();
     }
 
     public function submit(): void
     {
+        $today = now()->toDateString();
+
         $this->validate([
+            'reqDate' => ['required', 'date', 'after_or_equal:' . $today],
             'targetUserId' => ['required'],
-            'targetScheduleId' => ['required'],
-            'reqScheduleId' => ['required'],
+            'dateMode' => ['required', 'in:same,different'],
+            'targetDate' => ['required_if:dateMode,different', 'nullable', 'date', 'after_or_equal:' . $today],
             'notes' => ['nullable', 'string'],
+        ], [], [
+            'reqDate' => 'tanggal shift Anda',
+            'targetUserId' => 'rekan',
+            'targetDate' => 'tanggal shift rekan',
         ]);
+
+        $reqSchedule = $this->reqShift;
+        if (! $reqSchedule) {
+            $this->addError('reqDate', 'Anda tidak punya jadwal shift di tanggal ini.');
+
+            return;
+        }
+
+        $targetSchedule = $this->targetShift;
+        if (! $targetSchedule) {
+            $this->addError('targetDate', 'Rekan tidak punya jadwal shift di tanggal ini (atau sedang libur).');
+
+            return;
+        }
 
         try {
             app(ShiftSwapRequestService::class)->store([
                 'swap_mode' => 'schedule',
-                'req_schedule_id' => $this->reqScheduleId,
-                'target_schedule_id' => $this->targetScheduleId,
+                'req_schedule_id' => $reqSchedule->id,
+                'target_schedule_id' => $targetSchedule->id,
                 'notes' => $this->notes,
             ]);
 
@@ -187,7 +212,7 @@ class ShiftSwapRequestModal extends Component
                 ->send();
 
             $this->showModal = false;
-            $this->reset(['targetSearch', 'targetUserId', 'targetScheduleId', 'reqScheduleId', 'notes']);
+            $this->resetForm();
         } catch (\Throwable $e) {
             Notification::make()
                 ->title('Gagal mengajukan: ' . $e->getMessage())

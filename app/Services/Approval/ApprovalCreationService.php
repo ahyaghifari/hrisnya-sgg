@@ -22,24 +22,44 @@ class ApprovalCreationService
         protected NotificationService $notificationService,
     ) {}
 
+    /**
+     * @param array<int, array{approver_type: string, approver_ref_id: string, scope_type?: ?string, scope_ref_id?: ?string}> $prependSteps
+     *        Step tambahan yang disisipkan SEBELUM step 1 master flow (order-nya dihitung ulang
+     *        di sini, tidak perlu diisi manual) - dipakai Tukar Shift supaya rekan yang jadwalnya
+     *        ditukar jadi approver pertama, baru lanjut ke alur approval biasa (atasan, dst).
+     *        Array kosong (default) = perilaku lama persis, tidak mempengaruhi modul lain.
+     */
     public function createSnapshot(
         string $moduleType,
         string $moduleId,
         MasterApprovalFlows $flow,
         string $createdBy,
         ?string $companyId = null,
-        string $userId
+        string $userId,
+        array $prependSteps = [],
     ): ApprovalSnapshots {
-        return DB::transaction(function () use ($moduleType, $moduleId, $flow, $createdBy, $companyId, $userId) {
-            // Ambil steps dari master flow
-            $steps = $flow->steps->map(fn($s) => [
-                'order' => $s->step_order,
+        return DB::transaction(function () use ($moduleType, $moduleId, $flow, $createdBy, $companyId, $userId, $prependSteps) {
+            $prepended = collect($prependSteps)->values()->map(fn ($s, $i) => [
+                'order' => $i + 1,
+                'approver_type' => $s['approver_type'],
+                'approver_ref_id' => $s['approver_ref_id'],
+                'scope_type' => $s['scope_type'] ?? null,
+                'scope_ref_id' => $s['scope_ref_id'] ?? null,
+                'is_final_step' => false,
+            ]);
+            $offset = $prepended->count();
+
+            // Ambil steps dari master flow, order-nya digeser kalau ada step yang disisipkan.
+            $flowSteps = $flow->steps->sortBy('step_order')->values()->map(fn ($s, $i) => [
+                'order' => $offset + $i + 1,
                 'approver_type' => $s->approver_type,
                 'approver_ref_id' => $s->approver_ref_id,
                 'scope_type' => $s->scope_type,
                 'scope_ref_id' => $s->scope_ref_id ?? null,
                 'is_final_step' => $s->is_final,
-            ])->values()->toArray();
+            ]);
+
+            $steps = $prepended->concat($flowSteps)->values()->toArray();
 
             // Tentukan step pertama
             $firstStep = $steps[0] ?? null;

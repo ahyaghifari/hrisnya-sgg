@@ -122,8 +122,17 @@ class ShiftSwapTargetResponseTest extends TestCase
     public function test_approver_can_approve_regardless_of_target_response(): void
     {
         $swap = $this->submit();
-        // Target belum menanggapi sama sekali (masih null).
+        // Target belum "menanggapi" (kolom target_response opsional ini masih null) - tapi
+        // target tetap harus approve STEP 1 sungguhan dulu (2026-08-20, approver pertama yang
+        // real), beda dari kolom target_response yang murni catatan tidak menggerbang apa pun.
+        app(ApprovalFlowService::class)->advanceStep(
+            $swap->approvalSnapshot,
+            $swap->target_id,
+            'Rekan setuju',
+            'approved',
+        );
 
+        $swap->refresh()->load('approvalSnapshot.activity');
         app(ApprovalFlowService::class)->advanceStep(
             $swap->approvalSnapshot,
             $this->approver->id,
@@ -132,6 +141,7 @@ class ShiftSwapTargetResponseTest extends TestCase
         );
 
         $this->assertSame('approved', $swap->fresh()->status);
+        $this->assertNull($swap->fresh()->target_response, 'Approval tetap selesai walau kolom target_response (opsional) tidak pernah diisi.');
     }
 
     public function test_non_target_user_cannot_record_response(): void

@@ -28,13 +28,20 @@
                             <td>{{ \Carbon\Carbon::parse($row->date)->translatedFormat('d M Y') }}</td>
                             <td>{{ $row->user?->name }}</td>
                             <td>{{ $row->shiftType?->name }}</td>
-                            <td>{{ $row->reason ?: '-' }}</td>
+                            <td>
+                                {{ $row->reason ?: '-' }}
+                                @if ($row->source === 'shift_swap')
+                                    <span title="Otomatis dari Tukar Shift yang disetujui, tidak bisa diubah/dihapus" style="margin-left:4px;color:var(--text-faint);"><i class="fa-solid fa-lock" style="font-size:10px;"></i></span>
+                                @endif
+                            </td>
                             <td>{{ $row->createdBy?->name }}</td>
                             @if ($this->canDelete)
                                 <td>
-                                    <button type="button" wire:click="delete('{{ $row->id }}')" wire:confirm="Hapus extra shift ini?" style="background:none;border:none;color:var(--danger-text);cursor:pointer;">
-                                        <i class="fa-solid fa-trash"></i>
-                                    </button>
+                                    @if ($row->source !== 'shift_swap')
+                                        <button type="button" wire:click="delete('{{ $row->id }}')" wire:confirm="Hapus extra shift ini?" style="background:none;border:none;color:var(--danger-text);cursor:pointer;">
+                                            <i class="fa-solid fa-trash"></i>
+                                        </button>
+                                    @endif
                                 </td>
                             @endif
                         </tr>
@@ -94,7 +101,9 @@
                             @forelse ($this->shiftTypeOptions as $type)
                                 <option value="{{ $type->id }}">{{ $type->name }} ({{ \Illuminate\Support\Str::substr($type->start_time, 0, 5) }}-{{ \Illuminate\Support\Str::substr($type->end_time, 0, 5) }})</option>
                             @empty
-                                @if ($this->normalShift)
+                                @if ($this->normalShift && $this->alreadyHasExtraShift)
+                                    <option value="" disabled>Karyawan ini sudah punya extra shift lain di tanggal ini</option>
+                                @elseif ($this->normalShift)
                                     <option value="" disabled>Belum ada aturan Extra Shift dari "{{ $this->normalShift['label'] }}" untuk company ini</option>
                                 @endif
                             @endforelse

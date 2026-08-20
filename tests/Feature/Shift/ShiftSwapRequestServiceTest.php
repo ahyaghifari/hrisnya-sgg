@@ -112,9 +112,20 @@ class ShiftSwapRequestServiceTest extends TestCase
         ]);
     }
 
+    /** Rekan (target_id) sekarang jadi approver PERTAMA sungguhan (2026-08-20), baru diikuti
+     * step master flow biasa - jadi 1 pengajuan butuh 2x advanceStep buat benar-benar selesai. */
     private function approve(ShiftSwapRequests $swapRequest): void
     {
         $swapRequest->load('approvalSnapshot.activity');
+
+        app(ApprovalFlowService::class)->advanceStep(
+            $swapRequest->approvalSnapshot,
+            $swapRequest->target_id,
+            'Disetujui rekan lewat automated test',
+            'approved',
+        );
+
+        $swapRequest->refresh()->load('approvalSnapshot.activity');
 
         app(ApprovalFlowService::class)->advanceStep(
             $swapRequest->approvalSnapshot,
@@ -177,6 +188,110 @@ class ShiftSwapRequestServiceTest extends TestCase
         $this->assertSame('2026-08-15', $scheduleB->fresh()->date->toDateString());
     }
 
+    public function test_different_date_swap_falls_back_to_extra_shift_when_target_already_busy(): void
+    {
+        $perawatA = User::factory()->create(['company_id' => $this->company->id]);
+        $perawatB = User::factory()->create(['company_id' => $this->company->id]);
+
+        // A minta tanggal 10, tukar dengan shift B tanggal 15. Tapi B TERNYATA sudah ada
+        // shift Siang sendiri di tanggal 10 (bukan libur) - tidak bisa langsung "pindah" ke
+        // baris A (unique user_id+date), jadi harus fallback Extra Shift kalau rule-nya ada.
+        $scheduleA = $this->assignShift($perawatA, $this->pagi, '2026-08-10');
+        $scheduleB = $this->assignShift($perawatB, $this->pagi, '2026-08-15');
+        $busyB = $this->assignShift($perawatB, $this->siang, '2026-08-10');
+
+        \App\Models\Shift\ExtraShiftRule::create([
+            'company_id' => $this->company->id,
+            'from_shift_type' => \App\Enum\ShiftType::SIANG->value,
+            'to_shift_type' => \App\Enum\ShiftType::PAGI->value,
+        ]);
+
+        Auth::login($perawatA);
+        $swapRequest = app(ShiftSwapRequestService::class)->store([
+            'swap_mode' => 'schedule',
+            'req_schedule_id' => $scheduleA->id,
+            'target_schedule_id' => $scheduleB->id,
+        ]);
+
+        $this->approve($swapRequest);
+
+        // Baris A di tanggal 10 lenyap (dibebaskan) - B menutupnya lewat Extra Shift, bukan
+        // pindah baris (yang akan bentrok sama shift Siang B yang sudah ada di tanggal itu).
+        $this->assertNull($scheduleA->fresh());
+        $this->assertNotNull($busyB->fresh(), 'Shift Siang B yang sudah ada tetap utuh.');
+        $this->assertTrue(
+            \App\Models\Shift\ExtraShiftAssignment::where('user_id', $perawatB->id)
+                ->where('shift_type_id', $this->pagi->id)
+                ->whereDate('date', '2026-08-10')
+                ->where('status', 'approved')
+                ->where('source', 'shift_swap')
+                ->exists()
+        );
+
+        // Tidak ada konflik di sisi B (tanggal 15) - A pindah normal ke baris itu.
+        $this->assertSame($perawatA->id, $scheduleB->fresh()->user_id);
+    }
+
+    public function test_different_date_swap_is_blocked_when_no_extra_shift_rule_covers_conflict(): void
+    {
+        $perawatA = User::factory()->create(['company_id' => $this->company->id]);
+        $perawatB = User::factory()->create(['company_id' => $this->company->id]);
+
+        $scheduleA = $this->assignShift($perawatA, $this->pagi, '2026-08-10');
+        $scheduleB = $this->assignShift($perawatB, $this->pagi, '2026-08-15');
+        $this->assignShift($perawatB, $this->siang, '2026-08-10');
+
+        // Sengaja TIDAK bikin ExtraShiftRule Siang->Pagi - tidak ada jalan aman buat B menutup
+        // tanggal 10, jadi harus tetap diblokir seperti sebelum ada fallback ini.
+        Auth::login($perawatA);
+
+        $this->expectException(\InvalidArgumentException::class);
+
+        app(ShiftSwapRequestService::class)->store([
+            'swap_mode' => 'schedule',
+            'req_schedule_id' => $scheduleA->id,
+            'target_schedule_id' => $scheduleB->id,
+        ]);
+    }
+
+    public function test_different_date_swap_is_blocked_when_busy_party_already_has_another_extra_shift_that_day(): void
+    {
+        $perawatA = User::factory()->create(['company_id' => $this->company->id]);
+        $perawatB = User::factory()->create(['company_id' => $this->company->id]);
+
+        $scheduleA = $this->assignShift($perawatA, $this->pagi, '2026-08-10');
+        $scheduleB = $this->assignShift($perawatB, $this->pagi, '2026-08-15');
+        $this->assignShift($perawatB, $this->siang, '2026-08-10');
+
+        \App\Models\Shift\ExtraShiftRule::create([
+            'company_id' => $this->company->id,
+            'from_shift_type' => \App\Enum\ShiftType::SIANG->value,
+            'to_shift_type' => \App\Enum\ShiftType::PAGI->value,
+        ]);
+
+        // B SUDAH punya extra shift lain di tanggal 10 (dari sumber lain, sebelum swap ini) -
+        // tidak boleh ditumpuk extra shift kedua walau rule-nya sendiri mengizinkan.
+        \App\Models\Shift\ExtraShiftAssignment::create([
+            'company_id' => $this->company->id,
+            'user_id' => $perawatB->id,
+            'shift_type_id' => $this->malam->id,
+            'date' => '2026-08-10',
+            'status' => 'approved',
+            'source' => 'assigned',
+            'created_by' => $this->approver->id,
+        ]);
+
+        Auth::login($perawatA);
+
+        $this->expectException(\InvalidArgumentException::class);
+
+        app(ShiftSwapRequestService::class)->store([
+            'swap_mode' => 'schedule',
+            'req_schedule_id' => $scheduleA->id,
+            'target_schedule_id' => $scheduleB->id,
+        ]);
+    }
+
     public function test_off_day_swap_transfers_shift_to_target_after_approval(): void
     {
         $perawatA = User::factory()->create(['company_id' => $this->company->id]);
@@ -199,12 +314,13 @@ class ShiftSwapRequestServiceTest extends TestCase
         $this->assertSame($perawatB->id, $scheduleA->fresh()->user_id, 'Shift pindah ke B, A jadi libur (baris tidak dihapus).');
     }
 
-    public function test_incompatible_shift_types_are_rejected(): void
+    public function test_incompatible_shift_types_are_rejected_for_different_date(): void
     {
         $perawatA = User::factory()->create(['company_id' => $this->company->id]);
         $perawatB = User::factory()->create(['company_id' => $this->company->id]);
 
-        // Pagi <-> Malam tidak boleh ditukar (cuma pagi<->siang atau malam<->malam).
+        // Pagi <-> Malam tidak boleh ditukar (cuma pagi<->siang atau malam<->malam) - berlaku
+        // buat tanggal BEDA.
         $scheduleA = $this->assignShift($perawatA, $this->pagi, '2026-08-10');
         $scheduleB = $this->assignShift($perawatB, $this->malam, '2026-08-11');
 
@@ -217,5 +333,28 @@ class ShiftSwapRequestServiceTest extends TestCase
             'req_schedule_id' => $scheduleA->id,
             'target_schedule_id' => $scheduleB->id,
         ]);
+    }
+
+    public function test_incompatible_shift_types_are_allowed_for_same_date(): void
+    {
+        $perawatA = User::factory()->create(['company_id' => $this->company->id]);
+        $perawatB = User::factory()->create(['company_id' => $this->company->id]);
+
+        // Pagi <-> Malam TETAP boleh kalau tanggalnya SAMA (instruksi user 2026-08-20) - aturan
+        // kompatibilitas kategori shift cuma berlaku buat tukar beda tanggal.
+        $scheduleA = $this->assignShift($perawatA, $this->pagi, '2026-08-10');
+        $scheduleB = $this->assignShift($perawatB, $this->malam, '2026-08-10');
+
+        Auth::login($perawatA);
+        $swapRequest = app(ShiftSwapRequestService::class)->store([
+            'swap_mode' => 'schedule',
+            'req_schedule_id' => $scheduleA->id,
+            'target_schedule_id' => $scheduleB->id,
+        ]);
+
+        $this->approve($swapRequest);
+
+        $this->assertSame($this->malam->id, $scheduleA->fresh()->shift_type_id);
+        $this->assertSame($this->pagi->id, $scheduleB->fresh()->shift_type_id);
     }
 }

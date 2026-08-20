@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Enum\Approval\ApprovalModuleEnum;
 use App\Enum\ShiftType;
 use App\Livewire\PendingApprovalsCard;
+use App\Livewire\Presensi\ShiftSwapApprovalsCard;
 use App\Models\ApprovalManagement\MasterApprovalFlows;
 use App\Models\ApprovalManagement\MasterApprovalFlowSteps;
 use App\Models\Master\Companies;
@@ -64,6 +65,18 @@ class PendingApprovalsCardShiftSwapTest extends TestCase
             'target_schedule_id' => $scheduleB->id,
         ]);
         Auth::logout();
+
+        // Rekan (target) sekarang jadi approver PERTAMA sungguhan (2026-08-20), tapi widget-nya
+        // KHUSUS (ShiftSwapApprovalsCard) - TIDAK dobel muncul di "Butuh Persetujuan Anda"
+        // (instruksi user: itu murni buat approval berbasis manajemen/atasan).
+        Livewire::actingAs($approver)->test(PendingApprovalsCard::class)->assertDontSee('Tukar Shift');
+        Livewire::actingAs($target)->test(PendingApprovalsCard::class)->assertDontSee('Tukar Shift');
+
+        $targetComponent = Livewire::actingAs($target)->test(ShiftSwapApprovalsCard::class);
+        $targetComponent->assertSee($requester->name);
+        $targetComponent->call('approve', $swap->id);
+
+        $this->assertSame('in_review', $swap->fresh()->status, 'Belum final, masih nunggu approver master flow.');
 
         $component = Livewire::actingAs($approver)->test(PendingApprovalsCard::class);
 

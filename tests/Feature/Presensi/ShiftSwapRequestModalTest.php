@@ -19,9 +19,10 @@ use Tests\TestCase;
 
 /**
  * Modal "Tukar Shift" di bawah widget Dashboard - submit lewat komponen Livewire, bukan halaman
- * terpisah (lihat planning/2026-08-16-fitur-tukar-shift.md §A). Alur sederhana tanpa "mode"
- * (dihapus 2026-08-16, dulu ada schedule/off_day yang bikin bingung): cari rekan -> pilih jadwal
- * rekan -> pilih jadwal sendiri penggantinya (bulan sama).
+ * terpisah. Alur (2026-08-20): tanggal shift SENDIRI dulu (default besok, tidak boleh kurang dari
+ * hari ini) -> mode tanggal sama/beda (kalau beda, isi tanggal shift rekan dulu) -> baru cari
+ * rekan (TomSelect searchable, opsinya sudah difilter ke yang punya shift di tanggal EFEKTIF itu)
+ * - lihat ShiftSwapRequestModal.php.
  */
 class ShiftSwapRequestModalTest extends TestCase
 {
@@ -60,21 +61,21 @@ class ShiftSwapRequestModalTest extends TestCase
         ]);
     }
 
-    public function test_submit_schedule_swap_creates_request_and_closes_modal(): void
+    public function test_submit_same_date_swap_creates_request_and_closes_modal(): void
     {
         $requester = User::factory()->create(['company_id' => $this->company->id]);
         $target = User::factory()->create(['company_id' => $this->company->id, 'name' => 'Rekan Target']);
 
-        $myShift = ScheduleShiftAssignment::create(['company_id' => $this->company->id, 'user_id' => $requester->id, 'shift_type_id' => $this->pagi->id, 'date' => '2026-08-20', 'off_day' => false]);
-        $targetShift = ScheduleShiftAssignment::create(['company_id' => $this->company->id, 'user_id' => $target->id, 'shift_type_id' => $this->siang->id, 'date' => '2026-08-21', 'off_day' => false]);
+        $date = now()->addDay()->toDateString();
+        ScheduleShiftAssignment::create(['company_id' => $this->company->id, 'user_id' => $requester->id, 'shift_type_id' => $this->pagi->id, 'date' => $date, 'off_day' => false]);
+        ScheduleShiftAssignment::create(['company_id' => $this->company->id, 'user_id' => $target->id, 'shift_type_id' => $this->siang->id, 'date' => $date, 'off_day' => false]);
 
         Livewire::actingAs($requester)
             ->test(ShiftSwapRequestModal::class)
             ->call('openModal')
-            ->call('selectTarget', $target->id)
-            ->set('targetScheduleId', $targetShift->id)
-            ->set('reqScheduleId', $myShift->id)
+            ->set('targetUserId', $target->id)
             ->call('submit')
+            ->assertHasNoErrors()
             ->assertSet('showModal', false);
 
         $this->assertSame(1, ShiftSwapRequests::where('requester_id', $requester->id)->count());
@@ -83,80 +84,100 @@ class ShiftSwapRequestModalTest extends TestCase
         $this->assertSame('in_review', $swap->status);
     }
 
-    public function test_submit_without_own_schedule_fails_validation(): void
+    public function test_submit_different_date_swap_resolves_target_shift_at_its_own_date(): void
     {
         $requester = User::factory()->create(['company_id' => $this->company->id]);
         $target = User::factory()->create(['company_id' => $this->company->id]);
-        $targetShift = ScheduleShiftAssignment::create(['company_id' => $this->company->id, 'user_id' => $target->id, 'shift_type_id' => $this->siang->id, 'date' => '2026-08-21', 'off_day' => false]);
+
+        $reqDate = now()->addDay()->toDateString();
+        $targetDate = now()->addDays(3)->toDateString();
+        ScheduleShiftAssignment::create(['company_id' => $this->company->id, 'user_id' => $requester->id, 'shift_type_id' => $this->pagi->id, 'date' => $reqDate, 'off_day' => false]);
+        ScheduleShiftAssignment::create(['company_id' => $this->company->id, 'user_id' => $target->id, 'shift_type_id' => $this->siang->id, 'date' => $targetDate, 'off_day' => false]);
 
         Livewire::actingAs($requester)
             ->test(ShiftSwapRequestModal::class)
             ->call('openModal')
-            ->call('selectTarget', $target->id)
-            ->set('targetScheduleId', $targetShift->id)
+            ->set('dateMode', 'different')
+            ->set('targetDate', $targetDate)
+            ->set('targetUserId', $target->id)
             ->call('submit')
-            ->assertHasErrors(['reqScheduleId'])
+            ->assertHasNoErrors()
+            ->assertSet('showModal', false);
+
+        $swap = ShiftSwapRequests::where('requester_id', $requester->id)->first();
+        $this->assertSame($targetDate, $swap->target_date->toDateString());
+    }
+
+    public function test_submit_without_own_schedule_fails_validation(): void
+    {
+        $requester = User::factory()->create(['company_id' => $this->company->id]);
+        $target = User::factory()->create(['company_id' => $this->company->id]);
+        ScheduleShiftAssignment::create(['company_id' => $this->company->id, 'user_id' => $target->id, 'shift_type_id' => $this->siang->id, 'date' => now()->addDay()->toDateString(), 'off_day' => false]);
+
+        Livewire::actingAs($requester)
+            ->test(ShiftSwapRequestModal::class)
+            ->call('openModal')
+            ->set('targetUserId', $target->id)
+            ->call('submit')
+            ->assertHasErrors(['reqDate'])
             ->assertSet('showModal', true);
 
         $this->assertSame(0, ShiftSwapRequests::count());
     }
 
-    public function test_my_shifts_scoped_to_same_month_as_target_shift(): void
+    public function test_submit_without_target_schedule_fails_validation(): void
     {
         $requester = User::factory()->create(['company_id' => $this->company->id]);
         $target = User::factory()->create(['company_id' => $this->company->id]);
+        ScheduleShiftAssignment::create(['company_id' => $this->company->id, 'user_id' => $requester->id, 'shift_type_id' => $this->pagi->id, 'date' => now()->addDay()->toDateString(), 'off_day' => false]);
 
-        $myShiftSameMonth = ScheduleShiftAssignment::create(['company_id' => $this->company->id, 'user_id' => $requester->id, 'shift_type_id' => $this->pagi->id, 'date' => '2026-08-05', 'off_day' => false]);
-        $myShiftOtherMonth = ScheduleShiftAssignment::create(['company_id' => $this->company->id, 'user_id' => $requester->id, 'shift_type_id' => $this->pagi->id, 'date' => '2026-09-05', 'off_day' => false]);
-        $targetShift = ScheduleShiftAssignment::create(['company_id' => $this->company->id, 'user_id' => $target->id, 'shift_type_id' => $this->siang->id, 'date' => '2026-08-21', 'off_day' => false]);
-
-        $component = Livewire::actingAs($requester)
+        Livewire::actingAs($requester)
             ->test(ShiftSwapRequestModal::class)
-            ->call('selectTarget', $target->id)
-            ->set('targetScheduleId', $targetShift->id);
+            ->call('openModal')
+            ->set('targetUserId', $target->id)
+            ->call('submit')
+            ->assertHasErrors(['targetDate'])
+            ->assertSet('showModal', true);
 
-        $myShifts = $component->get('myShifts');
-
-        $this->assertTrue($myShifts->contains('id', $myShiftSameMonth->id));
-        $this->assertFalse($myShifts->contains('id', $myShiftOtherMonth->id));
+        $this->assertSame(0, ShiftSwapRequests::count());
     }
 
-    public function test_target_candidates_search_scoped_to_same_schedule_and_excludes_self(): void
+    public function test_target_candidates_scoped_to_same_schedule_and_shift_on_req_date(): void
     {
         $requester = User::factory()->create(['company_id' => $this->company->id, 'name' => 'Budi Requester']);
-        ScheduleShiftAssignment::create(['company_id' => $this->company->id, 'user_id' => $requester->id, 'shift_type_id' => $this->pagi->id, 'date' => '2026-08-05', 'off_day' => false]);
+        $date = now()->addDay()->toDateString();
+        ScheduleShiftAssignment::create(['company_id' => $this->company->id, 'user_id' => $requester->id, 'shift_type_id' => $this->pagi->id, 'date' => $date, 'off_day' => false]);
 
+        // Rekan sejadwal, punya shift di tanggal yang SAMA (reqDate default besok) - harus muncul.
         $sameSchedule = User::factory()->create(['company_id' => $this->company->id, 'name' => 'Budi Rekan Sejadwal']);
-        ScheduleShiftAssignment::create(['company_id' => $this->company->id, 'user_id' => $sameSchedule->id, 'shift_type_id' => $this->siang->id, 'date' => '2026-08-06', 'off_day' => false]);
+        ScheduleShiftAssignment::create(['company_id' => $this->company->id, 'user_id' => $sameSchedule->id, 'shift_type_id' => $this->siang->id, 'date' => $date, 'off_day' => false]);
+
+        // Sejadwal tapi shift-nya BEDA TANGGAL (bukan reqDate) - tidak boleh muncul di langkah ini.
+        $bedaTanggal = User::factory()->create(['company_id' => $this->company->id, 'name' => 'Budi Beda Tanggal']);
+        ScheduleShiftAssignment::create(['company_id' => $this->company->id, 'user_id' => $bedaTanggal->id, 'shift_type_id' => $this->siang->id, 'date' => now()->addDays(3)->toDateString(), 'off_day' => false]);
 
         $otherSchedule = Schedule::create(['company_id' => $this->company->id, 'name' => 'Jadwal Lain', 'schedule_type' => 'shift']);
         $otherShiftType = ScheduleShiftType::create(['schedule_id' => $otherSchedule->id, 'code' => 'MALAM', 'name' => 'Malam', 'shift_type' => ShiftType::MALAM->value, 'start_time' => '23:00:00', 'end_time' => '07:00:00', 'is_overnight' => true]);
         $beda = User::factory()->create(['company_id' => $this->company->id, 'name' => 'Budi Jadwal Lain']);
-        ScheduleShiftAssignment::create(['company_id' => $this->company->id, 'user_id' => $beda->id, 'shift_type_id' => $otherShiftType->id, 'date' => '2026-08-06', 'off_day' => false]);
+        ScheduleShiftAssignment::create(['company_id' => $this->company->id, 'user_id' => $beda->id, 'shift_type_id' => $otherShiftType->id, 'date' => $date, 'off_day' => false]);
 
-        $tanpaJadwal = User::factory()->create(['company_id' => $this->company->id, 'name' => 'Budi Tanpa Jadwal']);
-
-        $component = Livewire::actingAs($requester)
-            ->test(ShiftSwapRequestModal::class)
-            ->set('targetSearch', 'Budi');
+        $component = Livewire::actingAs($requester)->test(ShiftSwapRequestModal::class);
 
         $candidates = $component->get('targetCandidates');
 
-        $this->assertTrue($candidates->contains('id', $sameSchedule->id));
-        $this->assertFalse($candidates->contains('id', $requester->id));
-        $this->assertFalse($candidates->contains('id', $beda->id), 'Jadwal shift beda tidak boleh muncul.');
-        $this->assertFalse($candidates->contains('id', $tanpaJadwal->id), 'Tanpa jadwal shift tidak boleh muncul.');
+        $this->assertTrue($candidates->contains('user_id', $sameSchedule->id));
+        $this->assertFalse($candidates->contains('user_id', $requester->id));
+        $this->assertFalse($candidates->contains('user_id', $bedaTanggal->id), 'Shift di tanggal lain tidak boleh muncul.');
+        $this->assertFalse($candidates->contains('user_id', $beda->id), 'Jadwal shift beda tidak boleh muncul.');
     }
 
     public function test_target_candidates_empty_when_requester_has_no_shift_schedule(): void
     {
         $requester = User::factory()->create(['company_id' => $this->company->id, 'name' => 'Budi Tanpa Jadwal']);
         $someone = User::factory()->create(['company_id' => $this->company->id, 'name' => 'Budi Lainnya']);
-        ScheduleShiftAssignment::create(['company_id' => $this->company->id, 'user_id' => $someone->id, 'shift_type_id' => $this->pagi->id, 'date' => '2026-08-06', 'off_day' => false]);
+        ScheduleShiftAssignment::create(['company_id' => $this->company->id, 'user_id' => $someone->id, 'shift_type_id' => $this->pagi->id, 'date' => now()->addDay()->toDateString(), 'off_day' => false]);
 
-        $component = Livewire::actingAs($requester)
-            ->test(ShiftSwapRequestModal::class)
-            ->set('targetSearch', 'Budi');
+        $component = Livewire::actingAs($requester)->test(ShiftSwapRequestModal::class);
 
         $this->assertCount(0, $component->get('targetCandidates'));
     }

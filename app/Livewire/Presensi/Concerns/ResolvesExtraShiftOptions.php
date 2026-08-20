@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Presensi\Concerns;
 
+use App\Models\Shift\ExtraShiftAssignment;
 use App\Models\Shift\ExtraShiftRule;
 use App\Models\Shift\ScheduleShiftType;
 use App\Models\User;
@@ -46,12 +47,22 @@ trait ResolvesExtraShiftOptions
         ];
     }
 
+    /** Karyawan ini SUDAH punya extra shift lain di tanggal itu (dari sumber mana pun - assigned,
+     * requested, atau otomatis dari tukar shift) - tidak boleh ditumpuk dobel, satu extra shift
+     * per orang per hari sudah cukup berat. */
+    protected function hasExtraShiftOnDate(User $user, string $date): bool
+    {
+        return ExtraShiftAssignment::where('user_id', $user->id)
+            ->whereDate('date', $date)
+            ->exists();
+    }
+
     /**
      * Shift tambahan yang boleh dipilih untuk (karyawan, tanggal) ini - kosong kalau karyawan
-     * tidak punya shift normal di tanggal itu, atau tidak ada baris `extra_shift_rules` yang
-     * mengizinkan transisi dari kategori shift normalnya. Opsinya diambil dari Schedule YANG
-     * SAMA dengan shift normal karyawan (bukan company-wide) - tidak masuk akal menugaskan shift
-     * dari jadwal unit lain.
+     * tidak punya shift normal di tanggal itu, SUDAH punya extra shift lain di tanggal itu, atau
+     * tidak ada baris `extra_shift_rules` yang mengizinkan transisi dari kategori shift
+     * normalnya. Opsinya diambil dari Schedule YANG SAMA dengan shift normal karyawan (bukan
+     * company-wide) - tidak masuk akal menugaskan shift dari jadwal unit lain.
      *
      * @return Collection<int, ScheduleShiftType>
      */
@@ -59,7 +70,7 @@ trait ResolvesExtraShiftOptions
     {
         $normal = $this->resolveNormalShift($user, $date);
 
-        if (! $normal) {
+        if (! $normal || $this->hasExtraShiftOnDate($user, $date)) {
             return collect();
         }
 

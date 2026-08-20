@@ -3,11 +3,11 @@
 namespace App\Services\Shift;
 
 use App\Enum\Approval\ApprovalModuleEnum;
-use App\Models\Setting;
+use App\Models\Shift\ExtraShiftAssignment;
+use App\Models\Shift\ExtraShiftRule;
 use App\Models\Shift\ScheduleShiftAssignment;
 use App\Models\Shift\ShiftSwapRequests;
 use App\Models\User;
-use App\Notifications\ShiftSwapTargetResponseRequested;
 use App\Repositories\Approval\ApprovalSnapshotRepository;
 use App\Services\Approval\ApprovalCreationService;
 use Illuminate\Support\Facades\Auth;
@@ -113,31 +113,21 @@ class ShiftSwapRequestService
             );
         }
 
-        // Ensure neither user has another schedule on the date they would move to. Kedua baris
-        // yang terlibat swap ($reqSchedule & $targetSchedule) DIKECUALIKAN dari kedua cek -
-        // penting buat kasus tukar tanggal SAMA (mis. pagi<->siang hari yang sama): baris milik
-        // targetSchedule sendiri akan selalu "match" query pertama (sama-sama di reqSchedule->date
-        // saat tanggalnya sama) kalau cuma reqSchedule->id yang dikecualikan, salah dianggap
-        // konflik padahal itu baris yang memang jadi bagian swap ini.
-        if (ScheduleShiftAssignment::where('user_id', $targetSchedule->user_id)
-            ->whereDate('date', $reqSchedule->date)
-            ->whereNotIn('id', [$reqSchedule->id, $targetSchedule->id])
-            ->exists()) {
-            throw new \InvalidArgumentException(
-                'Karyawan tujuan sudah memiliki jadwal lain pada tanggal shift Anda, tidak dapat ditukar.'
-            );
+        // Kalau salah satu (atau kedua) pihak TERNYATA sudah punya shift lain (bukan libur) di
+        // tanggal tujuan, sekarang tidak langsung diblokir - dicoba dulu jalur Extra Shift
+        // (throw sendiri kalau memang tidak ada rule yang cocok). Hasilnya dibuang di sini, cuma
+        // dipakai buat validasi gagal-cepat saat pengajuan - eksekusi beneran (buat baris DB)
+        // baru jalan pas approval final lewat executeApprovedSwap(), lihat method itu.
+        $this->resolveDifferentDateExecution($reqSchedule, $targetSchedule);
+
+        // shift_type compatibility (pagi ↔ siang diperbolehkan, malam hanya dengan malam) CUMA
+        // berlaku buat tukar BEDA tanggal (instruksi user 2026-08-20) - tanggal sama cuma nuker
+        // kategori shift di hari yang sama, tidak menggeser hari kerja siapa pun, jadi bebas mau
+        // kombinasi apa saja asal kedua belah pihak setuju.
+        if ($reqSchedule->date->equalTo($targetSchedule->date)) {
+            return;
         }
 
-        if (ScheduleShiftAssignment::where('user_id', $reqSchedule->user_id)
-            ->whereDate('date', $targetSchedule->date)
-            ->whereNotIn('id', [$reqSchedule->id, $targetSchedule->id])
-            ->exists()) {
-            throw new \InvalidArgumentException(
-                'Anda sudah memiliki jadwal lain pada tanggal shift tujuan, tidak dapat ditukar.'
-            );
-        }
-
-        // shift_type compatibility: pagi ↔ siang diperbolehkan, malam hanya dengan malam
         $reqType    = $reqSchedule->shiftType?->shift_type;
         $targetType = $targetSchedule->shiftType?->shift_type;
 
@@ -171,6 +161,140 @@ class ShiftSwapRequestService
         }
     }
 
+    /** Dipanggil dari ApprovalFlowService pas swap request disetujui final - satu-satunya tempat
+     * yang benar-benar menulis perubahan ke schedule_shift_assignments/extra_shift_assignments
+     * (bukan pas diajukan). Tanggal sama -> tukar shift_type_id (hindari bentrok unique
+     * (user_id,date)). Tanggal beda -> re-cek konflik (bisa berubah sejak pengajuan) lalu jalankan
+     * hasilnya: slot yang "move" pindah user_id seperti biasa, slot yang "extra_shift" baris
+     * aslinya dihapus (pemiliknya dibebaskan) dan pihak yang sudah sibuk di tanggal itu dapat
+     * ExtraShiftAssignment tambahan buat nutupnya. */
+    public function executeApprovedSwap(ShiftSwapRequests $swapRequest): void
+    {
+        $swapRequest->loadMissing(['reqSchedule.shiftType', 'targetSchedule.shiftType', 'requester', 'target']);
+
+        $reqSchedule = $swapRequest->reqSchedule;
+        $targetSchedule = $swapRequest->targetSchedule;
+
+        if ($reqSchedule && $targetSchedule) {
+            if ($reqSchedule->date->equalTo($targetSchedule->date)) {
+                $reqShiftTypeId = $reqSchedule->shift_type_id;
+                $targetShiftTypeId = $targetSchedule->shift_type_id;
+                $reqSchedule->update(['shift_type_id' => $targetShiftTypeId]);
+                $targetSchedule->update(['shift_type_id' => $reqShiftTypeId]);
+
+                return;
+            }
+
+            $plan = $this->resolveDifferentDateExecution($reqSchedule, $targetSchedule);
+
+            $reqUserId = $reqSchedule->user_id;
+            $targetUserId = $targetSchedule->user_id;
+
+            $this->applySlotResolution($plan['req_date'], $reqSchedule, $targetUserId, $swapRequest, $swapRequest->requester?->name);
+            $this->applySlotResolution($plan['target_date'], $targetSchedule, $reqUserId, $swapRequest, $swapRequest->target?->name);
+
+            return;
+        }
+
+        if ($reqSchedule && ! $targetSchedule) {
+            $reqSchedule->update(['user_id' => $swapRequest->target_id]);
+        }
+    }
+
+    /** @param array{mode: 'move'|'extra_shift', busy?: ScheduleShiftAssignment} $slot */
+    private function applySlotResolution(
+        array $slot,
+        ScheduleShiftAssignment $originalSchedule,
+        string $incomingUserId,
+        ShiftSwapRequests $swapRequest,
+        ?string $originalOwnerName,
+    ): void {
+        if ($slot['mode'] === 'move') {
+            $originalSchedule->update(['user_id' => $incomingUserId]);
+
+            return;
+        }
+
+        $shiftName = $originalSchedule->shiftType?->name ?? 'shift';
+        $date = $originalSchedule->date->translatedFormat('d M Y');
+
+        ExtraShiftAssignment::create([
+            'company_id' => $originalSchedule->company_id,
+            'user_id' => $slot['busy']->user_id,
+            'shift_type_id' => $originalSchedule->shift_type_id,
+            'date' => $originalSchedule->date,
+            'status' => 'approved',
+            'source' => 'shift_swap',
+            'reason' => "Otomatis dari pengajuan tukar shift yang sudah disetujui - menggantikan {$shiftName} milik {$originalOwnerName} pada {$date}.",
+            'created_by' => $swapRequest->approved_by,
+        ]);
+
+        $originalSchedule->delete();
+    }
+
+    /** Tentukan siapa yang akhirnya nempatin baris req_schedule (tanggal pemohon) dan baris
+     * target_schedule (tanggal rekan) buat kasus tukar BEDA tanggal. Kalau salah satu pihak
+     * TERNYATA sudah punya shift lain (bukan libur) di tanggal yang dituju, pihak itu tidak bisa
+     * "pindah" langsung (unique (user_id,date)) - fallback ke Extra Shift kalau ExtraShiftRule
+     * mengizinkan kombinasinya, atau throw kalau tidak ada rule yang cocok. Dipanggil 2x: sekali
+     * pas validasi pengajuan (hasil dibuang, cuma buat gagal-cepat), sekali lagi pas eksekusi
+     * approval final (hasilnya dipakai) - supaya perubahan jadwal di antara 2 momen itu tetap
+     * ke-cover ulang.
+     *
+     * @return array{req_date: array{mode:string,busy?:ScheduleShiftAssignment}, target_date: array{mode:string,busy?:ScheduleShiftAssignment}}
+     */
+    private function resolveDifferentDateExecution(
+        ScheduleShiftAssignment $reqSchedule,
+        ScheduleShiftAssignment $targetSchedule,
+    ): array {
+        $targetConflict = ScheduleShiftAssignment::with('shiftType')
+            ->where('user_id', $targetSchedule->user_id)
+            ->whereDate('date', $reqSchedule->date)
+            ->whereNotIn('id', [$reqSchedule->id, $targetSchedule->id])
+            ->first();
+
+        $reqConflict = ScheduleShiftAssignment::with('shiftType')
+            ->where('user_id', $reqSchedule->user_id)
+            ->whereDate('date', $targetSchedule->date)
+            ->whereNotIn('id', [$reqSchedule->id, $targetSchedule->id])
+            ->first();
+
+        return [
+            'req_date' => $this->resolveSlot($targetConflict, $reqSchedule, 'Karyawan tujuan sudah memiliki jadwal lain pada tanggal shift Anda'),
+            'target_date' => $this->resolveSlot($reqConflict, $targetSchedule, 'Anda sudah memiliki jadwal lain pada tanggal shift tujuan'),
+        ];
+    }
+
+    /** @return array{mode: 'move'|'extra_shift', busy?: ScheduleShiftAssignment} */
+    private function resolveSlot(?ScheduleShiftAssignment $busy, ScheduleShiftAssignment $incoming, string $blockMessagePrefix): array
+    {
+        if (! $busy) {
+            return ['mode' => 'move'];
+        }
+
+        // Sudah punya extra shift LAIN di tanggal itu (dari sumber mana pun) - tidak boleh
+        // ditumpuk dobel, sama seperti aturan di ResolvesExtraShiftOptions::resolveAllowedExtraShiftTypes()
+        // yang dipakai jalur Extra Shift manual.
+        if (ExtraShiftAssignment::where('user_id', $busy->user_id)->whereDate('date', $incoming->date)->exists()) {
+            throw new \InvalidArgumentException(
+                "{$blockMessagePrefix}, dan tidak bisa ditutup Extra Shift karena karyawan itu sudah punya extra shift lain di tanggal itu."
+            );
+        }
+
+        $ruleExists = ExtraShiftRule::where('company_id', $incoming->company_id)
+            ->where('from_shift_type', $busy->shiftType?->shift_type)
+            ->where('to_shift_type', $incoming->shiftType?->shift_type)
+            ->exists();
+
+        if (! $ruleExists) {
+            throw new \InvalidArgumentException(
+                "{$blockMessagePrefix}, dan tidak ada aturan Extra Shift dari \"{$busy->shiftType?->name}\" ke \"{$incoming->shiftType?->name}\" untuk menutupinya."
+            );
+        }
+
+        return ['mode' => 'extra_shift', 'busy' => $busy];
+    }
+
     private function createApprovalSnapshot(ShiftSwapRequests $swapRequest, $user): void
     {
         $masterFlow = $this->approvalSnapshotRepository->resolveApprovalFlowForUser(
@@ -185,6 +309,10 @@ class ShiftSwapRequestService
             );
         }
 
+        // Rekan (target_id) jadi APPROVER PERTAMA sungguhan (instruksi user 2026-08-20) - bukan
+        // lagi cuma tanggapan opsional lewat ASK_TARGET_RESPONSE_SETTING_KEY/ShiftSwapTargetResponseCard.
+        // Step-nya disisipkan di sini (approver_type=user, ref ke target_id), baru diikuti step-step
+        // master flow biasa (atasan, dst) - lihat ApprovalCreationService::createSnapshot().
         $this->approvalCreationService->createSnapshot(
             moduleType: ApprovalModuleEnum::SWAP_SHIFT_REQUEST->value,
             moduleId:   $swapRequest->id,
@@ -192,11 +320,11 @@ class ShiftSwapRequestService
             createdBy:  $user->id,
             companyId:  $user->company_id,
             userId:     $user->id,
+            prependSteps: [[
+                'approver_type' => 'user',
+                'approver_ref_id' => $swapRequest->target_id,
+            ]],
         );
-
-        if (Setting::resolve(self::ASK_TARGET_RESPONSE_SETTING_KEY, $user->company_id, default: false)) {
-            $swapRequest->target?->notify(new ShiftSwapTargetResponseRequested($swapRequest));
-        }
     }
 
     /** Rekan (target_id) kasih tanggapan opsional - murni catatan info, TIDAK menyentuh `status`

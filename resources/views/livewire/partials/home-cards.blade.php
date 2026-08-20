@@ -270,7 +270,10 @@
                     </span>
                 </div>
 
-                <livewire:presensi.shift-swap-request-modal :key="'shift-swap-modal'" />
+                <div class="jadwal-shift-swap-actions">
+                    <livewire:presensi.shift-swap-request-modal :key="'shift-swap-modal'" />
+                    <livewire:presensi.shift-swap-history-sheet :key="'shift-swap-history'" />
+                </div>
         </div>
     </div>
     @endif

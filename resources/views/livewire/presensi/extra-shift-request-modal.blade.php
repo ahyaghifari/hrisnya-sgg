@@ -47,7 +47,9 @@
                     @if ($this->normalShift)
                         <div>
                             <label class="form-label">3. Shift Tambahan (Extra Shift)</label>
-                            @if ($this->shiftTypeOptions->isEmpty())
+                            @if ($this->shiftTypeOptions->isEmpty() && $this->alreadyHasExtraShift)
+                                <p style="font-size:12px;color:var(--text-muted);">Karyawan ini sudah punya extra shift lain di tanggal ini.</p>
+                            @elseif ($this->shiftTypeOptions->isEmpty())
                                 <p style="font-size:12px;color:var(--text-muted);">Belum ada aturan Extra Shift dari "{{ $this->normalShift['label'] }}" untuk company ini — atur dulu di halaman Extra Shift (Aturan).</p>
                             @else
                                 <select wire:model.live="shift_type_id" class="form-input">

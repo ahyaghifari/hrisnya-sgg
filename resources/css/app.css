@@ -464,6 +464,14 @@ html.dark .dropdown-notif-item:hover, html.dark .dropdown-notif-footer:hover { b
 .pwa-card-header-sky .pwa-section-title, .pwa-card-header-sky .pwa-section-link { color: #fff; }
 .pwa-card-header-sky .pwa-card-header-deco-1, .pwa-card-header-sky .pwa-card-header-deco-2 { background: #fff; }
 
+/* Dipakai widget "Persetujuan Tukar Shift" di dashboard - gradient sama persis tombol "Tukar
+   Shift" (.jadwal-shift-shift-tukar-btn inline style), teks putih (2026-08-20). Beda dari
+   .pwa-card-header-gold yang krem pucat teks amber, ini solid & lebih kontras kayak header
+   sky/navy/primary. */
+.pwa-card-header-amber { background: linear-gradient(130deg, #f59e0b 0%, #b45309 100%); }
+.pwa-card-header-amber .pwa-section-title, .pwa-card-header-amber .pwa-section-link { color: #fff; }
+.pwa-card-header-amber .pwa-card-header-deco-1, .pwa-card-header-amber .pwa-card-header-deco-2 { background: #fff; }
+
 /* Dipakai widget "Jadwal Shift Tim" di dashboard - warna primary/brand (#042c6c, sama dengan
    .btn-primary), teks putih. Hardcoded (bukan var(--brand)) sama seperti varian header lain di
    atas - identitas kartu ini sengaja fixed, tidak ikut berubah pas dark mode. */
@@ -938,6 +946,10 @@ html.lw-navigating .page-content { opacity: 0; }
     .welcome-actions .data-diri-btn.gold { font-size: 14px; padding: 11px 22px; border-radius: 12px; gap: 9px; }
 }
 
+/* Wrapper tombol "Tukar Shift" + "Riwayat" - mobile ditumpuk 1 kolom (default), desktop
+   bersisian (lihat @media 768px di bawah). */
+.jadwal-shift-swap-actions { display: flex; flex-direction: column; gap: 8px; margin-top: 20px; }
+
 /* Widget "Jadwal Shift Saya" (Dashboard) - sel kalender pakai aspect-ratio:1, kalau kolom
    kalender & kolom legend/tombol Tukar Shift ditumpuk 1 kolom penuh di layar lebar, grid 7
    kolom (1fr) jadi kotak raksasa. Desktop: pisah jadi 2 kolom bersisian - kalender kolom
@@ -952,6 +964,12 @@ html.lw-navigating .page-content { opacity: 0; }
     /* Tombol "Tukar Shift" selebar kontennya sendiri di desktop, bukan width:100% ngisi
        seluruh kolom kanan (request user) - mobile tetap full-width seperti biasa. */
     .jadwal-shift-tukar-btn { width: auto !important; }
+    /* Tombol "Tukar Shift" & "Riwayat" bersisian di desktop, bukan ditumpuk (request user
+       2026-08-20) - mobile tetap 1 kolom seperti biasa (default, tidak disentuh media query ini). */
+    .jadwal-shift-swap-actions { flex-direction: row !important; align-items: stretch; }
+    .jadwal-shift-swap-actions > * { flex: 1; }
+    .jadwal-shift-swap-actions .jadwal-shift-tukar-btn { width: 100% !important; }
+    .jadwal-shift-swap-history-btn { width: 100% !important; }
 }
 
 /* Widget "Jadwal Shift Tim" (Dashboard) - kartunya sendiri full-width (grid-column:1/-1) di

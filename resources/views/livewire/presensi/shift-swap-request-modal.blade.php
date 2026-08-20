@@ -1,11 +1,11 @@
 <div>
-    <button type="button" wire:click="openModal" class="btn-primary jadwal-shift-tukar-btn" style="width:100%;justify-content:center;margin-top:20px;font-size:12px;padding:9px 12px;background:linear-gradient(130deg,#f59e0b 0%,#b45309 100%);border:none;">
+    <button type="button" wire:click="openModal" class="btn-primary jadwal-shift-tukar-btn" style="width:100%;justify-content:center;font-size:12px;padding:9px 12px;background:linear-gradient(130deg,#f59e0b 0%,#b45309 100%);border:none;">
         <i class="fa-solid fa-right-left"></i> Tukar Shift
     </button>
 
     @if ($showModal)
         <div class="modal-overlay" wire:click="closeModal">
-            <div class="modal-box" onclick="event.stopPropagation()">
+            <div class="modal-box modal-box-lg" style="max-height:none;overflow-y:visible;" onclick="event.stopPropagation()">
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
                     <h3 style="font-size:15px;font-weight:700;color:var(--text-heading);margin:0;">Ajukan Tukar Shift</h3>
                     <button type="button" wire:click="closeModal" style="background:none;border:none;font-size:16px;color:var(--text-faint);cursor:pointer;">
@@ -13,74 +13,76 @@
                     </button>
                 </div>
 
-                <div style="display:flex;flex-direction:column;gap:14px;max-height:60vh;overflow-y:auto;padding-right:2px;">
+                <div style="display:flex;flex-direction:column;gap:14px;max-height:65vh;overflow-y:auto;padding-right:2px;">
                     <div>
-                        <label class="form-label">1. Cari Rekan Kerja</label>
-                        @if ($targetUserId)
-                            @php $selectedUser = \App\Models\User::find($targetUserId); @endphp
-                            <div style="display:flex;align-items:center;justify-content:space-between;background:var(--info-soft-bg);border:1px solid var(--info-soft-border);border-radius:10px;padding:8px 12px;">
-                                <span style="font-size:13px;font-weight:600;color:var(--text-heading);">{{ $selectedUser?->name }} <span style="color:var(--text-muted);font-weight:400;">({{ $selectedUser?->nip }})</span></span>
-                                <button type="button" wire:click="clearTarget" style="background:none;border:none;color:var(--text-faint);cursor:pointer;"><i class="fa-solid fa-xmark"></i></button>
-                            </div>
-                        @else
-                            <input type="text" wire:model.live.debounce.400ms="targetSearch" class="form-input" placeholder="Ketik nama atau NIP rekan sejadwal...">
-                            <p style="font-size:11px;color:var(--text-muted);margin-top:4px;">Cuma menampilkan rekan yang pakai jadwal shift yang sama dengan Anda.</p>
-                            @if ($this->targetCandidates->isNotEmpty())
-                                <div style="border:1px solid var(--border-soft);border-radius:10px;margin-top:6px;overflow:hidden;">
-                                    @foreach ($this->targetCandidates as $candidate)
-                                        <button type="button" wire:click="selectTarget('{{ $candidate->id }}')" style="display:block;width:100%;text-align:left;padding:8px 12px;border:none;background:var(--surface);cursor:pointer;font-size:13px;border-bottom:1px solid var(--border-soft);">
-                                            {{ $candidate->name }} <span style="color:var(--text-muted);">({{ $candidate->nip }})</span>
-                                        </button>
-                                    @endforeach
-                                </div>
-                            @endif
+                        <label class="form-label">1. Tanggal Shift Saya yang Mau Ditukar</label>
+                        <input type="date" wire:model.live="reqDate" min="{{ now()->toDateString() }}" class="form-input">
+                        @if ($this->reqShift)
+                            <p style="font-size:11.5px;color:var(--text-muted);margin-top:4px;">Shift Anda: <strong>{{ $this->reqShift->shiftType?->name }}</strong></p>
+                        @elseif ($reqDate)
+                            <p style="font-size:11.5px;color:var(--danger-text);margin-top:4px;">Anda tidak punya jadwal shift (atau libur) di tanggal ini.</p>
                         @endif
-                        @error('targetUserId') <p style="color:var(--danger-text);font-size:11.5px;margin-top:4px;">{{ $message }}</p> @enderror
+                        @error('reqDate') <p style="color:var(--danger-text);font-size:11.5px;margin-top:4px;">{{ $message }}</p> @enderror
                     </div>
 
-                    @if ($targetUserId)
-                        <div>
-                            <label class="form-label">2. Jadwal Rekan yang Mau Ditukar</label>
-                            @if ($this->targetShifts->isEmpty())
-                                <p style="font-size:12px;color:var(--text-muted);">Rekan ini tidak punya jadwal shift ke depan.</p>
-                            @else
-                                <select wire:model.live="targetScheduleId" class="form-input">
-                                    <option value="">Pilih jadwal rekan...</option>
-                                    @foreach ($this->targetShifts as $shift)
-                                        <option value="{{ $shift->id }}">
-                                            {{ $shift->date->translatedFormat('d M Y (D)') }} — {{ $shift->shiftType?->name }}
-                                        </option>
+                    @if ($this->reqShift)
+                        <div wire:key="date-mode-field">
+                            <label class="form-label">2. Tanggal Tukar dengan Rekan</label>
+                            <div style="display:flex;gap:16px;margin-bottom:8px;">
+                                <label style="display:flex;align-items:center;gap:9px;font-size:12.5px;color:var(--text-body);cursor:pointer;">
+                                    <span class="custom-radio">
+                                        <input type="radio" name="dateMode" wire:model.live="dateMode" value="same">
+                                        <span class="dot"></span>
+                                    </span>
+                                    Tanggal sama
+                                </label>
+                                <label style="display:flex;align-items:center;gap:9px;font-size:12.5px;color:var(--text-body);cursor:pointer;">
+                                    <span class="custom-radio">
+                                        <input type="radio" name="dateMode" wire:model.live="dateMode" value="different">
+                                        <span class="dot"></span>
+                                    </span>
+                                    Tanggal berbeda
+                                </label>
+                            </div>
+
+                            @if ($dateMode === 'different')
+                                <input type="date" wire:model.live="targetDate" min="{{ now()->toDateString() }}" class="form-input" placeholder="Tanggal shift rekan...">
+                                @error('targetDate') <p style="color:var(--danger-text);font-size:11.5px;margin-top:4px;">{{ $message }}</p> @enderror
+                            @endif
+                        </div>
+
+                        @if ($this->effectiveTargetDate)
+                            <div wire:key="target-user-field">
+                                <label class="form-label">3. Cari Rekan Kerja</label>
+                                <select wire:key="target-user-select" class="form-input" wire:model.live="targetUserId" data-tom-select data-placeholder="Ketik nama atau NIP rekan sejadwal...">
+                                    <option value="">-- Pilih rekan --</option>
+                                    @foreach ($this->targetCandidates as $candidate)
+                                        <option value="{{ $candidate->user_id }}">{{ $candidate->user->name }} ({{ $candidate->user->nip }}) — {{ $candidate->shiftType?->name }}</option>
                                     @endforeach
                                 </select>
-                            @endif
-                            @error('targetScheduleId') <p style="color:var(--danger-text);font-size:11.5px;margin-top:4px;">{{ $message }}</p> @enderror
-                        </div>
-                    @endif
+                                @if ($this->targetCandidates->isEmpty())
+                                    <p style="font-size:11px;color:var(--text-muted);margin-top:4px;">Tidak ada rekan sejadwal yang punya shift di tanggal ini.</p>
+                                @else
+                                    <p style="font-size:11px;color:var(--text-muted);margin-top:4px;">Cuma menampilkan rekan sejadwal yang punya shift di tanggal yang dipilih di atas.</p>
+                                @endif
+                                @error('targetUserId') <p style="color:var(--danger-text);font-size:11.5px;margin-top:4px;">{{ $message }}</p> @enderror
 
-                    @if ($targetScheduleId)
+                                @if ($targetUserId)
+                                    <p style="font-size:12px;font-weight:600;color:var(--text-heading);margin:10px 0 0;">Jadwal Rekan yang Mau Ditukar</p>
+                                    @if ($this->targetShift)
+                                        <p style="font-size:11.5px;color:var(--text-muted);margin-top:2px;"><strong style="color:var(--text-heading);">{{ $this->targetShift->user?->name }}</strong> — {{ $this->targetShift->date->translatedFormat('d M Y (D)') }} — <strong>{{ $this->targetShift->shiftType?->name }}</strong></p>
+                                    @else
+                                        <p style="font-size:11.5px;color:var(--danger-text);margin-top:2px;">Rekan tidak punya jadwal shift (atau libur) di tanggal ini.</p>
+                                    @endif
+                                @endif
+                            </div>
+                        @endif
+
                         <div>
-                            <label class="form-label">3. Ditukar dengan Jadwal Saya</label>
-                            @if ($this->myShifts->isEmpty())
-                                <p style="font-size:12px;color:var(--text-muted);">Anda tidak punya jadwal shift di bulan yang sama.</p>
-                            @else
-                                <select wire:model="reqScheduleId" class="form-input">
-                                    <option value="">Pilih jadwal saya...</option>
-                                    @foreach ($this->myShifts as $shift)
-                                        <option value="{{ $shift->id }}">
-                                            {{ $shift->date->translatedFormat('d M Y (D)') }} — {{ $shift->shiftType?->name }}
-                                        </option>
-                                    @endforeach
-                                </select>
-                                <p style="font-size:11px;color:var(--text-muted);margin-top:4px;">Cuma jadwal bulan yang sama dengan jadwal rekan yang ditampilkan.</p>
-                            @endif
-                            @error('reqScheduleId') <p style="color:var(--danger-text);font-size:11.5px;margin-top:4px;">{{ $message }}</p> @enderror
+                            <label class="form-label">Catatan (opsional)</label>
+                            <textarea wire:model="notes" class="form-input" rows="2" placeholder="Alasan tukar shift..."></textarea>
                         </div>
                     @endif
-
-                    <div>
-                        <label class="form-label">Catatan (opsional)</label>
-                        <textarea wire:model="notes" class="form-input" rows="2" placeholder="Alasan tukar shift..."></textarea>
-                    </div>
                 </div>
 
                 <div style="display:flex;gap:10px;margin-top:16px;">

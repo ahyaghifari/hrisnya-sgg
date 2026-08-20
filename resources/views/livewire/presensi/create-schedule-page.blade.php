@@ -191,8 +191,8 @@
                 </div>
 
                 <div style="margin-top:14px;max-width:320px;">
-                    <label class="form-label">Kepala Ruangan (opsional)</label>
-                    <select class="form-input" wire:model="headUserId">
+                    <label class="form-label">Kepala Ruangan{{ $scheduleType === 'shift' ? '' : ' (opsional)' }}</label>
+                    <select class="form-input" wire:model="headUserId" data-tom-select data-placeholder="-- Tidak ada --">
                         <option value="">-- Tidak ada --</option>
                         @foreach ($this->headUserOptions as $employee)
                             <option value="{{ $employee->id }}">{{ $employee->name }}</option>

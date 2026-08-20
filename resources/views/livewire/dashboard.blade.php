@@ -3,7 +3,7 @@
 
 <div style="margin-bottom:20px;">
     <livewire:pending-approvals-card />
-    <livewire:shift-swap-target-response-card />
+    <livewire:presensi.shift-swap-approvals-card />
 </div>
 
 @include('livewire.partials.home-cards')

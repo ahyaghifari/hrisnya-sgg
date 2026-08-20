@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Presensi;
 
+use App\Livewire\Presensi\Concerns\FormatsShiftSwapRequest;
 use App\Models\Shift\ShiftSwapRequests;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
@@ -19,6 +20,7 @@ use Livewire\WithPagination;
 class MyShiftSwapRequests extends Component
 {
     use WithPagination;
+    use FormatsShiftSwapRequest;
 
     #[Url]
     public string $status = '';
@@ -48,37 +50,6 @@ class MyShiftSwapRequests extends Component
             ->orderByDesc('created_at')
             ->paginate(10)
             ->appends(['status' => $this->status]);
-    }
-
-    public function keterangan(ShiftSwapRequests $record): string
-    {
-        $req = $record->reqSchedule?->shiftType?->name . ' (' . $record->req_date->translatedFormat('d M') . ')';
-
-        if ($record->targetSchedule) {
-            return $req . ' ↔ ' . $record->targetSchedule->shiftType?->name . ' (' . $record->target_date->translatedFormat('d M') . ')';
-        }
-
-        return $req . ' → diserahkan ke ' . ($record->target?->name ?? '-');
-    }
-
-    public function statusLabel(string $status): string
-    {
-        return match ($status) {
-            'in_review', 'pending' => 'Diproses',
-            'approved' => 'Disetujui',
-            'rejected' => 'Ditolak',
-            default => $status,
-        };
-    }
-
-    public function statusBadgeClass(string $status): string
-    {
-        return match ($status) {
-            'approved' => 'badge-approved',
-            'in_review', 'pending' => 'badge-pending',
-            'rejected' => 'badge-rejected',
-            default => 'badge-cancelled',
-        };
     }
 
     public function render()

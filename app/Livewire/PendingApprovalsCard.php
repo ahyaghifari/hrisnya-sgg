@@ -367,6 +367,12 @@ class PendingApprovalsCard extends Component
         if ($this->wants('shift_swap_request')) {
             $swapIds = $permissionService
                 ->pendingApprovalsFor(Auth::user(), ApprovalModuleEnum::SWAP_SHIFT_REQUEST->value)
+                // Step 1 SELALU rekan yang jadwalnya mau ditukar (lihat
+                // ShiftSwapRequestService::createApprovalSnapshot() - target_id disisipkan sebagai
+                // approver pertama) - dikecualikan dari sini, widget ini murni buat approval
+                // berbasis manajemen/atasan (instruksi user 2026-08-20). Punya widget sendiri,
+                // lihat App\Livewire\Presensi\ShiftSwapApprovalsCard.
+                ->reject(fn ($activity) => (int) $activity->current_step_order === 1)
                 ->pluck('snapshot.module_id')->filter()->values();
 
             $shiftSwapRequests = ShiftSwapRequests::with(['requester', 'target', 'reqSchedule.shiftType', 'targetSchedule.shiftType'])

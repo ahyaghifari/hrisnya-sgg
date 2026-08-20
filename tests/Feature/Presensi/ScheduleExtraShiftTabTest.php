@@ -120,4 +120,82 @@ class ScheduleExtraShiftTabTest extends TestCase
             'created_by' => $admin->id,
         ]);
     }
+
+    /** Karyawan yang SUDAH punya extra shift lain di tanggal itu tidak boleh ditambahkan lagi -
+     * lihat ResolvesExtraShiftOptions::resolveAllowedExtraShiftTypes(). */
+    public function test_cannot_assign_extra_shift_when_employee_already_has_one_that_day(): void
+    {
+        $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
+        $admin = $this->actingAsPengelola($company->id);
+
+        $schedule = Schedule::create(['company_id' => $company->id, 'name' => 'Jadwal A', 'schedule_type' => 'shift']);
+        $pagi = ScheduleShiftType::create(['schedule_id' => $schedule->id, 'code' => 'PAGI', 'name' => 'Pagi', 'shift_type' => 'pagi', 'start_time' => '07:00', 'end_time' => '14:00']);
+        $siang = ScheduleShiftType::create(['schedule_id' => $schedule->id, 'code' => 'SIANG', 'name' => 'Siang', 'shift_type' => 'siang', 'start_time' => '14:00', 'end_time' => '21:00']);
+        $malam = ScheduleShiftType::create(['schedule_id' => $schedule->id, 'code' => 'MALAM', 'name' => 'Malam', 'shift_type' => 'malam', 'start_time' => '21:00', 'end_time' => '07:00']);
+
+        $employee = User::factory()->create(['company_id' => $company->id]);
+        ScheduleAssignment::create(['company_id' => $company->id, 'user_id' => $employee->id, 'schedule_id' => $schedule->id, 'effective_from' => now()->subYear()->toDateString()]);
+
+        $date = now()->addDay()->toDateString();
+        ScheduleShiftAssignment::create(['company_id' => $company->id, 'user_id' => $employee->id, 'shift_type_id' => $pagi->id, 'date' => $date, 'off_day' => false]);
+        ExtraShiftRule::create(['company_id' => $company->id, 'from_shift_type' => 'pagi', 'to_shift_type' => 'siang']);
+        ExtraShiftRule::create(['company_id' => $company->id, 'from_shift_type' => 'pagi', 'to_shift_type' => 'malam']);
+
+        \App\Models\Shift\ExtraShiftAssignment::create([
+            'company_id' => $company->id,
+            'user_id' => $employee->id,
+            'shift_type_id' => $siang->id,
+            'date' => $date,
+            'status' => 'approved',
+            'source' => 'assigned',
+            'created_by' => $admin->id,
+        ]);
+
+        $this->actingAs($admin);
+
+        $component = Livewire::test(ScheduleExtraShiftTab::class, ['schedule' => $schedule])
+            ->call('openAddModal')
+            ->set('user_id', $employee->id)
+            ->set('date', $date);
+
+        $this->assertTrue($component->get('alreadyHasExtraShift'));
+        $this->assertCount(0, $component->get('shiftTypeOptions'));
+
+        $component->set('shift_type_id', $malam->id)
+            ->call('assign');
+
+        $this->assertSame(1, \App\Models\Shift\ExtraShiftAssignment::where('user_id', $employee->id)->whereDate('date', $date)->count());
+    }
+
+    /** Baris hasil eksekusi Tukar Shift (source=shift_swap) TIDAK BOLEH dihapus siapa pun lewat
+     * jalur pengelolaan Extra Shift biasa - termasuk yang punya permission Delete penuh - lihat
+     * ExtraShiftAssignmentPolicy::delete(). */
+    public function test_shift_swap_sourced_row_cannot_be_deleted(): void
+    {
+        $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
+        $admin = $this->actingAsPengelola($company->id);
+
+        $schedule = Schedule::create(['company_id' => $company->id, 'name' => 'Jadwal A', 'schedule_type' => 'shift']);
+        $pagi = ScheduleShiftType::create(['schedule_id' => $schedule->id, 'code' => 'PAGI', 'name' => 'Pagi', 'shift_type' => 'pagi', 'start_time' => '07:00', 'end_time' => '14:00']);
+
+        $employee = User::factory()->create(['company_id' => $company->id]);
+
+        $extraShift = \App\Models\Shift\ExtraShiftAssignment::create([
+            'company_id' => $company->id,
+            'user_id' => $employee->id,
+            'shift_type_id' => $pagi->id,
+            'date' => now()->addDay()->toDateString(),
+            'status' => 'approved',
+            'source' => 'shift_swap',
+            'created_by' => $admin->id,
+        ]);
+
+        $this->actingAs($admin);
+
+        Livewire::test(ScheduleExtraShiftTab::class, ['schedule' => $schedule])
+            ->call('delete', $extraShift->id)
+            ->assertForbidden();
+
+        $this->assertModelExists($extraShift);
+    }
 }

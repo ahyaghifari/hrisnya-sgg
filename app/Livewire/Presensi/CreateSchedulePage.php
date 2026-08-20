@@ -193,11 +193,13 @@ class CreateSchedulePage extends Component
             'shiftPattern' => $this->scheduleType === ScheduleType::SHIFT->value
                 ? 'required|in:' . implode(',', array_column(\App\Enum\ShiftPatternEnum::cases(), 'value'))
                 : 'nullable',
+            'headUserId' => $this->scheduleType === ScheduleType::SHIFT->value ? 'required' : 'nullable',
         ], [], [
             'companyId' => 'perusahaan',
             'name' => 'nama jadwal',
             'scheduleType' => 'tipe jadwal',
             'shiftPattern' => 'pola shift',
+            'headUserId' => 'kepala ruangan',
         ]);
 
         $scheduleData = [
