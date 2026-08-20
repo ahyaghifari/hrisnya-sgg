@@ -21,7 +21,7 @@ class EmployeeTemplateExport implements WithMultipleSheets
     {
         $cid = $this->companyId;
 
-        $religion    = Religions::when($cid, fn ($q) => $q->where('company_id', $cid))->orderBy('name')->value('name');
+        $religion    = Religions::orderBy('name')->value('name'); // agama: master data global, tidak per company
         $orgStructure = OrgStructure::when($cid, fn ($q) => $q->where('company_id', $cid))->orderBy('name')->value('name');
         $jobPosition = JobPositions::when($cid, fn ($q) => $q->where('company_id', $cid))->orderBy('name')->value('name');
         $pangkat     = Pangkats::when($cid, fn ($q) => $q->where('company_id', $cid))->orderBy('name')->value('name');
@@ -73,10 +73,7 @@ class EmployeeTemplateExport implements WithMultipleSheets
             new MasterDataSheet(
                 'Agama',
                 'Nama Agama',
-                Religions::when($cid, fn ($q) => $q->where('company_id', $cid))
-                    ->orderBy('name')
-                    ->pluck('name')
-                    ->toArray()
+                Religions::orderBy('name')->pluck('name')->toArray()
             ),
 
             new MasterDataSheet(

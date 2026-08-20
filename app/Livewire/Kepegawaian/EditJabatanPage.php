@@ -15,17 +15,15 @@ use Livewire\Component;
 use Livewire\WithFileUploads;
 
 /**
- * Edit Jabatan portal - padanan EditJobPosition admin. Field terkunci total begitu status
- * bukan lagi draft (getIsLockedProperty(), lihat HasJabatanForm) - pengajuan yang sudah
- * diajukan/disetujui/ditolak tidak boleh diam-diam diubah lewat sini, cuma bisa dilihat.
- * Kuota (planned_manpower) juga cuma bisa diisi saat pengajuan baru (lihat
- * jabatan-form-fields.blade.php) - TIDAK bisa diedit lewat sini sama sekali, perubahan kuota
- * cuma lewat tombol "Ajukan Penambahan Kuota" di tabel Jabatan (JabatanPage).
+ * Edit Jabatan portal - padanan EditJobPosition admin. Field non-kuota (nama, struktur
+ * organisasi, deskripsi, dst) langsung tersimpan tanpa approval. Kuota (planned_manpower)
+ * cuma bisa diisi saat pengajuan baru (lihat jabatan-form-fields.blade.php) - TIDAK bisa
+ * diedit lewat sini sama sekali, perubahan kuota cuma lewat tombol "Ajukan Penambahan
+ * Kuota" di tabel Jabatan (JabatanPage), yang tetap lewat approval flow di bawah.
  *
- * Approve/Reject pengajuan (2026-08-10) - sebelumnya cuma ada di admin panel
- * (EditJobPosition::getFormActions()), portal cuma bisa lihat/edit draft (lihat gap di
- * README § Known Gaps). Reuse JobPositionService::approveJobPosition() yang sama persis
- * dipakai admin, jadi efek sampingnya (actual_manpower/capacity org structure) konsisten.
+ * Approve/Reject pengajuan kuota (2026-08-10) - reuse JobPositionService::approveJobPosition()
+ * yang sama persis dipakai admin, jadi efek sampingnya (actual_manpower/capacity org structure)
+ * konsisten.
  */
 #[Layout('components.layout', ['title' => 'Edit Jabatan'])]
 class EditJabatanPage extends Component
@@ -51,8 +49,7 @@ class EditJabatanPage extends Component
             && app(ApprovalPermissionService::class)->canApprove($record->approvalSnapshot->id, Auth::user());
 
         // Approver yang bukan pemegang Update:JobPositions (mis. Direktur tanpa akses CRUD
-        // Jabatan) tetap boleh buka halaman ini buat approve/reject - form-nya sendiri tetap
-        // terkunci total (getIsLockedProperty()) begitu status bukan draft.
+        // Jabatan) tetap boleh buka halaman ini buat approve/reject kuota.
         abort_unless(Auth::user()->can('update', $record) || $canApproveThis, 403);
 
         $this->fillFromRecord($record);
@@ -60,8 +57,6 @@ class EditJabatanPage extends Component
 
     public function save(): void
     {
-        abort_unless(! $this->isLocked, 403);
-
         $data = $this->validate($this->jabatanRules());
         unset($data['department_id'], $data['division_id'], $data['sub_division_id']);
 

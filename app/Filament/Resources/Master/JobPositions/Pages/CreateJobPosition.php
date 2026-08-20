@@ -17,10 +17,8 @@ class CreateJobPosition extends CreateRecord
         return $this->getResource()::getUrl('index');
     }
 
-    /** DB default kolom status = 'pending' (bukan 'draft') - tanpa ini, jabatan yang baru
-     * dibuat langsung terkunci di form Edit (lockedAfterDraft() di JobPositionResource
-     * membandingkan ke DRAFT). Submit ke approval flow (JobPositionService::requestJobPosition())
-     * ditunda - bukan bagian task ini. */
+    /** DB default kolom status = 'pending' (bukan 'draft'). Submit ke approval flow
+     * (JobPositionService::requestJobPosition()) ditunda - bukan bagian task ini. */
     protected function mutateFormDataBeforeCreate(array $data): array
     {
         $data['status'] = JobPositionReqStatus::DRAFT->value;

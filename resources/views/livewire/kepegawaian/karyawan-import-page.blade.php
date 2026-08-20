@@ -1,11 +1,11 @@
 <div>
-    <x-page-header title="Import Akun Karyawan" subtitle="Bikin/perbarui akun dasar (nama, email, NIP) lewat file Excel" />
+    <x-page-header title="Import Akun Karyawan" subtitle="Bikin/perbarui akun dasar + profil ringkas (nama, email, NIP, status karyawan, tanggal mulai kerja, tanggal lahir, tempat lahir, alamat) lewat file Excel" />
 
     <div class="mt-4" style="display:flex;flex-direction:column;gap:16px;max-width:900px;">
         <div style="background:var(--info-soft-bg);border:1px solid var(--info-soft-border);border-radius:10px;padding:14px 16px;font-size:12.5px;color:var(--text-body);">
             <i class="fa-solid fa-circle-info"></i>
-            Fitur ini cuma bikin akun DASAR (nama, email, NIP, password otomatis) — profil lengkap, jabatan, dan role tetap diisi manual lewat halaman Karyawan setelahnya.
-            NIP dipakai sebagai kunci pencocokan: NIP baru → akun baru, NIP sudah ada tapi nama/email beda → diperbarui. Belum ada apa-apa yang tersimpan sampai kamu klik "Konfirmasi Import" di pratinjau.
+            Kolom nip/nama wajib diisi. Kolom lain (email, status_karyawan, tanggal_mulai_kerja, jenis_kelamin, status_perkawinan, tempat_lahir, tanggal_lahir, agama, alamat, nik) opsional — kalau kosong di file, data existing TIDAK ditimpa, tetap ikut yang sudah ada di sistem. Khusus akun baru: email wajib (buat akun) dan tanggal_lahir wajib (buat password awal).
+            NIP dipakai sebagai kunci pencocokan: NIP baru → akun baru, NIP sudah ada tapi ada field beda → diperbarui. Belum ada apa-apa yang tersimpan sampai kamu klik "Konfirmasi Import" di pratinjau.
         </div>
 
         <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;justify-content:space-between;">
@@ -19,7 +19,7 @@
         <div>
             <label class="form-label">File Excel (.xlsx)</label>
             <input type="file" class="form-input" wire:model="file" accept=".xlsx,.xls,.csv">
-            <p style="font-size:11px;color:var(--text-muted);margin-top:4px;">Kolom wajib: nip, nama, email.</p>
+            <p style="font-size:11px;color:var(--text-muted);margin-top:4px;">Kolom wajib: nip, nama (+ email &amp; tanggal_lahir khusus akun baru). Opsional: status_karyawan, tanggal_mulai_kerja, jenis_kelamin, status_perkawinan, tempat_lahir, agama, alamat, nik.</p>
             @error('file') <p style="font-size:11px;color:#dc2626;margin-top:4px;">{{ $message }}</p> @enderror
             @error('companyId') <p style="font-size:11px;color:#dc2626;margin-top:4px;">{{ $message }}</p> @enderror
             <div wire:loading wire:target="file,companyId" style="font-size:11px;color:var(--text-muted);margin-top:4px;">Memproses pratinjau...</div>
@@ -52,6 +52,15 @@
                                         <th style="text-align:left;padding:6px 10px;">NIP</th>
                                         <th style="text-align:left;padding:6px 10px;">Nama</th>
                                         <th style="text-align:left;padding:6px 10px;">Email</th>
+                                        <th style="text-align:left;padding:6px 10px;">Status Karyawan</th>
+                                        <th style="text-align:left;padding:6px 10px;">Mulai Kerja</th>
+                                        <th style="text-align:left;padding:6px 10px;">JK</th>
+                                        <th style="text-align:left;padding:6px 10px;">Status Kawin</th>
+                                        <th style="text-align:left;padding:6px 10px;">Tempat Lahir</th>
+                                        <th style="text-align:left;padding:6px 10px;">Tgl Lahir</th>
+                                        <th style="text-align:left;padding:6px 10px;">Agama</th>
+                                        <th style="text-align:left;padding:6px 10px;">Alamat</th>
+                                        <th style="text-align:left;padding:6px 10px;">NIK</th>
                                         <th style="text-align:left;padding:6px 10px;">Password Awal</th>
                                     </tr>
                                 </thead>
@@ -61,6 +70,15 @@
                                             <td style="padding:6px 10px;">{{ $row['nip'] }}</td>
                                             <td style="padding:6px 10px;">{{ $row['nama'] }}</td>
                                             <td style="padding:6px 10px;">{{ $row['email'] }}</td>
+                                            <td style="padding:6px 10px;">{{ $row['profile']['employee_type_id'] ?? '-' }}</td>
+                                            <td style="padding:6px 10px;">{{ $row['profile']['joining_date'] ?? '-' }}</td>
+                                            <td style="padding:6px 10px;">{{ $row['profile']['gender'] ?? '-' }}</td>
+                                            <td style="padding:6px 10px;">{{ $row['profile']['marital_status'] ?? '-' }}</td>
+                                            <td style="padding:6px 10px;">{{ $row['profile']['place_of_birth'] ?? '-' }}</td>
+                                            <td style="padding:6px 10px;">{{ $row['profile']['date_of_birth'] ?? '-' }}</td>
+                                            <td style="padding:6px 10px;">{{ $row['profile']['religion_id'] ?? '-' }}</td>
+                                            <td style="padding:6px 10px;">{{ $row['profile']['address'] ?? '-' }}</td>
+                                            <td style="padding:6px 10px;">{{ $row['profile']['no_nik'] ?? '-' }}</td>
                                             <td style="padding:6px 10px;font-family:monospace;">{{ $row['password'] }}</td>
                                         </tr>
                                     @endforeach
@@ -83,9 +101,23 @@
                                         <th style="text-align:left;padding:6px 10px;">NIP</th>
                                         <th style="text-align:left;padding:6px 10px;">Nama (Lama → Baru)</th>
                                         <th style="text-align:left;padding:6px 10px;">Email (Lama → Baru)</th>
+                                        <th style="text-align:left;padding:6px 10px;">Field Profil Berubah</th>
                                     </tr>
                                 </thead>
                                 <tbody>
+                                    @php
+                                        $profileLabelNames = [
+                                            'employee_type_id' => 'Status Karyawan',
+                                            'joining_date' => 'Mulai Kerja',
+                                            'gender' => 'Jenis Kelamin',
+                                            'marital_status' => 'Status Perkawinan',
+                                            'date_of_birth' => 'Tgl Lahir',
+                                            'place_of_birth' => 'Tempat Lahir',
+                                            'religion_id' => 'Agama',
+                                            'address' => 'Alamat',
+                                            'no_nik' => 'NIK',
+                                        ];
+                                    @endphp
                                     @foreach ($this->changedRows as $row)
                                         <tr style="border-bottom:1px solid var(--border-soft);">
                                             <td style="padding:6px 10px;">{{ $row['nip'] }}</td>
@@ -104,6 +136,15 @@
                                                 @else
                                                     {{ $row['email_baru'] }}
                                                 @endif
+                                            </td>
+                                            <td style="padding:6px 10px;">
+                                                @foreach (($row['profile_baru'] ?? []) as $field => $newValue)
+                                                    <div>
+                                                        <strong>{{ $profileLabelNames[$field] ?? $field }}:</strong>
+                                                        <span style="color:var(--text-faint);text-decoration:line-through;">{{ $row['profile_lama'][$field] ?? '-' }}</span>
+                                                        → <strong>{{ $newValue }}</strong>
+                                                    </div>
+                                                @endforeach
                                             </td>
                                         </tr>
                                     @endforeach

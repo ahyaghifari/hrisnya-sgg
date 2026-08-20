@@ -94,6 +94,20 @@ class JobPositions extends Model
         return $this->belongsTo(OrgStructure::class);
     }
 
+    /** Sama seperti UserProfiles::getDivisionAttribute() - org_structure_id jabatan bisa
+     * menunjuk ke level department/division/subdivision, naik 1 tingkat ke parent kalau
+     * bukan level Divisi langsung. */
+    public function getDivisionAttribute()
+    {
+        if (! $this->orgStructure) {
+            return null;
+        }
+
+        return $this->orgStructure->level === \App\Enum\OrgStructurLevel::LEVEL_DIVISION->value
+            ? $this->orgStructure
+            : $this->orgStructure->parent;
+    }
+
     public function parent()
     {
         return $this->belongsTo(self::class, 'parent_id');

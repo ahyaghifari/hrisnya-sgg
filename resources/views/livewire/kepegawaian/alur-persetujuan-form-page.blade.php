@@ -54,12 +54,13 @@
     @if ($flowType === 'specific')
         <div style="margin-top:14px;">
             <label class="form-label">Berlaku untuk Jabatan</label>
-            <input type="text" wire:model.live.debounce.300ms="jobPositionSearch" class="form-input" style="margin-bottom:8px;" placeholder="Cari nama jabatan...">
-            <select wire:model="assignmentJobPositions" multiple class="form-input" style="min-height:100px;">
-                @foreach ($this->jobPositionOptions as $id => $name)
-                    <option value="{{ $id }}">{{ $name }}</option>
-                @endforeach
-            </select>
+            <div wire:key="job-position-wrap-{{ $companyId }}" wire:ignore>
+                <select wire:model="assignmentJobPositions" multiple class="form-input" data-tom-select data-placeholder="Cari nama jabatan...">
+                    @foreach ($this->jobPositionOptions as $id => $name)
+                        <option value="{{ $id }}" @selected(in_array($id, $assignmentJobPositions))>{{ $name }}</option>
+                    @endforeach
+                </select>
+            </div>
             <p style="font-size:11px;color:var(--text-muted);margin-top:4px;">Alur ini otomatis diprioritaskan kalau pengaju punya salah satu jabatan di atas.</p>
             @error('assignmentJobPositions') <p style="color:var(--danger-text);font-size:11.5px;margin-top:4px;">{{ $message }}</p> @enderror
         </div>
@@ -110,12 +111,14 @@
 
                     <div>
                         <label class="form-label">Approver</label>
-                        <select wire:model="steps.{{ $i }}.approver_ref_id" class="form-input" style="font-size:12px;padding:7px 10px;" @disabled(! $step['approver_type'])>
-                            <option value="">Pilih approver...</option>
-                            @foreach ($this->approverOptions($step['approver_type'], $step['source_company']) as $id => $name)
-                                <option value="{{ $id }}">{{ $name }}</option>
-                            @endforeach
-                        </select>
+                        <div wire:key="approver-wrap-{{ $i }}-{{ $step['approver_type'] }}-{{ $step['source_company'] }}" wire:ignore>
+                            <select wire:model="steps.{{ $i }}.approver_ref_id" class="form-input" data-tom-select data-placeholder="Pilih approver..." @disabled(! $step['approver_type'])>
+                                <option value=""></option>
+                                @foreach ($this->approverOptions($step['approver_type'], $step['source_company']) as $id => $name)
+                                    <option value="{{ $id }}" @selected($id === $step['approver_ref_id'])>{{ $name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
                     </div>
 
                     <div>

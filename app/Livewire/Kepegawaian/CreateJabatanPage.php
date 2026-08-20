@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Kepegawaian;
 
+use App\Enum\JobPosition\SkipJobPositionApprovalCompanyEnum;
 use App\Enum\JobPositionReqStatus;
 use App\Livewire\Kepegawaian\Concerns\HasJabatanForm;
 use App\Models\Master\JobPositions;
@@ -45,12 +46,24 @@ class CreateJabatanPage extends Component
         try {
             $jobPosition = JobPositions::create($payload);
 
+            $skipApproval = false;
+
             if ($submit) {
-                app(JobPositionService::class)->requestJobPosition($jobPosition, JobPositionReqStatus::REQUESTED->value);
+                $skipApproval = SkipJobPositionApprovalCompanyEnum::skips($jobPosition->company_id);
+
+                if ($skipApproval) {
+                    app(JobPositionService::class)->autoApproveJobPosition($jobPosition);
+                } else {
+                    app(JobPositionService::class)->requestJobPosition($jobPosition, JobPositionReqStatus::REQUESTED->value);
+                }
             }
 
             Notification::make()
-                ->title($submit ? 'Pengajuan jabatan berhasil dikirim' : 'Draft jabatan berhasil disimpan')
+                ->title(match (true) {
+                    ! $submit => 'Draft jabatan berhasil disimpan',
+                    $skipApproval => 'Jabatan baru berhasil ditambahkan',
+                    default => 'Pengajuan jabatan berhasil dikirim',
+                })
                 ->success()
                 ->send();
 

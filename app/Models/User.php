@@ -143,10 +143,16 @@ class User extends Authenticatable implements FilamentUser
         return $this->hasMany(\App\Models\User\UserContract::class, 'user_id', 'id');
     }
 
-    /** Kontrak paling baru (periode aktif saat ini) - pola sama activeJobPosition() di bawah. */
+    /**
+     * Kontrak paling baru YANG SUDAH MULAI (contract_start_date <= hari ini) - pola sama
+     * activeJobPosition() di bawah. Filter tanggal ini penting: kalau tidak, baris kontrak yang
+     * dibuat duluan dengan contract_start_date di masa depan (transisi belum efektif jalan)
+     * keliru dianggap "current" sebelum waktunya.
+     */
     public function currentContract(): HasOne
     {
         return $this->hasOne(\App\Models\User\UserContract::class, 'user_id', 'id')
+            ->where('contract_start_date', '<=', now())
             ->latestOfMany('contract_start_date');
     }
 

@@ -56,6 +56,35 @@ class JobPositionService
         return $request;
     }
 
+    /** Skip approval flow sepenuhnya buat company yang KepegawaianSettingEnum::
+     * SKIP_JOB_POSITION_APPROVAL diaktifkan - jabatan baru langsung approved & kuota awal
+     * langsung aktif, TANPA bikin approval snapshot (beda dari approveJobPosition() yang
+     * meng-advance snapshot yang sudah ada). */
+    public function autoApproveJobPosition(JobPositions $jobPositions): object
+    {
+        $userId = Auth::user()->id;
+        $plannedManPower = $jobPositions->planned_manpower ?? 0;
+
+        $request = $this->jobPositionRepo->update($jobPositions, [
+            'is_draft' => false,
+            'status' => \App\Enum\JobPositionReqStatus::APPROVED->value,
+            'request_type' => 'create',
+            'request_by' => $userId,
+            'approved_manpower' => $plannedManPower,
+            'actual_manpower' => $plannedManPower,
+            'approved_by' => $userId,
+            'approved_at' => now(),
+        ]);
+
+        if ($jobPositions->orgStructure) {
+            $this->jobPositionRepo->updateOrgStrucuture($jobPositions->orgStructure, [
+                'capacity' => $plannedManPower,
+            ]);
+        }
+
+        return $request;
+    }
+
     public function approveJobPosition(
         JobPositions $jobPositions, 
         string $status, 

@@ -2,7 +2,6 @@
 
 namespace App\Livewire\Kepegawaian\Concerns;
 
-use App\Enum\JobPositionReqStatus;
 use App\Enum\OrgStructurLevel;
 use App\Models\Master\Companies;
 use App\Models\Master\JobPositions;
@@ -16,10 +15,9 @@ use Illuminate\Support\Facades\Auth;
  * Form Jabatan portal (4 section, mirror JobPositionResource admin) - dipakai bareng
  * CreateJabatanPage & EditJabatanPage. $record null di Create, ke-isi di Edit::mount().
  *
- * Sama seperti admin: planned_manpower cuma bisa diisi saat create (kuota berikutnya lewat
- * pengajuan Permintaan Tenaga Kerja terpisah), dan semua field terkunci begitu status record
- * bukan lagi draft (lihat getIsLockedProperty()) - pengajuan yang sudah jalan tidak boleh
- * diam-diam diubah lewat form ini.
+ * planned_manpower cuma bisa diisi saat create - perubahan kuota berikutnya cuma lewat
+ * pengajuan Permintaan Tenaga Kerja terpisah (CreateJabatanQuotaPage), TIDAK lewat form ini.
+ * Field lain (nama, struktur organisasi, deskripsi, dst) langsung tersimpan tanpa approval.
  */
 trait HasJabatanForm
 {
@@ -153,11 +151,6 @@ trait HasJabatanForm
     public function getRoleOptionsProperty()
     {
         return Role::pluck('name', 'id');
-    }
-
-    public function getIsLockedProperty(): bool
-    {
-        return (bool) $this->record && $this->record->status !== JobPositionReqStatus::DRAFT->value;
     }
 
     protected function fillFromRecord(JobPositions $record): void

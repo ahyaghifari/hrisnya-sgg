@@ -51,13 +51,6 @@ class JobPositionResource extends BaseCompanyResource
         return 'Jabatan';
     }
 
-    /** Field terkunci begitu status bukan lagi draft (sudah diajukan/disetujui/ditolak) -
-     * pengajuan yang sudah jalan tidak boleh diam-diam diubah lewat form ini. */
-    protected static function lockedAfterDraft($record): bool
-    {
-        return $record && $record->status !== \App\Enum\JobPositionReqStatus::DRAFT->value;
-    }
-
     protected static function kelasOptions(?string $companyId): array
     {
         if (! $companyId) {
@@ -76,8 +69,7 @@ class JobPositionResource extends BaseCompanyResource
                     ->columns(2)
                     ->schema([
                         static::companyFormField()
-                            ->live()
-                            ->disabled(fn ($record) => static::lockedAfterDraft($record)),
+                            ->live(),
 
                         Select::make('department_id')
                             ->label('Departemen')
@@ -95,7 +87,6 @@ class JobPositionResource extends BaseCompanyResource
                                     ->where('level', OrgStructurLevel::LEVEL_DEPARTMENT->value)
                                     ->pluck('name', 'id');
                             })
-                            ->disabled(fn ($record) => static::lockedAfterDraft($record))
                             ->afterStateHydrated(function ($set, $record) {
                                 if (! $record?->org_structure_id) {
                                     return;
@@ -126,7 +117,7 @@ class JobPositionResource extends BaseCompanyResource
                                     ->where('level', OrgStructurLevel::LEVEL_DIVISION->value)
                                     ->pluck('name', 'id')
                                 : [])
-                            ->disabled(fn (Get $get, $record) => ! $get('department_id') || static::lockedAfterDraft($record))
+                            ->disabled(fn (Get $get) => ! $get('department_id'))
                             ->afterStateHydrated(function ($set, $record) {
                                 if (! $record?->org_structure_id) {
                                     return;
@@ -152,7 +143,7 @@ class JobPositionResource extends BaseCompanyResource
                                     ->where('level', OrgStructurLevel::LEVEL_SUBDIVISION->value)
                                     ->pluck('name', 'id')
                                 : [])
-                            ->disabled(fn (Get $get, $record) => ! $get('division_id') || static::lockedAfterDraft($record))
+                            ->disabled(fn (Get $get) => ! $get('division_id'))
                             ->afterStateHydrated(function ($set, $record) {
                                 $org = $record?->org_structure_id ? OrgStructure::find($record->org_structure_id) : null;
                                 if ($org?->level === 3) {
@@ -172,26 +163,22 @@ class JobPositionResource extends BaseCompanyResource
                         TextInput::make('name')
                             ->label('Nama Jabatan')
                             ->placeholder('Contoh: HR Officer, Finance Manager')
-                            ->required()
-                            ->disabled(fn ($record) => static::lockedAfterDraft($record)),
+                            ->required(),
 
                         Select::make('parent_id')
                             ->label('Atasan Langsung')
                             ->helperText('Opsional.')
                             ->relationship('parent', 'name')
                             ->searchable()
-                            ->preload()
-                            ->disabled(fn ($record) => static::lockedAfterDraft($record)),
+                            ->preload(),
 
                         Textarea::make('description')
                             ->label('Deskripsi Jabatan')
-                            ->columnSpanFull()
-                            ->disabled(fn ($record) => static::lockedAfterDraft($record)),
+                            ->columnSpanFull(),
 
                         RichEditor::make('qualification')
                             ->label('Kualifikasi Jabatan')
-                            ->columnSpanFull()
-                            ->disabled(fn ($record) => static::lockedAfterDraft($record)),
+                            ->columnSpanFull(),
                     ]),
 
                 Section::make('Job Evaluation')
@@ -202,8 +189,7 @@ class JobPositionResource extends BaseCompanyResource
                             ->relationship('pangkat', 'name', fn ($query) => $query->orderByDesc('level'))
                             ->searchable()
                             ->preload()
-                            ->live()
-                            ->disabled(fn ($record) => static::lockedAfterDraft($record)),
+                            ->live(),
 
                         Placeholder::make('pangkat_golongan')
                             ->label('Golongan')
@@ -215,22 +201,19 @@ class JobPositionResource extends BaseCompanyResource
                             ->preload()
                             ->options(fn (Get $get) => static::kelasOptions(
                                 static::isSuperAdmin() ? $get('company_id') : static::companyId()
-                            ))
-                            ->disabled(fn ($record) => static::lockedAfterDraft($record)),
+                            )),
 
                         TextInput::make('job_evaluation_score')
                             ->label('Skor Penilaian Jabatan')
                             ->numeric()
-                            ->minValue(0)
-                            ->disabled(fn ($record) => static::lockedAfterDraft($record)),
+                            ->minValue(0),
 
                         Select::make('role_id')
                             ->label('Role Default')
                             ->helperText('Role yang disarankan otomatis saat user dipromosikan/dimutasi ke jabatan ini.')
                             ->relationship('defaultRole', 'name')
                             ->searchable()
-                            ->preload()
-                            ->disabled(fn ($record) => static::lockedAfterDraft($record)),
+                            ->preload(),
                     ]),
 
                 Section::make('Analisis Beban Kerja')
@@ -257,8 +240,7 @@ class JobPositionResource extends BaseCompanyResource
                             ->openable()
                             ->directory('workload-analysis')
                             ->visibility('public')
-                            ->columnSpanFull()
-                            ->disabled(fn ($record) => static::lockedAfterDraft($record)),
+                            ->columnSpanFull(),
                     ]),
             ]);
     }

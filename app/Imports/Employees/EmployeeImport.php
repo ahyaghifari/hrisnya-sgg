@@ -36,7 +36,7 @@ class EmployeeImport implements ToCollection, WithHeadingRow
         // Cache master-data look-ups (name → id) scoped to company
         $cid = $this->companyId;
 
-        $religions    = Religions::when($cid, fn ($q) => $q->where('company_id', $cid))->pluck('id', 'name');
+        $religions    = Religions::pluck('id', 'name'); // agama: master data global, tidak per company
         $orgStructures = OrgStructure::when($cid, fn ($q) => $q->where('company_id', $cid))->pluck('id', 'name');
         $jobPositions = JobPositions::when($cid, fn ($q) => $q->where('company_id', $cid))->pluck('id', 'name');
         $pangkats     = Pangkats::when($cid, fn ($q) => $q->where('company_id', $cid))->pluck('id', 'name');

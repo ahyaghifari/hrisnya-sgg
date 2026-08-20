@@ -44,11 +44,6 @@ class AlurPersetujuanFormPage extends Component
     /** @var array<int, string> id JobPositions, cuma relevan flowType=specific. */
     public array $assignmentJobPositions = [];
 
-    /** Kata kunci cari nama jabatan - cuma nyaring pilihan yang DITAMPILKAN, jabatan yang sudah
-     * kecentang ($assignmentJobPositions) TIDAK ikut hilang dari state walau di-filter dari
-     * daftar (lihat getJobPositionOptionsProperty()). */
-    public string $jobPositionSearch = '';
-
     /** @var array<int, array<string, mixed>> baris step, shape sama kolom MasterApprovalFlowSteps
      * + 'source_company' (bukan kolom DB, cuma penentu scope query approver_ref_id options). */
     public array $steps = [];
@@ -123,7 +118,6 @@ class AlurPersetujuanFormPage extends Component
         }
 
         return JobPositions::where('company_id', $this->companyId)
-            ->when($this->jobPositionSearch, fn ($q) => $q->where('name', 'like', "%{$this->jobPositionSearch}%"))
             ->orderBy('name')
             ->pluck('name', 'id');
     }

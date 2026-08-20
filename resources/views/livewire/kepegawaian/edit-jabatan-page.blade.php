@@ -1,13 +1,6 @@
-@php $isCreate = false; $locked = $this->isLocked; @endphp
+@php $isCreate = false; $locked = false; @endphp
 <div>
 <x-page-header title="Edit Jabatan" :subtitle="$record->name" :back="route('kepegawaian.jabatan')" />
-
-@if ($locked)
-    <div style="background:var(--warning-soft-bg,rgba(217,119,6,0.1));border:1px solid var(--warning-soft-border,rgba(217,119,6,0.3));border-radius:12px;padding:12px 16px;margin-bottom:16px;display:flex;align-items:center;gap:10px;">
-        <i class="fa-solid fa-lock" style="color:#d97706;"></i>
-        <p style="font-size:12.5px;color:var(--text-body);margin:0;">Jabatan ini sudah diajukan/diproses (status: <strong>{{ $record->status }}</strong>) — semua field terkunci, cuma bisa dilihat.</p>
-    </div>
-@endif
 
 @if ($record->approvalSnapshot)
     <x-approval-timeline :timeline="$this->timeline" />

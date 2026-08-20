@@ -41,22 +41,29 @@
                             </tr>
                         </thead>
                         <tbody>
-                            @foreach ($this->groupedJobPositions as $pangkatName => $positions)
+                            @foreach ($this->groupedJobPositions as $pangkatName => $divisions)
                                 <tr>
                                     <td colspan="3" style="padding:12px 8px 4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.03em;color:var(--text-faint);border-bottom:1px solid var(--border);">
-                                        {{ $pangkatName }} <span style="font-weight:500;text-transform:none;letter-spacing:normal;">({{ $positions->count() }} jabatan)</span>
+                                        {{ $pangkatName }} <span style="font-weight:500;text-transform:none;letter-spacing:normal;">({{ $divisions->flatten(1)->count() }} jabatan)</span>
                                     </td>
                                 </tr>
-                                @foreach ($positions as $p)
-                                    @php $no++; @endphp
-                                    <tr style="border-bottom:1px solid var(--border-soft);">
-                                        <td style="padding:5px 8px;color:var(--text-faint);">{{ $no }}</td>
-                                        <td style="padding:5px 8px;font-weight:600;">{{ $p->name }}</td>
-                                        <td style="padding:5px 8px;">
-                                            <input type="number" class="form-input" style="font-size:11.5px;padding:5px 8px;" wire:model="jeValues.{{ $p->id }}" @disabled(! $this->canManage)>
-                                            @error("jeValues.{$p->id}") <p style="font-size:10.5px;color:#dc2626;margin:2px 0 0;">{{ $message }}</p> @enderror
+                                @foreach ($divisions as $divisionName => $positions)
+                                    <tr>
+                                        <td colspan="3" style="padding:6px 8px 4px 18px;font-size:10.5px;font-weight:600;color:var(--text-faint);">
+                                            {{ $divisionName }}
                                         </td>
                                     </tr>
+                                    @foreach ($positions as $p)
+                                        @php $no++; @endphp
+                                        <tr style="border-bottom:1px solid var(--border-soft);">
+                                            <td style="padding:5px 8px;color:var(--text-faint);">{{ $no }}</td>
+                                            <td style="padding:5px 8px;font-weight:600;">{{ $p->name }}</td>
+                                            <td style="padding:5px 8px;">
+                                                <input type="number" class="form-input" style="font-size:11.5px;padding:5px 8px;" wire:model="jeValues.{{ $p->id }}" @disabled(! $this->canManage)>
+                                                @error("jeValues.{$p->id}") <p style="font-size:10.5px;color:#dc2626;margin:2px 0 0;">{{ $message }}</p> @enderror
+                                            </td>
+                                        </tr>
+                                    @endforeach
                                 @endforeach
                             @endforeach
                         </tbody>

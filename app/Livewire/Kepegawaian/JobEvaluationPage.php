@@ -75,7 +75,7 @@ class JobEvaluationPage extends Component
         return JobPositions::query()
             ->where('company_id', $this->companyId)
             ->where('status', JobPositionReqStatus::APPROVED->value)
-            ->with('pangkat')
+            ->with(['pangkat', 'orgStructure.parent'])
             ->orderBy('name')
             ->get();
     }
@@ -85,9 +85,11 @@ class JobEvaluationPage extends Component
      * "Koordinator" satu blok) - urutan grup ikut urutan Pangkat dibuat (id ULID, sortable per
      * waktu), yang di semua company sejauh ini sudah konsisten dari level tertinggi ke terendah
      * (Direktur/Manager/... Pelaksana). Jabatan tanpa pangkat_id dikumpulkan ke grup "Tanpa
-     * Pangkat" di paling akhir.
+     * Pangkat" di paling akhir. Di dalam tiap grup Pangkat, dipecah lagi per Divisi (org
+     * structure level 2, lihat JobPositions::getDivisionAttribute()) supaya jabatan setingkat
+     * dari divisi yang sama gampang dibandingkan - "Tanpa Divisi" di akhir tiap grup Pangkat.
      *
-     * @return \Illuminate\Support\Collection<string, \Illuminate\Support\Collection<int, JobPositions>>
+     * @return \Illuminate\Support\Collection<string, \Illuminate\Support\Collection<string, \Illuminate\Support\Collection<int, JobPositions>>>
      */
     public function getGroupedJobPositionsProperty()
     {
@@ -100,6 +102,21 @@ class JobEvaluationPage extends Component
         return $pangkatOrder->keys()->push('')
             ->mapWithKeys(fn ($pangkatId) => [
                 ($pangkatId === '' ? 'Tanpa Pangkat' : $pangkatOrder[$pangkatId]) => $byPangkatId->get($pangkatId, collect()),
+            ])
+            ->filter(fn ($group) => $group->isNotEmpty())
+            ->map(fn ($group) => $this->groupByDivision($group));
+    }
+
+    /** @return \Illuminate\Support\Collection<string, \Illuminate\Support\Collection<int, JobPositions>> */
+    private function groupByDivision($positions)
+    {
+        $divisionOrder = $positions->pluck('division')->filter()->unique('id')->sortBy('name')->pluck('name', 'id');
+
+        $byDivisionId = $positions->groupBy(fn (JobPositions $p) => $p->division?->id ?? '');
+
+        return $divisionOrder->keys()->push('')
+            ->mapWithKeys(fn ($divisionId) => [
+                ($divisionId === '' ? 'Tanpa Divisi' : $divisionOrder[$divisionId]) => $byDivisionId->get($divisionId, collect()),
             ])
             ->filter(fn ($group) => $group->isNotEmpty());
     }
