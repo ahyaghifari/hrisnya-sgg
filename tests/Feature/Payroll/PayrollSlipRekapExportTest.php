@@ -279,6 +279,123 @@ class PayrollSlipRekapExportTest extends TestCase
         $this->assertSame('Divisi Keuangan', $rows[0][1]);
     }
 
+    /** Karyawan tanpa divisi (org_structure kosong) - kasus nyatanya Presiden Direktur/Sekretaris
+     * Direktur non-karyawan holding (User::PAYROLL_ELIGIBLE_EXECUTIVE_IDS) - DIGABUNG jadi 1
+     * grup berlabel "Presiden Direktur" (bukan masing-masing pakai jabatannya sendiri, instruksi
+     * user 2026-08-20), SELALU di baris paling atas, sebelum divisi asli manapun. */
+    public function test_no_division_users_share_one_presiden_direktur_group_and_sort_first(): void
+    {
+        // Khusus company holding (kode '0000') - lihat test berikutnya buat company biasa.
+        $company = Companies::create(['code' => '0000', 'name' => 'Syifa Global Group', 'location' => 'Banjarbaru']);
+        CompanyPayrollComponent::create(['company_id' => $company->id, 'component' => PayrollComponentEnum::GAJI_POKOK->value, 'is_active' => true]);
+
+        $division = new OrgStructure;
+        $division->level = 2;
+        $division->name = 'Divisi Keuangan';
+
+        $divisionProfile = new UserProfiles;
+        $divisionProfile->setRelation('jobPosition', null);
+        $divisionProfile->setRelation('pangkat', null);
+        $divisionProfile->setRelation('kelas', null);
+        $divisionProfile->setRelation('employeeType', null);
+        $divisionProfile->setRelation('orgStructure', $division);
+
+        $divisionUser = new User;
+        $divisionUser->name = 'Karyawan Divisi';
+        $divisionUser->setRelation('profile', $divisionProfile);
+
+        $divisionPayroll = $this->makePayroll([$this->makeItem('gaji_pokok', 'earning', 1_000_000)]);
+        $divisionPayroll->setRelation('user', $divisionUser);
+
+        // 2 akun tanpa divisi, jabatan BEDA-BEDA (Presiden Direktur & Sekretaris Direktur) -
+        // harus tetap 1 grup gabungan, bukan 2 grup terpisah.
+        $presdirProfile = new UserProfiles;
+        $presdirProfile->setRelation('jobPosition', null);
+        $presdirProfile->setRelation('pangkat', null);
+        $presdirProfile->setRelation('kelas', null);
+        $presdirProfile->setRelation('employeeType', null);
+        $presdirProfile->setRelation('orgStructure', null);
+
+        $presdirUser = new User;
+        $presdirUser->name = 'Presiden Direktur Uji';
+        $presdirUser->setRelation('profile', $presdirProfile);
+
+        $presdirPayroll = $this->makePayroll([$this->makeItem('gaji_pokok', 'earning', 5_000_000)]);
+        $presdirPayroll->setRelation('user', $presdirUser);
+
+        $sekdirProfile = new UserProfiles;
+        $sekdirProfile->setRelation('jobPosition', null);
+        $sekdirProfile->setRelation('pangkat', null);
+        $sekdirProfile->setRelation('kelas', null);
+        $sekdirProfile->setRelation('employeeType', null);
+        $sekdirProfile->setRelation('orgStructure', null);
+
+        $sekdirUser = new User;
+        $sekdirUser->name = 'Sekretaris Direktur Uji';
+        $sekdirUser->setRelation('profile', $sekdirProfile);
+
+        $sekdirPayroll = $this->makePayroll([$this->makeItem('gaji_pokok', 'earning', 4_000_000)]);
+        $sekdirPayroll->setRelation('user', $sekdirUser);
+
+        $export = new PayrollSlipRekapExport(collect([$divisionPayroll, $presdirPayroll, $sekdirPayroll]), $company->id);
+        $rows = $export->collection()->values();
+
+        // rows[0] = header grup "Presiden Direktur", rows[1..2] = 2 anggotanya, rows[3] = header "Divisi Keuangan".
+        $this->assertSame('Presiden Direktur', $rows[0][1]);
+        $this->assertSame('Divisi Keuangan', $rows[3][1]);
+    }
+
+    /** Company BIASA (bukan holding) yang kebetulan ada karyawan tanpa divisi TETAP pakai
+     * label generik "Tanpa Divisi" dan urutan alfabetis biasa (TIDAK dipaksa ke atas) - salah
+     * kalau ikut dilabeli "Presiden Direktur" (instruksi user 2026-08-20: "hanya khusus
+     * perusahaan holding"). */
+    /** Company BUKAN holding - karyawan tanpa divisi dilabeli "Manajemen" (bukan "Presiden
+     * Direktur", itu khusus holding), dan grup ini TETAP ditaruh paling atas juga (instruksi
+     * user 2026-08-20: "kalo bukan holding artinya Manajemen saja dan diatas juga"). */
+    public function test_no_division_group_labeled_manajemen_and_sorts_first_for_non_holding_company(): void
+    {
+        $company = Companies::create(['code' => 'TST', 'name' => 'PT Uji', 'location' => 'Banjarbaru']);
+        CompanyPayrollComponent::create(['company_id' => $company->id, 'component' => PayrollComponentEnum::GAJI_POKOK->value, 'is_active' => true]);
+
+        $division = new OrgStructure;
+        $division->level = 2;
+        $division->name = 'Divisi Keuangan';
+
+        $divisionProfile = new UserProfiles;
+        $divisionProfile->setRelation('jobPosition', null);
+        $divisionProfile->setRelation('pangkat', null);
+        $divisionProfile->setRelation('kelas', null);
+        $divisionProfile->setRelation('employeeType', null);
+        $divisionProfile->setRelation('orgStructure', $division);
+
+        $divisionUser = new User;
+        $divisionUser->name = 'Karyawan Divisi';
+        $divisionUser->setRelation('profile', $divisionProfile);
+
+        $divisionPayroll = $this->makePayroll([$this->makeItem('gaji_pokok', 'earning', 1_000_000)]);
+        $divisionPayroll->setRelation('user', $divisionUser);
+
+        $noDivisionProfile = new UserProfiles;
+        $noDivisionProfile->setRelation('jobPosition', null);
+        $noDivisionProfile->setRelation('pangkat', null);
+        $noDivisionProfile->setRelation('kelas', null);
+        $noDivisionProfile->setRelation('employeeType', null);
+        $noDivisionProfile->setRelation('orgStructure', null);
+
+        $noDivisionUser = new User;
+        $noDivisionUser->name = 'Karyawan Tanpa Divisi';
+        $noDivisionUser->setRelation('profile', $noDivisionProfile);
+
+        $noDivisionPayroll = $this->makePayroll([$this->makeItem('gaji_pokok', 'earning', 2_000_000)]);
+        $noDivisionPayroll->setRelation('user', $noDivisionUser);
+
+        $export = new PayrollSlipRekapExport(collect([$divisionPayroll, $noDivisionPayroll]), $company->id);
+        $rows = $export->collection()->values();
+
+        $this->assertSame('Manajemen', $rows[0][1]);
+        $this->assertSame('Divisi Keuangan', $rows[2][1]);
+    }
+
     public function test_gaji_pokok_breakdown_is_recalculated_from_master_data(): void
     {
         $company = Companies::create(['code' => 'TST', 'name' => 'PT Uji', 'location' => 'Banjarbaru']);

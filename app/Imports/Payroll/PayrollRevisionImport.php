@@ -81,6 +81,21 @@ class PayrollRevisionImport implements ToCollection
             }
 
             $user = User::where('nip', $nip)->first();
+
+            if (! $user) {
+                // Belum ketemu di karyawan biasa - coba 2 akun eksekutif non-karyawan (Presiden
+                // Direktur/Sekretaris Direktur, User::PAYROLL_ELIGIBLE_EXECUTIVE_IDS) yang
+                // sengaja dibuang dari User::query() lewat global scope 'non_karyawan'. Tetap
+                // khusus company holding TANPA perlu cek company_id eksplisit di sini - mereka
+                // cuma pernah punya baris Payroll untuk company holding (lihat
+                // PayrollService::generatePayroll()), jadi query Payroll di bawah otomatis
+                // kosong kalau baris ini kebetulan ada di file company lain.
+                $user = User::withoutGlobalScope('non_karyawan')
+                    ->whereIn('id', User::PAYROLL_ELIGIBLE_EXECUTIVE_IDS)
+                    ->where('nip', $nip)
+                    ->first();
+            }
+
             if (! $user) {
                 $this->errors[] = "Baris {$rowNum}: NIP {$nip} tidak ditemukan.";
 

@@ -3,6 +3,7 @@
 namespace App\Exports\Payroll;
 
 use App\Enum\Payroll\PayrollComponentEnum;
+use App\Models\Master\Companies;
 use App\Models\Payroll\CompanyPayrollComponent;
 use App\Models\Payroll\Payroll;
 use App\Models\Payroll\PayrollItem;
@@ -70,11 +71,38 @@ class PayrollSlipRekapExport extends DefaultValueBinder implements FromCollectio
         $this->columns = $this->buildColumns();
     }
 
+    /** Label grup buat karyawan tanpa divisi (org_structure kosong) di company HOLDING (kode
+     * '0000') - cuma kejadian di sana, buat 2 akun eksekutif non-karyawan yang tetap punya
+     * payroll (Presiden Direktur & Sekretaris Direktur, lihat
+     * User::PAYROLL_ELIGIBLE_EXECUTIVE_IDS). Keduanya DIGABUNG jadi 1 grup dengan label ini
+     * (bukan masing-masing pakai jabatannya sendiri) - instruksi user.
+     */
+    private const NO_DIVISION_LABEL_HOLDING = 'Presiden Direktur';
+
+    /** Sama seperti di atas, tapi buat company BIASA (bukan holding) - instruksi user
+     * 2026-08-20: "kalo bukan holding artinya Manajemen saja dan diatas juga". */
+    private const NO_DIVISION_LABEL_REGULAR = 'Manajemen';
+
+    private const HOLDING_COMPANY_CODE = '0000';
+
+    private function isHoldingCompany(): bool
+    {
+        return Companies::where('id', $this->companyId)->value('code') === self::HOLDING_COMPANY_CODE;
+    }
+
     public function collection(): Collection
     {
+        // Grup karyawan tanpa divisi SELALU ditaruh paling atas, baru divisi asli diurutkan
+        // alfabetis di bawahnya - label-nya beda tergantung holding atau tidak, tapi
+        // posisi-di-atas-nya berlaku buat keduanya (instruksi user).
+        $noDivisionLabel = $this->isHoldingCompany() ? self::NO_DIVISION_LABEL_HOLDING : self::NO_DIVISION_LABEL_REGULAR;
+
         $grouped = $this->payrolls
-            ->groupBy(fn (Payroll $payroll) => $payroll->user?->profile?->division?->name ?? 'Tanpa Divisi')
-            ->sortKeys();
+            ->groupBy(fn (Payroll $payroll) => $payroll->user?->profile?->division?->name ?? $noDivisionLabel)
+            ->sortBy(
+                fn ($rows, $label) => ($label === $noDivisionLabel ? '0_' : '1_') . $label,
+                SORT_STRING,
+            );
 
         $rows = collect();
         $rowNumber = 1; // baris 1 = heading, data mulai baris 2

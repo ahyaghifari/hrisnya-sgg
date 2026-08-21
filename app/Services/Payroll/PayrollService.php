@@ -2,6 +2,7 @@
 
 namespace App\Services\Payroll;
 
+use App\Enum\Payroll\ExecutiveAutoComponentEnum;
 use App\Enum\Payroll\PayrollComponentEnum;
 use App\Enum\Payroll\PayrollComponentTypeEnum;
 use App\Models\Payroll\CompanyPayrollComponent;
@@ -503,8 +504,31 @@ class PayrollService
         // Eksekutif PAYROLL_ELIGIBLE_EXECUTIVE_IDS SENGAJA tidak lewat komponen otomatis apa
         // pun (Gaji Pokok/BPJS/Keterlambatan/Fee Claim/dst) - dari pendapatan sampai potongan
         // semuanya diinput manual lewat halaman Data Eksekutif (2026-08-12, instruksi user).
-        // Cuma ExecutiveAllowanceCalculator yang jalan buat mereka.
+        // Cuma ExecutiveAllowanceCalculator yang jalan buat mereka - KECUALI komponen yang
+        // masuk ExecutiveAutoComponentEnum (2026-08-20, instruksi user: "misal Tunjangan Masa
+        // Kerja ngikut yang ada, ngga isi manual lagi"; enum TERPISAH dari PayrollComponentEnum
+        // biar gampang di-custom). Dipanggil LANGSUNG (bukan lewat runComponent()) karena
+        // PayrollComponentRecipient::isEligible() otomatis false buat employee_type_id null
+        // (eksekutif tidak punya tipe karyawan) - gerbang penerima itu tidak relevan buat
+        // mereka, tapi toggle aktif/nonaktif per company (company_payroll_components) tetap
+        // dihormati.
         if (in_array($user->id, User::PAYROLL_ELIGIBLE_EXECUTIVE_IDS, true)) {
+            foreach (ExecutiveAutoComponentEnum::toComponents() as $component) {
+                $isActiveForCompany = $activeComponents->contains(
+                    fn (CompanyPayrollComponent $c) => $c->component === $component->value
+                );
+
+                if (! $isActiveForCompany) {
+                    continue;
+                }
+
+                $calculatorClass = PayrollCalculatorRegistry::resolve($component);
+
+                if ($calculatorClass) {
+                    app($calculatorClass)->calculate($user, $payroll, $period, $context);
+                }
+            }
+
             app(ExecutiveAllowanceCalculator::class)->calculate($user, $payroll, $period, $context);
 
             $payroll->update([

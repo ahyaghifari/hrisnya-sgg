@@ -109,6 +109,37 @@ class PayrollRevisionImportTest extends TestCase
         $this->assertSame([], $import->getDiffs());
     }
 
+    /** Presiden Direktur/Sekretaris Direktur (User::PAYROLL_ELIGIBLE_EXECUTIVE_IDS) dibuang dari
+     * User::query() lewat global scope 'non_karyawan' - import revisi harus tetap bisa
+     * mencocokkan NIP mereka (instruksi user 2026-08-20), bukan dilaporkan "tidak ditemukan". */
+    public function test_import_matches_executive_nip_excluded_from_default_user_scope(): void
+    {
+        $company = $this->makeCompanyWithGajiPokokActive();
+        $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => now(), 'end_date' => now(), 'payment_date' => now()]);
+
+        $execId = User::PAYROLL_ELIGIBLE_EXECUTIVE_IDS[0];
+        $exec = User::create(['id' => $execId, 'name' => 'Presiden Direktur Uji', 'email' => 'presdir@test.local', 'password' => bcrypt('secret'), 'nip' => '00001', 'company_id' => $company->id, 'is_active' => true]);
+
+        $payroll = Payroll::create([
+            'user_id' => $exec->id,
+            'payroll_period_id' => $period->id,
+            'gross_salary' => 5_000_000,
+            'total_deductions' => 0,
+            'net_salary' => 5_000_000,
+        ]);
+        PayrollItem::create(['payroll_id' => $payroll->id, 'name' => 'Gaji Pokok', 'type' => 'earning', 'quantity' => 1, 'amount' => 5_000_000, 'source_type' => PayrollComponentEnum::GAJI_POKOK->value]);
+
+        $rows = $this->buildFileRows($company, ['ID' => '00001', 'Gaji Pokok' => 9_000_000]);
+
+        $import = new PayrollRevisionImport($period);
+        $import->collection($rows);
+
+        $this->assertSame([], $import->getErrors());
+        $this->assertCount(1, $import->getDiffs());
+        $this->assertSame('00001', $import->getDiffs()[0]['nip']);
+        $this->assertSame(9_000_000.0, $import->getDiffs()[0]['new']);
+    }
+
     public function test_import_reports_error_for_unknown_nip(): void
     {
         $company = $this->makeCompanyWithGajiPokokActive();
