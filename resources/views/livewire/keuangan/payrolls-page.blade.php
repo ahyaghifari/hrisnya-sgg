@@ -102,9 +102,15 @@
                                     <span style="display:block;font-size:10.5px;color:var(--text-faint);">{{ $payroll->user?->nip ?? '-' }}</span>
                                 </td>
                                 <td style="padding:9px 14px;white-space:nowrap;">{{ $payroll->payrollPeriod->start_date->format('d M Y') }} - {{ $payroll->payrollPeriod->end_date->format('d M Y') }}</td>
-                                <td style="padding:9px 14px;text-align:right;white-space:nowrap;">Rp{{ number_format($payroll->gross_salary, 0, ',', '.') }}</td>
-                                <td style="padding:9px 14px;text-align:right;white-space:nowrap;color:#dc2626;">Rp{{ number_format($payroll->total_deductions, 0, ',', '.') }}</td>
-                                <td style="padding:9px 14px;text-align:right;white-space:nowrap;font-weight:700;">Rp{{ number_format($payroll->net_salary, 0, ',', '.') }}</td>
+                                @if ($payroll->decryptFailed)
+                                    <td colspan="3" style="padding:9px 14px;text-align:center;white-space:nowrap;color:#dc2626;font-size:11.5px;" title="Nominal tidak bisa dibaca - kemungkinan data lama belum ter-reencrypt atau key enkripsi berubah">
+                                        <i class="fa-solid fa-triangle-exclamation"></i> Gagal dekripsi nominal
+                                    </td>
+                                @else
+                                    <td style="padding:9px 14px;text-align:right;white-space:nowrap;">Rp{{ number_format($payroll->safeGross, 0, ',', '.') }}</td>
+                                    <td style="padding:9px 14px;text-align:right;white-space:nowrap;color:#dc2626;">Rp{{ number_format($payroll->safeDeductions, 0, ',', '.') }}</td>
+                                    <td style="padding:9px 14px;text-align:right;white-space:nowrap;font-weight:700;">Rp{{ number_format($payroll->safeNet, 0, ',', '.') }}</td>
+                                @endif
                                 <td style="padding:9px 14px;text-align:center;white-space:nowrap;">
                                     <span style="display:inline-block;padding:3px 10px;border-radius:99px;font-size:11px;font-weight:600;background:{{ $payroll->is_paid ? 'rgba(4,124,84,0.1)' : 'rgba(217,119,6,0.1)' }};color:{{ $payroll->is_paid ? '#047C54' : '#d97706' }};">
                                         {{ $payroll->is_paid ? 'Sudah Dibayar' : 'Belum Dibayar' }}

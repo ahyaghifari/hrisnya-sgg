@@ -117,7 +117,9 @@ class PayrollsPage extends Component
     {
         $search = trim($this->search);
 
-        return Payroll::query()
+        // Ambil dulu SEMUA baris mentah (query di atas tidak menyentuh nominal terenkripsi
+        // sama sekali - PayrollEncrypted baru jalan pas atribut diakses, bukan pas ->get()).
+        $payrolls = Payroll::query()
             ->when($this->companyId, fn ($q) => $q->whereHas('payrollPeriod', fn ($q2) => $q2->where('company_id', $this->companyId)))
             ->when($this->periodId, fn ($q) => $q->where('payroll_period_id', $this->periodId))
             ->when($search !== '', fn ($q) => $q->whereHas('user', fn ($q2) => $q2
@@ -126,6 +128,25 @@ class PayrollsPage extends Component
             ->with(['user', 'payrollPeriod'])
             ->orderByDesc('created_at')
             ->get();
+
+        // BARU di sini, langkah terpisah (bukan di-chain sama fetch di atas), tiap baris
+        // di-decrypt satu-satu dengan try/catch - 1 baris yang datanya rusak (plaintext lama
+        // atau key beda) tidak lagi bikin SELURUH halaman crash (ViewException), cuma baris itu
+        // yang tampil "Gagal dekripsi".
+        foreach ($payrolls as $payroll) {
+            $payroll->decryptFailed = false;
+
+            foreach (['gross_salary' => 'safeGross', 'total_deductions' => 'safeDeductions', 'net_salary' => 'safeNet'] as $field => $safeKey) {
+                try {
+                    $payroll->{$safeKey} = $payroll->{$field};
+                } catch (\Throwable) {
+                    $payroll->{$safeKey} = null;
+                    $payroll->decryptFailed = true;
+                }
+            }
+        }
+
+        return $payrolls;
     }
 
     /** Rekap Excel (format finance, lihat PayrollSlipRekapExport) - butuh 1 periode spesifik

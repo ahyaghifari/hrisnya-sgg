@@ -27,7 +27,7 @@ class UserKoperasiPolicy
         return $authUser->can('Create:UserKoperasi');
     }
 
-    public function update(AuthUser $authUser, UserKoperasi $userKoperasi): bool
+    public function update(AuthUser $authUser, ?UserKoperasi $userKoperasi = null): bool
     {
         return $authUser->can('Update:UserKoperasi');
     }

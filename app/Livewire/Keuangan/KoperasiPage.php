@@ -215,7 +215,13 @@ class KoperasiPage extends Component
             'editAmount' => 'nominal',
         ]);
 
-        UserKoperasi::whereIn('id', $this->editingIds)->update(['amount' => $this->editAmount]);
+        // Ambil dulu jadi instance model (bukan whereIn()->update() query builder langsung) -
+        // 'amount' di-cast PayrollEncrypted, cuma jalan lewat ->save()/->update() PER INSTANCE.
+        // Mass update query builder melewati cast sama sekali, nulis nominal PLAINTEXT mentah
+        // ke kolom yang seharusnya terenkripsi (bug ditemukan 2026-08-20).
+        UserKoperasi::whereIn('id', $this->editingIds)->get()->each(
+            fn (UserKoperasi $member) => $member->update(['amount' => $this->editAmount])
+        );
 
         $this->showEditModal = false;
         $this->selected = [];
