@@ -85,7 +85,11 @@ class CreateKaryawanTest extends TestCase
         $this->assertTrue($created->hasRole('Staff Baru'));
     }
 
-    public function test_save_blocked_when_job_position_quota_full(): void
+    /** Kuota jabatan penuh TIDAK lagi memblokir Tambah Karyawan (instruksi user 2026-08-21) -
+     * validasi ini dulu ada (lihat HasKaryawanForm::assertJobPositionQuota()), sekarang sengaja
+     * tidak dipanggil dari CreateKaryawan::save() lagi. EditKaryawan tetap pakai validasi itu,
+     * tidak disentuh. */
+    public function test_save_allowed_even_when_job_position_quota_full(): void
     {
         $company = $this->makeCompany();
         $hc = $this->actingAsKepegawaian($company->id);
@@ -109,15 +113,15 @@ class CreateKaryawanTest extends TestCase
         $this->actingAs($hc);
 
         Livewire::test(CreateKaryawan::class)
-            ->set('name', 'Karyawan Gagal')
-            ->set('email', 'karyawan.gagal@test.com')
+            ->set('name', 'Karyawan Baru Kuota Penuh')
+            ->set('email', 'karyawan.kuotapenuh@test.com')
             ->set('password', 'password123')
             ->set('company_id', $company->id)
             ->set('role_ids', [$employeeRole->id])
             ->set('job_position_id', $jobPosition->id)
             ->call('save')
-            ->assertHasErrors(['job_position_id']);
+            ->assertHasNoErrors(['job_position_id']);
 
-        $this->assertNull(User::where('email', 'karyawan.gagal@test.com')->first());
+        $this->assertNotNull(User::where('email', 'karyawan.kuotapenuh@test.com')->first());
     }
 }

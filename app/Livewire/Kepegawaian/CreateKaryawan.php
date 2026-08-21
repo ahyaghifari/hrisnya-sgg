@@ -39,7 +39,6 @@ class CreateKaryawan extends Component
     public function save(): void
     {
         $this->validate($this->rulesForStep(1));
-        $this->assertJobPositionQuota();
 
         $orgStructureId = $this->sub_division_id ?? $this->division_id ?? $this->department_id;
 
