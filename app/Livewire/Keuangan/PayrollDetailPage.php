@@ -48,6 +48,13 @@ class PayrollDetailPage extends Component
 
     public bool $showPaymentHistoryModal = false;
 
+    /** Salah satu nominal (total payroll atau salah satu payroll_items) gagal didekripsi (data
+     * lama belum ter-reencrypt / key beda, lihat App\Casts\PayrollEncrypted) - halaman tetap
+     * bisa dibuka (bukan crash ViewException total kayak sebelumnya, laporan user 2026-08-20),
+     * tapi aksi edit/regenerate DITUTUP sampai datanya diperbaiki (edit di atas data yang tidak
+     * bisa dibaca berisiko malah menimpa dengan nilai salah). */
+    public bool $decryptFailed = false;
+
     public function mount(Payroll $payroll): void
     {
         abort_unless(Auth::user()->can('view', $payroll), 403);
@@ -58,7 +65,39 @@ class PayrollDetailPage extends Component
     /** @return array{earnings: array, deductions: array} */
     public function getComponentRowsProperty(): array
     {
-        return app(PayrollService::class)->componentRows($this->payroll);
+        try {
+            return app(PayrollService::class)->componentRows($this->payroll);
+        } catch (\Throwable) {
+            $this->decryptFailed = true;
+
+            return ['earnings' => [], 'deductions' => []];
+        }
+    }
+
+    public function getSafeGrossSalaryProperty(): ?float
+    {
+        return $this->safeDecryptPayrollField('gross_salary');
+    }
+
+    public function getSafeTotalDeductionsProperty(): ?float
+    {
+        return $this->safeDecryptPayrollField('total_deductions');
+    }
+
+    public function getSafeNetSalaryProperty(): ?float
+    {
+        return $this->safeDecryptPayrollField('net_salary');
+    }
+
+    private function safeDecryptPayrollField(string $field): ?float
+    {
+        try {
+            return $this->payroll->{$field};
+        } catch (\Throwable) {
+            $this->decryptFailed = true;
+
+            return null;
+        }
     }
 
     /**
@@ -314,7 +353,15 @@ class PayrollDetailPage extends Component
                 ->where('user_id', $this->payroll->user_id)
                 ->where('payroll_period_id', $this->payroll->payroll_period_id)
                 ->firstOrFail();
-            $this->manualLineAmount = (string) $line->amount;
+
+            try {
+                $this->manualLineAmount = (string) $line->amount;
+            } catch (\Throwable) {
+                Notification::make()->title('Nominal baris ini gagal dibaca (data rusak) - tidak bisa diedit lewat sini.')->danger()->send();
+
+                return;
+            }
+
             $this->manualLineNote = $line->note;
             $this->manualLineLabel = $line->label;
         } else {
@@ -420,9 +467,17 @@ class PayrollDetailPage extends Component
 
         $item = $this->payroll->items()->where('source_type', $component)->first();
 
+        try {
+            $amount = $item ? (string) $item->amount : '0';
+        } catch (\Throwable) {
+            Notification::make()->title('Nominal komponen ini gagal dibaca (data rusak) - tidak bisa diedit lewat sini.')->danger()->send();
+
+            return;
+        }
+
         $this->editingComponent = $component;
         $this->editingComponentLabel = $enum->label();
-        $this->componentEditAmount = $item ? (string) $item->amount : '0';
+        $this->componentEditAmount = $amount;
         $this->componentEditNote = null;
 
         $this->resetErrorBag();

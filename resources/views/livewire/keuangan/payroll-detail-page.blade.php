@@ -2,6 +2,12 @@
     $rows = $this->componentRows;
     $earningTotal = collect($rows['earnings'])->sum('amount');
     $deductionTotal = collect($rows['deductions'])->sum('amount');
+    // Diakses di sini (bukan cuma pas dirender di bawah) supaya $this->decryptFailed sudah
+    // ke-set SEBELUM banner peringatan dicek, kalau salah satu dari total payroll ini gagal
+    // didekripsi (beda dari kegagalan di payroll_items yang sudah ke-set lewat componentRows di atas).
+    $safeGross = $this->safeGrossSalary;
+    $safeDeductions = $this->safeTotalDeductions;
+    $safeNet = $this->safeNetSalary;
 @endphp
 
 <div class="p-4 md:p-6">
@@ -16,6 +22,13 @@
 
     <div style="display:flex;flex-direction:column;gap:16px;">
         <a href="{{ route('keuangan.payroll') }}" wire:navigate style="font-size:12.5px;color:var(--text-muted);text-decoration:none;"><i class="fa-solid fa-arrow-left"></i> Kembali ke daftar Payroll</a>
+
+        @if ($this->decryptFailed)
+            <div style="background:rgba(220,38,38,0.08);border:1px solid rgba(220,38,38,0.3);border-radius:10px;padding:12px 14px;font-size:12.5px;color:#991b1b;">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+                Sebagian nominal payroll ini gagal dibaca (data lama belum di-reencrypt, atau key enkripsi berubah) — edit/regenerate ditutup dulu sampai datanya diperbaiki. Hubungi admin sistem.
+            </div>
+        @endif
 
         @if ($this->izinSeharianGajiPokokWarning)
             <div style="background:rgba(220,38,38,0.08);border:1px solid rgba(220,38,38,0.3);border-radius:10px;padding:12px 14px;font-size:12.5px;color:#991b1b;">
@@ -64,15 +77,15 @@
             <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:18px;padding-top:18px;border-top:1px dashed var(--border);">
                 <div>
                     <p style="font-size:10.5px;color:var(--text-faint);margin:0 0 2px;text-transform:uppercase;letter-spacing:0.03em;">Gaji Kotor</p>
-                    <p style="font-size:15px;font-weight:700;margin:0;">Rp{{ number_format($payroll->gross_salary, 0, ',', '.') }}</p>
+                    <p style="font-size:15px;font-weight:700;margin:0;">{{ $safeGross !== null ? 'Rp' . number_format($safeGross, 0, ',', '.') : 'Gagal dibaca' }}</p>
                 </div>
                 <div>
                     <p style="font-size:10.5px;color:var(--text-faint);margin:0 0 2px;text-transform:uppercase;letter-spacing:0.03em;">Total Potongan</p>
-                    <p style="font-size:15px;font-weight:700;margin:0;color:#dc2626;">Rp{{ number_format($payroll->total_deductions, 0, ',', '.') }}</p>
+                    <p style="font-size:15px;font-weight:700;margin:0;color:#dc2626;">{{ $safeDeductions !== null ? 'Rp' . number_format($safeDeductions, 0, ',', '.') : 'Gagal dibaca' }}</p>
                 </div>
                 <div>
                     <p style="font-size:10.5px;color:var(--text-faint);margin:0 0 2px;text-transform:uppercase;letter-spacing:0.03em;">Gaji Bersih</p>
-                    <p style="font-size:16px;font-weight:800;margin:0;color:#047C54;">Rp{{ number_format($payroll->net_salary, 0, ',', '.') }}</p>
+                    <p style="font-size:16px;font-weight:800;margin:0;color:#047C54;">{{ $safeNet !== null ? 'Rp' . number_format($safeNet, 0, ',', '.') : 'Gagal dibaca' }}</p>
                 </div>
             </div>
 
