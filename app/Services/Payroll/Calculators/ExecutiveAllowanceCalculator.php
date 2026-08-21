@@ -16,8 +16,12 @@ use App\Models\User;
  * yang menentukan ada-tidaknya baris, bukan toggle per company - aman dipanggil untuk SEMUA
  * user tiap generate, no-op kalau rosternya kosong (karyawan biasa).
  *
- * source_type SENGAJA null (bukan salah satu PayrollComponentEnum) - diperlakukan sama seperti
- * baris manual adjustment lain di PayrollService::componentRows(), ditaruh di akhir urutan slip.
+ * source_type ikut `ExecutiveAllowance.component` - null buat baris "Manual" (label bebas,
+ * ditaruh di akhir urutan slip sama seperti adjustment lain di PayrollService::componentRows()),
+ * TAPI diisi PayrollComponentEnum-nya kalau baris ini dipilih dari "Dari Komponen Gaji" (mis.
+ * Gaji Pokok) - biar urutannya di slip/export ikut posisi baku komponen itu, bukan selalu
+ * kebuang ke bawah (bug ditemukan 2026-08-21: Gaji Pokok eksekutif selalu di bawah Tunjangan
+ * Masa Kerja walau harusnya duluan).
  */
 class ExecutiveAllowanceCalculator
 {
@@ -41,7 +45,7 @@ class ExecutiveAllowanceCalculator
                 'quantity' => 1,
                 'amount' => $amount,
                 'note' => $row->note,
-                'source_type' => null,
+                'source_type' => $row->component,
             ]);
 
             if ($row->type === PayrollComponentTypeEnum::EARNING->value) {
