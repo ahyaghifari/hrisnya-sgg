@@ -438,9 +438,10 @@ class PayrollSlipRekapExportTest extends TestCase
         $row = $export->collection()->get(1);
         $headings = array_flip($export->headings());
 
-        // 2 langkah kenaikan kelas (level 3 - start level 1) x 8% = 16%, additive dari base 1jt.
+        // Flat 8% dari setting company - kenaikan berdasarkan langkah kelas sudah di-terminate
+        // (2026-08-22), Kelas level 3 di sini tidak lagi mempengaruhi persennya.
         $this->assertSame(1_000_000.0, $row[$headings['Gaji Dasar']]);
-        $this->assertSame('16%', $row[$headings['% Kenaikan']]);
+        $this->assertSame('8%', $row[$headings['% Kenaikan']]);
         // "Gaji Pokok" tetap angka final HISTORIS dari payroll_items, bukan hasil recompute ini.
         $this->assertSame(1_160_000.0, $row[$headings['Gaji Pokok']]);
     }

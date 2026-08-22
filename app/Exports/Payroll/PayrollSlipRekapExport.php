@@ -2,6 +2,7 @@
 
 namespace App\Exports\Payroll;
 
+use App\Enum\Payroll\GajiPokokKenaikanOverrideEnum;
 use App\Enum\Payroll\PayrollComponentEnum;
 use App\Models\Master\Companies;
 use App\Models\Payroll\CompanyPayrollComponent;
@@ -284,10 +285,10 @@ class PayrollSlipRekapExport extends DefaultValueBinder implements FromCollectio
     }
 
     /**
-     * Base gaji (sebelum kenaikan kelas) & persen kenaikan kumulatif - rumus sama persis
-     * GajiPokokCalculator (additive, bukan compound), TANPA prorate. Di-memoize per Payroll
-     * (spl_object_id) supaya relasi pangkat->pangkatSalary/startKelas/maxKelas cuma ditelusuri
-     * sekali walau dipakai 2 kolom (Gaji Dasar & % Kenaikan).
+     * Base gaji & persen kenaikan flat - rumus sama persis GajiPokokCalculator (kenaikan
+     * berdasarkan langkah kelas di-terminate 2026-08-22), TANPA prorate. Di-memoize per Payroll
+     * (spl_object_id) supaya relasi pangkat->pangkatSalary cuma ditelusuri sekali walau dipakai
+     * 2 kolom (Gaji Dasar & % Kenaikan).
      *
      * @return array{0: ?float, 1: ?float} [base, percentKenaikan]
      */
@@ -303,24 +304,17 @@ class PayrollSlipRekapExport extends DefaultValueBinder implements FromCollectio
         $kelas = $profile?->kelas;
         $pangkatSalary = $pangkat?->pangkatSalary;
 
-        if (! $pangkat || ! $kelas || ! $pangkatSalary) {
+        if (! $pangkat || ! $kelas || ! $pangkatSalary || $kelas->level === null) {
             return $cache[$key] = [null, null];
         }
 
-        $startLevel = $pangkat->startKelas?->level;
-        if ($kelas->level === null || $startLevel === null) {
-            return $cache[$key] = [(float) $pangkatSalary->base_salary, null];
-        }
+        // Orientasi tidak dapat kenaikan sama sekali - sama seperti GajiPokokCalculator.
+        $rate = $profile->employeeType?->category === \App\Enum\EmployeeTypeCategory::ORIENTASI
+            ? 0.0
+            : (GajiPokokKenaikanOverrideEnum::rateForUser($profile->user_id)
+                ?? (float) Setting::resolve('gaji_pokok_kenaikan_per_kelas', $payroll->payrollPeriod?->company_id, default: 8));
 
-        $steps = max(0, $kelas->level - $startLevel);
-        $maxLevel = $pangkat->maxKelas?->level;
-        if ($maxLevel !== null) {
-            $steps = min($steps, max(0, $maxLevel - $startLevel));
-        }
-
-        $rate = (float) Setting::resolve('gaji_pokok_kenaikan_per_kelas', $payroll->payrollPeriod?->company_id, default: 0);
-
-        return $cache[$key] = [(float) $pangkatSalary->base_salary, $rate * $steps];
+        return $cache[$key] = [(float) $pangkatSalary->base_salary, $rate];
     }
 
     /** @return array<int, array{component: ?PayrollComponentEnum, label: string, get: \Closure, format: ?string, forceText: bool}> */

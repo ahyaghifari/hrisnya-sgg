@@ -2,6 +2,8 @@
 
 namespace App\Services\Payroll\Calculators;
 
+use App\Enum\EmployeeTypeCategory;
+use App\Enum\Payroll\GajiPokokKenaikanOverrideEnum;
 use App\Enum\Payroll\PayrollComponentEnum;
 use App\Models\Payroll\Payroll;
 use App\Models\Payroll\PayrollItem;
@@ -11,19 +13,18 @@ use App\Models\User;
 use App\Services\Payroll\Calculators\Concerns\ProratesFirstMonth;
 
 /**
- * gaji_pokok = pangkat_salaries.base_salary * (1 + gaji_pokok_kenaikan_per_kelas% * steps)
- * steps = kelas.level user - pangkat.startKelas.level, DIBATASI 0..(maxKelas.level -
- * startKelas.level) — kelas di bawah startKelas dianggap steps=0 (tidak dikurangi), kelas di
- * atas maxKelas dianggap sudah mentok di kelas maksimal pangkat itu (tidak terus membesar tanpa
- * batas kalau ada kesalahan assign kelas terlalu tinggi ke seorang karyawan).
+ * gaji_pokok = pangkat_salaries.base_salary * (1 + rate)
+ * rate = GajiPokokKenaikanOverrideEnum (per-user) ?? Setting `gaji_pokok_kenaikan_per_kelas`
+ * (per company, halaman Komponen Gaji, default 8%).
  *
- * Persentase kenaikan per kelas itu SAT nilai per company (setting `gaji_pokok_kenaikan_per_kelas`,
- * halaman Komponen Gaji) — sama untuk semua pangkat di company itu, beda company boleh beda
- * persen. start_kelas_id/max_kelas_id (FK ke m_kelas) tetap per-pangkat (halaman Mapping
- * Komponen Gaji, tab Gaji Pokok), karena rentang kelas memang beda tiap pangkat.
+ * Kenaikan berdasarkan LANGKAH KELAS di-terminate (instruksi user 2026-08-22) - rate sekarang
+ * flat, TIDAK dikali lagi dengan selisih level Kelas karyawan terhadap Kelas awal Pangkat. Kelas
+ * & Pangkat tetap wajib terisi di UserProfiles (syarat data lengkap, skip diam-diam kalau kosong)
+ * walau nilainya sudah tidak dipakai di rumus ini.
  *
- * ADDITIVE, bukan compound — dikonfirmasi user (analisis-payroll-4 §7.3): naik 2x kelas =
- * +16% dari base, BUKAN base*1.08^2.
+ * Rate CUMA berlaku untuk kategori Tetap & Kontrak (instruksi user 2026-08-22) - Orientasi tidak
+ * dapat kenaikan sama sekali (rate dipaksa 0%, gaji_pokok = base_salary persis), termasuk yang
+ * override lewat GajiPokokKenaikanOverrideEnum.
  *
  * Prorate bulan pertama — berlaku untuk SEMUA kategori karyawan (bukan cuma Orientasi lagi),
  * logic-nya di ProratesFirstMonth (dipakai bareng Tunjangan Jabatan/Transportasi/Masa Kerja
@@ -46,36 +47,28 @@ class GajiPokokCalculator implements PayrollComponentCalculator
             return;
         }
 
-        // Nominal dasar Gaji Pokok untuk Pangkat ini (1 Pangkat = 1 base_salary, sebelum kenaikan kelas).
+        // Nominal dasar Gaji Pokok untuk Pangkat ini (1 Pangkat = 1 base_salary).
         $pangkatSalary = $pangkat->pangkatSalary;
-        // Persen kenaikan per kelas, company-scoped lewat Setting (halaman Komponen Gaji) - contoh 8 berarti 8%/kelas.
-        $rate = (float) Setting::resolve('gaji_pokok_kenaikan_per_kelas', $period->company_id, default: 0) / 100;
-        // Kelas awal (level terendah) yang jadi acuan Pangkat ini - level di titik ini dianggap "langkah 0" (belum ada kenaikan).
-        $startLevel = $pangkat->startKelas?->level;
+        // Persen kenaikan flat, company-scoped lewat Setting (halaman Komponen Gaji) - contoh 8
+        // berarti +8%. Default 8% kalau company belum pernah setting. GajiPokokKenaikanOverrideEnum
+        // bisa override rate ini per-user (2026-08-22, mis. rate lebih tinggi untuk 1 orang
+        // tertentu terlepas dari setting company-nya). Orientasi tidak dapat kenaikan sama sekali.
+        $category = $user->profile?->employeeType?->category;
+        $rate = $category === EmployeeTypeCategory::ORIENTASI
+            ? 0.0
+            : (GajiPokokKenaikanOverrideEnum::rateForUser($user->id)
+                ?? (float) Setting::resolve('gaji_pokok_kenaikan_per_kelas', $period->company_id, default: 8)) / 100;
 
         // Skip aman kalau fondasi datanya belum lengkap — Gaji Pokok Rp0 yang ke-generate
-        // diam-diam itu bug serius, jangan asumsikan 0 sebagai default "aman".
-        if (! $pangkatSalary || $kelas->level === null || $startLevel === null) {
+        // diam-diam itu bug serius, jangan asumsikan 0 sebagai default "aman". Kelas.level tetap
+        // dicek walau tidak dipakai di rumus - syarat data lengkap karyawan belum berubah.
+        if (! $pangkatSalary || $kelas->level === null) {
             return;
         }
 
-        // Jumlah langkah kenaikan = level Kelas karyawan dikurangi level Kelas awal Pangkat, minimal 0
-        // (kalau Kelas karyawan lebih rendah dari Kelas awal, dianggap belum ada kenaikan sama sekali).
-        $steps = max(0, $kelas->level - $startLevel);
-        // Level Kelas maksimal yang masih diakui Pangkat ini (batas atas kenaikan).
-        $maxLevel = $pangkat->maxKelas?->level;
-
-        // Kalau Pangkat punya batas maksimal, jumlah langkah dipangkas supaya tidak melebihi
-        // selisih maxLevel-startLevel (mencegah kenaikan tak terbatas kalau Kelas karyawan
-        // salah di-assign kelewat tinggi).
-        if ($maxLevel !== null) {
-            $steps = min($steps, max(0, $maxLevel - $startLevel));
-        }
-
-        // Rumus akhir: base_salary + (base_salary * rate * jumlah langkah) - additive, bukan compound.
-        $amount = round((float) $pangkatSalary->base_salary * (1 + $rate * $steps), 2);
-        // Catatan yang tampil di slip gaji, dimulai dari base + jumlah langkah kenaikan kelas.
-        $note = "Base Rp" . number_format((float) $pangkatSalary->base_salary, 0, ',', '.') . ", kelas +{$steps} langkah";
+        // Rumus akhir: base_salary * (1 + rate) - flat, TIDAK lagi dikali langkah Kelas.
+        $amount = round((float) $pangkatSalary->base_salary * (1 + $rate), 2);
+        $note = "Base Rp" . number_format((float) $pangkatSalary->base_salary, 0, ',', '.') . ', kenaikan ' . rtrim(rtrim(number_format($rate * 100, 2), '0'), '.') . '%';
 
         if ($prorate = $this->firstMonthProrate($user, $period)) {
             $amount = round($amount * $prorate['ratio'], 2);

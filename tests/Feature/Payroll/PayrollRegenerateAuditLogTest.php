@@ -61,7 +61,7 @@ class PayrollRegenerateAuditLogTest extends TestCase
 
         $service = app(PayrollService::class);
         $payroll = $service->generateSingleForUser($fixture['user'], $fixture['period']);
-        $this->assertSame(1_160_000.0, (float) $payroll->fresh()->gross_salary); // base 1jt, kelas +2 langkah x8% = 1,16jt
+        $this->assertSame(1_080_000.0, (float) $payroll->fresh()->gross_salary); // base 1jt flat x8% = 1,08jt (kelas tidak lagi berpengaruh)
 
         // Ubah basis gaji pokok company ini - regenerate seharusnya menghasilkan angka BEDA,
         // dan itu HARUS kecatat ke audit_logs.
@@ -69,12 +69,12 @@ class PayrollRegenerateAuditLogTest extends TestCase
 
         $newPayroll = $service->regenerateSinglePayroll($payroll->fresh(['payrollPeriod', 'user']));
 
-        $this->assertSame(2_320_000.0, (float) $newPayroll->fresh()->gross_salary);
+        $this->assertSame(2_160_000.0, (float) $newPayroll->fresh()->gross_salary);
 
         $log = AuditLog::where('module', 'payroll_regenerate')->latest()->first();
         $this->assertNotNull($log);
-        $this->assertStringContainsString('1.160.000', $log->old_value);
-        $this->assertStringContainsString('2.320.000', $log->new_value);
+        $this->assertStringContainsString('1.080.000', $log->old_value);
+        $this->assertStringContainsString('2.160.000', $log->new_value);
     }
 
     public function test_regenerate_single_payroll_does_not_log_when_totals_unchanged(): void
@@ -102,14 +102,14 @@ class PayrollRegenerateAuditLogTest extends TestCase
 
         $before = Payroll::where('payroll_period_id', $fixture['period']->id)->first();
         $this->assertNotNull($before);
-        $this->assertSame(1_160_000.0, (float) $before->gross_salary);
+        $this->assertSame(1_080_000.0, (float) $before->gross_salary);
 
         PangkatSalary::where('pangkat_id', $fixture['pangkat']->id)->update(['base_salary' => 3_000_000]);
 
         $service->regeneratePayroll($fixture['period']->fresh());
 
         $after = Payroll::where('payroll_period_id', $fixture['period']->id)->first();
-        $this->assertSame(3_480_000.0, (float) $after->gross_salary);
+        $this->assertSame(3_240_000.0, (float) $after->gross_salary);
 
         $this->assertSame(1, AuditLog::where('module', 'payroll_regenerate')->count());
     }

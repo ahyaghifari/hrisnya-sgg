@@ -40,6 +40,9 @@ class PayrollGenerateOrderTest extends TestCase
     {
         $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
 
+        // Rate 0% biar Gaji Pokok = base_salary persis, test ini fokus ke URUTAN kalkulasi, bukan rate.
+        \App\Models\Setting::create(['company_id' => $company->id, 'key' => 'gaji_pokok_kenaikan_per_kelas', 'module' => 'payroll', 'type' => 'decimal', 'value' => '0', 'label' => 'Kenaikan Gaji Pokok per Kelas']);
+
         $kelas1 = Kelas::create(['name' => 'Kelas I', 'company_id' => $company->id, 'level' => 1]);
         $pangkat = Pangkats::create(['name' => 'Perawat', 'company_id' => $company->id, 'start_kelas_id' => $kelas1->id, 'max_kelas_id' => $kelas1->id]);
         PangkatSalary::create(['pangkat_id' => $pangkat->id, 'base_salary' => 3_100_000]); // biar pas dibagi 31 hari Juli
@@ -63,7 +66,7 @@ class PayrollGenerateOrderTest extends TestCase
 
         $payroll = Payroll::where('user_id', $user->id)->where('payroll_period_id', $period->id)->firstOrFail();
 
-        // Gaji Pokok penuh (kelas1 = startKelas pangkat, 0 langkah kenaikan) = 3.100.000.
+        // Gaji Pokok penuh (rate 0%) = 3.100.000.
         $this->assertDatabaseHas('payroll_items', ['payroll_id' => $payroll->id, 'source_type' => 'gaji_pokok', 'amount' => 3_100_000]);
 
         // rate_harian = 3.100.000 / 31 hari (Juli) = 100.000, 1 kejadian izin -> potongan 100.000.
