@@ -190,7 +190,12 @@ class PayrollSlipRekapExport extends DefaultValueBinder implements FromCollectio
                     // lebar tetap biar benar-benar wrap ke bawah, bukan malah bikin kolom melebar -
                     // autosize PhpSpreadsheet menghitung dari teks TANPA wrap, jadi 2 hal ini
                     // saling bertentangan kalau dipakai bareng untuk kolom yang sama.
-                    if (mb_strlen($column['label']) > 20) {
+                    if ($column['label'] === 'PANGKAT') {
+                        // Nama pangkat kadang panjang - kolom dipersempit & isinya di-wrap ke bawah
+                        // (bukan autosize melebar), biar layout export tidak melebar cuma gara-gara 1 kolom ini.
+                        $sheet->getColumnDimension($letter)->setAutoSize(false)->setWidth(14);
+                        $sheet->getStyle("{$letter}2:{$letter}{$lastRow}")->getAlignment()->setWrapText(true);
+                    } elseif (mb_strlen($column['label']) > 20) {
                         $sheet->getColumnDimension($letter)->setAutoSize(false)->setWidth(18);
                     } else {
                         $sheet->getColumnDimension($letter)->setAutoSize(true);
