@@ -16,8 +16,8 @@ use Livewire\Component;
 use Maatwebsite\Excel\Facades\Excel;
 
 /**
- * Roster anggota koperasi — sumber yang otomatis di-sync ke payroll_manual_lines tiap Generate
- * Payroll, lihat PayrollService::syncKoperasiManualLines(). Cari/company lewat Livewire
+ * Roster anggota koperasi — dibaca LANGSUNG tiap Generate Payroll oleh KoperasiCalculator
+ * (tidak lewat payroll_manual_lines, beda dari Bon/Insentif import - 2026-08-22). Cari/company lewat Livewire
  * (server-side) — SEBELUMNYA cari pakai List.js di browser, tapi List.js mengunci baris
  * tbody-nya sendiri sehingga tidak ikut ke-morph Livewire tiap company/data ganti (baris lama
  * nyangkut terus), jadi dicabut.

@@ -23,7 +23,7 @@ class AttendanceDeviceResource extends BaseCompanyResource
 
     protected static ?string $navigationLabel = 'Device Absensi';
 
-    protected static string|UnitEnum|null $navigationGroup = 'Master Perusahaan';
+    protected static string|UnitEnum|null $navigationGroup = 'Presensi & Absensi';
 
     protected static ?int $navigationSort = 17;
 

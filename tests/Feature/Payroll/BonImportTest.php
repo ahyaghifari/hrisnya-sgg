@@ -8,7 +8,6 @@ use App\Models\Master\Companies;
 use App\Models\Master\EmployeeTypes;
 use App\Models\Payroll\Payroll;
 use App\Models\Payroll\PayrollComponentRecipient;
-use App\Models\Payroll\PayrollManualLine;
 use App\Models\Payroll\PayrollPeriod;
 use App\Models\Setting;
 use App\Models\User;
@@ -42,7 +41,7 @@ class BonImportTest extends TestCase
 
     public function test_simple_mode_re_import_replaces_existing_line(): void
     {
-        [, , $period] = $this->makeCompanyUserPayroll('NIP001');
+        [, , $period, $payroll] = $this->makeCompanyUserPayroll('NIP001');
 
         $import = new BonImport($period->id);
         $import->collection(new Collection([['nip' => 'NIP001', 'nominal' => 100000]]));
@@ -50,21 +49,24 @@ class BonImportTest extends TestCase
         $import = new BonImport($period->id);
         $import->collection(new Collection([['nip' => 'NIP001', 'nominal' => 250000]]));
 
-        $lines = PayrollManualLine::where('payroll_period_id', $period->id)->where('component', 'bon')->get();
+        // Mode Simple sekarang nulis LANGSUNG ke payroll_items (bukan payroll_manual_lines lagi,
+        // 2026-08-22) - update-in-place lewat applyManualRevision(), bukan baris baru.
+        $items = $payroll->items()->where('source_type', 'bon')->get();
 
-        $this->assertCount(1, $lines);
-        $this->assertSame(250000.0, (float) $lines->first()->amount);
+        $this->assertCount(1, $items);
+        $this->assertSame(250000.0, (float) $items->first()->amount);
+        $this->assertTrue((bool) $items->first()->edited_manually);
     }
 
     public function test_detail_mode_rejects_import_entirely(): void
     {
-        [$company, , $period] = $this->makeCompanyUserPayroll('NIP001');
+        [$company, , $period, $payroll] = $this->makeCompanyUserPayroll('NIP001');
         Setting::create(['company_id' => $company->id, 'key' => 'bon_metode', 'module' => 'payroll', 'type' => 'string', 'value' => 'detail', 'label' => 'Metode Bon']);
 
         $import = new BonImport($period->id);
         $import->collection(new Collection([['nip' => 'NIP001', 'nominal' => 100000]]));
 
-        $this->assertSame(0, PayrollManualLine::where('payroll_period_id', $period->id)->where('component', 'bon')->count());
+        $this->assertSame(0, $payroll->items()->where('source_type', 'bon')->count());
         $this->assertNotEmpty($import->getErrors());
     }
 }

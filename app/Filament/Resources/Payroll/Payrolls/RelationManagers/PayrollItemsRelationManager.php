@@ -146,6 +146,7 @@ class PayrollItemsRelationManager extends RelationManager
                             'unit' => null,
                             'unit_amount' => null,
                             'source_type' => 'manual',
+                            'edited_manually' => true,
                         ]);
                     })
                     ->after(function ($record, array $data, $livewire) {
@@ -184,6 +185,11 @@ class PayrollItemsRelationManager extends RelationManager
                             ->required()
                             ->rows(3),
                     ])
+                    ->mutateFormDataUsing(function (array $data) {
+                        return array_merge($data, [
+                            'edited_manually' => true,
+                        ]);
+                    })
                     ->before(function ($record) {
                         $this->editingOldAmount = (float) $record->amount;
                         $this->editingOldType = $record->type;

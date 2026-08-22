@@ -10,11 +10,16 @@ use App\Models\Payroll\PayrollPeriod;
 use App\Models\User;
 
 /**
- * Input manual finance lewat `payroll_manual_lines` (Koperasi/Bon = potongan, Insentif metode
- * "import" = pendapatan — lihat IncentiveCalculator), tidak ada rumus otomatis sama sekali.
- * Calculator ini cuma "menyalin" baris manual yang sudah diinput ke payroll_items — nama baris
- * di slip pakai `label` per baris kalau diisi (Bon mode Detail: nama potongan spesifik, mis.
- * "Angsuran Motor"), fallback ke `componentLabel()` kalau kosong (Koperasi & Bon mode Simple).
+ * Input manual finance lewat `payroll_manual_lines` (Bon mode Detail = potongan rincian
+ * bernama, Insentif metode "import" = pendapatan — lihat IncentiveCalculator), tidak ada rumus
+ * otomatis sama sekali. Calculator ini cuma "menyalin" baris manual yang sudah diinput ke
+ * payroll_items — nama baris di slip pakai `label` per baris kalau diisi (mis. "Angsuran
+ * Motor"), fallback ke `componentLabel()` kalau kosong.
+ *
+ * Koperasi TIDAK lagi lewat sini (2026-08-22) - baca langsung dari `user_koperasi`, lihat
+ * KoperasiCalculator. Bon mode Simple juga TIDAK lewat sini - BonImport nulis langsung ke
+ * payroll_items lewat PayrollService::applyManualRevision(). Cuma Bon mode Detail
+ * (BonDetailImport) dan Insentif metode "import" yang masih pakai jalur payroll_manual_lines ini.
  */
 abstract class AbstractManualLineCalculator implements PayrollComponentCalculator
 {

@@ -14,7 +14,7 @@ enum GajiPokokKenaikanOverrideEnum: string
     public function rate(): float
     {
         return match ($this) {
-            self::ABDURRAHMAN_HAKIM => 16.0,
+            self::ABDURRAHMAN_HAKIM => 8.0,
         };
     }
 

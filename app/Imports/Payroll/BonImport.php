@@ -5,34 +5,39 @@ namespace App\Imports\Payroll;
 use App\Enum\Payroll\PayrollComponentEnum;
 use App\Models\Payroll\Payroll;
 use App\Models\Payroll\PayrollComponentRecipient;
-use App\Models\Payroll\PayrollManualLine;
 use App\Models\Payroll\PayrollPeriod;
 use App\Models\Setting;
 use App\Models\User;
+use App\Services\Payroll\PayrollService;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Concerns\ToCollection;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
 
 /**
- * Bon RSU — menulis baris manual (component=bon) yang NIP-nya cocok dengan Payroll yang SUDAH
- * digenerate untuk periode ini. Baris yang NIP-nya tidak match user, atau user itu belum punya
+ * Bon RSU — menulis LANGSUNG ke payroll_items komponen Bon (lewat
+ * PayrollService::applyManualRevision(), source_type=bon, edited_manually=true) untuk NIP yang
+ * cocok dengan Payroll yang SUDAH digenerate untuk periode ini (2026-08-22 - sebelumnya lewat
+ * payroll_manual_lines seperti BonDetailImport, diubah karena mode Simple cuma 1 nilai/user,
+ * tidak butuh tabel perantara). Baris yang NIP-nya tidak match user, atau user itu belum punya
  * Payroll di periode ini, di-skip & dilaporkan sebagai error.
  *
- * TIDAK langsung mengubah payroll_items/total Payroll di sini — class ini cuma nulis
- * payroll_manual_lines mentah. PayrollsPage::confirmImport() yang regenerate payroll tiap user
- * yang berhasil (getSuccessUserIds()) begitu import ini selesai, supaya nominalnya langsung
- * masuk tanpa perlu klik Regenerate manual satu-satu.
+ * edited_manually=true otomatis membuat baris ini SELAMAT dari Generate/Regenerate berikutnya
+ * (Calculator Bon di-skip untuk user ini, lihat PayrollContext::protectedSourceTypes) -
+ * PayrollsPage::confirmImport() tetap memanggil regenerateSinglePayroll() tiap user yang
+ * berhasil (getSuccessUserIds()) supaya komponen LAIN di payroll itu (mis. perbaikan Calculator
+ * terbaru) ikut ter-refresh, bukan supaya nominal Bon-nya "masuk" - itu sudah masuk duluan di sini.
  *
  * Idempotent per (periode, user): upload ulang untuk NIP yang sama MENGGANTI nominal
- * sebelumnya (bukan menambah baris baru) — supaya revisi file tidak dobel-hitung.
+ * sebelumnya (bukan menambah baris baru) — applyManualRevision() update-in-place kalau baris
+ * source_type=bon sudah ada.
  *
  * HANYA buat setting `bon_metode` = 'simple' (default) — company dengan mode 'detail' pakai
- * BonDetailImport (sibling class, format kolom nip/nama_potongan/nominal, upsert per nama
- * potongan bukan per user) atau tambah rincian satu-satu lewat halaman detail payroll
- * (PayrollDetailPage). Gate utamanya di PayrollsPage::makeImport() (pilih class sesuai
- * bon_metode) — validateRow() di sini jadi lapis kedua kalau class ini dipanggil langsung
- * (bukan lewat UI), bukan cuma andalkan pemilihan class di pemanggil.
+ * BonDetailImport (sibling class, TETAP lewat payroll_manual_lines karena bisa banyak baris
+ * rincian bernama per user, format kolom nip/nama_potongan/nominal) atau tambah rincian
+ * satu-satu lewat halaman detail payroll (PayrollDetailPage). Gate utamanya di
+ * PayrollsPage::makeImport() (pilih class sesuai bon_metode) — validateRow() di sini jadi lapis
+ * kedua kalau class ini dipanggil langsung (bukan lewat UI), bukan cuma andalkan pemilihan class
+ * di pemanggil.
  *
  * Mode `preview: true` cuma memvalidasi tiap baris (termasuk NIP tidak ditemukan) tanpa
  * menulis apa pun ke database — dipakai buat tampilkan pratinjau sebelum user klik "Simpan"
@@ -88,19 +93,17 @@ class BonImport implements ToCollection, WithHeadingRow
                 continue;
             }
 
-            DB::transaction(function () use ($user, $amount): void {
-                PayrollManualLine::updateOrCreate(
-                    [
-                        'payroll_period_id' => $this->payrollPeriodId,
-                        'user_id' => $user->id,
-                        'component' => PayrollComponentEnum::BON->value,
-                    ],
-                    [
-                        'amount' => $amount,
-                        'note' => 'Import Excel',
-                    ]
-                );
-            });
+            $payroll = Payroll::query()
+                ->where('user_id', $user->id)
+                ->where('payroll_period_id', $this->payrollPeriodId)
+                ->first();
+
+            app(PayrollService::class)->applyManualRevision(
+                $payroll,
+                PayrollComponentEnum::BON,
+                $amount,
+                'Import Excel',
+            );
 
             $this->successCount++;
             $this->successUserIds[] = $user->id;

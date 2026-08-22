@@ -13,6 +13,12 @@ class PayrollContext
     public float $grossSalary = 0.0;
     public float $totalDeductions = 0.0;
 
+    /** source_type komponen yang barisnya sudah di-edit manual (edited_manually=true) di
+     * payroll SEBELUMNYA - Calculator komponen ini WAJIB di-skip saat Generate/Regenerate,
+     * baris lamanya sudah dibawa pindah apa adanya ke payroll baru (lihat
+     * PayrollService::generateForUser()). */
+    public array $protectedSourceTypes = [];
+
     public function addEarning(float $amount): void
     {
         $this->grossSalary += $amount;
@@ -21,5 +27,10 @@ class PayrollContext
     public function addDeduction(float $amount): void
     {
         $this->totalDeductions += $amount;
+    }
+
+    public function isProtected(?string $sourceType): bool
+    {
+        return $sourceType !== null && in_array($sourceType, $this->protectedSourceTypes, true);
     }
 }

@@ -9,9 +9,7 @@ use App\Models\Payroll\CompanyPayrollComponent;
 use App\Models\Payroll\Payroll;
 use App\Models\Payroll\PayrollComponentRecipient;
 use App\Models\Payroll\PayrollItem;
-use App\Models\Payroll\PayrollManualLine;
 use App\Models\Payroll\PayrollPeriod;
-use App\Models\Payroll\UserKoperasi;
 use App\Models\User;
 use App\Services\Payroll\Calculators\ExecutiveAllowanceCalculator;
 use App\Services\Payroll\Calculators\FeeClaimCalculator;
@@ -183,15 +181,12 @@ class PayrollService
             // penyesuaian manual) ikut punya jejak di audit_logs.
             $before = $this->snapshotPayrollTotals($period);
 
-            // Delete only unpaid payrolls; paid payrolls are kept as-is.
-            // payroll_items will be removed automatically via cascadeOnDelete.
-            Payroll::query()
-                ->where('payroll_period_id', $period->id)
-                ->where('is_paid', false)
-                ->delete();
-
-            // Re-run generation — generatePayroll() sendiri juga sudah skip yang paid & hapus-
-            // ulang yang belum dibayar, jadi baris di atas sebenarnya redundan tapi tidak masalah.
+            // TIDAK bulk-delete payroll di sini lagi (dulu ada, dihapus 2026-08-22) -
+            // generatePayroll() sendiri sudah skip yang paid & hapus-ulang yang belum dibayar
+            // PER USER lewat capturePreservedItems() dulu baru delete (lihat loopnya). Bulk
+            // delete duluan di sini bikin capturePreservedItems() selalu nemu payroll kosong
+            // (baris edited_manually ikut lenyap tanpa sempat dibawa pindah) - regenerate lewat
+            // Periode Gaji jadi beda perilaku dari regenerate satu-satu padahal harusnya sama.
             $this->generatePayroll($period, $generatedByUserId);
 
             $this->logRegenerateChanges($period, $before);
@@ -305,8 +300,6 @@ class PayrollService
                 ->where('is_active', true)
                 ->get();
 
-            $this->syncKoperasiManualLines($period, $users);
-
             foreach ($users as $user) {
                 // Payroll yang SUDAH DIBAYAR dikunci total, tidak boleh disentuh lagi. Payroll
                 // yang BELUM dibayar dihapus & digenerate ulang dari nol (bukan di-skip) - kalau
@@ -319,11 +312,14 @@ class PayrollService
                     ->where('payroll_period_id', $period->id)
                     ->first();
 
+                $preservedItems = [];
+
                 if ($existing) {
                     if ($existing->is_paid) {
                         continue;
                     }
 
+                    $preservedItems = $this->capturePreservedItems($existing);
                     $existing->delete(); // payroll_items ikut terhapus lewat cascadeOnDelete
                 }
 
@@ -342,7 +338,7 @@ class PayrollService
                     continue;
                 }
 
-                $this->generateForUser($user, $period, $activeComponents, $generatedByUserId);
+                $this->generateForUser($user, $period, $activeComponents, $generatedByUserId, $preservedItems);
             }
 
             $period->update([
@@ -376,8 +372,6 @@ class PayrollService
                 ->where('company_id', $period->company_id)
                 ->where('is_active', true)
                 ->get();
-
-            $this->syncKoperasiManualLines($period, collect([$user]));
 
             return $this->generateForUser($user, $period, $activeComponents, $generatedByUserId);
         });
@@ -415,11 +409,11 @@ class PayrollService
                 ->where('is_active', true)
                 ->get();
 
-            $this->syncKoperasiManualLines($period, collect([$user]));
+            $preservedItems = $this->capturePreservedItems($payroll);
 
             $payroll->delete(); // payroll_items ikut terhapus lewat cascadeOnDelete
 
-            $newPayroll = $this->generateForUser($user, $period, $activeComponents, $generatedByUserId);
+            $newPayroll = $this->generateForUser($user, $period, $activeComponents, $generatedByUserId, $preservedItems);
 
             $period->update([
                 'generated_by' => $generatedByUserId ?? $period->generated_by,
@@ -438,9 +432,11 @@ class PayrollService
      * di level DB), pola sama dengan PayrollItemsRelationManager::applyToPayrollTotals() di
      * admin panel (cuma dipanggil bulk lewat import, bukan 1-per-1 lewat form Filament).
      *
-     * SENGAJA menulis langsung ke PayrollItem yang sudah ada (bukan regenerate) - regenerate
-     * akan menjalankan ulang semua Calculator dan menimpa balik nilai manual ini dengan hasil
-     * hitungan otomatis, membatalkan revisinya.
+     * SENGAJA menulis langsung ke PayrollItem yang sudah ada (bukan regenerate) - baris ini
+     * ditandai edited_manually=true, jadi kalau Generate/Regenerate jalan belakangan
+     * (mis. tombol "Regenerate Payroll Ini"), Calculator komponen ini di-skip dan nilai manual
+     * ini dibawa pindah apa adanya, bukan ketimpa balik oleh hasil hitungan otomatis (lihat
+     * PayrollContext::protectedSourceTypes).
      */
     public function applyManualRevision(Payroll $payroll, PayrollComponentEnum $component, float $newAmount, string $note, ?string $updatedByUserId = null): void
     {
@@ -456,6 +452,7 @@ class PayrollService
             if ($item) {
                 $item->amount = $newAmount;
                 $item->note = $note;
+                $item->edited_manually = true;
                 $item->save();
             } else {
                 $item = PayrollItem::create([
@@ -466,6 +463,7 @@ class PayrollService
                     'amount' => $newAmount,
                     'note' => $note,
                     'source_type' => $component->value,
+                    'edited_manually' => true,
                 ]);
             }
 
@@ -490,7 +488,13 @@ class PayrollService
         });
     }
 
-    private function generateForUser(User $user, PayrollPeriod $period, Collection $activeComponents, ?string $generatedByUserId = null): Payroll
+    /**
+     * @param array<int, array<string, mixed>> $preservedItems Snapshot baris edited_manually=true
+     *   dari payroll LAMA user ini (lihat capturePreservedItems()) - dibawa pindah apa adanya ke
+     *   payroll baru, source_type-nya ditandai protected di $context supaya Calculator terkait
+     *   di-skip (bukan menimpa balik).
+     */
+    private function generateForUser(User $user, PayrollPeriod $period, Collection $activeComponents, ?string $generatedByUserId = null, array $preservedItems = []): Payroll
     {
         $payroll = Payroll::create([
             'user_id' => $user->id,
@@ -500,6 +504,24 @@ class PayrollService
         ]);
 
         $context = new PayrollContext();
+
+        foreach ($preservedItems as $itemData) {
+            PayrollItem::create([
+                ...$itemData,
+                'payroll_id' => $payroll->id,
+                'edited_manually' => true,
+            ]);
+
+            if ($itemData['type'] === PayrollComponentTypeEnum::EARNING->value) {
+                $context->addEarning((float) $itemData['amount']);
+            } else {
+                $context->addDeduction((float) $itemData['amount']);
+            }
+
+            if ($itemData['source_type']) {
+                $context->protectedSourceTypes[] = $itemData['source_type'];
+            }
+        }
 
         // Eksekutif PAYROLL_ELIGIBLE_EXECUTIVE_IDS SENGAJA tidak lewat komponen otomatis apa
         // pun (Gaji Pokok/BPJS/Keterlambatan/Fee Claim/dst) - dari pendapatan sampai potongan
@@ -518,7 +540,7 @@ class PayrollService
                     fn (CompanyPayrollComponent $c) => $c->component === $component->value
                 );
 
-                if (! $isActiveForCompany) {
+                if (! $isActiveForCompany || $context->isProtected($component->value)) {
                     continue;
                 }
 
@@ -586,40 +608,32 @@ class PayrollService
         return $payroll;
     }
 
+
     /**
-     * Koperasi anggota aktif otomatis "ditulis ulang" jadi payroll_manual_lines tiap Generate/
-     * Regenerate — finance tidak perlu input manual tiap periode lagi (cuma pas amount/status
-     * anggota berubah, lihat halaman Koperasi). KoperasiCalculator tetap baca dari
-     * payroll_manual_lines seperti biasa, tidak berubah.
+     * Snapshot baris edited_manually=true dari payroll LAMA (sebelum dihapus) - dibaca sebagai
+     * array polos (bukan Model), amount/unit_amount otomatis sudah didekripsi lewat cast
+     * PayrollEncrypted saat diakses di sini, dienkripsi ulang otomatis saat di-create() balik ke
+     * payroll baru.
+     *
+     * @return array<int, array<string, mixed>>
      */
-    private function syncKoperasiManualLines(PayrollPeriod $period, Collection $users): void
+    private function capturePreservedItems(Payroll $payroll): array
     {
-        $koperasiRows = UserKoperasi::query()
-            ->where('is_active', true)
-            ->whereIn('user_id', $users->pluck('id'))
-            ->get();
-
-        foreach ($koperasiRows as $row) {
-            $key = [
-                'payroll_period_id' => $period->id,
-                'user_id' => $row->user_id,
-                'component' => PayrollComponentEnum::KOPERASI->value,
-            ];
-
-            // Delete-then-create, bukan updateOrCreate. Koperasi selalu 1 nilai (bukan rincian
-            // kayak Bon mode Detail) - kalau somehow ada >1 baris nyasar (constraint unique sudah
-            // dilonggarkan, lihat migration 2026_08_01_160000_*), updateOrCreate cuma nimpa baris
-            // PERTAMA yang match, sisanya tetap ada dan ikut dijumlah KoperasiCalculator (loop
-            // semua baris) - dobel hitung senyap. Delete dulu memastikan selalu tepat 1 baris.
-            PayrollManualLine::where($key)->delete();
-            PayrollManualLine::create([
-                ...$key,
-                'amount' => $row->amount,
-                'note' => 'Auto-sync dari Koperasi',
-            ]);
-        }
+        return $payroll->items()
+            ->where('edited_manually', true)
+            ->get()
+            ->map(fn (PayrollItem $item) => [
+                'name' => $item->name,
+                'type' => $item->type,
+                'quantity' => $item->quantity,
+                'unit' => $item->unit,
+                'unit_amount' => $item->unit_amount,
+                'amount' => $item->amount,
+                'note' => $item->note,
+                'source_type' => $item->source_type,
+            ])
+            ->all();
     }
-
 
     private function runComponent(
         CompanyPayrollComponent $companyComponent,
@@ -643,7 +657,10 @@ class PayrollService
         // nentuin dia dapat uang atau tidak, bukan nentuin barisnya ada atau tidak").
         $isEligible = PayrollComponentRecipient::isEligible($companyComponent->company_id, $companyComponent->component, $user->profile?->employee_type_id);
 
-        if ($isEligible) {
+        // Baris komponen ini sudah di-edit manual di payroll sebelumnya & sudah dibawa pindah
+        // apa adanya ke payroll baru ini (lihat generateForUser()) - Calculator-nya WAJIB
+        // di-skip, kalau tidak baris manualnya ketimpa balik oleh hasil hitungan otomatis.
+        if ($isEligible && ! $context->isProtected($component->value)) {
             $calculatorClass = PayrollCalculatorRegistry::resolve($component);
 
             if ($calculatorClass) {

@@ -24,11 +24,13 @@ class PayrollItem extends Model
         'unit',
         'note',
         'source_type',
+        'edited_manually',
     ];
 
     protected $casts = [
         'unit_amount' => PayrollEncrypted::class,
         'amount' => PayrollEncrypted::class,
+        'edited_manually' => 'boolean',
     ];
 
     public function payroll(): BelongsTo
