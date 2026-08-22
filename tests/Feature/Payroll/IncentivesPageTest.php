@@ -69,6 +69,34 @@ class IncentivesPageTest extends TestCase
         $this->assertDatabaseHas('incentives', ['user_id' => $employee->id, 'name' => 'Insentif Juli', 'amount' => 500000, 'is_active' => true]);
     }
 
+    /** Bug ditemukan 2026-08-21: editingId ? ::whereKey()->update() : ::create() - jalur EDIT
+     * pakai query builder langsung, melewati cast PayrollEncrypted, nulis 'amount' plaintext
+     * mentah (sama pola KoperasiPage::saveEdit() yang sudah diperbaiki lebih dulu). Dicek lewat
+     * DB::table() raw (bukan assertDatabaseHas polos) - ciphertext AES itu string panjang, kalau
+     * masih raw sama dengan angka yang di-set berarti bug-nya balik lagi. */
+    public function test_editing_incentive_keeps_amount_encrypted(): void
+    {
+        $finance = $this->actingAsFinance(withCrudPermission: true);
+        $company = $this->makeCompany();
+        $employee = User::factory()->create(['company_id' => $company->id]);
+        $incentive = Incentive::create([
+            'user_id' => $employee->id,
+            'amount' => 500000,
+            'is_active' => true,
+        ]);
+
+        Livewire::actingAs($finance)
+            ->test(IncentivesPage::class)
+            ->set('companyId', $company->id)
+            ->call('openEditModal', $incentive->id)
+            ->set('formAmount', '750000')
+            ->call('saveForm');
+
+        $raw = \Illuminate\Support\Facades\DB::table('incentives')->where('id', $incentive->id)->value('amount');
+        $this->assertFalse(is_numeric(trim((string) $raw)), 'amount tersimpan plaintext (angka mentah), harusnya ciphertext.');
+        $this->assertSame(750_000.0, (float) $incentive->fresh()->amount);
+    }
+
     public function test_can_toggle_incentive_active(): void
     {
         $finance = $this->actingAsFinance(withCrudPermission: true);

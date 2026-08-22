@@ -167,7 +167,10 @@ class IncentivesPage extends Component
         ];
 
         if ($this->editingId) {
-            Incentive::whereKey($this->editingId)->update($data);
+            // ->find()->update() (instance), BUKAN whereKey()->update() (query builder) - yang
+            // terakhir melewati cast PayrollEncrypted, nulis 'amount' plaintext mentah (bug
+            // ditemukan 2026-08-21, sama pola KoperasiPage::saveEdit()).
+            Incentive::findOrFail($this->editingId)->update($data);
         } else {
             Incentive::create([...$data, 'is_active' => true]);
         }

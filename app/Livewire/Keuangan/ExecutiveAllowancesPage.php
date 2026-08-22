@@ -165,7 +165,10 @@ class ExecutiveAllowancesPage extends Component
         ];
 
         if ($this->editingId) {
-            ExecutiveAllowance::whereKey($this->editingId)->update($data);
+            // ->findOrFail()->update() (instance), BUKAN whereKey()->update() (query builder) -
+            // yang terakhir melewati cast PayrollEncrypted, nulis 'amount' plaintext mentah (bug
+            // ditemukan 2026-08-21, sama pola KoperasiPage::saveEdit()).
+            ExecutiveAllowance::findOrFail($this->editingId)->update($data);
         } else {
             ExecutiveAllowance::create([...$data, 'is_active' => true]);
         }
