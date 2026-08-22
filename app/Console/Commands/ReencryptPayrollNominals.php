@@ -37,6 +37,7 @@ class ReencryptPayrollNominals extends Command
         ['table' => 'transport_allowances', 'columns' => ['amount']],
         ['table' => 'jasa_unit_details', 'columns' => ['amount']],
         ['table' => 'payroll_manual_lines', 'columns' => ['amount']],
+        ['table' => 'tenure_allowances', 'columns' => ['amount']],
     ];
 
     public function handle(): int

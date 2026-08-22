@@ -501,7 +501,10 @@ class MappingKomponenGajiPage extends Component
             ];
 
             if ($row['id']) {
-                TenureAllowance::where('id', $row['id'])->update($data);
+                // Instance update() (fill()->save()), BUKAN Model::where(...)->update() query
+                // builder mentah - itu tidak menjalankan cast PayrollEncrypted, amount akan
+                // kesimpan PLAINTEXT & crash pas dibaca lagi (DecryptException).
+                TenureAllowance::find($row['id'])?->update($data);
             } else {
                 $created = TenureAllowance::create($data);
                 $this->tenureRows[$i]['id'] = $created->id;

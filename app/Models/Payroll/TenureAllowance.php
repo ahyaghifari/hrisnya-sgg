@@ -2,6 +2,7 @@
 
 namespace App\Models\Payroll;
 
+use App\Casts\PayrollEncrypted;
 use App\Models\Concerns\LogsAuditChanges;
 use App\Models\Master\Companies;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
@@ -23,6 +24,10 @@ class TenureAllowance extends Model
         'min_years',
         'max_years',
         'amount',
+    ];
+
+    protected $casts = [
+        'amount' => PayrollEncrypted::class,
     ];
 
     public function company(): BelongsTo
