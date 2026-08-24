@@ -249,37 +249,4 @@ trait HasKaryawanForm
             $this->step = max(1, min(3, $step));
         }
     }
-
-    /** Job position quota belum penuh - dilewati kalau job_position_id-nya SAMA dengan yang
-     * sudah dipegang $record sebelumnya (edit tanpa ganti jabatan tidak boleh ke-block gara-gara
-     * kuota yang sudah ditempati diri sendiri). */
-    private function assertJobPositionQuota(): void
-    {
-        if (! $this->job_position_id) {
-            return;
-        }
-
-        if ($this->record && $this->record->profile?->job_position_id === $this->job_position_id) {
-            return;
-        }
-
-        $jobPosition = JobPositions::find($this->job_position_id);
-        if (! $jobPosition) {
-            return;
-        }
-
-        $used = $jobPosition->userAssignments()->count();
-        $available = ($jobPosition->actual_manpower ?? 0) - $used;
-
-        if ($available <= 0) {
-            $this->addError(
-                'job_position_id',
-                "Kuota jabatan ini sudah penuh (actual manpower: {$jobPosition->actual_manpower}, terisi: {$used})."
-            );
-
-            throw \Illuminate\Validation\ValidationException::withMessages([
-                'job_position_id' => "Kuota jabatan ini sudah penuh (actual manpower: {$jobPosition->actual_manpower}, terisi: {$used}).",
-            ]);
-        }
-    }
 }

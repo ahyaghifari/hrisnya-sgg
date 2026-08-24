@@ -111,7 +111,6 @@ class EditKaryawan extends Component
         // Bisa disimpan dari step manapun (tidak lagi wizard sekuensial di Edit, lihat
         // HasKaryawanForm::goToStep()) - validasi step 1 & 3 sekaligus, bukan cuma step aktif.
         $this->validate(array_merge($this->rulesForStep(1), $this->rulesForStep(3)));
-        $this->assertJobPositionQuota();
 
         $orgStructureId = $this->sub_division_id ?? $this->division_id ?? $this->department_id;
 
