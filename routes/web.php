@@ -19,6 +19,7 @@ use App\Livewire\Kepegawaian\EditKaryawan;
 use App\Livewire\Kepegawaian\CreateUserTransitionPage;
 use App\Livewire\Kepegawaian\DocumentFormPage;
 use App\Livewire\Kepegawaian\DocumentsPage;
+use App\Livewire\Kepegawaian\KontrakPage;
 use App\Livewire\Kepegawaian\KaryawanPage;
 use App\Livewire\Kepegawaian\KepegawaianDashboardPage;
 use App\Livewire\Kepegawaian\UserTransitionDetailPage;
@@ -26,6 +27,7 @@ use App\Livewire\Kepegawaian\UserTransitionsPage;
 use App\Livewire\Keuangan\IncentivesPage;
 use App\Livewire\Keuangan\KoperasiPage;
 use App\Livewire\Keuangan\MappingKomponenGajiPage;
+use App\Livewire\Keuangan\PajakPage;
 use App\Livewire\Keuangan\PayrollDashboardPage;
 use App\Livewire\Keuangan\PayrollDetailPage;
 use App\Livewire\Keuangan\PayrollPeriodsPage;
@@ -231,6 +233,9 @@ Route::middleware(['auth', 'portal.access'])->group(function () {
     Route::get('/kepegawaian/dokumen/{record}/edit', DocumentFormPage::class)
         ->name('kepegawaian.dokumen.edit');
 
+    Route::get('/kepegawaian/kontrak', KontrakPage::class)
+        ->name('kepegawaian.kontrak');
+
     Route::get('/kepegawaian/perubahan-status', UserTransitionsPage::class)
         ->name('kepegawaian.mutasi-karyawan');
 
@@ -290,6 +295,9 @@ Route::middleware(['auth', 'portal.access'])->group(function () {
 
     Route::get('/keuangan/payroll', PayrollsPage::class)
         ->name('keuangan.payroll');
+
+    Route::get('/keuangan/pajak', PajakPage::class)
+        ->name('keuangan.pajak');
 
     Route::get('/keuangan/payroll/{payroll}', PayrollDetailPage::class)
         ->name('keuangan.payroll.show');

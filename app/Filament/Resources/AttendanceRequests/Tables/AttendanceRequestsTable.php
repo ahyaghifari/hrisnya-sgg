@@ -32,7 +32,7 @@ class AttendanceRequestsTable
                     ->relationship('user.company', 'name')
                     ->preload()
                     ->searchable()
-                    ->visible(fn () => AttendanceRequestResource::isSuperAdmin()),
+                    ->visible(fn () => AttendanceRequestResource::canBrowseAllCompanies()),
             ])
             ->recordActions([
                 // Hapus dipindah ke halaman detail (EditAttendanceRequest) - cuma tampil di situ

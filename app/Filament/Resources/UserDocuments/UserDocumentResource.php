@@ -60,7 +60,7 @@ class UserDocumentResource extends BaseCompanyResource
                     ->placeholder('Pilih Perusahaan')
                     ->reactive()
                     ->dehydrated(false)
-                    ->visible(fn () => static::isSuperAdmin())
+                    ->visible(fn () => static::canBrowseAllCompanies())
                     ->afterStateUpdated(fn (callable $set) => $set('user_id', null)),
 
                 Select::make('user_id')
@@ -70,7 +70,7 @@ class UserDocumentResource extends BaseCompanyResource
                     ->placeholder('Pilih Karyawan')
                     ->reactive()
                     ->options(function (Get $get) {
-                        $companyId = static::isSuperAdmin() ? $get('company_filter') : static::companyId();
+                        $companyId = static::canBrowseAllCompanies() ? $get('company_filter') : static::companyId();
 
                         return User::query()
                             ->when($companyId, fn ($q) => $q->where('company_id', $companyId))
@@ -145,7 +145,7 @@ class UserDocumentResource extends BaseCompanyResource
     {
         return $table
             ->columns([
-                TextColumn::make('user.company.name')->label('Perusahaan')->sortable()->visible(fn () => static::isSuperAdmin()),
+                TextColumn::make('user.company.name')->label('Perusahaan')->sortable()->visible(fn () => static::canBrowseAllCompanies()),
                 TextColumn::make('user_name')->label('Nama Karyawan')->searchable(),
                 TextColumn::make('document_type')->label('Tipe Dokumen')->badge()
                     ->formatStateUsing(fn (?string $state) => UserDocumentType::tryFrom($state)?->label() ?? $state),
@@ -179,7 +179,7 @@ class UserDocumentResource extends BaseCompanyResource
     {
         $query = static::getModel()::query()->with(['user.company']);
 
-        if (! static::isSuperAdmin()) {
+        if (! static::canBrowseAllCompanies()) {
             $query->whereHas('user', fn ($q) => $q->where('company_id', static::companyId()));
         }
 

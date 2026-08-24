@@ -4,6 +4,7 @@
     // bukan permission SISTEM_* umum.
     $canViewPayrollPeriod = auth()->user()->can('ViewAny:PayrollPeriod');
     $canViewPayroll = auth()->user()->can('ViewAny:Payroll');
+    $canViewPajak = auth()->user()->can(\App\Enum\CustomPermissionEnum::LIHAT_PAJAK->value);
     // Omset - permission manual (LIHAT_OMSET/KELOLA_OMSET), bukan Shield ViewAny (model-nya
     // tidak punya Filament Resource/Policy sendiri).
     $canViewOmset = auth()->user()->can(\App\Enum\CustomPermissionEnum::LIHAT_OMSET->value);
@@ -19,7 +20,7 @@
 @endphp
 
 <div class="dropdown">
-    <a href="#" class="nav-item nav-item-green {{ request()->routeIs(['keuangan.dashboard*', 'keuangan.periode-gaji*', 'keuangan.payroll*', 'keuangan.komponen-gaji*', 'keuangan.penerima-komponen-gaji*', 'keuangan.insentif*', 'keuangan.mapping-komponen-gaji*', 'keuangan.koperasi*', 'keuangan.omset*', 'keuangan.jasa-unit*', 'keuangan.jasa-unit-types*', 'keuangan.tanggungan-bpjs*', 'keuangan.tunjangan-eksekutif*']) ? 'active' : '' }}">
+    <a href="#" class="nav-item nav-item-green {{ request()->routeIs(['keuangan.dashboard*', 'keuangan.periode-gaji*', 'keuangan.payroll*', 'keuangan.pajak*', 'keuangan.komponen-gaji*', 'keuangan.penerima-komponen-gaji*', 'keuangan.insentif*', 'keuangan.mapping-komponen-gaji*', 'keuangan.koperasi*', 'keuangan.omset*', 'keuangan.jasa-unit*', 'keuangan.jasa-unit-types*', 'keuangan.tanggungan-bpjs*', 'keuangan.tunjangan-eksekutif*']) ? 'active' : '' }}">
         <i class="fa-solid fa-sack-dollar text-xs"></i> Penggajian <i class="fa-solid fa-chevron-down text-[10px]"></i>
     </a>
     <div class="dropdown-menu dropdown-menu-columns">
@@ -31,6 +32,9 @@
             @endif
             @if ($canViewPayroll)
                 <a href="{{ route('keuangan.payroll') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-money-check-dollar"></i> Payroll</a>
+            @endif
+            @if ($canViewPajak)
+                <a href="{{ route('keuangan.pajak') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-percent"></i> Pajak (%)</a>
             @endif
             @if ($canViewOmset)
                 <a href="{{ route('keuangan.omset') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-hand-holding-medical"></i> Omset</a>

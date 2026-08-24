@@ -298,7 +298,8 @@ class UserTransitionServiceTest extends TestCase
         $employee->refresh();
 
         $this->assertSame(2, UserContract::where('user_id', $employee->id)->count());
-        $this->assertSame($transition->contract_end_date, $employee->currentContract->contract_end_date);
+        // contract_end_date di-cast 'date' (2026-08-22) - bandingkan format string, bukan objek.
+        $this->assertSame($transition->contract_end_date, $employee->currentContract->contract_end_date->toDateString());
         $this->assertDatabaseHas('user_contracts', [
             'user_id' => $employee->id,
             'employee_type_id' => $kontrakType->id,

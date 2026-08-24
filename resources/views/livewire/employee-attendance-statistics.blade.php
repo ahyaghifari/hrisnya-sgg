@@ -711,7 +711,6 @@
             \App\Enum\UserDocumentType::RETIREMENT,
             \App\Enum\UserDocumentType::ASSIGNMENT,
             \App\Enum\UserDocumentType::WORK_CERTIFICATE,
-            \App\Enum\UserDocumentType::EMPLOYMENT_CONTRACT,
         ];
         $documentsByType = $this->documents->groupBy('document_type');
     @endphp

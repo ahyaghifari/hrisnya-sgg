@@ -93,7 +93,7 @@ class SubDivisionsResource extends BaseCompanyResource
                     ->dehydrated(false)
                     ->live()
                     ->options(fn (Get $get) => static::departmentOptions(
-                        static::isSuperAdmin() ? $get('company_id') : static::companyId()
+                        static::canBrowseAllCompanies() ? $get('company_id') : static::companyId()
                     )),
 
                 Select::make('parent_id')
@@ -134,7 +134,7 @@ class SubDivisionsResource extends BaseCompanyResource
                             ->preload()
                             ->searchable()
                             ->live()
-                            ->visible(fn () => static::isSuperAdmin()),
+                            ->visible(fn () => static::canBrowseAllCompanies()),
 
                         Select::make('department_id')
                             ->label('Departemen')
@@ -142,7 +142,7 @@ class SubDivisionsResource extends BaseCompanyResource
                             ->searchable()
                             ->live()
                             ->options(fn (Get $get) => static::departmentOptions(
-                                static::isSuperAdmin() ? $get('company_id') : static::companyId()
+                                static::canBrowseAllCompanies() ? $get('company_id') : static::companyId()
                             )),
 
                         Select::make('parent_id')

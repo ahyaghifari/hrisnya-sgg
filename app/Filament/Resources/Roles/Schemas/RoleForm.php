@@ -45,6 +45,7 @@ class RoleForm
                 CustomPermissionEnum::LIHAT_KOMPONEN_GAJI->value,
                 CustomPermissionEnum::LIHAT_PENERIMA_KOMPONEN_GAJI->value,
                 CustomPermissionEnum::LIHAT_MAPPING_KOMPONEN_GAJI->value,
+                CustomPermissionEnum::LIHAT_PAJAK->value,
                 CustomPermissionEnum::LIHAT_OMSET->value,
                 CustomPermissionEnum::KELOLA_OMSET->value,
                 CustomPermissionEnum::LIHAT_INPUT_JASA_UNIT->value,
@@ -59,6 +60,7 @@ class RoleForm
                 CustomPermissionEnum::KELOLA_JOB_EVALUATION->value,
                 CustomPermissionEnum::LIHAT_LAMPIRAN_IDENTITAS_KARYAWAN->value,
                 CustomPermissionEnum::IMPORT_KARYAWAN->value,
+                CustomPermissionEnum::EXPORT_DATA_KARYAWAN->value,
                 // Portal "Alur Persetujuan" (2026-08-16) - dikelompokkan Kepegawaian atas
                 // instruksi user, meski konsepnya lintas-modul.
                 CustomPermissionEnum::LIHAT_ALUR_PERSETUJUAN->value,

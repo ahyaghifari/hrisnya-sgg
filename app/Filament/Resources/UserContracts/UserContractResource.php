@@ -9,7 +9,9 @@ use App\Models\Master\EmployeeTypes;
 use App\Models\User\UserContract;
 use BackedEnum;
 use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Select;
+use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
@@ -57,7 +59,7 @@ class UserContractResource extends BaseCompanyResource
                     ->label('Tipe Karyawan')
                     ->options(fn (Select $component) => EmployeeTypes::query()
                         ->when(
-                            ! static::isSuperAdmin(),
+                            ! static::canBrowseAllCompanies(),
                             fn ($q) => $q->where('company_id', static::companyId())
                         )
                         ->pluck('name', 'id'))
@@ -73,6 +75,15 @@ class UserContractResource extends BaseCompanyResource
                     ->label('Sampai')
                     ->required()
                     ->afterOrEqual('contract_start_date'),
+
+                FileUpload::make('file_path')
+                    ->label('Surat Kontrak')
+                    ->columnSpanFull()
+                    ->openable(true)
+                    ->disk('public')
+                    ->maxSize(10240)
+                    ->acceptedFileTypes(['application/pdf', 'image/*'])
+                    ->directory(fn (Get $get) => 'user-contracts/' . ($get('user_id') ?? 'unknown')),
             ]);
     }
 

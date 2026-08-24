@@ -85,7 +85,7 @@ class PangkatsResource extends BaseCompanyResource
                     ->searchable()
                     ->preload()
                     ->options(fn (Get $get) => static::kelasOptions(
-                        static::isSuperAdmin() ? $get('company_id') : static::companyId()
+                        static::canBrowseAllCompanies() ? $get('company_id') : static::companyId()
                     )),
 
                 Select::make('max_kelas_id')
@@ -94,7 +94,7 @@ class PangkatsResource extends BaseCompanyResource
                     ->searchable()
                     ->preload()
                     ->options(fn (Get $get) => static::kelasOptions(
-                        static::isSuperAdmin() ? $get('company_id') : static::companyId()
+                        static::canBrowseAllCompanies() ? $get('company_id') : static::companyId()
                     )),
             ]);
     }

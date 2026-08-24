@@ -2,6 +2,7 @@
     // Sama seperti nav.blade.php desktop — gerbang spesifik dihitung di sini, bukan di parent.
     $canViewPayrollPeriod = auth()->user()->can('ViewAny:PayrollPeriod');
     $canViewPayroll = auth()->user()->can('ViewAny:Payroll');
+    $canViewPajak = auth()->user()->can(\App\Enum\CustomPermissionEnum::LIHAT_PAJAK->value);
     $canViewOmset = auth()->user()->can(\App\Enum\CustomPermissionEnum::LIHAT_OMSET->value);
     $canViewInputJasaUnit = auth()->user()->can(\App\Enum\CustomPermissionEnum::LIHAT_INPUT_JASA_UNIT->value);
     $canViewIncentive = auth()->user()->can('ViewAny:Incentive');
@@ -28,6 +29,12 @@
     <a href="{{ route('keuangan.payroll') }}" wire:navigate class="pwa-menu-grid-item">
         <span class="pwa-menu-grid-icon indigo"><i class="fa-solid fa-money-check-dollar"></i></span>
         <span class="pwa-menu-grid-label">Payroll</span>
+    </a>
+@endif
+@if ($canViewPajak)
+    <a href="{{ route('keuangan.pajak') }}" wire:navigate class="pwa-menu-grid-item">
+        <span class="pwa-menu-grid-icon indigo"><i class="fa-solid fa-percent"></i></span>
+        <span class="pwa-menu-grid-label">Pajak (%)</span>
     </a>
 @endif
 @if ($canViewOmset)

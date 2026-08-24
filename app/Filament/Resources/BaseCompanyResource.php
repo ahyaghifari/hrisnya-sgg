@@ -20,7 +20,7 @@ abstract class BaseCompanyResource extends BaseResource
     {
         $query = parent::getEloquentQuery();
 
-        if (static::isSuperAdmin()) {
+        if (static::canBrowseAllCompanies()) {
             return $query;
         }
 
@@ -36,7 +36,7 @@ abstract class BaseCompanyResource extends BaseResource
             ->required()
             ->label('Perusahaan')
             ->default(fn () => static::companyId())
-            ->visible(fn () => static::isSuperAdmin());
+            ->visible(fn () => static::canBrowseAllCompanies());
     }
 
     public static function companyTableColumn(): Tables\Columns\TextColumn
@@ -45,7 +45,7 @@ abstract class BaseCompanyResource extends BaseResource
             ->label('Perusahaan')
             ->searchable()
             ->sortable()
-            ->visible(fn () => static::isSuperAdmin());
+            ->visible(fn () => static::canBrowseAllCompanies());
     }
 
     public static function companyTableFilter(): Tables\Filters\SelectFilter
@@ -55,6 +55,6 @@ abstract class BaseCompanyResource extends BaseResource
             ->label('Perusahaan')
             ->preload()
             ->searchable()
-            ->visible(fn () => static::isSuperAdmin());
+            ->visible(fn () => static::canBrowseAllCompanies());
     }
 }

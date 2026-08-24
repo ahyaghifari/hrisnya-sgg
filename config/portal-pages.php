@@ -203,6 +203,12 @@ return [
         'guard' => null,
     ],
 
+    'kepegawaian.kontrak' => [
+        'label' => 'Kontrak Karyawan',
+        'permission' => 'ViewAny:UserContract',
+        'guard' => null,
+    ],
+
     'kepegawaian.mutasi-karyawan' => [
         'label' => 'Perubahan Status Karyawan',
         'permission' => 'ViewAny:UserTransition',

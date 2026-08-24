@@ -45,7 +45,7 @@ class AttendanceRequestResource extends BaseResource
             'approvalSnapshot.activity'
         ]);
 
-        if (! static::isSuperAdmin() && static::companyId()) {
+        if (! static::canBrowseAllCompanies() && static::companyId()) {
             $query->whereHas('user', function ($q) {
                 $q->where('company_id', static::companyId());
             });

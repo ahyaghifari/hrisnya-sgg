@@ -77,7 +77,7 @@ class JobPositionResource extends BaseCompanyResource
                             ->preload()
                             ->live()
                             ->options(function (Get $get) {
-                                $companyId = static::isSuperAdmin() ? $get('company_id') : static::companyId();
+                                $companyId = static::canBrowseAllCompanies() ? $get('company_id') : static::companyId();
 
                                 if (! $companyId) {
                                     return [];
@@ -200,7 +200,7 @@ class JobPositionResource extends BaseCompanyResource
                             ->searchable()
                             ->preload()
                             ->options(fn (Get $get) => static::kelasOptions(
-                                static::isSuperAdmin() ? $get('company_id') : static::companyId()
+                                static::canBrowseAllCompanies() ? $get('company_id') : static::companyId()
                             )),
 
                         TextInput::make('job_evaluation_score')

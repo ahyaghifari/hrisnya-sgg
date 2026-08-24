@@ -2,13 +2,12 @@
 
 namespace App\Exports\Payroll;
 
-use App\Enum\Payroll\GajiPokokKenaikanOverrideEnum;
 use App\Enum\Payroll\PayrollComponentEnum;
-use App\Models\Master\Companies;
+use App\Exports\Payroll\Concerns\GroupsPayrollsByDivision;
 use App\Models\Payroll\CompanyPayrollComponent;
 use App\Models\Payroll\Payroll;
 use App\Models\Payroll\PayrollItem;
-use App\Models\Setting;
+use App\Services\Payroll\GajiPokokBreakdownResolver;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\FromCollection;
@@ -28,7 +27,8 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
 /**
  * Rekap gaji 1 periode, format & urutan kolom mengikuti contoh Excel finance
- * (knowledge/Gaji Juni 2026 SGG.xlsx) - dikelompokkan per DIVISI (org level 2, lihat
+ * (knowledge/gaji-juni.xlsx, 2026-08-22 - font Times New Roman 11 + highlight header per kolom
+ * ikut persis file itu, lihat HEADER_HIGHLIGHT_COLORS & styles()) - dikelompokkan per DIVISI (org level 2, lihat
  * UserProfiles::getDivisionAttribute()) dengan baris judul divisi disisipkan di antara baris
  * karyawan (kolom lain di baris judul dibiarkan kosong, bukan di-merge - cukup buat dibaca
  * finance, tidak perlu identik piksel).
@@ -50,6 +50,8 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
  */
 class PayrollSlipRekapExport extends DefaultValueBinder implements FromCollection, WithHeadings, WithStyles, WithCustomValueBinder, WithEvents
 {
+    use GroupsPayrollsByDivision;
+
     private const CORE_EARNINGS = [
         PayrollComponentEnum::GAJI_POKOK,
         PayrollComponentEnum::TUNJANGAN_JABATAN,
@@ -59,6 +61,21 @@ class PayrollSlipRekapExport extends DefaultValueBinder implements FromCollectio
     ];
 
     private const CURRENCY_FORMAT = '"Rp" #,##0';
+
+    /** Warna highlight per label header, niru persis referensi finance (knowledge/gaji-juni.xlsx)
+     * - kolom yang tidak disebut di sini header-nya putih polos (tidak diberi fill), sama seperti
+     * mayoritas kolom di file itu. */
+    private const HEADER_HIGHLIGHT_COLORS = [
+        'Gaji Dasar' => 'FFFF00',
+        'Gaji Pokok' => 'E6B9B8',
+        'TOTAL GAJI' => 'FFFF00',
+        'Jumlah Terima' => 'D99594',
+        'JUMLAH IZIN TERLAMBAT MASUK ATAU PULANG CEPAT' => 'BFBFBF',
+        'JUMLAH CUTI' => 'BFBFBF',
+        'JUMLAH IZIN SEHARIAN' => 'BFBFBF',
+        'POTONGAN KOPERASI' => 'B6DDE8',
+        'POTONGAN BON' => 'FBD4B4',
+    ];
 
     /** @var array<int, array{component: ?PayrollComponentEnum, label: string, get: \Closure, format: ?string, forceText: bool, editable: bool}> */
     private array $columns;
@@ -72,38 +89,9 @@ class PayrollSlipRekapExport extends DefaultValueBinder implements FromCollectio
         $this->columns = $this->buildColumns();
     }
 
-    /** Label grup buat karyawan tanpa divisi (org_structure kosong) di company HOLDING (kode
-     * '0000') - cuma kejadian di sana, buat 2 akun eksekutif non-karyawan yang tetap punya
-     * payroll (Presiden Direktur & Sekretaris Direktur, lihat
-     * User::PAYROLL_ELIGIBLE_EXECUTIVE_IDS). Keduanya DIGABUNG jadi 1 grup dengan label ini
-     * (bukan masing-masing pakai jabatannya sendiri) - instruksi user.
-     */
-    private const NO_DIVISION_LABEL_HOLDING = 'Presiden Direktur';
-
-    /** Sama seperti di atas, tapi buat company BIASA (bukan holding) - instruksi user
-     * 2026-08-20: "kalo bukan holding artinya Manajemen saja dan diatas juga". */
-    private const NO_DIVISION_LABEL_REGULAR = 'Manajemen';
-
-    private const HOLDING_COMPANY_CODE = '0000';
-
-    private function isHoldingCompany(): bool
-    {
-        return Companies::where('id', $this->companyId)->value('code') === self::HOLDING_COMPANY_CODE;
-    }
-
     public function collection(): Collection
     {
-        // Grup karyawan tanpa divisi SELALU ditaruh paling atas, baru divisi asli diurutkan
-        // alfabetis di bawahnya - label-nya beda tergantung holding atau tidak, tapi
-        // posisi-di-atas-nya berlaku buat keduanya (instruksi user).
-        $noDivisionLabel = $this->isHoldingCompany() ? self::NO_DIVISION_LABEL_HOLDING : self::NO_DIVISION_LABEL_REGULAR;
-
-        $grouped = $this->payrolls
-            ->groupBy(fn (Payroll $payroll) => $payroll->user?->profile?->division?->name ?? $noDivisionLabel)
-            ->sortBy(
-                fn ($rows, $label) => ($label === $noDivisionLabel ? '0_' : '1_') . $label,
-                SORT_STRING,
-            );
+        $grouped = $this->groupedByDivision($this->payrolls, $this->companyId);
 
         $rows = collect();
         $rowNumber = 1; // baris 1 = heading, data mulai baris 2
@@ -143,15 +131,17 @@ class PayrollSlipRekapExport extends DefaultValueBinder implements FromCollectio
         return $this->columns;
     }
 
-    /** Warna & wrap header ikut identitas modul Keuangan di sistem (--brand-success, lihat
-     *  .nav-item-green di resources/css/app.css) - bukan warna bebas pilihan sendiri. */
+    /** Font & header niru persis file finance (knowledge/gaji-juni.xlsx) - Times New Roman 11,
+     * header TIDAK bold/berwarna seragam, tiap kolom pakai highlight sendiri kalau ada
+     * (HEADER_HIGHLIGHT_COLORS, diterapkan di registerEvents() karena butuh loop per kolom). */
     public function styles(Worksheet $sheet)
     {
+        $sheet->getParent()->getDefaultStyle()->getFont()->setName('Times New Roman')->setSize(11);
+
         return [
             1 => [
-                'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
-                'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '047C54']],
-                'alignment' => ['wrapText' => true, 'vertical' => Alignment::VERTICAL_CENTER],
+                'font' => ['bold' => false, 'color' => ['rgb' => '000000']],
+                'alignment' => ['wrapText' => true, 'vertical' => Alignment::VERTICAL_CENTER, 'horizontal' => Alignment::HORIZONTAL_CENTER],
             ],
         ];
     }
@@ -191,10 +181,12 @@ class PayrollSlipRekapExport extends DefaultValueBinder implements FromCollectio
                     // autosize PhpSpreadsheet menghitung dari teks TANPA wrap, jadi 2 hal ini
                     // saling bertentangan kalau dipakai bareng untuk kolom yang sama.
                     if ($column['label'] === 'PANGKAT') {
-                        // Nama pangkat kadang panjang - kolom dipersempit & isinya di-wrap ke bawah
-                        // (bukan autosize melebar), biar layout export tidak melebar cuma gara-gara 1 kolom ini.
-                        $sheet->getColumnDimension($letter)->setAutoSize(false)->setWidth(14);
+                        // Nama pangkat kadang panjang - kolom dilebarkan & isinya di-wrap ke bawah
+                        // (bukan autosize melebar tak terbatas), biar tetap kebaca penuh.
+                        $sheet->getColumnDimension($letter)->setAutoSize(false)->setWidth(24);
                         $sheet->getStyle("{$letter}2:{$letter}{$lastRow}")->getAlignment()->setWrapText(true);
+                    } elseif ($column['label'] === '% Kenaikan') {
+                        $sheet->getColumnDimension($letter)->setAutoSize(false)->setWidth(8);
                     } elseif (mb_strlen($column['label']) > 20) {
                         $sheet->getColumnDimension($letter)->setAutoSize(false)->setWidth(18);
                     } else {
@@ -204,9 +196,16 @@ class PayrollSlipRekapExport extends DefaultValueBinder implements FromCollectio
                     if ($column['format']) {
                         $sheet->getStyle("{$letter}2:{$letter}{$lastRow}")->getNumberFormat()->setFormatCode($column['format']);
                     }
+
+                    if ($color = self::HEADER_HIGHLIGHT_COLORS[$column['label']] ?? null) {
+                        $sheet->getStyle("{$letter}1")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB($color);
+                    }
                 }
 
-                $sheet->getRowDimension(1)->setRowHeight(45);
+                // Row height 98 & freeze C2 niru persis referensi (knowledge/gaji-juni.xlsx) -
+                // C2 (bukan A2) supaya kolom NO+NAMA ikut freeze bareng header saat discroll ke
+                // kanan (banyak kolom komponen gaji).
+                $sheet->getRowDimension(1)->setRowHeight(98);
 
                 foreach ($this->groupHeaderRows as $rowNumber) {
                     $sheet->getStyle("A{$rowNumber}:" . Coordinate::stringFromColumnIndex(count($this->columns)) . $rowNumber)
@@ -221,7 +220,7 @@ class PayrollSlipRekapExport extends DefaultValueBinder implements FromCollectio
                     'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'D1D5DB']]],
                 ]);
 
-                $sheet->freezePane('A2');
+                $sheet->freezePane('C2');
             },
         ];
     }
@@ -229,42 +228,6 @@ class PayrollSlipRekapExport extends DefaultValueBinder implements FromCollectio
     private function groupHeaderRow(string $name): array
     {
         return array_pad(['', $name], count($this->columns), '');
-    }
-
-    /**
-     * Urutan dalam 1 divisi: pangkat paling tinggi dulu (Pangkats::level, makin besar makin
-     * tinggi jenjang - konvensi sama dengan getPangkatOptionsProperty()), lalu bulan kerja
-     * paling lama, baru nama - semuanya diminta user. Karyawan tanpa pangkat/tanggal masuk
-     * ditaruh paling belakang di kriteria itu (bukan dianggap "tertinggi"/"terlama").
-     */
-    private function sortWithinDivision(Collection $payrolls): Collection
-    {
-        return $payrolls->sort(function (Payroll $a, Payroll $b) {
-            $levelCompare = ($this->pangkatLevel($b) ?? -INF) <=> ($this->pangkatLevel($a) ?? -INF);
-            if ($levelCompare !== 0) {
-                return $levelCompare;
-            }
-
-            $tenureCompare = ($this->bulanKerja($b) ?? -INF) <=> ($this->bulanKerja($a) ?? -INF);
-            if ($tenureCompare !== 0) {
-                return $tenureCompare;
-            }
-
-            return strcmp((string) $a->user?->name, (string) $b->user?->name);
-        })->values();
-    }
-
-    private function pangkatLevel(Payroll $payroll): ?int
-    {
-        return $payroll->user?->profile?->pangkat?->level;
-    }
-
-    /** Digenapkan ke bulan penuh (floor, bukan desimal) - permintaan user, jangan tampil koma. */
-    private function bulanKerja(Payroll $payroll): ?int
-    {
-        $joiningDate = $payroll->user?->profile?->joining_date;
-
-        return $joiningDate ? (int) floor(Carbon::parse($joiningDate)->diffInMonths(now())) : null;
     }
 
     private function payrollRow(Payroll $payroll, int $no): array
@@ -290,8 +253,8 @@ class PayrollSlipRekapExport extends DefaultValueBinder implements FromCollectio
     }
 
     /**
-     * Base gaji & persen kenaikan flat - rumus sama persis GajiPokokCalculator (kenaikan
-     * berdasarkan langkah kelas di-terminate 2026-08-22), TANPA prorate. Di-memoize per Payroll
+     * Delegasi ke GajiPokokBreakdownResolver (SATU sumber rumus, dipakai bareng
+     * PajakGajiPokokExport - 2026-08-22, sebelumnya duplikat di sini). Di-memoize per Payroll
      * (spl_object_id) supaya relasi pangkat->pangkatSalary cuma ditelusuri sekali walau dipakai
      * 2 kolom (Gaji Dasar & % Kenaikan).
      *
@@ -300,26 +263,8 @@ class PayrollSlipRekapExport extends DefaultValueBinder implements FromCollectio
     private function gajiPokokBreakdown(Payroll $payroll, array &$cache): array
     {
         $key = spl_object_id($payroll);
-        if (array_key_exists($key, $cache)) {
-            return $cache[$key];
-        }
 
-        $profile = $payroll->user?->profile;
-        $pangkat = $profile?->pangkat;
-        $kelas = $profile?->kelas;
-        $pangkatSalary = $pangkat?->pangkatSalary;
-
-        if (! $pangkat || ! $kelas || ! $pangkatSalary || $kelas->level === null) {
-            return $cache[$key] = [null, null];
-        }
-
-        // Orientasi tidak dapat kenaikan sama sekali - sama seperti GajiPokokCalculator.
-        $rate = $profile->employeeType?->category === \App\Enum\EmployeeTypeCategory::ORIENTASI
-            ? 0.0
-            : (GajiPokokKenaikanOverrideEnum::rateForUser($profile->user_id)
-                ?? (float) Setting::resolve('gaji_pokok_kenaikan_per_kelas', $payroll->payrollPeriod?->company_id, default: 8));
-
-        return $cache[$key] = [(float) $pangkatSalary->base_salary, $rate];
+        return $cache[$key] ??= GajiPokokBreakdownResolver::resolve($payroll);
     }
 
     /** @return array<int, array{component: ?PayrollComponentEnum, label: string, get: \Closure, format: ?string, forceText: bool}> */

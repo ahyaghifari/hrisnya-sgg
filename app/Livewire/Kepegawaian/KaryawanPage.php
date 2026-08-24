@@ -3,6 +3,7 @@
 namespace App\Livewire\Kepegawaian;
 
 use App\Enum\OrgStructurLevel;
+use App\Exports\Kepegawaian\KaryawanDataExport;
 use App\Helpers\PermissionHelper;
 use App\Models\Master\Companies;
 use App\Models\Master\OrgStructure;
@@ -12,6 +13,7 @@ use Livewire\Attributes\Layout;
 use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\WithPagination;
+use Maatwebsite\Excel\Facades\Excel;
 
 /**
  * Daftar SEMUA karyawan company (bukan cuma bawahan seperti MyEmployees/MyStaff) — padanan
@@ -211,6 +213,23 @@ class KaryawanPage extends Component
             ->title('Karyawan berhasil dihapus permanen')
             ->success()
             ->send();
+    }
+
+    /** Export Excel data karyawan (akun+pribadi+pekerjaan) sesuai filter/pencarian aktif saat
+     * tombol diklik - reuse baseQuery() supaya hasil export selalu konsisten dengan yang
+     * ditampilkan di tabel/list, bukan query terpisah yang bisa menyimpang. */
+    public function export()
+    {
+        abort_unless(Auth::user()->can(\App\Enum\CustomPermissionEnum::EXPORT_DATA_KARYAWAN->value), 403);
+
+        $employees = $this->baseQuery()
+            ->with(['profile.religion', 'profile.pangkat', 'profile.kelas', 'profile.employeeType', 'profile.orgStructure.parent.parent'])
+            ->get();
+
+        return Excel::download(
+            new KaryawanDataExport($employees, includeCompanyColumn: $this->companyId === null),
+            'data-karyawan-' . now()->format('Ymd-His') . '.xlsx'
+        );
     }
 
     public function render()

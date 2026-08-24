@@ -67,6 +67,12 @@ enum CustomPermissionEnum: string
     case LIHAT_PENERIMA_KOMPONEN_GAJI = 'lihat_penerima_komponen_gaji';
     case LIHAT_MAPPING_KOMPONEN_GAJI = 'lihat_mapping_komponen_gaji';
 
+    /** Gerbang halaman portal "Pajak (%)" (`/keuangan/pajak`, potongan 3 kolom Gaji Pokok dari
+     * PayrollSlipRekapExport buat basis PPh21) - dipisah dari ViewAny:Payroll (2026-08-22)
+     * supaya bisa dikasih ke role finance yang lebih terbatas (mis. tim pajak) tanpa otomatis
+     * bisa buka halaman Payroll penuh, sama pola LIHAT_OMSET/LIHAT_KOMPONEN_GAJI. */
+    case LIHAT_PAJAK = 'lihat_pajak';
+
     /** Halaman Omset (`/keuangan/omset`, rincian omset per kategori per periode gaji, dijumlah
      * jadi Total Omset dipakai JasaPelayananCalculator) — model-nya (OmsetDetail/OmsetCategory)
      * tidak punya Filament Resource/Policy sendiri, jadi 2 permission manual: LIHAT_OMSET
@@ -196,6 +202,12 @@ enum CustomPermissionEnum: string
      * planning/2026-08-16-fitur-tukar-shift.md). */
     case TUKAR_SHIFT_SAYA = 'tukar_shift_saya';
 
+    /** Tombol "Export Excel" di halaman Karyawan (`/kepegawaian/karyawan`) - export data
+     * akun+pribadi+pekerjaan sesuai filter aktif. Dipisah dari akses ViewAny:User biasa (yang
+     * sudah dicek KaryawanPage::mount()) karena datanya sensitif (NIK/KK/BPJS/rekening bank) -
+     * role yang cuma boleh LIHAT daftar karyawan belum tentu boleh menarik semuanya ke Excel. */
+    case EXPORT_DATA_KARYAWAN = 'export_data_karyawan';
+
     public function label(): string
     {
         return match
@@ -227,6 +239,7 @@ enum CustomPermissionEnum: string
             self::LIHAT_KOMPONEN_GAJI => 'Lihat Komponen Gaji',
             self::LIHAT_PENERIMA_KOMPONEN_GAJI => 'Lihat Penerima Komponen Gaji',
             self::LIHAT_MAPPING_KOMPONEN_GAJI => 'Lihat Mapping Komponen Gaji',
+            self::LIHAT_PAJAK => 'Lihat Pajak (%)',
             self::LIHAT_OMSET => 'Lihat Omset',
             self::KELOLA_OMSET => 'Kelola Omset',
             self::LIHAT_INPUT_JASA_UNIT => 'Lihat Input Jasa Unit',
@@ -257,6 +270,7 @@ enum CustomPermissionEnum: string
             self::AKSES_PANEL_ADMIN => 'Akses Panel Admin (Filament)',
             self::JADWAL_SHIFT_SAYA => 'Jadwal Shift Saya',
             self::TUKAR_SHIFT_SAYA => 'Tukar Shift Saya',
+            self::EXPORT_DATA_KARYAWAN => 'Export Data Karyawan (Excel)',
         };
     }
 }

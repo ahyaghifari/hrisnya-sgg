@@ -44,7 +44,6 @@ class DocumentsPage extends Component
         UserDocumentType::RETIREMENT,
         UserDocumentType::ASSIGNMENT,
         UserDocumentType::WORK_CERTIFICATE,
-        UserDocumentType::EMPLOYMENT_CONTRACT,
     ];
 
     public function mount(): void

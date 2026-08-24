@@ -268,12 +268,14 @@
             </div>
             <div>
                 <label class="form-label">Jabatan</label>
-                <select wire:model="job_position_id" class="form-input">
-                    <option value="">Pilih...</option>
-                    @foreach ($this->jobPositionOptions as $id => $jobPositionName)
-                        <option value="{{ $id }}">{{ $jobPositionName }}</option>
-                    @endforeach
-                </select>
+                <div wire:ignore>
+                    <select wire:model="job_position_id" class="form-input" data-tom-select data-placeholder="Cari Jabatan...">
+                        <option value="">Pilih...</option>
+                        @foreach ($this->jobPositionOptions as $id => $jobPositionName)
+                            <option value="{{ $id }}">{{ $jobPositionName }}</option>
+                        @endforeach
+                    </select>
+                </div>
                 @error('job_position_id') <p style="color:var(--danger-text);font-size:12px;margin-top:5px;">{{ $message }}</p> @enderror
             </div>
             <div>

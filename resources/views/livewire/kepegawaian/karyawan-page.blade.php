@@ -7,6 +7,11 @@
             <i class="fa-solid fa-file-import"></i> Import Akun
         </a>
     @endcan
+    @can(\App\Enum\CustomPermissionEnum::EXPORT_DATA_KARYAWAN->value)
+        <button type="button" wire:click="export" wire:loading.attr="disabled" class="btn-ghost">
+            <i class="fa-solid fa-file-export"></i> Export Excel
+        </button>
+    @endcan
     <a href="{{ route('kepegawaian.karyawan.create') }}" wire:navigate class="btn-primary">
         <i class="fa-solid fa-user-plus"></i> Tambah Karyawan
     </a>

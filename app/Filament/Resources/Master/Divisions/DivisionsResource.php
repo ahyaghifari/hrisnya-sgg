@@ -71,7 +71,7 @@ class DivisionsResource extends BaseCompanyResource
                     ->preload()
                     ->placeholder('Pilih Departemen')
                     ->options(fn (Get $get) => static::departmentOptions(
-                        static::isSuperAdmin() ? $get('company_id') : static::companyId()
+                        static::canBrowseAllCompanies() ? $get('company_id') : static::companyId()
                     )),
 
                 TextInput::make('name')
@@ -100,12 +100,12 @@ class DivisionsResource extends BaseCompanyResource
                             ->preload()
                             ->searchable()
                             ->live()
-                            ->visible(fn () => static::isSuperAdmin()),
+                            ->visible(fn () => static::canBrowseAllCompanies()),
 
                         Select::make('parent_id')
                             ->label('Departemen')
                             ->options(fn (Get $get) => static::departmentOptions(
-                                static::isSuperAdmin() ? $get('company_id') : static::companyId()
+                                static::canBrowseAllCompanies() ? $get('company_id') : static::companyId()
                             ))
                             ->preload()
                             ->searchable(),

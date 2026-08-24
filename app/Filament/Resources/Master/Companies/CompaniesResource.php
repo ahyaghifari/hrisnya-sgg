@@ -92,7 +92,7 @@ class CompaniesResource extends BaseResource
     {
         $query = parent::getEloquentQuery();
 
-        if (static::isSuperAdmin()) {
+        if (static::canBrowseAllCompanies()) {
             return $query;
         }
 
