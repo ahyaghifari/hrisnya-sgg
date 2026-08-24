@@ -1,10 +1,18 @@
 <div>
-    <x-page-header title="Kontrak Karyawan" subtitle="Riwayat & masa berlaku kontrak karyawan (read-only - kelola lewat admin panel)" />
+    <x-page-header title="Kontrak Karyawan" subtitle="Riwayat & masa berlaku kontrak karyawan" />
 
-    <div style="display:inline-flex;gap:2px;background:var(--surface-alt);padding:3px;border-radius:8px;margin-bottom:14px;">
-        <button type="button" wire:click="setStatus('semua')" style="padding:4px 12px;font-size:11.5px;font-weight:600;border:none;border-radius:6px;cursor:pointer;font-family:inherit;background:{{ $status === 'semua' ? 'var(--surface)' : 'transparent' }};color:{{ $status === 'semua' ? 'var(--text-heading)' : 'var(--text-muted)' }};box-shadow:{{ $status === 'semua' ? 'var(--shadow-card)' : 'none' }};">Semua</button>
-        <button type="button" wire:click="setStatus('aktif')" style="padding:4px 12px;font-size:11.5px;font-weight:600;border:none;border-radius:6px;cursor:pointer;font-family:inherit;background:{{ $status === 'aktif' ? 'var(--surface)' : 'transparent' }};color:{{ $status === 'aktif' ? 'var(--text-heading)' : 'var(--text-muted)' }};box-shadow:{{ $status === 'aktif' ? 'var(--shadow-card)' : 'none' }};">Aktif</button>
-        <button type="button" wire:click="setStatus('berakhir')" style="padding:4px 12px;font-size:11.5px;font-weight:600;border:none;border-radius:6px;cursor:pointer;font-family:inherit;background:{{ $status === 'berakhir' ? 'var(--surface)' : 'transparent' }};color:{{ $status === 'berakhir' ? 'var(--text-heading)' : 'var(--text-muted)' }};box-shadow:{{ $status === 'berakhir' ? 'var(--shadow-card)' : 'none' }};">Berakhir</button>
+    <div style="display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:12px;margin-bottom:14px;">
+        <div style="display:inline-flex;gap:2px;background:var(--surface-alt);padding:3px;border-radius:8px;">
+            <button type="button" wire:click="setStatus('semua')" style="padding:4px 12px;font-size:11.5px;font-weight:600;border:none;border-radius:6px;cursor:pointer;font-family:inherit;background:{{ $status === 'semua' ? 'var(--surface)' : 'transparent' }};color:{{ $status === 'semua' ? 'var(--text-heading)' : 'var(--text-muted)' }};box-shadow:{{ $status === 'semua' ? 'var(--shadow-card)' : 'none' }};">Semua</button>
+            <button type="button" wire:click="setStatus('aktif')" style="padding:4px 12px;font-size:11.5px;font-weight:600;border:none;border-radius:6px;cursor:pointer;font-family:inherit;background:{{ $status === 'aktif' ? 'var(--surface)' : 'transparent' }};color:{{ $status === 'aktif' ? 'var(--text-heading)' : 'var(--text-muted)' }};box-shadow:{{ $status === 'aktif' ? 'var(--shadow-card)' : 'none' }};">Aktif</button>
+            <button type="button" wire:click="setStatus('berakhir')" style="padding:4px 12px;font-size:11.5px;font-weight:600;border:none;border-radius:6px;cursor:pointer;font-family:inherit;background:{{ $status === 'berakhir' ? 'var(--surface)' : 'transparent' }};color:{{ $status === 'berakhir' ? 'var(--text-heading)' : 'var(--text-muted)' }};box-shadow:{{ $status === 'berakhir' ? 'var(--shadow-card)' : 'none' }};">Berakhir</button>
+        </div>
+
+        {{-- Baris baru SELALU lewat Perpanjangan Kontrak (sudah divalidasi & tercatat approval-nya)
+             - tidak ada "Tambah" generik di sini, lihat docblock KontrakPage. --}}
+        <a href="{{ route('kepegawaian.mutasi-karyawan.create', ['type' => 'contract_extension']) }}" wire:navigate class="btn-primary">
+            <i class="fa-solid fa-calendar-plus"></i> Ajukan Perpanjangan Kontrak
+        </a>
     </div>
 
     <div class="mb-4" style="display:flex;flex-wrap:wrap;gap:12px;">
@@ -52,11 +60,12 @@
                                 <p style="font-size:11px;color:var(--text-faint);margin-top:2px;">{{ $contract->user->company->name }}</p>
                             @endif
                         </div>
-                        <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
+                        <div style="display:flex;align-items:center;gap:4px;flex-shrink:0;">
                             <span style="display:inline-block;padding:3px 10px;border-radius:99px;font-size:10.5px;font-weight:600;background:{{ $isActive ? 'rgba(4,124,84,0.1)' : 'rgba(220,38,38,0.1)' }};color:{{ $isActive ? '#047C54' : '#dc2626' }};">{{ $isActive ? 'Aktif' : 'Berakhir' }}</span>
                             @if ($contract->file_url)
                                 <a href="{{ $contract->file_url }}" target="_blank" rel="noopener" class="btn-ghost" style="padding:5px 9px;font-size:11px;" title="Lihat Surat"><i class="fa-solid fa-download"></i></a>
                             @endif
+                            <button type="button" wire:click="openEditModal('{{ $contract->id }}')" class="btn-ghost" style="padding:5px 9px;font-size:11px;" title="Edit"><i class="fa-solid fa-pen"></i></button>
                         </div>
                     </div>
                 @endforeach
@@ -83,6 +92,7 @@
                             <th style="text-align:left;padding:10px 14px;white-space:nowrap;">Perusahaan</th>
                         @endif
                         <th style="text-align:center;padding:10px 14px;white-space:nowrap;">Surat</th>
+                        <th style="text-align:center;padding:10px 14px;white-space:nowrap;">Aksi</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -106,6 +116,9 @@
                                     <span style="color:var(--text-faint);">-</span>
                                 @endif
                             </td>
+                            <td style="padding:9px 14px;text-align:center;white-space:nowrap;">
+                                <button type="button" wire:click="openEditModal('{{ $contract->id }}')" class="btn-ghost" style="padding:5px 10px;font-size:11px;" title="Edit"><i class="fa-solid fa-pen"></i></button>
+                            </td>
                         </tr>
                     @endforeach
                 </tbody>
@@ -122,4 +135,80 @@
             {{ $contracts->links('livewire.partials.pagination') }}
         </div>
     </div>
+
+    {{-- Modal Edit Kontrak (koreksi data - bukan buat baris baru, lihat docblock KontrakPage) --}}
+    @if ($showFormModal)
+        <div class="modal-overlay" wire:click="closeFormModal">
+            <div class="modal-box" onclick="event.stopPropagation()">
+                <h3 style="font-size:16px;font-weight:700;color:var(--text-heading);margin:0 0 14px;">Edit Kontrak</h3>
+
+                <div style="display:flex;flex-direction:column;gap:12px;">
+                    @if ($canBrowseAllCompanies)
+                        <div>
+                            <label class="form-label">Perusahaan</label>
+                            <select class="form-input" wire:model.live="formCompanyId">
+                                <option value="">-- Pilih Perusahaan --</option>
+                                @foreach ($this->companyOptions as $id => $name)
+                                    <option value="{{ $id }}">{{ $name }}</option>
+                                @endforeach
+                            </select>
+                            @error('formCompanyId') <p style="font-size:11px;color:#dc2626;margin-top:4px;">{{ $message }}</p> @enderror
+                        </div>
+                    @endif
+
+                    <div>
+                        <label class="form-label">Karyawan</label>
+                        <select class="form-input" wire:model="formUserId" @if (! $formCompanyId) disabled @endif>
+                            <option value="">-- Pilih Karyawan --</option>
+                            @foreach ($this->formUserOptions as $id => $name)
+                                <option value="{{ $id }}">{{ $name }}</option>
+                            @endforeach
+                        </select>
+                        @error('formUserId') <p style="font-size:11px;color:#dc2626;margin-top:4px;">{{ $message }}</p> @enderror
+                    </div>
+
+                    <div>
+                        <label class="form-label">Tipe Karyawan</label>
+                        <select class="form-input" wire:model="formEmployeeTypeId" @if (! $formCompanyId) disabled @endif>
+                            <option value="">-- Pilih Tipe Karyawan --</option>
+                            @foreach ($this->formEmployeeTypeOptions as $id => $name)
+                                <option value="{{ $id }}">{{ $name }}</option>
+                            @endforeach
+                        </select>
+                        @error('formEmployeeTypeId') <p style="font-size:11px;color:#dc2626;margin-top:4px;">{{ $message }}</p> @enderror
+                    </div>
+
+                    <div style="display:flex;gap:12px;">
+                        <div style="flex:1;">
+                            <label class="form-label">Mulai</label>
+                            <input type="date" class="form-input" wire:model="formStartDate">
+                            @error('formStartDate') <p style="font-size:11px;color:#dc2626;margin-top:4px;">{{ $message }}</p> @enderror
+                        </div>
+                        <div style="flex:1;">
+                            <label class="form-label">Sampai</label>
+                            <input type="date" class="form-input" wire:model="formEndDate">
+                            @error('formEndDate') <p style="font-size:11px;color:#dc2626;margin-top:4px;">{{ $message }}</p> @enderror
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="form-label">Surat Kontrak (PDF/Gambar, opsional)</label>
+                        @if ($editingExistingFilePath)
+                            <p style="font-size:11px;color:var(--text-muted);margin:2px 0 6px;">
+                                Surat saat ini: <a href="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($editingExistingFilePath) }}" target="_blank" rel="noopener">lihat</a> - upload file baru untuk mengganti.
+                            </p>
+                        @endif
+                        <input type="file" class="form-input" wire:model="formFile" accept=".pdf,.jpg,.jpeg,.png">
+                        <div wire:loading wire:target="formFile" style="font-size:11px;color:var(--text-muted);margin-top:4px;">Mengunggah...</div>
+                        @error('formFile') <p style="font-size:11px;color:#dc2626;margin-top:4px;">{{ $message }}</p> @enderror
+                    </div>
+                </div>
+
+                <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px;">
+                    <button type="button" wire:click="closeFormModal" class="btn-ghost">Batal</button>
+                    <button type="button" wire:click="saveForm" wire:loading.attr="disabled" wire:target="saveForm" class="btn-primary">Simpan</button>
+                </div>
+            </div>
+        </div>
+    @endif
 </div>

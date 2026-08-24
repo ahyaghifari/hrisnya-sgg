@@ -45,7 +45,7 @@
                 <div class="dropdown-col-label">Status Karyawan</div>
                 @if ($canViewKontrak)
                     <span class="dropdown-item" style="opacity:0.5;cursor:default;">
-                        <i class="fa-solid fa-user-check"></i> Tetap
+                        <i class="fa-solid fa-user-check"></i> Tetap (Sikartap)
                         <span style="margin-left:auto;font-size:9.5px;font-weight:700;color:var(--text-faint);text-transform:uppercase;letter-spacing:.03em;">Segera</span>
                     </span>
                     <a href="{{ route('kepegawaian.kontrak') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-file-contract"></i> Kontrak</a>

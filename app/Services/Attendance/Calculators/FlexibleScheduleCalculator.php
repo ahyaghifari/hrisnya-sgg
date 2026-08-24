@@ -67,7 +67,10 @@ class FlexibleScheduleCalculator
                 $workingMinutes    = $target;
                 $overtimeCandidate = $rawMinutes - $target;
 
-                if ($config->overtime_max_minutes > 0 && $overtimeCandidate > $config->overtime_min_minutes) {
+                // ">=" (bukan ">") - "minimal X menit" berarti PAS di X menit sudah memenuhi syarat,
+                // bukan harus lebih dari X (2026-08-24, ditemukan pas verifikasi konsistensi dengan
+                // formula overtimeAfter() FixedScheduleCalculator - lihat komentarnya di sana).
+                if ($config->overtime_max_minutes > 0 && $overtimeCandidate >= $config->overtime_min_minutes) {
                     $overtimeMinutes = max(0, min($overtimeCandidate, $config->overtime_max_minutes) - $config->overtime_break_minutes);
                 }
             } else {

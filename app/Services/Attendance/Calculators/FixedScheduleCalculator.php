@@ -151,6 +151,16 @@ class FixedScheduleCalculator
     /**
      * Lembur SETELAH jam pulang: check-out lebih lambat dari end_time + overtime_after_min,
      * dibatasi jendela overtime_after_max, overtime_after_break dikurangkan dari durasinya.
+     *
+     * overtime_after_min itu SENDIRI dianggap masa tenggang (grace period) yang TIDAK dibayar -
+     * menit lembur yang dihitung cuma yang MELEWATI ambang itu, bukan termasuk ambangnya
+     * (co persis di end_time+overtime_after_min = 0 menit lembur, bukan overtime_after_min
+     * menit). Ini desain yang disengaja (bukan bug off-by-one) - `lte` di bawah cuma early-return,
+     * hasil akhirnya identik dengan `lt` karena countedFrom sudah jadi titik nol hitungan
+     * (diffInMinutes(countedFrom, countedFrom) = 0 juga tanpa early-return). Diverifikasi
+     * 2026-08-24 setelah sempat dikira bug, JANGAN diubah tanpa mikir ulang - beda desain dari
+     * FlexibleScheduleCalculator yang menghitung overtimeCandidate FULL (bukan excess-only)
+     * begitu >= overtime_min_minutes.
      */
     private function overtimeAfter(ScheduleFixedDay $config, Carbon $end, Carbon $co): int
     {

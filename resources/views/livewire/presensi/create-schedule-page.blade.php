@@ -190,17 +190,19 @@
                     @endif
                 </div>
 
-                <div style="margin-top:14px;max-width:320px;">
-                    <label class="form-label">Kepala Ruangan{{ $scheduleType === 'shift' ? '' : ' (opsional)' }}</label>
-                    <select class="form-input" wire:model="headUserId" data-tom-select data-placeholder="-- Tidak ada --">
-                        <option value="">-- Tidak ada --</option>
-                        @foreach ($this->headUserOptions as $employee)
-                            <option value="{{ $employee->id }}">{{ $employee->name }}</option>
-                        @endforeach
-                    </select>
-                    <p style="font-size:10.5px;color:var(--text-faint);margin-top:4px;">Dipakai widget "Jadwal Shift Tim" di Dashboard supaya tombol "Detail Jadwal" mengarah ke jadwal yang tepat.</p>
-                    @error('headUserId') <p style="font-size:11px;color:#dc2626;margin-top:4px;">{{ $message }}</p> @enderror
-                </div>
+                @if ($scheduleType === 'shift')
+                    <div style="margin-top:14px;max-width:320px;">
+                        <label class="form-label">Kepala Ruangan</label>
+                        <select class="form-input" wire:model="headUserId" data-tom-select data-placeholder="-- Tidak ada --">
+                            <option value="">-- Tidak ada --</option>
+                            @foreach ($this->headUserOptions as $employee)
+                                <option value="{{ $employee->id }}">{{ $employee->name }}</option>
+                            @endforeach
+                        </select>
+                        <p style="font-size:10.5px;color:var(--text-faint);margin-top:4px;">Dipakai widget "Jadwal Shift Tim" di Dashboard supaya tombol "Detail Jadwal" mengarah ke jadwal yang tepat.</p>
+                        @error('headUserId') <p style="font-size:11px;color:#dc2626;margin-top:4px;">{{ $message }}</p> @enderror
+                    </div>
+                @endif
 
                 @if ($scheduleType === 'flexible')
                     <div style="display:flex;align-items:center;gap:10px;margin-top:14px;padding:10px 12px;background:var(--surface-alt);border-radius:10px;">

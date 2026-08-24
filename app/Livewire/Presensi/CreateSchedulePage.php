@@ -209,7 +209,10 @@ class CreateSchedulePage extends Component
             'flexible_checkin_from' => $this->scheduleType === ScheduleType::FLEXIBLE->value ? $this->flexibleCheckinFrom : null,
             'flexible_checkin_until' => $this->scheduleType === ScheduleType::FLEXIBLE->value ? $this->flexibleCheckinUntil : null,
             'shift_pattern' => $this->scheduleType === ScheduleType::SHIFT->value ? $this->shiftPattern : null,
-            'head_user_id' => $this->headUserId ?: null,
+            // Kepala Ruangan cuma relevan buat Jadwal Shift (field-nya cuma tampil di sana, lihat
+            // blade) - dipaksa null buat tipe lain, jaga-jaga headUserId nyangkut nilai lama
+            // kalau user sempat pilih Shift lalu balik ganti tipe sebelum submit.
+            'head_user_id' => $this->scheduleType === ScheduleType::SHIFT->value ? ($this->headUserId ?: null) : null,
         ];
 
         $schedule = DB::transaction(function () use ($scheduleData) {
