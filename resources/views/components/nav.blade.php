@@ -1,7 +1,7 @@
 @props(['gates'])
 @php
     extract($gates);
-    $showRoleRow = $canSeeKaryawanMenu || $canAccessKeuangan || $canAccessAbsensi || $canAccessKepegawaian || $canAccessLms || $canAccessPenilaian || $canAccessHakAkses || $canAccessCoachingCounseling;
+    $showRoleRow = $canSeeKaryawanMenu || $canAccessKeuangan || $canAccessAbsensi || $canAccessKepegawaian || $canAccessLms || $canAccessPenilaian || $canAccessHakAkses || $canAccessCoachingCounseling || $canAccessSikartap || $canAccessSaranaPrasarana;
     $initials = collect(explode(' ', auth()->user()->name))
         ->map(fn ($part) => mb_substr($part, 0, 1))
         ->take(2)
@@ -46,6 +46,11 @@
                         <i class="fa-solid fa-right-left text-xs"></i> Tukar Shift
                     </a>
                 @endif
+                @if ($canAccessSikartapSaya)
+                    <a href="{{ route('sikartap') }}" wire:navigate class="nav-item {{ request()->routeIs('sikartap') ? 'active' : '' }}">
+                        <i class="fa-solid fa-user-check text-xs"></i> Sikartap
+                    </a>
+                @endif
                 @if ($canAccessPembinaanSaya)
                     <div class="dropdown">
                         <a href="#" class="nav-item {{ request()->routeIs(['counseling*', 'coaching.saya*']) ? 'active' : '' }}">
@@ -71,6 +76,12 @@
                         @endif
                         @if ($canAccessKepegawaian)
                             <x-nav.kepegawaian-dropdown />
+                        @endif
+                        @if ($canAccessSikartap)
+                            <x-nav.sikartap-dropdown />
+                        @endif
+                        @if ($canAccessSaranaPrasarana)
+                            <x-nav.sarana-prasarana-dropdown />
                         @endif
                         @if ($canAccessLms)
                             <x-nav.lms-dropdown />

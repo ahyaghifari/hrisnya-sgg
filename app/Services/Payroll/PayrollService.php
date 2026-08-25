@@ -581,8 +581,15 @@ class PayrollService
         }
 
         // Always-on, tidak digate lewat company_payroll_components (lihat
-        // PayrollComponentEnum::alwaysOn() dan planning Fase 1 §3.1).
-        app(FeeClaimCalculator::class)->calculate($user, $payroll, $period, $context);
+        // PayrollComponentEnum::alwaysOn() dan planning Fase 1 §3.1). TETAP wajib dicek
+        // isProtected() sama seperti runComponent() - tanpa ini, baris FEE_CLAIM/PAJAK_JASA_DOKTER
+        // yang sudah di-edit manual & dibawa pindah oleh capturePreservedItems() bakal ketimpa
+        // Calculator ini lagi jalan (bikin baris FEE_CLAIM dobel + FeeItem yang belum "dikonsumsi"
+        // keburu ditandai is_paid=true) - regresi dari bug lama "Fee Claim Regenerate".
+        if (! $context->isProtected(PayrollComponentEnum::FEE_CLAIM->value)
+            && ! $context->isProtected(PayrollComponentEnum::PAJAK_JASA_DOKTER->value)) {
+            app(FeeClaimCalculator::class)->calculate($user, $payroll, $period, $context);
+        }
 
         foreach ($deduction as $companyComponent) {
             $this->runComponent($companyComponent, $user, $payroll, $period, $context);

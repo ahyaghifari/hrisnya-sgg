@@ -206,6 +206,25 @@ class User extends Authenticatable implements FilamentUser
         return $this->hasSubordinates() || $this->canBrowseAllCompanies();
     }
 
+    /** Gate nav self-service "/sikartap" (mulai pengajuan karyawan tetap) - cuma karyawan yang
+     * kontraknya AKTIF SAAT INI berkategori 'kontrak' (§ EmployeeTypeCategory) yang boleh
+     * mengajukan, bukan siapa saja yang login. Orientasi/Tetap tidak relevan buat alur ini. */
+    public function isKontrakKaryawan(): bool
+    {
+        return $this->currentContract?->employeeType?->category === \App\Enum\EmployeeTypeCategory::KONTRAK;
+    }
+
+    /** Gate halaman /sikartap/mcu (antrian) — OR dari 4 permission INPUT_MCU_* (bukan
+     * config('portal-pages') 'permission' tunggal, karena siapapun yang punya SALAH SATU
+     * dari 4 form MCU tetap boleh lihat antrian, gate per-tombol ada di view-nya sendiri). */
+    public function canInputSikartapMcu(): bool
+    {
+        return $this->can(\App\Enum\CustomPermissionEnum::INPUT_MCU_ASESMEN_PERAWAT->value)
+            || $this->can(\App\Enum\CustomPermissionEnum::INPUT_MCU_LABORATORIUM->value)
+            || $this->can(\App\Enum\CustomPermissionEnum::INPUT_MCU_RADIOLOGI->value)
+            || $this->can(\App\Enum\CustomPermissionEnum::INPUT_MCU_PEMERIKSAAN_DOKTER->value);
+    }
+
     /** Widget "Jadwal Shift Saya" (Dashboard) & halaman kalender penuh (JadwalSayaPage) cuma
      * relevan buat karyawan yang beneran punya jadwal tipe Shift - dicek dari data jadwal
      * langsung (bukan permission JADWAL_SHIFT_SAYA lagi, itu ternyata tidak pernah di-assign ke

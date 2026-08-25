@@ -95,7 +95,7 @@
                         <i class="fa-solid fa-check"></i> Tandai Sudah Dibayar
                     </button>
                     @if (! $this->periodHasEnded)
-                        <button type="button" wire:click="regeneratePayroll" wire:confirm="Hapus dan hitung ulang payroll karyawan ini saja? Payroll karyawan lain di periode ini tidak terpengaruh." class="btn-ghost" style="padding:6px 12px;font-size:11px;color:#d97706;">
+                        <button type="button" wire:click="regeneratePayroll" wire:confirm="Hapus dan hitung ulang payroll karyawan ini saja? Payroll karyawan lain di periode ini tidak terpengaruh." @disabled($this->decryptFailed) class="btn-ghost" style="padding:6px 12px;font-size:11px;color:#d97706;">
                             <i class="fa-solid fa-arrow-rotate-right"></i> Regenerate Payroll Ini
                         </button>
                     @else
@@ -147,7 +147,7 @@
                                     <span style="color:{{ $row['hasValue'] ? 'var(--text-body)' : 'var(--text-faint)' }};display:flex;align-items:center;gap:5px;">
                                         {{ $row['label'] }}
                                         @if ($row['component'] && ! $payroll->is_paid && $this->canEditAdjustment)
-                                            <button type="button" wire:click="openComponentEditModal('{{ $row['component'] }}')" title="Ubah {{ $row['label'] }}" style="border:none;background:none;color:var(--text-faint);cursor:pointer;padding:0;font-size:10px;"><i class="fa-solid fa-pen"></i></button>
+                                            <button type="button" wire:click="openComponentEditModal('{{ $row['component'] }}')" title="Ubah {{ $row['label'] }}" @disabled($this->decryptFailed) style="border:none;background:none;color:var(--text-faint);cursor:pointer;padding:0;font-size:10px;"><i class="fa-solid fa-pen"></i></button>
                                         @endif
                                     </span>
                                     <span style="white-space:nowrap;text-align:right;">
@@ -179,7 +179,7 @@
                                     <span style="color:{{ $row['hasValue'] ? 'var(--text-body)' : 'var(--text-faint)' }};display:flex;align-items:center;gap:5px;">
                                         {{ $row['label'] }}
                                         @if ($row['component'] && ! $payroll->is_paid && $this->canEditAdjustment)
-                                            <button type="button" wire:click="openComponentEditModal('{{ $row['component'] }}')" title="Ubah {{ $row['label'] }}" style="border:none;background:none;color:var(--text-faint);cursor:pointer;padding:0;font-size:10px;"><i class="fa-solid fa-pen"></i></button>
+                                            <button type="button" wire:click="openComponentEditModal('{{ $row['component'] }}')" title="Ubah {{ $row['label'] }}" @disabled($this->decryptFailed) style="border:none;background:none;color:var(--text-faint);cursor:pointer;padding:0;font-size:10px;"><i class="fa-solid fa-pen"></i></button>
                                         @endif
                                     </span>
                                     <span style="white-space:nowrap;text-align:right;">
@@ -210,7 +210,7 @@
                         @if ($this->bonAktif && $this->bonMetode === 'detail')
                             <div style="margin-top:2px;">
                                 @if (! $payroll->is_paid && ! $this->periodHasEnded && $this->canEditAdjustment)
-                                    <button type="button" wire:click="openManualLineModal('bon')" title="Tambah Bon untuk payroll ini" style="border:none;background:#d97706;color:#fff;padding:2px 7px;border-radius:5px;font-size:10px;font-weight:600;cursor:pointer;">+ Tambah Bon</button>
+                                    <button type="button" wire:click="openManualLineModal('bon')" title="Tambah Bon untuk payroll ini" @disabled($this->decryptFailed) style="border:none;background:#d97706;color:#fff;padding:2px 7px;border-radius:5px;font-size:10px;font-weight:600;cursor:pointer;">+ Tambah Bon</button>
                                 @endif
 
                                 @if ($this->bonManualLines->isNotEmpty())
@@ -220,7 +220,7 @@
                                                 <span>{{ $line->label ? "{$line->label}: " : '' }}Rp{{ number_format($line->amount, 0, ',', '.') }}{{ $line->note ? " ({$line->note})" : '' }}</span>
                                                 @if (!$payroll->is_paid && !$this->periodHasEnded && $this->canEditAdjustment)
                                                     <span style="display:flex;gap:4px;flex-shrink:0;">
-                                                        <button type="button" wire:click="openManualLineModal('bon', '{{ $line->id }}')" title="Ubah" style="border:1px solid var(--border);background:none;color:#d97706;cursor:pointer;padding:2px 7px;border-radius:5px;font-size:10px;"><i class="fa-solid fa-pen"></i> Ubah</button>
+                                                        <button type="button" wire:click="openManualLineModal('bon', '{{ $line->id }}')" title="Ubah" @disabled($this->decryptFailed) style="border:1px solid var(--border);background:none;color:#d97706;cursor:pointer;padding:2px 7px;border-radius:5px;font-size:10px;"><i class="fa-solid fa-pen"></i> Ubah</button>
                                                         <button type="button" wire:click="deleteManualLine('{{ $line->id }}')" wire:confirm="Hapus baris Bon ini?" title="Hapus" style="border:1px solid var(--border);background:none;color:#dc2626;cursor:pointer;padding:2px 7px;border-radius:5px;font-size:10px;"><i class="fa-solid fa-trash"></i> Hapus</button>
                                                     </span>
                                                 @endif

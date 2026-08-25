@@ -36,12 +36,13 @@ class GajiPokokCalculatorTest extends TestCase
 
         $pangkat = Pangkats::create(['name' => 'Perawat', 'company_id' => $company->id, 'start_kelas_id' => $kelas1->id, 'max_kelas_id' => $kelas5->id]);
         PangkatSalary::create(['pangkat_id' => $pangkat->id, 'base_salary' => 3_000_000]);
+        $tetap = EmployeeTypes::create(['name' => 'Tetap', 'company_id' => $company->id, 'category' => 'tetap']);
 
         $user = User::factory()->create(['company_id' => $company->id]);
         // Kelas III (level 3, di tengah rentang Kelas I-V Pangkat ini) - kenaikan berdasarkan
         // langkah kelas di-terminate 2026-08-22, jadi Kelas TIDAK lagi mempengaruhi nominal,
         // cuma rate company (flat 8%) yang berlaku, siapapun kelasnya.
-        UserProfiles::create(['user_id' => $user->id, 'pangkat_id' => $pangkat->id, 'kelas_id' => $kelas3->id]);
+        UserProfiles::create(['user_id' => $user->id, 'pangkat_id' => $pangkat->id, 'kelas_id' => $kelas3->id, 'employee_type_id' => $tetap->id]);
 
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
         $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
@@ -85,12 +86,13 @@ class GajiPokokCalculatorTest extends TestCase
         $kelas1 = Kelas::create(['name' => 'Kelas I', 'company_id' => $company->id, 'level' => 1]);
         $pangkat = Pangkats::create(['name' => 'Perawat', 'company_id' => $company->id, 'start_kelas_id' => $kelas1->id, 'max_kelas_id' => $kelas1->id]);
         PangkatSalary::create(['pangkat_id' => $pangkat->id, 'base_salary' => 3_000_000]);
+        $tetap = EmployeeTypes::create(['name' => 'Tetap', 'company_id' => $company->id, 'category' => 'tetap']);
 
         $overrideId = \App\Enum\Payroll\GajiPokokKenaikanOverrideEnum::ABDURRAHMAN_HAKIM->value;
         $user = new User();
         $user->forceFill(['id' => $overrideId, 'name' => 'Abdurrahman Hakim Uji', 'email' => 'hakim-override@test.local', 'password' => bcrypt('secret'), 'nip' => '00098', 'company_id' => $company->id, 'is_active' => true]);
         $user->save();
-        UserProfiles::create(['user_id' => $user->id, 'pangkat_id' => $pangkat->id, 'kelas_id' => $kelas1->id]);
+        UserProfiles::create(['user_id' => $user->id, 'pangkat_id' => $pangkat->id, 'kelas_id' => $kelas1->id, 'employee_type_id' => $tetap->id]);
 
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
         $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
@@ -111,9 +113,10 @@ class GajiPokokCalculatorTest extends TestCase
         $kelas = Kelas::create(['name' => 'Kelas I', 'company_id' => $company->id, 'level' => 1]);
         $pangkat = Pangkats::create(['name' => 'Perawat', 'company_id' => $company->id]); // start_kelas_id/max_kelas_id kosong
         PangkatSalary::create(['pangkat_id' => $pangkat->id, 'base_salary' => 3_000_000]);
+        $tetap = EmployeeTypes::create(['name' => 'Tetap', 'company_id' => $company->id, 'category' => 'tetap']);
 
         $user = User::factory()->create(['company_id' => $company->id]);
-        UserProfiles::create(['user_id' => $user->id, 'pangkat_id' => $pangkat->id, 'kelas_id' => $kelas->id]);
+        UserProfiles::create(['user_id' => $user->id, 'pangkat_id' => $pangkat->id, 'kelas_id' => $kelas->id, 'employee_type_id' => $tetap->id]);
 
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
         $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
@@ -122,6 +125,31 @@ class GajiPokokCalculatorTest extends TestCase
         (new GajiPokokCalculator())->calculate($user, $payroll, $period, $context);
 
         $this->assertSame(3_240_000.0, $context->grossSalary);
+    }
+
+    /** Fail-safe (2026-08-25): employee_type_id belum di-assign (null, data belum lengkap) HARUS
+     * dapat rate 0%, bukan diam-diam dapat rate penuh cuma karena bukan Orientasi secara
+     * eksplisit - sebelumnya null lolos ke cabang "dapat kenaikan" yang sama dengan Tetap/Kontrak. */
+    public function test_no_increase_when_employee_type_not_assigned(): void
+    {
+        $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
+        Setting::create(['company_id' => $company->id, 'key' => 'gaji_pokok_kenaikan_per_kelas', 'module' => 'payroll', 'type' => 'decimal', 'value' => '8', 'label' => 'Kenaikan Gaji Pokok per Kelas']);
+
+        $kelas1 = Kelas::create(['name' => 'Kelas I', 'company_id' => $company->id, 'level' => 1]);
+        $pangkat = Pangkats::create(['name' => 'Perawat', 'company_id' => $company->id, 'start_kelas_id' => $kelas1->id, 'max_kelas_id' => $kelas1->id]);
+        PangkatSalary::create(['pangkat_id' => $pangkat->id, 'base_salary' => 3_000_000]);
+
+        $user = User::factory()->create(['company_id' => $company->id]);
+        // employee_type_id sengaja kosong.
+        UserProfiles::create(['user_id' => $user->id, 'pangkat_id' => $pangkat->id, 'kelas_id' => $kelas1->id]);
+
+        $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
+        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+
+        $context = new PayrollContext();
+        (new GajiPokokCalculator())->calculate($user, $payroll, $period, $context);
+
+        $this->assertSame(3_000_000.0, $context->grossSalary);
     }
 
     public function test_skips_when_kelas_not_assigned(): void

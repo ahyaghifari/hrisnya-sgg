@@ -108,6 +108,25 @@ class RoleForm
             // admin 'Penilaian Karyawan' (navigationGroup 4 Assessment Resource) ke-merge jadi
             // 1 section sama container portal ini, lihat containerMerge().
             CustomPermissionEnum::SISTEM_PENILAIAN_KARYAWAN->value => [],
+            // Modul baru (2026-08-25), portal-only, tidak ada Filament Resource sama sekali
+            // (instruksi user: portal saja) - jadi TIDAK ada entry di containerMerge() (tidak
+            // ada container admin yang perlu dilebur). AJUKAN_SARANA_PRASARANA cuma di-assign
+            // ke role Unit; Kabid/Direktur cukup SISTEM_SARANA_PRASARANA doang buat bisa akses
+            // dropdown nav + halaman daftar/keputusan tanpa bisa mengajukan baru.
+            CustomPermissionEnum::SISTEM_SARANA_PRASARANA->value => [
+                CustomPermissionEnum::AJUKAN_SARANA_PRASARANA->value,
+            ],
+            // Gerbang dropdown nav "Sikartap" (2026-08-25) - tidak ada child custom permission,
+            // grup ini cuma pembungkus supaya container admin 'Sikartap' (navigationGroup
+            // SikartapResource, isinya subject "Pengajuan Karyawan Tetap" + "Input MCU", lihat
+            // subjectContainerOverrides() 'SikartapMcu') ke-merge jadi 1 section sama container
+            // portal ini - pola sama persis SISTEM_PENILAIAN_KARYAWAN di atas.
+            CustomPermissionEnum::SISTEM_SIKARTAP->value => [
+                CustomPermissionEnum::LIHAT_PENGATURAN_SIKARTAP->value,
+                CustomPermissionEnum::EDIT_PENGATURAN_SIKARTAP->value,
+                CustomPermissionEnum::NILAI_IDE_INOVASI_DIREKTUR->value,
+                CustomPermissionEnum::NILAI_IDE_INOVASI_KOMISARIS->value,
+            ],
         ];
     }
 
@@ -180,6 +199,31 @@ class RoleForm
             // WidgetPermissionEnum::cases() supaya widget BARU ke depan otomatis masuk grup ini
             // tanpa perlu baris override manual lagi di sini.
             'DashboardWidget' => 'Dashboard Widget',
+            // 4 permission INPUT_MCU_* (custom, flat tanpa ':') dipetakan ke subject buatan
+            // 'SikartapMcu' lewat customPermissionSubjectOverrides() di bawah - tanpa override
+            // ini jatuh ke 'Lainnya'. Container-nya sama dengan SikartapResource ('Sikartap',
+            // dari navigationGroup Resource itu sendiri) supaya nempel di root yang sama,
+            // sub-grup terpisah (instruksi user 2026-08-25: "grup Sikartap > grup Input MCU").
+            'SikartapMcu' => 'Sikartap',
+            // 3 permission LIHAT_DASHBOARD_SIKARTAP_* (2026-08-25) dipetakan ke subject buatan
+            // 'SikartapDashboard' lewat customPermissionSubjectOverrides() di bawah - sub-grup
+            // "Dashboard" nempel di root 'Sikartap' yang sama, pola persis 'SikartapMcu'.
+            'SikartapDashboard' => 'Sikartap',
+        ];
+    }
+
+    /**
+     * Label eksplisit buat subject yang labelnya BUKAN hasil scan Filament Resource (jadi
+     * Str::headline() fallback di applySubjectOverrides() bakal salah kapitalisasi, mis.
+     * Str::headline('SikartapMcu') = "Sikartap Mcu" bukan "Input MCU" yang diinginkan).
+     *
+     * @return array<string, string>
+     */
+    public static function subjectLabelOverrides(): array
+    {
+        return [
+            'SikartapMcu' => 'Input MCU',
+            'SikartapDashboard' => 'Dashboard',
         ];
     }
 
@@ -199,6 +243,14 @@ class RoleForm
         return [
             CustomPermissionEnum::JADWAL_SHIFT_SAYA->value => 'ShiftSwapRequests',
             CustomPermissionEnum::TUKAR_SHIFT_SAYA->value => 'ShiftSwapRequests',
+            CustomPermissionEnum::INPUT_MCU_ASESMEN_PERAWAT->value => 'SikartapMcu',
+            CustomPermissionEnum::INPUT_MCU_LABORATORIUM->value => 'SikartapMcu',
+            CustomPermissionEnum::INPUT_MCU_RADIOLOGI->value => 'SikartapMcu',
+            CustomPermissionEnum::INPUT_MCU_PEMERIKSAAN_DOKTER->value => 'SikartapMcu',
+            CustomPermissionEnum::EDIT_INPUT_MCU->value => 'SikartapMcu',
+            CustomPermissionEnum::LIHAT_DASHBOARD_SIKARTAP_STATISTIK->value => 'SikartapDashboard',
+            CustomPermissionEnum::LIHAT_DASHBOARD_SIKARTAP_BUTUH_TINDAKAN->value => 'SikartapDashboard',
+            CustomPermissionEnum::LIHAT_DASHBOARD_SIKARTAP_ANTRIAN_TAHAP->value => 'SikartapDashboard',
             // Semua permission WidgetPermissionEnum otomatis ikut subject 'DashboardWidget'
             // (container "Dashboard Widget", lihat subjectContainerOverrides()) - generik dari
             // ::cases(), BUKAN didaftar satu-satu, supaya widget Dashboard baru ke depan
@@ -218,9 +270,12 @@ class RoleForm
      */
     public static function applySubjectOverrides(array $subjectMeta): array
     {
+        $labelOverrides = self::subjectLabelOverrides();
+
         foreach (self::subjectContainerOverrides() as $subject => $container) {
             $subjectMeta[$subject]['container'] = $container;
-            $subjectMeta[$subject]['label'] ??= Str::headline($subject);
+            $subjectMeta[$subject]['label'] = $labelOverrides[$subject]
+                ?? ($subjectMeta[$subject]['label'] ?? Str::headline($subject));
         }
 
         return $subjectMeta;
@@ -265,6 +320,7 @@ class RoleForm
             'Presensi & Absensi' => CustomPermissionEnum::SISTEM_ABSENSI->value,
             'Penilaian Karyawan' => CustomPermissionEnum::SISTEM_PENILAIAN_KARYAWAN->value,
             'Pembinaan Karyawan' => CustomPermissionEnum::SISTEM_PEMBINAAN_KARYAWAN->value,
+            'Sikartap' => CustomPermissionEnum::SISTEM_SIKARTAP->value,
         ];
     }
 

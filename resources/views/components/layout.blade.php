@@ -18,6 +18,9 @@
         'canAccessPembinaanSaya' => auth()->user()->can(\App\Enum\CustomPermissionEnum::PEMBINAAN_SAYA->value),
         'canAccessCoachingCounseling' => auth()->user()->can(\App\Enum\CustomPermissionEnum::SISTEM_PEMBINAAN_KARYAWAN->value),
         'canAccessTukarShift' => auth()->user()->can(\App\Enum\CustomPermissionEnum::TUKAR_SHIFT_SAYA->value) && auth()->user()->hasShiftSchedule(),
+        'canAccessSikartapSaya' => auth()->user()->isKontrakKaryawan(),
+        'canAccessSikartap' => auth()->user()->can(\App\Enum\CustomPermissionEnum::SISTEM_SIKARTAP->value),
+        'canAccessSaranaPrasarana' => auth()->user()->can(\App\Enum\CustomPermissionEnum::SISTEM_SARANA_PRASARANA->value),
     ];
 @endphp
 <!DOCTYPE html>

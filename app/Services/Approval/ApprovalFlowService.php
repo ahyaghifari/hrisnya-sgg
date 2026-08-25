@@ -7,6 +7,7 @@ use App\Enum\AttendanceReqStatus;
 use App\Enum\Task\TaskStatus;
 use App\Models\LMS\TrainingRequests;
 use App\Models\Shift\ShiftSwapRequests;
+use App\Models\Sikartap\Sikartap;
 use App\Models\User;
 use App\Services\Shift\ShiftSwapRequestService;
 use App\Notifications\ApprovalNeedsAction;
@@ -117,6 +118,15 @@ class ApprovalFlowService
                         'status' => 'rejected',
                         'rejected_by' => $actorId,
                         'rejected_at' => now(),
+                    ]);
+                }
+
+                // Sikartap - Keputusan Direktur (Fase 4). Kolom status_keputusan_direktur cuma
+                // cache tersinkron dari snapshot approval, bukan ditulis manual dari Filament
+                // action - satu sumber kebenaran ada di approval_snapshots/approval_activities.
+                if ($snapshot->module_type === ApprovalModuleEnum::SIKARTAP_DIRECTOR_DECISION->value) {
+                    Sikartap::where('id', $snapshot->module_id)->update([
+                        'status_keputusan_direktur' => 'rejected',
                     ]);
                 }
 
@@ -263,6 +273,13 @@ class ApprovalFlowService
                         'status' => 'approved',
                         'approved_by' => $actorId,
                         'approved_at' => now(),
+                    ]);
+                }
+
+                // Sikartap - Keputusan Direktur (Fase 4), lihat catatan cache di branch reject di atas.
+                if ($snapshot->module_type === ApprovalModuleEnum::SIKARTAP_DIRECTOR_DECISION->value) {
+                    Sikartap::where('id', $snapshot->module_id)->update([
+                        'status_keputusan_direktur' => 'approved',
                     ]);
                 }
 

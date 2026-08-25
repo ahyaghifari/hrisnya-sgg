@@ -106,6 +106,17 @@
             <x-pwa-nav.kepegawaian-menu />
         @endif
 
+        @if ($canAccessSikartap)
+            <x-pwa-nav.sikartap-menu />
+        @endif
+
+        @if ($canAccessSikartapSaya)
+            <a href="{{ route('sikartap') }}" wire:navigate class="pwa-menu-grid-item">
+                <span class="pwa-menu-grid-icon gold"><i class="fa-solid fa-user-check"></i></span>
+                <span class="pwa-menu-grid-label">Sikartap</span>
+            </a>
+        @endif
+
         @if ($canAccessLms)
             <x-pwa-nav.lms-menu />
         @endif

@@ -98,6 +98,17 @@ class ShiftSwapApprovalsCard extends Component
 
         abort_unless($record->target_id === Auth::id(), 403);
 
+        // target_id doang tidak cukup - begitu step 1 (giliran rekan) selesai, snapshot maju ke
+        // step atasan tapi target_id di record TETAP sama, jadi rekan yang tahu $id request
+        // miliknya sendiri bisa manggil act() lagi dan membajak approval atasan lewat
+        // advanceStep() (yang sendiri tidak validasi identitas aktor). Cek current_step_order
+        // masih 1 di sini - JANGAN lewat computed property $this->pending yang bisa basi.
+        abort_unless(
+            (int) ($record->approvalSnapshot?->activity?->current_step_order) === 1,
+            403,
+            'Giliran approval sudah lewat dari Anda.'
+        );
+
         try {
             app(ApprovalFlowService::class)->advanceStep(
                 $record->approvalSnapshot,

@@ -90,9 +90,28 @@ class KontrakPage extends Component
 
     public function updatedFormCompanyId(): void
     {
+        // Re-kunci - formCompanyId property Livewire biasa (bukan #[Locked]), bisa di-$set
+        // langsung dari request yang di-craft, tidak cukup percaya <select> company disembunyikan
+        // di blade buat user non-global (pola sama DocumentFormPage::updatedCompanyId()).
+        if (! Auth::user()->canFilterByCompany()) {
+            $this->formCompanyId = Auth::user()->company_id;
+        }
+
         // Ganti perusahaan di modal -> pilihan karyawan/tipe karyawan lama tidak relevan lagi.
         $this->formUserId = null;
         $this->formEmployeeTypeId = null;
+    }
+
+    /** Non-global cuma boleh kelola kontrak karyawan company sendiri - permission Shield
+     * Update:UserContract sendirian tidak cek batas company sama sekali (pola sama
+     * DocumentFormPage::canManage()). */
+    protected function canManage(UserContract $contract): bool
+    {
+        if (Auth::user()->canFilterByCompany()) {
+            return true;
+        }
+
+        return $contract->company_id === Auth::user()->company_id;
     }
 
     public function getCompanyOptionsProperty()
@@ -150,6 +169,7 @@ class KontrakPage extends Component
         $contract = UserContract::findOrFail($id);
 
         abort_unless(Auth::user()->can('update', $contract), 403);
+        abort_unless($this->canManage($contract), 403);
 
         $this->editingId = $contract->id;
         $this->editingExistingFilePath = $contract->file_path;
@@ -172,7 +192,22 @@ class KontrakPage extends Component
     {
         return [
             'formCompanyId' => ['required', 'exists:m_companies,id'],
-            'formUserId' => ['required', 'exists:users,id'],
+            // exists:users,id doang cuma cek karyawannya ada, TIDAK cek company_id-nya - closure
+            // ini mencegah user non-global nempelin kontrak ke karyawan perusahaan lain lewat
+            // formUserId yang di-tamper (pola sama DocumentFormPage::rules()).
+            'formUserId' => ['required', 'exists:users,id', function (string $attribute, mixed $value, \Closure $fail): void {
+                if (Auth::user()->canFilterByCompany()) {
+                    return;
+                }
+
+                $belongsToOwnCompany = User::whereKey($value)
+                    ->where('company_id', Auth::user()->company_id)
+                    ->exists();
+
+                if (! $belongsToOwnCompany) {
+                    $fail('Karyawan tidak ditemukan di perusahaan Anda.');
+                }
+            }],
             'formEmployeeTypeId' => ['required', 'exists:m_employee_types,id'],
             'formStartDate' => ['required', 'date'],
             'formEndDate' => ['required', 'date', 'after_or_equal:formStartDate'],
@@ -187,6 +222,14 @@ class KontrakPage extends Component
         $contract = UserContract::findOrFail($this->editingId);
 
         abort_unless(Auth::user()->can('update', $contract), 403);
+        abort_unless($this->canManage($contract), 403);
+
+        // Re-kunci sebelum validate() - saveForm() dipanggil langsung lewat request Livewire,
+        // tidak lewat updatedFormCompanyId() dulu kalau formCompanyId di-tamper di request yang
+        // sama (pola sama DocumentFormPage::save()).
+        if (! Auth::user()->canFilterByCompany()) {
+            $this->formCompanyId = Auth::user()->company_id;
+        }
 
         $this->validate($this->formRules(), [], [
             'formCompanyId' => 'perusahaan',

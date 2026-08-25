@@ -773,4 +773,105 @@ return [
         'guard' => null,
     ],
 
+    'sikartap' => [
+        'label' => 'Pengajuan Karyawan Tetap',
+        'permission' => null,
+        'guard' => 'isKontrakKaryawan',
+    ],
+
+    'sikartap.dashboard' => [
+        'label' => 'Dashboard Sikartap',
+        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_SIKARTAP->value,
+        'guard' => null,
+    ],
+
+    'sikartap.direktur.bulk' => [
+        'label' => 'Keputusan Direktur - Massal',
+        'permission' => 'ViewAny:Sikartap',
+        'guard' => null,
+    ],
+
+    'sikartap.pengajuan.show' => [
+        'label' => 'Detail Pengajuan Karyawan Tetap',
+        'permission' => 'View:Sikartap',
+        'guard' => null,
+    ],
+
+    'sikartap.jadwal' => [
+        'label' => 'Jadwal Tes & Wawancara',
+        'permission' => 'ViewAny:Sikartap',
+        'guard' => null,
+    ],
+
+    'sikartap.mcu.perawat' => [
+        'label' => 'MCU - Asesmen Perawat',
+        'permission' => \App\Enum\CustomPermissionEnum::INPUT_MCU_ASESMEN_PERAWAT->value,
+        'guard' => null,
+    ],
+
+    'sikartap.mcu.laboratorium' => [
+        'label' => 'MCU - Hasil Laboratorium',
+        'permission' => \App\Enum\CustomPermissionEnum::INPUT_MCU_LABORATORIUM->value,
+        'guard' => null,
+    ],
+
+    'sikartap.mcu.radiologi' => [
+        'label' => 'MCU - Hasil Radiologi',
+        'permission' => \App\Enum\CustomPermissionEnum::INPUT_MCU_RADIOLOGI->value,
+        'guard' => null,
+    ],
+
+    'sikartap.mcu.dokter' => [
+        'label' => 'MCU - Pemeriksaan Dokter',
+        'permission' => \App\Enum\CustomPermissionEnum::INPUT_MCU_PEMERIKSAAN_DOKTER->value,
+        'guard' => null,
+    ],
+
+    'sikartap.pengaturan' => [
+        'label' => 'Pengaturan Sikartap',
+        'permission' => \App\Enum\CustomPermissionEnum::LIHAT_PENGATURAN_SIKARTAP->value,
+        'guard' => null,
+    ],
+
+    'sikartap.ide-inovasi' => [
+        'label' => 'Ide Inovasi (Karyawan)',
+        'permission' => null,
+        'guard' => 'isKontrakKaryawan',
+    ],
+
+    'sikartap.ide-inovasi.atasan.queue' => [
+        'label' => 'Penilaian Ide Inovasi (Atasan)',
+        'permission' => null,
+        'guard' => null,
+    ],
+
+    'sikartap.ide-inovasi.atasan' => [
+        'label' => 'Nilai Ide Inovasi',
+        'permission' => null,
+        'guard' => null,
+    ],
+
+    // List digerbangi SISTEM_SARANA_PRASARANA (coarse, sama pola presensi.dashboard/SISTEM_ABSENSI
+    // - dropdown nav + halaman daftar butuh ini, di-assign ke Unit/Kabid/Direktur semua). Detail
+    // sengaja permission null - visibilitasnya lebih halus dari 1 permission (pemohon SENDIRI
+    // vs approver aktif di snapshot-nya), discope lewat query + canAccess()/canApprove() di
+    // dalam Livewire-nya sendiri, bukan gate route-level.
+    'sarana-prasarana' => [
+        'label' => 'Sarana & Prasarana',
+        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_SARANA_PRASARANA->value,
+        'guard' => null,
+    ],
+
+    'sarana-prasarana.ajukan' => [
+        'label' => 'Ajukan Sarana & Prasarana',
+        'permission' => \App\Enum\CustomPermissionEnum::AJUKAN_SARANA_PRASARANA->value,
+        'guard' => null,
+    ],
+
+    'sarana-prasarana.show' => [
+        'label' => 'Detail Permohonan Sarana & Prasarana',
+        'permission' => null,
+        'guard' => null,
+    ],
+
 ];

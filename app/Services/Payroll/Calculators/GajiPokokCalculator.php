@@ -53,8 +53,12 @@ class GajiPokokCalculator implements PayrollComponentCalculator
         // berarti +8%. Default 8% kalau company belum pernah setting. GajiPokokKenaikanOverrideEnum
         // bisa override rate ini per-user (2026-08-22, mis. rate lebih tinggi untuk 1 orang
         // tertentu terlepas dari setting company-nya). Orientasi tidak dapat kenaikan sama sekali.
+        // Fail-safe kalau tipe karyawan belum di-assign (employeeType null, data belum lengkap) -
+        // rate WAJIB 0%, bukan diam-diam dapat kenaikan penuh cuma karena bukan Orientasi secara
+        // eksplisit. Docblock di atas bilang "rate cuma berlaku Tetap & Kontrak" - null bukan
+        // salah satu dari itu, harus ikut diblok sama seperti Orientasi.
         $category = $user->profile?->employeeType?->category;
-        $rate = $category === EmployeeTypeCategory::ORIENTASI
+        $rate = ($category === null || $category === EmployeeTypeCategory::ORIENTASI)
             ? 0.0
             : (GajiPokokKenaikanOverrideEnum::rateForUser($user->id)
                 ?? (float) Setting::resolve('gaji_pokok_kenaikan_per_kelas', $period->company_id, default: 8)) / 100;

@@ -197,6 +197,12 @@ class ShiftSwapRequestService
         }
 
         if ($reqSchedule && ! $targetSchedule) {
+            // Re-cek konflik sebelum eksekusi - alasan sama seperti cabang beda-tanggal di atas
+            // (bisa berubah sejak pengajuan, target bisa saja kebagian jadwal baru di tanggal ini
+            // di antara submit & approval final). Tanpa ini, update() bisa nabrak unique
+            // constraint (user_id, date) dan lempar QueryException mentah di tengah transaction.
+            $this->validateOffDayRules($reqSchedule, $swapRequest->target_id);
+
             $reqSchedule->update(['user_id' => $swapRequest->target_id]);
         }
     }

@@ -166,6 +166,9 @@ Route::middleware(['auth', 'portal.access'])->group(function () {
     Route::get('/riwayat-approval', RiwayatApprovalPage::class)
         ->name('riwayat-approval');
 
+    require __DIR__ . '/sikartap.php';
+    require __DIR__ . '/sarana-prasarana.php';
+
     Route::get('/hak-akses', \App\Livewire\RoleAccess\RoleAccessTreePage::class)
         ->name('hak-akses');
 

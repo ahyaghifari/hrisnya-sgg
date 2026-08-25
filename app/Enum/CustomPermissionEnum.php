@@ -24,6 +24,21 @@ enum CustomPermissionEnum: string
      * masing-masing (2026-08-08, permintaan user - dipisah biar approval bisa didelegasikan
      * ke role yang bukan pemegang akses penuh modul terkait). */
     case SISTEM_APPROVAL = 'sistem_approval';
+
+    /** Gerbang dropdown nav "Sarana & Prasarana" (modul baru hasil migrasi dari
+     * another-app/sarpras) — sama pola SISTEM_ABSENSI/SISTEM_KEUANGAN dkk: gerbang broad "boleh
+     * akses modul ini sama sekali" (Unit pemohon, Kabid, Direktur semua butuh ini), BUKAN gerbang
+     * "boleh mengajukan" (itu AJUKAN_SARANA_PRASARANA terpisah, cuma di-assign ke role Unit). */
+    case SISTEM_SARANA_PRASARANA = 'sistem_sarana_prasarana';
+
+    /** Gerbang dropdown nav "Sikartap" (row 2) — sama pola SISTEM_ABSENSI/SISTEM_KEUANGAN dkk:
+     * gerbang broad "boleh akses modul ini sama sekali" (HRD/Direktur/staff klinis MCU semua
+     * butuh ini dulu sebelum link di dalam dropdown dicek granular masing-masing:
+     * ViewAny:Sikartap buat Pengajuan/Jadwal, INPUT_MCU_* buat Antrian MCU). Beda dari
+     * canAccessSikartapSaya (isKontrakKaryawan()) yang gerbang link self-service row 1
+     * "Sikartap" buat karyawan mengajukan, tidak butuh permission ini sama sekali. */
+    case SISTEM_SIKARTAP = 'sistem_sikartap';
+
     case TUGAS_SAYA = 'tugas_saya';
     case PELATIHAN_SAYA = 'pelatihan_saya';
     case AJUKAN_PELATIHAN = 'ajukan_pelatihan';
@@ -139,6 +154,29 @@ enum CustomPermissionEnum: string
      * disembunyikan tombol simpan/input-nya), sama seperti pola LIHAT_PENGATURAN_ABSENSI. */
     case LIHAT_PENGATURAN_KEPEGAWAIAN = 'lihat_pengaturan_kepegawaian';
 
+    /** Halaman "Pengaturan Sikartap" (2026-08-25) - toggle per company wajib Ide Inovasi &
+     * wajib MCU (App\Enum\Sikartap\SikartapSettingEnum), pola sama persis
+     * LIHAT/EDIT_PENGATURAN_KEPEGAWAIAN: LIHAT = buka halaman (read-only tanpa EDIT), EDIT =
+     * boleh simpan perubahan. */
+    case LIHAT_PENGATURAN_SIKARTAP = 'lihat_pengaturan_sikartap';
+    case EDIT_PENGATURAN_SIKARTAP = 'edit_pengaturan_sikartap';
+
+    /** Fase 5 Sikartap (Ide Inovasi) - tahap 2 & 3, opsional & tidak blocking (beda dari tahap 1
+     * atasan yang wajib & dicari dinamis lewat Sikartap::ideInovasiAtasanCandidates(), bukan
+     * permission). Direktur/Komisaris di-assign manual lewat halaman Hak Akses. */
+    case NILAI_IDE_INOVASI_DIREKTUR = 'nilai_ide_inovasi_direktur';
+    case NILAI_IDE_INOVASI_KOMISARIS = 'nilai_ide_inovasi_komisaris';
+
+    /** Dashboard Sikartap (2026-08-25, instruksi user) - 1 permission per widget, bukan 1 gerbang
+     * besar, supaya role staff MCU/HRD/Direktur/atasan Ide Inovasi masing-masing cuma lihat
+     * widget yang relevan. Halaman dashboard-nya sendiri bisa diakses siapa saja yang punya
+     * SALAH SATU dari 3 ini (dicek manual di mount(), bukan lewat portal-pages.php satu
+     * permission karena butuh OR). Subject-nya di-mapping ke container "Sikartap" > sub-grup
+     * "Dashboard" lewat RoleForm::customPermissionSubjectOverrides(), pola sama SikartapMcu. */
+    case LIHAT_DASHBOARD_SIKARTAP_STATISTIK = 'lihat_dashboard_sikartap_statistik';
+    case LIHAT_DASHBOARD_SIKARTAP_BUTUH_TINDAKAN = 'lihat_dashboard_sikartap_butuh_tindakan';
+    case LIHAT_DASHBOARD_SIKARTAP_ANTRIAN_TAHAP = 'lihat_dashboard_sikartap_antrian_tahap';
+
     /** Buka halaman Pengaturan LMS (read-only) - beda dari EDIT_PENGATURAN_LMS yang
      * menggerbangi simpan. Tanpa permission ini, halamannya 403 sama sekali, sama pola
      * LIHAT_PENGATURAN_ABSENSI/LIHAT_PENGATURAN_KEPEGAWAIAN. */
@@ -208,6 +246,31 @@ enum CustomPermissionEnum: string
      * role yang cuma boleh LIHAT daftar karyawan belum tentu boleh menarik semuanya ke Excel. */
     case EXPORT_DATA_KARYAWAN = 'export_data_karyawan';
 
+    /** Gerbang 4 form input MCU Sikartap (`app/Livewire/Sikartap/Mcu/*`) — masing-masing role
+     * klinis (perawat/lab/radiologi/dokter) cuma isi bagiannya sendiri, sama pola pemisahan
+     * check_role_any() per form di legacy (form_asesmen_perawat.php dkk). Bukan Shield
+     * Verb:Model karena bukan CRUD Resource biasa - sama pola LIHAT_OMSET/KELOLA_OMSET (portal
+     * page tanpa Filament Resource sendiri). */
+    case INPUT_MCU_ASESMEN_PERAWAT = 'input_mcu_asesmen_perawat';
+    case INPUT_MCU_LABORATORIUM = 'input_mcu_laboratorium';
+    case INPUT_MCU_RADIOLOGI = 'input_mcu_radiologi';
+    case INPUT_MCU_PEMERIKSAAN_DOKTER = 'input_mcu_pemeriksaan_dokter';
+
+    /** Edit ulang hasil MCU yang SUDAH pernah diisi (2026-08-26, instruksi user) - beda dari
+     * INPUT_MCU_* yang cuma boleh isi data yang masih kosong. Sengaja permission terpisah &
+     * sempit (ditujukan buat segelintir orang), supaya kalau ada salah input masih bisa
+     * diperbaiki tanpa staff biasa bisa asal ubah data yang sudah final. Berlaku lintas 4
+     * sub-form MCU (perawat/lab/radiologi/dokter), bukan dipecah per role seperti INPUT_MCU_*
+     * karena "yang boleh koreksi" itu peran pengawasan, bukan peran pengisi data. */
+    case EDIT_INPUT_MCU = 'edit_input_mcu';
+
+    /** Gerbang portal buat Unit mengajukan permohonan Sarana & Prasarana (perbaikan/pengadaan)
+     * — modul baru hasil migrasi dari `another-app/sarpras`. Step approval-nya sendiri (Kabid
+     * meneruskan, Direktur memutuskan per item) lewat Approval Engine (lihat
+     * ApprovalModuleEnum::SARPRAS_REQUEST), bukan digerbangi permission ini — ini cuma gerbang
+     * "boleh buka form ajukan". */
+    case AJUKAN_SARANA_PRASARANA = 'ajukan_sarana_prasarana';
+
     public function label(): string
     {
         return match
@@ -219,6 +282,8 @@ enum CustomPermissionEnum: string
             self::SISTEM_PEMBINAAN_KARYAWAN => 'Sistem Pembinaan Karyawan',
             self::SISTEM_PENILAIAN_KARYAWAN => 'Sistem Penilaian Karyawan',
             self::SISTEM_APPROVAL => 'Approver',
+            self::SISTEM_SARANA_PRASARANA => 'Sistem Sarana Prasarana',
+            self::SISTEM_SIKARTAP => 'Sistem Sikartap',
             self::TUGAS_SAYA => 'Tugas Saya',
             self::PELATIHAN_SAYA => 'Pelatihan Saya',
             self::AJUKAN_PELATIHAN => 'Ajukan Pelatihan (Eksternal)',
@@ -261,6 +326,13 @@ enum CustomPermissionEnum: string
             self::LIHAT_PENGATURAN_LMS => 'Lihat Pengaturan LMS',
             self::EDIT_PENGATURAN_KEPEGAWAIAN => 'Edit Pengaturan Kepegawaian',
             self::LIHAT_PENGATURAN_KEPEGAWAIAN => 'Lihat Pengaturan Kepegawaian',
+            self::LIHAT_PENGATURAN_SIKARTAP => 'Lihat Pengaturan Sikartap',
+            self::EDIT_PENGATURAN_SIKARTAP => 'Edit Pengaturan Sikartap',
+            self::NILAI_IDE_INOVASI_DIREKTUR => 'Nilai Ide Inovasi (Direktur)',
+            self::NILAI_IDE_INOVASI_KOMISARIS => 'Nilai Ide Inovasi (Komisaris)',
+            self::LIHAT_DASHBOARD_SIKARTAP_STATISTIK => 'Lihat Widget Statistik Pengajuan (Dashboard Sikartap)',
+            self::LIHAT_DASHBOARD_SIKARTAP_BUTUH_TINDAKAN => 'Lihat Widget Butuh Tindakan (Dashboard Sikartap)',
+            self::LIHAT_DASHBOARD_SIKARTAP_ANTRIAN_TAHAP => 'Lihat Widget Antrian per Tahap (Dashboard Sikartap)',
             self::KELOLA_JADWAL_SHIFT => 'Kelola Jadwal Shift (Template & Roster)',
             self::GENERATE_PAYROLL => 'Generate/Regenerate Payroll',
             self::LIHAT_LAMPIRAN_IDENTITAS_KARYAWAN => 'Lihat Lampiran Identitas Karyawan (KTP/KK)',
@@ -271,6 +343,12 @@ enum CustomPermissionEnum: string
             self::JADWAL_SHIFT_SAYA => 'Jadwal Shift Saya',
             self::TUKAR_SHIFT_SAYA => 'Tukar Shift Saya',
             self::EXPORT_DATA_KARYAWAN => 'Export Data Karyawan (Excel)',
+            self::INPUT_MCU_ASESMEN_PERAWAT => 'Input MCU - Asesmen Perawat',
+            self::INPUT_MCU_LABORATORIUM => 'Input MCU - Hasil Laboratorium',
+            self::INPUT_MCU_RADIOLOGI => 'Input MCU - Hasil Radiologi',
+            self::INPUT_MCU_PEMERIKSAAN_DOKTER => 'Input MCU - Pemeriksaan Dokter',
+            self::EDIT_INPUT_MCU => 'Edit Ulang Hasil MCU (Sudah Diisi)',
+            self::AJUKAN_SARANA_PRASARANA => 'Ajukan Sarana & Prasarana',
         };
     }
 }

@@ -19,7 +19,7 @@ class KontrakPageTest extends TestCase
 {
     use RefreshDatabase;
 
-    private function actingWithPermission(array $extra = []): User
+    private function actingWithPermission(array $extra = [], ?string $companyId = null): User
     {
         $names = ['ViewAny:UserContract', ...$extra];
 
@@ -27,10 +27,10 @@ class KontrakPageTest extends TestCase
             Permission::firstOrCreate(['name' => $name, 'guard_name' => 'web']);
         }
 
-        $role = Role::firstOrCreate(['name' => 'Kontrak Portal Test ' . implode('-', $extra), 'guard_name' => 'web']);
+        $role = Role::firstOrCreate(['name' => 'Kontrak Portal Test ' . implode('-', $extra) . '-' . ($companyId ?? 'global'), 'guard_name' => 'web']);
         $role->givePermissionTo($names);
 
-        $user = User::factory()->create();
+        $user = User::factory()->create(['company_id' => $companyId]);
         $user->assignRole($role);
 
         return $user;
@@ -85,9 +85,9 @@ class KontrakPageTest extends TestCase
 
     public function test_can_edit_contract_via_modal(): void
     {
-        $actor = $this->actingWithPermission(['Update:UserContract']);
-
         $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
+        $actor = $this->actingWithPermission(['Update:UserContract'], $company->id);
+
         $employeeType = EmployeeTypes::create(['name' => 'Kontrak', 'company_id' => $company->id]);
         $employee = User::factory()->create(['company_id' => $company->id]);
 
@@ -110,6 +110,32 @@ class KontrakPageTest extends TestCase
             ->assertHasNoErrors();
 
         $this->assertSame($newEndDate, $contract->fresh()->contract_end_date->toDateString());
+    }
+
+    /** Regresi IDOR (2026-08-25): permission Shield Update:UserContract sendirian tidak cek
+     * batas company sama sekali - user non-global HARUS tetap ditolak megang kontrak company lain
+     * biarpun punya permission update. */
+    public function test_non_global_user_cannot_edit_contract_from_other_company(): void
+    {
+        $ownCompany = Companies::create(['code' => 'OWN', 'name' => 'Own Company', 'location' => 'Test', 'is_active' => true]);
+        $otherCompany = Companies::create(['code' => 'OTH', 'name' => 'Other Company', 'location' => 'Test', 'is_active' => true]);
+        $actor = $this->actingWithPermission(['Update:UserContract'], $ownCompany->id);
+
+        $employeeType = EmployeeTypes::create(['name' => 'Kontrak', 'company_id' => $otherCompany->id]);
+        $employee = User::factory()->create(['company_id' => $otherCompany->id]);
+
+        $contract = UserContract::create([
+            'user_id' => $employee->id,
+            'company_id' => $otherCompany->id,
+            'employee_type_id' => $employeeType->id,
+            'contract_start_date' => now()->subMonth(),
+            'contract_end_date' => now()->addMonths(6),
+        ]);
+
+        Livewire::actingAs($actor)
+            ->test(KontrakPage::class)
+            ->call('openEditModal', $contract->id)
+            ->assertForbidden();
     }
 
     public function test_user_without_update_permission_cannot_edit_contract(): void

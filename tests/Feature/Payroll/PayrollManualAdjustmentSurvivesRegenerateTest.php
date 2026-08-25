@@ -8,6 +8,8 @@ use App\Models\Master\EmployeeTypes;
 use App\Models\Master\Kelas;
 use App\Models\Master\Pangkats;
 use App\Models\Payroll\CompanyPayrollComponent;
+use App\Models\Payroll\FeeItem;
+use App\Models\Payroll\FeeSubmission;
 use App\Models\Payroll\PangkatSalary;
 use App\Models\Payroll\Payroll;
 use App\Models\Payroll\PayrollComponentRecipient;
@@ -135,5 +137,68 @@ class PayrollManualAdjustmentSurvivesRegenerateTest extends TestCase
         // Bukan 3.100.000 (hasil Calculator) - override manualnya harus tetap dipakai.
         $this->assertSame(5_000_000.0, (float) $gajiPokokItem->amount);
         $this->assertTrue((bool) $gajiPokokItem->edited_manually);
+    }
+
+    /**
+     * Regresi bug lama "Fee Claim Regenerate" (2026-08-25): FEE_CLAIM/PAJAK_JASA_DOKTER
+     * dipanggil unconditional lewat FeeClaimCalculator di generateForUser() (bukan lewat
+     * runComponent()), jadi TIDAK ikut proteksi edited_manually seperti komponen lain - baris
+     * yang sudah di-edit manual & dibawa pindah tetap ketimpa Calculator lagi jalan, bikin baris
+     * FEE_CLAIM dobel + FeeItem yang belum "dikonsumsi" keburu ditandai is_paid=true.
+     */
+    public function test_regenerate_preserves_edited_fee_claim_row_and_does_not_reconsume_fee_item(): void
+    {
+        $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
+
+        $employeeType = EmployeeTypes::create(['name' => 'Tetap', 'company_id' => $company->id]);
+        CompanyPayrollComponent::create(['company_id' => $company->id, 'component' => PayrollComponentEnum::GAJI_POKOK->value, 'is_active' => true]);
+        PayrollComponentRecipient::create(['company_id' => $company->id, 'component' => PayrollComponentEnum::GAJI_POKOK->value, 'employee_type_id' => $employeeType->id]);
+
+        $user = User::factory()->create(['company_id' => $company->id, 'is_active' => true]);
+        UserProfiles::create(['user_id' => $user->id, 'employee_type_id' => $employeeType->id]);
+
+        $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
+
+        // FeeItem BELUM lunas dalam rentang periode ini - kalau FeeClaimCalculator jalan lagi
+        // pas regenerate, ini akan diambil ulang jadi baris FEE_CLAIM kedua & ditandai is_paid.
+        $submission = FeeSubmission::create([
+            'company_id' => $company->id,
+            'subject_name' => 'Klaim jasa',
+            'service_type' => 'dokter',
+            'status' => 'approved',
+            'date' => '2026-07-15',
+        ]);
+        $feeItem = FeeItem::create([
+            'submission_id' => $submission->id,
+            'user_id' => $user->id,
+            'name' => 'Fee Klaim Juli',
+            'amount' => 500_000,
+            'is_paid' => false,
+        ]);
+
+        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id, 'gross_salary' => 700_000, 'total_deductions' => 0, 'net_salary' => 700_000]);
+        PayrollItem::create([
+            'payroll_id' => $payroll->id,
+            'name' => 'Fee Klaim Juli (koreksi HR)',
+            'type' => 'earning',
+            'quantity' => 1,
+            'amount' => 700_000,
+            'note' => 'koreksi manual',
+            'source_type' => PayrollComponentEnum::FEE_CLAIM->value,
+            'edited_manually' => true,
+        ]);
+
+        $newPayroll = app(PayrollService::class)->regenerateSinglePayroll($payroll);
+
+        $feeClaimItems = $newPayroll->items()->where('source_type', PayrollComponentEnum::FEE_CLAIM->value)->get();
+
+        // Cuma 1 baris (yang dibawa pindah), BUKAN 2 (dobel dari Calculator jalan lagi).
+        $this->assertCount(1, $feeClaimItems);
+        $this->assertSame(700_000.0, (float) $feeClaimItems->first()->amount);
+        $this->assertTrue((bool) $feeClaimItems->first()->edited_manually);
+
+        // FeeItem yang belum "dikonsumsi" tetap belum lunas - Calculator TIDAK boleh
+        // menandainya is_paid begitu saja cuma karena regenerate berjalan.
+        $this->assertFalse((bool) $feeItem->fresh()->is_paid);
     }
 }

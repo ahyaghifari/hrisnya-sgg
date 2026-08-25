@@ -344,6 +344,7 @@ class PayrollDetailPage extends Component
     public function openManualLineModal(string $component, ?string $lineId = null): void
     {
         abort_unless($this->canEditAdjustment, 403);
+        abort_if($this->decryptFailed, 403, 'Sebagian nominal payroll ini gagal dibaca — edit ditutup sampai datanya diperbaiki.');
 
         $this->manualLineComponent = $component;
         $this->editingManualLineId = $lineId;
@@ -382,6 +383,7 @@ class PayrollDetailPage extends Component
     public function saveManualLine(): void
     {
         abort_unless($this->canEditAdjustment, 403);
+        abort_if($this->decryptFailed, 403, 'Sebagian nominal payroll ini gagal dibaca — edit ditutup sampai datanya diperbaiki.');
         abort_if($this->payroll->is_paid, 403, 'Payroll yang sudah dibayar tidak bisa diubah.');
         abort_if($this->periodHasEnded, 403, 'Periode ini sudah bukan periode terbaru — baris manual di sini cuma masuk ke payroll lewat Regenerate, dan itu sudah ditutup untuk periode lampau. Edit manual per baris lewat admin panel (Daftar Payroll > buka payroll ini > tab Payroll Items).');
         abort_unless($this->componentEligibleForThisEmployee($this->manualLineComponent), 403, 'Tipe karyawan ini belum terdaftar sebagai penerima komponen ini di halaman Penerima Komponen Gaji.');
@@ -460,6 +462,7 @@ class PayrollDetailPage extends Component
     public function openComponentEditModal(string $component): void
     {
         abort_unless($this->canEditAdjustment, 403);
+        abort_if($this->decryptFailed, 403, 'Sebagian nominal payroll ini gagal dibaca — edit ditutup sampai datanya diperbaiki.');
         abort_if($this->payroll->is_paid, 403, 'Payroll yang sudah dibayar tidak bisa diubah.');
 
         $enum = PayrollComponentEnum::tryFrom($component);
@@ -492,6 +495,7 @@ class PayrollDetailPage extends Component
     public function saveComponentEdit(): void
     {
         abort_unless($this->canEditAdjustment, 403);
+        abort_if($this->decryptFailed, 403, 'Sebagian nominal payroll ini gagal dibaca — edit ditutup sampai datanya diperbaiki.');
         abort_if($this->payroll->is_paid, 403, 'Payroll yang sudah dibayar tidak bisa diubah.');
         abort_if($this->editingComponent === null, 400);
 
@@ -572,6 +576,7 @@ class PayrollDetailPage extends Component
     public function regeneratePayroll()
     {
         abort_unless(Auth::user()->can('update', $this->payroll), 403);
+        abort_if($this->decryptFailed, 403, 'Sebagian nominal payroll ini gagal dibaca — regenerate ditutup sampai datanya diperbaiki.');
         abort_if($this->payroll->is_paid, 403, 'Payroll yang sudah dibayar tidak bisa di-regenerate.');
         abort_if($this->periodHasEnded, 403, 'Periode ini sudah bukan periode terbaru — regenerate penuh ditutup untuk periode lampau (bisa menghitung ulang pakai config yang sudah berubah sejak saat itu). Koreksi lewat edit manual per baris di admin panel (Daftar Payroll > buka payroll ini > tab Payroll Items).');
 

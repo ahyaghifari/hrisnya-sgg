@@ -27,8 +27,10 @@ class GajiPokokBreakdownResolver
             return [null, null];
         }
 
-        // Orientasi tidak dapat kenaikan sama sekali - sama seperti GajiPokokCalculator.
-        $rate = $profile->employeeType?->category === EmployeeTypeCategory::ORIENTASI
+        // Orientasi ATAU employeeType belum di-assign (null) tidak dapat kenaikan sama sekali -
+        // sama persis fail-safe di GajiPokokCalculator, wajib tetap sinkron (rumus duplikat).
+        $category = $profile->employeeType?->category;
+        $rate = ($category === null || $category === EmployeeTypeCategory::ORIENTASI)
             ? 0.0
             : (GajiPokokKenaikanOverrideEnum::rateForUser($profile->user_id)
                 ?? (float) Setting::resolve('gaji_pokok_kenaikan_per_kelas', $payroll->payrollPeriod?->company_id, default: 8));
