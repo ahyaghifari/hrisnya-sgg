@@ -4,6 +4,12 @@ namespace App\Filament\Resources\Sikartap\Pages;
 
 use App\Filament\Resources\Sikartap\SikartapResource;
 use App\Models\Sikartap\Sikartap;
+use App\Notifications\Sikartap\SikartapBerkasStatusChanged;
+use App\Notifications\Sikartap\SikartapHasilMcu;
+use App\Notifications\Sikartap\SikartapHasilTes;
+use App\Notifications\Sikartap\SikartapHasilWawancara;
+use App\Notifications\Sikartap\SikartapJadwalTesDitetapkan;
+use App\Notifications\Sikartap\SikartapJadwalWawancaraDitetapkan;
 use App\Services\Approval\ApprovalPermissionService;
 use App\Services\Sikartap\SikartapDirectorDecisionService;
 use Filament\Actions\Action;
@@ -41,6 +47,8 @@ class ViewSikartap extends ViewRecord
 
                     $record->update(['status_berkas' => 'approved', 'berkas_lengkap' => true]);
 
+                    $record->user?->notify(new SikartapBerkasStatusChanged($record->id, 'approved'));
+
                     Notification::make()->title('Berkas disetujui, lanjut ke proses tes')->success()->send();
 
                     $this->redirect(SikartapResource::getUrl('view', ['record' => $record]));
@@ -67,6 +75,8 @@ class ViewSikartap extends ViewRecord
 
                     $record->update(['status_berkas' => 'rejected']);
 
+                    $record->user?->notify(new SikartapBerkasStatusChanged($record->id, 'rejected'));
+
                     Notification::make()->title('Pengajuan ditolak')->success()->send();
 
                     $this->redirect(SikartapResource::getUrl('view', ['record' => $record]));
@@ -89,6 +99,8 @@ class ViewSikartap extends ViewRecord
                 ])
                 ->action(function (Sikartap $record, array $data): void {
                     $record->testSchedule()->updateOrCreate(['sikartap_id' => $record->id], $data);
+
+                    $record->user?->notify(new SikartapJadwalTesDitetapkan($record->id, $data['tanggal_tes'], $data['tempat_tes']));
 
                     Notification::make()->title('Jadwal tes disimpan')->success()->send();
                 }),
@@ -113,6 +125,8 @@ class ViewSikartap extends ViewRecord
                 ->action(function (Sikartap $record, array $data): void {
                     $record->update($data);
 
+                    $record->user?->notify(new SikartapHasilTes($record->id, $data['status_tes']));
+
                     Notification::make()->title('Hasil tes disimpan')->success()->send();
                 }),
 
@@ -134,6 +148,8 @@ class ViewSikartap extends ViewRecord
                 ->action(function (Sikartap $record, array $data): void {
                     $record->interviewSchedule()->updateOrCreate(['sikartap_id' => $record->id], $data);
 
+                    $record->user?->notify(new SikartapJadwalWawancaraDitetapkan($record->id, $data['tanggal_wawancara'], $data['tempat_wawancara']));
+
                     Notification::make()->title('Jadwal wawancara disimpan')->success()->send();
                 }),
 
@@ -154,6 +170,8 @@ class ViewSikartap extends ViewRecord
                 ])
                 ->action(function (Sikartap $record, array $data): void {
                     $record->update($data);
+
+                    $record->user?->notify(new SikartapHasilWawancara($record->id, $data['status_wawancara']));
 
                     Notification::make()->title('Hasil wawancara disimpan')->success()->send();
                 }),
@@ -185,6 +203,8 @@ class ViewSikartap extends ViewRecord
                 ])
                 ->action(function (Sikartap $record, array $data): void {
                     $record->update($data);
+
+                    $record->user?->notify(new SikartapHasilMcu($record->id, $data['status_mcu']));
 
                     Notification::make()->title('Hasil MCU disimpan')->success()->send();
                 }),

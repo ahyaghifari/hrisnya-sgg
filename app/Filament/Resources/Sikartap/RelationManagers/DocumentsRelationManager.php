@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Sikartap\RelationManagers;
 
 use App\Enum\Sikartap\SikartapDocumentType;
 use App\Models\Sikartap\SikartapDocumentAttachment;
+use App\Notifications\Sikartap\SikartapDocumentRejected;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Textarea;
 use Filament\Notifications\Notification;
@@ -90,6 +91,10 @@ class DocumentsRelationManager extends RelationManager
                     ])
                     ->action(function (SikartapDocumentAttachment $record, array $data): void {
                         $record->update(['status' => 'rejected', 'catatan_penolakan' => $data['catatan_penolakan']]);
+
+                        $record->sikartap->user?->notify(
+                            new SikartapDocumentRejected($record->sikartap_id, $record->doc_type->getLabel(), $data['catatan_penolakan'])
+                        );
 
                         Notification::make()->title('Dokumen ditolak')->success()->send();
                     }),

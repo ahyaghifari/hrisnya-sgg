@@ -210,7 +210,7 @@ class PayrollSlipRekapExport extends DefaultValueBinder implements FromCollectio
                 foreach ($this->groupHeaderRows as $rowNumber) {
                     $sheet->getStyle("A{$rowNumber}:" . Coordinate::stringFromColumnIndex(count($this->columns)) . $rowNumber)
                         ->applyFromArray([
-                            'font' => ['bold' => true],
+                            'font' => ['bold' => true, 'size' => 14],
                             'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'E5E7EB']],
                         ]);
                 }

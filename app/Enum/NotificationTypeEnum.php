@@ -61,6 +61,20 @@ enum NotificationTypeEnum: string
     // keanggotaan (jalur admin Filament, belum ada peserta terdaftar saat publish di sana).
     case COURSE_PARTICIPANT_ENROLLED = 'course_participant_enrolled';
 
+    // Ke karyawan/pelamar, saat 1 dokumen administratif pengajuan karyawan tetap ditolak HRD —
+    // lihat App\Notifications\Sikartap\SikartapDocumentRejected. Sengaja HANYA reject (bukan
+    // approve juga) - approve per dokumen tidak actionable buat karyawan (masih nunggu dokumen
+    // lain), reject butuh reupload segera (instruksi user 2026-08-26).
+    case SIKARTAP_DOCUMENT_REJECTED = 'sikartap_document_rejected';
+    case SIKARTAP_BERKAS_STATUS_CHANGED = 'sikartap_berkas_status_changed';
+    case SIKARTAP_JADWAL_TES = 'sikartap_jadwal_tes';
+    case SIKARTAP_HASIL_TES = 'sikartap_hasil_tes';
+    case SIKARTAP_JADWAL_WAWANCARA = 'sikartap_jadwal_wawancara';
+    case SIKARTAP_HASIL_WAWANCARA = 'sikartap_hasil_wawancara';
+    case SIKARTAP_HASIL_MCU = 'sikartap_hasil_mcu';
+    case SIKARTAP_IDE_INOVASI_DIREVIEW = 'sikartap_ide_inovasi_direview';
+    case SIKARTAP_KEPUTUSAN_DIREKTUR = 'sikartap_keputusan_direktur';
+
     public function label(): string
     {
         return match ($this) {
@@ -87,6 +101,15 @@ enum NotificationTypeEnum: string
             self::COURSE_PUBLISHED => 'Pelatihan Baru Tersedia',
             self::COURSE_ENROLLMENT_APPROVED => 'Pendaftaran Pelatihan Saya Disetujui',
             self::COURSE_PARTICIPANT_ENROLLED => 'Diikutkan ke Pelatihan',
+            self::SIKARTAP_DOCUMENT_REJECTED => 'Dokumen Pengajuan Karyawan Tetap Saya Ditolak',
+            self::SIKARTAP_BERKAS_STATUS_CHANGED => 'Berkas Pengajuan Karyawan Tetap Saya Diputuskan',
+            self::SIKARTAP_JADWAL_TES => 'Jadwal Tes Karyawan Tetap Saya Ditetapkan',
+            self::SIKARTAP_HASIL_TES => 'Hasil Tes Karyawan Tetap Saya Keluar',
+            self::SIKARTAP_JADWAL_WAWANCARA => 'Jadwal Wawancara Karyawan Tetap Saya Ditetapkan',
+            self::SIKARTAP_HASIL_WAWANCARA => 'Hasil Wawancara Karyawan Tetap Saya Keluar',
+            self::SIKARTAP_HASIL_MCU => 'Hasil MCU Karyawan Tetap Saya Keluar',
+            self::SIKARTAP_IDE_INOVASI_DIREVIEW => 'Ide Inovasi Saya Dinilai',
+            self::SIKARTAP_KEPUTUSAN_DIREKTUR => 'Keputusan Direktur atas Pengajuan Karyawan Tetap Saya',
         };
     }
 
@@ -100,6 +123,7 @@ enum NotificationTypeEnum: string
             str_starts_with($this->value, 'payroll_') => 'Penggajian',
             str_starts_with($this->value, 'counseling_'), str_starts_with($this->value, 'coaching_') => 'Pembinaan Karyawan',
             str_starts_with($this->value, 'course_') => 'Pelatihan',
+            str_starts_with($this->value, 'sikartap_') => 'Sikartap',
             default => 'Lainnya',
         };
     }
@@ -130,6 +154,15 @@ enum NotificationTypeEnum: string
             self::COURSE_PUBLISHED => 'Dikirim ke Anda saat ada pelatihan LMS baru yang di-publish dan bisa Anda ikuti.',
             self::COURSE_ENROLLMENT_APPROVED => 'Dikirim ke Anda saat pendaftaran Anda ke sebuah pelatihan disetujui approver.',
             self::COURSE_PARTICIPANT_ENROLLED => 'Dikirim ke Anda saat admin menambahkan Anda sebagai peserta pelatihan yang baru dipublish.',
+            self::SIKARTAP_DOCUMENT_REJECTED => 'Dikirim saat HRD menolak salah satu dokumen administratif pengajuan karyawan tetap Anda, beserta catatan alasannya.',
+            self::SIKARTAP_BERKAS_STATUS_CHANGED => 'Dikirim saat HRD menyetujui atau menolak keseluruhan berkas administratif pengajuan karyawan tetap Anda.',
+            self::SIKARTAP_JADWAL_TES => 'Dikirim saat HRD menetapkan jadwal tes bidang/psikotes Anda.',
+            self::SIKARTAP_HASIL_TES => 'Dikirim saat hasil tes bidang/psikotes Anda diinput HRD.',
+            self::SIKARTAP_JADWAL_WAWANCARA => 'Dikirim saat HRD menetapkan jadwal wawancara Anda.',
+            self::SIKARTAP_HASIL_WAWANCARA => 'Dikirim saat hasil wawancara Anda diinput HRD.',
+            self::SIKARTAP_HASIL_MCU => 'Dikirim saat keputusan hasil MCU (fit/unfit) Anda diinput HRD.',
+            self::SIKARTAP_IDE_INOVASI_DIREVIEW => 'Dikirim saat ide inovasi Anda dinilai atasan, direktur, atau komisaris.',
+            self::SIKARTAP_KEPUTUSAN_DIREKTUR => 'Dikirim saat Direktur memutuskan pengajuan karyawan tetap Anda (lulus/tidak lulus).',
         };
     }
 }

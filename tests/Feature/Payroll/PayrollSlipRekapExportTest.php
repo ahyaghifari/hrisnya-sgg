@@ -58,6 +58,7 @@ class PayrollSlipRekapExportTest extends TestCase
 
         $period = new PayrollPeriod;
         $period->start_date = now();
+        $period->end_date = now();
         $period->payment_date = now();
 
         $payroll = new Payroll;

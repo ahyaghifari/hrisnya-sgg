@@ -42,8 +42,10 @@ trait GroupsPayrollsByDivision
     }
 
     /**
-     * Urutan dalam 1 divisi: pangkat paling tinggi dulu (Pangkats::level), lalu bulan kerja
-     * paling lama, baru nama - karyawan tanpa pangkat/tanggal masuk ditaruh paling belakang.
+     * Urutan dalam 1 divisi: pangkat paling tinggi dulu (Pangkats::level), lalu kelas paling
+     * tinggi (Kelas::level), lalu tanggal masuk paling lama, baru nama sebagai tie-breaker
+     * terakhir - karyawan tanpa pangkat/kelas/tanggal masuk ditaruh paling belakang di
+     * kriteria masing-masing (2026-08-26, instruksi user - sebelumnya bulan kerja).
      *
      * @param Collection<int, Payroll> $payrolls
      */
@@ -55,9 +57,16 @@ trait GroupsPayrollsByDivision
                 return $levelCompare;
             }
 
-            $tenureCompare = ($this->bulanKerja($b) ?? -INF) <=> ($this->bulanKerja($a) ?? -INF);
-            if ($tenureCompare !== 0) {
-                return $tenureCompare;
+            $kelasCompare = ($this->kelasLevel($b) ?? -INF) <=> ($this->kelasLevel($a) ?? -INF);
+            if ($kelasCompare !== 0) {
+                return $kelasCompare;
+            }
+
+            // Ascending (paling lama/senior dulu) - tanpa tanggal masuk ditaruh paling
+            // belakang, jadi diperlakukan sebagai +INF di sisi kanan spaceship.
+            $joiningCompare = ($this->joiningTimestamp($a) ?? INF) <=> ($this->joiningTimestamp($b) ?? INF);
+            if ($joiningCompare !== 0) {
+                return $joiningCompare;
             }
 
             return strcmp((string) $a->user?->name, (string) $b->user?->name);
@@ -69,11 +78,33 @@ trait GroupsPayrollsByDivision
         return $payroll->user?->profile?->pangkat?->level;
     }
 
-    /** Digenapkan ke bulan penuh (floor, bukan desimal). */
-    private function bulanKerja(Payroll $payroll): ?int
+    private function kelasLevel(Payroll $payroll): ?int
+    {
+        return $payroll->user?->profile?->kelas?->level;
+    }
+
+    private function joiningTimestamp(Payroll $payroll): ?int
     {
         $joiningDate = $payroll->user?->profile?->joining_date;
 
-        return $joiningDate ? (int) floor(Carbon::parse($joiningDate)->diffInMonths(now())) : null;
+        return $joiningDate ? Carbon::parse($joiningDate)->timestamp : null;
+    }
+
+    /**
+     * Digenapkan ke bulan penuh (floor, bukan desimal), dihitung sampai AKHIR PERIODE GAJI
+     * (bukan now()) - supaya hasilnya sama persis rumus Excel DATEDIF(Tanggal Masuk; Periode
+     * Gaji; "m") dan konsisten walau file dibuka/dibuat kapan saja (2026-08-26, instruksi
+     * user - sebelumnya pakai now(), salah kalau export dijalankan telat dari periodenya).
+     */
+    private function bulanKerja(Payroll $payroll): ?int
+    {
+        $joiningDate = $payroll->user?->profile?->joining_date;
+        $periodEnd = $payroll->payrollPeriod?->end_date;
+
+        if (! $joiningDate || ! $periodEnd) {
+            return null;
+        }
+
+        return (int) floor(Carbon::parse($joiningDate)->diffInMonths(Carbon::parse($periodEnd)));
     }
 }

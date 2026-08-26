@@ -38,20 +38,20 @@
         @php $statistik = $this->statistik; @endphp
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin-bottom:20px;">
             <div style="background:var(--surface);border-radius:16px;box-shadow:var(--shadow-card);padding:18px;">
-                <p style="font-size:11px;color:var(--text-muted);margin:0 0 6px;">Total Pengajuan</p>
-                <p style="font-size:24px;font-weight:800;color:var(--text-heading);margin:0;">{{ $statistik['total'] }}</p>
+                <p style="font-size:13.5px;color:var(--text-muted);margin:0 0 8px;">Total Pengajuan</p>
+                <p style="font-size:32px;font-weight:800;color:var(--text-heading);margin:0;">{{ $statistik['total'] }}</p>
             </div>
             <div style="background:var(--surface);border-radius:16px;box-shadow:var(--shadow-card);padding:18px;">
-                <p style="font-size:11px;color:var(--text-muted);margin:0 0 6px;">⏳ Pending</p>
-                <p style="font-size:24px;font-weight:800;color:#d97706;margin:0;">{{ $statistik['pending'] }}</p>
+                <p style="font-size:13.5px;color:var(--text-muted);margin:0 0 8px;">⏳ Pending</p>
+                <p style="font-size:32px;font-weight:800;color:#d97706;margin:0;">{{ $statistik['pending'] }}</p>
             </div>
             <div style="background:var(--surface);border-radius:16px;box-shadow:var(--shadow-card);padding:18px;">
-                <p style="font-size:11px;color:var(--text-muted);margin:0 0 6px;">✅ Disetujui</p>
-                <p style="font-size:24px;font-weight:800;color:#15803d;margin:0;">{{ $statistik['approved'] }}</p>
+                <p style="font-size:13.5px;color:var(--text-muted);margin:0 0 8px;">✅ Disetujui</p>
+                <p style="font-size:32px;font-weight:800;color:#15803d;margin:0;">{{ $statistik['approved'] }}</p>
             </div>
             <div style="background:var(--surface);border-radius:16px;box-shadow:var(--shadow-card);padding:18px;">
-                <p style="font-size:11px;color:var(--text-muted);margin:0 0 6px;">❌ Ditolak</p>
-                <p style="font-size:24px;font-weight:800;color:#dc2626;margin:0;">{{ $statistik['rejected'] }}</p>
+                <p style="font-size:13.5px;color:var(--text-muted);margin:0 0 8px;">❌ Ditolak</p>
+                <p style="font-size:32px;font-weight:800;color:#dc2626;margin:0;">{{ $statistik['rejected'] }}</p>
             </div>
         </div>
     @endif
@@ -78,24 +78,24 @@
             <p style="font-size:13px;font-weight:700;color:var(--text-heading);margin-bottom:14px;">📋 Antrian per Tahap</p>
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;">
                 <div style="text-align:center;padding:12px 8px;border-radius:12px;background:var(--surface-alt,rgba(0,0,0,.03));">
-                    <p style="font-size:20px;font-weight:800;color:var(--text-heading);margin:0;">{{ $antrian['tes'] }}</p>
-                    <p style="font-size:11px;color:var(--text-muted);margin:2px 0 0;">📝 Tes</p>
+                    <p style="font-size:26px;font-weight:800;color:var(--text-heading);margin:0;">{{ $antrian['tes'] }}</p>
+                    <p style="font-size:13px;color:var(--text-muted);margin:3px 0 0;">📝 Tes</p>
                 </div>
                 <div style="text-align:center;padding:12px 8px;border-radius:12px;background:var(--surface-alt,rgba(0,0,0,.03));">
-                    <p style="font-size:20px;font-weight:800;color:var(--text-heading);margin:0;">{{ $antrian['wawancara'] }}</p>
-                    <p style="font-size:11px;color:var(--text-muted);margin:2px 0 0;">🎤 Wawancara</p>
+                    <p style="font-size:26px;font-weight:800;color:var(--text-heading);margin:0;">{{ $antrian['wawancara'] }}</p>
+                    <p style="font-size:13px;color:var(--text-muted);margin:3px 0 0;">🎤 Wawancara</p>
                 </div>
                 <div style="text-align:center;padding:12px 8px;border-radius:12px;background:var(--surface-alt,rgba(0,0,0,.03));">
-                    <p style="font-size:20px;font-weight:800;color:var(--text-heading);margin:0;">{{ $antrian['ide_inovasi'] }}</p>
-                    <p style="font-size:11px;color:var(--text-muted);margin:2px 0 0;">💡 Ide Inovasi</p>
+                    <p style="font-size:26px;font-weight:800;color:var(--text-heading);margin:0;">{{ $antrian['ide_inovasi'] }}</p>
+                    <p style="font-size:13px;color:var(--text-muted);margin:3px 0 0;">💡 Ide Inovasi</p>
                 </div>
                 <div style="text-align:center;padding:12px 8px;border-radius:12px;background:var(--surface-alt,rgba(0,0,0,.03));">
-                    <p style="font-size:20px;font-weight:800;color:var(--text-heading);margin:0;">{{ $antrian['mcu'] }}</p>
-                    <p style="font-size:11px;color:var(--text-muted);margin:2px 0 0;">🏥 MCU</p>
+                    <p style="font-size:26px;font-weight:800;color:var(--text-heading);margin:0;">{{ $antrian['mcu'] }}</p>
+                    <p style="font-size:13px;color:var(--text-muted);margin:3px 0 0;">🏥 MCU</p>
                 </div>
                 <div style="text-align:center;padding:12px 8px;border-radius:12px;background:var(--surface-alt,rgba(0,0,0,.03));">
-                    <p style="font-size:20px;font-weight:800;color:var(--text-heading);margin:0;">{{ $antrian['keputusan_direktur'] }}</p>
-                    <p style="font-size:11px;color:var(--text-muted);margin:2px 0 0;">🏛️ Keputusan Direktur</p>
+                    <p style="font-size:26px;font-weight:800;color:var(--text-heading);margin:0;">{{ $antrian['keputusan_direktur'] }}</p>
+                    <p style="font-size:13px;color:var(--text-muted);margin:3px 0 0;">🏛️ Keputusan Direktur</p>
                 </div>
             </div>
         </div>

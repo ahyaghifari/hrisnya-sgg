@@ -5,6 +5,7 @@ namespace App\Services\Sikartap;
 use App\Enum\Approval\ApprovalModuleEnum;
 use App\Models\ApprovalManagement\ApprovalSnapshots;
 use App\Models\Sikartap\Sikartap;
+use App\Notifications\Sikartap\SikartapKeputusanDirekturFinal;
 use App\Repositories\Approval\ApprovalSnapshotRepository;
 use App\Services\Approval\ApprovalCreationService;
 use App\Services\Approval\ApprovalFlowService;
@@ -72,6 +73,13 @@ class SikartapDirectorDecisionService
             note: $note,
             action: 'approved',
         );
+
+        // Cuma notify pelamar kalau ini step FINAL (status_keputusan_direktur ke-sync jadi
+        // 'approved' oleh ApprovalFlowService::advanceStep()) - kalau masih ada approver
+        // berikutnya di flow, belum ada keputusan buat dikabari.
+        if ($sikartap->refresh()->status_keputusan_direktur === 'approved') {
+            $sikartap->user?->notify(new SikartapKeputusanDirekturFinal($sikartap->id, lulus: true));
+        }
     }
 
     public function reject(Sikartap $sikartap, string $note): void
@@ -82,5 +90,9 @@ class SikartapDirectorDecisionService
             note: $note,
             action: 'rejected',
         );
+
+        // Reject di step manapun langsung mengakhiri flow (lihat ApprovalFlowService), jadi
+        // selalu final - beda dari approve yang bisa masih lanjut ke step berikutnya.
+        $sikartap->user?->notify(new SikartapKeputusanDirekturFinal($sikartap->id, lulus: false));
     }
 }

@@ -6,6 +6,14 @@ use App\Enum\CustomPermissionEnum;
 use App\Enum\Sikartap\SikartapDocumentType;
 use App\Models\Sikartap\Sikartap;
 use App\Models\Sikartap\SikartapDocumentAttachment;
+use App\Notifications\Sikartap\SikartapBerkasStatusChanged;
+use App\Notifications\Sikartap\SikartapDocumentRejected;
+use App\Notifications\Sikartap\SikartapHasilMcu;
+use App\Notifications\Sikartap\SikartapHasilTes;
+use App\Notifications\Sikartap\SikartapHasilWawancara;
+use App\Notifications\Sikartap\SikartapIdeInovasiDireview;
+use App\Notifications\Sikartap\SikartapJadwalTesDitetapkan;
+use App\Notifications\Sikartap\SikartapJadwalWawancaraDitetapkan;
 use App\Services\Approval\ApprovalPermissionService;
 use App\Services\Approval\ApprovalTimelineService;
 use App\Services\Sikartap\SikartapDirectorDecisionService;
@@ -149,10 +157,15 @@ class PengajuanDetailPage extends Component
 
         $this->validate(['documentRejectNote' => ['required', 'string']]);
 
-        SikartapDocumentAttachment::where('id', $this->rejectingDocId)->update([
+        $document = SikartapDocumentAttachment::findOrFail($this->rejectingDocId);
+        $document->update([
             'status' => 'rejected',
             'catatan_penolakan' => $this->documentRejectNote,
         ]);
+
+        $this->sikartap->user?->notify(
+            new SikartapDocumentRejected($this->sikartap->id, $document->doc_type->getLabel(), $this->documentRejectNote)
+        );
 
         $this->rejectingDocId = null;
         $this->documentRejectNote = '';
@@ -174,6 +187,8 @@ class PengajuanDetailPage extends Component
 
         $this->sikartap->update(['status_berkas' => 'approved', 'berkas_lengkap' => true]);
 
+        $this->sikartap->user?->notify(new SikartapBerkasStatusChanged($this->sikartap->id, 'approved'));
+
         $this->refreshRecord();
 
         Notification::make()->title('Berkas disetujui, lanjut ke proses tes')->success()->send();
@@ -191,6 +206,8 @@ class PengajuanDetailPage extends Component
         ]);
 
         $this->sikartap->update(['status_berkas' => 'rejected']);
+
+        $this->sikartap->user?->notify(new SikartapBerkasStatusChanged($this->sikartap->id, 'rejected'));
 
         $this->closePanel();
         $this->refreshRecord();
@@ -212,6 +229,10 @@ class PengajuanDetailPage extends Component
 
         $this->sikartap->testSchedule()->updateOrCreate(['sikartap_id' => $this->sikartap->id], $this->testScheduleForm);
 
+        $this->sikartap->user?->notify(new SikartapJadwalTesDitetapkan(
+            $this->sikartap->id, $this->testScheduleForm['tanggal_tes'], $this->testScheduleForm['tempat_tes']
+        ));
+
         $this->closePanel();
         $this->refreshRecord();
 
@@ -229,6 +250,8 @@ class PengajuanDetailPage extends Component
         ]);
 
         $this->sikartap->update($this->testResultForm);
+
+        $this->sikartap->user?->notify(new SikartapHasilTes($this->sikartap->id, $this->testResultForm['status_tes']));
 
         $this->closePanel();
         $this->refreshRecord();
@@ -251,6 +274,10 @@ class PengajuanDetailPage extends Component
 
         $this->sikartap->interviewSchedule()->updateOrCreate(['sikartap_id' => $this->sikartap->id], $this->interviewScheduleForm);
 
+        $this->sikartap->user?->notify(new SikartapJadwalWawancaraDitetapkan(
+            $this->sikartap->id, $this->interviewScheduleForm['tanggal_wawancara'], $this->interviewScheduleForm['tempat_wawancara']
+        ));
+
         $this->closePanel();
         $this->refreshRecord();
 
@@ -266,6 +293,8 @@ class PengajuanDetailPage extends Component
         ]);
 
         $this->sikartap->update($this->interviewResultForm);
+
+        $this->sikartap->user?->notify(new SikartapHasilWawancara($this->sikartap->id, $this->interviewResultForm['status_wawancara']));
 
         $this->closePanel();
         $this->refreshRecord();
@@ -284,6 +313,8 @@ class PengajuanDetailPage extends Component
         ]);
 
         $this->sikartap->update($this->mcuDecisionForm);
+
+        $this->sikartap->user?->notify(new SikartapHasilMcu($this->sikartap->id, $this->mcuDecisionForm['status_mcu']));
 
         $this->closePanel();
         $this->refreshRecord();
@@ -360,6 +391,8 @@ class PengajuanDetailPage extends Component
             "reviewed_by_{$tier}" => Auth::id(),
             "reviewed_at_{$tier}" => now(),
         ]);
+
+        $this->sikartap->user?->notify(new SikartapIdeInovasiDireview($this->sikartap->id, $tier, $status, $this->ideInovasiNote ?: null));
 
         $this->closePanel();
         $this->refreshRecord();

@@ -4,6 +4,7 @@ namespace App\Livewire\Sikartap;
 
 use App\Models\Sikartap\Sikartap;
 use App\Models\Sikartap\SikartapIdeInovasi;
+use App\Notifications\Sikartap\SikartapIdeInovasiDireview;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
@@ -74,6 +75,10 @@ class IdeInovasiAtasanReviewPage extends Component
             'reviewed_by_atasan' => Auth::id(),
             'reviewed_at_atasan' => now(),
         ]);
+
+        $sikartap->user?->notify(new SikartapIdeInovasiDireview(
+            $sikartap->id, 'atasan', $lulus ? 'approved' : 'rejected', $this->catatan ?: null
+        ));
 
         Notification::make()
             ->title($lulus ? 'Ide inovasi disetujui' : 'Ide inovasi ditolak — nilai di bawah ambang')
