@@ -3,6 +3,7 @@
     $canViewPayrollPeriod = auth()->user()->can('ViewAny:PayrollPeriod');
     $canViewPayroll = auth()->user()->can('ViewAny:Payroll');
     $canViewPajak = auth()->user()->can(\App\Enum\CustomPermissionEnum::LIHAT_PAJAK->value);
+    $canViewDataRekening = auth()->user()->can(\App\Enum\CustomPermissionEnum::LIHAT_DATA_REKENING->value);
     $canViewOmset = auth()->user()->can(\App\Enum\CustomPermissionEnum::LIHAT_OMSET->value);
     $canViewInputJasaUnit = auth()->user()->can(\App\Enum\CustomPermissionEnum::LIHAT_INPUT_JASA_UNIT->value);
     $canViewIncentive = auth()->user()->can('ViewAny:Incentive');
@@ -35,6 +36,12 @@
     <a href="{{ route('keuangan.pajak') }}" wire:navigate class="pwa-menu-grid-item">
         <span class="pwa-menu-grid-icon indigo"><i class="fa-solid fa-percent"></i></span>
         <span class="pwa-menu-grid-label">Pajak (%)</span>
+    </a>
+@endif
+@if ($canViewDataRekening)
+    <a href="{{ route('keuangan.data-rekening') }}" wire:navigate class="pwa-menu-grid-item">
+        <span class="pwa-menu-grid-icon indigo"><i class="fa-solid fa-building-columns"></i></span>
+        <span class="pwa-menu-grid-label">Data Rekening</span>
     </a>
 @endif
 @if ($canViewOmset)

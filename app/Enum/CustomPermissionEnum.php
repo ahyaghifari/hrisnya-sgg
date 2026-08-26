@@ -88,6 +88,13 @@ enum CustomPermissionEnum: string
      * bisa buka halaman Payroll penuh, sama pola LIHAT_OMSET/LIHAT_KOMPONEN_GAJI. */
     case LIHAT_PAJAK = 'lihat_pajak';
 
+    /** Gerbang halaman portal "Data Rekening" (`/keuangan/data-rekening`, kelola bank_name/
+     * bank_account_number/bank_account_name di UserProfiles) - dipisah dari Update:User (2026-08-26)
+     * supaya finance/payroll bisa diberi akses ubah rekening TANPA otomatis bisa edit seluruh
+     * data karyawan lain (jabatan/kontrak/dst), sama pola LIHAT_PAJAK/EDIT_KOMPONEN_GAJI. */
+    case LIHAT_DATA_REKENING = 'lihat_data_rekening';
+    case EDIT_DATA_REKENING = 'edit_data_rekening';
+
     /** Halaman Omset (`/keuangan/omset`, rincian omset per kategori per periode gaji, dijumlah
      * jadi Total Omset dipakai JasaPelayananCalculator) — model-nya (OmsetDetail/OmsetCategory)
      * tidak punya Filament Resource/Policy sendiri, jadi 2 permission manual: LIHAT_OMSET
@@ -305,6 +312,8 @@ enum CustomPermissionEnum: string
             self::LIHAT_PENERIMA_KOMPONEN_GAJI => 'Lihat Penerima Komponen Gaji',
             self::LIHAT_MAPPING_KOMPONEN_GAJI => 'Lihat Mapping Komponen Gaji',
             self::LIHAT_PAJAK => 'Lihat Pajak (%)',
+            self::LIHAT_DATA_REKENING => 'Lihat Data Rekening',
+            self::EDIT_DATA_REKENING => 'Edit Data Rekening',
             self::LIHAT_OMSET => 'Lihat Omset',
             self::KELOLA_OMSET => 'Kelola Omset',
             self::LIHAT_INPUT_JASA_UNIT => 'Lihat Input Jasa Unit',

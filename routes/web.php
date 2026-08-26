@@ -302,6 +302,9 @@ Route::middleware(['auth', 'portal.access'])->group(function () {
     Route::get('/keuangan/pajak', PajakPage::class)
         ->name('keuangan.pajak');
 
+    Route::get('/keuangan/data-rekening', \App\Livewire\Keuangan\DataRekeningPage::class)
+        ->name('keuangan.data-rekening');
+
     Route::get('/keuangan/payroll/{payroll}', PayrollDetailPage::class)
         ->name('keuangan.payroll.show');
 

@@ -46,6 +46,8 @@ class RoleForm
                 CustomPermissionEnum::LIHAT_PENERIMA_KOMPONEN_GAJI->value,
                 CustomPermissionEnum::LIHAT_MAPPING_KOMPONEN_GAJI->value,
                 CustomPermissionEnum::LIHAT_PAJAK->value,
+                CustomPermissionEnum::LIHAT_DATA_REKENING->value,
+                CustomPermissionEnum::EDIT_DATA_REKENING->value,
                 CustomPermissionEnum::LIHAT_OMSET->value,
                 CustomPermissionEnum::KELOLA_OMSET->value,
                 CustomPermissionEnum::LIHAT_INPUT_JASA_UNIT->value,
