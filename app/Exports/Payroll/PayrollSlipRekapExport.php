@@ -62,6 +62,11 @@ class PayrollSlipRekapExport extends DefaultValueBinder implements FromCollectio
 
     private const CURRENCY_FORMAT = '"Rp" #,##0';
 
+    /** Kolom JUMLAH (hitungan hari/kejadian, bukan uang) - eksplisit angka polos, bukan
+     * biarin "General" (yang bisa kebawa gaya accounting/currency dari style default kalau
+     * dibuka di Excel, laporan user 2026-08-26). */
+    private const PLAIN_NUMBER_FORMAT = '0';
+
     /** Warna highlight per label header, niru persis referensi finance (knowledge/gaji-juni.xlsx)
      * - kolom yang tidak disebut di sini header-nya putih polos (tidak diberi fill), sama seperti
      * mayoritas kolom di file itu. */
@@ -326,12 +331,14 @@ class PayrollSlipRekapExport extends DefaultValueBinder implements FromCollectio
 
             ['component' => PayrollComponentEnum::BPJS_KESEHATAN, 'label' => 'POTONGAN BPJS 1%', 'format' => self::CURRENCY_FORMAT, 'forceText' => false, 'editable' => true, 'get' => fn ($payroll) => $amountFor($payroll, PayrollComponentEnum::BPJS_KESEHATAN)],
             ['component' => PayrollComponentEnum::BPJS_KETENAGAKERJAAN, 'label' => 'POTONGAN BPJSTK (JHT 2%)', 'format' => self::CURRENCY_FORMAT, 'forceText' => false, 'editable' => true, 'get' => fn ($payroll) => $amountFor($payroll, PayrollComponentEnum::BPJS_KETENAGAKERJAAN)],
-            ['component' => PayrollComponentEnum::KETERLAMBATAN, 'label' => 'JUMLAH TELAT > 5 MENIT/BULAN', 'format' => null, 'forceText' => false, 'editable' => false, 'get' => fn ($payroll) => $quantityFor($payroll, PayrollComponentEnum::KETERLAMBATAN)],
+            ['component' => PayrollComponentEnum::KETERLAMBATAN, 'label' => 'JUMLAH TELAT > 5 MENIT/BULAN', 'format' => self::PLAIN_NUMBER_FORMAT, 'forceText' => false, 'editable' => false, 'get' => fn ($payroll) => $quantityFor($payroll, PayrollComponentEnum::KETERLAMBATAN)],
             ['component' => PayrollComponentEnum::KETERLAMBATAN, 'label' => 'POTONGAN TELAT >5 MENIT', 'format' => self::CURRENCY_FORMAT, 'forceText' => false, 'editable' => true, 'get' => fn ($payroll) => $amountFor($payroll, PayrollComponentEnum::KETERLAMBATAN)],
-            ['component' => PayrollComponentEnum::IZIN_TERLAMBAT_PULANG_CEPAT, 'label' => 'JUMLAH IZIN TERLAMBAT MASUK ATAU PULANG CEPAT', 'format' => null, 'forceText' => false, 'editable' => false, 'get' => fn ($payroll) => $quantityFor($payroll, PayrollComponentEnum::IZIN_TERLAMBAT_PULANG_CEPAT)],
+            ['component' => PayrollComponentEnum::IZIN_TERLAMBAT_PULANG_CEPAT, 'label' => 'JUMLAH IZIN TERLAMBAT MASUK ATAU PULANG CEPAT', 'format' => self::PLAIN_NUMBER_FORMAT, 'forceText' => false, 'editable' => false, 'get' => fn ($payroll) => $quantityFor($payroll, PayrollComponentEnum::IZIN_TERLAMBAT_PULANG_CEPAT)],
             ['component' => PayrollComponentEnum::IZIN_TERLAMBAT_PULANG_CEPAT, 'label' => 'POTONGAN IZIN TERLAMBAT MASUK ATAU PULANG CEPAT', 'format' => self::CURRENCY_FORMAT, 'forceText' => false, 'editable' => true, 'get' => fn ($payroll) => $amountFor($payroll, PayrollComponentEnum::IZIN_TERLAMBAT_PULANG_CEPAT)],
-            ['component' => PayrollComponentEnum::CUTI, 'label' => 'JUMLAH CUTI', 'format' => null, 'forceText' => false, 'editable' => false, 'get' => fn ($payroll) => $quantityFor($payroll, PayrollComponentEnum::CUTI)],
+            ['component' => PayrollComponentEnum::CUTI, 'label' => 'JUMLAH CUTI', 'format' => self::PLAIN_NUMBER_FORMAT, 'forceText' => false, 'editable' => false, 'get' => fn ($payroll) => $quantityFor($payroll, PayrollComponentEnum::CUTI)],
             ['component' => PayrollComponentEnum::CUTI, 'label' => 'POTONGAN CUTI/HARI', 'format' => self::CURRENCY_FORMAT, 'forceText' => false, 'editable' => true, 'get' => fn ($payroll) => $amountFor($payroll, PayrollComponentEnum::CUTI)],
+            // General (bukan PLAIN_NUMBER_FORMAT '0') - izin seharian bisa pecahan (0.5 hari
+            // buat setengah hari), format '0' bikin nilainya kelihatan dibulatkan (2026-08-26).
             ['component' => PayrollComponentEnum::IZIN_SEHARIAN, 'label' => 'JUMLAH IZIN SEHARIAN', 'format' => null, 'forceText' => false, 'editable' => false, 'get' => fn ($payroll) => $quantityFor($payroll, PayrollComponentEnum::IZIN_SEHARIAN)],
             ['component' => PayrollComponentEnum::IZIN_SEHARIAN, 'label' => 'POTONGAN IZIN/HARI', 'format' => self::CURRENCY_FORMAT, 'forceText' => false, 'editable' => true, 'get' => fn ($payroll) => $amountFor($payroll, PayrollComponentEnum::IZIN_SEHARIAN)],
             ['component' => PayrollComponentEnum::KOPERASI, 'label' => 'POTONGAN KOPERASI', 'format' => self::CURRENCY_FORMAT, 'forceText' => false, 'editable' => true, 'get' => fn ($payroll) => $amountFor($payroll, PayrollComponentEnum::KOPERASI)],
