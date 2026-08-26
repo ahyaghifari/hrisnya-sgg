@@ -5,30 +5,37 @@ namespace App\Exports\Payroll;
 use App\Enum\Payroll\PayrollComponentEnum;
 use App\Exports\Payroll\Concerns\GroupsPayrollsByDivision;
 use App\Models\Payroll\Payroll;
-use App\Services\Payroll\GajiPokokBreakdownResolver;
 use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\FromCollection;
+use Maatwebsite\Excel\Concerns\WithCustomValueBinder;
 use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithStyles;
 use Maatwebsite\Excel\Events\AfterSheet;
+use PhpOffice\PhpSpreadsheet\Cell\Cell;
+use PhpOffice\PhpSpreadsheet\Cell\DataType;
+use PhpOffice\PhpSpreadsheet\Cell\DefaultValueBinder;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
 /**
- * Halaman Pajak (%) — potongan 3 kolom Gaji Pokok dari PayrollSlipRekapExport (Gaji Dasar, %
- * Kenaikan, Gaji Pokok final), TANPA seluruh kolom komponen lain - finance cuma butuh basis
- * perhitungan PPh21, bukan rekap gaji lengkap. Grouping per DIVISI + fallback Presiden
- * Direktur/Manajemen SAMA PERSIS PayrollSlipRekapExport (GroupsPayrollsByDivision, 2026-08-22
- * instruksi user: "disesuaikan seperti payroll rekap export"), font/style juga ikut (Times New
- * Roman 11) biar konsisten satu modul.
+ * Halaman Pajak (%) — kolom identitas + Gaji Pokok final buat basis perhitungan PPh21
+ * (2026-08-26, instruksi user: NAMA/JABATAN/STATUS KARYAWAN/GAJI POKOK/NIK/STATUS PERKAWINAN
+ * - sebelumnya breakdown Gaji Dasar/% Kenaikan/Kelas/Pangkat, sekarang dilepas karena finance
+ * cuma butuh angka final + identitas pajak). Grouping per DIVISI + fallback Presiden
+ * Direktur/Manajemen SAMA PERSIS PayrollSlipRekapExport (GroupsPayrollsByDivision), font/style
+ * juga ikut (Times New Roman 11) biar konsisten satu modul.
  */
-class PajakGajiPokokExport implements FromCollection, WithHeadings, WithStyles, WithEvents
+class PajakGajiPokokExport extends DefaultValueBinder implements FromCollection, WithHeadings, WithStyles, WithCustomValueBinder, WithEvents
 {
     use GroupsPayrollsByDivision;
 
     private const CURRENCY_FORMAT = '"Rp" #,##0';
+
+    /** Kolom NIK (F) dipaksa TYPE_STRING biar nol di depan gak ilang - sama alasan
+     * WithCustomValueBinder di PayrollSlipRekapExport. */
+    private const FORCE_TEXT_COLUMNS = ['F'];
 
     /** Baris (1-based, sudah termasuk offset heading) yang berisi judul divisi - buat styling di registerEvents(). */
     private array $groupHeaderRows = [];
@@ -42,17 +49,16 @@ class PajakGajiPokokExport implements FromCollection, WithHeadings, WithStyles, 
 
         $rows = collect();
         $rowNumber = 1; // baris 1 = heading, data mulai baris 2
-        $breakdownCache = [];
 
         foreach ($grouped as $divisionName => $payrolls) {
             $rowNumber++;
             $this->groupHeaderRows[] = $rowNumber;
-            $rows->push(['', $divisionName, '', '', '', '', '', '']);
+            $rows->push(['', $divisionName, '', '', '', '', '']);
 
             $no = 1; // reset per divisi, sama pola PayrollSlipRekapExport.
             foreach ($this->sortWithinDivision($payrolls) as $payroll) {
                 $rowNumber++;
-                $rows->push($this->payrollRow($payroll, $no, $breakdownCache));
+                $rows->push($this->payrollRow($payroll, $no));
                 $no++;
             }
         }
@@ -60,10 +66,8 @@ class PajakGajiPokokExport implements FromCollection, WithHeadings, WithStyles, 
         return $rows;
     }
 
-    private function payrollRow(Payroll $payroll, int $no, array &$breakdownCache): array
+    private function payrollRow(Payroll $payroll, int $no): array
     {
-        [$base, $percent] = $breakdownCache[$payroll->id] ??= GajiPokokBreakdownResolver::resolve($payroll);
-
         $gajiPokokItem = $payroll->items->firstWhere('source_type', PayrollComponentEnum::GAJI_POKOK->value);
         $profile = $payroll->user?->profile;
 
@@ -71,17 +75,31 @@ class PajakGajiPokokExport implements FromCollection, WithHeadings, WithStyles, 
             $no,
             $payroll->user?->name,
             $profile?->jobPosition?->name,
-            $profile?->kelas?->name,
-            $profile?->pangkat?->name,
-            $base,
-            $percent !== null ? rtrim(rtrim(number_format($percent, 2, ',', ''), '0'), ',') . '%' : null,
+            $profile?->employeeType?->name,
             (float) ($gajiPokokItem?->amount ?? 0),
+            $profile?->no_nik,
+            $profile?->marital_status,
         ];
     }
 
     public function headings(): array
     {
-        return ['NO', 'NAMA', 'JABATAN', 'KELAS', 'PANGKAT', 'Gaji Dasar', '% Kenaikan', 'Gaji Pokok'];
+        return ['NO', 'NAMA', 'JABATAN', 'STATUS KARYAWAN', 'GAJI POKOK', 'NIK', 'STATUS PERKAWINAN'];
+    }
+
+    /** Sama alasan PayrollSlipRekapExport::bindValue() - NIK yang keliatan numerik (mis.
+     * "00123") kehilangan nol di depan kalau cuma diformat '@' SETELAH ditulis sebagai angka. */
+    public function bindValue(Cell $cell, $value)
+    {
+        $column = $cell->getColumn();
+
+        if (in_array($column, self::FORCE_TEXT_COLUMNS, true) && $value !== null && $value !== '') {
+            $cell->setValueExplicit((string) $value, DataType::TYPE_STRING);
+
+            return true;
+        }
+
+        return parent::bindValue($cell, $value);
     }
 
     public function styles(Worksheet $sheet)
@@ -103,21 +121,14 @@ class PajakGajiPokokExport implements FromCollection, WithHeadings, WithStyles, 
                 $sheet = $event->sheet->getDelegate();
                 $lastRow = $sheet->getHighestRow();
 
-                foreach (['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'] as $letter) {
-                    // PANGKAT (E) nama kadang panjang - dilebarkan & wrap, sama pola PayrollSlipRekapExport.
-                    if ($letter === 'E') {
-                        $sheet->getColumnDimension($letter)->setAutoSize(false)->setWidth(24);
-                        $sheet->getStyle("{$letter}2:{$letter}{$lastRow}")->getAlignment()->setWrapText(true);
-                    } else {
-                        $sheet->getColumnDimension($letter)->setAutoSize(true);
-                    }
+                foreach (['A', 'B', 'C', 'D', 'E', 'F', 'G'] as $letter) {
+                    $sheet->getColumnDimension($letter)->setAutoSize(true);
                 }
 
-                $sheet->getStyle('F2:F' . $lastRow)->getNumberFormat()->setFormatCode(self::CURRENCY_FORMAT);
-                $sheet->getStyle('H2:H' . $lastRow)->getNumberFormat()->setFormatCode(self::CURRENCY_FORMAT);
+                $sheet->getStyle('E2:E' . $lastRow)->getNumberFormat()->setFormatCode(self::CURRENCY_FORMAT);
 
                 foreach ($this->groupHeaderRows as $rowNumber) {
-                    $sheet->getStyle("A{$rowNumber}:H{$rowNumber}")->applyFromArray([
+                    $sheet->getStyle("A{$rowNumber}:G{$rowNumber}")->applyFromArray([
                         'font' => ['bold' => true],
                         'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'E5E7EB']],
                     ]);
