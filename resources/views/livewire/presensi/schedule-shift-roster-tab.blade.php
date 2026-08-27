@@ -65,11 +65,11 @@
     </div>
 
     {{-- Keterangan warna kode shift — sama kayak tab Template Shift, biar konsisten. --}}
-    <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-bottom:10px;font-size:10.5px;color:var(--text-muted);">
+    <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-bottom:10px;font-size:13px;color:var(--text-muted);">
         <span style="font-weight:700;color:var(--text-heading);">Keterangan:</span>
         @foreach ($schedule->shiftTypes as $shiftType)
             <span style="display:inline-flex;align-items:center;gap:5px;">
-                <span style="width:9px;height:9px;border-radius:50%;background:{{ $shiftType->color ?: 'var(--text-faint)' }};flex-shrink:0;"></span>
+                <span style="width:11px;height:11px;border-radius:50%;background:{{ $shiftType->color ?: 'var(--text-faint)' }};flex-shrink:0;"></span>
                 <strong>{{ $shiftType->code }}</strong> = {{ $shiftType->name }}
             </span>
         @endforeach

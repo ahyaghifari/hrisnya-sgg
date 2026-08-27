@@ -3,6 +3,8 @@
 namespace App\Services\Shift;
 
 use App\Enum\Approval\ApprovalModuleEnum;
+use App\Enum\Attendance\AttendanceSettingEnum;
+use App\Models\Setting;
 use App\Models\Shift\ExtraShiftAssignment;
 use App\Models\Shift\ExtraShiftRule;
 use App\Models\Shift\ScheduleShiftAssignment;
@@ -35,6 +37,8 @@ class ShiftSwapRequestService
         $mode    = $data['swap_mode'] ?? 'schedule';
 
         $reqSchedule = ScheduleShiftAssignment::with('shiftType')->findOrFail($data['req_schedule_id']);
+
+        $this->assertWithinSettingLimits($data, $reqSchedule, $user);
 
         if ($mode === 'off_day') {
             return $this->storeOffDay($data, $reqSchedule, $user);
@@ -100,6 +104,51 @@ class ShiftSwapRequestService
 
             return $swapRequest;
         });
+    }
+
+    /** Batas dari Pengaturan Absensi (company-scoped, 0 = nonaktif):
+     * - TUKAR_SHIFT_MIN_LEAD_DAYS: jarak minimal hari antara hari ini dan tanggal shift paling
+     *   awal yang terlibat.
+     * - TUKAR_SHIFT_MAX_PER_BULAN: jumlah pengajuan aktif/disetujui milik requester dalam bulan
+     *   kalender yang sama dengan req_date (sejalan aturan "tukar hanya dalam bulan yang sama"). */
+    private function assertWithinSettingLimits(array $data, ScheduleShiftAssignment $reqSchedule, $user): void
+    {
+        $companyId = $user->company_id;
+
+        $minLead = (int) Setting::resolve(AttendanceSettingEnum::TUKAR_SHIFT_MIN_LEAD_DAYS->value, $companyId, 0);
+        if ($minLead > 0) {
+            $earliest = $reqSchedule->date;
+            if (! empty($data['target_schedule_id'])) {
+                $targetDate = ScheduleShiftAssignment::whereKey($data['target_schedule_id'])->value('date');
+                if ($targetDate && $targetDate->lt($earliest)) {
+                    $earliest = $targetDate;
+                }
+            }
+
+            if ($earliest->lt(today()->addDays($minLead))) {
+                throw new \InvalidArgumentException(
+                    "Pengajuan tukar shift harus dibuat minimal {$minLead} hari sebelum tanggal shift."
+                );
+            }
+        }
+
+        $max = (int) Setting::resolve(AttendanceSettingEnum::TUKAR_SHIFT_MAX_PER_BULAN->value, $companyId, 0);
+        if ($max > 0) {
+            $used = ShiftSwapRequests::where('requester_id', $user->id)
+                ->whereIn('status', ['in_review', 'approved'])
+                ->whereBetween('req_date', [
+                    $reqSchedule->date->copy()->startOfMonth(),
+                    $reqSchedule->date->copy()->endOfMonth(),
+                ])
+                ->count();
+
+            if ($used >= $max) {
+                throw new \InvalidArgumentException(
+                    "Anda sudah mencapai batas maksimal {$max} pengajuan tukar shift untuk bulan " .
+                    $reqSchedule->date->translatedFormat('F Y') . '.'
+                );
+            }
+        }
     }
 
     private function validateScheduleSwapRules(

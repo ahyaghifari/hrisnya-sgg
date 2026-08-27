@@ -135,6 +135,74 @@ class ShiftSwapRequestServiceTest extends TestCase
         );
     }
 
+    private function setAttendanceSetting(string $key, string $value): void
+    {
+        $case = \App\Enum\Attendance\AttendanceSettingEnum::from($key);
+
+        \App\Models\Setting::create([
+            'company_id' => $this->company->id,
+            'module' => 'attendance',
+            'key' => $key,
+            'type' => 'integer',
+            'value' => $value,
+            'label' => $case->label(),
+            'description' => $case->helperText(),
+        ]);
+    }
+
+    public function test_min_lead_days_setting_blocks_requests_that_are_too_soon(): void
+    {
+        $this->setAttendanceSetting(\App\Enum\Attendance\AttendanceSettingEnum::TUKAR_SHIFT_MIN_LEAD_DAYS->value, '3');
+
+        $perawatA = User::factory()->create(['company_id' => $this->company->id]);
+        $perawatB = User::factory()->create(['company_id' => $this->company->id]);
+
+        $tooSoon = now()->addDay()->toDateString();
+        $scheduleA = $this->assignShift($perawatA, $this->pagi, $tooSoon);
+        $scheduleB = $this->assignShift($perawatB, $this->siang, $tooSoon);
+
+        Auth::login($perawatA);
+        $this->expectException(\InvalidArgumentException::class);
+
+        app(ShiftSwapRequestService::class)->store([
+            'swap_mode' => 'schedule',
+            'req_schedule_id' => $scheduleA->id,
+            'target_schedule_id' => $scheduleB->id,
+        ]);
+    }
+
+    public function test_max_per_bulan_setting_blocks_when_quota_reached(): void
+    {
+        $this->setAttendanceSetting(\App\Enum\Attendance\AttendanceSettingEnum::TUKAR_SHIFT_MAX_PER_BULAN->value, '1');
+
+        $perawatA = User::factory()->create(['company_id' => $this->company->id]);
+        $perawatB = User::factory()->create(['company_id' => $this->company->id]);
+
+        $date = now()->addDays(10)->toDateString();
+        $scheduleA = $this->assignShift($perawatA, $this->pagi, $date);
+        $scheduleB = $this->assignShift($perawatB, $this->siang, $date);
+
+        ShiftSwapRequests::create([
+            'company_id' => $this->company->id,
+            'requester_id' => $perawatA->id,
+            'target_id' => $perawatB->id,
+            'req_schedule_id' => $scheduleA->id,
+            'target_schedule_id' => $scheduleB->id,
+            'req_date' => $date,
+            'target_date' => $date,
+            'status' => 'in_review',
+        ]);
+
+        Auth::login($perawatA);
+        $this->expectException(\InvalidArgumentException::class);
+
+        app(ShiftSwapRequestService::class)->store([
+            'swap_mode' => 'schedule',
+            'req_schedule_id' => $scheduleA->id,
+            'target_schedule_id' => $scheduleB->id,
+        ]);
+    }
+
     public function test_same_date_swap_exchanges_shift_type_after_approval(): void
     {
         $perawatA = User::factory()->create(['company_id' => $this->company->id]);
