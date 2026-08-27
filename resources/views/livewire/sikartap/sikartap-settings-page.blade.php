@@ -52,49 +52,38 @@
                 @if (($values[\App\Enum\Sikartap\SikartapSettingEnum::WAJIB_IDE_INOVASI->value] ?? '0') == '1')
                     <div style="background:var(--surface);border-radius:16px;box-shadow:var(--shadow-card);padding:18px;margin-top:20px;">
                         <p style="font-size:13px;font-weight:600;color:var(--text-heading);margin:0 0 4px;">Reviewer Atasan Ide Inovasi</p>
-                        <p style="font-size:11px;color:var(--text-muted);margin:0 0 14px;">Tunjuk siapa yang berhak menilai ide inovasi (tahap 1, wajib) per Divisi (Kabag/Kabid) org struktur. Kalau divisi itu punya "Kepala" resmi di org struktur, dia otomatis bisa menilai juga tanpa perlu ditunjuk di sini.</p>
+                        <p style="font-size:11px;color:var(--text-muted);margin:0 0 14px;">Tunjuk 1 reviewer per Departemen — berlaku ke semua karyawan di bawah departemen itu. Semua Departemen wajib terisi sebelum bisa disimpan.</p>
 
-                        @forelse ($this->orgDivisions as $divisi)
-                            <div style="padding:10px 0;{{ ! $loop->last ? 'border-bottom:1px solid var(--border-soft);' : '' }}">
-                                <p style="font-size:12.5px;font-weight:600;color:var(--text-body);margin:0 0 6px;">
-                                    {{ $divisi->name }}
-                                    @if ($divisi->parent)
-                                        <span style="font-weight:400;color:var(--text-faint);">&middot; {{ $divisi->parent->name }}</span>
-                                    @endif
+                        @forelse ($this->orgDepartments as $departemen)
+                            <div style="padding:10px 0;{{ ! $loop->last ? 'border-bottom:1px solid var(--border-soft);' : '' }}display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+                                <p style="font-size:12.5px;font-weight:600;color:var(--text-body);margin:0;min-width:160px;">
+                                    {{ $departemen->name }}
                                 </p>
-                                <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;">
-                                    @forelse ($this->reviewerAssignments->get($divisi->id, collect()) as $assignment)
-                                        <span class="badge badge-approved" style="display:inline-flex;align-items:center;gap:6px;">
-                                            {{ $assignment->user->name }}
-                                            @if ($this->canEditSettings)
-                                                <button type="button" wire:click="removeReviewer('{{ $assignment->id }}')" wire:confirm="Hapus reviewer ini?" style="background:none;border:none;cursor:pointer;color:inherit;padding:0;font-size:11px;">
-                                                    <i class="fa-solid fa-xmark"></i>
-                                                </button>
-                                            @endif
-                                        </span>
-                                    @empty
-                                        <span style="font-size:11.5px;color:var(--text-faint);">Belum ada reviewer ditunjuk.</span>
-                                    @endforelse
-                                </div>
 
                                 @if ($this->canEditSettings)
-                                    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-                                        <select wire:model="newReviewerUserId" class="form-input" style="max-width:220px;">
-                                            <option value="">-- Pilih user --</option>
+                                    <div wire:ignore wire:key="reviewer-select-{{ $companyId }}-{{ $departemen->id }}" style="min-width:220px;">
+                                        <select data-tom-select data-placeholder="-- Pilih reviewer --" wire:model="reviewerUserIds.{{ $departemen->id }}">
+                                            <option value="">-- Pilih reviewer --</option>
                                             @foreach ($this->companyUsers as $companyUser)
                                                 <option value="{{ $companyUser->id }}">{{ $companyUser->name }}</option>
                                             @endforeach
                                         </select>
-                                        <button type="button" wire:click="$set('newReviewerOrgId', '{{ $divisi->id }}'); addReviewer()" class="btn-ghost" style="padding:6px 12px;font-size:11.5px;">
-                                            <i class="fa-solid fa-plus"></i> Tambah
-                                        </button>
                                     </div>
-                                    @error('newReviewerUserId') <p style="color:var(--danger-text);font-size:11.5px;margin-top:4px;">{{ $message }}</p> @enderror
+                                @else
+                                    <span style="font-size:12px;color:var(--text-muted);">
+                                        {{ $this->companyUsers->firstWhere('id', $reviewerUserIds[$departemen->id] ?? null)?->name ?? 'Belum ditunjuk' }}
+                                    </span>
                                 @endif
                             </div>
                         @empty
-                            <p style="font-size:12px;color:var(--text-muted);">Belum ada Divisi (level 2) di org struktur perusahaan ini.</p>
+                            <p style="font-size:12px;color:var(--text-muted);">Belum ada Departemen di org struktur perusahaan ini.</p>
                         @endforelse
+
+                        @if ($this->canEditSettings && $this->orgDepartments->isNotEmpty())
+                            <button type="button" wire:click="saveReviewers" wire:loading.attr="disabled" wire:target="saveReviewers" class="btn-primary" style="margin-top:16px;">
+                                <i class="fa-solid fa-floppy-disk"></i> Simpan Reviewer
+                            </button>
+                        @endif
                     </div>
                 @endif
             </div>

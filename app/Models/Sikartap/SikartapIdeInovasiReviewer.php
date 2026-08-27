@@ -9,9 +9,11 @@ use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-/** Penunjukan manual reviewer atasan Ide Inovasi per node Divisi (level 2) org struktur — lihat
- * migration create_sikartap_ide_inovasi_reviewers_table untuk alasan kenapa ini perlu (head_id
- * kosong), dan Sikartap::ideInovasiOrgDivision() untuk kenapa Divisi bukan Department (level 1). */
+/** Penunjukan manual reviewer atasan Ide Inovasi per node Departemen (level 1) org struktur -
+ * disederhanakan jadi 1 level saja (2026-08-26, instruksi user), bukan Departemen-atau-Divisi.
+ * Ini SATU-SATUNYA sumber penentuan atasan (bukan lagi union dengan head_id org struktur -
+ * dicabut karena datanya nyaris selalu kosong di lapangan). Lihat
+ * Sikartap::ideInovasiDepartment()/ideInovasiAtasanCandidates(). */
 class SikartapIdeInovasiReviewer extends Model
 {
     use HasUlids;

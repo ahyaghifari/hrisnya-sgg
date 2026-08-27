@@ -37,7 +37,7 @@
             </label>
             @error('file') <p style="color:var(--danger-text);font-size:12px;margin-bottom:10px;">{{ $message }}</p> @enderror
 
-            <button type="button" wire:click="upload" wire:loading.attr="disabled" wire:target="upload" class="btn-primary">
+            <button type="button" wire:click="submitIdeInovasi" wire:loading.attr="disabled" wire:target="submitIdeInovasi" class="btn-primary">
                 <i class="fa-solid fa-upload"></i> Upload
             </button>
         </div>

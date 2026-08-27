@@ -182,47 +182,44 @@ class Sikartap extends Model
     }
 
     /**
-     * Node level-2 (Divisi) org struktur tempat jabatan karyawan ini bernaung — dasar penentuan
-     * atasan (Kabag/Kabid) penilai ide inovasi. Kabag/Kabid itu jabatan per DIVISI, bukan per
-     * department (level 1) — 1 department bisa punya banyak divisi/Kabag berbeda, jadi salah
-     * kalau dilumpin ke root. Reuse JobPositions::getDivisionAttribute() (helper yang sudah ada,
-     * dipakai juga UserProfiles) - naik 1 tingkat ke parent kalau org_structure jabatan bukan
-     * level Divisi langsung (misal ada di Subdivisi).
+     * Departemen (level 1) org struktur tempat jabatan karyawan ini bernaung - naik ke parent
+     * sampai ketemu node level Departemen (2026-08-26, instruksi user: disederhanakan jadi
+     * Departemen saja, bukan Departemen-atau-Divisi lagi).
      */
-    public function ideInovasiOrgDivision(): ?\App\Models\Master\OrgStructure
+    public function ideInovasiDepartment(): ?\App\Models\Master\OrgStructure
     {
-        return $this->user?->activeJobPosition?->jobPosition?->division;
+        $node = $this->user?->activeJobPosition?->jobPosition?->orgStructure;
+
+        while ($node && $node->level !== \App\Enum\OrgStructurLevel::LEVEL_DEPARTMENT->value) {
+            $node = $node->parent;
+        }
+
+        return $node;
     }
 
     /**
-     * Semua user yang berhak review sebagai atasan (tahap 1) — union dari 2 sumber, siapa saja
-     * yang match salah satunya boleh review (bukan saling menggantikan):
-     * 1. Head node org struktur (m_org_structures.head_id) — nyaris selalu kosong di data riil
-     *    (2026-08-25: cuma 1 dari 84 baris), jadi tidak bisa diandalkan sendirian.
-     * 2. Penunjukan manual admin (SikartapIdeInovasiReviewer) — fallback/pelengkap, siapa saja
-     *    bisa ditunjuk, tidak harus pemegang jabatan tertentu.
-     * Instruksi user (2026-08-25): atasan asli (sumber 1) HARUS tetap bisa review walau lupa
-     * ditunjuk manual — makanya union, bukan salah satu doang.
+     * Semua user yang berhak review sebagai atasan (tahap 1) — MURNI penunjukan manual
+     * (SikartapIdeInovasiReviewer) per Departemen (2026-08-26, instruksi user: sumber otomatis
+     * head_id dicabut & disederhanakan jadi 1 level saja - Departemen, bukan Departemen-atau-
+     * Divisi).
      *
      * @return \Illuminate\Support\Collection<int, User>
      */
     public function ideInovasiAtasanCandidates(): \Illuminate\Support\Collection
     {
-        $divisi = $this->ideInovasiOrgDivision();
+        $departemen = $this->ideInovasiDepartment();
 
-        if (! $divisi) {
+        if (! $departemen) {
             return collect();
         }
 
-        $candidates = collect([$divisi->head])->filter();
-
-        $ditunjuk = SikartapIdeInovasiReviewer::where('org_structure_id', $divisi->id)
+        return SikartapIdeInovasiReviewer::where('org_structure_id', $departemen->id)
             ->with('user')
             ->get()
             ->pluck('user')
-            ->filter();
-
-        return $candidates->concat($ditunjuk)->unique('id')->values();
+            ->filter()
+            ->unique('id')
+            ->values();
     }
 
     public function canReviewIdeInovasiAsAtasan(User $user): bool

@@ -53,7 +53,11 @@ class IdeInovasiUploadPage extends Component
         return ! $ideInovasi || $ideInovasi->status_atasan === 'rejected';
     }
 
-    public function upload(): void
+    /** JANGAN dinamai upload() - nama itu reserved, bentrok sama $wire.upload() bawaan Livewire
+     * (WithFileUploads), bikin klik tombol manggil uploader internal Livewire alih-alih method
+     * ini (error "Cannot read properties of undefined (reading 'name')", laporan user 2026-08-26,
+     * tombol Upload diam total tanpa efek). */
+    public function submitIdeInovasi(): void
     {
         abort_unless($this->canUpload, 403);
 

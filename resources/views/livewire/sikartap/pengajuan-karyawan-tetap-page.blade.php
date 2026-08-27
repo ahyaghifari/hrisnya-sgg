@@ -91,7 +91,26 @@
                     </div>
                 @endif
 
-                @if ($sikartap->status_wawancara === 'disarankan' && $sikartap->requiresMcu())
+                @if ($sikartap->status_wawancara === 'disarankan' && $sikartap->requiresIdeInovasi())
+                    <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;{{ $sikartap->ideInovasiApproved() ? 'border-bottom:1px solid var(--border-soft);' : '' }}">
+                        <span style="font-size:12.5px;color:var(--text-muted);">💡 Ide Inovasi</span>
+                        @php
+                            $ideStatus = $sikartap->ideInovasi?->status_atasan;
+                            [$ideColor, $ideLabel] = match ($ideStatus) {
+                                'approved' => ['badge-approved', '✅ Disetujui'],
+                                'rejected' => ['badge-rejected', '❌ Ditolak, upload ulang'],
+                                default => ['badge-pending', $ideStatus ? '⏳ Menunggu Penilaian' : '⏳ Belum Diupload'],
+                            };
+                        @endphp
+                        <a href="{{ route('sikartap.ide-inovasi') }}" wire:navigate class="badge {{ $ideColor }}" style="text-decoration:none;">{{ $ideLabel }}</a>
+                    </div>
+                @endif
+
+                {{-- MCU baru relevan setelah Ide Inovasi (kalau disyaratkan) disetujui atasan -
+                     sebelumnya baris ini muncul begitu wawancara disarankan tanpa cek Ide Inovasi
+                     dulu, bikin karyawan kira MCU sudah giliran padahal masih harus isi Ide
+                     Inovasi lebih dulu (2026-08-26, laporan user). --}}
+                @if ($sikartap->status_wawancara === 'disarankan' && $sikartap->requiresMcu() && $sikartap->ideInovasiApproved())
                     <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;{{ $sikartap->isEligibleForDirectorDecision() ? 'border-bottom:1px solid var(--border-soft);' : '' }}">
                         <span style="font-size:12.5px;color:var(--text-muted);">🏥 Medical Check-Up</span>
                         @php [$mcuColor, $mcuLabel] = $hasilBadge($sikartap->status_mcu); @endphp

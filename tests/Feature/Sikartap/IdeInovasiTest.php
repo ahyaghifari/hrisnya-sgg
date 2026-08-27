@@ -38,10 +38,12 @@ class IdeInovasiTest extends TestCase
         parent::setUp();
 
         $this->company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
+        // Level Departemen (bukan Divisi) - reviewer sekarang disederhanakan jadi 1 level saja
+        // (2026-08-26, instruksi user), lihat Sikartap::ideInovasiDepartment().
         $this->orgRoot = OrgStructure::create([
             'company_id' => $this->company->id,
-            'name' => 'IGD',
-            'level' => OrgStructurLevel::LEVEL_DIVISION->value,
+            'name' => 'Pelayanan Medis',
+            'level' => OrgStructurLevel::LEVEL_DEPARTMENT->value,
         ]);
 
         Setting::create([
@@ -105,6 +107,20 @@ class IdeInovasiTest extends TestCase
         Livewire::test(IdeInovasiUploadPage::class)->assertForbidden();
     }
 
+    /** Regresi 2026-08-26: method PUBLIC bernama tepat "upload" di komponen WithFileUploads
+     * bentrok sama $wire.upload() bawaan Livewire (dipakai internal buat proses upload file) -
+     * klik tombol jadi manggil uploader internal Livewire (parameter beda total), bukan action
+     * kita, error JS "Cannot read properties of undefined (reading 'name')" & tombol diam total
+     * tanpa efek/pesan apapun. Method di-rename jadi submitIdeInovasi() - test ini pastikan nama
+     * "upload" tidak dipakai lagi di komponen ini. */
+    public function test_component_does_not_expose_a_public_method_named_upload(): void
+    {
+        $this->assertFalse(
+            (new \ReflectionClass(IdeInovasiUploadPage::class))->hasMethod('upload'),
+            'Method public "upload" bentrok dengan $wire.upload() bawaan Livewire (WithFileUploads) - tombol upload jadi diam total di browser.'
+        );
+    }
+
     public function test_karyawan_can_upload_ide_inovasi(): void
     {
         $applicant = $this->makeApplicantWithOrgRoot();
@@ -113,7 +129,7 @@ class IdeInovasiTest extends TestCase
 
         Livewire::test(IdeInovasiUploadPage::class)
             ->set('file', UploadedFile::fake()->create('ide.pdf', 500))
-            ->call('upload');
+            ->call('submitIdeInovasi');
 
         $ideInovasi = $sikartap->fresh()->ideInovasi;
         $this->assertNotNull($ideInovasi);
@@ -121,10 +137,31 @@ class IdeInovasiTest extends TestCase
         $this->assertFalse($sikartap->fresh()->ideInovasiApproved());
     }
 
-    public function test_org_root_head_can_review_as_atasan(): void
+    /** 2026-08-26, instruksi user: sumber otomatis head_id DICABUT - murni manual sekarang.
+     * Kepala org struktur yang tidak ditunjuk manual TIDAK otomatis bisa review lagi. */
+    public function test_org_root_head_alone_no_longer_grants_review_access(): void
+    {
+        $kepala = User::factory()->create(['company_id' => $this->company->id]);
+        $this->orgRoot->update(['head_id' => $kepala->id]);
+
+        $applicant = $this->makeApplicantWithOrgRoot();
+        $sikartap = $this->makeSikartapReadyForIdeInovasi($applicant);
+        $sikartap->ideInovasi()->create(['file_ide_inovasi' => 'sikartap/ide-inovasi/fake.pdf']);
+
+        $this->assertFalse($sikartap->canReviewIdeInovasiAsAtasan($kepala));
+
+        $this->actingAs($kepala);
+        Livewire::test(IdeInovasiAtasanReviewPage::class, ['sikartap' => $sikartap])->assertForbidden();
+    }
+
+    public function test_manually_assigned_reviewer_can_review_and_submit_score(): void
     {
         $atasan = User::factory()->create(['company_id' => $this->company->id]);
-        $this->orgRoot->update(['head_id' => $atasan->id]);
+        SikartapIdeInovasiReviewer::create([
+            'company_id' => $this->company->id,
+            'org_structure_id' => $this->orgRoot->id,
+            'user_id' => $atasan->id,
+        ]);
 
         $applicant = $this->makeApplicantWithOrgRoot();
         $sikartap = $this->makeSikartapReadyForIdeInovasi($applicant);
@@ -151,10 +188,52 @@ class IdeInovasiTest extends TestCase
         $this->assertTrue($sikartap->fresh()->ideInovasiApproved());
     }
 
+    /** Karyawan yang jabatannya di Divisi (level 2) di bawah Departemen - reviewer yang ditunjuk
+     * di Departemen (orgRoot) tetap berlaku, karena ideInovasiDepartment() naik ke parent sampai
+     * ketemu level Departemen (2026-08-26, instruksi user: disederhanakan jadi Departemen saja). */
+    public function test_department_reviewer_covers_employee_in_division_below_it(): void
+    {
+        $divisi = OrgStructure::create([
+            'company_id' => $this->company->id,
+            'name' => 'IGD',
+            'level' => OrgStructurLevel::LEVEL_DIVISION->value,
+            'parent_id' => $this->orgRoot->id,
+        ]);
+
+        $atasan = User::factory()->create(['company_id' => $this->company->id]);
+        SikartapIdeInovasiReviewer::create([
+            'company_id' => $this->company->id,
+            'org_structure_id' => $this->orgRoot->id,
+            'user_id' => $atasan->id,
+        ]);
+
+        $applicant = User::factory()->create(['company_id' => $this->company->id]);
+        $jobPosition = JobPositions::create([
+            'company_id' => $this->company->id,
+            'org_structure_id' => $divisi->id,
+            'name' => 'Perawat IGD',
+        ]);
+        UserJobPositions::create([
+            'user_id' => $applicant->id,
+            'job_position_id' => $jobPosition->id,
+            'status' => 'active',
+            'start_date' => now()->subYear(),
+        ]);
+
+        $sikartap = $this->makeSikartapReadyForIdeInovasi($applicant);
+        $sikartap->ideInovasi()->create(['file_ide_inovasi' => 'sikartap/ide-inovasi/fake.pdf']);
+
+        $this->assertTrue($sikartap->canReviewIdeInovasiAsAtasan($atasan));
+    }
+
     public function test_low_score_results_in_rejected_status(): void
     {
         $atasan = User::factory()->create(['company_id' => $this->company->id]);
-        $this->orgRoot->update(['head_id' => $atasan->id]);
+        SikartapIdeInovasiReviewer::create([
+            'company_id' => $this->company->id,
+            'org_structure_id' => $this->orgRoot->id,
+            'user_id' => $atasan->id,
+        ]);
 
         $applicant = $this->makeApplicantWithOrgRoot();
         $sikartap = $this->makeSikartapReadyForIdeInovasi($applicant);

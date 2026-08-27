@@ -31,11 +31,10 @@ class SikartapSettingsPage extends Component
 
     public ?string $viewingAuditKey = null;
 
-    // Penunjukan manual reviewer atasan Ide Inovasi per node Divisi (level 2) org struktur -
-    // Kabag/Kabid itu jabatan per divisi, lihat Sikartap::ideInovasiOrgDivision().
-    public string $newReviewerOrgId = '';
-
-    public string $newReviewerUserId = '';
+    /** @var array<string, string> org_structure_id (Departemen) => user_id terpilih - staged,
+     * baru ditulis ke DB pas saveReviewers() (2026-08-26, instruksi user: 1 tombol Simpan di
+     * bawah, bukan simpan langsung per baris). */
+    public array $reviewerUserIds = [];
 
     public function mount(): void
     {
@@ -46,6 +45,7 @@ class SikartapSettingsPage extends Component
             : Auth::user()->company_id;
 
         $this->loadCompanyState();
+        $this->loadReviewerSelections();
     }
 
     public function updatedCompanyId(): void
@@ -53,6 +53,8 @@ class SikartapSettingsPage extends Component
         if (! Auth::user()->canFilterByCompany()) {
             $this->companyId = Auth::user()->company_id;
         }
+
+        $this->loadReviewerSelections();
     }
 
     public function selectCompany(string $companyId): void
@@ -61,6 +63,21 @@ class SikartapSettingsPage extends Component
 
         $this->companyId = $companyId;
         $this->loadCompanyState();
+        $this->loadReviewerSelections();
+    }
+
+    /** Muat pilihan reviewer SAAT INI per Departemen dari DB - dipanggil tiap kali company
+     * ganti, supaya dropdown terisi nilai yang sudah tersimpan (bukan selalu kosong). */
+    private function loadReviewerSelections(): void
+    {
+        if (! $this->companyId) {
+            $this->reviewerUserIds = [];
+            return;
+        }
+
+        $this->reviewerUserIds = SikartapIdeInovasiReviewer::where('company_id', $this->companyId)
+            ->pluck('user_id', 'org_structure_id')
+            ->all();
     }
 
     private function loadCompanyState(): void
@@ -151,29 +168,18 @@ class SikartapSettingsPage extends Component
             ->send();
     }
 
-    public function getOrgDivisionsProperty()
+    /** Departemen (level 1) saja - disederhanakan (2026-08-26, instruksi user), bukan
+     * Departemen-atau-Divisi lagi. */
+    public function getOrgDepartmentsProperty()
     {
         if (! $this->companyId) {
             return collect();
         }
 
         return OrgStructure::where('company_id', $this->companyId)
-            ->where('level', OrgStructurLevel::LEVEL_DIVISION->value)
-            ->with('parent')
+            ->where('level', OrgStructurLevel::LEVEL_DEPARTMENT->value)
             ->orderBy('name')
             ->get();
-    }
-
-    public function getReviewerAssignmentsProperty()
-    {
-        if (! $this->companyId) {
-            return collect();
-        }
-
-        return SikartapIdeInovasiReviewer::where('company_id', $this->companyId)
-            ->with('user')
-            ->get()
-            ->groupBy('org_structure_id');
     }
 
     public function getCompanyUsersProperty()
@@ -185,34 +191,41 @@ class SikartapSettingsPage extends Component
         return User::where('company_id', $this->companyId)->orderBy('name')->get(['id', 'name']);
     }
 
-    public function addReviewer(): void
+    /**
+     * 1 reviewer per Departemen (2026-08-26, instruksi user) - tolak simpan kalau ADA Departemen
+     * yang belum terisi, satu tombol Simpan di bawah untuk semua Departemen sekaligus (bukan
+     * simpan langsung per baris seperti sebelumnya).
+     */
+    public function saveReviewers(): void
     {
         abort_unless(Auth::user()->can(CustomPermissionEnum::EDIT_PENGATURAN_SIKARTAP->value), 403);
 
-        $this->validate([
-            'newReviewerOrgId' => ['required', 'exists:m_org_structures,id'],
-            'newReviewerUserId' => ['required', 'exists:users,id'],
-        ]);
+        if (! $this->companyId) {
+            return;
+        }
 
-        SikartapIdeInovasiReviewer::firstOrCreate([
-            'company_id' => $this->companyId,
-            'org_structure_id' => $this->newReviewerOrgId,
-            'user_id' => $this->newReviewerUserId,
-        ]);
+        $departments = $this->orgDepartments;
 
-        $this->newReviewerOrgId = '';
-        $this->newReviewerUserId = '';
+        $kosong = $departments->reject(fn (OrgStructure $d) => filled($this->reviewerUserIds[$d->id] ?? null));
 
-        Notification::make()->title('Reviewer ditambahkan')->success()->send();
-    }
+        if ($kosong->isNotEmpty()) {
+            Notification::make()
+                ->title('Belum bisa disimpan')
+                ->body('Departemen berikut belum punya reviewer: ' . $kosong->pluck('name')->implode(', '))
+                ->danger()
+                ->send();
 
-    public function removeReviewer(string $id): void
-    {
-        abort_unless(Auth::user()->can(CustomPermissionEnum::EDIT_PENGATURAN_SIKARTAP->value), 403);
+            return;
+        }
 
-        SikartapIdeInovasiReviewer::where('company_id', $this->companyId)->where('id', $id)->delete();
+        foreach ($departments as $department) {
+            SikartapIdeInovasiReviewer::updateOrCreate(
+                ['company_id' => $this->companyId, 'org_structure_id' => $department->id],
+                ['user_id' => $this->reviewerUserIds[$department->id]]
+            );
+        }
 
-        Notification::make()->title('Reviewer dihapus')->success()->send();
+        Notification::make()->title('Reviewer Ide Inovasi berhasil disimpan')->success()->send();
     }
 
     public function render()
