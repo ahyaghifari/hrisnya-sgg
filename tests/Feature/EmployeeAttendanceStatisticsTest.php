@@ -419,6 +419,8 @@ class EmployeeAttendanceStatisticsTest extends TestCase
 
     public function test_owner_can_add_own_attachments_with_free_label(): void
     {
+        \Illuminate\Support\Facades\Storage::fake('local');
+
         $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
         $staff = User::factory()->create(['company_id' => $company->id]);
         UserProfiles::create(['user_id' => $staff->id]);
@@ -437,6 +439,38 @@ class EmployeeAttendanceStatisticsTest extends TestCase
 
         $labels = \App\Models\User\UserProfileDocument::where('user_id', $staff->id)->pluck('label');
         $this->assertEqualsCanonicalizing(['KTP', 'Ijazah'], $labels->all());
+    }
+
+    public function test_uploaded_attachment_is_encrypted_at_rest_and_served_decrypted(): void
+    {
+        \Illuminate\Support\Facades\Storage::fake('local');
+
+        $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
+        $staff = User::factory()->create(['company_id' => $company->id]);
+        UserProfiles::create(['user_id' => $staff->id]);
+
+        $this->actingAs($staff);
+
+        Livewire::test(EmployeeAttendanceStatistics::class, ['record' => $staff])
+            ->set('newDocumentLabel', 'KTP')
+            ->set('newDocumentFile', \Illuminate\Http\UploadedFile::fake()->createWithContent('ktp.pdf', '%PDF-1.4 rahasia'))
+            ->call('addProfileDocument')
+            ->assertHasNoErrors();
+
+        $doc = UserProfileDocument::where('user_id', $staff->id)->firstOrFail();
+
+        // Di disk: ciphertext, bukan isi asli.
+        $onDisk = \Illuminate\Support\Facades\Storage::disk('local')->get($doc->file_path);
+        $this->assertStringNotContainsString('rahasia', $onDisk);
+        $this->assertSame('%PDF-1.4 rahasia', \Illuminate\Support\Facades\Crypt::decryptString($onDisk));
+
+        // Lewat route: pemilik dapat isi terdekripsi; orang lain 403.
+        $this->get(route('profil-saya.lampiran.show', $doc))
+            ->assertOk()
+            ->assertSee('%PDF-1.4 rahasia');
+
+        $this->actingAs(User::factory()->create(['company_id' => $company->id]));
+        $this->get(route('profil-saya.lampiran.show', $doc))->assertForbidden();
     }
 
     public function test_owner_can_delete_own_attachment(): void

@@ -23,8 +23,10 @@ use App\Services\OrgHierarchyService;
 use Carbon\Carbon;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 use Maatwebsite\Excel\Facades\Excel;
@@ -266,7 +268,16 @@ class EmployeeAttendanceStatistics extends Component
             'newDocumentFile' => ['required', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
         ]);
 
-        $path = $this->newDocumentFile->store('profile-documents/' . $this->record->id, 'public');
+        // Lampiran data diri (KTP/KK/dsb) disimpan TERENKRIPSI di disk privat 'local'
+        // (storage/app/private, tidak web-accessible) — beda dari lampiran lain yang plaintext
+        // di 'public'. Dilayani lewat route profil-saya.lampiran.show yang decrypt + cek izin.
+        $ext = strtolower($this->newDocumentFile->getClientOriginalExtension() ?: $this->newDocumentFile->extension());
+        $path = 'profile-documents/' . $this->record->id . '/' . Str::ulid() . '.' . $ext;
+
+        Storage::disk('local')->put(
+            $path,
+            Crypt::encryptString(file_get_contents($this->newDocumentFile->getRealPath()))
+        );
 
         UserProfileDocument::create([
             'user_id' => $this->record->id,
@@ -288,6 +299,8 @@ class EmployeeAttendanceStatistics extends Component
             ->where('user_id', $this->record->id)
             ->findOrFail($documentId);
 
+        // Lampiran baru ada di 'local' (terenkripsi), lampiran lama di 'public' — hapus dua-duanya.
+        Storage::disk('local')->delete($document->file_path);
         Storage::disk('public')->delete($document->file_path);
         $document->delete();
 

@@ -12,6 +12,7 @@
     $canViewMappingKomponenGaji = auth()->user()->can(\App\Enum\CustomPermissionEnum::LIHAT_MAPPING_KOMPONEN_GAJI->value);
     $canViewKoperasi = auth()->user()->can('ViewAny:UserKoperasi');
     $canViewBpjsDependent = auth()->user()->can('ViewAny:BpjsDependent');
+    $canViewOverrideKomponenGaji = auth()->user()->can(\App\Enum\CustomPermissionEnum::LIHAT_OVERRIDE_KOMPONEN_GAJI->value);
     $canViewJasaUnitType = auth()->user()->can('ViewAny:JasaUnitType');
 @endphp
 
@@ -60,6 +61,12 @@
     <a href="{{ route('keuangan.tanggungan-bpjs') }}" wire:navigate class="pwa-menu-grid-item">
         <span class="pwa-menu-grid-icon green"><i class="fa-solid fa-house-medical"></i></span>
         <span class="pwa-menu-grid-label">Tanggungan BPJS</span>
+    </a>
+@endif
+@if ($canViewOverrideKomponenGaji)
+    <a href="{{ route('keuangan.override-komponen-gaji') }}" wire:navigate class="pwa-menu-grid-item">
+        <span class="pwa-menu-grid-icon green"><i class="fa-solid fa-sliders"></i></span>
+        <span class="pwa-menu-grid-label">Khusus</span>
     </a>
 @endif
 @if ($canViewKomponenGaji)

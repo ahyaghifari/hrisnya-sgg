@@ -7,6 +7,7 @@ use App\Models\User;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 /**
  * Extra shift - shift TAMBAHAN penuh di tanggal yang karyawan itu sudah punya shift normal
@@ -60,5 +61,10 @@ class ExtraShiftAssignment extends Model
     public function createdBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function attendanceRecord(): HasOne
+    {
+        return $this->hasOne(ExtraShiftAttendanceRecord::class);
     }
 }

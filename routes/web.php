@@ -137,6 +137,34 @@ Route::middleware(['auth', 'portal.access'])->group(function () {
     Route::get('/profil-saya/penggajian/{payroll}', \App\Livewire\Keuangan\MyPayrollSlipPage::class)
         ->name('profil-saya.penggajian.show');
 
+    // Lampiran data diri (KTP/KK/dsb) — file terenkripsi di disk privat 'local', tidak boleh
+    // dilayani lewat URL /storage langsung. Route ini decrypt di memory + gerbang izin
+    // (pemilik akun atau permission lihat_lampiran_identitas_karyawan, sama seperti
+    // EmployeeAttendanceStatistics::getCanViewProfileDocumentsProperty()).
+    Route::get('/profil-saya/lampiran/{document}', function (\App\Models\User\UserProfileDocument $document) {
+        $user = \Illuminate\Support\Facades\Auth::user();
+        abort_unless(
+            $document->user_id === $user->id
+                || $user->can(\App\Enum\CustomPermissionEnum::LIHAT_LAMPIRAN_IDENTITAS_KARYAWAN->value),
+            403
+        );
+
+        $ext = strtolower(pathinfo($document->file_path, PATHINFO_EXTENSION));
+
+        // Lampiran baru: terenkripsi di 'local'. Lampiran lama (< 2026-08-27): plaintext di
+        // 'public' — dilayani apa adanya tanpa decrypt.
+        $raw = \Illuminate\Support\Facades\Storage::disk('local')->exists($document->file_path)
+            ? \Illuminate\Support\Facades\Crypt::decryptString(\Illuminate\Support\Facades\Storage::disk('local')->get($document->file_path))
+            : \Illuminate\Support\Facades\Storage::disk('public')->get($document->file_path);
+
+        abort_if($raw === null, 404);
+
+        return response($raw, 200, [
+            'Content-Type' => $ext === 'pdf' ? 'application/pdf' : ($ext === 'png' ? 'image/png' : 'image/jpeg'),
+            'Content-Disposition' => 'inline; filename="' . addslashes($document->label) . '.' . $ext . '"',
+        ]);
+    })->name('profil-saya.lampiran.show');
+
     Route::get('/profil-saya/penggajian/{payroll}/preview', function (\App\Models\Payroll\Payroll $payroll) {
         abort_unless(
             $payroll->user_id === \Illuminate\Support\Facades\Auth::id() && $payroll->is_paid,
@@ -331,6 +359,9 @@ Route::middleware(['auth', 'portal.access'])->group(function () {
 
     Route::get('/keuangan/tanggungan-bpjs', \App\Livewire\Keuangan\BpjsDependentsPage::class)
         ->name('keuangan.tanggungan-bpjs');
+
+    Route::get('/keuangan/override-komponen-gaji', \App\Livewire\Keuangan\PayrollComponentOverridesPage::class)
+        ->name('keuangan.override-komponen-gaji');
 
     // Model & permission-nya Payroll (prefix /keuangan), tapi nav-nya digabung ke dropdown
     // Learning Management System (lms-dropdown.blade.php), bukan dropdown Penggajian.

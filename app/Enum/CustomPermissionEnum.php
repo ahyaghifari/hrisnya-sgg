@@ -95,6 +95,12 @@ enum CustomPermissionEnum: string
     case LIHAT_DATA_REKENING = 'lihat_data_rekening';
     case EDIT_DATA_REKENING = 'edit_data_rekening';
 
+    /** Gerbang halaman portal "Override Komponen Gaji" (`/keuangan/override-komponen-gaji`,
+     * kelola payroll_component_overrides) - override manual per karyawan+komponen apa pun,
+     * Calculator-nya di-skip total kalau ada override aktif (2026-08-26, instruksi user). */
+    case LIHAT_OVERRIDE_KOMPONEN_GAJI = 'lihat_override_komponen_gaji';
+    case EDIT_OVERRIDE_KOMPONEN_GAJI = 'edit_override_komponen_gaji';
+
     /** Halaman Omset (`/keuangan/omset`, rincian omset per kategori per periode gaji, dijumlah
      * jadi Total Omset dipakai JasaPelayananCalculator) — model-nya (OmsetDetail/OmsetCategory)
      * tidak punya Filament Resource/Policy sendiri, jadi 2 permission manual: LIHAT_OMSET
@@ -314,6 +320,8 @@ enum CustomPermissionEnum: string
             self::LIHAT_PAJAK => 'Lihat Pajak (%)',
             self::LIHAT_DATA_REKENING => 'Lihat Data Rekening',
             self::EDIT_DATA_REKENING => 'Edit Data Rekening',
+            self::LIHAT_OVERRIDE_KOMPONEN_GAJI => 'Lihat Gaji Khusus',
+            self::EDIT_OVERRIDE_KOMPONEN_GAJI => 'Edit Gaji Khusus',
             self::LIHAT_OMSET => 'Lihat Omset',
             self::KELOLA_OMSET => 'Kelola Omset',
             self::LIHAT_INPUT_JASA_UNIT => 'Lihat Input Jasa Unit',

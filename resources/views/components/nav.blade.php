@@ -1,7 +1,7 @@
 @props(['gates'])
 @php
     extract($gates);
-    $showRoleRow = $canSeeKaryawanMenu || $canAccessKeuangan || $canAccessAbsensi || $canAccessKepegawaian || $canAccessLms || $canAccessPenilaian || $canAccessHakAkses || $canAccessCoachingCounseling || $canAccessSikartap || $canAccessSaranaPrasarana;
+    $showRoleRow = $canSeeKaryawanMenu || $canAccessKeuangan || $canAccessAbsensi || $canAccessKepegawaian || $canAccessLms || $canAccessPenilaian || $canAccessHakAkses || $canAccessCoachingCounseling || $canAccessSikartap;
     $initials = collect(explode(' ', auth()->user()->name))
         ->map(fn ($part) => mb_substr($part, 0, 1))
         ->take(2)
@@ -80,7 +80,8 @@
                         @if ($canAccessSikartap)
                             <x-nav.sikartap-dropdown />
                         @endif
-                        @if ($canAccessSaranaPrasarana)
+                        {{-- ponytail: Sarana & Prasarana disembunyikan sementara. Hapus komentar untuk mengaktifkan lagi. --}}
+                        @if (false && $canAccessSaranaPrasarana)
                             <x-nav.sarana-prasarana-dropdown />
                         @endif
                         @if ($canAccessLms)

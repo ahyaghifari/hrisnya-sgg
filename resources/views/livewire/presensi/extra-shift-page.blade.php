@@ -24,6 +24,7 @@
                         <th>Shift Tambahan</th>
                         <th>Alasan</th>
                         <th>Ditugaskan Oleh</th>
+                        <th>Absensi</th>
                         @if ($this->canDelete)
                             <th></th>
                         @endif
@@ -42,6 +43,18 @@
                                 @endif
                             </td>
                             <td>{{ $row->createdBy?->name }}</td>
+                            <td>
+                                @if ($row->attendanceRecord)
+                                    <span style="font-size:12px;">{{ \Illuminate\Support\Str::substr($row->attendanceRecord->check_in_time, 0, 5) }} - {{ $row->attendanceRecord->check_out_time ? \Illuminate\Support\Str::substr($row->attendanceRecord->check_out_time, 0, 5) : '..' }}</span>
+                                @else
+                                    <span style="font-size:12px;color:var(--text-faint);">Belum diisi</span>
+                                @endif
+                                @if ($this->canRecordAttendance)
+                                    <button type="button" wire:click="openAttendanceModal('{{ $row->id }}')" class="btn-ghost" style="padding:2px 8px;font-size:11px;margin-left:6px;">
+                                        <i class="fa-solid fa-clock"></i> Isi
+                                    </button>
+                                @endif
+                            </td>
                             @if ($this->canDelete)
                                 <td>
                                     @if ($row->source !== 'shift_swap')
@@ -54,7 +67,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="6" class="text-center text-sm text-slate-500 py-6">Belum ada extra shift tercatat.</td>
+                            <td colspan="7" class="text-center text-sm text-slate-500 py-6">Belum ada extra shift tercatat.</td>
                         </tr>
                     @endforelse
                 </tbody>
@@ -126,6 +139,36 @@
                 <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px;">
                     <button type="button" wire:click="closeAddModal" class="btn-ghost">Batal</button>
                     <button type="button" wire:click="assign" class="btn-primary">Simpan</button>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    {{-- Modal Isi Absensi --}}
+    @if ($attendanceExtraShiftId)
+        <div class="modal-overlay" wire:click="closeAttendanceModal">
+            <div class="modal-box" onclick="event.stopPropagation()">
+                <h3 style="font-size:16px;font-weight:700;color:var(--text-heading);margin:0 0 6px;">Isi Absensi Extra Shift</h3>
+                <p style="font-size:12px;color:var(--text-muted);margin:0 0 16px;">
+                    Input manual jam masuk/keluar aktual extra shift ini (belum ada integrasi otomatis dari mesin absen untuk extra shift).
+                </p>
+
+                <div style="display:flex;flex-direction:column;gap:12px;">
+                    <div>
+                        <label class="form-label">Jam Masuk</label>
+                        <input type="time" class="form-input" wire:model="check_in_time">
+                        @error('check_in_time') <p style="color:var(--danger-text);font-size:11px;margin-top:4px;">{{ $message }}</p> @enderror
+                    </div>
+                    <div>
+                        <label class="form-label">Jam Keluar (opsional)</label>
+                        <input type="time" class="form-input" wire:model="check_out_time">
+                        @error('check_out_time') <p style="color:var(--danger-text);font-size:11px;margin-top:4px;">{{ $message }}</p> @enderror
+                    </div>
+                </div>
+
+                <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px;">
+                    <button type="button" wire:click="closeAttendanceModal" class="btn-ghost">Batal</button>
+                    <button type="button" wire:click="recordAttendance" class="btn-primary">Simpan</button>
                 </div>
             </div>
         </div>

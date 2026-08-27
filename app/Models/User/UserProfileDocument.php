@@ -5,7 +5,6 @@ namespace App\Models\User;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\Storage;
 
 /**
  * Lampiran bebas milik karyawan sendiri (label ditulis manual, mis. KTP/KK/Ijazah, bukan enum
@@ -29,8 +28,13 @@ class UserProfileDocument extends Model
         return $this->belongsTo(User::class);
     }
 
+    /**
+     * Bukan URL storage langsung — file lampiran data diri terenkripsi & tersimpan di disk
+     * privat, jadi harus lewat route yang decrypt + cek izin (pemilik / permission
+     * lihat_lampiran_identitas_karyawan).
+     */
     public function getFileUrlAttribute(): ?string
     {
-        return $this->file_path ? Storage::disk('public')->url($this->file_path) : null;
+        return $this->file_path ? route('profil-saya.lampiran.show', $this) : null;
     }
 }

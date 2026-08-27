@@ -17,11 +17,12 @@
     $canViewMappingKomponenGaji = auth()->user()->can(\App\Enum\CustomPermissionEnum::LIHAT_MAPPING_KOMPONEN_GAJI->value);
     $canViewKoperasi = auth()->user()->can('ViewAny:UserKoperasi');
     $canViewBpjsDependent = auth()->user()->can('ViewAny:BpjsDependent');
+    $canViewOverrideKomponenGaji = auth()->user()->can(\App\Enum\CustomPermissionEnum::LIHAT_OVERRIDE_KOMPONEN_GAJI->value);
     $canViewJasaUnitType = auth()->user()->can('ViewAny:JasaUnitType');
 @endphp
 
 <div class="dropdown">
-    <a href="#" class="nav-item nav-item-green {{ request()->routeIs(['keuangan.dashboard*', 'keuangan.periode-gaji*', 'keuangan.payroll*', 'keuangan.pajak*', 'keuangan.data-rekening*', 'keuangan.komponen-gaji*', 'keuangan.penerima-komponen-gaji*', 'keuangan.insentif*', 'keuangan.mapping-komponen-gaji*', 'keuangan.koperasi*', 'keuangan.omset*', 'keuangan.jasa-unit*', 'keuangan.jasa-unit-types*', 'keuangan.tanggungan-bpjs*', 'keuangan.tunjangan-eksekutif*']) ? 'active' : '' }}">
+    <a href="#" class="nav-item nav-item-green {{ request()->routeIs(['keuangan.dashboard*', 'keuangan.periode-gaji*', 'keuangan.payroll*', 'keuangan.pajak*', 'keuangan.data-rekening*', 'keuangan.komponen-gaji*', 'keuangan.penerima-komponen-gaji*', 'keuangan.insentif*', 'keuangan.mapping-komponen-gaji*', 'keuangan.koperasi*', 'keuangan.omset*', 'keuangan.jasa-unit*', 'keuangan.jasa-unit-types*', 'keuangan.tanggungan-bpjs*', 'keuangan.override-komponen-gaji*', 'keuangan.tunjangan-eksekutif*']) ? 'active' : '' }}">
         <i class="fa-solid fa-sack-dollar text-xs"></i> Penggajian <i class="fa-solid fa-chevron-down text-[10px]"></i>
     </a>
     <div class="dropdown-menu dropdown-menu-columns">
@@ -64,6 +65,9 @@
             @endif
             @if ($canViewBpjsDependent)
                 <a href="{{ route('keuangan.tanggungan-bpjs') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-house-medical"></i> Tanggungan BPJS</a>
+            @endif
+            @if ($canViewOverrideKomponenGaji)
+                <a href="{{ route('keuangan.override-komponen-gaji') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-sliders"></i> Khusus</a>
             @endif
         </div>
         @endif

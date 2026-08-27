@@ -5,8 +5,10 @@ namespace App\Livewire\Presensi;
 use App\Livewire\Presensi\Concerns\ResolvesExtraShiftOptions;
 use App\Models\Master\Companies;
 use App\Models\Shift\ExtraShiftAssignment;
+use App\Models\Shift\ExtraShiftAttendanceRecord;
 use App\Models\Shift\ScheduleAssignment;
 use App\Models\User;
+use App\Services\Attendance\Calculators\ShiftScheduleCalculator;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
@@ -34,6 +36,10 @@ class ExtraShiftPage extends Component
     public ?string $date = null;
     public ?string $shift_type_id = null;
     public ?string $reason = null;
+
+    public ?string $attendanceExtraShiftId = null;
+    public ?string $check_in_time = null;
+    public ?string $check_out_time = null;
 
     public function mount(): void
     {
@@ -135,11 +141,60 @@ class ExtraShiftPage extends Component
     {
         return ExtraShiftAssignment::query()
             ->when($this->companyId, fn ($q) => $q->where('company_id', $this->companyId))
-            ->with(['user', 'shiftType', 'createdBy'])
+            ->with(['user', 'shiftType', 'createdBy', 'attendanceRecord'])
             ->orderByDesc('date')
             ->orderByDesc('created_at')
             ->limit(50)
             ->get();
+    }
+
+    public function getCanRecordAttendanceProperty(): bool
+    {
+        return Auth::user()->can('Update:ExtraShiftAssignment');
+    }
+
+    public function openAttendanceModal(string $id): void
+    {
+        $extraShift = ExtraShiftAssignment::with('attendanceRecord')->findOrFail($id);
+
+        abort_unless(Auth::user()->can('update', $extraShift), 403);
+
+        $this->attendanceExtraShiftId = $id;
+        $this->check_in_time = $extraShift->attendanceRecord?->check_in_time;
+        $this->check_out_time = $extraShift->attendanceRecord?->check_out_time;
+    }
+
+    public function closeAttendanceModal(): void
+    {
+        $this->reset(['attendanceExtraShiftId', 'check_in_time', 'check_out_time']);
+    }
+
+    /** Input manual - belum ada integrasi access_logs buat extra shift (lihat
+     * planning/2026-07-31-fitur-extra-shift.md §5), jam kerja aktual dihitung pakai
+     * ShiftScheduleCalculator yang sama dipakai pipeline absensi normal (config-nya identik,
+     * ScheduleShiftType). */
+    public function recordAttendance(): void
+    {
+        $extraShift = ExtraShiftAssignment::with('shiftType')->findOrFail($this->attendanceExtraShiftId);
+
+        abort_unless(Auth::user()->can('update', $extraShift), 403);
+
+        $data = $this->validate([
+            'check_in_time' => ['required', 'date_format:H:i'],
+            'check_out_time' => ['nullable', 'date_format:H:i', 'after:check_in_time'],
+        ]);
+
+        $calculated = (new ShiftScheduleCalculator)->calculate([[
+            'config' => $extraShift->shiftType,
+            'check_in' => $data['check_in_time'] . ':00',
+            'check_out' => $data['check_out_time'] ? $data['check_out_time'] . ':00' : null,
+        ]])[0];
+
+        ExtraShiftAttendanceRecord::saveCalculatedResult($calculated, $extraShift->id, 'manual', Auth::id());
+
+        $this->closeAttendanceModal();
+
+        Notification::make()->title('Absensi extra shift tersimpan')->success()->send();
     }
 
     public function openAddModal(): void

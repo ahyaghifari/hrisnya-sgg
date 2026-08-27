@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Models\Attendance\AttendanceRecords;
 use App\Models\Attendance\SyncAccessLog;
+use App\Models\Shift\ExtraShiftAttendanceRecord;
 use App\Notifications\AttendanceCheckedIn;
 use App\Notifications\AttendanceCheckedOut;
 use App\Notifications\AttendanceScanRejected;
@@ -12,6 +13,8 @@ use App\Services\Attendance\AccessLogScheduleReader;
 use App\Services\Attendance\Calculators\FixedScheduleCalculator;
 use App\Services\Attendance\Calculators\FlexibleScheduleCalculator;
 use App\Services\Attendance\Calculators\ShiftScheduleCalculator;
+use App\Services\Attendance\ScheduleResolver;
+use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -34,6 +37,7 @@ class SyncAccessLogsAttendance extends Command
 
     public function handle(
         AccessLogScheduleReader $reader,
+        ScheduleResolver $scheduleResolver,
         FixedScheduleCalculator $fixedCalculator,
         FlexibleScheduleCalculator $flexibleCalculator,
         ShiftScheduleCalculator $shiftCalculator,
@@ -87,6 +91,30 @@ class SyncAccessLogsAttendance extends Command
             $shiftCount++;
         }
 
+        // Hari yang ada extra shift approved - dilewati dari fixed/flexible/shift di atas
+        // (lihat AccessLogScheduleReader::groupAndBucket), config-nya shift_type extra shift.
+        // Divalidasi dulu (isGenuineExtraShiftScan()) sebelum dihitung: reader cuma tau ADA
+        // extra shift hari itu, belum tau apakah pasangan check-in/check-out yang kepasangkan
+        // beneran waktu extra shift-nya atau ternyata masih sisa scan shift normal (mis. scan
+        // 4x sehari - masuk normal, pulang normal, masuk extra, pulang extra - tapi
+        // pairScansForEmployee() cuma nyisain scan pertama & terakhir, jadi check_in yang
+        // kebawa ke sini bisa jadi jam masuk shift NORMAL, bukan extra). Kalau tidak valid,
+        // dicek ulang lewat ScheduleResolver dan diproses sebagai jadwal normal biasa -
+        // nggak masalah, itu justru fallback yang benar.
+        $extraShiftCount = 0;
+        foreach ($result['buckets']['extra_shift'] as $entry) {
+            if (! $this->isGenuineExtraShiftScan($entry)) {
+                $this->reprocessAsNormalSchedule($entry, $scheduleResolver, $fixedCalculator, $flexibleCalculator, $shiftCalculator, $repo, $log, $runId);
+
+                continue;
+            }
+
+            $r = $shiftCalculator->calculate([$entry])[0];
+            ExtraShiftAttendanceRecord::saveCalculatedResult($r, $r['extra_shift_assignment_id'], 'access_logs_shift');
+            $log->info("[{$runId}] diproses (extra_shift): nip={$r['user']->nip} nama={$r['user']->name} tanggal={$r['date']} status={$r['status']} checkin={$r['check_in']} checkout=" . ($r['check_out'] ?? '-'));
+            $extraShiftCount++;
+        }
+
         // Scan yang user-nya ketemu tapi jadwalnya TIDAK ketemu untuk tanggal itu - tidak
         // pernah masuk ke buckets manapun jadi tidak pernah tersimpan ke attendance_records.
         // Kabari karyawannya langsung supaya tidak diam-diam dianggap tidak absen.
@@ -117,14 +145,14 @@ class SyncAccessLogsAttendance extends Command
 
         $watermark->update(['last_synced_at' => $result['max_synced_at']]);
 
-        $summary = "[{$runId}] selesai: fixed={$fixedCount} flexible={$flexibleCount} shift={$shiftCount} "
+        $summary = "[{$runId}] selesai: fixed={$fixedCount} flexible={$flexibleCount} shift={$shiftCount} extra_shift={$extraShiftCount} "
             . 'jadwal_tidak_ditemukan=' . count($result['unresolved_schedule']) . ' '
             . 'device_tidak_dikenal=' . count($result['rejected_device']) . ' '
             . 'nip_tidak_dikenal=' . count($result['unmatched_users']) . ' '
             . "watermark_baru={$result['max_synced_at']}";
         $log->info($summary);
 
-        $this->info("Sync selesai: {$fixedCount} fixed, {$flexibleCount} flexible, {$shiftCount} shift disimpan. Watermark -> {$result['max_synced_at']}.");
+        $this->info("Sync selesai: {$fixedCount} fixed, {$flexibleCount} flexible, {$shiftCount} shift, {$extraShiftCount} extra_shift disimpan. Watermark -> {$result['max_synced_at']}.");
 
         return Command::SUCCESS;
     }
@@ -152,5 +180,62 @@ class SyncAccessLogsAttendance extends Command
                 "durasi kerja Anda belum memenuhi minimum ({$r['config']->min_work_minutes} menit), silakan scan pulang lagi setelah durasi kerja tercukupi."
             ));
         }
+    }
+
+    /**
+     * check_in entry bucket 'extra_shift' beneran waktu shift extra-nya (>= jam mulai shift
+     * extra dikurangi buffer check-in-nya sendiri) - kalau enggak, itu tandanya check_in yang
+     * kebawa ke sini sebenarnya jam masuk shift NORMAL (lihat komentar di handle()).
+     */
+    private function isGenuineExtraShiftScan(array $entry): bool
+    {
+        if (! $entry['check_in']) {
+            return false;
+        }
+
+        $earliestCheckIn = Carbon::createFromFormat('H:i:s', $entry['config']->start_time)
+            ->subMinutes($entry['config']->checkin_buffer_minutes);
+
+        return Carbon::createFromFormat('H:i:s', $entry['check_in'])->gte($earliestCheckIn);
+    }
+
+    /**
+     * Fallback buat entry bucket 'extra_shift' yang ternyata tidak valid (isGenuineExtraShiftScan
+     * gagal) - cek ulang jadwal NORMAL-nya lewat ScheduleResolver dan proses seperti hari tanpa
+     * extra shift sama sekali (fixed/flexible/shift, tersimpan ke attendance_records biasa).
+     */
+    private function reprocessAsNormalSchedule(
+        array $entry,
+        ScheduleResolver $scheduleResolver,
+        FixedScheduleCalculator $fixedCalculator,
+        FlexibleScheduleCalculator $flexibleCalculator,
+        ShiftScheduleCalculator $shiftCalculator,
+        AttendanceRecordRepository $repo,
+        $log,
+        string $runId,
+    ): void {
+        $resolved = $scheduleResolver->resolveForUserDate($entry['user'], $entry['date'], ignoreEffectiveDate: true);
+
+        if (! $resolved || ($resolved['is_off_day'] ?? false)) {
+            $log->warning("[{$runId}] ditolak (jadwal tidak ditemukan setelah extra shift tidak valid): nip={$entry['employee_id']} tanggal={$entry['date']}");
+            $entry['user']->notify(new AttendanceScanRejected(
+                $entry['date'],
+                'jadwal Anda tidak ditemukan untuk tanggal ini, hubungi HR/atasan Anda.'
+            ));
+
+            return;
+        }
+
+        $entry = array_merge($entry, $resolved);
+        $calculator = match ($resolved['type']) {
+            'fixed' => $fixedCalculator,
+            'flexible' => $flexibleCalculator,
+            'shift' => $shiftCalculator,
+        };
+
+        $r = $calculator->calculate([$entry])[0];
+        $record = $repo->saveCalculatedResult($r, "access_logs_{$resolved['type']}");
+        $log->info("[{$runId}] diproses ({$resolved['type']}, fallback dari extra_shift tidak valid): nip={$r['user']->nip} nama={$r['user']->name} tanggal={$r['date']} status={$r['status']} checkin={$r['check_in']} checkout=" . ($r['check_out'] ?? '-'));
+        $this->notifyCheckInOut($r, $record);
     }
 }

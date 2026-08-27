@@ -7,6 +7,7 @@ use App\Enum\Payroll\PayrollComponentEnum;
 use App\Enum\Payroll\PayrollComponentTypeEnum;
 use App\Models\Payroll\CompanyPayrollComponent;
 use App\Models\Payroll\Payroll;
+use App\Models\Payroll\PayrollComponentOverride;
 use App\Models\Payroll\PayrollComponentRecipient;
 use App\Models\Payroll\PayrollItem;
 use App\Models\Payroll\PayrollPeriod;
@@ -667,11 +668,33 @@ class PayrollService
         // Baris komponen ini sudah di-edit manual di payroll sebelumnya & sudah dibawa pindah
         // apa adanya ke payroll baru ini (lihat generateForUser()) - Calculator-nya WAJIB
         // di-skip, kalau tidak baris manualnya ketimpa balik oleh hasil hitungan otomatis.
-        if ($isEligible && ! $context->isProtected($component->value)) {
-            $calculatorClass = PayrollCalculatorRegistry::resolve($component);
+        if (! $context->isProtected($component->value)) {
+            $override = PayrollComponentOverride::activeFor($user->id, $component->value);
 
-            if ($calculatorClass) {
-                app($calculatorClass)->calculate($user, $payroll, $period, $context);
+            if ($override) {
+                // Standing override (halaman "Override Komponen Gaji") - nilai dipakai APA
+                // ADANYA, Calculator-nya sama sekali tidak dijalankan, dan gerbang "Penerima
+                // Komponen Gaji" (isEligible) TIDAK relevan di sini - override adalah instruksi
+                // eksplisit per-karyawan, bukan aturan tipe karyawan (2026-08-26, instruksi user).
+                PayrollItem::create([
+                    'payroll_id' => $payroll->id,
+                    'name' => $component->label(),
+                    'type' => $component->type()->value,
+                    'quantity' => 1,
+                    'amount' => (float) $override->amount,
+                    'note' => $override->note,
+                    'source_type' => $component->value,
+                ]);
+
+                $component->type() === \App\Enum\Payroll\PayrollComponentTypeEnum::EARNING
+                    ? $context->addEarning((float) $override->amount)
+                    : $context->addDeduction((float) $override->amount);
+            } elseif ($isEligible) {
+                $calculatorClass = PayrollCalculatorRegistry::resolve($component);
+
+                if ($calculatorClass) {
+                    app($calculatorClass)->calculate($user, $payroll, $period, $context);
+                }
             }
         }
 
