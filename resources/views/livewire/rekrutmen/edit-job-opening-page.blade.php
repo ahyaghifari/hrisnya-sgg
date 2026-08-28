@@ -1,5 +1,5 @@
 <div>
-<x-page-header title="Edit Lowongan Kerja" subtitle="Posisi, kuota, deskripsi, dan persyaratan lowongan" :back="route('kepegawaian.lowongan.show', $record)" />
+<x-page-header title="Edit Lowongan Kerja" subtitle="Posisi, kuota, deskripsi, dan persyaratan lowongan" :back="route('rekrutmen.lowongan.show', $record)" />
 
 <div style="margin-bottom:16px;display:flex;align-items:center;gap:10px;">
     <span style="font-size:12px;color:var(--text-muted);">Status:</span>
@@ -77,7 +77,7 @@
     </div>
 
     <div style="display:flex;align-items:center;justify-content:space-between;margin-top:20px;gap:12px;flex-wrap:wrap;">
-        <a href="{{ route('kepegawaian.lowongan.show', $record) }}" wire:navigate class="btn-ghost"><i class="fa-solid fa-arrow-left" style="font-size:12px;"></i> Kembali</a>
+        <a href="{{ route('rekrutmen.lowongan.show', $record) }}" wire:navigate class="btn-ghost"><i class="fa-solid fa-arrow-left" style="font-size:12px;"></i> Kembali</a>
         <div style="display:flex;gap:10px;flex-wrap:wrap;">
             <button type="button" wire:click="saveDraft" class="btn-ghost">
                 <i class="fa-solid fa-floppy-disk" style="font-size:12px;"></i>

@@ -2,12 +2,10 @@
 
 namespace App\Livewire\Sikartap;
 
-use App\Enum\Approval\ApprovalModuleEnum;
 use App\Enum\CustomPermissionEnum;
 use App\Exports\Sikartap\SikartapPengajuanExport;
 use App\Models\Master\Companies;
 use App\Models\Sikartap\Sikartap;
-use App\Services\Approval\ApprovalPermissionService;
 use App\Services\Sikartap\SikartapPeriodeHelper;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
@@ -17,14 +15,14 @@ use Livewire\WithPagination;
 use Maatwebsite\Excel\Facades\Excel;
 
 /**
- * Dashboard Sikartap — satu-satunya landing page nav Sikartap (2026-08-25/26, instruksi user:
- * dropdown dibubarkan, halaman Pengajuan terpisah dilebur ke sini juga — "halaman pengajuan
- * itu harusnya ngga ada, disatukan aja ke dashboard"). Jadwal/Antrian MCU/Ide Inovasi/
- * Pengaturan tetap halaman terpisah, diakses lewat quick-link di halaman ini.
+ * Dashboard Sikartap — landing "Pengajuan" di dropdown nav Sikartap. Halaman Pengajuan
+ * terpisah dilebur ke sini (2026-08-25/26, instruksi user: "halaman pengajuan itu harusnya
+ * ngga ada, disatukan aja ke dashboard"). Jadwal/Antrian MCU/Ide Inovasi/Pengaturan =
+ * halaman terpisah, diakses lewat dropdown nav (quick-link di halaman ini dihapus 2026-08-28).
  *
  * Gate masuk = SISTEM_SIKARTAP (gerbang modul) - BUKAN salah satu dari permission widget,
- * supaya halaman ini tetap bisa dibuka (buat akses quick-link) walau role belum dikasih
- * permission widget manapun, cuma widget-nya yang kosong.
+ * supaya halaman ini tetap bisa dibuka walau role belum dikasih permission widget manapun,
+ * cuma widget-nya yang kosong.
  *
  * Widget-nya sendiri tetap permission masing-masing (LIHAT_DASHBOARD_SIKARTAP_*, instruksi
  * user: "masing2 widget ini punya permission") - KECUALI widget tabel pengajuan, yang reuse
@@ -100,11 +98,6 @@ class DashboardSikartapPage extends Component
         return Auth::user()->can(CustomPermissionEnum::LIHAT_DASHBOARD_SIKARTAP_STATISTIK->value);
     }
 
-    public function getCanButuhTindakanProperty(): bool
-    {
-        return Auth::user()->can(CustomPermissionEnum::LIHAT_DASHBOARD_SIKARTAP_BUTUH_TINDAKAN->value);
-    }
-
     public function getCanAntrianTahapProperty(): bool
     {
         return Auth::user()->can(CustomPermissionEnum::LIHAT_DASHBOARD_SIKARTAP_ANTRIAN_TAHAP->value);
@@ -129,31 +122,6 @@ class DashboardSikartapPage extends Component
         return $this->canViewSikartap || $this->canInputMcu;
     }
 
-    /** Quick-link permanen ke halaman existing (Jadwal/Ide Inovasi/Pengaturan) — dulu ada di
-     * dropdown nav, sekarang nempel di dashboard karena dropdown-nya dibubarkan (instruksi user
-     * 2026-08-25: "sikartap bukan dropdown lagi ... cukup 1 halaman dashboard"). Antrian MCU
-     * TIDAK ada lagi di sini (2026-08-26) - sudah dilebur jadi widget tabel pengajuan di
-     * halaman ini sendiri (lihat mcuActionsFor()), bukan halaman terpisah lagi.
-     *
-     * @return array<int, array{label:string,icon:string,url:string}>
-     */
-    public function getQuickLinksProperty(): array
-    {
-        $user = Auth::user();
-        $links = [];
-
-        if ($user->can('ViewAny:Sikartap')) {
-            $links[] = ['label' => 'Jadwal', 'icon' => 'fa-calendar-days', 'url' => route('sikartap.jadwal')];
-        }
-
-        $links[] = ['label' => 'Ide Inovasi', 'icon' => 'fa-lightbulb', 'url' => route('sikartap.ide-inovasi.atasan.queue')];
-
-        if ($user->can(CustomPermissionEnum::LIHAT_PENGATURAN_SIKARTAP->value)) {
-            $links[] = ['label' => 'Pengaturan', 'icon' => 'fa-sliders', 'url' => route('sikartap.pengaturan')];
-        }
-
-        return $links;
-    }
 
     private function scopedQuery()
     {
@@ -188,8 +156,7 @@ class DashboardSikartapPage extends Component
         ];
     }
 
-    /** Ringkasan jumlah pengajuan yang nyangkut di tiap tahap — overview lintas company/unit,
-     * BUKAN daftar personal (beda dari widget Butuh Tindakan). */
+    /** Ringkasan jumlah pengajuan yang nyangkut di tiap tahap — overview lintas company/unit. */
     public function getAntrianTahapProperty(): array
     {
         if (! $this->canAntrianTahap) {
@@ -205,95 +172,6 @@ class DashboardSikartapPage extends Component
             'mcu' => $all->filter(fn (Sikartap $s) => $s->status_wawancara === 'disarankan' && $s->requiresMcu() && $s->ideInovasiApproved() && $s->status_mcu === 'pending')->count(),
             'keputusan_direktur' => $all->filter(fn (Sikartap $s) => $s->isEligibleForDirectorDecision() && $s->status_keputusan_direktur === 'pending')->count(),
         ];
-    }
-
-    /** Daftar personal "butuh tindakan Anda" — tiap baris dicek gate aslinya masing-masing
-     * (Update:Sikartap, INPUT_MCU_* per role staff, canReviewIdeInovasiAsAtasan,
-     * ApprovalPermissionService), pola sama PendingApprovalsCard::buildRequests() tapi khusus
-     * modul Sikartap. Link "Lihat semua" ke widget tabel pengajuan di halaman ini sendiri
-     * (anchor #tabel-pengajuan) atau halaman terkait lain (Antrian MCU/Ide Inovasi/dst).
-     */
-    public function getButuhTindakanProperty(): array
-    {
-        if (! $this->canButuhTindakan) {
-            return [];
-        }
-
-        $user = Auth::user();
-        $items = [];
-
-        if ($user->can('Update:Sikartap')) {
-            $items['berkas'] = [
-                'label' => 'Verifikasi Berkas',
-                'icon' => 'fa-file-signature',
-                'count' => $this->scopedQuery()->where('status_berkas', 'pending')->count(),
-                'url' => '#tabel-pengajuan',
-            ];
-        }
-
-        // Antrian MCU dipecah per role (staff lab cuma peduli "belum upload hasil lab", bukan
-        // total MCU pending semua) - pola sama dashboard_staff_lab.php/dashboard_dokter.php
-        // legacy yang masing-masing punya stat "Belum Upload/Belum Diperiksa" sendiri.
-        $mcuRoles = [
-            'mcu_perawat' => [CustomPermissionEnum::INPUT_MCU_ASESMEN_PERAWAT, 'mcuNurseAssessment', 'Asesmen Perawat', 'fa-user-nurse'],
-            'mcu_lab' => [CustomPermissionEnum::INPUT_MCU_LABORATORIUM, 'mcuLabResult', 'Hasil Laboratorium', 'fa-flask-vial'],
-            'mcu_radiologi' => [CustomPermissionEnum::INPUT_MCU_RADIOLOGI, 'mcuRadiologyResult', 'Hasil Radiologi', 'fa-x-ray'],
-            'mcu_dokter' => [CustomPermissionEnum::INPUT_MCU_PEMERIKSAAN_DOKTER, 'mcuDoctorExamination', 'Pemeriksaan Dokter', 'fa-user-doctor'],
-        ];
-
-        $mcuEligible = null;
-
-        foreach ($mcuRoles as $key => [$permission, $relation, $label, $icon]) {
-            if (! $user->can($permission->value)) {
-                continue;
-            }
-
-            $mcuEligible ??= $this->scopedQuery()
-                ->with(['mcuNurseAssessment', 'mcuLabResult', 'mcuRadiologyResult', 'mcuDoctorExamination'])
-                ->get()
-                ->filter(fn (Sikartap $s) => $s->status_wawancara === 'disarankan' && $s->requiresMcu() && $s->ideInovasiApproved() && $s->status_mcu === 'pending');
-
-            $count = $mcuEligible->filter(fn (Sikartap $s) => $s->{$relation} === null)->count();
-
-            if ($count > 0) {
-                $items[$key] = [
-                    'label' => 'MCU - ' . $label,
-                    'icon' => $icon,
-                    'count' => $count,
-                    'url' => '#tabel-pengajuan',
-                ];
-            }
-        }
-
-        $ideInovasiCount = $this->scopedQuery()->get()
-            ->filter(fn (Sikartap $s) => ($s->ideInovasi?->status_atasan ?? null) === 'pending' && $s->canReviewIdeInovasiAsAtasan($user))
-            ->count();
-
-        if ($ideInovasiCount > 0) {
-            $items['ide_inovasi'] = [
-                'label' => 'Nilai Ide Inovasi',
-                'icon' => 'fa-lightbulb',
-                'count' => $ideInovasiCount,
-                'url' => route('sikartap.ide-inovasi.atasan.queue'),
-            ];
-        }
-
-        if ($user->can('View:Sikartap')) {
-            $direkturCount = app(ApprovalPermissionService::class)
-                ->pendingApprovalsFor($user, ApprovalModuleEnum::SIKARTAP_DIRECTOR_DECISION->value)
-                ->count();
-
-            if ($direkturCount > 0) {
-                $items['keputusan_direktur'] = [
-                    'label' => 'Keputusan Direktur',
-                    'icon' => 'fa-gavel',
-                    'count' => $direkturCount,
-                    'url' => route('sikartap.direktur.bulk'),
-                ];
-            }
-        }
-
-        return $items;
     }
 
     // ── Widget tabel pengajuan (dilebur dari PengajuanListPage, instruksi user 2026-08-26) ──
@@ -427,40 +305,9 @@ class DashboardSikartapPage extends Component
      */
     public function mcuActionsFor(Sikartap $item): array
     {
-        if (! $this->canInputMcu) {
-            return [];
-        }
-
-        $eligible = $item->status_wawancara === 'disarankan' && $item->requiresMcu() && $item->ideInovasiApproved() && $item->status_mcu === 'pending';
-
-        if (! $eligible) {
-            return [];
-        }
-
-        $user = Auth::user();
-        $mcuRoles = [
-            [CustomPermissionEnum::INPUT_MCU_ASESMEN_PERAWAT, 'mcuNurseAssessment', 'sikartap.mcu.perawat', 'Asesmen Perawat', 'fa-user-nurse'],
-            [CustomPermissionEnum::INPUT_MCU_LABORATORIUM, 'mcuLabResult', 'sikartap.mcu.laboratorium', 'Hasil Laboratorium', 'fa-flask-vial'],
-            [CustomPermissionEnum::INPUT_MCU_RADIOLOGI, 'mcuRadiologyResult', 'sikartap.mcu.radiologi', 'Hasil Radiologi', 'fa-x-ray'],
-            [CustomPermissionEnum::INPUT_MCU_PEMERIKSAAN_DOKTER, 'mcuDoctorExamination', 'sikartap.mcu.dokter', 'Pemeriksaan Dokter', 'fa-user-doctor'],
-        ];
-
-        $canEdit = $user->can(CustomPermissionEnum::EDIT_INPUT_MCU->value);
-        $actions = [];
-
-        foreach ($mcuRoles as [$permission, $relation, $routeName, $title, $icon]) {
-            $sudahDiisi = $item->{$relation} !== null;
-
-            if ($sudahDiisi ? $canEdit : $user->can($permission->value)) {
-                $actions[] = [
-                    'url' => route($routeName, $item),
-                    'icon' => $sudahDiisi ? 'fa-pen' : $icon,
-                    'title' => ($sudahDiisi ? 'Edit ' : '') . $title,
-                ];
-            }
-        }
-
-        return $actions;
+        // Logika dipindah ke Sikartap::mcuActionsFor() - dipakai bareng McuQueuePage,
+        // satu sumber kebenaran (lihat §3.3 rencana-implementasi-sikartap.md).
+        return $item->mcuActionsFor(Auth::user());
     }
 
     /** Export Excel data pengajuan sesuai filter aktif saat tombol diklik (company/search/

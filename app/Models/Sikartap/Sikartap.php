@@ -3,6 +3,7 @@
 namespace App\Models\Sikartap;
 
 use App\Enum\Approval\ApprovalModuleEnum;
+use App\Enum\CustomPermissionEnum;
 use App\Enum\Sikartap\SikartapDocumentType;
 use App\Enum\Sikartap\SikartapSettingEnum;
 use App\Models\ApprovalManagement\ApprovalHistories;
@@ -179,6 +180,56 @@ class Sikartap extends Model
     public function ideInovasiApproved(): bool
     {
         return ! $this->requiresIdeInovasi() || $this->ideInovasi?->status_atasan === 'approved';
+    }
+
+    /**
+     * Tombol aksi MCU yang tersedia buat $user pada pengajuan ini (link ke 4 form
+     * perawat/lab/radiologi/dokter). Kosong kalau user tidak punya permission MCU manapun,
+     * atau pengajuan belum eligible MCU (wawancara belum disarankan / MCU tidak wajib / ide
+     * inovasi belum disetujui atasan / status_mcu bukan pending). 1 baris bisa punya >1 tombol
+     * kalau staff pegang >1 permission INPUT_MCU_*. Dipakai bareng DashboardSikartapPage &
+     * McuQueuePage — satu sumber kebenaran, jangan diduplikasi.
+     *
+     * @return list<array{url:string,icon:string,title:string}>
+     */
+    public function mcuActionsFor(User $user): array
+    {
+        if (! $user->canInputSikartapMcu() && ! $user->can(CustomPermissionEnum::EDIT_INPUT_MCU->value)) {
+            return [];
+        }
+
+        $eligible = $this->status_wawancara === 'disarankan'
+            && $this->requiresMcu()
+            && $this->ideInovasiApproved()
+            && $this->status_mcu === 'pending';
+
+        if (! $eligible) {
+            return [];
+        }
+
+        $stations = [
+            [CustomPermissionEnum::INPUT_MCU_ASESMEN_PERAWAT, 'mcuNurseAssessment', 'sikartap.mcu.perawat', 'Asesmen Perawat', 'fa-user-nurse'],
+            [CustomPermissionEnum::INPUT_MCU_LABORATORIUM, 'mcuLabResult', 'sikartap.mcu.laboratorium', 'Hasil Laboratorium', 'fa-flask-vial'],
+            [CustomPermissionEnum::INPUT_MCU_RADIOLOGI, 'mcuRadiologyResult', 'sikartap.mcu.radiologi', 'Hasil Radiologi', 'fa-x-ray'],
+            [CustomPermissionEnum::INPUT_MCU_PEMERIKSAAN_DOKTER, 'mcuDoctorExamination', 'sikartap.mcu.dokter', 'Pemeriksaan Dokter', 'fa-user-doctor'],
+        ];
+
+        $canEdit = $user->can(CustomPermissionEnum::EDIT_INPUT_MCU->value);
+        $actions = [];
+
+        foreach ($stations as [$permission, $relation, $routeName, $title, $icon]) {
+            $sudahDiisi = $this->{$relation} !== null;
+
+            if ($sudahDiisi ? $canEdit : $user->can($permission->value)) {
+                $actions[] = [
+                    'url' => route($routeName, $this),
+                    'icon' => $sudahDiisi ? 'fa-pen' : $icon,
+                    'title' => ($sudahDiisi ? 'Edit ' : '') . $title,
+                ];
+            }
+        }
+
+        return $actions;
     }
 
     /**

@@ -20,6 +20,9 @@
         'canAccessTukarShift' => auth()->user()->can(\App\Enum\CustomPermissionEnum::TUKAR_SHIFT_SAYA->value) && auth()->user()->hasShiftSchedule(),
         'canAccessSikartapSaya' => auth()->user()->isKontrakKaryawan(),
         'canAccessSikartap' => auth()->user()->can(\App\Enum\CustomPermissionEnum::SISTEM_SIKARTAP->value),
+        // Rekrutmen: nav group sendiri, gate pakai ViewAny:JobOpenings yang sudah ada (bukan
+        // SISTEM_REKRUTMEN baru) — tidak perlu assign ulang permission ke role.
+        'canAccessRekrutmen' => auth()->user()->can('ViewAny:JobOpenings'),
         'canAccessSaranaPrasarana' => auth()->user()->can(\App\Enum\CustomPermissionEnum::SISTEM_SARANA_PRASARANA->value),
     ];
 @endphp

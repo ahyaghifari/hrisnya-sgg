@@ -57,7 +57,6 @@ class DashboardSikartapTest extends TestCase
         $component = Livewire::test(DashboardSikartapPage::class)
             ->assertOk()
             ->assertSet('canStatistik', true)
-            ->assertSet('canButuhTindakan', false)
             ->assertSet('canAntrianTahap', false);
 
         $statistik = $component->get('statistik');
@@ -77,41 +76,6 @@ class DashboardSikartapTest extends TestCase
 
         $this->assertSame(1, $antrian['tes']);
         $this->assertSame(1, $antrian['wawancara']);
-    }
-
-    public function test_butuh_tindakan_widget_lists_pending_berkas_for_updater(): void
-    {
-        $user = $this->actingAsWithPermission(CustomPermissionEnum::LIHAT_DASHBOARD_SIKARTAP_BUTUH_TINDAKAN);
-        $user->givePermissionTo(Permission::firstOrCreate(['name' => 'Update:Sikartap', 'guard_name' => 'web']));
-
-        Sikartap::create(['user_id' => User::factory()->create(['company_id' => $this->company->id])->id]);
-
-        $items = Livewire::test(DashboardSikartapPage::class)->get('butuhTindakan');
-
-        $this->assertArrayHasKey('berkas', $items);
-        $this->assertSame(1, $items['berkas']['count']);
-    }
-
-    public function test_mcu_widget_only_counts_the_relevant_role(): void
-    {
-        $lab = $this->actingAsWithPermission(CustomPermissionEnum::LIHAT_DASHBOARD_SIKARTAP_BUTUH_TINDAKAN);
-        $lab->givePermissionTo(Permission::firstOrCreate(['name' => CustomPermissionEnum::INPUT_MCU_LABORATORIUM->value, 'guard_name' => 'web']));
-
-        $sikartap = Sikartap::create([
-            'user_id' => User::factory()->create(['company_id' => $this->company->id])->id,
-            'status_berkas' => 'approved',
-            'berkas_lengkap' => true,
-            'status_tes' => 'lulus',
-            'status_wawancara' => 'disarankan',
-        ]);
-        $sikartap->mcuNurseAssessment()->create(['tinggi_badan' => 170, 'berat_badan' => 65, 'tekanan_darah' => '120/80', 'nadi' => 80, 'suhu' => 36.5, 'pernafasan' => 20]);
-
-        $items = Livewire::test(DashboardSikartapPage::class)->get('butuhTindakan');
-
-        $this->assertArrayHasKey('mcu_lab', $items);
-        $this->assertSame(1, $items['mcu_lab']['count']);
-        $this->assertArrayNotHasKey('mcu_perawat', $items);
-        $this->assertArrayNotHasKey('mcu_dokter', $items);
     }
 
     private function makeMcuEligibleSikartap(): Sikartap

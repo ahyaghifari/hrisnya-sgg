@@ -558,22 +558,37 @@ Route::middleware(['auth', 'portal.access'])->group(function () {
     Route::get('/pelatihan/{course}', TrainingDetail::class)
         ->name('pelatihan.show');
 
-    // Rekrutmen digabung ke bawah Kepegawaian (permission SISTEM_REKRUTMEN dihapus, gerbang
-    // dropdown-nya sekarang ikut $canAccessKepegawaian di nav.blade.php) - path & route name
-    // dipindah dari /rekrutmen/... ke /kepegawaian/..., tapi kelas Livewire-nya sendiri
-    // dibiarkan tetap di namespace App\Livewire\Rekrutmen (cuma rename routing/nav, bukan
-    // reorganisasi folder).
-    Route::get('/kepegawaian/lowongan', JobOpeningsPage::class)
-        ->name('kepegawaian.lowongan');
+    // Rekrutmen = modul sendiri (2026-08-28) - nav group terpisah, prefix /rekrutmen. Dulu
+    // sempat dilebur ke /kepegawaian/lowongan; dikembalikan ke /rekrutmen. Permintaan Tenaga
+    // Kerja TETAP di /kepegawaian (bagian Jabatan), bukan modul Rekrutmen.
+    Route::redirect('/kepegawaian/lowongan', '/rekrutmen/lowongan', 301);
+    Route::get('/kepegawaian/lowongan/{record}', fn (string $record) => redirect(route('rekrutmen.lowongan.show', $record), 301));
 
-    Route::get('/kepegawaian/lowongan/{record}/edit', EditJobOpeningPage::class)
-        ->name('kepegawaian.lowongan.edit');
+    Route::get('/rekrutmen/lowongan', JobOpeningsPage::class)
+        ->name('rekrutmen.lowongan');
 
-    Route::get('/kepegawaian/lowongan/kandidat/{record}', CandidateApplicationDetailPage::class)
-        ->name('kepegawaian.lowongan.kandidat');
+    Route::get('/rekrutmen/lowongan/{record}/edit', EditJobOpeningPage::class)
+        ->name('rekrutmen.lowongan.edit');
 
-    Route::get('/kepegawaian/lowongan/{record}', JobOpeningDetailPage::class)
-        ->name('kepegawaian.lowongan.show');
+    Route::get('/rekrutmen/lowongan/{record}/pelamar', \App\Livewire\Rekrutmen\ApplicantsPage::class)
+        ->name('rekrutmen.lowongan.pelamar');
+
+    Route::get('/rekrutmen/lowongan/kandidat/{record}', CandidateApplicationDetailPage::class)
+        ->name('rekrutmen.lowongan.kandidat');
+
+    Route::get('/rekrutmen/lowongan/{record}', JobOpeningDetailPage::class)
+        ->name('rekrutmen.lowongan.show');
+
+    // {jobApplication} = ULID milik project Rekrutmen eksternal (bukan model HRIS) - string biasa.
+    Route::get('/rekrutmen/pelamar/{jobApplication}/dokumen/{document}', [\App\Http\Controllers\Rekrutmen\CandidateDocumentProxyController::class, 'show'])
+        ->name('rekrutmen.pelamar.dokumen');
+
+    Route::get('/rekrutmen/pelamar/{jobApplication}/offering-letter/{type}', [\App\Http\Controllers\Rekrutmen\CandidateDocumentProxyController::class, 'offeringLetter'])
+        ->where('type', 'recruiter|signed')
+        ->name('rekrutmen.pelamar.offering-letter');
+
+    Route::get('/rekrutmen/pelamar/{jobApplication}', \App\Livewire\Rekrutmen\ApplicantDetailPage::class)
+        ->name('rekrutmen.pelamar.show');
 
     Route::get('/kepegawaian/permintaan', ManpowerRequestsPage::class)
         ->name('kepegawaian.permintaan');

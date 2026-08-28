@@ -5,7 +5,6 @@
     $canViewJobEvaluation = auth()->user()->can(\App\Enum\CustomPermissionEnum::LIHAT_JOB_EVALUATION->value);   
     $canViewDokumen = auth()->user()->can('ViewAny:UserDocuments');
     $canViewPerubahanStatus = auth()->user()->can('ViewAny:UserTransition');
-    $canViewLowonganKerja = auth()->user()->can('ViewAny:JobOpenings');
     $canViewPermintaanTenagaKerja = auth()->user()->can('ViewAny:ManpowerRequests');
     $canViewKontrak = auth()->user()->can('ViewAny:UserContract');
 @endphp
@@ -55,12 +54,6 @@
     <a href="{{ route('kepegawaian.mutasi-karyawan') }}" wire:navigate class="pwa-menu-grid-item">
         <span class="pwa-menu-grid-icon gold"><i class="fa-solid fa-right-left"></i></span>
         <span class="pwa-menu-grid-label">Perubahan Status</span>
-    </a>
-@endif
-@if ($canViewLowonganKerja)
-    <a href="{{ route('kepegawaian.lowongan') }}" wire:navigate class="pwa-menu-grid-item">
-        <span class="pwa-menu-grid-icon gold"><i class="fa-solid fa-briefcase"></i></span>
-        <span class="pwa-menu-grid-label">Lowongan Kerja</span>
     </a>
 @endif
 @if ($canViewPermintaanTenagaKerja)

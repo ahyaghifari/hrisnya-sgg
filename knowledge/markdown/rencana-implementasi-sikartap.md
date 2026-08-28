@@ -181,6 +181,26 @@ Masalah yang diselesaikan: kalau ada pengangkatan karyawan tetap massal (mis. 10
 - Route `sikartap.direktur.bulk` + `config/portal-pages.php` (gate `ViewAny:Sikartap`, plus `mount()` sendiri abort 404 kalau kosong).
 - Test `tests/Feature/Sikartap/DirekturBulkKeputusanTest.php` (6 test) — widget grouping 1-orang vs banyak-orang, 404 kalau kosong, approve/reject sebagian (bukan semua) tercentang, toggle pilih semua.
 
+## 3.6 Nav Sikartap dibagi lagi jadi dropdown (2026-08-28, instruksi user)
+
+Balik arah dari §3.1/dashboard-widget (2026-08-25/26 "dropdown dibubarkan jadi 1 link ke
+dashboard"). `nav/sikartap-dropdown.blade.php` + `pwa-nav/sikartap-menu.blade.php` sekarang
+dropdown 5 item — **halaman targetnya semua sudah ada, tidak ada rewrite alur**:
+- **Pengajuan** → `sikartap.dashboard` (tabel pengajuan + widget approval)
+- **Jadwal Tes & Wawancara** → `sikartap.jadwal` (gate `ViewAny:Sikartap`)
+- **Ide Inovasi** → `sikartap.ide-inovasi.atasan.queue` (tanpa gate murah — halaman self-filter).
+  Urutan sebelum MCU: MCU di-gate `ideInovasiApproved()` (lihat `AsesmenPerawatPage::mount`).
+- **Antrian MCU** → `sikartap.mcu.queue` — **halaman dibikin ulang** (`McuQueuePage`, dulu
+  dilebur ke dashboard). Gate `canInputSikartapMcu()`/`EDIT_INPUT_MCU`. Query eligible MCU
+  di-filter PHP (Setting per-company) + paginasi manual, sama pola blok MCU di dashboard.
+- **Pengaturan** → `sikartap.pengaturan` (gate `LIHAT_PENGATURAN_SIKARTAP`)
+
+Logika "aksi MCU apa yang tersedia per baris" **dipindah ke `Sikartap::mcuActionsFor(User)`**
+— sebelumnya cuma di `DashboardSikartapPage::mcuActionsFor()`, sekarang dipakai bareng
+`McuQueuePage` (satu sumber kebenaran, `DashboardSikartapPage::mcuActionsFor()` jadi delegasi
+1 baris). `config/portal-pages.php` + `routes/sikartap.php` dapat entry `sikartap.mcu.queue`.
+Test existing `McuTest`/`DashboardSikartapTest` tetap PASS.
+
 ## 4. Red Flags Legacy yang Wajib Dihindari di Implementasi Baru
 
 Referensi § I di `analisis-sikartap-migrasi.md` — daftar cepat supaya tidak terulang:

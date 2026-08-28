@@ -10,6 +10,7 @@ use App\Livewire\Sikartap\IdeInovasiAtasanQueuePage;
 use App\Livewire\Sikartap\IdeInovasiAtasanReviewPage;
 use App\Livewire\Sikartap\IdeInovasiUploadPage;
 use App\Livewire\Sikartap\JadwalPage;
+use App\Livewire\Sikartap\McuQueuePage;
 use App\Livewire\Sikartap\PengajuanDetailPage;
 use App\Livewire\Sikartap\PengajuanKaryawanTetapPage;
 use App\Livewire\Sikartap\SikartapSettingsPage;
@@ -51,6 +52,13 @@ Route::get('/sikartap/keputusan-direktur', DirekturBulkKeputusanPage::class)
  */
 Route::get('/sikartap/jadwal', JadwalPage::class)
     ->name('sikartap.jadwal');
+
+/**
+ * Antrian MCU (dibikin ulang 2026-08-28) — daftar pengajuan yang nunggu input MCU + tombol
+ * per stasiun sesuai permission staff. Gate canInputSikartapMcu()/EDIT_INPUT_MCU.
+ */
+Route::get('/sikartap/mcu', McuQueuePage::class)
+    ->name('sikartap.mcu.queue');
 
 Route::get('/sikartap/mcu/{sikartap}/perawat', AsesmenPerawatPage::class)
     ->name('sikartap.mcu.perawat');

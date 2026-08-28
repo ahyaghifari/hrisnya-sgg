@@ -106,6 +106,10 @@
             <x-pwa-nav.kepegawaian-menu />
         @endif
 
+        @if ($canAccessRekrutmen)
+            <x-pwa-nav.rekrutmen-menu />
+        @endif
+
         @if ($canAccessSikartap)
             <x-pwa-nav.sikartap-menu />
         @endif

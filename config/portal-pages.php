@@ -731,26 +731,50 @@ return [
         'guard' => null,
     ],
 
-    'kepegawaian.lowongan' => [
+    'rekrutmen.lowongan' => [
         'label' => 'Lowongan Kerja',
         'permission' => 'ViewAny:JobOpenings',
         'guard' => null,
     ],
 
-    'kepegawaian.lowongan.edit' => [
+    'rekrutmen.lowongan.edit' => [
         'label' => 'Edit Lowongan Kerja',
         'permission' => 'Update:JobOpenings',
         'guard' => null,
     ],
 
-    'kepegawaian.lowongan.show' => [
+    'rekrutmen.lowongan.show' => [
         'label' => 'Detail Lowongan Kerja',
         'permission' => 'View:JobOpenings',
         'guard' => null,
     ],
 
-    'kepegawaian.lowongan.kandidat' => [
+    'rekrutmen.lowongan.kandidat' => [
         'label' => 'Detail Kandidat',
+        'permission' => 'View:JobOpenings',
+        'guard' => null,
+    ],
+
+    'rekrutmen.lowongan.pelamar' => [
+        'label' => 'Daftar Pelamar (Rekrutmen)',
+        'permission' => 'View:JobOpenings',
+        'guard' => null,
+    ],
+
+    'rekrutmen.pelamar.show' => [
+        'label' => 'Detail Pelamar (Rekrutmen)',
+        'permission' => 'View:JobOpenings',
+        'guard' => null,
+    ],
+
+    'rekrutmen.pelamar.dokumen' => [
+        'label' => 'Unduh Dokumen Pelamar (Rekrutmen)',
+        'permission' => 'View:JobOpenings',
+        'guard' => null,
+    ],
+
+    'rekrutmen.pelamar.offering-letter' => [
+        'label' => 'Unduh Surat Penawaran (Rekrutmen)',
         'permission' => 'View:JobOpenings',
         'guard' => null,
     ],
@@ -801,6 +825,12 @@ return [
         'label' => 'Jadwal Tes & Wawancara',
         'permission' => 'ViewAny:Sikartap',
         'guard' => null,
+    ],
+
+    'sikartap.mcu.queue' => [
+        'label' => 'Antrian MCU',
+        'permission' => null,
+        'guard' => 'canInputSikartapMcu',
     ],
 
     'sikartap.mcu.perawat' => [

@@ -1,7 +1,7 @@
 @props(['gates'])
 @php
     extract($gates);
-    $showRoleRow = $canSeeKaryawanMenu || $canAccessKeuangan || $canAccessAbsensi || $canAccessKepegawaian || $canAccessLms || $canAccessPenilaian || $canAccessHakAkses || $canAccessCoachingCounseling || $canAccessSikartap;
+    $showRoleRow = $canSeeKaryawanMenu || $canAccessKeuangan || $canAccessAbsensi || $canAccessKepegawaian || $canAccessLms || $canAccessPenilaian || $canAccessHakAkses || $canAccessCoachingCounseling || $canAccessSikartap || $canAccessRekrutmen;
     $initials = collect(explode(' ', auth()->user()->name))
         ->map(fn ($part) => mb_substr($part, 0, 1))
         ->take(2)
@@ -76,6 +76,9 @@
                         @endif
                         @if ($canAccessKepegawaian)
                             <x-nav.kepegawaian-dropdown />
+                        @endif
+                        @if ($canAccessRekrutmen)
+                            <x-nav.rekrutmen-dropdown />
                         @endif
                         @if ($canAccessSikartap)
                             <x-nav.sikartap-dropdown />

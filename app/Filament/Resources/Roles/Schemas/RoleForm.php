@@ -253,7 +253,6 @@ class RoleForm
             CustomPermissionEnum::INPUT_MCU_PEMERIKSAAN_DOKTER->value => 'SikartapMcu',
             CustomPermissionEnum::EDIT_INPUT_MCU->value => 'SikartapMcu',
             CustomPermissionEnum::LIHAT_DASHBOARD_SIKARTAP_STATISTIK->value => 'SikartapDashboard',
-            CustomPermissionEnum::LIHAT_DASHBOARD_SIKARTAP_BUTUH_TINDAKAN->value => 'SikartapDashboard',
             CustomPermissionEnum::LIHAT_DASHBOARD_SIKARTAP_ANTRIAN_TAHAP->value => 'SikartapDashboard',
             // Semua permission WidgetPermissionEnum otomatis ikut subject 'DashboardWidget'
             // (container "Dashboard Widget", lihat subjectContainerOverrides()) - generik dari

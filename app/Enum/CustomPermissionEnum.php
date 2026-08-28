@@ -187,7 +187,6 @@ enum CustomPermissionEnum: string
      * permission karena butuh OR). Subject-nya di-mapping ke container "Sikartap" > sub-grup
      * "Dashboard" lewat RoleForm::customPermissionSubjectOverrides(), pola sama SikartapMcu. */
     case LIHAT_DASHBOARD_SIKARTAP_STATISTIK = 'lihat_dashboard_sikartap_statistik';
-    case LIHAT_DASHBOARD_SIKARTAP_BUTUH_TINDAKAN = 'lihat_dashboard_sikartap_butuh_tindakan';
     case LIHAT_DASHBOARD_SIKARTAP_ANTRIAN_TAHAP = 'lihat_dashboard_sikartap_antrian_tahap';
 
     /** Buka halaman Pengaturan LMS (read-only) - beda dari EDIT_PENGATURAN_LMS yang
@@ -348,7 +347,6 @@ enum CustomPermissionEnum: string
             self::NILAI_IDE_INOVASI_DIREKTUR => 'Nilai Ide Inovasi (Direktur)',
             self::NILAI_IDE_INOVASI_KOMISARIS => 'Nilai Ide Inovasi (Komisaris)',
             self::LIHAT_DASHBOARD_SIKARTAP_STATISTIK => 'Lihat Widget Statistik Pengajuan (Dashboard Sikartap)',
-            self::LIHAT_DASHBOARD_SIKARTAP_BUTUH_TINDAKAN => 'Lihat Widget Butuh Tindakan (Dashboard Sikartap)',
             self::LIHAT_DASHBOARD_SIKARTAP_ANTRIAN_TAHAP => 'Lihat Widget Antrian per Tahap (Dashboard Sikartap)',
             self::KELOLA_JADWAL_SHIFT => 'Kelola Jadwal Shift (Template & Roster)',
             self::GENERATE_PAYROLL => 'Generate/Regenerate Payroll',

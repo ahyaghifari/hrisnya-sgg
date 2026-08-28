@@ -107,6 +107,21 @@ class JobOpeningsPage extends Component
         return app(RekrutmenSyncService::class)->getApplicantCounts($ids);
     }
 
+    /** Lowongan di sistem Rekrutmen yang belum terhubung ke HRIS (hris_job_opening_id null di
+     * sana). Difilter ikut filter Perusahaan halaman ini lewat kode perusahaan. */
+    public function getUnlinkedRekrutmenOpeningsProperty(): array
+    {
+        $rows = app(RekrutmenSyncService::class)->getUnlinkedJobOpenings();
+
+        $code = $this->companyId ? Companies::whereKey($this->companyId)->value('code') : null;
+
+        if ($code) {
+            $rows = array_values(array_filter($rows, fn ($r) => ($r['hris_company_code'] ?? null) === $code));
+        }
+
+        return $rows;
+    }
+
     public function render()
     {
         return view('livewire.rekrutmen.job-openings-page');

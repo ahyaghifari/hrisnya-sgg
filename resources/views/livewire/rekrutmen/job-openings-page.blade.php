@@ -34,7 +34,42 @@
 @php
     $jobOpenings = $this->jobOpenings;
     $rekrutmenCounts = $this->rekrutmenApplicantCounts;
+    $unlinked = $this->unlinkedRekrutmenOpenings;
 @endphp
+
+@if (count($unlinked) > 0)
+    <div style="background:var(--surface);border:1px solid var(--border);border-left:3px solid #d97706;border-radius:12px;padding:14px 16px;margin-bottom:16px;">
+        <p style="font-size:12.5px;font-weight:700;color:var(--text-heading);margin:0 0 3px;">
+            <i class="fa-solid fa-link-slash" style="margin-right:6px;color:#d97706;"></i>
+            {{ count($unlinked) }} lowongan di sistem Rekrutmen belum terhubung ke HRIS
+        </p>
+        <p style="font-size:11px;color:var(--text-muted);margin:0 0 10px;">Dibuat manual di Rekrutmen, bukan dari Permintaan Tenaga Kerja HRIS.</p>
+        <div style="overflow-x:auto;">
+            <table style="width:100%;border-collapse:collapse;font-size:12px;">
+                <thead>
+                    <tr style="border-bottom:1px solid var(--border);">
+                        <th style="text-align:left;padding:6px 10px;white-space:nowrap;">Judul</th>
+                        <th style="text-align:left;padding:6px 10px;white-space:nowrap;">Perusahaan</th>
+                        <th style="text-align:center;padding:6px 10px;white-space:nowrap;">Kuota</th>
+                        <th style="text-align:center;padding:6px 10px;white-space:nowrap;">Batas Lamar</th>
+                        <th style="text-align:center;padding:6px 10px;white-space:nowrap;">Aktif</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach ($unlinked as $row)
+                        <tr style="border-bottom:1px solid var(--border-soft);">
+                            <td style="padding:6px 10px;font-weight:600;">{{ $row['title'] ?? '-' }}</td>
+                            <td style="padding:6px 10px;">{{ $row['company_name'] ?? ($row['hris_company_code'] ?? '-') }}</td>
+                            <td style="padding:6px 10px;text-align:center;">{{ $row['quota'] ?? '-' }}</td>
+                            <td style="padding:6px 10px;text-align:center;white-space:nowrap;">{{ $row['applications_deadline'] ?? '-' }}</td>
+                            <td style="padding:6px 10px;text-align:center;">{{ ($row['is_active'] ?? false) ? 'Ya' : 'Tidak' }}</td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
+    </div>
+@endif
 
 <!-- MOBILE: card manual -->
 <div class="md:hidden">
@@ -45,7 +80,7 @@
     @else
         <div class="pwa-list">
             @foreach ($jobOpenings as $opening)
-                <a href="{{ route('kepegawaian.lowongan.show', $opening) }}" wire:navigate class="pwa-list-row" style="text-decoration:none;">
+                <a href="{{ route('rekrutmen.lowongan.show', $opening) }}" wire:navigate class="pwa-list-row" style="text-decoration:none;">
                     <div class="pwa-tile-icon neutral"><i class="fa-solid fa-briefcase"></i></div>
                     <div style="flex:1;min-width:0;">
                         <p style="font-size:13px;font-weight:600;color:var(--text-heading);">{{ $opening->display_name }}</p>
@@ -91,7 +126,8 @@
                         <td style="padding:9px 14px;text-align:center;white-space:nowrap;">{{ $rekrutmenCounts[$opening->id] ?? '-' }}</td>
                         <td style="padding:9px 14px;text-align:center;white-space:nowrap;"><span class="badge {{ $opening->openingStatus()->getBadgeClass() }}">{{ $opening->openingStatus()->getLabel() }}</span></td>
                         <td style="padding:9px 14px;text-align:center;white-space:nowrap;">
-                            <a href="{{ route('kepegawaian.lowongan.show', $opening) }}" wire:navigate class="btn-ghost" style="padding:5px 10px;font-size:11px;" title="Lihat"><i class="fa-solid fa-arrow-right"></i></a>
+                            <a href="{{ route('rekrutmen.lowongan.pelamar', $opening) }}" wire:navigate class="btn-ghost" style="padding:5px 10px;font-size:11px;" title="Pelamar"><i class="fa-solid fa-users"></i></a>
+                            <a href="{{ route('rekrutmen.lowongan.show', $opening) }}" wire:navigate class="btn-ghost" style="padding:5px 10px;font-size:11px;" title="Lihat"><i class="fa-solid fa-arrow-right"></i></a>
                         </td>
                     </tr>
                 @endforeach

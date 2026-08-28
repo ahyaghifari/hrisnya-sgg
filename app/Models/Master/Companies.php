@@ -32,6 +32,12 @@ class Companies extends Model
                 $model->code = str_pad($newCode, 4, '0', STR_PAD_LEFT);
             }
         });
+
+        // Sync perusahaan ke sistem Rekrutmen tiap simpan — biar tidak perlu dibuat manual
+        // di sana dulu sebelum lowongan bisa di-push. Non-fatal (lihat RekrutmenSyncService).
+        static::saved(function (Companies $model) {
+            app(\App\Services\Job\RekrutmenSyncService::class)->pushCompany($model);
+        });
     }
 
     public function orgStructure()

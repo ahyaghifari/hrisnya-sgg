@@ -12,16 +12,6 @@
         </div>
     </div>
 
-    @if (count($this->quickLinks) > 0)
-        <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px;">
-            @foreach ($this->quickLinks as $link)
-                <a href="{{ $link['url'] }}" wire:navigate class="btn-ghost" style="padding:8px 14px;font-size:12.5px;">
-                    <i class="fa-solid {{ $link['icon'] }}"></i> {{ $link['label'] }}
-                </a>
-            @endforeach
-        </div>
-    @endif
-
     @if ($this->canFilterByCompany)
         <div class="mb-4" style="max-width:280px;">
             <label class="form-label">Perusahaan</label>
@@ -56,22 +46,6 @@
         </div>
     @endif
 
-    @if ($this->canButuhTindakan && count($this->butuhTindakan) > 0)
-        <div style="background:var(--surface);border-radius:16px;box-shadow:var(--shadow-card);padding:20px;margin-bottom:20px;">
-            <p style="font-size:13px;font-weight:700;color:var(--text-heading);margin-bottom:14px;">🔔 Butuh Tindakan Anda</p>
-            <div style="display:flex;flex-direction:column;gap:8px;">
-                @foreach ($this->butuhTindakan as $item)
-                    <a href="{{ $item['url'] }}" wire:navigate style="display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border-radius:12px;background:var(--surface-alt,rgba(0,0,0,.03));text-decoration:none;">
-                        <span style="display:flex;align-items:center;gap:10px;font-size:12.5px;font-weight:600;color:var(--text-body);">
-                            <i class="fa-solid {{ $item['icon'] }}" style="color:var(--text-faint);"></i> {{ $item['label'] }}
-                        </span>
-                        <span class="badge badge-pending">{{ $item['count'] }}</span>
-                    </a>
-                @endforeach
-            </div>
-        </div>
-    @endif
-
     @if ($this->canAntrianTahap)
         @php $antrian = $this->antrianTahap; @endphp
         <div style="background:var(--surface);border-radius:16px;box-shadow:var(--shadow-card);padding:20px;">
@@ -101,7 +75,7 @@
         </div>
     @endif
 
-    @if (! $this->canStatistik && ! $this->canButuhTindakan && ! $this->canAntrianTahap && ! $this->canTabelPengajuan)
+    @if (! $this->canStatistik && ! $this->canAntrianTahap && ! $this->canTabelPengajuan)
         <div style="background:var(--surface);border-radius:16px;box-shadow:var(--shadow-card);padding:32px;text-align:center;">
             <p style="font-size:13px;color:var(--text-muted);">Tidak ada widget yang bisa ditampilkan.</p>
         </div>
