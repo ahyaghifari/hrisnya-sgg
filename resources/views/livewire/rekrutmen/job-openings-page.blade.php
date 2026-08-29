@@ -53,6 +53,7 @@
                         <th style="text-align:center;padding:6px 10px;white-space:nowrap;">Kuota</th>
                         <th style="text-align:center;padding:6px 10px;white-space:nowrap;">Batas Lamar</th>
                         <th style="text-align:center;padding:6px 10px;white-space:nowrap;">Aktif</th>
+                        <th style="text-align:center;padding:6px 10px;white-space:nowrap;">Aksi</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -63,6 +64,11 @@
                             <td style="padding:6px 10px;text-align:center;">{{ $row['quota'] ?? '-' }}</td>
                             <td style="padding:6px 10px;text-align:center;white-space:nowrap;">{{ $row['applications_deadline'] ?? '-' }}</td>
                             <td style="padding:6px 10px;text-align:center;">{{ ($row['is_active'] ?? false) ? 'Ya' : 'Tidak' }}</td>
+                            <td style="padding:6px 10px;text-align:center;white-space:nowrap;">
+                                @if (! empty($row['id']))
+                                    <a href="{{ route('rekrutmen.lowongan.pelamar', $row['id']) }}" wire:navigate class="btn-ghost" style="padding:4px 8px;font-size:10.5px;"><i class="fa-solid fa-users"></i> Pelamar</a>
+                                @endif
+                            </td>
                         </tr>
                     @endforeach
                 </tbody>

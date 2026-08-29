@@ -573,7 +573,9 @@ Route::middleware(['auth', 'portal.access'])->group(function () {
     Route::get('/rekrutmen/lowongan/{record}/edit', EditJobOpeningPage::class)
         ->name('rekrutmen.lowongan.edit');
 
-    Route::get('/rekrutmen/lowongan/{record}/pelamar', \App\Livewire\Rekrutmen\ApplicantsPage::class)
+    // {opening} = id lowongan HRIS ATAU id lowongan Rekrutmen yang belum terhubung — string,
+    // bukan model binding (ApplicantsPage yang resolve).
+    Route::get('/rekrutmen/lowongan/{opening}/pelamar', \App\Livewire\Rekrutmen\ApplicantsPage::class)
         ->name('rekrutmen.lowongan.pelamar');
 
     Route::get('/rekrutmen/lowongan/kandidat/{record}', CandidateApplicationDetailPage::class)

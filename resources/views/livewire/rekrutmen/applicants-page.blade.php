@@ -1,5 +1,11 @@
 <div>
-<x-page-header title="Daftar Pelamar" :subtitle="$record->display_name" :back="route('rekrutmen.lowongan.show', $record)" />
+<x-page-header title="Daftar Pelamar" :subtitle="$this->headerTitle" :back="$record ? route('rekrutmen.lowongan.show', $record) : route('rekrutmen.lowongan')" />
+
+@if ($this->isUnlinked)
+    <div style="background:var(--surface);border:1px solid var(--border);border-left:3px solid #d97706;border-radius:12px;padding:10px 14px;margin-bottom:16px;font-size:11.5px;color:var(--text-muted);">
+        <i class="fa-solid fa-link-slash" style="color:#d97706;"></i> Lowongan ini dibuat manual di sistem Rekrutmen (belum terhubung ke HRIS). Proses seleksi tetap bisa dikelola dari sini.
+    </div>
+@endif
 
 @php
     $applicants = $this->applicants;
@@ -16,14 +22,18 @@
     ];
 @endphp
 
-<div class="mb-4" style="max-width:280px;">
-    <label class="form-label">Status</label>
-    <select wire:model.live="status" class="form-input">
-        <option value="">Semua status</option>
-        @foreach ($this->statusOptions as $val => $label)
-            <option value="{{ $val }}">{{ $label }}</option>
-        @endforeach
-    </select>
+@php $counts = $this->statusCounts; $total = array_sum($counts); @endphp
+<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px;border-bottom:1px solid var(--border);padding-bottom:10px;">
+    <button type="button" wire:click="$set('status', '')"
+        class="btn-ghost" style="padding:5px 12px;font-size:11.5px;font-weight:600;{{ $status === '' ? 'background:var(--brand,#7c3aed);color:#fff;' : '' }}">
+        Semua <span style="opacity:.7;">{{ $total }}</span>
+    </button>
+    @foreach ($this->statusOptions as $val => $label)
+        <button type="button" wire:click="$set('status', '{{ $val }}')"
+            class="btn-ghost" style="padding:5px 12px;font-size:11.5px;font-weight:600;{{ $status === $val ? 'background:var(--brand,#7c3aed);color:#fff;' : '' }}">
+            {{ $label }} <span style="opacity:.7;">{{ $counts[$val] ?? 0 }}</span>
+        </button>
+    @endforeach
 </div>
 
 @if (count($applicants) === 0)

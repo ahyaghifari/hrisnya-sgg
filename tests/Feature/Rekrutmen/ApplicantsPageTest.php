@@ -105,7 +105,7 @@ class ApplicantsPageTest extends TestCase
     {
         $this->actingAs(User::factory()->create(['company_id' => $this->company->id]));
 
-        Livewire::test(ApplicantsPage::class, ['record' => $this->opening()])->assertForbidden();
+        Livewire::test(ApplicantsPage::class, ['opening' => $this->opening()->id])->assertForbidden();
     }
 
     public function test_lists_applicants_from_rekrutmen_api(): void
@@ -114,16 +114,35 @@ class ApplicantsPageTest extends TestCase
         $opening = $this->opening();
 
         Http::fake([
-            "*/job-openings/{$opening->id}/applications*" => Http::response(['data' => [
+            "*/job-openings/{$opening->id}/applications*" => Http::response(['job_opening_title' => 'Staff IT', 'hris_linked' => true, 'data' => [
                 ['job_application_id' => 'APP1', 'status' => 'screening', 'applicant_name' => 'Budi', 'applicant_email' => 'b@x.id', 'updated_at' => '2026-08-20T00:00:00+00:00'],
                 ['job_application_id' => 'APP2', 'status' => 'interview', 'applicant_name' => 'Sari', 'applicant_email' => null, 'updated_at' => null],
             ]]),
         ]);
 
-        Livewire::test(ApplicantsPage::class, ['record' => $opening])
+        Livewire::test(ApplicantsPage::class, ['opening' => $opening->id])
             ->assertOk()
             ->assertSee('Budi')
             ->assertSee('Sari');
+    }
+
+    public function test_status_tabs_filter_client_side(): void
+    {
+        $this->actingAsRecruiter();
+        $opening = $this->opening();
+
+        Http::fake([
+            "*/job-openings/{$opening->id}/applications*" => Http::response(['data' => [
+                ['job_application_id' => 'A1', 'status' => 'screening', 'applicant_name' => 'Budi', 'applicant_email' => null, 'updated_at' => null],
+                ['job_application_id' => 'A2', 'status' => 'interview', 'applicant_name' => 'Sari', 'applicant_email' => null, 'updated_at' => null],
+            ]]),
+        ]);
+
+        Livewire::test(ApplicantsPage::class, ['opening' => $opening->id])
+            ->assertSee('Budi')->assertSee('Sari')
+            ->set('status', 'interview')
+            ->assertSee('Sari')
+            ->assertDontSee('Budi');
     }
 
     public function test_empty_state_when_api_fails(): void
@@ -133,9 +152,30 @@ class ApplicantsPageTest extends TestCase
 
         Http::fake(["*/applications*" => Http::response('boom', 500)]);
 
-        Livewire::test(ApplicantsPage::class, ['record' => $opening])
+        Livewire::test(ApplicantsPage::class, ['opening' => $opening->id])
             ->assertOk()
             ->assertSee('tidak bisa dimuat');
+    }
+
+    public function test_manages_unlinked_rekrutmen_opening(): void
+    {
+        $this->actingAsRecruiter();
+
+        // id yang bukan JobOpenings HRIS → mode "belum terhubung"
+        Http::fake([
+            '*/job-openings/EXT-OPENING-1/applications*' => Http::response([
+                'job_opening_title' => 'Lowongan Manual Rekrutmen', 'hris_linked' => false,
+                'data' => [
+                    ['job_application_id' => 'APPX', 'status' => 'screening', 'applicant_name' => 'Dewi', 'applicant_email' => 'd@x.id', 'updated_at' => null],
+                ],
+            ]),
+        ]);
+
+        Livewire::test(ApplicantsPage::class, ['opening' => 'EXT-OPENING-1'])
+            ->assertOk()
+            ->assertSee('Lowongan Manual Rekrutmen')
+            ->assertSee('belum terhubung ke HRIS')
+            ->assertSee('Dewi');
     }
 
     public function test_detail_blocked_without_permission(): void

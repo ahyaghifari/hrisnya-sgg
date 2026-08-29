@@ -56,41 +56,50 @@ class RekrutmenSyncService
     }
 
     /**
-     * Daftar lamaran per lowongan dari Rekrutmen (progres tiap kandidat, bukan cuma jumlah).
-     * Filter opsional per status. Non-fatal - gagal balikin array kosong.
+     * Daftar lamaran per lowongan dari Rekrutmen. `$openingId` = id lowongan HRIS
+     * (`hris_job_opening_id`) ATAU id lowongan Rekrutmen sendiri (lowongan manual belum
+     * terhubung) — Rekrutmen cocokkan dua-duanya. Non-fatal.
      *
-     * @return list<array{job_application_id:string,status:string,applicant_name:?string,applicant_email:?string,updated_at:?string}>
+     * @return array{job_opening_title:?string, hris_linked:bool, data:list<array{job_application_id:string,status:string,applicant_name:?string,applicant_email:?string,updated_at:?string}>}
      */
-    public function getJobOpeningApplications(string $hrisJobOpeningId, ?string $status = null): array
+    public function getJobOpeningApplications(string $openingId, ?string $status = null): array
     {
+        $empty = ['job_opening_title' => null, 'hris_linked' => false, 'data' => []];
+
         $baseUrl = config('services.rekrutmen.base_url');
         $token = config('services.rekrutmen.token');
 
         if (! $baseUrl || ! $token) {
-            return [];
+            return $empty;
         }
 
-        $url = rtrim($baseUrl, '/') . '/integrations/hris/job-openings/' . $hrisJobOpeningId . '/applications';
+        $url = rtrim($baseUrl, '/') . '/integrations/hris/job-openings/' . $openingId . '/applications';
 
         try {
             $response = Http::withToken($token)->timeout(5)->get($url, $status ? ['status' => $status] : []);
 
             if ($response->failed()) {
                 Log::warning('RekrutmenSyncService: getJobOpeningApplications gagal (response error).', [
-                    'hris_job_opening_id' => $hrisJobOpeningId,
+                    'opening_id' => $openingId,
                     'status' => $response->status(),
                 ]);
 
-                return [];
+                return $empty;
             }
 
-            return $response->json('data', []);
+            $json = $response->json();
+
+            return [
+                'job_opening_title' => $json['job_opening_title'] ?? null,
+                'hris_linked'       => (bool) ($json['hris_linked'] ?? false),
+                'data'              => $json['data'] ?? [],
+            ];
         } catch (\Throwable $e) {
             Log::warning('RekrutmenSyncService: getJobOpeningApplications gagal (exception).', [
                 'message' => $e->getMessage(),
             ]);
 
-            return [];
+            return $empty;
         }
     }
 
