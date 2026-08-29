@@ -44,6 +44,11 @@ class ShiftSwapRequestModalTest extends TestCase
         $this->siang = ScheduleShiftType::create(['schedule_id' => $schedule->id, 'code' => 'SIANG', 'name' => 'Siang', 'shift_type' => ShiftType::SIANG->value, 'start_time' => '15:00:00', 'end_time' => '23:00:00', 'is_overnight' => false]);
 
         $approver = User::factory()->create(['company_id' => $this->company->id]);
+
+        // Kepala Ruangan jadwal wajib ada, kalau null store() diblokir
+        // (ShiftSwapRequestService::createApprovalSnapshot()).
+        $schedule->update(['head_user_id' => User::factory()->create(['company_id' => $this->company->id])->id]);
+
         MasterApprovalFlowSteps::create([
             'flow_id' => MasterApprovalFlows::create([
                 'company_id' => $this->company->id,

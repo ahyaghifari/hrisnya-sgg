@@ -61,8 +61,32 @@ class ShiftSwapRequestModal extends Component
     private function resetForm(): void
     {
         $this->reset(['targetUserId', 'targetDate', 'notes']);
-        $this->reqDate = now()->addDay()->toDateString();
+        $this->reqDate = $this->minDate;
         $this->dateMode = 'same';
+    }
+
+    /** Jarak minimal hari pengajuan dari Pengaturan Absensi (0 = tidak diatur). */
+    public function getMinLeadDaysProperty(): int
+    {
+        return app(ShiftSwapRequestService::class)->minLeadDays(Auth::user()->company_id);
+    }
+
+    /** Tanggal paling awal yang boleh dipilih & default reqDate = hari ini + jarak minimal, dengan
+     * lantai 1 hari (shift hari ini tidak bisa ditukar walau setting jarak minimal = 0). */
+    public function getMinDateProperty(): string
+    {
+        return now()->addDays(max(1, $this->minLeadDays))->toDateString();
+    }
+
+    /** Saldo tukar shift requester untuk periode absensi yang memuat reqDate - null kalau tidak
+     * dibatasi. Ditampilkan sebagai info/peringatan di modal (service tetap re-validasi saat submit). */
+    public function getSwapQuotaProperty(): ?array
+    {
+        $anchor = $this->reqDate
+            ? \Illuminate\Support\Carbon::parse($this->reqDate)
+            : now();
+
+        return app(ShiftSwapRequestService::class)->swapQuota(Auth::user(), $anchor);
     }
 
     /** Ganti tanggal/mode -> rekan yang sebelumnya dipilih bisa jadi tidak lagi punya jadwal di
@@ -170,13 +194,13 @@ class ShiftSwapRequestModal extends Component
 
     public function submit(): void
     {
-        $today = now()->toDateString();
+        $minDate = $this->minDate;
 
         $this->validate([
-            'reqDate' => ['required', 'date', 'after_or_equal:' . $today],
+            'reqDate' => ['required', 'date', 'after_or_equal:' . $minDate],
             'targetUserId' => ['required'],
             'dateMode' => ['required', 'in:same,different'],
-            'targetDate' => ['required_if:dateMode,different', 'nullable', 'date', 'after_or_equal:' . $today],
+            'targetDate' => ['required_if:dateMode,different', 'nullable', 'date', 'after_or_equal:' . $minDate],
             'notes' => ['nullable', 'string'],
         ], [], [
             'reqDate' => 'tanggal shift Anda',

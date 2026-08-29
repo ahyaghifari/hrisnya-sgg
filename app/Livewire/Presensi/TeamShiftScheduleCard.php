@@ -8,6 +8,7 @@ use App\Models\Master\Attendance\Holidays;
 use App\Models\Shift\ExtraShiftAssignment;
 use App\Models\Shift\Schedule;
 use App\Models\Shift\ScheduleShiftAssignment;
+use App\Models\Shift\ShiftSwapRequests;
 use App\Models\User;
 use App\Services\Attendance\ScheduleResolver;
 use Carbon\Carbon;
@@ -125,6 +126,35 @@ class TeamShiftScheduleCard extends Component
     public function getCanCreateExtraShiftProperty(): bool
     {
         return (bool) Auth::user()?->can('create', ExtraShiftAssignment::class);
+    }
+
+    /** ID anggota tim yang punya pengajuan tukar shift (in_review/approved) menyentuh tanggal yang
+     * sedang ditampilkan - dipakai blade buat naruh ikon "tukar" emas di baris orang itu.
+     *
+     * @return array<int, string>
+     */
+    public function getSwapMemberIdsProperty(): array
+    {
+        $memberIds = $this->teamMembers->pluck('id')->all();
+
+        if (! $memberIds) {
+            return [];
+        }
+
+        return ShiftSwapRequests::whereIn('status', ['in_review', 'approved'])
+            ->where(function ($q) use ($memberIds) {
+                $q->where(fn ($qq) => $qq->whereIn('requester_id', $memberIds)->whereDate('req_date', $this->date))
+                    ->orWhere(fn ($qq) => $qq->whereIn('target_id', $memberIds)->whereDate('target_date', $this->date));
+            })
+            ->get(['requester_id', 'req_date', 'target_id', 'target_date'])
+            ->flatMap(fn ($s) => [
+                $s->req_date->toDateString() === $this->date ? $s->requester_id : null,
+                ($s->target_id && $s->target_date?->toDateString() === $this->date) ? $s->target_id : null,
+            ])
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
     }
 
     /** @return array<int, array{user: User, schedule: array}> */

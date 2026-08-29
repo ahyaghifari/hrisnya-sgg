@@ -6,6 +6,9 @@
                 <input type="month" wire:model.live="period" class="form-input" style="max-width:180px;">
             </div>
             <span style="font-size:12.5px;font-weight:700;color:var(--text-heading);margin-top:16px;">{{ $this->periodLabel }}</span>
+            <span style="margin-top:16px;" title="Riwayat Tukar Shift">
+                <livewire:presensi.schedule-swap-history-sheet :scheduleId="$schedule->id" :key="'roster-swap-history-'.$schedule->id" />
+            </span>
             <button type="button" wire:click="exportExcel" class="btn-success" style="font-size:11px;padding:7px 12px;white-space:nowrap;margin-top:16px;">
                 <i class="fa-solid fa-file-excel"></i> Export Excel
             </button>
@@ -108,15 +111,27 @@
                                 $currentType = $schedule->shiftTypes->firstWhere('id', $current);
                                 $currentColor = $currentType?->color;
                                 $currentFontColor = $isOff ? '#7f1d1d' : ($currentType?->font_color ?: 'var(--text-body)');
-                                $locked = ! $editMode;
+                                // Sel yang jadwalnya lagi/sudah dipakai pengajuan tukar shift -> dikunci
+                                // total, tidak bisa diedit dari halaman jadwal (biar tidak bentrok sama
+                                // eksekusi swap). Lihat ScheduleShiftRosterTab::getSwapCellsProperty().
+                                $swapLocked = isset($this->swapCells[$employee->id.'|'.$date->toDateString()]);
+                                $locked = ! $editMode || $swapLocked;
                             @endphp
-                            <td style="padding:2px;text-align:center;">
+                            <td style="padding:2px;text-align:center;position:relative;">
+                                @if ($swapLocked)
+                                    <button type="button" wire:click="$dispatch('open-schedule-swap-history')" title="Jadwal ini terkait pengajuan tukar shift — tidak bisa diubah dari sini. Klik untuk lihat riwayat."
+                                        style="position:absolute;top:0;right:0;z-index:3;background:none;border:none;padding:1px 2px;cursor:pointer;color:#b45309;font-size:8.5px;line-height:1;">
+                                        <i class="fa-solid fa-right-left"></i>
+                                    </button>
+                                @endif
                                 <select
-                                    @if ($editMode)
+                                    @if ($editMode && ! $swapLocked)
                                         wire:model="draft.{{ $employee->id }}.{{ $date->toDateString() }}"
                                     @endif
                                     @disabled($locked)
-                                    @if (! $editMode)
+                                    @if ($swapLocked)
+                                        title="Jadwal ini terkait pengajuan tukar shift — tidak bisa diubah dari halaman jadwal."
+                                    @elseif (! $editMode)
                                         title="Klik &quot;Mulai Isi Jadwal&quot; dulu buat mengubah."
                                     @endif
                                     style="width:48px;padding:5px 1px;font-size:9.5px;text-align:center;font-weight:700;border:none;border-radius:5px;{{ $locked ? 'cursor:not-allowed;opacity:0.7;' : 'cursor:pointer;' }}color:{{ $currentFontColor }};{{ $isOff ? 'background:color-mix(in srgb, #dc2626 55%, white);' : ($currentColor ? "background:{$currentColor};" : 'background:var(--surface-alt);') }}">

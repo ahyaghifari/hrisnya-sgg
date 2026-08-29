@@ -6,6 +6,7 @@ use App\Enum\Approval\ApprovalModuleEnum;
 use App\Models\Shift\ShiftSwapRequests;
 use App\Services\Approval\ApprovalFlowService;
 use App\Services\Approval\ApprovalPermissionService;
+use App\Services\Shift\ShiftSwapRequestService;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
@@ -114,6 +115,14 @@ class ShiftSwapApprovalsCard extends Component
                 $record->approvalSnapshot,
                 Auth::id(),
                 $note,
+                $action,
+            );
+
+            // Rekan = approver step 1, sekalian isi kolom "Tanggapan Rekan" biar konsisten.
+            app(ShiftSwapRequestService::class)->syncTargetResponseFromApprovalStep(
+                $record,
+                Auth::id(),
+                1,
                 $action,
             );
 

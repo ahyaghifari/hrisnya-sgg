@@ -9,6 +9,7 @@ use App\Models\Shift\ScheduleAssignment;
 use App\Models\Shift\ScheduleShiftAssignment;
 use App\Models\Shift\ScheduleShiftRosterLog;
 use App\Models\Shift\ScheduleShiftRotation;
+use App\Models\Shift\ShiftSwapRequests;
 use Carbon\Carbon;
 use Filament\Notifications\Notification;
 use Illuminate\Http\UploadedFile;
@@ -149,6 +150,38 @@ class ScheduleShiftRosterTab extends Component
         return $roster;
     }
 
+    /** Sel roster yang KENA pengajuan tukar shift (in_review / approved) - dipakai blade buat naruh
+     * ikon "tukar" emas di pojok sel. Key: "{user_id}|{Y-m-d}". Scope: pengajuan yang req-schedule-nya
+     * milik jadwal ini, dalam rentang bulan periode terpilih.
+     *
+     * @return array<string, true>
+     */
+    public function getSwapCellsProperty(): array
+    {
+        $start = Carbon::createFromFormat('Y-m', $this->period)->startOfMonth()->toDateString();
+        $end = Carbon::createFromFormat('Y-m', $this->period)->endOfMonth()->toDateString();
+
+        $swaps = ShiftSwapRequests::whereIn('status', ['in_review', 'approved'])
+            ->whereHas('reqSchedule.shiftType', fn ($q) => $q->where('schedule_id', $this->schedule->id))
+            ->get(['requester_id', 'req_date', 'target_id', 'target_date']);
+
+        $cells = [];
+
+        foreach ($swaps as $s) {
+            $reqDate = $s->req_date->toDateString();
+            if ($reqDate >= $start && $reqDate <= $end) {
+                $cells[$s->requester_id . '|' . $reqDate] = true;
+            }
+
+            $targetDate = $s->target_date?->toDateString();
+            if ($s->target_id && $targetDate && $targetDate >= $start && $targetDate <= $end) {
+                $cells[$s->target_id . '|' . $targetDate] = true;
+            }
+        }
+
+        return $cells;
+    }
+
     /** Kalimat keterangan 1 baris log, bukan nampilin old/new/source mentah - "kosong -> terisi"
      * dibunyikan sebagai "Mengisi jadwal ...", bukan cuma "null -> P". */
     public function describeRosterLog(ScheduleShiftRosterLog $log): string
@@ -228,13 +261,22 @@ class ScheduleShiftRosterTab extends Component
         }
 
         $currentRoster = $this->roster;
+        $swapCells = $this->swapCells;
         $changed = 0;
+        $blockedBySwap = 0;
 
         foreach ($this->draft as $userId => $row) {
             foreach ($row as $date => $value) {
                 $before = $currentRoster[$userId][$date] ?? '';
 
                 if ($before === $value) {
+                    continue;
+                }
+
+                // Sel yang jadwalnya terkait pengajuan tukar shift tidak boleh diubah dari sini -
+                // gerbang di blade bisa dilewati lewat request yang di-craft, jadi dicek ulang.
+                if (isset($swapCells[$userId . '|' . $date])) {
+                    $blockedBySwap++;
                     continue;
                 }
 
@@ -248,7 +290,7 @@ class ScheduleShiftRosterTab extends Component
 
         Notification::make()
             ->title('Jadwal berhasil disimpan')
-            ->body("{$changed} sel diubah.")
+            ->body("{$changed} sel diubah." . ($blockedBySwap ? " {$blockedBySwap} sel dilewati karena terkait pengajuan tukar shift." : ''))
             ->success()
             ->send();
     }
@@ -384,9 +426,14 @@ class ScheduleShiftRosterTab extends Component
         $start = Carbon::createFromFormat('Y-m', $this->period)->startOfMonth()->toDateString();
         $end = Carbon::createFromFormat('Y-m', $this->period)->endOfMonth()->toDateString();
 
+        // Baris yang jadwalnya terkait pengajuan tukar shift TIDAK ikut direset - dikeluarkan dari
+        // daftar hapus (konsisten dengan sel yang dikunci di grid).
+        $swapCells = $this->swapCells;
+
         $rows = ScheduleShiftAssignment::whereIn('user_id', $this->employees->pluck('id'))
             ->whereBetween('date', [$start, $end])
-            ->get();
+            ->get()
+            ->reject(fn ($row) => isset($swapCells[$row->user_id . '|' . $row->date->toDateString()]));
 
         if ($rows->isNotEmpty()) {
             ScheduleShiftRosterLog::insert($rows->map(fn ($row) => [

@@ -45,6 +45,10 @@ class ShiftSwapRequestDetailTest extends TestCase
         $this->target = User::factory()->create(['company_id' => $this->company->id]);
         $this->approver = User::factory()->create(['company_id' => $this->company->id]);
 
+        // Kepala Ruangan jadwal wajib ada (kalau null store() diblokir). = requester biar step-nya
+        // dilewati -> urutan approval tetap rekan -> master flow.
+        $schedule->update(['head_user_id' => $this->requester->id]);
+
         MasterApprovalFlowSteps::create([
             'flow_id' => MasterApprovalFlows::create([
                 'company_id' => $this->company->id,
@@ -112,6 +116,7 @@ class ShiftSwapRequestDetailTest extends TestCase
             ->call('confirmAction');
 
         $this->assertSame('in_review', $this->swapRequest->fresh()->status, 'Belum final, masih nunggu approver master flow.');
+        $this->assertSame('accepted', $this->swapRequest->fresh()->target_response, 'Rekan approve step-nya -> "Tanggapan Rekan" ikut terisi.');
 
         $this->swapRequest->refresh();
         Livewire::actingAs($this->approver)
@@ -133,6 +138,7 @@ class ShiftSwapRequestDetailTest extends TestCase
             ->call('confirmAction');
 
         $this->assertSame('rejected', $this->swapRequest->fresh()->status);
+        $this->assertSame('declined', $this->swapRequest->fresh()->target_response);
     }
 
     public function test_approver_rejects_marks_status_rejected(): void

@@ -6,7 +6,10 @@
         <div class="pwa-card-header-content">
             <span class="pwa-section-title"><i class="fa-solid fa-users text-xs" style="font-size:12px;margin-right:4px;"></i> Jadwal Shift Tim</span>
             @if ($this->teamScheduleId)
-                <a href="{{ route('presensi.jadwal.show', ['schedule' => $this->teamScheduleId, 'tab' => 'penjadwalan']) }}" wire:navigate class="pwa-section-link">Detail Jadwal <i class="fa-solid fa-chevron-right" style="font-size:9px;"></i></a>
+                <span style="display:inline-flex;align-items:center;gap:10px;">
+                    <livewire:presensi.schedule-swap-history-sheet :scheduleId="$this->teamScheduleId" :key="'team-swap-history-'.$this->teamScheduleId" />
+                    <a href="{{ route('presensi.jadwal.show', ['schedule' => $this->teamScheduleId, 'tab' => 'penjadwalan']) }}" wire:navigate class="pwa-section-link">Detail Jadwal <i class="fa-solid fa-chevron-right" style="font-size:9px;"></i></a>
+                </span>
             @endif
         </div>
     </div>
@@ -45,7 +48,15 @@
                     };
                 @endphp
                 <div style="display:flex;flex-direction:column;align-items:flex-start;gap:4px;padding:7px 10px;border-radius:8px;background:var(--surface-alt);">
-                    <span style="font-size:12.5px;font-weight:600;color:var(--text-heading);">{{ $row['user']->name }}</span>
+                    <span style="font-size:12.5px;font-weight:600;color:var(--text-heading);display:inline-flex;align-items:center;gap:6px;">
+                        {{ $row['user']->name }}
+                        @if (in_array($row['user']->id, $this->swapMemberIds, true))
+                            <button type="button" wire:click="$dispatch('open-schedule-swap-history')" title="Ada pengajuan tukar shift di tanggal ini — lihat riwayat"
+                                style="background:none;border:none;padding:0;cursor:pointer;color:#b45309;font-size:12px;line-height:1;">
+                                <i class="fa-solid fa-right-left"></i>
+                            </button>
+                        @endif
+                    </span>
                     <span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:99px;background:{{ $chipBg }};color:{{ $chipText }};white-space:nowrap;">{{ $label }}</span>
                 </div>
             @endforeach

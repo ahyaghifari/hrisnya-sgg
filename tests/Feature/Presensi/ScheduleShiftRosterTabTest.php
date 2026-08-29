@@ -12,6 +12,7 @@ use App\Models\Shift\ScheduleShiftAssignment;
 use App\Models\Shift\ScheduleShiftRosterLog;
 use App\Models\Shift\ScheduleShiftRotation;
 use App\Models\Shift\ScheduleShiftType;
+use App\Models\Shift\ShiftSwapRequests;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -93,6 +94,43 @@ class ScheduleShiftRosterTabTest extends TestCase
                 ->where('shift_type_id', $shiftType->id)
                 ->where('off_day', false)
                 ->exists()
+        );
+    }
+
+    public function test_cell_linked_to_shift_swap_request_cannot_be_edited(): void
+    {
+        [$schedule, $shiftType, $employee] = $this->makeManualShiftSchedule();
+        $user = $this->actingAsAbsensi();
+        $date = now()->startOfMonth()->addDays(4)->toDateString();
+
+        $reqShift = ScheduleShiftAssignment::create([
+            'company_id' => $schedule->company_id,
+            'user_id' => $employee->id,
+            'shift_type_id' => $shiftType->id,
+            'date' => $date,
+            'off_day' => false,
+        ]);
+
+        $rekan = User::factory()->create(['company_id' => $schedule->company_id]);
+        ShiftSwapRequests::create([
+            'company_id' => $schedule->company_id,
+            'requester_id' => $employee->id,
+            'target_id' => $rekan->id,
+            'req_schedule_id' => $reqShift->id,
+            'req_date' => $date,
+            'target_date' => $date,
+            'status' => 'in_review',
+        ]);
+
+        Livewire::actingAs($user)
+            ->test(ScheduleShiftRosterTab::class, ['schedule' => $schedule])
+            ->call('startEdit')
+            ->set('draft.' . $employee->id . '.' . $date, '')
+            ->call('saveRoster');
+
+        // Sel dikunci -> perubahan draft diabaikan, baris roster tetap utuh.
+        $this->assertTrue(
+            ScheduleShiftAssignment::whereKey($reqShift->id)->where('shift_type_id', $shiftType->id)->exists()
         );
     }
 

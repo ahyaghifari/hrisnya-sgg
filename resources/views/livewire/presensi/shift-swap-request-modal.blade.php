@@ -14,9 +14,29 @@
                 </div>
 
                 <div style="display:flex;flex-direction:column;gap:14px;max-height:65vh;overflow-y:auto;padding-right:2px;">
+                    @if ($this->swapQuota)
+                        @php $q = $this->swapQuota; @endphp
+                        <div style="font-size:11.5px;border-radius:8px;padding:8px 10px;
+                            {{ $q['remaining'] <= 0
+                                ? 'background:var(--danger-soft-bg);color:var(--danger-soft-text);'
+                                : 'background:var(--info-soft-bg);color:var(--info-soft-text);' }}">
+                            @if ($q['remaining'] <= 0)
+                                <i class="fa-solid fa-triangle-exclamation"></i>
+                                Saldo tukar shift Anda <strong>habis</strong> untuk periode
+                            @else
+                                <i class="fa-solid fa-circle-info"></i>
+                                Sisa saldo tukar shift: <strong>{{ $q['remaining'] }}</strong> dari {{ $q['max'] }} untuk periode
+                            @endif
+                            <strong>{{ $q['start']->translatedFormat('d M') }} &ndash; {{ $q['end']->translatedFormat('d M Y') }}</strong>.
+                        </div>
+                    @endif
+
                     <div>
                         <label class="form-label">1. Tanggal Shift Saya yang Mau Ditukar</label>
-                        <input type="date" wire:model.live="reqDate" min="{{ now()->toDateString() }}" class="form-input">
+                        <input type="date" wire:model.live="reqDate" min="{{ $this->minDate }}" class="form-input">
+                        @if ($this->minLeadDays > 0)
+                            <p style="font-size:11px;color:var(--text-muted);margin-top:4px;">Minimal {{ $this->minLeadDays }} hari dari hari ini &mdash; paling cepat {{ \Illuminate\Support\Carbon::parse($this->minDate)->translatedFormat('d M Y') }}.</p>
+                        @endif
                         @if ($this->reqShift)
                             <p style="font-size:11.5px;color:var(--text-muted);margin-top:4px;">Shift Anda: <strong>{{ $this->reqShift->shiftType?->name }}</strong></p>
                         @elseif ($reqDate)
@@ -46,7 +66,7 @@
                             </div>
 
                             @if ($dateMode === 'different')
-                                <input type="date" wire:model.live="targetDate" min="{{ now()->toDateString() }}" class="form-input" placeholder="Tanggal shift rekan...">
+                                <input type="date" wire:model.live="targetDate" min="{{ $this->minDate }}" class="form-input" placeholder="Tanggal shift rekan...">
                                 @error('targetDate') <p style="color:var(--danger-text);font-size:11.5px;margin-top:4px;">{{ $message }}</p> @enderror
                             @endif
                         </div>

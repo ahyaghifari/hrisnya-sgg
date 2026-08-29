@@ -37,7 +37,7 @@
                         <div>
                             <label class="form-label">Shift Normal di Tanggal Ini</label>
                             @if ($this->normalShift)
-                                <p style="font-size:12.5px;margin:0;padding:8px 10px;background:var(--surface-soft,#f8fafc);border-radius:8px;">{{ $this->normalShift['label'] }}</p>
+                                <p style="font-size:12.5px;margin:0;padding:8px 10px;background:var(--surface-alt);color:var(--text-body);border:1px solid var(--border-soft);border-radius:8px;">{{ $this->normalShift['label'] }}</p>
                             @else
                                 <p style="font-size:12px;color:var(--danger-text);margin:0;">Karyawan ini tidak punya jadwal shift (atau libur) di tanggal ini — extra shift butuh basis shift normal, pilih tanggal lain.</p>
                             @endif

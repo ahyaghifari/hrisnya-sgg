@@ -31,11 +31,13 @@ class PendingApprovalsCardShiftSwapTest extends TestCase
     public function test_pending_shift_swap_request_shows_up_and_can_be_approved(): void
     {
         $company = Companies::create(['code' => 'PAC', 'name' => 'RS PendingApprovals Test', 'location' => 'Test', 'is_active' => true]);
-        $schedule = Schedule::create(['company_id' => $company->id, 'name' => 'Jadwal Perawat', 'schedule_type' => 'shift']);
+        $requester = User::factory()->create(['company_id' => $company->id]);
+        // Kepala Ruangan jadwal wajib ada (kalau null store() diblokir). = requester biar step-nya
+        // dilewati -> urutan approval tetap rekan -> master flow.
+        $schedule = Schedule::create(['company_id' => $company->id, 'name' => 'Jadwal Perawat', 'schedule_type' => 'shift', 'head_user_id' => $requester->id]);
         $pagi = ScheduleShiftType::create(['schedule_id' => $schedule->id, 'code' => 'PAGI', 'name' => 'Pagi', 'shift_type' => ShiftType::PAGI->value, 'start_time' => '07:00:00', 'end_time' => '15:00:00', 'is_overnight' => false]);
         $siang = ScheduleShiftType::create(['schedule_id' => $schedule->id, 'code' => 'SIANG', 'name' => 'Siang', 'shift_type' => ShiftType::SIANG->value, 'start_time' => '15:00:00', 'end_time' => '23:00:00', 'is_overnight' => false]);
 
-        $requester = User::factory()->create(['company_id' => $company->id]);
         $target = User::factory()->create(['company_id' => $company->id]);
         $approver = User::factory()->create(['company_id' => $company->id]);
 

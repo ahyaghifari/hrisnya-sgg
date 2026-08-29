@@ -8,6 +8,7 @@ use App\Services\Approval\ApprovalFlowService;
 use App\Services\Approval\ApprovalPermissionService;
 use App\Services\Approval\ApprovalTimelineService;
 use App\Services\OrgHierarchyService;
+use App\Services\Shift\ShiftSwapRequestService;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
@@ -97,12 +98,23 @@ class ShiftSwapRequestDetail extends Component
             return;
         }
 
+        $stepOrderBefore = (int) ($this->record->approvalSnapshot->activity?->current_step_order ?? 0);
+
         try {
             app(ApprovalFlowService::class)->advanceStep(
                 $this->record->approvalSnapshot,
                 Auth::id(),
                 $this->note,
                 $action
+            );
+
+            // Kalau yang barusan approve/reject adalah rekan di step-nya sendiri, isi juga kolom
+            // "Tanggapan Rekan" biar tidak nyangkut "Belum menanggapi".
+            app(ShiftSwapRequestService::class)->syncTargetResponseFromApprovalStep(
+                $this->record,
+                Auth::id(),
+                $stepOrderBefore,
+                $action,
             );
 
             $this->pendingAction = null;

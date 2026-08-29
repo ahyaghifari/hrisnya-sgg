@@ -6,6 +6,7 @@ use App\Enum\Approval\ApprovalModuleEnum;
 use App\Enum\Attendance\AttendanceSettingEnum;
 use App\Models\Setting;
 use App\Models\Shift\ExtraShiftAssignment;
+use App\Services\Attendance\AttendancePeriodResolver;
 use App\Models\Shift\ExtraShiftRule;
 use App\Models\Shift\ScheduleShiftAssignment;
 use App\Models\Shift\ShiftSwapRequests;
@@ -55,6 +56,10 @@ class ShiftSwapRequestService
         $targetSchedule = ScheduleShiftAssignment::with('shiftType')->findOrFail($data['target_schedule_id']);
 
         $this->validateScheduleSwapRules($reqSchedule, $targetSchedule);
+        $this->assertNoPendingSwapOnSlots([
+            [$reqSchedule->user_id, $reqSchedule->date],
+            [$targetSchedule->user_id, $targetSchedule->date],
+        ]);
 
         return DB::transaction(function () use ($data, $reqSchedule, $targetSchedule, $user) {
             $swapRequest = ShiftSwapRequests::create([
@@ -86,6 +91,10 @@ class ShiftSwapRequestService
         $targetUser = User::findOrFail($targetUserId);
 
         $this->validateOffDayRules($reqSchedule, $targetUserId);
+        $this->assertNoPendingSwapOnSlots([
+            [$reqSchedule->user_id, $reqSchedule->date],
+            [$targetUserId, $reqSchedule->date],
+        ]);
 
         return DB::transaction(function () use ($reqSchedule, $targetUser, $user, $data) {
             $swapRequest = ShiftSwapRequests::create([
@@ -106,18 +115,48 @@ class ShiftSwapRequestService
         });
     }
 
-    /** Batas dari Pengaturan Absensi (company-scoped, 0 = nonaktif):
-     * - TUKAR_SHIFT_MIN_LEAD_DAYS: jarak minimal hari antara hari ini dan tanggal shift paling
-     *   awal yang terlibat.
-     * - TUKAR_SHIFT_MAX_PER_BULAN: jumlah pengajuan aktif/disetujui milik requester dalam bulan
-     *   kalender yang sama dengan req_date (sejalan aturan "tukar hanya dalam bulan yang sama"). */
+    /** Jarak minimal hari (AttendanceSettingEnum::TUKAR_SHIFT_MIN_LEAD_DAYS) antara hari ini dan
+     * tanggal shift saat mengajukan tukar shift. 0 = tidak dibatasi. */
+    public function minLeadDays(?string $companyId): int
+    {
+        return max(0, (int) Setting::resolve(AttendanceSettingEnum::TUKAR_SHIFT_MIN_LEAD_DAYS->value, $companyId, 0));
+    }
+
+    /** Saldo pengajuan tukar shift milik $user dalam PERIODE ABSENSI (AttendanceSettingEnum::PERIOD_*)
+     * yang memuat $anchorDate - bukan bulan kalender. null = tidak dibatasi
+     * (TUKAR_SHIFT_MAX_PER_BULAN <= 0). Pengajuan ditolak/dibatalkan tidak dihitung.
+     *
+     * @return array{max:int, used:int, remaining:int, start:\Carbon\Carbon, end:\Carbon\Carbon}|null
+     */
+    public function swapQuota(User $user, \Carbon\Carbon $anchorDate): ?array
+    {
+        $max = (int) Setting::resolve(AttendanceSettingEnum::TUKAR_SHIFT_MAX_PER_BULAN->value, $user->company_id, 0);
+        if ($max <= 0) {
+            return null;
+        }
+
+        [$start, $end] = AttendancePeriodResolver::resolve($anchorDate->copy(), $user->company_id);
+
+        $used = ShiftSwapRequests::where('requester_id', $user->id)
+            ->whereIn('status', ['in_review', 'approved'])
+            ->whereBetween('req_date', [$start->toDateString(), $end->toDateString()])
+            ->count();
+
+        return [
+            'max' => $max,
+            'used' => $used,
+            'remaining' => max(0, $max - $used),
+            'start' => $start,
+            'end' => $end,
+        ];
+    }
+
+    /** Batas dari Pengaturan Absensi (company-scoped) - lihat minLeadDays() & swapQuota(). */
     private function assertWithinSettingLimits(array $data, ScheduleShiftAssignment $reqSchedule, $user): void
     {
-        $companyId = $user->company_id;
-
-        $minLead = (int) Setting::resolve(AttendanceSettingEnum::TUKAR_SHIFT_MIN_LEAD_DAYS->value, $companyId, 0);
+        $minLead = $this->minLeadDays($user->company_id);
         if ($minLead > 0) {
-            $earliest = $reqSchedule->date;
+            $earliest = $reqSchedule->date->copy();
             if (! empty($data['target_schedule_id'])) {
                 $targetDate = ScheduleShiftAssignment::whereKey($data['target_schedule_id'])->value('date');
                 if ($targetDate && $targetDate->lt($earliest)) {
@@ -132,20 +171,38 @@ class ShiftSwapRequestService
             }
         }
 
-        $max = (int) Setting::resolve(AttendanceSettingEnum::TUKAR_SHIFT_MAX_PER_BULAN->value, $companyId, 0);
-        if ($max > 0) {
-            $used = ShiftSwapRequests::where('requester_id', $user->id)
-                ->whereIn('status', ['in_review', 'approved'])
-                ->whereBetween('req_date', [
-                    $reqSchedule->date->copy()->startOfMonth(),
-                    $reqSchedule->date->copy()->endOfMonth(),
-                ])
-                ->count();
+        $quota = $this->swapQuota($user, $reqSchedule->date);
+        if ($quota && $quota['used'] >= $quota['max']) {
+            throw new \InvalidArgumentException(
+                "Saldo tukar shift Anda habis (maksimal {$quota['max']} pengajuan) untuk periode " .
+                $quota['start']->translatedFormat('d M') . ' - ' . $quota['end']->translatedFormat('d M Y') . '.'
+            );
+        }
+    }
 
-            if ($used >= $max) {
+    /** Blokir pengajuan kalau salah satu (user, tanggal) yang mau dilibatkan SUDAH nyangkut di
+     * pengajuan tukar shift lain yang masih `in_review` - biar tidak "mengganggu" / menimpa proses
+     * approval rekan yang sedang jalan. Begitu pengajuan lama itu selesai (approved/rejected/
+     * cancelled), slot-nya bebas lagi.
+     *
+     * @param array<int, array{0: string, 1: \Carbon\CarbonInterface|string}> $slots [user_id, tanggal]
+     */
+    private function assertNoPendingSwapOnSlots(array $slots): void
+    {
+        foreach ($slots as [$userId, $date]) {
+            $date = $date instanceof \Carbon\CarbonInterface ? $date->toDateString() : (string) $date;
+
+            $busy = ShiftSwapRequests::where('status', 'in_review')
+                ->where(function ($q) use ($userId, $date) {
+                    $q->where(fn ($qq) => $qq->where('requester_id', $userId)->whereDate('req_date', $date))
+                        ->orWhere(fn ($qq) => $qq->where('target_id', $userId)->whereDate('target_date', $date));
+                })
+                ->exists();
+
+            if ($busy) {
                 throw new \InvalidArgumentException(
-                    "Anda sudah mencapai batas maksimal {$max} pengajuan tukar shift untuk bulan " .
-                    $reqSchedule->date->translatedFormat('F Y') . '.'
+                    'Salah satu jadwal yang terlibat sedang dalam proses pengajuan tukar shift lain. '
+                    . 'Tunggu pengajuan itu selesai (disetujui atau ditolak) dulu.'
                 );
             }
         }
@@ -364,10 +421,36 @@ class ShiftSwapRequestService
             );
         }
 
-        // Rekan (target_id) jadi APPROVER PERTAMA sungguhan (instruksi user 2026-08-20) - bukan
-        // lagi cuma tanggapan opsional lewat ASK_TARGET_RESPONSE_SETTING_KEY/ShiftSwapTargetResponseCard.
-        // Step-nya disisipkan di sini (approver_type=user, ref ke target_id), baru diikuti step-step
-        // master flow biasa (atasan, dst) - lihat ApprovalCreationService::createSnapshot().
+        // Urutan approver yang disisipkan di depan master flow (instruksi user 2026-08-28):
+        //   1. Rekan (target_id) - approver pertama sungguhan, seperti sejak 2026-08-20.
+        //   2. Kepala Ruangan jadwal shift yang diajukan (Schedule::head_user_id) - titik approval
+        //      yang pasti untuk 1 jadwal, karena isinya bisa banyak jabatan dengan atasan hirarki
+        //      beda-beda (mis. perawat orientasi di tiap ruangan).
+        // Lalu baru step-step master flow modul Tukar Shift (atasan, dst).
+        //
+        // Kalau jadwal BELUM punya Kepala Ruangan -> pengajuan DIBLOKIR di sini (bukan dilewati
+        // diam-diam): snapshot approval sekali dibuat belum bisa dihapus/dibatalkan lewat portal,
+        // jadi lebih aman gagal-cepat sebelum ada baris yang tertinggal. Kalau Kepala Ruangannya
+        // justru rekan atau si pemohon sendiri, step-nya dilewati (tidak approve dua kali / approve
+        // giliran sendiri) - itu tetap valid.
+        $headUserId = $swapRequest->reqSchedule?->shiftType?->schedule?->head_user_id;
+
+        if (! $headUserId) {
+            throw new \RuntimeException(
+                'Kepala Ruangan untuk jadwal shift ini belum ditentukan, jadi pengajuan tukar shift '
+                . 'belum bisa diproses. Minta admin mengatur Kepala Ruangan jadwal terlebih dahulu.'
+            );
+        }
+
+        $prependSteps = [[
+            'approver_type' => 'user',
+            'approver_ref_id' => $swapRequest->target_id,
+        ]];
+
+        if (! in_array($headUserId, [$user->id, $swapRequest->target_id], true)) {
+            $prependSteps[] = ['approver_type' => 'user', 'approver_ref_id' => $headUserId];
+        }
+
         $this->approvalCreationService->createSnapshot(
             moduleType: ApprovalModuleEnum::SWAP_SHIFT_REQUEST->value,
             moduleId:   $swapRequest->id,
@@ -375,10 +458,7 @@ class ShiftSwapRequestService
             createdBy:  $user->id,
             companyId:  $user->company_id,
             userId:     $user->id,
-            prependSteps: [[
-                'approver_type' => 'user',
-                'approver_ref_id' => $swapRequest->target_id,
-            ]],
+            prependSteps: $prependSteps,
         );
     }
 
@@ -390,6 +470,39 @@ class ShiftSwapRequestService
 
         if (! in_array($response, ['accepted', 'declined'], true)) {
             throw new \InvalidArgumentException('Tanggapan tidak valid.');
+        }
+
+        $request->update([
+            'target_response' => $response,
+            'target_responded_at' => now(),
+        ]);
+    }
+
+    /** Rekan sekarang approver step 1 sungguhan, jadi begitu dia approve/reject STEP-nya, kolom
+     * `target_response` (yang tampil sebagai "Tanggapan Rekan" di halaman detail) ikut diisi biar
+     * tidak nyangkut "Belum menanggapi" padahal timeline-nya sudah lewat rekan. Dipanggil dari
+     * ShiftSwapApprovalsCard & ShiftSwapRequestDetail sesudah advanceStep berhasil.
+     *
+     * @param int $stepOrderBefore current_step_order SEBELUM advanceStep (step rekan selalu = 1).
+     */
+    public function syncTargetResponseFromApprovalStep(
+        ShiftSwapRequests $request,
+        string $actorId,
+        int $stepOrderBefore,
+        string $action,
+    ): void {
+        if ($actorId !== $request->target_id || $stepOrderBefore !== 1) {
+            return;
+        }
+
+        $response = match ($action) {
+            'approved' => 'accepted',
+            'rejected' => 'declined',
+            default => null,
+        };
+
+        if ($response === null || $request->target_response !== null) {
+            return;
         }
 
         $request->update([

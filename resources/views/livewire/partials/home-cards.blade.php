@@ -274,6 +274,7 @@
                     <livewire:presensi.shift-swap-request-modal :key="'shift-swap-modal'" />
                     <livewire:presensi.shift-swap-history-sheet :key="'shift-swap-history'" />
                 </div>
+            </div>
         </div>
     </div>
     @endif

@@ -34,6 +34,7 @@ class ShiftSwapRequestServiceTest extends TestCase
     private ScheduleShiftType $siang;
     private ScheduleShiftType $malam;
     private User $approver;
+    private User $head;
 
     protected function setUp(): void
     {
@@ -84,6 +85,12 @@ class ShiftSwapRequestServiceTest extends TestCase
 
         $this->approver = User::factory()->create(['company_id' => $this->company->id]);
 
+        // Kepala Ruangan jadwal - sekarang WAJIB ada, kalau null store() diblokir
+        // (ShiftSwapRequestService::createApprovalSnapshot()). User terpisah biar jadi step
+        // approval sungguhan di antara rekan & master flow.
+        $this->head = User::factory()->create(['company_id' => $this->company->id]);
+        $schedule->update(['head_user_id' => $this->head->id]);
+
         MasterApprovalFlowSteps::create([
             'flow_id' => MasterApprovalFlows::create([
                 'company_id' => $this->company->id,
@@ -112,8 +119,8 @@ class ShiftSwapRequestServiceTest extends TestCase
         ]);
     }
 
-    /** Rekan (target_id) sekarang jadi approver PERTAMA sungguhan (2026-08-20), baru diikuti
-     * step master flow biasa - jadi 1 pengajuan butuh 2x advanceStep buat benar-benar selesai. */
+    /** Urutan approval: rekan (target_id) -> Kepala Ruangan jadwal ($this->head) -> approver master
+     * flow. Jadi 1 pengajuan butuh 3x advanceStep buat benar-benar selesai. */
     private function approve(ShiftSwapRequests $swapRequest): void
     {
         $swapRequest->load('approvalSnapshot.activity');
@@ -122,6 +129,15 @@ class ShiftSwapRequestServiceTest extends TestCase
             $swapRequest->approvalSnapshot,
             $swapRequest->target_id,
             'Disetujui rekan lewat automated test',
+            'approved',
+        );
+
+        $swapRequest->refresh()->load('approvalSnapshot.activity');
+
+        app(ApprovalFlowService::class)->advanceStep(
+            $swapRequest->approvalSnapshot,
+            $this->head->id,
+            'Disetujui kepala ruangan lewat automated test',
             'approved',
         );
 
@@ -201,6 +217,147 @@ class ShiftSwapRequestServiceTest extends TestCase
             'req_schedule_id' => $scheduleA->id,
             'target_schedule_id' => $scheduleB->id,
         ]);
+    }
+
+    public function test_kepala_ruangan_jadwal_disisipkan_sebagai_approver_kedua(): void
+    {
+        $head = User::factory()->create(['company_id' => $this->company->id]);
+        Schedule::whereKey($this->pagi->schedule_id)->update(['head_user_id' => $head->id]);
+
+        $perawatA = User::factory()->create(['company_id' => $this->company->id]);
+        $perawatB = User::factory()->create(['company_id' => $this->company->id]);
+
+        $scheduleA = $this->assignShift($perawatA, $this->pagi, '2026-08-10');
+        $scheduleB = $this->assignShift($perawatB, $this->siang, '2026-08-10');
+
+        Auth::login($perawatA);
+        $swap = app(ShiftSwapRequestService::class)->store([
+            'swap_mode' => 'schedule',
+            'req_schedule_id' => $scheduleA->id,
+            'target_schedule_id' => $scheduleB->id,
+        ]);
+
+        $steps = collect($swap->approvalSnapshot->steps_snapshot);
+        $this->assertSame($perawatB->id, $steps->firstWhere('order', 1)['approver_ref_id'], 'Step 1 = rekan.');
+        $this->assertSame($head->id, $steps->firstWhere('order', 2)['approver_ref_id'], 'Step 2 = kepala ruangan jadwal.');
+        $this->assertSame($this->approver->id, $steps->firstWhere('order', 3)['approver_ref_id'], 'Step 3 = master flow.');
+
+        // rekan -> kepala ruangan -> approver master flow
+        app(ApprovalFlowService::class)->advanceStep($swap->approvalSnapshot, $perawatB->id, 'ok rekan', 'approved');
+        $swap->refresh()->load('approvalSnapshot.activity');
+        app(ApprovalFlowService::class)->advanceStep($swap->approvalSnapshot, $head->id, 'ok karu', 'approved');
+        $swap->refresh()->load('approvalSnapshot.activity');
+        app(ApprovalFlowService::class)->advanceStep($swap->approvalSnapshot, $this->approver->id, 'ok atasan', 'approved');
+
+        $this->assertSame('approved', $swap->fresh()->status);
+        $this->assertSame($this->siang->id, $scheduleA->fresh()->shift_type_id);
+    }
+
+    public function test_kepala_ruangan_dilewati_kalau_dia_rekan_atau_pemohon(): void
+    {
+        // Kepala Ruangan jadwal = rekan (target) sendiri -> tidak disisipkan step kedua, langsung
+        // rekan lalu master flow (rekan tidak approve dua kali).
+        $perawatA = User::factory()->create(['company_id' => $this->company->id]);
+        $perawatB = User::factory()->create(['company_id' => $this->company->id]);
+        Schedule::whereKey($this->pagi->schedule_id)->update(['head_user_id' => $perawatB->id]);
+
+        $scheduleA = $this->assignShift($perawatA, $this->pagi, '2026-08-10');
+        $scheduleB = $this->assignShift($perawatB, $this->siang, '2026-08-10');
+
+        Auth::login($perawatA);
+        $swap = app(ShiftSwapRequestService::class)->store([
+            'swap_mode' => 'schedule',
+            'req_schedule_id' => $scheduleA->id,
+            'target_schedule_id' => $scheduleB->id,
+        ]);
+
+        $steps = collect($swap->approvalSnapshot->steps_snapshot);
+        $this->assertCount(2, $steps, 'Cuma rekan + 1 step master flow.');
+        $this->assertSame($perawatB->id, $steps->firstWhere('order', 1)['approver_ref_id']);
+        $this->assertSame($this->approver->id, $steps->firstWhere('order', 2)['approver_ref_id']);
+    }
+
+    public function test_pengajuan_diblokir_kalau_jadwal_belum_ada_kepala_ruangan(): void
+    {
+        Schedule::whereKey($this->pagi->schedule_id)->update(['head_user_id' => null]);
+
+        $perawatA = User::factory()->create(['company_id' => $this->company->id]);
+        $perawatB = User::factory()->create(['company_id' => $this->company->id]);
+        $scheduleA = $this->assignShift($perawatA, $this->pagi, '2026-08-10');
+        $scheduleB = $this->assignShift($perawatB, $this->siang, '2026-08-10');
+
+        Auth::login($perawatA);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Kepala Ruangan');
+
+        app(ShiftSwapRequestService::class)->store([
+            'swap_mode' => 'schedule',
+            'req_schedule_id' => $scheduleA->id,
+            'target_schedule_id' => $scheduleB->id,
+        ]);
+    }
+
+    public function test_pengajuan_diblokir_kalau_slot_rekan_masih_in_review_di_pengajuan_lain(): void
+    {
+        $a = User::factory()->create(['company_id' => $this->company->id]);
+        $b = User::factory()->create(['company_id' => $this->company->id]);
+        $c = User::factory()->create(['company_id' => $this->company->id]);
+
+        $bShift = $this->assignShift($b, $this->pagi, '2026-08-12');
+        $cShift = $this->assignShift($c, $this->siang, '2026-08-12');
+        $aShift = $this->assignShift($a, $this->pagi, '2026-08-15');
+
+        // B ajukan tukar shift dengan jadwal C (status in_review).
+        Auth::login($b);
+        app(ShiftSwapRequestService::class)->store([
+            'swap_mode' => 'schedule',
+            'req_schedule_id' => $bShift->id,
+            'target_schedule_id' => $cShift->id,
+        ]);
+        Auth::logout();
+
+        // A coba ajukan tukar shift dengan jadwal C yang sama -> diblokir.
+        Auth::login($a);
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('sedang dalam proses pengajuan tukar shift lain');
+
+        app(ShiftSwapRequestService::class)->store([
+            'swap_mode' => 'schedule',
+            'req_schedule_id' => $aShift->id,
+            'target_schedule_id' => $cShift->id,
+        ]);
+    }
+
+    public function test_slot_bebas_lagi_setelah_pengajuan_lain_selesai(): void
+    {
+        $a = User::factory()->create(['company_id' => $this->company->id]);
+        $b = User::factory()->create(['company_id' => $this->company->id]);
+        $c = User::factory()->create(['company_id' => $this->company->id]);
+
+        $bShift = $this->assignShift($b, $this->pagi, '2026-08-12');
+        $cShift = $this->assignShift($c, $this->siang, '2026-08-12');
+        $aShift = $this->assignShift($a, $this->pagi, '2026-08-15');
+
+        Auth::login($b);
+        $bcSwap = app(ShiftSwapRequestService::class)->store([
+            'swap_mode' => 'schedule',
+            'req_schedule_id' => $bShift->id,
+            'target_schedule_id' => $cShift->id,
+        ]);
+        Auth::logout();
+
+        // C tolak di step-nya -> pengajuan B<->C selesai (rejected), slot C bebas lagi.
+        app(ApprovalFlowService::class)->advanceStep($bcSwap->approvalSnapshot, $c->id, 'tolak', 'rejected');
+
+        Auth::login($a);
+        $swap = app(ShiftSwapRequestService::class)->store([
+            'swap_mode' => 'schedule',
+            'req_schedule_id' => $aShift->id,
+            'target_schedule_id' => $cShift->id,
+        ]);
+
+        $this->assertSame('in_review', $swap->status);
     }
 
     public function test_same_date_swap_exchanges_shift_type_after_approval(): void

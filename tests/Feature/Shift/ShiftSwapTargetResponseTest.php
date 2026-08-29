@@ -46,6 +46,11 @@ class ShiftSwapTargetResponseTest extends TestCase
         $this->target = User::factory()->create(['company_id' => $this->company->id]);
         $this->approver = User::factory()->create(['company_id' => $this->company->id]);
 
+        // Kepala Ruangan jadwal wajib ada (kalau null store() diblokir). Di-set = requester biar
+        // step-nya dilewati (tidak approve giliran sendiri) -> urutan approval tetap rekan -> master
+        // flow, fokus test ini bukan di step Kepala Ruangan.
+        $schedule->update(['head_user_id' => $this->requester->id]);
+
         MasterApprovalFlowSteps::create([
             'flow_id' => MasterApprovalFlows::create([
                 'company_id' => $this->company->id,
