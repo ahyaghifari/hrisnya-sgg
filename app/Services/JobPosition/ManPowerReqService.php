@@ -7,6 +7,7 @@ use App\Enum\JobPositionReqStatus;
 use App\Enum\ManpowerRequestType;
 use App\Models\ApprovalManagement\ApprovalSnapshots;
 use App\Models\ApprovalManagement\MasterApprovalFlows;
+use App\Models\Job\JobOpenings;
 use App\Models\Job\ManpowerRequests;
 use App\Repositories\Approval\ApprovalSnapshotRepository;
 use App\Repositories\JobPosition\JobPositionRepositories;
@@ -152,6 +153,8 @@ class ManPowerReqService
             $this->jobPositionRepo->update($jobPosition, [
                 'actual_manpower' => $jobPosition->actual_manpower + $manpowerRequests->quantity,
             ]);
+
+            $this->bumpOpenRecruitmentsQuota($manpowerRequests->job_position_id, $manpowerRequests->quantity);
         } else if ($manpowerRequests->type === ManpowerRequestType::ADDITIONAL_EMPLOYEE->value || $manpowerRequests->type === ManpowerRequestType::EMPLOYEE_REPLACEMENT->value) {
             $this->manpowerReqRepository->createJobOpening([
                 'company_id' => $manpowerRequests->company_id,
@@ -168,5 +171,28 @@ class ManPowerReqService
         ]);
 
         return $manpowerRequests;
+    }
+
+    /**
+     * Penambahan Kuota untuk jabatan yang lowongannya sedang berjalan / menunggu dibuka:
+     * tambahkan kuota itu ke lowongan tsb + re-sync ke Rekrutmen — supaya rekrut yang mid-flight
+     * tidak jadi under-scoped (2026-08-29). Lowongan yang sudah ditutup (opened_at terisi +
+     * is_active false) TIDAK disentuh.
+     */
+    private function bumpOpenRecruitmentsQuota(string $jobPositionId, int $quantity): void
+    {
+        if ($quantity <= 0) {
+            return;
+        }
+
+        $openings = JobOpenings::where('job_position_id', $jobPositionId)
+            ->where(fn ($q) => $q->whereNull('opened_at')->orWhere('is_active', true))
+            ->get();
+
+        foreach ($openings as $opening) {
+            $opening->update(['quota' => $opening->quota + $quantity]);
+
+            app(\App\Services\Job\RekrutmenSyncService::class)->sync($opening->fresh());
+        }
     }
 }
