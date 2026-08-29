@@ -37,7 +37,15 @@
                             </span>
                         </td>
                         <td style="padding:9px 14px;text-align:center;white-space:nowrap;">
-                            <a href="{{ route('rekrutmen.pelamar.mcu', $a['job_application_id']) }}" wire:navigate class="btn-ghost" style="padding:5px 10px;font-size:11px;"><i class="fa-solid fa-notes-medical"></i> Isi MCU</a>
+                            @php $links = \App\Livewire\Rekrutmen\McuFormPage::availableStationLinks($a['job_application_id'], $a['stations_filled'] ?? []); @endphp
+                            @forelse ($links as $link)
+                                <a href="{{ $link['url'] }}" wire:navigate class="btn-ghost" style="padding:4px 8px;font-size:10.5px;margin:1px;" title="{{ $link['filled'] ? 'Edit ' : 'Isi ' }}{{ $link['label'] }}">
+                                    <i class="fa-solid {{ $link['filled'] ? 'fa-pen' : 'fa-notes-medical' }}"></i>
+                                    {{ ['nurse'=>'Perawat','lab'=>'Lab','radiology'=>'Radiologi','doctor'=>'Dokter'][$link['station']] }}
+                                </a>
+                            @empty
+                                <span style="color:var(--text-faint);font-size:11px;">—</span>
+                            @endforelse
                         </td>
                     </tr>
                 @endforeach

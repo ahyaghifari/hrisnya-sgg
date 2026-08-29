@@ -150,9 +150,20 @@
         <div style="background:var(--surface);border-radius:16px;box-shadow:var(--shadow-card);padding:18px;margin-bottom:16px;">
             <p style="font-size:13px;font-weight:700;color:var(--text-heading);margin:0 0 12px;">Medical Check Up</p>
 
-            <a href="{{ $this->mcuFormUrl() }}" wire:navigate class="btn-ghost" style="margin-bottom:12px;">
-                <i class="fa-solid fa-notes-medical"></i> Buka Form MCU
-            </a>
+            @php
+                $mcuFilled = collect(['nurse','lab','radiology','doctor'])->filter(fn ($k) => ! empty(($mcu ?? [])[$k]))->values()->all();
+                $mcuLinks = \App\Livewire\Rekrutmen\McuFormPage::availableStationLinks($jobApplicationId, $mcuFilled);
+            @endphp
+            @if (count($mcuLinks) > 0)
+                <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;">
+                    @foreach ($mcuLinks as $link)
+                        <a href="{{ $link['url'] }}" wire:navigate class="btn-ghost" style="padding:5px 10px;font-size:11px;">
+                            <i class="fa-solid {{ $link['filled'] ? 'fa-pen' : 'fa-notes-medical' }}"></i>
+                            {{ $link['filled'] ? 'Edit ' : 'Isi ' }}{{ $link['label'] }}
+                        </a>
+                    @endforeach
+                </div>
+            @endif
 
             @if ($mcu)
                 <div style="display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 12px;">

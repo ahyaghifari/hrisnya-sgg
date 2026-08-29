@@ -768,9 +768,10 @@ return [
     ],
 
     'rekrutmen.pelamar.mcu' => [
+        // Gate kasar clinical-staff; McuFormPage::canFill() cek permission stasiun spesifik.
         'label' => 'Input MCU Pelamar (Rekrutmen)',
-        'permission' => 'View:JobOpenings',
-        'guard' => null,
+        'permission' => null,
+        'guard' => 'canInputSikartapMcu',
     ],
 
     'rekrutmen.mcu' => [

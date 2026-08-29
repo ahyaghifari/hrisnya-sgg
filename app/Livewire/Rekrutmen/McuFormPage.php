@@ -11,13 +11,11 @@ use Livewire\Component;
 use Livewire\WithFileUploads;
 
 /**
- * Form MCU 1 pelamar Rekrutmen — 4 stasiun (perawat/lab/radiologi/dokter), tiap stasiun
- * digerbangi permission sendiri + punya tombol simpan sendiri. Data dikirim ke project
- * Rekrutmen eksternal (RekrutmenSyncService::saveMcuStation). Keputusan fit/unfit ada di
- * ApplicantDetailPage (butuh Update:JobOpenings + pemeriksaan dokter sudah diisi).
- *
- * Permission dipakai bareng modul Sikartap (INPUT_MCU_ASESMEN_PERAWAT dst + EDIT_INPUT_MCU)
- * — staff klinis yang sama, bukan Sikartap-only.
+ * Form 1 stasiun MCU untuk 1 pelamar Rekrutmen — halaman & route sendiri per stasiun
+ * (perawat/lab/radiologi/dokter), pola sama modul Sikartap. Digerbangi permission stasiun
+ * itu (reuse INPUT_MCU_* Sikartap) atau EDIT_INPUT_MCU kalau sudah terisi. Data dikirim ke
+ * project Rekrutmen eksternal (RekrutmenSyncService::saveMcuStation). Keputusan fit/unfit
+ * ada di ApplicantDetailPage.
  */
 #[Layout('components.layout', ['title' => 'Input MCU Pelamar'])]
 class McuFormPage extends Component
@@ -25,19 +23,21 @@ class McuFormPage extends Component
     use WithFileUploads;
 
     public string $jobApplicationId;
+    public string $station;
     public string $status = '';
     public string $statusMcu = 'pending';
 
-    public array $nurse = [];
-    public array $lab = [];
-    public array $radiology = [];
-    public array $doctor = [];
+    public array $form = [];
+    public bool $filled = false;
+    public $upload = null;
 
-    public array $filled = ['nurse' => false, 'lab' => false, 'radiology' => false, 'doctor' => false];
-
-    public $nurseFile = null;
-    public $labFile = null;
-    public $radiologyFile = null;
+    /** meta per stasiun: label, permission, ada upload file atau tidak. */
+    public const STATIONS = [
+        'nurse'     => ['Asesmen Perawat & EKG', CustomPermissionEnum::INPUT_MCU_ASESMEN_PERAWAT, true],
+        'lab'       => ['Hasil Laboratorium', CustomPermissionEnum::INPUT_MCU_LABORATORIUM, true],
+        'radiology' => ['Hasil Radiologi', CustomPermissionEnum::INPUT_MCU_RADIOLOGI, true],
+        'doctor'    => ['Pemeriksaan Dokter', CustomPermissionEnum::INPUT_MCU_PEMERIKSAAN_DOKTER, false],
+    ];
 
     /** field => [type, label]. type: text|number|int|textarea|bool */
     public const NURSE_FIELDS = [
@@ -80,17 +80,49 @@ class McuFormPage extends Component
         'ekstremitas' => 'Ekstremitas', 'neurologi' => 'Neurologi',
     ];
 
-    public function mount(string $jobApplication): void
+    public function mount(string $jobApplication, string $station): void
     {
-        abort_unless(
-            Auth::user()->canInputSikartapMcu()
-                || Auth::user()->can(CustomPermissionEnum::EDIT_INPUT_MCU->value)
-                || Auth::user()->can('View:JobOpenings'),
-            403,
-        );
+        abort_unless(isset(self::STATIONS[$station]), 404);
 
         $this->jobApplicationId = $jobApplication;
+        $this->station = $station;
+
         $this->loadState();
+
+        abort_unless($this->canFill(), 403);
+    }
+
+    public function fieldKeys(): array
+    {
+        return match ($this->station) {
+            'nurse'     => array_keys(self::NURSE_FIELDS),
+            'lab'       => [...array_keys(self::LAB_FIELDS), 'kesimpulan'],
+            'radiology' => [...array_keys(self::RADIOLOGY_FIELDS), 'kesimpulan'],
+            'doctor'    => [...array_keys(self::DOCTOR_FIELDS), 'diagnosa', 'rekomendasi', 'catatan'],
+        };
+    }
+
+    public function stationLabel(): string
+    {
+        return self::STATIONS[$this->station][0];
+    }
+
+    public function hasUpload(): bool
+    {
+        return self::STATIONS[$this->station][2];
+    }
+
+    private function canFill(): bool
+    {
+        if ($this->status !== 'mcu') {
+            return false;
+        }
+
+        $perm = self::STATIONS[$this->station][1]->value;
+
+        return $this->filled
+            ? Auth::user()->can(CustomPermissionEnum::EDIT_INPUT_MCU->value)
+            : Auth::user()->can($perm);
     }
 
     private function loadState(): void
@@ -103,77 +135,30 @@ class McuFormPage extends Component
 
         $this->status = $mcu['status'] ?? '';
         $this->statusMcu = $mcu['status_mcu'] ?? 'pending';
+        $this->filled = ! empty($mcu[$this->station]);
+        $this->form = collect($mcu[$this->station] ?? [])->only($this->fieldKeys())->all();
+    }
 
-        foreach (['nurse' => array_keys(self::NURSE_FIELDS), 'lab' => [...array_keys(self::LAB_FIELDS), 'kesimpulan'], 'radiology' => [...array_keys(self::RADIOLOGY_FIELDS), 'kesimpulan'], 'doctor' => [...array_keys(self::DOCTOR_FIELDS), 'diagnosa', 'rekomendasi', 'catatan']] as $station => $fields) {
-            $this->filled[$station] = ! empty($mcu[$station]);
-            $this->{$station} = collect($mcu[$station] ?? [])->only($fields)->all();
+    public function simpan(): void
+    {
+        abort_unless($this->canFill(), 403);
+
+        $rules = ['upload' => 'nullable|file|max:5120'];
+        if ($this->station === 'nurse') {
+            $rules += [
+                'form.tinggi_badan' => 'required|numeric', 'form.berat_badan' => 'required|numeric',
+                'form.suhu' => 'required|numeric', 'form.nadi' => 'required|integer',
+                'form.pernafasan' => 'required|integer', 'form.tekanan_darah' => 'required|string',
+            ];
         }
-    }
+        $this->validate($rules);
 
-    private function canEditFilled(): bool
-    {
-        return Auth::user()->can(CustomPermissionEnum::EDIT_INPUT_MCU->value);
-    }
-
-    public function getCanNurseProperty(): bool
-    {
-        return ($this->filled['nurse'] ? $this->canEditFilled() : Auth::user()->can(CustomPermissionEnum::INPUT_MCU_ASESMEN_PERAWAT->value))
-            && $this->status === 'mcu';
-    }
-
-    public function getCanLabProperty(): bool
-    {
-        return ($this->filled['lab'] ? $this->canEditFilled() : Auth::user()->can(CustomPermissionEnum::INPUT_MCU_LABORATORIUM->value))
-            && $this->status === 'mcu';
-    }
-
-    public function getCanRadiologyProperty(): bool
-    {
-        return ($this->filled['radiology'] ? $this->canEditFilled() : Auth::user()->can(CustomPermissionEnum::INPUT_MCU_RADIOLOGI->value))
-            && $this->status === 'mcu';
-    }
-
-    public function getCanDoctorProperty(): bool
-    {
-        return ($this->filled['doctor'] ? $this->canEditFilled() : Auth::user()->can(CustomPermissionEnum::INPUT_MCU_PEMERIKSAAN_DOKTER->value))
-            && $this->status === 'mcu';
-    }
-
-    public function simpanNurse(): void
-    {
-        abort_unless($this->canNurse, 403);
-        $this->validate([
-            'nurse.tinggi_badan' => 'required|numeric', 'nurse.berat_badan' => 'required|numeric',
-            'nurse.suhu' => 'required|numeric', 'nurse.nadi' => 'required|integer',
-            'nurse.pernafasan' => 'required|integer', 'nurse.tekanan_darah' => 'required|string',
-            'nurseFile' => 'nullable|file|max:5120',
-        ]);
-        $this->save('nurse', $this->nurse, $this->nurseFile);
-    }
-
-    public function simpanLab(): void
-    {
-        abort_unless($this->canLab, 403);
-        $this->validate(['labFile' => 'nullable|file|max:5120']);
-        $this->save('lab', $this->lab, $this->labFile);
-    }
-
-    public function simpanRadiology(): void
-    {
-        abort_unless($this->canRadiology, 403);
-        $this->validate(['radiologyFile' => 'nullable|file|max:5120']);
-        $this->save('radiology', $this->radiology, $this->radiologyFile);
-    }
-
-    public function simpanDokter(): void
-    {
-        abort_unless($this->canDoctor, 403);
-        $this->save('doctor', $this->doctor, null);
-    }
-
-    private function save(string $station, array $data, $file): void
-    {
-        $result = app(RekrutmenSyncService::class)->saveMcuStation($this->jobApplicationId, $station, $data, $file);
+        $result = app(RekrutmenSyncService::class)->saveMcuStation(
+            $this->jobApplicationId,
+            $this->station,
+            $this->form,
+            $this->hasUpload() ? $this->upload : null,
+        );
 
         Notification::make()
             ->title($result['ok'] ? 'Tersimpan' : 'Gagal menyimpan')
@@ -182,9 +167,7 @@ class McuFormPage extends Component
             ->send();
 
         if ($result['ok']) {
-            if (in_array($station, ['nurse', 'lab', 'radiology'], true)) {
-                $this->reset($station . 'File');
-            }
+            $this->reset('upload');
             $this->loadState();
         }
     }
@@ -192,5 +175,39 @@ class McuFormPage extends Component
     public function render()
     {
         return view('livewire.rekrutmen.mcu-form-page');
+    }
+
+    /**
+     * Tombol per stasiun (nurse/lab/radiology/doctor) yang boleh diisi user login — dipakai
+     * McuQueuePage & ApplicantDetailPage, pola sama Sikartap::mcuActionsFor().
+     *
+     * @param  list<string>  $filled  stasiun yang sudah terisi
+     * @return list<array{station:string,label:string,filled:bool,url:string}>
+     */
+    public static function availableStationLinks(string $jobApplicationId, array $filled = []): array
+    {
+        $user = Auth::user();
+        $links = [];
+
+        foreach (self::STATIONS as $station => [$label, $perm, $hasUpload]) {
+            $isFilled = in_array($station, $filled, true);
+
+            $can = $isFilled
+                ? $user->can(CustomPermissionEnum::EDIT_INPUT_MCU->value)
+                : $user->can($perm->value);
+
+            if (! $can) {
+                continue;
+            }
+
+            $links[] = [
+                'station' => $station,
+                'label'   => $label,
+                'filled'  => $isFilled,
+                'url'     => route('rekrutmen.pelamar.mcu', ['jobApplication' => $jobApplicationId, 'station' => $station]),
+            ];
+        }
+
+        return $links;
     }
 }

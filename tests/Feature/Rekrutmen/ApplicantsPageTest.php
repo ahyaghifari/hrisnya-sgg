@@ -293,14 +293,15 @@ class ApplicantsPageTest extends TestCase
         Livewire::test(\App\Livewire\Rekrutmen\McuQueuePage::class)
             ->assertOk()
             ->assertSee('Budi')
-            ->assertSee('Staff IT');
+            ->assertSee('Staff IT')
+            ->assertSee('Lab'); // tombol stasiun sesuai permission user
     }
 
     public function test_mcu_form_blocked_without_permission(): void
     {
         $this->actingAs(User::factory()->create(['company_id' => $this->company->id]));
 
-        Livewire::test(\App\Livewire\Rekrutmen\McuFormPage::class, ['jobApplication' => 'APP1'])
+        Livewire::test(\App\Livewire\Rekrutmen\McuFormPage::class, ['jobApplication' => 'APP1', 'station' => 'nurse'])
             ->assertForbidden();
     }
 
@@ -309,15 +310,15 @@ class ApplicantsPageTest extends TestCase
         $this->actingAsClinician(\App\Enum\CustomPermissionEnum::INPUT_MCU_ASESMEN_PERAWAT->value);
         $this->fakeApplication('APP1', 'mcu');
 
-        Livewire::test(\App\Livewire\Rekrutmen\McuFormPage::class, ['jobApplication' => 'APP1'])
+        Livewire::test(\App\Livewire\Rekrutmen\McuFormPage::class, ['jobApplication' => 'APP1', 'station' => 'nurse'])
             ->assertOk()
-            ->set('nurse.tinggi_badan', 170)
-            ->set('nurse.berat_badan', 65)
-            ->set('nurse.suhu', 36.5)
-            ->set('nurse.nadi', 80)
-            ->set('nurse.pernafasan', 18)
-            ->set('nurse.tekanan_darah', '120/80')
-            ->call('simpanNurse')
+            ->set('form.tinggi_badan', 170)
+            ->set('form.berat_badan', 65)
+            ->set('form.suhu', 36.5)
+            ->set('form.nadi', 80)
+            ->set('form.pernafasan', 18)
+            ->set('form.tekanan_darah', '120/80')
+            ->call('simpan')
             ->assertHasNoErrors();
 
         Http::assertSent(fn ($req) => $req->method() === 'POST'

@@ -78,11 +78,6 @@ class ApplicantDetailPage extends Component
         return app(RekrutmenSyncService::class)->getMcu($this->jobApplicationId);
     }
 
-    public function mcuFormUrl(): string
-    {
-        return route('rekrutmen.pelamar.mcu', $this->jobApplicationId);
-    }
-
     public function putuskanMcu(string $result): void
     {
         abort_unless($this->canDecide, 403);

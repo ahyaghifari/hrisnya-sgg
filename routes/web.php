@@ -590,7 +590,8 @@ Route::middleware(['auth', 'portal.access'])->group(function () {
         ->where('type', 'recruiter|signed')
         ->name('rekrutmen.pelamar.offering-letter');
 
-    Route::get('/rekrutmen/pelamar/{jobApplication}/mcu', \App\Livewire\Rekrutmen\McuFormPage::class)
+    Route::get('/rekrutmen/pelamar/{jobApplication}/mcu/{station}', \App\Livewire\Rekrutmen\McuFormPage::class)
+        ->where('station', 'nurse|lab|radiology|doctor')
         ->name('rekrutmen.pelamar.mcu');
 
     Route::get('/rekrutmen/pelamar/{jobApplication}', \App\Livewire\Rekrutmen\ApplicantDetailPage::class)
