@@ -40,6 +40,9 @@ class ApplicantDetailPage extends Component
     // Offering letter
     public $offeringFile = null;
 
+    // Keputusan MCU
+    public ?string $mcuCatatan = null;
+
     /** Urutan tahap buat stepper timeline. */
     public const STAGES = ['applied', 'screening', 'shortlisted', 'interview', 'offering', 'mcu', 'onboarding', 'passed'];
 
@@ -63,6 +66,55 @@ class ApplicantDetailPage extends Component
     public function getCanDecideProperty(): bool
     {
         return Auth::user()->can('Update:JobOpenings');
+    }
+
+    /** State MCU — cuma di-fetch kalau status `mcu` (hemat 1 call API tiap render). */
+    public function getMcuStateProperty(): ?array
+    {
+        if (($this->application['status'] ?? null) !== 'mcu') {
+            return null;
+        }
+
+        return app(RekrutmenSyncService::class)->getMcu($this->jobApplicationId);
+    }
+
+    public function mcuFormUrl(): string
+    {
+        return route('rekrutmen.pelamar.mcu', $this->jobApplicationId);
+    }
+
+    public function putuskanMcu(string $result): void
+    {
+        abort_unless($this->canDecide, 403);
+        abort_unless(in_array($result, ['fit', 'unfit'], true), 422);
+
+        $this->notify(app(RekrutmenSyncService::class)->decideMcu($this->jobApplicationId, $result, $this->mcuCatatan ?: null));
+    }
+
+    public function getCanCreateEmployeeProperty(): bool
+    {
+        return Auth::user()->can('create', \App\Models\User::class);
+    }
+
+    public function selesaikanOnboarding(): void
+    {
+        abort_unless($this->canDecide, 403);
+
+        $this->notify(app(RekrutmenSyncService::class)->completeOnboarding($this->jobApplicationId));
+    }
+
+    public function buatAkunKaryawan(): void
+    {
+        abort_unless($this->canCreateEmployee, 403);
+
+        $result = app(\App\Services\Rekrutmen\CandidateOnboardingService::class)
+            ->createEmployeeFromCandidate($this->jobApplicationId);
+
+        Notification::make()
+            ->title($result['ok'] ? 'Akun karyawan siap' : 'Gagal membuat akun')
+            ->body($result['message'])
+            ->{$result['ok'] ? 'success' : 'danger'}()
+            ->send();
     }
 
     public function documentUrl(string $documentId): ?string

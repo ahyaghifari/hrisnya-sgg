@@ -767,6 +767,18 @@ return [
         'guard' => null,
     ],
 
+    'rekrutmen.pelamar.mcu' => [
+        'label' => 'Input MCU Pelamar (Rekrutmen)',
+        'permission' => 'View:JobOpenings',
+        'guard' => null,
+    ],
+
+    'rekrutmen.mcu' => [
+        'label' => 'Antrian MCU (Rekrutmen)',
+        'permission' => null,
+        'guard' => 'canInputSikartapMcu',
+    ],
+
     'rekrutmen.pelamar.dokumen' => [
         'label' => 'Unduh Dokumen Pelamar (Rekrutmen)',
         'permission' => 'View:JobOpenings',

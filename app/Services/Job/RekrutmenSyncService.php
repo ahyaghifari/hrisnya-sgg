@@ -307,7 +307,7 @@ class RekrutmenSyncService
      *
      * @return array{ok:bool, message:string, data?:mixed}
      */
-    private function writeAction(string $method, string $path, array $body, string $okMessage): array
+    private function writeAction(string $method, string $path, array $body, string $okMessage, $file = null): array
     {
         $baseUrl = config('services.rekrutmen.base_url');
         $token = config('services.rekrutmen.token');
@@ -319,7 +319,13 @@ class RekrutmenSyncService
         $url = rtrim($baseUrl, '/') . $path;
 
         try {
-            $response = Http::withToken($token)->timeout(10)->{$method}($url, $body);
+            $request = Http::withToken($token)->timeout($file ? 25 : 10);
+
+            if ($file) {
+                $request = $request->attach('file', $file->get() ?: file_get_contents($file->getRealPath()), $file->getClientOriginalName());
+            }
+
+            $response = $request->{$method}($url, $body);
 
             if ($response->failed()) {
                 Log::warning('RekrutmenSyncService: writeAction gagal.', [
@@ -340,6 +346,102 @@ class RekrutmenSyncService
 
             return ['ok' => false, 'message' => 'Tidak bisa menghubungi Rekrutmen: ' . $e->getMessage()];
         }
+    }
+
+    /**
+     * Antrian MCU (semua lamaran status `mcu` lintas lowongan). Non-fatal.
+     *
+     * @return list<array{job_application_id:string,applicant_name:?string,job_opening_title:?string,stations_filled:list<string>,status_mcu:string,updated_at:?string}>
+     */
+    public function getMcuQueue(): array
+    {
+        $baseUrl = config('services.rekrutmen.base_url');
+        $token = config('services.rekrutmen.token');
+
+        if (! $baseUrl || ! $token) {
+            return [];
+        }
+
+        try {
+            $response = Http::withToken($token)->timeout(10)->get(rtrim($baseUrl, '/') . '/integrations/hris/mcu-queue');
+
+            return $response->successful() ? $response->json('data', []) : [];
+        } catch (\Throwable $e) {
+            Log::warning('RekrutmenSyncService: getMcuQueue gagal.', ['message' => $e->getMessage()]);
+
+            return [];
+        }
+    }
+
+    /**
+     * State MCU 1 lamaran (status + isi 4 stasiun). Non-fatal → null.
+     *
+     * @return array{status:string,status_mcu:string,catatan_mcu:?string,nurse:?array,lab:?array,radiology:?array,doctor:?array}|null
+     */
+    public function getMcu(string $jobApplicationId): ?array
+    {
+        $baseUrl = config('services.rekrutmen.base_url');
+        $token = config('services.rekrutmen.token');
+
+        if (! $baseUrl || ! $token) {
+            return null;
+        }
+
+        try {
+            $response = Http::withToken($token)->timeout(10)->get(rtrim($baseUrl, '/') . '/integrations/hris/applications/' . $jobApplicationId . '/mcu');
+
+            return $response->successful() ? $response->json() : null;
+        } catch (\Throwable $e) {
+            Log::warning('RekrutmenSyncService: getMcu gagal.', ['message' => $e->getMessage()]);
+
+            return null;
+        }
+    }
+
+    /**
+     * Simpan 1 stasiun MCU ke Rekrutmen. `$file` opsional (file_ekg / hasil scan). BUKAN non-fatal.
+     *
+     * @return array{ok:bool, message:string, data?:mixed}
+     */
+    public function saveMcuStation(string $jobApplicationId, string $station, array $data, $file = null): array
+    {
+        return $this->writeAction(
+            'post',
+            '/integrations/hris/applications/' . $jobApplicationId . '/mcu/' . $station,
+            $data,
+            'Data MCU disimpan ke Rekrutmen.',
+            $file,
+        );
+    }
+
+    /**
+     * Keputusan fit/unfit MCU di Rekrutmen (`POST .../mcu/decision`) → `onboarding`/`rejected`.
+     *
+     * @return array{ok:bool, message:string, data?:mixed}
+     */
+    public function decideMcu(string $jobApplicationId, string $result, ?string $catatan): array
+    {
+        return $this->writeAction(
+            'post',
+            '/integrations/hris/applications/' . $jobApplicationId . '/mcu/decision',
+            ['result' => $result, 'catatan' => $catatan],
+            'Keputusan MCU dikirim ke Rekrutmen.',
+        );
+    }
+
+    /**
+     * Tandai onboarding selesai di Rekrutmen (`POST .../onboarding/complete`) → status `passed`.
+     *
+     * @return array{ok:bool, message:string, data?:mixed}
+     */
+    public function completeOnboarding(string $jobApplicationId): array
+    {
+        return $this->writeAction(
+            'post',
+            '/integrations/hris/applications/' . $jobApplicationId . '/onboarding/complete',
+            [],
+            'Pelamar ditandai selesai (Diterima) di Rekrutmen.',
+        );
     }
 
     /** URL endpoint dokumen kandidat di Rekrutmen (butuh Bearer token — dipanggil server-side

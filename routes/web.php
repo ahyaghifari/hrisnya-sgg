@@ -567,6 +567,9 @@ Route::middleware(['auth', 'portal.access'])->group(function () {
     Route::get('/rekrutmen/lowongan', JobOpeningsPage::class)
         ->name('rekrutmen.lowongan');
 
+    Route::get('/rekrutmen/mcu', \App\Livewire\Rekrutmen\McuQueuePage::class)
+        ->name('rekrutmen.mcu');
+
     Route::get('/rekrutmen/lowongan/{record}/edit', EditJobOpeningPage::class)
         ->name('rekrutmen.lowongan.edit');
 
@@ -586,6 +589,9 @@ Route::middleware(['auth', 'portal.access'])->group(function () {
     Route::get('/rekrutmen/pelamar/{jobApplication}/offering-letter/{type}', [\App\Http\Controllers\Rekrutmen\CandidateDocumentProxyController::class, 'offeringLetter'])
         ->where('type', 'recruiter|signed')
         ->name('rekrutmen.pelamar.offering-letter');
+
+    Route::get('/rekrutmen/pelamar/{jobApplication}/mcu', \App\Livewire\Rekrutmen\McuFormPage::class)
+        ->name('rekrutmen.pelamar.mcu');
 
     Route::get('/rekrutmen/pelamar/{jobApplication}', \App\Livewire\Rekrutmen\ApplicantDetailPage::class)
         ->name('rekrutmen.pelamar.show');

@@ -144,6 +144,67 @@
         </div>
     @endif
 
+    {{-- MCU (Fase 6) --}}
+    @if ($current === 'mcu')
+        @php $mcu = $this->mcuState; @endphp
+        <div style="background:var(--surface);border-radius:16px;box-shadow:var(--shadow-card);padding:18px;margin-bottom:16px;">
+            <p style="font-size:13px;font-weight:700;color:var(--text-heading);margin:0 0 12px;">Medical Check Up</p>
+
+            <a href="{{ $this->mcuFormUrl() }}" wire:navigate class="btn-ghost" style="margin-bottom:12px;">
+                <i class="fa-solid fa-notes-medical"></i> Buka Form MCU
+            </a>
+
+            @if ($mcu)
+                <div style="display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 12px;">
+                    @foreach (['nurse'=>'Perawat','lab'=>'Lab','radiology'=>'Radiologi','doctor'=>'Dokter'] as $k => $lbl)
+                        <span class="badge {{ empty($mcu[$k]) ? 'badge-pending' : 'badge-approved' }}" style="font-size:10px;">{{ $lbl }}{{ empty($mcu[$k]) ? ' —' : ' ✓' }}</span>
+                    @endforeach
+                </div>
+
+                @if ($this->canDecide)
+                    @if (empty($mcu['doctor']))
+                        <p style="font-size:12px;color:var(--text-muted);margin:0;">Keputusan fit/unfit tersedia setelah pemeriksaan dokter diisi.</p>
+                    @else
+                        <label class="form-label">Catatan keputusan (opsional)</label>
+                        <textarea wire:model="mcuCatatan" class="form-input" rows="2" style="margin-bottom:8px;"></textarea>
+                        <div style="display:flex;flex-wrap:wrap;gap:8px;">
+                            <button type="button" wire:click="putuskanMcu('fit')" wire:loading.attr="disabled" wire:confirm="Tandai FIT → lanjut ke Onboarding?" class="btn-primary"><i class="fa-solid fa-check"></i> FIT → Onboarding</button>
+                            <button type="button" wire:click="putuskanMcu('unfit')" wire:loading.attr="disabled" wire:confirm="Tandai UNFIT → pelamar ditolak?" class="btn-ghost" style="color:#dc2626;"><i class="fa-solid fa-xmark"></i> UNFIT</button>
+                        </div>
+                    @endif
+                @endif
+            @else
+                <p style="font-size:12px;color:var(--text-muted);margin:0;">Data MCU tidak bisa dimuat dari sistem Rekrutmen.</p>
+            @endif
+        </div>
+    @endif
+
+    {{-- TTD & Onboarding (Fase 7) --}}
+    @if ($this->canDecide && $current === 'onboarding')
+        <div style="background:var(--surface);border-radius:16px;box-shadow:var(--shadow-card);padding:18px;margin-bottom:16px;">
+            <p style="font-size:13px;font-weight:700;color:var(--text-heading);margin:0 0 8px;">TTD &amp; Onboarding</p>
+            <p style="font-size:12px;color:var(--text-muted);margin:0 0 12px;">Pastikan kontrak sudah ditandatangani &amp; orientasi selesai sebelum menandai Diterima.</p>
+            <button type="button" wire:click="selesaikanOnboarding" wire:loading.attr="disabled" wire:confirm="Tandai pelamar SELESAI (Diterima)? Status jadi passed." class="btn-primary">
+                <i class="fa-solid fa-flag-checkered"></i> Tandai Selesai (Diterima)
+            </button>
+        </div>
+    @endif
+
+    {{-- Passed → buat akun karyawan HRIS (Fase 7) --}}
+    @if ($current === 'passed')
+        <div style="background:var(--surface);border-radius:16px;box-shadow:var(--shadow-card);padding:18px;margin-bottom:16px;">
+            <p style="font-size:13px;font-weight:700;color:var(--text-heading);margin:0 0 8px;">✅ Diterima</p>
+            @if ($this->canCreateEmployee)
+                <p style="font-size:12px;color:var(--text-muted);margin:0 0 12px;">Tarik data kandidat dari Rekrutmen jadi akun karyawan HRIS (dedupe by email). Data tabel anak — keluarga/pendidikan/dll — belum ikut, isi manual setelahnya.</p>
+                <button type="button" wire:click="buatAkunKaryawan" wire:loading.attr="disabled" wire:confirm="Buat / sinkron akun karyawan HRIS dari data kandidat ini?" class="btn-primary">
+                    <i class="fa-solid fa-user-plus"></i> Buat / Sinkron Akun Karyawan
+                </button>
+            @else
+                <p style="font-size:12px;color:var(--text-muted);margin:0;">Pelamar sudah diterima. (Perlu izin buat karyawan untuk membuat akunnya.)</p>
+            @endif
+        </div>
+    @endif
+
     {{-- Riwayat status --}}
     @if (! empty($app['status_logs']))
         <div style="background:var(--surface);border-radius:16px;box-shadow:var(--shadow-card);padding:18px;margin-bottom:16px;">
