@@ -24,9 +24,15 @@
 @if ($meeting->quizzes->isNotEmpty())
     <div class="course-materials">
         @foreach ($meeting->quizzes as $meetingQuiz)
-            <div class="course-material-row" style="cursor:default;">
+            <div class="course-material-row" style="cursor:default;{{ ($isTrainer ?? false) ? 'display:flex;align-items:center;gap:8px;' : '' }}">
                 <div class="course-material-icon is-quiz"><i class="fa-solid fa-clipboard-question"></i></div>
                 <span class="course-material-name">{{ $meetingQuiz->quiz->title ?? 'Kuis' }}</span>
+                @if ($isTrainer ?? false)
+                    <button type="button" wire:click="toggleQuizLock('{{ $meetingQuiz->id }}')" class="course-follow-btn" style="margin:0 0 0 auto;padding:4px 10px;font-size:11px;width:auto;display:inline-flex;align-items:center;gap:5px;">
+                        <i class="fa-solid fa-{{ $meetingQuiz->is_unlocked ? 'lock' : 'lock-open' }}"></i>
+                        {{ $meetingQuiz->is_unlocked ? 'Kunci' : 'Buka' }}
+                    </button>
+                @endif
             </div>
         @endforeach
     </div>

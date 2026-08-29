@@ -50,6 +50,13 @@
                 <i class="fa-solid fa-star"></i> Isi Umpan Balik
             </a>
         @endif
+
+        @if ($this->isCourseTrainer && $course->requires_feedback)
+            <button type="button" wire:click="toggleFeedbackLock" class="course-follow-btn" style="margin-top:8px;display:block;text-align:center;">
+                <i class="fa-solid fa-{{ $course->feedback_unlocked ? 'lock' : 'lock-open' }}"></i>
+                {{ $course->feedback_unlocked ? 'Kunci Umpan Balik' : 'Buka Umpan Balik' }}
+            </button>
+        @endif
     </div>
 </div>
 
@@ -72,7 +79,7 @@
             <span class="course-session-trainer"><i class="fa-solid fa-chalkboard-user"></i> {{ $meeting->trainer->name }}</span>
         @endif
 
-        @include('livewire.pelatihan.partials.session-body', ['meeting' => $meeting, 'isFollowed' => $this->isFollowed, 'attendance' => $attendance, 'quizAttempted' => fn ($id) => $this->quizAttempted($id)])
+        @include('livewire.pelatihan.partials.session-body', ['meeting' => $meeting, 'isFollowed' => $this->isFollowed, 'isTrainer' => $this->isCourseTrainer, 'attendance' => $attendance, 'quizAttempted' => fn ($id) => $this->quizAttempted($id)])
     </div>
 @else
     <div class="course-timeline">
@@ -104,7 +111,7 @@
                     @endif
 
                     <div class="course-session-content" x-show="open" x-transition x-cloak>
-                        @include('livewire.pelatihan.partials.session-body', ['meeting' => $meeting, 'isFollowed' => $this->isFollowed, 'attendance' => $attendance, 'quizAttempted' => fn ($id) => $this->quizAttempted($id)])
+                        @include('livewire.pelatihan.partials.session-body', ['meeting' => $meeting, 'isFollowed' => $this->isFollowed, 'isTrainer' => $this->isCourseTrainer, 'attendance' => $attendance, 'quizAttempted' => fn ($id) => $this->quizAttempted($id)])
                     </div>
                 </div>
             </div>

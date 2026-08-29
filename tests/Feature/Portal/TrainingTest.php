@@ -8,7 +8,9 @@ use App\Models\LMS\LmsCategories;
 use App\Models\LMS\LmsCourses;
 use App\Models\LMS\LmsCourseUsers;
 use App\Models\LMS\LmsMaterials;
+use App\Models\LMS\LmsMeetingQuizzes;
 use App\Models\LMS\LmsMeetings;
+use App\Models\LMS\LmsQuizzes;
 use App\Models\LMS\Trainer\Trainers;
 use App\Models\Role;
 use App\Models\User;
@@ -242,6 +244,45 @@ class TrainingTest extends TestCase
 
         $response->assertOk();
         $response->assertSee('dr. Andi Wijaya');
+    }
+
+    public function test_course_trainer_can_toggle_quiz_lock_but_non_trainer_cannot(): void
+    {
+        $trainerUser = User::factory()->create();
+        $stranger = User::factory()->create();
+
+        $course = LmsCourses::create([
+            'code' => 'QL01',
+            'title' => 'Kursus Kunci Kuis',
+            'status' => LsmCourseStatus::Published->value,
+        ]);
+
+        $trainer = Trainers::create(['name' => 'Pemateri Login', 'user_id' => $trainerUser->id]);
+        $meeting = LmsMeetings::create([
+            'course_id' => $course->id,
+            'title' => 'Sesi Kuis',
+            'trainer_id' => $trainer->id,
+        ]);
+
+        $quiz = LmsQuizzes::create(['title' => 'Kuis 1']);
+        $meetingQuiz = LmsMeetingQuizzes::create([
+            'meeting_id' => $meeting->id,
+            'quiz_id' => $quiz->id,
+            'is_unlocked' => false,
+        ]);
+
+        \Livewire\Livewire::actingAs($trainerUser)
+            ->test(\App\Livewire\Pelatihan\TrainingDetail::class, ['course' => $course])
+            ->call('toggleQuizLock', $meetingQuiz->id);
+
+        $this->assertTrue($meetingQuiz->fresh()->is_unlocked);
+
+        \Livewire\Livewire::actingAs($stranger)
+            ->test(\App\Livewire\Pelatihan\TrainingDetail::class, ['course' => $course])
+            ->call('toggleQuizLock', $meetingQuiz->id)
+            ->assertForbidden();
+
+        $this->assertTrue($meetingQuiz->fresh()->is_unlocked);
     }
 
     public function test_detail_page_shows_meeting_and_material_as_display_only(): void

@@ -32,21 +32,6 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
  * UserProfiles::getDivisionAttribute()) dengan baris judul divisi disisipkan di antara baris
  * karyawan (kolom lain di baris judul dibiarkan kosong, bukan di-merge - cukup buat dibaca
  * finance, tidak perlu identik piksel).
- *
- * Kolom komponen gaji (Gaji Pokok..Bon) HANYA muncul kalau komponennya aktif di
- * `company_payroll_components` untuk company periode ini - kolom identitas + ringkasan
- * (TOTAL GAJI/Jumlah Terima/TOTAL POTONGAN/dst) selalu tampil apa pun toggle-nya.
- * buildColumns() jadi SATU-SATUNYA sumber urutan+tipe kolom, dipakai bareng headings(),
- * payrollRow(), dan styling (currency/text) di registerEvents() - tidak akan pernah desinkron.
- *
- * SENGAJA cuma baca dari payroll_items (Payroll::items, sudah termasuk baris yang berasal dari
- * payroll_manual_lines - lihat AbstractManualLineCalculator yang menyalin Koperasi/Bon manual
- * ke payroll_items saat generate) - bukan query ulang payroll_manual_lines. Pengecualian:
- * "Gaji Dasar"/"% Kenaikan" (base & langkah kenaikan kelas Gaji Pokok) TIDAK tersimpan
- * terpisah di payroll_items (cuma nominal akhir) - dihitung ulang dari master data
- * (pangkat_salaries/kelas/setting) persis rumus GajiPokokCalculator, TANPA prorate bulan
- * pertama (kolom ini buat referensi basis perhitungan, bukan angka final - "Gaji Pokok" di
- * sebelahnya tetap angka final asli dari payroll_items).
  */
 class PayrollSlipRekapExport extends DefaultValueBinder implements FromCollection, WithHeadings, WithStyles, WithCustomValueBinder, WithEvents
 {
@@ -163,6 +148,13 @@ class PayrollSlipRekapExport extends DefaultValueBinder implements FromCollectio
         $column = $this->columns[$columnIndex - 1] ?? null;
 
         if ($column && $column['forceText'] && $value !== null && $value !== '') {
+            // NO REKENING: cuma dipaksa teks kalau ADA nol di depan (kalau tidak, biarkan
+            // numerik apa adanya - permintaan user 2026-08-29). ID/NIK tetap selalu teks
+            // (tanpa nol depan pun bisa kepanjangan & kehilangan presisi kalau jadi float).
+            if ($column['label'] === 'NO REKENING' && ! str_starts_with((string) $value, '0')) {
+                return parent::bindValue($cell, $value);
+            }
+
             $cell->setValueExplicit((string) $value, DataType::TYPE_STRING);
 
             return true;
@@ -200,6 +192,10 @@ class PayrollSlipRekapExport extends DefaultValueBinder implements FromCollectio
 
                     if ($column['format']) {
                         $sheet->getStyle("{$letter}2:{$letter}{$lastRow}")->getNumberFormat()->setFormatCode($column['format']);
+                    }
+
+                    if ($column['label'] === 'NO REKENING') {
+                        $sheet->getStyle("{$letter}2:{$letter}{$lastRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
                     }
 
                     if ($color = self::HEADER_HIGHLIGHT_COLORS[$column['label']] ?? null) {

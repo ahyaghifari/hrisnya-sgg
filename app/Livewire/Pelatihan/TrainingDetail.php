@@ -3,6 +3,7 @@
 namespace App\Livewire\Pelatihan;
 
 use App\Models\LMS\LmsCourses;
+use App\Models\LMS\LmsMeetingQuizzes;
 use App\Repositories\LMS\CourseUserRepository;
 use App\Repositories\LMS\QuizRepository;
 use Illuminate\Support\Facades\Auth;
@@ -55,6 +56,39 @@ class TrainingDetail extends Component
     public function getIsFollowedProperty(): bool
     {
         return $this->courseUserId !== null;
+    }
+
+    /**
+     * User login adalah pemateri di salah satu pertemuan course ini — dipakai untuk
+     * menampilkan tombol buka/kunci kuis & umpan balik langsung di halaman pelatihan,
+     * tanpa perlu permission EDIT_DETAIL_KURSUS_LMS (halaman admin). Trainer bisa lewat
+     * `trainer_employee_id` (User langsung) atau `trainer->user_id` (row Trainers).
+     */
+    public function getIsCourseTrainerProperty(): bool
+    {
+        return $this->course->meetings->contains(
+            fn ($meeting) => $meeting->trainer_employee_id === Auth::id()
+                || $meeting->trainer?->user_id === Auth::id()
+        );
+    }
+
+    public function toggleQuizLock(string $meetingQuizId): void
+    {
+        abort_unless($this->isCourseTrainer, 403);
+
+        $meetingQuiz = LmsMeetingQuizzes::whereHas('meeting', fn ($q) => $q->where('course_id', $this->course->id))
+            ->findOrFail($meetingQuizId);
+
+        $meetingQuiz->update(['is_unlocked' => ! $meetingQuiz->is_unlocked]);
+
+        $this->course->load('meetings.quizzes.quiz');
+    }
+
+    public function toggleFeedbackLock(): void
+    {
+        abort_unless($this->isCourseTrainer && $this->course->requires_feedback, 403);
+
+        $this->course->update(['feedback_unlocked' => ! $this->course->feedback_unlocked]);
     }
 
     // ponytail: sama persis dengan TrainingList::categoryAccent() — hash 4 baris, duplikasi
