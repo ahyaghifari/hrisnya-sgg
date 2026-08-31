@@ -4,6 +4,7 @@ namespace App\Livewire\Pelatihan;
 
 use App\Models\LMS\LmsCourses;
 use App\Models\LMS\LmsMeetingQuizzes;
+use App\Models\LMS\LmsRespondent;
 use App\Repositories\LMS\CourseUserRepository;
 use App\Repositories\LMS\QuizRepository;
 use Illuminate\Support\Facades\Auth;
@@ -154,7 +155,15 @@ class TrainingDetail extends Component
 
     public function quizAttempted(string $meetingQuizId): bool
     {
-        return app(QuizRepository::class)->findUserResultByMeetingQuizId($meetingQuizId, Auth::id()) !== null;
+        // Hasil kuis di-key ke respondent_id, bukan user_id — resolve dulu (tanpa membuat baris:
+        // pakai value() bukan RespondentService::resolveForEmployee yang firstOrCreate).
+        $respondentId = LmsRespondent::where('course_id', $this->course->id)
+            ->where('user_id', Auth::id())
+            ->where('category', LmsRespondent::CATEGORY_KUIS)
+            ->value('id');
+
+        return $respondentId
+            && app(QuizRepository::class)->findUserResultByMeetingQuizId($meetingQuizId, $respondentId) !== null;
     }
 
     public function followCourse(): void

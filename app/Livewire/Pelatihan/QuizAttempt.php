@@ -71,9 +71,8 @@ class QuizAttempt extends Component
             return;
         }
 
-        // Gate kunci — kuis baru default terkunci untuk peserta yang login (portal), admin
-        // buka manual lewat tombol "Buka" di halaman detail pelatihan. Akses publik lewat
-        // QR/token (PublicQuizPage) TIDAK kena gate ini, sengaja beda jalur.
+        // Gate kunci — kuis baru default terkunci, admin buka manual lewat tombol "Buka" di
+        // halaman detail pelatihan (semua pengerjaan kuis via HRIS, tidak ada lagi akses publik).
         if (! $meetingQuiz->is_unlocked) {
             $this->locked = true;
 
@@ -82,9 +81,15 @@ class QuizAttempt extends Component
 
         // Gate approval — QuizService::getQuizDetail() sendiri tidak menegakkan ini (cuma
         // submitQuiz() yang gate), jadi ditambal manual di sini sebelum soal ditampilkan.
+        // Terima APPROVED *dan* IN_PROGRESS: begitu peserta menyelesaikan kuis/absensi
+        // pertama, LmsProgresListener menggeser status approved -> in_progress — tanpa
+        // IN_PROGRESS di whitelist, kuis pertemuan berikutnya yang sudah dibuka trainer
+        // malah keblokir.
         $courseUser = app(CourseUserRepository::class)->getByUserIdAndCourseId(Auth::id(), $meetingQuiz->meeting->course_id);
 
-        if (! $courseUser || $courseUser->status !== CourseUserStatus::APPROVED->value) {
+        $allowedStatuses = [CourseUserStatus::APPROVED->value, CourseUserStatus::IN_PROGRESS->value];
+
+        if (! $courseUser || ! in_array($courseUser->status, $allowedStatuses, true)) {
             $this->blocked = true;
 
             return;

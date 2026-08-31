@@ -710,32 +710,30 @@ class LmsCourseDetailPageTest extends TestCase
             ->assertSee('Sangat bagus');
     }
 
-    public function test_umpan_balik_tab_and_qr_button_hidden_when_requires_feedback_false(): void
+    public function test_umpan_balik_tab_hidden_when_requires_feedback_false(): void
     {
         $company = $this->makeCompany('CPD', 'Company D');
         $admin = $this->actingAsLmsAdmin($company->id);
         $course = $this->makeCourse($company->id);
-        $course->update(['requires_feedback' => false, 'feedback_public_token' => 'leftover-token']);
+        $course->update(['requires_feedback' => false]);
 
         Livewire::actingAs($admin)
             ->test(LmsCourseDetailPage::class, ['course' => $course])
             ->assertDontSee('Umpan Balik')
-            ->assertDontSee('QR Umpan Balik')
             ->call('setTab', 'umpan-balik')
             ->assertSet('tab', 'peserta');
     }
 
-    public function test_umpan_balik_tab_and_qr_button_shown_when_requires_feedback_true(): void
+    public function test_umpan_balik_tab_shown_when_requires_feedback_true(): void
     {
         $company = $this->makeCompany('CPE', 'Company E');
         $admin = $this->actingAsLmsAdmin($company->id);
         $course = $this->makeCourse($company->id);
-        $course->update(['requires_feedback' => true, 'feedback_public_token' => 'active-token']);
+        $course->update(['requires_feedback' => true]);
 
         Livewire::actingAs($admin)
             ->test(LmsCourseDetailPage::class, ['course' => $course])
             ->assertSee('Umpan Balik')
-            ->assertSee('QR Umpan Balik')
             ->call('setTab', 'umpan-balik')
             ->assertSet('tab', 'umpan-balik');
     }

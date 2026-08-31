@@ -89,6 +89,27 @@ class QuizAttemptTest extends TestCase
         $response->assertDontSee('is_correct');
     }
 
+    public function test_in_progress_user_can_still_open_unlocked_quiz(): void
+    {
+        // Setelah menyelesaikan kuis/absensi pertama, LmsProgresListener menggeser status
+        // approved -> in_progress. Kuis pertemuan berikutnya yang trainer sudah buka tidak
+        // boleh ikut keblokir.
+        $user = User::factory()->create();
+        $course = LmsCourses::create(['code' => 'Q09', 'title' => 'Kursus Quiz', 'status' => LsmCourseStatus::Published->value]);
+        $meeting = LmsMeetings::create(['course_id' => $course->id, 'title' => 'Pertemuan 2']);
+        ['meetingQuiz' => $meetingQuiz] = $this->createMultipleChoiceQuiz($meeting);
+
+        LmsCourseUsers::create([
+            'user_id' => $user->id, 'course_id' => $course->id, 'status' => 'in_progress',
+            'progress' => 0, 'score' => 0, 'enrolled_at' => now(),
+        ]);
+
+        $response = $this->actingAs($user)->get('/pelatihan/quiz/' . $meetingQuiz->id);
+
+        $response->assertOk();
+        $response->assertSee('2 + 2 = ?');
+    }
+
     public function test_submitting_valid_answers_creates_result_and_hides_form_on_revisit(): void
     {
         $user = User::factory()->create();

@@ -85,15 +85,11 @@
         </div>
 
         <div style="display:flex;gap:8px;">
-            @if ($course->requires_feedback && $course->feedback_public_token)
-                <button type="button" wire:click="showFeedbackQr" class="btn-ghost" style="padding:9px 18px;font-size:12.5px;">
-                    <i class="fa-solid fa-qrcode"></i> QR Umpan Balik
-                </button>
-            @endif
+            {{-- QR Umpan Balik dinonaktifkan 2026-08-29 — pengerjaan umpan balik hanya via HRIS (login). --}}
 
             @if ($course->requires_feedback && $this->canEditDetail)
-                <button type="button" wire:click="toggleFeedbackLock" class="btn-ghost" style="padding:9px 18px;font-size:12.5px;">
-                    <i class="fa-solid fa-{{ $course->feedback_unlocked ? 'lock' : 'lock-open' }}"></i> {{ $course->feedback_unlocked ? 'Kunci Umpan Balik' : 'Buka Umpan Balik' }}
+                <button type="button" wire:click="toggleFeedbackLock" class="btn-ghost" style="padding:9px 18px;font-size:12.5px;{{ $course->feedback_unlocked ? 'background:#dcfce7;color:#15803d;border-color:#86efac;' : 'background:var(--surface-alt,rgba(0,0,0,.05));color:var(--text-muted);' }}">
+                    <i class="fa-solid fa-{{ $course->feedback_unlocked ? 'lock-open' : 'lock' }}"></i> {{ $course->feedback_unlocked ? 'Umpan Balik Terbuka — klik untuk Kunci' : 'Umpan Balik Terkunci — klik untuk Buka' }}
                 </button>
             @endif
 

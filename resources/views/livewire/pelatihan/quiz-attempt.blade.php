@@ -61,7 +61,7 @@
             <div class="course-session-card">
                 <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px;">
                     <p style="font-size:13.5px;font-weight:700;color:var(--text-heading);margin:0;">
-                        {{ $i + 1 }}. {{ $item['question_text'] }}
+                        {{ $i + 1 }}. {{ trim(html_entity_decode(strip_tags($item['question_text']))) }}
                     </p>
                     @if ($item['is_correct'])
                         <span class="quiz-review-verdict is-correct"><i class="fa-solid fa-check"></i> Benar</span>
@@ -107,7 +107,7 @@
         @foreach ($questions as $question)
             <div class="course-session-card">
                 <p style="font-size:13.5px;font-weight:700;color:var(--text-heading);margin-bottom:12px;">
-                    {{ $question['no'] }}. {{ $question['question_text'] }}
+                    {{ $question['no'] }}. {{ trim(html_entity_decode(strip_tags($question['question_text']))) }}
                 </p>
 
                 <div style="display:flex;flex-direction:column;gap:8px;">

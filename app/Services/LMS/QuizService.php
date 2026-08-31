@@ -359,9 +359,18 @@ class QuizService
         }
 
         $this->meetingUserRepository->updateByUserIdAndMeetingId($userId, $meetingId, $dataMeetingUser);
-        event(new LmsProgresUpdated(
-            $meetingUser->user ?? \App\Models\User::find($userId),
-            $this->courseRepositories->getCourseById($meetingUser->course_id)
-        ));
+
+        // course_id di-resolve dari pertemuan, BUKAN dari $meetingUser — peserta yang mengikuti
+        // kursus sendiri (lewat "Ikuti Pelatihan") bisa mengerjakan kuis tanpa punya baris
+        // lms_course_meeting_users, jadi $meetingUser bisa null. Event progress kursus tetap
+        // harus jalan supaya status lms_course_users maju (LmsProgresListener).
+        $meeting = $this->courseRepositories->getMeetingById($meetingId);
+
+        if ($meeting) {
+            event(new LmsProgresUpdated(
+                $meetingUser->user ?? \App\Models\User::find($userId),
+                $this->courseRepositories->getCourseById($meeting->course_id)
+            ));
+        }
     }
 }

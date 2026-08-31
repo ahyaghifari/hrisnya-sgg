@@ -46,15 +46,21 @@
         @endif
 
         @if ($this->isFollowed && $course->requires_feedback)
-            <a href="{{ route('pelatihan.feedback', ['course' => $course]) }}" wire:navigate class="course-follow-btn" style="margin-top:8px;display:block;text-align:center;">
-                <i class="fa-solid fa-star"></i> Isi Umpan Balik
-            </a>
+            @if ($course->feedback_unlocked)
+                <a href="{{ route('pelatihan.feedback', ['course' => $course]) }}" wire:navigate class="course-follow-btn" style="margin-top:8px;display:block;text-align:center;">
+                    <i class="fa-solid fa-star"></i> Isi Umpan Balik
+                </a>
+            @else
+                <button type="button" disabled class="course-follow-btn is-followed" style="margin-top:8px;display:block;text-align:center;">
+                    <i class="fa-solid fa-lock"></i> Umpan Balik belum dibuka
+                </button>
+            @endif
         @endif
 
         @if ($this->isCourseTrainer && $course->requires_feedback)
-            <button type="button" wire:click="toggleFeedbackLock" class="course-follow-btn" style="margin-top:8px;display:block;text-align:center;">
-                <i class="fa-solid fa-{{ $course->feedback_unlocked ? 'lock' : 'lock-open' }}"></i>
-                {{ $course->feedback_unlocked ? 'Kunci Umpan Balik' : 'Buka Umpan Balik' }}
+            <button type="button" wire:click="toggleFeedbackLock" class="course-follow-btn" style="margin-top:8px;display:block;text-align:center;{{ $course->feedback_unlocked ? 'background:#dcfce7;color:#15803d;border-color:#86efac;' : 'background:var(--surface-alt,rgba(0,0,0,.05));color:var(--text-muted);border-color:var(--border);' }}">
+                <i class="fa-solid fa-{{ $course->feedback_unlocked ? 'lock-open' : 'lock' }}"></i>
+                {{ $course->feedback_unlocked ? 'Umpan Balik Terbuka — Kunci' : 'Umpan Balik Terkunci — Buka' }}
             </button>
         @endif
     </div>

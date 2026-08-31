@@ -53,8 +53,8 @@
         </span>
         <div style="display:flex;gap:6px;">
             @if ($this->canEditDetail)
-                <button type="button" wire:click="toggleMaterialLock('{{ $material->id }}')" class="btn-ghost" style="padding:4px 8px;font-size:11px;">
-                    <i class="fa-solid fa-{{ $material->is_unlocked ? 'lock' : 'lock-open' }}"></i> {{ $material->is_unlocked ? 'Kunci' : 'Buka' }}
+                <button type="button" wire:click="toggleMaterialLock('{{ $material->id }}')" class="btn-ghost" style="padding:4px 8px;font-size:11px;{{ $material->is_unlocked ? 'background:#dcfce7;color:#15803d;border-color:#86efac;' : 'background:var(--surface-alt,rgba(0,0,0,.05));color:var(--text-muted);' }}">
+                    <i class="fa-solid fa-{{ $material->is_unlocked ? 'lock-open' : 'lock' }}"></i> {{ $material->is_unlocked ? 'Terbuka' : 'Terkunci' }}
                 </button>
                 <button type="button" wire:click="removeMaterial('{{ $material->id }}')" wire:confirm="Hapus materi ini?" class="btn-ghost" style="padding:4px 8px;font-size:11px;color:#dc2626;">
                     <i class="fa-solid fa-trash"></i>
@@ -127,15 +127,11 @@
                 <i class="fa-solid fa-list"></i> Hasil Peserta
             </button>
             @if ($this->canEditDetail)
-                <button type="button" wire:click="toggleQuizLock('{{ $meetingQuiz->id }}')" class="btn-ghost" style="padding:4px 8px;font-size:11px;">
-                    <i class="fa-solid fa-{{ $meetingQuiz->is_unlocked ? 'lock' : 'lock-open' }}"></i> {{ $meetingQuiz->is_unlocked ? 'Kunci' : 'Buka' }}
+                <button type="button" wire:click="toggleQuizLock('{{ $meetingQuiz->id }}')" class="btn-ghost" style="padding:4px 8px;font-size:11px;{{ $meetingQuiz->is_unlocked ? 'background:#dcfce7;color:#15803d;border-color:#86efac;' : 'background:var(--surface-alt,rgba(0,0,0,.05));color:var(--text-muted);' }}">
+                    <i class="fa-solid fa-{{ $meetingQuiz->is_unlocked ? 'lock-open' : 'lock' }}"></i> {{ $meetingQuiz->is_unlocked ? 'Terbuka' : 'Terkunci' }}
                 </button>
             @endif
-            @if ($meetingQuiz->public_token)
-                <button type="button" wire:click="showQuizQr('{{ $meetingQuiz->id }}')" class="btn-ghost" style="padding:4px 8px;font-size:11px;">
-                    <i class="fa-solid fa-qrcode"></i> Lihat QR
-                </button>
-            @endif
+            {{-- "Lihat QR" kuis dinonaktifkan 2026-08-29 — pengerjaan kuis hanya via HRIS (login). --}}
             @if ($this->canEditDetail && ! $meetingQuiz->results()->exists())
                 <button type="button" wire:click="removeQuiz('{{ $meetingQuiz->id }}')" wire:confirm="Hapus quiz ini?" class="btn-ghost" style="padding:4px 8px;font-size:11px;color:#dc2626;">
                     <i class="fa-solid fa-trash"></i>
