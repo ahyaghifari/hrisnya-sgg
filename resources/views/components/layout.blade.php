@@ -20,9 +20,12 @@
         'canAccessTukarShift' => auth()->user()->can(\App\Enum\CustomPermissionEnum::TUKAR_SHIFT_SAYA->value) && auth()->user()->hasShiftSchedule(),
         'canAccessSikartapSaya' => auth()->user()->isKontrakKaryawan(),
         'canAccessSikartap' => auth()->user()->can(\App\Enum\CustomPermissionEnum::SISTEM_SIKARTAP->value),
-        // Rekrutmen: nav group sendiri. ViewAny:JobOpenings (recruiter/HRD) ATAU permission
-        // MCU (staff klinis yang cuma perlu Antrian MCU) — tidak bikin SISTEM_REKRUTMEN baru.
-        'canAccessRekrutmen' => auth()->user()->can('ViewAny:JobOpenings')
+        // Rekrutmen: nav group sendiri, gerbang SISTEM_REKRUTMEN (2026-08-31). OR ke cek lama
+        // (ViewAny:JobOpenings recruiter/HRD, permission MCU staff klinis) supaya role existing
+        // tidak kehilangan akses sebelum gerbang baru di-assign. Link di dalam dropdown tetap
+        // dicek granular masing-masing.
+        'canAccessRekrutmen' => auth()->user()->can(\App\Enum\CustomPermissionEnum::SISTEM_REKRUTMEN->value)
+            || auth()->user()->can('ViewAny:JobOpenings')
             || auth()->user()->canInputSikartapMcu()
             || auth()->user()->can(\App\Enum\CustomPermissionEnum::EDIT_INPUT_MCU->value),
         'canAccessSaranaPrasarana' => auth()->user()->can(\App\Enum\CustomPermissionEnum::SISTEM_SARANA_PRASARANA->value),

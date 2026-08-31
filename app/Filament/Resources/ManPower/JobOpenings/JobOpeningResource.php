@@ -27,7 +27,9 @@ class JobOpeningResource extends Resource
 
     protected static ?string $navigationLabel = "Manajemen Lowongan Kerja";
 
-    protected static string | UnitEnum | null $navigationGroup = 'Kepegawaian';
+    // Rekrutmen = modul sendiri sejak 2026-08-28 (nav portal terpisah). Grup admin panel ikut
+    // pindah ke 'Rekrutmen' — dilebur ke gerbang SISTEM_REKRUTMEN lewat RoleForm::containerMerge().
+    protected static string | UnitEnum | null $navigationGroup = 'Rekrutmen';
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedComputerDesktop;
 

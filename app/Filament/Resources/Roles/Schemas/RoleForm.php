@@ -131,6 +131,12 @@ class RoleForm
                 CustomPermissionEnum::NILAI_IDE_INOVASI_DIREKTUR->value,
                 CustomPermissionEnum::NILAI_IDE_INOVASI_KOMISARIS->value,
             ],
+            // Gerbang nav group "Rekrutmen" (modul sendiri 2026-08-28). Tidak ada child custom
+            // permission — pembungkus supaya container admin 'Rekrutmen' (navigationGroup
+            // JobOpeningResource, subject "Kelola Lowongan") + sub-grup "Input MCU"
+            // (subjectContainerOverrides 'SikartapMcu' => 'Rekrutmen') ke-merge jadi 1 section,
+            // pola sama SISTEM_SIKARTAP. Approve Manajemen Lowongan TETAP di grup "Approver".
+            CustomPermissionEnum::SISTEM_REKRUTMEN->value => [],
         ];
     }
 
@@ -205,14 +211,19 @@ class RoleForm
             'DashboardWidget' => 'Dashboard Widget',
             // 4 permission INPUT_MCU_* (custom, flat tanpa ':') dipetakan ke subject buatan
             // 'SikartapMcu' lewat customPermissionSubjectOverrides() di bawah - tanpa override
-            // ini jatuh ke 'Lainnya'. Container-nya sama dengan SikartapResource ('Sikartap',
-            // dari navigationGroup Resource itu sendiri) supaya nempel di root yang sama,
-            // sub-grup terpisah (instruksi user 2026-08-25: "grup Sikartap > grup Input MCU").
-            'SikartapMcu' => 'Sikartap',
+            // ini jatuh ke 'Lainnya'. Container 'Rekrutmen' (2026-08-31, instruksi user: Antrian
+            // MCU rekrutmen pindah ke modul Rekrutmen) supaya nempel di root Sistem Rekrutmen,
+            // sub-grup "Input MCU" terpisah. MCU juga dipakai Sikartap tapi permission-nya
+            // sama, cukup 1 tempat di tree.
+            'SikartapMcu' => 'Rekrutmen',
             // 3 permission LIHAT_DASHBOARD_SIKARTAP_* (2026-08-25) dipetakan ke subject buatan
             // 'SikartapDashboard' lewat customPermissionSubjectOverrides() di bawah - sub-grup
             // "Dashboard" nempel di root 'Sikartap' yang sama, pola persis 'SikartapMcu'.
             'SikartapDashboard' => 'Sikartap',
+            // JobOpenings PUNYA Resource (navigationGroup-nya sudah 'Rekrutmen'), tapi didaftar
+            // di sini juga supaya subjectLabelOverrides() 'JobOpenings' => 'Kelola Lowongan'
+            // ikut kepakai (getModelLabel() = "job opening", bukan nama yang diinginkan).
+            'JobOpenings' => 'Rekrutmen',
         ];
     }
 
@@ -228,6 +239,7 @@ class RoleForm
         return [
             'SikartapMcu' => 'Input MCU',
             'SikartapDashboard' => 'Dashboard',
+            'JobOpenings' => 'Kelola Lowongan',
         ];
     }
 
@@ -324,6 +336,7 @@ class RoleForm
             'Penilaian Karyawan' => CustomPermissionEnum::SISTEM_PENILAIAN_KARYAWAN->value,
             'Pembinaan Karyawan' => CustomPermissionEnum::SISTEM_PEMBINAAN_KARYAWAN->value,
             'Sikartap' => CustomPermissionEnum::SISTEM_SIKARTAP->value,
+            'Rekrutmen' => CustomPermissionEnum::SISTEM_REKRUTMEN->value,
         ];
     }
 

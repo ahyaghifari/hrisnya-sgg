@@ -74,6 +74,7 @@ class AdminPanelProvider extends PanelProvider
                 NavigationGroup::make()->label('Master Perusahaan')->collapsed(),
                 NavigationGroup::make()->label('Manajemen Pengguna'),
                 NavigationGroup::make()->label('Kepegawaian')->collapsed(),
+                NavigationGroup::make()->label('Rekrutmen')->collapsed(),
                 NavigationGroup::make()->label('Presensi & Absensi'),
                 NavigationGroup::make()->label('Penilaian Karyawan')->collapsed(),
                 NavigationGroup::make()->label('Manajemen Organisasi'),

@@ -39,6 +39,13 @@ enum CustomPermissionEnum: string
      * "Sikartap" buat karyawan mengajukan, tidak butuh permission ini sama sekali. */
     case SISTEM_SIKARTAP = 'sistem_sikartap';
 
+    /** Gerbang nav group "Rekrutmen" (modul sendiri sejak 2026-08-28, dulu numpang di
+     * Kepegawaian) — sama pola SISTEM_SIKARTAP: gerbang broad "boleh akses modul ini". Link di
+     * dalamnya tetap dicek granular (ViewAny:JobOpenings buat Kelola Lowongan, INPUT_MCU_*
+     * buat Antrian MCU rekrutmen). Container admin 'Rekrutmen' dilebur ke gerbang ini lewat
+     * RoleForm::containerMerge(). */
+    case SISTEM_REKRUTMEN = 'sistem_rekrutmen';
+
     case TUGAS_SAYA = 'tugas_saya';
     case PELATIHAN_SAYA = 'pelatihan_saya';
     case AJUKAN_PELATIHAN = 'ajukan_pelatihan';
@@ -296,6 +303,7 @@ enum CustomPermissionEnum: string
             self::SISTEM_APPROVAL => 'Approver',
             self::SISTEM_SARANA_PRASARANA => 'Sistem Sarana Prasarana',
             self::SISTEM_SIKARTAP => 'Sistem Sikartap',
+            self::SISTEM_REKRUTMEN => 'Sistem Rekrutmen',
             self::TUGAS_SAYA => 'Tugas Saya',
             self::PELATIHAN_SAYA => 'Pelatihan Saya',
             self::AJUKAN_PELATIHAN => 'Ajukan Pelatihan (Eksternal)',
