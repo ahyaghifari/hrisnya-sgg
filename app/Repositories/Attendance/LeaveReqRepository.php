@@ -2,12 +2,14 @@
 
 namespace App\Repositories\Attendance;
 
+use App\Enum\Attendance\LeaveTypeCategoryEnum;
+use App\Models\Attendance\AttendanceRequestAttachments;
 use App\Models\Attendance\AttendanceRequestLeaveDetails;
 use App\Models\Attendance\AttendanceRequests;
-use App\Models\Attendance\LeaveUserBalances;
 use App\Models\Master\Attendance\Holidays;
 use App\Models\Master\Attendance\LeaveTypes;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 class LeaveReqRepository
 {
@@ -22,23 +24,30 @@ class LeaveReqRepository
     }
 
     /**
-     * "used" dihitung LIVE dari pengajuan yang sudah DISETUJUI (status=approved) dalam periode
-     * ini — bukan baca kolom LeaveUserBalances::used (dulu ditambah manual saat submit, tidak
-     * pernah dikurangi lagi saat reject/cancel, jadi gampang basi/bug). Approve/reject/cancel
-     * otomatis konsisten karena tidak ada apa pun yang perlu "dikembalikan". Lihat
-     * planning/2026-07-19-revisi-absensi-cutoff-kuota-izin-widget-pimpinan.md §6.
+     * Kuota cuti dihitung LIVE (tabel `leave_user_balances` sudah dihapus 2026-08-29):
+     * - `quota`  = m_leave_types.quota_days
+     * - `used`   = Σ total_days pengajuan `leave` `approved` user ini dalam periode berjalan
+     * - periode  = tahun kalender berjalan (dulu disimpan di leave_user_balances.period_*,
+     *   isinya selalu startOfYear..endOfYear juga)
+     * Approve/reject/cancel otomatis konsisten karena tidak ada saldo yang perlu "dikembalikan".
+     * Lihat planning/2026-07-19-revisi-absensi-cutoff-kuota-izin-widget-pimpinan.md §6.
      */
     public function getLeaveUserBalance(string $userId, string $typeId): array
     {
         $leaveType = $this->getLeaveTypeById($typeId);
-        $balanceRecord = LeaveUserBalances::where('user_id', $userId)
-            ->where('leave_type_id', $typeId)
-            ->first();
 
         $quota = $leaveType ? $leaveType->quota_days : 0;
-        $isExist = (bool) $balanceRecord;
-        $periodStart = $balanceRecord?->period_start ?? now()->startOfYear();
-        $periodEnd = $balanceRecord?->period_end ?? now()->endOfYear();
+
+        // Cuti Haid = hak per BULAN kalender (LeaveTypeCategoryEnum::usageWindow 'monthly'),
+        // sisanya (tahunan / melahirkan / keguguran) pakai tahun kalender berjalan.
+        $category = $leaveType ? LeaveTypeCategoryEnum::tryFrom($leaveType->category ?? '') : null;
+        if ($category?->usageWindow() === 'monthly') {
+            $periodStart = now()->startOfMonth();
+            $periodEnd = now()->endOfMonth();
+        } else {
+            $periodStart = now()->startOfYear();
+            $periodEnd = now()->endOfYear();
+        }
 
         $used = (int) AttendanceRequestLeaveDetails::query()
             ->where('leave_type_id', $typeId)
@@ -67,7 +76,6 @@ class LeaveReqRepository
             'used' => $used,
             'collective_leave_days' => $collectiveLeaveDays,
             'available' => $available,
-            'is_exist' => $isExist,
         ];
     }
 
@@ -75,19 +83,23 @@ class LeaveReqRepository
     {
         DB::beginTransaction();
         try {
-            if (!empty($data['start_date']) && empty($data['end_date'])) {
-                $data['total_days'] = 1;
-            } elseif (!empty($data['start_date']) && !empty($data['end_date'])) {
-                $start = \Carbon\Carbon::parse($data['start_date']);
-                $end = \Carbon\Carbon::parse($data['end_date']);
+            // total_days dihitung di AttendaceReqService (hari kerja jadwal user). Fallback ke
+            // hari kalender di sini cuma buat pemanggil lama yang belum mengirim nilainya.
+            if (! isset($data['total_days'])) {
+                if (!empty($data['start_date']) && empty($data['end_date'])) {
+                    $data['total_days'] = 1;
+                } elseif (!empty($data['start_date']) && !empty($data['end_date'])) {
+                    $start = \Carbon\Carbon::parse($data['start_date']);
+                    $end = \Carbon\Carbon::parse($data['end_date']);
 
-                if ($end->lt($start)) {
-                    [$start, $end] = [$end, $start];
+                    if ($end->lt($start)) {
+                        [$start, $end] = [$end, $start];
+                    }
+
+                    $data['total_days'] = $start->diffInDays($end) + 1;
+                } else {
+                    $data['total_days'] = 0;
                 }
-
-                $data['total_days'] = $start->diffInDays($end) + 1;
-            } else {
-                $data['total_days'] = 0;
             }
 
             // Saldo TIDAK lagi dipotong di sini saat submit — dihitung live dari request
@@ -100,6 +112,19 @@ class LeaveReqRepository
                 'end_date' => $data['end_date'],
                 'total_days' => $data['total_days'],
             ]);
+
+            if (!empty($data['attachments_files']) && is_array($data['attachments_files'])) {
+                foreach ($data['attachments_files'] as $file) {
+                    if ($file) {
+                        $path = Storage::disk('public')->putFile("leave/{$data['request_id']}", $file);
+
+                        AttendanceRequestAttachments::create([
+                            'request_id' => $data['request_id'],
+                            'file_path' => $path,
+                        ]);
+                    }
+                }
+            }
 
             DB::commit();
 

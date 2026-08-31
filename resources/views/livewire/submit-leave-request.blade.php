@@ -86,11 +86,29 @@
                                 <p style="font-size:11.5px;color:var(--text-muted);margin:5px 0 0;">Tanggal Mulai</p>
                             </div>
                             <div>
-                                <input type="date" class="form-input" wire:model="end_date">
+                                <input type="date" class="form-input" wire:model.live="end_date">
                                 <p style="font-size:11.5px;color:var(--text-muted);margin:5px 0 0;">Tanggal Selesai</p>
                                 @error('end_date') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
                             </div>
                         </div>
+                    </div>
+                @endif
+
+                @if (! $is_one_day && $this->workingDays !== null)
+                    <div style="background:var(--surface-alt);border-radius:10px;padding:10px 14px;font-size:12.5px;color:var(--text-body);">
+                        <i class="fa-solid fa-calendar-check" style="margin-right:6px;color:var(--brand);"></i>
+                        Total <strong>{{ $this->workingDays }} hari kerja</strong> (hari libur sesuai jadwal tidak dihitung)
+                    </div>
+                @endif
+
+                @if ($this->requiresAttachment)
+                    <div>
+                        <label class="form-label">Lampiran Surat Dokter / Bidan <span style="color:var(--danger-text);">*</span></label>
+                        <input type="file" class="form-input" wire:model="attachments" multiple accept=".pdf,.jpg,.jpeg,.png">
+                        <p style="font-size:11.5px;color:var(--text-muted);margin:5px 0 0;">PDF/JPG/PNG, maks 10 MB per file.</p>
+                        <div wire:loading wire:target="attachments" style="font-size:12px;color:var(--text-muted);margin-top:4px;">Mengunggah…</div>
+                        @error('attachments') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
+                        @error('attachments.*') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
                     </div>
                 @endif
 

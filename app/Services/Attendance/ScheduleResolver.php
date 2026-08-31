@@ -90,4 +90,42 @@ class ScheduleResolver
 
         return null;
     }
+
+    /**
+     * Jumlah HARI KERJA user dalam rentang [start, end] inklusif — hari yang jatuh pada
+     * off_day jadwal user (Fixed/Flexible: hari libur per day_of_week; Shift: roster off_day)
+     * TIDAK dihitung. Dipakai buat total_days pengajuan CUTI yang lebih dari 1 tanggal.
+     *
+     * Tanggal yang jadwalnya tidak bisa diresolve — user Shift yang tanggal itu belum diisi
+     * roster (n/a / null), atau user tanpa assignment sama sekali — TETAP dihitung (bukan
+     * dianggap libur). Lebih aman kelebihan daripada kurang; approver masih bisa revisi manual.
+     *
+     * ponytail: hari libur nasional (tabel Holidays) belum ikut dikecualikan di sini — user
+     * minta khusus "berdasarkan jadwal". Tambahkan cek Holidays kalau nanti diperlukan.
+     */
+    public function workingDaysBetween(User $user, string $start, string $end): int
+    {
+        $cursor = Carbon::parse($start)->startOfDay();
+        $last = Carbon::parse($end)->startOfDay();
+
+        if ($last->lt($cursor)) {
+            [$cursor, $last] = [$last->copy(), $cursor->copy()];
+        }
+
+        $count = 0;
+
+        for (; $cursor->lte($last); $cursor->addDay()) {
+            // ponytail: null = jadwal tak bisa diresolve (Shift belum diroster / tanpa
+            // assignment) -> dihitung. resolveForUserDate juga menandai off_day untuk baris
+            // roster tanpa shiftType; kalau kasus itu ternyata perlu ikut dihitung, tangani di
+            // sini, jangan ubah resolver (dipakai juga oleh pipeline absensi).
+            $resolved = $this->resolveForUserDate($user, $cursor->toDateString());
+
+            if ($resolved === null || ! $resolved['is_off_day']) {
+                $count++;
+            }
+        }
+
+        return $count;
+    }
 }

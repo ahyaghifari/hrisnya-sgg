@@ -2,6 +2,8 @@
 
 namespace App\Livewire;
 
+use App\Enum\Attendance\LeaveTypeCategoryEnum;
+use App\Enum\Attendance\PermissionTypeCategoryEnum;
 use App\Models\Attendance\AttendanceRequests;
 use App\Models\User;
 use App\Services\Approval\ApprovalFlowService;
@@ -20,9 +22,16 @@ class AttendanceRequestDetail extends Component
     public ?string $pendingAction = null;
     public ?string $note = null;
 
+    /** Revisi tanggal oleh approver saat approve — cuma untuk Cuti Khusus & Izin Khusus. */
+    public ?string $reviseStart = null;
+    public ?string $reviseEnd = null;
+
     public function mount(AttendanceRequests $record): void
     {
-        $record->load(['approvalSnapshot.activity', 'approvalHistories', 'attachments']);
+        $record->load([
+            'approvalSnapshot.activity', 'approvalHistories', 'attachments',
+            'leaveDetails.leaveType', 'permissionDetails.permissionType',
+        ]);
 
         abort_unless($this->canAccess($record, Auth::user()), 403);
 
@@ -70,17 +79,70 @@ class AttendanceRequestDetail extends Component
         $this->pendingAction = $type;
         $this->note = null;
         $this->resetErrorBag();
+
+        [$this->reviseStart, $this->reviseEnd] = $type === 'approve' && $this->dateRevisable
+            ? $this->currentRequestDates()
+            : [null, null];
     }
 
     public function cancelChoice(): void
     {
         $this->pendingAction = null;
         $this->note = null;
+        $this->reviseStart = null;
+        $this->reviseEnd = null;
+    }
+
+    /**
+     * Tanggal pengajuan boleh direvisi approver saat approve — HANYA Cuti Khusus
+     * (LeaveTypeCategoryEnum::isCutiKhusus) & Izin Khusus (PermissionTypeCategoryEnum::IZIN_KHUSUS).
+     */
+    public function getDateRevisableProperty(): bool
+    {
+        if (! $this->canApprove) {
+            return false;
+        }
+
+        if ($this->record->type === 'leave' && $this->record->leaveDetails->isNotEmpty()) {
+            $cat = LeaveTypeCategoryEnum::tryFrom($this->record->leaveDetails->first()->leaveType?->category ?? '');
+
+            return (bool) $cat?->isCutiKhusus();
+        }
+
+        if ($this->record->type === 'permission' && $this->record->permissionDetails->isNotEmpty()) {
+            return $this->record->permissionDetails->first()->category === PermissionTypeCategoryEnum::IZIN_KHUSUS->value;
+        }
+
+        return false;
+    }
+
+    /** @return array{0: ?string, 1: ?string} [start, end] tanggal pengajuan saat ini (YYYY-MM-DD). */
+    private function currentRequestDates(): array
+    {
+        $norm = fn ($d) => $d ? \Illuminate\Support\Carbon::parse($d)->toDateString() : null;
+
+        if ($this->record->type === 'leave') {
+            $d = $this->record->leaveDetails->first();
+
+            return [$norm($d?->start_date), $norm($d?->end_date ?? $d?->start_date)];
+        }
+
+        $d = $this->record->permissionDetails->first();
+
+        return [$norm($d?->date), $norm($d?->end_date ?? $d?->date)];
     }
 
     public function confirmAction(): void
     {
-        $this->validate(['note' => ['required', 'string']]);
+        $revising = $this->pendingAction === 'approve' && $this->dateRevisable;
+
+        $this->validate([
+            'note' => ['required', 'string'],
+            ...($revising ? [
+                'reviseStart' => ['required', 'date'],
+                'reviseEnd' => ['required', 'date', 'after_or_equal:reviseStart'],
+            ] : []),
+        ]);
 
         $actionMap = ['approve' => 'approved', 'reject' => 'rejected', 'cancel' => 'cancelled'];
         $action = $actionMap[$this->pendingAction] ?? null;
@@ -90,6 +152,10 @@ class AttendanceRequestDetail extends Component
         }
 
         try {
+            if ($revising) {
+                app(AttendaceReqService::class)->reviseRequestDates($this->record, $this->reviseStart, $this->reviseEnd);
+            }
+
             app(ApprovalFlowService::class)->advanceStep(
                 $this->record->approvalSnapshot,
                 Auth::id(),
@@ -99,9 +165,19 @@ class AttendanceRequestDetail extends Component
 
             $this->pendingAction = null;
             $this->note = null;
+            $this->reviseStart = null;
+            $this->reviseEnd = null;
 
             $this->record->refresh();
-            $this->record->load(['approvalSnapshot.activity', 'approvalHistories', 'attachments']);
+            $this->record->load([
+                'approvalSnapshot.activity', 'approvalHistories', 'attachments',
+                'leaveDetails.leaveType', 'permissionDetails.permissionType',
+            ]);
+
+            // Computed (canApprove/dateRevisable/dst) sudah sempat diakses & di-memoize di atas
+            // sebelum status pengajuan berubah — buang cache-nya supaya render ulang memakai
+            // state terbaru (kartu "Aksi Persetujuan" ikut hilang setelah disetujui).
+            unset($this->canApprove, $this->dateRevisable, $this->quotaInfo, $this->timeline, $this->tenureWarning);
 
             Notification::make()
                 ->title('Berhasil diproses')

@@ -13,14 +13,6 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withSchedule(function (Schedule $schedule) {
-        // Reset monthly leave balances on the 1st of every month at midnight
-        $schedule->command('leave:reset-balance monthly')
-            ->monthlyOn(1, '00:00');
-
-        // Reset yearly leave balances on January 1st every year at midnight
-        $schedule->command('leave:reset-balance yearly')
-            ->yearlyOn(1, 1, '00:00');
-
         // Proses access_logs -> attendance_records tiap menit, incremental (lihat
         // AccessLogScheduleReader::readAndGroupIncremental + SyncAccessLog watermark - tidak
         // scan ulang semua baris tiap kali). Langsung lewat cron (bukan queue), sesuai keputusan

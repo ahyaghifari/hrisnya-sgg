@@ -24,4 +24,9 @@ class AttendanceRequestLeaveDetails extends Model
     {
         return $this->belongsTo(AttendanceRequests::class, 'request_id');
     }
+
+    public function leaveType()
+    {
+        return $this->belongsTo(\App\Models\Master\Attendance\LeaveTypes::class, 'leave_type_id', 'id');
+    }
 }

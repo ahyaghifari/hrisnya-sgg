@@ -33,6 +33,8 @@ class AttendaceReqService
         protected ApprovalSnapshotRepository $approvalSnapshotRepository,
         protected ApprovalHistoryRepository $approvalHistoryRepository,
         protected NotificationService $notificationService,
+        protected ScheduleResolver $scheduleResolver,
+        protected AttendanceQuotaCalculator $quotaCalculator,
     ) {}
 
     public function getMasterAttendanceReqTypes(string $type, ?string $companyId = null)
@@ -52,63 +54,16 @@ class AttendaceReqService
 
     public function getLeaveUserBalance(string $userId, string $typeId): array
     {
-        return $this->leaveReqRepository->getLeaveUserBalance($userId, $typeId);
+        return $this->quotaCalculator->leaveBalance($userId, $typeId);
     }
 
     /**
-     * Setting AttendanceSettingEnum yang jadi kuota per periode untuk 1 kelompok Izin. Null =
-     * kelompok itu tidak ada limit sama sekali (Sakit & Khusus, dikonfirmasi user — lihat
-     * knowledge/markdown/rencana-izin-empat-kategori.md §5 & §8).
-     */
-    private function izinQuotaSettingFor(PermissionGroupEnum $group): ?AttendanceSettingEnum
-    {
-        return match ($group) {
-            PermissionGroupEnum::MENINGGALKAN_JAM_KERJA => AttendanceSettingEnum::IZIN_MAX_PER_PERIODE_JAM_KERJA,
-            PermissionGroupEnum::TIDAK_MASUK_SEHARIAN => AttendanceSettingEnum::IZIN_MAX_PER_PERIODE_SEHARIAN,
-            PermissionGroupEnum::SAKIT, PermissionGroupEnum::KHUSUS => null,
-        };
-    }
-
-    /**
-     * Pemakaian kuota Izin per kelompok (§8 — Meninggalkan Jam Kerja & Tidak Masuk Seharian
-     * masing-masing kuota sendiri, Sakit & Khusus tidak ada limit) untuk 1 user pada periode
-     * yang mengandung $referenceDate — dipakai buat menampilkan info kuota pemohon di halaman
-     * approval, bukan buat validasi (lihat assertWithinIzinPeriodeLimit untuk itu). Null kalau
-     * kelompok ini memang tidak ada limit. "used" cuma menghitung yang sudah APPROVED
-     * (konsisten dengan getLeaveUserBalance) — beda dari assertWithinIzinPeriodeLimit yang juga
-     * menghitung in_review supaya tidak over-commit sebelum di-approve.
+     * Info kuota Izin pemohon per kelompok buat halaman approval / form pengajuan. Delegasi ke
+     * AttendanceQuotaCalculator — enforcement tetap di assertWithinIzinPeriodeLimit().
      */
     public function getIzinPeriodeUsage(User $user, PermissionGroupEnum $group, ?string $referenceDate = null): ?array
     {
-        $quotaSetting = $this->izinQuotaSettingFor($group);
-
-        if (! $quotaSetting) {
-            return null;
-        }
-
-        $categoryValues = array_map(fn ($c) => $c->value, $group->categories());
-        $maxPerPeriode = (int) Setting::resolve($quotaSetting->value, $user->company_id, default: 0);
-
-        $anchor = $referenceDate ? Carbon::parse($referenceDate) : now();
-        [$periodStart, $periodEnd] = AttendancePeriodResolver::resolve($anchor, $user->company_id);
-
-        $used = AttendanceRequestPermissionDetails::query()
-            ->whereBetween('date', [$periodStart->toDateString(), $periodEnd->toDateString()])
-            ->whereIn('category', $categoryValues)
-            ->whereIn('request_id', AttendanceRequests::query()
-                ->select('id')
-                ->where('user_id', $user->id)
-                ->where('type', 'permission')
-                ->where('status', 'approved'))
-            ->count();
-
-        return [
-            'max' => $maxPerPeriode,
-            'used' => $used,
-            'available' => $maxPerPeriode > 0 ? max(0, $maxPerPeriode - $used) : null,
-            'period_start' => $periodStart,
-            'period_end' => $periodEnd,
-        ];
+        return $this->quotaCalculator->izinPeriode($user, $group, $referenceDate);
     }
 
     public function storeOvertimeRequest(array $data, ?User $actingUser = null, bool $skipApproval = false, ?string $note = null, ?User $createdBy = null): object
@@ -233,6 +188,10 @@ class AttendaceReqService
         // jadi hard block lagi.
         // $this->assertWithinCutiTahunanMonthlyLimit($actingUser, $leaveType, $data);
 
+        // Cuti khusus (haid/melahirkan/keguguran) TETAP diblokir kalau lewat kuota — ini hak
+        // yang dibatasi UU, bukan kuota kebijakan yang boleh dilanggar seperti Cuti Tahunan.
+        $this->assertWithinSpecialLeaveQuota($actingUser, $leaveType, $data);
+
         $request = $this->attendanceReqRepository->storeAttendanceRequest([
             'user_id' => $userId,
             'created_by' => $createdBy->id,
@@ -247,6 +206,8 @@ class AttendaceReqService
             'leave_type' => $leaveType?->name,
             'start_date' => $data['start_date'],
             'end_date' => $data['end_date'] ?? null,
+            'total_days' => $this->countWorkingDays($actingUser, $data['start_date'], $data['end_date'] ?? null),
+            'attachments_files' => $data['attachments'] ?? null,
         ];
 
         $this->leaveReqRepository->storeLeaveRequest($leaveData);
@@ -314,35 +275,7 @@ class AttendaceReqService
      */
     public function getCutiTahunanPeriodeUsage(User $user, string $leaveTypeId, ?string $referenceDate = null): ?array
     {
-        $leaveType = $this->leaveReqRepository->getLeaveTypeById($leaveTypeId);
-
-        if (! $leaveType || $leaveType->category !== LeaveTypeCategoryEnum::TAHUNAN->value) {
-            return null;
-        }
-
-        $maxPerBulan = (int) Setting::resolve(AttendanceSettingEnum::CUTI_TAHUNAN_MAX_PER_BULAN->value, $user->company_id, default: 0);
-
-        $anchor = $referenceDate ? Carbon::parse($referenceDate) : now();
-        $periodStart = $anchor->copy()->startOfMonth();
-        $periodEnd = $anchor->copy()->endOfMonth();
-
-        $used = (int) AttendanceRequestLeaveDetails::query()
-            ->where('leave_type_id', $leaveTypeId)
-            ->whereBetween('start_date', [$periodStart->toDateString(), $periodEnd->toDateString()])
-            ->whereIn('request_id', AttendanceRequests::query()
-                ->select('id')
-                ->where('user_id', $user->id)
-                ->where('type', 'leave')
-                ->where('status', 'approved'))
-            ->sum('total_days');
-
-        return [
-            'max' => $maxPerBulan,
-            'used' => $used,
-            'available' => $maxPerBulan > 0 ? max(0, $maxPerBulan - $used) : null,
-            'period_start' => $periodStart,
-            'period_end' => $periodEnd,
-        ];
+        return $this->quotaCalculator->cutiTahunanPeriode($user, $leaveTypeId, $referenceDate);
     }
 
     /**
@@ -406,6 +339,143 @@ class AttendaceReqService
     }
 
     /**
+     * Validasi kuota cuti khusus sesuai LeaveTypeCategoryEnum::usageWindow():
+     * - 'monthly'     (HAID)              : Σ hari approved+in_review pada BULAN kalender tanggal
+     *   mulai + pengajuan baru tidak boleh > quota_days (mis. 2 hari/bulan).
+     * - 'per_request' (MELAHIRKAN/KEGUGURAN): total_days 1 pengajuan tidak boleh > quota_days;
+     *   tidak ada akumulasi (hak per kejadian).
+     * "used" ikut menghitung in_review supaya pengajuan ganda yang masih pending tidak bisa
+     * menembus kuota sebelum diputuskan.
+     */
+    private function assertWithinSpecialLeaveQuota(User $actingUser, ?object $leaveType, array $data, ?string $excludeRequestId = null): void
+    {
+        $category = $leaveType ? LeaveTypeCategoryEnum::tryFrom($leaveType->category ?? '') : null;
+
+        if (! $category || ! $category->isCutiKhusus()) {
+            return;
+        }
+
+        $quota = (int) ($leaveType->quota_days ?? 0);
+
+        if ($quota <= 0) {
+            return;
+        }
+
+        $start = Carbon::parse($data['start_date']);
+        $end = ! empty($data['end_date']) ? Carbon::parse($data['end_date']) : $start->copy();
+
+        if ($end->lt($start)) {
+            [$start, $end] = [$end, $start];
+        }
+
+        // Konsisten dengan total_days yang disimpan — hari kerja jadwal user, bukan hari kalender.
+        $newDays = $this->countWorkingDays($actingUser, $start->toDateString(), $end->toDateString());
+
+        if ($category->usageWindow() === 'per_request') {
+            if ($newDays > $quota) {
+                throw new \Exception("{$category->label()} maksimal {$quota} hari per pengajuan (pengajuan ini {$newDays} hari).");
+            }
+
+            return;
+        }
+
+        // 'monthly' — HAID
+        $periodStart = $start->copy()->startOfMonth();
+        $periodEnd = $start->copy()->endOfMonth();
+
+        $used = (int) AttendanceRequestLeaveDetails::query()
+            ->where('leave_type_id', $leaveType->id)
+            ->whereBetween('start_date', [$periodStart->toDateString(), $periodEnd->toDateString()])
+            ->when($excludeRequestId, fn ($q) => $q->where('request_id', '!=', $excludeRequestId))
+            ->whereIn('request_id', AttendanceRequests::query()
+                ->select('id')
+                ->where('user_id', $actingUser->id)
+                ->where('type', 'leave')
+                ->whereIn('status', ['approved', 'in_review']))
+            ->sum('total_days');
+
+        if ($used + $newDays > $quota) {
+            throw new \Exception("Melebihi kuota {$category->label()} bulan ini (maksimal {$quota} hari, sudah {$used} hari, pengajuan ini {$newDays} hari).");
+        }
+    }
+
+    /**
+     * Approver merevisi tanggal pengajuan Cuti Khusus / Izin Khusus saat menyetujui (tanggal
+     * aktual bisa bergeser dari yang diajukan). Hanya dua kategori itu — dipanggil dari
+     * AttendanceRequestDetail sebelum advanceStep. total_days dihitung ulang: Cuti pakai hari
+     * kerja jadwal (off_day tidak dihitung, sama seperti saat submit), Izin tetap hari kalender.
+     * Untuk cuti khusus kuota divalidasi ulang, request ini sendiri dikecualikan dari "used".
+     */
+    public function reviseRequestDates(AttendanceRequests $record, string $startDate, string $endDate): void
+    {
+        $start = Carbon::parse($startDate);
+        $end = Carbon::parse($endDate);
+
+        if ($end->lt($start)) {
+            throw new \Exception('Tanggal selesai tidak boleh sebelum tanggal mulai.');
+        }
+
+        if ($record->type === 'leave') {
+            $detail = $record->leaveDetails()->first();
+
+            if (! $detail) {
+                return;
+            }
+
+            $leaveType = $this->leaveReqRepository->getLeaveTypeById($detail->leave_type_id);
+
+            $this->assertWithinSpecialLeaveQuota($record->user, $leaveType, [
+                'start_date' => $start->toDateString(),
+                'end_date' => $end->toDateString(),
+            ], excludeRequestId: $record->id);
+
+            $detail->update([
+                'start_date' => $start->toDateString(),
+                'end_date' => $end->toDateString(),
+                'total_days' => $this->countWorkingDays($record->user, $start->toDateString(), $end->toDateString()),
+            ]);
+
+            return;
+        }
+
+        if ($record->type === 'permission') {
+            $detail = $record->permissionDetails()->first();
+
+            if (! $detail) {
+                return;
+            }
+
+            $detail->update([
+                'date' => $start->toDateString(),
+                'end_date' => $end->toDateString(),
+                'total_days' => $start->diffInDays($end) + 1,
+            ]);
+        }
+    }
+
+    /**
+     * total_days pengajuan CUTI: 1 tanggal = 1 hari; kalau lebih dari 1 tanggal, hitung HARI
+     * KERJA saja — tanggal yang jatuh pada off_day jadwal user tidak ikut (ScheduleResolver).
+     * Izin TIDAK pakai ini (tetap hari kalender).
+     */
+    private function countWorkingDays(?User $user, ?string $start, ?string $end): int
+    {
+        if (! $start) {
+            return 0;
+        }
+
+        if (! $end || $end === $start) {
+            return 1;
+        }
+
+        if (! $user) {
+            return Carbon::parse($start)->diffInDays(Carbon::parse($end)) + 1;
+        }
+
+        return $this->scheduleResolver->workingDaysBetween($user, $start, $end);
+    }
+
+    /**
      * Kuota per kelompok Izin (§8 — Meninggalkan Jam Kerja & Tidak Masuk Seharian masing-masing
      * setting sendiri, lihat izinQuotaSettingFor()). Sakit & Khusus tidak ada limit sama
      * sekali, jenis izin lain (category null) juga tidak kena batas ini. Terima $category
@@ -421,7 +491,7 @@ class AttendaceReqService
         }
 
         $group = PermissionGroupEnum::fromCategory($category);
-        $quotaSetting = $this->izinQuotaSettingFor($group);
+        $quotaSetting = $this->quotaCalculator->izinQuotaSettingFor($group);
 
         if (! $quotaSetting) {
             return;

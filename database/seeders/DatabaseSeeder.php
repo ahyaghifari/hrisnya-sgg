@@ -131,6 +131,9 @@ class DatabaseSeeder extends Seeder
             }
         }
 
+        // Jenis cuti default + backfill kategori (butuh companies sudah ada).
+        $this->call(LeaveTypeCategorySeeder::class);
+
         // Super Admin gets all permissions
         $superAdminRole->syncPermissions(Permission::all());
 

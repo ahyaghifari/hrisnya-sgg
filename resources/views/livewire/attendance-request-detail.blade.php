@@ -220,6 +220,27 @@ disetujui/ditolak/dibatalkan, kuota ini tidak lagi jadi pertimbangan apa pun, ja
 
         @if ($pendingAction)
             <div style="display:flex;flex-direction:column;gap:12px;">
+                @if ($pendingAction === 'approve' && $this->dateRevisable)
+                    <div style="background:var(--surface-alt);border-radius:10px;padding:12px 14px;">
+                        <p style="font-size:12px;font-weight:600;color:var(--text-body);margin:0 0 8px;">
+                            <i class="fa-solid fa-calendar-pen" style="margin-right:4px;color:var(--brand);"></i>
+                            Revisi tanggal (opsional) — sesuaikan bila tanggal aktual berbeda dari yang diajukan
+                        </p>
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                            <div>
+                                <input type="date" class="form-input" wire:model="reviseStart">
+                                <p style="font-size:11px;color:var(--text-muted);margin:4px 0 0;">Tanggal Mulai</p>
+                                @error('reviseStart') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
+                            </div>
+                            <div>
+                                <input type="date" class="form-input" wire:model="reviseEnd">
+                                <p style="font-size:11px;color:var(--text-muted);margin:4px 0 0;">Tanggal Selesai</p>
+                                @error('reviseEnd') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
+                            </div>
+                        </div>
+                    </div>
+                @endif
+
                 <label class="form-label">Catatan <span style="color:var(--danger-text);">*</span></label>
                 <textarea class="form-input" rows="3" placeholder="Tambahkan catatan..." wire:model="note"></textarea>
                 @error('note') <p style="color:var(--danger-text);font-size:12px;">{{ $message }}</p> @enderror
@@ -305,6 +326,14 @@ disetujui/ditolak/dibatalkan, kuota ini tidak lagi jadi pertimbangan apa pun, ja
         <div style="background:var(--surface);border-radius:16px;box-shadow:var(--shadow-card);padding:18px;">
             {!! $sectionHeader('fa-clock', 'Detail Izin') !!}
             {!! $renderField('Tipe Izin', $permission->permission_type) !!}
+            @if ($permission->category === \App\Enum\Attendance\PermissionTypeCategoryEnum::IZIN_KHUSUS->value && $permission->permissionType?->default_days)
+                {!! $renderField('Ketentuan Aturan', ((int) $permission->permissionType->default_days) . ' hari') !!}
+            @endif
+            @if ($permission->permissionType?->description)
+                <p style="font-size:12px;color:var(--text-muted);margin:8px 0 2px;background:var(--surface-alt);border-radius:8px;padding:8px 10px;">
+                    <i class="fa-solid fa-circle-info" style="margin-right:4px;"></i>{{ $permission->permissionType->description }}
+                </p>
+            @endif
             {!! $renderField($permission->end_date ? 'Tanggal Mulai' : 'Tanggal', $formatDate($permission->date)) !!}
             {!! $renderField('Tanggal Selesai', $formatDate($permission->end_date)) !!}
             {!! $renderField('Total Hari', $permission->total_days ? ((int) $permission->total_days) . ' hari' : null, false) !!}

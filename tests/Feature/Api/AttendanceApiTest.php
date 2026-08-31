@@ -4,7 +4,6 @@ namespace Tests\Feature\Api;
 
 use App\Models\Attendance\AttendanceRequestLeaveDetails;
 use App\Models\Attendance\AttendanceRequests;
-use App\Models\Attendance\LeaveUserBalances;
 use App\Models\Master\Attendance\Holidays;
 use App\Models\Master\Attendance\LeaveTypes;
 use App\Models\Master\Companies;
@@ -76,17 +75,8 @@ class AttendanceApiTest extends TestCase
             'is_paid' => true,
         ]);
 
-        LeaveUserBalances::create([
-            'user_id' => $user->id,
-            'leave_type_id' => $leaveType->id,
-            'period_start' => now()->startOfYear()->toDateString(),
-            'period_end' => now()->endOfYear()->toDateString(),
-            'quota' => 12,
-            'used' => 0,
-        ]);
-
-        // "used" dihitung live dari request APPROVED dalam periode (bukan lagi baca kolom
-        // LeaveUserBalances::used) — lihat LeaveReqRepository::getLeaveUserBalance().
+        // "used" dihitung live dari request APPROVED dalam periode (tabel leave_user_balances
+        // sudah dihapus) — lihat LeaveReqRepository::getLeaveUserBalance().
         $approvedRequest = AttendanceRequests::create([
             'user_id' => $user->id,
             'type' => 'leave',
