@@ -19,8 +19,17 @@
 
 use Illuminate\Support\Facades\DB;
 
-// Root repo HRIS. Default: parent folder file ini (scripts/..). Override: env HRIS_ROOT.
-$ROOT = getenv('HRIS_ROOT') ?: dirname(__DIR__);
+// Cari root repo HRIS (folder yang punya vendor/autoload.php). Override: env HRIS_ROOT.
+$ROOT = getenv('HRIS_ROOT') ?: null;
+if (! $ROOT) {
+    foreach ([__DIR__, dirname(__DIR__)] as $c) {
+        if (is_file($c . '/vendor/autoload.php')) { $ROOT = $c; break; }
+    }
+}
+if (! $ROOT || ! is_file($ROOT . '/vendor/autoload.php')) {
+    fwrite(STDERR, "Tidak ketemu vendor/autoload.php. Set env HRIS_ROOT ke root repo HRIS.\n");
+    exit(1);
+}
 require $ROOT . '/vendor/autoload.php';
 $app = require $ROOT . '/bootstrap/app.php';
 $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
