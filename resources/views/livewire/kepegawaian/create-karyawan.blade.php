@@ -268,7 +268,11 @@
             </div>
             <div>
                 <label class="form-label">Jabatan</label>
-                <div wire:ignore>
+                {{-- wire:key ikut $company_id: opsi jabatan reaktif ke perusahaan, tapi wire:ignore
+                     bikin Livewire tidak pernah patch <option> baru ke dalamnya. Ganti key =>
+                     Livewire buang & render ulang blok ini dengan opsi terbaru, lalu
+                     initTomSelects() (hook "morphed") re-init widget-nya. --}}
+                <div wire:ignore wire:key="jabatan-select-{{ $company_id ?? 'none' }}">
                     <select wire:model="job_position_id" class="form-input" data-tom-select data-placeholder="Cari Jabatan...">
                         <option value="">Pilih...</option>
                         @foreach ($this->jobPositionOptions as $id => $jobPositionName)
