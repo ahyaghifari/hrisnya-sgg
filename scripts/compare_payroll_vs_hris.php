@@ -73,27 +73,39 @@ for ($row = 4; $row <= 560; $row++) {
     ];
 }
 
-// ---------- baca export HRIS ----------
+// ---------- baca export HRIS (kolom auto-detect dari header — layout export berubah-ubah) ----------
 $r2 = IOFactory::createReaderForFile($hrisPath);
 $r2->setReadDataOnly(true);
-$r2->setReadFilter(new class implements \PhpOffice\PhpSpreadsheet\Reader\IReadFilter {
-    public function readCell($col, $row, $ws = ''): bool {
-        return in_array($col, ['A','B','C','D','F','H'], true);
-    }
-});
 $hs = $r2->load($hrisPath)->getActiveSheet();
 $hiRow = $hs->getHighestDataRow();
+$hiCol = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString($hs->getHighestDataColumn());
+
+$col = [];
+for ($c = 1; $c <= $hiCol; $c++) {
+    $letter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($c);
+    $h = mb_strtolower(trim((string) $hs->getCell($letter . '1')->getValue()));
+    if ($h === '') continue;
+    if (str_contains($h, 'nip')) $col['nip'] = $letter;
+    elseif (str_contains($h, 'nama')) $col['nama'] = $letter;
+    elseif (str_contains($h, 'jabatan')) $col['jabatan'] = $letter;
+    elseif (str_contains($h, 'kelas')) $col['kelas'] = $letter;
+    elseif (str_contains($h, 'tanggal') && (str_contains($h, 'gabung') || str_contains($h, 'masuk'))) $col['tgl'] = $letter;
+}
+foreach (['nip','nama','jabatan','kelas','tgl'] as $need) {
+    if (! isset($col[$need])) { fwrite(STDERR, "Header '$need' tak ketemu di export HRIS. Header baris 1: " . $hs->getHighestDataColumn() . "\n"); exit(1); }
+}
+fwrite(STDERR, "HRIS kolom: nip={$col['nip']} nama={$col['nama']} jabatan={$col['jabatan']} kelas={$col['kelas']} tgl={$col['tgl']}\n");
 
 $hris = [];
 for ($row = 2; $row <= $hiRow; $row++) {
-    $bnip = trim((string) $hs->getCell("B$row")->getValue());
-    $cnam = trim((string) $hs->getCell("C$row")->getValue());
-    if ($bnip === '' || $cnam === '') continue;       // section header (B only) / kosong
+    $bnip = trim((string) $hs->getCell($col['nip'] . $row)->getValue());
+    $cnam = trim((string) $hs->getCell($col['nama'] . $row)->getValue());
+    if ($bnip === '' || $cnam === '') continue;       // section header / kosong
 
-    $fRaw = trim((string) $hs->getCell("F$row")->getValue());
+    $fRaw = trim((string) $hs->getCell($col['kelas'] . $row)->getValue());
     $kelas = preg_match('/\d+/', $fRaw, $m) ? (int) $m[0] : null;
 
-    $hRaw = $hs->getCell("H$row")->getValue();
+    $hRaw = $hs->getCell($col['tgl'] . $row)->getValue();
     $tgl = null;
     if (is_numeric($hRaw) && $hRaw > 0) {
         $tgl = XlsDate::excelToDateTimeObject((float) $hRaw)->format('Y-m-d');
@@ -105,7 +117,7 @@ for ($row = 2; $row <= $hiRow; $row++) {
     $nip = $normNip($bnip);
     $hris[$nip] = [
         'nama'    => $cnam,
-        'jabatan' => trim((string) $hs->getCell("D$row")->getValue()),
+        'jabatan' => trim((string) $hs->getCell($col['jabatan'] . $row)->getValue()),
         'kelas'   => $kelas,
         'tgl'     => $tgl,
         'row'     => $row,

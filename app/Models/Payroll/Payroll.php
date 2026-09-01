@@ -28,10 +28,12 @@ class Payroll extends Model
         'slip_send_error',
         'generated_by',
         'generated_at',
+        'import_meta',
     ];
 
     protected $casts = [
         'generated_at' => 'datetime',
+        'import_meta' => 'array',
         'slip_sent_at' => 'datetime',
         'slip_send_failed_at' => 'datetime',
         'gross_salary' => PayrollEncrypted::class,

@@ -8,7 +8,9 @@ use App\Exports\Payroll\PayrollSlipRekapExport;
 use App\Imports\Payroll\BonDetailImport;
 use App\Imports\Payroll\BonImport;
 use App\Imports\Payroll\PayrollRevisionImport;
+use App\Jobs\BuildPayrollSlipZipJob;
 use App\Jobs\SendPayrollSlipJob;
+use App\Livewire\Keuangan\Concerns\HasSlipSendStatus;
 use App\Models\Master\Companies;
 use App\Models\Payroll\CompanyPayrollComponent;
 use App\Models\Payroll\Payroll;
@@ -18,6 +20,7 @@ use App\Notifications\PayrollPaid;
 use App\Services\Payroll\PayrollService;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
@@ -40,6 +43,7 @@ use Maatwebsite\Excel\Facades\Excel;
 #[Layout('components.layout', ['title' => 'Payroll'])]
 class PayrollsPage extends Component
 {
+    use HasSlipSendStatus;
     use WithFileUploads;
 
     public ?string $companyId = null;
@@ -112,6 +116,14 @@ class PayrollsPage extends Component
         return PayrollPeriod::where('company_id', $this->companyId)->orderByDesc('start_date')->get();
     }
 
+    /** Payroll::query() sudah di-scope company + periode — dipakai getPayrollsProperty & HasSlipSendStatus. */
+    protected function baseSlipQuery(): \Illuminate\Contracts\Database\Eloquent\Builder
+    {
+        return Payroll::query()
+            ->when($this->companyId, fn ($q) => $q->whereHas('payrollPeriod', fn ($q2) => $q2->where('company_id', $this->companyId)))
+            ->when($this->periodId, fn ($q) => $q->where('payroll_period_id', $this->periodId));
+    }
+
     /** Cari nama/NIP — server-side (bukan List.js, lihat catatan kelas ini). */
     public function getPayrollsProperty()
     {
@@ -119,9 +131,7 @@ class PayrollsPage extends Component
 
         // Ambil dulu SEMUA baris mentah (query di atas tidak menyentuh nominal terenkripsi
         // sama sekali - PayrollEncrypted baru jalan pas atribut diakses, bukan pas ->get()).
-        $payrolls = Payroll::query()
-            ->when($this->companyId, fn ($q) => $q->whereHas('payrollPeriod', fn ($q2) => $q2->where('company_id', $this->companyId)))
-            ->when($this->periodId, fn ($q) => $q->where('payroll_period_id', $this->periodId))
+        $payrolls = $this->applySlipStatusFilter($this->baseSlipQuery())
             ->when($search !== '', fn ($q) => $q->whereHas('user', fn ($q2) => $q2
                 ->where('name', 'like', "%{$search}%")
                 ->orWhere('nip', 'like', "%{$search}%")))
@@ -174,6 +184,80 @@ class PayrollsPage extends Component
         $filename = 'rekap-gaji-' . str($period?->company?->name . '-' . $period?->start_date?->format('F-Y'))->slug() . '.xlsx';
 
         return Excel::download(new PayrollSlipRekapExport($payrolls, $period->company_id), $filename);
+    }
+
+    /**
+     * Status ZIP slip gaji periode terpilih: 'none' (belum ada / belum pernah disiapkan),
+     * 'building' (job queue lagi jalan), 'ready' (file siap diunduh). readyAt cuma ada saat 'ready'.
+     *
+     * @return array{status: string, readyAt?: string}
+     */
+    public function getSlipZipStateProperty(): array
+    {
+        if (! $this->periodId) {
+            return ['status' => 'none'];
+        }
+
+        if (Cache::get("slipzip-building:{$this->periodId}")) {
+            return ['status' => 'building'];
+        }
+
+        $disk = Storage::disk('local');
+        $rel = app(PayrollService::class)->slipZipRelPath($this->periodId);
+
+        if ($disk->exists($rel)) {
+            return [
+                'status' => 'ready',
+                'readyAt' => \Carbon\Carbon::createFromTimestamp($disk->lastModified($rel))->translatedFormat('d M Y H:i'),
+            ];
+        }
+
+        return ['status' => 'none'];
+    }
+
+    /** Dispatch job pembangun ZIP slip gaji (PDF ter-password per orang, lihat
+     *  PayrollService::buildSlipZipToStorage) untuk payroll SUDAH DIBAYAR di periode terpilih.
+     *  Berat — via queue, bukan langsung di request. */
+    public function prepareSlipsZip(): void
+    {
+        abort_unless($this->periodId, 400, 'Pilih periode dulu sebelum menyiapkan slip.');
+        abort_unless(Auth::user()->can('viewAny', Payroll::class), 403);
+
+        $period = PayrollPeriod::findOrFail($this->periodId);
+
+        if (! Payroll::where('payroll_period_id', $period->id)->where('is_paid', true)->exists()) {
+            Notification::make()
+                ->title('Belum ada payroll yang sudah dibayar di periode ini')
+                ->warning()
+                ->send();
+
+            return;
+        }
+
+        Cache::put("slipzip-building:{$this->periodId}", true, now()->addHour());
+        BuildPayrollSlipZipJob::dispatch($this->periodId, Auth::id());
+
+        Notification::make()
+            ->title('ZIP slip gaji sedang disiapkan')
+            ->body('Diproses di background — tombol unduh muncul otomatis begitu selesai.')
+            ->success()
+            ->send();
+    }
+
+    public function downloadSlipsZip()
+    {
+        abort_unless($this->periodId, 400, 'Pilih periode dulu sebelum unduh slip.');
+        abort_unless(Auth::user()->can('viewAny', Payroll::class), 403);
+
+        $period = PayrollPeriod::with('company')->findOrFail($this->periodId);
+
+        if (! Storage::disk('local')->exists(app(PayrollService::class)->slipZipRelPath($period->id))) {
+            Notification::make()->title('File ZIP belum siap')->warning()->send();
+
+            return;
+        }
+
+        return app(PayrollService::class)->downloadStoredSlipZip($period);
     }
 
     // ── Import Revisi ────────────────────────────────────────────────────────
@@ -388,6 +472,42 @@ class PayrollsPage extends Component
             ->body($skipped > 0 ? "{$skipped} dilewati karena karyawan belum punya email." : 'Diproses via queue — email akan terkirim dalam beberapa saat.')
             ->success()
             ->send();
+    }
+
+    // ── Aksi per baris (single) ────────────────────────────────────────────
+
+    public function markAsPaid(string $payrollId): void
+    {
+        abort_unless($this->canUpdatePayroll, 403);
+
+        $payroll = Payroll::where('id', $payrollId)->where('is_paid', false)
+            ->with(['user', 'payrollPeriod'])->first();
+
+        if (! $payroll) {
+            return;
+        }
+
+        $payroll->update(['is_paid' => true]);
+        $payroll->user?->notify(new PayrollPaid($payroll));
+
+        Notification::make()->title('Payroll ditandai sudah dibayar')->success()->send();
+    }
+
+    public function sendSlip(string $payrollId): void
+    {
+        abort_unless($this->canUpdatePayroll, 403);
+
+        $payroll = Payroll::where('id', $payrollId)->where('is_paid', true)->with('user.profile')->first();
+        abort_unless($payroll, 403, 'Payroll harus sudah dibayar dulu.');
+
+        if (! ($payroll->user?->profile?->email_pribadi ?: $payroll->user?->email)) {
+            Notification::make()->title('Karyawan belum punya email')->warning()->send();
+
+            return;
+        }
+
+        SendPayrollSlipJob::dispatch($payroll->id);
+        Notification::make()->title('Slip gaji sedang dikirim')->success()->send();
     }
 
     public function openImportModal(string $type): void

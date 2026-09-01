@@ -26,9 +26,23 @@
                             <input type="search" wire:model.live.debounce.300ms="search" class="form-input" style="min-width:200px;padding-left:32px;" placeholder="Nama atau NIP...">
                         </div>
                     </div>
+                    <div>
+                        <label class="form-label">Status Kirim Slip</label>
+                        <select class="form-input" style="min-width:170px;" wire:model.live="slipStatus">
+                            <option value="">Semua</option>
+                            <option value="sent">Terkirim ({{ $this->slipStats['sent'] }})</option>
+                            <option value="failed">Gagal ({{ $this->slipStats['failed'] }})</option>
+                            <option value="unsent">Belum Dikirim ({{ $this->slipStats['unsent'] }})</option>
+                        </select>
+                    </div>
                 </div>
 
                 <div style="display:flex;gap:8px;">
+                    @if ($this->slipStats['failed'] > 0 && $this->canUpdatePayroll)
+                        <button type="button" wire:click="resendFailedSlips" wire:confirm="Kirim ulang {{ $this->slipStats['failed'] }} slip gaji yang gagal terkirim?" style="display:inline-flex;align-items:center;gap:6px;padding:9px 16px;font-size:12.5px;font-weight:600;border:none;border-radius:12px;cursor:pointer;background:#dc2626;color:#fff;">
+                            <i class="fa-solid fa-rotate-right"></i> Kirim Ulang yang Gagal ({{ $this->slipStats['failed'] }})
+                        </button>
+                    @endif
                     {{-- Koperasi sengaja DICABUT dari sini (bukan dihapus) — sudah ada tabel
                          master `user_koperasi` (halaman Koperasi) yang otomatis sync ke
                          payroll_manual_lines tiap Generate, jadi input manual per periode di
@@ -47,6 +61,33 @@
                         <button type="button" wire:click="openImportModal('bon')" style="display:inline-flex;align-items:center;gap:6px;padding:9px 16px;font-size:12.5px;font-weight:600;border:none;border-radius:12px;cursor:pointer;background:#d97706;color:#fff;">
                             <i class="fa-solid fa-money-bill-transfer"></i> Import Bon
                         </button>
+                    @endif
+
+                    @if ($periodId)
+                        @php
+                            $zipState = $this->slipZipState;
+                        @endphp
+                        @if ($zipState['status'] === 'building')
+                            <div wire:poll.15s style="display:flex;align-items:center;gap:8px;">
+                                <button type="button" disabled style="display:inline-flex;align-items:center;gap:6px;padding:9px 16px;font-size:12.5px;font-weight:600;border:none;border-radius:12px;cursor:progress;background:#7c3aed;color:#fff;opacity:.7;">
+                                    <i class="fa-solid fa-spinner fa-spin"></i> Menyiapkan ZIP Slip…
+                                </button>
+                            </div>
+                        @elseif ($zipState['status'] === 'ready')
+                            <div style="display:flex;align-items:center;gap:8px;">
+                                <button type="button" wire:click="downloadSlipsZip" style="display:inline-flex;align-items:center;gap:6px;padding:9px 16px;font-size:12.5px;font-weight:600;border:none;border-radius:12px;cursor:pointer;background:#7c3aed;color:#fff;">
+                                    <i class="fa-solid fa-file-zipper"></i> Unduh ZIP Slip
+                                </button>
+                                <span style="font-size:11px;color:var(--text-faint);">siap {{ $zipState['readyAt'] }}</span>
+                                <button type="button" wire:click="prepareSlipsZip" wire:confirm="Siapkan ulang ZIP slip gaji periode ini?" class="btn-ghost" style="padding:5px 10px;font-size:11px;">
+                                    <i class="fa-solid fa-rotate"></i> Siapkan ulang
+                                </button>
+                            </div>
+                        @else
+                            <button type="button" wire:click="prepareSlipsZip" wire:confirm="Siapkan ZIP slip gaji semua karyawan yang sudah dibayar di periode ini?" style="display:inline-flex;align-items:center;gap:6px;padding:9px 16px;font-size:12.5px;font-weight:600;border:none;border-radius:12px;cursor:pointer;background:#7c3aed;color:#fff;">
+                                <i class="fa-solid fa-file-zipper"></i> Siapkan ZIP Slip
+                            </button>
+                        @endif
                     @endif
                 </div>
             </div>
@@ -122,7 +163,20 @@
                                     @endif
                                 </td>
                                 <td style="padding:9px 14px;text-align:center;white-space:nowrap;">
-                                    <a href="{{ route('keuangan.payroll.show', $payroll->id) }}" wire:navigate class="btn-ghost" style="padding:5px 12px;font-size:11.5px;">Lihat</a>
+                                    <div style="display:inline-flex;gap:6px;align-items:center;">
+                                        <a href="{{ route('keuangan.payroll.show', $payroll->id) }}" wire:navigate class="btn-ghost" style="padding:5px 12px;font-size:11.5px;">Lihat</a>
+                                        @if ($this->canUpdatePayroll)
+                                            @if (! $payroll->is_paid)
+                                                <button type="button" wire:click="markAsPaid('{{ $payroll->id }}')" wire:confirm="Tandai payroll {{ $payroll->user?->name }} sudah dibayar?" class="btn-ghost" style="padding:5px 10px;font-size:11.5px;">
+                                                    <i class="fa-solid fa-check"></i> Tandai Dibayar
+                                                </button>
+                                            @else
+                                                <button type="button" wire:click="sendSlip('{{ $payroll->id }}')" wire:confirm="Kirim slip gaji ke email {{ $payroll->user?->name }}?" class="btn-ghost" style="padding:5px 10px;font-size:11.5px;color:#2563eb;">
+                                                    <i class="fa-solid fa-envelope"></i> Kirim Email
+                                                </button>
+                                            @endif
+                                        @endif
+                                    </div>
                                 </td>
                             </tr>
                         @empty

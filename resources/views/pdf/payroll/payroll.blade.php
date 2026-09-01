@@ -243,7 +243,12 @@
         // penuh "Rp 0" berulang buat komponen yang memang tidak menghasilkan apa-apa.
         $rupiah = fn ($amount) => $amount > 0 ? 'Rp ' . number_format($amount, 0, ',', '.') : 'Rp';
 
-        $joiningDate = $payroll->user->profile?->joining_date;
+        // Payroll hasil import manual: identitas di-snapshot dari Excel (import_meta), bukan relasi
+        // HRIS — data master HRIS bisa menyimpang dari file gaji final. Fallback ke relasi HRIS
+        // kalau bukan hasil import. Lihat knowledge/markdown/import-payroll-excel-manual.md §1.6.
+        $meta = $payroll->import_meta ?? [];
+
+        $joiningDate = ($meta['tanggal_masuk'] ?? null) ?: $payroll->user->profile?->joining_date;
         $masaKerja = '-';
 
         if ($joiningDate) {
@@ -284,12 +289,12 @@
     <div class="info">
         <table>
             <tr><td>Nama</td><td>: {{ $payroll->user->name }}</td></tr>
-            <tr><td>Jabatan</td><td>: {{ $payroll->user->activeJobPosition->jobPosition->name ?? '-' }}</td></tr>
+            <tr><td>Jabatan</td><td>: {{ ($meta['jabatan'] ?? null) ?: ($payroll->user->activeJobPosition->jobPosition->name ?? '-') }}</td></tr>
             <tr><td>NIP</td><td>: {{ $payroll->user->nip ?? '-' }}</td></tr>
             <tr><td>Masa Kerja</td><td>: {{ $masaKerja }}</td></tr>
-            <tr><td>Status Karyawan</td><td>: {{ $payroll->user->profile?->employeeType?->name ?? '-' }}</td></tr>
+            <tr><td>Status Karyawan</td><td>: {{ ($meta['status_karyawan'] ?? null) ?: ($payroll->user->profile?->employeeType?->name ?? '-') }}</td></tr>
             @unless (in_array($payroll->user_id, \App\Models\User::PAYROLL_ELIGIBLE_EXECUTIVE_IDS, true))
-                <tr><td>Kelas</td><td>: {{ $payroll->user->profile?->kelas?->name ?? '-' }}</td></tr>
+                <tr><td>Kelas</td><td>: {{ ($meta['kelas'] ?? null) ? ('Kelas ' . $meta['kelas']) : ($payroll->user->profile?->kelas?->name ?? '-') }}</td></tr>
             @endunless
         </table>
     </div>
@@ -303,12 +308,34 @@
         <div class="salary-col earnings">
             <div class="section-title">PENDAPATAN</div>
             <table class="salary-items">
+                @php
+                    // Jasa Unit bisa banyak baris (per jenis jasa) — dikelompokkan: judul "Jasa Unit"
+                    // lalu rinciannya menjorok ke bawah + nominal masing-masing. Baris jasa_unit
+                    // sudah berurutan (sort componentRows). Komponen lain tetap 1 baris apa adanya.
+                    $juShown = false;
+                @endphp
                 @foreach($rows['earnings'] as $row)
-                    <tr>
-                        <td>{{ $row['label'] }}</td>
-                        <td>:</td>
-                        <td class="s-amount">{{ $rupiah($row['amount']) }}</td>
-                    </tr>
+                    @if($row['component'] === 'jasa_unit')
+                        @unless($juShown)
+                            <tr>
+                                <td>Jasa Unit</td>
+                                <td></td>
+                                <td class="s-amount"></td>
+                            </tr>
+                            @php $juShown = true; @endphp
+                        @endunless
+                        <tr>
+                            <td style="padding-left: 14px;">&ndash; {{ $row['label'] }}</td>
+                            <td>:</td>
+                            <td class="s-amount">{{ $rupiah($row['amount']) }}</td>
+                        </tr>
+                    @else
+                        <tr>
+                            <td>{{ $row['label'] }}</td>
+                            <td>:</td>
+                            <td class="s-amount">{{ $rupiah($row['amount']) }}</td>
+                        </tr>
+                    @endif
                 @endforeach
             </table>
         </div>

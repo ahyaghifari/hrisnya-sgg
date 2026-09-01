@@ -323,6 +323,12 @@ return [
         'guard' => null,
     ],
 
+    'keuangan.import-payroll-manual' => [
+        'label' => 'Import Payroll Manual',
+        'permission' => \App\Enum\CustomPermissionEnum::GENERATE_PAYROLL->value,
+        'guard' => null,
+    ],
+
     'keuangan.payroll.show' => [
         'label' => 'Detail Payroll',
         'permission' => 'View:Payroll',

@@ -19,6 +19,7 @@ use App\Services\Payroll\Calculators\PayrollContext;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
@@ -117,6 +118,86 @@ class PayrollService
         return $pdf->stream($this->slipFilename($payroll));
     }
 
+    /** Path relatif (disk `local`, di luar webroot) file ZIP slip gaji satu periode. */
+    public function slipZipRelPath(string $periodId): string
+    {
+        return "payroll-slip-zips/{$periodId}.zip";
+    }
+
+    private function slipZipFilename(PayrollPeriod $period): string
+    {
+        return 'slip-gaji-' . str(($period->company?->name ?? 'perusahaan') . '-' . $period->end_date->translatedFormat('F-Y'))->slug() . '.zip';
+    }
+
+    /**
+     * Bangun ZIP berisi PDF slip gaji (masing-masing ter-password, sama seperti lampiran
+     * email — lihat encryptedSlip()) untuk semua payroll SUDAH DIBAYAR di satu periode,
+     * simpan ke disk `local`. Berat (ratusan PDF dompdf) — dijalankan lewat queue
+     * (BuildPayrollSlipZipJob), BUKAN request web. Data payroll is_paid sudah beku
+     * (regenerateSinglePayroll() menolak yang is_paid) jadi hasilnya deterministik & aman
+     * di-cache sebagai file. Karyawan tanpa tanggal lahir/NIP lengkap dilewati —
+     * nama-namanya ditulis ke `_DILEWATI.txt` di dalam ZIP.
+     */
+    public function buildSlipZipToStorage(PayrollPeriod $period): void
+    {
+        $disk = Storage::disk('local');
+        $disk->makeDirectory('payroll-slip-zips');
+
+        $finalAbs = $disk->path($this->slipZipRelPath($period->id));
+        $buildAbs = $finalAbs . '.building';
+
+        $zip = new \ZipArchive;
+        $zip->open($buildAbs, \ZipArchive::CREATE | \ZipArchive::OVERWRITE);
+
+        // Semua isi dibungkus 1 folder root (= nama file tanpa .zip) supaya pas di-extract
+        // jadi satu folder rapi, bukan file/folder divisi berhamburan di direktori tujuan.
+        $root = preg_replace('/\.zip$/', '', $this->slipZipFilename($period)) ?: 'slip-gaji';
+        $skipped = [];
+        $i = 0;
+
+        Payroll::where('payroll_period_id', $period->id)
+            ->where('is_paid', true)
+            ->with(['user.profile', 'payrollPeriod'])
+            ->chunkById(100, function ($payrolls) use ($zip, $buildAbs, $root, &$skipped, &$i) {
+                foreach ($payrolls as $payroll) {
+                    try {
+                        $slip = $this->encryptedSlip($payroll);
+                        $zip->addFromString($root . '/' . $slip['filename'], $slip['binary']);
+                    } catch (\Throwable) {
+                        $skipped[] = trim(($payroll->user?->nip ?? '?') . ' — ' . ($payroll->user?->name ?? '?'));
+                    }
+
+                    // ponytail: flush tiap 50 entri biar buffer ZipArchive + sisa dompdf tidak
+                    // numpuk di memory sampai akhir. close()+open() tanpa OVERWRITE = append.
+                    if (++$i % 50 === 0) {
+                        $zip->close();
+                        gc_collect_cycles();
+                        $zip->open($buildAbs);
+                    }
+                }
+            });
+
+        if ($skipped !== []) {
+            $zip->addFromString(
+                $root . '/_DILEWATI.txt',
+                "Karyawan berikut tidak punya tanggal lahir/NIP lengkap, slip tidak dibuat:\n\n" . implode("\n", $skipped),
+            );
+        }
+
+        $zip->close();
+
+        // Rename atomik di akhir — file `.zip` final tidak pernah ada dalam kondisi separuh jadi.
+        @rename($buildAbs, $finalAbs);
+    }
+
+    public function downloadStoredSlipZip(PayrollPeriod $period): \Symfony\Component\HttpFoundation\BinaryFileResponse
+    {
+        return response()->download(
+            Storage::disk('local')->path($this->slipZipRelPath($period->id)),
+            $this->slipZipFilename($period),
+        );
+    }
+
     /**
      * @return array{earnings: array<int, array{component: ?string, label: string, note: ?string, amount: float, hasValue: bool}>, deductions: array<int, array{component: ?string, label: string, note: ?string, amount: float, hasValue: bool}>}
      *
@@ -135,9 +216,22 @@ class PayrollService
         // alfabetis). Item tanpa source_type (adjustment manual) ditaruh paling akhir.
         $order = collect(PayrollComponentEnum::cases())->map(fn ($c) => $c->value)->flip();
 
-        $items = $payroll->items->sortBy(
-            fn ($item) => $item->source_type ? ($order[$item->source_type] ?? PHP_INT_MAX) : PHP_INT_MAX
-        );
+        // source_type kustom dari import Excel manual (ManualPayrollExcelImporter) — bukan case
+        // enum, jadi kalau tidak diselipkan di sini bakal numpuk di paling akhir. Pakai key
+        // pecahan supaya nyempil di posisi yang logis di antara komponen enum.
+        $customOrder = [
+            'tunjangan_khusus' => ($order['insentif'] ?? 0) + 0.5,   // setelah Insentif
+            'izin_cuti_gabung' => ($order['izin_seharian'] ?? 0) + 0.5, // di slot Izin/Cuti
+            'potongan_khusus' => ($order['bon'] ?? 0) + 0.5,          // setelah Bon
+        ];
+
+        $items = $payroll->items->sortBy(function ($item) use ($order, $customOrder) {
+            if (! $item->source_type) {
+                return PHP_INT_MAX;
+            }
+
+            return $order[$item->source_type] ?? $customOrder[$item->source_type] ?? PHP_INT_MAX;
+        });
 
         // Komponen yang note-nya tetap ditampilkan di slip (keterangan jumlah kejadian, mis.
         // "2x/Bulan"/"1x/Hari") - komponen lain notenya disembunyikan di tampilan slip walau
@@ -147,6 +241,8 @@ class PayrollService
             PayrollComponentEnum::IZIN_TERLAMBAT_PULANG_CEPAT->value,
             PayrollComponentEnum::IZIN_SEHARIAN->value,
             PayrollComponentEnum::CUTI->value,
+            // Komponen kustom dari import Excel manual (ManualPayrollExcelImporter).
+            'izin_cuti_gabung',
         ];
 
         $rows = ['earnings' => [], 'deductions' => []];

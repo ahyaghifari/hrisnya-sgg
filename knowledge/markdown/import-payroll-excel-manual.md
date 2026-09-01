@@ -25,7 +25,7 @@
 | 3 | **Slip = PDF attachment**, tampilan **sama persis** slip existing. |
 | 4 | **Label baris slip = label HRIS** (`PayrollComponentEnum::label()`), bukan label Excel. |
 | 5 | **Email target = `profile.email_pribadi` ?? `user.email`** (perilaku `SendPayrollSlipJob` sekarang). **Kolom AV (Alamat Email) Excel DIABAIKAN.** User update `email_pribadi` karyawan manual. Importer tidak menyentuh data email. |
-| 6 | **Field identitas slip di-SNAPSHOT dari Excel** ke `payrolls` (kolom baru, mis. `import_meta` json), TIDAK ambil dari relasi HRIS. Alasan: data jabatan HRIS beda 33%, kelas beda 28% (lihat §5). Slip blade fallback: `$payroll->import_meta['jabatan'] ?? $payroll->user->activeJobPosition?->jobPosition?->name ?? '-'`. Field yang di-snapshot: jabatan, status karyawan, kelas, tgl masuk/masa kerja. |
+| 6 | **Field identitas slip di-SNAPSHOT dari Excel** ke `payrolls` (kolom baru, mis. `import_meta` json), TIDAK ambil dari relasi HRIS. Alasan: data jabatan HRIS beda 33%, kelas beda 28% (lihat §5). Slip blade fallback: `$payroll->import_meta['jabatan'] ?? $payroll->user->activeJobPosition?->jobPosition?->name ?? '-'`. Field yang di-snapshot: jabatan, status karyawan, kelas, tgl masuk/masa kerja, unit, nama/NIP Excel. **`import_meta` = JSON plaintext (cast `array`), jadi TIDAK boleh menyimpan nominal.** Angka gaji tetap di kolom terenkripsi (`PayrollEncrypted`): `payrolls.gross_salary/total_deductions/net_salary`, `payroll_items.amount`, `payroll_manual_lines.amount`. `net_excel` Excel cuma dibandingkan saat pratinjau (warning), tidak dipersist. |
 
 ---
 
@@ -86,10 +86,10 @@ tanpa padanan enum tetap masuk dengan tag kustom.
 | S | Gaji Pokok | `gaji_pokok` | |
 | **T + W** (dijumlah, 1 baris) | Tunjangan Jabatan | `tunjangan_jabatan` | W = "Tunj. Jabatan/Beban Kerja" = tunjangan jabatan juga (konfirmasi user) |
 | U | Insentif | `insentif` | |
-| **V** | Tunjangan Dokter/Jabatan Khusus | `tunjangan_dokter` | **kustom.** Bukan `FEE_CLAIM` — kalau ke fee_claim ikut kebawa mesin `fee_items` + `PAJAK_JASA_DOKTER`. Sheet ini **tidak ada kolom PPh jasa dokter sama sekali** (sudah dicek seluruh kolom) → V = earning flat, tanpa potongan. |
+| **V** | *(label per perusahaan, hardcode)* | `tunjangan_khusus` | **kustom.** `name` diambil dari `ManualPayrollExcelImporter::TUNJANGAN_KHUSUS_LABEL` by `companies.code` (`0001`/`0002` → "Tunjangan Dokter/Jabatan Khusus"), fallback "Tunjangan Khusus". Bukan `FEE_CLAIM` — fee_claim ikut memicu mesin `fee_items` + potong `PAJAK_JASA_DOKTER`; sheet ini tidak punya kolom PPh dokter → V = earning flat tanpa potongan. |
 | N | Tunjangan Masa Kerja | `tunjangan_masa_kerja` | |
 | Y | Jasa Pelayanan | `jasa_pelayanan` | |
-| **AA / AD / AE** (3 baris terpisah) | Jasa Unit — Tambahan Jasa / Jasa Unit — Jasa Supir Ambulance & Perawat / Jasa Unit — Jasa Paket Infus | `jasa_unit` | Konfirmasi user: ketiganya = Jasa Unit. Pola sama `JasaUnitCalculator` (tiap baris nama sendiri). |
+| **AA / AD / AE** | 1 baris per jenis terisi | `jasa_unit` | Revisi 2026-09-01: 1 `payroll_item` per kolom yang terisi (>0), `name` = jenisnya (AA=Tambahan Jasa, AD=Ambulans & Rujukan Pasien, AE=Paket Infus). Di **slip** dikelompokkan: judul "Jasa Unit" lalu rincian menjorok (`– Tambahan Jasa … Rp`). Grouping ada di `pdf/payroll/payroll.blade.php` (berlaku juga buat slip hasil calculator yg `jasa_unit`-nya multi-baris). |
 | AB | Lembur | `lembur` | |
 | AC | Extra Shift | `extra_shift` | |
 
@@ -103,11 +103,17 @@ tanpa padanan enum tetap masuk dengan tag kustom.
 | **AO** | Potongan Izin & Cuti | `izin_cuti_gabung` | **kustom.** HRIS pisah `IZIN_SEHARIAN` + `CUTI`, Excel 1 angka gabung, tak bisa dipecah tanpa detail. |
 | AP | Koperasi | `koperasi` | |
 | AQ | Bon | `bon` | |
+| **AX** (kalau > 0) | Potongan Hari Kerja Efektif & Cuti Melahirkan | `potongan_khusus` | **kustom.** Cuma dibuat kalau AX terisi. **Juga** ditulis ke `payroll_manual_lines` (component `potongan_khusus`) — sumber kebenaran potongan manual per orang, senada Koperasi/Bon. Re-import menghapus baris `potongan_khusus` lama dulu. |
+
+### Jumlah kejadian → `quantity` + `note`
+Bukan diabaikan lagi (revisi 2026-09-01): disalin ke `quantity` + `note` baris terkait, tampil di slip "Nx/Bulan".
+- **AI + AK** (jumlah telat + telat istirahat/tidak absen) → `quantity` baris `keterlambatan`, note `"Nx/Bulan"`.
+- **AN** (JMLH CUTI/IZIN/SAKIT) → `quantity` baris `izin_cuti_gabung`, note `"Nx"`. `izin_cuti_gabung` ditambahkan ke `PayrollService::componentRows()` `$notedComponents` supaya note-nya ikut tampil.
 
 ### Diabaikan
-- Hitungan: AI, AK, AN
 - Subtotal (dihitung ulang importer): X, Z, AF, AR, AS
-- AW (counter), AZ (catatan)
+- AW (counter), AZ (catatan bebas)
+- AY (Jumlah Potongan — subtotal, importer hitung sendiri)
 - Tidak ada di sheet: `TUNJANGAN_TRANSPORTASI`, `FEE_CLAIM`, `PAJAK_JASA_DOKTER`
 
 ### Cara buat tiap item
@@ -116,12 +122,16 @@ PayrollItem::create([
   'payroll_id'      => $payroll->id,
   'name'            => <label>,
   'type'            => 'earning' | 'deduction',
-  'quantity'        => 1,
-  'amount'          => <nominal Excel>,   // 0 → baris TIDAK dibuat
+  'quantity'        => 1,                 // atau jumlah kejadian utk keterlambatan/izin_cuti_gabung
+  'amount'          => <nominal Excel>,   // clamp ke 0 kalau minus
   'source_type'     => <tag>,
   'edited_manually' => true,              // tanda: bukan hasil calculator
 ]);
 ```
+> **Komponen tetap EARNINGS/DEDUCTIONS SELALU dibuat walau Rp0** (revisi 2026-09-01) — supaya
+> slip lengkap, semua baris konsisten muncul. Yang **hanya dibuat kalau terisi**: baris dinamis
+> — Jasa Unit per jenis (AA/AD/AE) & Potongan Khusus (AX). Di slip nominal Rp0 tampil "Rp" polos
+> (konvensi `pdf/payroll/payroll.blade.php`).
 - `Payroll.gross_salary` = Σ earning, `total_deductions` = Σ deduction, `net_salary` = selisih.
 - Bandingkan dgn kol AF/AR/AS Excel → selisih = warning (default: pakai computed, Excel pembanding — lihat §7).
 

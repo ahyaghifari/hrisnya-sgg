@@ -329,6 +329,9 @@ Route::middleware(['auth', 'portal.access'])->group(function () {
     Route::get('/keuangan/payroll', PayrollsPage::class)
         ->name('keuangan.payroll');
 
+    Route::get('/keuangan/import-payroll-manual', \App\Livewire\Keuangan\ManualPayrollImportPage::class)
+        ->name('keuangan.import-payroll-manual');
+
     Route::get('/keuangan/pajak', PajakPage::class)
         ->name('keuangan.pajak');
 
