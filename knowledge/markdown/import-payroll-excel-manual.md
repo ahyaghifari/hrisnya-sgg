@@ -1,6 +1,8 @@
 # Import Payroll Manual dari Excel → struktur `Payroll` HRIS existing
 
-> Dibuat 2026-08-31. Status: **ANALISIS SELESAI, BELUM CODING.** Lanjut besok.
+> Dibuat 2026-08-31, diperbarui 2026-09-01. Status: **ANALISIS SELESAI, IMPORTER BELUM DI-CODING.**
+> Rekonsiliasi data HRIS ↔ Excel berjalan (kelas SELESAI, jabatan tinggal sedikit — lihat §5.6).
+> Script ops kelas/jabatan sudah dibuat di `scripts/` (§6).
 >
 > Konteks: atasan minta gerak cepat. Payroll Agustus RSU Syifa Medika Banjarbaru **tidak**
 > digenerate lewat calculator HRIS — semua angka sudah final di Excel
@@ -138,89 +140,159 @@ PayrollItem::create([
 
 ---
 
-## 5. Temuan kualitas data (bandingkan Excel vs export `data-karyawan-20260831-213244.xlsx` — export dari halaman Karyawan production)
+## 5. Temuan kualitas data (Excel gaji vs export "Karyawan" production)
 
-Export HRIS kolom: A No, B NIP, C Nama, D Jabatan, E Pangkat, F Kelas, G Tipe Karyawan, H Tgl Bergabung. 485 baris.
+Bandingkan `knowledge/gaji-agustus-banjarbaru.xlsx` (E NIP, B Nama, I Jabatan, K Status, P Kelas)
+vs export halaman Karyawan production (B NIP, C Nama, D Jabatan, E Pangkat, F Kelas, G Tipe).
 
-**Match by NIP (+ zero-pad): 452–456 dari 471 baris non-Mitra.**
+**Data HRIS terus diperbaiki HR selama sesi analisis (31 Agu – 1 Sep 2026).** Beberapa export
+diambil berturut-turut; angka di bawah adalah **kondisi terakhir** (`data-karyawan-20260901-074322.xlsx`).
+Match by NIP (exact → zero-pad 11) + fuzzy nama untuk NIP typo: **457 direct + 20 by-nama = 477
+dari 480 baris non-Mitra**.
 
-### 5.1 Nama / NIP — 3 SALAH ORANG (KRITIS, betulkan sebelum import)
-| NIP | Payroll | HRIS |
+### 5.1 Nama / NIP
+
+- **3 NIP SALAH ORANG — SUDAH DIBETULKAN HR:** `01122025801/802/803` (Wafiq ↔ Ilham ↔ M. Puja
+  ↔ Syaima Nazmi tergeser). Per export 1 Sep sudah cocok. Ini yang paling kritis; pastikan tetap
+  benar sebelum import.
+- **8 nama beda tersisa — semua cosmetic** (gelar/ejaan: "Puga MARS" vs "M.A.R.S", "Nor Laila SKM"
+  vs "S.K.M", "Ria Oktrianti" vs "Oktarianti", "Muhammad Rifki" vs "M. Rifki", dll). Orang sama, aman.
+
+### 5.2 NIP Excel tak ketemu di HRIS — 23 (turun dari 28)
+
+- **A. Kurang angka depan → zero-pad, sudah ke-match (4):** Laila Rahmi `1022019194`→`01022019194`,
+  Ria Maulida `1122017093`→`01122017093`, Aisha Mauldia `2032026873`→`02032026873`,
+  Rifa Normaulida `7032026878`→`07032026878`.
+- **B. NIP salah KETIK di Excel — orang & data ADA di HRIS (20 baris, belum dibetulkan di Excel):**
+  pola dominan digit bulan `0202…` seharusnya `0206…`.
+  | Excel NIP | → HRIS NIP | Nama |
+  |---|---|---|
+  | 02022023502 | 02062023502 | Rachmawati Eka Putri Kesuma |
+  | 02022023503 | 02062023503 | M. Dicky Setiawan |
+  | 02022023504 | 02062023504 | Robiatul Adawiyah |
+  | 02022023505 | 02062023505 | Aprilia Rizky |
+  | 02022023506 | 02062023506 | Firda Rosa Meliyani |
+  | 02022023507 | 02062023507 | Ummi Nurul Risqi Wahyuny |
+  | 02022023508 | 02062023508 | Neka Oktari Norcahya |
+  | 02022023509 | 02062023509 | Fransiska Agustin |
+  | 02022023498 | 02062023498 | Husin |
+  | 21102024679 | 21102024680 | Novie Vediena |
+  | 01102024672 | 01092024672 | Firda Wahyuni |
+  | 01102024674 | 01092024674 | Suci Rahayu |
+  | 10042023484 | 01042023484 | Senna Virgandisi |
+  | 02062025741 | 02052025741 | Muhammad Septian Hanafi |
+  | 15082023537 | 22082023537 | Muhammad Solihin |
+  | 08122025806 | 08122025804 | Nurani Indah Fitriana |
+  | 27012022415 | 07022022421 | Firliana Jimmy Sari |
+  | 27012022416 | 29012022418 | Ghina Mardiyah |
+  | 02032022068 | 01082022452 | dr. Bagus Putra Kurniawan |
+  | DU-09032020106 | 15032024616 | dr. Yosevine *(NIP HRIS beda tahun — verifikasi apa ganti NIP)* |
+
+  Setelah NIP dibetulkan di Excel, kelas mereka **sudah cocok semua** (475 OK), jabatan cuma
+  dr. Yosevine yang masih beda (lihat §5.3).
+- **C. Genuine TIDAK ADA di HRIS (3) — user konfirmasi belum ditambahkan:** Melinda Sari,
+  S.Tr.Keb.,Bdn `13022024603` (Bidan Ponek, Kontrak); Shella Aurrelia, S.Kep., Ns `27082026056`
+  (Orientasi); Hadriannor `15082025055` (Cleaning Service, Orientasi). → buat `User` dulu atau
+  skip periode ini.
+
+### 5.3 Jabatan — kondisi 1 Sep 2026 (export 074322)
+
+| Kategori | Jumlah | Catatan |
 |---|---|---|
-| 01122025801 | Wafiq Nur Azizah | **Ilham** |
-| 01122025802 | Ilham | **Muhammad Puja Oktapiannoor** |
-| 01122025803 | Muhammad Puja Oktapiannoor | **Syaima Nazmi** |
+| Identik | 430 | naik dari 282 (31 Agu) — HR rapiin banyak |
+| Cosmetic (nama pendek vs panjang, typo, peran sama) | ~25 | mis. HRIS "LT. 4 Gedung Marwah" vs Excel "LT. 4 Faviliun Firdaus Gedung Marwah"; "Ranap" vs "Ruangan Unit Perawatan"; "Staf Promkes" vs "Promkes" |
+| **Konflik nyata** | **6** | ❌ lihat bawah |
+| **HRIS "Perawat Orientasi", Excel sudah posted** | **17** | ⚠️ rekrut 2026, HR belum promote |
 
-3 NIP berurutan tergeser. Match by NIP + nama HRIS → gaji nyasar. Ada juga NIP `01122025804` (Syaima Nazmi di Excel) yang nyambung ke geseran ini.
+**Sudah kelar antar-export:** skema gedung (Excel "Shofa/Marwah/Muzdalifah" — HR migrasi HRIS
+pakai nama gedung, bukan "Gedung A/B/C" lagi; **LT. 4 Faviliun Firdaus = Gedung Marwah**,
+dikonfirmasi user); Perawat ICU vs ranap (3 orang: Dwi Rahmiati / Heldawati / M. Hari Rahman —
+sudah dibetulkan HRIS ke ranap); Munif ↔ Tamara "Staf Klaim Asuransi"/"Payroll Jasa Dokter BPJS"
+ketuker (fixed); Arif Rahman Hakim.
 
-6 lain cuma beda ejaan/gelar (Nor Laila SKM vs S.K.M, Rafli Rahman vs Rakhman, Ria Oktrianti vs Oktarianti, "Muhammad Rifki" vs "M. Rifki") — orang sama, aman.
+**Konflik nyata sisa (6):**
+| NIP | Nama | Excel | HRIS | Tindakan |
+|---|---|---|---|---|
+| 09032020106 | dr. Yosevine | Kepala Instalasi IGD & koordinator dr umum | Kepala Ruangan IGD | putusan HR |
+| 01092022457 | dr. Fahrizal Setiawan | Kepala Tim JKN | PJ tim Casemix | putusan HR |
+| 15112017076 | Rudy Alpianoor | Kepala Ruangan IGD | Perawat IGD | putusan HR |
+| — | Dara Faradilla Kholipah | Case Manager Poliklinik Eksekutif | (kosong) | isi HRIS |
+| 1022019194 | Laila Rahmi Jamilah | Laborat**o**tium (typo Excel) | Laboratorium | cosmetic |
+| 05102016006 | Ummu Habibah | Kasi Perawat | Kasi Keperawatan | cosmetic |
 
-### 5.2 NIP tak ada di HRIS (28, dari perbandingan vs export; lokal DB ~44)
-- **A. Kurang angka depan → zero-pad (4):** baris 145 Laila Rahmi Jamilah `1022019194`→`01022019194`, 147 Ria Maulida `1122017093`→`01122017093`, 159 Aisha Mauldia `2032026873`→`02032026873`, 160 Rifa Normaulida `7032026878`→`07032026878`.
-- **B. NIP salah ketik di Excel, orang ADA di HRIS (17):** pola dominan digit bulan `0202…` seharusnya `0206…`. Contoh: 191 M. Dicky `02022023503`→`02062023503`; 272/288/289/342/352/409/469 sama pola; 351 Novie `…679`→`…680`; 395 Suci `01102024674`→`01092024674`; 418 Senna `10042023484`→`01042023484`; 450 M. Septian `02062025741`→`02052025741`; 517 M. Solihin `15082023537`→`22082023537`; 211 Firda Wahyuni `01102024672`→`01092024672`; 193 Nurani `08122025806`→`08122025804`; 483 M. Halimi `22012024594` (HRIS `220122024594`, 12 digit — typo di HRIS); 247 Syaima Nazmi (lihat §5.1).
-- **C. Perlu verifikasi manual — NIP & konteks geser jauh (4):** 10 dr. Yosevine `DU-09032020106` vs nama-match HRIS `15032024616` (2020↔2024); 28 dr. Bagus Putra `02032022068` vs `01082022452`; 98 Firliana Jimmy `27012022415` vs `07022022421`; 207 Ghina Mardiyah `27012022416` vs `29012022418`.
-- **D. Genuine TIDAK ADA di HRIS (3):** baris 242 Melinda Sari, S.Tr.Keb.,Bdn (Perawat IGD / Bidan Ponek, Kontrak); 368 Shella Aurrelia, S.Kep., Ns (Perawat Orientasi); 501 Hadriannor (Kesling / Cleaning Service, Orientasi). → buat `User` dulu atau skip periode ini.
+**HRIS "Perawat Orientasi", Excel sudah kasih posting (17)** — rekrut 2026, HR belum ubah status:
+`02022026828` Siti Della Harizka · `06052026031` Verawati · `29102025790` Refika Sahara Dewi ·
+`02022026834` M. Ferdy Baihaqi · `02022026832` Rahmat Rizki Ramdhani · `11032026884` Isti Paiyah ·
+`12032026887` Titia Nur Safitri · `01042026995` M. Raehan Aulia · `02022026833` M. Redyansyah ·
+`02042026006` Nurul Mawaddah · `02022026831` Wafa Kaila · `11032026885` Ahmad Jailani ·
+`02022026830` Ahmad Erwin Wahyudi · `11032026886` Nurkhalisa Putri Azzahra · `02022026829` Arief Rahman ·
+`01042026994` Putri Kharisma Ningtias · `15052026032` Rifka Adelina.
 
-### 5.3 Jabatan — 456 cocok
-| Kategori | Jumlah | Aman? |
+### 5.4 Kelas — SELESAI ✅
+
+| Kategori | 31 Agu | 1 Sep (074322) |
 |---|---|---|
-| Identik | 282 (62%) | ✅ |
-| Cosmetic (typo/singkatan, peran sama) | 8 | ✅ |
-| Skema gedung: Excel "Shofa/Marwah/Muzdalifah" ↔ HRIS "Gedung A/B/C" | 78 | ⚠️ sistematis, auto-map |
-| HRIS "…Orientasi", Excel sudah posted | 18 | ⚠️ Excel lebih update |
-| **Konflik nyata** | **~15** | ❌ cek HR |
-| **HRIS kosong ("-")** | **40** | ❌ data HRIS belum diisi |
+| Identik | 302 | **475** |
+| Excel = HRIS + 1 (offset sistematis) | ~120 | **0** |
+| Outlier | 10 | **0** |
+| Salah satu kosong | 24 | 2 |
 
-**Sinkron aman = 290 (64%).** → mendukung keputusan §1.6 (snapshot jabatan dari Excel).
-
-Konflik nyata: Munif ↔ Tamara ("Staf Klaim Asuransi" & "Payroll Jasa Dokter BPJS" **ketuker**);
-Wafiq/M.Puja (efek §5.1); Rudy Alpianoor (Kepala Ruangan IGD vs Perawat IGD); Dwi Rahmiati /
-Heldawati / M. Hari Rahman (Perawat Ranap vs Perawat ICU); Arif Rahman Hakim (Orientasi vs
-Poliklinik Reguler); Ahmad Sayuti (Cleaning Service vs Pekarya CSSD); Desy / Maudatun
-(Pendaftaran Rawat Jalan vs Rawat Inap); dr. Fahrizal (Kepala Tim JKN vs PJ Casemix).
-
-### 5.4 Kelas — 456 cocok
-| Kategori | Jumlah |
-|---|---|
-| Identik | 302–303 (66%) |
-| **Excel = HRIS + 1** (offset sistematis) | **120–131 (26–29%)** |
-| Beda selain +1 (outlier) | 10 |
-| Salah satu kosong | 24 |
-
-**120+ offset +1**: XLS 3→HRIS 2, XLS 2→HRIS 1, XLS 5→HRIS 4. Terlalu rapi untuk kebetulan.
-Satu sistem geser 1 tingkat. **Keputusan user 2026-08-31: Excel = kanon**, samakan HRIS ke Excel.
-→ script `sync_kelas.php` sudah dibuat (lihat §6).
-
-Outlier 10 (rekrut 2026, HRIS kasih kelas tinggi janggal — kemungkinan salah input akun):
-Nurul Mawaddah XLS 2 / HRIS 9; M. Raehan Aulia 2/8; Putri Kharisma 2/7; Titia Nur Safitri 2/6;
-Nurkhalisa 2/5; Rusiani / apt. Rizky Aulia 3/4; Ahmad Jailani 2/4; Isti Paiyah / Ahmad Sayuti 2/3.
-→ script ikut menyamakan ke Excel (turun ke 2/3), TAPI cek dulu mana yang memang salah input HRIS.
+Offset +1 sistematis (XLS N = HRIS N−1) **sudah dibetulkan** — via `scripts/sync_kelas.php`
+dijalankan di prod atau koreksi HR. Termasuk 20 baris NIP-typo (§5.2.B). Sisa 2 baris `Kelas`
+kosong. **Kelas tidak perlu tindakan lagi.**
 
 ### 5.5 Tipe karyawan
-Praktis sama: "Karyawan Tetap" (Excel) ≡ "Tetap" (HRIS) — cuma format label. 1 konflik: **Haniah**
-Excel "Orientasi" vs HRIS "Mitra".
+Praktis sama: "Karyawan Tetap" (Excel) ≡ "Tetap" (HRIS) — format label. Konflik lama Haniah
+(Excel "Orientasi" vs HRIS "Mitra") — cek apakah sudah dibetulkan di export terbaru.
+
+### 5.6 Ringkasan status rekonsiliasi (per 2026-09-01)
+
+| Aspek | Status | Sisa pekerjaan |
+|---|---|---|
+| **Kelas** | ✅ selesai | 2 baris kelas kosong |
+| **Nama / NIP salah orang** | ✅ selesai | pastikan tetap benar |
+| **Jabatan — gedung/ICU/swap** | ✅ selesai | — |
+| **Jabatan — konflik nyata** | 🟡 6 | 3 putusan HR (Yosevine/Fahrizal/Rudy), 1 isi HRIS (Dara), 2 cosmetic |
+| **Jabatan — HRIS masih "Orientasi"** | 🟡 17 | HR promote rekrut 2026 (opsional — slip pakai snapshot Excel) |
+| **NIP typo di Excel** | 🔴 20 | betulkan NIP di file Excel (`0202…`→`0206…` dll), atau importer fuzzy-match by nama |
+| **Karyawan belum ada di HRIS** | 🔴 3 | buat `User` (Melinda Sari, Shella Aurrelia, Hadriannor) atau skip periode ini |
+
+Karena slip **snapshot jabatan/kelas/status dari Excel** ke `payrolls.import_meta` (§1.6), sisa
+konflik jabatan **tidak memblokir import** — cuma soal kerapian master HRIS.
 
 ---
 
-## 6. Script sync kelas (SUDAH DIBUAT)
+## 6. Script ops (SUDAH DIBUAT, di `scripts/`)
 
-`sync_kelas.php` (sekarang di scratchpad — **pindahkan ke root repo HRIS untuk dipakai**).
-
+### `scripts/sync_kelas.php` — samakan `user_profiles.kelas_id` ke kolom Kelas Excel
 ```bash
-php sync_kelas.php "knowledge/gaji-agustus-banjarbaru.xlsx"            # DRY RUN
-php sync_kelas.php "knowledge/gaji-agustus-banjarbaru.xlsx" --apply    # tulis
-#   --company=<ULID>   override (default: cari "RSU Syifa Medika Banjarbaru")
-#   env HRIS_ROOT=<path repo>  kalau file tidak di root
+php scripts/sync_kelas.php "knowledge/gaji-agustus-banjarbaru.xlsx"           # DRY RUN
+php scripts/sync_kelas.php "knowledge/gaji-agustus-banjarbaru.xlsx" --apply   # tulis
+#   --company=<ULID>   default: cari "RSU Syifa Medika Banjarbaru"
+#   env HRIS_ROOT=<path repo>  kalau file tak di root repo & tak di scripts/
 ```
-- Match NIP exact → zero-pad 11.
-- Update `user_profiles.kelas_id` ke `m_kelas` (company itu) dgn `level` = angka kol P.
-- `--apply` dibungkus 1 transaksi, cetak tiap perubahan, cuma sentuh baris yang level-nya beda.
-- **Tidak menyentuh `pangkat`.**
-- Dry run lokal: 131 akan diubah, 303 sudah sama, 19 Mitra skip, 2 kol P kosong (dr. Yosevine,
-  dr. Fahrizal), 44 NIP tak ketemu (prod ~28), 0 level tanpa m_kelas.
+- Match NIP exact → zero-pad 11. Update `user_profiles.kelas_id` ke `m_kelas` (company itu)
+  `level` = angka kol P. `--apply` dibungkus 1 transaksi, cuma sentuh baris yang level-nya beda.
+  Tidak menyentuh `pangkat`.
+- **Sudah tidak perlu dijalankan lagi** — kelas sudah selesai (§5.4). Simpan buat RS berikutnya.
 
-**PERINGATAN:** script menganggap Excel benar. Kalau kelas Excel yang basi (HRIS sudah revisi),
-ini malah mundur. Jalankan dry-run di PROD dulu, review, baru `--apply`.
+### `scripts/set_jabatan.php` — set jabatan (generic) untuk daftar NIP
+```bash
+php scripts/set_jabatan.php "Petugas Pantry" 13052025731                # DRY RUN
+php scripts/set_jabatan.php "Cleaning Service" 111 222 333 --apply
+php scripts/set_jabatan.php "Petugas Pantry" --file=nips.txt --apply
+#   --company=<ULID>  --position=<ULID>  (kalau nama tak unik / belum ada)
+```
+- Pola `EditKaryawan`: update `user_profiles.job_position_id` + swap `user_job_positions`
+  (hapus jabatan lain, baris tujuan `status = 'active'`). Match NIP exact → zero-pad 11.
+- Resolusi job position: nama persis (case-insensitive) dulu, lalu `LIKE`, error kalau ambigu.
+- Sudah dipakai: 40 NIP → "Cleaning Service", 1 NIP (`13052025731` Muhammad Anshori) → "Petugas Pantry".
+
+### `scripts/set_jabatan_cleaning_service.php` — varian hardcode 40 NIP cleaning
+Redundan dengan `set_jabatan.php` (bisa `set_jabatan.php "Cleaning Service" --file=...`) — dibiarkan
+karena daftar 40 NIP sudah di-review.
+
+**PERINGATAN semua script:** jalankan DRY RUN di PROD dulu, review output, baru `--apply`.
 
 ---
 
@@ -230,23 +302,23 @@ ini malah mundur. Jalankan dry-run di PROD dulu, review, baru `--apply`.
 2. **Re-import saat period sudah ada `Payroll` (belum `is_paid`)** → *(default: hapus `Payroll` + `PayrollItem` company+period itu yang `is_paid=false`, buat ulang; yang `is_paid=true` → blokir, minta hapus manual)*.
 3. **Selisih net computed vs kol AS Excel** → *(default: warning saja, simpan nilai computed dari Σ item)*. Alternatif: pakai AS apa adanya.
 4. **`payment_date`** period → dari kol D Excel. Kalau period sudah punya `payment_date` beda → *(default: jangan timpa, warning)*.
-5. **Kelas outlier §5.4** (10 rekrut 2026) — samakan ke Excel via script, atau perbaiki HRIS satu-satu dulu?
-6. **Import per bulan**: 1 file 1 sheet 1 period. Multi-sheet / multi-period tidak didukung v1.
-7. **Dokter (Mitra)** — skip v1. Kapan & bagaimana masuk = keputusan terpisah.
+5. **Import per bulan**: 1 file 1 sheet 1 period. Multi-sheet / multi-period tidak didukung v1.
+6. **Dokter (Mitra)** — skip v1. Kapan & bagaimana masuk = keputusan terpisah.
+7. **17 rekrut 2026 masih "Perawat Orientasi" di HRIS** (§5.3) — biarkan (slip pakai snapshot Excel) atau HR promote dulu?
 
 ---
 
 ## 8. Rencana implementasi (Fase — belum dikerjakan)
 
-### Fase 0 — Bersih-bersih data (USER, sebelum import)
-1. Betulkan 3 NIP salah orang (`01122025801/802/803`) + Syaima Nazmi `804`.
-2. Zero-pad 4 NIP kategori 5.2.A di Excel (atau importer auto zero-pad).
-3. Betulkan 17 NIP salah ketik kategori 5.2.B (pola `0202`↔`0206`) di Excel.
-4. Verifikasi 4 NIP kategori 5.2.C.
-5. Putuskan 3 karyawan kategori 5.2.D: buat `User` atau skip.
-6. Jalankan `sync_kelas.php --apply` di prod (setelah dry-run OK).
-7. Isi `email_pribadi` karyawan yang kosong (min. 2: Zeihan Alisia Fajrina, Ummu Habibah — di prod bisa lebih).
-8. Haniah: tetapkan Orientasi atau Mitra.
+### Fase 0 — Bersih-bersih data (USER, sebelum import) — status per 2026-09-01
+1. ✅ 3 NIP salah orang (`01122025801/802/803`) — sudah dibetulkan HR.
+2. ✅ Kelas offset +1 (~120 baris) + outlier — sudah selesai (§5.4).
+3. ✅ Skema gedung / Perawat ICU / swap jabatan — sudah dibereskan HR.
+4. 🔴 **Betulkan 20 NIP salah ketik di Excel** (§5.2.B, tabel) — pola `0202…`→`0206…` dll. Atau importer fuzzy-match by nama.
+5. 🔴 **3 karyawan belum ada di HRIS** (Melinda Sari, Shella Aurrelia, Hadriannor) — buat `User` atau skip periode ini.
+6. 🟡 4 konflik jabatan butuh putusan HR (dr. Yosevine, dr. Fahrizal, Rudy Alpianoor, Dara Faradilla) — tidak memblokir (snapshot Excel).
+7. 🔴 **Isi `email_pribadi`** karyawan yang kosong (cek di prod — Zeihan Alisia Fajrina, Ummu Habibah, + kemungkinan lebih).
+8. 🟡 Haniah — tetapkan Orientasi atau Mitra (cek export terbaru apakah sudah beres).
 
 ### Fase 1 — Importer
 `app/Services/Payroll/ManualPayrollExcelImporter.php`:
