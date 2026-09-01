@@ -324,6 +324,25 @@ class ManualPayrollExcelImportTest extends TestCase
             ->assertSee('Periode Gaji Tujuan');
     }
 
+    public function test_multi_company_user_sees_periods_of_other_company(): void
+    {
+        // User dari company LAIN + boleh pilih perusahaan lain -> global scope BelongsToCompany
+        // pada PayrollPeriod tidak boleh menyembunyikan periode $this->company.
+        Permission::firstOrCreate(['name' => CustomPermissionEnum::IMPORT_PAYROLL_MANUAL->value, 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => CustomPermissionEnum::LIHAT_PERUSAHAAN_LAIN->value, 'guard_name' => 'web']);
+
+        $otherCompany = Companies::create(['code' => 'OTH', 'name' => 'Company Lain', 'location' => 'X', 'is_active' => true]);
+        $user = User::factory()->create(['company_id' => $otherCompany->id]);
+        $user->givePermissionTo([CustomPermissionEnum::IMPORT_PAYROLL_MANUAL->value, CustomPermissionEnum::LIHAT_PERUSAHAAN_LAIN->value]);
+
+        $this->actingAs($user);
+        $c = Livewire::test(ManualPayrollImportPage::class)->set('companyId', $this->company->id);
+
+        $this->assertTrue($c->get('periods')->contains('id', $this->period->id));
+        $c->set('periodId', $this->period->id);
+        $this->assertSame($this->period->id, $c->get('selectedPeriod')?->id);
+    }
+
     public function test_page_forbidden_without_permission(): void
     {
         $this->actingAs(User::factory()->create(['company_id' => $this->company->id]));

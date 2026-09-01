@@ -75,13 +75,31 @@ class ManualPayrollImportPage extends Component
         return Companies::orderBy('code')->get();
     }
 
+    /**
+     * PayrollPeriod pakai global scope BelongsToCompany (clamp ke company_id akun kalau bukan
+     * role "Super Admin") — lepas scope-nya buat user yang boleh pilih perusahaan lain, biar
+     * filter ->where('company_id', $this->companyId) di dropdown yang jadi acuan, bukan company
+     * akun petugas. `$this->companyId` sendiri selalu dikunci ke company akun buat user biasa
+     * (updatedCompanyId + mount).
+     */
+    protected function periodQuery(): \Illuminate\Contracts\Database\Eloquent\Builder
+    {
+        $q = PayrollPeriod::query();
+
+        if (Auth::user()->canFilterByCompany()) {
+            $q->withoutGlobalScope('company');
+        }
+
+        return $q;
+    }
+
     public function getPeriodsProperty()
     {
         if (! $this->companyId) {
             return collect();
         }
 
-        return PayrollPeriod::query()
+        return $this->periodQuery()
             ->where('company_id', $this->companyId)
             ->withCount('payrolls')
             ->orderByDesc('start_date')
@@ -91,7 +109,7 @@ class ManualPayrollImportPage extends Component
     public function getSelectedPeriodProperty(): ?PayrollPeriod
     {
         return $this->periodId
-            ? PayrollPeriod::where('company_id', $this->companyId)->find($this->periodId)
+            ? $this->periodQuery()->where('company_id', $this->companyId)->find($this->periodId)
             : null;
     }
 
@@ -287,7 +305,7 @@ class ManualPayrollImportPage extends Component
             return;
         }
 
-        $period = PayrollPeriod::where('company_id', $this->companyId)->findOrFail($this->periodId);
+        $period = $this->periodQuery()->where('company_id', $this->companyId)->findOrFail($this->periodId);
 
         try {
             $this->result = app(ManualPayrollExcelImporter::class)
