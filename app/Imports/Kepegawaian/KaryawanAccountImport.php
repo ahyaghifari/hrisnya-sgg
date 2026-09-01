@@ -18,9 +18,10 @@ use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
  * - NIP di file tapi tidak ada di sistem (company ini) -> status 'baru', dibuatkan akun baru
  *   pas confirm. email & tanggal_lahir WAJIB diisi untuk baris baru (email buat akun, tanggal
  *   lahir buat password awal).
- * - NIP ketemu di sistem, tapi ada field (nama/email/status_karyawan/tanggal_mulai_kerja/
- *   jenis_kelamin/status_perkawinan/tempat_lahir/tanggal_lahir/agama/alamat/nik) beda dari file
- *   -> status 'berubah', ditimpa pas confirm. Field yang KOSONG di file (termasuk email) TIDAK
+ * - NIP ketemu di sistem, tapi ada field (nama/email/email_pribadi/status_karyawan/
+ *   tanggal_mulai_kerja/jenis_kelamin/status_perkawinan/tempat_lahir/tanggal_lahir/agama/
+ *   alamat/nik) beda dari file -> status 'berubah', ditimpa pas confirm. Field yang KOSONG di
+ *   file (termasuk email) TIDAK
  *   menimpa data existing - dibiarkan ikut apa yang sudah ada di sistem.
  * - NIP ketemu & semua field sudah sama persis -> status 'tidak_berubah', dilewati (tidak ada
  *   yang ditulis).
@@ -59,6 +60,7 @@ class KaryawanAccountImport implements ToCollection, WithHeadingRow
             $nip = trim((string) ($row['nip'] ?? ''));
             $nama = trim((string) ($row['nama'] ?? ''));
             $email = strtolower(trim((string) ($row['email'] ?? '')));
+            $emailPribadi = strtolower(trim((string) ($row['email_pribadi'] ?? '')));
             $statusKaryawan = trim((string) ($row['status_karyawan'] ?? ''));
             $tanggalMulaiKerja = trim((string) ($row['tanggal_mulai_kerja'] ?? ''));
             $jenisKelamin = trim((string) ($row['jenis_kelamin'] ?? ''));
@@ -81,6 +83,12 @@ class KaryawanAccountImport implements ToCollection, WithHeadingRow
 
             if ($email !== '' && ! filter_var($email, FILTER_VALIDATE_EMAIL)) {
                 $this->errors[] = "Baris {$rowNum}: email \"{$email}\" tidak valid.";
+
+                continue;
+            }
+
+            if ($emailPribadi !== '' && ! filter_var($emailPribadi, FILTER_VALIDATE_EMAIL)) {
+                $this->errors[] = "Baris {$rowNum}: email pribadi \"{$emailPribadi}\" tidak valid.";
 
                 continue;
             }
@@ -161,6 +169,7 @@ class KaryawanAccountImport implements ToCollection, WithHeadingRow
             }
 
             $profileFields = [
+                'email_pribadi' => $emailPribadi !== '' ? $emailPribadi : null,
                 'employee_type_id' => $employeeTypeId,
                 'joining_date' => $joiningDate,
                 'gender' => $gender,
@@ -175,6 +184,7 @@ class KaryawanAccountImport implements ToCollection, WithHeadingRow
             // Sama keynya dengan $profileFields, tapi employee_type_id/religion_id diganti nama
             // manusiawinya (bukan ULID) - dipakai buat ditampilkan di tabel pratinjau.
             $profileLabels = [
+                'email_pribadi' => $emailPribadi !== '' ? $emailPribadi : null,
                 'employee_type_id' => $statusKaryawan !== '' ? $statusKaryawan : null,
                 'joining_date' => $joiningDate,
                 'gender' => $jenisKelamin !== '' ? $jenisKelamin : null,
@@ -263,6 +273,7 @@ class KaryawanAccountImport implements ToCollection, WithHeadingRow
 
         if ($this->preview) {
             $labelForOld = [
+                'email_pribadi' => $profile?->email_pribadi,
                 'employee_type_id' => $profile?->employeeType?->name,
                 'joining_date' => $profile?->joining_date,
                 'gender' => $profile?->gender,

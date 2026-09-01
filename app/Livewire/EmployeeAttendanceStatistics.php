@@ -358,9 +358,11 @@ class EmployeeAttendanceStatistics extends Component
             return true;
         }
 
-        // HC/Kepegawaian company-wide (bukan cuma atasan lihat bawahan) — dibatasi ke
-        // company sendiri, konsisten dengan scoping EmployeeResource di admin.
-        if ($user->can(\App\Enum\CustomPermissionEnum::SISTEM_KEPEGAWAIAN->value) && $user->company_id === $record->company_id) {
+        // HC/Kepegawaian: company sendiri (konsisten dengan scoping EmployeeResource di admin),
+        // ATAU lintas company kalau pegang LIHAT_PERUSAHAAN_LAIN. Tab Penggajian & No. Rekening
+        // tetap self-only (digerbangi $isSelf di blade), tidak ikut kebuka lewat sini.
+        if ($user->can(\App\Enum\CustomPermissionEnum::SISTEM_KEPEGAWAIAN->value)
+            && ($user->company_id === $record->company_id || $user->canFilterByCompany())) {
             return true;
         }
 

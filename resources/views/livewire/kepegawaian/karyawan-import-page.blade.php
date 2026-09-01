@@ -52,6 +52,7 @@
                                         <th style="text-align:left;padding:6px 10px;">NIP</th>
                                         <th style="text-align:left;padding:6px 10px;">Nama</th>
                                         <th style="text-align:left;padding:6px 10px;">Email</th>
+                                        <th style="text-align:left;padding:6px 10px;">Email Pribadi</th>
                                         <th style="text-align:left;padding:6px 10px;">Status Karyawan</th>
                                         <th style="text-align:left;padding:6px 10px;">Mulai Kerja</th>
                                         <th style="text-align:left;padding:6px 10px;">JK</th>
@@ -70,6 +71,7 @@
                                             <td style="padding:6px 10px;">{{ $row['nip'] }}</td>
                                             <td style="padding:6px 10px;">{{ $row['nama'] }}</td>
                                             <td style="padding:6px 10px;">{{ $row['email'] }}</td>
+                                            <td style="padding:6px 10px;">{{ $row['profile']['email_pribadi'] ?? '-' }}</td>
                                             <td style="padding:6px 10px;">{{ $row['profile']['employee_type_id'] ?? '-' }}</td>
                                             <td style="padding:6px 10px;">{{ $row['profile']['joining_date'] ?? '-' }}</td>
                                             <td style="padding:6px 10px;">{{ $row['profile']['gender'] ?? '-' }}</td>
@@ -107,6 +109,7 @@
                                 <tbody>
                                     @php
                                         $profileLabelNames = [
+                                            'email_pribadi' => 'Email Pribadi',
                                             'employee_type_id' => 'Status Karyawan',
                                             'joining_date' => 'Mulai Kerja',
                                             'gender' => 'Jenis Kelamin',

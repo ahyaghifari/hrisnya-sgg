@@ -12,6 +12,7 @@ namespace App\Enum\JobPosition;
 enum SkipJobPositionApprovalCompanyEnum: string
 {
     case RSU_SYIFA_MEDIKA_BANJARBARU = '01k8271xa4nq8cezg3dq9vfr14';
+    case RSU_SYIFA_MEDIKA_BARABAI = '01k8271xefsez6a80tknntt1pj';
 
     public static function skips(?string $companyId): bool
     {
