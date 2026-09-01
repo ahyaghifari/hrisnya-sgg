@@ -130,13 +130,13 @@ class PayrollService
     }
 
     /**
-     * Bangun ZIP berisi PDF slip gaji (masing-masing ter-password, sama seperti lampiran
-     * email — lihat encryptedSlip()) untuk semua payroll SUDAH DIBAYAR di satu periode,
-     * simpan ke disk `local`. Berat (ratusan PDF dompdf) — dijalankan lewat queue
-     * (BuildPayrollSlipZipJob), BUKAN request web. Data payroll is_paid sudah beku
-     * (regenerateSinglePayroll() menolak yang is_paid) jadi hasilnya deterministik & aman
-     * di-cache sebagai file. Karyawan tanpa tanggal lahir/NIP lengkap dilewati —
-     * nama-namanya ditulis ke `_DILEWATI.txt` di dalam ZIP.
+     * Bangun ZIP berisi PDF slip gaji untuk semua payroll SUDAH DIBAYAR di satu periode,
+     * simpan ke disk `local`. PDF di dalam ZIP TANPA password/enkripsi (beda dari lampiran
+     * email yang pakai encryptedSlip()) — ZIP dianggap sudah dibagikan lewat kanal internal
+     * yang aman. Berat (ratusan PDF dompdf) — dijalankan lewat queue (BuildPayrollSlipZipJob),
+     * BUKAN request web. Data payroll is_paid sudah beku (regenerateSinglePayroll() menolak
+     * yang is_paid) jadi hasilnya deterministik & aman di-cache sebagai file. Payroll yang
+     * gagal dirender dilewati — nama-namanya ditulis ke `_DILEWATI.txt` di dalam ZIP.
      */
     public function buildSlipZipToStorage(PayrollPeriod $period): void
     {
@@ -161,8 +161,12 @@ class PayrollService
             ->chunkById(100, function ($payrolls) use ($zip, $buildAbs, $root, &$skipped, &$i) {
                 foreach ($payrolls as $payroll) {
                     try {
-                        $slip = $this->encryptedSlip($payroll);
-                        $zip->addFromString($root . '/' . $slip['filename'], $slip['binary']);
+                        // TANPA setEncryption() — PDF di ZIP tidak di-password (beda dari encryptedSlip()).
+                        $pdf = Pdf::loadView('pdf.payroll.payroll', [
+                            'payroll' => $payroll,
+                            'rows' => $this->componentRows($payroll, compact: true),
+                        ]);
+                        $zip->addFromString($root . '/' . $this->slipFilename($payroll), $pdf->output());
                     } catch (\Throwable) {
                         $skipped[] = trim(($payroll->user?->nip ?? '?') . ' — ' . ($payroll->user?->name ?? '?'));
                     }
@@ -180,7 +184,7 @@ class PayrollService
         if ($skipped !== []) {
             $zip->addFromString(
                 $root . '/_DILEWATI.txt',
-                "Karyawan berikut tidak punya tanggal lahir/NIP lengkap, slip tidak dibuat:\n\n" . implode("\n", $skipped),
+                "Slip gaji berikut gagal dibuat (data tidak lengkap / error render):\n\n" . implode("\n", $skipped),
             );
         }
 
