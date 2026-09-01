@@ -47,7 +47,7 @@ class ManualPayrollImportPage extends Component
 
     public function mount(): void
     {
-        abort_unless(Auth::user()->can(CustomPermissionEnum::GENERATE_PAYROLL->value), 403);
+        abort_unless(Auth::user()->can(CustomPermissionEnum::IMPORT_PAYROLL_MANUAL->value), 403);
 
         $this->companyId = Auth::user()->canFilterByCompany()
             ? (Auth::user()->company_id ?? Companies::orderBy('code')->value('id'))
@@ -253,7 +253,7 @@ class ManualPayrollImportPage extends Component
 
     private function runPreview(): void
     {
-        abort_unless(Auth::user()->can(CustomPermissionEnum::GENERATE_PAYROLL->value), 403);
+        abort_unless(Auth::user()->can(CustomPermissionEnum::IMPORT_PAYROLL_MANUAL->value), 403);
 
         $this->preview = [];
         $this->discardStoredFile();
@@ -281,7 +281,7 @@ class ManualPayrollImportPage extends Component
 
     public function confirmImport(): void
     {
-        abort_unless(Auth::user()->can(CustomPermissionEnum::GENERATE_PAYROLL->value), 403);
+        abort_unless(Auth::user()->can(CustomPermissionEnum::IMPORT_PAYROLL_MANUAL->value), 403);
 
         if (! $this->storedPath || ! $this->periodId) {
             return;

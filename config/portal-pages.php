@@ -325,7 +325,7 @@ return [
 
     'keuangan.import-payroll-manual' => [
         'label' => 'Import Payroll Manual',
-        'permission' => \App\Enum\CustomPermissionEnum::GENERATE_PAYROLL->value,
+        'permission' => \App\Enum\CustomPermissionEnum::IMPORT_PAYROLL_MANUAL->value,
         'guard' => null,
     ],
 

@@ -311,11 +311,11 @@ class ManualPayrollExcelImportTest extends TestCase
         $this->assertDatabaseMissing('payroll_manual_lines', ['payroll_period_id' => $this->period->id, 'component' => 'potongan_khusus']);
     }
 
-    public function test_page_renders_for_user_with_generate_payroll_permission(): void
+    public function test_page_renders_for_user_with_import_payroll_manual_permission(): void
     {
-        Permission::firstOrCreate(['name' => CustomPermissionEnum::GENERATE_PAYROLL->value, 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => CustomPermissionEnum::IMPORT_PAYROLL_MANUAL->value, 'guard_name' => 'web']);
         $user = User::factory()->create(['company_id' => $this->company->id]);
-        $user->givePermissionTo(CustomPermissionEnum::GENERATE_PAYROLL->value);
+        $user->givePermissionTo(CustomPermissionEnum::IMPORT_PAYROLL_MANUAL->value);
 
         $this->actingAs($user);
         Livewire::test(ManualPayrollImportPage::class)
@@ -332,10 +332,10 @@ class ManualPayrollExcelImportTest extends TestCase
 
     public function test_page_shows_payroll_table_and_mark_paid_action(): void
     {
-        Permission::firstOrCreate(['name' => CustomPermissionEnum::GENERATE_PAYROLL->value, 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => CustomPermissionEnum::IMPORT_PAYROLL_MANUAL->value, 'guard_name' => 'web']);
         Permission::firstOrCreate(['name' => 'Update:Payroll', 'guard_name' => 'web']);
         $admin = User::factory()->create(['company_id' => $this->company->id]);
-        $admin->givePermissionTo([CustomPermissionEnum::GENERATE_PAYROLL->value, 'Update:Payroll']);
+        $admin->givePermissionTo([CustomPermissionEnum::IMPORT_PAYROLL_MANUAL->value, 'Update:Payroll']);
 
         $emp = $this->employee('01082019100');
         $actor = User::factory()->create(['company_id' => $this->company->id]);
@@ -364,10 +364,10 @@ class ManualPayrollExcelImportTest extends TestCase
     {
         \Illuminate\Support\Facades\Queue::fake();
 
-        Permission::firstOrCreate(['name' => CustomPermissionEnum::GENERATE_PAYROLL->value, 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => CustomPermissionEnum::IMPORT_PAYROLL_MANUAL->value, 'guard_name' => 'web']);
         Permission::firstOrCreate(['name' => 'Update:Payroll', 'guard_name' => 'web']);
         $admin = User::factory()->create(['company_id' => $this->company->id]);
-        $admin->givePermissionTo([CustomPermissionEnum::GENERATE_PAYROLL->value, 'Update:Payroll']);
+        $admin->givePermissionTo([CustomPermissionEnum::IMPORT_PAYROLL_MANUAL->value, 'Update:Payroll']);
 
         // 3 payroll di periode: 1 terkirim, 1 gagal, 1 belum-kirim (sudah dibayar).
         $mk = fn (array $attr) => Payroll::create(array_merge([

@@ -56,6 +56,7 @@ class RoleForm
                 CustomPermissionEnum::KELOLA_INPUT_JASA_UNIT->value,
                 CustomPermissionEnum::EDIT_PAYROLL_ADJUSTMENT->value,
                 CustomPermissionEnum::GENERATE_PAYROLL->value,
+                CustomPermissionEnum::IMPORT_PAYROLL_MANUAL->value,
             ],
             CustomPermissionEnum::SISTEM_KEPEGAWAIAN->value => [
                 CustomPermissionEnum::LIHAT_PENGATURAN_KEPEGAWAIAN->value,

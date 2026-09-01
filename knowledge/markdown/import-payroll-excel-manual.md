@@ -339,7 +339,10 @@ karena daftar 40 NIP sudah di-review.
 ### Fase 2 — Halaman trigger (Livewire, portal Keuangan)
 `app/Livewire/Keuangan/ManualPayrollImportPage.php` + blade, route `/keuangan/import-payroll-manual`.
 - Upload `.xlsx` → preview (tabel + ringkasan + `warnings`) → tombol **Import** (disabled kalau ada blocker).
-- Gate: reuse `CustomPermissionEnum::GENERATE_PAYROLL`.
+- Gate: `CustomPermissionEnum::IMPORT_PAYROLL_MANUAL` (permission khusus, dipisah dari
+  `GENERATE_PAYROLL` — petugas input Excel tidak otomatis bisa Generate/Regenerate). Aksi
+  Tandai Dibayar / Kirim Slip di halaman tetap `Update:Payroll`. Ada di grup `SISTEM_KEUANGAN`
+  (`RoleForm::portalGroups`), muncul di tree `/hak-akses` sebagai "Import Payroll Manual (dari Excel)".
 - `config/portal-pages.php` — entry route baru.
 
 ### Fase 3 — Kirim slip

@@ -216,6 +216,13 @@ enum CustomPermissionEnum: string
      * tanggal periode) supaya bisa dikasih ke role finance yang lebih terbatas. */
     case GENERATE_PAYROLL = 'generate_payroll';
 
+    /** Import Payroll Manual dari Excel (ManualPayrollImportPage, /keuangan/import-payroll-manual)
+     * — transkripsi angka gaji final dari file, bukan hasil calculator. Dipisah dari
+     * GENERATE_PAYROLL supaya bisa dikasih ke petugas yang cuma meng-input hasil Excel tanpa
+     * ikut bisa Generate/Regenerate payroll biasa. Aksi Tandai Dibayar/Kirim Slip di halaman
+     * itu tetap butuh Update:Payroll terpisah. */
+    case IMPORT_PAYROLL_MANUAL = 'import_payroll_manual';
+
     /** Lihat lampiran KTP/KK karyawan lain di halaman Data Diri (kartu "Lampiran Identitas") —
      * dipisah dari akses baca Data Diri secara umum (atasan/HC yang biasa buka Data Diri
      * bawahannya TIDAK otomatis bisa lihat lampiran ini kecuali dikasih permission ini secara
@@ -358,6 +365,7 @@ enum CustomPermissionEnum: string
             self::LIHAT_DASHBOARD_SIKARTAP_ANTRIAN_TAHAP => 'Lihat Widget Antrian per Tahap (Dashboard Sikartap)',
             self::KELOLA_JADWAL_SHIFT => 'Kelola Jadwal Shift (Template & Roster)',
             self::GENERATE_PAYROLL => 'Generate/Regenerate Payroll',
+            self::IMPORT_PAYROLL_MANUAL => 'Import Payroll Manual (dari Excel)',
             self::LIHAT_LAMPIRAN_IDENTITAS_KARYAWAN => 'Lihat Lampiran Identitas Karyawan (KTP/KK)',
             self::LIHAT_GAJI_PEMATERI => 'Lihat Gaji Pemateri',
             self::KELOLA_GAJI_PEMATERI => 'Kelola Gaji Pemateri',

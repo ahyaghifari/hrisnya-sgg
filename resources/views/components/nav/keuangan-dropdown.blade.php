@@ -19,7 +19,7 @@
     $canViewBpjsDependent = auth()->user()->can('ViewAny:BpjsDependent');
     $canViewOverrideKomponenGaji = auth()->user()->can(\App\Enum\CustomPermissionEnum::LIHAT_OVERRIDE_KOMPONEN_GAJI->value);
     $canViewJasaUnitType = auth()->user()->can('ViewAny:JasaUnitType');
-    $canImportPayrollManual = auth()->user()->can(\App\Enum\CustomPermissionEnum::GENERATE_PAYROLL->value);
+    $canImportPayrollManual = auth()->user()->can(\App\Enum\CustomPermissionEnum::IMPORT_PAYROLL_MANUAL->value);
 @endphp
 
 <div class="dropdown">
