@@ -30,6 +30,14 @@ class KeycloakController extends Controller
         $raw = $kc->getRaw();
         $nip = isset($raw['nip']) ? trim((string) $raw['nip']) : null;
 
+        // DEBUG SSO - hapus setelah pemetaan user beres.
+        \Log::info('SSO Keycloak callback', [
+            'sub' => $kc->getId(),
+            'email' => $kc->getEmail(),
+            'nip_claim' => $nip,
+            'raw' => $raw,
+        ]);
+
         // Urutan match: keycloak_sub (paling stabil) -> nip -> email. Tidak auto-provision:
         // user HRIS membawa data karyawan/company/payroll yang tidak bisa dibuat dari klaim SSO.
         $user = User::where('keycloak_sub', $kc->getId())->first()
