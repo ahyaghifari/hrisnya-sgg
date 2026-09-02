@@ -51,13 +51,10 @@ class JobEvaluationPage extends Component
         if (! Auth::user()->canFilterByCompany()) {
             $this->companyId = Auth::user()->company_id;
         }
-    }
 
-    public function selectCompany(string $companyId): void
-    {
-        abort_unless(Auth::user()->canFilterByCompany(), 403);
-
-        $this->companyId = $companyId;
+        // Wajib — <select> pakai wire:model.live="companyId". Tanpa ini jeValues tetap
+        // isi company sebelumnya sementara tabel sudah pindah company, jadi semua input
+        // JE tampil kosong walau nilainya ADA di DB (laporan bug 2026-09-02).
         $this->loadJe();
     }
 
