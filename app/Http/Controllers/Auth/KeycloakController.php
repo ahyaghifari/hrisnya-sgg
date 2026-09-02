@@ -28,17 +28,16 @@ class KeycloakController extends Controller
         }
 
         $raw = $kc->getRaw();
+        $nipClaim = isset($raw['nip']) ? trim((string) $raw['nip']) : null;
+        $username = isset($raw['preferred_username']) ? trim((string) $raw['preferred_username']) : null;
 
-        // Keycloak client scope 'profile' HRIS: userinfo cuma kirim sub + preferred_username,
-        // dan preferred_username ISINYA NIP karyawan (bukan email/nama). Claim 'nip' terpisah
-        // dipakai kalau nanti mappernya ditambah ke userinfo.
-        $nip = $raw['nip'] ?? $raw['preferred_username'] ?? null;
-        $nip = $nip !== null ? trim((string) $nip) : null;
-
-        // Urutan match: keycloak_sub (paling stabil) -> nip -> email. Tidak auto-provision:
-        // user HRIS membawa data karyawan/company/payroll yang tidak bisa dibuat dari klaim SSO.
+        // Urutan match: keycloak_sub (paling stabil) -> claim 'nip' -> preferred_username
+        // (userinfo scope 'profile' HRIS saat ini cuma kirim sub + preferred_username, isinya
+        // NIP) -> email. Tidak auto-provision: user HRIS membawa data karyawan/company/payroll
+        // yang tidak bisa dibuat dari klaim SSO.
         $user = User::where('keycloak_sub', $kc->getId())->first()
-            ?? ($nip !== null && $nip !== '' ? User::where('nip', $nip)->first() : null)
+            ?? ($nipClaim !== null && $nipClaim !== '' ? User::where('nip', $nipClaim)->first() : null)
+            ?? ($username !== null && $username !== '' ? User::where('nip', $username)->first() : null)
             ?? ($kc->getEmail() ? User::where('email', $kc->getEmail())->first() : null);
 
         if (! $user) {
