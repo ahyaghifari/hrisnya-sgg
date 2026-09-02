@@ -1,3 +1,16 @@
+@php
+    // Background per company: file PRIVAT storage/app/private/salary-bg/{kode company}.jpg
+    // (bukan public/ — dokumen internal, jangan bisa diakses umum). Fallback ke default.jpg.
+    // Di-embed base64 supaya dompdf tidak perlu akses path di luar chroot & tetap jalan pas
+    // digenerate lewat queue (ZIP slip). Kop/logo/alamat perusahaan sekarang JADI BAGIAN
+    // gambar background ini, tidak dirender lagi di HTML.
+    $bgDir = storage_path('app/private/salary-bg/');
+    $bgFile = $bgDir . ($payroll->payrollPeriod->company->code ?? '') . '.jpg';
+    if (! is_file($bgFile)) {
+        $bgFile = $bgDir . 'default.jpg';
+    }
+    $bgPath = is_file($bgFile) ? 'data:image/jpeg;base64,' . base64_encode(file_get_contents($bgFile)) : '';
+@endphp
 <!DOCTYPE html>
 <html lang="id">
 <head>
@@ -8,7 +21,7 @@
         @page { margin: 0px;}
 
         body {
-            background: url("{{ public_path('assets/salary_bg.jpg') }}") no-repeat;
+            background: url("{{ $bgPath }}") no-repeat;
             background-size: cover;
             font-family: Arial, sans-serif;
             font-size: 12px;
@@ -21,13 +34,10 @@
             position: relative;
         }
 
+        /* Spacer atas — logo/kop perusahaan sekarang bagian dari gambar background per company. */
         .header {
             height: 60px;
             margin-bottom: 16px;
-        }
-
-        .header img {
-            height: 100%;
         }
 
         .doc-header {
@@ -212,31 +222,13 @@
             line-height: 60px;
         }
 
-        .footer {
-            position: fixed;
-            bottom: 32px;
-            left: 48px;
-            right: 48px;
-            font-size: 9px;
-            font-weight: bold;
-        }
-
-        .footer table {
-            width: 100%;
-        }
-
-        .footer table td {
-            padding: 1px 0;
-        }
     </style>
 </head>
 <body>
 
 <div class="page">
 
-    <div class="header">
-        <img src="{{ public_path('assets/logo-sgg.png') }}" alt="Logo">
-    </div>
+    <div class="header"></div>
 
     @php
         // Nominal 0 cukup tampilkan "Rp" polos (tanpa "0") — diminta eksplisit biar slip tidak
@@ -421,19 +413,6 @@
             <strong>{{ $payroll->user->name }}</strong><br>
             {{ $payroll->user->activeJobPosition->jobPosition->name ?? '-' }}
         </div>
-    </div>
-
-    <!-- FOOTER -->
-    <div class="footer">
-        <table>
-            <tr><td colspan="2">(+62) 813-4957-9447</td></tr>
-            <tr><td colspan="2">info@syifaglobalgroup.com</td></tr>
-            <tr>
-                <td>JL. R.O Ulin No. 93. Kec Banjarbaru Selatan</td>
-                <td style="text-align: right;">www.syifaglobalgroup.com</td>
-            </tr>
-            <tr><td colspan="2">Kota Banjarbaru, Kalimantan Selatan, Indonesia 70712</td></tr>
-        </table>
     </div>
 
 </div>
