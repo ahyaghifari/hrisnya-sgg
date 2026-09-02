@@ -25,7 +25,7 @@
 | 3 | **Slip = PDF attachment**, tampilan **sama persis** slip existing. |
 | 4 | **Label baris slip = label HRIS** (`PayrollComponentEnum::label()`), bukan label Excel. |
 | 5 | **Email target = `profile.email_pribadi` ?? `user.email`** (perilaku `SendPayrollSlipJob` sekarang). **Kolom AV (Alamat Email) Excel DIABAIKAN.** User update `email_pribadi` karyawan manual. Importer tidak menyentuh data email. |
-| 6 | **Field identitas slip di-SNAPSHOT dari Excel** ke `payrolls` (kolom baru, mis. `import_meta` json), TIDAK ambil dari relasi HRIS. Alasan: data jabatan HRIS beda 33%, kelas beda 28% (lihat §5). Slip blade fallback: `$payroll->import_meta['jabatan'] ?? $payroll->user->activeJobPosition?->jobPosition?->name ?? '-'`. Field yang di-snapshot: jabatan, status karyawan, kelas, tgl masuk/masa kerja, unit, nama/NIP Excel. **`import_meta` = JSON plaintext (cast `array`), jadi TIDAK boleh menyimpan nominal.** Angka gaji tetap di kolom terenkripsi (`PayrollEncrypted`): `payrolls.gross_salary/total_deductions/net_salary`, `payroll_items.amount`, `payroll_manual_lines.amount`. `net_excel` Excel cuma dibandingkan saat pratinjau (warning), tidak dipersist. |
+| 6 | **Field identitas slip di-SNAPSHOT dari Excel** ke `payrolls` (kolom baru, mis. `import_meta` json), TIDAK ambil dari relasi HRIS. Alasan: data jabatan HRIS beda 33%, kelas beda 28% (lihat §5). Slip blade fallback: `$payroll->import_meta['jabatan'] ?? $payroll->user->activeJobPosition?->jobPosition?->name ?? '-'`. Field yang di-snapshot: jabatan, status karyawan, kelas, tgl masuk/masa kerja, unit, nama/NIP Excel. **`import_meta` = JSON plaintext (cast `array`), jadi TIDAK boleh menyimpan nominal.** Angka gaji tetap di kolom terenkripsi (`PayrollEncrypted`): `payrolls.gross_salary/total_deductions/net_salary`, `payroll_items.amount`, `payroll_manual_lines.amount`. **`gross_salary`/`total_deductions`/`net_salary` diambil LANGSUNG dari subtotal Excel AF/AR/AS — TIDAK dijumlah ulang dari komponen** (mapping komponen cuma buat rincian slip; kalau sel subtotal kosong baru fallback ke jumlah komponen). Tidak ada lagi warning `net_beda`. |
 
 ---
 
@@ -111,9 +111,9 @@ Bukan diabaikan lagi (revisi 2026-09-01): disalin ke `quantity` + `note` baris t
 - **AN** (JMLH CUTI/IZIN/SAKIT) → `quantity` baris `izin_cuti_gabung`, note `"Nx"`. `izin_cuti_gabung` ditambahkan ke `PayrollService::componentRows()` `$notedComponents` supaya note-nya ikut tampil.
 
 ### Diabaikan
-- Subtotal (dihitung ulang importer): X, Z, AF, AR, AS
-- AW (counter), AZ (catatan bebas)
-- AY (Jumlah Potongan — subtotal, importer hitung sendiri)
+- Subtotal parsial: X, Z (bagian dalam pendapatan)
+- **AF/AR/AS DIPAKAI verbatim** sebagai gross/potongan/net Payroll (bukan dihitung ulang)
+- AW (counter), AZ (catatan bebas), AY (subtotal potongan alt)
 - Tidak ada di sheet: `TUNJANGAN_TRANSPORTASI`, `FEE_CLAIM`, `PAJAK_JASA_DOKTER`
 
 ### Cara buat tiap item

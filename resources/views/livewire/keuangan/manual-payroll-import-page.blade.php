@@ -138,7 +138,7 @@
                 @php $cols = \App\Services\Payroll\ManualPayrollExcelImporter::previewColumns(); @endphp
                 <div>
                     <p style="font-size:13px;font-weight:700;color:var(--brand-success);margin:0 0 4px;"><i class="fa-solid fa-circle-check"></i> Akan Diimport ({{ count($preview['matched']) }})</p>
-                    <p style="font-size:11px;color:var(--text-muted);margin:0 0 8px;">Kolom komponen = jumlah per <em>source_type</em> (Jasa Unit sudah dijumlah dari 3 kolom). "Net Excel" = kolom AS; merah kalau beda dari Net hitung.</p>
+                    <p style="font-size:11px;color:var(--text-muted);margin:0 0 8px;">Kolom komponen = jumlah per <em>source_type</em> (Jasa Unit sudah dijumlah dari 3 kolom), cuma untuk rincian slip. <strong>BRUTO / POTONGAN / NET diambil apa adanya dari subtotal Excel (AF / AR / AS)</strong> — tidak dihitung ulang, jadi wajar kalau kolom komponen tak persis menjumlah ke situ.</p>
                     <div style="max-height:420px;overflow:auto;border:1px solid var(--border-soft);border-radius:10px;">
                         <table style="border-collapse:collapse;font-size:11.5px;white-space:nowrap;">
                             <thead>
@@ -154,7 +154,6 @@
                                     @endforeach
                                     <th style="text-align:right;padding:6px 8px;font-weight:800;">POTONGAN</th>
                                     <th style="text-align:right;padding:6px 8px;font-weight:800;">NET</th>
-                                    <th style="text-align:right;padding:6px 8px;">Net Excel</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -172,9 +171,6 @@
                                     @endforeach
                                     <td style="padding:5px 8px;text-align:right;font-weight:700;">{{ number_format($m['deduction'], 0, ',', '.') }}</td>
                                     <td style="padding:5px 8px;text-align:right;font-weight:800;">{{ number_format($m['net'], 0, ',', '.') }}</td>
-                                    <td style="padding:5px 8px;text-align:right;{{ $m['net_cocok'] ? 'color:var(--text-muted);' : 'color:#dc2626;font-weight:700;' }}">
-                                        {{ number_format($m['net_excel'], 0, ',', '.') }}
-                                    </td>
                                 </tr>
                             @endforeach
                             </tbody>

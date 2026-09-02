@@ -57,7 +57,11 @@ class ManualPayrollExcelImporter
         'AQ'      => ['bon', null],
     ];
 
-    private const NET_COL = 'AS';               // TOTAL GAJI YANG DITERIMA (subtotal, pembanding)
+    // Total diambil LANGSUNG dari subtotal Excel (bukan dijumlah ulang dari komponen) — mapping
+    // komponen cuma buat rincian slip, angka resmi gross/potongan/net ikut Excel apa adanya.
+    private const GROSS_COL = 'AF';             // JUMLAH PENDAPATAN
+    private const DEDUCTION_COL = 'AR';         // JUMLAH POTONGAN
+    private const NET_COL = 'AS';               // TOTAL GAJI YANG DITERIMA
     private const TELAT_COUNT_COLS = ['AI', 'AK'];   // jumlah kejadian telat -> quantity baris keterlambatan
     private const IZIN_CUTI_COUNT_COL = 'AN';        // JMLH (CUTI, IZIN, SAKIT) -> quantity baris izin_cuti_gabung
     private const POTONGAN_KHUSUS_COL = 'AX';        // nominal potongan khusus (kontrak/cuti melahirkan), opsional
@@ -120,9 +124,6 @@ class ManualPayrollExcelImporter
             if (! $user->profile?->date_of_birth) {
                 $warnings[] = ['type' => 'tanpa_dob', 'nip' => $row['nip'], 'nama' => $user->name, 'detail' => 'Tanggal lahir kosong — password PDF slip tidak bisa dibuat, email di-skip.'];
             }
-            if (abs($row['net'] - $row['net_excel']) >= 1) {
-                $warnings[] = ['type' => 'net_beda', 'nip' => $row['nip'], 'nama' => $user->name, 'detail' => 'Net hitung Rp' . number_format($row['net'], 0, ',', '.') . ' ≠ kolom AS Excel Rp' . number_format($row['net_excel'], 0, ',', '.') . '.'];
-            }
 
             // Per-komponen (dijumlah per source_type) — buat tabel pratinjau lebar biar mudah
             // dicek kolom-per-kolom lawan file Excel.
@@ -144,7 +145,7 @@ class ManualPayrollExcelImporter
                 'deduction' => $row['deduction'],
                 'net' => $row['net'],
                 'net_excel' => $row['net_excel'],
-                'net_cocok' => abs($row['net'] - $row['net_excel']) < 1,
+                'net_cocok' => true,
                 'item_count' => count($row['earnings']) + count($row['deductions']),
             ];
         }
@@ -379,8 +380,15 @@ class ManualPayrollExcelImporter
                 ];
             }
 
-            $gross = array_sum(array_column($earnings, 'amount'));
-            $deduction = array_sum(array_column($deductions, 'amount'));
+            // Angka resmi ikut subtotal Excel, TIDAK dijumlah ulang dari komponen (rincian
+            // komponen bisa saja tak persis menjumlah ke total Excel — itu urusan slip, bukan
+            // total gaji). Fallback ke jumlah komponen kalau sel subtotal Excel kosong.
+            $gross = $this->num($sheet->getCell(self::GROSS_COL . $r)->getValue())
+                ?: array_sum(array_column($earnings, 'amount'));
+            $deduction = $this->num($sheet->getCell(self::DEDUCTION_COL . $r)->getValue())
+                ?: array_sum(array_column($deductions, 'amount'));
+            $net = $this->num($sheet->getCell(self::NET_COL . $r)->getValue())
+                ?: ($gross - $deduction);
 
             $paymentDate ??= $this->serialToDate($sheet->getCell("D$r")->getValue());
 
@@ -398,8 +406,8 @@ class ManualPayrollExcelImporter
                 'deductions' => $deductions,
                 'gross' => $gross,
                 'deduction' => $deduction,
-                'net' => $gross - $deduction,
-                'net_excel' => (float) $this->num($sheet->getCell(self::NET_COL . $r)->getValue()),
+                'net' => $net,
+                'net_excel' => $net,
             ];
         }
 
@@ -498,7 +506,7 @@ class ManualPayrollExcelImporter
     /** Semua kolom yang dibaca (buat IReadFilter — hemat memori di 500+ baris). */
     private function neededColumns(): array
     {
-        $cols = ['B', 'E', 'I', 'K', 'L', 'P', 'D', self::NET_COL, self::IZIN_CUTI_COUNT_COL, self::POTONGAN_KHUSUS_COL, ...self::TELAT_COUNT_COLS, ...array_keys(self::JASA_UNIT_COLS)];
+        $cols = ['B', 'E', 'I', 'K', 'L', 'P', 'D', self::GROSS_COL, self::DEDUCTION_COL, self::NET_COL, self::IZIN_CUTI_COUNT_COL, self::POTONGAN_KHUSUS_COL, ...self::TELAT_COUNT_COLS, ...array_keys(self::JASA_UNIT_COLS)];
         foreach ([...array_keys(self::EARNINGS), ...array_keys(self::DEDUCTIONS)] as $expr) {
             foreach (explode('+', $expr) as $c) {
                 $cols[] = $c;

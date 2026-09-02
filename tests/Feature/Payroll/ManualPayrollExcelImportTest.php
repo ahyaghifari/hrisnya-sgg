@@ -160,6 +160,34 @@ class ManualPayrollExcelImportTest extends TestCase
         $this->assertSame('2026-09-05', $this->period->fresh()->payment_date->format('Y-m-d'));
     }
 
+    public function test_totals_follow_excel_subtotals_not_component_sum(): void
+    {
+        $emp = $this->employee('01082019100');
+        $actor = User::factory()->create(['company_id' => $this->company->id]);
+
+        // Komponen menjumlah ke 2.500.000 bruto / 100.000 potongan (net 2.400.000),
+        // tapi subtotal Excel AF/AR/AS bilang lain — importer wajib ikut Excel.
+        $path = $this->fixture([
+            ['A' => 1, 'B' => 'Andi', 'E' => '01082019100', 'I' => 'Perawat', 'K' => 'Karyawan Tetap',
+                'S' => 2_000_000, 'T' => 500_000, 'AG' => 100_000,
+                'AF' => 2_570_000, 'AR' => 120_000, 'AS' => 2_450_000],
+            ['B' => 'JUMLAH'],
+        ]);
+
+        $prev = app(ManualPayrollExcelImporter::class)->preview($path, $this->company->id)['matched'][0];
+        $this->assertSame(2_570_000.0, $prev['gross']);
+        $this->assertSame(120_000.0, $prev['deduction']);
+        $this->assertSame(2_450_000.0, $prev['net']);
+
+        app(ManualPayrollExcelImporter::class)->import($path, $this->period, $actor);
+        @unlink($path);
+
+        $payroll = Payroll::where('user_id', $emp->id)->firstOrFail();
+        $this->assertSame(2_570_000.0, (float) $payroll->gross_salary);
+        $this->assertSame(120_000.0, (float) $payroll->total_deductions);
+        $this->assertSame(2_450_000.0, (float) $payroll->net_salary);
+    }
+
     public function test_event_counts_and_special_deduction(): void
     {
         $emp = $this->employee('01082019100');
