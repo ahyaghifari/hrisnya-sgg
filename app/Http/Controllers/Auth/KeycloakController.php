@@ -33,10 +33,10 @@ class KeycloakController extends Controller
         $nip = $raw['nip'] ?? $raw['preferred_username'] ?? null;
         $nip = $nip !== null ? trim((string) $nip) : null;
 
-        // Match: keycloak_sub -> NIP. Tidak auto-provision: user HRIS membawa data
-        // karyawan/company/payroll yang tidak bisa dibuat dari klaim SSO.
-        $user = User::where('keycloak_sub', $kc->getId())->first()
-            ?? ($nip !== null && $nip !== '' ? User::where('nip', $nip)->first() : null);
+        // Match: NIP dulu, keycloak_sub cuma cadangan. Tidak auto-provision: user HRIS
+        // membawa data karyawan/company/payroll yang tidak bisa dibuat dari klaim SSO.
+        $user = ($nip !== null && $nip !== '' ? User::where('nip', $nip)->first() : null)
+            ?? User::where('keycloak_sub', $kc->getId())->first();
 
         if (! $user) {
             // DEBUG SSO - hapus setelah pemetaan user beres.
