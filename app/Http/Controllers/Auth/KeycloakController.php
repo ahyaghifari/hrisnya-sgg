@@ -28,33 +28,26 @@ class KeycloakController extends Controller
         }
 
         $raw = $kc->getRaw();
-        $nipClaim = isset($raw['nip']) ? trim((string) $raw['nip']) : null;
-        // preferred_username tidak konsisten antar user Keycloak: sebagian berisi NIP
-        // (mis. "05062026028"), sebagian berisi email. Claim 'email' sendiri belum di-map
-        // ke userinfo jadi getEmail() sering null - pakai preferred_username buat dua-duanya.
-        $username = isset($raw['preferred_username']) ? trim((string) $raw['preferred_username']) : null;
-        $email = $kc->getEmail()
-            ?: (($username && filter_var($username, FILTER_VALIDATE_EMAIL)) ? $username : null);
+        // NIP karyawan: dari claim 'nip' kalau ada, kalau tidak dari preferred_username
+        // (userinfo scope 'profile' HRIS mengisi salah satunya dengan NIP).
+        $nip = $raw['nip'] ?? $raw['preferred_username'] ?? null;
+        $nip = $nip !== null ? trim((string) $nip) : null;
 
-        // Urutan match: keycloak_sub -> claim 'nip' -> preferred_username sebagai NIP ->
-        // email. Tidak auto-provision: user HRIS membawa data karyawan/company/payroll yang
-        // tidak bisa dibuat dari klaim SSO.
+        // Match: keycloak_sub -> NIP. Tidak auto-provision: user HRIS membawa data
+        // karyawan/company/payroll yang tidak bisa dibuat dari klaim SSO.
         $user = User::where('keycloak_sub', $kc->getId())->first()
-            ?? ($nipClaim !== null && $nipClaim !== '' ? User::where('nip', $nipClaim)->first() : null)
-            ?? ($username !== null && $username !== '' ? User::where('nip', $username)->first() : null)
-            ?? ($email ? User::where('email', $email)->first() : null);
+            ?? ($nip !== null && $nip !== '' ? User::where('nip', $nip)->first() : null);
 
         if (! $user) {
             // DEBUG SSO - hapus setelah pemetaan user beres.
             \Log::warning('SSO Keycloak: user tidak ketemu', [
                 'sub' => $kc->getId(),
-                'nip_claim' => $nipClaim,
-                'preferred_username' => $username,
-                'email' => $email,
-                'nip_tanpa_scope' => $username
+                'nip' => $nip,
+                'raw' => $raw,
+                'nip_tanpa_scope' => $nip
                     ? User::withoutGlobalScopes()->withTrashed()
-                        ->where('nip', $username)->orWhere('email', (string) $email)
-                        ->get(['id', 'nip', 'email', 'is_active', 'deleted_at'])->toArray()
+                        ->where('nip', $nip)
+                        ->get(['id', 'nip', 'is_active', 'deleted_at'])->toArray()
                     : [],
             ]);
 
