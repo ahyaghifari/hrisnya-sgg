@@ -44,6 +44,23 @@
                     <p style="font-size:13.5px;font-weight:700;margin:0;">{{ $payroll->user?->name ?? '-' }}</p>
                     <p style="font-size:11px;color:var(--text-muted);margin:2px 0 0;">NIP {{ $payroll->user?->nip ?? '-' }}</p>
                 </div>
+                @php
+                    $meta = $payroll->import_meta ?? [];
+                    $jobPosition = $payroll->user?->activeJobPosition?->jobPosition;
+                    $jeScore = $jobPosition?->job_evaluation_score;
+                    $kelasLevel = ($meta['kelas'] ?? null) ?: ($payroll->user?->profile?->kelas?->level ?? null);
+                    $kelasLevel = $kelasLevel !== null ? trim(preg_replace('/^\s*kelas\s*/i', '', (string) $kelasLevel)) : null;
+                @endphp
+                <div>
+                    <p style="font-size:10.5px;color:var(--text-faint);margin:0 0 2px;text-transform:uppercase;letter-spacing:0.03em;">Jabatan</p>
+                    <p style="font-size:13.5px;font-weight:700;margin:0;">{{ ($meta['jabatan'] ?? null) ?: ($jobPosition?->name ?? '-') }}</p>
+                    <p style="font-size:11px;color:var(--text-muted);margin:2px 0 0;">
+                        Kelas {{ $kelasLevel !== null && $kelasLevel !== '' ? $kelasLevel : '-' }}
+                        @unless (is_null($jeScore))
+                            &nbsp;&middot;&nbsp; Nilai JE {{ $jeScore }}
+                        @endunless
+                    </p>
+                </div>
                 <div>
                     <p style="font-size:10.5px;color:var(--text-faint);margin:0 0 2px;text-transform:uppercase;letter-spacing:0.03em;">Perusahaan</p>
                     <p style="font-size:13.5px;font-weight:700;margin:0;">{{ $payroll->payrollPeriod->company?->name ?? '-' }}</p>

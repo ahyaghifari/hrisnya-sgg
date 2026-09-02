@@ -1,2 +1,4 @@
 *
 !.gitignore
+!salary-bg/
+!salary-bg/**

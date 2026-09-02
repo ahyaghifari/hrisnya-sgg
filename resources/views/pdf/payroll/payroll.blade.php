@@ -290,11 +290,22 @@
         <table>
             <tr><td>Nama</td><td>: {{ $payroll->user->name }}</td></tr>
             <tr><td>Jabatan</td><td>: {{ ($meta['jabatan'] ?? null) ?: ($payroll->user->activeJobPosition->jobPosition->name ?? '-') }}</td></tr>
+            @php $jeScore = $payroll->user->activeJobPosition?->jobPosition?->job_evaluation_score; @endphp
+            @unless (is_null($jeScore))
+                <tr><td>Nilai Job Evaluation (JE)</td><td>: {{ $jeScore }}</td></tr>
+            @endunless
             <tr><td>NIP</td><td>: {{ $payroll->user->nip ?? '-' }}</td></tr>
             <tr><td>Masa Kerja</td><td>: {{ $masaKerja }}</td></tr>
             <tr><td>Status Karyawan</td><td>: {{ ($meta['status_karyawan'] ?? null) ?: ($payroll->user->profile?->employeeType?->name ?? '-') }}</td></tr>
             @unless (in_array($payroll->user_id, \App\Models\User::PAYROLL_ELIGIBLE_EXECUTIVE_IDS, true))
-                <tr><td>Kelas</td><td>: {{ ($meta['kelas'] ?? null) ? ('Kelas ' . $meta['kelas']) : ($payroll->user->profile?->kelas?->name ?? '-') }}</td></tr>
+                @php
+                    // Ambil level kelas saja (angka). Buang prefiks "Kelas " kalau sumbernya
+                    // terlanjur membawa kata itu (import_meta lama / relasi) - biar tidak jadi
+                    // "Kelas : Kelas 2".
+                    $kelasLevel = ($meta['kelas'] ?? null) ?: ($payroll->user->profile?->kelas?->level ?? null);
+                    $kelasLevel = $kelasLevel !== null ? trim(preg_replace('/^\s*kelas\s*/i', '', (string) $kelasLevel)) : '-';
+                @endphp
+                <tr><td>Kelas</td><td>: {{ $kelasLevel !== '' ? $kelasLevel : '-' }}</td></tr>
             @endunless
         </table>
     </div>

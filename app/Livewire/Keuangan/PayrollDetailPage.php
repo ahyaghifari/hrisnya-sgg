@@ -59,7 +59,12 @@ class PayrollDetailPage extends Component
     {
         abort_unless(Auth::user()->can('view', $payroll), 403);
 
-        $this->payroll = $payroll->load(['user', 'payrollPeriod.company', 'items']);
+        $this->payroll = $payroll->load([
+            'user.activeJobPosition.jobPosition',
+            'user.profile.kelas',
+            'payrollPeriod.company',
+            'items',
+        ]);
     }
 
     /** @return array{earnings: array, deductions: array} */

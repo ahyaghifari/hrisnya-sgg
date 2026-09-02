@@ -157,7 +157,7 @@ class PayrollService
 
         Payroll::where('payroll_period_id', $period->id)
             ->where('is_paid', true)
-            ->with(['user.profile', 'payrollPeriod'])
+            ->with(['user.profile', 'payrollPeriod.company'])
             ->chunkById(100, function ($payrolls) use ($zip, $buildAbs, $root, &$skipped, &$i) {
                 foreach ($payrolls as $payroll) {
                     try {
