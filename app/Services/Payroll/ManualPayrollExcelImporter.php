@@ -93,6 +93,9 @@ class ManualPayrollExcelImporter
      */
     public function preview(string $path, string $companyId): array
     {
+        // Hitung rumus 480+ baris bisa 10-40 dtk (lihat parse()).
+        @set_time_limit(300);
+
         $parsed = $this->parse($path, $this->tunjanganKhususLabel($companyId));
 
         $matched = [];
@@ -284,30 +287,36 @@ class ManualPayrollExcelImporter
     private function parse(string $path, ?string $tunjanganKhususLabel = null): array
     {
         $tunjanganKhususLabel ??= self::TUNJANGAN_KHUSUS_LABEL_DEFAULT;
-        $wanted = $this->neededColumns();
 
         $reader = IOFactory::createReaderForFile($path);
-        $reader->setReadDataOnly(true);
-        $reader->setReadFilter(new class($wanted) implements IReadFilter {
-            public function __construct(private array $cols) {}
+        // setReadDataOnly(false): banyak kolom (Gaji Pokok, Tunjangan Masa Kerja, subtotal, dst)
+        // isinya RUMUS. Kalau file disimpan tanpa cache hasil rumus (LibreOffice / Google Sheets /
+        // export tool), mode data-only mengembalikan teks rumus -> kebaca 0. Mode penuh + cell()
+        // di bawah menghitung rumusnya sendiri. Filter cuma batasi BARIS (kolom dibaca semua
+        // A..BA — rumus subtotal bisa mereferensi kolom mana saja, mis. N butuh M).
+        $reader->setReadDataOnly(false);
+        $maxCol = Coordinate::columnIndexFromString('BA');
+        $reader->setReadFilter(new class($maxCol) implements IReadFilter {
+            public function __construct(private int $maxCol) {}
 
             public function readCell($col, $row, $ws = ''): bool
             {
-                return $row <= ManualPayrollExcelImporter::maxRow() && (in_array($col, $this->cols, true) || $row <= 2);
+                return $row <= ManualPayrollExcelImporter::maxRow()
+                    && Coordinate::columnIndexFromString($col) <= $this->maxCol;
             }
         });
 
         $sheet = $reader->load($path)->getActiveSheet();
 
-        $periodSerial = $sheet->getCell('B2')->getValue();
+        $periodSerial = $this->cell($sheet, 'B2');
         $rows = [];
         $mitra = 0;
         $unit = null;
         $paymentDate = null;
 
         for ($r = self::FIRST_DATA_ROW; $r <= self::MAX_ROW; $r++) {
-            $b = trim((string) $sheet->getCell("B$r")->getValue());
-            $e = trim((string) $sheet->getCell("E$r")->getValue());
+            $b = trim((string) $this->cell($sheet, "B$r"));
+            $e = trim((string) $this->cell($sheet, "E$r"));
 
             if ($b === '' && $e === '') {
                 continue;
@@ -323,7 +332,7 @@ class ManualPayrollExcelImporter
                 continue;
             }
 
-            $status = trim((string) $sheet->getCell("K$r")->getValue());
+            $status = trim((string) $this->cell($sheet, "K$r"));
             if (stripos($status, 'mitra') !== false) {
                 $mitra++;
                 continue;
@@ -346,7 +355,7 @@ class ManualPayrollExcelImporter
             // Jasa Unit (AA/AD/AE) -> 1 baris per jenis yang terisi (source_type sama `jasa_unit`,
             // name = jenisnya). Di slip dikelompokkan di bawah judul "Jasa Unit".
             foreach (self::JASA_UNIT_COLS as $col => $jenis) {
-                $v = $this->num($sheet->getCell($col . $r)->getValue());
+                $v = $this->num($this->cell($sheet, $col . $r));
                 if ($v > 0) {
                     $earnings[] = [
                         'source_type' => 'jasa_unit',
@@ -361,14 +370,14 @@ class ManualPayrollExcelImporter
             // Jumlah kejadian -> quantity + note baris terkait (tampil di slip "Nx/Bulan").
             $telatCount = 0;
             foreach (self::TELAT_COUNT_COLS as $c) {
-                $telatCount += (int) $this->num($sheet->getCell($c . $r)->getValue());
+                $telatCount += (int) $this->num($this->cell($sheet, $c . $r));
             }
-            $izinCutiCount = (int) $this->num($sheet->getCell(self::IZIN_CUTI_COUNT_COL . $r)->getValue());
+            $izinCutiCount = (int) $this->num($this->cell($sheet, self::IZIN_CUTI_COUNT_COL . $r));
             $this->tagCount($deductions, 'keterlambatan', $telatCount, $telatCount > 0 ? "{$telatCount}x/Bulan" : null);
             $this->tagCount($deductions, 'izin_cuti_gabung', $izinCutiCount, $izinCutiCount > 0 ? "{$izinCutiCount}x" : null);
 
             // Potongan khusus (AX) — hanya kalau terisi > 0.
-            $potonganKhusus = $this->num($sheet->getCell(self::POTONGAN_KHUSUS_COL . $r)->getValue());
+            $potonganKhusus = $this->num($this->cell($sheet, self::POTONGAN_KHUSUS_COL . $r));
             if ($potonganKhusus > 0) {
                 $deductions[] = [
                     'source_type' => self::SOURCE_POTONGAN_KHUSUS,
@@ -383,14 +392,14 @@ class ManualPayrollExcelImporter
             // Angka resmi ikut subtotal Excel, TIDAK dijumlah ulang dari komponen (rincian
             // komponen bisa saja tak persis menjumlah ke total Excel — itu urusan slip, bukan
             // total gaji). Fallback ke jumlah komponen kalau sel subtotal Excel kosong.
-            $gross = $this->num($sheet->getCell(self::GROSS_COL . $r)->getValue())
+            $gross = $this->num($this->cell($sheet, self::GROSS_COL . $r))
                 ?: array_sum(array_column($earnings, 'amount'));
-            $deduction = $this->num($sheet->getCell(self::DEDUCTION_COL . $r)->getValue())
+            $deduction = $this->num($this->cell($sheet, self::DEDUCTION_COL . $r))
                 ?: array_sum(array_column($deductions, 'amount'));
-            $net = $this->num($sheet->getCell(self::NET_COL . $r)->getValue())
+            $net = $this->num($this->cell($sheet, self::NET_COL . $r))
                 ?: ($gross - $deduction);
 
-            $paymentDate ??= $this->serialToDate($sheet->getCell("D$r")->getValue());
+            $paymentDate ??= $this->serialToDate($this->cell($sheet, "D$r"));
 
             $rows[] = [
                 'row' => $r,
@@ -398,10 +407,10 @@ class ManualPayrollExcelImporter
                 'nip' => $nip,
                 'nip_excel' => $nipExcel,
                 'nama' => $b,
-                'jabatan' => trim((string) $sheet->getCell("I$r")->getValue()) ?: null,
+                'jabatan' => trim((string) $this->cell($sheet, "I$r")) ?: null,
                 'status_karyawan' => $status ?: null,
-                'kelas' => $this->intOrNull($sheet->getCell("P$r")->getValue()),
-                'tanggal_masuk' => $this->serialToDate($sheet->getCell("L$r")->getValue()),
+                'kelas' => $this->intOrNull($this->cell($sheet, "P$r")),
+                'tanggal_masuk' => $this->serialToDate($this->cell($sheet, "L$r")),
                 'earnings' => $earnings,
                 'deductions' => $deductions,
                 'gross' => $gross,
@@ -426,7 +435,7 @@ class ManualPayrollExcelImporter
         foreach ($map as $colExpr => [$sourceType, $customLabel]) {
             $amount = 0.0;
             foreach (explode('+', $colExpr) as $col) {
-                $amount += $this->num($sheet->getCell($col . $row)->getValue());
+                $amount += $this->num($this->cell($sheet, $col . $row));
             }
             // Komponen tetap (EARNINGS/DEDUCTIONS) SELALU dibuat walau Rp0 -> slip lengkap.
             // (Baris dinamis Jasa Unit per-jenis & potongan khusus AX tetap hanya kalau terisi.)
@@ -487,6 +496,25 @@ class ManualPayrollExcelImporter
         return is_numeric($v) ? (float) $v : 0.0;
     }
 
+    /**
+     * Nilai sel dgn rumus dihitung (bukan teks rumusnya). Fallback berurutan kalau engine
+     * PhpSpreadsheet gagal/ tak dukung fungsinya: cache hasil rumus lama -> teks mentah.
+     */
+    private function cell($sheet, string $coord): mixed
+    {
+        $c = $sheet->getCell($coord);
+
+        if (! $c->isFormula()) {
+            return $c->getValue();
+        }
+
+        try {
+            return $c->getCalculatedValue();
+        } catch (\Throwable) {
+            return $c->getOldCalculatedValue() ?? $c->getValue();
+        }
+    }
+
     private function intOrNull(mixed $v): ?int
     {
         return preg_match('/\d+/', (string) $v, $m) ? (int) $m[0] : null;
@@ -501,18 +529,6 @@ class ManualPayrollExcelImporter
             return date('Y-m-d', $ts);
         }
         return null;
-    }
-
-    /** Semua kolom yang dibaca (buat IReadFilter — hemat memori di 500+ baris). */
-    private function neededColumns(): array
-    {
-        $cols = ['B', 'E', 'I', 'K', 'L', 'P', 'D', self::GROSS_COL, self::DEDUCTION_COL, self::NET_COL, self::IZIN_CUTI_COUNT_COL, self::POTONGAN_KHUSUS_COL, ...self::TELAT_COUNT_COLS, ...array_keys(self::JASA_UNIT_COLS)];
-        foreach ([...array_keys(self::EARNINGS), ...array_keys(self::DEDUCTIONS)] as $expr) {
-            foreach (explode('+', $expr) as $c) {
-                $cols[] = $c;
-            }
-        }
-        return array_values(array_unique($cols));
     }
 
     public static function maxRow(): int

@@ -188,6 +188,28 @@ class ManualPayrollExcelImportTest extends TestCase
         $this->assertSame(2_450_000.0, (float) $payroll->net_salary);
     }
 
+    public function test_reads_formula_cells_not_the_formula_text(): void
+    {
+        $this->employee('01082019100');
+
+        // Kolom N (Tunjangan Masa Kerja) & AF/AR/AS sebagai RUMUS — importer wajib menghitungnya,
+        // bukan membaca "=..." jadi 0. (Kasus nyata: file dari LibreOffice tanpa cache hasil rumus.)
+        $path = $this->fixture([
+            ['A' => 1, 'B' => 'Andi', 'E' => '01082019100', 'I' => 'Perawat', 'K' => 'Karyawan Tetap',
+                'S' => 3_000_000, 'N' => '=250000+50000', 'AG' => 100_000,
+                'AF' => '=3000000+300000', 'AR' => '=100000', 'AS' => '=AF3-AR3'],
+            ['B' => 'JUMLAH'],
+        ]);
+
+        $m = app(ManualPayrollExcelImporter::class)->preview($path, $this->company->id)['matched'][0];
+        @unlink($path);
+
+        $this->assertSame(300_000.0, $m['amounts']['tunjangan_masa_kerja']);
+        $this->assertSame(3_300_000.0, $m['gross']);
+        $this->assertSame(100_000.0, $m['deduction']);
+        $this->assertSame(3_200_000.0, $m['net']);
+    }
+
     public function test_event_counts_and_special_deduction(): void
     {
         $emp = $this->employee('01082019100');
