@@ -281,7 +281,8 @@ class PayrollService
             // Keterlambatan simpan note panjang (breakdown telat/kompensasi/denda) buat halaman
             // detail - di slip PDF disingkat jadi "Nx/Bulan" senada komponen lain (2026-08-12).
             if ($compact && $note && $item->source_type === PayrollComponentEnum::KETERLAMBATAN->value) {
-                $note = "{$item->quantity}x/Bulan";
+                // quantity kolom desimal -> "4.00", buang angka nol di belakang biar "4x/Bulan".
+                $note = ((float) $item->quantity + 0) . 'x/Bulan';
             }
 
             $rows[$key][] = [
