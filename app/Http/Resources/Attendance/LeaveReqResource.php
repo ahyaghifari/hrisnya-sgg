@@ -52,7 +52,7 @@ class LeaveReqResource extends JsonResource
 
                 try {
                     $leaveReqService = app(\App\Services\Attendance\AttendaceReqService::class);
-                    $balance = $leaveReqService->getLeaveUserBalance($this->user->id, $leaveDetail->leave_type_id);
+                    $balance = $leaveReqService->getLeaveUserBalance($this->user->id, $leaveDetail->leave_type_id, $leaveDetail->start_date);
                     return $balance['available'] ?? 0;
                 } catch (\Exception $e) {
                     return null;

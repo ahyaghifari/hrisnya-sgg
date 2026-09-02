@@ -211,7 +211,7 @@ class AttendanceRequestDetail extends Component
 
             return [
                 'kind' => 'leave',
-                'balance' => $service->getLeaveUserBalance($this->record->user_id, $leave->leave_type_id),
+                'balance' => $service->getLeaveUserBalance($this->record->user_id, $leave->leave_type_id, $leave->start_date),
                 'periode' => $service->getCutiTahunanPeriodeUsage($this->record->user, $leave->leave_type_id, $leave->start_date),
             ];
         }

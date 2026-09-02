@@ -38,6 +38,12 @@
             </button>
         @endif
     @endif
+    @if ($this->canViewPembinaanTab)
+        <button type="button" @click="tab = 'pembinaan'" class="section-nav-btn teal" :class="{ 'is-active': tab === 'pembinaan' }">
+            <i class="fa-solid fa-hands-holding-circle"></i>
+            <span>{{ $isSelf ? 'Pembinaan Saya' : 'Pembinaan Karyawan' }}</span>
+        </button>
+    @endif
     @if ($this->canViewAuditHistory)
         <button type="button" @click="tab = 'riwayatdata'" class="section-nav-btn navy" :class="{ 'is-active': tab === 'riwayatdata' }">
             <i class="fa-solid fa-clock-rotate-left"></i>
@@ -787,6 +793,51 @@
                 @endforeach
             </div>
         @endif
+    </div>
+@endif
+
+@if ($this->canViewPembinaanTab)
+    {{-- Pembinaan — CUMA Coaching (pengembangan) di mana karyawan ini yang dibina. Counseling
+    tidak ditampilkan di sini (instruksi user). Cuma tampil buat karyawan itu sendiri atau
+    pemegang SISTEM_PEMBINAAN_KARYAWAN. --}}
+    <div x-show="tab === 'pembinaan'">
+        @php
+            $coachBadge = fn (string $s) => match ($s) {
+                'completed' => 'badge-approved',
+                'rejected' => 'badge-rejected',
+                'in_progress', 'submitted' => 'badge-pending',
+                default => 'badge-cancelled',
+            };
+            $coachings = $this->myCoachings;
+        @endphp
+
+        <div class="pwa-list">
+            @forelse ($coachings as $c)
+                <div class="pwa-list-row" style="align-items:flex-start;">
+                    <div class="pwa-tile-icon teal"><i class="fa-solid fa-seedling"></i></div>
+                    <div style="flex:1;min-width:0;">
+                        <p class="pwa-row-title">{{ $c->title }}</p>
+                        <span style="font-size:11.5px;color:var(--text-muted);">
+                            Coach: {{ $c->coachBy?->name ?? '-' }}
+                            @if ($c->improvement_due_date)
+                                &middot; Deadline {{ \Carbon\Carbon::parse($c->improvement_due_date)->translatedFormat('d M Y') }}
+                            @endif
+                            &middot; {{ $c->created_at->translatedFormat('d M Y') }}
+                        </span>
+                    </div>
+                    <span class="badge {{ $coachBadge($c->status) }}">
+                        {{ \App\Enum\CoachingStatus::tryFrom($c->status)?->getLabel() ?? $c->status }}
+                    </span>
+                </div>
+            @empty
+                <div class="pwa-list-row" style="opacity:0.7;">
+                    <div style="flex:1;min-width:0;">
+                        <p class="pwa-row-title">Belum ada coaching</p>
+                        <span style="font-size:11.5px;color:var(--text-muted);">Riwayat coaching akan muncul di sini.</span>
+                    </div>
+                </div>
+            @endforelse
+        </div>
     </div>
 @endif
 

@@ -52,9 +52,9 @@ class AttendaceReqService
         return $this->attendanceReqRepository->findAttendanceRequestById($id);
     }
 
-    public function getLeaveUserBalance(string $userId, string $typeId): array
+    public function getLeaveUserBalance(string $userId, string $typeId, ?string $referenceDate = null): array
     {
-        return $this->quotaCalculator->leaveBalance($userId, $typeId);
+        return $this->quotaCalculator->leaveBalance($userId, $typeId, $referenceDate);
     }
 
     /**

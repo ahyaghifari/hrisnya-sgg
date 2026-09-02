@@ -707,4 +707,98 @@ class EmployeeAttendanceStatisticsTest extends TestCase
         Livewire::test(EmployeeAttendanceStatistics::class, ['record' => $staff])
             ->assertSee('Riwayat Perubahan');
     }
+
+    // ── Tab Pembinaan (Coaching saja — Counseling tidak ditampilkan) ──
+
+    private function grantPembinaan(User $user): void
+    {
+        Permission::firstOrCreate(['name' => CustomPermissionEnum::SISTEM_PEMBINAAN_KARYAWAN->value, 'guard_name' => 'web']);
+        $user->givePermissionTo(CustomPermissionEnum::SISTEM_PEMBINAAN_KARYAWAN->value);
+    }
+
+    public function test_owner_sees_pembinaan_saya_tab_with_own_coaching(): void
+    {
+        $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
+        $staff = User::factory()->create(['company_id' => $company->id]);
+        $coach = User::factory()->create(['company_id' => $company->id]);
+        UserProfiles::create(['user_id' => $staff->id]);
+
+        \App\Models\Coaching\Coaching::create([
+            'company_id' => $company->id,
+            'user_id' => $staff->id,
+            'coach_by' => $coach->id,
+            'title' => 'Coaching Kedisiplinan',
+            'status' => 'in_progress',
+        ]);
+
+        $this->actingAs($staff);
+
+        Livewire::test(EmployeeAttendanceStatistics::class, ['record' => $staff])
+            ->assertSee('Pembinaan Saya')
+            ->assertSee('Coaching Kedisiplinan');
+    }
+
+    public function test_manager_without_pembinaan_permission_does_not_see_tab_for_subordinate(): void
+    {
+        $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
+
+        $managerPosition = JobPositions::create(['company_id' => $company->id, 'name' => 'Manager', 'planned_manpower' => 1]);
+        $staffPosition = JobPositions::create(['company_id' => $company->id, 'name' => 'Staff', 'planned_manpower' => 1, 'parent_id' => $managerPosition->id]);
+
+        $manager = User::factory()->create(['company_id' => $company->id]);
+        $this->assignJobPosition($manager, $managerPosition);
+        $staff = User::factory()->create(['company_id' => $company->id]);
+        $this->assignJobPosition($staff, $staffPosition);
+        UserProfiles::create(['user_id' => $staff->id]);
+
+        $this->actingAs($manager);
+
+        Livewire::test(EmployeeAttendanceStatistics::class, ['record' => $staff])
+            ->assertDontSee('Pembinaan Karyawan');
+    }
+
+    public function test_pembinaan_permission_holder_sees_tab_with_coaching_and_no_counseling(): void
+    {
+        $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
+
+        // Pemegang SISTEM_PEMBINAAN_KARYAWAN yang juga bisa buka profil (di sini: atasan
+        // langsung). canManage() tidak dilebarkan buat pembinaan-only — itu keputusan terpisah.
+        $managerPosition = JobPositions::create(['company_id' => $company->id, 'name' => 'Manager', 'planned_manpower' => 1]);
+        $staffPosition = JobPositions::create(['company_id' => $company->id, 'name' => 'Staff', 'planned_manpower' => 1, 'parent_id' => $managerPosition->id]);
+
+        $manager = User::factory()->create(['company_id' => $company->id]);
+        $this->assignJobPosition($manager, $managerPosition);
+        $this->grantPembinaan($manager);
+
+        $staff = User::factory()->create(['company_id' => $company->id]);
+        $this->assignJobPosition($staff, $staffPosition);
+        $coach = User::factory()->create(['company_id' => $company->id]);
+        $counselor = User::factory()->create(['company_id' => $company->id]);
+        UserProfiles::create(['user_id' => $staff->id]);
+
+        \App\Models\Coaching\Coaching::create([
+            'company_id' => $company->id,
+            'user_id' => $staff->id,
+            'coach_by' => $coach->id,
+            'title' => 'Coaching Target Kerja',
+            'status' => 'completed',
+        ]);
+
+        // Counseling ADA di DB tapi TAB TIDAK menampilkannya (instruksi user).
+        \App\Models\Counseling\Counseling::create([
+            'user_id' => $staff->id,
+            'counselor_id' => $counselor->id,
+            'issue' => 'RAHASIA keluhan pribadi',
+            'status' => 'pending',
+            'is_secret' => true,
+        ]);
+
+        $this->actingAs($manager);
+
+        Livewire::test(EmployeeAttendanceStatistics::class, ['record' => $staff])
+            ->assertSee('Pembinaan Karyawan')
+            ->assertSee('Coaching Target Kerja')
+            ->assertDontSee('Counseling')
+            ->assertDontSee('RAHASIA keluhan pribadi');
+    }
 }

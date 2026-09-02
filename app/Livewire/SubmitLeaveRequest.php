@@ -119,7 +119,7 @@ class SubmitLeaveRequest extends Component
 
         $service = app(AttendaceReqService::class);
 
-        $this->balance = $service->getLeaveUserBalance(Auth::id(), $this->leave_type_id);
+        $this->balance = $service->getLeaveUserBalance(Auth::id(), $this->leave_type_id, $this->start_date);
         $this->periode = $service->getCutiTahunanPeriodeUsage(Auth::user(), $this->leave_type_id, $this->start_date);
     }
 

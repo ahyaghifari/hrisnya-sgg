@@ -307,6 +307,31 @@ class EmployeeAttendanceStatistics extends Component
         Notification::make()->title('Lampiran dihapus')->success()->send();
     }
 
+    /** Tab "Pembinaan" — cuma karyawan itu sendiri ATAU pemegang permission modul Pembinaan
+     * Karyawan (SISTEM_PEMBINAAN_KARYAWAN). Atasan biasa tanpa permission itu TIDAK lihat tab
+     * ini walau bisa buka Data Diri bawahannya (instruksi user). Isinya CUMA Coaching —
+     * Counseling sengaja tidak ditampilkan di sini (instruksi user). */
+    public function getCanViewPembinaanTabProperty(): bool
+    {
+        return $this->record->id === Auth::id()
+            || Auth::user()->can(CustomPermissionEnum::SISTEM_PEMBINAAN_KARYAWAN->value);
+    }
+
+    /** Riwayat coaching di mana karyawan ini yang dibina (user_id). Di-scope ke record juga di
+     * sini supaya tidak bocor walau blade lupa gerbang. */
+    public function getMyCoachingsProperty()
+    {
+        if (! $this->canViewPembinaanTab) {
+            return collect();
+        }
+
+        return \App\Models\Coaching\Coaching::query()
+            ->where('user_id', $this->record->id)
+            ->with('coachBy')
+            ->latest()
+            ->get();
+    }
+
     /** Pemilik akun selalu boleh; selain itu HC (`sistem_kepegawaian`, dibatasi company sendiri
      * sama seperti EmployeeResource) atau yang bisa lihat lintas company — BUKAN atasan biasa,
      * sekalipun atasan bisa buka Data Diri bawahannya untuk tab lain (lihat canManage()). */

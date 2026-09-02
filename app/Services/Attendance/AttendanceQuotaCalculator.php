@@ -36,9 +36,9 @@ class AttendanceQuotaCalculator
      *
      * @return array{quota:int, used:int, collective_leave_days:int, available:int}
      */
-    public function leaveBalance(string $userId, string $typeId): array
+    public function leaveBalance(string $userId, string $typeId, ?string $referenceDate = null): array
     {
-        return $this->leaveReqRepository->getLeaveUserBalance($userId, $typeId);
+        return $this->leaveReqRepository->getLeaveUserBalance($userId, $typeId, $referenceDate);
     }
 
     /**

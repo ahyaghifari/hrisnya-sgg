@@ -546,7 +546,7 @@ class AttendanceRequestForm
 
         if ($record->type === 'leave' && $record->leaveDetails->isNotEmpty()) {
             $leave = $record->leaveDetails->first();
-            $balance = $service->getLeaveUserBalance($record->user_id, $leave->leave_type_id);
+            $balance = $service->getLeaveUserBalance($record->user_id, $leave->leave_type_id, $leave->start_date);
 
             return [
                 'quota' => "{$balance['quota']} hari",
