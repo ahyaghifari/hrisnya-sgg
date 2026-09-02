@@ -59,10 +59,24 @@ class LoginController extends Controller
 
     public function destroy(Request $request): RedirectResponse
     {
+        // Kalau sesi ini lewat SSO, akhiri juga sesi di Keycloak (single logout) - kalau tidak,
+        // klik "Masuk dengan SSO" berikutnya langsung login lagi tanpa prompt.
+        $wasSso = $request->session()->get('sso');
+
         Auth::guard('web')->logout();
 
         $request->session()->invalidate();
         $request->session()->regenerateToken();
+
+        if ($wasSso && config('services.keycloak.base_url')) {
+            $base = rtrim((string) config('services.keycloak.base_url'), '/');
+            $realm = config('services.keycloak.realms');
+
+            return redirect($base . '/realms/' . $realm . '/protocol/openid-connect/logout?' . http_build_query([
+                'client_id' => config('services.keycloak.client_id'),
+                'post_logout_redirect_uri' => route('login'),
+            ]));
+        }
 
         return redirect()->route('login');
     }

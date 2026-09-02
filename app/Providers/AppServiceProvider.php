@@ -9,6 +9,7 @@ use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Encryption\Encrypter;
 use Illuminate\Encryption\MissingAppKeyException;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
@@ -45,6 +46,13 @@ class AppServiceProvider extends ServiceProvider
         Auth::provider('eloquent_karyawan_aware', fn ($app, array $config) => new KaryawanAwareUserProvider($app['hash'], $config['model']));
 
         RateLimiter::for('payroll-slip-email', fn () => Limit::perMinute(35));
+
+        // Daftarkan provider Socialite 'keycloak' (socialiteproviders/keycloak pakai pola
+        // event-based, bukan config/services saja). Laravel 12 tidak punya EventServiceProvider
+        // default - didaftarkan di sini.
+        Event::listen(function (\SocialiteProviders\Manager\SocialiteWasCalled $event) {
+            $event->extendSocialite('keycloak', \SocialiteProviders\Keycloak\Provider::class);
+        });
     }
 
     /**

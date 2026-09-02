@@ -52,4 +52,23 @@ return [
         'token' => env('REKRUTMEN_API_TOKEN'),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Keycloak SSO (OpenID Connect)
+    |--------------------------------------------------------------------------
+    |
+    | Login SSO opsional, jalan berdampingan dengan login lokal (email/NIP +
+    | password). Dipakai App\Http\Controllers\Auth\KeycloakController lewat
+    | Socialite provider 'keycloak' (socialiteproviders/keycloak). Client scope
+    | 'profile' di Keycloak mengembalikan email, preferred_username, nip.
+    |
+    */
+    'keycloak' => [
+        'client_id' => env('KEYCLOAK_CLIENT_ID'),
+        'client_secret' => env('KEYCLOAK_CLIENT_SECRET'),
+        'redirect' => env('KEYCLOAK_REDIRECT_URI'),
+        'base_url' => env('KEYCLOAK_BASE_URL'),
+        'realms' => env('KEYCLOAK_REALM'),
+    ],
+
 ];
