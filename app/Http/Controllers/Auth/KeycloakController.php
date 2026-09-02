@@ -29,16 +29,20 @@ class KeycloakController extends Controller
 
         $raw = $kc->getRaw();
         $nipClaim = isset($raw['nip']) ? trim((string) $raw['nip']) : null;
+        // preferred_username tidak konsisten antar user Keycloak: sebagian berisi NIP
+        // (mis. "05062026028"), sebagian berisi email. Claim 'email' sendiri belum di-map
+        // ke userinfo jadi getEmail() sering null - pakai preferred_username buat dua-duanya.
         $username = isset($raw['preferred_username']) ? trim((string) $raw['preferred_username']) : null;
+        $email = $kc->getEmail()
+            ?: (($username && filter_var($username, FILTER_VALIDATE_EMAIL)) ? $username : null);
 
-        // Urutan match: keycloak_sub (paling stabil) -> claim 'nip' -> preferred_username
-        // (userinfo scope 'profile' HRIS saat ini cuma kirim sub + preferred_username, isinya
-        // NIP) -> email. Tidak auto-provision: user HRIS membawa data karyawan/company/payroll
-        // yang tidak bisa dibuat dari klaim SSO.
+        // Urutan match: keycloak_sub -> claim 'nip' -> preferred_username sebagai NIP ->
+        // email. Tidak auto-provision: user HRIS membawa data karyawan/company/payroll yang
+        // tidak bisa dibuat dari klaim SSO.
         $user = User::where('keycloak_sub', $kc->getId())->first()
             ?? ($nipClaim !== null && $nipClaim !== '' ? User::where('nip', $nipClaim)->first() : null)
             ?? ($username !== null && $username !== '' ? User::where('nip', $username)->first() : null)
-            ?? ($kc->getEmail() ? User::where('email', $kc->getEmail())->first() : null);
+            ?? ($email ? User::where('email', $email)->first() : null);
 
         if (! $user) {
             // DEBUG SSO - hapus setelah pemetaan user beres.
@@ -46,11 +50,11 @@ class KeycloakController extends Controller
                 'sub' => $kc->getId(),
                 'nip_claim' => $nipClaim,
                 'preferred_username' => $username,
-                'email' => $kc->getEmail(),
-                'ada_tanpa_scope' => $username
+                'email' => $email,
+                'nip_tanpa_scope' => $username
                     ? User::withoutGlobalScopes()->withTrashed()
-                        ->where('nip', $username)
-                        ->get(['id', 'nip', 'is_active', 'deleted_at'])->toArray()
+                        ->where('nip', $username)->orWhere('email', (string) $email)
+                        ->get(['id', 'nip', 'email', 'is_active', 'deleted_at'])->toArray()
                     : [],
             ]);
 
