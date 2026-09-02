@@ -29,7 +29,11 @@ class BuildPayrollSlipZipJob implements ShouldQueue
     public function __construct(
         public string $periodId,
         public ?string $requestedByUserId = null,
-    ) {}
+    ) {
+        // Berat (ratusan PDF dompdf, bisa menit-an) — jangan di queue `default` sampai
+        // menahan notif absensi. Numpang queue slip email, worker terpisah.
+        $this->onQueue(SendPayrollSlipJob::QUEUE);
+    }
 
     public function handle(PayrollService $service): void
     {
