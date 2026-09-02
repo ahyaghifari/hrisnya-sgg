@@ -43,6 +43,22 @@ return [
             'after_commit' => false,
         ],
 
+        /*
+         * Queue slip gaji — TABEL TERPISAH (payroll_slip_jobs) di DB yang sama. Batch kirim slip
+         * (di-rate-limit SMTP) + build ZIP (ratusan PDF) tak lagi menumpuk di tabel `jobs`
+         * bersama notif absensi dll — bisa dipantau/di-truncate sendiri, dan lock write-heavy
+         * di satu tabel tak menahan polling worker satunya. Worker: `queue:work payroll-slip`.
+         * retry_after > timeout job terberat (BuildPayrollSlipZipJob = 1800 dtk).
+         */
+        'payroll-slip' => [
+            'driver' => 'database',
+            'connection' => env('DB_QUEUE_CONNECTION'),
+            'table' => 'payroll_slip_jobs',
+            'queue' => 'payroll-slip',
+            'retry_after' => 1900,
+            'after_commit' => false,
+        ],
+
         'beanstalkd' => [
             'driver' => 'beanstalkd',
             'host' => env('BEANSTALKD_QUEUE_HOST', 'localhost'),

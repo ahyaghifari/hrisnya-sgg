@@ -19,9 +19,11 @@ class SendPayrollSlipJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    /** Queue khusus slip email — dijalankan worker terpisah (`queue:work --queue=payroll-slip`)
-     * supaya batch kirim slip yang besar + di-rate-limit tidak menahan queue `default`
-     * (notif absensi, email lain). Lihat deployment/CHECKLIST.md §Queue. */
+    /** Koneksi + queue khusus slip: TABEL TERPISAH `payroll_slip_jobs` (config/queue.php),
+     * worker sendiri (`queue:work payroll-slip`). Batch kirim slip yang besar + di-rate-limit
+     * + build ZIP tidak menumpuk di tabel `jobs` bersama notif absensi dll. Lihat
+     * deployment/CHECKLIST.md §Queue. */
+    public const CONNECTION = 'payroll-slip';
     public const QUEUE = 'payroll-slip';
 
     public int $tries = 3;
@@ -30,7 +32,7 @@ class SendPayrollSlipJob implements ShouldQueue
     public function __construct(
         public string $payrollId,
     ) {
-        $this->onQueue(self::QUEUE);
+        $this->onConnection(self::CONNECTION)->onQueue(self::QUEUE);
     }
 
     /** Throttle burst rate ke SMTP Gmail (lihat AppServiceProvider::boot()) - job yang kena
