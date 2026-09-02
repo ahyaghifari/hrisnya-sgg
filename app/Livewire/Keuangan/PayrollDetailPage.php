@@ -62,8 +62,22 @@ class PayrollDetailPage extends Component
         $this->payroll = $payroll->load([
             'user.activeJobPosition.jobPosition',
             'user.profile.kelas',
-            'payrollPeriod.company',
             'items',
+        ]);
+        $this->loadPayrollPeriod();
+    }
+
+    /**
+     * PayrollPeriod punya global scope BelongsToCompany — kalau payroll ini periodenya
+     * company LAIN (mis. hasil import manual oleh user LIHAT_PERUSAHAAN_LAIN), relasi
+     * payrollPeriod jadi null & halaman crash. Payroll-nya sendiri sudah digate policy
+     * 'view', jadi aman ambil periodenya tanpa scope company. Dipanggil ulang tiap
+     * habis $this->payroll->refresh() karena refresh() tak ingat closure eager-load.
+     */
+    private function loadPayrollPeriod(): void
+    {
+        $this->payroll->load([
+            'payrollPeriod' => fn ($q) => $q->withoutGlobalScope('company')->with('company'),
         ]);
     }
 
@@ -256,6 +270,7 @@ class PayrollDetailPage extends Component
 
         $this->payroll->update(['is_paid' => true]);
         $this->payroll->refresh();
+        $this->loadPayrollPeriod();
 
         $this->payroll->user?->notify(new PayrollPaid($this->payroll));
 
@@ -297,6 +312,7 @@ class PayrollDetailPage extends Component
 
         $this->payroll->update(['is_paid' => false]);
         $this->payroll->refresh();
+        $this->loadPayrollPeriod();
 
         AuditLog::record(
             'payroll_payment',
@@ -523,6 +539,7 @@ class PayrollDetailPage extends Component
         );
 
         $this->payroll->refresh();
+        $this->loadPayrollPeriod();
         $this->showComponentEditModal = false;
 
         Notification::make()
