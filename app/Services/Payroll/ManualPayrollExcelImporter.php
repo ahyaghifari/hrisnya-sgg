@@ -26,45 +26,59 @@ use PhpOffice\PhpSpreadsheet\Shared\Date as XlsDate;
  */
 class ManualPayrollExcelImporter
 {
-    /** Kolom pendapatan: [kolom Excel (bisa "A+B" utk dijumlah) => [source_type, label]] */
-    private const EARNINGS = [
-        'S'       => ['gaji_pokok', null],
-        'T+W'     => ['tunjangan_jabatan', null],
-        'U'       => ['insentif', null],
-        'V'       => ['tunjangan_khusus', null], // label per perusahaan, lihat TUNJANGAN_KHUSUS_LABEL
-        'N'       => ['tunjangan_masa_kerja', null],
-        'Y'       => ['jasa_pelayanan', null],
-        // AA/AD/AE = jasa_unit, digabung jadi 1 baris "Jasa Unit (rincian, ...)" — lihat JASA_UNIT_COLS
-        'AB'      => ['lembur', null],
-        'AC'      => ['extra_shift', null],
+    /**
+     * Kolom Excel dicari lewat TEKS HEADER (baris 1), bukan huruf kolom tetap — layout tiap RS
+     * beda (mis. Barabai tak punya "Tunj. Dokter/Jabatan Khusus" & "Tunj. Jabatan/Beban Kerja",
+     * jadi semua kolom setelahnya geser −2). `resolveColumns()` bikin peta huruf-kolom saat runtime
+     * dari header, dicek `str_contains` versi lowercase + spasi dirapatkan.
+     *
+     * Konsep 1 kolom: needle string. Nilai `null` di RESOLVE_OPTIONAL = boleh tak ada.
+     */
+    private const HEADER_SIGNATURES = [
+        // pendapatan
+        'gaji_pokok'            => 'gaji pokok',
+        'tunjangan_jabatan'     => 'tunj. jabatan skema baru', // HANYA kolom ini, bukan + "beban kerja"
+        'insentif'              => 'insentif',
+        'tunjangan_khusus'      => 'dokter/jabatan khusus',    // opsional
+        'tunjangan_masa_kerja'  => 'tunjangan masa kerja',
+        'jasa_pelayanan'        => 'jasa pelayanan baru',
+        'jasa_unit_tambahan'    => 'tambahan jasa',
+        'jasa_unit_ambulans'    => 'jasa supir ambulance',
+        'jasa_unit_infus'       => 'jasa paket infus',
+        'lembur'                => 'lembur (dihitung',
+        'extra_shift'           => 'extra shift',
+        'gross'                 => 'jumlah terima skema baru',
+        // potongan (1 kolom)
+        'bpjs_kesehatan'        => 'potongan bpjs 1%',
+        'bpjs_ketenagakerjaan'  => 'potongan bpjstk',
+        'izin_terlambat_pulang_cepat' => 'potongan izin terlambat',
+        'izin_cuti_count'       => 'jmlh (cuti',               // -> quantity baris izin_cuti_gabung
+        'izin_cuti_gabung'      => 'potongan izin dan cuti',
+        'koperasi'              => 'potongan koperasi',
+        'bon'                   => 'potongan bon',
+        'deduction'             => 'total potongan',
+        'net'                   => 'total gaji yang diterima skema baru',
+        'potongan_khusus'       => 'hari efektif kontrak',     // opsional
     ];
 
-    /** Kolom Jasa Unit -> nama jenis jasanya (untuk label "Jasa Unit (jenis1, jenis2)"). */
-    private const JASA_UNIT_COLS = [
-        'AA' => 'Tambahan Jasa',
-        'AD' => 'Ambulans & Rujukan Pasien',
-        'AE' => 'Paket Infus',
+    /**
+     * Konsep multi-kolom: SEMUA kolom yg header-nya cocok dijumlah. "telat biasa" + "telat
+     * istirahat/tidak absen" dua-duanya masuk 1 baris keterlambatan (persis perilaku lama AJ+AL).
+     */
+    private const HEADER_SIGNATURES_MULTI = [
+        'telat_count'  => 'jumlah telat',    // -> quantity baris keterlambatan
+        'keterlambatan' => 'potongan telat', // -> nominal baris keterlambatan
     ];
 
-    /** Kolom potongan. */
-    private const DEDUCTIONS = [
-        'AG'      => ['bpjs_kesehatan', null],
-        'AH'      => ['bpjs_ketenagakerjaan', null],
-        'AJ+AL'   => ['keterlambatan', null],
-        'AM'      => ['izin_terlambat_pulang_cepat', null],
-        'AO'      => ['izin_cuti_gabung', 'Potongan Izin & Cuti'],
-        'AP'      => ['koperasi', null],
-        'AQ'      => ['bon', null],
-    ];
+    /** Konsep yg boleh tak ketemu (layout RS tertentu memang tak punya kolomnya). */
+    private const RESOLVE_OPTIONAL = ['tunjangan_khusus', 'potongan_khusus'];
 
-    // Total diambil LANGSUNG dari subtotal Excel (bukan dijumlah ulang dari komponen) — mapping
-    // komponen cuma buat rincian slip, angka resmi gross/potongan/net ikut Excel apa adanya.
-    private const GROSS_COL = 'AF';             // JUMLAH PENDAPATAN
-    private const DEDUCTION_COL = 'AR';         // JUMLAH POTONGAN
-    private const NET_COL = 'AS';               // TOTAL GAJI YANG DITERIMA
-    private const TELAT_COUNT_COLS = ['AI', 'AK'];   // jumlah kejadian telat -> quantity baris keterlambatan
-    private const IZIN_CUTI_COUNT_COL = 'AN';        // JMLH (CUTI, IZIN, SAKIT) -> quantity baris izin_cuti_gabung
-    private const POTONGAN_KHUSUS_COL = 'AX';        // nominal potongan khusus (kontrak/cuti melahirkan), opsional
+    /** Label 3 jenis Jasa Unit -> tampil di slip "Jasa Unit" + rincian. */
+    private const JASA_UNIT_LABELS = [
+        'jasa_unit_tambahan' => 'Tambahan Jasa',
+        'jasa_unit_ambulans' => 'Ambulans & Rujukan Pasien',
+        'jasa_unit_infus'    => 'Paket Infus',
+    ];
 
     /** source_type kustom (bukan PayrollComponentEnum). */
     public const SOURCE_POTONGAN_KHUSUS = 'potongan_khusus';
@@ -308,6 +322,33 @@ class ManualPayrollExcelImporter
 
         $sheet = $reader->load($path)->getActiveSheet();
 
+        $cols = $this->resolveColumns($sheet);
+
+        // Peta [huruf kolom => [source_type, label]] utk buildLines(). Komponen tetap SELALU
+        // dibuat (walau Rp0) -> slip lengkap; tunjangan_khusus cuma kalau kolomnya ada.
+        $earnMap = [];
+        foreach ([
+            'gaji_pokok' => null, 'tunjangan_jabatan' => null, 'insentif' => null,
+            'tunjangan_masa_kerja' => null, 'jasa_pelayanan' => null, 'lembur' => null,
+            'extra_shift' => null, 'tunjangan_khusus' => $tunjanganKhususLabel,
+        ] as $st => $label) {
+            if (! empty($cols[$st])) {
+                $earnMap[$cols[$st]] = [$st, $label];
+            }
+        }
+        $dedMap = [];
+        foreach (['bpjs_kesehatan', 'bpjs_ketenagakerjaan', 'izin_terlambat_pulang_cepat', 'koperasi', 'bon'] as $st) {
+            if (! empty($cols[$st])) {
+                $dedMap[$cols[$st]] = [$st, null];
+            }
+        }
+        if (! empty($cols['izin_cuti_gabung'])) {
+            $dedMap[$cols['izin_cuti_gabung']] = ['izin_cuti_gabung', 'Potongan Izin & Cuti'];
+        }
+        if (! empty($cols['keterlambatan'])) {
+            $dedMap[implode('+', (array) $cols['keterlambatan'])] = ['keterlambatan', null];
+        }
+
         $periodSerial = $this->cell($sheet, 'B2');
         $rows = [];
         $mitra = 0;
@@ -341,21 +382,16 @@ class ManualPayrollExcelImporter
             $nipExcel = $e;
             $nip = $this->normalizeNip($e);
 
-            $earnings = $this->buildLines($sheet, $r, self::EARNINGS);
-            $deductions = $this->buildLines($sheet, $r, self::DEDUCTIONS);
+            $earnings = $this->buildLines($sheet, $r, $earnMap);
+            $deductions = $this->buildLines($sheet, $r, $dedMap);
 
-            // Label "Tunjangan Khusus" (kolom V) beda per perusahaan.
-            foreach ($earnings as &$e2) {
-                if ($e2['source_type'] === self::SOURCE_TUNJANGAN_KHUSUS) {
-                    $e2['label'] = $tunjanganKhususLabel;
+            // Jasa Unit -> 1 baris per jenis yang terisi (source_type `jasa_unit`, name = jenisnya).
+            // Di slip dikelompokkan di bawah judul "Jasa Unit".
+            foreach (self::JASA_UNIT_LABELS as $concept => $jenis) {
+                if (empty($cols[$concept])) {
+                    continue;
                 }
-            }
-            unset($e2);
-
-            // Jasa Unit (AA/AD/AE) -> 1 baris per jenis yang terisi (source_type sama `jasa_unit`,
-            // name = jenisnya). Di slip dikelompokkan di bawah judul "Jasa Unit".
-            foreach (self::JASA_UNIT_COLS as $col => $jenis) {
-                $v = $this->num($this->cell($sheet, $col . $r));
+                $v = $this->num($this->cell($sheet, $cols[$concept] . $r));
                 if ($v > 0) {
                     $earnings[] = [
                         'source_type' => 'jasa_unit',
@@ -369,15 +405,20 @@ class ManualPayrollExcelImporter
 
             // Jumlah kejadian -> quantity + note baris terkait (tampil di slip "Nx/Bulan").
             $telatCount = 0;
-            foreach (self::TELAT_COUNT_COLS as $c) {
+            foreach ((array) ($cols['telat_count'] ?? []) as $c) {
                 $telatCount += (int) $this->num($this->cell($sheet, $c . $r));
             }
-            $izinCutiCount = (int) $this->num($this->cell($sheet, self::IZIN_CUTI_COUNT_COL . $r));
+            $izinCutiCount = ! empty($cols['izin_cuti_count'])
+                ? (int) $this->num($this->cell($sheet, $cols['izin_cuti_count'] . $r))
+                : 0;
             $this->tagCount($deductions, 'keterlambatan', $telatCount, $telatCount > 0 ? "{$telatCount}x/Bulan" : null);
             $this->tagCount($deductions, 'izin_cuti_gabung', $izinCutiCount, $izinCutiCount > 0 ? "{$izinCutiCount}x" : null);
 
-            // Potongan khusus (AX) — hanya kalau terisi > 0.
-            $potonganKhusus = $this->num($this->cell($sheet, self::POTONGAN_KHUSUS_COL . $r));
+            // Potongan khusus (hari efektif kontrak / cuti melahirkan) — kolomnya opsional,
+            // baris cuma dibuat kalau kolom ADA & terisi > 0.
+            $potonganKhusus = ! empty($cols['potongan_khusus'])
+                ? $this->num($this->cell($sheet, $cols['potongan_khusus'] . $r))
+                : 0.0;
             if ($potonganKhusus > 0) {
                 $deductions[] = [
                     'source_type' => self::SOURCE_POTONGAN_KHUSUS,
@@ -392,11 +433,11 @@ class ManualPayrollExcelImporter
             // Angka resmi ikut subtotal Excel, TIDAK dijumlah ulang dari komponen (rincian
             // komponen bisa saja tak persis menjumlah ke total Excel — itu urusan slip, bukan
             // total gaji). Fallback ke jumlah komponen kalau sel subtotal Excel kosong.
-            $gross = $this->num($this->cell($sheet, self::GROSS_COL . $r))
+            $gross = $this->num($this->cell($sheet, $cols['gross'] . $r))
                 ?: array_sum(array_column($earnings, 'amount'));
-            $deduction = $this->num($this->cell($sheet, self::DEDUCTION_COL . $r))
+            $deduction = $this->num($this->cell($sheet, $cols['deduction'] . $r))
                 ?: array_sum(array_column($deductions, 'amount'));
-            $net = $this->num($this->cell($sheet, self::NET_COL . $r))
+            $net = $this->num($this->cell($sheet, $cols['net'] . $r))
                 ?: ($gross - $deduction);
 
             $paymentDate ??= $this->serialToDate($this->cell($sheet, "D$r"));
@@ -426,6 +467,56 @@ class ManualPayrollExcelImporter
             'period_serial' => $periodSerial,
             'payment_date' => $paymentDate,
         ];
+    }
+
+    /**
+     * Petakan konsep -> huruf kolom dari TEKS HEADER baris 1 (fallback baris 2). Beda layout RS
+     * (Barabai −2 kolom vs Banjarbaru) jadi tak masalah. Konsep wajib yg tak ketemu -> exception
+     * (biar ketahuan dini, bukan diam-diam 0).
+     *
+     * @return array<string, string|list<string>|null>
+     */
+    private function resolveColumns($sheet): array
+    {
+        $headers = [];
+        $maxCol = Coordinate::columnIndexFromString('BA');
+        for ($i = 1; $i <= $maxCol; $i++) {
+            $col = Coordinate::stringFromColumnIndex($i);
+            $h = trim((string) $this->cell($sheet, $col . '1')) ?: trim((string) $this->cell($sheet, $col . '2'));
+            if ($h !== '') {
+                $headers[$col] = mb_strtolower(preg_replace('/\s+/', ' ', $h));
+            }
+        }
+
+        $matches = function (string $needle) use ($headers): array {
+            $out = [];
+            foreach ($headers as $col => $h) {
+                if (str_contains($h, $needle)) {
+                    $out[] = $col;
+                }
+            }
+            return $out;
+        };
+
+        $cols = [];
+
+        foreach (self::HEADER_SIGNATURES as $concept => $needle) {
+            $found = $matches($needle);
+            if (! $found && ! in_array($concept, self::RESOLVE_OPTIONAL, true)) {
+                throw new \RuntimeException("Kolom \"{$concept}\" (header memuat \"{$needle}\") tidak ditemukan — struktur Excel tidak dikenali.");
+            }
+            $cols[$concept] = $found[0] ?? null;
+        }
+
+        foreach (self::HEADER_SIGNATURES_MULTI as $concept => $needle) {
+            $found = $matches($needle);
+            if (! $found) {
+                throw new \RuntimeException("Kolom \"{$concept}\" (header memuat \"{$needle}\") tidak ditemukan — struktur Excel tidak dikenali.");
+            }
+            $cols[$concept] = $found;
+        }
+
+        return $cols;
     }
 
     /** @return list<array{source_type:string,label:string,amount:float}> */

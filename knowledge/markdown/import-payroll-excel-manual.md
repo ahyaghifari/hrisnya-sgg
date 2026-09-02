@@ -80,13 +80,21 @@
 `PayrollComponentEnum` = vocabulary tertutup. `PayrollItem.source_type` = string bebas → kolom
 tanpa padanan enum tetap masuk dengan tag kustom.
 
+> **Kolom dicari dari TEKS HEADER baris 1, bukan huruf tetap** (revisi 2026-09-02).
+> `ManualPayrollExcelImporter::resolveColumns()` memetakan konsep → huruf kolom via
+> `str_contains` (lowercase, spasi rapat) atas `HEADER_SIGNATURES`. Alasan: layout tiap RS
+> beda — **Barabai** tak punya "Tunj. Dokter/Jabatan Khusus" & "Tunj. Jabatan/Beban Kerja",
+> jadi semua kolom sesudah U geser −2. Kolom di tabel di bawah = **layout Banjarbaru** (acuan).
+> Konsep wajib yang headernya tak ketemu → `RuntimeException` (ketahuan dini, bukan diam-diam 0).
+> `tunjangan_khusus` & `potongan_khusus` opsional (boleh tak ada).
+
 ### Pendapatan (`type = earning`)
-| Excel | `PayrollItem.name` | `source_type` | Catatan |
+| Excel (Banjarbaru) | `PayrollItem.name` | `source_type` | Catatan |
 |---|---|---|---|
 | S | Gaji Pokok | `gaji_pokok` | |
-| **T + W** (dijumlah, 1 baris) | Tunjangan Jabatan | `tunjangan_jabatan` | W = "Tunj. Jabatan/Beban Kerja" = tunjangan jabatan juga (konfirmasi user) |
+| **T saja** | Tunjangan Jabatan | `tunjangan_jabatan` | Revisi 2026-09-02: **hanya kolom "Tunj. Jabatan Skema Baru"**. W ("Tunj. Jabatan/Beban Kerja") TIDAK ikut lagi (koreksi user). Barabai tak punya W. |
 | U | Insentif | `insentif` | |
-| **V** | *(label per perusahaan, hardcode)* | `tunjangan_khusus` | **kustom.** `name` diambil dari `ManualPayrollExcelImporter::TUNJANGAN_KHUSUS_LABEL` by `companies.code` (`0001`/`0002` → "Tunjangan Dokter/Jabatan Khusus"), fallback "Tunjangan Khusus". Bukan `FEE_CLAIM` — fee_claim ikut memicu mesin `fee_items` + potong `PAJAK_JASA_DOKTER`; sheet ini tidak punya kolom PPh dokter → V = earning flat tanpa potongan. |
+| **V** (opsional) | *(label per perusahaan, hardcode)* | `tunjangan_khusus` | **kustom & opsional** (Barabai TIDAK punya). `name` dari `ManualPayrollExcelImporter::TUNJANGAN_KHUSUS_LABEL` by `companies.code` (`0001`/`0002` → "Tunjangan Dokter/Jabatan Khusus"), fallback "Tunjangan Khusus". Bukan `FEE_CLAIM`. |
 | N | Tunjangan Masa Kerja | `tunjangan_masa_kerja` | |
 | Y | Jasa Pelayanan | `jasa_pelayanan` | |
 | **AA / AD / AE** | 1 baris per jenis terisi | `jasa_unit` | Revisi 2026-09-01: 1 `payroll_item` per kolom yang terisi (>0), `name` = jenisnya (AA=Tambahan Jasa, AD=Ambulans & Rujukan Pasien, AE=Paket Infus). Di **slip** dikelompokkan: judul "Jasa Unit" lalu rincian menjorok (`– Tambahan Jasa … Rp`). Grouping ada di `pdf/payroll/payroll.blade.php` (berlaku juga buat slip hasil calculator yg `jasa_unit`-nya multi-baris). |
@@ -103,7 +111,7 @@ tanpa padanan enum tetap masuk dengan tag kustom.
 | **AO** | Potongan Izin & Cuti | `izin_cuti_gabung` | **kustom.** HRIS pisah `IZIN_SEHARIAN` + `CUTI`, Excel 1 angka gabung, tak bisa dipecah tanpa detail. |
 | AP | Koperasi | `koperasi` | |
 | AQ | Bon | `bon` | |
-| **AX** (kalau > 0) | Potongan Hari Kerja Efektif & Cuti Melahirkan | `potongan_khusus` | **kustom.** Cuma dibuat kalau AX terisi. **Juga** ditulis ke `payroll_manual_lines` (component `potongan_khusus`) — sumber kebenaran potongan manual per orang, senada Koperasi/Bon. Re-import menghapus baris `potongan_khusus` lama dulu. |
+| **AX** (opsional, kalau > 0) | Potongan Hari Kerja Efektif & Cuti Melahirkan | `potongan_khusus` | **kustom & opsional** (Barabai TIDAK punya). Cuma dibuat kalau kolomnya ADA & terisi. **Juga** ditulis ke `payroll_manual_lines` (component `potongan_khusus`) — sumber kebenaran potongan manual per orang, senada Koperasi/Bon. Re-import menghapus baris `potongan_khusus` lama dulu. |
 
 ### Jumlah kejadian → `quantity` + `note`
 Bukan diabaikan lagi (revisi 2026-09-01): disalin ke `quantity` + `note` baris terkait, tampil di slip "Nx/Bulan".
@@ -350,7 +358,7 @@ Tidak ada kode baru. Setelah import → `PayrollDetailPage` period itu → alur 
 Update slip blade `pdf.payroll.payroll` — fallback ke `import_meta` untuk jabatan/status/kelas/masa kerja.
 
 ### Fase 4 — Test
-`tests/Feature/Payroll/ManualPayrollExcelImportTest.php`: fixture xlsx kecil (section header + Mitra + trailer + 3-4 data); preview skip benar, NIP zero-pad, warning; import buat `Payroll`+`PayrollItem`, gross/net benar, T+W & AJ+AL kejumlah, Rp0 tak dibuat, `edited_manually=true`, `import_meta` terisi; re-import sesuai §7.2.
+`tests/Feature/Payroll/ManualPayrollExcelImportTest.php`: fixture xlsx kecil (section header + Mitra + trailer + 3-4 data); preview skip benar, NIP zero-pad, warning; import buat `Payroll`+`PayrollItem`, gross/net ikut subtotal Excel, `tunjangan_jabatan` = kolom T saja, telat (2 kolom) kejumlah, sel rumus dihitung, **layout Barabai (kolom geser −2) dipetakan dari header**, Rp0 tetap dibuat, `edited_manually=true`, `import_meta` terisi; re-import sesuai §7.2.
 
 ---
 
@@ -367,7 +375,7 @@ Update slip blade `pdf.payroll.payroll` — fallback ke `import_meta` untuk jaba
 
 ## 10. Reusability untuk RS lain
 
-- Kontrak sheet: header kolom S..AS + A/B/E/I/K/L/P/AT/AU/AV **harus sama persis** (posisi & nama). Section-header (E kosong, B unit) & trailer ("JUMLAH") pola sama.
+- Kontrak sheet: **teks header baris 1 harus memuat frasa kunci** yang dicari `resolveColumns()` (lihat `HEADER_SIGNATURES`) — posisi/huruf kolom bebas geser (mis. Barabai). Kolom identitas A/B/E/I/K/L/P dibaca dgn huruf tetap. Section-header (E kosong, B unit) & trailer ("JUMLAH") pola sama. RS baru dgn sebutan header beda → tambah alias di `HEADER_SIGNATURES`.
 - Mapping §3 berlaku umum. Kalau RS lain punya komponen beda (mis. ada `TUNJANGAN_TRANSPORTASI`, atau ada kolom PPh dokter) → extend tabel mapping, jangan hardcode 1 RS.
 - `sync_kelas.php` generic — `--company` + resolusi `m_kelas` per company sudah company-scoped.
 - Snapshot identitas (`import_meta`) json → RS lain bisa punya field ekstra tanpa migration.

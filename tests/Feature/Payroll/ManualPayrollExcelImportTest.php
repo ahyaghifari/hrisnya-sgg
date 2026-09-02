@@ -49,15 +49,44 @@ class ManualPayrollExcelImportTest extends TestCase
         return $u;
     }
 
-    /** @param list<array<string,mixed>> $rows kolom => nilai, mulai baris 3 */
-    private function fixture(array $rows): string
+    /** Header baris 1 layout Banjarbaru — importer memetakan kolom dari teks header ini. */
+    private const HEADERS = [
+        'A' => 'NO', 'B' => 'NAMA', 'C' => 'PERIODE GAJI', 'D' => 'TGL PEMBAYARAN GAJI',
+        'E' => 'NIP', 'F' => 'NIK', 'G' => 'STATUS', 'H' => 'TANGGAL LAHIR', 'I' => 'JABATAN',
+        'J' => 'Golongan Jabatan', 'K' => 'STATUS KARYAWAN', 'L' => 'Tanggal Masuk',
+        'M' => 'Bulan Kerja', 'N' => 'Tunjangan Masa Kerja >24 bulan (Penambahan 50.000/Tahun)',
+        'O' => 'Nilai JE', 'P' => 'Kelas', 'Q' => 'Gaji Dasar', 'R' => '% Kenaikan',
+        'S' => 'Gaji Pokok', 'T' => 'Tunj. Jabatan Skema Baru', 'U' => 'Insentif',
+        'V' => 'Tunj. Dokter/Jabatan Khusus', 'W' => 'Tunj. Jabatan/ Beban Kerja',
+        'X' => 'TOTAL GAJI SKEMA BARU', 'Y' => 'Jasa Pelayanan Baru',
+        'Z' => 'Jumlah Total Gaji+Jasa Pelayanan (SKEMA GAJI BARU)', 'AA' => 'tambahan jasa',
+        'AB' => 'LEMBUR (Dihitung Stlh 2 Jam)', 'AC' => 'EXTRA SHIFT',
+        'AD' => 'Jasa Supir Ambulance & Perwat (Rujukan Pasien)', 'AE' => 'Jasa Paket Infus',
+        'AF' => 'Jumlah Terima Skema Baru', 'AG' => 'POTONGAN BPJS 1%',
+        'AH' => 'POTONGAN BPJSTK (JHT 2 %)', 'AI' => 'JUMLAH TELAT > 5 MENIT/ BULAN',
+        'AJ' => 'POTONGAN TELAT >5 MENIT',
+        'AK' => 'JUMLAH TELAT >5 MENIT ISTIRAHAT ATAU TIDAK ABSEN',
+        'AL' => 'POTONGAN TELAT >5 MENIT ISTIRAHAT ATAU TIDAK ABSEN',
+        'AM' => 'POTONGAN IZIN TERLAMBAT MASUK ATAU PULANG CEPAT',
+        'AN' => 'JMLH (CUTI, IZIN, SAKIT)', 'AO' => 'POTONGAN IZIN dan CUTI /HARI',
+        'AP' => 'POTONGAN KOPERASI', 'AQ' => 'POTONGAN BON', 'AR' => 'TOTAL POTONGAN',
+        'AS' => 'TOTAL GAJI YANG DITERIMA SKEMA BARU', 'AT' => 'NO REKENING BSI',
+        'AU' => 'NAMA REKENING BSI', 'AV' => 'Alamat Email',
+        'AX' => 'Jumlah Hari Efektif Kontrak / Cuti Melahirkan', 'AY' => 'Jumlah Potongan',
+    ];
+
+    /**
+     * @param list<array<string,mixed>> $rows kolom => nilai, mulai baris 3
+     * @param array<string,string>|null $headers override header baris 1 (mis. layout Barabai)
+     */
+    private function fixture(array $rows, ?array $headers = null): string
     {
         $ss = new Spreadsheet();
         $s = $ss->getActiveSheet();
         $s->setTitle('Gaji Skema Baru (JE)');
-        $s->setCellValue('A1', 'NO');
-        $s->setCellValue('B1', 'NAMA');
-        $s->setCellValue('E1', 'NIP');
+        foreach ($headers ?? self::HEADERS as $col => $label) {
+            $s->setCellValue($col . '1', $label);
+        }
         $s->setCellValue('B2', 46265); // serial periode
 
         $r = 3;
@@ -104,7 +133,7 @@ class ManualPayrollExcelImportTest extends TestCase
 
         $m = $out['matched'][0];
         $this->assertSame('01082019100', $m['nip']);        // zero-padded match
-        $this->assertSame(3_700_000.0, $m['gross']);        // 3jt + (500rb+200rb T+W)
+        $this->assertSame(3_500_000.0, $m['gross']);        // 3jt + 500rb T (W/beban kerja DIABAIKAN)
         $this->assertSame(45_000.0, $m['deduction']);       // 30rb + (10rb+5rb AJ+AL)
         $this->assertSame(3_655_000.0, $m['net']);
         $this->assertSame(3_655_000.0, $m['net_excel']);
@@ -112,7 +141,7 @@ class ManualPayrollExcelImportTest extends TestCase
 
         // rincian per-komponen buat tabel pratinjau lebar
         $this->assertSame(3_000_000.0, $m['amounts']['gaji_pokok']);
-        $this->assertSame(700_000.0, $m['amounts']['tunjangan_jabatan']);  // T+W
+        $this->assertSame(500_000.0, $m['amounts']['tunjangan_jabatan']);  // kolom T saja
         $this->assertSame(15_000.0, $m['amounts']['keterlambatan']);       // AJ+AL
         $this->assertSame(30_000.0, $m['amounts']['bpjs_kesehatan']);
     }
@@ -135,7 +164,7 @@ class ManualPayrollExcelImportTest extends TestCase
         $this->assertSame(1, $res['dibuat']);
 
         $payroll = Payroll::where('user_id', $emp->id)->firstOrFail();
-        $this->assertSame(3_700_000.0, (float) $payroll->gross_salary);
+        $this->assertSame(3_500_000.0, (float) $payroll->gross_salary); // S + T (W diabaikan)
         $this->assertSame(30_000.0, (float) $payroll->total_deductions);
         $this->assertSame(3_670_000.0, (float) $payroll->net_salary);
         $this->assertFalse((bool) $payroll->is_paid);
@@ -144,7 +173,8 @@ class ManualPayrollExcelImportTest extends TestCase
         $this->assertSame('2019-08-01', $payroll->import_meta['tanggal_masuk']);
 
         // Semua komponen tetap EARNINGS/DEDUCTIONS dibuat walau Rp0 (U, AP) -> slip lengkap.
-        // T+W jadi 1 baris tunjangan_jabatan. Jasa Unit & potongan khusus TIDAK (dinamis).
+        // tunjangan_jabatan = kolom T saja (W "beban kerja" diabaikan). Jasa Unit & potongan
+        // khusus TIDAK (dinamis).
         $names = PayrollItem::where('payroll_id', $payroll->id)->pluck('source_type')->sort()->values()->all();
         $this->assertSame([
             'bon', 'bpjs_kesehatan', 'bpjs_ketenagakerjaan', 'extra_shift', 'gaji_pokok',
@@ -152,7 +182,7 @@ class ManualPayrollExcelImportTest extends TestCase
             'keterlambatan', 'koperasi', 'lembur', 'tunjangan_jabatan', 'tunjangan_khusus',
             'tunjangan_masa_kerja',
         ], $names);
-        $this->assertSame(700_000.0, (float) PayrollItem::where('payroll_id', $payroll->id)->where('source_type', 'tunjangan_jabatan')->value('amount'));
+        $this->assertSame(500_000.0, (float) PayrollItem::where('payroll_id', $payroll->id)->where('source_type', 'tunjangan_jabatan')->value('amount'));
         $this->assertSame(0.0, (float) PayrollItem::where('payroll_id', $payroll->id)->where('source_type', 'insentif')->value('amount'));
         $this->assertTrue((bool) PayrollItem::where('payroll_id', $payroll->id)->first()->edited_manually);
 
@@ -208,6 +238,73 @@ class ManualPayrollExcelImportTest extends TestCase
         $this->assertSame(3_300_000.0, $m['gross']);
         $this->assertSame(100_000.0, $m['deduction']);
         $this->assertSame(3_200_000.0, $m['net']);
+    }
+
+    /** Header baris 1 layout Barabai: TANPA "Tunj. Dokter/Jabatan Khusus" (V) & "Tunj.
+     *  Jabatan/Beban Kerja" (W), jadi semua kolom sesudahnya geser −2. Importer harus tetap
+     *  petakan kolom yang benar dari teks header. */
+    private const HEADERS_BARABAI = [
+        'A' => 'NO', 'B' => 'NAMA', 'C' => 'PERIODE GAJI', 'D' => 'TGL PEMBAYARAN GAJI',
+        'E' => 'NIP', 'F' => 'NIK', 'G' => 'STATUS', 'H' => 'TANGGAL LAHIR', 'I' => 'JABATAN',
+        'J' => 'Golongan Jabatan', 'K' => 'STATUS KARYAWAN', 'L' => 'Tanggal Masuk',
+        'M' => 'Bulan Kerja', 'N' => 'Tunjangan Masa Kerja >24 bulan (Penambahan 50.000/Tahun)',
+        'O' => 'Nilai JE', 'P' => 'Kelas', 'Q' => 'Gaji Dasar', 'R' => '% Kenaikan',
+        'S' => 'Gaji Pokok', 'T' => 'Tunj. Jabatan Skema Baru', 'U' => 'Insentif',
+        'V' => 'TOTAL GAJI SKEMA BARU', 'W' => 'Jasa Pelayanan Baru',
+        'X' => 'Jumlah Total Gaji+Jasa Pelayanan (SKEMA GAJI BARU)', 'Y' => 'tambahan jasa',
+        'Z' => 'LEMBUR (Dihitung Stlh 2 Jam)', 'AA' => 'EXTRA SHIFT',
+        'AB' => 'Jasa Supir Ambulance & Perwat (Rujukan Pasien)', 'AC' => 'Jasa Paket Infus',
+        'AD' => 'Jumlah Terima Skema Baru', 'AE' => 'POTONGAN BPJS 1%',
+        'AF' => 'POTONGAN BPJSTK (JHT 2 %)', 'AG' => 'JUMLAH TELAT > 5 MENIT/ BULAN',
+        'AH' => 'POTONGAN TELAT >5 MENIT',
+        'AI' => 'JUMLAH TELAT >5 MENIT ISTIRAHAT ATAU TIDAK ABSEN',
+        'AJ' => 'POTONGAN TELAT >5 MENIT ISTIRAHAT ATAU TIDAK ABSEN',
+        'AK' => 'POTONGAN IZIN TERLAMBAT MASUK ATAU PULANG CEPAT',
+        'AL' => 'JMLH (CUTI, IZIN, SAKIT)', 'AM' => 'POTONGAN IZIN dan CUTI /HARI',
+        'AN' => 'POTONGAN KOPERASI', 'AO' => 'POTONGAN BON', 'AP' => 'TOTAL POTONGAN',
+        'AQ' => 'TOTAL GAJI YANG DITERIMA SKEMA BARU', 'AR' => 'NO REKENING BSI',
+        'AS' => 'NAMA REKENING BSI', 'AT' => 'Alamat Email',
+    ];
+
+    public function test_barabai_shifted_layout_maps_by_header(): void
+    {
+        $emp = $this->employee('01082019100');
+        $actor = User::factory()->create(['company_id' => $this->company->id]);
+
+        // Kolom pakai huruf layout Barabai: T=tunj jabatan, W=jasa pelayanan, Z=lembur,
+        // AD=bruto, AE=bpjs kes, AG/AI=count telat, AH/AJ=potongan telat, AP=total potongan,
+        // AQ=net. TIDAK ada V (tunj khusus) & AX (potongan khusus).
+        $path = $this->fixture([
+            ['A' => 1, 'B' => 'Andi', 'E' => '01082019100', 'I' => 'Perawat', 'K' => 'Karyawan Tetap',
+                'S' => 2_000_000, 'T' => 600_000, 'N' => 300_000, 'W' => 400_000, 'Z' => 150_000,
+                'AE' => 100_000, 'AG' => 2, 'AH' => 25_000, 'AI' => 1, 'AJ' => 10_000,
+                'AD' => 3_450_000, 'AP' => 135_000, 'AQ' => 3_315_000],
+            ['B' => 'JUMLAH'],
+        ], self::HEADERS_BARABAI);
+
+        $m = app(ManualPayrollExcelImporter::class)->preview($path, $this->company->id)['matched'][0];
+
+        $this->assertSame(3_450_000.0, $m['gross']);      // kolom AD
+        $this->assertSame(135_000.0, $m['deduction']);    // kolom AP
+        $this->assertSame(3_315_000.0, $m['net']);        // kolom AQ
+        $this->assertSame(600_000.0, $m['amounts']['tunjangan_jabatan']);   // T
+        $this->assertSame(400_000.0, $m['amounts']['jasa_pelayanan']);      // W (bukan Y)
+        $this->assertSame(300_000.0, $m['amounts']['tunjangan_masa_kerja']); // N
+        $this->assertSame(150_000.0, $m['amounts']['lembur']);              // Z
+        $this->assertSame(100_000.0, $m['amounts']['bpjs_kesehatan']);      // AE
+        $this->assertSame(35_000.0, $m['amounts']['keterlambatan']);        // AH+AJ
+
+        app(ManualPayrollExcelImporter::class)->import($path, $this->period, $actor);
+        @unlink($path);
+
+        $payroll = Payroll::where('user_id', $emp->id)->firstOrFail();
+        $this->assertSame(3_450_000.0, (float) $payroll->gross_salary);
+        $this->assertSame(3_315_000.0, (float) $payroll->net_salary);
+        // Telat "3x/Bulan" (2 + 1).
+        $telat = PayrollItem::where('payroll_id', $payroll->id)->where('source_type', 'keterlambatan')->first();
+        $this->assertSame('3x/Bulan', $telat->note);
+        // Tak ada tunjangan_khusus (kolomnya memang tak ada di layout Barabai).
+        $this->assertFalse(PayrollItem::where('payroll_id', $payroll->id)->where('source_type', 'tunjangan_khusus')->exists());
     }
 
     public function test_event_counts_and_special_deduction(): void
