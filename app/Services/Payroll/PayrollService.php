@@ -30,8 +30,26 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  */
 class PayrollService
 {
+    /**
+     * PayrollPeriod punya global scope BelongsToCompany. Di request web milik user
+     * LIHAT_PERUSAHAAN_LAIN yang buka slip payroll company lain (mis. hasil import
+     * manual), lazy-load $payroll->payrollPeriod jadi null & blade slip crash
+     * (baca ->end_date). Di queue job scope-nya sudah di-skip (console), jadi ini
+     * cuma perlu di jalur web: download()/preview()/encryptedSlip().
+     */
+    private function ensurePeriodLoaded(Payroll $payroll): void
+    {
+        if (! $payroll->relationLoaded('payrollPeriod') || $payroll->payrollPeriod === null) {
+            $payroll->load([
+                'payrollPeriod' => fn ($q) => $q->withoutGlobalScope('company')->with('company'),
+            ]);
+        }
+    }
+
     public function download(Payroll $payroll): StreamedResponse
     {
+        $this->ensurePeriodLoaded($payroll);
+
         $pdf = Pdf::loadView('pdf.payroll.payroll', [
             'payroll' => $payroll,
             'rows' => $this->componentRows($payroll, compact: true),
@@ -83,6 +101,8 @@ class PayrollService
      */
     public function encryptedSlip(Payroll $payroll): array
     {
+        $this->ensurePeriodLoaded($payroll);
+
         $password = $this->slipPassword($payroll->user);
 
         if (! $password) {
@@ -110,6 +130,8 @@ class PayrollService
      */
     public function preview(Payroll $payroll)
     {
+        $this->ensurePeriodLoaded($payroll);
+
         $pdf = Pdf::loadView('pdf.payroll.payroll', [
             'payroll' => $payroll,
             'rows' => $this->componentRows($payroll, compact: true),
