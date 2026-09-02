@@ -39,6 +39,18 @@ class KeycloakController extends Controller
             ?? User::where('keycloak_sub', $kc->getId())->first();
 
         if (! $user) {
+            // DEBUG SSO - hapus kalau pemetaan sudah stabil.
+            \Log::warning('SSO Keycloak: user tidak ketemu', [
+                'sub' => $kc->getId(),
+                'nip' => $nip,
+                'raw' => $raw,
+                'nip_tanpa_scope' => $nip
+                    ? User::withoutGlobalScopes()->withTrashed()
+                        ->where('nip', $nip)
+                        ->get(['id', 'nip', 'is_active', 'deleted_at'])->toArray()
+                    : [],
+            ]);
+
             return redirect()->route('login')->withErrors([
                 'email' => 'Akun SSO belum terdaftar di HRIS. Hubungi HC/Admin.',
             ]);
