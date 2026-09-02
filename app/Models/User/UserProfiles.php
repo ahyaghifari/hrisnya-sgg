@@ -88,36 +88,52 @@ class UserProfiles extends Model
         return $this->belongsTo(\App\Models\Master\JobPositions::class, 'job_position_id');
     }
 
+    /** Struktur organisasi efektif karyawan: jabatan yang menentukan departemen/divisi
+     * (jabatan.org_structure_id), org_structure_id di profile cuma fallback buat karyawan
+     * tanpa jabatan atau jabatan yang belum punya struktur (segelintir jabatan direksi).
+     * Form Tambah/Edit Karyawan meng-sync profile.org_structure_id dari jabatan, tapi data
+     * lama bisa nyimpang - makanya jabatan yang diutamakan di sini. */
+    public function getEffectiveOrgStructureAttribute(): ?OrgStructure
+    {
+        return $this->jobPosition?->orgStructure ?? $this->orgStructure;
+    }
+
     public function getDepartmentAttribute()
     {
-        if (!$this->orgStructure) {
+        $org = $this->effective_org_structure;
+
+        if (!$org) {
             return null;
         }
 
-        return $this->orgStructure->level === 1
-            ? $this->orgStructure
-            : ($this->orgStructure->parent?->parent ?? $this->orgStructure->parent);
+        return $org->level === 1
+            ? $org
+            : ($org->parent?->parent ?? $org->parent);
     }
 
     public function getDivisionAttribute()
     {
-        if (!$this->orgStructure) {
+        $org = $this->effective_org_structure;
+
+        if (!$org) {
             return null;
         }
 
-        return $this->orgStructure->level === 2
-            ? $this->orgStructure
-            : $this->orgStructure->parent;
+        return $org->level === 2
+            ? $org
+            : $org->parent;
     }
 
     public function getSubDivisionAttribute()
     {
-        if (!$this->orgStructure) {
+        $org = $this->effective_org_structure;
+
+        if (!$org) {
             return null;
         }
 
-        return $this->orgStructure->level === 3
-            ? $this->orgStructure
+        return $org->level === 3
+            ? $org
             : null;
     }
 

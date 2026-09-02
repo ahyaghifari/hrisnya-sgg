@@ -73,7 +73,10 @@ class EditKaryawan extends Component
             $this->employee_type_id = $profile->employee_type_id;
             $this->joining_date = $profile->joining_date;
 
+            // profile.org_structure_id sbagai fallback, lalu struktur jabatan diutamakan kalau
+            // jabatan punya (sinkron dengan getEffectiveOrgStructureAttribute & form Create).
             $this->resolveOrgStructure($profile->org_structure_id);
+            $this->updatedJobPositionId();
         }
     }
 

@@ -168,7 +168,7 @@ class PayrollsPage extends Component
 
         $payrolls = Payroll::where('payroll_period_id', $this->periodId)
             ->with([
-                'user.profile.jobPosition',
+                'user.profile.jobPosition.orgStructure.parent.parent',
                 'user.profile.pangkat.pangkatSalary',
                 'user.profile.pangkat.startKelas',
                 'user.profile.pangkat.maxKelas',

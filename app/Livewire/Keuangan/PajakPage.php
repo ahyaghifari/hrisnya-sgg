@@ -69,7 +69,7 @@ class PajakPage extends Component
                 'user.profile.pangkat.pangkatSalary',
                 'user.profile.kelas',
                 'user.profile.employeeType',
-                'user.profile.jobPosition',
+                'user.profile.jobPosition.orgStructure.parent.parent',
                 'user.profile.orgStructure.parent.parent',
                 'payrollPeriod',
                 'items',

@@ -238,7 +238,7 @@
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;">
             <div>
                 <label class="form-label">Departemen</label>
-                <select wire:model.live="department_id" class="form-input" @disabled(! $company_id)>
+                <select wire:model.live="department_id" class="form-input" @disabled(! $company_id || $this->orgLockedByJobPosition)>
                     <option value="">Pilih...</option>
                     @foreach ($this->departmentOptions as $id => $deptName)
                         <option value="{{ $id }}">{{ $deptName }}</option>
@@ -246,11 +246,13 @@
                 </select>
                 @unless ($company_id)
                     <p style="font-size:11.5px;color:var(--text-muted);margin-top:5px;">Pilih perusahaan di step 1 dulu.</p>
+                @elseif ($this->orgLockedByJobPosition)
+                    <p style="font-size:11.5px;color:var(--text-muted);margin-top:5px;">Mengikuti struktur organisasi jabatan yang dipilih.</p>
                 @endunless
             </div>
             <div>
                 <label class="form-label">Divisi</label>
-                <select wire:model.live="division_id" class="form-input" @disabled(! $department_id)>
+                <select wire:model.live="division_id" class="form-input" @disabled(! $department_id || $this->orgLockedByJobPosition)>
                     <option value="">Pilih...</option>
                     @foreach ($this->divisionOptions as $id => $divisionName)
                         <option value="{{ $id }}">{{ $divisionName }}</option>
@@ -259,7 +261,7 @@
             </div>
             <div>
                 <label class="form-label">Sub Divisi</label>
-                <select wire:model="sub_division_id" class="form-input" @disabled(! $division_id)>
+                <select wire:model="sub_division_id" class="form-input" @disabled(! $division_id || $this->orgLockedByJobPosition)>
                     <option value="">Pilih...</option>
                     @foreach ($this->subDivisionOptions as $id => $subDivisionName)
                         <option value="{{ $id }}">{{ $subDivisionName }}</option>
@@ -273,7 +275,7 @@
                      Livewire buang & render ulang blok ini dengan opsi terbaru, lalu
                      initTomSelects() (hook "morphed") re-init widget-nya. --}}
                 <div wire:ignore wire:key="jabatan-select-{{ $company_id ?? 'none' }}">
-                    <select wire:model="job_position_id" class="form-input" data-tom-select data-placeholder="Cari Jabatan...">
+                    <select wire:model.live="job_position_id" class="form-input" data-tom-select data-placeholder="Cari Jabatan...">
                         <option value="">Pilih...</option>
                         @foreach ($this->jobPositionOptions as $id => $jobPositionName)
                             <option value="{{ $id }}">{{ $jobPositionName }}</option>

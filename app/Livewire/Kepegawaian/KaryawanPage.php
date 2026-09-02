@@ -119,16 +119,21 @@ class KaryawanPage extends Component
             // bawahnya (level 2, parent_id = department), atau sub divisi (level 3,
             // parent.parent_id = department) — cocokkan ketiganya.
             $deptId = $this->departmentId;
-            $query->whereHas('profile.orgStructure', function ($oq) use ($deptId) {
+            $matchDept = function ($oq) use ($deptId) {
                 $oq->where('id', $deptId)
                     ->orWhere('parent_id', $deptId)
                     ->orWhereHas('parent', fn ($pq) => $pq->where('parent_id', $deptId));
-            });
+            };
+            // Cocokkan lewat struktur efektif: jabatan.orgStructure ATAU profile.orgStructure
+            // (sama seperti getDepartmentAttribute yang mengutamakan jabatan).
+            $query->where(fn ($q) => $q
+                ->whereHas('profile.jobPosition.orgStructure', $matchDept)
+                ->orWhereHas('profile.orgStructure', $matchDept));
         }
 
-        // 'department' itu accessor (getDepartmentAttribute), bukan relation — eager-load
-        // orgStructure.parent.parent (sama pola MyEmployees) supaya accessor-nya tidak N+1.
-        $query->with(['profile.jobPosition', 'profile.orgStructure.parent.parent', 'company', 'roles']);
+        // 'department' itu accessor (getDepartmentAttribute) yang baca struktur efektif =
+        // jabatan.orgStructure ?? profile.orgStructure — eager-load dua-duanya biar tidak N+1.
+        $query->with(['profile.jobPosition.orgStructure.parent.parent', 'profile.orgStructure.parent.parent', 'company', 'roles']);
 
         $search = trim($this->search);
 
@@ -223,7 +228,7 @@ class KaryawanPage extends Component
         abort_unless(Auth::user()->can(\App\Enum\CustomPermissionEnum::EXPORT_DATA_KARYAWAN->value), 403);
 
         $employees = $this->baseQuery()
-            ->with(['profile.religion', 'profile.pangkat', 'profile.kelas', 'profile.employeeType', 'profile.orgStructure.parent.parent'])
+            ->with(['profile.religion', 'profile.pangkat', 'profile.kelas', 'profile.employeeType', 'profile.jobPosition.orgStructure.parent.parent', 'profile.orgStructure.parent.parent'])
             ->get();
 
         return Excel::download(
