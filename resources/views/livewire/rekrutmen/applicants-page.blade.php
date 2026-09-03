@@ -61,10 +61,34 @@
 
     {{-- DESKTOP --}}
     <div class="hidden md:block">
+        @if ($this->canDecide && count($selected) > 0)
+            <div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:10px 14px;margin-bottom:12px;">
+                <span style="font-size:12px;font-weight:600;">{{ count($selected) }} dipilih</span>
+                @foreach (\App\Livewire\Rekrutmen\ApplicantsPage::BULK_TARGETS as $target => $label)
+                    <button type="button"
+                        wire:click="bulkTransition('{{ $target }}')"
+                        wire:confirm="Ubah status {{ count($selected) }} pelamar ke &quot;{{ $label }}&quot;?"
+                        wire:loading.attr="disabled"
+                        class="btn-ghost"
+                        style="padding:6px 14px;font-size:11.5px;font-weight:600;{{ $target === 'rejected' ? 'color:var(--danger-text,#dc2626);' : '' }}">
+                        {{ $label }}
+                    </button>
+                @endforeach
+                <button type="button" wire:click="$set('selected', [])" class="btn-ghost" style="padding:6px 10px;font-size:11px;color:var(--text-muted);">Batal</button>
+                <span wire:loading wire:target="bulkTransition" style="font-size:11px;color:var(--text-muted);">Memproses…</span>
+            </div>
+        @endif
+
         <div style="background:var(--surface);border-radius:12px;box-shadow:var(--shadow-card);overflow-x:auto;">
             <table style="width:100%;border-collapse:collapse;font-size:12.5px;">
                 <thead>
                     <tr style="border-bottom:1.5px solid var(--border);">
+                        @if ($this->canDecide)
+                            <th style="width:38px;padding:10px 0 10px 14px;">
+                                <input type="checkbox" wire:click="toggleSelectAll"
+                                    @checked(count($applicants) > 0 && count(array_intersect($selected, $this->visibleIds)) === count($this->visibleIds))>
+                            </th>
+                        @endif
                         <th style="text-align:left;padding:10px 14px;white-space:nowrap;">Pelamar</th>
                         <th style="text-align:left;padding:10px 14px;white-space:nowrap;">Email</th>
                         <th style="text-align:center;padding:10px 14px;white-space:nowrap;">Status</th>
@@ -75,6 +99,11 @@
                 <tbody>
                     @foreach ($applicants as $a)
                         <tr wire:key="{{ $a['job_application_id'] }}" style="border-bottom:1px solid var(--border-soft);">
+                            @if ($this->canDecide)
+                                <td style="padding:9px 0 9px 14px;">
+                                    <input type="checkbox" wire:model.live="selected" value="{{ $a['job_application_id'] }}">
+                                </td>
+                            @endif
                             <td style="padding:9px 14px;white-space:nowrap;font-weight:600;">{{ $a['applicant_name'] ?? '—' }}</td>
                             <td style="padding:9px 14px;white-space:nowrap;">{{ $a['applicant_email'] ?? '—' }}</td>
                             <td style="padding:9px 14px;text-align:center;white-space:nowrap;">

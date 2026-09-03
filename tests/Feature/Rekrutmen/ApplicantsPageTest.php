@@ -178,6 +178,78 @@ class ApplicantsPageTest extends TestCase
             ->assertSee('Dewi');
     }
 
+    public function test_bulk_transition_hidden_without_update_permission(): void
+    {
+        $this->actingAsRecruiter(canDecide: false);
+        $opening = $this->opening();
+
+        Http::fake(["*/job-openings/{$opening->id}/applications*" => Http::response(['data' => [
+            ['job_application_id' => 'A1', 'status' => 'applied', 'applicant_name' => 'Budi', 'applicant_email' => null, 'updated_at' => null],
+        ]])]);
+
+        Livewire::test(ApplicantsPage::class, ['opening' => $opening->id])
+            ->assertOk()
+            ->assertDontSee('Pindahkan ke Seleksi Berkas');
+    }
+
+    public function test_bulk_transition_sends_status_per_selected_applicant(): void
+    {
+        $this->actingAsRecruiter(canDecide: true);
+        $opening = $this->opening();
+
+        Http::fake([
+            "*/job-openings/{$opening->id}/applications*" => Http::response(['data' => [
+                ['job_application_id' => 'A1', 'status' => 'applied', 'applicant_name' => 'Budi', 'applicant_email' => null, 'updated_at' => null],
+                ['job_application_id' => 'A2', 'status' => 'applied', 'applicant_name' => 'Sari', 'applicant_email' => null, 'updated_at' => null],
+                ['job_application_id' => 'A3', 'status' => 'applied', 'applicant_name' => 'Dewi', 'applicant_email' => null, 'updated_at' => null],
+            ]]),
+            '*/applications/*/status' => Http::response(['message' => 'ok', 'candidate_created' => false]),
+        ]);
+
+        Livewire::test(ApplicantsPage::class, ['opening' => $opening->id])
+            ->set('selected', ['A1', 'A2'])
+            ->call('bulkTransition', 'screening');
+
+        Http::assertSent(fn ($req) => $req->method() === 'PATCH'
+            && str_contains($req->url(), '/applications/A1/status') && $req['status'] === 'screening');
+        Http::assertSent(fn ($req) => str_contains($req->url(), '/applications/A2/status'));
+        Http::assertNotSent(fn ($req) => str_contains($req->url(), '/applications/A3/status'));
+    }
+
+    public function test_bulk_transition_rejects_unknown_target(): void
+    {
+        $this->actingAsRecruiter(canDecide: true);
+        $opening = $this->opening();
+        Http::fake(["*/job-openings/{$opening->id}/applications*" => Http::response(['data' => [
+            ['job_application_id' => 'A1', 'status' => 'applied', 'applicant_name' => 'Budi', 'applicant_email' => null, 'updated_at' => null],
+        ]])]);
+
+        Livewire::test(ApplicantsPage::class, ['opening' => $opening->id])
+            ->set('selected', ['A1'])
+            ->call('bulkTransition', 'passed')
+            ->assertStatus(422);
+    }
+
+    public function test_bulk_transition_partial_failure_still_reports(): void
+    {
+        $this->actingAsRecruiter(canDecide: true);
+        $opening = $this->opening();
+
+        Http::fake([
+            "*/job-openings/{$opening->id}/applications*" => Http::response(['data' => [
+                ['job_application_id' => 'A1', 'status' => 'applied', 'applicant_name' => 'Budi', 'applicant_email' => null, 'updated_at' => null],
+                ['job_application_id' => 'A2', 'status' => 'applied', 'applicant_name' => 'Sari', 'applicant_email' => null, 'updated_at' => null],
+            ]]),
+            '*/applications/A1/status' => Http::response(['message' => 'ok', 'candidate_created' => false]),
+            '*/applications/A2/status' => Http::response(['message' => 'Transisi tidak diizinkan.'], 422),
+        ]);
+
+        Livewire::test(ApplicantsPage::class, ['opening' => $opening->id])
+            ->set('selected', ['A1', 'A2'])
+            ->call('bulkTransition', 'screening')
+            ->assertOk();
+    }
+
     public function test_detail_blocked_without_permission(): void
     {
         $this->actingAs(User::factory()->create(['company_id' => $this->company->id]));

@@ -4,6 +4,7 @@ namespace App\Livewire\Rekrutmen;
 
 use App\Models\Job\JobOpenings;
 use App\Services\Job\RekrutmenSyncService;
+use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
@@ -25,6 +26,16 @@ class ApplicantsPage extends Component
 
     #[Url]
     public string $status = '';
+
+    /** @var list<string> job_application_id yang dicentang untuk aksi massal */
+    public array $selected = [];
+
+    /** Status tujuan yang boleh dipakai aksi massal (portal tetap validasi transisi per item). */
+    public const BULK_TARGETS = [
+        'screening' => 'Pindahkan ke Seleksi Berkas',
+        'shortlisted' => 'Loloskan Berkas',
+        'rejected' => 'Tolak',
+    ];
 
     public function mount(string $opening): void
     {
@@ -92,6 +103,67 @@ class ApplicantsPage extends Component
             'interview' => 'Wawancara', 'offering' => 'Offering', 'mcu' => 'MCU',
             'onboarding' => 'Onboarding', 'passed' => 'Diterima', 'rejected' => 'Ditolak',
         ];
+    }
+
+    // ── Aksi massal ──────────────────────────────────────────────────────────
+
+    public function getCanDecideProperty(): bool
+    {
+        return Auth::user()->can('Update:JobOpenings');
+    }
+
+    /** id pelamar yang sedang tampil (ikut filter tab) — dasar "pilih semua". */
+    public function getVisibleIdsProperty(): array
+    {
+        return array_map(fn ($a) => $a['job_application_id'], $this->applicants);
+    }
+
+    public function updatedStatus(): void
+    {
+        $this->selected = [];
+    }
+
+    public function toggleSelectAll(): void
+    {
+        $visible = $this->visibleIds;
+        $this->selected = count(array_intersect($this->selected, $visible)) === count($visible) ? [] : $visible;
+    }
+
+    /**
+     * Ubah status banyak pelamar sekaligus. Loop panggil RekrutmenSyncService::updateApplicationStatus
+     * (portal yang validasi transisi + efek samping per item) — item yang gagal dilaporkan, sisanya
+     * tetap jalan. ponytail: sinkron; untuk batch sangat besar sebaiknya jadi job antrian nanti.
+     */
+    public function bulkTransition(string $status): void
+    {
+        abort_unless($this->canDecide, 403);
+        abort_unless(array_key_exists($status, self::BULK_TARGETS), 422);
+
+        $ids = array_values(array_intersect($this->selected, $this->visibleIds));
+        if ($ids === []) {
+            Notification::make()->title('Belum ada pelamar dipilih')->warning()->send();
+
+            return;
+        }
+
+        @set_time_limit(120);
+
+        $svc = app(RekrutmenSyncService::class);
+        $ok = 0;
+        $failed = [];
+        foreach ($ids as $id) {
+            $res = $svc->updateApplicationStatus($id, $status);
+            $res['ok'] ? $ok++ : $failed[] = $res['message'];
+        }
+
+        unset($this->response); // buang cache computed -> tabel refresh
+        $this->selected = [];
+
+        Notification::make()
+            ->title("{$ok} pelamar diproses" . ($failed ? ', ' . count($failed) . ' gagal' : ''))
+            ->body($failed ? collect($failed)->unique()->take(3)->implode(' — ') : null)
+            ->{$failed ? 'warning' : 'success'}()
+            ->send();
     }
 
     public function render()
