@@ -250,7 +250,7 @@ class ApplicantsPageTest extends TestCase
             ->assertOk();
     }
 
-    public function test_export_excel_downloads_applicant_list(): void
+    public function test_export_excel_downloads_applicant_list_for_early_stage(): void
     {
         $this->actingAsRecruiter();
         $opening = $this->opening();
@@ -263,37 +263,38 @@ class ApplicantsPageTest extends TestCase
         \Maatwebsite\Excel\Facades\Excel::fake();
 
         Livewire::test(ApplicantsPage::class, ['opening' => $opening->id])
+            ->set('status', 'screening')
             ->call('exportExcel');
 
         \Maatwebsite\Excel\Facades\Excel::assertDownloaded(
-            'Pelamar-staff-it-' . now()->format('Ymd') . '.xlsx',
-            fn (\App\Exports\Rekrutmen\JobApplicantsExport $export) => count($export->array()) === 2
+            'Pelamar-staff-it-seleksi-berkas-' . now()->format('Ymd') . '.xlsx',
+            fn (\App\Exports\Rekrutmen\JobApplicantsExport $export) => count($export->array()) === 1
                 && $export->array()[0][1] === 'Budi'
                 && $export->array()[0][3] === 'Seleksi Berkas',
         );
     }
 
-    public function test_export_excel_respects_status_tab(): void
+    public function test_export_excel_blocked_for_later_stage_and_semua_tab(): void
     {
         $this->actingAsRecruiter();
         $opening = $this->opening();
 
         Http::fake(["*/job-openings/{$opening->id}/applications*" => Http::response(['job_opening_title' => 'Staff IT', 'data' => [
-            ['job_application_id' => 'A1', 'status' => 'screening', 'applicant_name' => 'Budi', 'applicant_email' => null, 'updated_at' => null],
-            ['job_application_id' => 'A2', 'status' => 'interview', 'applicant_name' => 'Sari', 'applicant_email' => null, 'updated_at' => null],
+            ['job_application_id' => 'A1', 'status' => 'interview', 'applicant_name' => 'Sari', 'applicant_email' => null, 'updated_at' => null],
         ]])]);
 
         \Maatwebsite\Excel\Facades\Excel::fake();
 
+        // Tab "Semua" (status '') -> tak boleh
+        Livewire::test(ApplicantsPage::class, ['opening' => $opening->id])
+            ->call('exportExcel')
+            ->assertStatus(403);
+
+        // Tab tahap lanjut -> tak boleh
         Livewire::test(ApplicantsPage::class, ['opening' => $opening->id])
             ->set('status', 'interview')
-            ->call('exportExcel');
-
-        \Maatwebsite\Excel\Facades\Excel::assertDownloaded(
-            'Pelamar-staff-it-wawancara-' . now()->format('Ymd') . '.xlsx',
-            fn (\App\Exports\Rekrutmen\JobApplicantsExport $export) => count($export->array()) === 1
-                && $export->array()[0][1] === 'Sari',
-        );
+            ->call('exportExcel')
+            ->assertStatus(403);
     }
 
     public function test_detail_blocked_without_permission(): void

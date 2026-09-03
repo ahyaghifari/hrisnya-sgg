@@ -40,6 +40,9 @@ class ApplicantsPage extends Component
         'rejected' => 'Tolak',
     ];
 
+    /** Export Excel cuma untuk tahap awal: Lamaran Baru, Seleksi Berkas, Tes. */
+    public const EXPORTABLE_STATUSES = ['applied', 'screening', 'shortlisted'];
+
     public function mount(string $opening): void
     {
         abort_unless(Auth::user()->can('View:JobOpenings'), 403);
@@ -169,10 +172,16 @@ class ApplicantsPage extends Component
             ->send();
     }
 
-    /** Export daftar pelamar (ikut filter tab yang sedang aktif) ke Excel. */
+    public function getCanExportProperty(): bool
+    {
+        return in_array($this->status, self::EXPORTABLE_STATUSES, true);
+    }
+
+    /** Export daftar pelamar (ikut filter tab yang sedang aktif) ke Excel. Hanya tahap awal. */
     public function exportExcel()
     {
         abort_unless(Auth::user()->can('View:JobOpenings'), 403);
+        abort_unless($this->canExport, 403, 'Export hanya untuk status Lamaran Baru, Seleksi Berkas, atau Tes.');
 
         $title = $this->headerTitle;
         $suffix = $this->status ? '-' . ($this->statusOptions[$this->status] ?? $this->status) : '';

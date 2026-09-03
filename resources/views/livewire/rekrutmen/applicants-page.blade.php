@@ -34,7 +34,7 @@
             {{ $label }} <span style="opacity:.7;">{{ $counts[$val] ?? 0 }}</span>
         </button>
     @endforeach
-    @if (count($applicants) > 0)
+    @if ($this->canExport && count($applicants) > 0)
         <button type="button" wire:click="exportExcel" wire:loading.attr="disabled" wire:target="exportExcel"
             style="margin-left:auto;display:inline-flex;align-items:center;gap:6px;padding:6px 14px;font-size:11.5px;font-weight:600;border:none;border-radius:10px;cursor:pointer;background:#15803d;color:#fff;">
             <i class="fa-solid fa-file-excel"></i> Export Excel
