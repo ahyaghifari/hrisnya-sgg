@@ -42,7 +42,7 @@ class SendPayrollSlipJob implements ShouldQueue
         return [new RateLimited('payroll-slip-email')];
     }
 
-    public function handle(PayrollService $service): void
+    public function handle(PayrollService $service, \App\Services\Payroll\PayrollMailer $mailer): void
     {
         $payroll = Payroll::with([
             'user.profile',
@@ -67,12 +67,18 @@ class SendPayrollSlipJob implements ShouldQueue
         $sender = $payroll->payrollPeriod->signer ?? $payroll->payrollPeriod->generatedBy;
         $slip = $service->encryptedSlip($payroll);
 
-        Mail::to($recipientEmail)->send(new PayrollSlipMail(
+        // Kirim lewat akun SMTP perusahaan ini kalau ada (payroll_mail_settings) — kalau tidak,
+        // jatuh ke mailer default. From email juga ikut akun perusahaan.
+        $mailSetting = $mailer->settingFor($payroll->payrollPeriod->company_id);
+
+        $mailer->send($mailSetting, $recipientEmail, new PayrollSlipMail(
             $payroll,
             $slip['binary'],
             $slip['filename'],
             $sender?->name ?? 'NOOR AFINI, SE',
             $sender?->activeJobPosition?->jobPosition?->name ?? 'Accounting',
+            $mailSetting?->from_address,
+            $mailSetting?->from_name,
         ));
 
         $payroll->update(['slip_sent_at' => now(), 'slip_send_failed_at' => null, 'slip_send_error' => null]);
