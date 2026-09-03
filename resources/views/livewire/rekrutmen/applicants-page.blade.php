@@ -85,8 +85,11 @@
                     <tr style="border-bottom:1.5px solid var(--border);">
                         @if ($this->canDecide)
                             <th style="width:38px;padding:10px 0 10px 14px;">
-                                <input type="checkbox" wire:click="toggleSelectAll"
-                                    @checked(count($applicants) > 0 && count(array_intersect($selected, $this->visibleIds)) === count($this->visibleIds))>
+                                <span class="custom-checkbox" style="--accent:#7c3aed;">
+                                    <input type="checkbox" wire:click="toggleSelectAll"
+                                        @checked(count($applicants) > 0 && count(array_intersect($selected, $this->visibleIds)) === count($this->visibleIds))>
+                                    <span class="box"><i class="fa-solid fa-check"></i></span>
+                                </span>
                             </th>
                         @endif
                         <th style="text-align:left;padding:10px 14px;white-space:nowrap;">Pelamar</th>
@@ -101,7 +104,10 @@
                         <tr wire:key="{{ $a['job_application_id'] }}" style="border-bottom:1px solid var(--border-soft);">
                             @if ($this->canDecide)
                                 <td style="padding:9px 0 9px 14px;">
-                                    <input type="checkbox" wire:model.live="selected" value="{{ $a['job_application_id'] }}">
+                                    <span class="custom-checkbox" style="--accent:#7c3aed;">
+                                        <input type="checkbox" wire:model.live="selected" value="{{ $a['job_application_id'] }}">
+                                        <span class="box"><i class="fa-solid fa-check"></i></span>
+                                    </span>
                                 </td>
                             @endif
                             <td style="padding:9px 14px;white-space:nowrap;font-weight:600;">{{ $a['applicant_name'] ?? '—' }}</td>
