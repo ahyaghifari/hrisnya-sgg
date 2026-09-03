@@ -2,10 +2,13 @@
 
 namespace App\Livewire\Rekrutmen;
 
+use App\Exports\Rekrutmen\JobApplicantsExport;
 use App\Models\Job\JobOpenings;
 use App\Services\Job\RekrutmenSyncService;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Str;
+use Maatwebsite\Excel\Facades\Excel;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Url;
@@ -164,6 +167,21 @@ class ApplicantsPage extends Component
             ->body($failed ? collect($failed)->unique()->take(3)->implode(' — ') : null)
             ->{$failed ? 'warning' : 'success'}()
             ->send();
+    }
+
+    /** Export daftar pelamar (ikut filter tab yang sedang aktif) ke Excel. */
+    public function exportExcel()
+    {
+        abort_unless(Auth::user()->can('View:JobOpenings'), 403);
+
+        $title = $this->headerTitle;
+        $suffix = $this->status ? '-' . ($this->statusOptions[$this->status] ?? $this->status) : '';
+        $filename = 'Pelamar-' . Str::slug($title . $suffix) . '-' . now()->format('Ymd') . '.xlsx';
+
+        return Excel::download(
+            new JobApplicantsExport($this->applicants, $this->statusOptions, $title),
+            $filename,
+        );
     }
 
     public function render()

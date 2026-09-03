@@ -23,7 +23,7 @@
 @endphp
 
 @php $counts = $this->statusCounts; $total = array_sum($counts); @endphp
-<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px;border-bottom:1px solid var(--border);padding-bottom:10px;">
+<div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-bottom:16px;border-bottom:1px solid var(--border);padding-bottom:10px;">
     <button type="button" wire:click="$set('status', '')"
         class="btn-ghost" style="padding:5px 12px;font-size:11.5px;font-weight:600;{{ $status === '' ? 'background:var(--brand,#7c3aed);color:#fff;' : '' }}">
         Semua <span style="opacity:.7;">{{ $total }}</span>
@@ -34,6 +34,12 @@
             {{ $label }} <span style="opacity:.7;">{{ $counts[$val] ?? 0 }}</span>
         </button>
     @endforeach
+    @if (count($applicants) > 0)
+        <button type="button" wire:click="exportExcel" wire:loading.attr="disabled" wire:target="exportExcel"
+            style="margin-left:auto;display:inline-flex;align-items:center;gap:6px;padding:6px 14px;font-size:11.5px;font-weight:600;border:none;border-radius:10px;cursor:pointer;background:#15803d;color:#fff;">
+            <i class="fa-solid fa-file-excel"></i> Export Excel
+        </button>
+    @endif
 </div>
 
 @if (count($applicants) === 0)
