@@ -3,8 +3,8 @@
 namespace Tests\Feature\Payroll;
 
 use App\Enum\CustomPermissionEnum;
+use App\Filament\Resources\Payroll\MailSettings\Pages\ManagePayrollMailSettings;
 use App\Jobs\SendPayrollSlipJob;
-use App\Livewire\Keuangan\PayrollMailSettingsPage;
 use App\Mail\PayrollSlipMail;
 use App\Models\Master\Companies;
 use App\Models\Payroll\Payroll;
@@ -50,7 +50,7 @@ class PayrollMailSettingTest extends TestCase
         foreach ([CustomPermissionEnum::EDIT_KOMPONEN_GAJI_GLOBAL->value, CustomPermissionEnum::LIHAT_PERUSAHAAN_LAIN->value] as $p) {
             Permission::firstOrCreate(['name' => $p, 'guard_name' => 'web']);
         }
-        $role = Role::firstOrCreate(['name' => 'Payroll Global Test', 'guard_name' => 'web']);
+        $role = Role::firstOrCreate(['name' => 'Admin', 'guard_name' => 'web']);
         $role->givePermissionTo([CustomPermissionEnum::EDIT_KOMPONEN_GAJI_GLOBAL->value, CustomPermissionEnum::LIHAT_PERUSAHAAN_LAIN->value]);
         $u = User::factory()->create(['company_id' => null]);
         $u->assignRole($role);
@@ -109,32 +109,35 @@ class PayrollMailSettingTest extends TestCase
         });
     }
 
-    public function test_page_saves_setting(): void
+    public function test_resource_lists_records_for_admin(): void
     {
         $c = $this->company();
+        $s = $this->setting($c);
         $this->actingAs($this->admin());
 
-        Livewire::test(PayrollMailSettingsPage::class)
-            ->set('companyId', $c->id)
-            ->set('host', 'smtp.baru.test')
-            ->set('port', 465)
-            ->set('username', 'a@baru.test')
-            ->set('password', 'pw12345')
-            ->set('encryption', 'ssl')
-            ->set('fromAddress', 'a@baru.test')
-            ->set('fromName', 'HRD Baru')
-            ->call('save')
-            ->assertHasNoErrors();
-
-        $s = PayrollMailSetting::where('company_id', $c->id)->firstOrFail();
-        $this->assertSame('smtp.baru.test', $s->host);
-        $this->assertSame(465, $s->port);
-        $this->assertSame('pw12345', $s->password);
+        Livewire::test(ManagePayrollMailSettings::class)
+            ->assertOk()
+            ->assertCanSeeTableRecords([$s]);
     }
 
-    public function test_page_forbidden_without_permission(): void
+    public function test_resource_forbidden_without_permission(): void
     {
-        $this->actingAs(User::factory()->create());
-        Livewire::test(PayrollMailSettingsPage::class)->assertForbidden();
+        $this->actingAs(User::factory()->create(['company_id' => $this->company()->id]));
+        Livewire::test(ManagePayrollMailSettings::class)->assertForbidden();
+    }
+
+    public function test_resource_send_test_action_records_result(): void
+    {
+        Mail::fake();
+        $c = $this->company();
+        $s = $this->setting($c);
+        $this->actingAs($this->admin());
+
+        Livewire::test(ManagePayrollMailSettings::class)
+            ->callTableAction('sendTest', $s, data: ['recipient' => 'cek@mail.test']);
+
+        $fresh = $s->fresh();
+        $this->assertNotNull($fresh->last_tested_at);
+        $this->assertNull($fresh->last_test_error); // Mail::fake() -> test() sukses
     }
 }

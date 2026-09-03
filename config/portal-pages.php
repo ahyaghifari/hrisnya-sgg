@@ -366,12 +366,6 @@ return [
         'guard' => null,
     ],
 
-    'keuangan.pengaturan-email-slip' => [
-        'label' => 'Pengaturan Email Slip Gaji',
-        'permission' => \App\Enum\CustomPermissionEnum::EDIT_KOMPONEN_GAJI_GLOBAL->value,
-        'guard' => null,
-    ],
-
     'keuangan.omset' => [
         'label' => 'Omset',
         'permission' => \App\Enum\CustomPermissionEnum::LIHAT_OMSET->value,

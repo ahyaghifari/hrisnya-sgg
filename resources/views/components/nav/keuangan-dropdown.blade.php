@@ -20,7 +20,6 @@
     $canViewOverrideKomponenGaji = auth()->user()->can(\App\Enum\CustomPermissionEnum::LIHAT_OVERRIDE_KOMPONEN_GAJI->value);
     $canViewJasaUnitType = auth()->user()->can('ViewAny:JasaUnitType');
     $canImportPayrollManual = auth()->user()->can(\App\Enum\CustomPermissionEnum::IMPORT_PAYROLL_MANUAL->value);
-    $canEditPayrollGlobal = auth()->user()->can(\App\Enum\CustomPermissionEnum::EDIT_KOMPONEN_GAJI_GLOBAL->value);
 @endphp
 
 <div class="dropdown">
@@ -76,7 +75,7 @@
             @endif
         </div>
         @endif
-        @if($canViewKomponenGaji || $canViewPenerimaKomponenGaji || $canViewMappingKomponenGaji || $canEditPayrollGlobal)
+        @if($canViewKomponenGaji || $canViewPenerimaKomponenGaji || $canViewMappingKomponenGaji)
         <div class="dropdown-col">
             <div class="dropdown-col-label">Pengaturan Komponen</div>
             @if ($canViewKomponenGaji)
@@ -87,9 +86,6 @@
             @endif
             @if ($canViewMappingKomponenGaji)
                 <a href="{{ route('keuangan.mapping-komponen-gaji') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-diagram-project"></i> Mapping Komponen Gaji</a>
-            @endif
-            @if ($canEditPayrollGlobal)
-                <a href="{{ route('keuangan.pengaturan-email-slip') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-envelope-circle-check"></i> Email Slip Gaji</a>
             @endif
         </div>
         @endif

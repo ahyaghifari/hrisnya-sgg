@@ -381,9 +381,6 @@ Route::middleware(['auth', 'portal.access'])->group(function () {
     Route::get('/keuangan/mapping-komponen-gaji', MappingKomponenGajiPage::class)
         ->name('keuangan.mapping-komponen-gaji');
 
-    Route::get('/keuangan/pengaturan-email-slip', \App\Livewire\Keuangan\PayrollMailSettingsPage::class)
-        ->name('keuangan.pengaturan-email-slip');
-
     Route::get('/keuangan/omset', \App\Livewire\Keuangan\OmsetPage::class)
         ->name('keuangan.omset');
 
