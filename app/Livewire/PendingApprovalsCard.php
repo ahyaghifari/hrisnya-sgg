@@ -459,7 +459,12 @@ class PendingApprovalsCard extends Component
         // jumlah tiap baris), bukan approve/reject 1 tombol buat seluruh dokumen kayak modul
         // lain, jadi tidak ada 1 nilai default yang aman dipukul rata lewat approveOne().
         $sarprasRequests = collect();
-        if ($this->wants('sarana_prasarana')) {
+        // Sarana & Prasarana DILEPAS dari portal HRIS (2026-09-04, "sistem terpisah") -
+        // routes/sarana-prasarana.php tidak lagi di-require, route('sarana-prasarana.show')
+        // di bawah bakal RouteNotFoundException kalau blok ini jalan. Dipaksa false (bukan
+        // dihapus) - kalau masih ada baris pending approval SARPRAS_REQUEST lama di DB,
+        // ini yang mencegah Dashboard/PendingApprovalsCard crash gara-gara itu.
+        if (false && $this->wants('sarana_prasarana')) {
             $sarprasIds = $permissionService
                 ->pendingApprovalsFor(Auth::user(), ApprovalModuleEnum::SARPRAS_REQUEST->value)
                 ->pluck('snapshot.module_id')->filter()->values();
