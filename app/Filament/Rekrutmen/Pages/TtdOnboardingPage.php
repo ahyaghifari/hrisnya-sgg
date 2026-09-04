@@ -27,7 +27,7 @@ use UnitEnum;
  * TTD & Onboarding — port dari TtdOnboardingPage project `rekrutmen` (FL3 -> FL4), DB
  * `recruitment`. Kandidat status `onboarding`; "Tandai Selesai" -> is_onboarded + status
  * `passed` (state machine booted() auto-close lowongan) + draft notif ONBOARDING_INVITE
- * (kirim email di Fase 8). Digate progress persetujuan onboarding kandidat.
+ * (email undangan auto-kirim). Digate progress persetujuan onboarding kandidat.
  */
 class TtdOnboardingPage extends Page implements HasActions, HasForms, HasTable
 {
@@ -114,11 +114,11 @@ class TtdOnboardingPage extends Page implements HasActions, HasForms, HasTable
                 return $approved < $total ? "Kandidat belum menyetujui semua persetujuan ({$approved}/{$total})." : null;
             })
             ->requiresConfirmation()
-            ->modalDescription('Kandidat ditandai resmi menjadi karyawan. Email undangan TTD & onboarding dibuat sebagai draft.')
+            ->modalDescription('Kandidat ditandai resmi menjadi karyawan. Email undangan TTD & onboarding otomatis dikirim.')
             ->action(function ($record): void {
                 $record->candidate?->update(['is_onboarded' => true]);
                 $record->update(['status' => 'passed']);
-                ApplicationNotification::createDraftFor($record, CompanyMessageTemplate::EVENT_ONBOARDING_INVITE);
+                ApplicationNotification::createAndSend($record, CompanyMessageTemplate::EVENT_ONBOARDING_INVITE);
 
                 $this->resetTable();
                 Notification::make()->title('Kandidat resmi menjadi karyawan')->success()->send();

@@ -32,7 +32,7 @@ use UnitEnum;
  * Offering Letter — port dari OfferingLetterPage project `rekrutmen` (FL3 -> FL4), DB
  * `recruitment`. File offering di disk `rekrutmen` (REKRUTMEN_STORAGE_PATH — WAJIB diisi di
  * .env, satu server dgn app rekrutmen). Fase 4: unggah surat rekruter, lihat surat masuk /
- * bertanda tangan, balas negosiasi, lanjutkan ke MCU/Onboarding. Email "surat siap" -> Fase 8.
+ * bertanda tangan, balas negosiasi, lanjutkan ke MCU/Onboarding. Email "surat siap" auto-kirim.
  */
 class OfferingLetterPage extends Page implements HasActions, HasForms, HasTable
 {
@@ -110,8 +110,8 @@ class OfferingLetterPage extends Page implements HasActions, HasForms, HasTable
                     'offering_letter_path' => $data['file'],
                     'offering_letter_uploaded_at' => now(),
                 ]);
-                ApplicationNotification::createDraftFor($record, CompanyMessageTemplate::EVENT_OFFERING_LETTER_READY);
-                Notification::make()->title('Surat penawaran diunggah (draft email dibuat).')->success()->send();
+                ApplicationNotification::createAndSend($record, CompanyMessageTemplate::EVENT_OFFERING_LETTER_READY);
+                Notification::make()->title('Surat penawaran diunggah & email pemberitahuan terkirim.')->success()->send();
             });
     }
 

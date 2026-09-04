@@ -144,9 +144,22 @@ ApplicationNotification, User (pelamar/staff — read-only dari HRIS).
 
 ## Fase 8 — Notifikasi + retire sync
 
-- Port `ApplicationNotification` + `CompanyMessageTemplate` + notification classes.
-- Hapus `RekrutmenSyncService` + endpoint API yang tak dipakai lagi.
-- Putuskan nasib Filament admin repo rekrutmen.
+- [x] Port `App\Mail\Rekrutmen\ApplicantNotificationMail` + view `mail/rekrutmen/applicant-notification`.
+- [x] `ApplicationNotification`: `send()` (kirim draft ke email pelamar + tandai `sent`),
+      `createAndSend()` (event positif), `flushDraftsFor(ids, ?event)` (bulk), `cta()`
+      (tombol -> app pelamar via `config('services.rekrutmen.url')`, key `REKRUTMEN_URL`).
+- [x] Event positif auto-kirim: QUIZ_SENT, QUIZ_PASSED, INTERVIEW_SCHEDULED (model),
+      MCU_SCHEDULED (model), MCU_PASSED, OFFERING_LETTER_READY, ONBOARDING_INVITE.
+- [x] Event penolakan tetap draft; tiap halaman pipeline dapat aksi bulk
+      "Kirim Email Pemberitahuan" (`SendsApplicantNotifications` trait) —
+      ApplicantsPage, TesOnlinePage, WawancaraPage, McuPage. ApplicantDetailPage dapat
+      aksi single-record.
+- [x] `CompanyMessageTemplate` sudah diport (Fase 1b). Kirim sinkron (bukan ShouldQueue) —
+      parity dengan repo rekrutmen; upgrade ke queue khusus kalau bulk penolakan berat.
+- [ ] **DITUNDA**: hapus `RekrutmenSyncService` + `app/Livewire/Rekrutmen/*` + route
+      `/rekrutmen/{lowongan,mcu,pelamar}` lama. Alasan: `CandidateOnboardingService` +
+      `routes/web.php` lagi diedit sesi lain (modul Orientasi) — tunggu itu merge dulu.
+- [ ] Putuskan nasib Filament admin repo rekrutmen (dormant vs hapus resource).
 
 ## Catatan
 

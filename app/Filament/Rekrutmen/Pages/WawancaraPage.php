@@ -34,12 +34,13 @@ use UnitEnum;
 
 /**
  * Wawancara — port dari WawancaraPage project `rekrutmen` (FL3 -> FL4), DB `recruitment`.
- * Fase 3: jadwal draft -> terapkan (status `interview` + draft notif), catat hasil per
- * kandidat (lulus -> `offering`; tidak lulus -> `rejected` + draft notif). Aksi yang KIRIM
- * email (tandaiTidakLulus bulk, kirimNotifPenolakan) -> Fase 8.
+ * Jadwal draft -> terapkan (status `interview` + email undangan auto-kirim), catat hasil
+ * per kandidat (lulus -> `offering`; tidak lulus -> `rejected` + draft notif, kirim lewat
+ * aksi bulk "Kirim Email Pemberitahuan").
  */
 class WawancaraPage extends Page implements HasActions, HasForms, HasTable
 {
+    use \App\Filament\Rekrutmen\Concerns\SendsApplicantNotifications;
     use InteractsWithActions, InteractsWithForms, InteractsWithTable;
 
     protected string $view = 'filament.rekrutmen.pages.wawancara-page';
@@ -192,7 +193,7 @@ class WawancaraPage extends Page implements HasActions, HasForms, HasTable
                     JobOpeningStageLog::record($this->jobOpeningId, 'shortlisted', 'interview', $count);
                 }
                 $this->resetTable();
-                Notification::make()->title('Jadwal diterapkan. Undangan wawancara dibuat sebagai draft email.')->success()->send();
+                Notification::make()->title('Jadwal diterapkan. Undangan wawancara otomatis dikirim ke email pelamar.')->success()->send();
             });
     }
 
@@ -256,7 +257,7 @@ class WawancaraPage extends Page implements HasActions, HasForms, HasTable
                     ->url(fn ($record) => \App\Filament\Rekrutmen\Pages\ApplicantDetailPage::getUrl() . '?application=' . $record->id),
                 $this->tandaiHasilWawancaraAction(),
             ])
-            ->toolbarActions([])
+            ->toolbarActions([$this->kirimNotifBulkAction()])
             ->emptyStateHeading('Pilih perusahaan & lowongan')
             ->emptyStateDescription('Kandidat yang sudah dijadwalkan wawancara muncul di sini.')
             ->emptyStateIcon('heroicon-o-chat-bubble-left-right');

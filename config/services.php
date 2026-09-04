@@ -50,6 +50,9 @@ return [
     'rekrutmen' => [
         'base_url' => env('REKRUTMEN_API_URL'),
         'token' => env('REKRUTMEN_API_TOKEN'),
+        // URL publik app pelamar (d:\Projects\rekrutmen) — dipakai buat tombol CTA di email
+        // notifikasi (kerjakan tes, lihat jadwal, unggah offering). Kosong = tombol disembunyikan.
+        'url' => env('REKRUTMEN_URL'),
     ],
 
     /*

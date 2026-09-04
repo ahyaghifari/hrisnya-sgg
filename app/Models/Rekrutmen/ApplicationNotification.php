@@ -2,15 +2,18 @@
 
 namespace App\Models\Rekrutmen;
 
+use App\Mail\Rekrutmen\ApplicantNotificationMail;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\Mail;
 
 /**
  * Draft/riwayat email pemberitahuan ke pelamar (DB rekrutmen_db). Port dari project
- * `rekrutmen`. FASE 1b: hanya PEMBUATAN draft (baris DB berisi subject/body). PENGIRIMAN
- * email (App\Mail\ApplicantNotificationMail + tombol "Kirim Notif") menyusul di Fase 8 —
- * beberapa CTA-nya menunjuk route yang cuma ada di app `rekrutmen`.
+ * `rekrutmen`. Fase 8: pengiriman aktif — event "positif" (lulus/undangan) auto-kirim
+ * lewat createAndSend(); event penolakan tetap ditahan sebagai draft sampai admin klik
+ * "Kirim Email Pemberitahuan" (flushDraftsFor). Tombol CTA di email menunjuk app pelamar
+ * (config services.rekrutmen.url) — disembunyikan kalau URL kosong.
  */
 class ApplicationNotification extends Model
 {
@@ -30,6 +33,76 @@ class ApplicationNotification extends Model
     public function isDraft(): bool
     {
         return $this->status === 'draft';
+    }
+
+    /** Tombol CTA di email untuk event yang butuh aksi pelamar. Null = tidak ada tombol. */
+    public function cta(): ?array
+    {
+        $base = rtrim((string) config('services.rekrutmen.url'), '/');
+        if ($base === '') {
+            return null;
+        }
+
+        return match ($this->event) {
+            CompanyMessageTemplate::EVENT_QUIZ_SENT => ['url' => "{$base}/tes-online", 'label' => 'Kerjakan Tes'],
+            CompanyMessageTemplate::EVENT_OFFERING_LETTER_READY => ['url' => "{$base}/dashboard", 'label' => 'Unggah Surat Penawaran'],
+            CompanyMessageTemplate::EVENT_INTERVIEW_SCHEDULED => ['url' => "{$base}/lamaran/{$this->job_application_id}", 'label' => 'Lihat Jadwal Wawancara'],
+            CompanyMessageTemplate::EVENT_MCU_SCHEDULED => ['url' => "{$base}/lamaran/{$this->job_application_id}", 'label' => 'Lihat Jadwal MCU'],
+            default => null,
+        };
+    }
+
+    /** Kirim draft ini ke email pelamar & tandai terkirim. False kalau bukan draft / email kosong. */
+    public function send(): bool
+    {
+        if ($this->status !== 'draft') {
+            return false;
+        }
+
+        $email = $this->jobApplication?->user?->email
+            ?? $this->loadMissing('jobApplication.user')->jobApplication?->user?->email;
+
+        if (! $email) {
+            return false;
+        }
+
+        Mail::to($email)->send(new ApplicantNotificationMail($this));
+        $this->update(['status' => 'sent', 'sent_at' => now()]);
+
+        return true;
+    }
+
+    /** Bikin draft lalu langsung kirim — buat event "positif" yang tidak perlu ditahan admin. */
+    public static function createAndSend(JobApplication $app, string $event, array $extra = []): void
+    {
+        static::createDraftFor($app, $event, $extra);
+
+        static::where('job_application_id', $app->id)
+            ->where('event', $event)
+            ->where('status', 'draft')
+            ->latest()->first()?->send();
+    }
+
+    /** Kirim semua draft milik daftar lamaran ini (opsional filter event). @return int jumlah terkirim. */
+    public static function flushDraftsFor(array $applicationIds, ?string $event = null): int
+    {
+        if (! $applicationIds) {
+            return 0;
+        }
+
+        $sent = 0;
+        static::with('jobApplication.user')
+            ->whereIn('job_application_id', $applicationIds)
+            ->where('status', 'draft')
+            ->when($event, fn ($q) => $q->where('event', $event))
+            ->get()
+            ->each(function (self $notif) use (&$sent) {
+                if ($notif->send()) {
+                    $sent++;
+                }
+            });
+
+        return $sent;
     }
 
     /** Bikin draft notifikasi (tanpa kirim). Null kalau draft event itu sudah ada. */

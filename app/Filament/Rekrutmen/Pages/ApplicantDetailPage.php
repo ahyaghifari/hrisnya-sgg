@@ -18,9 +18,9 @@ use Filament\Pages\Page;
  * Detail 1 pelamar — port dari ApplicantDetailPage project `rekrutmen` (FL3 -> FL4), DB
  * `recruitment` langsung. Diakses `?application=<id>`, tidak muncul di nav.
  *
- * FASE 1b-3: info lamaran + jawaban form per seksi + riwayat status + aksi "Tidak
- * Dilanjutkan" (status -> rejected + draft notif). Data diri kandidat (9 tabel anak) &
- * unduh berkas file & tombol "Kirim Notif" email menyusul di fase berikutnya / Fase 8.
+ * Info lamaran + jawaban form per seksi + riwayat status + aksi "Tidak Dilanjutkan"
+ * (status -> rejected + draft notif) + "Kirim Email Pemberitahuan" (flush draft pelamar
+ * ini). Data diri kandidat (9 tabel anak) & unduh berkas file menyusul (Fase 6b).
  */
 class ApplicantDetailPage extends Page implements HasActions, HasForms
 {
@@ -120,5 +120,28 @@ class ApplicantDetailPage extends Page implements HasActions, HasForms
                     ->required(),
             ])
             ->action(fn (array $data) => $this->changeStatus('rejected', $data['reason']));
+    }
+
+    public function kirimNotifAction(): Action
+    {
+        $pending = fn () => $this->application
+            ? ApplicationNotification::where('job_application_id', $this->application->id)->where('status', 'draft')->count()
+            : 0;
+
+        return Action::make('kirimNotif')
+            ->label('Kirim Email Pemberitahuan')
+            ->icon('heroicon-m-paper-airplane')
+            ->color('gray')
+            ->visible(fn () => $this->canDecide() && $pending() > 0)
+            ->requiresConfirmation()
+            ->modalDescription('Email pemberitahuan yang masih berstatus draft untuk pelamar ini akan dikirim.')
+            ->modalSubmitActionLabel('Kirim')
+            ->action(function (): void {
+                $sent = ApplicationNotification::flushDraftsFor([$this->application->id]);
+                Notification::make()
+                    ->title($sent > 0 ? "{$sent} email terkirim" : 'Tidak ada draft untuk dikirim')
+                    ->{$sent > 0 ? 'success' : 'warning'}()
+                    ->send();
+            });
     }
 }

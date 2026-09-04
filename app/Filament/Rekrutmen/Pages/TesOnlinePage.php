@@ -28,13 +28,14 @@ use UnitEnum;
 
 /**
  * Tes — sisi admin alur kuis. Port dari TesOnlinePage project `rekrutmen` (FL3 -> FL4),
- * DB `recruitment`. Fase 2b: pilih kuis per lowongan, aktifkan tes (set quiz_sent_at +
- * draft notif), catat keputusan lulus/tidak, lihat hasil. Aksi yang KIRIM email
- * (tandaiTidakLulusTes bulk, kirimNotifPenolakanTes) -> Fase 8. Pengerjaan kuis oleh
- * kandidat tetap di project `rekrutmen`.
+ * DB `recruitment`. Pilih kuis per lowongan, aktifkan tes (set quiz_sent_at + email
+ * QUIZ_SENT auto-kirim), catat keputusan lulus (email auto) / tidak lulus (draft, kirim
+ * lewat aksi bulk "Kirim Email Pemberitahuan"). Pengerjaan kuis oleh kandidat tetap di
+ * project `rekrutmen`.
  */
 class TesOnlinePage extends Page implements HasActions, HasForms, HasTable
 {
+    use \App\Filament\Rekrutmen\Concerns\SendsApplicantNotifications;
     use InteractsWithActions, InteractsWithForms, InteractsWithTable;
 
     protected string $view = 'filament.rekrutmen.pages.tes-online-page';
@@ -162,11 +163,11 @@ class TesOnlinePage extends Page implements HasActions, HasForms, HasTable
 
                 foreach ($apps as $app) {
                     $app->update(['quiz_sent_at' => now()]);
-                    ApplicationNotification::createDraftFor($app, CompanyMessageTemplate::EVENT_QUIZ_SENT);
+                    ApplicationNotification::createAndSend($app, CompanyMessageTemplate::EVENT_QUIZ_SENT);
                 }
 
                 $this->resetTable();
-                Notification::make()->title(count($apps) . ' kandidat diaktifkan tesnya (draft email dibuat).')->success()->send();
+                Notification::make()->title(count($apps) . ' kandidat diaktifkan tesnya (email terkirim).')->success()->send();
             });
     }
 
@@ -187,7 +188,7 @@ class TesOnlinePage extends Page implements HasActions, HasForms, HasTable
                 if ($data['hasil'] === 'lulus') {
                     $record->update(['quiz_result' => 'lulus']);
                     $record->logMilestone('quiz_lulus');
-                    ApplicationNotification::createDraftFor($record, CompanyMessageTemplate::EVENT_QUIZ_PASSED);
+                    ApplicationNotification::createAndSend($record, CompanyMessageTemplate::EVENT_QUIZ_PASSED);
                 } else {
                     $record->update(['quiz_result' => 'tidak_lulus', 'status' => 'rejected']);
                     ApplicationNotification::createDraftFor($record, CompanyMessageTemplate::EVENT_QUIZ_REJECTED);
@@ -269,7 +270,7 @@ class TesOnlinePage extends Page implements HasActions, HasForms, HasTable
                 $this->lihatHasilAction(),
                 $this->tandaiHasilTesAction(),
             ])
-            ->toolbarActions([])
+            ->toolbarActions([$this->kirimNotifBulkAction()])
             ->emptyStateHeading('Pilih perusahaan & lowongan')
             ->emptyStateDescription('Kandidat yang lolos seleksi berkas untuk lowongan ini muncul di sini.')
             ->emptyStateIcon('heroicon-o-computer-desktop');

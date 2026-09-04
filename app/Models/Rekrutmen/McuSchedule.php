@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * Jadwal MCU 1 lowongan (DB recruitment). Port dari project `rekrutmen`. apply() dari HRIS
- * -> status `mcu` + draft notif EVENT_MCU_SCHEDULED (kirim email di Fase 8).
+ * -> status `mcu` + email undangan EVENT_MCU_SCHEDULED (auto-kirim, createAndSend).
  */
 class McuSchedule extends Model
 {
@@ -63,7 +63,7 @@ class McuSchedule extends Model
 
         foreach ($invitees as $inv) {
             $inv->jobApplication->update(['status' => JobApplication::STATUS_MCU]);
-            ApplicationNotification::createDraftFor($inv->jobApplication, CompanyMessageTemplate::EVENT_MCU_SCHEDULED, [
+            ApplicationNotification::createAndSend($inv->jobApplication, CompanyMessageTemplate::EVENT_MCU_SCHEDULED, [
                 'interview_date' => $this->mcu_date?->translatedFormat('d F Y'),
                 'interview_time' => $this->mcu_time ? substr($this->mcu_time, 0, 5) : null,
                 'location' => $this->location,

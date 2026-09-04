@@ -25,12 +25,13 @@ use UnitEnum;
 
 /**
  * Daftar Pelamar — port dari ApplicantsPage project `rekrutmen` (FL3 -> FL4), baca-tulis
- * DB `recruitment` langsung (bukan API). Fase 1b-2: selektor + statistik + tabel + aksi
- * bulk ke screening + seleksi berkas (draft -> terapkan). Tombol "Kirim Notif" (email)
- * menyusul di Fase 8 — di sini draft notifikasi cuma dibuat sebagai baris DB.
+ * DB `recruitment` langsung (bukan API). Selektor + statistik + tabel + aksi bulk ke
+ * screening + seleksi berkas (draft -> terapkan). Keputusan seleksi bikin draft email
+ * (lolos/ditolak); admin pilih baris lalu "Kirim Email Pemberitahuan".
  */
 class ApplicantsPage extends Page implements HasActions, HasForms, HasTable
 {
+    use \App\Filament\Rekrutmen\Concerns\SendsApplicantNotifications;
     use InteractsWithActions, InteractsWithForms, InteractsWithTable;
 
     protected string $view = 'filament.rekrutmen.pages.applicants-page';
@@ -214,7 +215,7 @@ class ApplicantsPage extends Page implements HasActions, HasForms, HasTable
             ->visible(fn () => $this->canDecide() && $draftCount > 0)
             ->requiresConfirmation()
             ->modalHeading('Terapkan Keputusan Seleksi Berkas?')
-            ->modalDescription('Yang lolos → status "Lolos Seleksi Berkas". Yang tidak → tetap di Peninjauan Berkas. Draft email dibuat (dikirim manual nanti).')
+            ->modalDescription('Yang lolos → status "Lolos Seleksi Berkas". Yang tidak → tetap di Peninjauan Berkas. Draft email dibuat — kirim lewat "Kirim Email Pemberitahuan".')
             ->modalSubmitActionLabel('Terapkan')
             ->action(function (): void {
                 if (! $this->jobOpeningId) {
@@ -225,7 +226,7 @@ class ApplicantsPage extends Page implements HasActions, HasForms, HasTable
 
                 $this->resetTable();
                 Notification::make()
-                    ->title("{$passed} lolos. {$rejected} tetap di Peninjauan Berkas — draft notif siap dikirim (Fase kirim notif).")
+                    ->title("{$passed} lolos. {$rejected} tetap di Peninjauan Berkas — draft email siap dikirim lewat \"Kirim Email Pemberitahuan\".")
                     ->success()->send();
             });
     }
@@ -290,7 +291,7 @@ class ApplicantsPage extends Page implements HasActions, HasForms, HasTable
                     ->color('gray')
                     ->url(fn ($record) => \App\Filament\Rekrutmen\Pages\ApplicantDetailPage::getUrl() . '?application=' . $record->id),
             ])
-            ->toolbarActions([])
+            ->toolbarActions([$this->kirimNotifBulkAction()])
             ->emptyStateHeading('Pilih perusahaan & lowongan')
             ->emptyStateDescription('Pilih perusahaan lalu lowongan di atas.')
             ->emptyStateIcon('heroicon-o-users');

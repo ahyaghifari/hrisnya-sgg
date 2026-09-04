@@ -35,12 +35,14 @@ use UnitEnum;
 
 /**
  * Medical Check Up — port dari McuPage project `rekrutmen` (FL3 -> FL4), DB `recruitment`.
- * Cuma perusahaan `requires_mcu`. Fase 5a: jadwal draft -> terapkan (status `mcu`), putuskan
- * fit/unfit (fit -> `onboarding`; unfit -> `rejected` + draft notif). Input 4 stasiun ada di
- * McuStationPage (Fase 5b). Aksi kirim email -> Fase 8.
+ * Cuma perusahaan `requires_mcu`. Jadwal draft -> terapkan (status `mcu` + email undangan
+ * auto-kirim), putuskan fit/unfit (fit -> `onboarding` + email auto; unfit -> `rejected` +
+ * draft notif, kirim lewat aksi bulk "Kirim Email Pemberitahuan"). Input 4 stasiun ada di
+ * McuStationPage.
  */
 class McuPage extends Page implements HasActions, HasForms, HasTable
 {
+    use \App\Filament\Rekrutmen\Concerns\SendsApplicantNotifications;
     use InteractsWithActions, InteractsWithForms, InteractsWithTable;
 
     protected string $view = 'filament.rekrutmen.pages.mcu-page';
@@ -186,7 +188,7 @@ class McuPage extends Page implements HasActions, HasForms, HasTable
                 }
                 $draft->apply();
                 $this->resetTable();
-                Notification::make()->title('Jadwal MCU diterapkan. Undangan dibuat sebagai draft email.')->success()->send();
+                Notification::make()->title('Jadwal MCU diterapkan. Undangan MCU otomatis dikirim ke email pelamar.')->success()->send();
             });
     }
 
@@ -221,10 +223,11 @@ class McuPage extends Page implements HasActions, HasForms, HasTable
                 $record->update(['status' => $next]);
                 JobOpeningStageLog::record($record->job_opening_id, 'mcu', $next, 1);
 
-                ApplicationNotification::createDraftFor(
-                    $record,
-                    $next === 'rejected' ? CompanyMessageTemplate::EVENT_MCU_REJECTED : CompanyMessageTemplate::EVENT_MCU_PASSED,
-                );
+                if ($next === 'rejected') {
+                    ApplicationNotification::createDraftFor($record, CompanyMessageTemplate::EVENT_MCU_REJECTED);
+                } else {
+                    ApplicationNotification::createAndSend($record, CompanyMessageTemplate::EVENT_MCU_PASSED);
+                }
 
                 Notification::make()->title('Keputusan MCU tersimpan')->success()->send();
             });
@@ -267,7 +270,7 @@ class McuPage extends Page implements HasActions, HasForms, HasTable
                     ->url(fn ($record) => \App\Filament\Rekrutmen\Pages\HasilMcuDetailPage::getUrl() . '?invitee=' . $record->mcuInvitee->id),
                 $this->putuskanHasilMcuAction(),
             ])
-            ->toolbarActions([])
+            ->toolbarActions([$this->kirimNotifBulkAction()])
             ->emptyStateHeading('Pilih perusahaan & lowongan')
             ->emptyStateDescription('Kandidat yang lulus wawancara & perusahaannya mewajibkan MCU muncul di sini.')
             ->emptyStateIcon('heroicon-o-heart');
