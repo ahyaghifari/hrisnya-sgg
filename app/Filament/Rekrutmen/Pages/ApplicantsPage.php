@@ -11,7 +11,6 @@ use Filament\Actions\Action;
 use Filament\Actions\Concerns\InteractsWithActions;
 use Filament\Actions\Contracts\HasActions;
 use Filament\Forms\Components\CheckboxList;
-use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
 use Filament\Notifications\Notification;
@@ -22,7 +21,6 @@ use Filament\Tables\Concerns\InteractsWithTable;
 use Filament\Tables\Contracts\HasTable;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\HtmlString;
 use UnitEnum;
 
 /**
@@ -290,41 +288,11 @@ class ApplicantsPage extends Page implements HasActions, HasForms, HasTable
                     ->label('Detail')
                     ->icon('heroicon-m-eye')
                     ->color('gray')
-                    ->modalHeading(fn ($record) => 'Detail Pelamar — ' . ($record->answersMap()['full_name'] ?? '—'))
-                    ->modalSubmitAction(false)
-                    ->modalCancelActionLabel('Tutup')
-                    ->schema(fn ($record) => [
-                        Placeholder::make('data')->label('')->content(fn () => static::detailHtml($record)),
-                    ]),
+                    ->url(fn ($record) => \App\Filament\Rekrutmen\Pages\ApplicantDetailPage::getUrl() . '?application=' . $record->id),
             ])
             ->toolbarActions([])
             ->emptyStateHeading('Pilih perusahaan & lowongan')
             ->emptyStateDescription('Pilih perusahaan lalu lowongan di atas.')
             ->emptyStateIcon('heroicon-o-users');
-    }
-
-    private static function detailHtml(JobApplication $record): HtmlString
-    {
-        $record->loadMissing('answers', 'statusLogs');
-
-        $answers = $record->answers
-            ->reject(fn ($a) => in_array($a->field_key, ['full_name'], true))
-            ->map(fn ($a) => '<tr><td style="padding:4px 10px;color:#64748b;font-size:12px;">' . e(str_replace('_', ' ', $a->field_key))
-                . '</td><td style="padding:4px 10px;font-size:12px;">' . e((string) $a->value) . '</td></tr>')
-            ->join('');
-
-        $logs = $record->statusLogs->sortByDesc('changed_at')->map(fn ($l) =>
-            '<li style="font-size:12px;padding:3px 0;">' . e($l->changed_at?->format('d M Y H:i') ?? '')
-            . ' — ' . e($l->from_status ?? '(baru)') . ' → <strong>' . e($l->to_status) . '</strong> · ' . e($l->actorName()) . '</li>'
-        )->join('');
-
-        return new HtmlString(
-            '<div style="display:grid;gap:14px;">'
-            . '<div><div style="font-weight:700;font-size:12px;margin-bottom:4px;">Jawaban Form</div>'
-            . '<table style="width:100%;border-collapse:collapse;">' . ($answers ?: '<tr><td style="padding:4px 10px;color:#94a3b8;font-size:12px;">—</td></tr>') . '</table></div>'
-            . '<div><div style="font-weight:700;font-size:12px;margin-bottom:4px;">Riwayat Status</div>'
-            . '<ul style="margin:0;padding-left:16px;">' . ($logs ?: '<li style="font-size:12px;color:#94a3b8;">Belum ada</li>') . '</ul></div>'
-            . '</div>'
-        );
     }
 }

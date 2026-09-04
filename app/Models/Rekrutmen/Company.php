@@ -32,4 +32,9 @@ class Company extends Model
     {
         return $this->hasMany(JobOpening::class);
     }
+
+    public function formSections(): HasMany
+    {
+        return $this->hasMany(FormSection::class)->orderBy('sort_order');
+    }
 }

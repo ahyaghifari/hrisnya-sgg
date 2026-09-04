@@ -60,4 +60,25 @@ class RekrutmenPanelAccessTest extends TestCase
             ->get('/rekrutmen/applicants-page')
             ->assertForbidden();
     }
+
+    public function test_detail_pelamar_renders_for_existing_application(): void
+    {
+        $id = \App\Models\Rekrutmen\JobApplication::query()->value('id');
+        if (! $id) {
+            $this->markTestSkipped('rekrutmen_db kosong — tak ada job_applications untuk diuji.');
+        }
+
+        $user = User::factory()->create();
+        $user->assignRole(Role::firstOrCreate(['name' => 'Super Admin'], ['guard_name' => 'web']));
+
+        $this->actingAs($user)->get('/rekrutmen/applicant-detail-page?application=' . $id)->assertOk();
+    }
+
+    public function test_detail_pelamar_404_for_unknown_application(): void
+    {
+        $user = User::factory()->create();
+        $user->assignRole(Role::firstOrCreate(['name' => 'Super Admin'], ['guard_name' => 'web']));
+
+        $this->actingAs($user)->get('/rekrutmen/applicant-detail-page?application=NOPE')->assertNotFound();
+    }
 }

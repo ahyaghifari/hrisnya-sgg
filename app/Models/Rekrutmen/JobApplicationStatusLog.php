@@ -18,7 +18,7 @@ class JobApplicationStatusLog extends Model
     protected $connection = 'recruitment';
 
     protected $fillable = [
-        'job_application_id', 'from_status', 'to_status', 'changed_by', 'changed_by_name', 'changed_at',
+        'job_application_id', 'from_status', 'to_status', 'changed_by', 'changed_by_name', 'changed_at', 'notes',
     ];
 
     protected $casts = ['changed_at' => 'datetime'];
