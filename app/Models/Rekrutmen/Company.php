@@ -37,4 +37,9 @@ class Company extends Model
     {
         return $this->hasMany(FormSection::class)->orderBy('sort_order');
     }
+
+    public function agreements(): HasMany
+    {
+        return $this->hasMany(CompanyAgreement::class)->orderBy('sort_order');
+    }
 }

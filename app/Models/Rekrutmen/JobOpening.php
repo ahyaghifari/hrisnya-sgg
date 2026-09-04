@@ -62,6 +62,32 @@ class JobOpening extends Model
         return $this->hasMany(JobOpeningAgreement::class)->orderBy('sort_order');
     }
 
+    /**
+     * Daftar persetujuan efektif kandidat lowongan ini: persetujuan perusahaan, versi jabatan
+     * menimpa yang judulnya sama, plus persetujuan khusus jabatan yang judulnya baru.
+     * Port dari project `rekrutmen`.
+     */
+    public function effectiveAgreements(): \Illuminate\Support\Collection
+    {
+        $this->loadMissing('company.agreements', 'agreements');
+
+        $items = collect();
+        foreach ($this->company?->agreements ?? collect() as $a) {
+            $items[mb_strtolower(trim($a->title))] = [
+                'title' => $a->title, 'content' => $a->content,
+                'company_agreement_id' => $a->id, 'job_opening_agreement_id' => null,
+            ];
+        }
+        foreach ($this->agreements as $a) {
+            $items[mb_strtolower(trim($a->title))] = [
+                'title' => $a->title, 'content' => $a->content,
+                'company_agreement_id' => null, 'job_opening_agreement_id' => $a->id,
+            ];
+        }
+
+        return $items->values();
+    }
+
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
