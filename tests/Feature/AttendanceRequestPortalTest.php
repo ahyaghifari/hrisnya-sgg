@@ -121,10 +121,12 @@ class AttendanceRequestPortalTest extends TestCase
 
         $this->actingAs($user);
 
+        $date = now()->addDay()->toDateString();
+
         Livewire::test(SubmitLeaveRequest::class)
             ->set('leave_type_id', $leaveType->id)
-            ->set('is_one_day', true)
-            ->set('start_date', now()->addDay()->toDateString())
+            ->set('start_date', $date)
+            ->set('end_date', $date)
             ->call('submit');
 
         $this->assertDatabaseHas('attendance_requests', [

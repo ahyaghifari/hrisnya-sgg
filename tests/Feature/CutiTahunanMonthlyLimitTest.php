@@ -87,7 +87,6 @@ class CutiTahunanMonthlyLimitTest extends TestCase
         $this->actingAs($user);
         Livewire::test(SubmitLeaveRequest::class)
             ->set('leave_type_id', $leaveType->id)
-            ->set('is_one_day', false)
             ->set('start_date', $start->toDateString())
             ->set('end_date', $start->copy()->addDays(2)->toDateString()) // 3 hari
             ->call('submit');
@@ -109,7 +108,6 @@ class CutiTahunanMonthlyLimitTest extends TestCase
         $this->actingAs($user);
         Livewire::test(SubmitLeaveRequest::class)
             ->set('leave_type_id', $leaveType->id)
-            ->set('is_one_day', false)
             ->set('start_date', $start->toDateString())
             ->set('end_date', $start->copy()->addDays(5)->toDateString()) // 6 hari > limit 5
             ->call('submit');
@@ -133,7 +131,6 @@ class CutiTahunanMonthlyLimitTest extends TestCase
         // Pengajuan 1: 3 hari, di awal bulan yang sama — masih dalam batas.
         Livewire::test(SubmitLeaveRequest::class)
             ->set('leave_type_id', $leaveType->id)
-            ->set('is_one_day', false)
             ->set('start_date', $monthStart->copy()->addDays(1)->toDateString())
             ->set('end_date', $monthStart->copy()->addDays(3)->toDateString())
             ->call('submit');
@@ -143,7 +140,6 @@ class CutiTahunanMonthlyLimitTest extends TestCase
         // Pengajuan 2: 3 hari lagi di bulan yang sama -> total 6 hari > limit 5, harus ditolak.
         Livewire::test(SubmitLeaveRequest::class)
             ->set('leave_type_id', $leaveType->id)
-            ->set('is_one_day', false)
             ->set('start_date', $monthStart->copy()->addDays(10)->toDateString())
             ->set('end_date', $monthStart->copy()->addDays(12)->toDateString())
             ->call('submit');
@@ -171,7 +167,6 @@ class CutiTahunanMonthlyLimitTest extends TestCase
         $this->actingAs($user);
         Livewire::test(SubmitLeaveRequest::class)
             ->set('leave_type_id', $leaveType->id)
-            ->set('is_one_day', false)
             ->set('start_date', $start->toDateString())
             ->set('end_date', $start->copy()->addDays(9)->toDateString()) // 10 hari, tetap boleh
             ->call('submit');
@@ -191,7 +186,6 @@ class CutiTahunanMonthlyLimitTest extends TestCase
         $this->actingAs($user);
         Livewire::test(SubmitLeaveRequest::class)
             ->set('leave_type_id', $leaveType->id)
-            ->set('is_one_day', false)
             ->set('start_date', $start->toDateString())
             ->set('end_date', $start->copy()->addDays(9)->toDateString()) // 10 hari
             ->call('submit');

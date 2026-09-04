@@ -80,9 +80,8 @@ class SpecialLeaveQuotaTest extends TestCase
     {
         return Livewire::test(SubmitLeaveRequest::class)
             ->set('leave_type_id', $typeId)
-            ->set('is_one_day', $end === null)
             ->set('start_date', $start)
-            ->set('end_date', $end)
+            ->set('end_date', $end ?? $start)
             ->set('attachments', [UploadedFile::fake()->create('surat.pdf', 50, 'application/pdf')]);
     }
 

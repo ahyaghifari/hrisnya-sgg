@@ -16,7 +16,6 @@ class SubmitLeaveRequest extends Component
     use WithFileUploads;
 
     public ?string $leave_type_id = null;
-    public bool $is_one_day = true;
     public ?string $start_date = null;
     public ?string $end_date = null;
     public ?string $reason = null;
@@ -70,27 +69,21 @@ class SubmitLeaveRequest extends Component
     }
 
     /**
-     * Jumlah hari kerja pengajuan — 1 tanggal = 1 hari; lebih dari 1 tanggal dihitung hari
-     * kerja saja (off_day jadwal user tidak ikut, ScheduleResolver). null kalau tanggal belum
-     * lengkap. Ini yang jadi total_days saat submit.
+     * Jumlah hari kerja pengajuan — tanggal mulai == tanggal selesai = 1 hari; rentang lebih
+     * dari itu dihitung hari kerja saja (off_day jadwal user tidak ikut, ScheduleResolver).
+     * null kalau tanggal belum lengkap. Ini yang jadi total_days saat submit.
      */
     public function getWorkingDaysProperty(): ?int
     {
-        if (! $this->start_date) {
+        if (! $this->start_date || ! $this->end_date) {
             return null;
         }
 
-        $end = $this->is_one_day ? $this->start_date : $this->end_date;
-
-        if (! $end) {
-            return null;
-        }
-
-        if ($end === $this->start_date) {
+        if ($this->end_date === $this->start_date) {
             return 1;
         }
 
-        return app(ScheduleResolver::class)->workingDaysBetween(Auth::user(), $this->start_date, $end);
+        return app(ScheduleResolver::class)->workingDaysBetween(Auth::user(), $this->start_date, $this->end_date);
     }
 
     public function updatedLeaveTypeId(): void
@@ -123,18 +116,12 @@ class SubmitLeaveRequest extends Component
         $this->periode = $service->getCutiTahunanPeriodeUsage(Auth::user(), $this->leave_type_id, $this->start_date);
     }
 
-    public function toggleOneDay(): void
-    {
-        $this->is_one_day = ! $this->is_one_day;
-    }
-
     protected function rules(): array
     {
         return [
             'leave_type_id' => ['required', 'exists:m_leave_types,id'],
-            'is_one_day' => ['required', 'boolean'],
             'start_date' => ['required', 'date'],
-            'end_date' => ['required_if:is_one_day,false', 'nullable', 'date', 'after_or_equal:start_date'],
+            'end_date' => ['required', 'date', 'after_or_equal:start_date'],
             'reason' => ['nullable', 'string'],
             'attachments' => [$this->requiresAttachment ? 'required' : 'nullable', 'array'],
             'attachments.*' => ['file', 'mimes:pdf,jpg,jpeg,png', 'max:10240'],
@@ -169,9 +156,8 @@ class SubmitLeaveRequest extends Component
         try {
             app(AttendaceReqService::class)->storeLeaveRequest([
                 'type_id' => $data['leave_type_id'],
-                'is_one_day' => $data['is_one_day'],
                 'start_date' => $data['start_date'],
-                'end_date' => $data['is_one_day'] ? $data['start_date'] : $data['end_date'],
+                'end_date' => $data['end_date'],
                 'attachments' => $data['attachments'] ?? null,
             ], Auth::user());
 

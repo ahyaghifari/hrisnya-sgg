@@ -63,38 +63,24 @@
                     @error('leave_type_id') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
                 </div>
 
-                <div class="toggle-wrapper" wire:click="toggleOneDay">
-                    <div class="toggle {{ ! $is_one_day ? 'on' : '' }}"></div>
-                    <div>
-                        <p style="font-size:13.5px;font-weight:600;color:var(--text-body);margin:0 0 2px;">Aktifkan jika cuti lebih dari 1 hari</p>
-                        <p style="font-size:12px;color:var(--text-muted);margin:0;">Pilih tanggal mulai dan tanggal selesai</p>
-                    </div>
-                </div>
-
-                @if ($is_one_day)
-                    <div>
-                        <label class="form-label">Tanggal Cuti <span style="color:var(--danger-text);">*</span></label>
-                        <input type="date" class="form-input" wire:model.live="start_date">
-                        @error('start_date') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
-                    </div>
-                @else
-                    <div>
-                        <label class="form-label">Tanggal Cuti <span style="color:var(--danger-text);">*</span></label>
-                        <div class="date-grid">
-                            <div>
-                                <input type="date" class="form-input" wire:model.live="start_date">
-                                <p style="font-size:11.5px;color:var(--text-muted);margin:5px 0 0;">Tanggal Mulai</p>
-                            </div>
-                            <div>
-                                <input type="date" class="form-input" wire:model.live="end_date">
-                                <p style="font-size:11.5px;color:var(--text-muted);margin:5px 0 0;">Tanggal Selesai</p>
-                                @error('end_date') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
-                            </div>
+                <div>
+                    <label class="form-label">Tanggal Cuti <span style="color:var(--danger-text);">*</span></label>
+                    <div class="date-grid">
+                        <div>
+                            <p style="font-size:11.5px;color:var(--text-muted);margin:0 0 5px;">Tanggal Mulai</p>
+                            <input type="date" class="form-input" wire:model.live="start_date">
+                            @error('start_date') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
+                        </div>
+                        <div>
+                            <p style="font-size:11.5px;color:var(--text-muted);margin:0 0 5px;">Tanggal Selesai</p>
+                            <input type="date" class="form-input" wire:model.live="end_date">
+                            @error('end_date') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
                         </div>
                     </div>
-                @endif
+                    <p style="font-size:11.5px;color:var(--text-muted);margin:6px 0 0;">1 hari cuti? Isi tanggal mulai dan selesai sama.</p>
+                </div>
 
-                @if (! $is_one_day && $this->workingDays !== null)
+                @if ($this->workingDays !== null)
                     <div style="background:var(--surface-alt);border-radius:10px;padding:10px 14px;font-size:12.5px;color:var(--text-body);">
                         <i class="fa-solid fa-calendar-check" style="margin-right:6px;color:var(--brand);"></i>
                         Total <strong>{{ $this->workingDays }} hari kerja</strong> (hari libur sesuai jadwal tidak dihitung)
