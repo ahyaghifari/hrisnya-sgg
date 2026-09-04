@@ -156,9 +156,20 @@ ApplicationNotification, User (pelamar/staff — read-only dari HRIS).
       aksi single-record.
 - [x] `CompanyMessageTemplate` sudah diport (Fase 1b). Kirim sinkron (bukan ShouldQueue) —
       parity dengan repo rekrutmen; upgrade ke queue khusus kalau bulk penolakan berat.
-- [ ] **DITUNDA**: hapus `RekrutmenSyncService` + `app/Livewire/Rekrutmen/*` + route
-      `/rekrutmen/{lowongan,mcu,pelamar}` lama. Alasan: `CandidateOnboardingService` +
-      `routes/web.php` lagi diedit sesi lain (modul Orientasi) — tunggu itu merge dulu.
+- [x] Hapus halaman Livewire pipeline lama yang aman: `ApplicantsPage`,
+      `CandidateApplicationDetailPage`, `McuQueuePage`, `McuFormPage` + view-nya +
+      `tests/Feature/Rekrutmen/ApplicantsPageTest.php` (semua uji arsitektur HTTP-sync lama).
+      Route `rekrutmen.{mcu,lowongan.pelamar,lowongan.kandidat,pelamar.mcu}` diubah jadi
+      redirect ke panel Filament (nama route dipertahankan buat `route()` & portal-pages).
+- [ ] **SISA (tunggu sesi Orientasi commit dulu)**:
+  - `app/Livewire/Rekrutmen/ApplicantDetailPage.php` (+ route `rekrutmen.pelamar.show`,
+    `JobOpeningsPage`/`JobOpeningDetailPage`/`EditJobOpeningPage`) — sesi Orientasi lagi
+    nempel modal onboarding di sini. Retire / pindahkan tesnya bareng itu.
+  - `RekrutmenSyncService`: method `getMcuQueue`/`saveMcuStation`/`getJobOpeningApplications`
+    sekarang dead; sisanya masih dipakai `ApplicantDetailPage` Livewire +
+    `CandidateOnboardingService` + `CandidateDocumentProxyController`. Jangan hapus service
+    ini (masih dipakai fitur push lowongan HRIS->Rekrutmen: `sync()`, `pushCompany()`, dst).
+  - Bersihin entri `rekrutmen.lowongan.*` di `config/portal-pages.php` (skrg nunjuk redirect).
 - [ ] Putuskan nasib Filament admin repo rekrutmen (dormant vs hapus resource).
 
 ## Catatan

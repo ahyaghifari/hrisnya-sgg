@@ -74,7 +74,6 @@ use App\Livewire\Presensi\RekapPresensiPage;
 use App\Livewire\Presensi\ScheduleAssignmentsPage;
 use App\Livewire\Presensi\ScheduleDetailPage;
 use App\Livewire\Presensi\SchedulesPage;
-use App\Livewire\Rekrutmen\CandidateApplicationDetailPage;
 use App\Livewire\Rekrutmen\EditJobOpeningPage;
 use App\Livewire\Rekrutmen\CreateManpowerRequestPage;
 use App\Livewire\Rekrutmen\JobOpeningDetailPage;
@@ -277,8 +276,6 @@ Route::middleware(['auth', 'portal.access'])->group(function () {
         ->name('orientasi.show');
     Route::get('/kepegawaian/orientasi', \App\Livewire\Kepegawaian\OrientasiKelolaPage::class)
         ->name('kepegawaian.orientasi');
-    Route::get('/kepegawaian/orientasi-indikator', \App\Livewire\Kepegawaian\OrientasiIndikatorPage::class)
-        ->name('kepegawaian.orientasi-indikator');
 
     Route::get('/kepegawaian/perubahan-status', UserTransitionsPage::class)
         ->name('kepegawaian.mutasi-karyawan');
@@ -583,18 +580,19 @@ Route::middleware(['auth', 'portal.access'])->group(function () {
     Route::get('/rekrutmen/lowongan', JobOpeningsPage::class)
         ->name('rekrutmen.lowongan');
 
-    Route::get('/rekrutmen/mcu', \App\Livewire\Rekrutmen\McuQueuePage::class)
+    // Alur pipeline pelamar (pelamar/kandidat/MCU) sudah pindah ke panel Filament /rekrutmen.
+    // Halaman Livewire lama dihapus; route dipertahankan sebagai redirect biar link/bookmark
+    // & config/portal-pages.php tetap resolve.
+    Route::get('/rekrutmen/mcu', fn () => redirect('/rekrutmen/mcu-page'))
         ->name('rekrutmen.mcu');
 
     Route::get('/rekrutmen/lowongan/{record}/edit', EditJobOpeningPage::class)
         ->name('rekrutmen.lowongan.edit');
 
-    // {opening} = id lowongan HRIS ATAU id lowongan Rekrutmen yang belum terhubung — string,
-    // bukan model binding (ApplicantsPage yang resolve).
-    Route::get('/rekrutmen/lowongan/{opening}/pelamar', \App\Livewire\Rekrutmen\ApplicantsPage::class)
+    Route::get('/rekrutmen/lowongan/{opening}/pelamar', fn () => redirect('/rekrutmen/applicants-page'))
         ->name('rekrutmen.lowongan.pelamar');
 
-    Route::get('/rekrutmen/lowongan/kandidat/{record}', CandidateApplicationDetailPage::class)
+    Route::get('/rekrutmen/lowongan/kandidat/{record}', fn (string $record) => redirect('/rekrutmen/applicant-detail-page?application=' . $record))
         ->name('rekrutmen.lowongan.kandidat');
 
     Route::get('/rekrutmen/lowongan/{record}', JobOpeningDetailPage::class)
@@ -628,7 +626,7 @@ Route::middleware(['auth', 'portal.access'])->group(function () {
         );
     })->name('rekrutmen.file.offering-letter');
 
-    Route::get('/rekrutmen/pelamar/{jobApplication}/mcu/{station}', \App\Livewire\Rekrutmen\McuFormPage::class)
+    Route::get('/rekrutmen/pelamar/{jobApplication}/mcu/{station}', fn () => redirect('/rekrutmen/mcu-station-page'))
         ->where('station', 'nurse|lab|radiology|doctor')
         ->name('rekrutmen.pelamar.mcu');
 
