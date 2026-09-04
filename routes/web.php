@@ -269,6 +269,17 @@ Route::middleware(['auth', 'portal.access'])->group(function () {
     Route::get('/kepegawaian/kontrak', KontrakPage::class)
         ->name('kepegawaian.kontrak');
 
+    // Self-service Orientasi (karyawan kategori Orientasi mengajukan penilaian) — Baris 1 nav,
+    // pola Sikartap. Halaman indikator (HR) tetap di grup Kepegawaian.
+    Route::get('/orientasi', \App\Livewire\Kepegawaian\OrientasiPage::class)
+        ->name('orientasi');
+    Route::get('/orientasi/{record}', \App\Livewire\Kepegawaian\OrientasiDetailPage::class)
+        ->name('orientasi.show');
+    Route::get('/kepegawaian/orientasi', \App\Livewire\Kepegawaian\OrientasiKelolaPage::class)
+        ->name('kepegawaian.orientasi');
+    Route::get('/kepegawaian/orientasi-indikator', \App\Livewire\Kepegawaian\OrientasiIndikatorPage::class)
+        ->name('kepegawaian.orientasi-indikator');
+
     Route::get('/kepegawaian/perubahan-status', UserTransitionsPage::class)
         ->name('kepegawaian.mutasi-karyawan');
 
@@ -596,6 +607,26 @@ Route::middleware(['auth', 'portal.access'])->group(function () {
     Route::get('/rekrutmen/pelamar/{jobApplication}/offering-letter/{type}', [\App\Http\Controllers\Rekrutmen\CandidateDocumentProxyController::class, 'offeringLetter'])
         ->where('type', 'recruiter|signed')
         ->name('rekrutmen.pelamar.offering-letter');
+
+    // Panel Filament rekrutmen (shared DB) — unduh file offering letter LANGSUNG dari disk
+    // `rekrutmen` (REKRUTMEN_STORAGE_PATH), bukan proxy API. Gate SISTEM_REKRUTMEN.
+    Route::get('/rekrutmen-file/offering-letter/{jobApplication}/{type}', function (string $jobApplication, string $type) {
+        abort_unless(in_array($type, ['recruiter', 'signed'], true), 404);
+        abort_unless(\Illuminate\Support\Facades\Auth::user()?->can(\App\Enum\CustomPermissionEnum::SISTEM_REKRUTMEN->value), 403);
+
+        $app = \App\Models\Rekrutmen\JobApplication::find($jobApplication);
+        $path = $type === 'recruiter' ? $app?->offering_letter_path : $app?->offering_letter_signed_path;
+        abort_if(! $path || ! \Illuminate\Support\Facades\Storage::disk('rekrutmen')->exists($path), 404, 'File tidak ada.');
+
+        return response(
+            \Illuminate\Support\Facades\Storage::disk('rekrutmen')->get($path),
+            200,
+            [
+                'Content-Type' => \Illuminate\Support\Facades\Storage::disk('rekrutmen')->mimeType($path) ?: 'application/octet-stream',
+                'Content-Disposition' => 'inline; filename="offering-' . $type . '-' . $jobApplication . '"',
+            ],
+        );
+    })->name('rekrutmen.file.offering-letter');
 
     Route::get('/rekrutmen/pelamar/{jobApplication}/mcu/{station}', \App\Livewire\Rekrutmen\McuFormPage::class)
         ->where('station', 'nurse|lab|radiology|doctor')

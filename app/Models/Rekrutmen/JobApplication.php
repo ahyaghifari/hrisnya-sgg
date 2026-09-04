@@ -138,6 +138,11 @@ class JobApplication extends Model
         return $this->hasMany(QuizAttempt::class);
     }
 
+    public function offeringNegotiations(): HasMany
+    {
+        return $this->hasMany(OfferingNegotiation::class)->orderBy('created_at');
+    }
+
     /** @return array<string,mixed> field_key => value */
     public function answersMap(): array
     {
