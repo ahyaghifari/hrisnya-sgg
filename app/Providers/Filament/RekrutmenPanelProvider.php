@@ -48,6 +48,7 @@ class RekrutmenPanelProvider extends PanelProvider
                     800 => '#024732', 900 => '#012e21', 950 => '#001710',
                 ],
             ])
+            ->topNavigation()
             ->navigationGroups([
                 'Lowongan',
                 'Kandidat',
