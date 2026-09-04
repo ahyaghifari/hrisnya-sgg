@@ -143,6 +143,11 @@ class JobApplication extends Model
         return $this->hasMany(OfferingNegotiation::class)->orderBy('created_at');
     }
 
+    public function mcuInvitee(): HasOne
+    {
+        return $this->hasOne(McuInvitee::class);
+    }
+
     /** @return array<string,mixed> field_key => value */
     public function answersMap(): array
     {

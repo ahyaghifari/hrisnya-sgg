@@ -1,0 +1,275 @@
+<?php
+
+namespace App\Filament\Rekrutmen\Pages;
+
+use App\Models\Rekrutmen\ApplicationNotification;
+use App\Models\Rekrutmen\Company;
+use App\Models\Rekrutmen\CompanyMessageTemplate;
+use App\Models\Rekrutmen\JobApplication;
+use App\Models\Rekrutmen\JobOpening;
+use App\Models\Rekrutmen\JobOpeningStageLog;
+use App\Models\Rekrutmen\McuSchedule;
+use Filament\Actions\Action;
+use Filament\Actions\Concerns\InteractsWithActions;
+use Filament\Actions\Contracts\HasActions;
+use Filament\Forms\Components\CheckboxList;
+use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\Placeholder;
+use Filament\Forms\Components\Radio;
+use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\TimePicker;
+use Filament\Forms\Concerns\InteractsWithForms;
+use Filament\Forms\Contracts\HasForms;
+use Filament\Notifications\Notification;
+use Filament\Pages\Page;
+use Filament\Support\Icons\Heroicon;
+use Filament\Tables\Columns\IconColumn;
+use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Concerns\InteractsWithTable;
+use Filament\Tables\Contracts\HasTable;
+use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\HtmlString;
+use UnitEnum;
+
+/**
+ * Medical Check Up — port dari McuPage project `rekrutmen` (FL3 -> FL4), DB `recruitment`.
+ * Cuma perusahaan `requires_mcu`. Fase 5a: jadwal draft -> terapkan (status `mcu`), putuskan
+ * fit/unfit (fit -> `onboarding`; unfit -> `rejected` + draft notif). Input 4 stasiun ada di
+ * McuStationPage (Fase 5b). Aksi kirim email -> Fase 8.
+ */
+class McuPage extends Page implements HasActions, HasForms, HasTable
+{
+    use InteractsWithActions, InteractsWithForms, InteractsWithTable;
+
+    protected string $view = 'filament.rekrutmen.pages.mcu-page';
+
+    protected static string|\BackedEnum|null $navigationIcon = Heroicon::OutlinedHeart;
+
+    protected static ?string $navigationLabel = 'MCU';
+
+    protected static ?string $title = 'Medical Check Up';
+
+    protected static string|UnitEnum|null $navigationGroup = 'Kandidat';
+
+    protected static ?int $navigationSort = 4;
+
+    public ?string $companyId = null;
+    public ?string $jobOpeningId = null;
+
+    public static function canAccess(): bool
+    {
+        $u = filament()->auth()->user();
+
+        return $u->hasRole(['Admin', 'Super Admin']) || $u->can('View:JobOpenings');
+    }
+
+    private function canDecide(): bool
+    {
+        $u = filament()->auth()->user();
+
+        return $u->hasRole(['Admin', 'Super Admin']) || $u->can('Update:JobOpenings');
+    }
+
+    public function updatedCompanyId(): void
+    {
+        $this->jobOpeningId = null;
+        $this->resetTable();
+    }
+
+    public function updatedJobOpeningId(): void
+    {
+        $this->resetTable();
+    }
+
+    public function getCompanies(): \Illuminate\Support\Collection
+    {
+        return Company::where('requires_mcu', true)->orderBy('name')->get(['id', 'name']);
+    }
+
+    public function getJobOpenings(): \Illuminate\Support\Collection
+    {
+        return $this->companyId
+            ? JobOpening::where('company_id', $this->companyId)->latest()->get(['id', 'title'])
+            : collect();
+    }
+
+    public function getReadyCount(): int
+    {
+        return $this->jobOpeningId
+            ? JobApplication::where('job_opening_id', $this->jobOpeningId)->where('status', 'mcu')->whereDoesntHave('mcuInvitee')->count()
+            : 0;
+    }
+
+    public function getMcuDraft(): ?McuSchedule
+    {
+        return $this->jobOpeningId ? McuSchedule::draftForOpening($this->jobOpeningId) : null;
+    }
+
+    private function readyOptions(): array
+    {
+        if (! $this->jobOpeningId) {
+            return [];
+        }
+
+        return JobApplication::with(['answers' => fn ($q) => $q->where('field_key', 'full_name')])
+            ->where('job_opening_id', $this->jobOpeningId)->where('status', 'mcu')->whereDoesntHave('mcuInvitee')
+            ->get()
+            ->mapWithKeys(fn ($a) => [$a->id => $a->answers->firstWhere('field_key', 'full_name')?->value ?? '(tanpa nama)'])
+            ->all();
+    }
+
+    public function jadwalMcuAction(): Action
+    {
+        $options = $this->readyOptions();
+        $draft = $this->getMcuDraft();
+
+        return Action::make('jadwalMcu')
+            ->label('Jadwalkan MCU (' . count($options) . ' kandidat)')
+            ->icon('heroicon-m-calendar-days')
+            ->color('info')
+            ->visible(fn () => $this->canDecide() && count($options) > 0)
+            ->fillForm([
+                'mcu_date' => $draft?->mcu_date?->format('Y-m-d'),
+                'mcu_time' => $draft?->mcu_time,
+                'location' => $draft?->location,
+                'notes' => $draft?->notes,
+                'invited_ids' => $draft ? $draft->invitees()->pluck('job_application_id')->all() : [],
+            ])
+            ->schema([
+                DatePicker::make('mcu_date')->label('Tanggal MCU')->required()->native(false)->displayFormat('d/m/Y'),
+                TimePicker::make('mcu_time')->label('Waktu')->seconds(false),
+                TextInput::make('location')->label('Lokasi Klinik/RS'),
+                Textarea::make('notes')->label('Catatan untuk Kandidat')->rows(2),
+                CheckboxList::make('invited_ids')->label('Pilih Kandidat')
+                    ->options($options)->searchable()->bulkToggleable()->columns(1),
+            ])
+            ->modalHeading('Jadwalkan MCU')
+            ->modalSubmitActionLabel('Simpan Draft Jadwal')
+            ->action(function (array $data): void {
+                if (! $this->jobOpeningId) {
+                    return;
+                }
+                McuSchedule::saveDraft($this->jobOpeningId, $data, $data['invited_ids'] ?? []);
+                Notification::make()->title('Draft jadwal MCU tersimpan.')->warning()->send();
+            });
+    }
+
+    public function publishMcuAction(): Action
+    {
+        $draft = $this->getMcuDraft();
+        $invitees = $draft ? $draft->invitees()->with(['jobApplication.answers'])->get() : collect();
+
+        $namesHtml = $invitees->map(fn ($inv) => $inv->jobApplication->answers->firstWhere('field_key', 'full_name')?->value ?? '—')
+            ->map(fn ($name) => '<li style="padding:6px 10px;border-bottom:1px solid #e5e7eb;font-size:13px;">' . e($name) . '</li>')
+            ->join('');
+
+        return Action::make('publishMcu')
+            ->label('Terapkan Jadwal (' . $invitees->count() . ')')
+            ->icon('heroicon-m-check-circle')
+            ->color('success')
+            ->visible(fn () => $this->canDecide() && $draft !== null)
+            ->modalHeading('Terapkan Jadwal MCU?')
+            ->modalDescription(fn () => 'Tanggal: ' . ($draft?->mcu_date?->translatedFormat('d F Y') ?? '-')
+                . '  |  Waktu: ' . ($draft?->mcu_time ? substr($draft->mcu_time, 0, 5) : '-')
+                . ($draft?->location ? '  |  ' . $draft->location : ''))
+            ->schema([
+                Placeholder::make('diundang')->label($invitees->count() . ' Kandidat Diundang')
+                    ->content(new HtmlString('<ul style="border:1px solid #e5e7eb;border-radius:8px;max-height:200px;overflow-y:auto;margin:0;padding:0;list-style:none;">' . ($namesHtml ?: '<li style="padding:6px 10px;font-size:13px;color:#9ca3af;">Tidak ada</li>') . '</ul>')),
+            ])
+            ->modalSubmitActionLabel('Terapkan')
+            ->action(function (): void {
+                $draft = $this->getMcuDraft();
+                if (! $draft) {
+                    return;
+                }
+                $draft->apply();
+                $this->resetTable();
+                Notification::make()->title('Jadwal MCU diterapkan. Undangan dibuat sebagai draft email.')->success()->send();
+            });
+    }
+
+    public function putuskanHasilMcuAction(): Action
+    {
+        return Action::make('putuskanHasilMcu')
+            ->label('Putuskan Hasil MCU')
+            ->icon('heroicon-m-clipboard-document-check')
+            ->color('gray')
+            ->visible(fn ($record) => $this->canDecide()
+                && $record->mcuInvitee
+                && $record->mcuInvitee->status_mcu === 'pending'
+                && $record->mcuInvitee->doctorExamDone())
+            ->schema(fn ($record) => [
+                Placeholder::make('rekomendasi_dokter')->label('Rekomendasi Dokter')
+                    ->content($record->mcuInvitee?->doctorExamination?->rekomendasi ?: '—'),
+                Radio::make('hasil')->label('Keputusan MCU')->options([
+                    'fit' => 'Fit (Lulus)',
+                    'unfit' => 'Unfit (Tidak Lulus)',
+                ])->required(),
+                Textarea::make('catatan_mcu')->label('Catatan Keputusan')->rows(3),
+            ])
+            ->action(function (array $data, $record): void {
+                $invitee = $record->mcuInvitee;
+                if (! $invitee) {
+                    return;
+                }
+
+                $invitee->update(['status_mcu' => $data['hasil'], 'catatan_mcu' => $data['catatan_mcu'] ?? null]);
+
+                $next = $data['hasil'] === 'fit' ? 'onboarding' : 'rejected';
+                $record->update(['status' => $next]);
+                JobOpeningStageLog::record($record->job_opening_id, 'mcu', $next, 1);
+
+                ApplicationNotification::createDraftFor(
+                    $record,
+                    $next === 'rejected' ? CompanyMessageTemplate::EVENT_MCU_REJECTED : CompanyMessageTemplate::EVENT_MCU_PASSED,
+                );
+
+                Notification::make()->title('Keputusan MCU tersimpan')->success()->send();
+            });
+    }
+
+    public function table(Table $table): Table
+    {
+        return $table
+            ->query(
+                JobApplication::query()
+                    ->with(['answers' => fn ($q) => $q->where('field_key', 'full_name'), 'mcuInvitee.nurseAssessment', 'mcuInvitee.labResult', 'mcuInvitee.radiologyResult', 'mcuInvitee.doctorExamination'])
+                    ->when(
+                        $this->jobOpeningId,
+                        fn (Builder $q) => $q->where('job_opening_id', $this->jobOpeningId)->where('status', 'mcu'),
+                        fn (Builder $q) => $q->whereRaw('1 = 0'),
+                    )
+                    ->latest()
+            )
+            ->columns([
+                TextColumn::make('full_name')->label('Nama Lengkap')
+                    ->state(fn ($record) => $record->answers->firstWhere('field_key', 'full_name')?->value ?? '—'),
+                IconColumn::make('nurse')->label('Perawat')->boolean()->state(fn ($r) => (bool) $r->mcuInvitee?->nurseAssessment),
+                IconColumn::make('lab')->label('Lab')->boolean()->state(fn ($r) => (bool) $r->mcuInvitee?->labResult),
+                IconColumn::make('radiology')->label('Radiologi')->boolean()->state(fn ($r) => (bool) $r->mcuInvitee?->radiologyResult),
+                IconColumn::make('doctor')->label('Dokter')->boolean()->state(fn ($r) => (bool) $r->mcuInvitee?->doctorExamination),
+                TextColumn::make('status_mcu')->label('Keputusan MCU')->badge()
+                    ->state(fn ($record) => $record->mcuInvitee?->status_mcu)
+                    ->formatStateUsing(fn ($state) => match ($state) {
+                        'fit' => 'Fit', 'unfit' => 'Unfit', default => 'Belum diputuskan',
+                    })
+                    ->color(fn ($state) => match ($state) {
+                        'fit' => 'success', 'unfit' => 'danger', default => 'gray',
+                    }),
+            ])
+            ->recordActions([
+                Action::make('lihat')->label('Detail')->icon('heroicon-m-eye')->color('gray')
+                    ->url(fn ($record) => \App\Filament\Rekrutmen\Pages\ApplicantDetailPage::getUrl() . '?application=' . $record->id),
+                Action::make('lihatHasilMcu')->label('Hasil MCU')->icon('heroicon-m-clipboard-document-check')->color('gray')
+                    ->visible(fn ($record) => $record->mcuInvitee?->hasAnyMcuResult())
+                    ->url(fn ($record) => \App\Filament\Rekrutmen\Pages\HasilMcuDetailPage::getUrl() . '?invitee=' . $record->mcuInvitee->id),
+                $this->putuskanHasilMcuAction(),
+            ])
+            ->toolbarActions([])
+            ->emptyStateHeading('Pilih perusahaan & lowongan')
+            ->emptyStateDescription('Kandidat yang lulus wawancara & perusahaannya mewajibkan MCU muncul di sini.')
+            ->emptyStateIcon('heroicon-o-heart');
+    }
+}
