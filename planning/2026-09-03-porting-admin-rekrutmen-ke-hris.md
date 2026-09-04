@@ -56,8 +56,9 @@
    porting, HRIS yang kirim. Draft/tahan-kirim jadi kolom/tabel di DB rekrutmen (mis.
    `application_notifications.sent_at` nullable = draft). Cek apakah sudah ada; kalau belum,
    migration kecil di repo rekrutmen.
-4. **Filament admin repo rekrutmen** — dibiarkan dormant (masih bisa dipakai darurat) atau
-   dihapus resource-nya. Putuskan di Fase 8.
+4. **Filament admin repo rekrutmen** — dibiarkan dormant (masih bisa dipakai darurat).
+   `PelamarResource` + `StaffResource` (grup Pengguna) TETAP eksklusif di repo `rekrutmen`
+   (keputusan 2026-09-04) — bukan bagian porting.
 
 ## Inventaris admin panel repo rekrutmen (yang harus diport)
 
@@ -71,8 +72,8 @@ Panel FL3 `admin` (`/kelola-rekrutmen`), top-nav, grup: **Lowongan / Kandidat / 
 | `QuizResource` | `Quiz` | Master | CRUD kuis |
 | `CompanyAgreementResource` | `CompanyAgreement` | Master | Template persetujuan onboarding |
 | `JobOpeningResource` | `JobOpening` | Lowongan | CRUD lowongan + aksi `stageLogs` |
-| `PelamarResource` | `User` (`is_staff=false`) | Pengguna | Daftar akun pelamar + reset verifikasi |
-| `StaffResource` | `User` (`is_staff=true`) | Pengguna | Akun staff/admin |
+| ~~`PelamarResource`~~ | — | — | **TIDAK diport** (keputusan 2026-09-04). Akun login pelamar tetap dikelola di repo `rekrutmen`; kandidat tak pernah masuk HRIS. |
+| ~~`StaffResource`~~ | — | — | **TIDAK diport**. Staff panel = user HRIS, digate permission `SISTEM_REKRUTMEN` via Shield/role HRIS — tak perlu resource sendiri. |
 
 ### Halaman pipeline (11)
 | Halaman | Grup/Sort | Aksi kunci |
