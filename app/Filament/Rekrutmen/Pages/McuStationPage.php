@@ -41,7 +41,7 @@ class McuStationPage extends Page implements HasActions, HasForms, HasTable
 
     protected static string|\BackedEnum|null $navigationIcon = Heroicon::OutlinedClipboardDocumentCheck;
 
-    protected static ?string $navigationLabel = 'Isi Pemeriksaan MCU';
+    protected static ?string $navigationLabel = 'MCU';
 
     protected static ?string $title = 'Isi Pemeriksaan MCU';
 

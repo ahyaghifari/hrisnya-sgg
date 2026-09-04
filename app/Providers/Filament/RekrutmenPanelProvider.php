@@ -49,7 +49,7 @@ class RekrutmenPanelProvider extends PanelProvider
                 ],
             ])
             ->topNavigation()
-            // Lowongan, Daftar Pelamar & Isi Pemeriksaan MCU sengaja tanpa grup (item mandiri).
+            // Lowongan, Daftar Pelamar & MCU (isi pemeriksaan) sengaja tanpa grup (item mandiri).
             ->navigationGroups([
                 'Kandidat',
                 'Master',
