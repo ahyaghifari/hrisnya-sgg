@@ -19,7 +19,13 @@
         'canAccessCoachingCounseling' => auth()->user()->can(\App\Enum\CustomPermissionEnum::SISTEM_PEMBINAAN_KARYAWAN->value),
         'canAccessTukarShift' => auth()->user()->can(\App\Enum\CustomPermissionEnum::TUKAR_SHIFT_SAYA->value) && auth()->user()->hasShiftSchedule(),
         'canAccessSikartapSaya' => auth()->user()->isKontrakKaryawan(),
-        'canAccessSikartap' => auth()->user()->can(\App\Enum\CustomPermissionEnum::SISTEM_SIKARTAP->value),
+        'canAccessOrientasiSaya' => auth()->user()->isOrientasiKaryawan(),
+        // "Sikartap" jadi payung perjalanan status karyawan (Orientasi -> Kontrak -> Tetap) -
+        // dropdown-nya muncul kalau punya SISTEM_SIKARTAP ATAU akses Kontrak/Orientasi. Tiap
+        // link di dalamnya tetap digerbangi permission sendiri.
+        'canAccessSikartap' => auth()->user()->can(\App\Enum\CustomPermissionEnum::SISTEM_SIKARTAP->value)
+            || auth()->user()->can('ViewAny:UserContract')
+            || auth()->user()->can('ViewAny:OrientationSubmission'),
         // Rekrutmen: nav group sendiri, gerbang SISTEM_REKRUTMEN (2026-08-31). OR ke cek lama
         // (ViewAny:JobOpenings recruiter/HRD, permission MCU staff klinis) supaya role existing
         // tidak kehilangan akses sebelum gerbang baru di-assign. Link di dalam dropdown tetap

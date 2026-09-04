@@ -6,7 +6,6 @@
     $canViewDokumen = auth()->user()->can('ViewAny:UserDocuments');
     $canViewPerubahanStatus = auth()->user()->can('ViewAny:UserTransition');
     $canViewPermintaanTenagaKerja = auth()->user()->can('ViewAny:ManpowerRequests');
-    $canViewKontrak = auth()->user()->can('ViewAny:UserContract');
 @endphp
 
 <span class="pwa-menu-grid-divider">Sistem Kepegawaian</span>
@@ -44,12 +43,7 @@
     <span class="pwa-menu-grid-label">Dokumen</span>
 </a>
 @endif
-@if ($canViewKontrak)
-<a href="{{ route('kepegawaian.kontrak') }}" wire:navigate class="pwa-menu-grid-item">
-    <span class="pwa-menu-grid-icon gold"><i class="fa-solid fa-file-contract"></i></span>
-    <span class="pwa-menu-grid-label">Kontrak</span>
-</a>
-@endif
+{{-- Kontrak & Orientasi pindah ke menu Sikartap (2026-09-04). --}}
 @if ($canViewPerubahanStatus)
     <a href="{{ route('kepegawaian.mutasi-karyawan') }}" wire:navigate class="pwa-menu-grid-item">
         <span class="pwa-menu-grid-icon gold"><i class="fa-solid fa-right-left"></i></span>

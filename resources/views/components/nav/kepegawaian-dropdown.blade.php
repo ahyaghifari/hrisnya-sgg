@@ -7,7 +7,6 @@
     $canViewDokumen = auth()->user()->can('ViewAny:UserDocuments');
     $canViewPerubahanStatus = auth()->user()->can('ViewAny:UserTransition');
     $canViewPermintaanTenagaKerja = auth()->user()->can('ViewAny:ManpowerRequests');
-    $canViewKontrak = auth()->user()->can('ViewAny:UserContract');
 @endphp
 
 <div class="dropdown">
@@ -44,15 +43,12 @@
             @endif
         </div>
         @endif
-        @if ($canViewKontrak || $canViewPerubahanStatus)
+        {{-- Kontrak & Orientasi dipindah ke dropdown Sikartap (payung perjalanan status karyawan,
+             2026-09-04). Di sini tinggal Perubahan Status (promosi/demosi/mutasi/PHK generik). --}}
+        @if ($canViewPerubahanStatus)
         <div class="dropdown-col">
             <div class="dropdown-col-label">Status Karyawan</div>
-            @if ($canViewKontrak)
-                <a href="{{ route('kepegawaian.kontrak') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-file-contract"></i> Kontrak</a>
-            @endif
-            @if ($canViewPerubahanStatus)
-                <a href="{{ route('kepegawaian.mutasi-karyawan') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-right-left"></i> Perubahan Status</a>
-            @endif
+            <a href="{{ route('kepegawaian.mutasi-karyawan') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-right-left"></i> Perubahan Status</a>
         </div>
         @endif
     </div>

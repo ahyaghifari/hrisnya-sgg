@@ -486,7 +486,37 @@ class PendingApprovalsCard extends Component
                 ]);
         }
 
-        $requests = $attendanceRequests->concat($transitions)->concat($courseEnrollments)->concat($trainingRequests)->concat($jabatanKuota)->concat($manpowerRequests)->concat($shiftSwapRequests)->concat($sikartapRequests)->concat($sarprasRequests)->sortByDesc('created_at')->values();
+        // Penilaian Orientasi - 1 baris per pengajuan. bulk_supported=false: approver terakhir
+        // mengisi form skor + keputusan di halaman detail, tidak ada "approve 1 tombol".
+        $orientationRequests = collect();
+        if ($this->wants('orientation_request')) {
+            $orientationIds = $permissionService
+                ->pendingApprovalsFor(Auth::user(), ApprovalModuleEnum::ORIENTATION_REQUEST->value)
+                ->pluck('snapshot.module_id')->filter()->values();
+
+            $orientationRequests = \App\Models\OrientationSubmission::with('user')
+                ->whereIn('id', $orientationIds)
+                ->whereHas('user')
+                ->get()
+                ->map(fn ($s) => (object) [
+                    'id' => $s->id,
+                    'dispatch' => 'orientation_request',
+                    'bulk_supported' => false,
+                    'module' => 'orientation_request',
+                    'badge' => 'blue',
+                    'label' => 'Penilaian Orientasi',
+                    'icon' => 'fa-user-graduate',
+                    'tile' => 'neutral',
+                    'keterangan' => 'Masa orientasi',
+                    'user_name' => $s->user->name,
+                    'created_at' => $s->submitted_at ?? $s->created_at,
+                    'url' => route('orientasi.show', $s->id),
+                    'modal' => false,
+                    'external' => false,
+                ]);
+        }
+
+        $requests = $attendanceRequests->concat($transitions)->concat($courseEnrollments)->concat($trainingRequests)->concat($jabatanKuota)->concat($manpowerRequests)->concat($shiftSwapRequests)->concat($sikartapRequests)->concat($sarprasRequests)->concat($orientationRequests)->sortByDesc('created_at')->values();
 
         foreach ($requests as $request) {
             $request->key = $request->dispatch . ':' . $request->id;

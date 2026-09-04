@@ -5,18 +5,6 @@
     <livewire:pending-approvals-card />
 </div>
 
-@if ($canBrowseAllCompanies)
-    <div class="mb-4 max-w-sm">
-        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Pilih Perusahaan</label>
-        <select wire:model.live="companyId" class="w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-slate-400 focus:ring-slate-400">
-            <option value="">Pilih perusahaan...</option>
-            @foreach ($this->companyOptions as $id => $name)
-                <option value="{{ $id }}">{{ $name }}</option>
-            @endforeach
-        </select>
-    </div>
-@endif
-
 @php $employees = $this->employees; @endphp
 
 <!-- MOBILE: card manual -->
@@ -24,7 +12,7 @@
     @if ($employees->isEmpty())
         <div class="pwa-list" style="padding:32px 16px;text-align:center;">
             <p style="font-size:13px;color:var(--text-muted);margin:0;">
-                {{ $canBrowseAllCompanies && ! $companyId ? 'Pilih perusahaan dulu.' : 'Belum ada karyawan di bawah kamu.' }}
+                Belum ada karyawan di bawah kamu.
             </p>
         </div>
     @else
@@ -53,12 +41,9 @@
                                 &middot; {{ $employee->profile->jobPosition->name }}
                             @endif
                         </p>
-                        @if ($employee->profile?->department?->name || ($canBrowseAllCompanies && $employee->company?->name))
+                        @if ($employee->profile?->department?->name)
                             <p style="font-size:11px;color:var(--text-faint);margin-top:2px;">
-                                {{ $employee->profile?->department?->name }}
-                                @if ($canBrowseAllCompanies && $employee->company?->name)
-                                    &middot; {{ $employee->company->name }}
-                                @endif
+                                {{ $employee->profile->department->name }}
                             </p>
                         @endif
                     </div>
@@ -90,9 +75,6 @@
                         <th style="text-align:left;padding:10px 14px;white-space:nowrap;">NIP</th>
                         <th style="text-align:center;padding:10px 14px;white-space:nowrap;">Departemen</th>
                         <th style="text-align:center;padding:10px 14px;white-space:nowrap;">Jabatan / Role</th>
-                        @if ($canBrowseAllCompanies)
-                            <th style="text-align:left;padding:10px 14px;white-space:nowrap;">Perusahaan</th>
-                        @endif
                         <th style="text-align:center;padding:10px 14px;white-space:nowrap;">Aksi</th>
                     </tr>
                 </thead>
@@ -123,9 +105,6 @@
                                     <span style="display:block;font-size:10.5px;color:var(--text-faint);">{{ $roleNames }}</span>
                                 @endif
                             </td>
-                            @if ($canBrowseAllCompanies)
-                                <td style="padding:9px 14px;white-space:nowrap;">{{ $employee->company?->name ?? '-' }}</td>
-                            @endif
                             <td style="padding:9px 14px;text-align:center;white-space:nowrap;">
                                 <a href="{{ route('karyawan.show', ['record' => $employee]) }}" wire:navigate class="btn-ghost" style="padding:5px 10px;font-size:11px;" title="Lihat">
                                     <i class="fa-solid fa-chart-bar"></i>
@@ -140,7 +119,7 @@
         @if ($employees->isEmpty())
             <div style="padding:32px 16px;text-align:center;">
                 <p style="font-size:13px;color:var(--text-muted);margin:0;">
-                    {{ $canBrowseAllCompanies && ! $companyId ? 'Pilih perusahaan dulu.' : 'Belum ada karyawan di bawah kamu.' }}
+                    Belum ada karyawan di bawah kamu.
                 </p>
             </div>
         @endif

@@ -22,3 +22,45 @@
 .fi-main :is(select, input, textarea, button, label, optgroup) {
     font-family: inherit;
 }
+
+/*
+ * Topbar disamakan dengan header portal HRIS (.topnav): bar polos + aksen gradasi 3px
+ * navy -> hijau -> pink di bawahnya (bukan gradasi bawaan Filament).
+ */
+.fi-topbar {
+    position: relative;
+}
+
+.fi-topbar::after {
+    content: '';
+    position: absolute;
+    inset-inline: 0;
+    bottom: 0;
+    height: 3px;
+    background: linear-gradient(90deg, #042c6c 0%, #042c6c 55%, #047C54 78%, #B9308C 100%);
+}
+
+/* Tombol nav topbar: hover & aktif pakai tint navy + teks navy tebal, seperti .nav-item portal. */
+.fi-topbar-item-btn:hover,
+.fi-topbar-item.fi-active .fi-topbar-item-btn {
+    background-color: #eef2fb;
+}
+
+.fi-topbar-item-btn:hover .fi-topbar-item-label,
+.fi-topbar-item.fi-active .fi-topbar-item-label {
+    color: #042c6c;
+}
+
+.fi-topbar-item.fi-active .fi-topbar-item-label {
+    font-weight: 600;
+}
+
+.dark .fi-topbar-item-btn:hover,
+.dark .fi-topbar-item.fi-active .fi-topbar-item-btn {
+    background-color: rgba(110, 168, 224, 0.18);
+}
+
+.dark .fi-topbar-item-btn:hover .fi-topbar-item-label,
+.dark .fi-topbar-item.fi-active .fi-topbar-item-label {
+    color: #9dc3ec;
+}

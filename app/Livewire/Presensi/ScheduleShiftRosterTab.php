@@ -129,10 +129,25 @@ class ScheduleShiftRosterTab extends Component
             ->all();
     }
 
+    /** Jumlah hari sebelum tanggal 1 yang ditampilkan read-only sebagai konteks - biar pola shift
+     * bisa "disambung" dari akhir bulan sebelumnya (dipilih sebagai sumber pola, tidak bisa diedit). */
+    public int $leadDays = 7;
+
+    /** @return array<int, Carbon> 7 hari sebelum tanggal 1 periode, urut lama->baru. */
+    public function getLeadDatesProperty(): array
+    {
+        $start = Carbon::createFromFormat('Y-m', $this->period)->startOfMonth();
+
+        return collect(range($this->leadDays, 1))
+            ->map(fn ($i) => $start->copy()->subDays($i))
+            ->all();
+    }
+
     /** @return array<string, array<string, string>> [user_id => [date => shift_type_id atau 'off']] */
     public function getRosterProperty(): array
     {
-        $start = Carbon::createFromFormat('Y-m', $this->period)->startOfMonth()->toDateString();
+        // Mundur $leadDays biar kolom konteks sebelum tanggal 1 ikut terisi nilainya.
+        $start = Carbon::createFromFormat('Y-m', $this->period)->startOfMonth()->subDays($this->leadDays)->toDateString();
         $end = Carbon::createFromFormat('Y-m', $this->period)->endOfMonth()->toDateString();
 
         $userIds = $this->employees->pluck('id')->all();

@@ -75,6 +75,9 @@ enum NotificationTypeEnum: string
     case SIKARTAP_IDE_INOVASI_DIREVIEW = 'sikartap_ide_inovasi_direview';
     case SIKARTAP_KEPUTUSAN_DIREKTUR = 'sikartap_keputusan_direktur';
 
+    // Orientasi
+    case ORIENTATION_REVIEWED = 'orientation_reviewed';
+
     public function label(): string
     {
         return match ($this) {
@@ -110,6 +113,7 @@ enum NotificationTypeEnum: string
             self::SIKARTAP_HASIL_MCU => 'Hasil MCU Karyawan Tetap Saya Keluar',
             self::SIKARTAP_IDE_INOVASI_DIREVIEW => 'Ide Inovasi Saya Dinilai',
             self::SIKARTAP_KEPUTUSAN_DIREKTUR => 'Keputusan Direktur atas Pengajuan Karyawan Tetap Saya',
+            self::ORIENTATION_REVIEWED => 'Penilaian Orientasi Saya Selesai',
         };
     }
 
@@ -163,6 +167,7 @@ enum NotificationTypeEnum: string
             self::SIKARTAP_HASIL_MCU => 'Dikirim saat keputusan hasil MCU (fit/unfit) Anda diinput HRD.',
             self::SIKARTAP_IDE_INOVASI_DIREVIEW => 'Dikirim saat ide inovasi Anda dinilai atasan, direktur, atau komisaris.',
             self::SIKARTAP_KEPUTUSAN_DIREKTUR => 'Dikirim saat Direktur memutuskan pengajuan karyawan tetap Anda (lulus/tidak lulus).',
+            self::ORIENTATION_REVIEWED => 'Dikirim saat atasan menilai pengajuan orientasi Anda (lulus / perpanjang / tidak lulus).',
         };
     }
 }

@@ -1,12 +1,40 @@
-<div>
+@php
+    // Peta warna per nilai sel buat Alpine — biar drag/undo bisa langsung ganti background sel
+    // tanpa nunggu re-render Livewire (wire:model deferred).
+    $shiftStyleMap = $schedule->shiftTypes->mapWithKeys(fn ($t) => [
+        (string) $t->id => ['bg' => $t->color ?: 'var(--surface-alt)', 'fg' => $t->font_color ?: 'var(--text-body)'],
+    ])->all();
+    $shiftStyleMap['off'] = ['bg' => 'color-mix(in srgb, #dc2626 55%, white)', 'fg' => '#7f1d1d'];
+    $shiftStyleMap[''] = ['bg' => 'var(--surface-alt)', 'fg' => 'var(--text-body)'];
+@endphp
+<div x-data="rosterFill(@js($shiftStyleMap))"
+    x-effect="if (! $wire.editMode) reset(); if (lastPeriod !== $wire.period) { lastPeriod = $wire.period; $nextTick(() => scrollToDay1()) }"
+    @mouseup.window="onUp()" @mousemove.window="onMove($event)"
+    @keydown.window="if (fillMode && ($event.ctrlKey || $event.metaKey) && ($event.key || '').toLowerCase() === 'z') { $event.preventDefault(); undo() }">
+    {{-- Isi Cepat ala Excel: pas editMode, nyalakan tombol "Isi Cepat" -> select tiap sel jadi
+    non-klik, sel dipilih dengan seret mendatar (1 baris karyawan), lalu handle kecil di pojok
+    kanan-bawah diseret ke kanan buat mengulang pola sel terpilih (mis. P P P L -> P P P L P P P L).
+    Full frontend: nilai baru ditulis ke <select> + dispatch 'input' biar Livewire nyerap ke $draft,
+    disimpan tetap lewat tombol "Simpan" (saveRoster) yang sudah ada. --}}
+    <style>
+        .rf-sel { outline:2px solid #042c6c; outline-offset:-2px; }
+        .rf-preview { outline:2px dashed #0284c7; outline-offset:-2px; background:rgba(2,132,199,0.10); }
+        .rf-on select { pointer-events:none; }
+        .rf-on .rf-cell { cursor:cell; }
+        .rf-on select { opacity:0.92; }
+        .rf-grid-on { box-shadow:0 0 0 2px #042c6c inset, var(--shadow-card) !important; }
+        .rf-handle { position:absolute; right:-2px; bottom:-2px; width:9px; height:9px; background:#042c6c; border:1px solid #fff; cursor:crosshair; z-index:4; }
+        .rf-hint { display:flex;align-items:center;gap:6px;font-size:10.5px;font-weight:600;color:#042c6c;background:color-mix(in srgb,#042c6c 8%,white);border:1px solid color-mix(in srgb,#042c6c 25%,white);border-radius:8px;padding:5px 10px;margin-bottom:8px; }
+        /* Riwayat Tukar Shift tetap ke-mount (dipakai listener sel terkunci), cuma ikon pemicunya disembunyikan biar toolbar bersih. */
+        .rf-hide-swaptrigger > div > button { display:none; }
+    </style>
     <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:14px;">
         <div style="display:flex;align-items:center;gap:10px;">
             <div>
                 <label class="form-label">Periode</label>
                 <input type="month" wire:model.live="period" class="form-input" style="max-width:180px;">
             </div>
-            <span style="font-size:12.5px;font-weight:700;color:var(--text-heading);margin-top:16px;">{{ $this->periodLabel }}</span>
-            <span style="margin-top:16px;" title="Riwayat Tukar Shift">
+            <span class="rf-hide-swaptrigger" style="margin-top:16px;">
                 <livewire:presensi.schedule-swap-history-sheet :scheduleId="$schedule->id" :key="'roster-swap-history-'.$schedule->id" />
             </span>
             <button type="button" wire:click="exportExcel" class="btn-success" style="font-size:11px;padding:7px 12px;white-space:nowrap;margin-top:16px;">
@@ -25,26 +53,35 @@
         </div>
 
         <div style="display:flex;align-items:flex-end;gap:6px;">
-            @if ($schedule->use_template)
-                <div>
-                    <label class="form-label" style="font-size:10px;margin-bottom:3px;">Mulai Dari</label>
-                    <input type="date" wire:model="rotationStartDate" class="form-input" style="width:128px;padding:6px 8px;font-size:11px;">
-                    @error('rotationStartDate') <p style="font-size:9.5px;color:#dc2626;margin-top:2px;">{{ $message }}</p> @enderror
-                </div>
-                <div>
-                    <label class="form-label" style="font-size:10px;margin-bottom:3px;">Hari Ke-</label>
-                    <select wire:model="rotationStartDay" class="form-input" style="width:78px;padding:6px 8px;font-size:11px;">
-                        @for ($d = 1; $d <= $this->cycleLength; $d++)
-                            <option value="{{ $d }}">{{ $d }}</option>
-                        @endfor
-                    </select>
-                    @error('rotationStartDay') <p style="font-size:9.5px;color:#dc2626;margin-top:2px;">{{ $message }}</p> @enderror
-                </div>
-                @if ($this->canEditJadwal)
-                    <button type="button" wire:click="generateFromTemplate" wire:confirm="Generate roster {{ $this->periodLabel }} dari template, mulai hari ke-{{ $rotationStartDay }} pada tanggal yang dipilih? Tanggal yang sudah punya roster (manual/koreksi) TIDAK akan ditimpa." class="btn-primary" style="font-size:11px;padding:7px 12px;white-space:nowrap;">
-                        <i class="fa-solid fa-wand-magic-sparkles"></i> Generate
+            @if ($schedule->use_template && $this->canEditJadwal)
+                {{-- "Mulai Dari" + "Hari Ke-" dipindah ke popover tombol Generate biar toolbar nggak penuh. --}}
+                <div style="position:relative;" x-data="{ genOpen: false }" @click.outside="genOpen = false" @keydown.escape="genOpen = false">
+                    <button type="button" @click="genOpen = ! genOpen" class="btn-primary" style="font-size:11px;padding:7px 12px;white-space:nowrap;">
+                        <i class="fa-solid fa-wand-magic-sparkles"></i> Generate <i class="fa-solid fa-chevron-down" style="font-size:8px;margin-left:2px;"></i>
                     </button>
-                @endif
+                    <div x-show="genOpen" x-cloak x-transition
+                        style="position:absolute;right:0;top:calc(100% + 6px);z-index:20;background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:var(--shadow-card);padding:12px;width:230px;display:flex;flex-direction:column;gap:8px;">
+                        <div>
+                            <label class="form-label" style="font-size:10px;margin-bottom:3px;">Mulai Dari</label>
+                            <input type="date" wire:model="rotationStartDate" class="form-input" style="width:100%;padding:6px 8px;font-size:11px;">
+                            @error('rotationStartDate') <p style="font-size:9.5px;color:#dc2626;margin-top:2px;">{{ $message }}</p> @enderror
+                        </div>
+                        <div>
+                            <label class="form-label" style="font-size:10px;margin-bottom:3px;">Hari Ke-</label>
+                            <select wire:model="rotationStartDay" class="form-input" style="width:100%;padding:6px 8px;font-size:11px;">
+                                @for ($d = 1; $d <= $this->cycleLength; $d++)
+                                    <option value="{{ $d }}">{{ $d }}</option>
+                                @endfor
+                            </select>
+                            @error('rotationStartDay') <p style="font-size:9.5px;color:#dc2626;margin-top:2px;">{{ $message }}</p> @enderror
+                        </div>
+                        <button type="button" wire:click="generateFromTemplate" @click="genOpen = false"
+                            wire:confirm="Generate roster {{ $this->periodLabel }} dari template, mulai hari ke-{{ $rotationStartDay }} pada tanggal yang dipilih? Tanggal yang sudah punya roster (manual/koreksi) TIDAK akan ditimpa."
+                            class="btn-primary" style="font-size:11px;padding:7px 12px;">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i> Jalankan Generate
+                        </button>
+                    </div>
+                </div>
             @endif
 
             {{-- Edit manual per sel — kebuka buat jadwal Template maupun manual. Sel dikunci
@@ -56,6 +93,18 @@
                         <i class="fa-solid fa-pen"></i> Isi Jadwal
                     </button>
                 @else
+                    <button type="button" @click="fillMode = ! fillMode; if (! fillMode) clearSel()"
+                        :class="fillMode ? 'btn-primary' : 'btn-ghost'"
+                        title="Seret mendatar buat pilih sel, lalu seret handle di pojok kanan-bawah buat mengulang pola (mis. P P P L)."
+                        style="font-size:11px;padding:7px 12px;white-space:nowrap;">
+                        <i class="fa-solid fa-table-cells"></i> Isi Cepat
+                    </button>
+                    <button type="button" x-show="fillMode" x-cloak @click="undo()" :disabled="! history.length"
+                        title="Batalkan isi-pola terakhir (Ctrl+Z)"
+                        class="btn-ghost" style="font-size:11px;padding:7px 12px;white-space:nowrap;"
+                        :style="history.length ? '' : 'opacity:0.45;cursor:not-allowed;'">
+                        <i class="fa-solid fa-rotate-left"></i> Undo<span x-show="history.length" x-text="' (' + history.length + ')'"></span>
+                    </button>
                     <button type="button" wire:click="cancelEdit" class="btn-ghost" style="font-size:11px;padding:7px 12px;white-space:nowrap;">
                         Batal
                     </button>
@@ -78,13 +127,23 @@
         @endforeach
     </div>
 
-    <div style="background:var(--surface);border-radius:12px;box-shadow:var(--shadow-card);overflow:auto;max-height:600px;">
-        <table style="border-collapse:collapse;font-size:10.5px;">
+    <div x-show="fillMode" class="rf-hint" x-cloak>
+        <i class="fa-solid fa-table-cells"></i>
+        <span>Mode <strong>Isi Cepat</strong> aktif — dropdown sel dimatikan. Seret mendatar buat pilih sel, lalu seret kotak biru di pojok kanan-bawah buat mengulang pola. Matikan tombol "Isi Cepat" buat edit sel satu-satu lagi.</span>
+    </div>
+    <div data-scrollbox :class="{ 'rf-on': fillMode, 'rf-grid-on': fillMode }" style="background:var(--surface);border-radius:12px;box-shadow:var(--shadow-card);overflow-x:auto;">
+        <table style="border-collapse:collapse;font-size:11.5px;">
             <thead>
                 <tr style="border-bottom:1.5px solid var(--border);">
-                    <th style="text-align:left;padding:8px 10px;white-space:nowrap;position:sticky;left:0;top:0;background:var(--surface);z-index:2;">Karyawan</th>
+                    <th style="text-align:left;padding:10px 14px;white-space:nowrap;position:sticky;left:0;top:0;background:var(--surface);z-index:4;">Karyawan</th>
+                    @foreach ($this->leadDates as $ld)
+                        <th title="Bulan sebelumnya — hanya konteks, tidak bisa diedit" style="text-align:center;padding:8px 5px;white-space:nowrap;min-width:56px;position:sticky;top:0;background:var(--surface-alt);z-index:3;color:var(--text-faint);">
+                            {{ $ld->format('d') }}<br>
+                            <span style="font-weight:400;">{{ $ld->translatedFormat('D') }}</span>
+                        </th>
+                    @endforeach
                     @foreach ($this->dates as $date)
-                        <th style="text-align:center;padding:8px 4px;white-space:nowrap;min-width:52px;position:sticky;top:0;background:var(--surface);{{ $date->isToday() ? 'color:#0284c7;' : '' }}">
+                        <th @if ($loop->first) data-day1 @endif style="text-align:center;padding:8px 5px;white-space:nowrap;min-width:56px;position:sticky;top:0;background:var(--surface);z-index:3;{{ $loop->first ? 'border-left:2px solid var(--border);' : '' }}{{ $date->isToday() ? 'color:#0284c7;' : '' }}">
                             {{ $date->format('d') }}<br>
                             <span style="font-weight:400;color:var(--text-faint);">{{ $date->translatedFormat('D') }}</span>
                         </th>
@@ -93,9 +152,37 @@
             </thead>
             <tbody>
                 @forelse ($this->employees as $employee)
-                    @php $userRoster = $this->roster[$employee->id] ?? []; @endphp
+                    @php
+                        $userRoster = $this->roster[$employee->id] ?? [];
+                        $leadCount = count($this->leadDates);
+                        $rfRow = $loop->index;
+                    @endphp
                     <tr wire:key="'roster-{{ $employee->id }}'" style="border-bottom:1px solid var(--border-soft);">
-                        <td style="padding:6px 10px;white-space:nowrap;font-weight:600;position:sticky;left:0;background:var(--surface);z-index:1;">{{ $employee->name }}</td>
+                        <td style="padding:6px 12px;white-space:nowrap;font-weight:600;position:sticky;left:0;background:var(--surface);z-index:1;">{{ $employee->name }}</td>
+                        @foreach ($this->leadDates as $ld)
+                            @php
+                                $lval = $userRoster[$ld->toDateString()] ?? '';
+                                $lIsOff = $lval === 'off';
+                                $lType = $schedule->shiftTypes->firstWhere('id', $lval);
+                                $lColor = $lType?->color;
+                                $lFont = $lIsOff ? '#7f1d1d' : ($lType?->font_color ?: 'var(--text-faint)');
+                                $rfC = $loop->index - $leadCount; // -7..-1
+                            @endphp
+                            <td class="rf-cell" data-r="{{ $rfRow }}" data-c="{{ $rfC }}" data-locked="0" data-lead="1"
+                                @mousedown="cellDown($event, {{ $rfRow }}, {{ $rfC }})" @mouseenter="cellEnter({{ $rfRow }}, {{ $rfC }})"
+                                :class="cellClass({{ $rfRow }}, {{ $rfC }})"
+                                title="Bulan sebelumnya — konteks buat nyambung pola, tidak bisa diedit"
+                                style="padding:2px;text-align:center;position:relative;">
+                                <select disabled
+                                    style="width:52px;padding:6px 2px;font-size:10.5px;text-align:center;font-weight:700;border:none;border-radius:5px;opacity:0.5;cursor:not-allowed;color:{{ $lFont }};{{ $lIsOff ? 'background:color-mix(in srgb, #dc2626 55%, white);' : ($lColor ? "background:{$lColor};" : 'background:var(--surface-alt);') }}">
+                                    <option value="" {{ $lval === '' ? 'selected' : '' }}>-</option>
+                                    @foreach ($schedule->shiftTypes as $shiftType)
+                                        <option value="{{ $shiftType->id }}" {{ $lval === $shiftType->id ? 'selected' : '' }}>{{ $shiftType->code }}</option>
+                                    @endforeach
+                                    <option value="off" {{ $lIsOff ? 'selected' : '' }}>L</option>
+                                </select>
+                            </td>
+                        @endforeach
                         @foreach ($this->dates as $date)
                             @php
                                 // Kosong (belum ada baris ScheduleShiftAssignment sama sekali) = benar-benar
@@ -116,8 +203,16 @@
                                 // eksekusi swap). Lihat ScheduleShiftRosterTab::getSwapCellsProperty().
                                 $swapLocked = isset($this->swapCells[$employee->id.'|'.$date->toDateString()]);
                                 $locked = ! $editMode || $swapLocked;
+                                $rfR = $loop->parent->index;
+                                $rfC = $loop->index;
                             @endphp
-                            <td style="padding:2px;text-align:center;position:relative;">
+                            <td class="rf-cell" data-r="{{ $rfR }}" data-c="{{ $rfC }}" data-locked="{{ $swapLocked ? '1' : '0' }}"
+                                @mousedown="cellDown($event, {{ $rfR }}, {{ $rfC }})" @mouseenter="cellEnter({{ $rfR }}, {{ $rfC }})"
+                                :class="cellClass({{ $rfR }}, {{ $rfC }})"
+                                style="padding:2px;text-align:center;position:relative;">
+                                <template x-if="fillMode && sel && ! selecting && sel.r === {{ $rfR }} && sel.hi === {{ $rfC }}">
+                                    <div class="rf-handle" @mousedown.stop.prevent="handleDown()"></div>
+                                </template>
                                 @if ($swapLocked)
                                     <button type="button" wire:click="$dispatch('open-schedule-swap-history')" title="Jadwal ini terkait pengajuan tukar shift — tidak bisa diubah dari sini. Klik untuk lihat riwayat."
                                         style="position:absolute;top:0;right:0;z-index:3;background:none;border:none;padding:1px 2px;cursor:pointer;color:#b45309;font-size:8.5px;line-height:1;">
@@ -127,6 +222,7 @@
                                 <select
                                     @if ($editMode && ! $swapLocked)
                                         wire:model="draft.{{ $employee->id }}.{{ $date->toDateString() }}"
+                                        @change="recolor($event.target)"
                                     @endif
                                     @disabled($locked)
                                     @if ($swapLocked)
@@ -134,7 +230,7 @@
                                     @elseif (! $editMode)
                                         title="Klik &quot;Mulai Isi Jadwal&quot; dulu buat mengubah."
                                     @endif
-                                    style="width:48px;padding:5px 1px;font-size:9.5px;text-align:center;font-weight:700;border:none;border-radius:5px;{{ $locked ? 'cursor:not-allowed;opacity:0.7;' : 'cursor:pointer;' }}color:{{ $currentFontColor }};{{ $isOff ? 'background:color-mix(in srgb, #dc2626 55%, white);' : ($currentColor ? "background:{$currentColor};" : 'background:var(--surface-alt);') }}">
+                                    style="width:52px;padding:6px 2px;font-size:10.5px;text-align:center;font-weight:700;border:none;border-radius:5px;{{ $locked ? 'cursor:not-allowed;opacity:0.7;' : 'cursor:pointer;' }}color:{{ $currentFontColor }};{{ $isOff ? 'background:color-mix(in srgb, #dc2626 55%, white);' : ($currentColor ? "background:{$currentColor};" : 'background:var(--surface-alt);') }}">
                                     <option value="" {{ $current === '' ? 'selected' : '' }}>-</option>
                                     @foreach ($schedule->shiftTypes as $shiftType)
                                         <option value="{{ $shiftType->id }}" {{ $current === $shiftType->id ? 'selected' : '' }}>{{ $shiftType->code }}</option>
@@ -190,4 +286,139 @@
             </table>
         </div>
     @endif
+
+    @script
+    <script>
+        Alpine.data('rosterFill', (styleMap = {}) => ({
+            styleMap,
+            fillMode: false,
+            selecting: false,
+            anchor: null,        // {r, c} titik awal seret pilih
+            sel: null,           // {r, lo, hi} kolom terpilih di baris r (inklusif)
+            handleDrag: false,
+            previewHi: null,     // kolom tujuan sementara selama seret handle
+            history: [],         // tumpukan undo: tiap entri = array {r,c,val} nilai LAMA sebelum 1 isi-pola
+
+            lastPeriod: null,
+
+            reset() { this.fillMode = false; this.history = []; this.clearSel(); },
+
+            // Geser scroll horizontal biar tanggal 1 nempel di kiri (kolom "bulan lalu" ke-hide,
+            // user scroll kiri kalau mau lihat). Kurangi lebar kolom "Karyawan" yang sticky.
+            scrollToDay1() {
+                const box = this.$el.querySelector('[data-scrollbox]');
+                const day1 = box?.querySelector('[data-day1]');
+                if (! box || ! day1) return;
+                const stickyW = box.querySelector('thead th')?.getBoundingClientRect().width || 0;
+                // pakai selisih rect (bukan offsetLeft — offsetParent-nya bukan si scrollbox)
+                const delta = day1.getBoundingClientRect().left - box.getBoundingClientRect().left - stickyW;
+                box.scrollLeft = Math.max(0, box.scrollLeft + delta);
+            },
+            clearSel() {
+                this.selecting = false; this.handleDrag = false;
+                this.anchor = null; this.sel = null; this.previewHi = null;
+            },
+
+            cellDown(e, r, c) {
+                if (! this.fillMode) return;
+                if (this.cellEl(r, c)?.dataset.locked === '1') return;
+                e.preventDefault();
+                this.selecting = true;
+                this.anchor = { r, c };
+                this.sel = { r, lo: c, hi: c };
+            },
+
+            cellEnter(r, c) {
+                if (! this.selecting || ! this.anchor || r !== this.anchor.r) return;
+                this.sel = { r, lo: Math.min(this.anchor.c, c), hi: Math.max(this.anchor.c, c) };
+            },
+
+            handleDown() {
+                if (! this.sel) return;
+                this.handleDrag = true;
+                this.previewHi = this.sel.hi;
+            },
+
+            onMove(e) {
+                if (! this.handleDrag || ! this.sel) return;
+                const td = document.elementFromPoint(e.clientX, e.clientY)?.closest('td[data-r]');
+                if (! td) return;
+                const r = Number(td.dataset.r), c = Number(td.dataset.c);
+                this.previewHi = (r === this.sel.r && c > this.sel.hi) ? c : this.sel.hi;
+            },
+
+            onUp() {
+                if (this.handleDrag) this.applyFill();
+                this.selecting = false;
+                this.handleDrag = false;
+            },
+
+            // Ulang pola sel terpilih ke kanan: P P P L -> P P P L P P P L
+            applyFill() {
+                if (! this.sel || this.previewHi === null || this.previewHi <= this.sel.hi) return;
+                const pattern = [];
+                for (let c = this.sel.lo; c <= this.sel.hi; c++) pattern.push(this.selectAt(this.sel.r, c)?.value ?? '');
+                if (! pattern.length) return;
+                const r = this.sel.r;
+                const snapshot = [];
+                let k = 0;
+                for (let c = this.sel.hi + 1; c <= this.previewHi; c++) {
+                    const s = this.selectAt(r, c);
+                    // ponytail: sel terkunci (tukar shift) dilewati tapi indeks pola tetap maju,
+                    // biar pola tetap lurus sama kalender
+                    const td = this.cellEl(r, c);
+                    if (s && td?.dataset.locked !== '1' && td?.dataset.lead !== '1') {
+                        snapshot.push({ r, c, val: s.value });
+                        this.setVal(s, pattern[k % pattern.length]);
+                    }
+                    k++;
+                }
+                if (snapshot.length) {
+                    this.history.push(snapshot);
+                    if (this.history.length > 50) this.history.shift();
+                }
+                this.sel = { r, lo: this.sel.lo, hi: this.previewHi };
+                this.previewHi = null;
+            },
+
+            // Ctrl+Z / tombol Undo — kembalikan nilai sel dari isi-pola terakhir.
+            undo() {
+                const last = this.history.pop();
+                if (! last) return;
+                for (const { r, c, val } of last) {
+                    const s = this.selectAt(r, c);
+                    const td = this.cellEl(r, c);
+                    if (s && td?.dataset.locked !== '1' && td?.dataset.lead !== '1') this.setVal(s, val);
+                }
+                this.clearSel();
+            },
+
+            setVal(s, val) {
+                if (s.value === val) return;
+                s.value = val;
+                this.recolor(s);
+                // wire:model (deferred) nyerap lewat 'input'; 'change' buat jaga-jaga
+                s.dispatchEvent(new Event('input', { bubbles: true }));
+                s.dispatchEvent(new Event('change', { bubbles: true }));
+            },
+
+            // Samakan background/warna teks select sama nilainya sekarang — dipanggil pas drag/undo
+            // dan pas user ganti manual (wire:model deferred, kalau nggak dipanggil warnanya baru
+            // ikut pas Simpan).
+            recolor(s) {
+                const st = this.styleMap[s.value] ?? this.styleMap[''];
+                if (! st) return;
+                s.style.background = st.bg;
+                s.style.color = st.fg;
+            },
+
+            cellEl(r, c) { return this.$el.querySelector(`td[data-r="${r}"][data-c="${c}"]`); },
+            selectAt(r, c) { return this.cellEl(r, c)?.querySelector('select'); },
+
+            isSel(r, c) { return !! (this.fillMode && this.sel && this.sel.r === r && c >= this.sel.lo && c <= this.sel.hi); },
+            isPreview(r, c) { return !! (this.handleDrag && this.sel && this.sel.r === r && this.previewHi !== null && c > this.sel.hi && c <= this.previewHi); },
+            cellClass(r, c) { return { 'rf-sel': this.isSel(r, c), 'rf-preview': this.isPreview(r, c) }; },
+        }));
+    </script>
+    @endscript
 </div>

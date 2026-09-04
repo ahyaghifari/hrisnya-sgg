@@ -16,6 +16,7 @@ enum ApprovalModuleEnum: string
     case TRAINING_REQUEST = 'training_request';
     case SIKARTAP_DIRECTOR_DECISION = 'sikartap_director_decision';
     case SARPRAS_REQUEST = 'sarpras_request';
+    case ORIENTATION_REQUEST = 'orientation_request';
 
     /** Label deskriptif — dropdown & kolom "Modul" di /admin/approval-flows. */
     public function label(): string
@@ -33,6 +34,7 @@ enum ApprovalModuleEnum: string
             self::TRAINING_REQUEST => 'Pengajuan Pelatihan',
             self::SIKARTAP_DIRECTOR_DECISION => 'Keputusan Direktur - Karyawan Tetap (Sikartap)',
             self::SARPRAS_REQUEST => 'Permohonan Sarana & Prasarana',
+            self::ORIENTATION_REQUEST => 'Penilaian Orientasi Karyawan',
         };
     }
 
@@ -52,6 +54,7 @@ enum ApprovalModuleEnum: string
             self::TRAINING_REQUEST => 'Pengajuan pelatihan',
             self::SIKARTAP_DIRECTOR_DECISION => 'Keputusan direktur pengajuan karyawan tetap',
             self::SARPRAS_REQUEST => 'Pengajuan sarana & prasarana',
+            self::ORIENTATION_REQUEST => 'Pengajuan penilaian orientasi',
         };
     }
 

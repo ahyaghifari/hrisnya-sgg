@@ -2,7 +2,6 @@
 
 namespace App\Livewire;
 
-use App\Models\Master\Companies;
 use App\Models\User;
 use App\Services\OrgHierarchyService;
 use Illuminate\Support\Facades\Auth;
@@ -14,8 +13,7 @@ use Livewire\WithPagination;
 /**
  * Tabel desktop dulu reuse Filament (EmployeesTable + InteractsWithTable) — dicabut total,
  * ganti custom + Livewire (server-side, sama sumbernya dengan card mobile di bawah), kolomnya
- * tetap sama persis: foto, nama+email, NIP, departemen, jabatan+role, perusahaan (cuma buat
- * yang punya akses global). SEBELUMNYA desktop pakai List.js (cari/sortir/pagination di
+ * tetap sama persis: foto, nama+email, NIP, departemen, jabatan+role. SEBELUMNYA desktop pakai List.js (cari/sortir/pagination di
  * browser), tapi List.js mengunci baris tbody-nya sendiri sehingga tidak ikut ke-morph Livewire
  * tiap company/search ganti (baris lama nyangkut terus), jadi dicabut — desktop sekarang reuse
  * `$this->employees` (paginated) yang sama dengan mobile, bukan query terpisah tanpa pagination.
@@ -29,28 +27,11 @@ class MyEmployees extends Component
     // yaitu full page-visit yang bikin komponen di-mount ULANG dari URL. Tanpa #[Url], filter
     // ini ikut hilang begitu pindah halaman paginasi.
     #[Url]
-    public ?string $companyId = null;
-
-    #[Url]
     public string $search = '';
 
     public function mount(): void
     {
-        $user = Auth::user();
-
-        abort_unless($user->canAccessKaryawanMenu(), 403);
-
-        // Super Admin defaultnya diarahkan ke company sendiri dulu (bukan list kosong sampai
-        // pilih manual, lihat baseQuery() - companyId kosong = whereRaw('1=0')), tapi tetap
-        // bisa pindah company lain lewat dropdown.
-        if ($user->canFilterByCompany() && $this->companyId === null) {
-            $this->companyId = $user->company_id;
-        }
-    }
-
-    public function updatedCompanyId(): void
-    {
-        $this->resetPage();
+        abort_unless(Auth::user()->canAccessKaryawanMenu(), 403);
     }
 
     public function updatedSearch(): void
@@ -58,23 +39,13 @@ class MyEmployees extends Component
         $this->resetPage();
     }
 
-    public function getCompanyOptionsProperty()
-    {
-        return Companies::pluck('name', 'id');
-    }
-
-    // Sumber data yang sama dipakai desktop (tabel) dan mobile (card manual).
+    // MyStaff = HANYA bawahan langsung + tidak langsung (rekursif via OrgHierarchyService),
+    // tanpa pemilih perusahaan. Beda dari halaman Kepegawaian > Karyawan yang company-wide
+    // (instruksi user 2026-09-03) — siapa pun (termasuk yang punya LIHAT_PERUSAHAAN_LAIN)
+    // di halaman ini cuma lihat struktur di bawahnya sendiri.
     protected function baseQuery()
     {
-        if (Auth::user()->canFilterByCompany()) {
-            if (! $this->companyId) {
-                return User::query()->whereRaw('1 = 0');
-            }
-
-            $query = User::query()->where('company_id', $this->companyId);
-        } else {
-            $query = app(OrgHierarchyService::class)->subordinates(Auth::user());
-        }
+        $query = app(OrgHierarchyService::class)->subordinates(Auth::user());
 
         $query->with(['profile.jobPosition.orgStructure.parent.parent', 'profile.orgStructure.parent.parent', 'company', 'roles']);
 
@@ -98,16 +69,11 @@ class MyEmployees extends Component
         return $this->baseQuery()
             ->orderBy('name')
             ->paginate(10)
-            ->appends([
-                'companyId' => $this->companyId,
-                'search' => $this->search,
-            ]);
+            ->appends(['search' => $this->search]);
     }
 
     public function render()
     {
-        return view('livewire.my-employees', [
-            'canBrowseAllCompanies' => Auth::user()->canFilterByCompany(),
-        ]);
+        return view('livewire.my-employees');
     }
 }

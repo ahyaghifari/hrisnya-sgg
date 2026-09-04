@@ -143,6 +143,27 @@ class User extends Authenticatable implements FilamentUser
         return $this->hasMany(\App\Models\User\UserContract::class, 'user_id', 'id');
     }
 
+    /** Pengajuan penilaian orientasi (self-service, bisa >1 kalau pernah "Perpanjang"). */
+    public function orientationSubmissions(): HasMany
+    {
+        return $this->hasMany(\App\Models\OrientationSubmission::class, 'user_id', 'id');
+    }
+
+    /** Riwayat periode orientasi (1 baris = 1 periode/perpanjangan), lihat UserOrientation.
+     *  Dibuat lewat Rekrutmen, bukan "Tambah Karyawan" manual. */
+    public function orientations(): HasMany
+    {
+        return $this->hasMany(\App\Models\User\UserOrientation::class, 'user_id', 'id');
+    }
+
+    /** Periode orientasi terbaru yang SUDAH MULAI - pola currentContract(). */
+    public function currentOrientation(): HasOne
+    {
+        return $this->hasOne(\App\Models\User\UserOrientation::class, 'user_id', 'id')
+            ->where('start_date', '<=', now())
+            ->latestOfMany('start_date');
+    }
+
     /**
      * Kontrak paling baru YANG SUDAH MULAI (contract_start_date <= hari ini) - pola sama
      * activeJobPosition() di bawah. Filter tanggal ini penting: kalau tidak, baris kontrak yang
@@ -212,10 +233,24 @@ class User extends Authenticatable implements FilamentUser
 
     /** Gate nav self-service "/sikartap" (mulai pengajuan karyawan tetap) - cuma karyawan yang
      * kontraknya AKTIF SAAT INI berkategori 'kontrak' (§ EmployeeTypeCategory) yang boleh
-     * mengajukan, bukan siapa saja yang login. Orientasi/Tetap tidak relevan buat alur ini. */
+     * mengajukan, bukan siapa saja yang login. Orientasi/Tetap tidak relevan buat alur ini.
+     * Cek tipe karyawan SAAT INI juga (bukan cuma baris kontrak) - karyawan yang sudah diangkat
+     * jadi Tetap bisa masih punya baris user_contracts aktif yang belum berakhir; tanpa cek ini
+     * dia keliru masih lihat menu Sikartap. */
     public function isKontrakKaryawan(): bool
     {
-        return $this->currentContract?->employeeType?->category === \App\Enum\EmployeeTypeCategory::KONTRAK;
+        return $this->currentContract?->employeeType?->category === \App\Enum\EmployeeTypeCategory::KONTRAK
+            && $this->profile?->employeeType?->category === \App\Enum\EmployeeTypeCategory::KONTRAK;
+    }
+
+    /** Gate nav self-service "/orientasi" (mengajukan penilaian orientasi) - karyawan yang
+     * status kepegawaiannya SAAT INI berkategori 'orientasi'. Sumber kebenaran = tipe karyawan
+     * (profile.employee_type), BUKAN ada/tidaknya baris user_orientations - ledger periode itu
+     * soal durasi, bukan soal "sedang orientasi atau tidak". Karyawan lama tanpa baris ledger
+     * tetap harus bisa buka halaman ini. Beda dari /kepegawaian/orientasi (sisi HR). */
+    public function isOrientasiKaryawan(): bool
+    {
+        return $this->profile?->employeeType?->category === \App\Enum\EmployeeTypeCategory::ORIENTASI;
     }
 
     /** Gate halaman /sikartap/mcu (antrian) — OR dari 4 permission INPUT_MCU_* (bukan

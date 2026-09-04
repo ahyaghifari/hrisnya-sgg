@@ -46,11 +46,6 @@
                         <i class="fa-solid fa-right-left text-xs"></i> Tukar Shift
                     </a>
                 @endif
-                @if ($canAccessSikartapSaya)
-                    <a href="{{ route('sikartap') }}" wire:navigate class="nav-item {{ request()->routeIs('sikartap') ? 'active' : '' }}">
-                        <i class="fa-solid fa-user-check text-xs"></i> Sikartap
-                    </a>
-                @endif
                 @if ($canAccessPembinaanSaya)
                     <div class="dropdown">
                         <a href="#" class="nav-item {{ request()->routeIs(['counseling*', 'coaching.saya*']) ? 'active' : '' }}">
@@ -59,6 +54,21 @@
                         <div class="dropdown-menu">
                             <a href="{{ route('coaching.saya') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-user-check"></i> Coaching Saya</a>
                             <a href="{{ route('counseling') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-comment-dots"></i> Counseling Saya</a>
+                        </div>
+                    </div>
+                @endif
+                @if ($canAccessSikartapSaya || $canAccessOrientasiSaya)
+                    <div class="dropdown">
+                        <a href="#" class="nav-item {{ request()->routeIs(['sikartap', 'orientasi', 'orientasi.show']) ? 'active' : '' }}">
+                            <i class="fa-solid fa-signs-post text-xs"></i> Status Saya <i class="fa-solid fa-chevron-down text-[10px]"></i>
+                        </a>
+                        <div class="dropdown-menu">
+                            @if ($canAccessOrientasiSaya)
+                                <a href="{{ route('orientasi') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-user-graduate"></i> Orientasi</a>
+                            @endif
+                            @if ($canAccessSikartapSaya)
+                                <a href="{{ route('sikartap') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-user-check"></i> Sikartap</a>
+                            @endif
                         </div>
                     </div>
                 @endif

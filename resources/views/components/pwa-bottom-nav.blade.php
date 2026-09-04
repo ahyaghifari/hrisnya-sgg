@@ -58,6 +58,7 @@
 {{-- Sheet "Penugasan" — popup berisi menu yang sifatnya penugasan ke karyawan (Kanban, Pelatihan). --}}
 <div id="pwa-tugas-sheet-backdrop" class="pwa-menu-sheet-backdrop" onclick="togglePwaTugasSheet()"></div>
 <div id="pwa-tugas-sheet" class="pwa-menu-sheet">
+    <button type="button" class="pwa-menu-sheet-close" onclick="togglePwaTugasSheet()" aria-label="Tutup menu"><i class="fa-solid fa-xmark"></i></button>
     <div class="pwa-menu-sheet-handle"></div>
 
     {{-- 2 kolom saja (bukan 3 seperti sheet Menu) — cuma 2 item untuk sekarang. --}}
@@ -83,9 +84,36 @@
      ada di halaman Akun (livewire/pwa/akun.blade.php), tidak diduplikasi di sini. --}}
 <div id="pwa-menu-sheet-backdrop" class="pwa-menu-sheet-backdrop" onclick="togglePwaMenuSheet()"></div>
 <div id="pwa-menu-sheet" class="pwa-menu-sheet">
+    <button type="button" class="pwa-menu-sheet-close" onclick="togglePwaMenuSheet()" aria-label="Tutup menu"><i class="fa-solid fa-xmark"></i></button>
     <div class="pwa-menu-sheet-handle"></div>
 
     <div class="pwa-menu-grid">
+        @if ($canAccessPembinaanSaya || $canAccessOrientasiSaya || $canAccessSikartapSaya)
+            <span class="pwa-menu-grid-divider">Menu Saya</span>
+            @if ($canAccessPembinaanSaya)
+                <a href="{{ route('coaching.saya') }}" wire:navigate class="pwa-menu-grid-item">
+                    <span class="pwa-menu-grid-icon gold"><i class="fa-solid fa-user-check"></i></span>
+                    <span class="pwa-menu-grid-label">Coaching Saya</span>
+                </a>
+                <a href="{{ route('counseling') }}" wire:navigate class="pwa-menu-grid-item">
+                    <span class="pwa-menu-grid-icon gold"><i class="fa-solid fa-comment-dots"></i></span>
+                    <span class="pwa-menu-grid-label">Counseling Saya</span>
+                </a>
+            @endif
+            @if ($canAccessOrientasiSaya)
+                <a href="{{ route('orientasi') }}" wire:navigate class="pwa-menu-grid-item">
+                    <span class="pwa-menu-grid-icon gold"><i class="fa-solid fa-user-graduate"></i></span>
+                    <span class="pwa-menu-grid-label">Orientasi</span>
+                </a>
+            @endif
+            @if ($canAccessSikartapSaya)
+                <a href="{{ route('sikartap') }}" wire:navigate class="pwa-menu-grid-item">
+                    <span class="pwa-menu-grid-icon gold"><i class="fa-solid fa-user-check"></i></span>
+                    <span class="pwa-menu-grid-label">Sikartap</span>
+                </a>
+            @endif
+        @endif
+
         @if ($canSeeKaryawanMenu)
             <x-pwa-nav.mystaff-item />
         @endif
@@ -112,13 +140,6 @@
 
         @if ($canAccessSikartap)
             <x-pwa-nav.sikartap-menu />
-        @endif
-
-        @if ($canAccessSikartapSaya)
-            <a href="{{ route('sikartap') }}" wire:navigate class="pwa-menu-grid-item">
-                <span class="pwa-menu-grid-icon gold"><i class="fa-solid fa-user-check"></i></span>
-                <span class="pwa-menu-grid-label">Sikartap</span>
-            </a>
         @endif
 
         @if ($canAccessLms)
@@ -156,4 +177,15 @@
         document.getElementById('pwa-tugas-sheet').classList.toggle('open');
         document.getElementById('pwa-tugas-sheet-backdrop').classList.toggle('open');
     }
+
+    // Klik link di dalam sheet -> tutup dulu (animasi slide-down jalan), baru wire:navigate
+    // pindah halaman. Tanpa ini sheet ke-reset mendadak saat halaman baru render.
+    ['pwa-menu-sheet', 'pwa-tugas-sheet'].forEach(function (id) {
+        document.getElementById(id)?.addEventListener('click', function (e) {
+            if (e.target.closest('a[href]')) {
+                this.classList.remove('open');
+                document.getElementById(id + '-backdrop')?.classList.remove('open');
+            }
+        });
+    });
 </script>
