@@ -47,6 +47,20 @@ return [
             'report' => false,
         ],
 
+        /*
+         * Storage privat project Rekrutmen (offering letter, dokumen kandidat). HRIS & rekrutmen
+         * satu server -> arahkan langsung ke `storage/app/private` repo rekrutmen. Isi
+         * REKRUTMEN_STORAGE_PATH di .env (lokal: d:\Projects\rekrutmen\storage\app\private,
+         * server: /path/ke/rekrutmen/storage/app/private).
+         */
+        'rekrutmen' => [
+            'driver' => 'local',
+            'root' => env('REKRUTMEN_STORAGE_PATH', storage_path('app/private')),
+            'serve' => false,
+            'throw' => false,
+            'report' => false,
+        ],
+
         's3' => [
             'driver' => 's3',
             'key' => env('AWS_ACCESS_KEY_ID'),

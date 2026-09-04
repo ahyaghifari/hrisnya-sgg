@@ -63,6 +63,33 @@ return [
             ]) : [],
         ],
 
+        /*
+         * DB project Rekrutmen (d:\Projects\rekrutmen) — HRIS mengambil alih admin/pipeline
+         * rekrutmen dengan baca-tulis LANGSUNG ke DB ini (shared DB). Repo `rekrutmen` tetap
+         * pemilik skema/migration; HRIS TIDAK migrate ke koneksi ini. Model porting HRIS
+         * (App\Models\Rekrutmen\*) set `protected $connection = 'recruitment'`.
+         * Isi DB_REKRUTMEN_* di .env (lokal & server) — user DB perlu hak read-write.
+         */
+        'recruitment' => [
+            'driver' => 'mysql',
+            'url' => env('DB_REKRUTMEN_URL'),
+            'host' => env('DB_REKRUTMEN_HOST', '127.0.0.1'),
+            'port' => env('DB_REKRUTMEN_PORT', '3306'),
+            'database' => env('DB_REKRUTMEN_DATABASE'),
+            'username' => env('DB_REKRUTMEN_USERNAME'),
+            'password' => env('DB_REKRUTMEN_PASSWORD', ''),
+            'unix_socket' => env('DB_REKRUTMEN_SOCKET', ''),
+            'charset' => env('DB_REKRUTMEN_CHARSET', 'utf8mb4'),
+            'collation' => env('DB_REKRUTMEN_COLLATION', 'utf8mb4_unicode_ci'),
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'strict' => true,
+            'engine' => null,
+            'options' => extension_loaded('pdo_mysql') ? array_filter([
+                PDO::MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
+            ]) : [],
+        ],
+
         'mariadb' => [
             'driver' => 'mariadb',
             'url' => env('DB_URL'),
