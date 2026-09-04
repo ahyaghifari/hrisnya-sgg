@@ -317,7 +317,7 @@ class ManualPayrollImportPage extends Component
 
             Notification::make()
                 ->title('Import selesai')
-                ->body("{$this->result['dibuat']} payroll dibuat, {$this->result['dilewati']} baris dilewati.")
+                ->body("{$this->result['dibuat']} payroll dibuat, {$this->result['dilewati']} baris dilewati" . (($this->result['dilewati_dibayar'] ?? 0) > 0 ? ", {$this->result['dilewati_dibayar']} dikunci (sudah dibayar)" : '') . '.')
                 ->success()
                 ->send();
         } catch (\Throwable $e) {

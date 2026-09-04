@@ -1,5 +1,6 @@
 compiled.php
 config.php
+lsp-*.php
 down
 events.scanned.php
 maintenance.php

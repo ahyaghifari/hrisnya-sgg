@@ -15,7 +15,7 @@
             <i class="fa-solid fa-circle-info"></i>
             Pilih perusahaan + periode gaji tujuan, lalu upload file <strong>.xlsx</strong> (1 sheet skema RSU).
             NIP dicocokkan ke data karyawan (exact → zero-pad 11). NIP yang tak ketemu <strong>dilewati</strong> & dilaporkan di bawah.
-            Import ulang: baris payroll periode itu yang <strong>belum dibayar</strong> dihapus & dibuat ulang; kalau sudah ada yang <strong>dibayar</strong>, import ditolak.
+            Import ulang: baris payroll periode itu yang <strong>belum dibayar</strong> dihapus & dibuat ulang. Payroll yang <strong>sudah dibayar</strong> dikunci — tidak ditimpa, baris Excel-nya dilewati.
         </div>
 
         <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;">
@@ -78,7 +78,7 @@
             <div style="background:rgba(4,124,84,0.08);border:1px solid rgba(4,124,84,0.3);border-radius:10px;padding:14px 16px;font-size:13px;">
                 <p style="margin:0 0 4px;font-weight:700;color:var(--brand-success);"><i class="fa-solid fa-circle-check"></i> Import selesai</p>
                 <p style="margin:0;color:var(--text-body);">
-                    {{ $result['dibuat'] ?? 0 }} payroll dibuat (status belum dibayar), {{ $result['dilewati'] ?? 0 }} baris dilewati.
+                    {{ $result['dibuat'] ?? 0 }} payroll dibuat (status belum dibayar), {{ $result['dilewati'] ?? 0 }} baris dilewati (NIP tak ketemu)@if (($result['dilewati_dibayar'] ?? 0) > 0), {{ $result['dilewati_dibayar'] }} dilewati karena sudah dibayar (dikunci)@endif.
                     Cek tabel di bawah — centang baris lalu <strong>Tandai Sudah Dibayar</strong> &amp; <strong>Kirim Slip</strong>.
                 </p>
                 @if (! empty($result['warnings']))

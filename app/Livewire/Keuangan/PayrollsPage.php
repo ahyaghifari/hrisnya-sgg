@@ -136,11 +136,29 @@ class PayrollsPage extends Component
         return $this->periodQuery()->where('company_id', $this->companyId)->orderByDesc('start_date')->get();
     }
 
+    /**
+     * Lepas global scope BelongsToCompany dari query relasi payrollPeriod kalau user boleh
+     * lihat perusahaan lain — tanpa ini `whereHas('payrollPeriod', where company_id = X)`
+     * ke-clamp lagi ke company petugas (X AND company petugas) jadi kosong pas pilih
+     * perusahaan lain tanpa periode. Sama alasan dengan periodQuery().
+     */
+    private function unscopePeriodRelation($q): void
+    {
+        // $q bisa Builder (dari whereHas) atau Relation (dari with()) — dua-duanya punya
+        // withoutGlobalScope() (Relation nge-proxy ke builder-nya).
+        if (Auth::user()->canFilterByCompany()) {
+            $q->withoutGlobalScope('company');
+        }
+    }
+
     /** Payroll::query() sudah di-scope company + periode — dipakai getPayrollsProperty & HasSlipSendStatus. */
     protected function baseSlipQuery(): \Illuminate\Contracts\Database\Eloquent\Builder
     {
         return Payroll::query()
-            ->when($this->companyId, fn ($q) => $q->whereHas('payrollPeriod', fn ($q2) => $q2->where('company_id', $this->companyId)))
+            ->when($this->companyId, fn ($q) => $q->whereHas('payrollPeriod', function ($q2) {
+                $this->unscopePeriodRelation($q2);
+                $q2->where('company_id', $this->companyId);
+            }))
             ->when($this->periodId, fn ($q) => $q->where('payroll_period_id', $this->periodId));
     }
 
@@ -155,7 +173,7 @@ class PayrollsPage extends Component
             ->when($search !== '', fn ($q) => $q->whereHas('user', fn ($q2) => $q2
                 ->where('name', 'like', "%{$search}%")
                 ->orWhere('nip', 'like', "%{$search}%")))
-            ->with(['user', 'payrollPeriod'])
+            ->with(['user', 'payrollPeriod' => fn ($q) => $this->unscopePeriodRelation($q)])
             ->orderByDesc('created_at')
             ->get();
 
@@ -264,21 +282,9 @@ class PayrollsPage extends Component
             ->send();
     }
 
-    public function downloadSlipsZip()
-    {
-        abort_unless($this->periodId, 400, 'Pilih periode dulu sebelum unduh slip.');
-        abort_unless(Auth::user()->can('viewAny', Payroll::class), 403);
-
-        $period = $this->periodQuery()->with('company')->findOrFail($this->periodId);
-
-        if (! Storage::disk('local')->exists(app(PayrollService::class)->slipZipRelPath($period->id))) {
-            Notification::make()->title('File ZIP belum siap')->warning()->send();
-
-            return;
-        }
-
-        return app(PayrollService::class)->downloadStoredSlipZip($period);
-    }
+    // Unduh ZIP: lewat GET route keuangan.payroll.slip-zip (link biasa di blade), BUKAN
+    // action Livewire — response download yang dibungkus Livewire jadi base64 JSON bikin
+    // memory habis untuk ZIP besar.
 
     // ── Import Revisi ────────────────────────────────────────────────────────
 

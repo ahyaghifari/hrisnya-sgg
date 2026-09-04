@@ -352,6 +352,27 @@ Route::middleware(['auth', 'portal.access'])->group(function () {
         return app(\App\Services\Payroll\PayrollService::class)->preview($payroll);
     })->name('keuangan.payroll.preview');
 
+    // Unduh ZIP slip gaji satu periode — GET biasa (stream BinaryFileResponse), BUKAN lewat
+    // Livewire yang membungkus file jadi base64 di JSON payload sampai memory habis.
+    Route::get('/keuangan/payroll/slip-zip/{period}', function (string $period) {
+        abort_unless(\Illuminate\Support\Facades\Auth::user()->can('viewAny', \App\Models\Payroll\Payroll::class), 403);
+
+        $query = \App\Models\Payroll\PayrollPeriod::query();
+        if (\Illuminate\Support\Facades\Auth::user()->canFilterByCompany()) {
+            $query->withoutGlobalScope('company');
+        }
+        $period = $query->with('company')->findOrFail($period);
+
+        $service = app(\App\Services\Payroll\PayrollService::class);
+        abort_unless(
+            \Illuminate\Support\Facades\Storage::disk('local')->exists($service->slipZipRelPath($period->id)),
+            404,
+            'File ZIP slip belum siap.',
+        );
+
+        return $service->downloadStoredSlipZip($period);
+    })->name('keuangan.payroll.slip-zip');
+
     Route::get('/keuangan/komponen-gaji', SalaryComponentsPage::class)
         ->name('keuangan.komponen-gaji');
 

@@ -561,7 +561,7 @@ class ManualPayrollExcelImportTest extends TestCase
         \Illuminate\Support\Facades\Queue::assertPushed(\App\Jobs\SendPayrollSlipJob::class, 1);
     }
 
-    public function test_reimport_replaces_unpaid_but_blocks_when_paid(): void
+    public function test_reimport_replaces_unpaid_but_locks_paid(): void
     {
         $emp = $this->employee('01082019100');
         $actor = User::factory()->create(['company_id' => $this->company->id]);
@@ -582,14 +582,16 @@ class ManualPayrollExcelImportTest extends TestCase
         $this->assertSame(1, Payroll::where('payroll_period_id', $this->period->id)->count());
         $this->assertSame(3_100_000.0, (float) Payroll::where('user_id', $emp->id)->value('gross_salary'));
 
-        // Tandai dibayar -> import ulang ditolak.
+        // Tandai dibayar -> import ulang TIDAK menimpa yang sudah dibayar: baris Excel-nya
+        // dilewati (dilewati_dibayar=1), nominal lama tetap, tidak throw.
         Payroll::where('payroll_period_id', $this->period->id)->update(['is_paid' => true]);
         $p3 = $make(3_200_000);
-        $this->expectException(\RuntimeException::class);
-        try {
-            app(ManualPayrollExcelImporter::class)->import($p3, $this->period, $actor);
-        } finally {
-            @unlink($p3);
-        }
+        $result = app(ManualPayrollExcelImporter::class)->import($p3, $this->period, $actor);
+        @unlink($p3);
+
+        $this->assertSame(0, $result['dibuat']);
+        $this->assertSame(1, $result['dilewati_dibayar']);
+        $this->assertSame(1, Payroll::where('payroll_period_id', $this->period->id)->count());
+        $this->assertSame(3_100_000.0, (float) Payroll::where('user_id', $emp->id)->value('gross_salary'));
     }
 }

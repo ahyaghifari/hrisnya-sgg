@@ -184,41 +184,52 @@ class ManualPayrollExcelImporter
     }
 
     /**
-     * Tulis Payroll + PayrollItem untuk baris yang cocok. Idempoten: baris Payroll period+company
-     * yang is_paid=false dihapus & dibuat ulang. Kalau ada yang is_paid=true -> throw.
+     * Tulis Payroll + PayrollItem untuk baris yang cocok. Idempoten untuk yang BELUM dibayar:
+     * baris Payroll is_paid=false dihapus & dibuat ulang. Payroll yang SUDAH dibayar dikunci —
+     * tidak dihapus, dan baris Excel untuk karyawan itu dilewati (tidak menimpa).
      *
-     * @return array{dibuat: int, dilewati: int, warnings: list<array>}
+     * @return array{dibuat: int, dilewati: int, dilewati_dibayar: int, warnings: list<array>}
      */
     public function import(string $path, PayrollPeriod $period, User $actor): array
     {
         $preview = $this->preview($path, $period->company_id);
 
-        $paidCount = Payroll::query()
+        // user_id yang payroll-nya di period ini sudah DIBAYAR — dikunci total, tidak ikut
+        // di-replace import (baris Excel-nya dilewati di loop bawah).
+        $paidUserIds = Payroll::query()
             ->where('payroll_period_id', $period->id)
             ->where('is_paid', true)
-            ->count();
-
-        if ($paidCount > 0) {
-            throw new \RuntimeException("Period ini sudah punya {$paidCount} payroll berstatus DIBAYAR. Hapus manual dulu sebelum import ulang.");
-        }
+            ->pluck('user_id');
 
         $parsedByNip = collect($this->parse($path, $this->tunjanganKhususLabel($period->company_id))['rows'])->keyBy('nip_excel');
 
-        return DB::transaction(function () use ($preview, $parsedByNip, $period, $actor) {
-            // Bersihkan payroll lama yang belum dibayar (+ item-nya) untuk period ini.
-            $oldIds = Payroll::where('payroll_period_id', $period->id)->pluck('id');
+        return DB::transaction(function () use ($preview, $parsedByNip, $period, $actor, $paidUserIds) {
+            // Bersihkan payroll lama yang BELUM dibayar (+ item-nya) untuk period ini. Yang sudah
+            // dibayar dibiarkan apa adanya.
+            $oldIds = Payroll::where('payroll_period_id', $period->id)
+                ->where('is_paid', false)
+                ->pluck('id');
             PayrollItem::whereIn('payroll_id', $oldIds)->delete();
             Payroll::whereIn('id', $oldIds)->delete();
 
             // Potongan khusus hasil import sebelumnya (component potongan_khusus) — dibuang juga
-            // supaya re-import tidak dobel. Koperasi/Bon manual tidak disentuh.
+            // supaya re-import tidak dobel, KECUALI milik karyawan yang sudah dibayar (dikunci).
+            // Koperasi/Bon manual tidak disentuh.
             PayrollManualLine::where('payroll_period_id', $period->id)
                 ->where('component', self::SOURCE_POTONGAN_KHUSUS)
+                ->whereNotIn('user_id', $paidUserIds)
                 ->delete();
 
             $created = 0;
+            $skippedPaid = 0;
 
             foreach ($preview['matched'] as $m) {
+                // Karyawan sudah dibayar di period ini — jangan ditimpa.
+                if ($paidUserIds->contains($m['user_id'])) {
+                    $skippedPaid++;
+                    continue;
+                }
+
                 $row = $parsedByNip->get($m['nip_excel']);
 
                 $payroll = Payroll::create([
@@ -286,6 +297,7 @@ class ManualPayrollExcelImporter
             return [
                 'dibuat' => $created,
                 'dilewati' => count($preview['unmatched']),
+                'dilewati_dibayar' => $skippedPaid,
                 'warnings' => $preview['warnings'],
             ];
         });

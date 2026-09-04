@@ -81,9 +81,13 @@
                             </div>
                         @elseif ($zipState['status'] === 'ready')
                             <div style="display:flex;align-items:center;gap:8px;">
-                                <button type="button" wire:click="downloadSlipsZip" style="display:inline-flex;align-items:center;gap:6px;padding:9px 16px;font-size:12.5px;font-weight:600;border:none;border-radius:12px;cursor:pointer;background:#7c3aed;color:#fff;">
+                                {{-- Link biasa, BUKAN wire:click — Livewire membungkus response
+                                     download jadi base64 di JSON payload (JsonResponse), ZIP
+                                     ratusan MB bikin "Allowed memory size exhausted". GET route
+                                     ini stream file langsung (BinaryFileResponse). --}}
+                                <a href="{{ route('keuangan.payroll.slip-zip', $periodId) }}" style="display:inline-flex;align-items:center;gap:6px;padding:9px 16px;font-size:12.5px;font-weight:600;border:none;border-radius:12px;cursor:pointer;background:#7c3aed;color:#fff;text-decoration:none;">
                                     <i class="fa-solid fa-file-zipper"></i> Unduh ZIP Slip
-                                </button>
+                                </a>
                                 <span style="font-size:11px;color:var(--text-faint);">siap {{ $zipState['readyAt'] }}</span>
                                 <button type="button" wire:click="prepareSlipsZip" wire:confirm="Siapkan ulang ZIP slip gaji periode ini?" class="btn-ghost" style="padding:5px 10px;font-size:11px;">
                                     <i class="fa-solid fa-rotate"></i> Siapkan ulang
