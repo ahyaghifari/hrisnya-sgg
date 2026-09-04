@@ -71,6 +71,17 @@ class PayrollDetailPage extends Component
     }
 
     /**
+     * mount() cuma jalan sekali. Tiap request Livewire berikutnya $this->payroll di-hydrate
+     * ulang dari DB TANPA closure eager-load, jadi $this->payroll->payrollPeriod bakal
+     * lazy-load lagi DENGAN scope company → null buat payroll company lain, crash di render
+     * (mis. getIzinSeharianGajiPokokWarningProperty). Reload scopeless tiap hydrate.
+     */
+    public function hydrate(): void
+    {
+        $this->loadPayrollPeriod();
+    }
+
+    /**
      * PayrollPeriod punya global scope BelongsToCompany — kalau payroll ini periodenya
      * company LAIN (mis. hasil import manual oleh user LIHAT_PERUSAHAAN_LAIN), relasi
      * payrollPeriod jadi null & halaman crash. Payroll-nya sendiri sudah digate policy
@@ -79,7 +90,7 @@ class PayrollDetailPage extends Component
      */
     private function loadPayrollPeriod(): void
     {
-        $this->payroll->load([
+        $this->payroll?->load([
             'payrollPeriod' => fn ($q) => $q->withoutGlobalScope('company')->with('company'),
         ]);
     }
