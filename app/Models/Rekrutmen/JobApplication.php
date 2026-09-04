@@ -133,6 +133,11 @@ class JobApplication extends Model
         return $this->hasOne(Candidate::class);
     }
 
+    public function quizAttempts(): HasMany
+    {
+        return $this->hasMany(QuizAttempt::class);
+    }
+
     /** @return array<string,mixed> field_key => value */
     public function answersMap(): array
     {
