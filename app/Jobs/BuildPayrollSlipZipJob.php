@@ -37,6 +37,10 @@ class BuildPayrollSlipZipJob implements ShouldQueue
 
     public function handle(PayrollService $service): void
     {
+        // Worker terpisah — aman naikin limit. buildSlipZipToStorage() sudah tulis PDF ke
+        // disk (bukan tahan di memory), ini cuma jaring pengaman buat 1 render dompdf berat.
+        @ini_set('memory_limit', '512M');
+
         try {
             $period = PayrollPeriod::with('company')->find($this->periodId);
 

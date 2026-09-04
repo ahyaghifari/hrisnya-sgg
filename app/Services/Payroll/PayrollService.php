@@ -19,6 +19,7 @@ use App\Services\Payroll\Calculators\PayrollContext;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -167,41 +168,58 @@ class PayrollService
 
         $finalAbs = $disk->path($this->slipZipRelPath($period->id));
         $buildAbs = $finalAbs . '.building';
+        $stageDir = $finalAbs . '.stage'; // folder PDF mentah sementara (dibersihkan di akhir)
 
-        $zip = new \ZipArchive;
-        $zip->open($buildAbs, \ZipArchive::CREATE | \ZipArchive::OVERWRITE);
+        // Sisa build yang gagal di tengah jalan (worker mati) — sapu dulu.
+        File::deleteDirectory($stageDir);
+        File::makeDirectory($stageDir, 0755, true);
 
         // Semua isi dibungkus 1 folder root (= nama file tanpa .zip) supaya pas di-extract
         // jadi satu folder rapi, bukan file/folder divisi berhamburan di direktori tujuan.
         $root = preg_replace('/\.zip$/', '', $this->slipZipFilename($period)) ?: 'slip-gaji';
         $skipped = [];
-        $i = 0;
+        $entries = []; // [nama di dalam zip => path file mentah di disk], urut
 
+        // ── Fase 1: render tiap PDF LANGSUNG ke file di disk, JANGAN ditahan di memory.
+        // memory_limit 128M tidak muat kalau ratusan output dompdf numpuk di buffer
+        // ZipArchive::addFromString() sampai close() ("Allowed memory size exhausted").
+        // Tulis ke disk, unset, gc — pemakaian memory jadi rata berapa pun jumlah slip.
         Payroll::where('payroll_period_id', $period->id)
             ->where('is_paid', true)
             ->with(['user.profile', 'payrollPeriod.company'])
-            ->chunkById(100, function ($payrolls) use ($zip, $buildAbs, $root, &$skipped, &$i) {
+            ->chunkById(50, function ($payrolls) use ($stageDir, $root, &$skipped, &$entries) {
                 foreach ($payrolls as $payroll) {
+                    $name = $root . '/' . $this->slipFilename($payroll);
+
                     try {
                         // TANPA setEncryption() — PDF di ZIP tidak di-password (beda dari encryptedSlip()).
                         $pdf = Pdf::loadView('pdf.payroll.payroll', [
                             'payroll' => $payroll,
                             'rows' => $this->componentRows($payroll, compact: true),
                         ]);
-                        $zip->addFromString($root . '/' . $this->slipFilename($payroll), $pdf->output());
+                        $abs = $stageDir . '/' . md5($name) . '.pdf';
+                        if (file_put_contents($abs, $pdf->output()) === false) {
+                            throw new \RuntimeException("gagal tulis {$abs}");
+                        }
+                        $entries[$name] = $abs;
                     } catch (\Throwable) {
                         $skipped[] = trim(($payroll->user?->nip ?? '?') . ' — ' . ($payroll->user?->name ?? '?'));
-                    }
-
-                    // ponytail: flush tiap 50 entri biar buffer ZipArchive + sisa dompdf tidak
-                    // numpuk di memory sampai akhir. close()+open() tanpa OVERWRITE = append.
-                    if (++$i % 50 === 0) {
-                        $zip->close();
-                        gc_collect_cycles();
-                        $zip->open($buildAbs);
+                    } finally {
+                        unset($pdf);
                     }
                 }
+
+                gc_collect_cycles();
             });
+
+        // ── Fase 2: bungkus jadi 1 ZIP. addFile() cuma catat path — isinya di-stream dari
+        // disk saat close(), tidak di-load ke memory PHP, jadi aman walau ribuan slip.
+        $zip = new \ZipArchive;
+        $zip->open($buildAbs, \ZipArchive::CREATE | \ZipArchive::OVERWRITE);
+
+        foreach ($entries as $name => $abs) {
+            $zip->addFile($abs, $name);
+        }
 
         if ($skipped !== []) {
             $zip->addFromString(
@@ -214,6 +232,7 @@ class PayrollService
 
         // Rename atomik di akhir — file `.zip` final tidak pernah ada dalam kondisi separuh jadi.
         @rename($buildAbs, $finalAbs);
+        File::deleteDirectory($stageDir);
     }
 
     public function downloadStoredSlipZip(PayrollPeriod $period): \Symfony\Component\HttpFoundation\BinaryFileResponse
