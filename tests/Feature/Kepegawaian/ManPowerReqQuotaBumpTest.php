@@ -20,7 +20,7 @@ class ManPowerReqQuotaBumpTest extends TestCase
 
     public function test_additional_quota_bumps_open_and_waiting_recruitments_only(): void
     {
-        Http::fake(); // RekrutmenSyncService::sync() — non-fatal
+        Http::fake(); // RecruitmentSync::sync() sekarang direct-DB & non-fatal — fake sisa jaga-jaga
 
         $company = Companies::create(['code' => 'TST', 'name' => 'Test Co', 'location' => 'X', 'is_active' => true]);
         $jp = JobPositions::create(['company_id' => $company->id, 'name' => 'Staff IT', 'planned_manpower' => 1]);

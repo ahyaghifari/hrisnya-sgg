@@ -161,15 +161,29 @@ ApplicationNotification, User (pelamar/staff — read-only dari HRIS).
       `tests/Feature/Rekrutmen/ApplicantsPageTest.php` (semua uji arsitektur HTTP-sync lama).
       Route `rekrutmen.{mcu,lowongan.pelamar,lowongan.kandidat,pelamar.mcu}` diubah jadi
       redirect ke panel Filament (nama route dipertahankan buat `route()` & portal-pages).
-- [ ] **SISA (tunggu sesi Orientasi commit dulu)**:
-  - `app/Livewire/Rekrutmen/ApplicantDetailPage.php` (+ route `rekrutmen.pelamar.show`,
-    `JobOpeningsPage`/`JobOpeningDetailPage`/`EditJobOpeningPage`) — sesi Orientasi lagi
-    nempel modal onboarding di sini. Retire / pindahkan tesnya bareng itu.
-  - `RekrutmenSyncService`: method `getMcuQueue`/`saveMcuStation`/`getJobOpeningApplications`
-    sekarang dead; sisanya masih dipakai `ApplicantDetailPage` Livewire +
-    `CandidateOnboardingService` + `CandidateDocumentProxyController`. Jangan hapus service
-    ini (masih dipakai fitur push lowongan HRIS->Rekrutmen: `sync()`, `pushCompany()`, dst).
-  - Bersihin entri `rekrutmen.lowongan.*` di `config/portal-pages.php` (skrg nunjuk redirect).
+- [x] **Grup 1 (push HRIS -> DB recruitment) pindah ke direct DB**:
+      `App\Services\Rekrutmen\RecruitmentSync` (koneksi `recruitment`, semua non-fatal) —
+      `pushCompany`, `sync`, `testConnection`, `getUnlinkedJobOpenings`, `getApplicantCounts`.
+      Pemanggil dirombak: `Models/Master/Companies` (hook saved), `Services/Job/JobOpeningService`
+      (DI), `Services/JobPosition/ManPowerReqService`. **Tidak ada HTTP lagi buat grup 1.**
+- [x] Hapus halaman Livewire lowongan portal lama: `JobOpeningsPage`, `JobOpeningDetailPage`,
+      `EditJobOpeningPage` + view. Route `rekrutmen.lowongan{,.show,.edit}` +
+      `/kepegawaian/lowongan{,/{record}}` -> redirect ke resource Filament admin
+      `man-power.job-openings`. CRUD lowongan HRIS sepenuhnya di panel admin.
+- [x] `CandidateDocumentProxyController` baca disk `rekrutmen` langsung (bukan proxy HTTP).
+      Unduh dokumen kandidat (bukan offering) balas 501 sampai Fase 6b.
+- [ ] **SISA — grup 2 (pipeline pelamar), tunggu sesi Orientasi commit**:
+  - `RekrutmenSyncService` sekarang cuma sisa HTTP grup 2, dipakai HANYA
+    `app/Livewire/Rekrutmen/ApplicantDetailPage.php` (portal lama, mau dipensiunkan) +
+    `app/Services/Rekrutmen/CandidateOnboardingService.php` (`getApplication`/`getCandidate`).
+    Kedua file itu lagi diedit sesi Orientasi (modal onboarding). Begitu ke-commit:
+    konversi 2 pemanggil ke query `App\Models\Rekrutmen\*` langsung, lalu HAPUS
+    `RekrutmenSyncService` + `REKRUTMEN_API_URL`/`REKRUTMEN_API_TOKEN` +
+    `config('services.rekrutmen.base_url'/'token')`.
+  - Retire Livewire `ApplicantDetailPage` (route `rekrutmen.pelamar.show` -> redirect ke
+    Filament `applicant-detail-page`); pindahkan aksi "buat akun karyawan + lama orientasi"
+    ke panel Filament.
+  - Bersihin entri `rekrutmen.lowongan.*` / `rekrutmen.pelamar.*` di `config/portal-pages.php`.
 - [ ] Putuskan nasib Filament admin repo rekrutmen (dormant vs hapus resource).
 
 ## Catatan

@@ -192,7 +192,7 @@ class ManPowerReqService
         foreach ($openings as $opening) {
             $opening->update(['quota' => $opening->quota + $quantity]);
 
-            app(\App\Services\Job\RekrutmenSyncService::class)->sync($opening->fresh());
+            app(\App\Services\Rekrutmen\RecruitmentSync::class)->sync($opening->fresh());
         }
     }
 }

@@ -7,6 +7,15 @@ use App\Models\Master\Companies;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
+/**
+ * SISA HTTP — grup 1 (push perusahaan/lowongan) sudah pindah ke
+ * App\Services\Rekrutmen\RecruitmentSync (direct DB koneksi `recruitment`). Yang masih di
+ * sini cuma grup 2 (pipeline pelamar), dipakai HANYA oleh:
+ *   - App\Livewire\Rekrutmen\ApplicantDetailPage  (halaman portal lama, mau dipensiunkan)
+ *   - App\Services\Rekrutmen\CandidateOnboardingService  (getApplication/getCandidate)
+ * Kedua file itu lagi diedit sesi lain (modul Orientasi) — begitu itu ke-commit, konversi
+ * dua pemanggil ini ke query langsung lalu HAPUS file ini + REKRUTMEN_API_URL/TOKEN.
+ */
 class RekrutmenSyncService
 {
     /**

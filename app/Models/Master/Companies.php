@@ -33,10 +33,10 @@ class Companies extends Model
             }
         });
 
-        // Sync perusahaan ke sistem Rekrutmen tiap simpan — biar tidak perlu dibuat manual
-        // di sana dulu sebelum lowongan bisa di-push. Non-fatal (lihat RekrutmenSyncService).
+        // Sync perusahaan ke DB recruitment (shared DB) tiap simpan — biar tidak perlu dibuat
+        // manual di sana dulu sebelum lowongan bisa di-push. Non-fatal (lihat RecruitmentSync).
         static::saved(function (Companies $model) {
-            app(\App\Services\Job\RekrutmenSyncService::class)->pushCompany($model);
+            app(\App\Services\Rekrutmen\RecruitmentSync::class)->pushCompany($model);
         });
     }
 

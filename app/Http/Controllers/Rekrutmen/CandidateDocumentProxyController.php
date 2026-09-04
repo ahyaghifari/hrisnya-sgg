@@ -3,51 +3,39 @@
 namespace App\Http\Controllers\Rekrutmen;
 
 use App\Http\Controllers\Controller;
-use App\Services\Job\RekrutmenSyncService;
+use App\Models\Rekrutmen\JobApplication;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Storage;
 
 /**
- * Proxy unduh file dari project Rekrutmen eksternal — file ada di disk privat sana,
- * endpoint-nya butuh Bearer token, jadi browser tidak bisa akses langsung. HRIS panggil
- * server-side lalu stream ulang. Gate `View:JobOpenings` (juga dijaga EnsurePortalPageAccess).
+ * Unduh file pelamar dari DB `recruitment` (shared DB) — file fisik ada di disk `rekrutmen`
+ * (REKRUTMEN_STORAGE_PATH, satu server). Dulu proxy HTTP ke app Rekrutmen; sekarang baca
+ * disk langsung. Gate `View:JobOpenings` (juga dijaga EnsurePortalPageAccess).
  */
 class CandidateDocumentProxyController extends Controller
 {
-    /** Dokumen kandidat (KTP/ijazah/dll). */
+    /** Dokumen kandidat (KTP/ijazah/dll) — belum diport ke shared DB (Fase 6b). */
     public function show(string $jobApplication, string $document)
     {
-        return $this->stream(
-            app(RekrutmenSyncService::class)->candidateDocumentUrl($jobApplication, $document)
-        );
+        abort_unless(Auth::user()?->can('View:JobOpenings'), 403);
+
+        abort(501, 'Unduh dokumen kandidat belum tersedia di integrasi shared DB (Fase 6b).');
     }
 
     /** Surat penawaran: `recruiter` (dari recruiter) atau `signed` (dari kandidat). */
     public function offeringLetter(string $jobApplication, string $type)
     {
+        abort_unless(Auth::user()?->can('View:JobOpenings'), 403);
         abort_unless(in_array($type, ['recruiter', 'signed'], true), 404);
 
-        return $this->stream(
-            app(RekrutmenSyncService::class)->offeringLetterUrl($jobApplication, $type)
-        );
-    }
+        $app = JobApplication::find($jobApplication);
+        $path = $type === 'recruiter' ? $app?->offering_letter_path : $app?->offering_letter_signed_path;
 
-    private function stream(?string $url)
-    {
-        abort_unless(Auth::user()?->can('View:JobOpenings'), 403);
-        abort_if($url === null, 503, 'Integrasi Rekrutmen belum dikonfigurasi.');
+        abort_if(! $path || ! Storage::disk('rekrutmen')->exists($path), 404, 'File tidak tersedia.');
 
-        try {
-            $response = Http::withToken(config('services.rekrutmen.token'))->timeout(20)->get($url);
-        } catch (\Throwable $e) {
-            abort(502, 'Tidak bisa menghubungi Rekrutmen.');
-        }
-
-        abort_unless($response->successful(), $response->status() === 404 ? 404 : 502, 'File tidak tersedia.');
-
-        return response($response->body(), 200, [
-            'Content-Type' => $response->header('Content-Type') ?: 'application/octet-stream',
-            'Content-Disposition' => $response->header('Content-Disposition') ?: 'inline',
+        return response(Storage::disk('rekrutmen')->get($path), 200, [
+            'Content-Type' => Storage::disk('rekrutmen')->mimeType($path) ?: 'application/octet-stream',
+            'Content-Disposition' => 'inline; filename="offering-' . $type . '-' . $jobApplication . '"',
         ]);
     }
 }

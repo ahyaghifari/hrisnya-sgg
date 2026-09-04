@@ -74,10 +74,7 @@ use App\Livewire\Presensi\RekapPresensiPage;
 use App\Livewire\Presensi\ScheduleAssignmentsPage;
 use App\Livewire\Presensi\ScheduleDetailPage;
 use App\Livewire\Presensi\SchedulesPage;
-use App\Livewire\Rekrutmen\EditJobOpeningPage;
 use App\Livewire\Rekrutmen\CreateManpowerRequestPage;
-use App\Livewire\Rekrutmen\JobOpeningDetailPage;
-use App\Livewire\Rekrutmen\JobOpeningsPage;
 use App\Livewire\Rekrutmen\ManpowerRequestDetailPage;
 use App\Livewire\Rekrutmen\ManpowerRequestsPage;
 use App\Http\Controllers\Pwa\PushSubscriptionController;
@@ -574,19 +571,20 @@ Route::middleware(['auth', 'portal.access'])->group(function () {
     // Rekrutmen = modul sendiri (2026-08-28) - nav group terpisah, prefix /rekrutmen. Dulu
     // sempat dilebur ke /kepegawaian/lowongan; dikembalikan ke /rekrutmen. Permintaan Tenaga
     // Kerja TETAP di /kepegawaian (bagian Jabatan), bukan modul Rekrutmen.
-    Route::redirect('/kepegawaian/lowongan', '/rekrutmen/lowongan', 301);
-    Route::get('/kepegawaian/lowongan/{record}', fn (string $record) => redirect(route('rekrutmen.lowongan.show', $record), 301));
+    // Alur lowongan + pipeline pelamar sudah pindah sepenuhnya ke panel Filament (admin:
+    // Manajemen Lowongan Kerja; /rekrutmen: pipeline pelamar). Halaman Livewire portal lama
+    // dihapus; route lama dipertahankan sebagai redirect biar link/bookmark & portal-pages
+    // tetap resolve.
+    Route::redirect('/kepegawaian/lowongan', '/admin/man-power/job-openings', 301);
+    Route::get('/kepegawaian/lowongan/{record}', fn (string $record) => redirect(route('filament.admin.resources.man-power.job-openings.view', $record), 301));
 
-    Route::get('/rekrutmen/lowongan', JobOpeningsPage::class)
+    Route::get('/rekrutmen/lowongan', fn () => redirect(route('filament.admin.resources.man-power.job-openings.index')))
         ->name('rekrutmen.lowongan');
 
-    // Alur pipeline pelamar (pelamar/kandidat/MCU) sudah pindah ke panel Filament /rekrutmen.
-    // Halaman Livewire lama dihapus; route dipertahankan sebagai redirect biar link/bookmark
-    // & config/portal-pages.php tetap resolve.
     Route::get('/rekrutmen/mcu', fn () => redirect('/rekrutmen/mcu-page'))
         ->name('rekrutmen.mcu');
 
-    Route::get('/rekrutmen/lowongan/{record}/edit', EditJobOpeningPage::class)
+    Route::get('/rekrutmen/lowongan/{record}/edit', fn (string $record) => redirect(route('filament.admin.resources.man-power.job-openings.edit', $record)))
         ->name('rekrutmen.lowongan.edit');
 
     Route::get('/rekrutmen/lowongan/{opening}/pelamar', fn () => redirect('/rekrutmen/applicants-page'))
@@ -595,7 +593,7 @@ Route::middleware(['auth', 'portal.access'])->group(function () {
     Route::get('/rekrutmen/lowongan/kandidat/{record}', fn (string $record) => redirect('/rekrutmen/applicant-detail-page?application=' . $record))
         ->name('rekrutmen.lowongan.kandidat');
 
-    Route::get('/rekrutmen/lowongan/{record}', JobOpeningDetailPage::class)
+    Route::get('/rekrutmen/lowongan/{record}', fn (string $record) => redirect(route('filament.admin.resources.man-power.job-openings.view', $record)))
         ->name('rekrutmen.lowongan.show');
 
     // {jobApplication} = ULID milik project Rekrutmen eksternal (bukan model HRIS) - string biasa.

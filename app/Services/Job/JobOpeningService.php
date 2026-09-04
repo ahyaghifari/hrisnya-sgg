@@ -3,20 +3,21 @@
 namespace App\Services\Job;
 
 use App\Models\Job\JobOpenings;
+use App\Services\Rekrutmen\RecruitmentSync;
 
 /**
  * Lowongan Kerja tidak pernah dibuat manual — cuma muncul otomatis dari approval Permintaan
  * Tenaga Kerja (`ManPowerReqService::approveManPower()`, is_active=false, opened_at=null).
  * Service ini urus siklus hidupnya di portal: Menunggu Dibuka -> Sedang Dibuka -> Sudah Ditutup.
  *
- * Tiap perubahan (simpan/publish/tutup) ikut push ke sistem Rekrutmen eksternal lewat
- * RekrutmenSyncService::sync() — lihat planning/2026-08-09-integrasi-job-opening-ke-rekrutmen.md.
- * Sync ini non-fatal (gagal kirim tidak menggagalkan aksi di sini, lihat docblock service-nya).
+ * Tiap perubahan (simpan/publish/tutup) ikut di-upsert ke DB `recruitment` (shared DB) lewat
+ * RecruitmentSync::sync() — lihat planning/2026-08-09-integrasi-job-opening-ke-rekrutmen.md.
+ * Sync ini non-fatal (gagal tidak menggagalkan aksi di sini, lihat docblock service-nya).
  */
 class JobOpeningService
 {
     public function __construct(
-        protected RekrutmenSyncService $rekrutmenSync,
+        protected RecruitmentSync $rekrutmenSync,
     ) {}
 
     /** Simpan field tanpa mengubah status buka/tutup — dipakai selagi masih "Menunggu Dibuka"
