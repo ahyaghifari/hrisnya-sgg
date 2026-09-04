@@ -32,4 +32,25 @@ class JobOpeningStageLog extends Model
     {
         return $this->belongsTo(User::class, 'done_by');
     }
+
+    /**
+     * Catat rollup "N kandidat: from -> to". Ditulis dari HRIS: `done_by` null (id user
+     * HRIS ≠ id user rekrutmen_db). Nama aktor per-kandidat sudah tercatat di
+     * job_application_status_logs.changed_by_name.
+     */
+    public static function record(string $jobOpeningId, ?string $from, string $to, int $count): void
+    {
+        if ($count <= 0) {
+            return;
+        }
+
+        static::create([
+            'job_opening_id' => $jobOpeningId,
+            'from_status' => $from,
+            'to_status' => $to,
+            'count' => $count,
+            'done_by' => null,
+            'done_at' => now(),
+        ]);
+    }
 }

@@ -8,13 +8,16 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\Auth;
 
 /**
- * Lamaran di DB `rekrutmen_db` — record inti seluruh alur rekrutmen.
+ * Lamaran di DB `rekrutmen_db` — record inti seluruh alur rekrutmen. Port dari project
+ * `rekrutmen` (App\Models\JobApplication) termasuk state machine `booted()`.
  *
- * FASE 1a: read-only dari HRIS. State machine `booted()` (auto status-log, auto-buat
- * Candidate saat onboarding/passed, auto-close lowongan saat kuota penuh) DIPORT di fase
- * jalur-tulis berikutnya, bersama migration `*_by_name` di repo `rekrutmen` untuk aktor HRIS.
+ * BEDA dari aslinya: `logStatusChange()` menulis `changed_by = null` + `changed_by_name`
+ * (nama aktor HRIS, snapshot) — id user HRIS ≠ id user `rekrutmen_db`. App `rekrutmen`
+ * sendiri tetap menulis `changed_by` FK saat aksi jalan di sana. Lihat migration
+ * add_changed_by_name_to_job_application_status_logs di repo `rekrutmen` (2026-09-04).
  */
 class JobApplication extends Model
 {
@@ -45,6 +48,66 @@ class JobApplication extends Model
     public const STATUS_PASSED = 'passed';
     public const STATUS_REJECTED = 'rejected';
 
+    public const ACTIVE_STATUSES = [self::STATUS_APPLIED, self::STATUS_SCREENING, self::STATUS_INTERVIEW];
+
+    protected static function booted(): void
+    {
+        static::created(fn (self $app) => $app->logStatusChange(null, $app->status));
+
+        static::updated(function (self $app) {
+            if (! $app->wasChanged('status')) {
+                return;
+            }
+
+            $app->logStatusChange($app->getOriginal('status'), $app->status);
+
+            if (in_array($app->status, [self::STATUS_ONBOARDING, self::STATUS_PASSED], true)) {
+                $candidate = Candidate::firstOrCreate(
+                    ['user_id' => $app->user_id],
+                    ['job_application_id' => $app->id, 'name' => $app->answersMap()['full_name'] ?? $app->user?->name],
+                );
+                if ($candidate->job_application_id !== $app->id) {
+                    $candidate->update(['job_application_id' => $app->id]);
+                }
+            }
+
+            if ($app->status === self::STATUS_PASSED) {
+                $app->closeJobOpeningIfQuotaFilled();
+            }
+        });
+    }
+
+    private function closeJobOpeningIfQuotaFilled(): void
+    {
+        $opening = $this->jobOpening;
+        if (! $opening || ! $opening->is_active || $opening->quota <= 0) {
+            return;
+        }
+
+        $passedCount = self::where('job_opening_id', $opening->id)->where('status', self::STATUS_PASSED)->count();
+        if ($passedCount >= $opening->quota) {
+            $opening->update(['is_active' => false]);
+        }
+    }
+
+    private function logStatusChange(?string $from, string $to): void
+    {
+        JobApplicationStatusLog::create([
+            'job_application_id' => $this->id,
+            'from_status' => $from,
+            'to_status' => $to,
+            'changed_by' => null,
+            'changed_by_name' => Auth::user()?->name ?? 'Sistem',
+            'changed_at' => now(),
+        ]);
+    }
+
+    /** Catat milestone yang TIDAK mengubah kolom status (mis. hasil tes lulus) agar tetap di Riwayat. */
+    public function logMilestone(string $milestone): void
+    {
+        $this->logStatusChange($this->status, $milestone);
+    }
+
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
@@ -58,5 +121,26 @@ class JobApplication extends Model
     public function statusLogs(): HasMany
     {
         return $this->hasMany(JobApplicationStatusLog::class)->orderBy('changed_at');
+    }
+
+    public function answers(): HasMany
+    {
+        return $this->hasMany(JobApplicationAnswer::class);
+    }
+
+    public function candidate(): HasOne
+    {
+        return $this->hasOne(Candidate::class);
+    }
+
+    /** @return array<string,mixed> field_key => value */
+    public function answersMap(): array
+    {
+        return $this->answers->pluck('value', 'field_key')->all();
+    }
+
+    public function scopeActive($query)
+    {
+        return $query->whereIn('status', self::ACTIVE_STATUSES);
     }
 }
