@@ -6,6 +6,7 @@ use App\Models\Master\Companies;
 use App\Models\Master\EmployeeTypes;
 use App\Models\Master\Kelas;
 use App\Models\Master\Pangkats;
+use App\Models\Payroll\GajiPokokKenaikanOverride;
 use App\Models\Payroll\PangkatSalary;
 use App\Models\Payroll\Payroll;
 use App\Models\Payroll\PayrollPeriod;
@@ -78,7 +79,7 @@ class GajiPokokCalculatorTest extends TestCase
         $this->assertSame(3_000_000.0, $context->grossSalary);
     }
 
-    public function test_override_enum_takes_precedence_over_company_setting(): void
+    public function test_master_override_takes_precedence_over_company_setting(): void
     {
         $company = Companies::create(['code' => '0000', 'name' => 'Holding Test', 'location' => 'Test', 'is_active' => true]);
         Setting::create(['company_id' => $company->id, 'key' => 'gaji_pokok_kenaikan_per_kelas', 'module' => 'payroll', 'type' => 'decimal', 'value' => '8', 'label' => 'Kenaikan Gaji Pokok per Kelas']);
@@ -88,11 +89,9 @@ class GajiPokokCalculatorTest extends TestCase
         PangkatSalary::create(['pangkat_id' => $pangkat->id, 'base_salary' => 3_000_000]);
         $tetap = EmployeeTypes::create(['name' => 'Tetap', 'company_id' => $company->id, 'category' => 'tetap']);
 
-        $overrideId = \App\Enum\Payroll\GajiPokokKenaikanOverrideEnum::ABDURRAHMAN_HAKIM->value;
-        $user = new User();
-        $user->forceFill(['id' => $overrideId, 'name' => 'Abdurrahman Hakim Uji', 'email' => 'hakim-override@test.local', 'password' => bcrypt('secret'), 'nip' => '00098', 'company_id' => $company->id, 'is_active' => true]);
-        $user->save();
+        $user = User::factory()->create(['company_id' => $company->id]);
         UserProfiles::create(['user_id' => $user->id, 'pangkat_id' => $pangkat->id, 'kelas_id' => $kelas1->id, 'employee_type_id' => $tetap->id]);
+        GajiPokokKenaikanOverride::create(['user_id' => $user->id, 'rate' => 16, 'is_active' => true]);
 
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
         $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
@@ -100,8 +99,33 @@ class GajiPokokCalculatorTest extends TestCase
         $context = new PayrollContext();
         (new GajiPokokCalculator())->calculate($user, $payroll, $period, $context);
 
-        // Override 16% (bukan 8% dari setting company): 3.000.000 * 1.16
+        // Master override 16% (bukan 8% dari setting company): 3.000.000 * 1.16
         $this->assertSame(3_480_000.0, $context->grossSalary);
+    }
+
+    /** Baris master ada tapi is_active=false - harus jatuh balik ke setting company, bukan
+     * dianggap tetap berlaku. */
+    public function test_inactive_master_override_falls_back_to_company_setting(): void
+    {
+        $company = Companies::create(['code' => '0001', 'name' => 'Holding Test 2', 'location' => 'Test', 'is_active' => true]);
+        Setting::create(['company_id' => $company->id, 'key' => 'gaji_pokok_kenaikan_per_kelas', 'module' => 'payroll', 'type' => 'decimal', 'value' => '8', 'label' => 'Kenaikan Gaji Pokok per Kelas']);
+
+        $kelas1 = Kelas::create(['name' => 'Kelas I', 'company_id' => $company->id, 'level' => 1]);
+        $pangkat = Pangkats::create(['name' => 'Perawat', 'company_id' => $company->id, 'start_kelas_id' => $kelas1->id, 'max_kelas_id' => $kelas1->id]);
+        PangkatSalary::create(['pangkat_id' => $pangkat->id, 'base_salary' => 3_000_000]);
+        $tetap = EmployeeTypes::create(['name' => 'Tetap', 'company_id' => $company->id, 'category' => 'tetap']);
+
+        $user = User::factory()->create(['company_id' => $company->id]);
+        UserProfiles::create(['user_id' => $user->id, 'pangkat_id' => $pangkat->id, 'kelas_id' => $kelas1->id, 'employee_type_id' => $tetap->id]);
+        GajiPokokKenaikanOverride::create(['user_id' => $user->id, 'rate' => 16, 'is_active' => false]);
+
+        $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
+        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+
+        $context = new PayrollContext();
+        (new GajiPokokCalculator())->calculate($user, $payroll, $period, $context);
+
+        $this->assertSame(3_240_000.0, $context->grossSalary);
     }
 
     /** start_kelas_id/max_kelas_id kosong tetap kehitung normal - keduanya sudah tidak dipakai

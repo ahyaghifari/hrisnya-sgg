@@ -108,6 +108,15 @@ enum CustomPermissionEnum: string
     case LIHAT_OVERRIDE_KOMPONEN_GAJI = 'lihat_override_komponen_gaji';
     case EDIT_OVERRIDE_KOMPONEN_GAJI = 'edit_override_komponen_gaji';
 
+    /** Gerbang halaman portal "Kenaikan Gaji Pokok" (`/keuangan/kenaikan-gaji-pokok`, kelola
+     * gaji_pokok_kenaikan_overrides) - master persen kenaikan Gaji Pokok per user, pengganti
+     * App\Enum\Payroll\GajiPokokKenaikanOverrideEnum yang hardcode 1 user (2026-09-04, ternyata
+     * bukan cuma 1 orang). Beda dari LIHAT/EDIT_OVERRIDE_KOMPONEN_GAJI (Gaji Khusus) - itu
+     * menimpa nominal komponen apa pun, ini cuma persen kenaikan Gaji Pokok, dan Gaji Khusus
+     * tetap prioritas lebih tinggi (skip Calculator total kalau ada baris aktif). */
+    case LIHAT_KENAIKAN_GAJI_POKOK = 'lihat_kenaikan_gaji_pokok';
+    case EDIT_KENAIKAN_GAJI_POKOK = 'edit_kenaikan_gaji_pokok';
+
     /** Halaman Omset (`/keuangan/omset`, rincian omset per kategori per periode gaji, dijumlah
      * jadi Total Omset dipakai JasaPelayananCalculator) — model-nya (OmsetDetail/OmsetCategory)
      * tidak punya Filament Resource/Policy sendiri, jadi 2 permission manual: LIHAT_OMSET
@@ -336,6 +345,8 @@ enum CustomPermissionEnum: string
             self::EDIT_DATA_REKENING => 'Edit Data Rekening',
             self::LIHAT_OVERRIDE_KOMPONEN_GAJI => 'Lihat Gaji Khusus',
             self::EDIT_OVERRIDE_KOMPONEN_GAJI => 'Edit Gaji Khusus',
+            self::LIHAT_KENAIKAN_GAJI_POKOK => 'Lihat Kenaikan Gaji Pokok',
+            self::EDIT_KENAIKAN_GAJI_POKOK => 'Edit Kenaikan Gaji Pokok',
             self::LIHAT_OMSET => 'Lihat Omset',
             self::KELOLA_OMSET => 'Kelola Omset',
             self::LIHAT_INPUT_JASA_UNIT => 'Lihat Input Jasa Unit',

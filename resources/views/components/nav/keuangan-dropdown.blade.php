@@ -18,12 +18,13 @@
     $canViewKoperasi = auth()->user()->can('ViewAny:UserKoperasi');
     $canViewBpjsDependent = auth()->user()->can('ViewAny:BpjsDependent');
     $canViewOverrideKomponenGaji = auth()->user()->can(\App\Enum\CustomPermissionEnum::LIHAT_OVERRIDE_KOMPONEN_GAJI->value);
+    $canViewKenaikanGajiPokok = auth()->user()->can(\App\Enum\CustomPermissionEnum::LIHAT_KENAIKAN_GAJI_POKOK->value);
     $canViewJasaUnitType = auth()->user()->can('ViewAny:JasaUnitType');
     $canImportPayrollManual = auth()->user()->can(\App\Enum\CustomPermissionEnum::IMPORT_PAYROLL_MANUAL->value);
 @endphp
 
 <div class="dropdown">
-    <a href="#" class="nav-item nav-item-green {{ request()->routeIs(['keuangan.dashboard*', 'keuangan.periode-gaji*', 'keuangan.payroll*', 'keuangan.import-payroll-manual*', 'keuangan.pajak*', 'keuangan.data-rekening*', 'keuangan.komponen-gaji*', 'keuangan.penerima-komponen-gaji*', 'keuangan.insentif*', 'keuangan.mapping-komponen-gaji*', 'keuangan.koperasi*', 'keuangan.omset*', 'keuangan.jasa-unit*', 'keuangan.jasa-unit-types*', 'keuangan.tanggungan-bpjs*', 'keuangan.override-komponen-gaji*', 'keuangan.tunjangan-eksekutif*']) ? 'active' : '' }}">
+    <a href="#" class="nav-item nav-item-green {{ request()->routeIs(['keuangan.dashboard*', 'keuangan.periode-gaji*', 'keuangan.payroll*', 'keuangan.import-payroll-manual*', 'keuangan.pajak*', 'keuangan.data-rekening*', 'keuangan.komponen-gaji*', 'keuangan.penerima-komponen-gaji*', 'keuangan.insentif*', 'keuangan.mapping-komponen-gaji*', 'keuangan.koperasi*', 'keuangan.omset*', 'keuangan.jasa-unit*', 'keuangan.jasa-unit-types*', 'keuangan.tanggungan-bpjs*', 'keuangan.override-komponen-gaji*', 'keuangan.kenaikan-gaji-pokok*', 'keuangan.tunjangan-eksekutif*']) ? 'active' : '' }}">
         <i class="fa-solid fa-sack-dollar text-xs"></i> Penggajian <i class="fa-solid fa-chevron-down text-[10px]"></i>
     </a>
     <div class="dropdown-menu dropdown-menu-columns">
@@ -75,7 +76,7 @@
             @endif
         </div>
         @endif
-        @if($canViewKomponenGaji || $canViewPenerimaKomponenGaji || $canViewMappingKomponenGaji)
+        @if($canViewKomponenGaji || $canViewPenerimaKomponenGaji || $canViewMappingKomponenGaji || $canViewKenaikanGajiPokok)
         <div class="dropdown-col">
             <div class="dropdown-col-label">Pengaturan Komponen</div>
             @if ($canViewKomponenGaji)
@@ -86,6 +87,9 @@
             @endif
             @if ($canViewMappingKomponenGaji)
                 <a href="{{ route('keuangan.mapping-komponen-gaji') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-diagram-project"></i> Mapping Komponen Gaji</a>
+            @endif
+            @if ($canViewKenaikanGajiPokok)
+                <a href="{{ route('keuangan.kenaikan-gaji-pokok') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-arrow-trend-up"></i> Kenaikan Gaji Pokok</a>
             @endif
         </div>
         @endif

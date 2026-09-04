@@ -3,7 +3,7 @@
 namespace App\Services\Payroll;
 
 use App\Enum\EmployeeTypeCategory;
-use App\Enum\Payroll\GajiPokokKenaikanOverrideEnum;
+use App\Models\Payroll\GajiPokokKenaikanOverride;
 use App\Models\Payroll\Payroll;
 use App\Models\Setting;
 
@@ -32,7 +32,7 @@ class GajiPokokBreakdownResolver
         $category = $profile->employeeType?->category;
         $rate = ($category === null || $category === EmployeeTypeCategory::ORIENTASI)
             ? 0.0
-            : (GajiPokokKenaikanOverrideEnum::rateForUser($profile->user_id)
+            : (GajiPokokKenaikanOverride::activeRateFor($profile->user_id)
                 ?? (float) Setting::resolve('gaji_pokok_kenaikan_per_kelas', $payroll->payrollPeriod?->company_id, default: 8));
 
         return [(float) $pangkatSalary->base_salary, $rate];

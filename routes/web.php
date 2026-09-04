@@ -394,6 +394,9 @@ Route::middleware(['auth', 'portal.access'])->group(function () {
     Route::get('/keuangan/override-komponen-gaji', \App\Livewire\Keuangan\PayrollComponentOverridesPage::class)
         ->name('keuangan.override-komponen-gaji');
 
+    Route::get('/keuangan/kenaikan-gaji-pokok', \App\Livewire\Keuangan\GajiPokokKenaikanOverridesPage::class)
+        ->name('keuangan.kenaikan-gaji-pokok');
+
     // Model & permission-nya Payroll (prefix /keuangan), tapi nav-nya digabung ke dropdown
     // Learning Management System (lms-dropdown.blade.php), bukan dropdown Penggajian.
     Route::get('/keuangan/gaji-pemateri', \App\Livewire\Keuangan\GajiPemateriPage::class)
