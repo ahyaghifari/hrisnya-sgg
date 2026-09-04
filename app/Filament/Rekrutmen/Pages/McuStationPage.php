@@ -26,7 +26,6 @@ use Filament\Tables\Contracts\HasTable;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
-use UnitEnum;
 
 /**
  * Isi Pemeriksaan MCU — port dari McuStationPage project `rekrutmen` (FL3 -> FL4), DB
@@ -46,8 +45,7 @@ class McuStationPage extends Page implements HasActions, HasForms, HasTable
 
     protected static ?string $title = 'Isi Pemeriksaan MCU';
 
-    protected static string|UnitEnum|null $navigationGroup = 'Kandidat';
-
+    // Tanpa grup — item navigasi mandiri (audiensnya staf klinis, beda dari alur rekruter).
     protected static ?int $navigationSort = 5;
 
     public ?string $companyId = null;

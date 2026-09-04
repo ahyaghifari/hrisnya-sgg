@@ -30,7 +30,6 @@ use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Table;
 use Illuminate\Support\HtmlString;
-use UnitEnum;
 
 /**
  * Kelola Lowongan — port dari JobOpeningResource project `rekrutmen` (FL3 -> FL4), model
@@ -50,8 +49,7 @@ class JobOpeningResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Lowongan';
 
-    protected static string|UnitEnum|null $navigationGroup = 'Lowongan';
-
+    // Tanpa grup — item navigasi mandiri di paling atas.
     protected static ?int $navigationSort = 1;
 
     public static function canAccess(): bool

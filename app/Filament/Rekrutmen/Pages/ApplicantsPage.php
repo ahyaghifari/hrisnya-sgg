@@ -21,7 +21,6 @@ use Filament\Tables\Concerns\InteractsWithTable;
 use Filament\Tables\Contracts\HasTable;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
-use UnitEnum;
 
 /**
  * Daftar Pelamar — port dari ApplicantsPage project `rekrutmen` (FL3 -> FL4), baca-tulis
@@ -42,8 +41,7 @@ class ApplicantsPage extends Page implements HasActions, HasForms, HasTable
 
     protected static ?string $title = 'Daftar Pelamar';
 
-    protected static string|UnitEnum|null $navigationGroup = 'Lowongan';
-
+    // Tanpa grup — item navigasi mandiri di paling atas.
     protected static ?int $navigationSort = 2;
 
     public ?string $companyId = null;

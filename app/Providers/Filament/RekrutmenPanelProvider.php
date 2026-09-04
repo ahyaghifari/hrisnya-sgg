@@ -33,7 +33,7 @@ class RekrutmenPanelProvider extends PanelProvider
         return $panel
             ->id('rekrutmen')
             ->path('rekrutmen')
-            ->brandName('Rekrutmen — Syifa Global Group')
+            ->brandName('Rekrutmen')
             ->viteTheme('resources/css/filament/admin/theme.css')
             ->colors([
                 'gray' => Color::Gray,
@@ -49,8 +49,8 @@ class RekrutmenPanelProvider extends PanelProvider
                 ],
             ])
             ->topNavigation()
+            // Lowongan, Daftar Pelamar & Isi Pemeriksaan MCU sengaja tanpa grup (item mandiri).
             ->navigationGroups([
-                'Lowongan',
                 'Kandidat',
                 'Master',
             ])
