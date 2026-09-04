@@ -13,10 +13,7 @@ class Company extends Model
 {
     protected $connection = 'recruitment';
 
-    protected $fillable = [
-        'hris_code', 'name', 'logo_path', 'hero_image_path', 'brand_color',
-        'email', 'phone', 'is_active', 'requires_mcu',
-    ];
+    protected $guarded = ['id'];
 
     protected $casts = [
         'is_active' => 'boolean',

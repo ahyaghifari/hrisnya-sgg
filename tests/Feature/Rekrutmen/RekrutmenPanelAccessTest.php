@@ -97,4 +97,14 @@ class RekrutmenPanelAccessTest extends TestCase
         $this->actingAs($user)->get('/rekrutmen/ttd-onboarding-page')->assertOk();
         $this->actingAs($user)->get('/rekrutmen/selesai-page')->assertOk();
     }
+
+    public function test_master_resources_render_for_super_admin(): void
+    {
+        $user = User::factory()->create();
+        $user->assignRole(Role::firstOrCreate(['name' => 'Super Admin'], ['guard_name' => 'web']));
+
+        $this->actingAs($user)->get('/rekrutmen/companies')->assertOk();
+        $this->actingAs($user)->get('/rekrutmen/company-agreements')->assertOk();
+        $this->actingAs($user)->get('/rekrutmen/form-sections')->assertOk();
+    }
 }
