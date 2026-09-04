@@ -30,10 +30,7 @@ class RekrutmenPanelProvider extends PanelProvider
     {
         return $panel
             ->id('rekrutmen')
-            // /kelola-rekrutmen (sama seperti panel asal di project `rekrutmen`) — bukan
-            // /rekrutmen supaya tidak bentrok route Livewire `rekrutmen.*` yang masih hidup.
-            // Nanti setelah port lengkap, route Livewire itu diarahkan ke sini.
-            ->path('kelola-rekrutmen')
+            ->path('rekrutmen')
             ->brandName('Rekrutmen — Syifa Global Group')
             ->defaultThemeMode(ThemeMode::Light)
             ->darkMode(false)

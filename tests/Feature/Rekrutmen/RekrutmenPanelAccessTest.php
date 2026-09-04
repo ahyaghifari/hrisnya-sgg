@@ -10,7 +10,7 @@ use Spatie\Permission\Models\Permission;
 use Tests\TestCase;
 
 /**
- * Panel /kelola-rekrutmen (repurpose panel `candidate`) — gerbang SISTEM_REKRUTMEN via
+ * Panel /rekrutmen (repurpose panel `candidate`) — gerbang SISTEM_REKRUTMEN via
  * User::canAccessPanel(). Cuma cek dashboard panel (tidak menyentuh koneksi `recruitment`).
  */
 class RekrutmenPanelAccessTest extends TestCase
@@ -22,7 +22,7 @@ class RekrutmenPanelAccessTest extends TestCase
         $user = User::factory()->create();
         $user->assignRole(Role::firstOrCreate(['name' => 'Super Admin'], ['guard_name' => 'web']));
 
-        $this->actingAs($user)->get('/kelola-rekrutmen')->assertOk();
+        $this->actingAs($user)->get('/rekrutmen')->assertOk();
     }
 
     public function test_user_with_sistem_rekrutmen_permission_can_open_panel(): void
@@ -34,13 +34,30 @@ class RekrutmenPanelAccessTest extends TestCase
         $user = User::factory()->create();
         $user->assignRole($role);
 
-        $this->actingAs($user)->get('/kelola-rekrutmen')->assertOk();
+        $this->actingAs($user)->get('/rekrutmen')->assertOk();
     }
 
     public function test_user_without_permission_is_forbidden(): void
     {
         $this->actingAs(User::factory()->create())
-            ->get('/kelola-rekrutmen')
+            ->get('/rekrutmen')
+            ->assertForbidden();
+    }
+
+    public function test_daftar_pelamar_page_renders_for_super_admin(): void
+    {
+        $user = User::factory()->create();
+        $user->assignRole(Role::firstOrCreate(['name' => 'Super Admin'], ['guard_name' => 'web']));
+
+        // Query tabel awal pakai whereRaw('1=0') (belum pilih lowongan) — aman walau
+        // koneksi `recruitment` menunjuk DB rekrutmen asli.
+        $this->actingAs($user)->get('/rekrutmen/applicants-page')->assertOk();
+    }
+
+    public function test_daftar_pelamar_forbidden_without_view_permission(): void
+    {
+        $this->actingAs(User::factory()->create())
+            ->get('/rekrutmen/applicants-page')
             ->assertForbidden();
     }
 }
