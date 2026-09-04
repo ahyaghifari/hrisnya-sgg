@@ -5,7 +5,14 @@ namespace App\Filament\Rekrutmen\Pages;
 use App\Models\Rekrutmen\Company;
 use App\Models\Rekrutmen\JobApplication;
 use App\Models\Rekrutmen\JobOpening;
+use App\Services\Rekrutmen\CandidateOnboardingService;
 use Filament\Actions\Action;
+use Filament\Actions\Concerns\InteractsWithActions;
+use Filament\Actions\Contracts\HasActions;
+use Filament\Forms\Components\Radio;
+use Filament\Forms\Concerns\InteractsWithForms;
+use Filament\Forms\Contracts\HasForms;
+use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\IconColumn;
@@ -17,12 +24,13 @@ use Illuminate\Database\Eloquent\Builder;
 use UnitEnum;
 
 /**
- * Selesai — daftar kandidat resmi diterima (status `passed`). Read-only. Port dari
- * SelesaiPage project `rekrutmen` (FL3 -> FL4), DB `recruitment`.
+ * Selesai — daftar kandidat resmi diterima (status `passed`). Port dari SelesaiPage project
+ * `rekrutmen` (FL3 -> FL4), DB `recruitment`. Aksi "Buat Akun Karyawan" (pilih lama orientasi)
+ * pindah ke sini dari halaman Livewire portal lama.
  */
-class SelesaiPage extends Page implements HasTable
+class SelesaiPage extends Page implements HasActions, HasForms, HasTable
 {
-    use InteractsWithTable;
+    use InteractsWithActions, InteractsWithForms, InteractsWithTable;
 
     protected string $view = 'filament.rekrutmen.pages.selesai-page';
 
@@ -69,6 +77,33 @@ class SelesaiPage extends Page implements HasTable
             : collect();
     }
 
+    public function buatAkunKaryawanAction(): Action
+    {
+        return Action::make('buatAkunKaryawan')
+            ->label('Buat Akun Karyawan')
+            ->icon('heroicon-m-user-plus')
+            ->color('primary')
+            ->visible(fn () => filament()->auth()->user()->can('create', \App\Models\User::class))
+            ->modalHeading('Buat Akun Karyawan HRIS')
+            ->modalDescription('Akun karyawan dibuat dari data diri kandidat. Periode orientasi dibuat sekali sesuai pilihan di bawah.')
+            ->schema([
+                Radio::make('orientationMonths')->label('Lama Orientasi')
+                    ->options(collect(CandidateOnboardingService::ORIENTATION_MONTHS_OPTIONS)
+                        ->mapWithKeys(fn ($m) => [$m => "{$m} bulan"])->all())
+                    ->default(3)->required(),
+            ])
+            ->action(function (array $data, $record): void {
+                $res = app(CandidateOnboardingService::class)
+                    ->createEmployeeFromCandidate($record->id, (int) $data['orientationMonths']);
+
+                Notification::make()
+                    ->title($res['ok'] ? 'Akun karyawan siap' : 'Gagal membuat akun')
+                    ->body($res['message'])
+                    ->{$res['ok'] ? 'success' : 'danger'}()
+                    ->send();
+            });
+    }
+
     public function table(Table $table): Table
     {
         return $table
@@ -93,6 +128,7 @@ class SelesaiPage extends Page implements HasTable
             ->recordActions([
                 Action::make('lihat')->label('Detail')->icon('heroicon-m-eye')->color('gray')
                     ->url(fn ($record) => \App\Filament\Rekrutmen\Pages\ApplicantDetailPage::getUrl() . '?application=' . $record->id),
+                $this->buatAkunKaryawanAction(),
             ])
             ->toolbarActions([])
             ->emptyStateHeading('Pilih perusahaan & lowongan')

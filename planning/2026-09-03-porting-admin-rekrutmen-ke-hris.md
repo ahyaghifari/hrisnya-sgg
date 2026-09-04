@@ -172,18 +172,21 @@ ApplicationNotification, User (pelamar/staff — read-only dari HRIS).
       `man-power.job-openings`. CRUD lowongan HRIS sepenuhnya di panel admin.
 - [x] `CandidateDocumentProxyController` baca disk `rekrutmen` langsung (bukan proxy HTTP).
       Unduh dokumen kandidat (bukan offering) balas 501 sampai Fase 6b.
-- [ ] **SISA — grup 2 (pipeline pelamar), tunggu sesi Orientasi commit**:
-  - `RekrutmenSyncService` sekarang cuma sisa HTTP grup 2, dipakai HANYA
-    `app/Livewire/Rekrutmen/ApplicantDetailPage.php` (portal lama, mau dipensiunkan) +
-    `app/Services/Rekrutmen/CandidateOnboardingService.php` (`getApplication`/`getCandidate`).
-    Kedua file itu lagi diedit sesi Orientasi (modal onboarding). Begitu ke-commit:
-    konversi 2 pemanggil ke query `App\Models\Rekrutmen\*` langsung, lalu HAPUS
-    `RekrutmenSyncService` + `REKRUTMEN_API_URL`/`REKRUTMEN_API_TOKEN` +
-    `config('services.rekrutmen.base_url'/'token')`.
-  - Retire Livewire `ApplicantDetailPage` (route `rekrutmen.pelamar.show` -> redirect ke
-    Filament `applicant-detail-page`); pindahkan aksi "buat akun karyawan + lama orientasi"
-    ke panel Filament.
-  - Bersihin entri `rekrutmen.lowongan.*` / `rekrutmen.pelamar.*` di `config/portal-pages.php`.
+- [x] **Grup 2 (pipeline pelamar) pindah ke direct DB — `RekrutmenSyncService` DIHAPUS.**
+  - `CandidateOnboardingService::createEmployeeFromCandidate` baca `App\Models\Rekrutmen\
+    JobApplication` (+ `candidate`, `user`, `jobOpening`) langsung — bukan `getCandidate()`/
+    `getApplication()` HTTP.
+  - Livewire `ApplicantDetailPage` + view dihapus (force — ada edit sesi Orientasi yang
+    fungsinya sudah pindah). Route `rekrutmen.pelamar.show` -> redirect ke Filament
+    `applicant-detail-page`.
+  - Aksi "Buat Akun Karyawan" (+ pilih lama orientasi 3/6/12 bln) pindah ke Filament
+    `SelesaiPage` (`buatAkunKaryawanAction`, gate `create User`).
+  - `CandidateDocumentProxyController` baca disk `rekrutmen` (offering) / 501 (dokumen).
+  - Hapus `config('services.rekrutmen.base_url'/'token')` + `REKRUTMEN_API_URL`/
+    `REKRUTMEN_API_TOKEN`. `services.rekrutmen.url` (CTA email) tetap.
+  - Entri `rekrutmen.lowongan.*` / `rekrutmen.pelamar.{show,mcu}` / `rekrutmen.mcu` dibuang
+    dari `config/portal-pages.php` (route-nya redirect ke panel Filament bergate sendiri).
+  - Follow-up: belum ada test untuk `createEmployeeFromCandidate` (butuh fixture 2 koneksi).
 - [ ] Putuskan nasib Filament admin repo rekrutmen (dormant vs hapus resource).
 
 ## Catatan

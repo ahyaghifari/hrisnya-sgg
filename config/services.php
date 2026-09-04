@@ -37,19 +37,15 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Sistem Rekrutmen (eksternal, port 8001)
+    | Sistem Rekrutmen (shared DB)
     |--------------------------------------------------------------------------
     |
-    | Push job opening dari HRIS ke sistem Rekrutmen - lihat
-    | planning/2026-08-09-integrasi-job-opening-ke-rekrutmen.md. Endpoint di sisi
-    | Rekrutmen belum tentu sudah jadi - panggilan sengaja tidak boleh menggagalkan
-    | aksi HRIS kalau base_url/token kosong atau request gagal (lihat
-    | RekrutmenSyncService::sync()).
+    | Integrasi HRIS <-> Rekrutmen sekarang LANGSUNG ke DB (koneksi `recruitment`,
+    | lihat App\Services\Rekrutmen\RecruitmentSync) — tidak ada API HTTP lagi.
+    | `url` di sini cuma URL publik app pelamar buat tombol CTA di email notifikasi.
     |
     */
     'rekrutmen' => [
-        'base_url' => env('REKRUTMEN_API_URL'),
-        'token' => env('REKRUTMEN_API_TOKEN'),
         // URL publik app pelamar (d:\Projects\rekrutmen) — dipakai buat tombol CTA di email
         // notifikasi (kerjakan tes, lihat jadwal, unggah offering). Kosong = tombol disembunyikan.
         'url' => env('REKRUTMEN_URL'),

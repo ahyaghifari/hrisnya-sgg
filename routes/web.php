@@ -628,7 +628,7 @@ Route::middleware(['auth', 'portal.access'])->group(function () {
         ->where('station', 'nurse|lab|radiology|doctor')
         ->name('rekrutmen.pelamar.mcu');
 
-    Route::get('/rekrutmen/pelamar/{jobApplication}', \App\Livewire\Rekrutmen\ApplicantDetailPage::class)
+    Route::get('/rekrutmen/pelamar/{jobApplication}', fn (string $jobApplication) => redirect('/rekrutmen/applicant-detail-page?application=' . $jobApplication))
         ->name('rekrutmen.pelamar.show');
 
     Route::get('/kepegawaian/permintaan', ManpowerRequestsPage::class)

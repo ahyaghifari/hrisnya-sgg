@@ -209,6 +209,25 @@ return [
         'guard' => null,
     ],
 
+    'orientasi' => [
+        'label' => 'Orientasi Saya',
+        'permission' => null,
+        'guard' => 'isOrientasiKaryawan',
+    ],
+
+    'orientasi.show' => [
+        'label' => 'Detail Pengajuan Orientasi',
+        'permission' => null,
+        // Gate per-record (pengaju / approver / global) dicek di OrientasiDetailPage::canAccess().
+        'guard' => null,
+    ],
+
+    'kepegawaian.orientasi' => [
+        'label' => 'Orientasi',
+        'permission' => 'ViewAny:OrientationSubmission',
+        'guard' => null,
+    ],
+
     'kepegawaian.mutasi-karyawan' => [
         'label' => 'Perubahan Status Karyawan',
         'permission' => 'ViewAny:UserTransition',
@@ -737,54 +756,10 @@ return [
         'guard' => null,
     ],
 
-    'rekrutmen.lowongan' => [
-        'label' => 'Lowongan Kerja',
-        'permission' => 'ViewAny:JobOpenings',
-        'guard' => null,
-    ],
-
-    'rekrutmen.lowongan.edit' => [
-        'label' => 'Edit Lowongan Kerja',
-        'permission' => 'Update:JobOpenings',
-        'guard' => null,
-    ],
-
-    'rekrutmen.lowongan.show' => [
-        'label' => 'Detail Lowongan Kerja',
-        'permission' => 'View:JobOpenings',
-        'guard' => null,
-    ],
-
-    'rekrutmen.lowongan.kandidat' => [
-        'label' => 'Detail Kandidat',
-        'permission' => 'View:JobOpenings',
-        'guard' => null,
-    ],
-
-    'rekrutmen.lowongan.pelamar' => [
-        'label' => 'Daftar Pelamar (Rekrutmen)',
-        'permission' => 'View:JobOpenings',
-        'guard' => null,
-    ],
-
-    'rekrutmen.pelamar.show' => [
-        'label' => 'Detail Pelamar (Rekrutmen)',
-        'permission' => 'View:JobOpenings',
-        'guard' => null,
-    ],
-
-    'rekrutmen.pelamar.mcu' => [
-        // Gate kasar clinical-staff; McuFormPage::canFill() cek permission stasiun spesifik.
-        'label' => 'Input MCU Pelamar (Rekrutmen)',
-        'permission' => null,
-        'guard' => 'canInputSikartapMcu',
-    ],
-
-    'rekrutmen.mcu' => [
-        'label' => 'Antrian MCU (Rekrutmen)',
-        'permission' => null,
-        'guard' => 'canInputSikartapMcu',
-    ],
+    // rekrutmen.lowongan*, rekrutmen.pelamar.show, rekrutmen.mcu, rekrutmen.pelamar.mcu:
+    // halaman Livewire portal lama dihapus — route-nya sekarang redirect ke panel Filament
+    // (admin: Manajemen Lowongan Kerja; /rekrutmen: pipeline pelamar) yang punya gate sendiri.
+    // Tidak perlu didaftarkan di registry ini lagi.
 
     'rekrutmen.pelamar.dokumen' => [
         'label' => 'Unduh Dokumen Pelamar (Rekrutmen)',
