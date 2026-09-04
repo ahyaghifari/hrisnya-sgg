@@ -81,4 +81,13 @@ class RekrutmenPanelAccessTest extends TestCase
 
         $this->actingAs($user)->get('/rekrutmen/applicant-detail-page?application=NOPE')->assertNotFound();
     }
+
+    public function test_quiz_pages_render_for_super_admin(): void
+    {
+        $user = User::factory()->create();
+        $user->assignRole(Role::firstOrCreate(['name' => 'Super Admin'], ['guard_name' => 'web']));
+
+        $this->actingAs($user)->get('/rekrutmen/quizzes')->assertOk();
+        $this->actingAs($user)->get('/rekrutmen/quiz-questions-page')->assertOk();
+    }
 }
