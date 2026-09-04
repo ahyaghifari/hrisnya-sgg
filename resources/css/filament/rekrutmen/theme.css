@@ -1,0 +1,24 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+@import '../../../../vendor/filament/filament/resources/css/theme.css';
+
+@source '../../../../app/Filament/Rekrutmen';
+@source '../../../../resources/views/filament/rekrutmen';
+
+/*
+ * Panel /rekrutmen — samakan tampilan dengan HRIS: font Plus Jakarta Sans (sama seperti
+ * portal) + palette primary/success dari RekrutmenPanelProvider. Terpisah dari theme panel
+ * `admin` biar bisa dikustom tanpa menyentuh admin.
+ */
+@theme {
+    --font-sans: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+}
+
+.fi-body,
+.fi-body .fi-main {
+    font-family: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Kontrol native di halaman kustom (select/label/dll) ikut font panel, bukan default browser. */
+.fi-main :is(select, input, textarea, button, label, optgroup) {
+    font-family: inherit;
+}

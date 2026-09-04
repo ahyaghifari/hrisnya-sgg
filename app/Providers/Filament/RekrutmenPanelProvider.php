@@ -34,7 +34,7 @@ class RekrutmenPanelProvider extends PanelProvider
             ->id('rekrutmen')
             ->path('rekrutmen')
             ->brandName('Rekrutmen')
-            ->viteTheme('resources/css/filament/admin/theme.css')
+            ->viteTheme('resources/css/filament/rekrutmen/theme.css')
             ->colors([
                 'gray' => Color::Gray,
                 'primary' => [

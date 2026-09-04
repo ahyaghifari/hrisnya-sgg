@@ -37,7 +37,7 @@
 
         @if($this->getInterviewDraft())
             @php $d = $this->getInterviewDraft(); @endphp
-            <div class="fi-section rounded-xl bg-sky-50 dark:bg-sky-950/30 ring-1 ring-sky-200 dark:ring-sky-800 px-6 py-3 text-xs text-sky-800 dark:text-sky-300">
+            <div class="fi-section rounded-xl bg-primary-50 dark:bg-primary-950/30 ring-1 ring-primary-200 dark:ring-primary-800 px-6 py-3 text-xs text-primary-800 dark:text-primary-300">
                 <strong>Draft jadwal:</strong> {{ $d->interview_date?->translatedFormat('d M Y') }}
                 @if($d->interview_time) pukul {{ substr($d->interview_time, 0, 5) }} @endif
                 · {{ $d->invitees()->count() }} diundang — belum diterapkan.

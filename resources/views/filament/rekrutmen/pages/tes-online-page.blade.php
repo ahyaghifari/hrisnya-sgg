@@ -44,10 +44,10 @@
         </div>
 
         @if($this->hasQuizAssigned() && $this->getBelumDiaktifkanCount() > 0)
-        <div class="fi-section rounded-xl bg-sky-50 dark:bg-sky-950/30 ring-1 ring-sky-200 dark:ring-sky-800 px-6 py-4 flex flex-wrap items-center justify-between gap-3">
+        <div class="fi-section rounded-xl bg-primary-50 dark:bg-primary-950/30 ring-1 ring-primary-200 dark:ring-primary-800 px-6 py-4 flex flex-wrap items-center justify-between gap-3">
             <div>
-                <div class="text-sm font-bold text-sky-900 dark:text-sky-100">Siap Diaktifkan Tesnya</div>
-                <div class="text-xs text-sky-700 dark:text-sky-400 mt-0.5">
+                <div class="text-sm font-bold text-primary-900 dark:text-primary-100">Siap Diaktifkan Tesnya</div>
+                <div class="text-xs text-primary-700 dark:text-primary-400 mt-0.5">
                     <strong>{{ $this->getBelumDiaktifkanCount() }}</strong> kandidat lolos berkas belum diaktifkan tesnya.
                 </div>
             </div>
