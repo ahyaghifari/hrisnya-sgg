@@ -11,8 +11,16 @@
 - **Shared database.** HRIS baca-tulis DB rekrutmen **langsung** lewat koneksi `recruitment`
   (`config/database.php`). Repo `rekrutmen` **tetap pemilik skema** — semua migration tabel
   rekrutmen ada di sana. HRIS **tidak** membuat migration untuk koneksi `recruitment`.
-- **UI di HRIS = portal Livewire** (lanjutkan `app/Livewire/Rekrutmen/*`), bukan Filament.
-  Semua di `/rekrutmen/*`.
+- **UI di HRIS = panel Filament khusus `rekrutmen`** (revisi 2026-09-03, ide user). Panel
+  `candidate` yang sudah ada tapi NONAKTIF (`bootstrap/providers.php`) di-repurpose:
+  `app/Filament/Candidate/` → `app/Filament/Rekrutmen/`, `CandidatePanelProvider` →
+  `RekrutmenPanelProvider` (`id('rekrutmen')`, `path('rekrutmen')`, **guard `web`** =
+  staff HRIS, buang registration/email-verification, gate Shield). Resource candidate-facing
+  lama (`CandidateProfiles`/`JobApplicants`/`JobVacancies`) dibuang.
+  `app/Livewire/Rekrutmen/*` + route `/rekrutmen/*` lama → pensiun / redirect ke panel baru.
+- **Repo rekrutmen = Filament v3.3.54, HRIS = Filament 4.** Port resource/page = terjemah
+  FL3→FL4 per file (`Forms\Form`→`Schemas\Schema`, `Tables\Actions`→`Actions`,
+  `Resources\Resource` namespace, dst). Logika tabel/form/aksi kebawa hampir langsung.
 - **Folder tunggal "Rekrutmen"**: `app/Models/Rekrutmen/`, `app/Livewire/Rekrutmen/`,
   `app/Services/Rekrutmen/`, `app/Notifications/Rekrutmen/`, `resources/views/livewire/rekrutmen/`.
   `app/Models/Candidate/*` lama ikut pindah ke `app/Models/Rekrutmen/`.
@@ -50,6 +58,47 @@
    migration kecil di repo rekrutmen.
 4. **Filament admin repo rekrutmen** — dibiarkan dormant (masih bisa dipakai darurat) atau
    dihapus resource-nya. Putuskan di Fase 8.
+
+## Inventaris admin panel repo rekrutmen (yang harus diport)
+
+Panel FL3 `admin` (`/kelola-rekrutmen`), top-nav, grup: **Lowongan / Kandidat / Master / Pengguna**.
+
+### Resource (7)
+| Resource | Model | Grup | Isi |
+|---|---|---|---|
+| `CompanyResource` | `Company` | Master | Perusahaan (branding, `requires_mcu`) |
+| `FormSectionResource` | `FormSection` (+`FormField`) | Master | Builder Form Lamaran |
+| `QuizResource` | `Quiz` | Master | CRUD kuis |
+| `CompanyAgreementResource` | `CompanyAgreement` | Master | Template persetujuan onboarding |
+| `JobOpeningResource` | `JobOpening` | Lowongan | CRUD lowongan + aksi `stageLogs` |
+| `PelamarResource` | `User` (`is_staff=false`) | Pengguna | Daftar akun pelamar + reset verifikasi |
+| `StaffResource` | `User` (`is_staff=true`) | Pengguna | Akun staff/admin |
+
+### Halaman pipeline (11)
+| Halaman | Grup/Sort | Aksi kunci |
+|---|---|---|
+| `ApplicantsPage` | Lowongan/2 | seleksiBerkas (**draft**), publishScreening, applyAndNotify, kirimNotifLolosBerkas, kirimNotifPenolakanBerkas, tandaiTidakLolosBerkas, **bulkMoveToScreening**, lihatBerkas |
+| `ApplicantDetailPage` | (detail) | tidakDilanjutkan, kirimNotifTidakDilanjutkan |
+| `TesOnlinePage` | Kandidat/1 | pilihKuis, aktifkanTes, tandaiTidakLulusTes, kirimNotifPenolakanTes, tandaiHasilTes, lihatHasil |
+| `WawancaraPage` | Kandidat/2 | jadwalWawancara (**draft**), publishInterview, tandaiTidakLulusWawancara, kirimNotifPenolakanWawancara, tandaiHasilWawancara |
+| `OfferingLetterPage` | Kandidat/3 | uploadSurat, unduhSuratMasuk, unduhSuratSigned, negosiasi, lanjutkanSetelahOffering |
+| `McuPage` | Kandidat/4 | jadwalMcu (**draft**), publishMcu, tandaiTidakLulusMcu, kirimNotifPenolakanMcu, putuskanHasilMcu |
+| `McuStationPage` | Kandidat/5 | isiPerawat / isiLab / isiRadiologi / isiDokter |
+| `TtdOnboardingPage` | Kandidat/6 | tandaiOnboardingSelesai |
+| `SelesaiPage` | Kandidat/7 | lihat (read-only) |
+| `QuizQuestionsPage` | Master/5 | CRUD soal + template + import Excel |
+| `HasilMcuDetailPage` / `HasilTesDetailPage` | (detail) | read-only |
+
+Pola **draft→publish** dan aksi **kirimNotif*** terpisah ada di HAMPIR semua tahap — bukan cuma
+screening. Diport apa adanya (jangan bikin mekanisme draft baru di HRIS).
+
+### Model repo rekrutmen (37) — semua diport ke `App\Models\Rekrutmen\*` (connection `recruitment`)
+Company, CompanyAgreement, CompanyMessageTemplate, FormSection, FormField, JobOpening,
+JobOpeningStageLog, JobApplication, JobApplicationAnswer, JobApplicationStatusLog,
+ScreeningDecision, Quiz, QuizQuestion, QuizAttempt, QuizAnswer, InterviewSchedule,
+InterviewInvitee, OfferingLetter, OfferingNegotiation, McuSchedule, McuInvitee,
+McuNurseAssessment, McuLabResult, McuRadiologyResult, McuDoctorExamination, Candidate + 9 anak,
+ApplicationNotification, User (pelamar/staff — read-only dari HRIS).
 
 ## Fase 1 — Daftar & Detail Pelamar (read + tulis status)
 
