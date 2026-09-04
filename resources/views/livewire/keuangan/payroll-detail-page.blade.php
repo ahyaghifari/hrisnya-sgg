@@ -21,7 +21,13 @@
     </style>
 
     <div style="display:flex;flex-direction:column;gap:16px;">
-        <a href="{{ route('keuangan.payroll') }}" wire:navigate style="font-size:12.5px;color:var(--text-muted);text-decoration:none;"><i class="fa-solid fa-arrow-left"></i> Kembali ke daftar Payroll</a>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+            <a href="{{ route('keuangan.payroll') }}" wire:navigate style="font-size:12.5px;color:var(--text-muted);text-decoration:none;"><i class="fa-solid fa-arrow-left"></i> Kembali ke daftar Payroll</a>
+            <button type="button" wire:click="toggleMoney" class="btn-ghost" style="padding:6px 12px;font-size:11.5px;">
+                <i class="fa-solid {{ $hideMoney ? 'fa-eye' : 'fa-eye-slash' }}"></i>
+                {{ $hideMoney ? 'Lihat Angka' : 'Sembunyikan Angka' }}
+            </button>
+        </div>
 
         @if ($this->decryptFailed)
             <div style="background:rgba(220,38,38,0.08);border:1px solid rgba(220,38,38,0.3);border-radius:10px;padding:12px 14px;font-size:12.5px;color:#991b1b;">
@@ -94,15 +100,15 @@
             <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:18px;padding-top:18px;border-top:1px dashed var(--border);">
                 <div>
                     <p style="font-size:10.5px;color:var(--text-faint);margin:0 0 2px;text-transform:uppercase;letter-spacing:0.03em;">Gaji Kotor</p>
-                    <p style="font-size:15px;font-weight:700;margin:0;">{{ $safeGross !== null ? 'Rp' . number_format($safeGross, 0, ',', '.') : 'Gagal dibaca' }}</p>
+                    <p style="font-size:15px;font-weight:700;margin:0;">{{ $this->rp($safeGross, 'Gagal dibaca') }}</p>
                 </div>
                 <div>
                     <p style="font-size:10.5px;color:var(--text-faint);margin:0 0 2px;text-transform:uppercase;letter-spacing:0.03em;">Total Potongan</p>
-                    <p style="font-size:15px;font-weight:700;margin:0;color:#dc2626;">{{ $safeDeductions !== null ? 'Rp' . number_format($safeDeductions, 0, ',', '.') : 'Gagal dibaca' }}</p>
+                    <p style="font-size:15px;font-weight:700;margin:0;color:#dc2626;">{{ $this->rp($safeDeductions, 'Gagal dibaca') }}</p>
                 </div>
                 <div>
                     <p style="font-size:10.5px;color:var(--text-faint);margin:0 0 2px;text-transform:uppercase;letter-spacing:0.03em;">Gaji Bersih</p>
-                    <p style="font-size:16px;font-weight:800;margin:0;color:#047C54;">{{ $safeNet !== null ? 'Rp' . number_format($safeNet, 0, ',', '.') : 'Gagal dibaca' }}</p>
+                    <p style="font-size:16px;font-weight:800;margin:0;color:#047C54;">{{ $this->rp($safeNet, 'Gagal dibaca') }}</p>
                 </div>
             </div>
 
@@ -168,7 +174,7 @@
                                         @endif
                                     </span>
                                     <span style="white-space:nowrap;text-align:right;">
-                                        <span style="font-weight:{{ $row['hasValue'] ? '700' : '500' }};color:{{ $row['hasValue'] ? '#047C54' : 'var(--text-faint)' }};">Rp{{ number_format($row['amount'], 0, ',', '.') }}</span>
+                                        <span style="font-weight:{{ $row['hasValue'] ? '700' : '500' }};color:{{ $row['hasValue'] ? '#047C54' : 'var(--text-faint)' }};">{{ $this->rp($row['amount']) }}</span>
                                         @if ($row['note'])
                                             <span style="display:block;font-size:10px;font-weight:400;color:var(--text-faint);">({{ $row['note'] }})</span>
                                         @endif
@@ -181,7 +187,7 @@
                     </div>
                     <div style="display:flex;justify-content:space-between;gap:8px;font-size:12.5px;font-weight:700;margin-top:10px;padding-top:8px;border-top:1px solid var(--border-soft);">
                         <span>Subtotal</span>
-                        <span style="color:#047C54;">Rp{{ number_format($earningTotal, 0, ',', '.') }}</span>
+                        <span style="color:#047C54;">{{ $this->rp($earningTotal) }}</span>
                     </div>
                 </div>
 
@@ -200,7 +206,7 @@
                                         @endif
                                     </span>
                                     <span style="white-space:nowrap;text-align:right;">
-                                        <span style="font-weight:{{ $row['hasValue'] ? '700' : '500' }};color:{{ $row['hasValue'] ? '#dc2626' : 'var(--text-faint)' }};">Rp{{ number_format($row['amount'], 0, ',', '.') }}</span>
+                                        <span style="font-weight:{{ $row['hasValue'] ? '700' : '500' }};color:{{ $row['hasValue'] ? '#dc2626' : 'var(--text-faint)' }};">{{ $this->rp($row['amount']) }}</span>
                                         @if ($row['note'])
                                             <span style="display:block;font-size:10px;font-weight:400;color:var(--text-faint);">({{ $row['note'] }})</span>
                                         @endif
@@ -234,7 +240,7 @@
                                     <div style="display:flex;flex-direction:column;gap:3px;margin-top:4px;">
                                         @foreach ($this->bonManualLines as $line)
                                             <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;font-size:11px;color:var(--text-muted);">
-                                                <span>{{ $line->label ? "{$line->label}: " : '' }}Rp{{ number_format($line->amount, 0, ',', '.') }}{{ $line->note ? " ({$line->note})" : '' }}</span>
+                                                <span>{{ $line->label ? "{$line->label}: " : '' }}{{ $this->rp($line->amount) }}{{ $line->note ? " ({$line->note})" : '' }}</span>
                                                 @if (!$payroll->is_paid && !$this->periodHasEnded && $this->canEditAdjustment)
                                                     <span style="display:flex;gap:4px;flex-shrink:0;">
                                                         <button type="button" wire:click="openManualLineModal('bon', '{{ $line->id }}')" title="Ubah" @disabled($this->decryptFailed) style="border:1px solid var(--border);background:none;color:#d97706;cursor:pointer;padding:2px 7px;border-radius:5px;font-size:10px;"><i class="fa-solid fa-pen"></i> Ubah</button>
@@ -250,7 +256,7 @@
                     </div>
                     <div style="display:flex;justify-content:space-between;gap:8px;font-size:12.5px;font-weight:700;margin-top:10px;padding-top:8px;border-top:1px solid var(--border-soft);">
                         <span>Subtotal</span>
-                        <span style="color:#dc2626;">Rp{{ number_format($deductionTotal, 0, ',', '.') }}</span>
+                        <span style="color:#dc2626;">{{ $this->rp($deductionTotal) }}</span>
                     </div>
                 </div>
             </div>

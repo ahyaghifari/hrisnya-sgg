@@ -4,6 +4,7 @@ namespace App\Livewire\Keuangan;
 
 use App\Enum\CustomPermissionEnum;
 use App\Livewire\Keuangan\Concerns\HasSlipSendStatus;
+use App\Livewire\Keuangan\Concerns\MasksMoney;
 use App\Jobs\SendPayrollSlipJob;
 use App\Models\Master\Companies;
 use App\Models\Payroll\Payroll;
@@ -28,6 +29,7 @@ use Livewire\WithFileUploads;
 class ManualPayrollImportPage extends Component
 {
     use HasSlipSendStatus;
+    use MasksMoney;
     use WithFileUploads;
 
     public ?string $companyId = null;

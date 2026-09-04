@@ -2,6 +2,12 @@
     <x-page-header title="Payroll" />
 
     <div class="mt-4" style="display:flex;flex-direction:column;gap:16px;">
+        <div>
+            <button type="button" wire:click="toggleMoney" class="btn-ghost" style="padding:6px 12px;font-size:11.5px;">
+                <i class="fa-solid {{ $hideMoney ? 'fa-eye' : 'fa-eye-slash' }}"></i>
+                {{ $hideMoney ? 'Lihat Angka' : 'Sembunyikan Angka' }}
+            </button>
+        </div>
         {{-- Cari/company/period lewat Livewire (server-side) — SEBELUMNYA cari pakai List.js di
              browser, tapi List.js mengunci baris tbody-nya sendiri sehingga tidak ikut ke-morph
              Livewire pas company/periode ganti (baris karyawan lama nyangkut terus), jadi
@@ -148,9 +154,9 @@
                                         <i class="fa-solid fa-triangle-exclamation"></i> Gagal dekripsi nominal
                                     </td>
                                 @else
-                                    <td style="padding:9px 14px;text-align:right;white-space:nowrap;">Rp{{ number_format($payroll->safeGross, 0, ',', '.') }}</td>
-                                    <td style="padding:9px 14px;text-align:right;white-space:nowrap;color:#dc2626;">Rp{{ number_format($payroll->safeDeductions, 0, ',', '.') }}</td>
-                                    <td style="padding:9px 14px;text-align:right;white-space:nowrap;font-weight:700;">Rp{{ number_format($payroll->safeNet, 0, ',', '.') }}</td>
+                                    <td style="padding:9px 14px;text-align:right;white-space:nowrap;">{{ $this->rp($payroll->safeGross) }}</td>
+                                    <td style="padding:9px 14px;text-align:right;white-space:nowrap;color:#dc2626;">{{ $this->rp($payroll->safeDeductions) }}</td>
+                                    <td style="padding:9px 14px;text-align:right;white-space:nowrap;font-weight:700;">{{ $this->rp($payroll->safeNet) }}</td>
                                 @endif
                                 <td style="padding:9px 14px;text-align:center;white-space:nowrap;">
                                     <span style="display:inline-block;padding:3px 10px;border-radius:99px;font-size:11px;font-weight:600;background:{{ $payroll->is_paid ? 'rgba(4,124,84,0.1)' : 'rgba(217,119,6,0.1)' }};color:{{ $payroll->is_paid ? '#047C54' : '#d97706' }};">

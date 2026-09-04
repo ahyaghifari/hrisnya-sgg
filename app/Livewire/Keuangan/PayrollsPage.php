@@ -11,6 +11,7 @@ use App\Imports\Payroll\PayrollRevisionImport;
 use App\Jobs\BuildPayrollSlipZipJob;
 use App\Jobs\SendPayrollSlipJob;
 use App\Livewire\Keuangan\Concerns\HasSlipSendStatus;
+use App\Livewire\Keuangan\Concerns\MasksMoney;
 use App\Models\Master\Companies;
 use App\Models\Payroll\CompanyPayrollComponent;
 use App\Models\Payroll\Payroll;
@@ -44,6 +45,7 @@ use Maatwebsite\Excel\Facades\Excel;
 class PayrollsPage extends Component
 {
     use HasSlipSendStatus;
+    use MasksMoney;
     use WithFileUploads;
 
     public ?string $companyId = null;
@@ -107,13 +109,31 @@ class PayrollsPage extends Component
         return Companies::orderBy('code')->get();
     }
 
+    /**
+     * PayrollPeriod pakai global scope BelongsToCompany yang clamp ke company_id akun. Buat
+     * user yang boleh lihat perusahaan lain, lepas scope-nya biar dropdown periode ikut company
+     * yang dipilih — bukan malah kosong karena ke-clamp ke company petugas (laporan: "bisa lihat
+     * payroll perusahaan lain tapi periodenya tidak muncul"). Pola sama dengan
+     * ManualPayrollImportPage::periodQuery().
+     */
+    protected function periodQuery(): \Illuminate\Database\Eloquent\Builder
+    {
+        $q = PayrollPeriod::query();
+
+        if (Auth::user()->canFilterByCompany()) {
+            $q->withoutGlobalScope('company');
+        }
+
+        return $q;
+    }
+
     public function getPeriodsProperty()
     {
         if (! $this->companyId) {
             return collect();
         }
 
-        return PayrollPeriod::where('company_id', $this->companyId)->orderByDesc('start_date')->get();
+        return $this->periodQuery()->where('company_id', $this->companyId)->orderByDesc('start_date')->get();
     }
 
     /** Payroll::query() sudah di-scope company + periode — dipakai getPayrollsProperty & HasSlipSendStatus. */
@@ -180,7 +200,7 @@ class PayrollsPage extends Component
             ])
             ->get();
 
-        $period = PayrollPeriod::find($this->periodId);
+        $period = $this->periodQuery()->find($this->periodId);
         $filename = 'rekap-gaji-' . str($period?->company?->name . '-' . $period?->start_date?->format('F-Y'))->slug() . '.xlsx';
 
         return Excel::download(new PayrollSlipRekapExport($payrolls, $period->company_id), $filename);
@@ -223,7 +243,7 @@ class PayrollsPage extends Component
         abort_unless($this->periodId, 400, 'Pilih periode dulu sebelum menyiapkan slip.');
         abort_unless(Auth::user()->can('viewAny', Payroll::class), 403);
 
-        $period = PayrollPeriod::findOrFail($this->periodId);
+        $period = $this->periodQuery()->findOrFail($this->periodId);
 
         if (! Payroll::where('payroll_period_id', $period->id)->where('is_paid', true)->exists()) {
             Notification::make()
@@ -249,7 +269,7 @@ class PayrollsPage extends Component
         abort_unless($this->periodId, 400, 'Pilih periode dulu sebelum unduh slip.');
         abort_unless(Auth::user()->can('viewAny', Payroll::class), 403);
 
-        $period = PayrollPeriod::with('company')->findOrFail($this->periodId);
+        $period = $this->periodQuery()->with('company')->findOrFail($this->periodId);
 
         if (! Storage::disk('local')->exists(app(PayrollService::class)->slipZipRelPath($period->id))) {
             Notification::make()->title('File ZIP belum siap')->warning()->send();
@@ -297,7 +317,7 @@ class PayrollsPage extends Component
         $this->discardStoredRevisionFile();
         $this->revisionStoredPath = $this->revisionFile->store('temp-payroll-revisions');
 
-        $period = PayrollPeriod::findOrFail($this->periodId);
+        $period = $this->periodQuery()->findOrFail($this->periodId);
         $import = new PayrollRevisionImport($period);
         Excel::import($import, Storage::path($this->revisionStoredPath));
 
@@ -385,7 +405,7 @@ class PayrollsPage extends Component
             return collect();
         }
 
-        return PayrollPeriod::query()
+        return $this->periodQuery()
             ->where('company_id', $this->companyId)
             ->whereNotNull('processed_at')
             ->orderByDesc('start_date')

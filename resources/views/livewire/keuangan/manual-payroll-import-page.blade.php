@@ -4,6 +4,13 @@
 
     <div class="mt-4" style="display:flex;flex-direction:column;gap:16px;">
 
+        <div>
+            <button type="button" wire:click="toggleMoney" class="btn-ghost" style="padding:6px 12px;font-size:11.5px;">
+                <i class="fa-solid {{ $hideMoney ? 'fa-eye' : 'fa-eye-slash' }}"></i>
+                {{ $hideMoney ? 'Lihat Angka' : 'Sembunyikan Angka' }}
+            </button>
+        </div>
+
         <div style="background:var(--info-soft-bg);border:1px solid var(--info-soft-border);border-radius:10px;padding:14px 16px;font-size:12.5px;color:var(--text-body);max-width:1000px;">
             <i class="fa-solid fa-circle-info"></i>
             Pilih perusahaan + periode gaji tujuan, lalu upload file <strong>.xlsx</strong> (1 sheet skema RSU).
@@ -96,7 +103,7 @@
                     ['Cocok', $s['cocok'], 'var(--brand-success)'],
                     ['Tak cocok (dilewati)', $s['tak_cocok'], '#d97706'],
                     ['Mitra dilewati', $s['mitra_dilewati'], 'var(--text-muted)'],
-                    ['Total Net', 'Rp ' . number_format($s['total_net'], 0, ',', '.'), 'var(--text-heading)'],
+                    ['Total Net', $this->rp($s['total_net']), 'var(--text-heading)'],
                 ] as [$lbl, $val, $col])
                     <div style="flex:1;min-width:150px;padding:12px 14px;border:1px solid var(--border-soft);border-radius:10px;">
                         <p style="margin:0;font-size:10.5px;text-transform:uppercase;letter-spacing:.03em;color:var(--text-muted);">{{ $lbl }}</p>
@@ -158,19 +165,19 @@
                             </thead>
                             <tbody>
                             @foreach ($preview['matched'] as $m)
-                                @php $fmt = fn ($v) => $v > 0 ? number_format($v, 0, ',', '.') : '·'; @endphp
+                                @php $fmt = fn ($v) => $this->hideMoney ? '•••' : ($v > 0 ? number_format($v, 0, ',', '.') : '·'); @endphp
                                 <tr style="border-bottom:1px solid var(--border-soft);">
                                     <td style="padding:5px 10px;position:sticky;left:0;background:var(--surface);">{{ $m['nip'] }}</td>
                                     <td style="padding:5px 10px;position:sticky;left:90px;background:var(--surface);">{{ \Illuminate\Support\Str::limit($m['nama'], 24) }}</td>
                                     @foreach ($cols['earnings'] as $key => $lbl)
                                         <td style="padding:5px 8px;text-align:right;">{{ $fmt($m['amounts'][$key] ?? 0) }}</td>
                                     @endforeach
-                                    <td style="padding:5px 8px;text-align:right;font-weight:700;">{{ number_format($m['gross'], 0, ',', '.') }}</td>
+                                    <td style="padding:5px 8px;text-align:right;font-weight:700;">{{ $hideMoney ? '•••••' : number_format($m['gross'], 0, ',', '.') }}</td>
                                     @foreach ($cols['deductions'] as $key => $lbl)
                                         <td style="padding:5px 8px;text-align:right;">{{ $fmt($m['amounts'][$key] ?? 0) }}</td>
                                     @endforeach
-                                    <td style="padding:5px 8px;text-align:right;font-weight:700;">{{ number_format($m['deduction'], 0, ',', '.') }}</td>
-                                    <td style="padding:5px 8px;text-align:right;font-weight:800;">{{ number_format($m['net'], 0, ',', '.') }}</td>
+                                    <td style="padding:5px 8px;text-align:right;font-weight:700;">{{ $hideMoney ? '•••••' : number_format($m['deduction'], 0, ',', '.') }}</td>
+                                    <td style="padding:5px 8px;text-align:right;font-weight:800;">{{ $hideMoney ? '•••••' : number_format($m['net'], 0, ',', '.') }}</td>
                                 </tr>
                             @endforeach
                             </tbody>
@@ -267,9 +274,9 @@
                                     @if ($payroll->decryptFailed)
                                         <td colspan="3" style="padding:9px 14px;text-align:center;color:#dc2626;font-size:11.5px;"><i class="fa-solid fa-triangle-exclamation"></i> Gagal dekripsi</td>
                                     @else
-                                        <td style="padding:9px 14px;text-align:right;white-space:nowrap;">Rp{{ number_format($payroll->safeGross, 0, ',', '.') }}</td>
-                                        <td style="padding:9px 14px;text-align:right;white-space:nowrap;color:#dc2626;">Rp{{ number_format($payroll->safeDeductions, 0, ',', '.') }}</td>
-                                        <td style="padding:9px 14px;text-align:right;white-space:nowrap;font-weight:700;">Rp{{ number_format($payroll->safeNet, 0, ',', '.') }}</td>
+                                        <td style="padding:9px 14px;text-align:right;white-space:nowrap;">{{ $this->rp($payroll->safeGross) }}</td>
+                                        <td style="padding:9px 14px;text-align:right;white-space:nowrap;color:#dc2626;">{{ $this->rp($payroll->safeDeductions) }}</td>
+                                        <td style="padding:9px 14px;text-align:right;white-space:nowrap;font-weight:700;">{{ $this->rp($payroll->safeNet) }}</td>
                                     @endif
                                     <td style="padding:9px 14px;text-align:center;white-space:nowrap;">
                                         <span style="display:inline-block;padding:3px 10px;border-radius:99px;font-size:11px;font-weight:600;background:{{ $payroll->is_paid ? 'rgba(4,124,84,0.1)' : 'rgba(217,119,6,0.1)' }};color:{{ $payroll->is_paid ? '#047C54' : '#d97706' }};">

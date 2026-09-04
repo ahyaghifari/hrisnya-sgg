@@ -7,6 +7,7 @@ use App\Enum\AttendanceReqStatus;
 use App\Enum\CustomPermissionEnum;
 use App\Enum\Payroll\PayrollComponentEnum;
 use App\Jobs\SendPayrollSlipJob;
+use App\Livewire\Keuangan\Concerns\MasksMoney;
 use App\Models\AuditLog;
 use App\Models\Attendance\AttendanceRequests;
 use App\Models\Payroll\CompanyPayrollComponent;
@@ -25,6 +26,8 @@ use Livewire\Component;
 #[Layout('components.layout', ['title' => 'Detail Payroll'])]
 class PayrollDetailPage extends Component
 {
+    use MasksMoney;
+
     public Payroll $payroll;
 
     public bool $showManualLineModal = false;
