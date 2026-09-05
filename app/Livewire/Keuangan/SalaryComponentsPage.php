@@ -216,8 +216,6 @@ class SalaryComponentsPage extends Component
         $alwaysOn = collect(PayrollComponentEnum::alwaysOn())->map(fn ($c) => $c->value);
 
         return collect(PayrollComponentEnum::cases())
-            // FEE_CLAIM murni pass-through tanpa setting apa pun — tidak perlu tampil di daftar.
-            ->reject(fn (PayrollComponentEnum $c) => $c === PayrollComponentEnum::FEE_CLAIM)
             ->map(fn (PayrollComponentEnum $c) => [
                 'component' => $c,
                 'disabled' => $notYetAvailable->contains($c->value),

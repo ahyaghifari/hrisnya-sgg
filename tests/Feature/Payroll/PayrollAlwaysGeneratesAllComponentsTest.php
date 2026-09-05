@@ -226,22 +226,4 @@ class PayrollAlwaysGeneratesAllComponentsTest extends TestCase
         ]);
     }
 
-    public function test_fee_claim_and_pajak_jasa_dokter_still_never_create_a_row_when_no_fee_items(): void
-    {
-        [$company, $employeeType] = $this->makeCompanyAndEmployeeType();
-        // Butuh minimal 1 komponen lain aktif+eligible, kalau tidak generatePayroll() skip total
-        // karyawan ini (PayrollComponentRecipient::isRegisteredAnywhere() gate).
-        CompanyPayrollComponent::create(['company_id' => $company->id, 'component' => PayrollComponentEnum::CUTI->value, 'is_active' => true]);
-        PayrollComponentRecipient::create(['company_id' => $company->id, 'component' => PayrollComponentEnum::CUTI->value, 'employee_type_id' => $employeeType->id]);
-
-        $user = User::factory()->create(['company_id' => $company->id, 'is_active' => true]);
-        UserProfiles::create(['user_id' => $user->id, 'employee_type_id' => $employeeType->id]);
-        $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-
-        app(PayrollService::class)->generatePayroll($period);
-        $payroll = Payroll::where('user_id', $user->id)->where('payroll_period_id', $period->id)->firstOrFail();
-
-        $this->assertDatabaseMissing('payroll_items', ['payroll_id' => $payroll->id, 'source_type' => 'fee_claim']);
-        $this->assertDatabaseMissing('payroll_items', ['payroll_id' => $payroll->id, 'source_type' => 'pajak_jasa_dokter']);
-    }
 }

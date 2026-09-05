@@ -21,8 +21,13 @@
         'canAccessSikartapSaya' => auth()->user()->isKontrakKaryawan(),
         'canAccessOrientasiSaya' => auth()->user()->isOrientasiKaryawan(),
         // "Sikartap" jadi payung perjalanan status karyawan (Orientasi -> Kontrak -> Tetap) -
-        // dropdown-nya muncul kalau punya SISTEM_SIKARTAP ATAU akses Kontrak/Orientasi. Tiap
-        // link di dalamnya tetap digerbangi permission sendiri.
+        // ini menu ADMIN (HR pantau/kelola pengajuan orang lain). Murni permission (SISTEM_SIKARTAP
+        // ATAU ViewAny:UserContract ATAU ViewAny:OrientationSubmission) - TIDAK ada hubungannya
+        // sama sekali dengan status kepegawaian user yang login sendiri (Orientasi/Kontrak, lihat
+        // isKontrakKaryawan()/isOrientasiKaryawan() di atas - itu row 1 "Status Saya", gerbang
+        // terpisah). Siapa pun yang PUNYA salah satu permission ini boleh masuk, apa pun status
+        // kepegawaiannya sendiri (dikonfirmasi user 2026-09-05). Tiap link di dalam dropdown
+        // tetap digerbangi permission masing-masing.
         'canAccessSikartap' => auth()->user()->can(\App\Enum\CustomPermissionEnum::SISTEM_SIKARTAP->value)
             || auth()->user()->can('ViewAny:UserContract')
             || auth()->user()->can('ViewAny:OrientationSubmission'),

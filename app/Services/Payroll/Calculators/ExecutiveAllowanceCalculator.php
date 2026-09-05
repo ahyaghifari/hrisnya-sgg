@@ -11,10 +11,10 @@ use App\Models\User;
 
 /**
  * Baris pendapatan/potongan manual khusus User::PAYROLL_ELIGIBLE_EXECUTIVE_IDS (Presiden
- * Direktur & Sekretaris Direktur) - lihat ExecutiveAllowance. Always-on sama pola
- * FeeClaimCalculator (tidak digate lewat company_payroll_components) karena roster-nya sendiri
- * yang menentukan ada-tidaknya baris, bukan toggle per company - aman dipanggil untuk SEMUA
- * user tiap generate, no-op kalau rosternya kosong (karyawan biasa).
+ * Direktur & Sekretaris Direktur) - lihat ExecutiveAllowance. Always-on (tidak digate lewat
+ * company_payroll_components) karena roster-nya sendiri yang menentukan ada-tidaknya baris,
+ * bukan toggle per company - aman dipanggil untuk SEMUA user tiap generate, no-op kalau
+ * rosternya kosong (karyawan biasa).
  *
  * source_type ikut `ExecutiveAllowance.component` - null buat baris "Manual" (label bebas,
  * ditaruh di akhir urutan slip sama seperti adjustment lain di PayrollService::componentRows()),

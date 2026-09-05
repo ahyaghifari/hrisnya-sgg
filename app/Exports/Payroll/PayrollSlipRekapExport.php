@@ -237,8 +237,8 @@ class PayrollSlipRekapExport extends DefaultValueBinder implements FromCollectio
     }
 
     /**
-     * Komponen yang case-nya "alwaysOn()" (FEE_CLAIM) tidak butuh baris `company_payroll_components`
-     * buat aktif (lihat PayrollComponentEnum::alwaysOn()) - diperlakukan aktif juga di sini.
+     * Komponen yang case-nya "alwaysOn()" tidak butuh baris `company_payroll_components` buat
+     * aktif (lihat PayrollComponentEnum::alwaysOn()) - diperlakukan aktif juga di sini.
      */
     private function activeComponentValues(): array
     {

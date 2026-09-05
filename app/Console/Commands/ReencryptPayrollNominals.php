@@ -29,7 +29,6 @@ class ReencryptPayrollNominals extends Command
         ['table' => 'payroll_items', 'columns' => ['amount', 'unit_amount']],
         ['table' => 'incentives', 'columns' => ['amount']],
         ['table' => 'user_koperasi', 'columns' => ['amount']],
-        ['table' => 'fee_items', 'columns' => ['amount']],
         ['table' => 'omset_details', 'columns' => ['amount']],
         ['table' => 'executive_allowances', 'columns' => ['amount']],
         ['table' => 'position_allowances', 'columns' => ['amount']],

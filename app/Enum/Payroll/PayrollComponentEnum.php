@@ -28,7 +28,6 @@ enum PayrollComponentEnum: string
     case JASA_PELAYANAN = 'jasa_pelayanan';
     case JASA_UNIT = 'jasa_unit';
     case EXTRA_SHIFT = 'extra_shift';
-    case FEE_CLAIM = 'fee_claim';
 
     // POTONGAN
     case BPJS_KESEHATAN = 'bpjs_kesehatan';
@@ -37,7 +36,6 @@ enum PayrollComponentEnum: string
     case IZIN_TERLAMBAT_PULANG_CEPAT = 'izin_terlambat_pulang_cepat';
     case IZIN_SEHARIAN = 'izin_seharian';
     case CUTI = 'cuti';
-    case PAJAK_JASA_DOKTER = 'pajak_jasa_dokter';
     case KOPERASI = 'koperasi';
     case BON = 'bon';
 
@@ -57,8 +55,7 @@ enum PayrollComponentEnum: string
             self::LEMBUR,
             self::JASA_PELAYANAN,
             self::JASA_UNIT,
-            self::EXTRA_SHIFT,
-            self::FEE_CLAIM => PayrollComponentTypeEnum::EARNING,
+            self::EXTRA_SHIFT => PayrollComponentTypeEnum::EARNING,
 
             self::BPJS_KESEHATAN,
             self::BPJS_KETENAGAKERJAAN,
@@ -66,7 +63,6 @@ enum PayrollComponentEnum: string
             self::IZIN_TERLAMBAT_PULANG_CEPAT,
             self::IZIN_SEHARIAN,
             self::CUTI,
-            self::PAJAK_JASA_DOKTER,
             self::KOPERASI,
             self::BON => PayrollComponentTypeEnum::DEDUCTION,
         };
@@ -84,29 +80,28 @@ enum PayrollComponentEnum: string
             self::JASA_PELAYANAN => 'Jasa Pelayanan',
             self::JASA_UNIT => 'Jasa Unit',
             self::EXTRA_SHIFT => 'Extra Shift',
-            self::FEE_CLAIM => 'Fee Klaim (Jasa Dokter, dst)',
             self::BPJS_KESEHATAN => 'BPJS Kesehatan',
             self::BPJS_KETENAGAKERJAAN => 'BPJS Ketenagakerjaan',
             self::KETERLAMBATAN => 'Keterlambatan',
             self::IZIN_TERLAMBAT_PULANG_CEPAT => 'Izin Meninggalkan Jam Kerja',
             self::IZIN_SEHARIAN => 'Izin Tidak Masuk',
             self::CUTI => 'Cuti',
-            self::PAJAK_JASA_DOKTER => 'Pajak Jasa Dokter',
             self::KOPERASI => 'Koperasi',
             self::BON => 'Bon',
         };
     }
 
     /**
-     * FEE_CLAIM murni data-driven (jalan kalau ada baris fee_items yang belum lunas, berhenti
-     * sendiri kalau tidak ada) — TIDAK butuh baris `company_payroll_components` untuk
-     * di-toggle admin. Dipakai buat exclude dari daftar toggle UI (lihat planning Fase 1
-     * §3.1). PAJAK_JASA_DOKTER sekarang bisa di-toggle per company seperti komponen lain —
-     * FeeClaimCalculator cek `company_payroll_components` sebelum motong pajaknya.
+     * Komponen yang tidak butuh baris `company_payroll_components` untuk aktif — jalan/berhenti
+     * murni dari data sumbernya sendiri, bukan toggle admin. Kosong sejak Fee Claim/Pajak Jasa
+     * Dokter (satu-satunya anggota sebelumnya) dihapus total (2026-09-05, dokter/Mitra sudah
+     * punya sistem sendiri di luar HRIS). Dipertahankan (bukan dihapus) karena masih dipakai
+     * beberapa pemanggil generik (SalaryComponentsPage, PayrollComponentDetail,
+     * PayrollSlipRekapExport) buat exclude dari daftar toggle UI.
      */
     public static function alwaysOn(): array
     {
-        return [self::FEE_CLAIM];
+        return [];
     }
 
     /**
@@ -141,7 +136,6 @@ enum PayrollComponentEnum: string
             self::BPJS_KESEHATAN, self::BPJS_KETENAGAKERJAAN => ['bpjs_declared_value'],
             self::KETERLAMBATAN => ['keterlambatan_threshold_menit', 'keterlambatan_denda', 'keterlambatan_grace_count'],
             self::IZIN_TERLAMBAT_PULANG_CEPAT => ['izin_potongan_flat'],
-            self::PAJAK_JASA_DOKTER => ['pajak_jasa_dokter_rate'],
             self::INSENTIF => ['insentif_metode'],
             self::LEMBUR => ['lembur_minimum_jam'],
             self::IZIN_SEHARIAN => ['izin_seharian_metode', 'izin_seharian_persen_gaji_pokok'],

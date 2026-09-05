@@ -13,7 +13,6 @@ use App\Models\Payroll\PayrollItem;
 use App\Models\Payroll\PayrollPeriod;
 use App\Models\User;
 use App\Services\Payroll\Calculators\ExecutiveAllowanceCalculator;
-use App\Services\Payroll\Calculators\FeeClaimCalculator;
 use App\Services\Payroll\Calculators\PayrollCalculatorRegistry;
 use App\Services\Payroll\Calculators\PayrollContext;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -730,17 +729,6 @@ class PayrollService
             $this->runComponent($companyComponent, $user, $payroll, $period, $context);
         }
 
-        // Always-on, tidak digate lewat company_payroll_components (lihat
-        // PayrollComponentEnum::alwaysOn() dan planning Fase 1 §3.1). TETAP wajib dicek
-        // isProtected() sama seperti runComponent() - tanpa ini, baris FEE_CLAIM/PAJAK_JASA_DOKTER
-        // yang sudah di-edit manual & dibawa pindah oleh capturePreservedItems() bakal ketimpa
-        // Calculator ini lagi jalan (bikin baris FEE_CLAIM dobel + FeeItem yang belum "dikonsumsi"
-        // keburu ditandai is_paid=true) - regresi dari bug lama "Fee Claim Regenerate".
-        if (! $context->isProtected(PayrollComponentEnum::FEE_CLAIM->value)
-            && ! $context->isProtected(PayrollComponentEnum::PAJAK_JASA_DOKTER->value)) {
-            app(FeeClaimCalculator::class)->calculate($user, $payroll, $period, $context);
-        }
-
         foreach ($deduction as $companyComponent) {
             $this->runComponent($companyComponent, $user, $payroll, $period, $context);
         }
@@ -753,11 +741,11 @@ class PayrollService
             $this->runComponent($cuti, $user, $payroll, $period, $context);
         }
 
-        // Always-on sama pola FeeClaimCalculator - roster-nya sendiri (bukan toggle company)
-        // yang menentukan ada-tidaknya baris, aman dipanggil untuk semua user (no-op kalau
-        // roster kosong). Ditaruh paling akhir - baris manual ini konsisten muncul di bagian
-        // bawah slip (source_type null diperlakukan sama seperti manual adjustment lain di
-        // componentRows()).
+        // Always-on, tidak digate lewat company_payroll_components - roster-nya sendiri
+        // (bukan toggle company) yang menentukan ada-tidaknya baris, aman dipanggil untuk
+        // semua user (no-op kalau roster kosong). Ditaruh paling akhir - baris manual ini
+        // konsisten muncul di bagian bawah slip (source_type null diperlakukan sama seperti
+        // manual adjustment lain di componentRows()).
         app(ExecutiveAllowanceCalculator::class)->calculate($user, $payroll, $period, $context);
 
         $payroll->update([

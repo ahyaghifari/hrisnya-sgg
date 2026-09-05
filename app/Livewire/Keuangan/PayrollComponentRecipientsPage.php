@@ -104,7 +104,6 @@ class PayrollComponentRecipientsPage extends Component
             ->pluck('component');
 
         return collect(PayrollComponentEnum::cases())
-            ->reject(fn (PayrollComponentEnum $c) => $c === PayrollComponentEnum::FEE_CLAIM)
             ->filter(fn (PayrollComponentEnum $c) => $activeValues->contains($c->value))
             ->values()
             ->all();
