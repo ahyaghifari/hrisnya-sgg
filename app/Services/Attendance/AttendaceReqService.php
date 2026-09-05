@@ -206,7 +206,7 @@ class AttendaceReqService
             'leave_type' => $leaveType?->name,
             'start_date' => $data['start_date'],
             'end_date' => $data['end_date'] ?? null,
-            'total_days' => $this->countWorkingDays($actingUser, $data['start_date'], $data['end_date'] ?? null),
+            'total_days' => $this->countLeaveDays($actingUser, $leaveType, $data['start_date'], $data['end_date'] ?? null),
             'attachments_files' => $data['attachments'] ?? null,
         ];
 
@@ -368,8 +368,9 @@ class AttendaceReqService
             [$start, $end] = [$end, $start];
         }
 
-        // Konsisten dengan total_days yang disimpan — hari kerja jadwal user, bukan hari kalender.
-        $newDays = $this->countWorkingDays($actingUser, $start->toDateString(), $end->toDateString());
+        // Konsisten dengan total_days yang disimpan — countLeaveDays() pakai hari kalender
+        // khusus MELAHIRKAN/KEGUGURAN (lihat docblock-nya), hari kerja jadwal untuk sisanya.
+        $newDays = $this->countLeaveDays($actingUser, $leaveType, $start->toDateString(), $end->toDateString());
 
         if ($category->usageWindow() === 'per_request') {
             if ($newDays > $quota) {
@@ -402,8 +403,9 @@ class AttendaceReqService
     /**
      * Approver merevisi tanggal pengajuan Cuti Khusus / Izin Khusus saat menyetujui (tanggal
      * aktual bisa bergeser dari yang diajukan). Hanya dua kategori itu — dipanggil dari
-     * AttendanceRequestDetail sebelum advanceStep. total_days dihitung ulang: Cuti pakai hari
-     * kerja jadwal (off_day tidak dihitung, sama seperti saat submit), Izin tetap hari kalender.
+     * AttendanceRequestDetail sebelum advanceStep. total_days dihitung ulang lewat
+     * countLeaveDays() — sama seperti saat submit (hari kalender khusus MELAHIRKAN/KEGUGURAN,
+     * hari kerja jadwal untuk Cuti lain), Izin tetap hari kalender.
      * Untuk cuti khusus kuota divalidasi ulang, request ini sendiri dikecualikan dari "used".
      */
     public function reviseRequestDates(AttendanceRequests $record, string $startDate, string $endDate): void
@@ -432,7 +434,7 @@ class AttendaceReqService
             $detail->update([
                 'start_date' => $start->toDateString(),
                 'end_date' => $end->toDateString(),
-                'total_days' => $this->countWorkingDays($record->user, $start->toDateString(), $end->toDateString()),
+                'total_days' => $this->countLeaveDays($record->user, $leaveType, $start->toDateString(), $end->toDateString()),
             ]);
 
             return;
@@ -456,7 +458,8 @@ class AttendaceReqService
     /**
      * total_days pengajuan CUTI: 1 tanggal = 1 hari; kalau lebih dari 1 tanggal, hitung HARI
      * KERJA saja — tanggal yang jatuh pada off_day jadwal user tidak ikut (ScheduleResolver).
-     * Izin TIDAK pakai ini (tetap hari kalender).
+     * Izin TIDAK pakai ini (tetap hari kalender). MELAHIRKAN/KEGUGURAN JUGA tidak pakai ini —
+     * lihat countLeaveDays() (hari kalender, sesuai UU).
      */
     private function countWorkingDays(?User $user, ?string $start, ?string $end): int
     {
@@ -473,6 +476,27 @@ class AttendaceReqService
         }
 
         return $this->scheduleResolver->workingDaysBetween($user, $start, $end);
+    }
+
+    /**
+     * total_days pengajuan CUTI, category-aware: MELAHIRKAN/KEGUGURAN (LeaveTypeCategoryEnum::
+     * countsCalendarDays()) dihitung hari KALENDER (UU 13/2003 Ps.82 - hak 90/45 hari itu
+     * rentang kalender kontinu, bukan hari masuk kerja); kategori lain tetap hari kerja lewat
+     * countWorkingDays() seperti sebelumnya.
+     */
+    private function countLeaveDays(?User $user, ?object $leaveType, ?string $start, ?string $end): int
+    {
+        $category = $leaveType ? LeaveTypeCategoryEnum::tryFrom($leaveType->category ?? '') : null;
+
+        if ($category?->countsCalendarDays()) {
+            if (! $start) {
+                return 0;
+            }
+
+            return Carbon::parse($start)->diffInDays(Carbon::parse($end ?? $start)) + 1;
+        }
+
+        return $this->countWorkingDays($user, $start, $end);
     }
 
     /**

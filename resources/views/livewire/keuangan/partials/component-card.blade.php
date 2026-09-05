@@ -74,6 +74,11 @@
                                 <option value="simple">Simple (1 baris nominal per periode)</option>
                                 <option value="detail">Detail (rincian potongan satu-satu)</option>
                             </select>
+                        @elseif ($key === 'cuti_melahirkan_metode')
+                            <select class="form-input" style="font-size:12px;padding:7px 10px;" wire:model="settingValues.{{ $key }}">
+                                <option value="per_komponen">Per Komponen (prorate Tunjangan/Insentif/Jasa Pelayanan)</option>
+                                <option value="thp">THP (1 baris potongan dari selisih Take Home Pay)</option>
+                            </select>
                         @else
                             <input type="{{ $inputType($meta?->type) }}" step="0.01" class="form-input" style="font-size:12px;padding:7px 10px;" wire:model="settingValues.{{ $key }}">
                         @endif

@@ -40,6 +40,44 @@ class GajiPokokCalculator implements PayrollComponentCalculator
 
     public function calculate(User $user, Payroll $payroll, PayrollPeriod $period, PayrollContext $context): void
     {
+        [$amount, $note] = $this->resolveAmountAndNote($user, $period);
+
+        if ($amount === null || $amount <= 0) {
+            return;
+        }
+
+        // Simpan sebagai baris PayrollItem (komponen penghasilan) di slip gaji karyawan ini.
+        PayrollItem::create([
+            'payroll_id' => $payroll->id,
+            'name' => PayrollComponentEnum::GAJI_POKOK->label(),
+            'type' => PayrollComponentEnum::GAJI_POKOK->type()->value,
+            'quantity' => 1,
+            'amount' => $amount,
+            'note' => $note,
+            'source_type' => PayrollComponentEnum::GAJI_POKOK->value,
+        ]);
+
+        // Tambahkan ke akumulator gross salary payroll berjalan (dipakai komponen lain, mis. potongan
+        // yang basisnya persentase dari gross).
+        $context->addEarning($amount);
+    }
+
+    /**
+     * Nominal final Gaji Pokok (base x (1+rate), sudah termasuk prorate bulan pertama kalau
+     * relevan) — TANPA membuat PayrollItem/menyentuh PayrollContext. Dipakai ULANG oleh
+     * CutiCalculator (Teknik "THP" cuti melahirkan/keguguran, butuh baca "Gaji Pokok Akhir")
+     * supaya tidak bergantung ke urutan Calculator lain atau keberadaan baris payroll_items
+     * Gaji Pokok (bisa saja tidak ada, mis. Gaji Khusus override skip Calculator ini total).
+     * Null kalau karyawan ini tidak eligible (Pangkat/Kelas kosong) atau hasilnya 0.
+     */
+    public function resolveAmount(User $user, PayrollPeriod $period): ?float
+    {
+        return $this->resolveAmountAndNote($user, $period)[0];
+    }
+
+    /** @return array{0: ?float, 1: ?string} */
+    private function resolveAmountAndNote(User $user, PayrollPeriod $period): array
+    {
         // Gaji Pokok butuh Pangkat (jenjang jabatan) + Kelas (level dalam pangkat itu) - dua-duanya
         // FK opsional di UserProfiles, kalau salah satu kosong berarti data karyawan belum lengkap.
         $pangkat = $user->profile?->pangkat;
@@ -48,7 +86,7 @@ class GajiPokokCalculator implements PayrollComponentCalculator
         // Tidak ada Pangkat/Kelas = tidak bisa hitung Gaji Pokok sama sekali, skip diam-diam
         // (karyawan itu memang belum eligible, bukan error).
         if (! $pangkat || ! $kelas) {
-            return;
+            return [null, null];
         }
 
         // Nominal dasar Gaji Pokok untuk Pangkat ini (1 Pangkat = 1 base_salary).
@@ -72,7 +110,7 @@ class GajiPokokCalculator implements PayrollComponentCalculator
         // diam-diam itu bug serius, jangan asumsikan 0 sebagai default "aman". Kelas.level tetap
         // dicek walau tidak dipakai di rumus - syarat data lengkap karyawan belum berubah.
         if (! $pangkatSalary || $kelas->level === null) {
-            return;
+            return [null, null];
         }
 
         // Rumus akhir: base_salary * (1 + rate) - flat, TIDAK lagi dikali langkah Kelas.
@@ -87,22 +125,9 @@ class GajiPokokCalculator implements PayrollComponentCalculator
         // Kalau hasil akhir tetap 0 (mis. base_salary 0), jangan generate PayrollItem sama sekali -
         // baris Rp0 di slip gaji cuma bikin bingung, bukan informasi yang berguna.
         if ($amount <= 0) {
-            return;
+            return [null, null];
         }
 
-        // Simpan sebagai baris PayrollItem (komponen penghasilan) di slip gaji karyawan ini.
-        PayrollItem::create([
-            'payroll_id' => $payroll->id,
-            'name' => PayrollComponentEnum::GAJI_POKOK->label(),
-            'type' => PayrollComponentEnum::GAJI_POKOK->type()->value,
-            'quantity' => 1,
-            'amount' => $amount,
-            'note' => $note,
-            'source_type' => PayrollComponentEnum::GAJI_POKOK->value,
-        ]);
-
-        // Tambahkan ke akumulator gross salary payroll berjalan (dipakai komponen lain, mis. potongan
-        // yang basisnya persentase dari gross).
-        $context->addEarning($amount);
+        return [$amount, $note];
     }
 }

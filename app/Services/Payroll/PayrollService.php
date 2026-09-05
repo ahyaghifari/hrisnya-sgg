@@ -706,17 +706,24 @@ class PayrollService
         }
 
         // Urutan WAJIB: semua EARNING dulu -> Fee Claim (earning, always-on) -> semua
-        // DEDUCTION kecuali Izin Seharian -> Izin Seharian terakhir. Izin Seharian
-        // butuh $context->grossSalary (T8) yang sudah final, lihat planning Fase 2 §6.
+        // DEDUCTION kecuali Izin Seharian & Cuti -> Izin Seharian -> Cuti PALING TERAKHIR.
+        // Izin Seharian butuh $context->grossSalary (T8) yang sudah final, lihat planning Fase
+        // 2 §6. Cuti (khusus Melahirkan/Keguguran teknik "thp", lihat CutiCalculator) butuh
+        // $context->grossSalary/totalDeductions yang sudah final dari SEMUA komponen lain
+        // TERMASUK Izin Seharian - makanya ditaruh setelahnya, bukan sejajar.
         $earning = $activeComponents->filter(
             fn (CompanyPayrollComponent $c) => PayrollComponentEnum::tryFrom($c->component)?->type() === PayrollComponentTypeEnum::EARNING
         );
         $deduction = $activeComponents->filter(
             fn (CompanyPayrollComponent $c) => PayrollComponentEnum::tryFrom($c->component)?->type() === PayrollComponentTypeEnum::DEDUCTION
                 && $c->component !== PayrollComponentEnum::IZIN_SEHARIAN->value
+                && $c->component !== PayrollComponentEnum::CUTI->value
         );
         $izinSeharian = $activeComponents->first(
             fn (CompanyPayrollComponent $c) => $c->component === PayrollComponentEnum::IZIN_SEHARIAN->value
+        );
+        $cuti = $activeComponents->first(
+            fn (CompanyPayrollComponent $c) => $c->component === PayrollComponentEnum::CUTI->value
         );
 
         foreach ($earning as $companyComponent) {
@@ -740,6 +747,10 @@ class PayrollService
 
         if ($izinSeharian) {
             $this->runComponent($izinSeharian, $user, $payroll, $period, $context);
+        }
+
+        if ($cuti) {
+            $this->runComponent($cuti, $user, $payroll, $period, $context);
         }
 
         // Always-on sama pola FeeClaimCalculator - roster-nya sendiri (bukan toggle company)

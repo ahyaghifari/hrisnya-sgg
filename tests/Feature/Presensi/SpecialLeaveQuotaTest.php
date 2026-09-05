@@ -9,8 +9,12 @@ use App\Models\ApprovalManagement\MasterApprovalFlowSteps;
 use App\Models\Attendance\AttendanceRequests;
 use App\Models\Master\Attendance\LeaveTypes;
 use App\Models\Master\Companies;
+use App\Models\Shift\Schedule;
+use App\Models\Shift\ScheduleAssignment;
+use App\Models\Shift\ScheduleFixedDay;
 use App\Models\User;
 use App\Models\User\UserProfiles;
+use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -76,6 +80,33 @@ class SpecialLeaveQuotaTest extends TestCase
         return $user;
     }
 
+    /** Jadwal Senin-Jumat (Sabtu/Minggu off_day) — sama fixture WorkingDaysScheduleTest. */
+    private function giveFixedScheduleSatSunOff(User $user): void
+    {
+        $schedule = Schedule::create([
+            'company_id' => $this->company->id,
+            'name' => 'Senin-Jumat',
+            'schedule_type' => 'fixed',
+        ]);
+
+        foreach (range(0, 6) as $dow) {
+            ScheduleFixedDay::create([
+                'schedule_id' => $schedule->id,
+                'day_of_week' => $dow,
+                'is_off_day' => in_array($dow, [0, 6], true), // Minggu & Sabtu libur
+                'start_time' => '08:00',
+                'end_time' => '17:00',
+            ]);
+        }
+
+        ScheduleAssignment::create([
+            'company_id' => $this->company->id,
+            'user_id' => $user->id,
+            'schedule_id' => $schedule->id,
+            'effective_from' => '2020-01-01',
+        ]);
+    }
+
     private function form(string $typeId, string $start, ?string $end = null): \Livewire\Features\SupportTesting\Testable
     {
         return Livewire::test(SubmitLeaveRequest::class)
@@ -104,6 +135,46 @@ class SpecialLeaveQuotaTest extends TestCase
 
         // 100 hari > kuota 90 -> ditolak, request tidak dibuat.
         $this->form($type->id, $start->toDateString(), $start->copy()->addDays(99)->toDateString())->call('submit');
+
+        $this->assertSame(0, AttendanceRequests::where('user_id', $user->id)->count());
+    }
+
+    /**
+     * Karyawan berjadwal Senin-Jumat: kalau dihitung hari KERJA, rentang 90 hari kalender cuma
+     * ~64 hari kerja (Sabtu/Minggu dikecualikan) — total_days yang tersimpan HARUS tetap 90
+     * (hari kalender, sesuai UU 13/2003 Ps.82), bukan ~64.
+     */
+    public function test_maternity_leave_total_days_is_calendar_not_working_days(): void
+    {
+        $user = $this->femaleUser();
+        $this->giveFixedScheduleSatSunOff($user);
+        $type = $this->leaveType(LeaveTypeCategoryEnum::MELAHIRKAN, 90);
+        $monday = Carbon::parse('2026-09-07')->startOfWeek(Carbon::MONDAY);
+
+        $this->form($type->id, $monday->toDateString(), $monday->copy()->addDays(89)->toDateString())->call('submit');
+
+        $request = AttendanceRequests::where('user_id', $user->id)->firstOrFail();
+        $this->assertDatabaseHas('attendance_req_leave_details', [
+            'request_id' => $request->id,
+            'total_days' => 90,
+        ]);
+    }
+
+    /**
+     * Sebelum fix: kuota per-request divalidasi pakai hari KERJA, jadi karyawan berjadwal 5
+     * hari/minggu bisa ajukan rentang ~125 hari kalender (kuota 90 hari kerja ≈ 125 hari
+     * kalender) dan tetap lolos — padahal itu jauh melebihi hak 90 hari kalender UU. Harus
+     * ditolak sekarang.
+     */
+    public function test_maternity_leave_calendar_days_over_quota_blocked_even_with_schedule(): void
+    {
+        $user = $this->femaleUser();
+        $this->giveFixedScheduleSatSunOff($user);
+        $type = $this->leaveType(LeaveTypeCategoryEnum::MELAHIRKAN, 90);
+        $monday = Carbon::parse('2026-09-07')->startOfWeek(Carbon::MONDAY);
+
+        // 125 hari kalender - hari kerjanya cuma ~89 (di bawah kuota 90) kalau salah hitung.
+        $this->form($type->id, $monday->toDateString(), $monday->copy()->addDays(124)->toDateString())->call('submit');
 
         $this->assertSame(0, AttendanceRequests::where('user_id', $user->id)->count());
     }

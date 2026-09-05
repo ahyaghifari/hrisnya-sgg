@@ -145,6 +145,7 @@ enum PayrollComponentEnum: string
             self::INSENTIF => ['insentif_metode'],
             self::LEMBUR => ['lembur_minimum_jam'],
             self::IZIN_SEHARIAN => ['izin_seharian_metode', 'izin_seharian_persen_gaji_pokok'],
+            self::CUTI => ['cuti_melahirkan_metode'],
             self::BON => ['bon_metode'],
             default => [],
         };

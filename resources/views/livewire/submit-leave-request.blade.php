@@ -83,7 +83,11 @@
                 @if ($this->workingDays !== null)
                     <div style="background:var(--surface-alt);border-radius:10px;padding:10px 14px;font-size:12.5px;color:var(--text-body);">
                         <i class="fa-solid fa-calendar-check" style="margin-right:6px;color:var(--brand);"></i>
-                        Total <strong>{{ $this->workingDays }} hari kerja</strong> (hari libur sesuai jadwal tidak dihitung)
+                        @if ($this->selectedCategory?->countsCalendarDays())
+                            Total <strong>{{ $this->workingDays }} hari kalender</strong>
+                        @else
+                            Total <strong>{{ $this->workingDays }} hari kerja</strong> (hari libur sesuai jadwal tidak dihitung)
+                        @endif
                     </div>
                 @endif
 

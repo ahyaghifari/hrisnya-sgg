@@ -69,9 +69,11 @@ class SubmitLeaveRequest extends Component
     }
 
     /**
-     * Jumlah hari kerja pengajuan — tanggal mulai == tanggal selesai = 1 hari; rentang lebih
-     * dari itu dihitung hari kerja saja (off_day jadwal user tidak ikut, ScheduleResolver).
-     * null kalau tanggal belum lengkap. Ini yang jadi total_days saat submit.
+     * Jumlah hari pengajuan — tanggal mulai == tanggal selesai = 1 hari. MELAHIRKAN/KEGUGURAN
+     * (LeaveTypeCategoryEnum::countsCalendarDays()) dihitung hari KALENDER (UU 13/2003 Ps.82);
+     * kategori lain dihitung hari kerja saja (off_day jadwal user tidak ikut, ScheduleResolver).
+     * null kalau tanggal belum lengkap. Sama persis dengan AttendaceReqService::countLeaveDays()
+     * yang jadi total_days saat submit.
      */
     public function getWorkingDaysProperty(): ?int
     {
@@ -81,6 +83,10 @@ class SubmitLeaveRequest extends Component
 
         if ($this->end_date === $this->start_date) {
             return 1;
+        }
+
+        if ($this->selectedCategory?->countsCalendarDays()) {
+            return \Carbon\Carbon::parse($this->start_date)->diffInDays(\Carbon\Carbon::parse($this->end_date)) + 1;
         }
 
         return app(ScheduleResolver::class)->workingDaysBetween(Auth::user(), $this->start_date, $this->end_date);

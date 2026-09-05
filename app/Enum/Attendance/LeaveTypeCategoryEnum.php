@@ -50,6 +50,18 @@ enum LeaveTypeCategoryEnum: string
     }
 
     /**
+     * Cuti yang total_days & kuotanya dihitung HARI KALENDER, bukan hari kerja jadwal. UU
+     * 13/2003 Ps.82 mendefinisikan hak MELAHIRKAN (90 hari)/KEGUGURAN (45 hari) sebagai
+     * rentang kalender kontinu (1,5 bulan sebelum + 1,5 bulan sesudah) - dihitung hari kerja
+     * saja bikin karyawan berjadwal 5 hari/minggu bisa ambil rentang kalender jauh lebih
+     * panjang dari haknya tapi tetap lolos validasi kuota per-pengajuan.
+     */
+    public function countsCalendarDays(): bool
+    {
+        return in_array($this, [self::MELAHIRKAN, self::KEGUGURAN], true);
+    }
+
+    /**
      * Bagaimana pemakaian ("used") dihitung untuk validasi & tampilan sisa:
      * - 'yearly'      : Σ hari approved dalam tahun kalender berjalan (TAHUNAN)
      * - 'monthly'     : Σ hari approved dalam bulan kalender berjalan (HAID — hak 2 hari/bulan)

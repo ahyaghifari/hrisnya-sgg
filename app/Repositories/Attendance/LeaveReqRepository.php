@@ -8,7 +8,6 @@ use App\Models\Attendance\AttendanceRequestLeaveDetails;
 use App\Models\Attendance\AttendanceRequests;
 use App\Models\Master\Attendance\Holidays;
 use App\Models\Master\Attendance\LeaveTypes;
-use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -31,12 +30,10 @@ class LeaveReqRepository
      * - `used`   = Σ total_days pengajuan `leave` `approved` user ini dalam periode berjalan
      * - periode:
      *   - Cuti Haid (usageWindow 'monthly')  = bulan kalender yg memuat $referenceDate
-     *   - **Cuti Tahunan**                    = jendela 1 tahun DARI ULANG TAHUN BERGABUNG
-     *     (`user_profiles.joining_date`) yang memuat $referenceDate. Mis. bergabung 5 Mei →
-     *     periode 5 Mei 2026 – 4 Mei 2027. 29 Feb di tahun non-kabisat = 28 Feb. `joining_date`
-     *     kosong → fallback tahun kalender Jan–Des.
-     *   - Melahirkan/keguguran ('per_request') = tahun kalender (cuma buat tampilan, enforcement
-     *     pakai assertWithinSpecialLeaveQuota per pengajuan)
+     *   - Cuti Tahunan & lainnya (termasuk Melahirkan/keguguran, 'per_request' cuma buat
+     *     tampilan — enforcement pakai assertWithinSpecialLeaveQuota per pengajuan) = TAHUN
+     *     KALENDER 1 Jan–31 Des yang memuat $referenceDate (dibalikkan dari jendela ulang tahun
+     *     bergabung, instruksi user 2026-09-05 — CutiTahunanAnniversaryWindowTest dihapus).
      * - `$referenceDate` = tanggal acuan (saat approval: `start_date` pengajuan; default now()).
      * Approve/reject/cancel otomatis konsisten karena tidak ada saldo yang perlu "dikembalikan".
      */
@@ -52,8 +49,6 @@ class LeaveReqRepository
         if ($category?->usageWindow() === 'monthly') {
             $periodStart = $ref->copy()->startOfMonth();
             $periodEnd = $ref->copy()->endOfMonth();
-        } elseif ($category === LeaveTypeCategoryEnum::TAHUNAN) {
-            [$periodStart, $periodEnd] = $this->anniversaryWindow($userId, $ref);
         } else {
             $periodStart = $ref->copy()->startOfYear();
             $periodEnd = $ref->copy()->endOfYear();
@@ -92,40 +87,6 @@ class LeaveReqRepository
             'collective_leave_days' => $collectiveLeaveDays,
             'available' => $available,
         ];
-    }
-
-    /**
-     * Jendela 1 tahun cuti tahunan yang memuat $ref, dihitung dari ULANG TAHUN BERGABUNG
-     * (`user_profiles.joining_date`). anchor = joining_date dgn tahun diganti tahun $ref;
-     * kalau anchor jatuh SESUDAH $ref → mundur 1 tahun. 29 Feb di tahun non-kabisat → 28 Feb
-     * (clamp ke jumlah hari bulan itu). joining_date kosong → fallback tahun kalender Jan–Des.
-     *
-     * @return array{0: Carbon, 1: Carbon}
-     */
-    private function anniversaryWindow(string $userId, Carbon $ref): array
-    {
-        $joiningRaw = User::find($userId)?->profile?->joining_date;
-
-        if (! $joiningRaw) {
-            return [$ref->copy()->startOfYear(), $ref->copy()->endOfYear()];
-        }
-
-        $joining = Carbon::parse($joiningRaw);
-        $anchor = $this->anchorForYear($joining->month, $joining->day, $ref->year);
-
-        if ($anchor->gt($ref->copy()->startOfDay())) {
-            $anchor = $this->anchorForYear($joining->month, $joining->day, $ref->year - 1);
-        }
-
-        return [$anchor->copy()->startOfDay(), $anchor->copy()->addYear()->subDay()->endOfDay()];
-    }
-
-    /** Tanggal ulang tahun bergabung di $year, dgn hari di-clamp (29 Feb → 28 di non-kabisat). */
-    private function anchorForYear(int $month, int $day, int $year): Carbon
-    {
-        $maxDay = Carbon::create($year, $month, 1)->daysInMonth;
-
-        return Carbon::create($year, $month, min($day, $maxDay))->startOfDay();
     }
 
     public function storeLeaveRequest(array $data): array
