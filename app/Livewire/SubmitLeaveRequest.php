@@ -35,13 +35,27 @@ class SubmitLeaveRequest extends Component
     {
         $isFemale = Auth::user()->profile?->gender === 'perempuan';
 
+        // Jendela pengajuan Cuti Tahunan baru buka 1 bulan sebelum masa kerja minimal
+        // terpenuhi (lihat AttendaceReqService::assertCutiTahunanEligibility) - sebelum itu
+        // Cuti Tahunan disaring dari dropdown sama sekali, bukan cuma warning. null = tidak
+        // dibatasi (setting 0/tidak diset, atau joining_date kosong).
+        $windowOpen = app(AttendaceReqService::class)->cutiTahunanEligibleDate(Auth::user())?->subMonth();
+
         return LeaveTypes::where('company_id', Auth::user()->company_id)
             ->get()
-            ->reject(function ($type) use ($isFemale) {
-                // Cuti haid/melahirkan/keguguran cuma buat karyawan perempuan.
+            ->reject(function ($type) use ($isFemale, $windowOpen) {
                 $cat = LeaveTypeCategoryEnum::tryFrom($type->category ?? '');
 
-                return $cat?->isFemaleOnly() && ! $isFemale;
+                // Cuti haid/melahirkan/keguguran cuma buat karyawan perempuan.
+                if ($cat?->isFemaleOnly() && ! $isFemale) {
+                    return true;
+                }
+
+                if ($cat === LeaveTypeCategoryEnum::TAHUNAN && $windowOpen && now()->lt($windowOpen)) {
+                    return true;
+                }
+
+                return false;
             })
             ->values();
     }
@@ -49,6 +63,20 @@ class SubmitLeaveRequest extends Component
     public function getTenureWarningProperty(): ?string
     {
         return app(AttendaceReqService::class)->getMinimumTenureWarning(Auth::user());
+    }
+
+    /** Kenapa Cuti Tahunan tidak muncul di dropdown (belum masuk jendela pengajuan) - null
+     *  kalau memang tidak dibatasi atau jendelanya sudah buka. */
+    public function getCutiTahunanClosedNoteProperty(): ?string
+    {
+        $eligibleDate = app(AttendaceReqService::class)->cutiTahunanEligibleDate(Auth::user());
+        $windowOpen = $eligibleDate?->copy()->subMonth();
+
+        if (! $windowOpen || now()->gte($windowOpen)) {
+            return null;
+        }
+
+        return "Cuti Tahunan belum bisa diajukan - baru buka mulai {$windowOpen->translatedFormat('d M Y')} (1 bulan sebelum masa kerja minimal terpenuhi pada {$eligibleDate->translatedFormat('d M Y')}).";
     }
 
     /** Kategori cuti khusus dari jenis cuti yang dipilih (null kalau cuti biasa/tahunan). */

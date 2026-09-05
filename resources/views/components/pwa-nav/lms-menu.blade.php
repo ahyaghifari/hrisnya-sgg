@@ -9,6 +9,7 @@
     $canViewBaseline = auth()->user()->can('ViewAny:LmsCourseBaselines');
     $canViewHonorarium = auth()->user()->can(\App\Enum\CustomPermissionEnum::LIHAT_HONORARIUM_LMS->value);
     $canViewLaporan = auth()->user()->can(\App\Enum\CustomPermissionEnum::LIHAT_LAPORAN_PELATIHAN->value);
+    $canViewEksternal = auth()->user()->can(\App\Enum\CustomPermissionEnum::SISTEM_LMS->value);
 @endphp
 
 <span class="pwa-menu-grid-divider">Learning Management System</span>
@@ -30,7 +31,12 @@
     <span class="pwa-menu-grid-label">Pemateri</span>
 </a>
 @endif
-{{-- TODO: route pelatihan.eksternal nonaktif sementara, class Livewire belum dibuat --}}
+@if ($canViewEksternal)
+<a href="{{ route('pelatihan.eksternal') }}" wire:navigate class="pwa-menu-grid-item">
+    <span class="pwa-menu-grid-icon teal"><i class="fa-solid fa-arrow-up-right-from-square"></i></span>
+    <span class="pwa-menu-grid-label">Pelatihan Eksternal</span>
+</a>
+@endif
 @if ($canViewBankSoal)
 <a href="{{ route('pelatihan.bank-soal') }}" wire:navigate class="pwa-menu-grid-item">
     <span class="pwa-menu-grid-icon teal"><i class="fa-solid fa-clipboard-list"></i></span>

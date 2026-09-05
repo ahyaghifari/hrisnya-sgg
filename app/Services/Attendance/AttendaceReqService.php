@@ -192,6 +192,12 @@ class AttendaceReqService
         // yang dibatasi UU, bukan kuota kebijakan yang boleh dilanggar seperti Cuti Tahunan.
         $this->assertWithinSpecialLeaveQuota($actingUser, $leaveType, $data);
 
+        // Cuti Tahunan TETAP diblokir kalau masa kerja minimal belum masuk jendela pengajuan
+        // (instruksi user 2026-09-05) — beda dari kuota Cuti Tahunan di atas yang sengaja
+        // dilonggarkan, ini justru harus keras (dropdown jenis cuti sudah disaring di form,
+        // ini jaring pengaman server-side).
+        $this->assertCutiTahunanEligibility($actingUser, $leaveType, $data);
+
         $request = $this->attendanceReqRepository->storeAttendanceRequest([
             'user_id' => $userId,
             'created_by' => $createdBy->id,
@@ -307,6 +313,63 @@ class AttendaceReqService
         }
 
         return "Masa kerja {$user->name} baru {$monthsWorked} bulan (minimal kebijakan perusahaan: {$minMonths} bulan) — pertimbangkan sebelum menyetujui.";
+    }
+
+    /**
+     * Tanggal karyawan ini pertama kali ELIGIBLE mengambil Cuti Tahunan — masa kerja minimal
+     * (AttendanceSettingEnum::CUTI_MIN_MASA_KERJA_BULAN) sudah terpenuhi sejak tanggal ini.
+     * Null = tidak dibatasi sama sekali (setting 0/tidak diset, atau joining_date kosong).
+     * Beda dari getMinimumTenureWarning() (generik semua jenis cuti, cuma warning) - dipakai
+     * KHUSUS buat kategori TAHUNAN (instruksi user 2026-09-05), dan MEMBLOKIR submit lewat
+     * assertCutiTahunanEligibility() di bawah, bukan cuma warning.
+     */
+    public function cutiTahunanEligibleDate(User $user): ?Carbon
+    {
+        $minMonths = (int) Setting::resolve(AttendanceSettingEnum::CUTI_MIN_MASA_KERJA_BULAN->value, $user->company_id, default: 0);
+
+        if ($minMonths <= 0) {
+            return null;
+        }
+
+        $joiningDate = $user->profile?->joining_date;
+
+        if (! $joiningDate) {
+            return null;
+        }
+
+        return Carbon::parse($joiningDate)->addMonths($minMonths)->startOfDay();
+    }
+
+    /**
+     * Jendela pengajuan Cuti Tahunan dibuka 1 BULAN sebelum tanggal eligible (instruksi user
+     * 2026-09-05, contoh: masa kerja minimal 12 bulan, gabung 5 Mei -> eligible 5 Mei tahun
+     * depan, form baru boleh diisi mulai 5 April tahun depan) - tapi tanggal MULAI cuti yang
+     * dipilih tetap wajib >= tanggal eligible (submit boleh lebih awal, cutinya sendiri
+     * tidak boleh). Dropdown jenis cuti di form (SubmitLeaveRequest::getLeaveTypesProperty())
+     * sudah menyaring Cuti Tahunan sebelum jendela ini terbuka - assert ini jaring pengaman
+     * server-side kalau ada yang tetap mengirim request langsung.
+     */
+    private function assertCutiTahunanEligibility(User $actingUser, ?object $leaveType, array $data): void
+    {
+        if (! $leaveType || $leaveType->category !== LeaveTypeCategoryEnum::TAHUNAN->value) {
+            return;
+        }
+
+        $eligibleDate = $this->cutiTahunanEligibleDate($actingUser);
+
+        if (! $eligibleDate) {
+            return;
+        }
+
+        $windowOpen = $eligibleDate->copy()->subMonth();
+
+        if (Carbon::now()->lt($windowOpen)) {
+            throw new \Exception("Cuti Tahunan baru bisa diajukan mulai {$windowOpen->translatedFormat('d M Y')} (1 bulan sebelum masa kerja minimal terpenuhi pada {$eligibleDate->translatedFormat('d M Y')}).");
+        }
+
+        if (Carbon::parse($data['start_date'])->lt($eligibleDate)) {
+            throw new \Exception("Tanggal mulai Cuti Tahunan minimal {$eligibleDate->translatedFormat('d M Y')} — masa kerja minimal baru terpenuhi saat itu.");
+        }
     }
 
     /**
