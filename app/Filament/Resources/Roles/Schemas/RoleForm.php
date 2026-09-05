@@ -50,6 +50,8 @@ class RoleForm
                 CustomPermissionEnum::EDIT_DATA_REKENING->value,
                 CustomPermissionEnum::LIHAT_OVERRIDE_KOMPONEN_GAJI->value,
                 CustomPermissionEnum::EDIT_OVERRIDE_KOMPONEN_GAJI->value,
+                CustomPermissionEnum::LIHAT_KENAIKAN_GAJI_POKOK->value,
+                CustomPermissionEnum::EDIT_KENAIKAN_GAJI_POKOK->value,
                 CustomPermissionEnum::LIHAT_OMSET->value,
                 CustomPermissionEnum::KELOLA_OMSET->value,
                 CustomPermissionEnum::LIHAT_INPUT_JASA_UNIT->value,
@@ -212,10 +214,13 @@ class RoleForm
             'DashboardWidget' => 'Dashboard Widget',
             // 4 permission INPUT_MCU_* (custom, flat tanpa ':') dipetakan ke subject buatan
             // 'SikartapMcu' lewat customPermissionSubjectOverrides() di bawah - tanpa override
-            // ini jatuh ke 'Lainnya'. Container 'Rekrutmen' (2026-08-31, instruksi user: Antrian
-            // MCU rekrutmen pindah ke modul Rekrutmen) supaya nempel di root Sistem Rekrutmen,
-            // sub-grup "Input MCU" terpisah. MCU juga dipakai Sikartap tapi permission-nya
-            // sama, cukup 1 tempat di tree.
+            // ini jatuh ke 'Lainnya'. Container UTAMA 'Rekrutmen' (2026-08-31, instruksi user:
+            // Antrian MCU rekrutmen pindah ke modul Rekrutmen) supaya nempel di root Sistem
+            // Rekrutmen, sub-grup "Input MCU" terpisah. MCU JUGA dipakai Sikartap (instruksi
+            // user 2026-09-05: admin yang atur akses lewat section Sikartap juga perlu lihat
+            // checkbox ini di situ, bukan cuma nyari-nyari di Rekrutmen) - lihat
+            // additionalMergeContainers() di bawah, sub-grup yang SAMA (bukan duplikat data,
+            // 1 permission fisik) ikut ditampilkan juga di section Sistem Sikartap.
             'SikartapMcu' => 'Rekrutmen',
             // 3 permission LIHAT_DASHBOARD_SIKARTAP_* (2026-08-25) dipetakan ke subject buatan
             // 'SikartapDashboard' lewat customPermissionSubjectOverrides() di bawah - sub-grup
@@ -225,6 +230,28 @@ class RoleForm
             // di sini juga supaya subjectLabelOverrides() 'JobOpenings' => 'Kelola Lowongan'
             // ikut kepakai (getModelLabel() = "job opening", bukan nama yang diinginkan).
             'JobOpenings' => 'Rekrutmen',
+        ];
+    }
+
+    /**
+     * Subject yang Fieldset-nya perlu MUNCUL LAGI di section portal container LAIN, di luar
+     * container utamanya dari subjectContainerOverrides() — dipakai kalau 1 permission memang
+     * relevan buat 2 modul sekaligus (bukan bikin permission baru/duplikat, cuma tampilkan
+     * checkbox yang SAMA di 2 tempat biar admin yang buka salah satu section tetap ketemu).
+     *
+     * SikartapMcu (instruksi user 2026-09-05): container utamanya 'Rekrutmen', tapi dipakai
+     * juga di modul Sikartap (canInputSikartapMcu() dicek di halaman/nav Sikartap) - admin yang
+     * atur akses lewat section "Sistem Sikartap" perlu lihat & centang checkbox ini juga tanpa
+     * harus tahu itu "sebenarnya" ada di section Rekrutmen. Fieldset yang di-render persis
+     * instance yang sama (bukan CheckboxList baru) - wire:model-nya ke field key yang sama,
+     * jadi tetap 1 sumber data, cuma ditampilkan 2 kali.
+     *
+     * @return array<string, array<int, string>>
+     */
+    public static function additionalMergeContainers(): array
+    {
+        return [
+            'SikartapMcu' => ['Sikartap'],
         ];
     }
 
@@ -490,6 +517,12 @@ class RoleForm
 
                         $containerSubSections = [];
                         $containerFieldKeys = []; // [container => [field_key => [semua nama permission di field itu]]]
+                        // [subject => [label, fieldKey, options]] - dipakai additionalMergeContainers()
+                        // buat BIKIN ULANG CheckboxList/Fieldset (bukan reuse object yang sama) di
+                        // section tambahan - Filament schema component nyimpen back-reference ke
+                        // parent container-nya sendiri, jadi 1 instance object cuma boleh nempel di
+                        // 1 tempat; 2 instance beda dengan field key SAMA aman disinkronkan Livewire.
+                        $subjectFieldMeta = [];
                         $ungroupedSections = [];
 
                         foreach ($groups as $subject => $permissions) {
@@ -531,9 +564,12 @@ class RoleForm
                             if ($container) {
                                 $containerFieldKeys[$container][$fieldKey] = array_keys($options);
 
-                                $containerSubSections[$container][] = Fieldset::make($label)
+                                $fieldset = Fieldset::make($label)
                                     ->columnSpanFull()
                                     ->schema([$checkboxList]);
+
+                                $containerSubSections[$container][] = $fieldset;
+                                $subjectFieldMeta[$subject] = ['label' => $label, 'fieldKey' => $fieldKey, 'options' => $options];
 
                                 continue;
                             }
@@ -547,6 +583,16 @@ class RoleForm
                                 ->schema([$checkboxList]);
                         }
 
+                        // Reverse index additionalMergeContainers(): container label -> subject yang
+                        // Fieldset-nya perlu nempel LAGI di situ, di luar container utamanya (lihat
+                        // docblock method-nya - dipakai buat SikartapMcu yang relevan ke 2 modul).
+                        $extraContainerSubjects = [];
+                        foreach (self::additionalMergeContainers() as $extraSubject => $extraContainers) {
+                            foreach ($extraContainers as $extraContainer) {
+                                $extraContainerSubjects[$extraContainer][] = $extraSubject;
+                            }
+                        }
+
                         // Section portal SISTEM_* — gabungkan checkbox coarse+EDIT_* custom DENGAN
                         // seluruh Fieldset container admin senama (kalau ada, lihat $containerMerge
                         // di atas), supaya "Sistem Keuangan" jadi SATU section utuh, bukan dua
@@ -555,6 +601,33 @@ class RoleForm
                         foreach ($portalGroups as $coarseName => $childNames) {
                             $mergedContainer = $mergedContainerByCoarse[$coarseName] ?? null;
                             $mergedFieldKeys = $mergedContainer ? ($containerFieldKeys[$mergedContainer] ?? []) : [];
+
+                            // Subject "numpang" (additionalMergeContainers()) yang Fieldset-nya juga
+                            // harus muncul di section ini - field key-nya ikut ditambahkan ke
+                            // $mergedFieldKeys supaya toggle "Pilih Semua" section ini ikut menghitung/
+                            // mencentang permission itu juga, bukan cuma yang container utamanya.
+                            $extraSubjectsHere = $mergedContainer ? ($extraContainerSubjects[$mergedContainer] ?? []) : [];
+                            $extraFieldsets = [];
+                            foreach ($extraSubjectsHere as $extraSubject) {
+                                $meta = $subjectFieldMeta[$extraSubject] ?? null;
+
+                                if (! $meta) {
+                                    continue;
+                                }
+
+                                $extraFieldsets[] = Fieldset::make($meta['label'])
+                                    ->columnSpanFull()
+                                    ->schema([
+                                        CheckboxList::make($meta['fieldKey'])
+                                            ->label('Pilih Hak Akses')
+                                            ->bulkToggleable()
+                                            ->options($meta['options'])
+                                            ->columns(2)
+                                            ->disabled(fn ($get) => $get('name') === 'super_admin'),
+                                    ]);
+
+                                $mergedFieldKeys[$meta['fieldKey']] = array_keys($meta['options']);
+                            }
 
                             $groupPermissions = $allPermissions->whereIn('name', [$coarseName, ...$childNames]);
 
@@ -624,6 +697,7 @@ class RoleForm
                                     $selectAllToggle,
                                     $portalCheckboxList,
                                     ...($mergedContainer ? ($containerSubSections[$mergedContainer] ?? []) : []),
+                                    ...$extraFieldsets,
                                 ]);
                         }
 
