@@ -74,6 +74,22 @@ class RekrutmenPanelAccessTest extends TestCase
         $this->actingAs($user)->get('/rekrutmen/applicant-detail-page?application=' . $id)->assertOk();
     }
 
+    public function test_detail_pelamar_shows_candidate_profile_when_available(): void
+    {
+        $id = \App\Models\Rekrutmen\Candidate::query()->value('job_application_id');
+        if (! $id) {
+            $this->markTestSkipped('rekrutmen_db kosong — tak ada candidate untuk diuji.');
+        }
+
+        $user = User::factory()->create();
+        $user->assignRole(Role::firstOrCreate(['name' => 'Super Admin'], ['guard_name' => 'web']));
+
+        $this->actingAs($user)
+            ->get('/rekrutmen/applicant-detail-page?application=' . $id)
+            ->assertOk()
+            ->assertSee('Data Diri Kandidat');
+    }
+
     public function test_detail_pelamar_404_for_unknown_application(): void
     {
         $user = User::factory()->create();

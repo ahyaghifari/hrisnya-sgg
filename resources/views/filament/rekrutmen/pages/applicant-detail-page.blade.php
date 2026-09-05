@@ -66,6 +66,10 @@ $s = $statusMap[$application->status] ?? ['label' => $application->status, 'colo
     @endif
 </x-filament::section>
 
+@if($application->candidate)
+    @include('filament.rekrutmen.pages.partials.candidate-profile-view', ['candidate' => $application->candidate])
+@endif
+
 @if($co?->formSections->isNotEmpty())
     @foreach($co->formSections as $section)
     <x-filament::section :heading="$section->title" icon="heroicon-m-document-text">

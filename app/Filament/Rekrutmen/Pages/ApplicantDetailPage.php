@@ -20,7 +20,8 @@ use Filament\Pages\Page;
  *
  * Info lamaran + jawaban form per seksi + riwayat status + aksi "Tidak Dilanjutkan"
  * (status -> rejected + draft notif) + "Kirim Email Pemberitahuan" (flush draft pelamar
- * ini). Data diri kandidat (9 tabel anak) & unduh berkas file menyusul (Fase 6b).
+ * ini). Data diri kandidat (9 tabel anak) tampil begitu ada (partial
+ * candidate-profile-view). Unduh berkas dokumen kandidat masih 501 (Fase 6b lanjutan).
  */
 class ApplicantDetailPage extends Page implements HasActions, HasForms
 {
@@ -48,6 +49,17 @@ class ApplicantDetailPage extends Page implements HasActions, HasForms
                 'jobOpening.company.formSections.fields',
                 'answers',
                 'statusLogs',
+                'candidate.familyMembers',
+                'candidate.educations',
+                'candidate.trainings',
+                'candidate.organizations',
+                'candidate.workExperiences',
+                'candidate.references',
+                'candidate.additionalInfo',
+                'candidate.selfAssessment',
+                'candidate.documents',
+                'candidate.agreements.companyAgreement',
+                'candidate.agreements.jobOpeningAgreement',
             ])->find($id)
             : null;
 

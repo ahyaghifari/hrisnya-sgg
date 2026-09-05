@@ -190,6 +190,24 @@ ApplicationNotification, User (pelamar/staff — read-only dari HRIS).
   - Follow-up: belum ada test untuk `createEmployeeFromCandidate` (butuh fixture 2 koneksi).
 - [ ] Putuskan nasib Filament admin repo rekrutmen (dormant vs hapus resource).
 
+## Fase 6b — Data diri kandidat penuh (2026-09-04)
+
+- [x] Port 8 model tabel anak `Candidate` (`App\Models\Rekrutmen\`): `CandidateFamilyMember`,
+      `CandidateEducation`, `CandidateTraining`, `CandidateOrganization`,
+      `CandidateWorkExperience`, `CandidateReference`, `CandidateAdditionalInfo` (hasOne),
+      `CandidateSelfAssessment` (hasOne), `CandidateDocument` — + relasi di `Candidate` model.
+      `CandidateAgreement` dapat tambahan `companyAgreement()`/`jobOpeningAgreement()`.
+- [x] Partial `filament.rekrutmen.pages.partials.candidate-profile-view` (port apa adanya
+      dari repo rekrutmen) di-include di Filament `ApplicantDetailPage` begitu
+      `$application->candidate` ada (dibuat otomatis saat status onboarding/passed).
+- [x] Dokumen kandidat ditampilkan sebagai metadata saja ("unduh belum tersedia") — link unduh
+      nunggu proxy dokumen selesai (masih 501, lihat `CandidateDocumentProxyController::show`).
+- [x] **Upload file MCU (EKG/lab/radiologi) TETAP TIDAK ADA** — keputusan final (2026-09-04),
+      staf isi hasil pemeriksaan langsung dalam bentuk teks di `McuStationPage`. Bukan gap,
+      bukan follow-up.
+- Test: `RekrutmenPanelAccessTest::test_detail_pelamar_shows_candidate_profile_when_available`
+  (skip kalau `rekrutmen_db` tidak ada baris `candidates`).
+
 ## Catatan
 
 - Semua fase = shippable + tes sendiri. Tidak big-bang.

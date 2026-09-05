@@ -24,4 +24,14 @@ class CandidateAgreement extends Model
     {
         return $this->belongsTo(Candidate::class);
     }
+
+    public function companyAgreement(): BelongsTo
+    {
+        return $this->belongsTo(CompanyAgreement::class);
+    }
+
+    public function jobOpeningAgreement(): BelongsTo
+    {
+        return $this->belongsTo(JobOpeningAgreement::class);
+    }
 }
