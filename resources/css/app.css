@@ -110,6 +110,12 @@ html.dark[data-theme="hijau"] { --brand: #34d399; --brand-strong: #6ee7b7; --bra
 html[data-theme="pink"] { --brand: #a52a7a; --brand-strong: #87205f; --brand-soft: rgba(165,42,122,0.10); --brand-ring: rgba(165,42,122,0.24); --brand-fill: #a52a7a; --brand-fill-strong: #7a1d59; }
 html.dark[data-theme="pink"] { --brand: #f2addb; --brand-strong: #f7c6e2; --brand-soft: rgba(242,173,219,0.16); --brand-ring: rgba(242,173,219,0.35); --brand-fill: #87205f; --brand-fill-strong: #6b1a4b; }
 
+html[data-theme="ungu"] { --brand: #6e1a8c; --brand-strong: #571370; --brand-soft: rgba(110,26,140,0.10); --brand-ring: rgba(110,26,140,0.24); --brand-fill: #6e1a8c; --brand-fill-strong: #4d1263; }
+html.dark[data-theme="ungu"] { --brand: #d7a3ec; --brand-strong: #e6c9f3; --brand-soft: rgba(215,163,236,0.16); --brand-ring: rgba(215,163,236,0.35); --brand-fill: #571370; --brand-fill-strong: #430f57; }
+
+html[data-theme="emas"] { --brand: #8f6d1c; --brand-strong: #6f5514; --brand-soft: rgba(143,109,28,0.11); --brand-ring: rgba(143,109,28,0.26); --brand-fill: #8f6d1c; --brand-fill-strong: #634b11; }
+html.dark[data-theme="emas"] { --brand: #e8cd84; --brand-strong: #f0dda9; --brand-soft: rgba(232,205,132,0.16); --brand-ring: rgba(232,205,132,0.35); --brand-fill: #6f5514; --brand-fill-strong: #574210; }
+
 /* Pemilih warna tema di halaman Akun */
 .accent-swatch { width: 34px; height: 34px; border-radius: 50%; background: var(--sw); border: 2px solid var(--surface); box-shadow: 0 0 0 1px var(--border); cursor: pointer; padding: 0; transition: box-shadow 0.15s ease, transform 0.12s ease; }
 .accent-swatch:active { transform: scale(0.92); }
@@ -507,7 +513,7 @@ html.dark .dropdown-notif-item:hover, html.dark .dropdown-notif-footer:hover { b
 /* Dipakai widget "Jadwal Shift Tim" di dashboard - warna primary/brand (var(--brand), sama dengan
    .btn-primary), teks putih. Hardcoded (bukan var(--brand)) sama seperti varian header lain di
    atas - identitas kartu ini sengaja fixed, tidak ikut berubah pas dark mode. */
-.pwa-card-header-primary { background: linear-gradient(130deg, var(--brand-fill) 0%, var(--brand-fill-strong) 100%); }
+.pwa-card-header-primary { background: linear-gradient(130deg, var(--brand-fill) 0%, color-mix(in srgb, var(--brand-fill), #ffffff 22%) 100%); }
 .pwa-card-header-primary .pwa-section-title, .pwa-card-header-primary .pwa-section-link { color: #fff; }
 .pwa-card-header-primary .pwa-card-header-deco-1, .pwa-card-header-primary .pwa-card-header-deco-2 { background: #fff; }
 
@@ -766,15 +772,15 @@ html.dark .quiz-review-option.is-wrong-selected i { color: #f87171; }
 .pwa-action-btn-content span { color: #fff; font-size: 12px; font-weight: 700; }
 .pwa-action-btn-deco-1 { position: absolute; top: -22px; right: -22px; width: 72px; height: 72px; border-radius: 50%; background: #fff; opacity: 0.12; }
 .pwa-action-btn-deco-2 { position: absolute; bottom: -26px; left: -18px; width: 60px; height: 60px; border-radius: 50%; background: #fff; opacity: 0.08; }
-.pwa-action-btn.navy { background: linear-gradient(135deg, var(--brand-fill) 0%, var(--brand-fill-strong) 100%); }
+.pwa-action-btn.navy { background: linear-gradient(135deg, var(--brand-fill) 0%, color-mix(in srgb, var(--brand-fill), #ffffff 22%) 100%); }
 .pwa-action-btn.gold { background: linear-gradient(135deg, #92400e 0%, #d97706 100%); }
 .pwa-action-btn.green { background: linear-gradient(135deg, #047C54 0%, #024732 100%); }
 
 /* ── PWA BOTTOM NAV (mobile primary nav — 5 reachable slots instead of top-left hamburger only) ── */
 .pwa-bottom-nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 205; background: var(--surface); border-top: 1px solid var(--border-soft); box-shadow: 0 -2px 16px rgba(0,0,0,0.06); }
-.pwa-bottom-nav-inner { display: flex; align-items: stretch; height: 68px; padding-bottom: env(safe-area-inset-bottom); }
-.pwa-bottom-nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; color: var(--text-muted); text-decoration: none; font-size: 11px; font-weight: 600; border-top: 3px solid transparent; transition: border-color 0.15s ease, color 0.15s ease; }
-.pwa-bottom-nav-item i { font-size: 21px; }
+.pwa-bottom-nav-inner { display: flex; align-items: stretch; height: 60px; padding-bottom: env(safe-area-inset-bottom); }
+.pwa-bottom-nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; color: var(--text-muted); text-decoration: none; font-size: 10px; font-weight: 600; border-top: 3px solid transparent; transition: border-color 0.15s ease, color 0.15s ease; }
+.pwa-bottom-nav-item i { font-size: 18px; }
 .pwa-bottom-nav-item.active { color: var(--brand); border-top-color: var(--brand); }
 /* Item Akun = avatar saja (tanpa label) - cincin brand pas aktif sebagai penanda. */
 .pwa-bottom-nav-akun.active img, .pwa-bottom-nav-akun.active span { box-shadow: 0 0 0 2px var(--brand); }
@@ -814,7 +820,7 @@ html.dark .quiz-review-option.is-wrong-selected i { color: #f87171; }
 .pwa-menu-grid-item { display: flex; flex-direction: column; align-items: center; gap: 8px; text-decoration: none; }
 .pwa-menu-grid-icon { width: 42px; height: 42px; border-radius: 13px; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.12); }
 .pwa-menu-grid-label { font-size: 10px; font-weight: 600; color: var(--text-body); text-align: center; line-height: 1.2; }
-.pwa-menu-grid-icon.navy { background: linear-gradient(135deg, var(--brand-fill) 0%, var(--brand-fill-strong) 100%); }
+.pwa-menu-grid-icon.navy { background: linear-gradient(135deg, var(--brand-fill) 0%, color-mix(in srgb, var(--brand-fill), #ffffff 22%) 100%); }
 .pwa-menu-grid-icon.green { background: linear-gradient(135deg, #047C54 0%, #024732 100%); }
 .pwa-menu-grid-icon.gold { background: linear-gradient(135deg, #92400e 0%, #d97706 100%); }
 .pwa-menu-grid-icon.violet { background: linear-gradient(135deg, #5b21b6 0%, #7c3aed 100%); }
@@ -864,7 +870,7 @@ html.dark .deco-d { background: #34d399; opacity: 0.09; }
 .page-content { max-width: 1400px; margin: 0 auto; padding: 24px 16px; position: relative; min-height: 100vh; transition: opacity 150ms ease-in-out; opacity: 1; }
 @media (min-width: 768px) { .page-content { padding: 32px 40px; } }
 /* Room for the fixed .pwa-bottom-nav so page content doesn't render underneath it. */
-@media (max-width: 767.98px) { .page-content { padding-top: calc(72px + env(safe-area-inset-top)); padding-bottom: calc(92px + env(safe-area-inset-bottom)); } }
+@media (max-width: 767.98px) { .page-content { padding-top: calc(72px + env(safe-area-inset-top)); padding-bottom: calc(84px + env(safe-area-inset-bottom)); } }
 
 /* Fade transisi antar-halaman wire:navigate — class-nya di <html> (persisten lewat morph, sama
    pola dengan html.dark), BUKAN di .page-content sendiri (elemen itu yang di-morph, kalau
@@ -931,7 +937,7 @@ html.lw-navigating .page-content { opacity: 0; }
 @media (min-width: 768px) { .bento-task-kursus.no-tugas { grid-template-columns: 1fr; } }
 
 /* ── WELCOME CARD ── */
-.welcome-card { background: linear-gradient(135deg, var(--brand-fill) 0%, var(--brand-fill-strong) 100%); border-radius: 20px; padding: 32px; position: relative; overflow: hidden; }
+.welcome-card { background: linear-gradient(135deg, var(--brand-fill) 0%, color-mix(in srgb, var(--brand-fill), #ffffff 22%) 100%); border-radius: 20px; padding: 32px; position: relative; overflow: hidden; }
 .w-deco-1 { position: absolute; top: -80px; right: -80px; width: 280px; height: 280px; border-radius: 50%; background: #fff; opacity: 0.06; }
 .w-deco-2 { position: absolute; bottom: -50px; left: 30px; width: 200px; height: 200px; border-radius: 50%; background: #047C54; opacity: 0.16; }
 .w-deco-4 { position: absolute; bottom: 60px; right: 40px; width: 100px; height: 100px; border-radius: 14px; background: #B9308C; opacity: 0.16; transform: rotate(15deg); }
@@ -1148,7 +1154,7 @@ html.dark .border-slate-200, html.dark .border-slate-300 { border-color: var(--b
 /* Varian lebar - form dengan banyak field sejajar (mis. daftar dokumen Sikartap) supaya tidak
    kepanjangan ke bawah percuma di layar desktop, 680px kepenuhan buat konten kayak gini. */
 .form-page-wrap-wide { max-width: 960px; margin: 0 auto; }
-.page-hero { background: linear-gradient(130deg,var(--brand-fill) 0%,var(--brand-fill-strong) 100%); border-radius: 20px; padding: 24px; position: relative; overflow: hidden; margin-bottom: 20px; }
+.page-hero { background: linear-gradient(130deg,var(--brand-fill) 0%,color-mix(in srgb, var(--brand-fill), #ffffff 22%) 100%); border-radius: 20px; padding: 24px; position: relative; overflow: hidden; margin-bottom: 20px; }
 @media (min-width: 768px) { .page-hero { padding: 28px 32px; } }
 /* Warna header form pengajuan disamakan dengan tombol Aksi Cepat di halaman Pengajuan Absensi
    (navy = Cuti, default di atas; gold = Izin; green = Lembur). */

@@ -50,7 +50,9 @@
     <div style="display:flex;gap:14px;" id="accent-picker">
         <button type="button" data-accent="biru"  onclick="pickAccent('biru')"  class="accent-swatch" style="--sw:#042c6c;" aria-label="Biru"></button>
         <button type="button" data-accent="hijau" onclick="pickAccent('hijau')" class="accent-swatch" style="--sw:#047C54;" aria-label="Hijau"></button>
-        <button type="button" data-accent="pink"  onclick="pickAccent('pink')"  class="accent-swatch" style="--sw:#8a1f5f;" aria-label="Pink"></button>
+        <button type="button" data-accent="pink"  onclick="pickAccent('pink')"  class="accent-swatch" style="--sw:#a52a7a;" aria-label="Pink"></button>
+        <button type="button" data-accent="ungu"  onclick="pickAccent('ungu')"  class="accent-swatch" style="--sw:#6e1a8c;" aria-label="Ungu"></button>
+        <button type="button" data-accent="emas"  onclick="pickAccent('emas')"  class="accent-swatch" style="--sw:#8f6d1c;" aria-label="Emas"></button>
     </div>
 </div>
 

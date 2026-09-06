@@ -43,9 +43,9 @@
 
         <a href="{{ route('akun') }}" wire:navigate class="pwa-bottom-nav-item pwa-bottom-nav-akun {{ request()->routeIs('akun') ? 'active' : '' }}" aria-label="Akun">
             @if ($navPhotoUrl)
-                <img src="{{ $navPhotoUrl }}" alt="" style="width:28px;height:28px;border-radius:50%;object-fit:cover;">
+                <img src="{{ $navPhotoUrl }}" alt="" style="width:24px;height:24px;border-radius:50%;object-fit:cover;">
             @else
-                <span style="width:28px;height:28px;border-radius:50%;background:var(--border-soft);color:var(--text-heading);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;">{{ $navInitials }}</span>
+                <span style="width:24px;height:24px;border-radius:50%;background:var(--border-soft);color:var(--text-heading);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;">{{ $navInitials }}</span>
             @endif
         </a>
     </div>
