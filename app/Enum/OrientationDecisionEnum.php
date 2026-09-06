@@ -4,28 +4,29 @@ namespace App\Enum;
 
 use Filament\Support\Contracts\HasLabel;
 
-/** Keputusan penilai atas pengajuan penilaian orientasi (diisi manual di step penilaian). */
+/**
+ * Keputusan penilai atas pengajuan penilaian orientasi. Hanya 2 — TIDAK ada "tidak lulus"
+ * (2026-09-06, instruksi user): karyawan orientasi entah lanjut ke kontrak atau orientasinya
+ * diperpanjang.
+ */
 enum OrientationDecisionEnum: string implements HasLabel
 {
-    case LULUS = 'lulus';
+    case LANJUT_KONTRAK = 'lanjut_kontrak';
     case PERPANJANG = 'perpanjang';
-    case TIDAK_LULUS = 'tidak_lulus';
 
     public function getLabel(): string
     {
         return match ($this) {
-            self::LULUS => 'Lulus',
+            self::LANJUT_KONTRAK => 'Lanjut Kontrak',
             self::PERPANJANG => 'Perpanjang Orientasi',
-            self::TIDAK_LULUS => 'Tidak Lulus',
         };
     }
 
     public function color(): string
     {
         return match ($this) {
-            self::LULUS => 'success',
+            self::LANJUT_KONTRAK => 'success',
             self::PERPANJANG => 'warning',
-            self::TIDAK_LULUS => 'danger',
         };
     }
 }

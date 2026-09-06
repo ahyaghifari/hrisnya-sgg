@@ -1,7 +1,8 @@
 @php
     // "Sikartap" = payung perjalanan status karyawan: Orientasi -> Kontrak -> Tetap.
     // Halaman-halamannya masih terpisah (route tidak diubah), disatukan di dropdown ini
-    // (instruksi user 2026-09-04). 3 kolom seperti modul lain: Karyawan Tetap | Kontrak | Orientasi.
+    // (instruksi user 2026-09-04). 3 kolom: Karyawan Tetap | Kontrak | Orientasi - Kontrak &
+    // Orientasi dipisah jadi kolom sendiri-sendiri (2026-09-05, dulu 1 kolom gabung).
     $canViewSikartap = auth()->user()->can('ViewAny:Sikartap');
     $canInputMcu = auth()->user()->canInputSikartapMcu()
         || auth()->user()->can(\App\Enum\CustomPermissionEnum::EDIT_INPUT_MCU->value);
@@ -40,11 +41,11 @@
         @if ($canViewKontrak || $canViewOrientasi)
         <div class="dropdown-col">
             <div class="dropdown-col-label">Kontrak &amp; Orientasi</div>
-            @if ($canViewOrientasi)
-                <a href="{{ route('kepegawaian.orientasi') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-user-graduate"></i> Orientasi</a>
-            @endif
             @if ($canViewKontrak)
                 <a href="{{ route('kepegawaian.kontrak') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-file-contract"></i> Kontrak</a>
+            @endif
+            @if ($canViewOrientasi)
+                <a href="{{ route('kepegawaian.orientasi') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-user-graduate"></i> Orientasi</a>
             @endif
         </div>
         @endif

@@ -4,19 +4,14 @@ declare(strict_types=1);
 
 namespace App\Policies;
 
+use Illuminate\Foundation\Auth\User as AuthUser;
 use App\Models\OrientationSubmission;
 use Illuminate\Auth\Access\HandlesAuthorization;
-use Illuminate\Foundation\Auth\User as AuthUser;
 
-/**
- * Shield permission untuk Filament admin (HR pantau semua pengajuan orientasi). Akses
- * self-service karyawan & approver TIDAK lewat sini — pakai gate `isOrientasiKaryawan()` +
- * cek approver di halaman portal (pola UserTransitionDetailPage).
- */
 class OrientationSubmissionPolicy
 {
     use HandlesAuthorization;
-
+    
     public function viewAny(AuthUser $authUser): bool
     {
         return $authUser->can('ViewAny:OrientationSubmission');
@@ -51,4 +46,5 @@ class OrientationSubmissionPolicy
     {
         return $authUser->can('ForceDelete:OrientationSubmission');
     }
+
 }

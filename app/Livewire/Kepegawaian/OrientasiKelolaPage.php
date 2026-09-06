@@ -3,9 +3,10 @@
 namespace App\Livewire\Kepegawaian;
 
 use App\Enum\CustomPermissionEnum;
+use App\Enum\EmployeeTypeCategory;
 use App\Models\Master\Companies;
 use App\Models\OrientationSubmission;
-use App\Models\User\UserOrientation;
+use App\Models\User;
 use App\Services\OrientationService;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\Auth;
@@ -16,8 +17,10 @@ use Livewire\WithPagination;
 
 /**
  * Sisi HR / atasan untuk modul Orientasi — 3 tab dalam satu halaman:
- *  - pengajuan : daftar pengajuan penilaian + keputusan (klik ke OrientasiDetailPage)
- *  - periode   : ledger user_orientations (dibuat lewat Rekrutmen / perpanjangan)
+ *  - pengajuan : karyawan yang SAAT INI berstatus Orientasi — 1 baris/orang, gabungan periode
+ *    (mulai–selesai) + status pengajuan penilaian + keputusan + aksi.
+ *  - riwayat   : karyawan yang SUDAH lulus/pindah status (kontrak/tetap) tapi punya riwayat
+ *    periode orientasi — outcome terakhirnya.
  *  - indikator : kelola indikator penilaian per company (Setting `orientation_criteria`)
  * Beda dari /orientasi yang self-service milik karyawan sendiri.
  */
@@ -32,15 +35,11 @@ class OrientasiKelolaPage extends Component
     #[Url]
     public string $search = '';
 
-    /** semua | menunggu | dinilai | selesai */
-    #[Url]
-    public string $status = 'semua';
-
-    /** pengajuan | periode | indikator */
+    /** pengajuan | riwayat | indikator */
     #[Url]
     public string $tab = 'pengajuan';
 
-    /** @var array<int, array{name: string, group_label: ?string, max_score: float}> */
+    /** @var array<int, array{name: string}> */
     public array $criteriaRows = [];
 
     public function mount(): void
@@ -54,12 +53,6 @@ class OrientasiKelolaPage extends Component
         }
 
         $this->loadCriteria();
-    }
-
-    public function setStatus(string $status): void
-    {
-        $this->status = $status;
-        $this->resetPage();
     }
 
     public function setTab(string $tab): void
@@ -96,40 +89,42 @@ class OrientasiKelolaPage extends Component
         return Companies::orderBy('code')->pluck('name', 'id');
     }
 
-    public function getSubmissionsProperty()
+    /** Query dasar: karyawan berdasarkan kategori employee_type-nya (orientasi vs bukan). */
+    private function usersByOrientasiStatus(bool $currentlyOrientasi)
     {
-        $map = [
-            'menunggu' => ['menunggu_persetujuan'],
-            'dinilai' => ['dinilai'],
-            'selesai' => ['selesai'],
-        ];
-
-        return OrientationSubmission::query()
-            ->with(['user.company', 'decidedBy'])
-            ->where('status', '!=', 'draft')
+        return User::query()
             ->when($this->companyId, fn ($q) => $q->where('company_id', $this->companyId))
-            ->when(isset($map[$this->status]), fn ($q) => $q->whereIn('status', $map[$this->status]))
             ->when(trim($this->search) !== '', function ($q) {
                 $s = trim($this->search);
-                $q->whereHas('user', fn ($q2) => $q2->where('name', 'like', "%{$s}%")->orWhere('nip', 'like', "%{$s}%"));
+                $q->where(fn ($q2) => $q2->where('name', 'like', "%{$s}%")->orWhere('nip', 'like', "%{$s}%"));
             })
-            ->orderByDesc('submitted_at')
-            ->paginate(12)
-            ->appends(['companyId' => $this->companyId, 'search' => $this->search, 'status' => $this->status, 'tab' => $this->tab]);
+            ->whereHas('orientations')
+            ->when($currentlyOrientasi,
+                fn ($q) => $q->whereHas('profile.employeeType', fn ($q2) => $q2->where('category', EmployeeTypeCategory::ORIENTASI->value)),
+                fn ($q) => $q->whereDoesntHave('profile.employeeType', fn ($q2) => $q2->where('category', EmployeeTypeCategory::ORIENTASI->value)),
+            )
+            ->with([
+                'company',
+                'profile.employeeType',
+                'orientations' => fn ($q) => $q->orderByDesc('start_date'),
+                'orientationSubmissions' => fn ($q) => $q->with('decidedBy')->orderByDesc('created_at'),
+            ])
+            ->orderBy('name');
     }
 
-    /** Periode orientasi (user_orientations) — ledger, dibuat lewat Rekrutmen / perpanjangan. */
-    public function getPeriodsProperty()
+    /** Tab "pengajuan" — karyawan yang SAAT INI berstatus Orientasi. */
+    public function getCurrentOrientasiProperty()
     {
-        return UserOrientation::query()
-            ->with(['user.company'])
-            ->when($this->companyId, fn ($q) => $q->where('company_id', $this->companyId))
-            ->when(trim($this->search) !== '', function ($q) {
-                $s = trim($this->search);
-                $q->whereHas('user', fn ($q2) => $q2->where('name', 'like', "%{$s}%")->orWhere('nip', 'like', "%{$s}%"));
-            })
-            ->orderByDesc('start_date')
-            ->paginate(12)
+        return $this->usersByOrientasiStatus(true)
+            ->paginate(15)
+            ->appends(['companyId' => $this->companyId, 'search' => $this->search, 'tab' => $this->tab]);
+    }
+
+    /** Tab "riwayat" — karyawan yang statusnya sudah BUKAN Orientasi (kontrak/tetap). */
+    public function getRiwayatProperty()
+    {
+        return $this->usersByOrientasiStatus(false)
+            ->paginate(15)
             ->appends(['companyId' => $this->companyId, 'search' => $this->search, 'tab' => $this->tab]);
     }
 
@@ -155,7 +150,7 @@ class OrientasiKelolaPage extends Component
     public function addCriterion(): void
     {
         abort_unless($this->canEditCriteria, 403);
-        $this->criteriaRows[] = ['name' => '', 'group_label' => null, 'max_score' => 5];
+        $this->criteriaRows[] = ['name' => ''];
     }
 
     public function removeCriterion(int $index): void
@@ -165,24 +160,35 @@ class OrientasiKelolaPage extends Component
         $this->criteriaRows = array_values($this->criteriaRows);
     }
 
+    public function moveCriterionUp(int $index): void
+    {
+        abort_unless($this->canEditCriteria, 403);
+        if ($index > 0 && isset($this->criteriaRows[$index])) {
+            [$this->criteriaRows[$index - 1], $this->criteriaRows[$index]] = [$this->criteriaRows[$index], $this->criteriaRows[$index - 1]];
+        }
+    }
+
+    public function moveCriterionDown(int $index): void
+    {
+        abort_unless($this->canEditCriteria, 403);
+        if ($index < count($this->criteriaRows) - 1 && isset($this->criteriaRows[$index])) {
+            [$this->criteriaRows[$index + 1], $this->criteriaRows[$index]] = [$this->criteriaRows[$index], $this->criteriaRows[$index + 1]];
+        }
+    }
+
     public function saveCriteria(): void
     {
         abort_unless($this->canEditCriteria, 403);
 
         $this->validate([
             'criteriaRows.*.name' => 'required|string|max:255',
-            'criteriaRows.*.max_score' => 'required|numeric|min:1',
         ], [], [
             'criteriaRows.*.name' => 'nama indikator',
-            'criteriaRows.*.max_score' => 'skor maksimal',
         ]);
 
         $clean = collect($this->criteriaRows)
-            ->map(fn ($r) => [
-                'name' => trim($r['name']),
-                'group_label' => $r['group_label'] ? trim($r['group_label']) : null,
-                'max_score' => (float) $r['max_score'],
-            ])
+            ->map(fn ($r) => ['name' => trim($r['name'])])
+            ->filter(fn ($r) => $r['name'] !== '')
             ->values()
             ->all();
 

@@ -22,6 +22,26 @@ enum UserTransitionTypeEnum: string
     case EMPLOYMENT_STATUS_CHANGE = 'employment_status_change';
     case CONTRACT_EXTENSION = 'contract_extension';
 
+    /**
+     * Jenis transisi yang boleh dipilih manual di form "Perubahan Status Karyawan".
+     * EMPLOYMENT_STATUS_CHANGE (Pengangkatan Orientasi) & CONTRACT_EXTENSION (Perpanjangan
+     * Kontrak) sengaja DIKELUARKAN — orientasi->kontrak sekarang langsung di halaman Penilaian
+     * Orientasi; modul kontrak (termasuk perpanjangan) dikerjakan terpisah. Case-nya tetap ada
+     * supaya data lama & alur approval yang masih jalan tidak rusak.
+     *
+     * @return array<int, self>
+     */
+    public static function assignable(): array
+    {
+        return [
+            self::PROMOTION,
+            self::DEMOTION,
+            self::MUTATION,
+            self::TERMINATION,
+            self::KELAS_CHANGE,
+        ];
+    }
+
     public function label(): string
     {
         return match ($this) {

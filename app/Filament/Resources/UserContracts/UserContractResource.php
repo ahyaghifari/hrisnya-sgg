@@ -28,7 +28,7 @@ class UserContractResource extends BaseCompanyResource
 {
     protected static ?string $model = UserContract::class;
 
-    protected static string|UnitEnum|null $navigationGroup = 'Kepegawaian';
+    protected static string|UnitEnum|null $navigationGroup = 'Kontrak & Orientasi';
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedDocumentText;
 

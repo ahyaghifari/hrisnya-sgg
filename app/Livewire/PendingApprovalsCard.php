@@ -491,18 +491,17 @@ class PendingApprovalsCard extends Component
                 ]);
         }
 
-        // Penilaian Orientasi - 1 baris per pengajuan. bulk_supported=false: approver terakhir
-        // mengisi form skor + keputusan di halaman detail, tidak ada "approve 1 tombol".
+        // Penilaian Orientasi - 1 baris per pengajuan. bulk_supported=false: penilai mengisi
+        // form skor + keputusan di halaman detail, tidak ada "approve 1 tombol". TIDAK lewat
+        // Approval Engine (2026-09-06) - penilai di-resolve dari sikartap_reviewers.
         $orientationRequests = collect();
         if ($this->wants('orientation_request')) {
-            $orientationIds = $permissionService
-                ->pendingApprovalsFor(Auth::user(), ApprovalModuleEnum::ORIENTATION_REQUEST->value)
-                ->pluck('snapshot.module_id')->filter()->values();
-
-            $orientationRequests = \App\Models\OrientationSubmission::with('user')
-                ->whereIn('id', $orientationIds)
+            $orientationRequests = \App\Models\OrientationSubmission::with(['user', 'userOrientation'])
+                ->where('status', 'diajukan')
                 ->whereHas('user')
                 ->get()
+                ->filter(fn ($s) => app(\App\Services\OrientationService::class)->canReview($s, Auth::user()))
+                ->values()
                 ->map(fn ($s) => (object) [
                     'id' => $s->id,
                     'dispatch' => 'orientation_request',

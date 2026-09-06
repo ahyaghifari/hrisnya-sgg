@@ -9,6 +9,8 @@ use App\Models\AuditLog;
 use App\Models\Master\Companies;
 use App\Models\Master\OrgStructure;
 use App\Models\Setting;
+use App\Models\Master\JobPositions;
+use App\Models\SikartapReviewer;
 use App\Models\Sikartap\SikartapIdeInovasiReviewer;
 use App\Models\User;
 use Filament\Notifications\Notification;
@@ -226,6 +228,68 @@ class SikartapSettingsPage extends Component
         }
 
         Notification::make()->title('Reviewer Ide Inovasi berhasil disimpan')->success()->send();
+    }
+
+    // ── Penilai Orientasi (sikartap_reviewers, context orientation) ───────────
+    // Jabatan-based (tahan personil ganti). Independen dari toggle "wajib Ide Inovasi".
+
+    public ?string $orientationReviewerDeptId = null;
+    public ?string $orientationReviewerJobPositionId = null;
+
+    public function getOrientationReviewersProperty()
+    {
+        if (! $this->companyId) {
+            return collect();
+        }
+
+        return SikartapReviewer::query()
+            ->forContext(SikartapReviewer::CONTEXT_ORIENTATION)
+            ->where('company_id', $this->companyId)
+            ->with(['orgStructure', 'jobPosition'])
+            ->get();
+    }
+
+    public function getCompanyJobPositionsProperty()
+    {
+        if (! $this->companyId) {
+            return collect();
+        }
+
+        return JobPositions::where('company_id', $this->companyId)->orderBy('name')->pluck('name', 'id');
+    }
+
+    public function addOrientationReviewer(): void
+    {
+        abort_unless(Auth::user()->can(CustomPermissionEnum::EDIT_PENGATURAN_SIKARTAP->value), 403);
+
+        $this->validate([
+            'orientationReviewerDeptId' => 'required|exists:m_org_structures,id',
+            'orientationReviewerJobPositionId' => 'required|exists:m_job_positions,id',
+        ], [], [
+            'orientationReviewerDeptId' => 'departemen',
+            'orientationReviewerJobPositionId' => 'jabatan',
+        ]);
+
+        SikartapReviewer::firstOrCreate([
+            'context' => SikartapReviewer::CONTEXT_ORIENTATION,
+            'company_id' => $this->companyId,
+            'org_structure_id' => $this->orientationReviewerDeptId,
+            'job_position_id' => $this->orientationReviewerJobPositionId,
+        ]);
+
+        $this->orientationReviewerDeptId = null;
+        $this->orientationReviewerJobPositionId = null;
+
+        Notification::make()->title('Penilai orientasi ditambahkan')->success()->send();
+    }
+
+    public function removeOrientationReviewer(string $id): void
+    {
+        abort_unless(Auth::user()->can(CustomPermissionEnum::EDIT_PENGATURAN_SIKARTAP->value), 403);
+
+        SikartapReviewer::whereKey($id)->delete();
+
+        Notification::make()->title('Penilai orientasi dihapus')->success()->send();
     }
 
     public function render()

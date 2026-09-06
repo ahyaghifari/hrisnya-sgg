@@ -8,11 +8,14 @@ use App\Models\User;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * 1 periode orientasi (ledger, mirip UserContract). Dibuat lewat Rekrutmen
  * (CandidateOnboardingService) atau perpanjangan dari penilaian orientasi. Append-only:
  * perpanjangan = baris baru (source='extension', previous_orientation_id ke baris sebelumnya).
+ *
+ * INDUK dari orientation_submissions (1 periode : N pengajuan penilaian).
  */
 class UserOrientation extends Model
 {
@@ -25,7 +28,6 @@ class UserOrientation extends Model
         'end_date',
         'duration_months',
         'source',
-        'source_submission_id',
         'previous_orientation_id',
     ];
 
@@ -45,9 +47,10 @@ class UserOrientation extends Model
         return $this->belongsTo(Companies::class, 'company_id');
     }
 
-    public function sourceSubmission(): BelongsTo
+    /** Pengajuan penilaian untuk periode ini (anak). */
+    public function submissions(): HasMany
     {
-        return $this->belongsTo(OrientationSubmission::class, 'source_submission_id');
+        return $this->hasMany(OrientationSubmission::class)->latest();
     }
 
     public function previous(): BelongsTo

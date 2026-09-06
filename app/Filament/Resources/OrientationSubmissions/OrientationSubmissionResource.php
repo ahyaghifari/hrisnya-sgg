@@ -20,7 +20,7 @@ class OrientationSubmissionResource extends BaseCompanyResource
 {
     protected static ?string $model = OrientationSubmission::class;
 
-    protected static string|UnitEnum|null $navigationGroup = 'Kepegawaian';
+    protected static string|UnitEnum|null $navigationGroup = 'Kontrak & Orientasi';
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedAcademicCap;
 
@@ -43,6 +43,11 @@ class OrientationSubmissionResource extends BaseCompanyResource
             ->columns([
                 TextColumn::make('user.name')->label('Karyawan')->searchable()->sortable(),
                 TextColumn::make('user.nip')->label('NIP')->searchable(),
+                TextColumn::make('userOrientation')
+                    ->label('Periode Orientasi')
+                    ->state(fn ($record) => $record->userOrientation
+                        ? $record->userOrientation->start_date?->format('d M Y') . ' – ' . $record->userOrientation->end_date?->format('d M Y')
+                        : '—'),
                 TextColumn::make('status')
                     ->badge()
                     ->formatStateUsing(fn (string $state) => str($state)->replace('_', ' ')->title())
@@ -58,9 +63,8 @@ class OrientationSubmissionResource extends BaseCompanyResource
                     ->placeholder('—')
                     ->formatStateUsing(fn (?string $state) => $state ? str($state)->replace('_', ' ')->title() : null)
                     ->color(fn (?string $state) => match ($state) {
-                        'lulus' => 'success',
+                        'lanjut_kontrak' => 'success',
                         'perpanjang' => 'warning',
-                        'tidak_lulus' => 'danger',
                         default => 'gray',
                     }),
                 TextColumn::make('submitted_at')->label('Diajukan')->dateTime('d M Y H:i')->sortable(),

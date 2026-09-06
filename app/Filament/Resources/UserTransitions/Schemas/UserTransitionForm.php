@@ -67,15 +67,9 @@ class UserTransitionForm
 
                     Select::make('transition_type')
                         ->label('Jenis Perubahan')
-                        ->options([
-                            UserTransitionTypeEnum::PROMOTION->value => UserTransitionTypeEnum::PROMOTION->label(),
-                            UserTransitionTypeEnum::DEMOTION->value => UserTransitionTypeEnum::DEMOTION->label(),
-                            UserTransitionTypeEnum::MUTATION->value => UserTransitionTypeEnum::MUTATION->label(),
-                            UserTransitionTypeEnum::TERMINATION->value => UserTransitionTypeEnum::TERMINATION->label(),
-                            UserTransitionTypeEnum::KELAS_CHANGE->value => UserTransitionTypeEnum::KELAS_CHANGE->label(),
-                            UserTransitionTypeEnum::EMPLOYMENT_STATUS_CHANGE->value => UserTransitionTypeEnum::EMPLOYMENT_STATUS_CHANGE->label(),
-                            UserTransitionTypeEnum::CONTRACT_EXTENSION->value => UserTransitionTypeEnum::CONTRACT_EXTENSION->label(),
-                        ])
+                        ->options(collect(UserTransitionTypeEnum::assignable())
+                            ->mapWithKeys(fn ($t) => [$t->value => $t->label()])
+                            ->all())
                         ->default(fn () => request()->query('type'))
                         ->reactive()
                         ->required(),

@@ -44,7 +44,7 @@
                 <label class="form-label">Jenis Perubahan <span style="color:var(--danger-text);">*</span></label>
                 <select wire:model.live="transition_type" class="form-input">
                     <option value="">Pilih jenis perubahan</option>
-                    @foreach (\App\Enum\UserTransitionTypeEnum::cases() as $type)
+                    @foreach (\App\Enum\UserTransitionTypeEnum::assignable() as $type)
                         <option value="{{ $type->value }}">{{ $type->label() }}</option>
                     @endforeach
                 </select>

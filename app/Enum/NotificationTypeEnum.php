@@ -77,6 +77,8 @@ enum NotificationTypeEnum: string
 
     // Orientasi
     case ORIENTATION_REVIEWED = 'orientation_reviewed';
+    case ORIENTATION_REVIEW_REQUESTED = 'orientation_review_requested';
+    case ORIENTATION_REVISION_REQUESTED = 'orientation_revision_requested';
 
     public function label(): string
     {
@@ -114,6 +116,8 @@ enum NotificationTypeEnum: string
             self::SIKARTAP_IDE_INOVASI_DIREVIEW => 'Ide Inovasi Saya Dinilai',
             self::SIKARTAP_KEPUTUSAN_DIREKTUR => 'Keputusan Direktur atas Pengajuan Karyawan Tetap Saya',
             self::ORIENTATION_REVIEWED => 'Penilaian Orientasi Saya Selesai',
+            self::ORIENTATION_REVIEW_REQUESTED => 'Pengajuan Orientasi Perlu Dinilai',
+            self::ORIENTATION_REVISION_REQUESTED => 'Bukti Orientasi Saya Diminta Revisi',
         };
     }
 
@@ -167,7 +171,9 @@ enum NotificationTypeEnum: string
             self::SIKARTAP_HASIL_MCU => 'Dikirim saat keputusan hasil MCU (fit/unfit) Anda diinput HRD.',
             self::SIKARTAP_IDE_INOVASI_DIREVIEW => 'Dikirim saat ide inovasi Anda dinilai atasan, direktur, atau komisaris.',
             self::SIKARTAP_KEPUTUSAN_DIREKTUR => 'Dikirim saat Direktur memutuskan pengajuan karyawan tetap Anda (lulus/tidak lulus).',
-            self::ORIENTATION_REVIEWED => 'Dikirim saat atasan menilai pengajuan orientasi Anda (lulus / perpanjang / tidak lulus).',
+            self::ORIENTATION_REVIEWED => 'Dikirim saat penilai memutuskan pengajuan orientasi Anda (lanjut kontrak / perpanjang orientasi).',
+            self::ORIENTATION_REVIEW_REQUESTED => 'Dikirim ke penilai saat ada karyawan orientasi mengajukan penilaian.',
+            self::ORIENTATION_REVISION_REQUESTED => 'Dikirim saat penilai mengembalikan pengajuan orientasi Anda untuk diperbaiki, beserta catatannya.',
         };
     }
 }
