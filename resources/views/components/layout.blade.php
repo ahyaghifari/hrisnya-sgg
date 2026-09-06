@@ -62,6 +62,8 @@
             var t = localStorage.getItem('theme');
             if (!t) t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
             if (t === 'dark') document.documentElement.classList.add('dark');
+            var a = localStorage.getItem('accent'); // biru (default) | hijau | pink
+            if (a === 'hijau' || a === 'pink') document.documentElement.setAttribute('data-theme', a);
         })();
     </script>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
@@ -182,9 +184,24 @@
             const dark = document.documentElement.classList.toggle('dark');
             localStorage.setItem('theme', dark ? 'dark' : 'light');
         }
+        // Dipakai pemilih warna di halaman Akun. accent: 'biru' (default) | 'hijau' | 'pink'.
+        window.setAccent = function (accent) {
+            if (accent === 'hijau' || accent === 'pink') {
+                document.documentElement.setAttribute('data-theme', accent);
+                localStorage.setItem('accent', accent);
+            } else {
+                document.documentElement.removeAttribute('data-theme');
+                localStorage.setItem('accent', 'biru');
+            }
+            var mc = { biru: '#042c6c', hijau: '#047C54', pink: '#a52a7a' }[accent] || '#042c6c';
+            var m = document.querySelector('meta[name="theme-color"]');
+            if (m) m.setAttribute('content', mc);
+        };
         document.addEventListener('livewire:navigated', function () {
-            const dark = localStorage.getItem('theme') === 'dark';
-            document.documentElement.classList.toggle('dark', dark);
+            document.documentElement.classList.toggle('dark', localStorage.getItem('theme') === 'dark');
+            const a = localStorage.getItem('accent');
+            if (a === 'hijau' || a === 'pink') document.documentElement.setAttribute('data-theme', a);
+            else document.documentElement.removeAttribute('data-theme');
         });
     </script>
     @stack('scripts')

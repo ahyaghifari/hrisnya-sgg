@@ -40,7 +40,7 @@
                 </div>
             </div>
 
-            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:18px;padding-top:18px;border-top:1px dashed var(--border);">
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin-top:18px;padding-top:18px;border-top:1px dashed var(--border);">
                 <div>
                     <p style="font-size:10.5px;color:var(--text-faint);margin:0 0 2px;text-transform:uppercase;letter-spacing:0.03em;">Gaji Kotor</p>
                     <p style="font-size:15px;font-weight:700;margin:0;">Rp{{ number_format($payroll->gross_salary, 0, ',', '.') }}</p>

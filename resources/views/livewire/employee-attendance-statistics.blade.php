@@ -71,7 +71,7 @@ identity-accent = border gradasi warna section-nav (lihat app.css); warna teks t
 </div>
 
 <!-- Navigasi antar-bagian: tombol (bukan tab bergaris bawah) supaya enak disentuh di mobile -->
-<div class="section-nav">
+<div class="section-nav section-nav-tiles">
     <button type="button" @click="tab = 'career'" class="section-nav-btn gold-shiny" :class="{ 'is-active': tab === 'career' }">
         <i class="fa-solid fa-briefcase"></i>
         <span>{{ $isSelf ? 'MyCareer' : 'Pekerjaan' }}</span>
@@ -82,7 +82,7 @@ identity-accent = border gradasi warna section-nav (lihat app.css); warna teks t
     </button>
     <button type="button" @click="tab = 'statistik'" class="section-nav-btn green" :class="{ 'is-active': tab === 'statistik' }">
         <i class="fa-solid fa-clock"></i>
-        <span>{{ $this->showExtraTabs ? 'Presensi & Absensi' : 'Presensi' }}</span>
+        <span>Absensi</span>
     </button>
     @if ($this->showExtraTabs)
         <button type="button" @click="tab = 'dokumen'" class="section-nav-btn teal" :class="{ 'is-active': tab === 'dokumen' }">
@@ -99,13 +99,13 @@ identity-accent = border gradasi warna section-nav (lihat app.css); warna teks t
     @if ($this->canViewPembinaanTab)
         <button type="button" @click="tab = 'pembinaan'" class="section-nav-btn teal" :class="{ 'is-active': tab === 'pembinaan' }">
             <i class="fa-solid fa-hands-holding-circle"></i>
-            <span>{{ $isSelf ? 'Pembinaan Saya' : 'Pembinaan Karyawan' }}</span>
+            <span>{{ $isSelf ? 'Pembinaan' : 'Pembinaan Karyawan' }}</span>
         </button>
     @endif
     @if ($this->canViewAuditHistory)
         <button type="button" @click="tab = 'riwayatdata'" class="section-nav-btn navy" :class="{ 'is-active': tab === 'riwayatdata' }">
             <i class="fa-solid fa-clock-rotate-left"></i>
-            <span>Riwayat Perubahan</span>
+            <span>Riwayat</span>
         </button>
     @endif
 </div>
