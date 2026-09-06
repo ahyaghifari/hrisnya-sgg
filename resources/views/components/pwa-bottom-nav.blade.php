@@ -27,12 +27,9 @@
             </button>
         @endif
 
-        <div class="pwa-bottom-nav-center">
-            <button type="button" class="pwa-bottom-nav-center-btn" onclick="togglePwaMenuSheet()" aria-label="Menu">
-                <i class="fa-solid fa-grip"></i>
-            </button>
-            <span>Menu</span>
-        </div>
+        <button type="button" onclick="togglePwaMenuSheet()" class="pwa-bottom-nav-item" style="border:none;background:none;padding:0;" aria-label="Menu">
+            <i class="fa-solid fa-grip"></i> Menu
+        </button>
 
         @if ($canSubmitAttendance && $canAccessPengajuanAbsensiSaya)
             <a href="{{ route('my-attendance-requests') }}" wire:navigate class="pwa-bottom-nav-item {{ request()->routeIs('my-attendance-requests*') ? 'active' : '' }}">

@@ -29,24 +29,11 @@ class ExtraShiftAssignmentPolicy
 
     public function update(AuthUser $authUser, ExtraShiftAssignment $extraShiftAssignment): bool
     {
-        // Baris hasil eksekusi Tukar Shift (source=shift_swap) mengunci angka jadwal yang
-        // sudah disetujui lewat alur approval-nya sendiri - tidak boleh diubah siapa pun lewat
-        // jalur pengelolaan Extra Shift biasa, termasuk yang punya permission Update.
-        if ($extraShiftAssignment->source === 'shift_swap') {
-            return false;
-        }
-
         return $authUser->can('Update:ExtraShiftAssignment');
     }
 
     public function delete(AuthUser $authUser, ExtraShiftAssignment $extraShiftAssignment): bool
     {
-        // Sama seperti update() - baris dari Tukar Shift tidak boleh dihapus siapa pun lewat
-        // jalur pengelolaan Extra Shift biasa (lihat ShiftSwapRequestService::executeApprovedSwap()).
-        if ($extraShiftAssignment->source === 'shift_swap') {
-            return false;
-        }
-
         return $authUser->can('Delete:ExtraShiftAssignment');
     }
 

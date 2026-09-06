@@ -9,18 +9,76 @@
         default => route('my-staff'),
     };
 @endphp
-<div x-data="{ tab: 'profil' }">
+{{-- tab disimpan di sessionStorage: paginasi tab "Riwayat Perubahan" pakai wire:navigate
+(full page-visit) yang re-mount komponen; tanpa ini tab balik ke default tiap ganti halaman. --}}
+<div x-data="{ tab: sessionStorage.getItem('easTab') || 'career' }" x-init="$watch('tab', v => sessionStorage.setItem('easTab', v))">
 <x-page-header
     :title="$isSelf ? 'Profil Saya' : $record->name"
-    :subtitle="$record->profile?->jobPosition?->name ?? 'Karyawan'"
     :back="$backRoute"
 />
 
+@php
+    $profile = $record->profile;
+
+    $initials = collect(preg_split('/\s+/', trim($record->name)))
+        ->map(fn ($w) => mb_substr($w, 0, 1))
+        ->take(2)
+        ->implode('');
+
+    $photoPath = $profile?->profile_picture[0] ?? null;
+    $photoUrl = $photoPath && is_string($photoPath) ? \Illuminate\Support\Facades\Storage::url($photoPath) : null;
+@endphp
+
+{{-- Kartu identitas: tampil di atas semua tab, jawaban cepat "siapa orang ini". Class
+identity-accent = border gradasi warna section-nav (lihat app.css); warna teks tetap token tema. --}}
+<div class="card-surface identity-accent" style="margin-bottom:20px;">
+    <div class="ia-row" style="display:flex;flex-wrap:wrap;align-items:flex-start;gap:16px;">
+        @if ($record->id === auth()->id())
+            {{-- Cuma pemilik akun yang boleh edit foto sendiri di sini - HC/atasan yang buka
+            Data Diri orang lain cuma lihat foto (@else di bawah), ditegakkan juga di server
+            lewat abort_unless di HandlesProfilePhotoUpload::updatedPhoto(). --}}
+            <x-photo-upload-cropper :avatar-url="$photoUrl" :initials="$initials ?: '?'" :size="88" />
+            @error('photo') <p style="color:var(--danger-text);font-size:11px;margin-top:4px;width:100%;">{{ $message }}</p> @enderror
+        @elseif ($photoUrl)
+            <img src="{{ $photoUrl }}" alt="{{ $record->name }}" style="flex-shrink:0;width:88px;height:88px;border-radius:50%;object-fit:cover;">
+        @else
+            <div style="flex-shrink:0;width:88px;height:88px;border-radius:50%;background:#042c6c;color:#fff;font-weight:800;font-size:26px;display:flex;align-items:center;justify-content:center;">
+                {{ $initials ?: '?' }}
+            </div>
+        @endif
+        <div class="ia-body" style="min-width:0;flex:1;">
+            <div class="ia-head" style="display:flex;flex-wrap:wrap;align-items:center;gap:10px;">
+                <h2 class="ia-name" style="font-size:19px;font-weight:800;color:var(--text-heading);letter-spacing:-0.3px;margin:0;">{{ $record->name }}</h2>
+                <span class="badge {{ $record->is_active ? 'badge-approved' : 'badge-cancelled' }}">
+                    {{ $record->is_active ? 'Aktif' : 'Nonaktif' }}
+                </span>
+            </div>
+            <p class="ia-role" style="font-size:13px;color:var(--text-muted);margin-top:3px;">
+                {{ $profile?->jobPosition?->name ?? 'Belum ada jabatan' }}
+                @if ($profile?->department?->name)
+                    <span style="color:var(--text-faint);">·</span> {{ $profile->department->name }}
+                @endif
+                @if ($record->company?->name)
+                    <span style="color:var(--text-faint);">·</span> {{ $record->company->name }}
+                @endif
+            </p>
+            <div class="ia-meta" style="display:flex;flex-wrap:wrap;align-items:center;gap:6px 20px;margin-top:12px;">
+                <span style="font-size:12.5px;color:var(--text-muted);"><i class="fa-solid fa-id-badge" style="color:var(--text-faint);margin-right:6px;"></i>{{ $record->nip ?: 'NIP belum diisi' }}</span>
+                <span style="font-size:12.5px;color:var(--text-muted);"><i class="fa-solid fa-envelope" style="color:var(--text-faint);margin-right:6px;"></i>{{ $record->email }}</span>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Navigasi antar-bagian: tombol (bukan tab bergaris bawah) supaya enak disentuh di mobile -->
 <div class="section-nav">
+    <button type="button" @click="tab = 'career'" class="section-nav-btn gold-shiny" :class="{ 'is-active': tab === 'career' }">
+        <i class="fa-solid fa-briefcase"></i>
+        <span>{{ $isSelf ? 'MyCareer' : 'Pekerjaan' }}</span>
+    </button>
     <button type="button" @click="tab = 'profil'" class="section-nav-btn navy" :class="{ 'is-active': tab === 'profil' }">
         <i class="fa-solid fa-id-card"></i>
-        <span>Profil</span>
+        <span>Data Diri</span>
     </button>
     <button type="button" @click="tab = 'statistik'" class="section-nav-btn green" :class="{ 'is-active': tab === 'statistik' }">
         <i class="fa-solid fa-clock"></i>
@@ -57,18 +115,6 @@
     @php
         $profile = $record->profile;
 
-        $initials = collect(preg_split('/\s+/', trim($record->name)))
-            ->map(fn ($w) => mb_substr($w, 0, 1))
-            ->take(2)
-            ->implode('');
-
-        $photoPath = $profile?->profile_picture[0] ?? null;
-        $photoUrl = $photoPath && is_string($photoPath) ? \Illuminate\Support\Facades\Storage::url($photoPath) : null;
-
-        $roleLabel = $record->roles->pluck('name')
-            ->map(fn ($n) => ucwords(str_replace('_', ' ', $n)))
-            ->implode(', ');
-
         $tanggalLahir = $profile?->place_of_birth || $profile?->date_of_birth
             ? trim(($profile?->place_of_birth ?? '') . ', ' . ($profile?->date_of_birth ? \Carbon\Carbon::parse($profile->date_of_birth)->translatedFormat('d F Y') : ''), ', ')
             : null;
@@ -100,18 +146,6 @@
             'RT/RW' => ($profile?->rt || $profile?->rw) ? "{$profile?->rt}/{$profile?->rw}" : null,
             'Kode Pos' => $profile?->postal_code,
         ];
-
-        $pekerjaan = [
-            'Departemen' => $profile?->department?->name,
-            'Divisi' => $profile?->division?->name,
-            'Sub Divisi' => $profile?->subDivision?->name,
-            'Jabatan' => $profile?->jobPosition?->name,
-            'Pangkat' => $profile?->pangkat?->name,
-            'Golongan' => $profile?->pangkat?->golongan,
-            'Kelas' => $profile?->kelas?->name,
-            'Tipe Karyawan' => $profile?->employeeType?->name,
-            'Tanggal Bergabung' => $profile?->joining_date ? \Carbon\Carbon::parse($profile->joining_date)->translatedFormat('d F Y') : null,
-        ];
     @endphp
 
     @php
@@ -136,47 +170,6 @@
                 . '</div>';
         };
     @endphp
-
-    {{-- Kartu identitas: jawaban cepat untuk "siapa orang ini" sebelum menyelami detail --}}
-    <div class="card-surface" style="margin-bottom:20px;">
-        <div style="display:flex;flex-wrap:wrap;align-items:flex-start;gap:16px;">
-            @if ($record->id === auth()->id())
-                {{-- Cuma pemilik akun yang boleh edit foto sendiri di sini - HC/atasan yang buka
-                Data Diri orang lain cuma lihat foto (@else di bawah), ditegakkan juga di server
-                lewat abort_unless di HandlesProfilePhotoUpload::updatedPhoto(). --}}
-                <x-photo-upload-cropper :avatar-url="$photoUrl" :initials="$initials ?: '?'" :size="56" />
-                @error('photo') <p style="color:var(--danger-text);font-size:11px;margin-top:4px;width:100%;">{{ $message }}</p> @enderror
-            @elseif ($photoUrl)
-                <img src="{{ $photoUrl }}" alt="{{ $record->name }}" style="flex-shrink:0;width:56px;height:56px;border-radius:50%;object-fit:cover;">
-            @else
-                <div style="flex-shrink:0;width:56px;height:56px;border-radius:50%;background:#042c6c;color:#fff;font-weight:800;font-size:17px;display:flex;align-items:center;justify-content:center;">
-                    {{ $initials ?: '?' }}
-                </div>
-            @endif
-            <div style="min-width:0;flex:1;">
-                <div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px;">
-                    <h2 style="font-size:19px;font-weight:800;color:var(--text-heading);letter-spacing:-0.3px;margin:0;">{{ $record->name }}</h2>
-                    <span class="badge {{ $record->is_active ? 'badge-approved' : 'badge-cancelled' }}">
-                        {{ $record->is_active ? 'Aktif' : 'Nonaktif' }}
-                    </span>
-                </div>
-                <p style="font-size:13px;color:var(--text-muted);margin-top:3px;">
-                    {{ $profile?->jobPosition?->name ?? 'Belum ada jabatan' }}
-                    @if ($profile?->department?->name)
-                        <span style="color:var(--text-faint);">·</span> {{ $profile->department->name }}
-                    @endif
-                </p>
-                <div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px 20px;margin-top:12px;">
-                    <span style="font-size:12.5px;color:var(--text-muted);"><i class="fa-solid fa-id-badge" style="color:var(--text-faint);margin-right:6px;"></i>{{ $record->nip ?: 'NIP belum diisi' }}</span>
-                    <span style="font-size:12.5px;color:var(--text-muted);"><i class="fa-solid fa-envelope" style="color:var(--text-faint);margin-right:6px;"></i>{{ $record->email }}</span>
-                    <span style="font-size:12.5px;color:var(--text-muted);"><i class="fa-solid fa-building" style="color:var(--text-faint);margin-right:6px;"></i>{{ $record->company?->name }}</span>
-                    @if ($roleLabel)
-                        <span style="font-size:12.5px;color:var(--text-muted);"><i class="fa-solid fa-user-shield" style="color:var(--text-faint);margin-right:6px;"></i>{{ $roleLabel }}</span>
-                    @endif
-                </div>
-            </div>
-        </div>
-    </div>
 
     @if ($isSelf && $editingProfil)
         {{-- Mode edit: Informasi Pribadi + Kontak + Alamat dalam 1 form. Rekening bank TIDAK
@@ -319,40 +312,39 @@
             </form>
         </div>
     @else
-        {{-- Rincian: dikelompokkan per kartu supaya tiap topik bisa dipindai sendiri-sendiri --}}
-        <div style="display:flex;flex-wrap:wrap;gap:20px;margin-bottom:20px;">
-            <div class="card-surface" style="flex:2 1 340px;">
-                <div style="display:flex;align-items:center;justify-content:space-between;">
-                    {!! $sectionHeader('fa-id-card', 'Informasi Pribadi') !!}
-                    @if ($isSelf)
-                        <button type="button" wire:click="startEditProfil" style="background:none;border:none;color:var(--brand);font-size:12.5px;font-weight:600;cursor:pointer;">
-                            <i class="fa-solid fa-pen"></i> Ubah
-                        </button>
-                    @endif
-                </div>
+        {{-- Semua kartu full-width 1 kolom. Yang dibagi jadi multi-kolom cuma ISI kartu
+        Informasi Pribadi (grid auto-fit di bawah), bukan kartunya. --}}
+        <div class="card-surface" style="margin-bottom:20px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;">
+                {!! $sectionHeader('fa-id-card', 'Informasi Pribadi') !!}
+                @if ($isSelf)
+                    <button type="button" wire:click="startEditProfil" style="background:none;border:none;color:var(--brand);font-size:12.5px;font-weight:600;cursor:pointer;">
+                        <i class="fa-solid fa-pen"></i> Ubah
+                    </button>
+                @endif
+            </div>
+            <div class="field-cols">
                 @foreach ($pribadi as $label => $value)
-                    {!! $renderField($label, $value, !$loop->last || $isSelf) !!}
+                    {!! $renderField($label, $value) !!}
                 @endforeach
                 {{-- Rekening bank SENGAJA cuma tampil untuk pemilik akun sendiri - atasan/HC yang
                 buka Data Diri bawahan lewat MyStaff tidak boleh lihat ini (instruksi user
                 2026-08-10), beda dari field pribadi lain di atas yang memang boleh dilihat
-                atasan/HC. Dipecah jadi 3 baris terpisah (Bank/No. Rekening/Atas Nama, 2026-08-12
-                - sebelumnya digabung 1 baris "No. Rekening") biar tiap bagian jelas kebaca
-                sendiri-sendiri. Read-only murni, tidak ada tombol edit - perubahan rekening tetap
+                atasan/HC. Read-only murni, tidak ada tombol edit - perubahan rekening tetap
                 cuma lewat HC/admin (lihat catatan di EmployeeAttendanceStatistics::saveProfil()). --}}
                 @if ($isSelf)
-                    {!! $renderField('Bank', $profile?->bank_name, true) !!}
-                    {!! $renderField('No. Rekening', $profile?->bank_account_number, true) !!}
-                    {!! $renderField('Atas Nama Rekening', $profile?->bank_account_name, false) !!}
+                    {!! $renderField('Bank', $profile?->bank_name) !!}
+                    {!! $renderField('No. Rekening', $profile?->bank_account_number) !!}
+                    {!! $renderField('Atas Nama Rekening', $profile?->bank_account_name) !!}
                 @endif
             </div>
+        </div>
 
-            <div class="card-surface" style="flex:1 1 220px;align-self:flex-start;">
-                {!! $sectionHeader('fa-phone', 'Kontak') !!}
-                @foreach ($kontak as $label => $value)
-                    {!! $renderField($label, $value, !$loop->last) !!}
-                @endforeach
-            </div>
+        <div class="card-surface" style="margin-bottom:20px;">
+            {!! $sectionHeader('fa-phone', 'Kontak') !!}
+            @foreach ($kontak as $label => $value)
+                {!! $renderField($label, $value, !$loop->last) !!}
+            @endforeach
         </div>
 
         <div class="card-surface" style="margin-bottom:20px;">
@@ -370,64 +362,139 @@
                 </div>
             @endif
         </div>
-    @endif
 
-    {{-- Lampiran bebas (label ditulis sendiri oleh karyawan, bukan tipe tetap seperti KTP/KK
-    saja) — terpisah dari tab "Dokumen" yang isinya surat resmi terbitan admin (lihat
-    UserProfileDocument). Kartu ini disembunyikan total dari atasan/HC yang tidak punya
-    permission lihat_lampiran_identitas_karyawan, meskipun mereka bisa buka Data Diri karyawan
-    itu untuk tab lain. --}}
-    @if ($this->canViewProfileDocuments)
-    <div class="card-surface" style="margin-bottom:20px;">
-        {!! $sectionHeader('fa-paperclip', 'Lampiran') !!}
+        {{-- Lampiran bebas (label ditulis sendiri oleh karyawan, bukan tipe tetap seperti
+        KTP/KK saja) - terpisah dari tab "Dokumen" yang isinya surat resmi terbitan admin
+        (lihat UserProfileDocument). Kartu ini disembunyikan total dari atasan/HC yang tidak
+        punya permission lihat_lampiran_identitas_karyawan, meskipun mereka bisa buka Data
+        Diri karyawan itu untuk tab lain. ponytail: cuma tampil di mode lihat (bukan form edit). --}}
+        @if ($this->canViewProfileDocuments)
+            <div class="card-surface" style="margin-bottom:20px;">
+                {!! $sectionHeader('fa-paperclip', 'Lampiran') !!}
 
-        @if ($this->profileDocuments->isNotEmpty())
-            <div class="pwa-list" style="margin-bottom:14px;">
-                @foreach ($this->profileDocuments as $doc)
-                    <div class="pwa-list-row">
-                        <div class="pwa-tile-icon neutral"><i class="fa-solid fa-file-lines"></i></div>
-                        <a href="{{ $doc->file_url }}" target="_blank" rel="noopener" style="flex:1;min-width:0;text-decoration:none;">
-                            <p style="font-size:13px;font-weight:600;color:var(--text-heading);margin:0;">{{ $doc->label }}</p>
-                        </a>
-                        @if ($isSelf)
-                            <button type="button" wire:click="deleteProfileDocument('{{ $doc->id }}')" wire:confirm="Hapus lampiran ini?" style="background:none;border:none;color:var(--danger-text);cursor:pointer;padding:6px;">
-                                <i class="fa-solid fa-trash"></i>
-                            </button>
-                        @endif
+                @if ($this->profileDocuments->isNotEmpty())
+                    <div class="pwa-list" style="margin-bottom:14px;">
+                        @foreach ($this->profileDocuments as $doc)
+                            <div class="pwa-list-row">
+                                <div class="pwa-tile-icon neutral"><i class="fa-solid fa-file-lines"></i></div>
+                                <a href="{{ $doc->file_url }}" target="_blank" rel="noopener" style="flex:1;min-width:0;text-decoration:none;">
+                                    <p style="font-size:13px;font-weight:600;color:var(--text-heading);margin:0;">{{ $doc->label }}</p>
+                                </a>
+                                @if ($isSelf)
+                                    <button type="button" wire:click="deleteProfileDocument('{{ $doc->id }}')" wire:confirm="Hapus lampiran ini?" style="background:none;border:none;color:var(--danger-text);cursor:pointer;padding:6px;">
+                                        <i class="fa-solid fa-trash"></i>
+                                    </button>
+                                @endif
+                            </div>
+                        @endforeach
                     </div>
-                @endforeach
-            </div>
-        @endif
+                @endif
 
-        @if ($isSelf)
-            {{-- Satu kotak tambah lampiran, dipakai berulang - jadi satu-satunya kotak yang
-            tampil kalau daftar di atas masih kosong, atau "tambah lagi" kalau sudah ada isinya. --}}
-            <div style="border:1px dashed var(--border-soft);border-radius:12px;padding:14px;display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;">
-                <div style="flex:1;min-width:160px;">
-                    <label class="form-label">Nama Lampiran</label>
-                    <input type="text" class="form-input" wire:model="newDocumentLabel" placeholder="Contoh: KTP, KK, Ijazah">
-                    @error('newDocumentLabel') <p style="color:var(--danger-text);font-size:11px;margin-top:4px;">{{ $message }}</p> @enderror
-                </div>
-                <div style="flex:1;min-width:160px;">
-                    <label class="form-label">File</label>
-                    <input type="file" wire:model="newDocumentFile" accept="image/*,.pdf" class="form-input" style="padding:6px;">
-                    @error('newDocumentFile') <p style="color:var(--danger-text);font-size:11px;margin-top:4px;">{{ $message }}</p> @enderror
-                </div>
-                <button type="button" wire:click="addProfileDocument" wire:loading.attr="disabled" wire:target="addProfileDocument,newDocumentFile" class="btn-primary">
-                    <i class="fa-solid fa-plus"></i> Tambah
-                </button>
+                @if ($isSelf)
+                    {{-- Satu kotak tambah lampiran, dipakai berulang - jadi satu-satunya kotak yang
+                    tampil kalau daftar di atas masih kosong, atau "tambah lagi" kalau sudah ada isinya. --}}
+                    <div style="border:1px dashed var(--border-soft);border-radius:12px;padding:14px;display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;">
+                        <div style="flex:1;min-width:160px;">
+                            <label class="form-label">Nama Lampiran</label>
+                            <input type="text" class="form-input" wire:model="newDocumentLabel" placeholder="Contoh: KTP, KK, Ijazah">
+                            @error('newDocumentLabel') <p style="color:var(--danger-text);font-size:11px;margin-top:4px;">{{ $message }}</p> @enderror
+                        </div>
+                        <div style="flex:1;min-width:160px;">
+                            <label class="form-label">File</label>
+                            <input type="file" wire:model="newDocumentFile" accept="image/*,.pdf" class="form-input" style="padding:6px;">
+                            @error('newDocumentFile') <p style="color:var(--danger-text);font-size:11px;margin-top:4px;">{{ $message }}</p> @enderror
+                        </div>
+                        <button type="button" wire:click="addProfileDocument" wire:loading.attr="disabled" wire:target="addProfileDocument,newDocumentFile" class="btn-primary">
+                            <i class="fa-solid fa-plus"></i> Tambah
+                        </button>
+                    </div>
+                @endif
             </div>
         @endif
-    </div>
     @endif
 
-    <div class="card-surface">
-        {!! $sectionHeader('fa-briefcase', 'Informasi Pekerjaan') !!}
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:0 32px;">
-            @foreach ($pekerjaan as $label => $value)
-                {!! $renderField($label, $value) !!}
+</div>
+
+{{-- Tab MyCareer: posisi & jenjang karyawan, dan nanti penilaian kinerja. Var profil dan
+sectionHeader dibuat di php-block tab Data Diri di atas -- blok ini HARUS setelah tab itu di
+source (tab server-render sekali jalan, x-show cuma toggle CSS). --}}
+<div x-show="tab === 'career'">
+    @php
+        $joinDate = $profile?->joining_date ? \Carbon\Carbon::parse($profile->joining_date) : null;
+        // Cukup bulan + hari (bukan tahun) - instruksi user.
+        $masaKerja = null;
+        if ($joinDate) {
+            $d = $joinDate->diff(now());
+            $bulan = $d->y * 12 + $d->m;
+            $masaKerja = "{$bulan} bulan {$d->d} hari";
+        }
+
+        // Penempatan di struktur = sebuah jalur (Departemen > Divisi > Sub Divisi), yang buntu
+        // di Jabatan. Yang kosong dilewati.
+        $orgPath = collect([
+            $profile?->department?->name,
+            $profile?->division?->name,
+            $profile?->subDivision?->name,
+        ])->filter()->values();
+
+        // Tile jenjang: cuma tampil yang ada isinya (Masa Kerja selalu ada slot-nya).
+        $jenjang = collect([
+            ['label' => 'Pangkat', 'value' => $profile?->pangkat?->name],
+            ['label' => 'Golongan', 'value' => $profile?->pangkat?->golongan],
+            ['label' => 'Kelas', 'value' => $profile?->kelas?->name],
+        ])->filter(fn ($t) => filled($t['value']));
+    @endphp
+
+    <div class="card-surface" style="margin-bottom:20px;">
+        {{-- Kepala panel: Jabatan sebagai judul, jalur struktur sebagai jejak di bawahnya,
+        Tipe Karyawan sebagai penanda status di kanan. --}}
+        <div style="display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:12px;">
+            <div style="min-width:0;">
+                <p style="font-size:10.5px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-faint);margin:0 0 4px;">Posisi</p>
+                <h3 style="font-size:20px;font-weight:800;color:var(--brand);letter-spacing:-0.3px;line-height:1.2;margin:0;">
+                    {{ $profile?->jobPosition?->name ?? 'Belum ada jabatan' }}
+                </h3>
+                @if ($orgPath->isNotEmpty())
+                    <p style="font-size:12.5px;color:var(--text-muted);margin-top:6px;line-height:1.6;">
+                        @foreach ($orgPath as $seg)
+                            @if (! $loop->first)<span style="color:var(--text-faint);margin:0 6px;">›</span>@endif{{ $seg }}
+                        @endforeach
+                    </p>
+                @endif
+            </div>
+            @if ($profile?->employeeType?->name)
+                <span class="badge badge-info" style="flex-shrink:0;font-size:13px;padding:7px 14px;gap:7px;">
+                    <i class="fa-solid fa-id-badge"></i> {{ $profile->employeeType->name }}
+                </span>
+            @endif
+        </div>
+
+        <div style="height:1px;background:var(--border-soft);margin:16px 0;"></div>
+
+        {{-- Masa kerja + jenjang: angka yang dipakai penilaian kinerja nanti. --}}
+        <div style="display:flex;flex-wrap:wrap;gap:12px;">
+            <div style="flex:1 1 160px;background:var(--surface-alt);border:1px solid var(--border-soft);border-radius:12px;padding:14px 16px;">
+                <p style="font-size:10.5px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--text-muted);margin:0 0 6px;">Masa Kerja</p>
+                <p style="font-size:16px;font-weight:800;color:var(--text-heading);margin:0;">{{ $masaKerja ?? '—' }}</p>
+                @if ($joinDate)
+                    <p style="font-size:11.5px;color:var(--text-faint);margin-top:3px;">sejak {{ $joinDate->translatedFormat('d F Y') }}</p>
+                @endif
+            </div>
+            @foreach ($jenjang as $tile)
+                <div style="flex:1 1 120px;background:var(--surface-alt);border:1px solid var(--border-soft);border-radius:12px;padding:14px 16px;">
+                    <p style="font-size:10.5px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--text-muted);margin:0 0 6px;">{{ $tile['label'] }}</p>
+                    <p style="font-size:16px;font-weight:800;color:var(--text-heading);margin:0;">{{ $tile['value'] }}</p>
+                </div>
             @endforeach
         </div>
+    </div>
+
+    {{-- Penilaian kinerja - belum ada modulnya, kartu ini penanda tempat + empty state jujur. --}}
+    <div class="card-surface">
+        {!! $sectionHeader('fa-chart-line', 'Penilaian Kinerja') !!}
+        <p style="font-size:13px;color:var(--text-muted);margin:0;line-height:1.6;">
+            Belum ada penilaian kinerja. Hasil penilaian periodik dari atasan akan tampil di sini.
+        </p>
     </div>
 </div>
 
@@ -872,6 +939,7 @@
                     </div>
                 @endforeach
             </div>
+            {{ $auditHistory->links('livewire.partials.pagination') }}
         @endif
     </div>
 @endif

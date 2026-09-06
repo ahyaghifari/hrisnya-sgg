@@ -750,9 +750,6 @@ html.dark .quiz-review-option.is-wrong-selected i { color: #f87171; }
 .pwa-bottom-nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; color: var(--text-muted); text-decoration: none; font-size: 10.5px; font-weight: 600; }
 .pwa-bottom-nav-item i { font-size: 18px; }
 .pwa-bottom-nav-item.active { color: var(--brand); }
-.pwa-bottom-nav-center { flex: 1; position: relative; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 2px; padding-bottom: 6px; }
-.pwa-bottom-nav-center-btn { position: absolute; top: -22px; width: 52px; height: 52px; border-radius: 50%; background: linear-gradient(135deg, #042c6c 0%, #0b47a1 100%); border: 4px solid var(--surface); display: flex; align-items: center; justify-content: center; color: #fff; font-size: 20px; box-shadow: 0 4px 14px rgba(4,44,108,0.35); cursor: pointer; }
-.pwa-bottom-nav-center span { font-size: 10.5px; font-weight: 700; color: var(--brand); }
 
 /* Bottom sheet opened by the center button — off-canvas, anchored to the bottom edge instead of
    a side edge. */
@@ -935,6 +932,30 @@ html.lw-navigating .page-content { opacity: 0; }
 @media (prefers-reduced-motion: reduce) {
     .data-diri-btn.gold::after { animation: none; }
 }
+
+/* Kartu identitas Profil Saya - kartu polos biasa (.card-surface). Class .identity-accent
+   dipertahankan cuma buat hook layout mobile di bawah + anchor badge absolute. */
+.card-surface.identity-accent { position: relative; }
+
+/* Mobile/tablet sempit: semua isi kartu identitas jadi 1 kolom ke bawah, rata tengah. */
+@media (max-width: 768px) {
+    .card-surface.identity-accent { padding: 16px; }
+    .identity-accent .ia-row { flex-direction: column; align-items: center !important; gap: 12px; text-align: center; }
+    .identity-accent .ia-body { flex: none; width: 100%; }
+    .identity-accent .ia-head { justify-content: center; gap: 8px; }
+    /* Badge "Aktif/Nonaktif" pindah ke pojok kanan atas kartu (absolute) di mobile. */
+    .identity-accent .ia-head .badge { position: absolute; top: 12px; right: 12px; }
+    .identity-accent .ia-name { font-size: 16px !important; }
+    .identity-accent .ia-role { font-size: 12px !important; margin-top: 4px !important; }
+    /* NIP + Email tetap sampingan, ketengah. */
+    .identity-accent .ia-meta { justify-content: center; gap: 6px 16px !important; margin-top: 10px !important; }
+    .identity-accent .ia-meta span { font-size: 11.5px !important; }
+}
+
+/* Isi kartu Informasi Pribadi / Informasi Pekerjaan - field dibagi 2 kolom, 1 kolom di HP. */
+.field-cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 32px; }
+@media (max-width: 560px) { .field-cols { grid-template-columns: 1fr; } }
+
 .welcome-avatar { width: 52px; height: 52px; border-radius: 50%; object-fit: cover; border: 2px solid rgba(255,255,255,0.35); flex-shrink: 0; }
 .welcome-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
 /* Mobile: tombol Data Diri (dan Admin Panel kalau ada) jadi satu kolom penuh sendiri-sendiri,
@@ -947,8 +968,7 @@ html.lw-navigating .page-content { opacity: 0; }
     .welcome-avatar { display: none; }
 }
 
-/* Desktop: tombol "Profil Saya" diperbesar lagi (beda dari Admin Panel di sebelahnya, yang
-   tetap ukuran kecil) - request user. */
+/* Desktop: tombol "Profil Saya" tetap besar (request user) - yang dikecilkan cuma versi mobile. */
 @media (min-width: 640px) {
     .welcome-actions .data-diri-btn.gold { font-size: 14px; padding: 11px 22px; border-radius: 12px; gap: 9px; }
 }
@@ -1006,9 +1026,9 @@ html.lw-navigating .page-content { opacity: 0; }
     .welcome-name { font-size: 18px; }
     .welcome-meta { font-size: 11.5px; }
     .welcome-qa-label { font-size: 10.5px; }
-    /* Tombol Data Diri/Admin Panel dibesarkan lagi di mobile (request user) - sisa tombol
-       welcome-card lain (qa-btn dst) tetap dikecilkan seperti sebelumnya. */
-    .data-diri-btn { font-size: 14px; padding: 10px 14px; border-radius: 10px; gap: 6px; }
+    /* Mobile: tombol Data Diri/Admin Panel sedikit lebih besar dari base (full-width, target
+       sentuh) tapi tidak sebesar dulu. */
+    .data-diri-btn { font-size: 12.5px; padding: 9px 14px; }
     .qa-btn-group { gap: 7px; }
     .qa-btn { font-size: 11px; padding: 6px 11px; border-radius: 9px; gap: 6px; }
     .qa-dot { width: 6px; height: 6px; }
@@ -1304,6 +1324,31 @@ html.dark .theme-toggle-icons .fa-moon { display: none; }
 .section-nav-btn.gold { background: rgba(180,83,9,0.06); color: #b45309; border-color: rgba(180,83,9,0.16); }
 .section-nav-btn.gold:hover { background: rgba(180,83,9,0.12); }
 .section-nav-btn.gold.is-active { background: #b45309; color: #fff; border-color: #b45309; box-shadow: 0 4px 12px rgba(180,83,9,0.28); }
+/* Tombol MyCareer - tidak aktif: soft tint sama seperti tombol lain (.section-nav-btn.gold).
+   Aktif: emas mengkilap + kilau, sama dengan tombol "Profil Saya" di dashboard. */
+.section-nav-btn.gold-shiny { background: rgba(180,83,9,0.06); color: #b45309; border-color: rgba(180,83,9,0.16); position: relative; overflow: hidden; }
+.section-nav-btn.gold-shiny:hover { background: rgba(180,83,9,0.12); }
+.section-nav-btn.gold-shiny.is-active {
+    background: linear-gradient(135deg, #fde68a 0%, #f5c518 45%, #d4a017 100%);
+    color: #4a3403;
+    border-color: #d4a017;
+    box-shadow: 0 4px 14px rgba(212,160,23,0.5);
+}
+.section-nav-btn.gold-shiny.is-active::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -60%;
+    width: 40%;
+    height: 100%;
+    background: linear-gradient(120deg, transparent 0%, rgba(255,255,255,0.65) 50%, transparent 100%);
+    transform: skewX(-20deg);
+    animation: gold-shimmer 6s ease-in-out infinite;
+    pointer-events: none;
+}
+@media (prefers-reduced-motion: reduce) { .section-nav-btn.gold-shiny.is-active::after { animation: none; } }
+html.dark .section-nav-btn.gold-shiny { background: rgba(251,191,36,0.16); color: #fcd34d; border-color: rgba(251,191,36,0.4); }
+html.dark .section-nav-btn.gold-shiny:hover { background: rgba(251,191,36,0.26); }
 @media (max-width: 479px) { .section-nav { gap: 6px; } .section-nav-btn { flex: 1 1 auto; padding: 10px 12px; font-size: 12px; } }
 
 /* Pill tidak-aktif (section-nav-btn, doc-type-btn) pakai tint alpha rendah di atas warna

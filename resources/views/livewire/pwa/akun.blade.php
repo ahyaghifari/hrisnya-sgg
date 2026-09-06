@@ -11,6 +11,10 @@
 
     $photoPath = $profile?->profile_picture[0] ?? null;
     $photoUrl = $photoPath && is_string($photoPath) ? \Illuminate\Support\Facades\Storage::url($photoPath) : null;
+
+    $roleLabel = $record->roles->pluck('name')
+        ->map(fn ($n) => ucwords(str_replace('_', ' ', $n)))
+        ->implode(', ');
 @endphp
 
 {{-- Header identitas — ringkas, cuma preview. Detail lengkap ada di halaman Data Diri sendiri. --}}
@@ -25,6 +29,11 @@
                     <span style="color:var(--text-faint);">·</span> {{ $profile->department->name }}
                 @endif
             </p>
+            @if ($roleLabel)
+                <p style="font-size:11.5px;color:var(--text-muted);margin-top:3px;">
+                    <i class="fa-solid fa-user-shield" style="color:var(--text-faint);margin-right:5px;"></i>{{ $roleLabel }}
+                </p>
+            @endif
             @error('photo') <p style="color:var(--danger-text);font-size:11px;margin-top:3px;">{{ $message }}</p> @enderror
         </div>
         <a href="{{ route('profil-saya') }}" wire:navigate style="color:var(--text-faint);">

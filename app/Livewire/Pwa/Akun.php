@@ -17,7 +17,7 @@ class Akun extends Component
 
     public function mount(): void
     {
-        $this->record = Auth::user()->load(['profile.jobPosition', 'profile.orgStructure.parent.parent']);
+        $this->record = Auth::user()->load(['roles', 'profile.jobPosition', 'profile.orgStructure.parent.parent']);
     }
 
     public function render()

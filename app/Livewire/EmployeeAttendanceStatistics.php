@@ -29,6 +29,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Livewire\Component;
 use Livewire\WithFileUploads;
+use Livewire\WithPagination;
 use Maatwebsite\Excel\Facades\Excel;
 
 class EmployeeAttendanceStatistics extends Component
@@ -36,6 +37,7 @@ class EmployeeAttendanceStatistics extends Component
     use ResolvesTodayAttendanceStatus;
     use HandlesProfilePhotoUpload;
     use WithFileUploads;
+    use WithPagination;
 
     public User $record;
 
@@ -350,8 +352,8 @@ class EmployeeAttendanceStatistics extends Component
     /**
      * Gabungan riwayat User + UserProfiles (LogsFieldAuditChanges di kedua model menulis ke
      * `audit_logs` dengan key berprefix user_id yang sama) — 1 query cukup, apa pun tabel asal
-     * fieldnya. Dibatasi 100 baris terakhir, cukup untuk kebutuhan "siapa mengubah apa
-     * terakhir" tanpa perlu pagination di versi pertama ini.
+     * fieldnya. Dipaginasi (page name khusus 'riwayatPage' supaya tidak bentrok kalau nanti ada
+     * paginator lain di komponen ini).
      */
     public function getAuditHistoryProperty()
     {
@@ -364,8 +366,7 @@ class EmployeeAttendanceStatistics extends Component
             ->where('key', 'like', $this->record->id . ':%')
             ->with('user')
             ->orderByDesc('created_at')
-            ->limit(100)
-            ->get();
+            ->paginate(20, ['*'], 'riwayatPage');
     }
 
 
