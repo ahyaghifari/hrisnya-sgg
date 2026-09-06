@@ -42,20 +42,6 @@
     </div>
 </div>
 
-{{-- Pemilih warna tema (primary). Client-side murni: window.setAccent() simpan ke localStorage
-     + set data-theme di <html> (lihat layout.blade.php). Tidak ada state server. --}}
-<div style="background:var(--surface);border-radius:16px;box-shadow:var(--shadow-card);padding:16px 18px;margin-bottom:16px;">
-    <p style="font-size:13.5px;font-weight:600;color:var(--text-heading);margin:0 0 4px;">Warna Tema</p>
-    <p style="font-size:11.5px;color:var(--text-muted);margin:0 0 14px;">Ganti warna utama aplikasi sesuai selera.</p>
-    <div style="display:flex;gap:14px;" id="accent-picker">
-        <button type="button" data-accent="biru"  onclick="pickAccent('biru')"  class="accent-swatch" style="--sw:#042c6c;" aria-label="Biru"></button>
-        <button type="button" data-accent="hijau" onclick="pickAccent('hijau')" class="accent-swatch" style="--sw:#047C54;" aria-label="Hijau"></button>
-        <button type="button" data-accent="pink"  onclick="pickAccent('pink')"  class="accent-swatch" style="--sw:#a52a7a;" aria-label="Pink"></button>
-        <button type="button" data-accent="ungu"  onclick="pickAccent('ungu')"  class="accent-swatch" style="--sw:#6e1a8c;" aria-label="Ungu"></button>
-        <button type="button" data-accent="emas"  onclick="pickAccent('emas')"  class="accent-swatch" style="--sw:#8f6d1c;" aria-label="Emas"></button>
-    </div>
-</div>
-
 <a href="{{ route('akun.ubah-password') }}" wire:navigate class="pwa-list-row" style="background:var(--surface);border-radius:16px;box-shadow:var(--shadow-card);text-decoration:none;margin-bottom:16px;border-bottom:none;">
     <div class="pwa-tile-icon neutral"><i class="fa-solid fa-lock"></i></div>
     <div style="flex:1;min-width:0;">
@@ -79,18 +65,3 @@
     </button>
 </form>
 </div>
-
-@push('scripts')
-<script>
-    function pickAccent(a) { window.setAccent(a); markAccent(a); }
-    function markAccent(a) {
-        document.querySelectorAll('#accent-picker .accent-swatch').forEach(function (b) {
-            b.classList.toggle('is-active', b.dataset.accent === a);
-        });
-    }
-    markAccent(localStorage.getItem('accent') || 'biru');
-    document.addEventListener('livewire:navigated', function () {
-        markAccent(localStorage.getItem('accent') || 'biru');
-    });
-</script>
-@endpush

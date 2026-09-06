@@ -89,37 +89,20 @@ html.dark {
     --neuro-shadow-2: -6px -6px 14px #2f3a4d;
 }
 
-/* ═══ TEMA WARNA PRIMARY — user pilih lewat data-theme di <html> (biru default / hijau /
-   pink). Ortogonal dengan html.dark. Admin Filament TIDAK ikut (layout & CSS terpisah).
-   --brand      = aksen: teks/ikon/border kecil. Di dark mode di-terangkan biar kebaca.
-   --brand-fill = isian solid (tombol, app bar, tile aktif) yang bertulisan putih. Di dark
-                  mode TETAP gelap (jangan pakai --brand yang terang di sini).
-   --brand-*-strong = varian hover/gradient-tail masing-masing. */
+/* Token brand (navy). Dulu sempat ada pemilih tema warna user (hijau/pink/ungu/emas via
+   data-theme) - dicabut, kembali ke navy tunggal. Token dipertahankan supaya #042c6c tidak
+   perlu di-hardcode ulang di mana-mana.
+   --brand      = aksen: teks/ikon/border kecil (di dark mode diterangkan biar kebaca).
+   --brand-fill = isian solid bertulisan putih (di dark mode TETAP gelap).
+   --brand-*-strong = varian hover / ujung gradient. */
 :root {
     --brand-strong: #032356; --brand-soft: rgba(4,44,108,0.08); --brand-ring: rgba(4,44,108,0.20); --on-brand: #fff;
-    --brand-fill: var(--brand); --brand-fill-strong: var(--brand-strong);
+    --brand-fill: #042c6c; --brand-fill-strong: #032356;
 }
 html.dark {
     --brand-strong: #8fc4f5; --brand-soft: rgba(110,168,224,0.16); --brand-ring: rgba(110,168,224,0.35);
-    --brand-fill: #0b3a86; --brand-fill-strong: #08306e;
+    --brand-fill: #042c6c; --brand-fill-strong: #032356;
 }
-
-html[data-theme="hijau"] { --brand: #047C54; --brand-strong: #036143; --brand-soft: rgba(4,124,84,0.09); --brand-ring: rgba(4,124,84,0.22); --brand-fill: #047C54; --brand-fill-strong: #024732; }
-html.dark[data-theme="hijau"] { --brand: #34d399; --brand-strong: #6ee7b7; --brand-soft: rgba(52,211,153,0.16); --brand-ring: rgba(52,211,153,0.35); --brand-fill: #036143; --brand-fill-strong: #024732; }
-
-html[data-theme="pink"] { --brand: #a52a7a; --brand-strong: #87205f; --brand-soft: rgba(165,42,122,0.10); --brand-ring: rgba(165,42,122,0.24); --brand-fill: #a52a7a; --brand-fill-strong: #7a1d59; }
-html.dark[data-theme="pink"] { --brand: #f2addb; --brand-strong: #f7c6e2; --brand-soft: rgba(242,173,219,0.16); --brand-ring: rgba(242,173,219,0.35); --brand-fill: #87205f; --brand-fill-strong: #6b1a4b; }
-
-html[data-theme="ungu"] { --brand: #6e1a8c; --brand-strong: #571370; --brand-soft: rgba(110,26,140,0.10); --brand-ring: rgba(110,26,140,0.24); --brand-fill: #6e1a8c; --brand-fill-strong: #4d1263; }
-html.dark[data-theme="ungu"] { --brand: #d7a3ec; --brand-strong: #e6c9f3; --brand-soft: rgba(215,163,236,0.16); --brand-ring: rgba(215,163,236,0.35); --brand-fill: #571370; --brand-fill-strong: #430f57; }
-
-html[data-theme="emas"] { --brand: #8f6d1c; --brand-strong: #6f5514; --brand-soft: rgba(143,109,28,0.11); --brand-ring: rgba(143,109,28,0.26); --brand-fill: #8f6d1c; --brand-fill-strong: #634b11; }
-html.dark[data-theme="emas"] { --brand: #e8cd84; --brand-strong: #f0dda9; --brand-soft: rgba(232,205,132,0.16); --brand-ring: rgba(232,205,132,0.35); --brand-fill: #6f5514; --brand-fill-strong: #574210; }
-
-/* Pemilih warna tema di halaman Akun */
-.accent-swatch { width: 34px; height: 34px; border-radius: 50%; background: var(--sw); border: 2px solid var(--surface); box-shadow: 0 0 0 1px var(--border); cursor: pointer; padding: 0; transition: box-shadow 0.15s ease, transform 0.12s ease; }
-.accent-swatch:active { transform: scale(0.92); }
-.accent-swatch.is-active { box-shadow: 0 0 0 2px var(--sw); }
 
 /* Primary buttons - background #042c6c, text white */
 .fi-btn-primary,
