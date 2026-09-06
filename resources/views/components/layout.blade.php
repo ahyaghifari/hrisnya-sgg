@@ -64,6 +64,9 @@
             if (t === 'dark') document.documentElement.classList.add('dark');
             var a = localStorage.getItem('accent'); // biru (default) | hijau | pink | ungu | emas
             if (['hijau','pink','ungu','emas'].indexOf(a) >= 0) document.documentElement.setAttribute('data-theme', a);
+            var mc = { biru: '#042c6c', hijau: '#047C54', pink: '#a52a7a', ungu: '#6e1a8c', emas: '#8f6d1c' }[a] || '#042c6c';
+            var m = document.querySelector('meta[name="theme-color"]');
+            if (m) m.setAttribute('content', mc);
         })();
     </script>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
