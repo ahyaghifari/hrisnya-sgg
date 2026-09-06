@@ -784,7 +784,7 @@ html.dark .quiz-review-option.is-wrong-selected i { color: #f87171; }
 .pwa-bottom-nav-inner { display: flex; align-items: stretch; height: 60px; padding-bottom: env(safe-area-inset-bottom); }
 .pwa-bottom-nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; color: var(--text-muted); text-decoration: none; font-size: 10px; font-weight: 600; border-top: 3px solid transparent; transition: border-color 0.15s ease, color 0.15s ease; }
 .pwa-bottom-nav-item i { font-size: 18px; }
-.pwa-bottom-nav-item.active { color: var(--brand); border-top-color: var(--brand); }
+.pwa-bottom-nav-item.active { color: var(--brand); border-top-color: var(--brand); background: var(--brand-soft); }
 /* Item Akun = avatar saja (tanpa label) - cincin brand pas aktif sebagai penanda. */
 .pwa-bottom-nav-akun.active img, .pwa-bottom-nav-akun.active span { box-shadow: 0 0 0 2px var(--brand); }
 
