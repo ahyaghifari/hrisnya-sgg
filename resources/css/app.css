@@ -457,13 +457,16 @@ html.dark .dropdown-notif-item:hover, html.dark .dropdown-notif-footer:hover { b
 .nav-item-sub { padding-left: 28px !important; font-size: 13px !important; }
 
 /* ── PWA APP BAR ── */
-.pwa-app-bar { background: var(--brand-fill); position: fixed; top: 0; left: 0; right: 0; z-index: 200; }
+/* App bar mobile SENGAJA tetap navy (bukan var tema) - nempel sama status bar OS/PWA yang
+   warnanya dari manifest (#042c6c, statis), biar tidak ada seam. Tema warna user tetap kena
+   ke bottom nav, tombol, tile, gradient, dll. */
+.pwa-app-bar { background: #042c6c; position: fixed; top: 0; left: 0; right: 0; z-index: 200; }
 .pwa-app-bar-inner { display: flex; align-items: center; justify-content: space-between; height: 56px; padding: 0 16px; padding-top: env(safe-area-inset-top); }
 .pwa-app-bar-brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .pwa-app-bar-title { color: #fff; font-size: 15px; font-weight: 700; letter-spacing: -0.2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pwa-app-bar-actions { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
 .pwa-app-bar-bell { position: relative; width: 32px; height: 32px; border-radius: 9px; background: rgba(255,255,255,0.14); display: flex; align-items: center; justify-content: center; color: #fff; font-size: 13.5px; }
-.pwa-app-bar-dot { position: absolute; top: -5px; right: -6px; min-width: 16px; height: 16px; padding: 0 3px; background: #fb923c; border-radius: 8px; border: 1.5px solid var(--brand-fill); color: #fff; font-size: 9.5px; font-weight: 700; line-height: 13px; text-align: center; box-sizing: border-box; }
+.pwa-app-bar-dot { position: absolute; top: -5px; right: -6px; min-width: 16px; height: 16px; padding: 0 3px; background: #fb923c; border-radius: 8px; border: 1.5px solid #042c6c; color: #fff; font-size: 9.5px; font-weight: 700; line-height: 13px; text-align: center; box-sizing: border-box; }
 
 /* ── PWA MOBILE LIST / CAROUSEL PATTERNS ── */
 .pwa-bento { gap: 20px; }

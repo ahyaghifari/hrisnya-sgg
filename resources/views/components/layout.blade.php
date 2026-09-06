@@ -64,9 +64,7 @@
             if (t === 'dark') document.documentElement.classList.add('dark');
             var a = localStorage.getItem('accent'); // biru (default) | hijau | pink | ungu | emas
             if (['hijau','pink','ungu','emas'].indexOf(a) >= 0) document.documentElement.setAttribute('data-theme', a);
-            var mc = { biru: '#042c6c', hijau: '#047C54', pink: '#a52a7a', ungu: '#6e1a8c', emas: '#8f6d1c' }[a] || '#042c6c';
-            var m = document.querySelector('meta[name="theme-color"]');
-            if (m) m.setAttribute('content', mc);
+            // <meta theme-color> & app bar SENGAJA tetap navy (nempel status bar OS/PWA).
         })();
     </script>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
@@ -187,7 +185,7 @@
             const dark = document.documentElement.classList.toggle('dark');
             localStorage.setItem('theme', dark ? 'dark' : 'light');
         }
-        // Dipakai pemilih warna di halaman Akun. accent: 'biru' (default) | 'hijau' | 'pink'.
+        // Dipakai pemilih warna di halaman Akun. accent: 'biru' (default) | 'hijau' | 'pink' | 'ungu' | 'emas'.
         window.setAccent = function (accent) {
             if (['hijau','pink','ungu','emas'].indexOf(accent) >= 0) {
                 document.documentElement.setAttribute('data-theme', accent);
@@ -196,9 +194,6 @@
                 document.documentElement.removeAttribute('data-theme');
                 localStorage.setItem('accent', 'biru');
             }
-            var mc = { biru: '#042c6c', hijau: '#047C54', pink: '#a52a7a', ungu: '#6e1a8c', emas: '#8f6d1c' }[accent] || '#042c6c';
-            var m = document.querySelector('meta[name="theme-color"]');
-            if (m) m.setAttribute('content', mc);
         };
         document.addEventListener('livewire:navigated', function () {
             document.documentElement.classList.toggle('dark', localStorage.getItem('theme') === 'dark');
