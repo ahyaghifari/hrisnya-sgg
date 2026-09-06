@@ -26,7 +26,7 @@ trait ResolvesTodayAttendanceStatus
      *     schedule_name: ?string,
      *     schedule_detail: ?string,
      *     state: 'holiday'|'leave'|'full_day_permission'|'permission'|'no_schedule'|'normal',
-     *     color: 'red'|'blue'|'yellow'|'green'|'gray',
+     *     color: 'red'|'blue'|'yellow'|'green'|'gray'|'plain',
      *     note: ?string,
      *     attendance: ?AttendanceRecords,
      *     late_minutes_label: ?string,
@@ -100,7 +100,9 @@ trait ResolvesTodayAttendanceStatus
                 'schedule_name'       => $scheduleName,
                 'schedule_detail'     => $scheduleDetail,
                 'state'          => 'holiday',
-                'color'          => 'red',
+                // Tanggal merah / libur nasional (m_holidays) tetap merah. Kalau cuma jadwalnya
+                // yang off (mis. hari libur rotasi shift), kartu netral/putih - bukan "alarm".
+                'color'          => $holiday ? 'red' : 'plain',
                 'note'           => $holiday?->name ?? 'Hari libur sesuai jadwal',
                 'attendance'     => $attendance,
                 'late_minutes_label'       => $lateMinutesLabel,

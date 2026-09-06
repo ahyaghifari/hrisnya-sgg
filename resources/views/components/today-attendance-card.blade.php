@@ -1,7 +1,8 @@
 @props(['status'])
 @php
-    // Warna kartu ikut state (lihat ResolvesTodayAttendanceStatus): Libur = merah, Cuti = biru,
-    // Izin Seharian = kuning, normal/izin biasa = hijau (default absen-card).
+    // Warna kartu ikut state (lihat ResolvesTodayAttendanceStatus): Libur nasional/tanggal
+    // merah = merah, Cuti = biru, Izin Seharian = kuning, normal/izin biasa = hijau. 'plain'
+    // = hari ini off cuma karena jadwal (bukan tanggal merah) -> kartu putih, teks netral.
     $gradients = [
         'red'    => ['#dc2626', '#7f1d1d'],
         'blue'   => ['#1a56c4', '#0b2f6b'],
@@ -9,7 +10,15 @@
         'green'  => ['#047C54', '#024732'],
         'gray'   => ['#475569', '#1e293b'],
     ];
+    $isPlain = ($status['color'] ?? null) === 'plain';
     [$from, $to] = $gradients[$status['color']] ?? $gradients['green'];
+    $cardStyle = $isPlain
+        ? 'background:var(--surface);border:1px solid var(--border);'
+        : "background:linear-gradient(135deg, {$from} 0%, {$to} 100%);";
+    $cLabel  = $isPlain ? 'var(--text-muted)'   : 'rgba(255,255,255,0.75)';
+    $cSub    = $isPlain ? 'var(--text-faint)'   : 'rgba(255,255,255,0.7)';
+    $cStrong = $isPlain ? 'var(--text-heading)' : '#fff';
+
     $attendance = $status['attendance'];
     $formatJam = fn (?string $time) => $time ? \Carbon\Carbon::parse($time)->format('H:i') : '-';
 
@@ -19,13 +28,15 @@
         ->filter()
         ->implode(' · ');
 @endphp
-<div {{ $attributes->merge(['class' => 'absen-card', 'style' => "background:linear-gradient(135deg, {$from} 0%, {$to} 100%);"]) }}>
-    <div class="a-deco-1"></div><div class="a-deco-2"></div><div class="a-deco-3"></div>
+<div {{ $attributes->merge(['class' => 'absen-card', 'style' => $cardStyle]) }}>
+    @unless ($isPlain)
+        <div class="a-deco-1"></div><div class="a-deco-2"></div><div class="a-deco-3"></div>
+    @endunless
 
     <div style="position:relative;z-index:1;display:flex;align-items:flex-start;justify-content:space-between;gap:10px;">
         <div style="min-width:0;">
-            <span class="absen-label"><i class="fa-regular fa-clock"></i> Presensi Hari Ini</span>
-            <p style="font-size:11.5px;color:rgba(255,255,255,0.7);margin-top:3px;">{{ $subLine }}</p>
+            <span class="absen-label" style="color:{{ $cLabel }};"><i class="fa-regular fa-clock"></i> Presensi Hari Ini</span>
+            <p style="font-size:11.5px;color:{{ $cSub }};margin-top:3px;">{{ $subLine }}</p>
         </div>
     </div>
 
@@ -33,7 +44,7 @@
         {{-- Hari ini bukan hari kerja normal (libur/cuti/izin seharian), atau belum ada jadwal
         sama sekali - tidak relevan tampilkan jam masuk/keluar --}}
         <div style="position:relative;z-index:1;">
-            <p style="font-size:16px;font-weight:800;color:#fff;">{{ $status['note'] }}</p>
+            <p style="font-size:16px;font-weight:800;color:{{ $cStrong }};">{{ $status['note'] }}</p>
         </div>
     @elseif ($attendance)
         <div style="position:relative;z-index:1;display:flex;gap:28px;">
