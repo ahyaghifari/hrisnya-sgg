@@ -103,6 +103,10 @@
                 </a>
             @endif
             @if ($canAccessSikartapSaya)
+                <a href="{{ route('kontrak.saya') }}" wire:navigate class="pwa-menu-grid-item">
+                    <span class="pwa-menu-grid-icon gold"><i class="fa-solid fa-file-signature"></i></span>
+                    <span class="pwa-menu-grid-label">Perpanjangan Kontrak</span>
+                </a>
                 <a href="{{ route('sikartap') }}" wire:navigate class="pwa-menu-grid-item">
                     <span class="pwa-menu-grid-icon gold"><i class="fa-solid fa-user-check"></i></span>
                     <span class="pwa-menu-grid-label">Sikartap</span>

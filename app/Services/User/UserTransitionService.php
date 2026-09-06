@@ -135,19 +135,20 @@ class UserTransitionService
 
     /**
      * Hitung tanggal berakhir kontrak otomatis (anchor + durasi perpanjangan dari
-     * KepegawaianSettingEnum::PERPANJANGAN_KONTRAK_BULAN), sekaligus validasi 2 batas company-
-     * scoped: total masa kerja Kontrak dari Tanggal Bergabung (MAX_KONTRAK_TAHUN) dan usia
-     * pensiun dari Tanggal Lahir (USIA_PENSIUN_TAHUN) - throw kalau melanggar, gagal-cepat
-     * sebelum record dibuat. 0 di setting = tidak dibatasi.
+     * KepegawaianSettingEnum::PERPANJANGAN_KONTRAK_BULAN, atau $monthsOverride kalau diisi —
+     * dipakai modul Perpanjangan Kontrak di mana penilai boleh set durasi sendiri), sekaligus
+     * validasi 2 batas company-scoped: total masa kerja Kontrak dari Tanggal Bergabung
+     * (MAX_KONTRAK_TAHUN) dan usia pensiun dari Tanggal Lahir (USIA_PENSIUN_TAHUN) - throw kalau
+     * melanggar, gagal-cepat sebelum record dibuat. 0 di setting = tidak dibatasi.
      */
-    public function resolveContractEndDate(User $user, Carbon $anchor, ?string $companyId): Carbon
+    public function resolveContractEndDate(User $user, Carbon $anchor, ?string $companyId, ?int $monthsOverride = null): Carbon
     {
-        $months = (int) Setting::resolve(
+        $months = $monthsOverride ?? (int) Setting::resolve(
             KepegawaianSettingEnum::PERPANJANGAN_KONTRAK_BULAN->value,
             $companyId,
             default: (int) KepegawaianSettingEnum::PERPANJANGAN_KONTRAK_BULAN->default()
         );
-        $contractEndDate = $anchor->copy()->addMonths($months);
+        $contractEndDate = $anchor->copy()->addMonths(max(1, $months));
 
         $maxTahun = (int) Setting::resolve(
             KepegawaianSettingEnum::MAX_KONTRAK_TAHUN->value,

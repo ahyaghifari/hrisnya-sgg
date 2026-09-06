@@ -149,6 +149,12 @@ class User extends Authenticatable implements FilamentUser
         return $this->hasMany(\App\Models\OrientationSubmission::class, 'user_id', 'id');
     }
 
+    /** Pengajuan perpanjangan kontrak (self-service). */
+    public function contractSubmissions(): HasMany
+    {
+        return $this->hasMany(\App\Models\ContractSubmission::class, 'user_id', 'id');
+    }
+
     /** Riwayat periode orientasi (1 baris = 1 periode/perpanjangan), lihat UserOrientation.
      *  Dibuat lewat Rekrutmen, bukan "Tambah Karyawan" manual. */
     public function orientations(): HasMany

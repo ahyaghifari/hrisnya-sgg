@@ -20,6 +20,7 @@ class SikartapReviewer extends Model
     use HasUlids;
 
     public const CONTEXT_ORIENTATION = 'orientation';
+    public const CONTEXT_CONTRACT = 'contract';
     public const CONTEXT_SIKARTAP_IDEA = 'sikartap_idea';
 
     protected $table = 'sikartap_reviewers';

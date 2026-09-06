@@ -520,7 +520,35 @@ class PendingApprovalsCard extends Component
                 ]);
         }
 
-        $requests = $attendanceRequests->concat($transitions)->concat($courseEnrollments)->concat($trainingRequests)->concat($jabatanKuota)->concat($manpowerRequests)->concat($shiftSwapRequests)->concat($sikartapRequests)->concat($sarprasRequests)->concat($orientationRequests)->sortByDesc('created_at')->values();
+        // Perpanjangan Kontrak - 1 baris per pengajuan, pola sama Orientasi (lepas Approval
+        // Engine, penilai di-resolve dari sikartap_reviewers context `contract`).
+        $contractRequests = collect();
+        if ($this->wants('contract_request')) {
+            $contractRequests = \App\Models\ContractSubmission::with(['user', 'userContract'])
+                ->where('status', 'diajukan')
+                ->whereHas('user')
+                ->get()
+                ->filter(fn ($s) => app(\App\Services\ContractExtensionService::class)->canReview($s, Auth::user()))
+                ->values()
+                ->map(fn ($s) => (object) [
+                    'id' => $s->id,
+                    'dispatch' => 'contract_request',
+                    'bulk_supported' => false,
+                    'module' => 'contract_request',
+                    'badge' => 'blue',
+                    'label' => 'Perpanjangan Kontrak',
+                    'icon' => 'fa-file-signature',
+                    'tile' => 'neutral',
+                    'keterangan' => 'Kontrak',
+                    'user_name' => $s->user->name,
+                    'created_at' => $s->submitted_at ?? $s->created_at,
+                    'url' => route('kontrak.show', $s->id),
+                    'modal' => false,
+                    'external' => false,
+                ]);
+        }
+
+        $requests = $attendanceRequests->concat($transitions)->concat($courseEnrollments)->concat($trainingRequests)->concat($jabatanKuota)->concat($manpowerRequests)->concat($shiftSwapRequests)->concat($sikartapRequests)->concat($sarprasRequests)->concat($orientationRequests)->concat($contractRequests)->sortByDesc('created_at')->values();
 
         foreach ($requests as $request) {
             $request->key = $request->dispatch . ':' . $request->id;

@@ -147,6 +147,100 @@
                         @endif
                     @endif
                 </div>
+
+                {{-- Penilai Perpanjangan Kontrak - jabatan-based, sama pola Penilai Orientasi --}}
+                <div style="background:var(--surface);border-radius:16px;box-shadow:var(--shadow-card);padding:18px;margin-top:20px;">
+                    <p style="font-size:13px;font-weight:600;color:var(--text-heading);margin:0 0 4px;">Penilai Perpanjangan Kontrak</p>
+                    <p style="font-size:11px;color:var(--text-muted);margin:0 0 14px;">Jabatan yang menilai pengajuan perpanjangan kontrak per Departemen. Kalau kosong, sistem naik ke Departemen induk.</p>
+
+                    @if (! $companyId)
+                        <p style="font-size:12px;color:#b45309;margin:0;">Pilih perusahaan dulu.</p>
+                    @else
+                        <table style="width:100%;border-collapse:collapse;font-size:12.5px;margin-bottom:12px;">
+                            <thead>
+                                <tr style="border-bottom:1.5px solid var(--border);">
+                                    <th style="text-align:left;padding:8px 10px;">Departemen</th>
+                                    <th style="text-align:left;padding:8px 10px;">Jabatan Penilai</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @forelse ($this->contractReviewers as $rev)
+                                    <tr wire:key="crev-{{ $rev->id }}" style="border-bottom:1px solid var(--border-soft);">
+                                        <td style="padding:8px 10px;">{{ $rev->orgStructure?->name ?? '-' }}</td>
+                                        <td style="padding:8px 10px;">{{ $rev->jobPosition?->name ?? '-' }}</td>
+                                        <td style="padding:8px 10px;text-align:right;">
+                                            @if ($this->canEditSettings)
+                                                <button type="button" wire:click="removeContractReviewer('{{ $rev->id }}')" wire:confirm="Hapus penilai ini?" class="btn-ghost" style="color:#dc2626;padding:5px 10px;"><i class="fa-solid fa-trash" style="font-size:11px;"></i></button>
+                                            @endif
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr><td colspan="3" style="padding:14px 10px;color:var(--text-muted);">Belum ada penilai perpanjangan kontrak. Tambahkan di bawah.</td></tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+
+                        @if ($this->canEditSettings)
+                            <div style="display:flex;gap:8px;align-items:flex-start;flex-wrap:wrap;">
+                                <div style="flex:1;min-width:180px;">
+                                    <label class="form-label">Departemen</label>
+                                    <select wire:model="contractReviewerDeptId" class="form-input">
+                                        <option value="">-- Pilih Departemen --</option>
+                                        @foreach ($this->orgDepartments as $d)
+                                            <option value="{{ $d->id }}">{{ $d->name }}</option>
+                                        @endforeach
+                                    </select>
+                                    @error('contractReviewerDeptId') <p style="font-size:11px;color:#dc2626;margin-top:3px;">{{ $message }}</p> @enderror
+                                </div>
+                                <div style="flex:1;min-width:180px;">
+                                    <label class="form-label">Jabatan Penilai</label>
+                                    <select wire:model="contractReviewerJobPositionId" class="form-input">
+                                        <option value="">-- Pilih Jabatan --</option>
+                                        @foreach ($this->companyJobPositions as $id => $name)
+                                            <option value="{{ $id }}">{{ $name }}</option>
+                                        @endforeach
+                                    </select>
+                                    @error('contractReviewerJobPositionId') <p style="font-size:11px;color:#dc2626;margin-top:3px;">{{ $message }}</p> @enderror
+                                </div>
+                                <button type="button" wire:click="addContractReviewer" class="btn-primary" style="margin-top:22px;"><i class="fa-solid fa-plus"></i> Tambah</button>
+                            </div>
+                        @endif
+                    @endif
+                </div>
+
+                {{-- Dokumen Perpanjangan Kontrak - daftar dokumen yang wajib/opsional diunggah pengaju --}}
+                <div style="background:var(--surface);border-radius:16px;box-shadow:var(--shadow-card);padding:18px;margin-top:20px;">
+                    <p style="font-size:13px;font-weight:600;color:var(--text-heading);margin:0 0 4px;">Dokumen Perpanjangan Kontrak</p>
+                    <p style="font-size:11px;color:var(--text-muted);margin:0 0 14px;">Dokumen yang harus diunggah karyawan saat mengajukan perpanjangan kontrak. Centang "wajib" untuk yang tidak boleh kosong.</p>
+
+                    @if (! $companyId)
+                        <p style="font-size:12px;color:#b45309;margin:0;">Pilih perusahaan dulu.</p>
+                    @else
+                        <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px;">
+                            @foreach ($contractDocRows as $i => $row)
+                                <div wire:key="cdoc-{{ $i }}" style="display:flex;gap:8px;align-items:center;">
+                                    <input type="text" wire:model="contractDocRows.{{ $i }}.label" class="form-input" style="flex:1;" placeholder="Nama dokumen" @disabled(! $this->canEditSettings)>
+                                    <label style="display:flex;align-items:center;gap:5px;font-size:11.5px;color:var(--text-muted);white-space:nowrap;">
+                                        <input type="checkbox" wire:model="contractDocRows.{{ $i }}.required" @disabled(! $this->canEditSettings)> wajib
+                                    </label>
+                                    @if ($this->canEditSettings)
+                                        <button type="button" wire:click="moveContractDocUp({{ $i }})" class="btn-ghost" style="padding:5px 8px;">▲</button>
+                                        <button type="button" wire:click="moveContractDocDown({{ $i }})" class="btn-ghost" style="padding:5px 8px;">▼</button>
+                                        <button type="button" wire:click="removeContractDoc({{ $i }})" class="btn-ghost" style="color:#dc2626;padding:5px 8px;"><i class="fa-solid fa-trash" style="font-size:11px;"></i></button>
+                                    @endif
+                                </div>
+                                @error("contractDocRows.$i.label") <p style="font-size:11px;color:#dc2626;">{{ $message }}</p> @enderror
+                            @endforeach
+                        </div>
+                        @if ($this->canEditSettings)
+                            <div style="display:flex;gap:8px;">
+                                <button type="button" wire:click="addContractDoc" class="btn-ghost"><i class="fa-solid fa-plus"></i> Tambah Dokumen</button>
+                                <button type="button" wire:click="saveContractDocs" class="btn-primary"><i class="fa-solid fa-floppy-disk"></i> Simpan</button>
+                            </div>
+                        @endif
+                    @endif
+                </div>
             </div>
         </div>
 

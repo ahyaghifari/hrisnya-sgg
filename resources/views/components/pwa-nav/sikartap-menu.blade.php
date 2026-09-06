@@ -5,6 +5,7 @@
     $canViewPengaturan = auth()->user()->can(\App\Enum\CustomPermissionEnum::LIHAT_PENGATURAN_SIKARTAP->value);
     $canViewKontrak = auth()->user()->can('ViewAny:UserContract');
     $canViewOrientasi = auth()->user()->can('ViewAny:OrientationSubmission');
+    $canViewPerpanjanganKontrak = auth()->user()->can('ViewAny:ContractSubmission');
     $hasSikartap = $canViewSikartap || auth()->user()->can(\App\Enum\CustomPermissionEnum::SISTEM_SIKARTAP->value);
 @endphp
 
@@ -19,6 +20,12 @@
 <a href="{{ route('kepegawaian.kontrak') }}" wire:navigate class="pwa-menu-grid-item">
     <span class="pwa-menu-grid-icon violet"><i class="fa-solid fa-file-contract"></i></span>
     <span class="pwa-menu-grid-label">Kontrak</span>
+</a>
+@endif
+@if ($canViewPerpanjanganKontrak)
+<a href="{{ route('kepegawaian.perpanjangan-kontrak') }}" wire:navigate class="pwa-menu-grid-item">
+    <span class="pwa-menu-grid-icon violet"><i class="fa-solid fa-file-signature"></i></span>
+    <span class="pwa-menu-grid-label">Perpanjangan Kontrak</span>
 </a>
 @endif
 @if ($hasSikartap)

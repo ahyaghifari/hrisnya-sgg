@@ -48,6 +48,7 @@ class SikartapSettingsPage extends Component
 
         $this->loadCompanyState();
         $this->loadReviewerSelections();
+        $this->loadContractDocs();
     }
 
     public function updatedCompanyId(): void
@@ -57,6 +58,7 @@ class SikartapSettingsPage extends Component
         }
 
         $this->loadReviewerSelections();
+        $this->loadContractDocs();
     }
 
     public function selectCompany(string $companyId): void
@@ -66,6 +68,7 @@ class SikartapSettingsPage extends Component
         $this->companyId = $companyId;
         $this->loadCompanyState();
         $this->loadReviewerSelections();
+        $this->loadContractDocs();
     }
 
     /** Muat pilihan reviewer SAAT INI per Departemen dari DB - dipanggil tiap kali company
@@ -290,6 +293,119 @@ class SikartapSettingsPage extends Component
         SikartapReviewer::whereKey($id)->delete();
 
         Notification::make()->title('Penilai orientasi dihapus')->success()->send();
+    }
+
+    // ── Penilai Perpanjangan Kontrak (sikartap_reviewers, context contract) ───────
+
+    public ?string $contractReviewerDeptId = null;
+    public ?string $contractReviewerJobPositionId = null;
+
+    public function getContractReviewersProperty()
+    {
+        if (! $this->companyId) {
+            return collect();
+        }
+
+        return SikartapReviewer::query()
+            ->forContext(SikartapReviewer::CONTEXT_CONTRACT)
+            ->where('company_id', $this->companyId)
+            ->with(['orgStructure', 'jobPosition'])
+            ->get();
+    }
+
+    public function addContractReviewer(): void
+    {
+        abort_unless(Auth::user()->can(CustomPermissionEnum::EDIT_PENGATURAN_SIKARTAP->value), 403);
+
+        $this->validate([
+            'contractReviewerDeptId' => 'required|exists:m_org_structures,id',
+            'contractReviewerJobPositionId' => 'required|exists:m_job_positions,id',
+        ], [], [
+            'contractReviewerDeptId' => 'departemen',
+            'contractReviewerJobPositionId' => 'jabatan',
+        ]);
+
+        SikartapReviewer::firstOrCreate([
+            'context' => SikartapReviewer::CONTEXT_CONTRACT,
+            'company_id' => $this->companyId,
+            'org_structure_id' => $this->contractReviewerDeptId,
+            'job_position_id' => $this->contractReviewerJobPositionId,
+        ]);
+
+        $this->contractReviewerDeptId = null;
+        $this->contractReviewerJobPositionId = null;
+
+        Notification::make()->title('Penilai perpanjangan kontrak ditambahkan')->success()->send();
+    }
+
+    public function removeContractReviewer(string $id): void
+    {
+        abort_unless(Auth::user()->can(CustomPermissionEnum::EDIT_PENGATURAN_SIKARTAP->value), 403);
+
+        SikartapReviewer::whereKey($id)->delete();
+
+        Notification::make()->title('Penilai perpanjangan kontrak dihapus')->success()->send();
+    }
+
+    // ── Dokumen Perpanjangan Kontrak (Setting contract_extension_documents) ───────
+
+    /** @var array<int, array{label:string, required:bool}> */
+    public array $contractDocRows = [];
+
+    private function loadContractDocs(): void
+    {
+        $this->contractDocRows = app(\App\Services\ContractExtensionService::class)
+            ->requiredDocuments($this->companyId);
+    }
+
+    public function addContractDoc(): void
+    {
+        abort_unless($this->canEditSettings, 403);
+        $this->contractDocRows[] = ['label' => '', 'required' => true];
+    }
+
+    public function removeContractDoc(int $index): void
+    {
+        abort_unless($this->canEditSettings, 403);
+        unset($this->contractDocRows[$index]);
+        $this->contractDocRows = array_values($this->contractDocRows);
+    }
+
+    public function moveContractDocUp(int $index): void
+    {
+        abort_unless($this->canEditSettings, 403);
+        if ($index > 0 && isset($this->contractDocRows[$index])) {
+            [$this->contractDocRows[$index - 1], $this->contractDocRows[$index]] = [$this->contractDocRows[$index], $this->contractDocRows[$index - 1]];
+        }
+    }
+
+    public function moveContractDocDown(int $index): void
+    {
+        abort_unless($this->canEditSettings, 403);
+        if ($index < count($this->contractDocRows) - 1 && isset($this->contractDocRows[$index])) {
+            [$this->contractDocRows[$index + 1], $this->contractDocRows[$index]] = [$this->contractDocRows[$index], $this->contractDocRows[$index + 1]];
+        }
+    }
+
+    public function saveContractDocs(): void
+    {
+        abort_unless($this->canEditSettings, 403);
+
+        $this->validate([
+            'contractDocRows.*.label' => 'required|string|max:255',
+        ], [], [
+            'contractDocRows.*.label' => 'nama dokumen',
+        ]);
+
+        $clean = collect($this->contractDocRows)
+            ->map(fn ($r) => ['label' => trim($r['label']), 'required' => (bool) ($r['required'] ?? false)])
+            ->filter(fn ($r) => $r['label'] !== '')
+            ->values()
+            ->all();
+
+        app(\App\Services\ContractExtensionService::class)->saveRequiredDocuments($this->companyId, $clean);
+
+        Notification::make()->title('Dokumen perpanjangan kontrak tersimpan')->success()->send();
     }
 
     public function render()

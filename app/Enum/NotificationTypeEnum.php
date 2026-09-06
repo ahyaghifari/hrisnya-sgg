@@ -79,6 +79,9 @@ enum NotificationTypeEnum: string
     case ORIENTATION_REVIEWED = 'orientation_reviewed';
     case ORIENTATION_REVIEW_REQUESTED = 'orientation_review_requested';
     case ORIENTATION_REVISION_REQUESTED = 'orientation_revision_requested';
+    case CONTRACT_REVIEW_REQUESTED = 'contract_review_requested';
+    case CONTRACT_REVIEWED = 'contract_reviewed';
+    case CONTRACT_REVISION_REQUESTED = 'contract_revision_requested';
 
     public function label(): string
     {
@@ -118,6 +121,9 @@ enum NotificationTypeEnum: string
             self::ORIENTATION_REVIEWED => 'Penilaian Orientasi Saya Selesai',
             self::ORIENTATION_REVIEW_REQUESTED => 'Pengajuan Orientasi Perlu Dinilai',
             self::ORIENTATION_REVISION_REQUESTED => 'Bukti Orientasi Saya Diminta Revisi',
+            self::CONTRACT_REVIEW_REQUESTED => 'Pengajuan Perpanjangan Kontrak Perlu Dinilai',
+            self::CONTRACT_REVIEWED => 'Perpanjangan Kontrak Saya Diputuskan',
+            self::CONTRACT_REVISION_REQUESTED => 'Dokumen Perpanjangan Kontrak Saya Diminta Revisi',
         };
     }
 
@@ -174,6 +180,9 @@ enum NotificationTypeEnum: string
             self::ORIENTATION_REVIEWED => 'Dikirim saat penilai memutuskan pengajuan orientasi Anda (lanjut kontrak / perpanjang orientasi).',
             self::ORIENTATION_REVIEW_REQUESTED => 'Dikirim ke penilai saat ada karyawan orientasi mengajukan penilaian.',
             self::ORIENTATION_REVISION_REQUESTED => 'Dikirim saat penilai mengembalikan pengajuan orientasi Anda untuk diperbaiki, beserta catatannya.',
+            self::CONTRACT_REVIEW_REQUESTED => 'Dikirim ke penilai saat ada karyawan mengajukan perpanjangan kontrak.',
+            self::CONTRACT_REVIEWED => 'Dikirim saat penilai memutuskan pengajuan perpanjangan kontrak Anda (perpanjang / tidak diperpanjang).',
+            self::CONTRACT_REVISION_REQUESTED => 'Dikirim saat penilai mengembalikan pengajuan perpanjangan kontrak Anda untuk melengkapi dokumen, beserta catatannya.',
         };
     }
 }

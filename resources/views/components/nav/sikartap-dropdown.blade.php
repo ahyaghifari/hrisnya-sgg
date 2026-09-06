@@ -9,11 +9,12 @@
     $canViewPengaturan = auth()->user()->can(\App\Enum\CustomPermissionEnum::LIHAT_PENGATURAN_SIKARTAP->value);
     $canViewKontrak = auth()->user()->can('ViewAny:UserContract');
     $canViewOrientasi = auth()->user()->can('ViewAny:OrientationSubmission');
+    $canViewPerpanjanganKontrak = auth()->user()->can('ViewAny:ContractSubmission');
     $hasSikartap = $canViewSikartap || auth()->user()->can(\App\Enum\CustomPermissionEnum::SISTEM_SIKARTAP->value);
 @endphp
 
 <div class="dropdown">
-    <a href="#" class="nav-item nav-item-violet {{ request()->routeIs(['sikartap.*', 'kepegawaian.orientasi', 'kepegawaian.kontrak']) ? 'active' : '' }}">
+    <a href="#" class="nav-item nav-item-violet {{ request()->routeIs(['sikartap.*', 'kepegawaian.orientasi', 'kepegawaian.kontrak', 'kepegawaian.perpanjangan-kontrak']) ? 'active' : '' }}">
         <i class="fa-solid fa-user-check text-xs"></i> Sikartap <i class="fa-solid fa-chevron-down text-[10px]"></i>
     </a>
     <div class="dropdown-menu dropdown-menu-columns">
@@ -38,11 +39,14 @@
         </div>
         @endif
 
-        @if ($canViewKontrak || $canViewOrientasi)
+        @if ($canViewKontrak || $canViewOrientasi || $canViewPerpanjanganKontrak)
         <div class="dropdown-col">
             <div class="dropdown-col-label">Kontrak &amp; Orientasi</div>
             @if ($canViewKontrak)
                 <a href="{{ route('kepegawaian.kontrak') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-file-contract"></i> Kontrak</a>
+            @endif
+            @if ($canViewPerpanjanganKontrak)
+                <a href="{{ route('kepegawaian.perpanjangan-kontrak') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-file-signature"></i> Perpanjangan Kontrak</a>
             @endif
             @if ($canViewOrientasi)
                 <a href="{{ route('kepegawaian.orientasi') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-user-graduate"></i> Orientasi</a>

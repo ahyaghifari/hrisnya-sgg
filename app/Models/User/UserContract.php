@@ -8,6 +8,7 @@ use App\Models\User;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\Storage;
 
 /**
@@ -55,6 +56,12 @@ class UserContract extends Model
     public function sourceTransition(): BelongsTo
     {
         return $this->belongsTo(UserTransition::class, 'source_transition_id');
+    }
+
+    /** Pengajuan perpanjangan kontrak yang menempel ke periode kontrak ini (anak). */
+    public function submissions(): HasMany
+    {
+        return $this->hasMany(\App\Models\ContractSubmission::class, 'user_contract_id')->latest();
     }
 
     public function getFileUrlAttribute(): ?string
