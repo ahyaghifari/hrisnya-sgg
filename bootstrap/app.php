@@ -17,12 +17,14 @@ return Application::configure(basePath: dirname(__DIR__))
         },
     )
     ->withSchedule(function (Schedule $schedule) {
-        // Proses access_logs -> attendance_records tiap menit, incremental (lihat
+        // Proses access_logs -> attendance_records tiap 10 detik, incremental (lihat
         // AccessLogScheduleReader::readAndGroupIncremental + SyncAccessLog watermark - tidak
-        // scan ulang semua baris tiap kali). Langsung lewat cron (bukan queue), sesuai keputusan
-        // user - tidak perlu proses queue:work tambahan cuma buat ini.
+        // scan ulang semua baris tiap kali). Langsung lewat scheduler (bukan queue), sesuai
+        // keputusan user - tidak perlu proses queue:work tambahan cuma buat ini.
+        // Frekuensi sub-menit WAJIB dijalankan lewat `schedule:work` (Supervisor), bukan cron
+        // `schedule:run` per menit.
         $schedule->command('attendance:sync-access-logs')
-            ->everyMinute()
+            ->everyTenSeconds()
             ->withoutOverlapping();
 
         // Terapkan transisi karyawan (Promosi/Demosi/Mutasi/PHK) yang disetujui dengan tanggal
