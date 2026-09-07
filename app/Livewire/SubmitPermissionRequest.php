@@ -7,6 +7,7 @@ use App\Enum\Attendance\PermissionGroupEnum;
 use App\Models\Master\Attendance\PermissionTypes;
 use App\Models\Setting;
 use App\Services\Attendance\AttendaceReqService;
+use App\Support\TimeInput;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
@@ -224,6 +225,9 @@ class SubmitPermissionRequest extends Component
 
     public function submit(): void
     {
+        $this->start_time = TimeInput::normalize($this->start_time);
+        $this->end_time = TimeInput::normalize($this->end_time);
+
         $data = $this->validate();
 
         try {

@@ -4,6 +4,7 @@ namespace App\Livewire;
 
 use App\Models\Master\Attendance\OvertimeTypes;
 use App\Services\Attendance\AttendaceReqService;
+use App\Support\TimeInput;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
@@ -65,6 +66,11 @@ class SubmitOvertimeRequest extends Component
 
     public function submit(): void
     {
+        foreach ($this->tasks as $i => $task) {
+            $this->tasks[$i]['start_time'] = TimeInput::normalize($task['start_time'] ?? null);
+            $this->tasks[$i]['end_time'] = TimeInput::normalize($task['end_time'] ?? null);
+        }
+
         $data = $this->validate();
 
         try {
