@@ -2,21 +2,26 @@
 
 namespace Tests\Feature\Sikartap;
 
-use App\Enum\Approval\ApprovalModuleEnum;
+use App\Enum\OrgStructurLevel;
 use App\Filament\Resources\Sikartap\Pages\ViewSikartap;
-use App\Models\ApprovalManagement\MasterApprovalFlows;
-use App\Models\ApprovalManagement\MasterApprovalFlowSteps;
 use App\Models\Master\Companies;
+use App\Models\Master\EmployeeTypes;
+use App\Models\Master\JobPositions;
+use App\Models\Master\OrgStructure;
 use App\Models\Role;
+use App\Models\Setting;
 use App\Models\Sikartap\Sikartap;
 use App\Models\User;
+use App\Models\User\UserJobPositions;
+use App\Models\User\UserProfiles;
 use App\Services\Sikartap\SikartapDirectorDecisionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 use Spatie\Permission\Models\Permission;
 use Tests\TestCase;
 
-/** Fase 4 — Keputusan Direktur, WAJIB lewat Approval Engine (bukan kolom ditulis langsung). */
+/** Fase 4 — Keputusan Direktur, LEPAS Approval Engine (2026-09-07). Direktur = pemegang aktif
+ * jabatan Setting `sikartap_direktur_job_position_id` perusahaan pelamar. */
 class DirectorDecisionTest extends TestCase
 {
     use RefreshDatabase;
@@ -24,6 +29,10 @@ class DirectorDecisionTest extends TestCase
     private function makeEligibleSikartap(Companies $company): Sikartap
     {
         $applicant = User::factory()->create(['company_id' => $company->id]);
+        UserProfiles::create([
+            'user_id' => $applicant->id,
+            'joining_date' => now()->subYears(2)->toDateString(),
+        ]);
 
         $sikartap = Sikartap::create([
             'user_id' => $applicant->id,
@@ -56,40 +65,45 @@ class DirectorDecisionTest extends TestCase
         return $hrd;
     }
 
-    /** Direktur butuh permission Shield ViewAny/View:Sikartap buat akses halaman
-     * Filament-nya (canAccess() gate) - beda dari izin approve itu sendiri yang
-     * dicek terpisah lewat ApprovalPermissionService::canApprove(). */
-    private function grantSikartapViewPermission(User $user): void
+    /** Buat jabatan Direktur + pemegang aktif, daftarkan di Setting perusahaan. */
+    private function makeDirektur(Companies $company): User
     {
+        $dept = OrgStructure::create([
+            'company_id' => $company->id,
+            'name' => 'Direksi',
+            'level' => OrgStructurLevel::LEVEL_DEPARTMENT->value,
+        ]);
+
+        $pos = JobPositions::create([
+            'company_id' => $company->id,
+            'name' => 'Direktur Utama',
+            'planned_manpower' => 1,
+            'org_structure_id' => $dept->id,
+        ]);
+
+        $direktur = User::factory()->create(['company_id' => $company->id]);
+        UserJobPositions::create([
+            'user_id' => $direktur->id,
+            'job_position_id' => $pos->id,
+            'start_date' => now()->subYear(),
+            'status' => 'active',
+        ]);
+
+        // Akses halaman Filament ViewSikartap butuh View:Sikartap (Filament canView gate),
+        // terpisah dari izin MEMUTUSKAN yang di-resolve dari jabatan Direktur di atas.
         $role = Role::firstOrCreate(['name' => 'Direktur'], ['guard_name' => 'web']);
         $role->givePermissionTo([
             Permission::firstOrCreate(['name' => 'ViewAny:Sikartap', 'guard_name' => 'web']),
             Permission::firstOrCreate(['name' => 'View:Sikartap', 'guard_name' => 'web']),
         ]);
-        $user->assignRole($role);
-    }
+        $direktur->assignRole($role);
 
-    private function makeFlow(Companies $company, User $approver): MasterApprovalFlows
-    {
-        $flow = MasterApprovalFlows::create([
-            'company_id' => $company->id,
-            'module' => ApprovalModuleEnum::SIKARTAP_DIRECTOR_DECISION->value,
-            'name' => 'Alur Keputusan Direktur',
-            'flow_type' => 'default',
-            'is_active' => true,
-        ]);
+        Setting::updateOrCreate(
+            ['key' => SikartapDirectorDecisionService::SETTING_KEY, 'company_id' => $company->id],
+            ['module' => 'sikartap', 'type' => 'string', 'label' => 'Jabatan Direktur', 'value' => $pos->id],
+        );
 
-        MasterApprovalFlowSteps::create([
-            'flow_id' => $flow->id,
-            'step_order' => 1,
-            'approver_type' => 'user',
-            'approver_ref_id' => $approver->id,
-            'approval_mode' => 'any',
-            'scope_type' => 'global',
-            'is_final' => true,
-        ]);
-
-        return $flow;
+        return $direktur;
     }
 
     public function test_cannot_submit_when_not_eligible(): void
@@ -103,23 +117,33 @@ class DirectorDecisionTest extends TestCase
         app(SikartapDirectorDecisionService::class)->submitForDecision($sikartap);
     }
 
-    public function test_submit_creates_approval_snapshot(): void
+    public function test_cannot_submit_when_no_director_configured(): void
     {
         $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
-        $direktur = User::factory()->create(['company_id' => $company->id]);
-        $this->makeFlow($company, $direktur);
+        $this->actingAsHrd($company);
+        $sikartap = $this->makeEligibleSikartap($company);
 
-        $hrd = $this->actingAsHrd($company);
+        $this->expectExceptionMessage('Jabatan Direktur');
+
+        app(SikartapDirectorDecisionService::class)->submitForDecision($sikartap);
+    }
+
+    public function test_submit_sets_status_diajukan(): void
+    {
+        $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
+        $this->makeDirektur($company);
+
+        $this->actingAsHrd($company);
         $sikartap = $this->makeEligibleSikartap($company);
 
         app(SikartapDirectorDecisionService::class)->submitForDecision($sikartap);
 
         $sikartap->refresh();
-        $this->assertNotNull($sikartap->approvalSnapshot);
-        $this->assertSame('in_review', $sikartap->approvalSnapshot->status);
+        $this->assertSame('diajukan', $sikartap->status_keputusan_direktur);
+        $this->assertNotNull($sikartap->keputusan_direktur_diajukan_at);
     }
 
-    public function test_ajukan_action_hidden_when_not_eligible_or_already_submitted(): void
+    public function test_ajukan_action_hidden_when_not_eligible(): void
     {
         $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
         $this->actingAsHrd($company);
@@ -133,14 +157,12 @@ class DirectorDecisionTest extends TestCase
     public function test_director_can_approve_via_filament_action(): void
     {
         $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
-        $direktur = User::factory()->create(['company_id' => $company->id]);
-        $this->makeFlow($company, $direktur);
+        $direktur = $this->makeDirektur($company);
 
-        $hrd = $this->actingAsHrd($company);
+        $this->actingAsHrd($company);
         $sikartap = $this->makeEligibleSikartap($company);
         app(SikartapDirectorDecisionService::class)->submitForDecision($sikartap);
 
-        $this->grantSikartapViewPermission($direktur);
         $this->actingAs($direktur);
 
         Livewire::test(ViewSikartap::class, ['record' => $sikartap->id])
@@ -149,20 +171,19 @@ class DirectorDecisionTest extends TestCase
 
         $sikartap->refresh();
         $this->assertSame('approved', $sikartap->status_keputusan_direktur);
-        $this->assertSame('approved', $sikartap->approvalSnapshot->status);
+        $this->assertSame($direktur->id, $sikartap->keputusan_direktur_by);
+        $this->assertNotNull($sikartap->user->profile->tmt_tetap);
     }
 
     public function test_director_can_reject_via_filament_action(): void
     {
         $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
-        $direktur = User::factory()->create(['company_id' => $company->id]);
-        $this->makeFlow($company, $direktur);
+        $direktur = $this->makeDirektur($company);
 
         $this->actingAsHrd($company);
         $sikartap = $this->makeEligibleSikartap($company);
         app(SikartapDirectorDecisionService::class)->submitForDecision($sikartap);
 
-        $this->grantSikartapViewPermission($direktur);
         $this->actingAs($direktur);
 
         Livewire::test(ViewSikartap::class, ['record' => $sikartap->id])
@@ -170,16 +191,15 @@ class DirectorDecisionTest extends TestCase
 
         $sikartap->refresh();
         $this->assertSame('rejected', $sikartap->status_keputusan_direktur);
-        $this->assertSame('rejected', $sikartap->approvalSnapshot->status);
+        $this->assertSame('Belum memenuhi kualifikasi.', $sikartap->keputusan_direktur_note);
     }
 
-    public function test_non_approver_cannot_see_decision_actions(): void
+    public function test_non_director_cannot_see_decision_actions(): void
     {
         $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
-        $direktur = User::factory()->create(['company_id' => $company->id]);
-        $this->makeFlow($company, $direktur);
+        $this->makeDirektur($company);
 
-        $hrd = $this->actingAsHrd($company);
+        $this->actingAsHrd($company);
         $sikartap = $this->makeEligibleSikartap($company);
         app(SikartapDirectorDecisionService::class)->submitForDecision($sikartap);
 

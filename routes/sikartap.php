@@ -4,6 +4,8 @@ use App\Livewire\Sikartap\Mcu\AsesmenPerawatPage;
 use App\Livewire\Sikartap\Mcu\HasilLaboratoriumPage;
 use App\Livewire\Sikartap\Mcu\HasilRadiologiPage;
 use App\Livewire\Sikartap\Mcu\PemeriksaanDokterPage;
+use App\Livewire\Kepegawaian\KontrakKelolaPage;
+use App\Livewire\Kepegawaian\OrientasiKelolaPage;
 use App\Livewire\Sikartap\DashboardSikartapPage;
 use App\Livewire\Sikartap\DirekturBulkKeputusanPage;
 use App\Livewire\Sikartap\IdeInovasiAtasanQueuePage;
@@ -91,3 +93,15 @@ Route::get('/sikartap/ide-inovasi/atasan', IdeInovasiAtasanQueuePage::class)
 
 Route::get('/sikartap/ide-inovasi/atasan/{sikartap}', IdeInovasiAtasanReviewPage::class)
     ->name('sikartap.ide-inovasi.atasan');
+
+/**
+ * Sisi HR alur perjalanan status karyawan (kelas Livewire tetap di namespace Kepegawaian).
+ * Data kontrak/orientasi berjalan ada di dropdown Kepegawaian; ini kelola PENGAJUAN-nya:
+ *  - sikartap.kontrak   : kelola pengajuan perpanjangan kontrak (dulu kepegawaian.perpanjangan-kontrak)
+ *  - sikartap.orientasi : kelola pengajuan penilaian orientasi (dulu kepegawaian.orientasi)
+ */
+Route::get('/sikartap/kontrak', KontrakKelolaPage::class)
+    ->name('sikartap.kontrak');
+
+Route::get('/sikartap/orientasi', OrientasiKelolaPage::class)
+    ->name('sikartap.orientasi');

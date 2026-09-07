@@ -1,20 +1,18 @@
 @php
-    // "Sikartap" = payung perjalanan status karyawan: Orientasi -> Kontrak -> Tetap.
-    // Halaman-halamannya masih terpisah (route tidak diubah), disatukan di dropdown ini
-    // (instruksi user 2026-09-04). 3 kolom: Karyawan Tetap | Kontrak | Orientasi - Kontrak &
-    // Orientasi dipisah jadi kolom sendiri-sendiri (2026-09-05, dulu 1 kolom gabung).
+    // "Sikartap" = payung ALUR perjalanan status karyawan: Orientasi -> Perpanjangan Kontrak
+    // -> Tetap. Data kontrak berjalan (Kontrak Karyawan) dipindah ke dropdown Kepegawaian >
+    // Status Karyawan (2026-09-07) - itu data, bukan alur pengajuan.
     $canViewSikartap = auth()->user()->can('ViewAny:Sikartap');
     $canInputMcu = auth()->user()->canInputSikartapMcu()
         || auth()->user()->can(\App\Enum\CustomPermissionEnum::EDIT_INPUT_MCU->value);
     $canViewPengaturan = auth()->user()->can(\App\Enum\CustomPermissionEnum::LIHAT_PENGATURAN_SIKARTAP->value);
-    $canViewKontrak = auth()->user()->can('ViewAny:UserContract');
     $canViewOrientasi = auth()->user()->can('ViewAny:OrientationSubmission');
     $canViewPerpanjanganKontrak = auth()->user()->can('ViewAny:ContractSubmission');
     $hasSikartap = $canViewSikartap || auth()->user()->can(\App\Enum\CustomPermissionEnum::SISTEM_SIKARTAP->value);
 @endphp
 
 <div class="dropdown">
-    <a href="#" class="nav-item nav-item-violet {{ request()->routeIs(['sikartap.*', 'kepegawaian.orientasi', 'kepegawaian.kontrak', 'kepegawaian.perpanjangan-kontrak']) ? 'active' : '' }}">
+    <a href="#" class="nav-item nav-item-violet {{ request()->routeIs('sikartap.*') ? 'active' : '' }}">
         <i class="fa-solid fa-user-check text-xs"></i> Sikartap <i class="fa-solid fa-chevron-down text-[10px]"></i>
     </a>
     <div class="dropdown-menu dropdown-menu-columns">
@@ -39,17 +37,14 @@
         </div>
         @endif
 
-        @if ($canViewKontrak || $canViewOrientasi || $canViewPerpanjanganKontrak)
+        @if ($canViewOrientasi || $canViewPerpanjanganKontrak)
         <div class="dropdown-col">
-            <div class="dropdown-col-label">Kontrak &amp; Orientasi</div>
-            @if ($canViewKontrak)
-                <a href="{{ route('kepegawaian.kontrak') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-file-contract"></i> Kontrak</a>
-            @endif
+            <div class="dropdown-col-label">Perpanjangan &amp; Orientasi</div>
             @if ($canViewPerpanjanganKontrak)
-                <a href="{{ route('kepegawaian.perpanjangan-kontrak') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-file-signature"></i> Perpanjangan Kontrak</a>
+                <a href="{{ route('sikartap.kontrak') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-file-signature"></i> Perpanjangan Kontrak</a>
             @endif
             @if ($canViewOrientasi)
-                <a href="{{ route('kepegawaian.orientasi') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-user-graduate"></i> Orientasi</a>
+                <a href="{{ route('sikartap.orientasi') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-user-graduate"></i> Orientasi</a>
             @endif
         </div>
         @endif

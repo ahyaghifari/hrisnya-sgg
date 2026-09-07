@@ -2,12 +2,9 @@
 
 namespace App\Models\Sikartap;
 
-use App\Enum\Approval\ApprovalModuleEnum;
 use App\Enum\CustomPermissionEnum;
 use App\Enum\Sikartap\SikartapDocumentType;
 use App\Enum\Sikartap\SikartapSettingEnum;
-use App\Models\ApprovalManagement\ApprovalHistories;
-use App\Models\ApprovalManagement\ApprovalSnapshots;
 use App\Models\Setting;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
@@ -22,6 +19,12 @@ class Sikartap extends Model
 
     protected $table = 'sikartap';
 
+    /** Samakan dengan default kolom DB — instance baru yang belum di-refresh tetap kebaca
+     * 'pending' (state awal tahap Keputusan Direktur), bukan null. */
+    protected $attributes = [
+        'status_keputusan_direktur' => 'pending',
+    ];
+
     protected $fillable = [
         'user_id',
         'status_berkas',
@@ -35,6 +38,11 @@ class Sikartap extends Model
         'status_mcu',
         'catatan_mcu',
         'status_keputusan_direktur',
+        'keputusan_direktur_diajukan_at',
+        'keputusan_direktur_diajukan_by',
+        'keputusan_direktur_by',
+        'keputusan_direktur_at',
+        'keputusan_direktur_note',
         'is_diskualifikasi',
         'alasan_diskualifikasi',
     ];
@@ -44,6 +52,8 @@ class Sikartap extends Model
         return [
             'berkas_lengkap' => 'boolean',
             'is_diskualifikasi' => 'boolean',
+            'keputusan_direktur_diajukan_at' => 'datetime',
+            'keputusan_direktur_at' => 'datetime',
         ];
     }
 
@@ -92,16 +102,16 @@ class Sikartap extends Model
         return $this->hasOne(SikartapIdeInovasi::class);
     }
 
-    /** Snapshot approval Keputusan Direktur (Fase 4) — module 1:1 sama pola AttendanceRequests. */
-    public function approvalSnapshot(): HasOne
+    /** Direktur yang memutuskan (Keputusan Direktur lepas dari Approval Engine, 2026-09-07). */
+    public function keputusanDirekturBy(): BelongsTo
     {
-        return $this->hasOne(ApprovalSnapshots::class, 'module_id', 'id')
-            ->where('module_type', ApprovalModuleEnum::SIKARTAP_DIRECTOR_DECISION->value);
+        return $this->belongsTo(User::class, 'keputusan_direktur_by');
     }
 
-    public function approvalHistories(): HasMany
+    /** Sudah diajukan ke Direktur & belum diputuskan. */
+    public function isPendingDirectorDecision(): bool
     {
-        return $this->hasMany(ApprovalHistories::class, 'requestable_id');
+        return $this->status_keputusan_direktur === 'diajukan';
     }
 
     /** Semua dokumen wajib (§ SikartapDocumentType::isRequired()) sudah diupload — gate legacy

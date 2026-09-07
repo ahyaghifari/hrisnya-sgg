@@ -87,10 +87,11 @@
                     </div>
                 @endif
 
-                {{-- Penilai Orientasi - jabatan-based, TIDAK bergantung toggle "wajib Ide Inovasi" --}}
+                {{-- Penilai Perjalanan Status Karyawan (Orientasi & Perpanjangan Kontrak digabung).
+                     Jabatan-based, TIDAK bergantung toggle "wajib Ide Inovasi". --}}
                 <div style="background:var(--surface);border-radius:16px;box-shadow:var(--shadow-card);padding:18px;margin-top:20px;">
-                    <p style="font-size:13px;font-weight:600;color:var(--text-heading);margin:0 0 4px;">Penilai Orientasi</p>
-                    <p style="font-size:11px;color:var(--text-muted);margin:0 0 14px;">Jabatan yang menilai orientasi karyawan per Departemen. Penilai = pemegang aktif jabatan itu; kalau kosong, sistem naik ke Departemen induk.</p>
+                    <p style="font-size:13px;font-weight:600;color:var(--text-heading);margin:0 0 4px;">Penilai Perjalanan Status Karyawan</p>
+                    <p style="font-size:11px;color:var(--text-muted);margin:0 0 14px;">Jabatan yang menilai <strong>penilaian orientasi</strong> dan <strong>pengajuan perpanjangan kontrak</strong> per Departemen. Penilai = pemegang aktif jabatan itu; kalau kosong, sistem naik ke Departemen induk.</p>
 
                     @if (! $companyId)
                         <p style="font-size:12px;color:#b45309;margin:0;">Pilih perusahaan dulu.</p>
@@ -104,18 +105,18 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                @forelse ($this->orientationReviewers as $rev)
-                                    <tr wire:key="orev-{{ $rev->id }}" style="border-bottom:1px solid var(--border-soft);">
+                                @forelse ($this->statusReviewers as $rev)
+                                    <tr wire:key="srev-{{ $rev->id }}" style="border-bottom:1px solid var(--border-soft);">
                                         <td style="padding:8px 10px;">{{ $rev->orgStructure?->name ?? '-' }}</td>
                                         <td style="padding:8px 10px;">{{ $rev->jobPosition?->name ?? '-' }}</td>
                                         <td style="padding:8px 10px;text-align:right;">
                                             @if ($this->canEditSettings)
-                                                <button type="button" wire:click="removeOrientationReviewer('{{ $rev->id }}')" wire:confirm="Hapus penilai ini?" class="btn-ghost" style="color:#dc2626;padding:5px 10px;"><i class="fa-solid fa-trash" style="font-size:11px;"></i></button>
+                                                <button type="button" wire:click="removeStatusReviewer('{{ $rev->id }}')" wire:confirm="Hapus penilai ini?" class="btn-ghost" style="color:#dc2626;padding:5px 10px;"><i class="fa-solid fa-trash" style="font-size:11px;"></i></button>
                                             @endif
                                         </td>
                                     </tr>
                                 @empty
-                                    <tr><td colspan="3" style="padding:14px 10px;color:var(--text-muted);">Belum ada penilai orientasi. Tambahkan di bawah.</td></tr>
+                                    <tr><td colspan="3" style="padding:14px 10px;color:var(--text-muted);">Belum ada penilai. Tambahkan di bawah.</td></tr>
                                 @endforelse
                             </tbody>
                         </table>
@@ -124,88 +125,58 @@
                             <div style="display:flex;gap:8px;align-items:flex-start;flex-wrap:wrap;">
                                 <div style="flex:1;min-width:180px;">
                                     <label class="form-label">Departemen</label>
-                                    <select wire:model="orientationReviewerDeptId" class="form-input">
+                                    <select wire:model="statusReviewerDeptId" class="form-input">
                                         <option value="">-- Pilih Departemen --</option>
                                         @foreach ($this->orgDepartments as $d)
                                             <option value="{{ $d->id }}">{{ $d->name }}</option>
                                         @endforeach
                                     </select>
-                                    @error('orientationReviewerDeptId') <p style="font-size:11px;color:#dc2626;margin-top:3px;">{{ $message }}</p> @enderror
+                                    @error('statusReviewerDeptId') <p style="font-size:11px;color:#dc2626;margin-top:3px;">{{ $message }}</p> @enderror
                                 </div>
                                 <div style="flex:1;min-width:180px;">
                                     <label class="form-label">Jabatan Penilai</label>
-                                    <select wire:model="orientationReviewerJobPositionId" class="form-input">
+                                    <select wire:model="statusReviewerJobPositionId" class="form-input">
                                         <option value="">-- Pilih Jabatan --</option>
                                         @foreach ($this->companyJobPositions as $id => $name)
                                             <option value="{{ $id }}">{{ $name }}</option>
                                         @endforeach
                                     </select>
-                                    @error('orientationReviewerJobPositionId') <p style="font-size:11px;color:#dc2626;margin-top:3px;">{{ $message }}</p> @enderror
+                                    @error('statusReviewerJobPositionId') <p style="font-size:11px;color:#dc2626;margin-top:3px;">{{ $message }}</p> @enderror
                                 </div>
-                                <button type="button" wire:click="addOrientationReviewer" class="btn-primary" style="margin-top:22px;"><i class="fa-solid fa-plus"></i> Tambah</button>
+                                <button type="button" wire:click="addStatusReviewer" class="btn-primary" style="margin-top:22px;"><i class="fa-solid fa-plus"></i> Tambah</button>
                             </div>
                         @endif
                     @endif
                 </div>
 
-                {{-- Penilai Perpanjangan Kontrak - jabatan-based, sama pola Penilai Orientasi --}}
+                {{-- Jabatan Direktur - pemutus tahap Keputusan Direktur Sikartap (lepas Approval Engine). --}}
                 <div style="background:var(--surface);border-radius:16px;box-shadow:var(--shadow-card);padding:18px;margin-top:20px;">
-                    <p style="font-size:13px;font-weight:600;color:var(--text-heading);margin:0 0 4px;">Penilai Perpanjangan Kontrak</p>
-                    <p style="font-size:11px;color:var(--text-muted);margin:0 0 14px;">Jabatan yang menilai pengajuan perpanjangan kontrak per Departemen. Kalau kosong, sistem naik ke Departemen induk.</p>
+                    <p style="font-size:13px;font-weight:600;color:var(--text-heading);margin:0 0 4px;">Jabatan Direktur (Keputusan Sikartap)</p>
+                    <p style="font-size:11px;color:var(--text-muted);margin:0 0 14px;">Satu jabatan per perusahaan. Pemegang aktif jabatan ini yang menyetujui/menolak pengajuan karyawan tetap di tahap Keputusan Direktur.</p>
 
                     @if (! $companyId)
                         <p style="font-size:12px;color:#b45309;margin:0;">Pilih perusahaan dulu.</p>
                     @else
-                        <table style="width:100%;border-collapse:collapse;font-size:12.5px;margin-bottom:12px;">
-                            <thead>
-                                <tr style="border-bottom:1.5px solid var(--border);">
-                                    <th style="text-align:left;padding:8px 10px;">Departemen</th>
-                                    <th style="text-align:left;padding:8px 10px;">Jabatan Penilai</th>
-                                    <th></th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @forelse ($this->contractReviewers as $rev)
-                                    <tr wire:key="crev-{{ $rev->id }}" style="border-bottom:1px solid var(--border-soft);">
-                                        <td style="padding:8px 10px;">{{ $rev->orgStructure?->name ?? '-' }}</td>
-                                        <td style="padding:8px 10px;">{{ $rev->jobPosition?->name ?? '-' }}</td>
-                                        <td style="padding:8px 10px;text-align:right;">
-                                            @if ($this->canEditSettings)
-                                                <button type="button" wire:click="removeContractReviewer('{{ $rev->id }}')" wire:confirm="Hapus penilai ini?" class="btn-ghost" style="color:#dc2626;padding:5px 10px;"><i class="fa-solid fa-trash" style="font-size:11px;"></i></button>
-                                            @endif
-                                        </td>
-                                    </tr>
-                                @empty
-                                    <tr><td colspan="3" style="padding:14px 10px;color:var(--text-muted);">Belum ada penilai perpanjangan kontrak. Tambahkan di bawah.</td></tr>
-                                @endforelse
-                            </tbody>
-                        </table>
-
-                        @if ($this->canEditSettings)
-                            <div style="display:flex;gap:8px;align-items:flex-start;flex-wrap:wrap;">
-                                <div style="flex:1;min-width:180px;">
-                                    <label class="form-label">Departemen</label>
-                                    <select wire:model="contractReviewerDeptId" class="form-input">
-                                        <option value="">-- Pilih Departemen --</option>
-                                        @foreach ($this->orgDepartments as $d)
-                                            <option value="{{ $d->id }}">{{ $d->name }}</option>
-                                        @endforeach
-                                    </select>
-                                    @error('contractReviewerDeptId') <p style="font-size:11px;color:#dc2626;margin-top:3px;">{{ $message }}</p> @enderror
-                                </div>
-                                <div style="flex:1;min-width:180px;">
-                                    <label class="form-label">Jabatan Penilai</label>
-                                    <select wire:model="contractReviewerJobPositionId" class="form-input">
-                                        <option value="">-- Pilih Jabatan --</option>
-                                        @foreach ($this->companyJobPositions as $id => $name)
-                                            <option value="{{ $id }}">{{ $name }}</option>
-                                        @endforeach
-                                    </select>
-                                    @error('contractReviewerJobPositionId') <p style="font-size:11px;color:#dc2626;margin-top:3px;">{{ $message }}</p> @enderror
-                                </div>
-                                <button type="button" wire:click="addContractReviewer" class="btn-primary" style="margin-top:22px;"><i class="fa-solid fa-plus"></i> Tambah</button>
+                        <div style="display:flex;gap:8px;align-items:flex-start;flex-wrap:wrap;">
+                            <div style="flex:1;min-width:220px;">
+                                <label class="form-label">Jabatan Direktur</label>
+                                <select wire:model="direkturJobPositionId" class="form-input" @disabled(! $this->canEditSettings)>
+                                    <option value="">-- Belum diatur --</option>
+                                    @foreach ($this->companyJobPositions as $id => $name)
+                                        <option value="{{ $id }}">{{ $name }}</option>
+                                    @endforeach
+                                </select>
+                                @error('direkturJobPositionId') <p style="font-size:11px;color:#dc2626;margin-top:3px;">{{ $message }}</p> @enderror
+                                @if ($this->direkturHolders->isNotEmpty())
+                                    <p style="font-size:11px;color:var(--text-faint);margin-top:6px;">Pemegang aktif: {{ $this->direkturHolders->implode(', ') }}</p>
+                                @elseif ($direkturJobPositionId)
+                                    <p style="font-size:11px;color:#b45309;margin-top:6px;">Jabatan ini belum ada pemegang aktif — pengajuan tidak bisa dikirim ke Direktur.</p>
+                                @endif
                             </div>
-                        @endif
+                            @if ($this->canEditSettings)
+                                <button type="button" wire:click="saveDirektur" class="btn-primary" style="margin-top:22px;"><i class="fa-solid fa-floppy-disk"></i> Simpan</button>
+                            @endif
+                        </div>
                     @endif
                 </div>
 

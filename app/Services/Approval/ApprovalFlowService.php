@@ -7,7 +7,6 @@ use App\Enum\AttendanceReqStatus;
 use App\Enum\Task\TaskStatus;
 use App\Models\LMS\TrainingRequests;
 use App\Models\Shift\ShiftSwapRequests;
-use App\Models\Sikartap\Sikartap;
 use App\Models\User;
 use App\Services\Shift\ShiftSwapRequestService;
 use App\Notifications\ApprovalNeedsAction;
@@ -118,15 +117,6 @@ class ApprovalFlowService
                         'status' => 'rejected',
                         'rejected_by' => $actorId,
                         'rejected_at' => now(),
-                    ]);
-                }
-
-                // Sikartap - Keputusan Direktur (Fase 4). Kolom status_keputusan_direktur cuma
-                // cache tersinkron dari snapshot approval, bukan ditulis manual dari Filament
-                // action - satu sumber kebenaran ada di approval_snapshots/approval_activities.
-                if ($snapshot->module_type === ApprovalModuleEnum::SIKARTAP_DIRECTOR_DECISION->value) {
-                    Sikartap::where('id', $snapshot->module_id)->update([
-                        'status_keputusan_direktur' => 'rejected',
                     ]);
                 }
 
@@ -276,15 +266,6 @@ class ApprovalFlowService
                     ]);
                 }
 
-                // Sikartap - Keputusan Direktur (Fase 4), lihat catatan cache di branch reject di atas.
-                if ($snapshot->module_type === ApprovalModuleEnum::SIKARTAP_DIRECTOR_DECISION->value) {
-                    Sikartap::where('id', $snapshot->module_id)->update([
-                        'status_keputusan_direktur' => 'approved',
-                    ]);
-
-                    $this->markUserPermanent($snapshot->module_id);
-                }
-
                 $this->historyRepo->create([
                     'requestable_type' => $snapshot->module_type,
                     'requestable_id' => $snapshot->module_id,
@@ -301,35 +282,6 @@ class ApprovalFlowService
                 );
             }
         });
-    }
-
-    /**
-     * Sikartap Keputusan Direktur final "approved" = karyawan resmi diangkat jadi Tetap.
-     * Stempel user_profiles.tmt_tetap (TMT = tanggal keputusan ini) + flip employee_type_id
-     * ke tipe kategori Tetap company itu KALAU cuma ada satu — kalau company punya >1 tipe
-     * Tetap (atau nol), flip-nya diserahkan ke HR manual, tapi tmt_tetap tetap tercatat.
-     */
-    private function markUserPermanent(string $sikartapId): void
-    {
-        $sikartap = Sikartap::with('user.profile')->find($sikartapId);
-        $profile = $sikartap?->user?->profile;
-
-        if (! $profile) {
-            return;
-        }
-
-        $updates = ['tmt_tetap' => now()->toDateString()];
-
-        $tetapTypeIds = \App\Models\Master\EmployeeTypes::query()
-            ->where('company_id', $sikartap->user->company_id)
-            ->where('category', \App\Enum\EmployeeTypeCategory::TETAP->value)
-            ->pluck('id');
-
-        if ($tetapTypeIds->count() === 1) {
-            $updates['employee_type_id'] = $tetapTypeIds->first();
-        }
-
-        $profile->update($updates);
     }
 
     public function checkStepsSync($snapshot): bool

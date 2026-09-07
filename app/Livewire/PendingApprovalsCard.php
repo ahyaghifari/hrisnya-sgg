@@ -191,9 +191,8 @@ class PendingApprovalsCard extends Component
                     'icon' => match ($transition->transition_type) {
                         'promotion' => 'fa-arrow-up',
                         'demotion' => 'fa-arrow-down',
-                        'mutation' => 'fa-building',
+                        'mutation' => 'fa-right-left',
                         'termination' => 'fa-user-slash',
-                        'kelas_change' => 'fa-arrow-trend-up',
                         default => 'fa-right-left',
                     },
                     'tile' => 'neutral',
@@ -403,31 +402,26 @@ class PendingApprovalsCard extends Component
                 ]);
         }
 
-        // Sikartap (Keputusan Direktur) - DIKELOMPOKKAN per pengaju (HRD), bukan 1 baris per
-        // karyawan (instruksi user 2026-08-25: pengangkatan massal bisa 100 orang sekaligus,
-        // widget ini jangan numpuk 100 baris terpisah). 1 pengaju yang ngajuin 1 orang -> baris
-        // ini langsung ke halaman detail biasa (PengajuanDetailPage). 1 pengaju yang ngajuin
-        // LEBIH dari 1 orang sekaligus -> baris ini ke halaman pilih massal
-        // (DirekturBulkKeputusanPage) - checkbox/pilih-banyak SENGAJA tidak ditaruh di widget
-        // ini (bulk_supported=false), karena approve massal Sikartap butuh
-        // SikartapDirectorDecisionService (bukan ApprovalFlowService generik dipakai
-        // approveOne() di bawah), lihat halaman itu.
+        // Sikartap (Keputusan Direktur) - LEPAS Approval Engine (2026-09-07). Pending = baris
+        // Sikartap status 'diajukan' yang Direktur login (pemegang jabatan direktur) boleh
+        // putuskan. Dikelompokkan per HRD pengaju (keputusan_direktur_diajukan_by): 1 pengaju
+        // 1 orang -> ke detail; >1 -> ke halaman pilih massal (DirekturBulkKeputusanPage).
         $sikartapRequests = collect();
         if ($this->wants('sikartap_director_decision')) {
-            $activities = $permissionService
-                ->pendingApprovalsFor(Auth::user(), ApprovalModuleEnum::SIKARTAP_DIRECTOR_DECISION->value);
+            $directorService = app(\App\Services\Sikartap\SikartapDirectorDecisionService::class);
 
-            $bySubmitter = $activities->groupBy('snapshot.created_by');
+            $pendingSikartap = \App\Models\Sikartap\Sikartap::query()
+                ->where('status_keputusan_direktur', 'diajukan')
+                ->whereHas('user')
+                ->with('user')
+                ->get()
+                ->filter(fn ($s) => $directorService->canDecide($s, Auth::user()))
+                ->values();
 
-            foreach ($bySubmitter as $submitterId => $group) {
-                $sikartapIds = $group->pluck('snapshot.module_id')->filter()->values();
-
-                if ($sikartapIds->isEmpty()) {
-                    continue;
-                }
-
+            foreach ($pendingSikartap->groupBy('keputusan_direktur_diajukan_by') as $submitterId => $group) {
+                $sikartapIds = $group->pluck('id')->values();
                 $submitter = $submitterId ? User::find($submitterId) : null;
-                $latestCreatedAt = $group->pluck('snapshot.created_at')->filter()->sort()->last();
+                $latestCreatedAt = $group->pluck('keputusan_direktur_diajukan_at')->filter()->sort()->last();
 
                 $sikartapRequests->push((object) [
                     'id' => $sikartapIds->count() === 1 ? $sikartapIds->first() : ($submitterId ?? 'unknown'),
@@ -542,7 +536,7 @@ class PendingApprovalsCard extends Component
                     'keterangan' => 'Kontrak',
                     'user_name' => $s->user->name,
                     'created_at' => $s->submitted_at ?? $s->created_at,
-                    'url' => route('kepegawaian.perpanjangan-kontrak', ['openId' => $s->id]),
+                    'url' => route('sikartap.kontrak', ['openId' => $s->id]),
                     'modal' => false,
                     'external' => false,
                 ]);

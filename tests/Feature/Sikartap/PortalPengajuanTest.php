@@ -2,16 +2,18 @@
 
 namespace Tests\Feature\Sikartap;
 
-use App\Enum\Approval\ApprovalModuleEnum;
 use App\Enum\CustomPermissionEnum;
+use App\Enum\OrgStructurLevel;
 use App\Livewire\Sikartap\DashboardSikartapPage;
 use App\Livewire\Sikartap\PengajuanDetailPage;
-use App\Models\ApprovalManagement\MasterApprovalFlows;
-use App\Models\ApprovalManagement\MasterApprovalFlowSteps;
 use App\Models\Master\Companies;
+use App\Models\Master\JobPositions;
+use App\Models\Master\OrgStructure;
 use App\Models\Role;
+use App\Models\Setting;
 use App\Models\Sikartap\Sikartap;
 use App\Models\User;
+use App\Models\User\UserJobPositions;
 use App\Services\Sikartap\SikartapDirectorDecisionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
@@ -108,26 +110,17 @@ class PortalPengajuanTest extends TestCase
 
     public function test_detail_page_full_flow_through_director_decision(): void
     {
-        $direktur = null;
         $this->actingAsHrd();
-        $direktur = User::factory()->create(['company_id' => $this->company->id]);
 
-        $flow = MasterApprovalFlows::create([
-            'company_id' => $this->company->id,
-            'module' => ApprovalModuleEnum::SIKARTAP_DIRECTOR_DECISION->value,
-            'name' => 'Alur Keputusan Direktur',
-            'flow_type' => 'default',
-            'is_active' => true,
-        ]);
-        MasterApprovalFlowSteps::create([
-            'flow_id' => $flow->id,
-            'step_order' => 1,
-            'approver_type' => 'user',
-            'approver_ref_id' => $direktur->id,
-            'approval_mode' => 'any',
-            'scope_type' => 'global',
-            'is_final' => true,
-        ]);
+        // Direktur = pemegang aktif jabatan Setting sikartap_direktur_job_position_id.
+        $dept = OrgStructure::create(['company_id' => $this->company->id, 'name' => 'Direksi', 'level' => OrgStructurLevel::LEVEL_DEPARTMENT->value]);
+        $pos = JobPositions::create(['company_id' => $this->company->id, 'name' => 'Direktur Utama', 'planned_manpower' => 1, 'org_structure_id' => $dept->id]);
+        $direktur = User::factory()->create(['company_id' => $this->company->id]);
+        UserJobPositions::create(['user_id' => $direktur->id, 'job_position_id' => $pos->id, 'start_date' => now()->subYear(), 'status' => 'active']);
+        Setting::updateOrCreate(
+            ['key' => SikartapDirectorDecisionService::SETTING_KEY, 'company_id' => $this->company->id],
+            ['module' => 'sikartap', 'type' => 'string', 'label' => 'Jabatan Direktur', 'value' => $pos->id],
+        );
 
         $applicant = $this->makeApplicant();
         $sikartap = Sikartap::create([
@@ -162,15 +155,9 @@ class PortalPengajuanTest extends TestCase
         $component->call('ajukanKeputusanDirektur');
 
         $sikartap->refresh();
-        $this->assertNotNull($sikartap->approvalSnapshot);
+        $this->assertSame('diajukan', $sikartap->status_keputusan_direktur);
 
-        // Direktur perlu ViewAny/View:Sikartap juga buat akses halaman ini (canAccess gate).
-        $direkturRole = Role::firstOrCreate(['name' => 'Direktur'], ['guard_name' => 'web']);
-        $direkturRole->givePermissionTo([
-            Permission::firstOrCreate(['name' => 'ViewAny:Sikartap', 'guard_name' => 'web']),
-            Permission::firstOrCreate(['name' => 'View:Sikartap', 'guard_name' => 'web']),
-        ]);
-        $direktur->assignRole($direkturRole);
+        // Direktur TIDAK perlu permission HR — cukup pemegang jabatan Direktur (akses penilai).
         $this->actingAs($direktur);
 
         Livewire::test(PengajuanDetailPage::class, ['sikartap' => $sikartap])

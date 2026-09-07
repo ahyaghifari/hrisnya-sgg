@@ -2,97 +2,147 @@
 
 namespace App\Services\Sikartap;
 
-use App\Enum\Approval\ApprovalModuleEnum;
-use App\Models\ApprovalManagement\ApprovalSnapshots;
+use App\Enum\EmployeeTypeCategory;
+use App\Models\Master\EmployeeTypes;
+use App\Models\Setting;
 use App\Models\Sikartap\Sikartap;
+use App\Models\User;
+use App\Models\User\UserJobPositions;
+use App\Notifications\Sikartap\SikartapKeputusanDirekturDiajukan;
 use App\Notifications\Sikartap\SikartapKeputusanDirekturFinal;
-use App\Repositories\Approval\ApprovalSnapshotRepository;
-use App\Services\Approval\ApprovalCreationService;
-use App\Services\Approval\ApprovalFlowService;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 
 /**
- * Fase 4 — Keputusan Direktur, rewrite Tahap 5 detail_pengajuan.php/
- * detail_pengajuan_direktur.php + bulk_keputusan_direktur.php legacy.
+ * Fase 4 — Keputusan Direktur. LEPAS dari Approval Engine (instruksi user 2026-09-07): tidak
+ * ada flow approval berjenjang, cukup 1 jabatan Direktur per perusahaan (Setting
+ * `sikartap_direktur_job_position_id`, diatur di Pengaturan Sikartap). Direktur =
+ * pemegang aktif jabatan itu.
  *
- * WAJIB lewat Approval Engine (bukan Filament action nulis status langsung, lihat
- * analisis § Approval Engine vs custom di rencana-implementasi-sikartap.md) - beda dari
- * verifikasi berkas/tes/wawancara/MCU yang cukup kolom polos (1 approver, checklist, bukan
- * chain approver berjenjang).
+ * State: pending -> diajukan -> approved | rejected. Kolom keputusan_direktur_* di tabel
+ * sikartap menyimpan jejak yang dulu ada di approval_snapshots/approval_histories.
  */
 class SikartapDirectorDecisionService
 {
-    public function __construct(
-        protected ApprovalSnapshotRepository $snapshotRepo,
-        protected ApprovalCreationService $creationService,
-        protected ApprovalFlowService $flowService,
-    ) {}
+    public const SETTING_KEY = 'sikartap_direktur_job_position_id';
 
-    /**
-     * HRD mengajukan pengajuan yang sudah eligible (§ Sikartap::isEligibleForDirectorDecision())
-     * ke alur approval Direktur. Flow di-resolve dari company + job_position PELAMAR (bukan HRD
-     * yang mengklik tombol) - konsisten dengan makna "alur approval buat jabatan ini".
-     */
-    public function submitForDecision(Sikartap $sikartap): ApprovalSnapshots
+    /** @return Collection<int, User> pemegang aktif jabatan Direktur perusahaan pelamar. */
+    public function directorsFor(Sikartap $sikartap): Collection
+    {
+        $jobPositionId = Setting::resolve(self::SETTING_KEY, $sikartap->user?->company_id, default: null);
+
+        if (! $jobPositionId) {
+            return collect();
+        }
+
+        return UserJobPositions::query()
+            ->where('job_position_id', $jobPositionId)
+            ->where('status', 'active')
+            ->with('user')
+            ->get()
+            ->pluck('user')
+            ->filter()
+            ->unique('id')
+            ->values();
+    }
+
+    public function canDecide(Sikartap $sikartap, User $user): bool
+    {
+        return $this->directorsFor($sikartap)->contains('id', $user->id);
+    }
+
+    /** HRD mengajukan pengajuan yang sudah eligible ke Direktur. */
+    public function submitForDecision(Sikartap $sikartap): void
     {
         if (! $sikartap->isEligibleForDirectorDecision()) {
-            throw new \Exception('Pengajuan belum memenuhi syarat untuk diajukan ke Direktur.');
+            throw new \RuntimeException('Pengajuan belum memenuhi syarat untuk diajukan ke Direktur.');
         }
 
-        if ($sikartap->approvalSnapshot) {
-            throw new \Exception('Pengajuan ini sudah diajukan ke Direktur sebelumnya.');
+        if ($sikartap->status_keputusan_direktur !== 'pending') {
+            throw new \RuntimeException('Pengajuan ini sudah diajukan atau sudah diputuskan.');
         }
 
-        $companyId = $sikartap->user->company_id;
+        $directors = $this->directorsFor($sikartap);
 
-        $flow = $this->snapshotRepo->resolveApprovalFlowForUser(
-            moduleType: ApprovalModuleEnum::SIKARTAP_DIRECTOR_DECISION->value,
-            companyId: $companyId,
-            userId: $sikartap->user_id,
-        );
-
-        if (! $flow) {
-            throw new \Exception('Belum ada alur approval Keputusan Direktur yang aktif untuk company ini.');
+        if ($directors->isEmpty()) {
+            throw new \RuntimeException('Jabatan Direktur untuk perusahaan ini belum diatur / belum ada pemegangnya. Atur di Pengaturan Sikartap.');
         }
 
-        return $this->creationService->createSnapshot(
-            moduleType: ApprovalModuleEnum::SIKARTAP_DIRECTOR_DECISION->value,
-            moduleId: $sikartap->id,
-            flow: $flow,
-            createdBy: Auth::id(),
-            companyId: $companyId,
-            userId: $sikartap->user_id,
-        );
-    }
+        $sikartap->update([
+            'status_keputusan_direktur' => 'diajukan',
+            'keputusan_direktur_diajukan_at' => now(),
+            'keputusan_direktur_diajukan_by' => Auth::id(),
+        ]);
 
-    public function approve(Sikartap $sikartap, string $note): void
-    {
-        $this->flowService->advanceStep(
-            snapshot: ApprovalSnapshots::find($sikartap->approvalSnapshot->id),
-            actorId: Auth::id(),
-            note: $note,
-            action: 'approved',
-        );
-
-        // Cuma notify pelamar kalau ini step FINAL (status_keputusan_direktur ke-sync jadi
-        // 'approved' oleh ApprovalFlowService::advanceStep()) - kalau masih ada approver
-        // berikutnya di flow, belum ada keputusan buat dikabari.
-        if ($sikartap->refresh()->status_keputusan_direktur === 'approved') {
-            $sikartap->user?->notify(new SikartapKeputusanDirekturFinal($sikartap->id, lulus: true));
+        foreach ($directors as $director) {
+            $director->notify(new SikartapKeputusanDirekturDiajukan($sikartap->id, $sikartap->user?->name ?? 'Karyawan'));
         }
     }
 
-    public function reject(Sikartap $sikartap, string $note): void
+    public function approve(Sikartap $sikartap, User $actor, string $note): void
     {
-        $this->flowService->advanceStep(
-            snapshot: ApprovalSnapshots::find($sikartap->approvalSnapshot->id),
-            actorId: Auth::id(),
-            note: $note,
-            action: 'rejected',
-        );
+        $this->decide($sikartap, $actor, 'approved', $note);
+    }
 
-        // Reject di step manapun langsung mengakhiri flow (lihat ApprovalFlowService), jadi
-        // selalu final - beda dari approve yang bisa masih lanjut ke step berikutnya.
-        $sikartap->user?->notify(new SikartapKeputusanDirekturFinal($sikartap->id, lulus: false));
+    public function reject(Sikartap $sikartap, User $actor, string $note): void
+    {
+        $this->decide($sikartap, $actor, 'rejected', $note);
+    }
+
+    private function decide(Sikartap $sikartap, User $actor, string $decision, string $note): void
+    {
+        if ($sikartap->status_keputusan_direktur !== 'diajukan') {
+            throw new \RuntimeException('Pengajuan ini tidak sedang menunggu keputusan Direktur.');
+        }
+
+        if (! $this->canDecide($sikartap, $actor)) {
+            throw new \RuntimeException('Anda bukan Direktur yang ditunjuk untuk memutuskan pengajuan ini.');
+        }
+
+        if ($decision === 'rejected' && trim($note) === '') {
+            throw new \RuntimeException('Catatan penolakan wajib diisi.');
+        }
+
+        $sikartap->update([
+            'status_keputusan_direktur' => $decision,
+            'keputusan_direktur_by' => $actor->id,
+            'keputusan_direktur_at' => now(),
+            'keputusan_direktur_note' => trim($note) ?: null,
+        ]);
+
+        if ($decision === 'approved') {
+            $this->markUserPermanent($sikartap);
+        }
+
+        $sikartap->user?->notify(new SikartapKeputusanDirekturFinal($sikartap->id, lulus: $decision === 'approved'));
+    }
+
+    /**
+     * Keputusan Direktur final "approved" = karyawan resmi diangkat jadi Tetap. Stempel
+     * user_profiles.tmt_tetap + flip employee_type_id ke tipe kategori Tetap company itu KALAU
+     * cuma ada satu — kalau >1 (atau nol), diserahkan ke HR manual, tmt_tetap tetap tercatat.
+     * (Dipindah dari ApprovalFlowService::markUserPermanent() saat Sikartap lepas Approval Engine.)
+     */
+    private function markUserPermanent(Sikartap $sikartap): void
+    {
+        $sikartap->loadMissing('user.profile');
+        $profile = $sikartap->user?->profile;
+
+        if (! $profile) {
+            return;
+        }
+
+        $updates = ['tmt_tetap' => now()->toDateString()];
+
+        $tetapTypeIds = EmployeeTypes::query()
+            ->where('company_id', $sikartap->user->company_id)
+            ->where('category', EmployeeTypeCategory::TETAP->value)
+            ->pluck('id');
+
+        if ($tetapTypeIds->count() === 1) {
+            $updates['employee_type_id'] = $tetapTypeIds->first();
+        }
+
+        $profile->update($updates);
     }
 }

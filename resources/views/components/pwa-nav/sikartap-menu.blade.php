@@ -3,7 +3,6 @@
     $canInputMcu = auth()->user()->canInputSikartapMcu()
         || auth()->user()->can(\App\Enum\CustomPermissionEnum::EDIT_INPUT_MCU->value);
     $canViewPengaturan = auth()->user()->can(\App\Enum\CustomPermissionEnum::LIHAT_PENGATURAN_SIKARTAP->value);
-    $canViewKontrak = auth()->user()->can('ViewAny:UserContract');
     $canViewOrientasi = auth()->user()->can('ViewAny:OrientationSubmission');
     $canViewPerpanjanganKontrak = auth()->user()->can('ViewAny:ContractSubmission');
     $hasSikartap = $canViewSikartap || auth()->user()->can(\App\Enum\CustomPermissionEnum::SISTEM_SIKARTAP->value);
@@ -11,19 +10,13 @@
 
 <span class="pwa-menu-grid-divider">Sikartap</span>
 @if ($canViewOrientasi)
-<a href="{{ route('kepegawaian.orientasi') }}" wire:navigate class="pwa-menu-grid-item">
+<a href="{{ route('sikartap.orientasi') }}" wire:navigate class="pwa-menu-grid-item">
     <span class="pwa-menu-grid-icon violet"><i class="fa-solid fa-user-graduate"></i></span>
     <span class="pwa-menu-grid-label">Orientasi</span>
 </a>
 @endif
-@if ($canViewKontrak)
-<a href="{{ route('kepegawaian.kontrak') }}" wire:navigate class="pwa-menu-grid-item">
-    <span class="pwa-menu-grid-icon violet"><i class="fa-solid fa-file-contract"></i></span>
-    <span class="pwa-menu-grid-label">Kontrak</span>
-</a>
-@endif
 @if ($canViewPerpanjanganKontrak)
-<a href="{{ route('kepegawaian.perpanjangan-kontrak') }}" wire:navigate class="pwa-menu-grid-item">
+<a href="{{ route('sikartap.kontrak') }}" wire:navigate class="pwa-menu-grid-item">
     <span class="pwa-menu-grid-icon violet"><i class="fa-solid fa-file-signature"></i></span>
     <span class="pwa-menu-grid-label">Perpanjangan Kontrak</span>
 </a>

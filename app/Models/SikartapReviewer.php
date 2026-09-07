@@ -19,8 +19,18 @@ class SikartapReviewer extends Model
 {
     use HasUlids;
 
-    public const CONTEXT_ORIENTATION = 'orientation';
-    public const CONTEXT_CONTRACT = 'contract';
+    /**
+     * Penilai perjalanan status karyawan — Orientasi & Perpanjangan Kontrak digabung jadi satu
+     * set penilai per (company, departemen, jabatan) (2026-09-07, instruksi user).
+     */
+    public const CONTEXT_STATUS_KARYAWAN = 'status_karyawan';
+
+    /** @deprecated pakai CONTEXT_STATUS_KARYAWAN — dialias supaya kode/tes lama tetap jalan. */
+    public const CONTEXT_ORIENTATION = self::CONTEXT_STATUS_KARYAWAN;
+
+    /** @deprecated pakai CONTEXT_STATUS_KARYAWAN. */
+    public const CONTEXT_CONTRACT = self::CONTEXT_STATUS_KARYAWAN;
+
     public const CONTEXT_SIKARTAP_IDEA = 'sikartap_idea';
 
     protected $table = 'sikartap_reviewers';

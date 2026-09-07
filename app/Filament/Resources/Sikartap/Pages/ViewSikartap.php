@@ -10,7 +10,6 @@ use App\Notifications\Sikartap\SikartapHasilTes;
 use App\Notifications\Sikartap\SikartapHasilWawancara;
 use App\Notifications\Sikartap\SikartapJadwalTesDitetapkan;
 use App\Notifications\Sikartap\SikartapJadwalWawancaraDitetapkan;
-use App\Services\Approval\ApprovalPermissionService;
 use App\Services\Sikartap\SikartapDirectorDecisionService;
 use Filament\Actions\Action;
 use Filament\Forms\Components\DatePicker;
@@ -209,26 +208,24 @@ class ViewSikartap extends ViewRecord
                     Notification::make()->title('Hasil MCU disimpan')->success()->send();
                 }),
 
-            // ── Fase 4: Keputusan Direktur (rewrite Tahap 5 detail_pengajuan_direktur.php) ──
-            // WAJIB lewat Approval Engine (bukan kolom ditulis langsung dari sini) - lihat
-            // SikartapDirectorDecisionService & analisis § Approval Engine vs custom di
-            // rencana-implementasi-sikartap.md.
+            // ── Fase 4: Keputusan Direktur. LEPAS Approval Engine (2026-09-07) — Direktur =
+            // pemegang jabatan `sikartap_direktur_job_position_id` (Pengaturan Sikartap).
 
             Action::make('ajukanKeputusanDirektur')
                 ->label('Ajukan ke Direktur')
                 ->icon('heroicon-o-paper-airplane')
                 ->color('gray')
                 ->requiresConfirmation()
-                ->modalDescription('Pengajuan akan masuk ke alur approval Direktur sesuai flow perusahaan.')
+                ->modalDescription('Kirim pengajuan ini ke Direktur untuk diputuskan?')
                 ->visible(fn (Sikartap $record): bool => $record->isEligibleForDirectorDecision()
-                    && $record->approvalSnapshot === null
+                    && $record->status_keputusan_direktur === 'pending'
                     && Auth::user()->can('Update:Sikartap'))
                 ->action(function (Sikartap $record): void {
                     try {
                         app(SikartapDirectorDecisionService::class)->submitForDecision($record);
 
                         Notification::make()->title('Pengajuan dikirim ke Direktur')->success()->send();
-                    } catch (\Exception $e) {
+                    } catch (\Throwable $e) {
                         Notification::make()->title('Gagal mengajukan')->body($e->getMessage())->danger()->send();
                     }
 
@@ -239,15 +236,18 @@ class ViewSikartap extends ViewRecord
                 ->label('Setujui (Direktur)')
                 ->icon('heroicon-o-check-badge')
                 ->color('success')
-                ->visible(fn (Sikartap $record): bool => $record->approvalSnapshot !== null
-                    && app(ApprovalPermissionService::class)->canApprove($record->approvalSnapshot->id, Auth::user()))
+                ->visible(fn (Sikartap $record): bool => $record->status_keputusan_direktur === 'diajukan'
+                    && app(SikartapDirectorDecisionService::class)->canDecide($record, Auth::user()))
                 ->schema([
                     Textarea::make('note')->label('Catatan')->rows(3),
                 ])
                 ->action(function (Sikartap $record, array $data): void {
-                    app(SikartapDirectorDecisionService::class)->approve($record, $data['note'] ?? '');
-
-                    Notification::make()->title('Keputusan tersimpan')->success()->send();
+                    try {
+                        app(SikartapDirectorDecisionService::class)->approve($record, Auth::user(), $data['note'] ?? '');
+                        Notification::make()->title('Keputusan tersimpan')->success()->send();
+                    } catch (\Throwable $e) {
+                        Notification::make()->title('Gagal menyimpan')->body($e->getMessage())->danger()->send();
+                    }
 
                     $this->redirect(SikartapResource::getUrl('view', ['record' => $record]));
                 }),
@@ -256,15 +256,18 @@ class ViewSikartap extends ViewRecord
                 ->label('Tolak (Direktur)')
                 ->icon('heroicon-o-x-circle')
                 ->color('danger')
-                ->visible(fn (Sikartap $record): bool => $record->approvalSnapshot !== null
-                    && app(ApprovalPermissionService::class)->canApprove($record->approvalSnapshot->id, Auth::user()))
+                ->visible(fn (Sikartap $record): bool => $record->status_keputusan_direktur === 'diajukan'
+                    && app(SikartapDirectorDecisionService::class)->canDecide($record, Auth::user()))
                 ->schema([
                     Textarea::make('note')->label('Catatan Penolakan')->required()->rows(3),
                 ])
                 ->action(function (Sikartap $record, array $data): void {
-                    app(SikartapDirectorDecisionService::class)->reject($record, $data['note']);
-
-                    Notification::make()->title('Keputusan tersimpan')->success()->send();
+                    try {
+                        app(SikartapDirectorDecisionService::class)->reject($record, Auth::user(), $data['note']);
+                        Notification::make()->title('Keputusan tersimpan')->success()->send();
+                    } catch (\Throwable $e) {
+                        Notification::make()->title('Gagal menyimpan')->body($e->getMessage())->danger()->send();
+                    }
 
                     $this->redirect(SikartapResource::getUrl('view', ['record' => $record]));
                 }),

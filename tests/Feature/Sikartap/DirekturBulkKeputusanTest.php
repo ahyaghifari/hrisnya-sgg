@@ -2,22 +2,25 @@
 
 namespace Tests\Feature\Sikartap;
 
-use App\Enum\Approval\ApprovalModuleEnum;
+use App\Enum\OrgStructurLevel;
 use App\Livewire\PendingApprovalsCard;
 use App\Livewire\Sikartap\DirekturBulkKeputusanPage;
-use App\Models\ApprovalManagement\MasterApprovalFlows;
-use App\Models\ApprovalManagement\MasterApprovalFlowSteps;
 use App\Models\Master\Companies;
+use App\Models\Master\JobPositions;
+use App\Models\Master\OrgStructure;
 use App\Models\Role;
+use App\Models\Setting;
 use App\Models\Sikartap\Sikartap;
 use App\Models\User;
+use App\Models\User\UserJobPositions;
 use App\Services\Sikartap\SikartapDirectorDecisionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 use Spatie\Permission\Models\Permission;
 use Tests\TestCase;
 
-/** Keputusan Direktur massal + pengelompokan widget "Butuh Persetujuan Anda" (2026-08-25). */
+/** Keputusan Direktur massal + pengelompokan widget "Butuh Persetujuan Anda". Lepas Approval
+ * Engine (2026-09-07) — Direktur = pemegang jabatan Setting sikartap_direktur_job_position_id. */
 class DirekturBulkKeputusanTest extends TestCase
 {
     use RefreshDatabase;
@@ -28,7 +31,7 @@ class DirekturBulkKeputusanTest extends TestCase
 
     private User $direktur;
 
-    private function setUpFlowAndActors(): void
+    private function setUpActors(): void
     {
         $this->company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
 
@@ -41,30 +44,30 @@ class DirekturBulkKeputusanTest extends TestCase
         ]);
         $this->hrd->assignRole($hrdRole);
 
-        $this->direktur = User::factory()->create(['company_id' => $this->company->id]);
-        $direkturRole = Role::firstOrCreate(['name' => 'Direktur'], ['guard_name' => 'web']);
-        $direkturRole->givePermissionTo([
-            Permission::firstOrCreate(['name' => 'ViewAny:Sikartap', 'guard_name' => 'web']),
-            Permission::firstOrCreate(['name' => 'View:Sikartap', 'guard_name' => 'web']),
-        ]);
-        $this->direktur->assignRole($direkturRole);
-
-        $flow = MasterApprovalFlows::create([
+        $dept = OrgStructure::create([
             'company_id' => $this->company->id,
-            'module' => ApprovalModuleEnum::SIKARTAP_DIRECTOR_DECISION->value,
-            'name' => 'Alur Keputusan Direktur',
-            'flow_type' => 'default',
-            'is_active' => true,
+            'name' => 'Direksi',
+            'level' => OrgStructurLevel::LEVEL_DEPARTMENT->value,
         ]);
-        MasterApprovalFlowSteps::create([
-            'flow_id' => $flow->id,
-            'step_order' => 1,
-            'approver_type' => 'user',
-            'approver_ref_id' => $this->direktur->id,
-            'approval_mode' => 'any',
-            'scope_type' => 'global',
-            'is_final' => true,
+        $pos = JobPositions::create([
+            'company_id' => $this->company->id,
+            'name' => 'Direktur Utama',
+            'planned_manpower' => 1,
+            'org_structure_id' => $dept->id,
         ]);
+
+        $this->direktur = User::factory()->create(['company_id' => $this->company->id]);
+        UserJobPositions::create([
+            'user_id' => $this->direktur->id,
+            'job_position_id' => $pos->id,
+            'start_date' => now()->subYear(),
+            'status' => 'active',
+        ]);
+
+        Setting::updateOrCreate(
+            ['key' => SikartapDirectorDecisionService::SETTING_KEY, 'company_id' => $this->company->id],
+            ['module' => 'sikartap', 'type' => 'string', 'label' => 'Jabatan Direktur', 'value' => $pos->id],
+        );
     }
 
     private function makeEligibleAndSubmitted(): Sikartap
@@ -88,7 +91,7 @@ class DirekturBulkKeputusanTest extends TestCase
 
     public function test_widget_groups_single_submission_straight_to_detail_page(): void
     {
-        $this->setUpFlowAndActors();
+        $this->setUpActors();
         $sikartap = $this->makeEligibleAndSubmitted();
 
         $this->actingAs($this->direktur);
@@ -103,7 +106,7 @@ class DirekturBulkKeputusanTest extends TestCase
 
     public function test_widget_groups_multiple_submissions_to_bulk_page(): void
     {
-        $this->setUpFlowAndActors();
+        $this->setUpActors();
         $this->makeEligibleAndSubmitted();
         $this->makeEligibleAndSubmitted();
         $this->makeEligibleAndSubmitted();
@@ -121,7 +124,7 @@ class DirekturBulkKeputusanTest extends TestCase
 
     public function test_bulk_page_returns_404_when_nothing_pending(): void
     {
-        $this->setUpFlowAndActors();
+        $this->setUpActors();
         $this->actingAs($this->direktur);
 
         Livewire::test(DirekturBulkKeputusanPage::class)->assertStatus(404);
@@ -129,7 +132,7 @@ class DirekturBulkKeputusanTest extends TestCase
 
     public function test_bulk_page_can_approve_selected(): void
     {
-        $this->setUpFlowAndActors();
+        $this->setUpActors();
         $a = $this->makeEligibleAndSubmitted();
         $b = $this->makeEligibleAndSubmitted();
         $c = $this->makeEligibleAndSubmitted();
@@ -143,12 +146,12 @@ class DirekturBulkKeputusanTest extends TestCase
 
         $this->assertSame('approved', $a->fresh()->status_keputusan_direktur);
         $this->assertSame('approved', $b->fresh()->status_keputusan_direktur);
-        $this->assertSame('pending', $c->fresh()->status_keputusan_direktur);
+        $this->assertSame('diajukan', $c->fresh()->status_keputusan_direktur);
     }
 
     public function test_bulk_page_can_reject_selected_with_note(): void
     {
-        $this->setUpFlowAndActors();
+        $this->setUpActors();
         $a = $this->makeEligibleAndSubmitted();
         $b = $this->makeEligibleAndSubmitted();
 
@@ -166,9 +169,9 @@ class DirekturBulkKeputusanTest extends TestCase
 
     public function test_toggle_select_all(): void
     {
-        $this->setUpFlowAndActors();
-        $a = $this->makeEligibleAndSubmitted();
-        $b = $this->makeEligibleAndSubmitted();
+        $this->setUpActors();
+        $this->makeEligibleAndSubmitted();
+        $this->makeEligibleAndSubmitted();
 
         $this->actingAs($this->direktur);
 

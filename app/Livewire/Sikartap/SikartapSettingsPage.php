@@ -38,6 +38,10 @@ class SikartapSettingsPage extends Component
      * bawah, bukan simpan langsung per baris). */
     public array $reviewerUserIds = [];
 
+    /** Jabatan Direktur (1 per perusahaan) — pemutus tahap Keputusan Direktur Sikartap
+     * (lepas Approval Engine 2026-09-07). Setting sikartap_direktur_job_position_id. */
+    public ?string $direkturJobPositionId = null;
+
     public function mount(): void
     {
         abort_unless(Auth::user()->can(CustomPermissionEnum::LIHAT_PENGATURAN_SIKARTAP->value), 403);
@@ -49,6 +53,7 @@ class SikartapSettingsPage extends Component
         $this->loadCompanyState();
         $this->loadReviewerSelections();
         $this->loadContractDocs();
+        $this->loadDirekturSetting();
     }
 
     public function updatedCompanyId(): void
@@ -59,6 +64,7 @@ class SikartapSettingsPage extends Component
 
         $this->loadReviewerSelections();
         $this->loadContractDocs();
+        $this->loadDirekturSetting();
     }
 
     public function selectCompany(string $companyId): void
@@ -69,6 +75,52 @@ class SikartapSettingsPage extends Component
         $this->loadCompanyState();
         $this->loadReviewerSelections();
         $this->loadContractDocs();
+        $this->loadDirekturSetting();
+    }
+
+    private function loadDirekturSetting(): void
+    {
+        $this->direkturJobPositionId = $this->companyId
+            ? Setting::resolve(\App\Services\Sikartap\SikartapDirectorDecisionService::SETTING_KEY, $this->companyId, default: null)
+            : null;
+    }
+
+    public function saveDirektur(): void
+    {
+        abort_unless(Auth::user()->can(CustomPermissionEnum::EDIT_PENGATURAN_SIKARTAP->value), 403);
+
+        $this->validate([
+            'direkturJobPositionId' => ['required', 'exists:m_job_positions,id'],
+        ], [], ['direkturJobPositionId' => 'jabatan Direktur']);
+
+        Setting::updateOrCreate(
+            ['key' => \App\Services\Sikartap\SikartapDirectorDecisionService::SETTING_KEY, 'company_id' => $this->companyId],
+            [
+                'module' => 'sikartap',
+                'type' => 'string',
+                'label' => 'Jabatan Direktur (Keputusan Sikartap)',
+                'value' => $this->direkturJobPositionId,
+            ],
+        );
+
+        Notification::make()->title('Jabatan Direktur tersimpan')->success()->send();
+    }
+
+    /** Pemegang aktif jabatan Direktur terpilih — buat ditampilkan sebagai konfirmasi. */
+    public function getDirekturHoldersProperty()
+    {
+        if (! $this->direkturJobPositionId) {
+            return collect();
+        }
+
+        return \App\Models\User\UserJobPositions::query()
+            ->where('job_position_id', $this->direkturJobPositionId)
+            ->where('status', 'active')
+            ->with('user:id,name')
+            ->get()
+            ->pluck('user.name')
+            ->filter()
+            ->values();
     }
 
     /** Muat pilihan reviewer SAAT INI per Departemen dari DB - dipanggil tiap kali company
@@ -233,20 +285,21 @@ class SikartapSettingsPage extends Component
         Notification::make()->title('Reviewer Ide Inovasi berhasil disimpan')->success()->send();
     }
 
-    // ── Penilai Orientasi (sikartap_reviewers, context orientation) ───────────
+    // ── Penilai Perjalanan Status Karyawan (sikartap_reviewers, context status_karyawan) ──
+    // Satu set penilai dipakai untuk Orientasi & Perpanjangan Kontrak (digabung 2026-09-07).
     // Jabatan-based (tahan personil ganti). Independen dari toggle "wajib Ide Inovasi".
 
-    public ?string $orientationReviewerDeptId = null;
-    public ?string $orientationReviewerJobPositionId = null;
+    public ?string $statusReviewerDeptId = null;
+    public ?string $statusReviewerJobPositionId = null;
 
-    public function getOrientationReviewersProperty()
+    public function getStatusReviewersProperty()
     {
         if (! $this->companyId) {
             return collect();
         }
 
         return SikartapReviewer::query()
-            ->forContext(SikartapReviewer::CONTEXT_ORIENTATION)
+            ->forContext(SikartapReviewer::CONTEXT_STATUS_KARYAWAN)
             ->where('company_id', $this->companyId)
             ->with(['orgStructure', 'jobPosition'])
             ->get();
@@ -261,90 +314,38 @@ class SikartapSettingsPage extends Component
         return JobPositions::where('company_id', $this->companyId)->orderBy('name')->pluck('name', 'id');
     }
 
-    public function addOrientationReviewer(): void
+    public function addStatusReviewer(): void
     {
         abort_unless(Auth::user()->can(CustomPermissionEnum::EDIT_PENGATURAN_SIKARTAP->value), 403);
 
         $this->validate([
-            'orientationReviewerDeptId' => 'required|exists:m_org_structures,id',
-            'orientationReviewerJobPositionId' => 'required|exists:m_job_positions,id',
+            'statusReviewerDeptId' => 'required|exists:m_org_structures,id',
+            'statusReviewerJobPositionId' => 'required|exists:m_job_positions,id',
         ], [], [
-            'orientationReviewerDeptId' => 'departemen',
-            'orientationReviewerJobPositionId' => 'jabatan',
+            'statusReviewerDeptId' => 'departemen',
+            'statusReviewerJobPositionId' => 'jabatan',
         ]);
 
         SikartapReviewer::firstOrCreate([
-            'context' => SikartapReviewer::CONTEXT_ORIENTATION,
+            'context' => SikartapReviewer::CONTEXT_STATUS_KARYAWAN,
             'company_id' => $this->companyId,
-            'org_structure_id' => $this->orientationReviewerDeptId,
-            'job_position_id' => $this->orientationReviewerJobPositionId,
+            'org_structure_id' => $this->statusReviewerDeptId,
+            'job_position_id' => $this->statusReviewerJobPositionId,
         ]);
 
-        $this->orientationReviewerDeptId = null;
-        $this->orientationReviewerJobPositionId = null;
+        $this->statusReviewerDeptId = null;
+        $this->statusReviewerJobPositionId = null;
 
-        Notification::make()->title('Penilai orientasi ditambahkan')->success()->send();
+        Notification::make()->title('Penilai ditambahkan')->success()->send();
     }
 
-    public function removeOrientationReviewer(string $id): void
+    public function removeStatusReviewer(string $id): void
     {
         abort_unless(Auth::user()->can(CustomPermissionEnum::EDIT_PENGATURAN_SIKARTAP->value), 403);
 
         SikartapReviewer::whereKey($id)->delete();
 
-        Notification::make()->title('Penilai orientasi dihapus')->success()->send();
-    }
-
-    // ── Penilai Perpanjangan Kontrak (sikartap_reviewers, context contract) ───────
-
-    public ?string $contractReviewerDeptId = null;
-    public ?string $contractReviewerJobPositionId = null;
-
-    public function getContractReviewersProperty()
-    {
-        if (! $this->companyId) {
-            return collect();
-        }
-
-        return SikartapReviewer::query()
-            ->forContext(SikartapReviewer::CONTEXT_CONTRACT)
-            ->where('company_id', $this->companyId)
-            ->with(['orgStructure', 'jobPosition'])
-            ->get();
-    }
-
-    public function addContractReviewer(): void
-    {
-        abort_unless(Auth::user()->can(CustomPermissionEnum::EDIT_PENGATURAN_SIKARTAP->value), 403);
-
-        $this->validate([
-            'contractReviewerDeptId' => 'required|exists:m_org_structures,id',
-            'contractReviewerJobPositionId' => 'required|exists:m_job_positions,id',
-        ], [], [
-            'contractReviewerDeptId' => 'departemen',
-            'contractReviewerJobPositionId' => 'jabatan',
-        ]);
-
-        SikartapReviewer::firstOrCreate([
-            'context' => SikartapReviewer::CONTEXT_CONTRACT,
-            'company_id' => $this->companyId,
-            'org_structure_id' => $this->contractReviewerDeptId,
-            'job_position_id' => $this->contractReviewerJobPositionId,
-        ]);
-
-        $this->contractReviewerDeptId = null;
-        $this->contractReviewerJobPositionId = null;
-
-        Notification::make()->title('Penilai perpanjangan kontrak ditambahkan')->success()->send();
-    }
-
-    public function removeContractReviewer(string $id): void
-    {
-        abort_unless(Auth::user()->can(CustomPermissionEnum::EDIT_PENGATURAN_SIKARTAP->value), 403);
-
-        SikartapReviewer::whereKey($id)->delete();
-
-        Notification::make()->title('Penilai perpanjangan kontrak dihapus')->success()->send();
+        Notification::make()->title('Penilai dihapus')->success()->send();
     }
 
     // ── Dokumen Perpanjangan Kontrak (Setting contract_extension_documents) ───────

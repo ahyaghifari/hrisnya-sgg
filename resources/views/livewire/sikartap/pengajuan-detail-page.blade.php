@@ -539,26 +539,41 @@
         </div>
     </div>
 
-    {{-- Keputusan Direktur — WAJIB lewat Approval Engine, timeline+riwayat sama pola pengajuan absensi --}}
-    @if ($sikartap->isEligibleForDirectorDecision() || $sikartap->approvalSnapshot)
+    {{-- Keputusan Direktur — LEPAS Approval Engine (2026-09-07). Direktur = pemegang jabatan
+         `sikartap_direktur_job_position_id` (Pengaturan Sikartap), tanpa flow berjenjang. --}}
+    @php $statusDir = $sikartap->status_keputusan_direktur; @endphp
+    @if ($sikartap->isEligibleForDirectorDecision() || in_array($statusDir, ['diajukan', 'approved', 'rejected'], true))
         <div style="margin-top:24px;">
-            @if ($sikartap->approvalSnapshot)
+            @if ($statusDir !== 'pending')
                 <x-approval-timeline :timeline="$this->timeline" title="Status Keputusan Direktur" />
             @endif
 
             <div style="background:var(--surface);border-radius:16px;box-shadow:var(--shadow-card);padding:18px;margin-top:24px;">
                 {!! $sectionHeader('fa-user-tie', 'Keputusan Direktur', '👔') !!}
 
-                @if (! $sikartap->approvalSnapshot)
+                @if ($statusDir === 'pending')
                     @if ($this->canUpdate)
                         <div style="margin-top:10px;">
-                            <button type="button" wire:click="ajukanKeputusanDirektur" wire:confirm="Pengajuan akan masuk ke alur approval Direktur sesuai flow perusahaan." class="btn-primary" style="padding:8px 16px;font-size:12.5px;">
+                            <button type="button" wire:click="ajukanKeputusanDirektur" wire:confirm="Kirim pengajuan ini ke Direktur untuk diputuskan?" class="btn-primary" style="padding:8px 16px;font-size:12.5px;">
                                 📨 Ajukan ke Direktur
                             </button>
                         </div>
                     @endif
                 @else
-                    {!! $renderField('Status Approval', $sikartap->approvalSnapshot->status, ! $this->canApproveDirektur) !!}
+                    @php
+                        $dirBadge = ['diajukan' => ['Menunggu Keputusan Direktur', '#b45309'], 'approved' => ['Disetujui Direktur', '#047C54'], 'rejected' => ['Ditolak Direktur', '#dc2626']][$statusDir] ?? [$statusDir, 'var(--text-muted)'];
+                    @endphp
+                    <p style="font-size:13px;font-weight:700;color:{{ $dirBadge[1] }};margin:6px 0 0;">{{ $dirBadge[0] }}</p>
+
+                    @if (in_array($statusDir, ['approved', 'rejected'], true))
+                        <p style="font-size:12px;color:var(--text-muted);margin:8px 0 0;">
+                            Oleh {{ $sikartap->keputusanDirekturBy?->name ?? '—' }}
+                            @if ($sikartap->keputusan_direktur_at) &middot; {{ $sikartap->keputusan_direktur_at->translatedFormat('d F Y H:i') }} @endif
+                        </p>
+                        @if ($sikartap->keputusan_direktur_note)
+                            <p style="font-size:12.5px;color:var(--text-body);margin:6px 0 0;">{{ $sikartap->keputusan_direktur_note }}</p>
+                        @endif
+                    @endif
 
                     @if ($this->canApproveDirektur)
                         <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;">
@@ -573,7 +588,7 @@
 
                     @if ($activePanel === 'approveDirektur')
                         <div style="background:var(--surface-alt,rgba(0,0,0,.03));border-radius:10px;padding:14px;margin-top:12px;">
-                            <label class="form-label">Catatan</label>
+                            <label class="form-label">Catatan (opsional)</label>
                             <textarea wire:model="directorNote" class="form-input" rows="3"></textarea>
                             <div style="display:flex;gap:10px;margin-top:10px;">
                                 <button type="button" wire:click="confirmApproveDirektur" class="btn-primary" style="padding:8px 16px;font-size:12.5px;">✓ Setujui</button>
@@ -584,7 +599,7 @@
 
                     @if ($activePanel === 'rejectDirektur')
                         <div style="background:var(--surface-alt,rgba(0,0,0,.03));border-radius:10px;padding:14px;margin-top:12px;">
-                            <label class="form-label">Catatan Penolakan</label>
+                            <label class="form-label">Catatan Penolakan (wajib)</label>
                             <textarea wire:model="directorNote" class="form-input" rows="3"></textarea>
                             @error('directorNote') <p style="color:var(--danger-text);font-size:12px;">{{ $message }}</p> @enderror
                             <div style="display:flex;gap:10px;margin-top:10px;">
@@ -595,12 +610,6 @@
                     @endif
                 @endif
             </div>
-
-            @if ($sikartap->approvalSnapshot)
-                <div style="margin-top:24px;">
-                    <x-approval-history-list :histories="$sikartap->approvalHistories" />
-                </div>
-            @endif
         </div>
     @endif
 </div>

@@ -14,8 +14,6 @@ use App\Notifications\Sikartap\SikartapHasilWawancara;
 use App\Notifications\Sikartap\SikartapIdeInovasiDireview;
 use App\Notifications\Sikartap\SikartapJadwalTesDitetapkan;
 use App\Notifications\Sikartap\SikartapJadwalWawancaraDitetapkan;
-use App\Services\Approval\ApprovalPermissionService;
-use App\Services\Approval\ApprovalTimelineService;
 use App\Services\Sikartap\SikartapDirectorDecisionService;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\Auth;
@@ -64,13 +62,19 @@ class PengajuanDetailPage extends Component
 
     public function mount(Sikartap $sikartap): void
     {
-        abort_unless(Auth::user()->can('View:Sikartap'), 403);
-
         $sikartap->load([
-            'user.company', 'documents', 'testSchedule', 'interviewSchedule',
+            'user.company', 'user.profile', 'documents', 'testSchedule', 'interviewSchedule',
             'mcuNurseAssessment', 'mcuLabResult', 'mcuRadiologyResult', 'mcuDoctorExamination',
-            'ideInovasi', 'approvalSnapshot',
+            'ideInovasi', 'keputusanDirekturBy',
         ]);
+
+        // Akses: HRD (View:Sikartap) ATAU Direktur yang ditunjuk (lepas Approval Engine —
+        // Direktur tidak wajib punya permission HR, cukup pemegang jabatan Direktur).
+        abort_unless(
+            Auth::user()->can('View:Sikartap')
+                || app(SikartapDirectorDecisionService::class)->canDecide($sikartap, Auth::user()),
+            403,
+        );
 
         $this->sikartap = $sikartap;
     }
@@ -81,7 +85,7 @@ class PengajuanDetailPage extends Component
         $this->sikartap->load([
             'documents', 'testSchedule', 'interviewSchedule',
             'mcuNurseAssessment', 'mcuLabResult', 'mcuRadiologyResult', 'mcuDoctorExamination',
-            'ideInovasi', 'approvalSnapshot',
+            'ideInovasi', 'keputusanDirekturBy',
         ]);
     }
 
@@ -92,11 +96,8 @@ class PengajuanDetailPage extends Component
 
     public function getCanApproveDirekturProperty(): bool
     {
-        if (! $this->sikartap->approvalSnapshot) {
-            return false;
-        }
-
-        return app(ApprovalPermissionService::class)->canApprove($this->sikartap->approvalSnapshot->id, Auth::user());
+        return $this->sikartap->status_keputusan_direktur === 'diajukan'
+            && app(SikartapDirectorDecisionService::class)->canDecide($this->sikartap, Auth::user());
     }
 
     public function openPanel(string $panel): void
@@ -326,13 +327,13 @@ class PengajuanDetailPage extends Component
 
     public function ajukanKeputusanDirektur(): void
     {
-        abort_unless($this->canUpdate && $this->sikartap->isEligibleForDirectorDecision() && $this->sikartap->approvalSnapshot === null, 403);
+        abort_unless($this->canUpdate && $this->sikartap->isEligibleForDirectorDecision() && $this->sikartap->status_keputusan_direktur === 'pending', 403);
 
         try {
             app(SikartapDirectorDecisionService::class)->submitForDecision($this->sikartap);
 
             Notification::make()->title('Pengajuan dikirim ke Direktur')->success()->send();
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Notification::make()->title('Gagal mengajukan')->body($e->getMessage())->danger()->send();
         }
 
@@ -343,12 +344,15 @@ class PengajuanDetailPage extends Component
     {
         abort_unless($this->canApproveDirektur, 403);
 
-        app(SikartapDirectorDecisionService::class)->approve($this->sikartap, $this->directorNote);
+        try {
+            app(SikartapDirectorDecisionService::class)->approve($this->sikartap, Auth::user(), $this->directorNote);
+            Notification::make()->title('Keputusan tersimpan')->success()->send();
+        } catch (\Throwable $e) {
+            Notification::make()->title('Gagal menyimpan')->body($e->getMessage())->danger()->send();
+        }
 
         $this->closePanel();
         $this->refreshRecord();
-
-        Notification::make()->title('Keputusan tersimpan')->success()->send();
     }
 
     public function confirmRejectDirektur(): void
@@ -357,12 +361,15 @@ class PengajuanDetailPage extends Component
 
         $this->validate(['directorNote' => ['required', 'string']]);
 
-        app(SikartapDirectorDecisionService::class)->reject($this->sikartap, $this->directorNote);
+        try {
+            app(SikartapDirectorDecisionService::class)->reject($this->sikartap, Auth::user(), $this->directorNote);
+            Notification::make()->title('Keputusan tersimpan')->success()->send();
+        } catch (\Throwable $e) {
+            Notification::make()->title('Gagal menyimpan')->body($e->getMessage())->danger()->send();
+        }
 
         $this->closePanel();
         $this->refreshRecord();
-
-        Notification::make()->title('Keputusan tersimpan')->success()->send();
     }
 
     // ── Ide Inovasi — review opsional Direktur/Komisaris (tidak blocking, independen satu
@@ -426,12 +433,32 @@ class PengajuanDetailPage extends Component
         $this->reviewIdeInovasiTier('komisaris', 'rejected');
     }
 
-    /** Timeline visual "Diajukan -> tiap step -> selesai" khusus tahap Keputusan Direktur
-     * (satu-satunya tahap yang beneran lewat Approval Engine, lihat § Approval Engine vs custom
-     * di rencana-implementasi-sikartap.md) - array kosong kalau belum diajukan ke Direktur. */
+    /** Timeline ringkas tahap Keputusan Direktur (lepas Approval Engine 2026-09-07 — cuma 1
+     * langkah: diajukan HRD -> keputusan Direktur). Array kosong kalau belum diajukan. */
     public function getTimelineProperty(): array
     {
-        return app(ApprovalTimelineService::class)->build($this->sikartap);
+        $s = $this->sikartap;
+
+        if (! in_array($s->status_keputusan_direktur, ['diajukan', 'approved', 'rejected'], true)) {
+            return [];
+        }
+
+        $decided = in_array($s->status_keputusan_direktur, ['approved', 'rejected'], true);
+
+        return [
+            [
+                'label' => 'Diajukan ke Direktur',
+                'actor' => null,
+                'date' => $s->keputusan_direktur_diajukan_at,
+                'state' => 'done',
+            ],
+            [
+                'label' => 'Keputusan Direktur',
+                'actor' => $s->keputusanDirekturBy?->name,
+                'date' => $s->keputusan_direktur_at,
+                'state' => $decided ? $s->status_keputusan_direktur : 'current',
+            ],
+        ];
     }
 
     public function getDocumentTypesProperty(): array
