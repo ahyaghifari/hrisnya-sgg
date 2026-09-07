@@ -6,6 +6,8 @@
     $canViewJobEvaluation = auth()->user()->can(\App\Enum\CustomPermissionEnum::LIHAT_JOB_EVALUATION->value);
     $canViewDokumen = auth()->user()->can('ViewAny:UserDocuments');
     $canViewPerubahanStatus = auth()->user()->can('ViewAny:UserTransition');
+    $canViewKontrak = auth()->user()->can('ViewAny:UserContract');
+    $canViewOrientasiData = auth()->user()->can('ViewAny:UserOrientation');
     $canViewPermintaanTenagaKerja = auth()->user()->can('ViewAny:ManpowerRequests');
 @endphp
 
@@ -43,12 +45,21 @@
             @endif
         </div>
         @endif
-        {{-- Kontrak & Orientasi dipindah ke dropdown Sikartap (payung perjalanan status karyawan,
-             2026-09-04). Di sini tinggal Perubahan Status (promosi/demosi/mutasi/PHK generik). --}}
-        @if ($canViewPerubahanStatus)
+        {{-- Orientasi + Perpanjangan Kontrak (alur pengajuan) ada di dropdown Sikartap. Di sini
+             Status Karyawan = data kontrak berjalan + Perubahan Status generik (promosi/demosi/
+             mutasi/PHK). Kontrak Karyawan dipindah ke sini 2026-09-07 - fokusnya data, bukan alur. --}}
+        @if ($canViewPerubahanStatus || $canViewKontrak || $canViewOrientasiData)
         <div class="dropdown-col">
             <div class="dropdown-col-label">Status Karyawan</div>
-            <a href="{{ route('kepegawaian.mutasi-karyawan') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-right-left"></i> Perubahan Status</a>
+            @if ($canViewOrientasiData)
+                <a href="{{ route('kepegawaian.orientasi') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-user-graduate"></i> Orientasi Karyawan</a>
+            @endif
+            @if ($canViewKontrak)
+                <a href="{{ route('kepegawaian.kontrak') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-file-contract"></i> Kontrak Karyawan</a>
+            @endif
+            @if ($canViewPerubahanStatus)
+                <a href="{{ route('kepegawaian.mutasi-karyawan') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-right-left"></i> Perubahan Status</a>
+            @endif
         </div>
         @endif
     </div>

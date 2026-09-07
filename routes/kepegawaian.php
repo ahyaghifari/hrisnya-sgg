@@ -8,6 +8,7 @@ use App\Livewire\Kepegawaian\EditKaryawan;
 use App\Livewire\Kepegawaian\KaryawanPage;
 use App\Livewire\Kepegawaian\KepegawaianDashboardPage;
 use App\Livewire\Kepegawaian\KontrakPage;
+use App\Livewire\Kepegawaian\OrientasiKaryawanPage;
 use App\Livewire\Kepegawaian\UserTransitionDetailPage;
 use App\Livewire\Kepegawaian\UserTransitionsPage;
 use App\Livewire\Rekrutmen\CreateManpowerRequestPage;
@@ -48,24 +49,26 @@ Route::get('/kepegawaian/dokumen/tambah', DocumentFormPage::class)
 Route::get('/kepegawaian/dokumen/{record}/edit', DocumentFormPage::class)
     ->name('kepegawaian.dokumen.edit');
 
+// Data ledger periode kontrak & orientasi berjalan (Kepegawaian > Status Karyawan). Alur
+// PENGAJUAN perpanjangan/penilaian ada di dropdown Sikartap (sikartap.kontrak/.orientasi).
 Route::get('/kepegawaian/kontrak', KontrakPage::class)
     ->name('kepegawaian.kontrak');
 
+Route::get('/kepegawaian/orientasi', OrientasiKaryawanPage::class)
+    ->name('kepegawaian.orientasi');
+
 // Self-service Orientasi (karyawan kategori Orientasi mengajukan penilaian) — Baris 1 nav,
-// pola Sikartap. Halaman indikator (HR) tetap di grup Kepegawaian.
+// pola Sikartap. Sisi HR (kelola pengajuan penilaian) ada di routes/sikartap.php
+// (sikartap.orientasi), payung alur perjalanan status karyawan.
 Route::get('/orientasi', \App\Livewire\Kepegawaian\OrientasiPage::class)
     ->name('orientasi');
 Route::get('/orientasi/{record}', \App\Livewire\Kepegawaian\OrientasiDetailPage::class)
     ->name('orientasi.show');
-Route::get('/kepegawaian/orientasi', \App\Livewire\Kepegawaian\OrientasiKelolaPage::class)
-    ->name('kepegawaian.orientasi');
 
 // Self-service Perpanjangan Kontrak (karyawan kategori Kontrak) — pola Orientasi, lepas
-// Approval Engine. Sisi HR di /kepegawaian/perpanjangan-kontrak.
+// Approval Engine. Sisi HR (kelola pengajuan) di routes/sikartap.php (sikartap.kontrak).
 Route::get('/kontrak-saya', \App\Livewire\Kepegawaian\KontrakSayaPage::class)
     ->name('kontrak.saya');
-Route::get('/kepegawaian/perpanjangan-kontrak', \App\Livewire\Kepegawaian\KontrakKelolaPage::class)
-    ->name('kepegawaian.perpanjangan-kontrak');
 
 Route::get('/kepegawaian/perubahan-status', UserTransitionsPage::class)
     ->name('kepegawaian.mutasi-karyawan');

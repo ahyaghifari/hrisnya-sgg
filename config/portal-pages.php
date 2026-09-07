@@ -209,6 +209,12 @@ return [
         'guard' => null,
     ],
 
+    'kepegawaian.orientasi' => [
+        'label' => 'Orientasi Karyawan',
+        'permission' => 'ViewAny:UserOrientation',
+        'guard' => null,
+    ],
+
     'orientasi' => [
         'label' => 'Orientasi Saya',
         'permission' => null,
@@ -222,9 +228,18 @@ return [
         'guard' => null,
     ],
 
-    'kepegawaian.orientasi' => [
+    'sikartap.orientasi' => [
         'label' => 'Orientasi',
         'permission' => 'ViewAny:OrientationSubmission',
+        'guard' => null,
+    ],
+
+    'sikartap.kontrak' => [
+        'label' => 'Perpanjangan Kontrak',
+        // Otorisasi di KontrakKelolaPage::mount() — HR (ViewAny:ContractSubmission) lihat daftar
+        // penuh; penilai (pemegang jabatan sikartap_reviewers) cuma boleh buka 1 pengajuan
+        // lewat ?openId dari notifikasi, tanpa perlu permission HR.
+        'permission' => null,
         'guard' => null,
     ],
 
@@ -805,13 +820,16 @@ return [
 
     'sikartap.direktur.bulk' => [
         'label' => 'Keputusan Direktur - Massal',
-        'permission' => 'ViewAny:Sikartap',
+        // Otorisasi di DirekturBulkKeputusanPage::mount() (404 kalau tak ada antrian) — Direktur
+        // (pemegang jabatan sikartap_direktur_job_position_id) tak wajib punya permission HR.
+        'permission' => null,
         'guard' => null,
     ],
 
     'sikartap.pengajuan.show' => [
         'label' => 'Detail Pengajuan Karyawan Tetap',
-        'permission' => 'View:Sikartap',
+        // Otorisasi di PengajuanDetailPage::mount() — HRD (View:Sikartap) ATAU Direktur ditunjuk.
+        'permission' => null,
         'guard' => null,
     ],
 

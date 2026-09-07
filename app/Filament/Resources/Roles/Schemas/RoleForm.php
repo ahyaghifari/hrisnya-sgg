@@ -226,9 +226,9 @@ class RoleForm
             // 'SikartapDashboard' lewat customPermissionSubjectOverrides() di bawah - sub-grup
             // "Dashboard" nempel di root 'Sikartap' yang sama, pola persis 'SikartapMcu'.
             'SikartapDashboard' => 'Sikartap',
-            // JobOpenings PUNYA Resource (navigationGroup-nya sudah 'Rekrutmen'), tapi didaftar
-            // di sini juga supaya subjectLabelOverrides() 'JobOpenings' => 'Kelola Lowongan'
-            // ikut kepakai (getModelLabel() = "job opening", bukan nama yang diinginkan).
+            // JobOpenings: subject permission dari JobOpeningsPolicy (Resource admin panel HRIS
+            // sudah dihapus — CRUD lowongan pindah ke panel `rekrutmen`). Dipetakan ke container
+            // 'Rekrutmen' + label 'Kelola Lowongan' via subjectLabelOverrides().
             'JobOpenings' => 'Rekrutmen',
         ];
     }

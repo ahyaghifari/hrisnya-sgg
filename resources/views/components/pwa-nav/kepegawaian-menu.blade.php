@@ -5,6 +5,8 @@
     $canViewJobEvaluation = auth()->user()->can(\App\Enum\CustomPermissionEnum::LIHAT_JOB_EVALUATION->value);   
     $canViewDokumen = auth()->user()->can('ViewAny:UserDocuments');
     $canViewPerubahanStatus = auth()->user()->can('ViewAny:UserTransition');
+    $canViewKontrak = auth()->user()->can('ViewAny:UserContract');
+    $canViewOrientasiData = auth()->user()->can('ViewAny:UserOrientation');
     $canViewPermintaanTenagaKerja = auth()->user()->can('ViewAny:ManpowerRequests');
 @endphp
 
@@ -43,7 +45,20 @@
     <span class="pwa-menu-grid-label">Dokumen</span>
 </a>
 @endif
-{{-- Kontrak & Orientasi pindah ke menu Sikartap (2026-09-04). --}}
+{{-- Orientasi + Perpanjangan Kontrak (alur) di menu Sikartap. Kontrak Karyawan (data
+     kontrak berjalan) dipindah ke sini 2026-09-07. --}}
+@if ($canViewOrientasiData)
+    <a href="{{ route('kepegawaian.orientasi') }}" wire:navigate class="pwa-menu-grid-item">
+        <span class="pwa-menu-grid-icon violet"><i class="fa-solid fa-user-graduate"></i></span>
+        <span class="pwa-menu-grid-label">Orientasi Karyawan</span>
+    </a>
+@endif
+@if ($canViewKontrak)
+    <a href="{{ route('kepegawaian.kontrak') }}" wire:navigate class="pwa-menu-grid-item">
+        <span class="pwa-menu-grid-icon violet"><i class="fa-solid fa-file-contract"></i></span>
+        <span class="pwa-menu-grid-label">Kontrak Karyawan</span>
+    </a>
+@endif
 @if ($canViewPerubahanStatus)
     <a href="{{ route('kepegawaian.mutasi-karyawan') }}" wire:navigate class="pwa-menu-grid-item">
         <span class="pwa-menu-grid-icon gold"><i class="fa-solid fa-right-left"></i></span>
