@@ -12,7 +12,7 @@
 
 <span class="pwa-menu-grid-divider">Sistem Kepegawaian</span>
 <a href="{{ route('kepegawaian.dashboard') }}" wire:navigate class="pwa-menu-grid-item">
-    <span class="pwa-menu-grid-icon navy"><i class="fa-solid fa-chart-line"></i></span>
+    <span class="pwa-menu-grid-icon violet"><i class="fa-solid fa-chart-line"></i></span>
     <span class="pwa-menu-grid-label">Dashboard</span>
 </a>
 @if ($canViewKaryawan)
@@ -41,7 +41,7 @@
 @endif
 @if ($canViewDokumen)
 <a href="{{ route('kepegawaian.dokumen') }}" wire:navigate class="pwa-menu-grid-item">
-    <span class="pwa-menu-grid-icon indigo"><i class="fa-solid fa-folder-open"></i></span>
+    <span class="pwa-menu-grid-icon violet"><i class="fa-solid fa-folder-open"></i></span>
     <span class="pwa-menu-grid-label">Dokumen</span>
 </a>
 @endif
@@ -61,13 +61,13 @@
 @endif
 @if ($canViewPerubahanStatus)
     <a href="{{ route('kepegawaian.mutasi-karyawan') }}" wire:navigate class="pwa-menu-grid-item">
-        <span class="pwa-menu-grid-icon gold"><i class="fa-solid fa-right-left"></i></span>
+        <span class="pwa-menu-grid-icon violet"><i class="fa-solid fa-right-left"></i></span>
         <span class="pwa-menu-grid-label">Perubahan Status</span>
     </a>
 @endif
 @if ($canViewPermintaanTenagaKerja)
     <a href="{{ route('kepegawaian.permintaan') }}" wire:navigate class="pwa-menu-grid-item">
-        <span class="pwa-menu-grid-icon gold"><i class="fa-solid fa-right-left"></i></span>
+        <span class="pwa-menu-grid-icon violet"><i class="fa-solid fa-right-left"></i></span>
         <span class="pwa-menu-grid-label">Permintaan Tenaga Kerja</span>
     </a>
 @endif

@@ -3,8 +3,6 @@
 namespace App\Providers;
 
 use App\Auth\KaryawanAwareUserProvider;
-use App\Filament\Candidate\Pages\Auth\LoginResponse as AuthLoginResponse;
-use Filament\Auth\Http\Responses\Contracts\LoginResponse;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Encryption\Encrypter;
 use Illuminate\Encryption\MissingAppKeyException;
@@ -22,8 +20,6 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        $this->app->bind(LoginResponse::class, AuthLoginResponse::class);
-
         $this->registerPayrollEncrypter();
 
         // ponytail: DB local (hris_db) berisi push_subscriptions asli 4 karyawan (bukan data

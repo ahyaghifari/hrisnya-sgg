@@ -30,85 +30,85 @@
 @endif
 @if ($canViewPayroll)
     <a href="{{ route('keuangan.payroll') }}" wire:navigate class="pwa-menu-grid-item">
-        <span class="pwa-menu-grid-icon indigo"><i class="fa-solid fa-money-check-dollar"></i></span>
+        <span class="pwa-menu-grid-icon navy"><i class="fa-solid fa-money-check-dollar"></i></span>
         <span class="pwa-menu-grid-label">Payroll</span>
     </a>
 @endif
 @if ($canViewPajak)
     <a href="{{ route('keuangan.pajak') }}" wire:navigate class="pwa-menu-grid-item">
-        <span class="pwa-menu-grid-icon indigo"><i class="fa-solid fa-percent"></i></span>
+        <span class="pwa-menu-grid-icon navy"><i class="fa-solid fa-percent"></i></span>
         <span class="pwa-menu-grid-label">Pajak (%)</span>
     </a>
 @endif
 @if ($canViewDataRekening)
     <a href="{{ route('keuangan.data-rekening') }}" wire:navigate class="pwa-menu-grid-item">
-        <span class="pwa-menu-grid-icon indigo"><i class="fa-solid fa-building-columns"></i></span>
+        <span class="pwa-menu-grid-icon navy"><i class="fa-solid fa-building-columns"></i></span>
         <span class="pwa-menu-grid-label">Data Rekening</span>
     </a>
 @endif
 @if ($canViewOmset)
     <a href="{{ route('keuangan.omset') }}" wire:navigate class="pwa-menu-grid-item">
-        <span class="pwa-menu-grid-icon green"><i class="fa-solid fa-hand-holding-medical"></i></span>
+        <span class="pwa-menu-grid-icon navy"><i class="fa-solid fa-hand-holding-medical"></i></span>
         <span class="pwa-menu-grid-label">Omset</span>
     </a>
 @endif
 @if ($canViewKoperasi)
     <a href="{{ route('keuangan.koperasi') }}" wire:navigate class="pwa-menu-grid-item">
-        <span class="pwa-menu-grid-icon green"><i class="fa-solid fa-people-group"></i></span>
+        <span class="pwa-menu-grid-icon navy"><i class="fa-solid fa-people-group"></i></span>
         <span class="pwa-menu-grid-label">Koperasi</span>
     </a>
 @endif
 @if ($canViewBpjsDependent)
     <a href="{{ route('keuangan.tanggungan-bpjs') }}" wire:navigate class="pwa-menu-grid-item">
-        <span class="pwa-menu-grid-icon green"><i class="fa-solid fa-house-medical"></i></span>
+        <span class="pwa-menu-grid-icon navy"><i class="fa-solid fa-house-medical"></i></span>
         <span class="pwa-menu-grid-label">Tanggungan BPJS</span>
     </a>
 @endif
 @if ($canViewOverrideKomponenGaji)
     <a href="{{ route('keuangan.override-komponen-gaji') }}" wire:navigate class="pwa-menu-grid-item">
-        <span class="pwa-menu-grid-icon green"><i class="fa-solid fa-sliders"></i></span>
+        <span class="pwa-menu-grid-icon navy"><i class="fa-solid fa-sliders"></i></span>
         <span class="pwa-menu-grid-label">Khusus</span>
     </a>
 @endif
 @if ($canViewKomponenGaji)
     <a href="{{ route('keuangan.komponen-gaji') }}" wire:navigate class="pwa-menu-grid-item">
-        <span class="pwa-menu-grid-icon gold"><i class="fa-solid fa-sack-dollar"></i></span>
+        <span class="pwa-menu-grid-icon navy"><i class="fa-solid fa-sack-dollar"></i></span>
         <span class="pwa-menu-grid-label">Komponen Gaji</span>
     </a>
 @endif
 @if ($canViewPenerimaKomponenGaji)
     <a href="{{ route('keuangan.penerima-komponen-gaji') }}" wire:navigate class="pwa-menu-grid-item">
-        <span class="pwa-menu-grid-icon gold"><i class="fa-solid fa-users-gear"></i></span>
+        <span class="pwa-menu-grid-icon navy"><i class="fa-solid fa-users-gear"></i></span>
         <span class="pwa-menu-grid-label">Penerima Komponen Gaji</span>
     </a>
 @endif
 @if ($canViewMappingKomponenGaji)
     <a href="{{ route('keuangan.mapping-komponen-gaji') }}" wire:navigate class="pwa-menu-grid-item">
-        <span class="pwa-menu-grid-icon teal"><i class="fa-solid fa-diagram-project"></i></span>
+        <span class="pwa-menu-grid-icon navy"><i class="fa-solid fa-diagram-project"></i></span>
         <span class="pwa-menu-grid-label">Mapping Komponen Gaji</span>
     </a>
 @endif
 @if ($canViewKenaikanGajiPokok)
     <a href="{{ route('keuangan.kenaikan-gaji-pokok') }}" wire:navigate class="pwa-menu-grid-item">
-        <span class="pwa-menu-grid-icon teal"><i class="fa-solid fa-arrow-trend-up"></i></span>
+        <span class="pwa-menu-grid-icon navy"><i class="fa-solid fa-arrow-trend-up"></i></span>
         <span class="pwa-menu-grid-label">Kenaikan Gaji Pokok</span>
     </a>
 @endif
 @if ($canViewJasaUnitType)
     <a href="{{ route('keuangan.jasa-unit-types') }}" wire:navigate class="pwa-menu-grid-item">
-        <span class="pwa-menu-grid-icon teal"><i class="fa-solid fa-hospital-user"></i></span>
+        <span class="pwa-menu-grid-icon navy"><i class="fa-solid fa-hospital-user"></i></span>
         <span class="pwa-menu-grid-label">Jasa Unit</span>
     </a>
 @endif
 @if ($canViewIncentive)
     <a href="{{ route('keuangan.insentif') }}" wire:navigate class="pwa-menu-grid-item">
-        <span class="pwa-menu-grid-icon green"><i class="fa-solid fa-hand-holding-dollar"></i></span>
+        <span class="pwa-menu-grid-icon navy"><i class="fa-solid fa-hand-holding-dollar"></i></span>
         <span class="pwa-menu-grid-label">Insentif</span>
     </a>
 @endif
 @if ($canViewInputJasaUnit)
     <a href="{{ route('keuangan.jasa-unit') }}" wire:navigate class="pwa-menu-grid-item">
-        <span class="pwa-menu-grid-icon teal"><i class="fa-solid fa-hospital-user"></i></span>
+        <span class="pwa-menu-grid-icon navy"><i class="fa-solid fa-hospital-user"></i></span>
         <span class="pwa-menu-grid-label">Input Jasa Unit</span>
     </a>
 @endif
