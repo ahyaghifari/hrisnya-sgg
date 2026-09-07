@@ -502,7 +502,7 @@ class EmployeeAttendanceStatistics extends Component
 
         if ($category === EmployeeTypeCategory::ORIENTASI->value) {
             $cur = $this->record->currentOrientation;
-            $summary['headline'] = 'Masa orientasi';
+            $summary['headline'] = 'Orientasi';
             if ($cur?->end_date) {
                 $summary['ended'] = Carbon::parse($cur->end_date);
                 $summary['sub'] = 'Berakhir ' . $summary['ended']->translatedFormat('d M Y');
@@ -510,7 +510,7 @@ class EmployeeAttendanceStatistics extends Component
             }
         } elseif ($category === EmployeeTypeCategory::KONTRAK->value) {
             $cur = $this->record->currentContract;
-            $summary['headline'] = $kontrakCount > 1 ? "Masa kontrak (perpanjangan ke-{$kontrakCount})" : 'Masa kontrak';
+            $summary['headline'] = $kontrakCount > 1 ? "Kontrak (perpanjangan ke-{$kontrakCount})" : 'Kontrak';
             if ($cur?->contract_end_date) {
                 $summary['ended'] = Carbon::parse($cur->contract_end_date);
                 $summary['sub'] = 'Berakhir ' . $summary['ended']->translatedFormat('d M Y');
@@ -521,7 +521,7 @@ class EmployeeAttendanceStatistics extends Component
             // kategori tetap pertama, lalu Tanggal Bergabung.
             $since = $profile?->tmt_tetap ? Carbon::parse($profile->tmt_tetap)
                 : ($tetapStart ? Carbon::parse($tetapStart) : $join);
-            $summary['headline'] = 'Karyawan tetap';
+            $summary['headline'] = 'Tetap';
             $summary['sub'] = $since ? 'Sejak ' . $since->translatedFormat('d M Y') : null;
         } else {
             $summary['headline'] = 'Status kepegawaian belum diatur';

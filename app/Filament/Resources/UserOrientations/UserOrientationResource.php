@@ -2,14 +2,11 @@
 
 namespace App\Filament\Resources\UserOrientations;
 
-use App\Enum\EmployeeTypeCategory;
 use App\Filament\Resources\BaseCompanyResource;
 use App\Filament\Resources\UserOrientations\Pages\ManageUserOrientations;
 use App\Filament\Resources\UserOrientations\Tables\UserOrientationsTable;
-use App\Models\User;
 use App\Models\User\UserOrientation;
 use BackedEnum;
-use Illuminate\Database\Eloquent\Builder;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Select;
@@ -53,29 +50,10 @@ class UserOrientationResource extends BaseCompanyResource
 
                 Select::make('user_id')
                     ->label('Karyawan')
-                    ->relationship(
-                        'user',
-                        'name',
-                        fn (Builder $query) => $query->whereHas(
-                            'profile.employeeType',
-                            fn ($q) => $q->where('category', EmployeeTypeCategory::ORIENTASI->value),
-                        ),
-                    )
+                    ->relationship('user', 'name')
                     ->searchable()
                     ->preload()
-                    ->required()
-                    ->helperText('Hanya karyawan berstatus Orientasi.')
-                    ->rule(static function () {
-                        return static function (string $attribute, $value, \Closure $fail) {
-                            $isOrientasi = User::whereKey($value)
-                                ->whereHas('profile.employeeType', fn ($q) => $q->where('category', EmployeeTypeCategory::ORIENTASI->value))
-                                ->exists();
-
-                            if (! $isOrientasi) {
-                                $fail('Karyawan yang dipilih bukan berstatus Orientasi.');
-                            }
-                        };
-                    }),
+                    ->required(),
 
                 DatePicker::make('start_date')
                     ->label('Mulai')
