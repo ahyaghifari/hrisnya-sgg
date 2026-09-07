@@ -5,6 +5,7 @@ namespace App\Filament\Resources\UserOrientations\Tables;
 use App\Filament\Resources\UserOrientations\UserOrientationResource;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
+use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Support\Carbon;
@@ -57,6 +58,13 @@ class UserOrientationsTable
                         'extension' => 'warning',
                         default => 'gray',
                     }),
+
+                IconColumn::make('file_path')
+                    ->label('Surat')
+                    ->boolean()
+                    ->trueIcon('heroicon-o-document-check')
+                    ->falseIcon('heroicon-o-document')
+                    ->url(fn ($record) => $record->file_url, shouldOpenInNewTab: true),
 
                 UserOrientationResource::companyTableColumn(),
             ])

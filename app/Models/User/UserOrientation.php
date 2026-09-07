@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * 1 periode orientasi (ledger, mirip UserContract). Dibuat lewat Rekrutmen
@@ -27,6 +28,7 @@ class UserOrientation extends Model
         'start_date',
         'end_date',
         'duration_months',
+        'file_path',
         'source',
         'previous_orientation_id',
     ];
@@ -61,5 +63,10 @@ class UserOrientation extends Model
     public function isActive(): bool
     {
         return $this->end_date && ! $this->end_date->isPast();
+    }
+
+    public function getFileUrlAttribute(): ?string
+    {
+        return $this->file_path ? Storage::disk('public')->url($this->file_path) : null;
     }
 }

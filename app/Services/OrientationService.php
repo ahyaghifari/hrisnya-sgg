@@ -74,14 +74,14 @@ class OrientationService
     public function reviewersFor(OrientationSubmission $submission): \Illuminate\Support\Collection
     {
         return $submission->user
-            ? $this->reviewerResolver->reviewersFor(SikartapReviewer::CONTEXT_ORIENTATION, $submission->user)
+            ? $this->reviewerResolver->reviewersFor(SikartapReviewer::CONTEXT_STATUS_KARYAWAN, $submission->user)
             : collect();
     }
 
     public function canReview(OrientationSubmission $submission, User $actor): bool
     {
         return $submission->user
-            && $this->reviewerResolver->canReview(SikartapReviewer::CONTEXT_ORIENTATION, $submission->user, $actor);
+            && $this->reviewerResolver->canReview(SikartapReviewer::CONTEXT_STATUS_KARYAWAN, $submission->user, $actor);
     }
 
     /** Kirim pengajuan (dari status draft) → resolve penilai + notifikasi. */

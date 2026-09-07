@@ -11,8 +11,10 @@ use App\Models\User\UserOrientation;
 use BackedEnum;
 use Illuminate\Database\Eloquent\Builder;
 use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
+use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
@@ -89,6 +91,15 @@ class UserOrientationResource extends BaseCompanyResource
                     ->numeric()
                     ->minValue(1)
                     ->required(),
+
+                FileUpload::make('file_path')
+                    ->label('Surat Orientasi')
+                    ->columnSpanFull()
+                    ->openable(true)
+                    ->disk('public')
+                    ->maxSize(10240)
+                    ->acceptedFileTypes(['application/pdf', 'image/*'])
+                    ->directory(fn (Get $get) => 'user-orientations/' . ($get('user_id') ?? 'unknown')),
             ]);
     }
 
