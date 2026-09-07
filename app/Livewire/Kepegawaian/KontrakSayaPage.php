@@ -177,6 +177,10 @@ class KontrakSayaPage extends Component
         $this->docFile = null;
         $this->docLabel = null;
 
+        // Buang cache computed `current` — instance-nya sudah eager-load `documents` SEBELUM
+        // baris baru dibuat, tanpa ini indikator ceklis dokumen tidak berubah saat re-render.
+        unset($this->current);
+
         Notification::make()->title('Dokumen terunggah')->success()->send();
     }
 
@@ -190,6 +194,8 @@ class KontrakSayaPage extends Component
             Storage::disk('public')->delete($doc->path);
             $doc->delete();
         }
+
+        unset($this->current);
     }
 
     public function submit(): void

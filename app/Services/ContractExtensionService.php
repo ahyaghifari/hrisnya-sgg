@@ -81,14 +81,14 @@ class ContractExtensionService
     public function reviewersFor(ContractSubmission $submission): \Illuminate\Support\Collection
     {
         return $submission->user
-            ? $this->reviewerResolver->reviewersFor(SikartapReviewer::CONTEXT_CONTRACT, $submission->user)
+            ? $this->reviewerResolver->reviewersFor(SikartapReviewer::CONTEXT_STATUS_KARYAWAN, $submission->user)
             : collect();
     }
 
     public function canReview(ContractSubmission $submission, User $actor): bool
     {
         return $submission->user
-            && $this->reviewerResolver->canReview(SikartapReviewer::CONTEXT_CONTRACT, $submission->user, $actor);
+            && $this->reviewerResolver->canReview(SikartapReviewer::CONTEXT_STATUS_KARYAWAN, $submission->user, $actor);
     }
 
     /** Kirim pengajuan (dari status draft) → cek dokumen wajib, resolve penilai, notifikasi. */

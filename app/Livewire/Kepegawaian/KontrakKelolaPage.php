@@ -54,12 +54,28 @@ class KontrakKelolaPage extends Component
     public ?int $reviewDurasi = null;
     public ?string $revisionNote = null;
 
+    /** True = user bukan HR, cuma penilai yang datang dari notifikasi (openId). Daftar HR
+     * disembunyikan, cuma panel tinjau yang tampil. */
+    public bool $reviewerOnly = false;
+
     public function mount(): void
     {
-        abort_unless(Auth::user()->can('viewAny', ContractSubmission::class), 403);
+        $user = Auth::user();
+        $this->reviewerOnly = ! $user->can('viewAny', ContractSubmission::class);
 
-        if (! Auth::user()->canFilterByCompany() || $this->companyId === null) {
-            $this->companyId = Auth::user()->company_id;
+        if ($this->reviewerOnly) {
+            // Penilai (pemegang jabatan di sikartap_reviewers) tidak butuh permission HR —
+            // aksesnya dibatasi ke 1 pengajuan yang dia nilai, lewat ?openId dari notifikasi.
+            abort_if($this->openId === null, 403);
+            $this->openReview($this->openId);
+            abort_if($this->openId === null, 403); // openReview meng-null-kan openId kalau canAccess gagal
+            $this->companyId = $user->company_id;
+
+            return;
+        }
+
+        if (! $user->canFilterByCompany() || $this->companyId === null) {
+            $this->companyId = $user->company_id;
         }
 
         if ($this->openId !== null) {
@@ -203,6 +219,10 @@ class KontrakKelolaPage extends Component
     {
         $this->reset('openId', 'reviewDecision', 'reviewNote', 'reviewDurasi', 'revisionNote');
         $this->resetErrorBag();
+
+        if ($this->reviewerOnly) {
+            $this->redirect('/', navigate: true);
+        }
     }
 
     protected function canAccess(ContractSubmission $record, User $user): bool

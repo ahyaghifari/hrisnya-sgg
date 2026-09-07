@@ -1,18 +1,14 @@
 <div>
     <x-page-header title="Kontrak Karyawan" subtitle="Riwayat & masa berlaku kontrak karyawan" />
 
-    <div style="display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:12px;margin-bottom:14px;">
+    {{-- Halaman DATA saja. Perpanjangan kontrak cuma bisa lewat karyawan sendiri (self-service)
+         atau admin panel — tidak ada aksi "ajukan perpanjangan" di sini. --}}
+    <div style="margin-bottom:14px;">
         <div style="display:inline-flex;gap:2px;background:var(--surface-alt);padding:3px;border-radius:8px;">
             <button type="button" wire:click="setStatus('semua')" style="padding:4px 12px;font-size:11.5px;font-weight:600;border:none;border-radius:6px;cursor:pointer;font-family:inherit;background:{{ $status === 'semua' ? 'var(--surface)' : 'transparent' }};color:{{ $status === 'semua' ? 'var(--text-heading)' : 'var(--text-muted)' }};box-shadow:{{ $status === 'semua' ? 'var(--shadow-card)' : 'none' }};">Semua</button>
             <button type="button" wire:click="setStatus('aktif')" style="padding:4px 12px;font-size:11.5px;font-weight:600;border:none;border-radius:6px;cursor:pointer;font-family:inherit;background:{{ $status === 'aktif' ? 'var(--surface)' : 'transparent' }};color:{{ $status === 'aktif' ? 'var(--text-heading)' : 'var(--text-muted)' }};box-shadow:{{ $status === 'aktif' ? 'var(--shadow-card)' : 'none' }};">Aktif</button>
             <button type="button" wire:click="setStatus('berakhir')" style="padding:4px 12px;font-size:11.5px;font-weight:600;border:none;border-radius:6px;cursor:pointer;font-family:inherit;background:{{ $status === 'berakhir' ? 'var(--surface)' : 'transparent' }};color:{{ $status === 'berakhir' ? 'var(--text-heading)' : 'var(--text-muted)' }};box-shadow:{{ $status === 'berakhir' ? 'var(--shadow-card)' : 'none' }};">Berakhir</button>
         </div>
-
-        {{-- Baris baru SELALU lewat Perpanjangan Kontrak (sudah divalidasi & tercatat approval-nya)
-             - tidak ada "Tambah" generik di sini, lihat docblock KontrakPage. --}}
-        <a href="{{ route('kepegawaian.mutasi-karyawan.create', ['type' => 'contract_extension']) }}" wire:navigate class="btn-primary">
-            <i class="fa-solid fa-calendar-plus"></i> Ajukan Perpanjangan Kontrak
-        </a>
     </div>
 
     <div class="mb-4" style="display:flex;flex-wrap:wrap;gap:12px;">
