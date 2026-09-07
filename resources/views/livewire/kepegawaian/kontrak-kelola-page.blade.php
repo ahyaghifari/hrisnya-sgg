@@ -35,7 +35,7 @@
                         <th style="padding:10px 12px;">Karyawan</th>
                         <th style="padding:10px 12px;">Kontrak Berjalan</th>
                         <th style="padding:10px 12px;">Sisa</th>
-                        <th style="padding:10px 12px;text-align:center;">Mengajukan?</th>
+                        <th style="padding:10px 12px;text-align:center;">Diajukan Perpanjangan</th>
                         <th style="padding:10px 12px;">Keputusan</th>
                         <th style="padding:10px 12px;"></th>
                     </tr>
