@@ -17,7 +17,7 @@ use Illuminate\Http\Request;
  * Endpoint rekap presensi untuk otomasi n8n. Scope dikunci ke divisi IT (holding) —
  * hardcode sesuai permintaan; ganti konstanta di bawah kalau butuh divisi lain.
  * Auth: HTTP Basic (config services.n8n.user / services.n8n.password).
- * Rate limit: 20 req/menit (throttle di routes/api.php).
+ * Rate limit: 50 req/menit (throttle di routes/api.php).
  */
 class DivisionAttendanceController extends Controller
 {
@@ -26,7 +26,7 @@ class DivisionAttendanceController extends Controller
     private const HOLDING_COMPANY_ID = '01J2F0C8KQ9M7D4S8RBX6E1ZVP';
     private const IT_DIVISION_ID = '01kekzd6r6fngjh69c7kk03bbb';
 
-    /** GET /api/n8n/cuti — cuti (leave) approved yang sedang berjalan atau akan datang. */
+    /** GET /api/n8n/cuti — cuti (leave) yang sedang berjalan / akan datang, semua status kecuali batal & ditolak. */
     public function cuti(Request $request)
     {
         if ($resp = $this->guard($request)) {
@@ -37,7 +37,7 @@ class DivisionAttendanceController extends Controller
 
         $requests = AttendanceRequests::query()
             ->where('type', 'leave')
-            ->where('status', 'approved')
+            ->whereNotIn('status', ['cancelled', 'rejected'])
             ->whereIn('user_id', $this->divisionUserIds())
             ->whereHas('leaveDetails', fn ($q) => $q
                 ->where('start_date', '>=', $today)
@@ -51,6 +51,7 @@ class DivisionAttendanceController extends Controller
                 ->filter(fn ($d) => $d->start_date >= $today || ($d->end_date && $d->end_date >= $today))
                 ->map(fn ($d) => [
                     'user' => $this->userPayload($req->user),
+                    'status' => $req->status,
                     'leave_type' => $d->leave_type,
                     'start_date' => $this->dateStr($d->start_date),
                     'end_date' => $this->dateStr($d->end_date),
@@ -62,7 +63,7 @@ class DivisionAttendanceController extends Controller
         return ApiResponseHelper::success($data, 'Rekap cuti divisi IT (hari ini dan seterusnya).');
     }
 
-    /** GET /api/n8n/izin — izin (permission) approved yang sedang berjalan atau akan datang. */
+    /** GET /api/n8n/izin — izin (permission) yang sedang berjalan / akan datang, semua status kecuali batal & ditolak. */
     public function izin(Request $request)
     {
         if ($resp = $this->guard($request)) {
@@ -73,7 +74,7 @@ class DivisionAttendanceController extends Controller
 
         $requests = AttendanceRequests::query()
             ->where('type', 'permission')
-            ->where('status', 'approved')
+            ->whereNotIn('status', ['cancelled', 'rejected'])
             ->whereIn('user_id', $this->divisionUserIds())
             ->whereHas('permissionDetails', fn ($q) => $q
                 ->where('date', '>=', $today)
@@ -87,6 +88,7 @@ class DivisionAttendanceController extends Controller
                 ->filter(fn ($d) => $d->date >= $today || ($d->end_date && $d->end_date >= $today))
                 ->map(fn ($d) => [
                     'user' => $this->userPayload($req->user),
+                    'status' => $req->status,
                     'permission_type' => $d->permission_type,
                     'category' => $d->category,
                     'date' => $this->dateStr($d->date),
