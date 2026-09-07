@@ -1,5 +1,5 @@
 <div>
-<x-page-header title="Perubahan Status Karyawan" subtitle="Promosi, Demosi, Mutasi, PHK, Perubahan Kelas, Status Kepegawaian, dan Perpanjangan Kontrak" />
+<x-page-header title="Perubahan Status Karyawan" subtitle="Promosi, Demosi, Mutasi Internal, dan PHK" />
 
 @if ($this->canCreate)
     <div style="display:flex;justify-content:flex-end;margin-bottom:16px;">
@@ -16,11 +16,8 @@
             $typeIcons = [
                 'promotion' => 'fa-arrow-up',
                 'demotion' => 'fa-arrow-down',
-                'mutation' => 'fa-building',
+                'mutation' => 'fa-right-left',
                 'termination' => 'fa-user-slash',
-                'kelas_change' => 'fa-arrow-trend-up',
-                'employment_status_change' => 'fa-id-card',
-                'contract_extension' => 'fa-calendar-days',
             ];
         @endphp
         @foreach ($this->types as $t)

@@ -3,22 +3,19 @@
 namespace App\Services\User;
 
 use App\Enum\Approval\ApprovalModuleEnum;
-use App\Enum\EmployeeTypeCategory;
 use App\Enum\Kepegawaian\KepegawaianSettingEnum;
 use App\Enum\UserTransitionStatusEnum;
 use App\Enum\UserTransitionTypeEnum;
-use App\Models\Master\EmployeeTypes;
 use App\Models\Master\JobPositions;
-use App\Models\Master\Kelas;
-use App\Models\Master\OrgStructure;
 use App\Models\Setting;
 use App\Models\User;
-use App\Models\User\UserContract;
 use App\Models\User\UserTransition;
 use App\Repositories\Approval\ApprovalSnapshotRepository;
 use App\Services\Approval\ApprovalCreationService;
 use App\Services\Approval\ApprovalFlowService;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Logic Perubahan Status Karyawan (Promosi/Demosi/Mutasi/PHK) — dipakai BERSAMA oleh admin
@@ -51,55 +48,17 @@ class UserTransitionService
         $data['status'] = UserTransitionStatusEnum::PENDING->value;
         $data['created_by'] = $actingUser->id;
 
-        // old_value = kondisi TARGET karyawan sebelum perubahan (buat riwayat/audit) — bukan
-        // kondisi user yang membuat pengajuan.
+        // old_value = kondisi TARGET karyawan sebelum perubahan (buat riwayat/audit), bukan
+        // kondisi pembuat pengajuan. Promosi/Demosi/Mutasi Internal semua pindah jabatan
+        // (departemen/divisi ikut jabatan barunya) — bedanya cuma Promosi/Demosi punya form
+        // evaluasi kinerja. PHK tidak pilih jabatan (transitionable_id null).
         if (in_array($data['transition_type'], [
             UserTransitionTypeEnum::PROMOTION->value,
             UserTransitionTypeEnum::DEMOTION->value,
+            UserTransitionTypeEnum::MUTATION->value,
         ], true)) {
             $data['transitionable_type'] = JobPositions::class;
             $data['old_value'] = $targetUser->profile?->jobPosition?->name;
-        }
-
-        if ($data['transition_type'] === UserTransitionTypeEnum::MUTATION->value) {
-            $data['transitionable_type'] = OrgStructure::class;
-            $data['old_value'] = $targetUser->profile?->orgStructure?->name;
-        }
-
-        if ($data['transition_type'] === UserTransitionTypeEnum::KELAS_CHANGE->value) {
-            $data['transitionable_type'] = Kelas::class;
-            $data['old_value'] = $targetUser->profile?->kelas?->name;
-        }
-
-        if ($data['transition_type'] === UserTransitionTypeEnum::EMPLOYMENT_STATUS_CHANGE->value) {
-            $data['transitionable_type'] = EmployeeTypes::class;
-            $data['old_value'] = $targetUser->profile?->employeeType?->name;
-
-            // contract_start_date/contract_end_date dihitung otomatis (bukan input manual) - cuma
-            // relevan kalau status barunya Kontrak. Start = Tanggal Efektif itu sendiri (anchor
-            // yang sama dipakai buat hitung end date).
-            $newEmployeeType = EmployeeTypes::find($data['transitionable_id']);
-            $effectiveDate = Carbon::parse($data['effective_date']);
-            $data['contract_start_date'] = $newEmployeeType?->category === EmployeeTypeCategory::KONTRAK
-                ? $effectiveDate->toDateString()
-                : null;
-            $data['contract_end_date'] = $newEmployeeType?->category === EmployeeTypeCategory::KONTRAK
-                ? $this->resolveContractEndDate($targetUser, $effectiveDate, $actingUser->company_id)->toDateString()
-                : null;
-        }
-
-        if ($data['transition_type'] === UserTransitionTypeEnum::CONTRACT_EXTENSION->value) {
-            $currentContractEndDate = $targetUser->currentContract?->contract_end_date;
-            $data['old_value'] = $currentContractEndDate;
-
-            // Anchor dari tanggal kontrak SEKARANG (atau hari ini kalau sudah lewat/belum ada),
-            // bukan dari effective_date - perpanjangan menyambung dari kontrak yang berjalan.
-            // Anchor itu sendiri jadi contract_start_date (mulai term kontrak baru).
-            $anchor = $currentContractEndDate
-                ? Carbon::parse($currentContractEndDate)->max(Carbon::today())
-                : Carbon::today();
-            $data['contract_start_date'] = $anchor->toDateString();
-            $data['contract_end_date'] = $this->resolveContractEndDate($targetUser, $anchor, $actingUser->company_id)->toDateString();
         }
 
         $transition = UserTransition::create($data);
@@ -224,9 +183,67 @@ class UserTransitionService
             'approved_by' => $actorId,
         ]);
 
-        $this->applyTransitionChanges($transition);
+        // Tanggal efektif masa depan -> efek ke data karyawan DITUNDA; command `transitions:apply-due`
+        // yang menerapkannya pas tanggalnya tiba. Tanggal efektif hari ini / lampau / kosong ->
+        // langsung diterapkan sekarang (perilaku lama). applied_at = penanda sudah diterapkan
+        // (sekaligus guard biar command tidak menerapkan ulang).
+        if ($this->effectiveDateReached($transition)) {
+            DB::transaction(function () use ($transition) {
+                $this->applyTransitionChanges($transition);
+                $transition->update(['applied_at' => now()]);
+            });
+        }
 
         $transition->refresh();
+    }
+
+    private function effectiveDateReached(UserTransition $transition): bool
+    {
+        if (! $transition->effective_date) {
+            return true;
+        }
+
+        return Carbon::parse($transition->effective_date)->startOfDay()->lte(Carbon::today());
+    }
+
+    /**
+     * Terapkan semua transisi yang sudah disetujui & tanggal efektifnya sudah tiba tapi belum
+     * pernah diterapkan (applied_at NULL). Dipanggil harian oleh command `transitions:apply-due`.
+     * Per-baris di-guard: satu transisi gagal (mis. jabatan tujuan keburu dihapus, user keburu
+     * dihapus) tidak memblok sisanya.
+     *
+     * @return array{applied: int, failed: int}
+     */
+    public function applyDueTransitions(): array
+    {
+        $due = UserTransition::query()
+            ->where('status', UserTransitionStatusEnum::APPROVED->value)
+            ->whereNull('applied_at')
+            ->whereNotNull('effective_date')
+            ->whereDate('effective_date', '<=', Carbon::today())
+            ->get();
+
+        $applied = 0;
+        $failed = 0;
+
+        foreach ($due as $transition) {
+            try {
+                DB::transaction(function () use ($transition) {
+                    $this->applyTransitionChanges($transition);
+                    $transition->update(['applied_at' => now()]);
+                });
+                $applied++;
+            } catch (\Throwable $e) {
+                $failed++;
+                Log::error('Gagal menerapkan transisi terjadwal (transitions:apply-due)', [
+                    'user_transition_id' => $transition->id,
+                    'transition_type' => $transition->transition_type,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        return ['applied' => $applied, 'failed' => $failed];
     }
 
     public function reject(UserTransition $transition, string $actorId): void
@@ -236,8 +253,8 @@ class UserTransitionService
         $transition->update(['status' => UserTransitionStatusEnum::REJECTED->value]);
     }
 
-    /** Efek nyata ke data karyawan setelah transisi di-approve — jabatan/role baru (Promosi/
-     * Demosi), departemen baru (Mutasi), atau nonaktifkan user (PHK). */
+    /** Efek nyata ke data karyawan setelah transisi di-approve — jabatan/role baru
+     * (Promosi/Demosi/Mutasi Internal) atau nonaktifkan user (PHK). */
     private function applyTransitionChanges(UserTransition $transition): void
     {
         $user = $transition->user;
@@ -246,6 +263,7 @@ class UserTransitionService
         if (in_array($type, [
             UserTransitionTypeEnum::PROMOTION->value,
             UserTransitionTypeEnum::DEMOTION->value,
+            UserTransitionTypeEnum::MUTATION->value,
         ], true)) {
             $currentPosition = $user->jobPositions()->whereNull('end_date')->first();
 
@@ -275,67 +293,11 @@ class UserTransitionService
             return;
         }
 
-        if ($type === UserTransitionTypeEnum::MUTATION->value) {
-            $user->profile?->update(['org_structure_id' => $transition->transitionable_id]);
-
-            return;
-        }
-
-        if ($type === UserTransitionTypeEnum::KELAS_CHANGE->value) {
-            $user->profile?->update(['kelas_id' => $transition->transitionable_id]);
-
-            return;
-        }
-
-        if ($type === UserTransitionTypeEnum::EMPLOYMENT_STATUS_CHANGE->value) {
-            $newEmployeeType = EmployeeTypes::find($transition->transitionable_id);
-
-            $updates = ['employee_type_id' => $transition->transitionable_id];
-
-            // Kelas otomatis ikut minimal kelas dari Pangkat yang sudah di-assign ke karyawan
-            // (Pangkats::startKelas()) - bukan dipilih manual, dikonfirmasi user: pangkat sudah
-            // menentukan kelas minimalnya.
-            $startKelasId = $user->profile?->pangkat?->start_kelas_id;
-            if ($startKelasId) {
-                $updates['kelas_id'] = $startKelasId;
-            }
-
-            $user->profile?->update($updates);
-
-            // Ledger riwayat kontrak (UserContract) cuma dicatat kalau status barunya Kontrak -
-            // "kontrak aktif saat ini" dibaca lewat User::currentContract(), bukan kolom di profile.
-            // Orientasi->Tetap langsung tidak pernah "berkontrak", tidak ada periode buat dicatat.
-            if ($newEmployeeType?->category === EmployeeTypeCategory::KONTRAK) {
-                UserContract::create([
-                    'user_id' => $user->id,
-                    'company_id' => $transition->company_id,
-                    'employee_type_id' => $newEmployeeType->id,
-                    'contract_start_date' => $transition->contract_start_date,
-                    'contract_end_date' => $transition->contract_end_date,
-                    'source_transition_id' => $transition->id,
-                ]);
-            }
-
-            return;
-        }
-
-        if ($type === UserTransitionTypeEnum::CONTRACT_EXTENSION->value) {
-            // Perpanjangan Kontrak selalu tipe karyawan Kontrak (guard sudah cek ini di
-            // CreateUserTransitionPage::submit()) - employee_type_id ambil dari kondisi
-            // user SAAT INI, bukan transitionable_id (tidak dipakai buat jenis transisi ini).
-            UserContract::create([
-                'user_id' => $user->id,
-                'company_id' => $transition->company_id,
-                'employee_type_id' => $user->profile->employee_type_id,
-                'contract_start_date' => $transition->contract_start_date,
-                'contract_end_date' => $transition->contract_end_date,
-                'source_transition_id' => $transition->id,
-            ]);
-
-            return;
-        }
-
         if ($type === UserTransitionTypeEnum::TERMINATION->value) {
+            // Jabatan aktif ditutup di Tanggal Efektif PHK (bukan now()) - sejajar dengan
+            // Promosi/Demosi/Mutasi yang men-date baris ledger jabatan dari effective_date.
+            $endDate = $transition->effective_date ?? now();
+
             $user->update(['is_active' => false]);
 
             $user->profile->update([
@@ -347,7 +309,7 @@ class UserTransitionService
             ]);
 
             $user->jobPositions()->whereNull('end_date')->update([
-                'end_date' => now(),
+                'end_date' => $endDate,
                 'status' => 'inactive',
             ]);
         }

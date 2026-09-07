@@ -94,7 +94,7 @@ class UserTransitionsPage extends Component
     /** @return array<int, UserTransitionTypeEnum> */
     public function getTypesProperty(): array
     {
-        return UserTransitionTypeEnum::cases();
+        return UserTransitionTypeEnum::assignable();
     }
 
     public function getStatusesProperty(): array

@@ -24,6 +24,12 @@ return Application::configure(basePath: dirname(__DIR__))
         $schedule->command('attendance:sync-access-logs')
             ->everyMinute()
             ->withoutOverlapping();
+
+        // Terapkan transisi karyawan (Promosi/Demosi/Mutasi/PHK) yang disetujui dengan tanggal
+        // efektif di masa depan, begitu tanggalnya tiba. Jalan sekali sehari lewat cron.
+        $schedule->command('transitions:apply-due')
+            ->dailyAt('00:15')
+            ->withoutOverlapping();
     })
     ->withMiddleware(function (Middleware $middleware) {
         // NB: statefulApi() cuma nge-set flag; middleware Sanctum-nya baru masuk ke grup 'api'

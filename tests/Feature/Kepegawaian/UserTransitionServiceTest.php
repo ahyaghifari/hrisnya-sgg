@@ -2,19 +2,14 @@
 
 namespace Tests\Feature\Kepegawaian;
 
-use App\Enum\EmployeeTypeCategory;
 use App\Enum\UserTransitionStatusEnum;
 use App\Enum\UserTransitionTypeEnum;
 use App\Models\ApprovalManagement\MasterApprovalFlows;
 use App\Models\ApprovalManagement\MasterApprovalFlowSteps;
 use App\Models\Master\Companies;
-use App\Models\Master\EmployeeTypes;
 use App\Models\Master\JobPositions;
-use App\Models\Master\OrgStructure;
 use App\Models\User;
-use App\Models\User\UserContract;
 use App\Models\User\UserProfiles;
-use App\Models\User\UserTransition;
 use App\Services\User\UserTransitionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -174,17 +169,21 @@ class UserTransitionServiceTest extends TestCase
         $this->assertFalse((bool) $employee->is_active);
     }
 
-    public function test_approve_mutation_changes_org_structure(): void
+    public function test_approve_mutation_changes_job_position(): void
     {
         $company = $this->makeCompanyWithApprovalFlow();
         $hc = User::factory()->create(['company_id' => $company->id]);
-        $employee = User::factory()->create(['company_id' => $company->id]);
-        $newDept = OrgStructure::create(['company_id' => $company->id, 'name' => 'Departemen Baru', 'level' => \App\Enum\OrgStructurLevel::LEVEL_DEPARTMENT->value]);
-        UserProfiles::create(['user_id' => $employee->id]);
+        [$employee, $oldJob, $newJob] = $this->makeEmployeeWithJobPosition($company);
+        $employee->jobPositions()->create(['job_position_id' => $oldJob->id, 'start_date' => now()->subYear(), 'status' => 'active']);
 
         $service = app(UserTransitionService::class);
         $transition = $service->create(
-            data: ['user_id' => $employee->id, 'transition_type' => UserTransitionTypeEnum::MUTATION->value, 'transitionable_id' => $newDept->id],
+            data: [
+                'user_id' => $employee->id,
+                'transition_type' => UserTransitionTypeEnum::MUTATION->value,
+                'transitionable_id' => $newJob->id,
+                'effective_date' => now()->toDateString(),
+            ],
             detailData: [],
             attachmentPaths: [],
             actingUser: $hc,
@@ -193,7 +192,56 @@ class UserTransitionServiceTest extends TestCase
         $approver = $transition->approvalSnapshot->steps_snapshot[0]['approver_ref_id'] ?? null;
         $service->approve($transition, $approver);
 
-        $this->assertSame($newDept->id, $employee->profile->fresh()->org_structure_id);
+        $this->assertSame($newJob->id, $employee->profile->fresh()->job_position_id);
+        $this->assertDatabaseHas('user_job_positions', [
+            'user_id' => $employee->id,
+            'job_position_id' => $newJob->id,
+            'status' => 'active',
+        ]);
+    }
+
+    public function test_approve_with_future_effective_date_defers_application(): void
+    {
+        $company = $this->makeCompanyWithApprovalFlow();
+        $hc = User::factory()->create(['company_id' => $company->id]);
+        [$employee, $oldJob, $newJob] = $this->makeEmployeeWithJobPosition($company);
+        $employee->jobPositions()->create(['job_position_id' => $oldJob->id, 'start_date' => now()->subYear(), 'status' => 'active']);
+
+        $service = app(UserTransitionService::class);
+        $transition = $service->create(
+            data: [
+                'user_id' => $employee->id,
+                'transition_type' => UserTransitionTypeEnum::PROMOTION->value,
+                'transitionable_id' => $newJob->id,
+                'effective_date' => now()->addWeek()->toDateString(),
+            ],
+            detailData: [],
+            attachmentPaths: [],
+            actingUser: $hc,
+        );
+
+        $approver = $transition->approvalSnapshot->steps_snapshot[0]['approver_ref_id'] ?? null;
+        $service->approve($transition, $approver);
+
+        $transition->refresh();
+
+        // Disetujui, tapi efek ke karyawan BELUM diterapkan (nunggu tanggal efektif).
+        $this->assertSame(UserTransitionStatusEnum::APPROVED->value, $transition->status);
+        $this->assertNull($transition->applied_at);
+        $this->assertSame($oldJob->id, $employee->profile->fresh()->job_position_id);
+
+        // Command jalan hari ini -> belum due, tidak terjadi apa-apa.
+        $this->assertSame(['applied' => 0, 'failed' => 0], $service->applyDueTransitions());
+        $this->assertNull($transition->fresh()->applied_at);
+
+        // Tanggal efektif tiba -> command menerapkan.
+        $this->travelTo(now()->addWeek());
+        $result = $service->applyDueTransitions();
+        $this->travelBack();
+
+        $this->assertSame(['applied' => 1, 'failed' => 0], $result);
+        $this->assertNotNull($transition->fresh()->applied_at);
+        $this->assertSame($newJob->id, $employee->profile->fresh()->job_position_id);
     }
 
     public function test_reject_sets_status_without_changing_employee_data(): void
@@ -224,86 +272,4 @@ class UserTransitionServiceTest extends TestCase
         $this->assertSame($oldJob->id, $employee->profile->fresh()->job_position_id);
     }
 
-    public function test_approve_employment_status_change_to_kontrak_records_user_contract(): void
-    {
-        $company = $this->makeCompanyWithApprovalFlow();
-        $hc = User::factory()->create(['company_id' => $company->id]);
-        $orientasiType = EmployeeTypes::create(['name' => 'Orientasi', 'company_id' => $company->id, 'category' => 'orientasi']);
-        $kontrakType = EmployeeTypes::create(['name' => 'Kontrak', 'company_id' => $company->id, 'category' => 'kontrak']);
-        $employee = User::factory()->create(['company_id' => $company->id]);
-        UserProfiles::create(['user_id' => $employee->id, 'employee_type_id' => $orientasiType->id, 'joining_date' => now()->subMonths(3)->toDateString()]);
-
-        $service = app(UserTransitionService::class);
-        $transition = $service->create(
-            data: [
-                'user_id' => $employee->id,
-                'transition_type' => UserTransitionTypeEnum::EMPLOYMENT_STATUS_CHANGE->value,
-                'transitionable_id' => $kontrakType->id,
-                'effective_date' => now()->toDateString(),
-            ],
-            detailData: [],
-            attachmentPaths: [],
-            actingUser: $hc,
-        );
-
-        $approver = $transition->approvalSnapshot->steps_snapshot[0]['approver_ref_id'] ?? null;
-        $service->approve($transition, $approver);
-
-        $employee->refresh();
-
-        $this->assertSame($kontrakType->id, $employee->profile->employee_type_id);
-        $this->assertNotNull($employee->currentContract);
-        $this->assertNotNull($employee->currentContract->contract_start_date);
-        $this->assertNotNull($employee->currentContract->contract_end_date);
-        $this->assertDatabaseHas('user_contracts', [
-            'user_id' => $employee->id,
-            'company_id' => $company->id,
-            'employee_type_id' => $kontrakType->id,
-            'source_transition_id' => $transition->id,
-        ]);
-    }
-
-    public function test_approve_contract_extension_records_new_user_contract_row(): void
-    {
-        $company = $this->makeCompanyWithApprovalFlow();
-        $hc = User::factory()->create(['company_id' => $company->id]);
-        $kontrakType = EmployeeTypes::create(['name' => 'Kontrak', 'company_id' => $company->id, 'category' => 'kontrak']);
-        $employee = User::factory()->create(['company_id' => $company->id]);
-        UserProfiles::create([
-            'user_id' => $employee->id,
-            'employee_type_id' => $kontrakType->id,
-            'joining_date' => now()->subYear()->toDateString(),
-        ]);
-        // Kontrak term SEKARANG (yang bakal jadi anchor perpanjangan) - biasanya ditulis
-        // UserTransitionService::approve() sendiri, disimulasikan langsung di sini.
-        UserContract::create([
-            'user_id' => $employee->id,
-            'company_id' => $company->id,
-            'employee_type_id' => $kontrakType->id,
-            'contract_start_date' => now()->subYear()->toDateString(),
-            'contract_end_date' => now()->subDay()->toDateString(),
-        ]);
-
-        $service = app(UserTransitionService::class);
-        $transition = $service->create(
-            data: ['user_id' => $employee->id, 'transition_type' => UserTransitionTypeEnum::CONTRACT_EXTENSION->value],
-            detailData: [],
-            attachmentPaths: [],
-            actingUser: $hc,
-        );
-
-        $approver = $transition->approvalSnapshot->steps_snapshot[0]['approver_ref_id'] ?? null;
-        $service->approve($transition, $approver);
-
-        $employee->refresh();
-
-        $this->assertSame(2, UserContract::where('user_id', $employee->id)->count());
-        // contract_end_date di-cast 'date' (2026-08-22) - bandingkan format string, bukan objek.
-        $this->assertSame($transition->contract_end_date, $employee->currentContract->contract_end_date->toDateString());
-        $this->assertDatabaseHas('user_contracts', [
-            'user_id' => $employee->id,
-            'employee_type_id' => $kontrakType->id,
-            'source_transition_id' => $transition->id,
-        ]);
-    }
 }

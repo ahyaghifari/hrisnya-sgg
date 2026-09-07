@@ -39,7 +39,13 @@ class UserTransition extends Model
         'manager_comment',
         'created_by',
         'approved_by',
-        'approved_at'
+        'approved_at',
+        'applied_at',
+    ];
+
+    protected $casts = [
+        'approved_at' => 'datetime',
+        'applied_at' => 'datetime',
     ];
 
     protected static function booted(): void

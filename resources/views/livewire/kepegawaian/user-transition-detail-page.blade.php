@@ -63,7 +63,7 @@
         {!! $renderField('Dibuat Oleh', $record->createdBy?->name, false) !!}
     </div>
 
-    @if (in_array($record->transition_type, ['promotion', 'demotion']))
+    @if (in_array($record->transition_type, ['promotion', 'demotion', 'mutation']))
         <div style="background:var(--surface);border-radius:16px;box-shadow:var(--shadow-card);padding:18px;">
             {!! $sectionHeader('fa-briefcase', 'Perubahan Jabatan') !!}
             {!! $renderField('Jabatan Sebelumnya', $record->old_value) !!}
@@ -73,50 +73,12 @@
         </div>
     @endif
 
-    @if ($record->transition_type === 'mutation')
-        <div style="background:var(--surface);border-radius:16px;box-shadow:var(--shadow-card);padding:18px;">
-            {!! $sectionHeader('fa-building', 'Mutasi Perusahaan') !!}
-            {!! $renderField('Departemen Sebelumnya', $record->old_value) !!}
-            {!! $renderField('Departemen Baru', $record->transitionable?->name, false) !!}
-        </div>
-    @endif
-
     @if ($record->transition_type === 'termination')
         <div style="background:var(--surface);border-radius:16px;box-shadow:var(--shadow-card);padding:18px;">
-            {!! $sectionHeader('fa-triangle-exclamation', 'Alasan PHK') !!}
+            {!! $sectionHeader('fa-triangle-exclamation', 'Pemutusan Hubungan Kerja') !!}
+            {!! $renderField('Tanggal Efektif', $formatDate($record->effective_date), false) !!}
+            <p style="font-size:12.5px;color:var(--text-muted);margin:10px 0 4px;">Alasan</p>
             <p style="font-size:13px;color:var(--text-body);margin:0;white-space:pre-line;">{{ $record->reason ?: '-' }}</p>
-        </div>
-    @endif
-
-    @if ($record->transition_type === 'kelas_change')
-        <div style="background:var(--surface);border-radius:16px;box-shadow:var(--shadow-card);padding:18px;">
-            {!! $sectionHeader('fa-arrow-trend-up', 'Perubahan Kelas') !!}
-            {!! $renderField('Kelas Sebelumnya', $record->old_value) !!}
-            {!! $renderField('Kelas Baru', $record->transitionable?->name) !!}
-            {!! $renderField('Tanggal Efektif', $formatDate($record->effective_date)) !!}
-            {!! $renderField('Alasan', $record->reason, false) !!}
-        </div>
-    @endif
-
-    @if ($record->transition_type === 'employment_status_change')
-        <div style="background:var(--surface);border-radius:16px;box-shadow:var(--shadow-card);padding:18px;">
-            {!! $sectionHeader('fa-id-card', 'Pengangkatan Orientasi') !!}
-            {!! $renderField('Status Sebelumnya', $record->old_value) !!}
-            {!! $renderField('Status Baru', $record->transitionable?->name) !!}
-            {!! $renderField('Tanggal Efektif', $formatDate($record->effective_date)) !!}
-            {!! $renderField('Kontrak Berlaku Mulai', $formatDate($record->contract_start_date)) !!}
-            {!! $renderField('Kontrak Berlaku Sampai', $formatDate($record->contract_end_date)) !!}
-            {!! $renderField('Alasan', $record->reason, false) !!}
-        </div>
-    @endif
-
-    @if ($record->transition_type === 'contract_extension')
-        <div style="background:var(--surface);border-radius:16px;box-shadow:var(--shadow-card);padding:18px;">
-            {!! $sectionHeader('fa-calendar-days', 'Perpanjangan Kontrak') !!}
-            {!! $renderField('Kontrak Sebelumnya Sampai', $formatDate($record->old_value)) !!}
-            {!! $renderField('Kontrak Baru Mulai', $formatDate($record->contract_start_date)) !!}
-            {!! $renderField('Kontrak Baru Sampai', $formatDate($record->contract_end_date)) !!}
-            {!! $renderField('Alasan', $record->reason, false) !!}
         </div>
     @endif
 

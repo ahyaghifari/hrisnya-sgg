@@ -3,13 +3,9 @@
 namespace App\Livewire\Kepegawaian;
 
 use App\Enum\EmployeeTypeCategory;
-use App\Enum\OrgStructurLevel;
 use App\Enum\UserTransitionTypeEnum;
 use App\Models\Master\Companies;
-use App\Models\Master\EmployeeTypes;
 use App\Models\Master\JobPositions;
-use App\Models\Master\Kelas;
-use App\Models\Master\OrgStructure;
 use App\Models\Role;
 use App\Models\User;
 use App\Services\User\UserTransitionService;
@@ -90,11 +86,12 @@ class CreateUserTransitionPage extends Component
         }
     }
 
-    /** Populasi karyawan beda per jenis transisi (lihat getEmployeesProperty) - reset biar tidak
-     * ada karyawan lama yang kepilih tapi sudah tidak valid buat jenis yang baru dipilih. */
+    /** user_id TIDAK di-reset di sini - populasi karyawan sama buat semua jenis (Tetap/Kontrak),
+     * jadi karyawan yang sudah kepilih tetap valid. Reset user_id bakal maksa Tom Select re-init
+     * (wrapper wire:ignore) & bikin bug "tidak bisa pilih karyawan". Cuma field turunan jenis
+     * (jabatan/role) yang perlu direset. */
     public function updatedTransitionType(): void
     {
-        $this->user_id = null;
         $this->transitionable_id = null;
         $this->role_id = null;
     }
@@ -109,23 +106,18 @@ class CreateUserTransitionPage extends Component
         return Auth::user()->canFilterByCompany();
     }
 
-    /**
-     * Pengangkatan Orientasi khusus buat karyawan Orientasi (naik jadi Kontrak/Tetap) -
-     * populasinya kebalikan dari jenis transisi lain (yang khusus Tetap/Kontrak, Orientasi tidak
-     * relevan buat Promosi/Demosi/dst).
-     */
+    /** Promosi/Demosi/Mutasi/PHK cuma relevan buat karyawan Tetap/Kontrak. */
     public function getEmployeesProperty()
     {
         if (! $this->companyId) {
             return collect();
         }
 
-        $categories = $this->transition_type === UserTransitionTypeEnum::EMPLOYMENT_STATUS_CHANGE->value
-            ? [EmployeeTypeCategory::ORIENTASI->value]
-            : [EmployeeTypeCategory::TETAP->value, EmployeeTypeCategory::KONTRAK->value];
-
         return User::where('company_id', $this->companyId)
-            ->whereHas('profile.employeeType', fn ($q) => $q->whereIn('category', $categories))
+            ->whereHas('profile.employeeType', fn ($q) => $q->whereIn('category', [
+                EmployeeTypeCategory::TETAP->value,
+                EmployeeTypeCategory::KONTRAK->value,
+            ]))
             ->orderBy('name')
             ->get();
     }
@@ -142,84 +134,11 @@ class CreateUserTransitionPage extends Component
         return $target ? JobPositions::where('company_id', $target->company_id)->pluck('name', 'id') : collect();
     }
 
-    public function getDepartmentsProperty()
-    {
-        $target = $this->getTargetUser();
-
-        return $target
-            ? OrgStructure::where('company_id', $target->company_id)->where('level', OrgStructurLevel::LEVEL_DEPARTMENT->value)->pluck('name', 'id')
-            : collect();
-    }
-
     public function getRolesProperty()
     {
         $target = $this->getTargetUser();
 
         return $target ? Role::where('company_id', $target->company_id)->pluck('name', 'id') : collect();
-    }
-
-    public function getKelasOptionsProperty()
-    {
-        $target = $this->getTargetUser();
-
-        return $target ? Kelas::where('company_id', $target->company_id)->pluck('name', 'id') : collect();
-    }
-
-    public function getCurrentKelasProperty(): ?string
-    {
-        return $this->getTargetUser()?->profile?->kelas?->name;
-    }
-
-    public function getEmployeeTypeOptionsProperty()
-    {
-        $target = $this->getTargetUser();
-
-        return $target
-            ? EmployeeTypes::where('company_id', $target->company_id)
-                ->whereIn('category', [EmployeeTypeCategory::TETAP->value, EmployeeTypeCategory::KONTRAK->value])
-                ->pluck('name', 'id')
-            : collect();
-    }
-
-    public function getCurrentEmployeeTypeProperty(): ?string
-    {
-        return $this->getTargetUser()?->profile?->employeeType?->name;
-    }
-
-    public function getCurrentContractEndDateProperty(): ?string
-    {
-        $date = $this->getTargetUser()?->currentContract?->contract_end_date;
-
-        return $date ? \Illuminate\Support\Carbon::parse($date)->translatedFormat('d F Y') : null;
-    }
-
-    /** Preview "Kontrak Berlaku Sampai" saat status baru = Kontrak & tanggal efektif sudah diisi -
-     * dihitung pakai logic yang sama dengan yang dipakai saat submit (UserTransitionService),
-     * termasuk pesan error kalau melanggar batas masa kerja/usia pensiun. */
-    public function getContractEndPreviewProperty(): ?string
-    {
-        if ($this->transition_type !== UserTransitionTypeEnum::EMPLOYMENT_STATUS_CHANGE->value) {
-            return null;
-        }
-
-        $target = $this->getTargetUser();
-        $newEmployeeType = $this->transitionable_id ? EmployeeTypes::find($this->transitionable_id) : null;
-
-        if (! $target || ! $this->effective_date || $newEmployeeType?->category !== EmployeeTypeCategory::KONTRAK) {
-            return null;
-        }
-
-        try {
-            $endDate = app(UserTransitionService::class)->resolveContractEndDate(
-                $target,
-                \Illuminate\Support\Carbon::parse($this->effective_date),
-                $target->company_id,
-            );
-
-            return 'Kontrak akan berakhir pada ' . $endDate->translatedFormat('d F Y') . '.';
-        } catch (\Exception $e) {
-            return $e->getMessage();
-        }
     }
 
     public function updatedUserId(): void
@@ -230,7 +149,11 @@ class CreateUserTransitionPage extends Component
 
     public function updatedTransitionableId(?string $value): void
     {
-        if (in_array($this->transition_type, [UserTransitionTypeEnum::PROMOTION->value, UserTransitionTypeEnum::DEMOTION->value], true)) {
+        if (in_array($this->transition_type, [
+            UserTransitionTypeEnum::PROMOTION->value,
+            UserTransitionTypeEnum::DEMOTION->value,
+            UserTransitionTypeEnum::MUTATION->value,
+        ], true)) {
             $this->role_id = $value ? JobPositions::find($value)?->role_id : null;
         }
     }
@@ -242,18 +165,12 @@ class CreateUserTransitionPage extends Component
             'transition_type' => ['required', 'in:' . implode(',', array_column(UserTransitionTypeEnum::cases(), 'value'))],
         ];
 
-        if (in_array($this->transition_type, [UserTransitionTypeEnum::PROMOTION->value, UserTransitionTypeEnum::DEMOTION->value], true)) {
+        if (in_array($this->transition_type, [
+            UserTransitionTypeEnum::PROMOTION->value,
+            UserTransitionTypeEnum::DEMOTION->value,
+            UserTransitionTypeEnum::MUTATION->value,
+        ], true)) {
             $rules['transitionable_id'] = ['required', 'exists:m_job_positions,id'];
-            $rules['effective_date'] = ['required', 'date'];
-        }
-
-        if ($this->transition_type === UserTransitionTypeEnum::KELAS_CHANGE->value) {
-            $rules['transitionable_id'] = ['required', 'exists:m_kelas,id'];
-            $rules['effective_date'] = ['required', 'date'];
-        }
-
-        if ($this->transition_type === UserTransitionTypeEnum::EMPLOYMENT_STATUS_CHANGE->value) {
-            $rules['transitionable_id'] = ['required', 'exists:m_employee_types,id'];
             $rules['effective_date'] = ['required', 'date'];
         }
 
@@ -263,6 +180,7 @@ class CreateUserTransitionPage extends Component
 
         if ($this->transition_type === UserTransitionTypeEnum::TERMINATION->value) {
             $rules['reason'] = ['required', 'string'];
+            $rules['effective_date'] = ['required', 'date'];
         }
 
         return $rules;
@@ -273,7 +191,7 @@ class CreateUserTransitionPage extends Component
         return [
             'user_id' => 'karyawan',
             'transition_type' => 'jenis perubahan',
-            'transitionable_id' => 'jabatan/departemen/kelas baru',
+            'transitionable_id' => 'jabatan baru',
             'effective_date' => 'tanggal efektif',
             'reason_option' => 'alasan',
             'reason' => 'alasan',
@@ -284,34 +202,6 @@ class CreateUserTransitionPage extends Component
     {
         $this->validate();
 
-        if ($this->transition_type === UserTransitionTypeEnum::CONTRACT_EXTENSION->value) {
-            $target = $this->getTargetUser();
-            if ($target?->profile?->employeeType?->category !== EmployeeTypeCategory::KONTRAK) {
-                Notification::make()
-                    ->title('Gagal membuat pengajuan')
-                    ->body('Perpanjangan Kontrak cuma berlaku untuk karyawan berstatus Kontrak.')
-                    ->danger()
-                    ->send();
-
-                return;
-            }
-        }
-
-        // Guard sama seperti CONTRACT_EXTENSION di atas - employee picker (getEmployeesProperty())
-        // sudah membatasi ke kategori Orientasi saja, ini jaga-jaga defense-in-depth di sisi submit.
-        if ($this->transition_type === UserTransitionTypeEnum::EMPLOYMENT_STATUS_CHANGE->value) {
-            $target = $this->getTargetUser();
-            if ($target?->profile?->employeeType?->category !== EmployeeTypeCategory::ORIENTASI) {
-                Notification::make()
-                    ->title('Gagal membuat pengajuan')
-                    ->body('Pengangkatan Orientasi cuma berlaku untuk karyawan berstatus Orientasi.')
-                    ->danger()
-                    ->send();
-
-                return;
-            }
-        }
-
         $data = [
             'user_id' => $this->user_id,
             'transition_type' => $this->transition_type,
@@ -319,12 +209,7 @@ class CreateUserTransitionPage extends Component
             'role_id' => $this->role_id,
             'effective_date' => $this->effective_date,
             'reason' => $this->reason_option === 'other'
-                || in_array($this->transition_type, [
-                    UserTransitionTypeEnum::TERMINATION->value,
-                    UserTransitionTypeEnum::KELAS_CHANGE->value,
-                    UserTransitionTypeEnum::EMPLOYMENT_STATUS_CHANGE->value,
-                    UserTransitionTypeEnum::CONTRACT_EXTENSION->value,
-                ], true)
+                || $this->transition_type === UserTransitionTypeEnum::TERMINATION->value
                 ? $this->reason
                 : $this->reason_option,
             'manager_comment' => $this->manager_comment,
