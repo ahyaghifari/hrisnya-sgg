@@ -407,6 +407,135 @@ class EmployeeAttendanceStatistics extends Component
         return $this->record->profile?->employeeType?->category !== null;
     }
 
+    /** orientasi < kontrak < tetap — buat ribbon "sudah sampai fase mana" di kartu Status Kepegawaian. */
+    public function phaseRank(?string $phase): int
+    {
+        return match ($phase) {
+            EmployeeTypeCategory::ORIENTASI->value => 1,
+            EmployeeTypeCategory::KONTRAK->value => 2,
+            EmployeeTypeCategory::TETAP->value => 3,
+            default => 0,
+        };
+    }
+
+    /** Rasio 0–1 posisi hari ini di antara mulai & berakhir fase — buat progress bar kartu status. */
+    private function phaseProgress(Carbon $start, Carbon $end): ?float
+    {
+        $total = $start->diffInDays($end);
+
+        if ($total <= 0) {
+            return null;
+        }
+
+        return max(0.0, min(1.0, $start->diffInDays(Carbon::now()) / $total));
+    }
+
+    /**
+     * Perjalanan status kepegawaian: Bergabung → Orientasi (+perpanjangan) → Kontrak
+     * (+perpanjangan) → Karyawan Tetap. `nodes` dari ledger user_orientations + user_contracts
+     * (append-only), `summary` = fase berjalan buat tampilan ringkas kartu di tab Karir.
+     * Read-only, di-scope ke $this->record.
+     *
+     * @return array{category: ?string, summary: array{headline: ?string, sub: ?string, ended: ?\Carbon\Carbon, progress: ?float}, nodes: list<array{phase: string, title: string, start: mixed, end: mixed, meta: ?string}>}
+     */
+    public function getEmploymentJourneyProperty(): array
+    {
+        $profile = $this->record->profile;
+        // EmployeeTypes.category di-cast ke EmployeeTypeCategory enum — normalize ke string
+        // biar konsisten dipakai buat perbandingan, phaseRank(?string), & match() di blade.
+        $rawCategory = $profile?->employeeType?->category;
+        $category = $rawCategory instanceof EmployeeTypeCategory ? $rawCategory->value : $rawCategory;
+        $join = $profile?->joining_date ? Carbon::parse($profile->joining_date) : null;
+
+        $orientations = $this->record->orientations()->orderBy('start_date')->get();
+        $contracts = $this->record->contracts()->with('employeeType')->orderBy('contract_start_date')->get();
+
+        $nodes = [];
+
+        if ($join) {
+            $nodes[] = ['phase' => 'join', 'title' => 'Bergabung', 'start' => $join, 'end' => null, 'meta' => null];
+        }
+
+        foreach ($orientations as $o) {
+            $nodes[] = [
+                'phase' => 'orientasi',
+                'title' => $o->source === 'extension' ? 'Perpanjangan orientasi' : 'Mulai orientasi',
+                'start' => $o->start_date,
+                'end' => $o->end_date,
+                'meta' => $o->duration_months ? $o->duration_months . ' bulan' : null,
+            ];
+        }
+
+        $tetapStart = null;
+        $kontrakCount = 0;
+
+        foreach ($contracts as $c) {
+            $cCat = $c->employeeType?->category;
+            $cCat = $cCat instanceof EmployeeTypeCategory ? $cCat->value : $cCat;
+
+            if ($cCat === EmployeeTypeCategory::TETAP->value) {
+                $tetapStart ??= $c->contract_start_date;
+                $nodes[] = ['phase' => 'tetap', 'title' => 'Diangkat karyawan tetap', 'start' => $c->contract_start_date, 'end' => null, 'meta' => null];
+
+                continue;
+            }
+
+            $kontrakCount++;
+            $nodes[] = [
+                'phase' => 'kontrak',
+                'title' => $kontrakCount === 1 ? 'Kontrak pertama' : "Perpanjangan kontrak ke-{$kontrakCount}",
+                'start' => $c->contract_start_date,
+                'end' => $c->contract_end_date,
+                'meta' => null,
+            ];
+        }
+
+        // Pengangkatan tetap biasanya cuma nge-stempel user_profiles.tmt_tetap (+ flip tipe),
+        // tanpa nulis baris user_contracts kategori tetap — kalau begitu, tambah node-nya dari
+        // tmt_tetap supaya timeline tetap kelihatan sampai fase Tetap.
+        if ($tetapStart === null && $profile?->tmt_tetap) {
+            $tetapStart = $profile->tmt_tetap;
+            $nodes[] = ['phase' => 'tetap', 'title' => 'Diangkat karyawan tetap', 'start' => $profile->tmt_tetap, 'end' => null, 'meta' => null];
+        }
+
+        $summary = ['headline' => null, 'sub' => null, 'ended' => null, 'progress' => null];
+
+        if ($category === EmployeeTypeCategory::ORIENTASI->value) {
+            $cur = $this->record->currentOrientation;
+            $summary['headline'] = 'Masa orientasi';
+            if ($cur?->end_date) {
+                $summary['ended'] = Carbon::parse($cur->end_date);
+                $summary['sub'] = 'Berakhir ' . $summary['ended']->translatedFormat('d M Y');
+                $summary['progress'] = $cur->start_date ? $this->phaseProgress(Carbon::parse($cur->start_date), $summary['ended']) : null;
+            }
+        } elseif ($category === EmployeeTypeCategory::KONTRAK->value) {
+            $cur = $this->record->currentContract;
+            $summary['headline'] = $kontrakCount > 1 ? "Masa kontrak (perpanjangan ke-{$kontrakCount})" : 'Masa kontrak';
+            if ($cur?->contract_end_date) {
+                $summary['ended'] = Carbon::parse($cur->contract_end_date);
+                $summary['sub'] = 'Berakhir ' . $summary['ended']->translatedFormat('d M Y');
+                $summary['progress'] = $cur->contract_start_date ? $this->phaseProgress(Carbon::parse($cur->contract_start_date), $summary['ended']) : null;
+            }
+        } elseif ($category === EmployeeTypeCategory::TETAP->value) {
+            // TMT resmi (user_profiles.tmt_tetap) diutamakan; fallback ke baris UserContract
+            // kategori tetap pertama, lalu Tanggal Bergabung.
+            $since = $profile?->tmt_tetap ? Carbon::parse($profile->tmt_tetap)
+                : ($tetapStart ? Carbon::parse($tetapStart) : $join);
+            $summary['headline'] = 'Karyawan tetap';
+            $summary['sub'] = $since ? 'Sejak ' . $since->translatedFormat('d M Y') : null;
+        } else {
+            $summary['headline'] = 'Status kepegawaian belum diatur';
+        }
+
+        // Ledger orientasi/kontrak belum keisi (mis. data lama, atau baru di-set tipe
+        // karyawannya) — minimal tampilkan Tanggal Bergabung, jangan headline melompong.
+        if ($summary['sub'] === null && $join) {
+            $summary['sub'] = 'Bergabung ' . $join->translatedFormat('d M Y');
+        }
+
+        return ['category' => $category, 'summary' => $summary, 'nodes' => $nodes];
+    }
+
     /**
      * @return array<string, mixed>
      */

@@ -62,6 +62,11 @@ return [
     | 'profile' di Keycloak mengembalikan email, preferred_username, nip.
     |
     */
+    'n8n' => [
+        'user' => env('N8N_API_USER'),
+        'password' => env('N8N_API_PASSWORD'),
+    ],
+
     'keycloak' => [
         'client_id' => env('KEYCLOAK_CLIENT_ID'),
         'client_secret' => env('KEYCLOAK_CLIENT_SECRET'),

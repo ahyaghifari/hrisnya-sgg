@@ -74,7 +74,7 @@ identity-accent = border gradasi warna section-nav (lihat app.css); warna teks t
 <div class="section-nav section-nav-tiles">
     <button type="button" @click="tab = 'career'" class="section-nav-btn gold-shiny" :class="{ 'is-active': tab === 'career' }">
         <i class="fa-solid fa-briefcase"></i>
-        <span>{{ $isSelf ? 'MyCareer' : 'Pekerjaan' }}</span>
+        <span>{{ $isSelf ? 'Karir' : 'Pekerjaan' }}</span>
     </button>
     <button type="button" @click="tab = 'profil'" class="section-nav-btn navy" :class="{ 'is-active': tab === 'profil' }">
         <i class="fa-solid fa-id-card"></i>
@@ -415,7 +415,8 @@ identity-accent = border gradasi warna section-nav (lihat app.css); warna teks t
 
 </div>
 
-{{-- Tab MyCareer: posisi & jenjang karyawan, dan nanti penilaian kinerja. Var profil dan
+{{-- Tab Karir (label "Karir" kalau lihat profil sendiri, "Pekerjaan" kalau lihat orang lain):
+posisi & jenjang karyawan, dan nanti penilaian kinerja. Var profil dan
 sectionHeader dibuat di php-block tab Data Diri di atas -- blok ini HARUS setelah tab itu di
 source (tab server-render sekali jalan, x-show cuma toggle CSS). --}}
 <div x-show="tab === 'career'">
@@ -438,9 +439,12 @@ source (tab server-render sekali jalan, x-show cuma toggle CSS). --}}
         ])->filter()->values();
 
         // Tile jenjang: cuma tampil yang ada isinya (Masa Kerja selalu ada slot-nya).
+        // Pangkat & Golongan disatukan jadi 1 tile "Pangkat/Gol" (mis. "Penata / III").
+        $pangkatGol = collect([$profile?->pangkat?->name, $profile?->pangkat?->golongan])
+            ->filter()
+            ->implode(' / ');
         $jenjang = collect([
-            ['label' => 'Pangkat', 'value' => $profile?->pangkat?->name],
-            ['label' => 'Golongan', 'value' => $profile?->pangkat?->golongan],
+            ['label' => 'Pangkat/Gol', 'value' => $pangkatGol],
             ['label' => 'Kelas', 'value' => $profile?->kelas?->name],
         ])->filter(fn ($t) => filled($t['value']));
     @endphp
@@ -490,11 +494,123 @@ source (tab server-render sekali jalan, x-show cuma toggle CSS). --}}
     </div>
 
     {{-- Penilaian kinerja - belum ada modulnya, kartu ini penanda tempat + empty state jujur. --}}
-    <div class="card-surface">
+    <div class="card-surface" style="margin-bottom:20px;">
         {!! $sectionHeader('fa-chart-line', 'Penilaian Kinerja') !!}
         <p style="font-size:13px;color:var(--text-muted);margin:0;line-height:1.6;">
             Belum ada penilaian kinerja. Hasil penilaian periodik dari atasan akan tampil di sini.
         </p>
+    </div>
+
+    {{-- Status Kepegawaian: fase berjalan (ringkas) + timeline HORIZONTAL perjalanan
+    Bergabung → Orientasi → Kontrak/perpanjangan → Tetap dalam satu baris. Data dari ledger
+    user_orientations & user_contracts, lihat
+    EmployeeAttendanceStatistics::getEmploymentJourneyProperty(). --}}
+    @php
+        $journey = $this->employmentJourney;
+        $sm = $journey['summary'];
+        $ejAccent = match ($journey['category']) {
+            'orientasi' => '#b45309',
+            'kontrak' => 'var(--brand)',
+            'tetap' => '#047C54',
+            default => 'var(--text-muted)',
+        };
+        $ejRibbon = ['orientasi' => 'Orientasi', 'kontrak' => 'Kontrak', 'tetap' => 'Tetap'];
+        $ejCurRank = $this->phaseRank($journey['category']);
+    @endphp
+    <style>
+        .emp-journey .ej-ribbon { display:flex; gap:4px; flex-shrink:0; }
+        .emp-journey .ej-seg {
+            font-size:10px; font-weight:700; letter-spacing:0.04em; text-transform:uppercase;
+            padding:5px 10px; border-radius:99px; background:var(--surface-alt);
+            color:var(--text-faint); border:1px solid var(--border-soft); white-space:nowrap;
+        }
+        .emp-journey .ej-seg.is-on { color:#fff; border-color:transparent; }
+        .emp-journey .ej-seg.on-orientasi { background:#b45309; }
+        .emp-journey .ej-seg.on-kontrak { background:var(--brand); }
+        .emp-journey .ej-seg.on-tetap { background:#047C54; }
+        .emp-journey .ej-bar { height:6px; border-radius:99px; background:var(--surface-alt); overflow:hidden; margin-top:14px; }
+        .emp-journey .ej-bar > span { display:block; height:100%; border-radius:99px; background:var(--ej-accent); transition:width .4s ease; }
+
+        /* Timeline horizontal — semua tahap (Bergabung → Orientasi → Kontrak/perpanjangan →
+           Tetap) satu baris, scroll ke samping kalau tahapnya banyak. overflow-x:auto ikut
+           meng-clip sumbu-Y, jadi dot + ring HARUS muat di dalam padding track (top/bottom). */
+        .emp-journey .ej-track {
+            display:flex; overflow-x:auto; margin-top:18px; padding:6px 0 2px;
+            scrollbar-width:thin; -webkit-overflow-scrolling:touch;
+        }
+        .emp-journey .ej-step {
+            position:relative; flex:1 0 130px; max-width:210px; padding-right:16px;
+        }
+        .emp-journey .ej-step::before {
+            content:''; position:absolute; top:6px; left:7px; right:-16px; height:2px;
+            background:var(--border-soft);
+        }
+        .emp-journey .ej-step:last-child::before { display:none; }
+        .emp-journey .ej-dot {
+            display:block; width:14px; height:14px; border-radius:50%; margin-bottom:12px;
+            position:relative; z-index:1;
+            background:var(--surface); border:2px solid var(--border);
+        }
+        .emp-journey .ej-step.ej-join .ej-dot { border-color:var(--text-faint); }
+        .emp-journey .ej-step.ej-orientasi .ej-dot { border-color:#b45309; }
+        .emp-journey .ej-step.ej-kontrak .ej-dot { border-color:var(--brand); }
+        .emp-journey .ej-step.ej-tetap .ej-dot { border-color:#047C54; }
+        .emp-journey .ej-step.is-current .ej-dot {
+            background:var(--ej-accent); border-color:var(--ej-accent);
+            box-shadow:0 0 0 4px color-mix(in srgb, var(--ej-accent) 20%, transparent);
+        }
+        .emp-journey .ej-step-title { font-size:12px; font-weight:700; color:var(--text-heading); margin:0; line-height:1.3; }
+        .emp-journey .ej-step-date { font-size:11px; color:var(--text-muted); margin:3px 0 0; line-height:1.45; }
+        .emp-journey .ej-step-date .ej-arrow { color:var(--text-faint); margin:0 3px; }
+        .emp-journey .ej-step-date .ej-meta { color:var(--text-faint); }
+    </style>
+    <div class="card-surface emp-journey" style="margin-bottom:20px;--ej-accent:{{ $ejAccent }};">
+        <div style="display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:14px;">
+            <div style="min-width:0;">
+                <p style="font-size:10.5px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-faint);margin:0 0 4px;">Status Kepegawaian</p>
+                <h3 style="font-size:20px;font-weight:800;letter-spacing:-0.3px;line-height:1.2;margin:0;color:var(--ej-accent);">{{ $sm['headline'] }}</h3>
+                @if ($sm['sub'])
+                    <p style="font-size:13px;color:var(--text-muted);margin-top:6px;line-height:1.6;">
+                        {{ $sm['sub'] }}
+                        @if ($sm['ended'])
+                            <span style="color:var(--text-faint);">·</span>
+                            @if ($sm['ended']->isPast())
+                                <span style="font-weight:700;color:#dc2626;">habis {{ $sm['ended']->diffForHumans(now(), \Carbon\CarbonInterface::DIFF_ABSOLUTE) }} lalu</span>
+                            @else
+                                <span style="font-weight:600;color:var(--text-body);">sisa {{ now()->diffForHumans($sm['ended'], \Carbon\CarbonInterface::DIFF_ABSOLUTE) }}</span>
+                            @endif
+                        @endif
+                    </p>
+                @endif
+            </div>
+            <div class="ej-ribbon" aria-hidden="true">
+                @foreach ($ejRibbon as $key => $lbl)
+                    <span class="ej-seg {{ $ejCurRank >= $this->phaseRank($key) && $ejCurRank > 0 ? 'is-on on-'.$key : '' }}">{{ $lbl }}</span>
+                @endforeach
+            </div>
+        </div>
+
+        @if (! is_null($sm['progress']))
+            <div class="ej-bar"><span style="width:{{ round($sm['progress'] * 100) }}%;"></span></div>
+        @endif
+
+        @if (count($journey['nodes']) > 1)
+            <div class="ej-track">
+                @foreach ($journey['nodes'] as $n)
+                    <div class="ej-step ej-{{ $n['phase'] }} {{ $loop->last ? 'is-current' : '' }}">
+                        <span class="ej-dot"></span>
+                        <p class="ej-step-title">{{ $n['title'] }}</p>
+                        <p class="ej-step-date">
+                            {{ \Carbon\Carbon::parse($n['start'])->translatedFormat('d M Y') }}
+                            @if ($n['end'])
+                                <span class="ej-arrow">→</span>{{ \Carbon\Carbon::parse($n['end'])->translatedFormat('d M Y') }}
+                            @endif
+                            @if ($n['meta'])<span class="ej-meta"> · {{ $n['meta'] }}</span>@endif
+                        </p>
+                    </div>
+                @endforeach
+            </div>
+        @endif
     </div>
 </div>
 

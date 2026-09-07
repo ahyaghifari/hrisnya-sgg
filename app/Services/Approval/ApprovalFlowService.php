@@ -281,6 +281,8 @@ class ApprovalFlowService
                     Sikartap::where('id', $snapshot->module_id)->update([
                         'status_keputusan_direktur' => 'approved',
                     ]);
+
+                    $this->markUserPermanent($snapshot->module_id);
                 }
 
                 $this->historyRepo->create([
@@ -299,6 +301,35 @@ class ApprovalFlowService
                 );
             }
         });
+    }
+
+    /**
+     * Sikartap Keputusan Direktur final "approved" = karyawan resmi diangkat jadi Tetap.
+     * Stempel user_profiles.tmt_tetap (TMT = tanggal keputusan ini) + flip employee_type_id
+     * ke tipe kategori Tetap company itu KALAU cuma ada satu — kalau company punya >1 tipe
+     * Tetap (atau nol), flip-nya diserahkan ke HR manual, tapi tmt_tetap tetap tercatat.
+     */
+    private function markUserPermanent(string $sikartapId): void
+    {
+        $sikartap = Sikartap::with('user.profile')->find($sikartapId);
+        $profile = $sikartap?->user?->profile;
+
+        if (! $profile) {
+            return;
+        }
+
+        $updates = ['tmt_tetap' => now()->toDateString()];
+
+        $tetapTypeIds = \App\Models\Master\EmployeeTypes::query()
+            ->where('company_id', $sikartap->user->company_id)
+            ->where('category', \App\Enum\EmployeeTypeCategory::TETAP->value)
+            ->pluck('id');
+
+        if ($tetapTypeIds->count() === 1) {
+            $updates['employee_type_id'] = $tetapTypeIds->first();
+        }
+
+        $profile->update($updates);
     }
 
     public function checkStepsSync($snapshot): bool

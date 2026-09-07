@@ -51,6 +51,7 @@ class UserProfiles extends Model
         'employee_type_id',
         'profile_picture',
         'joining_date',
+        'tmt_tetap',
     ];
 
     protected $casts = [
@@ -203,6 +204,7 @@ class UserProfiles extends Model
             'kelas_id' => 'Kelas',
             'employee_type_id' => 'Tipe Karyawan',
             'joining_date' => 'Tanggal Bergabung',
+            'tmt_tetap' => 'TMT Karyawan Tetap',
         ];
     }
 }
