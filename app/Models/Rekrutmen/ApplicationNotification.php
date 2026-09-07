@@ -48,8 +48,74 @@ class ApplicationNotification extends Model
             CompanyMessageTemplate::EVENT_OFFERING_LETTER_READY => ['url' => "{$base}/dashboard", 'label' => 'Unggah Surat Penawaran'],
             CompanyMessageTemplate::EVENT_INTERVIEW_SCHEDULED => ['url' => "{$base}/lamaran/{$this->job_application_id}", 'label' => 'Lihat Jadwal Wawancara'],
             CompanyMessageTemplate::EVENT_MCU_SCHEDULED => ['url' => "{$base}/lamaran/{$this->job_application_id}", 'label' => 'Lihat Jadwal MCU'],
+            CompanyMessageTemplate::EVENT_OFFERING_NEGOTIATION_REPLIED => ['url' => "{$base}/dashboard", 'label' => 'Lihat Balasan Negosiasi'],
+            CompanyMessageTemplate::EVENT_INTERVIEW_RESCHEDULED => ['url' => "{$base}/lamaran/{$this->job_application_id}", 'label' => 'Lihat Jadwal Wawancara'],
+            CompanyMessageTemplate::EVENT_MCU_RESCHEDULED => ['url' => "{$base}/lamaran/{$this->job_application_id}", 'label' => 'Lihat Jadwal MCU'],
             default => null,
         };
+    }
+
+    /**
+     * Kirim email perubahan jadwal (wawancara/MCU) ke pelamar. TIDAK disimpan ke tabel
+     * (kolom `event` ENUM + unique per lamaran; reschedule bisa berulang) — instance
+     * transient hanya untuk render mail. $kind = 'interview' | 'mcu'.
+     */
+    public static function notifyReschedule(JobApplication $app, string $kind, array $data): void
+    {
+        $app->loadMissing('jobOpening', 'user');
+
+        $email = $app->user?->email;
+        if (! $email) {
+            return;
+        }
+
+        $name = $app->answersMap()['full_name'] ?? 'Pelamar';
+        $jobTitle = $app->jobOpening->title ?? '';
+        $label = $kind === 'mcu' ? 'Medical Check Up' : 'Wawancara';
+        $event = $kind === 'mcu'
+            ? CompanyMessageTemplate::EVENT_MCU_RESCHEDULED
+            : CompanyMessageTemplate::EVENT_INTERVIEW_RESCHEDULED;
+
+        $detail = "Tanggal: " . ($data['date'] ?? '-')
+            . "\nWaktu: " . ($data['time'] ?? '-')
+            . "\nLokasi: " . ($data['location'] ?? '-')
+            . (($data['notes'] ?? '') !== '' ? "\nCatatan: " . $data['notes'] : '');
+
+        $notif = new static([
+            'job_application_id' => $app->id,
+            'event' => $event,
+            'subject' => "Perubahan Jadwal {$label} – {$jobTitle}",
+            'body' => "Halo {$name},\n\nJadwal {$label} kamu untuk posisi {$jobTitle} telah diperbarui. Berikut jadwal terbaru:\n\n{$detail}\n\nMohon perhatikan perubahan ini. Sampai jumpa di jadwal yang baru.\n\nSalam,\nTim Rekrutmen",
+        ]);
+
+        Mail::to($email)->send(new ApplicantNotificationMail($notif));
+    }
+
+    /**
+     * Kirim email ke pelamar saat rekruter membalas negosiasi offering. TIDAK disimpan ke
+     * tabel (kolom `event` ENUM + unique per lamaran; balasan bisa berulang) — riwayatnya
+     * ada di `offering_negotiations`. Instance transient hanya untuk render mail.
+     */
+    public static function notifyNegotiationReply(JobApplication $app, string $replyMessage): void
+    {
+        $app->loadMissing('jobOpening', 'user');
+
+        $email = $app->user?->email;
+        if (! $email) {
+            return;
+        }
+
+        $name = $app->answersMap()['full_name'] ?? 'Pelamar';
+        $jobTitle = $app->jobOpening->title ?? '';
+
+        $notif = new static([
+            'job_application_id' => $app->id,
+            'event' => CompanyMessageTemplate::EVENT_OFFERING_NEGOTIATION_REPLIED,
+            'subject' => "Balasan Negosiasi Surat Penawaran – {$jobTitle}",
+            'body' => "Halo {$name},\n\nTim rekrutmen telah membalas pengajuan negosiasimu untuk posisi {$jobTitle}:\n\n\"{$replyMessage}\"\n\nSilakan buka dashboard untuk menanggapi atau menandatangani surat penawaran.\n\nSalam,\nTim Rekrutmen",
+        ]);
+
+        Mail::to($email)->send(new ApplicantNotificationMail($notif));
     }
 
     /** Kirim draft ini ke email pelamar & tandai terkirim. False kalau bukan draft / email kosong. */

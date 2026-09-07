@@ -33,6 +33,9 @@
             @if($this->getMcuDraft())
                 {{ $this->publishMcuAction }}
             @endif
+            @if($this->getPublishedMcu())
+                {{ $this->rescheduleMcuAction }}
+            @endif
         </div>
 
         @if($this->getMcuDraft())

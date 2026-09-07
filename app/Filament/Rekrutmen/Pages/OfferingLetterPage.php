@@ -143,23 +143,25 @@ class OfferingLetterPage extends Page implements HasActions, HasForms, HasTable
             ->label(fn ($record) => 'Negosiasi (' . $record->offeringNegotiations->count() . ')')
             ->icon('heroicon-m-chat-bubble-left-right')
             ->color(fn ($record) => $record->offeringNegotiations->where('sender', 'applicant')->isNotEmpty() ? 'warning' : 'gray')
-            ->visible(fn ($record) => $record->offeringNegotiations->isNotEmpty())
             ->modalHeading('Negosiasi Offering Letter')
-            ->modalSubmitActionLabel('Kirim Balasan')
+            ->modalSubmitActionLabel('Kirim Pesan')
             ->schema(fn ($record) => [
                 Placeholder::make('riwayat')->label('Riwayat')->content(new HtmlString(
-                    collect($record->offeringNegotiations)->map(fn ($n) =>
-                        '<div style="margin-bottom:8px;padding:8px 10px;border-radius:8px;background:'
-                        . ($n->sender === 'applicant' ? '#f1f5f9' : '#eef2ff') . '"><strong>'
-                        . ($n->sender === 'applicant' ? 'Kandidat' : 'Rekruter') . '</strong> <span style="color:#94a3b8">· '
-                        . $n->created_at?->format('d M Y, H:i') . '</span><br>' . nl2br(e($n->message)) . '</div>'
-                    )->implode('')
+                    $record->offeringNegotiations->isEmpty()
+                        ? '<span style="color:#94a3b8">Belum ada percakapan. Kirim pesan pertama ke kandidat.</span>'
+                        : collect($record->offeringNegotiations)->map(fn ($n) =>
+                            '<div style="margin-bottom:8px;padding:8px 10px;border-radius:8px;background:'
+                            . ($n->sender === 'applicant' ? '#f1f5f9' : '#eef2ff') . '"><strong>'
+                            . ($n->sender === 'applicant' ? 'Kandidat' : 'Rekruter') . '</strong> <span style="color:#94a3b8">· '
+                            . $n->created_at?->format('d M Y, H:i') . '</span><br>' . nl2br(e($n->message)) . '</div>'
+                        )->implode('')
                 )),
-                Textarea::make('message')->label('Balasan')->rows(3)->required()->maxLength(2000),
+                Textarea::make('message')->label('Pesan')->rows(3)->required()->maxLength(2000),
             ])
             ->action(function (array $data, $record): void {
                 $record->offeringNegotiations()->create(['sender' => 'recruiter', 'message' => $data['message']]);
-                Notification::make()->title('Balasan negosiasi terkirim')->success()->send();
+                ApplicationNotification::notifyNegotiationReply($record, $data['message']);
+                Notification::make()->title('Balasan negosiasi & email ke pelamar terkirim')->success()->send();
             });
     }
 

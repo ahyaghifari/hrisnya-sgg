@@ -256,10 +256,10 @@ class McuStationPage extends Page implements HasActions, HasForms, HasTable
             ->columns([
                 TextColumn::make('full_name')->label('Nama Lengkap')
                     ->state(fn ($record) => $record->answers->firstWhere('field_key', 'full_name')?->value ?? '—'),
-                IconColumn::make('nurse')->label('Perawat')->boolean()->state(fn ($r) => (bool) $r->mcuInvitee?->nurseAssessment),
-                IconColumn::make('lab')->label('Lab')->boolean()->state(fn ($r) => (bool) $r->mcuInvitee?->labResult),
-                IconColumn::make('radiology')->label('Radiologi')->boolean()->state(fn ($r) => (bool) $r->mcuInvitee?->radiologyResult),
-                IconColumn::make('doctor')->label('Dokter')->boolean()->state(fn ($r) => (bool) $r->mcuInvitee?->doctorExamination),
+                IconColumn::make('nurse')->label('Perawat')->boolean()->state(fn ($record) => (bool) $record?->mcuInvitee?->nurseAssessment),
+                IconColumn::make('lab')->label('Lab')->boolean()->state(fn ($record) => (bool) $record?->mcuInvitee?->labResult),
+                IconColumn::make('radiology')->label('Radiologi')->boolean()->state(fn ($record) => (bool) $record?->mcuInvitee?->radiologyResult),
+                IconColumn::make('doctor')->label('Dokter')->boolean()->state(fn ($record) => (bool) $record?->mcuInvitee?->doctorExamination),
             ])
             ->recordActions([
                 ActionGroup::make([

@@ -28,6 +28,12 @@ class CompanyMessageTemplate extends Model
     public const EVENT_OFFERING_LETTER_READY = 'offering_letter_ready';
     public const EVENT_MANUAL_REJECTED = 'manual_rejected';
 
+    // Email transient (tidak disimpan ke application_notifications — kolom event-nya ENUM +
+    // unique per lamaran; event ini bisa berkali-kali). Dipakai hanya untuk cta()/subject.
+    public const EVENT_OFFERING_NEGOTIATION_REPLIED = 'offering_negotiation_replied';
+    public const EVENT_INTERVIEW_RESCHEDULED = 'interview_rescheduled';
+    public const EVENT_MCU_RESCHEDULED = 'mcu_rescheduled';
+
     public static function forCompanyEvent(int|string $companyId, string $event): ?self
     {
         return static::where('company_id', $companyId)->where('event', $event)->first();

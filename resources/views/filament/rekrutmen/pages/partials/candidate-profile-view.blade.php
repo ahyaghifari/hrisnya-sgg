@@ -196,7 +196,7 @@ $dateFmt = fn ($v) => $v ? \Carbon\Carbon::parse($v)->translatedFormat('j F Y') 
     <div class="text-xs font-bold uppercase tracking-wide text-gray-400 mb-2 mt-6">Persetujuan</div>
     <div class="flex flex-wrap gap-2">
         @foreach($candidate->agreements as $ag)
-        <x-filament::badge color="success" icon="heroicon-m-check">{{ $ag->jobOpeningAgreement?->title ?? $ag->companyAgreement?->title ?? str($ag->agreement_type)->replace('_', ' ')->title() }}</x-filament::badge>
+        <x-filament::badge color="success" icon="heroicon-m-check">{{ $ag->title ?? $ag->jobOpeningAgreement?->title ?? $ag->companyAgreement?->title ?? 'Persetujuan' }}</x-filament::badge>
         @endforeach
     </div>
     @endif

@@ -64,3 +64,18 @@
 .dark .fi-topbar-item.fi-active .fi-topbar-item-label {
     color: #9dc3ec;
 }
+
+/*
+ * Instruksi user: semua form, modal, dan schema di panel rekrutmen dipaksa 1 kolom.
+ * Override macro grid Filament (.fi-grid + .fi-grid-col pakai --cols-* / --col-span-*).
+ * .fi-modal dirender di luar .fi-main, jadi diselektor terpisah.
+ */
+.fi-main .fi-grid,
+.fi-modal .fi-grid {
+    grid-template-columns: repeat(1, minmax(0, 1fr)) !important;
+}
+
+.fi-main .fi-grid-col,
+.fi-modal .fi-grid-col {
+    grid-column: 1 / -1 !important;
+}

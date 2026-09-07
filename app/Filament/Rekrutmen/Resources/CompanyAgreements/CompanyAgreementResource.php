@@ -54,7 +54,6 @@ class CompanyAgreementResource extends Resource
                 ->options(fn () => Company::orderBy('name')->pluck('name', 'id'))
                 ->searchable()->required(),
             TextInput::make('title')->label('Judul')->required()->maxLength(255),
-            TextInput::make('sort_order')->label('Urutan')->numeric()->default(0),
             RichEditor::make('content')->label('Naskah')->required()->columnSpanFull(),
         ]);
     }
@@ -62,10 +61,10 @@ class CompanyAgreementResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+            ->reorderable('sort_order')
             ->columns([
                 TextColumn::make('company.name')->label('Perusahaan')->searchable()->sortable(),
                 TextColumn::make('title')->label('Judul')->searchable(),
-                TextColumn::make('sort_order')->label('Urutan')->sortable(),
             ])
             ->defaultSort('sort_order')
             ->filters([

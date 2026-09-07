@@ -14,7 +14,7 @@ class CandidateAgreement extends Model
     protected $keyType = 'string';
 
     protected $fillable = [
-        'candidate_id', 'agreement_type', 'company_agreement_id', 'job_opening_agreement_id',
+        'candidate_id', 'title', 'content', 'company_agreement_id', 'job_opening_agreement_id',
         'agreed_at', 'ip_address', 'user_agent',
     ];
 

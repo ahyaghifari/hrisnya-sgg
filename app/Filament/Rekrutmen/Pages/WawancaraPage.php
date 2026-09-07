@@ -107,6 +107,11 @@ class WawancaraPage extends Page implements HasActions, HasForms, HasTable
         return $this->jobOpeningId ? InterviewSchedule::draftForOpening($this->jobOpeningId) : null;
     }
 
+    public function getPublishedInterview(): ?InterviewSchedule
+    {
+        return $this->jobOpeningId ? InterviewSchedule::publishedForOpening($this->jobOpeningId) : null;
+    }
+
     private function readyOptions(): array
     {
         if (! $this->jobOpeningId) {
@@ -156,6 +161,72 @@ class WawancaraPage extends Page implements HasActions, HasForms, HasTable
                 }
                 InterviewSchedule::saveDraft($this->jobOpeningId, $data, $data['invited_ids'] ?? []);
                 Notification::make()->title('Draft jadwal wawancara tersimpan. Status pelamar belum berubah.')->warning()->send();
+            });
+    }
+
+    public function rescheduleWawancaraAction(): Action
+    {
+        $published = $this->getPublishedInterview();
+
+        return Action::make('rescheduleWawancara')
+            ->label('Ubah Jadwal — Semua')
+            ->icon('heroicon-m-calendar')
+            ->color('warning')
+            ->visible(fn () => $this->canDecide() && $published !== null)
+            ->fillForm([
+                'interview_date' => $published?->interview_date?->format('Y-m-d'),
+                'interview_time' => $published?->interview_time,
+                'location' => $published?->location,
+                'notes' => $published?->notes,
+            ])
+            ->schema([
+                DatePicker::make('interview_date')->label('Tanggal Wawancara Baru')->required()->native(false)->displayFormat('d/m/Y'),
+                TimePicker::make('interview_time')->label('Waktu')->seconds(false),
+                TextInput::make('location')->label('Lokasi / Link Meeting'),
+                Textarea::make('notes')->label('Catatan untuk Pelamar')->rows(2),
+            ])
+            ->modalHeading('Ubah Jadwal Wawancara — Semua Peserta')
+            ->modalDescription('Semua pelamar yang masih di tahap wawancara dipindah ke jadwal baru & dapat email pemberitahuan.')
+            ->modalSubmitActionLabel('Simpan & Kirim Pemberitahuan')
+            ->action(function (array $data): void {
+                if (! $this->jobOpeningId) {
+                    return;
+                }
+                $n = InterviewSchedule::rescheduleOpening($this->jobOpeningId, $data);
+                $this->resetTable();
+                Notification::make()->title("Jadwal wawancara diperbarui. {$n} pelamar dinotifikasi via email.")->success()->send();
+            });
+    }
+
+    public function rescheduleOneWawancaraAction(): Action
+    {
+        return Action::make('rescheduleOneWawancara')
+            ->label('Ubah Jadwal')
+            ->icon('heroicon-m-calendar')
+            ->color('warning')
+            ->visible(fn ($record) => $this->canDecide() && $record?->interviewInvitee && $record->interview_result === null)
+            ->fillForm(fn ($record) => [
+                'interview_date' => $record->interviewInvitee?->schedule?->interview_date?->format('Y-m-d'),
+                'interview_time' => $record->interviewInvitee?->schedule?->interview_time,
+                'location' => $record->interviewInvitee?->schedule?->location,
+                'notes' => $record->interviewInvitee?->schedule?->notes,
+            ])
+            ->schema([
+                DatePicker::make('interview_date')->label('Tanggal Wawancara Baru')->required()->native(false)->displayFormat('d/m/Y'),
+                TimePicker::make('interview_time')->label('Waktu')->seconds(false),
+                TextInput::make('location')->label('Lokasi / Link Meeting'),
+                Textarea::make('notes')->label('Catatan untuk Pelamar')->rows(2),
+            ])
+            ->modalHeading('Ubah Jadwal Wawancara — Pelamar Ini')
+            ->modalDescription('Hanya pelamar ini yang dipindah ke jadwal baru. Peserta lain tidak terpengaruh.')
+            ->modalSubmitActionLabel('Simpan & Kirim Pemberitahuan')
+            ->action(function (array $data, $record): void {
+                if (! $record?->interviewInvitee) {
+                    return;
+                }
+                InterviewSchedule::rescheduleOne($record->interviewInvitee, $data);
+                $this->resetTable();
+                Notification::make()->title('Jadwal wawancara pelamar ini diperbarui & email terkirim.')->success()->send();
             });
     }
 
@@ -229,7 +300,7 @@ class WawancaraPage extends Page implements HasActions, HasForms, HasTable
         return $table
             ->query(
                 JobApplication::query()
-                    ->with(['answers' => fn ($q) => $q->where('field_key', 'full_name')])
+                    ->with(['answers' => fn ($q) => $q->where('field_key', 'full_name'), 'interviewInvitee.schedule'])
                     ->when(
                         $this->jobOpeningId,
                         fn (Builder $q) => $q->where('job_opening_id', $this->jobOpeningId)->where('status', 'interview'),
@@ -255,6 +326,7 @@ class WawancaraPage extends Page implements HasActions, HasForms, HasTable
                     ->icon('heroicon-m-eye')
                     ->color('gray')
                     ->url(fn ($record) => \App\Filament\Rekrutmen\Pages\ApplicantDetailPage::getUrl() . '?application=' . $record->id),
+                $this->rescheduleOneWawancaraAction(),
                 $this->tandaiHasilWawancaraAction(),
             ])
             ->toolbarActions([$this->kirimNotifBulkAction()])

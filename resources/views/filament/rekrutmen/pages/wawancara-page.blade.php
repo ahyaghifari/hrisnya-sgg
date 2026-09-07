@@ -33,6 +33,9 @@
             @if($this->getInterviewDraft())
                 {{ $this->publishInterviewAction }}
             @endif
+            @if($this->getPublishedInterview())
+                {{ $this->rescheduleWawancaraAction }}
+            @endif
         </div>
 
         @if($this->getInterviewDraft())

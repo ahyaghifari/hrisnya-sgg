@@ -109,6 +109,11 @@ class McuPage extends Page implements HasActions, HasForms, HasTable
         return $this->jobOpeningId ? McuSchedule::draftForOpening($this->jobOpeningId) : null;
     }
 
+    public function getPublishedMcu(): ?McuSchedule
+    {
+        return $this->jobOpeningId ? McuSchedule::publishedForOpening($this->jobOpeningId) : null;
+    }
+
     private function readyOptions(): array
     {
         if (! $this->jobOpeningId) {
@@ -155,6 +160,72 @@ class McuPage extends Page implements HasActions, HasForms, HasTable
                 }
                 McuSchedule::saveDraft($this->jobOpeningId, $data, $data['invited_ids'] ?? []);
                 Notification::make()->title('Draft jadwal MCU tersimpan.')->warning()->send();
+            });
+    }
+
+    public function rescheduleMcuAction(): Action
+    {
+        $published = $this->getPublishedMcu();
+
+        return Action::make('rescheduleMcu')
+            ->label('Ubah Jadwal — Semua')
+            ->icon('heroicon-m-calendar')
+            ->color('warning')
+            ->visible(fn () => $this->canDecide() && $published !== null)
+            ->fillForm([
+                'mcu_date' => $published?->mcu_date?->format('Y-m-d'),
+                'mcu_time' => $published?->mcu_time,
+                'location' => $published?->location,
+                'notes' => $published?->notes,
+            ])
+            ->schema([
+                DatePicker::make('mcu_date')->label('Tanggal MCU Baru')->required()->native(false)->displayFormat('d/m/Y'),
+                TimePicker::make('mcu_time')->label('Waktu')->seconds(false),
+                TextInput::make('location')->label('Lokasi Klinik/RS'),
+                Textarea::make('notes')->label('Catatan untuk Kandidat')->rows(2),
+            ])
+            ->modalHeading('Ubah Jadwal MCU — Semua Peserta')
+            ->modalDescription('Semua kandidat yang masih di tahap MCU dipindah ke jadwal baru & dapat email pemberitahuan.')
+            ->modalSubmitActionLabel('Simpan & Kirim Pemberitahuan')
+            ->action(function (array $data): void {
+                if (! $this->jobOpeningId) {
+                    return;
+                }
+                $n = McuSchedule::rescheduleOpening($this->jobOpeningId, $data);
+                $this->resetTable();
+                Notification::make()->title("Jadwal MCU diperbarui. {$n} kandidat dinotifikasi via email.")->success()->send();
+            });
+    }
+
+    public function rescheduleOneMcuAction(): Action
+    {
+        return Action::make('rescheduleOneMcu')
+            ->label('Ubah Jadwal')
+            ->icon('heroicon-m-calendar')
+            ->color('warning')
+            ->visible(fn ($record) => $this->canDecide() && $record?->mcuInvitee && ($record->mcuInvitee->status_mcu === null || $record->mcuInvitee->status_mcu === 'pending'))
+            ->fillForm(fn ($record) => [
+                'mcu_date' => $record->mcuInvitee?->schedule?->mcu_date?->format('Y-m-d'),
+                'mcu_time' => $record->mcuInvitee?->schedule?->mcu_time,
+                'location' => $record->mcuInvitee?->schedule?->location,
+                'notes' => $record->mcuInvitee?->schedule?->notes,
+            ])
+            ->schema([
+                DatePicker::make('mcu_date')->label('Tanggal MCU Baru')->required()->native(false)->displayFormat('d/m/Y'),
+                TimePicker::make('mcu_time')->label('Waktu')->seconds(false),
+                TextInput::make('location')->label('Lokasi Klinik/RS'),
+                Textarea::make('notes')->label('Catatan untuk Kandidat')->rows(2),
+            ])
+            ->modalHeading('Ubah Jadwal MCU — Kandidat Ini')
+            ->modalDescription('Hanya kandidat ini yang dipindah ke jadwal baru. Peserta lain tidak terpengaruh.')
+            ->modalSubmitActionLabel('Simpan & Kirim Pemberitahuan')
+            ->action(function (array $data, $record): void {
+                if (! $record?->mcuInvitee) {
+                    return;
+                }
+                McuSchedule::rescheduleOne($record->mcuInvitee, $data);
+                $this->resetTable();
+                Notification::make()->title('Jadwal MCU kandidat ini diperbarui & email terkirim.')->success()->send();
             });
     }
 
@@ -238,7 +309,7 @@ class McuPage extends Page implements HasActions, HasForms, HasTable
         return $table
             ->query(
                 JobApplication::query()
-                    ->with(['answers' => fn ($q) => $q->where('field_key', 'full_name'), 'mcuInvitee.nurseAssessment', 'mcuInvitee.labResult', 'mcuInvitee.radiologyResult', 'mcuInvitee.doctorExamination'])
+                    ->with(['answers' => fn ($q) => $q->where('field_key', 'full_name'), 'mcuInvitee.schedule', 'mcuInvitee.nurseAssessment', 'mcuInvitee.labResult', 'mcuInvitee.radiologyResult', 'mcuInvitee.doctorExamination'])
                     ->when(
                         $this->jobOpeningId,
                         fn (Builder $q) => $q->where('job_opening_id', $this->jobOpeningId)->where('status', 'mcu'),
@@ -249,10 +320,10 @@ class McuPage extends Page implements HasActions, HasForms, HasTable
             ->columns([
                 TextColumn::make('full_name')->label('Nama Lengkap')
                     ->state(fn ($record) => $record->answers->firstWhere('field_key', 'full_name')?->value ?? '—'),
-                IconColumn::make('nurse')->label('Perawat')->boolean()->state(fn ($r) => (bool) $r->mcuInvitee?->nurseAssessment),
-                IconColumn::make('lab')->label('Lab')->boolean()->state(fn ($r) => (bool) $r->mcuInvitee?->labResult),
-                IconColumn::make('radiology')->label('Radiologi')->boolean()->state(fn ($r) => (bool) $r->mcuInvitee?->radiologyResult),
-                IconColumn::make('doctor')->label('Dokter')->boolean()->state(fn ($r) => (bool) $r->mcuInvitee?->doctorExamination),
+                IconColumn::make('nurse')->label('Perawat')->boolean()->state(fn ($record) => (bool) $record?->mcuInvitee?->nurseAssessment),
+                IconColumn::make('lab')->label('Lab')->boolean()->state(fn ($record) => (bool) $record?->mcuInvitee?->labResult),
+                IconColumn::make('radiology')->label('Radiologi')->boolean()->state(fn ($record) => (bool) $record?->mcuInvitee?->radiologyResult),
+                IconColumn::make('doctor')->label('Dokter')->boolean()->state(fn ($record) => (bool) $record?->mcuInvitee?->doctorExamination),
                 TextColumn::make('status_mcu')->label('Keputusan MCU')->badge()
                     ->state(fn ($record) => $record->mcuInvitee?->status_mcu)
                     ->formatStateUsing(fn ($state) => match ($state) {
@@ -268,6 +339,7 @@ class McuPage extends Page implements HasActions, HasForms, HasTable
                 Action::make('lihatHasilMcu')->label('Hasil MCU')->icon('heroicon-m-clipboard-document-check')->color('gray')
                     ->visible(fn ($record) => $record->mcuInvitee?->hasAnyMcuResult())
                     ->url(fn ($record) => \App\Filament\Rekrutmen\Pages\HasilMcuDetailPage::getUrl() . '?invitee=' . $record->mcuInvitee->id),
+                $this->rescheduleOneMcuAction(),
                 $this->putuskanHasilMcuAction(),
             ])
             ->toolbarActions([$this->kirimNotifBulkAction()])
