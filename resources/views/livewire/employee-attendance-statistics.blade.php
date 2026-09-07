@@ -563,6 +563,20 @@ source (tab server-render sekali jalan, x-show cuma toggle CSS). --}}
         .emp-journey .ej-step-date { font-size:11px; color:var(--text-muted); margin:3px 0 0; line-height:1.45; }
         .emp-journey .ej-step-date .ej-arrow { color:var(--text-faint); margin:0 3px; }
         .emp-journey .ej-step-date .ej-meta { color:var(--text-faint); }
+
+        /* Mobile: timeline jadi VERTIKAL — garis di sisi kiri, tiap tahap satu baris ke bawah. */
+        @media (max-width:640px) {
+            .emp-journey .ej-track { flex-direction:column; overflow-x:visible; padding:6px 0 2px; }
+            .emp-journey .ej-step {
+                flex:0 0 auto; max-width:none; padding:0 0 18px 26px;
+            }
+            .emp-journey .ej-step:last-child { padding-bottom:0; }
+            .emp-journey .ej-step::before {
+                top:7px; bottom:-7px; left:6px; right:auto; width:2px; height:auto;
+            }
+            .emp-journey .ej-step:last-child::before { display:none; }
+            .emp-journey .ej-dot { position:absolute; top:0; left:0; margin:0; }
+        }
     </style>
     <div class="card-surface emp-journey" style="margin-bottom:20px;--ej-accent:{{ $ejAccent }};">
         <div style="display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:14px;">

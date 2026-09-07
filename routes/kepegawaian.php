@@ -64,8 +64,6 @@ Route::get('/kepegawaian/orientasi', \App\Livewire\Kepegawaian\OrientasiKelolaPa
 // Approval Engine. Sisi HR di /kepegawaian/perpanjangan-kontrak.
 Route::get('/kontrak-saya', \App\Livewire\Kepegawaian\KontrakSayaPage::class)
     ->name('kontrak.saya');
-Route::get('/kontrak-saya/{record}', \App\Livewire\Kepegawaian\KontrakDetailPage::class)
-    ->name('kontrak.show');
 Route::get('/kepegawaian/perpanjangan-kontrak', \App\Livewire\Kepegawaian\KontrakKelolaPage::class)
     ->name('kepegawaian.perpanjangan-kontrak');
 

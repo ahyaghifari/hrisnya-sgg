@@ -542,7 +542,7 @@ class PendingApprovalsCard extends Component
                     'keterangan' => 'Kontrak',
                     'user_name' => $s->user->name,
                     'created_at' => $s->submitted_at ?? $s->created_at,
-                    'url' => route('kontrak.show', $s->id),
+                    'url' => route('kepegawaian.perpanjangan-kontrak', ['openId' => $s->id]),
                     'modal' => false,
                     'external' => false,
                 ]);

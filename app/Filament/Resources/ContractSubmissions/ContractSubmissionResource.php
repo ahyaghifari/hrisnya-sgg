@@ -14,7 +14,7 @@ use UnitEnum;
 /**
  * Pantauan HR atas pengajuan perpanjangan kontrak (read-only). Alur sesungguhnya (ajukan,
  * upload, nilai) ada di portal self-service — lihat App\Livewire\Kepegawaian\KontrakSayaPage
- * & KontrakDetailPage.
+ * & KontrakKelolaPage (peninjauan inline).
  */
 class ContractSubmissionResource extends BaseCompanyResource
 {

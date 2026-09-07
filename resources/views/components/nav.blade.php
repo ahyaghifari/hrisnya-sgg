@@ -59,7 +59,7 @@
                 @endif
                 @if ($canAccessSikartapSaya || $canAccessOrientasiSaya)
                     <div class="dropdown">
-                        <a href="#" class="nav-item {{ request()->routeIs(['sikartap', 'orientasi', 'orientasi.show', 'kontrak.saya', 'kontrak.show']) ? 'active' : '' }}">
+                        <a href="#" class="nav-item {{ request()->routeIs(['sikartap', 'orientasi', 'orientasi.show', 'kontrak.saya']) ? 'active' : '' }}">
                             <i class="fa-solid fa-signs-post text-xs"></i> Status Saya <i class="fa-solid fa-chevron-down text-[10px]"></i>
                         </a>
                         <div class="dropdown-menu">
