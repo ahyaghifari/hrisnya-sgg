@@ -13,12 +13,17 @@ use UnitEnum;
 
 /**
  * Pantauan HR atas pengajuan perpanjangan kontrak (read-only). Alur sesungguhnya (ajukan,
- * upload, nilai) ada di portal self-service — lihat App\Livewire\Kepegawaian\KontrakSayaPage
- * & KontrakKelolaPage (peninjauan inline).
+ * upload, nilai) DAN pantauannya sekarang satu halaman di portal — lihat
+ * App\Livewire\Kepegawaian\KontrakSayaPage & KontrakKelolaPage. Resource ini sengaja TIDAK
+ * muncul di navigasi admin (shouldRegisterNavigation = false) supaya menu "Kontrak &
+ * Orientasi" cuma punya satu entri kontrak; class-nya dipertahankan agar permission
+ * Shield `*:ContractSubmission` (dipakai gate portal) tetap ke-generate.
  */
 class ContractSubmissionResource extends BaseCompanyResource
 {
     protected static ?string $model = ContractSubmission::class;
+
+    protected static bool $shouldRegisterNavigation = false;
 
     protected static string|UnitEnum|null $navigationGroup = 'Kontrak & Orientasi';
 
