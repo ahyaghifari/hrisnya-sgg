@@ -207,4 +207,51 @@ class DirectorDecisionTest extends TestCase
             ->assertActionHidden('approveDirektur')
             ->assertActionHidden('rejectDirektur');
     }
+
+    public function test_approve_with_past_tmt_applies_immediately(): void
+    {
+        $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
+        $direktur = $this->makeDirektur($company);
+        $this->actingAsHrd($company);
+        $sikartap = $this->makeEligibleSikartap($company);
+
+        $tmt = now()->subDay()->toDateString();
+        app(SikartapDirectorDecisionService::class)->submitForDecision($sikartap, $tmt);
+        app(SikartapDirectorDecisionService::class)->approve($sikartap, $direktur, 'Setuju');
+
+        $sikartap->refresh();
+        $this->assertSame('approved', $sikartap->status_keputusan_direktur);
+        $this->assertNotNull($sikartap->keputusan_direktur_applied_at);
+        $this->assertSame($tmt, (string) $sikartap->user->profile->refresh()->tmt_tetap);
+    }
+
+    public function test_approve_with_future_tmt_defers_until_command(): void
+    {
+        $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
+        $direktur = $this->makeDirektur($company);
+        $this->actingAsHrd($company);
+        $sikartap = $this->makeEligibleSikartap($company);
+
+        $future = now()->addDays(5)->toDateString();
+        app(SikartapDirectorDecisionService::class)->submitForDecision($sikartap, $future);
+        app(SikartapDirectorDecisionService::class)->approve($sikartap, $direktur, 'Setuju');
+
+        $sikartap->refresh();
+        $this->assertSame('approved', $sikartap->status_keputusan_direktur);
+        $this->assertNull($sikartap->keputusan_direktur_applied_at);
+        $this->assertNull($sikartap->user->profile->refresh()->tmt_tetap);
+
+        // Command belum menerapkan (tanggal belum tiba).
+        app(SikartapDirectorDecisionService::class)->applyDueTetap();
+        $this->assertNull($sikartap->refresh()->keputusan_direktur_applied_at);
+
+        // Majukan tanggal TMT ke kemarin -> command menerapkan.
+        $sikartap->update(['tmt_tetap' => now()->subDay()->toDateString()]);
+        $result = app(SikartapDirectorDecisionService::class)->applyDueTetap();
+
+        $this->assertSame(1, $result['applied']);
+        $sikartap->refresh();
+        $this->assertNotNull($sikartap->keputusan_direktur_applied_at);
+        $this->assertSame(now()->subDay()->toDateString(), (string) $sikartap->user->profile->refresh()->tmt_tetap);
+    }
 }

@@ -56,6 +56,9 @@ class PengajuanDetailPage extends Component
     // Keputusan Direktur
     public string $directorNote = '';
 
+    /** Tanggal TMT Karyawan Tetap — diisi HRD saat mengajukan ke Direktur. */
+    public ?string $tmtTetap = null;
+
     // Review Ide Inovasi tahap opsional (Direktur/Komisaris) — 1 field catatan dipakai bergantian
     // sesuai panel aktif, sama pola $directorNote.
     public string $ideInovasiNote = '';
@@ -77,6 +80,7 @@ class PengajuanDetailPage extends Component
         );
 
         $this->sikartap = $sikartap;
+        $this->tmtTetap = $sikartap->tmt_tetap?->toDateString() ?? now()->toDateString();
     }
 
     protected function refreshRecord(): void
@@ -327,10 +331,21 @@ class PengajuanDetailPage extends Component
 
     public function ajukanKeputusanDirektur(): void
     {
-        abort_unless($this->canUpdate && $this->sikartap->isEligibleForDirectorDecision() && $this->sikartap->status_keputusan_direktur === 'pending', 403);
+        abort_unless(
+            $this->canUpdate
+                && $this->sikartap->isEligibleForDirectorDecision()
+                && in_array($this->sikartap->status_keputusan_direktur, ['pending', 'diajukan'], true),
+            403,
+        );
+
+        $this->validate(
+            ['tmtTetap' => ['required', 'date']],
+            [],
+            ['tmtTetap' => 'tanggal TMT Karyawan Tetap'],
+        );
 
         try {
-            app(SikartapDirectorDecisionService::class)->submitForDecision($this->sikartap);
+            app(SikartapDirectorDecisionService::class)->submitForDecision($this->sikartap, $this->tmtTetap);
 
             Notification::make()->title('Pengajuan dikirim ke Direktur')->success()->send();
         } catch (\Throwable $e) {

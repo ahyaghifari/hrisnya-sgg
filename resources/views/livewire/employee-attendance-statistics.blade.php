@@ -73,37 +73,37 @@ identity-accent = border gradasi warna section-nav (lihat app.css); warna teks t
 <!-- Navigasi antar-bagian: tombol (bukan tab bergaris bawah) supaya enak disentuh di mobile -->
 <div class="section-nav section-nav-tiles">
     <button type="button" @click="tab = 'career'" class="section-nav-btn gold-shiny" :class="{ 'is-active': tab === 'career' }">
-        <i class="fa-solid fa-briefcase"></i>
+        <img src="{{ asset('ico/karir.png') }}" alt="" class="section-nav-img">
         <span>{{ $isSelf ? 'Karir' : 'Pekerjaan' }}</span>
     </button>
-    <button type="button" @click="tab = 'profil'" class="section-nav-btn navy" :class="{ 'is-active': tab === 'profil' }">
-        <i class="fa-solid fa-id-card"></i>
+    <button type="button" @click="tab = 'profil'" class="section-nav-btn gold-shiny" :class="{ 'is-active': tab === 'profil' }">
+        <img src="{{ asset('ico/data-diri.png') }}" alt="" class="section-nav-img">
         <span>Data Diri</span>
     </button>
-    <button type="button" @click="tab = 'statistik'" class="section-nav-btn green" :class="{ 'is-active': tab === 'statistik' }">
-        <i class="fa-solid fa-clock"></i>
+    <button type="button" @click="tab = 'statistik'" class="section-nav-btn gold-shiny" :class="{ 'is-active': tab === 'statistik' }">
+        <img src="{{ asset('ico/absensi.png') }}" alt="" class="section-nav-img">
         <span>Absensi</span>
     </button>
     @if ($this->showExtraTabs)
-        <button type="button" @click="tab = 'dokumen'" class="section-nav-btn teal" :class="{ 'is-active': tab === 'dokumen' }">
-            <i class="fa-solid fa-folder-open"></i>
+        <button type="button" @click="tab = 'dokumen'" class="section-nav-btn gold-shiny" :class="{ 'is-active': tab === 'dokumen' }">
+            <img src="{{ asset('ico/dokumen.png') }}" alt="" class="section-nav-img">
             <span>Dokumen</span>
         </button>
         @if ($isSelf)
-            <button type="button" @click="tab = 'penggajian'" class="section-nav-btn gold" :class="{ 'is-active': tab === 'penggajian' }">
-                <i class="fa-solid fa-money-check-dollar"></i>
+            <button type="button" @click="tab = 'penggajian'" class="section-nav-btn gold-shiny" :class="{ 'is-active': tab === 'penggajian' }">
+                <img src="{{ asset('ico/penggajian.png') }}" alt="" class="section-nav-img">
                 <span>Penggajian</span>
             </button>
         @endif
     @endif
     @if ($this->canViewPembinaanTab)
-        <button type="button" @click="tab = 'pembinaan'" class="section-nav-btn teal" :class="{ 'is-active': tab === 'pembinaan' }">
-            <i class="fa-solid fa-hands-holding-circle"></i>
+        <button type="button" @click="tab = 'pembinaan'" class="section-nav-btn gold-shiny" :class="{ 'is-active': tab === 'pembinaan' }">
+            <img src="{{ asset('ico/pembinaan.png') }}" alt="" class="section-nav-img">
             <span>{{ $isSelf ? 'Pembinaan' : 'Pembinaan Karyawan' }}</span>
         </button>
     @endif
     @if ($this->canViewAuditHistory)
-        <button type="button" @click="tab = 'riwayatdata'" class="section-nav-btn navy" :class="{ 'is-active': tab === 'riwayatdata' }">
+        <button type="button" @click="tab = 'riwayatdata'" class="section-nav-btn gold-shiny" :class="{ 'is-active': tab === 'riwayatdata' }">
             <i class="fa-solid fa-clock-rotate-left"></i>
             <span>Riwayat</span>
         </button>
@@ -450,26 +450,19 @@ source (tab server-render sekali jalan, x-show cuma toggle CSS). --}}
     @endphp
 
     <div class="card-surface" style="margin-bottom:20px;">
-        {{-- Kepala panel: Jabatan sebagai judul, jalur struktur sebagai jejak di bawahnya,
-        Tipe Karyawan sebagai penanda status di kanan. --}}
-        <div style="display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:12px;">
-            <div style="min-width:0;">
-                <p style="font-size:10.5px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-faint);margin:0 0 4px;">Posisi</p>
-                <h3 style="font-size:20px;font-weight:800;color:var(--brand);letter-spacing:-0.3px;line-height:1.2;margin:0;">
-                    {{ $profile?->jobPosition?->name ?? 'Belum ada jabatan' }}
-                </h3>
-                @if ($orgPath->isNotEmpty())
-                    <p style="font-size:12.5px;color:var(--text-muted);margin-top:6px;line-height:1.6;">
-                        @foreach ($orgPath as $seg)
-                            @if (! $loop->first)<span style="color:var(--text-faint);margin:0 6px;">›</span>@endif{{ $seg }}
-                        @endforeach
-                    </p>
-                @endif
-            </div>
-            @if ($profile?->employeeType?->name)
-                <span class="badge badge-info" style="flex-shrink:0;font-size:13px;padding:7px 14px;gap:7px;">
-                    <i class="fa-solid fa-id-badge"></i> {{ $profile->employeeType->name }}
-                </span>
+        {{-- Kepala panel: Jabatan sebagai judul, jalur struktur sebagai jejak di bawahnya.
+        Tipe/status karyawan tidak diulang di sini — sudah ada di kartu Status Kepegawaian. --}}
+        <div style="min-width:0;">
+            <p style="font-size:10.5px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-faint);margin:0 0 4px;">Posisi</p>
+            <h3 style="font-size:20px;font-weight:800;color:var(--brand);letter-spacing:-0.3px;line-height:1.2;margin:0;">
+                {{ $profile?->jobPosition?->name ?? 'Belum ada jabatan' }}
+            </h3>
+            @if ($orgPath->isNotEmpty())
+                <p style="font-size:12.5px;color:var(--text-muted);margin-top:6px;line-height:1.6;">
+                    @foreach ($orgPath as $seg)
+                        @if (! $loop->first)<span style="color:var(--text-faint);margin:0 6px;">›</span>@endif{{ $seg }}
+                    @endforeach
+                </p>
             @endif
         </div>
 
@@ -624,6 +617,24 @@ source (tab server-render sekali jalan, x-show cuma toggle CSS). --}}
                     </div>
                 @endforeach
             </div>
+        @endif
+
+        {{-- Aksi self-service sesuai status saat ini (pindah dari nav "Status Saya" 2026-09-08):
+             Orientasi → ajukan penilaian orientasi. Kontrak → ajukan perpanjangan kontrak +
+             pengangkatan karyawan tetap. Tetap → tak ada tombol. --}}
+        @if ($isSelf)
+            @php $eju = auth()->user(); @endphp
+            @if ($eju->isOrientasiKaryawan() || $eju->isKontrakKaryawan())
+                <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:16px;padding-top:14px;border-top:1px solid var(--border-soft);">
+                    @if ($eju->isOrientasiKaryawan())
+                        <a href="{{ route('orientasi') }}" wire:navigate class="btn-primary" style="font-size:12.5px;"><i class="fa-solid fa-user-graduate"></i> Ajukan Penilaian Orientasi</a>
+                    @endif
+                    @if ($eju->isKontrakKaryawan())
+                        <a href="{{ route('kontrak.saya') }}" wire:navigate class="btn-primary" style="font-size:12.5px;"><i class="fa-solid fa-file-signature"></i> Ajukan Perpanjangan Kontrak</a>
+                        <a href="{{ route('sikartap') }}" wire:navigate class="btn-ghost" style="font-size:12.5px;"><i class="fa-solid fa-user-check"></i> Ajukan Pengangkatan Karyawan Tetap</a>
+                    @endif
+                </div>
+            @endif
         @endif
     </div>
 </div>
@@ -978,12 +989,11 @@ source (tab server-render sekali jalan, x-show cuma toggle CSS). --}}
                             <p style="font-size:13px;font-weight:600;color:var(--text-heading);">
                                 {{ $payroll->payrollPeriod->start_date->translatedFormat('d M Y') }} - {{ $payroll->payrollPeriod->end_date->translatedFormat('d M Y') }}
                             </p>
-                            <p style="font-size:11px;color:var(--text-muted);margin-top:2px;">
-                                @if ($payroll->payrollPeriod->payment_date)
-                                    Dibayar {{ $payroll->payrollPeriod->payment_date->translatedFormat('d M Y') }} &middot;
-                                @endif
-                                Gaji Bersih Rp{{ number_format($payroll->net_salary, 0, ',', '.') }}
-                            </p>
+                            @if ($payroll->payrollPeriod->payment_date)
+                                <p style="font-size:11px;color:var(--text-muted);margin-top:2px;">
+                                    Dibayar {{ $payroll->payrollPeriod->payment_date->translatedFormat('d M Y') }}
+                                </p>
+                            @endif
                         </div>
                         <i class="fa-solid fa-chevron-right" style="color:var(--text-faint);font-size:12px;"></i>
                     </a>

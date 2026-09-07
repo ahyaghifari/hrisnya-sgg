@@ -553,6 +553,12 @@
 
                 @if ($statusDir === 'pending')
                     @if ($this->canUpdate)
+                        <div style="margin-top:10px;max-width:240px;">
+                            <label class="form-label">Tanggal TMT Karyawan Tetap</label>
+                            <input type="date" wire:model="tmtTetap" class="form-input">
+                            @error('tmtTetap') <p style="color:var(--danger-text);font-size:12px;margin-top:3px;">{{ $message }}</p> @enderror
+                            <p style="font-size:10.5px;color:var(--text-faint);margin:3px 0 0;">Kalau tanggalnya di depan, pengangkatan otomatis diterapkan pas tanggal itu tiba.</p>
+                        </div>
                         <div style="margin-top:10px;">
                             <button type="button" wire:click="ajukanKeputusanDirektur" wire:confirm="Kirim pengajuan ini ke Direktur untuk diputuskan?" class="btn-primary" style="padding:8px 16px;font-size:12.5px;">
                                 📨 Ajukan ke Direktur
@@ -564,6 +570,28 @@
                         $dirBadge = ['diajukan' => ['Menunggu Keputusan Direktur', '#b45309'], 'approved' => ['Disetujui Direktur', '#047C54'], 'rejected' => ['Ditolak Direktur', '#dc2626']][$statusDir] ?? [$statusDir, 'var(--text-muted)'];
                     @endphp
                     <p style="font-size:13px;font-weight:700;color:{{ $dirBadge[1] }};margin:6px 0 0;">{{ $dirBadge[0] }}</p>
+
+                    @if ($sikartap->tmt_tetap)
+                        <p style="font-size:12px;color:var(--text-muted);margin:6px 0 0;">
+                            TMT Karyawan Tetap: <strong>{{ $sikartap->tmt_tetap->translatedFormat('d F Y') }}</strong>
+                            @if ($statusDir === 'approved')
+                                @if ($sikartap->keputusan_direktur_applied_at)
+                                    <span style="color:#047C54;">&middot; sudah diterapkan</span>
+                                @else
+                                    <span style="color:#b45309;">&middot; dijadwalkan, belum tiba</span>
+                                @endif
+                            @endif
+                        </p>
+                    @endif
+
+                    @if ($statusDir === 'diajukan' && $this->canUpdate)
+                        <div style="margin-top:10px;max-width:240px;">
+                            <label class="form-label">Ubah Tanggal TMT</label>
+                            <input type="date" wire:model="tmtTetap" class="form-input">
+                            @error('tmtTetap') <p style="color:var(--danger-text);font-size:12px;margin-top:3px;">{{ $message }}</p> @enderror
+                            <button type="button" wire:click="ajukanKeputusanDirektur" class="btn-ghost" style="margin-top:8px;padding:6px 12px;font-size:12px;">Simpan Tanggal</button>
+                        </div>
+                    @endif
 
                     @if (in_array($statusDir, ['approved', 'rejected'], true))
                         <p style="font-size:12px;color:var(--text-muted);margin:8px 0 0;">

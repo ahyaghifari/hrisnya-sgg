@@ -212,17 +212,24 @@ class ViewSikartap extends ViewRecord
             // pemegang jabatan `sikartap_direktur_job_position_id` (Pengaturan Sikartap).
 
             Action::make('ajukanKeputusanDirektur')
-                ->label('Ajukan ke Direktur')
+                ->label(fn (Sikartap $record) => $record->status_keputusan_direktur === 'diajukan' ? 'Ubah Tanggal TMT' : 'Ajukan ke Direktur')
                 ->icon('heroicon-o-paper-airplane')
                 ->color('gray')
-                ->requiresConfirmation()
-                ->modalDescription('Kirim pengajuan ini ke Direktur untuk diputuskan?')
                 ->visible(fn (Sikartap $record): bool => $record->isEligibleForDirectorDecision()
-                    && $record->status_keputusan_direktur === 'pending'
+                    && in_array($record->status_keputusan_direktur, ['pending', 'diajukan'], true)
                     && Auth::user()->can('Update:Sikartap'))
-                ->action(function (Sikartap $record): void {
+                ->fillForm(fn (Sikartap $record): array => [
+                    'tmt_tetap' => $record->tmt_tetap?->toDateString() ?? now()->toDateString(),
+                ])
+                ->schema([
+                    DatePicker::make('tmt_tetap')
+                        ->label('Tanggal TMT Karyawan Tetap')
+                        ->helperText('Kalau tanggalnya di depan, pengangkatan otomatis diterapkan pas tanggal itu tiba.')
+                        ->required(),
+                ])
+                ->action(function (Sikartap $record, array $data): void {
                     try {
-                        app(SikartapDirectorDecisionService::class)->submitForDecision($record);
+                        app(SikartapDirectorDecisionService::class)->submitForDecision($record, $data['tmt_tetap']);
 
                         Notification::make()->title('Pengajuan dikirim ke Direktur')->success()->send();
                     } catch (\Throwable $e) {

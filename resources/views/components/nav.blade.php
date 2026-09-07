@@ -57,22 +57,9 @@
                         </div>
                     </div>
                 @endif
-                @if ($canAccessSikartapSaya || $canAccessOrientasiSaya)
-                    <div class="dropdown">
-                        <a href="#" class="nav-item {{ request()->routeIs(['sikartap', 'orientasi', 'orientasi.show', 'kontrak.saya']) ? 'active' : '' }}">
-                            <i class="fa-solid fa-signs-post text-xs"></i> Status Saya <i class="fa-solid fa-chevron-down text-[10px]"></i>
-                        </a>
-                        <div class="dropdown-menu">
-                            @if ($canAccessOrientasiSaya)
-                                <a href="{{ route('orientasi') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-user-graduate"></i> Orientasi</a>
-                            @endif
-                            @if ($canAccessSikartapSaya)
-                                <a href="{{ route('kontrak.saya') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-file-signature"></i> Perpanjangan Kontrak</a>
-                                <a href="{{ route('sikartap') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-user-check"></i> Sikartap</a>
-                            @endif
-                        </div>
-                    </div>
-                @endif
+                {{-- "Status Saya" (Orientasi / Perpanjangan Kontrak / Karyawan Tetap) dipindah
+                     ke Profil Saya → kartu Status Kepegawaian → tombol aksi sesuai status
+                     berjalan (2026-09-08). --}}
             </div>
             @if ($showRoleRow)
                 <div class="topnav-row2">

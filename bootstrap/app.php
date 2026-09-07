@@ -32,6 +32,12 @@ return Application::configure(basePath: dirname(__DIR__))
         $schedule->command('transitions:apply-due')
             ->dailyAt('00:15')
             ->withoutOverlapping();
+
+        // Terapkan pengangkatan Karyawan Tetap (Sikartap) yang keputusan Direkturnya approved
+        // tapi tanggal TMT-nya masih di depan, begitu tanggalnya tiba.
+        $schedule->command('sikartap:apply-due-tetap')
+            ->dailyAt('00:20')
+            ->withoutOverlapping();
     })
     ->withMiddleware(function (Middleware $middleware) {
         // NB: statefulApi() cuma nge-set flag; middleware Sanctum-nya baru masuk ke grup 'api'

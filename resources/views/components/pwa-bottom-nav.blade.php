@@ -84,7 +84,7 @@
     <div class="pwa-menu-sheet-handle"></div>
 
     <div class="pwa-menu-grid">
-        @if ($canAccessPembinaanSaya || $canAccessOrientasiSaya || $canAccessSikartapSaya)
+        @if ($canAccessPembinaanSaya || $canSubmitAttendance)
             <span class="pwa-menu-grid-divider">Menu Saya</span>
             @if ($canAccessPembinaanSaya)
                 <a href="{{ route('coaching.saya') }}" wire:navigate class="pwa-menu-grid-item">
@@ -96,22 +96,14 @@
                     <span class="pwa-menu-grid-label">Counseling Saya</span>
                 </a>
             @endif
-            @if ($canAccessOrientasiSaya)
-                <a href="{{ route('orientasi') }}" wire:navigate class="pwa-menu-grid-item">
-                    <span class="pwa-menu-grid-icon gold"><i class="fa-solid fa-user-graduate"></i></span>
-                    <span class="pwa-menu-grid-label">Orientasi</span>
+            @if ($canSubmitAttendance)
+                <a href="{{ route('organization-structure') }}" wire:navigate class="pwa-menu-grid-item">
+                    <span class="pwa-menu-grid-icon gold"><i class="fa-solid fa-sitemap"></i></span>
+                    <span class="pwa-menu-grid-label">Struktur Organisasi</span>
                 </a>
             @endif
-            @if ($canAccessSikartapSaya)
-                <a href="{{ route('kontrak.saya') }}" wire:navigate class="pwa-menu-grid-item">
-                    <span class="pwa-menu-grid-icon gold"><i class="fa-solid fa-file-signature"></i></span>
-                    <span class="pwa-menu-grid-label">Perpanjangan Kontrak</span>
-                </a>
-                <a href="{{ route('sikartap') }}" wire:navigate class="pwa-menu-grid-item">
-                    <span class="pwa-menu-grid-icon gold"><i class="fa-solid fa-user-check"></i></span>
-                    <span class="pwa-menu-grid-label">Sikartap</span>
-                </a>
-            @endif
+            {{-- Orientasi / Perpanjangan Kontrak / Karyawan Tetap dipindah ke Profil Saya →
+                 kartu Status Kepegawaian (2026-09-08). --}}
         @endif
 
         @if ($canSeeKaryawanMenu)
@@ -152,13 +144,6 @@
 
         @if ($canAccessPenilaian)
             <x-pwa-nav.penilaian-menu />
-        @endif
-
-        @if ($canSubmitAttendance)
-            <a href="{{ route('organization-structure') }}" wire:navigate class="pwa-menu-grid-item">
-                <span class="pwa-menu-grid-icon teal"><i class="fa-solid fa-sitemap"></i></span>
-                <span class="pwa-menu-grid-label">Struktur Organisasi</span>
-            </a>
         @endif
 
         @if ($canAccessHakAkses)

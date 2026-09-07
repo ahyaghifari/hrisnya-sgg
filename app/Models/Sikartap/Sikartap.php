@@ -43,6 +43,8 @@ class Sikartap extends Model
         'keputusan_direktur_by',
         'keputusan_direktur_at',
         'keputusan_direktur_note',
+        'tmt_tetap',
+        'keputusan_direktur_applied_at',
         'is_diskualifikasi',
         'alasan_diskualifikasi',
     ];
@@ -54,6 +56,8 @@ class Sikartap extends Model
             'is_diskualifikasi' => 'boolean',
             'keputusan_direktur_diajukan_at' => 'datetime',
             'keputusan_direktur_at' => 'datetime',
+            'tmt_tetap' => 'date',
+            'keputusan_direktur_applied_at' => 'datetime',
         ];
     }
 
