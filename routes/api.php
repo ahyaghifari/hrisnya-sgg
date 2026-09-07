@@ -79,8 +79,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
 // Rekap presensi divisi IT (holding) untuk otomasi n8n — HTTP Basic auth, 50 req/menit.
 Route::prefix('n8n')->middleware('throttle:50,1')->group(function () {
-    Route::get('/cuti', [\App\Http\Controllers\Api\N8n\DivisionAttendanceController::class, 'cuti']);
-    Route::get('/izin', [\App\Http\Controllers\Api\N8n\DivisionAttendanceController::class, 'izin']);
+    Route::get('/offduty', [\App\Http\Controllers\Api\N8n\DivisionAttendanceController::class, 'offduty']);
     Route::get('/absen', [\App\Http\Controllers\Api\N8n\DivisionAttendanceController::class, 'absen']);
 });
 

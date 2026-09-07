@@ -26,28 +26,30 @@ class DivisionAttendanceController extends Controller
     private const HOLDING_COMPANY_ID = '01J2F0C8KQ9M7D4S8RBX6E1ZVP';
     private const IT_DIVISION_ID = '01kekzd6r6fngjh69c7kk03bbb';
 
-    /** GET /api/n8n/cuti — cuti (leave) yang sedang berjalan / akan datang, semua status kecuali batal & ditolak. */
-    public function cuti(Request $request)
+    /**
+     * GET /api/n8n/offduty — cuti & izin divisi IT yang sedang berjalan / akan datang,
+     * semua status kecuali batal & ditolak. Data: { cuti: [...], izin: [...] }.
+     */
+    public function offduty(Request $request)
     {
         if ($resp = $this->guard($request)) {
             return $resp;
         }
 
         $today = Carbon::today()->toDateString();
+        $userIds = $this->divisionUserIds();
 
-        $requests = AttendanceRequests::query()
+        $leave = AttendanceRequests::query()
             ->where('type', 'leave')
             ->whereNotIn('status', ['cancelled', 'rejected'])
-            ->whereIn('user_id', $this->divisionUserIds())
+            ->whereIn('user_id', $userIds)
             ->whereHas('leaveDetails', fn ($q) => $q
                 ->where('start_date', '>=', $today)
                 ->orWhere(fn ($q2) => $q2->whereNotNull('end_date')->where('end_date', '>=', $today))
             )
             ->with(['user:id,name,nip,email', 'leaveDetails'])
-            ->get();
-
-        $data = $requests->flatMap(function (AttendanceRequests $req) use ($today) {
-            return $req->leaveDetails
+            ->get()
+            ->flatMap(fn (AttendanceRequests $req) => $req->leaveDetails
                 ->filter(fn ($d) => $d->start_date >= $today || ($d->end_date && $d->end_date >= $today))
                 ->map(fn ($d) => [
                     'user' => $this->userPayload($req->user),
@@ -57,34 +59,20 @@ class DivisionAttendanceController extends Controller
                     'end_date' => $this->dateStr($d->end_date),
                     'total_days' => $d->total_days,
                     'reason' => $req->reason,
-                ]);
-        })->values();
+                ]))
+            ->values();
 
-        return ApiResponseHelper::success($data, 'Rekap cuti divisi IT (hari ini dan seterusnya).');
-    }
-
-    /** GET /api/n8n/izin — izin (permission) yang sedang berjalan / akan datang, semua status kecuali batal & ditolak. */
-    public function izin(Request $request)
-    {
-        if ($resp = $this->guard($request)) {
-            return $resp;
-        }
-
-        $today = Carbon::today()->toDateString();
-
-        $requests = AttendanceRequests::query()
+        $permission = AttendanceRequests::query()
             ->where('type', 'permission')
             ->whereNotIn('status', ['cancelled', 'rejected'])
-            ->whereIn('user_id', $this->divisionUserIds())
+            ->whereIn('user_id', $userIds)
             ->whereHas('permissionDetails', fn ($q) => $q
                 ->where('date', '>=', $today)
                 ->orWhere(fn ($q2) => $q2->whereNotNull('end_date')->where('end_date', '>=', $today))
             )
             ->with(['user:id,name,nip,email', 'permissionDetails'])
-            ->get();
-
-        $data = $requests->flatMap(function (AttendanceRequests $req) use ($today) {
-            return $req->permissionDetails
+            ->get()
+            ->flatMap(fn (AttendanceRequests $req) => $req->permissionDetails
                 ->filter(fn ($d) => $d->date >= $today || ($d->end_date && $d->end_date >= $today))
                 ->map(fn ($d) => [
                     'user' => $this->userPayload($req->user),
@@ -97,10 +85,13 @@ class DivisionAttendanceController extends Controller
                     'end_time' => $d->end_time,
                     'purpose' => $d->purpose,
                     'reason' => $req->reason,
-                ]);
-        })->values();
+                ]))
+            ->values();
 
-        return ApiResponseHelper::success($data, 'Rekap izin divisi IT (hari ini dan seterusnya).');
+        return ApiResponseHelper::success(
+            ['cuti' => $leave, 'izin' => $permission],
+            'Rekap cuti & izin divisi IT (hari ini dan seterusnya).'
+        );
     }
 
     /**
