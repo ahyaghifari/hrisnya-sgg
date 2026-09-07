@@ -24,54 +24,47 @@
         </div>
     @endif
 
-    @if ($this->canStatistik)
-        @php $statistik = $this->statistik; @endphp
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin-bottom:20px;">
-            <div style="background:var(--surface);border-radius:16px;box-shadow:var(--shadow-card);padding:18px;">
-                <p style="font-size:13.5px;color:var(--text-muted);margin:0 0 8px;">Total Pengajuan</p>
-                <p style="font-size:32px;font-weight:800;color:var(--text-heading);margin:0;">{{ $statistik['total'] }}</p>
-            </div>
-            <div style="background:var(--surface);border-radius:16px;box-shadow:var(--shadow-card);padding:18px;">
-                <p style="font-size:13.5px;color:var(--text-muted);margin:0 0 8px;">⏳ Pending</p>
-                <p style="font-size:32px;font-weight:800;color:#d97706;margin:0;">{{ $statistik['pending'] }}</p>
-            </div>
-            <div style="background:var(--surface);border-radius:16px;box-shadow:var(--shadow-card);padding:18px;">
-                <p style="font-size:13.5px;color:var(--text-muted);margin:0 0 8px;">✅ Disetujui</p>
-                <p style="font-size:32px;font-weight:800;color:#15803d;margin:0;">{{ $statistik['approved'] }}</p>
-            </div>
-            <div style="background:var(--surface);border-radius:16px;box-shadow:var(--shadow-card);padding:18px;">
-                <p style="font-size:13.5px;color:var(--text-muted);margin:0 0 8px;">❌ Ditolak</p>
-                <p style="font-size:32px;font-weight:800;color:#dc2626;margin:0;">{{ $statistik['rejected'] }}</p>
-            </div>
-        </div>
-    @endif
+    {{-- Ringkasan padat: 1 strip, bukan 2 blok kartu tinggi. Baris atas = hasil akhir
+         (total + pending/disetujui/ditolak). Baris bawah = pipeline antrian per tahap, dibaca
+         kiri→kanan sesuai urutan proses Sikartap — kelihatan di tahap mana antrian menumpuk. --}}
+    @if ($this->canStatistik || $this->canAntrianTahap)
+        <style>
+            .sk-rail { background:var(--surface); border-radius:12px; box-shadow:var(--shadow-card); padding:12px 14px; margin-bottom:16px; }
+            .sk-rail-top { display:flex; align-items:baseline; flex-wrap:wrap; gap:6px 16px; }
+            .sk-rail-total { font-size:22px; font-weight:800; color:var(--text-heading); line-height:1; }
+            .sk-rail-total span { font-size:11px; font-weight:600; color:var(--text-faint); text-transform:uppercase; letter-spacing:.05em; margin-left:5px; }
+            .sk-rail-pills { display:flex; gap:6px; flex-wrap:wrap; }
+            .sk-pill { font-size:11.5px; font-weight:600; padding:3px 9px; border-radius:99px; background:var(--surface-alt,rgba(0,0,0,.04)); }
+            .sk-pipe { display:flex; margin-top:12px; overflow-x:auto; scrollbar-width:thin; border-top:1px solid var(--border-soft); padding-top:10px; }
+            .sk-stage { flex:1 0 auto; min-width:88px; text-align:center; padding:0 10px; position:relative; }
+            .sk-stage + .sk-stage::before { content:''; position:absolute; left:0; top:8px; width:1px; height:26px; background:var(--border-soft); }
+            .sk-stage-n { font-size:17px; font-weight:800; color:var(--text-heading); line-height:1; }
+            .sk-stage-l { font-size:10.5px; color:var(--text-muted); margin-top:4px; display:block; white-space:nowrap; }
+            @media (max-width:520px) { .sk-rail-total { font-size:19px; } .sk-stage { min-width:76px; } }
+        </style>
+        <div class="sk-rail">
+            @if ($this->canStatistik)
+                @php $statistik = $this->statistik; @endphp
+                <div class="sk-rail-top">
+                    <span class="sk-rail-total">{{ $statistik['total'] }}<span>pengajuan</span></span>
+                    <div class="sk-rail-pills">
+                        <span class="sk-pill" style="color:#d97706;">⏳ {{ $statistik['pending'] }} pending</span>
+                        <span class="sk-pill" style="color:#15803d;">✅ {{ $statistik['approved'] }} disetujui</span>
+                        <span class="sk-pill" style="color:#dc2626;">❌ {{ $statistik['rejected'] }} ditolak</span>
+                    </div>
+                </div>
+            @endif
 
-    @if ($this->canAntrianTahap)
-        @php $antrian = $this->antrianTahap; @endphp
-        <div style="background:var(--surface);border-radius:16px;box-shadow:var(--shadow-card);padding:20px;">
-            <p style="font-size:13px;font-weight:700;color:var(--text-heading);margin-bottom:14px;">📋 Antrian per Tahap</p>
-            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;">
-                <div style="text-align:center;padding:12px 8px;border-radius:12px;background:var(--surface-alt,rgba(0,0,0,.03));">
-                    <p style="font-size:26px;font-weight:800;color:var(--text-heading);margin:0;">{{ $antrian['tes'] }}</p>
-                    <p style="font-size:13px;color:var(--text-muted);margin:3px 0 0;">📝 Tes</p>
+            @if ($this->canAntrianTahap)
+                @php $antrian = $this->antrianTahap; @endphp
+                <div class="sk-pipe">
+                    <div class="sk-stage"><span class="sk-stage-n">{{ $antrian['tes'] }}</span><span class="sk-stage-l">📝 Tes</span></div>
+                    <div class="sk-stage"><span class="sk-stage-n">{{ $antrian['wawancara'] }}</span><span class="sk-stage-l">🎤 Wawancara</span></div>
+                    <div class="sk-stage"><span class="sk-stage-n">{{ $antrian['ide_inovasi'] }}</span><span class="sk-stage-l">💡 Ide Inovasi</span></div>
+                    <div class="sk-stage"><span class="sk-stage-n">{{ $antrian['mcu'] }}</span><span class="sk-stage-l">🏥 MCU</span></div>
+                    <div class="sk-stage"><span class="sk-stage-n">{{ $antrian['keputusan_direktur'] }}</span><span class="sk-stage-l">🏛️ Direktur</span></div>
                 </div>
-                <div style="text-align:center;padding:12px 8px;border-radius:12px;background:var(--surface-alt,rgba(0,0,0,.03));">
-                    <p style="font-size:26px;font-weight:800;color:var(--text-heading);margin:0;">{{ $antrian['wawancara'] }}</p>
-                    <p style="font-size:13px;color:var(--text-muted);margin:3px 0 0;">🎤 Wawancara</p>
-                </div>
-                <div style="text-align:center;padding:12px 8px;border-radius:12px;background:var(--surface-alt,rgba(0,0,0,.03));">
-                    <p style="font-size:26px;font-weight:800;color:var(--text-heading);margin:0;">{{ $antrian['ide_inovasi'] }}</p>
-                    <p style="font-size:13px;color:var(--text-muted);margin:3px 0 0;">💡 Ide Inovasi</p>
-                </div>
-                <div style="text-align:center;padding:12px 8px;border-radius:12px;background:var(--surface-alt,rgba(0,0,0,.03));">
-                    <p style="font-size:26px;font-weight:800;color:var(--text-heading);margin:0;">{{ $antrian['mcu'] }}</p>
-                    <p style="font-size:13px;color:var(--text-muted);margin:3px 0 0;">🏥 MCU</p>
-                </div>
-                <div style="text-align:center;padding:12px 8px;border-radius:12px;background:var(--surface-alt,rgba(0,0,0,.03));">
-                    <p style="font-size:26px;font-weight:800;color:var(--text-heading);margin:0;">{{ $antrian['keputusan_direktur'] }}</p>
-                    <p style="font-size:13px;color:var(--text-muted);margin:3px 0 0;">🏛️ Keputusan Direktur</p>
-                </div>
-            </div>
+            @endif
         </div>
     @endif
 
@@ -83,8 +76,6 @@
 
     @if ($this->canTabelPengajuan)
         <div id="tabel-pengajuan" style="margin-top:20px;">
-            <p style="font-size:13px;font-weight:700;color:var(--text-heading);margin-bottom:14px;">📄 Daftar Pengajuan</p>
-
             @if ($this->canViewSikartap)
                 <div class="mb-4" style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;">
                     <div style="min-width:220px;flex:1;">
