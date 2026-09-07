@@ -448,7 +448,7 @@ html.dark .dropdown-notif-item:hover, html.dark .dropdown-notif-footer:hover { b
 .pwa-app-bar-brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .pwa-app-bar-title { color: #fff; font-size: 15px; font-weight: 700; letter-spacing: -0.2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pwa-app-bar-actions { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
-.pwa-app-bar-bell { position: relative; width: 40px; height: 40px; border-radius: 11px; background: rgba(255,255,255,0.14); display: flex; align-items: center; justify-content: center; color: #fff; font-size: 16px; }
+.pwa-app-bar-bell { position: relative; width: 44px; height: 44px; border-radius: 12px; background: rgba(255,255,255,0.14); display: flex; align-items: center; justify-content: center; color: #fff; font-size: 17.5px; }
 .pwa-app-bar-dot { position: absolute; top: -5px; right: -6px; min-width: 16px; height: 16px; padding: 0 3px; background: #fb923c; border-radius: 8px; border: 1.5px solid #042c6c; color: #fff; font-size: 9.5px; font-weight: 700; line-height: 13px; text-align: center; box-sizing: border-box; }
 
 /* ── PWA MOBILE LIST / CAROUSEL PATTERNS ── */
@@ -1435,9 +1435,9 @@ html.dark .section-nav-tiles .section-nav-btn.gold-shiny i { color: #fcd34d; }
 /* Desktop: kembali ke pill horizontal - ikon di samping tulisan. */
 @media (min-width: 768px) {
     .section-nav.section-nav-tiles { display: flex; flex-wrap: wrap; justify-content: flex-start; gap: 8px; }
-    .section-nav-tiles .section-nav-btn { flex-direction: row; padding: 11px 18px; border-radius: 999px; gap: 9px; font-size: 12.5px; }
+    .section-nav-tiles .section-nav-btn { flex-direction: row; padding: 11px 18px; border-radius: 999px; gap: 5px; font-size: 14px; }
     .section-nav-tiles .section-nav-btn i { font-size: 17px; }
-    .section-nav-tiles .section-nav-btn img.section-nav-img { width: 28px; height: 24px; margin: 0 4px 0 0; }
+    .section-nav-tiles .section-nav-btn img.section-nav-img { width: 28px; height: 24px; margin: 0; }
     .section-nav-tiles .section-nav-btn span { line-height: 1.1; }
 }
 

@@ -312,6 +312,12 @@ class UserTransitionService
                 'end_date' => $endDate,
                 'status' => 'inactive',
             ]);
+
+            // Arsipkan akun: soft delete (deleted_at) sehingga tidak muncul di query User biasa
+            // & tidak bisa login. Riwayat (payroll/absensi/audit) tetap ada, dan masih bisa
+            // dipulihkan lewat restore() kalau PHK dibatalkan. is_active=false tetap diset di
+            // atas buat tampilan yang sengaja withTrashed().
+            $user->delete();
         }
     }
 }

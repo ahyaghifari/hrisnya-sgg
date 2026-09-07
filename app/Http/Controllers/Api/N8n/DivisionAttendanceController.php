@@ -27,8 +27,8 @@ class DivisionAttendanceController extends Controller
     private const IT_DIVISION_ID = '01kekzd6r6fngjh69c7kk03bbb';
 
     /**
-     * GET /api/n8n/offduty — cuti & izin divisi IT yang sedang berjalan / akan datang,
-     * semua status kecuali batal & ditolak. Data: { cuti: [...], izin: [...] }.
+     * GET /api/n8n/offduty — cuti & izin divisi IT yang sedang berjalan / akan datang, dibatasi
+     * sampai 1 bulan ke depan. Semua status kecuali batal & ditolak. Data: { cuti: [...], izin: [...] }.
      */
     public function offduty(Request $request)
     {
@@ -37,6 +37,7 @@ class DivisionAttendanceController extends Controller
         }
 
         $today = Carbon::today()->toDateString();
+        $until = Carbon::today()->addMonthNoOverflow()->toDateString();
         $userIds = $this->divisionUserIds();
 
         $leave = AttendanceRequests::query()
@@ -44,13 +45,17 @@ class DivisionAttendanceController extends Controller
             ->whereNotIn('status', ['cancelled', 'rejected'])
             ->whereIn('user_id', $userIds)
             ->whereHas('leaveDetails', fn ($q) => $q
-                ->where('start_date', '>=', $today)
-                ->orWhere(fn ($q2) => $q2->whereNotNull('end_date')->where('end_date', '>=', $today))
+                ->where('start_date', '<=', $until)
+                ->where(fn ($q2) => $q2
+                    ->where('end_date', '>=', $today)
+                    ->orWhere(fn ($q3) => $q3->whereNull('end_date')->where('start_date', '>=', $today))
+                )
             )
             ->with(['user:id,name,nip,email', 'leaveDetails'])
             ->get()
             ->flatMap(fn (AttendanceRequests $req) => $req->leaveDetails
-                ->filter(fn ($d) => $d->start_date >= $today || ($d->end_date && $d->end_date >= $today))
+                ->filter(fn ($d) => $d->start_date <= $until
+                    && ($d->start_date >= $today || ($d->end_date && $d->end_date >= $today)))
                 ->map(fn ($d) => [
                     'user' => $this->userPayload($req->user),
                     'status' => $req->status,
@@ -67,13 +72,17 @@ class DivisionAttendanceController extends Controller
             ->whereNotIn('status', ['cancelled', 'rejected'])
             ->whereIn('user_id', $userIds)
             ->whereHas('permissionDetails', fn ($q) => $q
-                ->where('date', '>=', $today)
-                ->orWhere(fn ($q2) => $q2->whereNotNull('end_date')->where('end_date', '>=', $today))
+                ->where('date', '<=', $until)
+                ->where(fn ($q2) => $q2
+                    ->where('date', '>=', $today)
+                    ->orWhere(fn ($q3) => $q3->whereNotNull('end_date')->where('end_date', '>=', $today))
+                )
             )
             ->with(['user:id,name,nip,email', 'permissionDetails'])
             ->get()
             ->flatMap(fn (AttendanceRequests $req) => $req->permissionDetails
-                ->filter(fn ($d) => $d->date >= $today || ($d->end_date && $d->end_date >= $today))
+                ->filter(fn ($d) => $d->date <= $until
+                    && ($d->date >= $today || ($d->end_date && $d->end_date >= $today)))
                 ->map(fn ($d) => [
                     'user' => $this->userPayload($req->user),
                     'status' => $req->status,
@@ -90,7 +99,7 @@ class DivisionAttendanceController extends Controller
 
         return ApiResponseHelper::success(
             ['cuti' => $leave, 'izin' => $permission],
-            'Rekap cuti & izin divisi IT (hari ini dan seterusnya).'
+            'Rekap cuti & izin divisi IT (hari ini s.d. 1 bulan ke depan).'
         );
     }
 
