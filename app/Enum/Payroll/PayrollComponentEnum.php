@@ -137,7 +137,7 @@ enum PayrollComponentEnum: string
             self::KETERLAMBATAN => ['keterlambatan_threshold_menit', 'keterlambatan_denda', 'keterlambatan_grace_count'],
             self::IZIN_TERLAMBAT_PULANG_CEPAT => ['izin_potongan_flat'],
             self::INSENTIF => ['insentif_metode'],
-            self::LEMBUR => ['lembur_minimum_jam'],
+            self::LEMBUR => ['lembur_minimum_jam', 'lembur_metode'],
             self::IZIN_SEHARIAN => ['izin_seharian_metode', 'izin_seharian_persen_gaji_pokok'],
             self::CUTI => ['cuti_melahirkan_metode'],
             self::BON => ['bon_metode'],

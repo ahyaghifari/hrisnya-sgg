@@ -14,6 +14,7 @@ use App\Models\Shift\ExtraShiftRule;
 use App\Models\Payroll\PangkatBpjsBasis;
 use App\Models\Payroll\PangkatLemburRate;
 use App\Models\Payroll\PangkatSalary;
+use App\Models\Setting;
 use App\Models\Payroll\LegacyPositionAllowance;
 use App\Models\Payroll\PositionAllowance;
 use App\Models\Payroll\TenureAllowance;
@@ -67,6 +68,9 @@ class MappingKomponenGajiPage extends Component
 
     /** @var array<string,string> pangkat_id => amount_per_hour (base rate rumus TL/TM) */
     public array $lemburRateValues = [];
+
+    /** Rate flat per jam untuk metode Lembur "flat_per_jam" (settings.lembur_rate_per_jam, company-scoped). */
+    public string $lemburFlatRatePerJam = '';
 
     public ?string $viewingAuditKey = null;
 
@@ -292,6 +296,8 @@ class MappingKomponenGajiPage extends Component
         $this->lemburRateValues = $this->pangkats
             ->mapWithKeys(fn (Pangkats $p) => [$p->id => (string) ($p->lemburRate?->amount_per_hour ?? '')])
             ->all();
+
+        $this->lemburFlatRatePerJam = (string) (Setting::resolve('lembur_rate_per_jam', $this->companyId, default: '') ?: '');
     }
 
     public function saveLemburRates(): void
@@ -300,7 +306,8 @@ class MappingKomponenGajiPage extends Component
 
         $this->validate([
             'lemburRateValues.*' => $this->nonNegativeAmountRule(),
-        ], [], ['lemburRateValues.*' => 'base rate lembur']);
+            'lemburFlatRatePerJam' => $this->nonNegativeAmountRule(),
+        ], [], ['lemburRateValues.*' => 'base rate lembur', 'lemburFlatRatePerJam' => 'rate lembur flat per jam']);
 
         foreach ($this->lemburRateValues as $pangkatId => $value) {
             if ($value === '' || $value === null) {
@@ -308,6 +315,22 @@ class MappingKomponenGajiPage extends Component
             }
 
             PangkatLemburRate::updateOrCreate(['pangkat_id' => $pangkatId], ['amount_per_hour' => $value]);
+        }
+
+        // Rate flat metode "flat_per_jam" — company-scoped, metadata (label/keterangan) diwarisi
+        // dari baris global seed. Audit tercatat otomatis lewat trait LogsAuditChanges di Setting.
+        if ($this->lemburFlatRatePerJam !== '') {
+            $template = Setting::where('key', 'lembur_rate_per_jam')->first();
+            Setting::updateOrCreate(
+                ['company_id' => $this->companyId, 'key' => 'lembur_rate_per_jam'],
+                [
+                    'module' => $template->module ?? 'payroll',
+                    'type' => $template->type ?? 'decimal',
+                    'label' => $template->label ?? 'Rate Lembur per Jam (metode Flat)',
+                    'description' => $template->description,
+                    'value' => $this->lemburFlatRatePerJam,
+                ]
+            );
         }
 
         $this->notifySaved();

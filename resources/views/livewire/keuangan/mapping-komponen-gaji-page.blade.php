@@ -262,7 +262,20 @@
                              dalam bulan × 7) × multiplier jam (2 jam → 3,5x, 3 jam → 5,5x, ≥4 jam
                              → 7,5x, mentok di 4 jam). Satu-satunya metode Lembur di sistem ini. --}}
                         @if ($activeComponent === 'lembur')
-                            <p style="font-size:11px;color:var(--text-muted);margin:0 0 12px;">Base rate lembur per pangkat. Dihitung per kejadian lembur: base rate ÷ (jumlah hari dalam bulan × 7) × multiplier jam. Pangkat yang belum diisi tidak akan menghasilkan Lembur.</p>
+                            {{-- Rate flat metode "flat_per_jam" (dipilih di Pengaturan Payroll > Lembur).
+                                 Rumus: (rate × jam bulat) + (rate/60 × sisa menit). --}}
+                            <div style="margin:0 0 16px;padding-bottom:14px;border-bottom:1px dashed var(--border);">
+                                <span style="font-size:12.5px;font-weight:600;display:flex;align-items:center;gap:6px;margin-bottom:4px;">
+                                    Rate Lembur per Jam (metode Flat)
+                                    <button type="button" wire:click="openAuditLog('lembur_rate_per_jam')" title="Riwayat" style="background:none;border:none;color:var(--text-faint);cursor:pointer;font-size:10px;padding:0;">
+                                        <i class="fa-solid fa-clock-rotate-left"></i>
+                                    </button>
+                                </span>
+                                <p style="font-size:11px;color:var(--text-muted);margin:0 0 8px;">Hanya dipakai kalau Metode Lembur = "Flat per Jam" (atur di Pengaturan Payroll). Nominal per jam, dihitung sampai menit.</p>
+                                <input type="number" step="0.01" class="form-input" style="max-width:220px;font-size:12.5px;padding:7px 10px;" wire:model="lemburFlatRatePerJam" placeholder="Rate per jam (Rp)">
+                                @error('lemburFlatRatePerJam') <p style="font-size:11px;color:#dc2626;margin:2px 0 0;">{{ $message }}</p> @enderror
+                            </div>
+                            <p style="font-size:11px;color:var(--text-muted);margin:0 0 12px;">Base rate lembur per pangkat (metode "Per Pangkat"). Dihitung per kejadian lembur: base rate ÷ (jumlah hari dalam bulan × 7) × multiplier jam. Pangkat yang belum diisi tidak akan menghasilkan Lembur.</p>
                             <div style="display:flex;flex-direction:column;gap:8px;">
                                 @foreach ($this->pangkats as $p)
                                     <div>
