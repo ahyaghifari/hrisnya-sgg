@@ -283,9 +283,9 @@
             <tr><td>Nama</td><td>: {{ $payroll->user->name }}</td></tr>
             <tr><td>Jabatan</td><td>: {{ ($meta['jabatan'] ?? null) ?: ($payroll->user->activeJobPosition->jobPosition->name ?? '-') }}</td></tr>
             @php $jeScore = $payroll->user->activeJobPosition?->jobPosition?->job_evaluation_score; @endphp
-            @unless (is_null($jeScore))
+            @if (! is_null($jeScore) && \App\Enum\Payroll\JobEvaluationSlipCompany::shows($payroll->payrollPeriod->company->code ?? null))
                 <tr><td>Nilai Job Evaluation (JE)</td><td>: {{ $jeScore }}</td></tr>
-            @endunless
+            @endif
             <tr><td>NIP</td><td>: {{ $payroll->user->nip ?? '-' }}</td></tr>
             <tr><td>Masa Kerja</td><td>: {{ $masaKerja }}</td></tr>
             <tr><td>Status Karyawan</td><td>: {{ ($meta['status_karyawan'] ?? null) ?: ($payroll->user->profile?->employeeType?->name ?? '-') }}</td></tr>

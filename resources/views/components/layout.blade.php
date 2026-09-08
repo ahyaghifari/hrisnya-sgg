@@ -36,10 +36,10 @@
         // tidak kehilangan akses sebelum gerbang baru di-assign. Link di dalam dropdown tetap
         // dicek granular masing-masing.
         'canAccessRekrutmen' => auth()->user()->can(\App\Enum\CustomPermissionEnum::SISTEM_REKRUTMEN->value)
-            || auth()->user()->can('ViewAny:JobOpenings')
-            || auth()->user()->canInputSikartapMcu()
-            || auth()->user()->can(\App\Enum\CustomPermissionEnum::EDIT_INPUT_MCU->value),
-        'canAccessSaranaPrasarana' => auth()->user()->can(\App\Enum\CustomPermissionEnum::SISTEM_SARANA_PRASARANA->value),
+            || auth()->user()->can('ViewAny:JobOpenings'),
+        // Modul MCU berdiri sendiri (dropdown "MCU") — staf klinis pengisi hasil MCU tak perlu
+        // lagi diberi SISTEM_SIKARTAP / SISTEM_REKRUTMEN. Lihat User::canAccessMcuModule().
+        'canAccessMcu' => auth()->user()->canAccessMcuModule(),
     ];
 @endphp
 <!DOCTYPE html>

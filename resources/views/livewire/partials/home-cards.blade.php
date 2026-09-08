@@ -283,7 +283,8 @@
         <livewire:presensi.team-shift-schedule-card :key="'team-shift-schedule'" />
     @endif
 
-    <div class="pwa-list" style="grid-column:1/-1;">
+    {{-- Desktop only — di mobile sudah ada di sheet "Menu Saya" bottom-nav. --}}
+    <div class="pwa-list hidden md:block" style="grid-column:1/-1;">
         <a href="{{ route('organization-structure') }}" wire:navigate class="pwa-list-row" style="text-decoration:none;">
             <i class="fa-solid fa-sitemap" style="width:16px;text-align:center;color:var(--brand);"></i>
             <span class="pwa-row-title" style="flex:1;">Struktur Organisasi</span>

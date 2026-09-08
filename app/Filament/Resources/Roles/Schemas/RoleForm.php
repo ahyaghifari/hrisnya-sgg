@@ -115,19 +115,10 @@ class RoleForm
             // admin 'Penilaian Karyawan' (navigationGroup 4 Assessment Resource) ke-merge jadi
             // 1 section sama container portal ini, lihat containerMerge().
             CustomPermissionEnum::SISTEM_PENILAIAN_KARYAWAN->value => [],
-            // Modul baru (2026-08-25), portal-only, tidak ada Filament Resource sama sekali
-            // (instruksi user: portal saja) - jadi TIDAK ada entry di containerMerge() (tidak
-            // ada container admin yang perlu dilebur). AJUKAN_SARANA_PRASARANA cuma di-assign
-            // ke role Unit; Kabid/Direktur cukup SISTEM_SARANA_PRASARANA doang buat bisa akses
-            // dropdown nav + halaman daftar/keputusan tanpa bisa mengajukan baru.
-            CustomPermissionEnum::SISTEM_SARANA_PRASARANA->value => [
-                CustomPermissionEnum::AJUKAN_SARANA_PRASARANA->value,
-            ],
-            // Gerbang dropdown nav "Sikartap" (2026-08-25) - tidak ada child custom permission,
-            // grup ini cuma pembungkus supaya container admin 'Sikartap' (navigationGroup
-            // SikartapResource, isinya subject "Pengajuan Karyawan Tetap" + "Input MCU", lihat
-            // subjectContainerOverrides() 'SikartapMcu') ke-merge jadi 1 section sama container
-            // portal ini - pola sama persis SISTEM_PENILAIAN_KARYAWAN di atas.
+            // Gerbang dropdown nav "Sikartap" (2026-08-25) - grup pembungkus supaya container
+            // admin 'Sikartap' (navigationGroup SikartapResource, subject "Pengajuan Karyawan
+            // Tetap") ke-merge jadi 1 section sama container portal ini - pola sama persis
+            // SISTEM_PENILAIAN_KARYAWAN di atas. (Input MCU pindah ke SISTEM_MCU, 2026-09-08.)
             CustomPermissionEnum::SISTEM_SIKARTAP->value => [
                 CustomPermissionEnum::LIHAT_PENGATURAN_SIKARTAP->value,
                 CustomPermissionEnum::EDIT_PENGATURAN_SIKARTAP->value,
@@ -136,10 +127,19 @@ class RoleForm
             ],
             // Gerbang nav group "Rekrutmen" (modul sendiri 2026-08-28). Tidak ada child custom
             // permission — pembungkus supaya container admin 'Rekrutmen' (navigationGroup
-            // JobOpeningResource, subject "Kelola Lowongan") + sub-grup "Input MCU"
-            // (subjectContainerOverrides 'SikartapMcu' => 'Rekrutmen') ke-merge jadi 1 section,
-            // pola sama SISTEM_SIKARTAP. Approve Manajemen Lowongan TETAP di grup "Approver".
+            // JobOpeningResource, subject "Kelola Lowongan") ke-merge jadi 1 section, pola sama
+            // SISTEM_SIKARTAP. Approve Manajemen Lowongan TETAP di grup "Approver".
             CustomPermissionEnum::SISTEM_REKRUTMEN->value => [],
+            // Modul MCU berdiri sendiri (2026-09-08) — 5 permission isi/edit hasil MCU pindah
+            // ke sini dari sub-grup "Input MCU" milik Rekrutmen. Staf klinis cukup diberi
+            // section ini, tak perlu SISTEM_SIKARTAP / SISTEM_REKRUTMEN.
+            CustomPermissionEnum::SISTEM_MCU->value => [
+                CustomPermissionEnum::INPUT_MCU_ASESMEN_PERAWAT->value,
+                CustomPermissionEnum::INPUT_MCU_LABORATORIUM->value,
+                CustomPermissionEnum::INPUT_MCU_RADIOLOGI->value,
+                CustomPermissionEnum::INPUT_MCU_PEMERIKSAAN_DOKTER->value,
+                CustomPermissionEnum::EDIT_INPUT_MCU->value,
+            ],
         ];
     }
 
@@ -212,16 +212,6 @@ class RoleForm
             // WidgetPermissionEnum::cases() supaya widget BARU ke depan otomatis masuk grup ini
             // tanpa perlu baris override manual lagi di sini.
             'DashboardWidget' => 'Dashboard Widget',
-            // 4 permission INPUT_MCU_* (custom, flat tanpa ':') dipetakan ke subject buatan
-            // 'SikartapMcu' lewat customPermissionSubjectOverrides() di bawah - tanpa override
-            // ini jatuh ke 'Lainnya'. Container UTAMA 'Rekrutmen' (2026-08-31, instruksi user:
-            // Antrian MCU rekrutmen pindah ke modul Rekrutmen) supaya nempel di root Sistem
-            // Rekrutmen, sub-grup "Input MCU" terpisah. MCU JUGA dipakai Sikartap (instruksi
-            // user 2026-09-05: admin yang atur akses lewat section Sikartap juga perlu lihat
-            // checkbox ini di situ, bukan cuma nyari-nyari di Rekrutmen) - lihat
-            // additionalMergeContainers() di bawah, sub-grup yang SAMA (bukan duplikat data,
-            // 1 permission fisik) ikut ditampilkan juga di section Sistem Sikartap.
-            'SikartapMcu' => 'Rekrutmen',
             // 3 permission LIHAT_DASHBOARD_SIKARTAP_* (2026-08-25) dipetakan ke subject buatan
             // 'SikartapDashboard' lewat customPermissionSubjectOverrides() di bawah - sub-grup
             // "Dashboard" nempel di root 'Sikartap' yang sama, pola persis 'SikartapMcu'.
@@ -238,21 +228,13 @@ class RoleForm
      * container utamanya dari subjectContainerOverrides() — dipakai kalau 1 permission memang
      * relevan buat 2 modul sekaligus (bukan bikin permission baru/duplikat, cuma tampilkan
      * checkbox yang SAMA di 2 tempat biar admin yang buka salah satu section tetap ketemu).
-     *
-     * SikartapMcu (instruksi user 2026-09-05): container utamanya 'Rekrutmen', tapi dipakai
-     * juga di modul Sikartap (canInputSikartapMcu() dicek di halaman/nav Sikartap) - admin yang
-     * atur akses lewat section "Sistem Sikartap" perlu lihat & centang checkbox ini juga tanpa
-     * harus tahu itu "sebenarnya" ada di section Rekrutmen. Fieldset yang di-render persis
-     * instance yang sama (bukan CheckboxList baru) - wire:model-nya ke field key yang sama,
-     * jadi tetap 1 sumber data, cuma ditampilkan 2 kali.
+     * Kosong sejak MCU jadi modul sendiri (2026-09-08).
      *
      * @return array<string, array<int, string>>
      */
     public static function additionalMergeContainers(): array
     {
-        return [
-            'SikartapMcu' => ['Sikartap'],
-        ];
+        return [];
     }
 
     /**
@@ -265,7 +247,6 @@ class RoleForm
     public static function subjectLabelOverrides(): array
     {
         return [
-            'SikartapMcu' => 'Input MCU',
             'SikartapDashboard' => 'Dashboard',
             'JobOpenings' => 'Kelola Lowongan',
         ];
@@ -287,11 +268,6 @@ class RoleForm
         return [
             CustomPermissionEnum::JADWAL_SHIFT_SAYA->value => 'ShiftSwapRequests',
             CustomPermissionEnum::TUKAR_SHIFT_SAYA->value => 'ShiftSwapRequests',
-            CustomPermissionEnum::INPUT_MCU_ASESMEN_PERAWAT->value => 'SikartapMcu',
-            CustomPermissionEnum::INPUT_MCU_LABORATORIUM->value => 'SikartapMcu',
-            CustomPermissionEnum::INPUT_MCU_RADIOLOGI->value => 'SikartapMcu',
-            CustomPermissionEnum::INPUT_MCU_PEMERIKSAAN_DOKTER->value => 'SikartapMcu',
-            CustomPermissionEnum::EDIT_INPUT_MCU->value => 'SikartapMcu',
             CustomPermissionEnum::LIHAT_DASHBOARD_SIKARTAP_STATISTIK->value => 'SikartapDashboard',
             CustomPermissionEnum::LIHAT_DASHBOARD_SIKARTAP_ANTRIAN_TAHAP->value => 'SikartapDashboard',
             // Semua permission WidgetPermissionEnum otomatis ikut subject 'DashboardWidget'
@@ -385,7 +361,43 @@ class RoleForm
             ?? explode(':', $permissionName)[1]
             ?? 'Lainnya';
 
+        // Kalau container subject ini (navigationGroup Resource / subjectContainerOverrides)
+        // dilebur ke section portal SISTEM_* lewat containerMerge(), field key-nya IKUT section
+        // portal itu — bukan per-subject sendiri. Kalau tidak, checkbox prefill di EditRole
+        // kosong walau role sudah punya permission-nya (field key beda antara render & prefill).
+        $container = self::containerForSubject($subject);
+        if ($container !== null && ($coarse = self::containerMerge()[$container] ?? null)) {
+            return 'portal_' . Str::snake($coarse) . '_has_permissions';
+        }
+
         return Str::snake($subject) . '_has_permissions';
+    }
+
+    /** Container (navigationGroup) sebuah subject: dari subjectContainerOverrides() dulu, lalu
+     * scan Resource panel admin yang memakai model senama. Null kalau tidak ketemu / tak bergrup. */
+    private static function containerForSubject(string $subject): ?string
+    {
+        if (isset(self::subjectContainerOverrides()[$subject])) {
+            return self::subjectContainerOverrides()[$subject];
+        }
+
+        foreach (Filament::getPanel('admin')->getResources() as $resourceFqcn) {
+            if (! method_exists($resourceFqcn, 'getModel') || class_basename($resourceFqcn::getModel()) !== $subject) {
+                continue;
+            }
+
+            $group = $resourceFqcn::getNavigationGroup();
+
+            if ($group === null) {
+                return null;
+            }
+
+            return $group instanceof UnitEnum
+                ? (method_exists($group, 'getLabel') ? $group->getLabel() : $group->name)
+                : $group;
+        }
+
+        return null;
     }
 
     public static function configure(Schema $schema): Schema

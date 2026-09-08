@@ -10,8 +10,9 @@ use Tests\TestCase;
 
 /**
  * Rekrutmen = modul sendiri (2026-08-31) — di tree /hak-akses jadi root "Sistem Rekrutmen"
- * berisi gerbang SISTEM_REKRUTMEN + subject "Kelola Lowongan" (Verb:JobOpenings) + sub-grup
- * "Input MCU" (INPUT_MCU_*), BUKAN lagi nyempil di "Sistem Kepegawaian" / "Sistem Sikartap".
+ * berisi gerbang SISTEM_REKRUTMEN + subject "Kelola Lowongan" (Verb:JobOpenings).
+ * INPUT_MCU_* pindah ke root "Sistem MCU" sendiri (2026-09-08), BUKAN lagi sub-grup Rekrutmen
+ * maupun nyempil di "Sistem Kepegawaian" / "Sistem Sikartap".
  */
 class RekrutmenPermissionGroupingTest extends TestCase
 {
@@ -23,6 +24,7 @@ class RekrutmenPermissionGroupingTest extends TestCase
 
         foreach ([
             CustomPermissionEnum::SISTEM_REKRUTMEN->value,
+            CustomPermissionEnum::SISTEM_MCU->value,
             CustomPermissionEnum::SISTEM_SIKARTAP->value,
             CustomPermissionEnum::SISTEM_KEPEGAWAIAN->value,
             CustomPermissionEnum::INPUT_MCU_ASESMEN_PERAWAT->value,
@@ -36,7 +38,7 @@ class RekrutmenPermissionGroupingTest extends TestCase
         }
     }
 
-    public function test_sistem_rekrutmen_root_holds_lowongan_and_mcu(): void
+    public function test_sistem_rekrutmen_root_holds_lowongan_only(): void
     {
         $roots = PermissionTreeBuilder::build();
 
@@ -48,30 +50,44 @@ class RekrutmenPermissionGroupingTest extends TestCase
         $this->assertContains(CustomPermissionEnum::SISTEM_REKRUTMEN->value, $leafIds);
         $this->assertContains('ViewAny:JobOpenings', $leafIds);
         $this->assertContains('Update:JobOpenings', $leafIds);
-        $this->assertContains(CustomPermissionEnum::INPUT_MCU_ASESMEN_PERAWAT->value, $leafIds);
-        $this->assertContains(CustomPermissionEnum::EDIT_INPUT_MCU->value, $leafIds);
+        $this->assertNotContains(CustomPermissionEnum::INPUT_MCU_ASESMEN_PERAWAT->value, $leafIds);
+        $this->assertNotContains(CustomPermissionEnum::EDIT_INPUT_MCU->value, $leafIds);
 
-        // "Kelola Lowongan" sebagai label subject node.
-        $subjectLabels = collect($rekrutmen['children'])->pluck('label');
-        $this->assertTrue($subjectLabels->contains('Kelola Lowongan'));
-        $this->assertTrue($subjectLabels->contains('Input MCU'));
+        $this->assertTrue(collect($rekrutmen['children'])->pluck('label')->contains('Kelola Lowongan'));
     }
 
-    public function test_job_openings_and_mcu_left_kepegawaian_and_sikartap(): void
+    public function test_sistem_mcu_root_holds_input_mcu_permissions(): void
     {
         $roots = PermissionTreeBuilder::build();
+
+        $mcu = collect($roots)->firstWhere('label', 'Sistem MCU');
+        $this->assertNotNull($mcu, 'Root "Sistem MCU" tidak ditemukan.');
+
+        $leafIds = PermissionTreeBuilder::leafIds($mcu);
+
+        $this->assertContains(CustomPermissionEnum::SISTEM_MCU->value, $leafIds);
+        $this->assertContains(CustomPermissionEnum::INPUT_MCU_ASESMEN_PERAWAT->value, $leafIds);
+        $this->assertContains(CustomPermissionEnum::EDIT_INPUT_MCU->value, $leafIds);
+    }
+
+    public function test_mcu_left_rekrutmen_kepegawaian_and_sikartap(): void
+    {
+        $roots = PermissionTreeBuilder::build();
+
+        foreach (['Sistem Rekrutmen', 'Sistem Kepegawaian', 'Sistem Sikartap'] as $label) {
+            $root = collect($roots)->firstWhere('label', $label);
+            if ($root) {
+                $this->assertNotContains(
+                    CustomPermissionEnum::INPUT_MCU_ASESMEN_PERAWAT->value,
+                    PermissionTreeBuilder::leafIds($root),
+                    "MCU tidak boleh nyempil di \"{$label}\"."
+                );
+            }
+        }
 
         $kepegawaian = collect($roots)->firstWhere('label', 'Sistem Kepegawaian');
         if ($kepegawaian) {
             $this->assertNotContains('ViewAny:JobOpenings', PermissionTreeBuilder::leafIds($kepegawaian));
-        }
-
-        $sikartap = collect($roots)->firstWhere('label', 'Sistem Sikartap');
-        if ($sikartap) {
-            $this->assertNotContains(
-                CustomPermissionEnum::INPUT_MCU_ASESMEN_PERAWAT->value,
-                PermissionTreeBuilder::leafIds($sikartap)
-            );
         }
     }
 }

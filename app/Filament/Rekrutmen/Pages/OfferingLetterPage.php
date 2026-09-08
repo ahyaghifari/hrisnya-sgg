@@ -3,7 +3,6 @@
 namespace App\Filament\Rekrutmen\Pages;
 
 use App\Models\Rekrutmen\ApplicationNotification;
-use App\Models\Rekrutmen\Company;
 use App\Models\Rekrutmen\CompanyMessageTemplate;
 use App\Models\Rekrutmen\JobApplication;
 use App\Models\Rekrutmen\JobOpening;
@@ -36,6 +35,8 @@ use UnitEnum;
  */
 class OfferingLetterPage extends Page implements HasActions, HasForms, HasTable
 {
+    use \App\Filament\Rekrutmen\Concerns\PipelineTabs;
+    use \App\Filament\Rekrutmen\Concerns\ScopedToCompany;
     use InteractsWithActions, InteractsWithForms, InteractsWithTable;
 
     protected string $view = 'filament.rekrutmen.pages.offering-letter-page';
@@ -50,8 +51,6 @@ class OfferingLetterPage extends Page implements HasActions, HasForms, HasTable
 
     protected static ?int $navigationSort = 3;
 
-    public ?string $companyId = null;
-    public ?string $jobOpeningId = null;
 
     public static function canAccess(): bool
     {
@@ -76,11 +75,6 @@ class OfferingLetterPage extends Page implements HasActions, HasForms, HasTable
     public function updatedJobOpeningId(): void
     {
         $this->resetTable();
-    }
-
-    public function getCompanies(): \Illuminate\Support\Collection
-    {
-        return Company::orderBy('name')->get(['id', 'name']);
     }
 
     public function getJobOpenings(): \Illuminate\Support\Collection

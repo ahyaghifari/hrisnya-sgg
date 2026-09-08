@@ -38,10 +38,12 @@ use UnitEnum;
  * Cuma perusahaan `requires_mcu`. Jadwal draft -> terapkan (status `mcu` + email undangan
  * auto-kirim), putuskan fit/unfit (fit -> `onboarding` + email auto; unfit -> `rejected` +
  * draft notif, kirim lewat aksi bulk "Kirim Email Pemberitahuan"). Input 4 stasiun ada di
- * McuStationPage.
+ * modul portal MCU (App\Livewire\Rekrutmen\Mcu\*, route rekrutmen.mcu.*).
  */
 class McuPage extends Page implements HasActions, HasForms, HasTable
 {
+    use \App\Filament\Rekrutmen\Concerns\PipelineTabs;
+    use \App\Filament\Rekrutmen\Concerns\ScopedToCompany;
     use \App\Filament\Rekrutmen\Concerns\SendsApplicantNotifications;
     use InteractsWithActions, InteractsWithForms, InteractsWithTable;
 
@@ -57,8 +59,6 @@ class McuPage extends Page implements HasActions, HasForms, HasTable
 
     protected static ?int $navigationSort = 4;
 
-    public ?string $companyId = null;
-    public ?string $jobOpeningId = null;
 
     public static function canAccess(): bool
     {
@@ -85,9 +85,9 @@ class McuPage extends Page implements HasActions, HasForms, HasTable
         $this->resetTable();
     }
 
-    public function getCompanies(): \Illuminate\Support\Collection
+    protected function companiesQuery(): \Illuminate\Database\Eloquent\Builder
     {
-        return Company::where('requires_mcu', true)->orderBy('name')->get(['id', 'name']);
+        return Company::query()->where('requires_mcu', true)->orderBy('name');
     }
 
     public function getJobOpenings(): \Illuminate\Support\Collection

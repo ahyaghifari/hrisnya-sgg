@@ -13,7 +13,6 @@ use App\Models\Job\ManpowerRequests;
 use App\Models\LMS\LmsCourseUsers;
 use App\Models\LMS\TrainingRequests;
 use App\Models\Master\JobPositions;
-use App\Models\Sarpras\SarprasRequest;
 use App\Models\Shift\ShiftSwapRequests;
 use App\Models\Sikartap\Sikartap;
 use App\Models\User;
@@ -446,45 +445,6 @@ class PendingApprovalsCard extends Component
             }
         }
 
-        // Sarana & Prasarana - flat 1 baris per permohonan (beda dari Sikartap yang dikelompokkan
-        // per pengaju, di sini 1 pengaju biasanya cuma 1 permohonan aktif dalam antrean, tidak
-        // ada skenario "1 pengaju sekaligus banyak" seperti pengangkatan massal karyawan tetap).
-        // bulk_supported=false - keputusan Direktur di sini per ITEM (approve/reject/pangkas
-        // jumlah tiap baris), bukan approve/reject 1 tombol buat seluruh dokumen kayak modul
-        // lain, jadi tidak ada 1 nilai default yang aman dipukul rata lewat approveOne().
-        $sarprasRequests = collect();
-        // Sarana & Prasarana DILEPAS dari portal HRIS (2026-09-04, "sistem terpisah") -
-        // routes/sarana-prasarana.php tidak lagi di-require, route('sarana-prasarana.show')
-        // di bawah bakal RouteNotFoundException kalau blok ini jalan. Dipaksa false (bukan
-        // dihapus) - kalau masih ada baris pending approval SARPRAS_REQUEST lama di DB,
-        // ini yang mencegah Dashboard/PendingApprovalsCard crash gara-gara itu.
-        if (false && $this->wants('sarana_prasarana')) {
-            $sarprasIds = $permissionService
-                ->pendingApprovalsFor(Auth::user(), ApprovalModuleEnum::SARPRAS_REQUEST->value)
-                ->pluck('snapshot.module_id')->filter()->values();
-
-            $sarprasRequests = SarprasRequest::with('user')
-                ->whereIn('id', $sarprasIds)
-                ->whereHas('user')
-                ->get()
-                ->map(fn ($request) => (object) [
-                    'id' => $request->id,
-                    'dispatch' => 'sarpras_request',
-                    'bulk_supported' => false,
-                    'module' => 'sarana_prasarana',
-                    'badge' => 'blue',
-                    'label' => 'Sarana & Prasarana',
-                    'icon' => 'fa-toolbox',
-                    'tile' => 'neutral',
-                    'keterangan' => $request->unit . ' - ' . $request->perihal,
-                    'user_name' => $request->user->name,
-                    'created_at' => $request->created_at,
-                    'url' => route('sarana-prasarana.show', $request),
-                    'modal' => false,
-                    'external' => false,
-                ]);
-        }
-
         // Penilaian Orientasi - 1 baris per pengajuan. bulk_supported=false: penilai mengisi
         // form skor + keputusan di halaman detail, tidak ada "approve 1 tombol". TIDAK lewat
         // Approval Engine (2026-09-06) - penilai di-resolve dari sikartap_reviewers.
@@ -542,7 +502,7 @@ class PendingApprovalsCard extends Component
                 ]);
         }
 
-        $requests = $attendanceRequests->concat($transitions)->concat($courseEnrollments)->concat($trainingRequests)->concat($jabatanKuota)->concat($manpowerRequests)->concat($shiftSwapRequests)->concat($sikartapRequests)->concat($sarprasRequests)->concat($orientationRequests)->concat($contractRequests)->sortByDesc('created_at')->values();
+        $requests = $attendanceRequests->concat($transitions)->concat($courseEnrollments)->concat($trainingRequests)->concat($jabatanKuota)->concat($manpowerRequests)->concat($shiftSwapRequests)->concat($sikartapRequests)->concat($orientationRequests)->concat($contractRequests)->sortByDesc('created_at')->values();
 
         foreach ($requests as $request) {
             $request->key = $request->dispatch . ':' . $request->id;

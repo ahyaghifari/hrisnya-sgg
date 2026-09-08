@@ -4,16 +4,13 @@ namespace App\Livewire\Sikartap;
 
 use App\Enum\CustomPermissionEnum;
 use App\Enum\Sikartap\SikartapDocumentType;
+use App\Livewire\Sikartap\Concerns\ManagesSikartapTesWawancara;
 use App\Models\Sikartap\Sikartap;
 use App\Models\Sikartap\SikartapDocumentAttachment;
 use App\Notifications\Sikartap\SikartapBerkasStatusChanged;
 use App\Notifications\Sikartap\SikartapDocumentRejected;
 use App\Notifications\Sikartap\SikartapHasilMcu;
-use App\Notifications\Sikartap\SikartapHasilTes;
-use App\Notifications\Sikartap\SikartapHasilWawancara;
 use App\Notifications\Sikartap\SikartapIdeInovasiDireview;
-use App\Notifications\Sikartap\SikartapJadwalTesDitetapkan;
-use App\Notifications\Sikartap\SikartapJadwalWawancaraDitetapkan;
 use App\Services\Sikartap\SikartapDirectorDecisionService;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\Auth;
@@ -31,6 +28,8 @@ use Livewire\Component;
 #[Layout('components.layout', ['title' => 'Detail Pengajuan'])]
 class PengajuanDetailPage extends Component
 {
+    use ManagesSikartapTesWawancara;
+
     public Sikartap $sikartap;
 
     public ?string $activePanel = null;
@@ -42,13 +41,7 @@ class PengajuanDetailPage extends Component
     // Tolak pengajuan (berkas)
     public string $applicationRejectNote = '';
 
-    // Jadwal & hasil tes
-    public array $testScheduleForm = ['tanggal_tes' => null, 'waktu_tes' => null, 'tempat_tes' => null, 'keterangan' => null];
-    public array $testResultForm = ['nilai_tes' => null, 'nilai_psikotes' => null, 'status_tes' => null, 'catatan_tes' => null];
-
-    // Jadwal & hasil wawancara
-    public array $interviewScheduleForm = ['tanggal_wawancara' => null, 'waktu_wawancara' => null, 'tempat_wawancara' => null, 'pewawancara' => null, 'pewawancara_2' => null, 'keterangan' => null];
-    public array $interviewResultForm = ['status_wawancara' => null, 'catatan_wawancara' => null];
+    // Jadwal & hasil Tes/Wawancara: ManagesSikartapTesWawancara
 
     // Keputusan MCU
     public array $mcuDecisionForm = ['status_mcu' => null, 'catatan_mcu' => null];
@@ -220,91 +213,17 @@ class PengajuanDetailPage extends Component
         Notification::make()->title('Pengajuan ditolak')->success()->send();
     }
 
-    // ── Tes ─────────────────────────────────────────────────────────────
+    // ── Tes & Wawancara: jadwal + hasil di ManagesSikartapTesWawancara ──
 
-    public function saveTestSchedule(): void
+    /** Record tunggal yang disunting panel jadwal/hasil di halaman detail ini. */
+    protected function sikartapContext(): Sikartap
     {
-        abort_unless($this->canUpdate && $this->sikartap->status_berkas === 'approved', 403);
-
-        $this->validate([
-            'testScheduleForm.tanggal_tes' => ['required', 'date'],
-            'testScheduleForm.waktu_tes' => ['required'],
-            'testScheduleForm.tempat_tes' => ['required', 'string'],
-        ]);
-
-        $this->sikartap->testSchedule()->updateOrCreate(['sikartap_id' => $this->sikartap->id], $this->testScheduleForm);
-
-        $this->sikartap->user?->notify(new SikartapJadwalTesDitetapkan(
-            $this->sikartap->id, $this->testScheduleForm['tanggal_tes'], $this->testScheduleForm['tempat_tes']
-        ));
-
-        $this->closePanel();
-        $this->refreshRecord();
-
-        Notification::make()->title('Jadwal tes disimpan')->success()->send();
+        return $this->sikartap;
     }
 
-    public function saveTestResult(): void
+    protected function afterSikartapSave(): void
     {
-        abort_unless($this->canUpdate && $this->sikartap->testSchedule !== null, 403);
-
-        $this->validate([
-            'testResultForm.nilai_tes' => ['required', 'numeric'],
-            'testResultForm.nilai_psikotes' => ['required', 'numeric'],
-            'testResultForm.status_tes' => ['required', 'in:lulus,tidak_lulus'],
-        ]);
-
-        $this->sikartap->update($this->testResultForm);
-
-        $this->sikartap->user?->notify(new SikartapHasilTes($this->sikartap->id, $this->testResultForm['status_tes']));
-
-        $this->closePanel();
         $this->refreshRecord();
-
-        Notification::make()->title('Hasil tes disimpan')->success()->send();
-    }
-
-    // ── Wawancara ───────────────────────────────────────────────────────
-
-    public function saveInterviewSchedule(): void
-    {
-        abort_unless($this->canUpdate && $this->sikartap->status_tes === 'lulus', 403);
-
-        $this->validate([
-            'interviewScheduleForm.tanggal_wawancara' => ['required', 'date'],
-            'interviewScheduleForm.waktu_wawancara' => ['required'],
-            'interviewScheduleForm.tempat_wawancara' => ['required', 'string'],
-            'interviewScheduleForm.pewawancara' => ['required', 'string'],
-        ]);
-
-        $this->sikartap->interviewSchedule()->updateOrCreate(['sikartap_id' => $this->sikartap->id], $this->interviewScheduleForm);
-
-        $this->sikartap->user?->notify(new SikartapJadwalWawancaraDitetapkan(
-            $this->sikartap->id, $this->interviewScheduleForm['tanggal_wawancara'], $this->interviewScheduleForm['tempat_wawancara']
-        ));
-
-        $this->closePanel();
-        $this->refreshRecord();
-
-        Notification::make()->title('Jadwal wawancara disimpan')->success()->send();
-    }
-
-    public function saveInterviewResult(): void
-    {
-        abort_unless($this->canUpdate && $this->sikartap->interviewSchedule !== null, 403);
-
-        $this->validate([
-            'interviewResultForm.status_wawancara' => ['required', 'in:disarankan,tidak_disarankan'],
-        ]);
-
-        $this->sikartap->update($this->interviewResultForm);
-
-        $this->sikartap->user?->notify(new SikartapHasilWawancara($this->sikartap->id, $this->interviewResultForm['status_wawancara']));
-
-        $this->closePanel();
-        $this->refreshRecord();
-
-        Notification::make()->title('Hasil wawancara disimpan')->success()->send();
     }
 
     // ── MCU ─────────────────────────────────────────────────────────────

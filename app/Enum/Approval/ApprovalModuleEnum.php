@@ -14,7 +14,6 @@ enum ApprovalModuleEnum: string
     case EMPLOYEE_REPLACEMENT_REQUEST = 'employee_replacement_request';
     case ADDITIONAL_QUOTA_REQUEST = 'additional_quota_request';
     case TRAINING_REQUEST = 'training_request';
-    case SARPRAS_REQUEST = 'sarpras_request';
 
     /** Label deskriptif — dropdown & kolom "Modul" di /admin/approval-flows. */
     public function label(): string
@@ -30,7 +29,6 @@ enum ApprovalModuleEnum: string
             self::EMPLOYEE_REPLACEMENT_REQUEST => 'Permintaan Penggantian Karyawan',
             self::ADDITIONAL_QUOTA_REQUEST => 'Permintaan Penambahan Kuota',
             self::TRAINING_REQUEST => 'Pengajuan Pelatihan',
-            self::SARPRAS_REQUEST => 'Permohonan Sarana & Prasarana',
         };
     }
 
@@ -48,7 +46,6 @@ enum ApprovalModuleEnum: string
             self::EMPLOYEE_REPLACEMENT_REQUEST => 'Pengajuan penggantian karyawan',
             self::ADDITIONAL_QUOTA_REQUEST => 'Pengajuan penambahan kuota',
             self::TRAINING_REQUEST => 'Pengajuan pelatihan',
-            self::SARPRAS_REQUEST => 'Pengajuan sarana & prasarana',
         };
     }
 

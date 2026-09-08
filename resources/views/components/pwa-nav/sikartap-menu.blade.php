@@ -1,7 +1,5 @@
 @php
     $canViewSikartap = auth()->user()->can('ViewAny:Sikartap');
-    $canInputMcu = auth()->user()->canInputSikartapMcu()
-        || auth()->user()->can(\App\Enum\CustomPermissionEnum::EDIT_INPUT_MCU->value);
     $canViewPengaturan = auth()->user()->can(\App\Enum\CustomPermissionEnum::LIHAT_PENGATURAN_SIKARTAP->value);
     $canViewOrientasi = auth()->user()->can('ViewAny:OrientationSubmission');
     $canViewPerpanjanganKontrak = auth()->user()->can('ViewAny:ContractSubmission');
@@ -28,9 +26,13 @@
 </a>
 @endif
 @if ($canViewSikartap)
-    <a href="{{ route('sikartap.jadwal') }}" wire:navigate class="pwa-menu-grid-item">
-        <span class="pwa-menu-grid-icon violet"><i class="fa-solid fa-calendar-days"></i></span>
-        <span class="pwa-menu-grid-label">Jadwal Tes &amp; Wawancara</span>
+    <a href="{{ route('sikartap.tes') }}" wire:navigate class="pwa-menu-grid-item">
+        <span class="pwa-menu-grid-icon violet"><i class="fa-solid fa-pen-ruler"></i></span>
+        <span class="pwa-menu-grid-label">Tes</span>
+    </a>
+    <a href="{{ route('sikartap.wawancara') }}" wire:navigate class="pwa-menu-grid-item">
+        <span class="pwa-menu-grid-icon violet"><i class="fa-solid fa-comments"></i></span>
+        <span class="pwa-menu-grid-label">Wawancara</span>
     </a>
 @endif
 @if ($hasSikartap)
@@ -38,12 +40,6 @@
     <span class="pwa-menu-grid-icon violet"><i class="fa-solid fa-lightbulb"></i></span>
     <span class="pwa-menu-grid-label">Ide Inovasi</span>
 </a>
-@endif
-@if ($canInputMcu)
-    <a href="{{ route('sikartap.mcu.queue') }}" wire:navigate class="pwa-menu-grid-item">
-        <span class="pwa-menu-grid-icon violet"><i class="fa-solid fa-stethoscope"></i></span>
-        <span class="pwa-menu-grid-label">Antrian MCU</span>
-    </a>
 @endif
 @if ($canViewPengaturan)
     <a href="{{ route('sikartap.pengaturan') }}" wire:navigate class="pwa-menu-grid-item">

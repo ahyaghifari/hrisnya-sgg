@@ -25,12 +25,6 @@ enum CustomPermissionEnum: string
      * ke role yang bukan pemegang akses penuh modul terkait). */
     case SISTEM_APPROVAL = 'sistem_approval';
 
-    /** Gerbang dropdown nav "Sarana & Prasarana" (modul baru hasil migrasi dari
-     * another-app/sarpras) — sama pola SISTEM_ABSENSI/SISTEM_KEUANGAN dkk: gerbang broad "boleh
-     * akses modul ini sama sekali" (Unit pemohon, Kabid, Direktur semua butuh ini), BUKAN gerbang
-     * "boleh mengajukan" (itu AJUKAN_SARANA_PRASARANA terpisah, cuma di-assign ke role Unit). */
-    case SISTEM_SARANA_PRASARANA = 'sistem_sarana_prasarana';
-
     /** Gerbang dropdown nav "Sikartap" (row 2) — sama pola SISTEM_ABSENSI/SISTEM_KEUANGAN dkk:
      * gerbang broad "boleh akses modul ini sama sekali" (HRD/Direktur/staff klinis MCU semua
      * butuh ini dulu sebelum link di dalam dropdown dicek granular masing-masing:
@@ -45,6 +39,12 @@ enum CustomPermissionEnum: string
      * buat Antrian MCU rekrutmen). Container admin 'Rekrutmen' dilebur ke gerbang ini lewat
      * RoleForm::containerMerge(). */
     case SISTEM_REKRUTMEN = 'sistem_rekrutmen';
+
+    /** Gerbang modul "MCU" berdiri sendiri — staf klinis (perawat/lab/radiologi/dokter) yang
+     * cuma bertugas mengisi hasil MCU tidak perlu lagi diberi SISTEM_SIKARTAP / SISTEM_REKRUTMEN
+     * (yang membuka seluruh modul itu). Link di dalamnya tetap dicek granular per stasiun lewat
+     * INPUT_MCU_* / EDIT_INPUT_MCU. */
+    case SISTEM_MCU = 'sistem_mcu';
 
     case TUGAS_SAYA = 'tugas_saya';
     case PELATIHAN_SAYA = 'pelatihan_saya';
@@ -299,13 +299,6 @@ enum CustomPermissionEnum: string
      * karena "yang boleh koreksi" itu peran pengawasan, bukan peran pengisi data. */
     case EDIT_INPUT_MCU = 'edit_input_mcu';
 
-    /** Gerbang portal buat Unit mengajukan permohonan Sarana & Prasarana (perbaikan/pengadaan)
-     * — modul baru hasil migrasi dari `another-app/sarpras`. Step approval-nya sendiri (Kabid
-     * meneruskan, Direktur memutuskan per item) lewat Approval Engine (lihat
-     * ApprovalModuleEnum::SARPRAS_REQUEST), bukan digerbangi permission ini — ini cuma gerbang
-     * "boleh buka form ajukan". */
-    case AJUKAN_SARANA_PRASARANA = 'ajukan_sarana_prasarana';
-
     public function label(): string
     {
         return match
@@ -317,9 +310,9 @@ enum CustomPermissionEnum: string
             self::SISTEM_PEMBINAAN_KARYAWAN => 'Sistem Pembinaan Karyawan',
             self::SISTEM_PENILAIAN_KARYAWAN => 'Sistem Penilaian Karyawan',
             self::SISTEM_APPROVAL => 'Approver',
-            self::SISTEM_SARANA_PRASARANA => 'Sistem Sarana Prasarana',
             self::SISTEM_SIKARTAP => 'Sistem Sikartap',
             self::SISTEM_REKRUTMEN => 'Sistem Rekrutmen',
+            self::SISTEM_MCU => 'Sistem MCU',
             self::TUGAS_SAYA => 'Tugas Saya',
             self::PELATIHAN_SAYA => 'Pelatihan Saya',
             self::AJUKAN_PELATIHAN => 'Ajukan Pelatihan (Eksternal)',
@@ -390,7 +383,6 @@ enum CustomPermissionEnum: string
             self::INPUT_MCU_RADIOLOGI => 'Input MCU - Hasil Radiologi',
             self::INPUT_MCU_PEMERIKSAAN_DOKTER => 'Input MCU - Pemeriksaan Dokter',
             self::EDIT_INPUT_MCU => 'Edit Ulang Hasil MCU (Sudah Diisi)',
-            self::AJUKAN_SARANA_PRASARANA => 'Ajukan Sarana & Prasarana',
         };
     }
 }

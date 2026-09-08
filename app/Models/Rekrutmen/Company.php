@@ -25,6 +25,18 @@ class Company extends Model
         return $query->where('is_active', true);
     }
 
+    /** Id perusahaan rekrutmen milik sebuah company HRIS (dipetakan m_companies.code == hris_code). */
+    public static function idForHrisCompany(?string $hrisCompanyId): ?string
+    {
+        if (! $hrisCompanyId) {
+            return null;
+        }
+
+        $code = \App\Models\Master\Companies::whereKey($hrisCompanyId)->value('code');
+
+        return $code ? static::where('hris_code', $code)->value('id') : null;
+    }
+
     public function jobOpenings(): HasMany
     {
         return $this->hasMany(JobOpening::class);

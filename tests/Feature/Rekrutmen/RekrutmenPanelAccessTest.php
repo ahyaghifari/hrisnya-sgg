@@ -109,7 +109,6 @@ class RekrutmenPanelAccessTest extends TestCase
         $this->actingAs($user)->get('/rekrutmen/wawancara-page')->assertOk();
         $this->actingAs($user)->get('/rekrutmen/offering-letter-page')->assertOk();
         $this->actingAs($user)->get('/rekrutmen/mcu-page')->assertOk();
-        $this->actingAs($user)->get('/rekrutmen/mcu-station-page')->assertOk();
         $this->actingAs($user)->get('/rekrutmen/ttd-onboarding-page')->assertOk();
         $this->actingAs($user)->get('/rekrutmen/selesai-page')->assertOk();
     }

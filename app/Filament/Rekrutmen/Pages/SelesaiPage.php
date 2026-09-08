@@ -2,7 +2,6 @@
 
 namespace App\Filament\Rekrutmen\Pages;
 
-use App\Models\Rekrutmen\Company;
 use App\Models\Rekrutmen\JobApplication;
 use App\Models\Rekrutmen\JobOpening;
 use App\Services\Rekrutmen\CandidateOnboardingService;
@@ -30,6 +29,8 @@ use UnitEnum;
  */
 class SelesaiPage extends Page implements HasActions, HasForms, HasTable
 {
+    use \App\Filament\Rekrutmen\Concerns\PipelineTabs;
+    use \App\Filament\Rekrutmen\Concerns\ScopedToCompany;
     use InteractsWithActions, InteractsWithForms, InteractsWithTable;
 
     protected string $view = 'filament.rekrutmen.pages.selesai-page';
@@ -44,8 +45,6 @@ class SelesaiPage extends Page implements HasActions, HasForms, HasTable
 
     protected static ?int $navigationSort = 7;
 
-    public ?string $companyId = null;
-    public ?string $jobOpeningId = null;
 
     public static function canAccess(): bool
     {
@@ -63,11 +62,6 @@ class SelesaiPage extends Page implements HasActions, HasForms, HasTable
     public function updatedJobOpeningId(): void
     {
         $this->resetTable();
-    }
-
-    public function getCompanies(): \Illuminate\Support\Collection
-    {
-        return Company::orderBy('name')->get(['id', 'name']);
     }
 
     public function getJobOpenings(): \Illuminate\Support\Collection

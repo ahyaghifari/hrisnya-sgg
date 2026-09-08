@@ -2,7 +2,6 @@
 
 namespace App\Filament\Rekrutmen\Pages;
 
-use App\Models\Rekrutmen\Company;
 use App\Models\Rekrutmen\JobApplication;
 use App\Models\Rekrutmen\JobOpening;
 use App\Models\Rekrutmen\JobOpeningStageLog;
@@ -30,6 +29,7 @@ use Illuminate\Database\Eloquent\Builder;
  */
 class ApplicantsPage extends Page implements HasActions, HasForms, HasTable
 {
+    use \App\Filament\Rekrutmen\Concerns\ScopedToCompany;
     use \App\Filament\Rekrutmen\Concerns\SendsApplicantNotifications;
     use InteractsWithActions, InteractsWithForms, InteractsWithTable;
 
@@ -76,11 +76,6 @@ class ApplicantsPage extends Page implements HasActions, HasForms, HasTable
     public function updatedStatusFilter(): void
     {
         $this->resetTable();
-    }
-
-    public function getCompanies(): \Illuminate\Support\Collection
-    {
-        return Company::orderBy('name')->get(['id', 'name']);
     }
 
     public function getJobOpenings(): \Illuminate\Support\Collection

@@ -3,7 +3,6 @@
 namespace App\Filament\Rekrutmen\Pages;
 
 use App\Models\Rekrutmen\ApplicationNotification;
-use App\Models\Rekrutmen\Company;
 use App\Models\Rekrutmen\CompanyMessageTemplate;
 use App\Models\Rekrutmen\InterviewSchedule;
 use App\Models\Rekrutmen\JobApplication;
@@ -40,6 +39,8 @@ use UnitEnum;
  */
 class WawancaraPage extends Page implements HasActions, HasForms, HasTable
 {
+    use \App\Filament\Rekrutmen\Concerns\PipelineTabs;
+    use \App\Filament\Rekrutmen\Concerns\ScopedToCompany;
     use \App\Filament\Rekrutmen\Concerns\SendsApplicantNotifications;
     use InteractsWithActions, InteractsWithForms, InteractsWithTable;
 
@@ -55,8 +56,6 @@ class WawancaraPage extends Page implements HasActions, HasForms, HasTable
 
     protected static ?int $navigationSort = 2;
 
-    public ?string $companyId = null;
-    public ?string $jobOpeningId = null;
 
     public static function canAccess(): bool
     {
@@ -81,11 +80,6 @@ class WawancaraPage extends Page implements HasActions, HasForms, HasTable
     public function updatedJobOpeningId(): void
     {
         $this->resetTable();
-    }
-
-    public function getCompanies(): \Illuminate\Support\Collection
-    {
-        return Company::orderBy('name')->get(['id', 'name']);
     }
 
     public function getJobOpenings(): \Illuminate\Support\Collection

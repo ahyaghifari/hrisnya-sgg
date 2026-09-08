@@ -4,7 +4,7 @@
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
                 <label class="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">Perusahaan</label>
-                <select wire:model.live="companyId"
+                <select wire:model.live="companyId" @disabled(! $this->canFilterByCompany())
                     class="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm">
                     <option value="">— Pilih perusahaan —</option>
                     @foreach($this->getCompanies() as $company)
@@ -24,6 +24,8 @@
             </div>
         </div>
     </div>
+
+    @include('filament.rekrutmen.pages.partials.pipeline-tabs')
 
     <div class="fi-section rounded-xl bg-gray-50 dark:bg-gray-800/50 ring-1 ring-gray-200 dark:ring-gray-700 px-6 py-3 text-xs text-gray-600 dark:text-gray-400">
         Surat penawaran dibuat manual di luar sistem (Word/PDF, format bebas). Unggah lewat aksi

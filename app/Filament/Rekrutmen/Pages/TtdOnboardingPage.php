@@ -3,7 +3,6 @@
 namespace App\Filament\Rekrutmen\Pages;
 
 use App\Models\Rekrutmen\ApplicationNotification;
-use App\Models\Rekrutmen\Company;
 use App\Models\Rekrutmen\CompanyMessageTemplate;
 use App\Models\Rekrutmen\JobApplication;
 use App\Models\Rekrutmen\JobOpening;
@@ -31,6 +30,8 @@ use UnitEnum;
  */
 class TtdOnboardingPage extends Page implements HasActions, HasForms, HasTable
 {
+    use \App\Filament\Rekrutmen\Concerns\PipelineTabs;
+    use \App\Filament\Rekrutmen\Concerns\ScopedToCompany;
     use InteractsWithActions, InteractsWithForms, InteractsWithTable;
 
     protected string $view = 'filament.rekrutmen.pages.ttd-onboarding-page';
@@ -45,8 +46,6 @@ class TtdOnboardingPage extends Page implements HasActions, HasForms, HasTable
 
     protected static ?int $navigationSort = 6;
 
-    public ?string $companyId = null;
-    public ?string $jobOpeningId = null;
 
     public static function canAccess(): bool
     {
@@ -71,11 +70,6 @@ class TtdOnboardingPage extends Page implements HasActions, HasForms, HasTable
     public function updatedJobOpeningId(): void
     {
         $this->resetTable();
-    }
-
-    public function getCompanies(): \Illuminate\Support\Collection
-    {
-        return Company::orderBy('name')->get(['id', 'name']);
     }
 
     public function getJobOpenings(): \Illuminate\Support\Collection

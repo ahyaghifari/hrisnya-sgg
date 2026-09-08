@@ -782,6 +782,38 @@ return [
         'guard' => null,
     ],
 
+    // Modul MCU rekrutmen (portal, 2026-09-08) — antrian digate canAccessMcuModule(),
+    // tiap form stasiun digate permission INPUT_MCU_* sendiri (pola sama sikartap.mcu.*).
+    'rekrutmen.mcu.queue' => [
+        'label' => 'Antrian MCU Rekrutmen',
+        'permission' => null,
+        'guard' => 'canAccessMcuModule',
+    ],
+
+    'rekrutmen.mcu.perawat' => [
+        'label' => 'MCU Rekrutmen - Asesmen Perawat',
+        'permission' => \App\Enum\CustomPermissionEnum::INPUT_MCU_ASESMEN_PERAWAT->value,
+        'guard' => null,
+    ],
+
+    'rekrutmen.mcu.laboratorium' => [
+        'label' => 'MCU Rekrutmen - Hasil Laboratorium',
+        'permission' => \App\Enum\CustomPermissionEnum::INPUT_MCU_LABORATORIUM->value,
+        'guard' => null,
+    ],
+
+    'rekrutmen.mcu.radiologi' => [
+        'label' => 'MCU Rekrutmen - Hasil Radiologi',
+        'permission' => \App\Enum\CustomPermissionEnum::INPUT_MCU_RADIOLOGI->value,
+        'guard' => null,
+    ],
+
+    'rekrutmen.mcu.dokter' => [
+        'label' => 'MCU Rekrutmen - Pemeriksaan Dokter',
+        'permission' => \App\Enum\CustomPermissionEnum::INPUT_MCU_PEMERIKSAAN_DOKTER->value,
+        'guard' => null,
+    ],
+
     'rekrutmen.pelamar.offering-letter' => [
         'label' => 'Unduh Surat Penawaran (Rekrutmen)',
         'permission' => 'View:JobOpenings',
@@ -833,8 +865,14 @@ return [
         'guard' => null,
     ],
 
-    'sikartap.jadwal' => [
-        'label' => 'Jadwal Tes & Wawancara',
+    'sikartap.tes' => [
+        'label' => 'Tes Karyawan Tetap',
+        'permission' => 'ViewAny:Sikartap',
+        'guard' => null,
+    ],
+
+    'sikartap.wawancara' => [
+        'label' => 'Wawancara Karyawan Tetap',
         'permission' => 'ViewAny:Sikartap',
         'guard' => null,
     ],
@@ -889,29 +927,6 @@ return [
 
     'sikartap.ide-inovasi.atasan' => [
         'label' => 'Nilai Ide Inovasi',
-        'permission' => null,
-        'guard' => null,
-    ],
-
-    // List digerbangi SISTEM_SARANA_PRASARANA (coarse, sama pola presensi.dashboard/SISTEM_ABSENSI
-    // - dropdown nav + halaman daftar butuh ini, di-assign ke Unit/Kabid/Direktur semua). Detail
-    // sengaja permission null - visibilitasnya lebih halus dari 1 permission (pemohon SENDIRI
-    // vs approver aktif di snapshot-nya), discope lewat query + canAccess()/canApprove() di
-    // dalam Livewire-nya sendiri, bukan gate route-level.
-    'sarana-prasarana' => [
-        'label' => 'Sarana & Prasarana',
-        'permission' => \App\Enum\CustomPermissionEnum::SISTEM_SARANA_PRASARANA->value,
-        'guard' => null,
-    ],
-
-    'sarana-prasarana.ajukan' => [
-        'label' => 'Ajukan Sarana & Prasarana',
-        'permission' => \App\Enum\CustomPermissionEnum::AJUKAN_SARANA_PRASARANA->value,
-        'guard' => null,
-    ],
-
-    'sarana-prasarana.show' => [
-        'label' => 'Detail Permohonan Sarana & Prasarana',
         'permission' => null,
         'guard' => null,
     ],

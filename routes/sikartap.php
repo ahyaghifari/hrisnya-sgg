@@ -11,11 +11,12 @@ use App\Livewire\Sikartap\DirekturBulkKeputusanPage;
 use App\Livewire\Sikartap\IdeInovasiAtasanQueuePage;
 use App\Livewire\Sikartap\IdeInovasiAtasanReviewPage;
 use App\Livewire\Sikartap\IdeInovasiUploadPage;
-use App\Livewire\Sikartap\JadwalPage;
 use App\Livewire\Sikartap\McuQueuePage;
 use App\Livewire\Sikartap\PengajuanDetailPage;
 use App\Livewire\Sikartap\PengajuanKaryawanTetapPage;
 use App\Livewire\Sikartap\SikartapSettingsPage;
+use App\Livewire\Sikartap\TesPage;
+use App\Livewire\Sikartap\WawancaraPage;
 use Illuminate\Support\Facades\Route;
 
 /**
@@ -48,30 +49,33 @@ Route::get('/sikartap/keputusan-direktur', DirekturBulkKeputusanPage::class)
     ->name('sikartap.direktur.bulk');
 
 /**
- * Daftar jadwal Tes & Wawancara lintas pengajuan (belum ada sebelumnya - jadwal cuma bisa
- * dilihat/diatur per-record lewat PengajuanDetailPage). MCU sengaja tidak ikut, lihat
- * app/Livewire/Sikartap/JadwalPage.php.
+ * Tahap Tes & Wawancara lintas pengajuan — 1 halaman per tahap. Penjadwalan bisa massal
+ * (centang beberapa orang), isi hasil per orang. Semuanya juga tetap bisa lewat
+ * PengajuanDetailPage. MCU sengaja tidak ikut (tidak punya tabel jadwal).
  */
-Route::get('/sikartap/jadwal', JadwalPage::class)
-    ->name('sikartap.jadwal');
+Route::get('/sikartap/tes', TesPage::class)
+    ->name('sikartap.tes');
+
+Route::get('/sikartap/wawancara', WawancaraPage::class)
+    ->name('sikartap.wawancara');
 
 /**
  * Antrian MCU (dibikin ulang 2026-08-28) — daftar pengajuan yang nunggu input MCU + tombol
  * per stasiun sesuai permission staff. Gate canInputSikartapMcu()/EDIT_INPUT_MCU.
  */
-Route::get('/sikartap/mcu', McuQueuePage::class)
+Route::get('/mcu/sikartap', McuQueuePage::class)
     ->name('sikartap.mcu.queue');
 
-Route::get('/sikartap/mcu/{sikartap}/perawat', AsesmenPerawatPage::class)
+Route::get('/mcu/sikartap/{sikartap}/perawat', AsesmenPerawatPage::class)
     ->name('sikartap.mcu.perawat');
 
-Route::get('/sikartap/mcu/{sikartap}/laboratorium', HasilLaboratoriumPage::class)
+Route::get('/mcu/sikartap/{sikartap}/laboratorium', HasilLaboratoriumPage::class)
     ->name('sikartap.mcu.laboratorium');
 
-Route::get('/sikartap/mcu/{sikartap}/radiologi', HasilRadiologiPage::class)
+Route::get('/mcu/sikartap/{sikartap}/radiologi', HasilRadiologiPage::class)
     ->name('sikartap.mcu.radiologi');
 
-Route::get('/sikartap/mcu/{sikartap}/dokter', PemeriksaanDokterPage::class)
+Route::get('/mcu/sikartap/{sikartap}/dokter', PemeriksaanDokterPage::class)
     ->name('sikartap.mcu.dokter');
 
 /**

@@ -1,5 +1,10 @@
 <?php
 
+use App\Livewire\Rekrutmen\Mcu\AsesmenPerawatPage as McuPerawatPage;
+use App\Livewire\Rekrutmen\Mcu\HasilLaboratoriumPage as McuLabPage;
+use App\Livewire\Rekrutmen\Mcu\HasilRadiologiPage as McuRadiologiPage;
+use App\Livewire\Rekrutmen\Mcu\PemeriksaanDokterPage as McuDokterPage;
+use App\Livewire\Rekrutmen\Mcu\QueuePage as McuQueuePage;
 use Illuminate\Support\Facades\Route;
 
 /**
@@ -43,3 +48,14 @@ Route::get('/rekrutmen-file/offering-letter/{jobApplication}/{type}', function (
         ],
     );
 })->name('rekrutmen.file.offering-letter');
+
+/**
+ * Modul MCU rekrutmen — pindah dari panel Filament (McuStationPage dihapus 2026-09-08) ke
+ * portal supaya staf klinis tidak perlu akses panel /rekrutmen. Gate: canAccessMcuModule()
+ * (antrian) + INPUT_MCU_* per stasiun, lihat config/portal-pages.php.
+ */
+Route::get('/mcu/rekrutmen', McuQueuePage::class)->name('rekrutmen.mcu.queue');
+Route::get('/mcu/rekrutmen/{invitee}/perawat', McuPerawatPage::class)->name('rekrutmen.mcu.perawat');
+Route::get('/mcu/rekrutmen/{invitee}/laboratorium', McuLabPage::class)->name('rekrutmen.mcu.laboratorium');
+Route::get('/mcu/rekrutmen/{invitee}/radiologi', McuRadiologiPage::class)->name('rekrutmen.mcu.radiologi');
+Route::get('/mcu/rekrutmen/{invitee}/dokter', McuDokterPage::class)->name('rekrutmen.mcu.dokter');

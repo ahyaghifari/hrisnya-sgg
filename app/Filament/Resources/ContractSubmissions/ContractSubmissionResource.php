@@ -25,7 +25,7 @@ class ContractSubmissionResource extends BaseCompanyResource
 
     protected static bool $shouldRegisterNavigation = false;
 
-    protected static string|UnitEnum|null $navigationGroup = 'Kontrak & Orientasi';
+    protected static string|UnitEnum|null $navigationGroup = 'Sikartap';
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedDocumentText;
 

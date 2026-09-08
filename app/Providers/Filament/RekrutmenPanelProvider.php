@@ -6,7 +6,7 @@ use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
-use Filament\Pages\Dashboard;
+use App\Filament\Rekrutmen\Pages\Dashboard;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
@@ -49,7 +49,8 @@ class RekrutmenPanelProvider extends PanelProvider
                 ],
             ])
             ->topNavigation()
-            // Lowongan, Daftar Pelamar & MCU (isi pemeriksaan) sengaja tanpa grup (item mandiri).
+            // Grup "Kandidat" tetap di navigasi; di dalam tahap-tahapnya juga saling terhubung
+            // sebagai tab (sub-navigasi) lewat PipelineTabs — Daftar Pelamar terpisah.
             ->navigationGroups([
                 'Kandidat',
                 'Master',

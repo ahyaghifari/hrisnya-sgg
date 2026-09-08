@@ -68,10 +68,17 @@ class RoleFormPermissionGroupingTest extends TestCase
         // Permission Shield biasa (bukan anak SISTEM_*) tetap dikelompokkan per Subject seperti biasa.
         $this->assertSame('employee_has_permissions', RoleForm::fieldKeyFor('View:Employee'));
 
-        // Permission manual yang bukan bagian grup portal manapun tetap jatuh ke "Lainnya".
+        // Permission "milik karyawan sendiri" (baseEmployeePermissions) jatuh ke section
+        // "Sistem Dasar Karyawan", bukan per-subject / "Lainnya".
+        $this->assertSame(
+            'sistem_dasar_karyawan_has_permissions',
+            RoleForm::fieldKeyFor(CustomPermissionEnum::PELATIHAN_SAYA->value)
+        );
+
+        // Fallback terakhir: nama yang tidak cocok grup manapun -> "{subject}_has_permissions".
         $this->assertSame(
             'lainnya_has_permissions',
-            RoleForm::fieldKeyFor(CustomPermissionEnum::PELATIHAN_SAYA->value)
+            RoleForm::fieldKeyFor('permission_ngawur_tanpa_grup')
         );
     }
 

@@ -5,6 +5,7 @@ namespace App\Services\Rekrutmen;
 use App\Enum\EmployeeTypeCategory;
 use App\Models\Job\JobOpenings;
 use App\Models\Master\EmployeeTypes;
+use App\Models\Master\JobPositions;
 use App\Models\Rekrutmen\JobApplication;
 use App\Models\User;
 use App\Models\User\UserOrientation;
@@ -56,12 +57,19 @@ class CandidateOnboardingService
         $hrisOpeningId = $app->jobOpening?->hris_job_opening_id;
         $opening = $hrisOpeningId ? JobOpenings::with('jobPosition')->find($hrisOpeningId) : null;
 
-        if (! $opening) {
-            return ['ok' => false, 'message' => 'Lowongan HRIS terkait tidak ditemukan — lowongan ini kemungkinan dibuat manual di Rekrutmen (tanpa hris_job_opening_id).'];
+        // Lowongan mode "bebas" (dibuat manual di Rekrutmen) tak punya hris_job_opening_id —
+        // fallback ke job_position_id yang dipilih dari master jabatan HRIS di form lowongan.
+        $jobPosition = $opening?->jobPosition
+            ?? ($app->jobOpening?->job_position_id ? JobPositions::find($app->jobOpening->job_position_id) : null);
+
+        if (! $jobPosition) {
+            return ['ok' => false, 'message' => 'Jabatan HRIS untuk lowongan ini belum di-set — buka lowongan di Rekrutmen dan pilih jabatan HRIS-nya dulu.'];
         }
 
+        $companyId = $opening?->company_id ?? $jobPosition->company_id;
+
         // Tipe karyawan Orientasi milik company ini (dipastikan ada lewat OrientationEmployeeTypeSeeder).
-        $orientationType = EmployeeTypes::where('company_id', $opening->company_id)
+        $orientationType = EmployeeTypes::where('company_id', $companyId)
             ->where('category', EmployeeTypeCategory::ORIENTASI->value)
             ->first();
 
@@ -86,12 +94,12 @@ class CandidateOnboardingService
             'district'           => $c['district'] ?? null,
             'city'               => $c['city'] ?? null,
             'province'           => $c['province'] ?? null,
-            'job_position_id'    => $opening->job_position_id,
-            'org_structure_id'   => $opening->jobPosition?->org_structure_id,
+            'job_position_id'    => $jobPosition->id,
+            'org_structure_id'   => $jobPosition->org_structure_id,
             'joining_date'       => $joiningDate,
         ], fn ($v) => $v !== null && $v !== '');
 
-        return DB::transaction(function () use ($email, $c, $opening, $profileData, $joiningDate, $orientationMonths) {
+        return DB::transaction(function () use ($email, $c, $companyId, $profileData, $joiningDate, $orientationMonths) {
             $existing = User::withTrashed()->where('email', $email)->first();
             $isExisting = (bool) $existing;
 
@@ -105,7 +113,7 @@ class CandidateOnboardingService
                     'name'       => $c['name'] ?? $email,
                     'email'      => $email,
                     'password'   => bcrypt(Str::password(16)),
-                    'company_id' => $opening->company_id,
+                    'company_id' => $companyId,
                     'is_active'  => true,
                 ]);
             }
@@ -121,7 +129,7 @@ class CandidateOnboardingService
             if (! $hasActiveOrientation) {
                 UserOrientation::create([
                     'user_id' => $user->id,
-                    'company_id' => $opening->company_id,
+                    'company_id' => $companyId,
                     'start_date' => $joiningDate,
                     'end_date' => Carbon::parse($joiningDate)->addMonths($orientationMonths)->toDateString(),
                     'duration_months' => $orientationMonths,

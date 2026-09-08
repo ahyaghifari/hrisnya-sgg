@@ -26,8 +26,7 @@ Route::post('/logout', [LoginController::class, 'destroy'])
 // Route per modul sistem (1 modul = 1 file), semua inherit middleware('auth','portal.access')
 // dari group ini lewat require - bukan group() terpisah per file, supaya middleware-nya
 // TIDAK perlu diulang/disinkronkan manual di tiap file (lihat juga komentar di
-// routes/sikartap.php, pola ini sudah dipakai untuk sikartap & sarana-prasarana sejak
-// sebelum pemisahan 2026-09-04 ini).
+// routes/sikartap.php).
 Route::middleware(['auth', 'portal.access'])->group(function () {
     require __DIR__ . '/portal-akun.php';
     require __DIR__ . '/assessment.php';
@@ -40,15 +39,6 @@ Route::middleware(['auth', 'portal.access'])->group(function () {
     require __DIR__ . '/rekrutmen.php';
     require __DIR__ . '/sikartap.php';
 });
-
-// Sarana & Prasarana DILEPAS dari portal HRIS (2026-09-04, instruksi user - "sistem
-// terpisah", bukan bagian HRIS lagi). routes/sarana-prasarana.php sengaja TIDAK di-require
-// lagi di sini - halaman Livewire-nya (app/Livewire/Sarpras/*) & file route-nya dibiarkan
-// di disk (bukan dihapus) buat dipindah ke sistem sendiri nanti, tapi tidak reachable dari
-// HRIS. Nav sudah lama disembunyikan (@if (false && ...) di nav.blade.php, ponytail
-// 2026-08-xx) jadi tidak ada link mati; PendingApprovalsCard::sarprasRequests juga
-// dinonaktifkan (lihat komentar di sana) supaya tidak crash manggil route() yang sudah tidak
-// terdaftar kalau masih ada baris pending approval SARPRAS_REQUEST lama di DB.
 
 Route::get('/attendance/template/download', [AttendanceTemplateController::class, 'downloadTemplate'])
     ->name('attendance.template.downloa');

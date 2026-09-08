@@ -134,6 +134,10 @@
             <x-pwa-nav.sikartap-menu />
         @endif
 
+        @if ($canAccessMcu)
+            <x-pwa-nav.mcu-menu />
+        @endif
+
         @if ($canAccessLms)
             <x-pwa-nav.lms-menu />
         @endif

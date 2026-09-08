@@ -30,7 +30,7 @@ class UserOrientationResource extends BaseCompanyResource
 {
     protected static ?string $model = UserOrientation::class;
 
-    protected static string|UnitEnum|null $navigationGroup = 'Kontrak & Orientasi';
+    protected static string|UnitEnum|null $navigationGroup = 'Kepegawaian';
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedAcademicCap;
 

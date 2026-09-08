@@ -3,8 +3,6 @@
     // -> Tetap. Data kontrak berjalan (Kontrak Karyawan) dipindah ke dropdown Kepegawaian >
     // Status Karyawan (2026-09-07) - itu data, bukan alur pengajuan.
     $canViewSikartap = auth()->user()->can('ViewAny:Sikartap');
-    $canInputMcu = auth()->user()->canInputSikartapMcu()
-        || auth()->user()->can(\App\Enum\CustomPermissionEnum::EDIT_INPUT_MCU->value);
     $canViewPengaturan = auth()->user()->can(\App\Enum\CustomPermissionEnum::LIHAT_PENGATURAN_SIKARTAP->value);
     $canViewOrientasi = auth()->user()->can('ViewAny:OrientationSubmission');
     $canViewPerpanjanganKontrak = auth()->user()->can('ViewAny:ContractSubmission');
@@ -16,20 +14,18 @@
         <i class="fa-solid fa-user-check text-xs"></i> Sikartap <i class="fa-solid fa-chevron-down text-[10px]"></i>
     </a>
     <div class="dropdown-menu dropdown-menu-columns">
-        @if ($hasSikartap || $canInputMcu || $canViewPengaturan)
+        @if ($hasSikartap || $canViewPengaturan)
         <div class="dropdown-col">
             <div class="dropdown-col-label">Karyawan Tetap</div>
             @if ($hasSikartap)
                 <a href="{{ route('sikartap.dashboard') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-list-check"></i> Pengajuan</a>
             @endif
             @if ($canViewSikartap)
-                <a href="{{ route('sikartap.jadwal') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-calendar-days"></i> Jadwal Tes &amp; Wawancara</a>
+                <a href="{{ route('sikartap.tes') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-pen-ruler"></i> Tes</a>
+                <a href="{{ route('sikartap.wawancara') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-comments"></i> Wawancara</a>
             @endif
             @if ($hasSikartap)
                 <a href="{{ route('sikartap.ide-inovasi.atasan.queue') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-lightbulb"></i> Ide Inovasi</a>
-            @endif
-            @if ($canInputMcu)
-                <a href="{{ route('sikartap.mcu.queue') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-stethoscope"></i> Antrian MCU</a>
             @endif
             @if ($canViewPengaturan)
                 <a href="{{ route('sikartap.pengaturan') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-gear"></i> Pengaturan</a>

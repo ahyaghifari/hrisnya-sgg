@@ -270,6 +270,17 @@ class User extends Authenticatable implements FilamentUser
             || $this->can(\App\Enum\CustomPermissionEnum::INPUT_MCU_PEMERIKSAAN_DOKTER->value);
     }
 
+    /** Gerbang modul MCU berdiri sendiri (dropdown nav "MCU" + akses panel rekrutmen khusus
+     * halaman MCU) — SISTEM_MCU eksplisit ATAU sudah pegang salah satu permission isi/edit MCU
+     * (OR ke cek lama biar staf klinis existing tidak kehilangan akses sebelum SISTEM_MCU
+     * di-assign). */
+    public function canAccessMcuModule(): bool
+    {
+        return $this->can(\App\Enum\CustomPermissionEnum::SISTEM_MCU->value)
+            || $this->canInputSikartapMcu()
+            || $this->can(\App\Enum\CustomPermissionEnum::EDIT_INPUT_MCU->value);
+    }
+
     /** Widget "Jadwal Shift Saya" (Dashboard) & halaman kalender penuh (JadwalSayaPage) cuma
      * relevan buat karyawan yang beneran punya jadwal tipe Shift - dicek dari data jadwal
      * langsung (bukan permission JADWAL_SHIFT_SAYA lagi, itu ternyata tidak pernah di-assign ke

@@ -14,4 +14,14 @@ class EditJobOpening extends EditRecord
     {
         return [DeleteAction::make()];
     }
+
+    protected function mutateFormDataBeforeFill(array $data): array
+    {
+        return JobOpeningResource::hydrateAgreements($this->record, $data);
+    }
+
+    protected function afterSave(): void
+    {
+        JobOpeningResource::persistAgreements($this->record, $this->data);
+    }
 }
