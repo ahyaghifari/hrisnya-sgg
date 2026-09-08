@@ -143,6 +143,11 @@ class JobApplication extends Model
         return $this->hasMany(OfferingNegotiation::class)->orderBy('created_at');
     }
 
+    public function interviewInvitee(): HasOne
+    {
+        return $this->hasOne(InterviewInvitee::class);
+    }
+
     public function mcuInvitee(): HasOne
     {
         return $this->hasOne(McuInvitee::class);
