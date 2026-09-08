@@ -173,6 +173,8 @@ class JobOpeningResource extends Resource
         $perOpening = static::perOpeningAgreements($record->company_id)->values();
         $perTitlesLc = $perOpening->map(fn (CompanyAgreement $a) => mb_strtolower(trim($a->title)))->all();
 
+        $text = fn ($v): string => is_string($v) ? $v : '';
+
         $rows = collect();
 
         foreach (array_values($data['free_agreements'] ?? []) as $i => $row) {
@@ -180,13 +182,13 @@ class JobOpeningResource extends Resource
             if ($title === '' || in_array(mb_strtolower($title), $perTitlesLc, true)) {
                 continue;
             }
-            $rows->push(['title' => $title, 'content' => $row['content'] ?? '', 'sort_order' => $i]);
+            $rows->push(['title' => $title, 'content' => $text($row['content'] ?? ''), 'sort_order' => $i]);
         }
 
         foreach ($perOpening as $i => $a) {
             $rows->push([
                 'title' => $a->title,
-                'content' => $data['opening_agreements'][$a->id] ?? '',
+                'content' => $text($data['opening_agreements'][$a->id] ?? ''),
                 'sort_order' => 100 + $i,
             ]);
         }
