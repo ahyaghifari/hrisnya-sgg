@@ -187,7 +187,8 @@
 {{-- MODAL --}}
 @if ($activePanel === 'schedule' || $activePanel === 'result')
     <div wire:click.self="closeModal" style="position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:10000;display:flex;align-items:center;justify-content:center;padding:20px;">
-        <div style="background:var(--surface);border-radius:14px;box-shadow:var(--shadow-card);padding:20px;width:100%;max-width:460px;max-height:90vh;overflow-y:auto;">
+        @php $wideModal = ! $isTes && $activePanel === 'schedule'; @endphp
+        <div style="background:var(--surface);border-radius:14px;box-shadow:var(--shadow-card);padding:20px;width:100%;max-width:{{ $wideModal ? '640px' : '460px' }};max-height:90vh;overflow-y:auto;">
             @if ($activePanel === 'schedule')
                 <h3 style="font-size:15px;font-weight:700;margin:0 0 4px;">Jadwal {{ $labelTahap }}</h3>
                 <p style="font-size:11.5px;color:var(--text-muted);margin:0 0 14px;">Dipasang ke {{ count($selected) }} orang terpilih yang lolos tahap ini.</p>
@@ -213,29 +214,33 @@
                             <textarea wire:model="testScheduleForm.keterangan" class="form-input" rows="2"></textarea>
                         </div>
                     @else
-                        <div>
-                            <label class="form-label">Tanggal</label>
-                            <input type="date" wire:model="interviewScheduleForm.tanggal_wawancara" class="form-input">
-                            @error('interviewScheduleForm.tanggal_wawancara') <p style="color:var(--danger-text);font-size:12px;">{{ $message }}</p> @enderror
-                        </div>
-                        <div>
-                            <label class="form-label">Waktu</label>
-                            <input type="time" wire:model="interviewScheduleForm.waktu_wawancara" class="form-input">
-                            @error('interviewScheduleForm.waktu_wawancara') <p style="color:var(--danger-text);font-size:12px;">{{ $message }}</p> @enderror
+                        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;">
+                            <div>
+                                <label class="form-label">Tanggal</label>
+                                <input type="date" wire:model="interviewScheduleForm.tanggal_wawancara" class="form-input">
+                                @error('interviewScheduleForm.tanggal_wawancara') <p style="color:var(--danger-text);font-size:12px;">{{ $message }}</p> @enderror
+                            </div>
+                            <div>
+                                <label class="form-label">Waktu</label>
+                                <input type="time" wire:model="interviewScheduleForm.waktu_wawancara" class="form-input">
+                                @error('interviewScheduleForm.waktu_wawancara') <p style="color:var(--danger-text);font-size:12px;">{{ $message }}</p> @enderror
+                            </div>
                         </div>
                         <div>
                             <label class="form-label">Tempat</label>
                             <input type="text" wire:model="interviewScheduleForm.tempat_wawancara" class="form-input">
                             @error('interviewScheduleForm.tempat_wawancara') <p style="color:var(--danger-text);font-size:12px;">{{ $message }}</p> @enderror
                         </div>
-                        <div>
-                            <label class="form-label">Pewawancara 1</label>
-                            <input type="text" wire:model="interviewScheduleForm.pewawancara" class="form-input">
-                            @error('interviewScheduleForm.pewawancara') <p style="color:var(--danger-text);font-size:12px;">{{ $message }}</p> @enderror
-                        </div>
-                        <div>
-                            <label class="form-label">Pewawancara 2</label>
-                            <input type="text" wire:model="interviewScheduleForm.pewawancara_2" class="form-input">
+                        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;">
+                            <div>
+                                <label class="form-label">Pewawancara 1</label>
+                                <input type="text" wire:model="interviewScheduleForm.pewawancara" class="form-input">
+                                @error('interviewScheduleForm.pewawancara') <p style="color:var(--danger-text);font-size:12px;">{{ $message }}</p> @enderror
+                            </div>
+                            <div>
+                                <label class="form-label">Pewawancara 2</label>
+                                <input type="text" wire:model="interviewScheduleForm.pewawancara_2" class="form-input">
+                            </div>
                         </div>
                         <div>
                             <label class="form-label">Keterangan</label>
