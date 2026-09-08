@@ -235,13 +235,11 @@ class JobOpeningResource extends Resource
                     ->helperText('Perusahaan mode HRIS: jabatan wajib diambil dari master jabatan HRIS.'),
 
                 TextInput::make('title')
-                    ->label('Posisi / Jabatan')
+                    ->label('Nama Lowongan')
                     ->required()
                     ->maxLength(255)
-                    ->disabled(fn (Get $get) => static::isHrisMode($get('company_id')))
-                    ->dehydrated()
                     ->helperText(fn (Get $get) => static::isHrisMode($get('company_id'))
-                        ? 'Otomatis dari jabatan HRIS di atas.'
+                        ? 'Terisi otomatis dari jabatan HRIS, boleh diubah (mis. "Perawat Rawat Inap Lantai 3"). Tautan jabatan tetap dari pilihan di atas.'
                         : 'Perusahaan mode Bebas: isi manual.'),
 
                 TextInput::make('quota')
