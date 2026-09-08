@@ -74,6 +74,11 @@
                                 <option value="simple">Simple (1 baris nominal per periode)</option>
                                 <option value="detail">Detail (rincian potongan satu-satu)</option>
                             </select>
+                        @elseif ($key === 'lembur_metode')
+                            <select class="form-input" style="font-size:12px;padding:7px 10px;" wire:model="settingValues.{{ $key }}">
+                                <option value="per_pangkat">Per Pangkat (rumus lama: base rate / (hari x 7) x multiplier jam)</option>
+                                <option value="flat_per_jam">Flat per Jam (rate flat x jam, dihitung sampai menit) — rate diatur di Mapping Komponen Gaji</option>
+                            </select>
                         @elseif ($key === 'cuti_melahirkan_metode')
                             <select class="form-input" style="font-size:12px;padding:7px 10px;" wire:model="settingValues.{{ $key }}">
                                 <option value="per_komponen">Per Komponen (prorate Tunjangan/Insentif/Jasa Pelayanan)</option>

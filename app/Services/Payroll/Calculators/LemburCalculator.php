@@ -34,9 +34,16 @@ class LemburCalculator implements PayrollComponentCalculator
 {
     public function calculate(User $user, Payroll $payroll, PayrollPeriod $period, PayrollContext $context): void
     {
-        $baseRate = $user->profile?->pangkat?->lemburRate?->amount_per_hour;
+        // "per_pangkat" = rumus lama Excel Holding (base rate per pangkat / (hari x 7) x multiplier).
+        // "flat_per_jam" = 1 rate flat per company x jam desimal sampai menit:
+        //   (rate x jam bulat) + (rate/60 x sisa menit). Batas minimum jam tetap dipakai keduanya.
+        $metode = (string) Setting::resolve('lembur_metode', $period->company_id, default: 'per_pangkat');
 
-        if (! $baseRate || $baseRate <= 0) {
+        $baseRate = $metode === 'flat_per_jam'
+            ? (float) Setting::resolve('lembur_rate_per_jam', $period->company_id, default: 0)
+            : (float) ($user->profile?->pangkat?->lemburRate?->amount_per_hour ?? 0);
+
+        if ($baseRate <= 0) {
             return;
         }
 
@@ -67,7 +74,9 @@ class LemburCalculator implements PayrollComponentCalculator
 
         foreach ($overtimeRequests as $request) {
             foreach ($request->overtimeDetails as $detail) {
-                $result = $this->calculateDetail($detail, (float) $baseRate, $minimumJam);
+                $result = $metode === 'flat_per_jam'
+                    ? $this->calculateDetailFlat($detail, $baseRate, $minimumJam)
+                    : $this->calculateDetail($detail, $baseRate, $minimumJam);
 
                 if (! $result) {
                     continue;
@@ -123,6 +132,40 @@ class LemburCalculator implements PayrollComponentCalculator
             'amount' => $amount,
             'hours' => $hours,
             'note' => "{$dateLabel} ({$hours} jam): Rp" . number_format($amount, 0, ',', '.'),
+        ];
+    }
+
+    /**
+     * Metode "flat_per_jam": (rate x jam bulat) + (rate/60 x sisa menit). Contoh 2,5 jam @ 10rb
+     * = (10000 x 2) + (10000/60 x 30) = 25.000. Minimum jam dicek dari jam bulat, sama seperti
+     * metode per_pangkat (lembur < minimum ditolak, bukan di-clamp).
+     *
+     * @return array{amount: float, hours: int, note: string}|null
+     */
+    private function calculateDetailFlat(AttendanceRequestOvertimeDetails $detail, float $ratePerJam, int $minimumJam): ?array
+    {
+        $date = Carbon::parse($detail->date);
+        $totalHours = (float) $detail->total_hours;
+        $hours = (int) floor($totalHours);
+        $minutes = (int) round(($totalHours - $hours) * 60);
+
+        if ($hours <= 0 || $hours < $minimumJam) {
+            return null;
+        }
+
+        $amount = round($ratePerJam * $hours + ($ratePerJam / 60) * $minutes, 2);
+
+        if ($amount <= 0) {
+            return null;
+        }
+
+        $dateLabel = $date->locale('id')->isoFormat('D MMMM YYYY');
+        $durasi = $minutes > 0 ? "{$hours} jam {$minutes} menit" : "{$hours} jam";
+
+        return [
+            'amount' => $amount,
+            'hours' => $hours,
+            'note' => "{$dateLabel} ({$durasi}): Rp" . number_format($amount, 0, ',', '.'),
         ];
     }
 }
