@@ -146,13 +146,13 @@ class ApplicantDetailPage extends Page implements HasActions, HasForms
             ->color('gray')
             ->visible(fn () => $this->canDecide() && $pending() > 0)
             ->requiresConfirmation()
-            ->modalDescription('Email pemberitahuan yang masih berstatus draft untuk pelamar ini akan dikirim.')
+            ->modalDescription('Email pemberitahuan yang masih berstatus draft untuk pelamar ini akan diantrekan, lalu dikirim otomatis oleh sistem rekrutmen.')
             ->modalSubmitActionLabel('Kirim')
             ->action(function (): void {
-                $sent = ApplicationNotification::flushDraftsFor([$this->application->id]);
+                $queued = ApplicationNotification::flushDraftsFor([$this->application->id]);
                 Notification::make()
-                    ->title($sent > 0 ? "{$sent} email terkirim" : 'Tidak ada draft untuk dikirim')
-                    ->{$sent > 0 ? 'success' : 'warning'}()
+                    ->title($queued > 0 ? "{$queued} email diantrekan untuk dikirim" : 'Tidak ada draft untuk dikirim')
+                    ->{$queued > 0 ? 'success' : 'warning'}()
                     ->send();
             });
     }

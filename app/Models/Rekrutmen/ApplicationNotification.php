@@ -2,18 +2,19 @@
 
 namespace App\Models\Rekrutmen;
 
-use App\Mail\Rekrutmen\ApplicantNotificationMail;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Support\Facades\Mail;
 
 /**
- * Draft/riwayat email pemberitahuan ke pelamar (DB rekrutmen_db). Port dari project
- * `rekrutmen`. Fase 8: pengiriman aktif — event "positif" (lulus/undangan) auto-kirim
- * lewat createAndSend(); event penolakan tetap ditahan sebagai draft sampai admin klik
- * "Kirim Email Pemberitahuan" (flushDraftsFor). Tombol CTA di email menunjuk app pelamar
- * (config services.rekrutmen.url) — disembunyikan kalau URL kosong.
+ * Draft/antrean email pemberitahuan ke pelamar (DB rekrutmen_db, dibagi). HRIS TIDAK
+ * mengirim email — cuma menulis baris:
+ *   - status 'draft'  = ditahan (penolakan tahap ini) sampai admin klik "Kirim Email
+ *     Pemberitahuan" yang mengubahnya jadi 'queued'
+ *   - status 'queued' = siap dikirim (event positif langsung ke sini)
+ *   - status 'sent'   = sudah dikirim
+ * Pengiriman aktual dilakukan project `rekrutmen` lewat command terjadwal
+ * `notifications:dispatch` yang memproses baris 'queued'.
  */
 class ApplicationNotification extends Model
 {
@@ -56,16 +57,14 @@ class ApplicationNotification extends Model
     }
 
     /**
-     * Kirim email perubahan jadwal (wawancara/MCU) ke pelamar. TIDAK disimpan ke tabel
-     * (kolom `event` ENUM + unique per lamaran; reschedule bisa berulang) — instance
-     * transient hanya untuk render mail. $kind = 'interview' | 'mcu'.
+     * Antrekan email perubahan jadwal (wawancara/MCU). Disimpan sebagai baris 'queued' —
+     * project rekrutmen yang mengirim. Boleh berulang (tak ada dedup). $kind = 'interview'|'mcu'.
      */
     public static function notifyReschedule(JobApplication $app, string $kind, array $data): void
     {
         $app->loadMissing('jobOpening', 'user');
 
-        $email = $app->user?->email;
-        if (! $email) {
+        if (! $app->user?->email) {
             return;
         }
 
@@ -81,64 +80,53 @@ class ApplicationNotification extends Model
             . "\nLokasi: " . ($data['location'] ?? '-')
             . (($data['notes'] ?? '') !== '' ? "\nCatatan: " . $data['notes'] : '');
 
-        $notif = new static([
+        static::create([
             'job_application_id' => $app->id,
             'event' => $event,
             'subject' => "Perubahan Jadwal {$label} – {$jobTitle}",
             'body' => "Halo {$name},\n\nJadwal {$label} kamu untuk posisi {$jobTitle} telah diperbarui. Berikut jadwal terbaru:\n\n{$detail}\n\nMohon perhatikan perubahan ini. Sampai jumpa di jadwal yang baru.\n\nSalam,\nTim Rekrutmen",
+            'status' => 'queued',
         ]);
-
-        Mail::to($email)->send(new ApplicantNotificationMail($notif));
     }
 
     /**
-     * Kirim email ke pelamar saat rekruter membalas negosiasi offering. TIDAK disimpan ke
-     * tabel (kolom `event` ENUM + unique per lamaran; balasan bisa berulang) — riwayatnya
-     * ada di `offering_negotiations`. Instance transient hanya untuk render mail.
+     * Antrekan email balasan negosiasi offering. Disimpan sebagai baris 'queued' —
+     * project rekrutmen yang mengirim. Boleh berulang (riwayat di `offering_negotiations`).
      */
     public static function notifyNegotiationReply(JobApplication $app, string $replyMessage): void
     {
         $app->loadMissing('jobOpening', 'user');
 
-        $email = $app->user?->email;
-        if (! $email) {
+        if (! $app->user?->email) {
             return;
         }
 
         $name = $app->answersMap()['full_name'] ?? 'Pelamar';
         $jobTitle = $app->jobOpening->title ?? '';
 
-        $notif = new static([
+        static::create([
             'job_application_id' => $app->id,
             'event' => CompanyMessageTemplate::EVENT_OFFERING_NEGOTIATION_REPLIED,
             'subject' => "Balasan Negosiasi Surat Penawaran – {$jobTitle}",
             'body' => "Halo {$name},\n\nTim rekrutmen telah membalas pengajuan negosiasimu untuk posisi {$jobTitle}:\n\n\"{$replyMessage}\"\n\nSilakan buka dashboard untuk menanggapi atau menandatangani surat penawaran.\n\nSalam,\nTim Rekrutmen",
+            'status' => 'queued',
         ]);
-
-        Mail::to($email)->send(new ApplicantNotificationMail($notif));
     }
 
-    /** Kirim draft ini ke email pelamar & tandai terkirim. False kalau bukan draft / email kosong. */
+    /** Tandai draft ini siap dikirim (status 'queued'). Pengiriman aktual oleh project
+     *  rekrutmen (command notifications:dispatch). False kalau bukan draft. */
     public function send(): bool
     {
         if ($this->status !== 'draft') {
             return false;
         }
 
-        $email = $this->jobApplication?->user?->email
-            ?? $this->loadMissing('jobApplication.user')->jobApplication?->user?->email;
-
-        if (! $email) {
-            return false;
-        }
-
-        Mail::to($email)->send(new ApplicantNotificationMail($this));
-        $this->update(['status' => 'sent', 'sent_at' => now()]);
+        $this->update(['status' => 'queued']);
 
         return true;
     }
 
-    /** Bikin draft lalu langsung kirim — buat event "positif" yang tidak perlu ditahan admin. */
+    /** Bikin draft lalu langsung antrekan — buat event "positif" yang tidak perlu ditahan admin. */
     public static function createAndSend(JobApplication $app, string $event, array $extra = []): void
     {
         static::createDraftFor($app, $event, $extra);
@@ -146,29 +134,20 @@ class ApplicationNotification extends Model
         static::where('job_application_id', $app->id)
             ->where('event', $event)
             ->where('status', 'draft')
-            ->latest()->first()?->send();
+            ->update(['status' => 'queued']);
     }
 
-    /** Kirim semua draft milik daftar lamaran ini (opsional filter event). @return int jumlah terkirim. */
+    /** Antrekan semua draft milik daftar lamaran ini (opsional filter event). @return int jumlah diantrekan. */
     public static function flushDraftsFor(array $applicationIds, ?string $event = null): int
     {
         if (! $applicationIds) {
             return 0;
         }
 
-        $sent = 0;
-        static::with('jobApplication.user')
-            ->whereIn('job_application_id', $applicationIds)
+        return static::whereIn('job_application_id', $applicationIds)
             ->where('status', 'draft')
             ->when($event, fn ($q) => $q->where('event', $event))
-            ->get()
-            ->each(function (self $notif) use (&$sent) {
-                if ($notif->send()) {
-                    $sent++;
-                }
-            });
-
-        return $sent;
+            ->update(['status' => 'queued']);
     }
 
     /** Bikin draft notifikasi (tanpa kirim). Null kalau draft event itu sudah ada. */
