@@ -8,21 +8,12 @@
     </div>
 
     <div class="mb-4" style="display:flex;flex-wrap:wrap;gap:12px;">
-        <div style="min-width:220px;">
+        <div style="min-width:260px;">
             <label class="form-label">Perusahaan</label>
             <select wire:model.live="companyId" class="form-input">
                 <option value="">-- Pilih perusahaan --</option>
                 @foreach ($this->companyOptions as $id => $name)
                     <option value="{{ $id }}">{{ $name }}</option>
-                @endforeach
-            </select>
-        </div>
-        <div style="min-width:220px;flex:1;">
-            <label class="form-label">Lowongan</label>
-            <select wire:model.live="jobOpeningId" class="form-input" @disabled(! $companyId)>
-                <option value="">-- Pilih lowongan --</option>
-                @foreach ($this->jobOpeningOptions as $id => $title)
-                    <option value="{{ $id }}">{{ $title }}</option>
                 @endforeach
             </select>
         </div>
@@ -33,7 +24,7 @@
     @if ($antrian->isEmpty())
         <div style="background:var(--surface);border-radius:16px;box-shadow:var(--shadow-card);padding:32px;text-align:center;">
             <p style="font-size:13px;color:var(--text-muted);margin:0;">
-                {{ ! $jobOpeningId ? 'Pilih perusahaan & lowongan dulu.' : 'Belum ada pelamar yang diundang MCU untuk lowongan ini.' }}
+                {{ ! $companyId ? 'Pilih perusahaan dulu.' : 'Belum ada pelamar yang diundang MCU di perusahaan ini.' }}
             </p>
         </div>
     @else
@@ -44,6 +35,7 @@
                     <div class="pwa-list-row" style="align-items:flex-start;">
                         <div style="flex:1;min-width:0;">
                             <p style="font-size:13px;font-weight:600;color:var(--text-heading);">{{ $app->answersMap()['full_name'] ?? '—' }}</p>
+                            <p style="font-size:11px;color:var(--text-muted);margin:2px 0 0;">{{ $app->jobOpening?->title ?? '—' }}</p>
                             <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;">
                                 @foreach ($this->stationsFor($app) as $st)
                                     <a href="{{ $st['url'] }}" wire:navigate class="btn-ghost" style="padding:5px 10px;font-size:11px;">
@@ -65,6 +57,7 @@
                     <thead>
                         <tr style="border-bottom:1.5px solid var(--border);">
                             <th style="text-align:left;padding:10px 14px;white-space:nowrap;">Pelamar</th>
+                            <th style="text-align:left;padding:10px 14px;white-space:nowrap;">Lowongan</th>
                             <th style="text-align:left;padding:10px 14px;white-space:nowrap;">Isi MCU</th>
                         </tr>
                     </thead>
@@ -72,6 +65,7 @@
                         @foreach ($antrian as $app)
                             <tr wire:key="mcu-{{ $app->id }}" style="border-bottom:1px solid var(--border-soft);">
                                 <td style="padding:9px 14px;white-space:nowrap;font-weight:600;">{{ $app->answersMap()['full_name'] ?? '—' }}</td>
+                                <td style="padding:9px 14px;color:var(--text-muted);">{{ $app->jobOpening?->title ?? '—' }}</td>
                                 <td style="padding:9px 14px;">
                                     <div style="display:flex;flex-wrap:wrap;gap:6px;">
                                         @foreach ($this->stationsFor($app) as $st)

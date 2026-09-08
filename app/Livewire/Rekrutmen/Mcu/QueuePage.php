@@ -5,7 +5,6 @@ namespace App\Livewire\Rekrutmen\Mcu;
 use App\Enum\CustomPermissionEnum;
 use App\Models\Rekrutmen\Company;
 use App\Models\Rekrutmen\JobApplication;
-use App\Models\Rekrutmen\JobOpening;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
@@ -15,17 +14,15 @@ use Livewire\Component;
 /**
  * Antrian MCU Rekrutmen — pengganti App\Filament\Rekrutmen\Pages\McuStationPage (dulu halaman
  * panel Filament), dipindah ke portal supaya staf klinis tidak perlu akses panel /rekrutmen.
- * Pilih perusahaan -> lowongan, lalu isi per stasiun sesuai permission INPUT_MCU_*. Upload
- * berkas belum ada (disk `rekrutmen` belum shared) — hasil dicatat teks, sama seperti dulu.
+ * Cukup pilih perusahaan — antrian menampilkan semua pelamar berstatus `mcu` yang sudah
+ * diundang, lintas lowongan. Isi per stasiun sesuai permission INPUT_MCU_*. Upload berkas
+ * belum ada (disk `rekrutmen` belum shared) — hasil dicatat teks, sama seperti dulu.
  */
 #[Layout('components.layout', ['title' => 'Antrian MCU Rekrutmen'])]
 class QueuePage extends Component
 {
     #[Url]
     public ?string $companyId = null;
-
-    #[Url]
-    public ?string $jobOpeningId = null;
 
     /** @var array<int, array{key:string, label:string, icon:string, perm:string, relation:string, route:string}> */
     private const STATIONS = [
@@ -40,34 +37,22 @@ class QueuePage extends Component
         abort_unless(Auth::user()->canAccessMcuModule(), 403);
     }
 
-    public function updatedCompanyId(): void
-    {
-        $this->jobOpeningId = null;
-    }
-
     public function getCompanyOptionsProperty(): Collection
     {
         return Company::where('requires_mcu', true)->orderBy('name')->pluck('name', 'id');
     }
 
-    public function getJobOpeningOptionsProperty(): Collection
-    {
-        return $this->companyId
-            ? JobOpening::where('company_id', $this->companyId)->latest()->pluck('title', 'id')
-            : collect();
-    }
-
     public function getAntrianProperty(): Collection
     {
-        if (! $this->jobOpeningId) {
+        if (! $this->companyId) {
             return collect();
         }
 
         return JobApplication::query()
-            ->where('job_opening_id', $this->jobOpeningId)
+            ->whereHas('jobOpening', fn ($q) => $q->where('company_id', $this->companyId))
             ->where('status', 'mcu')
             ->whereHas('mcuInvitee')
-            ->with(['answers', 'mcuInvitee.nurseAssessment', 'mcuInvitee.labResult', 'mcuInvitee.radiologyResult', 'mcuInvitee.doctorExamination'])
+            ->with(['answers', 'jobOpening:id,title', 'mcuInvitee.nurseAssessment', 'mcuInvitee.labResult', 'mcuInvitee.radiologyResult', 'mcuInvitee.doctorExamination'])
             ->latest()
             ->get();
     }
