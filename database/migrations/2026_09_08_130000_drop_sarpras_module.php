@@ -14,15 +14,21 @@ return new class extends Migration
 {
     public function up(): void
     {
-        // Alur persetujuan Sarpras (kalau ada) + snapshot/histori terkait.
+        // Alur persetujuan Sarpras (kalau ada) + snapshot/histori terkait. Urutan: histori &
+        // snapshot dulu (snapshot punya FK ke m_approval_flows), baru steps/assignments/flows.
+        DB::table('approval_histories')->where('requestable_type', 'sarpras_request')->delete();
+
         $flowIds = DB::table('m_approval_flows')->where('module', 'sarpras_request')->pluck('id');
         if ($flowIds->isNotEmpty()) {
-            DB::table('m_approval_flow_steps')->whereIn('flow_id', $flowIds)->delete();
-            DB::table('m_approval_flow_assignments')->whereIn('flow_id', $flowIds)->delete();
-            DB::table('m_approval_flows')->whereIn('id', $flowIds)->delete();
+            DB::table('approval_snapshots')->whereIn('flow_id', $flowIds)->delete();
         }
         DB::table('approval_snapshots')->where('module_type', 'sarpras_request')->delete();
-        DB::table('approval_histories')->where('requestable_type', 'sarpras_request')->delete();
+
+        if ($flowIds->isNotEmpty()) {
+            DB::table('m_approval_flow_steps')->whereIn('flow_id', $flowIds)->delete();
+            DB::table('m_approval_flow_assignments')->whereIn('approval_flow_id', $flowIds)->delete();
+            DB::table('m_approval_flows')->whereIn('id', $flowIds)->delete();
+        }
 
         // Permission + pivot role/user.
         $permIds = DB::table('permissions')
