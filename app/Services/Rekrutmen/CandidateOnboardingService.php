@@ -36,64 +36,32 @@ class CandidateOnboardingService
             return ['ok' => false, 'message' => 'Lama orientasi harus 3, 6, atau 12 bulan.'];
         }
 
-        $app = JobApplication::with(['candidate', 'user', 'jobOpening'])->find($jobApplicationId);
+        $ctx = $this->resolveContext($jobApplicationId);
 
-        if (! $app) {
-            return ['ok' => false, 'message' => 'Lamaran tidak ditemukan di DB recruitment.'];
+        if (! $ctx['ok']) {
+            return $ctx;
         }
 
-        $c = $app->candidate;
-
-        if (! $c) {
-            return ['ok' => false, 'message' => 'Data diri kandidat belum tersedia (kandidat harus sudah onboarding/passed).'];
-        }
-
-        $email = $app->user?->email;
-
-        if (! $email) {
-            return ['ok' => false, 'message' => 'Email pelamar tidak ada di data Rekrutmen.'];
-        }
-
-        $hrisOpeningId = $app->jobOpening?->hris_job_opening_id;
-        $opening = $hrisOpeningId ? JobOpenings::with('jobPosition')->find($hrisOpeningId) : null;
-
-        // Lowongan mode "bebas" (dibuat manual di Rekrutmen) tak punya hris_job_opening_id —
-        // fallback ke job_position_id yang dipilih dari master jabatan HRIS di form lowongan.
-        $jobPosition = $opening?->jobPosition
-            ?? ($app->jobOpening?->job_position_id ? JobPositions::find($app->jobOpening->job_position_id) : null);
-
-        if (! $jobPosition) {
-            return ['ok' => false, 'message' => 'Jabatan HRIS untuk lowongan ini belum di-set — buka lowongan di Rekrutmen dan pilih jabatan HRIS-nya dulu.'];
-        }
-
-        $companyId = $opening?->company_id ?? $jobPosition->company_id;
-
-        // Tipe karyawan Orientasi milik company ini (dipastikan ada lewat OrientationEmployeeTypeSeeder).
-        $orientationType = EmployeeTypes::where('company_id', $companyId)
-            ->where('category', EmployeeTypeCategory::ORIENTASI->value)
-            ->first();
-
-        if (! $orientationType) {
-            return ['ok' => false, 'message' => 'Tipe karyawan kategori Orientasi belum ada untuk perusahaan ini. Hubungi admin (jalankan OrientationEmployeeTypeSeeder).'];
-        }
+        [$c, $email, $jobPosition, $companyId, $orientationType] =
+            [$ctx['candidate'], $ctx['email'], $ctx['jobPosition'], $ctx['companyId'], $ctx['orientationType']];
 
         $joiningDate = now()->toDateString();
 
         $profileData = array_filter([
             'employee_type_id'   => $orientationType->id,
-            'nickname'            => $c['nickname'] ?? null,
-            'marital_status'      => $c['status_marital'] ?? null,
-            'no_nik'             => $c['nik'] ?? null,
-            'no_kk'              => $c['no_kk'] ?? null,
-            'no_bpjs_kes'        => $c['no_bpjskes'] ?? null,
-            'no_bpjs_ket'        => $c['no_bpjstk'] ?? null,
-            'bank_account_number' => $c['bsi_bank_number'] ?? null,
-            'bank_account_name'  => $c['name'] ?? null,
-            'address'            => $c['ktp_address'] ?? null,
-            'village'            => $c['village'] ?? null,
-            'district'           => $c['district'] ?? null,
-            'city'               => $c['city'] ?? null,
-            'province'           => $c['province'] ?? null,
+            'nickname'            => $c->nickname,
+            'marital_status'      => $c->status_marital,
+            'no_nik'             => $c->nik,
+            'no_kk'              => $c->no_kk,
+            'no_bpjs_kes'        => $c->no_bpjskes,
+            'no_bpjs_ket'        => $c->no_bpjstk,
+            'bank_account_number' => $c->bsi_bank_number,
+            'bank_account_name'  => $c->name,
+            'address'            => $c->ktp_address,
+            'village'            => $c->village,
+            'district'           => $c->district,
+            'city'               => $c->city,
+            'province'           => $c->province,
             'job_position_id'    => $jobPosition->id,
             'org_structure_id'   => $jobPosition->org_structure_id,
             'joining_date'       => $joiningDate,
@@ -110,7 +78,7 @@ class CandidateOnboardingService
                 $user = $existing;
             } else {
                 $user = User::create([
-                    'name'       => $c['name'] ?? $email,
+                    'name'       => $c->name ?? $email,
                     'email'      => $email,
                     'password'   => bcrypt(Str::password(16)),
                     'company_id' => $companyId,
@@ -146,5 +114,133 @@ class CandidateOnboardingService
                     : "Akun karyawan dibuat untuk {$email} dengan masa orientasi {$orientationMonths} bulan.",
             ];
         });
+    }
+
+    /**
+     * Ringkasan data yang akan dipakai bikin akun — buat ditampilkan di modal sebelum konfirmasi.
+     *
+     * @return array{
+     *   ok:bool, message?:string, email?:string, company?:?string, jabatan?:?string,
+     *   divisi?:?string, orientationType?:?string, existingUser?:bool,
+     *   profile?:list<array{label:string, value:?string, required:bool}>, missing?:list<string>
+     * }
+     */
+    public function previewOnboarding(string $jobApplicationId): array
+    {
+        $ctx = $this->resolveContext($jobApplicationId);
+
+        if (! $ctx['ok']) {
+            return $ctx;
+        }
+
+        /** @var \App\Models\Rekrutmen\Candidate $c */
+        $c = $ctx['candidate'];
+        $jp = $ctx['jobPosition'];
+
+        $rows = [
+            ['label' => 'Nama sesuai KTP', 'key' => 'name',            'required' => true],
+            ['label' => 'Nama panggilan',  'key' => 'nickname',        'required' => false],
+            ['label' => 'NIK',             'key' => 'nik',             'required' => true],
+            ['label' => 'No. Kartu Keluarga', 'key' => 'no_kk',       'required' => true],
+            ['label' => 'Nama ibu kandung', 'key' => 'mother_name',    'required' => true],
+            ['label' => 'Status pernikahan', 'key' => 'status_marital', 'required' => true],
+            ['label' => 'Alamat KTP',      'key' => 'ktp_address',     'required' => true],
+            ['label' => 'Kelurahan/Desa',  'key' => 'village',         'required' => true],
+            ['label' => 'Kecamatan',       'key' => 'district',        'required' => true],
+            ['label' => 'Kota/Kabupaten',  'key' => 'city',            'required' => true],
+            ['label' => 'Provinsi',        'key' => 'province',        'required' => true],
+            ['label' => 'No. Rekening (BSI)', 'key' => 'bsi_bank_number', 'required' => true],
+            ['label' => 'BPJS Kesehatan',  'key' => 'no_bpjskes',      'required' => false],
+            ['label' => 'BPJS Ketenagakerjaan', 'key' => 'no_bpjstk',  'required' => false],
+        ];
+
+        $profile = [];
+        $missing = [];
+
+        foreach ($rows as $r) {
+            $val = trim((string) ($c->{$r['key']} ?? ''));
+            $profile[] = ['label' => $r['label'], 'value' => $val !== '' ? $val : null, 'required' => $r['required']];
+
+            if ($r['required'] && $val === '') {
+                $missing[] = $r['label'];
+            }
+        }
+
+        return [
+            'ok' => true,
+            'email' => $ctx['email'],
+            'company' => $ctx['company']?->name,
+            'jabatan' => $jp->name,
+            'divisi' => $jp->division?->name ?? $jp->orgStructure?->name,
+            'orientationType' => $ctx['orientationType']->name,
+            'existingUser' => User::withTrashed()->where('email', $ctx['email'])->exists(),
+            'profile' => $profile,
+            'missing' => $missing,
+        ];
+    }
+
+    /**
+     * Validasi + resolusi jabatan/company/tipe orientasi. Dipakai bareng oleh preview & create.
+     *
+     * @return array{ok:bool, message?:string, app?:JobApplication, candidate?:mixed, email?:string,
+     *   jobPosition?:JobPositions, company?:mixed, companyId?:string, orientationType?:EmployeeTypes}
+     */
+    private function resolveContext(string $jobApplicationId): array
+    {
+        $app = JobApplication::with(['candidate', 'user', 'jobOpening'])->find($jobApplicationId);
+
+        if (! $app) {
+            return ['ok' => false, 'message' => 'Lamaran tidak ditemukan di DB recruitment.'];
+        }
+
+        $c = $app->candidate;
+
+        if (! $c) {
+            return ['ok' => false, 'message' => 'Data diri kandidat belum tersedia (kandidat harus sudah onboarding/passed).'];
+        }
+
+        $email = $app->user?->email;
+
+        if (! $email) {
+            return ['ok' => false, 'message' => 'Email pelamar tidak ada di data Rekrutmen.'];
+        }
+
+        $hrisOpeningId = $app->jobOpening?->hris_job_opening_id;
+        $opening = $hrisOpeningId
+            ? JobOpenings::with(['jobPosition.orgStructure', 'jobPosition.company', 'company'])->find($hrisOpeningId)
+            : null;
+
+        // Lowongan mode "bebas" (dibuat manual di Rekrutmen) tak punya hris_job_opening_id —
+        // fallback ke job_position_id yang dipilih dari master jabatan HRIS di form lowongan.
+        $jobPosition = $opening?->jobPosition
+            ?? ($app->jobOpening?->job_position_id
+                ? JobPositions::with(['orgStructure', 'company'])->find($app->jobOpening->job_position_id)
+                : null);
+
+        if (! $jobPosition) {
+            return ['ok' => false, 'message' => 'Jabatan HRIS untuk lowongan ini belum di-set — buka lowongan di Rekrutmen dan pilih jabatan HRIS-nya dulu.'];
+        }
+
+        $companyId = $opening?->company_id ?? $jobPosition->company_id;
+        $company = $opening?->company ?? $jobPosition->company;
+
+        $orientationType = EmployeeTypes::where('company_id', $companyId)
+            ->where('category', EmployeeTypeCategory::ORIENTASI->value)
+            ->first();
+
+        if (! $orientationType) {
+            return ['ok' => false, 'message' => 'Tipe karyawan kategori Orientasi belum ada untuk perusahaan ini. Hubungi admin (jalankan OrientationEmployeeTypeSeeder).'];
+        }
+
+        return [
+            'ok' => true,
+            'app' => $app,
+            'candidate' => $c,
+            'email' => $email,
+            'jobPosition' => $jobPosition,
+            'company' => $company,
+            'companyId' => $companyId,
+            'orientationType' => $orientationType,
+        ];
     }
 }

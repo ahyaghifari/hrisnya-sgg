@@ -79,7 +79,10 @@ class SelesaiPage extends Page implements HasActions, HasForms, HasTable
             ->color('primary')
             ->visible(fn () => filament()->auth()->user()->can('create', \App\Models\User::class))
             ->modalHeading('Buat Akun Karyawan HRIS')
-            ->modalDescription('Akun karyawan dibuat dari data diri kandidat. Periode orientasi dibuat sekali sesuai pilihan di bawah.')
+            ->modalDescription('Periksa data diri & jabatan tujuan di bawah, lalu pilih lama orientasi.')
+            ->modalContent(fn ($record) => view('filament.rekrutmen.partials.onboarding-preview', [
+                'preview' => app(CandidateOnboardingService::class)->previewOnboarding($record->id),
+            ]))
             ->schema([
                 Radio::make('orientationMonths')->label('Lama Orientasi')
                     ->options(collect(CandidateOnboardingService::ORIENTATION_MONTHS_OPTIONS)
