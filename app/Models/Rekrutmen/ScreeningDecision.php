@@ -38,9 +38,9 @@ class ScreeningDecision extends Model
     }
 
     /**
-     * Terapkan semua draft 1 lowongan: yang 'passed' -> status `shortlisted` + draft notif
-     * lolos; yang 'rejected' -> status TETAP `screening` (belum ditolak), cuma draft notif
-     * penolakan dibuat untuk dikirim manual nanti.
+     * Terapkan semua draft 1 lowongan: yang 'passed' -> status `shortlisted` + email lolos
+     * LANGSUNG dikirim (createAndSend); yang 'rejected' -> status TETAP `screening`, notif
+     * penolakan cuma draft (ditahan, dikirim manual lewat "Kirim Email Pemberitahuan").
      *
      * @return array{0:int,1:int} [jumlah lolos, jumlah tidak lolos]
      */
@@ -57,7 +57,7 @@ class ScreeningDecision extends Model
             $app = $d->jobApplication;
             if ($d->decision === 'passed') {
                 $app->update(['status' => JobApplication::STATUS_SHORTLISTED]);
-                ApplicationNotification::createDraftFor($app, CompanyMessageTemplate::EVENT_SCREENING_PASSED);
+                ApplicationNotification::createAndSend($app, CompanyMessageTemplate::EVENT_SCREENING_PASSED);
                 $passed++;
             } else {
                 ApplicationNotification::createDraftFor($app, CompanyMessageTemplate::EVENT_SCREENING_REJECTED);
