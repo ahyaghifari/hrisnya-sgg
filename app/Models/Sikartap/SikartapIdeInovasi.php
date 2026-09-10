@@ -39,6 +39,29 @@ class SikartapIdeInovasi extends Model
     }
 
     /**
+     * Catat keputusan 1 tingkat (direktur/komisaris): status + catatan + reviewer + waktu,
+     * lalu kabari karyawan. Dipakai PengajuanDetailPage (per-record) & DirekturBulkIdeInovasiPage.
+     *
+     * @param  'direktur'|'komisaris'  $tier
+     * @param  'approved'|'rejected'  $status
+     */
+    public function recordTierDecision(string $tier, string $status, string $actorId, ?string $note): void
+    {
+        $note = trim((string) $note) !== '' ? $note : null;
+
+        $this->update([
+            "status_{$tier}" => $status,
+            "catatan_{$tier}" => $note,
+            "reviewed_by_{$tier}" => $actorId,
+            "reviewed_at_{$tier}" => now(),
+        ]);
+
+        $this->sikartap?->user?->notify(
+            new \App\Notifications\Sikartap\SikartapIdeInovasiDireview($this->sikartap_id, $tier, $status, $note)
+        );
+    }
+
+    /**
      * Rubrik skoring atasan (upload_ide_inovasi.php legacy): 5 kriteria 0-5, bobot berbeda,
      * dijumlah jadi skala 0-100. Lulus atasan kalau >= 75.
      */

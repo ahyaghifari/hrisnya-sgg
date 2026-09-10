@@ -8,6 +8,7 @@
         $statusLabels = [
             'draft' => ['Draf', 'var(--text-muted)', 'rgba(148,163,184,0.15)'],
             'diajukan' => ['Diajukan', '#b45309', 'rgba(245,158,11,0.12)'],
+            'dinilai' => ['Diproses HR', '#b45309', 'rgba(245,158,11,0.12)'],
             'selesai' => ['Disetujui', '#047C54', 'rgba(4,124,84,0.12)'],
             'ditolak' => ['Tidak Diperpanjang', '#dc2626', 'rgba(220,38,38,0.12)'],
             'dibatalkan' => ['Dibatalkan', '#dc2626', 'rgba(220,38,38,0.12)'],
@@ -59,7 +60,7 @@
                 </div>
             @endif
 
-            @if (in_array($current->status, ['selesai', 'ditolak']) && $current->decision)
+            @if (in_array($current->status, ['dinilai', 'selesai', 'ditolak']) && $current->decision)
                 @php [$dLabel, $dColor] = $decisionLabels[$current->decision] ?? [$current->decision, 'var(--text-muted)']; @endphp
                 <div style="border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:14px;">
                     <p style="font-size:12px;color:var(--text-muted);margin:0 0 3px;">Keputusan Penilai</p>
@@ -73,24 +74,14 @@
                 </div>
             @endif
 
-            {{-- Alasan + usulan durasi (form saat draft, read-only lain) --}}
+            {{-- Alasan (form saat draft, read-only lain) --}}
             @if ($current->status === 'draft')
-                <div style="margin-bottom:14px;">
+                <div style="margin-bottom:16px;">
                     <label class="form-label">Alasan Perpanjangan (wajib)</label>
                     <textarea wire:model="alasan" class="form-input" rows="2" placeholder="Alasan mengajukan perpanjangan"></textarea>
                 </div>
-                <div style="margin-bottom:16px;max-width:220px;">
-                    <label class="form-label">Usulan Durasi (bulan, opsional)</label>
-                    <input type="number" wire:model="usulanDurasi" class="form-input" min="1" max="24" placeholder="mis. 12">
-                    <p style="font-size:10.5px;color:var(--text-faint);margin:3px 0 0;">Durasi final ditetapkan penilai.</p>
-                </div>
-            @else
-                @if ($current->alasan)
-                    <p style="font-size:12.5px;color:var(--text-body);margin:0 0 4px;"><span style="color:var(--text-faint);">Alasan:</span> {{ $current->alasan }}</p>
-                @endif
-                @if ($current->usulan_durasi_bulan)
-                    <p style="font-size:12px;color:var(--text-muted);margin:0 0 10px;">Usulan durasi: {{ $current->usulan_durasi_bulan }} bulan</p>
-                @endif
+            @elseif ($current->alasan)
+                <p style="font-size:12.5px;color:var(--text-body);margin:0 0 10px;"><span style="color:var(--text-faint);">Alasan:</span> {{ $current->alasan }}</p>
             @endif
 
             {{-- Dokumen --}}

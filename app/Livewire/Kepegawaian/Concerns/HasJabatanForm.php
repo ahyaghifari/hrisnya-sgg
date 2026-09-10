@@ -169,12 +169,12 @@ trait HasJabatanForm
 
         $org = $record->org_structure_id ? OrgStructure::with('parent.parent')->find($record->org_structure_id) : null;
 
-        if ($org?->level === 1) {
+        if ($org?->level === OrgStructurLevel::LEVEL_DEPARTMENT->value) {
             $this->department_id = $org->id;
-        } elseif ($org?->level === 2) {
+        } elseif ($org?->level === OrgStructurLevel::LEVEL_DIVISION->value) {
             $this->department_id = $org->parent_id;
             $this->division_id = $org->id;
-        } elseif ($org?->level === 3) {
+        } elseif ($org?->level === OrgStructurLevel::LEVEL_SUBDIVISION->value) {
             $this->department_id = $org->parent?->parent_id;
             $this->division_id = $org->parent_id;
             $this->sub_division_id = $org->id;

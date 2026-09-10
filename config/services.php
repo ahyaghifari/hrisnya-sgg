@@ -73,6 +73,11 @@ return [
         'redirect' => env('KEYCLOAK_REDIRECT_URI'),
         'base_url' => env('KEYCLOAK_BASE_URL'),
         'realms' => env('KEYCLOAK_REALM'),
+
+        // Admin REST API: client service-account terpisah dengan role realm-management.
+        // Dipakai App\Services\Keycloak\KeycloakAdmin (client_credentials grant).
+        'admin_client_id' => env('KEYCLOAK_ADMIN_CLIENT_ID'),
+        'admin_client_secret' => env('KEYCLOAK_ADMIN_CLIENT_SECRET'),
     ],
 
 ];

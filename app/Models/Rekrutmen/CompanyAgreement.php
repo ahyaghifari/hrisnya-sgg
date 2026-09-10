@@ -12,15 +12,7 @@ class CompanyAgreement extends Model
 
     protected $connection = 'recruitment';
 
-    protected $fillable = ['company_id', 'title', 'content', 'per_opening', 'sort_order'];
-
-    protected $casts = ['per_opening' => 'boolean'];
-
-    protected static function booted(): void
-    {
-        // Kolom `content` NOT NULL — persetujuan "diisi per lowongan" naskahnya kosong di sini.
-        static::saving(fn (self $m) => $m->content ??= '');
-    }
+    protected $fillable = ['company_id', 'title', 'content', 'sort_order'];
 
     public function company(): BelongsTo
     {

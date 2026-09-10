@@ -2,6 +2,7 @@
 
 namespace App\Repositories\Master;
 
+use App\Enum\OrgStructurLevel;
 use App\Models\Master\OrgStructure;
 use App\Models\User\UserProfiles;
 
@@ -20,7 +21,7 @@ class DepartmentRepository
         $userDepartment = $profile->department;
         $companyId = $userDepartment->company_id;
 
-        return OrgStructure::where('level', 1)
+        return OrgStructure::where('level', OrgStructurLevel::LEVEL_DEPARTMENT->value)
             ->where('company_id', $companyId)
             ->where('id', '!=', $userDepartment->id)
             ->get();

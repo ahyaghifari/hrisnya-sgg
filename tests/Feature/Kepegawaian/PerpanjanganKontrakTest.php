@@ -127,11 +127,20 @@ class PerpanjanganKontrakTest extends TestCase
         $this->assertSame('diajukan', $submission->status);
 
         $before = $employee->contracts()->count();
-        app(ContractExtensionService::class)->review($submission, $reviewer->id, 'perpanjang', 'Disetujui', 6);
+
+        // Penilai memutuskan perpanjang — TANPA durasi. Belum ada kontrak baru.
+        app(ContractExtensionService::class)->review($submission, $reviewer->id, 'perpanjang', 'Disetujui');
+        $submission->refresh();
+        $this->assertSame('dinilai', $submission->status);
+        $this->assertSame('perpanjang', $submission->decision);
+        $this->assertNull($submission->decision_durasi_bulan);
+        $this->assertSame($before, $employee->contracts()->count());
+
+        // HR menetapkan durasi → kontrak baru dibuat, selesai.
+        app(ContractExtensionService::class)->followUpDuration($submission, 6, $reviewer->id);
         $submission->refresh();
 
         $this->assertSame('selesai', $submission->status);
-        $this->assertSame('perpanjang', $submission->decision);
         $this->assertSame(6, $submission->decision_durasi_bulan);
         $this->assertSame($before + 1, $employee->contracts()->count());
         $this->assertNotNull($submission->new_contract_id);
@@ -181,7 +190,7 @@ class PerpanjanganKontrakTest extends TestCase
         $this->assertNull($submission->decided_by);
     }
 
-    public function test_approve_rejected_when_exceeds_max_kontrak_tahun(): void
+    public function test_follow_up_duration_rejected_when_exceeds_max_kontrak_tahun(): void
     {
         $employee = $this->kontrakEmployee();
         // joining 1 thn lalu, default MAX_KONTRAK_TAHUN = 3 → anchor +1bln, +36 bln jauh lewat.
@@ -191,7 +200,9 @@ class PerpanjanganKontrakTest extends TestCase
         $submission->documents()->create(['label' => 'Surat Rekomendasi Atasan', 'path' => 'y.pdf', 'original_name' => 'y.pdf']);
         app(ContractExtensionService::class)->submit($submission->fresh(), $employee);
 
+        app(ContractExtensionService::class)->review($submission->fresh(), $reviewer->id, 'perpanjang', 'Disetujui');
+
         $this->expectException(\Throwable::class);
-        app(ContractExtensionService::class)->review($submission->fresh(), $reviewer->id, 'perpanjang', 'Disetujui', 36);
+        app(ContractExtensionService::class)->followUpDuration($submission->fresh(), 36, $reviewer->id);
     }
 }

@@ -112,14 +112,14 @@ class PortalPengajuanTest extends TestCase
     {
         $this->actingAsHrd();
 
-        // Direktur = pemegang aktif jabatan Setting sikartap_direktur_job_position_id.
+        // Direktur = pemegang aktif jabatan di tabel company_directors.
         $dept = OrgStructure::create(['company_id' => $this->company->id, 'name' => 'Direksi', 'level' => OrgStructurLevel::LEVEL_DEPARTMENT->value]);
         $pos = JobPositions::create(['company_id' => $this->company->id, 'name' => 'Direktur Utama', 'planned_manpower' => 1, 'org_structure_id' => $dept->id]);
         $direktur = User::factory()->create(['company_id' => $this->company->id]);
         UserJobPositions::create(['user_id' => $direktur->id, 'job_position_id' => $pos->id, 'start_date' => now()->subYear(), 'status' => 'active']);
-        Setting::updateOrCreate(
-            ['key' => SikartapDirectorDecisionService::SETTING_KEY, 'company_id' => $this->company->id],
-            ['module' => 'sikartap', 'type' => 'string', 'label' => 'Jabatan Direktur', 'value' => $pos->id],
+        \App\Models\Master\CompanyDirector::updateOrCreate(
+            ['company_id' => $this->company->id],
+            ['job_position_id' => $pos->id],
         );
 
         $applicant = $this->makeApplicant();

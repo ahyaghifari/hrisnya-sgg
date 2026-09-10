@@ -4,8 +4,8 @@
     @php
         $r = $this->record;
         $decisionLabels = [
-            'lanjut_kontrak' => ['Lanjut Kontrak', '#047C54'],
-            'perpanjang' => ['Perpanjang Orientasi', '#b45309'],
+            'lanjut_kontrak' => ['Direkomendasikan untuk Kontrak Kerja', '#047C54'],
+            'tidak_dilanjutkan' => ['Tidak Dilanjutkan', '#dc2626'],
         ];
         $statusLabels = [
             'draft' => ['Draf', 'var(--text-muted)'],
@@ -55,6 +55,63 @@
                 <p style="font-size:12px;color:var(--text-faint);margin:0;">Tidak ada lampiran.</p>
             @endforelse
         </div>
+
+        {{-- Jadwal presentasi kegiatan --}}
+        @if ($r->status !== 'draft')
+            <div style="background:var(--surface);border-radius:12px;box-shadow:var(--shadow-card);padding:18px;">
+                <p style="font-size:12.5px;font-weight:700;color:var(--text-heading);margin:0 0 8px;">Jadwal Presentasi Kegiatan</p>
+
+                @if ($r->presentation_proposed_at)
+                    <p style="font-size:12px;color:var(--text-body);margin:0 0 4px;"><span style="color:var(--text-faint);">Usulan karyawan:</span> {{ $r->presentation_proposed_at->translatedFormat('l, d F Y H:i') }}</p>
+                @endif
+
+                @php $slot = $r->presentation_confirmed_at ?? $r->presentation_proposed_at; @endphp
+                @if ($r->presentationFullyApproved())
+                    <p style="font-size:13px;font-weight:700;color:#047C54;margin:0;">Final: {{ $slot?->translatedFormat('l, d F Y H:i') }}</p>
+                @elseif ($r->presentation_confirmed_at)
+                    <p style="font-size:13px;font-weight:700;color:#b45309;margin:0;">Slot: {{ $slot?->translatedFormat('l, d F Y H:i') }} — menunggu persetujuan lengkap</p>
+                @endif
+                @if ($r->presentation_note)<p style="font-size:12px;color:var(--text-body);margin:4px 0 0;">{{ $r->presentation_note }}</p>@endif
+
+                <div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:8px;font-size:11.5px;">
+                    <span style="color:{{ $r->presentation_hr_at ? '#047C54' : '#b45309' }};">
+                        {{ $r->presentation_hr_at ? '✓' : '○' }} HR{{ $r->presentation_hr_at ? ' — '.$r->presentationHrBy?->name : '' }}
+                    </span>
+                    <span style="color:{{ $r->presentation_support_at ? '#047C54' : '#b45309' }};">
+                        {{ $r->presentation_support_at ? '✓' : '○' }} Jabatan Pendukung{{ $r->presentation_support_at ? ' — '.$r->presentationSupportBy?->name : '' }}
+                    </span>
+                </div>
+
+                @if ($this->canSchedulePresentation)
+                    <div style="border-top:1px dashed var(--border);margin-top:12px;padding-top:12px;">
+                        <p style="font-size:11.5px;color:var(--text-muted);margin:0 0 8px;">{{ $r->presentation_hr_at ? 'Ubah jadwal / persetujuan HR' : 'Tetapkan jadwal & setujui (HR)' }} — boleh beda dari usulan:</p>
+                        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-start;">
+                            <div style="min-width:150px;">
+                                <input type="date" wire:model="presDate" class="form-input">
+                                @error('presDate') <p style="font-size:11px;color:#dc2626;margin-top:3px;">{{ $message }}</p> @enderror
+                            </div>
+                            <div style="min-width:120px;">
+                                <input type="time" wire:model="presTime" class="form-input">
+                                @error('presTime') <p style="font-size:11px;color:#dc2626;margin-top:3px;">{{ $message }}</p> @enderror
+                            </div>
+                        </div>
+                        <textarea wire:model="presNote" class="form-input" rows="2" placeholder="Catatan (opsional): lokasi, peserta, dll." style="margin-top:8px;"></textarea>
+                        <div style="display:flex;justify-content:flex-end;margin-top:10px;">
+                            <button type="button" wire:click="schedulePresentation" wire:confirm="Simpan jadwal & persetujuan HR? (mengubah slot membatalkan persetujuan jabatan pendukung)" class="btn-primary" style="font-size:12.5px;">Simpan & Setujui (HR)</button>
+                        </div>
+                    </div>
+                @endif
+
+                @if ($this->canApprovePresentation)
+                    <div style="border-top:1px dashed var(--border);margin-top:12px;padding-top:12px;">
+                        <p style="font-size:11.5px;color:var(--text-muted);margin:0 0 8px;">Anda pemegang jabatan pendukung. Setujui slot: <strong>{{ $slot?->translatedFormat('l, d F Y H:i') }}</strong></p>
+                        <div style="display:flex;justify-content:flex-end;">
+                            <button type="button" wire:click="approvePresentation" wire:confirm="Setujui jadwal presentasi ini?" class="btn-primary" style="font-size:12.5px;">Setujui Jadwal Presentasi</button>
+                        </div>
+                    </div>
+                @endif
+            </div>
+        @endif
 
         {{-- Keputusan (kalau sudah) --}}
         @if (in_array($r->status, ['dinilai', 'selesai']) && $r->decision)
@@ -149,7 +206,7 @@
 
                 @if ($reviewDecision)
                     <p style="font-size:11px;color:var(--text-faint);margin-top:6px;">
-                        Detail tindak lanjut ({{ $reviewDecision === 'perpanjang' ? 'lama & mulai perpanjangan orientasi' : 'kontrak' }}) diisi oleh HR setelah keputusan disimpan.
+                        Detail tindak lanjut ({{ $reviewDecision === 'tidak_dilanjutkan' ? 'tanggal efektif berakhir' : 'kontrak' }}) diisi oleh HR setelah keputusan disimpan.
                     </p>
                 @endif
 
@@ -178,48 +235,33 @@
         @endif
 
         {{-- TINDAK LANJUT HR (setelah dinilai) --}}
-        @if ($this->canFollowUpExtend || $this->canFollowUpContract)
+        @if ($this->canFollowUpNotContinued || $this->canFollowUpContract)
             <div style="background:var(--surface);border:2px solid #b45309;border-radius:12px;box-shadow:var(--shadow-card);padding:18px;">
                 <p style="font-size:13px;font-weight:700;color:var(--text-heading);margin:0 0 4px;">Tindak Lanjut HR</p>
-                <p style="font-size:12px;color:var(--text-muted);margin:0 0 14px;">Keputusan penilai: <strong>{{ $r->decision === 'perpanjang' ? 'Perpanjang Orientasi' : 'Lanjut Kontrak' }}</strong>.</p>
+                <p style="font-size:12px;color:var(--text-muted);margin:0 0 14px;">Keputusan penilai: <strong>{{ $r->decision === 'tidak_dilanjutkan' ? 'Tidak Dilanjutkan' : 'Direkomendasikan untuk Kontrak Kerja' }}</strong>.</p>
 
-                @if ($r->decision === 'perpanjang')
-                    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-start;">
-                        <div style="min-width:160px;">
-                            <label class="form-label">Tanggal Mulai</label>
-                            <input type="date" wire:model.live="fuStartDate" class="form-input">
-                            @error('fuStartDate') <p style="font-size:11px;color:#dc2626;margin-top:3px;">{{ $message }}</p> @enderror
-                        </div>
-                        <div style="min-width:150px;">
-                            <label class="form-label">Lama (bulan)</label>
-                            <select wire:model.live="fuMonths" class="form-input">
-                                @foreach ([1,2,3,4,6,12] as $m)<option value="{{ $m }}">{{ $m }} bulan</option>@endforeach
-                            </select>
-                            @error('fuMonths') <p style="font-size:11px;color:#dc2626;margin-top:3px;">{{ $message }}</p> @enderror
-                        </div>
+                @unless ($r->presentationFullyApproved())
+                    <p style="font-size:12px;color:#b45309;background:var(--warn-soft-bg);border:1px solid var(--warn-soft-border);border-radius:8px;padding:8px 10px;margin:0 0 12px;">
+                        Jadwal presentasi kegiatan harus disetujui <strong>HR &amp; jabatan pendukung</strong> dulu (di atas) sebelum menutup pengajuan.
+                    </p>
+                @endunless
+
+                @if ($r->decision === 'tidak_dilanjutkan')
+                    <p style="font-size:12px;color:var(--text-body);margin:0 0 12px;">Catat tanggal efektif berakhirnya hubungan kerja. Tidak ada periode atau kontrak baru yang dibuat.</p>
+                    <div style="max-width:220px;">
+                        <label class="form-label">Tanggal Efektif Berakhir</label>
+                        <input type="date" wire:model="fuEffectiveDate" class="form-input">
+                        @error('fuEffectiveDate') <p style="font-size:11px;color:#dc2626;margin-top:3px;">{{ $message }}</p> @enderror
                     </div>
-                    @if ($this->extensionPreview)
-                        <p style="font-size:12px;color:var(--text-body);margin-top:8px;background:var(--warn-soft-bg);border:1px solid var(--warn-soft-border);border-radius:8px;padding:8px 10px;">
-                            Periode orientasi baru: <strong>{{ $this->extensionPreview[0]->format('d M Y') }}</strong> &ndash; <strong>{{ $this->extensionPreview[1]->format('d M Y') }}</strong>
-                        </p>
-                    @endif
                     <div style="display:flex;justify-content:flex-end;margin-top:12px;">
-                        <button type="button" wire:click="followUpExtend" wire:confirm="Buat periode orientasi baru?" class="btn-primary">Buat Periode Baru</button>
+                        <button type="button" wire:click="followUpNotContinued" wire:confirm="Simpan tindak lanjut & tandai pengajuan selesai?" class="btn-primary" @disabled(! $r->presentationFullyApproved())>Simpan Tindak Lanjut</button>
                     </div>
                 @else
-                    <p style="font-size:12px;color:var(--text-body);margin:0 0 12px;">Angkat karyawan jadi <strong>Kontrak</strong>: pilih tipe karyawan tujuan & periode kontrak pertama. Status karyawan langsung berubah setelah disimpan.</p>
+                    <p style="font-size:12px;color:var(--text-body);margin:0 0 12px;">Angkat karyawan jadi <strong>Kontrak</strong>: isi periode kontrak pertama. Tipe karyawan otomatis (kategori Kontrak perusahaan ini). Status karyawan langsung berubah setelah disimpan.</p>
                     @if (empty($this->kontrakEmployeeTypes))
                         <p style="font-size:11.5px;color:#b45309;margin:0;">Belum ada tipe karyawan kategori Kontrak untuk perusahaan ini. Buat dulu di master Tipe Karyawan.</p>
                     @else
                         <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-start;">
-                            <div style="min-width:200px;flex:1;">
-                                <label class="form-label">Tipe Karyawan (Kontrak)</label>
-                                <select wire:model="fuEmployeeTypeId" class="form-input">
-                                    <option value="">— pilih —</option>
-                                    @foreach ($this->kontrakEmployeeTypes as $id => $nm)<option value="{{ $id }}">{{ $nm }}</option>@endforeach
-                                </select>
-                                @error('fuEmployeeTypeId') <p style="font-size:11px;color:#dc2626;margin-top:3px;">{{ $message }}</p> @enderror
-                            </div>
                             <div style="min-width:150px;">
                                 <label class="form-label">Mulai Kontrak</label>
                                 <input type="date" wire:model="fuContractStart" class="form-input">
@@ -232,7 +274,7 @@
                             </div>
                         </div>
                         <div style="display:flex;justify-content:flex-end;margin-top:12px;">
-                            <button type="button" wire:click="followUpContract" wire:confirm="Buat kontrak & ubah status karyawan jadi Kontrak?" class="btn-primary">Buat Kontrak</button>
+                            <button type="button" wire:click="followUpContract" wire:confirm="Buat kontrak & ubah status karyawan jadi Kontrak?" class="btn-primary" @disabled(! $r->presentationFullyApproved())>Buat Kontrak</button>
                         </div>
                     @endif
                 @endif

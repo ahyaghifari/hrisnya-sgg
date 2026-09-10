@@ -303,4 +303,57 @@ class IdeInovasiTest extends TestCase
 
         $this->assertTrue($sikartap->fresh()->isEligibleForDirectorDecision());
     }
+
+    public function test_pengesahan_direktur_ide_inovasi_blocks_until_approved_when_active(): void
+    {
+        $applicant = $this->makeApplicantWithOrgRoot();
+        $sikartap = $this->makeSikartapReadyForIdeInovasi($applicant);
+
+        Setting::updateOrCreate(
+            ['company_id' => $this->company->id, 'key' => SikartapSettingEnum::WAJIB_MCU->value],
+            ['module' => 'sikartap', 'type' => 'boolean', 'value' => '0', 'label' => 'Wajib MCU']
+        );
+        Setting::updateOrCreate(
+            ['company_id' => $this->company->id, 'key' => SikartapSettingEnum::IDE_INOVASI_PENGESAHAN_DIREKTUR->value],
+            ['module' => 'sikartap', 'type' => 'boolean', 'value' => '1', 'label' => 'Pengesahan Direktur']
+        );
+
+        $ide = $sikartap->ideInovasi()->create([
+            'file_ide_inovasi' => 'sikartap/ide-inovasi/fake.pdf',
+            'status_atasan' => 'approved',
+        ]);
+
+        // Atasan lulus tapi Direktur belum mengesahkan → belum eligible.
+        $this->assertFalse($sikartap->fresh()->ideInovasiApproved());
+        $this->assertFalse($sikartap->fresh()->isEligibleForDirectorDecision());
+
+        // Direktur menolak → tetap terblokir.
+        $ide->update(['status_direktur' => 'rejected']);
+        $this->assertFalse($sikartap->fresh()->ideInovasiApproved());
+
+        // Direktur mengesahkan → lolos.
+        $ide->update(['status_direktur' => 'approved']);
+        $this->assertTrue($sikartap->fresh()->ideInovasiApproved());
+        $this->assertTrue($sikartap->fresh()->isEligibleForDirectorDecision());
+    }
+
+    public function test_pengesahan_direktur_ignored_when_setting_off(): void
+    {
+        $applicant = $this->makeApplicantWithOrgRoot();
+        $sikartap = $this->makeSikartapReadyForIdeInovasi($applicant);
+
+        Setting::updateOrCreate(
+            ['company_id' => $this->company->id, 'key' => SikartapSettingEnum::WAJIB_MCU->value],
+            ['module' => 'sikartap', 'type' => 'boolean', 'value' => '0', 'label' => 'Wajib MCU']
+        );
+
+        $sikartap->ideInovasi()->create([
+            'file_ide_inovasi' => 'sikartap/ide-inovasi/fake.pdf',
+            'status_atasan' => 'approved',
+            'status_direktur' => 'pending',
+        ]);
+
+        // Setting pengesahan direktur OFF → cukup atasan.
+        $this->assertTrue($sikartap->fresh()->ideInovasiApproved());
+    }
 }

@@ -64,7 +64,7 @@ class OrientationSubmissionResource extends BaseCompanyResource
                     ->formatStateUsing(fn (?string $state) => $state ? str($state)->replace('_', ' ')->title() : null)
                     ->color(fn (?string $state) => match ($state) {
                         'lanjut_kontrak' => 'success',
-                        'perpanjang' => 'warning',
+                        'tidak_dilanjutkan' => 'danger',
                         default => 'gray',
                     }),
                 TextColumn::make('submitted_at')->label('Diajukan')->dateTime('d M Y H:i')->sortable(),

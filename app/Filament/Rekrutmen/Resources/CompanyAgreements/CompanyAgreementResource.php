@@ -8,16 +8,12 @@ use App\Models\Rekrutmen\CompanyAgreement;
 use BackedEnum;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
-use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\RichEditor;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
-use Filament\Forms\Components\Toggle;
 use Filament\Resources\Resource;
-use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
-use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
@@ -58,18 +54,7 @@ class CompanyAgreementResource extends Resource
                 ->options(fn () => Company::orderBy('name')->pluck('name', 'id'))
                 ->searchable()->required(),
             TextInput::make('title')->label('Judul')->required()->maxLength(255),
-            Toggle::make('per_opening')->label('Naskah diisi per lowongan')
-                ->helperText('Aktif: naskah dikosongkan di sini, wajib diisi saat membuat lowongan.')
-                ->live()->default(false),
-            RichEditor::make('content')->label('Naskah')->columnSpanFull()
-                ->required(fn (Get $get) => ! $get('per_opening'))
-                ->hidden(fn (Get $get) => (bool) $get('per_opening'))
-                ->dehydrated()
-                ->dehydrateStateUsing(fn ($state, Get $get) => $get('per_opening') ? '' : ($state ?? '')),
-            Placeholder::make('per_opening_hint')
-                ->label('Naskah')
-                ->content('Diisi saat membuat lowongan.')
-                ->visible(fn (Get $get) => (bool) $get('per_opening')),
+            RichEditor::make('content')->label('Naskah')->required()->columnSpanFull(),
         ]);
     }
 
@@ -80,7 +65,6 @@ class CompanyAgreementResource extends Resource
             ->columns([
                 TextColumn::make('company.name')->label('Perusahaan')->searchable()->sortable(),
                 TextColumn::make('title')->label('Judul')->searchable(),
-                IconColumn::make('per_opening')->label('Per Lowongan')->boolean(),
             ])
             ->defaultSort('sort_order')
             ->filters([

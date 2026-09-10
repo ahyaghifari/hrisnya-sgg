@@ -502,7 +502,79 @@ class PendingApprovalsCard extends Component
                 ]);
         }
 
-        $requests = $attendanceRequests->concat($transitions)->concat($courseEnrollments)->concat($trainingRequests)->concat($jabatanKuota)->concat($manpowerRequests)->concat($shiftSwapRequests)->concat($sikartapRequests)->concat($orientationRequests)->concat($contractRequests)->sortByDesc('created_at')->values();
+        // Persetujuan jadwal presentasi orientasi oleh pemegang jabatan pendukung (selain HR).
+        // Urutan bebas — muncul begitu ada usulan/slot & user ini belum menyetujui.
+        $presentationApprovals = collect();
+        if ($this->wants('orientation_presentation_approval')) {
+            $presentationApprovals = \App\Models\OrientationSubmission::with(['user'])
+                ->whereIn('status', ['diajukan', 'dinilai'])
+                ->whereNull('presentation_support_at')
+                ->whereHas('user')
+                ->get()
+                ->filter(fn ($s) => app(\App\Services\OrientationService::class)->canApprovePresentation($s, Auth::user()))
+                ->values()
+                ->map(fn ($s) => (object) [
+                    'id' => $s->id,
+                    'dispatch' => 'orientation_presentation_approval',
+                    'bulk_supported' => false,
+                    'module' => 'orientation_presentation_approval',
+                    'badge' => 'blue',
+                    'label' => 'Jadwal Presentasi Orientasi',
+                    'icon' => 'fa-calendar-check',
+                    'tile' => 'neutral',
+                    'keterangan' => 'Persetujuan jadwal',
+                    'user_name' => $s->user->name,
+                    'created_at' => $s->presentation_hr_at ?? $s->submitted_at ?? $s->created_at,
+                    'url' => route('orientasi.show', $s->id),
+                    'modal' => false,
+                    'external' => false,
+                ]);
+        }
+
+        // Pengesahan Direktur atas Ide Inovasi (kalau company mengaktifkannya). 1 baris agregat:
+        // 1 menunggu -> ke detail; >1 -> ke halaman massal (DirekturBulkIdeInovasiPage).
+        $ideInovasiDirektur = collect();
+        if ($this->wants('sikartap_ide_inovasi_direktur')
+            && Auth::user()->can(\App\Enum\CustomPermissionEnum::NILAI_IDE_INOVASI_DIREKTUR->value)) {
+            $directorService = app(\App\Services\Sikartap\SikartapDirectorDecisionService::class);
+            $user = Auth::user();
+
+            $pendingIde = \App\Models\Sikartap\Sikartap::query()
+                ->whereHas('user')
+                ->whereHas('ideInovasi', fn ($q) => $q->where('status_atasan', 'approved')->where('status_direktur', 'pending'))
+                ->with(['user', 'ideInovasi'])
+                ->get()
+                ->filter(fn ($s) => $s->requiresIdeInovasiPengesahanDirektur()
+                    && ($user->can('View:Sikartap') || $directorService->canDecide($s, $user)))
+                ->values();
+
+            if ($pendingIde->isNotEmpty()) {
+                $ideInovasiDirektur->push((object) [
+                    'id' => $pendingIde->count() === 1 ? $pendingIde->first()->id : 'bulk',
+                    'dispatch' => 'sikartap_ide_inovasi_direktur',
+                    'bulk_supported' => false,
+                    'module' => 'sikartap_ide_inovasi_direktur',
+                    'badge' => 'purple',
+                    'label' => 'Pengesahan Ide Inovasi',
+                    'icon' => 'fa-lightbulb',
+                    'tile' => 'neutral',
+                    'keterangan' => $pendingIde->count() === 1
+                        ? '1 ide inovasi'
+                        : $pendingIde->count() . ' ide inovasi',
+                    'user_name' => $pendingIde->count() === 1 ? $pendingIde->first()->user->name : '-',
+                    'created_at' => ($last = $pendingIde->pluck('ideInovasi.reviewed_at_atasan')->filter()->sort()->last())
+                        ? \Illuminate\Support\Carbon::parse($last)
+                        : now(),
+                    'url' => $pendingIde->count() === 1
+                        ? route('sikartap.pengajuan.show', $pendingIde->first())
+                        : route('sikartap.ide-inovasi.direktur.bulk'),
+                    'modal' => false,
+                    'external' => false,
+                ]);
+            }
+        }
+
+        $requests = $attendanceRequests->concat($transitions)->concat($courseEnrollments)->concat($trainingRequests)->concat($jabatanKuota)->concat($manpowerRequests)->concat($shiftSwapRequests)->concat($sikartapRequests)->concat($orientationRequests)->concat($contractRequests)->concat($presentationApprovals)->concat($ideInovasiDirektur)->sortByDesc('created_at')->values();
 
         foreach ($requests as $request) {
             $request->key = $request->dispatch . ':' . $request->id;

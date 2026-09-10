@@ -10,7 +10,6 @@ use App\Models\Sikartap\SikartapDocumentAttachment;
 use App\Notifications\Sikartap\SikartapBerkasStatusChanged;
 use App\Notifications\Sikartap\SikartapDocumentRejected;
 use App\Notifications\Sikartap\SikartapHasilMcu;
-use App\Notifications\Sikartap\SikartapIdeInovasiDireview;
 use App\Services\Sikartap\SikartapDirectorDecisionService;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\Auth;
@@ -306,15 +305,18 @@ class PengajuanDetailPage extends Component
         $this->refreshRecord();
     }
 
-    // ── Ide Inovasi — review opsional Direktur/Komisaris (tidak blocking, independen satu
-    // sama lain, beda dari tahap atasan yang wajib & sudah dinilai lewat halaman terpisah,
-    // lihat IdeInovasiAtasanReviewPage). ────────────────────────────────────
+    // ── Ide Inovasi — pengesahan Direktur (approve, bukan menilai) & review opsional Komisaris.
+    // Direktur = wajib kalau company mengaktifkan SikartapSettingEnum::IDE_INOVASI_PENGESAHAN_DIREKTUR
+    // (blocking isEligibleForDirectorDecision, menolak = terblokir sampai disahkan ulang). Komisaris
+    // tetap opsional & tidak blocking. Tahap atasan dinilai lewat IdeInovasiAtasanReviewPage. ──
 
     public function getCanReviewIdeInovasiDirekturProperty(): bool
     {
-        return Auth::user()->can(CustomPermissionEnum::NILAI_IDE_INOVASI_DIREKTUR->value)
+        return $this->sikartap->requiresIdeInovasiPengesahanDirektur()
+            && Auth::user()->can(CustomPermissionEnum::NILAI_IDE_INOVASI_DIREKTUR->value)
             && $this->sikartap->ideInovasi
-            && $this->sikartap->ideInovasi->status_direktur === 'pending';
+            && $this->sikartap->ideInovasi->status_atasan === 'approved'
+            && $this->sikartap->ideInovasi->status_direktur !== 'approved';
     }
 
     public function getCanReviewIdeInovasiKomisarisProperty(): bool
@@ -326,19 +328,12 @@ class PengajuanDetailPage extends Component
 
     private function reviewIdeInovasiTier(string $tier, string $status): void
     {
-        $this->sikartap->ideInovasi->update([
-            "status_{$tier}" => $status,
-            "catatan_{$tier}" => $this->ideInovasiNote ?: null,
-            "reviewed_by_{$tier}" => Auth::id(),
-            "reviewed_at_{$tier}" => now(),
-        ]);
-
-        $this->sikartap->user?->notify(new SikartapIdeInovasiDireview($this->sikartap->id, $tier, $status, $this->ideInovasiNote ?: null));
+        $this->sikartap->ideInovasi->recordTierDecision($tier, $status, Auth::id(), $this->ideInovasiNote);
 
         $this->closePanel();
         $this->refreshRecord();
 
-        Notification::make()->title('Penilaian ide inovasi tersimpan')->success()->send();
+        Notification::make()->title('Keputusan ide inovasi tersimpan')->success()->send();
     }
 
     public function approveIdeInovasiDirektur(): void

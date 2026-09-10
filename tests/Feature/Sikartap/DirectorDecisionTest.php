@@ -98,9 +98,9 @@ class DirectorDecisionTest extends TestCase
         ]);
         $direktur->assignRole($role);
 
-        Setting::updateOrCreate(
-            ['key' => SikartapDirectorDecisionService::SETTING_KEY, 'company_id' => $company->id],
-            ['module' => 'sikartap', 'type' => 'string', 'label' => 'Jabatan Direktur', 'value' => $pos->id],
+        \App\Models\Master\CompanyDirector::updateOrCreate(
+            ['company_id' => $company->id],
+            ['job_position_id' => $pos->id],
         );
 
         return $direktur;

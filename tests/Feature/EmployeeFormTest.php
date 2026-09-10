@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Enum\OrgStructurLevel;
 use App\Filament\Resources\Employees\Pages\CreateEmployee;
 use App\Models\Master\Companies;
 use App\Models\Master\JobPositions;
@@ -40,7 +41,7 @@ class EmployeeFormTest extends TestCase
         JobPositions::create(['name' => 'Staff', 'company_id' => $company->id]);
         Pangkats::create(['name' => 'Perawat', 'golongan' => 'III/a', 'company_id' => $company->id]);
         Kelas::create(['name' => 'Kelas A', 'company_id' => $company->id]);
-        OrgStructure::create(['name' => 'Departemen A', 'company_id' => $company->id, 'level' => 1]);
+        OrgStructure::create(['name' => 'Departemen A', 'company_id' => $company->id, 'level' => OrgStructurLevel::LEVEL_DEPARTMENT->value]);
 
         $livewire = Livewire::actingAs($admin)
             ->test(CreateEmployee::class)

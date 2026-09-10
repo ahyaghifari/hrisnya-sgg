@@ -28,19 +28,26 @@ class OrientasiPage extends Component
 
     public $buktiFile = null;
 
-    public ?string $note = null;
+    /** Usulan jadwal presentasi kegiatan (diisi karyawan saat draft). */
+    public ?string $presentasiDate = null;
+    public ?string $presentasiTime = null;
 
     public function mount(): void
     {
         abort_unless(Auth::user()->isOrientasiKaryawan(), 403);
 
         // Halaman ini cuma menampilkan orientasi yang AKTIF (periode terbaru). Pengajuan +
-        // skor periode lama (mis. yang keputusannya "perpanjang") disembunyikan — muncul
-        // ringkas di daftar "Riwayat Pengajuan" & periode lama di-collapse.
+        // skor periode lama disembunyikan — muncul ringkas di daftar "Riwayat Pengajuan" &
+        // periode lama di-collapse.
         $period = $this->period;
         $this->submissionId = $period
             ? OrientationSubmission::where('user_orientation_id', $period->id)->latest()->value('id')
             : null;
+
+        if ($this->current?->presentation_proposed_at) {
+            $this->presentasiDate = $this->current->presentation_proposed_at->toDateString();
+            $this->presentasiTime = $this->current->presentation_proposed_at->format('H:i');
+        }
     }
 
     public function getCurrentProperty(): ?OrientationSubmission
@@ -94,10 +101,9 @@ class OrientasiPage extends Component
      * Pengajuan BARU dibuat cuma kalau periode orientasi TERBARU belum punya pengajuan sama
      * sekali. Jadi:
      *  - belum pernah ngajukan → boleh.
-     *  - keputusan "perpanjang": SELAMA HR belum input periode baru, periode terbaru masih
-     *    periode lama (yang sudah ada pengajuannya) → TIDAK boleh. Setelah HR buat periode baru
-     *    → periode itu kosong → boleh ngajukan untuk periode baru.
-     *  - "lanjut_kontrak" → karyawan bukan orientasi lagi (mount 403).
+     *  - sudah dinilai/selesai → periode ini sudah ada pengajuannya → TIDAK boleh (keputusan
+     *    lanjut_kontrak = bukan orientasi lagi/mount 403; tidak_dilanjutkan = tidak ada
+     *    periode baru).
      *  - dibatalkan → buka baris yang sama (getCanReopenProperty), bukan baris baru.
      */
     public function getCanStartNewProperty(): bool
@@ -114,8 +120,8 @@ class OrientasiPage extends Component
         return ! $opensAt || now()->gte($opensAt);
     }
 
-    /** Pengajuan yang dibatalkan bisa diajukan ULANG di baris yang sama (tidak ada "tidak
-     *  lulus" — keputusan cuma Lanjut Kontrak / Perpanjang Orientasi). */
+    /** Pengajuan yang dibatalkan bisa diajukan ULANG di baris yang sama (keputusan cuma
+     *  Direkomendasikan untuk Kontrak Kerja / Tidak Dilanjutkan). */
     public function getCanReopenProperty(): bool
     {
         return $this->current && $this->current->status === 'dibatalkan';
@@ -163,9 +169,39 @@ class OrientasiPage extends Component
             'decided_by' => null,
             'decided_at' => null,
             'extended_until' => null,
+            'effective_end_date' => null,
+            'presentation_confirmed_at' => null,
+            'presentation_note' => null,
+            'presentation_decided_by' => null,
+            'presentation_decided_at' => null,
+            'presentation_hr_at' => null,
+            'presentation_hr_by' => null,
+            'presentation_support_at' => null,
+            'presentation_support_by' => null,
         ]);
 
         Notification::make()->title('Pengajuan dibuka lagi — perbaiki bukti lalu kirim ulang')->success()->send();
+    }
+
+    /** Simpan usulan jadwal presentasi ke draft (biar persist saat reload, sebelum Kirim). */
+    public function savePresentasi(): void
+    {
+        $submission = $this->current;
+        abort_unless($submission && $submission->status === 'draft', 403);
+
+        $this->validate(
+            ['presentasiDate' => ['required', 'date'], 'presentasiTime' => ['required']],
+            [],
+            ['presentasiDate' => 'tanggal presentasi', 'presentasiTime' => 'jam presentasi'],
+        );
+
+        $submission->update([
+            'presentation_proposed_at' => Carbon::parse("{$this->presentasiDate} {$this->presentasiTime}"),
+        ]);
+
+        unset($this->current);
+
+        Notification::make()->title('Usulan jadwal presentasi tersimpan')->success()->send();
     }
 
     public function uploadBukti(): void
@@ -210,7 +246,6 @@ class OrientasiPage extends Component
         abort_unless($submission && $submission->status === 'draft', 403);
 
         try {
-            $submission->update(['note' => $this->note]);
             app(OrientationService::class)->submit($submission, Auth::user());
 
             Notification::make()->title('Pengajuan orientasi terkirim')->success()->send();

@@ -130,6 +130,7 @@
             $statusLabels = [
                 'draft' => ['Draf', 'var(--text-muted)'],
                 'diajukan' => ['Diajukan', '#b45309'],
+                'dinilai' => ['Menunggu Durasi (HR)', '#b45309'],
                 'selesai' => ['Disetujui', '#047C54'],
                 'ditolak' => ['Tidak Diperpanjang', '#dc2626'],
                 'dibatalkan' => ['Dibatalkan', '#dc2626'],
@@ -163,9 +164,6 @@
                 @if ($r->alasan)
                     <p style="font-size:12.5px;color:var(--text-body);margin:0;"><span style="color:var(--text-faint);">Alasan:</span> {{ $r->alasan }}</p>
                 @endif
-                @if ($r->usulan_durasi_bulan)
-                    <p style="font-size:12px;color:var(--text-muted);margin:4px 0 0;">Usulan durasi karyawan: {{ $r->usulan_durasi_bulan }} bulan</p>
-                @endif
                 @if ($r->submitted_at)
                     <p style="font-size:11px;color:var(--text-faint);margin:8px 0 0;">Diajukan {{ $r->submitted_at->translatedFormat('d F Y H:i') }}</p>
                 @endif
@@ -186,7 +184,7 @@
             </div>
 
             {{-- Keputusan (kalau sudah) --}}
-            @if (in_array($r->status, ['selesai', 'ditolak']) && $r->decision)
+            @if (in_array($r->status, ['dinilai', 'selesai', 'ditolak']) && $r->decision)
                 <div style="background:var(--surface);border-radius:12px;box-shadow:var(--shadow-card);padding:18px;">
                     <p style="font-size:12px;color:var(--text-muted);margin:0 0 3px;">Keputusan Penilai — {{ $r->decidedBy?->name }}</p>
                     <p style="font-size:15px;font-weight:700;color:{{ $decisionColors[$r->decision] ?? 'var(--text-muted)' }};margin:0 0 4px;">{{ $decisionLabels[$r->decision] ?? $r->decision }}</p>
@@ -214,16 +212,7 @@
                     </div>
 
                     @if ($reviewDecision === 'perpanjang')
-                        <div style="margin-bottom:10px;">
-                            <label class="form-label">Durasi Perpanjangan (bulan)</label>
-                            <input type="number" wire:model.live="reviewDurasi" class="form-input" min="1" max="24">
-                            @error('reviewDurasi') <p style="font-size:11px;color:#dc2626;margin-top:4px;">{{ $message }}</p> @enderror
-                        </div>
-                        @if ($this->preview)
-                            <p style="font-size:12px;color:var(--text-body);margin:0 0 10px;background:var(--warn-soft-bg);border:1px solid var(--warn-soft-border);border-radius:8px;padding:8px 10px;">
-                                Kontrak baru: <strong>{{ $this->preview[0]->format('d M Y') }}</strong> &ndash; <strong>{{ $this->preview[1]->format('d M Y') }}</strong>
-                            </p>
-                        @endif
+                        <p style="font-size:11.5px;color:var(--text-muted);margin:0 0 10px;">Durasi perpanjangan ditetapkan HR pada langkah berikutnya.</p>
                     @endif
 
                     <div style="margin-bottom:12px;">
@@ -233,7 +222,7 @@
                     </div>
 
                     <div style="display:flex;justify-content:flex-end;">
-                        <button type="button" wire:click="submitReview" wire:confirm="Simpan keputusan ini? (jika perpanjang, kontrak baru langsung dibuat)" class="btn-primary">Simpan Keputusan</button>
+                        <button type="button" wire:click="submitReview" wire:confirm="Simpan keputusan ini?" class="btn-primary">Simpan Keputusan</button>
                     </div>
 
                     {{-- Kembalikan ke karyawan buat lengkapi dokumen --}}
@@ -246,6 +235,28 @@
                                 <i class="fa-solid fa-rotate-left"></i> Kembalikan untuk Revisi
                             </button>
                         </div>
+                    </div>
+                </div>
+            @endif
+
+            {{-- TINDAK LANJUT HR — penetapan durasi (setelah penilai memutuskan perpanjang) --}}
+            @if ($this->canFollowUpDuration)
+                <div style="background:var(--surface);border:2px solid #b45309;border-radius:12px;box-shadow:var(--shadow-card);padding:18px;">
+                    <p style="font-size:13px;font-weight:700;color:var(--text-heading);margin:0 0 4px;">Tindak Lanjut HR — Durasi Perpanjangan</p>
+                    <p style="font-size:12px;color:var(--text-muted);margin:0 0 12px;">Penilai memutuskan <strong>Perpanjang Kontrak</strong>. Tetapkan durasinya; kontrak baru langsung dibuat.</p>
+
+                    <div style="margin-bottom:10px;max-width:220px;">
+                        <label class="form-label">Durasi Perpanjangan (bulan)</label>
+                        <input type="number" wire:model.live="reviewDurasi" class="form-input" min="1" max="24">
+                        @error('reviewDurasi') <p style="font-size:11px;color:#dc2626;margin-top:4px;">{{ $message }}</p> @enderror
+                    </div>
+                    @if ($this->preview)
+                        <p style="font-size:12px;color:var(--text-body);margin:0 0 10px;background:var(--warn-soft-bg);border:1px solid var(--warn-soft-border);border-radius:8px;padding:8px 10px;">
+                            Kontrak baru: <strong>{{ $this->preview[0]->format('d M Y') }}</strong> &ndash; <strong>{{ $this->preview[1]->format('d M Y') }}</strong>
+                        </p>
+                    @endif
+                    <div style="display:flex;justify-content:flex-end;">
+                        <button type="button" wire:click="submitFollowUpDuration" wire:confirm="Tetapkan durasi & buat kontrak baru?" class="btn-primary">Tetapkan Durasi & Buat Kontrak</button>
                     </div>
                 </div>
             @endif

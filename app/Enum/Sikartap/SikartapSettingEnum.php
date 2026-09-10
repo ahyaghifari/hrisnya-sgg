@@ -18,12 +18,14 @@ enum SikartapSettingEnum: string
 {
     case WAJIB_IDE_INOVASI = 'sikartap_wajib_ide_inovasi';
     case WAJIB_MCU = 'sikartap_wajib_mcu';
+    case IDE_INOVASI_PENGESAHAN_DIREKTUR = 'sikartap_ide_inovasi_pengesahan_direktur';
 
     public function label(): string
     {
         return match ($this) {
             self::WAJIB_IDE_INOVASI => 'Wajib Ide Inovasi',
             self::WAJIB_MCU => 'Wajib MCU (Medical Check-Up)',
+            self::IDE_INOVASI_PENGESAHAN_DIREKTUR => 'Ide Inovasi — Pengesahan Direktur',
         };
     }
 
@@ -32,6 +34,7 @@ enum SikartapSettingEnum: string
         return match ($this) {
             self::WAJIB_IDE_INOVASI => 'Kalau aktif, karyawan wajib submit ide inovasi (dinilai berjenjang Kabag/Kabid unit asal) setelah wawancara disarankan, sebelum bisa lanjut ke tahap berikutnya. Default nonaktif - sebagian besar company tidak mensyaratkan ini.',
             self::WAJIB_MCU => 'Kalau aktif, karyawan wajib menjalani MCU (Medical Check-Up) dan dinyatakan Fit sebelum bisa diajukan ke Direktur. Nonaktifkan kalau company ini tidak mensyaratkan MCU - tahap MCU langsung dilewati.',
+            self::IDE_INOVASI_PENGESAHAN_DIREKTUR => 'Kalau aktif, setelah atasan meluluskan ide inovasi, Direktur harus MENGESAHKAN (approve, bukan menilai ulang) sebelum pengajuan bisa lanjut ke Keputusan Direktur. Direktur bisa menolak → pengajuan terblokir sampai disahkan ulang. Hanya berlaku kalau "Wajib Ide Inovasi" aktif.',
         };
     }
 
@@ -49,6 +52,9 @@ enum SikartapSettingEnum: string
             // MCU sudah jadi bagian alur sejak awal (Fase 3) - default on supaya behavior
             // company existing tidak berubah begitu toggle ini diperkenalkan.
             self::WAJIB_MCU => '1',
+            // Pengesahan Direktur ide inovasi - default off, tahap direktur/komisaris memang
+            // historisnya opsional & tidak blocking.
+            self::IDE_INOVASI_PENGESAHAN_DIREKTUR => '0',
         };
     }
 }
