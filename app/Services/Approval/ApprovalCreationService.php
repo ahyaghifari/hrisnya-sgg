@@ -49,11 +49,32 @@ class ApprovalCreationService
             ]);
             $offset = $prepended->count();
 
+            // Step 'supervisor' = atasan pengaju (naik N level dari jabatan pengaju). Dibekukan
+            // jadi 'job_position' di sini supaya downstream (canApprove/notifikasi/timeline)
+            // tidak perlu tahu apa-apa soal tipe baru ini. Tiap level di-resolve sekali; wajib
+            // ketemu — kalau rantai jabatan lebih pendek dari level yang diminta, tolak pengajuan.
+            $supervisorPositionByLevel = [];
+            foreach ($flow->steps->where('approver_type', 'supervisor') as $s) {
+                $level = (int) ($s->supervisor_level ?? 1);
+                if (array_key_exists($level, $supervisorPositionByLevel)) {
+                    continue;
+                }
+
+                $pid = $this->snapshotRepo->resolveSupervisorPositionId($userId, $level);
+                if (! $pid) {
+                    throw new \RuntimeException("Pengajuan tidak dapat diproses: atasan pengaju level {$level} tidak ditemukan. Pastikan jabatan pengaju terisi dan punya rantai atasan sampai level tersebut.");
+                }
+
+                $supervisorPositionByLevel[$level] = $pid;
+            }
+
             // Ambil steps dari master flow, order-nya digeser kalau ada step yang disisipkan.
             $flowSteps = $flow->steps->sortBy('step_order')->values()->map(fn ($s, $i) => [
                 'order' => $offset + $i + 1,
-                'approver_type' => $s->approver_type,
-                'approver_ref_id' => $s->approver_ref_id,
+                'approver_type' => $s->approver_type === 'supervisor' ? 'job_position' : $s->approver_type,
+                'approver_ref_id' => $s->approver_type === 'supervisor'
+                    ? $supervisorPositionByLevel[(int) ($s->supervisor_level ?? 1)]
+                    : $s->approver_ref_id,
                 'scope_type' => $s->scope_type,
                 'scope_ref_id' => $s->scope_ref_id ?? null,
                 'is_final_step' => $s->is_final,

@@ -224,7 +224,8 @@
             },
 
             isExpanded(node) {
-                return this.expanded[node.id] ?? true;
+                // Default tertutup — buka manual atau lewat tombol "Buka Semua".
+                return this.expanded[node.id] ?? false;
             },
 
             toggleExpand(node) {

@@ -44,6 +44,10 @@ class ExtraShiftRule extends Model
 
     public function getFromShiftTypeLabelAttribute(): string
     {
+        if ($this->from_shift_type === 'libur') {
+            return 'Libur / roster kosong';
+        }
+
         return ShiftType::tryFrom($this->from_shift_type)?->getLabel() ?? $this->from_shift_type;
     }
 

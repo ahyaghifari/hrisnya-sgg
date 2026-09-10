@@ -19,12 +19,6 @@ enum CustomPermissionEnum: string
     case SISTEM_PEMBINAAN_KARYAWAN = 'sistem_pembinaan_karyawan';
     case SISTEM_PENILAIAN_KARYAWAN = 'sistem_penilaian_karyawan';
 
-    /** Gerbang portal buat permissio approve lintas-modul (APPROVE_PENGAJUAN_ABSENSI,
-     * APPROVE_MANAJEMEN_LOWONGAN_KERJA) yang tidak numpang di gerbang SISTEM_* modulnya
-     * masing-masing (2026-08-08, permintaan user - dipisah biar approval bisa didelegasikan
-     * ke role yang bukan pemegang akses penuh modul terkait). */
-    case SISTEM_APPROVAL = 'sistem_approval';
-
     /** Gerbang dropdown nav "Sikartap" (row 2) — sama pola SISTEM_ABSENSI/SISTEM_KEUANGAN dkk:
      * gerbang broad "boleh akses modul ini sama sekali" (HRD/Direktur/staff klinis MCU semua
      * butuh ini dulu sebelum link di dalam dropdown dicek granular masing-masing:
@@ -62,11 +56,9 @@ enum CustomPermissionEnum: string
     // Verb non-CRUD (approve/import/report) - dideklarasikan juga di
     // config/filament-shield.php 'custom_permissions' supaya Shield tidak menganggapnya yatim.
     // Sebelumnya dijaga lewat PermissionsSeeder.php lama (sudah dihapus), dipindah ke sini.
-    case APPROVE_PENGAJUAN_ABSENSI = 'approve_pengajuan_absensi';
     case VIEW_REPORT_DATA_ABSENSI = 'view_report_data_absensi';
     case IMPORT_DATA_ABSENSI = 'import_data_absensi';
     case APPROVE_PENGAJUAN_PELATIHAN = 'approve_pengajuan_pelatihan';
-    case APPROVE_MANAJEMEN_LOWONGAN_KERJA = 'approve_manajemen_lowongan_kerja';
     case LIHAT_PERUSAHAAN_LAIN = 'lihat_perusahaan_lain';
 
     /** Import akun dasar karyawan (nama/email/nip saja, lewat halaman
@@ -210,16 +202,6 @@ enum CustomPermissionEnum: string
      * LIHAT_PENGATURAN_ABSENSI/LIHAT_PENGATURAN_KEPEGAWAIAN. */
     case LIHAT_PENGATURAN_LMS = 'lihat_pengaturan_lms';
 
-    /**
-     * Beda dari Update:Schedule (edit header jadwal, ubah karyawan yang dipasangkan) — ini
-     * khusus buat karu/kepala ruangan yang cuma perlu kelola Template Rotasi + generate +
-     * detail penjadwalan (roster) SATU jadwal shift yang sudah ada, tanpa perlu bisa ubah
-     * jadwal/pengguna-nya. Cuma berlaku di tab "Template Shift" & "Detail Penjadwalan"
-     * (ScheduleShiftRotationTab & ScheduleShiftRosterTab) — keduanya cuma tampil untuk jadwal
-     * bertipe Shift.
-     */
-    case KELOLA_JADWAL_SHIFT = 'kelola_jadwal_shift';
-
     /** Generate/regenerate payroll (PayrollPeriodsPage) — aksi berat/sensitif (nulis ratusan
      * baris payroll sekaligus), sengaja dipisah dari Update:PayrollPeriod (yang cuma ubah
      * tanggal periode) supaya bisa dikasih ke role finance yang lebih terbatas. */
@@ -310,12 +292,11 @@ enum CustomPermissionEnum: string
         return match
          ($this) {
             self::SISTEM_KEUANGAN => 'Sistem Keuangan',
-            self::SISTEM_ABSENSI => 'Sistem Absensi',
+            self::SISTEM_ABSENSI => 'Sistem Presensi & Absensi',
             self::SISTEM_KEPEGAWAIAN => 'Sistem Kepegawaian',
             self::SISTEM_LMS => 'Sistem LMS',
             self::SISTEM_PEMBINAAN_KARYAWAN => 'Sistem Pembinaan Karyawan',
             self::SISTEM_PENILAIAN_KARYAWAN => 'Sistem Penilaian Karyawan',
-            self::SISTEM_APPROVAL => 'Approver',
             self::SISTEM_SIKARTAP => 'Sistem Sikartap',
             self::SISTEM_REKRUTMEN => 'Sistem Rekrutmen',
             self::SISTEM_MCU => 'Sistem MCU',
@@ -325,11 +306,9 @@ enum CustomPermissionEnum: string
             self::PENGAJUAN_ABSENSI_SAYA => 'Pengajuan Absensi Saya',
             self::PEMBINAAN_SAYA => 'Pembinaan Saya',
             self::COACHING_KARYAWAN_LAINNYA => 'Coaching Karyawan Lainnya (Semua Karyawan, Bukan Cuma Bawahan)',
-            self::APPROVE_PENGAJUAN_ABSENSI => 'Approve Pengajuan Absensi',
             self::VIEW_REPORT_DATA_ABSENSI => 'Lihat Laporan Data Absensi',
             self::IMPORT_DATA_ABSENSI => 'Import Data Absensi',
             self::APPROVE_PENGAJUAN_PELATIHAN => 'Approve Pengajuan Pelatihan',
-            self::APPROVE_MANAJEMEN_LOWONGAN_KERJA => 'Approve Manajemen Lowongan Kerja',
             self::LIHAT_PERUSAHAAN_LAIN => 'Lihat Perusahaan Lain',
             self::IMPORT_KARYAWAN => 'Import Akun Karyawan',
             self::EDIT_MAPPING_KOMPONEN_GAJI => 'Edit Mapping Komponen Gaji',
@@ -373,7 +352,6 @@ enum CustomPermissionEnum: string
             self::NILAI_IDE_INOVASI_KOMISARIS => 'Nilai Ide Inovasi (Komisaris)',
             self::LIHAT_DASHBOARD_SIKARTAP_STATISTIK => 'Lihat Widget Statistik Pengajuan (Dashboard Sikartap)',
             self::LIHAT_DASHBOARD_SIKARTAP_ANTRIAN_TAHAP => 'Lihat Widget Antrian per Tahap (Dashboard Sikartap)',
-            self::KELOLA_JADWAL_SHIFT => 'Kelola Jadwal Shift (Template & Roster)',
             self::GENERATE_PAYROLL => 'Generate/Regenerate Payroll',
             self::IMPORT_PAYROLL_MANUAL => 'Import Payroll Manual (dari Excel)',
             self::LIHAT_LAMPIRAN_IDENTITAS_KARYAWAN => 'Lihat Lampiran Identitas Karyawan (KTP/KK)',

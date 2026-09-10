@@ -77,6 +77,7 @@ class ApprovalTimelineService
             'user' => User::find($step['approver_ref_id'])?->name ?? 'Approval',
             'role' => Role::find($step['approver_ref_id'])?->name ?? 'Approval',
             'job_position' => JobPositions::find($step['approver_ref_id'])?->name ?? 'Approval',
+            'supervisor' => 'Atasan Pengaju',
             default => 'Approval',
         };
     }

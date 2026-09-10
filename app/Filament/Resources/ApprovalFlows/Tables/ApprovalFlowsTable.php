@@ -34,6 +34,14 @@ class ApprovalFlowsTable
                     ->searchable()
                     ->sortable(),
 
+                TextColumn::make('sub_module')
+                    ->label('Jenis Pengajuan')
+                    ->placeholder('Semua')
+                    ->formatStateUsing(fn ($state) => collect(explode(',', (string) $state))
+                        ->filter()
+                        ->map(fn ($v) => \App\Enum\Approval\AttendanceApprovalBucketEnum::tryFrom($v)?->label() ?? $v)
+                        ->implode(', ')),
+
                 TextColumn::make('flow_type')
                     ->label('Tipe Alur')
                     ->formatStateUsing(fn ($state) => $state === 'default' ? 'Default' : 'Spesifik')

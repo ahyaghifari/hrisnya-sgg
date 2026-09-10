@@ -2,7 +2,6 @@
 
 namespace App\Livewire\Presensi;
 
-use App\Enum\CustomPermissionEnum;
 use App\Models\Shift\Schedule;
 use App\Models\Shift\ScheduleAssignment;
 use App\Models\Shift\ScheduleShiftRotation;
@@ -35,7 +34,8 @@ class ScheduleShiftRotationTab extends Component
 
     public function mount(Schedule $schedule): void
     {
-        abort_unless(Auth::user()->can(CustomPermissionEnum::SISTEM_ABSENSI->value), 403);
+        // Tab Template Shift tidak punya mode "lihat saja" - buka = boleh edit. Satu permission.
+        abort_unless(Auth::user()->can('Update:ShiftTemplates'), 403);
 
         $this->schedule = $schedule;
         $this->loadRows();
@@ -77,14 +77,9 @@ class ScheduleShiftRotationTab extends Component
             ->values();
     }
 
-    public function getCanEditJadwalProperty(): bool
-    {
-        return Auth::user()->can(CustomPermissionEnum::KELOLA_JADWAL_SHIFT->value);
-    }
-
     public function activateTemplate(): void
     {
-        abort_unless(Auth::user()->can(CustomPermissionEnum::KELOLA_JADWAL_SHIFT->value), 403);
+        abort_unless(Auth::user()->can('Update:ShiftTemplates'), 403);
 
         $this->schedule->update(['use_template' => true]);
         $this->schedule->refresh();
@@ -95,7 +90,7 @@ class ScheduleShiftRotationTab extends Component
 
     public function deactivateTemplate(): void
     {
-        abort_unless(Auth::user()->can(CustomPermissionEnum::KELOLA_JADWAL_SHIFT->value), 403);
+        abort_unless(Auth::user()->can('Update:ShiftTemplates'), 403);
 
         $this->schedule->update(['use_template' => false]);
         $this->schedule->refresh();
@@ -105,7 +100,7 @@ class ScheduleShiftRotationTab extends Component
 
     public function addDayColumn(): void
     {
-        abort_unless(Auth::user()->can(CustomPermissionEnum::KELOLA_JADWAL_SHIFT->value), 403);
+        abort_unless(Auth::user()->can('Update:ShiftTemplates'), 403);
 
         $this->dayCount++;
 
@@ -116,7 +111,7 @@ class ScheduleShiftRotationTab extends Component
 
     public function removeDayColumn(): void
     {
-        abort_unless(Auth::user()->can(CustomPermissionEnum::KELOLA_JADWAL_SHIFT->value), 403);
+        abort_unless(Auth::user()->can('Update:ShiftTemplates'), 403);
 
         if ($this->dayCount <= 1) {
             return;
@@ -131,7 +126,7 @@ class ScheduleShiftRotationTab extends Component
 
     public function saveRotation(): void
     {
-        abort_unless(Auth::user()->can(CustomPermissionEnum::KELOLA_JADWAL_SHIFT->value), 403);
+        abort_unless(Auth::user()->can('Update:ShiftTemplates'), 403);
 
         DB::transaction(function () {
             foreach ($this->rows as $userId => $row) {

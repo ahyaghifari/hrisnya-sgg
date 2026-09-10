@@ -29,9 +29,12 @@ class ExtraShiftPageTest extends TestCase
     private function actingAsPengelola(string $companyId): User
     {
         Permission::firstOrCreate(['name' => CustomPermissionEnum::SISTEM_ABSENSI->value, 'guard_name' => 'web']);
-        Permission::firstOrCreate(['name' => CustomPermissionEnum::KELOLA_JADWAL_SHIFT->value, 'guard_name' => 'web']);
+        $shieldLiterals = ['ViewAny:ExtraShiftAssignment', 'Create:ExtraShiftAssignment', 'Update:ExtraShiftAssignment', 'Delete:ExtraShiftAssignment'];
+        foreach ($shieldLiterals as $literal) {
+            Permission::firstOrCreate(['name' => $literal, 'guard_name' => 'web']);
+        }
         $role = Role::firstOrCreate(['name' => 'Extra Shift Test', 'guard_name' => 'web']);
-        $role->givePermissionTo([CustomPermissionEnum::SISTEM_ABSENSI->value, CustomPermissionEnum::KELOLA_JADWAL_SHIFT->value]);
+        $role->givePermissionTo([CustomPermissionEnum::SISTEM_ABSENSI->value, ...$shieldLiterals]);
 
         $user = User::factory()->create(['company_id' => $companyId]);
         $user->assignRole($role);
@@ -117,7 +120,7 @@ class ExtraShiftPageTest extends TestCase
         $this->assertNotContains($siangOtherSchedule->id, $optionIds);
     }
 
-    public function test_shift_type_options_empty_when_employee_off_day_on_date(): void
+    public function test_off_day_without_libur_rule_has_no_shift_type_options(): void
     {
         $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
         $admin = $this->actingAsPengelola($company->id);
@@ -125,6 +128,7 @@ class ExtraShiftPageTest extends TestCase
 
         $date = now()->addDay()->toDateString();
         $this->seedRoster($company, $employee, $pagi, $date, offDay: true);
+        // Cuma aturan dari shift NORMAL, tidak ada aturan `libur -> *`.
         ExtraShiftRule::create(['company_id' => $company->id, 'from_shift_type' => 'pagi', 'to_shift_type' => 'siang']);
 
         $this->actingAs($admin);
@@ -132,6 +136,71 @@ class ExtraShiftPageTest extends TestCase
         $component = Livewire::test(ExtraShiftPage::class)
             ->set('user_id', $employee->id)
             ->set('date', $date);
+
+        $this->assertSame('libur', $component->get('normalShift')['category']);
+        $this->assertCount(0, $component->get('shiftTypeOptions'));
+    }
+
+    public function test_off_day_or_empty_roster_allows_extra_shift_via_libur_rule(): void
+    {
+        $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
+        $admin = $this->actingAsPengelola($company->id);
+        ['pagi' => $pagi, 'siang' => $siang, 'employee' => $employee] = $this->makeShiftEmployee($company);
+
+        ExtraShiftRule::create(['company_id' => $company->id, 'from_shift_type' => 'libur', 'to_shift_type' => 'siang']);
+
+        $this->actingAs($admin);
+
+        // Roster off_day.
+        $offDate = now()->addDay()->toDateString();
+        $this->seedRoster($company, $employee, $pagi, $offDate, offDay: true);
+        // Roster belum diisi sama sekali untuk tanggal ini.
+        $emptyDate = now()->addDays(2)->toDateString();
+
+        foreach ([$offDate, $emptyDate] as $date) {
+            $component = Livewire::test(ExtraShiftPage::class)
+                ->set('user_id', $employee->id)
+                ->set('date', $date);
+
+            $this->assertSame('libur', $component->get('normalShift')['category'], "tanggal {$date}");
+            $this->assertSame([$siang->id], $component->get('shiftTypeOptions')->pluck('id')->all(), "tanggal {$date}");
+        }
+
+        Livewire::test(ExtraShiftPage::class)
+            ->set('user_id', $employee->id)
+            ->set('date', $emptyDate)
+            ->set('shift_type_id', $siang->id)
+            ->call('assign')
+            ->assertHasNoErrors();
+
+        $this->assertDatabaseHas('extra_shift_assignments', [
+            'user_id' => $employee->id,
+            'shift_type_id' => $siang->id,
+            'date' => $emptyDate,
+            'status' => 'approved',
+        ]);
+    }
+
+    public function test_fixed_schedule_employee_off_day_gets_no_extra_shift(): void
+    {
+        $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
+        $admin = $this->actingAsPengelola($company->id);
+
+        $schedule = Schedule::create(['company_id' => $company->id, 'name' => 'Kantor', 'schedule_type' => 'fixed']);
+        $employee = User::factory()->create(['company_id' => $company->id]);
+        ScheduleAssignment::create([
+            'company_id' => $company->id,
+            'user_id' => $employee->id,
+            'schedule_id' => $schedule->id,
+            'effective_from' => now()->subYear()->toDateString(),
+        ]);
+        ExtraShiftRule::create(['company_id' => $company->id, 'from_shift_type' => 'libur', 'to_shift_type' => 'siang']);
+
+        $this->actingAs($admin);
+
+        $component = Livewire::test(ExtraShiftPage::class)
+            ->set('user_id', $employee->id)
+            ->set('date', now()->addDay()->toDateString());
 
         $this->assertNull($component->get('normalShift'));
         $this->assertCount(0, $component->get('shiftTypeOptions'));
@@ -167,7 +236,7 @@ class ExtraShiftPageTest extends TestCase
         $this->assertSame($admin->id, $row->created_by);
     }
 
-    public function test_user_without_kelola_jadwal_shift_cannot_assign(): void
+    public function test_user_without_create_permission_cannot_assign(): void
     {
         $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
 

@@ -19,6 +19,11 @@ use Livewire\Component;
 #[Layout('components.layout', ['title' => 'Aturan Extra Shift'])]
 class ExtraShiftRulePage extends Component
 {
+    /** Kategori `from` khusus: roster shift kosong / off_day - yang lagi libur boleh diajukan
+     * extra shift (lihat ResolvesExtraShiftOptions::resolveNormalShift). Bukan case ShiftType
+     * karena bukan kategori shift beneran, cuma dipakai sebagai basis aturan `from_shift_type`. */
+    public const LIBUR = 'libur';
+
     public ?string $companyId = null;
 
     public string $fromShiftType = '';
@@ -80,8 +85,10 @@ class ExtraShiftRulePage extends Component
     {
         abort_unless(Auth::user()->can('create', ExtraShiftRule::class), 403);
 
+        $fromValues = array_merge(array_column(ShiftType::cases(), 'value'), [self::LIBUR]);
+
         $this->validate([
-            'fromShiftType' => ['required', 'in:' . implode(',', array_column(ShiftType::cases(), 'value'))],
+            'fromShiftType' => ['required', 'in:' . implode(',', $fromValues)],
             'toShiftType' => ['required', 'in:' . implode(',', array_column(ShiftType::cases(), 'value')), 'different:fromShiftType'],
         ], [], [
             'fromShiftType' => 'dari shift',
