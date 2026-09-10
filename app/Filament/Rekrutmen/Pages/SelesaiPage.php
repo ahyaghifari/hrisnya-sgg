@@ -2,12 +2,16 @@
 
 namespace App\Filament\Rekrutmen\Pages;
 
+use App\Models\Rekrutmen\ApplicationNotification;
+use App\Models\Rekrutmen\CompanyMessageTemplate;
 use App\Models\Rekrutmen\JobApplication;
 use App\Models\Rekrutmen\JobOpening;
 use App\Services\Rekrutmen\CandidateOnboardingService;
+use Carbon\Carbon;
 use Filament\Actions\Action;
 use Filament\Actions\Concerns\InteractsWithActions;
 use Filament\Actions\Contracts\HasActions;
+use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Radio;
 use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
@@ -101,6 +105,36 @@ class SelesaiPage extends Page implements HasActions, HasForms, HasTable
             });
     }
 
+    /** Koreksi tanggal onboarding setelah kandidat `passed`, sebelum akun karyawan dibuat. */
+    public function aturTanggalOnboardingAction(): Action
+    {
+        return Action::make('aturTanggalOnboarding')
+            ->label('Atur Tanggal Onboarding')
+            ->icon('heroicon-m-calendar-days')
+            ->color('gray')
+            ->visible(fn () => filament()->auth()->user()->can('create', \App\Models\User::class))
+            ->modalHeading('Atur / Ubah Tanggal Onboarding')
+            ->modalDescription('Tanggal ini jadi Tanggal Bergabung saat akun karyawan dibuat. Kandidat dikirimi email undangan onboarding yang diperbarui.')
+            ->modalSubmitActionLabel('Simpan & Kirim Email')
+            ->schema([
+                DatePicker::make('onboarding_date')->label('Tanggal Onboarding')->required()->native(false)
+                    ->default(fn ($record) => $record->onboarding_date ?? today()->addDays(7)),
+            ])
+            ->action(function (array $data, $record): void {
+                $record->update(['onboarding_date' => $data['onboarding_date']]);
+
+                ApplicationNotification::where('job_application_id', $record->id)
+                    ->where('event', CompanyMessageTemplate::EVENT_ONBOARDING_INVITE)
+                    ->delete();
+                ApplicationNotification::createAndSend($record, CompanyMessageTemplate::EVENT_ONBOARDING_INVITE, [
+                    'onboarding_date' => Carbon::parse($data['onboarding_date'])->translatedFormat('l, d F Y'),
+                ]);
+
+                $this->resetTable();
+                Notification::make()->title('Tanggal onboarding diperbarui & email dikirim ke kandidat.')->success()->send();
+            });
+    }
+
     public function table(Table $table): Table
     {
         return $table
@@ -120,11 +154,14 @@ class SelesaiPage extends Page implements HasActions, HasForms, HasTable
                 TextColumn::make('jobOpening.title')->label('Lowongan')->searchable(),
                 IconColumn::make('data_diri')->label('Data Diri Kandidat')->boolean()
                     ->state(fn ($record) => filled($record->candidate?->nik)),
+                TextColumn::make('onboarding_date')->label('Tgl Onboarding')->date('d M Y')
+                    ->placeholder('Belum diatur')->color(fn ($record) => $record->onboarding_date ? null : 'warning'),
                 TextColumn::make('updated_at')->label('Tanggal Diterima')->dateTime('d M Y, H:i')->sortable(),
             ])
             ->recordActions([
                 Action::make('lihat')->label('Detail')->icon('heroicon-m-eye')->color('gray')
                     ->url(fn ($record) => \App\Filament\Rekrutmen\Pages\ApplicantDetailPage::getUrl() . '?application=' . $record->id),
+                $this->aturTanggalOnboardingAction(),
                 $this->buatAkunKaryawanAction(),
             ])
             ->toolbarActions([])

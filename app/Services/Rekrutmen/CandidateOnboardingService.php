@@ -45,7 +45,11 @@ class CandidateOnboardingService
         [$c, $email, $jobPosition, $companyId, $orientationType] =
             [$ctx['candidate'], $ctx['email'], $ctx['jobPosition'], $ctx['companyId'], $ctx['orientationType']];
 
-        $joiningDate = now()->toDateString();
+        // Tanggal Bergabung = tanggal onboarding yang ditetapkan recruiter (TtdOnboardingPage);
+        // fallback ke hari ini kalau belum diatur.
+        $joiningDate = $ctx['app']->onboarding_date
+            ? Carbon::parse($ctx['app']->onboarding_date)->toDateString()
+            : now()->toDateString();
 
         $profileData = array_filter([
             'employee_type_id'   => $orientationType->id,
@@ -173,6 +177,9 @@ class CandidateOnboardingService
             'jabatan' => $jp->name,
             'divisi' => $jp->division?->name ?? $jp->orgStructure?->name,
             'orientationType' => $ctx['orientationType']->name,
+            'onboardingDate' => $ctx['app']->onboarding_date
+                ? \Carbon\Carbon::parse($ctx['app']->onboarding_date)->translatedFormat('l, d F Y')
+                : null,
             'existingUser' => User::withTrashed()->where('email', $ctx['email'])->exists(),
             'profile' => $profile,
             'missing' => $missing,

@@ -51,6 +51,7 @@ class ApplicationNotification extends Model
             'interview_scheduled', 'interview_rescheduled' => ['url' => "{$base}/lamaran/{$this->job_application_id}", 'label' => 'Lihat Jadwal Wawancara'],
             'mcu_scheduled', 'mcu_rescheduled' => ['url' => "{$base}/lamaran/{$this->job_application_id}", 'label' => 'Lihat Jadwal MCU'],
             'offering_negotiation_replied' => ['url' => "{$base}/dashboard", 'label' => 'Lihat Balasan Negosiasi'],
+            'offering_revision_requested' => ['url' => "{$base}/dashboard", 'label' => 'Unggah Ulang Surat Penawaran'],
             default => null,
         };
     }
@@ -120,6 +121,36 @@ class ApplicationNotification extends Model
             'event' => 'offering_negotiation_replied',
             'subject' => "Balasan Negosiasi Surat Penawaran – {$jobTitle}",
             'body' => "Halo {$name},\n\nTim rekrutmen telah membalas pengajuan negosiasimu untuk posisi {$jobTitle}:\n\n\"{$replyMessage}\"\n\nSilakan buka dashboard untuk menanggapi atau menandatangani surat penawaran.\n\nSalam,\nTim Rekrutmen",
+        ]);
+    }
+
+    /** Surat penawaran bertanda tangan diterima recruiter — kabari pelamar, proses lanjut. */
+    public static function notifyOfferingSignedAccepted(JobApplication $app): void
+    {
+        $app->loadMissing('jobOpening');
+
+        $jobTitle = $app->jobOpening->title ?? '';
+        $name = $app->answersMap()['full_name'] ?? 'Pelamar';
+
+        static::requestSend($app->id, [
+            'event' => 'offering_signed_accepted',
+            'subject' => "Surat Penawaran Bertanda Tangan Diterima – {$jobTitle}",
+            'body' => "Halo {$name},\n\nSurat penawaran kerja yang kamu tandatangani untuk posisi {$jobTitle} sudah diperiksa dan DITERIMA oleh tim rekrutmen.\n\nProses lamaranmu berlanjut ke tahap berikutnya. Kami akan menghubungimu lagi untuk langkah selanjutnya.\n\nSalam,\nTim Rekrutmen",
+        ]);
+    }
+
+    /** Recruiter minta pelamar mengunggah ulang surat bertanda tangan (dengan alasan). */
+    public static function notifyOfferingRevisionRequested(JobApplication $app, string $reason): void
+    {
+        $app->loadMissing('jobOpening');
+
+        $jobTitle = $app->jobOpening->title ?? '';
+        $name = $app->answersMap()['full_name'] ?? 'Pelamar';
+
+        static::requestSend($app->id, [
+            'event' => 'offering_revision_requested',
+            'subject' => "Mohon Unggah Ulang Surat Penawaran – {$jobTitle}",
+            'body' => "Halo {$name},\n\nSetelah memeriksa surat penawaran bertanda tangan yang kamu unggah untuk posisi {$jobTitle}, tim rekrutmen meminta kamu mengunggah ulang.\n\nAlasan:\n{$reason}\n\nSilakan buka dashboard akunmu untuk mengunggah versi yang benar. Terima kasih.\n\nSalam,\nTim Rekrutmen",
         ]);
     }
 
