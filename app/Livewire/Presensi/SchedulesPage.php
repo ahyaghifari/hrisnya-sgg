@@ -8,6 +8,7 @@ use App\Models\Shift\Schedule;
 use App\Models\Shift\ScheduleAssignment;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 
@@ -109,6 +110,51 @@ class SchedulesPage extends Component
             ->title('Jadwal berhasil dihapus')
             ->success()
             ->send();
+    }
+
+    /**
+     * Duplikat 1 jadwal beserta "peraturannya" — header + hari fixed/flexible + tipe shift.
+     * Yang TIDAK ikut: penempatan jabatan (schedule_assignments), rotasi per-orang
+     * (schedule_shift_rotations), roster harian, dan Kepala Ruangan (head_user_id) — itu
+     * menempel ke orang/ruangan tertentu, bukan aturan jadwal. Hasilnya jadwal kosong-anggota
+     * yang tinggal di-assign.
+     */
+    public function duplicateSchedule(string $id): void
+    {
+        abort_unless(Auth::user()->can('create', Schedule::class), 403);
+
+        $source = Schedule::with(['fixedDays', 'flexibleDays', 'shiftTypes'])->findOrFail($id);
+
+        DB::transaction(function () use ($source) {
+            $copy = $source->replicate(['head_user_id']);
+            $copy->name = $this->uniqueCopyName($source->name, $source->company_id);
+            $copy->save();
+
+            foreach (['fixedDays', 'flexibleDays', 'shiftTypes'] as $relation) {
+                foreach ($source->{$relation} as $child) {
+                    $new = $child->replicate();
+                    $new->schedule_id = $copy->id;
+                    $new->save();
+                }
+            }
+        });
+
+        Notification::make()
+            ->title('Jadwal berhasil diduplikat')
+            ->success()
+            ->send();
+    }
+
+    /** "Nama (Salinan)", lalu "Nama (Salinan 2)" dst kalau sudah ada — per company. */
+    private function uniqueCopyName(string $base, ?string $companyId): string
+    {
+        $name = "{$base} (Salinan)";
+
+        for ($i = 2; Schedule::where('company_id', $companyId)->where('name', $name)->exists(); $i++) {
+            $name = "{$base} (Salinan {$i})";
+        }
+
+        return $name;
     }
 
     public function render()

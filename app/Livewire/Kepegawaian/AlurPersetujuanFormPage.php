@@ -3,6 +3,7 @@
 namespace App\Livewire\Kepegawaian;
 
 use App\Enum\Approval\ApprovalModuleEnum;
+use App\Enum\Approval\AttendanceApprovalBucketEnum;
 use App\Enum\CustomPermissionEnum;
 use App\Models\ApprovalManagement\MasterApprovalFlows;
 use App\Models\Master\Companies;
@@ -37,6 +38,10 @@ class AlurPersetujuanFormPage extends Component
 
     public string $module = '';
 
+    /** @var array<int, string> ember AttendanceApprovalBucketEnum, cuma untuk module attendance_request.
+     * [] = alur berlaku semua jenis (kolom sub_module NULL). */
+    public array $subModule = [];
+
     public string $flowType = 'default';
 
     public bool $isActive = true;
@@ -66,6 +71,7 @@ class AlurPersetujuanFormPage extends Component
         $this->companyId = $flow->company_id;
         $this->name = $flow->name;
         $this->module = $flow->module;
+        $this->subModule = filled($flow->sub_module) ? explode(',', $flow->sub_module) : [];
         $this->flowType = $flow->flow_type;
         $this->isActive = (bool) $flow->is_active;
         $this->assignmentJobPositions = $flow->assignments->pluck('assignable_id')->all();
@@ -76,6 +82,7 @@ class AlurPersetujuanFormPage extends Component
             'approver_type' => $step->approver_type,
             'source_company' => 'same_company',
             'approver_ref_id' => $step->approver_ref_id,
+            'supervisor_level' => (int) ($step->supervisor_level ?? 1),
             'scope_type' => $step->scope_type,
             'scope_ref_id' => $step->scope_ref_id,
             'is_final' => (bool) $step->is_final,
@@ -106,6 +113,16 @@ class AlurPersetujuanFormPage extends Component
         return ApprovalModuleEnum::options();
     }
 
+    public function getSubModuleOptionsProperty(): array
+    {
+        return AttendanceApprovalBucketEnum::options();
+    }
+
+    public function getShowSubModuleProperty(): bool
+    {
+        return $this->module === ApprovalModuleEnum::ATTENDANCE_REQUEST->value;
+    }
+
     public function getCompaniesProperty()
     {
         return Auth::user()->canFilterByCompany() ? Companies::orderBy('name')->get(['id', 'name']) : collect();
@@ -130,6 +147,7 @@ class AlurPersetujuanFormPage extends Component
             'approver_type' => '',
             'source_company' => 'same_company',
             'approver_ref_id' => '',
+            'supervisor_level' => 1,
             'scope_type' => 'same_department',
             'scope_ref_id' => null,
             'is_final' => false,
@@ -164,6 +182,78 @@ class AlurPersetujuanFormPage extends Component
             'user' => User::where('company_id', $companyId)->orderBy('name')->pluck('name', 'id')->all(),
             'job_position' => JobPositions::where('company_id', $companyId)->orderBy('name')->pluck('name', 'id')->all(),
             default => [],
+        };
+    }
+
+    /**
+     * Rekap urutan approver sebagai 1 rantai per jabatan pengaju: base → step1 → step2 → ...
+     * Step 'supervisor' = jabatan hasil naik N level dari jabatan pengaju (bukan dari step
+     * sebelumnya). Step lain = nama approver tetap.
+     *
+     * @return array<int, array{base: string, nodes: array<int, array{label: string, ok: bool}>}>
+     */
+    public function approverFlowPreview(): array
+    {
+        $validSteps = collect($this->steps)
+            ->filter(fn ($s) => ! empty($s['approver_type'])
+                && ($s['approver_type'] === 'supervisor' || ! empty($s['approver_ref_id'])))
+            ->values();
+
+        $out = [];
+
+        foreach ($this->assignmentJobPositions as $jobPositionId) {
+            $base = JobPositions::find($jobPositionId);
+
+            if (! $base) {
+                continue;
+            }
+
+            $nodes = [];
+
+            foreach ($validSteps as $s) {
+                if ($s['approver_type'] === 'supervisor') {
+                    $level = max(1, (int) ($s['supervisor_level'] ?? 1));
+                    $pos = $base;
+                    $ok = true;
+
+                    for ($i = 0; $i < $level; $i++) {
+                        $pos = $pos ? JobPositions::find($pos->parent_id) : null;
+
+                        if (! $pos) {
+                            $ok = false;
+                            break;
+                        }
+                    }
+
+                    $nodes[] = ['label' => $ok ? $pos->name : "(tidak ada atasan level {$level})", 'ok' => $ok];
+                } else {
+                    $nodes[] = ['label' => $this->stepApproverLabel($s), 'ok' => true];
+                }
+            }
+
+            $out[] = ['base' => $base->name, 'nodes' => $nodes];
+        }
+
+        return $out;
+    }
+
+    /**
+     * Nama approver tetap untuk step non-supervisor (jabatan/role/karyawan).
+     */
+    public function stepApproverLabel(array $step): string
+    {
+        $type = $step['approver_type'] ?? '';
+        $refId = $step['approver_ref_id'] ?? null;
+
+        if (! $refId) {
+            return '(belum dipilih)';
+        }
+
+        return match ($type) {
+            'job_position' => JobPositions::find($refId)?->name ?? '(jabatan tidak ada)',
+            'user' => User::find($refId)?->name ?? '(karyawan tidak ada)',
+            'role' => Role::find($refId)?->name ?? '(role tidak ada)',
+            default => '-',
         };
     }
 
@@ -203,26 +293,59 @@ class AlurPersetujuanFormPage extends Component
             'assignmentJobPositions' => 'jabatan berlaku',
         ]);
 
-        // Cuma 1 alur Default per modul per company (sama aturan admin Filament).
-        if ($this->flowType === 'default') {
-            $exists = MasterApprovalFlows::where('company_id', $this->companyId)
-                ->where('module', $this->module)
-                ->where('flow_type', 'default')
-                ->when($this->editingFlowId, fn ($q) => $q->where('id', '!=', $this->editingFlowId))
-                ->exists();
+        // Sumber "Atasan Pengaju" (naik N level dari jabatan pengaju, di-resolve saat snapshot)
+        // cuma masuk akal di alur Spesifik — jabatan pengaju sudah dibatasi assignment.
+        $hasSupervisorStep = collect($this->steps)
+            ->contains(fn ($s) => ($s['approver_type'] ?? null) === 'supervisor');
 
-            if ($exists) {
-                $this->addError('module', 'Alur Persetujuan Default untuk Modul ini sudah ada. Edit yang sudah ada, atau gunakan tipe Spesifik.');
+        if ($hasSupervisorStep && $this->flowType !== 'specific') {
+            $this->addError('steps', 'Sumber "Atasan Pengaju" hanya bisa dipakai pada alur tipe Spesifik.');
 
-                return;
-            }
+            return;
         }
 
-        DB::transaction(function () {
+        // Ember jenis pengajuan (cuma modul attendance_request). [] = "semua jenis" (sub_module NULL).
+        $selectedBuckets = $this->showSubModule
+            ? collect($this->subModule)->filter()->values()->all()
+            : [];
+        $subModuleStr = $selectedBuckets ? implode(',', $selectedBuckets) : null;
+
+        // Tolak kalau ada alur lain (company + module + flow_type sama) yang mengklaim salah satu
+        // ember yang sama — atau dua-duanya "semua jenis". Untuk Spesifik cuma bentrok kalau
+        // jabatannya juga beririsan. Sama aturan admin Filament (overlap-aware, bukan 1-default-saja).
+        $others = MasterApprovalFlows::where('company_id', $this->companyId)
+            ->where('module', $this->module)
+            ->where('flow_type', $this->flowType)
+            ->when($this->editingFlowId, fn ($q) => $q->where('id', '!=', $this->editingFlowId))
+            ->when($this->flowType === 'specific', fn ($q) => $q->whereHas('assignments', function ($a) {
+                $a->where('assignable_type', JobPositions::class)
+                  ->whereIn('assignable_id', $this->assignmentJobPositions);
+            }))
+            ->get(['id', 'sub_module']);
+
+        $clash = $others->contains(function ($f) use ($selectedBuckets) {
+            $theirs = filled($f->sub_module) ? explode(',', $f->sub_module) : [];
+            if ($selectedBuckets === [] || $theirs === []) {
+                return $selectedBuckets === [] && $theirs === [];
+            }
+
+            return array_intersect($selectedBuckets, $theirs) !== [];
+        });
+
+        if ($clash) {
+            $this->addError('module', $this->flowType === 'default'
+                ? 'Alur Default untuk modul & jenis pengajuan ini sudah ada. Pisahkan jenis pengajuannya atau edit alur yang ada.'
+                : 'Alur Spesifik untuk jabatan & jenis pengajuan ini sudah ada. Pilih jabatan lain atau pisahkan jenis pengajuannya.');
+
+            return;
+        }
+
+        DB::transaction(function () use ($subModuleStr) {
             $data = [
                 'company_id' => $this->companyId,
                 'name' => $this->name,
                 'module' => $this->module,
+                'sub_module' => $subModuleStr,
                 'flow_type' => $this->flowType,
                 'is_active' => $this->isActive,
                 'updated_at' => now(),
@@ -245,14 +368,17 @@ class AlurPersetujuanFormPage extends Component
 
             $flow->steps()->delete();
             foreach ($this->steps as $index => $step) {
-                if (empty($step['approver_ref_id']) || empty($step['approver_type'])) {
+                // Step 'supervisor' sah tanpa approver_ref_id — di-resolve saat snapshot.
+                $isSupervisor = ($step['approver_type'] ?? null) === 'supervisor';
+                if (empty($step['approver_type']) || (empty($step['approver_ref_id']) && ! $isSupervisor)) {
                     continue;
                 }
 
                 $flow->steps()->create([
                     'step_order' => $index + 1,
                     'approver_type' => $step['approver_type'],
-                    'approver_ref_id' => $step['approver_ref_id'],
+                    'approver_ref_id' => $isSupervisor ? null : $step['approver_ref_id'],
+                    'supervisor_level' => $isSupervisor ? max(1, (int) ($step['supervisor_level'] ?? 1)) : null,
                     'approval_mode' => $step['approver_type'] === 'job_position' ? 'all' : 'any',
                     'scope_type' => $step['scope_type'] ?: 'same_department',
                     'scope_ref_id' => $step['scope_type'] === 'specific_department' ? $step['scope_ref_id'] : null,

@@ -16,6 +16,7 @@ class MasterApprovalFlowSteps extends Model
         'step_order',
         'approver_type',
         'approver_ref_id',
+        'supervisor_level',
         'approval_mode',
         'scope_type',
         'scope_ref_id',

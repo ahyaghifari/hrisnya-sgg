@@ -16,8 +16,8 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
 /**
  * Export grid tab "Detail Penjadwalan" — 1 baris = 1 karyawan, kolom tanggal 1..akhir bulan,
- * isi kode shift/"L" (Libur) diwarnai persis sama seperti tampilan di tab (warna & warna font
- * dari ScheduleShiftType, bukan dihitung ulang) — "L" pakai warna pudar yang sama juga.
+ * isi kode shift/"L" (Libur). Sel jadwal sengaja TIDAK diwarnai (instruksi user) — cukup kode
+ * teks + legenda; hanya banner judul & baris header yang berwarna.
  */
 class ScheduleShiftRosterExport implements FromArray, WithStyles, WithColumnWidths, WithTitle
 {
@@ -117,33 +117,9 @@ class ScheduleShiftRosterExport implements FromArray, WithStyles, WithColumnWidt
             'font' => ['bold' => true],
         ]);
 
-        foreach ($this->employees as $ri => $employee) {
-            $userRoster = $this->roster[$employee->id] ?? [];
-            $excelRow = 4 + $ri;
-
-            foreach ($this->dates as $ci => $date) {
-                $value = $userRoster[$date->toDateString()] ?? '';
-                $cell = Coordinate::stringFromColumnIndex($ci + 2).$excelRow;
-
-                if ($value === 'off') {
-                    $sheet->getStyle($cell)->applyFromArray([
-                        'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'EC8888']],
-                        'font' => ['color' => ['rgb' => '7F1D1D'], 'bold' => true],
-                    ]);
-
-                    continue;
-                }
-
-                $shiftType = $this->schedule->shiftTypes->firstWhere('id', $value);
-
-                if ($shiftType?->color) {
-                    $sheet->getStyle($cell)->applyFromArray([
-                        'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => ltrim($shiftType->color, '#')]],
-                        'font' => ['color' => ['rgb' => ltrim($shiftType->font_color ?: '#000000', '#')], 'bold' => true],
-                    ]);
-                }
-            }
-        }
+        // ponytail: sel jadwal sengaja tidak diwarnai (instruksi user). Kode shift + "L" +
+        // legenda sudah cukup; kalau nanti perlu versi berwarna lagi, kembalikan loop
+        // pewarnaan per-sel pakai ScheduleShiftType->color / font_color.
 
         return [];
     }

@@ -23,6 +23,7 @@
                         @foreach ($this->shiftTypeOptions as $type)
                             <option value="{{ $type->value }}">{{ $type->getLabel() }}</option>
                         @endforeach
+                        <option value="{{ \App\Livewire\Presensi\ExtraShiftRulePage::LIBUR }}">Libur / roster kosong</option>
                     </select>
                     @error('fromShiftType') <p style="color:var(--danger-text);font-size:11px;margin-top:4px;">{{ $message }}</p> @enderror
                 </div>

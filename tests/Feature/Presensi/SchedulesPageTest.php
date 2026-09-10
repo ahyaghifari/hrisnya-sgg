@@ -9,6 +9,7 @@ use App\Models\Master\Companies;
 use App\Models\Master\JobPositions;
 use App\Models\Shift\Schedule;
 use App\Models\Shift\ScheduleAssignment;
+use App\Models\Shift\ScheduleShiftType;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
@@ -28,11 +29,12 @@ class SchedulesPageTest extends TestCase
 
     private function actingAsAbsensi(): User
     {
-        Permission::firstOrCreate(['name' => CustomPermissionEnum::SISTEM_ABSENSI->value, 'guard_name' => 'web']);
-        Permission::firstOrCreate(['name' => 'Create:Schedule', 'guard_name' => 'web']);
-        Permission::firstOrCreate(['name' => 'Delete:Schedule', 'guard_name' => 'web']);
+        $literals = [CustomPermissionEnum::SISTEM_ABSENSI->value, 'ViewAny:Schedule', 'Create:Schedule', 'Update:Schedule', 'Delete:Schedule'];
+        foreach ($literals as $literal) {
+            Permission::firstOrCreate(['name' => $literal, 'guard_name' => 'web']);
+        }
         $role = Role::firstOrCreate(['name' => 'Absensi Schedules Test', 'guard_name' => 'web']);
-        $role->givePermissionTo([CustomPermissionEnum::SISTEM_ABSENSI->value, 'Create:Schedule', 'Delete:Schedule']);
+        $role->givePermissionTo($literals);
 
         $user = User::factory()->create();
         $user->assignRole($role);
@@ -57,6 +59,52 @@ class SchedulesPageTest extends TestCase
             ->call('deleteSchedule', $schedule->id);
 
         $this->assertDatabaseMissing('schedules', ['id' => $schedule->id]);
+    }
+
+    public function test_duplicates_schedule_rules_only_not_members(): void
+    {
+        $user = $this->actingAsAbsensi();
+        $company = $this->makeCompany();
+        $head = User::factory()->create(['company_id' => $company->id]);
+        $job = JobPositions::create(['name' => 'Perawat', 'company_id' => $company->id, 'is_draft' => false]);
+
+        $source = Schedule::create([
+            'company_id' => $company->id,
+            'name' => 'Shift Ruang A',
+            'schedule_type' => ScheduleType::SHIFT->value,
+            'head_user_id' => $head->id,
+        ]);
+        foreach ([['P', 'Pagi', 'pagi', '07:00', '14:00'], ['S', 'Siang', 'siang', '14:00', '21:00']] as [$code, $name, $cat, $start, $end]) {
+            ScheduleShiftType::create([
+                'schedule_id' => $source->id,
+                'code' => $code, 'name' => $name, 'shift_type' => $cat,
+                'start_time' => $start, 'end_time' => $end,
+            ]);
+        }
+        ScheduleAssignment::create([
+            'company_id' => $company->id,
+            'job_position_id' => $job->id,
+            'schedule_id' => $source->id,
+            'effective_from' => now(),
+        ]);
+
+        Livewire::actingAs($user)
+            ->test(SchedulesPage::class)
+            ->set('companyId', $company->id)
+            ->call('duplicateSchedule', $source->id)
+            ->assertHasNoErrors();
+
+        $copy = Schedule::where('name', 'Shift Ruang A (Salinan)')->first();
+
+        $this->assertNotNull($copy);
+        $this->assertNotSame($source->id, $copy->id);
+        $this->assertSame($company->id, $copy->company_id);
+        $this->assertNull($copy->head_user_id, 'Kepala Ruangan tidak ikut diduplikat');
+        $this->assertEqualsCanonicalizing(['P', 'S'], $copy->shiftTypes->pluck('code')->all());
+        $this->assertSame(0, ScheduleAssignment::where('schedule_id', $copy->id)->count(), 'penempatan jabatan tidak ikut');
+        // Sumber tidak tersentuh.
+        $this->assertSame(2, $source->shiftTypes()->count());
+        $this->assertSame(1, ScheduleAssignment::where('schedule_id', $source->id)->count());
     }
 
     public function test_cannot_delete_schedule_with_job_position_assigned(): void

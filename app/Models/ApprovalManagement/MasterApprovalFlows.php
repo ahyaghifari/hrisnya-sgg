@@ -17,6 +17,7 @@ class MasterApprovalFlows extends Model
         'company_id',
         'name',
         'module',
+        'sub_module',
         'flow_type',
         'description',
         'is_active',

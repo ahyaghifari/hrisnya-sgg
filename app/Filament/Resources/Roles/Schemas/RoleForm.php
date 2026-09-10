@@ -76,7 +76,6 @@ class RoleForm
             CustomPermissionEnum::SISTEM_ABSENSI->value => [
                 CustomPermissionEnum::LIHAT_PENGATURAN_ABSENSI->value,
                 CustomPermissionEnum::EDIT_PENGATURAN_ABSENSI->value,
-                CustomPermissionEnum::KELOLA_JADWAL_SHIFT->value,
                 CustomPermissionEnum::SYNC_DATA_ABSENSI->value,
                 CustomPermissionEnum::VIEW_REPORT_DATA_ABSENSI->value,
                 // Create/Update/Delete:Schedule TIDAK di-list manual lagi di sini (2026-08-07) -
@@ -98,18 +97,15 @@ class RoleForm
                 // di grup SISTEM_KEUANGAN (instruksi user 2026-08-12).
                 CustomPermissionEnum::LIHAT_GAJI_PEMATERI->value,
                 CustomPermissionEnum::KELOLA_GAJI_PEMATERI->value,
+                // Approve enrollment pelatihan LMS - satu-satunya permission approve yang masih
+                // dicek lewat literal permission (bukan approval flow engine), lihat
+                // CourseUserService::approve/reject. Grup "Approver" dibubarkan 2026-09-11:
+                // approve_pengajuan_absensi (izin/cuti/lembur murni approval flow) &
+                // approve_manajemen_lowongan_kerja (rekrutmen pindah app) sudah tidak kepakai.
+                CustomPermissionEnum::APPROVE_PENGAJUAN_PELATIHAN->value,
             ],
             CustomPermissionEnum::SISTEM_PEMBINAAN_KARYAWAN->value => [
                 CustomPermissionEnum::COACHING_KARYAWAN_LAINNYA->value,
-            ],
-            // Semua permission APPROVE_* lintas-modul digabung 1 grup "Approver" di sini
-            // (instruksi user 2026-08-11) - sebelumnya APPROVE_PENGAJUAN_PELATIHAN nyempil di
-            // grup SISTEM_LMS sendiri, sekarang konsisten satu tempat sama APPROVE_PENGAJUAN_ABSENSI/
-            // APPROVE_MANAJEMEN_LOWONGAN_KERJA.
-            CustomPermissionEnum::SISTEM_APPROVAL->value => [
-                CustomPermissionEnum::APPROVE_PENGAJUAN_ABSENSI->value,
-                CustomPermissionEnum::APPROVE_MANAJEMEN_LOWONGAN_KERJA->value,
-                CustomPermissionEnum::APPROVE_PENGAJUAN_PELATIHAN->value,
             ],
             // Tidak ada child custom permission - grup ini cuma pembungkus supaya container
             // admin 'Penilaian Karyawan' (navigationGroup 4 Assessment Resource) ke-merge jadi
@@ -128,7 +124,7 @@ class RoleForm
             // Gerbang nav group "Rekrutmen" (modul sendiri 2026-08-28). Tidak ada child custom
             // permission — pembungkus supaya container admin 'Rekrutmen' (navigationGroup
             // JobOpeningResource, subject "Kelola Lowongan") ke-merge jadi 1 section, pola sama
-            // SISTEM_SIKARTAP. Approve Manajemen Lowongan TETAP di grup "Approver".
+            // SISTEM_SIKARTAP.
             CustomPermissionEnum::SISTEM_REKRUTMEN->value => [],
             // Modul MCU berdiri sendiri (2026-09-08) — 5 permission isi/edit hasil MCU pindah
             // ke sini dari sub-grup "Input MCU" milik Rekrutmen. Staf klinis cukup diberi
@@ -174,9 +170,11 @@ class RoleForm
      *
      * ShiftScheduleAssignments/ShiftSwapRequests/ShiftTemplates: tidak ada Resource-nya
      * (dicek 2026-08-07), tapi user eksplisit minta dikelompokkan ke "Jadwal Shift" (bukan
-     * dihapus kayak MasterShift/ExtraHourAllowanceRules yang beneran orphan) - kemungkinan
-     * aksesnya nempel di halaman Jadwal/Schedule (ScheduleShiftRotationTab dkk, digerbangi
-     * KELOLA_JADWAL_SHIFT), bukan Resource CRUD terpisah. ShiftOvertimeCosts SEBALIKNYA
+     * dihapus kayak MasterShift/ExtraHourAllowanceRules yang beneran orphan). Sejak 2026-09-11
+     * dua di antaranya beneran dipakai sebagai gerbang tab di ScheduleDetailPage (menggantikan
+     * kelola_jadwal_shift yang dihapus): Update:ShiftTemplates untuk tab "Template Shift"
+     * (ScheduleShiftRotationTab), Update:ShiftScheduleAssignments untuk tab "Detail Penjadwalan"
+     * (ScheduleShiftRosterTab). ShiftOvertimeCosts SEBALIKNYA
      * dihapus total (2026-08-11) - model/Policy-nya beneran mati (skema Model tidak sinkron
      * lagi sama tabel `shift_overtime_costs` asli, tidak ada UI portal/admin yang mengelolanya
      * sama sekali), digantikan LemburCalculator (base rate per Pangkat, lihat komentarnya).
@@ -189,6 +187,11 @@ class RoleForm
             'ShiftScheduleAssignments' => 'Jadwal Shift',
             'ShiftSwapRequests' => 'Jadwal Shift',
             'ShiftTemplates' => 'Jadwal Shift',
+            // ExtraShiftAssignment: punya ExtraShiftAssignmentResource (navigationGroup 'Presensi
+            // & Absensi', posisi menu admin sidebar TIDAK diubah), tapi user minta 7 permission
+            // Shield-nya dikelompokkan ke section "Jadwal Shift" di tree /hak-akses & checkbox
+            // Role, bukan ikut merge ke "Sistem Absensi". Pola sama Coaching/Counseling di bawah.
+            'ExtraShiftAssignment' => 'Jadwal Shift',
             // ExtraShiftRule (2026-08-17): portal-only, tidak ada Filament Resource (lihat
             // ExtraShiftRulePolicy) - tanpa override ini permission-nya jatuh ke ungroupedSections
             // sendirian, bukan ikut merge ke section "Sistem Absensi" seperti diminta user.
@@ -212,9 +215,10 @@ class RoleForm
             // WidgetPermissionEnum::cases() supaya widget BARU ke depan otomatis masuk grup ini
             // tanpa perlu baris override manual lagi di sini.
             'DashboardWidget' => 'Dashboard Widget',
-            // 3 permission LIHAT_DASHBOARD_SIKARTAP_* (2026-08-25) dipetakan ke subject buatan
+            // Permission LIHAT_DASHBOARD_SIKARTAP_* (2026-08-25) dipetakan ke subject buatan
             // 'SikartapDashboard' lewat customPermissionSubjectOverrides() di bawah - sub-grup
             // "Dashboard" nempel di root 'Sikartap' yang sama, pola persis 'SikartapMcu'.
+            // (_BUTUH_TINDAKAN dibuang 2026-09-11, lihat migration drop_orphan_sikartap_butuh_tindakan.)
             'SikartapDashboard' => 'Sikartap',
             // JobOpenings: subject permission dari JobOpeningsPolicy (Resource admin panel HRIS
             // sudah dihapus — CRUD lowongan pindah ke panel `rekrutmen`). Dipetakan ke container
@@ -249,6 +253,10 @@ class RoleForm
         return [
             'SikartapDashboard' => 'Dashboard',
             'JobOpenings' => 'Kelola Lowongan',
+            // Subject :OrgStructure dipakai bareng DepartmentsResource/DivisionsResource/
+            // SubDivisionsResource - di tree/checkbox tampil sebagai satu node "Struktur
+            // Organisasi", bukan label salah satu resource-nya (Departemen).
+            'OrgStructure' => 'Struktur Organisasi',
         ];
     }
 
@@ -295,6 +303,15 @@ class RoleForm
             $subjectMeta[$subject]['container'] = $container;
             $subjectMeta[$subject]['label'] = $labelOverrides[$subject]
                 ?? ($subjectMeta[$subject]['label'] ?? Str::headline($subject));
+        }
+
+        // Label override buat subject yang PUNYA Resource sendiri (tidak lewat container
+        // override di atas) — mis. OrgStructure: DepartmentsResource/DivisionsResource/
+        // SubDivisionsResource share 1 model, node-nya harus baca "Struktur Organisasi".
+        foreach ($labelOverrides as $subject => $label) {
+            if (isset($subjectMeta[$subject])) {
+                $subjectMeta[$subject]['label'] = $label;
+            }
         }
 
         return $subjectMeta;
@@ -489,7 +506,9 @@ class RoleForm
                                 return Str::headline($name);
                             }
 
-                            return ($actionLabels[$action] ?? $action) . ' ' . Str::headline($subject);
+                            $subjectLabel = self::subjectLabelOverrides()[$subject] ?? Str::headline($subject);
+
+                            return ($actionLabels[$action] ?? $action) . ' ' . $subjectLabel;
                         };
 
                         // Centang gerbang SISTEM_* -> semua permission anaknya ikut tercentang
@@ -592,6 +611,8 @@ class RoleForm
                             $ungroupedSections[] = Section::make('Akses ' . $label)
                                 ->description("Atur hak akses terkait {$label}.")
                                 ->columnSpanFull()
+                                ->collapsible()
+                                ->collapsed()
                                 ->schema([$checkboxList]);
                         }
 

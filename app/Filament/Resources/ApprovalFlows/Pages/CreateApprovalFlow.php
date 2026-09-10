@@ -36,8 +36,10 @@ class CreateApprovalFlow extends CreateRecord
         }
 
         foreach ($steps as $step) {
-            // Pastikan semua field required ada nilai dan tidak kosong
-            if (empty($step['approver_ref_id']) || empty($step['approver_type'])) {
+            // Pastikan semua field required ada nilai dan tidak kosong. Step 'supervisor'
+            // (atasan pengaju) sah tanpa approver_ref_id — di-resolve saat snapshot.
+            $isSupervisor = ($step['approver_type'] ?? null) === 'supervisor';
+            if (empty($step['approver_type']) || (empty($step['approver_ref_id']) && ! $isSupervisor)) {
                 continue; // Skip step yang tidak valid
             }
 
@@ -45,7 +47,8 @@ class CreateApprovalFlow extends CreateRecord
                 'flow_id' => $record->id,
                 'step_order' => $step['step_order'] ?? 1,
                 'approver_type' => $step['approver_type'],
-                'approver_ref_id' => $step['approver_ref_id'],
+                'approver_ref_id' => $isSupervisor ? null : ($step['approver_ref_id'] ?? null),
+                'supervisor_level' => $isSupervisor ? (int) ($step['supervisor_level'] ?? 1) : null,
                 'approval_mode' => $step['approval_mode'] ?? 'any',
                 'scope_type' => $step['scope_type'] ?? 'same_department',
                 'scope_ref_id' => $step['scope_ref_id'] ?? null,

@@ -69,17 +69,38 @@ class ApprovalFlowForm
                                 return function ($attribute, $value, $fail) use ($get, $record) {
                                     $flowType = $get('flow_type');
 
+                                    // Sumber approver "Atasan Langsung Pengaju" hanya boleh di alur Spesifik.
+                                    $hasSupervisorStep = collect($get('steps') ?? [])
+                                        ->contains(fn ($s) => ($s['approver_type'] ?? null) === 'supervisor');
+                                    if ($hasSupervisorStep && $flowType !== 'specific') {
+                                        $fail('Sumber approver "Atasan Pengaju" hanya bisa dipakai pada alur tipe Spesifik.');
+                                    }
+
+                                    // Ember jenis pengajuan yang dipilih alur ini ([] = "semua jenis").
+                                    // Bentrok kalau ada alur lain (modul + flow_type sama) yang mengklaim
+                                    // salah satu ember yang sama — atau dua-duanya "semua jenis".
+                                    $selected = collect($get('sub_module') ?? [])->filter()->values()->all();
+                                    $hasOverlap = function ($others) use ($selected) {
+                                        return $others->contains(function ($f) use ($selected) {
+                                            $theirs = filled($f->sub_module) ? explode(',', $f->sub_module) : [];
+                                            if ($selected === [] || $theirs === []) {
+                                                return $selected === [] && $theirs === [];
+                                            }
+
+                                            return array_intersect($selected, $theirs) !== [];
+                                        });
+                                    };
+
                                     if ($flowType === 'default') {
-                                        // Hanya boleh 1 alur Default per modul per perusahaan
-                                        $exists = MasterApprovalFlows::query()
+                                        $others = MasterApprovalFlows::query()
                                             ->where('module', $value)
                                             ->where('company_id', $get('company_id'))
                                             ->where('flow_type', 'default')
                                             ->when($record, fn ($q) => $q->where('id', '!=', $record->id))
-                                            ->exists();
+                                            ->get(['id', 'sub_module']);
 
-                                        if ($exists) {
-                                            $fail('Alur Persetujuan Default untuk Modul ini sudah ada. Silakan edit data yang ada atau gunakan tipe Spesifik.');
+                                        if ($hasOverlap($others)) {
+                                            $fail('Alur Persetujuan Default untuk Modul & jenis pengajuan ini sudah ada. Pisahkan jenis pengajuannya, edit alur yang ada, atau gunakan tipe Spesifik.');
                                         }
                                     }
 
@@ -88,7 +109,7 @@ class ApprovalFlowForm
                                         $assignedIds = $get('assignment_job_positions') ?? [];
 
                                         if (!empty($assignedIds)) {
-                                            $exists = MasterApprovalFlows::query()
+                                            $others = MasterApprovalFlows::query()
                                                 ->where('module', $value)
                                                 ->where('company_id', $get('company_id'))
                                                 ->where('flow_type', 'specific')
@@ -97,10 +118,10 @@ class ApprovalFlowForm
                                                     $q->where('assignable_type', JobPositions::class)
                                                       ->whereIn('assignable_id', $assignedIds);
                                                 })
-                                                ->exists();
+                                                ->get(['id', 'sub_module']);
 
-                                            if ($exists) {
-                                                $fail('Alur Persetujuan Spesifik untuk Jabatan yang dipilih pada Modul ini sudah ada. Silakan edit data yang ada atau buat dengan jabatan lain.');
+                                            if ($hasOverlap($others)) {
+                                                $fail('Alur Persetujuan Spesifik untuk Jabatan & jenis pengajuan ini sudah ada. Silakan edit data yang ada, pilih jabatan lain, atau pisahkan jenis pengajuannya.');
                                             }
                                         }
                                     }
@@ -109,6 +130,17 @@ class ApprovalFlowForm
                             ->live()
                             ->reactive()
                             ->required(),
+
+                        Select::make('sub_module')
+                            ->label('Jenis Pengajuan')
+                            ->helperText('Khusus modul Izin/Cuti/Lembur — batasi alur ini ke satu atau beberapa jenis pengajuan. Kosongkan = berlaku untuk semua jenis yang tidak punya alur khusus.')
+                            ->multiple()
+                            ->options(\App\Enum\Approval\AttendanceApprovalBucketEnum::options())
+                            ->visible(fn (callable $get) => $get('module') === \App\Enum\Approval\ApprovalModuleEnum::ATTENDANCE_REQUEST->value)
+                            ->formatStateUsing(fn ($state) => filled($state) ? explode(',', $state) : [])
+                            ->dehydrateStateUsing(fn ($state) => filled($state) ? implode(',', (array) $state) : null)
+                            ->columnSpanFull()
+                            ->live(),
 
                         Select::make('flow_type')
                             ->label('Tipe Alur Persetujuan')
@@ -168,13 +200,18 @@ class ApprovalFlowForm
                         // modal ini ikut ke-scope ke company yang lagi diedit di form utama,
                         // bukan selalu company Auth::user() sendiri (kekurangan yang sama
                         // dilaporkan user 2026-08-16).
-                        ->fillForm(fn ($livewire) => ['company_id' => $livewire->data['company_id'] ?? Auth::user()->company_id])
+                        ->fillForm(fn ($livewire) => [
+                            'company_id' => $livewire->data['company_id'] ?? Auth::user()->company_id,
+                            'flow_type' => $livewire->data['flow_type'] ?? null,
+                        ])
                         ->schema([
                             ...self::inputStepSchema(),
                         ])
                         ->action(function (array $data, $livewire) {
-                            // Validasi data sebelum menyimpan
-                            if (empty($data['approver_ref_id']) || empty($data['approver_type'])) {
+                            // Validasi data sebelum menyimpan. Step 'supervisor' (atasan langsung
+                            // pengaju) tidak punya approver_ref_id — di-resolve saat snapshot.
+                            $isSupervisor = ($data['approver_type'] ?? null) === 'supervisor';
+                            if (empty($data['approver_type']) || (empty($data['approver_ref_id']) && ! $isSupervisor)) {
                                 Notification::make()
                                     ->title('Error')
                                     ->body('Approver Type dan Approver harus diisi!')
@@ -218,7 +255,11 @@ class ApprovalFlowForm
                         ->defaultItems(0)
                         ->deletable(false)
                         ->itemLabel(function (array $state): ?string {
-                            if (!isset($state['approver_type']) || !isset($state['approver_ref_id'])) {
+                            if (!isset($state['approver_type'])) {
+                                return 'Step Baru';
+                            }
+
+                            if ($state['approver_type'] !== 'supervisor' && !isset($state['approver_ref_id'])) {
                                 return 'Step Baru';
                             }
 
@@ -230,6 +271,7 @@ class ApprovalFlowForm
                                 'role' => Role::find($state['approver_ref_id'])?->name ?? 'Role tidak ditemukan',
                                 'user' => \App\Models\User::find($state['approver_ref_id'])?->name ?? 'User tidak ditemukan',
                                 'job_position' => JobPositions::find($state['approver_ref_id'])?->name ?? 'Jabatan tidak ditemukan',
+                                'supervisor' => 'Atasan Pengaju (Level ' . ((int) ($state['supervisor_level'] ?? 1)) . ')',
                                 default => '',
                             };
 
@@ -239,6 +281,7 @@ class ApprovalFlowForm
                             Hidden::make('step_order'),
                             Hidden::make('approver_type'),
                             Hidden::make('approver_ref_id'),
+                            Hidden::make('supervisor_level'),
                             Hidden::make('scope_type'),
                             Hidden::make('scope_ref_id'),
                             Hidden::make('is_final'),
@@ -253,6 +296,7 @@ class ApprovalFlowForm
                                                 'role' => 'Role',
                                                 'user' => 'Karyawan Tertentu',
                                                 'job_position' => 'Jabatan Tertentu',
+                                                'supervisor' => 'Atasan Pengaju',
                                                 default => $state,
                                             };
                                         }),
@@ -260,12 +304,18 @@ class ApprovalFlowForm
                                     TextEntry::make('approver_ref_id')
                                         ->label('Approver')
                                         ->formatStateUsing(function ($state, $record, callable $get) {
+                                            $approverType = $get('approver_type') ?? $record?->approver_type ?? null;
+
+                                            if ($approverType === 'supervisor') {
+                                                $lvl = (int) ($get('supervisor_level') ?? $record?->supervisor_level ?? 1);
+
+                                                return "Atasan pengaju, naik {$lvl} level (otomatis saat pengajuan)";
+                                            }
+
                                             if (!$state) return '-';
 
                                             // Lookup langsung by ID, sama alasan dengan itemLabel
                                             // di atas - jangan scope ke Auth::user()->company_id.
-                                            $approverType = $get('approver_type') ?? $record?->approver_type ?? null;
-
                                             return match ($approverType) {
                                                 'role' => Role::find($state)?->name ?? 'Role tidak ditemukan',
                                                 'user' => \App\Models\User::find($state)?->name ?? 'User tidak ditemukan',
@@ -313,12 +363,13 @@ class ApprovalFlowForm
                                     // modal edit ini form terpisah juga, tanpa ini dropdown
                                     // Approver/Departemen balik hardcode ke company Auth::user().
                                     $companyId = $component->getLivewire()->data['company_id'] ?? Auth::user()->company_id;
+                                    $flowType = $component->getLivewire()->data['flow_type'] ?? null;
 
                                     if ($itemKey === null || !isset($items[$itemKey])) {
-                                        return ['company_id' => $companyId];
+                                        return ['company_id' => $companyId, 'flow_type' => $flowType];
                                     }
 
-                                    return array_merge($items[$itemKey], ['company_id' => $companyId]);
+                                    return array_merge($items[$itemKey], ['company_id' => $companyId, 'flow_type' => $flowType]);
                                 })
                                 ->action(function (array $data, $arguments, $component) {
                                     try {
@@ -352,13 +403,16 @@ class ApprovalFlowForm
                                             ->first();
 
                                         if ($stepModel) {
+                                            // Step 'supervisor' tidak punya approver_ref_id (field disembunyikan).
+                                            $isSupervisor = ($data['approver_type'] ?? null) === 'supervisor';
                                             $stepModel->update([
                                                 'approver_type'  => $data['approver_type'],
-                                                'approver_ref_id' => $data['approver_ref_id'],
-                                                'scope_type'     => $data['scope_type'],
-                                                'scope_ref_id'   => $data['scope_ref_id'],
-                                                'is_final'       => $data['is_final'],
-                                                'approval_mode'  => $data['approval_mode'],
+                                                'approver_ref_id' => $isSupervisor ? null : ($data['approver_ref_id'] ?? null),
+                                                'supervisor_level' => $isSupervisor ? (int) ($data['supervisor_level'] ?? 1) : null,
+                                                'scope_type'     => $data['scope_type'] ?? 'same_department',
+                                                'scope_ref_id'   => $data['scope_ref_id'] ?? null,
+                                                'is_final'       => $data['is_final'] ?? false,
+                                                'approval_mode'  => $data['approval_mode'] ?? 'any',
                                             ]);
                                         }
 
@@ -443,19 +497,35 @@ class ApprovalFlowForm
             // karena modal add_step/edit_step form-nya sendiri, $get tidak bisa lewat batas
             // form ke form utama (2026-08-16).
             Hidden::make('company_id'),
+            // flow_type dioper dari fillForm add_step/edit_step (form modal terpisah dari form
+            // utama) — dipakai buat munculkan opsi "Atasan Langsung Pengaju" hanya di alur Spesifik.
+            Hidden::make('flow_type'),
 
             Select::make('approver_type')
                 ->label('Sumber')
-                ->options([
-                    'role' => 'Role',
+                ->options(fn (callable $get) => array_filter([
+                    // 'role' dihapus sebagai pilihan baru; cuma tampil kalau step lama sudah pakai role.
+                    'role' => $get('approver_type') === 'role' ? 'Role (lama)' : null,
                     'job_position' => 'Jabatan',
                     'user' => 'Karyawan Spesiifik',
-                ])
+                    // Atasan pengaju = naik N level dari jabatan pengaju, di-resolve saat pengajuan.
+                    // Cuma masuk akal di alur Spesifik (jabatan pengaju sudah dibatasi assignment).
+                    'supervisor' => $get('flow_type') === 'specific' ? 'Atasan Pengaju' : null,
+                ]))
                 ->live()
                 ->required()
                 ->afterStateUpdated(function (callable $set) {
                     $set('approver_ref_id', null);
                 }),
+
+            Select::make('supervisor_level')
+                ->label('Level Atasan')
+                ->helperText('1 = atasan langsung, 2 = atasan-nya atasan, dst. Dihitung dari jabatan pengaju.')
+                ->options(array_combine(range(1, 10), range(1, 10)))
+                ->default(1)
+                ->native(false)
+                ->visible(fn (callable $get) => $get('approver_type') === 'supervisor')
+                ->required(fn (callable $get) => $get('approver_type') === 'supervisor'),
 
             Select::make('source_company')
                 ->label('Perusahaan')
@@ -465,10 +535,12 @@ class ApprovalFlowForm
                     'holding_company' => 'Perusahaan Induk / Syifa Global Group',
                 ])
                 ->live()
-                ->default('same_company'),
+                ->default('same_company')
+                ->visible(fn (callable $get) => $get('approver_type') !== 'supervisor'),
 
             Select::make('approver_ref_id')
                 ->label('Approver')
+                ->visible(fn (callable $get) => $get('approver_type') !== 'supervisor')
                 ->options(function (callable $get) {
                     $approverType = $get('approver_type');
                     $sourceCompany = $get('source_company') ?? 'same_company';
@@ -498,9 +570,8 @@ class ApprovalFlowForm
                 })
                 ->preload()
                 ->searchable()
-                ->required()
-                ->disabled(fn (callable $get) => !$get('approver_type'))
-                ->rules(['required']),
+                ->required(fn (callable $get) => $get('approver_type') !== 'supervisor')
+                ->disabled(fn (callable $get) => !$get('approver_type')),
 
             Select::make('scope_type')
                 ->label('Lingkup')

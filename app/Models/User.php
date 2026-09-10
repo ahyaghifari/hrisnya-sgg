@@ -308,7 +308,7 @@ class User extends Authenticatable implements FilamentUser
      * ScheduleShiftAssignment yang shift_type-nya nunjuk ke Schedule ini (Shift). Dipakai
      * SchedulePolicy::view() & ScheduleShiftRosterTab (2026-08-15) - karyawan shift bisa lihat
      * roster jadwalnya sendiri DAN teman-teman se-jadwal, cuma tidak bisa edit/generate/import
-     * (itu tetap KELOLA_JADWAL_SHIFT, dicek terpisah). */
+     * (itu butuh Update:ShiftScheduleAssignments, dicek terpisah di ScheduleShiftRosterTab). */
     public function isAssignedToSchedule(\App\Models\Shift\Schedule $schedule): bool
     {
         if (\App\Models\Shift\ScheduleAssignment::where('user_id', $this->id)->where('schedule_id', $schedule->id)->exists()) {

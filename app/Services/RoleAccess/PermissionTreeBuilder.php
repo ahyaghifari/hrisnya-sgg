@@ -77,7 +77,9 @@ class PermissionTreeBuilder
                 return Str::headline($name);
             }
 
-            return ($actionLabels[$action] ?? $action) . ' ' . Str::headline($subject);
+            $subjectLabel = RoleForm::subjectLabelOverrides()[$subject] ?? Str::headline($subject);
+
+            return ($actionLabels[$action] ?? $action) . ' ' . $subjectLabel;
         };
 
         $allPermissions = Permission::query()->orderBy('id')->get();

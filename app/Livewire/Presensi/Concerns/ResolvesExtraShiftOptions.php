@@ -4,6 +4,7 @@ namespace App\Livewire\Presensi\Concerns;
 
 use App\Models\Shift\ExtraShiftAssignment;
 use App\Models\Shift\ExtraShiftRule;
+use App\Models\Shift\ScheduleAssignment;
 use App\Models\Shift\ScheduleShiftType;
 use App\Models\User;
 use App\Services\Attendance\ScheduleResolver;
@@ -22,28 +23,50 @@ use Illuminate\Support\Collection;
 trait ResolvesExtraShiftOptions
 {
     /**
-     * @return array{category: string, label: string}|null null kalau karyawan ini TIDAK punya
-     *         shift normal (roster shift, bukan off_day) di tanggal itu - extra shift butuh
-     *         basis shift normal buat menentukan aturan `from_shift_type` mana yang berlaku.
+     * @return array{category: string, label: string, scheduleId: string}|null null kalau karyawan
+     *         ini bukan anggota jadwal tipe Shift. Extra shift butuh basis buat menentukan aturan
+     *         `from_shift_type` mana yang berlaku: kalau tanggal itu ada shift normal, basisnya
+     *         kategori shift itu; kalau rosternya KOSONG (belum diisi) atau LIBUR (off_day),
+     *         basisnya kategori sentinel `libur` (instruksi user - yang lagi libur/belum diroster
+     *         tetap boleh diajukan extra shift, jadwalnya tetap libur).
      */
     protected function resolveNormalShift(User $user, string $date): ?array
     {
         $resolved = app(ScheduleResolver::class)->resolveForUserDate($user, $date);
 
-        if (! $resolved || $resolved['type'] !== 'shift' || ($resolved['is_off_day'] ?? false)) {
+        if ($resolved && $resolved['type'] === 'shift' && ! ($resolved['is_off_day'] ?? false)) {
+            $config = $resolved['config'] ?? null; // ScheduleShiftType
+
+            if (! $config) {
+                return null;
+            }
+
+            return [
+                'category' => $config->shift_type,
+                'label' => $config->name,
+                'scheduleId' => $config->schedule_id,
+            ];
+        }
+
+        // Sampai sini = tidak ada shift normal aktif hari itu. Boleh extra shift HANYA kalau
+        // karyawan ini anggota jadwal tipe Shift (Fixed/Flexible yang lagi libur tidak dapat)
+        // DAN tanggal itu memang tidak punya shift lain (roster kosong -> $resolved null, atau
+        // roster off_day -> type shift + is_off_day). Fixed/Flexible off day -> type-nya bukan
+        // shift -> ditolak di sini.
+        if ($resolved && $resolved['type'] !== 'shift') {
             return null;
         }
 
-        $config = $resolved['config'] ?? null; // ScheduleShiftType
+        $assignment = ScheduleAssignment::resolveForUser($user, $date);
 
-        if (! $config) {
+        if (! $assignment || $assignment->schedule?->schedule_type !== 'shift') {
             return null;
         }
 
         return [
-            'category' => $config->shift_type,
-            'label' => $config->name,
-            'scheduleId' => $config->schedule_id,
+            'category' => 'libur',
+            'label' => 'Libur',
+            'scheduleId' => $assignment->schedule_id,
         ];
     }
 

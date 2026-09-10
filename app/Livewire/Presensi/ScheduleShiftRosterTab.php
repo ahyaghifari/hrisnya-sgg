@@ -2,7 +2,6 @@
 
 namespace App\Livewire\Presensi;
 
-use App\Enum\CustomPermissionEnum;
 use App\Exports\Presensi\ScheduleShiftRosterExport;
 use App\Models\Shift\Schedule;
 use App\Models\Shift\ScheduleAssignment;
@@ -79,7 +78,7 @@ class ScheduleShiftRosterTab extends Component
 
     public function getCanEditJadwalProperty(): bool
     {
-        return Auth::user()->can(CustomPermissionEnum::KELOLA_JADWAL_SHIFT->value);
+        return Auth::user()->can('Update:ShiftScheduleAssignments');
     }
 
     public function updatedPeriod(): void
@@ -243,7 +242,7 @@ class ScheduleShiftRosterTab extends Component
      * supaya select di grid punya nilai awal yang benar sebelum diubah user. */
     public function startEdit(): void
     {
-        abort_unless(Auth::user()->can(CustomPermissionEnum::KELOLA_JADWAL_SHIFT->value), 403);
+        abort_unless(Auth::user()->can('Update:ShiftScheduleAssignments'), 403);
 
         $roster = $this->roster;
 
@@ -269,7 +268,7 @@ class ScheduleShiftRosterTab extends Component
      * satu tempat (delete-kalau-kosong, dst tidak dobel). */
     public function saveRoster(): void
     {
-        abort_unless(Auth::user()->can(CustomPermissionEnum::KELOLA_JADWAL_SHIFT->value), 403);
+        abort_unless(Auth::user()->can('Update:ShiftScheduleAssignments'), 403);
 
         if (! $this->editMode) {
             return;
@@ -320,7 +319,7 @@ class ScheduleShiftRosterTab extends Component
      * dites langsung. */
     public function setCell(string $userId, string $date, ?string $value, string $source = 'manual'): void
     {
-        abort_unless(Auth::user()->can(CustomPermissionEnum::KELOLA_JADWAL_SHIFT->value), 403);
+        abort_unless(Auth::user()->can('Update:ShiftScheduleAssignments'), 403);
 
         $existing = ScheduleShiftAssignment::where('user_id', $userId)->whereDate('date', $date)->first();
         $before = $existing ? ($existing->off_day ? 'off' : $existing->shift_type_id) : null;
@@ -370,7 +369,7 @@ class ScheduleShiftRosterTab extends Component
      * tidak pernah menimpa baris yang sudah ada. */
     public function generateFromTemplate(): void
     {
-        abort_unless(Auth::user()->can(CustomPermissionEnum::KELOLA_JADWAL_SHIFT->value), 403);
+        abort_unless(Auth::user()->can('Update:ShiftScheduleAssignments'), 403);
 
         if (! $this->schedule->use_template) {
             return;
@@ -436,7 +435,7 @@ class ScheduleShiftRosterTab extends Component
      * biar bisa di-generate ulang dari awal. Berlaku buat jadwal Template maupun manual. */
     public function resetPeriod(): void
     {
-        abort_unless(Auth::user()->can(CustomPermissionEnum::KELOLA_JADWAL_SHIFT->value), 403);
+        abort_unless(Auth::user()->can('Update:ShiftScheduleAssignments'), 403);
 
         $start = Carbon::createFromFormat('Y-m', $this->period)->startOfMonth()->toDateString();
         $end = Carbon::createFromFormat('Y-m', $this->period)->endOfMonth()->toDateString();
@@ -498,7 +497,7 @@ class ScheduleShiftRosterTab extends Component
      * sama seperti edit manual per sel. */
     public function updatedImportFile(): void
     {
-        abort_unless(Auth::user()->can(CustomPermissionEnum::KELOLA_JADWAL_SHIFT->value), 403);
+        abort_unless(Auth::user()->can('Update:ShiftScheduleAssignments'), 403);
 
         $this->validate(['importFile' => 'required|file|mimes:xlsx,xls']);
 

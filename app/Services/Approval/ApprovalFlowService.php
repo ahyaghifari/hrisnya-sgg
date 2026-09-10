@@ -298,15 +298,23 @@ class ApprovalFlowService
         }
 
         $currentSteps = collect($snapshot->steps_snapshot ?? []);
-        
-        $masterSteps = $masterFlow->steps->map(function ($step) {
+
+        // Bekukan step 'supervisor' sama seperti saat snapshot dibuat, biar perbandingan
+        // apple-to-apple (snapshot sudah menyimpan bentuk job_position). Non-throwing di sini:
+        // ini cuma cek sinkron, jangan bikin lihat approval crash kalau jabatan pengaju hilang.
+        $resolveSupervisor = fn ($step) => $this->snapshotRepo->resolveSupervisorPositionId(
+            $snapshot->created_by,
+            (int) ($step->supervisor_level ?? 1),
+        );
+
+        $masterSteps = $masterFlow->steps->map(function ($step) use ($resolveSupervisor) {
             return [
                 'order' => $step->step_order,
                 'scope_type' => $step->scope_type,
                 'scope_ref_id' => $step->scope_ref_id,
-                'approver_type' => $step->approver_type,
+                'approver_type' => $step->approver_type === 'supervisor' ? 'job_position' : $step->approver_type,
                 'is_final_step' => $step->is_final ? 1 : 0,
-                'approver_ref_id' => $step->approver_ref_id,
+                'approver_ref_id' => $step->approver_type === 'supervisor' ? $resolveSupervisor($step) : $step->approver_ref_id,
             ];
         })->values()->toArray();
 
@@ -348,11 +356,19 @@ class ApprovalFlowService
                 return false;
             }
 
-            $masterSteps = $masterFlow->steps->map(function ($step) {
+            // Bekukan step 'supervisor' jadi job_position (parent jabatan pengaju), sama seperti
+            // ApprovalCreationService::createSnapshot. Non-throwing: sync ulang tidak boleh gagal
+            // keras di tengah alur kalau jabatan pengaju sudah tidak ada.
+            $resolveSupervisor = fn ($step) => $this->snapshotRepo->resolveSupervisorPositionId(
+                $snapshot->created_by,
+                (int) ($step->supervisor_level ?? 1),
+            );
+
+            $masterSteps = $masterFlow->steps->map(function ($step) use ($resolveSupervisor) {
                 return [
                     'order' => $step->step_order,
-                    'approver_type' => $step->approver_type,
-                    'approver_ref_id' => $step->approver_ref_id,
+                    'approver_type' => $step->approver_type === 'supervisor' ? 'job_position' : $step->approver_type,
+                    'approver_ref_id' => $step->approver_type === 'supervisor' ? $resolveSupervisor($step) : $step->approver_ref_id,
                     'scope_type' => $step->scope_type,
                     'scope_ref_id' => $step->scope_ref_id ?? null,
                     'is_final_step' => $step->is_final,

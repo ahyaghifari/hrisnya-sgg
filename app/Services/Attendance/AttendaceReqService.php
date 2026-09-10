@@ -3,6 +3,7 @@
 namespace App\Services\Attendance;
 
 use App\Enum\Approval\ApprovalModuleEnum;
+use App\Enum\Approval\AttendanceApprovalBucketEnum;
 use App\Enum\Attendance\AttendanceSettingEnum;
 use App\Enum\Attendance\LeaveTypeCategoryEnum;
 use App\Enum\Attendance\PermissionGroupEnum;
@@ -79,7 +80,8 @@ class AttendaceReqService
             $masterFlow = $this->approvalSnapshotRepository->resolveApprovalFlowForUser(
                 moduleType: ApprovalModuleEnum::ATTENDANCE_REQUEST->value,
                 companyId: $actingUser->company_id,
-                userId: $userId
+                userId: $userId,
+                subModule: AttendanceApprovalBucketEnum::OVERTIME->value
             );
 
             if (!$masterFlow) {
@@ -172,7 +174,8 @@ class AttendaceReqService
             $masterFlow = $this->approvalSnapshotRepository->resolveApprovalFlowForUser(
                 moduleType: ApprovalModuleEnum::ATTENDANCE_REQUEST->value,
                 companyId: $actingUser->company_id,
-                userId: $userId
+                userId: $userId,
+                subModule: AttendanceApprovalBucketEnum::LEAVE->value
             );
 
             if (!$masterFlow) {
@@ -625,25 +628,27 @@ class AttendaceReqService
         $type = 'permission';
         $status = $skipApproval ? 'approved' : 'in_review';
 
+        // permission_type_id cuma ada untuk kelompok yang punya master (Meninggalkan Jam Kerja &
+        // Khusus, lihat PermissionGroupEnum::hasSubKategori()) - kelompok flat (Tidak Masuk
+        // Seharian, Sakit) kirim `category` langsung tanpa lookup master sama sekali.
+        // Diresolusi sebelum blok flow karena `category` menentukan ember alur persetujuan.
+        $permissionType = !empty($data['type_id']) ? $this->permissionReqRepository->getPermissionTypeById($data['type_id']) : null;
+        $category = $permissionType?->category ?? ($data['category'] ?? null);
+        $permissionTypeName = $permissionType?->name ?? ($category ? PermissionTypeCategoryEnum::tryFrom($category)?->label() : null);
+
         $masterFlow = null;
         if (! $skipApproval) {
             $masterFlow = $this->approvalSnapshotRepository->resolveApprovalFlowForUser(
                 moduleType: ApprovalModuleEnum::ATTENDANCE_REQUEST->value,
                 companyId: $actingUser->company_id,
-                userId: $userId
+                userId: $userId,
+                subModule: AttendanceApprovalBucketEnum::fromPermissionCategory($category)?->value
             );
 
             if (!$masterFlow) {
                 throw new \Exception('No active approval flow found for attendance requests for this company.');
             }
         }
-
-        // permission_type_id cuma ada untuk kelompok yang punya master (Meninggalkan Jam Kerja &
-        // Khusus, lihat PermissionGroupEnum::hasSubKategori()) - kelompok flat (Tidak Masuk
-        // Seharian, Sakit) kirim `category` langsung tanpa lookup master sama sekali.
-        $permissionType = !empty($data['type_id']) ? $this->permissionReqRepository->getPermissionTypeById($data['type_id']) : null;
-        $category = $permissionType?->category ?? ($data['category'] ?? null);
-        $permissionTypeName = $permissionType?->name ?? ($category ? PermissionTypeCategoryEnum::tryFrom($category)?->label() : null);
 
         // ponytail: enforcement blokir submit dimatikan sementara atas permintaan user — kuota
         // tetap dihitung & ditampilkan ke approver (getIzinPeriodeUsage), cuma tidak lagi

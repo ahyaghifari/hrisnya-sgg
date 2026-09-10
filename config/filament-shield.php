@@ -245,11 +245,9 @@ return [
     // Shield tidak bisa auto-generate ini (bukan pola CRUD standar), didaftarkan manual
     // supaya tetap "dikenal" & tidak dianggap yatim.
     'custom_permissions' => [
-        'approve_pengajuan_absensi',
         'view_report_data_absensi',
         'import_data_absensi',
         'approve_pengajuan_pelatihan',
-        'approve_manajemen_lowongan_kerja',
         'lihat_perusahaan_lain',
     ],
 

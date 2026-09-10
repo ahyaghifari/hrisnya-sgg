@@ -97,6 +97,105 @@ class AlurPersetujuanFormPageTest extends TestCase
         ]);
     }
 
+    public function test_specific_flow_saves_supervisor_step_without_approver_ref(): void
+    {
+        $company = Companies::create(['code' => 'APFS', 'name' => 'RS Sup Test', 'location' => 'Test', 'is_active' => true]);
+        $user = $this->actingAsWithPermission($company);
+        $job = JobPositions::create(['name' => 'Staff', 'company_id' => $company->id, 'is_draft' => false]);
+
+        Livewire::actingAs($user)
+            ->test(AlurPersetujuanFormPage::class)
+            ->set('name', 'Alur Atasan Langsung')
+            ->set('module', ApprovalModuleEnum::ATTENDANCE_REQUEST->value)
+            ->set('flowType', 'specific')
+            ->set('assignmentJobPositions', [$job->id])
+            ->set('steps.0.approver_type', 'supervisor')
+            ->set('steps.0.supervisor_level', 2)
+            ->set('steps.0.is_final', true)
+            ->call('save')
+            ->assertRedirect(route('kepegawaian.alur-persetujuan'));
+
+        $flow = MasterApprovalFlows::where('name', 'Alur Atasan Langsung')->firstOrFail();
+        $this->assertSame(1, $flow->steps()->count());
+        $this->assertDatabaseHas('m_approval_flow_steps', [
+            'flow_id' => $flow->id,
+            'approver_type' => 'supervisor',
+            'approver_ref_id' => null,
+            'supervisor_level' => 2,
+            'is_final' => true,
+        ]);
+    }
+
+    public function test_default_flow_saves_sub_module_buckets(): void
+    {
+        $company = Companies::create(['code' => 'APFSM', 'name' => 'RS SubModule', 'location' => 'Test', 'is_active' => true]);
+        $user = $this->actingAsWithPermission($company);
+        $approverRole = SpatieRole::create(['name' => 'Approver SM', 'guard_name' => 'web', 'company_id' => $company->id]);
+
+        Livewire::actingAs($user)
+            ->test(AlurPersetujuanFormPage::class)
+            ->set('name', 'Alur Cuti + Izin Seharian')
+            ->set('module', ApprovalModuleEnum::ATTENDANCE_REQUEST->value)
+            ->set('flowType', 'default')
+            ->set('subModule', ['leave', 'tidak_masuk_seharian'])
+            ->set('steps.0.approver_type', 'role')
+            ->set('steps.0.approver_ref_id', $approverRole->id)
+            ->set('steps.0.is_final', true)
+            ->call('save')
+            ->assertRedirect(route('kepegawaian.alur-persetujuan'));
+
+        $flow = MasterApprovalFlows::where('name', 'Alur Cuti + Izin Seharian')->firstOrFail();
+        $this->assertSame('leave,tidak_masuk_seharian', $flow->sub_module);
+    }
+
+    public function test_two_default_flows_with_overlapping_bucket_rejected(): void
+    {
+        $company = Companies::create(['code' => 'APFOV', 'name' => 'RS Overlap', 'location' => 'Test', 'is_active' => true]);
+        $user = $this->actingAsWithPermission($company);
+        $approverRole = SpatieRole::create(['name' => 'Approver OV', 'guard_name' => 'web', 'company_id' => $company->id]);
+
+        MasterApprovalFlows::create([
+            'company_id' => $company->id,
+            'module' => ApprovalModuleEnum::ATTENDANCE_REQUEST->value,
+            'sub_module' => 'leave',
+            'name' => 'Alur Cuti',
+            'flow_type' => 'default',
+            'is_active' => true,
+        ]);
+
+        Livewire::actingAs($user)
+            ->test(AlurPersetujuanFormPage::class)
+            ->set('name', 'Alur Cuti Lagi')
+            ->set('module', ApprovalModuleEnum::ATTENDANCE_REQUEST->value)
+            ->set('flowType', 'default')
+            ->set('subModule', ['leave', 'overtime'])
+            ->set('steps.0.approver_type', 'role')
+            ->set('steps.0.approver_ref_id', $approverRole->id)
+            ->set('steps.0.is_final', true)
+            ->call('save')
+            ->assertHasErrors('module');
+
+        $this->assertNull(MasterApprovalFlows::where('name', 'Alur Cuti Lagi')->first());
+    }
+
+    public function test_supervisor_step_rejected_on_default_flow(): void
+    {
+        $company = Companies::create(['code' => 'APFD', 'name' => 'RS Sup Default', 'location' => 'Test', 'is_active' => true]);
+        $user = $this->actingAsWithPermission($company);
+
+        Livewire::actingAs($user)
+            ->test(AlurPersetujuanFormPage::class)
+            ->set('name', 'Alur Salah')
+            ->set('module', ApprovalModuleEnum::ATTENDANCE_REQUEST->value)
+            ->set('flowType', 'default')
+            ->set('steps.0.approver_type', 'supervisor')
+            ->set('steps.0.is_final', true)
+            ->call('save')
+            ->assertHasErrors('steps');
+
+        $this->assertNull(MasterApprovalFlows::where('name', 'Alur Salah')->first());
+    }
+
     public function test_edit_mode_locks_company(): void
     {
         $company = Companies::create(['code' => 'APF4', 'name' => 'RS Form Test 4', 'location' => 'Test', 'is_active' => true]);
