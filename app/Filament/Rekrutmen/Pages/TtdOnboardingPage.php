@@ -104,6 +104,18 @@ class TtdOnboardingPage extends Page implements HasActions, HasForms, HasTable
             ->icon('heroicon-m-calendar-days')
             ->color('primary')
             ->visible(fn () => $this->canDecide())
+            ->disabled(function ($record): bool {
+                [$approved, $total] = $this->agreementProgress($record);
+
+                return $approved < $total;
+            })
+            ->tooltip(function ($record): ?string {
+                [$approved, $total] = $this->agreementProgress($record);
+
+                return $approved < $total
+                    ? "Kandidat belum menyetujui semua persetujuan ({$approved}/{$total})."
+                    : null;
+            })
             ->modalHeading('Jadwal Onboarding')
             ->modalDescription('Tanggal ini dikirim ke kandidat lewat email undangan onboarding, dan jadi Tanggal Bergabung saat akun karyawan dibuat.')
             ->modalSubmitActionLabel('Simpan & Kirim Email')
