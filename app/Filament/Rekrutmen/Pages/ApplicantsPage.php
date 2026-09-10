@@ -24,8 +24,9 @@ use Illuminate\Database\Eloquent\Builder;
 /**
  * Daftar Pelamar — port dari ApplicantsPage project `rekrutmen` (FL3 -> FL4), baca-tulis
  * DB `recruitment` langsung (bukan API). Selektor + statistik + tabel + aksi bulk ke
- * screening + seleksi berkas (draft -> terapkan). Keputusan seleksi bikin draft email
- * (lolos/ditolak); admin pilih baris lalu "Kirim Email Pemberitahuan".
+ * screening + seleksi berkas (draft -> terapkan). Saat "Terapkan Keputusan", email LOLOS
+ * langsung dikirim; email TIDAK LOLOS ditahan sebagai draft (kirim lewat "Kirim Email
+ * Pemberitahuan").
  */
 class ApplicantsPage extends Page implements HasActions, HasForms, HasTable
 {
@@ -208,7 +209,7 @@ class ApplicantsPage extends Page implements HasActions, HasForms, HasTable
             ->visible(fn () => $this->canDecide() && $draftCount > 0)
             ->requiresConfirmation()
             ->modalHeading('Terapkan Keputusan Seleksi Berkas?')
-            ->modalDescription('Yang lolos → status "Lolos Seleksi Berkas". Yang tidak → tetap di Peninjauan Berkas. Draft email dibuat — kirim lewat "Kirim Email Pemberitahuan".')
+            ->modalDescription('Yang lolos → status "Lolos Seleksi Berkas" + email langsung dikirim. Yang tidak → tetap di Peninjauan Berkas, email penolakan ditahan (kirim lewat "Kirim Email Pemberitahuan").')
             ->modalSubmitActionLabel('Terapkan')
             ->action(function (): void {
                 if (! $this->jobOpeningId) {
@@ -219,7 +220,7 @@ class ApplicantsPage extends Page implements HasActions, HasForms, HasTable
 
                 $this->resetTable();
                 Notification::make()
-                    ->title("{$passed} lolos. {$rejected} tetap di Peninjauan Berkas — draft email siap dikirim lewat \"Kirim Email Pemberitahuan\".")
+                    ->title("{$passed} lolos (email dikirim). {$rejected} tidak lolos — email penolakan ditahan, kirim lewat \"Kirim Email Pemberitahuan\".")
                     ->success()->send();
             });
     }

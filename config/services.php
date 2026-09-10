@@ -49,6 +49,9 @@ return [
         // URL publik app pelamar (d:\Projects\rekrutmen) — dipakai buat tombol CTA di email
         // notifikasi (kerjakan tes, lihat jadwal, unggah offering). Kosong = tombol disembunyikan.
         'url' => env('REKRUTMEN_URL'),
+        // Bearer token untuk API rekrutmen (POST /api/integrations/hris/notifications). Harus
+        // sama dengan REKRUTMEN_API_TOKEN di .env project rekrutmen. Kosong = email tak dikirim.
+        'api_token' => env('REKRUTMEN_API_TOKEN'),
     ],
 
     /*

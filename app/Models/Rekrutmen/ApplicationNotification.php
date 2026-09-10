@@ -5,16 +5,16 @@ namespace App\Models\Rekrutmen;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 /**
- * Draft/antrean email pemberitahuan ke pelamar (DB rekrutmen_db, dibagi). HRIS TIDAK
- * mengirim email — cuma menulis baris:
- *   - status 'draft'  = ditahan (penolakan tahap ini) sampai admin klik "Kirim Email
- *     Pemberitahuan" yang mengubahnya jadi 'queued'
- *   - status 'queued' = siap dikirim (event positif langsung ke sini)
- *   - status 'sent'   = sudah dikirim
- * Pengiriman aktual dilakukan project `rekrutmen` lewat command terjadwal
- * `notifications:dispatch` yang memproses baris 'queued'.
+ * Riwayat email pemberitahuan pelamar (tabel `application_notifications` di DB rekrutmen,
+ * dibagi — HRIS boleh BACA untuk hitung draft / tampilkan riwayat).
+ *
+ * HRIS TIDAK menyusun/mengirim email. Semua pemicu email = HTTP request ke project rekrutmen
+ * (POST /api/integrations/hris/notifications). Rekrutmen yang menyusun email (template +
+ * default) dan mengirim lewat queue-nya sendiri (queue:work).
  */
 class ApplicationNotification extends Model
 {
@@ -40,172 +40,124 @@ class ApplicationNotification extends Model
     public function cta(): ?array
     {
         $base = rtrim((string) config('services.rekrutmen.url'), '/');
+
         if ($base === '') {
             return null;
         }
 
         return match ($this->event) {
-            CompanyMessageTemplate::EVENT_QUIZ_SENT => ['url' => "{$base}/tes-online", 'label' => 'Kerjakan Tes'],
-            CompanyMessageTemplate::EVENT_OFFERING_LETTER_READY => ['url' => "{$base}/dashboard", 'label' => 'Unggah Surat Penawaran'],
-            CompanyMessageTemplate::EVENT_INTERVIEW_SCHEDULED => ['url' => "{$base}/lamaran/{$this->job_application_id}", 'label' => 'Lihat Jadwal Wawancara'],
-            CompanyMessageTemplate::EVENT_MCU_SCHEDULED => ['url' => "{$base}/lamaran/{$this->job_application_id}", 'label' => 'Lihat Jadwal MCU'],
-            CompanyMessageTemplate::EVENT_OFFERING_NEGOTIATION_REPLIED => ['url' => "{$base}/dashboard", 'label' => 'Lihat Balasan Negosiasi'],
-            CompanyMessageTemplate::EVENT_INTERVIEW_RESCHEDULED => ['url' => "{$base}/lamaran/{$this->job_application_id}", 'label' => 'Lihat Jadwal Wawancara'],
-            CompanyMessageTemplate::EVENT_MCU_RESCHEDULED => ['url' => "{$base}/lamaran/{$this->job_application_id}", 'label' => 'Lihat Jadwal MCU'],
+            'quiz_sent' => ['url' => "{$base}/tes-online", 'label' => 'Kerjakan Tes'],
+            'offering_letter_ready' => ['url' => "{$base}/dashboard", 'label' => 'Unggah Surat Penawaran'],
+            'interview_scheduled', 'interview_rescheduled' => ['url' => "{$base}/lamaran/{$this->job_application_id}", 'label' => 'Lihat Jadwal Wawancara'],
+            'mcu_scheduled', 'mcu_rescheduled' => ['url' => "{$base}/lamaran/{$this->job_application_id}", 'label' => 'Lihat Jadwal MCU'],
+            'offering_negotiation_replied' => ['url' => "{$base}/dashboard", 'label' => 'Lihat Balasan Negosiasi'],
             default => null,
         };
     }
 
-    /**
-     * Antrekan email perubahan jadwal (wawancara/MCU). Disimpan sebagai baris 'queued' —
-     * project rekrutmen yang mengirim. Boleh berulang (tak ada dedup). $kind = 'interview'|'mcu'.
-     */
-    public static function notifyReschedule(JobApplication $app, string $kind, array $data): void
-    {
-        $app->loadMissing('jobOpening', 'user');
+    // ── Pemicu email (HTTP ke rekrutmen) ──────────────────────────────────────────────────
 
-        if (! $app->user?->email) {
-            return;
-        }
-
-        $name = $app->answersMap()['full_name'] ?? 'Pelamar';
-        $jobTitle = $app->jobOpening->title ?? '';
-        $label = $kind === 'mcu' ? 'Medical Check Up' : 'Wawancara';
-        $event = $kind === 'mcu'
-            ? CompanyMessageTemplate::EVENT_MCU_RESCHEDULED
-            : CompanyMessageTemplate::EVENT_INTERVIEW_RESCHEDULED;
-
-        $detail = "Tanggal: " . ($data['date'] ?? '-')
-            . "\nWaktu: " . ($data['time'] ?? '-')
-            . "\nLokasi: " . ($data['location'] ?? '-')
-            . (($data['notes'] ?? '') !== '' ? "\nCatatan: " . $data['notes'] : '');
-
-        static::create([
-            'job_application_id' => $app->id,
-            'event' => $event,
-            'subject' => "Perubahan Jadwal {$label} – {$jobTitle}",
-            'body' => "Halo {$name},\n\nJadwal {$label} kamu untuk posisi {$jobTitle} telah diperbarui. Berikut jadwal terbaru:\n\n{$detail}\n\nMohon perhatikan perubahan ini. Sampai jumpa di jadwal yang baru.\n\nSalam,\nTim Rekrutmen",
-            'status' => 'queued',
-        ]);
-    }
-
-    /**
-     * Antrekan email balasan negosiasi offering. Disimpan sebagai baris 'queued' —
-     * project rekrutmen yang mengirim. Boleh berulang (riwayat di `offering_negotiations`).
-     */
-    public static function notifyNegotiationReply(JobApplication $app, string $replyMessage): void
-    {
-        $app->loadMissing('jobOpening', 'user');
-
-        if (! $app->user?->email) {
-            return;
-        }
-
-        $name = $app->answersMap()['full_name'] ?? 'Pelamar';
-        $jobTitle = $app->jobOpening->title ?? '';
-
-        static::create([
-            'job_application_id' => $app->id,
-            'event' => CompanyMessageTemplate::EVENT_OFFERING_NEGOTIATION_REPLIED,
-            'subject' => "Balasan Negosiasi Surat Penawaran – {$jobTitle}",
-            'body' => "Halo {$name},\n\nTim rekrutmen telah membalas pengajuan negosiasimu untuk posisi {$jobTitle}:\n\n\"{$replyMessage}\"\n\nSilakan buka dashboard untuk menanggapi atau menandatangani surat penawaran.\n\nSalam,\nTim Rekrutmen",
-            'status' => 'queued',
-        ]);
-    }
-
-    /** Tandai draft ini siap dikirim (status 'queued'). Pengiriman aktual oleh project
-     *  rekrutmen (command notifications:dispatch). False kalau bukan draft. */
-    public function send(): bool
-    {
-        if ($this->status !== 'draft') {
-            return false;
-        }
-
-        $this->update(['status' => 'queued']);
-
-        return true;
-    }
-
-    /** Bikin draft lalu langsung antrekan — buat event "positif" yang tidak perlu ditahan admin. */
+    /** Minta rekrutmen kirim email event ini SEKARANG (event positif / sudah waktunya). */
     public static function createAndSend(JobApplication $app, string $event, array $extra = []): void
     {
-        static::createDraftFor($app, $event, $extra);
-
-        static::where('job_application_id', $app->id)
-            ->where('event', $event)
-            ->where('status', 'draft')
-            ->update(['status' => 'queued']);
+        static::requestSend($app->id, ['event' => $event, 'extra' => $extra]);
     }
 
-    /** Antrekan semua draft milik daftar lamaran ini (opsional filter event). @return int jumlah diantrekan. */
+    /** Minta rekrutmen SIMPAN draft email event ini tanpa kirim (ditahan sampai di-flush). */
+    public static function createDraftFor(JobApplication $app, string $event, array $extra = []): void
+    {
+        static::requestSend($app->id, ['event' => $event, 'extra' => $extra, 'hold' => true]);
+    }
+
+    /** Kirim semua draft yang ditahan untuk daftar lamaran ini. @return int jumlah diproses. */
     public static function flushDraftsFor(array $applicationIds, ?string $event = null): int
     {
+        $applicationIds = array_values(array_filter($applicationIds));
+
         if (! $applicationIds) {
             return 0;
         }
 
-        return static::whereIn('job_application_id', $applicationIds)
-            ->where('status', 'draft')
-            ->when($event, fn ($q) => $q->where('event', $event))
-            ->update(['status' => 'queued']);
+        $res = static::rekrutmenPost('/integrations/hris/notifications/flush', array_filter([
+            'job_application_ids' => $applicationIds,
+            'event' => $event,
+        ]));
+
+        return (int) ($res['queued'] ?? 0);
     }
 
-    /** Bikin draft notifikasi (tanpa kirim). Null kalau draft event itu sudah ada. */
-    public static function createDraftFor(JobApplication $app, string $event, array $extra = []): ?static
+    /** Minta rekrutmen kirim email perubahan jadwal (wawancara/MCU). $kind = 'interview'|'mcu'. */
+    public static function notifyReschedule(JobApplication $app, string $kind, array $data): void
     {
-        if (static::where('job_application_id', $app->id)->where('event', $event)->exists()) {
-            return null;
-        }
-
         $app->loadMissing('jobOpening');
-        $companyId = $app->jobOpening->company_id;
-        $template = CompanyMessageTemplate::forCompanyEvent($companyId, $event);
-        $applicantName = $app->answersMap()['full_name'] ?? 'Pelamar';
+
         $jobTitle = $app->jobOpening->title ?? '';
+        $name = $app->answersMap()['full_name'] ?? 'Pelamar';
+        $label = $kind === 'mcu' ? 'Medical Check Up' : 'Wawancara';
+        $event = $kind === 'mcu' ? 'mcu_rescheduled' : 'interview_rescheduled';
 
-        $placeholders = ['{nama}', '{posisi}', '{tanggal}', '{waktu}', '{lokasi}', '{catatan}'];
-        $values = [
-            $applicantName, $jobTitle,
-            $extra['interview_date'] ?? '-', $extra['interview_time'] ?? '-',
-            $extra['location'] ?? '-', $extra['notes'] ?? '',
-        ];
-        $replace = fn (string $s) => str_replace($placeholders, $values, $s);
+        $detail = 'Tanggal: ' . ($data['date'] ?? '-')
+            . "\nWaktu: " . ($data['time'] ?? '-')
+            . "\nLokasi: " . ($data['location'] ?? '-')
+            . (($data['notes'] ?? '') !== '' ? "\nCatatan: " . $data['notes'] : '');
 
-        return static::create([
-            'job_application_id' => $app->id,
+        static::requestSend($app->id, [
             'event' => $event,
-            'subject' => $template ? $replace($template->subject) : static::defaultSubject($event, $jobTitle),
-            'body' => $template ? $replace($template->body) : static::defaultBody($event, $applicantName, $jobTitle, $extra),
-            'status' => 'draft',
+            'subject' => "Perubahan Jadwal {$label} – {$jobTitle}",
+            'body' => "Halo {$name},\n\nJadwal {$label} kamu untuk posisi {$jobTitle} telah diperbarui. Berikut jadwal terbaru:\n\n{$detail}\n\nMohon perhatikan perubahan ini. Sampai jumpa di jadwal yang baru.\n\nSalam,\nTim Rekrutmen",
         ]);
     }
 
-    private static function defaultSubject(string $event, string $jobTitle): string
+    /** Minta rekrutmen kirim email balasan negosiasi offering. */
+    public static function notifyNegotiationReply(JobApplication $app, string $replyMessage): void
     {
-        return match ($event) {
-            CompanyMessageTemplate::EVENT_SCREENING_PASSED => "Selamat! Kamu Lolos Seleksi Berkas – {$jobTitle}",
-            CompanyMessageTemplate::EVENT_QUIZ_SENT => "Tes Sudah Bisa Dikerjakan – {$jobTitle}",
-            CompanyMessageTemplate::EVENT_QUIZ_PASSED => "Selamat! Kamu Lulus Tes – {$jobTitle}",
-            CompanyMessageTemplate::EVENT_INTERVIEW_SCHEDULED => "Undangan Wawancara – {$jobTitle}",
-            CompanyMessageTemplate::EVENT_MCU_SCHEDULED => "Jadwal Medical Check Up – {$jobTitle}",
-            CompanyMessageTemplate::EVENT_MCU_PASSED => "Selamat! Kamu Lulus MCU – {$jobTitle}",
-            CompanyMessageTemplate::EVENT_ONBOARDING_INVITE => "Selamat Bergabung! Undangan TTD & Onboarding – {$jobTitle}",
-            CompanyMessageTemplate::EVENT_OFFERING_LETTER_READY => "Surat Penawaran Kerja Sudah Bisa Diunduh – {$jobTitle}",
-            default => "Update Lamaran Kamu – {$jobTitle}",
-        };
+        $app->loadMissing('jobOpening');
+
+        $jobTitle = $app->jobOpening->title ?? '';
+        $name = $app->answersMap()['full_name'] ?? 'Pelamar';
+
+        static::requestSend($app->id, [
+            'event' => 'offering_negotiation_replied',
+            'subject' => "Balasan Negosiasi Surat Penawaran – {$jobTitle}",
+            'body' => "Halo {$name},\n\nTim rekrutmen telah membalas pengajuan negosiasimu untuk posisi {$jobTitle}:\n\n\"{$replyMessage}\"\n\nSilakan buka dashboard untuk menanggapi atau menandatangani surat penawaran.\n\nSalam,\nTim Rekrutmen",
+        ]);
     }
 
-    private static function defaultBody(string $event, string $name, string $jobTitle, array $extra = []): string
+    // ── Internal ─────────────────────────────────────────────────────────────────────────
+
+    private static function requestSend(string $jobApplicationId, array $payload): void
     {
-        return match ($event) {
-            CompanyMessageTemplate::EVENT_SCREENING_PASSED =>
-                "Halo {$name},\n\nBerkas lamaran kamu untuk posisi {$jobTitle} lolos tahap seleksi berkas. Tim kami akan menghubungi kamu untuk jadwal wawancara.\n\nSalam,\nTim Rekrutmen",
-            CompanyMessageTemplate::EVENT_MANUAL_REJECTED =>
-                "Halo {$name},\n\nTerima kasih atas partisipasimu untuk posisi {$jobTitle}. Proses lamaranmu kami hentikan pada tahap ini."
-                . (($extra['notes'] ?? '') ? "\n\nCatatan: {$extra['notes']}" : '')
-                . "\n\nSalam hangat,\nTim Rekrutmen",
-            default =>
-                "Halo {$name},\n\nTerima kasih telah melamar untuk posisi {$jobTitle}. Pada tahap ini kami belum dapat melanjutkan proses lamaranmu.\n\nSalam hangat,\nTim Rekrutmen",
-        };
+        static::rekrutmenPost('/integrations/hris/notifications', ['job_application_id' => $jobApplicationId] + $payload);
+    }
+
+    /** POST ke API rekrutmen. Non-fatal: gagal cuma dicatat log, aksi HRIS tetap jalan. */
+    private static function rekrutmenPost(string $path, array $body): ?array
+    {
+        $base = rtrim((string) config('services.rekrutmen.url'), '/');
+        $token = (string) config('services.rekrutmen.api_token');
+
+        if ($base === '' || $token === '') {
+            Log::warning('ApplicationNotification: config services.rekrutmen.url / api_token kosong — email tidak dikirim.', ['path' => $path]);
+
+            return null;
+        }
+
+        try {
+            $res = Http::withToken($token)->acceptJson()->timeout(8)->post("{$base}/api{$path}", $body);
+
+            if ($res->failed()) {
+                Log::warning('ApplicationNotification: request ke rekrutmen gagal.', [
+                    'path' => $path, 'status' => $res->status(), 'body' => $res->body(),
+                ]);
+
+                return null;
+            }
+
+            return $res->json();
+        } catch (\Throwable $e) {
+            Log::warning('ApplicationNotification: request ke rekrutmen error.', ['path' => $path, 'error' => $e->getMessage()]);
+
+            return null;
+        }
     }
 }
