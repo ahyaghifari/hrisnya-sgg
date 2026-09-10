@@ -13,7 +13,7 @@
             'selesai' => ['Selesai', '#047C54', 'rgba(4,124,84,0.12)'],
             'dibatalkan' => ['Dibatalkan', '#dc2626', 'rgba(220,38,38,0.12)'],
         ];
-        $decisionLabels = ['lanjut_kontrak' => 'Lanjut Kontrak', 'perpanjang' => 'Perpanjang Orientasi'];
+        $decisionLabels = ['lanjut_kontrak' => 'Direkomendasikan untuk Kontrak Kerja', 'tidak_dilanjutkan' => 'Tidak Dilanjutkan'];
         $catLabels = ['tetap' => 'Tetap', 'kontrak' => 'Kontrak', 'orientasi' => 'Orientasi'];
     @endphp
 

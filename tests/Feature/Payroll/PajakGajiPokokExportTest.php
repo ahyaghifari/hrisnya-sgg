@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Payroll;
 
+use App\Enum\OrgStructurLevel;
 use App\Enum\Payroll\PayrollComponentEnum;
 use App\Exports\Payroll\PajakGajiPokokExport;
 use App\Models\Master\Companies;
@@ -42,7 +43,7 @@ class PajakGajiPokokExportTest extends TestCase
         $company = Companies::create(['code' => '0001', 'name' => 'Regular Co', 'location' => 'Test', 'is_active' => true]);
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
 
-        $divisi = OrgStructure::create(['name' => 'Keuangan', 'company_id' => $company->id, 'level' => 2]);
+        $divisi = OrgStructure::create(['name' => 'Keuangan', 'company_id' => $company->id, 'level' => OrgStructurLevel::LEVEL_DIVISION->value]);
 
         $withDivision = $this->makePayroll($company, $period, 'Budi', $divisi->id);
         $withoutDivision = $this->makePayroll($company, $period, 'Ani', null);

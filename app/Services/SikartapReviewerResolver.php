@@ -72,7 +72,7 @@ class SikartapReviewerResolver
     {
         $node = $user->activeJobPosition?->jobPosition?->orgStructure;
 
-        while ($node && (int) $node->level !== OrgStructurLevel::LEVEL_DEPARTMENT->value) {
+        while ($node && $node->level !== OrgStructurLevel::LEVEL_DEPARTMENT->value) {
             $node = $node->parent;
         }
 

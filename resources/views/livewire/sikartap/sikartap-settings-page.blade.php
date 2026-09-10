@@ -149,32 +149,32 @@
                     @endif
                 </div>
 
-                {{-- Jabatan Direktur - pemutus tahap Keputusan Direktur Sikartap (lepas Approval Engine). --}}
+                {{-- Jabatan pendukung persetujuan jadwal presentasi orientasi (selain HR). --}}
                 <div style="background:var(--surface);border-radius:16px;box-shadow:var(--shadow-card);padding:18px;margin-top:20px;">
-                    <p style="font-size:13px;font-weight:600;color:var(--text-heading);margin:0 0 4px;">Jabatan Direktur (Keputusan Sikartap)</p>
-                    <p style="font-size:11px;color:var(--text-muted);margin:0 0 14px;">Satu jabatan per perusahaan. Pemegang aktif jabatan ini yang menyetujui/menolak pengajuan karyawan tetap di tahap Keputusan Direktur.</p>
+                    <p style="font-size:13px;font-weight:600;color:var(--text-heading);margin:0 0 4px;">Jabatan Pendukung — Persetujuan Jadwal Presentasi Orientasi</p>
+                    <p style="font-size:11px;color:var(--text-muted);margin:0 0 14px;">Satu jabatan per perusahaan. Jadwal presentasi kegiatan orientasi baru final setelah disetujui HR <strong>dan</strong> pemegang aktif jabatan ini (urutan bebas).</p>
 
                     @if (! $companyId)
                         <p style="font-size:12px;color:#b45309;margin:0;">Pilih perusahaan dulu.</p>
                     @else
                         <div style="display:flex;gap:8px;align-items:flex-start;flex-wrap:wrap;">
                             <div style="flex:1;min-width:220px;">
-                                <label class="form-label">Jabatan Direktur</label>
-                                <select wire:model="direkturJobPositionId" class="form-input" @disabled(! $this->canEditSettings)>
+                                <label class="form-label">Jabatan Pendukung</label>
+                                <select wire:model="presentationApproverJobPositionId" class="form-input" @disabled(! $this->canEditSettings)>
                                     <option value="">-- Belum diatur --</option>
                                     @foreach ($this->companyJobPositions as $id => $name)
                                         <option value="{{ $id }}">{{ $name }}</option>
                                     @endforeach
                                 </select>
-                                @error('direkturJobPositionId') <p style="font-size:11px;color:#dc2626;margin-top:3px;">{{ $message }}</p> @enderror
-                                @if ($this->direkturHolders->isNotEmpty())
-                                    <p style="font-size:11px;color:var(--text-faint);margin-top:6px;">Pemegang aktif: {{ $this->direkturHolders->implode(', ') }}</p>
-                                @elseif ($direkturJobPositionId)
-                                    <p style="font-size:11px;color:#b45309;margin-top:6px;">Jabatan ini belum ada pemegang aktif — pengajuan tidak bisa dikirim ke Direktur.</p>
+                                @error('presentationApproverJobPositionId') <p style="font-size:11px;color:#dc2626;margin-top:3px;">{{ $message }}</p> @enderror
+                                @if ($this->presentationApproverHolders->isNotEmpty())
+                                    <p style="font-size:11px;color:var(--text-faint);margin-top:6px;">Pemegang aktif: {{ $this->presentationApproverHolders->implode(', ') }}</p>
+                                @elseif ($presentationApproverJobPositionId)
+                                    <p style="font-size:11px;color:#b45309;margin-top:6px;">Jabatan ini belum ada pemegang aktif — jadwal presentasi tidak bisa disetujui.</p>
                                 @endif
                             </div>
                             @if ($this->canEditSettings)
-                                <button type="button" wire:click="saveDirektur" class="btn-primary" style="margin-top:22px;"><i class="fa-solid fa-floppy-disk"></i> Simpan</button>
+                                <button type="button" wire:click="savePresentationApprover" class="btn-primary" style="margin-top:22px;"><i class="fa-solid fa-floppy-disk"></i> Simpan</button>
                             @endif
                         </div>
                     @endif

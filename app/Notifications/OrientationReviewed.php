@@ -14,8 +14,7 @@ use NotificationChannels\WebPush\WebPushMessage;
 
 /**
  * Dikirim ke karyawan orientasi saat pengajuan penilaian orientasinya sudah diputuskan penilai
- * (lulus / perpanjang / tidak lulus). Notifikasi "menunggu persetujuan" & "disetujui/ditolak"
- * yang generik sudah dikirim Approval Engine — ini khusus membawa isi keputusannya.
+ * (direkomendasikan untuk kontrak kerja / tidak dilanjutkan). Membawa isi keputusannya.
  */
 class OrientationReviewed extends Notification implements ShouldQueue
 {

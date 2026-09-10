@@ -94,9 +94,9 @@ class JobPositionResource extends BaseCompanyResource
 
                                 $org = OrgStructure::with('parent.parent')->find($record->org_structure_id);
                                 match ($org?->level) {
-                                    1 => $set('department_id', $org->id),
-                                    2 => $set('department_id', $org->parent_id),
-                                    3 => $set('department_id', $org->parent?->parent_id),
+                                    OrgStructurLevel::LEVEL_DEPARTMENT->value => $set('department_id', $org->id),
+                                    OrgStructurLevel::LEVEL_DIVISION->value => $set('department_id', $org->parent_id),
+                                    OrgStructurLevel::LEVEL_SUBDIVISION->value => $set('department_id', $org->parent?->parent_id),
                                     default => null,
                                 };
                             })
@@ -125,8 +125,8 @@ class JobPositionResource extends BaseCompanyResource
 
                                 $org = OrgStructure::find($record->org_structure_id);
                                 match ($org?->level) {
-                                    2 => $set('division_id', $org->id),
-                                    3 => $set('division_id', $org->parent_id),
+                                    OrgStructurLevel::LEVEL_DIVISION->value => $set('division_id', $org->id),
+                                    OrgStructurLevel::LEVEL_SUBDIVISION->value => $set('division_id', $org->parent_id),
                                     default => null,
                                 };
                             })
@@ -146,7 +146,7 @@ class JobPositionResource extends BaseCompanyResource
                             ->disabled(fn (Get $get) => ! $get('division_id'))
                             ->afterStateHydrated(function ($set, $record) {
                                 $org = $record?->org_structure_id ? OrgStructure::find($record->org_structure_id) : null;
-                                if ($org?->level === 3) {
+                                if ($org?->level === OrgStructurLevel::LEVEL_SUBDIVISION->value) {
                                     $set('sub_division_id', $org->id);
                                 }
                             })

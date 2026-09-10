@@ -174,7 +174,10 @@
                 {!! $renderField('Berkas', $badgeHtml($sikartap->status_berkas)) !!}
                 {!! $renderField('Tes', $badgeHtml($sikartap->status_tes)) !!}
                 @if ($sikartap->requiresIdeInovasi())
-                    {!! $renderField('Ide Inovasi', $badgeHtml($sikartap->ideInovasi?->status_atasan ?? 'pending')) !!}
+                    {!! $renderField('Ide Inovasi (Atasan)', $badgeHtml($sikartap->ideInovasi?->status_atasan ?? 'pending')) !!}
+                    @if ($sikartap->requiresIdeInovasiPengesahanDirektur())
+                        {!! $renderField('Ide Inovasi (Pengesahan Direktur)', $badgeHtml($sikartap->ideInovasi?->status_direktur ?? 'pending')) !!}
+                    @endif
                 @endif
                 @if ($sikartap->requiresMcu())
                     {!! $renderField('MCU', $badgeHtml($sikartap->status_mcu)) !!}
@@ -340,14 +343,15 @@
                         @endif
                         {!! $renderField('Catatan Atasan', $ideInovasi->catatan_atasan, false) !!}
 
+                        @if ($sikartap->requiresIdeInovasiPengesahanDirektur())
                         <div style="display:flex;justify-content:space-between;align-items:center;padding-top:12px;margin-top:10px;border-top:1px solid var(--border-soft);">
-                            <span style="font-size:12px;color:var(--text-muted);">Direktur <span style="color:var(--text-faint);">(opsional)</span></span>
+                            <span style="font-size:12px;color:var(--text-muted);">Direktur <span style="color:var(--text-faint);">(pengesahan wajib)</span></span>
                             <div style="display:flex;align-items:center;gap:8px;">
                                 <span class="badge {{ match ($ideInovasi->status_direktur) { 'approved' => 'badge-approved', 'rejected' => 'badge-rejected', default => 'badge-pending' } }}">
-                                    {{ match ($ideInovasi->status_direktur) { 'approved' => '✅ Disetujui', 'rejected' => '❌ Ditolak', default => '⏳ Menunggu' } }}
+                                    {{ match ($ideInovasi->status_direktur) { 'approved' => '✅ Disahkan', 'rejected' => '❌ Ditolak', default => '⏳ Menunggu Pengesahan' } }}
                                 </span>
                                 @if ($this->canReviewIdeInovasiDirektur)
-                                    <button type="button" wire:click="openPanel('ideInovasiDirektur')" class="btn-ghost" style="padding:4px 10px;font-size:11px;">Nilai</button>
+                                    <button type="button" wire:click="openPanel('ideInovasiDirektur')" class="btn-ghost" style="padding:4px 10px;font-size:11px;">{{ $ideInovasi->status_direktur === 'rejected' ? 'Sahkan Ulang' : 'Sahkan' }}</button>
                                 @endif
                             </div>
                         </div>
@@ -358,11 +362,12 @@
                                 <textarea wire:model="ideInovasiNote" class="form-input" rows="2"></textarea>
                                 @error('ideInovasiNote') <p style="color:var(--danger-text);font-size:12px;">{{ $message }}</p> @enderror
                                 <div style="display:flex;gap:10px;margin-top:10px;">
-                                    <button type="button" wire:click="approveIdeInovasiDirektur" class="btn-primary" style="padding:8px 16px;font-size:12.5px;">✅ Setujui</button>
+                                    <button type="button" wire:click="approveIdeInovasiDirektur" class="btn-primary" style="padding:8px 16px;font-size:12.5px;">✅ Sahkan</button>
                                     <button type="button" wire:click="rejectIdeInovasiDirektur" class="btn-ghost" style="padding:8px 16px;font-size:12.5px;">❌ Tolak</button>
                                     <button type="button" wire:click="closePanel" class="btn-ghost" style="padding:8px 16px;font-size:12.5px;">Batal</button>
                                 </div>
                             </div>
+                        @endif
                         @endif
 
                         <div style="display:flex;justify-content:space-between;align-items:center;padding-top:12px;margin-top:10px;border-top:1px solid var(--border-soft);">

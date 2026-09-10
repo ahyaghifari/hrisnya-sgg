@@ -4,46 +4,31 @@ namespace App\Services\Sikartap;
 
 use App\Enum\EmployeeTypeCategory;
 use App\Models\Master\EmployeeTypes;
-use App\Models\Setting;
 use App\Models\Sikartap\Sikartap;
 use App\Models\User;
-use App\Models\User\UserJobPositions;
 use App\Notifications\Sikartap\SikartapKeputusanDirekturDiajukan;
 use App\Notifications\Sikartap\SikartapKeputusanDirekturFinal;
+use App\Services\CompanyDirectorService;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 
 /**
  * Fase 4 — Keputusan Direktur. LEPAS dari Approval Engine (instruksi user 2026-09-07): tidak
- * ada flow approval berjenjang, cukup 1 jabatan Direktur per perusahaan (Setting
- * `sikartap_direktur_job_position_id`, diatur di Pengaturan Sikartap). Direktur =
- * pemegang aktif jabatan itu.
+ * ada flow approval berjenjang, cukup 1 jabatan Direktur per perusahaan (tabel
+ * `company_directors`, diatur di Pengaturan Sikartap). Direktur = pemegang aktif jabatan itu.
+ * Resolusi jabatan lewat App\Services\CompanyDirectorService.
  *
  * State: pending -> diajukan -> approved | rejected. Kolom keputusan_direktur_* di tabel
  * sikartap menyimpan jejak yang dulu ada di approval_snapshots/approval_histories.
  */
 class SikartapDirectorDecisionService
 {
-    public const SETTING_KEY = 'sikartap_direktur_job_position_id';
+    public function __construct(private CompanyDirectorService $companyDirectors) {}
 
     /** @return Collection<int, User> pemegang aktif jabatan Direktur perusahaan pelamar. */
     public function directorsFor(Sikartap $sikartap): Collection
     {
-        $jobPositionId = Setting::resolve(self::SETTING_KEY, $sikartap->user?->company_id, default: null);
-
-        if (! $jobPositionId) {
-            return collect();
-        }
-
-        return UserJobPositions::query()
-            ->where('job_position_id', $jobPositionId)
-            ->where('status', 'active')
-            ->with('user')
-            ->get()
-            ->pluck('user')
-            ->filter()
-            ->unique('id')
-            ->values();
+        return $this->companyDirectors->holders($sikartap->user?->company_id);
     }
 
     public function canDecide(Sikartap $sikartap, User $user): bool

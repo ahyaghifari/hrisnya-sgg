@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Payroll;
 
+use App\Enum\OrgStructurLevel;
 use App\Enum\Payroll\PayrollComponentEnum;
 use App\Exports\Payroll\PayrollSlipRekapExport;
 use App\Models\Master\Companies;
@@ -194,7 +195,7 @@ class PayrollSlipRekapExportTest extends TestCase
     private function makePayrollInDivision(string $name, string $divisionName): Payroll
     {
         $division = new OrgStructure;
-        $division->level = 2;
+        $division->level = OrgStructurLevel::LEVEL_DIVISION->value;
         $division->name = $divisionName;
 
         $profile = new UserProfiles;
@@ -257,7 +258,7 @@ class PayrollSlipRekapExportTest extends TestCase
         CompanyPayrollComponent::create(['company_id' => $company->id, 'component' => PayrollComponentEnum::GAJI_POKOK->value, 'is_active' => true]);
 
         $division = new OrgStructure;
-        $division->level = 2;
+        $division->level = OrgStructurLevel::LEVEL_DIVISION->value;
         $division->name = 'Divisi Keuangan';
 
         $profile = new UserProfiles;
@@ -291,7 +292,7 @@ class PayrollSlipRekapExportTest extends TestCase
         CompanyPayrollComponent::create(['company_id' => $company->id, 'component' => PayrollComponentEnum::GAJI_POKOK->value, 'is_active' => true]);
 
         $division = new OrgStructure;
-        $division->level = 2;
+        $division->level = OrgStructurLevel::LEVEL_DIVISION->value;
         $division->name = 'Divisi Keuangan';
 
         $divisionProfile = new UserProfiles;
@@ -359,7 +360,7 @@ class PayrollSlipRekapExportTest extends TestCase
         CompanyPayrollComponent::create(['company_id' => $company->id, 'component' => PayrollComponentEnum::GAJI_POKOK->value, 'is_active' => true]);
 
         $division = new OrgStructure;
-        $division->level = 2;
+        $division->level = OrgStructurLevel::LEVEL_DIVISION->value;
         $division->name = 'Divisi Keuangan';
 
         $divisionProfile = new UserProfiles;

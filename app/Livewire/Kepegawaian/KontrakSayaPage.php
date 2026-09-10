@@ -26,7 +26,6 @@ class KontrakSayaPage extends Component
     public ?string $submissionId = null;
 
     public ?string $alasan = null;
-    public ?int $usulanDurasi = null;
 
     public $docFile = null;
     public ?string $docLabel = null;
@@ -42,7 +41,6 @@ class KontrakSayaPage extends Component
 
         if ($this->current) {
             $this->alasan = $this->current->alasan;
-            $this->usulanDurasi = $this->current->usulan_durasi_bulan;
         }
     }
 
@@ -206,7 +204,6 @@ class KontrakSayaPage extends Component
         try {
             $submission->update([
                 'alasan' => $this->alasan,
-                'usulan_durasi_bulan' => $this->usulanDurasi ?: null,
             ]);
             app(ContractExtensionService::class)->submit($submission, Auth::user());
             Notification::make()->title('Pengajuan perpanjangan kontrak terkirim')->success()->send();

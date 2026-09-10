@@ -38,9 +38,9 @@ class SikartapSettingsPage extends Component
      * bawah, bukan simpan langsung per baris). */
     public array $reviewerUserIds = [];
 
-    /** Jabatan Direktur (1 per perusahaan) — pemutus tahap Keputusan Direktur Sikartap
-     * (lepas Approval Engine 2026-09-07). Setting sikartap_direktur_job_position_id. */
-    public ?string $direkturJobPositionId = null;
+    /** Jabatan pendukung (1 per perusahaan) yang ikut menyetujui jadwal presentasi orientasi
+     * — selain HR. Setting orientation_presentation_approver_job_position_id. */
+    public ?string $presentationApproverJobPositionId = null;
 
     public function mount(): void
     {
@@ -53,7 +53,7 @@ class SikartapSettingsPage extends Component
         $this->loadCompanyState();
         $this->loadReviewerSelections();
         $this->loadContractDocs();
-        $this->loadDirekturSetting();
+        $this->loadPresentationApproverSetting();
     }
 
     public function updatedCompanyId(): void
@@ -64,7 +64,7 @@ class SikartapSettingsPage extends Component
 
         $this->loadReviewerSelections();
         $this->loadContractDocs();
-        $this->loadDirekturSetting();
+        $this->loadPresentationApproverSetting();
     }
 
     public function selectCompany(string $companyId): void
@@ -75,46 +75,46 @@ class SikartapSettingsPage extends Component
         $this->loadCompanyState();
         $this->loadReviewerSelections();
         $this->loadContractDocs();
-        $this->loadDirekturSetting();
+        $this->loadPresentationApproverSetting();
     }
 
-    private function loadDirekturSetting(): void
+    private function loadPresentationApproverSetting(): void
     {
-        $this->direkturJobPositionId = $this->companyId
-            ? Setting::resolve(\App\Services\Sikartap\SikartapDirectorDecisionService::SETTING_KEY, $this->companyId, default: null)
+        $this->presentationApproverJobPositionId = $this->companyId
+            ? Setting::resolve(\App\Services\OrientationService::PRESENTATION_APPROVER_SETTING_KEY, $this->companyId, default: null)
             : null;
     }
 
-    public function saveDirektur(): void
+    public function savePresentationApprover(): void
     {
         abort_unless(Auth::user()->can(CustomPermissionEnum::EDIT_PENGATURAN_SIKARTAP->value), 403);
 
         $this->validate([
-            'direkturJobPositionId' => ['required', 'exists:m_job_positions,id'],
-        ], [], ['direkturJobPositionId' => 'jabatan Direktur']);
+            'presentationApproverJobPositionId' => ['required', 'exists:m_job_positions,id'],
+        ], [], ['presentationApproverJobPositionId' => 'jabatan pendukung']);
 
         Setting::updateOrCreate(
-            ['key' => \App\Services\Sikartap\SikartapDirectorDecisionService::SETTING_KEY, 'company_id' => $this->companyId],
+            ['key' => \App\Services\OrientationService::PRESENTATION_APPROVER_SETTING_KEY, 'company_id' => $this->companyId],
             [
-                'module' => 'sikartap',
+                'module' => 'orientation',
                 'type' => 'string',
-                'label' => 'Jabatan Direktur (Keputusan Sikartap)',
-                'value' => $this->direkturJobPositionId,
+                'label' => 'Jabatan Pendukung Persetujuan Jadwal Presentasi Orientasi',
+                'value' => $this->presentationApproverJobPositionId,
             ],
         );
 
-        Notification::make()->title('Jabatan Direktur tersimpan')->success()->send();
+        Notification::make()->title('Jabatan pendukung tersimpan')->success()->send();
     }
 
-    /** Pemegang aktif jabatan Direktur terpilih — buat ditampilkan sebagai konfirmasi. */
-    public function getDirekturHoldersProperty()
+    /** Pemegang aktif jabatan pendukung terpilih — konfirmasi tampilan. */
+    public function getPresentationApproverHoldersProperty()
     {
-        if (! $this->direkturJobPositionId) {
+        if (! $this->presentationApproverJobPositionId) {
             return collect();
         }
 
         return \App\Models\User\UserJobPositions::query()
-            ->where('job_position_id', $this->direkturJobPositionId)
+            ->where('job_position_id', $this->presentationApproverJobPositionId)
             ->where('status', 'active')
             ->with('user:id,name')
             ->get()

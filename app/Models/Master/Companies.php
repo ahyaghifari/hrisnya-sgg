@@ -66,6 +66,13 @@ class Companies extends Model
         return $this->hasMany(JobPositions::class, 'company_id', 'id');
     }
 
+    /** Jabatan Direktur perusahaan ini (1 baris di company_directors). Resolusi lewat
+     * App\Services\CompanyDirectorService — jangan baca job_position_id-nya langsung dari fitur. */
+    public function companyDirector()
+    {
+        return $this->hasOne(CompanyDirector::class, 'company_id', 'id');
+    }
+
     public function jobEvaluations()
     {
         return $this->hasMany(JobEvaluationCompanies::class, 'company_id', 'id');

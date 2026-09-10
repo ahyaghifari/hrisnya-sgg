@@ -14,10 +14,13 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Alur penilaian orientasi (self-service). Karyawan orientasi mengajukan + upload bukti →
- * penilai (resolve dari `sikartap_reviewers` context `orientation`, lihat
- * SikartapReviewerResolver) mengisi skor per indikator per bulan + memilih keputusan
- * (lulus/perpanjang/tidak_lulus).
+ * Alur penilaian orientasi (self-service). Karyawan orientasi mengajukan + upload bukti +
+ * usul tanggal/jam presentasi kegiatan → penilai (resolve dari `sikartap_reviewers` context
+ * `orientation`, lihat SikartapReviewerResolver) mengisi skor per indikator per bulan +
+ * memilih keputusan (lanjut_kontrak / tidak_dilanjutkan). Paralel: jadwal presentasi kegiatan
+ * butuh 2 persetujuan terpisah — HR/pengelola orientasi (confirmPresentation) + pemegang jabatan
+ * pendukung (approvePresentationBySupport, Setting orientation_presentation_approver_job_position_id).
+ * Keduanya wajib sebelum HR menutup pengajuan.
  *
  * **Tidak lewat Approval Engine** (dilepas 2026-09-06) — 1 penilai memutuskan, bukan routing.
  * Status: draft → diajukan → selesai. (dibatalkan = pengaju batalkan sebelum dinilai.)
@@ -28,6 +31,9 @@ use Illuminate\Support\Facades\DB;
 class OrientationService
 {
     public const CRITERIA_SETTING_KEY = 'orientation_criteria';
+
+    /** Setting (per company): job_position_id pemegang persetujuan jadwal presentasi (selain HR). */
+    public const PRESENTATION_APPROVER_SETTING_KEY = 'orientation_presentation_approver_job_position_id';
 
     public function __construct(
         protected SikartapReviewerResolver $reviewerResolver,
@@ -95,6 +101,10 @@ class OrientationService
             throw new \RuntimeException('Unggah minimal satu bukti kegiatan orientasi dulu.');
         }
 
+        if (! $submission->presentation_proposed_at) {
+            throw new \RuntimeException('Usulkan tanggal & jam presentasi kegiatan orientasi dulu.');
+        }
+
         $reviewers = $this->reviewersFor($submission);
 
         if ($reviewers->isEmpty()) {
@@ -145,8 +155,8 @@ class OrientationService
 
     /**
      * Penilai (atasan): simpan skor per indikator per bulan + keputusan (lanjut_kontrak /
-     * perpanjang). Penilai TIDAK mengisi detail kontrak/perpanjangan — itu tindak lanjut HR
-     * (followUpExtend / followUpContract). Status jadi `dinilai` (nunggu HR).
+     * tidak_dilanjutkan). Penilai TIDAK mengisi detail tindak lanjut — itu langkah HR
+     * (followUpContract / followUpNotContinued). Status jadi `dinilai` (nunggu HR).
      *
      * @param array<int, array{label:string, comment:?string, sort_order?:int, monthly:array<int, array{period_month:string, score:?float, comment:?string}>}> $rows
      */
@@ -207,40 +217,145 @@ class OrientationService
         });
     }
 
-    /**
-     * Tindak lanjut HR untuk keputusan PERPANJANG: bikin periode orientasi baru
-     * (user_orientations, source=extension) — HR isi durasi (bulan) + tanggal mulai. Status
-     * submission jadi `selesai`. Karyawan lalu bisa mengajukan penilaian lagi untuk periode baru.
-     */
-    public function followUpExtend(OrientationSubmission $submission, string $startDate, int $months, string $actorId): void
+    /** job_position_id pemegang persetujuan jadwal presentasi (jabatan pendukung) untuk 1 company. */
+    public function presentationApproverJobPositionId(?string $companyId): ?string
     {
-        if ($submission->status !== 'dinilai' || $submission->decision !== OrientationDecisionEnum::PERPANJANG->value) {
-            throw new \RuntimeException('Pengajuan ini bukan menunggu tindak lanjut perpanjangan.');
+        return $companyId
+            ? Setting::resolve(self::PRESENTATION_APPROVER_SETTING_KEY, $companyId, default: null)
+            : null;
+    }
+
+    /** Pemegang aktif jabatan pendukung untuk company pengajuan ini. */
+    public function presentationApproverHolders(OrientationSubmission $submission): \Illuminate\Support\Collection
+    {
+        $jobPositionId = $this->presentationApproverJobPositionId($submission->company_id);
+
+        if (! $jobPositionId) {
+            return collect();
         }
 
-        if ($months < 1) {
-            throw new \RuntimeException('Lama perpanjangan (bulan) wajib diisi.');
+        return \App\Models\User\UserJobPositions::query()
+            ->where('job_position_id', $jobPositionId)
+            ->where('status', 'active')
+            ->with('user')
+            ->get()
+            ->pluck('user')
+            ->filter()
+            ->unique('id')
+            ->values();
+    }
+
+    public function canApprovePresentation(OrientationSubmission $submission, User $actor): bool
+    {
+        return $this->presentationApproverHolders($submission)->contains('id', $actor->id);
+    }
+
+    private function assertPresentationApproverConfigured(OrientationSubmission $submission): void
+    {
+        if (! $this->presentationApproverJobPositionId($submission->company_id)) {
+            throw new \RuntimeException('Jabatan pendukung persetujuan jadwal presentasi belum diatur untuk perusahaan ini (Sikartap → Pengaturan). Hubungi admin.');
+        }
+    }
+
+    /**
+     * Persetujuan HR atas jadwal presentasi kegiatan (tanggal + jam — boleh sama/beda dari usulan
+     * karyawan). Ini menetapkan/mengunci slot (`presentation_confirmed_at`) sekaligus jadi
+     * persetujuan HR. Kalau slot-nya BERUBAH dari yang sebelumnya, persetujuan jabatan pendukung
+     * yang sudah ada otomatis dibatalkan (mereka menyetujui slot lama).
+     */
+    public function confirmPresentation(OrientationSubmission $submission, string $datetime, ?string $note, string $actorId): void
+    {
+        if (! in_array($submission->status, ['diajukan', 'dinilai'], true)) {
+            throw new \RuntimeException('Jadwal presentasi hanya bisa ditetapkan setelah pengajuan dikirim dan sebelum selesai.');
         }
 
-        DB::transaction(function () use ($submission, $startDate, $months) {
-            $start = Carbon::parse($startDate);
-            $end = $start->copy()->addMonths($months)->subDay();
+        $this->assertPresentationApproverConfigured($submission);
 
-            \App\Models\User\UserOrientation::create([
-                'user_id' => $submission->user_id,
-                'company_id' => $submission->company_id,
-                'start_date' => $start->toDateString(),
-                'end_date' => $end->toDateString(),
-                'duration_months' => $months,
-                'source' => 'extension',
-                'previous_orientation_id' => $submission->user_orientation_id,
-            ]);
+        $newAt = Carbon::parse($datetime);
+        $slotChanged = $submission->presentation_confirmed_at
+            && ! $newAt->equalTo($submission->presentation_confirmed_at);
 
-            $submission->update([
-                'status' => 'selesai',
-                'extended_until' => $end->toDateString(),
-            ]);
-        });
+        $submission->update([
+            'presentation_confirmed_at' => $newAt,
+            'presentation_note' => trim((string) $note) !== '' ? $note : null,
+            'presentation_hr_at' => now(),
+            'presentation_hr_by' => $actorId,
+            // slot berubah → batalkan persetujuan jabatan pendukung atas slot lama.
+            'presentation_support_at' => $slotChanged ? null : $submission->presentation_support_at,
+            'presentation_support_by' => $slotChanged ? null : $submission->presentation_support_by,
+        ]);
+
+        $this->notifyPresentationProgress($submission->fresh());
+    }
+
+    /**
+     * Persetujuan jabatan pendukung atas jadwal presentasi. Kalau HR belum mengunci slot,
+     * pemegang jabatan pendukung mengunci usulan karyawan sebagai slot (urutan bebas).
+     */
+    public function approvePresentationBySupport(OrientationSubmission $submission, User $actor): void
+    {
+        if (! in_array($submission->status, ['diajukan', 'dinilai'], true)) {
+            throw new \RuntimeException('Persetujuan hanya bisa setelah pengajuan dikirim dan sebelum selesai.');
+        }
+
+        if (! $this->canApprovePresentation($submission, $actor)) {
+            throw new \RuntimeException('Anda bukan pemegang jabatan pendukung persetujuan jadwal presentasi.');
+        }
+
+        $submission->update([
+            'presentation_confirmed_at' => $submission->presentation_confirmed_at ?? $submission->presentation_proposed_at,
+            'presentation_support_at' => now(),
+            'presentation_support_by' => $actor->id,
+        ]);
+
+        $this->notifyPresentationProgress($submission->fresh());
+    }
+
+    /** Notifikasi: minta jabatan pendukung approve (kalau belum), & kabari karyawan kalau sudah lengkap. */
+    private function notifyPresentationProgress(OrientationSubmission $submission): void
+    {
+        if ($submission->presentationFullyApproved()) {
+            $submission->user?->notify(new \App\Notifications\OrientationPresentationScheduled($submission));
+
+            return;
+        }
+
+        if ($submission->presentation_hr_at && ! $submission->presentation_support_at) {
+            foreach ($this->presentationApproverHolders($submission) as $holder) {
+                $holder->notify(new \App\Notifications\OrientationPresentationApprovalRequested($submission));
+            }
+        }
+    }
+
+    /**
+     * Tindak lanjut HR untuk keputusan TIDAK_DILANJUTKAN: HR mencatat tanggal efektif
+     * berakhirnya hubungan kerja. Tidak ada periode/kontrak baru — offboarding karyawan
+     * ditangani terpisah di luar modul ini. Status submission jadi `selesai`.
+     */
+    public function followUpNotContinued(OrientationSubmission $submission, string $effectiveEndDate, string $actorId): void
+    {
+        if ($submission->status !== 'dinilai' || $submission->decision !== OrientationDecisionEnum::TIDAK_DILANJUTKAN->value) {
+            throw new \RuntimeException('Pengajuan ini bukan menunggu tindak lanjut "tidak dilanjutkan".');
+        }
+
+        if (! $submission->presentationFullyApproved()) {
+            throw new \RuntimeException('Jadwal presentasi kegiatan belum disetujui HR & jabatan pendukung.');
+        }
+
+        $submission->update([
+            'status' => 'selesai',
+            'effective_end_date' => Carbon::parse($effectiveEndDate)->toDateString(),
+        ]);
+    }
+
+    /** Tipe karyawan kategori Kontrak untuk 1 company (diasumsikan cuma 1 — lihat followUpContract). */
+    public function kontrakEmployeeType(?string $companyId): ?\App\Models\Master\EmployeeTypes
+    {
+        return \App\Models\Master\EmployeeTypes::query()
+            ->where('company_id', $companyId)
+            ->where('category', \App\Enum\EmployeeTypeCategory::KONTRAK->value)
+            ->orderBy('name')
+            ->first();
     }
 
     /**
@@ -248,11 +363,11 @@ class OrientationService
      * Kontrak di sini (tanpa lewat Perubahan Status Karyawan) — flip `employee_type_id` di
      * profil (+ kelas minimal dari pangkat) & catat 1 baris `user_contracts`. Status `selesai`.
      *
-     * Modul kontrak lengkap (perpanjangan, surat kontrak, dst.) dikerjakan terpisah nanti.
+     * Tipe karyawan tujuan TIDAK dipilih HR — otomatis tipe kategori Kontrak milik company ini
+     * (kategori sudah baku lewat EmployeeTypeCategory::KONTRAK; per company hanya ada satu).
      */
     public function followUpContract(
         OrientationSubmission $submission,
-        string $employeeTypeId,
         string $contractStartDate,
         string $contractEndDate,
         string $actorId,
@@ -261,10 +376,14 @@ class OrientationService
             throw new \RuntimeException('Pengajuan ini bukan menunggu tindak lanjut kontrak.');
         }
 
-        $type = \App\Models\Master\EmployeeTypes::find($employeeTypeId);
+        if (! $submission->presentationFullyApproved()) {
+            throw new \RuntimeException('Jadwal presentasi kegiatan belum disetujui HR & jabatan pendukung.');
+        }
 
-        if (! $type || $type->company_id !== $submission->company_id || $type->category !== \App\Enum\EmployeeTypeCategory::KONTRAK) {
-            throw new \RuntimeException('Tipe karyawan tujuan harus kategori Kontrak dari perusahaan yang sama.');
+        $type = $this->kontrakEmployeeType($submission->company_id);
+
+        if (! $type) {
+            throw new \RuntimeException('Belum ada tipe karyawan kategori Kontrak untuk perusahaan ini. Buat dulu di master Tipe Karyawan.');
         }
 
         if (Carbon::parse($contractEndDate)->lte(Carbon::parse($contractStartDate))) {

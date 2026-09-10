@@ -3,6 +3,7 @@
 namespace Tests\Feature\Presensi;
 
 use App\Enum\CustomPermissionEnum;
+use App\Enum\OrgStructurLevel;
 use App\Enum\ScheduleType;
 use App\Livewire\Presensi\ScheduleAssignmentsPage;
 use App\Models\Master\Companies;
@@ -60,7 +61,7 @@ class ScheduleAssignmentsPageTest extends TestCase
         $company = $this->makeCompany();
         $schedule = Schedule::create(['company_id' => $company->id, 'name' => 'Jadwal Kantor', 'schedule_type' => ScheduleType::FIXED->value]);
 
-        $org = OrgStructure::create(['name' => 'HC-GA', 'company_id' => $company->id, 'level' => 1]);
+        $org = OrgStructure::create(['name' => 'HC-GA', 'company_id' => $company->id, 'level' => OrgStructurLevel::LEVEL_DEPARTMENT->value]);
         JobPositions::create(['name' => 'HC Manager', 'company_id' => $company->id, 'org_structure_id' => $org->id, 'is_draft' => false]);
         JobPositions::create(['name' => 'Intern - Kampus A', 'company_id' => $company->id, 'is_draft' => false]);
 

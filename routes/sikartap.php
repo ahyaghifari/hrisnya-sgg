@@ -7,6 +7,7 @@ use App\Livewire\Sikartap\Mcu\PemeriksaanDokterPage;
 use App\Livewire\Kepegawaian\KontrakKelolaPage;
 use App\Livewire\Kepegawaian\OrientasiKelolaPage;
 use App\Livewire\Sikartap\DashboardSikartapPage;
+use App\Livewire\Sikartap\DirekturBulkIdeInovasiPage;
 use App\Livewire\Sikartap\DirekturBulkKeputusanPage;
 use App\Livewire\Sikartap\IdeInovasiAtasanQueuePage;
 use App\Livewire\Sikartap\IdeInovasiAtasanReviewPage;
@@ -86,8 +87,10 @@ Route::get('/sikartap/pengaturan', SikartapSettingsPage::class)
 
 /**
  * Fase 5 — Ide Inovasi. Karyawan upload+lihat status sendiri; atasan (tahap 1, wajib, lihat
- * Sikartap::ideInovasiAtasanCandidates()) punya antrian+form skoring sendiri. Direktur/Komisaris
- * (tahap opsional) tidak punya halaman terpisah - aksinya nempel di PengajuanDetailPage.
+ * Sikartap::ideInovasiAtasanCandidates()) punya antrian+form skoring sendiri. Pengesahan Direktur
+ * (opsional per company, SikartapSettingEnum::IDE_INOVASI_PENGESAHAN_DIREKTUR) nempel di
+ * PengajuanDetailPage; kalau >1 menunggu, widget "Butuh Persetujuan Anda" mengarah ke halaman
+ * massal di bawah. Komisaris tetap opsional & aksinya cuma di PengajuanDetailPage.
  */
 Route::get('/sikartap/ide-inovasi', IdeInovasiUploadPage::class)
     ->name('sikartap.ide-inovasi');
@@ -97,6 +100,9 @@ Route::get('/sikartap/ide-inovasi/atasan', IdeInovasiAtasanQueuePage::class)
 
 Route::get('/sikartap/ide-inovasi/atasan/{sikartap}', IdeInovasiAtasanReviewPage::class)
     ->name('sikartap.ide-inovasi.atasan');
+
+Route::get('/sikartap/ide-inovasi/pengesahan-direktur', DirekturBulkIdeInovasiPage::class)
+    ->name('sikartap.ide-inovasi.direktur.bulk');
 
 /**
  * Sisi HR alur perjalanan status karyawan (kelas Livewire tetap di namespace Kepegawaian).

@@ -9,7 +9,6 @@ use App\Filament\Rekrutmen\Resources\JobOpenings\Pages\ViewJobOpening;
 use App\Models\Master\Companies as HrisCompanies;
 use App\Models\Master\JobPositions;
 use App\Models\Rekrutmen\Company;
-use App\Models\Rekrutmen\CompanyAgreement;
 use App\Models\Rekrutmen\JobOpening;
 use BackedEnum;
 use Filament\Actions\Action;
@@ -17,7 +16,6 @@ use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Placeholder;
-use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\RichEditor;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
@@ -108,102 +106,6 @@ class JobOpeningResource extends Resource
             ->all();
     }
 
-    /** Persetujuan onboarding perusahaan yg ditandai "diisi per lowongan". */
-    public static function perOpeningAgreements(?string $companyId): \Illuminate\Support\Collection
-    {
-        if (! $companyId) {
-            return collect();
-        }
-
-        return CompanyAgreement::where('company_id', $companyId)
-            ->where('per_opening', true)
-            ->orderBy('sort_order')->orderBy('title')
-            ->get();
-    }
-
-    /** Persetujuan wajib lowongan yang naskahnya belum terisi (blokir publish). */
-    public static function missingOpeningAgreements(JobOpening $record): \Illuminate\Support\Collection
-    {
-        $perOpening = static::perOpeningAgreements($record->company_id);
-
-        if ($perOpening->isEmpty()) {
-            return collect();
-        }
-
-        $filled = $record->agreements()->get(['title', 'content'])
-            ->filter(fn ($a) => filled(trim(strip_tags($a->content ?? ''))))
-            ->map(fn ($a) => mb_strtolower(trim($a->title)))
-            ->all();
-
-        return $perOpening
-            ->reject(fn (CompanyAgreement $a) => in_array(mb_strtolower(trim($a->title)), $filled, true))
-            ->values();
-    }
-
-    /** Isi state form (free_agreements + opening_agreements) dari job_opening_agreements. */
-    public static function hydrateAgreements(JobOpening $record, array $data): array
-    {
-        $perOpening = static::perOpeningAgreements($record->company_id);
-        $perTitlesLc = $perOpening->map(fn (CompanyAgreement $a) => mb_strtolower(trim($a->title)))->all();
-        $agreements = $record->agreements()->orderBy('sort_order')->get();
-
-        $data['free_agreements'] = $agreements
-            ->reject(fn ($a) => in_array(mb_strtolower(trim($a->title)), $perTitlesLc, true))
-            ->map(fn ($a) => ['title' => $a->title, 'content' => $a->content])
-            ->values()->all();
-
-        $data['opening_agreements'] = $perOpening
-            ->mapWithKeys(fn (CompanyAgreement $ca) => [
-                $ca->id => optional($agreements->first(
-                    fn ($a) => mb_strtolower(trim($a->title)) === mb_strtolower(trim($ca->title))
-                ))->content ?? '',
-            ])
-            ->all();
-
-        return $data;
-    }
-
-    /**
-     * Tulis ulang job_opening_agreements dari state form: repeater bebas + naskah wajib
-     * per-lowongan. updateOrCreate by judul; baris yang tak lagi ada dihapus. Dipanggil dari
-     * hook afterCreate/afterSave halaman (repeater tidak lagi pakai ->relationship()).
-     */
-    public static function persistAgreements(JobOpening $record, array $data): void
-    {
-        $perOpening = static::perOpeningAgreements($record->company_id)->values();
-        $perTitlesLc = $perOpening->map(fn (CompanyAgreement $a) => mb_strtolower(trim($a->title)))->all();
-
-        $text = fn ($v): string => is_string($v) ? $v : '';
-
-        $rows = collect();
-
-        foreach (array_values($data['free_agreements'] ?? []) as $i => $row) {
-            $title = trim($row['title'] ?? '');
-            if ($title === '' || in_array(mb_strtolower($title), $perTitlesLc, true)) {
-                continue;
-            }
-            $rows->push(['title' => $title, 'content' => $text($row['content'] ?? ''), 'sort_order' => $i]);
-        }
-
-        foreach ($perOpening as $i => $a) {
-            $rows->push([
-                'title' => $a->title,
-                'content' => $text($data['opening_agreements'][$a->id] ?? ''),
-                'sort_order' => 100 + $i,
-            ]);
-        }
-
-        $keep = $rows->pluck('title')->all();
-        $record->agreements()->whereNotIn('title', $keep ?: ['__none__'])->delete();
-
-        foreach ($rows as $row) {
-            $record->agreements()->updateOrCreate(
-                ['title' => $row['title']],
-                ['content' => $row['content'], 'sort_order' => $row['sort_order']],
-            );
-        }
-    }
-
     public static function form(Schema $schema): Schema
     {
         return $schema->components([
@@ -289,12 +191,6 @@ class JobOpeningResource extends Resource
                                 . ($record->closed_by ? ' oleh ' . $record->closed_by : '') . '.';
                         }
 
-                        $missing = static::missingOpeningAgreements($record);
-                        if ($missing->isNotEmpty()) {
-                            $parts[] = 'Belum bisa dipublish — naskah persetujuan lowongan belum diisi: '
-                                . $missing->pluck('title')->join(', ') . '.';
-                        }
-
                         return implode(' ', $parts);
                     })
                     ->columnSpanFull(),
@@ -319,33 +215,6 @@ class JobOpeningResource extends Resource
                 RichEditor::make('description')->label('Deskripsi Jabatan')->columnSpanFull(),
                 RichEditor::make('requirements')->label('Kualifikasi & Persyaratan')->columnSpanFull(),
             ]),
-
-            Section::make('Persetujuan Wajib Lowongan')
-                ->description('Naskah persetujuan yang ditandai "Naskah diisi per lowongan" di Persetujuan Onboarding perusahaan ini. Boleh disimpan kosong sebagai draft, tapi lowongan tidak bisa dipublish sebelum semua terisi.')
-                ->visible(fn (Get $get) => static::perOpeningAgreements($get('company_id'))->isNotEmpty())
-                ->schema(fn (Get $get) => static::perOpeningAgreements($get('company_id'))
-                    ->map(fn (CompanyAgreement $a) => RichEditor::make("opening_agreements.{$a->id}")
-                        ->label($a->title)
-                        ->columnSpanFull())
-                    ->all()),
-
-            Section::make('Persetujuan Khusus Lowongan')
-                ->description('Persetujuan tambahan khusus lowongan ini (di luar yang wajib di atas). Judul SAMA dengan persetujuan perusahaan = menimpa; judul baru = tambahan.')
-                ->schema([
-                    Repeater::make('free_agreements')
-                        ->label('')
-                        ->schema([
-                            TextInput::make('title')->label('Judul')->required()->maxLength(255),
-                            RichEditor::make('content')->label('Naskah')->required()->columnSpanFull(),
-                        ])
-                        ->reorderable()
-                        ->collapsible()
-                        ->itemLabel(fn (array $state): ?string => $state['title'] ?? 'Persetujuan baru')
-                        ->addActionLabel('Tambah persetujuan')
-                        ->defaultItems(0),
-                ])
-                ->collapsible()
-                ->collapsed(),
         ]);
     }
 
@@ -436,24 +305,10 @@ class JobOpeningResource extends Resource
                     ->icon('heroicon-m-rocket-launch')
                     ->color('success')
                     ->visible(fn ($record) => ! $record->is_active && static::canModify())
-                    ->disabled(fn ($record) => static::missingOpeningAgreements($record)->isNotEmpty())
-                    ->tooltip(fn ($record) => static::missingOpeningAgreements($record)->isNotEmpty()
-                        ? 'Isi dulu naskah: ' . static::missingOpeningAgreements($record)->pluck('title')->join(', ')
-                        : null)
                     ->requiresConfirmation()
                     ->modalHeading('Publish lowongan ini?')
                     ->modalDescription('Lowongan langsung tampil di halaman pelamar.')
                     ->action(function ($record): void {
-                        $missing = static::missingOpeningAgreements($record);
-                        if ($missing->isNotEmpty()) {
-                            \Filament\Notifications\Notification::make()
-                                ->title('Belum bisa dipublish')
-                                ->body('Naskah persetujuan lowongan belum diisi: ' . $missing->pluck('title')->join(', ') . '.')
-                                ->danger()->send();
-
-                            return;
-                        }
-
                         $record->update([
                             'is_active' => true,
                             'published_at' => $record->published_at ?? now(),

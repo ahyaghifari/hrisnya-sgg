@@ -64,9 +64,9 @@ class DirekturBulkKeputusanTest extends TestCase
             'status' => 'active',
         ]);
 
-        Setting::updateOrCreate(
-            ['key' => SikartapDirectorDecisionService::SETTING_KEY, 'company_id' => $this->company->id],
-            ['module' => 'sikartap', 'type' => 'string', 'label' => 'Jabatan Direktur', 'value' => $pos->id],
+        \App\Models\Master\CompanyDirector::updateOrCreate(
+            ['company_id' => $this->company->id],
+            ['job_position_id' => $pos->id],
         );
     }
 

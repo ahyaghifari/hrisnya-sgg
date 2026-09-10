@@ -931,4 +931,10 @@ return [
         'guard' => null,
     ],
 
+    'sikartap.ide-inovasi.direktur.bulk' => [
+        'label' => 'Pengesahan Ide Inovasi (Direktur) - Massal',
+        'permission' => \App\Enum\CustomPermissionEnum::NILAI_IDE_INOVASI_DIREKTUR->value,
+        'guard' => null,
+    ],
+
 ];

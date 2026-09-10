@@ -107,7 +107,7 @@ class UserProfiles extends Model
             return null;
         }
 
-        return $org->level === 1
+        return $org->level === \App\Enum\OrgStructurLevel::LEVEL_DEPARTMENT->value
             ? $org
             : ($org->parent?->parent ?? $org->parent);
     }
@@ -120,7 +120,7 @@ class UserProfiles extends Model
             return null;
         }
 
-        return $org->level === 2
+        return $org->level === \App\Enum\OrgStructurLevel::LEVEL_DIVISION->value
             ? $org
             : $org->parent;
     }
@@ -133,7 +133,7 @@ class UserProfiles extends Model
             return null;
         }
 
-        return $org->level === 3
+        return $org->level === \App\Enum\OrgStructurLevel::LEVEL_SUBDIVISION->value
             ? $org
             : null;
     }

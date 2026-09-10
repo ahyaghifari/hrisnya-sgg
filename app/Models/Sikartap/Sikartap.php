@@ -190,10 +190,37 @@ class Sikartap extends Model
         return Setting::resolve(SikartapSettingEnum::WAJIB_IDE_INOVASI->value, $this->user?->company_id, default: false);
     }
 
-    /** Gate blocking (tahap 1/atasan) — tahap direktur/komisaris opsional, tidak masuk sini. */
+    /**
+     * Company ini mensyaratkan PENGESAHAN Direktur atas ide inovasi (approve, bukan menilai)
+     * setelah atasan lulus — SikartapSettingEnum::IDE_INOVASI_PENGESAHAN_DIREKTUR. Cuma relevan
+     * kalau requiresIdeInovasi() juga aktif.
+     */
+    public function requiresIdeInovasiPengesahanDirektur(): bool
+    {
+        return $this->requiresIdeInovasi()
+            && Setting::resolve(SikartapSettingEnum::IDE_INOVASI_PENGESAHAN_DIREKTUR->value, $this->user?->company_id, default: false);
+    }
+
+    /**
+     * Gate blocking ide inovasi: atasan wajib meluluskan; kalau company mengaktifkan pengesahan
+     * Direktur, Direktur juga harus approve (menolak = terblokir sampai disahkan ulang). Tahap
+     * Komisaris tetap opsional & tidak blocking.
+     */
     public function ideInovasiApproved(): bool
     {
-        return ! $this->requiresIdeInovasi() || $this->ideInovasi?->status_atasan === 'approved';
+        if (! $this->requiresIdeInovasi()) {
+            return true;
+        }
+
+        if ($this->ideInovasi?->status_atasan !== 'approved') {
+            return false;
+        }
+
+        if ($this->requiresIdeInovasiPengesahanDirektur() && $this->ideInovasi?->status_direktur !== 'approved') {
+            return false;
+        }
+
+        return true;
     }
 
     /**

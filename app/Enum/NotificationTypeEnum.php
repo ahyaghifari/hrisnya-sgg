@@ -79,6 +79,8 @@ enum NotificationTypeEnum: string
     case ORIENTATION_REVIEWED = 'orientation_reviewed';
     case ORIENTATION_REVIEW_REQUESTED = 'orientation_review_requested';
     case ORIENTATION_REVISION_REQUESTED = 'orientation_revision_requested';
+    case ORIENTATION_PRESENTATION_SCHEDULED = 'orientation_presentation_scheduled';
+    case ORIENTATION_PRESENTATION_APPROVAL_REQUESTED = 'orientation_presentation_approval_requested';
     case CONTRACT_REVIEW_REQUESTED = 'contract_review_requested';
     case CONTRACT_REVIEWED = 'contract_reviewed';
     case CONTRACT_REVISION_REQUESTED = 'contract_revision_requested';
@@ -121,6 +123,8 @@ enum NotificationTypeEnum: string
             self::ORIENTATION_REVIEWED => 'Penilaian Orientasi Saya Selesai',
             self::ORIENTATION_REVIEW_REQUESTED => 'Pengajuan Orientasi Perlu Dinilai',
             self::ORIENTATION_REVISION_REQUESTED => 'Bukti Orientasi Saya Diminta Revisi',
+            self::ORIENTATION_PRESENTATION_SCHEDULED => 'Jadwal Presentasi Orientasi Saya Ditetapkan',
+            self::ORIENTATION_PRESENTATION_APPROVAL_REQUESTED => 'Jadwal Presentasi Orientasi Perlu Persetujuan Anda',
             self::CONTRACT_REVIEW_REQUESTED => 'Pengajuan Perpanjangan Kontrak Perlu Dinilai',
             self::CONTRACT_REVIEWED => 'Perpanjangan Kontrak Saya Diputuskan',
             self::CONTRACT_REVISION_REQUESTED => 'Dokumen Perpanjangan Kontrak Saya Diminta Revisi',
@@ -177,9 +181,11 @@ enum NotificationTypeEnum: string
             self::SIKARTAP_HASIL_MCU => 'Dikirim saat keputusan hasil MCU (fit/unfit) Anda diinput HRD.',
             self::SIKARTAP_IDE_INOVASI_DIREVIEW => 'Dikirim saat ide inovasi Anda dinilai atasan, direktur, atau komisaris.',
             self::SIKARTAP_KEPUTUSAN_DIREKTUR => 'Dikirim saat Direktur memutuskan pengajuan karyawan tetap Anda (lulus/tidak lulus).',
-            self::ORIENTATION_REVIEWED => 'Dikirim saat penilai memutuskan pengajuan orientasi Anda (lanjut kontrak / perpanjang orientasi).',
+            self::ORIENTATION_REVIEWED => 'Dikirim saat penilai memutuskan pengajuan orientasi Anda (direkomendasikan untuk kontrak kerja / tidak dilanjutkan).',
             self::ORIENTATION_REVIEW_REQUESTED => 'Dikirim ke penilai saat ada karyawan orientasi mengajukan penilaian.',
             self::ORIENTATION_REVISION_REQUESTED => 'Dikirim saat penilai mengembalikan pengajuan orientasi Anda untuk diperbaiki, beserta catatannya.',
+            self::ORIENTATION_PRESENTATION_SCHEDULED => 'Dikirim saat jadwal presentasi kegiatan orientasi Anda sudah disetujui HR & jabatan pendukung.',
+            self::ORIENTATION_PRESENTATION_APPROVAL_REQUESTED => 'Dikirim ke pemegang jabatan pendukung saat ada jadwal presentasi orientasi yang perlu disetujui.',
             self::CONTRACT_REVIEW_REQUESTED => 'Dikirim ke penilai saat ada karyawan mengajukan perpanjangan kontrak.',
             self::CONTRACT_REVIEWED => 'Dikirim saat penilai memutuskan pengajuan perpanjangan kontrak Anda (perpanjang / tidak diperpanjang).',
             self::CONTRACT_REVISION_REQUESTED => 'Dikirim saat penilai mengembalikan pengajuan perpanjangan kontrak Anda untuk melengkapi dokumen, beserta catatannya.',

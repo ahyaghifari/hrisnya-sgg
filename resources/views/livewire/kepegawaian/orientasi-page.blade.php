@@ -48,8 +48,8 @@
             'dibatalkan' => ['Dibatalkan', '#dc2626', 'rgba(220,38,38,0.12)'],
         ];
         $decisionLabels = [
-            'lanjut_kontrak' => ['Lanjut Kontrak', '#047C54'],
-            'perpanjang' => ['Perpanjang Orientasi', '#b45309'],
+            'lanjut_kontrak' => ['Direkomendasikan untuk Kontrak Kerja', '#047C54'],
+            'tidak_dilanjutkan' => ['Tidak Dilanjutkan', '#dc2626'],
         ];
     @endphp
 
@@ -87,7 +87,22 @@
                         <p style="font-size:12px;color:var(--text-muted);margin:6px 0 0;">{{ $current->decision_note }}</p>
                     @endif
                     @if ($current->status === 'dinilai')
-                        <p style="font-size:11.5px;color:#b45309;margin:8px 0 0;">Menunggu tindak lanjut HR ({{ $current->decision === 'perpanjang' ? 'penetapan periode orientasi baru' : 'pembuatan kontrak' }}).</p>
+                        <p style="font-size:11.5px;color:#b45309;margin:8px 0 0;">Menunggu tindak lanjut HR ({{ $current->decision === 'tidak_dilanjutkan' ? 'pencatatan tanggal efektif berakhir' : 'pembuatan kontrak' }}).</p>
+                    @endif
+                </div>
+            @endif
+
+            @if ($current->status !== 'draft' && $current->presentation_proposed_at)
+                <div style="border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:14px;">
+                    <p style="font-size:12px;color:var(--text-muted);margin:0 0 3px;">Jadwal Presentasi Kegiatan</p>
+                    @php $slot = $current->presentation_confirmed_at ?? $current->presentation_proposed_at; @endphp
+                    @if ($current->presentationFullyApproved())
+                        <p style="font-size:14px;font-weight:700;color:var(--brand-success,#047C54);margin:0;">{{ $slot->translatedFormat('l, d F Y H:i') }}</p>
+                        @if ($current->presentation_note)
+                            <p style="font-size:12px;color:var(--text-muted);margin:6px 0 0;">{{ $current->presentation_note }}</p>
+                        @endif
+                    @else
+                        <p style="font-size:13px;color:#b45309;margin:0;">{{ $slot->translatedFormat('l, d F Y H:i') }} — menunggu persetujuan HR &amp; jabatan pendukung ({{ $current->presentation_hr_at ? 'HR ✓' : 'HR ○' }}, {{ $current->presentation_support_at ? 'pendukung ✓' : 'pendukung ○' }}).</p>
                     @endif
                 </div>
             @endif
@@ -119,10 +134,23 @@
                 <div wire:loading wire:target="buktiFile" style="font-size:11px;color:var(--text-muted);margin-top:-8px;margin-bottom:10px;">Mengunggah...</div>
                 @error('buktiFile') <p style="font-size:11px;color:#dc2626;margin-top:-6px;margin-bottom:10px;">{{ $message }}</p> @enderror
 
-                <div style="margin-bottom:14px;">
-                    <label class="form-label">Catatan (opsional)</label>
-                    <textarea wire:model="note" class="form-input" rows="2" placeholder="Ringkasan kegiatan / hal yang ingin disampaikan ke penilai"></textarea>
+                {{-- Usulan jadwal presentasi kegiatan --}}
+                <p style="font-size:12.5px;font-weight:700;color:var(--text-heading);margin:14px 0 4px;">Usulan Jadwal Presentasi Kegiatan</p>
+                <p style="font-size:11px;color:var(--text-faint);margin:0 0 8px;">Wajib. Jadwal final ditetapkan HR (bisa sama atau berbeda).</p>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-start;margin-bottom:14px;">
+                    <div style="min-width:150px;">
+                        <input type="date" wire:model="presentasiDate" class="form-input">
+                        @error('presentasiDate') <p style="font-size:11px;color:#dc2626;margin-top:3px;">{{ $message }}</p> @enderror
+                    </div>
+                    <div style="min-width:120px;">
+                        <input type="time" wire:model="presentasiTime" class="form-input">
+                        @error('presentasiTime') <p style="font-size:11px;color:#dc2626;margin-top:3px;">{{ $message }}</p> @enderror
+                    </div>
+                    <button type="button" wire:click="savePresentasi" class="btn-ghost" style="white-space:nowrap;"><i class="fa-solid fa-calendar-check"></i> Simpan Usulan</button>
                 </div>
+                @if ($current->presentation_proposed_at)
+                    <p style="font-size:11.5px;color:var(--brand-success,#047C54);margin:-6px 0 12px;">Usulan tersimpan: {{ $current->presentation_proposed_at->translatedFormat('l, d F Y H:i') }}</p>
+                @endif
 
                 <div style="display:flex;justify-content:flex-end;gap:8px;">
                     <button type="button" wire:click="cancel" wire:confirm="Batalkan pengajuan ini?" class="btn-ghost" style="color:#dc2626;">Batalkan</button>
@@ -145,11 +173,6 @@
                     <button type="button" wire:click="startApplication" wire:confirm="Mulai pengajuan penilaian orientasi baru?" class="btn-primary" style="font-size:12.5px;">
                         <i class="fa-solid fa-plus"></i> Ajukan Lagi
                     </button>
-                </div>
-            @elseif ($current->status === 'selesai' && $current->decision === 'perpanjang' && $period && $windowOpensAt && now()->lt($windowOpensAt))
-                <div style="border-top:1px solid var(--border-soft);padding-top:12px;margin-top:4px;font-size:11.5px;color:#b45309;text-align:right;">
-                    Periode orientasi baru: {{ $period->start_date?->format('d M Y') }} &ndash; {{ $period->end_date?->format('d M Y') }}.
-                    Pengajuan dibuka mulai {{ $windowOpensAt->format('d M Y') }}.
                 </div>
             @endif
         </div>

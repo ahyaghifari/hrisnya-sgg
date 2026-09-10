@@ -209,6 +209,10 @@ class User extends Authenticatable implements FilamentUser
             return $this->can(\App\Enum\CustomPermissionEnum::SISTEM_REKRUTMEN->value);
         }
 
+        if ($panel->getId() === 'keycloak') {
+            return $this->can(\App\Enum\CustomPermissionEnum::KELOLA_KEYCLOAK->value);
+        }
+
         return $this->can(\App\Enum\CustomPermissionEnum::AKSES_PANEL_ADMIN->value);
     }
 

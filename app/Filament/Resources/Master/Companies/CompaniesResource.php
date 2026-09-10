@@ -5,12 +5,15 @@ namespace App\Filament\Resources\Master\Companies;
 use App\Filament\Resources\BaseResource;
 use App\Filament\Resources\Master\Companies\Pages\ManageCompanies;
 use App\Models\Master\Companies;
+use App\Models\Master\JobPositions;
 use BackedEnum;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
+use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
+use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\IconColumn;
@@ -59,6 +62,30 @@ class CompaniesResource extends BaseResource
                     ->onColor('success')
                     ->offColor('danger')
                     ->default(true),
+
+                Section::make('Jabatan Direktur')
+                    ->description('Pemegang aktif jabatan ini yang berperan sebagai Direktur perusahaan (Keputusan Direktur Sikartap, pengesahan Ide Inovasi, dll).')
+                    ->relationship('companyDirector')
+                    ->visibleOn('edit')
+                    ->columnSpanFull()
+                    ->columns(2)
+                    ->schema([
+                        Select::make('job_position_id')
+                            ->label('Jabatan')
+                            ->placeholder('Belum diatur')
+                            ->searchable()
+                            ->preload()
+                            ->native(false)
+                            ->options(function ($livewire): array {
+                                $company = method_exists($livewire, 'getMountedTableActionRecord')
+                                    ? $livewire->getMountedTableActionRecord()
+                                    : null;
+
+                                return $company
+                                    ? JobPositions::where('company_id', $company->getKey())->orderBy('name')->pluck('name', 'id')->all()
+                                    : [];
+                            }),
+                    ]),
             ]);
     }
 
@@ -69,6 +96,7 @@ class CompaniesResource extends BaseResource
                 TextColumn::make('code')->label('Kode')->sortable(),
                 TextColumn::make('name')->label('Nama Perusahaan')->searchable()->sortable(),
                 TextColumn::make('location')->label('Lokasi')->searchable()->sortable(),
+                TextColumn::make('companyDirector.jobPosition.name')->label('Jabatan Direktur')->placeholder('—'),
                 IconColumn::make('is_active')->label('Aktif')->boolean(),
             ])
             ->recordActions([

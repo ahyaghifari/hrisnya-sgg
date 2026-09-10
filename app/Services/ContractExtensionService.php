@@ -19,14 +19,16 @@ use Illuminate\Support\Facades\DB;
 /**
  * Alur perpanjangan kontrak (self-service). Karyawan kategori Kontrak mengajukan + unggah
  * dokumen (daftar dinamis per company), lalu penilai (resolve dari `sikartap_reviewers` context
- * `contract`, lihat SikartapReviewerResolver) memutuskan `perpanjang` (+ durasi bulan) atau
- * `tidak_perpanjang`. **Tidak lewat Approval Engine** — 1 penilai memutuskan.
+ * `contract`, lihat SikartapReviewerResolver) memutuskan `perpanjang` atau `tidak_perpanjang`.
+ * **Tidak lewat Approval Engine** — 1 penilai memutuskan.
  *
- * `perpanjang` → langsung bikin 1 baris `user_contracts` baru (start = hari setelah kontrak
- * lama berakhir / hari ini, end = start + durasi lewat UserTransitionService::resolveContractEndDate
- * yang enforce MAX_KONTRAK_TAHUN + USIA_PENSIUN). Kontrak lama otomatis jadi riwayat.
+ * Penilai TIDAK menentukan durasi — itu tindak lanjut HR (followUpDuration). `perpanjang` →
+ * status `dinilai` (nunggu HR isi durasi) → HR menetapkan durasi → bikin 1 baris
+ * `user_contracts` baru (start = hari setelah kontrak lama berakhir / hari ini, end = start +
+ * durasi lewat UserTransitionService::resolveContractEndDate yang enforce MAX_KONTRAK_TAHUN +
+ * USIA_PENSIUN). Kontrak lama otomatis jadi riwayat.
  *
- * Status: draft → diajukan → selesai. (ditolak = tidak_perpanjang; dibatalkan = pengaju batal.)
+ * Status: draft → diajukan → dinilai → selesai. (ditolak = tidak_perpanjang; dibatalkan = pengaju batal.)
  */
 class ContractExtensionService
 {
@@ -151,15 +153,15 @@ class ContractExtensionService
     }
 
     /**
-     * Penilai memutuskan. `perpanjang` → bikin baris user_contracts baru + status `selesai`.
-     * `tidak_perpanjang` → status `ditolak`, tak ada efek lain (kontrak habis alami).
+     * Penilai memutuskan (TANPA durasi). `perpanjang` → status `dinilai` (nunggu HR isi durasi
+     * lewat followUpDuration). `tidak_perpanjang` → status `ditolak`, tak ada efek lain (kontrak
+     * habis alami).
      */
     public function review(
         ContractSubmission $submission,
         string $actorId,
         string $decision,
         string $note,
-        ?int $durasiBulan = null,
     ): void {
         $decisionEnum = ContractDecisionEnum::from($decision);
 
@@ -171,16 +173,12 @@ class ContractExtensionService
             throw new \RuntimeException('Pengajuan ini tidak sedang menunggu penilaian.');
         }
 
-        if ($decisionEnum === ContractDecisionEnum::PERPANJANG) {
-            $this->approve($submission, $actorId, $note, $durasiBulan);
+        $isPerpanjang = $decisionEnum === ContractDecisionEnum::PERPANJANG;
 
-            return;
-        }
-
-        DB::transaction(function () use ($submission, $actorId, $note) {
+        DB::transaction(function () use ($submission, $actorId, $note, $decisionEnum, $isPerpanjang) {
             $submission->update([
-                'status' => 'ditolak',
-                'decision' => ContractDecisionEnum::TIDAK_PERPANJANG->value,
+                'status' => $isPerpanjang ? 'dinilai' : 'ditolak',
+                'decision' => $decisionEnum->value,
                 'decision_note' => $note,
                 'decided_by' => $actorId,
                 'decided_at' => now(),
@@ -191,11 +189,20 @@ class ContractExtensionService
     }
 
     /**
-     * Setujui perpanjangan: bikin baris `user_contracts` baru menyambung kontrak berjalan.
-     * anchor = tanggal berakhir kontrak lama (atau hari ini kalau sudah lewat / tak ada).
+     * Tindak lanjut HR untuk keputusan `perpanjang`: HR menetapkan durasi (bulan), lalu bikin
+     * baris `user_contracts` baru menyambung kontrak berjalan. anchor = tanggal berakhir kontrak
+     * lama (atau hari ini kalau sudah lewat / tak ada). Status submission jadi `selesai`.
      */
-    public function approve(ContractSubmission $submission, string $actorId, string $note, ?int $durasiBulan = null): void
+    public function followUpDuration(ContractSubmission $submission, int $durasiBulan, string $actorId): void
     {
+        if ($submission->status !== 'dinilai' || $submission->decision !== ContractDecisionEnum::PERPANJANG->value) {
+            throw new \RuntimeException('Pengajuan ini bukan menunggu penetapan durasi perpanjangan.');
+        }
+
+        if ($durasiBulan < 1) {
+            throw new \RuntimeException('Durasi perpanjangan (bulan) wajib diisi.');
+        }
+
         $user = $submission->user;
         $current = $user?->currentContract ?? $submission->userContract;
 
@@ -219,7 +226,7 @@ class ContractExtensionService
             $durasiBulan,
         );
 
-        DB::transaction(function () use ($submission, $user, $current, $anchor, $end, $actorId, $note, $durasiBulan) {
+        DB::transaction(function () use ($submission, $user, $current, $anchor, $end, $durasiBulan) {
             $newContract = UserContract::create([
                 'user_id' => $user->id,
                 'company_id' => $submission->company_id,
@@ -230,11 +237,7 @@ class ContractExtensionService
 
             $submission->update([
                 'status' => 'selesai',
-                'decision' => ContractDecisionEnum::PERPANJANG->value,
                 'decision_durasi_bulan' => $durasiBulan,
-                'decision_note' => $note,
-                'decided_by' => $actorId,
-                'decided_at' => now(),
                 'new_contract_id' => $newContract->id,
             ]);
 
@@ -245,7 +248,7 @@ class ContractExtensionService
     /** Batalkan pengajuan (oleh pengaju sendiri) selama belum dinilai. */
     public function cancel(ContractSubmission $submission, string $actorId): void
     {
-        if (in_array($submission->status, ['selesai', 'ditolak', 'dibatalkan'], true)) {
+        if (in_array($submission->status, ['dinilai', 'selesai', 'ditolak', 'dibatalkan'], true)) {
             throw new \RuntimeException('Pengajuan ini sudah tidak bisa dibatalkan.');
         }
 

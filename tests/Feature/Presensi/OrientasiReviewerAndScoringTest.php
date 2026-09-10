@@ -38,11 +38,30 @@ class OrientasiReviewerAndScoringTest extends TestCase
 
     private function userWithPosition(OrgStructure $node): array
     {
-        $pos = JobPositions::create(['company_id' => $this->company->id, 'name' => 'Jabatan ' . $node->name, 'planned_manpower' => 1, 'org_structure_id' => $node->id]);
+        $pos = JobPositions::create(['company_id' => $this->company->id, 'name' => 'Jabatan ' . $node->name . ' ' . uniqid(), 'planned_manpower' => 1, 'org_structure_id' => $node->id]);
         $user = User::factory()->create(['company_id' => $this->company->id]);
         UserJobPositions::create(['user_id' => $user->id, 'job_position_id' => $pos->id, 'start_date' => now()->subYear(), 'status' => 'active']);
 
         return [$user, $pos];
+    }
+
+    /** Jabatan pendukung persetujuan jadwal presentasi + 1 pemegang aktif. */
+    private function seedPresentationApprover(): User
+    {
+        [$approver, $pos] = $this->userWithPosition($this->dept);
+        \App\Models\Setting::updateOrCreate(
+            ['key' => OrientationService::PRESENTATION_APPROVER_SETTING_KEY, 'company_id' => $this->company->id],
+            ['module' => 'orientation', 'type' => 'string', 'label' => 'Jabatan Pendukung Presentasi', 'value' => $pos->id],
+        );
+
+        return $approver;
+    }
+
+    /** Lolos-kan jadwal presentasi: HR (pakai reviewer sbg aktor) + jabatan pendukung. */
+    private function approvePresentationFully(OrientationSubmission $submission, User $hrActor, User $support): void
+    {
+        app(OrientationService::class)->confirmPresentation($submission->fresh(), '2026-10-20 09:00', null, $hrActor->id);
+        app(OrientationService::class)->approvePresentationBySupport($submission->fresh(), $support);
     }
 
     public function test_resolver_finds_reviewer_by_jobposition_at_department(): void
@@ -91,6 +110,19 @@ class OrientasiReviewerAndScoringTest extends TestCase
         app(OrientationService::class)->submit($submission, $orientee);
     }
 
+    public function test_submit_rejected_without_presentation_proposal(): void
+    {
+        [$orientee] = $this->userWithPosition($this->division);
+        [, $reviewerPos] = $this->userWithPosition($this->dept);
+        SikartapReviewer::create(['context' => SikartapReviewer::CONTEXT_ORIENTATION, 'company_id' => $this->company->id, 'org_structure_id' => $this->dept->id, 'job_position_id' => $reviewerPos->id]);
+
+        $submission = $this->makeSubmission($orientee);
+        $submission->update(['presentation_proposed_at' => null]);
+
+        $this->expectExceptionMessage('presentasi');
+        app(OrientationService::class)->submit($submission, $orientee);
+    }
+
     public function test_review_stores_score_rows_per_month_and_replaces_on_re_review(): void
     {
         [$orientee] = $this->userWithPosition($this->division);
@@ -122,22 +154,22 @@ class OrientasiReviewerAndScoringTest extends TestCase
         $this->assertCount(1, $submission->assessments);
         $this->assertSame(3, $submission->assessments->first()->scores()->count());
 
-        // Re-review: 1 indikator, 1 bulan -> baris lama terhapus, keputusan ganti ke perpanjang.
+        // Re-review: 1 indikator, 1 bulan -> baris lama terhapus, keputusan ganti ke tidak_dilanjutkan.
         app(OrientationService::class)->review($submission, $reviewer->id, [[
             'label' => 'Kerapian',
             'comment' => null,
             'monthly' => [['period_month' => '2026-08-01', 'score' => 3, 'comment' => null]],
-        ]], 'perpanjang', 'Perlu perpanjangan');
+        ]], 'tidak_dilanjutkan', 'Belum memenuhi standar');
         $submission->refresh();
 
         $this->assertCount(1, $submission->assessments);
         $this->assertSame('Kerapian', $submission->assessments->first()->label);
         $this->assertSame(1, $submission->assessments->first()->scores()->count());
-        $this->assertSame('perpanjang', $submission->decision);
+        $this->assertSame('tidak_dilanjutkan', $submission->decision);
         $this->assertSame('dinilai', $submission->status);
     }
 
-    public function test_hr_follow_up_extend_creates_new_period(): void
+    public function test_hr_follow_up_not_continued_marks_selesai(): void
     {
         [$orientee] = $this->userWithPosition($this->division);
         [$reviewer, $reviewerPos] = $this->userWithPosition($this->dept);
@@ -148,19 +180,84 @@ class OrientasiReviewerAndScoringTest extends TestCase
         app(OrientationService::class)->review($submission, $reviewer->id, [[
             'label' => 'Kedisiplinan', 'comment' => null,
             'monthly' => [['period_month' => '2026-08-01', 'score' => 2, 'comment' => null]],
-        ]], 'perpanjang', 'Perlu perpanjangan');
+        ]], 'tidak_dilanjutkan', 'Tidak memenuhi standar orientasi');
         $submission->refresh();
+
+        $support = $this->seedPresentationApprover();
+
+        // Tindak lanjut diblokir sebelum jadwal presentasi disetujui lengkap.
+        try {
+            app(OrientationService::class)->followUpNotContinued($submission, '2026-11-01', $reviewer->id);
+            $this->fail('followUpNotContinued seharusnya menolak tanpa persetujuan presentasi lengkap.');
+        } catch (\RuntimeException $e) {
+            $this->assertStringContainsString('presentasi', $e->getMessage());
+        }
+
+        // Hanya HR menyetujui — masih diblokir.
+        app(OrientationService::class)->confirmPresentation($submission->fresh(), '2026-10-20 09:00', null, $reviewer->id);
+        try {
+            app(OrientationService::class)->followUpNotContinued($submission->fresh(), '2026-11-01', $reviewer->id);
+            $this->fail('Masih harus butuh persetujuan jabatan pendukung.');
+        } catch (\RuntimeException $e) {
+            $this->assertStringContainsString('presentasi', $e->getMessage());
+        }
+
+        app(OrientationService::class)->approvePresentationBySupport($submission->fresh(), $support);
 
         $before = $orientee->orientations()->count();
-        app(OrientationService::class)->followUpExtend($submission, '2026-11-01', 3, $reviewer->id);
+        app(OrientationService::class)->followUpNotContinued($submission->fresh(), '2026-11-01', $reviewer->id);
         $submission->refresh();
 
-        $this->assertSame($before + 1, $orientee->orientations()->count());
+        $this->assertSame($before, $orientee->orientations()->count()); // tidak ada periode baru
         $this->assertSame('selesai', $submission->status);
-        $new = $orientee->orientations()->orderByDesc('start_date')->first();
-        $this->assertSame('extension', $new->source);
-        $this->assertSame(3, $new->duration_months);
-        $this->assertSame('2026-11-01', $new->start_date->toDateString());
+        $this->assertSame('2026-11-01', $submission->effective_end_date->toDateString());
+        $this->assertTrue($submission->presentationFullyApproved());
+    }
+
+    public function test_presentation_dual_approval_order_free_and_slot_change_invalidates_support(): void
+    {
+        [$orientee] = $this->userWithPosition($this->division);
+        [$reviewer, $reviewerPos] = $this->userWithPosition($this->dept);
+        SikartapReviewer::create(['context' => SikartapReviewer::CONTEXT_ORIENTATION, 'company_id' => $this->company->id, 'org_structure_id' => $this->dept->id, 'job_position_id' => $reviewerPos->id]);
+        $support = $this->seedPresentationApprover();
+
+        $submission = $this->makeSubmission($orientee);
+        app(OrientationService::class)->submit($submission, $orientee);
+
+        // Jabatan pendukung approve DULU (urutan bebas) — mengunci usulan karyawan sebagai slot.
+        app(OrientationService::class)->approvePresentationBySupport($submission->fresh(), $support);
+        $submission->refresh();
+        $this->assertNotNull($submission->presentation_support_at);
+        $this->assertNotNull($submission->presentation_confirmed_at);
+        $this->assertFalse($submission->presentationFullyApproved()); // HR belum
+
+        // HR menyetujui slot yang SAMA -> lengkap.
+        app(OrientationService::class)->confirmPresentation(
+            $submission->fresh(),
+            $submission->presentation_proposed_at->format('Y-m-d H:i'),
+            null,
+            $reviewer->id,
+        );
+        $this->assertTrue($submission->fresh()->presentationFullyApproved());
+
+        // HR mengubah slot -> persetujuan jabatan pendukung batal.
+        app(OrientationService::class)->confirmPresentation($submission->fresh(), '2026-12-01 13:30', null, $reviewer->id);
+        $submission->refresh();
+        $this->assertNull($submission->presentation_support_at);
+        $this->assertFalse($submission->presentationFullyApproved());
+    }
+
+    public function test_confirm_presentation_rejected_when_approver_not_configured(): void
+    {
+        [$orientee] = $this->userWithPosition($this->division);
+        [$reviewer, $reviewerPos] = $this->userWithPosition($this->dept);
+        SikartapReviewer::create(['context' => SikartapReviewer::CONTEXT_ORIENTATION, 'company_id' => $this->company->id, 'org_structure_id' => $this->dept->id, 'job_position_id' => $reviewerPos->id]);
+
+        $submission = $this->makeSubmission($orientee);
+        app(OrientationService::class)->submit($submission, $orientee);
+
+        $this->expectExceptionMessage('Jabatan pendukung');
+        app(OrientationService::class)->confirmPresentation($submission->fresh(), '2026-10-20 09:00', null, $reviewer->id);
     }
 
     public function test_review_rejected_when_no_score_filled(): void
@@ -219,10 +316,14 @@ class OrientasiReviewerAndScoringTest extends TestCase
         ]], 'lanjut_kontrak', 'Layak kontrak');
         $submission->refresh();
 
-        app(OrientationService::class)->followUpContract($submission, $kontrakType->id, '2026-11-01', '2027-10-31', $reviewer->id);
+        $support = $this->seedPresentationApprover();
+        $this->approvePresentationFully($submission, $reviewer, $support);
+
+        app(OrientationService::class)->followUpContract($submission->fresh(), '2026-11-01', '2027-10-31', $reviewer->id);
         $submission->refresh();
 
         $this->assertSame('selesai', $submission->status);
+        $this->assertTrue($submission->presentationFullyApproved());
         $this->assertDatabaseHas('user_contracts', [
             'user_id' => $orientee->id,
             'employee_type_id' => $kontrakType->id,
@@ -246,6 +347,7 @@ class OrientasiReviewerAndScoringTest extends TestCase
             'company_id' => $this->company->id,
             'status' => 'draft',
             'attachments' => [['path' => 'x.pdf', 'name' => 'x.pdf']],
+            'presentation_proposed_at' => '2026-10-15 10:00:00',
         ]);
     }
 }

@@ -2,9 +2,9 @@
 
 namespace App\Enum;
 
-enum OrgStructurLevel: int
+enum OrgStructurLevel: string
 {
-    case LEVEL_DEPARTMENT = 1;
-    case LEVEL_DIVISION = 2;
-    case LEVEL_SUBDIVISION = 3;
+    case LEVEL_DEPARTMENT = 'DEPARTMENT';
+    case LEVEL_DIVISION = 'DIVISION';
+    case LEVEL_SUBDIVISION = 'SUB_DIVISION';
 }

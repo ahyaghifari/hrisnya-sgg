@@ -13,11 +13,12 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * 1 pengajuan perpanjangan kontrak (self-service). Karyawan kategori Kontrak mengajukan +
  * unggah dokumen (daftar dinamis dari Setting `contract_extension_documents`), lalu penilai
  * (resolve dari `sikartap_reviewers` context `contract`, lihat SikartapReviewerResolver)
- * memutuskan `perpanjang` (+ durasi) atau `tidak_perpanjang`. **Tidak lewat Approval Engine.**
+ * memutuskan `perpanjang` atau `tidak_perpanjang` (tanpa durasi). **Tidak lewat Approval Engine.**
  *
- * Status: draft -> diajukan -> selesai. (ditolak = tidak_perpanjang, dibatalkan = pengaju batal.)
- * `perpanjang` -> bikin 1 baris user_contracts baru (new_contract_id), kontrak lama otomatis
- * jadi riwayat (ledger append-only, "aktif" = currentContract() terbaru yang sudah mulai).
+ * Status: draft -> diajukan -> dinilai -> selesai. (ditolak = tidak_perpanjang, dibatalkan =
+ * pengaju batal.) `perpanjang` -> status `dinilai`; HR menetapkan durasi (decision_durasi_bulan)
+ * -> bikin 1 baris user_contracts baru (new_contract_id) + status `selesai`. Kontrak lama
+ * otomatis jadi riwayat (ledger append-only, "aktif" = currentContract() terbaru yang sudah mulai).
  */
 class ContractSubmission extends Model
 {
@@ -28,7 +29,6 @@ class ContractSubmission extends Model
         'user_contract_id',
         'company_id',
         'status',
-        'usulan_durasi_bulan',
         'alasan',
         'decision',
         'decision_durasi_bulan',
@@ -40,7 +40,6 @@ class ContractSubmission extends Model
     ];
 
     protected $casts = [
-        'usulan_durasi_bulan' => 'integer',
         'decision_durasi_bulan' => 'integer',
         'decided_at' => 'datetime',
         'submitted_at' => 'datetime',

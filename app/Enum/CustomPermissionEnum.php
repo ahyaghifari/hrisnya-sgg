@@ -261,6 +261,12 @@ enum CustomPermissionEnum: string
      * syarat, siapa saja yang login bisa buka /admin - celah ini yang ditutup). */
     case AKSES_PANEL_ADMIN = 'akses_panel_admin';
 
+    /** Gerbang MASUK ke panel Filament khusus Keycloak (`/keycloak`) — kelola user Keycloak
+     * lewat Admin REST API (App\Services\Keycloak\KeycloakAdmin). Pola sama SISTEM_REKRUTMEN:
+     * User::canAccessPanel() cek role "Admin"/"Super Admin" dulu, permission ini jalur kedua
+     * buat role IT/helpdesk yang cuma perlu kelola akun SSO tanpa akses /admin penuh. */
+    case KELOLA_KEYCLOAK = 'kelola_keycloak';
+
     /** Gerbang halaman portal "Jadwal Shift Saya" (`/presensi/jadwal-saya`, kalender bulanan
      * jadwal pribadi user yang login) + kartu ringkasannya di Dashboard - pola sama
      * PENGAJUAN_ABSENSI_SAYA/PELATIHAN_SAYA (permission self-service, bukan default-on untuk
@@ -375,6 +381,7 @@ enum CustomPermissionEnum: string
             self::KELOLA_GAJI_PEMATERI => 'Kelola Gaji Pemateri',
             self::KELOLA_HAK_AKSES => 'Kelola Hak Akses (Portal)',
             self::AKSES_PANEL_ADMIN => 'Akses Panel Admin (Filament)',
+            self::KELOLA_KEYCLOAK => 'Kelola Keycloak (Panel /keycloak)',
             self::JADWAL_SHIFT_SAYA => 'Jadwal Shift Saya',
             self::TUKAR_SHIFT_SAYA => 'Tukar Shift Saya',
             self::EXPORT_DATA_KARYAWAN => 'Export Data Karyawan (Excel)',

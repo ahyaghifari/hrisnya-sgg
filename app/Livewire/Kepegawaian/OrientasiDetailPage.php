@@ -17,9 +17,11 @@ use Livewire\Component;
 /**
  * Detail 1 pengajuan orientasi. Alur (TANPA Approval Engine, 2026-09-06):
  *  - Penilai (resolve dari sikartap_reviewers context `orientation`): grid skor indikator ×
- *    bulan + keputusan (lanjut_kontrak / perpanjang). Status jadi `dinilai`.
- *  - HR: tindak lanjut keputusan — perpanjang (isi durasi + tgl mulai → periode baru) atau
- *    lanjut kontrak (diarahkan ke Perubahan Status Karyawan). Status jadi `selesai`.
+ *    bulan + keputusan (lanjut_kontrak / tidak_dilanjutkan). Status jadi `dinilai`.
+ *  - HR/pengelola orientasi (paralel): tetapkan jadwal presentasi kegiatan (schedulePresentation)
+ *    — wajib sebelum tindak lanjut.
+ *  - HR: tindak lanjut keputusan — lanjut kontrak (angkat jadi Kontrak) atau tidak dilanjutkan
+ *    (catat tanggal efektif berakhir). Status jadi `selesai`.
  */
 #[Layout('components.layout', ['title' => 'Detail Pengajuan Orientasi'])]
 class OrientasiDetailPage extends Component
@@ -42,18 +44,21 @@ class OrientasiDetailPage extends Component
     /** Catatan penilai saat minta karyawan revisi bukti. */
     public ?string $revisionNote = null;
 
-    /** Tindak lanjut HR — perpanjangan orientasi. */
-    public ?string $fuStartDate = null;
-    public int $fuMonths = 3;
+    /** Penetapan jadwal presentasi kegiatan (HR/pengelola orientasi). */
+    public ?string $presDate = null;
+    public ?string $presTime = null;
+    public ?string $presNote = null;
+
+    /** Tindak lanjut HR — keputusan "tidak dilanjutkan": tanggal efektif berakhir hubungan kerja. */
+    public ?string $fuEffectiveDate = null;
 
     /** Tindak lanjut HR — pengangkatan ke kontrak. */
-    public ?string $fuEmployeeTypeId = null;
     public ?string $fuContractStart = null;
     public ?string $fuContractEnd = null;
 
     public function mount(OrientationSubmission $record): void
     {
-        $record->load(['user.profile', 'user.orientations', 'userOrientation', 'assessments.scores', 'decidedBy']);
+        $record->load(['user.profile', 'user.orientations', 'userOrientation', 'assessments.scores', 'decidedBy', 'presentationHrBy', 'presentationSupportBy']);
 
         abort_unless($this->canAccess($record, Auth::user()), 403);
 
@@ -61,14 +66,22 @@ class OrientasiDetailPage extends Component
         $this->buildMonths();
         $this->buildRows();
 
-        // Default tanggal mulai perpanjangan = hari setelah periode terakhir berakhir (atau hari ini).
+        // Default: hari setelah periode orientasi terakhir berakhir (atau hari ini).
         $last = $record->user?->orientations->sortByDesc('start_date')->first();
         $anchor = $last?->end_date && $last->end_date->isFuture()
             ? $last->end_date->copy()->addDay()
             : Carbon::today();
-        $this->fuStartDate = $anchor->toDateString();
+        $this->fuEffectiveDate = ($last?->end_date ?? Carbon::today())->toDateString();
         $this->fuContractStart = $anchor->toDateString();
         $this->fuContractEnd = $anchor->copy()->addYear()->subDay()->toDateString();
+
+        // Prefill form jadwal presentasi dari yang sudah ada (final kalau ada, else usulan karyawan).
+        $presAt = $record->presentation_confirmed_at ?? $record->presentation_proposed_at;
+        if ($presAt) {
+            $this->presDate = $presAt->toDateString();
+            $this->presTime = $presAt->format('H:i');
+        }
+        $this->presNote = $record->presentation_note;
     }
 
     /** Tipe karyawan kategori Kontrak untuk perusahaan pengajuan (opsi pengangkatan). */
@@ -89,6 +102,10 @@ class OrientasiDetailPage extends Component
         }
 
         if (app(OrientationService::class)->canReview($record, $user)) {
+            return true;
+        }
+
+        if (app(OrientationService::class)->canApprovePresentation($record, $user)) {
             return true;
         }
 
@@ -160,14 +177,30 @@ class OrientasiDetailPage extends Component
             && app(OrientationService::class)->canReview($this->record, Auth::user());
     }
 
+    /** HR/pengelola orientasi menetapkan (atau merevisi) jadwal presentasi kegiatan = persetujuan HR. */
+    public function getCanSchedulePresentationProperty(): bool
+    {
+        return in_array($this->record->status, ['diajukan', 'dinilai'], true)
+            && Auth::user()->can('Update:OrientationSubmission');
+    }
+
+    /** Pemegang jabatan pendukung menyetujui jadwal presentasi (persetujuan kedua, urutan bebas). */
+    public function getCanApprovePresentationProperty(): bool
+    {
+        return in_array($this->record->status, ['diajukan', 'dinilai'], true)
+            && ! $this->record->presentation_support_at
+            && app(OrientationService::class)->canApprovePresentation($this->record, Auth::user());
+    }
+
     /**
-     * Tindak lanjut perpanjangan: bikin baris `user_orientations` → gate `Create:UserOrientation`.
+     * Tindak lanjut "tidak dilanjutkan": HR catat tanggal efektif berakhir → gate
+     * `Update:OrientationSubmission`. Tidak membuat baris apa pun.
      */
-    public function getCanFollowUpExtendProperty(): bool
+    public function getCanFollowUpNotContinuedProperty(): bool
     {
         return $this->record->status === 'dinilai'
-            && $this->record->decision === OrientationDecisionEnum::PERPANJANG->value
-            && Auth::user()->can('Create:UserOrientation');
+            && $this->record->decision === OrientationDecisionEnum::TIDAK_DILANJUTKAN->value
+            && Auth::user()->can('Update:OrientationSubmission');
     }
 
     /**
@@ -187,18 +220,6 @@ class OrientasiDetailPage extends Component
         return collect(OrientationDecisionEnum::cases())
             ->mapWithKeys(fn ($d) => [$d->value => $d->getLabel()])
             ->all();
-    }
-
-    /** @return array{0: \Carbon\Carbon, 1: \Carbon\Carbon}|null preview periode perpanjangan */
-    public function getExtensionPreviewProperty(): ?array
-    {
-        if (! $this->fuStartDate || $this->fuMonths < 1) {
-            return null;
-        }
-
-        $start = Carbon::parse($this->fuStartDate);
-
-        return [$start->copy(), $start->copy()->addMonths($this->fuMonths)->subDay()];
     }
 
     public function submitReview(): void
@@ -270,21 +291,56 @@ class OrientasiDetailPage extends Component
         }
     }
 
-    public function followUpExtend(): void
+    public function schedulePresentation(): void
     {
-        abort_unless($this->canFollowUpExtend, 403);
+        abort_unless($this->canSchedulePresentation, 403);
 
-        $this->validate([
-            'fuStartDate' => 'required|date',
-            'fuMonths' => 'required|integer|min:1|max:24',
-        ], [], [
-            'fuStartDate' => 'tanggal mulai',
-            'fuMonths' => 'lama perpanjangan',
-        ]);
+        $this->validate(
+            ['presDate' => 'required|date', 'presTime' => 'required'],
+            [],
+            ['presDate' => 'tanggal presentasi', 'presTime' => 'jam presentasi'],
+        );
 
         try {
-            app(OrientationService::class)->followUpExtend($this->record, $this->fuStartDate, (int) $this->fuMonths, Auth::id());
-            Notification::make()->title('Periode orientasi baru dibuat')->success()->send();
+            app(OrientationService::class)->confirmPresentation(
+                $this->record,
+                "{$this->presDate} {$this->presTime}",
+                $this->presNote,
+                Auth::id(),
+            );
+            Notification::make()->title('Persetujuan HR atas jadwal presentasi tersimpan')->success()->send();
+            $this->redirectRoute('orientasi.show', ['record' => $this->record->id], navigate: true);
+        } catch (\Throwable $e) {
+            Notification::make()->title('Gagal')->body($e->getMessage())->danger()->send();
+        }
+    }
+
+    public function approvePresentation(): void
+    {
+        abort_unless($this->canApprovePresentation, 403);
+
+        try {
+            app(OrientationService::class)->approvePresentationBySupport($this->record, Auth::user());
+            Notification::make()->title('Persetujuan jadwal presentasi tersimpan')->success()->send();
+            $this->redirectRoute('orientasi.show', ['record' => $this->record->id], navigate: true);
+        } catch (\Throwable $e) {
+            Notification::make()->title('Gagal')->body($e->getMessage())->danger()->send();
+        }
+    }
+
+    public function followUpNotContinued(): void
+    {
+        abort_unless($this->canFollowUpNotContinued, 403);
+
+        $this->validate(
+            ['fuEffectiveDate' => 'required|date'],
+            [],
+            ['fuEffectiveDate' => 'tanggal efektif berakhir'],
+        );
+
+        try {
+            app(OrientationService::class)->followUpNotContinued($this->record, $this->fuEffectiveDate, Auth::id());
+            Notification::make()->title('Tindak lanjut tersimpan — pengajuan selesai')->success()->send();
             $this->redirectRoute('orientasi.show', ['record' => $this->record->id], navigate: true);
         } catch (\Throwable $e) {
             Notification::make()->title('Gagal')->body($e->getMessage())->danger()->send();
@@ -296,11 +352,9 @@ class OrientasiDetailPage extends Component
         abort_unless($this->canFollowUpContract, 403);
 
         $this->validate([
-            'fuEmployeeTypeId' => 'required|string',
             'fuContractStart' => 'required|date',
             'fuContractEnd' => 'required|date|after:fuContractStart',
         ], [], [
-            'fuEmployeeTypeId' => 'tipe karyawan',
             'fuContractStart' => 'tanggal mulai kontrak',
             'fuContractEnd' => 'tanggal akhir kontrak',
         ]);
@@ -308,7 +362,6 @@ class OrientasiDetailPage extends Component
         try {
             app(OrientationService::class)->followUpContract(
                 $this->record,
-                $this->fuEmployeeTypeId,
                 $this->fuContractStart,
                 $this->fuContractEnd,
                 Auth::id(),

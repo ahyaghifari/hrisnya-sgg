@@ -27,8 +27,9 @@ use Livewire\WithPagination;
  *    masuk jendela pengajuan) + keputusan + tombol tinjau.
  *  - riwayat: pengajuan perpanjangan yang sudah selesai/ditolak.
  *
- * Peninjauan pengajuan (dulu KontrakDetailPage) sekarang inline di panel bawah: keputusan
- * `perpanjang` (+ durasi) atau `tidak_perpanjang` + catatan, atau minta revisi dokumen.
+ * Peninjauan pengajuan (dulu KontrakDetailPage) sekarang inline di panel bawah: penilai pilih
+ * keputusan `perpanjang` / `tidak_perpanjang` + catatan (atau minta revisi dokumen); durasi
+ * perpanjangan diisi HR pada langkah tindak lanjut (submitFollowUpDuration).
  */
 #[Layout('components.layout', ['title' => 'Perpanjangan Kontrak'])]
 class KontrakKelolaPage extends Component
@@ -154,7 +155,7 @@ class KontrakKelolaPage extends Component
     public function submissionMark(User $u): string
     {
         $sub = $u->contractSubmissions->first();
-        if ($sub && in_array($sub->status, ['diajukan', 'selesai'], true)) {
+        if ($sub && in_array($sub->status, ['diajukan', 'dinilai', 'selesai'], true)) {
             return 'yes';
         }
 
@@ -208,7 +209,7 @@ class KontrakKelolaPage extends Component
             return;
         }
 
-        $this->reviewDurasi = $record->usulan_durasi_bulan ?: (int) Setting::resolve(
+        $this->reviewDurasi = (int) Setting::resolve(
             KepegawaianSettingEnum::PERPANJANGAN_KONTRAK_BULAN->value,
             $record->company_id,
             default: (int) KepegawaianSettingEnum::PERPANJANGAN_KONTRAK_BULAN->default(),
@@ -219,6 +220,10 @@ class KontrakKelolaPage extends Component
     {
         $this->reset('openId', 'reviewDecision', 'reviewNote', 'reviewDurasi', 'revisionNote');
         $this->resetErrorBag();
+
+        // Buang cache computed — kalau tidak, panel tetap tampil di render yang sama
+        // (openSubmission sudah ke-resolve lebih dulu di submitReview/submitFollowUpDuration).
+        unset($this->openSubmission);
 
         if ($this->reviewerOnly) {
             $this->redirect('/', navigate: true);
@@ -262,6 +267,17 @@ class KontrakKelolaPage extends Component
             && app(ContractExtensionService::class)->canReview($record, Auth::user());
     }
 
+    /** Tindak lanjut HR: isi durasi untuk keputusan `perpanjang` yang sudah dinilai. */
+    public function getCanFollowUpDurationProperty(): bool
+    {
+        $record = $this->openSubmission;
+
+        return $record
+            && $record->status === 'dinilai'
+            && $record->decision === ContractDecisionEnum::PERPANJANG->value
+            && Auth::user()->can('viewAny', ContractSubmission::class);
+    }
+
     public function getDecisionOptionsProperty(): array
     {
         return collect(ContractDecisionEnum::cases())
@@ -278,10 +294,10 @@ class KontrakKelolaPage extends Component
         return $end ? Carbon::parse($end)->max(Carbon::today()) : Carbon::today();
     }
 
-    /** @return array{0:\Carbon\Carbon,1:\Carbon\Carbon}|null preview periode kontrak baru */
+    /** @return array{0:\Carbon\Carbon,1:\Carbon\Carbon}|null preview periode kontrak baru (form tindak lanjut HR) */
     public function getPreviewProperty(): ?array
     {
-        if ($this->reviewDecision !== ContractDecisionEnum::PERPANJANG->value || ! $this->reviewDurasi) {
+        if (! $this->canFollowUpDuration || ! $this->reviewDurasi) {
             return null;
         }
 
@@ -298,18 +314,10 @@ class KontrakKelolaPage extends Component
         $this->validate([
             'reviewDecision' => 'required|in:' . implode(',', array_keys($this->decisionOptions)),
             'reviewNote' => 'required|string|min:3',
-            'reviewDurasi' => 'nullable|integer|min:1|max:24',
         ], [], [
             'reviewDecision' => 'keputusan',
             'reviewNote' => 'catatan keputusan',
-            'reviewDurasi' => 'durasi perpanjangan',
         ]);
-
-        if ($this->reviewDecision === ContractDecisionEnum::PERPANJANG->value && ! $this->reviewDurasi) {
-            $this->addError('reviewDurasi', 'Durasi perpanjangan wajib diisi.');
-
-            return;
-        }
 
         try {
             app(ContractExtensionService::class)->review(
@@ -317,9 +325,28 @@ class KontrakKelolaPage extends Component
                 Auth::id(),
                 $this->reviewDecision,
                 $this->reviewNote,
-                $this->reviewDecision === ContractDecisionEnum::PERPANJANG->value ? (int) $this->reviewDurasi : null,
             );
             Notification::make()->title('Keputusan tersimpan')->success()->send();
+            $this->closeReview();
+        } catch (\Throwable $e) {
+            Notification::make()->title('Gagal menyimpan')->body($e->getMessage())->danger()->send();
+        }
+    }
+
+    public function submitFollowUpDuration(): void
+    {
+        $record = $this->openSubmission;
+        abort_unless($record && $this->canFollowUpDuration, 403);
+
+        $this->validate(
+            ['reviewDurasi' => 'required|integer|min:1|max:24'],
+            [],
+            ['reviewDurasi' => 'durasi perpanjangan'],
+        );
+
+        try {
+            app(ContractExtensionService::class)->followUpDuration($record, (int) $this->reviewDurasi, Auth::id());
+            Notification::make()->title('Durasi ditetapkan — kontrak baru dibuat')->success()->send();
             $this->closeReview();
         } catch (\Throwable $e) {
             Notification::make()->title('Gagal menyimpan')->body($e->getMessage())->danger()->send();

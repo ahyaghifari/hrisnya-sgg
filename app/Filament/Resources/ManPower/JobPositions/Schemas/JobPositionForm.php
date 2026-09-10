@@ -94,9 +94,9 @@ class JobPositionForm
                                     if (!$record?->org_structure_id) return;
     
                                     $org = OrgStructure::with('parent.parent')->find($record->org_structure_id);
-                                    if ($org?->level === 1) $set('department_id', $org->id);
-                                    if ($org?->level === 2) $set('department_id', $org->parent?->id);
-                                    if ($org?->level === 3) $set('department_id', $org->parent?->parent?->id);
+                                    if ($org?->level === OrgStructurLevel::LEVEL_DEPARTMENT->value) $set('department_id', $org->id);
+                                    if ($org?->level === OrgStructurLevel::LEVEL_DIVISION->value) $set('department_id', $org->parent?->id);
+                                    if ($org?->level === OrgStructurLevel::LEVEL_SUBDIVISION->value) $set('department_id', $org->parent?->parent?->id);
                                 })
                                 ->afterStateUpdated(function (callable $set, $state) {
                                     $set('division_id', null);
@@ -126,8 +126,8 @@ class JobPositionForm
                                     if (!$record?->org_structure_id) return;
     
                                     $org = OrgStructure::with('parent.parent')->find($record->org_structure_id);
-                                    if ($org?->level === 2) $set('division_id', $org->id);
-                                    if ($org?->level === 3) $set('division_id', $org->parent?->id);
+                                    if ($org?->level === OrgStructurLevel::LEVEL_DIVISION->value) $set('division_id', $org->id);
+                                    if ($org?->level === OrgStructurLevel::LEVEL_SUBDIVISION->value) $set('division_id', $org->parent?->id);
                                 })
                                 ->afterStateUpdated(function (callable $set, $state) {
                                     $set('sub_division_id', null);
@@ -156,7 +156,7 @@ class JobPositionForm
                                     if (!$record?->org_structure_id) return;
     
                                     $org = OrgStructure::find($record->org_structure_id);
-                                    if ($org?->level === 3) $set('sub_division_id', $org->id);
+                                    if ($org?->level === OrgStructurLevel::LEVEL_SUBDIVISION->value) $set('sub_division_id', $org->id);
                                 })
                                 ->afterStateUpdated(function (callable $set, $state) {
                                     // Update org_structure_id when sub_division changes
