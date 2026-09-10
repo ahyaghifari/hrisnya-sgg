@@ -96,10 +96,6 @@ $s = $statusMap[$application->status] ?? ['label' => $application->status, 'colo
     @endforeach
 @endif
 
-<div class="flex flex-wrap gap-2">
-    {{ $this->kirimNotifAction }}
-</div>
-
 @if(! in_array($application->status, ['rejected', 'passed']))
 <x-filament::section heading="Tidak Dilanjutkan" icon="heroicon-m-x-circle" collapsible collapsed>
     <p class="text-sm text-gray-500 dark:text-gray-400 mb-3">

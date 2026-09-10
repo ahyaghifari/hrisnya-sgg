@@ -19,8 +19,9 @@ use Filament\Pages\Page;
  * `recruitment` langsung. Diakses `?application=<id>`, tidak muncul di nav.
  *
  * Info lamaran + jawaban form per seksi + riwayat status + aksi "Tidak Dilanjutkan"
- * (status -> rejected + draft notif) + "Kirim Email Pemberitahuan" (flush draft pelamar
- * ini). Data diri kandidat (9 tabel anak) tampil begitu ada (partial
+ * (status -> rejected + draft notif). Pengiriman email pemberitahuan yang ditahan
+ * dilakukan lewat aksi bulk "Kirim Email Pemberitahuan" di halaman tabel/pipeline,
+ * bukan dari sini. Data diri kandidat (9 tabel anak) tampil begitu ada (partial
  * candidate-profile-view). Unduh berkas dokumen kandidat masih 501 (Fase 6b lanjutan).
  */
 class ApplicantDetailPage extends Page implements HasActions, HasForms
@@ -132,28 +133,5 @@ class ApplicantDetailPage extends Page implements HasActions, HasForms
                     ->required(),
             ])
             ->action(fn (array $data) => $this->changeStatus('rejected', $data['reason']));
-    }
-
-    public function kirimNotifAction(): Action
-    {
-        $pending = fn () => $this->application
-            ? ApplicationNotification::where('job_application_id', $this->application->id)->where('status', 'draft')->count()
-            : 0;
-
-        return Action::make('kirimNotif')
-            ->label('Kirim Email Pemberitahuan')
-            ->icon('heroicon-m-paper-airplane')
-            ->color('gray')
-            ->visible(fn () => $this->canDecide() && $pending() > 0)
-            ->requiresConfirmation()
-            ->modalDescription('Email pemberitahuan yang masih berstatus draft untuk pelamar ini akan diantrekan, lalu dikirim otomatis oleh sistem rekrutmen.')
-            ->modalSubmitActionLabel('Kirim')
-            ->action(function (): void {
-                $queued = ApplicationNotification::flushDraftsFor([$this->application->id]);
-                Notification::make()
-                    ->title($queued > 0 ? "{$queued} email diantrekan untuk dikirim" : 'Tidak ada draft untuk dikirim')
-                    ->{$queued > 0 ? 'success' : 'warning'}()
-                    ->send();
-            });
     }
 }
