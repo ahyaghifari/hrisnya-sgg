@@ -159,15 +159,72 @@ class OfferingLetterPage extends Page implements HasActions, HasForms, HasTable
             });
     }
 
+    public function terimaSuratAction(): Action
+    {
+        return Action::make('terimaSurat')
+            ->label('Terima Surat')
+            ->icon('heroicon-m-check-circle')
+            ->color('success')
+            ->visible(fn ($record) => $this->canDecide()
+                && $record->offering_letter_signed_path !== null
+                && $record->offering_signed_reviewed_at === null)
+            ->requiresConfirmation()
+            ->modalHeading('Terima Surat Penawaran Bertanda Tangan')
+            ->modalDescription('Pastikan surat yang diunggah kandidat sudah benar. Kandidat akan diberi tahu lewat email bahwa surat diterima.')
+            ->modalSubmitActionLabel('Terima')
+            ->action(function ($record): void {
+                $record->update(['offering_signed_reviewed_at' => now()]);
+                ApplicationNotification::notifyOfferingSignedAccepted($record);
+                Notification::make()->title('Surat diterima. Email pemberitahuan dikirim ke kandidat.')->success()->send();
+            });
+    }
+
+    public function mintaKirimUlangAction(): Action
+    {
+        return Action::make('mintaKirimUlang')
+            ->label('Minta Kirim Ulang')
+            ->icon('heroicon-m-arrow-uturn-left')
+            ->color('danger')
+            ->visible(fn ($record) => $this->canDecide()
+                && $record->offering_letter_signed_path !== null
+                && $record->offering_signed_reviewed_at === null)
+            ->modalHeading('Minta Kandidat Kirim Ulang')
+            ->modalSubmitActionLabel('Minta Kirim Ulang')
+            ->schema([
+                Textarea::make('reason')
+                    ->label('Alasan minta kirim ulang')
+                    ->placeholder('Mis. tanda tangan tidak jelas / halaman tidak lengkap / salah dokumen.')
+                    ->rows(3)
+                    ->required()
+                    ->maxLength(2000),
+            ])
+            ->action(function (array $data, $record): void {
+                $record->update([
+                    'offering_signed_revision_reason' => $data['reason'],
+                    'offering_letter_signed_path' => null,
+                    'offering_letter_signed_at' => null,
+                    'offering_signed_reviewed_at' => null,
+                ]);
+
+                // Hapus row event lama supaya email revisi bisa dikirim ulang di siklus berikutnya.
+                ApplicationNotification::where('job_application_id', $record->id)
+                    ->where('event', CompanyMessageTemplate::EVENT_OFFERING_REVISION_REQUESTED)
+                    ->delete();
+                ApplicationNotification::notifyOfferingRevisionRequested($record, $data['reason']);
+
+                Notification::make()->title('Permintaan kirim ulang & email ke kandidat terkirim.')->success()->send();
+            });
+    }
+
     public function lanjutkanAction(): Action
     {
         return Action::make('lanjutkan')
             ->label(fn ($record) => ($record->jobOpening->company?->requires_mcu ?? true) ? 'Lanjut ke MCU' : 'Lanjut ke Onboarding')
             ->icon('heroicon-m-arrow-right-circle')
             ->color('success')
-            ->visible(fn ($record) => $this->canDecide() && $record->offering_letter_signed_path !== null)
+            ->visible(fn ($record) => $this->canDecide() && $record->offering_signed_reviewed_at !== null)
             ->requiresConfirmation()
-            ->modalDescription('Pastikan surat yang diunggah kandidat sudah benar sebelum melanjutkan.')
+            ->modalDescription('Surat bertanda tangan sudah diterima. Lanjutkan kandidat ke tahap berikutnya.')
             ->action(function ($record): void {
                 $next = ($record->jobOpening->company?->requires_mcu ?? true) ? 'mcu' : 'onboarding';
                 $record->update(['status' => $next]);
@@ -197,12 +254,27 @@ class OfferingLetterPage extends Page implements HasActions, HasForms, HasTable
                 IconColumn::make('surat_signed')->label('Sudah TTD Kandidat')->boolean()
                     ->state(fn ($record) => $record->offering_letter_signed_path !== null),
                 TextColumn::make('offering_letter_signed_at')->label('Diunggah Kandidat')->dateTime('d M Y, H:i')->placeholder('—'),
+                TextColumn::make('review_status')->label('Status Review')->badge()
+                    ->state(fn ($record) => match (true) {
+                        $record->offering_signed_reviewed_at !== null => 'Diterima',
+                        $record->offering_letter_signed_path !== null => 'Menunggu review',
+                        $record->offering_signed_revision_reason !== null => 'Minta kirim ulang',
+                        default => 'Belum diunggah',
+                    })
+                    ->color(fn ($record) => match (true) {
+                        $record->offering_signed_reviewed_at !== null => 'success',
+                        $record->offering_letter_signed_path !== null => 'warning',
+                        $record->offering_signed_revision_reason !== null => 'danger',
+                        default => 'gray',
+                    }),
             ])
             ->recordActions([
                 $this->uploadSuratAction(),
                 $this->unduhSuratMasukAction(),
                 $this->negosiasiAction(),
                 $this->unduhSuratSignedAction(),
+                $this->terimaSuratAction(),
+                $this->mintaKirimUlangAction(),
                 $this->lanjutkanAction(),
             ])
             ->toolbarActions([])

@@ -29,6 +29,7 @@ class JobApplication extends Model
         'user_id', 'job_opening_id', 'status', 'quiz_sent_at', 'quiz_result',
         'psychotest_completed_at', 'interview_result', 'offering_letter_path',
         'offering_letter_uploaded_at', 'offering_letter_signed_path', 'offering_letter_signed_at',
+        'offering_signed_reviewed_at', 'offering_signed_revision_reason', 'onboarding_date',
     ];
 
     protected $casts = [
@@ -36,6 +37,8 @@ class JobApplication extends Model
         'psychotest_completed_at' => 'datetime',
         'offering_letter_uploaded_at' => 'datetime',
         'offering_letter_signed_at' => 'datetime',
+        'offering_signed_reviewed_at' => 'datetime',
+        'onboarding_date' => 'date',
     ];
 
     public const STATUS_APPLIED = 'applied';

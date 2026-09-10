@@ -29,6 +29,14 @@
                 <div class="text-xs text-gray-500 dark:text-gray-400">Tipe karyawan</div>
                 <div class="font-semibold text-gray-900 dark:text-white">{{ $p['orientationType'] ?? '—' }}</div>
             </div>
+            <div class="rounded-lg p-3 ring-1 ring-gray-950/5 dark:ring-white/10">
+                <div class="text-xs text-gray-500 dark:text-gray-400">Tanggal Bergabung (dari jadwal onboarding)</div>
+                @if ($p['onboardingDate'] ?? null)
+                    <div class="font-semibold text-gray-900 dark:text-white">{{ $p['onboardingDate'] }}</div>
+                @else
+                    <div class="font-semibold text-warning-600 dark:text-warning-400">Belum diatur — akan memakai tanggal hari ini</div>
+                @endif
+            </div>
         </div>
 
         @if (! empty($p['missing']))
