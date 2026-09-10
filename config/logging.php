@@ -84,6 +84,16 @@ return [
             'replace_placeholders' => true,
         ],
 
+        // Jejak integrasi HRIS -> project Rekrutmen (pemicu email pelamar lewat HTTP API).
+        // Dipisah supaya gampang ditelusuri saat email pelamar bermasalah.
+        'rekrutmen' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/rekrutmen.log'),
+            'level' => 'debug',
+            'days' => 14,
+            'replace_placeholders' => true,
+        ],
+
         'slack' => [
             'driver' => 'slack',
             'url' => env('LOG_SLACK_WEBHOOK_URL'),

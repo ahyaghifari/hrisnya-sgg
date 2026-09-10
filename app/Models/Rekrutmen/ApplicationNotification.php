@@ -130,32 +130,49 @@ class ApplicationNotification extends Model
         static::rekrutmenPost('/integrations/hris/notifications', ['job_application_id' => $jobApplicationId] + $payload);
     }
 
+    /** Log khusus jejak integrasi rekrutmen (storage/logs/rekrutmen.log). */
+    private static function log(): \Psr\Log\LoggerInterface
+    {
+        return Log::channel('rekrutmen');
+    }
+
     /** POST ke API rekrutmen. Non-fatal: gagal cuma dicatat log, aksi HRIS tetap jalan. */
     private static function rekrutmenPost(string $path, array $body): ?array
     {
         $base = rtrim((string) config('services.rekrutmen.url'), '/');
         $token = (string) config('services.rekrutmen.api_token');
 
+        $ctx = [
+            'path' => $path,
+            'job_application_id' => $body['job_application_id'] ?? null,
+            'event' => $body['event'] ?? null,
+            'hold' => $body['hold'] ?? false,
+        ];
+
         if ($base === '' || $token === '') {
-            Log::warning('ApplicationNotification: config services.rekrutmen.url / api_token kosong — email tidak dikirim.', ['path' => $path]);
+            static::log()->error('POST dibatalkan - config services.rekrutmen.url / api_token kosong.', $ctx + [
+                'url_kosong' => $base === '', 'token_kosong' => $token === '',
+            ]);
 
             return null;
         }
+
+        static::log()->info("POST {$base}/api{$path}", $ctx);
 
         try {
             $res = Http::withToken($token)->acceptJson()->timeout(8)->post("{$base}/api{$path}", $body);
 
             if ($res->failed()) {
-                Log::warning('ApplicationNotification: request ke rekrutmen gagal.', [
-                    'path' => $path, 'status' => $res->status(), 'body' => $res->body(),
-                ]);
+                static::log()->error('Response GAGAL dari rekrutmen.', $ctx + ['status' => $res->status(), 'body' => $res->body()]);
 
                 return null;
             }
 
+            static::log()->info('Response OK dari rekrutmen.', $ctx + ['status' => $res->status(), 'body' => $res->json()]);
+
             return $res->json();
         } catch (\Throwable $e) {
-            Log::warning('ApplicationNotification: request ke rekrutmen error.', ['path' => $path, 'error' => $e->getMessage()]);
+            static::log()->error('Request ke rekrutmen error (koneksi/timeout).', $ctx + ['error' => $e->getMessage()]);
 
             return null;
         }

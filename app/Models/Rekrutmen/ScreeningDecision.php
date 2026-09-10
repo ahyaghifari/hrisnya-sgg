@@ -50,6 +50,17 @@ class ScreeningDecision extends Model
             ->whereHas('jobApplication', fn ($q) => $q->where('job_opening_id', $jobOpeningId))
             ->get();
 
+        $log = \Illuminate\Support\Facades\Log::channel('rekrutmen');
+        $log->info('applyForOpening dipanggil.', [
+            'job_opening_id' => $jobOpeningId,
+            'jumlah_draft_keputusan' => $decisions->count(),
+            'passed_draft' => $decisions->where('decision', 'passed')->count(),
+        ]);
+
+        if ($decisions->isEmpty()) {
+            $log->warning('applyForOpening: TIDAK ADA draft keputusan untuk lowongan ini - tidak ada email dikirim. Jalankan "Seleksi Berkas" (Simpan Draft) dulu.', ['job_opening_id' => $jobOpeningId]);
+        }
+
         $passed = 0;
         $rejected = 0;
 
@@ -69,6 +80,8 @@ class ScreeningDecision extends Model
         if ($passed > 0) {
             JobOpeningStageLog::record($jobOpeningId, 'screening', 'shortlisted', $passed);
         }
+
+        $log->info('applyForOpening selesai.', ['job_opening_id' => $jobOpeningId, 'lolos' => $passed, 'tidak_lolos' => $rejected]);
 
         return [$passed, $rejected];
     }
