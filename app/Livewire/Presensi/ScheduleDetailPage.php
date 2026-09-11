@@ -65,6 +65,14 @@ class ScheduleDetailPage extends Component
         $this->tab = $tab;
     }
 
+    /** Gerbang tombol "Edit Jadwal"/"Ubah Karyawan Terpilih" - sama persis abort_unless di
+     * CreateSchedulePage::mount() (halaman tujuannya), cuma di sini buat sembunyikan link-nya
+     * biar user yang tidak boleh edit tidak diarahkan ke halaman yang bakal 403. */
+    public function getCanEditProperty(): bool
+    {
+        return Auth::user()->can('update', $this->schedule);
+    }
+
     public function getDisplayDaysProperty(): array
     {
         return self::DISPLAY_ORDER;

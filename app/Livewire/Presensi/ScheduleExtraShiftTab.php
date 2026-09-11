@@ -140,7 +140,7 @@ class ScheduleExtraShiftTab extends Component
 
         $data = $this->validate([
             'user_id' => ['required', 'exists:users,id'],
-            'date' => ['required', 'date'],
+            'date' => ['required', 'date', 'after_or_equal:today'],
             'shift_type_id' => ['required', 'exists:schedule_shift_types,id'],
             'reason' => ['nullable', 'string', 'max:500'],
         ]);
@@ -174,6 +174,14 @@ class ScheduleExtraShiftTab extends Component
             ->findOrFail($id);
 
         abort_unless(Auth::user()->can('delete', $extraShift), 403);
+
+        // Tanggal yang sudah lewat cuma bisa dihapus dari halaman Presensi Absensi
+        // (ExtraShiftPage), bukan dari tab ini - lihat catatan blade.
+        abort_if(
+            \Carbon\Carbon::parse($extraShift->date)->lt(now()->startOfDay()),
+            403,
+            'Extra shift yang tanggalnya sudah lewat tidak bisa dihapus dari sini, hapus lewat halaman Presensi Absensi > Extra Shift.'
+        );
 
         $extraShift->delete();
 

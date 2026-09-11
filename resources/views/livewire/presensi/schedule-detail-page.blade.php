@@ -37,9 +37,11 @@
             <button type="button" wire:click="setTab('kantor')" class="schedule-detail-tab {{ $tab === 'kantor' ? 'is-active' : '' }}">Pengguna</button>
             <button type="button" wire:click="setTab('riwayat')" class="schedule-detail-tab {{ $tab === 'riwayat' ? 'is-active' : '' }}">Riwayat</button>
         </div>
-        <a href="{{ route('presensi.jadwal.edit', $schedule) }}" wire:navigate class="btn-ghost" style="padding:6px 14px;font-size:11.5px;margin-bottom:8px;">
-            <i class="fa-solid fa-pen"></i> Edit Jadwal
-        </a>
+        @if ($this->canEdit)
+            <a href="{{ route('presensi.jadwal.edit', $schedule) }}" wire:navigate class="btn-ghost" style="padding:6px 14px;font-size:11.5px;margin-bottom:8px;">
+                <i class="fa-solid fa-pen"></i> Edit Jadwal
+            </a>
+        @endif
     </div>
 
     {{-- Tab Jam Kerja/Pengguna dipecah per tipe jadwal — lihat resources/views/livewire/presensi/partials/.

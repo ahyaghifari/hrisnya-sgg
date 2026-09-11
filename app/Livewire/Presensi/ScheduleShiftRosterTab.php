@@ -302,6 +302,10 @@ class ScheduleShiftRosterTab extends Component
         $this->editMode = false;
         $this->draft = [];
 
+        // Buang memoisasi computed — kalau tidak, render() di request yang sama masih baca
+        // roster/log versi cache SEBELUM tulisan setCell(), grid & Riwayat baru muncul pas refresh.
+        unset($this->roster, $this->rosterLogs);
+
         Notification::make()
             ->title('Jadwal berhasil disimpan')
             ->body("{$changed} sel diubah." . ($blockedBySwap ? " {$blockedBySwap} sel dilewati karena terkait pengajuan tukar shift." : ''))
@@ -424,6 +428,8 @@ class ScheduleShiftRosterTab extends Component
             }
         }
 
+        unset($this->roster, $this->rosterLogs);
+
         Notification::make()
             ->title('Generate selesai')
             ->body("{$filled} tanggal terisi baru. Tanggal yang sudah punya roster (manual/koreksi) tidak ditimpa.")
@@ -468,6 +474,8 @@ class ScheduleShiftRosterTab extends Component
 
         $this->editMode = false;
         $this->draft = [];
+
+        unset($this->roster, $this->rosterLogs);
 
         Notification::make()
             ->title('Jadwal direset')

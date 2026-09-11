@@ -141,8 +141,10 @@
             <p style="font-size:12px;color:var(--text-faint);margin:0;">Belum ada jabatan yang di-assign ke jadwal ini.</p>
         @endforelse
 
-        <a href="{{ route('presensi.jadwal.pengguna', $schedule) }}" wire:navigate class="btn-ghost" style="display:inline-flex;margin-top:14px;padding:7px 14px;font-size:11.5px;">
-            <i class="fa-solid fa-users-gear"></i> Atur Pengguna Jadwal
-        </a>
+        @if ($this->canEdit)
+            <a href="{{ route('presensi.jadwal.pengguna', $schedule) }}" wire:navigate class="btn-ghost" style="display:inline-flex;margin-top:14px;padding:7px 14px;font-size:11.5px;">
+                <i class="fa-solid fa-users-gear"></i> Atur Pengguna Jadwal
+            </a>
+        @endif
     </div>
 @endif
