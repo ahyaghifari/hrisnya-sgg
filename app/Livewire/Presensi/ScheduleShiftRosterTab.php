@@ -8,6 +8,7 @@ use App\Models\Shift\ScheduleAssignment;
 use App\Models\Shift\ScheduleShiftAssignment;
 use App\Models\Shift\ScheduleShiftRosterLog;
 use App\Models\Shift\ScheduleShiftRotation;
+use App\Models\Shift\ScheduleShiftTeamMember;
 use App\Models\Shift\ShiftSwapRequests;
 use Carbon\Carbon;
 use Filament\Notifications\Notification;
@@ -112,14 +113,49 @@ class ScheduleShiftRosterTab extends Component
 
     public function getEmployeesProperty()
     {
-        return ScheduleAssignment::where('schedule_id', $this->schedule->id)
+        $employees = ScheduleAssignment::where('schedule_id', $this->schedule->id)
             ->whereNotNull('user_id')
             ->with('user')
             ->get()
             ->pluck('user')
-            ->filter()
-            ->sortBy('name')
+            ->filter();
+
+        if (! $this->schedule->use_teams) {
+            return $employees->sortBy('name')->values();
+        }
+
+        // Dikelompokkan per regu (tab "Regu", diatur per bulan - pakai $period yang lagi
+        // dibuka di sini juga) - urut nama regu, lalu nama karyawan; yang belum punya regu
+        // bulan ini nyempil paling akhir. Cuma urutan baris yang berubah, mekanisme drag-select
+        // (rfRow = $loop->index di blade) tidak kesentuh sama sekali, tetap jalan seperti biasa.
+        $teamNameByUser = ScheduleShiftTeamMember::where('schedule_id', $this->schedule->id)
+            ->where('period', $this->period)
+            ->with('team')
+            ->get()
+            ->keyBy('user_id')
+            ->map(fn ($m) => $m->team?->name);
+
+        return $employees
+            ->sortBy(fn ($u) => ($teamNameByUser->get($u->id) ?? "\u{FFFF}") . '|' . $u->name)
             ->values();
+    }
+
+    /** @return array<string, array{name: string, color: ?string}>> user_id => regu bulan
+     * $period ini (cuma yang PUNYA regu — dipakai buat baris pemisah nama regu di grid, lihat
+     * blade). Kosong kalau Regu tidak aktif. */
+    public function getEmployeeTeamInfoProperty(): array
+    {
+        if (! $this->schedule->use_teams) {
+            return [];
+        }
+
+        return ScheduleShiftTeamMember::where('schedule_id', $this->schedule->id)
+            ->where('period', $this->period)
+            ->with('team')
+            ->get()
+            ->filter(fn ($m) => $m->team)
+            ->mapWithKeys(fn ($m) => [$m->user_id => ['name' => $m->team->name, 'color' => $m->team->color]])
+            ->all();
     }
 
     /** Panjang siklus template (sama buat semua karyawan, lihat ScheduleShiftRotationTab — 1
@@ -534,8 +570,10 @@ class ScheduleShiftRosterTab extends Component
 
     public function exportExcel()
     {
+        $teamNames = collect($this->employeeTeamInfo)->map(fn ($info) => $info['name'])->all();
+
         return Excel::download(
-            new ScheduleShiftRosterExport($this->schedule, $this->employees, $this->dates, $this->roster, $this->periodLabel),
+            new ScheduleShiftRosterExport($this->schedule, $this->employees, $this->dates, $this->roster, $this->periodLabel, $teamNames),
             'detail-penjadwalan-'.str($this->schedule->name)->slug().'-'.$this->period.'.xlsx'
         );
     }
@@ -560,6 +598,12 @@ class ScheduleShiftRosterTab extends Component
         $rows = Excel::toArray(null, $this->importFile->getRealPath())[0] ?? [];
         $dataRows = array_slice($rows, 3);
 
+        // Kolom "Regu" (kalau ada) ditaruh paling kiri oleh ScheduleShiftRosterExport - dideteksi
+        // dari header baris 3, bukan diasumsikan tetap, supaya file lama (tanpa kolom Regu) tetap
+        // kebaca benar. Nilainya sendiri TIDAK dipakai di sini (sel-nya kebanyakan kosong karena
+        // di-merge per regu di export) - cuma buat geser posisi baca kolom nama & tanggal.
+        $nameColIdx = (isset($rows[2][0]) && mb_strtolower(trim((string) $rows[2][0])) === 'regu') ? 1 : 0;
+
         $employeesByName = $this->employees->keyBy(fn ($employee) => mb_strtolower(trim($employee->name)));
         $shiftTypesByCode = $this->schedule->shiftTypes->keyBy(fn ($type) => mb_strtolower($type->code));
         $roster = $this->roster;
@@ -579,7 +623,7 @@ class ScheduleShiftRosterTab extends Component
         $changed = 0;
 
         foreach ($dataRows as $row) {
-            $name = trim((string) ($row[0] ?? ''));
+            $name = trim((string) ($row[$nameColIdx] ?? ''));
 
             if ($name === '') {
                 continue;
@@ -594,7 +638,7 @@ class ScheduleShiftRosterTab extends Component
             }
 
             foreach ($this->dates as $i => $date) {
-                $code = trim((string) ($row[$i + 1] ?? ''));
+                $code = trim((string) ($row[$nameColIdx + 1 + $i] ?? ''));
 
                 $value = match (true) {
                     $code === '' => '',

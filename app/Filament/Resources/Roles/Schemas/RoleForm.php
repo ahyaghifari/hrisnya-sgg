@@ -187,6 +187,9 @@ class RoleForm
             'ShiftScheduleAssignments' => 'Jadwal Shift',
             'ShiftSwapRequests' => 'Jadwal Shift',
             'ShiftTemplates' => 'Jadwal Shift',
+            // ScheduleShiftTeam (2026-09-12): gerbang tab "Regu" ScheduleDetailPage, tidak
+            // punya Filament Resource - sama alasan 3 subject Jadwal Shift di atas.
+            'ScheduleShiftTeam' => 'Jadwal Shift',
             // ExtraShiftAssignment: punya ExtraShiftAssignmentResource (navigationGroup 'Presensi
             // & Absensi', posisi menu admin sidebar TIDAK diubah), tapi user minta 7 permission
             // Shield-nya dikelompokkan ke section "Jadwal Shift" di tree /hak-akses & checkbox
@@ -253,6 +256,7 @@ class RoleForm
         return [
             'SikartapDashboard' => 'Dashboard',
             'JobOpenings' => 'Kelola Lowongan',
+            'ScheduleShiftTeam' => 'Regu',
             // Subject :OrgStructure dipakai bareng DepartmentsResource/DivisionsResource/
             // SubDivisionsResource - di tree/checkbox tampil sebagai satu node "Struktur
             // Organisasi", bukan label salah satu resource-nya (Departemen).

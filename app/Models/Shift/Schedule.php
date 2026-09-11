@@ -29,6 +29,7 @@ class Schedule extends Model
         'schedule_type',
         'shift_pattern',
         'use_template',
+        'use_teams',
         'color',
         'head_user_id',
         'flexible_checkin_from',
@@ -37,6 +38,7 @@ class Schedule extends Model
 
     protected $casts = [
         'use_template' => 'boolean',
+        'use_teams' => 'boolean',
     ];
 
     public function company()

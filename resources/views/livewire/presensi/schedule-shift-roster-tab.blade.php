@@ -123,9 +123,9 @@
     <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-bottom:10px;font-size:13px;color:var(--text-muted);">
         <span style="font-weight:700;color:var(--text-heading);">Keterangan:</span>
         @foreach ($schedule->shiftTypes as $shiftType)
-            <span style="display:inline-flex;align-items:center;gap:5px;">
+            <span style="display:inline-flex;align-items:center;gap:6px;">
                 <span style="width:11px;height:11px;border-radius:50%;background:{{ $shiftType->color ?: 'var(--text-faint)' }};flex-shrink:0;"></span>
-                <strong>{{ $shiftType->code }}</strong> = {{ $shiftType->name }}
+                <strong style="font-size:16px;font-weight:800;color:var(--text-heading);">{{ $shiftType->code }}</strong> = {{ $shiftType->name }}
             </span>
         @endforeach
     </div>
@@ -138,7 +138,7 @@
         <table style="border-collapse:collapse;font-size:11.5px;">
             <thead>
                 <tr style="border-bottom:1.5px solid var(--border);">
-                    <th style="text-align:left;padding:10px 14px;white-space:nowrap;position:sticky;left:0;top:0;background:var(--surface);z-index:4;">Karyawan</th>
+                    <th class="rf-sticky-col" style="text-align:left;padding:10px 14px;white-space:nowrap;position:sticky;left:0;top:0;background:var(--surface);z-index:4;">Karyawan</th>
                     @foreach ($this->leadDates as $ld)
                         <th title="Bulan sebelumnya — hanya konteks, tidak bisa diedit" style="text-align:center;padding:8px 5px;white-space:nowrap;min-width:56px;position:sticky;top:0;background:var(--surface-alt);z-index:3;color:var(--text-faint);">
                             {{ $ld->format('d') }}<br>
@@ -154,12 +154,38 @@
                 </tr>
             </thead>
             <tbody>
+                @php
+                    // Baris pemisah nama regu — colspan penuh, disisipkan tiap kali regu-nya
+                    // beda dari baris sebelumnya (grid sudah diurut per regu di
+                    // getEmployeesProperty(), jadi cukup bandingkan grup berurutan). Murni visual,
+                    // TIDAK dapat rfRow/rfC - tidak kesentuh sama sekali sama mekanisme drag-select
+                    // (data-r/data-c dibaca by-attribute, bukan posisi DOM, lihat rosterFill()).
+                    // Sengaja BARIS, bukan kolom terpisah (instruksi user 2026-09-12) - biar tiap
+                    // regu kelihatan sebagai blok terpisah, tidak numpuk jadi 1 kolom sempit yang
+                    // bikin susah bandingkan anggota regu yang beda.
+                    $totalCols = 1 + count($this->leadDates) + count($this->dates);
+                    $lastTeamGroupKey = null;
+                @endphp
                 @forelse ($this->employees as $employee)
                     @php
                         $userRoster = $this->roster[$employee->id] ?? [];
                         $leadCount = count($this->leadDates);
                         $rfRow = $loop->index;
+                        $teamInfo = $this->employeeTeamInfo[$employee->id] ?? null;
+                        $teamColor = $teamInfo['color'] ?? null;
+                        $teamGroupKey = $teamInfo['name'] ?? '__tanpa_regu__';
+                        $isNewTeamGroup = $teamGroupKey !== $lastTeamGroupKey;
+                        $lastTeamGroupKey = $teamGroupKey;
                     @endphp
+                    @if ($schedule->use_teams && $isNewTeamGroup)
+                        <tr wire:key="'roster-group-{{ $teamGroupKey }}-{{ $employee->id }}'">
+                            {{-- Baris pemisah regu ini yang dikasih warna (bukan baris rosternya) —
+                                 background = warna regu langsung, teks putih biar kebaca. --}}
+                            <td colspan="{{ $totalCols }}" style="padding:7px 14px;text-align:center;font-size:12px;font-weight:800;color:{{ $teamColor ? '#fff' : 'var(--text-heading)' }};background:{{ $teamColor ?? 'var(--surface-alt)' }};border-bottom:1px solid var(--border-soft);">
+                                {{ $teamInfo['name'] ?? 'Tanpa Regu' }}
+                            </td>
+                        </tr>
+                    @endif
                     <tr wire:key="'roster-{{ $employee->id }}'" style="border-bottom:1px solid var(--border-soft);">
                         <td style="padding:6px 12px;white-space:nowrap;font-weight:600;position:sticky;left:0;background:var(--surface);z-index:1;">{{ $employee->name }}</td>
                         @foreach ($this->leadDates as $ld)
@@ -325,7 +351,10 @@
                 const box = this.$el.querySelector('[data-scrollbox]');
                 const day1 = box?.querySelector('[data-day1]');
                 if (! box || ! day1) return;
-                const stickyW = box.querySelector('thead th')?.getBoundingClientRect().width || 0;
+                // Jumlah SEMUA kolom sticky (Karyawan, + Regu kalau jadwal ini pakai Regu) -
+                // dulu cuma ambil <th> pertama, jadi salah pas ada 2 kolom sticky bertumpuk.
+                const stickyW = Array.from(box.querySelectorAll('thead th.rf-sticky-col'))
+                    .reduce((sum, el) => sum + el.getBoundingClientRect().width, 0);
                 // pakai selisih rect (bukan offsetLeft — offsetParent-nya bukan si scrollbox)
                 const delta = day1.getBoundingClientRect().left - box.getBoundingClientRect().left - stickyW;
                 box.scrollLeft = Math.max(0, box.scrollLeft + delta);
