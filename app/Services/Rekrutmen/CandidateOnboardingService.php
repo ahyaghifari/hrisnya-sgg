@@ -81,12 +81,15 @@ class CandidateOnboardingService
                 }
                 $user = $existing;
             } else {
+                $nipGenerator = app(\App\Services\Kepegawaian\NipGeneratorService::class);
+
                 $user = User::create([
                     'name'       => $c->name ?? $email,
                     'email'      => $email,
                     'password'   => bcrypt(Str::password(16)),
                     'company_id' => $companyId,
                     'is_active'  => true,
+                    'nip'        => $nipGenerator->applies($companyId) ? $nipGenerator->generate($joiningDate) : null,
                 ]);
             }
 
