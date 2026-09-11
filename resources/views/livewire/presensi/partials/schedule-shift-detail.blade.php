@@ -3,6 +3,13 @@
      job_position_id lewat "Atur Pengguna Jadwal"). Dipisah dari file utama
      schedule-detail-page.blade.php, pasangannya: partials/schedule-day-detail.blade.php. --}}
 @if ($tab === 'jam-kerja')
+    <div style="background:var(--surface);border-radius:12px;box-shadow:var(--shadow-card);padding:14px 22px;margin-bottom:14px;">
+        <p style="font-size:11px;color:var(--text-muted);margin:0 0 3px;">Kepala Ruangan</p>
+        <p style="font-size:13.5px;font-weight:700;color:var(--text-heading);margin:0;">
+            <i class="fa-solid fa-user-tie" style="color:var(--text-faint);margin-right:6px;"></i>{{ $schedule->head?->name ?? 'Belum ditentukan' }}
+        </p>
+    </div>
+
     <div style="background:var(--surface);border-radius:12px;box-shadow:var(--shadow-card);overflow:hidden;">
         <div style="overflow-x:auto;">
             <table style="width:100%;border-collapse:collapse;font-size:12px;">
@@ -78,8 +85,10 @@
             </table>
         </div>
 
-        <a href="{{ route('presensi.jadwal.edit', $schedule) }}" wire:navigate class="btn-ghost" style="display:inline-flex;margin-top:14px;padding:7px 14px;font-size:11.5px;">
-            <i class="fa-solid fa-pen"></i> Ubah Karyawan Terpilih
-        </a>
+        @if ($this->canEdit)
+            <a href="{{ route('presensi.jadwal.edit', $schedule) }}" wire:navigate class="btn-ghost" style="display:inline-flex;margin-top:14px;padding:7px 14px;font-size:11.5px;">
+                <i class="fa-solid fa-pen"></i> Ubah Karyawan Terpilih
+            </a>
+        @endif
     </div>
 @endif

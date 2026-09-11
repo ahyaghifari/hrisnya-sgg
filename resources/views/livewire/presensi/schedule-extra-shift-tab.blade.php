@@ -24,6 +24,7 @@
                 </thead>
                 <tbody>
                     @forelse ($this->extraShifts as $row)
+                        @php $isPast = \Carbon\Carbon::parse($row->date)->lt(now()->startOfDay()); @endphp
                         <tr>
                             <td>{{ \Carbon\Carbon::parse($row->date)->translatedFormat('d M Y') }}</td>
                             <td>{{ $row->user?->name }}</td>
@@ -37,7 +38,11 @@
                             <td>{{ $row->createdBy?->name }}</td>
                             @if ($this->canDelete)
                                 <td>
-                                    @if ($row->source !== 'shift_swap')
+                                    @if ($row->source === 'shift_swap')
+                                        {{-- tombol disembunyikan, lihat ikon kunci di kolom Alasan --}}
+                                    @elseif ($isPast)
+                                        <span title="Tanggal sudah lewat - hapus lewat halaman Presensi Absensi > Extra Shift" style="color:var(--text-faint);"><i class="fa-solid fa-lock" style="font-size:11px;"></i></span>
+                                    @else
                                         <button type="button" wire:click="delete('{{ $row->id }}')" wire:confirm="Hapus extra shift ini?" style="background:none;border:none;color:var(--danger-text);cursor:pointer;">
                                             <i class="fa-solid fa-trash"></i>
                                         </button>
@@ -68,7 +73,7 @@
                 <div style="display:flex;flex-direction:column;gap:12px;">
                     <div>
                         <label class="form-label">Karyawan</label>
-                        <select class="form-input" wire:model.live="user_id">
+                        <select class="form-input" wire:model.live="user_id" data-tom-select data-placeholder="Ketik nama karyawan...">
                             <option value="">-- Pilih --</option>
                             @foreach ($this->employees as $emp)
                                 <option value="{{ $emp->id }}">{{ $emp->name }}</option>
@@ -79,7 +84,7 @@
 
                     <div>
                         <label class="form-label">Tanggal</label>
-                        <input type="date" class="form-input" wire:model.live="date" @disabled(!$user_id)>
+                        <input type="date" class="form-input" wire:model.live="date" min="{{ now()->toDateString() }}" @disabled(!$user_id)>
                         @error('date') <p style="color:var(--danger-text);font-size:11px;margin-top:4px;">{{ $message }}</p> @enderror
                     </div>
 

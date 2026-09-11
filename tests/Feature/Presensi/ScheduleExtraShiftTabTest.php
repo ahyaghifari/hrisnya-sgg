@@ -198,4 +198,35 @@ class ScheduleExtraShiftTabTest extends TestCase
 
         $this->assertModelExists($extraShift);
     }
+
+    /** Tanggal yang sudah lewat cuma bisa dihapus lewat halaman Presensi Absensi
+     * (ExtraShiftPage) - dari tab Detail Jadwal ini diblok walau permission Delete penuh. */
+    public function test_past_dated_row_cannot_be_deleted_from_this_tab(): void
+    {
+        $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
+        $admin = $this->actingAsPengelola($company->id);
+
+        $schedule = Schedule::create(['company_id' => $company->id, 'name' => 'Jadwal A', 'schedule_type' => 'shift']);
+        $pagi = ScheduleShiftType::create(['schedule_id' => $schedule->id, 'code' => 'PAGI', 'name' => 'Pagi', 'shift_type' => 'pagi', 'start_time' => '07:00', 'end_time' => '14:00']);
+
+        $employee = User::factory()->create(['company_id' => $company->id]);
+
+        $extraShift = ExtraShiftAssignment::create([
+            'company_id' => $company->id,
+            'user_id' => $employee->id,
+            'shift_type_id' => $pagi->id,
+            'date' => now()->subDay()->toDateString(),
+            'status' => 'approved',
+            'source' => 'assigned',
+            'created_by' => $admin->id,
+        ]);
+
+        $this->actingAs($admin);
+
+        Livewire::test(ScheduleExtraShiftTab::class, ['schedule' => $schedule])
+            ->call('delete', $extraShift->id)
+            ->assertForbidden();
+
+        $this->assertModelExists($extraShift);
+    }
 }

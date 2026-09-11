@@ -242,6 +242,22 @@ class ScheduleShiftRosterTabTest extends TestCase
         );
     }
 
+    public function test_save_roster_refreshes_grid_in_same_request(): void
+    {
+        [$schedule, $shiftType, $employee] = $this->makeManualShiftSchedule();
+        $user = $this->actingAsAbsensi();
+        $date = now()->startOfMonth()->addDays(4)->toDateString();
+
+        $component = Livewire::actingAs($user)
+            ->test(ScheduleShiftRosterTab::class, ['schedule' => $schedule])
+            ->call('startEdit')
+            ->set("draft.{$employee->id}.{$date}", $shiftType->id)
+            ->call('saveRoster');
+
+        // Tanpa refresh halaman: computed `roster` harus sudah memuat sel baru, bukan versi cache.
+        $this->assertSame($shiftType->id, $component->get('roster')[$employee->id][$date] ?? null);
+    }
+
     public function test_cancel_edit_discards_draft_changes(): void
     {
         [$schedule, $shiftType, $employee] = $this->makeManualShiftSchedule();
