@@ -8,7 +8,7 @@
             @if ($this->teamScheduleId)
                 <span style="display:inline-flex;align-items:center;gap:10px;">
                     <livewire:presensi.schedule-swap-history-sheet :scheduleId="$this->teamScheduleId" :key="'team-swap-history-'.$this->teamScheduleId" />
-                    <a href="{{ route('presensi.jadwal.show', ['schedule' => $this->teamScheduleId, 'tab' => 'penjadwalan']) }}" wire:navigate class="pwa-section-link">Detail Jadwal <i class="fa-solid fa-chevron-right" style="font-size:9px;"></i></a>
+                    <a href="{{ route('presensi.jadwal.show', ['schedule' => $this->teamScheduleId, 'tab' => 'penjadwalan']) }}" wire:navigate class="pwa-section-link" style="font-size:13.5px;padding:5px 10px;border-radius:8px;background:rgba(255,255,255,0.16);">Detail Jadwal <i class="fa-solid fa-chevron-right" style="font-size:11px;"></i></a>
                 </span>
             @endif
         </div>
@@ -47,17 +47,17 @@
                         default => 'Belum ada jadwal',
                     };
                 @endphp
-                <div style="display:flex;flex-direction:column;align-items:flex-start;gap:4px;padding:7px 10px;border-radius:8px;background:var(--surface-alt);">
-                    <span style="font-size:12.5px;font-weight:600;color:var(--text-heading);display:inline-flex;align-items:center;gap:6px;">
+                <div class="team-shift-item" style="display:flex;flex-direction:column;align-items:flex-start;gap:4px;padding:7px 10px;border-radius:8px;background:var(--surface-alt);min-width:0;">
+                    <span class="team-shift-name" style="font-size:12.5px;font-weight:600;color:var(--text-heading);display:inline-flex;align-items:center;gap:6px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
                         {{ $row['user']->name }}
                         @if (in_array($row['user']->id, $this->swapMemberIds, true))
                             <button type="button" wire:click="$dispatch('open-schedule-swap-history')" title="Ada pengajuan tukar shift di tanggal ini — lihat riwayat"
-                                style="background:none;border:none;padding:0;cursor:pointer;color:#b45309;font-size:12px;line-height:1;">
+                                style="background:none;border:none;padding:0;cursor:pointer;color:#b45309;font-size:12px;line-height:1;flex-shrink:0;">
                                 <i class="fa-solid fa-right-left"></i>
                             </button>
                         @endif
                     </span>
-                    <span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:99px;background:{{ $chipBg }};color:{{ $chipText }};white-space:nowrap;">{{ $label }}</span>
+                    <span class="team-shift-chip" style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:99px;background:{{ $chipBg }};color:{{ $chipText }};white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis;">{{ $label }}</span>
                 </div>
             @endforeach
         </div>

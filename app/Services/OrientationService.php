@@ -20,7 +20,9 @@ use Illuminate\Support\Facades\DB;
  * memilih keputusan (lanjut_kontrak / tidak_dilanjutkan). Paralel: jadwal presentasi kegiatan
  * butuh 2 persetujuan terpisah — HR/pengelola orientasi (confirmPresentation) + pemegang jabatan
  * pendukung (approvePresentationBySupport, Setting orientation_presentation_approver_job_position_id).
- * Keduanya wajib sebelum HR menutup pengajuan.
+ * Keduanya wajib sebelum HR menutup pengajuan. submit() sendiri SUDAH menolak dari awal kalau
+ * jabatan pendukungnya belum diatur — gagal cepat, bukan nyangkut nanti di followUpContract/
+ * followUpNotContinued.
  *
  * **Tidak lewat Approval Engine** (dilepas 2026-09-06) — 1 penilai memutuskan, bukan routing.
  * Status: draft → diajukan → selesai. (dibatalkan = pengaju batalkan sebelum dinilai.)
@@ -104,6 +106,11 @@ class OrientationService
         if (! $submission->presentation_proposed_at) {
             throw new \RuntimeException('Usulkan tanggal & jam presentasi kegiatan orientasi dulu.');
         }
+
+        // Gagal cepat di sini, bukan nyangkut belakangan — tanpa ini, followUpContract/
+        // followUpNotContinued permanen terblokir (presentationFullyApproved tidak pernah true,
+        // tidak ada pemegang jabatan pendukung yang bisa approve) sampai HR sadar & atur settingnya.
+        $this->assertPresentationApproverConfigured($submission);
 
         $reviewers = $this->reviewersFor($submission);
 

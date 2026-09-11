@@ -128,6 +128,7 @@ class OrientasiReviewerAndScoringTest extends TestCase
         [$orientee] = $this->userWithPosition($this->division);
         [$reviewer, $reviewerPos] = $this->userWithPosition($this->dept);
         SikartapReviewer::create(['context' => SikartapReviewer::CONTEXT_ORIENTATION, 'company_id' => $this->company->id, 'org_structure_id' => $this->dept->id, 'job_position_id' => $reviewerPos->id]);
+        $this->seedPresentationApprover();
 
         $submission = $this->makeSubmission($orientee);
         app(OrientationService::class)->submit($submission, $orientee);

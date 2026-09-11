@@ -49,6 +49,24 @@ class ScheduleShiftRosterTabTest extends TestCase
         return $user;
     }
 
+    /** Punya Update:Schedule ("Edit Jadwal") sekaligus Update:ShiftScheduleAssignments - lihat
+     * ScheduleShiftRosterTab::getCanEditPastDatesProperty(). Bebas ubah tanggal berapa pun
+     * termasuk yang sudah lewat, beda dari actingAsAbsensi() yang dibatasi mulai hari ini. */
+    private function actingAsScheduleOwner(): User
+    {
+        Permission::firstOrCreate(['name' => CustomPermissionEnum::SISTEM_ABSENSI->value, 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'Update:ShiftScheduleAssignments', 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'View:Schedule', 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'Update:Schedule', 'guard_name' => 'web']);
+        $role = Role::firstOrCreate(['name' => 'Schedule Owner Roster Test', 'guard_name' => 'web']);
+        $role->givePermissionTo([CustomPermissionEnum::SISTEM_ABSENSI->value, 'Update:ShiftScheduleAssignments', 'View:Schedule', 'Update:Schedule']);
+
+        $user = User::factory()->create();
+        $user->assignRole($role);
+
+        return $user;
+    }
+
     private function makeManualShiftSchedule(): array
     {
         $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
@@ -221,8 +239,10 @@ class ScheduleShiftRosterTabTest extends TestCase
     {
         [$schedule, $shiftType, $employee] = $this->makeManualShiftSchedule();
         $user = $this->actingAsAbsensi();
-        $dateA = now()->startOfMonth()->addDays(4)->toDateString();
-        $dateB = now()->startOfMonth()->addDays(9)->toDateString();
+        // saveRoster() cuma boleh tulis mulai hari ini (lihat lockBeforeDate()) buat role yang
+        // tidak punya Edit Jadwal - dateA/dateB harus hari ini/masa depan biar tidak ke-skip.
+        $dateA = now()->addDays(1)->toDateString();
+        $dateB = now()->addDays(2)->toDateString();
 
         Livewire::actingAs($user)
             ->test(ScheduleShiftRosterTab::class, ['schedule' => $schedule])
@@ -246,7 +266,7 @@ class ScheduleShiftRosterTabTest extends TestCase
     {
         [$schedule, $shiftType, $employee] = $this->makeManualShiftSchedule();
         $user = $this->actingAsAbsensi();
-        $date = now()->startOfMonth()->addDays(4)->toDateString();
+        $date = now()->addDays(1)->toDateString();
 
         $component = Livewire::actingAs($user)
             ->test(ScheduleShiftRosterTab::class, ['schedule' => $schedule])
@@ -276,31 +296,40 @@ class ScheduleShiftRosterTabTest extends TestCase
         );
     }
 
-    public function test_reset_period_deletes_all_roster_rows_in_selected_month(): void
+    /** Reset cuma boleh mulai hari ini sampai akhir bulan periode terpilih - tanggal yang
+     * sudah lewat (walau masih di bulan yang sama) tidak boleh ikut kehapus, itu histori. */
+    public function test_reset_period_deletes_from_today_onward_but_keeps_past_dates(): void
     {
         [$schedule, $shiftType, $employee] = $this->makeManualShiftSchedule();
         $user = $this->actingAsAbsensi();
-        $dateInside = now()->startOfMonth()->addDays(4)->toDateString();
-        $dateOutside = now()->startOfMonth()->subMonth()->addDays(4)->toDateString();
+        $datePast = now()->subDay()->toDateString();
+        $dateToday = now()->toDateString();
+        $dateFuture = now()->addDays(3)->min(now()->endOfMonth())->toDateString();
+        $dateOutsideMonth = now()->startOfMonth()->subMonth()->addDays(4)->toDateString();
 
-        ScheduleShiftAssignment::create([
-            'company_id' => $schedule->company_id, 'user_id' => $employee->id,
-            'date' => $dateInside, 'shift_type_id' => $shiftType->id, 'off_day' => false,
-        ]);
-        ScheduleShiftAssignment::create([
-            'company_id' => $schedule->company_id, 'user_id' => $employee->id,
-            'date' => $dateOutside, 'shift_type_id' => $shiftType->id, 'off_day' => false,
-        ]);
+        foreach ([$datePast, $dateToday, $dateFuture, $dateOutsideMonth] as $date) {
+            ScheduleShiftAssignment::create([
+                'company_id' => $schedule->company_id, 'user_id' => $employee->id,
+                'date' => $date, 'shift_type_id' => $shiftType->id, 'off_day' => false,
+            ]);
+        }
 
         Livewire::actingAs($user)
             ->test(ScheduleShiftRosterTab::class, ['schedule' => $schedule])
             ->call('resetPeriod');
 
+        $this->assertTrue(
+            ScheduleShiftAssignment::where('user_id', $employee->id)->whereDate('date', $datePast)->exists(),
+            'Tanggal yang sudah lewat tidak boleh ikut direset.'
+        );
         $this->assertFalse(
-            ScheduleShiftAssignment::where('user_id', $employee->id)->whereDate('date', $dateInside)->exists()
+            ScheduleShiftAssignment::where('user_id', $employee->id)->whereDate('date', $dateToday)->exists()
+        );
+        $this->assertFalse(
+            ScheduleShiftAssignment::where('user_id', $employee->id)->whereDate('date', $dateFuture)->exists()
         );
         $this->assertTrue(
-            ScheduleShiftAssignment::where('user_id', $employee->id)->whereDate('date', $dateOutside)->exists()
+            ScheduleShiftAssignment::where('user_id', $employee->id)->whereDate('date', $dateOutsideMonth)->exists()
         );
     }
 
@@ -308,7 +337,7 @@ class ScheduleShiftRosterTabTest extends TestCase
     {
         [$schedule, $shiftType, $employee] = $this->makeManualShiftSchedule();
         $user = $this->actingAsAbsensi();
-        $date = now()->startOfMonth()->addDays(4)->toDateString();
+        $date = now()->addDays(2)->toDateString();
 
         ScheduleShiftAssignment::create([
             'company_id' => $schedule->company_id, 'user_id' => $employee->id,
@@ -335,7 +364,7 @@ class ScheduleShiftRosterTabTest extends TestCase
     {
         [$schedule, $shiftType, $employee] = $this->makeManualShiftSchedule();
         $user = $this->actingAsAbsensi();
-        $date = now()->startOfMonth()->addDays(4)->toDateString();
+        $date = now()->addDays(1)->toDateString();
 
         $component = Livewire::actingAs($user)
             ->test(ScheduleShiftRosterTab::class, ['schedule' => $schedule])
@@ -353,7 +382,7 @@ class ScheduleShiftRosterTabTest extends TestCase
     {
         [$schedule, $shiftType, $employee] = $this->makeManualShiftSchedule();
         $user = $this->actingAsAbsensi();
-        $date = now()->startOfMonth()->addDays(4)->toDateString();
+        $date = now()->addDays(1)->toDateString();
 
         Livewire::actingAs($user)
             ->test(ScheduleShiftRosterTab::class, ['schedule' => $schedule])
@@ -389,16 +418,18 @@ class ScheduleShiftRosterTabTest extends TestCase
         ]);
         $user = $this->actingAsAbsensi();
 
+        // generateFromTemplate() cuma boleh isi mulai hari ini (lihat lockBeforeDate()) buat
+        // role yang tidak punya Edit Jadwal - anchor & tanggal yang dicek harus hari ini.
         Livewire::actingAs($user)
             ->test(ScheduleShiftRosterTab::class, ['schedule' => $schedule])
-            ->set('rotationStartDate', now()->startOfMonth()->toDateString())
+            ->set('rotationStartDate', now()->toDateString())
             ->set('rotationStartDay', 1)
             ->call('generateFromTemplate');
 
         $this->assertTrue(
             ScheduleShiftRosterLog::where('schedule_id', $schedule->id)
                 ->where('user_id', $employee->id)
-                ->whereDate('date', now()->startOfMonth()->toDateString())
+                ->whereDate('date', now()->toDateString())
                 ->whereNull('old_value')
                 ->where('new_value', $shiftType->id)
                 ->where('source', 'generate')
@@ -439,11 +470,15 @@ class ScheduleShiftRosterTabTest extends TestCase
     {
         [$schedule, $shiftType, $employee] = $this->makeManualShiftSchedule();
         $user = $this->actingAsAbsensi();
-        $firstDate = now()->startOfMonth();
+        $firstDate = now();
+        // Kolom di file export/import urut 1..akhir bulan dari tanggal 1 - saveRoster() cuma
+        // boleh tulis mulai hari ini (lockBeforeDate()), jadi kolomnya harus nunjuk hari ini,
+        // bukan tanggal 1 kalau hari ini bukan tanggal 1.
+        $colToday = $firstDate->day - 1;
 
-        // Kolom 0 -> tanggal 1 (shift kode), kolom 1 -> tanggal 2 ("L" = Libur).
+        // Kolom hari ini -> shift kode, kolom besok -> "L" (Libur).
         $file = $this->makeRosterImportFile(['Budi Santoso'], [
-            [0 => $shiftType->code, 1 => 'L'],
+            [$colToday => $shiftType->code, $colToday + 1 => 'L'],
         ]);
 
         $component = Livewire::actingAs($user)
@@ -532,5 +567,74 @@ class ScheduleShiftRosterTabTest extends TestCase
             ->test(ScheduleShiftRosterTab::class, ['schedule' => $schedule])
             ->call('startEdit')
             ->assertSet('editMode', true);
+    }
+
+    /** Yang cuma punya Update:ShiftScheduleAssignments (bukan Edit Jadwal) dibatasi mulai hari
+     * ini lewat saveRoster() - sel tanggal lewat di-skip, bukan malah error/nyimpen. */
+    public function test_save_roster_skips_past_dated_cells_for_user_without_edit_jadwal(): void
+    {
+        [$schedule, $shiftType, $employee] = $this->makeManualShiftSchedule();
+        $user = $this->actingAsAbsensi();
+        $datePast = now()->subDay()->toDateString();
+
+        Livewire::actingAs($user)
+            ->test(ScheduleShiftRosterTab::class, ['schedule' => $schedule])
+            ->call('startEdit')
+            ->set("draft.{$employee->id}.{$datePast}", $shiftType->id)
+            ->call('saveRoster');
+
+        $this->assertFalse(
+            ScheduleShiftAssignment::where('user_id', $employee->id)->whereDate('date', $datePast)->exists()
+        );
+    }
+
+    /** Yang punya Update:Schedule ("Edit Jadwal") bebas ubah tanggal lewat lewat saveRoster(). */
+    public function test_save_roster_allows_past_dated_cells_for_user_with_edit_jadwal(): void
+    {
+        [$schedule, $shiftType, $employee] = $this->makeManualShiftSchedule();
+        $user = $this->actingAsScheduleOwner();
+        $datePast = now()->subDay()->toDateString();
+
+        Livewire::actingAs($user)
+            ->test(ScheduleShiftRosterTab::class, ['schedule' => $schedule])
+            ->call('startEdit')
+            ->set("draft.{$employee->id}.{$datePast}", $shiftType->id)
+            ->call('saveRoster');
+
+        $this->assertTrue(
+            ScheduleShiftAssignment::where('user_id', $employee->id)->whereDate('date', $datePast)
+                ->where('shift_type_id', $shiftType->id)->exists()
+        );
+    }
+
+    /** generateFromTemplate() juga dibatasi mulai hari ini buat yang bukan Edit Jadwal - anchor
+     * di masa lalu tidak boleh ikut mengisi tanggal yang sudah lewat. */
+    public function test_generate_from_template_skips_past_dates_for_user_without_edit_jadwal(): void
+    {
+        $company = Companies::create(['code' => 'GNP', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
+        $schedule = Schedule::create([
+            'company_id' => $company->id,
+            'name' => 'Jadwal Shift Rotasi',
+            'schedule_type' => ScheduleType::SHIFT->value,
+            'use_template' => true,
+        ]);
+        $shiftType = ScheduleShiftType::create(['schedule_id' => $schedule->id, 'code' => 'P', 'name' => 'Pagi', 'start_time' => '07:00', 'end_time' => '15:00']);
+        $employee = User::factory()->create(['company_id' => $company->id, 'name' => 'Budi Santoso']);
+        ScheduleAssignment::create(['company_id' => $company->id, 'schedule_id' => $schedule->id, 'user_id' => $employee->id, 'effective_from' => now()->startOfMonth()]);
+        ScheduleShiftRotation::create([
+            'schedule_id' => $schedule->id, 'user_id' => $employee->id, 'day' => 1, 'shift_type_id' => $shiftType->id, 'off_day' => false,
+        ]);
+        $user = $this->actingAsAbsensi();
+        $datePast = now()->subDay()->toDateString();
+
+        Livewire::actingAs($user)
+            ->test(ScheduleShiftRosterTab::class, ['schedule' => $schedule])
+            ->set('rotationStartDate', now()->startOfMonth()->toDateString())
+            ->set('rotationStartDay', 1)
+            ->call('generateFromTemplate');
+
+        $this->assertFalse(
+            ScheduleShiftAssignment::where('user_id', $employee->id)->whereDate('date', $datePast)->exists()
+        );
     }
 }

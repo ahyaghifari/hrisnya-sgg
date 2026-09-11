@@ -314,6 +314,20 @@ class SikartapSettingsPage extends Component
         return JobPositions::where('company_id', $this->companyId)->orderBy('name')->pluck('name', 'id');
     }
 
+    /**
+     * Semua jabatan LINTAS perusahaan (label dibubuhi nama perusahaan) — dipakai jabatan
+     * pendukung persetujuan presentasi orientasi, yang boleh dijabat oleh posisi di perusahaan
+     * lain (mis. holding) dari karyawan yang dinilai.
+     */
+    public function getAllJobPositionsProperty()
+    {
+        return JobPositions::query()
+            ->with('company:id,name')
+            ->orderBy('name')
+            ->get()
+            ->mapWithKeys(fn (JobPositions $jp) => [$jp->id => "{$jp->name} — {$jp->company?->name}"]);
+    }
+
     public function addStatusReviewer(): void
     {
         abort_unless(Auth::user()->can(CustomPermissionEnum::EDIT_PENGATURAN_SIKARTAP->value), 403);

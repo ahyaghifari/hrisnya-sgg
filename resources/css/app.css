@@ -1030,6 +1030,14 @@ html.lw-navigating .page-content { opacity: 0; }
     .team-shift-list { display: grid !important; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
 }
 
+/* Mobile: 2 kolom (bukan 1 baris per anggota tim seperti sebelumnya) - nama & chip jadwal
+   dikecilkan + dipotong (ellipsis) biar muat di kolom yang lebih sempit (request user). */
+@media (max-width: 767px) {
+    .team-shift-list { display: grid !important; grid-template-columns: repeat(2, 1fr); }
+    .team-shift-name { font-size: 11px !important; }
+    .team-shift-chip { font-size: 9.5px !important; padding: 1px 6px !important; }
+}
+
 /* ── ABSENSI CARD ── */
 .absen-card { background: linear-gradient(135deg, #047C54 0%, #024732 100%); border-radius: 20px; padding: 24px; position: relative; overflow: hidden; display: flex; flex-direction: column; justify-content: space-between; gap: 14px; min-height: 140px; }
 .a-deco-1 { position: absolute; top: -70px; right: -60px; width: 220px; height: 220px; border-radius: 50%; background: #fff; opacity: 0.06; }

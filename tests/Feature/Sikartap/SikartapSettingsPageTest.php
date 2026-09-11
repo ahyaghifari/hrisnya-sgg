@@ -119,4 +119,33 @@ class SikartapSettingsPageTest extends TestCase
         $this->assertSame(1, SikartapIdeInovasiReviewer::where('org_structure_id', $dept->id)->count());
         $this->assertDatabaseHas('sikartap_ide_inovasi_reviewers', ['org_structure_id' => $dept->id, 'user_id' => $newReviewer->id]);
     }
+
+    /** Jabatan pendukung persetujuan presentasi orientasi boleh dari perusahaan LAIN (mis. holding). */
+    public function test_presentation_approver_can_be_cross_company_job_position(): void
+    {
+        $admin = $this->actingAsAdmin();
+        $company = $this->makeCompany();
+        $otherCompany = Companies::create(['code' => 'OTH', 'name' => 'Other Co', 'location' => 'Test', 'is_active' => true]);
+        $admin->update(['company_id' => $company->id]);
+
+        $dept = OrgStructure::create(['company_id' => $otherCompany->id, 'name' => 'Holding', 'level' => OrgStructurLevel::LEVEL_DEPARTMENT->value]);
+        $pos = \App\Models\Master\JobPositions::create([
+            'company_id' => $otherCompany->id,
+            'name' => 'Direktur Holding',
+            'planned_manpower' => 1,
+            'org_structure_id' => $dept->id,
+        ]);
+
+        Livewire::actingAs($admin)
+            ->test(SikartapSettingsPage::class)
+            ->set('companyId', $company->id)
+            ->assertSee('Direktur Holding')
+            ->set('presentationApproverJobPositionId', $pos->id)
+            ->call('savePresentationApprover');
+
+        $this->assertSame(
+            $pos->id,
+            app(\App\Services\OrientationService::class)->presentationApproverJobPositionId($company->id),
+        );
+    }
 }
