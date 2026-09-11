@@ -226,6 +226,12 @@
                                     </button>
                                 @endif
                                 <select
+                                    {{-- wire:key ikut nilainya, bukan cuma posisi - morphdom kadang cuma
+                                    patch atribut "selected" tanpa nyamain properti .value/tampilan visual
+                                    <select> yang sudah kepegang browser, jadi abis Simpan warna berubah
+                                    tapi teksnya masih nilai lama sampai refresh manual. wire:key beda ->
+                                    dianggap elemen baru -> browser bikin ulang dari nol, bukan di-patch. --}}
+                                    wire:key="'cell-{{ $employee->id }}-{{ $date->toDateString() }}-{{ $current }}'"
                                     @if ($editMode && ! $swapLocked && ! $pastLocked)
                                         wire:model="draft.{{ $employee->id }}.{{ $date->toDateString() }}"
                                         @change="recolor($event.target)"
