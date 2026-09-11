@@ -261,20 +261,22 @@ class RoleForm
     }
 
     /**
-     * JADWAL_SHIFT_SAYA/TUKAR_SHIFT_SAYA (custom permission flat, tanpa ':') sebelumnya jatuh
-     * ke subject literal 'Lainnya' pas grouping (`explode(':', $name)[1] ?? 'Lainnya'` selalu
-     * null buat nama tanpa titik dua), jadi nyempil sendirian di section "Akses Lainnya" -
-     * instruksi user 2026-08-17: gabung ke section "Jadwal Shift" yang sudah ada (tempat
+     * TUKAR_SHIFT_SAYA (custom permission flat, tanpa ':') sebelumnya jatuh ke subject literal
+     * 'Lainnya' pas grouping (`explode(':', $name)[1] ?? 'Lainnya'` selalu null buat nama tanpa
+     * titik dua), jadi nyempil sendirian di section "Akses Lainnya" - instruksi user 2026-08-17:
+     * gabung ke section "Jadwal Shift" yang sudah ada (tempat
      * ShiftScheduleAssignments/ShiftSwapRequests/ShiftTemplates lewat subjectContainerOverrides()
      * di atas). Paksa subject-nya ikut 'ShiftSwapRequests' (subject Jadwal Shift yang sudah
      * ada) supaya nempel di node yang sama, bukan bikin node "Jadwal Shift" duplikat.
+     *
+     * (JADWAL_SHIFT_SAYA dulu di sini juga - dihapus 2026-09-11, permission itu sendiri sudah
+     * dibuang, lihat migration drop_jadwal_shift_saya_permission.)
      *
      * @return array<string, string>
      */
     public static function customPermissionSubjectOverrides(): array
     {
         return [
-            CustomPermissionEnum::JADWAL_SHIFT_SAYA->value => 'ShiftSwapRequests',
             CustomPermissionEnum::TUKAR_SHIFT_SAYA->value => 'ShiftSwapRequests',
             CustomPermissionEnum::LIHAT_DASHBOARD_SIKARTAP_STATISTIK->value => 'SikartapDashboard',
             CustomPermissionEnum::LIHAT_DASHBOARD_SIKARTAP_ANTRIAN_TAHAP->value => 'SikartapDashboard',

@@ -57,7 +57,6 @@ enum CustomPermissionEnum: string
     // config/filament-shield.php 'custom_permissions' supaya Shield tidak menganggapnya yatim.
     // Sebelumnya dijaga lewat PermissionsSeeder.php lama (sudah dihapus), dipindah ke sini.
     case VIEW_REPORT_DATA_ABSENSI = 'view_report_data_absensi';
-    case IMPORT_DATA_ABSENSI = 'import_data_absensi';
     case APPROVE_PENGAJUAN_PELATIHAN = 'approve_pengajuan_pelatihan';
     case LIHAT_PERUSAHAAN_LAIN = 'lihat_perusahaan_lain';
 
@@ -249,13 +248,6 @@ enum CustomPermissionEnum: string
      * buat role IT/helpdesk yang cuma perlu kelola akun SSO tanpa akses /admin penuh. */
     case KELOLA_KEYCLOAK = 'kelola_keycloak';
 
-    /** Gerbang halaman portal "Jadwal Shift Saya" (`/presensi/jadwal-saya`, kalender bulanan
-     * jadwal pribadi user yang login) + kartu ringkasannya di Dashboard - pola sama
-     * PENGAJUAN_ABSENSI_SAYA/PELATIHAN_SAYA (permission self-service, bukan default-on untuk
-     * semua role seperti 3 itu - permission ini BARU, jadi tetap off sampai di-assign manual
-     * lewat /hak-akses, tidak di-grandfather ke role manapun). */
-    case JADWAL_SHIFT_SAYA = 'jadwal_shift_saya';
-
     /** Gerbang halaman portal "Tukar Shift" (`/tukar-shift` riwayat + `/tukar-shift/{id}`
      * detail) - modal ajukannya sendiri ditaruh di Dashboard (bukan halaman terpisah), gate-nya
      * lewat User::hasShiftSchedule() bukan permission ini, tapi 2 halaman portal-nya tetap butuh
@@ -307,7 +299,6 @@ enum CustomPermissionEnum: string
             self::PEMBINAAN_SAYA => 'Pembinaan Saya',
             self::COACHING_KARYAWAN_LAINNYA => 'Coaching Karyawan Lainnya (Semua Karyawan, Bukan Cuma Bawahan)',
             self::VIEW_REPORT_DATA_ABSENSI => 'Lihat Laporan Data Absensi',
-            self::IMPORT_DATA_ABSENSI => 'Import Data Absensi',
             self::APPROVE_PENGAJUAN_PELATIHAN => 'Approve Pengajuan Pelatihan',
             self::LIHAT_PERUSAHAAN_LAIN => 'Lihat Perusahaan Lain',
             self::IMPORT_KARYAWAN => 'Import Akun Karyawan',
@@ -360,7 +351,6 @@ enum CustomPermissionEnum: string
             self::KELOLA_HAK_AKSES => 'Kelola Hak Akses (Portal)',
             self::AKSES_PANEL_ADMIN => 'Akses Panel Admin (Filament)',
             self::KELOLA_KEYCLOAK => 'Kelola Keycloak (Panel /keycloak)',
-            self::JADWAL_SHIFT_SAYA => 'Jadwal Shift Saya',
             self::TUKAR_SHIFT_SAYA => 'Tukar Shift Saya',
             self::EXPORT_DATA_KARYAWAN => 'Export Data Karyawan (Excel)',
             self::INPUT_MCU_ASESMEN_PERAWAT => 'Input MCU - Asesmen Perawat',
