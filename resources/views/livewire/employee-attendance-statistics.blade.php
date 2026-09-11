@@ -451,8 +451,31 @@ source (tab server-render sekali jalan, x-show cuma toggle CSS). --}}
 
     <div class="card-surface" style="margin-bottom:20px;">
         {{-- Kepala panel: Jabatan sebagai judul, jalur struktur sebagai jejak di bawahnya.
-        Tipe/status karyawan tidak diulang di sini — sudah ada di kartu Status Kepegawaian. --}}
-        <div style="min-width:0;">
+        Tipe/status karyawan tidak diulang di sini — sudah ada di kartu Status Kepegawaian.
+        Mobile: posisi lalu 3 mini-card grid di bawahnya. Desktop: 1 row, posisi kiri
+        3 mini-card kanan. --}}
+        <style>
+            .career-head { display:flex; flex-direction:column; }
+            .career-head-left { min-width:0; }
+            .career-divider { height:1px; background:var(--border-soft); margin:16px 0; }
+            .career-mini-cards { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+            .career-mini-cards .mini-card { background:var(--surface-alt); border:1px solid var(--border-soft); border-radius:12px; padding:10px 8px; min-width:0; }
+            .career-mini-cards .mini-card .mini-label { font-size:9px; font-weight:700; letter-spacing:0.04em; text-transform:uppercase; color:var(--text-muted); margin:0 0 4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+            .career-mini-cards .mini-card .mini-value { font-size:13px; font-weight:800; color:var(--text-heading); margin:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+            .career-mini-cards .mini-card .mini-sub { font-size:9.5px; color:var(--text-faint); margin-top:2px; }
+            @media (min-width:768px) {
+                .career-head { flex-direction:row; align-items:center; gap:24px; }
+                .career-head-left { flex:1 1 auto; }
+                .career-divider { display:none; }
+                .career-mini-cards { display:flex; justify-content:flex-end; gap:12px; flex:0 0 auto; }
+                .career-mini-cards .mini-card { flex:0 0 170px; padding:14px 16px; }
+                .career-mini-cards .mini-card .mini-label { font-size:10.5px; }
+                .career-mini-cards .mini-card .mini-value { font-size:16px; }
+                .career-mini-cards .mini-card .mini-sub { font-size:11.5px; }
+            }
+        </style>
+        <div class="career-head">
+        <div class="career-head-left">
             <p style="font-size:10.5px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-faint);margin:0 0 4px;">Posisi</p>
             <h3 style="font-size:20px;font-weight:800;color:var(--brand);letter-spacing:-0.3px;line-height:1.2;margin:0;">
                 {{ $profile?->jobPosition?->name ?? 'Belum ada jabatan' }}
@@ -466,23 +489,24 @@ source (tab server-render sekali jalan, x-show cuma toggle CSS). --}}
             @endif
         </div>
 
-        <div style="height:1px;background:var(--border-soft);margin:16px 0;"></div>
+        <div class="career-divider"></div>
 
         {{-- Masa kerja + jenjang: angka yang dipakai penilaian kinerja nanti. --}}
-        <div style="display:flex;flex-wrap:wrap;gap:12px;">
-            <div style="flex:1 1 160px;background:var(--surface-alt);border:1px solid var(--border-soft);border-radius:12px;padding:14px 16px;">
-                <p style="font-size:10.5px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--text-muted);margin:0 0 6px;">Masa Kerja</p>
-                <p style="font-size:16px;font-weight:800;color:var(--text-heading);margin:0;">{{ $masaKerja ?? '—' }}</p>
+        <div class="career-mini-cards">
+            <div class="mini-card">
+                <p class="mini-label">Masa Kerja</p>
+                <p class="mini-value">{{ $masaKerja ?? '—' }}</p>
                 @if ($joinDate)
-                    <p style="font-size:11.5px;color:var(--text-faint);margin-top:3px;">sejak {{ $joinDate->translatedFormat('d F Y') }}</p>
+                    <p class="mini-sub">sejak {{ $joinDate->translatedFormat('d F Y') }}</p>
                 @endif
             </div>
             @foreach ($jenjang as $tile)
-                <div style="flex:1 1 120px;background:var(--surface-alt);border:1px solid var(--border-soft);border-radius:12px;padding:14px 16px;">
-                    <p style="font-size:10.5px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--text-muted);margin:0 0 6px;">{{ $tile['label'] }}</p>
-                    <p style="font-size:16px;font-weight:800;color:var(--text-heading);margin:0;">{{ $tile['value'] }}</p>
+                <div class="mini-card">
+                    <p class="mini-label">{{ $tile['label'] }}</p>
+                    <p class="mini-value">{{ $tile['value'] }}</p>
                 </div>
             @endforeach
+        </div>
         </div>
     </div>
 
