@@ -104,7 +104,7 @@
                         <select class="form-input" wire:model.live="shift_type_id" @disabled(!$this->normalShift)>
                             <option value="">{{ $this->normalShift ? '-- Pilih --' : 'Pilih karyawan & tanggal dulu' }}</option>
                             @forelse ($this->shiftTypeOptions as $type)
-                                <option value="{{ $type->id }}">{{ $type->name }} ({{ \Illuminate\Support\Str::substr($type->start_time, 0, 5) }}-{{ \Illuminate\Support\Str::substr($type->end_time, 0, 5) }})</option>
+                                <option value="{{ $type->id }}">{{ $type->name }}</option>
                             @empty
                                 @if ($this->normalShift && $this->alreadyHasExtraShift)
                                     <option value="" disabled>Karyawan ini sudah punya extra shift lain di tanggal ini</option>

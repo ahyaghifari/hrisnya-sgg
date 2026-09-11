@@ -20,7 +20,8 @@ use Illuminate\Support\Facades\DB;
  * memilih keputusan (lanjut_kontrak / tidak_dilanjutkan). Paralel: jadwal presentasi kegiatan
  * butuh 2 persetujuan terpisah — HR/pengelola orientasi (confirmPresentation) + pemegang jabatan
  * pendukung (approvePresentationBySupport, Setting orientation_presentation_approver_job_position_id).
- * Keduanya wajib sebelum HR menutup pengajuan.
+ * Keduanya wajib sebelum HR menutup pengajuan — TAPI belum diatur bukan syarat submit(), boleh
+ * karyawan mengajukan duluan, HR atur jabatan pendukungnya belakangan (sebelum tahap penutupan).
  *
  * **Tidak lewat Approval Engine** (dilepas 2026-09-06) — 1 penilai memutuskan, bukan routing.
  * Status: draft → diajukan → selesai. (dibatalkan = pengaju batalkan sebelum dinilai.)

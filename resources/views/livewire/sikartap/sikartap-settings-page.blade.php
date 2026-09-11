@@ -135,7 +135,7 @@
                                 </div>
                                 <div style="flex:1;min-width:180px;">
                                     <label class="form-label">Jabatan Penilai</label>
-                                    <select wire:model="statusReviewerJobPositionId" class="form-input">
+                                    <select data-tom-select data-placeholder="-- Pilih Jabatan --" wire:model="statusReviewerJobPositionId" class="form-input">
                                         <option value="">-- Pilih Jabatan --</option>
                                         @foreach ($this->companyJobPositions as $id => $name)
                                             <option value="{{ $id }}">{{ $name }}</option>
@@ -152,7 +152,7 @@
                 {{-- Jabatan pendukung persetujuan jadwal presentasi orientasi (selain HR). --}}
                 <div style="background:var(--surface);border-radius:16px;box-shadow:var(--shadow-card);padding:18px;margin-top:20px;">
                     <p style="font-size:13px;font-weight:600;color:var(--text-heading);margin:0 0 4px;">Jabatan Pendukung — Persetujuan Jadwal Presentasi Orientasi</p>
-                    <p style="font-size:11px;color:var(--text-muted);margin:0 0 14px;">Satu jabatan per perusahaan. Jadwal presentasi kegiatan orientasi baru final setelah disetujui HR <strong>dan</strong> pemegang aktif jabatan ini (urutan bebas).</p>
+                    <p style="font-size:11px;color:var(--text-muted);margin:0 0 14px;">Satu jabatan per perusahaan (boleh jabatan di perusahaan LAIN, mis. holding). Jadwal presentasi kegiatan orientasi baru final setelah disetujui HR <strong>dan</strong> pemegang aktif jabatan ini (urutan bebas).</p>
 
                     @if (! $companyId)
                         <p style="font-size:12px;color:#b45309;margin:0;">Pilih perusahaan dulu.</p>
@@ -160,9 +160,9 @@
                         <div style="display:flex;gap:8px;align-items:flex-start;flex-wrap:wrap;">
                             <div style="flex:1;min-width:220px;">
                                 <label class="form-label">Jabatan Pendukung</label>
-                                <select wire:model="presentationApproverJobPositionId" class="form-input" @disabled(! $this->canEditSettings)>
+                                <select data-tom-select data-placeholder="-- Belum diatur --" wire:model="presentationApproverJobPositionId" class="form-input" @disabled(! $this->canEditSettings)>
                                     <option value="">-- Belum diatur --</option>
-                                    @foreach ($this->companyJobPositions as $id => $name)
+                                    @foreach ($this->allJobPositions as $id => $name)
                                         <option value="{{ $id }}">{{ $name }}</option>
                                     @endforeach
                                 </select>

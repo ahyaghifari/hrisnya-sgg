@@ -81,6 +81,25 @@ class ScheduleShiftRosterTab extends Component
         return Auth::user()->can('Update:ShiftScheduleAssignments');
     }
 
+    /** Permission "Edit Jadwal" (Update:Schedule, sama gerbang tombol Edit Jadwal di
+     * ScheduleDetailPage) - pemilik/pengelola jadwal ini bebas ubah tanggal berapa pun termasuk
+     * yang sudah lewat (mis. koreksi data lama). Yang cuma punya Update:ShiftScheduleAssignments
+     * (mis. Kepala Ruangan) dibatasi mulai hari ini saja lewat semua jalur input (manual, Isi
+     * Cepat, Generate, Import) - histori presensi yang sudah terjadi tidak boleh diubah
+     * sembarangan dari sini. */
+    public function getCanEditPastDatesProperty(): bool
+    {
+        return Auth::user()->can('update', $this->schedule);
+    }
+
+    /** 'Y-m-d' hari ini kalau user dibatasi, null kalau bebas (canEditPastDates) - dipakai
+     * seragam di saveRoster/generateFromTemplate/resetPeriod buat nge-skip tanggal yang sudah
+     * lewat. Perbandingan string 'Y-m-d' aman secara leksikografis. */
+    private function lockBeforeDate(): ?string
+    {
+        return $this->canEditPastDates ? null : now()->startOfDay()->toDateString();
+    }
+
     public function updatedPeriod(): void
     {
         $this->rotationStartDate = Carbon::createFromFormat('Y-m', $this->period)->startOfMonth()->toDateString();
@@ -276,8 +295,10 @@ class ScheduleShiftRosterTab extends Component
 
         $currentRoster = $this->roster;
         $swapCells = $this->swapCells;
+        $lockBeforeDate = $this->lockBeforeDate();
         $changed = 0;
         $blockedBySwap = 0;
+        $blockedByPastDate = 0;
 
         foreach ($this->draft as $userId => $row) {
             foreach ($row as $date => $value) {
@@ -291,6 +312,13 @@ class ScheduleShiftRosterTab extends Component
                 // gerbang di blade bisa dilewati lewat request yang di-craft, jadi dicek ulang.
                 if (isset($swapCells[$userId . '|' . $date])) {
                     $blockedBySwap++;
+                    continue;
+                }
+
+                // Yang cuma punya Update:ShiftScheduleAssignments (bukan Edit Jadwal) dibatasi
+                // mulai hari ini - perbandingan string 'Y-m-d' aman leksikografis.
+                if ($lockBeforeDate && $date < $lockBeforeDate) {
+                    $blockedByPastDate++;
                     continue;
                 }
 
@@ -308,7 +336,11 @@ class ScheduleShiftRosterTab extends Component
 
         Notification::make()
             ->title('Jadwal berhasil disimpan')
-            ->body("{$changed} sel diubah." . ($blockedBySwap ? " {$blockedBySwap} sel dilewati karena terkait pengajuan tukar shift." : ''))
+            ->body(
+                "{$changed} sel diubah."
+                . ($blockedBySwap ? " {$blockedBySwap} sel dilewati karena terkait pengajuan tukar shift." : '')
+                . ($blockedByPastDate ? " {$blockedByPastDate} sel dilewati karena tanggalnya sudah lewat." : '')
+            )
             ->success()
             ->send();
     }
@@ -385,6 +417,7 @@ class ScheduleShiftRosterTab extends Component
         ], [], ['rotationStartDate' => 'tanggal mulai rotasi', 'rotationStartDay' => 'hari ke- di template']);
 
         $anchor = Carbon::parse($this->rotationStartDate);
+        $lockBeforeDate = $this->lockBeforeDate();
         $filled = 0;
 
         foreach ($this->employees as $employee) {
@@ -393,6 +426,12 @@ class ScheduleShiftRosterTab extends Component
                 // yang digenerate lebih awal dari tanggal mulai) sengaja dilewati, bukan
                 // diekstrapolasi mundur.
                 if ($date->lt($anchor)) {
+                    continue;
+                }
+
+                // Yang cuma punya Update:ShiftScheduleAssignments (bukan Edit Jadwal) dibatasi
+                // mulai hari ini - sama kayak saveRoster()/resetPeriod().
+                if ($lockBeforeDate && $date->toDateString() < $lockBeforeDate) {
                     continue;
                 }
 
@@ -437,13 +476,22 @@ class ScheduleShiftRosterTab extends Component
             ->send();
     }
 
-    /** Hapus semua baris roster (termasuk yang sudah dikoreksi manual) di periode terpilih,
-     * biar bisa di-generate ulang dari awal. Berlaku buat jadwal Template maupun manual. */
+    /** Hapus baris roster (termasuk yang sudah dikoreksi manual) di periode terpilih. Yang cuma
+     * punya Update:ShiftScheduleAssignments (bukan Edit Jadwal) dibatasi mulai HARI INI saja -
+     * tanggal yang sudah lewat sengaja tidak disentuh (histori presensi yang sudah terjadi tidak
+     * boleh ikut ke-reset). Yang punya Edit Jadwal (canEditPastDates) bebas dari awal bulan. Kalau
+     * periode terpilih sudah lewat semua (bulan lampau) buat user yang dibatasi, start jadi > end
+     * -> tidak ada baris yang kena, sesuai maksud yang sama. Berlaku buat jadwal Template maupun
+     * manual. */
     public function resetPeriod(): void
     {
         abort_unless(Auth::user()->can('Update:ShiftScheduleAssignments'), 403);
 
-        $start = Carbon::createFromFormat('Y-m', $this->period)->startOfMonth()->toDateString();
+        $start = Carbon::createFromFormat('Y-m', $this->period)->startOfMonth();
+        if ($lockBeforeDate = $this->lockBeforeDate()) {
+            $start = $start->max(Carbon::parse($lockBeforeDate));
+        }
+        $start = $start->toDateString();
         $end = Carbon::createFromFormat('Y-m', $this->period)->endOfMonth()->toDateString();
 
         // Baris yang jadwalnya terkait pengajuan tukar shift TIDAK ikut direset - dikeluarkan dari

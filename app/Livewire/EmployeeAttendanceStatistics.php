@@ -517,12 +517,16 @@ class EmployeeAttendanceStatistics extends Component
                 $summary['progress'] = $cur->contract_start_date ? $this->phaseProgress(Carbon::parse($cur->contract_start_date), $summary['ended']) : null;
             }
         } elseif ($category === EmployeeTypeCategory::TETAP->value) {
-            // TMT resmi (user_profiles.tmt_tetap) diutamakan; fallback ke baris UserContract
-            // kategori tetap pertama, lalu Tanggal Bergabung.
+            // TMT resmi (user_profiles.tmt_tetap) diutamakan, fallback ke baris UserContract
+            // kategori tetap pertama. SENGAJA tidak fallback ke Tanggal Bergabung di sini
+            // (beda dari fase lain) - "Sejak [tanggal bergabung]" salah paham, seolah TMT
+            // tetapnya persis hari masuk kerja, padahal cuma belum tercatat.
             $since = $profile?->tmt_tetap ? Carbon::parse($profile->tmt_tetap)
-                : ($tetapStart ? Carbon::parse($tetapStart) : $join);
+                : ($tetapStart ? Carbon::parse($tetapStart) : null);
             $summary['headline'] = 'Tetap';
-            $summary['sub'] = $since ? 'Sejak ' . $since->translatedFormat('d M Y') : null;
+            $summary['sub'] = $since
+                ? 'Sejak ' . $since->translatedFormat('d M Y')
+                : 'TMT tetap belum tercatat' . ($join ? ' (bergabung ' . $join->translatedFormat('d M Y') . ')' : '');
         } else {
             $summary['headline'] = 'Status kepegawaian belum diatur';
         }

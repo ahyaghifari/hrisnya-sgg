@@ -8,7 +8,7 @@
     $shiftStyleMap[''] = ['bg' => 'var(--surface-alt)', 'fg' => 'var(--text-body)'];
 @endphp
 <div x-data="rosterFill(@js($shiftStyleMap))"
-    x-effect="if (! $wire.editMode) reset(); if (lastPeriod !== $wire.period) { lastPeriod = $wire.period; $nextTick(() => scrollToDay1()) }"
+    x-effect="if (! $wire.editMode) reset(); if (lastPeriod !== $wire.period) { lastPeriod = $wire.period; history = []; clearSel(); $nextTick(() => scrollToDay1()) }"
     @mouseup.window="onUp()" @mousemove.window="onMove($event)"
     @keydown.window="if (fillMode && ($event.ctrlKey || $event.metaKey) && ($event.key || '').toLowerCase() === 'z') { $event.preventDefault(); undo() }">
     {{-- Isi Cepat ala Excel: pas editMode, nyalakan tombol "Isi Cepat" -> select tiap sel jadi
@@ -53,7 +53,10 @@
         </div>
 
         <div style="display:flex;align-items:flex-end;gap:6px;">
-            @if ($schedule->use_template && $this->canEditJadwal)
+            {{-- Generate cuma relevan buat mengisi dari template - disembunyikan pas mode Isi
+                 Jadwal (editMode) aktif biar tidak ambigu generate nimpa draft manual yang lagi
+                 dikerjakan. --}}
+            @if ($schedule->use_template && $this->canEditJadwal && ! $editMode)
                 {{-- "Mulai Dari" + "Hari Ke-" dipindah ke popover tombol Generate biar toolbar nggak penuh. --}}
                 <div style="position:relative;" x-data="{ genOpen: false }" @click.outside="genOpen = false" @keydown.escape="genOpen = false">
                     <button type="button" @click="genOpen = ! genOpen" class="btn-primary" style="font-size:11px;padding:7px 12px;white-space:nowrap;">
@@ -202,11 +205,14 @@
                                 // total, tidak bisa diedit dari halaman jadwal (biar tidak bentrok sama
                                 // eksekusi swap). Lihat ScheduleShiftRosterTab::getSwapCellsProperty().
                                 $swapLocked = isset($this->swapCells[$employee->id.'|'.$date->toDateString()]);
-                                $locked = ! $editMode || $swapLocked;
+                                // Yang cuma punya Update:ShiftScheduleAssignments (bukan Edit Jadwal)
+                                // dibatasi mulai hari ini - tanggal yang sudah lewat dikunci di grid juga.
+                                $pastLocked = ! $this->canEditPastDates && $date->lt(today());
+                                $locked = ! $editMode || $swapLocked || $pastLocked;
                                 $rfR = $loop->parent->index;
                                 $rfC = $loop->index;
                             @endphp
-                            <td class="rf-cell" data-r="{{ $rfR }}" data-c="{{ $rfC }}" data-locked="{{ $swapLocked ? '1' : '0' }}"
+                            <td class="rf-cell" data-r="{{ $rfR }}" data-c="{{ $rfC }}" data-locked="{{ ($swapLocked || $pastLocked) ? '1' : '0' }}"
                                 @mousedown="cellDown($event, {{ $rfR }}, {{ $rfC }})" @mouseenter="cellEnter({{ $rfR }}, {{ $rfC }})"
                                 :class="cellClass({{ $rfR }}, {{ $rfC }})"
                                 style="padding:2px;text-align:center;position:relative;">
@@ -220,13 +226,15 @@
                                     </button>
                                 @endif
                                 <select
-                                    @if ($editMode && ! $swapLocked)
+                                    @if ($editMode && ! $swapLocked && ! $pastLocked)
                                         wire:model="draft.{{ $employee->id }}.{{ $date->toDateString() }}"
                                         @change="recolor($event.target)"
                                     @endif
                                     @disabled($locked)
                                     @if ($swapLocked)
                                         title="Jadwal ini terkait pengajuan tukar shift — tidak bisa diubah dari halaman jadwal."
+                                    @elseif ($pastLocked)
+                                        title="Tanggal sudah lewat - cuma bisa diubah oleh yang punya izin Edit Jadwal."
                                     @elseif (! $editMode)
                                         title="Klik &quot;Mulai Isi Jadwal&quot; dulu buat mengubah."
                                     @endif
@@ -254,7 +262,9 @@
             <i class="fa-solid fa-clock-rotate-left"></i> {{ $showLogs ? 'Sembunyikan' : 'Lihat' }} Riwayat Perubahan
         </button>
         @if ($this->canEditJadwal)
-            <button type="button" wire:click="resetPeriod" wire:confirm="Hapus SEMUA roster {{ $this->periodLabel }} (termasuk yang sudah dikoreksi manual)? Tindakan ini tidak bisa dibatalkan." class="btn-ghost" style="font-size:11px;padding:7px 12px;white-space:nowrap;color:var(--danger-text);">
+            <button type="button" wire:click="resetPeriod"
+                wire:confirm="{{ $this->canEditPastDates ? "Hapus SEMUA roster {$this->periodLabel} (termasuk yang sudah dikoreksi manual, termasuk tanggal yang sudah lewat)? Tindakan ini tidak bisa dibatalkan." : "Hapus roster {$this->periodLabel} MULAI HARI INI sampai akhir bulan (termasuk yang sudah dikoreksi manual)? Tanggal yang sudah lewat tidak ikut dihapus. Tindakan ini tidak bisa dibatalkan." }}"
+                class="btn-ghost" style="font-size:11px;padding:7px 12px;white-space:nowrap;color:var(--danger-text);">
                 <i class="fa-solid fa-rotate-left"></i> Reset Jadwal
             </button>
         @endif

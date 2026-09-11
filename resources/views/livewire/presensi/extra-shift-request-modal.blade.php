@@ -55,7 +55,7 @@
                                 <select wire:model.live="shift_type_id" class="form-input">
                                     <option value="">Pilih shift...</option>
                                     @foreach ($this->shiftTypeOptions as $type)
-                                        <option value="{{ $type->id }}">{{ $type->name }} ({{ \Illuminate\Support\Str::substr($type->start_time, 0, 5) }}–{{ \Illuminate\Support\Str::substr($type->end_time, 0, 5) }})</option>
+                                        <option value="{{ $type->id }}">{{ $type->name }}</option>
                                     @endforeach
                                 </select>
                             @endif
