@@ -24,6 +24,7 @@ class ShiftSwapRequests extends Model
         'target_id',
         'req_schedule_id',
         'target_schedule_id',
+        'swap_kind',
         'req_date',
         'target_date',
         'status',

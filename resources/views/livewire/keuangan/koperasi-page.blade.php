@@ -8,7 +8,7 @@
         <div>
             <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;justify-content:space-between;">
                 <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;">
-                    <x-company-filter :companies="$this->companies" wire:model.live="companyId" />
+                    <x-company-filter :companies="$this->companies" :system="\App\Enum\CustomPermissionEnum::SISTEM_KEUANGAN" wire:model.live="companyId" />
 
                     <div style="position:relative;">
                         <label class="form-label">Cari</label>

@@ -3,6 +3,7 @@
 namespace App\Livewire\Presensi;
 
 use App\Enum\CustomPermissionEnum;
+use App\Livewire\Concerns\GatesCompanyFilterBySystem;
 use App\Models\Attendance\AttendanceRequestOvertimeDetails;
 use App\Models\Attendance\AttendanceRequests;
 use App\Models\Master\Companies;
@@ -21,6 +22,8 @@ use Livewire\Component;
 #[Layout('components.layout', ['title' => 'Rekap Lembur'])]
 class LemburRecapPage extends Component
 {
+    use GatesCompanyFilterBySystem;
+
     public ?string $companyId = null;
     public ?string $date_from = null;
     public ?string $date_to = null;
@@ -31,9 +34,9 @@ class LemburRecapPage extends Component
     {
         abort_unless(Auth::user()->can(CustomPermissionEnum::VIEW_REPORT_DATA_ABSENSI->value), 403);
 
-        if (! Auth::user()->canFilterByCompany()) {
-            $this->companyId = Auth::user()->company_id;
-        } elseif ($this->companyId === null) {
+        $this->lockCompanyIdUnlessAllowed(CustomPermissionEnum::SISTEM_ABSENSI);
+
+        if ($this->companyId === null) {
             $this->companyId = Auth::user()->company_id;
         }
 
@@ -44,9 +47,7 @@ class LemburRecapPage extends Component
 
     public function updatedCompanyId(): void
     {
-        if (! Auth::user()->canFilterByCompany()) {
-            $this->companyId = Auth::user()->company_id;
-        }
+        $this->lockCompanyIdUnlessAllowed(CustomPermissionEnum::SISTEM_ABSENSI);
     }
 
     public function getCompanyOptionsProperty()
@@ -56,7 +57,7 @@ class LemburRecapPage extends Component
 
     public function getCanBrowseAllCompaniesProperty(): bool
     {
-        return Auth::user()->canFilterByCompany();
+        return Auth::user()->canFilterByCompanyForSystem(CustomPermissionEnum::SISTEM_ABSENSI);
     }
 
     public function openDetail(string $userId): void

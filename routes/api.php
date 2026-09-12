@@ -83,6 +83,13 @@ Route::prefix('n8n')->middleware('throttle:50,1')->group(function () {
     Route::get('/absen', [\App\Http\Controllers\Api\N8n\DivisionAttendanceController::class, 'absen']);
 });
 
+// Direktori karyawan by NIP (nama/email/unit) — dipakai sistem lain isi data akun auto-
+// provision dari SSO. HTTP Basic auth (services.integrasi), 50 req/menit, PII (beda dari
+// /publik/unit-organisasi yang tanpa auth).
+Route::prefix('integrasi')->middleware('throttle:50,1')->group(function () {
+    Route::get('/karyawan/{nip}', [\App\Http\Controllers\Api\Integrasi\EmployeeDirectoryController::class, 'show']);
+});
+
 Route::get('/sop', [\App\Http\Controllers\Api\SopController::class, 'index']);
 Route::get('/sop/{id}/download', [\App\Http\Controllers\Api\SopController::class, 'download']);
 

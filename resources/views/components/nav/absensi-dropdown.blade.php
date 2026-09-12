@@ -26,6 +26,7 @@
             <div class="dropdown-col-label">Presensi</div>
             @if ($canViewSchedule)
             <a href="{{ route('presensi.jadwal') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-calendar-days"></i> Jadwal</a>
+            <a href="{{ route('presensi.jadwal-karyawan') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-calendar-week"></i> Jadwal Karyawan</a>
             @endif
             @if ($canViewExtraShift)
             <a href="{{ route('presensi.extra-shift') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-user-clock"></i> Extra Shift</a>

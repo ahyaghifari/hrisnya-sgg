@@ -3,7 +3,7 @@
 
     <div class="mt-4" style="display:flex;flex-direction:column;gap:16px;">
         <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;">
-            <x-company-filter :companies="$this->companies" wire:model.live="companyId" />
+            <x-company-filter :companies="$this->companies" :system="\App\Enum\CustomPermissionEnum::SISTEM_KEUANGAN" wire:model.live="companyId" />
         </div>
 
         @if (! $this->insentifActive)

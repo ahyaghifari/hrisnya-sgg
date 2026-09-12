@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Kepegawaian;
 
+use App\Enum\CustomPermissionEnum;
 use App\Enum\OrgStructurLevel;
 use App\Livewire\Kepegawaian\Concerns\HasKaryawanForm;
 use App\Models\Master\OrgStructure;
@@ -22,7 +23,7 @@ class EditKaryawan extends Component
     public function mount(User $record): void
     {
         abort_unless(
-            Auth::user()->canFilterByCompany() || Auth::user()->company_id === $record->company_id,
+            Auth::user()->canFilterByCompanyForSystem(CustomPermissionEnum::SISTEM_KEPEGAWAIAN) || Auth::user()->company_id === $record->company_id,
             403
         );
         abort_unless(Auth::user()->can('update', $record), 403);

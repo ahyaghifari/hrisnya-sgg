@@ -4,7 +4,7 @@
     <div class="mt-4">
         <div class="doc-type-layout">
             {{-- Kiri: perusahaan — pola sama halaman Komponen Gaji, warna sky khusus halaman ini. --}}
-            @if (auth()->user()->canFilterByCompany())
+            @if (auth()->user()->canFilterByCompanyForSystem(\App\Enum\CustomPermissionEnum::SISTEM_ABSENSI))
             <div class="doc-type-nav">
                 @foreach ($this->companies as $company)
                     <button type="button" wire:click="selectCompany('{{ $company->id }}')" class="doc-type-btn doc-type-btn-sky {{ $companyId === $company->id ? 'is-active' : '' }}">

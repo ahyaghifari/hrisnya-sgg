@@ -3,6 +3,16 @@
 
 <x-approval-timeline :timeline="$this->timeline" />
 
+@if ($this->conflictWarnings)
+    <div style="background:var(--warning-soft-bg,rgba(217,119,6,0.1));border:1px solid var(--warning-soft-border,rgba(217,119,6,0.3));border-radius:12px;padding:12px 16px;margin-bottom:16px;">
+        @foreach ($this->conflictWarnings as $warning)
+            <p style="font-size:12.5px;color:var(--warning-soft-text,#b45309);margin:0;{{ !$loop->last ? 'margin-bottom:6px;' : '' }}">
+                <i class="fa-solid fa-triangle-exclamation"></i> {{ $warning }}
+            </p>
+        @endforeach
+    </div>
+@endif
+
 @php
     $statusBadge = match ($record->status) {
         'approved' => 'badge-approved',

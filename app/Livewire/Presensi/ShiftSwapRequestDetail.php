@@ -140,6 +140,15 @@ class ShiftSwapRequestDetail extends Component
         return app(ApprovalTimelineService::class)->build($this->record);
     }
 
+    /** Peringatan double shift/nyambung shift (tanggal beda + salah satu pihak sudah punya
+     * jadwal lain di tanggal tujuan) - dihitung ulang live tiap render, ditampilkan ke pengaju,
+     * rekan, maupun approver. Extra Shift TIDAK dibuat otomatis lagi (2026-09-12) - kalau
+     * memang perlu, atasan bikin manual lewat halaman Extra Shift. */
+    public function getConflictWarningsProperty(): array
+    {
+        return app(ShiftSwapRequestService::class)->conflictWarnings($this->record);
+    }
+
     /** Label "Rekan: Setuju/Menolak/Belum menanggapi" - murni info, TIDAK mempengaruhi
      * canApprove/approve-reject sama sekali (lihat App\Services\Shift\ShiftSwapRequestService). */
     public function getTargetResponseLabelProperty(): string

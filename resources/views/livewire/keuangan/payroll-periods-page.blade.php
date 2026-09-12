@@ -8,7 +8,7 @@
              dicabut. Tidak perlu kotak cari di sini, filter perusahaan sudah cukup. --}}
         <div>
             <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;justify-content:space-between;">
-                <x-company-filter :companies="$this->companies" wire:model.live="companyId" />
+                <x-company-filter :companies="$this->companies" :system="\App\Enum\CustomPermissionEnum::SISTEM_KEUANGAN" wire:model.live="companyId" />
 
                 @if ($this->canCreatePeriod)
                     <button type="button" wire:click="openCreateModal" class="btn-primary" style="padding:9px 18px;font-size:12.5px;">

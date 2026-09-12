@@ -5,9 +5,7 @@ namespace App\Services\Shift;
 use App\Enum\Approval\ApprovalModuleEnum;
 use App\Enum\Attendance\AttendanceSettingEnum;
 use App\Models\Setting;
-use App\Models\Shift\ExtraShiftAssignment;
 use App\Services\Attendance\AttendancePeriodResolver;
-use App\Models\Shift\ExtraShiftRule;
 use App\Models\Shift\ScheduleShiftAssignment;
 use App\Models\Shift\ShiftSwapRequests;
 use App\Models\User;
@@ -34,26 +32,30 @@ class ShiftSwapRequestService
 
     public function store(array $data): ShiftSwapRequests
     {
-        $user    = Auth::user();
-        $mode    = $data['swap_mode'] ?? 'schedule';
+        $user = Auth::user();
 
         $reqSchedule = ScheduleShiftAssignment::with('shiftType')->findOrFail($data['req_schedule_id']);
 
         $this->assertWithinSettingLimits($data, $reqSchedule, $user);
 
-        if ($mode === 'off_day') {
-            return $this->storeOffDay($data, $reqSchedule, $user);
-        }
-
         return $this->storeScheduleSwap($data, $reqSchedule, $user);
     }
 
+    /**
+     * @param array{req_schedule_id:string, target_schedule_id:string, swap_kind?:string, notes?:?string} $data
+     *   `swap_kind` (default 'schedule'): 'reciprocal_off' = tukar libur berpasangan (rekan
+     *   sedang Libur di tanggal $reqSchedule, pemohon "membayar" balik dengan mengambil alih
+     *   shift KERJA rekan di tanggal lain) - lihat assertReciprocalOffEligible() & planning/
+     *   2026-09-12-tukar-shift-libur-berpasangan.md. Konflik nyata pada kind ini diblok KERAS
+     *   (bukan warning-only seperti 'schedule' biasa, lihat resolveSlot()/conflictWarnings()).
+     */
     private function storeScheduleSwap(
         array $data,
         ScheduleShiftAssignment $reqSchedule,
         $user,
     ): ShiftSwapRequests {
         $targetSchedule = ScheduleShiftAssignment::with('shiftType')->findOrFail($data['target_schedule_id']);
+        $swapKind = $data['swap_kind'] ?? 'schedule';
 
         $this->validateScheduleSwapRules($reqSchedule, $targetSchedule);
         $this->assertNoPendingSwapOnSlots([
@@ -61,13 +63,22 @@ class ShiftSwapRequestService
             [$targetSchedule->user_id, $targetSchedule->date],
         ]);
 
-        return DB::transaction(function () use ($data, $reqSchedule, $targetSchedule, $user) {
+        if ($swapKind === 'reciprocal_off') {
+            $this->assertReciprocalOffEligible($reqSchedule, $targetSchedule);
+            // Gagal-cepat kalau salah satu sisi TERNYATA sudah punya shift lain beneran (bukan
+            // Libur) - hasilnya dibuang, cuma buat validasi saat submit (throw sendiri kalau
+            // ada konflik nyata). Eksekusi beneran & re-cek final tetap di executeApprovedSwap().
+            $this->resolveDifferentDateExecution($reqSchedule, $targetSchedule, strict: true);
+        }
+
+        return DB::transaction(function () use ($data, $reqSchedule, $targetSchedule, $user, $swapKind) {
             $swapRequest = ShiftSwapRequests::create([
                 'company_id'         => $user->company_id,
                 'requester_id'       => $user->id,
                 'target_id'          => $targetSchedule->user_id,
                 'req_schedule_id'    => $reqSchedule->id,
                 'target_schedule_id' => $targetSchedule->id,
+                'swap_kind'          => $swapKind,
                 'req_date'           => $reqSchedule->date,
                 'target_date'        => $targetSchedule->date,
                 'status'             => 'in_review',
@@ -80,39 +91,44 @@ class ShiftSwapRequestService
         });
     }
 
-    private function storeOffDay(
-        array $data,
+    /**
+     * Syarat tukar libur berpasangan (swap_kind='reciprocal_off') - lihat planning/
+     * 2026-09-12-tukar-shift-libur-berpasangan.md §0/§3:
+     * - $reqSchedule (shift pemohon, diserahkan) dan $targetSchedule (shift rekan, diambil alih
+     *   pemohon sebagai kompensasi) TIDAK BOLEH tanggal yang sama.
+     * - Rekan WAJIB benar-benar Libur (baris schedule_shift_assignments ADA, off_day=true) pada
+     *   tanggal $reqSchedule - N/A/kosong (tidak ada baris sama sekali) TIDAK CUKUP, sengaja
+     *   query LANGSUNG ke tabel (bukan ScheduleResolver) supaya proyeksi pola fixed/flexible
+     *   tidak ikut kehitung sebagai "Libur".
+     * - $targetSchedule (tanggal kompensasi) HARUS shift KERJA rekan beneran (shift_type_id
+     *   terisi, off_day=false) - bukan libur rekan juga.
+     */
+    private function assertReciprocalOffEligible(
         ScheduleShiftAssignment $reqSchedule,
-        $user,
-    ): ShiftSwapRequests {
-        $targetUserId = $data['target_user_off']
-            ?? throw new \InvalidArgumentException('Pilih karyawan penerima shift.');
+        ScheduleShiftAssignment $targetSchedule,
+    ): void {
+        if ($reqSchedule->date->equalTo($targetSchedule->date)) {
+            throw new \InvalidArgumentException(
+                'Tanggal kompensasi tidak boleh sama dengan tanggal shift yang diserahkan.'
+            );
+        }
 
-        $targetUser = User::findOrFail($targetUserId);
+        $targetIsOffOnReqDate = ScheduleShiftAssignment::where('user_id', $targetSchedule->user_id)
+            ->whereDate('date', $reqSchedule->date)
+            ->where('off_day', true)
+            ->exists();
 
-        $this->validateOffDayRules($reqSchedule, $targetUserId);
-        $this->assertNoPendingSwapOnSlots([
-            [$reqSchedule->user_id, $reqSchedule->date],
-            [$targetUserId, $reqSchedule->date],
-        ]);
+        if (! $targetIsOffOnReqDate) {
+            throw new \InvalidArgumentException(
+                'Rekan tujuan harus benar-benar Libur (bukan kosong/tanpa jadwal) pada tanggal shift yang diserahkan.'
+            );
+        }
 
-        return DB::transaction(function () use ($reqSchedule, $targetUser, $user, $data) {
-            $swapRequest = ShiftSwapRequests::create([
-                'company_id'         => $user->company_id,
-                'requester_id'       => $user->id,
-                'target_id'          => $targetUser->id,
-                'req_schedule_id'    => $reqSchedule->id,
-                'target_schedule_id' => null, // target is off – no existing assignment
-                'req_date'           => $reqSchedule->date,
-                'target_date'        => $reqSchedule->date, // same date – target receives on this day
-                'status'             => 'in_review',
-                'notes'              => $data['notes'] ?? null,
-            ]);
-
-            $this->createApprovalSnapshot($swapRequest, $user);
-
-            return $swapRequest;
-        });
+        if ($targetSchedule->off_day || ! $targetSchedule->shift_type_id) {
+            throw new \InvalidArgumentException(
+                'Tanggal kompensasi harus tanggal shift KERJA rekan, bukan libur rekan.'
+            );
+        }
     }
 
     /** Jarak minimal hari (AttendanceSettingEnum::TUKAR_SHIFT_MIN_LEAD_DAYS) antara hari ini dan
@@ -219,13 +235,6 @@ class ShiftSwapRequestService
             );
         }
 
-        // Kalau salah satu (atau kedua) pihak TERNYATA sudah punya shift lain (bukan libur) di
-        // tanggal tujuan, sekarang tidak langsung diblokir - dicoba dulu jalur Extra Shift
-        // (throw sendiri kalau memang tidak ada rule yang cocok). Hasilnya dibuang di sini, cuma
-        // dipakai buat validasi gagal-cepat saat pengajuan - eksekusi beneran (buat baris DB)
-        // baru jalan pas approval final lewat executeApprovedSwap(), lihat method itu.
-        $this->resolveDifferentDateExecution($reqSchedule, $targetSchedule);
-
         // shift_type compatibility (pagi ↔ siang diperbolehkan, malam hanya dengan malam) CUMA
         // berlaku buat tukar BEDA tanggal (instruksi user 2026-08-20) - tanggal sama cuma nuker
         // kategori shift di hari yang sama, tidak menggeser hari kerja siapa pun, jadi bebas mau
@@ -251,29 +260,17 @@ class ShiftSwapRequestService
         }
     }
 
-    private function validateOffDayRules(
-        ScheduleShiftAssignment $reqSchedule,
-        string $targetUserId,
-    ): void {
-        // Target must truly have no schedule on req_date
-        $conflict = ScheduleShiftAssignment::where('user_id', $targetUserId)
-            ->whereDate('date', $reqSchedule->date)
-            ->exists();
-
-        if ($conflict) {
-            throw new \InvalidArgumentException(
-                'Karyawan tujuan sudah memiliki jadwal pada tanggal tersebut.'
-            );
-        }
-    }
-
     /** Dipanggil dari ApprovalFlowService pas swap request disetujui final - satu-satunya tempat
-     * yang benar-benar menulis perubahan ke schedule_shift_assignments/extra_shift_assignments
-     * (bukan pas diajukan). Tanggal sama -> tukar shift_type_id (hindari bentrok unique
-     * (user_id,date)). Tanggal beda -> re-cek konflik (bisa berubah sejak pengajuan) lalu jalankan
-     * hasilnya: slot yang "move" pindah user_id seperti biasa, slot yang "extra_shift" baris
-     * aslinya dihapus (pemiliknya dibebaskan) dan pihak yang sudah sibuk di tanggal itu dapat
-     * ExtraShiftAssignment tambahan buat nutupnya. */
+     * yang benar-benar menulis perubahan ke schedule_shift_assignments (bukan pas diajukan).
+     * Tanggal sama -> tukar shift_type_id (hindari bentrok unique (user_id,date)). Tanggal beda ->
+     * re-cek konflik (bisa berubah sejak pengajuan) lalu jalankan hasilnya: slot yang "move"
+     * pindah user_id seperti biasa, slot yang "move_over_off_day" (busy-nya cuma baris Libur,
+     * bukan konflik beneran) ditimpa, slot yang "conflict" nyata ikut `swap_kind`:
+     * 'schedule' (default) DIBIARKAN APA ADANYA (warning-only, lihat conflictWarnings());
+     * 'reciprocal_off' (tukar libur berpasangan) malah harus GAGAL total (exception naik ke
+     * ApprovalFlowService::advanceStep, approval tidak lanjut) - supaya tidak ada sisi yang
+     * partial-execute (pemohon untung, rekan tidak jadi dapat libur balik). Lihat
+     * planning/2026-09-12-tukar-shift-libur-berpasangan.md. */
     public function executeApprovedSwap(ShiftSwapRequests $swapRequest): void
     {
         $swapRequest->loadMissing(['reqSchedule.shiftType', 'targetSchedule.shiftType', 'requester', 'target']);
@@ -281,83 +278,66 @@ class ShiftSwapRequestService
         $reqSchedule = $swapRequest->reqSchedule;
         $targetSchedule = $swapRequest->targetSchedule;
 
-        if ($reqSchedule && $targetSchedule) {
-            if ($reqSchedule->date->equalTo($targetSchedule->date)) {
-                $reqShiftTypeId = $reqSchedule->shift_type_id;
-                $targetShiftTypeId = $targetSchedule->shift_type_id;
-                $reqSchedule->update(['shift_type_id' => $targetShiftTypeId]);
-                $targetSchedule->update(['shift_type_id' => $reqShiftTypeId]);
+        if (! $reqSchedule || ! $targetSchedule) {
+            return;
+        }
 
-                return;
-            }
-
-            $plan = $this->resolveDifferentDateExecution($reqSchedule, $targetSchedule);
-
-            $reqUserId = $reqSchedule->user_id;
-            $targetUserId = $targetSchedule->user_id;
-
-            $this->applySlotResolution($plan['req_date'], $reqSchedule, $targetUserId, $swapRequest, $swapRequest->requester?->name);
-            $this->applySlotResolution($plan['target_date'], $targetSchedule, $reqUserId, $swapRequest, $swapRequest->target?->name);
+        if ($reqSchedule->date->equalTo($targetSchedule->date)) {
+            $reqShiftTypeId = $reqSchedule->shift_type_id;
+            $targetShiftTypeId = $targetSchedule->shift_type_id;
+            $reqSchedule->update(['shift_type_id' => $targetShiftTypeId]);
+            $targetSchedule->update(['shift_type_id' => $reqShiftTypeId]);
 
             return;
         }
 
-        if ($reqSchedule && ! $targetSchedule) {
-            // Re-cek konflik sebelum eksekusi - alasan sama seperti cabang beda-tanggal di atas
-            // (bisa berubah sejak pengajuan, target bisa saja kebagian jadwal baru di tanggal ini
-            // di antara submit & approval final). Tanpa ini, update() bisa nabrak unique
-            // constraint (user_id, date) dan lempar QueryException mentah di tengah transaction.
-            $this->validateOffDayRules($reqSchedule, $swapRequest->target_id);
+        $plan = $this->resolveDifferentDateExecution($reqSchedule, $targetSchedule, strict: $swapRequest->swap_kind === 'reciprocal_off');
 
-            $reqSchedule->update(['user_id' => $swapRequest->target_id]);
-        }
+        $reqUserId = $reqSchedule->user_id;
+        $targetUserId = $targetSchedule->user_id;
+
+        $this->applySlotResolution($plan['req_date'], $reqSchedule, $targetUserId);
+        $this->applySlotResolution($plan['target_date'], $targetSchedule, $reqUserId);
     }
 
-    /** @param array{mode: 'move'|'extra_shift', busy?: ScheduleShiftAssignment} $slot */
-    private function applySlotResolution(
-        array $slot,
-        ScheduleShiftAssignment $originalSchedule,
-        string $incomingUserId,
-        ShiftSwapRequests $swapRequest,
-        ?string $originalOwnerName,
-    ): void {
+    /** @param array{mode: 'move'|'move_over_off_day'|'conflict', busy?: ScheduleShiftAssignment, warning?: string} $slot */
+    private function applySlotResolution(array $slot, ScheduleShiftAssignment $originalSchedule, string $incomingUserId): void
+    {
         if ($slot['mode'] === 'move') {
             $originalSchedule->update(['user_id' => $incomingUserId]);
 
             return;
         }
 
-        $shiftName = $originalSchedule->shiftType?->name ?? 'shift';
-        $date = $originalSchedule->date->translatedFormat('d M Y');
+        if ($slot['mode'] === 'move_over_off_day') {
+            // Baris "busy" cuma penanda Libur (off_day=true), bukan konflik beneran - boleh
+            // ditimpa: hapus penandanya, baris asal pindah kepemilikan seperti mode 'move'.
+            $slot['busy']->delete();
+            $originalSchedule->update(['user_id' => $incomingUserId]);
+        }
 
-        ExtraShiftAssignment::create([
-            'company_id' => $originalSchedule->company_id,
-            'user_id' => $slot['busy']->user_id,
-            'shift_type_id' => $originalSchedule->shift_type_id,
-            'date' => $originalSchedule->date,
-            'status' => 'approved',
-            'source' => 'shift_swap',
-            'reason' => "Otomatis dari pengajuan tukar shift yang sudah disetujui - menggantikan {$shiftName} milik {$originalOwnerName} pada {$date}.",
-            'created_by' => $swapRequest->approved_by,
-        ]);
-
-        $originalSchedule->delete();
+        // mode 'conflict' -> sengaja no-op (kecuali strict, sudah throw duluan di resolveSlot()).
+        // $originalSchedule tetap milik pemiliknya, tidak dipindah - lihat docblock executeApprovedSwap().
     }
 
     /** Tentukan siapa yang akhirnya nempatin baris req_schedule (tanggal pemohon) dan baris
      * target_schedule (tanggal rekan) buat kasus tukar BEDA tanggal. Kalau salah satu pihak
-     * TERNYATA sudah punya shift lain (bukan libur) di tanggal yang dituju, pihak itu tidak bisa
-     * "pindah" langsung (unique (user_id,date)) - fallback ke Extra Shift kalau ExtraShiftRule
-     * mengizinkan kombinasinya, atau throw kalau tidak ada rule yang cocok. Dipanggil 2x: sekali
-     * pas validasi pengajuan (hasil dibuang, cuma buat gagal-cepat), sekali lagi pas eksekusi
-     * approval final (hasilnya dipakai) - supaya perubahan jadwal di antara 2 momen itu tetap
-     * ke-cover ulang.
+     * TERNYATA sudah punya baris lain di tanggal yang dituju: baris Libur (off_day=true) boleh
+     * ditimpa (mode 'move_over_off_day', bukan konflik beneran); baris shift KERJA beneran jadi
+     * mode 'conflict' - dengan `$strict=false` (default) cuma warning & TIDAK diblokir/gagal
+     * (instruksi user 2026-09-12); dengan `$strict=true` (dipakai swap_kind='reciprocal_off')
+     * malah throw supaya submit/approval gagal total, lihat resolveSlot(). Read-only, aman
+     * dipanggil berkali-kali: sekali pas eksekusi approval final (executeApprovedSwap, hasilnya
+     * dipakai), berkali-kali lagi buat validasi pra-submit reciprocal_off & preview warning
+     * (conflictWarnings/conflictWarningsForSchedules) di form pengajuan & halaman detail -
+     * supaya perubahan jadwal di antara momen-momen itu tetap ke-cover ulang.
      *
-     * @return array{req_date: array{mode:string,busy?:ScheduleShiftAssignment}, target_date: array{mode:string,busy?:ScheduleShiftAssignment}}
+     * @return array{req_date: array{mode:string,busy?:ScheduleShiftAssignment,warning?:string}, target_date: array{mode:string,busy?:ScheduleShiftAssignment,warning?:string}}
      */
     private function resolveDifferentDateExecution(
         ScheduleShiftAssignment $reqSchedule,
         ScheduleShiftAssignment $targetSchedule,
+        bool $strict = false,
     ): array {
         $targetConflict = ScheduleShiftAssignment::with('shiftType')
             ->where('user_id', $targetSchedule->user_id)
@@ -372,39 +352,66 @@ class ShiftSwapRequestService
             ->first();
 
         return [
-            'req_date' => $this->resolveSlot($targetConflict, $reqSchedule, 'Karyawan tujuan sudah memiliki jadwal lain pada tanggal shift Anda'),
-            'target_date' => $this->resolveSlot($reqConflict, $targetSchedule, 'Anda sudah memiliki jadwal lain pada tanggal shift tujuan'),
+            'req_date' => $this->resolveSlot($targetConflict, $targetSchedule->user, 'Karyawan tujuan sudah memiliki jadwal lain pada tanggal shift Anda', $strict),
+            'target_date' => $this->resolveSlot($reqConflict, $reqSchedule->user, 'Anda sudah memiliki jadwal lain pada tanggal shift tujuan', $strict),
         ];
     }
 
-    /** @return array{mode: 'move'|'extra_shift', busy?: ScheduleShiftAssignment} */
-    private function resolveSlot(?ScheduleShiftAssignment $busy, ScheduleShiftAssignment $incoming, string $blockMessagePrefix): array
+    /** @return array{mode: 'move'|'move_over_off_day'|'conflict', busy?: ScheduleShiftAssignment, warning?: string} */
+    private function resolveSlot(?ScheduleShiftAssignment $busy, ?User $incomingOwner, string $conflictMessagePrefix, bool $strict = false): array
     {
         if (! $busy) {
             return ['mode' => 'move'];
         }
 
-        // Sudah punya extra shift LAIN di tanggal itu (dari sumber mana pun) - tidak boleh
-        // ditumpuk dobel, sama seperti aturan di ResolvesExtraShiftOptions::resolveAllowedExtraShiftTypes()
-        // yang dipakai jalur Extra Shift manual.
-        if (ExtraShiftAssignment::where('user_id', $busy->user_id)->whereDate('date', $incoming->date)->exists()) {
+        if ($busy->off_day) {
+            // Cuma baris Libur (penanda), bukan konflik beneran - boleh ditimpa siapa pun,
+            // termasuk jalur non-strict.
+            return ['mode' => 'move_over_off_day', 'busy' => $busy];
+        }
+
+        $busyShift = $busy->shiftType?->name ?? 'shift lain';
+
+        if ($strict) {
             throw new \InvalidArgumentException(
-                "{$blockMessagePrefix}, dan tidak bisa ditutup Extra Shift karena karyawan itu sudah punya extra shift lain di tanggal itu."
+                "{$conflictMessagePrefix} ({$busyShift}) - tukar libur berpasangan butuh tanggal ini benar-benar Libur/kosong di kedua belah pihak."
             );
         }
 
-        $ruleExists = ExtraShiftRule::where('company_id', $incoming->company_id)
-            ->where('from_shift_type', $busy->shiftType?->shift_type)
-            ->where('to_shift_type', $incoming->shiftType?->shift_type)
-            ->exists();
+        $name = $incomingOwner?->name ?? 'Karyawan';
 
-        if (! $ruleExists) {
-            throw new \InvalidArgumentException(
-                "{$blockMessagePrefix}, dan tidak ada aturan Extra Shift dari \"{$busy->shiftType?->name}\" ke \"{$incoming->shiftType?->name}\" untuk menutupinya."
-            );
+        return [
+            'mode' => 'conflict',
+            'busy' => $busy,
+            'warning' => "{$conflictMessagePrefix} ({$busyShift}) - shift ini TIDAK dipindahkan otomatis supaya {$name} tidak double shift/nyambung shift. Kalau tetap perlu dikerjakan, tambahkan Extra Shift manual lewat halaman Extra Shift.",
+        ];
+    }
+
+    /** Peringatan double shift/nyambung shift buat pengajuan yang BELUM disimpan (preview di
+     * form pengajuan) - read-only, tidak menyentuh DB. [] kalau tidak ada konflik atau tukar
+     * tanggal sama (kompatibilitas shift_type dicek terpisah di validateScheduleSwapRules). */
+    public function conflictWarningsForSchedules(?ScheduleShiftAssignment $reqSchedule, ?ScheduleShiftAssignment $targetSchedule): array
+    {
+        if (! $reqSchedule || ! $targetSchedule || $reqSchedule->date->equalTo($targetSchedule->date)) {
+            return [];
         }
 
-        return ['mode' => 'extra_shift', 'busy' => $busy];
+        $plan = $this->resolveDifferentDateExecution($reqSchedule, $targetSchedule);
+
+        return array_values(array_filter([
+            $plan['req_date']['warning'] ?? null,
+            $plan['target_date']['warning'] ?? null,
+        ]));
+    }
+
+    /** Sama seperti conflictWarningsForSchedules(), tapi untuk pengajuan yang SUDAH tersimpan
+     * (dipakai halaman detail) - dihitung ulang live tiap dipanggil, bukan snapshot saat submit,
+     * supaya tetap akurat kalau jadwal berubah setelah pengajuan dibuat. */
+    public function conflictWarnings(ShiftSwapRequests $request): array
+    {
+        $request->loadMissing(['reqSchedule.shiftType', 'targetSchedule.shiftType']);
+
+        return $this->conflictWarningsForSchedules($request->reqSchedule, $request->targetSchedule);
     }
 
     private function createApprovalSnapshot(ShiftSwapRequests $swapRequest, $user): void

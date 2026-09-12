@@ -2,8 +2,10 @@
 
 namespace App\Livewire\Keuangan;
 
+use App\Enum\CustomPermissionEnum;
 use App\Enum\Payroll\PayrollComponentEnum;
 use App\Exports\Payroll\KoperasiExport;
+use App\Livewire\Concerns\GatesCompanyFilterBySystem;
 use App\Models\Master\Companies;
 use App\Models\Payroll\PayrollComponentRecipient;
 use App\Models\Payroll\UserKoperasi;
@@ -25,6 +27,8 @@ use Maatwebsite\Excel\Facades\Excel;
 #[Layout('components.layout', ['title' => 'Koperasi'])]
 class KoperasiPage extends Component
 {
+    use GatesCompanyFilterBySystem;
+
     public ?string $companyId = null;
     public string $search = '';
 
@@ -42,16 +46,13 @@ class KoperasiPage extends Component
     {
         abort_unless(Auth::user()->can('viewAny', UserKoperasi::class), 403);
 
-        $this->companyId = Auth::user()->canFilterByCompany()
-            ? (Auth::user()->company_id ?? Companies::orderBy('code')->value('id'))
-            : Auth::user()->company_id;
+        $this->companyId = Auth::user()->company_id ?? Companies::orderBy('code')->value('id');
+        $this->lockCompanyIdUnlessAllowed(CustomPermissionEnum::SISTEM_KEUANGAN);
     }
 
     public function updatedCompanyId(): void
     {
-        if (! Auth::user()->canFilterByCompany()) {
-            $this->companyId = Auth::user()->company_id;
-        }
+        $this->lockCompanyIdUnlessAllowed(CustomPermissionEnum::SISTEM_KEUANGAN);
 
         $this->selected = [];
     }

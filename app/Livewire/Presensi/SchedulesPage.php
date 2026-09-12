@@ -2,7 +2,9 @@
 
 namespace App\Livewire\Presensi;
 
+use App\Enum\CustomPermissionEnum;
 use App\Enum\ScheduleType;
+use App\Livewire\Concerns\GatesCompanyFilterBySystem;
 use App\Models\Master\Companies;
 use App\Models\Shift\Schedule;
 use App\Models\Shift\ScheduleAssignment;
@@ -24,22 +26,21 @@ use Livewire\Component;
 #[Layout('components.layout', ['title' => 'Jadwal'])]
 class SchedulesPage extends Component
 {
+    use GatesCompanyFilterBySystem;
+
     public ?string $companyId = null;
 
     public function mount(): void
     {
         abort_unless(Auth::user()->can('ViewAny:Schedule'), 403);
 
-        $this->companyId = Auth::user()->canFilterByCompany()
-            ? (Auth::user()->company_id ?? Companies::orderBy('code')->value('id'))
-            : Auth::user()->company_id;
+        $this->companyId = Auth::user()->company_id ?? Companies::orderBy('code')->value('id');
+        $this->lockCompanyIdUnlessAllowed(CustomPermissionEnum::SISTEM_ABSENSI);
     }
 
     public function updatedCompanyId(): void
     {
-        if (! Auth::user()->canFilterByCompany()) {
-            $this->companyId = Auth::user()->company_id;
-        }
+        $this->lockCompanyIdUnlessAllowed(CustomPermissionEnum::SISTEM_ABSENSI);
     }
 
     public function getCompaniesProperty()

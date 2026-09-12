@@ -2,8 +2,10 @@
 
 namespace App\Livewire\Kepegawaian;
 
+use App\Enum\CustomPermissionEnum;
 use App\Enum\EmployeeTypeCategory;
 use App\Enum\UserTransitionTypeEnum;
+use App\Livewire\Concerns\GatesCompanyFilterBySystem;
 use App\Models\Master\Companies;
 use App\Models\Master\JobPositions;
 use App\Models\Role;
@@ -24,7 +26,7 @@ use Livewire\WithFileUploads;
 #[Layout('components.layout', ['title' => 'Ajukan Perubahan Status Karyawan'])]
 class CreateUserTransitionPage extends Component
 {
-    use WithFileUploads;
+    use WithFileUploads, GatesCompanyFilterBySystem;
 
     public ?string $companyId = null;
     public ?string $user_id = null;
@@ -67,9 +69,7 @@ class CreateUserTransitionPage extends Component
     {
         abort_unless(Auth::user()->can('Create:UserTransition'), 403);
 
-        if (! Auth::user()->canFilterByCompany()) {
-            $this->companyId = Auth::user()->company_id;
-        }
+        $this->lockCompanyIdUnlessAllowed(CustomPermissionEnum::SISTEM_KEPEGAWAIAN);
 
         // Pre-select jenis transisi sesuai tombol "Ajukan X" yang diklik dari list
         // (kepegawaian.mutasi-karyawan), bukan berarti tidak bisa diganti lagi di form.
@@ -81,9 +81,7 @@ class CreateUserTransitionPage extends Component
 
     public function updatedCompanyId(): void
     {
-        if (! Auth::user()->canFilterByCompany()) {
-            $this->companyId = Auth::user()->company_id;
-        }
+        $this->lockCompanyIdUnlessAllowed(CustomPermissionEnum::SISTEM_KEPEGAWAIAN);
     }
 
     /** user_id TIDAK di-reset di sini - populasi karyawan sama buat semua jenis (Tetap/Kontrak),
@@ -103,7 +101,7 @@ class CreateUserTransitionPage extends Component
 
     public function getCanBrowseAllCompaniesProperty(): bool
     {
-        return Auth::user()->canFilterByCompany();
+        return Auth::user()->canFilterByCompanyForSystem(CustomPermissionEnum::SISTEM_KEPEGAWAIAN);
     }
 
     /** Promosi/Demosi/Mutasi/PHK cuma relevan buat karyawan Tetap/Kontrak. */

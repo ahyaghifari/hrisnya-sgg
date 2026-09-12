@@ -15,7 +15,7 @@
         <div>
             <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;justify-content:space-between;">
                 <div style="display:flex;flex-wrap:wrap;gap:10px;">
-                    <x-company-filter :companies="$this->companies" wire:model.live="companyId" />
+                    <x-company-filter :companies="$this->companies" :system="\App\Enum\CustomPermissionEnum::SISTEM_KEUANGAN" wire:model.live="companyId" />
                     <div>
                         <label class="form-label">Periode Gaji</label>
                         <select class="form-input" style="min-width:220px;" wire:model.live="periodId">

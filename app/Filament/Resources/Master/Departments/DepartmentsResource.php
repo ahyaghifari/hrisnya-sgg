@@ -57,6 +57,12 @@ class DepartmentsResource extends BaseCompanyResource
                     ->label('Nama Departemen')
                     ->required()
                     ->maxLength(255),
+
+                TextInput::make('code')
+                    ->label('Kode Integrasi')
+                    ->helperText('Kode teknis stabil dipakai sistem lain buat sinkronisasi (Keycloak dkk) — sekali diisi jangan diubah lagi. Boleh kosong kalau belum perlu.')
+                    ->unique(ignoreRecord: true)
+                    ->maxLength(255),
             ]);
     }
 
@@ -66,6 +72,7 @@ class DepartmentsResource extends BaseCompanyResource
             ->columns([
                 static::companyTableColumn(),
                 TextColumn::make('name')->label('Nama Departemen')->searchable()->sortable(),
+                TextColumn::make('code')->label('Kode')->searchable()->copyable()->placeholder('—'),
                 TextColumn::make('divisions_count')->label('Jumlah Divisi')->alignCenter()->sortable(),
                 TextColumn::make('capacity')->label('Kapasitas')->alignCenter(),
             ])

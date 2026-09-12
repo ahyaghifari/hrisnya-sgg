@@ -2,8 +2,10 @@
 
 namespace App\Livewire\Kepegawaian;
 
+use App\Enum\CustomPermissionEnum;
 use App\Enum\UserDocumentType;
 use App\Helpers\PermissionHelper;
+use App\Livewire\Concerns\GatesCompanyFilterBySystem;
 use App\Models\Master\Companies;
 use App\Models\User\UserDocuments;
 use Illuminate\Support\Facades\Auth;
@@ -21,7 +23,7 @@ use Livewire\WithPagination;
 #[Layout('components.layout', ['title' => 'Dokumen Kepegawaian'])]
 class DocumentsPage extends Component
 {
-    use WithPagination;
+    use WithPagination, GatesCompanyFilterBySystem;
 
     // Pagination di sini pakai wire:navigate (lihat livewire/partials/pagination.blade.php),
     // yaitu full page-visit yang bikin komponen di-mount ULANG dari URL. Tanpa #[Url], filter
@@ -50,9 +52,9 @@ class DocumentsPage extends Component
     {
         abort_unless(Auth::user()->can('viewAny', UserDocuments::class), 403);
 
-        if (! Auth::user()->canFilterByCompany()) {
-            $this->companyId = Auth::user()->company_id;
-        } elseif ($this->companyId === null) {
+        $this->lockCompanyIdUnlessAllowed(CustomPermissionEnum::SISTEM_KEPEGAWAIAN);
+
+        if ($this->companyId === null) {
             $this->companyId = Auth::user()->company_id;
         }
     }
@@ -71,9 +73,7 @@ class DocumentsPage extends Component
 
     public function updatedCompanyId(): void
     {
-        if (! Auth::user()->canFilterByCompany()) {
-            $this->companyId = Auth::user()->company_id;
-        }
+        $this->lockCompanyIdUnlessAllowed(CustomPermissionEnum::SISTEM_KEPEGAWAIAN);
 
         $this->resetPage();
     }
@@ -174,7 +174,7 @@ class DocumentsPage extends Component
     public function render()
     {
         return view('livewire.kepegawaian.documents-page', [
-            'canBrowseAllCompanies' => Auth::user()->canFilterByCompany(),
+            'canBrowseAllCompanies' => Auth::user()->canFilterByCompanyForSystem(CustomPermissionEnum::SISTEM_KEPEGAWAIAN),
         ]);
     }
 }

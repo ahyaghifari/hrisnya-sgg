@@ -3,6 +3,7 @@
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\AttendanceTemplateController;
 use App\Http\Controllers\EmployeeImportController;
+use App\Http\Controllers\Public\OrgUnitsController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('guest')->group(function () {
@@ -22,6 +23,14 @@ Route::post('/logout', [LoginController::class, 'destroy'])
 //     Route::get('/kuis/{token}', \App\Livewire\LMS\PublicQuizPage::class)->name('lms.public.quiz');
 //     Route::get('/umpan-balik/{token}', \App\Livewire\LMS\PublicFeedbackPage::class)->name('lms.public.feedback');
 // });
+
+// Publik (tanpa login) — daftar Departemen/Divisi/Sub Divisi + kode integrasi, dipakai
+// sistem lain buat cocokkan unit organisasi mereka ke unit yang sama di HRIS. Read-only,
+// tanpa data sensitif. Lihat App\Http\Controllers\Public\OrgUnitsController.
+Route::middleware('throttle:60,1')->prefix('publik')->group(function () {
+    Route::get('/unit-organisasi', [OrgUnitsController::class, 'index'])->name('public.org-units');
+    Route::get('/unit-organisasi.json', [OrgUnitsController::class, 'json'])->name('public.org-units.json');
+});
 
 // Route per modul sistem (1 modul = 1 file), semua inherit middleware('auth','portal.access')
 // dari group ini lewat require - bukan group() terpisah per file, supaya middleware-nya

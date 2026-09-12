@@ -78,6 +78,12 @@ class DivisionsResource extends BaseCompanyResource
                     ->label('Nama Divisi')
                     ->required()
                     ->maxLength(255),
+
+                TextInput::make('code')
+                    ->label('Kode Integrasi')
+                    ->helperText('Kode teknis stabil dipakai sistem lain buat sinkronisasi (Keycloak dkk) — sekali diisi jangan diubah lagi. Boleh kosong kalau belum perlu.')
+                    ->unique(ignoreRecord: true)
+                    ->maxLength(255),
             ]);
     }
 
@@ -88,6 +94,7 @@ class DivisionsResource extends BaseCompanyResource
                 static::companyTableColumn(),
                 TextColumn::make('parent.name')->label('Departemen')->searchable()->sortable(),
                 TextColumn::make('name')->label('Nama Divisi')->searchable()->sortable(),
+                TextColumn::make('code')->label('Kode')->searchable()->copyable()->placeholder('—'),
                 TextColumn::make('subdivisions_count')->label('Jumlah Sub Divisi')->alignCenter()->sortable(),
                 TextColumn::make('capacity')->label('Kapasitas')->alignCenter(),
             ])

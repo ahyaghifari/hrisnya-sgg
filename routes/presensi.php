@@ -73,6 +73,9 @@ Route::get('/presensi/extra-shift-rule', ExtraShiftRulePage::class)
 Route::get('/presensi/jadwal-saya', \App\Livewire\Presensi\JadwalSayaPage::class)
     ->name('presensi.jadwal-saya');
 
+Route::get('/presensi/jadwal-karyawan', \App\Livewire\Presensi\JadwalKaryawanPage::class)
+    ->name('presensi.jadwal-karyawan');
+
 Route::get('/tukar-shift', \App\Livewire\Presensi\MyShiftSwapRequests::class)
     ->name('tukar-shift');
 

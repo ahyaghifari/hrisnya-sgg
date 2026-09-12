@@ -35,7 +35,7 @@
         <div class="doc-type-layout">
             {{-- Kiri: perusahaan — balik ke lebar default .doc-type-nav (210px desktop, full
             width scroll horizontal di mobile). Sesuai urutan tabel (kode), bukan alfabetis. --}}
-            @if (auth()->user()->canFilterByCompany())
+            @if (auth()->user()->canFilterByCompanyForSystem(\App\Enum\CustomPermissionEnum::SISTEM_KEUANGAN))
             <div class="doc-type-nav">
                 @foreach ($this->companies as $company)
                     <button type="button" wire:click="selectCompany('{{ $company->id }}')" class="doc-type-btn {{ $companyId === $company->id ? 'is-active' : '' }}">

@@ -70,6 +70,11 @@ return [
         'password' => env('N8N_API_PASSWORD'),
     ],
 
+    // Endpoint direktori karyawan (App\Http\Controllers\Api\Integrasi\EmployeeDirectoryController)
+    // otentikasinya BUKAN lagi di sini — tiap sistem konsumen punya token sendiri, dikelola di
+    // App\Models\Integrasi\IntegrationApp lewat panel Filament /keycloak (menu Aplikasi
+    // Terhubung). Lihat App\Http\Controllers\Api\Integrasi\EmployeeDirectoryController.
+
     'keycloak' => [
         'client_id' => env('KEYCLOAK_CLIENT_ID'),
         'client_secret' => env('KEYCLOAK_CLIENT_SECRET'),

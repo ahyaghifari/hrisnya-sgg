@@ -32,7 +32,7 @@ class KeycloakPanelProvider extends PanelProvider
             ->path('keycloak')
             ->brandName('Keycloak - HRIS')
             ->darkMode(false)
-            ->sidebarWidth('14rem')
+            ->sidebarWidth('16rem')
             ->globalSearch(false)
             ->colors([
                 'primary' => Color::hex('#0066CC'), // PatternFly blue (Keycloak)
@@ -60,6 +60,7 @@ class KeycloakPanelProvider extends PanelProvider
                 </style>
                 HTML)
             ->discoverPages(in: app_path('Filament/Keycloak/Pages'), for: 'App\Filament\Keycloak\Pages')
+            ->discoverResources(in: app_path('Filament/Keycloak/Resources'), for: 'App\Filament\Keycloak\Resources')
             ->middleware([
                 EncryptCookies::class,
                 AddQueuedCookiesToResponse::class,

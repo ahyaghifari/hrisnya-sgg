@@ -2,6 +2,8 @@
 
 namespace App\Livewire\LMS;
 
+use App\Enum\CustomPermissionEnum;
+use App\Livewire\Concerns\GatesCompanyFilterBySystem;
 use App\Models\LMS\LmsCategories;
 use App\Models\LMS\LmsCourses;
 use Illuminate\Support\Facades\Auth;
@@ -31,6 +33,8 @@ use Livewire\Component;
 #[Layout('components.layout', ['title' => 'Pelatihan'])]
 class LmsCoursesPage extends Component
 {
+    use GatesCompanyFilterBySystem;
+
     // Pagination di sini pakai wire:navigate (lihat livewire/partials/pagination.blade.php),
     // yaitu full page-visit yang bikin komponen di-mount ULANG dari URL. Tanpa #[Url], filter
     // ini ikut hilang begitu pindah halaman paginasi.
@@ -47,9 +51,9 @@ class LmsCoursesPage extends Component
     {
         abort_unless(Auth::user()->can('viewAny', LmsCourses::class), 403);
 
-        if (! Auth::user()->canFilterByCompany()) {
-            $this->companyId = Auth::user()->company_id;
-        } elseif ($this->companyId === null) {
+        $this->lockCompanyIdUnlessAllowed(CustomPermissionEnum::SISTEM_LMS);
+
+        if ($this->companyId === null) {
             $this->companyId = Auth::user()->company_id;
         }
     }
@@ -68,7 +72,7 @@ class LmsCoursesPage extends Component
 
         if ($this->companyId) {
             $query->where('company_id', $this->companyId);
-        } elseif (! Auth::user()->canFilterByCompany()) {
+        } elseif (! Auth::user()->canFilterByCompanyForSystem(CustomPermissionEnum::SISTEM_LMS)) {
             $query->where('company_id', Auth::user()->company_id);
         }
 

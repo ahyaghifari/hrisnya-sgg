@@ -2,7 +2,9 @@
 
 namespace App\Livewire\Keuangan;
 
+use App\Enum\CustomPermissionEnum;
 use App\Enum\Payroll\PayrollComponentEnum;
+use App\Livewire\Concerns\GatesCompanyFilterBySystem;
 use App\Models\Incentive\Incentive;
 use App\Models\Master\Companies;
 use App\Models\Payroll\CompanyPayrollComponent;
@@ -24,6 +26,8 @@ use Livewire\Component;
 #[Layout('components.layout', ['title' => 'Insentif'])]
 class IncentivesPage extends Component
 {
+    use GatesCompanyFilterBySystem;
+
     public ?string $companyId = null;
     public string $search = '';
 
@@ -39,16 +43,13 @@ class IncentivesPage extends Component
     {
         abort_unless(Auth::user()->can('viewAny', Incentive::class), 403);
 
-        $this->companyId = Auth::user()->canFilterByCompany()
-            ? (Auth::user()->company_id ?? Companies::orderBy('code')->value('id'))
-            : Auth::user()->company_id;
+        $this->companyId = Auth::user()->company_id ?? Companies::orderBy('code')->value('id');
+        $this->lockCompanyIdUnlessAllowed(CustomPermissionEnum::SISTEM_KEUANGAN);
     }
 
     public function updatedCompanyId(): void
     {
-        if (! Auth::user()->canFilterByCompany()) {
-            $this->companyId = Auth::user()->company_id;
-        }
+        $this->lockCompanyIdUnlessAllowed(CustomPermissionEnum::SISTEM_KEUANGAN);
     }
 
     public function getCompaniesProperty()

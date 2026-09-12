@@ -2,6 +2,8 @@
 
 namespace App\Livewire\Kepegawaian;
 
+use App\Enum\CustomPermissionEnum;
+use App\Livewire\Concerns\GatesCompanyFilterBySystem;
 use App\Livewire\Kepegawaian\Concerns\HasKaryawanForm;
 use App\Models\Role;
 use App\Models\User;
@@ -25,15 +27,13 @@ use Livewire\Component;
 #[Layout('components.layout', ['title' => 'Tambah Karyawan'])]
 class CreateKaryawan extends Component
 {
-    use HasKaryawanForm;
+    use HasKaryawanForm, GatesCompanyFilterBySystem;
 
     public function mount(): void
     {
         abort_unless(Auth::user()->can('create', User::class), 403);
 
-        if (! Auth::user()->canFilterByCompany()) {
-            $this->company_id = Auth::user()->company_id;
-        }
+        $this->lockCompanyIdUnlessAllowed(CustomPermissionEnum::SISTEM_KEPEGAWAIAN, 'company_id');
     }
 
     public function save(): void

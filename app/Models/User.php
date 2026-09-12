@@ -233,6 +233,30 @@ class User extends Authenticatable implements FilamentUser
     }
 
     /**
+     * Sama seperti canFilterByCompany(), tapi dipersempit lagi per sistem/modul lewat
+     * config CompanyFilterAccess (Manajemen Pengguna > Akses Filter Perusahaan) - admin
+     * centang sistem mana saja yang boleh dipakai lintas company per company+role/user.
+     * Fail-closed: tanpa permission dasar, tanpa row config, atau row ada tapi sistemnya
+     * tidak dicentang -> false (filter disembunyikan, dikunci ke company sendiri).
+     */
+    public function canFilterByCompanyForSystem(\App\Enum\CustomPermissionEnum $system): bool
+    {
+        if (! $this->canFilterByCompany()) {
+            return false;
+        }
+
+        $roleIds = $this->roles->pluck('id')->map(fn ($id) => (string) $id);
+
+        return \App\Models\CompanyFilterAccess::where('company_id', $this->company_id)
+            ->where(function ($query) use ($roleIds) {
+                $query->where(fn ($q) => $q->where('grantee_type', 'user')->where('grantee_id', $this->id))
+                    ->orWhere(fn ($q) => $q->where('grantee_type', 'role')->whereIn('grantee_id', $roleIds));
+            })
+            ->get()
+            ->contains(fn ($row) => in_array($system->value, $row->systems, true));
+    }
+
+    /**
      * Dulu ditulis ulang di dua tempat (nav.blade.php & MyEmployees::mount()) dengan kondisi
      * yang sama persis — disatukan di sini supaya nav dan guard halaman tidak bisa beda sendiri.
      */

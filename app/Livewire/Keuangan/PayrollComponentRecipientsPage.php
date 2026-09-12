@@ -4,6 +4,7 @@ namespace App\Livewire\Keuangan;
 
 use App\Enum\CustomPermissionEnum;
 use App\Enum\Payroll\PayrollComponentEnum;
+use App\Livewire\Concerns\GatesCompanyFilterBySystem;
 use App\Models\Master\Companies;
 use App\Models\Master\EmployeeTypes;
 use App\Models\Payroll\CompanyPayrollComponent;
@@ -24,6 +25,8 @@ use Livewire\Component;
 #[Layout('components.layout', ['title' => 'Penerima Komponen Gaji'])]
 class PayrollComponentRecipientsPage extends Component
 {
+    use GatesCompanyFilterBySystem;
+
     public ?string $companyId = null;
     public ?string $activeComponent = null;
 
@@ -34,9 +37,8 @@ class PayrollComponentRecipientsPage extends Component
     {
         abort_unless(Auth::user()->can(CustomPermissionEnum::LIHAT_PENERIMA_KOMPONEN_GAJI->value), 403);
 
-        $this->companyId = Auth::user()->canFilterByCompany()
-            ? (Auth::user()->company_id ?? Companies::orderBy('code')->value('id'))
-            : Auth::user()->company_id;
+        $this->companyId = Auth::user()->company_id ?? Companies::orderBy('code')->value('id');
+        $this->lockCompanyIdUnlessAllowed(CustomPermissionEnum::SISTEM_KEUANGAN);
         $this->loadCompanyState();
     }
 
@@ -45,14 +47,12 @@ class PayrollComponentRecipientsPage extends Component
     // companyId perlu divalidasi ulang di sini juga.
     public function updatedCompanyId(): void
     {
-        if (! Auth::user()->canFilterByCompany()) {
-            $this->companyId = Auth::user()->company_id;
-        }
+        $this->lockCompanyIdUnlessAllowed(CustomPermissionEnum::SISTEM_KEUANGAN);
     }
 
     public function selectCompany(string $companyId): void
     {
-        abort_unless(Auth::user()->canFilterByCompany(), 403);
+        abort_unless(Auth::user()->canFilterByCompanyForSystem(CustomPermissionEnum::SISTEM_KEUANGAN), 403);
 
         $this->companyId = $companyId;
         $this->activeComponent = null;

@@ -113,6 +113,59 @@ class ShiftSwapRequestModalTest extends TestCase
         $this->assertSame($targetDate, $swap->target_date->toDateString());
     }
 
+    public function test_submit_reciprocal_off_swap_creates_request_with_swap_kind(): void
+    {
+        $requester = User::factory()->create(['company_id' => $this->company->id]);
+        $target = User::factory()->create(['company_id' => $this->company->id]);
+
+        $reqDate = now()->addDay()->toDateString();
+        $compensationDate = now()->addDays(5)->toDateString();
+
+        ScheduleShiftAssignment::create(['company_id' => $this->company->id, 'user_id' => $requester->id, 'shift_type_id' => $this->pagi->id, 'date' => $reqDate, 'off_day' => false]);
+        // Target LIBUR BENERAN (baris ada, off_day=true) di reqDate.
+        ScheduleShiftAssignment::create(['company_id' => $this->company->id, 'user_id' => $target->id, 'shift_type_id' => null, 'date' => $reqDate, 'off_day' => true]);
+        ScheduleShiftAssignment::create(['company_id' => $this->company->id, 'user_id' => $target->id, 'shift_type_id' => $this->pagi->id, 'date' => $compensationDate, 'off_day' => false]);
+
+        Livewire::actingAs($requester)
+            ->test(ShiftSwapRequestModal::class)
+            ->call('openModal')
+            ->set('dateMode', 'reciprocal')
+            ->set('targetUserId', $target->id)
+            ->set('targetDate', $compensationDate)
+            ->call('submit')
+            ->assertHasNoErrors()
+            ->assertSet('showModal', false);
+
+        $swap = ShiftSwapRequests::where('requester_id', $requester->id)->first();
+        $this->assertNotNull($swap);
+        $this->assertSame('reciprocal_off', $swap->swap_kind);
+        $this->assertSame($compensationDate, $swap->target_date->toDateString());
+    }
+
+    public function test_off_day_candidates_exclude_na_and_require_real_off_day_row(): void
+    {
+        $requester = User::factory()->create(['company_id' => $this->company->id]);
+        $reqDate = now()->addDay()->toDateString();
+        ScheduleShiftAssignment::create(['company_id' => $this->company->id, 'user_id' => $requester->id, 'shift_type_id' => $this->pagi->id, 'date' => $reqDate, 'off_day' => false]);
+
+        // Rekan A: Libur BENERAN di reqDate - harus muncul.
+        $reallyOff = User::factory()->create(['company_id' => $this->company->id]);
+        ScheduleShiftAssignment::create(['company_id' => $this->company->id, 'user_id' => $reallyOff->id, 'shift_type_id' => null, 'date' => $reqDate, 'off_day' => true]);
+        // Perlu punya jejak sejadwal (baris kerja lain) supaya lolos filter "sesama jadwal".
+        ScheduleShiftAssignment::create(['company_id' => $this->company->id, 'user_id' => $reallyOff->id, 'shift_type_id' => $this->siang->id, 'date' => now()->addDays(5)->toDateString(), 'off_day' => false]);
+
+        // Rekan B: N/A/kosong (tidak ada baris sama sekali) di reqDate - TIDAK boleh muncul.
+        $empty = User::factory()->create(['company_id' => $this->company->id]);
+        ScheduleShiftAssignment::create(['company_id' => $this->company->id, 'user_id' => $empty->id, 'shift_type_id' => $this->siang->id, 'date' => now()->addDays(5)->toDateString(), 'off_day' => false]);
+
+        $component = Livewire::actingAs($requester)->test(ShiftSwapRequestModal::class)->set('dateMode', 'reciprocal');
+
+        $candidates = $component->get('offDayCandidates');
+
+        $this->assertTrue($candidates->contains('user_id', $reallyOff->id));
+        $this->assertFalse($candidates->contains('user_id', $empty->id), 'N/A/kosong tidak boleh dianggap Libur.');
+    }
+
     public function test_submit_without_own_schedule_fails_validation(): void
     {
         $requester = User::factory()->create(['company_id' => $this->company->id]);

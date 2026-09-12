@@ -14,7 +14,7 @@
     <x-page-header title="Mapping Komponen Gaji" />
 
     <div class="mt-4 doc-type-layout">
-        @if (auth()->user()->canFilterByCompany())
+        @if (auth()->user()->canFilterByCompanyForSystem(\App\Enum\CustomPermissionEnum::SISTEM_KEUANGAN))
         <div class="doc-type-nav">
             @foreach ($this->companies as $company)
                 <button type="button" wire:click="selectCompany('{{ $company->id }}')" class="doc-type-btn {{ $companyId === $company->id ? 'is-active' : '' }}">

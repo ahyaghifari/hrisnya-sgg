@@ -6,6 +6,7 @@ use App\Enum\CustomPermissionEnum;
 use App\Enum\Payroll\PayrollComponentEnum;
 use App\Jobs\GeneratePayrollJob;
 use App\Jobs\RegeneratePayrollJob;
+use App\Livewire\Concerns\GatesCompanyFilterBySystem;
 use App\Models\Master\Companies;
 use App\Models\Payroll\CompanyPayrollComponent;
 use App\Models\Payroll\OmsetDetail;
@@ -19,6 +20,8 @@ use Livewire\Component;
 #[Layout('components.layout', ['title' => 'Periode Gaji'])]
 class PayrollPeriodsPage extends Component
 {
+    use GatesCompanyFilterBySystem;
+
     public ?string $companyId = null;
 
     public bool $showFormModal = false;
@@ -38,16 +41,13 @@ class PayrollPeriodsPage extends Component
     {
         abort_unless(Auth::user()->can('viewAny', PayrollPeriod::class), 403);
 
-        $this->companyId = Auth::user()->canFilterByCompany()
-            ? (Auth::user()->company_id ?? Companies::orderBy('code')->value('id'))
-            : Auth::user()->company_id;
+        $this->companyId = Auth::user()->company_id ?? Companies::orderBy('code')->value('id');
+        $this->lockCompanyIdUnlessAllowed(CustomPermissionEnum::SISTEM_KEUANGAN);
     }
 
     public function updatedCompanyId(): void
     {
-        if (! Auth::user()->canFilterByCompany()) {
-            $this->companyId = Auth::user()->company_id;
-        }
+        $this->lockCompanyIdUnlessAllowed(CustomPermissionEnum::SISTEM_KEUANGAN);
     }
 
     public function getCompaniesProperty()

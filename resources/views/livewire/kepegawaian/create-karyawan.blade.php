@@ -68,7 +68,7 @@
 
             <div>
                 <label class="form-label">Perusahaan</label>
-                <select wire:model="company_id" class="form-input" @disabled(! auth()->user()->canFilterByCompany())>
+                <select wire:model="company_id" class="form-input" @disabled(! auth()->user()->canFilterByCompanyForSystem(\App\Enum\CustomPermissionEnum::SISTEM_KEPEGAWAIAN))>
                     <option value="">Pilih perusahaan...</option>
                     @foreach ($this->companyOptions as $id => $companyName)
                         <option value="{{ $id }}">{{ $companyName }}</option>

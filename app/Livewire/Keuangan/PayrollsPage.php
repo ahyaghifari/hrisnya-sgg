@@ -10,6 +10,7 @@ use App\Imports\Payroll\BonImport;
 use App\Imports\Payroll\PayrollRevisionImport;
 use App\Jobs\BuildPayrollSlipZipJob;
 use App\Jobs\SendPayrollSlipJob;
+use App\Livewire\Concerns\GatesCompanyFilterBySystem;
 use App\Livewire\Keuangan\Concerns\HasSlipSendStatus;
 use App\Livewire\Keuangan\Concerns\MasksMoney;
 use App\Models\Master\Companies;
@@ -47,6 +48,7 @@ class PayrollsPage extends Component
     use HasSlipSendStatus;
     use MasksMoney;
     use WithFileUploads;
+    use GatesCompanyFilterBySystem;
 
     public ?string $companyId = null;
     public ?string $periodId = null;
@@ -78,17 +80,14 @@ class PayrollsPage extends Component
     {
         abort_unless(Auth::user()->can('viewAny', Payroll::class), 403);
 
-        $this->companyId = Auth::user()->canFilterByCompany()
-            ? (Auth::user()->company_id ?? Companies::orderBy('code')->value('id'))
-            : Auth::user()->company_id;
+        $this->companyId = Auth::user()->company_id ?? Companies::orderBy('code')->value('id');
+        $this->lockCompanyIdUnlessAllowed(CustomPermissionEnum::SISTEM_KEUANGAN);
     }
 
     /** Ganti company -> pilihan periode lama tidak relevan lagi. */
     public function updatedCompanyId(): void
     {
-        if (! Auth::user()->canFilterByCompany()) {
-            $this->companyId = Auth::user()->company_id;
-        }
+        $this->lockCompanyIdUnlessAllowed(CustomPermissionEnum::SISTEM_KEUANGAN);
 
         $this->periodId = null;
         $this->selected = [];
@@ -120,7 +119,7 @@ class PayrollsPage extends Component
     {
         $q = PayrollPeriod::query();
 
-        if (Auth::user()->canFilterByCompany()) {
+        if (Auth::user()->canFilterByCompanyForSystem(CustomPermissionEnum::SISTEM_KEUANGAN)) {
             $q->withoutGlobalScope('company');
         }
 
@@ -146,7 +145,7 @@ class PayrollsPage extends Component
     {
         // $q bisa Builder (dari whereHas) atau Relation (dari with()) — dua-duanya punya
         // withoutGlobalScope() (Relation nge-proxy ke builder-nya).
-        if (Auth::user()->canFilterByCompany()) {
+        if (Auth::user()->canFilterByCompanyForSystem(CustomPermissionEnum::SISTEM_KEUANGAN)) {
             $q->withoutGlobalScope('company');
         }
     }

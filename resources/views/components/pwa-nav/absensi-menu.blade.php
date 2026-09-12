@@ -17,6 +17,10 @@
     <span class="pwa-menu-grid-icon green"><i class="fa-solid fa-calendar-days"></i></span>
     <span class="pwa-menu-grid-label">Jadwal</span>
 </a>
+<a href="{{ route('presensi.jadwal-karyawan') }}" wire:navigate class="pwa-menu-grid-item">
+    <span class="pwa-menu-grid-icon green"><i class="fa-solid fa-calendar-week"></i></span>
+    <span class="pwa-menu-grid-label">Jadwal Karyawan</span>
+</a>
 @endif
 @if ($canViewExtraShift)
 <a href="{{ route('presensi.extra-shift') }}" wire:navigate class="pwa-menu-grid-item">

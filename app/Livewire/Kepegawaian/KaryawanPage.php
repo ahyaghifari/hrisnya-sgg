@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Kepegawaian;
 
+use App\Enum\CustomPermissionEnum;
 use App\Enum\OrgStructurLevel;
 use App\Exports\Kepegawaian\KaryawanDataExport;
 use App\Helpers\PermissionHelper;
@@ -23,7 +24,7 @@ use Maatwebsite\Excel\Facades\Excel;
 #[Layout('components.layout', ['title' => 'Karyawan'])]
 class KaryawanPage extends Component
 {
-    use WithPagination;
+    use WithPagination, \App\Livewire\Concerns\GatesCompanyFilterBySystem;
 
     // Pagination di sini pakai wire:navigate (lihat livewire/partials/pagination.blade.php),
     // yaitu full page-visit yang bikin komponen di-mount ULANG dari URL — bukan wire:click
@@ -46,18 +47,16 @@ class KaryawanPage extends Component
     {
         abort_unless(Auth::user()->can('viewAny', User::class), 403);
 
-        if (! Auth::user()->canFilterByCompany()) {
-            $this->companyId = Auth::user()->company_id;
-        } elseif ($this->companyId === null) {
+        $this->lockCompanyIdUnlessAllowed(CustomPermissionEnum::SISTEM_KEPEGAWAIAN);
+
+        if ($this->companyId === null) {
             $this->companyId = Auth::user()->company_id;
         }
     }
 
     public function updatedCompanyId(): void
     {
-        if (! Auth::user()->canFilterByCompany()) {
-            $this->companyId = Auth::user()->company_id;
-        }
+        $this->lockCompanyIdUnlessAllowed(CustomPermissionEnum::SISTEM_KEPEGAWAIAN);
 
         $this->departmentId = null;
         $this->resetPage();
@@ -110,7 +109,7 @@ class KaryawanPage extends Component
 
         if ($this->companyId) {
             $query->where('company_id', $this->companyId);
-        } elseif (! Auth::user()->canFilterByCompany()) {
+        } elseif (! Auth::user()->canFilterByCompanyForSystem(CustomPermissionEnum::SISTEM_KEPEGAWAIAN)) {
             $query->where('company_id', Auth::user()->company_id);
         }
 
@@ -240,7 +239,7 @@ class KaryawanPage extends Component
     public function render()
     {
         return view('livewire.kepegawaian.karyawan-page', [
-            'canBrowseAllCompanies' => Auth::user()->canFilterByCompany(),
+            'canBrowseAllCompanies' => Auth::user()->canFilterByCompanyForSystem(CustomPermissionEnum::SISTEM_KEPEGAWAIAN),
         ]);
     }
 }

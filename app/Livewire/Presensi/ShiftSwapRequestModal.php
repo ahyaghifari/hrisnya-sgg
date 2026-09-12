@@ -19,10 +19,19 @@ use Livewire\Component;
  * targetDate kalau beda) - lihat getEffectiveTargetDateProperty()/getTargetCandidatesProperty().
  * Pencarian rekan DIBATASI ke sesama pemakai jadwal shift yang SAMA dengan user login (instruksi
  * user 2026-08-16) - lihat myScheduleId().
- * Submit lewat ShiftSwapRequestService::store() yang sudah ada - kompatibilitas tipe shift & (buat
- * tanggal beda) fallback Extra Shift kalau rekan/pemohon TERNYATA sudah punya jadwal lain di
- * tanggal tujuan, semua dicek di situ (lihat ShiftSwapRequestService::validateScheduleSwapRules /
- * executeApprovedSwap).
+ * Submit lewat ShiftSwapRequestService::store() yang sudah ada - kompatibilitas tipe shift dicek
+ * di situ (lihat ShiftSwapRequestService::validateScheduleSwapRules). Buat tanggal beda, kalau
+ * rekan/pemohon TERNYATA sudah punya jadwal lain di tanggal tujuan, shift itu TIDAK dipindah
+ * otomatis (2026-09-12, dulu fallback Extra Shift) - cuma dikasih peringatan double shift/nyambung
+ * shift, lihat getConflictWarningsProperty()/ShiftSwapRequestService::conflictWarningsForSchedules().
+ *
+ * Mode ke-3 "reciprocal" (2026-09-12, lihat planning/2026-09-12-tukar-shift-libur-berpasangan.md):
+ * tukar libur berpasangan - rekan sedang LIBUR BENERAN (off_day=true, bukan N/A/kosong) di
+ * reqDate, pemohon WAJIB mengambil alih 1 shift kerja rekan di tanggal lain sebagai kompensasi
+ * (bukan gratisan seperti storeOffDay() lama yang sudah dihapus). Beda dari 2 mode lain: rekan
+ * dipilih DULU (getOffDayCandidatesProperty), baru tanggal kompensasi
+ * (getCompensationCandidatesProperty). Konflik nyata di mode ini diblok KERAS oleh service
+ * (bukan warning-only), jadi conflictWarnings tidak dipakai untuk mode ini.
  */
 class ShiftSwapRequestModal extends Component
 {
@@ -35,7 +44,11 @@ class ShiftSwapRequestModal extends Component
     public ?string $targetUserId = null;
 
     /** 'same' = rekan ditukar di tanggal yang sama dengan reqDate, 'different' = rekan punya
-     * tanggal shift sendiri (targetDate). */
+     * tanggal shift sendiri (targetDate), 'reciprocal' = rekan sedang LIBUR di reqDate -
+     * pemohon wajib "membayar" balik dengan mengambil alih shift kerja rekan di tanggal lain
+     * (targetDate), lihat planning/2026-09-12-tukar-shift-libur-berpasangan.md. Beda urutan
+     * pilih dari 2 mode lain: rekan dipilih DULU (dari yang libur di reqDate), baru tanggal
+     * kompensasi (dari shift kerja rekan itu). */
     public string $dateMode = 'same';
 
     public ?string $targetDate = null;
@@ -103,9 +116,24 @@ class ShiftSwapRequestModal extends Component
         $this->targetDate = null;
     }
 
+    /** Mode 'reciprocal' doang: ganti rekan -> tanggal kompensasi yang sebelumnya dipilih bisa
+     * jadi bukan milik rekan baru, reset. Mode lain tidak butuh ini (rekan dipilih SETELAH
+     * tanggal, lihat updatedTargetDate()). */
+    public function updatedTargetUserId(): void
+    {
+        if ($this->dateMode === 'reciprocal') {
+            $this->targetDate = null;
+        }
+    }
+
     public function updatedTargetDate(): void
     {
-        $this->targetUserId = null;
+        // Mode 'reciprocal' urutannya kebalik dari 'different': rekan dipilih DULU, baru
+        // tanggal kompensasi - ganti tanggal kompensasi TIDAK boleh menghapus rekan yang sudah
+        // dipilih (beda dari 'different', di situ targetDate dipilih duluan sebelum rekan).
+        if ($this->dateMode !== 'reciprocal') {
+            $this->targetUserId = null;
+        }
     }
 
     /** Schedule (shift) yang lagi dipakai user login - sama pola
@@ -130,7 +158,7 @@ class ShiftSwapRequestModal extends Component
 
     public function getEffectiveTargetDateProperty(): ?string
     {
-        return $this->dateMode === 'different' ? $this->targetDate : $this->reqDate;
+        return in_array($this->dateMode, ['different', 'reciprocal'], true) ? $this->targetDate : $this->reqDate;
     }
 
     /** Rekan sejadwal yang PUNYA jadwal shift di tanggal EFEKTIF (reqDate kalau mode sama,
@@ -159,6 +187,59 @@ class ShiftSwapRequestModal extends Component
             ->filter(fn ($row) => $row->user)
             ->sortBy('user.name')
             ->values();
+    }
+
+    /** Rekan sejadwal yang LIBUR BENERAN di reqDate (baris ada, off_day=true) - dipakai mode
+     * 'reciprocal'. N/A/kosong (tidak ada baris sama sekali) SENGAJA tidak muncul di sini -
+     * beda dari getTargetCandidatesProperty() yang justru cari yang KERJA. Query langsung ke
+     * ScheduleShiftAssignment (bukan ScheduleResolver) - lihat
+     * ShiftSwapRequestService::assertReciprocalOffEligible(). */
+    public function getOffDayCandidatesProperty()
+    {
+        if (! $this->reqDate) {
+            return collect();
+        }
+
+        $scheduleId = $this->myScheduleId();
+
+        if (! $scheduleId) {
+            return collect();
+        }
+
+        $sameScheduleUserIds = ScheduleShiftAssignment::whereHas('shiftType', fn ($q) => $q->where('schedule_id', $scheduleId))
+            ->whereNotNull('shift_type_id')
+            ->distinct()
+            ->pluck('user_id');
+
+        return ScheduleShiftAssignment::where('off_day', true)
+            ->whereDate('date', $this->reqDate)
+            ->where('user_id', '!=', Auth::id())
+            ->whereIn('user_id', $sameScheduleUserIds)
+            ->with('user')
+            ->get()
+            ->filter(fn ($row) => $row->user)
+            ->sortBy('user.name')
+            ->values();
+    }
+
+    /** Shift KERJA rekan (targetUserId) yang bisa diambil alih sebagai kompensasi - dipakai
+     * mode 'reciprocal', muncul setelah rekan dipilih. Tanggal reqDate sendiri dikecualikan
+     * (tidak boleh jadi kompensasi buat dirinya sendiri, lihat
+     * ShiftSwapRequestService::assertReciprocalOffEligible()). */
+    public function getCompensationCandidatesProperty()
+    {
+        if (! $this->targetUserId) {
+            return collect();
+        }
+
+        return ScheduleShiftAssignment::where('user_id', $this->targetUserId)
+            ->where('off_day', false)
+            ->whereNotNull('shift_type_id')
+            ->where('date', '>=', $this->minDate)
+            ->when($this->reqDate, fn ($q) => $q->whereDate('date', '!=', $this->reqDate))
+            ->with('shiftType')
+            ->orderBy('date')
+            ->get();
     }
 
     /** Jadwal shift SENDIRI di reqDate - null kalau libur/tidak ada jadwal di tanggal itu. */
@@ -192,6 +273,22 @@ class ShiftSwapRequestModal extends Component
             ->first();
     }
 
+    /** Preview peringatan double shift/nyambung shift SEBELUM submit (tanggal beda + salah satu
+     * pihak sudah punya jadwal lain di tanggal tujuan) - service tetap cek ulang live di halaman
+     * detail (jadwal bisa berubah antara submit & approval final), lihat
+     * ShiftSwapRequestService::conflictWarningsForSchedules(). Tidak memblokir submit, murni info. */
+    public function getConflictWarningsProperty(): array
+    {
+        // Mode 'reciprocal' tidak pakai warning-only - konflik nyata di mode ini diblok keras
+        // saat submit (ShiftSwapRequestService::assertReciprocalOffEligible() + resolveSlot
+        // strict), jadi banner ini tidak relevan ditampilkan di sana.
+        if ($this->dateMode === 'reciprocal') {
+            return [];
+        }
+
+        return app(ShiftSwapRequestService::class)->conflictWarningsForSchedules($this->reqShift, $this->targetShift);
+    }
+
     public function submit(): void
     {
         $minDate = $this->minDate;
@@ -199,13 +296,13 @@ class ShiftSwapRequestModal extends Component
         $this->validate([
             'reqDate' => ['required', 'date', 'after_or_equal:' . $minDate],
             'targetUserId' => ['required'],
-            'dateMode' => ['required', 'in:same,different'],
-            'targetDate' => ['required_if:dateMode,different', 'nullable', 'date', 'after_or_equal:' . $minDate],
+            'dateMode' => ['required', 'in:same,different,reciprocal'],
+            'targetDate' => ['required_if:dateMode,different', 'required_if:dateMode,reciprocal', 'nullable', 'date', 'after_or_equal:' . $minDate],
             'notes' => ['nullable', 'string'],
         ], [], [
             'reqDate' => 'tanggal shift Anda',
             'targetUserId' => 'rekan',
-            'targetDate' => 'tanggal shift rekan',
+            'targetDate' => $this->dateMode === 'reciprocal' ? 'tanggal kompensasi' : 'tanggal shift rekan',
         ]);
 
         $reqSchedule = $this->reqShift;
@@ -217,14 +314,17 @@ class ShiftSwapRequestModal extends Component
 
         $targetSchedule = $this->targetShift;
         if (! $targetSchedule) {
-            $this->addError('targetDate', 'Rekan tidak punya jadwal shift di tanggal ini (atau sedang libur).');
+            $message = $this->dateMode === 'reciprocal'
+                ? 'Pilih tanggal shift kerja rekan yang mau Anda ambil alih sebagai kompensasi.'
+                : 'Rekan tidak punya jadwal shift di tanggal ini (atau sedang libur).';
+            $this->addError('targetDate', $message);
 
             return;
         }
 
         try {
             app(ShiftSwapRequestService::class)->store([
-                'swap_mode' => 'schedule',
+                'swap_kind' => $this->dateMode === 'reciprocal' ? 'reciprocal_off' : 'schedule',
                 'req_schedule_id' => $reqSchedule->id,
                 'target_schedule_id' => $targetSchedule->id,
                 'notes' => $this->notes,

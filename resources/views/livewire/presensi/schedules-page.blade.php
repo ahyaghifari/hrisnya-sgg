@@ -7,7 +7,7 @@
          cari, filter perusahaan sudah cukup. --}}
     <div class="mt-4">
         <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;justify-content:space-between;">
-            <x-company-filter :companies="$this->companies" wire:model.live="companyId" />
+            <x-company-filter :companies="$this->companies" :system="\App\Enum\CustomPermissionEnum::SISTEM_ABSENSI" wire:model.live="companyId" />
 
             @if ($this->canCreateSchedule)
                 <a href="{{ route('presensi.jadwal.tambah') }}" wire:navigate class="btn-primary" style="text-decoration:none;">

@@ -5,6 +5,7 @@ namespace App\Livewire\Keuangan;
 use App\Enum\CustomPermissionEnum;
 use App\Enum\Payroll\GlobalPayrollSettingEnum;
 use App\Enum\Payroll\PayrollComponentEnum;
+use App\Livewire\Concerns\GatesCompanyFilterBySystem;
 use App\Models\AuditLog;
 use App\Models\Master\Companies;
 use App\Models\Payroll\CompanyPayrollComponent;
@@ -33,6 +34,8 @@ use Livewire\Component;
 #[Layout('components.layout', ['title' => 'Komponen Gaji'])]
 class SalaryComponentsPage extends Component
 {
+    use GatesCompanyFilterBySystem;
+
     public ?string $companyId = null;
     public ?string $expandedComponent = null;
 
@@ -57,9 +60,8 @@ class SalaryComponentsPage extends Component
         // Default ke company sendiri kalau ada, biar familiar buat user scoped 1 company —
         // tapi tetap boleh pindah ke company manapun lewat tombol kiri (lihat getCompaniesProperty()),
         // KECUALI tidak punya permission lihat_perusahaan_lain -> dikunci ke company sendiri.
-        $this->companyId = Auth::user()->canFilterByCompany()
-            ? (Auth::user()->company_id ?? Companies::orderBy('code')->value('id'))
-            : Auth::user()->company_id;
+        $this->companyId = Auth::user()->company_id ?? Companies::orderBy('code')->value('id');
+        $this->lockCompanyIdUnlessAllowed(CustomPermissionEnum::SISTEM_KEUANGAN);
 
         $this->loadGlobalValues();
         $this->loadCompanyState();
@@ -70,14 +72,12 @@ class SalaryComponentsPage extends Component
     // companyId perlu divalidasi ulang di sini juga.
     public function updatedCompanyId(): void
     {
-        if (! Auth::user()->canFilterByCompany()) {
-            $this->companyId = Auth::user()->company_id;
-        }
+        $this->lockCompanyIdUnlessAllowed(CustomPermissionEnum::SISTEM_KEUANGAN);
     }
 
     public function selectCompany(string $companyId): void
     {
-        abort_unless(Auth::user()->canFilterByCompany(), 403);
+        abort_unless(Auth::user()->canFilterByCompanyForSystem(CustomPermissionEnum::SISTEM_KEUANGAN), 403);
 
         $this->companyId = $companyId;
         $this->expandedComponent = null;

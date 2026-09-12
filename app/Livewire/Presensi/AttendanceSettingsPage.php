@@ -4,6 +4,7 @@ namespace App\Livewire\Presensi;
 
 use App\Enum\Attendance\AttendanceSettingEnum;
 use App\Enum\CustomPermissionEnum;
+use App\Livewire\Concerns\GatesCompanyFilterBySystem;
 use App\Models\AuditLog;
 use App\Models\Master\Companies;
 use App\Models\Setting;
@@ -22,6 +23,8 @@ use Livewire\Component;
 #[Layout('components.layout', ['title' => 'Pengaturan Absensi'])]
 class AttendanceSettingsPage extends Component
 {
+    use GatesCompanyFilterBySystem;
+
     public ?string $companyId = null;
 
     /** @var array<string, string> AttendanceSettingEnum value => value (company terpilih) */
@@ -33,9 +36,8 @@ class AttendanceSettingsPage extends Component
     {
         abort_unless(Auth::user()->can(CustomPermissionEnum::LIHAT_PENGATURAN_ABSENSI->value), 403);
 
-        $this->companyId = Auth::user()->canFilterByCompany()
-            ? (Auth::user()->company_id ?? Companies::orderBy('code')->value('id'))
-            : Auth::user()->company_id;
+        $this->companyId = Auth::user()->company_id ?? Companies::orderBy('code')->value('id');
+        $this->lockCompanyIdUnlessAllowed(CustomPermissionEnum::SISTEM_ABSENSI);
 
         $this->loadCompanyState();
     }
@@ -45,14 +47,12 @@ class AttendanceSettingsPage extends Component
     // companyId perlu divalidasi ulang di sini juga.
     public function updatedCompanyId(): void
     {
-        if (! Auth::user()->canFilterByCompany()) {
-            $this->companyId = Auth::user()->company_id;
-        }
+        $this->lockCompanyIdUnlessAllowed(CustomPermissionEnum::SISTEM_ABSENSI);
     }
 
     public function selectCompany(string $companyId): void
     {
-        abort_unless(Auth::user()->canFilterByCompany(), 403);
+        abort_unless(Auth::user()->canFilterByCompanyForSystem(CustomPermissionEnum::SISTEM_ABSENSI), 403);
 
         $this->companyId = $companyId;
         $this->loadCompanyState();

@@ -2,8 +2,10 @@
 
 namespace App\Livewire\Kepegawaian;
 
+use App\Enum\CustomPermissionEnum;
 use App\Enum\UserTransitionStatusEnum;
 use App\Enum\UserTransitionTypeEnum;
+use App\Livewire\Concerns\GatesCompanyFilterBySystem;
 use App\Models\Master\Companies;
 use App\Models\User\UserTransition;
 use Illuminate\Support\Facades\Auth;
@@ -22,7 +24,7 @@ use Livewire\WithPagination;
 #[Layout('components.layout', ['title' => 'Perubahan Status Karyawan'])]
 class UserTransitionsPage extends Component
 {
-    use WithPagination;
+    use WithPagination, GatesCompanyFilterBySystem;
 
     // Pagination di sini pakai wire:navigate (lihat livewire/partials/pagination.blade.php),
     // yaitu full page-visit yang bikin komponen di-mount ULANG dari URL. Tanpa #[Url], filter
@@ -43,9 +45,9 @@ class UserTransitionsPage extends Component
     {
         abort_unless(Auth::user()->can('ViewAny:UserTransition'), 403);
 
-        if (! Auth::user()->canFilterByCompany()) {
-            $this->companyId = Auth::user()->company_id;
-        } elseif ($this->companyId === null) {
+        $this->lockCompanyIdUnlessAllowed(CustomPermissionEnum::SISTEM_KEPEGAWAIAN);
+
+        if ($this->companyId === null) {
             $this->companyId = Auth::user()->company_id;
         }
     }
@@ -64,9 +66,7 @@ class UserTransitionsPage extends Component
 
     public function updatedCompanyId(): void
     {
-        if (! Auth::user()->canFilterByCompany()) {
-            $this->companyId = Auth::user()->company_id;
-        }
+        $this->lockCompanyIdUnlessAllowed(CustomPermissionEnum::SISTEM_KEPEGAWAIAN);
 
         $this->resetPage();
     }
@@ -83,7 +83,7 @@ class UserTransitionsPage extends Component
 
     public function getCanBrowseAllCompaniesProperty(): bool
     {
-        return Auth::user()->canFilterByCompany();
+        return Auth::user()->canFilterByCompanyForSystem(CustomPermissionEnum::SISTEM_KEPEGAWAIAN);
     }
 
     public function getCanCreateProperty(): bool
