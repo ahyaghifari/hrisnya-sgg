@@ -50,6 +50,7 @@ class ApplicationNotification extends Model
             'offering_letter_ready' => ['url' => "{$base}/dashboard", 'label' => 'Unggah Surat Penawaran'],
             'interview_scheduled', 'interview_rescheduled' => ['url' => "{$base}/lamaran/{$this->job_application_id}", 'label' => 'Lihat Jadwal Wawancara'],
             'mcu_scheduled', 'mcu_rescheduled' => ['url' => "{$base}/lamaran/{$this->job_application_id}", 'label' => 'Lihat Jadwal MCU'],
+            'offline_test_scheduled', 'offline_test_rescheduled' => ['url' => "{$base}/lamaran/{$this->job_application_id}", 'label' => 'Lihat Jadwal Tes'],
             'offering_negotiation_replied' => ['url' => "{$base}/dashboard", 'label' => 'Lihat Balasan Negosiasi'],
             'offering_revision_requested' => ['url' => "{$base}/dashboard", 'label' => 'Unggah Ulang Surat Penawaran'],
             default => null,
@@ -87,15 +88,23 @@ class ApplicationNotification extends Model
         return (int) ($res['queued'] ?? 0);
     }
 
-    /** Minta rekrutmen kirim email perubahan jadwal (wawancara/MCU). $kind = 'interview'|'mcu'. */
+    /** Minta rekrutmen kirim email perubahan jadwal (wawancara/MCU/tes offline). $kind = 'interview'|'mcu'|'offline_test'. */
     public static function notifyReschedule(JobApplication $app, string $kind, array $data): void
     {
         $app->loadMissing('jobOpening');
 
         $jobTitle = $app->jobOpening->title ?? '';
         $name = $app->answersMap()['full_name'] ?? 'Pelamar';
-        $label = $kind === 'mcu' ? 'Medical Check Up' : 'Wawancara';
-        $event = $kind === 'mcu' ? 'mcu_rescheduled' : 'interview_rescheduled';
+        $label = match ($kind) {
+            'mcu' => 'Medical Check Up',
+            'offline_test' => 'Tes',
+            default => 'Wawancara',
+        };
+        $event = match ($kind) {
+            'mcu' => 'mcu_rescheduled',
+            'offline_test' => 'offline_test_rescheduled',
+            default => 'interview_rescheduled',
+        };
 
         $detail = 'Tanggal: ' . ($data['date'] ?? '-')
             . "\nWaktu: " . ($data['time'] ?? '-')

@@ -5,6 +5,7 @@ namespace App\Livewire\Presensi;
 use App\Models\Shift\Schedule;
 use App\Models\Shift\ScheduleAssignment;
 use App\Models\Shift\ScheduleShiftRotation;
+use App\Models\Shift\ScheduleShiftTeamMember;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -77,6 +78,26 @@ class ScheduleShiftRotationTab extends Component
             ->values();
     }
 
+    /** @return array<string, ?array<int, string>> user_id => shift_type_id yang boleh dipilih di
+     * Template Rotasi - null = tidak dibatasi. Regu-nya diambil dari BULAN BERJALAN (now()), bukan
+     * periode manapun - Template Rotasi murni pola general (tidak per-bulan), instruksi user
+     * 2026-09-13 sengaja pilih patokan sederhana ini walau anggota regu bisa beda bulan depan. */
+    public function getEmployeeAllowedShiftTypesProperty(): array
+    {
+        if (! $this->schedule->use_teams) {
+            return [];
+        }
+
+        $period = now()->format('Y-m');
+
+        $out = [];
+        foreach ($this->employees as $employee) {
+            $out[$employee->id] = ScheduleShiftTeamMember::allowedShiftTypeIdsFor($this->schedule, $employee->id, $period);
+        }
+
+        return $out;
+    }
+
     public function activateTemplate(): void
     {
         abort_unless(Auth::user()->can('Update:ShiftTemplates'), 403);
@@ -128,11 +149,22 @@ class ScheduleShiftRotationTab extends Component
     {
         abort_unless(Auth::user()->can('Update:ShiftTemplates'), 403);
 
-        DB::transaction(function () {
+        $allowedByUser = $this->employeeAllowedShiftTypes;
+        $blockedByRegu = 0;
+
+        DB::transaction(function () use ($allowedByUser, &$blockedByRegu) {
             foreach ($this->rows as $userId => $row) {
                 $keepIds = [];
+                $allowedIds = $allowedByUser[$userId] ?? null;
 
                 foreach ($row as $dayNumber => $value) {
+                    // Shift bukan jatah Regu karyawan ini (bulan berjalan) - dilewati, dianggap
+                    // kosong (bukan Libur) di sel itu, biar tidak diam-diam nyimpen pilihan lama.
+                    if ($value && $value !== 'off' && $allowedIds !== null && ! in_array($value, $allowedIds, true)) {
+                        $blockedByRegu++;
+                        $value = '';
+                    }
+
                     $rotation = ScheduleShiftRotation::updateOrCreate(
                         ['schedule_id' => $this->schedule->id, 'user_id' => $userId, 'day' => $dayNumber],
                         [
@@ -152,7 +184,13 @@ class ScheduleShiftRotationTab extends Component
             }
         });
 
-        Notification::make()->title('Template Rotasi berhasil disimpan')->success()->send();
+        $this->loadRows();
+
+        Notification::make()
+            ->title('Template Rotasi berhasil disimpan')
+            ->body($blockedByRegu ? "{$blockedByRegu} sel dilewati karena shift tidak termasuk daftar Tim karyawan." : null)
+            ->success()
+            ->send();
     }
 
     public function render()

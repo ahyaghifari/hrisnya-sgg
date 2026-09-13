@@ -6,6 +6,7 @@ use App\Enum\Approval\ApprovalModuleEnum;
 use App\Enum\Attendance\AttendanceSettingEnum;
 use App\Models\Setting;
 use App\Services\Attendance\AttendancePeriodResolver;
+use App\Models\Shift\ExtraShiftAssignment;
 use App\Models\Shift\ScheduleShiftAssignment;
 use App\Models\Shift\ShiftSwapRequests;
 use App\Models\User;
@@ -265,11 +266,13 @@ class ShiftSwapRequestService
      * Tanggal sama -> tukar shift_type_id (hindari bentrok unique (user_id,date)). Tanggal beda ->
      * re-cek konflik (bisa berubah sejak pengajuan) lalu jalankan hasilnya: slot yang "move"
      * pindah user_id seperti biasa, slot yang "move_over_off_day" (busy-nya cuma baris Libur,
-     * bukan konflik beneran) ditimpa, slot yang "conflict" nyata ikut `swap_kind`:
-     * 'schedule' (default) DIBIARKAN APA ADANYA (warning-only, lihat conflictWarnings());
-     * 'reciprocal_off' (tukar libur berpasangan) malah harus GAGAL total (exception naik ke
-     * ApprovalFlowService::advanceStep, approval tidak lanjut) - supaya tidak ada sisi yang
-     * partial-execute (pemohon untung, rekan tidak jadi dapat libur balik). Lihat
+     * bukan konflik beneran) ditimpa, slot yang "double_shift" (busy-nya shift KERJA beneran)
+     * ikut `swap_kind`: 'schedule' (default) TETAP DILAKSANAKAN - shift yang dioper dicatat
+     * sebagai ExtraShiftAssignment category=double_shift (tanpa jasa) di atas shift asli
+     * incoming owner, lihat applySlotResolution() (instruksi user 2026-09-13, sebelumnya
+     * no-op/warning-only); 'reciprocal_off' (tukar libur berpasangan) malah harus GAGAL total
+     * (exception naik ke ApprovalFlowService::advanceStep, approval tidak lanjut) - supaya tidak
+     * ada sisi yang partial-execute (pemohon untung, rekan tidak jadi dapat libur balik). Lihat
      * planning/2026-09-12-tukar-shift-libur-berpasangan.md. */
     public function executeApprovedSwap(ShiftSwapRequests $swapRequest): void
     {
@@ -296,12 +299,12 @@ class ShiftSwapRequestService
         $reqUserId = $reqSchedule->user_id;
         $targetUserId = $targetSchedule->user_id;
 
-        $this->applySlotResolution($plan['req_date'], $reqSchedule, $targetUserId);
-        $this->applySlotResolution($plan['target_date'], $targetSchedule, $reqUserId);
+        $this->applySlotResolution($plan['req_date'], $reqSchedule, $targetUserId, $swapRequest);
+        $this->applySlotResolution($plan['target_date'], $targetSchedule, $reqUserId, $swapRequest);
     }
 
-    /** @param array{mode: 'move'|'move_over_off_day'|'conflict', busy?: ScheduleShiftAssignment, warning?: string} $slot */
-    private function applySlotResolution(array $slot, ScheduleShiftAssignment $originalSchedule, string $incomingUserId): void
+    /** @param array{mode: 'move'|'move_over_off_day'|'double_shift', busy?: ScheduleShiftAssignment, warning?: string} $slot */
+    private function applySlotResolution(array $slot, ScheduleShiftAssignment $originalSchedule, string $incomingUserId, ShiftSwapRequests $swapRequest): void
     {
         if ($slot['mode'] === 'move') {
             $originalSchedule->update(['user_id' => $incomingUserId]);
@@ -314,23 +317,46 @@ class ShiftSwapRequestService
             // ditimpa: hapus penandanya, baris asal pindah kepemilikan seperti mode 'move'.
             $slot['busy']->delete();
             $originalSchedule->update(['user_id' => $incomingUserId]);
+
+            return;
         }
 
-        // mode 'conflict' -> sengaja no-op (kecuali strict, sudah throw duluan di resolveSlot()).
-        // $originalSchedule tetap milik pemiliknya, tidak dipindah - lihat docblock executeApprovedSwap().
+        if ($slot['mode'] === 'double_shift') {
+            // $incomingUserId TERNYATA sudah punya shift lain ($slot['busy']) di tanggal ini -
+            // tukar tetap dilaksanakan sesuai niat awal (pemilik asal benar2 lepas), tapi shift
+            // yang dioper TIDAK bisa jadi baris ke-2 schedule_shift_assignments (unique
+            // user_id+date) - dicatat sebagai ExtraShiftAssignment category=double_shift (BUKAN
+            // extra_shift biasa, TIDAK kena jasa ExtraShiftRule - ini konsekuensi tukar, bukan
+            // penugasan sukarela). Baris asal dihapus - pemiliknya lama benar2 lepas dari shift
+            // itu, sama seperti mode 'move' (instruksi user 2026-09-13).
+            ExtraShiftAssignment::create([
+                'company_id' => $originalSchedule->company_id,
+                'user_id' => $incomingUserId,
+                'shift_type_id' => $originalSchedule->shift_type_id,
+                'date' => $originalSchedule->date,
+                'status' => 'approved',
+                'source' => 'swap_conflict',
+                'category' => ExtraShiftAssignment::CATEGORY_DOUBLE_SHIFT,
+                'origin_shift_swap_request_id' => $swapRequest->id,
+                'created_by' => Auth::id(),
+            ]);
+
+            $originalSchedule->delete();
+        }
     }
 
     /** Tentukan siapa yang akhirnya nempatin baris req_schedule (tanggal pemohon) dan baris
      * target_schedule (tanggal rekan) buat kasus tukar BEDA tanggal. Kalau salah satu pihak
      * TERNYATA sudah punya baris lain di tanggal yang dituju: baris Libur (off_day=true) boleh
      * ditimpa (mode 'move_over_off_day', bukan konflik beneran); baris shift KERJA beneran jadi
-     * mode 'conflict' - dengan `$strict=false` (default) cuma warning & TIDAK diblokir/gagal
-     * (instruksi user 2026-09-12); dengan `$strict=true` (dipakai swap_kind='reciprocal_off')
-     * malah throw supaya submit/approval gagal total, lihat resolveSlot(). Read-only, aman
-     * dipanggil berkali-kali: sekali pas eksekusi approval final (executeApprovedSwap, hasilnya
-     * dipakai), berkali-kali lagi buat validasi pra-submit reciprocal_off & preview warning
-     * (conflictWarnings/conflictWarningsForSchedules) di form pengajuan & halaman detail -
-     * supaya perubahan jadwal di antara momen-momen itu tetap ke-cover ulang.
+     * mode 'double_shift' - dengan `$strict=false` (default) TETAP DILAKSANAKAN sebagai double
+     * shift tanpa jasa (instruksi user 2026-09-13); dengan `$strict=true` (dipakai
+     * swap_kind='reciprocal_off') malah throw supaya submit/approval gagal total, lihat
+     * resolveSlot(). Read-only, aman dipanggil berkali-kali: sekali pas eksekusi approval final
+     * (executeApprovedSwap, hasilnya dipakai), berkali-kali lagi buat validasi pra-submit
+     * reciprocal_off & preview warning (conflictWarnings/conflictWarningsForSchedules) di form
+     * pengajuan & halaman detail - supaya perubahan jadwal di antara momen-momen itu tetap
+     * ke-cover ulang.
      *
      * @return array{req_date: array{mode:string,busy?:ScheduleShiftAssignment,warning?:string}, target_date: array{mode:string,busy?:ScheduleShiftAssignment,warning?:string}}
      */
@@ -357,7 +383,7 @@ class ShiftSwapRequestService
         ];
     }
 
-    /** @return array{mode: 'move'|'move_over_off_day'|'conflict', busy?: ScheduleShiftAssignment, warning?: string} */
+    /** @return array{mode: 'move'|'move_over_off_day'|'double_shift', busy?: ScheduleShiftAssignment, warning?: string} */
     private function resolveSlot(?ScheduleShiftAssignment $busy, ?User $incomingOwner, string $conflictMessagePrefix, bool $strict = false): array
     {
         if (! $busy) {
@@ -381,15 +407,15 @@ class ShiftSwapRequestService
         $name = $incomingOwner?->name ?? 'Karyawan';
 
         return [
-            'mode' => 'conflict',
+            'mode' => 'double_shift',
             'busy' => $busy,
-            'warning' => "{$conflictMessagePrefix} ({$busyShift}) - shift ini TIDAK dipindahkan otomatis supaya {$name} tidak double shift/nyambung shift. Kalau tetap perlu dikerjakan, tambahkan Extra Shift manual lewat halaman Extra Shift.",
+            'warning' => "{$conflictMessagePrefix} ({$busyShift}) - {$name} akan bekerja double shift (shift ini ditambahkan di atas shift {$busyShift} yang sudah ada, tanpa jasa extra shift).",
         ];
     }
 
-    /** Peringatan double shift/nyambung shift buat pengajuan yang BELUM disimpan (preview di
-     * form pengajuan) - read-only, tidak menyentuh DB. [] kalau tidak ada konflik atau tukar
-     * tanggal sama (kompatibilitas shift_type dicek terpisah di validateScheduleSwapRules). */
+    /** Peringatan double shift buat pengajuan yang BELUM disimpan (preview di form pengajuan) -
+     * read-only, tidak menyentuh DB. [] kalau tidak ada konflik atau tukar tanggal sama
+     * (kompatibilitas shift_type dicek terpisah di validateScheduleSwapRules). */
     public function conflictWarningsForSchedules(?ScheduleShiftAssignment $reqSchedule, ?ScheduleShiftAssignment $targetSchedule): array
     {
         if (! $reqSchedule || ! $targetSchedule || $reqSchedule->date->equalTo($targetSchedule->date)) {

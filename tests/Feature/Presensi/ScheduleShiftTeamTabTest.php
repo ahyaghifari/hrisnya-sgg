@@ -100,14 +100,14 @@ class ScheduleShiftTeamTabTest extends TestCase
 
         Livewire::actingAs($user)
             ->test(ScheduleShiftTeamTab::class, ['schedule' => $schedule])
-            ->assertSee('belum memakai Regu')
+            ->assertSee('belum memakai Tim')
             ->call('activateTeams');
 
         $this->assertTrue($schedule->fresh()->use_teams);
 
         Livewire::actingAs($user)
             ->test(ScheduleShiftTeamTab::class, ['schedule' => $schedule->fresh()])
-            ->assertDontSee('belum memakai Regu')
+            ->assertDontSee('belum memakai Tim')
             ->call('deactivateTeams');
 
         $this->assertFalse($schedule->fresh()->use_teams);
@@ -130,6 +130,39 @@ class ScheduleShiftTeamTabTest extends TestCase
             ->assertSet('showTeamModal', false);
 
         $this->assertDatabaseHas('schedule_shift_teams', ['schedule_id' => $schedule->id, 'name' => 'Regu A', 'color' => '#ff0000']);
+    }
+
+    /** Role punya Create/Update:ScheduleShiftTeam tapi TIDAK Delete - tombol edit muncul (boleh),
+     * tombol hapus TIDAK boleh muncul (2026-09-14, laporan user: tombol hapus kelihatan padahal
+     * izin Delete belum di-grant - dulu edit & hapus dua-duanya cuma dicek canManage/Create,
+     * bukan permission masing-masing). */
+    public function test_role_without_delete_permission_does_not_see_delete_button(): void
+    {
+        Permission::firstOrCreate(['name' => CustomPermissionEnum::SISTEM_ABSENSI->value, 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'View:Schedule', 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'ViewAny:ScheduleShiftTeam', 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'Create:ScheduleShiftTeam', 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'Update:ScheduleShiftTeam', 'guard_name' => 'web']);
+        $role = Role::firstOrCreate(['name' => 'No Delete Team Test', 'guard_name' => 'web']);
+        $role->givePermissionTo([CustomPermissionEnum::SISTEM_ABSENSI->value, 'View:Schedule', 'ViewAny:ScheduleShiftTeam', 'Create:ScheduleShiftTeam', 'Update:ScheduleShiftTeam']);
+        $user = User::factory()->create();
+        $user->assignRole($role);
+
+        [$schedule] = $this->makeScheduleWithEmployee();
+        $schedule->update(['use_teams' => true]);
+        $team = ScheduleShiftTeam::create(['schedule_id' => $schedule->id, 'name' => 'Regu A']);
+
+        Livewire::actingAs($user)
+            ->test(ScheduleShiftTeamTab::class, ['schedule' => $schedule])
+            ->assertSeeHtml('openEditTeamModal')
+            ->assertDontSeeHtml('deleteTeam(');
+
+        Livewire::actingAs($user)
+            ->test(ScheduleShiftTeamTab::class, ['schedule' => $schedule])
+            ->call('deleteTeam', $team->id)
+            ->assertForbidden();
+
+        $this->assertDatabaseHas('schedule_shift_teams', ['id' => $team->id]);
     }
 
     public function test_kepala_ruangan_can_edit_team_via_modal(): void
@@ -193,9 +226,14 @@ class ScheduleShiftTeamTabTest extends TestCase
 
     public function test_kepala_ruangan_cannot_edit_past_month(): void
     {
+        // Diperjalankan ke bulan sesudah floor 2026-09 (ScheduleShiftTeamTab::MIN_PERIOD) - biar
+        // "bulan lalu" beneran mengetes gerbang canEditPeriod, bukan malah kena clamp floor
+        // (instruksi user 2026-09-13: periode di bawah 2026-09 tidak boleh dibuka sama sekali).
+        \Illuminate\Support\Carbon::setTestNow('2026-11-15');
+
         [$schedule, $employee] = $this->makeScheduleWithEmployee();
         $user = $this->actingAsKepalaRuangan();
-        $team = ScheduleShiftTeam::create(['schedule_id' => $schedule->id, 'name' => 'Regu A']);
+        $team = ScheduleShiftTeam::create(['schedule_id' => $schedule->id, 'name' => 'Tim A']);
         $pastPeriod = now()->subMonthNoOverflow()->format('Y-m');
 
         Livewire::actingAs($user)
@@ -206,20 +244,68 @@ class ScheduleShiftTeamTabTest extends TestCase
             ->assertForbidden();
 
         $this->assertNull(ScheduleShiftTeamMember::forPeriod($schedule->id, $employee->id, $pastPeriod));
+
+        \Illuminate\Support\Carbon::setTestNow();
     }
 
-    public function test_viewer_without_permission_cannot_create_team(): void
+    /** actingAsViewerOnly() tidak punya permission ScheduleShiftTeam apa pun (bukan cuma tidak
+     * bisa create/delete) - sejak gerbang ViewAny:ScheduleShiftTeam ditambah di mount()
+     * (2026-09-14, laporan user: bisa buka tab Tim & assign shift walau belum di-grant izin
+     * lihatnya sama sekali), abort-nya kejadian pas MOUNT, bukan lagi pas call() aksinya - jadi
+     * di-assert langsung dari ->test(), tidak perlu set/call dulu. */
+    public function test_viewer_without_permission_cannot_open_team_tab(): void
     {
         [$schedule] = $this->makeScheduleWithEmployee();
         $user = $this->actingAsViewerOnly();
 
         Livewire::actingAs($user)
             ->test(ScheduleShiftTeamTab::class, ['schedule' => $schedule])
-            ->set('teamFormName', 'Regu A')
-            ->call('saveTeam')
             ->assertForbidden();
 
         $this->assertDatabaseMissing('schedule_shift_teams', ['schedule_id' => $schedule->id, 'name' => 'Regu A']);
+    }
+
+    /** Role yang PUNYA ViewAny/View:ScheduleShiftTeam tapi TIDAK Create/Update/Delete - bisa
+     * buka tab & lihat daftar Tim beserta jatah shift-nya (read-only, instruksi user 2026-09-14),
+     * tapi tombol kelola (Tambah/Edit/Hapus) tidak muncul dan aksinya ditolak kalau di-craft. */
+    public function test_view_only_role_can_see_teams_but_cannot_manage(): void
+    {
+        Permission::firstOrCreate(['name' => CustomPermissionEnum::SISTEM_ABSENSI->value, 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'View:Schedule', 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'ViewAny:ScheduleShiftTeam', 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'View:ScheduleShiftTeam', 'guard_name' => 'web']);
+        $role = Role::firstOrCreate(['name' => 'View Only Team Test', 'guard_name' => 'web']);
+        $role->givePermissionTo([CustomPermissionEnum::SISTEM_ABSENSI->value, 'View:Schedule', 'ViewAny:ScheduleShiftTeam', 'View:ScheduleShiftTeam']);
+        $user = User::factory()->create();
+        $user->assignRole($role);
+
+        [$schedule] = $this->makeScheduleWithEmployee();
+        $schedule->update(['use_teams' => true]);
+        $team = ScheduleShiftTeam::create(['schedule_id' => $schedule->id, 'name' => 'Regu A']);
+
+        $component = Livewire::actingAs($user)
+            ->test(ScheduleShiftTeamTab::class, ['schedule' => $schedule])
+            ->assertOk()
+            ->assertSee('Regu A')
+            ->assertDontSee('Tambah Tim');
+
+        $this->assertFalse($component->instance()->canManage);
+
+        // Instance BARU per aksi - Testable Livewire tidak bisa dipakai lanjut ->call() lagi
+        // sesudah 1 aksi kena forbidden (snapshot-nya jadi tidak valid buat request berikutnya).
+        Livewire::actingAs($user)
+            ->test(ScheduleShiftTeamTab::class, ['schedule' => $schedule])
+            ->set('teamFormName', 'Regu B')
+            ->call('saveTeam')
+            ->assertForbidden();
+
+        Livewire::actingAs($user)
+            ->test(ScheduleShiftTeamTab::class, ['schedule' => $schedule])
+            ->call('deleteTeam', $team->id)
+            ->assertForbidden();
+
+        $this->assertDatabaseMissing('schedule_shift_teams', ['schedule_id' => $schedule->id, 'name' => 'Regu B']);
+        $this->assertDatabaseHas('schedule_shift_teams', ['id' => $team->id]);
     }
 
     public function test_viewer_without_permission_cannot_delete_team(): void
@@ -230,7 +316,6 @@ class ScheduleShiftTeamTabTest extends TestCase
 
         Livewire::actingAs($viewer)
             ->test(ScheduleShiftTeamTab::class, ['schedule' => $schedule])
-            ->call('deleteTeam', $team->id)
             ->assertForbidden();
 
         $this->assertDatabaseHas('schedule_shift_teams', ['id' => $team->id]);
@@ -277,7 +362,7 @@ class ScheduleShiftTeamTabTest extends TestCase
 
         // Baris pemisah nama regu (colspan penuh) dirender di atas anggotanya, urut per grup -
         // BUKAN kolom (instruksi user: kolom bikin susah bandingkan antar regu).
-        $component->assertSeeInOrder(['Regu A', 'Yudi (Regu A juga)', 'Zaki (Regu A)', 'Regu B', 'Andi (Regu B)', 'Tanpa Regu', 'Budi (Tanpa Regu)']);
+        $component->assertSeeInOrder(['Regu A', 'Yudi (Regu A juga)', 'Zaki (Regu A)', 'Regu B', 'Andi (Regu B)', 'Tanpa Tim', 'Budi (Tanpa Regu)']);
 
         // Cuma 1 baris pemisah (colspan) per grup regu - 3 grup (Regu A, Regu B, Tanpa Regu),
         // bukan diulang tiap anggota (Regu A 2 anggota tapi baris pemisahnya cuma sekali).
@@ -299,8 +384,11 @@ class ScheduleShiftTeamTabTest extends TestCase
         $c = User::factory()->create(['company_id' => $company->id, 'name' => 'C']);
         $date = now()->startOfMonth();
 
-        // $a & $b sama regu (harus ke-merge), $c tanpa regu — urutan ini niru urutan yang
-        // dihasilkan ScheduleShiftRosterTab::getEmployeesProperty() (sudah dikelompokkan).
+        // $a & $b sama tim (1 banner buat berdua), $c tanpa tim (banner "Tanpa Tim" baru) —
+        // urutan ini niru urutan yang dihasilkan ScheduleShiftRosterTab::getEmployeesProperty()
+        // (sudah dikelompokkan). 2026-09-15: kolom "Tim" terpisah diganti BARIS banner (merge
+        // penuh lebar tabel), sama pola dengan baris pemisah di tabel Detail Penjadwalan web -
+        // bukan kolom + merge vertikal lagi.
         $export = new ScheduleShiftRosterExport(
             $schedule,
             collect([$a, $b, $c]),
@@ -312,42 +400,49 @@ class ScheduleShiftTeamTabTest extends TestCase
 
         $rows = $export->array();
 
-        // "Regu" paling kiri, "Karyawan" di sebelahnya — sama posisi kayak tabel Detail
-        // Penjadwalan. Header tanggal ikut nama hari (2 baris), sama kayak header tabel.
-        $this->assertSame(['Regu', 'Karyawan', $date->format('d')."\n".$date->translatedFormat('D')], $rows[0]);
-        $this->assertSame(['Regu A', 'A', ''], $rows[1]);
-        $this->assertSame(['Regu A', 'B', ''], $rows[2]);
-        $this->assertSame(['Tanpa Regu', 'C', ''], $rows[3]);
+        // Cuma "Karyawan" + tanggal - tidak ada kolom Tim lagi.
+        $this->assertSame(['Karyawan', $date->format('d')."\n".$date->translatedFormat('D')], $rows[0]);
+        $this->assertSame(['Regu A', ''], $rows[1]);
+        $this->assertSame(['A', ''], $rows[2]);
+        $this->assertSame(['B', ''], $rows[3]);
+        $this->assertSame(['Tanpa Tim', ''], $rows[4]);
+        $this->assertSame(['C', ''], $rows[5]);
 
         $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet;
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->fromArray($rows);
         $export->styles($sheet);
 
-        // 2 baris judul disisipkan di styles() -> data geser ke baris 4 (A) & 5 (B) -> merge A4:A5.
-        // $c sendirian, tidak ke-merge.
-        $this->assertContains('A4:A5', $sheet->getMergeCells());
-        $this->assertNotContains('A6:A6', $sheet->getMergeCells());
+        // 2 baris judul disisipkan di styles() -> baris banner "Regu A" (raw index 1) geser ke
+        // baris 4, banner "Tanpa Tim" (raw index 4) geser ke baris 7 - dua-duanya merge PENUH
+        // lebar tabel (A:B, cuma 1 kolom tanggal di test ini), bukan cuma kolom A.
+        $this->assertContains('A4:B4', $sheet->getMergeCells());
+        $this->assertContains('A7:B7', $sheet->getMergeCells());
 
-        // Freeze pane geser ke kolom C (Regu + Karyawan dibekukan) begitu ada kolom Regu.
-        $this->assertSame('C4', $sheet->getFreezePane());
+        // Freeze pane B4 - cuma kolom Karyawan yang dibekukan, tidak ada kolom Tim lagi buat
+        // dibekukan bareng.
+        $this->assertSame('B4', $sheet->getFreezePane());
     }
 
-    public function test_export_omits_team_column_when_use_teams_inactive(): void
+    public function test_export_omits_team_separator_rows_when_use_teams_inactive(): void
     {
         [$schedule, $employee] = $this->makeScheduleWithEmployee();
         $date = now()->startOfMonth();
 
         $export = new ScheduleShiftRosterExport($schedule, collect([$employee]), [$date], [], 'label', [$employee->id => 'Regu A']);
 
-        $this->assertSame(['Karyawan', $date->format('d')."\n".$date->translatedFormat('D')], $export->array()[0]);
+        $rows = $export->array();
+
+        // use_teams false -> $teamNames diabaikan sepenuhnya, tidak ada baris banner sama sekali.
+        $this->assertSame(['Karyawan', $date->format('d')."\n".$date->translatedFormat('D')], $rows[0]);
+        $this->assertSame(['Budi Santoso', ''], $rows[1]);
+        $this->assertCount(2, $rows);
 
         $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet;
         $sheet = $spreadsheet->getActiveSheet();
-        $sheet->fromArray($export->array());
+        $sheet->fromArray($rows);
         $export->styles($sheet);
 
-        // Tanpa kolom Regu, freeze pane cukup di kolom B (cuma Karyawan yang dibekukan).
         $this->assertSame('B4', $sheet->getFreezePane());
     }
 

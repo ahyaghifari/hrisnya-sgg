@@ -30,6 +30,7 @@ class CompanyMessageTemplate extends Model
     public const EVENT_OFFERING_SIGNED_ACCEPTED = 'offering_signed_accepted';
     public const EVENT_OFFERING_REVISION_REQUESTED = 'offering_revision_requested';
     public const EVENT_MANUAL_REJECTED = 'manual_rejected';
+    public const EVENT_OFFLINE_TEST_SCHEDULED = 'offline_test_scheduled';
 
     // Email transient (tidak disimpan ke application_notifications — kolom event-nya ENUM +
     // unique per lamaran; event ini bisa berkali-kali). Dipakai hanya untuk cta()/subject.

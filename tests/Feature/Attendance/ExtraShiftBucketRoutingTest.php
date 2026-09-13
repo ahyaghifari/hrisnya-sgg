@@ -14,11 +14,14 @@ use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 /**
- * Reader cuma nentuin ADA/TIDAKNYA extra shift approved di (user,date) - kalau ada, entry
- * langsung ke bucket 'extra_shift' apa adanya, tidak divalidasi jam di level ini (lihat
- * AccessLogScheduleReader::groupAndBucket). Validasi "beneran waktu extra shift atau bukan"
- * ada di sisi konsumen (SyncAccessLogsAttendance::isGenuineExtraShiftScan) - lihat
- * SyncAccessLogsExtraShiftValidationTest.
+ * Reader nentuin ADA/TIDAKNYA extra shift approved di (user,date), TAPI begitu normal shift-nya
+ * JUGA ada hari itu, 2 scan (masuk shift pertama, pulang shift kedua - pola "cuma 2 scan") tetap
+ * dipecah jadi 2 entri (normal + extra_shift) pakai batas jam konfigurasi sebagai sintetis,
+ * BUKAN digabung mentah ke 1 bucket (instruksi user 2026-09-13, ganti behavior lama yang cuma
+ * lempar semuanya ke extra_shift apa adanya). Lihat ShiftAttendanceReader::splitTwoScans().
+ * Validasi "beneran waktu extra shift atau bukan" (kasus scan CUMA buat extra, normal tidak
+ * pernah kescan sama sekali) ada di sisi konsumen (SyncAccessLogsAttendance::isGenuineExtraShiftScan)
+ * - lihat SyncAccessLogsExtraShiftValidationTest.
  */
 class ExtraShiftBucketRoutingTest extends TestCase
 {
@@ -38,7 +41,7 @@ class ExtraShiftBucketRoutingTest extends TestCase
         ]);
     }
 
-    public function test_day_with_approved_extra_shift_is_routed_to_extra_shift_bucket_not_normal_shift(): void
+    public function test_two_scans_spanning_normal_and_extra_shift_are_split_into_both_buckets(): void
     {
         $company = Companies::create(['code' => 'C1', 'name' => 'Company 1', 'location' => 'Jakarta']);
         $user = User::factory()->create(['nip' => 'EMP001', 'company_id' => $company->id]);
@@ -84,12 +87,18 @@ class ExtraShiftBucketRoutingTest extends TestCase
 
         $result = app(AccessLogScheduleReader::class)->readAndGroup('2026-08-10', '2026-08-10');
 
-        $this->assertCount(0, $result['buckets']['shift']);
+        $this->assertCount(1, $result['buckets']['shift']);
         $this->assertCount(1, $result['buckets']['extra_shift']);
+
+        $normalEntry = $result['buckets']['shift'][0];
+        $this->assertSame('07:00:00', $normalEntry['check_in']);
+        $this->assertSame('14:00:00', $normalEntry['check_out']);
 
         $entry = $result['buckets']['extra_shift'][0];
         $this->assertSame($extraShift->id, $entry['extra_shift_assignment_id']);
         $this->assertTrue($entry['config']->is($siang));
+        $this->assertSame('14:00:00', $entry['check_in']);
+        $this->assertSame('21:00:00', $entry['check_out']);
     }
 
     public function test_day_without_extra_shift_still_goes_to_normal_shift_bucket(): void

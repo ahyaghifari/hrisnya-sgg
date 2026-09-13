@@ -31,7 +31,7 @@
             <button type="button" wire:click="setTab('jam-kerja')" class="schedule-detail-tab {{ $tab === 'jam-kerja' ? 'is-active' : '' }}">Jam Kerja</button>
             @if ($schedule->schedule_type === 'shift')
                 <button type="button" wire:click="setTab('penjadwalan')" class="schedule-detail-tab {{ $tab === 'penjadwalan' ? 'is-active' : '' }}">Detail Penjadwalan</button>
-                <button type="button" wire:click="setTab('regu')" class="schedule-detail-tab {{ $tab === 'regu' ? 'is-active' : '' }}">Regu</button>
+                <button type="button" wire:click="setTab('regu')" class="schedule-detail-tab {{ $tab === 'regu' ? 'is-active' : '' }}">Tim</button>
                 <button type="button" wire:click="setTab('extra-shift')" class="schedule-detail-tab {{ $tab === 'extra-shift' ? 'is-active' : '' }}">Extra Shift</button>
                 <button type="button" wire:click="setTab('template')" class="schedule-detail-tab {{ $tab === 'template' ? 'is-active' : '' }}">Template Shift</button>
             @endif

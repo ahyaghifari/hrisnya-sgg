@@ -80,7 +80,9 @@ class JadwalKaryawanPage extends Component
             return null;
         }
 
-        return $this->employees->firstWhere('id', $this->userId);
+        $user = $this->employees->firstWhere('id', $this->userId);
+
+        return $user?->loadMissing(['company', 'profile.jobPosition.orgStructure.parent.parent', 'profile.orgStructure.parent.parent']);
     }
 
     public function updatedUserId(): void

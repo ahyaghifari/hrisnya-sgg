@@ -33,6 +33,10 @@ class ScheduleShiftRosterTab extends Component
 {
     use WithFileUploads;
 
+    /** Batas bawah periode yang bisa dibuka/diisi - instruksi user 2026-09-13, tidak ada jadwal
+     * shift sebelum bulan ini yang perlu diakses lewat halaman ini. */
+    private const MIN_PERIOD = '2026-09';
+
     public Schedule $schedule;
 
     public ?UploadedFile $importFile = null;
@@ -73,8 +77,8 @@ class ScheduleShiftRosterTab extends Component
         abort_unless(Auth::user()->can('view', $schedule), 403);
 
         $this->schedule = $schedule;
-        $this->period = now()->format('Y-m');
-        $this->rotationStartDate = now()->startOfMonth()->toDateString();
+        $this->period = max(now()->format('Y-m'), self::MIN_PERIOD);
+        $this->rotationStartDate = Carbon::createFromFormat('Y-m', $this->period)->startOfMonth()->toDateString();
     }
 
     public function getCanEditJadwalProperty(): bool
@@ -103,6 +107,10 @@ class ScheduleShiftRosterTab extends Component
 
     public function updatedPeriod(): void
     {
+        if ($this->period < self::MIN_PERIOD) {
+            $this->period = self::MIN_PERIOD;
+        }
+
         $this->rotationStartDate = Carbon::createFromFormat('Y-m', $this->period)->startOfMonth()->toDateString();
     }
 
@@ -151,11 +159,27 @@ class ScheduleShiftRosterTab extends Component
 
         return ScheduleShiftTeamMember::where('schedule_id', $this->schedule->id)
             ->where('period', $this->period)
-            ->with('team')
+            ->with('team.shiftTypes')
             ->get()
             ->filter(fn ($m) => $m->team)
-            ->mapWithKeys(fn ($m) => [$m->user_id => ['name' => $m->team->name, 'color' => $m->team->color]])
+            ->mapWithKeys(fn ($m) => [$m->user_id => [
+                'name' => $m->team->name,
+                'color' => $m->team->color,
+                // null = regu ini TIDAK dibatasi (boleh semua shift), lihat
+                // ScheduleShiftTeamMember::allowedShiftTypeIdsFor().
+                'shift_type_ids' => $m->team->shiftTypes->pluck('id')->all() ?: null,
+            ]])
             ->all();
+    }
+
+    /** Boleh diisi shift apa saja buat 1 user - null = tidak dibatasi (Regu tidak aktif, user
+     * belum punya regu bulan ini, atau regunya belum diatur daftar shift-nya). Reuse
+     * $employeeTeamInfo (sudah 1 query, bukan query baru) - lihat komentar model. */
+    private function isShiftAllowedForUser(string $userId, string $shiftTypeId): bool
+    {
+        $allowedIds = $this->employeeTeamInfo[$userId]['shift_type_ids'] ?? null;
+
+        return $allowedIds === null || in_array($shiftTypeId, $allowedIds, true);
     }
 
     /** Panjang siklus template (sama buat semua karyawan, lihat ScheduleShiftRotationTab — 1
@@ -335,6 +359,7 @@ class ScheduleShiftRosterTab extends Component
         $changed = 0;
         $blockedBySwap = 0;
         $blockedByPastDate = 0;
+        $blockedByRegu = 0;
 
         foreach ($this->draft as $userId => $row) {
             foreach ($row as $date => $value) {
@@ -358,7 +383,11 @@ class ScheduleShiftRosterTab extends Component
                     continue;
                 }
 
-                $this->setCell($userId, $date, $value ?: null);
+                if (! $this->setCell($userId, $date, $value ?: null)) {
+                    $blockedByRegu++;
+                    continue;
+                }
+
                 $changed++;
             }
         }
@@ -376,6 +405,7 @@ class ScheduleShiftRosterTab extends Component
                 "{$changed} sel diubah."
                 . ($blockedBySwap ? " {$blockedBySwap} sel dilewati karena terkait pengajuan tukar shift." : '')
                 . ($blockedByPastDate ? " {$blockedByPastDate} sel dilewati karena tanggalnya sudah lewat." : '')
+                . ($blockedByRegu ? " {$blockedByRegu} sel dilewati karena shift tidak termasuk daftar Tim karyawan." : '')
             )
             ->success()
             ->send();
@@ -388,10 +418,17 @@ class ScheduleShiftRosterTab extends Component
      * match-nya tergantung driver DB (MySQL toleran, sebagian lain tidak) kalau pakai equality
      * biasa. $source dicatat ke schedule_shift_roster_logs - 'manual' dari saveRoster() (baik
      * hasil edit langsung maupun draft yang diisi dari import), atau dipanggil terpisah pas
-     * dites langsung. */
-    public function setCell(string $userId, string $date, ?string $value, string $source = 'manual'): void
+     * dites langsung.
+     *
+     * @return bool false = sel DILEWATI (shift-nya bukan jatah regu user ini, lihat
+     *   isShiftAllowedForUser()), tidak ada apa pun ditulis/dilog. */
+    public function setCell(string $userId, string $date, ?string $value, string $source = 'manual'): bool
     {
         abort_unless(Auth::user()->can('Update:ShiftScheduleAssignments'), 403);
+
+        if ($value && $value !== 'off' && ! $this->isShiftAllowedForUser($userId, $value)) {
+            return false;
+        }
 
         $existing = ScheduleShiftAssignment::where('user_id', $userId)->whereDate('date', $date)->first();
         $before = $existing ? ($existing->off_day ? 'off' : $existing->shift_type_id) : null;
@@ -401,7 +438,7 @@ class ScheduleShiftRosterTab extends Component
 
             $this->logRosterChange($userId, $date, $before, null, $source);
 
-            return;
+            return true;
         }
 
         $attributes = [
@@ -418,6 +455,8 @@ class ScheduleShiftRosterTab extends Component
         }
 
         $this->logRosterChange($userId, $date, $before, $value, $source);
+
+        return true;
     }
 
     private function logRosterChange(string $userId, string $date, ?string $old, ?string $new, string $source): void
@@ -483,6 +522,12 @@ class ScheduleShiftRosterTab extends Component
                     ->first();
 
                 if (! $rotationRow || (! $rotationRow->off_day && ! $rotationRow->shift_type_id)) {
+                    continue;
+                }
+
+                // Shift hasil rotasi bukan jatah Regu karyawan ini bulan itu - dilewati, TIDAK
+                // ditulis sama sekali (bukan ditimpa off/kosong), sama pola dengan "belum diisi".
+                if ($rotationRow->shift_type_id && ! $this->isShiftAllowedForUser($employee->id, $rotationRow->shift_type_id)) {
                     continue;
                 }
 
@@ -598,11 +643,11 @@ class ScheduleShiftRosterTab extends Component
         $rows = Excel::toArray(null, $this->importFile->getRealPath())[0] ?? [];
         $dataRows = array_slice($rows, 3);
 
-        // Kolom "Regu" (kalau ada) ditaruh paling kiri oleh ScheduleShiftRosterExport - dideteksi
-        // dari header baris 3, bukan diasumsikan tetap, supaya file lama (tanpa kolom Regu) tetap
-        // kebaca benar. Nilainya sendiri TIDAK dipakai di sini (sel-nya kebanyakan kosong karena
-        // di-merge per regu di export) - cuma buat geser posisi baca kolom nama & tanggal.
-        $nameColIdx = (isset($rows[2][0]) && mb_strtolower(trim((string) $rows[2][0])) === 'regu') ? 1 : 0;
+        // Kolom nama SELALU di posisi 0 - sejak 2026-09-15 export tidak lagi punya kolom "Tim"
+        // terpisah (diganti banner baris pemisah, lihat ScheduleShiftRosterExport), jadi tidak
+        // ada geseran posisi lagi. Baris banner tim itu sendiri dilewati di loop bawah (namanya
+        // tidak match employee manapun DAN semua kolom tanggalnya kosong).
+        $nameColIdx = 0;
 
         $employeesByName = $this->employees->keyBy(fn ($employee) => mb_strtolower(trim($employee->name)));
         $shiftTypesByCode = $this->schedule->shiftTypes->keyBy(fn ($type) => mb_strtolower($type->code));
@@ -620,6 +665,10 @@ class ScheduleShiftRosterTab extends Component
 
         $unknownNames = [];
         $unknownCodes = [];
+        // Detail per sel yang dilewati karena shift-nya bukan jatah Tim karyawan itu - bukan
+        // cuma jumlahnya (2026-09-14, instruksi user: harus jelas jadwal MANA yang tidak sesuai,
+        // bukan cuma "N sel dilewati"). Format "Nama - dd/mm: KODE".
+        $blockedByReguDetails = [];
         $changed = 0;
 
         foreach ($dataRows as $row) {
@@ -632,7 +681,16 @@ class ScheduleShiftRosterTab extends Component
             $employee = $employeesByName->get(mb_strtolower($name));
 
             if (! $employee) {
-                $unknownNames[$name] = true;
+                // Baris banner tim (mis. "Regu A") juga tidak match nama karyawan manapun -
+                // dibedakan dari nama BENERAN salah/typo lewat semua kolom tanggalnya kosong
+                // (banner tidak pernah punya kode shift), biar tidak nyasar jadi warning "nama
+                // tidak dikenal" yang membingungkan (2026-09-15).
+                $allDateCellsEmpty = collect($this->dates)
+                    ->every(fn ($date, $i) => trim((string) ($row[$nameColIdx + 1 + $i] ?? '')) === '');
+
+                if (! $allDateCellsEmpty) {
+                    $unknownNames[$name] = true;
+                }
 
                 continue;
             }
@@ -649,6 +707,16 @@ class ScheduleShiftRosterTab extends Component
                 if ($value === null) {
                     // Kode tidak dikenal (typo dsb) - lewati sel ini, jangan dianggap "kosongkan".
                     $unknownCodes[$code] = true;
+
+                    continue;
+                }
+
+                // Shift-nya dikenal, TAPI bukan jatah Regu karyawan ini bulan itu - dilewati sama
+                // seperti kode tidak dikenal, dilaporkan terpisah (2026-09-14, instruksi user).
+                // Bukan validasi baru sebenarnya - setCell()/saveRoster() sudah nolak ini juga,
+                // cuma di sini dilaporkan LEBIH AWAL saat import, bukan baru ketahuan pas Simpan.
+                if ($value && $value !== 'off' && ! $this->isShiftAllowedForUser($employee->id, $value)) {
+                    $blockedByReguDetails[] = "{$employee->name} - {$date->format('d/m')}: {$code}";
 
                     continue;
                 }
@@ -673,6 +741,15 @@ class ScheduleShiftRosterTab extends Component
 
         if ($unknownCodes) {
             $warnings[] = 'Kode shift tidak dikenal: '.implode(', ', array_keys($unknownCodes));
+        }
+
+        if ($blockedByReguDetails) {
+            // Dibatasi 8 baris pertama biar notifikasi tidak kepanjangan kalau pelanggarannya
+            // banyak - sisanya cuma disebut jumlahnya.
+            $shown = array_slice($blockedByReguDetails, 0, 8);
+            $rest = count($blockedByReguDetails) - count($shown);
+
+            $warnings[] = 'Shift tidak sesuai Tim (dilewati): '.implode('; ', $shown).($rest > 0 ? "; dan {$rest} lainnya" : '');
         }
 
         Notification::make()

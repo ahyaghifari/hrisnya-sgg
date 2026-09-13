@@ -55,6 +55,11 @@
     <!-- PRESENSI: status hari ini (jadwal + libur/cuti/izin + jam presensi asli) -->
     <x-today-attendance-card :status="$this->todayAttendanceStatus" id="absen-section" class="bento-absensi" />
 
+    <!-- Extra Shift/Double Shift hari ini (kalau ada) - beritahu jam scan yang perlu dilakukan -->
+    <div class="bento-extra-shift">
+        <livewire:extra-shift-today-card />
+    </div>
+
     {{-- Cuti Tahunan + Jumlah Izin + Jumlah Lembur, berdampingan dengan presensi di layar lebar.
     Dua variasi ukuran (LeaveBalanceCard/AttendanceStatCards menghitung style-nya di server lewat
     prop `compact`, jadi tidak bisa satu markup untuk semua breakpoint) — visibility diatur lewat

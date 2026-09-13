@@ -11,6 +11,8 @@ use App\Models\Shift\ScheduleAssignment;
 use App\Models\Shift\ScheduleShiftAssignment;
 use App\Models\Shift\ScheduleShiftRosterLog;
 use App\Models\Shift\ScheduleShiftRotation;
+use App\Models\Shift\ScheduleShiftTeam;
+use App\Models\Shift\ScheduleShiftTeamMember;
 use App\Models\Shift\ScheduleShiftType;
 use App\Models\Shift\ShiftSwapRequests;
 use App\Models\User;
@@ -526,6 +528,80 @@ class ScheduleShiftRosterTabTest extends TestCase
             ->set('importFile', $file);
 
         $this->assertSame($shiftType->id, $component->get('draft')[$employee->id][$date->toDateString()]);
+    }
+
+    /** Jadwal TIDAK pakai Tim sama sekali - import jalan normal, tidak ada pembatasan shift apa
+     * pun (2026-09-14, salah satu dari 3 skenario: tanpa tim / pakai tim tanpa batasan / pakai
+     * tim dengan batasan shift). */
+    public function test_import_excel_without_teams_applies_shift_normally(): void
+    {
+        [$schedule, $shiftType, $employee] = $this->makeManualShiftSchedule();
+        $user = $this->actingAsAbsensi();
+        $date = now()->startOfMonth();
+
+        $this->assertFalse($schedule->fresh()->use_teams);
+
+        $file = $this->makeRosterImportFile(['Budi Santoso'], [[0 => $shiftType->code]]);
+
+        $component = Livewire::actingAs($user)
+            ->test(ScheduleShiftRosterTab::class, ['schedule' => $schedule])
+            ->set('importFile', $file);
+
+        $this->assertSame($shiftType->id, $component->get('draft')[$employee->id][$date->toDateString()]);
+    }
+
+    /** Jadwal pakai Tim, karyawan sudah di-assign ke 1 tim, TAPI tim itu belum diatur daftar
+     * shift-nya (kosong = tidak dibatasi) - import shift apa pun tetap boleh. */
+    public function test_import_excel_with_team_but_no_shift_restriction_allows_any_shift(): void
+    {
+        [$schedule, $shiftType, $employee] = $this->makeManualShiftSchedule();
+        $schedule->update(['use_teams' => true]);
+        $team = ScheduleShiftTeam::create(['schedule_id' => $schedule->id, 'name' => 'Regu A']);
+        ScheduleShiftTeamMember::setForPeriod($schedule, $employee, $team, now()->format('Y-m'), (string) $employee->id);
+        $user = $this->actingAsAbsensi();
+        $date = now()->startOfMonth();
+
+        // Tim ada, karyawan sudah masuk tim itu, TAPI $team->shiftTypes() masih kosong - artinya
+        // tidak dibatasi, lihat ScheduleShiftTeamMember::allowedShiftTypeIdsFor().
+        $file = $this->makeRosterImportFile(['Budi Santoso'], [[0 => $shiftType->code]]);
+
+        $component = Livewire::actingAs($user)
+            ->test(ScheduleShiftRosterTab::class, ['schedule' => $schedule])
+            ->set('importFile', $file);
+
+        $this->assertSame($shiftType->id, $component->get('draft')[$employee->id][$date->toDateString()]);
+    }
+
+    /** Jadwal pakai Tim DAN tim karyawan dibatasi cuma boleh shift tertentu - kode shift yang
+     * BUKAN jatah tim itu harus dilewati saat import (sama seperti kode tidak dikenal), kode yang
+     * memang jatahnya tetap diproses normal. */
+    public function test_import_excel_blocks_shift_not_allowed_by_employee_team(): void
+    {
+        [$schedule, $shiftTypeP, $employee] = $this->makeManualShiftSchedule();
+        $shiftTypeS = ScheduleShiftType::create(['schedule_id' => $schedule->id, 'code' => 'S', 'name' => 'Siang', 'start_time' => '15:00', 'end_time' => '23:00']);
+        $schedule->update(['use_teams' => true]);
+        $team = ScheduleShiftTeam::create(['schedule_id' => $schedule->id, 'name' => 'Regu A']);
+        $team->shiftTypes()->sync([$shiftTypeP->id]);
+        ScheduleShiftTeamMember::setForPeriod($schedule, $employee, $team, now()->format('Y-m'), (string) $employee->id);
+        $user = $this->actingAsAbsensi();
+        $date = now()->startOfMonth();
+        $nextDate = $date->copy()->addDay();
+
+        // Kolom hari ini -> shift S (BUKAN jatah tim, harus dilewati), kolom besok -> shift P
+        // (jatah tim, harus tetap masuk draft).
+        $file = $this->makeRosterImportFile(['Budi Santoso'], [[0 => $shiftTypeS->code, 1 => $shiftTypeP->code]]);
+
+        $component = Livewire::actingAs($user)
+            ->test(ScheduleShiftRosterTab::class, ['schedule' => $schedule])
+            ->set('importFile', $file);
+
+        $draft = $component->get('draft')[$employee->id];
+        $this->assertSame('', $draft[$date->toDateString()]);
+        $this->assertSame($shiftTypeP->id, $draft[$nextDate->toDateString()]);
+
+        // Belum ada apa pun tersimpan permanen sampai Simpan diklik - konsisten sama alur import
+        // manapun.
+        $this->assertFalse(ScheduleShiftAssignment::where('user_id', $employee->id)->exists());
     }
 
     public function test_import_excel_also_works_when_schedule_uses_template(): void

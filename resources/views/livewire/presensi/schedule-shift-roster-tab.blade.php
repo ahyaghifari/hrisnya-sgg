@@ -1,4 +1,10 @@
 @php
+    // Oncall TIDAK boleh dipilih manual di roster - cuma bisa didapat lewat Extra Shift pas
+    // karyawan libur (lihat ShiftType::ONCALL docblock). Dropdown pengisian roster cuma
+    // Pagi/Siang/Malam/Middle; baris Oncall tetap ada di $schedule->shiftTypes (dipakai buat
+    // nampilin warna/kode kalau ada hari yang sudah ketiban Oncall dari Extra Shift).
+    $assignableShiftTypes = $schedule->shiftTypes->where('shift_type', '!=', \App\Enum\ShiftType::ONCALL->value);
+
     // Peta warna per nilai sel buat Alpine — biar drag/undo bisa langsung ganti background sel
     // tanpa nunggu re-render Livewire (wire:model deferred).
     $shiftStyleMap = $schedule->shiftTypes->mapWithKeys(fn ($t) => [
@@ -32,7 +38,7 @@
         <div style="display:flex;align-items:center;gap:10px;">
             <div>
                 <label class="form-label">Periode</label>
-                <input type="month" wire:model.live="period" class="form-input" style="max-width:180px;">
+                <input type="month" wire:model.live="period" min="2026-09" class="form-input" style="max-width:180px;">
             </div>
             <span class="rf-hide-swaptrigger" style="margin-top:16px;">
                 <livewire:presensi.schedule-swap-history-sheet :scheduleId="$schedule->id" :key="'roster-swap-history-'.$schedule->id" />
@@ -123,10 +129,7 @@
     <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-bottom:10px;font-size:13px;color:var(--text-muted);">
         <span style="font-weight:700;color:var(--text-heading);">Keterangan:</span>
         @foreach ($schedule->shiftTypes as $shiftType)
-            <span style="display:inline-flex;align-items:center;gap:6px;">
-                <span style="width:11px;height:11px;border-radius:50%;background:{{ $shiftType->color ?: 'var(--text-faint)' }};flex-shrink:0;"></span>
-                <strong style="font-size:16px;font-weight:800;color:var(--text-heading);">{{ $shiftType->code }}</strong> = {{ $shiftType->name }}
-            </span>
+            <strong style="font-size:12.5px;font-weight:800;padding:3px 10px;border-radius:6px;color:{{ $shiftType->font_color ?: '#fff' }};background:{{ $shiftType->color ?: 'var(--text-faint)' }};">{{ $shiftType->code }} ({{ mb_strtoupper($shiftType->name) }})</strong>
         @endforeach
     </div>
 
@@ -155,14 +158,14 @@
             </thead>
             <tbody>
                 @php
-                    // Baris pemisah nama regu — colspan penuh, disisipkan tiap kali regu-nya
-                    // beda dari baris sebelumnya (grid sudah diurut per regu di
+                    // Baris pemisah nama tim — colspan penuh, disisipkan tiap kali tim-nya
+                    // beda dari baris sebelumnya (grid sudah diurut per tim di
                     // getEmployeesProperty(), jadi cukup bandingkan grup berurutan). Murni visual,
                     // TIDAK dapat rfRow/rfC - tidak kesentuh sama sekali sama mekanisme drag-select
                     // (data-r/data-c dibaca by-attribute, bukan posisi DOM, lihat rosterFill()).
                     // Sengaja BARIS, bukan kolom terpisah (instruksi user 2026-09-12) - biar tiap
-                    // regu kelihatan sebagai blok terpisah, tidak numpuk jadi 1 kolom sempit yang
-                    // bikin susah bandingkan anggota regu yang beda.
+                    // tim kelihatan sebagai blok terpisah, tidak numpuk jadi 1 kolom sempit yang
+                    // bikin susah bandingkan anggota tim yang beda.
                     $totalCols = 1 + count($this->leadDates) + count($this->dates);
                     $lastTeamGroupKey = null;
                 @endphp
@@ -173,16 +176,30 @@
                         $rfRow = $loop->index;
                         $teamInfo = $this->employeeTeamInfo[$employee->id] ?? null;
                         $teamColor = $teamInfo['color'] ?? null;
-                        $teamGroupKey = $teamInfo['name'] ?? '__tanpa_regu__';
+                        $teamGroupKey = $teamInfo['name'] ?? '__tanpa_tim__';
                         $isNewTeamGroup = $teamGroupKey !== $lastTeamGroupKey;
                         $lastTeamGroupKey = $teamGroupKey;
+                        // null (Tanpa Tim / tim belum dibatasi) -> semua shift schedule ini boleh,
+                        // lihat ScheduleShiftTeamMember::allowedShiftTypeIdsFor().
+                        $allowedShiftIds = $teamInfo['shift_type_ids'] ?? null;
+                        $rowShiftTypes = $allowedShiftIds ? $assignableShiftTypes->whereIn('id', $allowedShiftIds) : $assignableShiftTypes;
+                        // Kode + nama lengkap shift jatah tim ini ditempel di baris pemisah - biar
+                        // kelihatan tanpa scroll/buka tab Tim (instruksi user 2026-09-14). Cuma
+                        // ditampilkan kalau BENERAN dibatasi (null = semua shift boleh, tidak perlu
+                        // disebutin satu-satu).
+                        $groupShiftCodes = $allowedShiftIds
+                            ? $rowShiftTypes->map(fn ($t) => "{$t->code} ({$t->name})")->implode(', ')
+                            : null;
                     @endphp
                     @if ($schedule->use_teams && $isNewTeamGroup)
                         <tr wire:key="'roster-group-{{ $teamGroupKey }}-{{ $employee->id }}'">
-                            {{-- Baris pemisah regu ini yang dikasih warna (bukan baris rosternya) —
-                                 background = warna regu langsung, teks putih biar kebaca. --}}
+                            {{-- Baris pemisah tim ini yang dikasih warna (bukan baris rosternya) —
+                                 background = warna tim langsung, teks putih biar kebaca. --}}
                             <td colspan="{{ $totalCols }}" style="padding:7px 14px;text-align:center;font-size:12px;font-weight:800;color:{{ $teamColor ? '#fff' : 'var(--text-heading)' }};background:{{ $teamColor ?? 'var(--surface-alt)' }};border-bottom:1px solid var(--border-soft);">
-                                {{ $teamInfo['name'] ?? 'Tanpa Regu' }}
+                                {{ $teamInfo['name'] ?? 'Tanpa Tim' }}
+                                @if ($groupShiftCodes)
+                                    <span style="font-weight:600;font-size:10.5px;opacity:0.85;">&nbsp;&middot; {{ $groupShiftCodes }}</span>
+                                @endif
                             </td>
                         </tr>
                     @endif
@@ -205,7 +222,7 @@
                                 <select disabled
                                     style="width:52px;padding:6px 2px;font-size:10.5px;text-align:center;font-weight:700;border:none;border-radius:5px;opacity:0.5;cursor:not-allowed;color:{{ $lFont }};{{ $lIsOff ? 'background:color-mix(in srgb, #dc2626 55%, white);' : ($lColor ? "background:{$lColor};" : 'background:var(--surface-alt);') }}">
                                     <option value="" {{ $lval === '' ? 'selected' : '' }}>-</option>
-                                    @foreach ($schedule->shiftTypes as $shiftType)
+                                    @foreach ($assignableShiftTypes as $shiftType)
                                         <option value="{{ $shiftType->id }}" {{ $lval === $shiftType->id ? 'selected' : '' }}>{{ $shiftType->code }}</option>
                                     @endforeach
                                     <option value="off" {{ $lIsOff ? 'selected' : '' }}>L</option>
@@ -272,7 +289,7 @@
                                     @endif
                                     style="width:52px;padding:6px 2px;font-size:10.5px;text-align:center;font-weight:700;border:none;border-radius:5px;{{ $locked ? 'cursor:not-allowed;opacity:0.7;' : 'cursor:pointer;' }}color:{{ $currentFontColor }};{{ $isOff ? 'background:color-mix(in srgb, #dc2626 55%, white);' : ($currentColor ? "background:{$currentColor};" : 'background:var(--surface-alt);') }}">
                                     <option value="" {{ $current === '' ? 'selected' : '' }}>-</option>
-                                    @foreach ($schedule->shiftTypes as $shiftType)
+                                    @foreach ($rowShiftTypes as $shiftType)
                                         <option value="{{ $shiftType->id }}" {{ $current === $shiftType->id ? 'selected' : '' }}>{{ $shiftType->code }}</option>
                                     @endforeach
                                     <option value="off" {{ $isOff ? 'selected' : '' }}>L</option>
@@ -351,7 +368,7 @@
                 const box = this.$el.querySelector('[data-scrollbox]');
                 const day1 = box?.querySelector('[data-day1]');
                 if (! box || ! day1) return;
-                // Jumlah SEMUA kolom sticky (Karyawan, + Regu kalau jadwal ini pakai Regu) -
+                // Jumlah SEMUA kolom sticky (Karyawan, + Tim kalau jadwal ini pakai Tim) -
                 // dulu cuma ambil <th> pertama, jadi salah pas ada 2 kolom sticky bertumpuk.
                 const stickyW = Array.from(box.querySelectorAll('thead th.rf-sticky-col'))
                     .reduce((sum, el) => sum + el.getBoundingClientRect().width, 0);

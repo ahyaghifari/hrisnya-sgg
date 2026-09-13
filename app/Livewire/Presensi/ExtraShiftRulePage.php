@@ -58,9 +58,12 @@ class ExtraShiftRulePage extends Component
         return Companies::orderBy('code')->get();
     }
 
+    /** Middle tidak terlibat Extra Shift sama sekali (instruksi user 2026-09-13) - dikecualikan
+     * dari pilihan `from` maupun `to` di sini. Oncall tetap ada (satu-satunya jalur dia bisa
+     * didapat justru lewat sini, sebagai `to` dari `from=libur`). */
     public function getShiftTypeOptionsProperty(): array
     {
-        return ShiftType::cases();
+        return array_values(array_filter(ShiftType::cases(), fn (ShiftType $c) => $c !== ShiftType::MIDDLE));
     }
 
     public function getRulesProperty()
@@ -85,11 +88,12 @@ class ExtraShiftRulePage extends Component
     {
         abort_unless(Auth::user()->can('create', ExtraShiftRule::class), 403);
 
-        $fromValues = array_merge(array_column(ShiftType::cases(), 'value'), [self::LIBUR]);
+        $allowedValues = array_column($this->shiftTypeOptions, 'value');
+        $fromValues = array_merge($allowedValues, [self::LIBUR]);
 
         $this->validate([
             'fromShiftType' => ['required', 'in:' . implode(',', $fromValues)],
-            'toShiftType' => ['required', 'in:' . implode(',', array_column(ShiftType::cases(), 'value')), 'different:fromShiftType'],
+            'toShiftType' => ['required', 'in:' . implode(',', $allowedValues), 'different:fromShiftType'],
         ], [], [
             'fromShiftType' => 'dari shift',
             'toShiftType' => 'ke shift',

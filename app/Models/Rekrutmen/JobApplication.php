@@ -141,6 +141,16 @@ class JobApplication extends Model
         return $this->hasMany(QuizAttempt::class);
     }
 
+    public function offlineTestResults(): HasMany
+    {
+        return $this->hasMany(OfflineTestResult::class);
+    }
+
+    public function offlineTestInvitees(): HasMany
+    {
+        return $this->hasMany(OfflineTestInvitee::class);
+    }
+
     public function offeringNegotiations(): HasMany
     {
         return $this->hasMany(OfferingNegotiation::class)->orderBy('created_at');

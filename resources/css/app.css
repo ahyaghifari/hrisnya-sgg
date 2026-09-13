@@ -876,9 +876,12 @@ html.lw-navigating .page-content { opacity: 0; }
    tapi tetap masuk grid item -> gap 16px di atas+bawah row kosong = 32px jarak yang kelihatan
    berlebih. display:none saat kosong biar row-nya tidak makan tempat sama sekali. */
 .bento-status-pengajuan:not(:has(.timeline-card)) { display: none; }
+/* Kartu Extra Shift/Double Shift Hari Ini - sama pola dengan bento-status-pengajuan, kosong
+   (tidak ada extra shift hari itu) -> disembunyikan total, bukan cuma kartu kosong makan gap. */
+.bento-extra-shift:not(:has(.extra-shift-card-inner)) { display: none; }
 @media (min-width: 640px) {
     .bento { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
-    .bento-welcome, .bento-absensi, .bento-recent, .bento-pending-approvals, .bento-status-pengajuan { grid-column: 1 / 3; }
+    .bento-welcome, .bento-absensi, .bento-recent, .bento-pending-approvals, .bento-status-pengajuan, .bento-extra-shift { grid-column: 1 / 3; }
 }
 @media (min-width: 1024px) {
     /* Tanpa grid-template-rows/grid-row angka tetap - biar row auto-flow ngikutin DOM order.
@@ -887,7 +890,7 @@ html.lw-navigating .page-content { opacity: 0; }
        tetap otomatis satu baris karena berurutan di DOM (col1 lalu col2, auto-placement grid
        ngisi kolom yang kosong di baris yang sama sebelum pindah baris baru). */
     .bento { grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); }
-    .bento-welcome, .bento-status-pengajuan, .bento-pending-approvals, .bento-recent { grid-column: 1/-1; }
+    .bento-welcome, .bento-status-pengajuan, .bento-pending-approvals, .bento-recent, .bento-extra-shift { grid-column: 1/-1; }
     .bento-absensi { grid-column: 1; }
 }
 

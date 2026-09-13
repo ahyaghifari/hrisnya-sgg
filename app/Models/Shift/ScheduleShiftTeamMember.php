@@ -70,4 +70,29 @@ class ScheduleShiftTeamMember extends Model
             ->where('period', $period)
             ->delete();
     }
+
+    /** Kode shift yang boleh diisi buat 1 user di 1 bulan tertentu (2026-09-13, instruksi user -
+     * regu tidak boleh pinjam shift regu lain) - null = TIDAK dibatasi (Regu tidak aktif, user
+     * belum punya regu bulan itu, atau regu-nya belum diatur daftar shift-nya), dipakai
+     * ScheduleShiftRosterTab & ScheduleShiftRotationTab supaya aturannya satu tempat, tidak
+     * dobel-tulis di 2 komponen.
+     *
+     * @return array<int, string>|null
+     */
+    public static function allowedShiftTypeIdsFor(Schedule $schedule, string $userId, string $period): ?array
+    {
+        if (! $schedule->use_teams) {
+            return null;
+        }
+
+        $team = static::forPeriod($schedule->id, $userId, $period)?->team;
+
+        if (! $team) {
+            return null;
+        }
+
+        $ids = $team->shiftTypes()->pluck('schedule_shift_types.id')->all();
+
+        return $ids ?: null;
+    }
 }

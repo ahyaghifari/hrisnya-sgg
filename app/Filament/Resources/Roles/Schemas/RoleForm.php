@@ -256,7 +256,7 @@ class RoleForm
         return [
             'SikartapDashboard' => 'Dashboard',
             'JobOpenings' => 'Kelola Lowongan',
-            'ScheduleShiftTeam' => 'Regu',
+            'ScheduleShiftTeam' => 'Tim',
             // Subject :OrgStructure dipakai bareng DepartmentsResource/DivisionsResource/
             // SubDivisionsResource - di tree/checkbox tampil sebagai satu node "Struktur
             // Organisasi", bukan label salah satu resource-nya (Departemen).
@@ -342,6 +342,9 @@ class RoleForm
             'Delete' => 'Hapus Data',
             'Restore' => 'Pulihkan Data',
             'Reorder' => 'Urutkan Data',
+            // Bukan action standar Shield - custom buat ScheduleShiftTeam (2026-09-14), lihat
+            // migration 2026_09_14_000000_seed_schedule_shift_team_assign_shift_types_permission.
+            'AssignShiftTypes' => 'Atur Shift Tim',
         ];
     }
 

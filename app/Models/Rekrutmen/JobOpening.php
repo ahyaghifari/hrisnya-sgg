@@ -60,6 +60,16 @@ class JobOpening extends Model
         return $this->belongsToMany(Quiz::class, 'job_opening_quiz');
     }
 
+    public function offlineTests(): BelongsToMany
+    {
+        return $this->belongsToMany(OfflineTest::class, 'job_opening_offline_test');
+    }
+
+    public function offlineTestSchedules(): HasMany
+    {
+        return $this->hasMany(OfflineTestSchedule::class);
+    }
+
     public function agreements(): HasMany
     {
         return $this->hasMany(JobOpeningAgreement::class)->orderBy('sort_order');

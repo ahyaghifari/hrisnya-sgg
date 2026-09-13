@@ -85,12 +85,15 @@ class SyncAccessLogsExtraShiftValidationTest extends TestCase
         return [$user, $extraShift];
     }
 
-    public function test_checkin_still_within_normal_shift_falls_back_to_normal_attendance_record(): void
+    public function test_normal_and_extra_shift_scans_same_day_are_split_into_separate_records(): void
     {
         [$user] = $this->makeUserWithNormalAndExtraShift('EMP001');
 
-        // 4 scan sungguhan, tapi pairScansForEmployee cuma nyisain scan pertama (07:00, masuk
-        // normal) & terakhir (21:00, pulang extra) - check_in yang kebawa BUKAN jam extra shift.
+        // 4 scan sungguhan: masuk/pulang normal (Pagi) DAN masuk/pulang extra (Siang) - dulu
+        // pairScansForEmployee/readAndGroupScansIncremental nyisain cuma scan pertama (07:00) &
+        // terakhir (21:00) jadi 1 pasangan salah (ketangkep fallback isGenuineExtraShiftScan).
+        // Sekarang (fix AccessLogScheduleReader 2026-09-13) dipisah jadi 2 pasangan REAL, tidak
+        // perlu fallback lagi.
         $this->insertScan($user, '2026-08-10 07:00:00');
         $this->insertScan($user, '2026-08-10 14:00:00');
         $this->insertScan($user, '2026-08-10 14:05:00');
@@ -99,10 +102,14 @@ class SyncAccessLogsExtraShiftValidationTest extends TestCase
         $this->artisan('attendance:sync-access-logs')->assertSuccessful();
 
         $attendance = AttendanceRecords::where('nip', 'EMP001')->first();
-        $this->assertNotNull($attendance, 'Harus fallback tersimpan ke attendance_records sebagai jadwal normal.');
+        $this->assertNotNull($attendance, 'Shift normal (Pagi) harus tetap tercatat.');
         $this->assertSame('07:00:00', $attendance->check_in_time);
+        $this->assertSame('14:00:00', $attendance->check_out_time);
 
-        $this->assertSame(0, ExtraShiftAttendanceRecord::count(), 'Tidak boleh ikut tersimpan sebagai extra shift, check-in-nya bukan jam extra shift.');
+        $extraRecord = ExtraShiftAttendanceRecord::first();
+        $this->assertNotNull($extraRecord, 'Shift extra (Siang) harus tercatat terpisah, bukan hilang/fallback.');
+        $this->assertSame('14:05:00', $extraRecord->check_in_time);
+        $this->assertSame('21:00:00', $extraRecord->check_out_time);
     }
 
     public function test_checkin_at_extra_shift_start_is_saved_as_extra_shift_attendance(): void

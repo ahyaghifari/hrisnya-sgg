@@ -18,20 +18,30 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
  * Export grid tab "Detail Penjadwalan" — 1 baris = 1 karyawan, kolom tanggal 1..akhir bulan,
  * isi kode shift/"L" (Libur). Sel jadwal sengaja TIDAK diwarnai (instruksi user) — cukup kode
  * teks + legenda; hanya banner judul & baris header yang berwarna.
+ *
+ * Pengelompokan Tim (2026-09-15, instruksi user) - BARIS pemisah bergaya banner (merge penuh
+ * lebar tabel) tiap kali grup tim berganti, PERSIS pola tabel Detail Penjadwalan di web (bukan
+ * kolom "Tim" + merge vertikal seperti versi sebelumnya) - lebih gampang dibaca & tidak perlu
+ * kolom ekstra yang mepetkan lebar kolom nama.
  */
 class ScheduleShiftRosterExport implements FromArray, WithStyles, WithColumnWidths, WithTitle
 {
+    /** @var array<int, string> raw row index (dari array(), 0-based) => label banner tim -
+     * diisi array(), dibaca styles() buat merge+warnai barisnya. Row index header selalu 0. */
+    private array $separatorRows = [];
+
+    /** Total baris hasil array() (header + banner tim + karyawan) - dipakai styles() hitung
+     * dataLastRow tanpa perlu array() dipanggil ulang. */
+    private int $totalRows = 0;
+
     /**
-     * @param  Collection<int, \App\Models\User>  $employees  Sudah diurut per regu kalau
+     * @param  Collection<int, \App\Models\User>  $employees  Sudah diurut per tim kalau
      *   $schedule->use_teams (lihat ScheduleShiftRosterTab::getEmployeesProperty()) - urutan ini
-     *   yang dipakai buat nentuin baris mana ikut di-merge di kolom Regu, BUKAN dihitung ulang
-     *   di sini.
+     *   yang dipakai buat nentuin kapan banner tim baru disisipkan, BUKAN dihitung ulang di sini.
      * @param  array<int, \Carbon\Carbon>  $dates
      * @param  array<string, array<string, string>>  $roster  [user_id => [date => shift_type_id|'off']]
-     * @param  array<string, ?string>  $teamNames  [user_id => nama regu, null/tidak ada = Tanpa
-     *   Regu] - cuma dipakai kalau $schedule->use_teams. Kolom "Regu" ditaruh PALING KIRI (sama
-     *   posisi kayak tabel Detail Penjadwalan) - updatedImportFile() ikut digeser baca posisinya
-     *   (deteksi dari header baris 3, bukan asumsi tetap), lihat method itu.
+     * @param  array<string, ?string>  $teamNames  [user_id => nama tim, null/tidak ada = Tanpa
+     *   Tim] - cuma dipakai kalau $schedule->use_teams.
      */
     public function __construct(
         protected Schedule $schedule,
@@ -47,21 +57,23 @@ class ScheduleShiftRosterExport implements FromArray, WithStyles, WithColumnWidt
         return 'Detail Penjadwalan';
     }
 
-    private function hasTeamColumn(): bool
+    private function useTeams(): bool
     {
         return $this->schedule->use_teams && $this->teamNames !== [];
     }
 
     private function teamNameFor(\App\Models\User $employee): string
     {
-        return $this->teamNames[$employee->id] ?? 'Tanpa Regu';
+        return $this->teamNames[$employee->id] ?? 'Tanpa Tim';
     }
 
     public function array(): array
     {
         $rows = [];
+        $this->separatorRows = [];
+        $dateCount = count($this->dates);
 
-        $header = $this->hasTeamColumn() ? ['Regu', 'Karyawan'] : ['Karyawan'];
+        $header = ['Karyawan'];
         foreach ($this->dates as $date) {
             // Tanggal + nama hari (2 baris dalam 1 sel) - sama info kayak header tabel Detail
             // Penjadwalan (tanggal di atas, hari di bawah). wrapText diaktifkan di styles().
@@ -69,9 +81,22 @@ class ScheduleShiftRosterExport implements FromArray, WithStyles, WithColumnWidt
         }
         $rows[] = $header;
 
+        $lastTeam = null;
+        $useTeams = $this->useTeams();
+
         foreach ($this->employees as $employee) {
+            if ($useTeams) {
+                $team = $this->teamNameFor($employee);
+
+                if ($team !== $lastTeam) {
+                    $this->separatorRows[count($rows)] = $team;
+                    $rows[] = array_merge([$team], array_fill(0, $dateCount, ''));
+                    $lastTeam = $team;
+                }
+            }
+
             $userRoster = $this->roster[$employee->id] ?? [];
-            $row = $this->hasTeamColumn() ? [$this->teamNameFor($employee), $employee->name] : [$employee->name];
+            $row = [$employee->name];
 
             foreach ($this->dates as $date) {
                 $value = $userRoster[$date->toDateString()] ?? '';
@@ -81,21 +106,17 @@ class ScheduleShiftRosterExport implements FromArray, WithStyles, WithColumnWidt
             $rows[] = $row;
         }
 
+        $this->totalRows = count($rows);
+
         return $rows;
     }
 
     public function columnWidths(): array
     {
-        $nameCol = Coordinate::stringFromColumnIndex($this->hasTeamColumn() ? 2 : 1);
-        $widths = [$nameCol => 22];
+        $widths = ['A' => 22];
 
-        if ($this->hasTeamColumn()) {
-            $widths['A'] = 16;
-        }
-
-        $dateStartIndex = ($this->hasTeamColumn() ? 2 : 1) + 1;
         foreach ($this->dates as $i => $date) {
-            $widths[Coordinate::stringFromColumnIndex($dateStartIndex + $i)] = 4.5;
+            $widths[Coordinate::stringFromColumnIndex($i + 2)] = 4.5;
         }
 
         return $widths;
@@ -103,10 +124,11 @@ class ScheduleShiftRosterExport implements FromArray, WithStyles, WithColumnWidt
 
     public function styles(Worksheet $sheet): array
     {
-        $nameColIndex = $this->hasTeamColumn() ? 2 : 1;
-        $nameCol = Coordinate::stringFromColumnIndex($nameColIndex);
-        $lastCol = Coordinate::stringFromColumnIndex($nameColIndex + count($this->dates));
-        $dataLastRow = count($this->employees) + 3;
+        $lastCol = Coordinate::stringFromColumnIndex(1 + count($this->dates));
+        // array() HARUS sudah dipanggil sebelum styles() (dipanggil framework buat isi sheet,
+        // atau manual di test) - $this->totalRows/$separatorRows sudah keisi lewat efek samping
+        // itu, lihat docblock properti di atas.
+        $dataLastRow = $this->totalRows + 2;
 
         // Baris judul + keterangan disisipkan di atas grid ("Karyawan" + tanggal) yang datang
         // dari array() — sama pola dengan AttendanceHistoryExport.
@@ -143,21 +165,16 @@ class ScheduleShiftRosterExport implements FromArray, WithStyles, WithColumnWidt
             'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'D1D5DB']]],
             'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
         ]);
-        $sheet->getStyle("{$nameCol}4:{$nameCol}{$dataLastRow}")->applyFromArray([
+        $sheet->getStyle("A4:A{$dataLastRow}")->applyFromArray([
             'alignment' => ['horizontal' => Alignment::HORIZONTAL_LEFT],
             'font' => ['bold' => true],
         ]);
 
-        if ($this->hasTeamColumn()) {
-            $this->mergeTeamColumn($sheet);
-        }
+        $this->styleSeparatorRows($sheet, $lastCol);
 
-        // Freeze panes — baris 1-3 (judul, periode, header) + kolom Karyawan (& Regu kalau
-        // jadwal ini pakai Regu) tetap kelihatan pas scroll tanggal, sama konsep sticky di tabel
-        // Detail Penjadwalan. Kolom beku = sampai $nameCol (persis $nameColIndex kolom pertama),
-        // jadi otomatis ikut geser kalau Regu ada (nameColIndex 2) atau tidak (nameColIndex 1).
-        $freezeCol = Coordinate::stringFromColumnIndex($nameColIndex + 1);
-        $sheet->freezePane("{$freezeCol}4");
+        // Freeze panes — baris 1-3 (judul, periode, header) + kolom Karyawan tetap kelihatan pas
+        // scroll tanggal, sama konsep sticky di tabel Detail Penjadwalan.
+        $sheet->freezePane("B4");
 
         // ponytail: sel jadwal sengaja tidak diwarnai (instruksi user). Kode shift + "L" +
         // legenda sudah cukup; kalau nanti perlu versi berwarna lagi, kembalikan loop
@@ -166,37 +183,22 @@ class ScheduleShiftRosterExport implements FromArray, WithStyles, WithColumnWidt
         return [];
     }
 
-    /** Kolom A (Regu) di-merge per grup baris berurutan yang regu-nya sama — versi Excel dari
-     * rowspan di tabel Detail Penjadwalan. $employees HARUS sudah urut per regu (lihat docblock
-     * constructor), di sini cuma bandingkan grup berurutan, tidak sort ulang. */
-    private function mergeTeamColumn(Worksheet $sheet): void
+    /** Banner tim - merge penuh lebar tabel per baris pemisah, versi Excel dari baris pemisah
+     * (colspan) di tabel Detail Penjadwalan web. Row index di $separatorRows itu RAW (dari
+     * array(), 0-based) - sheet row-nya = rawIndex + 3 (geser 2 baris judul yang disisipkan
+     * insertNewRowBefore(1,2), + 1 karena array 0-based vs baris Excel 1-based). */
+    private function styleSeparatorRows(Worksheet $sheet, string $lastCol): void
     {
-        $employees = $this->employees->values();
-        $count = $employees->count();
-        $firstDataRow = 4;
+        foreach ($this->separatorRows as $rawIndex => $label) {
+            $row = $rawIndex + 3;
 
-        $i = 0;
-        while ($i < $count) {
-            $team = $this->teamNameFor($employees[$i]);
-            $j = $i;
-
-            while ($j + 1 < $count && $this->teamNameFor($employees[$j + 1]) === $team) {
-                $j++;
-            }
-
-            $startRow = $firstDataRow + $i;
-            $endRow = $firstDataRow + $j;
-
-            if ($endRow > $startRow) {
-                $sheet->mergeCells("A{$startRow}:A{$endRow}");
-            }
-
-            $sheet->getStyle("A{$startRow}")->applyFromArray([
-                'font' => ['bold' => true],
-                'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER, 'wrapText' => true],
+            $sheet->mergeCells("A{$row}:{$lastCol}{$row}");
+            $sheet->setCellValue("A{$row}", $label);
+            $sheet->getStyle("A{$row}:{$lastCol}{$row}")->applyFromArray([
+                'font' => ['bold' => true, 'size' => 11],
+                'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'E2E8F0']],
+                'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
             ]);
-
-            $i = $j + 1;
         }
     }
 

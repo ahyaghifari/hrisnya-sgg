@@ -426,15 +426,16 @@ class ShiftSwapRequestServiceTest extends TestCase
         $this->assertSame('2026-08-15', $scheduleB->fresh()->date->toDateString());
     }
 
-    public function test_different_date_swap_leaves_conflicting_slot_untouched_and_warns(): void
+    public function test_different_date_swap_conflicting_slot_becomes_unpaid_double_shift(): void
     {
         $perawatA = User::factory()->create(['company_id' => $this->company->id]);
         $perawatB = User::factory()->create(['company_id' => $this->company->id]);
 
         // A minta tanggal 10, tukar dengan shift B tanggal 15. Tapi B TERNYATA sudah ada
         // shift Siang sendiri di tanggal 10 (bukan libur) - tidak bisa langsung "pindah" ke
-        // baris A (unique user_id+date). Sejak 2026-09-12 slot ini TIDAK LAGI ditutup Extra
-        // Shift otomatis - dibiarkan apa adanya, cuma jadi peringatan (conflictWarnings()).
+        // baris A (unique user_id+date). Sejak 2026-09-13: swap TETAP dilaksanakan (A benar2
+        // lepas), shift Pagi yang dioper ke B dicatat sebagai ExtraShiftAssignment
+        // category=double_shift (tanpa jasa) di atas shift Siang B yang sudah ada.
         $scheduleA = $this->assignShift($perawatA, $this->pagi, '2026-08-10');
         $scheduleB = $this->assignShift($perawatB, $this->pagi, '2026-08-15');
         $busyB = $this->assignShift($perawatB, $this->siang, '2026-08-10');
@@ -450,11 +451,19 @@ class ShiftSwapRequestServiceTest extends TestCase
 
         $this->approve($swapRequest);
 
-        // Slot bentrok (tanggal 10) dibiarkan apa adanya - tetap milik A, tidak dihapus, tidak
-        // ada Extra Shift dibuat buat B.
-        $this->assertSame($perawatA->id, $scheduleA->fresh()->user_id);
+        // A benar2 lepas dari shift tanggal 10 (baris asli dihapus).
+        $this->assertNull(\App\Models\Shift\ScheduleShiftAssignment::find($scheduleA->id));
+        // B tetap punya shift Siang aslinya (tidak tersentuh)...
         $this->assertNotNull($busyB->fresh(), 'Shift Siang B yang sudah ada tetap utuh.');
-        $this->assertSame(0, \App\Models\Shift\ExtraShiftAssignment::where('source', 'shift_swap')->count());
+        // ...DITAMBAH shift Pagi yang dioper A, sebagai double-shift tanpa jasa.
+        $doubleShift = \App\Models\Shift\ExtraShiftAssignment::where('user_id', $perawatB->id)
+            ->whereDate('date', '2026-08-10')
+            ->first();
+        $this->assertNotNull($doubleShift, 'Shift yang dioper harus tercatat sebagai double-shift buat B.');
+        $this->assertSame($this->pagi->id, $doubleShift->shift_type_id);
+        $this->assertSame('double_shift', $doubleShift->category);
+        $this->assertSame('approved', $doubleShift->status);
+        $this->assertSame($swapRequest->id, $doubleShift->origin_shift_swap_request_id, 'Harus tertaut ke pengajuan tukar shift asalnya.');
 
         // Tidak ada konflik di sisi B (tanggal 15) - A tetap pindah normal ke baris itu.
         $this->assertSame($perawatA->id, $scheduleB->fresh()->user_id);

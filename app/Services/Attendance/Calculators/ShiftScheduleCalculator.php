@@ -3,6 +3,7 @@
 namespace App\Services\Attendance\Calculators;
 
 use App\Enum\AttendanceStatus;
+use App\Enum\ShiftType;
 use App\Models\Shift\ScheduleShiftType;
 use App\Services\Attendance\Calculators\Concerns\ComputesWorkDayWeight;
 use Carbon\Carbon;
@@ -15,6 +16,8 @@ use Carbon\Carbon;
  * - is_overnight: shift yang melewati tengah malam (mis. 22:00-06:00). end_time digeser +1 hari
  *   kalau <= start_time, dan check_out digeser +1 hari kalau lebih awal dari check_in (pola sama
  *   dengan FlexibleScheduleCalculator).
+ *
+ * shift_type === Oncall dikecualikan dari alur di atas - lihat calculateOncall().
  */
 class ShiftScheduleCalculator
 {
@@ -29,6 +32,10 @@ class ShiftScheduleCalculator
     {
         /** @var ScheduleShiftType $config */
         $config = $entry['config'];
+
+        if ($config->shift_type === ShiftType::ONCALL->value) {
+            return $this->calculateOncall($entry, $config);
+        }
 
         $start = Carbon::createFromFormat('H:i:s', $config->start_time);
         $end   = Carbon::createFromFormat('H:i:s', $config->end_time);
@@ -76,6 +83,63 @@ class ShiftScheduleCalculator
             'early_leave_minutes' => $earlyLeaveMinutes,
             'working_minutes'     => $workingMinutes,
             'overtime_minutes'    => $overtimeMinutes > 0 ? $overtimeMinutes : null,
+            'work_day_weight'     => $this->workDayWeight($config, $workingMinutes),
+            'status'              => $status,
+            'out_of_window'       => $outOfWindow,
+        ];
+    }
+
+    /**
+     * Oncall dihitung fleksibel (target durasi kerja, bukan window start/end ketat) - instruksi
+     * user 2026-09-13. start_time cuma dipakai buat basis telat (late_tolerance_minutes) dan
+     * checkin_buffer_minutes (batas checkin paling awal), TIDAK ada early_leave (tidak ada
+     * end_time resmi buat dibandingkan, sama seperti FlexibleScheduleCalculator).
+     * max_work_minutes di sini berarti TARGET (bukan cap mutlak) - kelebihannya jadi kandidat
+     * lembur lewat overtime_after_min/break/max, formula sama persis dengan
+     * FlexibleScheduleCalculator::calculateOne() supaya konsisten.
+     */
+    private function calculateOncall(array $entry, ScheduleShiftType $config): array
+    {
+        $start = Carbon::createFromFormat('H:i:s', $config->start_time);
+        $ci    = Carbon::createFromFormat('H:i:s', $entry['check_in']);
+
+        $earliestCheckIn = $start->copy()->subMinutes($config->checkin_buffer_minutes);
+        $lateThreshold    = $start->copy()->addMinutes($config->late_tolerance_minutes);
+        $lateMinutes      = $ci->gt($lateThreshold) ? (int) $lateThreshold->diffInMinutes($ci) : 0;
+        $outOfWindow      = $ci->lt($earliestCheckIn);
+
+        $workingMinutes  = null;
+        $overtimeMinutes = null;
+        $checkOut        = $entry['check_out'];
+
+        if ($checkOut) {
+            $co = Carbon::createFromFormat('H:i:s', $checkOut);
+            if ($co->lt($ci)) {
+                $co->addDay();
+            }
+
+            $rawMinutes = max(0, (int) $ci->diffInMinutes($co) - $config->break_minutes);
+            $target     = $config->max_work_minutes;
+
+            if ($target > 0 && $rawMinutes > $target) {
+                $workingMinutes    = $target;
+                $overtimeCandidate = $rawMinutes - $target;
+
+                if ($config->overtime_after_max > 0 && $overtimeCandidate >= $config->overtime_after_min) {
+                    $overtimeMinutes = max(0, min($overtimeCandidate, $config->overtime_after_max) - $config->overtime_after_break);
+                }
+            } else {
+                $workingMinutes = $rawMinutes;
+            }
+        }
+
+        $status = $lateMinutes > 0 ? AttendanceStatus::LATE->value : AttendanceStatus::PRESENT->value;
+
+        return $entry + [
+            'late_minutes'        => $lateMinutes,
+            'early_leave_minutes' => 0,
+            'working_minutes'     => $workingMinutes,
+            'overtime_minutes'    => $overtimeMinutes,
             'work_day_weight'     => $this->workDayWeight($config, $workingMinutes),
             'status'              => $status,
             'out_of_window'       => $outOfWindow,

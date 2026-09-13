@@ -4,12 +4,18 @@
 
         <div>
             <label class="form-label">Karyawan</label>
-            <select wire:model.live="userId" class="form-input" style="min-width:220px;max-width:340px;" data-tom-select data-placeholder="Ketik nama karyawan...">
-                <option value="">-- Pilih --</option>
-                @foreach ($this->employees as $employee)
-                    <option value="{{ $employee->id }}">{{ $employee->name }}</option>
-                @endforeach
-            </select>
+            {{-- wire:ignore wajib (konvensi TomSelect di app ini) supaya Livewire tidak morph balik
+                 DOM yang sudah dikelola TomSelect (bikin pilihan langsung hilang tiap update) -
+                 wire:key ikut companyId supaya blok ini di-render ULANG (bukan di-patch) dan
+                 opsinya ikut refresh saat company berganti. --}}
+            <div wire:ignore wire:key="karyawan-select-{{ $companyId ?? 'none' }}">
+                <select wire:model.live="userId" class="form-input" style="min-width:220px;max-width:340px;" data-tom-select data-placeholder="Ketik nama karyawan...">
+                    <option value="">-- Pilih --</option>
+                    @foreach ($this->employees as $employee)
+                        <option value="{{ $employee->id }}">{{ $employee->name }}</option>
+                    @endforeach
+                </select>
+            </div>
         </div>
     </div>
 
@@ -22,6 +28,18 @@
             Pilih karyawan untuk melihat jadwalnya.
         </div>
     @else
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;padding:12px 16px;background:var(--surface);border-radius:12px;box-shadow:var(--shadow-card);">
+            <div style="width:38px;height:38px;border-radius:50%;background:var(--brand-soft-bg,var(--surface-alt));display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                <i class="fa-solid fa-user" style="color:var(--brand);font-size:14px;"></i>
+            </div>
+            <div style="min-width:0;">
+                <div style="font-size:13.5px;font-weight:700;color:var(--text-heading);">{{ $this->selectedUser->name }}</div>
+                <div style="font-size:11px;color:var(--text-muted);">
+                    {{ $this->selectedUser->profile?->department?->name ?? '-' }} &middot; {{ $this->selectedUser->company?->name ?? '-' }}
+                </div>
+            </div>
+        </div>
+
         <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:14px;">
             <div style="display:flex;align-items:center;gap:10px;">
                 <button type="button" wire:click="previousMonth" class="btn-ghost" style="padding:7px 10px;">

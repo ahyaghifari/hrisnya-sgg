@@ -32,15 +32,9 @@
             <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-bottom:10px;font-size:13px;color:var(--text-muted);">
                 <span style="font-weight:700;color:var(--text-heading);">Keterangan:</span>
                 @foreach ($schedule->shiftTypes as $shiftType)
-                    <span style="display:inline-flex;align-items:center;gap:5px;">
-                        <span style="width:11px;height:11px;border-radius:50%;background:{{ $shiftType->color ?: 'var(--text-faint)' }};flex-shrink:0;"></span>
-                        <strong>{{ $shiftType->code }}</strong> = {{ $shiftType->name }}
-                    </span>
+                    <strong style="font-size:12px;font-weight:800;padding:3px 10px;border-radius:6px;color:{{ $shiftType->font_color ?: '#fff' }};background:{{ $shiftType->color ?: 'var(--text-faint)' }};">{{ $shiftType->code }} ({{ mb_strtoupper($shiftType->name) }})</strong>
                 @endforeach
-                <span style="display:inline-flex;align-items:center;gap:5px;">
-                    <span style="width:11px;height:11px;border-radius:50%;background:var(--text-faint);flex-shrink:0;"></span>
-                    <strong>Libur</strong> = tidak kerja
-                </span>
+                <strong style="font-size:12px;font-weight:800;padding:3px 10px;border-radius:6px;color:#fff;background:var(--text-faint);">L (LIBUR)</strong>
             </div>
 
             <div style="background:var(--surface);border-radius:12px;box-shadow:var(--shadow-card);overflow:auto;">
@@ -54,7 +48,17 @@
                         </tr>
                     </thead>
                     <tbody>
+                        @php
+                            $assignableShiftTypes = $schedule->shiftTypes->where('shift_type', '!=', \App\Enum\ShiftType::ONCALL->value);
+                        @endphp
                         @foreach ($this->employees as $employee)
+                            @php
+                                // null (Tanpa Tim / Tim tidak dibatasi) -> semua shift schedule ini boleh -
+                                // lihat ScheduleShiftTeamMember::allowedShiftTypeIdsFor(). Tim diambil dari
+                                // BULAN BERJALAN (lihat getEmployeeAllowedShiftTypesProperty()).
+                                $allowedIds = $this->employeeAllowedShiftTypes[$employee->id] ?? null;
+                                $rowShiftTypes = $allowedIds ? $assignableShiftTypes->whereIn('id', $allowedIds) : $assignableShiftTypes;
+                            @endphp
                             <tr wire:key="'rot-row-{{ $employee->id }}'" style="border-bottom:1px solid var(--border-soft);">
                                 <td style="padding:6px 10px;white-space:nowrap;font-weight:600;position:sticky;left:0;background:var(--surface);">{{ $employee->name }}</td>
                                 @for ($d = 1; $d <= $dayCount; $d++)
@@ -69,7 +73,9 @@
                                         <select wire:model.live="rows.{{ $employee->id }}.{{ $d }}"
                                             style="width:100%;height:100%;min-height:38px;padding:6px 8px;font-size:11px;border:none;border-radius:0;text-align:center;font-weight:700;cursor:pointer;color:{{ $cellFontColor }};{{ $cellColor ? "background:{$cellColor};" : 'background:var(--surface-alt);' }}">
                                             <option value="">-- Pilih --</option>
-                                            @foreach ($schedule->shiftTypes as $shiftType)
+                                            {{-- Oncall dikecualikan - cuma bisa didapat lewat Extra Shift pas libur,
+                                            bukan pola rotasi manual. Dibatasi lagi per Tim karyawan (kalau ada). --}}
+                                            @foreach ($rowShiftTypes as $shiftType)
                                                 <option value="{{ $shiftType->id }}">{{ $shiftType->code }}</option>
                                             @endforeach
                                             <option value="off">Libur</option>

@@ -4,6 +4,7 @@ namespace App\Livewire\Presensi;
 
 use App\Enum\Attendance\PermissionTypeCategoryEnum;
 use App\Enum\CustomPermissionEnum;
+use App\Livewire\Concerns\FiltersByDepartmentDivision;
 use App\Livewire\Concerns\GatesCompanyFilterBySystem;
 use App\Models\Attendance\AttendanceRequestPermissionDetails;
 use App\Models\Attendance\AttendanceRequests;
@@ -24,7 +25,7 @@ use Livewire\Component;
 #[Layout('components.layout', ['title' => 'Rekap Izin'])]
 class IzinRecapPage extends Component
 {
-    use GatesCompanyFilterBySystem;
+    use GatesCompanyFilterBySystem, FiltersByDepartmentDivision;
 
     public ?string $companyId = null;
     public ?string $date_from = null;
@@ -50,6 +51,9 @@ class IzinRecapPage extends Component
     public function updatedCompanyId(): void
     {
         $this->lockCompanyIdUnlessAllowed(CustomPermissionEnum::SISTEM_ABSENSI);
+
+        $this->departmentId = null;
+        $this->divisionId = null;
     }
 
     public function getCompanyOptionsProperty()
@@ -104,7 +108,10 @@ class IzinRecapPage extends Component
                 ->select('id')
                 ->where('type', 'permission')
                 ->where('status', 'approved')
-                ->when($this->companyId, fn ($q) => $q->whereHas('user', fn ($q2) => $q2->where('company_id', $this->companyId))))
+                ->whereHas('user', function ($q2) {
+                    $q2->when($this->companyId, fn ($q3) => $q3->where('company_id', $this->companyId));
+                    $this->applyDepartmentDivisionFilter($q2);
+                }))
             ->with(['attendanceRequest.user'])
             ->get();
 
