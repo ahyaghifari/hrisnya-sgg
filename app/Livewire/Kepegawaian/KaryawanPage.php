@@ -38,6 +38,9 @@ class KaryawanPage extends Component
     public ?string $departmentId = null;
 
     #[Url]
+    public ?string $divisionId = null;
+
+    #[Url]
     public string $search = '';
 
     #[Url]
@@ -64,6 +67,12 @@ class KaryawanPage extends Component
 
     public function updatedDepartmentId(): void
     {
+        $this->divisionId = null;
+        $this->resetPage();
+    }
+
+    public function updatedDivisionId(): void
+    {
         $this->resetPage();
     }
 
@@ -85,6 +94,18 @@ class KaryawanPage extends Component
 
         return OrgStructure::where('company_id', $this->companyId)
             ->where('level', OrgStructurLevel::LEVEL_DEPARTMENT->value)
+            ->pluck('name', 'id');
+    }
+
+    public function getDivisionOptionsProperty()
+    {
+        if (! $this->departmentId) {
+            return collect();
+        }
+
+        return OrgStructure::where('company_id', $this->companyId)
+            ->where('level', OrgStructurLevel::LEVEL_DIVISION->value)
+            ->where('parent_id', $this->departmentId)
             ->pluck('name', 'id');
     }
 
@@ -130,6 +151,18 @@ class KaryawanPage extends Component
                 ->orWhereHas('profile.orgStructure', $matchDept));
         }
 
+        if ($this->divisionId) {
+            // cocokkan divisi itu sendiri (level 2) atau sub divisi di bawahnya (level 3,
+            // parent_id = divisi) — sama pola dengan matchDept di atas.
+            $divId = $this->divisionId;
+            $matchDiv = function ($oq) use ($divId) {
+                $oq->where('id', $divId)->orWhere('parent_id', $divId);
+            };
+            $query->where(fn ($q) => $q
+                ->whereHas('profile.jobPosition.orgStructure', $matchDiv)
+                ->orWhereHas('profile.orgStructure', $matchDiv));
+        }
+
         // 'department' itu accessor (getDepartmentAttribute) yang baca struktur efektif =
         // jabatan.orgStructure ?? profile.orgStructure — eager-load dua-duanya biar tidak N+1.
         $query->with(['profile.jobPosition.orgStructure.parent.parent', 'profile.orgStructure.parent.parent', 'company', 'roles']);
@@ -153,6 +186,7 @@ class KaryawanPage extends Component
         return $this->baseQuery()->orderBy('name')->paginate(10)->appends([
             'companyId' => $this->companyId,
             'departmentId' => $this->departmentId,
+            'divisionId' => $this->divisionId,
             'search' => $this->search,
             'status' => $this->status,
         ]);

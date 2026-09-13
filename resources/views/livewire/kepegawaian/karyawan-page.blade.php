@@ -52,6 +52,16 @@
         </select>
     </div>
 
+    <div style="min-width:220px;">
+        <label class="form-label">Divisi</label>
+        <select wire:model.live="divisionId" class="form-input" @disabled(! $departmentId)>
+            <option value="">Semua divisi</option>
+            @foreach ($this->divisionOptions as $id => $name)
+                <option value="{{ $id }}">{{ $name }}</option>
+            @endforeach
+        </select>
+    </div>
+
     <div style="min-width:220px;flex:1;">
         <label class="form-label">Cari</label>
         <div style="position:relative;">

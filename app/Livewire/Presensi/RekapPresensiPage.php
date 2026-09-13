@@ -6,6 +6,7 @@ use App\Enum\Attendance\PermissionTypeCategoryEnum;
 use App\Enum\AttendanceReqStatus;
 use App\Enum\AttendanceStatus;
 use App\Enum\CustomPermissionEnum;
+use App\Livewire\Concerns\FiltersByDepartmentDivision;
 use App\Models\Attendance\AttendanceRecords;
 use App\Models\Attendance\AttendanceRequests;
 use App\Models\Master\Companies;
@@ -44,7 +45,7 @@ use Livewire\WithPagination;
 #[Layout('components.layout', ['title' => 'Rekap Presensi'])]
 class RekapPresensiPage extends Component
 {
-    use WithPagination;
+    use WithPagination, FiltersByDepartmentDivision;
 
     #[Url]
     public string $mode = 'harian';
@@ -106,7 +107,8 @@ class RekapPresensiPage extends Component
             $this->companyId = Auth::user()->company_id;
         }
 
-        
+        $this->departmentId = null;
+        $this->divisionId = null;
         $this->resetPage();
     }
 
@@ -401,8 +403,12 @@ class RekapPresensiPage extends Component
 
     protected function baseUserQuery(): Builder
     {
-        return User::query()
+        $query = User::query()
             ->when($this->companyId, fn ($q) => $q->where('company_id', $this->companyId));
+
+        $this->applyDepartmentDivisionFilter($query);
+
+        return $query;
     }
 
     protected function filteredUserQuery(): Builder
@@ -421,7 +427,8 @@ class RekapPresensiPage extends Component
     {
         return AttendanceRecords::query()
             ->whereBetween('date', [$from, $to])
-            ->when($this->companyId, fn ($q) => $q->whereHas('user', fn ($q2) => $q2->where('company_id', $this->companyId)));
+            ->when($this->companyId, fn ($q) => $q->whereHas('user', fn ($q2) => $q2->where('company_id', $this->companyId)))
+            ->when($this->departmentId || $this->divisionId, fn ($q) => $q->whereHas('user', fn ($q2) => $this->applyDepartmentDivisionFilter($q2)));
     }
 
     /** Buang baris yang tanggalnya sudah ditutup Izin Terlambat Masuk (approved) - konsisten
@@ -446,6 +453,8 @@ class RekapPresensiPage extends Component
         return [
             'mode' => $this->mode,
             'companyId' => $this->companyId,
+            'departmentId' => $this->departmentId,
+            'divisionId' => $this->divisionId,
             'search' => $this->search,
             'date_from' => $this->date_from,
             'date_to' => $this->date_to,

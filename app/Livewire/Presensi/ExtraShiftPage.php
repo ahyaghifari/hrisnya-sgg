@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Presensi;
 
+use App\Livewire\Concerns\FiltersByDepartmentDivision;
 use App\Livewire\Presensi\Concerns\ResolvesExtraShiftOptions;
 use App\Models\Master\Companies;
 use App\Models\Shift\ExtraShiftAssignment;
@@ -26,7 +27,7 @@ use Livewire\Component;
 #[Layout('components.layout', ['title' => 'Extra Shift'])]
 class ExtraShiftPage extends Component
 {
-    use ResolvesExtraShiftOptions;
+    use ResolvesExtraShiftOptions, FiltersByDepartmentDivision;
 
     public ?string $companyId = null;
 
@@ -71,6 +72,8 @@ class ExtraShiftPage extends Component
             $this->companyId = Auth::user()->company_id;
         }
 
+        $this->departmentId = null;
+        $this->divisionId = null;
         $this->reset(['user_id', 'date', 'shift_type_id']);
     }
 
@@ -141,6 +144,7 @@ class ExtraShiftPage extends Component
     {
         return ExtraShiftAssignment::query()
             ->when($this->companyId, fn ($q) => $q->where('company_id', $this->companyId))
+            ->when($this->departmentId || $this->divisionId, fn ($q) => $q->whereHas('user', fn ($q2) => $this->applyDepartmentDivisionFilter($q2)))
             ->with(['user', 'shiftType', 'createdBy', 'attendanceRecord'])
             ->orderByDesc('date')
             ->orderByDesc('created_at')

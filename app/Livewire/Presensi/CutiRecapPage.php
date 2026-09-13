@@ -3,6 +3,7 @@
 namespace App\Livewire\Presensi;
 
 use App\Enum\CustomPermissionEnum;
+use App\Livewire\Concerns\FiltersByDepartmentDivision;
 use App\Livewire\Concerns\GatesCompanyFilterBySystem;
 use App\Models\Attendance\AttendanceRequestLeaveDetails;
 use App\Models\Attendance\AttendanceRequests;
@@ -28,7 +29,7 @@ use Livewire\WithPagination;
 #[Layout('components.layout', ['title' => 'Rekap Cuti'])]
 class CutiRecapPage extends Component
 {
-    use WithPagination, GatesCompanyFilterBySystem;
+    use WithPagination, GatesCompanyFilterBySystem, FiltersByDepartmentDivision;
 
     #[Url]
     public string $mode = 'matrix';
@@ -64,6 +65,8 @@ class CutiRecapPage extends Component
     {
         $this->lockCompanyIdUnlessAllowed(CustomPermissionEnum::SISTEM_ABSENSI);
 
+        $this->departmentId = null;
+        $this->divisionId = null;
         $this->resetPage();
     }
 
@@ -112,7 +115,10 @@ class CutiRecapPage extends Component
         $requests = AttendanceRequests::query()
             ->where('type', 'leave')
             ->where('status', 'approved')
-            ->when($this->companyId, fn ($q) => $q->whereHas('user', fn ($q2) => $q2->where('company_id', $this->companyId)))
+            ->whereHas('user', function ($q2) {
+                $q2->when($this->companyId, fn ($q3) => $q3->where('company_id', $this->companyId));
+                $this->applyDepartmentDivisionFilter($q2);
+            })
             ->whereHas('leaveDetails', fn ($q) => $q
                 ->where(fn ($q2) => $q2->whereNotNull('end_date')->where('start_date', '<=', $this->date_to)->where('end_date', '>=', $this->date_from))
                 ->orWhere(fn ($q2) => $q2->whereNull('end_date')->whereBetween('start_date', [$this->date_from, $this->date_to]))
@@ -231,7 +237,10 @@ class CutiRecapPage extends Component
             ->whereHas('request', function ($q) {
                 $q->where('type', 'leave')
                     ->where('status', 'approved')
-                    ->when($this->companyId, fn ($q2) => $q2->whereHas('user', fn ($q3) => $q3->where('company_id', $this->companyId)));
+                    ->whereHas('user', function ($q2) {
+                        $q2->when($this->companyId, fn ($q3) => $q3->where('company_id', $this->companyId));
+                        $this->applyDepartmentDivisionFilter($q2);
+                    });
             })
             ->when(trim($this->search) !== '', function ($q) {
                 $search = trim($this->search);
@@ -248,6 +257,8 @@ class CutiRecapPage extends Component
             ->appends([
                 'mode' => $this->mode,
                 'companyId' => $this->companyId,
+                'departmentId' => $this->departmentId,
+                'divisionId' => $this->divisionId,
                 'search' => $this->search,
             ]);
     }

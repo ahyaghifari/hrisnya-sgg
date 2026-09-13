@@ -2,7 +2,29 @@
     <x-page-header title="Extra Shift" />
 
     <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;justify-content:space-between;margin-bottom:16px;">
-        <x-company-filter wire:model.live="companyId" :companies="$this->companies" />
+        <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;">
+            <x-company-filter wire:model.live="companyId" :companies="$this->companies" />
+
+            <div style="min-width:200px;">
+                <label class="form-label">Departemen</label>
+                <select wire:model.live="departmentId" class="form-input" @disabled(! $companyId)>
+                    <option value="">Semua departemen</option>
+                    @foreach ($this->departmentOptions as $id => $name)
+                        <option value="{{ $id }}">{{ $name }}</option>
+                    @endforeach
+                </select>
+            </div>
+
+            <div style="min-width:200px;">
+                <label class="form-label">Divisi</label>
+                <select wire:model.live="divisionId" class="form-input" @disabled(! $departmentId)>
+                    <option value="">Semua divisi</option>
+                    @foreach ($this->divisionOptions as $id => $name)
+                        <option value="{{ $id }}">{{ $name }}</option>
+                    @endforeach
+                </select>
+            </div>
+        </div>
 
         @if ($this->canCreate)
             <button type="button" wire:click="openAddModal" class="btn-primary" style="padding:9px 18px;font-size:12.5px;">

@@ -25,6 +25,26 @@
         </div>
     @endif
 
+    <div style="min-width:220px;">
+        <label class="form-label">Departemen</label>
+        <select wire:model.live="departmentId" class="form-input" @disabled(! $companyId)>
+            <option value="">Semua departemen</option>
+            @foreach ($this->departmentOptions as $id => $name)
+                <option value="{{ $id }}">{{ $name }}</option>
+            @endforeach
+        </select>
+    </div>
+
+    <div style="min-width:220px;">
+        <label class="form-label">Divisi</label>
+        <select wire:model.live="divisionId" class="form-input" @disabled(! $departmentId)>
+            <option value="">Semua divisi</option>
+            @foreach ($this->divisionOptions as $id => $name)
+                <option value="{{ $id }}">{{ $name }}</option>
+            @endforeach
+        </select>
+    </div>
+
     <div style="min-width:170px;">
         <label class="form-label">Dari Tanggal</label>
         <input type="date" class="form-input" wire:model.live="date_from">
