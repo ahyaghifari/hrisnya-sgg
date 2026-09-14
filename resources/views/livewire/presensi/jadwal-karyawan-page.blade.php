@@ -19,7 +19,48 @@
         </div>
     </div>
 
-    @if ($this->employees->isEmpty())
+    <div style="display:flex;gap:8px;margin-bottom:14px;">
+        <button type="button" wire:click="setView('kalender')" class="{{ $view === 'kalender' ? 'btn-primary' : 'btn-ghost' }}" style="font-size:11.5px;padding:7px 14px;">
+            <i class="fa-solid fa-calendar-days"></i> Kalender
+        </button>
+        <button type="button" wire:click="setView('belum-jadwal')" class="{{ $view === 'belum-jadwal' ? 'btn-primary' : 'btn-ghost' }}" style="font-size:11.5px;padding:7px 14px;">
+            <i class="fa-solid fa-triangle-exclamation"></i> Belum Ada Jadwal
+            <span style="margin-left:4px;">({{ $this->unassignedEmployees->count() }})</span>
+        </button>
+    </div>
+
+    @if ($view === 'belum-jadwal')
+        @if ($this->unassignedEmployees->isEmpty())
+            <div style="padding:24px;text-align:center;color:var(--text-muted);font-size:12.5px;background:var(--surface);border-radius:12px;">
+                Semua karyawan di perusahaan ini sudah punya jadwal (Fixed/Flexible/Shift).
+            </div>
+        @else
+            <div style="background:var(--surface);border-radius:12px;box-shadow:var(--shadow-card);overflow:auto;">
+                <table style="width:100%;border-collapse:collapse;font-size:12px;">
+                    <thead>
+                        <tr style="border-bottom:1.5px solid var(--border);">
+                            <th style="text-align:left;padding:10px 14px;white-space:nowrap;">Nama</th>
+                            <th style="text-align:left;padding:10px 14px;white-space:nowrap;">Jabatan</th>
+                            <th style="text-align:right;padding:10px 14px;white-space:nowrap;"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach ($this->unassignedEmployees as $employee)
+                            <tr style="border-bottom:1px solid var(--border-soft);">
+                                <td style="padding:8px 14px;font-weight:600;color:var(--text-heading);">{{ $employee->name }}</td>
+                                <td style="padding:8px 14px;color:var(--text-muted);">{{ $employee->profile?->jobPosition?->name ?? '-' }}</td>
+                                <td style="padding:8px 14px;text-align:right;">
+                                    <button type="button" wire:click="viewCalendarFor('{{ $employee->id }}')" class="btn-ghost" style="font-size:10.5px;padding:5px 10px;">
+                                        Lihat Kalender
+                                    </button>
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        @endif
+    @elseif ($this->employees->isEmpty())
         <div style="padding:24px;text-align:center;color:var(--text-muted);font-size:12.5px;background:var(--surface);border-radius:12px;">
             Tidak ada karyawan di perusahaan ini.
         </div>

@@ -11,15 +11,14 @@ enum ShiftType: string implements HasLabel
     case SIANG = 'siang';
     case MALAM = 'malam';
 
-    /** Shift jaga panggilan - bukan pilihan roster, cuma didapat lewat Extra Shift saat karyawan
-     * libur. Dihitung fleksibel (target durasi, bukan window ketat), lihat
-     * ShiftScheduleCalculator::calculateOncall(). Approved -> menimpa roster hari itu, lihat
-     * ExtraShiftAssignment::syncOncallRoster(). */
+    /** Shift jaga panggilan - pilihan roster BIASA, assignable langsung sama seperti Pagi/Siang/
+     * Malam (revisi 2026-09-14, lihat planning/2026-09-14-oncall-middle-redesign.md - desain
+     * awal 2026-09-13 sempat menjadikan ini cuma didapat lewat Extra Shift saat libur, DIHAPUS).
+     * Dihitung fleksibel: TIDAK ADA konsep telat/pulang cepat sama sekali, jam masuk bebas
+     * total, target durasi dari `max_work_minutes` - lihat
+     * ShiftScheduleCalculator::calculateOncall(). TIDAK terlibat Extra Shift sama sekali
+     * (cuma Pagi/Siang/Malam yang boleh, lihat ExtraShiftRulePage::getShiftTypeOptionsProperty()). */
     case ONCALL = 'oncall';
-
-    /** Shift jam tetap di antara Pagi dan Siang - pilihan roster biasa, dihitung sama seperti
-     * Pagi/Siang/Malam. Tidak terlibat Extra Shift. */
-    case MIDDLE = 'middle';
 
     public function getLabel(): string|Htmlable|null
     {
@@ -28,7 +27,6 @@ enum ShiftType: string implements HasLabel
             self::SIANG => 'Siang/Sore',
             self::MALAM => 'Malam',
             self::ONCALL => 'Oncall',
-            self::MIDDLE => 'Middle',
         };
     }
 }

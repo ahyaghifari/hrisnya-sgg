@@ -124,6 +124,8 @@ class ShiftSwapRequestModalTest extends TestCase
         ScheduleShiftAssignment::create(['company_id' => $this->company->id, 'user_id' => $requester->id, 'shift_type_id' => $this->pagi->id, 'date' => $reqDate, 'off_day' => false]);
         // Target LIBUR BENERAN (baris ada, off_day=true) di reqDate.
         ScheduleShiftAssignment::create(['company_id' => $this->company->id, 'user_id' => $target->id, 'shift_type_id' => null, 'date' => $reqDate, 'off_day' => true]);
+        // Requester juga WAJIB Libur beneran di tanggal kompensasi (instruksi user 2026-09-14).
+        ScheduleShiftAssignment::create(['company_id' => $this->company->id, 'user_id' => $requester->id, 'shift_type_id' => null, 'date' => $compensationDate, 'off_day' => true]);
         ScheduleShiftAssignment::create(['company_id' => $this->company->id, 'user_id' => $target->id, 'shift_type_id' => $this->pagi->id, 'date' => $compensationDate, 'off_day' => false]);
 
         Livewire::actingAs($requester)

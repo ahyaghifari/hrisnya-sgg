@@ -2,14 +2,12 @@
 
 namespace App\Models\Shift;
 
-use App\Enum\ShiftType;
 use App\Models\Master\Companies;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
-use Illuminate\Support\Facades\Auth;
 
 /**
  * Extra shift - shift TAMBAHAN penuh di tanggal yang karyawan itu sudah punya shift normal
@@ -22,16 +20,15 @@ use Illuminate\Support\Facades\Auth;
  * schedule_shift_assignments punya unique(user_id, date), tidak bisa nampung shift ke-2 di
  * tanggal yang sama.
  *
- * KHUSUS shift ONCALL (2026-09-13, instruksi user): beda dari extra shift jenis lain (yang
- * SELALU additive di atas shift normal yang sudah ada), Oncall cuma boleh diajukan di hari
- * LIBUR (lihat ResolvesExtraShiftOptions::resolveNormalShift() - basis 'libur'), jadi tidak ada
- * konflik unique(user_id, date) - baris schedule_shift_assignments hari itu kosong/off_day.
- * Makanya Oncall approved JUGA langsung nimpa schedule_shift_assignments hari itu (lihat
- * syncOncallRoster()) supaya presensinya lewat jalur kalkulator NORMAL (ShiftScheduleCalculator
- * via bucket 'shift' di AccessLogScheduleReader), bukan bucket 'extra_shift' terpisah -
- * nyederhanain: gak perlu APAPUN diubah di AccessLogScheduleReader/SyncAccessLogsAttendance
- * selain nge-filter Oncall dari query ExtraShiftAssignment di sana (biar tidak dobel-proses).
- * Extra shift jenis lain TIDAK disentuh sama sekali, tetap additive seperti semula.
+ * Oncall BUKAN Extra Shift (revisi 2026-09-14, lihat
+ * planning/2026-09-14-oncall-middle-redesign.md) - desain awal 2026-09-13 sempat menjadikan
+ * Oncall cuma bisa didapat lewat sini (approved menimpa schedule_shift_assignments via
+ * syncOncallRoster()/revertOncallRoster(), sudah DIHAPUS). Ternyata di lapangan Oncall itu
+ * shift roster BIASA, assignable langsung ke jadwal/rotasi sama seperti Pagi/Siang/Malam/
+ * Middle - bedanya cuma cara hitungnya (fleksibel, lihat ShiftScheduleCalculator::
+ * calculateOncall()), bukan cara dapatnya. `ExtraShiftRulePage` sudah tidak menawarkan Oncall
+ * sebagai `to_shift_type` lagi, jadi baris ExtraShiftAssignment baru seharusnya tidak akan
+ * pernah shift_type=oncall lagi.
  *
  * `category` (2026-09-13): 'extra_shift' (default) = penugasan sukarela, KENA jasa dari
  * ExtraShiftRule.amount. 'double_shift' = akibat tukar shift yang conflict (lihat
@@ -63,76 +60,6 @@ class ExtraShiftAssignment extends Model
         'reason',
         'created_by',
     ];
-
-    protected static function booted(): void
-    {
-        static::created(fn (self $assignment) => $assignment->syncOncallRoster());
-        static::deleting(fn (self $assignment) => $assignment->revertOncallRoster());
-    }
-
-    /** Timpa schedule_shift_assignments hari itu jadi shift Oncall ini - no-op kalau shift_type-nya
-     * bukan Oncall. */
-    protected function syncOncallRoster(): void
-    {
-        $this->loadMissing('shiftType');
-
-        if ($this->shiftType?->shift_type !== ShiftType::ONCALL->value) {
-            return;
-        }
-
-        $existing = ScheduleShiftAssignment::where('user_id', $this->user_id)->whereDate('date', $this->date)->first();
-
-        ScheduleShiftRosterLog::create([
-            'schedule_id' => $this->shiftType->schedule_id,
-            'user_id' => $this->user_id,
-            'date' => $this->date,
-            'old_value' => ($existing && ! $existing->off_day) ? $existing->shift_type_id : null,
-            'new_value' => $this->shift_type_id,
-            'source' => 'extra_shift_oncall',
-            'changed_by' => $this->created_by,
-        ]);
-
-        // updateOrCreate() TIDAK dipakai di sini - "find"-nya cocokkan attribute mentah, bukan
-        // whereDate(), jadi bisa gagal cocok sama baris $existing di atas (kolom `date` di-cast
-        // Carbon, representasi string bisa beda) lalu nabrak unique(user_id,date) pas re-insert.
-        $attributes = [
-            'company_id' => $this->company_id,
-            'shift_type_id' => $this->shift_type_id,
-            'off_day' => false,
-            'created_by' => $this->created_by,
-        ];
-
-        if ($existing) {
-            $existing->update($attributes);
-        } else {
-            ScheduleShiftAssignment::create($attributes + ['user_id' => $this->user_id, 'date' => $this->date]);
-        }
-    }
-
-    /** Kebalikan syncOncallRoster() - dipanggil pas Oncall dibatalkan/dihapus. Baris roster
-     * dihapus (bukan di-set off_day=true) - "tidak ada baris" = Libur juga buat
-     * resolveNormalShift(), lebih simpel daripada nyimpen state "sebelum Oncall apa" di kolom
-     * baru (Oncall cuma boleh diajukan pas hari itu memang libur, jadi aman). */
-    protected function revertOncallRoster(): void
-    {
-        $this->loadMissing('shiftType');
-
-        if ($this->shiftType?->shift_type !== ShiftType::ONCALL->value) {
-            return;
-        }
-
-        ScheduleShiftRosterLog::create([
-            'schedule_id' => $this->shiftType->schedule_id,
-            'user_id' => $this->user_id,
-            'date' => $this->date,
-            'old_value' => $this->shift_type_id,
-            'new_value' => null,
-            'source' => 'extra_shift_oncall_cancel',
-            'changed_by' => Auth::id(),
-        ]);
-
-        ScheduleShiftAssignment::where('user_id', $this->user_id)->whereDate('date', $this->date)->delete();
-    }
 
     public function company(): BelongsTo
     {

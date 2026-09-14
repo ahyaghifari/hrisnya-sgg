@@ -167,6 +167,40 @@ class ScheduleExtraShiftTabTest extends TestCase
         $this->assertSame(1, \App\Models\Shift\ExtraShiftAssignment::where('user_id', $employee->id)->whereDate('date', $date)->count());
     }
 
+    /** Middle (shift_type=null sejak enum dihapus, instruksi user 2026-09-14) TIDAK BOLEH ikut
+     * Extra Shift sama sekali - baik jadi basis `from` (karyawan yang shift normalnya Middle
+     * tidak bisa ditawari extra shift apa pun) maupun `to` (tidak akan pernah muncul di opsi,
+     * dicek terpisah di ExtraShiftOncallOverwritesRosterTest karena butuh ExtraShiftRulePage). */
+    public function test_employee_on_middle_shift_gets_no_extra_shift_options(): void
+    {
+        $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
+        $admin = $this->actingAsPengelola($company->id);
+
+        $schedule = Schedule::create(['company_id' => $company->id, 'name' => 'Jadwal A', 'schedule_type' => 'shift']);
+        $middle = ScheduleShiftType::create(['schedule_id' => $schedule->id, 'code' => 'MID', 'name' => 'Middle', 'shift_type' => null, 'start_time' => '10:00', 'end_time' => '18:00']);
+        ScheduleShiftType::create(['schedule_id' => $schedule->id, 'code' => 'SIANG', 'name' => 'Siang', 'shift_type' => 'siang', 'start_time' => '14:00', 'end_time' => '21:00']);
+
+        $employee = User::factory()->create(['company_id' => $company->id]);
+        ScheduleAssignment::create(['company_id' => $company->id, 'user_id' => $employee->id, 'schedule_id' => $schedule->id, 'effective_from' => now()->subYear()->toDateString()]);
+
+        $date = now()->addDay()->toDateString();
+        ScheduleShiftAssignment::create(['company_id' => $company->id, 'user_id' => $employee->id, 'shift_type_id' => $middle->id, 'date' => $date, 'off_day' => false]);
+        // Aturan longgar (dari APAPUN ke siang) sengaja dibuat - buat pastikan Middle memang
+        // tersaring karena from_shift_type-nya null, bukan cuma kebetulan tidak ada aturan.
+        ExtraShiftRule::create(['company_id' => $company->id, 'from_shift_type' => 'pagi', 'to_shift_type' => 'siang']);
+        ExtraShiftRule::create(['company_id' => $company->id, 'from_shift_type' => 'siang', 'to_shift_type' => 'malam']);
+        ExtraShiftRule::create(['company_id' => $company->id, 'from_shift_type' => 'libur', 'to_shift_type' => 'siang']);
+
+        $this->actingAs($admin);
+
+        $component = Livewire::test(ScheduleExtraShiftTab::class, ['schedule' => $schedule])
+            ->call('openAddModal')
+            ->set('user_id', $employee->id)
+            ->set('date', $date);
+
+        $this->assertCount(0, $component->get('shiftTypeOptions'));
+    }
+
     /** Baris hasil eksekusi Tukar Shift (source=shift_swap) TIDAK BOLEH dihapus siapa pun lewat
      * jalur pengelolaan Extra Shift biasa - termasuk yang punya permission Delete penuh - lihat
      * ExtraShiftAssignmentPolicy::delete(). */

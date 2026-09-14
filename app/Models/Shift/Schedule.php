@@ -31,6 +31,8 @@ class Schedule extends Model
         'use_template',
         'use_teams',
         'color',
+        'off_bg_color',
+        'off_font_color',
         'head_user_id',
         'flexible_checkin_from',
         'flexible_checkin_until',

@@ -103,6 +103,12 @@ class ShiftSwapRequestService
      *   tidak ikut kehitung sebagai "Libur".
      * - $targetSchedule (tanggal kompensasi) HARUS shift KERJA rekan beneran (shift_type_id
      *   terisi, off_day=false) - bukan libur rekan juga.
+     * - Tanggal kompensasi itu JUGA WAJIB tanggal LIBUR pemohon sendiri (off_day=true) - instruksi
+     *   user 2026-09-14: pemohon "membayar" pakai jatah liburnya sendiri (bukan sekadar tanggal
+     *   kosong mana pun yang kebetulan tidak bentrok) - simetris sama syarat rekan di atas. Baris
+     *   Libur pemohon ini nanti DITIMPA pas eksekusi (lihat applySlotResolution() mode
+     *   'move_over_off_day' - baris Libur bukan konflik beneran, boleh dihapus & digantikan shift
+     *   rekan yang dioper).
      */
     private function assertReciprocalOffEligible(
         ScheduleShiftAssignment $reqSchedule,
@@ -128,6 +134,17 @@ class ShiftSwapRequestService
         if ($targetSchedule->off_day || ! $targetSchedule->shift_type_id) {
             throw new \InvalidArgumentException(
                 'Tanggal kompensasi harus tanggal shift KERJA rekan, bukan libur rekan.'
+            );
+        }
+
+        $requesterIsOffOnCompensationDate = ScheduleShiftAssignment::where('user_id', $reqSchedule->user_id)
+            ->whereDate('date', $targetSchedule->date)
+            ->where('off_day', true)
+            ->exists();
+
+        if (! $requesterIsOffOnCompensationDate) {
+            throw new \InvalidArgumentException(
+                'Tanggal kompensasi harus tanggal Libur Anda sendiri (bukan kosong/tanpa jadwal).'
             );
         }
     }
@@ -273,7 +290,17 @@ class ShiftSwapRequestService
      * no-op/warning-only); 'reciprocal_off' (tukar libur berpasangan) malah harus GAGAL total
      * (exception naik ke ApprovalFlowService::advanceStep, approval tidak lanjut) - supaya tidak
      * ada sisi yang partial-execute (pemohon untung, rekan tidak jadi dapat libur balik). Lihat
-     * planning/2026-09-12-tukar-shift-libur-berpasangan.md. */
+     * planning/2026-09-12-tukar-shift-libur-berpasangan.md.
+     *
+     * Khusus 'reciprocal_off': tanggal yang DILEPAS masing-masing pihak (reqDate buat pemohon,
+     * targetDate buat rekan) SENGAJA ditandai Libur eksplisit (off_day=true), BEDA dari mode
+     * 'schedule' biasa yang dibiarkan kosong/N-A (instruksi user 2026-09-14 - ini memang
+     * "pertukaran libur", jadi baik pemohon maupun rekan harus benar-benar dapat baris Libur
+     * balik, bukan cuma "tidak ada jadwal"). Aman dibuat baris baru (bukan update) karena baris
+     * lama pemilik itu di tanggal tsb sudah 100% lenyap lewat applySlotResolution() (mode 'move'
+     * mengubah kepemilikan baris yang SAMA, mode 'move_over_off_day' menghapus baris Libur milik
+     * incoming owner di tanggal ini) - tidak ada baris tersisa yang bisa bentrok unique
+     * (user_id,date). */
     public function executeApprovedSwap(ShiftSwapRequests $swapRequest): void
     {
         $swapRequest->loadMissing(['reqSchedule.shiftType', 'targetSchedule.shiftType', 'requester', 'target']);
@@ -294,13 +321,35 @@ class ShiftSwapRequestService
             return;
         }
 
-        $plan = $this->resolveDifferentDateExecution($reqSchedule, $targetSchedule, strict: $swapRequest->swap_kind === 'reciprocal_off');
+        $isReciprocalOff = $swapRequest->swap_kind === 'reciprocal_off';
+        $plan = $this->resolveDifferentDateExecution($reqSchedule, $targetSchedule, strict: $isReciprocalOff);
 
         $reqUserId = $reqSchedule->user_id;
         $targetUserId = $targetSchedule->user_id;
+        $reqDate = $reqSchedule->date->toDateString();
+        $targetDate = $targetSchedule->date->toDateString();
+        $companyId = $reqSchedule->company_id;
 
         $this->applySlotResolution($plan['req_date'], $reqSchedule, $targetUserId, $swapRequest);
         $this->applySlotResolution($plan['target_date'], $targetSchedule, $reqUserId, $swapRequest);
+
+        if ($isReciprocalOff) {
+            ScheduleShiftAssignment::create([
+                'company_id' => $companyId,
+                'user_id' => $reqUserId,
+                'date' => $reqDate,
+                'off_day' => true,
+                'shift_type_id' => null,
+            ]);
+
+            ScheduleShiftAssignment::create([
+                'company_id' => $companyId,
+                'user_id' => $targetUserId,
+                'date' => $targetDate,
+                'off_day' => true,
+                'shift_type_id' => null,
+            ]);
+        }
     }
 
     /** @param array{mode: 'move'|'move_over_off_day'|'double_shift', busy?: ScheduleShiftAssignment, warning?: string} $slot */

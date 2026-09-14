@@ -14,6 +14,7 @@ use Carbon\Carbon;
 use Filament\Notifications\Notification;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Livewire\Component;
 use Livewire\WithFileUploads;
@@ -247,6 +248,14 @@ class ScheduleShiftRosterTab extends Component
      * ikon "tukar" emas di pojok sel. Key: "{user_id}|{Y-m-d}". Scope: pengajuan yang req-schedule-nya
      * milik jadwal ini, dalam rentang bulan periode terpilih.
      *
+     * Sengaja pakai user_id & date dari relasi reqSchedule/targetSchedule LANGSUNG (bukan kolom
+     * requester_id/req_date/target_id/target_date di shift_swap_requests) - begitu approved,
+     * executeApprovedSwap() mengubah user_id baris schedule_shift_assignments itu sendiri (mode
+     * 'move'/'move_over_off_day'), jadi kolom requester_id/target_id jadi STALE (nunjuk pemilik
+     * LAMA yang sudah pindah/kosong). Baris yang dihapus total (mode 'double_shift') otomatis
+     * dilewati (relasinya null) - tidak ada sel schedule_shift_assignments buat ditandai lagi,
+     * hasilnya sudah pindah jadi ExtraShiftAssignment.
+     *
      * @return array<string, true>
      */
     public function getSwapCellsProperty(): array
@@ -256,19 +265,21 @@ class ScheduleShiftRosterTab extends Component
 
         $swaps = ShiftSwapRequests::whereIn('status', ['in_review', 'approved'])
             ->whereHas('reqSchedule.shiftType', fn ($q) => $q->where('schedule_id', $this->schedule->id))
-            ->get(['requester_id', 'req_date', 'target_id', 'target_date']);
+            ->with(['reqSchedule:id,user_id,date', 'targetSchedule:id,user_id,date'])
+            ->get();
 
         $cells = [];
 
         foreach ($swaps as $s) {
-            $reqDate = $s->req_date->toDateString();
-            if ($reqDate >= $start && $reqDate <= $end) {
-                $cells[$s->requester_id . '|' . $reqDate] = true;
-            }
+            foreach ([$s->reqSchedule, $s->targetSchedule] as $slot) {
+                if (! $slot) {
+                    continue;
+                }
 
-            $targetDate = $s->target_date?->toDateString();
-            if ($s->target_id && $targetDate && $targetDate >= $start && $targetDate <= $end) {
-                $cells[$s->target_id . '|' . $targetDate] = true;
+                $date = $slot->date->toDateString();
+                if ($date >= $start && $date <= $end) {
+                    $cells[$slot->user_id . '|' . $date] = true;
+                }
             }
         }
 
@@ -297,6 +308,8 @@ class ScheduleShiftRosterTab extends Component
         return match (true) {
             $log->source === 'generate' => "Generate mengisi jadwal {$name} tanggal {$date}: {$label($log->new_value)}.",
             $log->source === 'reset' => "Reset menghapus jadwal {$name} tanggal {$date} (sebelumnya {$label($log->old_value)}).",
+            // Cuti/Izin Tidak Masuk disetujui - lihat AttendaceReqService::syncApprovedAbsenceToRoster().
+            $log->source === 'leave_approved' => "Otomatis Libur {$name} tanggal {$date} (Cuti/Izin disetujui, sebelumnya {$label($log->old_value)}).",
             $log->old_value === null => "Mengisi jadwal {$name} tanggal {$date}: {$label($log->new_value)}.",
             $log->new_value === null => "Mengosongkan jadwal {$name} tanggal {$date} (sebelumnya {$label($log->old_value)}).",
             default => "Mengubah jadwal {$name} tanggal {$date}: {$label($log->old_value)} \u{2192} {$label($log->new_value)}.",
@@ -342,9 +355,13 @@ class ScheduleShiftRosterTab extends Component
         $this->draft = [];
     }
 
-    /** Tulis $draft ke DB sekaligus — cuma sel yang nilainya beda dari roster tersimpan (hindari
-     * update percuma ke sel yang tidak diubah). Reuse setCell() per sel biar logic persist-nya
-     * satu tempat (delete-kalau-kosong, dst tidak dobel). */
+    /** Tulis $draft ke DB SEKALIGUS lewat batch (upsert + delete + insert log), BUKAN loop
+     * setCell() per sel (dulu 1 SELECT + 1 write + 1 log INSERT per sel - grid 30 karyawan x 30
+     * hari yang banyak berubah gampang tembus >1000 query dalam 1 klik Simpan, lambat sekali -
+     * dikeluhkan user 2026-09-14). setCell() TETAP ada apa adanya buat edit 1 sel langsung
+     * (dipanggil test & alur lain) - gerbang/aturannya (swap-lock, past-date-lock, jatah Tim)
+     * disalin di sini supaya hasil akhirnya identik, cuma eksekusi DB-nya dibatch lewat
+     * persistRosterBatch(). */
     public function saveRoster(): void
     {
         abort_unless(Auth::user()->can('Update:ShiftScheduleAssignments'), 403);
@@ -356,16 +373,18 @@ class ScheduleShiftRosterTab extends Component
         $currentRoster = $this->roster;
         $swapCells = $this->swapCells;
         $lockBeforeDate = $this->lockBeforeDate();
-        $changed = 0;
         $blockedBySwap = 0;
         $blockedByPastDate = 0;
         $blockedByRegu = 0;
 
+        $pending = [];
+
         foreach ($this->draft as $userId => $row) {
             foreach ($row as $date => $value) {
                 $before = $currentRoster[$userId][$date] ?? '';
+                $value = $value ?: null;
 
-                if ($before === $value) {
+                if ($before === ($value ?? '')) {
                     continue;
                 }
 
@@ -383,13 +402,19 @@ class ScheduleShiftRosterTab extends Component
                     continue;
                 }
 
-                if (! $this->setCell($userId, $date, $value ?: null)) {
+                if ($value && $value !== 'off' && ! $this->isShiftAllowedForUser($userId, $value)) {
                     $blockedByRegu++;
                     continue;
                 }
 
-                $changed++;
+                $pending[] = ['user_id' => $userId, 'date' => $date, 'before' => $before ?: null, 'value' => $value];
             }
+        }
+
+        $changed = count($pending);
+
+        if ($pending) {
+            $this->persistRosterBatch($pending);
         }
 
         $this->editMode = false;
@@ -409,6 +434,94 @@ class ScheduleShiftRosterTab extends Component
             )
             ->success()
             ->send();
+    }
+
+    /**
+     * Tulis semua sel yang lolos gerbang saveRoster() sekaligus, cuma segelintir query total
+     * (bukan per sel): 1 SELECT cari baris existing (buat tahu delete vs upsert & id yang mau
+     * dihapus), 1 DELETE (sel yang dikosongkan), 1 upsert (sel yang diisi/diubah - insert baris
+     * baru ATAU update yang sudah ada lewat unique (user_id,date), 1 tabel sekaligus), 1 INSERT
+     * log riwayat. Semantik akhirnya identik dengan setCell() dipanggil satu-satu (delete kalau
+     * kosong, off_day=true buat 'off', log old->new per sel), cuma jalurnya dibatch.
+     *
+     * @param array<int, array{user_id:string, date:string, before:?string, value:?string}> $pending
+     */
+    private function persistRosterBatch(array $pending): void
+    {
+        $userIds = array_unique(array_column($pending, 'user_id'));
+        $dates = array_unique(array_column($pending, 'date'));
+
+        // Cari id baris existing buat (user_id,date) yang TERLIBAT saja - dipakai nentuin delete
+        // pakai id asli (portabel lintas driver DB). whereBetween (bukan whereIn/equality
+        // biasa) - sama pola dengan getRosterProperty(), aman lintas driver (lihat catatan
+        // whereDate() di docblock setCell()).
+        $existingIds = ScheduleShiftAssignment::whereIn('user_id', $userIds)
+            ->whereBetween('date', [min($dates), max($dates)])
+            ->get(['id', 'user_id', 'date'])
+            ->keyBy(fn ($row) => $row->user_id . '|' . $row->date->toDateString())
+            ->map(fn ($row) => $row->id);
+
+        $now = now();
+        $companyId = $this->schedule->company_id;
+        $actorId = Auth::id();
+
+        $deleteIds = [];
+        $upsertRows = [];
+        $logRows = [];
+
+        foreach ($pending as $cell) {
+            $key = $cell['user_id'] . '|' . $cell['date'];
+            $existingId = $existingIds[$key] ?? null;
+
+            if (! $cell['value']) {
+                if ($existingId) {
+                    $deleteIds[] = $existingId;
+                }
+            } else {
+                $upsertRows[] = [
+                    'id' => $existingId ?: (string) Str::ulid(),
+                    'user_id' => $cell['user_id'],
+                    'date' => $cell['date'],
+                    'company_id' => $companyId,
+                    'shift_type_id' => $cell['value'] === 'off' ? null : $cell['value'],
+                    'off_day' => $cell['value'] === 'off',
+                    'created_by' => $actorId,
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ];
+            }
+
+            $logRows[] = [
+                'id' => (string) Str::ulid(),
+                'schedule_id' => $this->schedule->id,
+                'user_id' => $cell['user_id'],
+                'date' => $cell['date'],
+                'old_value' => $cell['before'],
+                'new_value' => $cell['value'],
+                'source' => 'manual',
+                'changed_by' => $actorId,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ];
+        }
+
+        DB::transaction(function () use ($deleteIds, $upsertRows, $logRows) {
+            if ($deleteIds) {
+                ScheduleShiftAssignment::whereIn('id', $deleteIds)->delete();
+            }
+
+            if ($upsertRows) {
+                ScheduleShiftAssignment::upsert(
+                    $upsertRows,
+                    ['user_id', 'date'],
+                    ['company_id', 'shift_type_id', 'off_day', 'created_by', 'updated_at']
+                );
+            }
+
+            if ($logRows) {
+                ScheduleShiftRosterLog::insert($logRows);
+            }
+        });
     }
 
     /** Edit manual 1 sel — berlaku buat jadwal Template maupun manual (lihat catatan class-level

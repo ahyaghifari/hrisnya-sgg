@@ -49,7 +49,9 @@
                     </thead>
                     <tbody>
                         @php
-                            $assignableShiftTypes = $schedule->shiftTypes->where('shift_type', '!=', \App\Enum\ShiftType::ONCALL->value);
+                            // Oncall assignable di rotasi juga (2026-09-14) - lihat catatan sama di
+                            // schedule-shift-roster-tab.blade.php.
+                            $assignableShiftTypes = $schedule->shiftTypes;
                         @endphp
                         @foreach ($this->employees as $employee)
                             @php

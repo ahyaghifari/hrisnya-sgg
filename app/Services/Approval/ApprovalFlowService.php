@@ -8,6 +8,7 @@ use App\Enum\Task\TaskStatus;
 use App\Models\LMS\TrainingRequests;
 use App\Models\Shift\ShiftSwapRequests;
 use App\Models\User;
+use App\Services\Attendance\AttendaceReqService;
 use App\Services\Shift\ShiftSwapRequestService;
 use App\Notifications\ApprovalNeedsAction;
 use App\Notifications\RequestStatusChanged;
@@ -29,6 +30,7 @@ class ApprovalFlowService
         protected AttendanceReqRepository $attendanceReqRepository,
         protected TaskRepository $taskRepository,
         protected NotificationService $notificationService,
+        protected AttendaceReqService $attendaceReqService,
     ) {}
 
     public function getNextApprover($snapshot): ?array
@@ -222,6 +224,12 @@ class ApprovalFlowService
                         'approved_by' => $actorId,
                         'approved_at' => now(),
                     ]);
+
+                    // Cuti & Izin Tidak Masuk yang disetujui otomatis ditandai Libur di roster
+                    // shift (Detail Penjadwalan) - lihat docblock
+                    // AttendaceReqService::syncApprovedAbsenceToRoster(). approved_by belum
+                    // ke-refresh di objek ini, di-refresh dulu biar notes/log-nya benar.
+                    $this->attendaceReqService->syncApprovedAbsenceToRoster($attendanceRequest->fresh(['leaveDetails', 'permissionDetails', 'user']));
                 }
 
                 //Task

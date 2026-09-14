@@ -2,7 +2,6 @@
 
 namespace App\Services\Attendance;
 
-use App\Enum\ShiftType;
 use App\Models\Attendance\AttendanceRecords;
 use App\Models\Shift\ExtraShiftAssignment;
 use App\Models\Shift\ScheduleShiftType;
@@ -163,16 +162,11 @@ class ShiftAttendanceReader
         return [$firstEntry, $secondEntry];
     }
 
-    /** Oncall SENGAJA tidak pernah balik dari sini (lihat ExtraShiftAssignment::syncOncallRoster())
-     * - begitu approved, hari itu ditimpa jadi shift Oncall beneran di schedule_shift_assignments,
-     * jadi ScheduleResolver sudah nemuin sendiri tanpa perlu lewat "extra shift". Kalau ikut
-     * kebalik dari sini, entry-nya bakal dobel-proses (bucket 'shift' DAN 'extra_shift'). */
     public function find(User $user, string $date): ?ExtraShiftAssignment
     {
         return ExtraShiftAssignment::where('user_id', $user->id)
             ->where('date', $date)
             ->where('status', 'approved')
-            ->whereDoesntHave('shiftType', fn ($q) => $q->where('shift_type', ShiftType::ONCALL->value))
             ->with('shiftType')
             ->first();
     }
@@ -205,7 +199,6 @@ class ShiftAttendanceReader
             ->where('status', 'approved')
             ->whereIn('user_id', array_unique($userIds))
             ->whereIn('date', array_unique($dates))
-            ->whereDoesntHave('shiftType', fn ($q) => $q->where('shift_type', ShiftType::ONCALL->value))
             ->with('shiftType')
             ->get()
             ->keyBy(fn (ExtraShiftAssignment $a) => $a->user_id . '|' . $a->date);
@@ -225,7 +218,6 @@ class ShiftAttendanceReader
             ->where('status', 'approved')
             ->whereIn('date', $allDates)
             ->whereHas('user', fn ($q) => $q->whereIn('nip', $employeeIds))
-            ->whereDoesntHave('shiftType', fn ($q) => $q->where('shift_type', ShiftType::ONCALL->value))
             ->with(['shiftType', 'attendanceRecord', 'user:id,nip'])
             ->get()
             ->keyBy(fn (ExtraShiftAssignment $a) => $a->user->nip . '|' . $a->date);

@@ -190,11 +190,11 @@ class ScheduleShiftTeamTab extends Component
             ->get();
     }
 
-    /** Kode shift yang bisa dipilih buat batasan regu - Oncall dikecualikan (bukan pilihan roster
-     * manual, sama alasan dengan dropdown roster/rotasi, lihat ShiftType::ONCALL docblock). */
+    /** Kode shift yang bisa dipilih buat batasan regu - Oncall ikut boleh (2026-09-14, assignable
+     * roster biasa sekarang, sama seperti dropdown roster/rotasi). */
     public function getShiftTypeOptionsProperty()
     {
-        return $this->schedule->shiftTypes->where('shift_type', '!=', \App\Enum\ShiftType::ONCALL->value);
+        return $this->schedule->shiftTypes;
     }
 
     /** @return array<string, ?ScheduleShiftTeam> user_id => regu di $period yang lagi dipilih */

@@ -5,6 +5,7 @@ namespace App\Livewire\Presensi;
 use App\Livewire\Concerns\ResolvesDayScheduleSummary;
 use App\Models\Master\Attendance\Holidays;
 use App\Models\Master\Companies;
+use App\Models\Shift\ScheduleAssignment;
 use App\Models\User;
 use App\Services\Attendance\ScheduleResolver;
 use Carbon\Carbon;
@@ -26,6 +27,12 @@ class JadwalKaryawanPage extends Component
     use ResolvesDayScheduleSummary;
 
     public ?string $companyId = null;
+
+    /** 'kalender' = kalender 1 karyawan (perilaku lama), 'belum-jadwal' = daftar karyawan yang
+     * SAMA SEKALI tidak punya assignment jadwal (Fixed/Flexible/Shift, personal maupun lewat
+     * jabatan) - lihat getUnassignedEmployeesProperty(). */
+    #[Url]
+    public string $view = 'kalender';
 
     #[Url]
     public ?string $userId = null;
@@ -66,12 +73,43 @@ class JadwalKaryawanPage extends Component
 
     protected function employeesQuery()
     {
-        return User::query()->when($this->companyId, fn ($q) => $q->where('company_id', $this->companyId));
+        return User::query()
+            ->with('profile.jobPosition')
+            ->when($this->companyId, fn ($q) => $q->where('company_id', $this->companyId));
     }
 
     public function getEmployeesProperty()
     {
         return $this->employeesQuery()->orderBy('name')->get();
+    }
+
+    public function setView(string $view): void
+    {
+        $this->view = in_array($view, ['kalender', 'belum-jadwal'], true) ? $view : 'kalender';
+    }
+
+    /** Dipanggil dari tombol "Lihat Kalender" di daftar Belum Ada Jadwal - langsung pindah ke
+     * tab Kalender dengan karyawan itu terpilih, bukan 2 aksi terpisah (pilih tab, baru pilih
+     * karyawan manual dari dropdown). */
+    public function viewCalendarFor(string $userId): void
+    {
+        $this->view = 'kalender';
+        $this->userId = $userId;
+        $this->month = now()->format('Y-m');
+    }
+
+    /** Karyawan yang SAMA SEKALI tidak punya assignment jadwal aktif hari ini - Fixed, Flexible,
+     * ATAU Shift (personal maupun lewat jabatan, lihat ScheduleAssignment::resolveForUser()).
+     * Sengaja BUKAN pakai ScheduleResolver::resolveForUserDate() penuh - itu buat karyawan Shift
+     * yang SUDAH jadi anggota tapi rosternya belum diisi HARI INI (beda kasus, bukan "belum
+     * punya jadwal" sama sekali). Ini murni cek keanggotaan, bukan status hari tertentu. */
+    public function getUnassignedEmployeesProperty()
+    {
+        $today = now()->toDateString();
+
+        return $this->employees
+            ->reject(fn (User $employee) => (bool) ScheduleAssignment::resolveForUser($employee, $today))
+            ->values();
     }
 
     public function getSelectedUserProperty(): ?User

@@ -1,16 +1,19 @@
 @php
-    // Oncall TIDAK boleh dipilih manual di roster - cuma bisa didapat lewat Extra Shift pas
-    // karyawan libur (lihat ShiftType::ONCALL docblock). Dropdown pengisian roster cuma
-    // Pagi/Siang/Malam/Middle; baris Oncall tetap ada di $schedule->shiftTypes (dipakai buat
-    // nampilin warna/kode kalau ada hari yang sudah ketiban Oncall dari Extra Shift).
-    $assignableShiftTypes = $schedule->shiftTypes->where('shift_type', '!=', \App\Enum\ShiftType::ONCALL->value);
+    // Oncall assignable langsung di roster sama seperti Pagi/Siang/Malam/Middle (2026-09-14,
+    // revisi - bukan lagi cuma didapat lewat Extra Shift pas libur, lihat
+    // planning/2026-09-14-oncall-middle-redesign.md).
+    $assignableShiftTypes = $schedule->shiftTypes;
 
     // Peta warna per nilai sel buat Alpine — biar drag/undo bisa langsung ganti background sel
     // tanpa nunggu re-render Livewire (wire:model deferred).
     $shiftStyleMap = $schedule->shiftTypes->mapWithKeys(fn ($t) => [
         (string) $t->id => ['bg' => $t->color ?: 'var(--surface-alt)', 'fg' => $t->font_color ?: 'var(--text-body)'],
     ])->all();
-    $shiftStyleMap['off'] = ['bg' => 'color-mix(in srgb, #dc2626 55%, white)', 'fg' => '#7f1d1d'];
+    // Warna sel Libur (off_day) - bisa diatur per jadwal (schedules.off_bg_color/off_font_color),
+    // kosong = default lama (merah muda + teks putih), lihat migration add_off_colors_to_schedules_table.
+    $offBg = $schedule->off_bg_color ?: 'color-mix(in srgb, #dc2626 55%, white)';
+    $offFont = $schedule->off_font_color ?: '#fff';
+    $shiftStyleMap['off'] = ['bg' => $offBg, 'fg' => $offFont];
     $shiftStyleMap[''] = ['bg' => 'var(--surface-alt)', 'fg' => 'var(--text-body)'];
 @endphp
 <div x-data="rosterFill(@js($shiftStyleMap))"
@@ -211,7 +214,7 @@
                                 $lIsOff = $lval === 'off';
                                 $lType = $schedule->shiftTypes->firstWhere('id', $lval);
                                 $lColor = $lType?->color;
-                                $lFont = $lIsOff ? '#7f1d1d' : ($lType?->font_color ?: 'var(--text-faint)');
+                                $lFont = $lIsOff ? '#fff' : ($lType?->font_color ?: 'var(--text-faint)');
                                 $rfC = $loop->index - $leadCount; // -7..-1
                             @endphp
                             <td class="rf-cell" data-r="{{ $rfRow }}" data-c="{{ $rfC }}" data-locked="0" data-lead="1"
@@ -220,7 +223,7 @@
                                 title="Bulan sebelumnya — konteks buat nyambung pola, tidak bisa diedit"
                                 style="padding:2px;text-align:center;position:relative;">
                                 <select disabled
-                                    style="width:52px;padding:6px 2px;font-size:10.5px;text-align:center;font-weight:700;border:none;border-radius:5px;opacity:0.5;cursor:not-allowed;color:{{ $lFont }};{{ $lIsOff ? 'background:color-mix(in srgb, #dc2626 55%, white);' : ($lColor ? "background:{$lColor};" : 'background:var(--surface-alt);') }}">
+                                    style="width:52px;padding:6px 2px;font-size:10.5px;text-align:center;font-weight:700;border:none;border-radius:5px;opacity:0.5;cursor:not-allowed;color:{{ $lFont }};{{ $lIsOff ? "background:{$offBg};" : ($lColor ? "background:{$lColor};" : 'background:var(--surface-alt);') }}">
                                     <option value="" {{ $lval === '' ? 'selected' : '' }}>-</option>
                                     @foreach ($assignableShiftTypes as $shiftType)
                                         <option value="{{ $shiftType->id }}" {{ $lval === $shiftType->id ? 'selected' : '' }}>{{ $shiftType->code }}</option>
@@ -243,7 +246,16 @@
                                 $isOff = $current === 'off';
                                 $currentType = $schedule->shiftTypes->firstWhere('id', $current);
                                 $currentColor = $currentType?->color;
-                                $currentFontColor = $isOff ? '#7f1d1d' : ($currentType?->font_color ?: 'var(--text-body)');
+                                $currentFontColor = $isOff ? '#fff' : ($currentType?->font_color ?: 'var(--text-body)');
+                                // Shift tersimpan TAPI di luar daftar shift Tim karyawan ini (mis. Tim
+                                // baru dibatasi SETELAH data ini ada, atau data dari import lama) -
+                                // tanpa <option> buat nilai ini, <select> HTML otomatis jatuh ke opsi
+                                // pertama ("-" kosong) walau $current valid - data kelihatan "hilang"
+                                // padahal cuma dropdown-nya tidak punya opsi buat menunjukkannya
+                                // (2026-09-14, dilaporkan user). Ditambahkan sebagai opsi ekstra di
+                                // bawah, BUKAN masuk $rowShiftTypes - supaya tetap tidak bisa dipilih
+                                // ulang lewat Isi Cepat/manual kalau memang di luar jatah Tim.
+                                $currentOutsideTeam = $currentType && $current !== '' && ! $isOff && ! $rowShiftTypes->contains('id', $current);
                                 // Sel yang jadwalnya lagi/sudah dipakai pengajuan tukar shift -> dikunci
                                 // total, tidak bisa diedit dari halaman jadwal (biar tidak bentrok sama
                                 // eksekusi swap). Lihat ScheduleShiftRosterTab::getSwapCellsProperty().
@@ -287,8 +299,11 @@
                                     @elseif (! $editMode)
                                         title="Klik &quot;Mulai Isi Jadwal&quot; dulu buat mengubah."
                                     @endif
-                                    style="width:52px;padding:6px 2px;font-size:10.5px;text-align:center;font-weight:700;border:none;border-radius:5px;{{ $locked ? 'cursor:not-allowed;opacity:0.7;' : 'cursor:pointer;' }}color:{{ $currentFontColor }};{{ $isOff ? 'background:color-mix(in srgb, #dc2626 55%, white);' : ($currentColor ? "background:{$currentColor};" : 'background:var(--surface-alt);') }}">
+                                    style="width:52px;padding:6px 2px;font-size:10.5px;text-align:center;font-weight:700;border:none;border-radius:5px;{{ $locked ? 'cursor:not-allowed;opacity:0.7;' : 'cursor:pointer;' }}color:{{ $currentFontColor }};{{ $isOff ? "background:{$offBg};" : ($currentColor ? "background:{$currentColor};" : 'background:var(--surface-alt);') }}">
                                     <option value="" {{ $current === '' ? 'selected' : '' }}>-</option>
+                                    @if ($currentOutsideTeam)
+                                        <option value="{{ $current }}" selected title="Di luar daftar shift Tim karyawan ini">{{ $currentType->code }} &#9888;</option>
+                                    @endif
                                     @foreach ($rowShiftTypes as $shiftType)
                                         <option value="{{ $shiftType->id }}" {{ $current === $shiftType->id ? 'selected' : '' }}>{{ $shiftType->code }}</option>
                                     @endforeach

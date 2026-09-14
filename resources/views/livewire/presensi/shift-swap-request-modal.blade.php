@@ -76,7 +76,7 @@
                                 <input type="date" wire:model.live="targetDate" min="{{ $this->minDate }}" class="form-input" placeholder="Tanggal shift rekan...">
                                 @error('targetDate') <p style="color:var(--danger-text);font-size:11.5px;margin-top:4px;">{{ $message }}</p> @enderror
                             @elseif ($dateMode === 'reciprocal')
-                                <p style="font-size:11px;color:var(--text-muted);margin:0;">Rekan yang dipilih di bawah harus benar-benar Libur (bukan sekadar tidak punya jadwal) pada tanggal shift Anda di atas. Sebagai gantinya, Anda akan mengambil alih 1 shift kerja rekan itu di tanggal lain.</p>
+                                <p style="font-size:11px;color:var(--text-muted);margin:0;">Rekan yang dipilih di bawah harus benar-benar Libur (bukan sekadar tidak punya jadwal) pada tanggal shift Anda di atas. Sebagai gantinya, Anda akan memberikan salah satu tanggal Libur Anda sendiri untuk mengambil alih shift kerja rekan itu.</p>
                             @endif
                         </div>
 
@@ -86,7 +86,7 @@
                                 <select wire:key="target-user-select-reciprocal" class="form-input" wire:model.live="targetUserId" data-tom-select data-placeholder="Ketik nama atau NIP rekan yang libur...">
                                     <option value="">-- Pilih rekan --</option>
                                     @foreach ($this->offDayCandidates as $candidate)
-                                        <option value="{{ $candidate->user_id }}">{{ $candidate->user->name }} ({{ $candidate->user->nip }}) — Libur</option>
+                                        <option value="{{ $candidate->user_id }}" @selected($targetUserId === $candidate->user_id)>{{ $candidate->user->name }} ({{ $candidate->user->nip }}) — Libur</option>
                                     @endforeach
                                 </select>
                                 @if ($this->offDayCandidates->isEmpty())
@@ -99,15 +99,17 @@
 
                             @if ($targetUserId)
                                 <div wire:key="target-date-field-reciprocal">
-                                    <label class="form-label">4. Tanggal Kompensasi (shift kerja rekan yang Anda ambil alih)</label>
+                                    <label class="form-label">4. Tanggal Kompensasi (Libur Anda yang bertepatan shift kerja rekan)</label>
                                     <select wire:key="target-date-select-reciprocal" class="form-input" wire:model.live="targetDate">
                                         <option value="">-- Pilih tanggal --</option>
                                         @foreach ($this->compensationCandidates as $candidate)
-                                            <option value="{{ $candidate->date->toDateString() }}">{{ $candidate->date->translatedFormat('d M Y (D)') }} — {{ $candidate->shiftType?->name }}</option>
+                                            <option value="{{ $candidate->date->toDateString() }}" @selected($targetDate === $candidate->date->toDateString())>{{ $candidate->date->translatedFormat('d M Y (D)') }} — {{ $candidate->shiftType?->name }}</option>
                                         @endforeach
                                     </select>
                                     @if ($this->compensationCandidates->isEmpty())
-                                        <p style="font-size:11px;color:var(--text-muted);margin-top:4px;">Rekan ini tidak punya shift kerja lain yang bisa diambil alih.</p>
+                                        <p style="font-size:11px;color:var(--text-muted);margin-top:4px;">Tidak ada tanggal Libur Anda yang bertepatan dengan shift kerja rekan ini.</p>
+                                    @else
+                                        <p style="font-size:11px;color:var(--text-muted);margin-top:4px;">Cuma menampilkan tanggal Libur Anda sendiri yang bertepatan dengan shift kerja rekan.</p>
                                     @endif
                                     @error('targetDate') <p style="color:var(--danger-text);font-size:11.5px;margin-top:4px;">{{ $message }}</p> @enderror
                                 </div>
@@ -119,7 +121,7 @@
                                     <select wire:key="target-user-select" class="form-input" wire:model.live="targetUserId" data-tom-select data-placeholder="Ketik nama atau NIP rekan sejadwal...">
                                         <option value="">-- Pilih rekan --</option>
                                         @foreach ($this->targetCandidates as $candidate)
-                                            <option value="{{ $candidate->user_id }}">{{ $candidate->user->name }} ({{ $candidate->user->nip }}) — {{ $candidate->shiftType?->name }}</option>
+                                            <option value="{{ $candidate->user_id }}" @selected($targetUserId === $candidate->user_id)>{{ $candidate->user->name }} ({{ $candidate->user->nip }}) — {{ $candidate->shiftType?->name }}</option>
                                         @endforeach
                                     </select>
                                     @if ($this->targetCandidates->isEmpty())

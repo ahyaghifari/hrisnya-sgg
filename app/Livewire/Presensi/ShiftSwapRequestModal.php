@@ -27,11 +27,14 @@ use Livewire\Component;
  *
  * Mode ke-3 "reciprocal" (2026-09-12, lihat planning/2026-09-12-tukar-shift-libur-berpasangan.md):
  * tukar libur berpasangan - rekan sedang LIBUR BENERAN (off_day=true, bukan N/A/kosong) di
- * reqDate, pemohon WAJIB mengambil alih 1 shift kerja rekan di tanggal lain sebagai kompensasi
- * (bukan gratisan seperti storeOffDay() lama yang sudah dihapus). Beda dari 2 mode lain: rekan
- * dipilih DULU (getOffDayCandidatesProperty), baru tanggal kompensasi
- * (getCompensationCandidatesProperty). Konflik nyata di mode ini diblok KERAS oleh service
- * (bukan warning-only), jadi conflictWarnings tidak dipakai untuk mode ini.
+ * reqDate, pemohon WAJIB "membayar" pakai salah satu tanggal LIBURNYA SENDIRI (off_day=true juga)
+ * untuk mengambil alih 1 shift kerja rekan di tanggal itu sebagai kompensasi (instruksi user
+ * 2026-09-14 - bukan sekadar tanggal kosong mana pun yang kebetulan tidak bentrok, dan bukan
+ * gratisan seperti storeOffDay() lama yang sudah dihapus). Beda dari 2 mode lain: rekan dipilih
+ * DULU (getOffDayCandidatesProperty), baru tanggal kompensasi (getCompensationCandidatesProperty
+ * - irisan shift kerja rekan dengan tanggal Libur pemohon sendiri). Konflik nyata di mode ini
+ * diblok KERAS oleh service (bukan warning-only), jadi conflictWarnings tidak dipakai untuk mode
+ * ini.
  */
 class ShiftSwapRequestModal extends Component
 {
@@ -223,7 +226,9 @@ class ShiftSwapRequestModal extends Component
     }
 
     /** Shift KERJA rekan (targetUserId) yang bisa diambil alih sebagai kompensasi - dipakai
-     * mode 'reciprocal', muncul setelah rekan dipilih. Tanggal reqDate sendiri dikecualikan
+     * mode 'reciprocal', muncul setelah rekan dipilih. Dibatasi ke tanggal yang JUGA Libur
+     * pemohon sendiri (off_day=true) - instruksi user 2026-09-14: pemohon "membayar" pakai jatah
+     * liburnya sendiri, bukan tanggal kosong mana pun. Tanggal reqDate sendiri dikecualikan
      * (tidak boleh jadi kompensasi buat dirinya sendiri, lihat
      * ShiftSwapRequestService::assertReciprocalOffEligible()). */
     public function getCompensationCandidatesProperty()
@@ -232,10 +237,20 @@ class ShiftSwapRequestModal extends Component
             return collect();
         }
 
+        $ownOffDates = ScheduleShiftAssignment::where('user_id', Auth::id())
+            ->where('off_day', true)
+            ->where('date', '>=', $this->minDate)
+            ->pluck('date')
+            ->map(fn ($date) => $date->toDateString());
+
+        if ($ownOffDates->isEmpty()) {
+            return collect();
+        }
+
         return ScheduleShiftAssignment::where('user_id', $this->targetUserId)
             ->where('off_day', false)
             ->whereNotNull('shift_type_id')
-            ->where('date', '>=', $this->minDate)
+            ->whereIn('date', $ownOffDates)
             ->when($this->reqDate, fn ($q) => $q->whereDate('date', '!=', $this->reqDate))
             ->with('shiftType')
             ->orderBy('date')

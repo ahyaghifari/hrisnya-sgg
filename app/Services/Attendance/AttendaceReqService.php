@@ -12,6 +12,9 @@ use App\Models\Attendance\AttendanceRequestLeaveDetails;
 use App\Models\Attendance\AttendanceRequestPermissionDetails;
 use App\Models\Attendance\AttendanceRequests;
 use App\Models\Setting;
+use App\Models\Shift\ScheduleAssignment;
+use App\Models\Shift\ScheduleShiftAssignment;
+use App\Models\Shift\ScheduleShiftRosterLog;
 use App\Models\User;
 use App\Repositories\Approval\ApprovalHistoryRepository;
 use App\Repositories\Approval\ApprovalSnapshotRepository;
@@ -723,8 +726,10 @@ class AttendaceReqService
                     'request_id' => $request->id,
                     'permission_type' => $permissionType?->name,
                     'date' => $data['date'],
-                    'start_time' => $data['start_time'],
-                    'end_time' => $data['end_time'],
+                    // Izin Tidak Masuk/Sakit (hari penuh) tidak punya jam - null, bukan crash
+                    // "Undefined array key" (ketauan dari test 2026-09-14).
+                    'start_time' => $data['start_time'] ?? null,
+                    'end_time' => $data['end_time'] ?? null,
                     'purpose' => $data['purpose'] ?? null,
                 ],
                 requesterName: $actingUser->name
@@ -732,5 +737,112 @@ class AttendaceReqService
         }
 
         return $this->permissionReqRepository->findAttendanceReqPermissionDetail($request->id);
+    }
+
+    /**
+     * Cuti (semua jenis) & Izin kategori Tidak Masuk Seharian/Sakit yang DISETUJUI otomatis
+     * ditandai Libur di roster shift (tab "Detail Penjadwalan") - instruksi user 2026-09-14.
+     * Kategori izin lain (Terlambat Masuk/Pulang Cepat/Meninggalkan Jam Kerja/Khusus) SENGAJA
+     * tidak disentuh - itu bukan "hari penuh tidak masuk", shift hari itu tetap relevan buat
+     * dikerjakan sebagian. Cuma berlaku buat karyawan berjadwal tipe Shift (Fixed/Flexible tidak
+     * punya konsep roster harian begini) - dipanggil dari ApprovalFlowService::advanceStep()
+     * setelah attendance_request ditandai approved.
+     */
+    public function syncApprovedAbsenceToRoster(AttendanceRequests $request): void
+    {
+        $range = match ($request->type) {
+            'leave' => $this->leaveDateRange($request),
+            'permission' => $this->fullDayPermissionDateRange($request),
+            default => null,
+        };
+
+        if (! $range || ! $request->user) {
+            return;
+        }
+
+        [$start, $end] = $range;
+
+        for ($date = $start->copy(); $date->lte($end); $date->addDay()) {
+            $this->markRosterDayOff($request->user, $date->toDateString(), $request);
+        }
+    }
+
+    /** @return array{0: Carbon, 1: Carbon}|null */
+    private function leaveDateRange(AttendanceRequests $request): ?array
+    {
+        $detail = $request->leaveDetails->first();
+
+        if (! $detail || ! $detail->start_date) {
+            return null;
+        }
+
+        return [Carbon::parse($detail->start_date), Carbon::parse($detail->end_date ?? $detail->start_date)];
+    }
+
+    /** @return array{0: Carbon, 1: Carbon}|null null kalau bukan kategori Izin Tidak Masuk
+     *   Seharian / Izin Sakit - kategori lain (terlambat masuk/pulang cepat/meninggalkan jam
+     *   kerja/khusus) BUKAN hari penuh tidak masuk, shift hari itu tetap relevan, tidak menandai
+     *   roster (instruksi user 2026-09-14). */
+    private function fullDayPermissionDateRange(AttendanceRequests $request): ?array
+    {
+        $detail = $request->permissionDetails->first();
+
+        $fullDayCategories = [
+            PermissionTypeCategoryEnum::IZIN_SEHARIAN->value,
+            PermissionTypeCategoryEnum::IZIN_SAKIT->value,
+        ];
+
+        if (! $detail || ! in_array($detail->category, $fullDayCategories, true) || ! $detail->date) {
+            return null;
+        }
+
+        return [Carbon::parse($detail->date), Carbon::parse($detail->end_date ?? $detail->date)];
+    }
+
+    /** Tandai 1 tanggal Libur di roster - baris existing ditimpa jadi off_day=true (shift yang
+     * sudah terjadwal hari itu batal, karyawannya cuti/izin), baris yang belum ada dibuatkan
+     * baru. Baris yang SUDAH Libur dibiarkan (hindari log riwayat kosong/dobel). Dicatat ke
+     * schedule_shift_roster_logs source='leave_approved' biar kelihatan asal-usulnya di
+     * Riwayat Perubahan, bukan cuma "manual" tanpa konteks. */
+    private function markRosterDayOff(User $user, string $date, AttendanceRequests $request): void
+    {
+        $scheduleAssignment = ScheduleAssignment::resolveForUser($user, $date);
+
+        if ($scheduleAssignment?->schedule?->schedule_type !== 'shift') {
+            return;
+        }
+
+        $existing = ScheduleShiftAssignment::where('user_id', $user->id)->whereDate('date', $date)->first();
+
+        if ($existing?->off_day) {
+            return;
+        }
+
+        $before = $existing ? $existing->shift_type_id : null;
+        $note = "Cuti atau Izin disetujui (pengajuan #{$request->id}).";
+
+        if ($existing) {
+            $existing->update(['off_day' => true, 'shift_type_id' => null, 'notes' => $note]);
+        } else {
+            ScheduleShiftAssignment::create([
+                'company_id' => $user->company_id,
+                'user_id' => $user->id,
+                'date' => $date,
+                'off_day' => true,
+                'shift_type_id' => null,
+                'notes' => $note,
+                'created_by' => $request->approved_by,
+            ]);
+        }
+
+        ScheduleShiftRosterLog::create([
+            'schedule_id' => $scheduleAssignment->schedule_id,
+            'user_id' => $user->id,
+            'date' => $date,
+            'old_value' => $before,
+            'new_value' => 'off',
+            'source' => 'leave_approved',
+            'changed_by' => $request->approved_by,
+        ]);
     }
 }

@@ -58,12 +58,16 @@ class ExtraShiftRulePage extends Component
         return Companies::orderBy('code')->get();
     }
 
-    /** Middle tidak terlibat Extra Shift sama sekali (instruksi user 2026-09-13) - dikecualikan
-     * dari pilihan `from` maupun `to` di sini. Oncall tetap ada (satu-satunya jalur dia bisa
-     * didapat justru lewat sini, sebagai `to` dari `from=libur`). */
+    /** Include-list, BUKAN exclude-list (instruksi user 2026-09-14) - cuma 3 kategori shift
+     * UTAMA (Pagi/Siang/Malam) yang boleh terlibat Extra Shift sebagai `from` maupun `to`, biar
+     * kategori baru yang mungkin ditambah nanti otomatis TIDAK ikut Extra Shift kecuali sengaja
+     * ditambahkan ke sini. Oncall (assignable roster biasa sejak 2026-09-14) dan Middle (enum
+     * dihapus, shift_type=null sejak migration clear_middle_shift_type_value) makanya otomatis
+     * tidak pernah muncul di sini. `from=libur` (karyawan lagi libur) TETAP bisa - itu konstanta
+     * terpisah (self::LIBUR), tidak lewat properti ini sama sekali, lihat addRule(). */
     public function getShiftTypeOptionsProperty(): array
     {
-        return array_values(array_filter(ShiftType::cases(), fn (ShiftType $c) => $c !== ShiftType::MIDDLE));
+        return [ShiftType::PAGI, ShiftType::SIANG, ShiftType::MALAM];
     }
 
     public function getRulesProperty()

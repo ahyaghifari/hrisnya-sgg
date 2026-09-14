@@ -109,10 +109,10 @@
                 <div style="display:flex;flex-direction:column;gap:12px;">
                     <div>
                         <label class="form-label">Karyawan</label>
-                        <select class="form-input" wire:model.live="user_id">
+                        <select wire:key="extra-shift-user-select" class="form-input" wire:model.live="user_id" data-tom-select data-placeholder="Ketik nama karyawan...">
                             <option value="">-- Pilih --</option>
                             @foreach ($this->employees as $emp)
-                                <option value="{{ $emp->id }}">{{ $emp->name }}</option>
+                                <option value="{{ $emp->id }}" @selected($user_id === $emp->id)>{{ $emp->name }}</option>
                             @endforeach
                         </select>
                         @error('user_id') <p style="color:var(--danger-text);font-size:11px;margin-top:4px;">{{ $message }}</p> @enderror

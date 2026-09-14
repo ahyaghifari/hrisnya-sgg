@@ -2,7 +2,6 @@
 
 namespace App\Livewire;
 
-use App\Enum\ShiftType;
 use App\Models\Shift\ExtraShiftAssignment;
 use App\Services\Attendance\ScheduleResolver;
 use App\Services\Attendance\ShiftAttendanceReader;
@@ -19,9 +18,9 @@ use Livewire\Component;
  *   masing2 shift terpisah) - tidak boleh ditebak (instruksi user 2026-09-13: "kalo yang skip
  *   mungkin harusnya 4 kali absen, tapi kalo yang beterusan cukup 2 kali").
  *
- * Oncall dikecualikan total - begitu approved dia jadi shift NORMAL biasa (roster ke-timpa
- * lewat ExtraShiftAssignment::syncOncallRoster()), bukan lagi "extra" yang butuh reminder scan
- * tambahan - sudah tercover kartu Presensi Hari Ini biasa.
+ * Oncall tidak pernah lewat sini sama sekali (2026-09-14) - dia shift roster biasa yang
+ * assignable langsung (schedule_shift_assignments), bukan lagi ExtraShiftAssignment - sudah
+ * tercover kartu Presensi Hari Ini biasa.
  */
 class ExtraShiftTodayCard extends Component
 {
@@ -33,8 +32,7 @@ class ExtraShiftTodayCard extends Component
         $extraShift = ExtraShiftAssignment::where('user_id', $user->id)
             ->whereDate('date', $today)
             ->where('status', 'approved')
-            ->whereHas('shiftType', fn ($q) => $q->where('shift_type', '!=', ShiftType::ONCALL->value))
-            ->with('shiftType')
+            ->with(['shiftType', 'createdBy'])
             ->first();
 
         return view('livewire.extra-shift-today-card', [
@@ -51,11 +49,20 @@ class ExtraShiftTodayCard extends Component
 
         $isDoubleShift = $extraShift->category === ExtraShiftAssignment::CATEGORY_DOUBLE_SHIFT;
 
+        // "Ditugaskan oleh ... pada ..." cuma relevan buat source='assigned' (atasan input
+        // langsung lewat halaman Extra Shift) - double_shift (akibat tukar shift, source
+        // 'swap_conflict') created_by-nya cuma approver terakhir alur approval, bukan yang
+        // "menugaskan" dalam arti yang dimaksud user, jadi sengaja tidak ditampilkan di situ.
+        $assignedBy = $extraShift->source === 'assigned'
+            ? ['name' => $extraShift->createdBy?->name, 'at' => $extraShift->created_at]
+            : null;
+
         if (! $normalConfig) {
             // Hari itu libur/kosong (bukan Oncall - sudah difilter di query) - extra shift-nya
             // berdiri sendiri, tidak ada yang perlu dipecah.
             return [
                 'is_double_shift' => $isDoubleShift,
+                'assigned_by' => $assignedBy,
                 'mode' => 'extra_only',
                 'shift' => $extraShift->shiftType,
             ];
@@ -70,6 +77,7 @@ class ExtraShiftTodayCard extends Component
 
         return [
             'is_double_shift' => $isDoubleShift,
+            'assigned_by' => $assignedBy,
             'mode' => $isAdjacent ? 'adjacent' : 'skip',
             'earlier' => $earlierConfig,
             'later' => $laterConfig,

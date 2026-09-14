@@ -91,22 +91,23 @@ class ShiftScheduleCalculator
 
     /**
      * Oncall dihitung fleksibel (target durasi kerja, bukan window start/end ketat) - instruksi
-     * user 2026-09-13. start_time cuma dipakai buat basis telat (late_tolerance_minutes) dan
-     * checkin_buffer_minutes (batas checkin paling awal), TIDAK ada early_leave (tidak ada
-     * end_time resmi buat dibandingkan, sama seperti FlexibleScheduleCalculator).
-     * max_work_minutes di sini berarti TARGET (bukan cap mutlak) - kelebihannya jadi kandidat
-     * lembur lewat overtime_after_min/break/max, formula sama persis dengan
-     * FlexibleScheduleCalculator::calculateOne() supaya konsisten.
+     * user 2026-09-13. TIDAK ADA KONSEP TELAT SAMA SEKALI (instruksi user 2026-09-14, revisi
+     * dari versi awal yang masih hitung late_minutes dari start_time+late_tolerance_minutes) -
+     * jam masuk Oncall bebas total, tidak dibandingkan ke jam berapa pun, `late_minutes` SELALU
+     * 0 dan `status` tidak pernah jadi LATE karena jam masuk. checkin_buffer_minutes juga jadi
+     * tidak relevan (dulu buat out_of_window, sekarang selalu false - konsisten "tidak ada
+     * jendela jam" buat Oncall). Efeknya otomatis nyambung ke payroll: KeterlambatanCalculator
+     * cuma baca AttendanceRecords.status='late'/late_minutes>0 apa adanya, tidak
+     * spesifik-shift_type - begitu Oncall tidak pernah menghasilkan status itu, potongan telat
+     * otomatis tidak pernah kena ke hari Oncall, TANPA perlu ubah kode payroll sama sekali.
+     * TIDAK ada early_leave (tidak ada end_time resmi buat dibandingkan, sama seperti
+     * FlexibleScheduleCalculator). max_work_minutes di sini berarti TARGET (bukan cap mutlak) -
+     * kelebihannya jadi kandidat lembur lewat overtime_after_min/break/max, formula sama persis
+     * dengan FlexibleScheduleCalculator::calculateOne() supaya konsisten.
      */
     private function calculateOncall(array $entry, ScheduleShiftType $config): array
     {
-        $start = Carbon::createFromFormat('H:i:s', $config->start_time);
-        $ci    = Carbon::createFromFormat('H:i:s', $entry['check_in']);
-
-        $earliestCheckIn = $start->copy()->subMinutes($config->checkin_buffer_minutes);
-        $lateThreshold    = $start->copy()->addMinutes($config->late_tolerance_minutes);
-        $lateMinutes      = $ci->gt($lateThreshold) ? (int) $lateThreshold->diffInMinutes($ci) : 0;
-        $outOfWindow      = $ci->lt($earliestCheckIn);
+        $ci = Carbon::createFromFormat('H:i:s', $entry['check_in']);
 
         $workingMinutes  = null;
         $overtimeMinutes = null;
@@ -133,16 +134,14 @@ class ShiftScheduleCalculator
             }
         }
 
-        $status = $lateMinutes > 0 ? AttendanceStatus::LATE->value : AttendanceStatus::PRESENT->value;
-
         return $entry + [
-            'late_minutes'        => $lateMinutes,
+            'late_minutes'        => 0,
             'early_leave_minutes' => 0,
             'working_minutes'     => $workingMinutes,
             'overtime_minutes'    => $overtimeMinutes,
             'work_day_weight'     => $this->workDayWeight($config, $workingMinutes),
-            'status'              => $status,
-            'out_of_window'       => $outOfWindow,
+            'status'              => AttendanceStatus::PRESENT->value,
+            'out_of_window'       => false,
         ];
     }
 

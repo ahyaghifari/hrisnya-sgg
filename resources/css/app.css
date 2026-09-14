@@ -871,7 +871,13 @@ html.lw-navigating .page-content { opacity: 0; }
    (mis. timeline status pengajuan, tiap step min-width:120px) jadi mendorong track (dan
    viewport mobile) melebar, bukan discroll di dalam kartunya sendiri. minmax(0, ...) matiin
    floor "auto" itu, biar overflow-x:auto anak yang menangani, bukan grid track-nya. */
-.bento { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
+/* grid-auto-flow: dense - tanpa ini, kartu Extra Shift (grid-column:1/-1, baris penuh sendiri,
+   lihat breakpoint 1024px) "makan" 1 baris penuh yang bikin cursor auto-placement maju, jadi
+   kartu Statistik (grid-column:2) setelahnya kebuang ke baris BARU di bawah Extra Shift alih2
+   ngisi kolom 2 yang kosong di sebelah Presensi (kolom 1) - beneran kejadian 2026-09-14, dense
+   packing backfill ke sel kosong yang lebih awal itu, urutan visual antar row yang SUDAH kepasang
+   tidak berubah, cuma nutup lubang. */
+.bento { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; grid-auto-flow: dense; }
 /* Wrapper Livewire my-attendance-status-card kadang render kosong (tidak ada pengajuan pending)
    tapi tetap masuk grid item -> gap 16px di atas+bawah row kosong = 32px jarak yang kelihatan
    berlebih. display:none saat kosong biar row-nya tidak makan tempat sama sekali. */
@@ -887,8 +893,11 @@ html.lw-navigating .page-content { opacity: 0; }
     /* Tanpa grid-template-rows/grid-row angka tetap - biar row auto-flow ngikutin DOM order.
        Row bernomor tetap bikin track "hantu" (ikut kena gap 2x walau kosong) pas salah satu
        card kondisional (mis. bento-status-pengajuan) tidak render/kosong. absensi & side-stats
-       tetap otomatis satu baris karena berurutan di DOM (col1 lalu col2, auto-placement grid
-       ngisi kolom yang kosong di baris yang sama sebelum pindah baris baru). */
+       tetap satu baris berdampingan (col1 & col2) berkat grid-auto-flow:dense di atas - tanpa
+       itu, Extra Shift (baris penuh sendiri, di antara absensi & side-stats di DOM) bikin
+       side-stats malah kebuang ke baris baru sendiri, nyisain kolom 2 kosong di sebelah
+       Presensi. Extra Shift sendiri baris penuh (bukan ikut kolom manapun) - instruksi user
+       2026-09-14, percobaan 50/50 sama Presensi kekecilan/ribet, balik ke 1 baris utuh saja. */
     .bento { grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); }
     .bento-welcome, .bento-status-pengajuan, .bento-pending-approvals, .bento-recent, .bento-extra-shift { grid-column: 1/-1; }
     .bento-absensi { grid-column: 1; }
@@ -1043,6 +1052,17 @@ html.lw-navigating .page-content { opacity: 0; }
 
 /* ── ABSENSI CARD ── */
 .absen-card { background: linear-gradient(135deg, #047C54 0%, #024732 100%); border-radius: 20px; padding: 24px; position: relative; overflow: hidden; display: flex; flex-direction: column; justify-content: space-between; gap: 14px; min-height: 140px; }
+/* Varian sky (biru muda) - dipakai kartu Extra Shift/Double Shift Hari Ini
+   (extra-shift-today-card.blade.php). Satu keluarga visual dengan .absen-card (padding/radius/
+   dekorasi a-deco sama), TAPI beda dari .absen-card biasa: background TERANG (bukan gradient
+   gelap solid), jadi teks di dalamnya pakai warna gelap (lihat inline style di blade-nya), bukan
+   putih seperti kartu Presensi Hari Ini. Dekorasi a-deco-1/2/3 diwarnai ulang di sini supaya
+   tetap kelihatan di atas background terang (versi default-nya didesain buat kontras di atas
+   gradient gelap). */
+.absen-card-sky { background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%); border: 1px solid #7dd3fc; }
+.absen-card-sky .a-deco-1 { background: #0ea5e9; opacity: 0.12; }
+.absen-card-sky .a-deco-2 { background: #0369a1; opacity: 0.08; }
+.absen-card-sky .a-deco-3 { background: #0284c7; opacity: 0.10; }
 .a-deco-1 { position: absolute; top: -70px; right: -60px; width: 220px; height: 220px; border-radius: 50%; background: #fff; opacity: 0.06; }
 .a-deco-2 { position: absolute; bottom: -60px; left: -40px; width: 180px; height: 180px; border-radius: 50%; background: var(--brand-fill); opacity: 0.14; }
 .a-deco-3 { position: absolute; top: 40%; right: 20px; width: 70px; height: 70px; border-radius: 14px; background: #B9308C; opacity: 0.14; transform: rotate(18deg); }

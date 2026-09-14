@@ -498,10 +498,12 @@ class ShiftSwapRequestServiceTest extends TestCase
         $perawatB = User::factory()->create(['company_id' => $this->company->id]);
 
         // A kerja tanggal 10, B LIBUR beneran (baris ada, off_day=true) tanggal 10. Kompensasi:
-        // A ambil alih shift B tanggal 15 (B kerja beneran di situ) - lihat planning/
-        // 2026-09-12-tukar-shift-libur-berpasangan.md.
+        // A "bayar" pakai tanggal LIBURNYA SENDIRI (15) buat ambil alih shift B di tanggal itu
+        // (B kerja beneran di situ) - lihat planning/2026-09-12-tukar-shift-libur-berpasangan.md
+        // (instruksi user 2026-09-14: kompensasi harus tanggal Libur pemohon sendiri).
         $scheduleA = $this->assignShift($perawatA, $this->pagi, '2026-08-10');
         $offB = $this->assignOffDay($perawatB, '2026-08-10');
+        $offA = $this->assignOffDay($perawatA, '2026-08-15');
         $scheduleB = $this->assignShift($perawatB, $this->pagi, '2026-08-15');
 
         Auth::login($perawatA);
@@ -515,12 +517,25 @@ class ShiftSwapRequestServiceTest extends TestCase
 
         $this->approve($swapRequest);
 
-        // A libur tanggal 10 (baris pindah ke B, baris Libur lama B ditimpa/dihapus).
+        // B ambil alih shift A tanggal 10 (baris pindah, baris Libur lama B ditimpa/dihapus).
         $this->assertSame($perawatB->id, $scheduleA->fresh()->user_id);
         $this->assertNull($offB->fresh());
 
-        // B libur tanggal 15 (baris pindah ke A) - kompensasi jalan, jatah libur seimbang.
+        // A ambil alih shift B tanggal 15 - baris Libur A sendiri di tanggal itu ikut ditimpa
+        // (bukan konflik beneran, lihat applySlotResolution() mode 'move_over_off_day').
         $this->assertSame($perawatA->id, $scheduleB->fresh()->user_id);
+        $this->assertNull($offA->fresh());
+
+        // Tanggal yang masing-masing LEPAS jadi Libur EKSPLISIT balik (beda dari mode 'schedule'
+        // biasa yang dibiarkan N-A) - ini memang "pertukaran libur", jatah libur harus keliatan
+        // jelas seimbang di kedua sisi.
+        $aOffOn10 = ScheduleShiftAssignment::where('user_id', $perawatA->id)->whereDate('date', '2026-08-10')->first();
+        $this->assertNotNull($aOffOn10, 'A harus dapat baris Libur eksplisit di tanggal 10 (yang dilepas).');
+        $this->assertTrue($aOffOn10->off_day);
+
+        $bOffOn15 = ScheduleShiftAssignment::where('user_id', $perawatB->id)->whereDate('date', '2026-08-15')->first();
+        $this->assertNotNull($bOffOn15, 'B harus dapat baris Libur eksplisit di tanggal 15 (yang dilepas).');
+        $this->assertTrue($bOffOn15->off_day);
     }
 
     public function test_reciprocal_off_swap_rejects_target_without_real_off_day_row(): void
@@ -585,6 +600,27 @@ class ShiftSwapRequestServiceTest extends TestCase
         ]);
     }
 
+    public function test_reciprocal_off_swap_rejects_compensation_date_where_requester_is_not_off(): void
+    {
+        $perawatA = User::factory()->create(['company_id' => $this->company->id]);
+        $perawatB = User::factory()->create(['company_id' => $this->company->id]);
+
+        $scheduleA = $this->assignShift($perawatA, $this->pagi, '2026-08-10');
+        $this->assignOffDay($perawatB, '2026-08-10');
+        $scheduleB = $this->assignShift($perawatB, $this->pagi, '2026-08-15');
+        // A TIDAK punya baris apa pun (bukan Libur) tanggal 15 - sekadar "kosong" tidak cukup,
+        // kompensasi wajib tanggal Libur A sendiri (instruksi user 2026-09-14).
+
+        Auth::login($perawatA);
+        $this->expectException(\InvalidArgumentException::class);
+
+        app(ShiftSwapRequestService::class)->store([
+            'swap_kind' => 'reciprocal_off',
+            'req_schedule_id' => $scheduleA->id,
+            'target_schedule_id' => $scheduleB->id,
+        ]);
+    }
+
     public function test_reciprocal_off_swap_final_approval_fails_if_target_no_longer_off_by_then(): void
     {
         $perawatA = User::factory()->create(['company_id' => $this->company->id]);
@@ -592,6 +628,7 @@ class ShiftSwapRequestServiceTest extends TestCase
 
         $scheduleA = $this->assignShift($perawatA, $this->pagi, '2026-08-10');
         $offB = $this->assignOffDay($perawatB, '2026-08-10');
+        $this->assignOffDay($perawatA, '2026-08-15');
         $scheduleB = $this->assignShift($perawatB, $this->pagi, '2026-08-15');
 
         Auth::login($perawatA);
