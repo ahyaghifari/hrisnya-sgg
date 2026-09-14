@@ -19,6 +19,13 @@
                     <p style="font-size:11px;color:var(--info-soft-text);margin:0;line-height:1.5;">{!! $this->efek($record) !!}</p>
                 </div>
 
+                @if ($doubleShiftWarning = $this->doubleShiftWarning($record))
+                    <div style="display:flex;gap:6px;align-items:flex-start;margin-top:6px;padding:8px 10px;background:var(--warning-soft-bg,rgba(217,119,6,0.1));border-radius:8px;">
+                        <i class="fa-solid fa-triangle-exclamation" style="font-size:11px;color:var(--warning-soft-text,#b45309);margin-top:2px;flex-shrink:0;"></i>
+                        <p style="font-size:11px;color:var(--warning-soft-text,#b45309);margin:0;line-height:1.5;">{{ $doubleShiftWarning }}</p>
+                    </div>
+                @endif
+
                 <div style="display:flex;gap:6px;margin-top:10px;">
                     <button type="button" wire:click="approve('{{ $record->id }}')" class="btn-primary" style="flex:1;justify-content:center;padding:5px 8px;font-size:11px;">
                         <i class="fa-solid fa-check"></i> Setuju

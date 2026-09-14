@@ -101,7 +101,7 @@ class ExtraShiftTodayCardTest extends TestCase
         Livewire::actingAs($user)
             ->test(ExtraShiftTodayCard::class)
             ->assertSee('Double Shift')
-            ->assertSee('tanpa jasa', false);
+            ->assertSee('akibat tukar shift', false);
     }
 
     public function test_extra_shift_on_libur_day_shows_extra_only_message(): void

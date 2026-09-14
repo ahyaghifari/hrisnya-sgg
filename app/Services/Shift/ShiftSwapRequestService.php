@@ -458,7 +458,7 @@ class ShiftSwapRequestService
         return [
             'mode' => 'double_shift',
             'busy' => $busy,
-            'warning' => "{$conflictMessagePrefix} ({$busyShift}) - {$name} akan bekerja double shift (shift ini ditambahkan di atas shift {$busyShift} yang sudah ada, tanpa jasa extra shift).",
+            'warning' => "{$conflictMessagePrefix} ({$busyShift}) - {$name} akan bekerja double shift (shift ini ditambahkan di atas shift {$busyShift} yang sudah ada).",
         ];
     }
 
@@ -487,6 +487,26 @@ class ShiftSwapRequestService
         $request->loadMissing(['reqSchedule.shiftType', 'targetSchedule.shiftType']);
 
         return $this->conflictWarningsForSchedules($request->reqSchedule, $request->targetSchedule);
+    }
+
+    /** Peringatan double shift KHUSUS sisi REKAN (target) - dipakai ShiftSwapApprovalsCard
+     * (widget dashboard rekan) supaya dia tahu SEBELUM approve kalau menyetujui bakal bikin dia
+     * double shift di tanggal shift pemohon (reqDate). Beda dari conflictWarnings() yang generik
+     * 2 arah (peduli konflik di kedua pihak, dipakai pengaju di modal pengajuan & halaman
+     * Detail) - di sini cuma ambil separuh 'req_date' dari hasilnya, yang selalu soal jadwal
+     * REKAN (lihat resolveDifferentDateExecution()). null kalau tidak ada konflik/tanggal sama. */
+    public function targetDoubleShiftWarning(ShiftSwapRequests $request): ?string
+    {
+        $request->loadMissing(['reqSchedule.shiftType', 'targetSchedule.shiftType']);
+
+        $reqSchedule = $request->reqSchedule;
+        $targetSchedule = $request->targetSchedule;
+
+        if (! $reqSchedule || ! $targetSchedule || $reqSchedule->date->equalTo($targetSchedule->date)) {
+            return null;
+        }
+
+        return $this->resolveDifferentDateExecution($reqSchedule, $targetSchedule)['req_date']['warning'] ?? null;
     }
 
     private function createApprovalSnapshot(ShiftSwapRequests $swapRequest, $user): void

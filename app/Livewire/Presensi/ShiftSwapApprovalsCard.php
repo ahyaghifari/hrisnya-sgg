@@ -65,6 +65,15 @@ class ShiftSwapApprovalsCard extends Component
         return "Anda pindah tugas ke shift <strong>{$reqType} tanggal {$reqDate}</strong>. {$requesterName} pindah ke shift Anda (<strong>{$targetType} tanggal {$targetDate}</strong>).";
     }
 
+    /** null kalau tidak ada konflik - rekan TIDAK akan double shift kalau disetujui. Lihat
+     * ShiftSwapRequestService::targetDoubleShiftWarning() (instruksi user 2026-09-14: widget ini
+     * sebelumnya diam sama sekali soal kemungkinan double shift, padahal itu efek nyata buat
+     * rekan kalau dia approve). */
+    public function doubleShiftWarning(ShiftSwapRequests $record): ?string
+    {
+        return app(ShiftSwapRequestService::class)->targetDoubleShiftWarning($record);
+    }
+
     public function getPendingProperty()
     {
         $user = Auth::user();

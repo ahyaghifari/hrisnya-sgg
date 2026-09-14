@@ -19,7 +19,7 @@
                     Hari ini Anda ada {{ $label }}
                 </p>
                 @if ($data['is_double_shift'])
-                    <p style="font-size:11px;color:#0c4a6e;opacity:0.75;margin:2px 0 0;">tanpa jasa - akibat tukar shift</p>
+                    <p style="font-size:11px;color:#0c4a6e;opacity:0.75;margin:2px 0 0;">akibat tukar shift</p>
                 @elseif ($data['assigned_by'] && $data['assigned_by']['name'])
                     <p style="font-size:11px;color:#0c4a6e;opacity:0.75;margin:2px 0 0;">
                         Ditugaskan oleh <strong>{{ $data['assigned_by']['name'] }}</strong> · {{ $data['assigned_by']['at']->translatedFormat('d M Y, H:i') }}
