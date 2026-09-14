@@ -208,7 +208,19 @@ class JobOpeningResource extends Resource
 
                 Toggle::make('requires_psychotest')
                     ->label('Wajib Psikotes Offline')
-                    ->helperText('Psikotes offline tambahan di luar Tes sistem.'),
+                    ->helperText('Aktifkan untuk memilih Tes Offline yang dipakai lowongan ini.')
+                    ->live()
+                    ->afterStateUpdated(fn ($state, Set $set) => ! $state ? $set('offlineTests', []) : null),
+
+                Select::make('offlineTests')
+                    ->label('Tes Offline')
+                    ->relationship('offlineTests', 'name')
+                    ->multiple()
+                    ->searchable()
+                    ->preload()
+                    ->helperText('Tes offline (tulis di lokasi) untuk lowongan ini. Kelola master tes di menu Master > Tes Offline. Jadwal & undangan tetap diatur di menu Kandidat > Tes.')
+                    ->hidden(fn (Get $get) => ! $get('requires_psychotest'))
+                    ->columnSpanFull(),
             ])->columns(2),
 
             Section::make('Detail')->schema([
