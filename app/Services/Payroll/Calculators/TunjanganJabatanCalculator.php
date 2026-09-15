@@ -14,6 +14,11 @@ use App\Services\Payroll\Calculators\Concerns\ProratesFirstMonth;
  * Lookup langsung matriks pangkat x kelas. Tidak ketemu baris = skip (0 baris), wajar kalau
  * finance belum isi kombinasi itu — bukan error. Ikut diprorate bulan pertama kalau karyawan
  * baru bergabung di tengah periode (ProratesFirstMonth, dikonfirmasi user 2026-08-05).
+ *
+ * Ikut juga diprorate bulan TTD kontrak (Orientasi->Kontrak, instruksi user 2026-09-15) kalau
+ * setting `kontrak_prorate_metode` company = 'tiered' - Orientasi TIDAK dapat tunjangan ini
+ * sama sekali (beda dari Gaji Pokok yang tetap dapat base_salary polos), jadi contractTransitionRatio()
+ * (bukan blend base+rate seperti Gaji Pokok) sudah pas dipakai langsung.
  */
 class TunjanganJabatanCalculator implements PayrollComponentCalculator
 {
@@ -40,7 +45,7 @@ class TunjanganJabatanCalculator implements PayrollComponentCalculator
         $amount = (float) $allowance->amount;
         $note = null;
 
-        if ($prorate = $this->firstMonthProrate($user, $period)) {
+        if ($prorate = $this->contractTransitionRatio($user, $period) ?? $this->firstMonthProrate($user, $period)) {
             $amount = round($amount * $prorate['ratio'], 2);
             $note = ucfirst($prorate['note']);
         }

@@ -3,10 +3,13 @@
 namespace Tests\Feature\Payroll;
 
 use App\Models\Master\Companies;
+use App\Models\Master\EmployeeTypes;
 use App\Models\Payroll\Payroll;
 use App\Models\Payroll\PayrollPeriod;
 use App\Models\Payroll\TenureAllowance;
+use App\Models\Setting;
 use App\Models\User;
+use App\Models\User\UserContract;
 use App\Models\User\UserProfiles;
 use App\Services\Payroll\Calculators\PayrollContext;
 use App\Services\Payroll\Calculators\TunjanganMasaKerjaCalculator;
@@ -106,5 +109,28 @@ class TunjanganMasaKerjaCalculatorTest extends TestCase
         (new TunjanganMasaKerjaCalculator())->calculate($user, $payroll, $period, $context);
 
         $this->assertSame(0.0, $context->grossSalary);
+    }
+
+    /** Transisi Orientasi->Kontrak mode 'tiered' (instruksi user 2026-09-15) - sama pola dengan
+     * Tunjangan Jabatan/Transportasi, Orientasi Rp0 sebelum TTD. */
+    public function test_tiered_transition_prorates_from_ttd_date_when_signed_day_6_to_20(): void
+    {
+        $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
+        Setting::create(['company_id' => $company->id, 'key' => 'kontrak_prorate_metode', 'module' => 'payroll', 'type' => 'string', 'value' => 'tiered', 'label' => 'Metode Gaji Bulan TTD Kontrak']);
+        TenureAllowance::create(['company_id' => $company->id, 'min_years' => 0, 'max_years' => 4, 'amount' => 100000]);
+
+        $kontrak = EmployeeTypes::create(['name' => 'Kontrak', 'company_id' => $company->id, 'category' => 'kontrak']);
+        $user = User::factory()->create(['company_id' => $company->id]);
+        UserProfiles::create(['user_id' => $user->id, 'employee_type_id' => $kontrak->id, 'joining_date' => '2026-01-01']); // 0 tahun, tidak ikut prorate joining_date
+        UserContract::create(['user_id' => $user->id, 'company_id' => $company->id, 'employee_type_id' => $kontrak->id, 'contract_start_date' => '2026-07-10', 'contract_end_date' => '2027-07-09']);
+
+        $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
+        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+
+        $context = new PayrollContext();
+        (new TunjanganMasaKerjaCalculator())->calculate($user, $payroll, $period, $context);
+
+        // 10-31 Juli = 19 hari kerja / 31 hari kalender * 100.000 - porsi sebelum TTD Rp0.
+        $this->assertSame(round(100_000 * 19 / 31, 2), $context->grossSalary);
     }
 }

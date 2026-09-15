@@ -12,6 +12,7 @@ use App\Models\Payroll\Payroll;
 use App\Models\Payroll\PayrollPeriod;
 use App\Models\Setting;
 use App\Models\User;
+use App\Models\User\UserContract;
 use App\Models\User\UserProfiles;
 use App\Services\Payroll\Calculators\GajiPokokCalculator;
 use App\Services\Payroll\Calculators\PayrollContext;
@@ -290,5 +291,134 @@ class GajiPokokCalculatorTest extends TestCase
 
         // 5 hari kerja / 31 hari (Juli) * 3.000.000
         $this->assertSame(round(3_000_000 * 5 / 31, 2), $context->grossSalary);
+    }
+
+    /**
+     * Setup bareng untuk 4 test transisi Orientasi->Kontrak (instruksi user 2026-09-15): Kontrak
+     * kenaikan 10% (rate 0% dikunci di test biar hitungan prorate bersih), UserContract pertama
+     * = jejak TTD dari OrientationService::followUpContract().
+     */
+    private function makeContractTransitionUser(Companies $company, string $contractStartDate): User
+    {
+        Setting::create(['company_id' => $company->id, 'key' => 'gaji_pokok_kenaikan_per_kelas', 'module' => 'payroll', 'type' => 'decimal', 'value' => '10', 'label' => 'Kenaikan Gaji Pokok per Kelas']);
+
+        $kelas1 = Kelas::create(['name' => 'Kelas I', 'company_id' => $company->id, 'level' => 1]);
+        $pangkat = Pangkats::create(['name' => 'Perawat', 'company_id' => $company->id, 'start_kelas_id' => $kelas1->id, 'max_kelas_id' => $kelas1->id]);
+        PangkatSalary::create(['pangkat_id' => $pangkat->id, 'base_salary' => 3_000_000]);
+        $kontrak = EmployeeTypes::create(['name' => 'Kontrak', 'company_id' => $company->id, 'category' => 'kontrak']);
+
+        $user = User::factory()->create(['company_id' => $company->id]);
+        // employee_type sudah ke-flip Kontrak (persis kondisi setelah followUpContract jalan),
+        // joining_date sengaja jauh sebelum periode biar tidak numpuk sama prorate karyawan baru.
+        UserProfiles::create(['user_id' => $user->id, 'pangkat_id' => $pangkat->id, 'kelas_id' => $kelas1->id, 'employee_type_id' => $kontrak->id, 'joining_date' => '2025-01-01']);
+
+        UserContract::create([
+            'user_id' => $user->id,
+            'company_id' => $company->id,
+            'employee_type_id' => $kontrak->id,
+            'contract_start_date' => $contractStartDate,
+            'contract_end_date' => now()->parse($contractStartDate)->addYear()->toDateString(),
+        ]);
+
+        return $user;
+    }
+
+    public function test_default_metode_penuh_pays_full_contract_regardless_of_sign_date(): void
+    {
+        $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
+        // Tidak set 'kontrak_prorate_metode' - default 'penuh', TTD tanggal 25 (lewat 20) tetap
+        // harus dibayar Kontrak penuh, bukan Orientasi.
+        $user = $this->makeContractTransitionUser($company, '2026-07-25');
+
+        $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
+        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+
+        $context = new PayrollContext();
+        (new GajiPokokCalculator())->calculate($user, $payroll, $period, $context);
+
+        $this->assertSame(3_300_000.0, $context->grossSalary);
+    }
+
+    public function test_tiered_metode_pays_full_contract_when_signed_day_1_to_5(): void
+    {
+        $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
+        Setting::create(['company_id' => $company->id, 'key' => 'kontrak_prorate_metode', 'module' => 'payroll', 'type' => 'string', 'value' => 'tiered', 'label' => 'Metode Gaji Bulan TTD Kontrak']);
+        $user = $this->makeContractTransitionUser($company, '2026-07-03');
+
+        $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
+        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+
+        $context = new PayrollContext();
+        (new GajiPokokCalculator())->calculate($user, $payroll, $period, $context);
+
+        $this->assertSame(3_300_000.0, $context->grossSalary);
+    }
+
+    public function test_tiered_metode_blends_orientasi_and_kontrak_rate_when_signed_day_6_to_20(): void
+    {
+        $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
+        Setting::create(['company_id' => $company->id, 'key' => 'kontrak_prorate_metode', 'module' => 'payroll', 'type' => 'string', 'value' => 'tiered', 'label' => 'Metode Gaji Bulan TTD Kontrak']);
+        // TTD 10 Juli - pembagi kalender Juli = 31 hari.
+        $user = $this->makeContractTransitionUser($company, '2026-07-10');
+
+        $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
+        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+
+        $context = new PayrollContext();
+        (new GajiPokokCalculator())->calculate($user, $payroll, $period, $context);
+
+        // 1-9 Juli = 8 hari kerja (Minggu 5 Juli di-exclude), 10-31 Juli = 19 hari kerja (Minggu
+        // 12/19/26 di-exclude) - sama seperti ProratesFirstMonth::countProrateWorkDays (Senin-
+        // Sabtu saja). Rate Orientasi (0%) untuk porsi sebelum TTD, Kontrak (10%) sesudahnya.
+        $expected = round(3_000_000 * (8 / 31), 2) + round(3_000_000 * 1.1 * (19 / 31), 2);
+        $this->assertSame($expected, $context->grossSalary);
+    }
+
+    public function test_tiered_metode_pays_orientasi_only_when_signed_after_day_20(): void
+    {
+        $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
+        Setting::create(['company_id' => $company->id, 'key' => 'kontrak_prorate_metode', 'module' => 'payroll', 'type' => 'string', 'value' => 'tiered', 'label' => 'Metode Gaji Bulan TTD Kontrak']);
+        $user = $this->makeContractTransitionUser($company, '2026-07-25');
+
+        $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
+        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+
+        $context = new PayrollContext();
+        (new GajiPokokCalculator())->calculate($user, $payroll, $period, $context);
+
+        // >20 = bulan ini Orientasi penuh (base_salary polos, tanpa prorate).
+        $this->assertSame(3_000_000.0, $context->grossSalary);
+    }
+
+    /** Perpanjangan kontrak (bukan TTD pertama) TIDAK boleh ikut kena blend Orientasi - employee
+     * sudah Kontrak dari sebelumnya, kontrak lama harus tetap dianggap "kontrak pertama". */
+    public function test_tiered_metode_ignores_contract_renewal_not_first_contract(): void
+    {
+        $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
+        Setting::create(['company_id' => $company->id, 'key' => 'kontrak_prorate_metode', 'module' => 'payroll', 'type' => 'string', 'value' => 'tiered', 'label' => 'Metode Gaji Bulan TTD Kontrak']);
+        Setting::create(['company_id' => $company->id, 'key' => 'gaji_pokok_kenaikan_per_kelas', 'module' => 'payroll', 'type' => 'decimal', 'value' => '10', 'label' => 'Kenaikan Gaji Pokok per Kelas']);
+
+        $kelas1 = Kelas::create(['name' => 'Kelas I', 'company_id' => $company->id, 'level' => 1]);
+        $pangkat = Pangkats::create(['name' => 'Perawat', 'company_id' => $company->id, 'start_kelas_id' => $kelas1->id, 'max_kelas_id' => $kelas1->id]);
+        PangkatSalary::create(['pangkat_id' => $pangkat->id, 'base_salary' => 3_000_000]);
+        $kontrak = EmployeeTypes::create(['name' => 'Kontrak', 'company_id' => $company->id, 'category' => 'kontrak']);
+
+        $user = User::factory()->create(['company_id' => $company->id]);
+        UserProfiles::create(['user_id' => $user->id, 'pangkat_id' => $pangkat->id, 'kelas_id' => $kelas1->id, 'employee_type_id' => $kontrak->id, 'joining_date' => '2024-01-01']);
+
+        // Kontrak PERTAMA (TTD dari orientasi) tahun lalu - sudah lewat, bukan bulan ini.
+        UserContract::create(['user_id' => $user->id, 'company_id' => $company->id, 'employee_type_id' => $kontrak->id, 'contract_start_date' => '2025-01-10', 'contract_end_date' => '2026-01-09']);
+        // PERPANJANGAN kontrak, TTD tanggal 25 Juli (>20) - ini BUKAN transisi Orientasi->Kontrak,
+        // jadi tidak boleh dianggap "Orientasi penuh bulan ini".
+        UserContract::create(['user_id' => $user->id, 'company_id' => $company->id, 'employee_type_id' => $kontrak->id, 'contract_start_date' => '2026-07-25', 'contract_end_date' => '2027-07-24']);
+
+        $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
+        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+
+        $context = new PayrollContext();
+        (new GajiPokokCalculator())->calculate($user, $payroll, $period, $context);
+
+        // Kontrak penuh normal (rate 10%), bukan Orientasi 0% - kontrak pertamanya sudah dari tahun lalu.
+        $this->assertSame(3_300_000.0, $context->grossSalary);
     }
 }

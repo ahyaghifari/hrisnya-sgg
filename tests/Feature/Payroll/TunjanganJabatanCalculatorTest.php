@@ -3,6 +3,7 @@
 namespace Tests\Feature\Payroll;
 
 use App\Models\Master\Companies;
+use App\Models\Master\EmployeeTypes;
 use App\Models\Master\Kelas;
 use App\Models\Master\Pangkats;
 use App\Models\Payroll\Payroll;
@@ -10,6 +11,7 @@ use App\Models\Payroll\PayrollPeriod;
 use App\Models\Payroll\PositionAllowance;
 use App\Models\Setting;
 use App\Models\User;
+use App\Models\User\UserContract;
 use App\Models\User\UserProfiles;
 use App\Services\Payroll\Calculators\PayrollContext;
 use App\Services\Payroll\Calculators\TunjanganJabatanCalculator;
@@ -116,5 +118,79 @@ class TunjanganJabatanCalculatorTest extends TestCase
         (new TunjanganJabatanCalculator())->calculate($user, $payroll, $period, $context);
 
         $this->assertSame(0.0, $context->grossSalary);
+    }
+
+    /** Transisi Orientasi->Kontrak (instruksi user 2026-09-15, mode 'tiered') - beda dari Gaji
+     * Pokok: Orientasi tidak dapat Tunjangan Jabatan sama sekali (Rp0), bukan base_salary polos. */
+    public function test_tiered_transition_pays_nothing_before_ttd_full_after_when_signed_day_6_to_20(): void
+    {
+        $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
+        Setting::create(['company_id' => $company->id, 'key' => 'kontrak_prorate_metode', 'module' => 'payroll', 'type' => 'string', 'value' => 'tiered', 'label' => 'Metode Gaji Bulan TTD Kontrak']);
+
+        $pangkat = Pangkats::create(['name' => 'Perawat', 'company_id' => $company->id]);
+        $kelas = Kelas::create(['name' => 'Kelas III', 'company_id' => $company->id, 'level' => 3]);
+        PositionAllowance::create(['pangkat_id' => $pangkat->id, 'kelas_id' => $kelas->id, 'amount' => 750000]);
+
+        $kontrak = EmployeeTypes::create(['name' => 'Kontrak', 'company_id' => $company->id, 'category' => 'kontrak']);
+        $user = User::factory()->create(['company_id' => $company->id]);
+        UserProfiles::create(['user_id' => $user->id, 'pangkat_id' => $pangkat->id, 'kelas_id' => $kelas->id, 'employee_type_id' => $kontrak->id, 'joining_date' => '2025-01-01']);
+        UserContract::create(['user_id' => $user->id, 'company_id' => $company->id, 'employee_type_id' => $kontrak->id, 'contract_start_date' => '2026-07-10', 'contract_end_date' => '2027-07-09']);
+
+        $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
+        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+
+        $context = new PayrollContext();
+        (new TunjanganJabatanCalculator())->calculate($user, $payroll, $period, $context);
+
+        // 10-31 Juli = 19 hari kerja (Minggu 12/19/26 di-exclude) / 31 hari kalender * 750.000 -
+        // porsi sebelum TTD (1-9 Juli) Rp0, tidak ikut dihitung sama sekali.
+        $this->assertSame(round(750_000 * 19 / 31, 2), $context->grossSalary);
+    }
+
+    public function test_tiered_transition_pays_full_when_signed_day_1_to_5(): void
+    {
+        $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
+        Setting::create(['company_id' => $company->id, 'key' => 'kontrak_prorate_metode', 'module' => 'payroll', 'type' => 'string', 'value' => 'tiered', 'label' => 'Metode Gaji Bulan TTD Kontrak']);
+
+        $pangkat = Pangkats::create(['name' => 'Perawat', 'company_id' => $company->id]);
+        $kelas = Kelas::create(['name' => 'Kelas III', 'company_id' => $company->id, 'level' => 3]);
+        PositionAllowance::create(['pangkat_id' => $pangkat->id, 'kelas_id' => $kelas->id, 'amount' => 750000]);
+
+        $kontrak = EmployeeTypes::create(['name' => 'Kontrak', 'company_id' => $company->id, 'category' => 'kontrak']);
+        $user = User::factory()->create(['company_id' => $company->id]);
+        UserProfiles::create(['user_id' => $user->id, 'pangkat_id' => $pangkat->id, 'kelas_id' => $kelas->id, 'employee_type_id' => $kontrak->id, 'joining_date' => '2025-01-01']);
+        UserContract::create(['user_id' => $user->id, 'company_id' => $company->id, 'employee_type_id' => $kontrak->id, 'contract_start_date' => '2026-07-03', 'contract_end_date' => '2027-07-02']);
+
+        $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
+        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+
+        $context = new PayrollContext();
+        (new TunjanganJabatanCalculator())->calculate($user, $payroll, $period, $context);
+
+        $this->assertSame(750_000.0, $context->grossSalary);
+    }
+
+    public function test_tiered_transition_pays_nothing_when_signed_after_day_20(): void
+    {
+        $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
+        Setting::create(['company_id' => $company->id, 'key' => 'kontrak_prorate_metode', 'module' => 'payroll', 'type' => 'string', 'value' => 'tiered', 'label' => 'Metode Gaji Bulan TTD Kontrak']);
+
+        $pangkat = Pangkats::create(['name' => 'Perawat', 'company_id' => $company->id]);
+        $kelas = Kelas::create(['name' => 'Kelas III', 'company_id' => $company->id, 'level' => 3]);
+        PositionAllowance::create(['pangkat_id' => $pangkat->id, 'kelas_id' => $kelas->id, 'amount' => 750000]);
+
+        $kontrak = EmployeeTypes::create(['name' => 'Kontrak', 'company_id' => $company->id, 'category' => 'kontrak']);
+        $user = User::factory()->create(['company_id' => $company->id]);
+        UserProfiles::create(['user_id' => $user->id, 'pangkat_id' => $pangkat->id, 'kelas_id' => $kelas->id, 'employee_type_id' => $kontrak->id, 'joining_date' => '2025-01-01']);
+        UserContract::create(['user_id' => $user->id, 'company_id' => $company->id, 'employee_type_id' => $kontrak->id, 'contract_start_date' => '2026-07-25', 'contract_end_date' => '2027-07-24']);
+
+        $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
+        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+
+        $context = new PayrollContext();
+        (new TunjanganJabatanCalculator())->calculate($user, $payroll, $period, $context);
+
+        $this->assertSame(0.0, $context->grossSalary);
+        $this->assertDatabaseMissing('payroll_items', ['payroll_id' => $payroll->id]);
     }
 }

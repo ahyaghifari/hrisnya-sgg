@@ -11,6 +11,7 @@ use App\Models\Payroll\PayrollPeriod;
 use App\Models\Setting;
 use App\Models\User;
 use App\Services\Payroll\Calculators\Concerns\ProratesFirstMonth;
+use Carbon\Carbon;
 
 /**
  * gaji_pokok = pangkat_salaries.base_salary * (1 + rate)
@@ -33,6 +34,18 @@ use App\Services\Payroll\Calculators\Concerns\ProratesFirstMonth;
  * Prorate bulan pertama — berlaku untuk SEMUA kategori karyawan (bukan cuma Orientasi lagi),
  * logic-nya di ProratesFirstMonth (dipakai bareng Tunjangan Jabatan/Transportasi/Masa Kerja
  * juga, dikonfirmasi user 2026-08-05 - awalnya cuma Gaji Pokok).
+ *
+ * Transisi Orientasi->Kontrak (instruksi user 2026-09-15) - setting `kontrak_prorate_metode`
+ * company-scoped, CUMA berlaku bulan TTD kontrak (UserContract pertama milik user, dicari
+ * lewat OrientationService::followUpContract):
+ * - 'penuh' (default, = perilaku lama tanpa perubahan): kapanpun tanggal TTD-nya, bulan itu
+ *   langsung dibayar Kontrak penuh (rate normal, tanpa prorate) - employee_type sudah ke-flip
+ *   Kontrak duluan di UserProfiles jadi ini otomatis kejadian tanpa kode tambahan.
+ * - 'tiered': tanggal TTD 1-5 = tetap penuh Kontrak (sama seperti 'penuh'). 6-20 = prorate
+ *   dicampur: porsi hari SEBELUM TTD dihitung rate Orientasi (0%, base_salary polos), porsi
+ *   hari MULAI TTD dihitung rate Kontrak, dibagi divisor yang sama seperti ProratesFirstMonth
+ *   (ResolvesProrateDivisor). >20 = bulan ini dibayar Orientasi PENUH (rate 0%, base_salary
+ *   utuh tanpa prorate), Kontrak penuh baru mulai bulan berikutnya.
  */
 class GajiPokokCalculator implements PayrollComponentCalculator
 {
@@ -113,13 +126,19 @@ class GajiPokokCalculator implements PayrollComponentCalculator
             return [null, null];
         }
 
-        // Rumus akhir: base_salary * (1 + rate) - flat, TIDAK lagi dikali langkah Kelas.
-        $amount = round((float) $pangkatSalary->base_salary * (1 + $rate), 2);
-        $note = "Base Rp" . number_format((float) $pangkatSalary->base_salary, 0, ',', '.') . ', kenaikan ' . rtrim(rtrim(number_format($rate * 100, 2), '0'), '.') . '%';
+        $baseSalary = (float) $pangkatSalary->base_salary;
 
-        if ($prorate = $this->firstMonthProrate($user, $period)) {
-            $amount = round($amount * $prorate['ratio'], 2);
-            $note .= ', ' . $prorate['note'];
+        if ($transition = $this->contractTransitionAmount($user, $period, $baseSalary, $rate)) {
+            [$amount, $note] = $transition;
+        } else {
+            // Rumus akhir: base_salary * (1 + rate) - flat, TIDAK lagi dikali langkah Kelas.
+            $amount = round($baseSalary * (1 + $rate), 2);
+            $note = "Base Rp" . number_format($baseSalary, 0, ',', '.') . ', kenaikan ' . rtrim(rtrim(number_format($rate * 100, 2), '0'), '.') . '%';
+
+            if ($prorate = $this->firstMonthProrate($user, $period)) {
+                $amount = round($amount * $prorate['ratio'], 2);
+                $note .= ', ' . $prorate['note'];
+            }
         }
 
         // Kalau hasil akhir tetap 0 (mis. base_salary 0), jangan generate PayrollItem sama sekali -
@@ -127,6 +146,51 @@ class GajiPokokCalculator implements PayrollComponentCalculator
         if ($amount <= 0) {
             return [null, null];
         }
+
+        return [$amount, $note];
+    }
+
+    /**
+     * @return array{0: float, 1: string}|null null = tidak ada transisi kontrak bulan ini
+     * (atau setting-nya 'penuh') - pakai jalur normal (rate x base_salary, prorate joining_date
+     * kalau relevan). $rate di sini rate KONTRAK (sudah termasuk kenaikan), dipakai untuk porsi
+     * hari setelah TTD - porsi sebelum TTD selalu rate 0% (Orientasi).
+     */
+    private function contractTransitionAmount(User $user, PayrollPeriod $period, float $baseSalary, float $rate): ?array
+    {
+        // Cuma kontrak PERTAMA (Orientasi->Kontrak) yang relevan - perpanjangan kontrak (Kontrak
+        // lama -> Kontrak baru) sudah dibayar rate Kontrak dari sebelumnya, tidak ada "porsi
+        // Orientasi" yang perlu diprorate. Cek setting/kontrak-pertama/rentang-periode/tgl<=5
+        // semua di resolveContractTransitionSignDate() (dipakai bareng Tunjangan
+        // Jabatan/Transportasi/Masa Kerja juga - lihat ProratesFirstMonth).
+        $signDate = $this->resolveContractTransitionSignDate($user, $period);
+
+        if (! $signDate) {
+            return null;
+        }
+
+        $divisor = $this->prorateDivisor($period, $signDate);
+
+        if ($divisor <= 0) {
+            return null;
+        }
+
+        // >20 = bulan ini masih dianggap Orientasi PENUH (base_salary utuh, tanpa prorate) -
+        // Kontrak penuh baru berlaku mulai periode berikutnya.
+        if ($signDate->day > 20) {
+            $amount = round($baseSalary, 2);
+            $note = "TTD kontrak {$signDate->format('d-m-Y')} (>tgl 20): Orientasi penuh bulan ini, Kontrak penuh mulai bulan depan";
+
+            return [$amount, $note];
+        }
+
+        // 6-20 = campur: hari sebelum TTD rate Orientasi (0%), hari mulai TTD rate Kontrak.
+        $daysBefore = $this->countProrateWorkDays($period->start_date, $signDate->copy()->subDay());
+        $daysAfter = $this->countProrateWorkDays($signDate, $period->end_date);
+
+        $amount = round($baseSalary * ($daysBefore / $divisor), 2)
+            + round($baseSalary * (1 + $rate) * ($daysAfter / $divisor), 2);
+        $note = "TTD kontrak {$signDate->format('d-m-Y')} (tgl 6-20): prorate {$daysBefore} hari Orientasi + {$daysAfter} hari Kontrak dari {$divisor} {$this->prorateDivisorLabel($period)}";
 
         return [$amount, $note];
     }

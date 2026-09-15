@@ -92,6 +92,11 @@
                                             <option value="kalender">Kalender (hari dalam bulan)</option>
                                             <option value="hari_kerja_efektif">Hari Kerja Efektif (Pengaturan Kepegawaian)</option>
                                         </select>
+                                    @elseif ($key === 'kontrak_prorate_metode')
+                                        <select class="form-input" wire:model="flexibleValues.{{ $key }}">
+                                            <option value="penuh">Penuh (kapanpun TTD, langsung Kontrak penuh)</option>
+                                            <option value="tiered">Tiered (1-5 penuh, 6-20 prorate, >20 Orientasi dulu)</option>
+                                        </select>
                                     @else
                                         <input type="{{ $inputType($meta?->type) }}" step="0.01" class="form-input" wire:model="flexibleValues.{{ $key }}">
                                     @endif

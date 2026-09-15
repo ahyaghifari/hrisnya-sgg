@@ -11,7 +11,9 @@ use App\Models\User;
 use App\Services\Payroll\Calculators\Concerns\ProratesFirstMonth;
 
 /** Ikut diprorate bulan pertama kalau karyawan baru bergabung di tengah periode
- * (ProratesFirstMonth, dikonfirmasi user 2026-08-05). */
+ * (ProratesFirstMonth, dikonfirmasi user 2026-08-05). Juga ikut diprorate bulan TTD kontrak
+ * (Orientasi->Kontrak, instruksi user 2026-09-15, lihat contractTransitionRatio()) - Orientasi
+ * tidak dapat tunjangan ini sama sekali. */
 class TunjanganTransportasiCalculator implements PayrollComponentCalculator
 {
     use ProratesFirstMonth;
@@ -33,7 +35,7 @@ class TunjanganTransportasiCalculator implements PayrollComponentCalculator
         $amount = (float) $allowance->amount;
         $note = null;
 
-        if ($prorate = $this->firstMonthProrate($user, $period)) {
+        if ($prorate = $this->contractTransitionRatio($user, $period) ?? $this->firstMonthProrate($user, $period)) {
             $amount = round($amount * $prorate['ratio'], 2);
             $note = ucfirst($prorate['note']);
         }

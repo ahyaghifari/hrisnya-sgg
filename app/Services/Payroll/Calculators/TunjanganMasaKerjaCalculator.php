@@ -13,7 +13,9 @@ use Carbon\Carbon;
 
 /** Ikut diprorate bulan pertama kalau karyawan baru bergabung di tengah periode
  * (ProratesFirstMonth, dikonfirmasi user 2026-08-05) - terpisah dari `$years` yang cuma
- * dipakai nentuin bracket (karyawan baru = 0 tahun, biasanya bracket terendah). */
+ * dipakai nentuin bracket (karyawan baru = 0 tahun, biasanya bracket terendah). Juga ikut
+ * diprorate bulan TTD kontrak (Orientasi->Kontrak, instruksi user 2026-09-15, lihat
+ * contractTransitionRatio()) - Orientasi tidak dapat tunjangan ini sama sekali. */
 class TunjanganMasaKerjaCalculator implements PayrollComponentCalculator
 {
     use ProratesFirstMonth;
@@ -46,7 +48,7 @@ class TunjanganMasaKerjaCalculator implements PayrollComponentCalculator
         $amount = (float) $bracket->amount;
         $note = "Masa kerja {$years} tahun";
 
-        if ($prorate = $this->firstMonthProrate($user, $period)) {
+        if ($prorate = $this->contractTransitionRatio($user, $period) ?? $this->firstMonthProrate($user, $period)) {
             $amount = round($amount * $prorate['ratio'], 2);
             $note .= ', ' . $prorate['note'];
         }
