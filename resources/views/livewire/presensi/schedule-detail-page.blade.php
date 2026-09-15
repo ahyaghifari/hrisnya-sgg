@@ -24,7 +24,11 @@
         html.dark .schedule-detail-tab.is-active { color: #6ea8e0; border-bottom-color: #6ea8e0; }
     </style>
 
-    <x-page-header title="{{ $schedule->name }} - {{ $schedule->company?->name }}" :back="route('presensi.jadwal')" />
+    {{-- :title (bukan title="{{ }}") - "{{ }}" di sini escape sekali (mis. "&" jadi "&amp;"),
+    lalu <h1>{{ $title }}</h1> di komponennya escape lagi jadi "&amp;amp;" (dobel), browser cuma
+    decode 1 lapis jadi literal "&amp;" kelihatan di layar (dilaporkan user 2026-09-16, nama
+    jadwal pakai "&"). :title kirim string MENTAH, biar cuma ke-escape sekali di komponennya. --}}
+    <x-page-header :title="$schedule->name . ' - ' . $schedule->company?->name" :back="route('presensi.jadwal')" />
 
     <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;border-bottom:1px solid var(--border-soft);margin-bottom:18px;">
         <div>

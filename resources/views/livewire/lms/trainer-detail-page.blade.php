@@ -5,7 +5,9 @@
         html.dark .lms-course-tab.is-active { color: #6ea8e0; border-bottom-color: #6ea8e0; }
     </style>
 
-    <x-page-header title="{{ $trainer->name }}" subtitle="{{ ucfirst($trainer->type) }}" :back="route('pelatihan.pemateri')" />
+    {{-- :title/:subtitle (bukan title="{{ }}") - dobel-escape kalau namanya pakai "&" dst, lihat
+    catatan sama di schedule-detail-page.blade.php. --}}
+    <x-page-header :title="$trainer->name" :subtitle="ucfirst($trainer->type)" :back="route('pelatihan.pemateri')" />
 
     <div style="border-bottom:1px solid var(--border-soft);margin-bottom:18px;">
         <button type="button" wire:click="setTab('profil')" class="lms-course-tab {{ $tab === 'profil' ? 'is-active' : '' }}">Profil</button>

@@ -10,7 +10,9 @@
         html.dark .lms-course-schedule-badge { color: #5eead4; background: rgba(45,212,191,0.16); }
     </style>
 
-    <x-page-header title="{{ $course->title }}" subtitle="{{ $course->code }} - {{ $course->category?->name ?? '-' }}" :back="route('pelatihan.kelola')" />
+    {{-- :title/:subtitle (bukan title="{{ }}") - dobel-escape kalau isinya pakai "&" dst, lihat
+    catatan sama di schedule-detail-page.blade.php. --}}
+    <x-page-header :title="$course->title" :subtitle="$course->code . ' - ' . ($course->category?->name ?? '-')" :back="route('pelatihan.kelola')" />
 
     <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:24px;margin-bottom:22px;">
         <div>
