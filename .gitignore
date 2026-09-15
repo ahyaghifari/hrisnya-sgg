@@ -45,3 +45,6 @@ _ide_helper_models.php
 /knowledge/gaji-test.xlsx
 /knowledge/data-karyawan-*.xlsx
 /knowledge/sync-untuk-*.xlsx
+/planning
+/playwright
+/scratchpad
