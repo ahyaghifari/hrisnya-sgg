@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Presensi;
 
+use App\Enum\CustomPermissionEnum;
 use App\Exports\Presensi\ScheduleShiftRosterExport;
 use App\Models\Shift\Schedule;
 use App\Models\Shift\ScheduleAssignment;
@@ -122,6 +123,27 @@ class ScheduleShiftRosterTab extends Component
     private function lockBeforeDate(): ?string
     {
         return $this->canEditPastDates ? null : now()->startOfDay()->toDateString();
+    }
+
+    /** ScheduleShiftAssignment pakai trait BelongsToCompany (global scope company_id = company
+     * user login, cuma tembus buat Super Admin) - TIDAK kenal permission lihat_perusahaan_lain
+     * sama sekali. Akibatnya: user yang MEMANG diizinkan lihat company lain (lolos gerbang
+     * SchedulePolicy::view() di mount() - Schedule sendiri TIDAK pakai BelongsToCompany) bisa
+     * buka halaman jadwal company lain, tapi roster-nya keliatan kosong total karena baris
+     * ScheduleShiftAssignment company itu kesaring diam-diam (dilaporkan user 2026-09-16, data
+     * kebukti ADA lewat tinker - console skip scope-nya, makanya nembus di sana tapi tidak di
+     * request web biasa). Scope dibuka cuma kalau jadwal ini MEMANG beda company DAN user
+     * beneran punya izinnya - bukan dibuka buat semua orang. */
+    private function shiftAssignmentQuery(): \Illuminate\Database\Eloquent\Builder
+    {
+        $query = ScheduleShiftAssignment::query();
+
+        if ($this->schedule->company_id !== Auth::user()->company_id
+            && Auth::user()->canFilterByCompanyForSystem(CustomPermissionEnum::SISTEM_ABSENSI)) {
+            $query->withoutGlobalScope('company');
+        }
+
+        return $query;
     }
 
     public function updatedPeriod(): void
@@ -273,7 +295,7 @@ class ScheduleShiftRosterTab extends Component
 
         $userIds = $this->employees->pluck('id')->all();
 
-        $rows = ScheduleShiftAssignment::whereIn('user_id', $userIds)
+        $rows = $this->shiftAssignmentQuery()->whereIn('user_id', $userIds)
             ->whereBetween('date', [$start, $end])
             ->get();
 
@@ -504,7 +526,7 @@ class ScheduleShiftRosterTab extends Component
         // pakai id asli (portabel lintas driver DB). whereBetween (bukan whereIn/equality
         // biasa) - sama pola dengan getRosterProperty(), aman lintas driver (lihat catatan
         // whereDate() di docblock setCell()).
-        $existingIds = ScheduleShiftAssignment::whereIn('user_id', $userIds)
+        $existingIds = $this->shiftAssignmentQuery()->whereIn('user_id', $userIds)
             ->whereBetween('date', [min($dates), max($dates)])
             ->get(['id', 'user_id', 'date'])
             ->keyBy(fn ($row) => $row->user_id . '|' . $row->date->toDateString())
@@ -556,7 +578,7 @@ class ScheduleShiftRosterTab extends Component
 
         DB::transaction(function () use ($deleteIds, $upsertRows, $logRows) {
             if ($deleteIds) {
-                ScheduleShiftAssignment::whereIn('id', $deleteIds)->delete();
+                $this->shiftAssignmentQuery()->whereIn('id', $deleteIds)->delete();
             }
 
             if ($upsertRows) {
@@ -592,7 +614,7 @@ class ScheduleShiftRosterTab extends Component
             return false;
         }
 
-        $existing = ScheduleShiftAssignment::where('user_id', $userId)->whereDate('date', $date)->first();
+        $existing = $this->shiftAssignmentQuery()->where('user_id', $userId)->whereDate('date', $date)->first();
         $before = $existing ? ($existing->off_day ? 'off' : $existing->shift_type_id) : null;
 
         if (! $value) {
@@ -673,7 +695,7 @@ class ScheduleShiftRosterTab extends Component
 
         // Sel yang SUDAH ada roster-nya di periode ini - dilewati (tidak ditimpa), dicek dari
         // 1 query di awal (bukan firstOrCreate SELECT per sel).
-        $existingKeys = ScheduleShiftAssignment::whereIn('user_id', $employeeIds)
+        $existingKeys = $this->shiftAssignmentQuery()->whereIn('user_id', $employeeIds)
             ->whereBetween('date', [$dateStrings->min(), $dateStrings->max()])
             ->get(['user_id', 'date'])
             ->map(fn ($row) => $row->user_id . '|' . $row->date->toDateString())
@@ -796,7 +818,7 @@ class ScheduleShiftRosterTab extends Component
         // daftar hapus (konsisten dengan sel yang dikunci di grid).
         $swapCells = $this->swapCells;
 
-        $rows = ScheduleShiftAssignment::whereIn('user_id', $this->employees->pluck('id'))
+        $rows = $this->shiftAssignmentQuery()->whereIn('user_id', $this->employees->pluck('id'))
             ->whereBetween('date', [$start, $end])
             ->get()
             ->reject(fn ($row) => isset($swapCells[$row->user_id . '|' . $row->date->toDateString()]));
@@ -816,7 +838,7 @@ class ScheduleShiftRosterTab extends Component
             ])->all());
         }
 
-        $deleted = ScheduleShiftAssignment::whereIn('id', $rows->pluck('id'))->delete();
+        $deleted = $this->shiftAssignmentQuery()->whereIn('id', $rows->pluck('id'))->delete();
 
         $this->editMode = false;
         $this->draft = [];
