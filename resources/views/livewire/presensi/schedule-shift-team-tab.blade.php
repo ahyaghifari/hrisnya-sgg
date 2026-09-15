@@ -77,7 +77,7 @@
         </div>
 
         @if ($this->periodLocked)
-            <p style="font-size:12px;color:var(--text-faint);text-align:center;padding:16px;">Tim belum bisa diatur buat bulan sejauh ini — baru bisa mulai bulan depan ({{ now()->addMonth()->locale('id')->translatedFormat('F Y') }}), yang otomatis mewarisi tim bulan berjalan sebagai draf awal.</p>
+            <p style="font-size:12px;color:var(--text-faint);text-align:center;padding:16px;">Tim belum bisa diatur buat bulan sejauh ini — baru bisa mulai bulan depan ({{ now()->addMonth()->locale('id')->translatedFormat('F Y') }}), yang otomatis mewarisi &amp; tersimpan dari tim bulan berjalan (masih bisa diganti per orang kalau perlu).</p>
         @else
         @if (! $this->canEditPeriod)
             <p style="font-size:11px;color:var(--text-faint);margin:0 0 12px;">Bulan ini sudah lewat — regu bulan yang sudah lewat tidak bisa diubah lagi.</p>

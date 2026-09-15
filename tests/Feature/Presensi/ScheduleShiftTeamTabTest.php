@@ -460,4 +460,47 @@ class ScheduleShiftTeamTabTest extends TestCase
         $this->assertDatabaseMissing('schedule_shift_teams', ['id' => $team->id]);
         $this->assertDatabaseMissing('schedule_shift_team_members', ['team_id' => $team->id]);
     }
+
+    /** Bulan depan yang belum punya keanggotaan sama sekali LANGSUNG kesimpen ke DB begitu
+     * halaman dibuka (bukan cuma prefill draft yang nunggu klik Simpan) - instruksi user
+     * 2026-09-16, mewarisi Tim dari bulan berjalan. */
+    public function test_opening_next_month_auto_persists_team_from_current_month(): void
+    {
+        [$schedule, $employee] = $this->makeScheduleWithEmployee();
+        $user = $this->actingAsScheduleOwner();
+        $team = ScheduleShiftTeam::create(['schedule_id' => $schedule->id, 'name' => 'Regu A']);
+
+        $currentPeriod = now()->format('Y-m');
+        $nextPeriod = now()->addMonthNoOverflow()->format('Y-m');
+
+        ScheduleShiftTeamMember::setForPeriod($schedule, $employee, $team, $currentPeriod, $user->id);
+
+        $this->assertNull(ScheduleShiftTeamMember::forPeriod($schedule->id, $employee->id, $nextPeriod));
+
+        Livewire::actingAs($user)
+            ->test(ScheduleShiftTeamTab::class, ['schedule' => $schedule])
+            ->set('period', $nextPeriod)
+            ->assertSet("assignForm.{$employee->id}", $team->id);
+
+        $this->assertSame(
+            $team->id,
+            ScheduleShiftTeamMember::forPeriod($schedule->id, $employee->id, $nextPeriod)?->team_id
+        );
+    }
+
+    /** Karyawan yang BELUM punya tim bulan berjalan sama sekali TIDAK ikut dibuatkan baris
+     * kosong buat bulan depan - carry-over cuma jalan kalau memang ada sumbernya. */
+    public function test_opening_next_month_does_not_create_row_when_current_month_has_no_team(): void
+    {
+        [$schedule, $employee] = $this->makeScheduleWithEmployee();
+        $user = $this->actingAsScheduleOwner();
+        $nextPeriod = now()->addMonthNoOverflow()->format('Y-m');
+
+        Livewire::actingAs($user)
+            ->test(ScheduleShiftTeamTab::class, ['schedule' => $schedule])
+            ->set('period', $nextPeriod)
+            ->assertSet("assignForm.{$employee->id}", '');
+
+        $this->assertNull(ScheduleShiftTeamMember::forPeriod($schedule->id, $employee->id, $nextPeriod));
+    }
 }
