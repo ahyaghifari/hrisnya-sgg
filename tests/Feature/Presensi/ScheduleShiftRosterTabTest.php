@@ -713,4 +713,59 @@ class ScheduleShiftRosterTabTest extends TestCase
             ScheduleShiftAssignment::where('user_id', $employee->id)->whereDate('date', $datePast)->exists()
         );
     }
+
+    /** Bulan 2+ ke depan dari bulan berjalan ASLI dikunci dari Isi Jadwal/Generate/Import/Export
+     * (instruksi user 2026-09-16, sama threshold-nya sama ScheduleShiftTeamTab::periodLocked) -
+     * grid tetap kelihatan (view-only), cuma tombol aksinya yang hilang & backend nolak. */
+    public function test_period_two_months_ahead_hides_action_buttons_and_rejects_writes(): void
+    {
+        [$schedule, $shiftType, $employee] = $this->makeManualShiftSchedule();
+        $user = $this->actingAsAbsensi();
+        $lockedPeriod = now()->addMonths(2)->format('Y-m');
+
+        Livewire::actingAs($user)
+            ->test(ScheduleShiftRosterTab::class, ['schedule' => $schedule])
+            ->set('period', $lockedPeriod)
+            ->assertSee('Budi Santoso')
+            // "Isi Jadwal" polos ketangkep juga di tooltip sel terkunci biasa ("Mulai Isi
+            // Jadwal") - cek elemen aksinya langsung biar tidak salah tangkap.
+            ->assertDontSee('wire:click="startEdit"', false)
+            ->assertDontSee('wire:click="exportExcel"', false)
+            ->assertDontSee('Import Excel');
+
+        Livewire::actingAs($user)
+            ->test(ScheduleShiftRosterTab::class, ['schedule' => $schedule])
+            ->set('period', $lockedPeriod)
+            ->call('startEdit')
+            ->assertForbidden();
+
+        Livewire::actingAs($user)
+            ->test(ScheduleShiftRosterTab::class, ['schedule' => $schedule])
+            ->set('period', $lockedPeriod)
+            ->call('exportExcel')
+            ->assertForbidden();
+    }
+
+    /** Bulan depan (bulan berjalan + 1) TETAP bisa diisi normal - cuma 2+ bulan ke depan yang
+     * dikunci. */
+    public function test_period_next_month_is_still_editable(): void
+    {
+        [$schedule, $shiftType, $employee] = $this->makeManualShiftSchedule();
+        $user = $this->actingAsAbsensi();
+        $nextMonth = now()->addMonth()->format('Y-m');
+        $date = now()->addMonth()->startOfMonth()->addDays(4)->toDateString();
+
+        Livewire::actingAs($user)
+            ->test(ScheduleShiftRosterTab::class, ['schedule' => $schedule])
+            ->set('period', $nextMonth)
+            ->assertSee('Isi Jadwal')
+            ->call('setCell', $employee->id, $date, $shiftType->id);
+
+        $this->assertTrue(
+            ScheduleShiftAssignment::where('user_id', $employee->id)
+                ->whereDate('date', $date)
+                ->where('shift_type_id', $shiftType->id)
+                ->exists()
+        );
+    }
 }

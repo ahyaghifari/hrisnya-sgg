@@ -106,6 +106,19 @@ class ScheduleShiftRosterTab extends Component
         return Auth::user()->can('Update:ShiftScheduleAssignments');
     }
 
+    /** Bulan 2+ ke depan dari bulan berjalan ASLI (bukan periode manapun yang lagi dibuka)
+     * dikunci dari Isi Jadwal/Generate/Import/Export - instruksi user 2026-09-16: jadwal cuma
+     * boleh diisi buat bulan berjalan + bulan depan (bulan depan otomatis mewarisi Tim dari
+     * bulan berjalan sebagai draf, lihat ScheduleShiftTeamTab::syncAssignForm() - carry-over
+     * itu sudah ada duluan, sama persis threshold-nya di sini). Rolling per bulan asli, BUKAN
+     * per periode yang lagi dibuka - begitu bulan berjalan maju ke Oktober, November otomatis
+     * kebuka (dapat carry-over Tim dari Oktober) dan Desember kekunci. Grid tetap bisa DILIHAT
+     * (read-only) sejauh apa pun - cuma aksi tulisnya yang dikunci. */
+    public function getPeriodLockedProperty(): bool
+    {
+        return $this->period > now()->addMonth()->format('Y-m');
+    }
+
     /** Permission "Edit Jadwal" (Update:Schedule, sama gerbang tombol Edit Jadwal di
      * ScheduleDetailPage) - pemilik/pengelola jadwal ini bebas ubah tanggal berapa pun termasuk
      * yang sudah lewat (mis. koreksi data lama). Yang cuma punya Update:ShiftScheduleAssignments
@@ -406,6 +419,7 @@ class ScheduleShiftRosterTab extends Component
     public function startEdit(): void
     {
         abort_unless(Auth::user()->can('Update:ShiftScheduleAssignments'), 403);
+        abort_if($this->periodLocked, 403);
 
         $roster = $this->roster;
 
@@ -436,6 +450,7 @@ class ScheduleShiftRosterTab extends Component
     public function saveRoster(): void
     {
         abort_unless(Auth::user()->can('Update:ShiftScheduleAssignments'), 403);
+        abort_if($this->periodLocked, 403);
 
         if (! $this->editMode) {
             return;
@@ -609,6 +624,9 @@ class ScheduleShiftRosterTab extends Component
     public function setCell(string $userId, string $date, ?string $value, string $source = 'manual'): bool
     {
         abort_unless(Auth::user()->can('Update:ShiftScheduleAssignments'), 403);
+        // Dicek dari BULAN $date sendiri, bukan $this->period - setCell() dipanggil lepas dari
+        // periode yang lagi dibuka (lihat docblock di atas persistRosterBatch()).
+        abort_if(substr($date, 0, 7) > now()->addMonth()->format('Y-m'), 403);
 
         if ($value && $value !== 'off' && ! $this->isShiftAllowedForUser($userId, $value)) {
             return false;
@@ -668,6 +686,7 @@ class ScheduleShiftRosterTab extends Component
     public function generateFromTemplate(): void
     {
         abort_unless(Auth::user()->can('Update:ShiftScheduleAssignments'), 403);
+        abort_if($this->periodLocked, 403);
 
         if (! $this->schedule->use_template) {
             return;
@@ -854,6 +873,8 @@ class ScheduleShiftRosterTab extends Component
 
     public function exportExcel()
     {
+        abort_if($this->periodLocked, 403);
+
         $teamNames = collect($this->employeeTeamInfo)->map(fn ($info) => $info['name'])->all();
 
         return Excel::download(
@@ -876,6 +897,7 @@ class ScheduleShiftRosterTab extends Component
     public function updatedImportFile(): void
     {
         abort_unless(Auth::user()->can('Update:ShiftScheduleAssignments'), 403);
+        abort_if($this->periodLocked, 403);
 
         $this->validate(['importFile' => 'required|file|mimes:xlsx,xls']);
 

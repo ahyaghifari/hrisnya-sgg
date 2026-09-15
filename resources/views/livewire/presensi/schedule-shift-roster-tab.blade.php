@@ -60,6 +60,10 @@
                     </button>
                 </div>
             @endif
+            {{-- Export/Import/Generate/Isi Jadwal dikunci 2+ bulan ke depan dari bulan berjalan
+            (instruksi user 2026-09-16, sama threshold-nya sama ScheduleShiftTeamTab::periodLocked)
+            - grid tetap kelihatan (view-only), cuma aksi tulis/unduhnya yang disembunyikan. --}}
+            @unless ($this->periodLocked)
             <button type="button" wire:click="exportExcel" class="btn-success" style="font-size:11px;padding:7px 12px;white-space:nowrap;margin-top:16px;">
                 <i class="fa-solid fa-file-excel"></i> Export Excel
             </button>
@@ -73,8 +77,12 @@
                     @error('importFile') <div style="font-size:10.5px;color:var(--danger-text);margin-top:2px;">{{ $message }}</div> @enderror
                 </div>
             @endif
+            @endunless
         </div>
 
+        @if ($this->periodLocked)
+            <p style="font-size:11px;color:var(--text-faint);margin:0;">Bulan ini belum bisa diisi/di-export/di-import — baru bisa mulai bulan depan ({{ now()->addMonth()->locale('id')->translatedFormat('F Y') }}).</p>
+        @else
         <div style="display:flex;align-items:flex-end;gap:6px;">
             {{-- Generate cuma relevan buat mengisi dari template - disembunyikan pas mode Isi
                  Jadwal (editMode) aktif biar tidak ambigu generate nimpa draft manual yang lagi
@@ -140,6 +148,7 @@
                 @endif
             @endif
         </div>
+        @endif
     </div>
 
     {{-- Keterangan warna kode shift — sama kayak tab Template Shift, biar konsisten. Kalau
