@@ -53,6 +53,7 @@ class PelamarUserResource extends Resource
             ->columns([
                 TextColumn::make('name')->label('Nama')->searchable()->sortable(),
                 TextColumn::make('email')->label('Email')->searchable()->sortable(),
+                TextColumn::make('nik')->label('NIK')->searchable()->placeholder('—'),
                 IconColumn::make('email_verified_at')
                     ->label('Terverifikasi')
                     ->boolean()
