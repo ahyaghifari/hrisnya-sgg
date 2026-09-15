@@ -19,29 +19,34 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
  * isi kode shift/"L" (Libur). Sel jadwal sengaja TIDAK diwarnai (instruksi user) — cukup kode
  * teks + legenda; hanya banner judul & baris header yang berwarna.
  *
- * Pengelompokan Tim (2026-09-15, instruksi user) - BARIS pemisah bergaya banner (merge penuh
- * lebar tabel) tiap kali grup tim berganti, PERSIS pola tabel Detail Penjadwalan di web (bukan
- * kolom "Tim" + merge vertikal seperti versi sebelumnya) - lebih gampang dibaca & tidak perlu
- * kolom ekstra yang mepetkan lebar kolom nama.
+ * Pengelompokan Tim ikut $teamGroupMode grid web (instruksi user 2026-09-15) — 'row' (default):
+ * BARIS pemisah bergaya banner (merge penuh lebar tabel) tiap kali grup tim berganti, PERSIS pola
+ * tabel Detail Penjadwalan di web mode Baris. 'column': kolom "Tim" ekstra di kolom A (Karyawan
+ * geser ke B), sel Tim di-merge vertikal per grup — padanan mode Kolom (rowspan) di web.
  */
 class ScheduleShiftRosterExport implements FromArray, WithStyles, WithColumnWidths, WithTitle
 {
     /** @var array<int, string> raw row index (dari array(), 0-based) => label banner tim -
-     * diisi array(), dibaca styles() buat merge+warnai barisnya. Row index header selalu 0. */
+     * dipakai mode 'row'. Row index header selalu 0. */
     private array $separatorRows = [];
 
-    /** Total baris hasil array() (header + banner tim + karyawan) - dipakai styles() hitung
-     * dataLastRow tanpa perlu array() dipanggil ulang. */
+    /** @var array<int, array{0: int, 1: int, 2: string}> [rawStartRow, rawEndRow, label] per
+     * grup tim - dipakai mode 'column' buat merge vertikal kolom A. */
+    private array $teamMergeRows = [];
+
+    /** Total baris hasil array() (header + banner tim [mode row] + karyawan) - dipakai styles()
+     * hitung dataLastRow tanpa perlu array() dipanggil ulang. */
     private int $totalRows = 0;
 
     /**
      * @param  Collection<int, \App\Models\User>  $employees  Sudah diurut per tim kalau
      *   $schedule->use_teams (lihat ScheduleShiftRosterTab::getEmployeesProperty()) - urutan ini
-     *   yang dipakai buat nentuin kapan banner tim baru disisipkan, BUKAN dihitung ulang di sini.
+     *   yang dipakai buat nentuin kapan grup tim baru dimulai, BUKAN dihitung ulang di sini.
      * @param  array<int, \Carbon\Carbon>  $dates
      * @param  array<string, array<string, string>>  $roster  [user_id => [date => shift_type_id|'off']]
      * @param  array<string, ?string>  $teamNames  [user_id => nama tim, null/tidak ada = Tanpa
      *   Tim] - cuma dipakai kalau $schedule->use_teams.
+     * @param  string  $teamGroupMode  'row' atau 'column' - sama nilai ScheduleShiftRosterTab::$teamGroupMode.
      */
     public function __construct(
         protected Schedule $schedule,
@@ -50,6 +55,7 @@ class ScheduleShiftRosterExport implements FromArray, WithStyles, WithColumnWidt
         protected array $roster,
         protected string $periodLabel,
         protected array $teamNames = [],
+        protected string $teamGroupMode = 'row',
     ) {}
 
     public function title(): string
@@ -67,13 +73,22 @@ class ScheduleShiftRosterExport implements FromArray, WithStyles, WithColumnWidt
         return $this->teamNames[$employee->id] ?? 'Tanpa Tim';
     }
 
+    private function isColumnMode(): bool
+    {
+        return $this->useTeams() && $this->teamGroupMode === 'column';
+    }
+
     public function array(): array
     {
         $rows = [];
         $this->separatorRows = [];
+        $this->teamMergeRows = [];
         $dateCount = count($this->dates);
 
-        $header = ['Karyawan'];
+        $useTeams = $this->useTeams();
+        $columnMode = $this->isColumnMode();
+
+        $header = $columnMode ? ['Tim', 'Karyawan'] : ['Karyawan'];
         foreach ($this->dates as $date) {
             // Tanggal + nama hari (2 baris dalam 1 sel) - sama info kayak header tabel Detail
             // Penjadwalan (tanggal di atas, hari di bawah). wrapText diaktifkan di styles().
@@ -82,21 +97,33 @@ class ScheduleShiftRosterExport implements FromArray, WithStyles, WithColumnWidt
         $rows[] = $header;
 
         $lastTeam = null;
-        $useTeams = $this->useTeams();
+        $groupStartRaw = null;
 
         foreach ($this->employees as $employee) {
+            $teamCell = '';
+
             if ($useTeams) {
                 $team = $this->teamNameFor($employee);
 
                 if ($team !== $lastTeam) {
-                    $this->separatorRows[count($rows)] = $team;
-                    $rows[] = array_merge([$team], array_fill(0, $dateCount, ''));
+                    if ($columnMode) {
+                        // Tutup rentang grup sebelumnya (kalau ada) sebelum mulai grup baru -
+                        // rentangnya [baris pertama grup itu, baris SEBELUM baris ini].
+                        if ($groupStartRaw !== null) {
+                            $this->teamMergeRows[] = [$groupStartRaw, count($rows) - 1, $lastTeam];
+                        }
+                        $groupStartRaw = count($rows);
+                        $teamCell = $team;
+                    } else {
+                        $this->separatorRows[count($rows)] = $team;
+                        $rows[] = array_merge([$team], array_fill(0, $dateCount, ''));
+                    }
                     $lastTeam = $team;
                 }
             }
 
             $userRoster = $this->roster[$employee->id] ?? [];
-            $row = [$employee->name];
+            $row = $columnMode ? [$teamCell, $employee->name] : [$employee->name];
 
             foreach ($this->dates as $date) {
                 $value = $userRoster[$date->toDateString()] ?? '';
@@ -106,6 +133,10 @@ class ScheduleShiftRosterExport implements FromArray, WithStyles, WithColumnWidt
             $rows[] = $row;
         }
 
+        if ($columnMode && $groupStartRaw !== null) {
+            $this->teamMergeRows[] = [$groupStartRaw, count($rows) - 1, $lastTeam];
+        }
+
         $this->totalRows = count($rows);
 
         return $rows;
@@ -113,10 +144,13 @@ class ScheduleShiftRosterExport implements FromArray, WithStyles, WithColumnWidt
 
     public function columnWidths(): array
     {
-        $widths = ['A' => 22];
+        $columnMode = $this->isColumnMode();
+        $offset = $columnMode ? 2 : 1;
+
+        $widths = $columnMode ? ['A' => 14, 'B' => 22] : ['A' => 22];
 
         foreach ($this->dates as $i => $date) {
-            $widths[Coordinate::stringFromColumnIndex($i + 2)] = 4.5;
+            $widths[Coordinate::stringFromColumnIndex($i + 1 + $offset)] = 4.5;
         }
 
         return $widths;
@@ -124,10 +158,11 @@ class ScheduleShiftRosterExport implements FromArray, WithStyles, WithColumnWidt
 
     public function styles(Worksheet $sheet): array
     {
-        $lastCol = Coordinate::stringFromColumnIndex(1 + count($this->dates));
+        $columnMode = $this->isColumnMode();
+        $lastCol = Coordinate::stringFromColumnIndex(($columnMode ? 2 : 1) + count($this->dates));
         // array() HARUS sudah dipanggil sebelum styles() (dipanggil framework buat isi sheet,
-        // atau manual di test) - $this->totalRows/$separatorRows sudah keisi lewat efek samping
-        // itu, lihat docblock properti di atas.
+        // atau manual di test) - $this->totalRows/$separatorRows/$teamMergeRows sudah keisi lewat
+        // efek samping itu, lihat docblock properti di atas.
         $dataLastRow = $this->totalRows + 2;
 
         // Baris judul + keterangan disisipkan di atas grid ("Karyawan" + tanggal) yang datang
@@ -165,16 +200,30 @@ class ScheduleShiftRosterExport implements FromArray, WithStyles, WithColumnWidt
             'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'D1D5DB']]],
             'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
         ]);
-        $sheet->getStyle("A4:A{$dataLastRow}")->applyFromArray([
-            'alignment' => ['horizontal' => Alignment::HORIZONTAL_LEFT],
-            'font' => ['bold' => true],
-        ]);
+        if ($columnMode) {
+            // Kolom A = Tim (di-merge vertikal per grup), kolom B = Karyawan - beda dari mode
+            // 'row' yang cuma 1 kolom nama.
+            $sheet->getStyle("A4:A{$dataLastRow}")->applyFromArray([
+                'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
+                'font' => ['bold' => true],
+            ]);
+            $sheet->getStyle("B4:B{$dataLastRow}")->applyFromArray([
+                'alignment' => ['horizontal' => Alignment::HORIZONTAL_LEFT],
+                'font' => ['bold' => true],
+            ]);
+            $this->styleTeamMergeRows($sheet);
+        } else {
+            $sheet->getStyle("A4:A{$dataLastRow}")->applyFromArray([
+                'alignment' => ['horizontal' => Alignment::HORIZONTAL_LEFT],
+                'font' => ['bold' => true],
+            ]);
+            $this->styleSeparatorRows($sheet, $lastCol);
+        }
 
-        $this->styleSeparatorRows($sheet, $lastCol);
-
-        // Freeze panes — baris 1-3 (judul, periode, header) + kolom Karyawan tetap kelihatan pas
-        // scroll tanggal, sama konsep sticky di tabel Detail Penjadwalan.
-        $sheet->freezePane("B4");
+        // Freeze panes — baris 1-3 (judul, periode, header) + kolom nama tetap kelihatan pas
+        // scroll tanggal, sama konsep sticky di tabel Detail Penjadwalan. Mode kolom nge-freeze
+        // 1 kolom lebih banyak (Tim + Karyawan, bukan cuma Karyawan).
+        $sheet->freezePane($columnMode ? 'C4' : 'B4');
 
         // ponytail: sel jadwal sengaja tidak diwarnai (instruksi user). Kode shift + "L" +
         // legenda sudah cukup; kalau nanti perlu versi berwarna lagi, kembalikan loop
@@ -198,6 +247,26 @@ class ScheduleShiftRosterExport implements FromArray, WithStyles, WithColumnWidt
                 'font' => ['bold' => true, 'size' => 11],
                 'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'E2E8F0']],
                 'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
+            ]);
+        }
+    }
+
+    /** Merge vertikal kolom Tim (A) per grup - versi Excel dari <td rowspan> di tabel Detail
+     * Penjadwalan web mode Kolom. Raw index di $teamMergeRows itu dari array() (0-based), sheet
+     * row-nya = rawIndex + 3, sama offset dengan styleSeparatorRows(). */
+    private function styleTeamMergeRows(Worksheet $sheet): void
+    {
+        foreach ($this->teamMergeRows as [$startRaw, $endRaw, $label]) {
+            $startRow = $startRaw + 3;
+            $endRow = $endRaw + 3;
+
+            if ($endRow > $startRow) {
+                $sheet->mergeCells("A{$startRow}:A{$endRow}");
+            }
+
+            $sheet->setCellValue("A{$startRow}", $label);
+            $sheet->getStyle("A{$startRow}:A{$endRow}")->applyFromArray([
+                'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'E2E8F0']],
             ]);
         }
     }

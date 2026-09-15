@@ -36,6 +36,8 @@
         .rf-hint { display:flex;align-items:center;gap:6px;font-size:10.5px;font-weight:600;color:#042c6c;background:color-mix(in srgb,#042c6c 8%,white);border:1px solid color-mix(in srgb,#042c6c 25%,white);border-radius:8px;padding:5px 10px;margin-bottom:8px; }
         /* Riwayat Tukar Shift tetap ke-mount (dipakai listener sel terkunci), cuma ikon pemicunya disembunyikan biar toolbar bersih. */
         .rf-hide-swaptrigger > div > button { display:none; }
+        .team-hover-panel { display:none; }
+        .team-hover:hover .team-hover-panel, .team-hover:focus-within .team-hover-panel { display:block; }
     </style>
     <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:14px;">
         <div style="display:flex;align-items:center;gap:10px;">
@@ -148,12 +150,21 @@
         @if ($schedule->use_teams)
             <span style="font-weight:700;color:var(--text-heading);">Regu:</span>
             @forelse ($this->teams as $team)
-                @php
-                    $teamShiftLabel = $team->shiftTypes->isNotEmpty()
-                        ? $team->shiftTypes->map(fn ($t) => "{$t->code} (".mb_strtoupper($t->name).')')->implode(', ')
-                        : 'Semua shift (tidak dibatasi)';
-                @endphp
-                <strong title="{{ $teamShiftLabel }}" style="cursor:help;font-size:12.5px;font-weight:800;padding:3px 10px;border-radius:6px;color:#fff;background:{{ $team->color ?: 'var(--text-faint)' }};">{{ $team->name }}</strong>
+                <div class="team-hover" tabindex="0" style="position:relative;outline:none;">
+                    <strong style="cursor:pointer;font-size:12.5px;font-weight:800;padding:3px 10px;border-radius:6px;color:#fff;background:{{ $team->color ?: 'var(--text-faint)' }};display:inline-flex;align-items:center;gap:5px;">
+                        {{ $team->name }} <i class="fa-solid fa-chevron-down" style="font-size:8px;opacity:0.85;"></i>
+                    </strong>
+                    <div class="team-hover-panel" style="position:absolute;top:calc(100% + 6px);left:0;z-index:15;background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:var(--shadow-card);padding:10px;min-width:210px;">
+                        <div style="font-size:10.5px;font-weight:700;color:var(--text-muted);margin-bottom:6px;white-space:nowrap;">Jatah shift {{ $team->name }}</div>
+                        <div style="display:flex;flex-wrap:wrap;gap:6px;">
+                            @forelse ($team->shiftTypes as $shiftType)
+                                <strong style="font-size:11px;font-weight:800;padding:2px 8px;border-radius:5px;white-space:nowrap;color:{{ $shiftType->font_color ?: '#fff' }};background:{{ $shiftType->color ?: 'var(--text-faint)' }};">{{ $shiftType->code }} ({{ mb_strtoupper($shiftType->name) }})</strong>
+                            @empty
+                                <span style="font-size:11px;color:var(--text-faint);white-space:nowrap;">Semua shift (tidak dibatasi)</span>
+                            @endforelse
+                        </div>
+                    </div>
+                </div>
             @empty
                 <span style="font-size:12px;">Belum ada Regu — atur di tab Regu.</span>
             @endforelse
@@ -169,14 +180,14 @@
         <i class="fa-solid fa-table-cells"></i>
         <span>Mode <strong>Isi Cepat</strong> aktif — dropdown sel dimatikan. Seret mendatar buat pilih sel, lalu seret kotak biru di pojok kanan-bawah buat mengulang pola. Matikan tombol "Isi Cepat" buat edit sel satu-satu lagi.</span>
     </div>
-    <div data-scrollbox :class="{ 'rf-on': fillMode, 'rf-grid-on': fillMode }" style="background:var(--surface);border-radius:12px;box-shadow:var(--shadow-card);overflow-x:auto;">
+    <div data-scrollbox :class="{ 'rf-on': fillMode, 'rf-grid-on': fillMode }" style="background:var(--surface);border-radius:12px;box-shadow:var(--shadow-card);max-height:100vh;overflow:auto;">
         <table style="border-collapse:collapse;font-size:11.5px;">
             <thead>
                 <tr style="border-bottom:1.5px solid var(--border);">
                     @if ($schedule->use_teams && $teamGroupMode === 'column')
-                        <th class="rf-sticky-col" style="text-align:center;padding:10px 8px;white-space:nowrap;position:sticky;left:0;top:0;background:var(--surface);z-index:4;">Tim</th>
+                        <th class="rf-sticky-col" style="text-align:center;padding:10px 8px;white-space:nowrap;min-width:130px;position:sticky;left:0;top:0;background:var(--surface);z-index:4;">Tim</th>
                     @endif
-                    <th class="rf-sticky-col" style="text-align:left;padding:10px 14px;white-space:nowrap;position:sticky;left:{{ ($schedule->use_teams && $teamGroupMode === 'column') ? '90px' : '0' }};top:0;background:var(--surface);z-index:4;">Karyawan</th>
+                    <th class="rf-sticky-col" style="text-align:left;padding:10px 14px;white-space:nowrap;position:sticky;left:{{ ($schedule->use_teams && $teamGroupMode === 'column') ? '130px' : '0' }};top:0;background:var(--surface);z-index:4;">Karyawan</th>
                     @foreach ($this->leadDates as $ld)
                         <th title="Bulan sebelumnya — hanya konteks, tidak bisa diedit" style="text-align:center;padding:8px 5px;white-space:nowrap;min-width:56px;position:sticky;top:0;background:var(--surface-alt);z-index:3;color:var(--text-faint);">
                             {{ $ld->format('d') }}<br>
@@ -242,14 +253,14 @@
                         @if ($schedule->use_teams && $teamGroupMode === 'column' && $isNewTeamGroup)
                             {{-- Kolom Tim rowspan — cuma dirender sekali per grup (baris pertamanya),
                                  menutupi semua baris anggota tim itu lewat rowspan. --}}
-                            <td rowspan="{{ $this->teamGroupSizes[$teamGroupKey] ?? 1 }}" class="rf-sticky-col" style="padding:6px 8px;text-align:center;font-size:11px;font-weight:800;vertical-align:middle;position:sticky;left:0;color:{{ $teamColor ? '#fff' : 'var(--text-heading)' }};background:{{ $teamColor ?? 'var(--surface-alt)' }};border-right:1px solid var(--border-soft);z-index:2;">
+                            <td rowspan="{{ $this->teamGroupSizes[$teamGroupKey] ?? 1 }}" class="rf-sticky-col" style="padding:6px 10px;text-align:center;font-size:11px;font-weight:800;min-width:130px;vertical-align:middle;position:sticky;left:0;color:{{ $teamColor ? '#fff' : 'var(--text-heading)' }};background:{{ $teamColor ?? 'var(--surface-alt)' }};border-right:1px solid var(--border-soft);z-index:2;">
                                 {{ $teamInfo['name'] ?? 'Tanpa Tim' }}
                                 @if ($groupShiftCodes)
                                     <br><span style="font-weight:600;font-size:9.5px;opacity:0.85;">{{ $groupShiftCodes }}</span>
                                 @endif
                             </td>
                         @endif
-                        <td style="padding:6px 12px;white-space:nowrap;font-weight:600;position:sticky;left:{{ ($schedule->use_teams && $teamGroupMode === 'column') ? '90px' : '0' }};background:var(--surface);z-index:1;">{{ $employee->name }}</td>
+                        <td style="padding:6px 12px;white-space:nowrap;font-weight:600;position:sticky;left:{{ ($schedule->use_teams && $teamGroupMode === 'column') ? '130px' : '0' }};background:var(--surface);z-index:1;">{{ $employee->name }}</td>
                         @foreach ($this->leadDates as $ld)
                             @php
                                 $lval = $userRoster[$ld->toDateString()] ?? '';

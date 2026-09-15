@@ -773,7 +773,7 @@ class ScheduleShiftRosterTab extends Component
         $teamNames = collect($this->employeeTeamInfo)->map(fn ($info) => $info['name'])->all();
 
         return Excel::download(
-            new ScheduleShiftRosterExport($this->schedule, $this->employees, $this->dates, $this->roster, $this->periodLabel, $teamNames),
+            new ScheduleShiftRosterExport($this->schedule, $this->employees, $this->dates, $this->roster, $this->periodLabel, $teamNames, $this->teamGroupMode),
             'detail-penjadwalan-'.str($this->schedule->name)->slug().'-'.$this->period.'.xlsx'
         );
     }
@@ -798,11 +798,12 @@ class ScheduleShiftRosterTab extends Component
         $rows = Excel::toArray(null, $this->importFile->getRealPath())[0] ?? [];
         $dataRows = array_slice($rows, 3);
 
-        // Kolom nama SELALU di posisi 0 - sejak 2026-09-15 export tidak lagi punya kolom "Tim"
-        // terpisah (diganti banner baris pemisah, lihat ScheduleShiftRosterExport), jadi tidak
-        // ada geseran posisi lagi. Baris banner tim itu sendiri dilewati di loop bawah (namanya
-        // tidak match employee manapun DAN semua kolom tanggalnya kosong).
-        $nameColIdx = 0;
+        // Kolom nama di posisi 0 (mode Baris - banner tim jadi baris pemisah, dilewati di loop
+        // bawah karena namanya tidak match employee manapun DAN semua kolom tanggalnya kosong)
+        // atau posisi 1 (mode Kolom - kolom 0 dipakai Tim, lihat ScheduleShiftRosterExport).
+        // Diasumsikan file yang diimpor hasil export dengan $teamGroupMode SAAT INI - ganti mode
+        // Baris/Kolom di antara export dan import bikin kolomnya salah baca.
+        $nameColIdx = ($this->schedule->use_teams && $this->teamGroupMode === 'column') ? 1 : 0;
 
         $employeesByName = $this->employees->keyBy(fn ($employee) => mb_strtolower(trim($employee->name)));
         $shiftTypesByCode = $this->schedule->shiftTypes->keyBy(fn ($type) => mb_strtolower($type->code));
