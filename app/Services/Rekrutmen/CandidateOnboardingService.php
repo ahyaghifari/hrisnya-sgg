@@ -45,6 +45,11 @@ class CandidateOnboardingService
         [$c, $email, $jobPosition, $companyId, $orientationType] =
             [$ctx['candidate'], $ctx['email'], $ctx['jobPosition'], $ctx['companyId'], $ctx['orientationType']];
 
+        // NIK saat registrasi akun pelamar (wajib & unik) lebih bisa diandalkan daripada
+        // NIK yang diisi ulang kandidat di form data diri — pakai itu dulu, fallback ke
+        // Candidate::nik buat akun lama sebelum kolom users.nik ada.
+        $nik = $ctx['app']->user?->nik ?: $c->nik;
+
         // Tanggal Bergabung = tanggal onboarding yang ditetapkan recruiter (TtdOnboardingPage);
         // fallback ke hari ini kalau belum diatur.
         $joiningDate = $ctx['app']->onboarding_date
@@ -55,7 +60,7 @@ class CandidateOnboardingService
             'employee_type_id'   => $orientationType->id,
             'nickname'            => $c->nickname,
             'marital_status'      => $c->status_marital,
-            'no_nik'             => $c->nik,
+            'no_nik'             => $nik,
             'no_kk'              => $c->no_kk,
             'no_bpjs_kes'        => $c->no_bpjskes,
             'no_bpjs_ket'        => $c->no_bpjstk,
@@ -143,6 +148,9 @@ class CandidateOnboardingService
         /** @var \App\Models\Rekrutmen\Candidate $c */
         $c = $ctx['candidate'];
         $jp = $ctx['jobPosition'];
+
+        // Sama seperti createEmployeeFromCandidate: NIK registrasi diutamakan.
+        $c->nik = $ctx['app']->user?->nik ?: $c->nik;
 
         $rows = [
             ['label' => 'Nama sesuai KTP', 'key' => 'name',            'required' => true],
