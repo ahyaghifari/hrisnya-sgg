@@ -64,6 +64,23 @@ class ScheduleShiftRosterTab extends Component
 
     public bool $showLogs = false;
 
+    /** Cara pembagian tim ditampilkan di grid — 'row' (default, baris pemisah colspan penuh
+     * per tim, instruksi user 2026-09-12) atau 'column' (kolom rowspan di samping nama
+     * karyawan, diminta user 2026-09-15 buat jadwal yang timnya sedikit/anggotanya banyak per
+     * tim, biar tidak makan baris ekstra). Preferensi TAMPILAN saja (bukan data jadwal) - disimpan
+     * ke session per browser (instruksi user 2026-09-15), bukan per-jadwal/per-user di DB, jadi
+     * cukup diingat sepanjang browser ini dipakai, tidak perlu migrasi tabel baru. */
+    public string $teamGroupMode = 'row';
+
+    private const TEAM_GROUP_MODE_SESSION_KEY = 'roster.team_group_mode';
+
+    public function setTeamGroupMode(string $mode): void
+    {
+        $this->teamGroupMode = $mode === 'column' ? 'column' : 'row';
+
+        session()->put(self::TEAM_GROUP_MODE_SESSION_KEY, $this->teamGroupMode);
+    }
+
     public function toggleLogs(): void
     {
         $this->showLogs = ! $this->showLogs;
@@ -80,6 +97,7 @@ class ScheduleShiftRosterTab extends Component
         $this->schedule = $schedule;
         $this->period = max(now()->format('Y-m'), self::MIN_PERIOD);
         $this->rotationStartDate = Carbon::createFromFormat('Y-m', $this->period)->startOfMonth()->toDateString();
+        $this->teamGroupMode = session()->get(self::TEAM_GROUP_MODE_SESSION_KEY) === 'column' ? 'column' : 'row';
     }
 
     public function getCanEditJadwalProperty(): bool
@@ -170,6 +188,30 @@ class ScheduleShiftRosterTab extends Component
                 // ScheduleShiftTeamMember::allowedShiftTypeIdsFor().
                 'shift_type_ids' => $m->team->shiftTypes->pluck('id')->all() ?: null,
             ]])
+            ->all();
+    }
+
+    /** Daftar Regu jadwal ini (bukan per periode - keanggotaan yang per-bulan, tapi daftar
+     * Regu & jatah shift-nya melekat ke Schedule) - dipakai ganti "Keterangan" flat jadi badge
+     * per Regu dengan hover isi shift jatahnya (instruksi user 2026-09-15), karyawan yang beda
+     * Regu bisa beda jatah shift jadi legend lama (semua shiftTypes schedule tanpa konteks Regu)
+     * menyesatkan begitu Regu aktif. */
+    public function getTeamsProperty()
+    {
+        return \App\Models\Shift\ScheduleShiftTeam::where('schedule_id', $this->schedule->id)
+            ->with('shiftTypes')
+            ->orderBy('name')
+            ->get();
+    }
+
+    /** @return array<string, int> nama tim (atau '__tanpa_tim__') => jumlah karyawan di grup itu -
+     * dipakai buat rowspan kolom Tim pas $teamGroupMode = 'column'. Employees sudah diurut per
+     * tim di getEmployeesProperty(), jadi grouping ini pasti menghasilkan blok yang berurutan. */
+    public function getTeamGroupSizesProperty(): array
+    {
+        return $this->employees
+            ->groupBy(fn ($u) => $this->employeeTeamInfo[$u->id]['name'] ?? '__tanpa_tim__')
+            ->map->count()
             ->all();
     }
 

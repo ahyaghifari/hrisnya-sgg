@@ -4,10 +4,13 @@ namespace App\Livewire\Presensi\Concerns;
 
 use App\Models\Shift\ExtraShiftAssignment;
 use App\Models\Shift\ExtraShiftRule;
+use App\Models\Shift\Schedule;
 use App\Models\Shift\ScheduleAssignment;
+use App\Models\Shift\ScheduleShiftTeamMember;
 use App\Models\Shift\ScheduleShiftType;
 use App\Models\User;
 use App\Services\Attendance\ScheduleResolver;
+use Carbon\Carbon;
 use Illuminate\Support\Collection;
 
 /**
@@ -85,7 +88,8 @@ trait ResolvesExtraShiftOptions
      * tidak punya shift normal di tanggal itu, SUDAH punya extra shift lain di tanggal itu, atau
      * tidak ada baris `extra_shift_rules` yang mengizinkan transisi dari kategori shift
      * normalnya. Opsinya diambil dari Schedule YANG SAMA dengan shift normal karyawan (bukan
-     * company-wide) - tidak masuk akal menugaskan shift dari jadwal unit lain.
+     * company-wide) - tidak masuk akal menugaskan shift dari jadwal unit lain. Kalau karyawan ini
+     * anggota Regu bulan itu, dipersempit lagi ke shift jatah Regu-nya saja (2026-09-15).
      *
      * @return Collection<int, ScheduleShiftType>
      */
@@ -106,10 +110,25 @@ trait ResolvesExtraShiftOptions
             return collect();
         }
 
-        return ScheduleShiftType::query()
+        $types = ScheduleShiftType::query()
             ->where('schedule_id', $normal['scheduleId'])
             ->whereIn('shift_type', $allowedCategories)
             ->orderBy('start_time')
             ->get();
+
+        // Karyawan ini anggota Regu bulan ini (jadwal pakai Regu) - Extra Shift dibatasi cuma
+        // shift jatah Regu-nya juga, sama seperti roster harian manual/generate (instruksi user
+        // 2026-09-15: Regu A tidak boleh nyerobot shift tambahan Regu B). null = tidak dibatasi
+        // (Regu tidak aktif / user belum punya Regu bulan ini), lihat allowedShiftTypeIdsFor().
+        $schedule = Schedule::find($normal['scheduleId']);
+        $allowedTeamIds = $schedule
+            ? ScheduleShiftTeamMember::allowedShiftTypeIdsFor($schedule, $user->id, Carbon::parse($date)->format('Y-m'))
+            : null;
+
+        if ($allowedTeamIds !== null) {
+            $types = $types->whereIn('id', $allowedTeamIds)->values();
+        }
+
+        return $types;
     }
 }
