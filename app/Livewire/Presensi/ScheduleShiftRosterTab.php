@@ -166,6 +166,15 @@ class ScheduleShiftRosterTab extends Component
         }
 
         $this->rotationStartDate = Carbon::createFromFormat('Y-m', $this->period)->startOfMonth()->toDateString();
+
+        // Carry-over Tim bulan depan - logic bersama sama ScheduleShiftTeamTab, TIDAK boleh
+        // tergantung tab mana yang dibuka duluan (instruksi user 2026-09-16). No-op sendiri kalau
+        // $period bukan bulan depan; guard use_teams di sini cuma hemat query kalau jadwal ini
+        // memang tidak pakai Tim sama sekali.
+        if ($this->schedule->use_teams) {
+            ScheduleShiftTeamMember::autoCarryNextMonthFromCurrent($this->schedule, $this->employees, $this->period, Auth::id());
+            unset($this->employeeTeamInfo);
+        }
     }
 
     public function getPeriodLabelProperty(): string

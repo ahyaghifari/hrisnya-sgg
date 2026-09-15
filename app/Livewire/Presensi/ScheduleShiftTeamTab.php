@@ -79,27 +79,14 @@ class ScheduleShiftTeamTab extends Component
             return;
         }
 
-        // Carry-over: bulan DEPAN (relatif ke bulan berjalan ASLI, bukan periode manapun yang lagi
-        // dibuka) yang belum punya keanggotaan sama sekali diwariskan dari bulan berjalan dan
-        // LANGSUNG DISIMPAN ke DB (bukan cuma prefill draft lagi - instruksi user 2026-09-16,
-        // revisi dari versi awal 2026-09-13 yang masih nunggu klik Simpan manual per orang).
-        // Idempotent: setForPeriod() upsert, sekali kesimpen kunjungan berikutnya cuma baca baris
-        // yang sudah ada (tidak nulis ulang). Bulan 2+ ke depan sengaja TIDAK diwarisi - lihat
-        // getPeriodLockedProperty(), sudah dikunci total sebelum sampai sini.
-        $isNextMonth = $this->period === now()->addMonth()->format('Y-m');
-        $currentMonth = now()->format('Y-m');
+        // Carry-over bulan depan - logic bersama di ScheduleShiftTeamMember::autoCarryNextMonthFromCurrent()
+        // (dipanggil juga dari ScheduleShiftRosterTab, instruksi user 2026-09-16: tidak boleh
+        // tergantung tab mana yang dibuka duluan). Bulan 2+ ke depan sengaja TIDAK diwarisi -
+        // lihat getPeriodLockedProperty(), sudah dikunci total sebelum sampai sini.
+        ScheduleShiftTeamMember::autoCarryNextMonthFromCurrent($this->schedule, $this->employees, $this->period, Auth::id());
 
         foreach ($this->employees as $user) {
             $current = ScheduleShiftTeamMember::forPeriod($this->schedule->id, $user->id, $this->period);
-
-            if (! $current && $isNextMonth) {
-                $carryFrom = ScheduleShiftTeamMember::forPeriod($this->schedule->id, $user->id, $currentMonth);
-
-                if ($carryFrom) {
-                    $current = ScheduleShiftTeamMember::setForPeriod($this->schedule, $user, $carryFrom->team, $this->period, Auth::id());
-                }
-            }
-
             $this->assignForm[$user->id] = $current?->team_id ?? '';
         }
     }

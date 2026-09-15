@@ -62,6 +62,33 @@ class ScheduleShiftTeamMember extends Model
         );
     }
 
+    /** Carry-over Tim bulan DEPAN (relatif ke bulan berjalan ASLI) dari bulan berjalan, LANGSUNG
+     * disimpan (upsert, idempotent) - dipanggil dari tab Regu MAUPUN tab Detail Penjadwalan
+     * (instruksi user 2026-09-16: siapa pun yang buka bulan depan duluan yang men-trigger, tidak
+     * boleh tergantung urutan buka tab). No-op kalau $period BUKAN bulan depan. Karyawan yang
+     * bulan berjalannya juga belum punya Tim dilewati (carry-over butuh sumber, tidak bikin baris
+     * kosong) - jadi otomatis no-op juga kalau schedule ini memang belum pernah pakai Tim. */
+    public static function autoCarryNextMonthFromCurrent(Schedule $schedule, iterable $employees, string $period, string $actorId): void
+    {
+        if ($period !== now()->addMonth()->format('Y-m')) {
+            return;
+        }
+
+        $currentMonth = now()->format('Y-m');
+
+        foreach ($employees as $user) {
+            if (static::forPeriod($schedule->id, $user->id, $period)) {
+                continue;
+            }
+
+            $carryFrom = static::forPeriod($schedule->id, $user->id, $currentMonth);
+
+            if ($carryFrom) {
+                static::setForPeriod($schedule, $user, $carryFrom->team, $period, $actorId);
+            }
+        }
+    }
+
     /** Lepas user dari regu apa pun ("Tanpa Regu") untuk 1 bulan tertentu. */
     public static function removeForPeriod(Schedule $schedule, User $user, string $period): void
     {

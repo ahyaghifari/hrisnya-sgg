@@ -768,4 +768,29 @@ class ScheduleShiftRosterTabTest extends TestCase
                 ->exists()
         );
     }
+
+    /** Carry-over Tim bulan depan tidak boleh cuma jalan pas buka tab Regu - buka Detail
+     * Penjadwalan duluan (tanpa pernah ke tab Regu) juga harus men-trigger (instruksi user
+     * 2026-09-16). Lihat ScheduleShiftTeamMember::autoCarryNextMonthFromCurrent(). */
+    public function test_opening_next_month_in_roster_tab_also_auto_persists_team(): void
+    {
+        [$schedule, $shiftType, $employee] = $this->makeManualShiftSchedule();
+        $schedule->update(['use_teams' => true]);
+        $user = $this->actingAsAbsensi();
+        $team = ScheduleShiftTeam::create(['schedule_id' => $schedule->id, 'name' => 'Regu A']);
+        $currentMonth = now()->format('Y-m');
+        $nextMonth = now()->addMonth()->format('Y-m');
+
+        ScheduleShiftTeamMember::setForPeriod($schedule, $employee, $team, $currentMonth, $user->id);
+        $this->assertNull(ScheduleShiftTeamMember::forPeriod($schedule->id, $employee->id, $nextMonth));
+
+        Livewire::actingAs($user)
+            ->test(ScheduleShiftRosterTab::class, ['schedule' => $schedule])
+            ->set('period', $nextMonth);
+
+        $this->assertSame(
+            $team->id,
+            ScheduleShiftTeamMember::forPeriod($schedule->id, $employee->id, $nextMonth)?->team_id
+        );
+    }
 }
