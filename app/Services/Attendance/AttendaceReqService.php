@@ -204,6 +204,15 @@ class AttendaceReqService
         // ini jaring pengaman server-side).
         $this->assertCutiTahunanEligibility($actingUser, $leaveType, $data);
 
+        // Masa kerja minimal (CUTI_MIN_MASA_KERJA_BULAN) berlaku ke jenis cuti selain Tahunan
+        // (Tahunan punya jendela sendiri yang boleh diisi 1 bulan lebih awal, lihat
+        // assertCutiTahunanEligibility di atas) — dropdown form sudah menyaring jenis cuti
+        // lain kalau belum terpenuhi (SubmitLeaveRequest::getLeaveTypesProperty), ini jaring
+        // pengaman server-side.
+        if (! $leaveType || $leaveType->category !== LeaveTypeCategoryEnum::TAHUNAN->value) {
+            $this->assertMinimumTenureMet($actingUser);
+        }
+
         $request = $this->attendanceReqRepository->storeAttendanceRequest([
             'user_id' => $userId,
             'created_by' => $createdBy->id,
@@ -291,14 +300,13 @@ class AttendaceReqService
     }
 
     /**
-     * Setting AttendanceSettingEnum::CUTI_MIN_MASA_KERJA_BULAN (module attendance,
-     * company-scoped) — TIDAK memblokir submit (sengaja, sama seperti kuota Cuti
-     * Tahunan/Izin di atas), cuma dipakai buat tampilkan warning ke pemohon (form pengajuan)
-     * dan approver (detail pengajuan) kalau masa kerja user (dihitung dari
-     * UserProfiles::joining_date) belum mencapai minimal sekian bulan. 0/tidak diset/
-     * joining_date kosong = tidak ada warning.
+     * Bulan kerja user (dihitung dari UserProfiles::joining_date) vs
+     * AttendanceSettingEnum::CUTI_MIN_MASA_KERJA_BULAN — null kalau tidak ada batasan
+     * (setting 0/tidak diset, atau joining_date kosong).
+     *
+     * @return array{months_worked: int, min_months: int}|null
      */
-    public function getMinimumTenureWarning(User $user): ?string
+    private function tenureStatus(User $user): ?array
     {
         $minMonths = (int) Setting::resolve(AttendanceSettingEnum::CUTI_MIN_MASA_KERJA_BULAN->value, $user->company_id, default: 0);
 
@@ -312,13 +320,62 @@ class AttendaceReqService
             return null;
         }
 
-        $monthsWorked = (int) Carbon::parse($joiningDate)->diffInMonths(Carbon::now());
+        return ['months_worked' => (int) Carbon::parse($joiningDate)->diffInMonths(Carbon::now()), 'min_months' => $minMonths];
+    }
 
-        if ($monthsWorked >= $minMonths) {
+    /**
+     * Setting AttendanceSettingEnum::CUTI_MIN_MASA_KERJA_BULAN berlaku ke SEMUA jenis cuti —
+     * dipakai SubmitLeaveRequest::getLeaveTypesProperty() buat sembunyikan semua jenis cuti
+     * dari dropdown kalau belum terpenuhi, dan assertMinimumTenureMet() di bawah buat blokir
+     * server-side. True kalau tidak ada batasan (setting 0/tidak diset, atau joining_date
+     * kosong).
+     */
+    public function minimumTenureMet(User $user): bool
+    {
+        $status = $this->tenureStatus($user);
+
+        return ! $status || $status['months_worked'] >= $status['min_months'];
+    }
+
+    /**
+     * Warning buat approver (detail pengajuan) kalau masa kerja pemohon belum mencapai
+     * minimal sekian bulan saat pengajuan ini dibuat. Pemohon sendiri sudah tidak bisa
+     * mengajukan sama sekali kalau masa kerja belum cukup (lihat minimumTenureMet()) — warning
+     * ini cuma relevan buat pengajuan lama/manual yang dibuat sebelum masa kerja cukup.
+     */
+    public function getMinimumTenureWarning(User $user): ?string
+    {
+        $status = $this->tenureStatus($user);
+
+        if (! $status || $status['months_worked'] >= $status['min_months']) {
             return null;
         }
 
-        return "Masa kerja {$user->name} baru {$monthsWorked} bulan (minimal kebijakan perusahaan: {$minMonths} bulan) — pertimbangkan sebelum menyetujui.";
+        return "Masa kerja {$user->name} baru {$status['months_worked']} bulan (minimal kebijakan perusahaan: {$status['min_months']} bulan) — pertimbangkan sebelum menyetujui.";
+    }
+
+    /**
+     * Pesan buat pemohon (form pengajuan) kalau masa kerja belum mencapai minimal kebijakan
+     * perusahaan — semua jenis cuti disembunyikan dari dropdown selama ini. Null kalau tidak
+     * dibatasi atau sudah terpenuhi.
+     */
+    public function getMinimumTenureBlockNote(User $user): ?string
+    {
+        $status = $this->tenureStatus($user);
+
+        if (! $status || $status['months_worked'] >= $status['min_months']) {
+            return null;
+        }
+
+        return "Anda belum bisa mengajukan cuti — masa kerja baru {$status['months_worked']} bulan (minimal kebijakan perusahaan: {$status['min_months']} bulan).";
+    }
+
+    /** Jaring pengaman server-side buat minimumTenureMet() — lihat storeLeaveRequest(). */
+    private function assertMinimumTenureMet(User $actingUser): void
+    {
+        if (! $this->minimumTenureMet($actingUser)) {
+            throw new \Exception('Anda belum bisa mengajukan cuti — masa kerja belum mencapai minimal kebijakan perusahaan.');
+        }
     }
 
     /**

@@ -193,4 +193,65 @@ class CutiTahunanEligibilityWindowTest extends TestCase
 
         $this->assertSame(1, AttendanceRequests::where('user_id', $user->id)->count());
     }
+
+    private function cutiBiasaType(Companies $company): LeaveTypes
+    {
+        return LeaveTypes::create([
+            'company_id' => $company->id, 'name' => 'Cuti Biasa',
+            'category' => null, 'quota_days' => 12,
+            'reset_period' => 'yearly', 'is_paid' => true,
+        ]);
+    }
+
+    /** Masa kerja minimal (instruksi user 2026-09-15) berlaku ke jenis cuti SELAIN Tahunan
+     *  juga - disembunyikan dari dropdown & ditolak kalau di-submit langsung, tidak cuma
+     *  warning. Beda dari Tahunan yang punya jendela "boleh diisi 1 bulan lebih awal". */
+    public function test_non_tahunan_leave_type_hidden_and_rejected_before_tenure_met(): void
+    {
+        $company = $this->companyWithApprovalFlow();
+        $this->setMinMasaKerjaBulan($company, 12);
+        $type = $this->cutiBiasaType($company);
+        $user = $this->userJoinedOn($company, '2026-01-01'); // baru 2 bulan
+        $this->be($user);
+
+        \Carbon\Carbon::setTestNow('2026-03-01');
+
+        $types = Livewire::test(SubmitLeaveRequest::class)->instance()->leaveTypes;
+        $this->assertFalse($types->contains('id', $type->id));
+
+        Livewire::test(SubmitLeaveRequest::class)
+            ->set('leave_type_id', $type->id)
+            ->set('start_date', '2026-03-05')
+            ->set('end_date', '2026-03-05')
+            ->call('submit');
+
+        $this->assertSame(0, AttendanceRequests::where('user_id', $user->id)->count());
+
+        \Carbon\Carbon::setTestNow();
+    }
+
+    /** Sekali masa kerja minimal terpenuhi, jenis cuti selain Tahunan normal lagi. */
+    public function test_non_tahunan_leave_type_shown_and_allowed_once_tenure_met(): void
+    {
+        $company = $this->companyWithApprovalFlow();
+        $this->setMinMasaKerjaBulan($company, 1);
+        $type = $this->cutiBiasaType($company);
+        $user = $this->userJoinedOn($company, '2026-01-01');
+        $this->be($user);
+
+        \Carbon\Carbon::setTestNow('2026-03-01'); // 2 bulan kerja >= minimal 1 bulan
+
+        $types = Livewire::test(SubmitLeaveRequest::class)->instance()->leaveTypes;
+        $this->assertTrue($types->contains('id', $type->id));
+
+        Livewire::test(SubmitLeaveRequest::class)
+            ->set('leave_type_id', $type->id)
+            ->set('start_date', '2026-03-05')
+            ->set('end_date', '2026-03-05')
+            ->call('submit');
+
+        $this->assertSame(1, AttendanceRequests::where('user_id', $user->id)->count());
+
+        \Carbon\Carbon::setTestNow();
+    }
 }

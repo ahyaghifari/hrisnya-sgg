@@ -33,17 +33,19 @@ class SubmitLeaveRequest extends Component
 
     public function getLeaveTypesProperty()
     {
+        $service = app(AttendaceReqService::class);
         $isFemale = Auth::user()->profile?->gender === 'perempuan';
+        $tenureMet = $service->minimumTenureMet(Auth::user());
 
         // Jendela pengajuan Cuti Tahunan baru buka 1 bulan sebelum masa kerja minimal
         // terpenuhi (lihat AttendaceReqService::assertCutiTahunanEligibility) - sebelum itu
         // Cuti Tahunan disaring dari dropdown sama sekali, bukan cuma warning. null = tidak
         // dibatasi (setting 0/tidak diset, atau joining_date kosong).
-        $windowOpen = app(AttendaceReqService::class)->cutiTahunanEligibleDate(Auth::user())?->subMonth();
+        $windowOpen = $service->cutiTahunanEligibleDate(Auth::user())?->subMonth();
 
         return LeaveTypes::where('company_id', Auth::user()->company_id)
             ->get()
-            ->reject(function ($type) use ($isFemale, $windowOpen) {
+            ->reject(function ($type) use ($isFemale, $windowOpen, $tenureMet) {
                 $cat = LeaveTypeCategoryEnum::tryFrom($type->category ?? '');
 
                 // Cuti haid/melahirkan/keguguran cuma buat karyawan perempuan.
@@ -51,18 +53,23 @@ class SubmitLeaveRequest extends Component
                     return true;
                 }
 
-                if ($cat === LeaveTypeCategoryEnum::TAHUNAN && $windowOpen && now()->lt($windowOpen)) {
-                    return true;
+                if ($cat === LeaveTypeCategoryEnum::TAHUNAN) {
+                    return $windowOpen && now()->lt($windowOpen);
                 }
 
-                return false;
+                // Jenis cuti lain (bukan Tahunan) - masa kerja minimal berlaku langsung, tidak
+                // ada jendela "boleh diisi lebih awal" seperti Tahunan.
+                return ! $tenureMet;
             })
             ->values();
     }
 
-    public function getTenureWarningProperty(): ?string
+    /** Kenapa jenis cuti selain Tahunan kosong dari dropdown - masa kerja belum mencapai
+     *  minimal kebijakan perusahaan (CUTI_MIN_MASA_KERJA_BULAN). Null kalau tidak dibatasi
+     *  atau sudah terpenuhi. */
+    public function getMinimumTenureNoteProperty(): ?string
     {
-        return app(AttendaceReqService::class)->getMinimumTenureWarning(Auth::user());
+        return app(AttendaceReqService::class)->getMinimumTenureBlockNote(Auth::user());
     }
 
     /** Kenapa Cuti Tahunan tidak muncul di dropdown (belum masuk jendela pengajuan) - null
