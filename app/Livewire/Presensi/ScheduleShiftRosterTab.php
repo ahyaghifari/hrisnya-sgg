@@ -305,8 +305,15 @@ class ScheduleShiftRosterTab extends Component
         $start = Carbon::createFromFormat('Y-m', $this->period)->startOfMonth()->toDateString();
         $end = Carbon::createFromFormat('Y-m', $this->period)->endOfMonth()->toDateString();
 
+        // Tanggal dibatasi di QUERY (bukan cuma di-filter di PHP setelah tarik semua histori
+        // swap sepanjang masa) - dulu ambil SEMUA in_review/approved sejak jadwal ini ada, makin
+        // lama makin berat kena tarik ulang tiap render (dikeluhkan user "berat" 2026-09-15).
         $swaps = ShiftSwapRequests::whereIn('status', ['in_review', 'approved'])
             ->whereHas('reqSchedule.shiftType', fn ($q) => $q->where('schedule_id', $this->schedule->id))
+            ->where(function ($q) use ($start, $end) {
+                $q->whereHas('reqSchedule', fn ($q2) => $q2->whereBetween('date', [$start, $end]))
+                    ->orWhereHas('targetSchedule', fn ($q2) => $q2->whereBetween('date', [$start, $end]));
+            })
             ->with(['reqSchedule:id,user_id,date', 'targetSchedule:id,user_id,date'])
             ->get();
 
@@ -631,8 +638,11 @@ class ScheduleShiftRosterTab extends Component
         ]);
     }
 
-    /** Isi roster 1 periode dari rotasi tiap karyawan — insertOrIgnore lewat firstOrCreate,
-     * tidak pernah menimpa baris yang sudah ada. */
+    /** Isi roster 1 periode dari rotasi tiap karyawan — tidak pernah menimpa baris yang sudah
+     * ada. Dibatch (1 query rotasi semua karyawan, 1 query existing assignments, 1 insert, 1 log
+     * insert) - versi lama panggil ScheduleShiftRotation::dayNumberFor() (ada count() query di
+     * dalamnya) + 1 SELECT rotasi + firstOrCreate (SELECT+INSERT) PER SEL, jadi ribuan query buat
+     * roster besar (mis. 50 karyawan x 30 hari = ribuan query, dikeluhkan user "berat" 2026-09-15). */
     public function generateFromTemplate(): void
     {
         abort_unless(Auth::user()->can('Update:ShiftScheduleAssignments'), 403);
@@ -648,10 +658,43 @@ class ScheduleShiftRosterTab extends Component
 
         $anchor = Carbon::parse($this->rotationStartDate);
         $lockBeforeDate = $this->lockBeforeDate();
+        $employeeIds = $this->employees->pluck('id')->all();
+        $dates = $this->dates;
+        $dateStrings = collect($dates)->map->toDateString();
+
+        // Semua rotasi karyawan-karyawan ini, dikelompokkan user_id => [day => row] - ganti 1
+        // SELECT per sel jadi 1 query total. Panjang siklus tiap user dari jumlah baris rotasinya
+        // sendiri (sama seperti dayNumberFor() dulu hitung, cuma sekali per karyawan bukan per sel).
+        $rotationsByUser = ScheduleShiftRotation::where('schedule_id', $this->schedule->id)
+            ->whereIn('user_id', $employeeIds)
+            ->get()
+            ->groupBy('user_id')
+            ->map(fn ($rows) => $rows->keyBy('day'));
+
+        // Sel yang SUDAH ada roster-nya di periode ini - dilewati (tidak ditimpa), dicek dari
+        // 1 query di awal (bukan firstOrCreate SELECT per sel).
+        $existingKeys = ScheduleShiftAssignment::whereIn('user_id', $employeeIds)
+            ->whereBetween('date', [$dateStrings->min(), $dateStrings->max()])
+            ->get(['user_id', 'date'])
+            ->map(fn ($row) => $row->user_id . '|' . $row->date->toDateString())
+            ->flip();
+
+        $now = now();
+        $companyId = $this->schedule->company_id;
+        $actorId = Auth::id();
+        $insertRows = [];
+        $logRows = [];
         $filled = 0;
 
         foreach ($this->employees as $employee) {
-            foreach ($this->dates as $date) {
+            $rotationByDay = $rotationsByUser->get($employee->id);
+            $cycleLength = $rotationByDay?->count() ?? 0;
+
+            if ($cycleLength === 0) {
+                continue;
+            }
+
+            foreach ($dates as $date) {
                 // Rotasi cuma berlaku MULAI dari $anchor — tanggal sebelum itu (kalau periode
                 // yang digenerate lebih awal dari tanggal mulai) sengaja dilewati, bukan
                 // diekstrapolasi mundur.
@@ -665,16 +708,16 @@ class ScheduleShiftRosterTab extends Component
                     continue;
                 }
 
-                $dayNumber = ScheduleShiftRotation::dayNumberFor($this->schedule->id, $employee->id, $anchor, $date, $this->rotationStartDay);
+                $dateStr = $date->toDateString();
 
-                if ($dayNumber === null) {
+                if (isset($existingKeys[$employee->id . '|' . $dateStr])) {
                     continue;
                 }
 
-                $rotationRow = ScheduleShiftRotation::where('schedule_id', $this->schedule->id)
-                    ->where('user_id', $employee->id)
-                    ->where('day', $dayNumber)
-                    ->first();
+                $diff = $anchor->diffInDays($date, false) + ($this->rotationStartDay - 1);
+                $dayNumber = (($diff % $cycleLength) + $cycleLength) % $cycleLength + 1;
+
+                $rotationRow = $rotationByDay->get($dayNumber);
 
                 if (! $rotationRow || (! $rotationRow->off_day && ! $rotationRow->shift_type_id)) {
                     continue;
@@ -686,21 +729,40 @@ class ScheduleShiftRosterTab extends Component
                     continue;
                 }
 
-                $assignment = ScheduleShiftAssignment::firstOrCreate(
-                    ['user_id' => $employee->id, 'date' => $date->toDateString()],
-                    [
-                        'company_id' => $this->schedule->company_id,
-                        'shift_type_id' => $rotationRow->shift_type_id,
-                        'off_day' => $rotationRow->off_day,
-                        'created_by' => Auth::id(),
-                    ]
-                );
+                $insertRows[] = [
+                    'id' => (string) Str::ulid(),
+                    'user_id' => $employee->id,
+                    'date' => $dateStr,
+                    'company_id' => $companyId,
+                    'shift_type_id' => $rotationRow->shift_type_id,
+                    'off_day' => $rotationRow->off_day,
+                    'created_by' => $actorId,
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ];
 
-                if ($assignment->wasRecentlyCreated) {
-                    $filled++;
-                    $this->logRosterChange($employee->id, $date->toDateString(), null, $rotationRow->off_day ? 'off' : $rotationRow->shift_type_id, 'generate');
-                }
+                $logRows[] = [
+                    'id' => (string) Str::ulid(),
+                    'schedule_id' => $this->schedule->id,
+                    'user_id' => $employee->id,
+                    'date' => $dateStr,
+                    'old_value' => null,
+                    'new_value' => $rotationRow->off_day ? 'off' : $rotationRow->shift_type_id,
+                    'source' => 'generate',
+                    'changed_by' => $actorId,
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ];
+
+                $filled++;
             }
+        }
+
+        if ($insertRows) {
+            DB::transaction(function () use ($insertRows, $logRows) {
+                ScheduleShiftAssignment::insert($insertRows);
+                ScheduleShiftRosterLog::insert($logRows);
+            });
         }
 
         unset($this->roster, $this->rosterLogs);
