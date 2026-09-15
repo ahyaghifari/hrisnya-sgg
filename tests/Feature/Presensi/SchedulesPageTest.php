@@ -29,7 +29,7 @@ class SchedulesPageTest extends TestCase
 
     private function actingAsAbsensi(): User
     {
-        $literals = [CustomPermissionEnum::SISTEM_ABSENSI->value, 'ViewAny:Schedule', 'Create:Schedule', 'Update:Schedule', 'Delete:Schedule'];
+        $literals = [CustomPermissionEnum::SISTEM_ABSENSI->value, 'ViewAny:Schedule', 'Create:Schedule', 'Update:Schedule', 'Delete:Schedule', 'Duplicate:Schedule'];
         foreach ($literals as $literal) {
             Permission::firstOrCreate(['name' => $literal, 'guard_name' => 'web']);
         }
@@ -128,5 +128,30 @@ class SchedulesPageTest extends TestCase
             ->assertForbidden();
 
         $this->assertDatabaseHas('schedules', ['id' => $schedule->id]);
+    }
+
+    /** Duplikat sekarang permission sendiri (Duplicate:Schedule) - Create:Schedule TIDAK cukup
+     * lagi (instruksi user 2026-09-16, lihat migration seed_duplicate_schedule_permission). */
+    public function test_cannot_duplicate_schedule_without_duplicate_permission(): void
+    {
+        $literals = [CustomPermissionEnum::SISTEM_ABSENSI->value, 'ViewAny:Schedule', 'Create:Schedule'];
+        foreach ($literals as $literal) {
+            Permission::firstOrCreate(['name' => $literal, 'guard_name' => 'web']);
+        }
+        $role = Role::firstOrCreate(['name' => 'Create Only Schedules Test', 'guard_name' => 'web']);
+        $role->givePermissionTo($literals);
+        $user = User::factory()->create();
+        $user->assignRole($role);
+
+        $company = $this->makeCompany();
+        $source = Schedule::create(['company_id' => $company->id, 'name' => 'Jadwal Sumber', 'schedule_type' => ScheduleType::FIXED->value]);
+
+        Livewire::actingAs($user)
+            ->test(SchedulesPage::class)
+            ->set('companyId', $company->id)
+            ->call('duplicateSchedule', $source->id)
+            ->assertForbidden();
+
+        $this->assertDatabaseMissing('schedules', ['name' => 'Jadwal Sumber (Salinan)']);
     }
 }

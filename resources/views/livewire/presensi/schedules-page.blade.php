@@ -57,11 +57,11 @@
                                             <i class="fa-solid fa-pen"></i> Edit
                                         </a>
                                     @endcan
-                                    @if ($this->canCreateSchedule)
+                                    @can('duplicate', $schedule)
                                         <button type="button" wire:click="duplicateSchedule('{{ $schedule->id }}')" wire:confirm="Duplikat jadwal &quot;{{ $schedule->name }}&quot;? Peraturannya (hari & tipe shift) disalin; penempatan jabatan &amp; rotasi tidak ikut." class="btn-ghost" style="padding:5px 12px;font-size:11.5px;">
                                             <i class="fa-solid fa-copy"></i> Duplikat
                                         </button>
-                                    @endif
+                                    @endcan
                                     @can('delete', $schedule)
                                         @unless ($this->hasAttendanceHistory($schedule))
                                             <button type="button" wire:click="deleteSchedule('{{ $schedule->id }}')" wire:confirm="Hapus jadwal &quot;{{ $schedule->name }}&quot;? Semua pengaturan hari & penempatan jabatannya ikut terhapus." class="btn-ghost" style="padding:5px 12px;font-size:11.5px;color:#dc2626;">

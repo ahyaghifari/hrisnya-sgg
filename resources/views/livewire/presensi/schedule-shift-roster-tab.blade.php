@@ -361,7 +361,9 @@
                                     @elseif (! $editMode)
                                         title="Klik &quot;Mulai Isi Jadwal&quot; dulu buat mengubah."
                                     @endif
-                                    style="width:52px;padding:6px 2px;font-size:10.5px;text-align:center;font-weight:700;border:none;border-radius:5px;{{ $locked ? 'cursor:not-allowed;opacity:0.7;' : 'cursor:pointer;' }}color:{{ $currentFontColor }};{{ $isOff ? "background:{$offBg};" : ($currentColor ? "background:{$currentColor};" : 'background:var(--surface-alt);') }}">
+                                    {{-- opacity locked dikurangi TIPIS aja (0.92, dulu 0.7) - kebanyakan bikin
+                                    warna sel beda jauh dari warna shift sebenarnya (dilaporkan user 2026-09-16). --}}
+                                    style="width:52px;padding:6px 2px;font-size:10.5px;text-align:center;font-weight:700;border:none;border-radius:5px;{{ $locked ? 'cursor:not-allowed;opacity:0.92;' : 'cursor:pointer;' }}color:{{ $currentFontColor }};{{ $isOff ? "background:{$offBg};" : ($currentColor ? "background:{$currentColor};" : 'background:var(--surface-alt);') }}">
                                     <option value="" {{ $current === '' ? 'selected' : '' }}>-</option>
                                     @if ($currentOutsideTeam)
                                         <option value="{{ $current }}" selected title="Di luar daftar shift Tim karyawan ini">{{ $currentType->code }} &#9888;</option>

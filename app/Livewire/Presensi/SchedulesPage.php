@@ -122,9 +122,9 @@ class SchedulesPage extends Component
      */
     public function duplicateSchedule(string $id): void
     {
-        abort_unless(Auth::user()->can('create', Schedule::class), 403);
-
         $source = Schedule::with(['fixedDays', 'flexibleDays', 'shiftTypes'])->findOrFail($id);
+
+        abort_unless(Auth::user()->can('duplicate', $source), 403);
 
         DB::transaction(function () use ($source) {
             $copy = $source->replicate(['head_user_id']);

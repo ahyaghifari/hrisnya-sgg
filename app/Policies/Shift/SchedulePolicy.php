@@ -27,6 +27,14 @@ class SchedulePolicy
         return $authUser->can('Create:Schedule');
     }
 
+    /** Duplikat 1 jadwal jadi jadwal baru - permission sendiri (Duplicate:Schedule, bukan
+     * reuse Create:Schedule lagi), instruksi user 2026-09-16, lihat migration
+     * 2026_09_16_100000_seed_duplicate_schedule_permission.php. */
+    public function duplicate(AuthUser $authUser, Schedule $schedule): bool
+    {
+        return $authUser->can('Duplicate:Schedule');
+    }
+
     public function update(AuthUser $authUser, Schedule $schedule): bool
     {
         return $authUser->can('Update:Schedule');
