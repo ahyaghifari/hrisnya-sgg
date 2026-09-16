@@ -2,8 +2,10 @@
 
 namespace App\Livewire\Presensi;
 
+use App\Models\Shift\Schedule;
 use App\Models\Shift\ScheduleAssignment;
 use App\Models\Shift\ScheduleShiftAssignment;
+use App\Models\Shift\ScheduleShiftTeamMember;
 use App\Services\Shift\ShiftSwapRequestService;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\Auth;
@@ -31,10 +33,11 @@ use Livewire\Component;
  * untuk mengambil alih 1 shift kerja rekan di tanggal itu sebagai kompensasi (instruksi user
  * 2026-09-14 - bukan sekadar tanggal kosong mana pun yang kebetulan tidak bentrok, dan bukan
  * gratisan seperti storeOffDay() lama yang sudah dihapus). Beda dari 2 mode lain: rekan dipilih
- * DULU (getOffDayCandidatesProperty), baru tanggal kompensasi (getCompensationCandidatesProperty
- * - irisan shift kerja rekan dengan tanggal Libur pemohon sendiri). Konflik nyata di mode ini
- * diblok KERAS oleh service (bukan warning-only), jadi conflictWarnings tidak dipakai untuk mode
- * ini.
+ * DULU (getOffDayCandidatesProperty, dipersempit ke sesama Regu kalau jadwalnya pakai Regu -
+ * instruksi user 2026-09-16), baru tanggal kompensasi (getCompensationCandidatesProperty - irisan
+ * shift kerja rekan dengan tanggal Libur pemohon sendiri). Konflik nyata di mode ini diblok KERAS
+ * oleh service (bukan warning-only, tetap dipertahankan begitu - instruksi user 2026-09-16),
+ * jadi conflictWarnings tidak dipakai untuk mode ini.
  */
 class ShiftSwapRequestModal extends Component
 {
@@ -81,17 +84,12 @@ class ShiftSwapRequestModal extends Component
         $this->dateMode = 'same';
     }
 
-    /** Jarak minimal hari pengajuan dari Pengaturan Absensi (0 = tidak diatur). */
-    public function getMinLeadDaysProperty(): int
-    {
-        return app(ShiftSwapRequestService::class)->minLeadDays(Auth::user()->company_id);
-    }
-
-    /** Tanggal paling awal yang boleh dipilih & default reqDate = hari ini + jarak minimal, dengan
-     * lantai 1 hari (shift hari ini tidak bisa ditukar walau setting jarak minimal = 0). */
+    /** Tanggal paling awal yang boleh dipilih & default reqDate - hari ini, tidak boleh
+     * sebelumnya. Jarak minimal hari pengajuan (dulu diatur lewat Pengaturan Absensi) SENGAJA
+     * dimatikan total (instruksi user 2026-09-16). */
     public function getMinDateProperty(): string
     {
-        return now()->addDays(max(1, $this->minLeadDays))->toDateString();
+        return now()->toDateString();
     }
 
     /** Saldo tukar shift requester untuk periode absensi yang memuat reqDate - null kalau tidak
@@ -196,7 +194,13 @@ class ShiftSwapRequestModal extends Component
      * 'reciprocal'. N/A/kosong (tidak ada baris sama sekali) SENGAJA tidak muncul di sini -
      * beda dari getTargetCandidatesProperty() yang justru cari yang KERJA. Query langsung ke
      * ScheduleShiftAssignment (bukan ScheduleResolver) - lihat
-     * ShiftSwapRequestService::assertReciprocalOffEligible(). */
+     * ShiftSwapRequestService::assertReciprocalOffEligible().
+     *
+     * Kalau jadwal ini pakai Regu (Schedule::use_teams) dan PEMOHON sendiri sudah py regu di
+     * bulan reqDate, dipersempit lagi ke sesama anggota regu itu (instruksi user 2026-09-16:
+     * "pilih rekan berdasarkan regunya saja jika ada") - rekan sejadwal tapi beda regu/rotasi
+     * biasanya memang tidak relevan buat tukar libur. Regu tidak aktif / pemohon belum py regu
+     * bulan itu -> fallback ke sesama jadwal seperti biasa (tidak dipersempit). */
     public function getOffDayCandidatesProperty()
     {
         if (! $this->reqDate) {
@@ -213,6 +217,20 @@ class ShiftSwapRequestModal extends Component
             ->whereNotNull('shift_type_id')
             ->distinct()
             ->pluck('user_id');
+
+        $period = \Illuminate\Support\Carbon::parse($this->reqDate)->format('Y-m');
+        $myTeamId = Schedule::find($scheduleId)?->use_teams
+            ? ScheduleShiftTeamMember::forPeriod($scheduleId, Auth::id(), $period)?->team_id
+            : null;
+
+        if ($myTeamId) {
+            $teammateIds = ScheduleShiftTeamMember::where('schedule_id', $scheduleId)
+                ->where('period', $period)
+                ->where('team_id', $myTeamId)
+                ->pluck('user_id');
+
+            $sameScheduleUserIds = $sameScheduleUserIds->intersect($teammateIds);
+        }
 
         return ScheduleShiftAssignment::where('off_day', true)
             ->whereDate('date', $this->reqDate)
@@ -302,6 +320,18 @@ class ShiftSwapRequestModal extends Component
         }
 
         return app(ShiftSwapRequestService::class)->conflictWarningsForSchedules($this->reqShift, $this->targetShift);
+    }
+
+    /** Blokir keras (bukan sekadar warning) buat kasus shift yang mau dioper PERSIS SAMA tipenya
+     * dengan shift yang sudah dipunya rekan/pemohon di tanggal tujuan - lihat
+     * ShiftSwapRequestService::duplicateShiftBlock(). Dipakai blade buat nampilin keterangan &
+     * nge-disable tombol Ajukan SEBELUM user coba submit (instruksi user 2026-09-16: "bisa
+     * pilih, tapi ngga bisa submit, kasih keterangan"); service tetap validasi ulang keras saat
+     * submit (defense-in-depth kalau jadwal berubah di antara render & submit). Berlaku di SEMUA
+     * mode tanggal-beda (termasuk 'reciprocal' - service-nya sama-sama lewat resolveSlot()). */
+    public function getDuplicateShiftBlockProperty(): ?string
+    {
+        return app(ShiftSwapRequestService::class)->duplicateShiftBlock($this->reqShift, $this->targetShift);
     }
 
     public function submit(): void

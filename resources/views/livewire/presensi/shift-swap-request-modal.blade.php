@@ -34,9 +34,6 @@
                     <div>
                         <label class="form-label">1. Tanggal Shift Saya yang Mau Ditukar</label>
                         <input type="date" wire:model.live="reqDate" min="{{ $this->minDate }}" class="form-input">
-                        @if ($this->minLeadDays > 0)
-                            <p style="font-size:11px;color:var(--text-muted);margin-top:4px;">Minimal {{ $this->minLeadDays }} hari dari hari ini &mdash; paling cepat {{ \Illuminate\Support\Carbon::parse($this->minDate)->translatedFormat('d M Y') }}.</p>
-                        @endif
                         @if ($this->reqShift)
                             <p style="font-size:11.5px;color:var(--text-muted);margin-top:4px;">Shift Anda: <strong>{{ $this->reqShift->shiftType?->name }}</strong></p>
                         @elseif ($reqDate)
@@ -68,38 +65,34 @@
                                         <input type="radio" name="dateMode" wire:model.live="dateMode" value="reciprocal">
                                         <span class="dot"></span>
                                     </span>
-                                    Rekan sedang libur
+                                    Shift rekan yang diambil alih
                                 </label>
                             </div>
 
                             @if ($dateMode === 'different')
                                 <input type="date" wire:model.live="targetDate" min="{{ $this->minDate }}" class="form-input" placeholder="Tanggal shift rekan...">
                                 @error('targetDate') <p style="color:var(--danger-text);font-size:11.5px;margin-top:4px;">{{ $message }}</p> @enderror
-                            @elseif ($dateMode === 'reciprocal')
-                                <p style="font-size:11px;color:var(--text-muted);margin:0;">Rekan yang dipilih di bawah harus benar-benar Libur (bukan sekadar tidak punya jadwal) pada tanggal shift Anda di atas. Sebagai gantinya, Anda akan memberikan salah satu tanggal Libur Anda sendiri untuk mengambil alih shift kerja rekan itu.</p>
                             @endif
                         </div>
 
                         @if ($dateMode === 'reciprocal')
                             <div wire:key="target-user-field-reciprocal">
-                                <label class="form-label">3. Rekan yang Sedang Libur</label>
+                                <label class="form-label">3. Pilih Rekan</label>
                                 <select wire:key="target-user-select-reciprocal" class="form-input" wire:model.live="targetUserId" data-tom-select data-placeholder="Ketik nama atau NIP rekan yang libur...">
                                     <option value="">-- Pilih rekan --</option>
                                     @foreach ($this->offDayCandidates as $candidate)
-                                        <option value="{{ $candidate->user_id }}" @selected($targetUserId === $candidate->user_id)>{{ $candidate->user->name }} ({{ $candidate->user->nip }}) — Libur</option>
+                                        <option value="{{ $candidate->user_id }}" @selected($targetUserId === $candidate->user_id)>{{ $candidate->user->name }} ({{ $candidate->user->nip }})</option>
                                     @endforeach
                                 </select>
                                 @if ($this->offDayCandidates->isEmpty())
                                     <p style="font-size:11px;color:var(--text-muted);margin-top:4px;">Tidak ada rekan sejadwal yang Libur di tanggal ini.</p>
-                                @else
-                                    <p style="font-size:11px;color:var(--text-muted);margin-top:4px;">Cuma menampilkan rekan sejadwal yang beneran Libur (bukan kosong/belum berjadwal) di tanggal yang Anda pilih.</p>
                                 @endif
                                 @error('targetUserId') <p style="color:var(--danger-text);font-size:11.5px;margin-top:4px;">{{ $message }}</p> @enderror
                             </div>
 
                             @if ($targetUserId)
                                 <div wire:key="target-date-field-reciprocal">
-                                    <label class="form-label">4. Tanggal Kompensasi (Libur Anda yang bertepatan shift kerja rekan)</label>
+                                    <label class="form-label">4. Shift Rekan yang Anda Ambil Alih</label>
                                     <select wire:key="target-date-select-reciprocal" class="form-input" wire:model.live="targetDate">
                                         <option value="">-- Pilih tanggal --</option>
                                         @foreach ($this->compensationCandidates as $candidate)
@@ -108,8 +101,6 @@
                                     </select>
                                     @if ($this->compensationCandidates->isEmpty())
                                         <p style="font-size:11px;color:var(--text-muted);margin-top:4px;">Tidak ada tanggal Libur Anda yang bertepatan dengan shift kerja rekan ini.</p>
-                                    @else
-                                        <p style="font-size:11px;color:var(--text-muted);margin-top:4px;">Cuma menampilkan tanggal Libur Anda sendiri yang bertepatan dengan shift kerja rekan.</p>
                                     @endif
                                     @error('targetDate') <p style="color:var(--danger-text);font-size:11.5px;margin-top:4px;">{{ $message }}</p> @enderror
                                 </div>
@@ -145,7 +136,13 @@
                             </div>
                         @endif
 
-                        @if ($this->conflictWarnings)
+                        @if ($this->duplicateShiftBlock)
+                            <div style="background:var(--danger-soft-bg);border:1px solid var(--danger-soft-border);border-radius:8px;padding:8px 10px;">
+                                <p style="font-size:11.5px;color:var(--danger-soft-text);margin:0;">
+                                    <i class="fa-solid fa-ban"></i> {{ $this->duplicateShiftBlock }}
+                                </p>
+                            </div>
+                        @elseif ($this->conflictWarnings)
                             <div style="background:var(--warning-soft-bg,rgba(217,119,6,0.1));border:1px solid var(--warning-soft-border,rgba(217,119,6,0.3));border-radius:8px;padding:8px 10px;">
                                 @foreach ($this->conflictWarnings as $warning)
                                     <p style="font-size:11.5px;color:var(--warning-soft-text,#b45309);margin:0;{{ !$loop->last ? 'margin-bottom:4px;' : '' }}">
@@ -163,7 +160,7 @@
                 </div>
 
                 <div style="display:flex;gap:10px;margin-top:16px;">
-                    <button type="button" wire:click="submit" class="btn-primary" style="flex:1;justify-content:center;">
+                    <button type="button" wire:click="submit" class="btn-primary" style="flex:1;justify-content:center;" @if ($this->duplicateShiftBlock) disabled @endif>
                         <i class="fa-solid fa-paper-plane"></i> Ajukan
                     </button>
                     <button type="button" wire:click="closeModal" class="btn-ghost" style="flex:1;justify-content:center;">

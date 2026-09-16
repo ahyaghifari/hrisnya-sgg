@@ -1012,12 +1012,12 @@ html.lw-navigating .page-content { opacity: 0; }
 
 /* Widget "Jadwal Shift Saya" (Dashboard) - sel kalender pakai aspect-ratio:1, kalau kolom
    kalender & kolom legend/tombol Tukar Shift ditumpuk 1 kolom penuh di layar lebar, grid 7
-   kolom (1fr) jadi kotak raksasa. Desktop: pisah jadi 2 kolom bersisian - kalender kolom
-   sendiri (lebarnya sendiri, tidak ngisi sisa ruang), legend+tombol kolom sendiri di
-   sampingnya (request user: "bedakan kolom antara kalender dengan tukar shift"). Mobile tetap
-   1 kolom bertumpuk seperti biasa (default, tidak disentuh media query ini). */
+   kolom (1fr) jadi kotak raksasa. Mobile: full-width seperti semula (tidak dibatasi max-width -
+   request user 2026-09-16 "mobile buat besar seperti semula"). Desktop: pisah jadi 2 kolom
+   bersisian, kalender persis 1/3 lebar container (grid-template-columns:1fr 2fr), sisanya buat
+   legend+tombol Tukar Shift (request user: "desktop hanya sepertiga dari container"). */
 @media (min-width: 768px) {
-    .jadwal-shift-calendar-wrap { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; align-items: start; }
+    .jadwal-shift-calendar-wrap { display: grid; grid-template-columns: 1fr 4fr; gap: 28px; align-items: start; }
     /* Legend lebih gede di desktop (11px -> 13.5px, dot ikut membesar) - request user. */
     .jadwal-shift-legend-item { font-size: 13.5px !important; gap: 8px !important; }
     .jadwal-shift-legend-item > span:first-child { width: 10px !important; height: 10px !important; }
@@ -1157,7 +1157,7 @@ html.dark .border-slate-200, html.dark .border-slate-300 { border-color: var(--b
 .data-table thead th { text-align: left; padding: 12px 20px; font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; border-bottom: 1px solid var(--border-soft); white-space: nowrap; }
 .data-table tbody tr { transition: background 0.1s; }
 .data-table tbody tr:hover { background: var(--surface-alt); }
-.data-table tbody td { padding: 14px 20px; border-bottom: 1px solid var(--border-soft); color: var(--text-body); }
+.data-table tbody td { padding: 14px 20px; font-size: 12.5px; border-bottom: 1px solid var(--border-soft); color: var(--text-body); }
 .data-table tbody tr:last-child td { border-bottom: none; }
 
 /* ── QUICK ACTION BUTTONS ── */

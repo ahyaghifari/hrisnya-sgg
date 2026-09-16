@@ -45,7 +45,12 @@
                                 <td class="px-5 py-2 text-slate-500">Departemen</td>
                                 <td class="px-5 py-2 font-mono text-xs">
                                     @if ($dept->code)
-                                        <span class="bg-primary-50 text-primary-700 px-2 py-0.5 rounded">{{ $dept->code }}</span>
+                                        <span class="inline-flex items-center gap-1.5">
+                                            <span class="bg-primary-50 text-primary-700 px-2 py-0.5 rounded">{{ $dept->code }}</span>
+                                            <button type="button" class="copy-code-btn text-slate-400 hover:text-primary-600" data-code="{{ $dept->code }}" title="Salin kode">
+                                                <span class="copy-icon">⧉</span>
+                                            </button>
+                                        </span>
                                     @else
                                         <span class="text-slate-300">—</span>
                                     @endif
@@ -58,7 +63,12 @@
                                     <td class="px-5 py-2 text-slate-500">Divisi</td>
                                     <td class="px-5 py-2 font-mono text-xs">
                                         @if ($div->code)
-                                            <span class="bg-primary-50 text-primary-700 px-2 py-0.5 rounded">{{ $div->code }}</span>
+                                            <span class="inline-flex items-center gap-1.5">
+                                                <span class="bg-primary-50 text-primary-700 px-2 py-0.5 rounded">{{ $div->code }}</span>
+                                                <button type="button" class="copy-code-btn text-slate-400 hover:text-primary-600" data-code="{{ $div->code }}" title="Salin kode">
+                                                    <span class="copy-icon">⧉</span>
+                                                </button>
+                                            </span>
                                         @else
                                             <span class="text-slate-300">—</span>
                                         @endif
@@ -71,7 +81,12 @@
                                         <td class="px-5 py-2 text-slate-500">Sub Divisi</td>
                                         <td class="px-5 py-2 font-mono text-xs">
                                             @if ($sub->code)
-                                                <span class="bg-primary-50 text-primary-700 px-2 py-0.5 rounded">{{ $sub->code }}</span>
+                                                <span class="inline-flex items-center gap-1.5">
+                                                    <span class="bg-primary-50 text-primary-700 px-2 py-0.5 rounded">{{ $sub->code }}</span>
+                                                    <button type="button" class="copy-code-btn text-slate-400 hover:text-primary-600" data-code="{{ $sub->code }}" title="Salin kode">
+                                                        <span class="copy-icon">⧉</span>
+                                                    </button>
+                                                </span>
                                             @else
                                                 <span class="text-slate-300">—</span>
                                             @endif
@@ -88,5 +103,18 @@
         @endforelse
     </div>
 
+    <script>
+        document.addEventListener('click', function (e) {
+            const btn = e.target.closest('.copy-code-btn');
+            if (! btn) return;
+
+            navigator.clipboard.writeText(btn.dataset.code).then(function () {
+                const icon = btn.querySelector('.copy-icon');
+                const original = icon.textContent;
+                icon.textContent = '✓';
+                setTimeout(function () { icon.textContent = original; }, 1200);
+            });
+        });
+    </script>
 </body>
 </html>

@@ -84,7 +84,7 @@ class ExtraShiftTodayCardTest extends TestCase
             ->assertSeeHtml('extra-shift-card-inner')
             ->assertSee('WAJIB scan')
             ->assertSee('4x')
-            ->assertSee('Absen LAGI', false);
+            ->assertSee('Masuk lagi', false);
     }
 
     public function test_double_shift_category_shows_double_shift_label(): void

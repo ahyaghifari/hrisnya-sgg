@@ -3,7 +3,22 @@
     use App\Enum\Task\TaskStatus;
     use App\Enum\Task\TaskPriority;
     // Todo Saya (self-assigned) lewatin REVIEW - langsung IN_PROGRESS -> COMPLETE.
-    $boardStatuses = (! $activeProjectId && $scope === 'todo') ? TaskStatus::BOARD_ORDER_SELF_ASSIGNED : TaskStatus::BOARD_ORDER;
+    $isTodoHero = ! $activeProjectId && $scope === 'todo';
+    $boardStatuses = $isTodoHero ? TaskStatus::BOARD_ORDER_SELF_ASSIGNED : TaskStatus::BOARD_ORDER;
+    // Gaya "hero" (gradient + shape dekoratif punya sistem, lihat .page-hero/.a-deco-* di
+    // app.css) dipakai di board pribadi (Todo Saya & Tugas Saya) - warna dari status-nya
+    // sendiri (bukan index loop) biar Review konsisten dapat gold-dark di board manapun dia
+    // muncul. Review = emas gelap ala aksen gold-shiny halaman profil, biar "butuh perhatian".
+    $useBoardHero = $isTodoHero || (! $activeProjectId && $scope === 'saya');
+    // Individu/Tim potensial banyak baris (banyak bawahan x banyak tugas) - tabel lebih gampang
+    // di-scan/sortir daripada card yang makan tempat vertikal, beda kebutuhan sama Todo/Tugas Saya.
+    $isTableScope = ! $activeProjectId && in_array($scope, ['individu', 'tim'], true);
+    $heroClassFor = fn (TaskStatus $status) => match ($status) {
+        TaskStatus::REVIEW => 'gold-dark',
+        TaskStatus::IN_PROGRESS => 'gold',
+        TaskStatus::COMPLETE => 'green',
+        default => 'navy',
+    };
     // Task::due_date sengaja tidak di-cast ke date di model (lihat komentar di Task.php) — parse
     // manual di sini, bukan panggil ->translatedFormat() langsung di atas string mentah.
     $fmtDate = fn ($d, $f = 'j M') => $d ? \Carbon\Carbon::parse($d)->translatedFormat($f) : null;
@@ -15,29 +30,63 @@
         'danger' => 'badge-rejected',
         default => 'badge-cancelled',
     };
+    // Aksen warna kartu tugas (border kiri + dot prioritas) — dari getColor() yang sama, bukan
+    // pill baru. Hex literal di sini karena dipakai lewat inline CSS var, bukan class .badge-*.
+    $priorityAccent = fn (string $color) => match ($color) {
+        'warning' => '#a16207',
+        'info' => '#1a56c4',
+        'success' => '#15803d',
+        'danger' => '#b91c1c',
+        default => '#64748b',
+    };
 @endphp
 
 <style>
-    .task-list-tab-group { display: flex; align-items: stretch; border-bottom: 1px solid var(--border-soft); }
-    .task-list-tab { flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 14px 8px; margin: 0; font-size: 14.5px; font-weight: 600; background: var(--tab-bg-soft); color: var(--tab-fg); border: none; border-bottom: 2px solid var(--tab-fg); border-radius: 0; cursor: pointer; font-family: inherit; white-space: nowrap; }
-    .task-list-tab.is-active { background: var(--tab-fg); color: #fff; border-bottom-color: var(--tab-fg); }
-    .task-list-tab-group > :first-child { border-top-left-radius: 12px; }
-    .task-list-tab-group > :last-child { border-top-right-radius: 12px; }
-
-    .task-list-tab-todo { --tab-fg: #1a3fc4; --tab-bg-soft: rgba(26,63,196,0.06); }
-    .task-list-tab-saya { --tab-fg: #0d8a4f; --tab-bg-soft: rgba(13,138,79,0.06); }
-    .task-list-tab-individu { --tab-fg: #c46a12; --tab-bg-soft: rgba(196,106,18,0.06); }
-    .task-list-tab-tim { --tab-fg: #0f766e; --tab-bg-soft: rgba(15,118,110,0.06); }
-    .task-list-tab-project { --tab-fg: #7e22ce; --tab-bg-soft: rgba(126,34,206,0.06); position: relative; }
-    html.dark .task-list-tab-todo { --tab-fg: #8fb4ff; --tab-bg-soft: rgba(143,180,255,0.08); }
-    html.dark .task-list-tab-saya { --tab-fg: #6fe0a4; --tab-bg-soft: rgba(111,224,164,0.08); }
-    html.dark .task-list-tab-individu { --tab-fg: #f0ab5c; --tab-bg-soft: rgba(240,171,92,0.08); }
-    html.dark .task-list-tab-tim { --tab-fg: #5eead4; --tab-bg-soft: rgba(94,234,212,0.08); }
-    html.dark .task-list-tab-project { --tab-fg: #c99bfa; --tab-bg-soft: rgba(201,155,250,0.08); }
-
-    .task-list-tab-project select { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
-    .task-list-tab-project-add.btn-ghost { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); z-index: 1; border: none; padding: 4px 6px; font-size: 12px; color: var(--tab-fg); }
+    .task-list-tab-project { position: relative; }
+    .task-list-tab-project-add.btn-ghost { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); border: none; padding: 4px 6px; font-size: 12px; color: inherit; }
     .task-list-tab-project.is-active .task-list-tab-project-add.btn-ghost { color: #fff; }
+
+    /* Kartu tugas: border kiri = warna prioritas (--accent), hover ngangkat dikit biar kerasa
+    "bisa diklik/diseret" tanpa perlu badge warna-warni penuh di dalamnya. */
+    .task-card { position: relative; background: var(--surface-alt); border: 1px solid var(--border); border-left: 3px solid var(--accent, var(--border)); border-radius: 10px; padding: 10px 12px; cursor: pointer; box-shadow: 0 1px 2px rgba(15,23,42,0.05); transition: box-shadow 0.15s ease, transform 0.15s ease; }
+    .task-card:hover { box-shadow: 0 8px 20px rgba(15,23,42,0.12); transform: translateY(-1px); }
+    html.dark .task-card:hover { box-shadow: 0 8px 20px rgba(0,0,0,0.35); }
+    .task-card-top { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 7px; }
+    .task-card-title { font-size: 13px; font-weight: 600; color: var(--text-heading); line-height: 1.4; margin: 0; flex: 1; min-width: 0; }
+    .task-card-avatar { flex-shrink: 0; margin-top: 1px; }
+    .task-card-meta { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 11px; color: var(--text-muted); margin-bottom: 6px; }
+    .task-card-priority { display: inline-flex; align-items: center; gap: 5px; font-weight: 600; color: var(--accent); }
+    .task-card-priority .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
+    .task-card-assignee { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-muted); }
+    .task-card-footer { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border-soft); font-size: 11px; color: var(--text-muted); }
+
+    /* Jumlah kolom/section (List custom atau status Todo/Proses/dst) ganjil = 3 kolom per baris,
+    genap = 2 kolom (--cols diisi dari Blade). Di layar sempit dipaksa 1 kolom - grid banyak
+    kolom bikin section kesempitan buat dibaca di HP. */
+    .task-board-grid { display: grid; grid-template-columns: repeat(var(--cols, 1), 1fr); gap: 12px; align-items: start; }
+    @media (max-width: 639.98px) { .task-board-grid { grid-template-columns: 1fr; } }
+
+    /* Gaya "hero" khusus Todo Saya: gradient sama seperti .page-hero yang sudah ada di
+    app.css (bukan warna baru), plus shape dekoratif .a-deco-* yang sama dipakai di
+    welcome-card/absen-card. Card di dalamnya jadi kotak putih polos ala mockup Trello. */
+    .task-hero-column { position: relative; overflow: hidden; border-radius: 20px; padding: 16px 14px; color: #fff; }
+    .task-hero-column.navy { background: linear-gradient(130deg, var(--brand-fill) 0%, color-mix(in srgb, var(--brand-fill), #ffffff 22%) 100%); }
+    .task-hero-column.gold { background: linear-gradient(130deg, #92400e 0%, #d97706 100%); }
+    .task-hero-column.green { background: linear-gradient(130deg, #047C54 0%, #024732 100%); }
+    /* Sama seperti gradient aktif tab gold-shiny di halaman profil (#f5c518 -> #d4a017),
+    cuma digelapin dikit biar kebaca beda dari aksen "profil saya" itu sendiri. */
+    .task-hero-column.gold-dark { background: linear-gradient(135deg, #d4a017 0%, #92720a 100%); }
+    .task-hero-column-header { position: relative; z-index: 1; display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 14px; font-weight: 700; font-size: 14px; }
+    .task-hero-column-header .count-badge { background: rgba(255,255,255,0.25); color: #fff; font-size: 11px; font-weight: 700; padding: 2px 9px; border-radius: 99px; }
+    .task-hero-column-body { position: relative; z-index: 1; display: flex; flex-direction: column; gap: 10px; }
+    .task-hero-column .task-card { background: #fff; border: none; box-shadow: 0 3px 10px rgba(0,0,0,0.18); }
+    .task-hero-column .task-card-title { color: #1e293b; }
+    .task-hero-column .task-card-meta, .task-hero-column .task-card-assignee, .task-hero-column .task-card-footer { color: #64748b; }
+    .task-hero-column .task-card-footer { border-top-color: #e2e8f0; }
+    .task-hero-column .task-card .btn-ghost { color: #1e293b; }
+    .task-hero-column .task-card select.form-input { background: #f8fafc; border-color: #e2e8f0; color: #1e293b; }
+    .task-hero-column .task-card p[style*="italic"] { color: #64748b !important; }
+    .task-hero-column-body > p { color: rgba(255,255,255,0.75) !important; }
 
     /* Modal Task: overlay jangan ikut scroll (dobel scrollbar keliatan aneh), cukup .modal-box
     sendiri yang scroll di dalam container-nya. Modal detail dilebarin (2026-08-02), berlaku
@@ -75,21 +124,22 @@
 <x-page-header title="Tugas" subtitle="" />
 
 <div>
-    {{-- Tab full-width, warna soft per tab + icon (2026-08-02). Project ikut jadi tab. --}}
-    <div class="task-list-tab-group" style="margin-bottom:18px;">
-        <button type="button" wire:click="selectScope('todo')" class="task-list-tab task-list-tab-todo {{ ! $activeProjectId && $scope === 'todo' ? 'is-active' : '' }}"><i class="fa-solid fa-user-check"></i> Todo Saya</button>
-        <button type="button" wire:click="selectScope('saya')" class="task-list-tab task-list-tab-saya {{ ! $activeProjectId && $scope === 'saya' ? 'is-active' : '' }}"><i class="fa-solid fa-list-check"></i> Tugas Saya</button>
+    {{-- Reuse .section-nav / .section-nav-btn (pola pill nav yang sudah dipakai di modul lain)
+    biar konsisten sama app, bukan CSS tab custom. Project dapat slot terpisah (dropdown Board). --}}
+    <div class="section-nav">
+        <button type="button" wire:click="selectScope('todo')" class="section-nav-btn navy {{ ! $activeProjectId && $scope === 'todo' ? 'is-active' : '' }}"><i class="fa-solid fa-user-check"></i> Todo Saya</button>
+        <button type="button" wire:click="selectScope('saya')" class="section-nav-btn green {{ ! $activeProjectId && $scope === 'saya' ? 'is-active' : '' }}"><i class="fa-solid fa-list-check"></i> Tugas Saya</button>
         @if ($this->hasSubordinates)
-            <button type="button" wire:click="selectScope('individu')" class="task-list-tab task-list-tab-individu {{ ! $activeProjectId && $scope === 'individu' ? 'is-active' : '' }}"><i class="fa-solid fa-users"></i> Penugasan Individu</button>
-            <button type="button" wire:click="selectScope('tim')" class="task-list-tab task-list-tab-tim {{ ! $activeProjectId && $scope === 'tim' ? 'is-active' : '' }}" style="font-size:12.5px;"><i class="fa-solid fa-sitemap"></i> Tim Saya</button>
+            <button type="button" wire:click="selectScope('individu')" class="section-nav-btn teal {{ ! $activeProjectId && $scope === 'individu' ? 'is-active' : '' }}"><i class="fa-solid fa-users"></i> Penugasan Individu</button>
+            <button type="button" wire:click="selectScope('tim')" class="section-nav-btn rust {{ ! $activeProjectId && $scope === 'tim' ? 'is-active' : '' }}"><i class="fa-solid fa-sitemap"></i> Tim Saya</button>
         @endif
-        <div class="task-list-tab task-list-tab-project {{ $activeProjectId ? 'is-active' : '' }}" x-data="{ open: false }" @click.outside="open = false" style="position:relative;">
-            <button type="button" @click="open = ! open" style="all:unset;display:flex;align-items:center;gap:8px;cursor:pointer;flex:1;justify-content:center;">
+        <div class="section-nav-btn gold task-list-tab-project {{ $activeProjectId ? 'is-active' : '' }}" x-data="{ open: false }" @click.outside="open = false" style="padding-right:34px;">
+            <button type="button" @click="open = ! open" style="all:unset;display:flex;align-items:center;gap:7px;cursor:pointer;max-width:44vw;">
                 <i class="fa-solid fa-diagram-project"></i>
-                <span>{{ $this->activeProject->name ?? 'Board' }}</span>
-                <i class="fa-solid fa-chevron-down" style="font-size:11px;"></i>
+                <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ $this->activeProject->name ?? 'Board' }}</span>
+                <i class="fa-solid fa-chevron-down" style="font-size:10px;flex-shrink:0;"></i>
             </button>
-            <button type="button" wire:click="openCreateProjectModal" class="btn-ghost task-list-tab-project-add" style="padding:4px 6px;font-size:12px;" title="Board Baru" onclick="event.stopPropagation()"><i class="fa-solid fa-plus"></i></button>
+            <button type="button" wire:click="openCreateProjectModal" class="btn-ghost task-list-tab-project-add" title="Board Baru" onclick="event.stopPropagation()"><i class="fa-solid fa-plus"></i></button>
 
             <div x-show="open" x-cloak @click.stop style="position:absolute;top:100%;left:0;margin-top:6px;background:var(--surface);border-radius:12px;box-shadow:0 8px 30px rgba(4,44,108,0.12),0 0 0 1px rgba(4,44,108,0.06);padding:10px;min-width:240px;z-index:220;">
                 <div wire:ignore>
@@ -117,9 +167,9 @@
             </h3>
             <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
                 @if (! $activeProjectId && $scope === 'individu')
-                    <div style="position:relative;">
+                    <div style="position:relative;flex:1 1 200px;min-width:160px;">
                         <i class="fa-solid fa-magnifying-glass" style="position:absolute;left:11px;top:50%;transform:translateY(-50%);font-size:11px;color:var(--text-faint);"></i>
-                        <input type="text" wire:model.live.debounce.400ms="search" class="form-input" placeholder="Cari nama tugas / pegawai..." style="padding-left:30px;font-size:12.5px;min-width:200px;">
+                        <input type="text" wire:model.live.debounce.400ms="search" class="form-input" placeholder="Cari nama tugas / pegawai..." style="padding-left:30px;font-size:12.5px;width:100%;">
                     </div>
                 @endif
                 @if (! $activeProjectId && in_array($scope, ['individu', 'saya'], true))
@@ -142,179 +192,13 @@
                         </button>
                     @endif
                 @endif
-                <div style="display:flex;gap:6px;">
-                    <button type="button" wire:click="$set('view', 'board')" class="btn-sm {{ $view === 'board' ? 'btn-primary' : 'btn-ghost' }}"><i class="fa-solid fa-table-columns"></i> Board</button>
-                    <button type="button" wire:click="$set('view', 'list')" class="btn-sm {{ $view === 'list' ? 'btn-secondary' : 'btn-ghost' }}"><i class="fa-solid fa-list"></i> List</button>
-                </div>
-                @if ($view === 'board')
-                    <button type="button" wire:click="openBgModal" class="btn-ghost btn-sm" title="Ganti Background Board"><i class="fa-solid fa-palette"></i></button>
-                @endif
                 @if ($this->activeProject || ! in_array($scope, ['tim', 'saya'], true))
                     <button type="button" wire:click="openCreateTask" class="btn-primary btn-sm"><i class="fa-solid fa-plus" style="font-size:12px;"></i> Tugas Baru</button>
                 @endif
             </div>
         </div>
 
-        @php
-            $bg = $this->boardBackground;
-            $boardBgStyle = match (true) {
-                $bg?->type === 'color' => "background:{$bg->value};",
-                $bg?->type === 'image' => "background-image:url('" . \Illuminate\Support\Facades\Storage::url($bg->value) . "');background-size:cover;background-position:center;",
-                default => 'background:var(--surface-page);',
-            };
-        @endphp
-
-        @if ($view === 'board')
-            <div x-data="{ zoom: 1 }" style="position:relative;">
-                <div style="{{ $boardBgStyle }}border-radius:20px;padding:16px;overflow:auto;border:1px solid var(--border-soft);height:100vh;min-height:100vh;max-height:100vh;" :style="{ zoom: zoom }">
-                    <div style="display:flex;gap:14px;min-width:min-content;align-items:flex-start;">
-                    @if ($this->activeProject)
-                        @foreach ($this->activeProject->lists as $list)
-                            <div style="flex:0 0 280px;min-width:280px;background:var(--surface);border-radius:12px;overflow:hidden;">
-                                <div style="background:{{ $list->color ?: ($list->is_final ? '#047C54' : '#475569') }};padding:10px 12px;display:flex;align-items:center;gap:6px;">
-                                    @if ($editingListId === $list->id)
-                                        <input type="text" wire:model="editingListName" wire:keydown.enter="renameList" wire:keydown.escape="cancelEditList" class="form-input" style="font-size:12px;padding:3px 6px;height:auto;flex:1;" autofocus>
-                                        <button type="button" wire:click="renameList" style="background:none;border:none;color:#fff;cursor:pointer;"><i class="fa-solid fa-check"></i></button>
-                                        <button type="button" wire:click="cancelEditList" style="background:none;border:none;color:#fff;cursor:pointer;"><i class="fa-solid fa-xmark"></i></button>
-                                    @else
-                                        <span
-                                            style="color:#fff;font-weight:700;font-size:13px;flex:1;{{ $this->canManageProjectMembers ? 'cursor:pointer;' : '' }}"
-                                            @if ($this->canManageProjectMembers) wire:click="startEditList('{{ $list->id }}')" @endif
-                                        >
-                                            {{ $list->name }} @if ($list->is_final) <i class="fa-solid fa-flag-checkered" title="List Selesai"></i> @endif
-                                        </span>
-                                        <span style="background:rgba(255,255,255,0.25);color:#fff;font-size:11px;font-weight:700;padding:2px 9px;border-radius:99px;">{{ count($this->tasksByList[$list->id] ?? []) }}</span>
-                                        @if ($this->canManageProjectMembers)
-                                            <div class="dropdown">
-                                                <button type="button" style="background:none;border:none;color:#fff;cursor:pointer;padding:2px 4px;"><i class="fa-solid fa-ellipsis-vertical"></i></button>
-                                                <div class="dropdown-menu dropdown-menu-right">
-                                                    <button type="button" wire:click="moveListLeft('{{ $list->id }}')" class="dropdown-item"><i class="fa-solid fa-arrow-left"></i> Geser Kiri</button>
-                                                    <button type="button" wire:click="moveListRight('{{ $list->id }}')" class="dropdown-item"><i class="fa-solid fa-arrow-right"></i> Geser Kanan</button>
-                                                    <label class="dropdown-item" style="display:flex;align-items:center;gap:8px;cursor:pointer;">
-                                                        <i class="fa-solid fa-palette"></i> Ubah Warna
-                                                        <input type="color" value="{{ $list->color ?: ($list->is_final ? '#047C54' : '#475569') }}" onchange="$wire.changeListColor('{{ $list->id }}', $event.target.value)" style="margin-left:auto;width:22px;height:22px;padding:0;border:none;cursor:pointer;">
-                                                    </label>
-                                                    @unless ($list->is_final)
-                                                        <button type="button" wire:click="markListFinal('{{ $list->id }}')" class="dropdown-item"><i class="fa-solid fa-flag-checkered"></i> Tandai Selesai</button>
-                                                    @endunless
-                                                    <button type="button" wire:click="deleteList('{{ $list->id }}')" wire:confirm="Hapus List ini? Pastikan sudah kosong." class="dropdown-item" style="color:var(--danger-text);"><i class="fa-solid fa-trash"></i> Hapus List</button>
-                                                </div>
-                                            </div>
-                                        @endif
-                                    @endif
-                                </div>
-                                <div wire:ignore.self data-list-id="{{ $list->id }}" style="min-height:80px;padding:8px;display:flex;flex-direction:column;gap:8px;">
-                                    @forelse (($this->tasksByList[$list->id] ?? []) as $task)
-                                        <div data-task-id="{{ $task->id }}" wire:click="openTaskDetail('{{ $task->id }}')" style="background:var(--surface-alt);border:1px solid var(--border);border-radius:10px;padding:10px 12px;cursor:pointer;">
-                                            <p style="font-size:13px;font-weight:600;color:var(--text-heading);margin:0 0 6px;">{{ \Illuminate\Support\Str::limit($task->requirement, 80) }}</p>
-                                            <div style="display:flex;align-items:center;justify-content:space-between;font-size:11px;color:var(--text-muted);margin-bottom:6px;">
-                                                <span class="badge {{ $badgeClass($task->priority?->getColor() ?? 'gray') }}">{{ $task->priority?->getLabel() ?? $task->priority }}</span>
-                                                @if ($task->due_date)
-                                                    <span><i class="fa-regular fa-calendar" style="font-size:10px;"></i> {{ $fmtDate($task->due_date) }}</span>
-                                                @endif
-                                            </div>
-                                            @if ($task->assignedTo && ! $task->is_self_assigned)
-                                                <div style="display:flex;align-items:center;gap:6px;">
-                                                    <x-avatar :user="$task->assignedTo" :size="18" />
-                                                    <span style="font-size:11px;color:var(--text-muted);">{{ $task->assignedTo->profile?->nickname ?: $task->assignedTo->name }}</span>
-                                                </div>
-                                            @endif
-                                            <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:8px;padding-top:8px;border-top:1px solid var(--border-soft);font-size:11px;color:var(--text-muted);">
-                                                <span><i class="fa-solid fa-paperclip"></i> {{ $task->attachments_count }}</span>
-                                                <span><i class="fa-regular fa-comment"></i> {{ $task->comments->count() }}</span>
-                                                @if ($task->rating)
-                                                    <span><i class="fa-solid fa-star" style="color:#f5a524;"></i> {{ $task->rating }}</span>
-                                                @endif
-                                            </div>
-                                        </div>
-                                    @empty
-                                        <p style="font-size:12px;color:var(--text-muted);text-align:center;padding:12px 0;margin:0;">Kosong</p>
-                                    @endforelse
-                                </div>
-                            </div>
-                        @endforeach
-                        @if ($this->canManageProjectMembers)
-                            <div style="flex:0 0 240px;min-width:240px;background:var(--surface);border-radius:12px;padding:10px;">
-                                <div style="display:flex;gap:6px;">
-                                    <input type="color" wire:model="newListColor" style="width:32px;height:32px;padding:0;border:none;border-radius:6px;cursor:pointer;flex-shrink:0;">
-                                    <input type="text" class="form-input" style="font-size:12.5px;" wire:model="newListName" wire:keydown.enter="createList" placeholder="Nama List baru...">
-                                    <button type="button" wire:click="createList" class="btn-ghost btn-sm"><i class="fa-solid fa-plus"></i></button>
-                                </div>
-                            </div>
-                        @endif
-                    @else
-                        @foreach ($boardStatuses as $status)
-                            <div style="flex:0 0 280px;min-width:280px;background:var(--surface);border-radius:12px;overflow:hidden;">
-                                <div style="background:{{ $status->getColor() === 'gray' ? '#64748b' : ($status->getColor() === 'warning' ? '#d97706' : ($status->getColor() === 'info' ? '#1a56c4' : ($status->getColor() === 'success' ? '#047C54' : '#64748b'))) }};padding:10px 12px;display:flex;align-items:center;justify-content:space-between;">
-                                    <span style="color:#fff;font-weight:700;font-size:13px;">{{ $status->getLabel() }}</span>
-                                    <span style="background:rgba(255,255,255,0.25);color:#fff;font-size:11px;font-weight:700;padding:2px 9px;border-radius:99px;">{{ count($this->tasksByStatus[$status->value] ?? []) }}</span>
-                                </div>
-                                <div wire:ignore.self data-status-list="{{ $status->value }}" style="min-height:80px;padding:8px;display:flex;flex-direction:column;gap:8px;">
-                                    @forelse (($this->tasksByStatus[$status->value] ?? []) as $task)
-                                        <div data-task-id="{{ $task->id }}" wire:click="openTaskDetail('{{ $task->id }}')" style="background:var(--surface-alt);border:1px solid var(--border);border-radius:10px;padding:10px 12px;cursor:pointer;">
-                                            <p style="font-size:13px;font-weight:600;color:var(--text-heading);margin:0 0 6px;">{{ \Illuminate\Support\Str::limit($task->requirement, 80) }}</p>
-                                            <div style="display:flex;align-items:center;justify-content:space-between;font-size:11px;color:var(--text-muted);margin-bottom:6px;">
-                                                <span class="badge {{ $badgeClass($task->priority?->getColor() ?? 'gray') }}">{{ $task->priority?->getLabel() ?? $task->priority }}</span>
-                                                @if ($task->due_date)
-                                                    <span><i class="fa-regular fa-calendar" style="font-size:10px;"></i> {{ $fmtDate($task->due_date) }}</span>
-                                                @endif
-                                            </div>
-                                            @if ($task->assignedTo && ! $task->is_self_assigned)
-                                                <div style="display:flex;align-items:center;gap:6px;">
-                                                    <x-avatar :user="$task->assignedTo" :size="18" />
-                                                    <span style="font-size:11px;color:var(--text-muted);">{{ $task->assignedTo->profile?->nickname ?: $task->assignedTo->name }}</span>
-                                                </div>
-                                            @endif
-                                            @if ($task->status === \App\Enum\Task\TaskStatus::REVIEW->value)
-                                                {{-- Di REVIEW cuma creator yang bisa mutusin: kembalikan buat direvisi, atau selesaikan. --}}
-                                                @if ($task->created_by === auth()->id())
-                                                    <select wire:change="moveTaskStatus('{{ $task->id }}', $event.target.value)" onclick="event.stopPropagation()" class="form-input" style="font-size:11px;padding:4px 6px;height:auto;margin-top:8px;">
-                                                        <option value="" selected disabled>Ubah ke...</option>
-                                                        <option value="{{ \App\Enum\Task\TaskStatus::IN_PROGRESS->value }}">Sedang Dalam Proses</option>
-                                                        <option value="{{ \App\Enum\Task\TaskStatus::COMPLETE->value }}">Selesai</option>
-                                                    </select>
-                                                @else
-                                                    <p style="font-size:11px;color:var(--text-muted);margin:8px 0 0;font-style:italic;">Menunggu penilaian pembuat tugas.</p>
-                                                @endif
-                                            @elseif ($task->status !== \App\Enum\Task\TaskStatus::COMPLETE->value && ($task->status !== \App\Enum\Task\TaskStatus::TODO->value || $task->assigned_to === auth()->id()))
-                                                @php
-                                                    $order = ($task->is_self_assigned || ! $task->needs_review) ? \App\Enum\Task\TaskStatus::BOARD_ORDER_SELF_ASSIGNED : \App\Enum\Task\TaskStatus::BOARD_ORDER;
-                                                    $nextStatus = $order[array_search(\App\Enum\Task\TaskStatus::from($task->status), $order, true) + 1] ?? null;
-                                                @endphp
-                                                @if ($nextStatus)
-                                                    <button type="button" wire:click="moveTaskStatus('{{ $task->id }}', '{{ $nextStatus->value }}')" onclick="event.stopPropagation()" class="btn-ghost btn-sm" style="margin-top:8px;width:100%;">
-                                                        Pindah ke {{ $nextStatus->getLabel() }} <i class="fa-solid fa-arrow-right" style="font-size:10px;"></i>
-                                                    </button>
-                                                @endif
-                                            @endif
-
-                                            @unless ($task->is_self_assigned)
-                                                <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:8px;padding-top:8px;border-top:1px solid var(--border-soft);font-size:11px;color:var(--text-muted);">
-                                                    <span><i class="fa-solid fa-paperclip"></i> {{ $task->attachments_count }}</span>
-                                                    <span><i class="fa-regular fa-comment"></i> {{ $task->comments->count() }}</span>
-                                                    @if ($task->rating)
-                                                        <span><i class="fa-solid fa-star" style="color:#f5a524;"></i> {{ $task->rating }}</span>
-                                                    @endif
-                                                </div>
-                                            @endunless
-                                        </div>
-                                    @empty
-                                        <p style="font-size:12px;color:var(--text-muted);text-align:center;padding:12px 0;margin:0;">Kosong</p>
-                                    @endforelse
-                                </div>
-                            </div>
-                        @endforeach
-                    @endif
-                    </div>
-                </div>
-
-                <div style="position:absolute;bottom:16px;right:16px;display:flex;align-items:center;gap:4px;background:rgba(0,0,0,0.55);backdrop-filter:blur(4px);border-radius:99px;padding:6px;z-index:10;">
-                    <button type="button" @click="zoom = Math.max(0.5, +(zoom - 0.1).toFixed(2))" style="width:26px;height:26px;border-radius:50%;border:none;background:rgba(255,255,255,0.15);color:#fff;cursor:pointer;font-size:12px;"><i class="fa-solid fa-minus"></i></button>
-                    <span x-text="Math.round(zoom * 100) + '%'" style="color:#fff;font-size:11px;font-weight:700;width:38px;text-align:center;"></span>
-                    <button type="button" @click="zoom = Math.min(1.5, +(zoom + 0.1).toFixed(2))" style="width:26px;height:26px;border-radius:50%;border:none;background:rgba(255,255,255,0.15);color:#fff;cursor:pointer;font-size:12px;"><i class="fa-solid fa-plus"></i></button>
-                </div>
-            </div>
-        @else
+        @if ($isTableScope)
             <div style="overflow-x:auto;background:var(--surface);border-radius:12px;border:1px solid var(--border);">
                 <table style="width:100%;border-collapse:collapse;">
                     <thead>
@@ -345,46 +229,232 @@
                     </tbody>
                 </table>
             </div>
+        @else
+            @php $sectionCount = $this->activeProject ? $this->activeProject->lists->count() : count($boardStatuses); @endphp
+            <div class="task-board-grid" style="background:var(--surface-page);border-radius:16px;padding:14px;border:1px solid var(--border-soft);--cols:{{ $sectionCount === 0 ? 1 : ($sectionCount % 2 === 0 ? 2 : 3) }};">
+                @if ($this->activeProject)
+                    @foreach ($this->activeProject->lists as $list)
+                        @php $listAccent = $list->color ?: ($list->is_final ? 'var(--brand-success)' : 'var(--text-muted)'); @endphp
+                        <div style="background:var(--surface);border-radius:12px;overflow:hidden;border:1px solid var(--border-soft);">
+                            <div style="background:var(--surface-alt);border-left:4px solid {{ $listAccent }};padding:10px 14px;display:flex;align-items:center;gap:6px;">
+                                @if ($editingListId === $list->id)
+                                    <input type="text" wire:model="editingListName" wire:keydown.enter="renameList" wire:keydown.escape="cancelEditList" class="form-input" style="font-size:12px;padding:3px 6px;height:auto;flex:1;" autofocus>
+                                    <button type="button" wire:click="renameList" style="background:none;border:none;color:var(--brand-success);cursor:pointer;"><i class="fa-solid fa-check"></i></button>
+                                    <button type="button" wire:click="cancelEditList" style="background:none;border:none;color:var(--text-faint);cursor:pointer;"><i class="fa-solid fa-xmark"></i></button>
+                                @else
+                                    <span
+                                        style="color:var(--text-heading);font-weight:700;font-size:13.5px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;{{ $this->canManageProjectMembers ? 'cursor:pointer;' : '' }}"
+                                        @if ($this->canManageProjectMembers) wire:click="startEditList('{{ $list->id }}')" @endif
+                                    >
+                                        {{ $list->name }} @if ($list->is_final) <i class="fa-solid fa-flag-checkered" style="color:var(--brand-success);" title="List Selesai"></i> @endif
+                                    </span>
+                                    <span style="background:var(--border-soft);color:var(--text-muted);font-size:11px;font-weight:700;padding:2px 9px;border-radius:99px;">{{ count($this->tasksByList[$list->id] ?? []) }}</span>
+                                    @if ($this->canManageProjectMembers)
+                                        <div class="dropdown">
+                                            <button type="button" style="background:none;border:none;color:var(--text-muted);cursor:pointer;padding:2px 4px;"><i class="fa-solid fa-ellipsis-vertical"></i></button>
+                                            <div class="dropdown-menu dropdown-menu-right">
+                                                <button type="button" wire:click="moveListLeft('{{ $list->id }}')" class="dropdown-item"><i class="fa-solid fa-arrow-up"></i> Naik</button>
+                                                <button type="button" wire:click="moveListRight('{{ $list->id }}')" class="dropdown-item"><i class="fa-solid fa-arrow-down"></i> Turun</button>
+                                                <label class="dropdown-item" style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                                                    <i class="fa-solid fa-palette"></i> Ubah Warna
+                                                    <input type="color" value="{{ $list->color ?: ($list->is_final ? '#047C54' : '#475569') }}" onchange="$wire.changeListColor('{{ $list->id }}', $event.target.value)" style="margin-left:auto;width:22px;height:22px;padding:0;border:none;cursor:pointer;">
+                                                </label>
+                                                @unless ($list->is_final)
+                                                    <button type="button" wire:click="markListFinal('{{ $list->id }}')" class="dropdown-item"><i class="fa-solid fa-flag-checkered"></i> Tandai Selesai</button>
+                                                @endunless
+                                                <button type="button" wire:click="deleteList('{{ $list->id }}')" wire:confirm="Hapus List ini? Pastikan sudah kosong." class="dropdown-item" style="color:var(--danger-text);"><i class="fa-solid fa-trash"></i> Hapus List</button>
+                                            </div>
+                                        </div>
+                                    @endif
+                                @endif
+                            </div>
+                            <div style="padding:10px;display:flex;flex-direction:column;gap:8px;">
+                                @forelse (($this->tasksByList[$list->id] ?? []) as $task)
+                                    <div class="task-card" wire:click="openTaskDetail('{{ $task->id }}')" style="--accent:{{ $priorityAccent($task->priority?->getColor() ?? 'gray') }};">
+                                        <div class="task-card-top">
+                                            <p class="task-card-title">{{ \Illuminate\Support\Str::limit($task->requirement, 80) }}</p>
+                                            @if ($task->assignedTo && ! $task->is_self_assigned)
+                                                <span class="task-card-avatar"><x-avatar :user="$task->assignedTo" :size="22" /></span>
+                                            @endif
+                                        </div>
+                                        <div class="task-card-meta">
+                                            <span class="task-card-priority"><span class="dot"></span> {{ $task->priority?->getLabel() ?? $task->priority }}</span>
+                                            @if ($task->checklistItems->isNotEmpty())
+                                                <span><i class="fa-solid fa-square-check"></i> {{ $task->checklistItems->where('is_done', true)->count() }}/{{ $task->checklistItems->count() }}</span>
+                                            @endif
+                                            @if ($task->due_date)
+                                                <span><i class="fa-regular fa-calendar" style="font-size:10px;"></i> {{ $fmtDate($task->due_date) }}</span>
+                                            @endif
+                                        </div>
+                                        @if ($task->assignedTo && ! $task->is_self_assigned)
+                                            <div class="task-card-assignee">{{ $task->assignedTo->profile?->nickname ?: $task->assignedTo->name }}</div>
+                                        @endif
+                                        @if ($this->activeProject->lists->count() > 1)
+                                            <select wire:change="moveTaskToList('{{ $task->id }}', $event.target.value)" onclick="event.stopPropagation()" class="form-input" style="font-size:11px;padding:4px 6px;height:auto;margin-top:8px;">
+                                                <option value="" selected disabled>Pindah ke...</option>
+                                                @foreach ($this->activeProject->lists as $target)
+                                                    @continue($target->id === $list->id)
+                                                    <option value="{{ $target->id }}">{{ $target->name }}</option>
+                                                @endforeach
+                                            </select>
+                                        @endif
+                                        <div class="task-card-footer">
+                                            <span><i class="fa-solid fa-paperclip"></i> {{ $task->attachments_count }}</span>
+                                            <span><i class="fa-regular fa-comment"></i> {{ $task->comments->count() }}</span>
+                                            @if ($task->rating)
+                                                <span><i class="fa-solid fa-star" style="color:#f5a524;"></i> {{ $task->rating }}</span>
+                                            @endif
+                                        </div>
+                                    </div>
+                                @empty
+                                    <p style="font-size:12px;color:var(--text-muted);text-align:center;padding:12px 0;margin:0;">Kosong</p>
+                                @endforelse
+                            </div>
+                        </div>
+                    @endforeach
+                    @if ($this->canManageProjectMembers)
+                        <div style="background:var(--surface);border-radius:12px;padding:10px;border:1px solid var(--border-soft);">
+                            <div style="display:flex;gap:6px;">
+                                <input type="color" wire:model="newListColor" style="width:32px;height:32px;padding:0;border:none;border-radius:6px;cursor:pointer;flex-shrink:0;">
+                                <input type="text" class="form-input" style="font-size:12.5px;" wire:model="newListName" wire:keydown.enter="createList" placeholder="Nama List baru...">
+                                <button type="button" wire:click="createList" class="btn-ghost btn-sm"><i class="fa-solid fa-plus"></i></button>
+                            </div>
+                        </div>
+                    @endif
+                @else
+                    @foreach ($boardStatuses as $status)
+                        @php
+                            $statusAccent = match ($status->getColor()) {
+                                'warning' => '#a16207',
+                                'info' => 'var(--brand)',
+                                'success' => 'var(--brand-success)',
+                                'danger' => '#b91c1c',
+                                default => 'var(--text-muted)',
+                            };
+                        @endphp
+                        @if ($useBoardHero)
+                            <div class="task-hero-column {{ $heroClassFor($status) }}">
+                                <span class="a-deco-1"></span>
+                                <span class="a-deco-3"></span>
+                                <div class="task-hero-column-header">
+                                    <span>{{ $status->getLabel() }}</span>
+                                    <span class="count-badge">{{ count($this->tasksByStatus[$status->value] ?? []) }}</span>
+                                </div>
+                                <div class="task-hero-column-body">
+                        @else
+                        <div style="background:var(--surface);border-radius:12px;overflow:hidden;border:1px solid var(--border-soft);">
+                            <div style="background:var(--surface-alt);border-left:4px solid {{ $statusAccent }};padding:10px 14px;display:flex;align-items:center;justify-content:space-between;">
+                                <span style="color:var(--text-heading);font-weight:700;font-size:13.5px;">{{ $status->getLabel() }}</span>
+                                <span style="background:var(--border-soft);color:var(--text-muted);font-size:11px;font-weight:700;padding:2px 9px;border-radius:99px;">{{ count($this->tasksByStatus[$status->value] ?? []) }}</span>
+                            </div>
+                            <div style="padding:10px;display:flex;flex-direction:column;gap:8px;">
+                        @endif
+                                @forelse (($this->tasksByStatus[$status->value] ?? []) as $task)
+                                    <div class="task-card" wire:click="openTaskDetail('{{ $task->id }}')" style="--accent:{{ $priorityAccent($task->priority?->getColor() ?? 'gray') }};">
+                                        <div class="task-card-top">
+                                            <p class="task-card-title">{{ \Illuminate\Support\Str::limit($task->requirement, 80) }}</p>
+                                            @if ($task->assignedTo && ! $task->is_self_assigned)
+                                                <span class="task-card-avatar"><x-avatar :user="$task->assignedTo" :size="22" /></span>
+                                            @endif
+                                        </div>
+                                        <div class="task-card-meta">
+                                            <span class="task-card-priority"><span class="dot"></span> {{ $task->priority?->getLabel() ?? $task->priority }}</span>
+                                            @if ($task->checklistItems->isNotEmpty())
+                                                <span><i class="fa-solid fa-square-check"></i> {{ $task->checklistItems->where('is_done', true)->count() }}/{{ $task->checklistItems->count() }}</span>
+                                            @endif
+                                            @if ($task->due_date)
+                                                <span><i class="fa-regular fa-calendar" style="font-size:10px;"></i> {{ $fmtDate($task->due_date) }}</span>
+                                            @endif
+                                        </div>
+                                        @if ($task->assignedTo && ! $task->is_self_assigned)
+                                            <div class="task-card-assignee">{{ $task->assignedTo->profile?->nickname ?: $task->assignedTo->name }}</div>
+                                        @endif
+                                        @if ($task->status === \App\Enum\Task\TaskStatus::REVIEW->value)
+                                            {{-- Di REVIEW cuma creator yang bisa mutusin: kembalikan buat direvisi, atau selesaikan. --}}
+                                            @if ($task->created_by === auth()->id())
+                                                <select wire:change="moveTaskStatus('{{ $task->id }}', $event.target.value)" onclick="event.stopPropagation()" class="form-input" style="font-size:11px;padding:4px 6px;height:auto;margin-top:8px;">
+                                                    <option value="" selected disabled>Ubah ke...</option>
+                                                    <option value="{{ \App\Enum\Task\TaskStatus::IN_PROGRESS->value }}">Sedang Dalam Proses</option>
+                                                    <option value="{{ \App\Enum\Task\TaskStatus::COMPLETE->value }}">Selesai</option>
+                                                </select>
+                                            @else
+                                                <p style="font-size:11px;color:var(--text-muted);margin:8px 0 0;font-style:italic;">Menunggu penilaian pembuat tugas.</p>
+                                            @endif
+                                        @elseif ($task->status !== \App\Enum\Task\TaskStatus::COMPLETE->value && ($task->status !== \App\Enum\Task\TaskStatus::TODO->value || $task->assigned_to === auth()->id()))
+                                            @php
+                                                $order = ($task->is_self_assigned || ! $task->needs_review) ? \App\Enum\Task\TaskStatus::BOARD_ORDER_SELF_ASSIGNED : \App\Enum\Task\TaskStatus::BOARD_ORDER;
+                                                $nextStatus = $order[array_search(\App\Enum\Task\TaskStatus::from($task->status), $order, true) + 1] ?? null;
+                                            @endphp
+                                            @if ($nextStatus)
+                                                <button type="button" wire:click="moveTaskStatus('{{ $task->id }}', '{{ $nextStatus->value }}')" onclick="event.stopPropagation()" class="btn-ghost btn-sm" style="margin-top:8px;width:100%;">
+                                                    Pindah ke {{ $nextStatus->getLabel() }} <i class="fa-solid fa-arrow-right" style="font-size:10px;"></i>
+                                                </button>
+                                            @endif
+                                        @endif
+
+                                        @unless ($task->is_self_assigned)
+                                            <div class="task-card-footer">
+                                                <span><i class="fa-solid fa-paperclip"></i> {{ $task->attachments_count }}</span>
+                                                <span><i class="fa-regular fa-comment"></i> {{ $task->comments->count() }}</span>
+                                                @if ($task->rating)
+                                                    <span><i class="fa-solid fa-star" style="color:#f5a524;"></i> {{ $task->rating }}</span>
+                                                @endif
+                                            </div>
+                                        @endunless
+                                    </div>
+                                @empty
+                                    <p style="font-size:12px;color:var(--text-muted);text-align:center;padding:12px 0;margin:0;">Kosong</p>
+                                @endforelse
+                            </div>
+                        </div>
+                    @endforeach
+                @endif
+            </div>
         @endif
 
         @if ($this->historyTasks)
-            <div style="margin-top:24px;">
-                <h3 style="font-size:15px;font-weight:700;color:var(--text-heading);margin:0 0 12px;"><i class="fa-solid fa-clock-rotate-left"></i> Riwayat</h3>
-                <div style="overflow-x:auto;background:var(--surface);border-radius:12px;border:1px solid var(--border);">
-                    <table style="width:100%;border-collapse:collapse;">
-                        <thead>
-                            <tr style="text-align:left;font-size:11px;color:var(--text-muted);border-bottom:1px solid var(--border);">
-                                <th style="padding:10px 14px;">Kode</th>
-                                <th style="padding:10px 14px;">Kebutuhan</th>
-                                <th style="padding:10px 14px;">Prioritas</th>
-                                <th style="padding:10px 14px;">Ditugaskan</th>
-                                <th style="padding:10px 14px;">Selesai</th>
-                                <th style="padding:10px 14px;">Rating</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @forelse ($this->historyTasks as $task)
-                                <tr wire:click="openTaskDetail('{{ $task->id }}')" style="cursor:pointer;border-bottom:1px solid var(--border);font-size:13px;">
-                                    <td style="padding:10px 14px;font-weight:600;">{{ $task->code }}</td>
-                                    <td style="padding:10px 14px;">{{ \Illuminate\Support\Str::limit($task->requirement, 60) }}</td>
-                                    <td style="padding:10px 14px;">{{ $task->priority?->getLabel() ?? $task->priority }}</td>
-                                    <td style="padding:10px 14px;">{{ $task->assignedTo?->name ?? '-' }}</td>
-                                    <td style="padding:10px 14px;">{{ $fmtDate($task->completed_date, 'j M Y') ?? '-' }}</td>
-                                    <td style="padding:10px 14px;">
-                                        @if ($task->rating)
-                                            <i class="fa-solid fa-star" style="color:#f5a524;"></i> {{ $task->rating }}
-                                        @else
-                                            <span style="color:var(--text-faint);">-</span>
-                                        @endif
-                                    </td>
+            <div x-data="{ open: false }" style="margin-top:24px;">
+                <button type="button" @click="open = ! open" class="btn-ghost btn-sm">
+                    <i class="fa-solid fa-clock-rotate-left"></i> Riwayat
+                    <i class="fa-solid fa-chevron-down" :style="open && 'transform:rotate(180deg);'" style="font-size:10px;transition:transform 0.15s;"></i>
+                </button>
+                <div x-show="open" x-cloak style="margin-top:12px;">
+                    <div style="overflow-x:auto;background:var(--surface);border-radius:12px;border:1px solid var(--border);">
+                        <table style="width:100%;border-collapse:collapse;">
+                            <thead>
+                                <tr style="text-align:left;font-size:11px;color:var(--text-muted);border-bottom:1px solid var(--border);">
+                                    <th style="padding:10px 14px;">Kode</th>
+                                    <th style="padding:10px 14px;">Kebutuhan</th>
+                                    <th style="padding:10px 14px;">Prioritas</th>
+                                    <th style="padding:10px 14px;">Ditugaskan</th>
+                                    <th style="padding:10px 14px;">Selesai</th>
+                                    <th style="padding:10px 14px;">Rating</th>
                                 </tr>
-                            @empty
-                                <tr><td colspan="6" style="padding:20px;text-align:center;color:var(--text-muted);">Belum ada riwayat.</td></tr>
-                            @endforelse
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody>
+                                @forelse ($this->historyTasks as $task)
+                                    <tr wire:click="openTaskDetail('{{ $task->id }}')" style="cursor:pointer;border-bottom:1px solid var(--border);font-size:13px;">
+                                        <td style="padding:10px 14px;font-weight:600;">{{ $task->code }}</td>
+                                        <td style="padding:10px 14px;">{{ \Illuminate\Support\Str::limit($task->requirement, 60) }}</td>
+                                        <td style="padding:10px 14px;">{{ $task->priority?->getLabel() ?? $task->priority }}</td>
+                                        <td style="padding:10px 14px;">{{ $task->assignedTo?->name ?? '-' }}</td>
+                                        <td style="padding:10px 14px;">{{ $fmtDate($task->completed_date, 'j M Y') ?? '-' }}</td>
+                                        <td style="padding:10px 14px;">
+                                            @if ($task->rating)
+                                                <i class="fa-solid fa-star" style="color:#f5a524;"></i> {{ $task->rating }}
+                                            @else
+                                                <span style="color:var(--text-faint);">-</span>
+                                            @endif
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr><td colspan="6" style="padding:20px;text-align:center;color:var(--text-muted);">Belum ada riwayat.</td></tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                    <div style="margin-top:12px;">{{ $this->historyTasks->links() }}</div>
                 </div>
-                <div style="margin-top:12px;">{{ $this->historyTasks->links() }}</div>
             </div>
         @endif
     </div>
@@ -765,50 +835,6 @@
     </div>
 @endif
 
-@if ($showBgModal)
-    <div class="modal-overlay" wire:click="closeBgModal">
-        <div class="modal-box" onclick="event.stopPropagation()">
-            <h3 style="font-size:16px;font-weight:700;color:var(--text-heading);margin:0 0 14px;">Ganti Background Board</h3>
-
-            <div style="display:flex;gap:8px;margin-bottom:16px;">
-                <button type="button" wire:click="$set('bgType', 'color')" class="btn-sm {{ $bgType === 'color' ? 'btn-primary' : 'btn-ghost' }}" style="flex:1;"><i class="fa-solid fa-fill-drip"></i> Warna</button>
-                <button type="button" wire:click="$set('bgType', 'image')" class="btn-sm {{ $bgType === 'image' ? 'btn-primary' : 'btn-ghost' }}" style="flex:1;"><i class="fa-solid fa-image"></i> Gambar</button>
-            </div>
-
-            @if ($bgType === 'color')
-                <div>
-                    <label class="form-label">Warna Background</label>
-                    <div style="display:flex;align-items:center;gap:10px;">
-                        <input type="color" wire:model="bgColor" style="width:48px;height:38px;padding:2px;border-radius:8px;border:1px solid var(--border);cursor:pointer;">
-                        <input type="text" class="form-input" wire:model="bgColor" placeholder="#0f172a">
-                    </div>
-                    @error('bgColor') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
-                </div>
-            @else
-                <div>
-                    <label class="form-label">Upload Gambar</label>
-                    <input type="file" wire:model="bgImage" accept="image/*" class="form-input">
-                    @error('bgImage') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
-                    @if ($bgImage)
-                        <img src="{{ $bgImage->temporaryUrl() }}" style="margin-top:10px;width:100%;max-height:160px;object-fit:cover;border-radius:10px;">
-                    @endif
-                </div>
-            @endif
-
-            <div style="display:flex;justify-content:space-between;gap:10px;margin-top:20px;">
-                @if ($this->boardBackground)
-                    <button type="button" wire:click="removeBoardBackground" class="btn-ghost" style="color:var(--danger-text);">Hapus Background</button>
-                @else
-                    <span></span>
-                @endif
-                <div style="display:flex;gap:10px;">
-                    <button type="button" wire:click="closeBgModal" class="btn-ghost">Batal</button>
-                    <button type="button" wire:click="saveBoardBackground" class="btn-primary">Simpan</button>
-                </div>
-            </div>
-        </div>
-    </div>
-@endif
 
 @if ($showProjectModal)
     <div class="modal-overlay" wire:click="closeProjectModal">

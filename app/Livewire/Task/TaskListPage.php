@@ -35,7 +35,6 @@ class TaskListPage extends Component
     // yang benar, mis. /tugas?scope=saya - lihat public/sw.js notificationclick.
     #[Url]
     public string $scope = 'todo'; // todo | saya | individu | tim - lihat TaskService::getPortalTasks()
-    public string $view = 'board'; // board | list
     public string $search = ''; // filter board by kebutuhan/nama assignee
 
     #[Url]
@@ -97,12 +96,6 @@ class TaskListPage extends Component
     public string $newListColor = '#475569';
     public ?string $editingListId = null;
     public string $editingListName = '';
-
-    // Modal "Ganti Background" board
-    public bool $showBgModal = false;
-    public string $bgType = 'color';
-    public string $bgColor = '#0f172a';
-    public $bgImage = null;
 
     public function mount(): void
     {
@@ -186,21 +179,6 @@ class TaskListPage extends Component
 
         return $tasks->filter(fn ($task) => str_contains(strtolower($task->requirement ?? ''), strtolower($search))
             || str_contains(strtolower($task->assignedTo?->name ?? ''), strtolower($search)))->values();
-    }
-
-    /**
-     * Kunci penyimpanan background board. Todo Saya/Tugas Saya/Penugasan Individu berbagi 1
-     * background (bukan per-tab) - board pribadi vs project punya kustomisasi terpisah, tiap
-     * project ULID-nya sendiri.
-     */
-    public function getBoardKeyProperty(): string
-    {
-        return $this->activeProjectId ?: 'personal';
-    }
-
-    public function getBoardBackgroundProperty()
-    {
-        return app(TaskService::class)->getBoardBackground(Auth::user(), $this->boardKey);
     }
 
     public function getTasksByStatusProperty(): array
@@ -670,6 +648,24 @@ class TaskListPage extends Component
         }
     }
 
+    /** Pengganti drag-drop (dihapus, layout Board sekarang list vertikal) - pindah 1 kartu ke List lain. */
+    public function moveTaskToList(string $taskId, string $listId): void
+    {
+        try {
+            app(TaskService::class)->moveCardsAcrossLists([$listId => [$taskId]], Auth::user());
+
+            $task = Task::find($taskId);
+            $list = TaskList::find($listId);
+            if ($task && $list?->is_final && ($task->reviewer_id ?? $task->created_by) === Auth::id() && ! $task->rating) {
+                $this->openTaskDetail($taskId);
+            }
+        } catch (\Throwable $e) {
+            Notification::make()->title($e->getMessage() ?: 'Tidak bisa memindahkan tugas ini')->danger()->send();
+        }
+
+        unset($this->tasks);
+    }
+
     public function moveListLeft(string $listId): void
     {
         $this->swapListPosition($listId, -1);
@@ -738,44 +734,6 @@ class TaskListPage extends Component
         }
 
         unset($this->tasks, $this->historyTasks);
-    }
-
-    public function openBgModal(): void
-    {
-        $current = $this->boardBackground;
-        $this->bgType = $current?->type ?? 'color';
-        $this->bgColor = $current?->type === 'color' ? $current->value : '#0f172a';
-        $this->bgImage = null;
-        $this->showBgModal = true;
-    }
-
-    public function closeBgModal(): void
-    {
-        $this->showBgModal = false;
-    }
-
-    public function saveBoardBackground(): void
-    {
-        $service = app(TaskService::class);
-
-        if ($this->bgType === 'image') {
-            $this->validate(['bgImage' => ['required', 'image', 'max:4096']]);
-            $service->setBoardBackgroundImage(Auth::user(), $this->boardKey, $this->bgImage);
-        } else {
-            $this->validate(['bgColor' => ['required', 'regex:/^#[0-9a-fA-F]{6}$/']]);
-            $service->setBoardBackgroundColor(Auth::user(), $this->boardKey, $this->bgColor);
-        }
-
-        unset($this->boardBackground);
-        $this->showBgModal = false;
-        Notification::make()->title('Background board diperbarui')->success()->send();
-    }
-
-    public function removeBoardBackground(): void
-    {
-        app(TaskService::class)->removeBoardBackground(Auth::user(), $this->boardKey);
-        unset($this->boardBackground);
-        $this->showBgModal = false;
     }
 
     public function openMembersModal(): void

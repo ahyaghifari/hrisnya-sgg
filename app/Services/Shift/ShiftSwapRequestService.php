@@ -37,7 +37,7 @@ class ShiftSwapRequestService
 
         $reqSchedule = ScheduleShiftAssignment::with('shiftType')->findOrFail($data['req_schedule_id']);
 
-        $this->assertWithinSettingLimits($data, $reqSchedule, $user);
+        $this->assertWithinSettingLimits($reqSchedule, $user);
 
         return $this->storeScheduleSwap($data, $reqSchedule, $user);
     }
@@ -70,6 +70,15 @@ class ShiftSwapRequestService
             // Libur) - hasilnya dibuang, cuma buat validasi saat submit (throw sendiri kalau
             // ada konflik nyata). Eksekusi beneran & re-cek final tetap di executeApprovedSwap().
             $this->resolveDifferentDateExecution($reqSchedule, $targetSchedule, strict: true);
+        } elseif (! $reqSchedule->date->equalTo($targetSchedule->date)) {
+            // swap_kind 'schedule' (default) beda tanggal: read-only, non-strict (double shift
+            // beda TIPE tetap boleh submit, cuma warning-only seperti biasa - lihat
+            // conflictWarningsForSchedules()) - tapi resolveSlot() sendiri tetap throw kalau
+            // ketemu kasus DUPLIKAT (busy-nya persis shift yang sama tipenya) apa pun nilai
+            // strict, jadi baris ini gagal-cepat blokir kasus itu saat submit, bukan nunggu
+            // meledak pas approval final dieksekusi (instruksi user 2026-09-16). Hasilnya dibuang -
+            // cuma buat efek sampingnya (throw), eksekusi beneran tetap di executeApprovedSwap().
+            $this->resolveDifferentDateExecution($reqSchedule, $targetSchedule, strict: false);
         }
 
         return DB::transaction(function () use ($data, $reqSchedule, $targetSchedule, $user, $swapKind) {
@@ -149,13 +158,6 @@ class ShiftSwapRequestService
         }
     }
 
-    /** Jarak minimal hari (AttendanceSettingEnum::TUKAR_SHIFT_MIN_LEAD_DAYS) antara hari ini dan
-     * tanggal shift saat mengajukan tukar shift. 0 = tidak dibatasi. */
-    public function minLeadDays(?string $companyId): int
-    {
-        return max(0, (int) Setting::resolve(AttendanceSettingEnum::TUKAR_SHIFT_MIN_LEAD_DAYS->value, $companyId, 0));
-    }
-
     /** Saldo pengajuan tukar shift milik $user dalam PERIODE ABSENSI (AttendanceSettingEnum::PERIOD_*)
      * yang memuat $anchorDate - bukan bulan kalender. null = tidak dibatasi
      * (TUKAR_SHIFT_MAX_PER_BULAN <= 0). Pengajuan ditolak/dibatalkan tidak dihitung.
@@ -185,26 +187,13 @@ class ShiftSwapRequestService
         ];
     }
 
-    /** Batas dari Pengaturan Absensi (company-scoped) - lihat minLeadDays() & swapQuota(). */
-    private function assertWithinSettingLimits(array $data, ScheduleShiftAssignment $reqSchedule, $user): void
+    /** Batas dari Pengaturan Absensi (company-scoped) - lihat swapQuota(). Jarak minimal hari
+     * pengajuan (dulu TUKAR_SHIFT_MIN_LEAD_DAYS) SENGAJA dimatikan total (instruksi user
+     * 2026-09-16) - tanggal shift paling cepat yang boleh diajukan sekarang cuma "hari ini,
+     * tidak boleh sebelumnya", dijaga di form (ShiftSwapRequestModal::getMinDateProperty()),
+     * bukan aturan company-scoped lagi di sini. */
+    private function assertWithinSettingLimits(ScheduleShiftAssignment $reqSchedule, $user): void
     {
-        $minLead = $this->minLeadDays($user->company_id);
-        if ($minLead > 0) {
-            $earliest = $reqSchedule->date->copy();
-            if (! empty($data['target_schedule_id'])) {
-                $targetDate = ScheduleShiftAssignment::whereKey($data['target_schedule_id'])->value('date');
-                if ($targetDate && $targetDate->lt($earliest)) {
-                    $earliest = $targetDate;
-                }
-            }
-
-            if ($earliest->lt(today()->addDays($minLead))) {
-                throw new \InvalidArgumentException(
-                    "Pengajuan tukar shift harus dibuat minimal {$minLead} hari sebelum tanggal shift."
-                );
-            }
-        }
-
         $quota = $this->swapQuota($user, $reqSchedule->date);
         if ($quota && $quota['used'] >= $quota['max']) {
             throw new \InvalidArgumentException(
@@ -427,13 +416,15 @@ class ShiftSwapRequestService
             ->first();
 
         return [
-            'req_date' => $this->resolveSlot($targetConflict, $targetSchedule->user, 'Karyawan tujuan sudah memiliki jadwal lain pada tanggal shift Anda', $strict),
-            'target_date' => $this->resolveSlot($reqConflict, $reqSchedule->user, 'Anda sudah memiliki jadwal lain pada tanggal shift tujuan', $strict),
+            'req_date' => $this->resolveSlot($targetConflict, $targetSchedule->user, 'Karyawan tujuan sudah memiliki jadwal lain pada tanggal shift Anda', $strict, $reqSchedule->shift_type_id),
+            'target_date' => $this->resolveSlot($reqConflict, $reqSchedule->user, 'Anda sudah memiliki jadwal lain pada tanggal shift tujuan', $strict, $targetSchedule->shift_type_id),
         ];
     }
 
-    /** @return array{mode: 'move'|'move_over_off_day'|'double_shift', busy?: ScheduleShiftAssignment, warning?: string} */
-    private function resolveSlot(?ScheduleShiftAssignment $busy, ?User $incomingOwner, string $conflictMessagePrefix, bool $strict = false): array
+    /** @return array{mode: 'move'|'move_over_off_day'|'double_shift', busy?: ScheduleShiftAssignment, warning?: string}
+     * @param string|null $incomingShiftTypeId shift_type_id yang lagi DIOPER ke slot ini - dipakai
+     *   buat cek kasus "duplikat" di bawah. */
+    private function resolveSlot(?ScheduleShiftAssignment $busy, ?User $incomingOwner, string $conflictMessagePrefix, bool $strict = false, ?string $incomingShiftTypeId = null): array
     {
         if (! $busy) {
             return ['mode' => 'move'];
@@ -446,6 +437,20 @@ class ShiftSwapRequestService
         }
 
         $busyShift = $busy->shiftType?->name ?? 'shift lain';
+
+        // Shift yang DIOPER persis SAMA tipenya dengan shift yang busy-nya udah py di tanggal itu
+        // (independen dari aturan kompatibilitas pagi/siang/malam di validateScheduleSwapRules() -
+        // itu cuma ngecek reqSchedule vs targetSchedule, sedangkan $busy ini baris LAIN yang
+        // kebetulan sudah ada) - bukan double shift yang masuk akal (rekan/pemohon sudah otomatis
+        // "kerja shift itu"), jadi SELALU diblokir keras apa pun nilai $strict-nya, baik swap_kind
+        // 'schedule' maupun 'reciprocal_off' (instruksi user 2026-09-16).
+        if ($incomingShiftTypeId && $busy->shift_type_id === $incomingShiftTypeId) {
+            $name = $incomingOwner?->name ?? 'Karyawan';
+
+            throw new \InvalidArgumentException(
+                "{$conflictMessagePrefix} dengan shift yang SAMA ({$busyShift}) - {$name} sudah otomatis kerja shift itu, tidak bisa ditukarkan"
+            );
+        }
 
         if ($strict) {
             throw new \InvalidArgumentException(
@@ -464,19 +469,49 @@ class ShiftSwapRequestService
 
     /** Peringatan double shift buat pengajuan yang BELUM disimpan (preview di form pengajuan) -
      * read-only, tidak menyentuh DB. [] kalau tidak ada konflik atau tukar tanggal sama
-     * (kompatibilitas shift_type dicek terpisah di validateScheduleSwapRules). */
+     * (kompatibilitas shift_type dicek terpisah di validateScheduleSwapRules). Kasus DUPLIKAT
+     * (shift yang dioper persis sama tipenya, lihat resolveSlot()) SENGAJA tidak nongol di sini -
+     * itu bukan warning tapi hard block, lihat duplicateShiftBlock(). */
     public function conflictWarningsForSchedules(?ScheduleShiftAssignment $reqSchedule, ?ScheduleShiftAssignment $targetSchedule): array
     {
         if (! $reqSchedule || ! $targetSchedule || $reqSchedule->date->equalTo($targetSchedule->date)) {
             return [];
         }
 
-        $plan = $this->resolveDifferentDateExecution($reqSchedule, $targetSchedule);
+        try {
+            $plan = $this->resolveDifferentDateExecution($reqSchedule, $targetSchedule);
+        } catch (\InvalidArgumentException) {
+            // Kasus duplikat (resolveSlot() throw) - biar duplicateShiftBlock() yang nampilin
+            // pesannya sebagai blocker, di sini cukup diam (tidak ada warning yang relevan).
+            return [];
+        }
 
         return array_values(array_filter([
             $plan['req_date']['warning'] ?? null,
             $plan['target_date']['warning'] ?? null,
         ]));
+    }
+
+    /** Cek KHUSUS kasus shift yang DIOPER persis SAMA tipenya dengan shift yang sudah dipunya
+     * rekan/pemohon di tanggal tujuan (lihat resolveSlot()) - beda dari
+     * conflictWarningsForSchedules() yang warning-only & tetap boleh submit, kasus ini SELALU
+     * hard block (preview MAUPUN submit, lihat storeScheduleSwap()) karena hasilnya tidak masuk
+     * akal - "kerja shift yang sama 2x" (instruksi user 2026-09-16). null kalau aman/tidak ada
+     * kasus ini. Dipakai modal pengajuan buat nampilin keterangan & nge-disable tombol Ajukan
+     * SEBELUM user coba submit, bukan cuma nunggu gagal. */
+    public function duplicateShiftBlock(?ScheduleShiftAssignment $reqSchedule, ?ScheduleShiftAssignment $targetSchedule): ?string
+    {
+        if (! $reqSchedule || ! $targetSchedule || $reqSchedule->date->equalTo($targetSchedule->date)) {
+            return null;
+        }
+
+        try {
+            $this->resolveDifferentDateExecution($reqSchedule, $targetSchedule);
+        } catch (\InvalidArgumentException $e) {
+            return $e->getMessage();
+        }
+
+        return null;
     }
 
     /** Sama seperti conflictWarningsForSchedules(), tapi untuk pengajuan yang SUDAH tersimpan

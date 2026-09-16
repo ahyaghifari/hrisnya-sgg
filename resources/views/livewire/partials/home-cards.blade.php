@@ -94,6 +94,101 @@
         </div>
     @endif
 
+    {{-- Jadwal Shift Saya ditaruh SEBELUM Tugas/Pelatihan (instruksi user 2026-09-16) - kalender
+    shift pribadi lebih sering dicek harian daripada daftar tugas/pelatihan, jadi diprioritaskan
+    lebih atas di dashboard. --}}
+    @if ($this->canJadwalShiftSaya)
+    <div class="pwa-list" style="grid-column:1/-1;padding-bottom:16px;">
+        <div class="pwa-card-header pwa-card-header-sky" style="margin-bottom:14px;">
+            <div class="pwa-card-header-deco-1"></div><div class="pwa-card-header-deco-2"></div>
+            <div class="pwa-card-header-content">
+                <span class="pwa-section-title"><i class="fa-solid fa-calendar-days" style="font-size:12px;margin-right:4px;"></i> Jadwal Shift Saya</span>
+                @if ($this->myScheduleId)
+                    <a href="{{ route('presensi.jadwal.show', ['schedule' => $this->myScheduleId, 'tab' => 'penjadwalan']) }}" wire:navigate class="pwa-section-link">Detail Jadwal <i class="fa-solid fa-chevron-right" style="font-size:9px;"></i></a>
+                @endif
+            </div>
+        </div>
+        <div class="jadwal-shift-calendar-wrap" style="padding:0 16px;">
+            <div class="jadwal-shift-calendar-col">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+                    <button type="button" wire:click="calendarPrevMonth" class="btn-ghost" style="padding:4px 9px;font-size:11px;"><i class="fa-solid fa-chevron-left"></i></button>
+                    <span style="font-size:12px;font-weight:700;color:var(--text-heading);">{{ $this->calendarMonthLabel }}</span>
+                    <button type="button" wire:click="calendarNextMonth" class="btn-ghost" style="padding:4px 9px;font-size:11px;"><i class="fa-solid fa-chevron-right"></i></button>
+                </div>
+
+                <div class="jadwal-shift-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;font-size:9.5px;font-weight:700;color:var(--text-faint);text-align:center;margin-bottom:4px;">
+                    <span>Min</span><span>Sen</span><span>Sel</span><span>Rab</span><span>Kam</span><span>Jum</span><span>Sab</span>
+                </div>
+                <div class="jadwal-shift-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;">
+                    @foreach ($this->calendarWeeks as $week)
+                        @foreach ($week as $day)
+                            @php
+                                $schedule = $day['schedule'];
+                                $state = $schedule['state'] ?? null;
+
+                                // Sel 'scheduled' pakai warna SOLID persis dari config shift type (bukan
+                                // color-mix tint lagi) - instruksi user 2026-08-15, kartu identitas warna
+                                // fixed begini exempt dari aturan var(--token) DESIGN.md (sama pola
+                                // .badge-*/.pwa-tile-icon, warnanya sendiri yang jadi identitas, bukan ikut
+                                // tema). Teks putih solid biar kontras di atas warna jenuh apapun.
+                                $cellColor = match ($state) {
+                                    'holiday' => 'var(--warn-soft-text)',
+                                    'off' => 'var(--danger-soft-text)',
+                                    'scheduled' => $schedule['color'] ? '#fff' : 'var(--info-soft-text)',
+                                    default => 'var(--text-faint)',
+                                };
+                                $cellBg = match ($state) {
+                                    'holiday' => 'var(--warn-soft-bg)',
+                                    'off' => 'var(--danger-soft-bg)',
+                                    'scheduled' => $schedule['color'] ? $schedule['color'] : 'var(--info-soft-bg)',
+                                    default => 'transparent',
+                                };
+                            @endphp
+                            <div
+                                @if ($day['is_current_month'] && $schedule && $schedule['label']) title="{{ $schedule['label'] }}" @endif
+                                style="aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:7px;font-size:10.5px;gap:1px;
+                                    {{ $day['is_current_month'] ? "background:{$cellBg};color:{$cellColor};font-weight:700;" : 'color:var(--text-faint);' }}
+                                    {{ $day['is_today'] ? 'box-shadow:inset 0 0 0 1.5px var(--brand);' : '' }}">
+                                {{ $day['date']->day }}
+                                @if ($day['is_current_month'] && $state === 'scheduled' && $schedule['code'])
+                                    <span style="font-size:12px;font-weight:800;letter-spacing:0.2px;line-height:1;">{{ $schedule['code'] }}</span>
+                                @endif
+                            </div>
+                        @endforeach
+                    @endforeach
+                </div>
+            </div>
+
+            <div class="jadwal-shift-side-col">
+                <div style="display:flex;flex-direction:column;gap:5px;">
+                    @foreach ($this->shiftLegend as $legend)
+                        <span class="jadwal-shift-legend-item" style="font-size:11px;color:var(--text-body);display:inline-flex;align-items:center;gap:6px;">
+                            <span style="width:8px;height:8px;border-radius:50%;background:{{ $legend['color'] ?? 'var(--info-soft-text)' }};display:inline-block;flex-shrink:0;"></span>
+                            <strong style="color:var(--text-heading);">{{ $legend['code'] }}</strong> &ndash; {{ $legend['label'] }}
+                            @if ($legend['detail'])
+                                <span style="color:var(--text-muted);">({{ $legend['detail'] }})</span>
+                            @endif
+                        </span>
+                    @endforeach
+                    <span class="jadwal-shift-legend-item" style="font-size:11px;color:var(--text-body);display:inline-flex;align-items:center;gap:6px;">
+                        <span style="width:8px;height:8px;border-radius:50%;background:var(--danger-soft-text);display:inline-block;flex-shrink:0;"></span>Libur
+                    </span>
+                    <span class="jadwal-shift-legend-item" style="font-size:11px;color:var(--text-body);display:inline-flex;align-items:center;gap:6px;">
+                        <span style="width:8px;height:8px;border-radius:50%;background:var(--warn-soft-text);display:inline-block;flex-shrink:0;"></span>Hari Libur Nasional
+                    </span>
+                </div>
+
+                <livewire:presensi.shift-swap-ongoing-banner :key="'shift-swap-ongoing-banner'" />
+
+                <div class="jadwal-shift-swap-actions">
+                    <livewire:presensi.shift-swap-request-modal :key="'shift-swap-modal'" />
+                    <livewire:presensi.shift-swap-history-sheet :key="'shift-swap-history'" />
+                </div>
+            </div>
+        </div>
+    </div>
+    @endif
+
     {{-- MyKanban: task terkini dari kanban pribadi maupun board (bukan lagi placeholder statis).
     Sekelompok dengan welcome/presensi/saldo di grid .bento yang sama (bukan section terpisah di
     luar grid), supaya breakpoint-nya konsisten: 1 kolom di mobile, 2 kolom berdampingan di desktop.
@@ -191,96 +286,6 @@
             @endif
         </div>
         @endif
-    </div>
-    @endif
-
-    @if ($this->canJadwalShiftSaya)
-    <div class="pwa-list" style="grid-column:1/-1;padding-bottom:16px;">
-        <div class="pwa-card-header pwa-card-header-sky" style="margin-bottom:14px;">
-            <div class="pwa-card-header-deco-1"></div><div class="pwa-card-header-deco-2"></div>
-            <div class="pwa-card-header-content">
-                <span class="pwa-section-title"><i class="fa-solid fa-calendar-days" style="font-size:12px;margin-right:4px;"></i> Jadwal Shift Saya</span>
-                @if ($this->myScheduleId)
-                    <a href="{{ route('presensi.jadwal.show', ['schedule' => $this->myScheduleId, 'tab' => 'penjadwalan']) }}" wire:navigate class="pwa-section-link">Detail Jadwal <i class="fa-solid fa-chevron-right" style="font-size:9px;"></i></a>
-                @endif
-            </div>
-        </div>
-        <div class="jadwal-shift-calendar-wrap" style="padding:0 16px;">
-            <div class="jadwal-shift-calendar-col">
-                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
-                    <button type="button" wire:click="calendarPrevMonth" class="btn-ghost" style="padding:4px 9px;font-size:11px;"><i class="fa-solid fa-chevron-left"></i></button>
-                    <span style="font-size:12px;font-weight:700;color:var(--text-heading);">{{ $this->calendarMonthLabel }}</span>
-                    <button type="button" wire:click="calendarNextMonth" class="btn-ghost" style="padding:4px 9px;font-size:11px;"><i class="fa-solid fa-chevron-right"></i></button>
-                </div>
-
-                <div class="jadwal-shift-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;font-size:9.5px;font-weight:700;color:var(--text-faint);text-align:center;margin-bottom:4px;">
-                    <span>Min</span><span>Sen</span><span>Sel</span><span>Rab</span><span>Kam</span><span>Jum</span><span>Sab</span>
-                </div>
-                <div class="jadwal-shift-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;">
-                    @foreach ($this->calendarWeeks as $week)
-                        @foreach ($week as $day)
-                            @php
-                                $schedule = $day['schedule'];
-                                $state = $schedule['state'] ?? null;
-
-                                // Sel 'scheduled' pakai warna SOLID persis dari config shift type (bukan
-                                // color-mix tint lagi) - instruksi user 2026-08-15, kartu identitas warna
-                                // fixed begini exempt dari aturan var(--token) DESIGN.md (sama pola
-                                // .badge-*/.pwa-tile-icon, warnanya sendiri yang jadi identitas, bukan ikut
-                                // tema). Teks putih solid biar kontras di atas warna jenuh apapun.
-                                $cellColor = match ($state) {
-                                    'holiday' => 'var(--warn-soft-text)',
-                                    'off' => 'var(--danger-soft-text)',
-                                    'scheduled' => $schedule['color'] ? '#fff' : 'var(--info-soft-text)',
-                                    default => 'var(--text-faint)',
-                                };
-                                $cellBg = match ($state) {
-                                    'holiday' => 'var(--warn-soft-bg)',
-                                    'off' => 'var(--danger-soft-bg)',
-                                    'scheduled' => $schedule['color'] ? $schedule['color'] : 'var(--info-soft-bg)',
-                                    default => 'transparent',
-                                };
-                            @endphp
-                            <div
-                                @if ($day['is_current_month'] && $schedule && $schedule['label']) title="{{ $schedule['label'] }}" @endif
-                                style="aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:7px;font-size:10.5px;gap:1px;
-                                    {{ $day['is_current_month'] ? "background:{$cellBg};color:{$cellColor};font-weight:700;" : 'color:var(--text-faint);' }}
-                                    {{ $day['is_today'] ? 'box-shadow:inset 0 0 0 1.5px var(--brand);' : '' }}">
-                                {{ $day['date']->day }}
-                                @if ($day['is_current_month'] && $state === 'scheduled' && $schedule['code'])
-                                    <span style="font-size:12px;font-weight:800;letter-spacing:0.2px;line-height:1;">{{ $schedule['code'] }}</span>
-                                @endif
-                            </div>
-                        @endforeach
-                    @endforeach
-                </div>
-            </div>
-
-            <div class="jadwal-shift-side-col">
-                <div style="display:flex;flex-direction:column;gap:5px;">
-                    @foreach ($this->shiftLegend as $legend)
-                        <span class="jadwal-shift-legend-item" style="font-size:11px;color:var(--text-body);display:inline-flex;align-items:center;gap:6px;">
-                            <span style="width:8px;height:8px;border-radius:50%;background:{{ $legend['color'] ?? 'var(--info-soft-text)' }};display:inline-block;flex-shrink:0;"></span>
-                            <strong style="color:var(--text-heading);">{{ $legend['code'] }}</strong> &ndash; {{ $legend['label'] }}
-                            @if ($legend['detail'])
-                                <span style="color:var(--text-muted);">({{ $legend['detail'] }})</span>
-                            @endif
-                        </span>
-                    @endforeach
-                    <span class="jadwal-shift-legend-item" style="font-size:11px;color:var(--text-body);display:inline-flex;align-items:center;gap:6px;">
-                        <span style="width:8px;height:8px;border-radius:50%;background:var(--danger-soft-text);display:inline-block;flex-shrink:0;"></span>Libur
-                    </span>
-                    <span class="jadwal-shift-legend-item" style="font-size:11px;color:var(--text-body);display:inline-flex;align-items:center;gap:6px;">
-                        <span style="width:8px;height:8px;border-radius:50%;background:var(--warn-soft-text);display:inline-block;flex-shrink:0;"></span>Hari Libur Nasional
-                    </span>
-                </div>
-
-                <div class="jadwal-shift-swap-actions">
-                    <livewire:presensi.shift-swap-request-modal :key="'shift-swap-modal'" />
-                    <livewire:presensi.shift-swap-history-sheet :key="'shift-swap-history'" />
-                </div>
-            </div>
-        </div>
     </div>
     @endif
 

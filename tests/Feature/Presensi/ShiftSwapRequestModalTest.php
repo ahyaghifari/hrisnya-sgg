@@ -78,6 +78,7 @@ class ShiftSwapRequestModalTest extends TestCase
         Livewire::actingAs($requester)
             ->test(ShiftSwapRequestModal::class)
             ->call('openModal')
+            ->set('reqDate', $date)
             ->set('targetUserId', $target->id)
             ->call('submit')
             ->assertHasNoErrors()
@@ -102,6 +103,7 @@ class ShiftSwapRequestModalTest extends TestCase
         Livewire::actingAs($requester)
             ->test(ShiftSwapRequestModal::class)
             ->call('openModal')
+            ->set('reqDate', $reqDate)
             ->set('dateMode', 'different')
             ->set('targetDate', $targetDate)
             ->set('targetUserId', $target->id)
@@ -131,6 +133,7 @@ class ShiftSwapRequestModalTest extends TestCase
         Livewire::actingAs($requester)
             ->test(ShiftSwapRequestModal::class)
             ->call('openModal')
+            ->set('reqDate', $reqDate)
             ->set('dateMode', 'reciprocal')
             ->set('targetUserId', $target->id)
             ->set('targetDate', $compensationDate)
@@ -160,7 +163,9 @@ class ShiftSwapRequestModalTest extends TestCase
         $empty = User::factory()->create(['company_id' => $this->company->id]);
         ScheduleShiftAssignment::create(['company_id' => $this->company->id, 'user_id' => $empty->id, 'shift_type_id' => $this->siang->id, 'date' => now()->addDays(5)->toDateString(), 'off_day' => false]);
 
-        $component = Livewire::actingAs($requester)->test(ShiftSwapRequestModal::class)->set('dateMode', 'reciprocal');
+        $component = Livewire::actingAs($requester)->test(ShiftSwapRequestModal::class)
+            ->set('reqDate', $reqDate)
+            ->set('dateMode', 'reciprocal');
 
         $candidates = $component->get('offDayCandidates');
 
@@ -189,11 +194,13 @@ class ShiftSwapRequestModalTest extends TestCase
     {
         $requester = User::factory()->create(['company_id' => $this->company->id]);
         $target = User::factory()->create(['company_id' => $this->company->id]);
-        ScheduleShiftAssignment::create(['company_id' => $this->company->id, 'user_id' => $requester->id, 'shift_type_id' => $this->pagi->id, 'date' => now()->addDay()->toDateString(), 'off_day' => false]);
+        $reqDate = now()->addDay()->toDateString();
+        ScheduleShiftAssignment::create(['company_id' => $this->company->id, 'user_id' => $requester->id, 'shift_type_id' => $this->pagi->id, 'date' => $reqDate, 'off_day' => false]);
 
         Livewire::actingAs($requester)
             ->test(ShiftSwapRequestModal::class)
             ->call('openModal')
+            ->set('reqDate', $reqDate)
             ->set('targetUserId', $target->id)
             ->call('submit')
             ->assertHasErrors(['targetDate'])
@@ -221,7 +228,7 @@ class ShiftSwapRequestModalTest extends TestCase
         $beda = User::factory()->create(['company_id' => $this->company->id, 'name' => 'Budi Jadwal Lain']);
         ScheduleShiftAssignment::create(['company_id' => $this->company->id, 'user_id' => $beda->id, 'shift_type_id' => $otherShiftType->id, 'date' => $date, 'off_day' => false]);
 
-        $component = Livewire::actingAs($requester)->test(ShiftSwapRequestModal::class);
+        $component = Livewire::actingAs($requester)->test(ShiftSwapRequestModal::class)->set('reqDate', $date);
 
         $candidates = $component->get('targetCandidates');
 
@@ -240,5 +247,41 @@ class ShiftSwapRequestModalTest extends TestCase
         $component = Livewire::actingAs($requester)->test(ShiftSwapRequestModal::class);
 
         $this->assertCount(0, $component->get('targetCandidates'));
+    }
+
+    public function test_off_day_candidates_narrowed_to_own_team_when_schedule_uses_teams(): void
+    {
+        $schedule = Schedule::where('company_id', $this->company->id)->firstOrFail();
+        $schedule->update(['use_teams' => true]);
+
+        $teamA = \App\Models\Shift\ScheduleShiftTeam::create(['schedule_id' => $schedule->id, 'name' => 'Regu A']);
+        $teamB = \App\Models\Shift\ScheduleShiftTeam::create(['schedule_id' => $schedule->id, 'name' => 'Regu B']);
+
+        $requester = User::factory()->create(['company_id' => $this->company->id]);
+        $reqDate = now()->addDay()->toDateString();
+        $period = now()->addDay()->format('Y-m');
+        ScheduleShiftAssignment::create(['company_id' => $this->company->id, 'user_id' => $requester->id, 'shift_type_id' => $this->pagi->id, 'date' => $reqDate, 'off_day' => false]);
+        \App\Models\Shift\ScheduleShiftTeamMember::setForPeriod($schedule, $requester, $teamA, $period, $requester->id);
+
+        // Rekan SATU regu (A), Libur beneran di reqDate - harus tetap muncul.
+        $teammate = User::factory()->create(['company_id' => $this->company->id]);
+        ScheduleShiftAssignment::create(['company_id' => $this->company->id, 'user_id' => $teammate->id, 'shift_type_id' => null, 'date' => $reqDate, 'off_day' => true]);
+        ScheduleShiftAssignment::create(['company_id' => $this->company->id, 'user_id' => $teammate->id, 'shift_type_id' => $this->siang->id, 'date' => now()->addDays(5)->toDateString(), 'off_day' => false]);
+        \App\Models\Shift\ScheduleShiftTeamMember::setForPeriod($schedule, $teammate, $teamA, $period, $requester->id);
+
+        // Rekan BEDA regu (B), Libur beneran di reqDate juga - HARUS tersaring, bukan regu sendiri.
+        $otherTeam = User::factory()->create(['company_id' => $this->company->id]);
+        ScheduleShiftAssignment::create(['company_id' => $this->company->id, 'user_id' => $otherTeam->id, 'shift_type_id' => null, 'date' => $reqDate, 'off_day' => true]);
+        ScheduleShiftAssignment::create(['company_id' => $this->company->id, 'user_id' => $otherTeam->id, 'shift_type_id' => $this->siang->id, 'date' => now()->addDays(5)->toDateString(), 'off_day' => false]);
+        \App\Models\Shift\ScheduleShiftTeamMember::setForPeriod($schedule, $otherTeam, $teamB, $period, $requester->id);
+
+        $candidates = Livewire::actingAs($requester)
+            ->test(ShiftSwapRequestModal::class)
+            ->set('reqDate', $reqDate)
+            ->set('dateMode', 'reciprocal')
+            ->get('offDayCandidates');
+
+        $this->assertTrue($candidates->contains('user_id', $teammate->id));
+        $this->assertFalse($candidates->contains('user_id', $otherTeam->id), 'Rekan beda regu tidak boleh muncul kalau schedule pakai Regu.');
     }
 }

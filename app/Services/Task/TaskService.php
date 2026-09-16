@@ -7,7 +7,6 @@ use App\Enum\Task\TaskStatus;
 use App\Models\Setting;
 use App\Models\Task\Task;
 use App\Models\Task\TaskAttachment;
-use App\Models\Task\TaskBoardBackground;
 use App\Models\Task\TaskChecklistItem;
 use App\Models\Task\TaskList;
 use App\Models\Task\TaskProject;
@@ -27,7 +26,6 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 
 class TaskService
 {
@@ -703,46 +701,4 @@ class TaskService
         $this->taskRepository->deleteAttachment($attachmentId);
     }
 
-    /** $boardKey: 'todo' | 'saya' | 'individu' atau ULID TaskProject. */
-    public function getBoardBackground(User $user, string $boardKey): ?TaskBoardBackground
-    {
-        return TaskBoardBackground::where('user_id', $user->id)->where('board_key', $boardKey)->first();
-    }
-
-    public function setBoardBackgroundColor(User $user, string $boardKey, string $hex): TaskBoardBackground
-    {
-        return TaskBoardBackground::updateOrCreate(
-            ['user_id' => $user->id, 'board_key' => $boardKey],
-            ['type' => 'color', 'value' => $hex]
-        );
-    }
-
-    public function setBoardBackgroundImage(User $user, string $boardKey, UploadedFile $file): TaskBoardBackground
-    {
-        $old = $this->getBoardBackground($user, $boardKey);
-        if ($old?->type === 'image') {
-            Storage::disk('public')->delete($old->value);
-        }
-
-        $path = $file->store('tasks/board-backgrounds', 'public');
-
-        return TaskBoardBackground::updateOrCreate(
-            ['user_id' => $user->id, 'board_key' => $boardKey],
-            ['type' => 'image', 'value' => $path]
-        );
-    }
-
-    public function removeBoardBackground(User $user, string $boardKey): void
-    {
-        $bg = $this->getBoardBackground($user, $boardKey);
-        if (! $bg) {
-            return;
-        }
-
-        if ($bg->type === 'image') {
-            Storage::disk('public')->delete($bg->value);
-        }
-
-        $bg->delete();
-    }
 }

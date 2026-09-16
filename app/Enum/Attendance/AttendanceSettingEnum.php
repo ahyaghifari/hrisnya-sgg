@@ -19,7 +19,6 @@ enum AttendanceSettingEnum: string
     case IZIN_MENINGGALKAN_JAM_KERJA_MAX_JAM = 'izin_meninggalkan_jam_kerja_max_jam';
     case CUTI_MIN_MASA_KERJA_BULAN = 'cuti_min_masa_kerja_bulan';
     case TUKAR_SHIFT_MAX_PER_BULAN = 'tukar_shift_max_per_bulan';
-    case TUKAR_SHIFT_MIN_LEAD_DAYS = 'tukar_shift_min_lead_days';
 
     public function label(): string
     {
@@ -32,7 +31,6 @@ enum AttendanceSettingEnum: string
             self::IZIN_MENINGGALKAN_JAM_KERJA_MAX_JAM => 'Maksimal Jam Izin Meninggalkan Jam Kerja',
             self::CUTI_MIN_MASA_KERJA_BULAN => 'Minimal Masa Kerja untuk Bisa Cuti (Bulan)',
             self::TUKAR_SHIFT_MAX_PER_BULAN => 'Batas Tukar Shift per Periode (Kali)',
-            self::TUKAR_SHIFT_MIN_LEAD_DAYS => 'Minimal Jarak Hari Pengajuan Tukar Shift',
         };
     }
 
@@ -47,7 +45,6 @@ enum AttendanceSettingEnum: string
             self::IZIN_MENINGGALKAN_JAM_KERJA_MAX_JAM => 'Durasi maksimum (jam) 1 pengajuan Izin Meninggalkan Jam Kerja — berlaku sama untuk semua sub-jenisnya (Terlambat Masuk, Pulang Cepat, Meninggalkan Jam Kerja Tengah Hari). 0 = tidak dibatasi.',
             self::CUTI_MIN_MASA_KERJA_BULAN => 'Karyawan baru boleh mengajukan cuti (jenis apa pun) setelah bekerja minimal sekian bulan, dihitung dari Tanggal Bergabung. 0 = tidak dibatasi, boleh cuti sejak hari pertama.',
             self::TUKAR_SHIFT_MAX_PER_BULAN => 'Jumlah maksimum pengajuan tukar shift yang boleh diajukan 1 karyawan dalam 1 periode absensi (memakai Tanggal Awal/Akhir Periode di atas, dihitung dari tanggal shift yang ditukar; pengajuan ditolak/dibatalkan tidak dihitung). 0 = tidak dibatasi.',
-            self::TUKAR_SHIFT_MIN_LEAD_DAYS => 'Pengajuan tukar shift harus dibuat minimal sekian hari sebelum tanggal shift paling awal yang terlibat. Contoh: 2 = shift tanggal 10 paling lambat diajukan tanggal 8. 0 = tidak dibatasi.',
         };
     }
 
@@ -67,7 +64,6 @@ enum AttendanceSettingEnum: string
             self::IZIN_MENINGGALKAN_JAM_KERJA_MAX_JAM => '3',
             self::CUTI_MIN_MASA_KERJA_BULAN => '0',
             self::TUKAR_SHIFT_MAX_PER_BULAN => '0',
-            self::TUKAR_SHIFT_MIN_LEAD_DAYS => '0',
         };
     }
 }
