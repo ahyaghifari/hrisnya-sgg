@@ -20,11 +20,37 @@ use Carbon\Carbon;
 class ScheduleResolver
 {
     /**
+     * ScheduleShiftAssignment pakai trait BelongsToCompany (global scope company_id = company
+     * USER LOGIN, bukan company $targetUser) - tanpa dibuka, roster shift karyawan company lain
+     * kesaring diam-diam walau datanya ADA di DB, bikin shift "tidak kedeteksi" (ExtraShiftPage)
+     * atau kalender kosong (JadwalKaryawanPage) buat user yang PUNYA izin lihat_perusahaan_lain
+     * (dilaporkan user 2026-09-16). Dibuka HANYA kalau company target beda dari company user
+     * login DAN user login memang berwenang (canFilterByCompanyForSystem) - sama persis pattern
+     * ScheduleShiftRosterTab::shiftAssignmentQuery(), bukan dibuka buat semua orang. Auth::user()
+     * bisa null (console/queue - AccessLogScheduleReader dsb) - BelongsToCompany sendiri sudah
+     * skip scope total kalau runningInConsole(), jadi aman dibiarkan tanpa bypass eksplisit di sini.
+     */
+    private function shiftAssignmentQuery(User $targetUser): \Illuminate\Database\Eloquent\Builder
+    {
+        $query = ScheduleShiftAssignment::query();
+        $actor = \Illuminate\Support\Facades\Auth::user();
+
+        if ($actor
+            && $targetUser->company_id !== $actor->company_id
+            && $actor->canFilterByCompanyForSystem(\App\Enum\CustomPermissionEnum::SISTEM_ABSENSI)) {
+            $query->withoutGlobalScope('company');
+        }
+
+        return $query;
+    }
+
+    /**
      * @return array{type:string,is_off_day:bool,config?:object,schedule?:\App\Models\Shift\Schedule,label:string}|null
      */
     public function resolveForUserDate(User $user, string $date, bool $ignoreEffectiveDate = false): ?array
     {
-        $shiftAssignment = ScheduleShiftAssignment::with('shiftType.schedule')
+        $shiftAssignment = $this->shiftAssignmentQuery($user)
+            ->with('shiftType.schedule')
             ->where('user_id', $user->id)
             ->whereDate('date', $date)
             ->first();
