@@ -249,6 +249,113 @@ class KeycloakAdmin
         return $out;
     }
 
+    // ── Client Roles ────────────────────────────────────────────────────
+    // Butuh role tambahan di service account: realm-management -> manage-clients
+    // (view-clients cukup buat baca daftar client & role-nya).
+
+    /**
+     * @return array<int, array<string, mixed>>  daftar client Keycloak (id internal/UUID +
+     *         clientId yang tampil di Admin Console) — dipakai buat pilih client tempat
+     *         role didefinisikan, karena role Keycloak sifatnya per-client.
+     */
+    public function clients(?string $search = null, int $first = 0, int $max = 50): array
+    {
+        $params = array_filter([
+            'first' => $first,
+            'max' => $max,
+            'clientId' => $search,
+            'search' => filled($search) ? 'true' : null,
+        ]);
+
+        return $this->http()
+            ->get("{$this->adminUrl()}/clients", $params)
+            ->throw()
+            ->json();
+    }
+
+    /** @return array<int, array<string, mixed>>  role milik 1 client */
+    public function clientRoles(string $clientUuid): array
+    {
+        return $this->http()
+            ->get("{$this->adminUrl()}/clients/{$clientUuid}/roles")
+            ->throw()
+            ->json();
+    }
+
+    public function createClientRole(string $clientUuid, string $name, ?string $description = null): void
+    {
+        $this->http()
+            ->post("{$this->adminUrl()}/clients/{$clientUuid}/roles", array_filter([
+                'name' => $name,
+                'description' => $description,
+            ]))
+            ->throw();
+    }
+
+    /** @param array<string, mixed> $attrs  mis. ['description' => '...'] */
+    public function updateClientRole(string $clientUuid, string $roleName, array $attrs): void
+    {
+        $this->http()
+            ->put("{$this->adminUrl()}/clients/{$clientUuid}/roles/{$roleName}", $attrs + ['name' => $roleName])
+            ->throw();
+    }
+
+    public function deleteClientRole(string $clientUuid, string $roleName): void
+    {
+        $this->http()->delete("{$this->adminUrl()}/clients/{$clientUuid}/roles/{$roleName}")->throw();
+    }
+
+    /** @return array<string, mixed>|null  representasi role (butuh 'id'+'name' buat assign/lepas dari user), null kalau tidak ketemu */
+    public function findClientRole(string $clientUuid, string $roleName): ?array
+    {
+        $res = $this->http()->get("{$this->adminUrl()}/clients/{$clientUuid}/roles/{$roleName}");
+
+        return $res->status() === 404 ? null : $res->throw()->json();
+    }
+
+    /** @return array<int, array<string, mixed>>  role client yang SUDAH dipegang user (bukan lewat grup) */
+    public function userClientRoles(string $userId, string $clientUuid): array
+    {
+        return $this->http()
+            ->get("{$this->adminUrl()}/users/{$userId}/role-mappings/clients/{$clientUuid}")
+            ->throw()
+            ->json();
+    }
+
+    public function assignClientRoleToUser(string $userId, string $clientUuid, string $roleName): void
+    {
+        $role = $this->findClientRole($clientUuid, $roleName);
+
+        if (! $role) {
+            throw new RuntimeException("Role '{$roleName}' tidak ditemukan di client tersebut — mungkin sudah dihapus/nama berubah di Keycloak.");
+        }
+
+        // Endpoint role-mappings butuh representasi role di body — sengaja cuma kirim id+name
+        // (minimum yang disyaratkan Keycloak), BUKAN representasi penuh hasil GET apa adanya:
+        // field 'attributes' balikan GET berupa array kosong PHP ([]) yang di-encode jadi JSON
+        // array bukan objek, dan Keycloak menolaknya (400 unknown_error) kalau dikirim balik.
+        $this->http()
+            ->post("{$this->adminUrl()}/users/{$userId}/role-mappings/clients/{$clientUuid}", [
+                ['id' => $role['id'], 'name' => $role['name']],
+            ])
+            ->throw();
+    }
+
+    public function removeClientRoleFromUser(string $userId, string $clientUuid, string $roleName): void
+    {
+        $role = $this->findClientRole($clientUuid, $roleName);
+
+        if (! $role) {
+            return; // role sudah tidak ada di Keycloak — anggap sudah "lepas"
+        }
+
+        $this->http()
+            ->delete("{$this->adminUrl()}/users/{$userId}/role-mappings/clients/{$clientUuid}", [
+                ['id' => $role['id'], 'name' => $role['name']],
+            ])
+            ->throw();
+    }
+
     private function adminUrl(): string
     {
         return "{$this->base}/admin/realms/{$this->realm}";

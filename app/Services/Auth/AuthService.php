@@ -81,6 +81,11 @@ class AuthService
         return true;
     }
 
+    /**
+     * Password LOKAL HRIS saja - beda dari password SSO Keycloak, yang diganti terpisah lewat
+     * UbahAkunLogin (halaman "Username & Password SSO", instruksi user 2026-09-17: dua akun
+     * dipisah jelas, jangan disamakan/disinkron otomatis).
+     */
     public function changePassword(User $user, string $currentPassword, string $newPassword): bool
     {
         if (!password_verify($currentPassword, $user->password)) {

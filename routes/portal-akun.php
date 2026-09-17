@@ -8,6 +8,7 @@ use App\Livewire\Pembinaan\PembinaanAtasanPage;
 use App\Http\Controllers\Pwa\PushSubscriptionController;
 use App\Livewire\Pwa\Akun as PwaAkun;
 use App\Livewire\Pwa\NotificationSettingsPage;
+use App\Livewire\Pwa\UbahAkunLogin as PwaUbahAkunLogin;
 use App\Livewire\Pwa\UbahPassword as PwaUbahPassword;
 use App\Livewire\RiwayatApprovalPage;
 use Illuminate\Support\Facades\Route;
@@ -29,6 +30,9 @@ Route::get('/akun', PwaAkun::class)
 
 Route::get('/akun/ubah-password', PwaUbahPassword::class)
     ->name('akun.ubah-password');
+
+Route::get('/akun/ubah-login', PwaUbahAkunLogin::class)
+    ->name('akun.ubah-login');
 
 Route::get('/akun/notifikasi', NotificationSettingsPage::class)
     ->name('akun.notifikasi');

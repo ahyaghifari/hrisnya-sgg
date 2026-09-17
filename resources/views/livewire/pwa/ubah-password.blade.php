@@ -1,5 +1,5 @@
 <div>
-<x-page-header title="Ubah Kata Sandi" :back="route('akun')" />
+<x-page-header title="Ubah Password" :back="route('akun')" />
 
 <div style="background:var(--surface);border-radius:16px;box-shadow:var(--shadow-card);padding:18px;">
     <form wire:submit="changePassword" style="display:flex;flex-direction:column;gap:14px;">

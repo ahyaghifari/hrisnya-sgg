@@ -42,10 +42,25 @@
     </div>
 </div>
 
+<a href="{{ route('akun.ubah-login') }}" wire:navigate class="pwa-list-row" style="background:var(--surface);border-radius:16px;box-shadow:var(--shadow-card);text-decoration:none;margin-bottom:16px;border-bottom:none;">
+    <div class="pwa-tile-icon neutral"><i class="fa-solid fa-user-pen"></i></div>
+    <div style="flex:1;min-width:0;">
+        <p style="font-size:13.5px;font-weight:600;color:var(--text-heading);margin:0;">SSO</p>
+        <p style="font-size:11.5px;color:var(--text-muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+            @if ($ssoLinked && $ssoUsername)
+                {{ $ssoUsername }} &middot; {{ $record->email }}
+            @else
+                Belum tersambung — hubungi IT
+            @endif
+        </p>
+    </div>
+    <i class="fa-solid fa-chevron-right"></i>
+</a>
+
 <a href="{{ route('akun.ubah-password') }}" wire:navigate class="pwa-list-row" style="background:var(--surface);border-radius:16px;box-shadow:var(--shadow-card);text-decoration:none;margin-bottom:16px;border-bottom:none;">
     <div class="pwa-tile-icon neutral"><i class="fa-solid fa-lock"></i></div>
     <div style="flex:1;min-width:0;">
-        <p style="font-size:13.5px;font-weight:600;color:var(--text-heading);margin:0;">Ubah Kata Sandi</p>
+        <p style="font-size:13.5px;font-weight:600;color:var(--text-heading);margin:0;">Ubah Password</p>
     </div>
     <i class="fa-solid fa-chevron-right"></i>
 </a>

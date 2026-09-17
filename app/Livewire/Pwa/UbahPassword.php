@@ -8,7 +8,11 @@ use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 
-#[Layout('components.layout', ['title' => 'Ubah Kata Sandi'])]
+/** Password akun LOKAL HRIS - beda dari password SSO Keycloak (lihat UbahAkunLogin, "Username &
+ * Password SSO"). Judul halaman ini sengaja polos "Ubah Password" TANPA embel-embel "HRIS" -
+ * yang perlu dibedakan cuma pas 2 pilihan ini berdampingan (kartu di halaman Akun), bukan di
+ * judul halamannya sendiri (instruksi user 2026-09-17). */
+#[Layout('components.layout', ['title' => 'Ubah Password'])]
 class UbahPassword extends Component
 {
     public ?string $current_password = null;
@@ -37,7 +41,7 @@ class UbahPassword extends Component
         $this->reset(['current_password', 'new_password', 'new_password_confirmation']);
 
         Notification::make()
-            ->title('Kata sandi berhasil diubah')
+            ->title('Kata sandi HRIS berhasil diubah')
             ->success()
             ->send();
     }
