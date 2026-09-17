@@ -81,6 +81,29 @@ class OrientasiReviewerAndScoringTest extends TestCase
         $this->assertTrue($resolved->contains('id', $reviewer->id));
     }
 
+    public function test_resolver_uses_direct_supervisor_when_job_position_marked(): void
+    {
+        [$nurse, $nursePos] = $this->userWithPosition($this->division);
+        [$headNurse, $headNursePos] = $this->userWithPosition($this->division);
+        $nursePos->update(['parent_id' => $headNursePos->id]);
+
+        // Konfigurasi by-Departemen SENGAJA diisi ke orang lain — kalau resolver salah pakai
+        // ini, test gagal (memastikan mode atasan-langsung benar2 skip skema Departemen).
+        [, $deptReviewerPos] = $this->userWithPosition($this->dept);
+        SikartapReviewer::create(['context' => SikartapReviewer::CONTEXT_STATUS_KARYAWAN, 'company_id' => $this->company->id, 'org_structure_id' => $this->dept->id, 'job_position_id' => $deptReviewerPos->id]);
+
+        \App\Models\SikartapDirectSupervisorPosition::create([
+            'context' => SikartapReviewer::CONTEXT_STATUS_KARYAWAN,
+            'company_id' => $this->company->id,
+            'job_position_id' => $nursePos->id,
+        ]);
+
+        $resolved = app(SikartapReviewerResolver::class)->reviewersFor(SikartapReviewer::CONTEXT_STATUS_KARYAWAN, $nurse);
+
+        $this->assertTrue($resolved->contains('id', $headNurse->id));
+        $this->assertCount(1, $resolved);
+    }
+
     public function test_resolver_falls_back_to_parent_department_when_position_vacant(): void
     {
         $parentDept = OrgStructure::create(['company_id' => $this->company->id, 'name' => 'Direktorat', 'level' => OrgStructurLevel::LEVEL_DEPARTMENT->value]);

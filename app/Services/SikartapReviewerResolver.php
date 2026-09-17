@@ -3,7 +3,9 @@
 namespace App\Services;
 
 use App\Enum\OrgStructurLevel;
+use App\Models\Master\JobPositions;
 use App\Models\Master\OrgStructure;
+use App\Models\SikartapDirectSupervisorPosition;
 use App\Models\SikartapReviewer;
 use App\Models\User;
 use App\Models\User\UserJobPositions;
@@ -11,24 +13,66 @@ use Illuminate\Support\Collection;
 
 /**
  * Resolve penilai buat milestone perjalanan status karyawan (`sikartap_reviewers`). Reviewer
- * ditunjuk per JABATAN di level Departemen — di-resolve ke pemegang aktif jabatan itu.
+ * ditunjuk per JABATAN — dua mode, per (context, company, jabatan target):
  *
- * Aturan (2026-09-06, instruksi user):
- * - Naik dari jabatan karyawan sampai node level Departemen (LEVEL_DEPARTMENT).
- * - Cari baris `sikartap_reviewers` (context, company_id, org_structure_id) di departemen itu.
- * - Jabatan yang ditunjuk kosong pemegang aktif → FALLBACK naik ke departemen parent.
- * - Mentok atas tanpa hasil → collection kosong; pemanggil yang menolak aksi + minta HR isi
- *   ("Jabatan penilai untuk departemen ini kosong").
+ * 1. **Atasan langsung** (`sikartap_direct_supervisor_positions`, 2026-09-17 instruksi user —
+ *    kasus RS: perawat dinilai kepala ruangan masing-masing, bukan 1 jabatan se-departemen).
+ *    Jabatan target ditandai di sini → resolve ke pemegang aktif JobPositions.parent_id,
+ *    naik terus ke atasan dari atasan kalau kosong.
+ * 2. **By Departemen** (skema lama, default kalau jabatan TIDAK ditandai atasan-langsung):
+ *    naik dari jabatan karyawan sampai node level Departemen (LEVEL_DEPARTMENT), cari baris
+ *    `sikartap_reviewers` (context, company_id, org_structure_id) di departemen itu, resolve
+ *    ke pemegang aktif jabatan yang ditunjuk — kosong → naik ke departemen parent.
+ *
+ * Mentok atas tanpa hasil (mode manapun) → collection kosong; pemanggil yang menolak aksi +
+ * minta HR isi.
  */
 class SikartapReviewerResolver
 {
     /** @return Collection<int, User> */
     public function reviewersFor(string $context, User $target): Collection
     {
+        $jobPosition = $target->activeJobPosition?->jobPosition;
+
+        if ($jobPosition && $this->usesDirectSupervisor($context, $target->company_id, $jobPosition->id)) {
+            return $this->directSupervisorHolders($jobPosition);
+        }
+
         $node = $this->departmentOf($target);
 
         while ($node) {
-            $holders = $this->holdersForNode($context, $target->company_id, $node->id);
+            $holders = $this->holdersForJobPositionIds(
+                SikartapReviewer::forContext($context)
+                    ->where('company_id', $target->company_id)
+                    ->where('org_structure_id', $node->id)
+                    ->pluck('job_position_id')
+            );
+
+            if ($holders->isNotEmpty()) {
+                return $holders;
+            }
+
+            $node = $node->parent;
+        }
+
+        return collect();
+    }
+
+    private function usesDirectSupervisor(string $context, ?string $companyId, string $jobPositionId): bool
+    {
+        return SikartapDirectSupervisorPosition::forContext($context)
+            ->where('company_id', $companyId)
+            ->where('job_position_id', $jobPositionId)
+            ->exists();
+    }
+
+    /** @return Collection<int, User> */
+    private function directSupervisorHolders(JobPositions $jobPosition): Collection
+    {
+        $node = $jobPosition->parent;
+
+        while ($node) {
+            $holders = $this->holdersForJobPositionIds(collect([$node->id]));
 
             if ($holders->isNotEmpty()) {
                 return $holders;
@@ -45,14 +89,10 @@ class SikartapReviewerResolver
         return $this->reviewersFor($context, $target)->contains('id', $actor->id);
     }
 
-    /** @return Collection<int, User> */
-    private function holdersForNode(string $context, ?string $companyId, string $orgStructureId): Collection
+    /** @param Collection<int, string> $jobPositionIds
+     *  @return Collection<int, User> */
+    private function holdersForJobPositionIds(Collection $jobPositionIds): Collection
     {
-        $jobPositionIds = SikartapReviewer::forContext($context)
-            ->where('company_id', $companyId)
-            ->where('org_structure_id', $orgStructureId)
-            ->pluck('job_position_id');
-
         if ($jobPositionIds->isEmpty()) {
             return collect();
         }

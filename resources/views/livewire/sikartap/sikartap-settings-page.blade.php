@@ -149,6 +149,55 @@
                     @endif
                 </div>
 
+                {{-- Jabatan "dinilai atasan langsung" — skip skema by-Departemen di atas. --}}
+                <div style="background:var(--surface);border-radius:16px;box-shadow:var(--shadow-card);padding:18px;margin-top:20px;">
+                    <p style="font-size:13px;font-weight:600;color:var(--text-heading);margin:0 0 4px;">Jabatan Dinilai Atasan Langsung</p>
+                    <p style="font-size:11px;color:var(--text-muted);margin:0 0 14px;">Jabatan di sini SKIP tabel penilai per Departemen di atas — penilainya langsung pemegang aktif atasan jabatan tersebut (naik terus kalau atasannya kosong). Contoh: Perawat → Kepala Ruangan masing-masing, bukan 1 jabatan penilai se-departemen.</p>
+
+                    @if (! $companyId)
+                        <p style="font-size:12px;color:#b45309;margin:0;">Pilih perusahaan dulu.</p>
+                    @else
+                        <table style="width:100%;border-collapse:collapse;font-size:12.5px;margin-bottom:12px;">
+                            <thead>
+                                <tr style="border-bottom:1.5px solid var(--border);">
+                                    <th style="text-align:left;padding:8px 10px;">Jabatan</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @forelse ($this->directSupervisorPositions as $dsp)
+                                    <tr wire:key="dsp-{{ $dsp->id }}" style="border-bottom:1px solid var(--border-soft);">
+                                        <td style="padding:8px 10px;">{{ $dsp->jobPosition?->name ?? '-' }}</td>
+                                        <td style="padding:8px 10px;text-align:right;">
+                                            @if ($this->canEditSettings)
+                                                <button type="button" wire:click="removeDirectSupervisorPosition('{{ $dsp->id }}')" wire:confirm="Hapus penanda ini?" class="btn-ghost" style="color:#dc2626;padding:5px 10px;"><i class="fa-solid fa-trash" style="font-size:11px;"></i></button>
+                                            @endif
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr><td colspan="2" style="padding:14px 10px;color:var(--text-muted);">Belum ada jabatan yang ditandai. Semua jabatan pakai skema by Departemen.</td></tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+
+                        @if ($this->canEditSettings)
+                            <div style="display:flex;gap:8px;align-items:flex-start;flex-wrap:wrap;">
+                                <div style="flex:1;min-width:180px;">
+                                    <label class="form-label">Jabatan</label>
+                                    <select data-tom-select data-placeholder="-- Pilih Jabatan --" wire:model="directSupervisorJobPositionId" class="form-input">
+                                        <option value="">-- Pilih Jabatan --</option>
+                                        @foreach ($this->companyJobPositions as $id => $name)
+                                            <option value="{{ $id }}">{{ $name }}</option>
+                                        @endforeach
+                                    </select>
+                                    @error('directSupervisorJobPositionId') <p style="font-size:11px;color:#dc2626;margin-top:3px;">{{ $message }}</p> @enderror
+                                </div>
+                                <button type="button" wire:click="addDirectSupervisorPosition" class="btn-primary" style="margin-top:22px;"><i class="fa-solid fa-plus"></i> Tambah</button>
+                            </div>
+                        @endif
+                    @endif
+                </div>
+
                 {{-- Jabatan pendukung persetujuan jadwal presentasi orientasi (selain HR). --}}
                 <div style="background:var(--surface);border-radius:16px;box-shadow:var(--shadow-card);padding:18px;margin-top:20px;">
                     <p style="font-size:13px;font-weight:600;color:var(--text-heading);margin:0 0 4px;">Jabatan Pendukung — Persetujuan Jadwal Presentasi Orientasi</p>

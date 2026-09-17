@@ -10,6 +10,7 @@ use App\Models\Master\Companies;
 use App\Models\Master\OrgStructure;
 use App\Models\Setting;
 use App\Models\Master\JobPositions;
+use App\Models\SikartapDirectSupervisorPosition;
 use App\Models\SikartapReviewer;
 use App\Models\Sikartap\SikartapIdeInovasiReviewer;
 use App\Models\User;
@@ -360,6 +361,54 @@ class SikartapSettingsPage extends Component
         SikartapReviewer::whereKey($id)->delete();
 
         Notification::make()->title('Penilai dihapus')->success()->send();
+    }
+
+    // ── Jabatan "dinilai atasan langsung" (sikartap_direct_supervisor_positions) ──
+    // Jabatan yang ditandai di sini SKIP skema by-Departemen di atas — penilai langsung
+    // pemegang aktif JobPositions.parent_id (2026-09-17, instruksi user: kasus RS, perawat
+    // dinilai kepala ruangan masing-masing).
+
+    public ?string $directSupervisorJobPositionId = null;
+
+    public function getDirectSupervisorPositionsProperty()
+    {
+        if (! $this->companyId) {
+            return collect();
+        }
+
+        return SikartapDirectSupervisorPosition::query()
+            ->forContext(SikartapReviewer::CONTEXT_STATUS_KARYAWAN)
+            ->where('company_id', $this->companyId)
+            ->with('jobPosition')
+            ->get();
+    }
+
+    public function addDirectSupervisorPosition(): void
+    {
+        abort_unless(Auth::user()->can(CustomPermissionEnum::EDIT_PENGATURAN_SIKARTAP->value), 403);
+
+        $this->validate([
+            'directSupervisorJobPositionId' => 'required|exists:m_job_positions,id',
+        ], [], ['directSupervisorJobPositionId' => 'jabatan']);
+
+        SikartapDirectSupervisorPosition::firstOrCreate([
+            'context' => SikartapReviewer::CONTEXT_STATUS_KARYAWAN,
+            'company_id' => $this->companyId,
+            'job_position_id' => $this->directSupervisorJobPositionId,
+        ]);
+
+        $this->directSupervisorJobPositionId = null;
+
+        Notification::make()->title('Jabatan atasan-langsung ditambahkan')->success()->send();
+    }
+
+    public function removeDirectSupervisorPosition(string $id): void
+    {
+        abort_unless(Auth::user()->can(CustomPermissionEnum::EDIT_PENGATURAN_SIKARTAP->value), 403);
+
+        SikartapDirectSupervisorPosition::whereKey($id)->delete();
+
+        Notification::make()->title('Jabatan atasan-langsung dihapus')->success()->send();
     }
 
     // ── Dokumen Perpanjangan Kontrak (Setting contract_extension_documents) ───────
