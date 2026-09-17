@@ -19,10 +19,13 @@ use Livewire\Component;
  * Beda dari admin (EditManpowerRequest): admin cuma punya approve, di sini juga ada reject
  * (paritas dengan modul approval lain — lihat catatan planning/eager-pondering-turtle.md).
  *
- * Gate akses: JADI APPROVER SAJA CUKUP, tidak perlu Shield permission View:ManpowerRequests
- * terpisah (2026-08-09, dulu blanket can('View:ManpowerRequests') blokir approver legit yang
- * kebetulan role-nya tidak di-assign permission itu) — pola disamakan dengan
- * AttendanceRequestDetail::canAccess().
+ * Gate akses (canAccess()): JADI APPROVER SAJA CUKUP, tidak WAJIB Shield permission
+ * View:ManpowerRequests (2026-08-09, dulu blanket can('View:ManpowerRequests') blokir approver
+ * legit yang kebetulan role-nya tidak di-assign permission itu) — pola disamakan dengan
+ * AttendanceRequestDetail::canAccess(). Permission View:ManpowerRequests tetap salah satu jalur
+ * (OR, bukan syarat wajib) buat siapa pun yang role-nya di-assign lewat sistem Kepegawaian.
+ * Kolom requested_by SENGAJA TIDAK dijadikan gerbang akses sendiri (instruksi user 2026-09-17) -
+ * siapa yang bikin request bukan patokan hak lihat, itu urusan permission di atas.
  */
 #[Layout('components.layout', ['title' => 'Detail Permintaan Tenaga Kerja'])]
 class ManpowerRequestDetailPage extends Component
@@ -43,7 +46,10 @@ class ManpowerRequestDetailPage extends Component
 
     protected function canAccess(ManpowerRequests $record, User $user): bool
     {
-        if ($record->requested_by === $user->id) {
+        // Akses "pembuat request" DIHAPUS (instruksi user 2026-09-17) - siapa yang klik "Buat
+        // Permintaan" bukan patokan hak lihat, itu urusan role/permission yang dikelola di
+        // sistem Kepegawaian (Shield View:ManpowerRequests), bukan kolom requested_by.
+        if ($user->can('View:ManpowerRequests')) {
             return true;
         }
 
