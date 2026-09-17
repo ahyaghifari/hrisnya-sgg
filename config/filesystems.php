@@ -61,6 +61,21 @@ return [
             'report' => false,
         ],
 
+        /*
+         * Storage PUBLIK project Rekrutmen (logo/hero company, tanda tangan penandatangan
+         * offering letter) — root beda dari disk `rekrutmen` di atas (private vs public), tapi
+         * satu server juga. Isi REKRUTMEN_PUBLIC_STORAGE_PATH di .env kalau path publiknya
+         * bukan sekadar folder "public" sebelah REKRUTMEN_STORAGE_PATH (lokal & kebanyakan
+         * server: default di bawah ini sudah benar, tidak perlu diisi manual).
+         */
+        'rekrutmen_public' => [
+            'driver' => 'local',
+            'root' => env('REKRUTMEN_PUBLIC_STORAGE_PATH', dirname(env('REKRUTMEN_STORAGE_PATH', storage_path('app/private'))) . '/public'),
+            'serve' => false,
+            'throw' => false,
+            'report' => false,
+        ],
+
         's3' => [
             'driver' => 's3',
             'key' => env('AWS_ACCESS_KEY_ID'),

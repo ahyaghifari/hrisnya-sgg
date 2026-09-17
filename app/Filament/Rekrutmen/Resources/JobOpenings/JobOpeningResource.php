@@ -16,6 +16,7 @@ use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Placeholder;
+use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\RichEditor;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
@@ -162,12 +163,6 @@ class JobOpeningResource extends Resource
                     ->native(false)
                     ->displayFormat('d/m/Y'),
 
-                TextInput::make('hris_job_opening_id')
-                    ->label('ID Lowongan HRIS')
-                    ->unique(ignoreRecord: true)
-                    ->helperText('Terisi otomatis dari HRIS. Jangan ubah manual.')
-                    ->disabled(fn ($record) => $record?->hris_job_opening_id !== null),
-
                 Placeholder::make('status_hint')
                     ->label('Status')
                     ->content(function ($record) {
@@ -222,6 +217,43 @@ class JobOpeningResource extends Resource
                     ->hidden(fn (Get $get) => ! $get('requires_psychotest'))
                     ->columnSpanFull(),
             ])->columns(2),
+
+            Section::make('Kompensasi Offering Letter')
+                ->description('Komponen & nominal kompensasi (mis. "Gaji Pokok") untuk offering letter posisi ini. Beda posisi/lowongan bisa beda nominal meski satu perusahaan.')
+                ->schema([
+                    Repeater::make('offeringCompensationRows')
+                        ->relationship('offeringCompensationRows')
+                        ->label('')
+                        ->schema([
+                            TextInput::make('label')
+                                ->label('Komponen')
+                                ->placeholder('Mis. Gaji Pokok')
+                                ->required()
+                                ->maxLength(255)
+                                ->columnSpanFull(),
+                            TextInput::make('amount_orientasi')
+                                ->label('Nominal — Orientasi')
+                                ->numeric()
+                                ->default(0)
+                                ->required()
+                                ->prefix('Rp'),
+                            TextInput::make('amount_kontrak')
+                                ->label('Nominal — Kontrak')
+                                ->numeric()
+                                ->default(0)
+                                ->required()
+                                ->prefix('Rp'),
+                        ])
+                        ->columns(2)
+                        ->orderColumn('sort_order')
+                        ->reorderable()
+                        ->collapsible()
+                        ->itemLabel(fn (array $state): ?string => $state['label'] ?? 'Komponen baru')
+                        ->addActionLabel('Tambah komponen')
+                        ->defaultItems(0),
+                ])
+                ->collapsible()
+                ->collapsed(),
 
             Section::make('Detail')->schema([
                 RichEditor::make('description')->label('Deskripsi Jabatan')->columnSpanFull(),
@@ -349,7 +381,6 @@ class JobOpeningResource extends Resource
                 // bukan di sini. ponytail: kalau lowongan ini disimpan ulang di HRIS induk,
                 // RecruitmentSync menimpa lagi field yang diubah di sini.
                 EditAction::make(),
-                DeleteAction::make()->visible(fn ($record) => $record->hris_job_opening_id === null),
             ])
             ->toolbarActions([]);
     }

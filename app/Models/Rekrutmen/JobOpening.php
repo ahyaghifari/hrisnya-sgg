@@ -75,6 +75,11 @@ class JobOpening extends Model
         return $this->hasMany(JobOpeningAgreement::class)->orderBy('sort_order');
     }
 
+    public function offeringCompensationRows(): HasMany
+    {
+        return $this->hasMany(JobOpeningOfferingCompensationRow::class)->orderBy('sort_order');
+    }
+
     /**
      * Daftar persetujuan efektif kandidat lowongan ini: persetujuan perusahaan, versi jabatan
      * menimpa yang judulnya sama, plus persetujuan khusus jabatan yang judulnya baru.

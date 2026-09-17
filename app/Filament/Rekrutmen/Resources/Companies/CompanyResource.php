@@ -2,11 +2,15 @@
 
 namespace App\Filament\Rekrutmen\Resources\Companies;
 
-use App\Filament\Rekrutmen\Resources\Companies\Pages\ManageCompanies;
+use App\Enum\Recruitment\OfferingLetterTemplate;
+use App\Filament\Rekrutmen\Resources\Companies\Pages\EditCompany;
+use App\Filament\Rekrutmen\Resources\Companies\Pages\ListCompanies;
 use App\Models\Rekrutmen\Company;
 use BackedEnum;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\ColorPicker;
+use Filament\Forms\Components\FileUpload;
+use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
@@ -24,6 +28,19 @@ use UnitEnum;
  * `recruitment`. SET TERPISAH dari m_companies HRIS (jembatan `hris_code`). Read-mostly:
  * nama & kode HRIS tidak diedit di sini, yang penting `requires_mcu` (menentukan alur MCU)
  * + kontak + warna brand. Upload logo/hero ditunda (butuh disk publik bersama).
+ *
+ * Edit lewat halaman penuh (List+Edit), bukan modal (2026-09-17) — form-nya sudah berat
+ * (2 repeater Benefit/Ketentuan Umum + section Offering Letter), sama seperti CompanyResource
+ * project rekrutmen yang juga pakai List+Create+Edit, bukan modal.
+ *
+ * Section "Offering Letter" (collapsible, default collapsed — bukan info yang perlu selalu
+ * kelihatan): background diupload ke disk `rekrutmen` (privat, satu root fisik dengan disk
+ * `local` project rekrutmen). Tanda tangan diupload ke disk `rekrutmen_public` (2026-09-17 —
+ * root beda dari `rekrutmen`, tapi satu server juga, lihat config/filesystems.php) — jadi
+ * SEKARANG bisa diupload langsung dari sini, tidak perlu lagi ke panel rekrutmen (beda dari
+ * logo/hero perusahaan di atas yang masih ditunda). Benefit & Ketentuan Umum disatukan ke sini
+ * sebagai Repeater (bukan resource Master terpisah) — Komponen Kompensasi PINDAH ke
+ * JobOpeningResource (nominal beda tiap posisi/lowongan, bukan flat per perusahaan).
  */
 class CompanyResource extends Resource
 {
@@ -77,6 +94,77 @@ class CompanyResource extends Resource
                 TextInput::make('email')->label('Email Kontak')->email(),
                 TextInput::make('phone')->label('Telepon / WA')->tel(),
             ])->columns(2),
+
+            Section::make('Offering Letter')
+                ->description('Penandatangan & tampilan berlaku untuk semua offering letter perusahaan ini. Komponen kompensasi (nominal beda tiap posisi) diatur per lowongan di menu Lowongan, bukan di sini.')
+                ->collapsible()
+                ->collapsed()
+                ->schema([
+                    Select::make('offering_letter_template')
+                        ->label('Gaya Surat')
+                        ->options(fn () => collect(OfferingLetterTemplate::cases())->mapWithKeys(fn ($c) => [$c->value => $c->label()]))
+                        ->default(OfferingLetterTemplate::Sgg->value)
+                        ->required()
+                        ->columnSpanFull(),
+
+                    FileUpload::make('offering_letter_background_path')
+                        ->label('Background Surat (Letterhead)')
+                        ->image()
+                        ->disk('rekrutmen')
+                        ->directory('offering-letter-bg')
+                        ->imagePreviewHeight('120')
+                        ->helperText('Gambar full A4 (mis. 1241x1755px) berisi kop surat, kontak, watermark. Kosongkan untuk pakai background default.')
+                        ->nullable()
+                        ->columnSpanFull(),
+
+                    TextInput::make('offering_signatory_name')->label('Nama Penandatangan')->maxLength(255),
+                    TextInput::make('offering_signatory_title')->label('Jabatan Penandatangan')->maxLength(255),
+
+                    FileUpload::make('offering_signatory_signature_path')
+                        ->label('Gambar Tanda Tangan')
+                        ->image()
+                        ->disk('rekrutmen_public')
+                        ->directory('companies/signatures')
+                        ->imagePreviewHeight('60')
+                        ->nullable(),
+
+                    TextInput::make('offering_benefit_note')
+                        ->label('Catatan Benefit Berbintang')
+                        ->helperText('Muncul di bawah daftar benefit kalau ada item yang ditandai bintang.')
+                        ->placeholder('*) akan diberikan jika telah menjadi karyawan tetap.')
+                        ->maxLength(255)
+                        ->columnSpanFull(),
+
+                    Repeater::make('offeringBenefits')
+                        ->relationship('offeringBenefits')
+                        ->label('Daftar Benefit')
+                        ->schema([
+                            TextInput::make('label')->label('Benefit')->required()->maxLength(255),
+                            Toggle::make('is_starred')->label('Bintang (*)'),
+                        ])
+                        ->columns(2)
+                        ->orderColumn('sort_order')
+                        ->reorderable()
+                        ->collapsible()
+                        ->itemLabel(fn (array $state): ?string => $state['label'] ?? 'Benefit baru')
+                        ->addActionLabel('Tambah benefit')
+                        ->defaultItems(0)
+                        ->columnSpanFull(),
+
+                    Repeater::make('offeringTerms')
+                        ->relationship('offeringTerms')
+                        ->label('Ketentuan Umum')
+                        ->schema([
+                            TextInput::make('label')->label('Ketentuan')->required()->maxLength(255),
+                        ])
+                        ->orderColumn('sort_order')
+                        ->reorderable()
+                        ->collapsible()
+                        ->itemLabel(fn (array $state): ?string => $state['label'] ?? 'Ketentuan baru')
+                        ->addActionLabel('Tambah ketentuan')
+                        ->defaultItems(0)
+                        ->columnSpanFull(),
+                ])->columns(2),
         ]);
     }
 
@@ -103,7 +191,8 @@ class CompanyResource extends Resource
     public static function getPages(): array
     {
         return [
-            'index' => ManageCompanies::route('/'),
+            'index' => ListCompanies::route('/'),
+            'edit' => EditCompany::route('/{record}/edit'),
         ];
     }
 }

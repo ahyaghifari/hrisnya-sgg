@@ -2,6 +2,7 @@
 
 namespace App\Models\Rekrutmen;
 
+use App\Enum\Recruitment\OfferingLetterTemplate;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
@@ -18,6 +19,7 @@ class Company extends Model
     protected $casts = [
         'is_active' => 'boolean',
         'requires_mcu' => 'boolean',
+        'offering_letter_template' => OfferingLetterTemplate::class,
     ];
 
     public function scopeActive($query)
@@ -50,5 +52,15 @@ class Company extends Model
     public function agreements(): HasMany
     {
         return $this->hasMany(CompanyAgreement::class)->orderBy('sort_order');
+    }
+
+    public function offeringBenefits(): HasMany
+    {
+        return $this->hasMany(CompanyOfferingBenefit::class)->orderBy('sort_order');
+    }
+
+    public function offeringTerms(): HasMany
+    {
+        return $this->hasMany(CompanyOfferingTerm::class)->orderBy('sort_order');
     }
 }

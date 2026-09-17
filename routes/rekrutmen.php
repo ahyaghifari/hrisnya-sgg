@@ -29,24 +29,37 @@ Route::get('/rekrutmen/pelamar/{jobApplication}/offering-letter/{type}', [\App\H
     ->where('type', 'recruiter|signed')
     ->name('rekrutmen.pelamar.offering-letter');
 
-// Panel Filament rekrutmen (shared DB) — unduh file offering letter LANGSUNG dari disk
-// `rekrutmen` (REKRUTMEN_STORAGE_PATH), bukan proxy API. Gate SISTEM_REKRUTMEN.
+// Panel Filament rekrutmen (shared DB) — lihat surat offering letter. `signed` selalu file
+// upload kandidat dari disk `rekrutmen`. `recruiter` = file upload manual recruiter kalau ada
+// (override); kalau tidak ada, di-render LANGSUNG dari data kandidat + config perusahaan/
+// lowongan saat ini (JobApplication::renderOfferingLetterPdf(), tidak disimpan) — selalu versi
+// terbaru, tidak ada tombol "generate" terpisah. Gate SISTEM_REKRUTMEN.
 Route::get('/rekrutmen-file/offering-letter/{jobApplication}/{type}', function (string $jobApplication, string $type) {
     abort_unless(in_array($type, ['recruiter', 'signed'], true), 404);
     abort_unless(\Illuminate\Support\Facades\Auth::user()?->can(\App\Enum\CustomPermissionEnum::SISTEM_REKRUTMEN->value), 403);
 
-    $app = \App\Models\Rekrutmen\JobApplication::find($jobApplication);
-    $path = $type === 'recruiter' ? $app?->offering_letter_path : $app?->offering_letter_signed_path;
-    abort_if(! $path || ! \Illuminate\Support\Facades\Storage::disk('rekrutmen')->exists($path), 404, 'File tidak ada.');
+    $app = \App\Models\Rekrutmen\JobApplication::with('jobOpening.company')->find($jobApplication);
 
-    return response(
-        \Illuminate\Support\Facades\Storage::disk('rekrutmen')->get($path),
-        200,
-        [
+    if ($type === 'signed') {
+        $path = $app?->offering_letter_signed_path;
+        abort_if(! $path || ! \Illuminate\Support\Facades\Storage::disk('rekrutmen')->exists($path), 404, 'File tidak ada.');
+
+        return response(\Illuminate\Support\Facades\Storage::disk('rekrutmen')->get($path), 200, [
             'Content-Type' => \Illuminate\Support\Facades\Storage::disk('rekrutmen')->mimeType($path) ?: 'application/octet-stream',
-            'Content-Disposition' => 'inline; filename="offering-' . $type . '-' . $jobApplication . '"',
-        ],
-    );
+            'Content-Disposition' => 'inline; filename="offering-signed-' . $jobApplication . '"',
+        ]);
+    }
+
+    if ($app?->offering_letter_path && \Illuminate\Support\Facades\Storage::disk('rekrutmen')->exists($app->offering_letter_path)) {
+        return response(\Illuminate\Support\Facades\Storage::disk('rekrutmen')->get($app->offering_letter_path), 200, [
+            'Content-Type' => \Illuminate\Support\Facades\Storage::disk('rekrutmen')->mimeType($app->offering_letter_path) ?: 'application/octet-stream',
+            'Content-Disposition' => 'inline; filename="offering-recruiter-' . $jobApplication . '"',
+        ]);
+    }
+
+    abort_if(! $app?->offering_data_confirmed_at, 404, 'File tidak ada.');
+
+    return $app->renderOfferingLetterPdf()->stream('offering-letter.pdf');
 })->name('rekrutmen.file.offering-letter');
 
 /**

@@ -172,8 +172,99 @@ class JobApplication extends Model
         return $this->answers->pluck('value', 'field_key')->all();
     }
 
+    /**
+     * Cek NIK pelamar (dari akun rekrutmen, wajib diisi saat registrasi) terhadap
+     * `user_profiles.no_nik` HRIS — TERMASUK karyawan yang sudah di-soft-delete
+     * (withTrashed) — buat ketahuan kalau pelamar ini pernah/sedang jadi karyawan di
+     * salah satu company. Kosong kalau NIK belum ada atau tidak match siapa pun.
+     *
+     * @return \Illuminate\Support\Collection<int, \App\Models\User>
+     */
+    public function formerEmployeeMatches(): \Illuminate\Support\Collection
+    {
+        $nik = $this->user?->nik;
+
+        if (! $nik) {
+            return collect();
+        }
+
+        return \App\Models\User::withTrashed()
+            ->whereHas('profile', fn ($q) => $q->where('no_nik', $nik))
+            ->with(['company', 'profile.jobPosition'])
+            ->get();
+    }
+
     public function scopeActive($query)
     {
         return $query->whereIn('status', self::ACTIVE_STATUSES);
+    }
+
+    /**
+     * Render PDF offering letter dari template company + kompensasi lowongan + data kandidat
+     * yang sudah dikonfirmasi (offering_full_name dkk). DIOLAH LANGSUNG saat diminta (dipanggil
+     * dari CandidateDocumentProxyController::offeringLetter()) — tidak disimpan, jadi selalu
+     * pakai data & config TERBARU, tidak ada "generate ulang" manual. Background & tanda tangan
+     * ditempel sebagai data URI base64 (bukan path file, hindari batasan chroot dompdf) —
+     * background dari disk `rekrutmen` (privat), tanda tangan dari disk `rekrutmen_public`
+     * (root beda, root fisiknya folder `public` sebelah punya `rekrutmen` — lihat
+     * config/filesystems.php) — keduanya dibaca LANGSUNG dari disk, satu server, tidak lewat
+     * HTTP/symlink publik (rekrutmen sendiri belum punya `storage:link`).
+     */
+    public function renderOfferingLetterPdf(): \Barryvdh\DomPDF\PDF
+    {
+        $company = $this->jobOpening->company;
+
+        $compensationRows = $this->jobOpening->offeringCompensationRows->map(fn ($row) => [
+            'label' => $row->label,
+            'orientasi' => (float) $row->amount_orientasi,
+            'kontrak' => (float) $row->amount_kontrak,
+        ])->all();
+
+        return \Barryvdh\DomPDF\Facade\Pdf::loadView($company->offering_letter_template->view(), [
+            'background_path' => $this->resolveOfferingBackgroundDataUri($company),
+            'full_name' => $this->offering_full_name,
+            'birth_place' => $this->offering_birth_place,
+            'birth_date' => \Illuminate\Support\Carbon::parse($this->offering_birth_date)->translatedFormat('d F Y'),
+            'domicile_address' => $this->offering_domicile_address,
+            'jabatan' => $this->jobOpening->title,
+            'lokasi_kerja' => $company->name,
+            'tanggal_surat' => now()->translatedFormat('d F Y'),
+            'compensation_rows' => $compensationRows,
+            'benefits' => $company->offeringBenefits->map(fn ($b) => ['label' => $b->label, 'is_starred' => $b->is_starred])->all(),
+            'benefit_note' => $company->offering_benefit_note,
+            'terms' => $company->offeringTerms->pluck('label')->all(),
+            'signatory_name' => $company->offering_signatory_name ?? '-',
+            'signatory_title' => $company->offering_signatory_title ?? '-',
+            'signatory_signature_path' => $this->resolveOfferingSignatureDataUri($company),
+        ]);
+    }
+
+    private function resolveOfferingBackgroundDataUri(Company $company): ?string
+    {
+        $path = $company->offering_letter_background_path ?: 'offering-letter-bg/default.jpg';
+        $disk = \Illuminate\Support\Facades\Storage::disk('rekrutmen');
+
+        if (! $disk->exists($path)) {
+            return null;
+        }
+
+        return 'data:' . ($disk->mimeType($path) ?: 'image/jpeg') . ';base64,' . base64_encode($disk->get($path));
+    }
+
+    private function resolveOfferingSignatureDataUri(Company $company): ?string
+    {
+        $path = $company->offering_signatory_signature_path;
+
+        if (! $path) {
+            return null;
+        }
+
+        $disk = \Illuminate\Support\Facades\Storage::disk('rekrutmen_public');
+
+        if (! $disk->exists($path)) {
+            return null;
+        }
+
+        return 'data:' . ($disk->mimeType($path) ?: 'image/png') . ';base64,' . base64_encode($disk->get($path));
     }
 }

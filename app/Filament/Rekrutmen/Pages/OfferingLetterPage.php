@@ -6,13 +6,17 @@ use App\Models\Rekrutmen\ApplicationNotification;
 use App\Models\Rekrutmen\CompanyMessageTemplate;
 use App\Models\Rekrutmen\JobApplication;
 use App\Models\Rekrutmen\JobOpening;
+use App\Models\Rekrutmen\JobOpeningOfferingCompensationRow;
 use App\Models\Rekrutmen\JobOpeningStageLog;
 use Filament\Actions\Action;
 use Filament\Actions\Concerns\InteractsWithActions;
 use Filament\Actions\Contracts\HasActions;
 use Filament\Forms\Components\FileUpload;
+use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Placeholder;
+use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\TextInput;
 use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
 use Filament\Notifications\Notification;
@@ -32,6 +36,18 @@ use UnitEnum;
  * `recruitment`. File offering di disk `rekrutmen` (REKRUTMEN_STORAGE_PATH — WAJIB diisi di
  * .env, satu server dgn app rekrutmen). Fase 4: unggah surat rekruter, lihat surat masuk /
  * bertanda tangan, balas negosiasi, lanjutkan ke MCU/Onboarding. Email "surat siap" auto-kirim.
+ *
+ * Surat otomatis (2026-09-17, port dari rekrutmen): PDF disusun dari template company
+ * (Benefit/Ketentuan Umum + penandatangan diatur di panel rekrutmen; Kompensasi per LOWONGAN,
+ * bisa diatur di sini lewat "Atur Kompensasi" ATAU di form Lowongan) + data kandidat yang
+ * sudah dikonfirmasi (offering_full_name dkk). DIOLAH LANGSUNG saat "Lihat Surat" diklik
+ * (JobApplication::renderOfferingLetterPdf(), lewat CandidateDocumentProxyController) —
+ * TIDAK disimpan, tidak ada tombol "generate" terpisah, selalu versi terbaru. Kandidat pun
+ * unduh sendiri dari dashboard project rekrutmen dengan cara sama (live render), tidak
+ * menunggu recruiter klik apa pun. Background & tanda tangan ditempel sebagai data URI
+ * base64 (bukan path file) karena keduanya ada di root disk yang beda dari disk `rekrutmen`
+ * privat HRIS — background dari disk itu juga (satu server), tanda tangan dari disk PUBLIK
+ * rekrutmen makanya diambil lewat HTTP (services.rekrutmen.url).
  */
 class OfferingLetterPage extends Page implements HasActions, HasForms, HasTable
 {
@@ -84,6 +100,71 @@ class OfferingLetterPage extends Page implements HasActions, HasForms, HasTable
             : collect();
     }
 
+    /** Atur komponen & nominal kompensasi lowongan ini langsung dari tab Offering Letter — sama data dengan Repeater di form Lowongan. */
+    public function aturKompensasiAction(): Action
+    {
+        return Action::make('aturKompensasi')
+            ->label('Atur Kompensasi')
+            ->icon('heroicon-m-banknotes')
+            ->color('gray')
+            ->visible(fn () => $this->canDecide() && (bool) $this->jobOpeningId)
+            ->schema([
+                Repeater::make('rows')
+                    ->label('')
+                    ->schema([
+                        Hidden::make('id'),
+                        TextInput::make('label')->label('Komponen')->placeholder('Mis. Gaji Pokok')->required()->maxLength(255)->columnSpanFull(),
+                        TextInput::make('amount_orientasi')->label('Nominal — Orientasi')->numeric()->default(0)->required()->prefix('Rp'),
+                        TextInput::make('amount_kontrak')->label('Nominal — Kontrak')->numeric()->default(0)->required()->prefix('Rp'),
+                    ])
+                    ->columns(2)
+                    ->reorderable(false)
+                    ->itemLabel(fn (array $state): ?string => $state['label'] ?? 'Komponen baru')
+                    ->addActionLabel('Tambah komponen')
+                    ->defaultItems(0),
+            ])
+            ->fillForm(fn () => [
+                'rows' => JobOpening::find($this->jobOpeningId)?->offeringCompensationRows
+                    ->map(fn ($r) => [
+                        'id' => $r->id,
+                        'label' => $r->label,
+                        'amount_orientasi' => $r->amount_orientasi,
+                        'amount_kontrak' => $r->amount_kontrak,
+                    ])->all() ?? [],
+            ])
+            ->modalHeading('Atur Kompensasi Offering Letter — Lowongan Ini')
+            ->modalSubmitActionLabel('Simpan')
+            ->action(function (array $data): void {
+                if (! $this->jobOpeningId) {
+                    return;
+                }
+
+                $submittedIds = collect($data['rows'] ?? [])->pluck('id')->filter()->all();
+
+                JobOpeningOfferingCompensationRow::where('job_opening_id', $this->jobOpeningId)
+                    ->whereNotIn('id', $submittedIds)
+                    ->delete();
+
+                foreach ($data['rows'] ?? [] as $i => $row) {
+                    $values = [
+                        'job_opening_id' => $this->jobOpeningId,
+                        'label' => $row['label'],
+                        'amount_orientasi' => $row['amount_orientasi'],
+                        'amount_kontrak' => $row['amount_kontrak'],
+                        'sort_order' => $i,
+                    ];
+
+                    if (! empty($row['id'])) {
+                        JobOpeningOfferingCompensationRow::where('id', $row['id'])->update($values);
+                    } else {
+                        JobOpeningOfferingCompensationRow::create($values);
+                    }
+                }
+
+                Notification::make()->title('Kompensasi offering letter lowongan ini tersimpan')->success()->send();
+            });
+    }
+
     public function uploadSuratAction(): Action
     {
         return Action::make('uploadSurat')
@@ -109,13 +190,32 @@ class OfferingLetterPage extends Page implements HasActions, HasForms, HasTable
             });
     }
 
+    /** Tampil selama kandidat belum konfirmasi data (nama/TTL/alamat) di dashboardnya — surat langsung bisa diunduh (diolah saat itu juga) setelah itu, tidak perlu aksi apa pun dari sini. */
+    public function menungguDataKandidatAction(): Action
+    {
+        return Action::make('menungguDataKandidat')
+            ->label('Menunggu Data Kandidat')
+            ->icon('heroicon-m-clock')
+            ->color('gray')
+            ->disabled()
+            ->visible(fn ($record) => ! $record->offering_data_confirmed_at)
+            ->tooltip('Kandidat belum mengisi konfirmasi nama/tempat-tanggal lahir/alamat di dashboardnya (project rekrutmen).');
+    }
+
+    /**
+     * Lihat surat (admin). Kalau recruiter pernah unggah manual, itu yang dibuka (override);
+     * kalau tidak, dirender LANGSUNG dari data kandidat + config perusahaan/lowongan saat ini
+     * (JobApplication::renderOfferingLetterPdf(), lewat CandidateDocumentProxyController —
+     * tidak disimpan). Tidak ada tombol "generate" terpisah — selalu otomatis & selalu versi
+     * terbaru begitu data kandidat sudah dikonfirmasi.
+     */
     public function unduhSuratMasukAction(): Action
     {
         return Action::make('unduhSuratMasuk')
             ->label('Lihat Surat')
             ->icon('heroicon-m-eye')
             ->color('gray')
-            ->visible(fn ($record) => (bool) $record->offering_letter_path)
+            ->visible(fn ($record) => (bool) $record->offering_letter_path || (bool) $record->offering_data_confirmed_at)
             ->url(fn ($record) => route('rekrutmen.file.offering-letter', ['jobApplication' => $record->id, 'type' => 'recruiter']))
             ->openUrlInNewTab();
     }
@@ -269,6 +369,7 @@ class OfferingLetterPage extends Page implements HasActions, HasForms, HasTable
                     }),
             ])
             ->recordActions([
+                $this->menungguDataKandidatAction(),
                 $this->uploadSuratAction(),
                 $this->unduhSuratMasukAction(),
                 $this->negosiasiAction(),
