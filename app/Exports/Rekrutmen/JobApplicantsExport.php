@@ -2,58 +2,90 @@
 
 namespace App\Exports\Rekrutmen;
 
-use Illuminate\Support\Carbon;
-use Maatwebsite\Excel\Concerns\FromArray;
-use Maatwebsite\Excel\Concerns\WithColumnWidths;
+use App\Models\Rekrutmen\JobApplication;
+use App\Models\Rekrutmen\JobOpening;
+use Illuminate\Support\Collection;
+use Maatwebsite\Excel\Concerns\FromCollection;
+use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithStyles;
-use Maatwebsite\Excel\Concerns\WithTitle;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
 /**
- * Export daftar pelamar satu lowongan (dari API Rekrutmen). Kolom mengikuti data yang
- * dikirim endpoint `.../job-openings/{id}/applications`. Kolom tambahan (No. HP, tgl
- * melamar, pendidikan, dst) baru bisa muncul kalau endpoint itu ikut mengirimnya.
- *
- * @param  list<array{job_application_id?:string,applicant_name?:?string,applicant_email?:?string,status?:string,updated_at?:?string}>  $rows
- * @param  array<string,string>  $statusLabels  status mentah => label tampil
+ * Export daftar pelamar 1 lowongan ke Excel — DB `recruitment` langsung (HRIS sudah baca-tulis
+ * DB itu, tidak lewat API lagi). Port dari App\Exports\ApplicationsExport project `rekrutmen`.
+ * Kolom dinamis mengikuti form section/field perusahaan lowongan ini (EAV job_application_answers).
+ * Field bertipe file diekspor sebagai nama/path tersimpan apa adanya — unduh dokumen kandidat
+ * dari HRIS belum tersedia (lihat CandidateDocumentProxyController, Fase 6b).
  */
-class JobApplicantsExport implements FromArray, WithHeadings, WithStyles, WithColumnWidths, WithTitle
+class JobApplicantsExport implements FromCollection, WithHeadings, WithStyles, ShouldAutoSize
 {
+    private const STATUS_LABELS = [
+        'applied' => 'Lamaran Masuk',
+        'screening' => 'Peninjauan Berkas',
+        'shortlisted' => 'Lolos Seleksi Berkas',
+        'interview' => 'Wawancara',
+        'offering' => 'Offering Letter',
+        'mcu' => 'Medical Check Up',
+        'onboarding' => 'TTD & Onboarding',
+        'passed' => 'Diterima',
+        'rejected' => 'Tidak Dilanjutkan',
+    ];
+
     public function __construct(
-        protected array $rows,
-        protected array $statusLabels = [],
-        protected ?string $jobOpeningTitle = null,
+        private string $jobOpeningId,
+        private ?string $status = null,
     ) {}
 
-    public function title(): string
+    /** @return array<string, array{label:string, type:string}> field name => label/type */
+    private function getFieldMap(): array
     {
-        return 'Pelamar';
+        $jobOpening = JobOpening::with('company.formSections.fields')->find($this->jobOpeningId);
+        $map = [];
+
+        foreach ($jobOpening?->company?->formSections ?? [] as $section) {
+            foreach ($section->fields as $field) {
+                $map[$field->name] = ['label' => $field->label, 'type' => $field->type];
+            }
+        }
+
+        return $map;
     }
 
     public function headings(): array
     {
-        return ['No', 'Nama Pelamar', 'Email', 'Status', 'Update Terakhir'];
+        return array_merge(
+            ['No', 'Status', 'Tanggal Daftar'],
+            array_column($this->getFieldMap(), 'label'),
+        );
     }
 
-    public function array(): array
+    public function collection(): Collection
     {
-        return array_values(array_map(function ($row, $i) {
-            $status = $row['status'] ?? '';
+        $fieldMap = $this->getFieldMap();
+        $fieldKeys = array_keys($fieldMap);
 
-            return [
+        $applications = JobApplication::with('answers')
+            ->where('job_opening_id', $this->jobOpeningId)
+            ->when($this->status, fn ($q) => $q->where('status', $this->status))
+            ->latest()
+            ->get();
+
+        return $applications->map(function ($app, $i) use ($fieldKeys) {
+            $answers = $app->answersMap();
+
+            $row = [
                 $i + 1,
-                $row['applicant_name'] ?? '',
-                $row['applicant_email'] ?? '',
-                $this->statusLabels[$status] ?? $status,
-                ! empty($row['updated_at']) ? Carbon::parse($row['updated_at'])->translatedFormat('d M Y H:i') : '',
+                self::STATUS_LABELS[$app->status] ?? $app->status,
+                $app->created_at->format('d/m/Y H:i'),
             ];
-        }, $this->rows, array_keys($this->rows)));
-    }
 
-    public function columnWidths(): array
-    {
-        return ['A' => 6, 'B' => 32, 'C' => 34, 'D' => 20, 'E' => 20];
+            foreach ($fieldKeys as $key) {
+                $row[] = $answers[$key] ?? '';
+            }
+
+            return $row;
+        });
     }
 
     public function styles(Worksheet $sheet): array

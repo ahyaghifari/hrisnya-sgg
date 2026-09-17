@@ -48,6 +48,7 @@ class ApplicantDetailPage extends Page implements HasActions, HasForms
         $this->application = $id
             ? JobApplication::with([
                 'jobOpening.company.formSections.fields',
+                'user',
                 'answers',
                 'statusLogs',
                 'candidate.familyMembers',

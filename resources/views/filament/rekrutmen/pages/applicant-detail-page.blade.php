@@ -39,6 +39,29 @@ $s = $statusMap[$application->status] ?? ['label' => $application->status, 'colo
     </div>
 </div>
 
+@php $employeeMatches = $application->formerEmployeeMatches(); @endphp
+@if($employeeMatches->isNotEmpty())
+<div class="rounded-xl px-5 py-4 bg-amber-50 border border-amber-200 flex items-start gap-3">
+    <x-heroicon-m-exclamation-triangle class="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+    <div class="text-sm text-amber-800">
+        <div class="font-bold mb-1.5">NIK pelamar ini cocok dengan data karyawan di HRIS:</div>
+        <ul class="space-y-1 list-disc list-inside">
+            @foreach($employeeMatches as $emp)
+                <li>
+                    <strong>{{ $emp->company?->name ?? '—' }}</strong>
+                    — {{ $emp->profile?->jobPosition?->name ?? 'jabatan tidak diketahui' }}
+                    @if($emp->trashed())
+                        <span class="text-red-700 font-semibold">(sudah keluar{{ $emp->deleted_at ? ', ' . $emp->deleted_at->translatedFormat('j F Y') : '' }})</span>
+                    @else
+                        <span class="text-emerald-700 font-semibold">(masih aktif bekerja)</span>
+                    @endif
+                </li>
+            @endforeach
+        </ul>
+    </div>
+</div>
+@endif
+
 <x-filament::section heading="Riwayat Status" icon="heroicon-m-clock" collapsible collapsed>
     @php $logs = $application->statusLogs->sortByDesc('changed_at'); @endphp
     @if($logs->isEmpty())

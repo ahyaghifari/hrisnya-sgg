@@ -2,6 +2,7 @@
 
 namespace App\Filament\Rekrutmen\Pages;
 
+use App\Exports\Rekrutmen\JobApplicantsExport;
 use App\Models\Rekrutmen\JobApplication;
 use App\Models\Rekrutmen\JobOpening;
 use App\Models\Rekrutmen\JobOpeningStageLog;
@@ -20,6 +21,7 @@ use Filament\Tables\Concerns\InteractsWithTable;
 use Filament\Tables\Contracts\HasTable;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Maatwebsite\Excel\Facades\Excel;
 
 /**
  * Daftar Pelamar — port dari ApplicantsPage project `rekrutmen` (FL3 -> FL4), baca-tulis
@@ -225,6 +227,22 @@ class ApplicantsPage extends Page implements HasActions, HasForms, HasTable
             });
     }
 
+    public function exportExcelAction(): Action
+    {
+        return Action::make('exportExcel')
+            ->label('Export Excel')
+            ->icon('heroicon-m-arrow-down-tray')
+            ->color('gray')
+            ->visible(fn () => (bool) $this->jobOpeningId)
+            ->action(function () {
+                $opening = JobOpening::find($this->jobOpeningId);
+                $suffix = $this->statusFilter ? '-' . $this->statusFilter : '';
+                $filename = 'pelamar-' . \Illuminate\Support\Str::slug($opening?->title ?? 'lowongan') . $suffix . '-' . now()->format('Ymd') . '.xlsx';
+
+                return Excel::download(new JobApplicantsExport($this->jobOpeningId, $this->statusFilter), $filename);
+            });
+    }
+
     /** @return array<string,string> job_application_id => nama */
     private function screeningOptions(): array
     {
@@ -245,7 +263,7 @@ class ApplicantsPage extends Page implements HasActions, HasForms, HasTable
         return $table
             ->query(
                 JobApplication::query()
-                    ->with(['answers' => fn ($q) => $q->whereIn('field_key', ['full_name', 'gender', 'education_level'])])
+                    ->with(['answers' => fn ($q) => $q->whereIn('field_key', ['full_name', 'gender', 'education_level']), 'user'])
                     ->when(
                         $this->jobOpeningId,
                         fn (Builder $q) => $q->where('job_opening_id', $this->jobOpeningId),
@@ -277,6 +295,16 @@ class ApplicantsPage extends Page implements HasActions, HasForms, HasTable
                         'passed' => 'Diterima', 'rejected' => 'Tidak Dilanjutkan', default => $state,
                     }),
                 TextColumn::make('created_at')->label('Tanggal')->dateTime('d M Y, H:i')->sortable(),
+                TextColumn::make('riwayat_karyawan')->label('Riwayat')->badge()
+                    ->state(function ($record) {
+                        $matches = $record->formerEmployeeMatches();
+
+                        return $matches->isEmpty() ? null : $matches
+                            ->map(fn ($u) => ($u->company?->name ?? '?') . ($u->trashed() ? ' (keluar)' : ' (aktif)'))
+                            ->join(', ');
+                    })
+                    ->color(fn ($state) => $state ? 'warning' : 'gray')
+                    ->placeholder('—'),
             ])
             ->recordActions([
                 Action::make('lihat')

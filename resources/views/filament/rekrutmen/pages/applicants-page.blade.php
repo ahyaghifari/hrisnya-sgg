@@ -59,6 +59,7 @@
             @if($this->getDraftDecisionCount() > 0)
                 {{ $this->publishScreeningAction }}
             @endif
+            {{ $this->exportExcelAction }}
         </div>
 
         @if($this->getDraftDecisionCount() > 0)
