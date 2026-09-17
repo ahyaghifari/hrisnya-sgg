@@ -500,9 +500,13 @@ class AccessLogScheduleReader
 
     /**
      * Cek device_name yang muncul di scan hari itu ($entry['device_names']) terhadap
-     * attendance_devices aktif milik company user - device_names kosong (baris lama tanpa
-     * device_name) atau semuanya cocok = lolos. $devicesByCompany dipakai sebagai cache
-     * per-request supaya company yang sama tidak query attendance_devices berulang.
+     * attendance_devices aktif milik company user, DITAMBAH device yang di-assign khusus ke
+     * user itu lewat attendance_device_users (buat user company holding yang ditempatkan di
+     * unit usaha dengan device beda - lihat AttendanceDevice::users(), dilaporkan user
+     * 2026-09-17). device_names kosong (baris lama tanpa device_name) atau semuanya cocok =
+     * lolos. $devicesByCompany dipakai sebagai cache per-request supaya company yang sama
+     * tidak query attendance_devices berulang; per-user assignment sengaja tidak dicache
+     * (jarang dipakai, jumlah user per batch kecil).
      */
     private function hasUnrecognizedDevice(array $entry, array &$devicesByCompany): bool
     {
@@ -521,14 +525,19 @@ class AccessLogScheduleReader
         }
 
         $knownNames = $devicesByCompany[$companyId];
+        $unmatched = array_diff($entry['device_names'], $knownNames);
 
-        foreach ($entry['device_names'] as $deviceName) {
-            if (! in_array($deviceName, $knownNames, true)) {
-                return true;
-            }
+        if (empty($unmatched)) {
+            return false;
         }
 
-        return false;
+        $userDeviceNames = AttendanceDevice::query()
+            ->where('is_active', true)
+            ->whereHas('users', fn ($q) => $q->where('users.id', $entry['user']->id))
+            ->pluck('name')
+            ->all();
+
+        return ! empty(array_diff($unmatched, $userDeviceNames));
     }
 
     /**

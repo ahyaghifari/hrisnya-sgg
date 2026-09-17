@@ -3,8 +3,10 @@
 namespace App\Models\Master\Attendance;
 
 use App\Models\Master\Companies;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class AttendanceDevice extends Model
 {
@@ -25,5 +27,12 @@ class AttendanceDevice extends Model
     public function company()
     {
         return $this->belongsTo(Companies::class, 'company_id');
+    }
+
+    /** User yang di-assign khusus ke device ini walau company_id-nya beda - lihat migration
+     * attendance_device_users. */
+    public function users(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'attendance_device_users', 'attendance_device_id', 'user_id');
     }
 }
