@@ -1001,9 +1001,10 @@ html.lw-navigating .page-content { opacity: 0; }
     .welcome-avatar { display: none; }
 }
 
-/* Desktop: tombol "Profil Saya" tetap besar (request user) - yang dikecilkan cuma versi mobile. */
+/* Desktop: tombol "Profil Saya" tetap besar (request user) - yang dikecilkan cuma versi mobile.
+   Tombol "Dashboard" disamain ukurannya (request user juga) biar 2 tombol nggak pincang. */
 @media (min-width: 640px) {
-    .welcome-actions .data-diri-btn.gold { font-size: 14px; padding: 11px 22px; border-radius: 12px; gap: 9px; }
+    .welcome-actions .data-diri-btn { font-size: 14px; padding: 11px 22px; border-radius: 12px; gap: 9px; }
 }
 
 /* Wrapper tombol "Tukar Shift" + "Riwayat" - mobile ditumpuk 1 kolom (default), desktop
