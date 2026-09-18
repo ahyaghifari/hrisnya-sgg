@@ -994,7 +994,7 @@ html.lw-navigating .page-content { opacity: 0; }
 /* Mobile: tombol Data Diri (dan Admin Panel kalau ada) jadi satu kolom penuh sendiri-sendiri,
    bukan berdesakan sejajar seperti di desktop - request user, tombol utama jangan mepet. */
 @media (max-width: 639px) {
-    .welcome-actions { display: flex; justify-content: center; align-items: stretch; width: 100%; background-color: red; }
+    .welcome-actions { display: flex; justify-content: center; align-items: stretch; width: 100%;  }
     .welcome-actions .data-diri-btn { justify-content: center; width: 45% !important; }
     /* Foto profil disembunyikan di mobile (bukan diperkecil) - lebar layar sempit, ruangnya
        lebih berguna buat nama/meta & tombol aksi (request user). */

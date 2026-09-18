@@ -36,7 +36,7 @@
             <div class="welcome-actions">
                 @if (auth()->user()->canAccessDashboardAnda())
                     <a href="{{ route('dashboard-anda') }}" wire:navigate class="data-diri-btn">
-                        <i class="fa-solid fa-chart-line"></i> Dashboard Saya
+                        <i class="fa-solid fa-chart-line"></i> Dashboard
                     </a>
                 @endif
                  <a href="{{ route('profil-saya') }}" wire:navigate class="data-diri-btn gold">
