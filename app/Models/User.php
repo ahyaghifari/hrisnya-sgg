@@ -256,6 +256,18 @@ class User extends Authenticatable implements FilamentUser
             ->contains(fn ($row) => in_array($system->value, $row->systems, true));
     }
 
+    /** Gerbang halaman "Dashboard Anda" (route `dashboard-anda`, lihat config/portal-pages.php)
+     * - boleh dibuka kalau user pegang MINIMAL SATU permission widget DASHBOARD_HC_* (bukan
+     * harus semua). Widget yang tanpa permission tetap tersembunyi sendiri di dalam halaman
+     * (WidgetPermissionEnum::DASHBOARD_HC_*), ini cuma nentuin apakah halamannya kebuka sama
+     * sekali/tombol "Dashboard Anda" muncul di welcome card. */
+    public function canAccessDashboardAnda(): bool
+    {
+        return collect(\App\Enum\WidgetPermissionEnum::cases())
+            ->filter(fn ($case) => str_starts_with($case->value, 'dashboard_hc_'))
+            ->contains(fn ($case) => $this->can($case->value));
+    }
+
     /**
      * Dulu ditulis ulang di dua tempat (nav.blade.php & MyEmployees::mount()) dengan kondisi
      * yang sama persis — disatukan di sini supaya nav dan guard halaman tidak bisa beda sendiri.

@@ -32,6 +32,7 @@ class PayrollDashboardPage extends Component
     public function mount(): void
     {
         abort_unless(Auth::user()->can(CustomPermissionEnum::SISTEM_KEUANGAN->value), 403);
+        abort_unless(Auth::user()->can(CustomPermissionEnum::LIHAT_DASHBOARD_KEUANGAN->value), 403);
 
         $this->companyId = Auth::user()->canFilterByCompany()
             ? (Auth::user()->company_id ?? Companies::orderBy('code')->value('id'))

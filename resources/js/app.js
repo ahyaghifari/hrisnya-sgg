@@ -5,6 +5,9 @@ import "tom-select/dist/css/tom-select.css";
 import List from "list.js";
 import Cropper from "cropperjs";
 import "cropperjs/dist/cropper.css";
+import { Chart, registerables } from "chart.js";
+
+Chart.register(...registerables);
 
 window.apiFetch = apiFetch;
 
@@ -352,6 +355,40 @@ document.addEventListener("DOMContentLoaded", initListTables);
 document.addEventListener("livewire:navigated", () => {
     listInstances.clear();
     initListTables();
+});
+
+// Chart.js — dipasang lewat <canvas data-chart-config='{...}'> (JSON config Chart.js utuh:
+// type/data/options), Blade sisi PHP yang susun datanya lewat json_encode(), bukan script
+// inline per-widget. TIDAK dibungkus wire:ignore (beda dari versi awal) - beberapa chart
+// (mis. ManpowerGapWidget) datanya reaktif ikut filter Livewire, wire:ignore bikin canvas-nya
+// beku walau attribute data-chart-config sudah kebaruan dari server. Guard-nya jadi
+// bandingkan STRING config yang lagi kepasang (data-chart-config-applied) vs yang baru -
+// kalau beda, destroy instance lama & bikin baru; kalau sama, skip (aman dipanggil berkali-
+// kali, sama pola dengan TomSelect/List.js di atas). morph.updated dipasang juga (bukan cuma
+// morph.added) karena attribute berubah di canvas yang SUDAH ada di DOM, bukan node baru.
+function initCharts() {
+    document.querySelectorAll("canvas[data-chart-config]").forEach((canvas) => {
+        const config = canvas.dataset.chartConfig;
+
+        if (canvas.dataset.chartConfigApplied === config) {
+            return;
+        }
+
+        const existing = Chart.getChart(canvas);
+        if (existing) {
+            existing.destroy();
+        }
+
+        new Chart(canvas, JSON.parse(config));
+        canvas.dataset.chartConfigApplied = config;
+    });
+}
+
+document.addEventListener("DOMContentLoaded", initCharts);
+document.addEventListener("livewire:navigated", initCharts);
+document.addEventListener("livewire:init", () => {
+    Livewire.hook("morph.added", () => initCharts());
+    Livewire.hook("morph.updated", () => initCharts());
 });
 document.addEventListener("livewire:init", () => {
     Livewire.on("list-table:refresh", () => {

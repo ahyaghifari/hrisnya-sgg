@@ -25,6 +25,7 @@ class AttendanceDashboardPage extends Component
     public function mount(): void
     {
         abort_unless(Auth::user()->can(CustomPermissionEnum::SISTEM_ABSENSI->value), 403);
+        abort_unless(Auth::user()->can(CustomPermissionEnum::LIHAT_DASHBOARD_PRESENSI->value), 403);
 
         if (! Auth::user()->canFilterByCompany()) {
             $this->companyId = Auth::user()->company_id;

@@ -20,9 +20,11 @@ use Maatwebsite\Excel\Facades\Excel;
  * ngga ada, disatukan aja ke dashboard"). Jadwal/Antrian MCU/Ide Inovasi/Pengaturan =
  * halaman terpisah, diakses lewat dropdown nav (quick-link di halaman ini dihapus 2026-08-28).
  *
- * Gate masuk = SISTEM_SIKARTAP (gerbang modul) - BUKAN salah satu dari permission widget,
- * supaya halaman ini tetap bisa dibuka walau role belum dikasih permission widget manapun,
- * cuma widget-nya yang kosong.
+ * Gate masuk = SISTEM_SIKARTAP (gerbang modul) DAN LIHAT_DASHBOARD_SIKARTAP_MODUL (gerbang
+ * halaman dashboard ini spesifik, 2026-09-18 - instruksi user: dashboard modul mau bisa
+ * dimatikan terpisah dari akses modul) - BUKAN salah satu dari permission widget, supaya
+ * halaman ini tetap bisa dibuka walau role belum dikasih permission widget manapun, cuma
+ * widget-nya yang kosong.
  *
  * Widget-nya sendiri tetap permission masing-masing (LIHAT_DASHBOARD_SIKARTAP_*, instruksi
  * user: "masing2 widget ini punya permission") - KECUALI widget tabel pengajuan, yang reuse
@@ -52,6 +54,7 @@ class DashboardSikartapPage extends Component
         $user = Auth::user();
 
         abort_unless($user->can(CustomPermissionEnum::SISTEM_SIKARTAP->value), 403);
+        abort_unless($user->can(CustomPermissionEnum::LIHAT_DASHBOARD_SIKARTAP_MODUL->value), 403);
 
         $this->companyId = $user->canFilterByCompany() ? null : $user->company_id;
     }

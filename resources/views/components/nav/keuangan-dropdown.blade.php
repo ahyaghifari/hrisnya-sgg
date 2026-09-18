@@ -2,6 +2,7 @@
     // Periode Gaji & Payroll digerbangi ViewAny:<Resource> (Shield) sendiri, bukan SISTEM_KEUANGAN -
     // dihitung di sini (bukan di nav.blade.php) karena ini gerbang spesifik satu sub-halaman,
     // bukan permission SISTEM_* umum.
+    $canViewDashboard = auth()->user()->can(\App\Enum\CustomPermissionEnum::LIHAT_DASHBOARD_KEUANGAN->value);
     $canViewPayrollPeriod = auth()->user()->can('ViewAny:PayrollPeriod');
     $canViewPayroll = auth()->user()->can('ViewAny:Payroll');
     $canViewPajak = auth()->user()->can(\App\Enum\CustomPermissionEnum::LIHAT_PAJAK->value);
@@ -30,7 +31,9 @@
     <div class="dropdown-menu dropdown-menu-columns">
         <div class="dropdown-col">
             <div class="dropdown-col-label">Payroll</div>
-            <a href="{{ route('keuangan.dashboard') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-chart-line"></i> Dashboard</a>
+            @if ($canViewDashboard)
+                <a href="{{ route('keuangan.dashboard') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-chart-line"></i> Dashboard</a>
+            @endif
             @if ($canViewPayrollPeriod)
                 <a href="{{ route('keuangan.periode-gaji') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-calendar-days"></i> Periode Gaji</a>
             @endif

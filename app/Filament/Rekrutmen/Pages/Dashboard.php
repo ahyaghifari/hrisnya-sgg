@@ -2,6 +2,7 @@
 
 namespace App\Filament\Rekrutmen\Pages;
 
+use App\Enum\CustomPermissionEnum;
 use App\Filament\Rekrutmen\Resources\JobOpenings\JobOpeningResource;
 use App\Models\Rekrutmen\Company;
 use App\Models\Rekrutmen\JobApplication;
@@ -17,6 +18,15 @@ use Filament\Schemas\Schema;
 class Dashboard extends BaseDashboard
 {
     protected static ?string $title = 'Dasbor';
+
+    /** Dulu ikut kebuka otomatis ke siapa saja yang bisa masuk panel Rekrutmen (2026-09-18 -
+     * instruksi user: dashboard modul mau bisa dimatikan terpisah dari akses modul/panel). */
+    public static function canAccess(): bool
+    {
+        $u = filament()->auth()->user();
+
+        return $u->hasRole(['Admin', 'Super Admin']) || $u->can(CustomPermissionEnum::LIHAT_DASHBOARD_REKRUTMEN->value);
+    }
 
     public function content(Schema $schema): Schema
     {

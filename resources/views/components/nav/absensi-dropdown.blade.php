@@ -1,4 +1,5 @@
 @php
+    $canViewDashboard = auth()->user()->can(\App\Enum\CustomPermissionEnum::LIHAT_DASHBOARD_PRESENSI->value);
     $canViewPengaturanAbsensi = auth()->user()->can(\App\Enum\CustomPermissionEnum::LIHAT_PENGATURAN_ABSENSI->value);
     $canViewSchedule = auth()->user()->can('ViewAny:Schedule');
     $canViewExtraShift = auth()->user()->can('ViewAny:ExtraShiftAssignment');
@@ -13,7 +14,9 @@
     </a>
     <div class="dropdown-menu dropdown-menu-columns">
         <div class="dropdown-col">
+            @if ($canViewDashboard)
             <a href="{{ route('presensi.dashboard') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-chart-line"></i> Dashboard</a>
+            @endif
             @if ($canViewExtraShiftRule)
             <a href="{{ route('presensi.extra-shift-rule') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-right-left"></i> Aturan Extra Shift</a>
             @endif

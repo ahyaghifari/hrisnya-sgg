@@ -1,4 +1,5 @@
 @php
+    $canViewDashboard = auth()->user()->can(\App\Enum\CustomPermissionEnum::LIHAT_DASHBOARD_PRESENSI->value);
     $canViewSchedule = auth()->user()->can('ViewAny:Schedule');
     $canViewExtraShift = auth()->user()->can('ViewAny:ExtraShiftAssignment');
     $canViewExtraShiftRule = auth()->user()->can('ViewAny:ExtraShiftRule');
@@ -8,10 +9,12 @@
 @endphp
 
 <span class="pwa-menu-grid-divider">Sistem Absensi</span>
+@if ($canViewDashboard)
 <a href="{{ route('presensi.dashboard') }}" wire:navigate class="pwa-menu-grid-item">
     <span class="pwa-menu-grid-icon green"><i class="fa-solid fa-chart-line"></i></span>
     <span class="pwa-menu-grid-label">Dashboard</span>
 </a>
+@endif
 @if ($canViewSchedule)
 <a href="{{ route('presensi.jadwal') }}" wire:navigate class="pwa-menu-grid-item">
     <span class="pwa-menu-grid-icon green"><i class="fa-solid fa-calendar-days"></i></span>

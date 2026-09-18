@@ -68,4 +68,23 @@ class UserContract extends Model
     {
         return $this->file_path ? Storage::disk('public')->url($this->file_path) : null;
     }
+
+    /** Periode kontrak TERBARU per user (baris ledger dengan contract_start_date terbesar),
+     * di-scope ke 1 company - dipakai widget dashboard mana pun yang butuh "kontrak aktif
+     * sekarang" tanpa N+1 (mis. EmployeeTypeBreakdownWidget, SummaryStripWidget). Beda dari
+     * User::activeContract() (hasOne + latestOfMany, cocok buat 1 user) - versi ini query
+     * borongan lintas user sekaligus, lebih murah daripada N query lewat relasi per user.
+     *
+     * @return \Illuminate\Support\Collection<string, self>
+     */
+    public static function latestPerUserInCompany(string $companyId): \Illuminate\Support\Collection
+    {
+        return static::query()
+            ->whereHas('user', fn ($q) => $q->where('company_id', $companyId))
+            ->whereNotNull('contract_end_date')
+            ->with(['user.profile.jobPosition', 'employeeType'])
+            ->get()
+            ->groupBy('user_id')
+            ->map(fn ($group) => $group->sortByDesc('contract_start_date')->first());
+    }
 }

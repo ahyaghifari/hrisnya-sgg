@@ -7,6 +7,7 @@
     $canViewOrientasi = auth()->user()->can('ViewAny:OrientationSubmission');
     $canViewPerpanjanganKontrak = auth()->user()->can('ViewAny:ContractSubmission');
     $hasSikartap = $canViewSikartap || auth()->user()->can(\App\Enum\CustomPermissionEnum::SISTEM_SIKARTAP->value);
+    $canViewDashboard = $hasSikartap && auth()->user()->can(\App\Enum\CustomPermissionEnum::LIHAT_DASHBOARD_SIKARTAP_MODUL->value);
 @endphp
 
 <div class="dropdown">
@@ -17,7 +18,7 @@
         @if ($hasSikartap || $canViewPengaturan)
         <div class="dropdown-col">
             <div class="dropdown-col-label">Karyawan Tetap</div>
-            @if ($hasSikartap)
+            @if ($canViewDashboard)
                 <a href="{{ route('sikartap.dashboard') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-list-check"></i> Pengajuan</a>
             @endif
             @if ($canViewSikartap)

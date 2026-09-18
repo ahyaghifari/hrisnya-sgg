@@ -419,6 +419,12 @@ class TaskService
             ->when($scope === 'tim', fn ($q) => $q->whereIn('assigned_to', $this->orgHierarchyService->subordinates($user)->pluck('id')));
     }
 
+    /** Angka badge di tab nav (mis. "Tugas Saya") - jumlah task scope itu yang belum COMPLETE. */
+    public function countIncomplete(User $user, string $scope): int
+    {
+        return $this->scopedTaskQuery($user, $scope)->where('status', '!=', TaskStatus::COMPLETE->value)->count();
+    }
+
     /**
      * Task yang tampil di board - task COMPLETE yang udah lewat H+1 dari completed_date pindah
      * ke riwayat (getHistoryTasks), ngga nongol di board lagi (2026-08-02).

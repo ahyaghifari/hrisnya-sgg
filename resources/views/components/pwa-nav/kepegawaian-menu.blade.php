@@ -1,4 +1,5 @@
 @php
+    $canViewDashboard = auth()->user()->can(\App\Enum\CustomPermissionEnum::LIHAT_DASHBOARD_KEPEGAWAIAN->value);
     $canViewKaryawan = auth()->user()->can('ViewAny:User');
     $canViewPengaturanKepegawaian = auth()->user()->can(\App\Enum\CustomPermissionEnum::LIHAT_PENGATURAN_KEPEGAWAIAN->value);
     $canViewJabatan = auth()->user()->can('ViewAny:JobPositions');
@@ -11,10 +12,12 @@
 @endphp
 
 <span class="pwa-menu-grid-divider">Sistem Kepegawaian</span>
+@if ($canViewDashboard)
 <a href="{{ route('kepegawaian.dashboard') }}" wire:navigate class="pwa-menu-grid-item">
     <span class="pwa-menu-grid-icon violet"><i class="fa-solid fa-chart-line"></i></span>
     <span class="pwa-menu-grid-label">Dashboard</span>
 </a>
+@endif
 @if ($canViewKaryawan)
 <a href="{{ route('kepegawaian.karyawan') }}" wire:navigate class="pwa-menu-grid-item">
     <span class="pwa-menu-grid-icon violet"><i class="fa-solid fa-users"></i></span>

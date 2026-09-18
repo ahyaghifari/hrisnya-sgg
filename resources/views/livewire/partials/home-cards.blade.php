@@ -34,14 +34,14 @@
             </div>
 
             <div class="welcome-actions">
-                <a href="{{ route('profil-saya') }}" wire:navigate class="data-diri-btn gold">
-                    <i class="fa-solid fa-id-card"></i> Profil Saya
-                </a>
-                @if (auth()->user()->hasRole(['Admin', 'Super Admin']))
-                    <a href="/admin" class="data-diri-btn">
-                        <i class="fa-solid fa-gauge"></i> Admin Panel
+                @if (auth()->user()->canAccessDashboardAnda())
+                    <a href="{{ route('dashboard-anda') }}" wire:navigate class="data-diri-btn">
+                        <i class="fa-solid fa-chart-line"></i> Dashboard Saya
                     </a>
                 @endif
+                 <a href="{{ route('profil-saya') }}" wire:navigate class="data-diri-btn gold">
+                    <i class="fa-solid fa-id-card"></i> Profil Saya
+                </a>
             </div>
         </div>
     </div>
@@ -301,6 +301,7 @@
             <i class="fa-solid fa-chevron-right"></i>
         </a>
     </div>
+
 
 </div>
 

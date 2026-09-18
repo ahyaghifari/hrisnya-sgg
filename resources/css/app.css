@@ -994,8 +994,8 @@ html.lw-navigating .page-content { opacity: 0; }
 /* Mobile: tombol Data Diri (dan Admin Panel kalau ada) jadi satu kolom penuh sendiri-sendiri,
    bukan berdesakan sejajar seperti di desktop - request user, tombol utama jangan mepet. */
 @media (max-width: 639px) {
-    .welcome-actions { flex-direction: column; align-items: stretch; width: 100%; }
-    .welcome-actions .data-diri-btn { justify-content: center; }
+    .welcome-actions { display: flex; justify-content: center; align-items: stretch; width: 100%; background-color: red; }
+    .welcome-actions .data-diri-btn { justify-content: center; width: 45% !important; }
     /* Foto profil disembunyikan di mobile (bukan diperkecil) - lebar layar sempit, ruangnya
        lebih berguna buat nama/meta & tombol aksi (request user). */
     .welcome-avatar { display: none; }
@@ -1080,7 +1080,7 @@ html.lw-navigating .page-content { opacity: 0; }
     .welcome-qa-label { font-size: 10.5px; }
     /* Mobile: tombol Data Diri/Admin Panel sedikit lebih besar dari base (full-width, target
        sentuh) tapi tidak sebesar dulu. */
-    .data-diri-btn { font-size: 12.5px; padding: 9px 14px; }
+    .data-diri-btn { font-size: 12.5px; padding: 9px 14px; width: 100%;}
     .qa-btn-group { gap: 7px; }
     .qa-btn { font-size: 11px; padding: 6px 11px; border-radius: 9px; gap: 6px; }
     .qa-dot { width: 6px; height: 6px; }
@@ -1132,6 +1132,24 @@ html.dark .border-slate-200, html.dark .border-slate-300 { border-color: var(--b
    `bg-white rounded-xl border border-gray-200 p-5` yang tidak ikut dark mode) ── */
 .card-surface { background: var(--surface); border-radius: 12px; border: 1px solid var(--border); padding: 20px; }
 .card-surface-flush { background: var(--surface); border-radius: 12px; border: 1px solid var(--border); overflow: hidden; }
+
+/* Aksen spine kiri berwarna per domain, buat widget-widget dashboard (Status Kepegawaian,
+   Coaching, dst - lihat planning/dashboard/dashboard-hc-manager.html) - pola sama seperti
+   .course-card::before, reuse identitas domain yang sudah ada (indigo = Coaching/Counseling,
+   sama warna nav-item-indigo/pwa-menu-grid-icon.indigo), bukan warna baru. */
+.card-surface.accent { position: relative; overflow: hidden; padding-left: 24px; }
+.card-surface.accent::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--accent-fill); }
+.card-surface.accent-navy   { --accent-fill: var(--brand); --accent-soft: rgba(4,44,108,0.08); }
+.card-surface.accent-green  { --accent-fill: #047C54; --accent-soft: rgba(4,124,84,0.08); }
+.card-surface.accent-indigo { --accent-fill: #4338ca; --accent-soft: rgba(67,56,202,0.08); }
+.card-surface.accent-teal   { --accent-fill: #0f766e; --accent-soft: rgba(15,118,110,0.08); }
+html.dark .card-surface.accent-navy   { --accent-soft: rgba(110,168,224,0.14); }
+html.dark .card-surface.accent-green  { --accent-soft: rgba(52,211,153,0.14); }
+html.dark .card-surface.accent-indigo { --accent-soft: rgba(129,140,248,0.16); }
+html.dark .card-surface.accent-teal   { --accent-soft: rgba(45,212,191,0.14); }
+
+.section-icon { width: 30px; height: 30px; border-radius: 9px; display: flex; align-items: center; justify-content: center; font-size: 13px; background: var(--accent-soft); color: var(--accent-fill); flex-shrink: 0; }
+.section-head-icon { display: flex; align-items: center; gap: 10px; }
 
 /* ── NEURO / STAT CARD ── */
 .neuro { background: var(--neuro-bg); box-shadow: var(--neuro-shadow-1), var(--neuro-shadow-2); border-radius: 18px; }

@@ -4,6 +4,7 @@
     $canViewOrientasi = auth()->user()->can('ViewAny:OrientationSubmission');
     $canViewPerpanjanganKontrak = auth()->user()->can('ViewAny:ContractSubmission');
     $hasSikartap = $canViewSikartap || auth()->user()->can(\App\Enum\CustomPermissionEnum::SISTEM_SIKARTAP->value);
+    $canViewDashboard = $hasSikartap && auth()->user()->can(\App\Enum\CustomPermissionEnum::LIHAT_DASHBOARD_SIKARTAP_MODUL->value);
 @endphp
 
 <span class="pwa-menu-grid-divider">Sikartap</span>
@@ -19,7 +20,7 @@
     <span class="pwa-menu-grid-label">Perpanjangan Kontrak</span>
 </a>
 @endif
-@if ($hasSikartap)
+@if ($canViewDashboard)
 <a href="{{ route('sikartap.dashboard') }}" wire:navigate class="pwa-menu-grid-item">
     <span class="pwa-menu-grid-icon violet"><i class="fa-solid fa-list-check"></i></span>
     <span class="pwa-menu-grid-label">Karyawan Tetap</span>

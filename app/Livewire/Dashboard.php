@@ -191,12 +191,10 @@ class Dashboard extends Component
 
     public function getRecentTasksProperty()
     {
-        $userId = Auth::id();
-
-        return Task::where(function ($q) use ($userId) {
-                $q->where('created_by', $userId)
-                    ->orWhere('assigned_to', $userId);
-            })
+        // Cuma tugas yang DITUGASKAN ke user ini (assignee) - bukan yang dia buat/tugaskan ke
+        // orang lain. Widget "Tugas Saya" di dashboard itu daftar kerjaan sendiri, bukan daftar
+        // penugasan yang dia kasih ke bawahan (itu ada di menu Tugas > Penugasan Individu).
+        return Task::where('assigned_to', Auth::id())
             // Task di dalam Project/Board dikecualikan - kartu ini cuma buat task personal
             // (Todo Saya/Tugas Saya), sama seperti TaskService::scopedTaskQuery(). Task board
             // eksklusif dilihat dari board-nya sendiri, termasuk otomatis tersaring kalau

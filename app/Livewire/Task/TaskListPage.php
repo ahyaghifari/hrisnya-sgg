@@ -104,6 +104,12 @@ class TaskListPage extends Component
         }
     }
 
+    /** Angka di pill nav "Tugas Saya" - jumlah tugas yang belum selesai. */
+    public function getMyTaskPendingCountProperty(): int
+    {
+        return app(TaskService::class)->countIncomplete(Auth::user(), 'saya');
+    }
+
     public function getHasSubordinatesProperty(): bool
     {
         return app(OrgHierarchyService::class)->subordinates(Auth::user())->exists();

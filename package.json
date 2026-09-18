@@ -20,6 +20,7 @@
         "vite": "^7.0.4"
     },
     "dependencies": {
+        "chart.js": "^4.4.0",
         "cropperjs": "^1.6.2",
         "list.js": "^2.3.1",
         "sortablejs": "^1.15.7",

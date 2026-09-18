@@ -31,6 +31,12 @@ return [
         'guard' => null,
     ],
 
+    'dashboard-anda' => [
+        'label' => 'Dashboard Anda',
+        'permission' => null,
+        'guard' => 'canAccessDashboardAnda',
+    ],
+
     'profil-saya' => [
         'label' => 'Profil Saya',
         'permission' => null,

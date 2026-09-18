@@ -279,6 +279,17 @@ enum CustomPermissionEnum: string
      * karena "yang boleh koreksi" itu peran pengawasan, bukan peran pengisi data. */
     case EDIT_INPUT_MCU = 'edit_input_mcu';
 
+    /** Gerbang halaman Dashboard masing2 modul - dulu numpang gerbang modul (SISTEM_KEPEGAWAIAN
+     * dkk), otomatis kebuka buat siapa saja yang punya akses modul itu (instruksi user
+     * 2026-09-18: mau bisa dimatikan terpisah per role). Dicek DI SAMPING (AND) SISTEM_* modul-nya
+     * yang sudah ada di mount()/canAccess() masing2 halaman, bukan pengganti - role tetap butuh
+     * akses modul dulu, permission ini cuma mempersempit siapa yang boleh lihat dashboard-nya. */
+    case LIHAT_DASHBOARD_KEPEGAWAIAN = 'lihat_dashboard_kepegawaian';
+    case LIHAT_DASHBOARD_KEUANGAN = 'lihat_dashboard_keuangan';
+    case LIHAT_DASHBOARD_PRESENSI = 'lihat_dashboard_presensi';
+    case LIHAT_DASHBOARD_SIKARTAP_MODUL = 'lihat_dashboard_sikartap_modul';
+    case LIHAT_DASHBOARD_REKRUTMEN = 'lihat_dashboard_rekrutmen';
+
     public function label(): string
     {
         return match
@@ -358,6 +369,11 @@ enum CustomPermissionEnum: string
             self::INPUT_MCU_RADIOLOGI => 'Input MCU - Hasil Radiologi',
             self::INPUT_MCU_PEMERIKSAAN_DOKTER => 'Input MCU - Pemeriksaan Dokter',
             self::EDIT_INPUT_MCU => 'Edit Ulang Hasil MCU (Sudah Diisi)',
+            self::LIHAT_DASHBOARD_KEPEGAWAIAN => 'Lihat Dashboard Kepegawaian',
+            self::LIHAT_DASHBOARD_KEUANGAN => 'Lihat Dashboard Keuangan',
+            self::LIHAT_DASHBOARD_PRESENSI => 'Lihat Dashboard Presensi',
+            self::LIHAT_DASHBOARD_SIKARTAP_MODUL => 'Lihat Dashboard Sikartap',
+            self::LIHAT_DASHBOARD_REKRUTMEN => 'Lihat Dashboard Rekrutmen',
         };
     }
 }

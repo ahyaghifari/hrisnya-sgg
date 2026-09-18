@@ -1,4 +1,5 @@
 @php
+    $canViewDashboard = auth()->user()->can(\App\Enum\CustomPermissionEnum::LIHAT_DASHBOARD_KEPEGAWAIAN->value);
     $canViewKaryawan = auth()->user()->can('ViewAny:User');
     $canViewPengaturanKepegawaian = auth()->user()->can(\App\Enum\CustomPermissionEnum::LIHAT_PENGATURAN_KEPEGAWAIAN->value);
     $canViewAlurPersetujuan = auth()->user()->can(\App\Enum\CustomPermissionEnum::LIHAT_ALUR_PERSETUJUAN->value);
@@ -17,7 +18,9 @@
     </a>
     <div class="dropdown-menu dropdown-menu-columns">
         <div class="dropdown-col">
-            <a href="{{ route('kepegawaian.dashboard') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-chart-line"></i> Dashboard</a>
+            @if ($canViewDashboard)
+                <a href="{{ route('kepegawaian.dashboard') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-chart-line"></i> Dashboard</a>
+            @endif
             @if ($canViewKaryawan)
                 <a href="{{ route('kepegawaian.karyawan') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-users"></i> Karyawan</a>
             @endif

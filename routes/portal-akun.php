@@ -1,6 +1,7 @@
 <?php
 
 use App\Livewire\Dashboard;
+use App\Livewire\DashboardAndaPage;
 use App\Livewire\EmployeeAttendanceStatistics;
 use App\Livewire\MyEmployees;
 use App\Livewire\OrganizationStructure;
@@ -21,6 +22,9 @@ use Illuminate\Support\Facades\Route;
  */
 Route::get('/', Dashboard::class)
     ->name('dashboard');
+
+Route::get('/dashboard-anda', DashboardAndaPage::class)
+    ->name('dashboard-anda');
 
 Route::get('/notifikasi', \App\Livewire\NotificationsPage::class)
     ->name('notifikasi');

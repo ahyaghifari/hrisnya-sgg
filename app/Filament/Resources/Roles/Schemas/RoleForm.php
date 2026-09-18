@@ -59,8 +59,10 @@ class RoleForm
                 CustomPermissionEnum::EDIT_PAYROLL_ADJUSTMENT->value,
                 CustomPermissionEnum::GENERATE_PAYROLL->value,
                 CustomPermissionEnum::IMPORT_PAYROLL_MANUAL->value,
+                CustomPermissionEnum::LIHAT_DASHBOARD_KEUANGAN->value,
             ],
             CustomPermissionEnum::SISTEM_KEPEGAWAIAN->value => [
+                CustomPermissionEnum::LIHAT_DASHBOARD_KEPEGAWAIAN->value,
                 CustomPermissionEnum::LIHAT_PENGATURAN_KEPEGAWAIAN->value,
                 CustomPermissionEnum::EDIT_PENGATURAN_KEPEGAWAIAN->value,
                 CustomPermissionEnum::LIHAT_JOB_EVALUATION->value,
@@ -74,6 +76,7 @@ class RoleForm
                 CustomPermissionEnum::KELOLA_ALUR_PERSETUJUAN->value,
             ],
             CustomPermissionEnum::SISTEM_ABSENSI->value => [
+                CustomPermissionEnum::LIHAT_DASHBOARD_PRESENSI->value,
                 CustomPermissionEnum::LIHAT_PENGATURAN_ABSENSI->value,
                 CustomPermissionEnum::EDIT_PENGATURAN_ABSENSI->value,
                 CustomPermissionEnum::SYNC_DATA_ABSENSI->value,
@@ -116,6 +119,7 @@ class RoleForm
             // Tetap") ke-merge jadi 1 section sama container portal ini - pola sama persis
             // SISTEM_PENILAIAN_KARYAWAN di atas. (Input MCU pindah ke SISTEM_MCU, 2026-09-08.)
             CustomPermissionEnum::SISTEM_SIKARTAP->value => [
+                CustomPermissionEnum::LIHAT_DASHBOARD_SIKARTAP_MODUL->value,
                 CustomPermissionEnum::LIHAT_PENGATURAN_SIKARTAP->value,
                 CustomPermissionEnum::EDIT_PENGATURAN_SIKARTAP->value,
                 CustomPermissionEnum::NILAI_IDE_INOVASI_DIREKTUR->value,
@@ -125,7 +129,9 @@ class RoleForm
             // permission — pembungkus supaya container admin 'Rekrutmen' (navigationGroup
             // JobOpeningResource, subject "Kelola Lowongan") ke-merge jadi 1 section, pola sama
             // SISTEM_SIKARTAP.
-            CustomPermissionEnum::SISTEM_REKRUTMEN->value => [],
+            CustomPermissionEnum::SISTEM_REKRUTMEN->value => [
+                CustomPermissionEnum::LIHAT_DASHBOARD_REKRUTMEN->value,
+            ],
             // Modul MCU berdiri sendiri (2026-09-08) — 5 permission isi/edit hasil MCU pindah
             // ke sini dari sub-grup "Input MCU" milik Rekrutmen. Staf klinis cukup diberi
             // section ini, tak perlu SISTEM_SIKARTAP / SISTEM_REKRUTMEN.

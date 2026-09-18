@@ -1,5 +1,6 @@
 @php
     // Sama seperti nav.blade.php desktop — gerbang spesifik dihitung di sini, bukan di parent.
+    $canViewDashboard = auth()->user()->can(\App\Enum\CustomPermissionEnum::LIHAT_DASHBOARD_KEUANGAN->value);
     $canViewPayrollPeriod = auth()->user()->can('ViewAny:PayrollPeriod');
     $canViewPayroll = auth()->user()->can('ViewAny:Payroll');
     $canViewPajak = auth()->user()->can(\App\Enum\CustomPermissionEnum::LIHAT_PAJAK->value);
@@ -18,10 +19,12 @@
 @endphp
 
 <span class="pwa-menu-grid-divider">Sistem Keuangan</span>
+@if ($canViewDashboard)
 <a href="{{ route('keuangan.dashboard') }}" wire:navigate class="pwa-menu-grid-item">
     <span class="pwa-menu-grid-icon navy"><i class="fa-solid fa-chart-line"></i></span>
     <span class="pwa-menu-grid-label">Dashboard</span>
 </a>
+@endif
 @if ($canViewPayrollPeriod)
     <a href="{{ route('keuangan.periode-gaji') }}" wire:navigate class="pwa-menu-grid-item">
         <span class="pwa-menu-grid-icon navy"><i class="fa-solid fa-calendar-days"></i></span>
