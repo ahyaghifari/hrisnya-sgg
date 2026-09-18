@@ -34,14 +34,14 @@
             </div>
 
             <div class="welcome-actions">
+                <a href="{{ route('profil-saya') }}" wire:navigate class="data-diri-btn gold">
+                    <i class="fa-solid fa-id-card"></i> Profil Saya
+                </a>
                 @if (auth()->user()->canAccessDashboardAnda())
                     <a href="{{ route('dashboard-anda') }}" wire:navigate class="data-diri-btn">
                         <i class="fa-solid fa-chart-line"></i> Dashboard
                     </a>
                 @endif
-                 <a href="{{ route('profil-saya') }}" wire:navigate class="data-diri-btn gold">
-                    <i class="fa-solid fa-id-card"></i> Profil Saya
-                </a>
             </div>
         </div>
     </div>
