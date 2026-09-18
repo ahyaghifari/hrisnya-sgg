@@ -1,4 +1,5 @@
 <div>
+@php $employees = $this->employees; @endphp
 <x-page-header title="Karyawan" subtitle="Data seluruh karyawan perusahaan" />
 
 <div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:16px;">
@@ -23,10 +24,16 @@
        diaktifkan lagi kapan saja
      - Arsip: soft-deleted (dihapus), cuma bisa dipulihkan, bukan diaktifkan langsung.
      Sengaja kecil/plain (bukan .section-nav-btn), ini cuma filter sekunder, bukan navigasi utama. --}}
-<div style="display:inline-flex;gap:2px;background:var(--surface-alt);padding:3px;border-radius:8px;margin-bottom:14px;">
-    <button type="button" wire:click="setStatus('aktif')" style="padding:4px 12px;font-size:11.5px;font-weight:600;border:none;border-radius:6px;cursor:pointer;font-family:inherit;background:{{ $status === 'aktif' ? 'var(--brand-success)' : 'transparent' }};color:{{ $status === 'aktif' ? '#fff' : 'var(--text-muted)' }};box-shadow:{{ $status === 'aktif' ? 'var(--shadow-card)' : 'none' }};">Aktif</button>
-    <button type="button" wire:click="setStatus('tidak_aktif')" style="padding:4px 12px;font-size:11.5px;font-weight:600;border:none;border-radius:6px;cursor:pointer;font-family:inherit;background:{{ $status === 'tidak_aktif' ? '#b45309' : 'transparent' }};color:{{ $status === 'tidak_aktif' ? '#fff' : 'var(--text-muted)' }};box-shadow:{{ $status === 'tidak_aktif' ? 'var(--shadow-card)' : 'none' }};">Tidak Aktif</button>
-    <button type="button" wire:click="setStatus('arsip')" style="padding:4px 12px;font-size:11.5px;font-weight:600;border:none;border-radius:6px;cursor:pointer;font-family:inherit;background:{{ $status === 'arsip' ? '#64748b' : 'transparent' }};color:{{ $status === 'arsip' ? '#fff' : 'var(--text-muted)' }};box-shadow:{{ $status === 'arsip' ? 'var(--shadow-card)' : 'none' }};">Arsip</button>
+{{-- Total ngikut baseQuery() (filter company/departemen/divisi/cari + tab status aktif) -
+sama sumbernya dengan tabel/list di bawah lewat $this->employees (paginator), bukan query count
+terpisah yang bisa menyimpang. --}}
+<div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px;">
+    <div style="display:inline-flex;gap:2px;background:var(--surface-alt);padding:3px;border-radius:8px;">
+        <button type="button" wire:click="setStatus('aktif')" style="padding:4px 12px;font-size:11.5px;font-weight:600;border:none;border-radius:6px;cursor:pointer;font-family:inherit;background:{{ $status === 'aktif' ? 'var(--brand-success)' : 'transparent' }};color:{{ $status === 'aktif' ? '#fff' : 'var(--text-muted)' }};box-shadow:{{ $status === 'aktif' ? 'var(--shadow-card)' : 'none' }};">Aktif</button>
+        <button type="button" wire:click="setStatus('tidak_aktif')" style="padding:4px 12px;font-size:11.5px;font-weight:600;border:none;border-radius:6px;cursor:pointer;font-family:inherit;background:{{ $status === 'tidak_aktif' ? '#b45309' : 'transparent' }};color:{{ $status === 'tidak_aktif' ? '#fff' : 'var(--text-muted)' }};box-shadow:{{ $status === 'tidak_aktif' ? 'var(--shadow-card)' : 'none' }};">Tidak Aktif</button>
+        <button type="button" wire:click="setStatus('arsip')" style="padding:4px 12px;font-size:11.5px;font-weight:600;border:none;border-radius:6px;cursor:pointer;font-family:inherit;background:{{ $status === 'arsip' ? '#64748b' : 'transparent' }};color:{{ $status === 'arsip' ? '#fff' : 'var(--text-muted)' }};box-shadow:{{ $status === 'arsip' ? 'var(--shadow-card)' : 'none' }};">Arsip</button>
+    </div>
+    <span class="badge badge-cancelled"><i class="fa-solid fa-users"></i> {{ $employees->total() }} karyawan</span>
 </div>
 
 <div class="mb-4" style="display:flex;flex-wrap:wrap;gap:12px;">
@@ -70,8 +77,6 @@
         </div>
     </div>
 </div>
-
-@php $employees = $this->employees; @endphp
 
 <!-- MOBILE: card manual -->
 <div class="md:hidden">

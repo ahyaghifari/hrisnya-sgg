@@ -411,9 +411,13 @@ html.dark .nav-brand-icon-dark { display: inline-block; }
 .nav-bell { position: relative; width: 36px; height: 36px; border-radius: 10px; border: 1.5px solid var(--border-soft); display: flex; align-items: center; justify-content: center; color: var(--text-muted); cursor: pointer; background: var(--surface); font-family: inherit; }
 .nav-bell-dot { position: absolute; top: -5px; right: -6px; min-width: 16px; height: 16px; padding: 0 3px; background: #ef4444; border-radius: 8px; border: 1.5px solid var(--surface); color: #fff; font-size: 9.5px; font-weight: 700; line-height: 13px; text-align: center; box-sizing: border-box; }
 
-/* Dropdown notifikasi (desktop) — reuse .dropdown/.dropdown-menu hover pattern, lebar & isi beda
-   dari dropdown menu nav biasa (list notifikasi, bukan link menu). */
+/* Dropdown notifikasi (desktop) — beda dari dropdown menu nav biasa: isinya ada tombol
+   wire:click (Tandai Dibaca), bukan cuma link. TIDAK pakai .dropdown:hover bawaan (celah 10px
+   antara tombol & menu gampang bikin hover kelepas pas mouse turun ke tombol/item di dalam,
+   klik jadi kayak tidak ngefek — dilaporkan user 2026-09-18) — dibuka/ditutup lewat Alpine
+   x-data (lihat notification-bell.blade.php), visibility di-override lewat .is-open di sini. */
 .dropdown-menu-notif { min-width: 320px; max-width: 340px; padding: 0; overflow: hidden; }
+.dropdown-menu-notif.is-open { opacity: 1; visibility: visible; transform: translateY(0); }
 .dropdown-notif-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; font-size: 12.5px; font-weight: 700; color: var(--text-heading); border-bottom: 1px solid var(--border-soft); }
 .dropdown-notif-mark-all { background: none; border: none; padding: 0; font-size: 11px; font-weight: 600; color: var(--brand); cursor: pointer; font-family: inherit; }
 .dropdown-notif-mark-all:disabled { color: var(--text-faint); cursor: default; }
@@ -1133,6 +1137,39 @@ html.dark .border-slate-200, html.dark .border-slate-300 { border-color: var(--b
    `bg-white rounded-xl border border-gray-200 p-5` yang tidak ikut dark mode) ── */
 .card-surface { background: var(--surface); border-radius: 12px; border: 1px solid var(--border); padding: 20px; }
 .card-surface-flush { background: var(--surface); border-radius: 12px; border: 1px solid var(--border); overflow: hidden; }
+
+/* .card-surface dipakai sebagai <a> (mis. grid kartu staff MyStaff) - hover lift tipis, pola
+   sama .course-card:hover, cuma dipasang di sini biar tidak nulis ulang transition di tiap
+   halaman yang makai kartu sebagai link. */
+a.card-surface:hover { transform: translateY(-3px); box-shadow: 0 10px 24px rgba(4,44,108,0.10); border-color: transparent; }
+@media (prefers-reduced-motion: reduce) { a.card-surface:hover { transform: none; } }
+
+/* Kartu staff (MyStaff) - border gradien brand (navy -> hijau -> pink, sama gradasi garis
+   atas .topnav) muncul pas hover via teknik double-background (padding-box isi solid,
+   border-box gradien) - border transparan biasa di rest state, TIDAK butuh markup ekstra. */
+.staff-card {
+    border: 2px solid transparent;
+    background:
+        linear-gradient(var(--surface), var(--surface)) padding-box,
+        linear-gradient(var(--border), var(--border)) border-box;
+    box-shadow: var(--shadow-card);
+    transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.25s ease;
+}
+/* Spesifisitas disamakan dengan a.card-surface:hover di atas (element+class) - .staff-card
+   ditulis SETELAHNYA di file ini, jadi menang tie-break kalau kedua class nempel bareng
+   di elemen yang sama, transform/box-shadow generic tidak diam-diam menimpa punya sini. */
+a.staff-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 16px 32px rgba(4,44,108,0.16);
+    background:
+        linear-gradient(var(--surface), var(--surface)) padding-box,
+        linear-gradient(120deg, var(--brand) 0%, #047C54 55%, #B9308C 100%) border-box;
+}
+.staff-card-avatar { transition: transform 0.18s ease; }
+.staff-card:hover .staff-card-avatar { transform: scale(1.06); }
+@media (prefers-reduced-motion: reduce) {
+    .staff-card, .staff-card:hover, .staff-card-avatar { transition: none; transform: none; }
+}
 
 /* Aksen spine kiri berwarna per domain, buat widget-widget dashboard (Status Kepegawaian,
    Coaching, dst - lihat planning/dashboard/dashboard-hc-manager.html) - pola sama seperti

@@ -1,17 +1,23 @@
 @if ($variant === 'mobile')
-    <div wire:poll.30s>
-    <button type="button" onclick="toggleNotifSheet()" class="pwa-app-bar-bell" aria-label="Notifikasi">
+    {{-- x-data (bukan class JS polos + getElementById) - state buka/tutup HARUS lewat sesuatu
+    yang selamat dari morph wire:poll.30s/wire:click di komponen ini. Class ".open" yang
+    ditoggle manual sebelumnya TIDAK ada di HTML hasil render server, jadi tiap poll/klik
+    markAsRead menimpanya balik ke tertutup - sheet keliatan "tidak ngefek" pas diklik
+    (dilaporkan user 2026-09-18). Alpine x-data hidup di DOM node yang sama, selamat dari
+    morph (pola sama dipakai popover Generate di ScheduleShiftRosterTab). --}}
+    <div wire:poll.30s x-data="{ open: false }">
+    <button type="button" @click="open = true" class="pwa-app-bar-bell" aria-label="Notifikasi">
         <i class="fa-regular fa-bell"></i>
         @if ($this->unreadCount > 0)
             <span class="pwa-app-bar-dot">{{ $this->unreadCountLabel }}</span>
         @endif
     </button>
 
-    <div id="notif-sheet-backdrop" class="pwa-menu-sheet-backdrop" onclick="toggleNotifSheet()"></div>
-    <div id="notif-sheet" class="pwa-fullsheet">
+    <div class="pwa-menu-sheet-backdrop" :class="{ open: open }" @click="open = false"></div>
+    <div class="pwa-fullsheet" :class="{ open: open }">
         <div class="pwa-fullsheet-header">
             <span class="pwa-fullsheet-title">Notifikasi</span>
-            <button type="button" onclick="toggleNotifSheet()" class="pwa-fullsheet-close" aria-label="Tutup">
+            <button type="button" @click="open = false" class="pwa-fullsheet-close" aria-label="Tutup">
                 <i class="fa-solid fa-xmark"></i>
             </button>
         </div>
@@ -53,15 +59,22 @@
     </div>
     </div>
 @else
-    <div class="dropdown">
-        <button type="button" class="nav-bell" wire:poll.30s aria-label="Notifikasi">
+    {{-- x-data (bukan .dropdown:hover CSS biasa) - dropdown ini punya tombol wire:click di
+    dalamnya (mark all/mark 1 dibaca), beda dari dropdown nav lain yang isinya cuma link polos.
+    Celah 10px antara tombol lonceng & menu (lihat .dropdown-menu di app.css) gampang bikin
+    hover kelepas pas mouse turun mendiagonal ke tombol/item di dalam menu - klik jadi kayak
+    "tidak ngefek" (dilaporkan user 2026-09-18). Alpine buka/tutup lewat klik tidak kena celah
+    itu, dan state-nya selamat dari morph wire:poll.30s/wire:click (sama pola popover Generate
+    di ScheduleShiftRosterTab). --}}
+    <div class="dropdown" x-data="{ open: false }" @click.outside="open = false" @keydown.escape.window="open = false">
+        <button type="button" class="nav-bell" wire:poll.30s @click="open = ! open" aria-label="Notifikasi">
             <i class="fa-regular fa-bell text-sm"></i>
             @if ($this->unreadCount > 0)
                 <span class="nav-bell-dot">{{ $this->unreadCountLabel }}</span>
             @endif
         </button>
 
-        <div class="dropdown-menu dropdown-menu-right dropdown-menu-notif">
+        <div class="dropdown-menu dropdown-menu-right dropdown-menu-notif" :class="{ 'is-open': open }">
             <div class="dropdown-notif-header">
                 <span>Notifikasi</span>
                 <button type="button" wire:click="markAllAsRead" @disabled($this->unreadCount === 0) class="dropdown-notif-mark-all">Tandai Semua Dibaca</button>
@@ -90,14 +103,3 @@
         </div>
     </div>
 @endif
-
-@once
-    @push('scripts')
-        <script>
-            function toggleNotifSheet() {
-                document.getElementById('notif-sheet').classList.toggle('open');
-                document.getElementById('notif-sheet-backdrop').classList.toggle('open');
-            }
-        </script>
-    @endpush
-@endonce

@@ -63,12 +63,12 @@ class MyEmployees extends Component
         return $query;
     }
 
-    // Dipakai mobile (card manual) DAN desktop (tabel), lihat my-employees.blade.php.
+    // Dipakai grid kartu di my-employees.blade.php.
     public function getEmployeesProperty()
     {
         return $this->baseQuery()
             ->orderBy('name')
-            ->paginate(10)
+            ->paginate(20)
             ->appends(['search' => $this->search]);
     }
 

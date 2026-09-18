@@ -1,5 +1,5 @@
 <div>
-    <x-page-header title="Dashboard Anda" subtitle="Monitoring & ringkasan sesuai jabatan Anda" />
+    <x-page-header title="Dashboard" subtitle="Monitoring & ringkasan sesuai jabatan Anda" />
 
     @if ($this->canFilterByCompany)
         <div class="mb-4" style="max-width:280px;">

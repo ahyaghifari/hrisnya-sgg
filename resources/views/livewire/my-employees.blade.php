@@ -1,14 +1,49 @@
-<div>
+<div
+    x-data="{ tab: sessionStorage.getItem('myStaffTab') || 'karyawan', dashboardLoaded: false }"
+    x-init="
+        $watch('tab', v => sessionStorage.setItem('myStaffTab', v));
+        if (tab === 'dashboard') { dashboardLoaded = true; Livewire.dispatch('load-my-staff-dashboard'); }
+    "
+>
 <x-page-header title="MyStaff" />
 
-<div style="margin-bottom:20px;">
-    <livewire:pending-approvals-card />
+<div class="section-nav" style="margin-bottom:20px;">
+    <button type="button" @click="tab = 'karyawan'" class="section-nav-btn navy" :class="{ 'is-active': tab === 'karyawan' }">
+        <i class="fa-solid fa-magnifying-glass"></i> Cari Karyawan
+    </button>
+    <button type="button" @click="tab = 'dashboard'; if (!dashboardLoaded) { dashboardLoaded = true; Livewire.dispatch('load-my-staff-dashboard'); }" class="section-nav-btn navy" :class="{ 'is-active': tab === 'dashboard' }">
+        <i class="fa-solid fa-chart-line"></i> Dashboard
+    </button>
 </div>
 
-@php $employees = $this->employees; @endphp
+{{-- ===================== TAB: DASHBOARD ===================== --}}
+<div x-show="tab === 'dashboard'" x-cloak>
+    <div style="margin-bottom:14px;">
+        <livewire:pending-approvals-card />
+    </div>
 
-<!-- MOBILE: card manual -->
-<div class="md:hidden">
+    {{-- Dashboard MyStaff - fixed (bukan widget dashboard per jabatan kayak Dashboard Anda),
+    scope-nya SELALU bawahan (OrgHierarchyService::subordinates()). Collapsed default, data
+    di-query cuma pas widget-nya dibuka pertama kali (instruksi user 2026-09-18) - lihat
+    App\Livewire\MyStaff\Concerns\LazyLoadsOnExpand. --}}
+    <div class="grid grid-cols-1 lg:grid-cols-2" style="gap:14px;align-items:start;">
+        <livewire:my-staff.ringkasan-tim-widget :key="'ringkasan-tim'" />
+        <livewire:my-staff.presensi-tim-widget :key="'presensi-tim'" />
+        <livewire:my-staff.cuti-tim-widget :key="'cuti-tim'" />
+        <livewire:my-staff.kontrak-orientasi-tim-widget :key="'kontrak-orientasi-tim'" />
+        <livewire:my-staff.coaching-tim-widget :key="'coaching-tim'" />
+    </div>
+</div>
+
+{{-- ===================== TAB: CARI KARYAWAN ===================== --}}
+<div x-show="tab === 'karyawan'" x-cloak>
+    @php $employees = $this->employees; @endphp
+
+    <div style="margin-bottom:14px;max-width:320px;position:relative;">
+        <i class="fa-solid fa-magnifying-glass" style="position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--text-faint);font-size:13px;"></i>
+        <input type="search" wire:model.live.debounce.300ms="search" class="form-input" placeholder="Cari nama, NIP, jabatan..." style="padding-left:38px;">
+    </div>
+
     @if ($employees->isEmpty())
         <div class="pwa-list" style="padding:32px 16px;text-align:center;">
             <p style="font-size:13px;color:var(--text-muted);margin:0;">
@@ -16,7 +51,7 @@
             </p>
         </div>
     @else
-        <div class="pwa-list">
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5" style="gap:24px;">
             @foreach ($employees as $employee)
                 @php
                     $initials = collect(preg_split('/\s+/', trim($employee->name)))
@@ -26,28 +61,29 @@
 
                     $photoPath = $employee->profile?->profile_picture[0] ?? null;
                     $photoUrl = $photoPath && is_string($photoPath) ? \Illuminate\Support\Facades\Storage::url($photoPath) : null;
+                    $jabatan = $employee->profile?->jobPosition?->name;
+                    $departemen = $employee->profile?->department?->name;
                 @endphp
-                <a href="{{ route('karyawan.show', ['record' => $employee]) }}" wire:navigate class="pwa-list-row" style="text-decoration:none;">
+                <a href="{{ route('karyawan.show', ['record' => $employee]) }}" wire:navigate wire:key="'staff-card-'.{{ $employee->id }}"
+                   class="card-surface staff-card" style="display:flex;flex-direction:column;align-items:center;text-align:center;text-decoration:none;padding:20px 16px;">
                     @if ($photoUrl)
-                        <img src="{{ $photoUrl }}" alt="{{ $employee->name }}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;flex-shrink:0;">
+                        <img src="{{ $photoUrl }}" alt="{{ $employee->name }}" class="staff-card-avatar" style="width:64px;height:64px;border-radius:50%;object-fit:cover;flex-shrink:0;">
                     @else
-                        <div class="pwa-tile-icon neutral" style="border-radius:50%;font-size:12px;font-weight:700;">{{ $initials ?: '?' }}</div>
+                        <div class="pwa-tile-icon neutral staff-card-avatar" style="width:64px;height:64px;border-radius:50%;font-size:20px;font-weight:700;">{{ $initials ?: '?' }}</div>
                     @endif
-                    <div style="flex:1;min-width:0;">
-                        <p style="font-size:13px;font-weight:600;color:var(--text-heading);">{{ $employee->name }}</p>
-                        <p style="font-size:11px;color:var(--text-muted);margin-top:2px;">
-                            {{ $employee->nip ?: 'NIP belum diisi' }}
-                            @if ($employee->profile?->jobPosition?->name)
-                                &middot; {{ $employee->profile->jobPosition->name }}
+
+                    <p style="font-size:12px;font-weight:700;color:var(--text-heading);margin:12px 0 0;">{{ $employee->name }}</p>
+                    <p style="font-size:10px;color:var(--text-muted);margin-top:2px;">{{ $employee->nip ?: 'NIP belum diisi' }}</p>
+
+                    @if ($jabatan || $departemen)
+                        <p style="font-size:10px;color:var(--text-body);font-weight:600;margin-top:8px;">
+                            {{ $jabatan ?: '-' }}
+                            @if ($jabatan && $departemen)
+                                &middot;
                             @endif
+                            {{ $departemen }}
                         </p>
-                        @if ($employee->profile?->department?->name)
-                            <p style="font-size:11px;color:var(--text-faint);margin-top:2px;">
-                                {{ $employee->profile->department->name }}
-                            </p>
-                        @endif
-                    </div>
-                    <i class="fa-solid fa-chevron-right"></i>
+                    @endif
                 </a>
             @endforeach
         </div>
@@ -56,78 +92,6 @@
             {{ $employees->links('livewire.partials.pagination') }}
         </div>
     @endif
-</div>
-
-<!-- DESKTOP: tabel custom, Livewire server-side (sama sumber data dengan card mobile) -->
-<div class="hidden md:block">
-    <div>
-        <div style="margin-bottom:14px;max-width:320px;position:relative;">
-            <i class="fa-solid fa-magnifying-glass" style="position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--text-faint);font-size:13px;"></i>
-            <input type="search" wire:model.live.debounce.300ms="search" class="form-input" placeholder="Cari nama, NIP, jabatan..." style="padding-left:38px;">
-        </div>
-
-        <div style="background:var(--surface);border-radius:12px;box-shadow:var(--shadow-card);overflow-x:auto;{{ $employees->isEmpty() ? 'display:none;' : '' }}">
-            <table style="width:100%;border-collapse:collapse;font-size:12.5px;">
-                <thead>
-                    <tr style="border-bottom:1.5px solid var(--border);">
-                        <th style="width:44px;padding:10px 14px;"></th>
-                        <th style="text-align:left;padding:10px 14px;white-space:nowrap;">Nama</th>
-                        <th style="text-align:left;padding:10px 14px;white-space:nowrap;">NIP</th>
-                        <th style="text-align:center;padding:10px 14px;white-space:nowrap;">Departemen</th>
-                        <th style="text-align:center;padding:10px 14px;white-space:nowrap;">Jabatan / Role</th>
-                        <th style="text-align:center;padding:10px 14px;white-space:nowrap;">Aksi</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach ($employees as $employee)
-                        @php
-                            $photoPath = $employee->profile?->profile_picture[0] ?? null;
-                            $photoUrl = $photoPath && is_string($photoPath) ? \Illuminate\Support\Facades\Storage::url($photoPath) : null;
-                            $roleNames = $employee->getRoleNames()->join(', ');
-                        @endphp
-                        <tr wire:key="'staff-'.{{ $employee->id }}" style="border-bottom:1px solid var(--border-soft);">
-                            <td style="padding:9px 14px;">
-                                @if ($photoUrl)
-                                    <img src="{{ $photoUrl }}" alt="" style="width:32px;height:32px;border-radius:50%;object-fit:cover;">
-                                @else
-                                    <div style="width:32px;height:32px;border-radius:50%;background:var(--surface-alt);"></div>
-                                @endif
-                            </td>
-                            <td style="padding:9px 14px;white-space:nowrap;">
-                                <span style="font-weight:600;">{{ $employee->name }}</span>
-                                <span style="display:block;font-size:10.5px;color:var(--text-faint);">{{ $employee->email }}</span>
-                            </td>
-                            <td style="padding:9px 14px;white-space:nowrap;">{{ $employee->nip ?: '-' }}</td>
-                            <td style="padding:9px 14px;text-align:center;white-space:nowrap;">{{ $employee->profile?->department?->name ?? '-' }}</td>
-                            <td style="padding:9px 14px;text-align:center;white-space:nowrap;">
-                                {{ $employee->profile?->jobPosition?->name ?? '-' }}
-                                @if ($roleNames)
-                                    <span style="display:block;font-size:10.5px;color:var(--text-faint);">{{ $roleNames }}</span>
-                                @endif
-                            </td>
-                            <td style="padding:9px 14px;text-align:center;white-space:nowrap;">
-                                <a href="{{ route('karyawan.show', ['record' => $employee]) }}" wire:navigate class="btn-ghost" style="padding:5px 10px;font-size:11px;" title="Lihat">
-                                    <i class="fa-solid fa-chart-bar"></i>
-                                </a>
-                            </td>
-                        </tr>
-                    @endforeach
-                </tbody>
-            </table>
-        </div>
-
-        @if ($employees->isEmpty())
-            <div style="padding:32px 16px;text-align:center;">
-                <p style="font-size:13px;color:var(--text-muted);margin:0;">
-                    Belum ada karyawan di bawah kamu.
-                </p>
-            </div>
-        @endif
-
-        <div style="margin-top:16px;">
-            {{ $employees->links('livewire.partials.pagination') }}
-        </div>
-    </div>
 </div>
 
 </div>

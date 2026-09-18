@@ -1,0 +1,148 @@
+<?php
+
+namespace App\Livewire\MyStaff;
+
+use App\Enum\AttendanceStatus;
+use App\Livewire\MyStaff\Concerns\LazyLoadsOnExpand;
+use App\Models\Attendance\AttendanceRecords;
+use App\Services\Attendance\AttendancePeriodResolver;
+use App\Services\OrgHierarchyService;
+use Illuminate\Support\Facades\Auth;
+use Livewire\Component;
+
+/**
+ * Widget "Presensi Tim" di halaman MyStaff - toggle Harian/Periode, pola sama
+ * App\Livewire\Presensi\RekapPresensiPage (instruksi user 2026-09-18: "bisa filter juga
+ * berdasarkan periode kaya di rekap presensi"), default periode ikut cutoff company
+ * (AttendancePeriodResolver, bukan tanggal 1-akhir bulan kalender polos) - bedanya scope di
+ * sini SELALU bawahan (OrgHierarchyService::subordinates()), tanpa filter company/departemen
+ * (RekapPresensiPage company-wide, ini cuma tim sendiri).
+ *
+ * Data di-query pas tab "Dashboard" diklik pertama kali - lihat LazyLoadsOnExpand.
+ */
+class PresensiTimWidget extends Component
+{
+    use LazyLoadsOnExpand;
+
+    public string $mode = 'harian';
+
+    public ?string $dateFrom = null;
+
+    public ?string $dateTo = null;
+
+    public function setMode(string $mode): void
+    {
+        $this->mode = $mode;
+
+        if ($mode === 'periode' && ! $this->dateFrom) {
+            [$start, $end] = AttendancePeriodResolver::resolve(now(), Auth::user()->company_id);
+            $this->dateFrom = $start->toDateString();
+            $this->dateTo = $end->toDateString();
+        }
+    }
+
+    private function subordinateIds()
+    {
+        return app(OrgHierarchyService::class)->subordinates(Auth::user())->pluck('id');
+    }
+
+    public function getTotalTeamProperty(): int
+    {
+        return $this->subordinateIds()->count();
+    }
+
+    /** Stat hari ini - dihitung dari status kolom attendance_records (bukan resolve jadwal per
+     * user, terlalu berat) - sama pola agregat TodayAttendanceSummaryWidget punya Dashboard
+     * Anda, cuma scope bawahan. */
+    public function getTodayStatsProperty(): array
+    {
+        if ($this->mode !== 'harian') {
+            return [];
+        }
+
+        $userIds = $this->subordinateIds();
+        $total = $userIds->count();
+
+        $counts = AttendanceRecords::whereIn('user_id', $userIds)
+            ->where('date', now()->toDateString())
+            ->selectRaw('status, count(*) as total')
+            ->groupBy('status')
+            ->pluck('total', 'status');
+
+        $recorded = (int) $counts->sum();
+
+        return [
+            'total' => $total,
+            'present' => (int) ($counts[AttendanceStatus::PRESENT->value] ?? 0),
+            'late' => (int) ($counts[AttendanceStatus::LATE->value] ?? 0),
+            'permit' => (int) ($counts[AttendanceStatus::PERMIT->value] ?? 0),
+            'leave' => (int) ($counts[AttendanceStatus::LEAVE->value] ?? 0),
+            'not_recorded' => max(0, $total - $recorded),
+        ];
+    }
+
+    /** Stat 1 periode (rentang dateFrom-dateTo) - agregat, bukan per-baris per orang (widget
+     * ringkas, bukan tabel rekap penuh - itu tetap tugasnya RekapPresensiPage). */
+    public function getPeriodStatsProperty(): array
+    {
+        if ($this->mode !== 'periode' || ! $this->dateFrom || ! $this->dateTo) {
+            return [];
+        }
+
+        $userIds = $this->subordinateIds();
+
+        $records = AttendanceRecords::whereIn('user_id', $userIds)
+            ->whereBetween('date', [$this->dateFrom, $this->dateTo]);
+
+        return [
+            'present_days' => (clone $records)->where('status', AttendanceStatus::PRESENT->value)->count(),
+            'late_days' => (clone $records)->where('status', AttendanceStatus::LATE->value)->count(),
+            'leave_days' => (clone $records)->where('status', AttendanceStatus::LEAVE->value)->count(),
+            'permit_days' => (clone $records)->where('status', AttendanceStatus::PERMIT->value)->count(),
+            'total_late_minutes' => (int) (clone $records)->where('status', AttendanceStatus::LATE->value)->sum('late_minutes'),
+        ];
+    }
+
+    /** Config Chart.js utuh (type/data/options) - dikirim ke blade sebagai JSON, diparse &
+     * di-instantiate oleh initCharts() di resources/js/app.js. Pola sama
+     * TodayAttendanceSummaryWidget punya Dashboard Anda (instruksi user 2026-09-18:
+     * "diperbagus kaya dashboard hc manager"). */
+    public function getChartConfigProperty(): array
+    {
+        if ($this->mode === 'harian') {
+            $stats = $this->todayStats;
+            $labels = ['Hadir', 'Terlambat', 'Cuti', 'Izin', 'Belum Presensi'];
+            $data = [$stats['present'] ?? 0, $stats['late'] ?? 0, $stats['leave'] ?? 0, $stats['permit'] ?? 0, $stats['not_recorded'] ?? 0];
+        } else {
+            $stats = $this->periodStats;
+            $labels = ['Hari Hadir', 'Hari Telat', 'Hari Cuti', 'Hari Izin'];
+            $data = [$stats['present_days'] ?? 0, $stats['late_days'] ?? 0, $stats['leave_days'] ?? 0, $stats['permit_days'] ?? 0];
+        }
+
+        return [
+            'type' => 'bar',
+            'data' => [
+                'labels' => $labels,
+                'datasets' => [[
+                    'data' => $data,
+                    'backgroundColor' => ['#047C54', '#d97706', '#1a56c4', '#a16207', '#94a3b8'],
+                    'borderRadius' => 6,
+                ]],
+            ],
+            'options' => [
+                'responsive' => true,
+                'maintainAspectRatio' => false,
+                'plugins' => ['legend' => ['display' => false]],
+                'scales' => [
+                    'x' => ['ticks' => ['font' => ['size' => 10]]],
+                    'y' => ['beginAtZero' => true, 'ticks' => ['font' => ['size' => 10], 'precision' => 0]],
+                ],
+            ],
+        ];
+    }
+
+    public function render()
+    {
+        return view('livewire.my-staff.presensi-tim-widget');
+    }
+}
