@@ -79,13 +79,6 @@ class TaskListPage extends Component
     public string $newAttachmentLink = '';
     public string $newAttachmentLinkLabel = '';
 
-    // Modal "Project Baru"
-    public bool $showProjectModal = false;
-    public string $projectName = '';
-    public ?string $projectDescription = null;
-    public string $projectColor = '#042c6c';
-    public array $projectMemberIds = [];
-
     // Modal "Kelola Anggota"
     public bool $showMembersModal = false;
     public ?string $newProjectMemberId = null;
@@ -97,8 +90,23 @@ class TaskListPage extends Component
     public ?string $editingListId = null;
     public string $editingListName = '';
 
-    public function mount(): void
+    /**
+     * $scope/$project vienen de route param (/tugas/papan/{scope} atau /tugas/papan/board/{project})
+     * - TaskMenuPage (halaman menu /tugas) yang navigasi ke sini, bukan tab switcher inline lagi
+     * (dihapus 2026-09-19, lihat planning wiggly-cooking-star). #[Url] tetap dipertahankan biar
+     * deep-link lama (?scope=saya, dipakai push notification) masih jalan.
+     */
+    public function mount(?string $scope = null, ?TaskProject $project = null): void
     {
+        if ($scope) {
+            $this->scope = $scope;
+        }
+
+        if ($project) {
+            abort_unless(app(TaskService::class)->canAccessProject($project, Auth::user()), 403);
+            $this->activeProjectId = $project->id;
+        }
+
         if ($this->activeProjectId && ! app(TaskService::class)->canAccessProject(TaskProject::findOrFail($this->activeProjectId), Auth::user())) {
             $this->activeProjectId = null;
         }
@@ -218,29 +226,6 @@ class TaskListPage extends Component
         }
 
         return app(TaskService::class)->getHistoryTasks(Auth::user(), $this->scope);
-    }
-
-    public function selectScope(string $scope): void
-    {
-        $this->scope = $scope;
-        $this->activeProjectId = null;
-        $this->resetPage();
-        unset($this->tasks);
-    }
-
-    public function selectProject(string $projectId): void
-    {
-        // String kosong = pilihan placeholder "Pilih Project" di dropdown - balik ke tab biasa.
-        if ($projectId === '') {
-            $this->selectScope($this->scope);
-            return;
-        }
-
-        $project = TaskProject::findOrFail($projectId);
-        abort_unless(app(TaskService::class)->canAccessProject($project, Auth::user()), 403);
-
-        $this->activeProjectId = $projectId;
-        unset($this->tasks);
     }
 
     public function openCreateTask(): void
@@ -542,40 +527,6 @@ class TaskListPage extends Component
     {
         app(TaskService::class)->removeAttachment($attachmentId);
         unset($this->selectedTask, $this->tasks);
-    }
-
-    public function openCreateProjectModal(): void
-    {
-        $this->reset(['projectName', 'projectDescription', 'projectMemberIds']);
-        $this->projectColor = '#042c6c';
-        $this->showProjectModal = true;
-    }
-
-    public function closeProjectModal(): void
-    {
-        $this->showProjectModal = false;
-    }
-
-    public function createProject(): void
-    {
-        $data = $this->validate([
-            'projectName' => ['required', 'string', 'max:255'],
-            'projectDescription' => ['nullable', 'string'],
-            'projectColor' => ['required', 'regex:/^#[0-9a-fA-F]{6}$/'],
-        ]);
-
-        $project = app(TaskService::class)->createProject([
-            'name' => $data['projectName'],
-            'description' => $data['projectDescription'],
-            'color' => $data['projectColor'],
-            'member_ids' => $this->projectMemberIds,
-        ]);
-
-        $this->showProjectModal = false;
-        $this->activeProjectId = $project->id;
-        unset($this->myProjects, $this->tasks);
-
-        Notification::make()->title('Project berhasil dibuat')->success()->send();
     }
 
     public function createList(): void

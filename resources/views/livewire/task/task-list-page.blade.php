@@ -42,19 +42,6 @@
 @endphp
 
 <style>
-    .task-list-tab-project { position: relative; }
-    .task-list-tab-project-add.btn-ghost { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); border: none; padding: 4px 6px; font-size: 12px; color: inherit; }
-    .task-list-tab-project.is-active .task-list-tab-project-add.btn-ghost { color: #fff; }
-    /* <select> native dibuat nyatu sama pill-nya (transparan, tanpa border/panah bawaan
-    browser) - warnanya ngikut currentColor pill (amber pas nonaktif, putih pas is-active). */
-    .task-list-tab-project-select { all: unset; flex: 1; min-width: 0; cursor: pointer; color: inherit; font: inherit; padding-right: 16px; }
-    .task-list-tab-project-select option { color: initial; }
-    /* Board bukan icon-tile kayak tab lain - isinya label dinamis (nama project) + dropdown +
-    tombol tambah, jadi tetap baris horizontal walau tab lain jadi kolom (ikon atas, label
-    bawah) di grid tile mobile. */
-    .section-nav-tiles .task-list-tab-project { flex-direction: row !important; padding: 12px 34px 12px 14px !important; gap: 8px !important; }
-    .section-nav-tiles .task-list-tab-project span { text-align: left; }
-
     /* Kartu tugas: border kiri = warna prioritas (--accent), hover ngangkat dikit biar kerasa
     "bisa diklik/diseret" tanpa perlu badge warna-warni penuh di dalamnya. */
     .task-card { position: relative; background: var(--surface-alt); border: 1px solid var(--border); border-left: 3px solid var(--accent, var(--border)); border-radius: 10px; padding: 10px 12px; cursor: pointer; box-shadow: 0 1px 2px rgba(15,23,42,0.05); transition: box-shadow 0.15s ease, transform 0.15s ease; }
@@ -68,6 +55,20 @@
     .task-card-priority .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
     .task-card-assignee { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-muted); }
     .task-card-footer { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border-soft); font-size: 11px; color: var(--text-muted); }
+
+    /* Card di List custom yang sudah dikasih warna (background diisi lewat --accent di
+    Blade) - teks & border dalam kartu dipaksa putih/transparan biar tetap kebaca di atas
+    warna solid apapun, bukan cuma tint tipis. */
+    .task-card.is-tinted { background: var(--accent) !important; border-left-color: rgba(255,255,255,0.4) !important; }
+    .task-card.is-tinted .task-card-title,
+    .task-card.is-tinted .task-card-priority,
+    .task-card.is-tinted .task-card-priority .dot { color: #fff; }
+    .task-card.is-tinted .task-card-priority .dot { background: #fff; }
+    .task-card.is-tinted .task-card-meta,
+    .task-card.is-tinted .task-card-assignee,
+    .task-card.is-tinted .task-card-footer { color: rgba(255,255,255,0.85); }
+    .task-card.is-tinted .task-card-footer { border-top-color: rgba(255,255,255,0.3); }
+    .task-card.is-tinted select.form-input { background: rgba(255,255,255,0.15); border-color: rgba(255,255,255,0.35); color: #fff; }
 
     /* Jumlah kolom/section (List custom atau status Todo/Proses/dst) ganjil = 3 kolom per baris,
     genap = 2 kolom (--cols diisi dari Blade). Di layar sempit dipaksa 1 kolom - grid banyak
@@ -96,57 +97,6 @@
         .task-view-desktop { display: none; }
         .task-view-mobile { display: block; }
     }
-    /* Desktop: tab dipusatkan, bukan rapat kiri (permintaan biar keliatan seimbang halaman).
-    3 class biar spesifisitasnya menang lawan .section-nav.section-nav-tiles bawaan app.css
-    (flex-start) yang sama-sama di dalam media query min-width:768px. */
-    @media (min-width: 768px) { .section-nav.section-nav-tiles.task-scope-nav { justify-content: center; } }
-
-    /* Mobile: tab dilepas dari alur normal (posisi asalnya di atas kolaps ke 0, konten naik
-    ngisi), terus dipasang fixed nempel PERSIS di atas .pwa-bottom-nav (tinggi 60px + safe-area,
-    lihat app.css) - ganti tempat pindah tab jadi di situ, sekali jangkau ibu jari, bukan di
-    pucuk halaman. Tile grid ikon-atas-label-bawah diganti strip horizontal scroll (pola bottom-
-    tab standar), grid 2D kurang cocok buat bar setipis ini. */
-    @media (max-width: 767.98px) {
-        /* 3 class (bukan cuma .task-scope-nav) - .section-nav.section-nav-tiles bawaan app.css
-        pasang display:grid di LUAR media query manapun, menang lawan display:flex di sini kalau
-        spesifisitasnya cuma seri (2 class vs 1 class). Baris kemarin masih grid gara-gara ini -
-        makanya tiap tombol kepotong pas-pasan di lebar kolom grid, bukan beneran nowrap sebaris. */
-        .section-nav.section-nav-tiles.task-scope-nav {
-            position: fixed; left: 0; right: 0;
-            bottom: calc(60px + env(safe-area-inset-bottom));
-            z-index: 204;
-            margin: 0; padding: 9px 10px;
-            background: var(--surface);
-            border-top: 1px solid var(--border-soft);
-            box-shadow: 0 -4px 14px rgba(0,0,0,0.08);
-            display: flex; flex-wrap: nowrap; align-items: center; overflow-x: auto; gap: 6px;
-            scrollbar-width: thin; scrollbar-color: var(--brand-soft) transparent;
-        }
-        /* Scrollbar bawaan browser di strip tab ini keliatan kasar - dibikin tipis & nge-blend,
-        cuma keliatan pas lagi digeser (Firefox pakai scrollbar-width/-color di atas). */
-        .task-scope-nav::-webkit-scrollbar { height: 4px; }
-        .task-scope-nav::-webkit-scrollbar-track { background: transparent; }
-        .task-scope-nav::-webkit-scrollbar-thumb { background: var(--brand-soft); border-radius: 99px; }
-        .task-scope-nav::-webkit-scrollbar-thumb:hover { background: var(--brand-ring); }
-        .task-scope-nav.section-nav-tiles .section-nav-btn {
-            flex: 0 0 auto; flex-direction: row; gap: 5px; padding: 7px 11px; font-size: 11.5px; border-radius: 999px; white-space: nowrap;
-        }
-        .task-scope-nav.section-nav-tiles .section-nav-btn span { white-space: nowrap; }
-        .task-scope-nav .section-nav-btn i { font-size: 12.5px; }
-        .task-scope-nav .task-list-tab-project { padding: 7px 26px 7px 11px !important; }
-    }
-    /* Ngasih jarak di akhir konten biar kartu/tabel terakhir nggak ketutup 2 bar fixed
-    (bottom-nav + tab bar) yang numpuk di bawah layar HP. */
-    .task-scope-nav-spacer { display: none; }
-    @media (max-width: 767.98px) { .task-scope-nav-spacer { display: block; height: 58px; } }
-
-    .task-nav-count { display: inline-flex; align-items: center; justify-content: center; min-width: 17px; height: 17px; padding: 0 5px; border-radius: 99px; font-size: 10.5px; font-weight: 800; margin-left: 1px; }
-    /* rgba(0,0,0,.15) transparan kebaca kalau pill-nya solid gold (is-active), tapi kepucetan di
-    atas tint krem pill nonaktif - dikasih warna solid sendiri per kondisi biar tetap kontras. */
-    .section-nav-btn.gold-shiny .task-nav-count { background: #b45309; color: #fff; }
-    .section-nav-btn.gold-shiny.is-active .task-nav-count { background: rgba(74,52,3,0.2); color: #4a3403; }
-    html.dark .section-nav-btn.gold-shiny .task-nav-count { background: #fcd34d; color: #78350f; }
-    html.dark .section-nav-btn.gold-shiny.is-active .task-nav-count { background: rgba(74,52,3,0.25); color: #4a3403; }
     /* Sama persis gradient aktif pill gold-shiny (Tugas Saya/Profil Saya) - dipakai juga di
     tombol Review biar aksi "menuju approval" konsisten kelihatan sama-sama emas. */
     .btn-gold { background: linear-gradient(135deg, #fde68a 0%, #f5c518 45%, #d4a017 100%); color: #4a3403; border: none; }
@@ -209,44 +159,11 @@
 <x-page-header title="Tugas" subtitle="" />
 
 <div>
-    {{-- Reuse .section-nav-tiles (pola tile compact yang sama dipakai di halaman Profil Saya/
-    Data Diri - ikon di atas label di HP, jadi pill horizontal di layar lebar) - bukan
-    .section-nav polos, itu makan tempat & gampang berantakan pas item-nya banyak begini. --}}
-    <div class="section-nav section-nav-tiles task-scope-nav">
-        <button type="button" wire:click="selectScope('todo')" class="section-nav-btn navy {{ ! $activeProjectId && $scope === 'todo' ? 'is-active' : '' }}">
-            <i class="fa-solid fa-user-check"></i>
-            <span>Todo Saya</span>
-        </button>
-        <button type="button" wire:click="selectScope('saya')" class="section-nav-btn gold-shiny {{ ! $activeProjectId && $scope === 'saya' ? 'is-active' : '' }}">
-            <i class="fa-solid fa-list-check"></i>
-            <span>Tugas Saya</span>
-            @if ($this->myTaskPendingCount > 0)
-                <span class="task-nav-count">{{ $this->myTaskPendingCount }}</span>
-            @endif
-        </button>
-        @if ($this->hasSubordinates)
-            <button type="button" wire:click="selectScope('individu')" class="section-nav-btn teal {{ ! $activeProjectId && $scope === 'individu' ? 'is-active' : '' }}">
-                <i class="fa-solid fa-users"></i>
-                <span>Individu</span>
-            </button>
-            <button type="button" wire:click="selectScope('tim')" class="section-nav-btn rust {{ ! $activeProjectId && $scope === 'tim' ? 'is-active' : '' }}">
-                <i class="fa-solid fa-sitemap"></i>
-                <span>Tim Saya</span>
-            </button>
-        @endif
-        <div class="section-nav-btn gold task-list-tab-project {{ $activeProjectId ? 'is-active' : '' }}" style="grid-column:span 2;position:relative;">
-            <i class="fa-solid fa-diagram-project"></i>
-            {{-- Dropdown custom (Alpine + tom-select) diganti <select> polos - daftar Board
-            biasanya pendek, nggak butuh search, native select juga otomatis enak dipakai di HP. --}}
-            <select wire:change="selectProject($event.target.value)" class="task-list-tab-project-select">
-                <option value="">Board</option>
-                @foreach ($this->myProjects as $project)
-                    <option value="{{ $project->id }}" @selected($activeProjectId === $project->id)>{{ $project->name }}</option>
-                @endforeach
-            </select>
-            <button type="button" wire:click="openCreateProjectModal" class="btn-ghost task-list-tab-project-add" title="Board Baru"><i class="fa-solid fa-plus"></i></button>
-        </div>
-    </div>
+    {{-- Tab switcher inline dihapus (2026-09-19) - navigasi antar scope/board sekarang lewat
+    halaman menu /tugas (tile) + dropdown nav global, bukan tab di dalam halaman ini lagi. --}}
+    <a href="{{ route('tugas') }}" wire:navigate style="display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;color:var(--text-muted);margin-bottom:14px;text-decoration:none;">
+        <i class="fa-solid fa-arrow-left"></i> Tugas
+    </a>
 
     {{-- Konten --}}
     <div>
@@ -411,7 +328,7 @@
                             </div>
                             <div style="padding:10px;display:flex;flex-direction:column;gap:8px;">
                                 @forelse (($this->tasksByList[$list->id] ?? []) as $task)
-                                    <div class="task-card" wire:click="openTaskDetail('{{ $task->id }}')" style="--accent:{{ $priorityAccent($task->priority?->getColor() ?? 'gray') }};">
+                                    <div class="task-card{{ $list->color ? ' is-tinted' : '' }}" wire:click="openTaskDetail('{{ $task->id }}')" style="--accent:{{ $list->color ?: $priorityAccent($task->priority?->getColor() ?? 'gray') }};">
                                         <div class="task-card-top">
                                             <p class="task-card-title">{{ \Illuminate\Support\Str::limit($task->requirement, 80) }}</p>
                                             @if ($task->assignedTo && ! $task->is_self_assigned)
@@ -598,7 +515,6 @@
                 </div>
             </div>
         @endif
-        <div class="task-scope-nav-spacer"></div>
     </div>
 </div>
 
@@ -1019,44 +935,6 @@
                     </div>
                 @endunless
             </div>
-        </div>
-    </div>
-@endif
-
-
-@if ($showProjectModal)
-    <div class="modal-overlay" wire:click="closeProjectModal">
-        <div class="modal-box" onclick="event.stopPropagation()">
-            <h3 style="font-size:16px;font-weight:700;color:var(--text-heading);margin:0 0 14px;">Board Baru</h3>
-            <form wire:submit="createProject" style="display:flex;flex-direction:column;gap:14px;">
-                <div>
-                    <label class="form-label">Nama Board *</label>
-                    <input type="text" class="form-input" wire:model="projectName">
-                    @error('projectName') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
-                </div>
-                <div>
-                    <label class="form-label">Deskripsi</label>
-                    <textarea class="form-input" rows="2" wire:model="projectDescription"></textarea>
-                </div>
-                <div>
-                    <label class="form-label">Warna</label>
-                    <input type="color" wire:model="projectColor" style="width:60px;height:36px;border:1px solid var(--border);border-radius:8px;">
-                </div>
-                <div>
-                    <label class="form-label">Anggota Awal</label>
-                    <div wire:ignore>
-                        <select data-tom-select data-placeholder="Pilih anggota..." multiple wire:model="projectMemberIds">
-                            @foreach ($this->companyUsers as $user)
-                                <option value="{{ $user->id }}">{{ $user->name }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                </div>
-                <div style="display:flex;justify-content:flex-end;gap:10px;">
-                    <button type="button" wire:click="closeProjectModal" class="btn-ghost">Batal</button>
-                    <button type="submit" class="btn-primary">Buat Board</button>
-                </div>
-            </form>
         </div>
     </div>
 @endif

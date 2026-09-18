@@ -203,7 +203,7 @@
                 <div class="pwa-card-header-deco-1"></div><div class="pwa-card-header-deco-2"></div>
                 <div class="pwa-card-header-content">
                     <span class="pwa-section-title"><i class="fa-solid fa-table-columns" style="font-size:12px;margin-right:4px;"></i> Tugas Saya</span>
-                    <a href="{{ route('tugas') }}" wire:navigate class="pwa-section-link">Semua <i class="fa-solid fa-chevron-right" style="font-size:9px;"></i></a>
+                    <a href="{{ route('tugas.papan', 'saya') }}" wire:navigate class="pwa-section-link">Semua <i class="fa-solid fa-chevron-right" style="font-size:9px;"></i></a>
                 </div>
             </div>
             @php
@@ -220,7 +220,7 @@
                     $isOverdue = $dueDate && $dueDate->lt(now()->startOfDay());
                     $accent = $isOverdue ? '#be123c' : $statusColorHex($task->status);
                 @endphp
-                <a href="{{ route('tugas') }}" wire:navigate class="pwa-list-row" style="text-decoration:none;border-left:4px solid {{ $accent }};padding-left:12px;">
+                <a href="{{ route('tugas.papan', 'saya') }}" wire:navigate class="pwa-list-row" style="text-decoration:none;border-left:4px solid {{ $accent }};padding-left:12px;">
                     <div style="flex:1;min-width:0;">
                         <p class="pwa-row-title">{{ \Illuminate\Support\Str::limit($task->requirement, 50) }}</p>
                         <span style="display:inline-flex;align-items:center;font-size:11px;font-weight:700;color:{{ $accent }};margin-top:4px;">

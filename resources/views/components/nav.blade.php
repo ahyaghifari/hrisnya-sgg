@@ -27,9 +27,18 @@
                     <i class="fa-solid fa-house text-xs"></i> Beranda
                 </a>
                 @if ($canAccessTugasSaya)
-                    <a href="{{ route('tugas') }}" wire:navigate class="nav-item {{ request()->routeIs('tugas*') ? 'active' : '' }}">
-                        <i class="fa-solid fa-table-columns text-xs"></i> Tugas
-                    </a>
+                    <div class="dropdown">
+                        <a href="{{ route('tugas') }}" wire:navigate class="nav-item {{ request()->routeIs('tugas*') ? 'active' : '' }}">
+                            <i class="fa-solid fa-table-columns text-xs"></i> Tugas <i class="fa-solid fa-chevron-down text-[10px]"></i>
+                        </a>
+                        <div class="dropdown-menu">
+                            <a href="{{ route('tugas.papan', 'todo') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-user-check"></i> Todo Saya</a>
+                            <a href="{{ route('tugas.papan', 'saya') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-list-check"></i> Tugas Saya</a>
+                            <a href="{{ route('tugas.papan', 'individu') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-users"></i> Penugasan Individu</a>
+                            <a href="{{ route('tugas.papan', 'tim') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-sitemap"></i> Tim Saya</a>
+                            <a href="{{ route('tugas') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-diagram-project"></i> Semua Board</a>
+                        </div>
+                    </div>
                 @endif
                 @if ($canAccessPelatihanSaya)
                     <a href="{{ route('pelatihan') }}" wire:navigate class="nav-item {{ request()->routeIs('pelatihan*') ? 'active' : '' }}">

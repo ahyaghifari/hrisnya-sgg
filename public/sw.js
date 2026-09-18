@@ -68,8 +68,9 @@ self.addEventListener('notificationclick', (event) => {
         url = `/pelatihan/${courseId}`;
     } else if (requestType === 'task') {
         // Task di dalam Project/Board -> langsung ke board-nya; task pribadi/penugasan individu
-        // (tidak ada project_id) -> halaman Tugas, tab "Tugas Saya".
-        url = projectId ? `/tugas?activeProjectId=${projectId}` : '/tugas?scope=saya';
+        // (tidak ada project_id) -> halaman Tugas, scope "Tugas Saya". URL papan sendiri
+        // (bukan lagi query string di /tugas) - lihat routes/tugas.php.
+        url = projectId ? `/tugas/papan/board/${projectId}` : '/tugas/papan/saya';
     } else if (requestId) {
         // request_type 'leave'/'permission'/'overtime' (Izin/Cuti/Lembur) -> halaman detail
         // pengajuan absensi; 'user_transition' (Perubahan Status Karyawan) -> halaman detail

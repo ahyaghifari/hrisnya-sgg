@@ -356,6 +356,7 @@ class TaskService
     public function getMyProjects(User $user): Collection
     {
         return TaskProject::whereHas('members', fn ($q) => $q->where('user_id', $user->id))
+            ->withCount('members')
             ->orderBy('name')
             ->get();
     }

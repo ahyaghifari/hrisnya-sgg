@@ -248,8 +248,7 @@ class TaskBoardListsTest extends TestCase
         ]);
 
         Livewire::actingAs($owner)
-            ->test(TaskListPage::class)
-            ->call('selectProject', $project->id)
+            ->test(TaskListPage::class, ['project' => $project])
             ->assertSee('Task J1')
             ->assertSee($lists[0]->name)
             ->assertSee($lists->firstWhere('is_final', true)->name);
