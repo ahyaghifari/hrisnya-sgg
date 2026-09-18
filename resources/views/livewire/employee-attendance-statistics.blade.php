@@ -647,14 +647,27 @@ source (tab server-render sekali jalan, x-show cuma toggle CSS). --}}
              Orientasi → ajukan penilaian orientasi. Kontrak → ajukan perpanjangan kontrak +
              pengangkatan karyawan tetap. Tetap → tak ada tombol. --}}
         @if ($isSelf)
-            @php $eju = auth()->user(); @endphp
-            @if ($eju->isOrientasiKaryawan() || $eju->isKontrakKaryawan())
+            @php
+                $eju = auth()->user();
+                // Kontrak dianggap "ada aksi buat ditampilkan" kalau salah satu dari 2 tombolnya
+                // eligible - bukan cuma isKontrakKaryawan() polos, biar strip aksi ini nggak
+                // muncul kosong (border doang tanpa tombol) pas kontrak lagi belum waktunya
+                // perpanjangan DAN belum cukup masa kerja buat pengangkatan tetap.
+                $showKontrakActions = $eju->isEligibleForPerpanjanganKontrak() || $eju->isEligibleForPengangkatanTetap();
+            @endphp
+            @if ($eju->isOrientasiKaryawan() || $showKontrakActions)
                 <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:16px;padding-top:14px;border-top:1px solid var(--border-soft);">
                     @if ($eju->isOrientasiKaryawan())
                         <a href="{{ route('orientasi') }}" wire:navigate class="btn-primary" style="font-size:12.5px;"><i class="fa-solid fa-user-graduate"></i> Ajukan Penilaian Orientasi</a>
                     @endif
-                    @if ($eju->isKontrakKaryawan())
+                    {{-- Perpanjangan Kontrak: cuma muncul dalam jendela lead-time sebelum kontrak
+                    berakhir & belum pernah mengajukan buat kontrak aktif ini - sama persis kondisi
+                    KontrakSayaPage::getCanStartNewProperty(). Pengangkatan Tetap: butuh masa kerja
+                    minimal (setting kepegawaian, default 15 bulan). Lihat User::isEligibleForXxx(). --}}
+                    @if ($eju->isEligibleForPerpanjanganKontrak())
                         <a href="{{ route('kontrak.saya') }}" wire:navigate class="btn-primary" style="font-size:12.5px;"><i class="fa-solid fa-file-signature"></i> Ajukan Perpanjangan Kontrak</a>
+                    @endif
+                    @if ($eju->isEligibleForPengangkatanTetap())
                         <a href="{{ route('sikartap') }}" wire:navigate class="btn-ghost" style="font-size:12.5px;"><i class="fa-solid fa-user-check"></i> Ajukan Pengangkatan Karyawan Tetap</a>
                     @endif
                 </div>

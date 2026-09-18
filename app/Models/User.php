@@ -4,14 +4,17 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 
+use App\Enum\Kepegawaian\KepegawaianSettingEnum;
 use App\Models\Concerns\LogsFieldAuditChanges;
 use App\Models\Master\Companies;
 use App\Models\Payroll\BpjsDependent;
 use App\Models\Payroll\UserKoperasi;
+use App\Models\Setting;
 use App\Models\Shift\ShiftScheduleAssignments;
 use App\Models\User\UserDocuments;
 use App\Models\User\UserJobPositions;
 use App\Models\User\UserProfiles;
+use Carbon\Carbon;
 use Filament\Models\Contracts\FilamentUser;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
@@ -287,6 +290,66 @@ class User extends Authenticatable implements FilamentUser
     {
         return $this->currentContract?->employeeType?->category === \App\Enum\EmployeeTypeCategory::KONTRAK
             && $this->profile?->employeeType?->category === \App\Enum\EmployeeTypeCategory::KONTRAK;
+    }
+
+    /** Gate tombol "Ajukan Pengangkatan Karyawan Tetap" di Profil Saya - selain harus Kontrak
+     * (isKontrakKaryawan()), masa kerja sejak Tanggal Bergabung juga harus sudah lewat ambang
+     * KepegawaianSettingEnum::MASA_KERJA_MINIMAL_PENGANGKATAN_BULAN (company-scoped, default 15
+     * bulan). Tanpa Tanggal Bergabung dianggap belum eligible - tidak ada dasar hitung masa kerja. */
+    public function isEligibleForPengangkatanTetap(): bool
+    {
+        if (! $this->isKontrakKaryawan()) {
+            return false;
+        }
+
+        $joinDate = $this->profile?->joining_date;
+        if (! $joinDate) {
+            return false;
+        }
+
+        $minBulan = (int) Setting::resolve(
+            KepegawaianSettingEnum::MASA_KERJA_MINIMAL_PENGANGKATAN_BULAN->value,
+            $this->company_id,
+            default: KepegawaianSettingEnum::MASA_KERJA_MINIMAL_PENGANGKATAN_BULAN->default(),
+        );
+
+        if ($minBulan <= 0) {
+            return true;
+        }
+
+        $masaKerjaBulan = Carbon::parse($joinDate)->diffInMonths(now());
+
+        return $masaKerjaBulan >= $minBulan;
+    }
+
+    /** Gate tombol "Ajukan Perpanjangan Kontrak" di Profil Saya - reuse persis kondisi
+     * KontrakSayaPage::getCanStartNewProperty() (jendela lead-time sebelum kontrak berakhir +
+     * belum ada pengajuan buat kontrak aktif saat ini), supaya tombolnya nggak nongol duluan
+     * baru ternyata pas diklik belum waktunya/sudah pernah mengajukan. */
+    public function isEligibleForPerpanjanganKontrak(): bool
+    {
+        if (! $this->isKontrakKaryawan()) {
+            return false;
+        }
+
+        $contract = $this->currentContract;
+        if (! $contract || \App\Models\ContractSubmission::where('user_contract_id', $contract->id)->exists()) {
+            return false;
+        }
+
+        $leadDays = (int) Setting::resolve(
+            KepegawaianSettingEnum::PENGAJUAN_KONTRAK_LEAD_HARI->value,
+            $this->company_id,
+            default: KepegawaianSettingEnum::PENGAJUAN_KONTRAK_LEAD_HARI->default(),
+        );
+
+        if (! $contract->contract_end_date || $leadDays <= 0) {
+            return true;
+        }
+
+        $opensAt = Carbon::parse($contract->contract_end_date)->copy()->subDays($leadDays)->startOfDay();
+
+        return now()->gte($opensAt);
     }
 
     /** Gate nav self-service "/orientasi" (mengajukan penilaian orientasi) - karyawan yang

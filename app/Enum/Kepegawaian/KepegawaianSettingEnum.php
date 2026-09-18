@@ -19,6 +19,7 @@ enum KepegawaianSettingEnum: string
     case HARI_KERJA_EFEKTIF_PER_BULAN = 'kepegawaian_hari_kerja_efektif_per_bulan';
     case PENGAJUAN_ORIENTASI_LEAD_HARI = 'kepegawaian_pengajuan_orientasi_lead_hari';
     case PENGAJUAN_KONTRAK_LEAD_HARI = 'kepegawaian_pengajuan_kontrak_lead_hari';
+    case MASA_KERJA_MINIMAL_PENGANGKATAN_BULAN = 'kepegawaian_masa_kerja_minimal_pengangkatan_bulan';
 
     public function label(): string
     {
@@ -29,6 +30,7 @@ enum KepegawaianSettingEnum: string
             self::HARI_KERJA_EFEKTIF_PER_BULAN => 'Hari Kerja Efektif per Bulan',
             self::PENGAJUAN_ORIENTASI_LEAD_HARI => 'Pengajuan Orientasi Dibuka (Hari sebelum periode berakhir)',
             self::PENGAJUAN_KONTRAK_LEAD_HARI => 'Pengajuan Kontrak Dibuka (Hari sebelum kontrak berakhir)',
+            self::MASA_KERJA_MINIMAL_PENGANGKATAN_BULAN => 'Masa Kerja Minimal Pengajuan Pengangkatan Tetap (Bulan)',
         };
     }
 
@@ -41,6 +43,7 @@ enum KepegawaianSettingEnum: string
             self::HARI_KERJA_EFEKTIF_PER_BULAN => 'Dipakai sebagai pembagi tetap buat prorate Gaji Pokok karyawan yang Tanggal Bergabungnya jatuh di tengah periode gaji (bulan pertama): (hari kerja efektif sejak Tanggal Bergabung s.d. akhir periode / angka ini) x Gaji Pokok. Bukan dihitung dari jadwal - langsung angka yang diisi di sini.',
             self::PENGAJUAN_ORIENTASI_LEAD_HARI => 'Karyawan orientasi baru bisa membuat pengajuan penilaian orientasi mulai sekian hari sebelum periode orientasinya berakhir. 0 = kapan saja selama periode berjalan.',
             self::PENGAJUAN_KONTRAK_LEAD_HARI => 'Ambang berapa hari sebelum kontrak berakhir pengajuan perpanjangan/perubahan kontrak boleh dibuat. 0 = kapan saja. (Dipakai modul kontrak.)',
+            self::MASA_KERJA_MINIMAL_PENGANGKATAN_BULAN => 'Masa kerja minimal (dihitung dari Tanggal Bergabung) sebelum karyawan Kontrak boleh mengajukan Pengangkatan Karyawan Tetap. Tombol "Ajukan Pengangkatan Karyawan Tetap" di Profil Saya baru muncul setelah masa kerjanya lewat ambang ini. 0 = kapan saja selama masih Kontrak.',
         };
     }
 
@@ -58,6 +61,7 @@ enum KepegawaianSettingEnum: string
             self::HARI_KERJA_EFEKTIF_PER_BULAN => '25',
             self::PENGAJUAN_ORIENTASI_LEAD_HARI => '30',
             self::PENGAJUAN_KONTRAK_LEAD_HARI => '30',
+            self::MASA_KERJA_MINIMAL_PENGANGKATAN_BULAN => '15',
         };
     }
 }

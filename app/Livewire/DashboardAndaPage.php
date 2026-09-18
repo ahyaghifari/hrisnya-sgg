@@ -22,7 +22,7 @@ use Livewire\Component;
  * Widget individual tetap punya gate sendiri-sendiri di dalam halaman (lihat getCanDashboardHc*
  * Property() di bawah), supaya admin bisa matikan widget tertentu tanpa menutup akses halaman.
  */
-#[Layout('components.layout', ['title' => 'Dashboard Anda'])]
+#[Layout('components.layout', ['title' => 'Dashboard'])]
 class DashboardAndaPage extends Component
 {
     /** Filter company - cuma dipakai user yang pegang LIHAT_PERUSAHAAN_LAIN, selain itu selalu
