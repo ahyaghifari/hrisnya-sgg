@@ -15,6 +15,7 @@ use Filament\Actions\Action;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\RichEditor;
@@ -88,6 +89,20 @@ class JobOpeningResource extends Resource
     protected static function isHrisMode(?string $companyId): bool
     {
         return $companyId ? Company::find($companyId)?->management_mode === 'hris' : false;
+    }
+
+    /**
+     * Gaya surat SGG (tabel, 1 baris = label + Orientasi + Kontrak berdampingan) vs RS (list,
+     * dua daftar independen). Default true (SGG) kalau company belum dipilih/template belum
+     * diset — supaya form baru tetap tampil seperti sebelumnya sampai ketahuan company-nya RS.
+     */
+    protected static function isSggMode(?string $companyId): bool
+    {
+        if (! $companyId) {
+            return true;
+        }
+
+        return Company::find($companyId)?->offering_letter_template !== \App\Enum\Recruitment\OfferingLetterTemplate::Rs;
     }
 
     /** Master jabatan HRIS milik perusahaan (dipetakan lewat companies.hris_code). */
@@ -219,10 +234,10 @@ class JobOpeningResource extends Resource
             ])->columns(2),
 
             Section::make('Kompensasi Offering Letter')
-                ->description('Komponen & nominal kompensasi (mis. "Gaji Pokok") untuk offering letter posisi ini. Beda posisi/lowongan bisa beda nominal meski satu perusahaan.')
+                ->description('Komponen kompensasi (mis. "Gaji Pokok", "Seragam Kerja") untuk offering letter posisi ini. Beda posisi/lowongan bisa beda meski satu perusahaan. Bentuknya ngikut Gaya Surat perusahaan (Master > Perusahaan) — TABEL (SGG): satu daftar, tiap baris punya nominal Orientasi & Kontrak berdampingan, angka polos otomatis diformat jadi "Rp3.000.000". LIST (RS): dua daftar terpisah (Mitra & Kontrak), masing-masing tambah komponen sendiri-sendiri, nominal bebas teks/kosongkan.')
                 ->schema([
                     Repeater::make('offeringCompensationRows')
-                        ->relationship('offeringCompensationRows')
+                        ->relationship('offeringCompensationRows', modifyQueryUsing: fn ($query) => $query->whereNull('kind'))
                         ->label('')
                         ->schema([
                             TextInput::make('label')
@@ -233,23 +248,70 @@ class JobOpeningResource extends Resource
                                 ->columnSpanFull(),
                             TextInput::make('amount_orientasi')
                                 ->label('Nominal — Orientasi')
-                                ->numeric()
-                                ->default(0)
-                                ->required()
-                                ->prefix('Rp'),
+                                ->placeholder('Angka polos, mis. 3000000')
+                                ->maxLength(255),
                             TextInput::make('amount_kontrak')
                                 ->label('Nominal — Kontrak')
-                                ->numeric()
-                                ->default(0)
-                                ->required()
-                                ->prefix('Rp'),
+                                ->placeholder('Angka polos, mis. 3500000')
+                                ->maxLength(255),
                         ])
                         ->columns(2)
+                        ->visible(fn (Get $get) => static::isSggMode($get('company_id')))
                         ->orderColumn('sort_order')
                         ->reorderable()
                         ->collapsible()
                         ->itemLabel(fn (array $state): ?string => $state['label'] ?? 'Komponen baru')
                         ->addActionLabel('Tambah komponen')
+                        ->defaultItems(0),
+
+                    Repeater::make('offeringCompensationRowsMitra')
+                        ->relationship('offeringCompensationRows', modifyQueryUsing: fn ($query) => $query->where('kind', 'mitra'))
+                        ->label('Komponen Mitra (Orientasi)')
+                        ->schema([
+                            Hidden::make('kind')->default('mitra'),
+                            TextInput::make('label')
+                                ->label('Komponen')
+                                ->placeholder('Mis. Gaji Pokok')
+                                ->required()
+                                ->maxLength(255)
+                                ->columnSpanFull(),
+                            TextInput::make('amount_orientasi')
+                                ->label('Nominal')
+                                ->placeholder('Bebas teks atau kosongkan')
+                                ->maxLength(255)
+                                ->columnSpanFull(),
+                        ])
+                        ->visible(fn (Get $get) => ! static::isSggMode($get('company_id')))
+                        ->orderColumn('sort_order')
+                        ->reorderable()
+                        ->collapsible()
+                        ->itemLabel(fn (array $state): ?string => $state['label'] ?? 'Komponen baru')
+                        ->addActionLabel('Tambah komponen Mitra')
+                        ->defaultItems(0),
+
+                    Repeater::make('offeringCompensationRowsKontrak')
+                        ->relationship('offeringCompensationRows', modifyQueryUsing: fn ($query) => $query->where('kind', 'kontrak'))
+                        ->label('Komponen Kontrak')
+                        ->schema([
+                            Hidden::make('kind')->default('kontrak'),
+                            TextInput::make('label')
+                                ->label('Komponen')
+                                ->placeholder('Mis. Gaji Yang Didapatkan')
+                                ->required()
+                                ->maxLength(255)
+                                ->columnSpanFull(),
+                            TextInput::make('amount_kontrak')
+                                ->label('Nominal')
+                                ->placeholder('Bebas teks atau kosongkan')
+                                ->maxLength(255)
+                                ->columnSpanFull(),
+                        ])
+                        ->visible(fn (Get $get) => ! static::isSggMode($get('company_id')))
+                        ->orderColumn('sort_order')
+                        ->reorderable()
+                        ->collapsible()
+                        ->itemLabel(fn (array $state): ?string => $state['label'] ?? 'Komponen baru')
+                        ->addActionLabel('Tambah komponen Kontrak')
                         ->defaultItems(0),
                 ])
                 ->collapsible()

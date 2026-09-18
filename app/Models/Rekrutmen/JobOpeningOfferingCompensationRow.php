@@ -13,7 +13,7 @@ class JobOpeningOfferingCompensationRow extends Model
 
     protected $connection = 'recruitment';
 
-    protected $fillable = ['job_opening_id', 'label', 'amount_orientasi', 'amount_kontrak', 'sort_order'];
+    protected $fillable = ['job_opening_id', 'label', 'kind', 'amount_orientasi', 'amount_kontrak', 'sort_order'];
 
     public function jobOpening(): BelongsTo
     {

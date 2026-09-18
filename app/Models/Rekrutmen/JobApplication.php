@@ -214,10 +214,24 @@ class JobApplication extends Model
     {
         $company = $this->jobOpening->company;
 
+        // Mode tabel (SGG): nominal angka di-auto-convert jadi "Rp X.XXX.XXX" — kolomnya
+        // memang selalu diisi nominal. Mode list (RS): tampil apa adanya (bisa range/teks
+        // bebas/kosong) — daftarnya sudah dipisah Orientasi/Mitra vs Kontrak di templatenya.
+        $isTableMode = $company->offering_letter_template === \App\Enum\Recruitment\OfferingLetterTemplate::Sgg;
+        $formatAmount = function (?string $value) use ($isTableMode) {
+            if (blank($value)) {
+                return null;
+            }
+
+            return $isTableMode && is_numeric($value)
+                ? 'Rp' . number_format((float) $value, 0, ',', '.')
+                : $value;
+        };
+
         $compensationRows = $this->jobOpening->offeringCompensationRows->map(fn ($row) => [
             'label' => $row->label,
-            'orientasi' => (float) $row->amount_orientasi,
-            'kontrak' => (float) $row->amount_kontrak,
+            'orientasi' => $formatAmount($row->amount_orientasi),
+            'kontrak' => $formatAmount($row->amount_kontrak),
         ])->all();
 
         return \Barryvdh\DomPDF\Facade\Pdf::loadView($company->offering_letter_template->view(), [

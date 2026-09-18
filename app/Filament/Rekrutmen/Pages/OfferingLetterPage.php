@@ -100,6 +100,14 @@ class OfferingLetterPage extends Page implements HasActions, HasForms, HasTable
             : collect();
     }
 
+    /** Gaya surat SGG (tabel) vs RS (list) buat lowongan yang lagi dipilih — lihat JobOpeningResource::isSggMode(). */
+    private function isSggModeForCurrentOpening(): bool
+    {
+        $company = JobOpening::find($this->jobOpeningId)?->company;
+
+        return $company?->offering_letter_template !== \App\Enum\Recruitment\OfferingLetterTemplate::Rs;
+    }
+
     /** Atur komponen & nominal kompensasi lowongan ini langsung dari tab Offering Letter — sama data dengan Repeater di form Lowongan. */
     public function aturKompensasiAction(): Action
     {
@@ -114,24 +122,59 @@ class OfferingLetterPage extends Page implements HasActions, HasForms, HasTable
                     ->schema([
                         Hidden::make('id'),
                         TextInput::make('label')->label('Komponen')->placeholder('Mis. Gaji Pokok')->required()->maxLength(255)->columnSpanFull(),
-                        TextInput::make('amount_orientasi')->label('Nominal — Orientasi')->numeric()->default(0)->required()->prefix('Rp'),
-                        TextInput::make('amount_kontrak')->label('Nominal — Kontrak')->numeric()->default(0)->required()->prefix('Rp'),
+                        TextInput::make('amount_orientasi')->label('Nominal — Orientasi')->placeholder('Angka polos, mis. 3000000')->maxLength(255),
+                        TextInput::make('amount_kontrak')->label('Nominal — Kontrak')->placeholder('Angka polos, mis. 3500000')->maxLength(255),
                     ])
                     ->columns(2)
+                    ->visible(fn () => $this->isSggModeForCurrentOpening())
                     ->reorderable(false)
                     ->itemLabel(fn (array $state): ?string => $state['label'] ?? 'Komponen baru')
                     ->addActionLabel('Tambah komponen')
                     ->defaultItems(0),
+
+                Repeater::make('mitraRows')
+                    ->label('Komponen Mitra (Orientasi)')
+                    ->schema([
+                        Hidden::make('id'),
+                        TextInput::make('label')->label('Komponen')->placeholder('Mis. Gaji Pokok')->required()->maxLength(255)->columnSpanFull(),
+                        TextInput::make('amount_orientasi')->label('Nominal')->placeholder('Bebas teks atau kosongkan')->maxLength(255)->columnSpanFull(),
+                    ])
+                    ->visible(fn () => ! $this->isSggModeForCurrentOpening())
+                    ->reorderable(false)
+                    ->itemLabel(fn (array $state): ?string => $state['label'] ?? 'Komponen baru')
+                    ->addActionLabel('Tambah komponen Mitra')
+                    ->defaultItems(0),
+
+                Repeater::make('kontrakRows')
+                    ->label('Komponen Kontrak')
+                    ->schema([
+                        Hidden::make('id'),
+                        TextInput::make('label')->label('Komponen')->placeholder('Mis. Gaji Yang Didapatkan')->required()->maxLength(255)->columnSpanFull(),
+                        TextInput::make('amount_kontrak')->label('Nominal')->placeholder('Bebas teks atau kosongkan')->maxLength(255)->columnSpanFull(),
+                    ])
+                    ->visible(fn () => ! $this->isSggModeForCurrentOpening())
+                    ->reorderable(false)
+                    ->itemLabel(fn (array $state): ?string => $state['label'] ?? 'Komponen baru')
+                    ->addActionLabel('Tambah komponen Kontrak')
+                    ->defaultItems(0),
             ])
-            ->fillForm(fn () => [
-                'rows' => JobOpening::find($this->jobOpeningId)?->offeringCompensationRows
-                    ->map(fn ($r) => [
-                        'id' => $r->id,
-                        'label' => $r->label,
-                        'amount_orientasi' => $r->amount_orientasi,
-                        'amount_kontrak' => $r->amount_kontrak,
-                    ])->all() ?? [],
-            ])
+            ->fillForm(function () {
+                $rows = JobOpening::find($this->jobOpeningId)?->offeringCompensationRows ?? collect();
+
+                return [
+                    'rows' => $rows->whereNull('kind')
+                        ->map(fn ($r) => [
+                            'id' => $r->id, 'label' => $r->label,
+                            'amount_orientasi' => $r->amount_orientasi, 'amount_kontrak' => $r->amount_kontrak,
+                        ])->values()->all(),
+                    'mitraRows' => $rows->where('kind', 'mitra')
+                        ->map(fn ($r) => ['id' => $r->id, 'label' => $r->label, 'amount_orientasi' => $r->amount_orientasi])
+                        ->values()->all(),
+                    'kontrakRows' => $rows->where('kind', 'kontrak')
+                        ->map(fn ($r) => ['id' => $r->id, 'label' => $r->label, 'amount_kontrak' => $r->amount_kontrak])
+                        ->values()->all(),
+                ];
+            })
             ->modalHeading('Atur Kompensasi Offering Letter — Lowongan Ini')
             ->modalSubmitActionLabel('Simpan')
             ->action(function (array $data): void {
@@ -139,25 +182,68 @@ class OfferingLetterPage extends Page implements HasActions, HasForms, HasTable
                     return;
                 }
 
-                $submittedIds = collect($data['rows'] ?? [])->pluck('id')->filter()->all();
+                if ($this->isSggModeForCurrentOpening()) {
+                    $rows = $data['rows'] ?? [];
+                    $submittedIds = collect($rows)->pluck('id')->filter()->all();
 
-                JobOpeningOfferingCompensationRow::where('job_opening_id', $this->jobOpeningId)
-                    ->whereNotIn('id', $submittedIds)
-                    ->delete();
+                    JobOpeningOfferingCompensationRow::where('job_opening_id', $this->jobOpeningId)
+                        ->whereNull('kind')
+                        ->whereNotIn('id', $submittedIds)
+                        ->delete();
 
-                foreach ($data['rows'] ?? [] as $i => $row) {
-                    $values = [
-                        'job_opening_id' => $this->jobOpeningId,
-                        'label' => $row['label'],
-                        'amount_orientasi' => $row['amount_orientasi'],
-                        'amount_kontrak' => $row['amount_kontrak'],
-                        'sort_order' => $i,
-                    ];
+                    foreach ($rows as $i => $row) {
+                        $values = [
+                            'job_opening_id' => $this->jobOpeningId,
+                            'label' => $row['label'],
+                            'kind' => null,
+                            'amount_orientasi' => $row['amount_orientasi'],
+                            'amount_kontrak' => $row['amount_kontrak'],
+                            'sort_order' => $i,
+                        ];
 
-                    if (! empty($row['id'])) {
-                        JobOpeningOfferingCompensationRow::where('id', $row['id'])->update($values);
-                    } else {
-                        JobOpeningOfferingCompensationRow::create($values);
+                        if (! empty($row['id'])) {
+                            JobOpeningOfferingCompensationRow::where('id', $row['id'])->update($values);
+                        } else {
+                            JobOpeningOfferingCompensationRow::create($values);
+                        }
+                    }
+                } else {
+                    $mitra = $data['mitraRows'] ?? [];
+                    $kontrak = $data['kontrakRows'] ?? [];
+                    $submittedIds = collect($mitra)->pluck('id')->filter()
+                        ->merge(collect($kontrak)->pluck('id')->filter())->all();
+
+                    JobOpeningOfferingCompensationRow::where('job_opening_id', $this->jobOpeningId)
+                        ->whereIn('kind', ['mitra', 'kontrak'])
+                        ->whereNotIn('id', $submittedIds)
+                        ->delete();
+
+                    foreach ($mitra as $i => $row) {
+                        $values = [
+                            'job_opening_id' => $this->jobOpeningId, 'label' => $row['label'], 'kind' => 'mitra',
+                            'amount_orientasi' => $row['amount_orientasi'], 'amount_kontrak' => null,
+                            'sort_order' => $i,
+                        ];
+
+                        if (! empty($row['id'])) {
+                            JobOpeningOfferingCompensationRow::where('id', $row['id'])->update($values);
+                        } else {
+                            JobOpeningOfferingCompensationRow::create($values);
+                        }
+                    }
+
+                    foreach ($kontrak as $i => $row) {
+                        $values = [
+                            'job_opening_id' => $this->jobOpeningId, 'label' => $row['label'], 'kind' => 'kontrak',
+                            'amount_orientasi' => null, 'amount_kontrak' => $row['amount_kontrak'],
+                            'sort_order' => $i,
+                        ];
+
+                        if (! empty($row['id'])) {
+                            JobOpeningOfferingCompensationRow::where('id', $row['id'])->update($values);
+                        } else {
+                            JobOpeningOfferingCompensationRow::create($values);
+                        }
                     }
                 }
 
