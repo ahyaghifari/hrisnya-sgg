@@ -42,7 +42,8 @@ class TaskListPage extends Component
 
     // Modal "Tugas Baru"
     public bool $showTaskModal = false;
-    public ?string $requirement = null;
+    public ?string $requirement = null; // Kebutuhan = judul singkat tugas
+    public ?string $description = null; // Deskripsi = uraian detail (opsional)
     public ?string $due_date = null;
     public string $priority = 'medium';
     public ?string $assigned_to = null;
@@ -72,6 +73,7 @@ class TaskListPage extends Component
     public bool $showEditTaskModal = false;
     public ?string $editTaskId = null;
     public string $editRequirement = '';
+    public ?string $editDescription = null;
     public ?string $editDueDate = null;
     public string $editPriority = 'medium';
 
@@ -255,7 +257,7 @@ class TaskListPage extends Component
     /** $listId: dari tombol "+ Tambah tugas" di List Board - tugas baru langsung masuk List itu. */
     public function openCreateTask(?string $listId = null): void
     {
-        $this->reset(['requirement', 'due_date', 'assigned_to', 'checklist', 'newChecklistTitle', 'reviewerId']);
+        $this->reset(['requirement', 'description', 'due_date', 'assigned_to', 'checklist', 'newChecklistTitle', 'reviewerId']);
         $this->newTaskListId = $this->activeProject ? $listId : null;
         $this->priority = TaskPriority::MEDIUM->value;
         $this->needsReview = false;
@@ -294,7 +296,8 @@ class TaskListPage extends Component
     protected function taskRules(): array
     {
         return [
-            'requirement' => ['required', 'string'],
+            'requirement' => ['required', 'string', 'max:255'],
+            'description' => ['nullable', 'string', 'max:5000'],
             'due_date' => ['nullable', 'date'],
             'priority' => ['required', 'in:' . implode(',', array_column(TaskPriority::cases(), 'value'))],
             'assigned_to' => [$this->assignedToRequiredForSubordinate() ? 'required' : 'nullable', 'string'],
@@ -308,6 +311,7 @@ class TaskListPage extends Component
         try {
             app(TaskService::class)->createCasualTask([
                 'requirement' => $data['requirement'],
+                'description' => $data['description'] ?? null,
                 'priority' => $data['priority'],
                 'due_date' => $data['due_date'],
                 // Di Board, non-Assigner cuma boleh bikin tugas untuk dirinya sendiri (service juga
@@ -384,6 +388,7 @@ class TaskListPage extends Component
 
         $this->editTaskId = $task->id;
         $this->editRequirement = $task->requirement ?? '';
+        $this->editDescription = $task->description;
         $this->editDueDate = $task->due_date;
         $this->editPriority = $task->priority?->value ?? TaskPriority::MEDIUM->value;
         $this->showEditTaskModal = true;
@@ -398,7 +403,8 @@ class TaskListPage extends Component
     public function updateTaskDetails(): void
     {
         $data = $this->validate([
-            'editRequirement' => ['required', 'string'],
+            'editRequirement' => ['required', 'string', 'max:255'],
+            'editDescription' => ['nullable', 'string', 'max:5000'],
             'editDueDate' => ['nullable', 'date'],
             'editPriority' => ['required', 'in:' . implode(',', array_column(TaskPriority::cases(), 'value'))],
         ]);
@@ -406,6 +412,7 @@ class TaskListPage extends Component
         try {
             app(TaskService::class)->updateTaskDetails(Task::findOrFail($this->editTaskId), [
                 'requirement' => $data['editRequirement'],
+                'description' => $data['editDescription'] ?? null,
                 'due_date' => $data['editDueDate'],
                 'priority' => $data['editPriority'],
             ], Auth::user());

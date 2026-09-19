@@ -491,7 +491,7 @@
                                     @endif
                                 @endif
                             </div>
-                            <div class="task-hero-column-body" @if (! $this->isProjectArchived) wire:ignore.self data-list-id="{{ $list->id }}" data-list-final="{{ $list->is_final ? '1' : '0' }}" @endif>
+                            <div class="task-hero-column-body" @if (! $this->isProjectArchived) wire:ignore.self data-list-id="{{ $list->id }}" data-list-final="{{ $list->is_final ? '1' : '0' }}" data-list-review="{{ $list->is_review ? '1' : '0' }}" @endif>
                                 @forelse (($this->tasksByList[$list->id] ?? []) as $task)
                                     {{-- Yang boleh menggeser kartu: di List kerja cuma yang ditugaskan + pembuat Board (owner); di List Review cuma reviewer/pembuat tugas. Selain itu kartu terkunci (nggak bisa drag / pindah List). --}}
                                     @php $canMoveCard = ! $this->isProjectArchived && ($list->is_review ? (($task->reviewer_id ?? $task->created_by) === auth()->id()) : ($task->assigned_to === auth()->id() || $this->isProjectOwner)); @endphp
@@ -544,7 +544,7 @@
                                                             @continue($target->id === $list->id)
                                                             {{-- Tugas wajib review nggak boleh langsung ke List Selesai (harus lewat List Review). --}}
                                                             @continue($target->is_final && $task->needs_review && $this->activeProject->lists->contains('is_review', true))
-                                                            <button type="button" @click="open = false" wire:click="moveTaskToList('{{ $task->id }}', '{{ $target->id }}')">{{ $target->name }}</button>
+                                                            <button type="button" @click="open = false" wire:click="moveTaskToList('{{ $task->id }}', '{{ $target->id }}')" @if ($target->is_review) wire:confirm="Ajukan tugas ini untuk direview?" @endif>{{ $target->name }}</button>
                                                         @endforeach
                                                     </div>
                                                 </div>
@@ -631,7 +631,7 @@
                                                     <option value="{{ \App\Enum\Task\TaskStatus::COMPLETE->value }}">Selesai</option>
                                                 </select>
                                             @else
-                                                <p style="font-size:11px;color:var(--text-muted);margin:8px 0 0;font-style:italic;">Menunggu penilaian pembuat tugas.</p>
+                                                <p style="font-size:11px;color:var(--text-muted);margin:8px 0 0;font-style:italic;">Menunggu penilaian.</p>
                                             @endif
                                         @elseif ($task->status !== \App\Enum\Task\TaskStatus::COMPLETE->value && ($task->status !== \App\Enum\Task\TaskStatus::TODO->value || $task->assigned_to === auth()->id()))
                                             @php
@@ -730,9 +730,15 @@
             </h3>
             <form wire:submit="createTask" style="display:flex;flex-direction:column;gap:14px;">
                 <div>
-                    <label class="form-label">Kebutuhan / Deskripsi *</label>
-                    <textarea class="form-input" rows="3" wire:model="requirement"></textarea>
+                    <label class="form-label">Kebutuhan *</label>
+                    <input type="text" class="form-input" wire:model="requirement" maxlength="255" placeholder="Judul singkat tugas, mis. Susun laporan bulanan">
                     @error('requirement') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
+                </div>
+
+                <div>
+                    <label class="form-label">Deskripsi</label>
+                    <textarea class="form-input" rows="3" wire:model="description" placeholder="Uraian detail, konteks, atau acuan pengerjaan (opsional)"></textarea>
+                    @error('description') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
                 </div>
 
                 <div class="date-grid">
@@ -890,9 +896,15 @@
             <h3 style="font-size:16px;font-weight:700;color:var(--text-heading);margin:0 0 14px;">Edit Tugas</h3>
             <form wire:submit="updateTaskDetails" style="display:flex;flex-direction:column;gap:14px;">
                 <div>
-                    <label class="form-label">Kebutuhan / Deskripsi *</label>
-                    <textarea class="form-input" rows="3" wire:model="editRequirement"></textarea>
+                    <label class="form-label">Kebutuhan *</label>
+                    <input type="text" class="form-input" wire:model="editRequirement" maxlength="255" placeholder="Judul singkat tugas, mis. Susun laporan bulanan">
                     @error('editRequirement') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
+                </div>
+
+                <div>
+                    <label class="form-label">Deskripsi</label>
+                    <textarea class="form-input" rows="3" wire:model="editDescription" placeholder="Uraian detail, konteks, atau acuan pengerjaan (opsional)"></textarea>
+                    @error('editDescription') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
                 </div>
 
                 <div class="date-grid">
@@ -971,6 +983,14 @@
                         @if ($task->project)<span class="badge badge-cancelled"><i class="fa-solid fa-diagram-project"></i> {{ $task->project->name }}</span>@endif
                     </div>
 
+                    {{-- Deskripsi (uraian detail) dipisah dari Kebutuhan (judul di atas). --}}
+                    @if (filled($task->description))
+                        <div style="margin-bottom:18px;">
+                            <h4 style="font-size:13px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.03em;margin:0 0 6px;">Deskripsi</h4>
+                            <p style="font-size:14.5px;line-height:1.55;color:var(--text-body);margin:0;white-space:pre-line;word-break:break-word;">{{ $task->description }}</p>
+                        </div>
+                    @endif
+
                     @unless ($isPersonalNote)
                         <div style="display:flex;align-items:center;gap:18px;flex-wrap:wrap;margin-bottom:18px;padding:10px 12px;background:var(--surface-alt);border-radius:10px;font-size:12.5px;">
                             <div style="display:flex;align-items:center;gap:7px;">
@@ -1004,7 +1024,7 @@
                                     </div>
                                 </div>
                             @else
-                                <p style="font-size:12.5px;color:var(--text-muted);font-style:italic;margin-bottom:18px;">Menunggu penilaian pembuat tugas.</p>
+                                <p style="font-size:12.5px;color:var(--text-muted);font-style:italic;margin-bottom:18px;">Menunggu penilaian.</p>
                             @endif
                         @endif
 

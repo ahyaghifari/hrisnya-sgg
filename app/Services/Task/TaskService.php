@@ -115,6 +115,7 @@ class TaskService
                 'list_id' => $project ? $listId : null,
                 'company_id' => $user->company_id,
                 'requirement' => $data['requirement'],
+                'description' => filled($data['description'] ?? null) ? trim($data['description']) : null,
                 'priority' => $data['priority'] ?? 'medium',
                 'due_date' => $data['due_date'] ?? null,
                 'created_by' => $user->id,
@@ -630,6 +631,7 @@ class TaskService
 
         $this->taskRepository->update($task->id, [
             'requirement' => $data['requirement'],
+            'description' => filled($data['description'] ?? null) ? trim($data['description']) : null,
             'due_date' => $data['due_date'] ?? null,
             'priority' => $data['priority'],
         ]);

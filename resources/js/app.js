@@ -459,6 +459,12 @@ function initTaskBoardSortables() {
                     return;
                 }
 
+                // Drop ke List Review wajib konfirmasi juga - batal = kartu balik ke posisi asal.
+                if (evt.to !== evt.from && evt.to.dataset.listReview === "1" && !confirm("Ajukan tugas ini untuk direview?")) {
+                    evt.from.insertBefore(evt.item, evt.from.children[evt.oldIndex] ?? null);
+                    return;
+                }
+
                 const payload = {};
                 payload[evt.from.dataset.listId] = cards(evt.from);
                 if (evt.to !== evt.from) {
@@ -494,6 +500,11 @@ function initTaskBoardSortables() {
             onEnd(evt) {
                 window.taskDragging = false;
                 if (!wireId || evt.from === evt.to) return;
+
+                if (evt.to.dataset.statusList === "review" && !confirm("Ajukan tugas ini untuk direview?")) {
+                    evt.from.insertBefore(evt.item, evt.from.children[evt.oldIndex] ?? null);
+                    return;
+                }
 
                 // Pindah ke Selesai wajib konfirmasi - kalau batal, kartu dikembalikan ke posisi asal.
                 if (evt.to.dataset.statusList === "complete" && !confirm("Apakah tugas ini sudah selesai?")) {

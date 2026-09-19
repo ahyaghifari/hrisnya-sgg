@@ -31,6 +31,7 @@ class Task extends Model
         'assigned_to',
         'approved_by',
         'requirement',
+        'description',
         'is_self_assigned',
         'needs_review',
         'notify_creator_on_review',
