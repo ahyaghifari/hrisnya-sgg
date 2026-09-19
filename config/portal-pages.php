@@ -179,18 +179,6 @@ return [
         'guard' => null,
     ],
 
-    'kepegawaian.karyawan.import' => [
-        'label' => 'Import Akun Karyawan',
-        'permission' => \App\Enum\CustomPermissionEnum::IMPORT_KARYAWAN->value,
-        'guard' => null,
-    ],
-
-    'kepegawaian.karyawan.import.template' => [
-        'label' => 'Template Import Akun Karyawan',
-        'permission' => \App\Enum\CustomPermissionEnum::IMPORT_KARYAWAN->value,
-        'guard' => null,
-    ],
-
     'kepegawaian.dokumen' => [
         'label' => 'Dokumen Kepegawaian',
         'permission' => 'ViewAny:UserDocuments',

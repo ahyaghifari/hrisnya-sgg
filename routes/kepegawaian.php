@@ -34,12 +34,6 @@ Route::get('/kepegawaian/karyawan/tambah', CreateKaryawan::class)
 Route::get('/kepegawaian/karyawan/{record}/edit', EditKaryawan::class)
     ->name('kepegawaian.karyawan.edit');
 
-Route::get('/kepegawaian/karyawan/import', \App\Livewire\Kepegawaian\KaryawanImportPage::class)
-    ->name('kepegawaian.karyawan.import');
-
-Route::get('/kepegawaian/karyawan/import/template', [\App\Http\Controllers\KaryawanAccountImportController::class, 'downloadTemplate'])
-    ->name('kepegawaian.karyawan.import.template');
-
 Route::get('/kepegawaian/dokumen', DocumentsPage::class)
     ->name('kepegawaian.dokumen');
 

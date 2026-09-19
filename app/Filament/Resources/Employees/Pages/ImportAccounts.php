@@ -1,33 +1,40 @@
 <?php
 
-namespace App\Livewire\Kepegawaian;
+namespace App\Filament\Resources\Employees\Pages;
 
 use App\Enum\CustomPermissionEnum;
+use App\Exports\Kepegawaian\KaryawanAccountTemplateExport;
+use App\Filament\Resources\Employees\EmployeeResource;
 use App\Imports\Kepegawaian\KaryawanAccountImport;
 use App\Models\Master\Companies;
 use App\Models\User;
+use Filament\Actions\Action;
 use Filament\Notifications\Notification;
+use Filament\Resources\Pages\Page;
+use Filament\Support\Icons\Heroicon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
-use Livewire\Attributes\Layout;
-use Livewire\Component;
 use Livewire\WithFileUploads;
 use Maatwebsite\Excel\Facades\Excel;
 
 /**
- * Import akun DASAR karyawan (nama/email/nip saja, TIDAK langsung bikin akun) - upload file
- * langsung dipratinjau (BELUM ditulis ke database), dikelompokkan 3 kategori:
+ * Import akun DASAR karyawan (nama/email/nip + profil ringkas) - upload file langsung dipratinjau
+ * (BELUM ditulis ke database), dikelompokkan 3 kategori:
  * - Baru: NIP di file, belum ada di sistem -> dibuatkan akun baru.
- * - Berubah: NIP ketemu, tapi nama/email beda dari file -> ditimpa.
+ * - Berubah: NIP ketemu, tapi field beda dari file -> ditimpa.
  * - Tidak Ada di File: NIP ada di sistem (company ini) tapi TIDAK disebut di file -
- *   MURNI informasional (instruksi user 2026-08-08), tidak ada aksi apapun buat kategori ini.
- * Baru submit (confirmImport) yang benar-benar menulis ke database. Pola upload+preview+confirm
- * sama persis PayrollsPage::previewImport()/confirmImport() (BonImport).
+ *   MURNI informasional, tidak ada aksi apapun buat kategori ini.
+ * Baru submit (confirmImport) yang benar-benar menulis ke database.
  */
-#[Layout('components.layout', ['title' => 'Import Akun Karyawan'])]
-class KaryawanImportPage extends Component
+class ImportAccounts extends Page
 {
     use WithFileUploads;
+
+    protected static string $resource = EmployeeResource::class;
+
+    protected string $view = 'filament.resources.employees.pages.import-accounts';
+
+    protected static ?string $title = 'Import Akun Karyawan';
 
     public ?string $companyId = null;
 
@@ -45,13 +52,29 @@ class KaryawanImportPage extends Component
 
     public ?int $successCount = null;
 
+    public static function canAccess(array $parameters = []): bool
+    {
+        return Auth::user()?->can(CustomPermissionEnum::IMPORT_KARYAWAN->value) ?? false;
+    }
+
     public function mount(): void
     {
-        abort_unless(Auth::user()->can(CustomPermissionEnum::IMPORT_KARYAWAN->value), 403);
+        abort_unless(static::canAccess(), 403);
 
         $this->companyId = Auth::user()->canFilterByCompany()
             ? (Auth::user()->company_id ?? Companies::orderBy('code')->value('id'))
             : Auth::user()->company_id;
+    }
+
+    protected function getHeaderActions(): array
+    {
+        return [
+            Action::make('download_template')
+                ->label('Unduh Template')
+                ->icon(Heroicon::OutlinedArrowDownTray)
+                ->color('gray')
+                ->action(fn () => Excel::download(new KaryawanAccountTemplateExport, 'template-import-akun-karyawan.xlsx')),
+        ];
     }
 
     public function updatedCompanyId(): void
@@ -79,7 +102,7 @@ class KaryawanImportPage extends Component
 
     private function previewImport(): void
     {
-        abort_unless(Auth::user()->can(CustomPermissionEnum::IMPORT_KARYAWAN->value), 403);
+        abort_unless(static::canAccess(), 403);
 
         $this->previewRows = [];
         $this->missingRows = [];
@@ -132,7 +155,7 @@ class KaryawanImportPage extends Component
     /** Tombol "Konfirmasi Import" di pratinjau -> baru di sini datanya ditulis ke database. */
     public function confirmImport(): void
     {
-        abort_unless(Auth::user()->can(CustomPermissionEnum::IMPORT_KARYAWAN->value), 403);
+        abort_unless(static::canAccess(), 403);
 
         if ($this->storedPath === null) {
             return;
@@ -188,10 +211,5 @@ class KaryawanImportPage extends Component
             Storage::delete($this->storedPath);
             $this->storedPath = null;
         }
-    }
-
-    public function render()
-    {
-        return view('livewire.kepegawaian.karyawan-import-page');
     }
 }

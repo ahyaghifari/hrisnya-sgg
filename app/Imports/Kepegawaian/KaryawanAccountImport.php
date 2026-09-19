@@ -27,7 +27,7 @@ use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
  *   yang ditulis).
  *
  * Kategori ke-4 ("ada di sistem, tidak ada di file") BUKAN tanggung jawab class ini - class ini
- * cuma tahu isi file yang di-upload (lihat getSeenNips(), dipakai KaryawanImportPage buat query
+ * cuma tahu isi file yang di-upload (lihat getSeenNips(), dipakai ImportAccounts (Filament) buat query
  * balik "company ini dikurangi NIP yang kelihatan di file").
  *
  * Mode `preview: true` cuma menghitung status tiap baris tanpa menulis apa pun ke database -

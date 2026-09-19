@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Employees;
 
 use App\Filament\Resources\Employees\Pages\CreateEmployee;
 use App\Filament\Resources\Employees\Pages\EditEmployee;
+use App\Filament\Resources\Employees\Pages\ImportAccounts;
 use App\Filament\Resources\Employees\Pages\ListEmployees;
 use App\Filament\Resources\Employees\Schemas\EmployeeForm;
 use App\Filament\Resources\Employees\Tables\EmployeesTable;
@@ -53,6 +54,7 @@ class EmployeeResource extends Resource
             'index' => ListEmployees::route('/'),
             'create' => CreateEmployee::route('/create'),
             'edit' => EditEmployee::route('/{record}/edit'),
+            'import-accounts' => ImportAccounts::route('/import-accounts'),
         ];
     }
 

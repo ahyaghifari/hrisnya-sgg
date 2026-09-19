@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Employees\Pages;
 
 use App\Filament\Resources\Employees\EmployeeResource;
+use App\Filament\Resources\Employees\Pages\ImportAccounts;
 use App\Imports\Employees\EmployeeImport;
 use App\Jobs\ProcessEmployeeImportJob;
 use Filament\Actions\Action;
@@ -26,6 +27,13 @@ class ListEmployees extends ListRecords
             CreateAction::make()
                 ->label('Tambah Karyawan')
                 ->visible(EmployeeResource::canCreate()),
+
+            Action::make('import_accounts')
+                ->label('Import Akun')
+                ->icon(Heroicon::OutlinedUserPlus)
+                ->color('info')
+                ->url(fn () => ImportAccounts::getUrl())
+                ->visible(fn () => ImportAccounts::canAccess()),
 
             Action::make('download_template')
                 ->label('Download Template')

@@ -3,11 +3,6 @@
 <x-page-header title="Karyawan" subtitle="Data seluruh karyawan perusahaan" />
 
 <div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:16px;">
-    @can(\App\Enum\CustomPermissionEnum::IMPORT_KARYAWAN->value)
-        <a href="{{ route('kepegawaian.karyawan.import') }}" wire:navigate class="btn-ghost">
-            <i class="fa-solid fa-file-import"></i> Import Akun
-        </a>
-    @endcan
     @can(\App\Enum\CustomPermissionEnum::EXPORT_DATA_KARYAWAN->value)
         <button type="button" wire:click="export" wire:loading.attr="disabled" class="btn-ghost">
             <i class="fa-solid fa-file-export"></i> Export Excel
