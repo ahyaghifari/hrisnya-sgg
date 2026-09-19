@@ -93,48 +93,59 @@
     </div>
 </div>
 
+{{-- Filter tipe jadwal (berlaku untuk mode harian maupun periode): Fixed / Flexible / Shift. Klik lagi = semua. --}}
+<div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:14px;">
+    <span style="font-size:12px;font-weight:700;color:var(--text-muted);"><i class="fa-regular fa-calendar-days"></i> Tipe jadwal:</span>
+    @foreach ([['', 'Semua'], ['fixed', 'Fixed'], ['flexible', 'Flexible'], ['shift', 'Shift']] as [$type, $typeLabel])
+        @php $typeActive = $scheduleFilter === $type; @endphp
+        <button type="button" wire:click="setScheduleFilter('{{ $type }}')"
+            style="padding:6px 14px;border-radius:99px;font-size:12px;font-weight:700;font-family:inherit;cursor:pointer;transition:all 0.15s ease;{{ $typeActive ? 'background:var(--brand-fill);color:#fff;border:1.5px solid var(--brand-fill);' : 'background:var(--surface);color:var(--text-muted);border:1.5px solid var(--border);' }}">
+            {{ $typeLabel }}
+        </button>
+    @endforeach
+</div>
+
 @if ($mode === 'harian')
-    @php $stats = $this->todayStats; @endphp
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin-bottom:20px;">
-        <div class="stat-card" style="display:flex;align-items:center;gap:14px;padding:16px 18px;">
-            <div class="stat-card-deco" style="background:#042c6c;"></div>
-            <div style="flex-shrink:0;width:42px;height:42px;background:rgba(4,44,108,0.1);border-radius:12px;display:flex;align-items:center;justify-content:center;">
-                <i class="fa-solid fa-users" style="color:#042c6c;font-size:15px;"></i>
-            </div>
-            <div style="min-width:0;">
-                <p style="font-size:24px;font-weight:800;color:var(--text-heading);letter-spacing:-0.8px;line-height:1;">{{ $stats['total_employees'] }}</p>
-                <p style="font-size:12px;font-weight:600;color:var(--text-muted);margin-top:4px;">Total Karyawan</p>
-            </div>
-        </div>
-        @foreach ([
-            ['key' => 'present', 'label' => 'Hadir', 'icon' => 'fa-check', 'style' => $statusStyle['present']],
-            ['key' => 'late', 'label' => 'Terlambat', 'icon' => 'fa-clock', 'style' => $statusStyle['late']],
-            ['key' => 'permit', 'label' => 'Izin', 'icon' => 'fa-file-lines', 'style' => $statusStyle['permit']],
-            ['key' => 'leave', 'label' => 'Cuti', 'icon' => 'fa-umbrella-beach', 'style' => $statusStyle['leave']],
-            ['key' => 'sick', 'label' => 'Sakit', 'icon' => 'fa-briefcase-medical', 'style' => $statusStyle['sick']],
-        ] as $card)
-            <div class="stat-card" style="display:flex;align-items:center;gap:14px;padding:16px 18px;">
-                <div class="stat-card-deco" style="background:{{ $card['style']['color'] }};"></div>
-                <div style="flex-shrink:0;width:42px;height:42px;background:{{ $card['style']['bg'] }};border-radius:12px;display:flex;align-items:center;justify-content:center;">
-                    <i class="fa-solid {{ $card['icon'] }}" style="color:{{ $card['style']['color'] }};font-size:15px;"></i>
+    @php
+        $stats = $this->todayStats;
+        // Kartu ringkasan = tombol filter daftar di bawah: klik "Hadir" -> cuma yang hadir, "Terlambat" ->
+        // cuma yang terlambat, dst. Klik lagi (atau kartu Total) untuk menampilkan semua.
+        $summaryCards = [
+            ['key' => '', 'stat' => 'total_employees', 'label' => 'Total Karyawan', 'icon' => 'fa-users', 'color' => '#042c6c', 'bg' => 'rgba(4,44,108,0.1)'],
+            ['key' => 'present', 'stat' => 'present', 'label' => 'Hadir', 'icon' => 'fa-check', 'color' => $statusStyle['present']['color'], 'bg' => $statusStyle['present']['bg']],
+            ['key' => 'late', 'stat' => 'late', 'label' => 'Terlambat', 'icon' => 'fa-clock', 'color' => $statusStyle['late']['color'], 'bg' => $statusStyle['late']['bg']],
+            ['key' => 'permit', 'stat' => 'permit', 'label' => 'Izin', 'icon' => 'fa-file-lines', 'color' => $statusStyle['permit']['color'], 'bg' => $statusStyle['permit']['bg']],
+            ['key' => 'leave', 'stat' => 'leave', 'label' => 'Cuti', 'icon' => 'fa-umbrella-beach', 'color' => $statusStyle['leave']['color'], 'bg' => $statusStyle['leave']['bg']],
+            ['key' => 'sick', 'stat' => 'sick', 'label' => 'Sakit', 'icon' => 'fa-briefcase-medical', 'color' => $statusStyle['sick']['color'], 'bg' => $statusStyle['sick']['bg']],
+            ['key' => 'not_recorded', 'stat' => 'not_recorded', 'label' => 'Belum Presensi', 'icon' => 'fa-hourglass-half', 'color' => '#64748b', 'bg' => 'rgba(100,116,139,0.1)'],
+        ];
+    @endphp
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin-bottom:12px;">
+        @foreach ($summaryCards as $card)
+            @php $isActive = $card['key'] !== '' ? $statusFilter === $card['key'] : $statusFilter === ''; @endphp
+            <div class="stat-card" wire:click="setStatusFilter('{{ $card['key'] }}')" role="button" tabindex="0" wire:keydown.enter="setStatusFilter('{{ $card['key'] }}')"
+                title="{{ $card['key'] === '' ? 'Tampilkan semua karyawan' : 'Tampilkan hanya: '.$card['label'] }}"
+                style="display:flex;align-items:center;gap:14px;padding:16px 18px;cursor:pointer;transition:box-shadow 0.15s ease, transform 0.15s ease;{{ $isActive && $card['key'] !== '' ? 'box-shadow:0 0 0 2px '.$card['color'].';' : '' }}">
+                <div class="stat-card-deco" style="background:{{ $card['color'] }};"></div>
+                <div style="flex-shrink:0;width:42px;height:42px;background:{{ $card['bg'] }};border-radius:12px;display:flex;align-items:center;justify-content:center;">
+                    <i class="fa-solid {{ $card['icon'] }}" style="color:{{ $card['color'] }};font-size:15px;"></i>
                 </div>
                 <div style="min-width:0;">
-                    <p style="font-size:24px;font-weight:800;color:var(--text-heading);letter-spacing:-0.8px;line-height:1;">{{ $stats[$card['key']] }}</p>
+                    <p style="font-size:24px;font-weight:800;color:var(--text-heading);letter-spacing:-0.8px;line-height:1;">{{ $stats[$card['stat']] }}</p>
                     <p style="font-size:12px;font-weight:600;color:var(--text-muted);margin-top:4px;">{{ $card['label'] }}</p>
                 </div>
             </div>
         @endforeach
-        <div class="stat-card" style="display:flex;align-items:center;gap:14px;padding:16px 18px;">
-            <div class="stat-card-deco" style="background:#64748b;"></div>
-            <div style="flex-shrink:0;width:42px;height:42px;background:rgba(100,116,139,0.1);border-radius:12px;display:flex;align-items:center;justify-content:center;">
-                <i class="fa-solid fa-hourglass-half" style="color:#64748b;font-size:15px;"></i>
-            </div>
-            <div style="min-width:0;">
-                <p style="font-size:24px;font-weight:800;color:var(--text-heading);letter-spacing:-0.8px;line-height:1;">{{ $stats['not_recorded'] }}</p>
-                <p style="font-size:12px;font-weight:600;color:var(--text-muted);margin-top:4px;">Belum Presensi</p>
-            </div>
-        </div>
     </div>
+
+    @if ($statusFilter !== '')
+        @php $activeCard = collect($summaryCards)->firstWhere('key', $statusFilter); @endphp
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;font-size:12.5px;color:var(--text-muted);">
+            <i class="fa-solid fa-filter" style="font-size:11px;"></i>
+            Menampilkan hanya: <strong style="color:{{ $activeCard['color'] }};">{{ $activeCard['label'] }}</strong>
+            <button type="button" wire:click="setStatusFilter('{{ $statusFilter }}')" class="btn-ghost btn-sm" style="padding:3px 10px;"><i class="fa-solid fa-xmark"></i> Hapus filter</button>
+        </div>
+    @endif
 
     @php $rows = $this->todayRows; @endphp
     <div style="background:var(--surface);border-radius:12px;box-shadow:var(--shadow-card);overflow:hidden;">
@@ -169,7 +180,9 @@
                     @empty
                         <tr>
                             <td colspan="6" style="padding:32px;text-align:center;color:var(--text-faint);">
-                                @if ($search !== '')
+                                @if ($statusFilter !== '')
+                                    Tidak ada karyawan dengan status "{{ collect($summaryCards)->firstWhere('key', $statusFilter)['label'] }}"{{ $search !== '' ? ' yang cocok dengan pencarian' : '' }} hari ini.
+                                @elseif ($search !== '')
                                     Tidak ada karyawan yang cocok dengan pencarian "{{ $search }}".
                                 @else
                                     Belum ada data karyawan.

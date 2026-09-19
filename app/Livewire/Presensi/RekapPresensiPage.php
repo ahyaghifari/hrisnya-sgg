@@ -56,6 +56,13 @@ class RekapPresensiPage extends Component
     #[Url]
     public string $search = '';
 
+    /** Filter daftar mode harian dari kartu ringkasan: '' = semua, atau present/late/permit/leave/sick/not_recorded. */
+    public string $statusFilter = '';
+
+    /** Filter tipe jadwal karyawan (mode harian & periode): '' = semua, atau fixed / flexible / shift. */
+    #[Url]
+    public string $scheduleFilter = '';
+
     #[Url]
     public ?string $date_from = null;
 
@@ -385,6 +392,21 @@ class RekapPresensiPage extends Component
         $this->resetPage();
     }
 
+    /** Klik kartu ringkasan: filter daftar ke status itu; klik lagi (atau kartu Total) = tampilkan semua. */
+    public function setStatusFilter(string $key): void
+    {
+        $allowed = ['present', 'late', 'permit', 'leave', 'sick', 'not_recorded'];
+
+        $this->statusFilter = ($key === $this->statusFilter || ! in_array($key, $allowed, true)) ? '' : $key;
+        $this->resetPage();
+    }
+
+    public function setScheduleFilter(string $type): void
+    {
+        $this->scheduleFilter = ($type === $this->scheduleFilter || ! in_array($type, ['fixed', 'flexible', 'shift'], true)) ? '' : $type;
+        $this->resetPage();
+    }
+
     public function setMode(string $mode): void
     {
         $this->mode = $mode;
@@ -401,12 +423,51 @@ class RekapPresensiPage extends Component
         return Auth::user()->canFilterByCompany();
     }
 
+
+    /**
+     * Batasi karyawan ke tipe jadwal tertentu (fixed/flexible/shift) pada rentang $from-$to, mengikuti
+     * urutan ScheduleResolver: roster shift (schedule_shift_assignments) menang, lalu assignment
+     * personal, lalu assignment jabatan. Karyawan yang punya roster di rentang itu dihitung "shift"
+     * (bukan fixed/flexible), walau jabatannya diassign jadwal fixed.
+     */
+    protected function applyScheduleTypeFilter(Builder $query, ?string $from = null, ?string $to = null): void
+    {
+        if (! in_array($this->scheduleFilter, ['fixed', 'flexible', 'shift'], true)) {
+            return;
+        }
+
+        $today = now()->toDateString();
+        $from ??= $this->mode === 'harian' ? $today : ($this->date_from ?? $today);
+        $to ??= $this->mode === 'harian' ? $today : ($this->date_to ?? $today);
+        $type = $this->scheduleFilter;
+
+        $range = 'sa.effective_from <= ? AND (sa.effective_until IS NULL OR sa.effective_until >= ?)';
+        $roster = 'EXISTS (SELECT 1 FROM schedule_shift_assignments ssa WHERE ssa.user_id = users.id AND ssa.date BETWEEN ? AND ?)';
+        $personalAny = "EXISTS (SELECT 1 FROM schedule_assignments sa WHERE sa.user_id = users.id AND {$range})";
+        $personalType = "EXISTS (SELECT 1 FROM schedule_assignments sa JOIN schedules s ON s.id = sa.schedule_id WHERE sa.user_id = users.id AND s.schedule_type = ? AND {$range})";
+        $positionType = "EXISTS (SELECT 1 FROM schedule_assignments sa JOIN schedules s ON s.id = sa.schedule_id JOIN user_profiles up ON up.job_position_id = sa.job_position_id WHERE up.user_id = users.id AND s.schedule_type = ? AND {$range})";
+
+        if ($type === 'shift') {
+            $query->whereRaw(
+                "({$roster} OR {$personalType} OR (NOT {$personalAny} AND {$positionType}))",
+                [$from, $to, $type, $to, $from, $to, $from, $type, $to, $from]
+            );
+
+            return;
+        }
+
+        $query->whereRaw(
+            "(NOT {$roster} AND ({$personalType} OR (NOT {$personalAny} AND {$positionType})))",
+            [$from, $to, $type, $to, $from, $to, $from, $type, $to, $from]
+        );
+    }
     protected function baseUserQuery(): Builder
     {
         $query = User::query()
             ->when($this->companyId, fn ($q) => $q->where('company_id', $this->companyId));
 
         $this->applyDepartmentDivisionFilter($query);
+        $this->applyScheduleTypeFilter($query);
 
         return $query;
     }
@@ -428,7 +489,8 @@ class RekapPresensiPage extends Component
         return AttendanceRecords::query()
             ->whereBetween('date', [$from, $to])
             ->when($this->companyId, fn ($q) => $q->whereHas('user', fn ($q2) => $q2->where('company_id', $this->companyId)))
-            ->when($this->departmentId || $this->divisionId, fn ($q) => $q->whereHas('user', fn ($q2) => $this->applyDepartmentDivisionFilter($q2)));
+            ->when($this->departmentId || $this->divisionId, fn ($q) => $q->whereHas('user', fn ($q2) => $this->applyDepartmentDivisionFilter($q2)))
+            ->when($this->scheduleFilter !== '', fn ($q) => $q->whereHas('user', fn ($q2) => $this->applyScheduleTypeFilter($q2, $from, $to)));
     }
 
     /** Buang baris yang tanggalnya sudah ditutup Izin Terlambat Masuk (approved) - konsisten
@@ -456,6 +518,8 @@ class RekapPresensiPage extends Component
             'departmentId' => $this->departmentId,
             'divisionId' => $this->divisionId,
             'search' => $this->search,
+            'statusFilter' => $this->statusFilter,
+            'scheduleFilter' => $this->scheduleFilter,
             'date_from' => $this->date_from,
             'date_to' => $this->date_to,
         ];
@@ -502,6 +566,11 @@ class RekapPresensiPage extends Component
                 'attendance_records.late_minutes as late_minutes',
                 'attendance_records.working_minutes as working_minutes',
             ])
+            ->when($this->statusFilter === 'not_recorded', fn ($q) => $q->whereNull('attendance_records.status'))
+            ->when(
+                in_array($this->statusFilter, ['present', 'late', 'permit', 'leave', 'sick'], true),
+                fn ($q) => $q->where('attendance_records.status', $this->statusFilter)
+            )
             ->orderBy('users.name')
             ->paginate(15)
             ->appends($this->queryAppends());
