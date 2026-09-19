@@ -427,6 +427,26 @@ document.addEventListener("livewire:init", () => {
 });
 document.addEventListener("livewire:navigated", initTaskBoardSortables);
 
+// Opsi drag kartu yang ramah HP: drag "buatan" SortableJS (bukan HTML5 DnD bawaan browser yang di
+// Android susah dipakai, nggak bisa auto-scroll & ghost-nya meleset), ditahan sebentar dulu supaya
+// scroll jari nggak ketimpa drag, ghost ditempel di <body> (nggak ikut CSS zoom papan), dan papan
+// otomatis ke-scroll ke samping saat kartu didekatkan ke tepi.
+const taskSortableTouchOptions = {
+    animation: 150,
+    forceFallback: true,
+    fallbackOnBody: true,
+    fallbackTolerance: 4,
+    delay: 220,
+    delayOnTouchOnly: true,
+    touchStartThreshold: 6,
+    scroll: true,
+    bubbleScroll: true,
+    scrollSensitivity: 90,
+    scrollSpeed: 18,
+    ghostClass: "sortable-ghost",
+    chosenClass: "sortable-chosen",
+};
+
 function initTaskBoardSortables() {
     // List custom Board - semua anggota boleh drag (aturan siapa boleh mindahin dari List Review,
     // wajib review sebelum Selesai, dst dicek server di TaskService::moveCardsAcrossLists() -
@@ -438,10 +458,7 @@ function initTaskBoardSortables() {
         const wireId = el.closest("[wire\\:id]")?.getAttribute("wire:id") ?? null;
         el._sortable = Sortable.create(el, {
             group: "task-board-lists-" + (wireId || "default"),
-            animation: 150,
-            delay: 150,
-            delayOnTouchOnly: true,
-            touchStartThreshold: 5,
+            ...taskSortableTouchOptions,
             filter: "button, select, input, a, .task-card-locked",
             preventOnFilter: false,
             onStart() {
@@ -486,11 +503,7 @@ function initTaskBoardSortables() {
         const wireId = el.closest("[wire\\:id]")?.getAttribute("wire:id") ?? null;
         el._sortable = Sortable.create(el, {
             group: "task-board-status-" + (wireId || "default"),
-            animation: 150,
-            // Touch: tahan sebentar baru drag, biar scroll vertikal di HP tidak ketimpa drag.
-            delay: 150,
-            delayOnTouchOnly: true,
-            touchStartThreshold: 5,
+            ...taskSortableTouchOptions,
             // Tombol/dropdown di dalam card tetap bisa diklik tanpa memicu drag.
             filter: "button, select, input, a",
             preventOnFilter: false,

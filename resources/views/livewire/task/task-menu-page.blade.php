@@ -9,6 +9,11 @@
     .task-menu-tile-label { font-size: 13.5px; font-weight: 700; color: var(--text-heading); }
     .task-menu-tile-count { position: absolute; top: 12px; right: 12px; display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 99px; font-size: 10.5px; font-weight: 800; background: #b45309; color: #fff; }
     .task-menu-divider { height: 1px; background: var(--border-soft); margin: 4px 0 22px; }
+    /* Tile Board: avatar anggota bertumpuk di bagian bawah (tumpang tindih, cincin warna latar tile). */
+    .task-menu-tile-board { min-height: 112px; }
+    .task-menu-avatars { display: flex; align-items: center; margin-top: auto; padding-left: 6px; }
+    .task-menu-avatars > * { margin-left: -6px; box-shadow: 0 0 0 2px var(--surface); }
+    .task-menu-avatars-more { display: inline-flex; align-items: center; justify-content: center; min-width: 24px; height: 24px; padding: 0 6px; border-radius: 99px; background: var(--border-soft); color: var(--text-muted); font-size: 10.5px; font-weight: 800; }
 
     /* Tile "Tugas" (Todo/Saya/Individu/Tim) - inline (icon + label sebaris, bukan icon di atas
        label kayak tile Board), border aksen kiri ikut warna icon masing-masing. Font lebih
@@ -105,9 +110,25 @@
 </div>
 <div class="task-menu-grid">
     @foreach ($this->myProjects as $project)
-        <a href="{{ route('tugas.papan.board', $project) }}" wire:navigate class="task-menu-tile">
+        @php
+            // Avatar anggota bertumpuk di bawah tile - dibatasi 6, sisanya "+N".
+            $memberUsers = $project->members->pluck('user')->filter();
+            $shownMembers = $memberUsers->take(6);
+            $moreMembers = $memberUsers->count() - $shownMembers->count();
+        @endphp
+        <a href="{{ route('tugas.papan.board', $project) }}" wire:navigate class="task-menu-tile task-menu-tile-board">
             <i class="fa-solid fa-diagram-project task-menu-tile-icon" style="color:{{ $project->color }};"></i>
             <span class="task-menu-tile-label">{{ $project->name }}</span>
+            @if ($shownMembers->isNotEmpty())
+                <span class="task-menu-avatars" title="{{ $memberUsers->count() }} anggota">
+                    @foreach ($shownMembers as $memberUser)
+                        <x-avatar :user="$memberUser" :size="24" />
+                    @endforeach
+                    @if ($moreMembers > 0)
+                        <span class="task-menu-avatars-more">+{{ $moreMembers }}</span>
+                    @endif
+                </span>
+            @endif
         </a>
     @endforeach
 </div>
