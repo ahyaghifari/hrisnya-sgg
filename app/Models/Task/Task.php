@@ -162,6 +162,11 @@ class Task extends Model
         return $this->hasMany(TaskChecklistItem::class, 'task_id')->orderBy('position')->orderBy('created_at');
     }
 
+    public function activities(): HasMany
+    {
+        return $this->hasMany(TaskActivity::class, 'task_id')->latest();
+    }
+
     public function comments(): HasMany
     {
         return $this->hasMany(TaskComment::class, 'task_id')->orderBy('created_at');

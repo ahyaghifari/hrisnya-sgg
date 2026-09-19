@@ -1137,7 +1137,14 @@
                                             <input type="checkbox" @if ($canToggleChecklist) wire:click="toggleChecklistItem('{{ $item->id }}')" @else disabled @endif @checked($item->is_done)>
                                             <span class="box"><i class="fa-solid fa-check"></i></span>
                                         </span>
-                                        <span style="{{ $item->is_done ? 'text-decoration:line-through;color:var(--text-muted);' : '' }}">{{ $item->title }}</span>
+                                        <span style="min-width:0;">
+                                            <span style="{{ $item->is_done ? 'text-decoration:line-through;color:var(--text-muted);' : '' }}">{{ $item->title }}</span>
+                                            @if ($item->is_done && $item->done_at)
+                                                <span style="display:block;font-size:11px;color:var(--text-faint);text-decoration:none;font-weight:400;">
+                                                    Selesai{{ $item->doneBy ? ' oleh '.($item->doneBy->profile?->nickname ?: $item->doneBy->name) : '' }} &middot; {{ $item->done_at->translatedFormat('j M Y, H:i') }}
+                                                </span>
+                                            @endif
+                                        </span>
                                     </label>
                                     @if ($canModifyItem($item))
                                         <button type="button" wire:click="startEditChecklistItem('{{ $item->id }}', @js($item->title))" style="background:none;border:none;color:var(--text-faint);cursor:pointer;padding:2px;" title="Ubah"><i class="fa-solid fa-pen" style="font-size:11px;"></i></button>
@@ -1230,6 +1237,33 @@
                             @endforelse
                         </div>
                     </div>
+                    @endunless
+
+                    {{-- Riwayat aktivitas: siapa melakukan apa & kapan (pindah List, status, ceklis, lampiran, rating). --}}
+                    @unless ($isPersonalNote)
+                        <div x-data="{ open: false }" style="margin-bottom:18px;padding-top:14px;border-top:1px solid var(--border-soft);">
+                            <button type="button" @click="open = ! open" style="display:flex;align-items:center;gap:8px;width:100%;background:none;border:none;padding:0;cursor:pointer;font-family:inherit;font-size:13px;font-weight:700;color:var(--text-muted);text-align:left;">
+                                <i class="fa-solid fa-clock-rotate-left" style="font-size:12px;"></i>
+                                <span>Riwayat aktivitas ({{ $task->activities->count() }})</span>
+                                <i class="fa-solid fa-chevron-down" :style="open && 'transform:rotate(180deg);'" style="font-size:10px;transition:transform 0.15s;margin-left:auto;"></i>
+                            </button>
+                            <div x-show="open" x-cloak style="margin-top:10px;">
+                                <div class="task-list-scroll" style="display:flex;flex-direction:column;gap:10px;max-height:260px;overflow-y:auto;overscroll-behavior:contain;padding-right:6px;">
+                                    @forelse ($task->activities->take(50) as $activity)
+                                        <div style="display:flex;gap:9px;font-size:12.5px;">
+                                            <span style="width:7px;height:7px;border-radius:50%;background:var(--border);margin-top:6px;flex-shrink:0;"></span>
+                                            <div style="min-width:0;">
+                                                <span style="font-weight:700;">{{ $activity->user?->profile?->nickname ?: ($activity->user?->name ?? 'Sistem') }}</span>
+                                                <span>{{ lcfirst($activity->description) }}</span>
+                                                <span style="display:block;font-size:11px;color:var(--text-faint);" title="{{ $activity->created_at->translatedFormat('j F Y, H:i:s') }}">{{ $activity->created_at->translatedFormat('j M Y, H:i') }} ({{ $activity->created_at->diffForHumans() }})</span>
+                                            </div>
+                                        </div>
+                                    @empty
+                                        <p style="font-size:12.5px;color:var(--text-muted);margin:0;">Belum ada aktivitas tercatat.</p>
+                                    @endforelse
+                                </div>
+                            </div>
+                        </div>
                     @endunless
                 </div>
 

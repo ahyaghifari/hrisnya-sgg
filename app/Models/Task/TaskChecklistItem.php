@@ -15,16 +15,24 @@ class TaskChecklistItem extends Model
         'created_by',
         'title',
         'is_done',
+        'done_at',
+        'done_by',
         'position',
     ];
 
     protected $casts = [
         'is_done' => 'boolean',
+        'done_at' => 'datetime',
     ];
 
     public function task(): BelongsTo
     {
         return $this->belongsTo(Task::class, 'task_id');
+    }
+
+    public function doneBy(): BelongsTo
+    {
+        return $this->belongsTo(\App\Models\User::class, 'done_by');
     }
 
     public function creator(): BelongsTo

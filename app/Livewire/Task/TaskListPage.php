@@ -473,7 +473,7 @@ class TaskListPage extends Component
             return null;
         }
 
-        return Task::with(['assignedTo', 'createdBy', 'reviewer', 'checklistItems', 'comments.user', 'attachments.uploadedBy', 'proofs', 'rejectionNoteBy'])
+        return Task::with(['assignedTo', 'createdBy', 'reviewer', 'checklistItems', 'comments.user', 'attachments.uploadedBy', 'activities.user.profile', 'checklistItems.doneBy', 'proofs', 'rejectionNoteBy'])
             ->find($this->selectedTaskId);
     }
 

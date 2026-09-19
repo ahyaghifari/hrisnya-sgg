@@ -141,6 +141,14 @@ class TaskService
                 User::find($assignedTo)?->notify(new TaskAssigned($task, $user->name));
             }
 
+            $this->logActivity(
+                $task,
+                $user,
+                'created',
+                'Membuat tugas' . ($project && $listId ? ' di List "' . ($project->lists()->find($listId)?->name ?? '-') . '"' : '')
+                    . ($assignedTo !== $user->id ? ' untuk ' . (User::find($assignedTo)?->name ?? '-') : '')
+            );
+
             return $task;
         });
     }
@@ -445,7 +453,16 @@ class TaskService
                         }
                     }
 
+                    $movedFromName = $task->list_id !== $listId ? ($task->list?->name ?? '-') : null;
+
                     $this->taskRepository->update($task->id, $updateData);
+
+                    if ($movedFromName !== null) {
+                        $this->logActivity($task, $actor, 'list_moved', 'Memindahkan dari List "' . $movedFromName . '" ke "' . $list->name . '"', [
+                            'from' => $task->list_id,
+                            'to' => $listId,
+                        ]);
+                    }
                 }
             }
         });
@@ -671,6 +688,19 @@ class TaskService
      */
     public function moveStatus(Task $task, string $newStatus, User $user): void
     {
+        $oldStatus = $task->status;
+
+        $this->applyMoveStatus($task, $newStatus, $user);
+
+        $current = Task::whereKey($task->id)->value('status');
+        if ($current !== $oldStatus) {
+            $label = fn (?string $s) => TaskStatus::tryFrom((string) $s)?->getLabel() ?? (string) $s;
+            $this->logActivity($task, $user, 'status_changed', 'Mengubah status dari "' . $label($oldStatus) . '" ke "' . $label($current) . '"');
+        }
+    }
+
+    private function applyMoveStatus(Task $task, string $newStatus, User $user): void
+    {
         abort_unless(
             $task->assigned_to === $user->id || $task->created_by === $user->id,
             403
@@ -765,7 +795,32 @@ class TaskService
         $task = $item->task;
         abort_unless($this->canContributeToTask($task, $user), 403, 'Cuma pelaksana, pembuat tugas, atau pembuat Board yang bisa ceklis checklist ini.');
 
-        $item->update(['is_done' => ! $item->is_done]);
+        $nowDone = ! $item->is_done;
+
+        // Catat kapan & siapa yang menyelesaikan; dikosongkan lagi kalau ceklisnya dibatalkan.
+        $item->update([
+            'is_done' => $nowDone,
+            'done_at' => $nowDone ? Carbon::now() : null,
+            'done_by' => $nowDone ? $user->id : null,
+        ]);
+
+        $this->logActivity(
+            $task,
+            $user,
+            $nowDone ? 'checklist_done' : 'checklist_undone',
+            ($nowDone ? 'Menyelesaikan' : 'Membatalkan') . ' ceklis "' . $item->title . '"'
+        );
+    }
+
+    /** Catat 1 baris aktivitas pada tugas (siapa, kapan, apa) - ditampilkan di modal detail. */
+    public function logActivity(Task $task, ?User $user, string $action, string $description, ?array $meta = null): void
+    {
+        $task->activities()->create([
+            'user_id' => $user?->id,
+            'action' => $action,
+            'description' => mb_substr($description, 0, 500),
+            'meta' => $meta,
+        ]);
     }
 
     /** Tambah item checklist ke task yang SUDAH ADA (beda dari checklist awal yang diisi pas
@@ -777,7 +832,10 @@ class TaskService
         abort_unless($this->canContributeToTask($task, $user), 403, 'Cuma pelaksana, pembuat tugas, atau pembuat Board yang bisa menambah checklist ini.');
         abort_if(trim($title) === '', 422, 'Judul checklist tidak boleh kosong.');
 
-        return $task->checklistItems()->create(['title' => trim($title), 'created_by' => $user->id]);
+        $item = $task->checklistItems()->create(['title' => trim($title), 'created_by' => $user->id]);
+        $this->logActivity($task, $user, 'checklist_added', 'Menambahkan ceklis "' . $item->title . '"');
+
+        return $item;
     }
 
     /** Pelaksana boleh edit/hapus checklist yang dia buat sendiri, tapi TIDAK boleh utak-atik
@@ -855,6 +913,8 @@ class TaskService
         abort_unless($rating >= 1 && $rating <= 5, 422, 'Rating harus 1-5.');
 
         $this->taskRepository->update($task->id, ['rating' => $rating]);
+
+        $this->logActivity($task, $user, 'rated', 'Memberi penilaian ' . $rating . '/5');
     }
 
     /** Task di dalam Project: semua anggota project boleh komentar (kolaboratif). Task pribadi:
@@ -909,6 +969,8 @@ class TaskService
             'description' => filled($description) ? trim($description) : null,
             'uploaded_by' => $user->id,
         ]);
+
+        $this->logActivity($task, $user, 'attachment_added', 'Mengunggah lampiran "' . $file->getClientOriginalName() . '"');
     }
 
     public function addLinkAttachment(Task $task, User $user, string $url, ?string $label, ?string $description = null): void
@@ -922,6 +984,8 @@ class TaskService
             'description' => filled($description) ? trim($description) : null,
             'uploaded_by' => $user->id,
         ]);
+
+        $this->logActivity($task, $user, 'attachment_added', 'Menambahkan link lampiran "' . ($label ?: $url) . '"');
     }
 
     public function removeAttachment(string $attachmentId, User $user): void
