@@ -263,7 +263,10 @@
                     <tr style="border-bottom:1.5px solid var(--border);">
                         @if ($this->canEditDetail)
                             <th style="text-align:center;padding:10px 14px;white-space:nowrap;">
-                                <input type="checkbox" wire:click="toggleSelectAllParticipants" @checked(count($selectedParticipantIds) > 0 && count($selectedParticipantIds) >= count($this->eligibleParticipantIds)) title="Pilih Semua">
+                                <label class="custom-checkbox" title="Pilih Semua">
+                                    <input type="checkbox" wire:click="toggleSelectAllParticipants" @checked(count($selectedParticipantIds) > 0 && count($selectedParticipantIds) >= count($this->eligibleParticipantIds))>
+                                    <span class="box"><i class="fa-solid fa-check"></i></span>
+                                </label>
                             </th>
                         @endif
                         <th style="text-align:left;padding:10px 14px;white-space:nowrap;">Nama Peserta</th>
@@ -277,7 +280,10 @@
                             @if ($this->canEditDetail)
                                 <td style="padding:9px 14px;text-align:center;">
                                     @if (in_array($participant->status, [CourseUserStatus::APPROVED->value, CourseUserStatus::IN_PROGRESS->value], true))
-                                        <input type="checkbox" wire:model.live="selectedParticipantIds" value="{{ $participant->id }}">
+                                        <label class="custom-checkbox">
+                                            <input type="checkbox" wire:model.live="selectedParticipantIds" value="{{ $participant->id }}">
+                                            <span class="box"><i class="fa-solid fa-check"></i></span>
+                                        </label>
                                     @endif
                                 </td>
                             @endif
