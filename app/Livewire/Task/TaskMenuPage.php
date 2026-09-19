@@ -37,21 +37,14 @@ class TaskMenuPage extends Component
         return app(TaskService::class)->countIncomplete(Auth::user(), 'saya');
     }
 
+    /**
+     * Semua board yang diikuti user, satu daftar - tidak dipisah personal/tim lagi (dihapus
+     * 2026-09-19, instruksi user: board solo-anggota bukan kategori terpisah, langsung gabung
+     * ke daftar Board biasa).
+     */
     public function getMyProjectsProperty()
     {
         return app(TaskService::class)->getMyProjects(Auth::user());
-    }
-
-    /** Board yang cuma dia sendiri (belum ada anggota lain) - "BoardMu". */
-    public function getPersonalBoardsProperty()
-    {
-        return $this->myProjects->where('members_count', '<=', 1)->values();
-    }
-
-    /** Board yang sudah ada anggota lain - "Tim/Project". */
-    public function getTeamBoardsProperty()
-    {
-        return $this->myProjects->where('members_count', '>', 1)->values();
     }
 
     public function getCompanyUsersProperty()

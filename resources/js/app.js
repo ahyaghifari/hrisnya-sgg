@@ -6,6 +6,15 @@ import List from "list.js";
 import Cropper from "cropperjs";
 import "cropperjs/dist/cropper.css";
 import { Chart, registerables } from "chart.js";
+import Sortable from "sortablejs";
+import confetti from "canvas-confetti";
+
+// Dipicu server (TaskListPage::moveTaskStatus) setelah tugas berhasil dipindah ke Selesai.
+window.addEventListener("task-completed", () => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+    confetti({ particleCount: 40, spread: 70, startVelocity: 35, scalar: 0.8, origin: { y: 0.7 }, zIndex: 10001 });
+});
 
 Chart.register(...registerables);
 
@@ -410,4 +419,90 @@ document.addEventListener("livewire:init", () => {
     // tidak pernah lewat DOMContentLoaded/livewire:navigated — initListTables sudah guard
     // listInstances.has(el.id) jadi aman dipanggil berkali-kali.
     Livewire.hook("morph.added", () => initListTables());
+
+    // Board Tugas: drag-and-drop card. Kontainer [data-status-list] pakai wire:ignore.self
+    // supaya SortableJS bebas manipulasi DOM kontainer, tapi card di dalamnya tetap di-morph
+    // normal - itu yang bikin card "bounce back" kalau moveTaskStatus() nolak drag ilegal.
+    Livewire.hook("morphed", () => initTaskBoardSortables());
 });
+document.addEventListener("livewire:navigated", initTaskBoardSortables);
+
+function initTaskBoardSortables() {
+    // List custom Board - semua anggota boleh drag (aturan siapa boleh mindahin dari List Review,
+    // wajib review sebelum Selesai, dst dicek server di TaskService::moveCardsAcrossLists() -
+    // drag yang ditolak balik ke posisi asal lewat morph berikutnya). Satu grup per komponen
+    // Livewire biar card nggak nyasar antar Board.
+    document.querySelectorAll("[data-list-id]").forEach((el) => {
+        if (el._sortable) return;
+
+        const wireId = el.closest("[wire\\:id]")?.getAttribute("wire:id") ?? null;
+        el._sortable = Sortable.create(el, {
+            group: "task-board-lists-" + (wireId || "default"),
+            animation: 150,
+            delay: 150,
+            delayOnTouchOnly: true,
+            touchStartThreshold: 5,
+            filter: "button, select, input, a, .task-card-locked",
+            preventOnFilter: false,
+            onStart() {
+                window.taskDragging = true;
+            },
+            onEnd(evt) {
+                window.taskDragging = false;
+                if (!wireId) return;
+
+                const cards = (list) => Array.from(list.children).filter((c) => c.dataset.taskId).map((c) => c.dataset.taskId);
+
+                // Drop ke List Selesai wajib konfirmasi - batal = kartu balik ke posisi asal.
+                if (evt.to !== evt.from && evt.to.dataset.listFinal === "1" && !confirm("Apakah tugas ini sudah selesai?")) {
+                    evt.from.insertBefore(evt.item, evt.from.children[evt.oldIndex] ?? null);
+                    return;
+                }
+
+                const payload = {};
+                payload[evt.from.dataset.listId] = cards(evt.from);
+                if (evt.to !== evt.from) {
+                    payload[evt.to.dataset.listId] = cards(evt.to);
+                }
+
+                Livewire.find(wireId).call("moveCardsAcrossLists", payload, evt.item.dataset.taskId);
+            },
+        });
+    });
+
+    // Drag cuma opsi TAMBAHAN, tombol/dropdown status yang ada tetap dipertahankan. Drag yang
+    // melanggar aturan moveStatus() (loncat step, bukan assignee/creator) balik ke kolom asal
+    // lewat morph berikutnya - tidak ada revert manual di sini. Sementara baru dipasang di
+    // Todo Saya (cuma di sana kontainer-nya dikasih data-status-list).
+    document.querySelectorAll("[data-status-list]").forEach((el) => {
+        if (el._sortable) return;
+
+        const wireId = el.closest("[wire\\:id]")?.getAttribute("wire:id") ?? null;
+        el._sortable = Sortable.create(el, {
+            group: "task-board-status-" + (wireId || "default"),
+            animation: 150,
+            // Touch: tahan sebentar baru drag, biar scroll vertikal di HP tidak ketimpa drag.
+            delay: 150,
+            delayOnTouchOnly: true,
+            touchStartThreshold: 5,
+            // Tombol/dropdown di dalam card tetap bisa diklik tanpa memicu drag.
+            filter: "button, select, input, a",
+            preventOnFilter: false,
+            onStart() {
+                window.taskDragging = true;
+            },
+            onEnd(evt) {
+                window.taskDragging = false;
+                if (!wireId || evt.from === evt.to) return;
+
+                // Pindah ke Selesai wajib konfirmasi - kalau batal, kartu dikembalikan ke posisi asal.
+                if (evt.to.dataset.statusList === "complete" && !confirm("Apakah tugas ini sudah selesai?")) {
+                    evt.from.insertBefore(evt.item, evt.from.children[evt.oldIndex] ?? null);
+                    return;
+                }
+
+                Livewire.find(wireId).call("moveTaskStatus", evt.item.dataset.taskId, evt.to.dataset.statusList);
+            },
+        });
+    });
+}
