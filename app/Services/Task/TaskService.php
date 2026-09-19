@@ -508,6 +508,7 @@ class TaskService
         return TaskProject::whereHas('members', fn ($q) => $q->where('user_id', $user->id))
             ->whereNull('archived_at')
             ->withCount('members')
+            ->with('members.user.profile')
             ->orderBy('name')
             ->get();
     }
@@ -849,6 +850,7 @@ class TaskService
         abort_unless($allowedRaterId === $user->id, 403, 'Kamu tidak berhak kasih rating untuk tugas ini.');
         abort_if($task->assigned_to === $user->id, 422, 'Tidak bisa menilai tugas yang kamu kerjakan sendiri.');
         abort_unless($task->status === TaskStatus::COMPLETE->value, 422, 'Tugas belum selesai.');
+        abort_unless($task->reviewer_id !== null || $task->needs_review, 422, 'Tugas ini tidak memakai penilaian (tanpa reviewer dan tidak wajib review).');
         abort_unless($rating >= 1 && $rating <= 5, 422, 'Rating harus 1-5.');
 
         $this->taskRepository->update($task->id, ['rating' => $rating]);
@@ -883,6 +885,12 @@ class TaskService
     public function addFileAttachment(Task $task, User $user, UploadedFile $file, ?string $description = null): void
     {
         abort_unless($this->canContributeToTask($task, $user), 403, 'Cuma pelaksana, pembuat tugas, atau pembuat Board yang bisa menambah lampiran.');
+
+        abort_if(
+            TaskAttachment::isPdf($file) && $file->getSize() > TaskAttachment::PDF_MAX_BYTES,
+            422,
+            'Ukuran file PDF maksimal 2 MB.'
+        );
 
         // Gambar (jpg/png/webp) otomatis diperkecil & dikompres sebelum disimpan; file lain apa adanya.
         $compressed = \App\Support\ImageCompressor::compress($file);

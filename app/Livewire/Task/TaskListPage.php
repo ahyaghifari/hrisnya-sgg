@@ -458,7 +458,7 @@ class TaskListPage extends Component
             return null;
         }
 
-        return Task::with(['assignedTo', 'createdBy', 'reviewer', 'checklistItems', 'comments.user', 'attachments', 'proofs', 'rejectionNoteBy'])
+        return Task::with(['assignedTo', 'createdBy', 'reviewer', 'checklistItems', 'comments.user', 'attachments.uploadedBy', 'proofs', 'rejectionNoteBy'])
             ->find($this->selectedTaskId);
     }
 
@@ -561,7 +561,19 @@ class TaskListPage extends Component
             return;
         }
 
-        $this->validate(['newAttachmentFile' => ['file', 'max:10240'], 'newAttachmentDescription' => ['nullable', 'string', 'max:255']]);
+        $this->validate([
+            'newAttachmentFile' => [
+                'file',
+                'max:10240',
+                // PDF tidak dikompres otomatis seperti foto, jadi dibatasi lebih kecil.
+                function (string $attribute, $value, \Closure $fail) {
+                    if (\App\Models\Task\TaskAttachment::isPdf($value) && $value->getSize() > \App\Models\Task\TaskAttachment::PDF_MAX_BYTES) {
+                        $fail('Ukuran file PDF maksimal 2 MB.');
+                    }
+                },
+            ],
+            'newAttachmentDescription' => ['nullable', 'string', 'max:255'],
+        ]);
 
         try {
             app(TaskService::class)->addFileAttachment($this->selectedTask, Auth::user(), $this->newAttachmentFile, $this->newAttachmentDescription ?: null);

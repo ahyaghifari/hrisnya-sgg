@@ -48,6 +48,10 @@
     [data-status-list] .task-card, [data-list-id] .task-card:not(.task-card-locked) { cursor: grab; }
     [data-status-list] .task-card:active, [data-list-id] .task-card:not(.task-card-locked):active, .task-card.sortable-chosen { cursor: grabbing; }
     .task-card.sortable-ghost { opacity: 0.4; }
+    /* Kartu yang bisa di-drag: cegah seleksi teks/menu tekan-lama bawaan HP saat kartu ditahan, dan
+    salinan yang ikut jari (ghost, ditempel di body) dibuat jelas terlihat di atas segalanya. */
+    [data-status-list] .task-card:not(.task-card-locked), [data-list-id] .task-card:not(.task-card-locked) { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; touch-action: manipulation; }
+    .task-card.sortable-fallback { opacity: 0.95 !important; box-shadow: 0 14px 30px rgba(15,23,42,0.35); transform-origin: center; z-index: 10005 !important; pointer-events: none; }
     .task-card:hover { box-shadow: 0 8px 20px rgba(15,23,42,0.12); transform: translateY(-1px); }
     html.dark .task-card:hover { box-shadow: 0 8px 20px rgba(0,0,0,0.35); }
     .task-card-top { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 7px; }
@@ -187,6 +191,10 @@
     .task-card-move-menu { position: absolute; right: 0; bottom: calc(100% + 6px); z-index: 30; min-width: 150px; padding: 6px; border-radius: 12px; background: var(--surface); border: 1px solid var(--border); box-shadow: 0 8px 24px rgba(15,23,42,0.18); display: flex; flex-direction: column; }
     .task-card-move-menu button { border: none; background: none; text-align: left; padding: 7px 10px; border-radius: 8px; font-family: inherit; font-size: 12px; font-weight: 600; color: var(--text-heading); cursor: pointer; white-space: nowrap; }
     .task-card-move-menu button:hover { background: var(--surface-alt); }
+    .task-lightbox { position: fixed; inset: 0; z-index: 10000; display: flex; align-items: center; justify-content: center; padding: 24px; background: rgba(0,0,0,0.88); }
+    .task-lightbox img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 8px; box-shadow: 0 10px 40px rgba(0,0,0,0.5); }
+    .task-lightbox-close { position: absolute; top: 14px; right: 14px; width: 38px; height: 38px; border: none; border-radius: 50%; background: rgba(255,255,255,0.16); color: #fff; font-size: 16px; cursor: pointer; }
+    .task-lightbox-close:hover { background: rgba(255,255,255,0.28); }
     .task-list-add-btn { position: relative; z-index: 1; display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; margin-top: 10px; padding: 9px 12px; border: 1.5px dashed rgba(255,255,255,0.55); border-radius: 12px; background: rgba(255,255,255,0.12); color: #fff; font-family: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer; transition: background 0.15s ease; }
     .task-list-add-btn:hover { background: rgba(255,255,255,0.24); }
     .task-hero-deco-clip { position: absolute; inset: 0; overflow: hidden; border-radius: inherit; pointer-events: none; }
@@ -1160,6 +1168,7 @@
 
                         <div x-show="showAddAttachment && @js($canToggleChecklist)" x-cloak style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:14px;padding:12px;background:var(--surface-alt);border-radius:10px;">
                             <input type="text" class="form-input" style="width:100%;font-size:12px;padding:6px 8px;" wire:model="newAttachmentDescription" maxlength="255" placeholder="Keterangan lampiran (opsional) - berlaku untuk file maupun link">
+                            <p style="width:100%;font-size:11px;color:var(--text-muted);margin:0;">Foto dikompres otomatis. PDF maksimal 2 MB, file lain maksimal 10 MB.</p>
                             @error('newAttachmentDescription') <p style="width:100%;font-size:11px;color:var(--danger-text);margin:0;">{{ $message }}</p> @enderror
                             <input type="file" wire:model="newAttachmentFile" style="font-size:11.5px;max-width:180px;">
                             <button type="button" wire:click="uploadFileAttachment" wire:loading.attr="disabled" wire:target="newAttachmentFile,uploadFileAttachment" class="btn-ghost" style="padding:5px 10px;font-size:11.5px;">Unggah</button>
@@ -1183,8 +1192,10 @@
                                 <div x-data="{ open: false }" style="display:flex;align-items:center;gap:12px;padding:8px;border-radius:10px;background:var(--surface-alt);">
                                     @if ($isImage)
                                         <img src="{{ $attachment->file_url }}" @click="open = true" style="width:48px;height:48px;object-fit:cover;border-radius:8px;cursor:pointer;flex-shrink:0;" alt="{{ $attachment->file_name }}">
-                                        <div x-show="open" x-cloak @click="open = false" style="position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:10000;display:flex;align-items:center;justify-content:center;padding:24px;">
-                                            <img src="{{ $attachment->file_url }}" style="max-width:90vw;max-height:90vh;border-radius:8px;object-fit:contain;" @click.stop alt="{{ $attachment->file_name }}">
+                                        {{-- Lightbox: layout (flex tengah) di CSS class, bukan inline style - x-show membuang display inline saat tampil, bikin gambar nggak di tengah. --}}
+                                        <div x-show="open" x-cloak x-transition.opacity.duration.150ms @click="open = false" @keydown.escape.window="open = false" class="task-lightbox">
+                                            <button type="button" @click.stop="open = false" class="task-lightbox-close" aria-label="Tutup"><i class="fa-solid fa-xmark"></i></button>
+                                            <img src="{{ $attachment->file_url }}" @click.stop alt="{{ $attachment->file_name }}">
                                         </div>
                                     @else
                                         <span style="width:48px;height:48px;flex-shrink:0;border-radius:8px;background:var(--border-soft);color:var(--text-muted);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">{{ $ext }}</span>
@@ -1199,7 +1210,12 @@
                                         @if (filled($attachment->description))
                                             <p style="font-size:12.5px;color:var(--text-body);margin:2px 0 2px;white-space:pre-line;word-break:break-word;">{{ $attachment->description }}</p>
                                         @endif
-                                        <span style="font-size:11.5px;color:var(--text-muted);">Ditambahkan {{ $attachment->created_at->diffForHumans() }}</span>
+                                        <span style="display:block;font-size:11.5px;color:var(--text-muted);" title="{{ $attachment->created_at->translatedFormat('j F Y, H:i') }}">
+                                            <i class="fa-solid fa-user-pen" style="font-size:10px;"></i>
+                                            {{ $attachment->uploadedBy?->profile?->nickname ?: ($attachment->uploadedBy?->name ?? 'Pengguna dihapus') }}
+                                            &middot; {{ $attachment->created_at->translatedFormat('j M Y, H:i') }}
+                                            <span style="color:var(--text-faint);">({{ $attachment->created_at->diffForHumans() }})</span>
+                                        </span>
                                     </div>
 
                                     @unless ($attachment->isLink())
@@ -1254,13 +1270,27 @@
 
 @if ($showMembersModal && $this->activeProject)
     <div class="modal-overlay" wire:click="closeMembersModal">
-        <div class="modal-box" style="height:90vh;max-height:90vh;display:flex;flex-direction:column;" onclick="event.stopPropagation()">
+        <div class="modal-box" style="max-height:80vh;display:flex;flex-direction:column;" onclick="event.stopPropagation()">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-shrink:0;">
                 <h3 style="font-size:16px;font-weight:700;color:var(--text-heading);margin:0;">Anggota {{ $this->activeProject->name }}</h3>
                 <button type="button" wire:click="closeMembersModal" class="btn-ghost" style="padding:4px 8px;"><i class="fa-solid fa-xmark"></i></button>
             </div>
 
-            <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px;flex:1;overflow-y:auto;min-height:0;">
+            @if ($this->canManageProjectMembers)
+                <div style="display:flex;gap:6px;align-items:flex-start;flex-shrink:0;margin-bottom:12px;">
+                    <div wire:ignore style="flex:1;">
+                        <select data-tom-select data-placeholder="-- Pilih orang --" wire:model="newProjectMemberId">
+                            <option value=""></option>
+                            @foreach ($this->companyUsers as $user)
+                                <option value="{{ $user->id }}">{{ $user->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <button type="button" wire:click="addProjectMember" class="btn-primary btn-sm">Tambah</button>
+                </div>
+            @endif
+
+            <div class="task-list-scroll" style="display:flex;flex-direction:column;gap:8px;max-height:min(320px, 50vh);overflow-y:auto;overscroll-behavior:contain;padding-right:6px;">
                 @foreach ($this->projectMembers as $member)
                     <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
                         <div style="display:flex;align-items:center;gap:8px;">
@@ -1287,19 +1317,6 @@
                 @endforeach
             </div>
 
-            @if ($this->canManageProjectMembers)
-                <div style="display:flex;gap:6px;align-items:flex-start;flex-shrink:0;">
-                    <div wire:ignore style="flex:1;">
-                        <select data-tom-select data-placeholder="-- Pilih orang --" wire:model="newProjectMemberId">
-                            <option value=""></option>
-                            @foreach ($this->companyUsers as $user)
-                                <option value="{{ $user->id }}">{{ $user->name }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <button type="button" wire:click="addProjectMember" class="btn-primary btn-sm">Tambah</button>
-                </div>
-            @endif
         </div>
     </div>
 @endif

@@ -15,6 +15,14 @@ class TaskAttachment extends Model
     public const TYPE_FILE = 'file';
     public const TYPE_LINK = 'link';
 
+    /** Batas ukuran lampiran PDF (2 MB) - foto dikompres otomatis, PDF tidak, jadi dibatasi. */
+    public const PDF_MAX_BYTES = 2 * 1024 * 1024;
+
+    public static function isPdf(\Illuminate\Http\UploadedFile $file): bool
+    {
+        return $file->getMimeType() === 'application/pdf' || strtolower($file->getClientOriginalExtension()) === 'pdf';
+    }
+
     protected $fillable = [
         'task_id',
         'type',

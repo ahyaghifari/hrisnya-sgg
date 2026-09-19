@@ -170,7 +170,8 @@ class Task extends Model
     /**
      * Apakah $userId WAJIB memberi rating bintang untuk tugas ini: tugas sudah Selesai, belum dinilai,
      * bukan catatan pribadi (Todo Saya), dan dia penilainya (reviewer ?? pembuat tugas) - tapi bukan
-     * pelaksananya sendiri (menilai diri sendiri tidak ada artinya).
+     * pelaksananya sendiri (menilai diri sendiri tidak ada artinya). Tugas tanpa reviewer dan tidak
+     * wajib review langsung selesai begitu Selesai - tanpa penilaian bintang.
      */
     public function requiresRatingFrom(?string $userId): bool
     {
@@ -179,6 +180,7 @@ class Task extends Model
         return $userId !== null
             && $this->status === TaskStatus::COMPLETE->value
             && ! $this->rating
+            && ($this->reviewer_id !== null || $this->needs_review)
             && ! ($this->is_self_assigned && ! $this->project_id)
             && $raterId === $userId
             && $raterId !== $this->assigned_to;
