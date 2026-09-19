@@ -992,7 +992,15 @@
                     @endif
 
                     @unless ($isPersonalNote)
-                        <div style="display:flex;align-items:center;gap:18px;flex-wrap:wrap;margin-bottom:18px;padding:10px 12px;background:var(--surface-alt);border-radius:10px;font-size:12.5px;">
+                        {{-- Pembuat, pelaksana & reviewer: ringkas (collapse) dulu supaya modal nggak terlalu penuh. --}}
+                        <div x-data="{ open: false }" style="margin-bottom:18px;">
+                            <button type="button" @click="open = ! open" style="display:flex;align-items:center;gap:8px;width:100%;background:none;border:none;padding:0;cursor:pointer;font-family:inherit;font-size:12.5px;font-weight:700;color:var(--text-muted);text-align:left;">
+                                <i class="fa-solid fa-users" style="font-size:11px;"></i>
+                                <span>Pembuat, pelaksana &amp; reviewer</span>
+                                <i class="fa-solid fa-chevron-down" :style="open && 'transform:rotate(180deg);'" style="font-size:10px;transition:transform 0.15s;margin-left:auto;"></i>
+                            </button>
+                            <div x-show="open" x-cloak style="margin-top:8px;">
+                            <div style="display:flex;align-items:center;gap:18px;flex-wrap:wrap;padding:10px 12px;background:var(--surface-alt);border-radius:10px;font-size:12.5px;">
                             <div style="display:flex;align-items:center;gap:7px;">
                                 <x-avatar :user="$task->createdBy" :size="20" />
                                 <span><span style="color:var(--text-muted);">Dibuat</span> {{ $task->createdBy?->name ?? '-' }}</span>
@@ -1009,6 +1017,8 @@
                                     <span><span style="color:var(--text-muted);">Reviewer</span> {{ $task->reviewer?->name }}</span>
                                 </div>
                             @endif
+                            </div>
+                        </div>
                         </div>
 
                         @if ($task->status === \App\Enum\Task\TaskStatus::REVIEW->value)
@@ -1133,6 +1143,8 @@
                         </div>
 
                         <div x-show="showAddAttachment && @js($canToggleChecklist)" x-cloak style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:14px;padding:12px;background:var(--surface-alt);border-radius:10px;">
+                            <input type="text" class="form-input" style="width:100%;font-size:12px;padding:6px 8px;" wire:model="newAttachmentDescription" maxlength="255" placeholder="Keterangan lampiran (opsional) - berlaku untuk file maupun link">
+                            @error('newAttachmentDescription') <p style="width:100%;font-size:11px;color:var(--danger-text);margin:0;">{{ $message }}</p> @enderror
                             <input type="file" wire:model="newAttachmentFile" style="font-size:11.5px;max-width:180px;">
                             <button type="button" wire:click="uploadFileAttachment" wire:loading.attr="disabled" wire:target="newAttachmentFile,uploadFileAttachment" class="btn-ghost" style="padding:5px 10px;font-size:11.5px;">Unggah</button>
                             <input type="url" class="form-input" style="max-width:180px;font-size:11.5px;padding:6px 8px;" wire:model="newAttachmentLink" placeholder="https://...">
@@ -1168,6 +1180,9 @@
                                         @else
                                             <a href="{{ $attachment->file_url }}" target="_blank" rel="noopener" style="display:block;font-size:13.5px;font-weight:600;color:var(--text-heading);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ $attachment->file_name ?? 'File' }}</a>
                                         @endif
+                                        @if (filled($attachment->description))
+                                            <p style="font-size:12.5px;color:var(--text-body);margin:2px 0 2px;white-space:pre-line;word-break:break-word;">{{ $attachment->description }}</p>
+                                        @endif
                                         <span style="font-size:11.5px;color:var(--text-muted);">Ditambahkan {{ $attachment->created_at->diffForHumans() }}</span>
                                     </div>
 
@@ -1194,7 +1209,7 @@
                             <input type="text" class="form-input" style="font-size:13.5px;" wire:model="newComment" wire:keydown.enter.prevent="addComment('{{ $task->id }}')" placeholder="Tulis komentar...">
                             <button type="button" wire:click="addComment('{{ $task->id }}')" class="btn-primary" style="font-size:13.5px;padding:8px 14px;">Kirim</button>
                         </div>
-                        <div style="display:flex;flex-direction:column;gap:14px;max-height:420px;overflow-y:auto;">
+                        <div class="task-list-scroll" style="display:flex;flex-direction:column;gap:14px;max-height:320px;overflow-y:auto;overscroll-behavior:contain;padding-right:6px;">
                             @forelse ($task->comments as $comment)
                                 <div style="display:flex;gap:9px;font-size:13.5px;">
                                     <x-avatar :user="$comment->user" :size="26" />

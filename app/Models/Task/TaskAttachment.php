@@ -20,6 +20,7 @@ class TaskAttachment extends Model
         'type',
         'file_path',
         'file_name',
+        'description',
         'url',
         'uploaded_by',
     ];

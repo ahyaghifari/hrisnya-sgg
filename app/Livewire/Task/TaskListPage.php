@@ -81,6 +81,7 @@ class TaskListPage extends Component
     public $newAttachmentFile = null;
     public string $newAttachmentLink = '';
     public string $newAttachmentLinkLabel = '';
+    public string $newAttachmentDescription = ''; // keterangan lampiran (opsional), berlaku untuk file maupun link
 
     // Modal "Kelola Anggota"
     public bool $showMembersModal = false;
@@ -560,11 +561,11 @@ class TaskListPage extends Component
             return;
         }
 
-        $this->validate(['newAttachmentFile' => ['file', 'max:10240']]);
+        $this->validate(['newAttachmentFile' => ['file', 'max:10240'], 'newAttachmentDescription' => ['nullable', 'string', 'max:255']]);
 
         try {
-            app(TaskService::class)->addFileAttachment($this->selectedTask, Auth::user(), $this->newAttachmentFile);
-            $this->reset(['newAttachmentFile']);
+            app(TaskService::class)->addFileAttachment($this->selectedTask, Auth::user(), $this->newAttachmentFile, $this->newAttachmentDescription ?: null);
+            $this->reset(['newAttachmentFile', 'newAttachmentDescription']);
         } catch (\Throwable $e) {
             Notification::make()->title($e->getMessage() ?: 'Tidak bisa menambah lampiran')->danger()->send();
         }
@@ -578,11 +579,11 @@ class TaskListPage extends Component
             return;
         }
 
-        $this->validate(['newAttachmentLink' => ['url']]);
+        $this->validate(['newAttachmentLink' => ['url'], 'newAttachmentDescription' => ['nullable', 'string', 'max:255']]);
 
         try {
-            app(TaskService::class)->addLinkAttachment($this->selectedTask, Auth::user(), $this->newAttachmentLink, $this->newAttachmentLinkLabel ?: null);
-            $this->reset(['newAttachmentLink', 'newAttachmentLinkLabel']);
+            app(TaskService::class)->addLinkAttachment($this->selectedTask, Auth::user(), $this->newAttachmentLink, $this->newAttachmentLinkLabel ?: null, $this->newAttachmentDescription ?: null);
+            $this->reset(['newAttachmentLink', 'newAttachmentLinkLabel', 'newAttachmentDescription']);
         } catch (\Throwable $e) {
             Notification::make()->title($e->getMessage() ?: 'Tidak bisa menambah lampiran')->danger()->send();
         }

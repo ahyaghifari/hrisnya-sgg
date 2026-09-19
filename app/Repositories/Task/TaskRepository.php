@@ -69,6 +69,7 @@ class TaskRepository
             'type' => $data['type'] ?? TaskAttachment::TYPE_FILE,
             'file_path' => $data['file_path'] ?? null,
             'file_name' => $data['file_name'] ?? null,
+            'description' => $data['description'] ?? null,
             'url' => $data['url'] ?? null,
             'uploaded_by' => $data['uploaded_by'] ?? null,
         ]);

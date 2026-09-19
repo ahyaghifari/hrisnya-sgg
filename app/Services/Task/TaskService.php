@@ -880,21 +880,29 @@ class TaskService
         }
     }
 
-    public function addFileAttachment(Task $task, User $user, UploadedFile $file): void
+    public function addFileAttachment(Task $task, User $user, UploadedFile $file, ?string $description = null): void
     {
         abort_unless($this->canContributeToTask($task, $user), 403, 'Cuma pelaksana, pembuat tugas, atau pembuat Board yang bisa menambah lampiran.');
 
-        $path = $file->store('tasks/attachments', 'public');
+        // Gambar (jpg/png/webp) otomatis diperkecil & dikompres sebelum disimpan; file lain apa adanya.
+        $compressed = \App\Support\ImageCompressor::compress($file);
+        if ($compressed) {
+            $path = 'tasks/attachments/' . \Illuminate\Support\Str::random(40) . '.' . $compressed['extension'];
+            \Illuminate\Support\Facades\Storage::disk('public')->put($path, $compressed['binary']);
+        } else {
+            $path = $file->store('tasks/attachments', 'public');
+        }
 
         $this->taskRepository->addAttachment($task->id, [
             'type' => TaskAttachment::TYPE_FILE,
             'file_path' => $path,
             'file_name' => $file->getClientOriginalName(),
+            'description' => filled($description) ? trim($description) : null,
             'uploaded_by' => $user->id,
         ]);
     }
 
-    public function addLinkAttachment(Task $task, User $user, string $url, ?string $label): void
+    public function addLinkAttachment(Task $task, User $user, string $url, ?string $label, ?string $description = null): void
     {
         abort_unless($this->canContributeToTask($task, $user), 403, 'Cuma pelaksana, pembuat tugas, atau pembuat Board yang bisa menambah lampiran.');
 
@@ -902,6 +910,7 @@ class TaskService
             'type' => TaskAttachment::TYPE_LINK,
             'url' => $url,
             'file_name' => $label ?: $url,
+            'description' => filled($description) ? trim($description) : null,
             'uploaded_by' => $user->id,
         ]);
     }
