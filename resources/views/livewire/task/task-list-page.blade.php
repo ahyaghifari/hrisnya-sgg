@@ -252,6 +252,22 @@
             border-radius: 0;
         }
         .task-detail-body { flex-direction: column !important; gap: 20px !important; }
+        /* Modal buat/detail tugas di HP: font & komponen diperkecil (versi desktop kebesaran di layar sempit). */
+        .task-detail-modal-wide, .task-create-modal-wide { padding: 16px 14px; }
+        .task-detail-modal-wide h3 { font-size: 16px !important; line-height: 1.3 !important; }
+        .task-create-modal-wide h3 { font-size: 15px !important; }
+        .task-detail-modal-wide h4 { font-size: 13.5px !important; }
+        .task-detail-modal-wide p, .task-detail-modal-wide label,
+        .task-detail-modal-wide [style*="font-size:15px"], .task-detail-modal-wide [style*="font-size:14.5px"],
+        .task-detail-modal-wide [style*="font-size:14px"], .task-detail-modal-wide [style*="font-size:13.5px"] { font-size: 12.5px !important; }
+        .task-detail-modal-wide .form-input, .task-create-modal-wide .form-input { font-size: 12.5px !important; padding: 7px 10px !important; }
+        .task-detail-modal-wide .btn-ghost, .task-detail-modal-wide .btn-primary, .task-detail-modal-wide .btn-secondary,
+        .task-create-modal-wide .btn-ghost, .task-create-modal-wide .btn-primary { font-size: 12px !important; padding: 6px 12px !important; border-radius: 9px !important; }
+        .task-detail-modal-wide .btn-ghost[title], .task-detail-modal-wide .btn-ghost[aria-label] { padding: 5px 9px !important; }
+        .task-detail-modal-wide .badge { font-size: 10.5px !important; padding: 2px 8px !important; }
+        .task-detail-modal-wide .task-checklist-checkbox.custom-checkbox { width: 18px; height: 18px; }
+        .task-detail-modal-wide .task-checklist-checkbox .box i { font-size: 10px; }
+        .task-detail-modal-wide .task-detail-body { font-size: 12.5px; }
         .task-detail-comments {
             flex: 1 1 auto !important;
             border-left: none !important;
