@@ -574,7 +574,47 @@ class PendingApprovalsCard extends Component
             }
         }
 
-        $requests = $attendanceRequests->concat($transitions)->concat($courseEnrollments)->concat($trainingRequests)->concat($jabatanKuota)->concat($manpowerRequests)->concat($shiftSwapRequests)->concat($sikartapRequests)->concat($orientationRequests)->concat($contractRequests)->concat($presentationApprovals)->concat($ideInovasiDirektur)->sortByDesc('created_at')->values();
+        // Tugas yang menunggu penilaian SAYA (reviewer, atau pembuat tugas kalau tanpa reviewer) -
+        // review tugas tidak lewat alur approval formal, jadi tidak bulk-approve; klik baris
+        // membuka Board-nya (atau Penugasan Individu untuk tugas di luar Board).
+        $taskReviews = collect();
+        if ($this->wants('task_review')) {
+            $me = Auth::id();
+
+            $taskReviews = \App\Models\Task\Task::with(['assignedTo', 'list'])
+                ->where('status', \App\Enum\Task\TaskStatus::REVIEW->value)
+                ->where(function ($q) use ($me) {
+                    $q->where('reviewer_id', $me)
+                        ->orWhere(fn ($q2) => $q2->whereNull('reviewer_id')->where('created_by', $me));
+                })
+                ->where(function ($q) {
+                    $q->whereNull('project_id')
+                        ->orWhereHas('project', fn ($p) => $p->whereNull('archived_at'));
+                })
+                ->whereHas('assignedTo')
+                ->latest('updated_at')
+                ->get()
+                ->map(fn ($task) => (object) [
+                    'id' => $task->id,
+                    'dispatch' => 'task_review',
+                    'bulk_supported' => false,
+                    'module' => 'task_review',
+                    'badge' => 'yellow',
+                    'label' => 'Review Tugas',
+                    'icon' => 'fa-clipboard-check',
+                    'tile' => 'warn',
+                    'keterangan' => \Illuminate\Support\Str::limit($task->requirement, 60),
+                    'user_name' => $task->assignedTo->name,
+                    'created_at' => $task->updated_at,
+                    'url' => $task->project_id
+                        ? route('tugas.papan.board', $task->project_id)
+                        : route('tugas.papan', 'individu'),
+                    'modal' => false,
+                    'external' => false,
+                ]);
+        }
+
+        $requests = $attendanceRequests->concat($taskReviews)->concat($transitions)->concat($courseEnrollments)->concat($trainingRequests)->concat($jabatanKuota)->concat($manpowerRequests)->concat($shiftSwapRequests)->concat($sikartapRequests)->concat($orientationRequests)->concat($contractRequests)->concat($presentationApprovals)->concat($ideInovasiDirektur)->sortByDesc('created_at')->values();
 
         foreach ($requests as $request) {
             $request->key = $request->dispatch . ':' . $request->id;
