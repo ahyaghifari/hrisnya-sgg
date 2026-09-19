@@ -41,6 +41,9 @@ enum CustomPermissionEnum: string
     case SISTEM_MCU = 'sistem_mcu';
 
     case TUGAS_SAYA = 'tugas_saya';
+
+    /** Boleh membuat Board baru di modul Tugas (tombol "Board Baru") - anggota Board lain tidak terpengaruh. */
+    case BUAT_BOARD_TUGAS = 'buat_board_tugas';
     case PELATIHAN_SAYA = 'pelatihan_saya';
     case AJUKAN_PELATIHAN = 'ajukan_pelatihan';
     case PENGAJUAN_ABSENSI_SAYA = 'pengajuan_absensi_saya';
@@ -304,6 +307,7 @@ enum CustomPermissionEnum: string
             self::SISTEM_REKRUTMEN => 'Sistem Rekrutmen',
             self::SISTEM_MCU => 'Sistem MCU',
             self::TUGAS_SAYA => 'Tugas Saya',
+            self::BUAT_BOARD_TUGAS => 'Buat Board Tugas',
             self::PELATIHAN_SAYA => 'Pelatihan Saya',
             self::AJUKAN_PELATIHAN => 'Ajukan Pelatihan (Eksternal)',
             self::PENGAJUAN_ABSENSI_SAYA => 'Pengajuan Absensi Saya',

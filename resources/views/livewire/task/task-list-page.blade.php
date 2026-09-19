@@ -1277,8 +1277,17 @@
             </div>
 
             @if ($this->canManageProjectMembers)
+                <div style="flex-shrink:0;margin-bottom:8px;">
+                    <label class="form-label" style="font-size:11.5px;margin-bottom:4px;">Cari orang dari perusahaan</label>
+                    <select class="form-input" style="font-size:12.5px;padding:7px 10px;" wire:model.live="memberCompanyId">
+                        <option value="">{{ $this->memberCompanies->firstWhere('id', auth()->user()->company_id)?->name ?? 'Perusahaan saya' }} (perusahaan saya)</option>
+                        @foreach ($this->memberCompanies->where('id', '!=', auth()->user()->company_id) as $company)
+                            <option value="{{ $company->id }}">{{ $company->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
                 <div style="display:flex;gap:6px;align-items:flex-start;flex-shrink:0;margin-bottom:12px;">
-                    <div wire:ignore style="flex:1;">
+                    <div wire:ignore wire:key="member-select-{{ $memberCompanyId ?: 'own' }}" style="flex:1;">
                         <select data-tom-select data-placeholder="-- Pilih orang --" wire:model="newProjectMemberId">
                             <option value=""></option>
                             @foreach ($this->companyUsers as $user)

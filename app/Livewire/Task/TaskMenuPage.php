@@ -26,6 +26,8 @@ class TaskMenuPage extends Component
     public ?string $projectDescription = null;
     public string $projectColor = '#042c6c';
     public array $projectMemberIds = [];
+    // Perusahaan sumber calon anggota awal - null = perusahaan sendiri (default).
+    public ?string $projectCompanyId = null;
 
     public function getHasSubordinatesProperty(): bool
     {
@@ -49,15 +51,32 @@ class TaskMenuPage extends Component
 
     public function getCompanyUsersProperty()
     {
+        // Calon anggota dari perusahaan terpilih (default: perusahaan sendiri) + orang yang sudah
+        // dicentang dari perusahaan lain, supaya pilihan tidak hilang saat ganti perusahaan.
         return User::query()
-            ->where('company_id', Auth::user()->company_id)
+            ->where(function ($q) {
+                $q->where('company_id', $this->projectCompanyId ?: Auth::user()->company_id)
+                    ->orWhereIn('id', $this->projectMemberIds);
+            })
             ->orderBy('name')
             ->get(['id', 'name']);
     }
 
+    public function getCompaniesProperty()
+    {
+        return \App\Models\Master\Companies::orderBy('name')->get(['id', 'name']);
+    }
+
+    public function updatedProjectCompanyId($value): void
+    {
+        $this->projectCompanyId = filled($value) && \App\Models\Master\Companies::whereKey($value)->exists() ? $value : null;
+    }
+
     public function openCreateProjectModal(): void
     {
-        $this->reset(['projectName', 'projectDescription', 'projectMemberIds']);
+        abort_unless(Auth::user()->can(\App\Enum\CustomPermissionEnum::BUAT_BOARD_TUGAS->value), 403);
+
+        $this->reset(['projectName', 'projectDescription', 'projectMemberIds', 'projectCompanyId']);
         $this->projectColor = '#042c6c';
         $this->showProjectModal = true;
     }

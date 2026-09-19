@@ -159,6 +159,7 @@ class RoleForm
     {
         return [
             CustomPermissionEnum::TUGAS_SAYA->value,
+            CustomPermissionEnum::BUAT_BOARD_TUGAS->value,
             CustomPermissionEnum::PELATIHAN_SAYA->value,
             CustomPermissionEnum::AJUKAN_PELATIHAN->value,
             CustomPermissionEnum::PENGAJUAN_ABSENSI_SAYA->value,

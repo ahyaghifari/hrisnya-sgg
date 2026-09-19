@@ -86,6 +86,8 @@ class TaskListPage extends Component
     // Modal "Kelola Anggota"
     public bool $showMembersModal = false;
     public ?string $newProjectMemberId = null;
+    // Perusahaan sumber daftar calon anggota - null = perusahaan sendiri (default); bisa dipilih perusahaan lain.
+    public ?string $memberCompanyId = null;
 
     // List custom Board - form tambah List baru + inline rename (dua-duanya owner-only, dicek
     // ulang di TaskService, ini cuma state form).
@@ -177,10 +179,23 @@ class TaskListPage extends Component
         $existingIds = $this->activeProject ? $this->projectMembers->pluck('user_id') : collect();
 
         return User::query()
-            ->where('company_id', Auth::user()->company_id)
+            ->where('company_id', $this->memberCompanyId ?: Auth::user()->company_id)
             ->whereNotIn('id', $existingIds)
             ->orderBy('name')
             ->get(['id', 'name']);
+    }
+
+    /** Perusahaan untuk pilihan sumber calon anggota (default perusahaan sendiri, sisanya opsi tambahan). */
+    public function getMemberCompaniesProperty()
+    {
+        return \App\Models\Master\Companies::orderBy('name')->get(['id', 'name']);
+    }
+
+    public function updatedMemberCompanyId($value): void
+    {
+        // Nilai kosong / tidak dikenal = kembali ke perusahaan sendiri; pilihan orang sebelumnya dibersihkan.
+        $this->memberCompanyId = filled($value) && \App\Models\Master\Companies::whereKey($value)->exists() ? $value : null;
+        $this->newProjectMemberId = null;
     }
 
     public function getCanManageProjectMembersProperty(): bool
@@ -821,6 +836,7 @@ class TaskListPage extends Component
     public function openMembersModal(): void
     {
         $this->newProjectMemberId = null;
+        $this->memberCompanyId = null;
         $this->showMembersModal = true;
     }
 

@@ -105,7 +105,9 @@
     <p class="task-menu-section-label" style="margin:0;">Board</p>
     <div style="display:flex;align-items:center;gap:8px;">
         <a href="{{ route('tugas.arsip') }}" wire:navigate class="btn-ghost btn-sm task-menu-new-btn"><i class="fa-solid fa-box-archive" style="font-size:12px;"></i> Lihat Arsip</a>
-        <button type="button" wire:click="openCreateProjectModal" class="btn-primary btn-sm task-menu-new-btn"><i class="fa-solid fa-plus" style="font-size:12px;"></i> Board Baru</button>
+        @can(\App\Enum\CustomPermissionEnum::BUAT_BOARD_TUGAS->value)
+            <button type="button" wire:click="openCreateProjectModal" class="btn-primary btn-sm task-menu-new-btn"><i class="fa-solid fa-plus" style="font-size:12px;"></i> Board Baru</button>
+        @endcan
     </div>
 </div>
 <div class="task-menu-grid">
@@ -116,7 +118,7 @@
             $shownMembers = $memberUsers->take(6);
             $moreMembers = $memberUsers->count() - $shownMembers->count();
         @endphp
-        <a href="{{ route('tugas.papan.board', $project) }}" wire:navigate class="task-menu-tile task-menu-tile-board">
+        <a href="{{ route('tugas.papan.board', $project) }}" wire:navigate class="task-menu-tile task-menu-tile-board" style="border-left:4px solid {{ $project->color }};">
             <i class="fa-solid fa-diagram-project task-menu-tile-icon" style="color:{{ $project->color }};"></i>
             <span class="task-menu-tile-label">{{ $project->name }}</span>
             @if ($shownMembers->isNotEmpty())
@@ -153,10 +155,16 @@
                 </div>
                 <div>
                     <label class="form-label">Anggota Awal</label>
-                    <div wire:ignore>
+                    <select class="form-input" style="margin-bottom:8px;" wire:model.live="projectCompanyId">
+                        <option value="">{{ $this->companies->firstWhere('id', auth()->user()->company_id)?->name ?? 'Perusahaan saya' }} (perusahaan saya)</option>
+                        @foreach ($this->companies->where('id', '!=', auth()->user()->company_id) as $company)
+                            <option value="{{ $company->id }}">{{ $company->name }}</option>
+                        @endforeach
+                    </select>
+                    <div wire:ignore wire:key="anggota-awal-{{ $projectCompanyId ?: 'own' }}">
                         <select data-tom-select data-placeholder="Pilih anggota..." multiple wire:model="projectMemberIds">
                             @foreach ($this->companyUsers as $user)
-                                <option value="{{ $user->id }}">{{ $user->name }}</option>
+                                <option value="{{ $user->id }}" @selected(in_array($user->id, $projectMemberIds))>{{ $user->name }}</option>
                             @endforeach
                         </select>
                     </div>

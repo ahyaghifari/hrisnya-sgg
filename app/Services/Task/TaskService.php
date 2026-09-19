@@ -153,6 +153,7 @@ class TaskService
     {
         return DB::transaction(function () use ($data) {
             $user = Auth::user();
+            abort_unless($user->can(\App\Enum\CustomPermissionEnum::BUAT_BOARD_TUGAS->value), 403, 'Kamu tidak punya izin membuat Board baru.');
 
             $project = TaskProject::create([
                 'company_id' => $user->company_id,
