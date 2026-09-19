@@ -156,7 +156,7 @@ enum NotificationTypeEnum: string
             self::TASK_ASSIGNED => 'Dikirim saat orang lain menugaskan sebuah tugas ke Anda.',
             self::TASK_REVIEW_DECIDED => 'Dikirim saat tugas yang Anda kerjakan disetujui atau ditolak reviewer.',
             self::TASK_REVIEWER_ASSIGNED => 'Dikirim saat Anda ditunjuk sebagai reviewer sebuah tugas.',
-            self::TASK_COMMENTED => 'Dikirim saat ada komentar baru di tugas yang Anda kerjakan/buat.',
+            self::TASK_COMMENTED => 'Dikirim saat ada komentar baru di tugas yang Anda kerjakan.',
             self::TASK_PROJECT_MEMBER_ADDED => 'Dikirim saat Anda dimasukkan sebagai anggota sebuah project tugas.',
             self::TASK_REVIEW_REQUESTED => 'Dikirim ke pembuat tugas saat pelaksana mengajukan tugas untuk direview (kalau dicentang saat bikin tugas).',
             self::TASK_COMPLETED_BY_ASSIGNEE => 'Dikirim ke pembuat tugas saat pelaksana menandai tugas selesai tanpa review (kalau dicentang saat bikin tugas).',

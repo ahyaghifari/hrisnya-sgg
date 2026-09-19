@@ -60,6 +60,7 @@ class TaskService
 
             if ($project) {
                 abort_unless($this->canAccessProject($project, $user), 403, 'Kamu bukan anggota project ini.');
+                abort_if($project->isArchived(), 422, 'Board ini sudah diarsipkan.');
             }
 
             if ($assignedTo !== $user->id) {
@@ -74,11 +75,27 @@ class TaskService
             $departmentId = $user->profile?->department?->id;
 
             // Task di dalam Board masuk List pertama (position terkecil) kalau tidak dipilih
-            // eksplisit - Board tidak pakai step-order REVIEW sama sekali, jadi needs_review
-            // dipaksa false di sini juga (bukan cuma disembunyikan di UI).
+            // eksplisit. Review di Board lewat List yang ditandai "Review" (bukan step-order status):
+            // needs_review = task WAJIB lewat List Review dulu sebelum boleh masuk List Selesai.
+            $needsReview = (bool) ($data['needs_review'] ?? false);
+            if ($project && $needsReview) {
+                abort_unless(
+                    $project->lists()->where('is_review', true)->exists(),
+                    422,
+                    'Board ini belum punya List Review - tandai salah satu List sebagai Review dulu.'
+                );
+            }
+
             $listId = $data['list_id'] ?? null;
+            if ($project && $listId) {
+                // Tugas baru cuma boleh dibuat di List biasa - List Review/Selesai punya alurnya sendiri.
+                $list = $project->lists()->find($listId);
+                abort_unless($list, 422, 'List tidak ditemukan di Board ini.');
+                abort_if($list->is_review || $list->is_final, 422, 'Tugas baru tidak bisa dibuat langsung di List Review/Selesai.');
+            }
             if ($project && ! $listId) {
-                $listId = $project->lists()->orderBy('position')->value('id');
+                $listId = $project->lists()->where('is_review', false)->where('is_final', false)->orderBy('position')->value('id')
+                    ?? $project->lists()->orderBy('position')->value('id');
             }
 
             // Reviewer (siapa yang boleh kasih rating) cuma relevan untuk task di dalam Project -
@@ -104,7 +121,7 @@ class TaskService
                 'reviewer_id' => $reviewerId,
                 'assigned_to' => $assignedTo,
                 'is_self_assigned' => $assignedTo === $user->id,
-                'needs_review' => $project ? false : (bool) ($data['needs_review'] ?? false),
+                'needs_review' => $needsReview,
                 'notify_creator_on_review' => $project ? false : (bool) ($data['notify_creator_on_review'] ?? false),
                 'notify_creator_on_complete' => (bool) ($data['notify_creator_on_complete'] ?? false),
                 'responded_date' => Carbon::now(),
@@ -178,21 +195,56 @@ class TaskService
         });
     }
 
-    /** Hapus/nonaktifkan Board - owner-only. Soft-delete (TaskProject pakai SoftDeletes) - board
-     * langsung hilang dari daftar Board siapa pun (getMyProjects() otomatis exclude yang
-     * trashed), task di dalamnya tetap ada di database (bukan ikut terhapus), cuma jadi tidak
-     * bisa diakses lagi karena board-nya sendiri sudah tidak muncul di mana pun. */
-    public function deleteProject(TaskProject $project, User $actor): void
+    /**
+     * Hapus Board - owner-only. Board tanpa satu pun tugas dihapus (soft-delete), Board yang
+     * sudah punya tugas DIARSIPKAN (archived_at) supaya riwayatnya tetap bisa dilihat lagi di
+     * halaman Arsip. Return 'deleted' | 'archived'.
+     */
+    public function removeProject(TaskProject $project, User $actor): string
     {
-        abort_unless($this->canManageProjectMembers($project, $actor), 403);
+        abort_unless($this->isProjectOwner($project, $actor), 403);
+        abort_if($project->isArchived(), 422, 'Board ini sudah diarsipkan.');
+
+        if ($project->tasks()->exists()) {
+            $project->update(['archived_at' => Carbon::now()]);
+
+            return 'archived';
+        }
 
         $project->delete();
+
+        return 'deleted';
+    }
+
+    /** Pulihkan Board dari arsip - owner-only. */
+    public function restoreProject(TaskProject $project, User $actor): void
+    {
+        abort_unless($this->isProjectOwner($project, $actor), 403);
+
+        $project->update(['archived_at' => null]);
+    }
+
+    /** Board yang diikuti user dan sudah diarsipkan, terbaru diarsipkan di atas. */
+    public function getArchivedProjects(User $user): Collection
+    {
+        return TaskProject::whereHas('members', fn ($q) => $q->where('user_id', $user->id))
+            ->whereNotNull('archived_at')
+            ->withCount('tasks')
+            ->orderByDesc('archived_at')
+            ->get();
+    }
+
+    private function isProjectOwner(TaskProject $project, User $user): bool
+    {
+        return $project->members()->where('user_id', $user->id)->where('role', TaskProjectMember::ROLE_OWNER)->exists();
     }
 
     /** Bikin List baru di Board - owner-only. */
     public function createList(TaskProject $project, string $name, User $actor, ?string $color = null): TaskList
     {
         abort_unless($this->canManageProjectMembers($project, $actor), 403);
+
+        abort_unless(TaskList::isValidColor($color), 422, 'Warna List tidak valid.');
 
         $position = ((int) $project->lists()->max('position')) + 1;
 
@@ -203,6 +255,7 @@ class TaskService
     public function updateListColor(TaskList $list, string $color, User $actor): void
     {
         abort_unless($this->canManageProjectMembers($list->project, $actor), 403);
+        abort_unless(TaskList::isValidColor($color), 422, 'Warna List tidak valid.');
 
         $list->update(['color' => $color]);
     }
@@ -241,8 +294,51 @@ class TaskService
 
         DB::transaction(function () use ($list) {
             TaskList::where('project_id', $list->project_id)->update(['is_final' => false]);
-            $list->update(['is_final' => true]);
+            $list->update(['is_final' => true, 'is_review' => false]);
         });
+    }
+
+    /**
+     * Tandai/lepas tanda List "Review" (max 1 per Board, toggle) - owner-only. Card yang masuk List
+     * ini dapat status=review; yang berhak memutuskan (reviewer ?? pembuat) lihat tombol
+     * Revisi/Setujui di card-nya. List Selesai tidak boleh sekaligus jadi List Review.
+     */
+    public function toggleListReview(TaskList $list, User $actor): void
+    {
+        abort_unless($this->canManageProjectMembers($list->project, $actor), 403);
+        abort_if($list->is_final, 422, 'List Selesai tidak bisa dijadikan List Review.');
+
+        DB::transaction(function () use ($list) {
+            $becomesReview = ! $list->is_review;
+
+            if ($becomesReview) {
+                TaskList::where('project_id', $list->project_id)->update(['is_review' => false]);
+            }
+
+            $list->update(['is_review' => $becomesReview]);
+        });
+    }
+
+    /**
+     * Keputusan review di List Review: setujui -> List Selesai (rating jalan seperti biasa), revisi
+     * -> List sebelum List Review (fallback: List pertama). Lewat moveCardsAcrossLists() supaya
+     * aturan siapa boleh memutuskan & notifikasi cuma ada di satu tempat.
+     */
+    public function decideBoardReview(Task $task, bool $approve, User $actor): void
+    {
+        $reviewList = $task->list;
+        abort_unless($reviewList?->is_review, 422, 'Tugas ini tidak sedang di List Review.');
+
+        $others = $reviewList->project->lists()->where('is_review', false)->where('is_final', false);
+
+        $target = $approve
+            ? $reviewList->project->lists()->where('is_final', true)->first()
+            : ((clone $others)->where('position', '<', $reviewList->position)->orderByDesc('position')->first()
+                ?? (clone $others)->orderBy('position')->first());
+
+        abort_unless($target, 422, $approve ? 'Board ini belum punya List Selesai.' : 'Tidak ada List tujuan untuk revisi.');
+
+        $this->moveCardsAcrossLists([$target->id => [$task->id]], $actor);
     }
 
     /**
@@ -256,7 +352,7 @@ class TaskService
      * masuk situ dapat status=complete, keluar lagi balik ke in_progress. Tidak ada batas 24 jam
      * kayak moveStatus() - Board lebih casual, siapa saja anggota boleh reopen kapan saja.
      */
-    public function moveCardsAcrossLists(array $listsPayload, User $actor): void
+    public function moveCardsAcrossLists(array $listsPayload, User $actor, ?string $movedTaskId = null): void
     {
         if (empty($listsPayload)) {
             return;
@@ -270,8 +366,11 @@ class TaskService
 
         $project = TaskProject::findOrFail($projectIds->first());
         abort_unless($this->canAccessProject($project, $actor), 403);
+        abort_if($project->isArchived(), 422, 'Board ini sudah diarsipkan.');
 
-        DB::transaction(function () use ($listsPayload, $lists) {
+        $isOwner = $this->isProjectOwner($project, $actor);
+
+        DB::transaction(function () use ($listsPayload, $lists, $actor, $movedTaskId, $isOwner) {
             foreach ($listsPayload as $listId => $taskIds) {
                 $list = $lists->get($listId);
 
@@ -283,19 +382,64 @@ class TaskService
 
                     $updateData = ['list_id' => $listId, 'position' => $index];
 
+                    // Siapa yang boleh menggeser kartu: di List kerja cuma yang ditugaskan & pembuat Board
+                    // (owner); di List Review cuma yang berhak memutuskan (reviewer ?? pembuat tugas).
+                    // Yang dicek cuma kartu yang DIGESER (movedTaskId) - kartu lain di payload cuma ikut
+                    // bergeser posisinya.
+                    $fromReview = (bool) $task->list?->is_review;
+                    $isMoved = $movedTaskId ? $task->id === $movedTaskId : $task->list_id !== $listId;
+                    if ($isMoved) {
+                        if ($fromReview) {
+                            abort_unless(
+                                ($task->reviewer_id ?? $task->created_by) === $actor->id,
+                                403,
+                                'Cuma pembuat/reviewer tugas yang bisa memutuskan tugas di List Review.'
+                            );
+                        } else {
+                            abort_unless(
+                                $task->assigned_to === $actor->id || $isOwner,
+                                403,
+                                'Cuma yang ditugaskan atau pembuat Board yang bisa memindahkan tugas ini.'
+                            );
+                        }
+                    }
+
                     if ($task->list_id !== $listId) {
-                        if ($list->is_final) {
+                        if ($list->is_review) {
+                            $updateData['status'] = TaskStatus::REVIEW->value;
+                            $updateData['completed_date'] = null;
+                            $updateData['is_overdue'] = false;
+
+                            // Kabari yang berhak memutuskan (reviewer ?? pembuat) - kecuali dia sendiri yang memindahkan.
+                            $deciderId = $task->reviewer_id ?? $task->created_by;
+                            if ($deciderId !== $actor->id && ($task->needs_review || $task->notify_creator_on_review)) {
+                                User::find($deciderId)?->notify(new TaskReviewRequested($task, $task->assignedTo?->name ?? '-'));
+                            }
+                        } elseif ($list->is_final) {
+                            abort_if(
+                                // Kalau tanda List Review sudah dilepas dari Board, jangan bikin tugas macet.
+                                $task->needs_review && ! $fromReview && $list->project->lists()->where('is_review', true)->exists(),
+                                422,
+                                'Tugas ini wajib direview - pindahkan ke List Review dulu, dinilai reviewer, baru bisa Selesai.'
+                            );
+
                             $updateData['status'] = TaskStatus::COMPLETE->value;
                             $updateData['completed_date'] = Carbon::now();
                             $updateData['is_overdue'] = $task->due_date && Carbon::now()->gt($task->due_date);
 
-                            if ($task->notify_creator_on_complete && $task->assigned_to !== $task->created_by) {
+                            if ($fromReview) {
+                                $task->assigned_to !== $actor->id && $task->assignedTo?->notify(new TaskReviewDecided($task, true, $actor->name));
+                            } elseif ($task->notify_creator_on_complete && $task->assigned_to !== $task->created_by && $task->created_by !== $actor->id) {
                                 $task->createdBy?->notify(new TaskCompletedByAssignee($task, $task->assignedTo?->name ?? '-'));
                             }
-                        } elseif ($task->list?->is_final) {
+                        } elseif ($task->list?->is_final || $fromReview) {
                             $updateData['status'] = TaskStatus::IN_PROGRESS->value;
                             $updateData['completed_date'] = null;
                             $updateData['is_overdue'] = false;
+
+                            if ($fromReview) {
+                                $task->assigned_to !== $actor->id && $task->assignedTo?->notify(new TaskReviewDecided($task, false, $actor->name));
+                            }
                         }
                     }
 
@@ -310,8 +454,13 @@ class TaskService
         return $project->members()->where('user_id', $user->id)->exists();
     }
 
+    /** Owner Board aktif - Board yang diarsipkan cuma bisa dilihat, tidak bisa dikelola. */
     public function canManageProjectMembers(TaskProject $project, User $user): bool
     {
+        if ($project->isArchived()) {
+            return false;
+        }
+
         return $project->members()->where('user_id', $user->id)->where('role', TaskProjectMember::ROLE_OWNER)->exists();
     }
 
@@ -356,14 +505,31 @@ class TaskService
     public function getMyProjects(User $user): Collection
     {
         return TaskProject::whereHas('members', fn ($q) => $q->where('user_id', $user->id))
+            ->whereNull('archived_at')
             ->withCount('members')
             ->orderBy('name')
             ->get();
     }
 
+    /** Tugas Selesai yang sudah lewat H+1 masuk Riwayat (sama dengan Todo/Tugas Saya/Individu). */
+    public function getProjectHistoryTasks(TaskProject $project, int $perPage = 10)
+    {
+        return $project->tasks()
+            ->with(['assignedTo', 'createdBy'])
+            ->where('status', TaskStatus::COMPLETE->value)
+            ->where('completed_date', '<=', Carbon::now()->subDay())
+            ->orderByDesc('completed_date')
+            ->paginate($perPage);
+    }
+
     public function getProjectTasks(TaskProject $project): Collection
     {
         return $project->tasks()
+            ->where(function ($q) {
+                $q->where('status', '!=', TaskStatus::COMPLETE->value)
+                    ->orWhereNull('completed_date')
+                    ->orWhere('completed_date', '>', Carbon::now()->subDay());
+            })
             ->with(['assignedTo.profile', 'createdBy', 'checklistItems', 'comments.user', 'list'])
             ->withCount('attachments')
             ->orderBy('position')
@@ -541,6 +707,18 @@ class TaskService
 
         abort_if($task->status === TaskStatus::COMPLETE->value, 422, 'Tugas yang sudah selesai tidak bisa dipindah lagi.');
 
+        // Todo Saya (self-assigned) bebas bolak-balik Belum Dikerjakan <-> Sedang Dalam Proses -
+        // catatan pribadi, nggak ada pihak lain yang perlu dijaga urutan langkahnya.
+        if (
+            $task->is_self_assigned
+            && in_array($task->status, [TaskStatus::TODO->value, TaskStatus::IN_PROGRESS->value], true)
+            && in_array($newStatus, [TaskStatus::TODO->value, TaskStatus::IN_PROGRESS->value], true)
+            && $task->status !== $newStatus
+        ) {
+            $this->taskRepository->update($task->id, ['status' => $newStatus]);
+            return;
+        }
+
         if ($task->status === TaskStatus::REVIEW->value && $newStatus === TaskStatus::IN_PROGRESS->value) {
             $this->taskRepository->update($task->id, ['status' => $newStatus]);
             $task->assignedTo?->notify(new TaskReviewDecided($task, false, $user->name));
@@ -581,7 +759,7 @@ class TaskService
     public function toggleChecklistItem(TaskChecklistItem $item, User $user): void
     {
         $task = $item->task;
-        abort_unless($task->assigned_to === $user->id || $task->created_by === $user->id, 403, 'Cuma pelaksana atau pembuat tugas yang bisa ceklis checklist ini.');
+        abort_unless($this->canContributeToTask($task, $user), 403, 'Cuma pelaksana, pembuat tugas, atau pembuat Board yang bisa ceklis checklist ini.');
 
         $item->update(['is_done' => ! $item->is_done]);
     }
@@ -592,7 +770,7 @@ class TaskService
      * "pembuat" task itu meski bukan yang mengerjakan). Guard sama persis toggleChecklistItem(). */
     public function addChecklistItem(Task $task, string $title, User $user): TaskChecklistItem
     {
-        abort_unless($task->assigned_to === $user->id || $task->created_by === $user->id, 403, 'Cuma pelaksana atau pembuat tugas yang bisa menambah checklist ini.');
+        abort_unless($this->canContributeToTask($task, $user), 403, 'Cuma pelaksana, pembuat tugas, atau pembuat Board yang bisa menambah checklist ini.');
         abort_if(trim($title) === '', 422, 'Judul checklist tidak boleh kosong.');
 
         return $task->checklistItems()->create(['title' => trim($title), 'created_by' => $user->id]);
@@ -603,13 +781,35 @@ class TaskService
      * pelaksana cuma boleh nambah catatan kerjanya sendiri. Pemberi tugas sendiri boleh edit/hapus
      * item siapa pun di task-nya (tetap yang punya otoritas penuh). Item lama tanpa created_by
      * (sebelum kolom ini ada) dianggap milik pemberi tugas - default paling aman. */
+    /**
+     * Yang boleh mengelola isi tugas (checklist, lampiran): pelaksana, pembuat tugas (assigner),
+     * dan - khusus tugas Board - pembuat/owner Board. Board yang diarsipkan cuma bisa dilihat.
+     */
+    public function canContributeToTask(Task $task, User $user): bool
+    {
+        if ($task->project_id) {
+            $project = $task->project;
+
+            if ($project?->isArchived()) {
+                return false;
+            }
+
+            if ($project && $this->isProjectOwner($project, $user)) {
+                return true;
+            }
+        }
+
+        return $task->assigned_to === $user->id || $task->created_by === $user->id;
+    }
+
     public function canModifyChecklistItem(TaskChecklistItem $item, User $user): bool
     {
         $task = $item->task;
-        $isCreator = $task->created_by === $user->id;
+        $isBoardOwner = $task->project_id && $task->project && ! $task->project->isArchived() && $this->isProjectOwner($task->project, $user);
+        $isCreator = $task->created_by === $user->id || $isBoardOwner;
         $isAssignee = $task->assigned_to === $user->id;
 
-        if (! $isCreator && ! $isAssignee) {
+        if (! $this->canContributeToTask($task, $user)) {
             return false;
         }
 
@@ -645,6 +845,7 @@ class TaskService
         // dipilih eksplisit).
         $allowedRaterId = $task->reviewer_id ?? $task->created_by;
         abort_unless($allowedRaterId === $user->id, 403, 'Kamu tidak berhak kasih rating untuk tugas ini.');
+        abort_if($task->assigned_to === $user->id, 422, 'Tidak bisa menilai tugas yang kamu kerjakan sendiri.');
         abort_unless($task->status === TaskStatus::COMPLETE->value, 422, 'Tugas belum selesai.');
         abort_unless($rating >= 1 && $rating <= 5, 422, 'Rating harus 1-5.');
 
@@ -671,18 +872,16 @@ class TaskService
             'comment' => $comment,
         ]);
 
-        $recipientIds = collect([$task->assigned_to, $task->created_by])
-            ->filter()
-            ->unique()
-            ->reject(fn ($id) => $id === $user->id);
-
-        foreach ($recipientIds as $recipientId) {
-            User::find($recipientId)?->notify(new TaskCommented($task, $user->name, $comment));
+        // Komentar baru cuma dikabari ke pelaksana (bukan pembuat/anggota lain) - kecuali dia sendiri penulisnya.
+        if ($task->assigned_to && $task->assigned_to !== $user->id) {
+            User::find($task->assigned_to)?->notify(new TaskCommented($task, $user->name, $comment));
         }
     }
 
     public function addFileAttachment(Task $task, User $user, UploadedFile $file): void
     {
+        abort_unless($this->canContributeToTask($task, $user), 403, 'Cuma pelaksana, pembuat tugas, atau pembuat Board yang bisa menambah lampiran.');
+
         $path = $file->store('tasks/attachments', 'public');
 
         $this->taskRepository->addAttachment($task->id, [
@@ -695,6 +894,8 @@ class TaskService
 
     public function addLinkAttachment(Task $task, User $user, string $url, ?string $label): void
     {
+        abort_unless($this->canContributeToTask($task, $user), 403, 'Cuma pelaksana, pembuat tugas, atau pembuat Board yang bisa menambah lampiran.');
+
         $this->taskRepository->addAttachment($task->id, [
             'type' => TaskAttachment::TYPE_LINK,
             'url' => $url,
@@ -703,8 +904,11 @@ class TaskService
         ]);
     }
 
-    public function removeAttachment(string $attachmentId): void
+    public function removeAttachment(string $attachmentId, User $user): void
     {
+        $attachment = TaskAttachment::findOrFail($attachmentId);
+        abort_unless($this->canContributeToTask(Task::findOrFail($attachment->task_id), $user), 403, 'Cuma pelaksana, pembuat tugas, atau pembuat Board yang bisa menghapus lampiran.');
+
         $this->taskRepository->deleteAttachment($attachmentId);
     }
 

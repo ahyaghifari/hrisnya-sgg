@@ -18,16 +18,39 @@ class TaskList extends Model
 {
     use HasUlids;
 
+    /**
+     * Preset warna List (key => label) - gradient-nya didefinisikan di task-list-page.blade.php
+     * (.task-hero-column.{key}). 4 pertama sama dengan warna kolom status Todo/Proses/Review/Selesai,
+     * sisanya warna sistem. Kolom `color` juga masih boleh berisi hex (List lama).
+     */
+    public const COLOR_PRESETS = [
+        'navy' => 'Biru',
+        'gold' => 'Proses',
+        'gold-dark' => 'Review',
+        'green' => 'Selesai',
+        'pink' => 'Pink',
+        'teal' => 'Teal',
+        'sky' => 'Biru Muda',
+        'red' => 'Merah',
+    ];
+
+    public static function isValidColor(?string $color): bool
+    {
+        return $color === null || isset(self::COLOR_PRESETS[$color]) || (bool) preg_match('/^#[0-9a-fA-F]{6}$/', $color);
+    }
+
     protected $fillable = [
         'project_id',
         'name',
         'color',
         'position',
         'is_final',
+        'is_review',
     ];
 
     protected $casts = [
         'is_final' => 'boolean',
+        'is_review' => 'boolean',
     ];
 
     public function project(): BelongsTo

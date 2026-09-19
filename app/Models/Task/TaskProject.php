@@ -20,7 +20,17 @@ class TaskProject extends Model
         'description',
         'color',
         'owner_id',
+        'archived_at',
     ];
+
+    protected $casts = [
+        'archived_at' => 'datetime',
+    ];
+
+    public function isArchived(): bool
+    {
+        return $this->archived_at !== null;
+    }
 
     public function company(): BelongsTo
     {

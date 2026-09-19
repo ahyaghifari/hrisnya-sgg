@@ -1,5 +1,6 @@
 <?php
 
+use App\Livewire\Task\TaskArchivePage;
 use App\Livewire\Task\TaskListPage;
 use App\Livewire\Task\TaskMenuPage;
 use App\Livewire\Task\TaskSettingsPage;
@@ -24,3 +25,6 @@ Route::get('/tugas/papan/{scope}', TaskListPage::class)
 
 Route::get('/tugas/pengaturan', TaskSettingsPage::class)
     ->name('tugas.pengaturan');
+
+Route::get('/tugas/arsip', TaskArchivePage::class)
+    ->name('tugas.arsip');

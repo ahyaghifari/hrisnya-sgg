@@ -4,6 +4,7 @@ namespace App\Models\Task;
 
 use App\Enum\Approval\ApprovalModuleEnum;
 use App\Enum\Task\TaskPriority;
+use App\Enum\Task\TaskStatus;
 use App\Models\ApprovalManagement\ApprovalHistories;
 use App\Models\ApprovalManagement\ApprovalSnapshots;
 use App\Models\Master\Companies;
@@ -163,5 +164,22 @@ class Task extends Model
     public function comments(): HasMany
     {
         return $this->hasMany(TaskComment::class, 'task_id')->orderBy('created_at');
+    }
+
+    /**
+     * Apakah $userId WAJIB memberi rating bintang untuk tugas ini: tugas sudah Selesai, belum dinilai,
+     * bukan catatan pribadi (Todo Saya), dan dia penilainya (reviewer ?? pembuat tugas) - tapi bukan
+     * pelaksananya sendiri (menilai diri sendiri tidak ada artinya).
+     */
+    public function requiresRatingFrom(?string $userId): bool
+    {
+        $raterId = $this->reviewer_id ?? $this->created_by;
+
+        return $userId !== null
+            && $this->status === TaskStatus::COMPLETE->value
+            && ! $this->rating
+            && ! ($this->is_self_assigned && ! $this->project_id)
+            && $raterId === $userId
+            && $raterId !== $this->assigned_to;
     }
 }

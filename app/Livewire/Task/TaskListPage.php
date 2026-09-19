@@ -46,6 +46,7 @@ class TaskListPage extends Component
     public ?string $due_date = null;
     public string $priority = 'medium';
     public ?string $assigned_to = null;
+    public ?string $newTaskListId = null; // List tujuan tugas baru (Board)
     public array $checklist = [];
     // Reviewer (siapa yang boleh kasih rating) - cuma relevan buat task di dalam Project, null =
     // fallback ke creator sendiri (lihat TaskService::rateTask()).
@@ -86,7 +87,7 @@ class TaskListPage extends Component
     // List custom Board - form tambah List baru + inline rename (dua-duanya owner-only, dicek
     // ulang di TaskService, ini cuma state form).
     public string $newListName = '';
-    public string $newListColor = '#475569';
+    public string $newListColor = 'navy';
     public ?string $editingListId = null;
     public string $editingListName = '';
 
@@ -143,7 +144,20 @@ class TaskListPage extends Component
             return null;
         }
 
-        return $this->myProjects->firstWhere('id', $this->activeProjectId);
+        // Board yang diarsipkan tidak ada di daftar aktif tapi masih bisa dibuka (read-only) dari Arsip.
+        return $this->myProjects->firstWhere('id', $this->activeProjectId)
+            ?? app(TaskService::class)->getArchivedProjects(Auth::user())->firstWhere('id', $this->activeProjectId);
+    }
+
+    public function getIsProjectOwnerProperty(): bool
+    {
+        return $this->activeProject
+            && $this->activeProject->members()->where('user_id', Auth::id())->where('role', \App\Models\Task\TaskProjectMember::ROLE_OWNER)->exists();
+    }
+
+    public function getIsProjectArchivedProperty(): bool
+    {
+        return (bool) $this->activeProject?->isArchived();
     }
 
     public function getProjectMembersProperty()
@@ -173,6 +187,16 @@ class TaskListPage extends Component
         }
 
         return app(TaskService::class)->canManageProjectMembers($this->activeProject, Auth::user());
+    }
+
+    /** Owner atau anggota yang ditandai "Assigner" - boleh menugaskan ke anggota Board lain. */
+    public function getCanAssignInProjectProperty(): bool
+    {
+        if (! $this->activeProject) {
+            return false;
+        }
+
+        return app(TaskService::class)->canAssignInProject($this->activeProject, Auth::user());
     }
 
     public function getTasksProperty()
@@ -222,15 +246,17 @@ class TaskListPage extends Component
     public function getHistoryTasksProperty()
     {
         if ($this->activeProject) {
-            return null;
+            return app(TaskService::class)->getProjectHistoryTasks($this->activeProject);
         }
 
         return app(TaskService::class)->getHistoryTasks(Auth::user(), $this->scope);
     }
 
-    public function openCreateTask(): void
+    /** $listId: dari tombol "+ Tambah tugas" di List Board - tugas baru langsung masuk List itu. */
+    public function openCreateTask(?string $listId = null): void
     {
         $this->reset(['requirement', 'due_date', 'assigned_to', 'checklist', 'newChecklistTitle', 'reviewerId']);
+        $this->newTaskListId = $this->activeProject ? $listId : null;
         $this->priority = TaskPriority::MEDIUM->value;
         $this->needsReview = false;
         $this->notifyOnReview = false;
@@ -284,10 +310,13 @@ class TaskListPage extends Component
                 'requirement' => $data['requirement'],
                 'priority' => $data['priority'],
                 'due_date' => $data['due_date'],
-                'assigned_to' => $data['assigned_to'] ?? null,
+                // Di Board, non-Assigner cuma boleh bikin tugas untuk dirinya sendiri (service juga
+                // menolak, ini supaya nilai sisa dari form nggak bikin error membingungkan).
+                'assigned_to' => ($this->activeProject && ! $this->canAssignInProject) ? null : ($data['assigned_to'] ?? null),
                 'project_id' => $this->activeProjectId,
-                'reviewer_id' => $this->reviewerId,
-                'needs_review' => $this->needsReview,
+                'list_id' => $this->activeProjectId ? $this->newTaskListId : null,
+                'reviewer_id' => ($this->activeProject && ! $this->canAssignInProject) ? null : $this->reviewerId,
+                'needs_review' => ($this->activeProject && ! $this->canAssignInProject) ? false : $this->needsReview,
                 'notify_creator_on_review' => $this->needsReview && $this->notifyOnReview,
                 'notify_creator_on_complete' => ! $this->needsReview && $this->notifyOnComplete,
                 'checklist' => $this->checklist,
@@ -307,14 +336,26 @@ class TaskListPage extends Component
     {
         $task = Task::findOrFail($taskId);
 
+        // Task di List Review Board: keputusan review harus mindahin card antar List juga,
+        // bukan cuma ganti status - lewat decideBoardReview().
+        if ($task->list_id && $task->status === TaskStatus::REVIEW->value
+            && in_array($status, [TaskStatus::COMPLETE->value, TaskStatus::IN_PROGRESS->value], true)) {
+            $this->decideBoardReview($taskId, $status === TaskStatus::COMPLETE->value);
+
+            return;
+        }
+
         try {
             app(TaskService::class)->moveStatus($task, $status, Auth::user());
 
             // Baru selesai & belum dirating - buka modal detail otomatis buat yang berhak rating
             // (reviewer kalau dipilih, fallback ke creator) supaya langsung bisa kasih rating
-            // (opsional, tetap bisa ditutup tanpa rating).
-            $allowedRaterId = $task->reviewer_id ?? $task->created_by;
-            if ($status === TaskStatus::COMPLETE->value && $allowedRaterId === Auth::id() && ! $task->rating) {
+            // (wajib - modal nggak bisa ditutup sebelum dirating, lihat closeTaskDetail).
+            if ($status === TaskStatus::COMPLETE->value) {
+                $this->dispatch('task-completed');
+            }
+
+            if ($status === TaskStatus::COMPLETE->value && $task->refresh()->requiresRatingFrom(Auth::id())) {
                 $this->openTaskDetail($taskId);
             }
         } catch (\Throwable $e) {
@@ -391,7 +432,16 @@ class TaskListPage extends Component
 
     public function closeTaskDetail(): void
     {
+        $task = $this->selectedTask;
+        if ($task && $task->requiresRatingFrom(Auth::id())) {
+            Notification::make()->title('Berikan penilaian dulu sebelum menutup tugas ini')->warning()->send();
+
+            return;
+        }
+
         $this->selectedTaskId = null;
+        // $this->selectedTask di atas sudah ke-cache (computed) dengan task lama - buang, kalau tidak modal tetap ke-render.
+        unset($this->selectedTask);
     }
 
     public function getSelectedTaskProperty(): ?Task
@@ -499,33 +549,48 @@ class TaskListPage extends Component
 
     public function uploadFileAttachment(): void
     {
-        if (! $this->newAttachmentFile || ! $this->selectedTask) {
+        if (! $this->newAttachmentFile || ! $this->selectedTask || ($this->selectedTask->is_self_assigned && ! $this->selectedTask->project_id)) {
             return;
         }
 
         $this->validate(['newAttachmentFile' => ['file', 'max:10240']]);
 
-        app(TaskService::class)->addFileAttachment($this->selectedTask, Auth::user(), $this->newAttachmentFile);
-        $this->reset(['newAttachmentFile']);
+        try {
+            app(TaskService::class)->addFileAttachment($this->selectedTask, Auth::user(), $this->newAttachmentFile);
+            $this->reset(['newAttachmentFile']);
+        } catch (\Throwable $e) {
+            Notification::make()->title($e->getMessage() ?: 'Tidak bisa menambah lampiran')->danger()->send();
+        }
+
         unset($this->selectedTask, $this->tasks);
     }
 
     public function addLinkAttachment(): void
     {
-        if (trim($this->newAttachmentLink) === '' || ! $this->selectedTask) {
+        if (trim($this->newAttachmentLink) === '' || ! $this->selectedTask || ($this->selectedTask->is_self_assigned && ! $this->selectedTask->project_id)) {
             return;
         }
 
         $this->validate(['newAttachmentLink' => ['url']]);
 
-        app(TaskService::class)->addLinkAttachment($this->selectedTask, Auth::user(), $this->newAttachmentLink, $this->newAttachmentLinkLabel ?: null);
-        $this->reset(['newAttachmentLink', 'newAttachmentLinkLabel']);
+        try {
+            app(TaskService::class)->addLinkAttachment($this->selectedTask, Auth::user(), $this->newAttachmentLink, $this->newAttachmentLinkLabel ?: null);
+            $this->reset(['newAttachmentLink', 'newAttachmentLinkLabel']);
+        } catch (\Throwable $e) {
+            Notification::make()->title($e->getMessage() ?: 'Tidak bisa menambah lampiran')->danger()->send();
+        }
+
         unset($this->selectedTask, $this->tasks);
     }
 
     public function removeAttachment(string $attachmentId): void
     {
-        app(TaskService::class)->removeAttachment($attachmentId);
+        try {
+            app(TaskService::class)->removeAttachment($attachmentId, Auth::user());
+        } catch (\Throwable $e) {
+            Notification::make()->title($e->getMessage() ?: 'Tidak bisa menghapus lampiran')->danger()->send();
+        }
+
         unset($this->selectedTask, $this->tasks);
     }
 
@@ -538,7 +603,7 @@ class TaskListPage extends Component
         try {
             app(TaskService::class)->createList($this->activeProject, trim($this->newListName), Auth::user(), $this->newListColor);
             $this->newListName = '';
-            $this->newListColor = '#475569';
+            $this->newListColor = 'navy';
             unset($this->myProjects, $this->tasks);
         } catch (\Throwable $e) {
             Notification::make()->title($e->getMessage() ?: 'Tidak bisa membuat List')->danger()->send();
@@ -605,15 +670,46 @@ class TaskListPage extends Component
         }
     }
 
+    public function markListReview(string $listId): void
+    {
+        try {
+            app(TaskService::class)->toggleListReview(TaskList::findOrFail($listId), Auth::user());
+            unset($this->myProjects);
+        } catch (\Throwable $e) {
+            Notification::make()->title($e->getMessage() ?: 'Tidak bisa menandai List ini')->danger()->send();
+        }
+    }
+
+    public function decideBoardReview(string $taskId, bool $approve): void
+    {
+        try {
+            $task = Task::findOrFail($taskId);
+            app(TaskService::class)->decideBoardReview($task, $approve, Auth::user());
+
+            if ($approve) {
+                $this->dispatch('task-completed');
+
+                // Baru disetujui & belum dirating - buka modal detail, rating wajib (lihat closeTaskDetail).
+                if ($task->refresh()->requiresRatingFrom(Auth::id())) {
+                    $this->openTaskDetail($taskId);
+                }
+            }
+        } catch (\Throwable $e) {
+            Notification::make()->title($e->getMessage() ?: 'Tidak bisa memutuskan review tugas ini')->danger()->send();
+        }
+
+        unset($this->tasks, $this->historyTasks);
+    }
+
     /** Pengganti drag-drop (dihapus, layout Board sekarang list vertikal) - pindah 1 kartu ke List lain. */
     public function moveTaskToList(string $taskId, string $listId): void
     {
         try {
-            app(TaskService::class)->moveCardsAcrossLists([$listId => [$taskId]], Auth::user());
+            app(TaskService::class)->moveCardsAcrossLists([$listId => [$taskId]], Auth::user(), $taskId);
 
             $task = Task::find($taskId);
             $list = TaskList::find($listId);
-            if ($task && $list?->is_final && ($task->reviewer_id ?? $task->created_by) === Auth::id() && ! $task->rating) {
+            if ($task && $list?->is_final && $task->requiresRatingFrom(Auth::id())) {
                 $this->openTaskDetail($taskId);
             }
         } catch (\Throwable $e) {
@@ -666,10 +762,13 @@ class TaskListPage extends Component
      * Reuse logic auto-buka modal rating yang sudah ada di moveTaskStatus() (task yang baru saja
      * COMPLETE, actor creator, belum ada rating).
      */
-    public function moveCardsAcrossLists(array $listsPayload): void
+    public function moveCardsAcrossLists(array $listsPayload, ?string $movedTaskId = null): void
     {
+        // List asal tiap task sebelum dipindah - buat tahu mana yang BARU masuk List Selesai (confetti).
+        $listBefore = Task::whereIn('id', array_merge(...array_map('array_values', array_values($listsPayload))))->pluck('list_id', 'id');
+
         try {
-            app(TaskService::class)->moveCardsAcrossLists($listsPayload, Auth::user());
+            app(TaskService::class)->moveCardsAcrossLists($listsPayload, Auth::user(), $movedTaskId);
         } catch (\Throwable $e) {
             Notification::make()->title($e->getMessage() ?: 'Tidak bisa memindahkan tugas ini')->danger()->send();
             unset($this->tasks);
@@ -683,8 +782,14 @@ class TaskListPage extends Component
             }
 
             foreach ($listsPayload[$listId] as $taskId) {
+                if (($listBefore[$taskId] ?? $listId) === $listId) {
+                    continue;
+                }
+
+                $this->dispatch('task-completed');
+
                 $task = Task::find($taskId);
-                if ($task && ($task->reviewer_id ?? $task->created_by) === Auth::id() && ! $task->rating) {
+                if ($task && $task->requiresRatingFrom(Auth::id())) {
                     $this->openTaskDetail($taskId);
                 }
             }
@@ -726,13 +831,37 @@ class TaskListPage extends Component
         }
 
         try {
-            app(TaskService::class)->deleteProject($this->activeProject, Auth::user());
-            $this->activeProjectId = null;
-            unset($this->myProjects, $this->tasks);
-            Notification::make()->title('Board dihapus')->success()->send();
+            $result = app(TaskService::class)->removeProject($this->activeProject, Auth::user());
         } catch (\Throwable $e) {
             Notification::make()->title($e->getMessage() ?: 'Tidak bisa menghapus Board ini')->danger()->send();
+
+            return;
         }
+
+        Notification::make()
+            ->title($result === 'archived' ? 'Board diarsipkan - bisa dilihat lagi di Arsip' : 'Board dihapus')
+            ->success()
+            ->send();
+
+        $this->redirectRoute('tugas', navigate: true);
+    }
+
+    public function restoreProject(): void
+    {
+        if (! $this->activeProject) {
+            return;
+        }
+
+        try {
+            app(TaskService::class)->restoreProject($this->activeProject, Auth::user());
+        } catch (\Throwable $e) {
+            Notification::make()->title($e->getMessage() ?: 'Tidak bisa memulihkan Board ini')->danger()->send();
+
+            return;
+        }
+
+        Notification::make()->title('Board dipulihkan')->success()->send();
+        $this->redirectRoute('tugas.papan.board', ['project' => $this->activeProjectId], navigate: true);
     }
 
     public function removeProjectMember(string $userId): void
