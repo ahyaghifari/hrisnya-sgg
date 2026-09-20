@@ -508,6 +508,55 @@ class ScheduleShiftRosterTabTest extends TestCase
         );
     }
 
+    /** Export layout baru (legenda di kiri, grid mulai kolom F): isi legenda benar, sel grid
+     * diwarnai, dan file hasil export bisa langsung diimpor balik (kolom "Karyawan" dicari lewat header). */
+    public function test_export_has_legend_table_left_and_can_be_imported_back(): void
+    {
+        [$schedule, $shiftType, $employee] = $this->makeManualShiftSchedule();
+        $shiftType->update(['name' => 'Pagi', 'color' => '#f97316', 'font_color' => '#ffffff', 'start_time' => '08:00:00', 'end_time' => '14:00:00']);
+        $schedule->refresh();
+
+        $today = now()->startOfDay();
+        $dates = collect(range(1, $today->daysInMonth))->map(fn ($d) => $today->copy()->day($d))->all();
+        $roster = [$employee->id => [$today->toDateString() => $shiftType->id, $today->copy()->addDay()->toDateString() => 'off']];
+
+        $export = new \App\Exports\Presensi\ScheduleShiftRosterExport($schedule, collect([$employee]), $dates, $roster, 'September 2026');
+        $rows = $export->array();
+
+        // Legenda kiri: judul, periode, header, baris Libur, lalu shift (kode | keterangan | jam kerja | tim).
+        $this->assertSame('JADWAL '.mb_strtoupper($schedule->name), $rows[0][0]);
+        $this->assertSame('Periode Penjadwalan September 2026', $rows[1][0]);
+        $this->assertSame(['Kode Shift', 'Keterangan', 'Jam Kerja', 'Tim'], array_slice($rows[2], 0, 4));
+        $this->assertSame(['L', 'Libur', '-', '-'], array_slice($rows[3], 0, 4));
+        $this->assertSame([$shiftType->code, 'Pagi', '08:00 s.d 14:00', '-'], array_slice($rows[4], 0, 4));
+        // Kolom E kosong, grid mulai kolom F dengan header "Karyawan".
+        $this->assertSame('', $rows[2][4]);
+        $this->assertSame('Karyawan', $rows[2][5]);
+
+        $spreadsheet = new Spreadsheet;
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->fromArray($rows);
+        $export->styles($sheet);
+
+        // Kode shift di legenda & sel roster hari ini diwarnai warna shift; "L" pakai warna Libur.
+        $this->assertSame('F97316', $sheet->getStyle('A5')->getFill()->getStartColor()->getRGB());
+        $todayCell = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex(7 + $today->day - 1).'4';
+        $this->assertSame('F97316', $sheet->getStyle($todayCell)->getFill()->getStartColor()->getRGB());
+
+        // Round-trip: simpan xlsx hasil export lalu impor balik ke roster.
+        $path = storage_path('framework/testing/roster-export-'.uniqid().'.xlsx');
+        (new Xlsx($spreadsheet))->save($path);
+        $file = UploadedFile::fake()->createWithContent('roster-export.xlsx', file_get_contents($path));
+
+        $component = Livewire::actingAs($this->actingAsAbsensi())
+            ->test(ScheduleShiftRosterTab::class, ['schedule' => $schedule])
+            ->set('importFile', $file)
+            ->assertSet('editMode', true);
+
+        $this->assertSame($shiftType->id, $component->get('draft')[$employee->id][$today->toDateString()]);
+        $this->assertSame('off', $component->get('draft')[$employee->id][$today->copy()->addDay()->toDateString()]);
+    }
+
     public function test_import_excel_skips_unrecognized_shift_codes_and_keeps_existing_value(): void
     {
         [$schedule, $shiftType, $employee] = $this->makeManualShiftSchedule();

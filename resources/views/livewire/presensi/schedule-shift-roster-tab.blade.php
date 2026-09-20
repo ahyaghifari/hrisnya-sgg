@@ -27,6 +27,8 @@
     disimpan tetap lewat tombol "Simpan" (saveRoster) yang sudah ada. --}}
     <style>
         .rf-scrollbox { max-height:100vh; }
+        .rf-team-btn { flex-shrink:0; width:26px; height:26px; border-radius:7px; border:1px solid var(--border-soft); background:var(--surface-alt); color:var(--text-muted); font-size:11px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; }
+        .rf-team-btn:hover { background:var(--border-soft); color:var(--text-heading); }
         /* HP (2026-09-21): tabel penjadwalan lebih pendek + font header tanggal, nama karyawan, dan kode shift dikecilkan */
         @media (max-width: 767px) {
             .rf-scrollbox { max-height:60vh; }
@@ -34,6 +36,7 @@
             .rf-table th { font-size:10px !important; }
             .rf-table th:not(.rf-sticky-col) { padding:6px 3px !important; min-width:46px !important; }
             .rf-table th.rf-sticky-col, .rf-table td.rf-name { padding-left:8px !important; padding-right:8px !important; }
+            .rf-team-btn { width:28px; height:28px; }
             .rf-table select { width:44px !important; padding:5px 1px !important; font-size:9px !important; }
         }
         .rf-sel { outline:2px solid #042c6c; outline-offset:-2px; }
@@ -279,7 +282,18 @@
                                 @endif
                             </td>
                         @endif
-                        <td class="rf-name" style="padding:6px 12px;white-space:nowrap;font-weight:600;position:sticky;left:{{ ($schedule->use_teams && $teamGroupMode === 'column') ? '130px' : '0' }};background:var(--surface);z-index:1;">{{ $employee->name }}</td>
+                        <td class="rf-name" style="padding:6px 12px;white-space:nowrap;font-weight:600;position:sticky;left:{{ ($schedule->use_teams && $teamGroupMode === 'column') ? '130px' : '0' }};background:var(--surface);z-index:1;">
+                            @if ($this->canChangeTeam)
+                                <span style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+                                    <span>{{ $employee->name }}</span>
+                                    <button type="button" wire:click="openTeamPicker('{{ $employee->id }}')" class="rf-team-btn" title="Ganti tim {{ $employee->name }} untuk {{ $this->periodLabel }}" aria-label="Ganti tim {{ $employee->name }}">
+                                        <i class="fa-solid fa-people-arrows"></i>
+                                    </button>
+                                </span>
+                            @else
+                                {{ $employee->name }}
+                            @endif
+                        </td>
                         @foreach ($this->leadDates as $ld)
                             @php
                                 $lval = $userRoster[$ld->toDateString()] ?? '';
@@ -394,6 +408,38 @@
             </tbody>
         </table>
     </div>
+
+    {{-- Ganti tim 1 karyawan untuk bulan yang lagi dibuka (2026-09-21) - gerbang & batas bulan sama
+    persis tab Tim (canChangeTeam). --}}
+    @if ($teamPickerUserId && $this->canChangeTeam)
+        @php
+            $pickerUser = $this->employees->firstWhere('id', $teamPickerUserId);
+            $pickerTeamId = $pickerUser ? ($this->employeeTeamInfo[$pickerUser->id]['id'] ?? '') : '';
+        @endphp
+        <div class="modal-overlay" wire:click="closeTeamPicker">
+            <div class="modal-box" onclick="event.stopPropagation()" style="max-width:340px;">
+                <h3 style="font-size:15px;font-weight:700;color:var(--text-heading);margin:0 0 4px;">Ganti Tim</h3>
+                <p style="font-size:12px;color:var(--text-muted);margin:0 0 14px;">{{ $pickerUser?->name }} &middot; {{ $this->periodLabel }}</p>
+                <div style="display:flex;flex-direction:column;gap:6px;">
+                    @foreach ($this->teams as $team)
+                        <button type="button" wire:click="setMemberTeam('{{ $team->id }}')" wire:loading.attr="disabled"
+                            style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;border:1.5px solid {{ $pickerTeamId === $team->id ? 'var(--brand)' : 'var(--border-soft)' }};background:var(--surface);cursor:pointer;font-family:inherit;text-align:left;">
+                            <span style="width:12px;height:12px;border-radius:50%;background:{{ $team->color ?? '#042c6c' }};flex-shrink:0;"></span>
+                            <span style="flex:1;font-size:13px;font-weight:600;color:var(--text-heading);">{{ $team->name }}</span>
+                            @if ($pickerTeamId === $team->id) <i class="fa-solid fa-check" style="color:var(--brand);font-size:12px;"></i> @endif
+                        </button>
+                    @endforeach
+                    <button type="button" wire:click="setMemberTeam('')" wire:loading.attr="disabled"
+                        style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;border:1.5px solid {{ $pickerTeamId === '' ? 'var(--brand)' : 'var(--border-soft)' }};background:var(--surface);cursor:pointer;font-family:inherit;text-align:left;">
+                        <span style="width:12px;height:12px;border-radius:50%;border:1.5px dashed var(--text-faint);flex-shrink:0;"></span>
+                        <span style="flex:1;font-size:13px;font-weight:600;color:var(--text-muted);">Tanpa Tim</span>
+                        @if ($pickerTeamId === '') <i class="fa-solid fa-check" style="color:var(--brand);font-size:12px;"></i> @endif
+                    </button>
+                </div>
+                <button type="button" wire:click="closeTeamPicker" class="btn-ghost" style="width:100%;justify-content:center;margin-top:14px;">Batal</button>
+            </div>
+        </div>
+    @endif
 
     <div style="margin-top:12px;display:flex;gap:8px;">
         <button type="button" wire:click="toggleLogs" class="btn-ghost" style="font-size:11px;padding:7px 12px;white-space:nowrap;">

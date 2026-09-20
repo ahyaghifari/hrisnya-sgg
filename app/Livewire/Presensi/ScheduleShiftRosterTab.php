@@ -9,6 +9,7 @@ use App\Models\Shift\ScheduleAssignment;
 use App\Models\Shift\ScheduleShiftAssignment;
 use App\Models\Shift\ScheduleShiftRosterLog;
 use App\Models\Shift\ScheduleShiftRotation;
+use App\Models\Shift\ScheduleShiftTeam;
 use App\Models\Shift\ScheduleShiftTeamMember;
 use App\Models\Shift\ShiftSwapRequests;
 use Carbon\Carbon;
@@ -186,17 +187,18 @@ class ScheduleShiftRosterTab extends Component
     {
         $employees = ScheduleAssignment::where('schedule_id', $this->schedule->id)
             ->whereNotNull('user_id')
-            ->with('user')
+            ->with('user.profile')
             ->get()
             ->pluck('user')
             ->filter();
 
+        // Urut tanggal bergabung terlama -> terbaru (User::rosterSortKey), baik di dalam tim maupun tidak.
         if (! $this->schedule->use_teams) {
-            return $employees->sortBy('name')->values();
+            return $employees->sortBy(fn ($u) => $u->rosterSortKey())->values();
         }
 
         // Dikelompokkan per regu (tab "Regu", diatur per bulan - pakai $period yang lagi
-        // dibuka di sini juga) - urut nama regu, lalu nama karyawan; yang belum punya regu
+        // dibuka di sini juga) - urut nama regu, lalu tanggal bergabung; yang belum punya regu
         // bulan ini nyempil paling akhir. Cuma urutan baris yang berubah, mekanisme drag-select
         // (rfRow = $loop->index di blade) tidak kesentuh sama sekali, tetap jalan seperti biasa.
         $teamNameByUser = ScheduleShiftTeamMember::where('schedule_id', $this->schedule->id)
@@ -207,7 +209,7 @@ class ScheduleShiftRosterTab extends Component
             ->map(fn ($m) => $m->team?->name);
 
         return $employees
-            ->sortBy(fn ($u) => ($teamNameByUser->get($u->id) ?? "\u{FFFF}") . '|' . $u->name)
+            ->sortBy(fn ($u) => ($teamNameByUser->get($u->id) ?? "\u{FFFF}") . '|' . $u->rosterSortKey())
             ->values();
     }
 
@@ -226,6 +228,7 @@ class ScheduleShiftRosterTab extends Component
             ->get()
             ->filter(fn ($m) => $m->team)
             ->mapWithKeys(fn ($m) => [$m->user_id => [
+                'id' => $m->team->id,
                 'name' => $m->team->name,
                 'color' => $m->team->color,
                 // null = regu ini TIDAK dibatasi (boleh semua shift), lihat
@@ -233,6 +236,56 @@ class ScheduleShiftRosterTab extends Component
                 'shift_type_ids' => $m->team->shiftTypes->pluck('id')->all() ?: null,
             ]])
             ->all();
+    }
+
+    /** user_id karyawan yang lagi dibuka popup "Ganti Tim"-nya (tombol di samping nama), null = tertutup. */
+    public ?string $teamPickerUserId = null;
+
+    /** Ganti tim lewat tabel ini - gerbang & batas bulan SAMA dengan ScheduleShiftTeamTab::assignMember():
+     * Create:ScheduleShiftTeam, hanya bulan berjalan + bulan depan (bukan bulan lampau, bukan 2+
+     * bulan ke depan). Dimatikan selama editMode - urutan baris ikut berubah begitu tim ganti,
+     * sedangkan draf sel & Isi Cepat mengandalkan posisi baris. */
+    public function getCanChangeTeamProperty(): bool
+    {
+        return $this->schedule->use_teams
+            && ! $this->editMode
+            && Auth::user()->can('create', ScheduleShiftTeam::class)
+            && $this->period >= now()->format('Y-m')
+            && ! $this->periodLocked;
+    }
+
+    public function openTeamPicker(string $userId): void
+    {
+        abort_unless($this->canChangeTeam, 403);
+        abort_unless($this->employees->contains('id', $userId), 404);
+
+        $this->teamPickerUserId = $userId;
+    }
+
+    public function closeTeamPicker(): void
+    {
+        $this->teamPickerUserId = null;
+    }
+
+    /** $teamId '' = Tanpa Tim. */
+    public function setMemberTeam(string $teamId): void
+    {
+        abort_unless($this->canChangeTeam, 403);
+
+        $user = $this->employees->firstWhere('id', $this->teamPickerUserId);
+        abort_unless($user, 404);
+
+        if ($teamId === '') {
+            ScheduleShiftTeamMember::removeForPeriod($this->schedule, $user, $this->period);
+        } else {
+            $team = ScheduleShiftTeam::where('schedule_id', $this->schedule->id)->findOrFail($teamId);
+            ScheduleShiftTeamMember::setForPeriod($this->schedule, $user, $team, $this->period, Auth::id());
+        }
+
+        $this->teamPickerUserId = null;
+        unset($this->employeeTeamInfo);
+
+        Notification::make()->title('Tim ' . $user->name . ' untuk ' . $this->periodLabel . ' berhasil diperbarui')->success()->send();
     }
 
     /** Daftar Regu jadwal ini (bukan per periode - keanggotaan yang per-bulan, tapi daftar
@@ -913,12 +966,15 @@ class ScheduleShiftRosterTab extends Component
         $rows = Excel::toArray(null, $this->importFile->getRealPath())[0] ?? [];
         $dataRows = array_slice($rows, 3);
 
-        // Kolom nama di posisi 0 (mode Baris - banner tim jadi baris pemisah, dilewati di loop
-        // bawah karena namanya tidak match employee manapun DAN semua kolom tanggalnya kosong)
-        // atau posisi 1 (mode Kolom - kolom 0 dipakai Tim, lihat ScheduleShiftRosterExport).
-        // Diasumsikan file yang diimpor hasil export dengan $teamGroupMode SAAT INI - ganti mode
-        // Baris/Kolom di antara export dan import bikin kolomnya salah baca.
-        $nameColIdx = ($this->schedule->use_teams && $this->teamGroupMode === 'column') ? 1 : 0;
+        // Kolom nama dicari lewat header "Karyawan" di baris 3 - sejak layout export 2026-09-21 grid
+        // roster mulai di kolom F (tabel legenda di kiri), dan mode Kolom menambah kolom Tim di
+        // depannya, jadi posisinya tidak bisa di-hardcode lagi. Banner tim (mode Baris) dilewati di
+        // loop bawah karena namanya tidak match employee manapun DAN semua kolom tanggalnya kosong.
+        // Fallback ke aturan lama (posisi 0/1 menurut mode) kalau header tidak ketemu.
+        $nameColIdx = collect($rows[2] ?? [])->search(fn ($cell) => mb_strtolower(trim((string) $cell)) === 'karyawan');
+        if ($nameColIdx === false) {
+            $nameColIdx = ($this->schedule->use_teams && $this->teamGroupMode === 'column') ? 1 : 0;
+        }
 
         $employeesByName = $this->employees->keyBy(fn ($employee) => mb_strtolower(trim($employee->name)));
         $shiftTypesByCode = $this->schedule->shiftTypes->keyBy(fn ($type) => mb_strtolower($type->code));

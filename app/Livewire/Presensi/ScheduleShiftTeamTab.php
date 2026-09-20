@@ -165,11 +165,11 @@ class ScheduleShiftTeamTab extends Component
     {
         return ScheduleAssignment::where('schedule_id', $this->schedule->id)
             ->whereNotNull('user_id')
-            ->with('user')
+            ->with('user.profile')
             ->get()
             ->pluck('user')
             ->filter()
-            ->sortBy('name')
+            ->sortBy(fn ($u) => $u->rosterSortKey())
             ->values();
     }
 

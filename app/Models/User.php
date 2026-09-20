@@ -111,6 +111,14 @@ class User extends Authenticatable implements FilamentUser
         return $this->hasOne(UserProfiles::class, 'user_id', 'id');
     }
 
+    /** Kunci urut roster jadwal shift: tanggal bergabung terlama dulu (yang belum diisi di paling
+     * bawah), lalu nama tanpa peduli huruf besar/kecil sebagai pembeda (2026-09-21). Eager load
+     * `profile` dulu supaya tidak N+1. */
+    public function rosterSortKey(): string
+    {
+        return (substr((string) $this->profile?->joining_date, 0, 10) ?: '9999-12-31') . '|' . mb_strtolower($this->name);
+    }
+
     public function koperasi()
     {
         return $this->hasOne(UserKoperasi::class, 'user_id', 'id');

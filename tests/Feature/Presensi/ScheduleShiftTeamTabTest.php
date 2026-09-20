@@ -357,6 +357,113 @@ class ScheduleShiftTeamTabTest extends TestCase
         $this->assertDatabaseHas('schedule_shift_teams', ['id' => $team->id]);
     }
 
+    /** Ganti tim langsung dari tabel Detail Penjadwalan (tombol di samping nama): bulan berjalan +
+     * bulan depan boleh, 2+ bulan ke depan dan bulan lampau tidak, dan wajib Create:ScheduleShiftTeam. */
+    public function test_roster_tab_can_change_team_for_current_and_next_month_only(): void
+    {
+        \Illuminate\Support\Carbon::setTestNow('2026-10-15');
+
+        [$schedule, $employee] = $this->makeScheduleWithEmployee();
+        $schedule->update(['use_teams' => true]);
+        $user = $this->actingAsKepalaRuangan();
+        $teamA = ScheduleShiftTeam::create(['schedule_id' => $schedule->id, 'name' => 'Regu A']);
+        $teamB = ScheduleShiftTeam::create(['schedule_id' => $schedule->id, 'name' => 'Regu B']);
+        ScheduleShiftTeamMember::setForPeriod($schedule, $employee, $teamA, '2026-10', $user->id);
+
+        $roster = fn (string $period) => Livewire::actingAs($user)
+            ->test(\App\Livewire\Presensi\ScheduleShiftRosterTab::class, ['schedule' => $schedule])
+            ->set('period', $period);
+
+        // Bulan berjalan: tombol muncul, ganti ke Regu B.
+        $roster('2026-10')
+            ->assertSeeHtml('wire:click="openTeamPicker(\'' . $employee->id . '\')"')
+            ->call('openTeamPicker', $employee->id)
+            ->assertSee('Ganti Tim')
+            ->call('setMemberTeam', $teamB->id);
+        $this->assertSame($teamB->id, ScheduleShiftTeamMember::forPeriod($schedule->id, $employee->id, '2026-10')->team_id);
+
+        // Bulan depan: boleh; "Tanpa Tim" melepas keanggotaan bulan itu.
+        $roster('2026-11')
+            ->call('openTeamPicker', $employee->id)
+            ->call('setMemberTeam', '');
+        $this->assertNull(ScheduleShiftTeamMember::forPeriod($schedule->id, $employee->id, '2026-11'));
+
+        // 2 bulan ke depan: tombol hilang dan aksinya ditolak.
+        $roster('2026-12')
+            ->assertDontSeeHtml('openTeamPicker')
+            ->call('openTeamPicker', $employee->id)
+            ->assertForbidden();
+
+        // Bulan lampau: ditolak juga.
+        $roster('2026-09')
+            ->assertDontSeeHtml('openTeamPicker')
+            ->call('openTeamPicker', $employee->id)
+            ->assertForbidden();
+
+        \Illuminate\Support\Carbon::setTestNow();
+    }
+
+    public function test_roster_tab_change_team_requires_create_team_permission_and_not_edit_mode(): void
+    {
+        [$schedule, $employee] = $this->makeScheduleWithEmployee();
+        $schedule->update(['use_teams' => true]);
+        $team = ScheduleShiftTeam::create(['schedule_id' => $schedule->id, 'name' => 'Regu A']);
+
+        // Tanpa Create:ScheduleShiftTeam (viewer biasa): tombol tidak ada, aksi ditolak.
+        Livewire::actingAs($this->actingAsViewerOnly())
+            ->test(\App\Livewire\Presensi\ScheduleShiftRosterTab::class, ['schedule' => $schedule])
+            ->assertDontSeeHtml('openTeamPicker')
+            ->call('openTeamPicker', $employee->id)
+            ->assertForbidden();
+
+        // Pemegang izin, tapi selama mode isi jadwal (editMode) tombolnya dimatikan.
+        $user = $this->actingAsKepalaRuangan();
+        $component = Livewire::actingAs($user)
+            ->test(\App\Livewire\Presensi\ScheduleShiftRosterTab::class, ['schedule' => $schedule]);
+        $this->assertTrue($component->instance()->canChangeTeam);
+        $component->set('editMode', true);
+        $this->assertFalse($component->instance()->canChangeTeam);
+        $this->assertNull(ScheduleShiftTeamMember::forPeriod($schedule->id, $employee->id, now()->format('Y-m')));
+    }
+
+    /** Urutan roster: tanggal bergabung terlama dulu (di dalam tim maupun tidak), yang belum
+     * punya tanggal di paling bawah, nama (tanpa peduli huruf besar/kecil) sebagai pembeda. */
+    public function test_roster_orders_by_joining_date_oldest_first_with_and_without_teams(): void
+    {
+        $company = Companies::create(['code' => 'TSJ', 'name' => 'Test Join Order', 'location' => 'Test', 'is_active' => true]);
+        $schedule = Schedule::create(['company_id' => $company->id, 'name' => 'Jadwal Join', 'schedule_type' => ScheduleType::SHIFT->value, 'use_template' => false]);
+        $viewer = $this->actingAsKepalaRuangan();
+
+        $mk = function (string $name, ?string $joined) use ($company, $schedule) {
+            $u = User::factory()->create(['company_id' => $company->id, 'name' => $name]);
+            \App\Models\User\UserProfiles::create(['user_id' => $u->id, 'joining_date' => $joined]);
+            ScheduleAssignment::create(['company_id' => $company->id, 'schedule_id' => $schedule->id, 'user_id' => $u->id, 'effective_from' => now()->startOfMonth()]);
+
+            return $u;
+        };
+
+        $baru = $mk('Andi Baru', '2024-06-01');
+        $lama = $mk('Zaki Lama', '2015-03-10');
+        $tengah = $mk('Budi Tengah', '2020-01-15');
+        $kosong = $mk('Citra Tanpa Tanggal', null);
+
+        $names = fn () => Livewire::actingAs($viewer)
+            ->test(\App\Livewire\Presensi\ScheduleShiftRosterTab::class, ['schedule' => $schedule->fresh()])
+            ->instance()->employees->pluck('name')->all();
+
+        $expected = ['Zaki Lama', 'Budi Tengah', 'Andi Baru', 'Citra Tanpa Tanggal'];
+        $this->assertSame($expected, $names());
+
+        // Dengan Tim: urut nama tim dulu, di dalam tim tetap urut tanggal bergabung; tanpa tim di akhir.
+        $schedule->update(['use_teams' => true]);
+        $teamA = ScheduleShiftTeam::create(['schedule_id' => $schedule->id, 'name' => 'Regu A']);
+        $period = now()->format('Y-m');
+        ScheduleShiftTeamMember::setForPeriod($schedule, $baru, $teamA, $period, $viewer->id);
+        ScheduleShiftTeamMember::setForPeriod($schedule, $lama, $teamA, $period, $viewer->id);
+
+        $this->assertSame(['Zaki Lama', 'Andi Baru', 'Budi Tengah', 'Citra Tanpa Tanggal'], $names());
+    }
+
     public function test_roster_tab_groups_rows_by_team_when_use_teams_active(): void
     {
         $company = Companies::create(['code' => 'TSG', 'name' => 'Test Company Grouping', 'location' => 'Test', 'is_active' => true]);
@@ -436,28 +543,29 @@ class ScheduleShiftTeamTabTest extends TestCase
 
         $rows = $export->array();
 
-        // Cuma "Karyawan" + tanggal - tidak ada kolom Tim lagi.
-        $this->assertSame(['Karyawan', $date->format('d')."\n".$date->translatedFormat('D')], $rows[0]);
-        $this->assertSame(['Regu A', ''], $rows[1]);
-        $this->assertSame(['A', ''], $rows[2]);
-        $this->assertSame(['B', ''], $rows[3]);
-        $this->assertSame(['Tanpa Tim', ''], $rows[4]);
-        $this->assertSame(['C', ''], $rows[5]);
+        // Layout 2026-09-21: tabel legenda di kolom A-D, E kosong, grid roster mulai kolom F
+        // (index 5) - baris 1-2 judul legenda, baris 3 header, baris 4.. data. Cuma "Karyawan" +
+        // tanggal di grid - tidak ada kolom Tim (mode Baris).
+        $grid = fn (int $i) => array_slice($rows[$i], 5);
+        $this->assertSame(['Karyawan', $date->format('d')."\n".$date->translatedFormat('D')], $grid(2));
+        $this->assertSame(['Regu A', ''], $grid(3));
+        $this->assertSame(['A', ''], $grid(4));
+        $this->assertSame(['B', ''], $grid(5));
+        $this->assertSame(['Tanpa Tim', ''], $grid(6));
+        $this->assertSame(['C', ''], $grid(7));
 
         $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet;
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->fromArray($rows);
         $export->styles($sheet);
 
-        // 2 baris judul disisipkan di styles() -> baris banner "Regu A" (raw index 1) geser ke
-        // baris 4, banner "Tanpa Tim" (raw index 4) geser ke baris 7 - dua-duanya merge PENUH
-        // lebar tabel (A:B, cuma 1 kolom tanggal di test ini), bukan cuma kolom A.
-        $this->assertContains('A4:B4', $sheet->getMergeCells());
-        $this->assertContains('A7:B7', $sheet->getMergeCells());
+        // Banner "Regu A" di baris sheet 4, "Tanpa Tim" di baris 7 - dua-duanya merge PENUH lebar
+        // grid (F:G, cuma 1 kolom tanggal di test ini), bukan cuma kolom nama.
+        $this->assertContains('F4:G4', $sheet->getMergeCells());
+        $this->assertContains('F7:G7', $sheet->getMergeCells());
 
-        // Freeze pane B4 - cuma kolom Karyawan yang dibekukan, tidak ada kolom Tim lagi buat
-        // dibekukan bareng.
-        $this->assertSame('B4', $sheet->getFreezePane());
+        // Freeze pane A4 - baris judul+header saja, tidak ada kolom yang dibekukan (legenda lebar).
+        $this->assertSame('A4', $sheet->getFreezePane());
     }
 
     public function test_export_omits_team_separator_rows_when_use_teams_inactive(): void
@@ -470,16 +578,17 @@ class ScheduleShiftTeamTabTest extends TestCase
         $rows = $export->array();
 
         // use_teams false -> $teamNames diabaikan sepenuhnya, tidak ada baris banner sama sekali.
-        $this->assertSame(['Karyawan', $date->format('d')."\n".$date->translatedFormat('D')], $rows[0]);
-        $this->assertSame(['Budi Santoso', ''], $rows[1]);
-        $this->assertCount(2, $rows);
+        // 2 baris judul + header + 1 karyawan (legenda cuma header + baris Libur, lebih pendek).
+        $this->assertSame(['Karyawan', $date->format('d')."\n".$date->translatedFormat('D')], array_slice($rows[2], 5));
+        $this->assertSame(['Budi Santoso', ''], array_slice($rows[3], 5));
+        $this->assertCount(4, $rows);
 
         $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet;
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->fromArray($rows);
         $export->styles($sheet);
 
-        $this->assertSame('B4', $sheet->getFreezePane());
+        $this->assertSame('A4', $sheet->getFreezePane());
     }
 
     public function test_deleting_team_removes_membership_via_cascade(): void
