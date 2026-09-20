@@ -76,7 +76,7 @@ class AttendanceReqRepository
 
     public function findAttendanceRequestById(string $id)
     {
-        return AttendanceRequests::with('user.profile.orgStructure','overtimeDetails', 'leaveDetails', 'permissionDetails', 'attachments')->find($id);
+        return AttendanceRequests::with('user.profile.jobPosition.orgStructure','overtimeDetails', 'leaveDetails', 'permissionDetails', 'attachments')->find($id);
     }
 
     public function storeAttendanceRequest(array $data)

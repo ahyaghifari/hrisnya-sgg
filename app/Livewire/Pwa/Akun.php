@@ -25,7 +25,7 @@ class Akun extends Component
 
     public function mount(): void
     {
-        $this->record = Auth::user()->load(['roles', 'profile.jobPosition', 'profile.orgStructure.parent.parent']);
+        $this->record = Auth::user()->load(['roles', 'profile.jobPosition.orgStructure.parent.parent']);
         $this->ssoLinked = (bool) $this->record->keycloak_sub && KeycloakAdmin::isConfigured();
 
         if (! $this->ssoLinked) {

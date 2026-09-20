@@ -24,7 +24,6 @@ class JobPositionService
     public function requestJobPosition(JobPositions $jobPositions, string $status): object
     {
         $userId = Auth::user()->id;
-        $isDraft = true;
         $requestType = 'create';
         $requestBy = $userId;
 
@@ -38,7 +37,6 @@ class JobPositionService
         }
 
         $request = $this->jobPositionRepo->update($jobPositions, [
-            'is_draft' => $isDraft,
             'status' => $status,
             'request_type' => $requestType,
             'request_by' => $requestBy,
@@ -66,53 +64,38 @@ class JobPositionService
         $plannedManPower = $jobPositions->planned_manpower ?? 0;
 
         $request = $this->jobPositionRepo->update($jobPositions, [
-            'is_draft' => false,
             'status' => \App\Enum\JobPositionReqStatus::APPROVED->value,
             'request_type' => 'create',
             'request_by' => $userId,
-            'approved_manpower' => $plannedManPower,
-            'actual_manpower' => $plannedManPower,
+            'manpower' => $plannedManPower,
             'approved_by' => $userId,
             'approved_at' => now(),
         ]);
-
-        if ($jobPositions->orgStructure) {
-            $this->jobPositionRepo->updateOrgStrucuture($jobPositions->orgStructure, [
-                'capacity' => $plannedManPower,
-            ]);
-        }
 
         return $request;
     }
 
+    /**
+     * $approvedQuantity = jumlah kuota yang DISETUJUI kali ini (ditambahkan ke `manpower`
+     * yang sudah ada; 0 untuk penolakan).
+     */
     public function approveJobPosition(
-        JobPositions $jobPositions, 
-        string $status, 
-        int $actualManPower, 
+        JobPositions $jobPositions,
+        string $status,
+        int $approvedQuantity,
         string $note
     ): object
     {
         $userId = Auth::user()->id;
-        $isDraft = false;
 
-        $currentActualManPower = $jobPositions->actual_manpower ?? 0;
-        $approvedManPower = $actualManPower;
-        $totalActualManPower = $currentActualManPower + $approvedManPower;
+        $totalManpower = ($jobPositions->manpower ?? 0) + $approvedQuantity;
 
         $request = $this->jobPositionRepo->update($jobPositions, [
-            'is_draft' => $isDraft,
             'status' => $status,
-            'approved_manpower' => $approvedManPower,
-            'actual_manpower' => $totalActualManPower,
+            'manpower' => $totalManpower,
             'approved_by' => $userId,
             'approved_at' => now(),
         ]);
-
-        if ($jobPositions->orgStructure) {
-            $this->jobPositionRepo->updateOrgStrucuture($jobPositions->orgStructure, [
-                'capacity' => $totalActualManPower,
-            ]);
-        }
 
         $this->approvalFlowService->advanceStep(
             snapshot: ApprovalSnapshots::find(
@@ -128,9 +111,9 @@ class JobPositionService
 
     public function canAddUserToJobPosition(JobPositions $jobPosition): bool
     {
-        $actualManpower = $jobPosition->actual_manpower ?? 0;
+        $manpower = $jobPosition->manpower ?? 0;
         $assignedUsersCount = $jobPosition->userAssignments()->count();
 
-        return $assignedUsersCount < $actualManpower;
+        return $assignedUsersCount < $manpower;
     }
 }

@@ -41,7 +41,7 @@ class KelebihanJamKerjaCalculatorTest extends TestCase
         Setting::create(['company_id' => $company->id, 'key' => 'min_total_working_hours_per_month', 'module' => 'payroll', 'type' => 'decimal', 'value' => '160', 'label' => 'x']);
         // Fallback: aturan MILIK jabatan lain (bukan punya karyawan ini) - fallback company query
         // di calculator tidak filter allowanceable_id, jadi tetap kena walau bukan jabatan user ini.
-        $otherPosition = JobPositions::create(['name' => 'Jabatan Lain', 'company_id' => $company->id, 'is_draft' => false]);
+        $otherPosition = JobPositions::create(['name' => 'Jabatan Lain', 'company_id' => $company->id, 'status' => 'approved']);
         ExtraHourAllowanceRules::create(['company_id' => $company->id, 'allowanceable_type' => JobPositions::class, 'allowanceable_id' => $otherPosition->id, 'amount_per_hour' => 20000]);
 
         $user = User::factory()->create(['company_id' => $company->id]);
@@ -62,8 +62,8 @@ class KelebihanJamKerjaCalculatorTest extends TestCase
     {
         $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
         Setting::create(['company_id' => $company->id, 'key' => 'min_total_working_hours_per_month', 'module' => 'payroll', 'type' => 'decimal', 'value' => '160', 'label' => 'x']);
-        $jobPosition = JobPositions::create(['name' => 'Perawat', 'company_id' => $company->id, 'is_draft' => false]);
-        $otherPosition = JobPositions::create(['name' => 'Jabatan Lain', 'company_id' => $company->id, 'is_draft' => false]);
+        $jobPosition = JobPositions::create(['name' => 'Perawat', 'company_id' => $company->id, 'status' => 'approved']);
+        $otherPosition = JobPositions::create(['name' => 'Jabatan Lain', 'company_id' => $company->id, 'status' => 'approved']);
 
         // Fallback company rendah, rate spesifik jabatan lebih tinggi - yang dipakai harus yang spesifik.
         ExtraHourAllowanceRules::create(['company_id' => $company->id, 'allowanceable_type' => JobPositions::class, 'allowanceable_id' => $otherPosition->id, 'amount_per_hour' => 5000]);
@@ -87,7 +87,7 @@ class KelebihanJamKerjaCalculatorTest extends TestCase
     {
         $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
         Setting::create(['company_id' => $company->id, 'key' => 'min_total_working_hours_per_month', 'module' => 'payroll', 'type' => 'decimal', 'value' => '160', 'label' => 'x']);
-        $otherPosition = JobPositions::create(['name' => 'Jabatan Lain', 'company_id' => $company->id, 'is_draft' => false]);
+        $otherPosition = JobPositions::create(['name' => 'Jabatan Lain', 'company_id' => $company->id, 'status' => 'approved']);
         ExtraHourAllowanceRules::create(['company_id' => $company->id, 'allowanceable_type' => JobPositions::class, 'allowanceable_id' => $otherPosition->id, 'amount_per_hour' => 20000]);
 
         $user = User::factory()->create(['company_id' => $company->id]);

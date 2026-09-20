@@ -10,7 +10,7 @@
     <div style="background:var(--surface);border-radius:12px;box-shadow:var(--shadow-card);padding:16px 18px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
         <div>
             <p style="font-size:13px;font-weight:700;color:var(--text-heading);margin:0;">Menunggu Persetujuan Anda</p>
-            <p style="font-size:11.5px;color:var(--text-muted);margin-top:2px;">Kuota diajukan: <strong>{{ $record->planned_manpower }}</strong> orang &middot; Kuota sekarang: <strong>{{ $record->actual_manpower ?? 0 }}</strong> orang</p>
+            <p style="font-size:11.5px;color:var(--text-muted);margin-top:2px;">Kuota diajukan: <strong>{{ $record->planned_manpower }}</strong> orang &middot; Kuota sekarang: <strong>{{ $record->manpower ?? 0 }}</strong> orang</p>
         </div>
         <div style="display:flex;gap:8px;">
             <button type="button" wire:click="openApprovalModal('reject')" class="btn-ghost" style="color:var(--danger-text);border-color:var(--danger-soft-border);">
@@ -52,7 +52,7 @@
                     <div>
                         <label class="form-label">Realisasi Kuota Karyawan</label>
                         <input type="number" min="0" class="form-input" wire:model="actualManpower">
-                        <p style="font-size:11px;color:var(--text-muted);margin-top:4px;">Kuota sekarang: {{ $record->actual_manpower ?? 0 }} &middot; Diajukan: {{ $record->planned_manpower }}</p>
+                        <p style="font-size:11px;color:var(--text-muted);margin-top:4px;">Kuota sekarang: {{ $record->manpower ?? 0 }} &middot; Diajukan: {{ $record->planned_manpower }}</p>
                         @error('actualManpower') <p style="font-size:11px;color:#dc2626;margin-top:4px;">{{ $message }}</p> @enderror
                     </div>
                 @endif

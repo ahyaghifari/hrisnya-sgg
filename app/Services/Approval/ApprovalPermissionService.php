@@ -128,7 +128,7 @@ class ApprovalPermissionService
                 }
                 
                 if ($activity->scope_type === 'specific_department' && 
-                    $user->profile?->orgStructure?->id !== $activity->scope_ref_id) {
+                    $user->profile?->jobPosition?->orgStructure?->id !== $activity->scope_ref_id) {
                     return 'User ini tidak berada di department yang sesuai.';
                 }
                 

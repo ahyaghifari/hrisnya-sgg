@@ -145,17 +145,6 @@ class CreateUserTransitionPage extends Component
         $this->role_id = null;
     }
 
-    public function updatedTransitionableId(?string $value): void
-    {
-        if (in_array($this->transition_type, [
-            UserTransitionTypeEnum::PROMOTION->value,
-            UserTransitionTypeEnum::DEMOTION->value,
-            UserTransitionTypeEnum::MUTATION->value,
-        ], true)) {
-            $this->role_id = $value ? JobPositions::find($value)?->role_id : null;
-        }
-    }
-
     protected function rules(): array
     {
         $rules = [

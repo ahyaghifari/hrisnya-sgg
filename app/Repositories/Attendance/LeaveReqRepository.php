@@ -21,7 +21,7 @@ class LeaveReqRepository
 
     public function findAttendanceReqLeaveDetail(string $attendanceReqId)
     {
-        return AttendanceRequests::with('user.profile.orgStructure','leaveDetails')->find($attendanceReqId);
+        return AttendanceRequests::with('user.profile.jobPosition.orgStructure','leaveDetails')->find($attendanceReqId);
     }
 
     /**

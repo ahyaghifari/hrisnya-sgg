@@ -99,7 +99,7 @@ class CreateKaryawanTest extends TestCase
             'company_id' => $company->id,
             'name' => 'Posisi Penuh',
             'planned_manpower' => 1,
-            'actual_manpower' => 1,
+            'manpower' => 1,
         ]);
 
         $existingHolder = User::factory()->create(['company_id' => $company->id]);

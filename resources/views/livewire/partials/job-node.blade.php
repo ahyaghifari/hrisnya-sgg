@@ -32,7 +32,7 @@
                 $actualCount = 0;
             }
             
-            $plannedCount = $jobData['job']->actual_manpower ?? 0;
+            $plannedCount = $jobData['job']->manpower ?? 0;
         @endphp
         
         {{-- Card Header --}}

@@ -9,7 +9,6 @@ use App\Models\Master\JobPositions;
 use App\Models\Master\Kelas;
 use App\Models\Master\OrgStructure;
 use App\Models\Master\Pangkats;
-use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\RichEditor;
@@ -289,23 +288,14 @@ class JobPositionForm
                                 ->minValue(0)
                                 ->required(),
         
-                            TextInput::make('actual_manpower')
-                                ->label('Aktual Kuota')
+                            TextInput::make('manpower')
+                                ->label('Kuota Saat Ini')
                                 ->helperText(fn ($record) => 'Jumlah aktual kuota karyawan saat ini | Terisi ' . $record?->userAssignments()->count())
                                 ->numeric()
                                 ->columns(1)
                                 ->disabled()
                                 ->minValue(0)
                         ]),
-
-                    FileUpload::make('file_workload_analysis')
-                        ->label('File Analisis Beban Kerja')
-                        ->helperText('Unggah file analisis beban kerja untuk jabatan ini (opsional)')
-                        ->disk('public')
-                        ->openable()
-                        ->disabled(fn ($record) => $record && $record->status !== JobPositionReqStatus::DRAFT->value)
-                        ->directory('workload-analysis')
-                        ->visibility('public'),
                 ]),
         ];
     }

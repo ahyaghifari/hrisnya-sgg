@@ -44,7 +44,6 @@ class UserProfiles extends Model
         'whatsapp',
         'email_pribadi',
         'religion_id',
-        'org_structure_id',
         'job_position_id',
         'pangkat_id',
         'kelas_id',
@@ -79,24 +78,26 @@ class UserProfiles extends Model
         return $this->belongsTo(Religions::class, 'religion_id', 'id');
     }
 
-    public function orgStructure()
-    {
-        return $this->belongsTo(OrgStructure::class, 'org_structure_id');
-    }
-
     public function jobPosition()
     {
         return $this->belongsTo(\App\Models\Master\JobPositions::class, 'job_position_id');
     }
 
-    /** Struktur organisasi efektif karyawan: jabatan yang menentukan departemen/divisi
-     * (jabatan.org_structure_id), org_structure_id di profile cuma fallback buat karyawan
-     * tanpa jabatan atau jabatan yang belum punya struktur (segelintir jabatan direksi).
-     * Form Tambah/Edit Karyawan meng-sync profile.org_structure_id dari jabatan, tapi data
-     * lama bisa nyimpang - makanya jabatan yang diutamakan di sini. */
+    public function pangkat()
+    {
+        return $this->belongsTo(\App\Models\Master\Pangkats::class, 'pangkat_id', 'id');
+    }
+
+    public function kelas()
+    {
+        return $this->belongsTo(\App\Models\Master\Kelas::class, 'kelas_id', 'id');
+    }
+
+    /** Struktur organisasi efektif karyawan = struktur milik jabatannya (profil tidak punya kolom
+     * org_structure_id lagi, dihapus 2026-09-20); perusahaan lewat users.company_id. */
     public function getEffectiveOrgStructureAttribute(): ?OrgStructure
     {
-        return $this->jobPosition?->orgStructure ?? $this->orgStructure;
+        return $this->jobPosition?->orgStructure;
     }
 
     public function getDepartmentAttribute()
@@ -136,16 +137,6 @@ class UserProfiles extends Model
         return $org->level === \App\Enum\OrgStructurLevel::LEVEL_SUBDIVISION->value
             ? $org
             : null;
-    }
-
-    public function pangkat()
-    {
-        return $this->belongsTo(\App\Models\Master\Pangkats::class, 'pangkat_id', 'id');
-    }
-
-    public function kelas()
-    {
-        return $this->belongsTo(\App\Models\Master\Kelas::class, 'kelas_id', 'id');
     }
 
     public function employeeType()
@@ -198,7 +189,6 @@ class UserProfiles extends Model
             'rw' => 'RW',
             'phone' => 'No. Telepon',
             'whatsapp' => 'No. WhatsApp',
-            'org_structure_id' => 'Struktur Organisasi',
             'job_position_id' => 'Jabatan',
             'pangkat_id' => 'Pangkat',
             'kelas_id' => 'Kelas',

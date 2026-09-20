@@ -8,7 +8,6 @@ use App\Models\Master\JobPositions;
 use App\Models\Master\Kelas;
 use App\Models\Master\OrgStructure;
 use App\Models\Master\Pangkats;
-use App\Models\Role;
 use Illuminate\Support\Facades\Auth;
 
 /**
@@ -39,12 +38,10 @@ trait HasJabatanForm
     public ?string $pangkat_id = null;
     public ?string $kelas_id = null;
     public ?string $job_evaluation_score = null;
-    public ?string $role_id = null;
 
     // Analisis Beban Kerja
     public ?int $planned_manpower = null;
 
-    public $file_workload_analysis = null;
 
     public function updatedCompanyId(): void
     {
@@ -148,11 +145,6 @@ trait HasJabatanForm
         return Kelas::where('company_id', $this->company_id)->orderBy('level')->pluck('name', 'id');
     }
 
-    public function getRoleOptionsProperty()
-    {
-        return Role::pluck('name', 'id');
-    }
-
     protected function fillFromRecord(JobPositions $record): void
     {
         $this->record = $record;
@@ -164,7 +156,6 @@ trait HasJabatanForm
         $this->pangkat_id = $record->pangkat_id;
         $this->kelas_id = $record->kelas_id;
         $this->job_evaluation_score = $record->job_evaluation_score !== null ? (string) $record->job_evaluation_score : null;
-        $this->role_id = $record->role_id !== null ? (string) $record->role_id : null;
         $this->planned_manpower = $record->planned_manpower;
 
         $org = $record->org_structure_id ? OrgStructure::with('parent.parent')->find($record->org_structure_id) : null;
@@ -195,9 +186,7 @@ trait HasJabatanForm
             'pangkat_id' => ['nullable', 'exists:m_pangkats,id'],
             'kelas_id' => ['nullable', 'exists:m_kelas,id'],
             'job_evaluation_score' => ['nullable', 'numeric', 'min:0'],
-            'role_id' => ['nullable'],
             'planned_manpower' => [$this->record ? 'nullable' : 'required', 'integer', 'min:0'],
-            'file_workload_analysis' => ['nullable', 'file', 'max:10240'],
         ];
     }
 
@@ -213,15 +202,10 @@ trait HasJabatanForm
             'pangkat_id' => $this->pangkat_id ?: null,
             'kelas_id' => $this->kelas_id ?: null,
             'job_evaluation_score' => $this->job_evaluation_score !== null && $this->job_evaluation_score !== '' ? $this->job_evaluation_score : null,
-            'role_id' => $this->role_id ?: null,
         ];
 
         if (! $this->record) {
             $data['planned_manpower'] = $this->planned_manpower;
-        }
-
-        if ($this->file_workload_analysis) {
-            $data['file_workload_analysis'] = $this->file_workload_analysis->store('workload-analysis', 'public');
         }
 
         return $data;

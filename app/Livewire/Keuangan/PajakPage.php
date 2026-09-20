@@ -70,7 +70,7 @@ class PajakPage extends Component
                 'user.profile.kelas',
                 'user.profile.employeeType',
                 'user.profile.jobPosition.orgStructure.parent.parent',
-                'user.profile.orgStructure.parent.parent',
+                'user.profile.jobPosition.orgStructure.parent.parent',
                 'payrollPeriod',
                 'items',
             ])

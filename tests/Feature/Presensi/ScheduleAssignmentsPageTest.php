@@ -62,8 +62,8 @@ class ScheduleAssignmentsPageTest extends TestCase
         $schedule = Schedule::create(['company_id' => $company->id, 'name' => 'Jadwal Kantor', 'schedule_type' => ScheduleType::FIXED->value]);
 
         $org = OrgStructure::create(['name' => 'HC-GA', 'company_id' => $company->id, 'level' => OrgStructurLevel::LEVEL_DEPARTMENT->value]);
-        JobPositions::create(['name' => 'HC Manager', 'company_id' => $company->id, 'org_structure_id' => $org->id, 'is_draft' => false]);
-        JobPositions::create(['name' => 'Intern - Kampus A', 'company_id' => $company->id, 'is_draft' => false]);
+        JobPositions::create(['name' => 'HC Manager', 'company_id' => $company->id, 'org_structure_id' => $org->id, 'status' => 'approved']);
+        JobPositions::create(['name' => 'Intern - Kampus A', 'company_id' => $company->id, 'status' => 'approved']);
 
         Livewire::actingAs($user)
             ->test(ScheduleAssignmentsPage::class, ['schedule' => $schedule])
@@ -80,7 +80,7 @@ class ScheduleAssignmentsPageTest extends TestCase
         $company = $this->makeCompany();
         $otherSchedule = Schedule::create(['company_id' => $company->id, 'name' => 'Jadwal Lain', 'schedule_type' => ScheduleType::FIXED->value]);
         $schedule = Schedule::create(['company_id' => $company->id, 'name' => 'Jadwal Kantor', 'schedule_type' => ScheduleType::FIXED->value]);
-        $job = JobPositions::create(['name' => 'Staff IT', 'company_id' => $company->id, 'is_draft' => false]);
+        $job = JobPositions::create(['name' => 'Staff IT', 'company_id' => $company->id, 'status' => 'approved']);
 
         ScheduleAssignment::create([
             'company_id' => $company->id,
@@ -101,7 +101,7 @@ class ScheduleAssignmentsPageTest extends TestCase
         $user = $this->actingAsAbsensi();
         $company = $this->makeCompany();
         $schedule = Schedule::create(['company_id' => $company->id, 'name' => 'Jadwal Kantor', 'schedule_type' => ScheduleType::FIXED->value]);
-        $job = JobPositions::create(['name' => 'Staff IT', 'company_id' => $company->id, 'is_draft' => false]);
+        $job = JobPositions::create(['name' => 'Staff IT', 'company_id' => $company->id, 'status' => 'approved']);
 
         Livewire::actingAs($user)
             ->test(ScheduleAssignmentsPage::class, ['schedule' => $schedule])
@@ -120,7 +120,7 @@ class ScheduleAssignmentsPageTest extends TestCase
         $user = $this->actingAsAbsensi();
         $company = $this->makeCompany();
         $schedule = Schedule::create(['company_id' => $company->id, 'name' => 'Jadwal Kantor', 'schedule_type' => ScheduleType::FIXED->value]);
-        $job = JobPositions::create(['name' => 'Staff IT', 'company_id' => $company->id, 'is_draft' => false]);
+        $job = JobPositions::create(['name' => 'Staff IT', 'company_id' => $company->id, 'status' => 'approved']);
 
         ScheduleAssignment::create([
             'company_id' => $company->id,

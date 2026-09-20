@@ -18,7 +18,7 @@
             <div>
                 <label class="form-label">Jabatan</label>
                 <input type="text" value="{{ $record->name }}" class="form-input" disabled>
-                <p style="font-size:11px;color:var(--text-muted);margin-top:4px;">Kuota saat ini: {{ $record->actual_manpower ?? 0 }}</p>
+                <p style="font-size:11px;color:var(--text-muted);margin-top:4px;">Kuota saat ini: {{ $record->manpower ?? 0 }}</p>
             </div>
 
             <div>

@@ -127,7 +127,6 @@ class SubDivisionsResource extends BaseCompanyResource
                 TextColumn::make('name')->label('Nama Sub Divisi')->searchable()->sortable(),
                 TextColumn::make('code')->label('Kode')->searchable()->copyable()->placeholder('—'),
                 TextColumn::make('job_positions_count')->label('Jumlah Jabatan')->alignCenter()->sortable(),
-                TextColumn::make('capacity')->label('Kapasitas')->alignCenter(),
             ])
             ->filters([
                 // company_id/department_id/parent_id digabung 1 Filter (bukan SelectFilter

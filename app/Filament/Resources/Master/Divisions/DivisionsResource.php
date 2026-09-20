@@ -96,7 +96,6 @@ class DivisionsResource extends BaseCompanyResource
                 TextColumn::make('name')->label('Nama Divisi')->searchable()->sortable(),
                 TextColumn::make('code')->label('Kode')->searchable()->copyable()->placeholder('—'),
                 TextColumn::make('subdivisions_count')->label('Jumlah Sub Divisi')->alignCenter()->sortable(),
-                TextColumn::make('capacity')->label('Kapasitas')->alignCenter(),
             ])
             ->filters([
                 Filter::make('org_scope')

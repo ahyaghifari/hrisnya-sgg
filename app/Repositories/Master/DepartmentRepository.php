@@ -10,7 +10,7 @@ class DepartmentRepository
 {
     public function getOtherDepartmentsByUserId(string $userId)
     {
-        $profile = UserProfiles::with(['orgStructure.company'])
+        $profile = UserProfiles::with(['jobPosition.orgStructure.company'])
             ->where('user_id', $userId)
             ->first();
 

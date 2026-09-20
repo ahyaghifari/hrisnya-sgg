@@ -3,9 +3,7 @@
 namespace App\Livewire\Kepegawaian;
 
 use App\Enum\CustomPermissionEnum;
-use App\Enum\OrgStructurLevel;
 use App\Livewire\Kepegawaian\Concerns\HasKaryawanForm;
-use App\Models\Master\OrgStructure;
 use App\Models\Role;
 use App\Models\User;
 use App\Models\User\UserJobPositions;
@@ -74,40 +72,9 @@ class EditKaryawan extends Component
             $this->employee_type_id = $profile->employee_type_id;
             $this->joining_date = $profile->joining_date;
 
-            // profile.org_structure_id sbagai fallback, lalu struktur jabatan diutamakan kalau
-            // jabatan punya (sinkron dengan getEffectiveOrgStructureAttribute & form Create).
-            $this->resolveOrgStructure($profile->org_structure_id);
+            // Departemen/Divisi/Sub Divisi hanya tampilan, diturunkan dari struktur jabatan.
             $this->updatedJobPositionId();
         }
-    }
-
-    /** org_structure_id di profile bisa nunjuk Departemen/Divisi/Sub Divisi (level 1/2/3) -
-     * pecah balik ke 3 property terpisah biar dropdown cascading step 3 ke-preselect benar,
-     * pola sama dengan afterStateHydrated di Filament\Resources\Employees (JobPositionForm). */
-    private function resolveOrgStructure(?string $orgStructureId): void
-    {
-        if (! $orgStructureId) {
-            return;
-        }
-
-        $org = OrgStructure::with('parent.parent')->find($orgStructureId);
-        if (! $org) {
-            return;
-        }
-
-        match ($org->level) {
-            OrgStructurLevel::LEVEL_DEPARTMENT->value => $this->department_id = $org->id,
-            OrgStructurLevel::LEVEL_DIVISION->value => [
-                $this->department_id = $org->parent_id,
-                $this->division_id = $org->id,
-            ],
-            OrgStructurLevel::LEVEL_SUBDIVISION->value => [
-                $this->department_id = $org->parent?->parent_id,
-                $this->division_id = $org->parent_id,
-                $this->sub_division_id = $org->id,
-            ],
-            default => null,
-        };
     }
 
     public function save(): void
@@ -115,8 +82,6 @@ class EditKaryawan extends Component
         // Bisa disimpan dari step manapun (tidak lagi wizard sekuensial di Edit, lihat
         // HasKaryawanForm::goToStep()) - validasi step 1 & 3 sekaligus, bukan cuma step aktif.
         $this->validate(array_merge($this->rulesForStep(1), $this->rulesForStep(3)));
-
-        $orgStructureId = $this->sub_division_id ?? $this->division_id ?? $this->department_id;
 
         $userData = [
             'name' => $this->name,
@@ -159,7 +124,6 @@ class EditKaryawan extends Component
             'whatsapp' => $this->whatsapp ?: null,
             'email_pribadi' => $this->email_pribadi ?: null,
             'religion_id' => $this->religion_id,
-            'org_structure_id' => $orgStructureId,
             'job_position_id' => $this->job_position_id,
             'pangkat_id' => $this->pangkat_id,
             'kelas_id' => $this->kelas_id,

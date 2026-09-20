@@ -12,6 +12,7 @@ use App\Models\Payroll\PayrollItem;
 use App\Models\Payroll\PayrollPeriod;
 use App\Models\User;
 use App\Models\User\UserProfiles;
+use App\Models\Master\JobPositions;
 use App\Models\Master\OrgStructure;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Collection;
@@ -203,7 +204,7 @@ class PayrollSlipRekapExportTest extends TestCase
         $profile->setRelation('pangkat', null);
         $profile->setRelation('kelas', null);
         $profile->setRelation('employeeType', null);
-        $profile->setRelation('orgStructure', $division);
+        $profile->setRelation('jobPosition', (new JobPositions)->setRelation('orgStructure', $division));
 
         $user = new User;
         $user->name = $name;
@@ -266,7 +267,7 @@ class PayrollSlipRekapExportTest extends TestCase
         $profile->setRelation('pangkat', null);
         $profile->setRelation('kelas', null);
         $profile->setRelation('employeeType', null);
-        $profile->setRelation('orgStructure', $division);
+        $profile->setRelation('jobPosition', (new JobPositions)->setRelation('orgStructure', $division));
 
         $user = new User;
         $user->name = 'Karyawan Divisi';
@@ -300,7 +301,7 @@ class PayrollSlipRekapExportTest extends TestCase
         $divisionProfile->setRelation('pangkat', null);
         $divisionProfile->setRelation('kelas', null);
         $divisionProfile->setRelation('employeeType', null);
-        $divisionProfile->setRelation('orgStructure', $division);
+        $divisionProfile->setRelation('jobPosition', (new JobPositions)->setRelation('orgStructure', $division));
 
         $divisionUser = new User;
         $divisionUser->name = 'Karyawan Divisi';
@@ -368,7 +369,7 @@ class PayrollSlipRekapExportTest extends TestCase
         $divisionProfile->setRelation('pangkat', null);
         $divisionProfile->setRelation('kelas', null);
         $divisionProfile->setRelation('employeeType', null);
-        $divisionProfile->setRelation('orgStructure', $division);
+        $divisionProfile->setRelation('jobPosition', (new JobPositions)->setRelation('orgStructure', $division));
 
         $divisionUser = new User;
         $divisionUser->name = 'Karyawan Divisi';

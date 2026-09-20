@@ -32,7 +32,7 @@ class UserRepository
 
     public function findById(string $id): ?User
     {
-        return User::with('company', 'profile.orgStructure')->find($id);
+        return User::with('company', 'profile.jobPosition.orgStructure')->find($id);
     }
 
     public function findByEmail(string $email): ?User
@@ -56,11 +56,10 @@ class UserRepository
         }
 
         return User::whereHas('profile', function ($query) use ($department) {
-            $query->where('org_structure_id', $department->id)
-                ->orWhereHas('orgStructure', function ($q) use ($department) {
-                    $q->where('parent_id', $department->id)
-                        ->orWhere('id', $department->id);
-                });
+            $query->whereHas('jobPosition.orgStructure', function ($q) use ($department) {
+                $q->where('m_org_structures.parent_id', $department->id)
+                    ->orWhere('m_org_structures.id', $department->id);
+            });
         })
             ->where('id', '!=', $user->id)
             ->get();

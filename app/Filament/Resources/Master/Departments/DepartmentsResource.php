@@ -74,7 +74,6 @@ class DepartmentsResource extends BaseCompanyResource
                 TextColumn::make('name')->label('Nama Departemen')->searchable()->sortable(),
                 TextColumn::make('code')->label('Kode')->searchable()->copyable()->placeholder('—'),
                 TextColumn::make('divisions_count')->label('Jumlah Divisi')->alignCenter()->sortable(),
-                TextColumn::make('capacity')->label('Kapasitas')->alignCenter(),
             ])
             ->filters([
                 static::companyTableFilter(),

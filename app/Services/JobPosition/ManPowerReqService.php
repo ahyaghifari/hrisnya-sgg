@@ -116,7 +116,7 @@ class ManPowerReqService
     }
 
     /**
-     * Efek nyata (nambah actual_manpower) & status APPROVED cuma boleh terjadi saat step
+     * Efek nyata (nambah manpower) & status APPROVED cuma boleh terjadi saat step
      * approval yang BENERAN terakhir - bukan tiap kali ada yang klik Setuju (2026-08-09,
      * sebelumnya dieksekusi unconditionally di awal method sebelum advanceStep() sempat nentuin
      * ini step terakhir atau bukan, jadi flow 2 step bikin efek dobel).
@@ -146,11 +146,11 @@ class ManPowerReqService
 
         $jobPosition = $this->jobPositionRepo->findJobPositionById($manpowerRequests->job_position_id);
 
-        // Semua tipe permintaan menambah kursi jabatan (actual_manpower) sebanyak quantity.
+        // Semua tipe permintaan menambah kursi jabatan (manpower) sebanyak quantity.
         // Lowongan TIDAK dibuat otomatis lagi — rekruter yang bikin sendiri (draft lalu publish)
         // di panel Rekrutmen (keputusan 2026-09-08).
         $this->jobPositionRepo->update($jobPosition, [
-            'actual_manpower' => $jobPosition->actual_manpower + $manpowerRequests->quantity,
+            'manpower' => ($jobPosition->manpower ?? 0) + $manpowerRequests->quantity,
         ]);
 
         if ($manpowerRequests->type === ManpowerRequestType::ADDITIONAL_QUOTA->value) {

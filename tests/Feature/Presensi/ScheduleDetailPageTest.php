@@ -70,7 +70,7 @@ class ScheduleDetailPageTest extends TestCase
         $user = $this->actingAsAbsensi();
         $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
         $schedule = Schedule::create(['company_id' => $company->id, 'name' => 'Jam Kerja Normal', 'schedule_type' => ScheduleType::FIXED->value]);
-        $job = JobPositions::create(['name' => 'Staff IT', 'company_id' => $company->id, 'is_draft' => false]);
+        $job = JobPositions::create(['name' => 'Staff IT', 'company_id' => $company->id, 'status' => 'approved']);
 
         ScheduleAssignment::create([
             'company_id' => $company->id,

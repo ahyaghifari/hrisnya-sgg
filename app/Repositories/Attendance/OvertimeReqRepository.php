@@ -19,7 +19,7 @@ class OvertimeReqRepository
 
     public function findAttendanceReqOvertimeDetail(string $attendanceReqId)
     {
-        return AttendanceRequests::with('user.profile.orgStructure','overtimeDetails', 'attachments')->find($attendanceReqId);
+        return AttendanceRequests::with('user.profile.jobPosition.orgStructure','overtimeDetails', 'attachments')->find($attendanceReqId);
     }
     
     public function storeOvertimeRequest(array $data): array

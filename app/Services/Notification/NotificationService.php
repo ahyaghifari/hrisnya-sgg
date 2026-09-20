@@ -55,8 +55,8 @@ class NotificationService
                 // If scope is specific department, filter by department
                 if ($activity->scope_type === 'specific_department') {
                     $departmentId = $activity->scope_ref_id;
-                    $query->whereHas('profile.orgStructure', function ($q) use ($departmentId) {
-                        $q->where('id', $departmentId);
+                    $query->whereHas('profile.jobPosition.orgStructure', function ($q) use ($departmentId) {
+                        $q->where('m_org_structures.id', $departmentId);
                     });
                 }
 

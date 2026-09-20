@@ -106,9 +106,8 @@ class EditJobPosition extends EditRecord
                     $this->handleRecordUpdate($this->record, $this->data);
                     $this->record->update([
                         'status' => JobPositionReqStatus::APPROVED->value,
-                        'actual_manpower' => $this->record->planned_manpower,
+                        'manpower' => $this->record->planned_manpower,
                         'request_type' => 'published',
-                        'is_draft' => false,
                     ]);
 
                     Notification::make()
@@ -152,8 +151,8 @@ class EditJobPosition extends EditRecord
                     || PermissionHelper::hasGlobalRole(User::find($this->record->request_by));
                 })
                 ->schema([
-                    TextInput::make('actual_manpower')
-                        ->helperText('Kuota Sebelumnya: ' . $this->record->actual_manpower . ' | Pengajuan Baru: ' . $this->record->planned_manpower)
+                    TextInput::make('approved_quantity')
+                        ->helperText('Kuota Sebelumnya: ' . $this->record->manpower . ' | Pengajuan Baru: ' . $this->record->planned_manpower)
                         ->label('Realisasi Kuota Karyawan')
                         ->numeric()
                         ->minValue(0)
@@ -170,7 +169,7 @@ class EditJobPosition extends EditRecord
                     app(JobPositionService::class)->approveJobPosition(
                         jobPositions: $this->record,
                         status: JobPositionReqStatus::APPROVED->value,
-                        actualManPower: $data['actual_manpower'],
+                        approvedQuantity: $data['approved_quantity'],
                         note: $data['approval_note'],
                     );
 
@@ -207,7 +206,7 @@ class EditJobPosition extends EditRecord
                     app(JobPositionService::class)->approveJobPosition(
                         jobPositions: $this->record,
                         status: JobPositionReqStatus::REJECTED->value,
-                        actualManPower: 0,
+                        approvedQuantity: 0,
                         note: $data['rejection_note'],
                     );
                 }),

@@ -51,9 +51,8 @@ class CreateJobPosition extends CreateRecord
                     $this->create();
                     $this->record->update([
                         'status' => JobPositionReqStatus::APPROVED->value,
-                        'actual_manpower' => $this->record->planned_manpower,
+                        'manpower' => $this->record->planned_manpower,
                         'request_type' => 'published',
-                        'is_draft' => false,
                     ]);
 
                     Notification::make()

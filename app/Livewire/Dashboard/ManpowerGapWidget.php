@@ -87,7 +87,7 @@ class ManpowerGapWidget extends Component
             ->map(fn ($group, $name) => [
                 'name' => $name,
                 'actual' => $group->sum('user_assignments_count'),
-                'quota' => (int) $group->sum('actual_manpower'),
+                'quota' => (int) $group->sum('manpower'),
             ])
             ->map(fn (array $row) => $row + ['gap' => $row['actual'] - $row['quota']])
             ->sortBy('gap')

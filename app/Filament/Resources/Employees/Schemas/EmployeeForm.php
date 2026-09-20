@@ -22,6 +22,29 @@ use Illuminate\Support\Facades\Auth;
 
 class EmployeeForm
 {
+    /** Opsi struktur organisasi satu level untuk sebuah perusahaan (select tampilan di step Pekerjaan). */
+    private static function orgOptions(?string $companyId, string $level)
+    {
+        return $companyId
+            ? OrgStructure::where('company_id', $companyId)->where('level', $level)->pluck('name', 'id')
+            : [];
+    }
+
+    /** [departemen, divisi, sub divisi] id dari struktur milik jabatan. */
+    private static function orgPartsOfJob(?string $jobPositionId): array
+    {
+        $org = $jobPositionId
+            ? \App\Models\Master\JobPositions::with('orgStructure.parent.parent')->find($jobPositionId)?->orgStructure
+            : null;
+
+        return match ($org?->level) {
+            OrgStructurLevel::LEVEL_DEPARTMENT->value => [$org->id, null, null],
+            OrgStructurLevel::LEVEL_DIVISION->value => [$org->parent_id, $org->id, null],
+            OrgStructurLevel::LEVEL_SUBDIVISION->value => [$org->parent?->parent_id, $org->parent_id, $org->id],
+            default => [null, null, null],
+        };
+    }
+
     public static function configure(Schema $schema): Schema
     {
         return $schema
@@ -239,109 +262,30 @@ class EmployeeForm
 
                     Step::make('Informasi Pekerjaan Karyawan')->schema([
                         Grid::make(2)->relationship('profile')->schema([
+                            // Departemen/Divisi/Sub Divisi hanya tampilan: turunan struktur jabatan
+                            // (jabatan.org_structure_id), tidak disimpan di profil. Ikut berubah saat
+                            // Jabatan diganti (lihat afterStateUpdated Jabatan di bawah).
                             Select::make('department_id')
                                 ->label('Departemen')
-                                ->options(function ($get) {
-                                    // Field ini ada di dalam Grid->relationship('profile'), jadi
-                                    // path state aslinya "profile.department_id" — company_id
-                                    // (di Step 1, top-level) dicapai dengan naik SATU level pakai
-                                    // "../company_id", BUKAN absolute path "/company_id" (sudah
-                                    // dicoba & dites, absolute path balik null di sini).
-                                    $companyId = $get('../company_id') ?? Auth::user()->company_id;
-                                    if (!$companyId) return [];
-
-                                    return OrgStructure::query()
-                                        ->where('company_id', $companyId)
-                                        ->where('level', OrgStructurLevel::LEVEL_DEPARTMENT->value)
-                                        ->pluck('name', 'id');
-                                })
-                                ->reactive()
-                                ->searchable()
-                                ->disabled(fn ($get) => !($get('../company_id') ?? Auth::user()->company_id))
-                                ->helperText(fn ($get) => !($get('../company_id') ?? Auth::user()->company_id) ? 'Pilih perusahaan terlebih dahulu di step sebelumnya' : null)
-                                ->afterStateHydrated(function ($set, $record) {
-                                    if (!$record?->org_structure_id) return;
-
-                                    $org = OrgStructure::with('parent.parent')->find($record->org_structure_id);
-                                    if ($org?->level === OrgStructurLevel::LEVEL_DEPARTMENT->value) $set('department_id', $org->id);
-                                    if ($org?->level === OrgStructurLevel::LEVEL_DIVISION->value) $set('department_id', $org->parent?->id);
-                                    if ($org?->level === OrgStructurLevel::LEVEL_SUBDIVISION->value) $set('department_id', $org->parent?->parent?->id);
-                                })
-                                ->afterStateUpdated(function (callable $set, $state) {
-                                    $set('division_id', null);
-                                    $set('sub_division_id', null);
-                                    // Update org_structure_id when department changes
-                                    $set('org_structure_id', $state);
-                                })
+                                ->options(fn ($get) => static::orgOptions($get('../company_id') ?? Auth::user()->company_id, OrgStructurLevel::LEVEL_DEPARTMENT->value))
+                                ->afterStateHydrated(fn ($set, $record) => $set('department_id', static::orgPartsOfJob($record?->job_position_id)[0]))
+                                ->helperText('Otomatis mengikuti jabatan.')
+                                ->disabled()
                                 ->dehydrated(false),
 
                             Select::make('division_id')
                                 ->label('Divisi')
-                                ->options(function ($get) {
-                                    $departmentId = $get('department_id');
-                                    if (!$departmentId) return [];
-
-                                    return OrgStructure::query()
-                                        ->where('parent_id', $departmentId)
-                                        ->where('level', OrgStructurLevel::LEVEL_DIVISION->value)
-                                        ->pluck('name', 'id');
-                                })
-                                ->reactive()
-                                ->searchable()
-                                ->disabled(fn ($get) => !($get('department_id')))
-                                ->helperText(fn ($get) => !($get('department_id')) ? 'Pilih departemen terlebih dahulu' : null)
-                                ->afterStateUpdated(function (callable $set, $state) {
-                                    $set('sub_division_id', null);
-                                    // Update org_structure_id when division changes
-                                    $set('org_structure_id', $state);
-                                })
-                                ->afterStateHydrated(function ($set, $record) {
-                                    if (!$record?->org_structure_id) return;
-
-                                    $org = OrgStructure::with('parent.parent')->find($record->org_structure_id);
-                                    if ($org?->level === OrgStructurLevel::LEVEL_DIVISION->value) $set('division_id', $org->id);
-                                    if ($org?->level === OrgStructurLevel::LEVEL_SUBDIVISION->value) $set('division_id', $org->parent?->id);
-                                })
+                                ->options(fn ($get) => static::orgOptions($get('../company_id') ?? Auth::user()->company_id, OrgStructurLevel::LEVEL_DIVISION->value))
+                                ->afterStateHydrated(fn ($set, $record) => $set('division_id', static::orgPartsOfJob($record?->job_position_id)[1]))
+                                ->disabled()
                                 ->dehydrated(false),
 
                             Select::make('sub_division_id')
                                 ->label('Sub Divisi')
-                                ->options(function ($get) {
-                                    $divisionId = $get('division_id');
-                                    if (!$divisionId) return [];
-
-                                    return OrgStructure::query()
-                                        ->where('parent_id', $divisionId)
-                                        ->where('level', OrgStructurLevel::LEVEL_SUBDIVISION->value)
-                                        ->pluck('name', 'id');
-                                })
-                                ->afterStateHydrated(function ($set, $record) {
-                                    if (!$record?->org_structure_id) return;
-
-                                    $org = OrgStructure::find($record->org_structure_id);
-                                    if ($org?->level === OrgStructurLevel::LEVEL_SUBDIVISION->value) $set('sub_division_id', $org->id);
-                                })
-                                ->reactive()
-                                ->searchable()
-                                ->disabled(fn ($get) => !($get('division_id')))
-                                ->helperText(fn ($get) => !($get('division_id')) ? 'Pilih divisi terlebih dahulu' : null)
-                                ->afterStateUpdated(function (callable $set, $state) {
-                                    // Update org_structure_id when sub_division changes
-                                    $set('org_structure_id', $state);
-                                })
+                                ->options(fn ($get) => static::orgOptions($get('../company_id') ?? Auth::user()->company_id, OrgStructurLevel::LEVEL_SUBDIVISION->value))
+                                ->afterStateHydrated(fn ($set, $record) => $set('sub_division_id', static::orgPartsOfJob($record?->job_position_id)[2]))
+                                ->disabled()
                                 ->dehydrated(false),
-
-                            // Nilainya di-set langsung oleh afterStateUpdated() department_id/
-                            // division_id/sub_division_id di atas — jangan tambah
-                            // afterStateUpdated() lain di sini yang nebak ulang dari 3 field itu,
-                            // 2 penulis buat 1 field gampang balapan/rebutan urutan eksekusi.
-                            Hidden::make('org_structure_id')
-                                ->dehydrated(true)
-                                ->afterStateHydrated(function ($set, $record) {
-                                    if ($record?->org_structure_id) {
-                                        $set('org_structure_id', $record->org_structure_id);
-                                    }
-                                }),
 
                             Select::make('job_position_id')
                                 ->label('Jabatan')
@@ -356,6 +300,13 @@ class EmployeeForm
                                 })
                                 ->searchable()
                                 ->preload()
+                                ->live()
+                                ->afterStateUpdated(function ($set, $state) {
+                                    [$dept, $div, $sub] = static::orgPartsOfJob($state);
+                                    $set('department_id', $dept);
+                                    $set('division_id', $div);
+                                    $set('sub_division_id', $sub);
+                                })
                                 ->rules(function ($record) {
                                     return [
                                         function () use ($record) {
@@ -371,10 +322,10 @@ class EmployeeForm
                                                 if (!$jobPosition) return;
 
                                                 $used = $jobPosition->userAssignments()->count();
-                                                $available = ($jobPosition->actual_manpower ?? 0) - $used;
+                                                $available = ($jobPosition->manpower ?? 0) - $used;
 
                                                 if ($available <= 0) {
-                                                    $fail('Kuota jabatan ini sudah penuh (actual manpower: ' . ($jobPosition->actual_manpower ?? 0) . ', terisi: ' . $used . '). Tidak dapat menambahkan karyawan pada jabatan ini.');
+                                                    $fail('Kuota jabatan ini sudah penuh (kuota: ' . ($jobPosition->manpower ?? 0) . ', terisi: ' . $used . '). Tidak dapat menambahkan karyawan pada jabatan ini.');
                                                 }
                                             };
                                         },
@@ -392,7 +343,6 @@ class EmployeeForm
 
                                     $query->where('company_id', $companyId)->orderByDesc('level');
                                 })
-
                                 ->searchable()
                                 ->preload(),
 

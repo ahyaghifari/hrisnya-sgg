@@ -18,7 +18,6 @@ class OrgStructure extends Model
         'company_id',
         'name',
         'code',
-        'capacity',
         'head_id',
         'parent_id',
         'level',

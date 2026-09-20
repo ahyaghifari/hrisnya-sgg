@@ -74,7 +74,7 @@ class AlurPersetujuanFormPageTest extends TestCase
     {
         $company = Companies::create(['code' => 'APF3', 'name' => 'RS Form Test 3', 'location' => 'Test', 'is_active' => true]);
         $user = $this->actingAsWithPermission($company);
-        $job = JobPositions::create(['name' => 'Kepala Ruangan', 'company_id' => $company->id, 'is_draft' => false]);
+        $job = JobPositions::create(['name' => 'Kepala Ruangan', 'company_id' => $company->id, 'status' => 'approved']);
         $approverRole = SpatieRole::create(['name' => 'Direktur Test', 'guard_name' => 'web', 'company_id' => $company->id]);
 
         Livewire::actingAs($user)
@@ -101,7 +101,7 @@ class AlurPersetujuanFormPageTest extends TestCase
     {
         $company = Companies::create(['code' => 'APFS', 'name' => 'RS Sup Test', 'location' => 'Test', 'is_active' => true]);
         $user = $this->actingAsWithPermission($company);
-        $job = JobPositions::create(['name' => 'Staff', 'company_id' => $company->id, 'is_draft' => false]);
+        $job = JobPositions::create(['name' => 'Staff', 'company_id' => $company->id, 'status' => 'approved']);
 
         Livewire::actingAs($user)
             ->test(AlurPersetujuanFormPage::class)

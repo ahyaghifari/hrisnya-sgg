@@ -40,8 +40,6 @@ class CreateKaryawan extends Component
     {
         $this->validate($this->rulesForStep(1));
 
-        $orgStructureId = $this->sub_division_id ?? $this->division_id ?? $this->department_id;
-
         $userData = [
             'name' => $this->name,
             'email' => $this->email,
@@ -79,7 +77,6 @@ class CreateKaryawan extends Component
             'whatsapp' => $this->whatsapp ?: null,
             'email_pribadi' => $this->email_pribadi ?: null,
             'religion_id' => $this->religion_id,
-            'org_structure_id' => $orgStructureId,
             'job_position_id' => $this->job_position_id,
             'pangkat_id' => $this->pangkat_id,
             'kelas_id' => $this->kelas_id,

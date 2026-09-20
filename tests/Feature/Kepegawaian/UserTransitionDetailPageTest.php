@@ -62,7 +62,7 @@ class UserTransitionDetailPageTest extends TestCase
         ]);
 
         $hc = User::factory()->create(['company_id' => $company->id]);
-        $job = JobPositions::create(['name' => 'Supervisor', 'company_id' => $company->id, 'is_draft' => false]);
+        $job = JobPositions::create(['name' => 'Supervisor', 'company_id' => $company->id, 'status' => 'approved']);
         $employee = User::factory()->create(['company_id' => $company->id]);
         UserProfiles::create(['user_id' => $employee->id]);
 

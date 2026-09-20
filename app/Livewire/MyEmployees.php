@@ -47,7 +47,7 @@ class MyEmployees extends Component
     {
         $query = app(OrgHierarchyService::class)->subordinates(Auth::user());
 
-        $query->with(['profile.jobPosition.orgStructure.parent.parent', 'profile.orgStructure.parent.parent', 'company', 'roles']);
+        $query->with(['profile.jobPosition.orgStructure.parent.parent', 'profile.jobPosition.orgStructure.parent.parent', 'company', 'roles']);
 
         $search = trim($this->search);
 

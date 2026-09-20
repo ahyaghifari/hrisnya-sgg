@@ -74,7 +74,7 @@ class ParticipantCourses extends Page implements HasTable
                     ->label('Jabatan')
                     ->searchable(),
                     
-                TextColumn::make('user.profile.orgStructure.name')
+                TextColumn::make('user.profile.jobPosition.orgStructure.name')
                     ->label('Unit Kerja')
                     ->searchable(),
                     
@@ -245,7 +245,7 @@ class ParticipantCourses extends Page implements HasTable
         $courseId = $this->record->id;
         
         return LmsCourseUsers::query()
-            ->with(['user.profile.jobPosition', 'user.profile.orgStructure'])
+            ->with(['user.profile.jobPosition.orgStructure'])
             ->where('course_id', $courseId);
     }
 }

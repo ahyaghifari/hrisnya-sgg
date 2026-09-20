@@ -304,7 +304,6 @@ class UserTransitionService
                 'job_position_id' => null,
                 'pangkat_id' => null,
                 'kelas_id' => null,
-                'org_structure_id' => null,
                 'employee_type_id' => null,
             ]);
 

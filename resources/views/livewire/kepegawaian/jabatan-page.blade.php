@@ -56,7 +56,7 @@
                     <tr>
                         <td style="font-weight:600;color:var(--text-heading);white-space:nowrap;">{{ $row->name }}</td>
                         <td>{{ $row->orgStructure?->name ?? '-' }}</td>
-                        <td style="text-align:center;">{{ $row->actual_manpower ?? 0 }}</td>
+                        <td style="text-align:center;">{{ $row->manpower ?? 0 }}</td>
                         <td style="text-align:center;">{{ $row->user_assignments_count }}</td>
                         <td style="text-align:center;"><span class="badge {{ $badge }}">{{ ucfirst($row->status) }}</span></td>
                         <td style="text-align:center;white-space:nowrap;">

@@ -100,21 +100,20 @@ trait HasKaryawanForm
         $this->sub_division_id = null;
     }
 
-    /** Jabatan sudah mewakili departemen (jabatan.org_structure_id) - begitu jabatan dipilih,
-     * isi otomatis Departemen/Divisi/Sub Divisi dari struktur jabatan & kunci field-nya (lihat
-     * $orgLockedByJobPosition di blade). Jabatan tanpa struktur (segelintir jabatan direksi)
-     * atau jabatan dikosongkan: field dilepas lagi buat diisi manual. */
+    /** Departemen/Divisi/Sub Divisi karyawan TIDAK disimpan di profil - murni turunan struktur jabatan
+     * (jabatan.org_structure_id). Begitu jabatan dipilih/dikosongkan, tiga field tampilan di form
+     * ikut diisi/dikosongkan. */
     public function updatedJobPositionId(): void
     {
         $org = $this->job_position_id
             ? JobPositions::with('orgStructure.parent.parent')->find($this->job_position_id)?->orgStructure
             : null;
 
+        $this->department_id = $this->division_id = $this->sub_division_id = null;
+
         if (! $org) {
             return;
         }
-
-        $this->department_id = $this->division_id = $this->sub_division_id = null;
 
         match ($org->level) {
             OrgStructurLevel::LEVEL_DEPARTMENT->value => $this->department_id = $org->id,
@@ -129,12 +128,6 @@ trait HasKaryawanForm
             ],
             default => null,
         };
-    }
-
-    public function getOrgLockedByJobPositionProperty(): bool
-    {
-        return (bool) ($this->job_position_id
-            && JobPositions::where('id', $this->job_position_id)->whereNotNull('org_structure_id')->exists());
     }
 
     public function updatedDivisionId(): void

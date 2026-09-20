@@ -46,7 +46,7 @@ class CoachingForm
                         ->searchable()
                         ->options(
                             User::whereHas('profile', function ($q) use ($departmentId) {
-                                $q->where('org_structure_id', $departmentId);
+                                $q->whereHas('jobPosition.orgStructure', fn ($o) => $o->where('m_org_structures.id', $departmentId));
                             })->pluck('name', 'id')
                         )
                         ->required(),
@@ -55,7 +55,7 @@ class CoachingForm
                         ->searchable()
                         ->options(
                             User::whereHas('profile', function ($q) use ($departmentId) {
-                                $q->where('org_structure_id', $departmentId);
+                                $q->whereHas('jobPosition.orgStructure', fn ($o) => $o->where('m_org_structures.id', $departmentId));
                             })->pluck('name', 'id')
                         )
                         ->default($auth->id)

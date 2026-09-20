@@ -19,7 +19,7 @@ class PermissionReqRepository
 
     public function findAttendanceReqPermissionDetail(string $attendanceReqId)
     {
-        return AttendanceRequests::with('user.profile.orgStructure', 'permissionDetails', 'attachments')->find($attendanceReqId);
+        return AttendanceRequests::with('user.profile.jobPosition.orgStructure', 'permissionDetails', 'attachments')->find($attendanceReqId);
     }
 
     public function storePermissionRequest(array $data): array

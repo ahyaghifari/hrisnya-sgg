@@ -90,7 +90,7 @@ class EmployeeAttendanceStatistics extends Component
             'company',
             'roles',
             'profile.religion',
-            'profile.orgStructure.parent.parent',
+            'profile.jobPosition.orgStructure.parent.parent',
             'profile.jobPosition',
             'profile.pangkat',
             'profile.kelas',

@@ -96,7 +96,7 @@ class EditManpowerRequest extends EditRecord
                     }
                 })
                 ->schema([
-                    TextInput::make('actual_manpower')
+                    TextInput::make('approved_quantity')
                         ->label('Kuota yang Disetujui')
                         ->numeric()
                         ->default(fn () => $this->record->quantity)

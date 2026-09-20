@@ -85,7 +85,7 @@ class ScheduleAssignmentsPage extends Component
         $companyId = $this->schedule->company_id;
 
         $orgStructures = OrgStructure::where('company_id', $companyId)->get();
-        $jobs = JobPositions::where('company_id', $companyId)->where('is_draft', false)->whereNotNull('org_structure_id')->get();
+        $jobs = JobPositions::where('company_id', $companyId)->where('status', 'approved')->whereNotNull('org_structure_id')->get();
 
         $jobsByOrg = $jobs->groupBy('org_structure_id');
         $orgByParent = $orgStructures->groupBy('parent_id');
@@ -106,7 +106,7 @@ class ScheduleAssignmentsPage extends Component
     public function getFunctionalJobsProperty()
     {
         return JobPositions::where('company_id', $this->schedule->company_id)
-            ->where('is_draft', false)
+            ->where('status', 'approved')
             ->whereNull('org_structure_id')
             ->orderBy('name')
             ->get();

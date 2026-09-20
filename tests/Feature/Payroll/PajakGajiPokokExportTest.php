@@ -24,7 +24,11 @@ class PajakGajiPokokExportTest extends TestCase
     private function makePayroll(Companies $company, PayrollPeriod $period, string $name, ?string $orgStructureId): Payroll
     {
         $user = User::factory()->create(['company_id' => $company->id, 'name' => $name]);
-        UserProfiles::create(['user_id' => $user->id, 'org_structure_id' => $orgStructureId]);
+        // Org karyawan diturunkan dari jabatan (kolom org_structure_id di profil sudah dihapus).
+        $jobId = $orgStructureId
+            ? \App\Models\Master\JobPositions::create(['company_id' => $company->id, 'name' => 'Jabatan ' . $name, 'status' => 'approved', 'org_structure_id' => $orgStructureId])->id
+            : null;
+        UserProfiles::create(['user_id' => $user->id, 'job_position_id' => $jobId]);
 
         $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
         PayrollItem::create([
@@ -35,7 +39,7 @@ class PajakGajiPokokExportTest extends TestCase
             'source_type' => PayrollComponentEnum::GAJI_POKOK->value,
         ]);
 
-        return $payroll->load(['user.profile.orgStructure.parent.parent', 'items']);
+        return $payroll->load(['user.profile.jobPosition.orgStructure.parent.parent', 'items']);
     }
 
     public function test_no_division_group_labeled_manajemen_for_regular_company_and_sorts_first(): void

@@ -50,8 +50,8 @@ class UserTransitionServiceTest extends TestCase
 
     private function makeEmployeeWithJobPosition(Companies $company): array
     {
-        $oldJob = JobPositions::create(['name' => 'Staff', 'company_id' => $company->id, 'is_draft' => false]);
-        $newJob = JobPositions::create(['name' => 'Supervisor', 'company_id' => $company->id, 'is_draft' => false]);
+        $oldJob = JobPositions::create(['name' => 'Staff', 'company_id' => $company->id, 'status' => 'approved']);
+        $newJob = JobPositions::create(['name' => 'Supervisor', 'company_id' => $company->id, 'status' => 'approved']);
         $employee = User::factory()->create(['company_id' => $company->id]);
         UserProfiles::create(['user_id' => $employee->id, 'job_position_id' => $oldJob->id]);
 

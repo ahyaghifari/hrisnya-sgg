@@ -97,10 +97,10 @@ class KepegawaianDashboardPage extends Component
     public function getHeadcountByDepartmentProperty()
     {
         return $this->scopedEmployees()
-            ->whereHas('profile.orgStructure')
-            ->with('profile.orgStructure')
+            ->whereHas('profile.jobPosition.orgStructure')
+            ->with('profile.jobPosition.orgStructure')
             ->get()
-            ->groupBy(fn (User $u) => $u->profile?->orgStructure?->name ?? '-')
+            ->groupBy(fn (User $u) => $u->profile?->jobPosition?->orgStructure?->name ?? '-')
             ->map(fn ($group, $name) => ['name' => $name, 'count' => $group->count()])
             ->sortByDesc('count')
             ->values();
@@ -160,12 +160,12 @@ class KepegawaianDashboardPage extends Component
             ->when($this->companyId, fn ($q) => $q->where('company_id', $this->companyId))
             ->withCount('userAssignments')
             ->get()
-            ->filter(fn (JobPositions $jp) => $jp->actual_manpower > $jp->user_assignments_count)
+            ->filter(fn (JobPositions $jp) => $jp->manpower > $jp->user_assignments_count)
             ->map(fn (JobPositions $jp) => [
                 'name' => $jp->name,
-                'quota' => $jp->actual_manpower,
+                'quota' => $jp->manpower,
                 'filled' => $jp->user_assignments_count,
-                'vacant' => $jp->actual_manpower - $jp->user_assignments_count,
+                'vacant' => $jp->manpower - $jp->user_assignments_count,
             ])
             ->sortByDesc('vacant')
             ->values();

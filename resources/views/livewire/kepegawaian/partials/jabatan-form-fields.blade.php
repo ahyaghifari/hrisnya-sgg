@@ -134,17 +134,6 @@
             <input type="number" wire:model="job_evaluation_score" min="0" class="form-input" @disabled($disabled)>
             @error('job_evaluation_score') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
         </div>
-
-        <div>
-            <label class="form-label">Role Default</label>
-            <p style="font-size:11px;color:var(--text-muted);margin:-2px 0 6px;">Role yang disarankan otomatis saat user dipromosikan/dimutasi ke jabatan ini.</p>
-            <select wire:model="role_id" class="form-input" @disabled($disabled)>
-                <option value="">Tidak ada</option>
-                @foreach ($this->roleOptions as $id => $name)
-                    <option value="{{ $id }}">{{ $name }}</option>
-                @endforeach
-            </select>
-        </div>
     </div>
 </div>
 
@@ -159,19 +148,6 @@
             <p style="font-size:11px;color:var(--text-muted);margin:-2px 0 6px;">Cuma bisa diisi saat pengajuan baru. Perubahan kuota setelahnya lewat pengajuan Permintaan Tenaga Kerja.</p>
             <input type="number" wire:model="planned_manpower" min="0" class="form-input" @disabled($disabled || ! $isCreate)>
             @error('planned_manpower') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
-        </div>
-
-        <div>
-            <label class="form-label">File Analisis Beban Kerja</label>
-            <p style="font-size:11px;color:var(--text-muted);margin:-2px 0 6px;">Opsional.</p>
-            <input type="file" wire:model="file_workload_analysis" class="form-input" @disabled($disabled)>
-            @error('file_workload_analysis') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
-            <div wire:loading wire:target="file_workload_analysis" style="font-size:11px;color:var(--text-muted);margin-top:4px;">Mengunggah...</div>
-            @if (! $isCreate && $record?->file_workload_analysis)
-                <a href="{{ \Illuminate\Support\Facades\Storage::url($record->file_workload_analysis) }}" target="_blank" style="font-size:11.5px;color:var(--brand);margin-top:6px;display:inline-block;">
-                    <i class="fa-solid fa-paperclip"></i> Lihat file saat ini
-                </a>
-            @endif
         </div>
     </div>
 </div>

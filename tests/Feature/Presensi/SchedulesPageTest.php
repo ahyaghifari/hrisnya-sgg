@@ -66,7 +66,7 @@ class SchedulesPageTest extends TestCase
         $user = $this->actingAsAbsensi();
         $company = $this->makeCompany();
         $head = User::factory()->create(['company_id' => $company->id]);
-        $job = JobPositions::create(['name' => 'Perawat', 'company_id' => $company->id, 'is_draft' => false]);
+        $job = JobPositions::create(['name' => 'Perawat', 'company_id' => $company->id, 'status' => 'approved']);
 
         $source = Schedule::create([
             'company_id' => $company->id,
@@ -112,7 +112,7 @@ class SchedulesPageTest extends TestCase
         $user = $this->actingAsAbsensi();
         $company = $this->makeCompany();
         $schedule = Schedule::create(['company_id' => $company->id, 'name' => 'Jadwal Terpakai', 'schedule_type' => ScheduleType::FIXED->value]);
-        $job = JobPositions::create(['name' => 'Staff IT', 'company_id' => $company->id, 'is_draft' => false]);
+        $job = JobPositions::create(['name' => 'Staff IT', 'company_id' => $company->id, 'status' => 'approved']);
 
         ScheduleAssignment::create([
             'company_id' => $company->id,

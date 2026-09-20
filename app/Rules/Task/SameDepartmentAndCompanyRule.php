@@ -16,7 +16,7 @@ class SameDepartmentAndCompanyRule implements ValidationRule
     public function validate(string $attribute, mixed $value, Closure $fail): void
     {
         $currentUser = auth()->user();
-        $reviewer = User::with(['company', 'profile.orgStructure.parent.parent'])->find($value);
+        $reviewer = User::with(['company', 'profile.jobPosition.orgStructure.parent.parent'])->find($value);
 
         if (! $reviewer) {
             $fail('The selected SLA reviewer is invalid.');

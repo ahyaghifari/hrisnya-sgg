@@ -249,7 +249,7 @@ class CutiRecapPage extends Component
             ->with([
                 'request.user.company',
                 'request.user.profile.jobPosition',
-                'request.user.profile.orgStructure.parent.parent',
+                'request.user.profile.jobPosition.orgStructure.parent.parent',
             ])
             ->orderByDesc('start_date')
             ->orderByDesc('created_at')

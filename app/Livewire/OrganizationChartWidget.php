@@ -44,7 +44,7 @@ class OrganizationChartWidget extends Widget implements HasSchemas
         // Ambil semua jabatan untuk company ini dengan relasi yang benar
         try {
             $jobs = \App\Models\Master\JobPositions::where('company_id', $this->companyId)
-                ->where('is_draft', false)
+                ->where('status', 'approved')
                 ->with(['pangkat', 'kelas', 'parent', 'children', 'orgStructure'])
                 ->get();
 
@@ -89,12 +89,12 @@ class OrganizationChartWidget extends Widget implements HasSchemas
             // Ambil job positions yang benar-benar standalone:
             // org_structure_id = null, parent_id = null, dan tidak punya children
             $jobs = \App\Models\Master\JobPositions::where('company_id', $this->companyId)
-                ->where('is_draft', false)
+                ->where('status', 'approved')
                 ->whereNull('org_structure_id')
                 ->whereNull('parent_id')
                 ->whereDoesntHave('children', function ($q) {
                     $q->where('company_id', $this->companyId)
-                      ->where('is_draft', false);
+                      ->where('status', 'approved');
                 })
                 ->with(['pangkat', 'kelas'])
                 ->get();

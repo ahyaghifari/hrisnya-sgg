@@ -50,7 +50,7 @@ class ReqOvertimeResource extends JsonResource
                 'name' => $this->user->name,
                 'nip' => $this->user->nip,
                 'email' => $this->user->email,
-                'department' => $this->user->profile?->orgStructure?->name ?? null,
+                'department' => $this->user->profile?->jobPosition?->orgStructure?->name ?? null,
                 'employee_type' => $this->user->profile?->employee_type ?? null,
             ],
         ];

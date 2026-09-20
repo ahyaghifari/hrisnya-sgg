@@ -98,10 +98,7 @@ class UserTransitionForm
                         })
                         ->reactive()
                         ->required()
-                        ->searchable()
-                        ->afterStateUpdated(function (callable $set, $state) {
-                            $set('role_id', JobPositions::find($state)?->role_id);
-                        }),
+                        ->searchable(),
                     DatePicker::make('effective_date')
                         ->label('Tanggal Efektif')
                         ->required()

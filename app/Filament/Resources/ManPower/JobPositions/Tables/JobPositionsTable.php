@@ -26,7 +26,7 @@ class JobPositionsTable
                 TextColumn::make('orgStructure.name')
                     ->alignCenter()
                     ->label('Unit'),
-                TextColumn::make('actual_manpower')
+                TextColumn::make('manpower')
                     ->label('Kuota')
                     ->formatStateUsing(fn ($state) => $state ?? 0)
                     ->alignCenter(),
@@ -37,7 +37,7 @@ class JobPositionsTable
                 TextColumn::make('available_manpower')
                     ->label('Tersedia')
                     ->alignCenter()
-                    ->getStateUsing(fn ($record) => ($record->actual_manpower ?? 0) - $record->userAssignments()->count()),
+                    ->getStateUsing(fn ($record) => ($record->manpower ?? 0) - $record->userAssignments()->count()),
                 TextColumn::make('status')
                     ->label('Status Persetujuan')
                     ->formatStateUsing(fn ($state) => ucfirst($state))

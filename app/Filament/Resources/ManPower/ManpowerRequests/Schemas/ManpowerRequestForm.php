@@ -91,7 +91,7 @@ class ManpowerRequestForm
                             ->label('Jumlah')
                             ->helperText(function (callable $get) {
                                 $jp = JobPositions::find($get('job_position_id'));
-                                $quota = $jp?->actual_manpower - $jp?->userAssignments()->count();
+                                $quota = $jp?->manpower - $jp?->userAssignments()->count();
 
                                 return 'Kuota tersedia: ' . $quota;
                             })
@@ -101,7 +101,7 @@ class ManpowerRequestForm
                                 }
 
                                 $jp = JobPositions::find($get('job_position_id'));
-                                $quota = $jp?->actual_manpower - $jp?->userAssignments()->count();
+                                $quota = $jp?->manpower - $jp?->userAssignments()->count();
 
                                 return $quota;
                             })
@@ -112,7 +112,7 @@ class ManpowerRequestForm
                             ->afterStateUpdated(function (callable $set, callable $get, $state) {
                                 if ($get('request_type') !== 'quota') {
                                     $jp = JobPositions::find($get('job_position_id'));
-                                    $quota = $jp?->actual_manpower - $jp?->userAssignments()->count();
+                                    $quota = $jp?->manpower - $jp?->userAssignments()->count();
     
                                     if ($state > $quota) {
                                         $set('quantity', $quota);

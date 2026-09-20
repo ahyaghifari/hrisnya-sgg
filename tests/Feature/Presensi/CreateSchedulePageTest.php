@@ -251,7 +251,7 @@ class CreateSchedulePageTest extends TestCase
         $user = $this->actingAsAbsensi();
         $company = $this->makeCompany();
         $org = \App\Models\Master\OrgStructure::create(['company_id' => $company->id, 'name' => 'Unit Produksi']);
-        $job = \App\Models\Master\JobPositions::create(['name' => 'Operator', 'company_id' => $company->id, 'is_draft' => false, 'org_structure_id' => $org->id]);
+        $job = \App\Models\Master\JobPositions::create(['name' => 'Operator', 'company_id' => $company->id, 'status' => 'approved', 'org_structure_id' => $org->id]);
         $employee = User::factory()->create(['company_id' => $company->id, 'name' => 'Budi Santoso']);
         \App\Models\User\UserJobPositions::create(['user_id' => $employee->id, 'job_position_id' => $job->id, 'status' => 'active', 'start_date' => now()]);
 

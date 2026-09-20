@@ -60,7 +60,7 @@ class JasaUnitInputPageTest extends TestCase
             'name' => 'Jabatan ' . $division->name,
             'company_id' => $company->id,
             'org_structure_id' => $division->id,
-            'is_draft' => false,
+            'status' => 'approved',
         ]);
 
         UserJobPositions::create([

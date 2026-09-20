@@ -211,7 +211,7 @@ class PayrollsPage extends Component
                 'user.profile.pangkat.maxKelas',
                 'user.profile.kelas',
                 'user.profile.employeeType',
-                'user.profile.orgStructure.parent.parent',
+                'user.profile.jobPosition.orgStructure.parent.parent',
                 'payrollPeriod',
                 'items',
             ])

@@ -26,23 +26,18 @@ class JobPositions extends Model
     protected $fillable = [
         'company_id',
         'org_structure_id',
-        'is_internship',
         'name',
-        'level',
         'parent_id',
         'code',
         'description',
         'qualification',
         'job_evaluation_score',
-        'workload_score',
         'planned_manpower',
-        'approved_manpower',
-        'actual_manpower',
+        // Kuota jabatan yang disetujui (bertambah tiap pengajuan kuota disetujui). BUKAN jumlah
+        // karyawan terisi - itu dihitung realtime lewat userAssignments().
+        'manpower',
         'pangkat_id',
         'kelas_id',
-        'role_id',
-        'file_workload_analysis',
-        'is_draft',
         'status',
         'request_type',
         'request_by',
@@ -126,11 +121,6 @@ class JobPositions extends Model
     public function kelas()
     {
         return $this->belongsTo(Kelas::class, 'kelas_id');
-    }
-
-    public function defaultRole()
-    {
-        return $this->belongsTo(\App\Models\Role::class, 'role_id');
     }
 
     public function users()

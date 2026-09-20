@@ -43,6 +43,6 @@ class OrgHierarchyService
 
         return User::query()
             ->whereHas('activeJobPosition', fn ($q) => $q->whereIn('job_position_id', $subordinateJobPositionIds))
-            ->with(['profile.jobPosition', 'profile.orgStructure']);
+            ->with(['profile.jobPosition.orgStructure']);
     }
 }

@@ -13,12 +13,6 @@ class JobPositionRepositories
         return $jobPosition->refresh();
     }
 
-    public static function updateOrgStrucuture(OrgStructure $orgStructure, array $data): OrgStructure
-    {
-        $orgStructure->update($data);
-        return $orgStructure->refresh();
-    }
-
     public function findJobPositionById(string $id): ?JobPositions
     {
         return JobPositions::find($id);

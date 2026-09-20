@@ -14,7 +14,6 @@ use App\Models\Master\Pangkats;
 use BackedEnum;
 use Filament\Actions\Action;
 use Filament\Actions\EditAction;
-use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\RichEditor;
@@ -207,13 +206,6 @@ class JobPositionResource extends BaseCompanyResource
                             ->label('Skor Penilaian Jabatan')
                             ->numeric()
                             ->minValue(0),
-
-                        Select::make('role_id')
-                            ->label('Role Default')
-                            ->helperText('Role yang disarankan otomatis saat user dipromosikan/dimutasi ke jabatan ini.')
-                            ->relationship('defaultRole', 'name')
-                            ->searchable()
-                            ->preload(),
                     ]),
 
                 Section::make('Analisis Beban Kerja')
@@ -227,20 +219,11 @@ class JobPositionResource extends BaseCompanyResource
                             ->required(fn (string $operation) => $operation === 'create')
                             ->disabledOn('edit'),
 
-                        TextInput::make('actual_manpower')
-                            ->label('Realisasi Karyawan')
+                        TextInput::make('manpower')
+                            ->label('Kuota Saat Ini')
                             ->numeric()
                             ->disabled()
                             ->visible(fn (string $operation) => $operation === 'edit'),
-
-                        FileUpload::make('file_workload_analysis')
-                            ->label('File Analisis Beban Kerja')
-                            ->helperText('Opsional.')
-                            ->disk('public')
-                            ->openable()
-                            ->directory('workload-analysis')
-                            ->visibility('public')
-                            ->columnSpanFull(),
                     ]),
             ]);
     }

@@ -104,13 +104,13 @@ class CreateManpowerRequestPage extends Component
         $query = JobPositions::where('company_id', $this->companyId);
 
         // Penambahan Karyawan cuma boleh ke jabatan yang sudah approved DAN beneran kekurangan
-        // orang (actual_manpower > jumlah karyawan terisi) - Penggantian Karyawan bebas semua
+        // orang (manpower > jumlah karyawan terisi) - Penggantian Karyawan bebas semua
         // jabatan (belum ada pembatasan, sifatnya ganti orang lama bukan nambah slot).
         if ($this->type === ManpowerRequestType::ADDITIONAL_EMPLOYEE->value) {
             return $query->where('status', JobPositionReqStatus::APPROVED->value)
                 ->withCount('userAssignments')
                 ->get()
-                ->filter(fn (JobPositions $jp) => ($jp->actual_manpower ?? 0) > $jp->user_assignments_count)
+                ->filter(fn (JobPositions $jp) => ($jp->manpower ?? 0) > $jp->user_assignments_count)
                 ->pluck('name', 'id');
         }
 
@@ -130,7 +130,7 @@ class CreateManpowerRequestPage extends Component
             return 0;
         }
 
-        return $jobPosition->actual_manpower - $jobPosition->userAssignments()->count();
+        return $jobPosition->manpower - $jobPosition->userAssignments()->count();
     }
 
     protected function rules(): array

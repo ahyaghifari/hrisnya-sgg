@@ -72,7 +72,6 @@ class CandidateOnboardingService
             'city'               => $c->city,
             'province'           => $c->province,
             'job_position_id'    => $jobPosition->id,
-            'org_structure_id'   => $jobPosition->org_structure_id,
             'joining_date'       => $joiningDate,
         ], fn ($v) => $v !== null && $v !== '');
 

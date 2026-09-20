@@ -238,21 +238,17 @@
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;">
             <div>
                 <label class="form-label">Departemen</label>
-                <select wire:model.live="department_id" class="form-input" @disabled(! $company_id || $this->orgLockedByJobPosition)>
+                <select wire:model="department_id" class="form-input" disabled>
                     <option value="">Pilih...</option>
                     @foreach ($this->departmentOptions as $id => $deptName)
                         <option value="{{ $id }}">{{ $deptName }}</option>
                     @endforeach
                 </select>
-                @unless ($company_id)
-                    <p style="font-size:11.5px;color:var(--text-muted);margin-top:5px;">Pilih perusahaan di step 1 dulu.</p>
-                @elseif ($this->orgLockedByJobPosition)
-                    <p style="font-size:11.5px;color:var(--text-muted);margin-top:5px;">Mengikuti struktur organisasi jabatan yang dipilih.</p>
-                @endunless
+                <p style="font-size:11.5px;color:var(--text-muted);margin-top:5px;">Otomatis mengikuti struktur organisasi jabatan yang dipilih.</p>
             </div>
             <div>
                 <label class="form-label">Divisi</label>
-                <select wire:model.live="division_id" class="form-input" @disabled(! $department_id || $this->orgLockedByJobPosition)>
+                <select wire:model="division_id" class="form-input" disabled>
                     <option value="">Pilih...</option>
                     @foreach ($this->divisionOptions as $id => $divisionName)
                         <option value="{{ $id }}">{{ $divisionName }}</option>
@@ -261,7 +257,7 @@
             </div>
             <div>
                 <label class="form-label">Sub Divisi</label>
-                <select wire:model="sub_division_id" class="form-input" @disabled(! $division_id || $this->orgLockedByJobPosition)>
+                <select wire:model="sub_division_id" class="form-input" disabled>
                     <option value="">Pilih...</option>
                     @foreach ($this->subDivisionOptions as $id => $subDivisionName)
                         <option value="{{ $id }}">{{ $subDivisionName }}</option>

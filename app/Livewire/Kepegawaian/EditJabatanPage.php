@@ -22,7 +22,7 @@ use Livewire\WithFileUploads;
  * Kuota" di tabel Jabatan (JabatanPage), yang tetap lewat approval flow di bawah.
  *
  * Approve/Reject pengajuan kuota (2026-08-10) - reuse JobPositionService::approveJobPosition()
- * yang sama persis dipakai admin, jadi efek sampingnya (actual_manpower/capacity org structure)
+ * yang sama persis dipakai admin, jadi efek sampingnya (manpower jabatan)
  * konsisten.
  */
 #[Layout('components.layout', ['title' => 'Edit Jabatan'])]
@@ -120,7 +120,7 @@ class EditJabatanPage extends Component
             app(JobPositionService::class)->approveJobPosition(
                 jobPositions: $this->record,
                 status: $this->approvalAction === 'approve' ? JobPositionReqStatus::APPROVED->value : JobPositionReqStatus::REJECTED->value,
-                actualManPower: $this->approvalAction === 'approve' ? (int) $this->actualManpower : 0,
+                approvedQuantity: $this->approvalAction === 'approve' ? (int) $this->actualManpower : 0,
                 note: $this->approvalNote,
             );
 

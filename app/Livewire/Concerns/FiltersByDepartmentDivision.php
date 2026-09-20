@@ -61,8 +61,8 @@ trait FiltersByDepartmentDivision
     }
 
     /** $userQuery = query builder yang model dasarnya User (langsung User::query() ATAU builder
-     * di dalam whereHas('user', ...)/whereHas('attendanceRequest.user', ...)) - relasi
-     * profile.jobPosition.orgStructure & profile.orgStructure tetap resolve sama persis. */
+     * di dalam whereHas('user', ...)/whereHas('attendanceRequest.user', ...)) - org karyawan
+     * diturunkan dari jabatan (profile.jobPosition.orgStructure), profil tidak menyimpan org sendiri. */
     protected function applyDepartmentDivisionFilter(Builder $userQuery): void
     {
         if ($this->departmentId) {
@@ -72,9 +72,7 @@ trait FiltersByDepartmentDivision
                     ->orWhere('parent_id', $deptId)
                     ->orWhereHas('parent', fn ($pq) => $pq->where('parent_id', $deptId));
             };
-            $userQuery->where(fn ($q) => $q
-                ->whereHas('profile.jobPosition.orgStructure', $matchDept)
-                ->orWhereHas('profile.orgStructure', $matchDept));
+            $userQuery->whereHas('profile.jobPosition.orgStructure', $matchDept);
         }
 
         if ($this->divisionId) {
@@ -82,9 +80,7 @@ trait FiltersByDepartmentDivision
             $matchDiv = function ($oq) use ($divId) {
                 $oq->where('id', $divId)->orWhere('parent_id', $divId);
             };
-            $userQuery->where(fn ($q) => $q
-                ->whereHas('profile.jobPosition.orgStructure', $matchDiv)
-                ->orWhereHas('profile.orgStructure', $matchDiv));
+            $userQuery->whereHas('profile.jobPosition.orgStructure', $matchDiv);
         }
     }
 }

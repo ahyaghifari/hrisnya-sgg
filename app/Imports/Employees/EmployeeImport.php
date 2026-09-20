@@ -5,7 +5,6 @@ namespace App\Imports\Employees;
 use App\Models\Master\EmployeeTypes;
 use App\Models\Master\JobPositions;
 use App\Models\Master\Kelas;
-use App\Models\Master\OrgStructure;
 use App\Models\Master\Pangkats;
 use App\Models\Master\Religions;
 use App\Models\Role;
@@ -37,7 +36,6 @@ class EmployeeImport implements ToCollection, WithHeadingRow
         $cid = $this->companyId;
 
         $religions    = Religions::pluck('id', 'name'); // agama: master data global, tidak per company
-        $orgStructures = OrgStructure::when($cid, fn ($q) => $q->where('company_id', $cid))->pluck('id', 'name');
         $jobPositions = JobPositions::when($cid, fn ($q) => $q->where('company_id', $cid))->pluck('id', 'name');
         $pangkats     = Pangkats::when($cid, fn ($q) => $q->where('company_id', $cid))->pluck('id', 'name');
         $kelasData    = Kelas::when($cid, fn ($q) => $q->where('company_id', $cid))->pluck('id', 'name');
@@ -54,7 +52,7 @@ class EmployeeImport implements ToCollection, WithHeadingRow
             try {
                 DB::transaction(function () use (
                     $row, $cid,
-                    $religions, $orgStructures, $jobPositions,
+                    $religions, $jobPositions,
                     $pangkats, $kelasData, $employeeTypes
                 ) {
                     $name  = trim((string) ($row['nama'] ?? ''));
@@ -142,7 +140,6 @@ class EmployeeImport implements ToCollection, WithHeadingRow
                             'whatsapp'             => $row['no_whatsapp'] ?: null,
                             'religion_id'          => $religions[$row['agama'] ?? ''] ?? null,
                             'bank_name'            => $row['bank'] ?: null,
-                            'org_structure_id'     => $orgStructures[$row['org_struktur'] ?? ''] ?? null,
                             'job_position_id'      => $jobPositionId,
                             'pangkat_id'           => $pangkats[$row['pangkat'] ?? ''] ?? null,
                             'kelas_id'             => $kelasData[$row['kelas'] ?? ''] ?? null,

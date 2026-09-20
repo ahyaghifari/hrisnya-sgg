@@ -72,37 +72,6 @@ class EmployeesTable
                             ->toArray();
                     }),
 
-                // Magang = jabatannya ditandai is_internship (lihat InternshipPositionResource,
-                // grup nav Internship) - satu filter tunggal (bukan 2 checkbox terpisah) karena
-                // "hanya karyawan" dan "hanya magang" 2 sisi dari kondisi yang sama. Default
-                // "Hanya Karyawan" (bukan "Semua") - dan filter ini disembunyikan total kalau
-                // company yang dilihat admin belum punya anak magang sama sekali, supaya tidak
-                // menambah filter yang tidak relevan buat mayoritas company.
-                TernaryFilter::make('is_intern')
-                    ->label('Tipe Karyawan')
-                    ->trueLabel('Hanya Anak Magang')
-                    ->falseLabel('Hanya Karyawan (bukan magang)')
-                    ->default(false)
-                    ->queries(
-                        true: fn (Builder $query) => $query->whereHas(
-                            'profile.jobPosition',
-                            fn (Builder $q) => $q->where('is_internship', true)
-                        ),
-                        false: fn (Builder $query) => $query->whereDoesntHave(
-                            'profile.jobPosition',
-                            fn (Builder $q) => $q->where('is_internship', true)
-                        ),
-                    )
-                    ->visible(function () {
-                        $query = User::query()->whereHas('profile.jobPosition', fn (Builder $q) => $q->where('is_internship', true));
-
-                        $user = Auth::user();
-                        if ($user && $user->company_id && ! PermissionHelper::hasGlobalRole($user)) {
-                            $query->where('company_id', $user->company_id);
-                        }
-
-                        return $query->exists();
-                    }),
             ])
             ->recordActions([
                 EditAction::make()

@@ -192,9 +192,7 @@ class DivisionAttendanceController extends Controller
         return User::query()
             ->where('is_active', true)
             ->where('company_id', self::HOLDING_COMPANY_ID)
-            ->where(fn ($q) => $q
-                ->whereHas('profile.jobPosition.orgStructure', $match)
-                ->orWhereHas('profile.orgStructure', $match))
+            ->whereHas('profile.jobPosition.orgStructure', $match)
             ->pluck('id')
             ->all();
     }
