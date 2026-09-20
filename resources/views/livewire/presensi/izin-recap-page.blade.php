@@ -8,6 +8,16 @@
         'izin_meninggalkan_jam_kerja' => ['color' => '#047C54', 'bg' => 'rgba(4,124,84,0.1)', 'icon' => 'fa-person-walking-arrow-right'],
         'lainnya'                     => ['color' => '#64748b', 'bg' => 'rgba(100,116,139,0.1)', 'icon' => 'fa-ellipsis'],
     ];
+
+    // Izin Meninggalkan Jam Kerja = 1 grup header dengan 3 sub-kolom berdampingan
+    // (kunci = kategori, nilai = label sub-kolom); kategori lain tetap 1 kolom sendiri.
+    $mjkColumns = [
+        'izin_terlambat_masuk' => 'Terlambat',
+        'izin_pulang_cepat' => 'Pulang Duluan',
+        'izin_meninggalkan_jam_kerja' => 'Tengah Jam Kerja',
+    ];
+    $otherKeys = array_values(array_diff(array_keys($this->recap['categories']), array_keys($mjkColumns)));
+    $matrixKeys = array_merge(array_keys($mjkColumns), $otherKeys);
 @endphp
 <div>
 <x-page-header title="Rekap Izin" subtitle="Rekap seluruh pengajuan izin yang sudah disetujui dalam 1 periode" />
@@ -90,31 +100,30 @@ di lebar berapa pun (bukan numpuk vertikal di kartu lebar). --}}
         </div>
     </div>
 
-    @foreach ($recap['categories'] as $key => $label)
-        @php $style = $categoryStyle[$key] ?? $categoryStyle['lainnya']; @endphp
+    {{-- Kartu per kategori: 3 kategori Meninggalkan Jam Kerja (Terlambat/Pulang Duluan/Tengah Jam
+    Kerja) disatukan jadi 1 kartu (jumlahnya); kategori "Lainnya" tidak punya kartu (tetap
+    dihitung di Total & kolom tabel). --}}
+    @foreach (array_merge(['izin_meninggalkan_jam_kerja'], $otherKeys) as $key)
+        @php
+            $isMjk = $key === 'izin_meninggalkan_jam_kerja';
+            $style = $categoryStyle[$key] ?? $categoryStyle['lainnya'];
+            $cardLabel = $isMjk ? 'Izin Meninggalkan Jam Kerja' : $recap['categories'][$key];
+            $cardCount = $isMjk
+                ? collect(array_keys($mjkColumns))->sum(fn ($k) => $recap['overall']['counts'][$k])
+                : $recap['overall']['counts'][$key];
+        @endphp
         <div class="stat-card" style="display:flex;align-items:center;gap:14px;padding:16px 18px;">
             <div class="stat-card-deco" style="background:{{ $style['color'] }};"></div>
             <div style="flex-shrink:0;width:42px;height:42px;background:{{ $style['bg'] }};border-radius:12px;display:flex;align-items:center;justify-content:center;">
                 <i class="fa-solid {{ $style['icon'] }}" style="color:{{ $style['color'] }};font-size:15px;"></i>
             </div>
             <div style="min-width:0;">
-                <p style="font-size:24px;font-weight:800;color:var(--text-heading);letter-spacing:-0.8px;line-height:1;">{{ $recap['overall']['counts'][$key] }}</p>
-                <p style="font-size:12px;font-weight:600;color:var(--text-muted);margin-top:4px;">{{ $label }}</p>
+                <p style="font-size:24px;font-weight:800;color:var(--text-heading);letter-spacing:-0.8px;line-height:1;">{{ $cardCount }}</p>
+                <p style="font-size:12px;font-weight:600;color:var(--text-muted);margin-top:4px;">{{ $cardLabel }}</p>
             </div>
         </div>
     @endforeach
 
-    @php $style = $categoryStyle['lainnya']; @endphp
-    <div class="stat-card" style="display:flex;align-items:center;gap:14px;padding:16px 18px;">
-        <div class="stat-card-deco" style="background:{{ $style['color'] }};"></div>
-        <div style="flex-shrink:0;width:42px;height:42px;background:{{ $style['bg'] }};border-radius:12px;display:flex;align-items:center;justify-content:center;">
-            <i class="fa-solid {{ $style['icon'] }}" style="color:{{ $style['color'] }};font-size:15px;"></i>
-        </div>
-        <div style="min-width:0;">
-            <p style="font-size:24px;font-weight:800;color:var(--text-heading);letter-spacing:-0.8px;line-height:1;">{{ $recap['overall']['counts']['lainnya'] }}</p>
-            <p style="font-size:12px;font-weight:600;color:var(--text-muted);margin-top:4px;">Lainnya</p>
-        </div>
-    </div>
 </div>
 
 <div style="background:var(--surface);border-radius:12px;box-shadow:var(--shadow-card);overflow:hidden;">
@@ -130,13 +139,19 @@ di lebar berapa pun (bukan numpuk vertikal di kartu lebar). --}}
         <table class="data-table" style="min-width:720px;font-size:12px;">
             <thead>
                 <tr>
-                    <th>Karyawan</th>
-                    @foreach ($recap['categories'] as $key => $label)
+                    <th rowspan="2">Karyawan</th>
+                    <th colspan="3" style="text-align:center;border-bottom:1px solid var(--border-soft);"><i class="fa-solid {{ $categoryStyle['izin_meninggalkan_jam_kerja']['icon'] }}" style="color:{{ $categoryStyle['izin_meninggalkan_jam_kerja']['color'] }};margin-right:5px;"></i>Izin Meninggalkan Jam Kerja</th>
+                    @foreach ($otherKeys as $key)
                         @php $style = $categoryStyle[$key] ?? $categoryStyle['lainnya']; @endphp
-                        <th style="text-align:center;"><i class="fa-solid {{ $style['icon'] }}" style="color:{{ $style['color'] }};margin-right:5px;"></i>{{ $label }}</th>
+                        <th rowspan="2" style="text-align:center;"><i class="fa-solid {{ $style['icon'] }}" style="color:{{ $style['color'] }};margin-right:5px;"></i>{{ $recap['categories'][$key] }}</th>
                     @endforeach
-                    <th style="text-align:center;"><i class="fa-solid {{ $categoryStyle['lainnya']['icon'] }}" style="color:{{ $categoryStyle['lainnya']['color'] }};margin-right:5px;"></i>Lainnya</th>
-                    <th style="text-align:left;">Total</th>
+                    <th rowspan="2" style="text-align:center;"><i class="fa-solid {{ $categoryStyle['lainnya']['icon'] }}" style="color:{{ $categoryStyle['lainnya']['color'] }};margin-right:5px;"></i>Lainnya</th>
+                    <th rowspan="2" style="text-align:left;">Total</th>
+                </tr>
+                <tr>
+                    @foreach ($mjkColumns as $key => $subLabel)
+                        <th style="text-align:center;"><i class="fa-solid {{ $categoryStyle[$key]['icon'] }}" style="color:{{ $categoryStyle[$key]['color'] }};margin-right:5px;"></i>{{ $subLabel }}</th>
+                    @endforeach
                 </tr>
             </thead>
             <tbody>
@@ -159,7 +174,7 @@ di lebar berapa pun (bukan numpuk vertikal di kartu lebar). --}}
                                 </div>
                             </div>
                         </td>
-                        @foreach (array_keys($recap['categories']) as $key)
+                        @foreach ($matrixKeys as $key)
                             @php $style = $categoryStyle[$key] ?? $categoryStyle['lainnya']; @endphp
                             <td style="text-align:center;">
                                 @if ($row['counts'][$key] > 0)

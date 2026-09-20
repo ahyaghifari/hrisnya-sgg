@@ -11,15 +11,14 @@ use App\Models\Shift\ExtraShiftAssignment;
 use App\Services\Attendance\AttendancePeriodResolver;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
-use Livewire\Attributes\Url;
 use Livewire\Component;
 
 /**
- * Rekap Extra Shift (APPROVED) dalam 1 periode — matriks karyawan x jenis shift tujuan, sama
- * gaya dengan LemburRecapPage. Yang dihitung = jumlah kejadian. Dua tab terpisah: `extra_shift`
- * (dibayar jasa) dan `double_shift` (akibat tukar shift bentrok, tidak dibayar jasa) - tab
- * Extra Shift sejajar dengan yang dibayar ExtraShiftCalculator. Nominal jasa sengaja tidak
- * ditampilkan (data Payroll, beda gerbang dari permission rekap absensi).
+ * Rekap Extra Shift (APPROVED) dalam 1 periode — matriks karyawan x jenis, sama gaya dengan
+ * LemburRecapPage: 2 kolom jenis (`extra_shift` dibayar jasa, `double_shift` akibat tukar shift
+ * bentrok, tidak dibayar jasa) + Total, tanpa tab. Yang dihitung = jumlah kejadian; kolom Extra
+ * Shift tetap terpisah dari Double Shift supaya sejajar dengan yang dibayar ExtraShiftCalculator.
+ * Nominal jasa sengaja tidak ditampilkan (data Payroll, beda gerbang dari permission rekap absensi).
  *
  * Butuh DUA permission sekaligus: rekap absensi + lihat Extra Shift.
  */
@@ -33,10 +32,6 @@ class ExtraShiftRecapPage extends Component
     public ?string $date_to = null;
     public ?string $selectedUserId = null;
     public string $search = '';
-
-    // extra_shift | double_shift - nilai = ExtraShiftAssignment::category
-    #[Url]
-    public string $tab = ExtraShiftAssignment::CATEGORY_EXTRA_SHIFT;
 
     public function mount(): void
     {
@@ -54,25 +49,9 @@ class ExtraShiftRecapPage extends Component
             $this->companyId = $user->company_id;
         }
 
-        $this->normalizeTab();
-
         [$periodStart, $periodEnd] = AttendancePeriodResolver::resolve(now(), $this->companyId);
         $this->date_from = $periodStart->toDateString();
         $this->date_to = $periodEnd->toDateString();
-    }
-
-    public function updatedTab(): void
-    {
-        $this->normalizeTab();
-        $this->selectedUserId = null;
-    }
-
-    /** ?tab= dari URL bisa berisi nilai apa saja - selain 2 kategori valid jatuh ke Extra Shift. */
-    private function normalizeTab(): void
-    {
-        if (! in_array($this->tab, [ExtraShiftAssignment::CATEGORY_EXTRA_SHIFT, ExtraShiftAssignment::CATEGORY_DOUBLE_SHIFT], true)) {
-            $this->tab = ExtraShiftAssignment::CATEGORY_EXTRA_SHIFT;
-        }
     }
 
     public function updatedCompanyId(): void
@@ -103,7 +82,7 @@ class ExtraShiftRecapPage extends Component
         $this->selectedUserId = null;
     }
 
-    /** Label jenis shift (kolom matriks); nilai di luar enum (data lama) jatuh ke ucfirst. */
+    /** Label jenis shift (modal rincian); nilai di luar enum (data lama) jatuh ke ucfirst. */
     public static function shiftTypeLabel(string $type): string
     {
         return ShiftType::tryFrom($type)?->getLabel() ?? ucfirst($type);
@@ -111,24 +90,30 @@ class ExtraShiftRecapPage extends Component
 
     /**
      * @return array{
-     *     types: array<string>,
+     *     categories: array<string, string>,
      *     rows: array<int, array{user: \App\Models\User, counts: array<string, int>, total: int, items: array, bar_percent: int}>,
      *     overall: array{counts: array<string, int>, total: int, employee_count: int},
-     *     tab_totals: array<string, int>,
      *     ready: bool
      * }
      */
     public function getRecapProperty(): array
     {
-        $empty = ['types' => [], 'rows' => [], 'overall' => ['counts' => [], 'total' => 0, 'employee_count' => 0], 'tab_totals' => [ExtraShiftAssignment::CATEGORY_EXTRA_SHIFT => 0, ExtraShiftAssignment::CATEGORY_DOUBLE_SHIFT => 0], 'ready' => false];
+        $categories = [
+            ExtraShiftAssignment::CATEGORY_EXTRA_SHIFT => 'Extra Shift',
+            ExtraShiftAssignment::CATEGORY_DOUBLE_SHIFT => 'Double Shift',
+        ];
+        $emptyCounts = collect($categories)->mapWithKeys(fn ($label, $key) => [$key => 0])->all();
 
         if (! $this->date_from || ! $this->date_to) {
-            return $empty;
+            return [
+                'categories' => $categories,
+                'rows' => [],
+                'overall' => ['counts' => $emptyCounts, 'total' => 0, 'employee_count' => 0],
+                'ready' => false,
+            ];
         }
 
-        // Kedua kategori diambil sekaligus supaya badge jumlah di kedua tab selalu terisi;
-        // yang ditampilkan di kartu/tabel hanya kategori tab aktif.
-        $all = ExtraShiftAssignment::query()
+        $assignments = ExtraShiftAssignment::query()
             ->whereBetween('date', [$this->date_from, $this->date_to])
             ->where('status', 'approved')
             ->whereHas('user', function ($q) {
@@ -139,26 +124,17 @@ class ExtraShiftRecapPage extends Component
             ->get()
             ->filter(fn ($a) => $a->user);
 
-        $tabTotals = [
-            ExtraShiftAssignment::CATEGORY_EXTRA_SHIFT => $all->where('category', ExtraShiftAssignment::CATEGORY_EXTRA_SHIFT)->count(),
-            ExtraShiftAssignment::CATEGORY_DOUBLE_SHIFT => $all->where('category', ExtraShiftAssignment::CATEGORY_DOUBLE_SHIFT)->count(),
-        ];
-
-        $assignments = $all->where('category', $this->tab);
-
-        $types = $assignments->map(fn ($a) => $a->shiftType?->shift_type ?: 'lainnya')->unique()->sort()->values()->all();
-        $emptyCounts = collect($types)->mapWithKeys(fn ($t) => [$t => 0])->all();
-
         $rows = $assignments->groupBy('user_id')->map(function ($group) use ($emptyCounts) {
             $counts = $emptyCounts;
 
             $items = $group->map(function ($a) use (&$counts) {
-                $type = $a->shiftType?->shift_type ?: 'lainnya';
-                $counts[$type]++;
+                $category = array_key_exists($a->category, $counts) ? $a->category : ExtraShiftAssignment::CATEGORY_EXTRA_SHIFT;
+                $counts[$category]++;
 
                 return [
                     'date'       => $a->date,
-                    'type'       => $type,
+                    'category'   => $category,
+                    'type'       => $a->shiftType?->shift_type ?: 'lainnya',
                     'shift_name' => $a->shiftType?->name ?? '-',
                     'start_time' => $a->shiftType?->start_time,
                     'end_time'   => $a->shiftType?->end_time,
@@ -178,6 +154,8 @@ class ExtraShiftRecapPage extends Component
             ->sortByDesc('total')
             ->values();
 
+        // Total keseluruhan dihitung dari SEMUA baris sebelum difilter cari nama — supaya angka
+        // overview tidak diam-diam berubah cuma karena user lagi ngetik cari.
         $overallCounts = $emptyCounts;
         foreach ($rows as $row) {
             foreach ($row['counts'] as $key => $value) {
@@ -198,14 +176,13 @@ class ExtraShiftRecapPage extends Component
             ->all();
 
         return [
-            'types' => $types,
+            'categories' => $categories,
             'rows' => $rows,
             'overall' => [
                 'counts' => $overallCounts,
                 'total' => array_sum($overallCounts),
                 'employee_count' => $employeeCount,
             ],
-            'tab_totals' => $tabTotals,
             'ready' => true,
         ];
     }

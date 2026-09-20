@@ -103,7 +103,7 @@ class ExtraShiftRecapPageTest extends TestCase
         Livewire::actingAs($viewer)->test(ExtraShiftRecapPage::class)->assertForbidden();
     }
 
-    public function test_extra_shift_tab_counts_per_shift_type_and_excludes_double_shift(): void
+    public function test_extra_and_double_shift_are_separate_columns_in_one_table(): void
     {
         $viewer = $this->pengelola();
         $emp = User::factory()->create(['company_id' => $this->company->id, 'name' => 'Budi Rekap']);
@@ -112,39 +112,32 @@ class ExtraShiftRecapPageTest extends TestCase
         $this->extraShift($emp, '2026-07-07', $this->pagi);
         $this->extraShift($emp, '2026-07-08', $this->siang, category: 'double_shift');
 
-        $page = $this->page($viewer)->assertSet('tab', 'extra_shift')->assertSee('Budi Rekap');
+        $page = $this->page($viewer)->assertSee('Budi Rekap')->assertSee('Extra Shift')->assertSee('Double Shift');
         $recap = $page->instance()->recap;
 
-        $this->assertSame(3, $recap['overall']['total'], 'double shift tidak boleh masuk tab extra shift');
-        $this->assertSame(['pagi' => 1, 'siang' => 2], $recap['overall']['counts']);
-        $this->assertSame(['extra_shift' => 3, 'double_shift' => 1], $recap['tab_totals']);
-        $this->assertCount(3, $recap['rows'][0]['items']);
+        // Tanpa tab: satu tabel, dua kolom jenis. Extra Shift TIDAK tercampur double shift.
+        $this->assertSame(['extra_shift' => 3, 'double_shift' => 1], $recap['overall']['counts']);
+        $this->assertSame(['extra_shift' => 3, 'double_shift' => 1], $recap['rows'][0]['counts']);
+        $this->assertSame(4, $recap['rows'][0]['total']);
+        $this->assertSame(1, $recap['overall']['employee_count']);
+        $this->assertCount(4, $recap['rows'][0]['items']);
+        $this->assertSame(['extra_shift', 'extra_shift', 'extra_shift', 'double_shift'], array_column($recap['rows'][0]['items'], 'category'));
     }
 
-    public function test_double_shift_tab_shows_only_double_shift(): void
+    public function test_employee_with_only_double_shift_still_appears(): void
     {
         $viewer = $this->pengelola();
         $onlyExtra = User::factory()->create(['company_id' => $this->company->id, 'name' => 'Hanya Extra']);
         $withDouble = User::factory()->create(['company_id' => $this->company->id, 'name' => 'Punya Double']);
         $this->extraShift($onlyExtra, '2026-07-05', $this->siang);
         $this->extraShift($withDouble, '2026-07-06', $this->siang, category: 'double_shift');
-        $this->extraShift($withDouble, '2026-07-07', $this->pagi);
 
-        $page = $this->page($viewer)->set('tab', 'double_shift');
+        $page = $this->page($viewer)->assertSee('Hanya Extra')->assertSee('Punya Double');
         $recap = $page->instance()->recap;
 
-        $this->assertSame(1, $recap['overall']['total']);
-        $this->assertSame(1, $recap['overall']['employee_count']);
-        $this->assertSame(['siang' => 1], $recap['overall']['counts']);
-        $this->assertSame(['extra_shift' => 2, 'double_shift' => 1], $recap['tab_totals'], 'badge kedua tab tidak ikut berubah saat pindah tab');
-        $page->assertSee('Punya Double')->assertDontSee('Hanya Extra');
+        $this->assertSame(2, $recap['overall']['employee_count']);
+        $this->assertSame(['extra_shift' => 1, 'double_shift' => 1], $recap['overall']['counts']);
     }
-
-    public function test_invalid_tab_value_falls_back_to_extra_shift(): void
-    {
-        $this->page($this->pengelola())->set('tab', 'sembarang')->assertSet('tab', 'extra_shift');
-    }
-
     public function test_excludes_out_of_range_non_approved_and_other_company(): void
     {
         $viewer = $this->pengelola();

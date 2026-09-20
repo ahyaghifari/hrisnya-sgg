@@ -7,7 +7,7 @@ use App\Enum\CustomPermissionEnum;
 use App\Livewire\Presensi\IzinRecapPage;
 use App\Models\Attendance\AttendanceRequestPermissionDetails;
 use App\Models\Attendance\AttendanceRequests;
-use App\Models\Master\Attendance\PermissionTypes;
+use App\Enum\Attendance\PermissionTypeEnum;
 use App\Models\Master\Companies;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -22,9 +22,12 @@ class IzinRecapPageTest extends TestCase
 
     private function actingAsKepegawaian(string $companyId): User
     {
-        Permission::firstOrCreate(['name' => CustomPermissionEnum::SISTEM_ABSENSI->value, 'guard_name' => 'web']);
+        // mount() mengecek VIEW_REPORT_DATA_ABSENSI; SISTEM_ABSENSI cuma buat gerbang perusahaan.
+        foreach ([CustomPermissionEnum::SISTEM_ABSENSI, CustomPermissionEnum::VIEW_REPORT_DATA_ABSENSI] as $perm) {
+            Permission::firstOrCreate(['name' => $perm->value, 'guard_name' => 'web']);
+        }
         $role = Role::firstOrCreate(['name' => 'Absensi Test', 'guard_name' => 'web']);
-        $role->givePermissionTo(CustomPermissionEnum::SISTEM_ABSENSI->value);
+        $role->givePermissionTo([CustomPermissionEnum::SISTEM_ABSENSI->value, CustomPermissionEnum::VIEW_REPORT_DATA_ABSENSI->value]);
 
         $user = User::factory()->create(['company_id' => $companyId]);
         $user->assignRole($role);
@@ -37,16 +40,15 @@ class IzinRecapPageTest extends TestCase
         return Companies::create(['code' => $code, 'name' => "Company {$code}", 'location' => 'Test', 'is_active' => true]);
     }
 
-    private function makePermissionRequest(User $user, string $permissionTypeId, string $date, string $status): void
+    /** $type null = data lama tanpa category (masuk kolom "lainnya" di rekap). */
+    private function makePermissionRequest(User $user, ?PermissionTypeEnum $type, string $date, string $status): void
     {
         $request = AttendanceRequests::create(['user_id' => $user->id, 'type' => 'permission', 'status' => $status]);
-        $permissionType = PermissionTypes::find($permissionTypeId);
 
         AttendanceRequestPermissionDetails::create([
             'request_id' => $request->id,
-            'permission_type_id' => $permissionTypeId,
-            'permission_type' => $permissionType->name,
-            'category' => $permissionType->category,
+            'permission_type' => $type?->label() ?? 'Izin Medis',
+            'category' => $type?->category()->value,
             'date' => $date,
             'start_time' => '08:00',
             'end_time' => '09:00',
@@ -69,18 +71,14 @@ class IzinRecapPageTest extends TestCase
         $hc = $this->actingAsKepegawaian($company->id);
         $employee = User::factory()->create(['company_id' => $company->id, 'name' => 'Budi Santoso']);
 
-        $terlambat = PermissionTypes::create(['company_id' => $company->id, 'name' => 'Izin Terlambat Masuk', 'category' => PermissionTypeCategoryEnum::IZIN_TERLAMBAT_MASUK->value]);
-        $pulangCepat = PermissionTypes::create(['company_id' => $company->id, 'name' => 'Izin Pulang Cepat', 'category' => PermissionTypeCategoryEnum::IZIN_PULANG_CEPAT->value]);
-        $lainnya = PermissionTypes::create(['company_id' => $company->id, 'name' => 'Izin Sakit', 'category' => null]);
-
         $month = now()->format('Y-m');
 
-        $this->makePermissionRequest($employee, $terlambat->id, "{$month}-05", 'approved');
-        $this->makePermissionRequest($employee, $terlambat->id, "{$month}-10", 'approved');
-        $this->makePermissionRequest($employee, $pulangCepat->id, "{$month}-12", 'approved');
-        $this->makePermissionRequest($employee, $lainnya->id, "{$month}-15", 'approved');
+        $this->makePermissionRequest($employee, PermissionTypeEnum::TERLAMBAT, "{$month}-05", 'approved');
+        $this->makePermissionRequest($employee, PermissionTypeEnum::TERLAMBAT, "{$month}-10", 'approved');
+        $this->makePermissionRequest($employee, PermissionTypeEnum::PULANG_CEPAT, "{$month}-12", 'approved');
+        $this->makePermissionRequest($employee, null, "{$month}-15", 'approved');
         // Belum diputuskan — tidak boleh ikut kehitung.
-        $this->makePermissionRequest($employee, $terlambat->id, "{$month}-20", 'in_review');
+        $this->makePermissionRequest($employee, PermissionTypeEnum::TERLAMBAT, "{$month}-20", 'in_review');
 
         $this->actingAs($hc);
 
@@ -113,6 +111,43 @@ class IzinRecapPageTest extends TestCase
         $this->assertNull($component->get('selectedUserId'));
     }
 
+    public function test_meninggalkan_jam_kerja_is_one_group_header_with_three_subcolumns(): void
+    {
+        $company = $this->makeCompany();
+        $hc = $this->actingAsKepegawaian($company->id);
+
+        $this->actingAs($hc);
+
+        Livewire::test(IzinRecapPage::class)
+            ->assertSeeInOrder(['Izin Meninggalkan Jam Kerja', 'Terlambat', 'Pulang Duluan', 'Tengah Jam Kerja']);
+    }
+
+    public function test_summary_cards_merge_meninggalkan_jam_kerja_and_drop_lainnya_card(): void
+    {
+        $company = $this->makeCompany();
+        $hc = $this->actingAsKepegawaian($company->id);
+        $employee = User::factory()->create(['company_id' => $company->id]);
+        $month = now()->format('Y-m');
+
+        $this->makePermissionRequest($employee, PermissionTypeEnum::TERLAMBAT, "{$month}-05", 'approved');
+        $this->makePermissionRequest($employee, PermissionTypeEnum::PULANG_CEPAT, "{$month}-06", 'approved');
+        $this->makePermissionRequest($employee, null, "{$month}-07", 'approved'); // lainnya
+
+        $this->actingAs($hc);
+
+        $page = Livewire::test(IzinRecapPage::class)
+            ->set('date_from', "{$month}-01")
+            ->set('date_to', now()->endOfMonth()->toDateString());
+
+        // Kartu per kategori lama (Terlambat Masuk / Pulang Cepat) diganti 1 kartu gabungan.
+        $page->assertSee('Izin Meninggalkan Jam Kerja')
+            ->assertDontSee(PermissionTypeCategoryEnum::IZIN_TERLAMBAT_MASUK->label())
+            ->assertDontSee(PermissionTypeCategoryEnum::IZIN_PULANG_CEPAT->label());
+
+        // Total tetap menghitung semua (termasuk lainnya).
+        $this->assertSame(3, $page->get('recap')['overall']['total']);
+    }
+
     public function test_recap_is_scoped_per_company(): void
     {
         $companyA = $this->makeCompany('AAA');
@@ -122,12 +157,9 @@ class IzinRecapPageTest extends TestCase
         $employeeA = User::factory()->create(['company_id' => $companyA->id]);
         $employeeB = User::factory()->create(['company_id' => $companyB->id]);
 
-        $typeA = PermissionTypes::create(['company_id' => $companyA->id, 'name' => 'Izin Terlambat Masuk', 'category' => PermissionTypeCategoryEnum::IZIN_TERLAMBAT_MASUK->value]);
-        $typeB = PermissionTypes::create(['company_id' => $companyB->id, 'name' => 'Izin Terlambat Masuk', 'category' => PermissionTypeCategoryEnum::IZIN_TERLAMBAT_MASUK->value]);
-
         $month = now()->format('Y-m');
-        $this->makePermissionRequest($employeeA, $typeA->id, "{$month}-05", 'approved');
-        $this->makePermissionRequest($employeeB, $typeB->id, "{$month}-05", 'approved');
+        $this->makePermissionRequest($employeeA, PermissionTypeEnum::TERLAMBAT, "{$month}-05", 'approved');
+        $this->makePermissionRequest($employeeB, PermissionTypeEnum::TERLAMBAT, "{$month}-05", 'approved');
 
         $this->actingAs($hc);
 

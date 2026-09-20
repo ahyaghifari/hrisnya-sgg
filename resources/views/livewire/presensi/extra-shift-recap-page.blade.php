@@ -1,23 +1,10 @@
 @php
-    // Warna tetap untuk 3 shift utama, sisanya di-hash dari nama (sama pola Rekap Lembur/Cuti).
-    $palette = [
-        ['color' => '#042c6c', 'bg' => 'rgba(4,44,108,0.1)'],
-        ['color' => '#047C54', 'bg' => 'rgba(4,124,84,0.1)'],
-        ['color' => '#9a3412', 'bg' => 'rgba(154,52,18,0.1)'],
-        ['color' => '#0f766e', 'bg' => 'rgba(15,118,110,0.1)'],
-        ['color' => '#d97706', 'bg' => 'rgba(217,119,6,0.1)'],
+    // Extra Shift = hijau (dibayar jasa), Double Shift = merah (tukar shift bentrok, tidak dibayar jasa).
+    $categoryStyle = [
+        'extra_shift' => ['color' => '#047C54', 'bg' => 'rgba(4,124,84,0.1)', 'icon' => 'fa-repeat'],
+        'double_shift' => ['color' => '#b91c1c', 'bg' => 'rgba(185,28,28,0.1)', 'icon' => 'fa-clone'],
     ];
-    $fixed = [
-        'pagi' => ['color' => '#d97706', 'bg' => 'rgba(217,119,6,0.1)'],
-        'siang' => ['color' => '#0f766e', 'bg' => 'rgba(15,118,110,0.1)'],
-        'malam' => ['color' => '#042c6c', 'bg' => 'rgba(4,44,108,0.1)'],
-    ];
-    $typeStyle = fn (string $type) => $fixed[$type] ?? $palette[crc32($type) % count($palette)];
     $typeLabel = fn (string $type) => \App\Livewire\Presensi\ExtraShiftRecapPage::shiftTypeLabel($type);
-    $doubleStyle = ['color' => '#b91c1c', 'bg' => 'rgba(185,28,28,0.1)'];
-    $isDouble = $tab === \App\Models\Shift\ExtraShiftAssignment::CATEGORY_DOUBLE_SHIFT;
-    $tabStyle = $isDouble ? $doubleStyle : ['color' => '#047C54', 'bg' => 'rgba(4,124,84,0.1)'];
-    $tabLabel = $isDouble ? 'Double Shift' : 'Extra Shift';
     $time = fn (?string $t) => $t ? substr($t, 0, 5) : null;
 @endphp
 <div>
@@ -69,21 +56,7 @@
 
 @php $recap = $this->recap; @endphp
 
-<div class="section-nav" style="margin-bottom:16px;">
-    <button type="button" wire:click="$set('tab', 'extra_shift')" class="section-nav-btn teal {{ ! $isDouble ? 'is-active' : '' }}">
-        <i class="fa-solid fa-user-clock"></i>
-        <span>Extra Shift</span>
-        <span style="font-weight:800;margin-left:4px;">{{ $recap['tab_totals']['extra_shift'] }}</span>
-    </button>
-    <button type="button" wire:click="$set('tab', 'double_shift')" class="section-nav-btn rust {{ $isDouble ? 'is-active' : '' }}">
-        <i class="fa-solid fa-clone"></i>
-        <span>Double Shift</span>
-        <span style="font-weight:800;margin-left:4px;">{{ $recap['tab_totals']['double_shift'] }}</span>
-    </button>
-</div>
-@if ($isDouble)
-    <p style="font-size:12px;color:var(--text-muted);margin:-6px 0 14px;">Double shift = akibat tukar shift yang bentrok, bukan penugasan sukarela &mdash; tidak dibayar jasa extra shift.</p>
-@endif
+<p style="font-size:12px;color:var(--text-muted);margin:0 0 14px;">Double shift = akibat tukar shift yang bentrok, bukan penugasan sukarela &mdash; tidak dibayar jasa extra shift, jadi dihitung di kolom terpisah dari Extra Shift.</p>
 
 @if (! $recap['ready'])
     <div style="background:var(--surface);border-radius:12px;box-shadow:var(--shadow-card);padding:36px 24px;text-align:center;color:var(--text-muted);">
@@ -93,16 +66,19 @@
 @else
 
 <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px;margin-bottom:20px;">
-    <div class="stat-card" style="display:flex;align-items:center;gap:14px;padding:16px 18px;">
-        <div class="stat-card-deco" style="background:{{ $tabStyle['color'] }};"></div>
-        <div style="flex-shrink:0;width:42px;height:42px;background:{{ $tabStyle['bg'] }};border-radius:12px;display:flex;align-items:center;justify-content:center;">
-            <i class="fa-solid {{ $isDouble ? 'fa-clone' : 'fa-repeat' }}" style="color:{{ $tabStyle['color'] }};font-size:15px;"></i>
+    @foreach ($recap['categories'] as $key => $label)
+        @php $style = $categoryStyle[$key]; @endphp
+        <div class="stat-card" style="display:flex;align-items:center;gap:14px;padding:16px 18px;">
+            <div class="stat-card-deco" style="background:{{ $style['color'] }};"></div>
+            <div style="flex-shrink:0;width:42px;height:42px;background:{{ $style['bg'] }};border-radius:12px;display:flex;align-items:center;justify-content:center;">
+                <i class="fa-solid {{ $style['icon'] }}" style="color:{{ $style['color'] }};font-size:15px;"></i>
+            </div>
+            <div style="min-width:0;">
+                <p style="font-size:24px;font-weight:800;color:var(--text-heading);letter-spacing:-0.8px;line-height:1;">{{ $recap['overall']['counts'][$key] }}</p>
+                <p style="font-size:12px;font-weight:600;color:var(--text-muted);margin-top:4px;">{{ $label }}</p>
+            </div>
         </div>
-        <div style="min-width:0;">
-            <p style="font-size:24px;font-weight:800;color:var(--text-heading);letter-spacing:-0.8px;line-height:1;">{{ $recap['overall']['total'] }}</p>
-            <p style="font-size:12px;font-weight:600;color:var(--text-muted);margin-top:4px;">Total {{ $tabLabel }}</p>
-        </div>
-    </div>
+    @endforeach
 
     <div class="stat-card" style="display:flex;align-items:center;gap:14px;padding:16px 18px;">
         <div class="stat-card-deco" style="background:#64748b;"></div>
@@ -114,20 +90,6 @@
             <p style="font-size:12px;font-weight:600;color:var(--text-muted);margin-top:4px;">Karyawan Terlibat</p>
         </div>
     </div>
-
-    @foreach ($recap['types'] as $type)
-        @php $style = $typeStyle($type); @endphp
-        <div class="stat-card" style="display:flex;align-items:center;gap:14px;padding:16px 18px;">
-            <div class="stat-card-deco" style="background:{{ $style['color'] }};"></div>
-            <div style="flex-shrink:0;width:42px;height:42px;background:{{ $style['bg'] }};border-radius:12px;display:flex;align-items:center;justify-content:center;">
-                <i class="fa-solid fa-clock" style="color:{{ $style['color'] }};font-size:15px;"></i>
-            </div>
-            <div style="min-width:0;">
-                <p style="font-size:24px;font-weight:800;color:var(--text-heading);letter-spacing:-0.8px;line-height:1;">{{ $recap['overall']['counts'][$type] ?? 0 }}</p>
-                <p style="font-size:12px;font-weight:600;color:var(--text-muted);margin-top:4px;">{{ $tabLabel }} {{ $typeLabel($type) }}</p>
-            </div>
-        </div>
-    @endforeach
 </div>
 
 <div style="background:var(--surface);border-radius:12px;box-shadow:var(--shadow-card);overflow:hidden;">
@@ -140,15 +102,15 @@
     </div>
 
     <div style="overflow-x:auto;">
-        <table class="data-table" style="min-width:640px;font-size:12px;">
+        <table class="data-table" style="min-width:560px;font-size:12px;">
             <thead>
                 <tr>
                     <th>Karyawan</th>
-                    @foreach ($recap['types'] as $type)
-                        @php $style = $typeStyle($type); @endphp
-                        <th style="text-align:center;"><i class="fa-solid fa-clock" style="color:{{ $style['color'] }};margin-right:5px;"></i>{{ $typeLabel($type) }}</th>
+                    @foreach ($recap['categories'] as $key => $label)
+                        @php $style = $categoryStyle[$key]; @endphp
+                        <th style="text-align:center;"><i class="fa-solid {{ $style['icon'] }}" style="color:{{ $style['color'] }};margin-right:5px;"></i>{{ $label }}</th>
                     @endforeach
-                    <th style="text-align:left;">Total {{ $tabLabel }}</th>
+                    <th style="text-align:left;">Total</th>
                 </tr>
             </thead>
             <tbody>
@@ -171,8 +133,8 @@
                                 </div>
                             </div>
                         </td>
-                        @foreach ($recap['types'] as $type)
-                            @php $style = $typeStyle($type); $n = $row['counts'][$type] ?? 0; @endphp
+                        @foreach ($recap['categories'] as $key => $label)
+                            @php $style = $categoryStyle[$key]; $n = $row['counts'][$key]; @endphp
                             <td style="text-align:center;">
                                 @if ($n > 0)
                                     <span style="display:inline-flex;align-items:center;justify-content:center;min-width:30px;height:22px;padding:0 7px;border-radius:99px;background:{{ $style['color'] }};color:#fff;font-size:12px;font-weight:700;">{{ $n }}</span>
@@ -185,18 +147,18 @@
                             <div style="display:flex;align-items:center;gap:8px;">
                                 <span style="font-weight:800;color:var(--text-heading);font-size:13.5px;width:30px;">{{ $row['total'] }}</span>
                                 <div style="flex:1;height:6px;border-radius:99px;background:var(--border-soft);overflow:hidden;">
-                                    <div style="height:100%;border-radius:99px;background:{{ $tabStyle['color'] }};width:{{ $row['bar_percent'] }}%;"></div>
+                                    <div style="height:100%;border-radius:99px;background:#047C54;width:{{ $row['bar_percent'] }}%;"></div>
                                 </div>
                             </div>
                         </td>
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="{{ count($recap['types']) + 2 }}" style="padding:32px;text-align:center;color:var(--text-faint);">
+                        <td colspan="{{ count($recap['categories']) + 2 }}" style="padding:32px;text-align:center;color:var(--text-faint);">
                             @if ($search !== '')
                                 Tidak ada karyawan yang cocok dengan pencarian "{{ $search }}".
                             @else
-                                Belum ada {{ mb_strtolower($tabLabel) }} yang disetujui untuk periode ini.
+                                Belum ada extra shift atau double shift yang disetujui untuk periode ini.
                             @endif
                         </td>
                     </tr>
@@ -214,22 +176,24 @@
             <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:14px;">
                 <div>
                     <h3 style="font-size:15px;font-weight:700;color:var(--text-heading);margin:0;">{{ $selectedRow['user']->name }}</h3>
-                    <p style="font-size:11.5px;color:var(--text-muted);margin:2px 0 0;">{{ $selectedRow['total'] }} {{ mb_strtolower($tabLabel) }} dalam periode ini</p>
+                    <p style="font-size:11.5px;color:var(--text-muted);margin:2px 0 0;">
+                        {{ $selectedRow['counts']['extra_shift'] }} extra shift &middot; {{ $selectedRow['counts']['double_shift'] }} double shift dalam periode ini
+                    </p>
                 </div>
                 <button type="button" wire:click="closeDetail" class="btn-ghost" style="padding:6px 10px;"><i class="fa-solid fa-xmark"></i></button>
             </div>
 
             <div style="display:flex;flex-direction:column;gap:8px;max-height:360px;overflow-y:auto;">
                 @foreach ($selectedRow['items'] as $item)
-                    @php $itemStyle = $typeStyle($item['type']); @endphp
+                    @php $itemStyle = $categoryStyle[$item['category']]; @endphp
                     <div style="display:flex;align-items:flex-start;gap:12px;padding:10px 12px;border-radius:10px;background:var(--surface-alt);">
                         <div style="flex-shrink:0;width:30px;height:30px;border-radius:9px;background:{{ $itemStyle['bg'] }};display:flex;align-items:center;justify-content:center;margin-top:1px;">
-                            <i class="fa-solid fa-clock" style="color:{{ $itemStyle['color'] }};font-size:12px;"></i>
+                            <i class="fa-solid {{ $itemStyle['icon'] }}" style="color:{{ $itemStyle['color'] }};font-size:12px;"></i>
                         </div>
                         <div style="min-width:0;flex:1;">
                             <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;">
-                                <p style="font-size:12.5px;font-weight:600;color:var(--text-heading);margin:0;">{{ $item['shift_name'] }}</p>
-                                <span style="font-size:11.5px;font-weight:700;color:{{ $itemStyle['color'] }};white-space:nowrap;">{{ $typeLabel($item['type']) }}</span>
+                                <p style="font-size:12.5px;font-weight:600;color:var(--text-heading);margin:0;">{{ $item['shift_name'] }} <span style="font-weight:500;color:var(--text-muted);">({{ $typeLabel($item['type']) }})</span></p>
+                                <span style="font-size:11.5px;font-weight:700;color:{{ $itemStyle['color'] }};white-space:nowrap;">{{ $recap['categories'][$item['category']] }}</span>
                             </div>
                             <p style="font-size:11px;color:var(--text-muted);margin:2px 0 0;">
                                 {{ \Illuminate\Support\Carbon::parse($item['date'])->translatedFormat('d M Y') }}
