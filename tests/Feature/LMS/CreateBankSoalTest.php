@@ -222,7 +222,8 @@ class CreateBankSoalTest extends TestCase
         $this->assertFalse((bool) $question->options[1]->is_correct);
     }
 
-    public function test_save_creates_essay_question_with_score(): void
+    /** Esai dinonaktifkan sementara (belum ada UI penilaian) - lihat QuestionType::creatable(). */
+    public function test_save_rejects_essay_question_type(): void
     {
         $admin = $this->actingAsLmsAdmin();
         $category = LmsCategories::create(['name' => 'Umum']);
@@ -235,18 +236,9 @@ class CreateBankSoalTest extends TestCase
             ->set('soalRows.0.max_score', '80')
             ->set('soalRows.0.min_score', '0')
             ->call('save')
-            ->assertHasNoErrors()
-            ->assertRedirect(route('pelatihan.bank-soal'));
+            ->assertHasErrors(['soalRows.0.type']);
 
-        $this->assertDatabaseHas('lms_question_banks', [
-            'question' => '<p>Jelaskan apa itu OOP</p>',
-            'type' => QuestionType::Essay->value,
-            'min_score' => 0,
-            'max_score' => 80,
-        ]);
-
-        $question = LmsQuestionBanks::first();
-        $this->assertEquals(0, $question->options()->count(), 'Essay tidak boleh punya opsi');
+        $this->assertDatabaseMissing('lms_question_banks', ['question' => '<p>Jelaskan apa itu OOP</p>']);
     }
 
     public function test_save_creates_multiple_questions_at_once(): void
@@ -317,21 +309,6 @@ class CreateBankSoalTest extends TestCase
             ->set('soalRows.0.options.1.is_correct', false)
             ->call('save')
             ->assertHasErrors(['soalRows.0.options']);
-    }
-
-    public function test_validation_fails_when_essay_has_no_max_score(): void
-    {
-        $admin = $this->actingAsLmsAdmin();
-        $category = LmsCategories::create(['name' => 'Umum']);
-
-        Livewire::actingAs($admin)
-            ->test(CreateBankSoal::class)
-            ->set('categoryId', $category->id)
-            ->set('soalRows.0.question', '<p>Soal essay tanpa skor</p>')
-            ->set('soalRows.0.type', QuestionType::Essay->value)
-            ->set('soalRows.0.max_score', '') // kosong
-            ->call('save')
-            ->assertHasErrors(['soalRows.0.max_score']);
     }
 
     public function test_created_by_auto_set_to_authenticated_user(): void

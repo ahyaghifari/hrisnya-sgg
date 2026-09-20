@@ -232,7 +232,7 @@ class CreateQuiz extends Component
 
         $validated = $this->validate([
             'newQuestion' => ['required', 'string'],
-            'newType' => ['required', 'in:' . implode(',', array_column(QuestionType::cases(), 'value'))],
+            'newType' => ['required', 'in:' . implode(',', array_column(QuestionType::creatable(), 'value'))],
             'newMinScore' => ['nullable', 'integer', 'min:0', 'max:100'],
             'newMaxScore' => ['nullable', 'integer', 'min:0', 'max:100'],
             'newOptions' => ['array'],

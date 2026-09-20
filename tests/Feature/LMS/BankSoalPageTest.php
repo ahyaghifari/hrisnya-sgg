@@ -205,7 +205,8 @@ class BankSoalPageTest extends TestCase
         $this->assertEquals('Opsi Baru B', $options[1]->option_text);
     }
 
-    public function test_edit_can_switch_type_to_essay_and_clears_options(): void
+    /** Esai dinonaktifkan sementara (belum ada UI penilaian) - lihat QuestionType::creatable(). */
+    public function test_edit_rejects_switching_type_to_essay(): void
     {
         $admin = $this->actingAsLmsAdmin(['Update:LmsQuestionBanks']);
         $category = LmsCategories::create(['name' => 'Umum']);
@@ -222,15 +223,11 @@ class BankSoalPageTest extends TestCase
             ->set('formMaxScore', '80')
             ->set('formMinScore', '0')
             ->call('saveEdit')
-            ->assertHasNoErrors();
+            ->assertHasErrors(['formType']);
 
         $question->refresh();
-        // `type` tidak di-cast ke enum di model (akses string mentah) — bandingkan dengan
-        // nilai string enum langsung, bukan ->value (lihat catatan di LmsQuestionBanks).
-        $this->assertEquals(QuestionType::Essay->value, $question->type);
-        $this->assertEquals(80, $question->max_score);
-        $this->assertEquals(0, $question->min_score);
-        $this->assertEquals(0, $question->options()->count(), 'Essay tidak boleh punya options');
+        $this->assertEquals(QuestionType::MultipleChoice->value, $question->type);
+        $this->assertEquals(2, $question->options()->count());
     }
 
     public function test_delete_without_permission_is_forbidden(): void

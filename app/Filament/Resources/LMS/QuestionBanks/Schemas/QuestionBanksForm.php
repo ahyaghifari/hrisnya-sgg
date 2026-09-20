@@ -50,6 +50,7 @@ class QuestionBanksForm
                         Select::make('type')
                             ->label('Tipe Soal')
                             ->options(QuestionType::class)
+                            ->disableOptionWhen(fn (string $value): bool => ! in_array($value, array_column(QuestionType::creatable(), 'value'), true))
                             ->required()
                             ->searchable()
                             ->preload()

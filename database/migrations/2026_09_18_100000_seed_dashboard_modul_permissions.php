@@ -34,6 +34,14 @@ return new class extends Migration
                 'guard_name' => 'web',
             ]);
 
+            // Permission modul dibuat lewat CustomPermissionsSeeder, bukan migration - di DB
+            // kosong (mis. RefreshDatabase di test) barisnya belum ada, hasPermissionTo() akan
+            // melempar PermissionDoesNotExist. Belum ada permission = belum ada role yang
+            // memegangnya, jadi tidak ada yang perlu di-grant.
+            if (! Permission::where('name', $modulePermission)->where('guard_name', 'web')->exists()) {
+                continue;
+            }
+
             $roles->filter(fn (Role $role) => $role->hasPermissionTo($modulePermission))
                 ->each(fn (Role $role) => $role->givePermissionTo($gate));
         }

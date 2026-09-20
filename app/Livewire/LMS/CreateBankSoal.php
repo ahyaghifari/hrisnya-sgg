@@ -153,7 +153,7 @@ class CreateBankSoal extends Component
             'categoryId' => 'required|exists:lms_categories,id',
             'soalRows' => ['required', 'array', 'min:1'],
             'soalRows.*.question' => 'required|string',
-            'soalRows.*.type' => 'required|in:' . implode(',', array_column(QuestionType::cases(), 'value')),
+            'soalRows.*.type' => 'required|in:' . implode(',', array_column(QuestionType::creatable(), 'value')),
             'soalRows.*.min_score' => 'nullable|integer|min:0|max:100',
             'soalRows.*.max_score' => 'nullable|integer|min:0|max:100',
             'soalRows.*.options' => ['array'],

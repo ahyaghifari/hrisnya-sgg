@@ -90,9 +90,6 @@ Route::prefix('integrasi')->middleware('throttle:50,1')->group(function () {
     Route::get('/karyawan/{nip}', [\App\Http\Controllers\Api\Integrasi\EmployeeDirectoryController::class, 'show']);
 });
 
-Route::get('/sop', [\App\Http\Controllers\Api\SopController::class, 'index']);
-Route::get('/sop/{id}/download', [\App\Http\Controllers\Api\SopController::class, 'download']);
-
 Route::prefix('job-openings')->group(function () {
     Route::get('/', [JobOpeningController::class, 'index']);
     Route::get('/{id}', [JobOpeningController::class, 'show']);

@@ -208,7 +208,7 @@ class BankSoalPage extends Component
         $rules = [
             'formCategoryId' => 'required|exists:lms_categories,id',
             'formQuestion' => 'required|string',
-            'formType' => 'required|in:' . implode(',', array_column(QuestionType::cases(), 'value')),
+            'formType' => 'required|in:' . implode(',', array_column(QuestionType::creatable(), 'value')),
             'formMinScore' => 'nullable|integer|min:0|max:100',
             'formMaxScore' => 'nullable|integer|min:0|max:100',
             'formOptions' => ['array'],

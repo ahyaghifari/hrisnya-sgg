@@ -251,7 +251,7 @@
                         <div>
                             <label class="form-label">Tipe Soal *</label>
                             <select wire:model.live="formType" class="form-input">
-                                @foreach (QuestionType::cases() as $type)
+                                @foreach (QuestionType::creatable() as $type)
                                     <option value="{{ $type->value }}">{{ $type->getLabel() }}</option>
                                 @endforeach
                             </select>
