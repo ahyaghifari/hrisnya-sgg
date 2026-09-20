@@ -60,6 +60,12 @@
     <span class="pwa-menu-grid-icon green"><i class="fa-solid fa-business-time"></i></span>
     <span class="pwa-menu-grid-label">Lembur</span>
 </a>
+@if ($canViewExtraShift)
+<a href="{{ route('presensi.rekap-extra-shift') }}" wire:navigate class="pwa-menu-grid-item">
+    <span class="pwa-menu-grid-icon green"><i class="fa-solid fa-user-clock"></i></span>
+    <span class="pwa-menu-grid-label">Rekap Extra Shift</span>
+</a>
+@endif
 @endif
 @if ($canViewPengaturanAbsensi)
 <a href="{{ route('presensi.pengaturan') }}" wire:navigate class="pwa-menu-grid-item">

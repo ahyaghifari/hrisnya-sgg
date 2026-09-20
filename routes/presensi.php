@@ -91,6 +91,9 @@ Route::get('/presensi/rekap-cuti', CutiRecapPage::class)
 Route::get('/presensi/rekap-lembur', LemburRecapPage::class)
     ->name('presensi.rekap-lembur');
 
+Route::get('/presensi/rekap-extra-shift', \App\Livewire\Presensi\ExtraShiftRecapPage::class)
+    ->name('presensi.rekap-extra-shift');
+
 Route::get('/presensi/rekap-presensi', RekapPresensiPage::class)
     ->name('presensi.rekap-presensi');
 

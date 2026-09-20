@@ -48,6 +48,9 @@
             <a href="{{ route('presensi.rekap-izin') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-file-lines"></i> Rekap Izin</a>
             <a href="{{ route('presensi.rekap-cuti') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-umbrella-beach"></i> Rekap Cuti</a>
             <a href="{{ route('presensi.rekap-lembur') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-business-time"></i> Rekap Lembur</a>
+            @if ($canViewExtraShift)
+            <a href="{{ route('presensi.rekap-extra-shift') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-user-clock"></i> Rekap Extra Shift</a>
+            @endif
         </div>
         @endif
     </div>

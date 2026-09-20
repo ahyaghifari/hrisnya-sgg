@@ -33,7 +33,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
  * `category` (2026-09-13): 'extra_shift' (default) = penugasan sukarela, KENA jasa dari
  * ExtraShiftRule.amount. 'double_shift' = akibat tukar shift yang conflict (lihat
  * ShiftSwapRequestService::applySlotResolution() mode 'double_shift') - BUKAN penugasan
- * sukarela, TIDAK ada jasa. Payroll (belum diwire) harus skip baris category='double_shift'.
+ * sukarela, TIDAK ada jasa - ExtraShiftCalculator (Payroll) hanya membayar category='extra_shift'.
  * `origin_shift_swap_request_id` - null buat extra_shift biasa, terisi buat double_shift biar
  * bisa ditelusuri balik ke pengajuan tukar shift asalnya.
  */

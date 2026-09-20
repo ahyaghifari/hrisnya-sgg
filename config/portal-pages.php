@@ -500,6 +500,14 @@ return [
         'guard' => null,
     ],
 
+    // Gerbang kedua (ViewAny:ExtraShiftAssignment) dicek di ExtraShiftRecapPage::mount() -
+    // registry ini cuma mendukung 1 permission per route.
+    'presensi.rekap-extra-shift' => [
+        'label' => 'Rekap Extra Shift',
+        'permission' => \App\Enum\CustomPermissionEnum::VIEW_REPORT_DATA_ABSENSI->value,
+        'guard' => null,
+    ],
+
     'presensi.extra-shift' => [
         'label' => 'Extra Shift',
         'permission' => 'ViewAny:ExtraShiftAssignment',
