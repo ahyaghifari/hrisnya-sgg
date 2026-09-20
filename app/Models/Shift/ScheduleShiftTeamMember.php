@@ -24,6 +24,7 @@ class ScheduleShiftTeamMember extends Model
         'schedule_id',
         'user_id',
         'period',
+        'sort_order',
         'created_by',
     ];
 
@@ -53,13 +54,23 @@ class ScheduleShiftTeamMember extends Model
             ->first();
     }
 
-    /** Set/ganti regu user untuk 1 bulan — upsert, cuma menyentuh baris bulan itu. */
-    public static function setForPeriod(Schedule $schedule, User $user, ScheduleShiftTeam $team, string $period, string $createdBy): self
+    /** Set/ganti regu user untuk 1 bulan — upsert, cuma menyentuh baris bulan itu. Urutan manual
+     * (sort_order) dipertahankan kalau regunya sama; ganti regu = urutan direset (null, jatuh ke
+     * paling belakang regu baru) kecuali $sortOrder diberikan eksplisit (carry-over bulan depan). */
+    public static function setForPeriod(Schedule $schedule, User $user, ScheduleShiftTeam $team, string $period, string $createdBy, ?int $sortOrder = null): self
     {
-        return static::updateOrCreate(
-            ['schedule_id' => $schedule->id, 'user_id' => $user->id, 'period' => $period],
-            ['team_id' => $team->id, 'created_by' => $createdBy]
-        );
+        $keys = ['schedule_id' => $schedule->id, 'user_id' => $user->id, 'period' => $period];
+        $existing = static::where($keys)->first();
+
+        $attributes = ['team_id' => $team->id, 'created_by' => $createdBy];
+
+        if ($sortOrder !== null) {
+            $attributes['sort_order'] = $sortOrder;
+        } elseif (! $existing || $existing->team_id !== $team->id) {
+            $attributes['sort_order'] = null;
+        }
+
+        return static::updateOrCreate($keys, $attributes);
     }
 
     /** Carry-over Tim bulan DEPAN (relatif ke bulan berjalan ASLI) dari bulan berjalan, LANGSUNG
@@ -84,7 +95,7 @@ class ScheduleShiftTeamMember extends Model
             $carryFrom = static::forPeriod($schedule->id, $user->id, $currentMonth);
 
             if ($carryFrom) {
-                static::setForPeriod($schedule, $user, $carryFrom->team, $period, $actorId);
+                static::setForPeriod($schedule, $user, $carryFrom->team, $period, $actorId, $carryFrom->sort_order);
             }
         }
     }

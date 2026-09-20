@@ -150,6 +150,18 @@ class ScheduleShiftRosterExport implements FromArray, WithStyles, WithColumnWidt
             : collect();
     }
 
+    /** Warna tim (hex 'RRGGBB') menurut nama tim - null kalau tidak ada tim itu / warna bukan hex (mis. "Tanpa Tim"). */
+    private function teamHex(string $teamName): ?string
+    {
+        return $this->hex($this->teams()->firstWhere('name', $teamName)?->color);
+    }
+
+    /** Tim yang boleh memakai shift ini (tim tanpa batasan = boleh semua shift). */
+    private function allowedTeamsFor($shiftType): Collection
+    {
+        return $this->teams()->filter(fn ($t) => $t->shiftTypes->isEmpty() || $t->shiftTypes->contains('id', $shiftType->id));
+    }
+
     /** Kolom "Tim" legenda: tim yang boleh memakai shift ini (tim tanpa batasan = boleh semua shift). */
     private function teamsTextFor($shiftType): string
     {
@@ -159,7 +171,7 @@ class ScheduleShiftRosterExport implements FromArray, WithStyles, WithColumnWidt
             return '-';
         }
 
-        $allowed = $teams->filter(fn ($t) => $t->shiftTypes->isEmpty() || $t->shiftTypes->contains('id', $shiftType->id));
+        $allowed = $this->allowedTeamsFor($shiftType);
 
         return match (true) {
             $allowed->isEmpty() => '-',
@@ -373,6 +385,19 @@ class ScheduleShiftRosterExport implements FromArray, WithStyles, WithColumnWidt
             }
 
             $sheet->getStyle("A{$row}")->applyFromArray($style);
+
+            // Kolom Tim: kalau HANYA satu tim (dari beberapa) yang boleh memakai shift ini, sel-nya
+            // diwarnai warna tim itu, font putih. Banyak tim / "Semua Tim" tidak diwarnai (1 sel tidak
+            // bisa memuat beberapa warna).
+            $teams = $this->teams();
+            $allowed = $this->allowedTeamsFor($type);
+            $teamBg = ($teams->count() > 1 && $allowed->count() === 1) ? $this->hex($allowed->first()->color) : null;
+            if ($teamBg) {
+                $sheet->getStyle("D{$row}")->applyFromArray([
+                    'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
+                    'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => $teamBg]],
+                ]);
+            }
         }
 
         foreach ($this->legendTeamMerges as [$start, $end, $label]) {
@@ -455,11 +480,14 @@ class ScheduleShiftRosterExport implements FromArray, WithStyles, WithColumnWidt
     private function styleSeparatorRows(Worksheet $sheet, string $gridStart, string $lastCol): void
     {
         foreach ($this->separatorRows as $row => $label) {
+            // Warna banner = warna tim (font putih), sama seperti baris pemisah di web; "Tanpa Tim" abu-abu.
+            $teamBg = $this->teamHex($label);
+
             $sheet->mergeCells("{$gridStart}{$row}:{$lastCol}{$row}");
             $sheet->setCellValue("{$gridStart}{$row}", $label);
             $sheet->getStyle("{$gridStart}{$row}:{$lastCol}{$row}")->applyFromArray([
-                'font' => ['bold' => true, 'size' => 11],
-                'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'E2E8F0']],
+                'font' => ['bold' => true, 'size' => 11, 'color' => ['rgb' => $teamBg ? 'FFFFFF' : '000000']],
+                'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => $teamBg ?? 'E2E8F0']],
                 'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
             ]);
         }
@@ -473,10 +501,12 @@ class ScheduleShiftRosterExport implements FromArray, WithStyles, WithColumnWidt
                 $sheet->mergeCells("{$timCol}{$startRow}:{$timCol}{$endRow}");
             }
 
+            $teamBg = $this->teamHex($label);
+
             $sheet->setCellValue("{$timCol}{$startRow}", $label);
             $sheet->getStyle("{$timCol}{$startRow}:{$timCol}{$endRow}")->applyFromArray([
-                'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'E2E8F0']],
-                'font' => ['bold' => true],
+                'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => $teamBg ?? 'E2E8F0']],
+                'font' => ['bold' => true, 'color' => ['rgb' => $teamBg ? 'FFFFFF' : '000000']],
                 'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
             ]);
         }

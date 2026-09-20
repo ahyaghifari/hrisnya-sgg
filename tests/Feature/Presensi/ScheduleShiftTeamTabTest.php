@@ -365,7 +365,7 @@ class ScheduleShiftTeamTabTest extends TestCase
 
         [$schedule, $employee] = $this->makeScheduleWithEmployee();
         $schedule->update(['use_teams' => true]);
-        $user = $this->actingAsKepalaRuangan();
+        $user = $this->actingAsScheduleOwner();
         $teamA = ScheduleShiftTeam::create(['schedule_id' => $schedule->id, 'name' => 'Regu A']);
         $teamB = ScheduleShiftTeam::create(['schedule_id' => $schedule->id, 'name' => 'Regu B']);
         ScheduleShiftTeamMember::setForPeriod($schedule, $employee, $teamA, '2026-10', $user->id);
@@ -376,7 +376,7 @@ class ScheduleShiftTeamTabTest extends TestCase
 
         // Bulan berjalan: tombol muncul, ganti ke Regu B.
         $roster('2026-10')
-            ->assertSeeHtml('wire:click="openTeamPicker(\'' . $employee->id . '\')"')
+            ->assertSeeHtml("menu = { id: '" . $employee->id . "'")
             ->call('openTeamPicker', $employee->id)
             ->assertSee('Ganti Tim')
             ->call('setMemberTeam', $teamB->id);
@@ -390,40 +390,264 @@ class ScheduleShiftTeamTabTest extends TestCase
 
         // 2 bulan ke depan: tombol hilang dan aksinya ditolak.
         $roster('2026-12')
-            ->assertDontSeeHtml('openTeamPicker')
+            ->assertDontSeeHtml('menu = { id:')
             ->call('openTeamPicker', $employee->id)
             ->assertForbidden();
 
         // Bulan lampau: ditolak juga.
         $roster('2026-09')
-            ->assertDontSeeHtml('openTeamPicker')
+            ->assertDontSeeHtml('menu = { id:')
             ->call('openTeamPicker', $employee->id)
             ->assertForbidden();
 
         \Illuminate\Support\Carbon::setTestNow();
     }
 
-    public function test_roster_tab_change_team_requires_create_team_permission_and_not_edit_mode(): void
+    /** Ganti tim lewat roster: hanya Kepala Ruangan jadwal ini (head_user_id) dan pemegang Update:Schedule.
+     * Pengelola Tim (Create:ScheduleShiftTeam) biasa dan viewer tidak; editMode mematikan tombolnya. */
+    public function test_roster_tab_change_team_only_for_head_or_schedule_editor_and_not_edit_mode(): void
     {
         [$schedule, $employee] = $this->makeScheduleWithEmployee();
         $schedule->update(['use_teams' => true]);
-        $team = ScheduleShiftTeam::create(['schedule_id' => $schedule->id, 'name' => 'Regu A']);
+        ScheduleShiftTeam::create(['schedule_id' => $schedule->id, 'name' => 'Regu A']);
+        $rosterTab = \App\Livewire\Presensi\ScheduleShiftRosterTab::class;
 
-        // Tanpa Create:ScheduleShiftTeam (viewer biasa): tombol tidak ada, aksi ditolak.
-        Livewire::actingAs($this->actingAsViewerOnly())
-            ->test(\App\Livewire\Presensi\ScheduleShiftRosterTab::class, ['schedule' => $schedule])
-            ->assertDontSeeHtml('openTeamPicker')
-            ->call('openTeamPicker', $employee->id)
-            ->assertForbidden();
+        // Viewer biasa dan pengelola Tim tanpa Update:Schedule (bukan kepala ruangan jadwal ini): ditolak.
+        foreach ([$this->actingAsViewerOnly(), $this->actingAsKepalaRuangan()] as $denied) {
+            Livewire::actingAs($denied)
+                ->test($rosterTab, ['schedule' => $schedule])
+                ->assertDontSeeHtml('menu = { id:')
+                ->call('openTeamPicker', $employee->id)
+                ->assertForbidden();
+        }
 
-        // Pemegang izin, tapi selama mode isi jadwal (editMode) tombolnya dimatikan.
-        $user = $this->actingAsKepalaRuangan();
-        $component = Livewire::actingAs($user)
-            ->test(\App\Livewire\Presensi\ScheduleShiftRosterTab::class, ['schedule' => $schedule]);
+        // Kepala Ruangan yang ditunjuk di jadwal ini boleh, walau tanpa permission apa pun selain lihat.
+        $head = $this->actingAsViewerOnly();
+        $schedule->update(['head_user_id' => $head->id]);
+        $this->assertTrue(Livewire::actingAs($head)->test($rosterTab, ['schedule' => $schedule->fresh()])->instance()->canChangeTeam);
+
+        // Pemegang Update:Schedule boleh, tapi selama mode isi jadwal (editMode) tombolnya dimatikan.
+        $component = Livewire::actingAs($this->actingAsScheduleOwner())->test($rosterTab, ['schedule' => $schedule->fresh()]);
         $this->assertTrue($component->instance()->canChangeTeam);
         $component->set('editMode', true);
         $this->assertFalse($component->instance()->canChangeTeam);
         $this->assertNull(ScheduleShiftTeamMember::forPeriod($schedule->id, $employee->id, now()->format('Y-m')));
+    }
+
+    /** Urutkan manual (menu titik-tiga): pindah sebelum/sesudah karyawan lain di grup yang sama, tersimpan
+     * di DB - di tim: schedule_shift_team_members.sort_order (per bulan), Tanpa Tim: schedule_assignments.sort_order. */
+    public function test_reorder_within_team_and_within_no_team_persists_and_carries_over(): void
+    {
+        $company = Companies::create(['code' => 'TSO', 'name' => 'Test Reorder', 'location' => 'Test', 'is_active' => true]);
+        $schedule = Schedule::create(['company_id' => $company->id, 'name' => 'Jadwal Urut', 'schedule_type' => ScheduleType::SHIFT->value, 'use_template' => false, 'use_teams' => true]);
+        $owner = $this->actingAsScheduleOwner();
+        $team = ScheduleShiftTeam::create(['schedule_id' => $schedule->id, 'name' => 'CSSD']);
+        $current = now()->format('Y-m');
+        $next = now()->addMonthNoOverflow()->format('Y-m');
+
+        $mk = function (string $name, string $joined, bool $inTeam) use ($company, $schedule, $owner, $team, $current) {
+            $u = User::factory()->create(['company_id' => $company->id, 'name' => $name]);
+            \App\Models\User\UserProfiles::create(['user_id' => $u->id, 'joining_date' => $joined]);
+            ScheduleAssignment::create(['company_id' => $company->id, 'schedule_id' => $schedule->id, 'user_id' => $u->id, 'effective_from' => now()->startOfMonth()]);
+            if ($inTeam) {
+                ScheduleShiftTeamMember::setForPeriod($schedule, $u, $team, $current, $owner->id);
+            }
+
+            return $u;
+        };
+
+        // Default = tanggal bergabung terlama dulu: Tim: A, B, C. Tanpa Tim: X, Y, Z.
+        $a = $mk('A', '2015-01-01', true);
+        $b = $mk('B', '2016-01-01', true);
+        $c = $mk('C', '2017-01-01', true);
+        $x = $mk('X', '2018-01-01', false);
+        $y = $mk('Y', '2019-01-01', false);
+        $z = $mk('Z', '2020-01-01', false);
+
+        $rosterTab = \App\Livewire\Presensi\ScheduleShiftRosterTab::class;
+        $names = fn ($component) => $component->instance()->employees->pluck('name')->all();
+
+        $component = Livewire::actingAs($owner)->test($rosterTab, ['schedule' => $schedule]);
+        $this->assertSame(['A', 'B', 'C', 'X', 'Y', 'Z'], $names($component));
+
+        // Tim: pindahkan C SEBELUM A -> C, A, B. Tanpa Tim tidak tersentuh.
+        $component->call('openReorder', $c->id)
+            ->set('reorderPosition', 'before')->set('reorderTargetId', $a->id)
+            ->call('saveReorder');
+        $this->assertSame(['C', 'A', 'B', 'X', 'Y', 'Z'], $names($component));
+        $this->assertSame(1, ScheduleShiftTeamMember::forPeriod($schedule->id, $c->id, $current)->sort_order);
+
+        // Tanpa Tim: pindahkan X SESUDAH Z -> Y, Z, X (tersimpan di schedule_assignments).
+        $component->call('openReorder', $x->id)
+            ->set('reorderPosition', 'after')->set('reorderTargetId', $z->id)
+            ->call('saveReorder');
+        $this->assertSame(['C', 'A', 'B', 'Y', 'Z', 'X'], $names($component));
+        $this->assertSame(3, ScheduleAssignment::where('schedule_id', $schedule->id)->where('user_id', $x->id)->value('sort_order'));
+
+        // Tetap setelah halaman dibuka ulang (tersimpan di DB, bukan state komponen).
+        $fresh = Livewire::actingAs($owner)->test($rosterTab, ['schedule' => $schedule->fresh()]);
+        $this->assertSame(['C', 'A', 'B', 'Y', 'Z', 'X'], $names($fresh));
+
+        // Bulan depan mewarisi tim beserta urutannya.
+        $nextMonth = Livewire::actingAs($owner)->test($rosterTab, ['schedule' => $schedule->fresh()])->set('period', $next);
+        $this->assertSame(['C', 'A', 'B', 'Y', 'Z', 'X'], $names($nextMonth));
+
+        // Target di luar grup (beda tim / Tanpa Tim) ditolak; viewer tanpa hak ditolak.
+        Livewire::actingAs($owner)->test($rosterTab, ['schedule' => $schedule->fresh()])
+            ->call('openReorder', $a->id)
+            ->set('reorderTargetId', $x->id)
+            ->call('saveReorder')
+            ->assertNotFound();
+
+        Livewire::actingAs($this->actingAsViewerOnly())->test($rosterTab, ['schedule' => $schedule->fresh()])
+            ->assertDontSeeHtml('menu = { id:')
+            ->call('openReorder', $a->id)
+            ->assertForbidden();
+    }
+
+    /** Tombol "Urutkan per Tanggal Bergabung": khusus Update:Schedule; semua grup (tim + Tanpa Tim)
+     * kembali ke tanggal bergabung terlama dulu dan langsung tersimpan sebagai nomor 1..n. */
+    public function test_reset_order_by_join_date_fills_sort_order_for_team_and_no_team(): void
+    {
+        $company = Companies::create(['code' => 'TSR', 'name' => 'Test Reset Order', 'location' => 'Test', 'is_active' => true]);
+        $schedule = Schedule::create(['company_id' => $company->id, 'name' => 'Jadwal Reset', 'schedule_type' => ScheduleType::SHIFT->value, 'use_template' => false, 'use_teams' => true]);
+        $owner = $this->actingAsScheduleOwner();
+        $team = ScheduleShiftTeam::create(['schedule_id' => $schedule->id, 'name' => 'CSSD']);
+        $period = now()->format('Y-m');
+
+        $mk = function (string $name, string $joined, bool $inTeam) use ($company, $schedule, $owner, $team, $period) {
+            $u = User::factory()->create(['company_id' => $company->id, 'name' => $name]);
+            \App\Models\User\UserProfiles::create(['user_id' => $u->id, 'joining_date' => $joined]);
+            ScheduleAssignment::create(['company_id' => $company->id, 'schedule_id' => $schedule->id, 'user_id' => $u->id, 'effective_from' => now()->startOfMonth()]);
+            if ($inTeam) {
+                ScheduleShiftTeamMember::setForPeriod($schedule, $u, $team, $period, $owner->id);
+            }
+
+            return $u;
+        };
+
+        $a = $mk('A', '2015-01-01', true);
+        $b = $mk('B', '2016-01-01', true);
+        $x = $mk('X', '2018-01-01', false);
+        $y = $mk('Y', '2019-01-01', false);
+
+        $rosterTab = \App\Livewire\Presensi\ScheduleShiftRosterTab::class;
+        $names = fn ($component) => $component->instance()->employees->pluck('name')->all();
+
+        // Acak dulu secara manual: B sebelum A, Y sebelum X.
+        $component = Livewire::actingAs($owner)->test($rosterTab, ['schedule' => $schedule]);
+        $component->call('openReorder', $b->id)->set('reorderPosition', 'before')->set('reorderTargetId', $a->id)->call('saveReorder');
+        $component->call('openReorder', $y->id)->set('reorderPosition', 'before')->set('reorderTargetId', $x->id)->call('saveReorder');
+        $this->assertSame(['B', 'A', 'Y', 'X'], $names($component));
+
+        $component->call('resetOrderByJoinDate');
+        $this->assertSame(['A', 'B', 'X', 'Y'], $names($component));
+        $this->assertSame([1, 2], [
+            ScheduleShiftTeamMember::forPeriod($schedule->id, $a->id, $period)->sort_order,
+            ScheduleShiftTeamMember::forPeriod($schedule->id, $b->id, $period)->sort_order,
+        ]);
+        $this->assertSame([1, 2], [
+            ScheduleAssignment::where('user_id', $x->id)->value('sort_order'),
+            ScheduleAssignment::where('user_id', $y->id)->value('sort_order'),
+        ]);
+
+        // Tombol cuma untuk pemegang Update:Schedule - pengelola Tim biasa & Kepala Ruangan jadwal ini ditolak.
+        $head = $this->actingAsViewerOnly();
+        $schedule->update(['head_user_id' => $head->id]);
+        foreach ([$this->actingAsKepalaRuangan(), $head] as $denied) {
+            Livewire::actingAs($denied)->test($rosterTab, ['schedule' => $schedule->fresh()])
+                ->assertDontSee('Urutkan per Tanggal Bergabung')
+                ->call('resetOrderByJoinDate')
+                ->assertForbidden();
+        }
+
+        Livewire::actingAs($owner)->test($rosterTab, ['schedule' => $schedule->fresh()])
+            ->assertSee('Urutkan per Tanggal Bergabung');
+    }
+
+    /** Ganti tim mereset urutan manual (jatuh ke paling belakang tim baru) - tidak membawa nomor tim lama. */
+    public function test_changing_team_resets_manual_order(): void
+    {
+        [$schedule, $employee] = $this->makeScheduleWithEmployee();
+        $owner = $this->actingAsScheduleOwner();
+        $teamA = ScheduleShiftTeam::create(['schedule_id' => $schedule->id, 'name' => 'Regu A']);
+        $teamB = ScheduleShiftTeam::create(['schedule_id' => $schedule->id, 'name' => 'Regu B']);
+        $period = now()->format('Y-m');
+
+        ScheduleShiftTeamMember::setForPeriod($schedule, $employee, $teamA, $period, $owner->id);
+        ScheduleShiftTeamMember::where('user_id', $employee->id)->update(['sort_order' => 1]);
+
+        // Tim sama disimpan ulang: urutan dipertahankan.
+        ScheduleShiftTeamMember::setForPeriod($schedule, $employee, $teamA, $period, $owner->id);
+        $this->assertSame(1, ScheduleShiftTeamMember::forPeriod($schedule->id, $employee->id, $period)->sort_order);
+
+        // Ganti tim: urutan direset.
+        ScheduleShiftTeamMember::setForPeriod($schedule, $employee, $teamB, $period, $owner->id);
+        $this->assertNull(ScheduleShiftTeamMember::forPeriod($schedule->id, $employee->id, $period)->sort_order);
+    }
+
+    /** Regresi (dilaporkan user 2026-09-21): setelah ganti tim / carry-over bulan depan, anggota
+     * tim harus tetap DISATUKAN - urutan employees tidak boleh basi (cache computed Livewire). */
+    public function test_roster_keeps_teams_grouped_after_change_and_after_next_month_carry_over(): void
+\    {
+        $company = Companies::create(['code' => 'TSG2', 'name' => 'Test Grouping After Change', 'location' => 'Test', 'is_active' => true]);
+        $schedule = Schedule::create(['company_id' => $company->id, 'name' => 'Jadwal Group', 'schedule_type' => ScheduleType::SHIFT->value, 'use_template' => false, 'use_teams' => true]);
+        $owner = $this->actingAsScheduleOwner();
+        $teamA = ScheduleShiftTeam::create(['schedule_id' => $schedule->id, 'name' => 'CSSD']);
+        $teamB = ScheduleShiftTeam::create(['schedule_id' => $schedule->id, 'name' => 'LAUNDRY']);
+        $current = now()->format('Y-m');
+        $next = now()->addMonthNoOverflow()->format('Y-m');
+
+        // Tanggal bergabung sengaja selang-seling antar tim: kalau urutan basi (cuma urut tanggal),
+        // tim-nya kelihatan berhamburan.
+        $mk = function (string $name, string $joined, ScheduleShiftTeam $team) use ($company, $schedule, $owner, $current) {
+            $u = User::factory()->create(['company_id' => $company->id, 'name' => $name]);
+            \App\Models\User\UserProfiles::create(['user_id' => $u->id, 'joining_date' => $joined]);
+            ScheduleAssignment::create(['company_id' => $company->id, 'schedule_id' => $schedule->id, 'user_id' => $u->id, 'effective_from' => now()->startOfMonth()]);
+            ScheduleShiftTeamMember::setForPeriod($schedule, $u, $team, $current, $owner->id);
+
+            return $u;
+        };
+
+        $u1 = $mk('Satu', '2015-01-01', $teamA);
+        $u2 = $mk('Dua', '2016-01-01', $teamB);
+        $u3 = $mk('Tiga', '2017-01-01', $teamA);
+        $u4 = $mk('Empat', '2018-01-01', $teamB);
+
+        $groupedByTeam = function (array $names, array $teamOfName): bool {
+            $seen = [];
+            $last = null;
+            foreach ($names as $n) {
+                $t = $teamOfName[$n];
+                if ($t !== $last && isset($seen[$t])) {
+                    return false; // tim yang sama muncul lagi setelah tim lain = terpecah
+                }
+                $seen[$t] = true;
+                $last = $t;
+            }
+
+            return true;
+        };
+
+        $rosterTab = \App\Livewire\Presensi\ScheduleShiftRosterTab::class;
+
+        // 1) Ganti tim lewat popup: Dua pindah ke CSSD -> CSSD {Satu, Dua, Tiga}, LAUNDRY {Empat}, 1 banner per tim.
+        $component = Livewire::actingAs($owner)->test($rosterTab, ['schedule' => $schedule])
+            ->call('openTeamPicker', $u2->id)
+            ->call('setMemberTeam', $teamA->id);
+
+        $names = $component->instance()->employees->pluck('name')->all();
+        $this->assertSame(['Satu', 'Dua', 'Tiga', 'Empat'], $names);
+        // Baris pemisah dirender 1x per tim (2 banner), bukan berulang.
+        $this->assertSame(2, substr_count($component->html(), 'colspan="'));
+
+        // 2) Buka bulan depan (belum ada tim -> carry-over otomatis dari bulan berjalan).
+        $component = Livewire::actingAs($owner)->test($rosterTab, ['schedule' => $schedule])
+            ->set('period', $next);
+
+        $teamOf = [$u1->name => 'CSSD', $u2->name => 'CSSD', $u3->name => 'CSSD', $u4->name => 'LAUNDRY'];
+        $this->assertTrue($groupedByTeam($component->instance()->employees->pluck('name')->all(), $teamOf));
+        $this->assertSame(2, substr_count($component->html(), 'colspan="'));
     }
 
     /** Urutan roster: tanggal bergabung terlama dulu (di dalam tim maupun tidak), yang belum

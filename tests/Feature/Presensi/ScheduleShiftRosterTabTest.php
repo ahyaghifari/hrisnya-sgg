@@ -557,6 +557,68 @@ class ScheduleShiftRosterTabTest extends TestCase
         $this->assertSame('off', $component->get('draft')[$employee->id][$today->copy()->addDay()->toDateString()]);
     }
 
+    /** Warna tim di export: banner (mode Baris) / kolom Tim (mode Kolom) pakai warna tim + font putih,
+     * "Tanpa Tim" abu-abu; kolom Tim di legenda berwarna kalau cuma satu tim (dari beberapa) yang
+     * boleh memakai shiftnya. */
+    public function test_export_colors_team_banner_column_and_legend_by_team_color(): void
+    {
+        [$schedule, $shiftType, $employee] = $this->makeManualShiftSchedule();
+        $schedule->update(['use_teams' => true]);
+        $schedule->refresh();
+
+        $teamA = ScheduleShiftTeam::create(['schedule_id' => $schedule->id, 'name' => 'Regu A', 'color' => '#ff0000']);
+        ScheduleShiftTeam::create(['schedule_id' => $schedule->id, 'name' => 'Regu B', 'color' => '#0000ff'])
+            ->shiftTypes()->sync([]);
+        // Regu A dibatasi cuma boleh shift ini; Regu B tanpa batasan (boleh semua) -> keduanya boleh, legenda tidak diwarnai.
+        $teamA->shiftTypes()->sync([$shiftType->id]);
+
+        $other = User::factory()->create(['company_id' => $employee->company_id, 'name' => 'Tanpa Regu Orang']);
+        $date = now()->startOfMonth();
+        $names = [$employee->id => 'Regu A'];
+
+        $color = fn ($sheet, string $cell) => [
+            $sheet->getStyle($cell)->getFill()->getStartColor()->getRGB(),
+            $sheet->getStyle($cell)->getFont()->getColor()->getRGB(),
+        ];
+
+        foreach (['row', 'column'] as $mode) {
+            $export = new \App\Exports\Presensi\ScheduleShiftRosterExport($schedule, collect([$employee, $other]), [$date], [], 'label', $names, $mode);
+            $sheet = (new Spreadsheet)->getActiveSheet();
+            $sheet->fromArray($export->array());
+            $export->styles($sheet);
+
+            if ($mode === 'row') {
+                // Banner "Regu A" baris 4 (merge F4:G4), "Tanpa Tim" baris 7.
+                $this->assertSame(['FF0000', 'FFFFFF'], $color($sheet, 'F4'));
+                $this->assertSame(['E2E8F0', '000000'], $color($sheet, 'F6'));
+            } else {
+                // Kolom Tim (F) - Regu A baris 4, Tanpa Tim baris 5.
+                $this->assertSame(['FF0000', 'FFFFFF'], $color($sheet, 'F4'));
+                $this->assertSame(['E2E8F0', '000000'], $color($sheet, 'F5'));
+            }
+        }
+
+        // Legenda: shift ini boleh dipakai Regu A dan Regu B (tanpa batasan) -> "Semua Tim", tidak diwarnai tim.
+        $export = new \App\Exports\Presensi\ScheduleShiftRosterExport($schedule, collect([$employee]), [$date], [], 'label', $names);
+        $rows = $export->array();
+        $this->assertSame('Semua Tim', $rows[4][3]);
+
+        // Batasi Regu B ke shift lain -> hanya Regu A yang boleh shift ini -> nama tim + warna tim, font putih.
+        $otherShift = ScheduleShiftType::create(['schedule_id' => $schedule->id, 'code' => 'ZZ', 'name' => 'Lain', 'start_time' => '20:00:00', 'end_time' => '08:00:00', 'counted_work_days' => 1]);
+        ScheduleShiftTeam::where('name', 'Regu B')->first()->shiftTypes()->sync([$otherShift->id]);
+        $schedule->refresh();
+
+        $export = new \App\Exports\Presensi\ScheduleShiftRosterExport($schedule, collect([$employee]), [$date], [], 'label', $names);
+        $sheet = (new Spreadsheet)->getActiveSheet();
+        $sheet->fromArray($export->array());
+        $export->styles($sheet);
+
+        $this->assertSame('Regu A', $sheet->getCell('D5')->getValue());
+        $this->assertSame(['FF0000', 'FFFFFF'], $color($sheet, 'D5'));
+        $this->assertSame('Regu B', $sheet->getCell('D6')->getValue());
+        $this->assertSame(['0000FF', 'FFFFFF'], $color($sheet, 'D6'));
+    }
+
     public function test_import_excel_skips_unrecognized_shift_codes_and_keeps_existing_value(): void
     {
         [$schedule, $shiftType, $employee] = $this->makeManualShiftSchedule();

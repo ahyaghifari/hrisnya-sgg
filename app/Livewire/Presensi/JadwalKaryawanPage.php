@@ -5,7 +5,9 @@ namespace App\Livewire\Presensi;
 use App\Livewire\Concerns\ResolvesDayScheduleSummary;
 use App\Models\Master\Attendance\Holidays;
 use App\Models\Master\Companies;
+use App\Models\Shift\Schedule;
 use App\Models\Shift\ScheduleAssignment;
+use App\Models\Shift\ScheduleShiftAssignment;
 use App\Models\User;
 use App\Services\Attendance\ScheduleResolver;
 use Carbon\Carbon;
@@ -121,6 +123,33 @@ class JadwalKaryawanPage extends Component
         $user = $this->employees->firstWhere('id', $this->userId);
 
         return $user?->loadMissing(['company', 'profile.jobPosition.orgStructure.parent.parent', 'profile.jobPosition.orgStructure.parent.parent']);
+    }
+
+    /** Jadwal yang berlaku hari ini untuk karyawan terpilih (buat kartu di atas kalender): assignment
+     * Fixed/Flexible/Shift (personal maupun lewat jabatan); fallback ke jadwal dari roster shift
+     * terakhirnya kalau karyawan shift tidak punya assignment aktif. Null = belum punya jadwal. */
+    public function getSelectedScheduleProperty(): ?Schedule
+    {
+        $user = $this->selectedUser;
+
+        if (! $user) {
+            return null;
+        }
+
+        $assignment = ScheduleAssignment::resolveForUser($user, now()->toDateString());
+        $schedule = $assignment?->schedule;
+
+        if ($schedule) {
+            return $schedule;
+        }
+
+        // Scope company dibuka - halaman ini boleh melihat karyawan perusahaan lain (izin filter company).
+        return ScheduleShiftAssignment::withoutGlobalScope('company')
+            ->where('user_id', $user->id)
+            ->whereNotNull('shift_type_id')
+            ->with('shiftType.schedule')
+            ->latest('date')
+            ->first()?->shiftType?->schedule;
     }
 
     public function updatedUserId(): void

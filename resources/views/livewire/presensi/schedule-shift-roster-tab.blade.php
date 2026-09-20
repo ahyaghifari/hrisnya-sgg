@@ -202,6 +202,8 @@
         <i class="fa-solid fa-table-cells"></i>
         <span>Mode <strong>Isi Cepat</strong> aktif — dropdown sel dimatikan. Seret mendatar buat pilih sel, lalu seret kotak biru di pojok kanan-bawah buat mengulang pola. Matikan tombol "Isi Cepat" buat edit sel satu-satu lagi.</span>
     </div>
+    {{-- Wrapper Alpine untuk menu titik-tiga di samping nama (state `menu` = karyawan yang dipilih). --}}
+    <div x-data="{ menu: null }" @keydown.escape.window="menu = null">
     <div data-scrollbox class="rf-scrollbox" :class="{ 'rf-on': fillMode, 'rf-grid-on': fillMode }" style="background:var(--surface);border-radius:12px;box-shadow:var(--shadow-card);overflow:auto;">
         <table class="rf-table" style="border-collapse:collapse;font-size:11.5px;">
             <thead>
@@ -283,11 +285,17 @@
                             </td>
                         @endif
                         <td class="rf-name" style="padding:6px 12px;white-space:nowrap;font-weight:600;position:sticky;left:{{ ($schedule->use_teams && $teamGroupMode === 'column') ? '130px' : '0' }};background:var(--surface);z-index:1;">
-                            @if ($this->canChangeTeam)
+                            @php
+                                // Menu titik-tiga: "Ganti Tim" (jadwal pakai Tim) dan "Urutkan" (grup minimal 2 orang).
+                                $menuCanTeam = $this->canChangeTeam;
+                                $menuCanSort = $this->canManageOrder && ($this->teamGroupSizes[$teamGroupKey] ?? 1) > 1;
+                            @endphp
+                            @if ($menuCanTeam || $menuCanSort)
                                 <span style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
                                     <span>{{ $employee->name }}</span>
-                                    <button type="button" wire:click="openTeamPicker('{{ $employee->id }}')" class="rf-team-btn" title="Ganti tim {{ $employee->name }} untuk {{ $this->periodLabel }}" aria-label="Ganti tim {{ $employee->name }}">
-                                        <i class="fa-solid fa-people-arrows"></i>
+                                    <button type="button" class="rf-team-btn" title="Aksi {{ $employee->name }}" aria-label="Aksi {{ $employee->name }}"
+                                        @click="menu = { id: '{{ $employee->id }}', name: @js($employee->name), team: {{ $menuCanTeam ? 'true' : 'false' }}, sort: {{ $menuCanSort ? 'true' : 'false' }} }">
+                                        <i class="fa-solid fa-ellipsis-vertical"></i>
                                     </button>
                                 </span>
                             @else
@@ -409,6 +417,72 @@
         </table>
     </div>
 
+        {{-- Sheet aksi karyawan (dibuka tombol titik-tiga): Ganti Tim / Urutkan. Modal, bukan dropdown,
+        karena kolom nama sticky di dalam kotak scroll - dropdown absolut akan terpotong. --}}
+        <template x-if="menu">
+            <div class="modal-overlay" @click="menu = null">
+                <div class="modal-box" @click.stop style="max-width:300px;">
+                    <h3 style="font-size:15px;font-weight:700;color:var(--text-heading);margin:0 0 4px;">Aksi Karyawan</h3>
+                    <p style="font-size:12px;color:var(--text-muted);margin:0 0 14px;" x-text="menu.name + ' · ' + @js($this->periodLabel)"></p>
+                    <div style="display:flex;flex-direction:column;gap:6px;">
+                        <template x-if="menu.team">
+                            <button type="button" @click="$wire.openTeamPicker(menu.id); menu = null"
+                                style="display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:10px;border:1.5px solid var(--border-soft);background:var(--surface);cursor:pointer;font-family:inherit;text-align:left;font-size:13px;font-weight:600;color:var(--text-heading);">
+                                <i class="fa-solid fa-people-arrows" style="width:16px;color:var(--text-muted);"></i> Ganti Tim
+                            </button>
+                        </template>
+                        <template x-if="menu.sort">
+                            <button type="button" @click="$wire.openReorder(menu.id); menu = null"
+                                style="display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:10px;border:1.5px solid var(--border-soft);background:var(--surface);cursor:pointer;font-family:inherit;text-align:left;font-size:13px;font-weight:600;color:var(--text-heading);">
+                                <i class="fa-solid fa-sort" style="width:16px;color:var(--text-muted);"></i> Urutkan
+                            </button>
+                        </template>
+                    </div>
+                    <button type="button" @click="menu = null" class="btn-ghost" style="width:100%;justify-content:center;margin-top:14px;">Batal</button>
+                </div>
+            </div>
+        </template>
+    </div>
+
+    {{-- Urutkan manual: pindahkan 1 karyawan ke sebelum/sesudah karyawan lain di grup yang sama
+    (tim yang sama / sama-sama Tanpa Tim). Tersimpan di DB (lihat saveReorder()). --}}
+    @if ($reorderUserId && $this->canManageOrder)
+        @php
+            $rUser = $this->employees->firstWhere('id', $reorderUserId);
+            $rTeamName = $this->employeeTeamInfo[$reorderUserId]['name'] ?? 'Tanpa Tim';
+            $rOthers = $this->groupMembersOf($reorderUserId)->reject(fn ($u) => $u->id === $reorderUserId);
+        @endphp
+        <div class="modal-overlay" wire:click="closeReorder">
+            <div class="modal-box" onclick="event.stopPropagation()" style="max-width:360px;">
+                <h3 style="font-size:15px;font-weight:700;color:var(--text-heading);margin:0 0 4px;">Urutkan</h3>
+                <p style="font-size:12px;color:var(--text-muted);margin:0 0 14px;">{{ $rUser?->name }} &middot; {{ $rTeamName }}</p>
+
+                <label class="form-label">Pindahkan ke</label>
+                <div style="display:flex;gap:8px;margin-bottom:12px;">
+                    @foreach (['before' => 'Sebelum', 'after' => 'Sesudah'] as $val => $lbl)
+                        <label style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:9px 10px;border-radius:10px;cursor:pointer;font-size:12.5px;font-weight:600;border:1.5px solid {{ $reorderPosition === $val ? 'var(--brand)' : 'var(--border-soft)' }};color:var(--text-heading);">
+                            <input type="radio" wire:model.live="reorderPosition" value="{{ $val }}" style="display:none;"> {{ $lbl }}
+                        </label>
+                    @endforeach
+                </div>
+
+                <label class="form-label">{{ $reorderPosition === 'after' ? 'Sesudah' : 'Sebelum' }} siapa?</label>
+                <select wire:model="reorderTargetId" class="form-input">
+                    <option value="">-- Pilih karyawan --</option>
+                    @foreach ($rOthers as $other)
+                        <option value="{{ $other->id }}">{{ $other->name }}</option>
+                    @endforeach
+                </select>
+                @error('reorderTargetId') <p style="color:var(--danger-text);font-size:11.5px;margin-top:4px;">{{ $message }}</p> @enderror
+
+                <div style="display:flex;gap:8px;margin-top:16px;">
+                    <button type="button" wire:click="closeReorder" class="btn-ghost" style="flex:1;justify-content:center;">Batal</button>
+                    <button type="button" wire:click="saveReorder" wire:loading.attr="disabled" class="btn-primary" style="flex:1;justify-content:center;">Simpan</button>
+                </div>
+            </div>
+        </div>
+    @endif
+
     {{-- Ganti tim 1 karyawan untuk bulan yang lagi dibuka (2026-09-21) - gerbang & batas bulan sama
     persis tab Tim (canChangeTeam). --}}
     @if ($teamPickerUserId && $this->canChangeTeam)
@@ -450,6 +524,13 @@
                 wire:confirm="{{ $this->canEditPastDates ? "Hapus SEMUA roster {$this->periodLabel} (termasuk yang sudah dikoreksi manual, termasuk tanggal yang sudah lewat)? Tindakan ini tidak bisa dibatalkan." : "Hapus roster {$this->periodLabel} MULAI HARI INI sampai akhir bulan (termasuk yang sudah dikoreksi manual)? Tanggal yang sudah lewat tidak ikut dihapus. Tindakan ini tidak bisa dibatalkan." }}"
                 class="btn-ghost" style="font-size:11px;padding:7px 12px;white-space:nowrap;color:var(--danger-text);">
                 <i class="fa-solid fa-rotate-left"></i> Reset Jadwal
+            </button>
+        @endif
+        @if ($this->canResetOrder)
+            <button type="button" wire:click="resetOrderByJoinDate"
+                wire:confirm="Kembalikan urutan karyawan {{ $this->periodLabel }} ke urutan tanggal bergabung (terlama dulu)? Urutan manual yang sudah diatur (di dalam tim maupun Tanpa Tim) akan diganti."
+                class="btn-ghost" style="font-size:11px;padding:7px 12px;white-space:nowrap;">
+                <i class="fa-solid fa-arrow-down-1-9"></i> Urutkan per Tanggal Bergabung
             </button>
         @endif
     </div>

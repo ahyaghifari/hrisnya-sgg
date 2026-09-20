@@ -28,6 +28,7 @@ class ScheduleAssignment extends Model
         'user_id',
         'job_position_id',
         'schedule_id',
+        'sort_order',
         'effective_from',
         'effective_until',
         'created_by',

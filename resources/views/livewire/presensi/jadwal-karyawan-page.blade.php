@@ -76,7 +76,21 @@
             <div style="min-width:0;">
                 <div style="font-size:13.5px;font-weight:700;color:var(--text-heading);">{{ $this->selectedUser->name }}</div>
                 <div style="font-size:11px;color:var(--text-muted);">
-                    {{ $this->selectedUser->profile?->department?->name ?? '-' }} &middot; {{ $this->selectedUser->company?->name ?? '-' }}
+                    {{ $this->selectedUser->profile?->jobPosition?->name ?? '-' }} &middot; {{ $this->selectedUser->profile?->department?->name ?? '-' }} &middot; {{ $this->selectedUser->company?->name ?? '-' }}
+                </div>
+                @php $selectedSchedule = $this->selectedSchedule; @endphp
+                <div style="font-size:11px;margin-top:2px;display:flex;align-items:center;gap:5px;flex-wrap:wrap;">
+                    <i class="fa-solid fa-calendar-check" style="color:var(--brand);"></i>
+                    @if ($selectedSchedule)
+                        @can('view', $selectedSchedule)
+                            <a href="{{ route('presensi.jadwal.show', $selectedSchedule) }}" wire:navigate style="font-weight:600;color:var(--brand);text-decoration:none;">{{ $selectedSchedule->name }}</a>
+                        @else
+                            <span style="font-weight:600;color:var(--text-heading);">{{ $selectedSchedule->name }}</span>
+                        @endcan
+                        <span style="color:var(--text-muted);">&middot; {{ \App\Enum\ScheduleType::tryFrom($selectedSchedule->schedule_type)?->getLabel() ?? $selectedSchedule->schedule_type }}</span>
+                    @else
+                        <span style="color:var(--danger-text);font-weight:600;">Belum masuk jadwal apa pun</span>
+                    @endif
                 </div>
             </div>
         </div>

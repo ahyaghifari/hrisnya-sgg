@@ -69,6 +69,33 @@ class JadwalKaryawanPageTest extends TestCase
         $this->assertFalse($component->get('unassignedEmployees')->contains('id', $employee->id));
     }
 
+    /** Kartu karyawan terpilih menampilkan jabatan dan jadwal yang sedang berlaku (atau "Belum masuk jadwal apa pun"). */
+    public function test_selected_employee_card_shows_job_position_and_schedule(): void
+    {
+        $company = Companies::create(['code' => 'JK4', 'name' => 'Test Company 4', 'location' => 'Test', 'is_active' => true]);
+        $viewer = User::factory()->create(['company_id' => $company->id]);
+        $viewer->givePermissionTo(\Spatie\Permission\Models\Permission::firstOrCreate(['name' => 'ViewAny:Schedule', 'guard_name' => 'web']));
+
+        $jobPosition = \App\Models\Master\JobPositions::create(['company_id' => $company->id, 'name' => 'Perawat Pelaksana', 'planned_manpower' => 1]);
+        $schedule = Schedule::create(['company_id' => $company->id, 'name' => 'Jadwal Rawat Inap', 'schedule_type' => 'shift']);
+
+        $employee = User::factory()->create(['company_id' => $company->id, 'name' => 'Sari Karyawan']);
+        \App\Models\User\UserProfiles::create(['user_id' => $employee->id, 'job_position_id' => $jobPosition->id]);
+        ScheduleAssignment::create(['company_id' => $company->id, 'user_id' => $employee->id, 'schedule_id' => $schedule->id, 'effective_from' => now()->subMonth()->toDateString()]);
+
+        $noSchedule = User::factory()->create(['company_id' => $company->id, 'name' => 'Budi Kosong']);
+
+        Livewire::actingAs($viewer)->test(JadwalKaryawanPage::class)
+            ->set('companyId', $company->id)
+            ->set('userId', $employee->id)
+            ->assertSee('Perawat Pelaksana')
+            ->assertSee('Jadwal Rawat Inap')
+            ->assertSee('Jadwal Shift')
+            ->assertDontSee('Belum masuk jadwal apa pun')
+            ->set('userId', $noSchedule->id)
+            ->assertSee('Belum masuk jadwal apa pun');
+    }
+
     public function test_view_calendar_for_switches_tab_and_selects_employee(): void
     {
         $company = Companies::create(['code' => 'JK3', 'name' => 'Test Company 3', 'location' => 'Test', 'is_active' => true]);

@@ -174,8 +174,18 @@ class ScheduleShiftRosterTab extends Component
         // memang tidak pakai Tim sama sekali.
         if ($this->schedule->use_teams) {
             ScheduleShiftTeamMember::autoCarryNextMonthFromCurrent($this->schedule, $this->employees, $this->period, Auth::id());
-            unset($this->employeeTeamInfo);
+            $this->forgetTeamCaches();
         }
+    }
+
+    /** $employees/$employeeTeamInfo/$teamGroupSizes di-cache Livewire selama 1 request (computed
+     * property "getXProperty") - begitu keanggotaan Tim berubah di request yang sama (ganti tim,
+     * carry-over bulan depan), HARUS dibuang semuanya. Kalau cuma employeeTeamInfo yang dibuang,
+     * urutan karyawan (employees) masih urutan LAMA sementara nama tim-nya sudah yang BARU -> baris
+     * pemisah tim muncul berulang & anggota tim berhamburan (dilaporkan user 2026-09-21). */
+    private function forgetTeamCaches(): void
+    {
+        unset($this->employees, $this->employeeTeamInfo, $this->teamGroupSizes);
     }
 
     public function getPeriodLabelProperty(): string
@@ -185,31 +195,40 @@ class ScheduleShiftRosterTab extends Component
 
     public function getEmployeesProperty()
     {
-        $employees = ScheduleAssignment::where('schedule_id', $this->schedule->id)
+        $assignments = ScheduleAssignment::where('schedule_id', $this->schedule->id)
             ->whereNotNull('user_id')
             ->with('user.profile')
-            ->get()
-            ->pluck('user')
-            ->filter();
+            ->get();
 
-        // Urut tanggal bergabung terlama -> terbaru (User::rosterSortKey), baik di dalam tim maupun tidak.
-        if (! $this->schedule->use_teams) {
-            return $employees->sortBy(fn ($u) => $u->rosterSortKey())->values();
-        }
+        $employees = $assignments->pluck('user')->filter();
 
-        // Dikelompokkan per regu (tab "Regu", diatur per bulan - pakai $period yang lagi
-        // dibuka di sini juga) - urut nama regu, lalu tanggal bergabung; yang belum punya regu
-        // bulan ini nyempil paling akhir. Cuma urutan baris yang berubah, mekanisme drag-select
-        // (rfRow = $loop->index di blade) tidak kesentuh sama sekali, tetap jalan seperti biasa.
-        $teamNameByUser = ScheduleShiftTeamMember::where('schedule_id', $this->schedule->id)
-            ->where('period', $this->period)
-            ->with('team')
-            ->get()
-            ->keyBy('user_id')
-            ->map(fn ($m) => $m->team?->name);
+        // Urutan manual "Tanpa Tim" (schedule_assignments.sort_order, tingkat jadwal) - dipakai buat
+        // karyawan yang tidak punya tim bulan ini ATAU semua karyawan kalau jadwal tidak pakai Tim.
+        $orderNoTeam = $assignments->groupBy('user_id')
+            ->map(fn ($rows) => $rows->pluck('sort_order')->filter(fn ($v) => $v !== null)->min());
 
+        // Dikelompokkan per regu (tab "Regu", diatur per bulan - pakai $period yang lagi dibuka di
+        // sini juga) - urut nama regu; yang belum punya regu bulan ini nyempil paling akhir. Cuma
+        // urutan baris yang berubah, mekanisme drag-select (rfRow = $loop->index di blade) tidak
+        // kesentuh sama sekali, tetap jalan seperti biasa.
+        $members = $this->schedule->use_teams
+            ? ScheduleShiftTeamMember::where('schedule_id', $this->schedule->id)
+                ->where('period', $this->period)
+                ->with('team')
+                ->get()
+                ->keyBy('user_id')
+            : collect();
+
+        // Di dalam grup (tim / Tanpa Tim): urutan manual (sort_order) dulu, lalu yang belum diurut
+        // menyusul urut tanggal bergabung terlama -> terbaru (User::rosterSortKey).
         return $employees
-            ->sortBy(fn ($u) => ($teamNameByUser->get($u->id) ?? "\u{FFFF}") . '|' . $u->rosterSortKey())
+            ->sortBy(function ($u) use ($members, $orderNoTeam) {
+                $member = $members->get($u->id);
+                $team = $this->schedule->use_teams ? ($member?->team?->name ?? "\u{FFFF}") : '';
+                $order = $member ? $member->sort_order : $orderNoTeam->get($u->id);
+
+                return sprintf('%s|%06d|%s', $team, $order ?? 999999, $u->rosterSortKey());
+            })
             ->values();
     }
 
@@ -241,15 +260,25 @@ class ScheduleShiftRosterTab extends Component
     /** user_id karyawan yang lagi dibuka popup "Ganti Tim"-nya (tombol di samping nama), null = tertutup. */
     public ?string $teamPickerUserId = null;
 
-    /** Ganti tim lewat tabel ini - gerbang & batas bulan SAMA dengan ScheduleShiftTeamTab::assignMember():
-     * Create:ScheduleShiftTeam, hanya bulan berjalan + bulan depan (bukan bulan lampau, bukan 2+
-     * bulan ke depan). Dimatikan selama editMode - urutan baris ikut berubah begitu tim ganti,
-     * sedangkan draf sel & Isi Cepat mengandalkan posisi baris. */
+    /** Ganti tim lewat tabel ini - hanya Kepala Ruangan jadwal ini (schedules.head_user_id) dan
+     * pemegang Update:Schedule (Edit Jadwal), instruksi user 2026-09-21. Batas bulan sama dengan
+     * ScheduleShiftTeamTab::assignMember(): hanya bulan berjalan + bulan depan (bukan bulan lampau,
+     * bukan 2+ bulan ke depan). Dimatikan selama editMode - urutan baris ikut berubah begitu tim
+     * ganti, sedangkan draf sel & Isi Cepat mengandalkan posisi baris. */
     public function getCanChangeTeamProperty(): bool
     {
         return $this->schedule->use_teams
             && ! $this->editMode
-            && Auth::user()->can('create', ScheduleShiftTeam::class)
+            && $this->canManageOrder;
+    }
+
+    /** Menu titik-tiga di samping nama (ganti tim / urutkan) & pengurutan manual - Kepala Ruangan
+     * jadwal ini atau pemegang Update:Schedule, bulan berjalan + bulan depan saja, dimatikan saat
+     * editMode. Beda dari canChangeTeam: tidak butuh jadwal memakai Tim (Tanpa Tim juga bisa diurutkan). */
+    public function getCanManageOrderProperty(): bool
+    {
+        return ! $this->editMode
+            && ($this->schedule->head_user_id === Auth::id() || Auth::user()->can('update', $this->schedule))
             && $this->period >= now()->format('Y-m')
             && ! $this->periodLocked;
     }
@@ -277,15 +306,138 @@ class ScheduleShiftRosterTab extends Component
 
         if ($teamId === '') {
             ScheduleShiftTeamMember::removeForPeriod($this->schedule, $user, $this->period);
+            // Urutan "Tanpa Tim" lama tidak relevan buat yang baru keluar tim - jatuh ke paling belakang.
+            ScheduleAssignment::where('schedule_id', $this->schedule->id)->where('user_id', $user->id)->update(['sort_order' => null]);
         } else {
             $team = ScheduleShiftTeam::where('schedule_id', $this->schedule->id)->findOrFail($teamId);
             ScheduleShiftTeamMember::setForPeriod($this->schedule, $user, $team, $this->period, Auth::id());
         }
 
         $this->teamPickerUserId = null;
-        unset($this->employeeTeamInfo);
+        $this->forgetTeamCaches();
 
         Notification::make()->title('Tim ' . $user->name . ' untuk ' . $this->periodLabel . ' berhasil diperbarui')->success()->send();
+    }
+
+    /** Tombol "Urutkan per Tanggal Bergabung" (di samping Reset Jadwal) - khusus pemegang Update:Schedule,
+     * bulan berjalan + bulan depan, tidak saat editMode. Kepala Ruangan biasa tidak (beda dari
+     * canManageOrder yang untuk pindah satu-satu). */
+    public function getCanResetOrderProperty(): bool
+    {
+        return ! $this->editMode
+            && Auth::user()->can('update', $this->schedule)
+            && $this->period >= now()->format('Y-m')
+            && ! $this->periodLocked;
+    }
+
+    /** Kembalikan urutan SEMUA grup (tiap tim di bulan ini + Tanpa Tim) ke tanggal bergabung terlama
+     * dulu (User::rosterSortKey) dan simpan sebagai nomor eksplisit 1..n - jadi urutan default
+     * langsung tersimpan di DB, tidak lagi dihitung ulang tiap dibuka. */
+    public function resetOrderByJoinDate(): void
+    {
+        abort_unless($this->canResetOrder, 403);
+
+        $groups = $this->employees->unique('id')
+            ->groupBy(fn ($u) => (string) ($this->employeeTeamInfo[$u->id]['id'] ?? ''));
+
+        DB::transaction(function () use ($groups) {
+            foreach ($groups as $teamId => $users) {
+                foreach ($users->sortBy(fn ($u) => $u->rosterSortKey())->values() as $i => $u) {
+                    if ($teamId !== '') {
+                        ScheduleShiftTeamMember::where('schedule_id', $this->schedule->id)
+                            ->where('user_id', $u->id)->where('period', $this->period)
+                            ->update(['sort_order' => $i + 1]);
+                    } else {
+                        ScheduleAssignment::where('schedule_id', $this->schedule->id)
+                            ->where('user_id', $u->id)
+                            ->update(['sort_order' => $i + 1]);
+                    }
+                }
+            }
+        });
+
+        $this->forgetTeamCaches();
+
+        Notification::make()->title('Urutan karyawan dikembalikan ke tanggal bergabung')->success()->send();
+    }
+
+    /** Popup "Urutkan": karyawan yang dipindah, posisi ('before'/'after') dan karyawan patokannya. */
+    public ?string $reorderUserId = null;
+
+    public string $reorderPosition = 'before';
+
+    public string $reorderTargetId = '';
+
+    /** Karyawan segrup (tim yang sama, atau sama-sama Tanpa Tim) dengan $userId, urut tampilan sekarang. */
+    public function groupMembersOf(string $userId)
+    {
+        $teamId = $this->employeeTeamInfo[$userId]['id'] ?? null;
+
+        return $this->employees
+            ->unique('id')
+            ->filter(fn ($u) => ($this->employeeTeamInfo[$u->id]['id'] ?? null) === $teamId)
+            ->values();
+    }
+
+    public function openReorder(string $userId): void
+    {
+        abort_unless($this->canManageOrder, 403);
+        abort_unless($this->groupMembersOf($userId)->count() > 1 && $this->employees->contains('id', $userId), 404);
+
+        $this->reorderUserId = $userId;
+        $this->reorderPosition = 'before';
+        $this->reorderTargetId = '';
+        $this->resetErrorBag('reorderTargetId');
+    }
+
+    public function closeReorder(): void
+    {
+        $this->reorderUserId = null;
+    }
+
+    /** Pindahkan karyawan ke sebelum/sesudah patokan DI DALAM grupnya, lalu simpan urutan SELURUH grup
+     * (1..n) - di tim: schedule_shift_team_members.sort_order (per bulan); Tanpa Tim (atau jadwal tanpa
+     * Tim): schedule_assignments.sort_order. Semua anggota grup dapat nomor eksplisit supaya hasilnya
+     * pasti, tidak bergantung urutan default anggota lain. */
+    public function saveReorder(): void
+    {
+        abort_unless($this->canManageOrder, 403);
+
+        $this->validate([
+            'reorderPosition' => ['required', 'in:before,after'],
+            'reorderTargetId' => ['required', 'string'],
+        ], [], ['reorderTargetId' => 'karyawan patokan']);
+
+        $userId = (string) $this->reorderUserId;
+        $group = $this->groupMembersOf($userId);
+
+        abort_unless($group->contains('id', $userId) && $group->contains('id', $this->reorderTargetId) && $this->reorderTargetId !== $userId, 404);
+
+        $ids = $group->pluck('id')->reject(fn ($id) => $id === $userId)->values()->all();
+        $at = array_search($this->reorderTargetId, $ids, true) + ($this->reorderPosition === 'after' ? 1 : 0);
+        array_splice($ids, $at, 0, [$userId]);
+
+        $teamId = $this->employeeTeamInfo[$userId]['id'] ?? null;
+
+        DB::transaction(function () use ($ids, $teamId) {
+            foreach ($ids as $i => $id) {
+                if ($teamId) {
+                    ScheduleShiftTeamMember::where('schedule_id', $this->schedule->id)
+                        ->where('user_id', $id)->where('period', $this->period)
+                        ->update(['sort_order' => $i + 1]);
+                } else {
+                    ScheduleAssignment::where('schedule_id', $this->schedule->id)
+                        ->where('user_id', $id)
+                        ->update(['sort_order' => $i + 1]);
+                }
+            }
+        });
+
+        $name = $group->firstWhere('id', $userId)?->name;
+        $this->reorderUserId = null;
+        $this->forgetTeamCaches();
+
+        Notification::make()->title('Urutan ' . $name . ' berhasil diperbarui')->success()->send();
     }
 
     /** Daftar Regu jadwal ini (bukan per periode - keanggotaan yang per-bulan, tapi daftar
