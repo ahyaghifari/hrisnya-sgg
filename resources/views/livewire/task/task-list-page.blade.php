@@ -51,7 +51,10 @@
     /* Kartu yang bisa di-drag: cegah seleksi teks/menu tekan-lama bawaan HP saat kartu ditahan, dan
     salinan yang ikut jari (ghost, ditempel di body) dibuat jelas terlihat di atas segalanya. */
     [data-status-list] .task-card:not(.task-card-locked), [data-list-id] .task-card:not(.task-card-locked) { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; touch-action: manipulation; }
-    .task-card.sortable-fallback { opacity: 0.95 !important; box-shadow: 0 14px 30px rgba(15,23,42,0.35); transform-origin: center; z-index: 10005 !important; pointer-events: none; }
+    /* Salinan yang ikut kursor digerakkan SortableJS lewat inline transform tiap mousemove - transition
+    bawaan .task-card (transform 0.15s) bikin salinannya tertinggal jauh di belakang kursor & terasa
+    "berat", jadi WAJIB tanpa transition. */
+    .task-card.sortable-fallback { opacity: 0.95 !important; box-shadow: 0 14px 30px rgba(15,23,42,0.35); transform-origin: center; z-index: 10005 !important; pointer-events: none; transition: none !important; will-change: transform; }
     .task-card:hover { box-shadow: 0 8px 20px rgba(15,23,42,0.12); transform: translateY(-1px); }
     html.dark .task-card:hover { box-shadow: 0 8px 20px rgba(0,0,0,0.35); }
     .task-card-top { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 7px; }
