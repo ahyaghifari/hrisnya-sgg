@@ -67,30 +67,14 @@
     Sama seperti card Pengajuan Absensi Saya, ikut disembunyikan tanpa permission itu - isinya
     murni statistik cuti/izin/lembur (domain Pengajuan Absensi), bukan hal terpisah. --}}
     @if ($this->canPengajuanAbsensi)
-        <div class="bento-side-stats-compact">
-            <livewire:leave-balance-card
-                type-keyword="tahunan"
-                label="Sisa Cuti Tahunan"
-                icon="fa-sun"
-                color="var(--brand)"
-                icon-bg="rgba(4,44,108,0.1)"
-                grid-class=""
-                :compact="true"
-                :key="'leave-balance-tahunan-compact'"
-            />
-            <livewire:attendance-stat-cards :compact="true" :key="'attendance-stat-cards-compact'" />
+        {{-- Karyawan berjadwal Shift punya 4 kartu (ada Extra Shift): HP 2 kolom, desktop 4 kolom;
+        tanpa Extra Shift tetap 3 kolom (kelas .summary-cols-4 didefinisikan di x-attendance-summary-cards). --}}
+        @php $summaryClass = $this->canJadwalShiftSaya ? ' summary-cols-4' : ''; @endphp
+        <div class="bento-side-stats-compact{{ $summaryClass }}">
+            <x-attendance-summary-cards :compact="true" />
         </div>
-        <div class="bento-side-stats">
-            <livewire:leave-balance-card
-                type-keyword="tahunan"
-                label="Sisa Cuti Tahunan"
-                icon="fa-sun"
-                color="var(--brand)"
-                icon-bg="rgba(4,44,108,0.1)"
-                grid-class=""
-                :key="'leave-balance-tahunan'"
-            />
-            <livewire:attendance-stat-cards :key="'attendance-stat-cards'" />
+        <div class="bento-side-stats{{ $summaryClass }}">
+            <x-attendance-summary-cards />
         </div>
     @endif
 

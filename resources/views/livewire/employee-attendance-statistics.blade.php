@@ -82,7 +82,7 @@ identity-accent = border gradasi warna section-nav (lihat app.css); warna teks t
     </button>
     <button type="button" @click="tab = 'statistik'" class="section-nav-btn gold-shiny" :class="{ 'is-active': tab === 'statistik' }">
         <img src="{{ asset('ico/absensi.png') }}" alt="" class="section-nav-img">
-        <span>Absensi</span>
+        <span>Kehadiran</span>
     </button>
     @if ($this->showExtraTabs)
         <button type="button" @click="tab = 'dokumen'" class="section-nav-btn gold-shiny" :class="{ 'is-active': tab === 'dokumen' }">
@@ -851,26 +851,28 @@ source (tab server-render sekali jalan, x-show cuma toggle CSS). --}}
     </div>
 
     @if ($this->showExtraTabs)
-        <!-- Section: Absensi -->
-        <h3 style="font-size:14px;font-weight:800;color:var(--text-heading);margin-bottom:12px;">Absensi</h3>
+        <!-- Section: Kehadiran -->
+        <h3 style="font-size:14px;font-weight:800;color:var(--text-heading);margin-bottom:12px;">Kehadiran</h3>
 
         {{-- 3 kartu sama seperti Beranda: Sisa Cuti Tahunan + Izin + Lembur (attendance-stat-cards
              render 2 kartu). Cuti Sakit & kartu hitung "Cuti" lama dibuang (instruksi user). --}}
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;">
-            <livewire:leave-balance-card
-                type-keyword="tahunan"
-                label="Sisa Cuti Tahunan"
-                icon="fa-sun"
-                color="var(--brand)"
-                icon-bg="rgba(4,44,108,0.1)"
-                grid-class=""
-                :user-id="$record->id"
-                :key="'leave-balance-tahunan-'.$record->id"
-            />
-            <livewire:attendance-stat-cards :user-id="$record->id" :key="'attendance-stat-cards-'.$record->id" />
+        {{-- 3 kolom seperti Beranda (kalau ada kartu Extra Shift: 2 kolom di HP, 4 di desktop): HP pakai ukuran compact (.bento-side-stats-compact,
+             dari app.css), >=768px ukuran penuh (.attendance-summary-grid, inline di sini). --}}
+        <style>
+            .attendance-summary-grid { display: none; }
+            @media (min-width: 768px) { .attendance-summary-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; } }
+        </style>
+        {{-- Karyawan berjadwal Shift punya 4 kartu (ada Extra Shift): HP 2 kolom, desktop 4 kolom;
+             tanpa itu 3 kolom (.summary-cols-4 didefinisikan di x-attendance-summary-cards). --}}
+        @php $summaryClass = $record->hasShiftSchedule() ? ' summary-cols-4' : ''; @endphp
+        <div class="bento-side-stats-compact{{ $summaryClass }}">
+            <x-attendance-summary-cards :compact="true" :user-id="$record->id" />
+        </div>
+        <div class="attendance-summary-grid{{ $summaryClass }}">
+            <x-attendance-summary-cards :user-id="$record->id" />
         </div>
 
-        <!-- Riwayat Pengajuan (dipindah ke bawah Absensi, bukan tab terpisah lagi) -->
+        <!-- Riwayat Pengajuan (dipindah ke bawah Kehadiran, bukan tab terpisah lagi) -->
         <h3 style="font-size:14px;font-weight:800;color:var(--text-heading);margin:20px 0 12px;">Riwayat Pengajuan</h3>
 
         <div class="card-surface-flush">
