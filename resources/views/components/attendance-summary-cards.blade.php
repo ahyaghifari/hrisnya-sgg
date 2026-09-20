@@ -19,7 +19,7 @@ Shift): HP (compact) 2 kolom, >=768px 2 kolom, >=1024px 4 kolom. Tanpa kelas ini
 </style>
 <livewire:leave-balance-card
     type-keyword="tahunan"
-    label="Sisa Cuti Tahunan"
+    label="Cuti Tahunan"
     icon="fa-sun"
     color="var(--brand)"
     icon-bg="rgba(4,44,108,0.1)"

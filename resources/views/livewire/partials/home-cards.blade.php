@@ -92,15 +92,15 @@
                 @endif
             </div>
         </div>
-        {{-- Kalender diperbesar di desktop (2026-09-20): kolom kalender 1/3 lebar container (dulu 1/5,
+        {{-- Kalender diperbesar di desktop (2026-09-20): kolom kalender 1/2 lebar container (dulu 1/5,
         app.css: 1fr 4fr), jarak antar sel & huruf lebih besar. Inline supaya tidak perlu build CSS. --}}
         <style>
             @media (min-width: 768px) {
-                .jadwal-shift-calendar-wrap { grid-template-columns: 1fr 2fr; }
-                .jadwal-shift-grid { gap: 6px !important; }
-                .jadwal-shift-grid > span { font-size: 12.5px !important; }
-                .jadwal-shift-cell { font-size: 15px !important; border-radius: 12px !important; gap: 3px !important; }
-                .jadwal-shift-cell .jadwal-shift-cell-code { font-size: 17px !important; }
+                .jadwal-shift-calendar-wrap { grid-template-columns: 1fr 1fr; }
+                .jadwal-shift-grid { gap: 8px !important; }
+                .jadwal-shift-grid > span { font-size: 14px !important; }
+                .jadwal-shift-cell { font-size: 18px !important; border-radius: 14px !important; gap: 3px !important; }
+                .jadwal-shift-cell .jadwal-shift-cell-code { font-size: 20px !important; }
             }
         </style>
         <div class="jadwal-shift-calendar-wrap" style="padding:0 16px;">
