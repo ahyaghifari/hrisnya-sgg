@@ -35,10 +35,6 @@
             <a href="{{ route('my-attendance-requests') }}" wire:navigate class="pwa-bottom-nav-item {{ request()->routeIs('my-attendance-requests*') ? 'active' : '' }}">
                 <i class="fa-solid fa-file-lines"></i> Absensi
             </a>
-        @else
-            <a href="{{ route('organization-structure') }}" wire:navigate class="pwa-bottom-nav-item {{ request()->routeIs('organization-structure') ? 'active' : '' }}">
-                <i class="fa-solid fa-sitemap"></i> Struktur
-            </a>
         @endif
 
         <a href="{{ route('akun') }}" wire:navigate class="pwa-bottom-nav-item pwa-bottom-nav-akun {{ request()->routeIs('akun') ? 'active' : '' }}" aria-label="Akun">
@@ -94,12 +90,6 @@
                 <a href="{{ route('counseling') }}" wire:navigate class="pwa-menu-grid-item">
                     <span class="pwa-menu-grid-icon gold"><i class="fa-solid fa-comment-dots"></i></span>
                     <span class="pwa-menu-grid-label">Counseling Saya</span>
-                </a>
-            @endif
-            @if ($canSubmitAttendance)
-                <a href="{{ route('organization-structure') }}" wire:navigate class="pwa-menu-grid-item">
-                    <span class="pwa-menu-grid-icon gold"><i class="fa-solid fa-sitemap"></i></span>
-                    <span class="pwa-menu-grid-label">Struktur Organisasi</span>
                 </a>
             @endif
             {{-- Orientasi / Perpanjangan Kontrak / Karyawan Tetap dipindah ke Profil Saya →
