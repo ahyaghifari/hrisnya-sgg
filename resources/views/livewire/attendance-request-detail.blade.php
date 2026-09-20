@@ -59,7 +59,7 @@ disetujui/ditolak/dibatalkan, kuota ini tidak lagi jadi pertimbangan apa pun, ja
         $periode = $this->quotaInfo['periode'] ?? null;
         $formatPeriod = fn ($start, $end) => $start->translatedFormat('d M Y') . ' – ' . $end->translatedFormat('d M Y');
 
-        // Cuti Tahunan punya 2 batas independen sekaligus — kuota per TAHUN (LeaveTypes::
+        // Cuti Tahunan punya 2 batas independen sekaligus — kuota per TAHUN (LeaveTypeCategoryEnum::
         // quota_days, mis. 12 hari) DAN batas akumulasi per PERIODE bulanan (setting
         // cuti_tahunan_max_per_bulan, mis. maks 5 hari/bulan). Keduanya ditampilkan
         // berdampingan sebagai 2 kartu terpisah — bukan satu jadi "hero" dan satu jadi chip
@@ -322,16 +322,19 @@ disetujui/ditolak/dibatalkan, kuota ini tidak lagi jadi pertimbangan apa pun, ja
     @endif
 
     @if ($record->type === 'permission' && $record->permissionDetails->isNotEmpty())
-        @php $permission = $record->permissionDetails->first(); @endphp
+        @php
+            $permission = $record->permissionDetails->first();
+            $permissionEnum = \App\Enum\Attendance\PermissionTypeEnum::fromLabel($permission->permission_type);
+        @endphp
         <div style="background:var(--surface);border-radius:16px;box-shadow:var(--shadow-card);padding:18px;">
             {!! $sectionHeader('fa-clock', 'Detail Izin') !!}
             {!! $renderField('Tipe Izin', $permission->permission_type) !!}
-            @if ($permission->category === \App\Enum\Attendance\PermissionTypeCategoryEnum::IZIN_KHUSUS->value && $permission->permissionType?->default_days)
-                {!! $renderField('Ketentuan Aturan', ((int) $permission->permissionType->default_days) . ' hari') !!}
+            @if ($permission->category === \App\Enum\Attendance\PermissionTypeCategoryEnum::IZIN_KHUSUS->value && $permissionEnum?->defaultDays())
+                {!! $renderField('Ketentuan Aturan', $permissionEnum->defaultDays() . ' hari') !!}
             @endif
-            @if ($permission->permissionType?->description)
+            @if ($permissionEnum?->description())
                 <p style="font-size:12px;color:var(--text-muted);margin:8px 0 2px;background:var(--surface-alt);border-radius:8px;padding:8px 10px;">
-                    <i class="fa-solid fa-circle-info" style="margin-right:4px;"></i>{{ $permission->permissionType->description }}
+                    <i class="fa-solid fa-circle-info" style="margin-right:4px;"></i>{{ $permissionEnum->description() }}
                 </p>
             @endif
             {!! $renderField($permission->end_date ? 'Tanggal Mulai' : 'Tanggal', $formatDate($permission->date)) !!}

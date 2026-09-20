@@ -4,7 +4,7 @@ namespace App\Livewire;
 
 use App\Enum\Attendance\AttendanceSettingEnum;
 use App\Enum\Attendance\PermissionGroupEnum;
-use App\Models\Master\Attendance\PermissionTypes;
+use App\Enum\Attendance\PermissionTypeEnum;
 use App\Models\Setting;
 use App\Services\Attendance\AttendaceReqService;
 use App\Support\TimeInput;
@@ -19,7 +19,8 @@ class SubmitPermissionRequest extends Component
     use WithFileUploads;
 
     public ?string $group = null;
-    public ?string $permission_type_id = null;
+    public bool $submitted = false; // true sesudah sukses, sampai redirect selesai (cegah kirim ganda)
+    public ?string $permission_type = null; // key PermissionTypeEnum (level 2: Meninggalkan Jam Kerja/Khusus)
     public ?string $category = null;
     public ?string $date = null;
     public ?string $end_date = null;
@@ -54,31 +55,28 @@ class SubmitPermissionRequest extends Component
     }
 
     /** Opsi dropdown level 2 - cuma dipakai kelompok yang hasSubKategori() true. */
-    public function getSubJenisOptionsProperty()
+    /** @return array<int, PermissionTypeEnum> */
+    public function getSubJenisOptionsProperty(): array
     {
         $group = $this->currentGroup();
 
         if (! $group || ! $group->hasSubKategori()) {
-            return collect();
+            return [];
         }
 
-        $categoryValues = array_map(fn ($c) => $c->value, $group->categories());
-
-        return PermissionTypes::where('company_id', Auth::user()->company_id)
-            ->whereIn('category', $categoryValues)
-            ->get();
+        return PermissionTypeEnum::forGroup($group);
     }
 
     /** Jenis izin (level 2) yang lagi dipilih - dipakai blade buat tampilkan `description` di
      * bawah dropdown kalau ada isinya (mis. syarat, jumlah hari, dokumen pendukung). */
-    public function getSelectedTypeProperty(): ?PermissionTypes
+    public function getSelectedTypeProperty(): ?PermissionTypeEnum
     {
-        return $this->permission_type_id ? PermissionTypes::find($this->permission_type_id) : null;
+        return $this->permission_type ? PermissionTypeEnum::tryFrom($this->permission_type) : null;
     }
 
     public function updatedGroup(): void
     {
-        $this->permission_type_id = null;
+        $this->permission_type = null;
         $this->category = null;
         $this->end_date = null;
         $this->start_time = null;
@@ -88,9 +86,9 @@ class SubmitPermissionRequest extends Component
         $group = $this->currentGroup();
 
         // Kelompok flat (Tidak Masuk Seharian, Sakit) TIDAK ada master sama sekali - category
-        // langsung ke-set dari kelompoknya sendiri, tidak lewat lookup m_permission_types.
-        // Kelompok yang hasSubKategori() (Meninggalkan Jam Kerja, Khusus) masih tetap butuh
-        // master (dipilih dari dropdown level 2, lihat updatedPermissionTypeId()).
+        // langsung ke-set dari kelompoknya sendiri, tanpa pilihan jenis level 2.
+        // Kelompok yang hasSubKategori() (Meninggalkan Jam Kerja, Khusus) memilih jenis dari
+        // dropdown level 2 (lihat updatedPermissionType()).
         if ($group && ! $group->hasSubKategori()) {
             $this->category = $group->categories()[0]->value;
         }
@@ -98,17 +96,17 @@ class SubmitPermissionRequest extends Component
         $this->refreshUsage();
     }
 
-    public function updatedPermissionTypeId(): void
+    public function updatedPermissionType(): void
     {
         // Prefill end_date dari default_days jenis Izin Khusus yang dipilih - cuma prefill,
         // tetap bebas diubah manual (lihat rencana-izin-empat-kategori.md §2).
         $group = $this->currentGroup();
 
-        if ($group === PermissionGroupEnum::KHUSUS && $this->permission_type_id && $this->date) {
-            $type = PermissionTypes::find($this->permission_type_id);
+        if ($group === PermissionGroupEnum::KHUSUS && $this->permission_type && $this->date) {
+            $days = PermissionTypeEnum::tryFrom($this->permission_type)?->defaultDays();
 
-            if ($type?->default_days) {
-                $this->end_date = \Carbon\Carbon::parse($this->date)->addDays($type->default_days - 1)->toDateString();
+            if ($days) {
+                $this->end_date = \Carbon\Carbon::parse($this->date)->addDays($days - 1)->toDateString();
             }
         }
 
@@ -117,7 +115,7 @@ class SubmitPermissionRequest extends Component
 
     public function updatedDate(): void
     {
-        $this->updatedPermissionTypeId();
+        $this->updatedPermissionType();
         $this->refreshUsage();
     }
 
@@ -200,9 +198,11 @@ class SubmitPermissionRequest extends Component
 
         return [
             'group' => ['required', Rule::in(array_map(fn ($g) => $g->value, PermissionGroupEnum::cases()))],
-            // Meninggalkan Jam Kerja & Khusus dipilih dari master (permission_type_id) - kelompok
-            // flat (Tidak Masuk Seharian, Sakit) sudah auto-set `category` sendiri, tanpa master.
-            'permission_type_id' => [$butuhMaster ? 'required' : 'nullable', 'exists:m_permission_types,id'],
+            // Meninggalkan Jam Kerja & Khusus memilih jenis level 2 (permission_type, harus milik
+            // kelompoknya) - kelompok flat (Tidak Masuk Seharian, Sakit) auto-set `category` sendiri.
+            'permission_type' => $butuhMaster
+                ? ['required', Rule::in(array_map(fn (PermissionTypeEnum $t) => $t->value, $group ? PermissionTypeEnum::forGroup($group) : []))]
+                : ['nullable'],
             'category' => [$butuhMaster ? 'nullable' : 'required', 'string'],
             'date' => ['required', 'date'],
             'end_date' => [$isRentang ? 'required' : 'nullable', 'date', 'after_or_equal:date'],
@@ -225,6 +225,10 @@ class SubmitPermissionRequest extends Component
 
     public function submit(): void
     {
+        if ($this->submitted) {
+            return;
+        }
+
         $this->start_time = TimeInput::normalize($this->start_time);
         $this->end_time = TimeInput::normalize($this->end_time);
 
@@ -232,7 +236,7 @@ class SubmitPermissionRequest extends Component
 
         try {
             app(AttendaceReqService::class)->storePermissionRequest([
-                'type_id' => $data['permission_type_id'] ?? null,
+                'type_id' => $data['permission_type'] ?? null,
                 'category' => $data['category'] ?? null,
                 'date' => $data['date'],
                 'end_date' => $data['end_date'] ?? null,
@@ -249,6 +253,10 @@ class SubmitPermissionRequest extends Component
                 ->title('Pengajuan izin berhasil dikirim')
                 ->success()
                 ->send();
+
+            // Tombol tetap terkunci sampai halaman berpindah - respons sukses sudah selesai (loading
+            // berakhir) tapi navigasi ke daftar pengajuan belum, jangan sampai bisa diklik lagi.
+            $this->submitted = true;
 
             $this->redirect(route('my-attendance-requests'), navigate: true);
         } catch (\Exception $e) {

@@ -4,8 +4,6 @@ namespace App\Repositories\Attendance;
 
 use App\Models\Attendance\AttendanceRequestHistories;
 use App\Models\Attendance\AttendanceRequests;
-use App\Models\Master\Attendance\LeaveTypes;
-use App\Models\Master\Attendance\PermissionTypes;
 use App\Models\Attendance\AttendanceRequestOvertimeDetails;
 use Illuminate\Support\Facades\Storage;
 use Carbon\Carbon;
@@ -17,9 +15,15 @@ class AttendanceReqRepository
         $companyId ??= auth('sanctum')->user()->company_id;
 
         if ($type === 'leave') {
-            return LeaveTypes::where('company_id', $companyId)->get();
+            // Jenis cuti tetap (enum), bukan master per perusahaan; bentuk disamakan {id, name} buat RequestTypeResource.
+            return collect(\App\Enum\Attendance\LeaveTypeCategoryEnum::cases())
+                ->map(fn ($t) => (object) ['id' => $t->value, 'name' => $t->label()])
+                ->values();
         } else if ($type === 'permission') {
-            return PermissionTypes::where('company_id', $companyId)->get();
+            // Jenis izin tetap (enum), bukan master per perusahaan; bentuk disamakan {id, name} buat RequestTypeResource.
+            return collect(\App\Enum\Attendance\PermissionTypeEnum::options())
+                ->map(fn ($label, $key) => (object) ['id' => $key, 'name' => $label])
+                ->values();
         } else if ($type === 'overtime') {
             // Jenis lembur tetap (enum), bukan master per perusahaan; bentuknya disamakan {id, name} buat RequestTypeResource.
             return collect(\App\Enum\Attendance\OvertimeTypeEnum::options())

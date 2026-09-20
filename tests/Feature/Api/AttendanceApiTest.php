@@ -5,7 +5,7 @@ namespace Tests\Feature\Api;
 use App\Models\Attendance\AttendanceRequestLeaveDetails;
 use App\Models\Attendance\AttendanceRequests;
 use App\Models\Master\Attendance\Holidays;
-use App\Models\Master\Attendance\LeaveTypes;
+use App\Enum\Attendance\LeaveTypeCategoryEnum;
 use App\Models\Master\Companies;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -24,13 +24,7 @@ class AttendanceApiTest extends TestCase
     {
         $companyId = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true])->id;
         $user = User::factory()->create(['company_id' => $companyId]);
-        $leaveType = LeaveTypes::create([
-            'company_id' => $companyId,
-            'name' => 'Cuti Tahunan',
-            'quota_days' => 12,
-            'reset_period' => 'yearly',
-            'is_paid' => true,
-        ]);
+        $leaveType = LeaveTypeCategoryEnum::TAHUNAN;
 
         $request = AttendanceRequests::create([
             'user_id' => $user->id,
@@ -40,8 +34,8 @@ class AttendanceApiTest extends TestCase
 
         AttendanceRequestLeaveDetails::create([
             'request_id' => $request->id,
-            'leave_type_id' => $leaveType->id,
-            'leave_type' => $leaveType->name,
+            'category' => $leaveType->value,
+            'leave_type' => $leaveType->label(),
             'start_date' => now()->toDateString(),
             'end_date' => now()->toDateString(),
             'total_days' => 1,
@@ -67,13 +61,7 @@ class AttendanceApiTest extends TestCase
     public function test_leave_balance_reflects_quota_and_usage(): void
     {
         $user = User::factory()->create();
-        $leaveType = LeaveTypes::create([
-            'company_id' => null,
-            'name' => 'Cuti Tahunan',
-            'quota_days' => 12,
-            'reset_period' => 'yearly',
-            'is_paid' => true,
-        ]);
+        $leaveType = LeaveTypeCategoryEnum::TAHUNAN;
 
         // "used" dihitung live dari request APPROVED dalam periode (tabel leave_user_balances
         // sudah dihapus) — lihat LeaveReqRepository::getLeaveUserBalance().
@@ -85,14 +73,14 @@ class AttendanceApiTest extends TestCase
 
         AttendanceRequestLeaveDetails::create([
             'request_id' => $approvedRequest->id,
-            'leave_type_id' => $leaveType->id,
-            'leave_type' => $leaveType->name,
+            'category' => $leaveType->value,
+            'leave_type' => $leaveType->label(),
             'start_date' => now()->toDateString(),
             'end_date' => now()->addDays(3)->toDateString(),
             'total_days' => 4,
         ]);
 
-        $response = $this->actingAs($user, 'sanctum')->getJson("/api/attendance/leave/balance/{$leaveType->id}");
+        $response = $this->actingAs($user, 'sanctum')->getJson("/api/attendance/leave/balance/{$leaveType->value}");
 
         $response->assertOk();
         $response->assertJsonPath('data.quota', 12);
@@ -104,18 +92,11 @@ class AttendanceApiTest extends TestCase
     {
         $companyId = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true])->id;
         $user = User::factory()->create(['company_id' => $companyId]);
-        LeaveTypes::create([
-            'company_id' => $companyId,
-            'name' => 'Cuti Tahunan',
-            'quota_days' => 12,
-            'reset_period' => 'yearly',
-            'is_paid' => true,
-        ]);
-
         $response = $this->actingAs($user, 'sanctum')->getJson('/api/master/attendance/request-types?type=leave');
 
         $response->assertOk();
-        $response->assertJsonFragment(['name' => 'Cuti Tahunan']);
+        $response->assertJsonFragment(['id' => 'tahunan', 'name' => 'Cuti Tahunan']);
+        $response->assertJsonCount(4, 'data');
     }
 
     public function test_guest_can_access_holiday_endpoints(): void

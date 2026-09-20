@@ -8,6 +8,7 @@ use App\Enum\Attendance\AttendanceSettingEnum;
 use App\Enum\Attendance\LeaveTypeCategoryEnum;
 use App\Enum\Attendance\PermissionGroupEnum;
 use App\Enum\Attendance\PermissionTypeCategoryEnum;
+use App\Enum\Attendance\PermissionTypeEnum;
 use App\Models\Attendance\AttendanceRequestLeaveDetails;
 use App\Models\Attendance\AttendanceRequestPermissionDetails;
 use App\Models\Attendance\AttendanceRequests;
@@ -185,7 +186,7 @@ class AttendaceReqService
             }
         }
 
-        $leaveType = $this->leaveReqRepository->getLeaveTypeById($data['type_id']);
+        $leaveType = LeaveTypeCategoryEnum::from($data['type_id']);
 
         // ponytail: enforcement blokir submit dimatikan sementara atas permintaan user — kuota
         // tetap dihitung & ditampilkan ke approver (getCutiTahunanPeriodeUsage), cuma tidak lagi
@@ -208,7 +209,7 @@ class AttendaceReqService
         // assertCutiTahunanEligibility di atas) — dropdown form sudah menyaring jenis cuti
         // lain kalau belum terpenuhi (SubmitLeaveRequest::getLeaveTypesProperty), ini jaring
         // pengaman server-side.
-        if (! $leaveType || $leaveType->category !== LeaveTypeCategoryEnum::TAHUNAN->value) {
+        if ($leaveType !== LeaveTypeCategoryEnum::TAHUNAN) {
             $this->assertMinimumTenureMet($actingUser);
         }
 
@@ -223,7 +224,7 @@ class AttendaceReqService
             'user_id' => $userId,
             'request_id' => $request->id,
             'type_id' => $data['type_id'],
-            'leave_type' => $leaveType?->name,
+            'leave_type' => $leaveType->label(),
             'start_date' => $data['start_date'],
             'end_date' => $data['end_date'] ?? null,
             'total_days' => $this->countLeaveDays($actingUser, $leaveType, $data['start_date'], $data['end_date'] ?? null),
@@ -267,7 +268,7 @@ class AttendaceReqService
                 approver: $firstApprover,
                 requestData: [
                     'request_id' => $request->id,
-                    'leave_type' => $leaveType?->name,
+                    'leave_type' => $leaveType->label(),
                     'start_date' => $data['start_date'],
                     'end_date' => $data['end_date'] ?? null,
                 ],
@@ -411,9 +412,9 @@ class AttendaceReqService
      * sudah menyaring Cuti Tahunan sebelum jendela ini terbuka - assert ini jaring pengaman
      * server-side kalau ada yang tetap mengirim request langsung.
      */
-    private function assertCutiTahunanEligibility(User $actingUser, ?object $leaveType, array $data): void
+    private function assertCutiTahunanEligibility(User $actingUser, ?LeaveTypeCategoryEnum $leaveType, array $data): void
     {
-        if (! $leaveType || $leaveType->category !== LeaveTypeCategoryEnum::TAHUNAN->value) {
+        if ($leaveType !== LeaveTypeCategoryEnum::TAHUNAN) {
             return;
         }
 
@@ -437,18 +438,18 @@ class AttendaceReqService
     /**
      * Setting AttendanceSettingEnum::CUTI_TAHUNAN_MAX_PER_BULAN (module attendance,
      * company-scoped) — batas AKUMULASI hari Cuti Tahunan (jenis cuti berkategori
-     * LeaveTypeCategoryEnum::TAHUNAN, lihat m_leave_types.category) yang boleh diajukan 1 user
+     * LeaveTypeCategoryEnum::TAHUNAN, lihat LeaveTypeCategoryEnum) yang boleh diajukan 1 user
      * dalam 1 bulan kalender, dihitung dari bulan tanggal mulai pengajuan baru. 0/tidak diset =
      * tidak dibatasi. Cuma berlaku untuk jenis cuti yang eksplisit ditandai kategori Tahunan —
      * jenis cuti lain (cuti besar, dst) tidak ikut kena batas ini.
      */
-    private function assertWithinCutiTahunanMonthlyLimit(User $actingUser, ?object $leaveType, array $data): void
+    private function assertWithinCutiTahunanMonthlyLimit(User $actingUser, ?LeaveTypeCategoryEnum $leaveType, array $data): void
     {
-        if (! $leaveType || $leaveType->category !== LeaveTypeCategoryEnum::TAHUNAN->value) {
+        if ($leaveType !== LeaveTypeCategoryEnum::TAHUNAN) {
             return;
         }
 
-        $usage = $this->getCutiTahunanPeriodeUsage($actingUser, $leaveType->id, $data['start_date']);
+        $usage = $this->getCutiTahunanPeriodeUsage($actingUser, $leaveType->value, $data['start_date']);
 
         if (! $usage || $usage['max'] <= 0) {
             return;
@@ -472,15 +473,15 @@ class AttendaceReqService
      * "used" ikut menghitung in_review supaya pengajuan ganda yang masih pending tidak bisa
      * menembus kuota sebelum diputuskan.
      */
-    private function assertWithinSpecialLeaveQuota(User $actingUser, ?object $leaveType, array $data, ?string $excludeRequestId = null): void
+    private function assertWithinSpecialLeaveQuota(User $actingUser, ?LeaveTypeCategoryEnum $leaveType, array $data, ?string $excludeRequestId = null): void
     {
-        $category = $leaveType ? LeaveTypeCategoryEnum::tryFrom($leaveType->category ?? '') : null;
+        $category = $leaveType;
 
         if (! $category || ! $category->isCutiKhusus()) {
             return;
         }
 
-        $quota = (int) ($leaveType->quota_days ?? 0);
+        $quota = $category->quotaDays();
 
         if ($quota <= 0) {
             return;
@@ -510,7 +511,7 @@ class AttendaceReqService
         $periodEnd = $start->copy()->endOfMonth();
 
         $used = (int) AttendanceRequestLeaveDetails::query()
-            ->where('leave_type_id', $leaveType->id)
+            ->where('category', $leaveType->value)
             ->whereBetween('start_date', [$periodStart->toDateString(), $periodEnd->toDateString()])
             ->when($excludeRequestId, fn ($q) => $q->where('request_id', '!=', $excludeRequestId))
             ->whereIn('request_id', AttendanceRequests::query()
@@ -549,7 +550,7 @@ class AttendaceReqService
                 return;
             }
 
-            $leaveType = $this->leaveReqRepository->getLeaveTypeById($detail->leave_type_id);
+            $leaveType = LeaveTypeCategoryEnum::tryFrom($detail->category ?? '');
 
             $this->assertWithinSpecialLeaveQuota($record->user, $leaveType, [
                 'start_date' => $start->toDateString(),
@@ -609,9 +610,9 @@ class AttendaceReqService
      * rentang kalender kontinu, bukan hari masuk kerja); kategori lain tetap hari kerja lewat
      * countWorkingDays() seperti sebelumnya.
      */
-    private function countLeaveDays(?User $user, ?object $leaveType, ?string $start, ?string $end): int
+    private function countLeaveDays(?User $user, ?LeaveTypeCategoryEnum $leaveType, ?string $start, ?string $end): int
     {
-        $category = $leaveType ? LeaveTypeCategoryEnum::tryFrom($leaveType->category ?? '') : null;
+        $category = $leaveType;
 
         if ($category?->countsCalendarDays()) {
             if (! $start) {
@@ -628,7 +629,7 @@ class AttendaceReqService
      * Kuota per kelompok Izin (§8 — Meninggalkan Jam Kerja & Tidak Masuk Seharian masing-masing
      * setting sendiri, lihat izinQuotaSettingFor()). Sakit & Khusus tidak ada limit sama
      * sekali, jenis izin lain (category null) juga tidak kena batas ini. Terima $category
-     * langsung (bukan objek permissionType) — kelompok 2/3 tidak lewat master sama sekali,
+     * langsung (bukan objek jenis izin) — kelompok 2/3 tidak punya pilihan jenis sama sekali,
      * category-nya sudah diresolve pemanggil sebelum sampai sini.
      */
     private function assertWithinIzinPeriodeLimit(User $actingUser, ?string $categoryValue, array $data): void
@@ -687,13 +688,15 @@ class AttendaceReqService
         $type = 'permission';
         $status = $skipApproval ? 'approved' : 'in_review';
 
-        // permission_type_id cuma ada untuk kelompok yang punya master (Meninggalkan Jam Kerja &
+        // type_id (key PermissionTypeEnum) cuma ada untuk kelompok yang punya pilihan jenis (Meninggalkan Jam Kerja &
         // Khusus, lihat PermissionGroupEnum::hasSubKategori()) - kelompok flat (Tidak Masuk
         // Seharian, Sakit) kirim `category` langsung tanpa lookup master sama sekali.
         // Diresolusi sebelum blok flow karena `category` menentukan ember alur persetujuan.
-        $permissionType = !empty($data['type_id']) ? $this->permissionReqRepository->getPermissionTypeById($data['type_id']) : null;
-        $category = $permissionType?->category ?? ($data['category'] ?? null);
-        $permissionTypeName = $permissionType?->name ?? ($category ? PermissionTypeCategoryEnum::tryFrom($category)?->label() : null);
+        $permissionType = !empty($data['type_id']) ? PermissionTypeEnum::from($data['type_id']) : null;
+        $category = $permissionType?->category()->value ?? ($data['category'] ?? null);
+        $permissionTypeName = $permissionType?->label()
+            ?? PermissionTypeEnum::firstForCategory($category)?->label()
+            ?? ($category ? PermissionTypeCategoryEnum::tryFrom($category)?->label() : null);
 
         $masterFlow = null;
         if (! $skipApproval) {
@@ -724,7 +727,6 @@ class AttendaceReqService
 
         $permissionData = [
             'request_id' => $request->id,
-            'permission_type_id' => $data['type_id'] ?? null,
             'permission_type' => $permissionTypeName,
             'category' => $category,
             'date' => $data['date'],
@@ -780,7 +782,7 @@ class AttendaceReqService
                 approver: $firstApprover,
                 requestData: [
                     'request_id' => $request->id,
-                    'permission_type' => $permissionType?->name,
+                    'permission_type' => $permissionTypeName,
                     'date' => $data['date'],
                     // Izin Tidak Masuk/Sakit (hari penuh) tidak punya jam - null, bukan crash
                     // "Undefined array key" (ketauan dari test 2026-09-14).

@@ -7,7 +7,7 @@ use App\Livewire\AttendanceRequestDetail;
 use App\Models\ApprovalManagement\MasterApprovalFlows;
 use App\Models\ApprovalManagement\MasterApprovalFlowSteps;
 use App\Models\Attendance\AttendanceRequests;
-use App\Models\Master\Attendance\PermissionTypes;
+use App\Enum\Attendance\PermissionTypeEnum;
 use App\Models\Master\Companies;
 use App\Models\User;
 use App\Services\Attendance\AttendaceReqService;
@@ -49,15 +49,8 @@ class AttendanceRequestDetailPermissionQuotaTest extends TestCase
             'is_final' => true,
         ]);
 
-        $type = PermissionTypes::create([
-            'company_id' => $company->id,
-            'name' => 'Izin Terlambat Masuk',
-            'category' => PermissionTypeCategoryEnum::IZIN_TERLAMBAT_MASUK->value,
-        ]);
-
         app(AttendaceReqService::class)->storePermissionRequest([
-            'type_id' => $type->id,
-            'category' => $type->category,
+            'type_id' => PermissionTypeEnum::TERLAMBAT->value,
             'date' => now()->toDateString(),
             'start_time' => '08:00',
             'end_time' => '09:00',

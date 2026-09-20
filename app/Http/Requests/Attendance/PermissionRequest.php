@@ -22,7 +22,7 @@ class PermissionRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'type_id' => 'required|exists:m_permission_types,id',
+            'type_id' => ['required', \Illuminate\Validation\Rule::enum(\App\Enum\Attendance\PermissionTypeEnum::class)],
             'date' => 'required|date',
             'start_time' => 'required|date_format:H:i',
             'end_time' => 'required|date_format:H:i|after:start_time',

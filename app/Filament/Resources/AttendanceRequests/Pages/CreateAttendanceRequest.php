@@ -53,7 +53,7 @@ class CreateAttendanceRequest extends CreateRecord
                     try {
                         match ($this->type) {
                             'leave' => $service->storeLeaveRequest([
-                                'type_id' => $state['leave_type_id'] ?? null,
+                                'type_id' => $state['leave_type'] ?? null,
                                 'is_one_day' => $state['is_one_day'] ?? true,
                                 'start_date' => $state['start_date'] ?? null,
                                 'end_date' => ($state['is_one_day'] ?? true) ? ($state['start_date'] ?? null) : ($state['end_date'] ?? null),
@@ -75,7 +75,7 @@ class CreateAttendanceRequest extends CreateRecord
                                 createdBy: Auth::user(),
                             ),
                             default => $service->storePermissionRequest([
-                                'type_id' => $state['permission_type_id'] ?? null,
+                                'type_id' => $state['permission_type'] ?? null,
                                 'category' => $state['category'] ?? null,
                                 'date' => $state['date'] ?? null,
                                 'end_date' => $state['end_date'] ?? null,

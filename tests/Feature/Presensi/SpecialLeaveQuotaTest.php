@@ -7,7 +7,6 @@ use App\Livewire\SubmitLeaveRequest;
 use App\Models\ApprovalManagement\MasterApprovalFlows;
 use App\Models\ApprovalManagement\MasterApprovalFlowSteps;
 use App\Models\Attendance\AttendanceRequests;
-use App\Models\Master\Attendance\LeaveTypes;
 use App\Models\Master\Companies;
 use App\Models\Shift\Schedule;
 use App\Models\Shift\ScheduleAssignment;
@@ -59,16 +58,12 @@ class SpecialLeaveQuotaTest extends TestCase
         ]);
     }
 
-    private function leaveType(LeaveTypeCategoryEnum $cat, int $quota): LeaveTypes
+    /** Kuota tetap di enum ($quota cuma dokumentasi angka di tes). */
+    private function leaveType(LeaveTypeCategoryEnum $cat, int $quota): LeaveTypeCategoryEnum
     {
-        return LeaveTypes::create([
-            'company_id' => $this->company->id,
-            'name' => $cat->label(),
-            'category' => $cat->value,
-            'quota_days' => $quota,
-            'reset_period' => $cat === LeaveTypeCategoryEnum::HAID ? 'monthly' : 'none',
-            'is_paid' => true,
-        ]);
+        $this->assertSame($quota, $cat->quotaDays());
+
+        return $cat;
     }
 
     private function femaleUser(): User
@@ -110,7 +105,7 @@ class SpecialLeaveQuotaTest extends TestCase
     private function form(string $typeId, string $start, ?string $end = null): \Livewire\Features\SupportTesting\Testable
     {
         return Livewire::test(SubmitLeaveRequest::class)
-            ->set('leave_type_id', $typeId)
+            ->set('leave_type', $typeId)
             ->set('start_date', $start)
             ->set('end_date', $end ?? $start)
             ->set('attachments', [UploadedFile::fake()->create('surat.pdf', 50, 'application/pdf')]);
@@ -122,7 +117,7 @@ class SpecialLeaveQuotaTest extends TestCase
         $type = $this->leaveType(LeaveTypeCategoryEnum::MELAHIRKAN, 90);
         $start = now()->firstOfMonth()->addDays(2);
 
-        $this->form($type->id, $start->toDateString(), $start->copy()->addDays(9)->toDateString())->call('submit');
+        $this->form($type->value, $start->toDateString(), $start->copy()->addDays(9)->toDateString())->call('submit');
 
         $this->assertDatabaseHas('attendance_requests', ['user_id' => $user->id, 'type' => 'leave']);
     }
@@ -134,7 +129,7 @@ class SpecialLeaveQuotaTest extends TestCase
         $start = now()->firstOfMonth();
 
         // 100 hari > kuota 90 -> ditolak, request tidak dibuat.
-        $this->form($type->id, $start->toDateString(), $start->copy()->addDays(99)->toDateString())->call('submit');
+        $this->form($type->value, $start->toDateString(), $start->copy()->addDays(99)->toDateString())->call('submit');
 
         $this->assertSame(0, AttendanceRequests::where('user_id', $user->id)->count());
     }
@@ -151,7 +146,7 @@ class SpecialLeaveQuotaTest extends TestCase
         $type = $this->leaveType(LeaveTypeCategoryEnum::MELAHIRKAN, 90);
         $monday = Carbon::parse('2026-09-07')->startOfWeek(Carbon::MONDAY);
 
-        $this->form($type->id, $monday->toDateString(), $monday->copy()->addDays(89)->toDateString())->call('submit');
+        $this->form($type->value, $monday->toDateString(), $monday->copy()->addDays(89)->toDateString())->call('submit');
 
         $request = AttendanceRequests::where('user_id', $user->id)->firstOrFail();
         $this->assertDatabaseHas('attendance_req_leave_details', [
@@ -174,7 +169,7 @@ class SpecialLeaveQuotaTest extends TestCase
         $monday = Carbon::parse('2026-09-07')->startOfWeek(Carbon::MONDAY);
 
         // 125 hari kalender - hari kerjanya cuma ~89 (di bawah kuota 90) kalau salah hitung.
-        $this->form($type->id, $monday->toDateString(), $monday->copy()->addDays(124)->toDateString())->call('submit');
+        $this->form($type->value, $monday->toDateString(), $monday->copy()->addDays(124)->toDateString())->call('submit');
 
         $this->assertSame(0, AttendanceRequests::where('user_id', $user->id)->count());
     }
@@ -186,11 +181,11 @@ class SpecialLeaveQuotaTest extends TestCase
         $monthStart = now()->firstOfMonth();
 
         // Pengajuan 1: 2 hari — pas kuota.
-        $this->form($type->id, $monthStart->copy()->addDays(1)->toDateString(), $monthStart->copy()->addDays(2)->toDateString())->call('submit');
+        $this->form($type->value, $monthStart->copy()->addDays(1)->toDateString(), $monthStart->copy()->addDays(2)->toDateString())->call('submit');
         $this->assertSame(1, AttendanceRequests::where('user_id', $user->id)->count());
 
         // Pengajuan 2: 1 hari lagi di bulan sama -> total 3 > 2, ditolak.
-        $this->form($type->id, $monthStart->copy()->addDays(10)->toDateString())->call('submit');
+        $this->form($type->value, $monthStart->copy()->addDays(10)->toDateString())->call('submit');
         $this->assertSame(1, AttendanceRequests::where('user_id', $user->id)->count());
     }
 
@@ -200,11 +195,11 @@ class SpecialLeaveQuotaTest extends TestCase
         $type = $this->leaveType(LeaveTypeCategoryEnum::HAID, 2);
         $monthStart = now()->firstOfMonth();
 
-        $this->form($type->id, $monthStart->copy()->addDays(1)->toDateString(), $monthStart->copy()->addDays(2)->toDateString())->call('submit');
+        $this->form($type->value, $monthStart->copy()->addDays(1)->toDateString(), $monthStart->copy()->addDays(2)->toDateString())->call('submit');
 
         // Bulan depan: kuota penuh lagi.
         $next = now()->addMonthNoOverflow()->firstOfMonth();
-        $this->form($type->id, $next->copy()->addDays(1)->toDateString(), $next->copy()->addDays(2)->toDateString())->call('submit');
+        $this->form($type->value, $next->copy()->addDays(1)->toDateString(), $next->copy()->addDays(2)->toDateString())->call('submit');
 
         $this->assertSame(2, AttendanceRequests::where('user_id', $user->id)->count());
     }

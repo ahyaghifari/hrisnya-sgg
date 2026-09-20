@@ -6,7 +6,6 @@ use App\Enum\Attendance\PermissionTypeCategoryEnum;
 use App\Enum\AttendanceReqStatus;
 use App\Models\Attendance\AttendanceRequestPermissionDetails;
 use App\Models\Attendance\AttendanceRequests;
-use App\Models\Master\Attendance\PermissionTypes;
 use App\Models\Master\Companies;
 use App\Models\Payroll\Payroll;
 use App\Models\Payroll\PayrollPeriod;
@@ -27,9 +26,8 @@ class IzinMeninggalkanJamKerjaCalculatorTest extends TestCase
 
     private function makeApprovedIzin(User $user, string $companyId, string $category, string $date): void
     {
-        $permissionType = PermissionTypes::create(['company_id' => $companyId, 'name' => $category, 'category' => $category]);
         $request = AttendanceRequests::create(['user_id' => $user->id, 'type' => 'permission', 'status' => AttendanceReqStatus::APPROVED->value]);
-        AttendanceRequestPermissionDetails::create(['request_id' => $request->id, 'permission_type_id' => $permissionType->id, 'category' => $category, 'date' => $date]);
+        AttendanceRequestPermissionDetails::create(['request_id' => $request->id, 'category' => $category, 'date' => $date]);
     }
 
     public function test_charges_flat_amount_per_occurrence(): void

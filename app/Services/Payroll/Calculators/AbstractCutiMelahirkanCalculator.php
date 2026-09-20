@@ -84,11 +84,10 @@ abstract class AbstractCutiMelahirkanCalculator implements PayrollComponentCalcu
                 ->where('user_id', $user->id)
                 ->where('type', 'leave')
                 ->where('status', AttendanceReqStatus::APPROVED->value))
-            ->whereHas('leaveType', fn ($q) => $q
-                ->whereIn('category', [
-                    LeaveTypeCategoryEnum::MELAHIRKAN->value,
-                    LeaveTypeCategoryEnum::KEGUGURAN->value,
-                ]))
+            ->whereIn('category', [
+                LeaveTypeCategoryEnum::MELAHIRKAN->value,
+                LeaveTypeCategoryEnum::KEGUGURAN->value,
+            ])
             ->where('start_date', '<=', $period->end_date)
             ->where('end_date', '>=', $period->start_date)
             ->get(['start_date', 'end_date']);

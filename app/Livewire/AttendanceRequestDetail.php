@@ -30,7 +30,6 @@ class AttendanceRequestDetail extends Component
     {
         $record->load([
             'approvalSnapshot.activity', 'approvalHistories', 'attachments',
-            'leaveDetails.leaveType', 'permissionDetails.permissionType',
         ]);
 
         abort_unless($this->canAccess($record, Auth::user()), 403);
@@ -104,7 +103,7 @@ class AttendanceRequestDetail extends Component
         }
 
         if ($this->record->type === 'leave' && $this->record->leaveDetails->isNotEmpty()) {
-            $cat = LeaveTypeCategoryEnum::tryFrom($this->record->leaveDetails->first()->leaveType?->category ?? '');
+            $cat = LeaveTypeCategoryEnum::tryFrom($this->record->leaveDetails->first()->category ?? '');
 
             return (bool) $cat?->isCutiKhusus();
         }
@@ -171,7 +170,6 @@ class AttendanceRequestDetail extends Component
             $this->record->refresh();
             $this->record->load([
                 'approvalSnapshot.activity', 'approvalHistories', 'attachments',
-                'leaveDetails.leaveType', 'permissionDetails.permissionType',
             ]);
 
             // Computed (canApprove/dateRevisable/dst) sudah sempat diakses & di-memoize di atas
@@ -211,8 +209,8 @@ class AttendanceRequestDetail extends Component
 
             return [
                 'kind' => 'leave',
-                'balance' => $service->getLeaveUserBalance($this->record->user_id, $leave->leave_type_id, $leave->start_date),
-                'periode' => $service->getCutiTahunanPeriodeUsage($this->record->user, $leave->leave_type_id, $leave->start_date),
+                'balance' => $service->getLeaveUserBalance($this->record->user_id, $leave->category ?? '', $leave->start_date),
+                'periode' => $service->getCutiTahunanPeriodeUsage($this->record->user, $leave->category ?? '', $leave->start_date),
             ];
         }
 

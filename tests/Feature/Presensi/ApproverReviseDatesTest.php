@@ -8,8 +8,7 @@ use App\Livewire\AttendanceRequestDetail;
 use App\Models\ApprovalManagement\MasterApprovalFlows;
 use App\Models\ApprovalManagement\MasterApprovalFlowSteps;
 use App\Models\Attendance\AttendanceRequests;
-use App\Models\Master\Attendance\LeaveTypes;
-use App\Models\Master\Attendance\PermissionTypes;
+use App\Enum\Attendance\PermissionTypeEnum;
 use App\Models\Master\Companies;
 use App\Models\User;
 use App\Models\User\UserProfiles;
@@ -66,17 +65,8 @@ class ApproverReviseDatesTest extends TestCase
 
     private function submitLeave(User $employee, LeaveTypeCategoryEnum $cat, int $quota, string $start, ?string $end = null): AttendanceRequests
     {
-        $type = LeaveTypes::create([
-            'company_id' => $this->company->id,
-            'name' => $cat->label(),
-            'category' => $cat->value,
-            'quota_days' => $quota,
-            'reset_period' => 'none',
-            'is_paid' => true,
-        ]);
-
         app(AttendaceReqService::class)->storeLeaveRequest([
-            'type_id' => $type->id,
+            'type_id' => $cat->value,
             'is_one_day' => $end === null,
             'start_date' => $start,
             'end_date' => $end ?? $start,
@@ -153,17 +143,9 @@ class ApproverReviseDatesTest extends TestCase
     {
         $employee = User::factory()->create(['company_id' => $this->company->id]);
 
-        $permType = PermissionTypes::create([
-            'company_id' => $this->company->id,
-            'name' => 'Menikah',
-            'category' => PermissionTypeCategoryEnum::IZIN_KHUSUS->value,
-            'default_days' => 3,
-            'description' => 'Pernikahan karyawan sendiri, sesuai PKB pasal 12.',
-        ]);
-
         $start = now()->addWeek();
         app(AttendaceReqService::class)->storePermissionRequest([
-            'type_id' => $permType->id,
+            'type_id' => PermissionTypeEnum::MENIKAH_KARYAWAN->value,
             'date' => $start->toDateString(),
             'end_date' => $start->copy()->addDays(2)->toDateString(),
             'start_time' => null,
@@ -180,7 +162,7 @@ class ApproverReviseDatesTest extends TestCase
             ->assertSet('dateRevisable', true)
             ->assertSee('Ketentuan Aturan')
             ->assertSee('3 hari')
-            ->assertSee('sesuai PKB pasal 12')
+            ->assertSee('geser tanggal selesai manual')
             ->call('chooseAction', 'approve')
             ->set('reviseStart', $start->toDateString())
             ->set('reviseEnd', $newEnd->toDateString())

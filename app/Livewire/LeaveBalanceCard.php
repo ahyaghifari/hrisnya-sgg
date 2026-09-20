@@ -2,15 +2,14 @@
 
 namespace App\Livewire;
 
-use App\Models\Master\Attendance\LeaveTypes;
-use App\Models\User;
+use App\Enum\Attendance\LeaveTypeCategoryEnum;
 use App\Services\Attendance\AttendaceReqService;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
 
 class LeaveBalanceCard extends Component
 {
-    public string $typeKeyword;
+    public string $typeKeyword; // key jenis cuti (nilai LeaveTypeCategoryEnum, mis. "tahunan")
     public string $label;
     public string $icon;
     public string $color;
@@ -25,16 +24,11 @@ class LeaveBalanceCard extends Component
     public function render(AttendaceReqService $service)
     {
         $userId = $this->userId ?? Auth::id();
-        $companyId = $this->userId ? User::find($this->userId)?->company_id : Auth::user()->company_id;
 
-        $leaveType = $companyId
-            ? LeaveTypes::where('company_id', $companyId)
-                ->where('name', 'like', "%{$this->typeKeyword}%")
-                ->first()
-            : null;
+        $leaveType = LeaveTypeCategoryEnum::tryFrom($this->typeKeyword);
 
         $balance = $leaveType
-            ? $service->getLeaveUserBalance($userId, $leaveType->id)
+            ? $service->getLeaveUserBalance($userId, $leaveType->value)
             : null;
 
         return view('livewire.leave-balance-card', ['balance' => $balance]);

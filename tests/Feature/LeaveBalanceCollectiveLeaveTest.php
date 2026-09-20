@@ -5,7 +5,7 @@ namespace Tests\Feature;
 use App\Models\Attendance\AttendanceRequestLeaveDetails;
 use App\Models\Attendance\AttendanceRequests;
 use App\Models\Master\Attendance\Holidays;
-use App\Models\Master\Attendance\LeaveTypes;
+use App\Enum\Attendance\LeaveTypeCategoryEnum;
 use App\Models\Master\Companies;
 use App\Models\User;
 use App\Repositories\Attendance\LeaveReqRepository;
@@ -31,15 +31,12 @@ class LeaveBalanceCollectiveLeaveTest extends TestCase
         ]);
     }
 
-    private function makeLeaveType(Companies $company, string $name, int $quota = 12): LeaveTypes
+    private function makeLeaveType(Companies $company, string $name, int $quota = 12): LeaveTypeCategoryEnum
     {
-        return LeaveTypes::create([
-            'company_id' => $company->id,
-            'name' => $name,
-            'quota_days' => $quota,
-            'reset_period' => 'yearly',
-            'is_paid' => true,
-        ]);
+        return match ($name) {
+            'Cuti Melahirkan' => LeaveTypeCategoryEnum::MELAHIRKAN,
+            default => LeaveTypeCategoryEnum::TAHUNAN,
+        };
     }
 
     public function test_collective_leave_days_reduce_available_cuti_tahunan_balance(): void
@@ -59,8 +56,8 @@ class LeaveBalanceCollectiveLeaveTest extends TestCase
 
         AttendanceRequestLeaveDetails::create([
             'request_id' => $approvedRequest->id,
-            'leave_type_id' => $leaveType->id,
-            'leave_type' => $leaveType->name,
+            'category' => $leaveType->value,
+            'leave_type' => $leaveType->label(),
             'start_date' => now()->startOfYear()->addDays(1)->toDateString(),
             'end_date' => now()->startOfYear()->addDays(2)->toDateString(),
             'total_days' => 2,
@@ -70,7 +67,7 @@ class LeaveBalanceCollectiveLeaveTest extends TestCase
         Holidays::create(['date' => now()->startOfYear()->addDays(10), 'name' => 'Cuti Bersama 1', 'is_collective_leave' => true]);
         Holidays::create(['date' => now()->startOfYear()->addDays(20), 'name' => 'Cuti Bersama 2', 'is_collective_leave' => true]);
 
-        $balance = (new LeaveReqRepository())->getLeaveUserBalance($user->id, $leaveType->id);
+        $balance = (new LeaveReqRepository())->getLeaveUserBalance($user->id, $leaveType->value);
 
         // 12 - 2 (used) - 2 (cuti bersama) = 8
         $this->assertSame(12, $balance['quota']);
@@ -87,7 +84,7 @@ class LeaveBalanceCollectiveLeaveTest extends TestCase
 
         Holidays::create(['date' => now()->startOfYear()->addDays(5), 'name' => 'Libur Nasional Biasa', 'is_collective_leave' => false]);
 
-        $balance = (new LeaveReqRepository())->getLeaveUserBalance($user->id, $leaveType->id);
+        $balance = (new LeaveReqRepository())->getLeaveUserBalance($user->id, $leaveType->value);
 
         $this->assertSame(0, $balance['collective_leave_days']);
         $this->assertSame(12, $balance['available']);
@@ -101,7 +98,7 @@ class LeaveBalanceCollectiveLeaveTest extends TestCase
 
         Holidays::create(['date' => now()->startOfYear()->addDays(10), 'name' => 'Cuti Bersama Global', 'is_collective_leave' => true]);
 
-        $balance = (new LeaveReqRepository())->getLeaveUserBalance($user->id, $leaveType->id);
+        $balance = (new LeaveReqRepository())->getLeaveUserBalance($user->id, $leaveType->value);
 
         $this->assertSame(0, $balance['collective_leave_days']);
         $this->assertSame(90, $balance['available']);
@@ -115,7 +112,7 @@ class LeaveBalanceCollectiveLeaveTest extends TestCase
 
         Holidays::create(['date' => now()->subYear()->startOfYear()->addDays(10), 'name' => 'Cuti Bersama Tahun Lalu', 'is_collective_leave' => true]);
 
-        $balance = (new LeaveReqRepository())->getLeaveUserBalance($user->id, $leaveType->id);
+        $balance = (new LeaveReqRepository())->getLeaveUserBalance($user->id, $leaveType->value);
 
         $this->assertSame(0, $balance['collective_leave_days']);
         $this->assertSame(12, $balance['available']);

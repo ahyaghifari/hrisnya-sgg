@@ -6,7 +6,7 @@ use App\Models\ApprovalManagement\ApprovalSnapshots;
 use App\Models\ApprovalManagement\MasterApprovalFlows;
 use App\Models\ApprovalManagement\MasterApprovalFlowSteps;
 use App\Models\Attendance\AttendanceRequests;
-use App\Models\Master\Attendance\LeaveTypes;
+use App\Enum\Attendance\LeaveTypeCategoryEnum;
 use App\Models\Master\Companies;
 use App\Models\User;
 use App\Repositories\Approval\ApprovalSnapshotRepository;
@@ -75,16 +75,10 @@ class AttendanceApprovalSubModuleTest extends TestCase
 
     private function submitLeave(): AttendanceRequests
     {
-        $leaveType = LeaveTypes::create([
-            'company_id' => $this->company->id,
-            'name' => 'Cuti Tahunan',
-            'quota_days' => 12,
-            'reset_period' => 'yearly',
-            'is_paid' => true,
-        ]);
+        $leaveType = LeaveTypeCategoryEnum::TAHUNAN;
 
         app(AttendaceReqService::class)->storeLeaveRequest([
-            'type_id' => $leaveType->id,
+            'type_id' => $leaveType->value,
             'is_one_day' => true,
             'start_date' => now()->addDay()->toDateString(),
             'end_date' => now()->addDay()->toDateString(),

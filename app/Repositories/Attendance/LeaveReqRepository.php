@@ -7,18 +7,12 @@ use App\Models\Attendance\AttendanceRequestAttachments;
 use App\Models\Attendance\AttendanceRequestLeaveDetails;
 use App\Models\Attendance\AttendanceRequests;
 use App\Models\Master\Attendance\Holidays;
-use App\Models\Master\Attendance\LeaveTypes;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
 class LeaveReqRepository
 {
-    public function getLeaveTypeById(string $id)
-    {
-        return LeaveTypes::find($id);
-    }
-
     public function findAttendanceReqLeaveDetail(string $attendanceReqId)
     {
         return AttendanceRequests::with('user.profile.jobPosition.orgStructure','leaveDetails')->find($attendanceReqId);
@@ -26,7 +20,7 @@ class LeaveReqRepository
 
     /**
      * Kuota cuti dihitung LIVE (tabel `leave_user_balances` sudah dihapus 2026-08-29):
-     * - `quota`  = m_leave_types.quota_days
+     * - `quota`  = LeaveTypeCategoryEnum::quotaDays() (tetap, sama untuk semua perusahaan)
      * - `used`   = Σ total_days pengajuan `leave` `approved` user ini dalam periode berjalan
      * - periode:
      *   - Cuti Haid (usageWindow 'monthly')  = bulan kalender yg memuat $referenceDate
@@ -39,12 +33,13 @@ class LeaveReqRepository
      */
     public function getLeaveUserBalance(string $userId, string $typeId, ?string $referenceDate = null): array
     {
-        $leaveType = $this->getLeaveTypeById($typeId);
+        // $typeId = key jenis cuti (nilai LeaveTypeCategoryEnum).
+        $leaveType = LeaveTypeCategoryEnum::tryFrom($typeId);
 
-        $quota = $leaveType ? $leaveType->quota_days : 0;
+        $quota = $leaveType?->quotaDays() ?? 0;
 
         $ref = $referenceDate ? Carbon::parse($referenceDate) : Carbon::now();
-        $category = $leaveType ? LeaveTypeCategoryEnum::tryFrom($leaveType->category ?? '') : null;
+        $category = $leaveType;
 
         if ($category?->usageWindow() === 'monthly') {
             $periodStart = $ref->copy()->startOfMonth();
@@ -60,7 +55,7 @@ class LeaveReqRepository
         $periodEndDate = $periodEnd->toDateString();
 
         $used = (int) AttendanceRequestLeaveDetails::query()
-            ->where('leave_type_id', $typeId)
+            ->where('category', $typeId)
             ->whereBetween('start_date', [$periodStartDate, $periodEndDate])
             ->whereIn('request_id', AttendanceRequests::query()
                 ->select('id')
@@ -71,7 +66,7 @@ class LeaveReqRepository
 
         // Cuti bersama cuma mengurangi kuota Cuti Tahunan, bukan tipe cuti lain (izin, dll).
         $collectiveLeaveDays = 0;
-        if ($leaveType && str_contains(mb_strtolower($leaveType->name), 'tahunan')) {
+        if ($leaveType === LeaveTypeCategoryEnum::TAHUNAN) {
             $collectiveLeaveDays = Holidays::where('is_collective_leave', true)
                 ->whereBetween('date', [$periodStartDate, $periodEndDate])
                 ->count();
@@ -116,7 +111,7 @@ class LeaveReqRepository
             // approved lewat getLeaveUserBalance(), lihat komentar di method itu.
             $detail = AttendanceRequestLeaveDetails::create([
                 'request_id' => $data['request_id'],
-                'leave_type_id' => $data['type_id'],
+                'category' => $data['type_id'],
                 'leave_type' => $data['leave_type'],
                 'start_date' => $data['start_date'],
                 'end_date' => $data['end_date'],

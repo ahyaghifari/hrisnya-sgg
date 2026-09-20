@@ -116,11 +116,9 @@ class AttendanceRequestForm
                 ->schema([
                     ...self::adminAssignmentFields(),
 
-                    Select::make('leave_type_id')
+                    Select::make('leave_type')
                         ->label('Jenis Cuti')
-                        ->options(fn () => \App\Models\Master\Attendance\LeaveTypes::pluck('name', 'id'))
-                        ->searchable()
-                        ->preload()
+                        ->options(collect(\App\Enum\Attendance\LeaveTypeCategoryEnum::cases())->mapWithKeys(fn ($t) => [$t->value => $t->label()])->all())
                         ->required(),
 
                     Toggle::make('is_one_day')
@@ -243,7 +241,7 @@ class AttendanceRequestForm
                         ->reactive()
                         ->required()
                         ->afterStateUpdated(function ($state, callable $set) {
-                            $set('permission_type_id', null);
+                            $set('permission_type', null);
                             $set('category', null);
                             $set('end_date', null);
                             $set('start_time', null);
@@ -260,7 +258,7 @@ class AttendanceRequestForm
                             }
                         }),
 
-                    Select::make('permission_type_id')
+                    Select::make('permission_type')
                         ->label('Jenis Izin')
                         ->visible(fn (callable $get) => self::groupFrom($get('group'))?->hasSubKategori() ?? false)
                         ->required(fn (callable $get) => self::groupFrom($get('group'))?->hasSubKategori() ?? false)
@@ -271,24 +269,21 @@ class AttendanceRequestForm
                                 return [];
                             }
 
-                            $categoryValues = array_map(fn ($c) => $c->value, $group->categories());
-                            $companyId = $get('target_company_id');
-
-                            return \App\Models\Master\Attendance\PermissionTypes::where('company_id', $companyId)
-                                ->whereIn('category', $categoryValues)
-                                ->pluck('name', 'id');
+                            return collect(\App\Enum\Attendance\PermissionTypeEnum::forGroup($group))
+                                ->mapWithKeys(fn ($t) => [$t->value => $t->label()])
+                                ->all();
                         })
                         ->searchable()
                         ->preload()
                         ->reactive()
                         ->afterStateUpdated(function ($state, callable $set, callable $get) {
-                            $type = $state ? \App\Models\Master\Attendance\PermissionTypes::find($state) : null;
-                            $set('category', $type?->category);
+                            $type = $state ? \App\Enum\Attendance\PermissionTypeEnum::tryFrom($state) : null;
+                            $set('category', $type?->category()->value);
 
                             // Prefill end_date dari default_days Izin Khusus - cuma prefill, tetap
                             // bebas diubah manual (rencana-izin-empat-kategori.md §2).
-                            if (self::groupFrom($get('group')) === \App\Enum\Attendance\PermissionGroupEnum::KHUSUS && $type?->default_days && $get('date')) {
-                                $set('end_date', \Carbon\Carbon::parse($get('date'))->addDays($type->default_days - 1)->toDateString());
+                            if (self::groupFrom($get('group')) === \App\Enum\Attendance\PermissionGroupEnum::KHUSUS && $type?->defaultDays() && $get('date')) {
+                                $set('end_date', \Carbon\Carbon::parse($get('date'))->addDays($type->defaultDays() - 1)->toDateString());
                             }
                         }),
 
@@ -544,7 +539,7 @@ class AttendanceRequestForm
 
         if ($record->type === 'leave' && $record->leaveDetails->isNotEmpty()) {
             $leave = $record->leaveDetails->first();
-            $balance = $service->getLeaveUserBalance($record->user_id, $leave->leave_type_id, $leave->start_date);
+            $balance = $service->getLeaveUserBalance($record->user_id, $leave->category ?? '', $leave->start_date);
 
             return [
                 'quota' => "{$balance['quota']} hari",

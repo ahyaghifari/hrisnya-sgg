@@ -20,7 +20,6 @@ class DatabaseSeeder extends Seeder
         $this->call([
             ReligionsSeeder::class,
             RoleSeeder::class,
-            AttendanceRequestTypeSeeder::class,
         ]);
         
         $companies = [
@@ -130,9 +129,6 @@ class DatabaseSeeder extends Seeder
                 $user->assignRole($roleModel);
             }
         }
-
-        // Jenis cuti default + backfill kategori (butuh companies sudah ada).
-        $this->call(LeaveTypeCategorySeeder::class);
 
         // Super Admin gets all permissions
         $superAdminRole->syncPermissions(Permission::all());

@@ -8,8 +8,9 @@ use App\Livewire\SubmitOvertimeRequest;
 use App\Livewire\SubmitPermissionRequest;
 use App\Models\ApprovalManagement\MasterApprovalFlows;
 use App\Models\ApprovalManagement\MasterApprovalFlowSteps;
-use App\Models\Master\Attendance\LeaveTypes;
-use App\Models\Master\Attendance\PermissionTypes;
+use App\Enum\Attendance\LeaveTypeCategoryEnum;
+use App\Enum\Attendance\PermissionTypeEnum;
+use App\Models\Attendance\AttendanceRequests;
 use App\Models\Master\Companies;
 use App\Models\Role;
 use App\Models\User;
@@ -110,20 +111,14 @@ class AttendanceRequestPortalTest extends TestCase
     {
         $company = $this->createCompanyWithApprovalFlow();
         $user = $this->createEmployee($company);
-        $leaveType = LeaveTypes::create([
-            'company_id' => $company->id,
-            'name' => 'Cuti Tahunan',
-            'quota_days' => 12,
-            'reset_period' => 'yearly',
-            'is_paid' => true,
-        ]);
+        $leaveType = LeaveTypeCategoryEnum::TAHUNAN;
 
         $this->actingAs($user);
 
         $date = now()->addDay()->toDateString();
 
         Livewire::test(SubmitLeaveRequest::class)
-            ->set('leave_type_id', $leaveType->id)
+            ->set('leave_type', $leaveType->value)
             ->set('start_date', $date)
             ->set('end_date', $date)
             ->call('submit');
@@ -133,22 +128,89 @@ class AttendanceRequestPortalTest extends TestCase
             'type' => 'leave',
             'status' => 'in_review',
         ]);
+
+        // Jenis cuti tetap (enum): yang tersimpan label + key kategori, bukan ID master.
+        $this->assertDatabaseHas('attendance_req_leave_details', ['leave_type' => 'Cuti Tahunan', 'category' => 'tahunan']);
+    }
+
+    public function test_leave_type_must_be_one_of_the_fixed_types(): void
+    {
+        $company = $this->createCompanyWithApprovalFlow();
+        $user = $this->createEmployee($company);
+
+        $this->actingAs($user);
+
+        Livewire::test(SubmitLeaveRequest::class)
+            ->set('leave_type', 'cuti_besar')
+            ->set('start_date', now()->addDay()->toDateString())
+            ->set('end_date', now()->addDay()->toDateString())
+            ->call('submit')
+            ->assertHasErrors(['leave_type']);
+
+        $this->assertDatabaseMissing('attendance_requests', ['user_id' => $user->id, 'type' => 'leave']);
+    }
+
+    public function test_submit_button_stays_locked_after_success_and_second_submit_is_ignored(): void
+    {
+        $company = $this->createCompanyWithApprovalFlow();
+        $user = $this->createEmployee($company);
+        $this->actingAs($user);
+
+        $date = now()->addDay()->toDateString();
+
+        // Cuti
+        $leave = Livewire::test(SubmitLeaveRequest::class)
+            ->set('leave_type', LeaveTypeCategoryEnum::TAHUNAN->value)
+            ->set('start_date', $date)->set('end_date', $date)
+            ->assertSet('submitted', false)
+            ->assertSee('Ajukan Cuti')
+            ->call('submit')
+            ->assertSet('submitted', true)
+            ->assertSee('Diajukan...')   // teks + ikon berputar, tombol mati sampai pindah halaman
+            ->call('submit');
+        $this->assertSame(1, AttendanceRequests::where('user_id', $user->id)->where('type', 'leave')->count());
+
+        // Izin
+        Livewire::test(SubmitPermissionRequest::class)
+            ->set('group', 'meninggalkan_jam_kerja')
+            ->set('permission_type', PermissionTypeEnum::TERLAMBAT->value)
+            ->set('date', $date)->set('start_time', '08:00')->set('end_time', '09:00')
+            ->call('submit')
+            ->assertSet('submitted', true)
+            ->call('submit');
+        $this->assertSame(1, AttendanceRequests::where('user_id', $user->id)->where('type', 'permission')->count());
+
+        // Lembur
+        Livewire::test(SubmitOvertimeRequest::class)
+            ->set('overtime_type', 'biasa')->set('date', $date)
+            ->set('tasks', [['task_description' => 'x', 'start_time' => '18:00', 'end_time' => '20:00']])
+            ->call('submit')
+            ->assertSet('submitted', true)
+            ->call('submit');
+        $this->assertSame(1, AttendanceRequests::where('user_id', $user->id)->where('type', 'overtime')->count());
+    }
+
+    public function test_submit_button_is_not_locked_when_validation_fails(): void
+    {
+        $company = $this->createCompanyWithApprovalFlow();
+        $user = $this->createEmployee($company);
+        $this->actingAs($user);
+
+        Livewire::test(SubmitOvertimeRequest::class)
+            ->call('submit') // jenis & tanggal kosong
+            ->assertHasErrors(['overtime_type', 'date'])
+            ->assertSet('submitted', false);
     }
 
     public function test_employee_can_submit_permission_request(): void
     {
         $company = $this->createCompanyWithApprovalFlow();
         $user = $this->createEmployee($company);
-        $permissionType = PermissionTypes::create([
-            'company_id' => $company->id,
-            'name' => 'Izin Umum',
-        ]);
-
         $this->actingAs($user);
 
         Livewire::test(SubmitPermissionRequest::class)
             ->set('group', 'meninggalkan_jam_kerja')
-            ->set('permission_type_id', $permissionType->id)
+            ->set('permission_type', PermissionTypeEnum::TERLAMBAT->value)
             ->set('date', now()->toDateString())
             ->set('start_time', '09:00')
             ->set('end_time', '11:00')
@@ -160,6 +222,44 @@ class AttendanceRequestPortalTest extends TestCase
             'user_id' => $user->id,
             'type' => 'permission',
             'status' => 'in_review',
+        ]);
+    }
+
+    public function test_flat_group_stores_fixed_type_name_and_category_without_choosing_a_type(): void
+    {
+        $company = $this->createCompanyWithApprovalFlow();
+        $user = $this->createEmployee($company);
+
+        $this->actingAs($user);
+
+        Livewire::test(SubmitPermissionRequest::class)
+            ->set('group', 'sakit')
+            ->set('date', now()->toDateString())
+            ->set('end_date', now()->toDateString())
+            ->call('submit');
+
+        $this->assertDatabaseHas('attendance_req_permission_details', [
+            'permission_type' => 'Izin Sakit',
+            'category' => 'izin_sakit',
+        ]);
+    }
+
+    public function test_special_permission_stores_type_label_and_khusus_category(): void
+    {
+        $company = $this->createCompanyWithApprovalFlow();
+        $user = $this->createEmployee($company);
+
+        $this->actingAs($user);
+
+        Livewire::test(SubmitPermissionRequest::class)
+            ->set('group', 'khusus')
+            ->set('permission_type', PermissionTypeEnum::KELUARGA_INTI_MENINGGAL->value)
+            ->set('date', now()->toDateString())
+            ->call('submit');
+
+        $this->assertDatabaseHas('attendance_req_permission_details', [
+            'permission_type' => 'Izin Keluarga Inti Meninggal',
+            'category' => 'izin_khusus',
         ]);
     }
 

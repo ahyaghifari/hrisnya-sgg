@@ -2,7 +2,6 @@
 
 namespace App\Models\Attendance;
 
-use App\Models\Master\Attendance\PermissionTypes;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 
@@ -14,7 +13,6 @@ class AttendanceRequestPermissionDetails extends Model
 
     protected $fillable = [
         'request_id',
-        'permission_type_id',
         'permission_type',
         'category',
         'date',
@@ -32,11 +30,6 @@ class AttendanceRequestPermissionDetails extends Model
     public function attendanceRequest()
     {
         return $this->belongsTo(AttendanceRequests::class, 'request_id', 'id');
-    }
-
-    public function permissionType()
-    {
-        return $this->belongsTo(PermissionTypes::class, 'permission_type_id', 'id');
     }
 
     public function substituteUser()

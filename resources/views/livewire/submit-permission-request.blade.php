@@ -49,19 +49,19 @@
                     @error('group') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
                 </div>
 
-                @if ($group && $this->subJenisOptions->isNotEmpty())
+                @if ($group && count($this->subJenisOptions) > 0)
                     <div>
                         <label class="form-label">Jenis Izin <span style="color:var(--danger-text);">*</span></label>
-                        <select class="form-input" wire:model.live="permission_type_id">
+                        <select class="form-input" wire:model.live="permission_type">
                             <option value="">Pilih jenis izin</option>
                             @foreach ($this->subJenisOptions as $type)
-                                <option value="{{ $type->id }}">{{ $type->name }}</option>
+                                <option value="{{ $type->value }}">{{ $type->label() }}</option>
                             @endforeach
                         </select>
-                        @error('permission_type_id') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
-                        @if ($this->selectedType?->description)
+                        @error('permission_type') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
+                        @if ($this->selectedType?->description())
                             <p style="font-size:12px;color:var(--text-muted);margin-top:6px;background:var(--surface-alt);border-radius:8px;padding:8px 10px;">
-                                <i class="fa-solid fa-circle-info" style="margin-right:4px;"></i>{{ $this->selectedType->description }}
+                                <i class="fa-solid fa-circle-info" style="margin-right:4px;"></i>{{ $this->selectedType->description() }}
                             </p>
                         @endif
                     </div>
@@ -175,7 +175,16 @@
 
         <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
             <a href="{{ route('my-attendance-requests') }}" wire:navigate class="btn-ghost"><i class="fa-solid fa-arrow-left" style="font-size:12px;"></i> Kembali</a>
-            <button type="submit" class="btn-primary" wire:loading.attr="disabled" wire:target="submit"><i class="fa-solid fa-paper-plane" style="font-size:12px;"></i> Ajukan Izin</button>
+            <button type="submit" class="btn-primary" wire:loading.attr="disabled" wire:target="submit" @disabled($submitted)>
+                {{-- Sedang kirim (wire:loading) atau sudah sukses & menunggu pindah halaman ($submitted):
+                teks "Diajukan..." + ikon berputar, tombol mati. Normal: ikon kirim + label. --}}
+                @if ($submitted)
+                    <i class="fa-solid fa-spinner fa-spin" style="font-size:12px;"></i> Diajukan...
+                @else
+                    <span wire:loading.remove wire:target="submit"><i class="fa-solid fa-paper-plane" style="font-size:12px;"></i> Ajukan Izin</span>
+                    <span wire:loading wire:target="submit"><i class="fa-solid fa-spinner fa-spin" style="font-size:12px;"></i> Diajukan...</span>
+                @endif
+            </button>
         </div>
     </form>
 </div>

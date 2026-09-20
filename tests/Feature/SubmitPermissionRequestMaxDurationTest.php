@@ -5,7 +5,7 @@ namespace Tests\Feature;
 use App\Enum\Attendance\AttendanceSettingEnum;
 use App\Enum\Attendance\PermissionTypeCategoryEnum;
 use App\Livewire\SubmitPermissionRequest;
-use App\Models\Master\Attendance\PermissionTypes;
+use App\Enum\Attendance\PermissionTypeEnum;
 use App\Models\Master\Companies;
 use App\Models\Setting;
 use App\Models\User;
@@ -21,26 +21,16 @@ class SubmitPermissionRequestMaxDurationTest extends TestCase
 {
     use RefreshDatabase;
 
-    private function makePermissionType(string $companyId): PermissionTypes
-    {
-        return PermissionTypes::create([
-            'company_id' => $companyId,
-            'name' => 'Izin Terlambat',
-            'category' => PermissionTypeCategoryEnum::IZIN_TERLAMBAT_MASUK->value,
-        ]);
-    }
-
     public function test_duration_within_default_limit_passes(): void
     {
         $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
         $user = User::factory()->create(['company_id' => $company->id]);
-        $type = $this->makePermissionType($company->id);
 
         $this->actingAs($user);
 
         Livewire::test(SubmitPermissionRequest::class)
             ->set('group', 'meninggalkan_jam_kerja')
-            ->set('permission_type_id', $type->id)
+            ->set('permission_type', PermissionTypeEnum::TERLAMBAT->value)
             ->set('date', '2026-08-10')
             ->set('start_time', '08:00')
             ->set('end_time', '10:00')
@@ -52,13 +42,12 @@ class SubmitPermissionRequestMaxDurationTest extends TestCase
     {
         $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
         $user = User::factory()->create(['company_id' => $company->id]);
-        $type = $this->makePermissionType($company->id);
 
         $this->actingAs($user);
 
         Livewire::test(SubmitPermissionRequest::class)
             ->set('group', 'meninggalkan_jam_kerja')
-            ->set('permission_type_id', $type->id)
+            ->set('permission_type', PermissionTypeEnum::TERLAMBAT->value)
             ->set('date', '2026-08-10')
             ->set('start_time', '08:00')
             ->set('end_time', '11:30') // 3.5 jam, melebihi default 3 jam
@@ -70,7 +59,6 @@ class SubmitPermissionRequestMaxDurationTest extends TestCase
     {
         $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
         $user = User::factory()->create(['company_id' => $company->id]);
-        $type = $this->makePermissionType($company->id);
 
         Setting::updateOrCreate(
             ['company_id' => $company->id, 'key' => AttendanceSettingEnum::IZIN_MENINGGALKAN_JAM_KERJA_MAX_JAM->value],
@@ -81,7 +69,7 @@ class SubmitPermissionRequestMaxDurationTest extends TestCase
 
         Livewire::test(SubmitPermissionRequest::class)
             ->set('group', 'meninggalkan_jam_kerja')
-            ->set('permission_type_id', $type->id)
+            ->set('permission_type', PermissionTypeEnum::TERLAMBAT->value)
             ->set('date', '2026-08-10')
             ->set('start_time', '08:00')
             ->set('end_time', '15:00') // 7 jam, tapi setting 0 = tidak dibatasi

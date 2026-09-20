@@ -6,7 +6,6 @@ use App\Enum\Attendance\PermissionTypeCategoryEnum;
 use App\Enum\AttendanceReqStatus;
 use App\Models\Attendance\AttendanceRequestPermissionDetails;
 use App\Models\Attendance\AttendanceRequests;
-use App\Models\Master\Attendance\PermissionTypes;
 use App\Models\Master\Companies;
 use App\Models\Payroll\Payroll;
 use App\Models\Payroll\PayrollItem;
@@ -40,12 +39,6 @@ class IzinSeharianCalculatorTest extends TestCase
 
     private function makeApprovedIzinSeharian(User $user, string $companyId, string $date): void
     {
-        $permissionType = PermissionTypes::create([
-            'company_id' => $companyId,
-            'name' => 'Izin Seharian',
-            'category' => PermissionTypeCategoryEnum::IZIN_SEHARIAN->value,
-        ]);
-
         $request = AttendanceRequests::create([
             'user_id' => $user->id,
             'type' => 'permission',
@@ -54,8 +47,7 @@ class IzinSeharianCalculatorTest extends TestCase
 
         AttendanceRequestPermissionDetails::create([
             'request_id' => $request->id,
-            'permission_type_id' => $permissionType->id,
-            'category' => $permissionType->category,
+            'category' => PermissionTypeCategoryEnum::IZIN_SEHARIAN->value,
             'date' => $date,
         ]);
     }

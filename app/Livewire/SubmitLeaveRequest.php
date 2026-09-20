@@ -3,7 +3,6 @@
 namespace App\Livewire;
 
 use App\Enum\Attendance\LeaveTypeCategoryEnum;
-use App\Models\Master\Attendance\LeaveTypes;
 use App\Services\Attendance\AttendaceReqService;
 use App\Services\Attendance\ScheduleResolver;
 use Filament\Notifications\Notification;
@@ -15,7 +14,8 @@ class SubmitLeaveRequest extends Component
 {
     use WithFileUploads;
 
-    public ?string $leave_type_id = null;
+    public ?string $leave_type = null; // key LeaveTypeCategoryEnum
+    public bool $submitted = false; // true sesudah sukses, sampai redirect selesai (cegah kirim ganda)
     public ?string $start_date = null;
     public ?string $end_date = null;
     public ?string $reason = null;
@@ -43,13 +43,10 @@ class SubmitLeaveRequest extends Component
         // dibatasi (setting 0/tidak diset, atau joining_date kosong).
         $windowOpen = $service->cutiTahunanEligibleDate(Auth::user())?->subMonth();
 
-        return LeaveTypes::where('company_id', Auth::user()->company_id)
-            ->get()
-            ->reject(function ($type) use ($isFemale, $windowOpen, $tenureMet) {
-                $cat = LeaveTypeCategoryEnum::tryFrom($type->category ?? '');
-
+        return collect(LeaveTypeCategoryEnum::cases())
+            ->reject(function (LeaveTypeCategoryEnum $cat) use ($isFemale, $windowOpen, $tenureMet) {
                 // Cuti haid/melahirkan/keguguran cuma buat karyawan perempuan.
-                if ($cat?->isFemaleOnly() && ! $isFemale) {
+                if ($cat->isFemaleOnly() && ! $isFemale) {
                     return true;
                 }
 
@@ -89,13 +86,7 @@ class SubmitLeaveRequest extends Component
     /** Kategori cuti khusus dari jenis cuti yang dipilih (null kalau cuti biasa/tahunan). */
     public function getSelectedCategoryProperty(): ?LeaveTypeCategoryEnum
     {
-        if (! $this->leave_type_id) {
-            return null;
-        }
-
-        $type = LeaveTypes::find($this->leave_type_id);
-
-        return $type ? LeaveTypeCategoryEnum::tryFrom($type->category ?? '') : null;
+        return $this->leave_type ? LeaveTypeCategoryEnum::tryFrom($this->leave_type) : null;
     }
 
     public function getRequiresAttachmentProperty(): bool
@@ -127,7 +118,7 @@ class SubmitLeaveRequest extends Component
         return app(ScheduleResolver::class)->workingDaysBetween(Auth::user(), $this->start_date, $this->end_date);
     }
 
-    public function updatedLeaveTypeId(): void
+    public function updatedLeaveType(): void
     {
         $this->attachments = [];
         $this->refreshQuota();
@@ -139,13 +130,13 @@ class SubmitLeaveRequest extends Component
     }
 
     /**
-     * Sama seperti info kuota di halaman approval (§8) — kuota tahun (LeaveTypes::quota_days)
+     * Sama seperti info kuota di halaman approval (§8) — kuota (LeaveTypeCategoryEnum::quotaDays())
      * DAN batas per-periode (setting cuti_tahunan_max_per_bulan, kalau leave type-nya kategori
      * Tahunan) ditampilkan ke pemohon SEBELUM submit, bukan cuma diketahui approver.
      */
     private function refreshQuota(): void
     {
-        if (! $this->leave_type_id) {
+        if (! $this->leave_type) {
             $this->balance = null;
             $this->periode = null;
             return;
@@ -153,14 +144,14 @@ class SubmitLeaveRequest extends Component
 
         $service = app(AttendaceReqService::class);
 
-        $this->balance = $service->getLeaveUserBalance(Auth::id(), $this->leave_type_id, $this->start_date);
-        $this->periode = $service->getCutiTahunanPeriodeUsage(Auth::user(), $this->leave_type_id, $this->start_date);
+        $this->balance = $service->getLeaveUserBalance(Auth::id(), $this->leave_type, $this->start_date);
+        $this->periode = $service->getCutiTahunanPeriodeUsage(Auth::user(), $this->leave_type, $this->start_date);
     }
 
     protected function rules(): array
     {
         return [
-            'leave_type_id' => ['required', 'exists:m_leave_types,id'],
+            'leave_type' => ['required', \Illuminate\Validation\Rule::enum(LeaveTypeCategoryEnum::class)],
             'start_date' => ['required', 'date'],
             'end_date' => ['required', 'date', 'after_or_equal:start_date'],
             'reason' => ['nullable', 'string'],
@@ -178,12 +169,15 @@ class SubmitLeaveRequest extends Component
 
     public function submit(): void
     {
+        if ($this->submitted) {
+            return;
+        }
+
         $data = $this->validate();
 
         // Guard server-side — jenis cuti female-only tidak boleh diajukan karyawan non-perempuan
         // (walau di dropdown sudah disembunyikan).
-        $type = LeaveTypes::find($data['leave_type_id']);
-        $cat = $type ? LeaveTypeCategoryEnum::tryFrom($type->category ?? '') : null;
+        $cat = LeaveTypeCategoryEnum::tryFrom($data['leave_type']);
 
         if ($cat?->isFemaleOnly() && Auth::user()->profile?->gender !== 'perempuan') {
             Notification::make()
@@ -196,7 +190,7 @@ class SubmitLeaveRequest extends Component
 
         try {
             app(AttendaceReqService::class)->storeLeaveRequest([
-                'type_id' => $data['leave_type_id'],
+                'type_id' => $data['leave_type'],
                 'start_date' => $data['start_date'],
                 'end_date' => $data['end_date'],
                 'attachments' => $data['attachments'] ?? null,
@@ -206,6 +200,10 @@ class SubmitLeaveRequest extends Component
                 ->title('Pengajuan cuti berhasil dikirim')
                 ->success()
                 ->send();
+
+            // Tombol tetap terkunci sampai halaman berpindah - respons sukses sudah selesai (loading
+            // berakhir) tapi navigasi ke daftar pengajuan belum, jangan sampai bisa diklik lagi.
+            $this->submitted = true;
 
             $this->redirect(route('my-attendance-requests'), navigate: true);
         } catch (\Exception $e) {

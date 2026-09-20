@@ -7,7 +7,6 @@ use App\Enum\AttendanceReqStatus;
 use App\Enum\Payroll\PayrollComponentEnum;
 use App\Models\Attendance\AttendanceRequestLeaveDetails;
 use App\Models\Attendance\AttendanceRequests;
-use App\Models\Master\Attendance\LeaveTypes;
 use App\Models\Master\Companies;
 use App\Models\Master\EmployeeTypes;
 use App\Models\Master\Kelas;
@@ -73,11 +72,7 @@ class CutiMelahirkanCalculatorTest extends TestCase
      *  CutiCalculator yang motong ke irisan periode). */
     private function approvedMaternityLeave(User $user, string $start, string $end): void
     {
-        $type = LeaveTypes::create([
-            'company_id' => $this->company->id, 'name' => 'Cuti Melahirkan',
-            'category' => LeaveTypeCategoryEnum::MELAHIRKAN->value, 'quota_days' => 90,
-            'reset_period' => 'none', 'is_paid' => true,
-        ]);
+        $type = LeaveTypeCategoryEnum::MELAHIRKAN;
 
         $request = AttendanceRequests::create([
             'user_id' => $user->id, 'created_by' => $user->id,
@@ -85,7 +80,7 @@ class CutiMelahirkanCalculatorTest extends TestCase
         ]);
 
         AttendanceRequestLeaveDetails::create([
-            'request_id' => $request->id, 'leave_type_id' => $type->id, 'leave_type' => $type->name,
+            'request_id' => $request->id, 'category' => $type->value, 'leave_type' => $type->label(),
             'start_date' => $start, 'end_date' => $end,
             'total_days' => \Carbon\Carbon::parse($start)->diffInDays(\Carbon\Carbon::parse($end)) + 1,
         ]);

@@ -7,7 +7,6 @@ use App\Enum\AttendanceReqStatus;
 use App\Enum\Payroll\PayrollComponentEnum;
 use App\Models\Attendance\AttendanceRequestPermissionDetails;
 use App\Models\Attendance\AttendanceRequests;
-use App\Models\Master\Attendance\PermissionTypes;
 use App\Models\Master\Companies;
 use App\Models\Master\EmployeeTypes;
 use App\Models\Master\Kelas;
@@ -58,9 +57,8 @@ class PayrollGenerateOrderTest extends TestCase
 
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
 
-        $permissionType = PermissionTypes::create(['company_id' => $company->id, 'name' => 'Izin Seharian', 'category' => PermissionTypeCategoryEnum::IZIN_SEHARIAN->value]);
         $request = AttendanceRequests::create(['user_id' => $user->id, 'type' => 'permission', 'status' => AttendanceReqStatus::APPROVED->value]);
-        AttendanceRequestPermissionDetails::create(['request_id' => $request->id, 'permission_type_id' => $permissionType->id, 'category' => PermissionTypeCategoryEnum::IZIN_SEHARIAN->value, 'date' => '2026-07-10']);
+        AttendanceRequestPermissionDetails::create(['request_id' => $request->id, 'category' => PermissionTypeCategoryEnum::IZIN_SEHARIAN->value, 'date' => '2026-07-10']);
 
         app(PayrollService::class)->generatePayroll($period);
 

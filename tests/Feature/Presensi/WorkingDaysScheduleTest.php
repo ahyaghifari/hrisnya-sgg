@@ -6,7 +6,6 @@ use App\Enum\Attendance\LeaveTypeCategoryEnum;
 use App\Models\ApprovalManagement\MasterApprovalFlows;
 use App\Models\ApprovalManagement\MasterApprovalFlowSteps;
 use App\Models\Attendance\AttendanceRequests;
-use App\Models\Master\Attendance\LeaveTypes;
 use App\Models\Master\Companies;
 use App\Models\Shift\Schedule;
 use App\Models\Shift\ScheduleAssignment;
@@ -121,16 +120,12 @@ class WorkingDaysScheduleTest extends TestCase
     {
         $this->giveFixedScheduleSatSunOff();
 
-        $type = LeaveTypes::create([
-            'company_id' => $this->company->id, 'name' => 'Cuti Tahunan',
-            'category' => LeaveTypeCategoryEnum::TAHUNAN->value, 'quota_days' => 12,
-            'reset_period' => 'yearly', 'is_paid' => true,
-        ]);
+        $type = LeaveTypeCategoryEnum::TAHUNAN;
 
         $monday = Carbon::parse('2026-09-07')->startOfWeek(Carbon::MONDAY);
 
         app(AttendaceReqService::class)->storeLeaveRequest([
-            'type_id' => $type->id,
+            'type_id' => $type->value,
             'is_one_day' => false,
             'start_date' => $monday->toDateString(),
             'end_date' => $monday->copy()->addDays(6)->toDateString(),
@@ -148,17 +143,13 @@ class WorkingDaysScheduleTest extends TestCase
     {
         $this->giveFixedScheduleSatSunOff();
 
-        $type = LeaveTypes::create([
-            'company_id' => $this->company->id, 'name' => 'Cuti Tahunan',
-            'category' => LeaveTypeCategoryEnum::TAHUNAN->value, 'quota_days' => 12,
-            'reset_period' => 'yearly', 'is_paid' => true,
-        ]);
+        $type = LeaveTypeCategoryEnum::TAHUNAN;
 
         // Sabtu (off day) — 1 tanggal tetap total_days 1 (yang diajukan dihormati).
         $saturday = Carbon::parse('2026-09-07')->startOfWeek(Carbon::MONDAY)->addDays(5);
 
         app(AttendaceReqService::class)->storeLeaveRequest([
-            'type_id' => $type->id,
+            'type_id' => $type->value,
             'is_one_day' => true,
             'start_date' => $saturday->toDateString(),
             'end_date' => $saturday->toDateString(),

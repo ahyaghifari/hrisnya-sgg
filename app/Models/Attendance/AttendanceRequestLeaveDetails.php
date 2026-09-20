@@ -13,8 +13,8 @@ class AttendanceRequestLeaveDetails extends Model
 
     protected $fillable = [
         'request_id',
-        'leave_type_id',
         'leave_type',
+        'category',
         'start_date',
         'end_date',
         'total_days',
@@ -25,8 +25,4 @@ class AttendanceRequestLeaveDetails extends Model
         return $this->belongsTo(AttendanceRequests::class, 'request_id');
     }
 
-    public function leaveType()
-    {
-        return $this->belongsTo(\App\Models\Master\Attendance\LeaveTypes::class, 'leave_type_id', 'id');
-    }
 }

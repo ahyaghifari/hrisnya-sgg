@@ -5,18 +5,12 @@ namespace App\Repositories\Attendance;
 use App\Models\Attendance\AttendanceRequestAttachments;
 use App\Models\Attendance\AttendanceRequestPermissionDetails;
 use App\Models\Attendance\AttendanceRequests;
-use App\Models\Master\Attendance\PermissionTypes;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
 class PermissionReqRepository
 {
-    public function getPermissionTypeById(string $id)
-    {
-        return PermissionTypes::find($id);
-    }
-
     public function findAttendanceReqPermissionDetail(string $attendanceReqId)
     {
         return AttendanceRequests::with('user.profile.jobPosition.orgStructure', 'permissionDetails', 'attachments')->find($attendanceReqId);
@@ -36,7 +30,6 @@ class PermissionReqRepository
 
             $detail = AttendanceRequestPermissionDetails::create([
                 'request_id' => $data['request_id'],
-                'permission_type_id' => $data['permission_type_id'],
                 'permission_type' => $data['permission_type'],
                 'category' => $data['category'] ?? null,
                 'date' => $data['date'],

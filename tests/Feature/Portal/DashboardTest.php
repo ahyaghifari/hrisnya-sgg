@@ -9,7 +9,7 @@ use App\Models\Attendance\AttendanceRequestLeaveDetails;
 use App\Models\Attendance\AttendanceRequests;
 use App\Models\LMS\LmsCourses;
 use App\Models\LMS\LmsCourseUsers;
-use App\Models\Master\Attendance\LeaveTypes;
+use App\Enum\Attendance\LeaveTypeCategoryEnum;
 use App\Models\Master\Companies;
 use App\Models\Master\JobPositions;
 use App\Models\Shift\Schedule;
@@ -175,13 +175,7 @@ class DashboardTest extends TestCase
     {
         $companyId = Companies::create(['code' => 'TST', 'name' => 'Test Co', 'location' => 'Test', 'is_active' => true])->id;
         $user = User::factory()->create(['company_id' => $companyId]);
-        $leaveType = LeaveTypes::create([
-            'company_id' => $companyId,
-            'name' => 'Cuti Tahunan',
-            'quota_days' => 12,
-            'reset_period' => 'yearly',
-            'is_paid' => true,
-        ]);
+        $leaveType = LeaveTypeCategoryEnum::TAHUNAN;
         // "used" dihitung live dari request APPROVED dalam periode (tabel leave_user_balances
         // sudah dihapus). Lihat LeaveReqRepository::getLeaveUserBalance().
         $approvedRequest = AttendanceRequests::create([
@@ -192,8 +186,8 @@ class DashboardTest extends TestCase
 
         AttendanceRequestLeaveDetails::create([
             'request_id' => $approvedRequest->id,
-            'leave_type_id' => $leaveType->id,
-            'leave_type' => $leaveType->name,
+            'category' => $leaveType->value,
+            'leave_type' => $leaveType->label(),
             'start_date' => now()->toDateString(),
             'end_date' => now()->addDays(3)->toDateString(),
             'total_days' => 4,
@@ -213,13 +207,7 @@ class DashboardTest extends TestCase
     {
         $companyId = Companies::create(['code' => 'TST2', 'name' => 'Test Co 2', 'location' => 'Test', 'is_active' => true])->id;
         $user = User::factory()->create(['company_id' => $companyId]);
-        $leaveType = LeaveTypes::create([
-            'company_id' => $companyId,
-            'name' => 'Cuti Tahunan',
-            'quota_days' => 12,
-            'reset_period' => 'yearly',
-            'is_paid' => true,
-        ]);
+        $leaveType = LeaveTypeCategoryEnum::TAHUNAN;
         $request = AttendanceRequests::create([
             'user_id' => $user->id,
             'type' => 'leave',
@@ -227,8 +215,8 @@ class DashboardTest extends TestCase
         ]);
         AttendanceRequestLeaveDetails::create([
             'request_id' => $request->id,
-            'leave_type_id' => $leaveType->id,
-            'leave_type' => $leaveType->name,
+            'category' => $leaveType->value,
+            'leave_type' => $leaveType->label(),
             'start_date' => now()->toDateString(),
             'end_date' => now()->toDateString(),
             'total_days' => 1,

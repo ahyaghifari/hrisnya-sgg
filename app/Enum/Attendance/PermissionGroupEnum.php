@@ -4,8 +4,8 @@ namespace App\Enum\Attendance;
 
 /**
  * 4 kelompok besar Izin yang dipilih user di level 1 form pengajuan (`SubmitPermissionRequest`).
- * Konsep grouping ini murni UI, bukan kolom database - m_permission_types tetap flat, cuma
- * dikelompokkan lewat categories() di bawah. Kelompok MENINGGALKAN_JAM_KERJA & KHUSUS punya
+ * Konsep grouping ini murni UI, bukan kolom database - jenis izin (PermissionTypeEnum) tetap flat,
+ * cuma dikelompokkan lewat categories() di bawah. Kelompok MENINGGALKAN_JAM_KERJA & KHUSUS punya
  * pilihan level 2 (>1 kategori), TIDAK_MASUK_SEHARIAN & SAKIT flat (1 kategori).
  */
 enum PermissionGroupEnum: string
@@ -42,8 +42,8 @@ enum PermissionGroupEnum: string
 
     /**
      * Kelompok yang butuh dropdown level 2 di form. Meninggalkan Jam Kerja punya banyak
-     * KATEGORI (3), Khusus punya banyak BARIS m_permission_types tapi 1 kategori sama
-     * (dibedakan lewat name+default_days) - keduanya tetap butuh dropdown, TIDAK bisa dideteksi
+     * KATEGORI (3), Khusus punya banyak JENIS (PermissionTypeEnum) tapi 1 kategori sama
+     * (dibedakan lewat jenis/labelnya) - keduanya tetap butuh dropdown, TIDAK bisa dideteksi
      * dari count(categories()) (itu bug lama: Khusus keliru dianggap flat karena cuma 1 kategori).
      */
     public function hasSubKategori(): bool
@@ -61,22 +61,6 @@ enum PermissionGroupEnum: string
     public function bolehLampiran(): bool
     {
         return $this === self::SAKIT || $this === self::KHUSUS;
-    }
-
-    /**
-     * Kategori yang masih butuh baris master `m_permission_types` (union categories() dari
-     * kelompok hasSubKategori() - Meninggalkan Jam Kerja & Khusus). Tidak Masuk Seharian &
-     * Sakit sengaja TIDAK di sini - category-nya di-set langsung dari kelompok, tanpa master
-     * sama sekali (lihat SubmitPermissionRequest::updatedGroup()).
-     *
-     * @return PermissionTypeCategoryEnum[]
-     */
-    public static function masterCategories(): array
-    {
-        return collect(self::cases())
-            ->filter(fn ($g) => $g->hasSubKategori())
-            ->flatMap(fn ($g) => $g->categories())
-            ->all();
     }
 
     public static function fromCategory(PermissionTypeCategoryEnum $category): self

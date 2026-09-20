@@ -3,16 +3,17 @@
 namespace App\Enum\Attendance;
 
 /**
- * Kategori tetap `m_leave_types.category` — dipakai buat mengidentifikasi jenis cuti tertentu
- * tanpa cocok nama (fragile). Pola sama PermissionTypeCategoryEnum.
+ * Jenis Cuti - tetap & sama untuk semua perusahaan (tabel master m_leave_types dihapus
+ * 2026-09-20). Nilai enum = key yang dikirim form/API (`type_id`) dan disimpan di
+ * attendance_req_leave_details.category. Pola sama PermissionTypeCategoryEnum.
  *
  * - TAHUNAN     : cuti tahunan biasa, kena aturan batas akumulasi/bulan (cuti_tahunan_max_per_bulan)
  * - HAID        : hak bulanan (UU 13/2003 Ps 81), maks 2 hari/bulan, dibayar penuh, perempuan saja
  * - MELAHIRKAN  : UU 13/2003 Ps 82, ~3 bulan (1,5 sebelum + 1,5 sesudah), per kehamilan, surat dokter
  * - KEGUGURAN   : UU 13/2003 Ps 82, ~1,5 bulan / sesuai surat dokter, per kejadian, surat dokter
  *
- * Kuota (`quota_days`) & is_paid tetap dari baris `m_leave_types` (bisa diatur admin per company);
- * enum ini cuma mendefinisikan ATURAN yang menempel ke kategori.
+ * Kuota (`quotaDays()`) tetap sesuai UU/kebijakan, sama untuk semua perusahaan; enum ini juga
+ * mendefinisikan ATURAN yang menempel ke tiap jenis.
  */
 enum LeaveTypeCategoryEnum: string
 {
@@ -65,7 +66,7 @@ enum LeaveTypeCategoryEnum: string
      * Bagaimana pemakaian ("used") dihitung untuk validasi & tampilan sisa:
      * - 'yearly'      : Σ hari approved dalam tahun kalender berjalan (TAHUNAN)
      * - 'monthly'     : Σ hari approved dalam bulan kalender berjalan (HAID — hak 2 hari/bulan)
-     * - 'per_request' : tidak ada saldo berjalan; cukup validasi total_days 1 pengajuan ≤ quota_days
+     * - 'per_request' : tidak ada saldo berjalan; cukup validasi total_days 1 pengajuan ≤ quotaDays()
      *   (MELAHIRKAN/KEGUGURAN — hak per kejadian, bukan akumulasi)
      */
     public function usageWindow(): string
@@ -77,8 +78,8 @@ enum LeaveTypeCategoryEnum: string
         };
     }
 
-    /** Kuota default sesuai UU — cuma acuan buat seeding; nilai final tetap dari m_leave_types.quota_days. */
-    public function defaultQuotaDays(): int
+    /** Kuota hari sesuai UU/kebijakan (tahunan: per tahun, haid: per bulan, melahirkan/keguguran: per pengajuan). */
+    public function quotaDays(): int
     {
         return match ($this) {
             self::TAHUNAN => 12,

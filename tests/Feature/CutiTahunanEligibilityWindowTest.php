@@ -8,7 +8,6 @@ use App\Livewire\SubmitLeaveRequest;
 use App\Models\ApprovalManagement\MasterApprovalFlows;
 use App\Models\ApprovalManagement\MasterApprovalFlowSteps;
 use App\Models\Attendance\AttendanceRequests;
-use App\Models\Master\Attendance\LeaveTypes;
 use App\Models\Master\Companies;
 use App\Models\Setting;
 use App\Models\User;
@@ -50,18 +49,14 @@ class CutiTahunanEligibilityWindowTest extends TestCase
     private function userJoinedOn(Companies $company, string $joiningDate): User
     {
         $user = User::factory()->create(['company_id' => $company->id]);
-        UserProfiles::create(['user_id' => $user->id, 'joining_date' => $joiningDate]);
+        UserProfiles::create(['user_id' => $user->id, 'joining_date' => $joiningDate, 'gender' => 'perempuan']);
 
         return $user;
     }
 
-    private function cutiTahunanType(Companies $company): LeaveTypes
+    private function cutiTahunanType(Companies $company): LeaveTypeCategoryEnum
     {
-        return LeaveTypes::create([
-            'company_id' => $company->id, 'name' => 'Cuti Tahunan',
-            'category' => LeaveTypeCategoryEnum::TAHUNAN->value, 'quota_days' => 12,
-            'reset_period' => 'yearly', 'is_paid' => true,
-        ]);
+        return LeaveTypeCategoryEnum::TAHUNAN;
     }
 
     private function setMinMasaKerjaBulan(Companies $company, int $months): void
@@ -86,7 +81,7 @@ class CutiTahunanEligibilityWindowTest extends TestCase
 
         $types = Livewire::test(SubmitLeaveRequest::class)->instance()->leaveTypes;
 
-        $this->assertFalse($types->contains('id', $type->id));
+        $this->assertFalse($types->contains($type));
 
         \Carbon\Carbon::setTestNow();
     }
@@ -103,7 +98,7 @@ class CutiTahunanEligibilityWindowTest extends TestCase
 
         $types = Livewire::test(SubmitLeaveRequest::class)->instance()->leaveTypes;
 
-        $this->assertTrue($types->contains('id', $type->id));
+        $this->assertTrue($types->contains($type));
 
         \Carbon\Carbon::setTestNow();
     }
@@ -119,7 +114,7 @@ class CutiTahunanEligibilityWindowTest extends TestCase
         \Carbon\Carbon::setTestNow('2026-03-01');
 
         Livewire::test(SubmitLeaveRequest::class)
-            ->set('leave_type_id', $type->id)
+            ->set('leave_type', $type->value)
             ->set('start_date', '2026-05-05')
             ->set('end_date', '2026-05-05')
             ->call('submit');
@@ -142,7 +137,7 @@ class CutiTahunanEligibilityWindowTest extends TestCase
         \Carbon\Carbon::setTestNow('2026-04-10');
 
         Livewire::test(SubmitLeaveRequest::class)
-            ->set('leave_type_id', $type->id)
+            ->set('leave_type', $type->value)
             ->set('start_date', '2026-04-20') // < 5 Mei 2026
             ->set('end_date', '2026-04-20')
             ->call('submit');
@@ -164,7 +159,7 @@ class CutiTahunanEligibilityWindowTest extends TestCase
         \Carbon\Carbon::setTestNow('2026-04-10');
 
         Livewire::test(SubmitLeaveRequest::class)
-            ->set('leave_type_id', $type->id)
+            ->set('leave_type', $type->value)
             ->set('start_date', '2026-05-05')
             ->set('end_date', '2026-05-05')
             ->call('submit');
@@ -183,10 +178,10 @@ class CutiTahunanEligibilityWindowTest extends TestCase
         $this->be($user);
 
         $types = Livewire::test(SubmitLeaveRequest::class)->instance()->leaveTypes;
-        $this->assertTrue($types->contains('id', $type->id));
+        $this->assertTrue($types->contains($type));
 
         Livewire::test(SubmitLeaveRequest::class)
-            ->set('leave_type_id', $type->id)
+            ->set('leave_type', $type->value)
             ->set('start_date', now()->addDay()->toDateString())
             ->set('end_date', now()->addDay()->toDateString())
             ->call('submit');
@@ -194,13 +189,10 @@ class CutiTahunanEligibilityWindowTest extends TestCase
         $this->assertSame(1, AttendanceRequests::where('user_id', $user->id)->count());
     }
 
-    private function cutiBiasaType(Companies $company): LeaveTypes
+    /** Jenis selain Tahunan (aturan masa kerja minimal langsung berlaku) - sekarang semuanya cuti khusus. */
+    private function cutiBiasaType(Companies $company): LeaveTypeCategoryEnum
     {
-        return LeaveTypes::create([
-            'company_id' => $company->id, 'name' => 'Cuti Biasa',
-            'category' => null, 'quota_days' => 12,
-            'reset_period' => 'yearly', 'is_paid' => true,
-        ]);
+        return LeaveTypeCategoryEnum::MELAHIRKAN;
     }
 
     /** Masa kerja minimal (instruksi user 2026-09-15) berlaku ke jenis cuti SELAIN Tahunan
@@ -217,10 +209,10 @@ class CutiTahunanEligibilityWindowTest extends TestCase
         \Carbon\Carbon::setTestNow('2026-03-01');
 
         $types = Livewire::test(SubmitLeaveRequest::class)->instance()->leaveTypes;
-        $this->assertFalse($types->contains('id', $type->id));
+        $this->assertFalse($types->contains($type));
 
         Livewire::test(SubmitLeaveRequest::class)
-            ->set('leave_type_id', $type->id)
+            ->set('leave_type', $type->value)
             ->set('start_date', '2026-03-05')
             ->set('end_date', '2026-03-05')
             ->call('submit');
@@ -242,12 +234,13 @@ class CutiTahunanEligibilityWindowTest extends TestCase
         \Carbon\Carbon::setTestNow('2026-03-01'); // 2 bulan kerja >= minimal 1 bulan
 
         $types = Livewire::test(SubmitLeaveRequest::class)->instance()->leaveTypes;
-        $this->assertTrue($types->contains('id', $type->id));
+        $this->assertTrue($types->contains($type));
 
         Livewire::test(SubmitLeaveRequest::class)
-            ->set('leave_type_id', $type->id)
+            ->set('leave_type', $type->value)
             ->set('start_date', '2026-03-05')
             ->set('end_date', '2026-03-05')
+            ->set('attachments', [\Illuminate\Http\UploadedFile::fake()->create('surat.pdf', 50, 'application/pdf')])
             ->call('submit');
 
         $this->assertSame(1, AttendanceRequests::where('user_id', $user->id)->count());

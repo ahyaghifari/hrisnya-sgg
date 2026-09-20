@@ -15,6 +15,7 @@ class SubmitOvertimeRequest extends Component
     use WithFileUploads;
 
     public ?string $overtime_type = null; // key OvertimeTypeEnum (biasa|khusus)
+    public bool $submitted = false; // true sesudah sukses, sampai redirect selesai (cegah kirim ganda)
     public ?string $date = null;
 
     /** @var array<int, array{task_description: ?string, start_time: ?string, end_time: ?string}> */
@@ -67,6 +68,10 @@ class SubmitOvertimeRequest extends Component
 
     public function submit(): void
     {
+        if ($this->submitted) {
+            return;
+        }
+
         foreach ($this->tasks as $i => $task) {
             $this->tasks[$i]['start_time'] = TimeInput::normalize($task['start_time'] ?? null);
             $this->tasks[$i]['end_time'] = TimeInput::normalize($task['end_time'] ?? null);
@@ -86,6 +91,10 @@ class SubmitOvertimeRequest extends Component
                 ->title('Pengajuan lembur berhasil dikirim')
                 ->success()
                 ->send();
+
+            // Tombol tetap terkunci sampai halaman berpindah - respons sukses sudah selesai (loading
+            // berakhir) tapi navigasi ke daftar pengajuan belum, jangan sampai bisa diklik lagi.
+            $this->submitted = true;
 
             $this->redirect(route('my-attendance-requests'), navigate: true);
         } catch (\Exception $e) {

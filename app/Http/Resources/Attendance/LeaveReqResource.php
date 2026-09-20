@@ -46,13 +46,13 @@ class LeaveReqResource extends JsonResource
             })(),
             'remaining_leave_quota' => (function () {
                 $leaveDetail = $this->leaveDetails->first();
-                if (!$leaveDetail || !$leaveDetail->leave_type_id) {
+                if (!$leaveDetail || !$leaveDetail->category) {
                     return null;
                 }
 
                 try {
                     $leaveReqService = app(\App\Services\Attendance\AttendaceReqService::class);
-                    $balance = $leaveReqService->getLeaveUserBalance($this->user->id, $leaveDetail->leave_type_id, $leaveDetail->start_date);
+                    $balance = $leaveReqService->getLeaveUserBalance($this->user->id, $leaveDetail->category, $leaveDetail->start_date);
                     return $balance['available'] ?? 0;
                 } catch (\Exception $e) {
                     return null;

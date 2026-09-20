@@ -7,7 +7,7 @@ use App\Livewire\AttendanceRequestDetail;
 use App\Models\ApprovalManagement\MasterApprovalFlows;
 use App\Models\ApprovalManagement\MasterApprovalFlowSteps;
 use App\Models\Attendance\AttendanceRequests;
-use App\Models\Master\Attendance\LeaveTypes;
+use App\Enum\Attendance\LeaveTypeCategoryEnum;
 use App\Models\Master\Companies;
 use App\Models\Shift\Schedule;
 use App\Models\Shift\ScheduleAssignment;
@@ -107,16 +107,10 @@ class LeaveApprovalSyncsRosterTest extends TestCase
             'off_day' => false,
         ]);
 
-        $leaveType = LeaveTypes::create([
-            'company_id' => $company->id,
-            'name' => 'Cuti Tahunan',
-            'quota_days' => 12,
-            'reset_period' => 'yearly',
-            'is_paid' => true,
-        ]);
+        $leaveType = LeaveTypeCategoryEnum::TAHUNAN;
 
         app(AttendaceReqService::class)->storeLeaveRequest([
-            'type_id' => $leaveType->id,
+            'type_id' => $leaveType->value,
             'start_date' => $date,
             'end_date' => $date,
         ], $employee);

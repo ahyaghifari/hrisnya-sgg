@@ -22,7 +22,7 @@ class LeaveRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'type_id' => ['required', 'exists:m_leave_types,id'],
+            'type_id' => ['required', \Illuminate\Validation\Rule::enum(\App\Enum\Attendance\LeaveTypeCategoryEnum::class)],
             'is_one_day' => ['required', 'boolean'],
             'start_date' => ['required', 'date'],
             'end_date' => ['required_if:is_one_day,false', 'nullable', 'date', 'after_or_equal:start_date'],

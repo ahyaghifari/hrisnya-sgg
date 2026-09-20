@@ -51,9 +51,10 @@ class AttendanceQuotaCalculator
      */
     public function cutiTahunanPeriode(User $user, string $leaveTypeId, ?string $referenceDate = null): ?array
     {
-        $leaveType = $this->leaveReqRepository->getLeaveTypeById($leaveTypeId);
+        // $leaveTypeId = key jenis cuti (nilai LeaveTypeCategoryEnum).
+        $leaveType = LeaveTypeCategoryEnum::tryFrom($leaveTypeId);
 
-        if (! $leaveType || $leaveType->category !== LeaveTypeCategoryEnum::TAHUNAN->value) {
+        if ($leaveType !== LeaveTypeCategoryEnum::TAHUNAN) {
             return null;
         }
 
@@ -64,7 +65,7 @@ class AttendanceQuotaCalculator
         $periodEnd = $anchor->copy()->endOfMonth();
 
         $used = (int) AttendanceRequestLeaveDetails::query()
-            ->where('leave_type_id', $leaveTypeId)
+            ->where('category', $leaveTypeId)
             ->whereBetween('start_date', [$periodStart->toDateString(), $periodEnd->toDateString()])
             ->whereIn('request_id', AttendanceRequests::query()
                 ->select('id')

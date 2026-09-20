@@ -7,7 +7,6 @@ use App\Enum\AttendanceReqStatus;
 use App\Models\Attendance\AttendanceRecords;
 use App\Models\Attendance\AttendanceRequestPermissionDetails;
 use App\Models\Attendance\AttendanceRequests;
-use App\Models\Master\Attendance\PermissionTypes;
 use App\Models\Master\Companies;
 use App\Models\Payroll\Payroll;
 use App\Models\Payroll\PayrollPeriod;
@@ -155,9 +154,8 @@ class KeterlambatanCalculatorTest extends TestCase
         $this->makeLateRecord($user, '2026-07-10', 15); // tidak ada izin - HARUS kena denda
 
         $category = PermissionTypeCategoryEnum::IZIN_TERLAMBAT_MASUK->value;
-        $permissionType = PermissionTypes::create(['company_id' => $company->id, 'name' => $category, 'category' => $category]);
         $request = AttendanceRequests::create(['user_id' => $user->id, 'type' => 'permission', 'status' => AttendanceReqStatus::APPROVED->value]);
-        AttendanceRequestPermissionDetails::create(['request_id' => $request->id, 'permission_type_id' => $permissionType->id, 'category' => $category, 'date' => '2026-07-05']);
+        AttendanceRequestPermissionDetails::create(['request_id' => $request->id, 'category' => $category, 'date' => '2026-07-05']);
 
         $context = new PayrollContext();
         (new KeterlambatanCalculator())->calculate($user, $payroll, $period, $context);
