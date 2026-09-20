@@ -2,7 +2,6 @@
 
 namespace App\Services\Task;
 
-use App\Enum\Task\TaskSettingEnum;
 use App\Enum\Task\TaskStatus;
 use App\Models\Setting;
 use App\Models\Task\Task;
@@ -34,15 +33,6 @@ class TaskService
         protected DepartmentRepository $departmentRepository,
         protected OrgHierarchyService $orgHierarchyService,
     ) {}
-
-    /**
-     * Default toggle "butuh approval" buat form portal — company-scoped, fallback global,
-     * lihat App\Enum\Task\TaskSettingEnum.
-     */
-    public function requiresApprovalByDefault(?string $companyId): bool
-    {
-        return (bool) Setting::resolve(TaskSettingEnum::REQUIRE_APPROVAL_DEFAULT->value, $companyId, false);
-    }
 
     /**
      * Dipakai portal (bukan lewat Request mobile API) — buat task casual/board tanpa approval,

@@ -12,7 +12,7 @@ use Livewire\Attributes\Layout;
 use Livewire\Component;
 
 /**
- * Halaman "Pengaturan LMS" — copy struktur AttendanceSettingsPage/TaskSettingsPage, tapi
+ * Halaman "Pengaturan LMS" — copy struktur AttendanceSettingsPage, tapi
  * tanpa selector company karena LMS global (sama seperti Master Honorarium). Isinya
  * LmsSettingEnum::MENIT_1_JP, dipakai LmsMeetings::calculateJp() buat konversi durasi
  * pertemuan ke JP saat disimpan.

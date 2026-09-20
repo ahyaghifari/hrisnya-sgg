@@ -146,6 +146,19 @@ class RoleForm
     }
 
     /**
+     * Urutan checkbox di dalam section portal SISTEM_*: gerbang modul (coarse) dulu, lalu
+     * Dashboard modul (lihat_dashboard_*), baru sisanya (urutan asli dipertahankan - sortBy stabil).
+     */
+    public static function portalGateOrder(string $permissionName, string $coarseName): int
+    {
+        return match (true) {
+            $permissionName === $coarseName => 0,
+            str_starts_with($permissionName, 'lihat_dashboard_') => 1,
+            default => 2,
+        };
+    }
+
+    /**
      * Permission "akses menu dasar" nav baris 1 portal karyawan (Tugas/Pelatihan/Pengajuan
      * Absensi/Pembinaan Saya) — flat, BUKAN pola coarse-gate+children kayak portalGroups()
      * (keempatnya independen, bukan 1 gerbang yang mengunci turunannya). Dikelompokkan jadi
@@ -272,23 +285,18 @@ class RoleForm
     }
 
     /**
-     * TUKAR_SHIFT_SAYA (custom permission flat, tanpa ':') sebelumnya jatuh ke subject literal
-     * 'Lainnya' pas grouping (`explode(':', $name)[1] ?? 'Lainnya'` selalu null buat nama tanpa
-     * titik dua), jadi nyempil sendirian di section "Akses Lainnya" - instruksi user 2026-08-17:
-     * gabung ke section "Jadwal Shift" yang sudah ada (tempat
-     * ShiftScheduleAssignments/ShiftSwapRequests/ShiftTemplates lewat subjectContainerOverrides()
-     * di atas). Paksa subject-nya ikut 'ShiftSwapRequests' (subject Jadwal Shift yang sudah
-     * ada) supaya nempel di node yang sama, bukan bikin node "Jadwal Shift" duplikat.
+     * Custom permission flat (tanpa ':') jatuh ke subject literal 'Lainnya' pas grouping
+     * (`explode(':', $name)[1] ?? 'Lainnya'` selalu null buat nama tanpa titik dua), jadi perlu
+     * dipaksa ikut subject section yang sesuai lewat map ini.
      *
-     * (JADWAL_SHIFT_SAYA dulu di sini juga - dihapus 2026-09-11, permission itu sendiri sudah
-     * dibuang, lihat migration drop_jadwal_shift_saya_permission.)
+     * (JADWAL_SHIFT_SAYA & TUKAR_SHIFT_SAYA dulu di sini juga - dibuang 2026-09-11 & 2026-09-21,
+     * lihat migration drop_jadwal_shift_saya_permission & drop_tukar_shift_saya_permission.)
      *
      * @return array<string, string>
      */
     public static function customPermissionSubjectOverrides(): array
     {
         return [
-            CustomPermissionEnum::TUKAR_SHIFT_SAYA->value => 'ShiftSwapRequests',
             CustomPermissionEnum::LIHAT_DASHBOARD_SIKARTAP_STATISTIK->value => 'SikartapDashboard',
             CustomPermissionEnum::LIHAT_DASHBOARD_SIKARTAP_ANTRIAN_TAHAP->value => 'SikartapDashboard',
             // Semua permission WidgetPermissionEnum otomatis ikut subject 'DashboardWidget'
@@ -685,7 +693,7 @@ class RoleForm
                             }
 
                             $options = $groupPermissions
-                                ->sortBy(fn ($permission) => $permission->name === $coarseName ? 0 : 1)
+                                ->sortBy(fn ($permission) => self::portalGateOrder($permission->name, $coarseName))
                                 ->mapWithKeys(fn ($permission) => [$permission->name => $labelFor($permission->name)])
                                 ->all();
 

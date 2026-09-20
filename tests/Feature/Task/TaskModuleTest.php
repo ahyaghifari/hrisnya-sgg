@@ -3,11 +3,9 @@
 namespace Tests\Feature\Task;
 
 use App\Enum\Approval\ApprovalModuleEnum;
-use App\Enum\Task\TaskSettingEnum;
 use App\Enum\Task\TaskStatus;
 use App\Models\ApprovalManagement\ApprovalSnapshots;
 use App\Models\Master\Companies;
-use App\Models\Setting;
 use App\Models\Task\Task;
 use App\Models\Task\TaskProjectMember;
 use App\Models\User;
@@ -21,7 +19,7 @@ use Tests\TestCase;
 
 /**
  * Cakupan inti unifikasi Task+Kanban (planning/cached-dreaming-ladybug.md): status transition
- * di board, task casual langsung TODO, dan default approval per company via Setting. Alur
+ * di board, task casual langsung TODO. Alur
  * formal (createFormalTask + approve lewat ApprovalFlowService) butuh setup MasterApprovalFlows
  * + org structure lengkap — sengaja tidak dites di sini, lihat catatan di akhir file.
  */
@@ -293,25 +291,6 @@ class TaskModuleTest extends TestCase
 
         $this->expectException(\Symfony\Component\HttpKernel\Exception\HttpException::class);
         app(TaskService::class)->rateTask($task, 3, $assignee);
-    }
-
-    public function test_requires_approval_default_follows_company_setting(): void
-    {
-        $company = $this->makeCompany();
-        $service = app(TaskService::class);
-
-        $this->assertFalse($service->requiresApprovalByDefault($company->id));
-
-        Setting::create([
-            'company_id' => $company->id,
-            'module' => 'task',
-            'key' => TaskSettingEnum::REQUIRE_APPROVAL_DEFAULT->value,
-            'type' => 'boolean',
-            'value' => '1',
-            'label' => TaskSettingEnum::REQUIRE_APPROVAL_DEFAULT->label(),
-        ]);
-
-        $this->assertTrue($service->requiresApprovalByDefault($company->id));
     }
 
     public function test_creating_project_makes_creator_the_owner(): void

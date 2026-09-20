@@ -154,7 +154,7 @@ class PermissionTreeBuilder
             }
 
             $gateLeaves = $groupPermissions
-                ->sortBy(fn ($permission) => $permission->name === $coarseName ? 0 : 1)
+                ->sortBy(fn ($permission) => RoleForm::portalGateOrder($permission->name, $coarseName))
                 ->map(fn ($permission) => ['id' => $permission->name, 'label' => $labelFor($permission->name)])
                 ->values()
                 ->all();

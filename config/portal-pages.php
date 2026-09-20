@@ -451,9 +451,9 @@ return [
     // ditambahkan sekalian, sama pola migrasi Keuangan (2026-08-07).
     'presensi.jadwal.show' => [
         'label' => 'Detail Jadwal',
-        // Bukan blanket permission lagi (2026-08-15) - karyawan yang dipakaikan schedule ini
-        // (mis. perawat jadwal shift) boleh lihat halamannya sendiri walau bukan View:Schedule,
-        // gerbangnya per-record lewat SchedulePolicy::view() di ScheduleDetailPage::mount().
+        // Digerbangi SchedulePolicy::view(): Fixed/Flexible cuma View:Schedule; Shift + Kepala Ruangan (head_user_id) + karyawan di roster schedule ini
+        // (mis. perawat jadwal shift) boleh lihat halamannya sendiri walau bukan View:Schedule -
+        // dicek per-record di ScheduleDetailPage::mount() (dipulihkan 2026-09-20, sempat dilepas 2026-09-06).
         'permission' => null,
         'guard' => null,
     ],
@@ -530,16 +530,17 @@ return [
 
     'tukar-shift' => [
         'label' => 'Tukar Shift',
-        'permission' => \App\Enum\CustomPermissionEnum::TUKAR_SHIFT_SAYA->value,
-        'guard' => null,
+        // Bukan permission (tukar_shift_saya dihapus 2026-09-21) - cukup punya jadwal shift.
+        'permission' => null,
+        'guard' => 'hasShiftSchedule',
     ],
 
-    // Approver yang bukan requester (bukan pemilik TUKAR_SHIFT_SAYA) tetap lolos lewat
-    // canAccess() di ShiftSwapRequestDetail::mount() - pola sama ManpowerRequestDetailPage
-    // (blanket permission di depan buat requester, canAccess() di dalam buat kasus lain).
+    // Tanpa gerbang di middleware: approver/atasan yang bukan pengguna jadwal shift tetap harus
+    // bisa buka detail dari kartu approval. Per-pengajuan dicek canAccess() di
+    // ShiftSwapRequestDetail::mount() (requester, target, approver, atasan, atau lintas company).
     'tukar-shift.show' => [
         'label' => 'Detail Tukar Shift',
-        'permission' => \App\Enum\CustomPermissionEnum::TUKAR_SHIFT_SAYA->value,
+        'permission' => null,
         'guard' => null,
     ],
 
@@ -623,12 +624,6 @@ return [
     'tugas' => [
         'label' => 'Tugas',
         'permission' => \App\Enum\CustomPermissionEnum::TUGAS_SAYA->value,
-        'guard' => null,
-    ],
-
-    'tugas.pengaturan' => [
-        'label' => 'Pengaturan Tugas',
-        'permission' => \App\Enum\CustomPermissionEnum::EDIT_PENGATURAN_TUGAS->value,
         'guard' => null,
     ],
 

@@ -69,7 +69,6 @@ Survey pertama pakai Explore subagent sempat salah klasifikasi beberapa halaman 
 | Komponen Gaji | `app/Livewire/Keuangan/SalaryComponentsPage.php` |
 | Jadwal | `app/Livewire/Presensi/SchedulesPage.php` |
 | Pengaturan Absensi | `app/Livewire/Presensi/AttendanceSettingsPage.php` |
-| Pengaturan Tugas | `app/Livewire/Task/TaskSettingsPage.php` |
 
 **Sengaja DI LUAR scope**: `Presensi/CreateSchedulePage` (field `company_id` cuma buat bikin 1 jadwal, bukan filter list). Method mutasi (`KaryawanPage::canManage()`, `DocumentsPage::canManage()` — guard edit/hapus lintas company) juga **tidak disentuh**, itu wewenang beda dari "lihat filter", di luar apa yang didiskusikan.
 

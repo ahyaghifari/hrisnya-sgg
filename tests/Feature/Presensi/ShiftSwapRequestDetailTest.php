@@ -159,13 +159,16 @@ class ShiftSwapRequestDetailTest extends TestCase
         $this->assertSame('rejected', $this->swapRequest->fresh()->status);
     }
 
-    public function test_route_accessible_via_http_with_permission(): void
+    public function test_riwayat_page_is_gated_by_shift_schedule_only(): void
     {
-        Permission::firstOrCreate(['name' => CustomPermissionEnum::TUKAR_SHIFT_SAYA->value, 'guard_name' => 'web']);
-        $role = Role::firstOrCreate(['name' => 'Tukar Shift Detail Test', 'guard_name' => 'web']);
-        $role->givePermissionTo(CustomPermissionEnum::TUKAR_SHIFT_SAYA->value);
-        $this->requester->assignRole($role);
+        $this->actingAs($this->requester)->get(route('tukar-shift'))->assertOk();
 
+        $noShift = User::factory()->create(['company_id' => $this->company->id]);
+        $this->actingAs($noShift)->get(route('tukar-shift'))->assertForbidden();
+    }
+
+    public function test_route_accessible_via_http_without_any_permission(): void
+    {
         $this->actingAs($this->requester)
             ->get(route('tukar-shift.show', ['record' => $this->swapRequest]))
             ->assertOk();

@@ -90,7 +90,7 @@ class Dashboard extends Component
 
     /** Schedule (shift) yang lagi dipakai user, buat link "Lihat Detail Jadwal" widget ke
      * ScheduleDetailPage (`presensi.jadwal.show`) - karyawan boleh buka halaman itu buat
-     * Schedule ini lewat SchedulePolicy::view() + User::isAssignedToSchedule() (2026-08-15),
+     * Schedule ini lewat SchedulePolicy::view() (Kepala Ruangan / karyawan di roster, jadwal shift),
      * biarpun bukan admin. Null kalau entah kenapa tidak ketemu (widget sendiri sudah tidak akan
      * tampil di kasus itu, lihat canJadwalShiftSaya). */
     public function getMyScheduleIdProperty(): ?string

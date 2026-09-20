@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Policies\Shift;
 
+use App\Enum\ScheduleType;
 use Illuminate\Foundation\Auth\User as AuthUser;
 use App\Models\Shift\Schedule;
 use Illuminate\Auth\Access\HandlesAuthorization;
@@ -19,7 +20,19 @@ class SchedulePolicy
 
     public function view(AuthUser $authUser, Schedule $schedule): bool
     {
-        return $authUser->can('View:Schedule');
+        if ($authUser->can('View:Schedule')) {
+            return true;
+        }
+
+        // Fixed/Flexible: hanya pemegang View:Schedule. Shift: Kepala Ruangan yang ditunjuk di
+        // jadwal itu (head_user_id) dan karyawan yang ada di roster-nya juga boleh lihat (dari
+        // widget Beranda) - aksi edit/generate/import tetap digerbangi permission masing-masing.
+        if ($schedule->schedule_type !== ScheduleType::SHIFT->value) {
+            return false;
+        }
+
+        return $schedule->head_user_id === $authUser->getKey()
+            || (method_exists($authUser, 'isAssignedToSchedule') && $authUser->isAssignedToSchedule($schedule));
     }
 
     public function create(AuthUser $authUser): bool

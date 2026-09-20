@@ -17,7 +17,6 @@
         'canAccessPengajuanAbsensiSaya' => auth()->user()->can(\App\Enum\CustomPermissionEnum::PENGAJUAN_ABSENSI_SAYA->value),
         'canAccessPembinaanSaya' => auth()->user()->can(\App\Enum\CustomPermissionEnum::PEMBINAAN_SAYA->value),
         'canAccessCoachingCounseling' => auth()->user()->can(\App\Enum\CustomPermissionEnum::SISTEM_PEMBINAAN_KARYAWAN->value),
-        'canAccessTukarShift' => auth()->user()->can(\App\Enum\CustomPermissionEnum::TUKAR_SHIFT_SAYA->value) && auth()->user()->hasShiftSchedule(),
         'canAccessSikartapSaya' => auth()->user()->isKontrakKaryawan(),
         'canAccessOrientasiSaya' => auth()->user()->isOrientasiKaryawan(),
         // "Sikartap" jadi payung perjalanan status karyawan (Orientasi -> Kontrak -> Tetap) -

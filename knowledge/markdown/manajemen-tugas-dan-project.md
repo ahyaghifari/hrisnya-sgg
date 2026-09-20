@@ -31,7 +31,7 @@ Dua jalur pembuatan task di `App\Services\Task\TaskService`, dipilih berdasarkan
 | Assignee | Diri sendiri, bawahan, atau sesama anggota project | Ditentukan approver saat approve (pola lama, tidak berubah) |
 | Dipakai dari | Portal (`/tugas`) | Portal (`/tugas`, toggle approval ON) |
 
-**Default toggle per company**: `App\Enum\Task\TaskSettingEnum::REQUIRE_APPROVAL_DEFAULT`, dibaca lewat `Setting::resolve()` — mekanisme config generik yang sudah dipakai Payroll/Absensi, **bukan** tabel config baru. Diatur di `/tugas/pengaturan` (`TaskSettingsPage`, copy struktur `AttendanceSettingsPage`), permission `sistem_tugas`.
+**Default toggle per company** (dulu `TaskSettingEnum::REQUIRE_APPROVAL_DEFAULT` via `Setting::resolve()`) — **dihapus 2026-09-21**: halaman `/tugas/pengaturan`, `TaskSettingEnum`, `TaskService::requiresApprovalByDefault()` dan permission `edit_pengaturan_tugas` sudah tidak ada (form Tugas baru tidak memakai default ini).
 
 **Saat approve** (`ApprovalFlowService::advanceStep()`, cabang `module_type === 'task_request'`): task pindah dari `PENDING` langsung ke `TODO` (dulu ke `IN_PROGRESS`) — supaya task yang lolos approval juga masuk board di kolom pertama, konsisten dengan alur casual.
 
@@ -81,7 +81,7 @@ Keputusan eksplisit dari user: project **cuma wadah pengelompokan + daftar anggo
 
 Satu Livewire component `App\Livewire\Task\TaskListPage` (bukan dipecah per scope/project) karena kontennya (toggle List/Board, modal create/detail task, checklist, komentar) sama persis dipakai baik mode scope maupun mode project — hindari duplikasi.
 
-**Sidebar** (`.doc-type-nav`/`.doc-type-btn`, class CSS yang **sudah ada** dipakai ulang, bukan bikin baru — sama yang dipakai `TaskSettingsPage`/Komponen Gaji, varian warna `-sky`):
+**Sidebar** (`.doc-type-nav`/`.doc-type-btn`, class CSS yang **sudah ada** dipakai ulang, bukan bikin baru — sama yang dipakai Komponen Gaji, varian warna `-sky`):
 - Tugas Saya (`assigned_to = user`) / Saya Buat (`created_by = user`) / Tim Saya (`assigned_to` di antara bawahan, muncul cuma kalau `OrgHierarchyService::subordinates()` tidak kosong)
 - Daftar Project yang diikuti (`getMyProjects()`)
 - Tombol "Project Baru"
@@ -127,10 +127,10 @@ Yang **belum** ada dan jadi PR kalau lanjut ke KPI:
 | Area | File |
 |---|---|
 | Migration | `database/migrations/2026_07_23_0635xx_*` s/d `090300_*` |
-| Enum | `app/Enum/Task/TaskStatus.php`, `TaskPriority.php`, `TaskSettingEnum.php` |
+| Enum | `app/Enum/Task/TaskStatus.php`, `TaskPriority.php`|
 | Model | `app/Models/Task/Task.php`, `TaskProject.php`, `TaskProjectMember.php`, `TaskChecklistItem.php`, `TaskComment.php` |
 | Service | `app/Services/Task/TaskService.php` |
-| Livewire portal | `app/Livewire/Task/TaskListPage.php`, `TaskSettingsPage.php` |
-| View | `resources/views/livewire/task/task-list-page.blade.php`, `task-settings-page.blade.php` |
+| Livewire portal | `app/Livewire/Task/TaskListPage.php` |
+| View | `resources/views/livewire/task/task-list-page.blade.php` |
 | Test | `tests/Feature/Task/TaskModuleTest.php` (11 test: status transition, casual/formal creation, project membership & assignment) |
 | Approval (disentuh minimal) | `app/Services/Approval/ApprovalFlowService.php` — 1 baris, status approve task jadi `TODO` |

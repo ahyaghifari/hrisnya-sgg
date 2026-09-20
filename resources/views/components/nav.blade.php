@@ -50,11 +50,6 @@
                         <i class="fa-solid fa-file-lines text-xs"></i> Pengajuan Absensi
                     </a>
                 @endif
-                @if ($canAccessTukarShift)
-                    <a href="{{ route('tukar-shift') }}" wire:navigate class="nav-item {{ request()->routeIs('tukar-shift*') ? 'active' : '' }}">
-                        <i class="fa-solid fa-right-left text-xs"></i> Tukar Shift
-                    </a>
-                @endif
                 @if ($canAccessPembinaanSaya)
                     <div class="dropdown">
                         <a href="#" class="nav-item {{ request()->routeIs(['counseling*', 'coaching.saya*']) ? 'active' : '' }}">
