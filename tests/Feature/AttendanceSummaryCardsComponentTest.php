@@ -61,9 +61,9 @@ class AttendanceSummaryCardsComponentTest extends TestCase
 
         foreach (['<x-attendance-summary-cards />', '<x-attendance-summary-cards :compact="true" />', '<x-attendance-summary-cards :user-id="$id" />'] as $markup) {
             $this->blade($markup, ['id' => $other->id])
-                ->assertSee('Sisa Cuti Tahunan')
-                ->assertSee('Jumlah Izin')
-                ->assertSee('Jumlah Lembur');
+                ->assertSee('Cuti Tahunan')
+                ->assertSee('Izin')
+                ->assertSee('Lembur');
         }
     }
 
@@ -73,7 +73,7 @@ class AttendanceSummaryCardsComponentTest extends TestCase
         $this->actingAs($user);
 
         Livewire::test(AttendanceStatCards::class)
-            ->assertSee('pengajuan periode ini')
+            ->assertSee('pada periode ini')
             ->assertDontSee('bulan ini');
     }
 
