@@ -124,6 +124,10 @@
     /* Zoom papan cuma di mobile (--z diisi Alpine dari tombol zoom); desktop nggak kena. min-height
     dibagi --z karena CSS zoom ikut menskalakan panjang (75vh * z), biar tetap 75vh di layar. */
     .task-zoom-fab { display: none; }
+    /* Tab filter Board (Semua / Tugas Saya). */
+    .task-filter-tabs { display: inline-flex; padding: 3px; gap: 2px; border-radius: 99px; background: var(--surface-alt); border: 1px solid var(--border); }
+    .task-filter-tabs button { border: none; background: none; padding: 5px 14px; border-radius: 99px; font-family: inherit; font-size: 12.5px; font-weight: 700; color: var(--text-muted); cursor: pointer; }
+    .task-filter-tabs button.is-active { background: var(--brand-fill); color: #fff; }
     /* Desktop: zoom cuma untuk Board (project) - papan status Todo/Tugas Saya tetap tanpa zoom.
     Kontrolnya inline di atas papan (bukan melayang), rata kanan. */
     @media (min-width: 768px) {
@@ -135,9 +139,9 @@
     }
     @media (max-width: 767.98px) {
         .task-board-grid { zoom: var(--z, 1); min-height: calc(75vh / var(--z, 1)); max-height: calc(75vh / var(--z, 1)); transition: zoom 0.25s ease, min-height 0.25s ease, max-height 0.25s ease; }
-        /* Kanan-bawah (bukan kiri, instruksi user 2026-09-20), ditumpuk DI ATAS FAB "Tugas Baru"
-        (.task-fab: bottom 60px+safe+16px, tinggi 56px) - 16 + 56 + 10 = 82px biar tidak tabrakan. */
-        .task-zoom-fab { display: flex; position: fixed; right: 16px; bottom: calc(60px + env(safe-area-inset-bottom) + 82px); z-index: 200; align-items: center; height: 44px; border-radius: 99px; background: var(--surface); border: 1px solid var(--border); box-shadow: 0 6px 18px rgba(15,23,42,0.18); overflow: hidden; }
+        /* Melayang di TENGAH bawah (instruksi user 2026-09-20), sejajar FAB "Tugas Baru" di kanan
+        (.task-fab: bottom 60px+safe+16px, tinggi 56px) - tidak menumpuk di atasnya. */
+        .task-zoom-fab { display: flex; position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(60px + env(safe-area-inset-bottom) + 22px); z-index: 200; align-items: center; height: 44px; border-radius: 99px; background: var(--surface); border: 1px solid var(--border); box-shadow: 0 6px 18px rgba(15,23,42,0.18); overflow: hidden; }
         .task-zoom-fab button { border: none; background: none; color: var(--text-heading); height: 100%; padding: 0 12px; font-size: 13px; font-weight: 700; font-family: inherit; cursor: pointer; }
         .task-zoom-fab button:disabled { opacity: 0.35; cursor: not-allowed; }
         .task-zoom-fab button:active:not(:disabled) { background: var(--surface-alt); }
@@ -321,6 +325,12 @@
                 {{-- Kiri: pencarian. Div tetap dirender kosong kalau nggak relevan, biar grup
                 kanan tetap ke-push mentok kanan lewat space-between (bukan flex-end). --}}
                 <div>
+                    @if ($this->activeProject)
+                        <div class="task-filter-tabs" role="tablist" aria-label="Filter tugas Board">
+                            <button type="button" role="tab" wire:click="setBoardFilter('semua')" class="{{ $boardFilter === 'semua' ? 'is-active' : '' }}" aria-selected="{{ $boardFilter === 'semua' ? 'true' : 'false' }}">Semua</button>
+                            <button type="button" role="tab" wire:click="setBoardFilter('saya')" class="{{ $boardFilter === 'saya' ? 'is-active' : '' }}" aria-selected="{{ $boardFilter === 'saya' ? 'true' : 'false' }}">Tugas Saya</button>
+                        </div>
+                    @endif
                     @if (! $activeProjectId && $scope === 'individu')
                         <div style="position:relative;width:240px;max-width:100%;">
                             <i class="fa-solid fa-magnifying-glass" style="position:absolute;left:11px;top:50%;transform:translateY(-50%);font-size:11px;color:var(--text-faint);"></i>

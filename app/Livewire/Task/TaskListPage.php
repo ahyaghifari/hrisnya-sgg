@@ -37,6 +37,10 @@ class TaskListPage extends Component
     public string $scope = 'todo'; // todo | saya | individu | tim - lihat TaskService::getPortalTasks()
     public string $search = ''; // filter board by kebutuhan/nama assignee
 
+    // Filter tab di dalam Board: semua tugas Board (default) atau cuma yang ditugaskan ke user ini.
+    #[Url]
+    public string $boardFilter = 'semua'; // semua | saya
+
     #[Url]
     public ?string $activeProjectId = null;
 
@@ -217,6 +221,11 @@ class TaskListPage extends Component
         return app(TaskService::class)->canAssignInProject($this->activeProject, Auth::user());
     }
 
+    public function setBoardFilter(string $filter): void
+    {
+        $this->boardFilter = $filter === 'saya' ? 'saya' : 'semua';
+    }
+
     public function getTasksProperty()
     {
         $service = app(TaskService::class);
@@ -226,6 +235,11 @@ class TaskListPage extends Component
             : $service->getPortalTasks(Auth::user(), $this->scope)
                 ->load(['assignedTo.profile', 'createdBy', 'checklistItems', 'comments.user'])
                 ->loadCount('attachments');
+
+        // Tab "Tugas Saya" di Board: cuma tugas yang ditugaskan ke user yang login.
+        if ($this->activeProject && $this->boardFilter === 'saya') {
+            $tasks = $tasks->filter(fn ($task) => $task->assigned_to === Auth::id())->values();
+        }
 
         // Search cuma aktif buat tab Penugasan Individu.
         $search = ($this->activeProject || $this->scope !== 'individu') ? '' : trim($this->search);
