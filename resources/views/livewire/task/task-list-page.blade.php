@@ -167,6 +167,12 @@
     .task-hero-column.teal, .task-swatch.teal { background: linear-gradient(135deg, #0f766e 0%, #14b8a6 100%); }
     .task-hero-column.sky, .task-swatch.sky { background: linear-gradient(130deg, #0ea5e9 0%, #0369a1 100%); }
     .task-hero-column.red, .task-swatch.red { background: linear-gradient(130deg, #dc2626 0%, #991b1b 100%); }
+    .task-hero-column.purple, .task-swatch.purple { background: linear-gradient(130deg, #7c3aed 0%, #5b21b6 100%); }
+    .task-hero-column.indigo, .task-swatch.indigo { background: linear-gradient(130deg, #4f46e5 0%, #3730a3 100%); }
+    .task-hero-column.orange, .task-swatch.orange { background: linear-gradient(130deg, #ea580c 0%, #9a3412 100%); }
+    .task-hero-column.rose, .task-swatch.rose { background: linear-gradient(130deg, #e11d48 0%, #9f1239 100%); }
+    .task-hero-column.lime, .task-swatch.lime { background: linear-gradient(130deg, #4d7c0f 0%, #365314 100%); }
+    .task-hero-column.slate, .task-swatch.slate { background: linear-gradient(130deg, #475569 0%, #1e293b 100%); }
     .task-swatch.navy { background: linear-gradient(130deg, var(--brand-fill) 0%, color-mix(in srgb, var(--brand-fill), #ffffff 22%) 100%); }
     .task-swatch.gold { background: linear-gradient(130deg, #92400e 0%, #d97706 100%); }
     .task-swatch.gold-dark { background: linear-gradient(135deg, #d4a017 0%, #92720a 100%); }

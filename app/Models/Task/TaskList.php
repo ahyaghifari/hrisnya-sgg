@@ -32,6 +32,12 @@ class TaskList extends Model
         'teal' => 'Teal',
         'sky' => 'Biru Muda',
         'red' => 'Merah',
+        'purple' => 'Ungu',
+        'indigo' => 'Indigo',
+        'orange' => 'Oranye',
+        'rose' => 'Mawar',
+        'lime' => 'Hijau Lumut',
+        'slate' => 'Abu-abu',
     ];
 
     public static function isValidColor(?string $color): bool
