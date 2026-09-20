@@ -24,7 +24,7 @@
             <a href="{{ route('presensi.pengaturan') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-gear"></i> Pengaturan Absensi</a>
             @endif
         </div>
-        @if ($canViewSchedule || $canViewExtraShift || $canViewHolidays || $canViewRekapAbsensi)
+        @if ($canViewSchedule || $canViewExtraShift || $canViewHolidays)
         <div class="dropdown-col">
             <div class="dropdown-col-label">Presensi</div>
             @if ($canViewSchedule)
@@ -37,14 +37,12 @@
             @if ($canViewHolidays)
             <a href="{{ route('presensi.hari-libur') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-flag"></i> Hari Libur & Cuti Bersama</a>
             @endif
-            @if ($canViewRekapAbsensi)
-            <a href="{{ route('presensi.rekap-presensi') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-clipboard-list"></i> Rekap Presensi</a>
-            @endif
         </div>
         @endif
         @if ($canViewRekapAbsensi)
         <div class="dropdown-col">
-            <div class="dropdown-col-label">Absensi</div>
+            <div class="dropdown-col-label">Rekap</div>
+            <a href="{{ route('presensi.rekap-presensi') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-clipboard-list"></i> Rekap Presensi</a>
             <a href="{{ route('presensi.rekap-izin') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-file-lines"></i> Rekap Izin</a>
             <a href="{{ route('presensi.rekap-cuti') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-umbrella-beach"></i> Rekap Cuti</a>
             <a href="{{ route('presensi.rekap-lembur') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-business-time"></i> Rekap Lembur</a>
