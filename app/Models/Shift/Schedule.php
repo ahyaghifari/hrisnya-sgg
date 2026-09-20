@@ -30,6 +30,7 @@ class Schedule extends Model
         'shift_pattern',
         'use_template',
         'use_teams',
+        'team_group_mode',
         'color',
         'off_bg_color',
         'off_font_color',

@@ -61,7 +61,7 @@
             <span class="rf-hide-swaptrigger" style="margin-top:16px;">
                 <livewire:presensi.schedule-swap-history-sheet :scheduleId="$schedule->id" :key="'roster-swap-history-'.$schedule->id" />
             </span>
-            @if ($schedule->use_teams)
+            @if ($schedule->use_teams && $this->canSetTeamGroupMode)
                 <div style="margin-top:16px;display:flex;align-items:center;gap:4px;background:var(--surface-alt);border-radius:8px;padding:3px;">
                     <button type="button" wire:click="setTeamGroupMode('row')" title="Tim sebagai baris pemisah"
                         class="{{ $teamGroupMode === 'row' ? 'btn-primary' : 'btn-ghost' }}" style="font-size:10.5px;padding:6px 10px;white-space:nowrap;">

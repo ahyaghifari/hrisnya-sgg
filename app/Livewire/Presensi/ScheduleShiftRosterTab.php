@@ -69,18 +69,25 @@ class ScheduleShiftRosterTab extends Component
     /** Cara pembagian tim ditampilkan di grid — 'row' (default, baris pemisah colspan penuh
      * per tim, instruksi user 2026-09-12) atau 'column' (kolom rowspan di samping nama
      * karyawan, diminta user 2026-09-15 buat jadwal yang timnya sedikit/anggotanya banyak per
-     * tim, biar tidak makan baris ekstra). Preferensi TAMPILAN saja (bukan data jadwal) - disimpan
-     * ke session per browser (instruksi user 2026-09-15), bukan per-jadwal/per-user di DB, jadi
-     * cukup diingat sepanjang browser ini dipakai, tidak perlu migrasi tabel baru. */
+     * tim, biar tidak makan baris ekstra). Sejak 2026-09-21 disimpan di DB per jadwal
+     * (schedules.team_group_mode) - berlaku sama untuk semua yang membuka jadwal ini dan ikut
+     * dipakai export Excel; dulu session per browser. Property ini cuma cermin dari kolom itu. */
     public string $teamGroupMode = 'row';
 
-    private const TEAM_GROUP_MODE_SESSION_KEY = 'roster.team_group_mode';
+    /** Yang boleh mengubah Baris/Kolom: Kepala Ruangan jadwal ini dan pemegang Update:Schedule -
+     * pengaturan bersama, bukan preferensi pribadi, jadi tidak untuk semua viewer. */
+    public function getCanSetTeamGroupModeProperty(): bool
+    {
+        return $this->schedule->head_user_id === Auth::id() || Auth::user()->can('update', $this->schedule);
+    }
 
     public function setTeamGroupMode(string $mode): void
     {
+        abort_unless($this->canSetTeamGroupMode, 403);
+
         $this->teamGroupMode = $mode === 'column' ? 'column' : 'row';
 
-        session()->put(self::TEAM_GROUP_MODE_SESSION_KEY, $this->teamGroupMode);
+        $this->schedule->update(['team_group_mode' => $this->teamGroupMode]);
     }
 
     public function toggleLogs(): void
@@ -99,7 +106,7 @@ class ScheduleShiftRosterTab extends Component
         $this->schedule = $schedule;
         $this->period = max(now()->format('Y-m'), self::MIN_PERIOD);
         $this->rotationStartDate = Carbon::createFromFormat('Y-m', $this->period)->startOfMonth()->toDateString();
-        $this->teamGroupMode = session()->get(self::TEAM_GROUP_MODE_SESSION_KEY) === 'column' ? 'column' : 'row';
+        $this->teamGroupMode = $schedule->team_group_mode === 'column' ? 'column' : 'row';
     }
 
     public function getCanEditJadwalProperty(): bool

@@ -565,6 +565,43 @@ class ScheduleShiftTeamTabTest extends TestCase
             ->assertSee('Urutkan per Tanggal Bergabung');
     }
 
+    /** Baris/Kolom disimpan di DB per jadwal (schedules.team_group_mode), berlaku untuk semua yang
+     * membuka jadwal; yang boleh mengubah cuma Kepala Ruangan jadwal itu dan pemegang Update:Schedule. */
+    public function test_team_group_mode_is_saved_per_schedule_and_only_editors_can_change_it(): void
+    {
+        [$schedule] = $this->makeScheduleWithEmployee();
+        $schedule->update(['use_teams' => true]);
+        $rosterTab = \App\Livewire\Presensi\ScheduleShiftRosterTab::class;
+
+        $this->assertSame('row', $schedule->fresh()->team_group_mode);
+
+        Livewire::actingAs($this->actingAsScheduleOwner())->test($rosterTab, ['schedule' => $schedule])
+            ->assertSee('Kolom')
+            ->call('setTeamGroupMode', 'column')
+            ->assertSet('teamGroupMode', 'column');
+
+        $this->assertSame('column', $schedule->fresh()->team_group_mode);
+
+        // User lain (viewer) yang membuka jadwal melihat mode yang sama dari DB, tanpa tombol pengubahnya.
+        Livewire::actingAs($this->actingAsViewerOnly())->test($rosterTab, ['schedule' => $schedule->fresh()])
+            ->assertSet('teamGroupMode', 'column')
+            ->assertDontSeeHtml("setTeamGroupMode('row')")
+            ->call('setTeamGroupMode', 'row')
+            ->assertForbidden();
+
+        $this->assertSame('column', $schedule->fresh()->team_group_mode);
+
+        // Kepala Ruangan jadwal ini boleh mengubah walau tanpa permission lain.
+        $head = $this->actingAsViewerOnly();
+        $schedule->update(['head_user_id' => $head->id]);
+
+        Livewire::actingAs($head)->test($rosterTab, ['schedule' => $schedule->fresh()])
+            ->call('setTeamGroupMode', 'row')
+            ->assertSet('teamGroupMode', 'row');
+
+        $this->assertSame('row', $schedule->fresh()->team_group_mode);
+    }
+
     /** Ganti tim mereset urutan manual (jatuh ke paling belakang tim baru) - tidak membawa nomor tim lama. */
     public function test_changing_team_resets_manual_order(): void
     {
@@ -589,7 +626,7 @@ class ScheduleShiftTeamTabTest extends TestCase
     /** Regresi (dilaporkan user 2026-09-21): setelah ganti tim / carry-over bulan depan, anggota
      * tim harus tetap DISATUKAN - urutan employees tidak boleh basi (cache computed Livewire). */
     public function test_roster_keeps_teams_grouped_after_change_and_after_next_month_carry_over(): void
-\    {
+    {
         $company = Companies::create(['code' => 'TSG2', 'name' => 'Test Grouping After Change', 'location' => 'Test', 'is_active' => true]);
         $schedule = Schedule::create(['company_id' => $company->id, 'name' => 'Jadwal Group', 'schedule_type' => ScheduleType::SHIFT->value, 'use_template' => false, 'use_teams' => true]);
         $owner = $this->actingAsScheduleOwner();

@@ -95,8 +95,15 @@
         {{-- Kalender diperbesar di desktop (2026-09-20): kolom kalender 1/2 lebar container (dulu 1/5,
         app.css: 1fr 4fr), jarak antar sel & huruf lebih besar. Inline supaya tidak perlu build CSS. --}}
         <style>
+            /* Legenda/keterangan shift diperbesar (2026-09-21): HP 13px, desktop 16px, jarak antar baris lebih lega. */
+            .jadwal-shift-side-col > div:first-child { gap: 9px !important; }
+            .jadwal-shift-legend-item { font-size: 13px !important; gap: 8px !important; }
+            .jadwal-shift-legend-item > span:first-child { width: 10px !important; height: 10px !important; }
             @media (min-width: 768px) {
-                .jadwal-shift-calendar-wrap { grid-template-columns: 1fr 1fr; }
+                .jadwal-shift-side-col > div:first-child { gap: 12px !important; }
+                .jadwal-shift-legend-item { font-size: 16px !important; gap: 10px !important; }
+                .jadwal-shift-legend-item > span:first-child { width: 12px !important; height: 12px !important; }
+                .jadwal-shift-calendar-wrap { grid-template-columns: 9fr 11fr; } /* kalender ~45% lebar (dulu 1fr 1fr) */
                 .jadwal-shift-grid { gap: 8px !important; }
                 .jadwal-shift-grid > span { font-size: 14px !important; }
                 .jadwal-shift-cell { font-size: 18px !important; border-radius: 14px !important; gap: 3px !important; }
