@@ -4,7 +4,7 @@
             <i class="fa-solid fa-people-group" style="font-size:22px;color:var(--text-faint);"></i>
             <p style="font-size:12.5px;color:var(--text-muted);margin:12px 0 4px;">Jadwal ini belum memakai Tim.</p>
             <p style="font-size:11px;color:var(--text-faint);margin:0 0 16px;">Kalau diaktifkan, karyawan bisa dikelompokkan jadi beberapa tim per bulan, dan tabel "Detail Penjadwalan" ikut dikelompokkan berdasarkan tim. Kalau tidak, tabel tetap urut nama seperti biasa.</p>
-            @if ($this->canManage)
+            @if ($this->canToggleTeams)
                 <button type="button" wire:click="activateTeams" class="btn-primary">
                     <i class="fa-solid fa-power-off"></i> Aktifkan Tim
                 </button>
@@ -14,14 +14,18 @@
     <div style="background:var(--surface);border-radius:16px;box-shadow:var(--shadow-card);padding:20px;margin-bottom:16px;">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:4px;">
             <h3 style="font-size:13.5px;font-weight:700;color:var(--text-heading);margin:0;">Tim</h3>
-            @if ($this->canManage)
+            @if ($this->canManage || $this->canToggleTeams)
                 <div style="display:flex;gap:8px;">
-                    <button type="button" wire:click="openCreateTeamModal" class="btn-primary" style="padding:6px 14px;font-size:11.5px;">
-                        <i class="fa-solid fa-plus"></i> Tambah Tim
-                    </button>
-                    <button type="button" wire:click="deactivateTeams" wire:confirm="Nonaktifkan pemakaian Tim untuk jadwal ini? Data tim & keanggotaan yang sudah diisi TIDAK ikut terhapus, cuma tabel Detail Penjadwalan kembali urut nama." class="btn-ghost" style="padding:6px 14px;font-size:11.5px;color:#dc2626;">
-                        <i class="fa-solid fa-xmark"></i> Nonaktifkan
-                    </button>
+                    @if ($this->canManage)
+                        <button type="button" wire:click="openCreateTeamModal" class="btn-primary" style="padding:6px 14px;font-size:11.5px;">
+                            <i class="fa-solid fa-plus"></i> Tambah Tim
+                        </button>
+                    @endif
+                    @if ($this->canToggleTeams)
+                        <button type="button" wire:click="deactivateTeams" wire:confirm="Nonaktifkan pemakaian Tim untuk jadwal ini? Data tim & keanggotaan yang sudah diisi TIDAK ikut terhapus, cuma tabel Detail Penjadwalan kembali urut nama." class="btn-ghost" style="padding:6px 14px;font-size:11.5px;color:#dc2626;">
+                            <i class="fa-solid fa-xmark"></i> Nonaktifkan
+                        </button>
+                    @endif
                 </div>
             @endif
         </div>

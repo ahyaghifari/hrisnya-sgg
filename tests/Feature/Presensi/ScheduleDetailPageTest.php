@@ -38,6 +38,31 @@ class ScheduleDetailPageTest extends TestCase
         return $user;
     }
 
+    /** Tab Extra Shift disembunyikan kalau user tidak punya ViewAny:ExtraShiftAssignment. */
+    public function test_extra_shift_tab_is_hidden_without_view_any_permission(): void
+    {
+        $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
+        $schedule = Schedule::create(['company_id' => $company->id, 'name' => 'Jadwal Shift', 'schedule_type' => ScheduleType::SHIFT->value]);
+
+        Permission::firstOrCreate(['name' => 'View:Schedule', 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'ViewAny:ExtraShiftAssignment', 'guard_name' => 'web']);
+
+        $viewer = User::factory()->create();
+        $viewer->givePermissionTo('View:Schedule');
+
+        Livewire::actingAs($viewer)
+            ->test(ScheduleDetailPage::class, ['schedule' => $schedule])
+            ->assertSee('Detail Penjadwalan')
+            ->assertDontSee('setTab(\'extra-shift\')', false);
+
+        $withExtra = User::factory()->create();
+        $withExtra->givePermissionTo(['View:Schedule', 'ViewAny:ExtraShiftAssignment']);
+
+        Livewire::actingAs($withExtra)
+            ->test(ScheduleDetailPage::class, ['schedule' => $schedule])
+            ->assertSee('setTab(\'extra-shift\')', false);
+    }
+
     public function test_user_without_permission_is_forbidden(): void
     {
         $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);

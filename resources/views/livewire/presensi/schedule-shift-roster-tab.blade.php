@@ -26,6 +26,16 @@
     Full frontend: nilai baru ditulis ke <select> + dispatch 'input' biar Livewire nyerap ke $draft,
     disimpan tetap lewat tombol "Simpan" (saveRoster) yang sudah ada. --}}
     <style>
+        .rf-scrollbox { max-height:100vh; }
+        /* HP (2026-09-21): tabel penjadwalan lebih pendek + font header tanggal, nama karyawan, dan kode shift dikecilkan */
+        @media (max-width: 767px) {
+            .rf-scrollbox { max-height:60vh; }
+            .rf-table { font-size:10px !important; }
+            .rf-table th { font-size:10px !important; }
+            .rf-table th:not(.rf-sticky-col) { padding:6px 3px !important; min-width:46px !important; }
+            .rf-table th.rf-sticky-col, .rf-table td.rf-name { padding-left:8px !important; padding-right:8px !important; }
+            .rf-table select { width:44px !important; padding:5px 1px !important; font-size:9px !important; }
+        }
         .rf-sel { outline:2px solid #042c6c; outline-offset:-2px; }
         .rf-preview { outline:2px dashed #0284c7; outline-offset:-2px; background:rgba(2,132,199,0.10); }
         .rf-on select { pointer-events:none; }
@@ -189,8 +199,8 @@
         <i class="fa-solid fa-table-cells"></i>
         <span>Mode <strong>Isi Cepat</strong> aktif — dropdown sel dimatikan. Seret mendatar buat pilih sel, lalu seret kotak biru di pojok kanan-bawah buat mengulang pola. Matikan tombol "Isi Cepat" buat edit sel satu-satu lagi.</span>
     </div>
-    <div data-scrollbox :class="{ 'rf-on': fillMode, 'rf-grid-on': fillMode }" style="background:var(--surface);border-radius:12px;box-shadow:var(--shadow-card);max-height:100vh;overflow:auto;">
-        <table style="border-collapse:collapse;font-size:11.5px;">
+    <div data-scrollbox class="rf-scrollbox" :class="{ 'rf-on': fillMode, 'rf-grid-on': fillMode }" style="background:var(--surface);border-radius:12px;box-shadow:var(--shadow-card);overflow:auto;">
+        <table class="rf-table" style="border-collapse:collapse;font-size:11.5px;">
             <thead>
                 <tr style="border-bottom:1.5px solid var(--border);">
                     @if ($schedule->use_teams && $teamGroupMode === 'column')
@@ -269,7 +279,7 @@
                                 @endif
                             </td>
                         @endif
-                        <td style="padding:6px 12px;white-space:nowrap;font-weight:600;position:sticky;left:{{ ($schedule->use_teams && $teamGroupMode === 'column') ? '130px' : '0' }};background:var(--surface);z-index:1;">{{ $employee->name }}</td>
+                        <td class="rf-name" style="padding:6px 12px;white-space:nowrap;font-weight:600;position:sticky;left:{{ ($schedule->use_teams && $teamGroupMode === 'column') ? '130px' : '0' }};background:var(--surface);z-index:1;">{{ $employee->name }}</td>
                         @foreach ($this->leadDates as $ld)
                             @php
                                 $lval = $userRoster[$ld->toDateString()] ?? '';

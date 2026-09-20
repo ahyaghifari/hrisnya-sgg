@@ -44,18 +44,12 @@ class ScheduleShiftTeamTab extends Component
 
     public function mount(Schedule $schedule): void
     {
-        // Beda dari tab lain (Jam Kerja/Detail Penjadwalan) yang cukup gerbang SchedulePolicy::view
-        // parent - tab Tim PUNYA permission sendiri (ViewAny:ScheduleShiftTeam, sudah diseed sejak
-        // migration 2026_09_12_110000, tapi dulu tidak pernah benar-benar dicek di sini). Tanpa ini,
-        // siapa pun yang bisa lihat jadwal otomatis ikut bisa buka tab Tim walau belum di-grant izin
-        // lihatnya sama sekali (dilaporkan user 2026-09-14) - dua gerbang HARUS lolos dua-duanya.
-        // SENGAJA TIDAK ada fallback Update:Schedule (pengelola penuh jadwal) di sini maupun di
-        // gerbang lain seluruh class ini (dicabut total 2026-09-14, laporan user - beda dari
-        // roster/rotation, tab Tim harus SETARA ketatnya dengan Extra Shift: murni permission
-        // ScheduleShiftTeam sendiri, tidak bisa "kebocoran" lewat izin Edit Jadwal yang digrant
-        // buat alasan lain).
+        // Tab Tim boleh dilihat siapa pun yang boleh membuka halaman jadwal ini (gerbang
+        // SchedulePolicy::view) - ViewAny:ScheduleShiftTeam tidak dicek lagi (2026-09-21, instruksi
+        // user). Yang tetap digerbangi: kelola Tim (Create/Update/Delete:ScheduleShiftTeam),
+        // atur shift Tim (AssignShiftTypes:ScheduleShiftTeam), dan saklar aktif/nonaktif Tim
+        // (Update:Schedule, lihat canToggleTeams).
         abort_unless(Auth::user()->can('view', $schedule), 403);
-        abort_unless(Auth::user()->can('ViewAny:ScheduleShiftTeam'), 403);
 
         $this->schedule = $schedule;
         $this->period = max(now()->format('Y-m'), self::MIN_PERIOD);
@@ -109,7 +103,7 @@ class ScheduleShiftTeamTab extends Component
      * ScheduleShiftRotationTab. Default FALSE, tidak semua jadwal butuh dikelompokkan regu. */
     public function activateTeams(): void
     {
-        abort_unless(Auth::user()->can('create', ScheduleShiftTeam::class), 403);
+        abort_unless($this->canToggleTeams, 403);
 
         $this->schedule->update(['use_teams' => true]);
         $this->schedule->refresh();
@@ -117,9 +111,16 @@ class ScheduleShiftTeamTab extends Component
         Notification::make()->title('Tim diaktifkan untuk jadwal ini')->success()->send();
     }
 
+    /** Saklar aktif/nonaktif Tim untuk jadwal ini - hanya pemegang Update:Schedule (edit jadwal),
+     * bukan Create:ScheduleShiftTeam (2026-09-21, instruksi user). Kelola isi Tim tetap canManage. */
+    public function getCanToggleTeamsProperty(): bool
+    {
+        return Auth::user()->can('update', $this->schedule);
+    }
+
     public function deactivateTeams(): void
     {
-        abort_unless(Auth::user()->can('create', ScheduleShiftTeam::class), 403);
+        abort_unless($this->canToggleTeams, 403);
 
         $this->schedule->update(['use_teams' => false]);
         $this->schedule->refresh();

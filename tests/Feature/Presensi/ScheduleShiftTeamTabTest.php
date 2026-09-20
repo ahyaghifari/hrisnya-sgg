@@ -91,10 +91,37 @@ class ScheduleShiftTeamTabTest extends TestCase
         return [$schedule, $employee];
     }
 
-    public function test_use_teams_defaults_off_and_kepala_ruangan_can_toggle(): void
+    /** Saklar aktif/nonaktif Tim cuma untuk pemegang Update:Schedule - pengelola Tim biasa
+     * (Create:ScheduleShiftTeam) tidak melihat tombolnya dan aksinya ditolak. */
+    public function test_team_manager_without_update_schedule_cannot_toggle_teams(): void
     {
         [$schedule] = $this->makeScheduleWithEmployee();
         $user = $this->actingAsKepalaRuangan();
+
+        Livewire::actingAs($user)
+            ->test(ScheduleShiftTeamTab::class, ['schedule' => $schedule])
+            ->assertDontSee('Aktifkan Tim')
+            ->call('activateTeams')
+            ->assertForbidden();
+
+        $this->assertFalse($schedule->fresh()->use_teams);
+
+        $schedule->update(['use_teams' => true]);
+
+        Livewire::actingAs($user)
+            ->test(ScheduleShiftTeamTab::class, ['schedule' => $schedule->fresh()])
+            ->assertSee('Tambah Tim')
+            ->assertDontSee('Nonaktifkan')
+            ->call('deactivateTeams')
+            ->assertForbidden();
+
+        $this->assertTrue($schedule->fresh()->use_teams);
+    }
+
+    public function test_use_teams_defaults_off_and_schedule_owner_can_toggle(): void
+    {
+        [$schedule] = $this->makeScheduleWithEmployee();
+        $user = $this->actingAsScheduleOwner();
 
         $this->assertFalse($schedule->fresh()->use_teams);
 
@@ -248,21 +275,29 @@ class ScheduleShiftTeamTabTest extends TestCase
         \Illuminate\Support\Carbon::setTestNow();
     }
 
-    /** actingAsViewerOnly() tidak punya permission ScheduleShiftTeam apa pun (bukan cuma tidak
-     * bisa create/delete) - sejak gerbang ViewAny:ScheduleShiftTeam ditambah di mount()
-     * (2026-09-14, laporan user: bisa buka tab Tim & assign shift walau belum di-grant izin
-     * lihatnya sama sekali), abort-nya kejadian pas MOUNT, bukan lagi pas call() aksinya - jadi
-     * di-assert langsung dari ->test(), tidak perlu set/call dulu. */
-    public function test_viewer_without_permission_cannot_open_team_tab(): void
+    /** actingAsViewerOnly() tidak punya permission ScheduleShiftTeam apa pun - sejak 2026-09-21
+     * tab Tim terbuka untuk siapa pun yang boleh melihat jadwal (ViewAny:ScheduleShiftTeam tidak
+     * dicek lagi), tapi semua aksi kelola tetap ditolak. */
+    public function test_viewer_without_permission_can_open_team_tab_but_not_manage(): void
     {
         [$schedule] = $this->makeScheduleWithEmployee();
+        $schedule->update(['use_teams' => true]);
+        ScheduleShiftTeam::create(['schedule_id' => $schedule->id, 'name' => 'Regu A']);
         $user = $this->actingAsViewerOnly();
 
         Livewire::actingAs($user)
             ->test(ScheduleShiftTeamTab::class, ['schedule' => $schedule])
+            ->assertOk()
+            ->assertSee('Regu A')
+            ->assertDontSee('Tambah Tim');
+
+        Livewire::actingAs($user)
+            ->test(ScheduleShiftTeamTab::class, ['schedule' => $schedule])
+            ->set('teamFormName', 'Regu B')
+            ->call('saveTeam')
             ->assertForbidden();
 
-        $this->assertDatabaseMissing('schedule_shift_teams', ['schedule_id' => $schedule->id, 'name' => 'Regu A']);
+        $this->assertDatabaseMissing('schedule_shift_teams', ['schedule_id' => $schedule->id, 'name' => 'Regu B']);
     }
 
     /** Role yang PUNYA ViewAny/View:ScheduleShiftTeam tapi TIDAK Create/Update/Delete - bisa
@@ -316,6 +351,7 @@ class ScheduleShiftTeamTabTest extends TestCase
 
         Livewire::actingAs($viewer)
             ->test(ScheduleShiftTeamTab::class, ['schedule' => $schedule])
+            ->call('deleteTeam', $team->id)
             ->assertForbidden();
 
         $this->assertDatabaseHas('schedule_shift_teams', ['id' => $team->id]);

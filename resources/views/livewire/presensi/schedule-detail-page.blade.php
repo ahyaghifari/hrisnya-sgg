@@ -36,7 +36,9 @@
             @if ($schedule->schedule_type === 'shift')
                 <button type="button" wire:click="setTab('penjadwalan')" class="schedule-detail-tab {{ $tab === 'penjadwalan' ? 'is-active' : '' }}">Detail Penjadwalan</button>
                 <button type="button" wire:click="setTab('regu')" class="schedule-detail-tab {{ $tab === 'regu' ? 'is-active' : '' }}">Tim</button>
-                <button type="button" wire:click="setTab('extra-shift')" class="schedule-detail-tab {{ $tab === 'extra-shift' ? 'is-active' : '' }}">Extra Shift</button>
+                @can('viewAny', \App\Models\Shift\ExtraShiftAssignment::class)
+                    <button type="button" wire:click="setTab('extra-shift')" class="schedule-detail-tab {{ $tab === 'extra-shift' ? 'is-active' : '' }}">Extra Shift</button>
+                @endcan
                 <button type="button" wire:click="setTab('template')" class="schedule-detail-tab {{ $tab === 'template' ? 'is-active' : '' }}">Template Shift</button>
             @endif
             <button type="button" wire:click="setTab('kantor')" class="schedule-detail-tab {{ $tab === 'kantor' ? 'is-active' : '' }}">Pengguna</button>
