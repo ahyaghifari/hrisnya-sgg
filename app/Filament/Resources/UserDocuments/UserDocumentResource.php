@@ -38,7 +38,7 @@ class UserDocumentResource extends BaseCompanyResource
 
     protected static string|UnitEnum|null $navigationGroup = 'Kepegawaian';
 
-    protected static ?int $navigationSort = 2;
+    protected static ?int $navigationSort = 7; // urutan grup Kepegawaian, lihat UserOrientationResource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedDocument;
 

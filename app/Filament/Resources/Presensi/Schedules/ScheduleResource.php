@@ -45,6 +45,8 @@ class ScheduleResource extends BaseCompanyResource
 
     protected static string|UnitEnum|null $navigationGroup = 'Presensi & Absensi';
 
+    protected static ?int $navigationSort = 3; // lihat AttendanceRequestResource
+
     protected static ?string $recordTitleAttribute = 'name';
 
     public static function form(Schema $schema): Schema

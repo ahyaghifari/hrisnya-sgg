@@ -28,6 +28,8 @@ class AttendanceRequestResource extends BaseResource
 
     protected static string | UnitEnum | null $navigationGroup = 'Presensi & Absensi';
 
+    protected static ?int $navigationSort = 1; // urutan grup Presensi & Absensi: Attendance Requests (1), Extra Shift (2), Jadwal (3), Data Absensi (4), Hari Libur (5)
+
     public static function form(Schema $schema): Schema
     {
         return AttendanceRequestForm::configure($schema);

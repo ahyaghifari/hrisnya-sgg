@@ -31,7 +31,7 @@ class AttendanceRecordResource extends Resource
 
     protected static ?string $navigationLabel = 'Data Absensi';
 
-    protected static ?int $navigationSort = 1;
+    protected static ?int $navigationSort = 4; // lihat AttendanceRequestResource
 
     protected static ?string $modelLabel = 'Absensi';
 

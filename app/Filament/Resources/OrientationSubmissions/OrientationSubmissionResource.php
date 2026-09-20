@@ -30,7 +30,7 @@ class OrientationSubmissionResource extends BaseCompanyResource
 
     protected static ?string $pluralModelLabel = 'Pengajuan Orientasi';
 
-    protected static ?int $navigationSort = -1;
+    protected static ?int $navigationSort = 1; // urutan grup Sikartap: Orientasi, Kontrak, Karyawan Tetap
 
     public static function canCreate(): bool
     {

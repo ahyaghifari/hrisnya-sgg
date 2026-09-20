@@ -14,16 +14,15 @@ use UnitEnum;
 /**
  * Pantauan HR atas pengajuan perpanjangan kontrak (read-only). Alur sesungguhnya (ajukan,
  * upload, nilai) DAN pantauannya sekarang satu halaman di portal — lihat
- * App\Livewire\Kepegawaian\KontrakSayaPage & KontrakKelolaPage. Resource ini sengaja TIDAK
- * muncul di navigasi admin (shouldRegisterNavigation = false) supaya menu "Kontrak &
- * Orientasi" cuma punya satu entri kontrak; class-nya dipertahankan agar permission
- * Shield `*:ContractSubmission` (dipakai gate portal) tetap ke-generate.
+ * App\Livewire\Kepegawaian\KontrakSayaPage & KontrakKelolaPage. Resource ini sempat disembunyikan
+ * dari navigasi admin (25e5cd7), tampil lagi 2026-09-20 (instruksi user) di grup Sikartap sebagai
+ * pantauan read-only untuk HR; permission Shield `*:ContractSubmission` juga dipakai gate portal.
  */
 class ContractSubmissionResource extends BaseCompanyResource
 {
     protected static ?string $model = ContractSubmission::class;
 
-    protected static bool $shouldRegisterNavigation = false;
+    protected static bool $shouldRegisterNavigation = true;
 
     protected static string|UnitEnum|null $navigationGroup = 'Sikartap';
 
@@ -35,7 +34,7 @@ class ContractSubmissionResource extends BaseCompanyResource
 
     protected static ?string $pluralModelLabel = 'Pengajuan Perpanjangan Kontrak';
 
-    protected static ?int $navigationSort = 0;
+    protected static ?int $navigationSort = 2;
 
     public static function canCreate(): bool
     {

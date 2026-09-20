@@ -41,7 +41,7 @@ class ExtraShiftAssignmentResource extends Resource
 
     protected static string|UnitEnum|null $navigationGroup = 'Presensi & Absensi';
 
-    protected static ?int $navigationSort = 5;
+    protected static ?int $navigationSort = 2; // persis di bawah Attendance Requests (pengajuan izin/cuti/lembur)
 
     public static function form(Schema $schema): Schema
     {

@@ -27,7 +27,7 @@ class HolidayResource extends BaseResource
 
     protected static string|UnitEnum|null $navigationGroup = 'Presensi & Absensi';
 
-    protected static ?int $navigationSort = 15;
+    protected static ?int $navigationSort = 5; // lihat AttendanceRequestResource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedFlag;
 

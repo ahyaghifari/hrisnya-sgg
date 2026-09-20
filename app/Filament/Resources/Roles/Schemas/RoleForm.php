@@ -210,8 +210,8 @@ class RoleForm
             // (sudah 'Keuangan') tidak ke-scan lewat getResources() - paksa manual.
             'PayrollComponents' => 'Keuangan',
             // Coaching & Counseling (2026-08-17): CoachingResource/CounselingResource
-            // navigationGroup-nya 'Kepegawaian' (sengaja, itu posisi menu ADMIN SIDEBAR-nya,
-            // TIDAK diubah) - tapi tanpa override ini 7 permission Shield-nya (ViewAny/View/
+            // navigationGroup-nya 'Pembinaan' (posisi menu ADMIN SIDEBAR-nya, grup terpisah di bawah
+            // Kepegawaian sejak 2026-09-20) - tanpa override ini 7 permission Shield-nya (ViewAny/View/
             // Create/Update/Delete/Restore/ForceDelete) ikut ke-merge ke section "Sistem
             // Kepegawaian" di tree /hak-akses & checkbox Role, terpisah dari
             // COACHING_KARYAWAN_LAINNYA/SISTEM_PEMBINAAN_KARYAWAN yang harusnya satu section.

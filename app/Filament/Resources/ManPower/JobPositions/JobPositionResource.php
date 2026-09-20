@@ -27,8 +27,10 @@ class JobPositionResource extends Resource
 
     protected static ?string $navigationLabel = 'Jabatan';
 
-
-    protected static ?int $navigationSort = 1;
+    // Menu Jabatan sudah ada di grup Master Perusahaan (Master\JobPositions\JobPositionResource), jadi
+    // entri di grup Kepegawaian dihapus dari navigasi (2026-09-20, instruksi user). Class ini TETAP ada:
+    // halaman Edit-nya memuat persetujuan kuota jabatan & ManpowerRequests memakai canCreate()/canEdit()-nya.
+    protected static bool $shouldRegisterNavigation = false;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedCircleStack;
 

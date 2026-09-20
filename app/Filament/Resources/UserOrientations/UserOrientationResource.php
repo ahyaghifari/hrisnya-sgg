@@ -40,7 +40,9 @@ class UserOrientationResource extends BaseCompanyResource
 
     protected static ?string $pluralModelLabel = 'Data Orientasi';
 
-    protected static ?int $navigationSort = -2;
+    // Urutan grup Kepegawaian: Karyawan (1), Data Eksekutif (2), Data Orientasi (3), Data Kontrak (4),
+    // Perubahan Status Karyawan (5), Permintaan Tenaga Kerja (6), Dokumen (7), Jabatan (8).
+    protected static ?int $navigationSort = 3;
 
     public static function form(Schema $schema): Schema
     {

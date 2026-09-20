@@ -32,6 +32,8 @@ class SikartapResource extends BaseResource
     protected static ?string $pluralModelLabel = 'Pengajuan Karyawan Tetap';
 
     protected static string|UnitEnum|null $navigationGroup = 'Sikartap';
+    // Urutan grup Sikartap: Pengajuan Orientasi (1), Perpanjangan Kontrak (2), Karyawan Tetap (3).
+    protected static ?int $navigationSort = 3;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedDocumentCheck;
 
