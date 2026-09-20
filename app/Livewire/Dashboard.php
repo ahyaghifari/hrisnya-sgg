@@ -9,6 +9,7 @@ use App\Enum\Task\TaskStatus;
 use App\Livewire\Concerns\ResolvesDayScheduleSummary;
 use App\Livewire\Concerns\ResolvesTodayAttendanceStatus;
 use App\Models\Task\Task;
+use App\Models\Task\TaskProject;
 use App\Models\LMS\LmsCourseUsers;
 use App\Models\Master\Attendance\Holidays;
 use App\Services\Attendance\ScheduleResolver;
@@ -204,6 +205,25 @@ class Dashboard extends Component
             ->orderByDesc('created_at')
             ->limit(4)
             ->get();
+    }
+
+    /** Board (bukan per tugas) yang punya card belum selesai yang ditugaskan ke user ini, plus
+     * jumlahnya - dipakai widget "Tugas Saya" di beranda di bawah daftar tugas personal
+     * (instruksi user 2026-09-20). "Belum selesai" = status != COMPLETE; card di List Selesai
+     * (is_final) otomatis berstatus COMPLETE, lihat TaskService. Board arsip/terhapus tidak
+     * ikut. */
+    public function getMyBoardTaskCountsProperty()
+    {
+        return TaskProject::whereHas('members', fn ($q) => $q->where('user_id', Auth::id()))
+            ->whereNull('archived_at')
+            ->withCount(['tasks as unfinished_count' => fn ($q) => $q
+                ->where('assigned_to', Auth::id())
+                ->where('status', '!=', TaskStatus::COMPLETE->value)])
+            ->get()
+            ->filter(fn ($project) => $project->unfinished_count > 0)
+            ->sortByDesc('unfinished_count')
+            ->take(4)
+            ->values();
     }
 
     // Pelatihan yang sedang dijalani (in_progress) atau sudah jadi member tapi belum mulai

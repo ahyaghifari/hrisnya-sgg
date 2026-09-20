@@ -203,7 +203,7 @@
                 <div class="pwa-card-header-deco-1"></div><div class="pwa-card-header-deco-2"></div>
                 <div class="pwa-card-header-content">
                     <span class="pwa-section-title"><i class="fa-solid fa-table-columns" style="font-size:12px;margin-right:4px;"></i> Tugas Saya</span>
-                    <a href="{{ route('tugas.papan', 'saya') }}" wire:navigate class="pwa-section-link">Semua <i class="fa-solid fa-chevron-right" style="font-size:9px;"></i></a>
+                    <a href="{{ route('tugas') }}" wire:navigate class="pwa-section-link">Semua <i class="fa-solid fa-chevron-right" style="font-size:9px;"></i></a>
                 </div>
             </div>
             @php
@@ -230,13 +230,27 @@
                     <i class="fa-solid fa-chevron-right"></i>
                 </a>
             @empty
-                <div class="pwa-list-row" style="opacity:0.7;border-left:4px solid var(--border);padding-left:12px;">
-                    <div style="flex:1;min-width:0;">
-                        <p class="pwa-row-title">Belum ada tugas</p>
-                        <span style="font-size:11.5px;color:var(--text-muted);">Buat tugas baru lewat menu Tugas</span>
+                @if ($this->myBoardTaskCounts->isEmpty())
+                    <div class="pwa-list-row" style="opacity:0.7;border-left:4px solid var(--border);padding-left:12px;">
+                        <div style="flex:1;min-width:0;">
+                            <p class="pwa-row-title">Belum ada tugas</p>
+                            <span style="font-size:11.5px;color:var(--text-muted);">Buat tugas baru lewat menu Tugas</span>
+                        </div>
                     </div>
-                </div>
+                @endif
             @endforelse
+            {{-- Board (bukan per card): nama board + jumlah card belum selesai yang ditugaskan ke user. --}}
+            @foreach ($this->myBoardTaskCounts as $boardProject)
+                <a href="{{ route('tugas.papan.board', $boardProject) }}" wire:navigate class="pwa-list-row" style="text-decoration:none;border-left:4px solid {{ $boardProject->color }};padding-left:12px;">
+                    <div style="flex:1;min-width:0;">
+                        <p class="pwa-row-title"><i class="fa-solid fa-diagram-project" style="font-size:11px;color:{{ $boardProject->color }};margin-right:5px;"></i>{{ \Illuminate\Support\Str::limit($boardProject->name, 40) }}</p>
+                        <span style="display:inline-flex;align-items:center;font-size:11px;font-weight:700;color:{{ $boardProject->color }};margin-top:4px;">
+                            {{ $boardProject->unfinished_count }} card belum selesai
+                        </span>
+                    </div>
+                    <i class="fa-solid fa-chevron-right"></i>
+                </a>
+            @endforeach
         </div>
         @endif
 

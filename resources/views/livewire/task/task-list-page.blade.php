@@ -80,7 +80,7 @@
     /* Jumlah kolom/section (List custom atau status Todo/Proses/dst) ganjil = 3 kolom per baris,
     genap = 2 kolom (--cols diisi dari Blade). Di layar sempit dipaksa 1 kolom - grid banyak
     kolom bikin section kesempitan buat dibaca di HP. */
-    .task-board-grid { display: grid; grid-template-columns: repeat(var(--cols, 1), 1fr); gap: 20px; align-items: start; align-content: start; min-height: 85vh; }
+    .task-board-grid { display: grid; grid-template-columns: repeat(var(--cols, 1), 1fr); gap: 20px; align-items: start; align-content: start; min-height: 85vh; max-height: 85vh; overflow-y: auto; }
     /* Tugas Saya: 4 kolom status selalu berdampingan (ala Trello), sisanya scroll ke kanan -
     di desktop juga, bukan cuma HP. Lebar kolom di HP diatur aturan mobile di bawah. */
     .task-board-grid.task-board-scroll { display: flex; align-items: flex-start; overflow-x: auto; }
@@ -127,15 +127,17 @@
     /* Desktop: zoom cuma untuk Board (project) - papan status Todo/Tugas Saya tetap tanpa zoom.
     Kontrolnya inline di atas papan (bukan melayang), rata kanan. */
     @media (min-width: 768px) {
-        .task-board-grid.task-board-zoomable { zoom: var(--z, 1); min-height: calc(85vh / var(--z, 1)); transition: zoom 0.25s ease, min-height 0.25s ease; }
+        .task-board-grid.task-board-zoomable { zoom: var(--z, 1); min-height: calc(85vh / var(--z, 1)); max-height: calc(85vh / var(--z, 1)); transition: zoom 0.25s ease, min-height 0.25s ease, max-height 0.25s ease; }
         .task-zoom-fab.is-board { display: flex; align-items: center; width: fit-content; margin: 0 0 8px auto; height: 36px; border-radius: 99px; background: var(--surface); border: 1px solid var(--border); overflow: hidden; }
         .task-zoom-fab.is-board button { border: none; background: none; color: var(--text-heading); height: 100%; padding: 0 12px; font-size: 13px; font-weight: 700; font-family: inherit; cursor: pointer; }
         .task-zoom-fab.is-board button:hover:not(:disabled) { background: var(--surface-alt); }
         .task-zoom-fab.is-board button:disabled { opacity: 0.35; cursor: not-allowed; }
     }
     @media (max-width: 767.98px) {
-        .task-board-grid { zoom: var(--z, 1); min-height: calc(75vh / var(--z, 1)); transition: zoom 0.25s ease, min-height 0.25s ease; }
-        .task-zoom-fab { display: flex; position: fixed; left: 16px; bottom: calc(60px + env(safe-area-inset-bottom) + 22px); z-index: 200; align-items: center; height: 44px; border-radius: 99px; background: var(--surface); border: 1px solid var(--border); box-shadow: 0 6px 18px rgba(15,23,42,0.18); overflow: hidden; }
+        .task-board-grid { zoom: var(--z, 1); min-height: calc(75vh / var(--z, 1)); max-height: calc(75vh / var(--z, 1)); transition: zoom 0.25s ease, min-height 0.25s ease, max-height 0.25s ease; }
+        /* Kanan-bawah (bukan kiri, instruksi user 2026-09-20), ditumpuk DI ATAS FAB "Tugas Baru"
+        (.task-fab: bottom 60px+safe+16px, tinggi 56px) - 16 + 56 + 10 = 82px biar tidak tabrakan. */
+        .task-zoom-fab { display: flex; position: fixed; right: 16px; bottom: calc(60px + env(safe-area-inset-bottom) + 82px); z-index: 200; align-items: center; height: 44px; border-radius: 99px; background: var(--surface); border: 1px solid var(--border); box-shadow: 0 6px 18px rgba(15,23,42,0.18); overflow: hidden; }
         .task-zoom-fab button { border: none; background: none; color: var(--text-heading); height: 100%; padding: 0 12px; font-size: 13px; font-weight: 700; font-family: inherit; cursor: pointer; }
         .task-zoom-fab button:disabled { opacity: 0.35; cursor: not-allowed; }
         .task-zoom-fab button:active:not(:disabled) { background: var(--surface-alt); }
@@ -243,9 +245,9 @@
     }
     .task-detail-modal-wide { max-width: 1040px; }
     .task-create-modal-wide { max-width: 640px; }
-    .task-checklist-checkbox.custom-checkbox { width: 22px; height: 22px; }
-    .task-checklist-checkbox .box { border-radius: 6px; }
-    .task-checklist-checkbox .box i { font-size: 12px; }
+    .task-checklist-checkbox.custom-checkbox { width: 18px; height: 18px; }
+    .task-checklist-checkbox .box { border-radius: 5px; }
+    .task-checklist-checkbox .box i { font-size: 10px; }
 
     /* Modal detail task di HP: layar penuh (bukan kotak ngambang kekecilan), 2 kolom
     (isi task + komentar) ditumpuk vertikal, komentar dapat garis atas bukan garis kiri. */
@@ -1011,7 +1013,7 @@
                     @if (filled($task->description))
                         <div style="margin-bottom:18px;">
                             <h4 style="font-size:13px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.03em;margin:0 0 6px;">Deskripsi</h4>
-                            <p style="font-size:14.5px;line-height:1.55;color:var(--text-body);margin:0;white-space:pre-line;word-break:break-word;">{{ $task->description }}</p>
+                            <p style="font-size:13.5px;line-height:1.5;color:var(--text-body);margin:0;white-space:pre-line;word-break:break-word;">{{ $task->description }}</p>
                         </div>
                     @endif
 
@@ -1126,13 +1128,13 @@
                             </div>
                         @endif
                         @forelse ($task->checklistItems as $item)
-                            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+                            <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;">
                                 @if ($editingChecklistItemId === $item->id)
                                     <input type="text" wire:model="editingChecklistItemTitle" wire:keydown.enter="updateChecklistItem" wire:keydown.escape="cancelEditChecklistItem" class="form-input" style="font-size:13px;padding:4px 8px;height:auto;flex:1;" autofocus>
                                     <button type="button" wire:click="updateChecklistItem" style="background:none;border:none;color:var(--brand-success);cursor:pointer;"><i class="fa-solid fa-check"></i></button>
                                     <button type="button" wire:click="cancelEditChecklistItem" style="background:none;border:none;color:var(--text-faint);cursor:pointer;"><i class="fa-solid fa-xmark"></i></button>
                                 @else
-                                    <label style="display:flex;align-items:center;gap:10px;font-size:15px;flex:1;min-width:0;{{ $canToggleChecklist ? '' : 'opacity:0.6;cursor:not-allowed;' }}">
+                                    <label style="display:flex;align-items:center;gap:8px;font-size:13.5px;flex:1;min-width:0;{{ $canToggleChecklist ? '' : 'opacity:0.6;cursor:not-allowed;' }}">
                                         <span class="custom-checkbox task-checklist-checkbox" style="--accent:#042c6c;">
                                             <input type="checkbox" @if ($canToggleChecklist) wire:click="toggleChecklistItem('{{ $item->id }}')" @else disabled @endif @checked($item->is_done)>
                                             <span class="box"><i class="fa-solid fa-check"></i></span>
@@ -1157,7 +1159,7 @@
                         @endforelse
                         @if ($canToggleChecklist)
                             <div style="display:flex;gap:6px;margin-top:8px;">
-                                <input type="text" class="form-input" style="font-size:12.5px;" wire:model="newChecklistTitle" wire:keydown.enter.prevent="addChecklistItemToTask('{{ $task->id }}')" placeholder="Tambah item checklist...">
+                                <input type="text" class="form-input" style="font-size:12.5px;padding:6px 10px;" wire:model="newChecklistTitle" wire:keydown.enter.prevent="addChecklistItemToTask('{{ $task->id }}')" placeholder="Tambah item checklist...">
                                 <button type="button" wire:click="addChecklistItemToTask('{{ $task->id }}')" class="btn-ghost btn-sm">Tambah</button>
                             </div>
                         @endif

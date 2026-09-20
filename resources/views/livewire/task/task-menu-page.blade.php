@@ -56,6 +56,19 @@
            di layar lebar. */
         .task-menu-grid-tugas { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
     }
+    /* Tile Board diperbesar di desktop (instruksi user 2026-09-20) - kolom lebih lebar, padding,
+       icon, label, dan avatar ikut naik. Avatar ukurannya di-inline komponen x-avatar, makanya
+       ditimpa !important di sini (mobile tetap 24px). */
+    @media (min-width: 641px) {
+        .task-menu-grid-board { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
+        .task-menu-tile-board { min-height: 170px; padding: 22px 24px; gap: 12px; border-radius: 16px; }
+        .task-menu-tile-board i.task-menu-tile-icon { font-size: 28px; }
+        .task-menu-tile-board .task-menu-tile-label { font-size: 18px; }
+        .task-menu-tile-board .task-menu-avatars { padding-left: 8px; }
+        .task-menu-tile-board .task-menu-avatars > * { margin-left: -8px; box-shadow: 0 0 0 3px var(--surface); }
+        .task-menu-tile-board .task-menu-avatars > div { width: 36px !important; height: 36px !important; font-size: 13px !important; }
+        .task-menu-tile-board .task-menu-avatars-more { min-width: 36px; height: 36px; font-size: 12px; }
+    }
     /* Sama dengan ukuran desktop tombol "Tugas Baru" di papan. */
     @media (min-width: 768px) {
         .task-menu-new-btn { padding: 11px 22px !important; font-size: 14.5px !important; border-radius: 10px !important; }
@@ -110,7 +123,7 @@
         @endcan
     </div>
 </div>
-<div class="task-menu-grid">
+<div class="task-menu-grid task-menu-grid-board">
     @foreach ($this->myProjects as $project)
         @php
             // Avatar anggota bertumpuk di bawah tile - dibatasi 6, sisanya "+N".
