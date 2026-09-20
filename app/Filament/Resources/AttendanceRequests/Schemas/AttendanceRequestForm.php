@@ -157,11 +157,9 @@ class AttendanceRequestForm
                 ->schema([
                     ...self::adminAssignmentFields(),
 
-                    Select::make('overtime_type_id')
+                    Select::make('overtime_type')
                         ->label('Jenis Lembur')
-                        ->options(fn () => \App\Models\Master\Attendance\OvertimeTypes::pluck('name', 'id'))
-                        ->searchable()
-                        ->preload()
+                        ->options(\App\Enum\Attendance\OvertimeTypeEnum::options())
                         ->required(),
 
                     DatePicker::make('date')

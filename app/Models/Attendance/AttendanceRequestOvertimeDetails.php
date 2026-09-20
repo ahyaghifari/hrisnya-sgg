@@ -13,7 +13,6 @@ class AttendanceRequestOvertimeDetails extends Model
 
     protected $fillable = [
         'request_id',
-        'overtime_type_id',
         'overtime_type',
         'task_description',
         'date',

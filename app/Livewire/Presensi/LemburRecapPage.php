@@ -16,7 +16,7 @@ use Livewire\Component;
 /**
  * Rekap seluruh pengajuan Lembur (APPROVED) dalam 1 periode — matrix karyawan x jenis lembur.
  * Sama seperti CutiRecapPage: kolom jenis dinamis dari nama overtime_type yang muncul di data
- * (m_overtime_types tidak punya kategori tetap sama sekali, beda dari Izin). Angka yang
+ * (jenis lembur cuma 2, lihat OvertimeTypeEnum - tanpa kategori seperti Izin). Angka yang
  * dihitung = total JAM lembur (total_hours), bukan jumlah pengajuan - lebih relevan untuk HC
  * (dasar hitung kompensasi lembur), 1 pengajuan bisa punya beberapa baris detail/tanggal.
  */

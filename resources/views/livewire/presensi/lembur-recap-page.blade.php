@@ -1,5 +1,5 @@
 @php
-    // Jenis lembur dinamis (m_overtime_types tidak punya kategori tetap) - warna dihash dari
+    // Jenis lembur dinamis (OvertimeTypeEnum, tanpa kategori) - warna dihash dari
     // nama, sama pola dengan Rekap Cuti.
     $palette = [
         ['color' => '#042c6c', 'bg' => 'rgba(4,44,108,0.1)'],

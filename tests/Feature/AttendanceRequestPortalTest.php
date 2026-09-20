@@ -9,7 +9,6 @@ use App\Livewire\SubmitPermissionRequest;
 use App\Models\ApprovalManagement\MasterApprovalFlows;
 use App\Models\ApprovalManagement\MasterApprovalFlowSteps;
 use App\Models\Master\Attendance\LeaveTypes;
-use App\Models\Master\Attendance\OvertimeTypes;
 use App\Models\Master\Attendance\PermissionTypes;
 use App\Models\Master\Companies;
 use App\Models\Role;
@@ -168,15 +167,10 @@ class AttendanceRequestPortalTest extends TestCase
     {
         $company = $this->createCompanyWithApprovalFlow();
         $user = $this->createEmployee($company);
-        $overtimeType = OvertimeTypes::create([
-            'company_id' => $company->id,
-            'name' => 'Lembur Biasa',
-        ]);
-
         $this->actingAs($user);
 
         Livewire::test(SubmitOvertimeRequest::class)
-            ->set('overtime_type_id', $overtimeType->id)
+            ->set('overtime_type', 'khusus')
             ->set('date', now()->toDateString())
             ->set('tasks', [
                 ['task_description' => 'Menyelesaikan laporan', 'start_time' => '18:00', 'end_time' => '20:00'],
@@ -188,5 +182,37 @@ class AttendanceRequestPortalTest extends TestCase
             'type' => 'overtime',
             'status' => 'in_review',
         ]);
+
+        // Jenis lembur tetap (enum): yang tersimpan label-nya, bukan key form.
+        $this->assertDatabaseHas('attendance_req_overtime_details', ['overtime_type' => 'Lembur Khusus/Proyek']);
+    }
+
+    public function test_overtime_form_shows_type_buttons_before_the_date_field(): void
+    {
+        $company = $this->createCompanyWithApprovalFlow();
+        $user = $this->createEmployee($company);
+
+        $this->actingAs($user);
+
+        Livewire::test(SubmitOvertimeRequest::class)
+            ->assertSeeInOrder(['Jenis Lembur', 'Lembur Biasa', 'Lembur Khusus/Proyek', 'Tanggal Lembur'])
+            ->call('$set', 'overtime_type', 'khusus')
+            ->assertSet('overtime_type', 'khusus');
+    }
+
+    public function test_overtime_type_must_be_one_of_the_two_fixed_types(): void
+    {
+        $company = $this->createCompanyWithApprovalFlow();
+        $user = $this->createEmployee($company);
+
+        $this->actingAs($user);
+
+        Livewire::test(SubmitOvertimeRequest::class)
+            ->set('overtime_type', 'malam')
+            ->set('date', now()->toDateString())
+            ->call('submit')
+            ->assertHasErrors(['overtime_type']);
+
+        $this->assertDatabaseMissing('attendance_requests', ['user_id' => $user->id, 'type' => 'overtime']);
     }
 }

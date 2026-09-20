@@ -18,7 +18,7 @@ class OvertimeRequest extends FormRequest
     {
         return [
             'date' => ['required', 'date'],
-            'type_id' => ['required', 'exists:m_overtime_types,id'],
+            'type_id' => ['required', \Illuminate\Validation\Rule::enum(\App\Enum\Attendance\OvertimeTypeEnum::class)],
 
             'tasks' => ['nullable', 'array', 'min:1'],
             'tasks.*.task_description' => ['nullable', 'string', 'max:500'],

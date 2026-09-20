@@ -2,7 +2,7 @@
 
 namespace App\Livewire;
 
-use App\Models\Master\Attendance\OvertimeTypes;
+use App\Enum\Attendance\OvertimeTypeEnum;
 use App\Services\Attendance\AttendaceReqService;
 use App\Support\TimeInput;
 use Filament\Notifications\Notification;
@@ -14,7 +14,7 @@ class SubmitOvertimeRequest extends Component
 {
     use WithFileUploads;
 
-    public ?string $overtime_type_id = null;
+    public ?string $overtime_type = null; // key OvertimeTypeEnum (biasa|khusus)
     public ?string $date = null;
 
     /** @var array<int, array{task_description: ?string, start_time: ?string, end_time: ?string}> */
@@ -30,9 +30,10 @@ class SubmitOvertimeRequest extends Component
         abort_if(Auth::user()->canBrowseAllCompanies(), 403);
     }
 
-    public function getOvertimeTypesProperty()
+    /** @return array<int, OvertimeTypeEnum> */
+    public function getOvertimeTypesProperty(): array
     {
-        return OvertimeTypes::where('company_id', Auth::user()->company_id)->get();
+        return OvertimeTypeEnum::cases();
     }
 
     public function addTask(): void
@@ -53,7 +54,7 @@ class SubmitOvertimeRequest extends Component
     protected function rules(): array
     {
         return [
-            'overtime_type_id' => ['required', 'exists:m_overtime_types,id'],
+            'overtime_type' => ['required', \Illuminate\Validation\Rule::enum(OvertimeTypeEnum::class)],
             'date' => ['required', 'date'],
             'tasks' => ['nullable', 'array'],
             'tasks.*.task_description' => ['nullable', 'string', 'max:500'],
@@ -75,7 +76,7 @@ class SubmitOvertimeRequest extends Component
 
         try {
             app(AttendaceReqService::class)->storeOvertimeRequest([
-                'type_id' => $data['overtime_type_id'],
+                'type_id' => $data['overtime_type'],
                 'date' => $data['date'],
                 'tasks' => $data['tasks'],
                 'attachments' => $data['attachments'] ?? null,

@@ -99,14 +99,13 @@ class AttendaceReqService
             'status' => $status,
         ]);
 
-        $overtimeType = $this->overtimeReqRepository->getOvertimeTypeById($data['type_id']);
+        $overtimeTypeName = \App\Enum\Attendance\OvertimeTypeEnum::from($data['type_id'])->label();
 
         $uploadedFiles = $data['attachments'] ?? null;
 
         $overtimeData = [
             'request_id' => $request->id,
-            'overtime_type_id' => $overtimeType?->id,
-            'overtime_type' => $overtimeType?->name,
+            'overtime_type' => $overtimeTypeName,
             'date' => $data['date'] ?? null,
             'tasks' => $data['tasks'] ?? null,
             'attachments_files' => $uploadedFiles,
@@ -152,7 +151,7 @@ class AttendaceReqService
                 approver: $firstApprover,
                 requestData: [
                     'request_id' => $request->id,
-                    'overtime_type' => $overtimeType?->name,
+                    'overtime_type' => $overtimeTypeName,
                     'date' => $data['date'] ?? null,
                     'start_time' => $data['start_time'] ?? null,
                     'end_time' => $data['end_time'] ?? null,

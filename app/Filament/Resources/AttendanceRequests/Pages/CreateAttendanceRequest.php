@@ -64,7 +64,7 @@ class CreateAttendanceRequest extends CreateRecord
                                 createdBy: Auth::user(),
                             ),
                             'overtime' => $service->storeOvertimeRequest([
-                                'type_id' => $state['overtime_type_id'] ?? null,
+                                'type_id' => $state['overtime_type'] ?? null,
                                 'date' => $state['date'] ?? null,
                                 'tasks' => $state['tasks'] ?? null,
                                 'attachments' => $state['attachments'] ?? null,

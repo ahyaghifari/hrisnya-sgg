@@ -3,7 +3,6 @@
 namespace Database\Seeders;
 
 use App\Models\Master\Attendance\LeaveTypes;
-use App\Models\Master\Attendance\OvertimeTypes;
 use App\Models\Master\Attendance\PermissionTypes;
 use Illuminate\Database\Seeder;
 
@@ -33,13 +32,6 @@ class AttendanceRequestTypeSeeder extends Seeder
             'Izin Urusan Keluarga',
         ];
 
-        $overtimeTypes = [
-            'Lembur Biasa',
-            'Lembur Malam',
-            'Lembur Hari Libur',
-            'Lembur Khusus/Proyek',
-        ];
-
         foreach ($leaveTypes as $name) {
             LeaveTypes::firstOrCreate(['name' => $name]);
         }
@@ -48,8 +40,5 @@ class AttendanceRequestTypeSeeder extends Seeder
             PermissionTypes::firstOrCreate(['name' => $name]);
         }
 
-        foreach ($overtimeTypes as $name) {
-            OvertimeTypes::firstOrCreate(['name' => $name]);
-        }
     }
 }

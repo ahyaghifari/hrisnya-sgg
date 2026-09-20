@@ -5,7 +5,6 @@ namespace App\Repositories\Attendance;
 use App\Models\Attendance\AttendanceRequestHistories;
 use App\Models\Attendance\AttendanceRequests;
 use App\Models\Master\Attendance\LeaveTypes;
-use App\Models\Master\Attendance\OvertimeTypes;
 use App\Models\Master\Attendance\PermissionTypes;
 use App\Models\Attendance\AttendanceRequestOvertimeDetails;
 use Illuminate\Support\Facades\Storage;
@@ -22,7 +21,10 @@ class AttendanceReqRepository
         } else if ($type === 'permission') {
             return PermissionTypes::where('company_id', $companyId)->get();
         } else if ($type === 'overtime') {
-            return OvertimeTypes::where('company_id', $companyId)->get();
+            // Jenis lembur tetap (enum), bukan master per perusahaan; bentuknya disamakan {id, name} buat RequestTypeResource.
+            return collect(\App\Enum\Attendance\OvertimeTypeEnum::options())
+                ->map(fn ($label, $key) => (object) ['id' => $key, 'name' => $label])
+                ->values();
         } else {
             throw new \InvalidArgumentException("Invalid attendance request type: $type");
         }

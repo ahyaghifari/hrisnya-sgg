@@ -1,4 +1,18 @@
 <div class="form-page-wrap">
+    <style>
+        /* 2 kolom tetap (juga di HP), ikon di atas label. */
+        .ot-type-group { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+        .ot-type-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 16px 12px; border-radius: 12px; border: 1.5px solid var(--border); background: var(--surface); color: var(--text-heading); font-family: inherit; font-size: 13.5px; font-weight: 700; text-align: center; cursor: pointer; transition: background 0.12s ease, border-color 0.12s ease; }
+        .ot-type-btn i { font-size: 22px; }
+        .ot-type-btn:hover { background: var(--surface-alt); }
+        /* Warna aktif = warna Lembur (hijau, sama dengan hero halaman & tombol Lembur di menu). */
+        .ot-type-btn.is-active { background: linear-gradient(130deg, #047C54 0%, #024732 100%); border-color: #047C54; color: #fff; }
+        @media (max-width: 767.98px) {
+            .ot-type-group { gap: 8px; }
+            .ot-type-btn { gap: 5px; padding: 11px 8px; font-size: 12px; border-radius: 10px; }
+            .ot-type-btn i { font-size: 16px; }
+        }
+    </style>
     <div class="page-hero green">
         <div class="hero-deco-1"></div><div class="hero-deco-2"></div><div class="hero-deco-3"></div>
         <div style="position:relative;z-index:1;">
@@ -19,21 +33,26 @@
                 <div class="section-icon"><i class="fa-solid fa-circle-info" style="color:var(--brand);font-size:12px;"></i></div>
                 <span class="section-title">General</span>
             </div>
-            <div class="col2-grid">
+            <div style="display:flex;flex-direction:column;gap:16px;">
+                {{-- Jenis dulu (pilihan tombol, 2 jenis tetap), baru tanggal. --}}
+                <div>
+                    <label class="form-label">Jenis Lembur <span style="color:var(--danger-text);">*</span></label>
+                    <div class="ot-type-group" role="radiogroup" aria-label="Jenis Lembur">
+                        @foreach ($this->overtimeTypes as $type)
+                            <button type="button" role="radio" aria-checked="{{ $overtime_type === $type->value ? 'true' : 'false' }}"
+                                wire:click="$set('overtime_type', '{{ $type->value }}')"
+                                class="ot-type-btn {{ $overtime_type === $type->value ? 'is-active' : '' }}">
+                                <i class="fa-solid {{ $type->icon() }}"></i>
+                                <span>{{ $type->label() }}</span>
+                            </button>
+                        @endforeach
+                    </div>
+                    @error('overtime_type') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
+                </div>
                 <div>
                     <label class="form-label">Tanggal Lembur <span style="color:var(--danger-text);">*</span></label>
                     <input type="date" class="form-input" wire:model="date">
                     @error('date') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
-                </div>
-                <div>
-                    <label class="form-label">Jenis Lembur <span style="color:var(--danger-text);">*</span></label>
-                    <select class="form-input" wire:model="overtime_type_id">
-                        <option value="">Pilih jenis lembur</option>
-                        @foreach ($this->overtimeTypes as $type)
-                            <option value="{{ $type->id }}">{{ $type->name }}</option>
-                        @endforeach
-                    </select>
-                    @error('overtime_type_id') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
                 </div>
             </div>
         </div>

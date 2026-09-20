@@ -5,18 +5,12 @@ namespace App\Repositories\Attendance;
 use App\Models\Attendance\AttendanceRequestOvertimeDetails;
 use App\Models\Attendance\AttendanceRequests;
 use App\Models\Attendance\AttendanceRequestAttachments;
-use App\Models\Master\Attendance\OvertimeTypes;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
 class OvertimeReqRepository
 {
-    public function getOvertimeTypeById(string $id)
-    {
-        return OvertimeTypes::find($id);
-    }
-
     public function findAttendanceReqOvertimeDetail(string $attendanceReqId)
     {
         return AttendanceRequests::with('user.profile.jobPosition.orgStructure','overtimeDetails', 'attachments')->find($attendanceReqId);
@@ -63,7 +57,6 @@ class OvertimeReqRepository
     
                     $detail = AttendanceRequestOvertimeDetails::create([
                         'request_id' => $data['request_id'],
-                        'overtime_type_id' => $data['overtime_type_id'] ?? $data['overtime_type_id'] ?? null,
                         'overtime_type' => $data['overtime_type'] ?? null,
                         'task_description' => $desc,
                         'date' => $data['date'] ?? null,
@@ -98,7 +91,6 @@ class OvertimeReqRepository
     
             $detail = AttendanceRequestOvertimeDetails::create([
                 'request_id' => $data['request_id'],
-                'overtime_type_id' => $data['overtime_type_id'] ?? null,
                 'overtime_type' => $data['overtime_type'] ?? null,
                 'task_description' => $desc,
                 'date' => $data['date'] ?? null,
