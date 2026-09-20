@@ -92,6 +92,17 @@
                 @endif
             </div>
         </div>
+        {{-- Kalender diperbesar di desktop (2026-09-20): kolom kalender 1/3 lebar container (dulu 1/5,
+        app.css: 1fr 4fr), jarak antar sel & huruf lebih besar. Inline supaya tidak perlu build CSS. --}}
+        <style>
+            @media (min-width: 768px) {
+                .jadwal-shift-calendar-wrap { grid-template-columns: 1fr 2fr; }
+                .jadwal-shift-grid { gap: 6px !important; }
+                .jadwal-shift-grid > span { font-size: 12.5px !important; }
+                .jadwal-shift-cell { font-size: 15px !important; border-radius: 12px !important; gap: 3px !important; }
+                .jadwal-shift-cell .jadwal-shift-cell-code { font-size: 17px !important; }
+            }
+        </style>
         <div class="jadwal-shift-calendar-wrap" style="padding:0 16px;">
             <div class="jadwal-shift-calendar-col">
                 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
@@ -129,13 +140,14 @@
                                 };
                             @endphp
                             <div
+                                class="jadwal-shift-cell"
                                 @if ($day['is_current_month'] && $schedule && $schedule['label']) title="{{ $schedule['label'] }}" @endif
                                 style="aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:7px;font-size:10.5px;gap:1px;
                                     {{ $day['is_current_month'] ? "background:{$cellBg};color:{$cellColor};font-weight:700;" : 'color:var(--text-faint);' }}
                                     {{ $day['is_today'] ? 'box-shadow:inset 0 0 0 1.5px var(--brand);' : '' }}">
                                 {{ $day['date']->day }}
                                 @if ($day['is_current_month'] && $state === 'scheduled' && $schedule['code'])
-                                    <span style="font-size:12px;font-weight:800;letter-spacing:0.2px;line-height:1;">{{ $schedule['code'] }}</span>
+                                    <span class="jadwal-shift-cell-code" style="font-size:12px;font-weight:800;letter-spacing:0.2px;line-height:1;">{{ $schedule['code'] }}</span>
                                 @endif
                             </div>
                         @endforeach
