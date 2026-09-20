@@ -62,6 +62,27 @@ class ExecutiveEmployeeResource extends Resource
             ->with(['profile', 'company', 'roles']);
     }
 
+    /**
+     * HANYA Super Admin (2026-09-20, instruksi user): data 2 akun eksekutif ini (Pangkat/Kelas/Tipe
+     * Karyawan yang memengaruhi payroll eksekutif) tidak boleh terbuka untuk role lain walau punya
+     * ViewAny:User/Update:User seperti menu Karyawan biasa. Cek role literal (bukan permission),
+     * konsisten dengan BaseResource::isSuperAdmin(). canViewAny false juga menyembunyikan menunya.
+     */
+    private static function isSuperAdmin(): bool
+    {
+        return (bool) filament()->auth()->user()?->hasRole('Super Admin');
+    }
+
+    public static function canViewAny(): bool
+    {
+        return static::isSuperAdmin();
+    }
+
+    public static function canEdit($record): bool
+    {
+        return static::isSuperAdmin();
+    }
+
     public static function canCreate(): bool
     {
         return false;
