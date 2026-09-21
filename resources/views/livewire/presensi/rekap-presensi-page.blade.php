@@ -21,7 +21,7 @@
 @endif
 
 <div style="display:inline-flex;gap:2px;background:var(--surface-alt);padding:3px;border-radius:8px;margin-bottom:16px;">
-    <button type="button" wire:click="setMode('harian')" style="padding:4px 12px;font-size:11.5px;font-weight:600;border:none;border-radius:6px;cursor:pointer;font-family:inherit;background:{{ $mode === 'harian' ? 'var(--brand)' : 'transparent' }};color:{{ $mode === 'harian' ? '#fff' : 'var(--text-muted)' }};box-shadow:{{ $mode === 'harian' ? 'var(--shadow-card)' : 'none' }};">Hari Ini</button>
+    <button type="button" wire:click="setMode('harian')" style="padding:4px 12px;font-size:11.5px;font-weight:600;border:none;border-radius:6px;cursor:pointer;font-family:inherit;background:{{ $mode === 'harian' ? 'var(--brand)' : 'transparent' }};color:{{ $mode === 'harian' ? '#fff' : 'var(--text-muted)' }};box-shadow:{{ $mode === 'harian' ? 'var(--shadow-card)' : 'none' }};">Harian</button>
     <button type="button" wire:click="setMode('bulanan')" style="padding:4px 12px;font-size:11.5px;font-weight:600;border:none;border-radius:6px;cursor:pointer;font-family:inherit;background:{{ $mode === 'bulanan' ? 'var(--brand-success)' : 'transparent' }};color:{{ $mode === 'bulanan' ? '#fff' : 'var(--text-muted)' }};box-shadow:{{ $mode === 'bulanan' ? 'var(--shadow-card)' : 'none' }};">Periode</button>
 </div>
 
@@ -57,6 +57,19 @@
             @endforeach
         </select>
     </div>
+
+    @if ($mode === 'harian')
+        <div style="min-width:170px;">
+            <label class="form-label">Tanggal</label>
+            <input type="date" class="form-input" wire:model.live="harianDate" max="{{ now()->toDateString() }}">
+        </div>
+
+        @if ($harianDate !== now()->toDateString())
+            <button type="button" wire:click="resetHarianDate" class="btn-ghost" title="Kembali ke hari ini">
+                <i class="fa-solid fa-rotate-left"></i> Hari Ini
+            </button>
+        @endif
+    @endif
 
     @if ($mode === 'bulanan')
         <div style="min-width:170px;">
@@ -108,6 +121,8 @@
 @if ($mode === 'harian')
     @php
         $stats = $this->todayStats;
+        $isToday = $harianDate === now()->toDateString();
+        $dayLabel = $isToday ? 'hari ini' : 'pada '.\Illuminate\Support\Carbon::parse($harianDate)->translatedFormat('d M Y');
         // Kartu ringkasan = tombol filter daftar di bawah: klik "Hadir" -> cuma yang hadir, "Terlambat" ->
         // cuma yang terlambat, dst. Klik lagi (atau kartu Total) untuk menampilkan semua.
         $summaryCards = [
@@ -179,7 +194,7 @@
                             <td style="text-align:center;">{{ $row->working_minutes > 0 ? round($row->working_minutes / 60, 1) . ' jam' : '–' }}</td>
                             @if ($this->canSync)
                                 <td style="text-align:center;white-space:nowrap;">
-                                    <button type="button" wire:click="syncUserToday('{{ $row->id }}')" wire:loading.attr="disabled" wire:target="syncUserToday('{{ $row->id }}')" class="btn-ghost btn-sm" style="padding:4px 10px;font-size:11px;" title="Baca ulang scan hari ini & hitung ulang jam kerja/telat karyawan ini">
+                                    <button type="button" wire:click="syncUserToday('{{ $row->id }}')" wire:loading.attr="disabled" wire:target="syncUserToday('{{ $row->id }}')" class="btn-ghost btn-sm" style="padding:4px 10px;font-size:11px;" title="Baca ulang scan {{ $dayLabel }} & hitung ulang jam kerja/telat karyawan ini">
                                         <i class="fa-solid fa-rotate" wire:loading.remove wire:target="syncUserToday('{{ $row->id }}')"></i>
                                         <i class="fa-solid fa-circle-notch fa-spin" wire:loading wire:target="syncUserToday('{{ $row->id }}')" style="display:none;"></i>
                                         Sync
@@ -191,7 +206,7 @@
                         <tr>
                             <td colspan="{{ $this->canSync ? 7 : 6 }}" style="padding:32px;text-align:center;color:var(--text-faint);">
                                 @if ($statusFilter !== '')
-                                    Tidak ada karyawan dengan status "{{ collect($summaryCards)->firstWhere('key', $statusFilter)['label'] }}"{{ $search !== '' ? ' yang cocok dengan pencarian' : '' }} hari ini.
+                                    Tidak ada karyawan dengan status "{{ collect($summaryCards)->firstWhere('key', $statusFilter)['label'] }}"{{ $search !== '' ? ' yang cocok dengan pencarian' : '' }} {{ $dayLabel }}.
                                 @elseif ($search !== '')
                                     Tidak ada karyawan yang cocok dengan pencarian "{{ $search }}".
                                 @else

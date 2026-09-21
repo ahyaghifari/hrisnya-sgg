@@ -69,6 +69,11 @@ class RekapPresensiPage extends Component
     #[Url]
     public ?string $date_to = null;
 
+    /** Tanggal yang ditampilkan di mode harian (tab "Harian"), format Y-m-d - default hari ini, tidak boleh
+     * lebih dari hari ini. Lihat harianDay(). */
+    #[Url(as: 'tanggal')]
+    public ?string $harianDate = null;
+
     public bool $showSyncModal = false;
 
     public string $syncDate = '';
@@ -101,6 +106,8 @@ class RekapPresensiPage extends Component
         // Default periode bulanan ikut cutoff company (AttendancePeriodResolver), sama seperti
         // Rekap Izin - konsisten dengan periode absensi/kuota izin, bukan bulan kalender polos.
         // Cuma di-default kalau belum ada di query string (mis. dari link "Bulanan" halaman lain).
+        $this->harianDate = $this->sanitizeHarianDate($this->harianDate);
+
         if ($this->date_from === null || $this->date_to === null) {
             [$periodStart, $periodEnd] = AttendancePeriodResolver::resolve(now(), $this->companyId);
             $this->date_from = $periodStart->toDateString();
@@ -124,6 +131,36 @@ class RekapPresensiPage extends Component
         $this->resetPage();
     }
 
+    /** Tanggal valid (Y-m-d) dan tidak melewati hari ini, selain itu jatuh ke hari ini (query string bisa dioprek). */
+    private function sanitizeHarianDate(?string $date): string
+    {
+        $today = now()->toDateString();
+
+        if (! $date || preg_match('/^\d{4}-\d{2}-\d{2}$/', $date) !== 1 || ! checkdate((int) substr($date, 5, 2), (int) substr($date, 8, 2), (int) substr($date, 0, 4))) {
+            return $today;
+        }
+
+        return min($date, $today);
+    }
+
+    /** Tanggal aktif mode harian (selalu terisi, default hari ini). */
+    protected function harianDay(): string
+    {
+        return $this->harianDate = $this->sanitizeHarianDate($this->harianDate);
+    }
+
+    public function updatedHarianDate(): void
+    {
+        $this->harianDate = $this->sanitizeHarianDate($this->harianDate);
+        $this->resetPage();
+    }
+
+    public function resetHarianDate(): void
+    {
+        $this->harianDate = now()->toDateString();
+        $this->resetPage();
+    }
+
     public function getCanSyncProperty(): bool
     {
         return Auth::user()->can(CustomPermissionEnum::SYNC_DATA_ABSENSI->value);
@@ -133,7 +170,7 @@ class RekapPresensiPage extends Component
     {
         abort_unless($this->canSync, 403);
 
-        $this->syncDate = now()->toDateString();
+        $this->syncDate = $this->harianDay();
         $this->syncFromTime = '08:00';
         $this->syncResultMessage = null;
         $this->syncResultType = null;
@@ -384,11 +421,11 @@ class RekapPresensiPage extends Component
 
     // --- Sync ulang per karyawan (hari ini / 1 periode / 1 tanggal di modal rincian) ---
 
-    /** Sync ulang hari ini untuk 1 karyawan (tombol per baris mode harian). */
+    /** Sync ulang tanggal yang sedang ditampilkan (default hari ini) untuk 1 karyawan (tombol per baris mode harian). */
     public function syncUserToday(string $userId): void
     {
         $user = $this->resolveSyncableUser($userId);
-        $today = now()->toDateString();
+        $today = $this->harianDay();
 
         $this->notifyResync($user, $today, $today, $this->resyncUserRange($user, $today, $today));
     }
@@ -585,7 +622,7 @@ class RekapPresensiPage extends Component
             return;
         }
 
-        $today = now()->toDateString();
+        $today = $this->harianDay();
         $from ??= $this->mode === 'harian' ? $today : ($this->date_from ?? $today);
         $to ??= $this->mode === 'harian' ? $today : ($this->date_to ?? $today);
         $type = $this->scheduleFilter;
@@ -671,6 +708,7 @@ class RekapPresensiPage extends Component
             'scheduleFilter' => $this->scheduleFilter,
             'date_from' => $this->date_from,
             'date_to' => $this->date_to,
+            'tanggal' => $this->harianDate,
         ];
     }
 
@@ -680,7 +718,7 @@ class RekapPresensiPage extends Component
     {
         $totalEmployees = $this->baseUserQuery()->count();
 
-        $counts = $this->scopedRecordsForRange(now()->toDateString(), now()->toDateString())
+        $counts = $this->scopedRecordsForRange($this->harianDay(), $this->harianDay())
             ->selectRaw('status, count(*) as total')
             ->groupBy('status')
             ->pluck('total', 'status');
@@ -700,7 +738,7 @@ class RekapPresensiPage extends Component
 
     public function getTodayRowsProperty()
     {
-        $today = now()->toDateString();
+        $today = $this->harianDay();
 
         return $this->filteredUserQuery()
             ->select(['users.id', 'users.name', 'users.nip'])
