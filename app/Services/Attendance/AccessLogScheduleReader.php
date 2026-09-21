@@ -345,6 +345,17 @@ class AccessLogScheduleReader
         // yang sudah benar.
         $extraShifts = $this->shiftReader->findForIncrementalDates($allDates, $employeeIds->unique()->values());
 
+        // SEMUA scan mentah hari itu (bukan cuma yang baru sejak watermark) buat (nip,tanggal) yang
+        // disentuh batch ini - dipakai melengkapi jam masuk/pulang kalau scan sebelumnya tidak ikut
+        // terbaca batch-batch incremental (mis. masuk ke access_logs terlambat sesudah watermark lewat,
+        // atau saat itu jadwal/roster belum siap), lihat blok "Scan hari itu" di bawah.
+        $dayScans = DB::table('access_logs')
+            ->whereIn('employee_id', $employeeIds->unique()->values())
+            ->whereIn('access_date', $dates->unique()->values())
+            ->orderBy('access_datetime')
+            ->get(['employee_id', 'access_date', 'access_time', 'device_name'])
+            ->groupBy(fn ($r) => $r->employee_id . '|' . $r->access_date);
+
         $entries = [];
         foreach ($scanGroups as $key => $rowsForDay) {
             [$employeeId, $date] = explode('|', $key, 2);
@@ -451,6 +462,30 @@ class AccessLogScheduleReader
                 continue;
             }
 
+            // Scan hari itu: kalau (nip,tanggal) ini punya scan LAIN di access_logs yang tidak ikut batch
+            // ini (mis. scan masuk pagi yang telat masuk ke access_logs sesudah watermark lewat), jam
+            // masuk/pulang dihitung dari SEMUA scan hari itu - bukan cuma 1-2 scan baru. Tanpa ini baris
+            // yang belum punya record bisa terbentuk cuma dari 2 scan pulang yang berdekatan (masuk =
+            // pulang, dianggap terlambat berjam-jam). Hanya untuk hari TANPA extra shift (pairing extra
+            // punya aturan sendiri) dan bukan shift overnight (scan dini hari di tanggal itu bisa
+            // milik shift semalam, bukan hari ini) - sisanya tetap perilaku lama.
+            $daySpanCount = $rowsForDay->count();
+            $deviceNames = $rowsForDay->pluck('device_name')->filter()->unique()->values()->all();
+            if (! $extraShift
+                && ! $this->isOvernightShiftDay($user, $date)
+                && ! $this->isOvernightShiftDay($user, Carbon::parse($date)->subDay()->toDateString())) {
+                $allDayScans = $dayScans->get($key);
+
+                if ($allDayScans && $allDayScans->count() > $rowsForDay->count()) {
+                    $newFirst = min($newFirst, $allDayScans->first()->access_time);
+                    $newLast = max($newLast, $allDayScans->last()->access_time);
+                    $daySpanCount = $allDayScans->count();
+                    // Device semua scan hari itu ikut dicek (sama seperti pembacaan batch) - scan dari alat
+                    // yang tidak dikenal tidak boleh lolos cuma karena ikut "dilengkapi" dari access_logs.
+                    $deviceNames = $allDayScans->pluck('device_name')->filter()->unique()->values()->all();
+                }
+            }
+
             if ($existingRecord) {
                 // Sudah ada scan sebelumnya buat (nip,date) ini -> check_in dianggap sudah benar
                 // (min buat jaga-jaga clock skew), dan sekarang pasti ada >=2 scan total, jadi
@@ -461,7 +496,7 @@ class AccessLogScheduleReader
                 $checkOut = $priorCheckOut ? max($priorCheckOut, $newLast) : $newLast;
                 $isNewCheckIn = false;
                 $isNewCheckOut = ! $hadCheckOutBefore && filled($checkOut);
-            } elseif ($rowsForDay->count() === 1 && $this->singleScanIsCheckout($user, $date, $newFirst)) {
+            } elseif ($daySpanCount === 1 && $this->singleScanIsCheckout($user, $date, $newFirst)) {
                 // Sama pola dengan pairScansForEmployee() versi batch - scan tunggal ini
                 // waktunya sudah masuk jam pulang jadwal Fixed, diperlakukan sebagai check-out
                 // saja (check_in kosong), bukan check-in yang kebetulan telat sampai jam pulang.
@@ -472,7 +507,7 @@ class AccessLogScheduleReader
             } else {
                 // Belum pernah ada record -> scan baru INI satu-satunya sumber info hari itu.
                 $checkIn = $newFirst;
-                $checkOut = $rowsForDay->count() > 1 ? $newLast : null;
+                $checkOut = $daySpanCount > 1 ? $newLast : null;
                 $isNewCheckIn = true;
                 $isNewCheckOut = filled($checkOut);
             }
@@ -487,7 +522,7 @@ class AccessLogScheduleReader
                 // App\Notifications\AttendanceCheckedIn/AttendanceCheckedOut.
                 'is_new_checkin' => $isNewCheckIn,
                 'is_new_checkout' => $isNewCheckOut,
-                'device_names' => $rowsForDay->pluck('device_name')->filter()->unique()->values()->all(),
+                'device_names' => $deviceNames,
                 'user' => $user,
                 // extraShift ada tapi slot-nya 'normal' (extra shift belum disentuh hari ini) -
                 // jangan dianggap extra shift lagi oleh groupAndBucket(), ini murni pairing normal.

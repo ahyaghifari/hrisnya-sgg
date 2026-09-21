@@ -162,6 +162,36 @@ class FixedFlexibleReaderTest extends TestCase
         $this->assertTrue($entry['is_new_checkout']);
     }
 
+    /** Guard "shift yang sudah lengkap tidak tertimpa scan tambahan" (isCompletedShiftDay) HANYA untuk
+     * jadwal Shift - Fixed/Flexible yang jam masuk & pulangnya sudah lengkap tetap harus menerima
+     * scan berikutnya lewat sync incremental (jam pulang ikut diperbarui). */
+    public function test_fixed_and_flexible_with_complete_record_still_accept_extra_scan_incrementally(): void
+    {
+        foreach (['fixed' => $this->makeFixedUser('2026-08-06'), 'flexible' => $this->makeFlexibleUser()] as $type => $user) {
+            $reader = app(AccessLogScheduleReader::class);
+            $calculator = $type === 'fixed' ? app(FixedScheduleCalculator::class) : app(FlexibleScheduleCalculator::class);
+
+            $this->insertScan($user, '2026-08-06 08:00:00');
+            $this->insertScan($user, '2026-08-06 16:00:00');
+            $first = $reader->readAndGroupIncremental(null);
+            $this->assertCount(1, $first['buckets'][$type], $type);
+            app(AttendanceRecordRepository::class)->saveCalculatedResult(
+                $calculator->calculate($first['buckets'][$type])[0],
+                'access_logs_'.$type
+            );
+
+            // Scan ke-3 (mis. pulang lebih akhir) - harus MASUK sebagai entri baru, bukan dilewati.
+            $this->insertScan($user, '2026-08-06 17:30:00');
+            $second = $reader->readAndGroupIncremental($first['max_synced_at']);
+
+            $this->assertCount(1, $second['buckets'][$type], "{$type}: scan tambahan setelah record lengkap tidak boleh dilewati");
+            $this->assertSame('17:30:00', $second['buckets'][$type][0]['check_out'], $type);
+
+            DB::table('access_logs')->delete();
+            DB::table('attendance_records')->delete();
+        }
+    }
+
     public function test_fixed_lone_scan_next_day_is_not_wrongly_merged_as_previous_day_checkout(): void
     {
         // Fixed TIDAK overnight - scan tunggal di hari berikutnya harus jadi entri hari itu
