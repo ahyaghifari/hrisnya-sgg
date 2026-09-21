@@ -41,18 +41,6 @@
                 </select>
                 @error('coach_by') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
             </div>
-
-            <div>
-                <label class="form-label">Judul <span style="color:var(--danger-text);">*</span></label>
-                <input type="text" wire:model="title" class="form-input" placeholder="Judul coaching...">
-                @error('title') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
-            </div>
-
-            <div>
-                <label class="form-label">Deadline Perbaikan <span style="color:var(--danger-text);">*</span></label>
-                <input type="date" wire:model="improvement_due_date" class="form-input">
-                @error('improvement_due_date') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
-            </div>
         </div>
     </div>
 
@@ -62,6 +50,11 @@
             <span class="section-title">Tujuan & Kondisi</span>
         </div>
         <div style="display:flex;flex-direction:column;gap:16px;">
+            <div>
+                <label class="form-label">Judul <span style="color:var(--danger-text);">*</span></label>
+                <input type="text" wire:model="title" class="form-input" placeholder="Judul coaching...">
+                @error('title') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
+            </div>
             <div>
                 <label class="form-label">Tujuan Coaching <span style="color:var(--danger-text);">*</span></label>
                 <textarea wire:model="goals" class="form-input" rows="3"></textarea>
@@ -90,6 +83,11 @@
                 <label class="form-label">Tindakan Perbaikan <span style="color:var(--danger-text);">*</span></label>
                 <textarea wire:model="improvement_action" class="form-input" rows="3"></textarea>
                 @error('improvement_action') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
+            </div>
+            <div>
+                <label class="form-label">Deadline Perbaikan <span style="color:var(--danger-text);">*</span></label>
+                <input type="date" wire:model="improvement_due_date" class="form-input">
+                @error('improvement_due_date') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
             </div>
         </div>
     </div>

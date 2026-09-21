@@ -9,13 +9,6 @@
     </div>
 @endif
 
-<div style="display:inline-flex;gap:2px;background:var(--surface-alt);padding:3px;border-radius:8px;margin-bottom:14px;flex-wrap:wrap;">
-    <button type="button" wire:click="setStatus('')" style="padding:4px 12px;font-size:11.5px;font-weight:600;border:none;border-radius:6px;cursor:pointer;font-family:inherit;background:{{ $status === '' ? 'var(--surface)' : 'transparent' }};color:{{ $status === '' ? 'var(--text-heading)' : 'var(--text-muted)' }};box-shadow:{{ $status === '' ? 'var(--shadow-card)' : 'none' }};">Semua</button>
-    @foreach ($this->statuses as $s)
-        <button type="button" wire:click="setStatus('{{ $s->value }}')" style="padding:4px 12px;font-size:11.5px;font-weight:600;border:none;border-radius:6px;cursor:pointer;font-family:inherit;background:{{ $status === $s->value ? 'var(--surface)' : 'transparent' }};color:{{ $status === $s->value ? 'var(--text-heading)' : 'var(--text-muted)' }};box-shadow:{{ $status === $s->value ? 'var(--shadow-card)' : 'none' }};">{{ $s->getLabel() }}</button>
-    @endforeach
-</div>
-
 <div class="mb-4" style="display:flex;flex-wrap:wrap;gap:12px;">
     @if ($this->canBrowseAllCompanies)
         <div style="min-width:220px;">
@@ -38,14 +31,7 @@
     </div>
 </div>
 
-@php
-    $badgeClass = fn (string $status) => match ($status) {
-        'completed' => 'badge-approved',
-        'rejected' => 'badge-rejected',
-        default => 'badge-pending',
-    };
-    $coachings = $this->coachings;
-@endphp
+@php $coachings = $this->coachings; @endphp
 
 <div class="pwa-list">
     @forelse ($coachings as $coaching)
@@ -57,9 +43,7 @@
                     &middot; Coach: {{ $coaching->coachBy?->name ?? '-' }}
                 </span>
             </div>
-            <span class="badge {{ $badgeClass($coaching->status) }}">
-                {{ \App\Enum\CoachingStatus::tryFrom($coaching->status)?->getLabel() ?? $coaching->status }}
-            </span>
+            <i class="fa-solid fa-chevron-right"></i>
         </a>
     @empty
         <div class="pwa-list-row" style="opacity:0.7;">

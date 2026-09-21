@@ -17,7 +17,6 @@ class CoachingListResource extends JsonResource
         return [
             'id' => $this->id,
             'title' => $this->title,
-            'status' => $this->status,
             'employee_condition' => $this->employee_condition,
             'created_at' => $this->created_at?->format('Y-m-d'),
         ];

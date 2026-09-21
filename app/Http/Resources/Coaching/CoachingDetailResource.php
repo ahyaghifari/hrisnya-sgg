@@ -22,23 +22,6 @@ class CoachingDetailResource extends JsonResource
             'solution' => $this->solution,
             'improvement_action' => $this->improvement_action,
             'improvement_due_date' => $this->improvement_due_date,
-
-            'proofs' => $this->groupedProofs(),
         ];
-    }
-
-    /**
-     * Grouped per tanggal upload saja — status Coaching sendiri yang jadi satu-satunya sumber
-     * kebenaran, bukan status per-bukti (lihat Coaching::getGroupedProofsAttribute()).
-     */
-    protected function groupedProofs()
-    {
-        return $this->proofs
-            ->groupBy(fn ($proof) => $proof->created_at->format('Y-m-d'))
-            ->map(fn ($items, $date) => [
-                'date' => $date,
-                'proofs' => CoachingProofResource::collection($items),
-            ])
-            ->values();
     }
 }

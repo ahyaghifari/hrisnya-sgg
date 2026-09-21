@@ -23,8 +23,6 @@ Ada 2 jalur pengiriman berbeda yang **tidak simetris** (temuan penting, lihat §
 | `TASK_ASSIGNED`, `TASK_REVIEW_DECIDED`, `TASK_REVIEWER_ASSIGNED`, `TASK_COMMENTED`, `TASK_PROJECT_MEMBER_ADDED` | Karyawan terkait tugas/Kanban | Lihat `App\Services\Task\TaskService` — belum didokumentasikan detail di sini |
 | `PAYROLL_PAID` | Karyawan pemilik payroll | Saat payroll ditandai sudah dibayar (`PayrollDetailPage`/`PayrollsPage`) |
 | `COACHING_ASSIGNED` | Karyawan yang dibina | `CoachingService::create()` — atasan/HC buat sesi coaching baru |
-| `COACHING_PROOF_SUBMITTED` | Coach (`coach_by`) | `CoachingService::update()`/`uploadProofs()` — karyawan ajukan bukti pelaksanaan |
-| `COACHING_REVIEW_DECIDED` | Karyawan yang dibina | `CoachingService::approve()`/`reject()` |
 | `COUNSELING_RECEIVED` | Konselor yang ditunjuk | `CounselingService::create()` — karyawan submit Konsul (isi keluhan TIDAK disertakan di body notifikasi, rahasia) |
 
 `label()` dan `description()` di enum ini yang ditampilkan di halaman Pengaturan Notifikasi (§4) — bukan cuma dekorasi, jadi kalau tambah case baru, isi 2 method itu juga.

@@ -2,7 +2,6 @@
 
 namespace App\Filament\Resources\Coachings\Tables;
 
-use App\Enum\CoachingStatus;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
@@ -29,14 +28,6 @@ class CoachingsTable
                     ->label('Judul')
                     ->sortable()
                     ->searchable(),
-
-                TextColumn::make('status')
-                    ->label('Status')
-                    ->badge()
-                    ->icon(fn (string $state) => CoachingStatus::from($state)->getIcon())
-                    ->color(fn (string $state) => CoachingStatus::from($state)->getColor())
-                    ->formatStateUsing(fn (string $state) => CoachingStatus::from($state)->getLabel())
-                    ->sortable(),
 
                 TextColumn::make('improvement_due_date')
                     ->label('Deadline Perbaikan')

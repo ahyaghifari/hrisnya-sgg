@@ -80,7 +80,7 @@ class CoachingSubordinateAccessTest extends TestCase
 
         Coaching::create([
             'company_id' => $company->id, 'user_id' => $randomEmployee->id, 'coach_by' => $randomEmployee->id,
-            'title' => 'Coaching karyawan random', 'improvement_due_date' => now()->addWeek(), 'status' => 'in_progress',
+            'title' => 'Coaching karyawan random', 'improvement_due_date' => now()->addWeek(),
         ]);
 
         // Bisa akses halaman list (bukan 403) walau bukan atasan siapa-siapa...
@@ -120,11 +120,11 @@ class CoachingSubordinateAccessTest extends TestCase
 
         Coaching::create([
             'company_id' => $company->id, 'user_id' => $subordinate->id, 'coach_by' => $manager->id,
-            'title' => 'Coaching bawahan', 'improvement_due_date' => now()->addWeek(), 'status' => 'in_progress',
+            'title' => 'Coaching bawahan', 'improvement_due_date' => now()->addWeek(),
         ]);
         Coaching::create([
             'company_id' => $company->id, 'user_id' => $outsider->id, 'coach_by' => $outsider->id,
-            'title' => 'Coaching karyawan lain', 'improvement_due_date' => now()->addWeek(), 'status' => 'in_progress',
+            'title' => 'Coaching karyawan lain', 'improvement_due_date' => now()->addWeek(),
         ]);
 
         $component = Livewire::actingAs($manager)->test(CoachingPage::class);
@@ -152,6 +152,7 @@ class CoachingSubordinateAccessTest extends TestCase
             'company_id' => $company->id,
             'user_id' => $subordinate->id,
             'coach_by' => $manager->id,
+            'created_by' => $manager->id,
             'title' => 'Perbaikan performa',
         ]);
     }
@@ -218,7 +219,7 @@ class CoachingSubordinateAccessTest extends TestCase
 
         $coaching = Coaching::create([
             'company_id' => $company->id, 'user_id' => $subordinate->id, 'coach_by' => $manager->id,
-            'title' => 'Coaching bawahan', 'improvement_due_date' => now()->addWeek(), 'status' => 'in_progress',
+            'title' => 'Coaching bawahan', 'improvement_due_date' => now()->addWeek(),
         ]);
 
         Livewire::actingAs($manager)
@@ -228,11 +229,11 @@ class CoachingSubordinateAccessTest extends TestCase
 
     /**
      * Regresi: pagination di halaman ini pakai wire:navigate (full page-visit), yang bikin
-     * komponen di-mount ULANG dari URL — tanpa #[Url] filter `status` hilang begitu pindah
+     * komponen di-mount ULANG dari URL — tanpa #[Url] filter `search` hilang begitu pindah
      * halaman. Test GET langsung (bukan Livewire::test) biar simulasi mount dari URL yang
      * sebenarnya kejadian saat wire:navigate.
      */
-    public function test_status_filter_is_read_from_url_on_page_load(): void
+    public function test_search_filter_is_read_from_url_on_page_load(): void
     {
         Permission::firstOrCreate(['name' => \App\Enum\CustomPermissionEnum::COACHING_KARYAWAN_LAINNYA->value, 'guard_name' => 'web']);
         Permission::firstOrCreate(['name' => \App\Enum\CustomPermissionEnum::SISTEM_PEMBINAAN_KARYAWAN->value, 'guard_name' => 'web']);
@@ -245,24 +246,25 @@ class CoachingSubordinateAccessTest extends TestCase
         $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
         $hc = User::factory()->create(['company_id' => $company->id]);
         $hc->assignRole($role);
-        $employee = User::factory()->create(['company_id' => $company->id]);
+        $employee = User::factory()->create(['company_id' => $company->id, 'name' => 'Andi Alpha']);
+        $other = User::factory()->create(['company_id' => $company->id, 'name' => 'Budi Beta']);
 
         for ($i = 1; $i <= 15; $i++) {
             Coaching::create([
                 'company_id' => $company->id, 'user_id' => $employee->id, 'coach_by' => $hc->id,
-                'title' => "Coaching Selesai {$i}", 'improvement_due_date' => now()->addWeek(), 'status' => 'completed',
+                'title' => "Coaching Andi {$i}", 'improvement_due_date' => now()->addWeek(),
             ]);
         }
         Coaching::create([
-            'company_id' => $company->id, 'user_id' => $employee->id, 'coach_by' => $hc->id,
-            'title' => 'Coaching Berjalan', 'improvement_due_date' => now()->addWeek(), 'status' => 'in_progress',
+            'company_id' => $company->id, 'user_id' => $other->id, 'coach_by' => $hc->id,
+            'title' => 'Coaching Budi', 'improvement_due_date' => now()->addWeek(),
         ]);
 
-        $response = $this->actingAs($hc)->get(route('coaching', ['status' => 'completed', 'page' => 2]));
+        $response = $this->actingAs($hc)->get(route('coaching', ['search' => 'Andi', 'page' => 2]));
 
         $response->assertOk();
-        $response->assertSee('Coaching Selesai 11');
-        $response->assertDontSee('Coaching Berjalan');
+        $response->assertSee('Coaching Andi');
+        $response->assertDontSee('Coaching Budi');
     }
 
     public function test_manager_cannot_view_non_subordinate_coaching_detail(): void
@@ -271,7 +273,7 @@ class CoachingSubordinateAccessTest extends TestCase
 
         $coaching = Coaching::create([
             'company_id' => $company->id, 'user_id' => $outsider->id, 'coach_by' => $outsider->id,
-            'title' => 'Coaching karyawan lain', 'improvement_due_date' => now()->addWeek(), 'status' => 'in_progress',
+            'title' => 'Coaching karyawan lain', 'improvement_due_date' => now()->addWeek(),
         ]);
 
         Livewire::actingAs($manager)

@@ -1004,19 +1004,11 @@ source (tab server-render sekali jalan, x-show cuma toggle CSS). --}}
     tidak ditampilkan di sini (instruksi user). Cuma tampil buat karyawan itu sendiri atau
     pemegang SISTEM_PEMBINAAN_KARYAWAN. --}}
     <div x-show="tab === 'pembinaan'">
-        @php
-            $coachBadge = fn (string $s) => match ($s) {
-                'completed' => 'badge-approved',
-                'rejected' => 'badge-rejected',
-                'in_progress', 'submitted' => 'badge-pending',
-                default => 'badge-cancelled',
-            };
-            $coachings = $this->myCoachings;
-        @endphp
+        @php $coachings = $this->myCoachings; @endphp
 
         <div class="pwa-list">
             @forelse ($coachings as $c)
-                <div class="pwa-list-row" style="align-items:flex-start;">
+                <a href="{{ route('coaching.show', $c) }}" wire:navigate class="pwa-list-row" style="align-items:flex-start;text-decoration:none;">
                     <div class="pwa-tile-icon teal"><i class="fa-solid fa-seedling"></i></div>
                     <div style="flex:1;min-width:0;">
                         <p class="pwa-row-title">{{ $c->title }}</p>
@@ -1028,10 +1020,8 @@ source (tab server-render sekali jalan, x-show cuma toggle CSS). --}}
                             &middot; {{ $c->created_at->translatedFormat('d M Y') }}
                         </span>
                     </div>
-                    <span class="badge {{ $coachBadge($c->status) }}">
-                        {{ \App\Enum\CoachingStatus::tryFrom($c->status)?->getLabel() ?? $c->status }}
-                    </span>
-                </div>
+                    <i class="fa-solid fa-chevron-right"></i>
+                </a>
             @empty
                 <div class="pwa-list-row" style="opacity:0.7;">
                     <div style="flex:1;min-width:0;">

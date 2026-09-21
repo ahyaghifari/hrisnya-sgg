@@ -2,7 +2,6 @@
 
 namespace Database\Seeders;
 
-use App\Enum\CoachingStatus;
 use App\Models\Coaching\Coaching;
 use App\Models\User;
 use Illuminate\Database\Seeder;
@@ -50,7 +49,6 @@ class CoachingDemoSeeder extends Seeder
                 'solution' => 'Atur alarm lebih awal, evaluasi rute berangkat.',
                 'improvement_action' => 'Datang tepat waktu selama 2 minggu berturut-turut.',
                 'improvement_due_date' => now()->addWeeks(2)->toDateString(),
-                'status' => CoachingStatus::IN_PROGRESS->value,
             ],
             [
                 'user_id' => $ahya->id,
@@ -61,7 +59,6 @@ class CoachingDemoSeeder extends Seeder
                 'solution' => 'Breakdown task jadi unit lebih kecil, laporan progres harian.',
                 'improvement_action' => 'Semua task selesai sesuai deadline selama 1 bulan.',
                 'improvement_due_date' => now()->subWeek()->toDateString(),
-                'status' => CoachingStatus::COMPLETED->value,
             ],
             // Ahya sebagai coach — muncul di halaman "Coaching" (atasan).
             [
@@ -73,7 +70,6 @@ class CoachingDemoSeeder extends Seeder
                 'solution' => 'Checklist dokumentasi sebelum PR dianggap selesai.',
                 'improvement_action' => 'Semua PR baru menyertakan dokumentasi ringkas.',
                 'improvement_due_date' => now()->addWeek()->toDateString(),
-                'status' => CoachingStatus::PENDING->value,
             ],
         ];
 

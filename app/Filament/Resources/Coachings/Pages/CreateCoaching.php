@@ -2,7 +2,6 @@
 
 namespace App\Filament\Resources\Coachings\Pages;
 
-use App\Enum\CoachingStatus;
 use App\Filament\Resources\Coachings\CoachingResource;
 use App\Filament\Resources\Coachings\Schemas\CoachingForm;
 use Filament\Resources\Pages\CreateRecord;
@@ -16,8 +15,8 @@ class CreateCoaching extends CreateRecord
     {
         $auth = auth()->user();
 
-        $data['status'] = CoachingStatus::IN_PROGRESS->value;
         $data['company_id'] = $auth->company_id;
+        $data['created_by'] = $auth->id;
 
         return $data;
     }

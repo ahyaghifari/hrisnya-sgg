@@ -5,24 +5,9 @@
     </div>
 
     @if ($loaded)
-        @php $counts = $this->statusCounts; @endphp
-        <div class="grid grid-cols-2 md:grid-cols-4" style="gap:10px;margin:14px 0;">
-            <div style="background:var(--surface-alt);border-radius:12px;padding:12px;text-align:center;">
-                <p style="font-size:18px;font-weight:800;color:var(--text-heading);margin:0;">{{ $counts['pending'] }}</p>
-                <p style="font-size:10.5px;color:var(--text-muted);margin-top:2px;">Pending</p>
-            </div>
-            <div style="background:var(--surface-alt);border-radius:12px;padding:12px;text-align:center;">
-                <p style="font-size:18px;font-weight:800;color:var(--text-heading);margin:0;">{{ $counts['in_progress'] }}</p>
-                <p style="font-size:10.5px;color:var(--text-muted);margin-top:2px;">Berjalan</p>
-            </div>
-            <div style="background:var(--surface-alt);border-radius:12px;padding:12px;text-align:center;">
-                <p style="font-size:18px;font-weight:800;color:var(--text-heading);margin:0;">{{ $counts['submitted'] }}</p>
-                <p style="font-size:10.5px;color:var(--text-muted);margin-top:2px;">Diajukan</p>
-            </div>
-            <div style="background:var(--surface-alt);border-radius:12px;padding:12px;text-align:center;">
-                <p style="font-size:18px;font-weight:800;color:var(--text-heading);margin:0;">{{ $counts['completed'] }}</p>
-                <p style="font-size:10.5px;color:var(--text-muted);margin-top:2px;">Selesai</p>
-            </div>
+        <div style="background:var(--surface-alt);border-radius:12px;padding:12px;text-align:center;margin:14px 0;">
+            <p style="font-size:18px;font-weight:800;color:var(--text-heading);margin:0;">{{ $this->total }}</p>
+            <p style="font-size:10.5px;color:var(--text-muted);margin-top:2px;">Total Coaching</p>
         </div>
 
         <p style="font-size:12px;font-weight:700;color:var(--text-heading);margin:0 0 8px;">Rencana Perbaikan Akan Jatuh Tempo</p>

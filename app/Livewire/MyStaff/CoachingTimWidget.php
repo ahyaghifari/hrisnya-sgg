@@ -2,7 +2,6 @@
 
 namespace App\Livewire\MyStaff;
 
-use App\Enum\CoachingStatus;
 use App\Livewire\MyStaff\Concerns\LazyLoadsOnExpand;
 use App\Models\Coaching\Coaching;
 use App\Services\OrgHierarchyService;
@@ -21,19 +20,11 @@ class CoachingTimWidget extends Component
 {
     use LazyLoadsOnExpand;
 
-    public function getStatusCountsProperty(): array
+    public function getTotalProperty(): int
     {
         $userIds = app(OrgHierarchyService::class)->subordinates(Auth::user())->pluck('id');
 
-        $counts = Coaching::query()
-            ->whereIn('user_id', $userIds)
-            ->selectRaw('status, count(*) as total')
-            ->groupBy('status')
-            ->pluck('total', 'status');
-
-        return collect(['pending', 'in_progress', 'submitted', 'completed'])
-            ->mapWithKeys(fn ($status) => [$status => (int) ($counts[$status] ?? 0)])
-            ->all();
+        return Coaching::query()->whereIn('user_id', $userIds)->count();
     }
 
     public function getUpcomingDueProperty()
@@ -42,8 +33,7 @@ class CoachingTimWidget extends Component
 
         return Coaching::query()
             ->whereIn('user_id', $userIds)
-            ->whereIn('status', [CoachingStatus::PENDING->value, CoachingStatus::IN_PROGRESS->value])
-            ->whereNotNull('improvement_due_date')
+            ->whereDate('improvement_due_date', '>=', today())
             ->with(['user', 'coachBy'])
             ->orderBy('improvement_due_date')
             ->limit(5)

@@ -2,14 +2,12 @@
 
 namespace App\Livewire\Dashboard;
 
-use App\Enum\CoachingStatus;
 use App\Models\Coaching\Coaching;
 use Livewire\Component;
 
 /**
- * Widget "Coaching" di Dashboard (Beranda) - jumlah per status + rencana perbaikan
- * (improvement_due_date) yang paling dekat jatuh tempo, biar HC Manager tahu coaching mana yang
- * butuh ditindaklanjuti.
+ * Widget "Coaching" di Dashboard (Beranda) - jumlah coaching + rencana perbaikan
+ * (improvement_due_date) yang paling dekat jatuh tempo.
  *
  * Namespace App\Livewire\Dashboard - widget ini murni milik halaman Beranda (instruksi user
  * 2026-09-18), bukan bagian modul Kepegawaian.
@@ -21,27 +19,17 @@ class CoachingWidget extends Component
 {
     public string $companyId;
 
-    public function getStatusCountsProperty(): array
+    public function getTotalProperty(): int
     {
-        $counts = Coaching::query()
-            ->where('company_id', $this->companyId)
-            ->selectRaw('status, count(*) as total')
-            ->groupBy('status')
-            ->pluck('total', 'status');
-
-        return collect(CoachingStatus::cases())
-            ->mapWithKeys(fn (CoachingStatus $status) => [$status->value => (int) ($counts[$status->value] ?? 0)])
-            ->all();
+        return Coaching::query()->where('company_id', $this->companyId)->count();
     }
 
-    /** Coaching yang masih aktif (belum selesai/ditolak) dan punya target perbaikan,
-     * diurutkan dari yang paling dekat jatuh tempo dulu. */
+    /** Coaching dengan target perbaikan yang belum lewat, dari yang paling dekat jatuh tempo. */
     public function getUpcomingDueProperty()
     {
         return Coaching::query()
             ->where('company_id', $this->companyId)
-            ->whereIn('status', [CoachingStatus::PENDING->value, CoachingStatus::IN_PROGRESS->value])
-            ->whereNotNull('improvement_due_date')
+            ->whereDate('improvement_due_date', '>=', today())
             ->with(['user', 'coachBy'])
             ->orderBy('improvement_due_date')
             ->limit(5)

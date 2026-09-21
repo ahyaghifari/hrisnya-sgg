@@ -15,9 +15,7 @@
                     <p class="pwa-row-title">{{ $coaching->user?->name ?? '-' }}</p>
                     <span style="font-size:11.5px;color:var(--text-muted);">{{ $coaching->title }}</span>
                 </div>
-                <span class="badge {{ $coaching->status === 'completed' ? 'badge-approved' : ($coaching->status === 'rejected' ? 'badge-rejected' : 'badge-pending') }}">
-                    {{ \App\Enum\CoachingStatus::tryFrom($coaching->status)?->getLabel() ?? $coaching->status }}
-                </span>
+                <i class="fa-solid fa-chevron-right"></i>
             </a>
         @empty
             <div class="pwa-list-row" style="opacity:0.7;">

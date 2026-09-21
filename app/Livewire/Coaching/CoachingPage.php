@@ -2,7 +2,6 @@
 
 namespace App\Livewire\Coaching;
 
-use App\Enum\CoachingStatus;
 use App\Enum\CustomPermissionEnum;
 use App\Models\Coaching\Coaching;
 use App\Models\Master\Companies;
@@ -32,9 +31,6 @@ class CoachingPage extends Component
     // ini ikut hilang begitu pindah halaman paginasi.
     #[Url]
     public ?string $companyId = null;
-
-    #[Url]
-    public string $status = '';
 
     #[Url]
     public string $search = '';
@@ -85,12 +81,6 @@ class CoachingPage extends Component
         $this->resetPage();
     }
 
-    public function setStatus(string $status): void
-    {
-        $this->status = $status;
-        $this->resetPage();
-    }
-
     public function updatedSearch(): void
     {
         $this->resetPage();
@@ -120,11 +110,6 @@ class CoachingPage extends Component
             || Auth::user()->canAccessKaryawanMenu();
     }
 
-    public function getStatusesProperty(): array
-    {
-        return CoachingStatus::cases();
-    }
-
     protected function baseQuery()
     {
         $search = trim($this->search);
@@ -139,7 +124,6 @@ class CoachingPage extends Component
                     ->orWhere('coach_by', $user->id));
             })
             ->when($this->companyId, fn ($q) => $q->where('company_id', $this->companyId))
-            ->when($this->status, fn ($q) => $q->where('status', $this->status))
             ->when($search !== '', fn ($q) => $q->whereHas('user', fn ($q2) => $q2->where('name', 'like', "%{$search}%")))
             ->with(['user', 'coachBy']);
     }
@@ -148,7 +132,6 @@ class CoachingPage extends Component
     {
         return $this->baseQuery()->latest()->paginate(10)->appends([
             'companyId' => $this->companyId,
-            'status' => $this->status,
             'search' => $this->search,
         ]);
     }

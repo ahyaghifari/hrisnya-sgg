@@ -73,7 +73,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::prefix('coachings')->group(function () {
         Route::get('/', [CoachingController::class, 'index']);
         Route::get('/{id}', [CoachingController::class, 'show']);
-        Route::put('/{id}', [CoachingController::class, 'update']);
     });
 });
 

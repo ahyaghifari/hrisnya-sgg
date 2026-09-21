@@ -1,15 +1,6 @@
 <div>
     <x-page-header title="Coaching" size="lg" />
 
-    @php
-        $badgeClass = fn (string $status) => match ($status) {
-            'completed' => 'badge-approved',
-            'rejected' => 'badge-rejected',
-            'in_progress', 'submitted' => 'badge-pending',
-            default => 'badge-cancelled',
-        };
-    @endphp
-
     <div class="pwa-list">
         @forelse ($coachings as $coaching)
             <a href="{{ route('coaching.show', $coaching) }}" wire:navigate class="pwa-list-row" style="text-decoration:none;">
@@ -22,9 +13,7 @@
                         @endif
                     </span>
                 </div>
-                <span class="badge {{ $badgeClass($coaching->status) }}">
-                    {{ \App\Enum\CoachingStatus::tryFrom($coaching->status)?->getLabel() ?? $coaching->status }}
-                </span>
+                <i class="fa-solid fa-chevron-right"></i>
             </a>
         @empty
             <div class="pwa-list-row" style="opacity:0.7;">

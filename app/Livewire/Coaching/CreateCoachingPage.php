@@ -47,6 +47,7 @@ class CreateCoachingPage extends Component
         }
 
         $this->coach_by = Auth::id();
+        $this->improvement_due_date = today()->toDateString();
     }
 
     public function getHasFullAccessProperty(): bool
