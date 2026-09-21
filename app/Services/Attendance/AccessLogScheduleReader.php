@@ -262,6 +262,15 @@ class AccessLogScheduleReader
         return $this->shiftReader->isOvernight($user, $date);
     }
 
+    /** Hari itu user punya jadwal SHIFT normal (bukan libur, bukan fixed/flexible, bukan Oncall) -
+     * dipakai jalur incremental buat mengunci baris yang sudah lengkap (lihat pemanggilnya). */
+    private function isCompletedShiftDay(User $user, string $date): bool
+    {
+        $config = $this->normalShiftConfigFor($user, $date);
+
+        return $config !== null && $config->shift_type !== \App\Enum\ShiftType::ONCALL->value;
+    }
+
     /** Jadwal SHIFT normal (bukan off_day, bukan fixed/flexible) user di tanggal itu - dipakai
      * jalur incremental buat split kontak pertama (ShiftAttendanceReader::splitIncrementalScans()).
      * Null kalau hari itu libur/kosong atau jadwal user bukan tipe shift. */
@@ -448,6 +457,19 @@ class AccessLogScheduleReader
                 // BUKAN attendance_records normal - lihat resolveIncrementalSlot().
                 $entries[] = $this->shiftReader->mergeIncrementalExtraEntry($employeeId, $date, $extraShift, $rowsForDay, $newFirst, $newLast, $user);
 
+                continue;
+            }
+
+            // Shift yang SUDAH LENGKAP (masuk & pulang tercatat) dan hari itu tidak ada extra/double
+            // shift: scan tambahan (mis. jari kepencet ke-3 kalinya) TIDAK boleh menimpa jam pulang
+            // yang sudah tercatat - shift-nya dianggap selesai. Baris ini cuma bisa berubah lewat sync
+            // ulang (baca semua scan mentah, lihat readAndGroup()). Oncall dikecualikan: jam
+            // masuk/pulangnya memang bebas, tidak ada konsep "pasangan scan selesai".
+            if ($existingRecord
+                && ! $extraShift
+                && filled($existingRecord->check_in_time)
+                && filled($existingRecord->check_out_time)
+                && $this->isCompletedShiftDay($user, $date)) {
                 continue;
             }
 
