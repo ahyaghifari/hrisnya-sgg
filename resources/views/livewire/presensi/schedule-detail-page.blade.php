@@ -22,7 +22,55 @@
         .schedule-detail-tab { padding: 10px 4px; margin-right: 22px; font-size: 13px; font-weight: 600; color: var(--text-faint); background: none; border: none; border-bottom: 2px solid transparent; cursor: pointer; font-family: inherit; }
         .schedule-detail-tab.is-active { color: #042c6c; border-bottom-color: #042c6c; }
         html.dark .schedule-detail-tab.is-active { color: #6ea8e0; border-bottom-color: #6ea8e0; }
+
+        /* Indikator loading halaman: garis progress di atas layar + pill "Memuat data..." di tengah atas. */
+        .schedule-loading-bar { position: fixed; top: 0; left: 0; right: 0; height: 3px; z-index: 9998; overflow: hidden; background: rgba(4,44,108,0.12); }
+        .schedule-loading-bar::after { content: ''; position: absolute; top: 0; bottom: 0; width: 40%; background: linear-gradient(90deg, #042c6c, #6ea8e0); border-radius: 99px; animation: schedule-loading-slide 1.1s ease-in-out infinite; }
+        @keyframes schedule-loading-slide { 0% { left: -40%; } 100% { left: 100%; } }
+        .schedule-loading-pill { position: fixed; top: 76px; left: 50%; transform: translateX(-50%); z-index: 9998; display: inline-flex; align-items: center; gap: 8px; padding: 9px 18px; border-radius: 99px; background: var(--surface); color: var(--text-heading); border: 1px solid var(--border); box-shadow: 0 8px 24px rgba(15,23,42,0.18); font-size: 12.5px; font-weight: 700; }
+        .schedule-loading-pill i { color: #042c6c; }
+        html.dark .schedule-loading-pill i { color: #6ea8e0; }
+        @media (prefers-reduced-motion: reduce) { .schedule-loading-bar::after { animation-duration: 2.4s; } }
     </style>
+    {{-- Indikator loading tunggal untuk seluruh halaman: aktif selama ada request Livewire yang
+         jalan dari halaman ini ATAU tab-tab anak-nya (komponen nested punya request sendiri, jadi
+         wire:loading di induk saja tidak cukup). Muncul setelah 150ms biar tidak berkedip di request
+         cepat. Hook di-lepas saat komponen dibongkar (wire:navigate) supaya tidak menumpuk. --}}
+    <div
+        x-data="{
+            pending: 0,
+            show: false,
+            timer: null,
+            off: null,
+            init() {
+                this.off = Livewire.hook('commit', ({ component, respond, fail }) => {
+                    if (! component.name.startsWith('presensi.schedule')) return;
+                    let done = false;
+                    const end = () => { if (done) return; done = true; this.end(); };
+                    this.begin();
+                    respond(end);
+                    fail(end);
+                });
+            },
+            begin() {
+                this.pending++;
+                if (! this.timer && ! this.show) {
+                    this.timer = setTimeout(() => { this.timer = null; if (this.pending > 0) this.show = true; }, 150);
+                }
+            },
+            end() {
+                this.pending = Math.max(0, this.pending - 1);
+                if (this.pending === 0) { clearTimeout(this.timer); this.timer = null; this.show = false; }
+            },
+            destroy() { if (this.off) this.off(); clearTimeout(this.timer); },
+        }"
+    >
+        <div x-show="show" x-cloak x-transition.opacity.duration.150ms class="schedule-loading-bar" aria-hidden="true"></div>
+        <div x-show="show" x-cloak x-transition.opacity.duration.150ms class="schedule-loading-pill" role="status" aria-live="polite">
+            <i class="fa-solid fa-circle-notch fa-spin"></i> Memuat data...
+        </div>
+    </div>
+
 
     {{-- :title (bukan title="{{ }}") - "{{ }}" di sini escape sekali (mis. "&" jadi "&amp;"),
     lalu <h1>{{ $title }}</h1> di komponennya escape lagi jadi "&amp;amp;" (dobel), browser cuma
