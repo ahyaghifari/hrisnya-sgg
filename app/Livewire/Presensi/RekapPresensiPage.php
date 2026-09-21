@@ -56,7 +56,10 @@ class RekapPresensiPage extends Component
     #[Url]
     public string $search = '';
 
-    /** Filter daftar mode harian dari kartu ringkasan: '' = semua, atau present/late/permit/leave/sick/not_recorded. */
+    /** Filter daftar mode harian dari kartu ringkasan: '' = semua, atau present/late/permit/leave/sick/not_recorded.
+     * #[Url] wajib: link paginasi (livewire.partials.pagination) memakai wire:navigate ke URL baru, jadi filter yang
+     * tidak ada di query string hilang saat pindah halaman (dilaporkan user 2026-09-22). */
+    #[Url]
     public string $statusFilter = '';
 
     /** Filter tipe jadwal karyawan (mode harian & periode): '' = semua, atau fixed / flexible / shift. */

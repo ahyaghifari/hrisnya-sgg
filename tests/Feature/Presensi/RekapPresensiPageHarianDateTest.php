@@ -55,6 +55,31 @@ class RekapPresensiPageHarianDateTest extends TestCase
         $this->assertSame(0, $component->get('todayStats')['present']);
     }
 
+    /** Filter status (kartu Terlambat dst) harus ikut di query string, kalau tidak hilang saat pindah halaman
+     * (link paginasi = navigasi ke URL baru, bukan wire:click). */
+    public function test_status_filter_survives_pagination_navigation(): void
+    {
+        $company = Companies::create(['code' => 'HRN3', 'name' => 'Test Harian 3', 'location' => 'Test', 'is_active' => true]);
+        $viewer = $this->viewer($company);
+
+        // 20 karyawan terlambat hari ini -> lebih dari 15 baris per halaman.
+        foreach (range(1, 20) as $i) {
+            $u = User::factory()->create(['company_id' => $company->id, 'name' => sprintf('Telat %02d', $i), 'nip' => 'TLT'.$i]);
+            AttendanceRecords::create([
+                'nip' => $u->nip, 'user_id' => $u->id, 'date' => now()->toDateString(),
+                'check_in_time' => '09:30:00', 'status' => 'late', 'late_minutes' => 90, 'source' => 'import',
+            ]);
+        }
+
+        $component = Livewire::actingAs($viewer)->test(RekapPresensiPage::class)->call('setStatusFilter', 'late');
+        $this->assertSame('late', $component->get('statusFilter'));
+
+        // Halaman berikutnya = request baru dengan query string dari link paginasi.
+        Livewire::withQueryParams(['statusFilter' => 'late', 'page' => 2])
+            ->actingAs($viewer)->test(RekapPresensiPage::class)
+            ->assertSet('statusFilter', 'late');
+    }
+
     public function test_harian_date_cannot_be_in_the_future_or_invalid(): void
     {
         $company = Companies::create(['code' => 'HRN2', 'name' => 'Test Harian 2', 'location' => 'Test', 'is_active' => true]);
