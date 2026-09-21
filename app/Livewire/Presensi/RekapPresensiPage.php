@@ -382,6 +382,155 @@ class RekapPresensiPage extends Component
             ->send();
     }
 
+    // --- Sync ulang per karyawan (hari ini / 1 periode / 1 tanggal di modal rincian) ---
+
+    /** Sync ulang hari ini untuk 1 karyawan (tombol per baris mode harian). */
+    public function syncUserToday(string $userId): void
+    {
+        $user = $this->resolveSyncableUser($userId);
+        $today = now()->toDateString();
+
+        $this->notifyResync($user, $today, $today, $this->resyncUserRange($user, $today, $today));
+    }
+
+    /** Sync ulang SELURUH periode terpilih untuk 1 karyawan (tombol per baris mode periode). */
+    public function syncUserPeriod(string $userId): void
+    {
+        abort_unless($this->date_from && $this->date_to, 422);
+
+        $user = $this->resolveSyncableUser($userId);
+
+        $this->notifyResync($user, $this->date_from, $this->date_to, $this->resyncUserRange($user, $this->date_from, $this->date_to));
+    }
+
+    /** Sync ulang 1 tanggal untuk 1 karyawan (tombol per baris di modal rincian). */
+    public function syncUserDate(string $userId, string $date): void
+    {
+        abort_unless(preg_match('/^\d{4}-\d{2}-\d{2}$/', $date) === 1, 422);
+        [$from, $to] = $this->monthRange;
+        abort_unless($date >= $from && $date <= $to, 422);
+
+        $user = $this->resolveSyncableUser($userId);
+
+        $this->notifyResync($user, $date, $date, $this->resyncUserRange($user, $date, $date));
+    }
+
+    /** Karyawan harus termasuk yang sedang terlihat di halaman ini (perusahaan/departemen/divisi) & user boleh sync. */
+    private function resolveSyncableUser(string $userId): User
+    {
+        abort_unless($this->canSync, 403);
+
+        return $this->baseUserQuery()->whereKey($userId)->firstOrFail();
+    }
+
+    /**
+     * Dua tahap, sama seperti tombol massal tapi untuk 1 karyawan: (1) baca ulang scan access_logs
+     * di rentang itu lalu hitung & simpan lewat calculator jadwalnya (sama dengan runSync(), tanpa
+     * notifikasi push karena ini koreksi manual, bukan presensi baru); (2) hitung ulang jam kerja,
+     * telat, dan pulang cepat baris yang punya jam masuk & pulang (mencakup baris yang tidak punya
+     * scan mentah, mis. dari aplikasi mobile).
+     *
+     * @return array{logs: int, recalculated: int, skipped: int, no_nip: bool}
+     */
+    private function resyncUserRange(User $user, string $from, string $to): array
+    {
+        $counts = ['logs' => 0, 'recalculated' => 0, 'skipped' => 0, 'no_nip' => ! filled($user->nip)];
+
+        if (! $counts['no_nip']) {
+            $result = app(AccessLogScheduleReader::class)->readAndGroup($from, $to, $user->nip);
+            $repo = app(AttendanceRecordRepository::class);
+            $calculators = [
+                'fixed' => app(FixedScheduleCalculator::class),
+                'flexible' => app(FlexibleScheduleCalculator::class),
+                'shift' => app(ShiftScheduleCalculator::class),
+            ];
+
+            foreach ($calculators as $type => $calculator) {
+                foreach ($calculator->calculate($result['buckets'][$type]) as $r) {
+                    if ($r['user']->id !== $user->id) {
+                        continue;
+                    }
+
+                    $repo->saveCalculatedResult($r, 'access_logs_' . $type);
+                    $counts['logs']++;
+                }
+            }
+        }
+
+        $records = AttendanceRecords::query()
+            ->where('user_id', $user->id)
+            ->whereBetween('date', [$from, $to])
+            ->whereNotNull('check_in_time')
+            ->whereNotNull('check_out_time')
+            ->with('user')
+            ->get();
+
+        foreach ($records as $record) {
+            $this->recalculateRecord($record) ? $counts['recalculated']++ : $counts['skipped']++;
+        }
+
+        return $counts;
+    }
+
+    /** Hitung ulang 1 baris pakai rumus jadwal aslinya; false = dilewati (jadwal tak ketemu/libur/di bawah minimum). */
+    private function recalculateRecord(AttendanceRecords $record): bool
+    {
+        if (! $record->user) {
+            return false;
+        }
+
+        $resolved = app(ScheduleResolver::class)->resolveForUserDate($record->user, $record->date);
+
+        if (! $resolved || ($resolved['is_off_day'] ?? false) || ! isset($resolved['config'])) {
+            return false;
+        }
+
+        $entry = [
+            'check_in' => $record->check_in_time,
+            'check_out' => $record->check_out_time,
+            'config' => $resolved['config'],
+            'schedule' => $resolved['schedule'] ?? null,
+        ];
+
+        $result = match ($resolved['type']) {
+            'fixed' => app(FixedScheduleCalculator::class)->calculate([$entry])[0] ?? null,
+            'flexible' => app(FlexibleScheduleCalculator::class)->calculate([$entry])[0] ?? null,
+            'shift' => app(ShiftScheduleCalculator::class)->calculate([$entry])[0] ?? null,
+            default => null,
+        };
+
+        if (! $result || $result['working_minutes'] === null) {
+            return false;
+        }
+
+        $record->update([
+            'working_minutes' => $result['working_minutes'],
+            'late_minutes' => $result['late_minutes'] ?? 0,
+            'early_leave_minutes' => $result['early_leave_minutes'] ?? 0,
+            'status' => $result['status'] ?? $record->status,
+        ]);
+
+        return true;
+    }
+
+    private function notifyResync(User $user, string $from, string $to, array $counts): void
+    {
+        $range = $from === $to
+            ? Carbon::parse($from)->translatedFormat('d M Y')
+            : Carbon::parse($from)->translatedFormat('d M Y') . ' - ' . Carbon::parse($to)->translatedFormat('d M Y');
+
+        $body = "{$counts['logs']} presensi dibaca ulang dari scan, {$counts['recalculated']} baris jam kerja/telat dihitung ulang, {$counts['skipped']} baris dilewati.";
+        if ($counts['no_nip']) {
+            $body .= ' NIP karyawan kosong, jadi scan mentah tidak dibaca - hanya hitung ulang baris yang sudah ada.';
+        }
+
+        Notification::make()
+            ->title("Sync ulang {$user->name} ({$range}) selesai")
+            ->body($body)
+            ->success()
+            ->send();
+    }
+
     public function updatedDateFrom(): void
     {
         $this->resetPage();

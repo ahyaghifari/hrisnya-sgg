@@ -159,6 +159,7 @@
                         <th style="text-align:center;">Jam Pulang</th>
                         <th style="text-align:center;">Terlambat</th>
                         <th style="text-align:center;">Jam Kerja</th>
+                        @if ($this->canSync)<th style="text-align:center;">Aksi</th>@endif
                     </tr>
                 </thead>
                 <tbody>
@@ -176,10 +177,19 @@
                             <td style="text-align:center;">{{ $row->check_out_time ? \Illuminate\Support\Str::substr($row->check_out_time, 0, 5) : '–' }}</td>
                             <td style="text-align:center;{{ $row->late_minutes > 0 ? 'color:#b45309;font-weight:700;' : '' }}">{{ $row->late_minutes > 0 ? $row->late_minutes . ' mnt' : '–' }}</td>
                             <td style="text-align:center;">{{ $row->working_minutes > 0 ? round($row->working_minutes / 60, 1) . ' jam' : '–' }}</td>
+                            @if ($this->canSync)
+                                <td style="text-align:center;white-space:nowrap;">
+                                    <button type="button" wire:click="syncUserToday('{{ $row->id }}')" wire:loading.attr="disabled" wire:target="syncUserToday('{{ $row->id }}')" class="btn-ghost btn-sm" style="padding:4px 10px;font-size:11px;" title="Baca ulang scan hari ini & hitung ulang jam kerja/telat karyawan ini">
+                                        <i class="fa-solid fa-rotate" wire:loading.remove wire:target="syncUserToday('{{ $row->id }}')"></i>
+                                        <i class="fa-solid fa-circle-notch fa-spin" wire:loading wire:target="syncUserToday('{{ $row->id }}')" style="display:none;"></i>
+                                        Sync
+                                    </button>
+                                </td>
+                            @endif
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="6" style="padding:32px;text-align:center;color:var(--text-faint);">
+                            <td colspan="{{ $this->canSync ? 7 : 6 }}" style="padding:32px;text-align:center;color:var(--text-faint);">
                                 @if ($statusFilter !== '')
                                     Tidak ada karyawan dengan status "{{ collect($summaryCards)->firstWhere('key', $statusFilter)['label'] }}"{{ $search !== '' ? ' yang cocok dengan pencarian' : '' }} hari ini.
                                 @elseif ($search !== '')
@@ -236,6 +246,7 @@
                         <th style="text-align:center;">Lembur Disetujui (jam)</th>
                         <th style="text-align:center;">Total Jam Kerja</th>
                         <th style="text-align:center;">Rata-rata Jam Kerja</th>
+                        @if ($this->canSync)<th style="text-align:center;">Aksi</th>@endif
                     </tr>
                 </thead>
                 <tbody>
@@ -254,10 +265,19 @@
                             <td style="text-align:center;color:#0f766e;">{{ $row->overtime_hours }}</td>
                             <td style="text-align:center;">{{ round($row->total_working_minutes / 60, 1) }} jam</td>
                             <td style="text-align:center;">{{ $row->avg_working_hours }} jam</td>
+                            @if ($this->canSync)
+                                <td style="text-align:center;white-space:nowrap;">
+                                    <button type="button" wire:click.stop="syncUserPeriod('{{ $row->id }}')" wire:confirm="Sync ulang SELURUH periode ({{ \Illuminate\Support\Carbon::parse($date_from)->translatedFormat('d M') }} - {{ \Illuminate\Support\Carbon::parse($date_to)->translatedFormat('d M Y') }}) untuk {{ e($row->name) }}? Scan dibaca ulang dan jam kerja/telat dihitung ulang." wire:loading.attr="disabled" wire:target="syncUserPeriod('{{ $row->id }}')" class="btn-ghost btn-sm" style="padding:4px 10px;font-size:11px;" title="Sync ulang satu periode penuh untuk karyawan ini">
+                                        <i class="fa-solid fa-rotate" wire:loading.remove wire:target="syncUserPeriod('{{ $row->id }}')"></i>
+                                        <i class="fa-solid fa-circle-notch fa-spin" wire:loading wire:target="syncUserPeriod('{{ $row->id }}')" style="display:none;"></i>
+                                        Sync Periode
+                                    </button>
+                                </td>
+                            @endif
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="10" style="padding:32px;text-align:center;color:var(--text-faint);">
+                            <td colspan="{{ $this->canSync ? 11 : 10 }}" style="padding:32px;text-align:center;color:var(--text-faint);">
                                 @if ($search !== '')
                                     Tidak ada karyawan yang cocok dengan pencarian "{{ $search }}".
                                 @else
@@ -363,6 +383,7 @@ per-tanggal dalam periode yang lagi ditampilkan, bukan cuma angka agregat di tab
                             <th style="text-align:center;">Absen Masuk</th>
                             <th style="text-align:center;">Absen Pulang</th>
                             <th>Keterangan Cuti/Izin</th>
+                            @if ($this->canSync)<th style="text-align:center;">Aksi</th>@endif
                         </tr>
                     </thead>
                     <tbody>
@@ -443,10 +464,18 @@ per-tanggal dalam periode yang lagi ditampilkan, bukan cuma angka agregat di tab
                                         <span style="color:var(--text-faint);">–</span>
                                     @endif
                                 </td>
+                                @if ($this->canSync)
+                                    <td style="text-align:center;white-space:nowrap;">
+                                        <button type="button" wire:click="syncUserDate('{{ $this->selectedUser->id }}', '{{ $detail->date }}')" wire:loading.attr="disabled" wire:target="syncUserDate('{{ $this->selectedUser->id }}', '{{ $detail->date }}')" class="btn-ghost btn-sm" style="padding:3px 9px;font-size:11px;" title="Sync ulang tanggal ini saja">
+                                            <i class="fa-solid fa-rotate" wire:loading.remove wire:target="syncUserDate('{{ $this->selectedUser->id }}', '{{ $detail->date }}')"></i>
+                                            <i class="fa-solid fa-circle-notch fa-spin" wire:loading wire:target="syncUserDate('{{ $this->selectedUser->id }}', '{{ $detail->date }}')" style="display:none;"></i>
+                                        </button>
+                                    </td>
+                                @endif
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="6" style="padding:24px;text-align:center;color:var(--text-faint);">Tidak ada baris presensi untuk karyawan ini di periode tersebut.</td>
+                                <td colspan="{{ $this->canSync ? 7 : 6 }}" style="padding:24px;text-align:center;color:var(--text-faint);">Tidak ada baris presensi untuk karyawan ini di periode tersebut.</td>
                             </tr>
                         @endforelse
                     </tbody>
