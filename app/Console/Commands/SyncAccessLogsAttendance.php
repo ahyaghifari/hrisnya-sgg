@@ -36,20 +36,15 @@ class SyncAccessLogsAttendance extends Command
     protected $description = 'Sinkron incremental access_logs -> attendance_records berdasarkan watermark terakhir';
 
     /**
-     * Jendela mundur watermark (menit). access_logs TIDAK punya id/created_at (lihat migration-nya),
-     * jadi tidak ada cara tahu urutan MASUKNYA baris - yang ada cuma access_datetime (jam scan di
-     * device). Baris yang baru masuk ke database SESUDAH watermark lewat jam scan-nya (device
-     * dorong data belakangan / jaringan telat / importer batch) dengan watermark "> last_synced_at"
-     * polos TIDAK AKAN PERNAH kebaca lagi - efeknya sebagian orang tidak pernah masuk
-     * attendance_records sama sekali (dilaporkan user 2026-09-22, perusahaan holding).
-     *
-     * Dengan jendela ini, tiap run membaca ulang scan beberapa menit ke belakang. Aman karena
-     * penyimpanannya idempoten: updateOrCreate per (nip,tanggal), check_in pakai min & check_out
-     * pakai max, dan is_new_checkin/is_new_checkout otomatis false begitu barisnya sudah ada -
-     * jadi tidak ada notifikasi dobel buat scan yang sudah pernah diproses.
+     * JANGAN baca mundur dari watermark (mis. "watermark - 15 menit") buat nangkap scan yang telat
+     * masuk access_logs - sempat dicoba 2026-09-22 dan dibatalkan: pembaca incremental mengambil
+     * keputusan (slot normal vs extra shift, split 2/3 scan, lookback overnight) berdasarkan scan
+     * mana yang BARU di batch itu. Scan lama yang ikut kebaca ulang dianggap baru, dan di hari
+     * extra shift overnight scan masuk extra (mis. 22:10) jadi nimpa jam pulang shift normal
+     * (OvernightExtraShiftIncrementalTest). Scan telat / jadwal yang baru siap belakangan harus
+     * ditangani lewat baca ulang PENUH per tanggal (readAndGroup, seperti tombol Sync Presensi),
+     * bukan lewat jalur incremental ini.
      */
-    private const WATERMARK_LOOKBACK_MINUTES = 15;
-
     public function handle(
         AccessLogScheduleReader $reader,
         ScheduleResolver $scheduleResolver,
@@ -60,12 +55,9 @@ class SyncAccessLogsAttendance extends Command
     ): int {
         $watermark = SyncAccessLog::watermark();
 
-        // Watermark asli (buat nentuin mana entri yang BENAR-BENAR baru) vs titik baca yang
-        // dimundurkan (buat nangkap baris yang telat masuk ke access_logs) - lihat konstanta di atas.
         $previousWatermark = $watermark->last_synced_at?->toDateTimeString();
-        $since = $watermark->last_synced_at?->copy()->subMinutes(self::WATERMARK_LOOKBACK_MINUTES)->toDateTimeString();
 
-        $result = $reader->readAndGroupIncremental($since);
+        $result = $reader->readAndGroupIncremental($previousWatermark);
 
         if ($result['max_synced_at'] === null) {
             $this->info('Tidak ada access_logs baru sejak sync terakhir.');
@@ -78,7 +70,7 @@ class SyncAccessLogsAttendance extends Command
         // berselang (beberapa run bisa overlap penulisan kalau durasinya kebetulan lewat 1 menit).
         $runId = (string) Str::ulid();
 
-        $log->info("[{$runId}] access_logs baru terdeteksi. watermark_sebelumnya=" . ($previousWatermark ?? '(belum pernah sync)') . " dibaca_sejak=" . ($since ?? '(semua)'));
+        $log->info("[{$runId}] access_logs baru terdeteksi. watermark_sebelumnya=" . ($previousWatermark ?? '(belum pernah sync)'));
 
         $fixedCount = 0;
         foreach ($fixedCalculator->calculate($result['buckets']['fixed']) as $r) {
@@ -145,15 +137,10 @@ class SyncAccessLogsAttendance extends Command
         // Kabari karyawannya langsung supaya tidak diam-diam dianggap tidak absen.
         foreach ($result['unresolved_schedule'] as $entry) {
             $log->warning("[{$runId}] ditolak (jadwal tidak ditemukan): nip={$entry['employee_id']} tanggal={$entry['date']}");
-
-            // Cuma kabari kalau scan-nya memang baru - entri yang kebaca ulang lewat jendela mundur
-            // watermark sudah pernah dikabari di run sebelumnya (lihat WATERMARK_LOOKBACK_MINUTES).
-            if ($this->isNewSinceWatermark($entry, $previousWatermark)) {
-                $entry['user']->notify(new AttendanceScanRejected(
-                    $entry['date'],
-                    'jadwal Anda tidak ditemukan untuk tanggal ini, hubungi HR/atasan Anda.'
-                ));
-            }
+            $entry['user']->notify(new AttendanceScanRejected(
+                $entry['date'],
+                'jadwal Anda tidak ditemukan untuk tanggal ini, hubungi HR/atasan Anda.'
+            ));
         }
 
         // Scan dari device yang tidak terdaftar (atau terdaftar tapi beda company) - diblokir
@@ -161,13 +148,10 @@ class SyncAccessLogsAttendance extends Command
         foreach ($result['rejected_device'] as $entry) {
             $devices = implode(', ', $entry['device_names']);
             $log->warning("[{$runId}] ditolak (device tidak dikenal): nip={$entry['employee_id']} tanggal={$entry['date']} device={$devices}");
-
-            if ($this->isNewSinceWatermark($entry, $previousWatermark)) {
-                $entry['user']->notify(new AttendanceScanRejected(
-                    $entry['date'],
-                    'device absensi yang Anda pakai tidak terdaftar untuk perusahaan Anda, hubungi HR/admin.'
-                ));
-            }
+            $entry['user']->notify(new AttendanceScanRejected(
+                $entry['date'],
+                'device absensi yang Anda pakai tidak terdaftar untuk perusahaan Anda, hubungi HR/admin.'
+            ));
         }
 
         // employee_id di access_logs yang sama sekali tidak match users.nip manapun - tidak ada
@@ -176,9 +160,8 @@ class SyncAccessLogsAttendance extends Command
             $log->warning("[{$runId}] dilewati (NIP tidak dikenal di sistem): employee_id={$employeeId} jumlah_scan={$scanCount}");
         }
 
-        // Watermark cuma boleh MAJU. Dengan jendela mundur di atas, scan yang telat masuk bisa
-        // bikin max_synced_at lebih tua dari watermark sekarang - kalau ditulis apa adanya,
-        // watermark-nya mundur dan run berikutnya baca ulang makin jauh ke belakang terus.
+        // Watermark cuma boleh MAJU (pengaman - watermark mundur bikin run berikutnya baca ulang
+        // scan yang sudah diproses, dan pembaca incremental tidak aman terhadap itu, lihat docblock handle()).
         $newWatermark = max($result['max_synced_at'], $previousWatermark ?? $result['max_synced_at']);
         $watermark->update(['last_synced_at' => $newWatermark]);
 
@@ -192,26 +175,6 @@ class SyncAccessLogsAttendance extends Command
         $this->info("Sync selesai: {$fixedCount} fixed, {$flexibleCount} flexible, {$shiftCount} shift, {$extraShiftCount} extra_shift disimpan. Watermark -> {$result['max_synced_at']}.");
 
         return Command::SUCCESS;
-    }
-
-    /**
-     * Entri ini scan-nya benar-benar baru (belum pernah kebaca run sebelumnya)? Dipakai buat entri
-     * yang DITOLAK (jadwal/device) - entri yang sukses tidak butuh ini karena is_new_checkin/
-     * is_new_checkout sudah otomatis false begitu barisnya ada di attendance_records.
-     */
-    private function isNewSinceWatermark(array $entry, ?string $previousWatermark): bool
-    {
-        if ($previousWatermark === null) {
-            return true;
-        }
-
-        $latestScan = $entry['check_out'] ?? $entry['check_in'] ?? null;
-
-        if ($latestScan === null) {
-            return true;
-        }
-
-        return "{$entry['date']} {$latestScan}" > $previousWatermark;
     }
 
     /**
