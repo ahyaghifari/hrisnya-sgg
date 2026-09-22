@@ -19,7 +19,7 @@ use Carbon\Carbon;
  * awalnya cuma 2 base rate tetap (3,5jt/3jt), sekarang digeneralisasi jadi 1 base rate per
  * pangkat apa pun (`pangkat_lembur_rates.amount_per_hour`, diisi lewat Mapping Komponen Gaji,
  * pola sama Gaji Pokok). Per kejadian lembur: base rate ÷ (hari dalam bulan × 7) × multiplier
- * dari jam lembur (2-4 jam → 3,5-7,5x, di bawah minimum ditolak). Satu-satunya metode Lembur di sistem ini —
+ * dari jam lembur (2-4 jam → 3,5-7,5x). Satu-satunya metode Lembur di sistem ini —
  * mekanisme shift-based (ShiftOvertimeCosts) lama sudah tidak dipakai lagi.
  *
  * Batas minimum jam (`lembur_minimum_jam`, company-scoped, default 2) DIBACA dari setting yang
@@ -27,8 +27,11 @@ use Carbon\Carbon;
  * componentRows()) - sebelumnya slip mencetak label dari setting tapi hitungannya hardcode 2,
  * jadi bisa beda dari yang tertulis kalau company override settingnya.
  *
- * Lembur di bawah `lembur_minimum_jam` DITOLAK (tidak dihitung sama sekali), bukan di-clamp naik
- * ke minimum lagi (2026-08-03) — harus benar-benar capai minimum jam dulu baru dapat lembur.
+ * Metode per_pangkat mengikuti rumus Excel persis (2026-09-22):
+ *   base / (DAY(EOMONTH(tgl)) * 7) * ((MAX(minimum; MIN(jam; 4)) * 2) - 0,5)
+ * Lembur di bawah `lembur_minimum_jam` di-clamp NAIK ke minimum (bukan ditolak lagi seperti
+ * keputusan 2026-08-03), dan jam desimal dipakai apa adanya (tanpa ROUNDDOWN).
+ * Metode flat_per_jam tetap menolak lembur di bawah minimum.
  */
 class LemburCalculator implements PayrollComponentCalculator
 {
@@ -69,7 +72,7 @@ class LemburCalculator implements PayrollComponentCalculator
         // 2026-08-02) - nama baris cukup "Lembur (Dihitung > X jam)" tanpa daftar tanggal, rincian
         // per kejadian tetap ada di note.
         $totalAmount = 0.0;
-        $totalHours = 0;
+        $totalHours = 0.0;
         $noteLines = [];
 
         foreach ($overtimeRequests as $request) {
@@ -107,18 +110,19 @@ class LemburCalculator implements PayrollComponentCalculator
         $context->addEarning(round($totalAmount, 2));
     }
 
-    /** @return array{amount: float, hours: int, note: string}|null */
+    /** @return array{amount: float, hours: float, note: string}|null */
     private function calculateDetail(AttendanceRequestOvertimeDetails $detail, float $baseRate, int $minimumJam): ?array
     {
         $date = Carbon::parse($detail->date);
-        $hours = (int) floor((float) $detail->total_hours); // ROUNDDOWN(jam, 0) di Excel
+        $hours = round((float) $detail->total_hours, 2);
 
-        if ($hours <= 0 || $hours < $minimumJam) {
+        if ($hours <= 0) {
             return null;
         }
 
-        // Multiplier clamp maksimal di 4 jam (belum ada permintaan buat itu configurable juga).
-        $multiplier = (min($hours, 4) * 2) - 0.5;
+        // (MAX(minimum; MIN(jam; 4)) * 2) - 0,5 — di bawah minimum dinaikkan ke minimum,
+        // di atas 4 jam dikunci di 4 (belum ada permintaan buat batas atas configurable).
+        $multiplier = (max($minimumJam, min($hours, 4)) * 2) - 0.5;
         $divisor = $date->daysInMonth * 7;
         $amount = round($baseRate / $divisor * $multiplier, 2);
 
@@ -127,11 +131,12 @@ class LemburCalculator implements PayrollComponentCalculator
         }
 
         $dateLabel = $date->locale('id')->isoFormat('D MMMM YYYY');
+        $jamLabel = str_replace('.', ',', (string) $hours);
 
         return [
             'amount' => $amount,
             'hours' => $hours,
-            'note' => "{$dateLabel} ({$hours} jam): Rp" . number_format($amount, 0, ',', '.'),
+            'note' => "{$dateLabel} ({$jamLabel} jam): Rp" . number_format($amount, 0, ',', '.'),
         ];
     }
 
