@@ -77,6 +77,16 @@ class RekapPresensiPage extends Component
     #[Url(as: 'tanggal')]
     public ?string $harianDate = null;
 
+    /** Tanggal yang ditampilkan di tab "Kehadiran" - default hari ini, sama aturan dengan
+     * $harianDate (tidak boleh lebih dari hari ini) tapi state terpisah karena tab-nya beda. */
+    #[Url(as: 'tanggal_kehadiran')]
+    public ?string $kehadiranDate = null;
+
+    /** Filter daftar tab "Kehadiran" dari kartu ringkasan: '' = semua yang terjadwal,
+     * atau hadir/izin_cuti_sakit/belum_presensi. Sama pola dengan $statusFilter (mode harian). */
+    #[Url]
+    public string $kehadiranFilter = '';
+
     public bool $showSyncModal = false;
 
     public string $syncDate = '';
@@ -110,6 +120,7 @@ class RekapPresensiPage extends Component
         // Rekap Izin - konsisten dengan periode absensi/kuota izin, bukan bulan kalender polos.
         // Cuma di-default kalau belum ada di query string (mis. dari link "Bulanan" halaman lain).
         $this->harianDate = $this->sanitizeHarianDate($this->harianDate);
+        $this->kehadiranDate = $this->sanitizeHarianDate($this->kehadiranDate);
 
         if ($this->date_from === null || $this->date_to === null) {
             [$periodStart, $periodEnd] = AttendancePeriodResolver::resolve(now(), $this->companyId);
@@ -161,6 +172,31 @@ class RekapPresensiPage extends Component
     public function resetHarianDate(): void
     {
         $this->harianDate = now()->toDateString();
+        $this->resetPage();
+    }
+
+    /** Tanggal aktif tab Kehadiran (selalu terisi, default hari ini). */
+    protected function kehadiranDay(): string
+    {
+        return $this->kehadiranDate = $this->sanitizeHarianDate($this->kehadiranDate);
+    }
+
+    public function updatedKehadiranDate(): void
+    {
+        $this->kehadiranDate = $this->sanitizeHarianDate($this->kehadiranDate);
+        $this->resetPage();
+    }
+
+    public function resetKehadiranDate(): void
+    {
+        $this->kehadiranDate = now()->toDateString();
+        $this->resetPage();
+    }
+
+    public function setKehadiranFilter(string $key): void
+    {
+        $allowed = ['hadir', 'izin_cuti_sakit', 'belum_presensi'];
+        $this->kehadiranFilter = ($key === $this->kehadiranFilter || ! in_array($key, $allowed, true)) ? '' : $key;
         $this->resetPage();
     }
 
@@ -712,6 +748,8 @@ class RekapPresensiPage extends Component
             'date_from' => $this->date_from,
             'date_to' => $this->date_to,
             'tanggal' => $this->harianDate,
+            'tanggal_kehadiran' => $this->kehadiranDate,
+            'kehadiranFilter' => $this->kehadiranFilter,
         ];
     }
 
@@ -764,6 +802,115 @@ class RekapPresensiPage extends Component
             ->orderBy('users.name')
             ->paginate(15)
             ->appends($this->queryAppends());
+    }
+
+    // --- Mode kehadiran (jadwal-aware: siapa SEHARUSNYA masuk tanggal ini vs sudah/belum presensi) ---
+
+    /**
+     * Karyawan yang SEHARUSNYA masuk kerja pada $date menurut jadwal masing-masing
+     * (ScheduleResolver::resolveForUserDate - roster Shift menang, fallback Fixed/Flexible).
+     * Beda dari getTodayStatsProperty() (mode Harian) yang menghitung SEMUA karyawan tanpa
+     * peduli hari itu jadwalnya libur atau tidak - di sini yang off_day (atau jadwalnya sama
+     * sekali tidak ketemu) dikeluarkan duluan, baru dicocokkan ke attendance_records.
+     *
+     * Tidak bisa jadi query SQL langsung (jadwal di-resolve per user, bukan kolom di tabel
+     * users) - di-loop di PHP, N+1 tapi konsisten dengan pola existing di file ini
+     * (recalculateWorkingHours, workingDaysBetween di ScheduleResolver sendiri), bukan endpoint
+     * frequent-hit/real-time.
+     *
+     * @return \Illuminate\Support\Collection<int, User>
+     */
+    protected function scheduledUsersForDate(string $date): \Illuminate\Support\Collection
+    {
+        $resolver = app(ScheduleResolver::class);
+
+        // baseUserQuery() (bukan filteredUserQuery()) - $search TIDAK ikut di sini, sama pola
+        // dengan getTodayStatsProperty() (mode Harian): total di kartu ringkasan selalu utuh,
+        // pencarian cuma memfilter DAFTAR di getKehadiranRowsProperty(), bukan hitungannya.
+        return $this->baseUserQuery()
+            ->with('profile')
+            ->get()
+            ->filter(function (User $user) use ($resolver, $date) {
+                $resolved = $resolver->resolveForUserDate($user, $date);
+
+                return $resolved !== null && ! $resolved['is_off_day'];
+            })
+            ->values();
+    }
+
+    /** Baris per karyawan terjadwal + status presensinya tanggal itu (dipakai getKehadiranStatsProperty()
+     * & getKehadiranRowsProperty() sekaligus, biar query attendance_records-nya cuma sekali). */
+    protected function kehadiranRowsRaw(string $date): \Illuminate\Support\Collection
+    {
+        $scheduled = $this->scheduledUsersForDate($date);
+
+        $records = AttendanceRecords::query()
+            ->whereIn('user_id', $scheduled->pluck('id'))
+            ->where('date', $date)
+            ->get()
+            ->keyBy('user_id');
+
+        return $scheduled->map(function (User $user) use ($records) {
+            $record = $records->get($user->id);
+
+            $group = match (true) {
+                ! $record => 'belum_presensi',
+                in_array($record->status, [AttendanceStatus::PRESENT->value, AttendanceStatus::LATE->value], true) => 'hadir',
+                in_array($record->status, [AttendanceStatus::PERMIT->value, AttendanceStatus::LEAVE->value, AttendanceStatus::SICK->value], true) => 'izin_cuti_sakit',
+                default => 'belum_presensi',
+            };
+
+            return (object) [
+                'id' => $user->id,
+                'name' => $user->name,
+                'nip' => $user->nip,
+                'status' => $record?->status,
+                'check_in_time' => $record?->check_in_time,
+                'check_out_time' => $record?->check_out_time,
+                'group' => $group,
+            ];
+        })->sortBy('name')->values();
+    }
+
+    public function getKehadiranStatsProperty(): array
+    {
+        $rows = $this->kehadiranRowsRaw($this->kehadiranDay());
+        $grouped = $rows->countBy('group');
+
+        return [
+            'total_scheduled' => $rows->count(),
+            'hadir' => (int) ($grouped['hadir'] ?? 0),
+            'izin_cuti_sakit' => (int) ($grouped['izin_cuti_sakit'] ?? 0),
+            'belum_presensi' => (int) ($grouped['belum_presensi'] ?? 0),
+        ];
+    }
+
+    /** Dipaginate manual (bukan ->paginate() Eloquent) karena sumbernya Collection hasil filter
+     * jadwal di PHP, bukan Query Builder - lihat scheduledUsersForDate(). */
+    public function getKehadiranRowsProperty(): \Illuminate\Pagination\LengthAwarePaginator
+    {
+        $rows = $this->kehadiranRowsRaw($this->kehadiranDay());
+
+        $search = trim($this->search);
+        if ($search !== '') {
+            $needle = strtolower($search);
+            $rows = $rows->filter(fn ($row) => str_contains(strtolower($row->name), $needle) || str_contains(strtolower((string) $row->nip), $needle))->values();
+        }
+
+        if ($this->kehadiranFilter !== '') {
+            $rows = $rows->filter(fn ($row) => $row->group === $this->kehadiranFilter)->values();
+        }
+
+        $perPage = 15;
+        $page = $this->getPage();
+
+        return new \Illuminate\Pagination\LengthAwarePaginator(
+            $rows->forPage($page, $perPage)->values(),
+            $rows->count(),
+            $perPage,
+            $page,
+            ['path' => request()->url(), 'query' => $this->queryAppends()],
+        );
     }
 
     // --- Mode bulanan (sebenarnya per-periode, ikut cutoff company - lihat mount()) ---

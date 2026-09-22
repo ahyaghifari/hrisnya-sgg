@@ -23,6 +23,7 @@
 <div style="display:inline-flex;gap:2px;background:var(--surface-alt);padding:3px;border-radius:8px;margin-bottom:16px;">
     <button type="button" wire:click="setMode('harian')" style="padding:4px 12px;font-size:11.5px;font-weight:600;border:none;border-radius:6px;cursor:pointer;font-family:inherit;background:{{ $mode === 'harian' ? 'var(--brand)' : 'transparent' }};color:{{ $mode === 'harian' ? '#fff' : 'var(--text-muted)' }};box-shadow:{{ $mode === 'harian' ? 'var(--shadow-card)' : 'none' }};">Harian</button>
     <button type="button" wire:click="setMode('bulanan')" style="padding:4px 12px;font-size:11.5px;font-weight:600;border:none;border-radius:6px;cursor:pointer;font-family:inherit;background:{{ $mode === 'bulanan' ? 'var(--brand-success)' : 'transparent' }};color:{{ $mode === 'bulanan' ? '#fff' : 'var(--text-muted)' }};box-shadow:{{ $mode === 'bulanan' ? 'var(--shadow-card)' : 'none' }};">Periode</button>
+    <button type="button" wire:click="setMode('kehadiran')" style="padding:4px 12px;font-size:11.5px;font-weight:600;border:none;border-radius:6px;cursor:pointer;font-family:inherit;background:{{ $mode === 'kehadiran' ? '#7e22ce' : 'transparent' }};color:{{ $mode === 'kehadiran' ? '#fff' : 'var(--text-muted)' }};box-shadow:{{ $mode === 'kehadiran' ? 'var(--shadow-card)' : 'none' }};">Kehadiran</button>
 </div>
 
 <div class="mb-4" style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;">
@@ -93,6 +94,19 @@
                 wire:confirm="Hitung ulang jam kerja, telat, dan pulang cepat semua baris di periode ini sesuai jadwal masing-masing karyawan (istirahat dipotong sesuai jadwalnya)? Status kehadiran (Hadir/Terlambat) ikut diperbarui sesuai hasil hitung ulang."
                 class="btn-ghost" title="Hitung ulang jam kerja, telat, dan status sesuai jadwal asli tiap karyawan (istirahat dipotong)">
                 <i class="fa-solid fa-clock-rotate-left"></i> Hitung Ulang Jam Kerja & Telat
+            </button>
+        @endif
+    @endif
+
+    @if ($mode === 'kehadiran')
+        <div style="min-width:170px;">
+            <label class="form-label">Tanggal</label>
+            <input type="date" class="form-input" wire:model.live="kehadiranDate" max="{{ now()->toDateString() }}">
+        </div>
+
+        @if ($kehadiranDate !== now()->toDateString())
+            <button type="button" wire:click="resetKehadiranDate" class="btn-ghost" title="Kembali ke hari ini">
+                <i class="fa-solid fa-rotate-left"></i> Hari Ini
             </button>
         @endif
     @endif
@@ -220,6 +234,93 @@
         </div>
         <div style="padding:12px 16px;border-top:1px solid var(--border-soft);">
             {{ $rows->links('livewire.partials.pagination') }}
+        </div>
+    </div>
+@elseif ($mode === 'kehadiran')
+    @php
+        $kStats = $this->kehadiranStats;
+        $isKToday = $kehadiranDate === now()->toDateString();
+        $kDayLabel = $isKToday ? 'hari ini' : 'pada '.\Illuminate\Support\Carbon::parse($kehadiranDate)->translatedFormat('d M Y');
+        $kehadiranCards = [
+            ['key' => '', 'stat' => 'total_scheduled', 'label' => 'Terjadwal Masuk', 'icon' => 'fa-calendar-check', 'color' => '#7e22ce', 'bg' => 'rgba(126,34,206,0.1)'],
+            ['key' => 'hadir', 'stat' => 'hadir', 'label' => 'Sudah Presensi', 'icon' => 'fa-check', 'color' => $statusStyle['present']['color'], 'bg' => $statusStyle['present']['bg']],
+            ['key' => 'izin_cuti_sakit', 'stat' => 'izin_cuti_sakit', 'label' => 'Izin/Cuti/Sakit', 'icon' => 'fa-file-lines', 'color' => $statusStyle['permit']['color'], 'bg' => $statusStyle['permit']['bg']],
+            ['key' => 'belum_presensi', 'stat' => 'belum_presensi', 'label' => 'Belum/Tidak Presensi', 'icon' => 'fa-hourglass-half', 'color' => '#dc2626', 'bg' => 'rgba(220,38,38,0.1)'],
+        ];
+    @endphp
+    <p style="font-size:12.5px;color:var(--text-muted);margin:-4px 0 14px;"><i class="fa-solid fa-circle-info" style="color:var(--text-faint);"></i> Dihitung dari jadwal masing-masing karyawan (roster Shift / Fixed / Flexible) {{ $kDayLabel }} - karyawan yang jadwalnya libur hari itu tidak ikut dihitung.</p>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-bottom:12px;">
+        @foreach ($kehadiranCards as $card)
+            @php $isActive = $card['key'] !== '' ? $kehadiranFilter === $card['key'] : $kehadiranFilter === ''; @endphp
+            <div class="stat-card" wire:click="setKehadiranFilter('{{ $card['key'] }}')" role="button" tabindex="0" wire:keydown.enter="setKehadiranFilter('{{ $card['key'] }}')"
+                title="{{ $card['key'] === '' ? 'Tampilkan semua karyawan terjadwal' : 'Tampilkan hanya: '.$card['label'] }}"
+                style="display:flex;align-items:center;gap:14px;padding:16px 18px;cursor:pointer;transition:box-shadow 0.15s ease;{{ $isActive && $card['key'] !== '' ? 'box-shadow:0 0 0 2px '.$card['color'].';' : '' }}">
+                <div class="stat-card-deco" style="background:{{ $card['color'] }};"></div>
+                <div style="flex-shrink:0;width:42px;height:42px;background:{{ $card['bg'] }};border-radius:12px;display:flex;align-items:center;justify-content:center;">
+                    <i class="fa-solid {{ $card['icon'] }}" style="color:{{ $card['color'] }};font-size:15px;"></i>
+                </div>
+                <div style="min-width:0;">
+                    <p style="font-size:24px;font-weight:800;color:var(--text-heading);letter-spacing:-0.8px;line-height:1;">{{ $kStats[$card['stat']] }}</p>
+                    <p style="font-size:12px;font-weight:600;color:var(--text-muted);margin-top:4px;">{{ $card['label'] }}</p>
+                </div>
+            </div>
+        @endforeach
+    </div>
+
+    @if ($kehadiranFilter !== '')
+        @php $activeKCard = collect($kehadiranCards)->firstWhere('key', $kehadiranFilter); @endphp
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;font-size:12.5px;color:var(--text-muted);">
+            <i class="fa-solid fa-filter" style="font-size:11px;"></i>
+            Menampilkan hanya: <strong style="color:{{ $activeKCard['color'] }};">{{ $activeKCard['label'] }}</strong>
+            <button type="button" wire:click="setKehadiranFilter('{{ $kehadiranFilter }}')" class="btn-ghost btn-sm" style="padding:3px 10px;"><i class="fa-solid fa-xmark"></i> Hapus filter</button>
+        </div>
+    @endif
+
+    @php $kRows = $this->kehadiranRows; @endphp
+    <div style="background:var(--surface);border-radius:12px;box-shadow:var(--shadow-card);overflow:hidden;">
+        <div style="overflow-x:auto;">
+            <table class="data-table" style="min-width:560px;font-size:12px;">
+                <thead>
+                    <tr>
+                        <th>Karyawan</th>
+                        <th style="text-align:center;">Status</th>
+                        <th style="text-align:center;">Jam Masuk</th>
+                        <th style="text-align:center;">Jam Pulang</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse ($kRows as $row)
+                        @php $style = $statusStyle[$row->status] ?? ['label' => 'Belum Presensi', 'color' => '#94a3b8', 'bg' => 'rgba(148,163,184,0.1)']; @endphp
+                        <tr>
+                            <td style="white-space:nowrap;">
+                                <p style="font-weight:600;color:var(--text-heading);margin:0;">{{ $row->name }}</p>
+                                <span style="font-size:11px;color:var(--text-muted);">{{ $row->nip }}</span>
+                            </td>
+                            <td style="text-align:center;">
+                                <span style="display:inline-flex;align-items:center;padding:3px 10px;border-radius:99px;background:{{ $style['bg'] }};color:{{ $style['color'] }};font-size:11px;font-weight:700;">{{ $style['label'] }}</span>
+                            </td>
+                            <td style="text-align:center;">{{ $row->check_in_time ? \Illuminate\Support\Str::substr($row->check_in_time, 0, 5) : '–' }}</td>
+                            <td style="text-align:center;">{{ $row->check_out_time ? \Illuminate\Support\Str::substr($row->check_out_time, 0, 5) : '–' }}</td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="4" style="padding:32px;text-align:center;color:var(--text-faint);">
+                                @if ($kehadiranFilter !== '')
+                                    Tidak ada karyawan dengan status "{{ collect($kehadiranCards)->firstWhere('key', $kehadiranFilter)['label'] }}"{{ $search !== '' ? ' yang cocok dengan pencarian' : '' }} {{ $kDayLabel }}.
+                                @elseif ($search !== '')
+                                    Tidak ada karyawan yang cocok dengan pencarian "{{ $search }}".
+                                @else
+                                    Tidak ada karyawan yang terjadwal masuk {{ $kDayLabel }}.
+                                @endif
+                            </td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+        <div style="padding:12px 16px;border-top:1px solid var(--border-soft);">
+            {{ $kRows->links('livewire.partials.pagination') }}
         </div>
     </div>
 @else
