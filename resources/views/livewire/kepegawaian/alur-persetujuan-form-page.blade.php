@@ -111,10 +111,7 @@
                         <label class="form-label">Sumber Approver</label>
                         <select wire:model.live="steps.{{ $i }}.approver_type" class="form-input" style="font-size:12px;padding:7px 10px;">
                             <option value="">Pilih...</option>
-                            {{-- 'role' dihapus sebagai pilihan baru; cuma tampil kalau step lama sudah pakai role --}}
-                            @if ($step['approver_type'] === 'role')
-                                <option value="role">Role (lama)</option>
-                            @endif
+                            <option value="role">Role</option>
                             <option value="job_position">Jabatan</option>
                             <option value="user">Karyawan Spesifik</option>
                             @if ($flowType === 'specific')

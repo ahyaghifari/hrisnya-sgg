@@ -504,8 +504,7 @@ class ApprovalFlowForm
             Select::make('approver_type')
                 ->label('Sumber')
                 ->options(fn (callable $get) => array_filter([
-                    // 'role' dihapus sebagai pilihan baru; cuma tampil kalau step lama sudah pakai role.
-                    'role' => $get('approver_type') === 'role' ? 'Role (lama)' : null,
+                    'role' => 'Role',
                     'job_position' => 'Jabatan',
                     'user' => 'Karyawan Spesiifik',
                     // Atasan pengaju = naik N level dari jabatan pengaju, di-resolve saat pengajuan.
