@@ -610,9 +610,13 @@ class AccessLogScheduleReader
         }
 
         $knownNames = $devicesByCompany[$companyId];
-        $unmatched = array_diff($entry['device_names'], $knownNames);
 
-        if (empty($unmatched)) {
+        // Lolos kalau MINIMAL SATU device hari itu dikenal (device company sendiri) - bukan
+        // mengharuskan SEMUA device di hari itu dikenal. Tanpa ini, satu entri check-in+check-out
+        // sehari yang gabung dari 2 scan beda device (mis. sempat ditambahkan sbg user tambahan
+        // ke device company lain pagi harinya, lalu dicabut lagi sebelum pulang) ikut memblokir
+        // scan SAH di device sendiri sore harinya - dilaporkan user 2026-09-22.
+        if (! empty(array_intersect($entry['device_names'], $knownNames))) {
             return false;
         }
 
@@ -622,7 +626,11 @@ class AccessLogScheduleReader
             ->pluck('name')
             ->all();
 
-        return ! empty(array_diff($unmatched, $userDeviceNames));
+        // Sampai sini: tidak ada device company sendiri sama sekali di entri ini. Masih lolos
+        // kalau minimal satu device-nya diotorisasi eksplisit ke user (attendance_device_users) -
+        // baru dianggap "device tidak dikenal" kalau BENAR-BENAR tidak ada satu pun device hari
+        // itu yang sah buat user ini.
+        return empty(array_intersect($entry['device_names'], $userDeviceNames));
     }
 
     /**
