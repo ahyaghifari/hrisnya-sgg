@@ -15,6 +15,15 @@ use Carbon\Carbon;
  * dibandingkan), tapi late_minutes SEKARANG relevan lewat late_checkin_deadline per-hari
  * (opsional, migration 2026_07_28_200000) - kalau kosong, tidak ada batas jam masuk sama
  * sekali untuk hari itu.
+ *
+ * min_work_minutes (kalau diisi >0) SEKARANG juga jadi pagar checkout, sama pola dengan
+ * FixedScheduleCalculator: checkout yang durasinya di bawah minimum DITOLAK ($entry['check_out']
+ * dipaksa null, 'checkout_rejected' => true) - bukan cuma ditandai lewat meets_target=false.
+ * Tanpa ini, 2 scan yang cuma berjarak beberapa detik (jari kepencet 2x di device fingerprint)
+ * langsung disimpan sebagai check-in+check-out, working_minutes ~0 - dilaporkan user 2026-09-22.
+ * Beda dari Fixed, Flexible tidak punya end_time resmi buat jadi penentu "ini memang sudah jam
+ * pulang" - jadi checkout di bawah minimum SELALU ditolak di sini (bukan cuma sebelum end_time),
+ * ditahan sampai ada scan berikutnya yang bikin durasinya cukup (atau dikoreksi manual/sync ulang).
  */
 class FlexibleScheduleCalculator
 {
@@ -46,39 +55,55 @@ class FlexibleScheduleCalculator
             $lateMinutes = $ci->gt($deadline) ? (int) $deadline->diffInMinutes($ci) : 0;
         }
 
-        $workingMinutes  = null;
-        $overtimeMinutes = null;
-        $meetsTarget     = null;
+        $workingMinutes   = null;
+        $overtimeMinutes  = null;
+        $meetsTarget      = null;
+        $checkOut         = $entry['check_out'];
+        $checkoutRejected = false;
 
-        if ($entry['check_out']) {
-            $co = Carbon::createFromFormat('H:i:s', $entry['check_out']);
+        if ($checkOut) {
+            $co = Carbon::createFromFormat('H:i:s', $checkOut);
             if ($co->lt($ci)) {
                 $co->addDay();
             }
 
             $rawMinutes = max(0, (int) $ci->diffInMinutes($co) - $config->break_minutes);
 
-            // max_work_minutes DI FLEXIBLE = target jam kerja normal (dipasangkan dengan
-            // min_work_minutes), BUKAN batas mutlak seperti di Fixed/Shift - kelebihan dari
-            // target ini yang jadi kandidat lembur, dibatasi overtime_min/max_minutes dan
-            // overtime_break_minutes dikurangkan (sama pola dengan break_minutes kerja biasa).
-            $target = $config->max_work_minutes;
-            if ($target > 0 && $rawMinutes > $target) {
-                $workingMinutes    = $target;
-                $overtimeCandidate = $rawMinutes - $target;
-
-                // ">=" (bukan ">") - "minimal X menit" berarti PAS di X menit sudah memenuhi syarat,
-                // bukan harus lebih dari X (2026-08-24, ditemukan pas verifikasi konsistensi dengan
-                // formula overtimeAfter() FixedScheduleCalculator - lihat komentarnya di sana).
-                if ($config->overtime_max_minutes > 0 && $overtimeCandidate >= $config->overtime_min_minutes) {
-                    $overtimeMinutes = max(0, min($overtimeCandidate, $config->overtime_max_minutes) - $config->overtime_break_minutes);
-                }
+            if ($config->min_work_minutes > 0 && $rawMinutes < $config->min_work_minutes) {
+                // Durasi belum memenuhi minimum - tolak scan checkout ini (kemungkinan checkout
+                // dini/scan ganda), biarkan check_out_time tetap kosong (atau nilai sebelumnya)
+                // sampai ada scan berikutnya yang bikin durasinya cukup.
+                $checkoutRejected = true;
+                $checkOut = null;
             } else {
-                $workingMinutes = $rawMinutes;
-            }
+                // max_work_minutes DI FLEXIBLE = target jam kerja normal (dipasangkan dengan
+                // min_work_minutes), BUKAN batas mutlak seperti di Fixed/Shift - kelebihan dari
+                // target ini yang jadi kandidat lembur, dibatasi overtime_min/max_minutes dan
+                // overtime_break_minutes dikurangkan (sama pola dengan break_minutes kerja biasa).
+                $target = $config->max_work_minutes;
+                if ($target > 0 && $rawMinutes > $target) {
+                    $workingMinutes    = $target;
+                    $overtimeCandidate = $rawMinutes - $target;
 
-            $meetsTarget = ($workingMinutes + ($overtimeMinutes ?? 0)) >= $config->min_work_minutes;
+                    // ">=" (bukan ">") - "minimal X menit" berarti PAS di X menit sudah memenuhi syarat,
+                    // bukan harus lebih dari X (2026-08-24, ditemukan pas verifikasi konsistensi dengan
+                    // formula overtimeAfter() FixedScheduleCalculator - lihat komentarnya di sana).
+                    if ($config->overtime_max_minutes > 0 && $overtimeCandidate >= $config->overtime_min_minutes) {
+                        $overtimeMinutes = max(0, min($overtimeCandidate, $config->overtime_max_minutes) - $config->overtime_break_minutes);
+                    }
+                } else {
+                    $workingMinutes = $rawMinutes;
+                }
+
+                $meetsTarget = ($workingMinutes + ($overtimeMinutes ?? 0)) >= $config->min_work_minutes;
+            }
         }
+
+        // $entry + [...] di return TIDAK BISA nimpa key yang $entry sudah punya (union operator
+        // pertahankan sisi kiri) - checkout yang ditolak harus di-mutate di $entry sendiri di sini,
+        // bukan cuma dititip di array literal bawah (itu sebabnya awalnya lolos tes 1x lalu ternyata
+        // check_out lama masih kebawa, ketahuan pas verifikasi ulang).
+        $entry['check_out'] = $checkOut;
 
         // status: early_leave tidak berlaku (lihat docblock class ini), tapi late_minutes SEKARANG
         // bisa mengubah status jadi 'late' sama seperti Fixed, kalau late_checkin_deadline diisi.
@@ -101,6 +126,7 @@ class FlexibleScheduleCalculator
             'work_day_weight'     => $this->workDayWeight($config, $totalMinutes),
             'status'              => $status,
             'out_of_window'       => ! $withinCheckinWindow,
+            'checkout_rejected'   => $checkoutRejected,
         ];
     }
 }

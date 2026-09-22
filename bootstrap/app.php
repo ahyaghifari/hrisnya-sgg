@@ -23,9 +23,14 @@ return Application::configure(basePath: dirname(__DIR__))
         // keputusan user - tidak perlu proses queue:work tambahan cuma buat ini.
         // Frekuensi sub-menit WAJIB dijalankan lewat `schedule:work` (Supervisor), bukan cron
         // `schedule:run` per menit.
+        // withoutOverlapping(5): kunci kedaluwarsa 5 menit, BUKAN bawaan Laravel 1440 menit (24 jam).
+        // Kalau prosesnya mati paksa (server restart/deploy/OOM), kunci bawaan tidak pernah dilepas
+        // dan sinkron presensi berhenti total SEHARIAN tanpa error apa pun - gejalanya persis
+        // "sebagian orang tidak masuk attendance_records". Dengan 5 menit, paling lama tertunda
+        // 5 menit lalu jalan lagi sendiri; run normal jauh di bawah itu (100 karyawan ~3 detik).
         $schedule->command('attendance:sync-access-logs')
             ->everyTwentySeconds()
-            ->withoutOverlapping();
+            ->withoutOverlapping(5);
 
         // Terapkan transisi karyawan (Promosi/Demosi/Mutasi/PHK) yang disetujui dengan tanggal
         // efektif di masa depan, begitu tanggalnya tiba. Jalan sekali sehari lewat cron.
