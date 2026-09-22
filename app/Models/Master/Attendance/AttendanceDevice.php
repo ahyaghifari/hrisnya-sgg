@@ -33,6 +33,7 @@ class AttendanceDevice extends Model
      * attendance_device_users. */
     public function users(): BelongsToMany
     {
-        return $this->belongsToMany(User::class, 'attendance_device_users', 'attendance_device_id', 'user_id');
+        return $this->belongsToMany(User::class, 'attendance_device_users', 'attendance_device_id', 'user_id')
+            ->withTimestamps();
     }
 }
