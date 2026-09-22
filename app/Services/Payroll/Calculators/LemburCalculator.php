@@ -28,10 +28,11 @@ use Carbon\Carbon;
  * jadi bisa beda dari yang tertulis kalau company override settingnya.
  *
  * Metode per_pangkat mengikuti rumus Excel persis (2026-09-22):
- *   base / (DAY(EOMONTH(tgl)) * 7) * ((MAX(minimum; MIN(jam; 4)) * 2) - 0,5)
- * Lembur di bawah `lembur_minimum_jam` di-clamp NAIK ke minimum (bukan ditolak lagi seperti
- * keputusan 2026-08-03), dan jam desimal dipakai apa adanya (tanpa ROUNDDOWN).
- * Metode flat_per_jam tetap menolak lembur di bawah minimum.
+ *   base / (DAY(EOMONTH(tgl)) * 7) * ((MAX(2; MIN(jam; 4)) * 2) - 0,5)
+ * `lembur_minimum_jam` HANYA validasi lembur mana yang diambil (di bawahnya ditolak, berlaku
+ * kedua metode). Batas bawah multiplier per_pangkat tetap 2 jam, tidak ikut setting — jadi kalau
+ * minimum di-set 1, lembur 1 jam tetap dihitung setara 2 jam. Jam desimal dipakai apa adanya
+ * (tanpa ROUNDDOWN).
  */
 class LemburCalculator implements PayrollComponentCalculator
 {
@@ -116,13 +117,13 @@ class LemburCalculator implements PayrollComponentCalculator
         $date = Carbon::parse($detail->date);
         $hours = round((float) $detail->total_hours, 2);
 
-        if ($hours <= 0) {
+        if ($hours <= 0 || $hours < $minimumJam) {
             return null;
         }
 
-        // (MAX(minimum; MIN(jam; 4)) * 2) - 0,5 — di bawah minimum dinaikkan ke minimum,
-        // di atas 4 jam dikunci di 4 (belum ada permintaan buat batas atas configurable).
-        $multiplier = (max($minimumJam, min($hours, 4)) * 2) - 0.5;
+        // (MAX(2; MIN(jam; 4)) * 2) - 0,5 — batas 2 dan 4 jam sengaja hardcode sesuai Excel,
+        // terpisah dari lembur_minimum_jam (yang cuma filter di atas).
+        $multiplier = (max(2, min($hours, 4)) * 2) - 0.5;
         $divisor = $date->daysInMonth * 7;
         $amount = round($baseRate / $divisor * $multiplier, 2);
 

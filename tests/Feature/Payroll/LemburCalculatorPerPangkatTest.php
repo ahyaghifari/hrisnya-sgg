@@ -68,18 +68,30 @@ class LemburCalculatorPerPangkatTest extends TestCase
         $this->assertDatabaseMissing('payroll_items', ['payroll_id' => $s['payroll']->id]);
     }
 
-    public function test_hours_below_minimum_are_clamped_up_to_minimum(): void
+    public function test_hours_below_minimum_setting_are_rejected(): void
     {
-        // Rumus Excel MAX(2; MIN(jam; 4)): lembur 1 jam dihitung setara minimum 2 jam
-        // (2026-09-22, menggantikan keputusan 2026-08-03 yang menolak).
-        $s = $this->makeSetup(hours: 1.0);
+        $s = $this->makeSetup(hours: 1.5); // di bawah default lembur_minimum_jam = 2
         PangkatLemburRate::create(['pangkat_id' => $s['pangkat']->id, 'amount_per_hour' => 3_500_000]);
 
         $context = new PayrollContext();
         (new LemburCalculator())->calculate($s['user'], $s['payroll'], $s['period'], $context);
 
-        $expected = round(3_500_000 / (31 * 7) * 3.5, 2);
-        $this->assertSame($expected, $context->grossSalary);
+        $this->assertSame(0.0, $context->grossSalary);
+        $this->assertDatabaseMissing('payroll_items', ['payroll_id' => $s['payroll']->id]);
+    }
+
+    public function test_multiplier_floor_stays_2_hours_regardless_of_minimum_setting(): void
+    {
+        // Minimum di-set 1 -> lembur 1 jam lolos filter, tapi rumus Excel MAX(2; MIN(jam; 4))
+        // tetap menghitungnya setara 2 jam (multiplier 3,5).
+        $s = $this->makeSetup(hours: 1.0);
+        PangkatLemburRate::create(['pangkat_id' => $s['pangkat']->id, 'amount_per_hour' => 3_500_000]);
+        Setting::create(['company_id' => $s['company']->id, 'key' => 'lembur_minimum_jam', 'module' => 'payroll', 'type' => 'integer', 'value' => '1', 'label' => 'Minimum Jam Lembur']);
+
+        $context = new PayrollContext();
+        (new LemburCalculator())->calculate($s['user'], $s['payroll'], $s['period'], $context);
+
+        $this->assertSame(round(3_500_000 / (31 * 7) * 3.5, 2), $context->grossSalary);
     }
 
     public function test_decimal_hours_are_not_rounded_down(): void
@@ -138,8 +150,8 @@ class LemburCalculatorPerPangkatTest extends TestCase
 
     public function test_minimum_hours_setting_overrides_default_2(): void
     {
-        // Company set lembur_minimum_jam = 3 - lembur 2 jam dinaikkan ke 3 jam (multiplier 5,5),
-        // bukan 3,5 - membuktikan setting benar-benar dibaca, tidak hardcode 2.
+        // Company set lembur_minimum_jam = 3 - lembur 2 jam DITOLAK (di bawah minimum 3),
+        // padahal di atas default 2 - membuktikan setting benar-benar dibaca sebagai filter.
         $s = $this->makeSetup(hours: 2.0);
         PangkatLemburRate::create(['pangkat_id' => $s['pangkat']->id, 'amount_per_hour' => 3_500_000]);
         Setting::create(['company_id' => $s['company']->id, 'key' => 'lembur_minimum_jam', 'module' => 'payroll', 'type' => 'integer', 'value' => '3', 'label' => 'Minimum Jam Lembur']);
@@ -147,6 +159,6 @@ class LemburCalculatorPerPangkatTest extends TestCase
         $context = new PayrollContext();
         (new LemburCalculator())->calculate($s['user'], $s['payroll'], $s['period'], $context);
 
-        $this->assertSame(round(3_500_000 / (31 * 7) * 5.5, 2), $context->grossSalary);
+        $this->assertSame(0.0, $context->grossSalary);
     }
 }
