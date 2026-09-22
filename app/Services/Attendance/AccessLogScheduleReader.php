@@ -23,10 +23,55 @@ use Illuminate\Support\Facades\DB;
  */
 class AccessLogScheduleReader
 {
+    /**
+     * Dua scan (nip, tanggal) yang jaraknya <= sekian DETIK dianggap SATU tap fisik - device
+     * fingerprint/kartu sering mencatat 1 tap jadi 2-3 baris berselang 1-2 detik. Tanpa ini, tap
+     * ganda pas jam masuk langsung jadi pasangan check-in + check-out berdurasi ~0 (dilaporkan
+     * user 2026-09-22: jadwal Shift masih kena, karena ScheduleShiftType tidak punya
+     * min_work_minutes seperti Fixed/Flexible - jadi pagarnya harus di level scan mentah).
+     *
+     * 60 detik: jauh di atas pantulan device (1-2 detik), tapi masih jauh DI BAWAH jarak scan sah
+     * paling rapat yang mungkin (check-in vs check-out, atau pulang shift normal lalu masuk extra
+     * shift - menit-an, bukan detik).
+     */
+    private const DUPLICATE_SCAN_SECONDS = 60;
+
     public function __construct(
         private ScheduleResolver $scheduleResolver,
         private ShiftAttendanceReader $shiftReader,
     ) {}
+
+    /**
+     * Buang scan yang cuma pantulan tap sebelumnya (lihat DUPLICATE_SCAN_SECONDS). Baris PERTAMA
+     * tiap rentetan yang dipertahankan - itu waktu tap sebenarnya; sisanya dibuang.
+     *
+     * @param  Collection  $rows  baris access_logs mentah, HARUS sudah urut access_datetime
+     */
+    private function dropRepeatedTaps(Collection $rows): Collection
+    {
+        return $rows
+            ->groupBy(fn ($row) => $row->employee_id . '|' . $row->access_date)
+            ->map(function (Collection $rowsForDay) {
+                $kept = collect();
+                $lastKeptAt = null;
+
+                foreach ($rowsForDay as $row) {
+                    $at = Carbon::parse($row->access_date . ' ' . $row->access_time);
+
+                    if ($lastKeptAt !== null && $lastKeptAt->diffInSeconds($at) <= self::DUPLICATE_SCAN_SECONDS) {
+                        continue;
+                    }
+
+                    $kept->push($row);
+                    $lastKeptAt = $at;
+                }
+
+                return $kept;
+            })
+            ->flatten(1)
+            ->sortBy(fn ($row) => $row->access_date . ' ' . $row->access_time)
+            ->values();
+    }
 
     /**
      * @return array{
@@ -160,7 +205,7 @@ class AccessLogScheduleReader
             $query->where('access_time', '>=', $fromTime);
         }
 
-        $rows = $query->orderBy('access_datetime')->get();
+        $rows = $this->dropRepeatedTaps($query->orderBy('access_datetime')->get());
 
         [$withUser, $unmatchedUsers] = $this->resolveUsersForRows($rows);
 
@@ -321,7 +366,11 @@ class AccessLogScheduleReader
             return [[], [], null];
         }
 
+        // Watermark dihitung dari baris MENTAH (sebelum tap ganda dibuang) - kalau dihitung dari
+        // hasil dedup, baris yang dibuang akan kebaca ulang terus tiap run berikutnya.
         $maxSyncedAt = $rows->max('access_datetime');
+
+        $rows = $this->dropRepeatedTaps($rows);
 
         [$withUser, $unmatchedUsers] = $this->resolveUsersForRows($rows);
 
@@ -349,12 +398,13 @@ class AccessLogScheduleReader
         // disentuh batch ini - dipakai melengkapi jam masuk/pulang kalau scan sebelumnya tidak ikut
         // terbaca batch-batch incremental (mis. masuk ke access_logs terlambat sesudah watermark lewat,
         // atau saat itu jadwal/roster belum siap), lihat blok "Scan hari itu" di bawah.
-        $dayScans = DB::table('access_logs')
-            ->whereIn('employee_id', $employeeIds->unique()->values())
-            ->whereIn('access_date', $dates->unique()->values())
-            ->orderBy('access_datetime')
-            ->get(['employee_id', 'access_date', 'access_time', 'device_name'])
-            ->groupBy(fn ($r) => $r->employee_id . '|' . $r->access_date);
+        $dayScans = $this->dropRepeatedTaps(
+            DB::table('access_logs')
+                ->whereIn('employee_id', $employeeIds->unique()->values())
+                ->whereIn('access_date', $dates->unique()->values())
+                ->orderBy('access_datetime')
+                ->get(['employee_id', 'access_date', 'access_time', 'device_name'])
+        )->groupBy(fn ($r) => $r->employee_id . '|' . $r->access_date);
 
         $entries = [];
         foreach ($scanGroups as $key => $rowsForDay) {

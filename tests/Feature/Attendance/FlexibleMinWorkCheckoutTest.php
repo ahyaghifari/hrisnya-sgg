@@ -56,19 +56,24 @@ class FlexibleMinWorkCheckoutTest extends TestCase
         return $user;
     }
 
-    public function test_two_scans_seconds_apart_do_not_become_checkin_and_checkout(): void
+    /**
+     * Scan kedua yang JELAS bukan pantulan device (2 jam sesudah masuk - tap ganda sudah dibuang
+     * lebih dulu oleh AccessLogScheduleReader, lihat RepeatedTapScanTest) tapi durasinya masih di
+     * bawah minimum 300 menit: checkout ditolak, jam masuk tetap tercatat.
+     */
+    public function test_checkout_below_the_minimum_duration_is_rejected(): void
     {
         $user = $this->flexibleUser('FLXDBL');
-        $this->scan($user, '2026-08-06 08:06:12');
-        $this->scan($user, '2026-08-06 08:06:47');
+        $this->scan($user, '2026-08-06 08:00:00');
+        $this->scan($user, '2026-08-06 10:00:00'); // 120 menit < 300
 
         $entry = app(AccessLogScheduleReader::class)->readAndGroupIncremental(null)['buckets']['flexible'][0];
         $result = app(FlexibleScheduleCalculator::class)->calculate([$entry])[0];
 
         $this->assertTrue($result['checkout_rejected']);
-        $this->assertNull($result['check_out'], 'Jam pulang tidak boleh terisi dari scan yang cuma berjarak detik.');
+        $this->assertNull($result['check_out'], 'Jam pulang tidak boleh terisi kalau durasinya di bawah minimum.');
         $this->assertNull($result['working_minutes']);
-        $this->assertSame('08:06:12', $result['check_in'], 'Jam masuk tetap tercatat.');
+        $this->assertSame('08:00:00', $result['check_in'], 'Jam masuk tetap tercatat.');
     }
 
     public function test_checkout_is_accepted_once_duration_meets_the_minimum(): void
@@ -100,13 +105,13 @@ class FlexibleMinWorkCheckoutTest extends TestCase
         ]);
         ScheduleAssignment::create(['company_id' => $this->company->id, 'user_id' => $user->id, 'schedule_id' => $schedule->id, 'effective_from' => '2020-01-01']);
 
-        $this->scan($user, '2026-08-06 08:06:12');
-        $this->scan($user, '2026-08-06 08:06:47');
+        $this->scan($user, '2026-08-06 08:00:00');
+        $this->scan($user, '2026-08-06 09:00:00'); // 60 menit, tetap diterima karena minimum dimatikan
 
         $entry = app(AccessLogScheduleReader::class)->readAndGroupIncremental(null)['buckets']['flexible'][0];
         $result = app(FlexibleScheduleCalculator::class)->calculate([$entry])[0];
 
         $this->assertFalse($result['checkout_rejected']);
-        $this->assertSame('08:06:47', $result['check_out']);
+        $this->assertSame('09:00:00', $result['check_out']);
     }
 }
