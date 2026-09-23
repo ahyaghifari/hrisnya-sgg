@@ -171,12 +171,13 @@ class KeycloakUsers extends Page implements HasForms, HasTable
                                     return;
                                 }
                                 [$first, $last] = array_pad(explode(' ', trim($u->name), 2), 2, '');
+                                $set('username', $u->nip);
                                 $set('email', $u->email);
                                 $set('firstName', $first);
                                 $set('lastName', $last);
                                 $set('nip', $u->nip);
                             }),
-                        TextInput::make('username')->required(),
+                        TextInput::make('username')->required()->helperText('Default NIP — boleh diubah kalau perlu.'),
                         TextInput::make('email')->email(),
                         TextInput::make('firstName')->label('Nama Depan'),
                         TextInput::make('lastName')->label('Nama Belakang'),
@@ -242,6 +243,7 @@ class KeycloakUsers extends Page implements HasForms, HasTable
                     ->label('Ubah')
                     ->icon('heroicon-o-pencil-square')
                     ->fillForm(fn (array $record): array => [
+                        'username' => $record['username'] ?? null,
                         'email' => $record['email'] ?? null,
                         'firstName' => $record['firstName'] ?? null,
                         'lastName' => $record['lastName'] ?? null,
@@ -249,6 +251,7 @@ class KeycloakUsers extends Page implements HasForms, HasTable
                         'enabled' => $record['enabled'] ?? false,
                     ])
                     ->schema([
+                        TextInput::make('username')->required(),
                         TextInput::make('email')->email(),
                         TextInput::make('firstName')->label('Nama Depan'),
                         TextInput::make('lastName')->label('Nama Belakang'),
@@ -257,6 +260,7 @@ class KeycloakUsers extends Page implements HasForms, HasTable
                     ])
                     ->action(function (array $record, array $data): void {
                         $this->kc()->update($record['id'], [
+                            'username' => $data['username'],
                             'email' => $data['email'] ?: null,
                             'firstName' => $data['firstName'] ?: null,
                             'lastName' => $data['lastName'] ?: null,

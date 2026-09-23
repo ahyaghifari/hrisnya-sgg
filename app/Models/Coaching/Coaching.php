@@ -2,6 +2,7 @@
 
 namespace App\Models\Coaching;
 
+use App\Enum\CoachingFollowUpStatus;
 use App\Models\Master\Companies;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
@@ -23,6 +24,14 @@ class Coaching extends Model
         'solution',
         'improvement_action',
         'improvement_due_date',
+        'follow_up_status',
+        'follow_up_note',
+        'follow_up_at',
+    ];
+
+    protected $casts = [
+        'follow_up_status' => CoachingFollowUpStatus::class,
+        'follow_up_at' => 'datetime',
     ];
 
     public function user(): BelongsTo

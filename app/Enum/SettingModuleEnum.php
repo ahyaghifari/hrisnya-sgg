@@ -14,6 +14,7 @@ enum SettingModuleEnum: string
     case TASK = 'task';
     case LMS = 'lms';
     case KEPEGAWAIAN = 'kepegawaian';
+    case PEMBINAAN = 'pembinaan';
 
     public function label(): string
     {
@@ -23,6 +24,7 @@ enum SettingModuleEnum: string
             self::TASK => 'Tugas',
             self::LMS => 'LMS',
             self::KEPEGAWAIAN => 'Kepegawaian',
+            self::PEMBINAAN => 'Pembinaan (SP & Merit Point)',
         };
     }
 }

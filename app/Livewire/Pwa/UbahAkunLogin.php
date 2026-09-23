@@ -9,90 +9,107 @@ use Livewire\Attributes\Layout;
 use Livewire\Component;
 
 /**
- * Ubah username & password akun SSO (Keycloak) sendiri - dulu cuma bisa lewat admin panel
- * /keycloak (instruksi user 2026-09-17). SENGAJA DIPISAH TOTAL dari password akun LOKAL HRIS
- * (UbahPassword) - dua akun, dua password, tidak disamakan/disinkron otomatis (revisi instruksi
- * user 2026-09-17: sebelumnya sempat disatukan, ternyata maunya jelas terpisah). Email TIDAK
- * BISA diubah dari sini. Akun SSO sendiri juga TIDAK BISA dibuat sendiri lewat halaman ini -
- * kalau user belum tersambung (keycloak_sub kosong), cuma ditampilkan keterangan suruh lapor ke
- * IT, form-nya tidak ditampilkan sama sekali.
+ * Password akun SSO (Keycloak) sendiri — dulu juga bisa ubah username, SEKARANG TIDAK LAGI
+ * (instruksi user 2026-09-23): username SSO dibakukan = NIP (konsisten dengan cara admin bikin
+ * akun lewat panel /keycloak), jadi di sini cuma ditampilkan read-only, tidak bisa diketik ulang.
+ *
+ * Kalau user belum punya akun SSO (keycloak_sub kosong), halaman ini SEKARANG BISA bikinkan
+ * sendiri (dulu cuma suruh lapor ke IT) — username otomatis NIP, cukup minta set password.
+ *
+ * Password bisa dipilih: SAMA dengan password HRIS (mereka ketik ulang password HRIS mereka,
+ * kita verifikasi lewat password_verify() lalu pakai nilai yang sama buat Keycloak — bukan
+ * baca hash HRIS, itu tidak mungkin dibalik) atau password KHUSUS SSO yang beda.
  */
-#[Layout('components.layout', ['title' => 'Username & Password SSO'])]
+#[Layout('components.layout', ['title' => 'Password SSO'])]
 class UbahAkunLogin extends Component
 {
-    public ?string $username = null;
+    public bool $ssoLinked = false;
 
-    /** Kosong = password SSO TIDAK diganti (instruksi user 2026-09-17) - cuma username yang
-     * ditulis ulang kalau field ini dibiarkan kosong. */
+    public ?string $nip = null;
+
+    /** 'same_as_hris' | 'custom' */
+    public string $passwordMode = 'same_as_hris';
+
+    /** Dipakai kalau passwordMode = same_as_hris — buat verifikasi SEKALIGUS nilai yang dipakai. */
+    public ?string $hrisPassword = null;
+
+    /** Dipakai kalau passwordMode = custom. */
     public ?string $password = null;
 
     public ?string $password_confirmation = null;
 
-    public bool $ssoLinked = false;
-
     public function mount(): void
     {
         $user = Auth::user();
+        $this->nip = $user->nip;
         $this->ssoLinked = (bool) $user->keycloak_sub && KeycloakAdmin::isConfigured();
-
-        if (! $this->ssoLinked) {
-            return;
-        }
-
-        try {
-            $kcUser = app(KeycloakAdmin::class)->find($user->keycloak_sub);
-            $this->username = $kcUser['username'] ?? null;
-        } catch (\Throwable $e) {
-            report($e);
-
-            Notification::make()
-                ->title('Tidak bisa ambil data Keycloak')
-                ->body('Server SSO sedang tidak bisa dihubungi - username belum bisa ditampilkan/diubah sekarang.')
-                ->warning()
-                ->send();
-        }
     }
 
     protected function rules(): array
     {
+        if ($this->passwordMode === 'same_as_hris') {
+            return [
+                'hrisPassword' => ['required', 'string'],
+            ];
+        }
+
         return [
-            'username' => ['required', 'string', 'min:3', 'max:100', 'regex:/^[a-zA-Z0-9._-]+$/'],
-            'password' => ['nullable', 'string', 'min:8', 'confirmed'],
+            'password' => ['required', 'string', 'min:8', 'confirmed'],
         ];
     }
 
     public function save(): void
     {
-        // Form tidak dirender kalau ! ssoLinked (lihat blade) - dicek ulang di sini supaya
-        // request yang di-craft manual tidak bisa nembus dan nulis Keycloak buat akun yang
-        // belum ada/tidak terkait.
-        abort_unless($this->ssoLinked, 403);
+        if (! KeycloakAdmin::isConfigured()) {
+            abort(403);
+        }
 
         $data = $this->validate();
         $user = Auth::user();
 
-        try {
-            app(KeycloakAdmin::class)->update($user->keycloak_sub, ['username' => $data['username']]);
+        if ($this->passwordMode === 'same_as_hris') {
+            if (! password_verify($data['hrisPassword'], $user->password)) {
+                $this->addError('hrisPassword', 'Password HRIS tidak sesuai.');
 
-            if (filled($data['password'])) {
-                app(KeycloakAdmin::class)->setPassword($user->keycloak_sub, $data['password']);
+                return;
+            }
+
+            $newPassword = $data['hrisPassword'];
+        } else {
+            $newPassword = $data['password'];
+        }
+
+        try {
+            if ($this->ssoLinked) {
+                app(KeycloakAdmin::class)->setPassword($user->keycloak_sub, $newPassword, false);
+            } else {
+                // Belum punya akun SSO — bikinkan sekarang, username dibakukan = NIP.
+                $id = app(KeycloakAdmin::class)->create([
+                    'username' => $user->nip,
+                    'email' => $user->email ?: null,
+                    'enabled' => true,
+                    'attributes' => ['nip' => [$user->nip]],
+                ]);
+                app(KeycloakAdmin::class)->setPassword($id, $newPassword, false);
+                $user->forceFill(['keycloak_sub' => $id])->save();
+                $this->ssoLinked = true;
             }
         } catch (\Throwable $e) {
             report($e);
 
             Notification::make()
                 ->title('Gagal menyimpan ke Keycloak')
-                ->body('Perubahan belum tersimpan - sinkronisasi ke SSO gagal, coba lagi nanti.')
+                ->body('Perubahan belum tersimpan — sinkronisasi ke SSO gagal, coba lagi nanti.')
                 ->danger()
                 ->send();
 
             return;
         }
 
-        $this->reset(['password', 'password_confirmation']);
+        $this->reset(['hrisPassword', 'password', 'password_confirmation']);
 
         Notification::make()
-            ->title(filled($data['password']) ? 'Username & password SSO berhasil diperbarui' : 'Username SSO berhasil diperbarui')
+            ->title('Password SSO berhasil disimpan')
             ->success()
             ->send();
     }

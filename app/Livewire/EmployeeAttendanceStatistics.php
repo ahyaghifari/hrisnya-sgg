@@ -6,6 +6,7 @@ use App\Enum\AttendanceReqStatus;
 use App\Enum\AttendanceStatus;
 use App\Enum\CustomPermissionEnum;
 use App\Enum\EmployeeTypeCategory;
+use App\Enum\Pembinaan\PembinaanSettingEnum;
 use App\Exports\Attendance\AttendanceHistoryExport;
 use App\Livewire\Concerns\HandlesProfilePhotoUpload;
 use App\Livewire\Concerns\ResolvesTodayAttendanceStatus;
@@ -14,9 +15,11 @@ use App\Models\Attendance\AttendanceRecords;
 use App\Models\Attendance\AttendanceRequests;
 use App\Models\Master\Religions;
 use App\Models\Payroll\Payroll;
+use App\Models\Setting;
 use App\Models\User;
 use App\Models\User\UserDocuments;
 use App\Models\User\UserProfileDocument;
+use App\Models\UserHrBalance;
 use App\Services\Attendance\AttendaceReqService;
 use App\Services\Attendance\AttendancePeriodResolver;
 use App\Services\OrgHierarchyService;
@@ -332,6 +335,42 @@ class EmployeeAttendanceStatistics extends Component
             ->with('coachBy')
             ->latest()
             ->get();
+    }
+
+    /**
+     * Kill-switch GLOBAL sementara (instruksi user 2026-09-23) - widget Merit Point + SP di tab
+     * Karir belum siap tampil ke semua company (permission SISTEM_PEMBINAAN_KARYAWAN belum
+     * di-assign ke role selain Super Admin, lihat percakapan Hak Akses). Set true lagi kalau
+     * sudah siap rilis - fitur di baliknya (SpService, MeritPointService, dst) tidak disentuh,
+     * ini murni sembunyikan tampilan.
+     */
+    public function getShowSpMeritWidgetProperty(): bool
+    {
+        return false;
+    }
+
+    /**
+     * Widget Merit Point + SP di tab Karir (planning/2026-09-23-sp-dan-merit-point.md §3.6) -
+     * cache tampilan, sama gerbang dengan tab Pembinaan (canViewPembinaanTab: pemilik akun atau
+     * pemegang SISTEM_PEMBINAAN_KARYAWAN). Baca dari user_hr_balances (cache) - SESUAI DESAIN,
+     * bukan live-query, widget ini murni tampilan bukan validasi bisnis (lihat §3.5).
+     */
+    public function getHrBalanceProperty(): ?UserHrBalance
+    {
+        if (! $this->showSpMeritWidget || ! $this->canViewPembinaanTab) {
+            return null;
+        }
+
+        return UserHrBalance::where('user_id', $this->record->id)->first();
+    }
+
+    public function getMeritPointEnabledProperty(): bool
+    {
+        return (bool) Setting::resolve(
+            PembinaanSettingEnum::MERIT_POINT_ENABLED->value,
+            $this->record->company_id,
+            filter_var(PembinaanSettingEnum::MERIT_POINT_ENABLED->default(), FILTER_VALIDATE_BOOLEAN)
+        );
     }
 
     /** Pemilik akun selalu boleh; selain itu HC (`sistem_kepegawaian`, dibatasi company sendiri

@@ -7,6 +7,14 @@ use App\Livewire\Coaching\MyCoachingPage;
 use App\Livewire\Counseling\CounselingDetailPage;
 use App\Livewire\Counseling\CounselingManagePage;
 use App\Livewire\Counseling\CounselingPage;
+use App\Livewire\MeritPoint\MeritPointHistoryPage;
+use App\Livewire\Pembinaan\PembinaanSettingsPage;
+use App\Livewire\Sp\CreateSpPage;
+use App\Livewire\Sp\SpDetailPage;
+use App\Livewire\Sp\SpPage;
+use App\Livewire\Sp\SpRecommendationsPage;
+use App\Livewire\Sp\SuratPeringatanDetailPage;
+use App\Livewire\Sp\SuratPeringatanPage;
 use Illuminate\Support\Facades\Route;
 
 /**
@@ -18,6 +26,18 @@ Route::get('/coaching', MyCoachingPage::class)
 
 Route::get('/counseling', CounselingPage::class)
     ->name('counseling');
+
+// SP - route baru, sengaja tidak ditumpuk ke /coaching (planning/2026-09-23-sp-dan-merit-point.md
+// §2.1: SP itu legal/formal, harus kelihatan sebagai bagian tersendiri di navigasi).
+Route::get('/surat-peringatan', SuratPeringatanPage::class)
+    ->name('sp.saya');
+
+Route::get('/surat-peringatan/{record}', SuratPeringatanDetailPage::class)
+    ->name('sp.saya.show');
+
+// Merit Point masih DEMO (§3) - dibuka lewat ikon "riwayat" di widget tab Karir, bukan lewat nav utama.
+Route::get('/merit-point/riwayat', MeritPointHistoryPage::class)
+    ->name('merit-point.saya.riwayat');
 
 // Sisi konselor/atasan (row 2 nav, "Coaching & Counseling") — beda prefix dari sisi
 // personal (/coaching, /counseling) di atas, biar ketahuan dari URL-nya ini bukan
@@ -37,4 +57,22 @@ Route::prefix('pembinaan')->group(function () {
 
     Route::get('/counseling/{record}', CounselingDetailPage::class)
         ->name('counseling.kelola.show');
+
+    // Portal SP sisi HC (planning/2026-09-23-sp-dan-merit-point.md, konfirmasi user 2026-09-23:
+    // dibangun paralel sama Filament EmployeeSpResource/SpRecommendationResource, pola persis
+    // Coaching di atas - bukan pengganti, keduanya tetap ada).
+    Route::get('/sp', SpPage::class)
+        ->name('sp');
+
+    Route::get('/sp/tambah', CreateSpPage::class)
+        ->name('sp.create');
+
+    Route::get('/sp/{record}', SpDetailPage::class)
+        ->name('sp.show');
+
+    Route::get('/sp-rekomendasi', SpRecommendationsPage::class)
+        ->name('sp.rekomendasi');
+
+    Route::get('/pengaturan', PembinaanSettingsPage::class)
+        ->name('pembinaan.pengaturan');
 });

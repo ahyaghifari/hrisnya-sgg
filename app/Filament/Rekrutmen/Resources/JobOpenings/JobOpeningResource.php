@@ -85,12 +85,6 @@ class JobOpeningResource extends Resource
             ->when(static::lockedCompanyId(), fn ($q, $id) => $q->where('company_id', $id));
     }
 
-    /** Perusahaan rekrutmen ini dikelola penuh dari HRIS (jabatan wajib dari master HRIS). */
-    protected static function isHrisMode(?string $companyId): bool
-    {
-        return $companyId ? Company::find($companyId)?->management_mode === 'hris' : false;
-    }
-
     /**
      * Gaya surat SGG (tabel, 1 baris = label + Orientasi + Kontrak berdampingan) vs RS (list,
      * dua daftar independen). Default true (SGG) kalau company belum dipilih/template belum
@@ -147,18 +141,26 @@ class JobOpeningResource extends Resource
                     ->options(fn (Get $get) => static::hrisJobPositions($get('company_id')))
                     ->searchable()
                     ->live()
-                    ->afterStateUpdated(fn ($state, Set $set) => $set('title', JobPositions::find($state)?->name))
-                    ->visible(fn (Get $get) => static::isHrisMode($get('company_id')))
-                    ->required(fn (Get $get) => static::isHrisMode($get('company_id')))
-                    ->helperText('Perusahaan mode HRIS: jabatan wajib diambil dari master jabatan HRIS.'),
+                    ->afterStateUpdated(function ($state, Set $set) {
+                        $position = JobPositions::find($state);
+                        $set('title', $position?->name);
+                        // Divisi dititipkan ke rekrutmen_db karena project `rekrutmen` tidak punya
+                        // koneksi ke DB HRIS - dipakai token {divisi} di naskah Persetujuan Onboarding.
+                        $set('division_name', $position?->division?->name);
+                    })
+                    ->required()
+                    ->helperText('Jabatan wajib diambil dari master jabatan HRIS.'),
 
                 TextInput::make('title')
                     ->label('Nama Lowongan')
                     ->required()
                     ->maxLength(255)
-                    ->helperText(fn (Get $get) => static::isHrisMode($get('company_id'))
-                        ? 'Terisi otomatis dari jabatan HRIS, boleh diubah (mis. "Perawat Rawat Inap Lantai 3"). Tautan jabatan tetap dari pilihan di atas.'
-                        : 'Perusahaan mode Bebas: isi manual.'),
+                    ->helperText('Terisi otomatis dari jabatan HRIS, boleh diubah (mis. "Perawat Rawat Inap Lantai 3"). Tautan jabatan tetap dari pilihan di atas.'),
+
+                TextInput::make('division_name')
+                    ->label('Divisi')
+                    ->maxLength(255)
+                    ->helperText('Dipakai token {divisi} di naskah Persetujuan Onboarding. Terisi otomatis dari jabatan HRIS, boleh diubah atau diisi manual.'),
 
                 TextInput::make('quota')
                     ->label('Kuota Posisi')

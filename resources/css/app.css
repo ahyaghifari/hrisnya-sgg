@@ -1252,7 +1252,7 @@ html.dark .card-surface.accent-teal   { --accent-soft: rgba(45,212,191,0.14); }
 .form-input:focus { border-color: var(--brand); box-shadow: 0 0 0 3px rgba(4,44,108,0.08); }
 .form-input::placeholder { color: var(--text-faint); }
 select.form-input { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24'%3E%3Cpath fill='%2394a3b8' d='M7 10l5 5 5-5z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 14px center; padding-right: 36px; }
-textarea.form-input { resize: none; }
+textarea.form-input { resize: vertical; }
 
 /* Tom Select — dibuat selaras dengan .form-input (dipakai filter kategori Pelatihan, dst).
    Tom Select nyalin classList <select> aslinya (termasuk "form-input") ke .ts-wrapper — tanpa

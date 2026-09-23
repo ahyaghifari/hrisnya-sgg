@@ -1,0 +1,159 @@
+<div>
+<x-page-header title="Buat SP" subtitle="Terbitkan Surat Peringatan untuk karyawan" :back="route('sp')" />
+
+<form wire:submit="save">
+    <div class="form-card">
+        <div class="section-head">
+            <div class="section-icon"><i class="fa-solid fa-id-card" style="color:var(--brand);font-size:12px;"></i></div>
+            <span class="section-title">Informasi Karyawan</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:16px;">
+            @if ($this->canBrowseAllCompanies)
+                <div>
+                    <label class="form-label">Perusahaan <span style="color:var(--danger-text);">*</span></label>
+                    <select wire:model.live="companyId" class="form-input">
+                        <option value="">Pilih perusahaan</option>
+                        @foreach ($this->companyOptions as $id => $name)
+                            <option value="{{ $id }}">{{ $name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+            @endif
+
+            <div>
+                <label class="form-label">Karyawan <span style="color:var(--danger-text);">*</span></label>
+                <select data-tom-select data-placeholder="Pilih karyawan" wire:model.live="user_id" class="form-input" @disabled(! $companyId)>
+                    <option value="">Pilih karyawan</option>
+                    @foreach ($this->employeeOptions as $id => $name)
+                        <option value="{{ $id }}">{{ $name }}</option>
+                    @endforeach
+                </select>
+                @error('user_id') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
+            </div>
+
+            <div>
+                <label class="form-label">Sumber dari Coaching (opsional)</label>
+                <select wire:model="coaching_id" class="form-input" @disabled(! $user_id)>
+                    <option value="">Manual (tanpa Coaching)</option>
+                    @foreach ($this->coachingOptions as $id => $label)
+                        <option value="{{ $id }}">{{ $label }}</option>
+                    @endforeach
+                </select>
+                <p style="font-size:11px;color:var(--text-muted);margin-top:4px;">Isi kalau SP ini terbit sebagai tindak lanjut dari sesi Coaching tertentu.</p>
+                @error('coaching_id') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
+            </div>
+        </div>
+    </div>
+
+    <div class="form-card">
+        <div class="section-head">
+            <div class="section-icon"><i class="fa-solid fa-triangle-exclamation" style="color:var(--brand);font-size:12px;"></i></div>
+            <span class="section-title">Surat Peringatan</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:16px;">
+            <div>
+                <label class="form-label">Nomor Surat <span style="color:var(--danger-text);">*</span></label>
+                <input type="text" wire:model="nomor" class="form-input" placeholder="mis. 001/SP/HC-GA/IX/2026">
+                @error('nomor') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
+            </div>
+
+            <div>
+                <label class="form-label">Level SP <span style="color:var(--danger-text);">*</span></label>
+                <select wire:model="sp_level" class="form-input">
+                    <option value="">Pilih level</option>
+                    @foreach ($this->spLevelOptions as $value => $label)
+                        <option value="{{ $value }}">{{ $label }}</option>
+                    @endforeach
+                </select>
+                @error('sp_level') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
+            </div>
+
+            <div>
+                <label class="form-label">Tanggal Mulai <span style="color:var(--danger-text);">*</span></label>
+                <input type="date" wire:model="start_date" class="form-input">
+                @error('start_date') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
+            </div>
+
+            <div>
+                <label class="form-label">Mengetahui <span style="color:var(--danger-text);">*</span></label>
+                <select data-tom-select data-placeholder="Pilih pimpinan/HC Supervisor/Manager" wire:model="knows_by" class="form-input">
+                    <option value="">Pilih</option>
+                    @foreach ($this->knowsByOptions as $id => $name)
+                        <option value="{{ $id }}">{{ $name }}</option>
+                    @endforeach
+                </select>
+                <p style="font-size:11px;color:var(--text-muted);margin-top:4px;">Pimpinan/HC Supervisor/Manager yang menyetujui penerbitan SP ini.</p>
+                @error('knows_by') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
+            </div>
+
+            <div>
+                <label class="form-label">Poin Pelanggaran <span style="color:var(--danger-text);">*</span></label>
+                <div style="display:flex;flex-direction:column;gap:8px;">
+                    @foreach ($items as $index => $item)
+                        <div wire:key="'sp-item-'.{{ $index }}" style="display:flex;gap:8px;align-items:flex-start;">
+                            <textarea wire:model="items.{{ $index }}" class="form-input" rows="2" style="flex:1;" placeholder="Tulis poin (nomor manual, mis. &quot;1. ...&quot;)"></textarea>
+                            <button type="button" wire:click="removeItem({{ $index }})" class="btn-ghost" style="padding:8px 10px;color:var(--danger-text);">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+                        </div>
+                        @error('items.' . $index) <p style="color:var(--danger-text);font-size:12px;margin-left:20px;">{{ $message }}</p> @enderror
+                    @endforeach
+                </div>
+                <button type="button" wire:click="addItem" class="btn-ghost" style="margin-top:8px;font-size:12.5px;">
+                    <i class="fa-solid fa-plus"></i> Tambah Poin
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="form-card">
+        <div class="section-head">
+            <div class="section-icon"><i class="fa-solid fa-file-lines" style="color:var(--brand);font-size:12px;"></i></div>
+            <span class="section-title">Berita Acara (Opsional)</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:16px;">
+            <div>
+                <label class="form-label">Kejadian</label>
+                <div wire:ignore>
+                    <input type="hidden" id="trix-kejadian" wire:model="kejadian" value="{{ $kejadian }}">
+                    <trix-editor input="trix-kejadian" style="min-height:100px;"></trix-editor>
+                </div>
+                @error('kejadian') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
+            </div>
+
+            <div>
+                <label class="form-label">Klarifikasi Karyawan</label>
+                <div wire:ignore>
+                    <input type="hidden" id="trix-subject-clarification" wire:model="subject_clarification" value="{{ $subject_clarification }}">
+                    <trix-editor input="trix-subject-clarification" style="min-height:100px;"></trix-editor>
+                </div>
+                @error('subject_clarification') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
+            </div>
+
+            <div>
+                <label class="form-label">Analisis</label>
+                <div wire:ignore>
+                    <input type="hidden" id="trix-analysis" wire:model="analysis" value="{{ $analysis }}">
+                    <trix-editor input="trix-analysis" style="min-height:100px;"></trix-editor>
+                </div>
+                @error('analysis') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
+            </div>
+
+            <div>
+                <label class="form-label">Rencana Tindak Lanjut</label>
+                <div wire:ignore>
+                    <input type="hidden" id="trix-followup-plan" wire:model="followup_plan" value="{{ $followup_plan }}">
+                    <trix-editor input="trix-followup-plan" style="min-height:100px;"></trix-editor>
+                </div>
+                @error('followup_plan') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
+            </div>
+            <p style="font-size:11px;color:var(--text-muted);margin:0;">Berita Acara bersifat internal HR, tidak ditampilkan ke karyawan.</p>
+        </div>
+    </div>
+
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-top:20px;gap:12px;flex-wrap:wrap;">
+        <a href="{{ route('sp') }}" wire:navigate class="btn-ghost"><i class="fa-solid fa-arrow-left" style="font-size:12px;"></i> Kembali</a>
+        <button type="submit" class="btn-primary"><i class="fa-solid fa-floppy-disk" style="font-size:12px;"></i> Simpan</button>
+    </div>
+</form>
+</div>

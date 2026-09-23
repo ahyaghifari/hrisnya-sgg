@@ -35,6 +35,9 @@ enum NotificationTypeEnum: string
     case COUNSELING_RECEIVED = 'counseling_received';
     case COACHING_ASSIGNED = 'coaching_assigned';
 
+    // SP resmi terbit (approve sp_recommendations) — lihat App\Services\Sp\SpService.
+    case SP_ISSUED = 'sp_issued';
+
     // Absensi otomatis dari access_logs (mesin absensi) — lihat
     // App\Console\Commands\SyncAccessLogsAttendance.
     case ATTENDANCE_CHECKED_IN = 'attendance_checked_in';
@@ -100,6 +103,7 @@ enum NotificationTypeEnum: string
             self::PAYROLL_PAID => 'Gaji Saya Sudah Dibayar',
             self::COUNSELING_RECEIVED => 'Ada Karyawan Konsul ke Saya',
             self::COACHING_ASSIGNED => 'Saya Mendapatkan Coaching',
+            self::SP_ISSUED => 'SP Saya Terbit',
             self::ATTENDANCE_CHECKED_IN => 'Absensi Masuk Tercatat',
             self::ATTENDANCE_CHECKED_OUT => 'Absensi Pulang Tercatat',
             self::ATTENDANCE_SCAN_REJECTED => 'Absensi Saya Tidak Diproses',
@@ -135,7 +139,7 @@ enum NotificationTypeEnum: string
             str_starts_with($this->value, 'approval_'), str_starts_with($this->value, 'attendance_'), str_starts_with($this->value, 'shift_swap_') => 'Absensi',
             str_starts_with($this->value, 'task_') => 'Tugas',
             str_starts_with($this->value, 'payroll_') => 'Penggajian',
-            str_starts_with($this->value, 'counseling_'), str_starts_with($this->value, 'coaching_') => 'Pembinaan Karyawan',
+            str_starts_with($this->value, 'counseling_'), str_starts_with($this->value, 'coaching_'), str_starts_with($this->value, 'sp_') => 'Pembinaan Karyawan',
             str_starts_with($this->value, 'course_') => 'Pelatihan',
             str_starts_with($this->value, 'sikartap_') => 'Sikartap',
             default => 'Lainnya',
@@ -159,6 +163,7 @@ enum NotificationTypeEnum: string
             self::PAYROLL_PAID => 'Dikirim saat payroll Anda ditandai sudah dibayar oleh finance.',
             self::COUNSELING_RECEIVED => 'Dikirim saat ada karyawan yang menunjuk Anda sebagai konselor untuk konsul.',
             self::COACHING_ASSIGNED => 'Dikirim saat atasan/HC membuat sesi coaching baru untuk Anda.',
+            self::SP_ISSUED => 'Dikirim saat HR menyetujui rekomendasi dan SP Anda resmi terbit.',
             self::ATTENDANCE_CHECKED_IN => 'Dikirim saat mesin absensi mencatat Anda check-in.',
             self::ATTENDANCE_CHECKED_OUT => 'Dikirim saat mesin absensi mencatat Anda check-out.',
             self::ATTENDANCE_SCAN_REJECTED => 'Dikirim saat scan absensi Anda tidak bisa diproses sistem (mis. jadwal tidak ditemukan), beserta alasannya.',

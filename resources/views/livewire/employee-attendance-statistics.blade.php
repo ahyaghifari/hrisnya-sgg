@@ -518,6 +518,70 @@ source (tab server-render sekali jalan, x-show cuma toggle CSS). --}}
         </p>
     </div>
 
+    {{-- Merit Point + SP (planning/2026-09-23-sp-dan-merit-point.md §3.6) - sama gerbang tab
+    Pembinaan (canViewPembinaanTab). Baca dari cache user_hr_balances - murni tampilan, tidak
+    dipakai buat validasi apa pun (§3.5). Merit Point disembunyikan TOTAL kalau company tidak
+    mengaktifkan (§3.1); SP independen, tetap tampil sendirian.
+    showSpMeritWidget = kill-switch global sementara (instruksi user 2026-09-23), lihat
+    getShowSpMeritWidgetProperty(). --}}
+    @if ($this->showSpMeritWidget && $this->canViewPembinaanTab)
+        @php
+            $hrBalance = $this->hrBalance;
+            $meritPoint = $hrBalance?->merit_point ?? 0;
+            $meritPct = max(0, min(100, $meritPoint));
+            $meritColor = match (true) {
+                $meritPct >= 70 => '#047C54',
+                $meritPct >= 40 => '#b45309',
+                default => '#b91c1c',
+            };
+            $spLevel = $hrBalance?->active_sp_level;
+            $spColors = [
+                'sp1' => ['bg' => '#fef9c3', 'fg' => '#a16207'],
+                'sp2' => ['bg' => '#ffedd5', 'fg' => '#c2410c'],
+                'sp3' => ['bg' => '#fee2e2', 'fg' => '#b91c1c'],
+            ];
+            $spColor = $spLevel ? ($spColors[$spLevel->value] ?? ['bg' => '#f1f5f9', 'fg' => '#64748b']) : ['bg' => 'var(--surface-alt)', 'fg' => 'var(--text-muted)'];
+        @endphp
+        <div class="grid grid-cols-1 md:grid-cols-2" style="gap:14px;margin-bottom:20px;align-items:stretch;">
+            @if ($this->meritPointEnabled)
+                <div class="card-surface" style="position:relative;text-align:center;">
+                    {{-- Riwayat cuma untuk diri sendiri - route-nya self-scoped (Auth::id()), kalau
+                    ditampilkan saat HC lihat profil bawahan malah nyasar ke riwayat HC sendiri. --}}
+                    @if ($isSelf)
+                        <a href="{{ route('merit-point.saya.riwayat') }}" wire:navigate title="Riwayat Merit Point"
+                           style="position:absolute;top:14px;right:14px;color:var(--text-faint);font-size:13px;">
+                            <i class="fa-solid fa-clock-rotate-left"></i>
+                        </a>
+                    @endif
+                    <p style="font-size:11px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--text-faint);margin:0 0 12px;">Merit Point</p>
+                    <div style="position:relative;width:104px;height:104px;margin:0 auto;">
+                        <div style="width:100%;height:100%;border-radius:50%;background:conic-gradient({{ $meritColor }} {{ $meritPct * 3.6 }}deg, var(--border) 0deg);"></div>
+                        <div style="position:absolute;inset:10px;border-radius:50%;background:var(--surface);display:flex;align-items:center;justify-content:center;">
+                            <span style="font-size:24px;font-weight:800;letter-spacing:-0.5px;color:{{ $meritColor }};">{{ $meritPoint }}</span>
+                        </div>
+                    </div>
+                </div>
+            @endif
+
+            <div class="card-surface" style="position:relative;text-align:center;">
+                @if ($isSelf)
+                    <a href="{{ route('sp.saya') }}" wire:navigate title="Riwayat Surat Peringatan"
+                       style="position:absolute;top:14px;right:14px;color:var(--text-faint);font-size:13px;">
+                        <i class="fa-solid fa-clock-rotate-left"></i>
+                    </a>
+                @endif
+                <p style="font-size:11px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--text-faint);margin:0 0 12px;">Surat Peringatan</p>
+                <div style="display:flex;align-items:center;justify-content:center;height:104px;">
+                    @if ($spLevel)
+                        <span class="badge" style="background:{{ $spColor['bg'] }};color:{{ $spColor['fg'] }};font-size:16px;font-weight:800;padding:10px 18px;">{{ $spLevel->getLabel() }}</span>
+                    @else
+                        <span style="font-size:36px;font-weight:800;color:var(--text-muted);">0</span>
+                    @endif
+                </div>
+            </div>
+        </div>
+    @endif
+
     {{-- Status Kepegawaian: fase berjalan (ringkas) + timeline HORIZONTAL perjalanan
     Bergabung → Orientasi → Kontrak/perpanjangan → Tetap dalam satu baris. Data dari ledger
     user_orientations & user_contracts, lihat

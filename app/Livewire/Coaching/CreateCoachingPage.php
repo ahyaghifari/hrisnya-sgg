@@ -17,6 +17,10 @@ use Livewire\Component;
  * field (status jadi IN_PROGRESS), bukan lewat state PENDING dulu. Dua jalur akses beda scope
  * karyawan (sama seperti CoachingPage, instruksi user 2026-07-26): permission `Create:Coaching`
  * (HC) -> semua karyawan company; sekadar punya bawahan -> cuma bawahannya sendiri.
+ *
+ * Coaching & SP sengaja dipisah total (instruksi user 2026-09-23) — form ini TIDAK ada urusan SP
+ * sama sekali. SP dibuat dari sisi SP sendiri (CreateSpPage/EmployeeSpResource), yang punya field
+ * opsional "sumber dari Coaching mana" kalau relevan.
  */
 #[Layout('components.layout', ['title' => 'Buat Coaching'])]
 class CreateCoachingPage extends Component
@@ -48,6 +52,21 @@ class CreateCoachingPage extends Component
 
         $this->coach_by = Auth::id();
         $this->improvement_due_date = today()->toDateString();
+
+        // Prefill dari tombol pintasan "Buat Coaching Lanjutan" di CoachingDetailPage
+        // (planning/2026-09-23-sp-dan-merit-point.md §1.1) - cuma kenyamanan UI, scope
+        // bawahan/company tetap dicek ulang di save() saat submit.
+        if ($prefillUserId = request()->query('user_id')) {
+            $prefillUser = User::find($prefillUserId);
+
+            if ($prefillUser) {
+                if ($this->canBrowseAllCompanies) {
+                    $this->companyId = $prefillUser->company_id;
+                }
+
+                $this->user_id = $prefillUser->id;
+            }
+        }
     }
 
     public function getHasFullAccessProperty(): bool

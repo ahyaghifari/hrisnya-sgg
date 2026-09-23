@@ -232,6 +232,19 @@ class RoleForm
             // menu admin sidebar sama sekali.
             'Coaching' => 'Pembinaan Karyawan',
             'Counseling' => 'Pembinaan Karyawan',
+            // EmployeeSp (2026-09-23): EmployeeSpResource navigationGroup-nya 'Pembinaan' (satu
+            // grup menu admin sama Coaching), sama alasan Coaching/Counseling di atas - tanpa
+            // override ini 7 permission Shield-nya (ViewAny/View/Create/Update/Delete/Restore/
+            // ForceDelete:EmployeeSp) ikut ke-merge ke section "Sistem Kepegawaian".
+            'EmployeeSp' => 'Pembinaan Karyawan',
+            // SpRecommendation (2026-09-23): SpRecommendationResource navigationGroup-nya juga
+            // 'Pembinaan' - row action Setujui/Tolak dicek lewat Update:SpRecommendation
+            // (->authorize('update')), permission itu perlu ikut section yang sama.
+            'SpRecommendation' => 'Pembinaan Karyawan',
+            // MeritPointRule/MeritPointTransaction (2026-09-23, masih DEMO): navigationGroup-nya
+            // juga 'Pembinaan', sama alasan Coaching/Counseling/EmployeeSp di atas.
+            'MeritPointRule' => 'Pembinaan Karyawan',
+            'MeritPointTransaction' => 'Pembinaan Karyawan',
             // Semua WidgetPermissionEnum (2026-08-19, instruksi user) numpuk di 1 subject
             // 'DashboardWidget' -> container "Dashboard Widget" - lihat
             // customPermissionSubjectOverrides() di bawah, subject-nya digenerate otomatis dari

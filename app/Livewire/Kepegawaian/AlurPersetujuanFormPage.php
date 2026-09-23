@@ -110,7 +110,17 @@ class AlurPersetujuanFormPage extends Component
 
     public function getModuleOptionsProperty(): array
     {
-        return ApprovalModuleEnum::options();
+        $options = ApprovalModuleEnum::options();
+
+        // Task punya alur review sendiri (reviewer_id/needs_review di TaskService, bukan lewat
+        // Approval Engine ini) - modulnya dihapus dari pilihan alur BARU, cuma tetap tampil
+        // kalau alur yang lagi diedit kebetulan sudah terlanjur pakai modul ini (jangan sampai
+        // dropdown-nya nge-blank pas dibuka). Sama pola dengan ApprovalFlowForm.php (admin).
+        if ($this->module !== ApprovalModuleEnum::TASK_REQUEST->value) {
+            unset($options[ApprovalModuleEnum::TASK_REQUEST->value]);
+        }
+
+        return $options;
     }
 
     public function getSubModuleOptionsProperty(): array

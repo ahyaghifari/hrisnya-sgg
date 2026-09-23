@@ -64,7 +64,20 @@ class ApprovalFlowForm
                         Select::make('module')
                             ->label('Modul')
                             ->helperText('Pilih modul bisnis yang akan menggunakan alur persetujuan ini.')
-                            ->options(\App\Enum\Approval\ApprovalModuleEnum::options())
+                            ->options(function (callable $get) {
+                                $options = \App\Enum\Approval\ApprovalModuleEnum::options();
+
+                                // Task punya alur review sendiri (reviewer_id/needs_review di
+                                // TaskService, bukan lewat Approval Engine ini) - modulnya
+                                // dihapus dari pilihan alur BARU, cuma tetap tampil kalau alur
+                                // yang lagi diedit kebetulan sudah terlanjur pakai modul ini
+                                // (jangan sampai dropdown-nya nge-blank pas dibuka).
+                                if ($get('module') !== \App\Enum\Approval\ApprovalModuleEnum::TASK_REQUEST->value) {
+                                    unset($options[\App\Enum\Approval\ApprovalModuleEnum::TASK_REQUEST->value]);
+                                }
+
+                                return $options;
+                            })
                             ->rule(function ($get, $record) {
                                 return function ($attribute, $value, $fail) use ($get, $record) {
                                     $flowType = $get('flow_type');

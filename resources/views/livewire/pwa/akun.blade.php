@@ -50,7 +50,7 @@
             @if ($ssoLinked && $ssoUsername)
                 {{ $ssoUsername }} &middot; {{ $record->email }}
             @else
-                Belum tersambung — hubungi IT
+                Belum tersambung — atur di sini
             @endif
         </p>
     </div>

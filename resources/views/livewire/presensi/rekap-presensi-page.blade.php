@@ -299,6 +299,9 @@
                             </td>
                             <td style="text-align:center;">
                                 <span style="display:inline-flex;align-items:center;padding:3px 10px;border-radius:99px;background:{{ $style['bg'] }};color:{{ $style['color'] }};font-size:11px;font-weight:700;">{{ $style['label'] }}</span>
+                                @if ($row->izin_label)
+                                    <p style="margin:4px 0 0;font-size:10.5px;color:var(--text-muted);">{{ $row->izin_label }}</p>
+                                @endif
                             </td>
                             <td style="text-align:center;">{{ $row->check_in_time ? \Illuminate\Support\Str::substr($row->check_in_time, 0, 5) : '–' }}</td>
                             <td style="text-align:center;">{{ $row->check_out_time ? \Illuminate\Support\Str::substr($row->check_out_time, 0, 5) : '–' }}</td>

@@ -850,7 +850,9 @@ class RekapPresensiPage extends Component
             ->get()
             ->keyBy('user_id');
 
-        return $scheduled->map(function (User $user) use ($records) {
+        $izinLabels = $this->izinLabelsForDate($date, $scheduled->pluck('id'));
+
+        return $scheduled->map(function (User $user) use ($records, $izinLabels) {
             $record = $records->get($user->id);
 
             $group = match (true) {
@@ -868,8 +870,53 @@ class RekapPresensiPage extends Component
                 'check_in_time' => $record?->check_in_time,
                 'check_out_time' => $record?->check_out_time,
                 'group' => $group,
+                'izin_label' => $izinLabels[$user->id] ?? null,
             ];
         })->sortBy('name')->values();
+    }
+
+    /**
+     * Peta user_id -> label jenis Cuti/Izin (mis. "Cuti Tahunan", "Izin Sakit") dari pengajuan
+     * approved yang mencakup tanggal itu - `leave_type`/`permission_type` sudah tersimpan sebagai
+     * label jadi (lihat AttendaceReqService::createLeaveRequest()/createPermissionRequest()),
+     * tidak perlu resolve enum lagi di sini.
+     *
+     * @return array<string, string>
+     */
+    protected function izinLabelsForDate(string $date, \Illuminate\Support\Collection $userIds): array
+    {
+        $parsedDate = Carbon::parse($date);
+
+        $requests = AttendanceRequests::query()
+            ->whereIn('user_id', $userIds)
+            ->whereIn('type', ['leave', 'permission'])
+            ->where('status', AttendanceReqStatus::APPROVED->value)
+            ->with(['leaveDetails', 'permissionDetails'])
+            ->get();
+
+        $labels = [];
+
+        foreach ($requests as $request) {
+            foreach ($request->leaveDetails as $detail) {
+                $start = Carbon::parse($detail->start_date);
+                $end = Carbon::parse($detail->end_date ?? $detail->start_date);
+
+                if ($parsedDate->between($start, $end)) {
+                    $labels[$request->user_id] = $detail->leave_type;
+                }
+            }
+
+            foreach ($request->permissionDetails as $detail) {
+                $start = Carbon::parse($detail->date);
+                $end = Carbon::parse($detail->end_date ?? $detail->date);
+
+                if ($parsedDate->between($start, $end)) {
+                    $labels[$request->user_id] = $detail->permission_type;
+                }
+            }
+        }
+
+        return $labels;
     }
 
     public function getKehadiranStatsProperty(): array

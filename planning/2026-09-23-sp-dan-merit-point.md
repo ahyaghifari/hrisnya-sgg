@@ -284,6 +284,10 @@ yang harus disadari:
   eskalatif (kuning→oranye→merah) kalau ada yang aktif.
 - **Section ini otomatis hilang** kalau company tidak mengaktifkan `MERIT_POINT_ENABLED` — tapi SP
   tetap tampil sendirian (SP bukan bagian dari toggle Merit Point, dua fitur independen).
+- **Tombol riwayat** (dijawab §5.2): masing-masing widget (Merit Point & SP) punya ikon kecil
+  "riwayat" di pojok card — buka riwayat lengkap (Merit Point: semua `merit_point_transactions`
+  user; SP: semua `employee_sps` user termasuk yang sudah expired, bukan cuma yang aktif). Bentuk
+  tampilan riwayat (modal/halaman terpisah) belum diputuskan, tentukan pas build UI.
 - Detail visual (gradient, animasi, dsb) dikerjakan di fase build UI, bukan bagian planning ini —
   pas waktunya, load skill `dataviz`/`frontend-design` dulu sebelum nulis widget-nya biar
   konsisten sama palet & prinsip desain project.
@@ -308,8 +312,13 @@ Ikut dokumen acuan §16, plus:
 
 1. **Trigger otomatis dari Attendance** (kalau/kapan dibuka lagi) — aturan konkretnya apa, dihitung
    per-bulan-kalender atau rolling window. Sengaja tidak diputuskan di fase ini.
-2. **SP karyawan boleh lihat riwayat SP yang sudah expired**, atau cuma yang aktif? (dokumen acuan
-   cuma bahas tampilan SP aktif, §1.6).
+2. ~~SP karyawan boleh lihat riwayat SP yang sudah expired, atau cuma yang aktif?~~ **DIJAWAB
+   (2026-09-23)**: karyawan boleh lihat riwayat lengkap (termasuk expired), bukan cuma yang aktif.
+   Kedua widget (Merit Point & SP) di tab Karir dapat tombol ikon kecil "riwayat" (bukan tombol
+   teks besar) yang buka daftar riwayat — Merit Point → riwayat `merit_point_transactions` milik
+   user, SP → riwayat `employee_sps` milik user (termasuk yang sudah `end_date` lewat). Detail
+   halaman/modal riwayat (modal vs halaman terpisah) dikerjakan di fase build UI (§3.6), bukan
+   diputuskan di planning ini.
 3. **Job refresh `user_hr_balances`** (§3.5) — jadwal harian cukup, atau perlu lebih sering? Dan
    apakah butuh tombol "Refresh Manual" di admin buat jaga-jaga kalau job sempat gagal jalan.
 4. **Beri Merit Point dari Tindakan Lanjutan Coaching** (§1.3) — kapan mau dibangun, dan alur

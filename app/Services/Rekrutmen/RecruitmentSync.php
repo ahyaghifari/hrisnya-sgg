@@ -24,7 +24,14 @@ class RecruitmentSync
         try {
             RecruitmentCompany::updateOrCreate(
                 ['hris_code' => $company->code],
-                ['name' => $company->name, 'is_active' => (bool) $company->is_active],
+                [
+                    'name' => $company->name,
+                    'is_active' => (bool) $company->is_active,
+                    // Semua rekrutmen dikelola dari HRIS - mode 'free' (admin project rekrutmen
+                    // boleh bikin lowongan sendiri) sudah tidak dipakai lagi, kolomnya dibiarkan
+                    // ada supaya tidak perlu ubah skema lagi (sempat dihapus & dikembalikan).
+                    'management_mode' => 'hris',
+                ],
             );
 
             return ['ok' => true, 'message' => "Perusahaan '{$company->name}' disinkron ke DB recruitment."];
@@ -59,7 +66,11 @@ class RecruitmentSync
                 [
                     'company_id' => $company->id,
                     'company_name' => $company->name,
+                    'job_position_id' => $jobOpening->job_position_id,
                     'title' => $jobOpening->display_name,
+                    // Divisi dititipkan ke rekrutmen_db karena project `rekrutmen` tidak punya
+                    // koneksi ke DB HRIS - dipakai token {divisi} di naskah Persetujuan Onboarding.
+                    'division_name' => $jobOpening->jobPosition?->division?->name,
                     'quota' => $jobOpening->quota,
                     'max_applicants' => $jobOpening->max_applicants,
                     'applications_deadline' => $jobOpening->application_deadline?->format('Y-m-d'),

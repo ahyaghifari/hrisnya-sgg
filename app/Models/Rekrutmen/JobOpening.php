@@ -24,7 +24,7 @@ class JobOpening extends Model
     protected $connection = 'recruitment';
 
     protected $fillable = [
-        'id', 'company_id', 'job_position_id', 'title', 'company_name', 'quota', 'max_applicants',
+        'id', 'company_id', 'job_position_id', 'title', 'division_name', 'company_name', 'quota', 'max_applicants',
         'applications_deadline', 'hris_job_opening_id', 'is_active', 'description',
         'requirements', 'requires_psychotest',
         'published_at', 'closed_at', 'created_by_name', 'published_by', 'closed_by',

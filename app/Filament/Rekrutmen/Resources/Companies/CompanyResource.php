@@ -79,10 +79,6 @@ class CompanyResource extends Resource
             ])->columns(2),
 
             Section::make('Alur & Tampilan')->schema([
-                Select::make('management_mode')->label('Kelola Rekrutmen')
-                    ->options(['hris' => 'HRIS (dikelola di sini)', 'free' => 'Bebas (boleh dikelola di project rekrutmen)'])
-                    ->default('hris')->selectablePlaceholder(false)->required()
-                    ->helperText('HRIS = lowongan & pipeline hanya dari HRIS. Bebas = admin project rekrutmen boleh menambah/mengubah lowongan sendiri.'),
                 Toggle::make('requires_mcu')->label('Wajib MCU')
                     ->helperText('Kalau nonaktif, kandidat lolos wawancara langsung ke Onboarding (lompati MCU).'),
                 Toggle::make('is_active')->label('Perusahaan Aktif')
@@ -174,9 +170,6 @@ class CompanyResource extends Resource
             ->columns([
                 TextColumn::make('name')->label('Nama')->searchable()->sortable(),
                 TextColumn::make('hris_code')->label('Kode HRIS')->badge(),
-                TextColumn::make('management_mode')->label('Kelola')->badge()
-                    ->formatStateUsing(fn ($state) => $state === 'free' ? 'Bebas' : 'HRIS')
-                    ->color(fn ($state) => $state === 'free' ? 'warning' : 'gray'),
                 IconColumn::make('requires_mcu')->label('Wajib MCU')->boolean(),
                 IconColumn::make('is_active')->label('Aktif')->boolean(),
                 TextColumn::make('email')->label('Email')->searchable()->placeholder('—'),

@@ -63,6 +63,13 @@ return Application::configure(basePath: dirname(__DIR__))
         $schedule->command('sikartap:apply-due-tetap')
             ->dailyAt('00:20')
             ->withoutOverlapping();
+
+        // Cache tampilan widget Karir (user_hr_balances.active_sp_level) bisa basi murni karena
+        // employee_sps.end_date lewat tanpa event apa pun - lihat komentar migration
+        // user_hr_balances & planning/2026-09-23-sp-dan-merit-point.md §3.5.
+        $schedule->command('sp:refresh-balances')
+            ->dailyAt('00:25')
+            ->withoutOverlapping();
     })
     ->withMiddleware(function (Middleware $middleware) {
         // NB: statefulApi() cuma nge-set flag; middleware Sanctum-nya baru masuk ke grup 'api'

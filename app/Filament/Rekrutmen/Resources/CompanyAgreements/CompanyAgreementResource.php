@@ -54,7 +54,11 @@ class CompanyAgreementResource extends Resource
                 ->options(fn () => Company::orderBy('name')->pluck('name', 'id'))
                 ->searchable()->required(),
             TextInput::make('title')->label('Judul')->required()->maxLength(255),
-            RichEditor::make('content')->label('Naskah')->required()->columnSpanFull(),
+            RichEditor::make('content')->label('Naskah')->required()->columnSpanFull()
+                // Diganti saat naskah dirakit untuk kandidat, lihat JobOpening::effectiveAgreements()
+                // di project `rekrutmen`. {jabatan} = nama lowongan (boleh dikustom per lowongan),
+                // bukan nama jabatan mentah dari master HRIS.
+                ->helperText('Bisa pakai token yang terisi otomatis per kandidat: {jabatan} (nama lowongan) dan {divisi}. Tulis persis dengan kurung kurawal.'),
         ]);
     }
 

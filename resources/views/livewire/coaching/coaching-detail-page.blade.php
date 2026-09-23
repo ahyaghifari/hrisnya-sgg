@@ -71,4 +71,55 @@
     </div>
 </div>
 
+@if ($this->isCoach || $this->isUserCreate)
+    <div class="card-surface accent accent-navy" style="margin-bottom:16px;">
+        <div class="section-head-icon" style="margin-bottom:14px;">
+            <div class="section-icon"><i class="fa-solid fa-clipboard-check"></i></div>
+            <p style="font-size:13px;font-weight:700;color:var(--text-heading);margin:0;">Tindak Lanjut</p>
+        </div>
+
+        <label class="form-label">Kondisi Terkini</label>
+        <select class="form-input" wire:model="followUpStatus" style="margin-bottom:10px;">
+            <option value="">-- Pilih --</option>
+            @foreach (\App\Enum\CoachingFollowUpStatus::cases() as $status)
+                <option value="{{ $status->value }}">{{ $status->getLabel() }}</option>
+            @endforeach
+        </select>
+        @error('followUpStatus') <p style="color:var(--danger-text);font-size:12px;margin:-6px 0 10px;">{{ $message }}</p> @enderror
+
+        <label class="form-label">Catatan</label>
+        <textarea class="form-input" rows="3" placeholder="Catatan kondisi karyawan saat ini..." wire:model="followUpNote" style="margin-bottom:10px;"></textarea>
+
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+            <button type="button" wire:click="saveFollowUp" class="btn-primary">Simpan</button>
+
+            @if ($record->follow_up_status === \App\Enum\CoachingFollowUpStatus::NEEDS_FOLLOW_UP)
+                <a href="{{ route('coaching.create', ['user_id' => $record->user_id]) }}" wire:navigate class="btn-ghost">
+                    <i class="fa-solid fa-plus"></i> Buat Coaching Lanjutan
+                </a>
+            @elseif ($record->follow_up_status === \App\Enum\CoachingFollowUpStatus::NEEDS_SP)
+                <a href="{{ route('sp.create', ['user_id' => $record->user_id, 'coaching_id' => $record->id]) }}" wire:navigate class="btn-ghost" style="color:var(--danger-text);border-color:var(--danger-soft-border);">
+                    <i class="fa-solid fa-triangle-exclamation"></i> Buat SP
+                </a>
+            @endif
+        </div>
+        @if ($record->follow_up_at)
+            <p style="font-size:11px;color:var(--text-muted);margin:8px 0 0;">Terakhir diisi {{ $record->follow_up_at->diffForHumans() }}</p>
+        @endif
+
+        {{-- SP terkait - read-only, cuma info. SP dibuat dari sisi SP sendiri (bisa pilih
+        coaching ini sebagai sumbernya), bukan dari sini (instruksi user 2026-09-23: Coaching &
+        SP dipisah total). --}}
+        @php $linkedSp = $this->linkedSp; @endphp
+        @if ($linkedSp)
+            <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border-soft);display:flex;align-items:center;justify-content:space-between;gap:12px;">
+                <span style="font-size:12.5px;color:var(--text-muted);">SP Terkait</span>
+                <span style="font-size:13px;font-weight:600;color:var(--text-body);">
+                    {{ $linkedSp->sp_level->getLabel() }} &middot; {{ $linkedSp->reason?->name }}
+                </span>
+            </div>
+        @endif
+    </div>
+@endif
+
 </div>

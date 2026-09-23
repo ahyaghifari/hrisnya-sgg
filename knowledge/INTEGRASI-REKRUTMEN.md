@@ -55,10 +55,14 @@ Riwayat setiap perubahan status otomatis tercatat di tabel `job_application_stat
 | `is_active` | bool | Nonaktifkan → lowongan perusahaan ini disembunyikan dari halaman publik |
 | `requires_mcu` | bool | Menentukan apakah lamaran lewat tahap `mcu` atau lompat ke `onboarding` |
 
-> Catatan: kolom `management_mode` (dulu ada, membedakan perusahaan "HRIS" vs "Bebas") **sudah dihapus**
-> (migration `2026_08_27_131700_drop_management_mode_from_companies_table.php`). Sekarang gating
-> edit/hapus lowongan murni per-lowongan lewat `job_openings.hris_job_opening_id` (lihat §2.2) — bukan
-> per-company lagi.
+> Catatan `management_mode`: kolom ini sempat dihapus (`2026_08_27_131700_drop_...`) lalu
+> **dikembalikan** (`2026_09_07_140000_readd_...`), jadi sekarang ADA lagi — enum `free|hris`,
+> default `hris`.
+>
+> Per 2026-09-23 nilainya **selalu `hris`**: semua rekrutmen wajib dikelola dari HRIS. Pilihan
+> mode-nya sudah dibuang dari form perusahaan, `RecruitmentSync::pushCompany()` memaksa `hris`, dan
+> di project `rekrutmen` lowongan jadi read-only (`JobOpeningResource::canCreate()` selalu false,
+> cuma ada aksi Lihat). Kolomnya sengaja dibiarkan ada supaya tidak perlu ubah skema lagi.
 
 ### 2.2 `job_openings` — lowongan (cache lokal, bisa manual atau dari HRIS)
 
