@@ -32,6 +32,26 @@ return Application::configure(basePath: dirname(__DIR__))
             ->everyTwentySeconds()
             ->withoutOverlapping(5);
 
+        // Jaring pengaman buat sync di atas: baris yang masuk ke access_logs belakangan tapi
+        // jamnya lebih tua dari watermark tidak akan pernah terbaca lagi oleh jalur incremental
+        // (jam device antar lokasi tidak sinkron, device offline yang mengirim susulan). Sapuan
+        // ini tidak memakai watermark sama sekali - baca ulang sehari penuh lewat readAndGroup(),
+        // tapi HANYA buat orang yang scan-nya tidak nyambung dengan attendance_records, jadi di
+        // hari normal cuma 2 query agregat lalu berhenti. Lihat SweepMissedAccessLogs.
+        $schedule->command('attendance:sweep-missed-scans')
+            ->everyTenMinutes()
+            ->withoutOverlapping(10);
+
+        // Shift lintas tengah malam: scan pulangnya jatuh di tanggal berikutnya, jadi tanggal
+        // kemarin masih perlu disapu sampai dini hari lewat.
+        // "yesterday" sengaja dikirim sebagai kata, bukan tanggal jadi - closure ini cuma dievaluasi
+        // sekali saat boot, dan `schedule:work` hidup berhari-hari, jadi tanggal hasil now() di sini
+        // akan membeku di tanggal server terakhir kali restart.
+        $schedule->command('attendance:sweep-missed-scans --date=yesterday')
+            ->everyTenMinutes()
+            ->between('00:00', '03:00')
+            ->withoutOverlapping(10);
+
         // Terapkan transisi karyawan (Promosi/Demosi/Mutasi/PHK) yang disetujui dengan tanggal
         // efektif di masa depan, begitu tanggalnya tiba. Jalan sekali sehari lewat cron.
         $schedule->command('transitions:apply-due')
