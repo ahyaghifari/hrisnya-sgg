@@ -5,7 +5,7 @@
     <div class="dropdown-menu">
         <a href="{{ route('coaching') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-clipboard-check"></i> Coaching</a>
         <a href="{{ route('counseling.kelola') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-comments"></i> Counseling</a>
-        <a href="{{ route('sp') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-triangle-exclamation"></i> Surat Peringatan (SP)</a>
+        <a href="{{ route('sp') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-triangle-exclamation"></i> Surat Peringatan</a>
         {{-- Rekomendasi SP dinonaktifkan global sementara (instruksi user 2026-09-23,
         SpService::recommendationCreationEnabled) - halaman review-nya ikut disembunyikan dari
         nav, tidak ada yang perlu direview selama jalur bikin rekomendasi baru ditutup. --}}

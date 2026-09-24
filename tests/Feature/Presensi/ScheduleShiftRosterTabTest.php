@@ -523,12 +523,15 @@ class ScheduleShiftRosterTabTest extends TestCase
         $export = new \App\Exports\Presensi\ScheduleShiftRosterExport($schedule, collect([$employee]), $dates, $roster, 'September 2026');
         $rows = $export->array();
 
-        // Legenda kiri: judul, periode, header, baris Libur, lalu shift (kode | keterangan | jam kerja | tim).
+        // Legenda kiri: judul, periode, header, baris Libur/Cuti/Izin (kode tetap, tidak
+        // tergantung roster), lalu shift (kode | keterangan | jam kerja | tim).
         $this->assertSame('JADWAL '.mb_strtoupper($schedule->name), $rows[0][0]);
         $this->assertSame('Periode Penjadwalan September 2026', $rows[1][0]);
         $this->assertSame(['Kode Shift', 'Keterangan', 'Jam Kerja', 'Tim'], array_slice($rows[2], 0, 4));
         $this->assertSame(['L', 'Libur', '-', '-'], array_slice($rows[3], 0, 4));
-        $this->assertSame([$shiftType->code, 'Pagi', '08:00 s.d 14:00', '-'], array_slice($rows[4], 0, 4));
+        $this->assertSame(['C', 'Cuti (disetujui otomatis)', '-', '-'], array_slice($rows[4], 0, 4));
+        $this->assertSame(['Izin', 'Izin (disetujui otomatis)', '-', '-'], array_slice($rows[5], 0, 4));
+        $this->assertSame([$shiftType->code, 'Pagi', '08:00 s.d 14:00', '-'], array_slice($rows[6], 0, 4));
         // Kolom E kosong, grid mulai kolom F dengan header "Karyawan".
         $this->assertSame('', $rows[2][4]);
         $this->assertSame('Karyawan', $rows[2][5]);
@@ -539,7 +542,7 @@ class ScheduleShiftRosterTabTest extends TestCase
         $export->styles($sheet);
 
         // Kode shift di legenda & sel roster hari ini diwarnai warna shift; "L" pakai warna Libur.
-        $this->assertSame('F97316', $sheet->getStyle('A5')->getFill()->getStartColor()->getRGB());
+        $this->assertSame('F97316', $sheet->getStyle('A7')->getFill()->getStartColor()->getRGB());
         $todayCell = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex(7 + $today->day - 1).'4';
         $this->assertSame('F97316', $sheet->getStyle($todayCell)->getFill()->getStartColor()->getRGB());
 
@@ -599,9 +602,10 @@ class ScheduleShiftRosterTabTest extends TestCase
         }
 
         // Legenda: shift ini boleh dipakai Regu A dan Regu B (tanpa batasan) -> "Semua Tim", tidak diwarnai tim.
+        // Baris ke-4 (array index 6) - 3 baris tetap (L/C/I) mendahului daftar shift.
         $export = new \App\Exports\Presensi\ScheduleShiftRosterExport($schedule, collect([$employee]), [$date], [], 'label', $names);
         $rows = $export->array();
-        $this->assertSame('Semua Tim', $rows[4][3]);
+        $this->assertSame('Semua Tim', $rows[6][3]);
 
         // Batasi Regu B ke shift lain -> hanya Regu A yang boleh shift ini -> nama tim + warna tim, font putih.
         $otherShift = ScheduleShiftType::create(['schedule_id' => $schedule->id, 'code' => 'ZZ', 'name' => 'Lain', 'start_time' => '20:00:00', 'end_time' => '08:00:00', 'counted_work_days' => 1]);
@@ -613,10 +617,10 @@ class ScheduleShiftRosterTabTest extends TestCase
         $sheet->fromArray($export->array());
         $export->styles($sheet);
 
-        $this->assertSame('Regu A', $sheet->getCell('D5')->getValue());
-        $this->assertSame(['FF0000', 'FFFFFF'], $color($sheet, 'D5'));
-        $this->assertSame('Regu B', $sheet->getCell('D6')->getValue());
-        $this->assertSame(['0000FF', 'FFFFFF'], $color($sheet, 'D6'));
+        $this->assertSame('Regu A', $sheet->getCell('D7')->getValue());
+        $this->assertSame(['FF0000', 'FFFFFF'], $color($sheet, 'D7'));
+        $this->assertSame('Regu B', $sheet->getCell('D8')->getValue());
+        $this->assertSame(['0000FF', 'FFFFFF'], $color($sheet, 'D8'));
     }
 
     public function test_import_excel_skips_unrecognized_shift_codes_and_keeps_existing_value(): void

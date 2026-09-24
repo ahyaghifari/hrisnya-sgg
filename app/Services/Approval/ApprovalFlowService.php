@@ -229,7 +229,13 @@ class ApprovalFlowService
                     // shift (Detail Penjadwalan) - lihat docblock
                     // AttendaceReqService::syncApprovedAbsenceToRoster(). approved_by belum
                     // ke-refresh di objek ini, di-refresh dulu biar notes/log-nya benar.
-                    $this->attendaceReqService->syncApprovedAbsenceToRoster($attendanceRequest->fresh(['leaveDetails', 'permissionDetails', 'user']));
+                    $freshAttendanceRequest = $attendanceRequest->fresh(['leaveDetails', 'permissionDetails', 'user']);
+                    $this->attendaceReqService->syncApprovedAbsenceToRoster($freshAttendanceRequest);
+
+                    // Cuti & Izin Tidak Masuk/Sakit/Khusus yang disetujui otomatis dicatat di
+                    // attendance_records - lihat docblock
+                    // AttendaceReqService::syncApprovedAbsenceToAttendanceRecords().
+                    $this->attendaceReqService->syncApprovedAbsenceToAttendanceRecords($freshAttendanceRequest);
                 }
 
                 //Task

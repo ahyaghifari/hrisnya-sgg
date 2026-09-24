@@ -10,9 +10,7 @@ use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\RichEditor;
 use Filament\Forms\Components\Select;
-use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
-use Filament\Infolists\Components\RepeatableEntry;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Resources\Pages\CreateRecord;
 use Filament\Schemas\Components\Section;
@@ -109,13 +107,13 @@ class EmployeeSpForm
 
                     Repeater::make('items')
                         ->relationship('items')
-                        ->label('Poin Pelanggaran')
-                        ->helperText('Nomor poin ditulis manual di masing-masing baris (mis. "1. ...").')
+                        ->label('Uraian/Kronologi')
+                        ->helperText('Nomor ditulis manual di masing-masing baris (mis. "1. ...").')
                         ->simple(
-                            Textarea::make('text')->required()->rows(2)
+                            RichEditor::make('text')->required()
                         )
                         ->orderColumn('sort_order')
-                        ->addActionLabel('Tambah Poin')
+                        ->addActionLabel('Tambah Uraian')
                         ->defaultItems(0)
                         ->minItems(1)
                         ->required()
@@ -128,6 +126,9 @@ class EmployeeSpForm
                 ->columns(1)
                 ->collapsible()
                 ->schema([
+                    RichEditor::make('dasar_klarifikasi')
+                        ->label('Dasar Klarifikasi'),
+
                     RichEditor::make('kejadian')
                         ->label('Kejadian'),
 
@@ -136,6 +137,9 @@ class EmployeeSpForm
 
                     RichEditor::make('analysis')
                         ->label('Analisis'),
+
+                    RichEditor::make('kesimpulan')
+                        ->label('Kesimpulan'),
 
                     RichEditor::make('followup_plan')
                         ->label('Rencana Tindak Lanjut'),
@@ -190,40 +194,51 @@ class EmployeeSpForm
                         ->dateTime(),
                 ])->columnSpanFull(),
 
-            Section::make('Poin Pelanggaran')
+            Section::make('Uraian/Kronologi')
                 ->icon('heroicon-o-list-bullet')
                 ->schema([
-                    RepeatableEntry::make('items')
+                    Repeater::make('items')
+                        ->relationship('items')
                         ->hiddenLabel()
-                        ->schema([
-                            TextEntry::make('text')->hiddenLabel(),
-                        ]),
+                        ->helperText('Nomor ditulis manual di masing-masing baris (mis. "1. ...").')
+                        ->simple(
+                            RichEditor::make('text')->required()
+                        )
+                        ->orderColumn('sort_order')
+                        ->addActionLabel('Tambah Uraian')
+                        ->defaultItems(0)
+                        ->minItems(1)
+                        ->required(),
                 ])->columnSpanFull(),
 
+            // Field flat (bukan dot-relationship) - sp_reports 1:1 opsional, bukan HasMany yang
+            // Filament bisa urus otomatis lewat Repeater. Dibaca/disimpan manual di
+            // EditEmployeeSp::mutateFormDataBeforeFill()/afterSave(), sama pola dengan
+            // CreateEmployeeSp (instruksi user 2026-09-24: Berita Acara bisa diedit bebas kapan
+            // saja setelah SP terbit, bukan cuma read-only lagi).
             Section::make('Berita Acara')
+                ->description('Catatan investigasi HR-internal, tidak ditampilkan ke karyawan.')
                 ->icon('heroicon-o-document-text')
                 ->columns(1)
-                ->visible(fn ($record) => $record->report !== null)
+                ->collapsible()
                 ->schema([
-                    TextEntry::make('report.kejadian')
-                        ->label('Kejadian')
-                        ->placeholder('-')
-                        ->html(),
+                    RichEditor::make('dasar_klarifikasi')
+                        ->label('Dasar Klarifikasi'),
 
-                    TextEntry::make('report.subject_clarification')
-                        ->label('Klarifikasi Karyawan')
-                        ->placeholder('-')
-                        ->html(),
+                    RichEditor::make('kejadian')
+                        ->label('Kejadian'),
 
-                    TextEntry::make('report.analysis')
-                        ->label('Analisis')
-                        ->placeholder('-')
-                        ->html(),
+                    RichEditor::make('subject_clarification')
+                        ->label('Klarifikasi Karyawan'),
 
-                    TextEntry::make('report.followup_plan')
-                        ->label('Rencana Tindak Lanjut')
-                        ->placeholder('-')
-                        ->html(),
+                    RichEditor::make('analysis')
+                        ->label('Analisis'),
+
+                    RichEditor::make('kesimpulan')
+                        ->label('Kesimpulan'),
+
+                    RichEditor::make('followup_plan')
+                        ->label('Rencana Tindak Lanjut'),
                 ])->columnSpanFull(),
         ];
     }

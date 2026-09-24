@@ -3,7 +3,6 @@
 namespace App\Livewire\Sp;
 
 use App\Models\Sp\EmployeeSp;
-use App\Services\Sp\SpPdfService;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
@@ -30,11 +29,6 @@ class SuratPeringatanDetailPage extends Component
         $record->load(['items', 'createdBy']);
 
         $this->record = $record;
-    }
-
-    public function downloadPdf()
-    {
-        return app(SpPdfService::class)->download($this->record);
     }
 
     public function render()

@@ -38,8 +38,8 @@ class CreateEmployeeSp extends CreateRecord
         }
         unset($data['coaching_id']);
 
-        $this->reportData = Arr::only($data, ['kejadian', 'subject_clarification', 'analysis', 'followup_plan']);
-        $data = Arr::except($data, ['kejadian', 'subject_clarification', 'analysis', 'followup_plan']);
+        $this->reportData = Arr::only($data, ['kejadian', 'dasar_klarifikasi', 'subject_clarification', 'analysis', 'kesimpulan', 'followup_plan']);
+        $data = Arr::except($data, ['kejadian', 'dasar_klarifikasi', 'subject_clarification', 'analysis', 'kesimpulan', 'followup_plan']);
 
         $data['company_id'] = $auth->company_id;
         $data['source_type'] = $coachingId ? SpSourceType::COACHING->value : SpSourceType::MANUAL->value;

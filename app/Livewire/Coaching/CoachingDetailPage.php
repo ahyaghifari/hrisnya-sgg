@@ -119,7 +119,6 @@ class CoachingDetailPage extends Component
     {
         return EmployeeSp::where('source_type', SpSourceType::COACHING->value)
             ->where('source_id', $this->record->id)
-            ->with('reason')
             ->first();
     }
 

@@ -15,6 +15,33 @@ class SpPdfService
 {
     public function download(EmployeeSp $sp): StreamedResponse
     {
+        $pdf = Pdf::loadView('pdf.sp.sp', ['sp' => $this->loadForPdf($sp)]);
+
+        return response()->streamDownload(
+            function () use ($pdf) {
+                echo $pdf->stream();
+            },
+            $this->filename($sp),
+            ['Content-Type' => 'application/pdf']
+        );
+    }
+
+    /**
+     * Beda dari download() — dompdf stream() defaultnya Content-Disposition: inline (buka di
+     * tab baru/PDF viewer browser), TIDAK dibungkus response()->streamDownload() yang selalu
+     * memaksa attachment. Dipakai tombol "Preview" (link biasa target=_blank via route, BUKAN
+     * aksi Livewire — Livewire selalu memaksa download apa pun response-nya). Pola persis
+     * PayrollService::preview().
+     */
+    public function preview(EmployeeSp $sp)
+    {
+        $pdf = Pdf::loadView('pdf.sp.sp', ['sp' => $this->loadForPdf($sp)]);
+
+        return $pdf->stream($this->filename($sp));
+    }
+
+    private function loadForPdf(EmployeeSp $sp): EmployeeSp
+    {
         $sp->loadMissing([
             'company',
             'items',
@@ -24,15 +51,7 @@ class SpPdfService
             'coaching.coachBy.activeJobPosition.jobPosition',
         ]);
 
-        $pdf = Pdf::loadView('pdf.sp.sp', ['sp' => $sp]);
-
-        return response()->streamDownload(
-            function () use ($pdf) {
-                echo $pdf->stream();
-            },
-            $this->filename($sp),
-            ['Content-Type' => 'application/pdf']
-        );
+        return $sp;
     }
 
     private function filename(EmployeeSp $sp): string

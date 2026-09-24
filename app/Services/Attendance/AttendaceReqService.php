@@ -9,6 +9,8 @@ use App\Enum\Attendance\LeaveTypeCategoryEnum;
 use App\Enum\Attendance\PermissionGroupEnum;
 use App\Enum\Attendance\PermissionTypeCategoryEnum;
 use App\Enum\Attendance\PermissionTypeEnum;
+use App\Enum\AttendanceStatus;
+use App\Models\Attendance\AttendanceRecords;
 use App\Models\Attendance\AttendanceRequestLeaveDetails;
 use App\Models\Attendance\AttendanceRequestPermissionDetails;
 use App\Models\Attendance\AttendanceRequests;
@@ -247,6 +249,14 @@ class AttendaceReqService
                 'actor_name' => $createdBy->name,
                 'note' => $note,
             ]);
+
+            // Dibuat admin langsung approved (toggle "need_approval" dimatikan) - tidak lewat
+            // ApprovalFlowService::advanceStep(), jadi sync roster & attendance_records harus
+            // dipanggil manual di sini juga, kalau tidak baris Libur/status Cuti tidak pernah
+            // tercatat buat pengajuan yang dibuat lewat jalur ini.
+            $freshRequest = $request->fresh(['leaveDetails', 'permissionDetails', 'user']);
+            $this->syncApprovedAbsenceToRoster($freshRequest);
+            $this->syncApprovedAbsenceToAttendanceRecords($freshRequest);
 
             return $this->leaveReqRepository->findAttendanceReqLeaveDetail($request->id);
         }
@@ -762,6 +772,13 @@ class AttendaceReqService
                 'note' => $note,
             ]);
 
+            // Dibuat admin langsung approved (toggle "need_approval" dimatikan) - tidak lewat
+            // ApprovalFlowService::advanceStep(), jadi sync roster & attendance_records harus
+            // dipanggil manual di sini juga.
+            $freshRequest = $request->fresh(['leaveDetails', 'permissionDetails', 'user']);
+            $this->syncApprovedAbsenceToRoster($freshRequest);
+            $this->syncApprovedAbsenceToAttendanceRecords($freshRequest);
+
             return $this->permissionReqRepository->findAttendanceReqPermissionDetail($request->id);
         }
 
@@ -825,6 +842,106 @@ class AttendaceReqService
         }
     }
 
+    /**
+     * Cuti (semua jenis) & Izin Tidak Masuk Seharian/Sakit/Khusus yang DISETUJUI otomatis
+     * dicatat di attendance_records (status leave/sick/permit) - biar Rekap Presensi tidak perlu
+     * cross-check manual ke attendance_requests buat tahu karyawan lagi cuti/izin (instruksi user
+     * 2026-09-24). Kategori izin partial-day (Terlambat Masuk/Pulang Cepat/Meninggalkan Jam
+     * Kerja) SENGAJA tidak disentuh - shift hari itu tetap relevan dikerjakan sebagian, bukan
+     * "tidak masuk seharian". Berlaku untuk SEMUA tipe jadwal (beda dengan
+     * syncApprovedAbsenceToRoster() yang cuma berlaku karyawan tipe Shift), karena
+     * attendance_records dipakai lintas jadwal, roster shift tidak. Dipanggil dari
+     * ApprovalFlowService::advanceStep() sejalan dengan syncApprovedAbsenceToRoster().
+     */
+    public function syncApprovedAbsenceToAttendanceRecords(AttendanceRequests $request): void
+    {
+        if (! $request->user) {
+            return;
+        }
+
+        $status = match ($request->type) {
+            'leave' => AttendanceStatus::LEAVE,
+            'permission' => $this->fullDayPermissionStatus($request),
+            default => null,
+        };
+
+        $range = match ($request->type) {
+            'leave' => $this->leaveDateRange($request),
+            'permission' => $this->fullDayAttendanceRecordPermissionDateRange($request),
+            default => null,
+        };
+
+        if (! $status || ! $range) {
+            return;
+        }
+
+        [$start, $end] = $range;
+
+        for ($date = $start->copy(); $date->lte($end); $date->addDay()) {
+            $this->markAttendanceRecordAbsence($request->user, $date->toDateString(), $status);
+        }
+    }
+
+    /** Status attendance_records buat kategori izin sehari penuh - Sakit dapat status sendiri
+     *  (SICK), Tidak Masuk & Khusus sama-sama jadi PERMIT (AttendanceStatus tidak punya case
+     *  terpisah buat "Khusus"). */
+    private function fullDayPermissionStatus(AttendanceRequests $request): ?AttendanceStatus
+    {
+        $detail = $request->permissionDetails->first();
+
+        return match ($detail?->category) {
+            PermissionTypeCategoryEnum::IZIN_SAKIT->value => AttendanceStatus::SICK,
+            PermissionTypeCategoryEnum::IZIN_SEHARIAN->value, PermissionTypeCategoryEnum::IZIN_KHUSUS->value => AttendanceStatus::PERMIT,
+            default => null,
+        };
+    }
+
+    /** @return array{0: Carbon, 1: Carbon}|null Sengaja terpisah dari fullDayPermissionDateRange()
+     *  (dipakai roster) - roster memang tidak menyentuh Izin Khusus (instruksi 2026-09-14), tapi
+     *  attendance_records tetap harus mencatatnya (instruksi 2026-09-24). */
+    private function fullDayAttendanceRecordPermissionDateRange(AttendanceRequests $request): ?array
+    {
+        $detail = $request->permissionDetails->first();
+
+        $fullDayCategories = [
+            PermissionTypeCategoryEnum::IZIN_SEHARIAN->value,
+            PermissionTypeCategoryEnum::IZIN_SAKIT->value,
+            PermissionTypeCategoryEnum::IZIN_KHUSUS->value,
+        ];
+
+        if (! $detail || ! in_array($detail->category, $fullDayCategories, true) || ! $detail->date) {
+            return null;
+        }
+
+        return [Carbon::parse($detail->date), Carbon::parse($detail->end_date ?? $detail->date)];
+    }
+
+    /** Timpa 1 tanggal attendance_records jadi status Cuti/Izin/Sakit. Baris yang SUDAH ada
+     *  check-in (karyawan beneran presensi hari itu) dibiarkan - approval retroaktif tidak boleh
+     *  menghapus jejak kehadiran asli. */
+    private function markAttendanceRecordAbsence(User $user, string $date, AttendanceStatus $status): void
+    {
+        $existing = AttendanceRecords::where('user_id', $user->id)->whereDate('date', $date)->first();
+
+        if ($existing?->check_in_time) {
+            return;
+        }
+
+        if ($existing) {
+            $existing->update(['status' => $status->value, 'source' => 'leave_approved']);
+
+            return;
+        }
+
+        AttendanceRecords::create([
+            'user_id' => $user->id,
+            'nip' => $user->nip,
+            'date' => $date,
+            'status' => $status->value,
+            'source' => 'leave_approved',
+        ]);
+    }
+
     /** @return array{0: Carbon, 1: Carbon}|null */
     private function leaveDateRange(AttendanceRequests $request): ?array
     {
@@ -861,7 +978,12 @@ class AttendaceReqService
      * sudah terjadwal hari itu batal, karyawannya cuti/izin), baris yang belum ada dibuatkan
      * baru. Baris yang SUDAH Libur dibiarkan (hindari log riwayat kosong/dobel). Dicatat ke
      * schedule_shift_roster_logs source='leave_approved' biar kelihatan asal-usulnya di
-     * Riwayat Perubahan, bukan cuma "manual" tanpa konteks. */
+     * Riwayat Perubahan, bukan cuma "manual" tanpa konteks. `schedule_status` diisi 'cuti'/'izin'
+     * (kolom sudah ada di tabel, sebelumnya tidak dipakai sama sekali) - dipakai
+     * ScheduleShiftRosterTab buat menandai & MENGUNCI sel ini dari edit manual/Isi Cepat/Import/
+     * Reset (instruksi user 2026-09-24: tidak boleh ketimpa balik jadi shift kerja biasa lewat
+     * jalur bulk), dan buat kode "C"/"I" (beda dari "L" Libur biasa) di grid & export Excel.
+     */
     private function markRosterDayOff(User $user, string $date, AttendanceRequests $request): void
     {
         $scheduleAssignment = ScheduleAssignment::resolveForUser($user, $date);
@@ -878,9 +1000,10 @@ class AttendaceReqService
 
         $before = $existing ? $existing->shift_type_id : null;
         $note = "Cuti atau Izin disetujui (pengajuan #{$request->id}).";
+        $scheduleStatus = $request->type === 'leave' ? 'cuti' : 'izin';
 
         if ($existing) {
-            $existing->update(['off_day' => true, 'shift_type_id' => null, 'notes' => $note]);
+            $existing->update(['off_day' => true, 'shift_type_id' => null, 'notes' => $note, 'schedule_status' => $scheduleStatus]);
         } else {
             ScheduleShiftAssignment::create([
                 'company_id' => $user->company_id,
@@ -889,6 +1012,7 @@ class AttendaceReqService
                 'off_day' => true,
                 'shift_type_id' => null,
                 'notes' => $note,
+                'schedule_status' => $scheduleStatus,
                 'created_by' => $request->approved_by,
             ]);
         }

@@ -69,6 +69,10 @@ class ScheduleShiftRosterExport implements FromArray, WithStyles, WithColumnWidt
      * @param  array<string, ?string>  $teamNames  [user_id => nama tim, null/tidak ada = Tanpa
      *   Tim] - cuma dipakai kalau $schedule->use_teams.
      * @param  string  $teamGroupMode  'row' atau 'column' - sama nilai ScheduleShiftRosterTab::$teamGroupMode.
+     * @param  array<string, string>  $leaveCells  "{user_id}|{Y-m-d}" => 'cuti'|'izin' - sel off_day
+     *   yang asalnya dari Cuti/Izin disetujui otomatis (ScheduleShiftRosterTab::$leaveCells,
+     *   instruksi user 2026-09-24), diberi kode "C"/"I" tersendiri (beda dari "L" Libur biasa) +
+     *   warna beda, supaya kelihatan jelas di export & tidak disangka Libur manual biasa.
      */
     public function __construct(
         protected Schedule $schedule,
@@ -78,6 +82,7 @@ class ScheduleShiftRosterExport implements FromArray, WithStyles, WithColumnWidt
         protected string $periodLabel,
         protected array $teamNames = [],
         protected string $teamGroupMode = 'row',
+        protected array $leaveCells = [],
     ) {}
 
     public function title(): string
@@ -143,6 +148,35 @@ class ScheduleShiftRosterExport implements FromArray, WithStyles, WithColumnWidt
         return $this->hex($this->schedule->off_font_color) ?? 'FFFFFF';
     }
 
+    /** Warna kode "C" (Cuti disetujui otomatis) - tetap, tidak ikut off_bg_color/off_font_color
+     *  jadwal (beda konsep dari Libur manual biasa). */
+    private function cutiBg(): string
+    {
+        return 'EF4444';
+    }
+
+    private function cutiFont(): string
+    {
+        return '000000';
+    }
+
+    /** Warna kode "Izin" (Izin disetujui otomatis). */
+    private function izinBg(): string
+    {
+        return '0EA5E9';
+    }
+
+    private function izinFont(): string
+    {
+        return '000000';
+    }
+
+    /** 'cuti'|'izin'|null buat sel off_day karyawan+tanggal ini. */
+    private function leaveTypeFor(\App\Models\User $employee, \Carbon\Carbon $date): ?string
+    {
+        return $this->leaveCells[$employee->id.'|'.$date->toDateString()] ?? null;
+    }
+
     private function teams(): Collection
     {
         return $this->teams ??= $this->schedule->use_teams
@@ -183,7 +217,11 @@ class ScheduleShiftRosterExport implements FromArray, WithStyles, WithColumnWidt
     /** @return array<int, array{0: string, 1: string, 2: string, 3: string}> [kode, keterangan, jam kerja, tim] */
     private function legendRows(): array
     {
-        $rows = [['L', 'Libur', '-', '-']];
+        $rows = [
+            ['L', 'Libur', '-', '-'],
+            ['C', 'Cuti (disetujui otomatis)', '-', '-'],
+            ['Izin', 'Izin (disetujui otomatis)', '-', '-'],
+        ];
 
         foreach ($this->schedule->shiftTypes as $type) {
             $start = substr((string) $type->start_time, 0, 5);
@@ -253,7 +291,12 @@ class ScheduleShiftRosterExport implements FromArray, WithStyles, WithColumnWidt
 
             foreach ($this->dates as $date) {
                 $value = $userRoster[$date->toDateString()] ?? '';
-                $row[] = $value === 'off' ? 'L' : ($this->schedule->shiftTypes->firstWhere('id', $value)?->code ?? '');
+                $row[] = match (true) {
+                    $value !== 'off' => $this->schedule->shiftTypes->firstWhere('id', $value)?->code ?? '',
+                    $this->leaveTypeFor($employee, $date) === 'cuti' => 'C',
+                    $this->leaveTypeFor($employee, $date) === 'izin' => 'Izin',
+                    default => 'L',
+                };
             }
 
             $this->employeeRows[] = [self::HEADER_ROW + count($grid), $employee];
@@ -369,14 +412,23 @@ class ScheduleShiftRosterExport implements FromArray, WithStyles, WithColumnWidt
         ]);
         $sheet->getStyle("B".($headerRow + 1).":B{$this->legendLastRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
 
-        // Kode shift diwarnai sesuai warna shift (Libur: warna Libur jadwal), baris Libur = baris pertama.
+        // Kode shift diwarnai sesuai warna shift (Libur: warna Libur jadwal) - 3 baris pertama
+        // legenda tetap (L, C, I), shift jadwal menyusul mulai baris ke-4.
         $sheet->getStyle('A'.($headerRow + 1))->applyFromArray([
             'font' => ['bold' => true, 'color' => ['rgb' => $this->offFont()]],
             'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => $this->offBg()]],
         ]);
+        $sheet->getStyle('A'.($headerRow + 2))->applyFromArray([
+            'font' => ['bold' => true, 'color' => ['rgb' => $this->cutiFont()]],
+            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => $this->cutiBg()]],
+        ]);
+        $sheet->getStyle('A'.($headerRow + 3))->applyFromArray([
+            'font' => ['bold' => true, 'color' => ['rgb' => $this->izinFont()]],
+            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => $this->izinBg()]],
+        ]);
 
         foreach ($this->schedule->shiftTypes->values() as $i => $type) {
-            $row = $headerRow + 2 + $i;
+            $row = $headerRow + 4 + $i;
             $bg = $this->hex($type->color);
 
             $style = ['font' => ['bold' => true, 'color' => ['rgb' => $this->hex($type->font_color) ?? '000000']]];
@@ -456,8 +508,17 @@ class ScheduleShiftRosterExport implements FromArray, WithStyles, WithColumnWidt
                 }
 
                 if ($value === 'off') {
-                    $bg = $this->offBg();
-                    $font = $this->offFont();
+                    $leaveType = $this->leaveTypeFor($employee, $date);
+                    $bg = match ($leaveType) {
+                        'cuti' => $this->cutiBg(),
+                        'izin' => $this->izinBg(),
+                        default => $this->offBg(),
+                    };
+                    $font = match ($leaveType) {
+                        'cuti' => $this->cutiFont(),
+                        'izin' => $this->izinFont(),
+                        default => $this->offFont(),
+                    };
                 } else {
                     $type = $shiftTypes->firstWhere('id', $value);
                     $bg = $this->hex($type?->color);

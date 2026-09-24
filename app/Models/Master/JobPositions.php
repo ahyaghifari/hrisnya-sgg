@@ -103,6 +103,24 @@ class JobPositions extends Model
             : $this->orgStructure->parent;
     }
 
+    /**
+     * Divisi kalau ada, kalau tidak departemennya. Jabatan yang duduk langsung di departemen memang
+     * wajar - itu pimpinan puncak departemen itu (Kabid/Kabag/Manager), jadi tidak punya divisi di
+     * atasnya dan namanya sendiri yang dipakai.
+     *
+     * Perlu dipisah dari getDivisionAttribute() karena accessor itu naik 1 tingkat ke parent kalau
+     * org_structure-nya bukan level Divisi - dan DEPARTMENT di master ini parent_id-nya null semua
+     * (Keuangan, HCGA, Finance, ...), jadi hasilnya null padahal nama unitnya jelas ada.
+     *
+     * Dipakai mengisi job_openings.division_name di DB recruitment, yang jadi token {divisi} di
+     * naskah Persetujuan Onboarding. Tetap null cuma kalau jabatannya tidak punya org_structure_id
+     * sama sekali (mis. Presiden Director, yang di atas semua departemen).
+     */
+    public function getDivisionOrUnitNameAttribute(): ?string
+    {
+        return $this->division?->name ?? $this->orgStructure?->name;
+    }
+
     public function parent()
     {
         return $this->belongsTo(self::class, 'parent_id');

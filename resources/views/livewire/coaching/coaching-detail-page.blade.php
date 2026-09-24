@@ -115,7 +115,10 @@
             <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border-soft);display:flex;align-items:center;justify-content:space-between;gap:12px;">
                 <span style="font-size:12.5px;color:var(--text-muted);">SP Terkait</span>
                 <span style="font-size:13px;font-weight:600;color:var(--text-body);">
-                    {{ $linkedSp->sp_level->getLabel() }} &middot; {{ $linkedSp->reason?->name }}
+                    {{ $linkedSp->sp_level->getLabel() }}
+                    @if ($linkedSp->nomor)
+                        &middot; No. {{ $linkedSp->nomor }}
+                    @endif
                 </span>
             </div>
         @endif

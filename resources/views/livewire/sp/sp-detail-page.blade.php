@@ -2,9 +2,9 @@
 <x-page-header title="Detail Surat Peringatan" :back="route('sp')" />
 
 <div style="display:flex;justify-content:flex-end;margin-bottom:16px;">
-    <button type="button" wire:click="downloadPdf" class="btn-primary">
-        <i class="fa-solid fa-file-pdf"></i> Download PDF
-    </button>
+    <a href="{{ route('sp.preview', $record) }}" target="_blank" class="btn-primary">
+        <i class="fa-solid fa-file-pdf"></i> Preview PDF
+    </a>
 </div>
 
 @php
@@ -60,40 +60,108 @@
 </div>
 
 <div class="card-surface accent accent-indigo" style="margin-bottom:16px;">
-    <div class="section-head-icon" style="margin-bottom:14px;">
-        <div class="section-icon"><i class="fa-solid fa-list-ol"></i></div>
-        <p style="font-size:13px;font-weight:700;color:var(--text-heading);margin:0;">Poin Pelanggaran</p>
+    <div class="section-head-icon" style="margin-bottom:14px;justify-content:space-between;">
+        <div style="display:flex;align-items:center;gap:8px;">
+            <div class="section-icon"><i class="fa-solid fa-list-ol"></i></div>
+            <p style="font-size:13px;font-weight:700;color:var(--text-heading);margin:0;">Uraian/Kronologi</p>
+        </div>
+        @unless ($editingItems)
+            <button type="button" wire:click="editItems" class="btn-secondary" style="font-size:12px;padding:4px 10px;">
+                <i class="fa-solid fa-pen"></i> Edit
+            </button>
+        @endunless
     </div>
-    @forelse ($record->items as $item)
-        <p style="font-size:13px;color:var(--text-body);margin:0 0 8px;white-space:pre-line;">{{ $item->text }}</p>
-    @empty
-        <p style="font-size:13px;color:var(--text-muted);margin:0;">Belum ada poin.</p>
-    @endforelse
+
+    @if ($editingItems)
+        @foreach ($items as $index => $text)
+            <div wire:key="'edit-item-'.{{ $index }}" style="display:flex;gap:8px;margin-bottom:8px;align-items:flex-start;">
+                <div wire:ignore style="flex:1;">
+                    <input type="hidden" id="trix-edit-item-{{ $index }}" wire:model="items.{{ $index }}" value="{{ $text }}">
+                    <trix-editor input="trix-edit-item-{{ $index }}" style="min-height:70px;"></trix-editor>
+                </div>
+                <button type="button" wire:click="removeItem({{ $index }})" class="btn-secondary" style="font-size:12px;padding:6px 10px;">
+                    <i class="fa-solid fa-trash"></i>
+                </button>
+            </div>
+        @endforeach
+        @error('items') <p style="font-size:12px;color:#b91c1c;margin:0 0 8px;">{{ $message }}</p> @enderror
+
+        <div style="display:flex;gap:8px;margin-top:8px;">
+            <button type="button" wire:click="addItem" class="btn-secondary" style="font-size:12px;padding:4px 10px;">
+                <i class="fa-solid fa-plus"></i> Tambah Uraian
+            </button>
+            <button type="button" wire:click="saveItems" class="btn-primary" style="font-size:12px;padding:4px 10px;">Simpan</button>
+            <button type="button" wire:click="cancelEditItems" class="btn-secondary" style="font-size:12px;padding:4px 10px;">Batal</button>
+        </div>
+    @else
+        @forelse ($record->items as $item)
+            <div style="display:table;width:100%;margin-bottom:8px;">
+                <div style="display:table-cell;width:18px;vertical-align:top;font-size:13px;color:var(--text-body);">{{ $loop->iteration }}.</div>
+                <div style="display:table-cell;font-size:13px;color:var(--text-body);text-align:justify;">{!! $item->text !!}</div>
+            </div>
+        @empty
+            <p style="font-size:13px;color:var(--text-muted);margin:0;">Belum ada poin.</p>
+        @endforelse
+    @endif
 </div>
 
-@if ($record->report)
-    <div class="card-surface accent accent-green" style="margin-bottom:16px;">
-        <div class="section-head-icon" style="margin-bottom:14px;">
+<div class="card-surface accent accent-green" style="margin-bottom:16px;">
+    <div class="section-head-icon" style="margin-bottom:14px;justify-content:space-between;">
+        <div style="display:flex;align-items:center;gap:8px;">
             <div class="section-icon"><i class="fa-solid fa-file-lines"></i></div>
             <p style="font-size:13px;font-weight:700;color:var(--text-heading);margin:0;">Berita Acara</p>
         </div>
-        @if ($record->report->kejadian)
-            <p style="font-size:11.5px;color:var(--text-muted);margin:0 0 4px;">Kejadian</p>
+        @unless ($editingReport)
+            <button type="button" wire:click="editReport" class="btn-secondary" style="font-size:12px;padding:4px 10px;">
+                <i class="fa-solid fa-pen"></i> Edit
+            </button>
+        @endunless
+    </div>
+
+    @if ($editingReport)
+        @foreach (['dasar_klarifikasi' => 'Dasar Klarifikasi', 'kejadian' => 'Uraian Kronologi Permasalahan', 'subject_clarification' => 'Klarifikasi Karyawan', 'analysis' => 'Analisis', 'kesimpulan' => 'Kesimpulan Sementara', 'followup_plan' => 'Rencana Tindak Lanjut'] as $field => $label)
+            <div style="margin-bottom:12px;">
+                <label class="form-label">{{ $label }}</label>
+                <div wire:ignore>
+                    <input type="hidden" id="trix-report-{{ $field }}" wire:model="{{ $field }}" value="{{ $$field }}">
+                    <trix-editor input="trix-report-{{ $field }}" style="min-height:80px;"></trix-editor>
+                </div>
+            </div>
+        @endforeach
+
+        <div style="display:flex;gap:8px;margin-top:8px;">
+            <button type="button" wire:click="saveReport" class="btn-primary" style="font-size:12px;padding:4px 10px;">Simpan</button>
+            <button type="button" wire:click="cancelEditReport" class="btn-secondary" style="font-size:12px;padding:4px 10px;">Batal</button>
+        </div>
+    @else
+        @if ($record->report?->dasar_klarifikasi)
+            <p style="font-size:11.5px;color:var(--text-muted);margin:0 0 4px;">Dasar Klarifikasi</p>
+            <div style="font-size:13px;color:var(--text-body);line-height:1.6;margin:0 0 12px;">{!! $record->report->dasar_klarifikasi !!}</div>
+        @endif
+        @if ($record->report?->kejadian)
+            <p style="font-size:11.5px;color:var(--text-muted);margin:0 0 4px;">Uraian Kronologi Permasalahan</p>
             <div style="font-size:13px;color:var(--text-body);line-height:1.6;margin:0 0 12px;">{!! $record->report->kejadian !!}</div>
         @endif
-        @if ($record->report->subject_clarification)
+        @if ($record->report?->subject_clarification)
             <p style="font-size:11.5px;color:var(--text-muted);margin:0 0 4px;">Klarifikasi Karyawan</p>
             <div style="font-size:13px;color:var(--text-body);line-height:1.6;margin:0 0 12px;">{!! $record->report->subject_clarification !!}</div>
         @endif
-        @if ($record->report->analysis)
+        @if ($record->report?->analysis)
             <p style="font-size:11.5px;color:var(--text-muted);margin:0 0 4px;">Analisis</p>
             <div style="font-size:13px;color:var(--text-body);line-height:1.6;margin:0 0 12px;">{!! $record->report->analysis !!}</div>
         @endif
-        @if ($record->report->followup_plan)
+        @if ($record->report?->kesimpulan)
+            <p style="font-size:11.5px;color:var(--text-muted);margin:0 0 4px;">Kesimpulan Sementara</p>
+            <div style="font-size:13px;color:var(--text-body);line-height:1.6;margin:0 0 12px;">{!! $record->report->kesimpulan !!}</div>
+        @endif
+        @if ($record->report?->followup_plan)
             <p style="font-size:11.5px;color:var(--text-muted);margin:0 0 4px;">Rencana Tindak Lanjut</p>
             <div style="font-size:13px;color:var(--text-body);line-height:1.6;">{!! $record->report->followup_plan !!}</div>
         @endif
-    </div>
-@endif
+        @unless ($record->report?->kejadian || $record->report?->dasar_klarifikasi || $record->report?->subject_clarification || $record->report?->analysis || $record->report?->kesimpulan || $record->report?->followup_plan)
+            <p style="font-size:13px;color:var(--text-muted);margin:0;">Belum ada Berita Acara.</p>
+        @endunless
+    @endif
+</div>
 
 </div>

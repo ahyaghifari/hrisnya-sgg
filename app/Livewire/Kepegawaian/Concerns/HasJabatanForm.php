@@ -177,6 +177,9 @@ trait HasJabatanForm
         return [
             'company_id' => ['required', 'exists:m_companies,id'],
             'department_id' => ['required', 'exists:m_org_structures,id'],
+            // Opsional: jabatan yang berada langsung di departemen memang ada - itu pimpinan puncak
+            // departemennya. Token {divisi} di naskah Persetujuan Onboarding rekrutmen jatuh ke nama
+            // departemen untuk kasus itu, lihat JobPositions::getDivisionOrUnitNameAttribute().
             'division_id' => ['nullable', 'exists:m_org_structures,id'],
             'sub_division_id' => ['nullable', 'exists:m_org_structures,id'],
             'name' => ['required', 'string', 'max:255'],

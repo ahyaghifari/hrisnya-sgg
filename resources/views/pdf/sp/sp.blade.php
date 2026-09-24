@@ -30,41 +30,58 @@
     <title>{{ $titles[$sp->sp_level->value] ?? 'SURAT PERINGATAN' }}</title>
 
     <style>
-        @page { margin: 0px; }
+        /* Margin halaman = jarak aman konten dari kop (atas) & footer (bawah) di gambar
+        background - berlaku OTOMATIS di SETIAP halaman lewat @page (beda dari spacer div biasa
+        yang cuma sekali di awal dokumen lalu hilang begitu konten meluber ke halaman ke-2+, itu
+        penyebab laporan user 2026-09-26: teks nabrak kop/footer di halaman kedua dst). Ukuran
+        diukur dari gambar asli storage/app/private/sp-bg/*.jpg (1241x1755px ~ rasio A4): zona
+        kop ~3cm, zona footer (yang ada footer-nya, mis. default.jpg) ~2.7cm. */
+        @page {
+            margin: 3cm 2.5cm 2.5cm 2.5cm;
+        }
 
         body {
-            background: url("{{ $bgPath }}") no-repeat;
-            background-size: cover;
-            font-family: Arial, sans-serif;
-            font-size: 15px;
+            font-family: Calibri, sans-serif;
+            font-size: 12pt;
             line-height: 1.5;
             margin: 0;
-            padding: 20px;
+        }
+
+        /* Full-bleed: dorong balik pakai margin negatif sebesar @page margin di atas, supaya
+        gambar tetap menutupi SELURUH halaman fisik (termasuk area kop/footer) meski @page sudah
+        punya margin, sementara body teks tetap aman DI DALAM margin. Diulang dompdf identik di
+        setiap halaman (position:fixed = running header/footer). */
+        .bg-page {
+            position: fixed;
+            top: -3.3cm;
+            left: -2.5cm;
+            width: 21cm;
+            height: 29.7cm;
+            z-index: -1;
+        }
+
+        .bg-page img {
+            width: 100%;
+            height: 100%;
         }
 
         .page {
-            padding: 24px 28px;
             position: relative;
-        }
-
-        /* Spacer atas — kop surat sudah jadi bagian gambar background. */
-        .header {
-            height: 100px;
-            margin-bottom: 10px;
         }
 
         .title {
             text-align: center;
             font-weight: bold;
             text-decoration: underline;
-            margin: 10px 0 4px;
-            font-size: 19px;
+            margin: 10px 0 2px;
+            font-size: 14pt;
         }
 
         .nomor {
             text-align: center;
             margin: 0 0 20px;
             font-size: 15px;
+            font-weight: bold;
         }
 
         .intro {
@@ -86,13 +103,25 @@
         }
 
         .items {
-            margin: 0 0 16px;
+            margin: 0.5cm 0 16px;
         }
 
+        /* Hanging-indent pakai padding-left/text-indent (bukan display:table - bikin dompdf
+        dorong seluruh item ke halaman baru kalau nggak muat pas, nyisain blank gede; bukan float
+        juga - dompdf ngitung wrap-around float-nya salah, baris pertama jadi indent dobel).
+        Isi item sekarang HTML dari Trix (WYSIWYG), tiap baris dibungkus <div> block yang bakal
+        matahin hanging-indent kalau dibiarkan block - makanya div/p bawaan Trix dipaksa inline
+        di bawah, biar nyambung 1 alur teks kayak sebelum ada WYSIWYG. */
         .items .item {
-            margin-bottom: 6px;
+            margin-bottom: 0.5cm;
             padding-left: 18px;
             text-indent: -18px;
+            text-align: justify;
+        }
+
+        .items .item div,
+        .items .item p {
+            display: inline;
         }
 
         .closing {
@@ -120,7 +149,7 @@
 
         .ttd-space {
             display: block;
-            height: 55px;
+            height: 2cm;
         }
 
         .employee-sign {
@@ -131,9 +160,9 @@
 </head>
 <body>
 
-<div class="page">
+<div class="bg-page"><img src="{{ $bgPath }}"></div>
 
-    <div class="header"></div>
+<div class="page">
 
     <div class="title">{{ $titles[$sp->sp_level->value] ?? 'SURAT PERINGATAN' }}</div>
     <div class="nomor">Nomor: {{ $sp->nomor ?? '-' }}</div>
@@ -152,7 +181,7 @@
 
     <div class="items">
         @forelse ($sp->items as $item)
-            <div class="item">{{ $loop->iteration }}. {{ $item->text }}</div>
+            <div class="item">{{ $loop->iteration }}. {!! $item->text !!}</div>
         @empty
             <div class="item">-</div>
         @endforelse
@@ -164,16 +193,16 @@
 
     <div class="sign-block">
         <div class="sign-col">
-            Banjarbaru, {{ $sp->start_date->translatedFormat('d F Y') }}
-            <span class="ttd-space">&nbsp;</span>
+            Banjarbaru, {{ $sp->start_date->translatedFormat('d F Y') }} <br>
             {{ $jabatan($coach) }}<br>
+            <span class="ttd-space">&nbsp;</span>
             <span class="sign-name">{{ $coach?->name ?? '-' }}</span><br>
             {{ $coach?->nip ?? '-' }}
         </div>
         <div class="sign-col">
-            Mengetahui
-            <span class="ttd-space">&nbsp;</span>
+            Mengetahui,<br>
             {{ $jabatan($sp->knowsBy) }}<br>
+            <span class="ttd-space">&nbsp;</span>
             <span class="sign-name">{{ $sp->knowsBy?->name ?? '-' }}</span><br>
             {{ $sp->knowsBy?->nip ?? '-' }}
         </div>

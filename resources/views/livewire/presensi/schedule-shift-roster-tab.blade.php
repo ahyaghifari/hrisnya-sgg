@@ -354,14 +354,21 @@
                                 // total, tidak bisa diedit dari halaman jadwal (biar tidak bentrok sama
                                 // eksekusi swap). Lihat ScheduleShiftRosterTab::getSwapCellsProperty().
                                 $swapLocked = isset($this->swapCells[$employee->id.'|'.$date->toDateString()]);
+                                // Sel Cuti/Izin disetujui otomatis - selalu ditandai (badge + kode
+                                // C/Izin), tapi cuma DIKUNCI dari edit buat yang bukan pemegang
+                                // Update:Schedule (Edit Jadwal) - instruksi user 2026-09-24. Lihat
+                                // ScheduleShiftRosterTab::getLeaveCellsProperty()/getCanOverrideLeaveLockProperty().
+                                $leaveType = $this->leaveCells[$employee->id.'|'.$date->toDateString()] ?? null;
+                                $isLeaveCell = $leaveType !== null;
+                                $leaveLocked = $isLeaveCell && ! $this->canOverrideLeaveLock;
                                 // Yang cuma punya Update:ShiftScheduleAssignments (bukan Edit Jadwal)
                                 // dibatasi mulai hari ini - tanggal yang sudah lewat dikunci di grid juga.
                                 $pastLocked = ! $this->canEditPastDates && $date->lt(today());
-                                $locked = ! $editMode || $swapLocked || $pastLocked;
+                                $locked = ! $editMode || $swapLocked || $leaveLocked || $pastLocked;
                                 $rfR = $loop->parent->index;
                                 $rfC = $loop->index;
                             @endphp
-                            <td class="rf-cell" data-r="{{ $rfR }}" data-c="{{ $rfC }}" data-locked="{{ ($swapLocked || $pastLocked) ? '1' : '0' }}"
+                            <td class="rf-cell" data-r="{{ $rfR }}" data-c="{{ $rfC }}" data-locked="{{ ($swapLocked || $leaveLocked || $pastLocked) ? '1' : '0' }}"
                                 @mousedown="cellDown($event, {{ $rfR }}, {{ $rfC }})" @mouseenter="cellEnter({{ $rfR }}, {{ $rfC }})"
                                 :class="cellClass({{ $rfR }}, {{ $rfC }})"
                                 style="padding:2px;text-align:center;position:relative;">
@@ -373,6 +380,11 @@
                                         style="position:absolute;top:0;right:0;z-index:3;background:none;border:none;padding:1px 2px;cursor:pointer;color:#b45309;font-size:8.5px;line-height:1;">
                                         <i class="fa-solid fa-right-left"></i>
                                     </button>
+                                @elseif ($isLeaveCell)
+                                    <span title="{{ $leaveType === 'cuti' ? 'Cuti' : 'Izin' }} disetujui otomatis{{ $leaveLocked ? ' — tidak bisa diubah dari sini.' : ' — kamu bisa mengubahnya (Edit Jadwal).' }}"
+                                        style="position:absolute;top:0;right:0;z-index:3;padding:1px 2px;color:#000;font-size:8.5px;line-height:1;">
+                                        <i class="fa-solid fa-file-medical"></i>
+                                    </span>
                                 @endif
                                 <select
                                     {{-- wire:key ikut nilainya, bukan cuma posisi - morphdom kadang cuma
@@ -381,13 +393,17 @@
                                     tapi teksnya masih nilai lama sampai refresh manual. wire:key beda ->
                                     dianggap elemen baru -> browser bikin ulang dari nol, bukan di-patch. --}}
                                     wire:key="'cell-{{ $employee->id }}-{{ $date->toDateString() }}-{{ $current }}'"
-                                    @if ($editMode && ! $swapLocked && ! $pastLocked)
+                                    @if ($editMode && ! $swapLocked && ! $leaveLocked && ! $pastLocked)
                                         wire:model="draft.{{ $employee->id }}.{{ $date->toDateString() }}"
                                         @change="recolor($event.target)"
                                     @endif
                                     @disabled($locked)
                                     @if ($swapLocked)
                                         title="Jadwal ini terkait pengajuan tukar shift — tidak bisa diubah dari halaman jadwal."
+                                    @elseif ($leaveLocked)
+                                        title="{{ $leaveType === 'cuti' ? 'Cuti' : 'Izin' }} disetujui otomatis — tidak bisa diubah dari halaman jadwal."
+                                    @elseif ($isLeaveCell)
+                                        title="{{ $leaveType === 'cuti' ? 'Cuti' : 'Izin' }} disetujui otomatis — kamu bisa mengubahnya karena punya izin Edit Jadwal."
                                     @elseif ($pastLocked)
                                         title="Tanggal sudah lewat - cuma bisa diubah oleh yang punya izin Edit Jadwal."
                                     @elseif (! $editMode)
@@ -395,7 +411,7 @@
                                     @endif
                                     {{-- opacity locked dikurangi TIPIS aja (0.92, dulu 0.7) - kebanyakan bikin
                                     warna sel beda jauh dari warna shift sebenarnya (dilaporkan user 2026-09-16). --}}
-                                    style="width:52px;padding:6px 2px;font-size:10.5px;text-align:center;font-weight:700;border:none;border-radius:5px;{{ $locked ? 'cursor:not-allowed;opacity:0.92;' : 'cursor:pointer;' }}color:{{ $currentFontColor }};{{ $isOff ? "background:{$offBg};" : ($currentColor ? "background:{$currentColor};" : 'background:var(--surface-alt);') }}">
+                                    style="width:52px;padding:6px 2px;font-size:10.5px;text-align:center;font-weight:700;border:none;border-radius:5px;{{ $locked ? 'cursor:not-allowed;opacity:0.92;' : 'cursor:pointer;' }}color:{{ $isLeaveCell ? '#000' : $currentFontColor }};{{ $isLeaveCell ? 'background:'.($leaveType === 'cuti' ? '#EF4444' : '#0EA5E9').';' : ($isOff ? "background:{$offBg};" : ($currentColor ? "background:{$currentColor};" : 'background:var(--surface-alt);')) }}">
                                     <option value="" {{ $current === '' ? 'selected' : '' }}>-</option>
                                     @if ($currentOutsideTeam)
                                         <option value="{{ $current }}" selected title="Di luar daftar shift Tim karyawan ini">{{ $currentType->code }} &#9888;</option>
@@ -403,7 +419,7 @@
                                     @foreach ($rowShiftTypes as $shiftType)
                                         <option value="{{ $shiftType->id }}" {{ $current === $shiftType->id ? 'selected' : '' }}>{{ $shiftType->code }}</option>
                                     @endforeach
-                                    <option value="off" {{ $isOff ? 'selected' : '' }}>L</option>
+                                    <option value="off" {{ $isOff ? 'selected' : '' }}>{{ $isLeaveCell ? ($leaveType === 'cuti' ? 'C' : 'Izin') : 'L' }}</option>
                                 </select>
                             </td>
                         @endforeach

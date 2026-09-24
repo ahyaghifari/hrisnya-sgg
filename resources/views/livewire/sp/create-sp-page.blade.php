@@ -87,11 +87,14 @@
             </div>
 
             <div>
-                <label class="form-label">Poin Pelanggaran <span style="color:var(--danger-text);">*</span></label>
+                <label class="form-label">Uraian/Kronologi <span style="color:var(--danger-text);">*</span></label>
                 <div style="display:flex;flex-direction:column;gap:8px;">
                     @foreach ($items as $index => $item)
                         <div wire:key="'sp-item-'.{{ $index }}" style="display:flex;gap:8px;align-items:flex-start;">
-                            <textarea wire:model="items.{{ $index }}" class="form-input" rows="2" style="flex:1;" placeholder="Tulis poin (nomor manual, mis. &quot;1. ...&quot;)"></textarea>
+                            <div wire:ignore style="flex:1;">
+                                <input type="hidden" id="trix-item-{{ $index }}" wire:model="items.{{ $index }}" value="{{ $item }}">
+                                <trix-editor input="trix-item-{{ $index }}" style="min-height:70px;" placeholder="Tulis uraian/kronologi (nomor manual, mis. &quot;1. ...&quot;)"></trix-editor>
+                            </div>
                             <button type="button" wire:click="removeItem({{ $index }})" class="btn-ghost" style="padding:8px 10px;color:var(--danger-text);">
                                 <i class="fa-solid fa-trash"></i>
                             </button>
@@ -100,7 +103,7 @@
                     @endforeach
                 </div>
                 <button type="button" wire:click="addItem" class="btn-ghost" style="margin-top:8px;font-size:12.5px;">
-                    <i class="fa-solid fa-plus"></i> Tambah Poin
+                    <i class="fa-solid fa-plus"></i> Tambah Uraian
                 </button>
             </div>
         </div>
@@ -112,6 +115,15 @@
             <span class="section-title">Berita Acara (Opsional)</span>
         </div>
         <div style="display:flex;flex-direction:column;gap:16px;">
+            <div>
+                <label class="form-label">Dasar Klarifikasi</label>
+                <div wire:ignore>
+                    <input type="hidden" id="trix-dasar-klarifikasi" wire:model="dasar_klarifikasi" value="{{ $dasar_klarifikasi }}">
+                    <trix-editor input="trix-dasar-klarifikasi" style="min-height:100px;"></trix-editor>
+                </div>
+                @error('dasar_klarifikasi') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
+            </div>
+
             <div>
                 <label class="form-label">Kejadian</label>
                 <div wire:ignore>
@@ -137,6 +149,15 @@
                     <trix-editor input="trix-analysis" style="min-height:100px;"></trix-editor>
                 </div>
                 @error('analysis') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
+            </div>
+
+            <div>
+                <label class="form-label">Kesimpulan</label>
+                <div wire:ignore>
+                    <input type="hidden" id="trix-kesimpulan" wire:model="kesimpulan" value="{{ $kesimpulan }}">
+                    <trix-editor input="trix-kesimpulan" style="min-height:100px;"></trix-editor>
+                </div>
+                @error('kesimpulan') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
             </div>
 
             <div>

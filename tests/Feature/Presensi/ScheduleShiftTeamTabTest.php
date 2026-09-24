@@ -839,10 +839,11 @@ class ScheduleShiftTeamTabTest extends TestCase
         $rows = $export->array();
 
         // use_teams false -> $teamNames diabaikan sepenuhnya, tidak ada baris banner sama sekali.
-        // 2 baris judul + header + 1 karyawan (legenda cuma header + baris Libur, lebih pendek).
+        // 2 baris judul + header + 1 karyawan (legenda header+L/C/Izin lebih panjang dari grid
+        // 1 karyawan, jadi row count-nya ikut legenda - lihat ScheduleShiftRosterExport::array()).
         $this->assertSame(['Karyawan', $date->format('d')."\n".$date->translatedFormat('D')], array_slice($rows[2], 5));
         $this->assertSame(['Budi Santoso', ''], array_slice($rows[3], 5));
-        $this->assertCount(4, $rows);
+        $this->assertCount(6, $rows);
 
         $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet;
         $sheet = $spreadsheet->getActiveSheet();

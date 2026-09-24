@@ -2,9 +2,9 @@
 <x-page-header title="Detail Surat Peringatan" :back="route('sp.saya')" />
 
 <div style="display:flex;justify-content:flex-end;margin-bottom:16px;">
-    <button type="button" wire:click="downloadPdf" class="btn-primary">
-        <i class="fa-solid fa-file-pdf"></i> Download PDF
-    </button>
+    <a href="{{ route('sp.saya.preview', $record) }}" target="_blank" class="btn-primary">
+        <i class="fa-solid fa-file-pdf"></i> Preview PDF
+    </a>
 </div>
 
 @php
@@ -45,10 +45,13 @@
 <div class="card-surface accent accent-indigo" style="margin-bottom:16px;">
     <div class="section-head-icon" style="margin-bottom:14px;">
         <div class="section-icon"><i class="fa-solid fa-list-ol"></i></div>
-        <p style="font-size:13px;font-weight:700;color:var(--text-heading);margin:0;">Poin Pelanggaran</p>
+        <p style="font-size:13px;font-weight:700;color:var(--text-heading);margin:0;">Uraian/Kronologi</p>
     </div>
     @forelse ($record->items as $item)
-        <p style="font-size:13px;color:var(--text-body);margin:0 0 8px;white-space:pre-line;">{{ $item->text }}</p>
+        <div style="display:table;width:100%;margin-bottom:8px;">
+            <div style="display:table-cell;width:18px;vertical-align:top;font-size:13px;color:var(--text-body);">{{ $loop->iteration }}.</div>
+            <div style="display:table-cell;font-size:13px;color:var(--text-body);text-align:justify;">{!! $item->text !!}</div>
+        </div>
     @empty
         <p style="font-size:13px;color:var(--text-muted);margin:0;">Belum ada poin.</p>
     @endforelse

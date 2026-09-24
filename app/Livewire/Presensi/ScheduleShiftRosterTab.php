@@ -2,8 +2,11 @@
 
 namespace App\Livewire\Presensi;
 
+use App\Enum\Attendance\LeaveTypeCategoryEnum;
 use App\Enum\CustomPermissionEnum;
 use App\Exports\Presensi\ScheduleShiftRosterExport;
+use App\Models\Attendance\AttendanceRequestLeaveDetails;
+use App\Models\Attendance\AttendanceRequests;
 use App\Models\Shift\Schedule;
 use App\Models\Shift\ScheduleAssignment;
 use App\Models\Shift\ScheduleShiftAssignment;
@@ -591,6 +594,36 @@ class ScheduleShiftRosterTab extends Component
         return $cells;
     }
 
+    /** Sel roster yang off_day-nya KARENA Cuti/Izin disetujui otomatis (schedule_status
+     * 'cuti'/'izin', diisi AttendaceReqService::markRosterDayOff()) - dikunci dari edit manual/Isi
+     * Cepat/Import/Reset, sama pola dengan $swapCells, supaya tidak ketimpa balik jadi shift kerja
+     * biasa lewat jalur bulk (instruksi user 2026-09-24). Beda dari Libur manual biasa yang
+     * schedule_status-nya null - itu tetap bebas diedit seperti sebelumnya.
+     *
+     * @return array<string, string> "{user_id}|{Y-m-d}" => 'cuti'|'izin'
+     */
+    public function getLeaveCellsProperty(): array
+    {
+        $start = Carbon::createFromFormat('Y-m', $this->period)->startOfMonth()->subDays($this->leadDays)->toDateString();
+        $end = Carbon::createFromFormat('Y-m', $this->period)->endOfMonth()->toDateString();
+
+        return $this->shiftAssignmentQuery()->whereIn('user_id', $this->employees->pluck('id'))
+            ->whereBetween('date', [$start, $end])
+            ->whereIn('schedule_status', ['cuti', 'izin'])
+            ->get(['user_id', 'date', 'schedule_status'])
+            ->mapWithKeys(fn ($row) => [$row->user_id.'|'.$row->date->toDateString() => $row->schedule_status])
+            ->all();
+    }
+
+    /** Sel Cuti/Izin ($leaveCells) cuma boleh DITIMPA oleh pemegang Update:Schedule ("Edit
+     * Jadwal") - permission yang sama dengan canEditPastDates (instruksi user 2026-09-24).
+     * Kepala Ruangan yang cuma punya Update:ShiftScheduleAssignments TETAP terkunci total dari
+     * sel ini lewat semua jalur (manual, Isi Cepat, Import, Reset). */
+    public function getCanOverrideLeaveLockProperty(): bool
+    {
+        return $this->canEditPastDates;
+    }
+
     /** Kalimat keterangan 1 baris log, bukan nampilin old/new/source mentah - "kosong -> terisi"
      * dibunyikan sebagai "Mengisi jadwal ...", bukan cuma "null -> P". */
     public function describeRosterLog(ScheduleShiftRosterLog $log): string
@@ -679,8 +712,10 @@ class ScheduleShiftRosterTab extends Component
 
         $currentRoster = $this->roster;
         $swapCells = $this->swapCells;
+        $leaveCells = $this->leaveCells;
         $lockBeforeDate = $this->lockBeforeDate();
         $blockedBySwap = 0;
+        $blockedByLeave = 0;
         $blockedByPastDate = 0;
         $blockedByRegu = 0;
 
@@ -699,6 +734,14 @@ class ScheduleShiftRosterTab extends Component
                 // gerbang di blade bisa dilewati lewat request yang di-craft, jadi dicek ulang.
                 if (isset($swapCells[$userId . '|' . $date])) {
                     $blockedBySwap++;
+                    continue;
+                }
+
+                // Sel Cuti/Izin disetujui otomatis cuma boleh ditimpa pemegang Update:Schedule
+                // (Edit Jadwal) - gerbang di blade bisa dilewati lewat request yang di-craft, jadi
+                // dicek ulang (instruksi user 2026-09-24).
+                if (isset($leaveCells[$userId . '|' . $date]) && ! $this->canOverrideLeaveLock) {
+                    $blockedByLeave++;
                     continue;
                 }
 
@@ -736,6 +779,7 @@ class ScheduleShiftRosterTab extends Component
             ->body(
                 "{$changed} sel diubah."
                 . ($blockedBySwap ? " {$blockedBySwap} sel dilewati karena terkait pengajuan tukar shift." : '')
+                . ($blockedByLeave ? " {$blockedByLeave} sel dilewati karena Cuti/Izin disetujui." : '')
                 . ($blockedByPastDate ? " {$blockedByPastDate} sel dilewati karena tanggalnya sudah lewat." : '')
                 . ($blockedByRegu ? " {$blockedByRegu} sel dilewati karena shift tidak termasuk daftar Tim karyawan." : '')
             )
@@ -796,6 +840,10 @@ class ScheduleShiftRosterTab extends Component
                     'created_at' => $now,
                     'updated_at' => $now,
                 ];
+
+                if ($cell['value'] === 'off' && $cell['before'] !== 'off') {
+                    $this->refundLeaveDayIfBecameOffDay($cell['user_id'], $cell['date']);
+                }
             }
 
             $logRows[] = [
@@ -841,7 +889,8 @@ class ScheduleShiftRosterTab extends Component
      * dites langsung.
      *
      * @return bool false = sel DILEWATI (shift-nya bukan jatah regu user ini, lihat
-     *   isShiftAllowedForUser()), tidak ada apa pun ditulis/dilog. */
+     *   isShiftAllowedForUser(); atau sel ini Cuti/Izin disetujui otomatis, lihat
+     *   $this->leaveCells), tidak ada apa pun ditulis/dilog. */
     public function setCell(string $userId, string $date, ?string $value, string $source = 'manual'): bool
     {
         abort_unless(Auth::user()->can('Update:ShiftScheduleAssignments'), 403);
@@ -854,6 +903,13 @@ class ScheduleShiftRosterTab extends Component
         }
 
         $existing = $this->shiftAssignmentQuery()->where('user_id', $userId)->whereDate('date', $date)->first();
+
+        // Cuti/Izin disetujui otomatis cuma boleh ditimpa pemegang Update:Schedule (Edit Jadwal)
+        // - instruksi user 2026-09-24.
+        if ($existing && in_array($existing->schedule_status, ['cuti', 'izin'], true) && ! $this->canOverrideLeaveLock) {
+            return false;
+        }
+
         $before = $existing ? ($existing->off_day ? 'off' : $existing->shift_type_id) : null;
 
         if (! $value) {
@@ -877,6 +933,10 @@ class ScheduleShiftRosterTab extends Component
             ScheduleShiftAssignment::create($attributes + ['user_id' => $userId, 'date' => $date]);
         }
 
+        if ($value === 'off' && $before !== 'off') {
+            $this->refundLeaveDayIfBecameOffDay($userId, $date);
+        }
+
         $this->logRosterChange($userId, $date, $before, $value, $source);
 
         return true;
@@ -897,6 +957,32 @@ class ScheduleShiftRosterTab extends Component
             'source' => $source,
             'changed_by' => Auth::id(),
         ]);
+    }
+
+    /** Kalau tanggal $date buat $userId BARU jadi Libur (bukan lewat approval Cuti/Izin sendiri -
+     * itu jalur lain, AttendaceReqService::markRosterDayOff(), tidak dipanggil di sini sama
+     * sekali) lewat roster manual/Isi Cepat/Import/Generate, refund 1 hari ke Cuti Tahunan/Haid
+     * APPROVED yang mencakup tanggal itu - karyawan sudah punya hak libur hari itu, jangan sampai
+     * kepotong cuti juga (instruksi user 2026-09-24). Cuti Melahirkan/Keguguran TIDAK direfund -
+     * dihitung hari kalender kontinu (LeaveTypeCategoryEnum::countsCalendarDays()), bukan hari
+     * kerja, jadi konsep "hari ini kebetulan libur" tidak relevan buat jenis itu. */
+    private function refundLeaveDayIfBecameOffDay(string $userId, string $date): void
+    {
+        $detail = AttendanceRequestLeaveDetails::query()
+            ->whereIn('category', [LeaveTypeCategoryEnum::TAHUNAN->value, LeaveTypeCategoryEnum::HAID->value])
+            ->where('total_days', '>', 0)
+            ->where(function ($q) use ($date) {
+                $q->where(function ($q2) use ($date) {
+                    $q2->whereNotNull('end_date')->where('start_date', '<=', $date)->where('end_date', '>=', $date);
+                })->orWhere(function ($q2) use ($date) {
+                    $q2->whereNull('end_date')->where('start_date', $date);
+                });
+            })
+            ->whereIn('request_id', AttendanceRequests::query()->select('id')
+                ->where('user_id', $userId)->where('type', 'leave')->where('status', 'approved'))
+            ->first();
+
+        $detail?->decrement('total_days');
     }
 
     /** Isi roster 1 periode dari rotasi tiap karyawan — tidak pernah menimpa baris yang sudah
@@ -991,6 +1077,13 @@ class ScheduleShiftRosterTab extends Component
                     continue;
                 }
 
+                // Baris baru (dijamin belum ada roster sebelumnya lewat $existingKeys di atas) -
+                // kalau ternyata hasil rotasi Libur, refund kuota Cuti Tahunan/Haid yang kebetulan
+                // sudah kepotong buat tanggal ini (instruksi user 2026-09-24).
+                if ($rotationRow->off_day) {
+                    $this->refundLeaveDayIfBecameOffDay($employee->id, $dateStr);
+                }
+
                 $insertRows[] = [
                     'id' => (string) Str::ulid(),
                     'user_id' => $employee->id,
@@ -1061,7 +1154,10 @@ class ScheduleShiftRosterTab extends Component
         $rows = $this->shiftAssignmentQuery()->whereIn('user_id', $this->employees->pluck('id'))
             ->whereBetween('date', [$start, $end])
             ->get()
-            ->reject(fn ($row) => isset($swapCells[$row->user_id . '|' . $row->date->toDateString()]));
+            // Cuti/Izin disetujui otomatis juga TIDAK ikut direset, kecuali oleh pemegang
+            // Update:Schedule (Edit Jadwal) - instruksi user 2026-09-24.
+            ->reject(fn ($row) => isset($swapCells[$row->user_id . '|' . $row->date->toDateString()])
+                || (in_array($row->schedule_status, ['cuti', 'izin'], true) && ! $this->canOverrideLeaveLock));
 
         if ($rows->isNotEmpty()) {
             ScheduleShiftRosterLog::insert($rows->map(fn ($row) => [
@@ -1099,7 +1195,7 @@ class ScheduleShiftRosterTab extends Component
         $teamNames = collect($this->employeeTeamInfo)->map(fn ($info) => $info['name'])->all();
 
         return Excel::download(
-            new ScheduleShiftRosterExport($this->schedule, $this->employees, $this->dates, $this->roster, $this->periodLabel, $teamNames, $this->teamGroupMode),
+            new ScheduleShiftRosterExport($this->schedule, $this->employees, $this->dates, $this->roster, $this->periodLabel, $teamNames, $this->teamGroupMode, $this->leaveCells),
             'detail-penjadwalan-'.str($this->schedule->name)->slug().'-'.$this->period.'.xlsx'
         );
     }
@@ -1108,7 +1204,13 @@ class ScheduleShiftRosterTab extends Component
      * posisinya kayak export (baris 1-2 judul, baris 3 header, baris 4.. data; kolom tanggal
      * diasumsikan urutan 1..akhir bulan periode ini, bukan dibaca dari isi kolomnya). Employee
      * dicocokkan by nama (exact, case-insensitive), shift dicocokkan by kode. Sel kosong =
-     * kosongkan, "L" = Libur, kode tidak dikenal dilewati (dilaporkan sebagai warning).
+     * kosongkan, "L" = Libur, "C"/"Izin" = Cuti/Izin (kode yang dipakai export, dibaca balik
+     * sebagai off biasa), kode tidak dikenal dilewati (dilaporkan sebagai warning).
+     *
+     * Sel yang statusnya Cuti/Izin disetujui otomatis ($this->leaveCells) SENGAJA dilewati apa pun
+     * kodenya di file - tidak boleh ketimpa balik jadi shift kerja biasa lewat bulk import, KECUALI
+     * pemegang Update:Schedule (Edit Jadwal) - instruksi user 2026-09-24. Dilaporkan sebagai
+     * warning sama seperti blockedByRegu buat yang tidak punya izin override.
      *
      * TIDAK langsung ditulis ke DB - hasil parse ditampung ke $draft (sama seperti startEdit())
      * dan editMode diaktifkan, jadi user WAJIB klik "Simpan" buat commit, sama seperti alur edit
@@ -1138,6 +1240,7 @@ class ScheduleShiftRosterTab extends Component
         $employeesByName = $this->employees->keyBy(fn ($employee) => mb_strtolower(trim($employee->name)));
         $shiftTypesByCode = $this->schedule->shiftTypes->keyBy(fn ($type) => mb_strtolower($type->code));
         $roster = $this->roster;
+        $leaveCells = $this->leaveCells;
 
         // Seed draft dari roster tersimpan dulu (sama kayak startEdit()) - baris/kolom yang tidak
         // disentuh file import tetap mempertahankan nilai lama, bukan ketimpa kosong.
@@ -1155,6 +1258,9 @@ class ScheduleShiftRosterTab extends Component
         // cuma jumlahnya (2026-09-14, instruksi user: harus jelas jadwal MANA yang tidak sesuai,
         // bukan cuma "N sel dilewati"). Format "Nama - dd/mm: KODE".
         $blockedByReguDetails = [];
+        // Sama pola dengan blockedByReguDetails - sel Cuti/Izin disetujui otomatis, dilaporkan
+        // terpisah biar jelas jadwal MANA yang tidak ikut kesentuh import (instruksi 2026-09-24).
+        $blockedByLeaveDetails = [];
         $changed = 0;
 
         foreach ($dataRows as $row) {
@@ -1184,9 +1290,21 @@ class ScheduleShiftRosterTab extends Component
             foreach ($this->dates as $i => $date) {
                 $code = trim((string) ($row[$nameColIdx + 1 + $i] ?? ''));
 
+                // Sel Cuti/Izin disetujui otomatis dilewati DULUAN, sebelum kode-nya diparse sama
+                // sekali - apa pun isi kolomnya di file (biasanya "C"/"Izin" hasil export, tapi
+                // kode lain pun tetap dilewati), tidak boleh ikut ketimpa lewat import, KECUALI
+                // yang mengimpor pemegang Update:Schedule (Edit Jadwal) - instruksi 2026-09-24.
+                if (isset($leaveCells[$employee->id.'|'.$date->toDateString()]) && ! $this->canOverrideLeaveLock) {
+                    if ($code !== '' && ! in_array(mb_strtolower($code), ['c', 'i', 'izin'], true)) {
+                        $blockedByLeaveDetails[] = "{$employee->name} - {$date->format('d/m')}: {$code}";
+                    }
+
+                    continue;
+                }
+
                 $value = match (true) {
                     $code === '' => '',
-                    mb_strtolower($code) === 'l' => 'off',
+                    in_array(mb_strtolower($code), ['l', 'c', 'i', 'izin'], true) => 'off',
                     default => $shiftTypesByCode->get(mb_strtolower($code))?->id,
                 };
 
@@ -1236,6 +1354,13 @@ class ScheduleShiftRosterTab extends Component
             $rest = count($blockedByReguDetails) - count($shown);
 
             $warnings[] = 'Shift tidak sesuai Tim (dilewati): '.implode('; ', $shown).($rest > 0 ? "; dan {$rest} lainnya" : '');
+        }
+
+        if ($blockedByLeaveDetails) {
+            $shown = array_slice($blockedByLeaveDetails, 0, 8);
+            $rest = count($blockedByLeaveDetails) - count($shown);
+
+            $warnings[] = 'Sudah Cuti/Izin disetujui, tidak diubah (dilewati): '.implode('; ', $shown).($rest > 0 ? "; dan {$rest} lainnya" : '');
         }
 
         Notification::make()

@@ -34,13 +34,14 @@
 
         <div>
             <label class="form-label">Divisi</label>
-            <p style="font-size:11px;color:var(--text-muted);margin:-2px 0 6px;">Opsional - isi kalau jabatan ini di dalam divisi tertentu.</p>
+            <p style="font-size:11px;color:var(--text-muted);margin:-2px 0 6px;">Opsional - kosongkan kalau jabatan ini pimpinan puncak departemennya.</p>
             <select wire:model.live="division_id" class="form-input" @disabled($disabled || ! $department_id)>
                 <option value="">Tidak ada</option>
                 @foreach ($this->divisionOptions as $id => $name)
                     <option value="{{ $id }}">{{ $name }}</option>
                 @endforeach
             </select>
+            @error('division_id') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
         </div>
 
         <div>

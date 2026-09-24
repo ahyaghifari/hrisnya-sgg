@@ -15,6 +15,11 @@ use App\Livewire\Sp\SpPage;
 use App\Livewire\Sp\SpRecommendationsPage;
 use App\Livewire\Sp\SuratPeringatanDetailPage;
 use App\Livewire\Sp\SuratPeringatanPage;
+use App\Enum\CustomPermissionEnum;
+use App\Helpers\PermissionHelper;
+use App\Models\Sp\EmployeeSp;
+use App\Services\Sp\SpPdfService;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
 /**
@@ -34,6 +39,15 @@ Route::get('/surat-peringatan', SuratPeringatanPage::class)
 
 Route::get('/surat-peringatan/{record}', SuratPeringatanDetailPage::class)
     ->name('sp.saya.show');
+
+// Preview PDF (bukan download) - GET biasa target=_blank, BUKAN aksi Livewire (Livewire selalu
+// memaksa browser save-as apa pun response-nya). Pola persis routes/keuangan.php +
+// routes/portal-akun.php (preview slip gaji). Gerbang sama dengan SuratPeringatanDetailPage::mount().
+Route::get('/surat-peringatan/{record}/preview', function (EmployeeSp $record) {
+    abort_unless($record->user_id === Auth::id(), 403);
+
+    return app(SpPdfService::class)->preview($record);
+})->name('sp.saya.preview');
 
 // Merit Point masih DEMO (§3) - dibuka lewat ikon "riwayat" di widget tab Karir, bukan lewat nav utama.
 Route::get('/merit-point/riwayat', MeritPointHistoryPage::class)
@@ -69,6 +83,17 @@ Route::prefix('pembinaan')->group(function () {
 
     Route::get('/sp/{record}', SpDetailPage::class)
         ->name('sp.show');
+
+    // Preview PDF sisi HC - gerbang sama dengan SpDetailPage::mount().
+    Route::get('/sp/{record}/preview', function (EmployeeSp $record) {
+        $user = Auth::user();
+
+        abort_unless($user->can(CustomPermissionEnum::SISTEM_PEMBINAAN_KARYAWAN->value), 403);
+        abort_unless($user->can('View:EmployeeSp'), 403);
+        abort_unless($record->company_id === $user->company_id || PermissionHelper::hasGlobalRole($user), 403);
+
+        return app(SpPdfService::class)->preview($record);
+    })->name('sp.preview');
 
     Route::get('/sp-rekomendasi', SpRecommendationsPage::class)
         ->name('sp.rekomendasi');

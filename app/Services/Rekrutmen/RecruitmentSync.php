@@ -66,11 +66,10 @@ class RecruitmentSync
                 [
                     'company_id' => $company->id,
                     'company_name' => $company->name,
+                    // division_name tidak dikirim di sini - diturunkan dari job_position_id ini oleh
+                    // App\Models\Rekrutmen\JobOpening::booted(), supaya cuma ada satu sumbernya.
                     'job_position_id' => $jobOpening->job_position_id,
                     'title' => $jobOpening->display_name,
-                    // Divisi dititipkan ke rekrutmen_db karena project `rekrutmen` tidak punya
-                    // koneksi ke DB HRIS - dipakai token {divisi} di naskah Persetujuan Onboarding.
-                    'division_name' => $jobOpening->jobPosition?->division?->name,
                     'quota' => $jobOpening->quota,
                     'max_applicants' => $jobOpening->max_applicants,
                     'applications_deadline' => $jobOpening->application_deadline?->format('Y-m-d'),

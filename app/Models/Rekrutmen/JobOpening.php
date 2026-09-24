@@ -2,6 +2,7 @@
 
 namespace App\Models\Rekrutmen;
 
+use App\Models\Master\JobPositions;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -39,6 +40,33 @@ class JobOpening extends Model
         'published_at' => 'datetime',
         'closed_at' => 'datetime',
     ];
+
+    /**
+     * Divisi selalu diturunkan dari jabatan HRIS yang dipilih, tidak pernah diketik. Semua rekrutmen
+     * dikelola dari HRIS dan jabatannya wajib dari master HRIS, jadi divisinya sudah pasti ketahuan -
+     * lihat JobPositions::getDivisionOrUnitNameAttribute() (divisi kalau ada, kalau tidak
+     * departemennya). Nilainya dititipkan ke kolom di rekrutmen_db karena project `rekrutmen` tidak
+     * punya koneksi ke DB HRIS, dan di sana dipakai token {divisi} pada naskah Persetujuan Onboarding.
+     *
+     * Dipasang di hook simpan, BUKAN di afterStateUpdated form: kalau hanya di form, buka-simpan
+     * lowongan lama tanpa menyentuh pilihan jabatan tidak akan mengisi divisinya. Di sini semua jalur
+     * penulis ikut - form Filament HRIS maupun RecruitmentSync.
+     */
+    protected static function booted(): void
+    {
+        static::saving(function (self $opening) {
+            if (! $opening->job_position_id) {
+                return;
+            }
+
+            if (! $opening->isDirty('job_position_id') && $opening->division_name) {
+                return;
+            }
+
+            $opening->division_name = JobPositions::find($opening->job_position_id)?->division_or_unit_name
+                ?? $opening->division_name;
+        });
+    }
 
     public function company(): BelongsTo
     {

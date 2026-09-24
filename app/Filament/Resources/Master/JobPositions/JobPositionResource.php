@@ -107,6 +107,10 @@ class JobPositionResource extends BaseCompanyResource
 
                         Select::make('division_id')
                             ->label('Divisi')
+                            // Opsional: jabatan yang berada langsung di departemen memang ada - itu
+                            // pimpinan puncak departemennya. Token {divisi} di naskah Persetujuan
+                            // Onboarding rekrutmen jatuh ke nama departemen untuk kasus itu, lihat
+                            // JobPositions::getDivisionOrUnitNameAttribute().
                             ->helperText('Opsional - isi kalau jabatan ini di dalam divisi tertentu.')
                             ->searchable()
                             ->preload()

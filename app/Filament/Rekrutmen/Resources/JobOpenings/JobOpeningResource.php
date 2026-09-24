@@ -141,13 +141,7 @@ class JobOpeningResource extends Resource
                     ->options(fn (Get $get) => static::hrisJobPositions($get('company_id')))
                     ->searchable()
                     ->live()
-                    ->afterStateUpdated(function ($state, Set $set) {
-                        $position = JobPositions::find($state);
-                        $set('title', $position?->name);
-                        // Divisi dititipkan ke rekrutmen_db karena project `rekrutmen` tidak punya
-                        // koneksi ke DB HRIS - dipakai token {divisi} di naskah Persetujuan Onboarding.
-                        $set('division_name', $position?->division?->name);
-                    })
+                    ->afterStateUpdated(fn ($state, Set $set) => $set('title', JobPositions::find($state)?->name))
                     ->required()
                     ->helperText('Jabatan wajib diambil dari master jabatan HRIS.'),
 
@@ -157,10 +151,14 @@ class JobOpeningResource extends Resource
                     ->maxLength(255)
                     ->helperText('Terisi otomatis dari jabatan HRIS, boleh diubah (mis. "Perawat Rawat Inap Lantai 3"). Tautan jabatan tetap dari pilihan di atas.'),
 
-                TextInput::make('division_name')
+                // Bukan input: divisi selalu ikut jabatan yang dipilih di atas, diisi di hook simpan
+                // App\Models\Rekrutmen\JobOpening::booted(). Ditampilkan supaya HR tahu nilai apa yang
+                // masuk ke token {divisi} pada naskah Persetujuan Onboarding.
+                Placeholder::make('divisi_preview')
                     ->label('Divisi')
-                    ->maxLength(255)
-                    ->helperText('Dipakai token {divisi} di naskah Persetujuan Onboarding. Terisi otomatis dari jabatan HRIS, boleh diubah atau diisi manual.'),
+                    ->content(fn (Get $get) => JobPositions::find($get('job_position_id'))?->division_or_unit_name
+                        ?? 'Ikut jabatan yang dipilih di atas.')
+                    ->helperText('Otomatis dari jabatan HRIS, dipakai token {divisi} di naskah Persetujuan Onboarding.'),
 
                 TextInput::make('quota')
                     ->label('Kuota Posisi')

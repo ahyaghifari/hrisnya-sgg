@@ -38,8 +38,10 @@ class CreateSpPage extends Component
 
     // Berita Acara (instruksi user 2026-09-25) - opsional, catatan investigasi HR-internal.
     public ?string $kejadian = null;
+    public ?string $dasar_klarifikasi = null;
     public ?string $subject_clarification = null;
     public ?string $analysis = null;
+    public ?string $kesimpulan = null;
     public ?string $followup_plan = null;
 
     /** Opsional - SP ini berdasarkan Coaching mana (kalau ada). Kosong = source_type MANUAL. */
@@ -166,8 +168,10 @@ class CreateSpPage extends Component
             'items.*' => ['required', 'string'],
             'coaching_id' => ['nullable', 'exists:coachings,id'],
             'kejadian' => ['nullable', 'string'],
+            'dasar_klarifikasi' => ['nullable', 'string'],
             'subject_clarification' => ['nullable', 'string'],
             'analysis' => ['nullable', 'string'],
+            'kesimpulan' => ['nullable', 'string'],
             'followup_plan' => ['nullable', 'string'],
         ];
     }
@@ -205,11 +209,13 @@ class CreateSpPage extends Component
                 $sp->items()->create(['text' => $text, 'sort_order' => $index]);
             }
 
-            if (filled($data['kejadian']) || filled($data['subject_clarification']) || filled($data['analysis']) || filled($data['followup_plan'])) {
+            if (filled($data['kejadian']) || filled($data['dasar_klarifikasi']) || filled($data['subject_clarification']) || filled($data['analysis']) || filled($data['kesimpulan']) || filled($data['followup_plan'])) {
                 $sp->report()->create([
                     'kejadian' => $data['kejadian'],
+                    'dasar_klarifikasi' => $data['dasar_klarifikasi'],
                     'subject_clarification' => $data['subject_clarification'],
                     'analysis' => $data['analysis'],
+                    'kesimpulan' => $data['kesimpulan'],
                     'followup_plan' => $data['followup_plan'],
                 ]);
             }

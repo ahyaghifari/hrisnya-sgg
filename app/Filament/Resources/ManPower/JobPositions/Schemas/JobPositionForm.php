@@ -108,6 +108,11 @@ class JobPositionForm
                             // 🔹 Division (Level 2)
                             Select::make('division_id')
                                 ->label('Divisi')
+                                // Opsional: jabatan yang berada langsung di departemen memang ada -
+                                // itu pimpinan puncak departemennya (Kabid/Kabag/Manager). Token
+                                // {divisi} di naskah Persetujuan Onboarding rekrutmen jatuh ke nama
+                                // departemen untuk kasus itu, lihat
+                                // JobPositions::getDivisionOrUnitNameAttribute().
                                 ->helperText('Pilih divisi jika jabatan ini berada di dalam divisi tertentu')
                                 ->options(function (callable $get) {
                                     $departmentId = $get('department_id');
