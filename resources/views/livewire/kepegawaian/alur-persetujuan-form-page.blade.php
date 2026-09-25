@@ -114,9 +114,7 @@
                             <option value="role">Role</option>
                             <option value="job_position">Jabatan</option>
                             <option value="user">Karyawan Spesifik</option>
-                            @if ($flowType === 'specific')
-                                <option value="supervisor">Atasan Pengaju</option>
-                            @endif
+                            <option value="supervisor">Atasan Pengaju</option>
                         </select>
                     </div>
 

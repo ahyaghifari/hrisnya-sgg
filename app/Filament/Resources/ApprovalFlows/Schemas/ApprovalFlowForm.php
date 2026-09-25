@@ -82,13 +82,6 @@ class ApprovalFlowForm
                                 return function ($attribute, $value, $fail) use ($get, $record) {
                                     $flowType = $get('flow_type');
 
-                                    // Sumber approver "Atasan Langsung Pengaju" hanya boleh di alur Spesifik.
-                                    $hasSupervisorStep = collect($get('steps') ?? [])
-                                        ->contains(fn ($s) => ($s['approver_type'] ?? null) === 'supervisor');
-                                    if ($hasSupervisorStep && $flowType !== 'specific') {
-                                        $fail('Sumber approver "Atasan Pengaju" hanya bisa dipakai pada alur tipe Spesifik.');
-                                    }
-
                                     // Ember jenis pengajuan yang dipilih alur ini ([] = "semua jenis").
                                     // Bentrok kalau ada alur lain (modul + flow_type sama) yang mengklaim
                                     // salah satu ember yang sama — atau dua-duanya "semua jenis".
@@ -510,20 +503,19 @@ class ApprovalFlowForm
             // karena modal add_step/edit_step form-nya sendiri, $get tidak bisa lewat batas
             // form ke form utama (2026-08-16).
             Hidden::make('company_id'),
-            // flow_type dioper dari fillForm add_step/edit_step (form modal terpisah dari form
-            // utama) — dipakai buat munculkan opsi "Atasan Langsung Pengaju" hanya di alur Spesifik.
             Hidden::make('flow_type'),
 
             Select::make('approver_type')
                 ->label('Sumber')
-                ->options(fn (callable $get) => array_filter([
+                ->options([
                     'role' => 'Role',
                     'job_position' => 'Jabatan',
                     'user' => 'Karyawan Spesiifik',
-                    // Atasan pengaju = naik N level dari jabatan pengaju, di-resolve saat pengajuan.
-                    // Cuma masuk akal di alur Spesifik (jabatan pengaju sudah dibatasi assignment).
-                    'supervisor' => $get('flow_type') === 'specific' ? 'Atasan Pengaju' : null,
-                ]))
+                    // Atasan pengaju = naik N level dari jabatan pengaju, di-resolve saat pengajuan
+                    // (App\Repositories\Approval\ApprovalSnapshotRepository::resolveSupervisorPositionId())
+                    // — berlaku di alur Default maupun Spesifik, resolusinya generik per pengaju.
+                    'supervisor' => 'Atasan Pengaju',
+                ])
                 ->live()
                 ->required()
                 ->afterStateUpdated(function (callable $set) {

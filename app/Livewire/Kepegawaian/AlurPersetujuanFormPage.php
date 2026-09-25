@@ -303,17 +303,6 @@ class AlurPersetujuanFormPage extends Component
             'assignmentJobPositions' => 'jabatan berlaku',
         ]);
 
-        // Sumber "Atasan Pengaju" (naik N level dari jabatan pengaju, di-resolve saat snapshot)
-        // cuma masuk akal di alur Spesifik — jabatan pengaju sudah dibatasi assignment.
-        $hasSupervisorStep = collect($this->steps)
-            ->contains(fn ($s) => ($s['approver_type'] ?? null) === 'supervisor');
-
-        if ($hasSupervisorStep && $this->flowType !== 'specific') {
-            $this->addError('steps', 'Sumber "Atasan Pengaju" hanya bisa dipakai pada alur tipe Spesifik.');
-
-            return;
-        }
-
         // Ember jenis pengajuan (cuma modul attendance_request). [] = "semua jenis" (sub_module NULL).
         $selectedBuckets = $this->showSubModule
             ? collect($this->subModule)->filter()->values()->all()

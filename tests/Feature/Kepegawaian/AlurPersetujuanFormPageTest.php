@@ -178,22 +178,31 @@ class AlurPersetujuanFormPageTest extends TestCase
         $this->assertNull(MasterApprovalFlows::where('name', 'Alur Cuti Lagi')->first());
     }
 
-    public function test_supervisor_step_rejected_on_default_flow(): void
+    /** Sumber approver "Atasan Pengaju" dulu cuma boleh di alur Spesifik - dilonggarkan (instruksi
+     *  user) supaya tersedia juga di alur Default, karena resolve level atasan sudah generik per
+     *  pengaju individual (App\Repositories\Approval\ApprovalSnapshotRepository::resolveSupervisorPositionId()),
+     *  tidak bergantung ke assignment job_position milik alur Spesifik. */
+    public function test_supervisor_step_allowed_on_default_flow(): void
     {
         $company = Companies::create(['code' => 'APFD', 'name' => 'RS Sup Default', 'location' => 'Test', 'is_active' => true]);
         $user = $this->actingAsWithPermission($company);
 
         Livewire::actingAs($user)
             ->test(AlurPersetujuanFormPage::class)
-            ->set('name', 'Alur Salah')
+            ->set('name', 'Alur Default Atasan')
             ->set('module', ApprovalModuleEnum::ATTENDANCE_REQUEST->value)
             ->set('flowType', 'default')
             ->set('steps.0.approver_type', 'supervisor')
+            ->set('steps.0.supervisor_level', 1)
             ->set('steps.0.is_final', true)
             ->call('save')
-            ->assertHasErrors('steps');
+            ->assertHasNoErrors();
 
-        $this->assertNull(MasterApprovalFlows::where('name', 'Alur Salah')->first());
+        $this->assertDatabaseHas('m_approval_flow_steps', [
+            'approver_type' => 'supervisor',
+            'supervisor_level' => 1,
+            'flow_id' => MasterApprovalFlows::where('name', 'Alur Default Atasan')->first()?->id,
+        ]);
     }
 
     public function test_edit_mode_locks_company(): void
