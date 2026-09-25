@@ -3,7 +3,6 @@
 namespace Tests\Feature;
 
 use App\Enum\Approval\ApprovalModuleEnum;
-use App\Enum\CustomPermissionEnum;
 use App\Enum\ShiftType;
 use App\Livewire\RiwayatApprovalPage;
 use App\Models\ApprovalManagement\ApprovalHistories;
@@ -19,8 +18,6 @@ use App\Services\Shift\ShiftSwapRequestService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Livewire;
-use Spatie\Permission\Models\Permission;
-use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 class RiwayatApprovalSwapShiftTest extends TestCase

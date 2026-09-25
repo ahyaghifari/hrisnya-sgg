@@ -101,6 +101,9 @@
     cursor: wait;
     pointer-events: none;
 }
+.org-zoom-pan {
+    touch-action: none;
+}
 .org-zoom-pan.is-panning {
     cursor: grabbing;
 }
@@ -304,9 +307,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
     let drag = null;
 
-    document.addEventListener('mousedown', function (e) {
+    // Pointer events (bukan mouse*) supaya geser jalan juga di layar sentuh; .org-zoom-pan
+    // pakai touch-action:none (lihat CSS) biar browser tidak scroll halaman/zoom sendiri.
+    document.addEventListener('pointerdown', function (e) {
         const pan = e.target.closest('.org-zoom-pan');
-        if (!pan || e.button !== 0) return;
+        if (!pan || !e.isPrimary || (e.pointerType === 'mouse' && e.button !== 0)) return;
         const viewport = getViewport(pan);
         if (!viewport) return;
 
@@ -322,7 +327,7 @@ document.addEventListener('DOMContentLoaded', function() {
         pan.classList.add('is-panning');
     });
 
-    document.addEventListener('mousemove', function (e) {
+    document.addEventListener('pointermove', function (e) {
         if (!drag) return;
         const state = getState(drag.viewport);
         state.panX = drag.originX + (e.clientX - drag.startX);
@@ -330,11 +335,13 @@ document.addEventListener('DOMContentLoaded', function() {
         applyState(drag.viewport, state);
     });
 
-    document.addEventListener('mouseup', function () {
+    function endDrag() {
         if (!drag) return;
         drag.pan.classList.remove('is-panning');
         drag = null;
-    });
+    }
+    document.addEventListener('pointerup', endDrag);
+    document.addEventListener('pointercancel', endDrag);
 
     /**
      * Export .org-chart-container APA ADANYA (bukan viewport yang overflow:hidden) - jadi
