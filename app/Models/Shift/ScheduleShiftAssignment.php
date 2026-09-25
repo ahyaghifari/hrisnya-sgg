@@ -33,6 +33,7 @@ class ScheduleShiftAssignment extends Model
         'notes',
         'schedule_status',
         'created_by',
+        'source_request_id',
     ];
 
     protected $casts = [

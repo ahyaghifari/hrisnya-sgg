@@ -1,0 +1,175 @@
+<?php
+
+namespace Tests\Feature\Attendance;
+
+use App\Enum\Attendance\LeaveTypeCategoryEnum;
+use App\Livewire\AttendanceRequestDetail;
+use App\Models\ApprovalManagement\MasterApprovalFlows;
+use App\Models\ApprovalManagement\MasterApprovalFlowSteps;
+use App\Models\Attendance\AttendanceRequests;
+use App\Models\Master\Companies;
+use App\Models\User;
+use App\Services\Approval\ApprovalFlowService;
+use App\Services\Attendance\AttendaceReqService;
+use App\Services\Attendance\AttendanceCancellationService;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Livewire\Livewire;
+use Tests\TestCase;
+
+/**
+ * Pembatalan cuti/izin yang SUDAH approved - lewat modul approval terpisah
+ * (ATTENDANCE_REQUEST_CANCELLATION). Approve -> pengajuan asli jadi cancelled + efek sync
+ * (roster/attendance_records) direvert. Reject -> pengajuan asli tetap approved.
+ */
+class AttendanceCancellationApprovalTest extends TestCase
+{
+    use RefreshDatabase;
+
+    private Companies $company;
+    private User $approver;
+    private User $cancellationApprover;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->company = Companies::create(['code' => 'TST', 'name' => 'Test Co', 'location' => 'X', 'is_active' => true]);
+        $this->approver = User::factory()->create(['company_id' => $this->company->id]);
+        $this->cancellationApprover = User::factory()->create(['company_id' => $this->company->id]);
+
+        $flow = MasterApprovalFlows::create([
+            'company_id' => $this->company->id,
+            'module' => 'attendance_request',
+            'name' => 'Alur Cuti',
+            'flow_type' => 'default',
+            'is_active' => true,
+        ]);
+        MasterApprovalFlowSteps::create([
+            'flow_id' => $flow->id,
+            'step_order' => 1,
+            'approver_type' => 'user',
+            'approver_ref_id' => $this->approver->id,
+            'approval_mode' => 'any',
+            'scope_type' => 'global',
+            'is_final' => true,
+        ]);
+
+        $cancellationFlow = MasterApprovalFlows::create([
+            'company_id' => $this->company->id,
+            'module' => 'attendance_request_cancellation',
+            'name' => 'Alur Pembatalan Cuti',
+            'flow_type' => 'default',
+            'is_active' => true,
+        ]);
+        MasterApprovalFlowSteps::create([
+            'flow_id' => $cancellationFlow->id,
+            'step_order' => 1,
+            'approver_type' => 'user',
+            'approver_ref_id' => $this->cancellationApprover->id,
+            'approval_mode' => 'any',
+            'scope_type' => 'global',
+            'is_final' => true,
+        ]);
+    }
+
+    private function approvedLeave(User $employee, string $start): AttendanceRequests
+    {
+        app(AttendaceReqService::class)->storeLeaveRequest([
+            'type_id' => LeaveTypeCategoryEnum::TAHUNAN->value,
+            'is_one_day' => true,
+            'start_date' => $start,
+            'end_date' => $start,
+        ], $employee);
+
+        $request = AttendanceRequests::where('user_id', $employee->id)->firstOrFail();
+        $request->load('approvalSnapshot.activity');
+
+        app(ApprovalFlowService::class)->advanceStep(
+            $request->approvalSnapshot,
+            $this->approver->id,
+            'Disetujui',
+            'approved'
+        );
+
+        return $request->fresh();
+    }
+
+    public function test_approving_cancellation_reverts_status_and_sync(): void
+    {
+        $employee = User::factory()->create(['company_id' => $this->company->id]);
+        $start = now()->addDays(3)->toDateString();
+        $request = $this->approvedLeave($employee, $start);
+
+        // Sync approval sudah menandai attendance_records - pastikan itu memang terjadi dulu
+        // sebelum kita tes revert-nya.
+        $this->assertDatabaseHas('attendance_records', [
+            'nip' => $employee->nip,
+            'date' => $start,
+            'status' => 'leave',
+            'source_request_id' => $request->id,
+        ]);
+
+        $cancellation = app(AttendanceCancellationService::class)->requestCancellation(
+            $request,
+            $employee,
+            'Ternyata batal, ada kebutuhan mendadak'
+        );
+
+        $this->actingAs($this->cancellationApprover);
+        Livewire::test(AttendanceRequestDetail::class, ['record' => $request])
+            ->assertSet('canApproveCancellation', true)
+            ->call('chooseCancellationAction', 'approve')
+            ->set('cancellationNote', 'Disetujui, silakan batal')
+            ->call('confirmCancellationAction')
+            ->assertSet('canApproveCancellation', false);
+
+        $this->assertDatabaseHas('attendance_requests', ['id' => $request->id, 'status' => 'cancelled']);
+        $this->assertDatabaseHas('attendance_request_cancellations', ['id' => $cancellation->id, 'status' => 'approved']);
+        $this->assertDatabaseMissing('attendance_records', ['source_request_id' => $request->id]);
+    }
+
+    public function test_rejecting_cancellation_keeps_original_request_approved(): void
+    {
+        $employee = User::factory()->create(['company_id' => $this->company->id]);
+        $start = now()->addDays(3)->toDateString();
+        $request = $this->approvedLeave($employee, $start);
+
+        $cancellation = app(AttendanceCancellationService::class)->requestCancellation(
+            $request,
+            $employee,
+            'Coba batal'
+        );
+
+        $this->actingAs($this->cancellationApprover);
+        Livewire::test(AttendanceRequestDetail::class, ['record' => $request])
+            ->call('chooseCancellationAction', 'reject')
+            ->set('cancellationNote', 'Tidak bisa, sudah terlanjur dijadwalkan')
+            ->call('confirmCancellationAction');
+
+        $this->assertDatabaseHas('attendance_requests', ['id' => $request->id, 'status' => 'approved']);
+        $this->assertDatabaseHas('attendance_request_cancellations', ['id' => $cancellation->id, 'status' => 'rejected']);
+        $this->assertDatabaseHas('attendance_records', ['source_request_id' => $request->id, 'status' => 'leave']);
+    }
+
+    public function test_cannot_request_cancellation_without_flow_configured(): void
+    {
+        MasterApprovalFlows::where('module', 'attendance_request_cancellation')->delete();
+
+        $employee = User::factory()->create(['company_id' => $this->company->id]);
+        $request = $this->approvedLeave($employee, now()->addDays(3)->toDateString());
+
+        $this->expectException(\RuntimeException::class);
+
+        app(AttendanceCancellationService::class)->requestCancellation($request, $employee, 'Coba batal');
+    }
+
+    public function test_cannot_request_cancellation_after_cutoff(): void
+    {
+        $employee = User::factory()->create(['company_id' => $this->company->id]);
+        $request = $this->approvedLeave($employee, now()->subDay()->toDateString());
+
+        $this->expectException(\RuntimeException::class);
+
+        app(AttendanceCancellationService::class)->requestCancellation($request, $employee, 'Coba batal telat');
+    }
+}

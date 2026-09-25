@@ -69,4 +69,9 @@ class AttendanceRequests extends Model
     {
         return $this->hasMany(ApprovalHistories::class, 'requestable_id');
     }
+
+    public function cancellationRequests()
+    {
+        return $this->hasMany(AttendanceRequestCancellations::class, 'attendance_request_id', 'id');
+    }
 }

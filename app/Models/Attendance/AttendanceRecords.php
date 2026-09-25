@@ -28,6 +28,7 @@ class AttendanceRecords extends Model
         'permission_minutes',
         'status',
         'source',
+        'source_request_id',
         'is_auto_calculated',
         'work_day_weight',
         'meets_target',

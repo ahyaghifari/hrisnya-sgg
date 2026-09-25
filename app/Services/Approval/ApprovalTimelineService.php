@@ -48,7 +48,11 @@ class ApprovalTimelineService
 
             if ($history) {
                 $timeline[] = [
-                    'label' => $this->stepLabel($step),
+                    // 'cancelled' BUKAN aksi step ini - approver step ini belum sempat
+                    // bertindak sama sekali, yang cancel bisa siapa saja (pengaju sendiri, dst).
+                    // Jangan pakai stepLabel() di sini, nanti kelihatan seolah pembatalnya
+                    // adalah pemegang jabatan approver step ini.
+                    'label' => $history->action === 'cancelled' ? 'Dibatalkan' : $this->stepLabel($step),
                     'actor' => $history->actor_name,
                     'date' => $history->created_at,
                     'state' => $history->action,

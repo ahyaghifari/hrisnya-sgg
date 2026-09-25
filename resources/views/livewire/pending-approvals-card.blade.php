@@ -35,6 +35,7 @@
             $badgeStyle = fn (string $badge) => match ($badge) {
                 'blue' => 'background:rgba(4,44,108,0.1);color:#042c6c;',
                 'purple' => 'background:rgba(126,34,206,0.1);color:#7e22ce;',
+                'red' => 'background:rgba(180,35,24,0.1);color:#b42318;',
                 default => 'background:rgba(217,119,6,0.12);color:#92400e;',
             };
             // Warna aksen checkbox ikut badge per baris, sama pola .custom-checkbox yang
@@ -42,6 +43,7 @@
             $accentColor = fn (string $badge) => match ($badge) {
                 'blue' => '#042c6c',
                 'purple' => '#7e22ce',
+                'red' => '#b42318',
                 default => '#92400e',
             };
         @endphp

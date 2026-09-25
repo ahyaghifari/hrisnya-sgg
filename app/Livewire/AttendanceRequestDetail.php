@@ -4,12 +4,14 @@ namespace App\Livewire;
 
 use App\Enum\Attendance\LeaveTypeCategoryEnum;
 use App\Enum\Attendance\PermissionTypeCategoryEnum;
+use App\Models\Attendance\AttendanceRequestCancellations;
 use App\Models\Attendance\AttendanceRequests;
 use App\Models\User;
 use App\Services\Approval\ApprovalFlowService;
 use App\Services\Approval\ApprovalPermissionService;
 use App\Services\Approval\ApprovalTimelineService;
 use App\Services\Attendance\AttendaceReqService;
+use App\Services\Attendance\AttendanceCancellationService;
 use App\Services\OrgHierarchyService;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\Auth;
@@ -26,10 +28,21 @@ class AttendanceRequestDetail extends Component
     public ?string $reviseStart = null;
     public ?string $reviseEnd = null;
 
+    /** Aksi self-service pemilik pengajuan (bukan approver): 'self_cancel' (batal langsung, masih
+     *  in_review) atau 'request_cancel' (ajukan pembatalan, sudah approved). */
+    public ?string $selfAction = null;
+    public ?string $selfActionReason = null;
+
+    /** Approve/Reject untuk pengajuan pembatalan (aktivitas terpisah dari $pendingAction di atas
+     *  yang khusus pengajuan Cuti/Izin aslinya). */
+    public ?string $cancellationPendingAction = null;
+    public ?string $cancellationNote = null;
+
     public function mount(AttendanceRequests $record): void
     {
         $record->load([
             'approvalSnapshot.activity', 'approvalHistories', 'attachments',
+            'cancellationRequests' => fn ($q) => $q->latest()->limit(1),
         ]);
 
         abort_unless($this->canAccess($record, Auth::user()), 403);
@@ -46,6 +59,12 @@ class AttendanceRequestDetail extends Component
         $snapshot = $record->approvalSnapshot;
 
         if ($snapshot && app(ApprovalPermissionService::class)->hasPermission($snapshot->id, $user)) {
+            return true;
+        }
+
+        $cancellationSnapshot = $this->resolveActiveCancellation($record)?->approvalSnapshot;
+
+        if ($cancellationSnapshot && app(ApprovalPermissionService::class)->hasPermission($cancellationSnapshot->id, $user)) {
             return true;
         }
 
@@ -73,6 +92,61 @@ class AttendanceRequestDetail extends Component
             ->canApprove($this->record->approvalSnapshot->id, Auth::user());
     }
 
+    /** Pengajuan pembatalan terbaru (kalau ada) untuk record ini - null kalau belum pernah
+     *  diajukan. Dipakai baik saat mount() (canAccess) maupun render (status/aksi). */
+    private function resolveActiveCancellation(?AttendanceRequests $record = null): ?AttendanceRequestCancellations
+    {
+        $record ??= $this->record;
+
+        return $record->relationLoaded('cancellationRequests')
+            ? $record->cancellationRequests->first()
+            : $record->cancellationRequests()->latest()->first();
+    }
+
+    public function getActiveCancellationProperty(): ?AttendanceRequestCancellations
+    {
+        return $this->resolveActiveCancellation();
+    }
+
+    /** Pemilik pengajuan boleh batal LANGSUNG - masih in_review, tipe Cuti/Izin saja, belum
+     *  lewat tanggal mulai. */
+    public function getCanSelfCancelProperty(): bool
+    {
+        return $this->record->user_id === Auth::id()
+            && in_array($this->record->type, ['leave', 'permission'], true)
+            && $this->record->approvalSnapshot?->status === 'in_review'
+            && ! app(AttendaceReqService::class)->cancellationCutoffPassed($this->record);
+    }
+
+    /** Pemilik pengajuan boleh AJUKAN pembatalan - sudah approved, belum lewat tanggal mulai,
+     *  belum ada pengajuan pembatalan yang masih diproses. */
+    public function getCanRequestCancellationProperty(): bool
+    {
+        return $this->record->user_id === Auth::id()
+            && in_array($this->record->type, ['leave', 'permission'], true)
+            && $this->record->status === 'approved'
+            && ! app(AttendaceReqService::class)->cancellationCutoffPassed($this->record)
+            && $this->activeCancellation?->status !== 'in_review';
+    }
+
+    public function getCanApproveCancellationProperty(): bool
+    {
+        $snapshot = $this->activeCancellation?->approvalSnapshot;
+
+        if (! $snapshot) {
+            return false;
+        }
+
+        return app(ApprovalPermissionService::class)->canApprove($snapshot->id, Auth::user());
+    }
+
+    public function getCancellationTimelineProperty(): array
+    {
+        return $this->activeCancellation
+            ? app(ApprovalTimelineService::class)->build($this->activeCancellation)
+            : [];
+    }
+
     public function chooseAction(string $type): void
     {
         $this->pendingAction = $type;
@@ -90,6 +164,122 @@ class AttendanceRequestDetail extends Component
         $this->note = null;
         $this->reviseStart = null;
         $this->reviseEnd = null;
+    }
+
+    /** $type: 'self_cancel' (batal langsung, masih in_review) atau 'request_cancel' (ajukan
+     *  pembatalan, sudah approved) - lihat getCanSelfCancelProperty()/getCanRequestCancellationProperty(). */
+    public function chooseSelfAction(string $type): void
+    {
+        $this->selfAction = $type;
+        $this->selfActionReason = null;
+        $this->resetErrorBag();
+    }
+
+    public function cancelSelfAction(): void
+    {
+        $this->selfAction = null;
+        $this->selfActionReason = null;
+    }
+
+    public function confirmSelfAction(): void
+    {
+        $this->validate(['selfActionReason' => ['required', 'string']], [], ['selfActionReason' => 'Alasan']);
+
+        // Guard server-side - tombolnya sudah disembunyikan di blade kalau tidak eligible, tapi
+        // chooseSelfAction()/confirmSelfAction() bisa dipanggil langsung lewat Livewire wire:click
+        // manapun, jadi statusnya dicek ulang di sini (bukan cuma andalkan UI).
+        abort_unless(
+            ($this->selfAction === 'self_cancel' && $this->canSelfCancel)
+                || ($this->selfAction === 'request_cancel' && $this->canRequestCancellation),
+            403
+        );
+
+        try {
+            if ($this->selfAction === 'self_cancel') {
+                app(ApprovalFlowService::class)->advanceStep(
+                    $this->record->approvalSnapshot,
+                    Auth::id(),
+                    $this->selfActionReason,
+                    'cancelled'
+                );
+
+                Notification::make()->title('Pengajuan berhasil dibatalkan')->success()->send();
+            } elseif ($this->selfAction === 'request_cancel') {
+                app(AttendanceCancellationService::class)->requestCancellation(
+                    $this->record,
+                    Auth::user(),
+                    $this->selfActionReason
+                );
+
+                Notification::make()->title('Pengajuan pembatalan berhasil dikirim, menunggu persetujuan')->success()->send();
+            }
+
+            $this->selfAction = null;
+            $this->selfActionReason = null;
+
+            $this->record->refresh();
+            $this->record->load([
+                'approvalSnapshot.activity', 'approvalHistories', 'attachments',
+                'cancellationRequests' => fn ($q) => $q->latest()->limit(1),
+            ]);
+
+            unset($this->canSelfCancel, $this->canRequestCancellation, $this->activeCancellation, $this->cancellationTimeline);
+        } catch (\Exception $e) {
+            Notification::make()->title('Gagal: ' . $e->getMessage())->danger()->send();
+        }
+    }
+
+    public function chooseCancellationAction(string $type): void
+    {
+        $this->cancellationPendingAction = $type;
+        $this->cancellationNote = null;
+        $this->resetErrorBag();
+    }
+
+    public function cancelCancellationChoice(): void
+    {
+        $this->cancellationPendingAction = null;
+        $this->cancellationNote = null;
+    }
+
+    /** Approve/Reject oleh approver ALUR PEMBATALAN (bisa beda orang dari approver pengajuan
+     *  aslinya) - terpisah dari confirmAction() yang menangani pengajuan Cuti/Izin asli. */
+    public function confirmCancellationAction(): void
+    {
+        $this->validate(['cancellationNote' => ['required', 'string']], [], ['cancellationNote' => 'Catatan']);
+
+        $actionMap = ['approve' => 'approved', 'reject' => 'rejected'];
+        $action = $actionMap[$this->cancellationPendingAction] ?? null;
+
+        if (! $action) {
+            return;
+        }
+
+        abort_unless($this->canApproveCancellation, 403);
+
+        try {
+            app(ApprovalFlowService::class)->advanceStep(
+                $this->activeCancellation->approvalSnapshot,
+                Auth::id(),
+                $this->cancellationNote,
+                $action
+            );
+
+            $this->cancellationPendingAction = null;
+            $this->cancellationNote = null;
+
+            $this->record->refresh();
+            $this->record->load([
+                'approvalSnapshot.activity', 'approvalHistories', 'attachments',
+                'cancellationRequests' => fn ($q) => $q->latest()->limit(1),
+            ]);
+
+            unset($this->canApproveCancellation, $this->activeCancellation, $this->cancellationTimeline);
+
+            Notification::make()->title('Berhasil diproses')->success()->send();
+        } catch (\Exception $e) {
+            Notification::make()->title('Gagal memproses: ' . $e->getMessage())->danger()->send();
+        }
     }
 
     /**

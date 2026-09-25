@@ -14,6 +14,7 @@ enum ApprovalModuleEnum: string
     case EMPLOYEE_REPLACEMENT_REQUEST = 'employee_replacement_request';
     case ADDITIONAL_QUOTA_REQUEST = 'additional_quota_request';
     case TRAINING_REQUEST = 'training_request';
+    case ATTENDANCE_REQUEST_CANCELLATION = 'attendance_request_cancellation';
 
     /** Label deskriptif — dropdown & kolom "Modul" di /admin/approval-flows. */
     public function label(): string
@@ -29,6 +30,7 @@ enum ApprovalModuleEnum: string
             self::EMPLOYEE_REPLACEMENT_REQUEST => 'Permintaan Penggantian Karyawan',
             self::ADDITIONAL_QUOTA_REQUEST => 'Permintaan Penambahan Kuota',
             self::TRAINING_REQUEST => 'Pengajuan Pelatihan',
+            self::ATTENDANCE_REQUEST_CANCELLATION => 'Pembatalan Cuti/Izin',
         };
     }
 
@@ -46,6 +48,7 @@ enum ApprovalModuleEnum: string
             self::EMPLOYEE_REPLACEMENT_REQUEST => 'Pengajuan penggantian karyawan',
             self::ADDITIONAL_QUOTA_REQUEST => 'Pengajuan penambahan kuota',
             self::TRAINING_REQUEST => 'Pengajuan pelatihan',
+            self::ATTENDANCE_REQUEST_CANCELLATION => 'Pengajuan pembatalan cuti/izin',
         };
     }
 

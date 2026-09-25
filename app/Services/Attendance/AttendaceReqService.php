@@ -878,7 +878,7 @@ class AttendaceReqService
         [$start, $end] = $range;
 
         for ($date = $start->copy(); $date->lte($end); $date->addDay()) {
-            $this->markAttendanceRecordAbsence($request->user, $date->toDateString(), $status);
+            $this->markAttendanceRecordAbsence($request->user, $date->toDateString(), $status, $request->id);
         }
     }
 
@@ -919,7 +919,7 @@ class AttendaceReqService
     /** Timpa 1 tanggal attendance_records jadi status Cuti/Izin/Sakit. Baris yang SUDAH ada
      *  check-in (karyawan beneran presensi hari itu) dibiarkan - approval retroaktif tidak boleh
      *  menghapus jejak kehadiran asli. */
-    private function markAttendanceRecordAbsence(User $user, string $date, AttendanceStatus $status): void
+    private function markAttendanceRecordAbsence(User $user, string $date, AttendanceStatus $status, ?string $requestId = null): void
     {
         $existing = AttendanceRecords::where('user_id', $user->id)->whereDate('date', $date)->first();
 
@@ -928,7 +928,7 @@ class AttendaceReqService
         }
 
         if ($existing) {
-            $existing->update(['status' => $status->value, 'source' => 'leave_approved']);
+            $existing->update(['status' => $status->value, 'source' => 'leave_approved', 'source_request_id' => $requestId]);
 
             return;
         }
@@ -939,6 +939,7 @@ class AttendaceReqService
             'date' => $date,
             'status' => $status->value,
             'source' => 'leave_approved',
+            'source_request_id' => $requestId,
         ]);
     }
 
@@ -1003,7 +1004,7 @@ class AttendaceReqService
         $scheduleStatus = $request->type === 'leave' ? 'cuti' : 'izin';
 
         if ($existing) {
-            $existing->update(['off_day' => true, 'shift_type_id' => null, 'notes' => $note, 'schedule_status' => $scheduleStatus]);
+            $existing->update(['off_day' => true, 'shift_type_id' => null, 'notes' => $note, 'schedule_status' => $scheduleStatus, 'source_request_id' => $request->id]);
         } else {
             ScheduleShiftAssignment::create([
                 'company_id' => $user->company_id,
@@ -1014,6 +1015,7 @@ class AttendaceReqService
                 'notes' => $note,
                 'schedule_status' => $scheduleStatus,
                 'created_by' => $request->approved_by,
+                'source_request_id' => $request->id,
             ]);
         }
 
@@ -1026,5 +1028,35 @@ class AttendaceReqService
             'source' => 'leave_approved',
             'changed_by' => $request->approved_by,
         ]);
+    }
+
+    /** Tanggal "hari H" (mulai) cuti/izin ini sudah lewat - dipakai untuk menutup jendela
+     *  pembatalan sendiri oleh pengaju (baik batal langsung saat in_review maupun ajukan
+     *  pembatalan setelah approved). Null (tidak ada tanggal) dianggap sudah lewat - lebih aman
+     *  menolak daripada membiarkan batal tanpa tanggal jelas. */
+    public function cancellationCutoffPassed(AttendanceRequests $request): bool
+    {
+        $start = match ($request->type) {
+            'leave' => $request->leaveDetails->first()?->start_date,
+            'permission' => $request->permissionDetails->first()?->date,
+            default => null,
+        };
+
+        if (! $start) {
+            return true;
+        }
+
+        return now()->startOfDay()->gt(Carbon::parse($start)->startOfDay());
+    }
+
+    /** Kebalikan syncApprovedAbsenceToRoster()/syncApprovedAbsenceToAttendanceRecords() - dipanggil
+     *  saat pengajuan yang sudah approved dibatalkan (lewat ApprovalFlowService::resolveCancellationRequest()).
+     *  Aman dihapus langsung: cancellationCutoffPassed() menjamin tanggalnya >= hari ini, dan baris
+     *  attendance_records yang sudah ada check-in asli tidak pernah disentuh sync (lihat
+     *  markAttendanceRecordAbsence()), jadi tidak akan ikut terhapus di sini. */
+    public function revertApprovedAbsenceSync(AttendanceRequests $request): void
+    {
+        ScheduleShiftAssignment::where('source_request_id', $request->id)->delete();
+        AttendanceRecords::where('source_request_id', $request->id)->delete();
     }
 }
