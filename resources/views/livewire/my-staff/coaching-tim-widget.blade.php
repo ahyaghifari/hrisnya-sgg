@@ -1,16 +1,7 @@
 <div class="card-surface accent accent-indigo">
-    <div class="section-head-icon" style="margin-bottom:14px;">
-        <div class="section-icon"><i class="fa-solid fa-chalkboard-user"></i></div>
-        <p style="font-size:13px;font-weight:700;color:var(--text-heading);margin:0;">Coaching Tim</p>
-    </div>
+    <x-my-staff.widget-head icon="fa-chalkboard-user" title="Coaching Tim" sub="Rencana perbaikan yang akan jatuh tempo" :meta="$loaded ? $this->total.' coaching' : null" />
 
     @if ($loaded)
-        <div style="background:var(--surface-alt);border-radius:12px;padding:12px;text-align:center;margin:14px 0;">
-            <p style="font-size:18px;font-weight:800;color:var(--text-heading);margin:0;">{{ $this->total }}</p>
-            <p style="font-size:10.5px;color:var(--text-muted);margin-top:2px;">Total Coaching</p>
-        </div>
-
-        <p style="font-size:12px;font-weight:700;color:var(--text-heading);margin:0 0 8px;">Rencana Perbaikan Akan Jatuh Tempo</p>
         <div class="pwa-list">
             @forelse ($this->upcomingDue as $coach)
                 <div class="pwa-list-row">
@@ -22,10 +13,13 @@
                     <span class="badge badge-pending">{{ \Illuminate\Support\Carbon::parse($coach->improvement_due_date)->translatedFormat('d M Y') }}</span>
                 </div>
             @empty
-                <p style="font-size:12.5px;color:var(--text-muted);padding:14px 16px;">Tidak ada rencana perbaikan yang mendekati jatuh tempo.</p>
+                <div class="ms-empty">
+                    <i class="fa-solid fa-circle-check"></i>
+                    <span>Tidak ada rencana perbaikan yang mendekati jatuh tempo.</span>
+                </div>
             @endforelse
         </div>
     @else
-        <p style="font-size:12px;color:var(--text-faint);">Memuat data tim...</p>
+        <p class="ms-loading">Memuat data tim...</p>
     @endif
 </div>

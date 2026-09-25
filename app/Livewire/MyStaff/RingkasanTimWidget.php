@@ -69,14 +69,16 @@ class RingkasanTimWidget extends Component
             ->values();
     }
 
-    public function colorForType(string $name): string
+    /** Ikon + nada warna per tipe kepegawaian - nada = class .ms-t-* di app.css (aman dark mode). */
+    public function styleForType(string $name): array
     {
         $lower = strtolower($name);
 
         return match (true) {
-            str_contains($lower, 'tetap') => '#047C54',
-            str_contains($lower, 'orientasi') => '#d97706',
-            default => 'var(--brand)',
+            str_contains($lower, 'tetap') => ['tone' => 'green', 'icon' => 'fa-id-badge'],
+            str_contains($lower, 'kontrak') => ['tone' => 'navy', 'icon' => 'fa-file-signature'],
+            str_contains($lower, 'orientasi') => ['tone' => 'amber', 'icon' => 'fa-user-clock'],
+            default => ['tone' => 'navy', 'icon' => 'fa-user'],
         };
     }
 

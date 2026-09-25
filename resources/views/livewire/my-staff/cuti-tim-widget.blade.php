@@ -1,31 +1,29 @@
 <div class="card-surface accent accent-teal">
-    <div class="section-head-icon" style="margin-bottom:14px;">
-        <div class="section-icon"><i class="fa-solid fa-umbrella-beach"></i></div>
-        <p style="font-size:13px;font-weight:700;color:var(--text-heading);margin:0;">Cuti Tim 7 Hari ke Depan</p>
-    </div>
+    <x-my-staff.widget-head icon="fa-umbrella-beach" title="Cuti Tim" sub="7 hari ke depan" />
 
     @if ($loaded)
         <div class="pwa-list">
             @forelse ($this->upcomingLeave as $request)
-                @php $detail = $request->leaveDetails->first(); @endphp
+                @php
+                    $detail = $request->leaveDetails->first();
+                    $start = IlluminateSupportCarbon::parse($detail?->start_date);
+                    $range = $detail?->end_date && $detail->end_date !== $detail->start_date;
+                @endphp
                 <div class="pwa-list-row">
-                    <div class="pwa-tile-icon neutral"><i class="fa-solid fa-umbrella-beach"></i></div>
+                    <div class="ms-date"><b>{{ $start->translatedFormat('d') }}</b><small>{{ $start->translatedFormat('M') }}</small></div>
                     <div style="flex:1;min-width:0;">
                         <p style="font-size:13px;font-weight:600;color:var(--text-heading);margin:0;">{{ $request->user?->name ?? '-' }}</p>
-                        <p style="font-size:11px;color:var(--text-muted);margin-top:2px;">{{ $detail?->leave_type ?? 'Cuti' }}</p>
+                        <p style="font-size:11px;color:var(--text-muted);margin-top:2px;">{{ $detail?->leave_type ?? 'Cuti' }}@if ($range) &middot; s/d {{ IlluminateSupportCarbon::parse($detail->end_date)->translatedFormat('d M') }}@endif</p>
                     </div>
-                    <span style="font-size:11.5px;color:var(--text-muted);white-space:nowrap;">
-                        {{ \Illuminate\Support\Carbon::parse($detail?->start_date)->translatedFormat('d M') }}
-                        @if ($detail?->end_date && $detail->end_date !== $detail->start_date)
-                            &ndash; {{ \Illuminate\Support\Carbon::parse($detail->end_date)->translatedFormat('d M') }}
-                        @endif
-                    </span>
                 </div>
             @empty
-                <p style="font-size:12.5px;color:var(--text-muted);padding:14px 16px;">Tidak ada bawahan yang cuti dalam 7 hari ke depan.</p>
+                <div class="ms-empty">
+                    <i class="fa-solid fa-mug-hot"></i>
+                    <span>Tidak ada bawahan yang cuti dalam 7 hari ke depan.</span>
+                </div>
             @endforelse
         </div>
     @else
-        <p style="font-size:12px;color:var(--text-faint);">Memuat data tim...</p>
+        <p class="ms-loading">Memuat data tim...</p>
     @endif
 </div>

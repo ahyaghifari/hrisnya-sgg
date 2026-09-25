@@ -1,21 +1,38 @@
 <div class="card-surface accent accent-navy">
-    <div class="section-head-icon" style="margin-bottom:14px;">
-        <div class="section-icon"><i class="fa-solid fa-users"></i></div>
-        <p style="font-size:13px;font-weight:700;color:var(--text-heading);margin:0;">Ringkasan Tim</p>
-    </div>
+    <x-my-staff.widget-head icon="fa-users" title="Ringkasan Tim" sub="Komposisi bawahan menurut status kepegawaian" />
 
     @if ($loaded)
+        @php
+            $total = $this->total;
+            $rows = $this->breakdown;
+        @endphp
         <div>
-            <p style="font-size:22px;font-weight:800;color:var(--text-heading);margin:0 0 12px;">{{ $this->total }} <span style="font-size:11px;font-weight:600;color:var(--text-muted);">total bawahan</span></p>
+            <p class="ms-total"><span class="ms-total-num">{{ $total }}</span> <span class="ms-total-label">total bawahan</span></p>
 
-            <div class="grid grid-cols-3" style="gap:10px;">
-                @forelse ($this->breakdown as $row)
-                    <button type="button" wire:click="openModal('{{ $row['name'] }}')" style="background:var(--surface-alt);border:none;box-shadow:inset 4px 0 0 {{ $this->colorForType($row['name']) }};border-radius:12px;padding:12px;text-align:center;cursor:pointer;font-family:inherit;">
-                        <p style="font-size:20px;font-weight:800;color:{{ $this->colorForType($row['name']) }};margin:0;">{{ $row['count'] }}</p>
-                        <p style="font-size:11px;color:var(--text-muted);margin-top:2px;">{{ $row['name'] }}</p>
+            @if ($rows->isNotEmpty())
+                <div class="ms-bar" role="img" aria-label="Komposisi tipe kepegawaian">
+                    @foreach ($rows as $row)
+                        <span class="ms-t-{{ $this->styleForType($row['name'])['tone'] }}" style="flex:{{ $row['count'] }};" title="{{ $row['name'] }}: {{ $row['count'] }}"></span>
+                    @endforeach
+                </div>
+            @endif
+
+            <div class="ms-grid">
+                @forelse ($rows as $row)
+                    @php $style = $this->styleForType($row['name']); @endphp
+                    <button type="button" wire:click="openModal('{{ $row['name'] }}')" class="ms-stat ms-t-{{ $style['tone'] }}">
+                        <span class="ms-stat-icon"><i class="fa-solid {{ $style['icon'] }}"></i></span>
+                        <div>
+                            <p class="ms-stat-num">{{ $row['count'] }}</p>
+                            <p class="ms-stat-label">{{ $row['name'] }}</p>
+                        </div>
+                        <p class="ms-stat-foot">{{ $total ? round($row['count'] / $total * 100) : 0 }}% dari tim</p>
                     </button>
                 @empty
-                    <p style="font-size:12.5px;color:var(--text-muted);grid-column:1/-1;">Belum ada bawahan dengan tipe kepegawaian terisi.</p>
+                    <div class="ms-empty" style="grid-column:1/-1;">
+                        <i class="fa-solid fa-user-slash"></i>
+                        <span>Belum ada bawahan dengan tipe kepegawaian terisi.</span>
+                    </div>
                 @endforelse
             </div>
         </div>
@@ -42,6 +59,6 @@
             </div>
         @endif
     @else
-        <p style="font-size:12px;color:var(--text-faint);">Memuat data tim...</p>
+        <p class="ms-loading">Memuat data tim...</p>
     @endif
 </div>

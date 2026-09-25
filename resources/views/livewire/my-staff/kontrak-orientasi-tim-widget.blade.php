@@ -1,8 +1,5 @@
 <div class="card-surface accent accent-indigo">
-    <div class="section-head-icon" style="margin-bottom:14px;">
-        <div class="section-icon"><i class="fa-solid fa-file-contract"></i></div>
-        <p style="font-size:13px;font-weight:700;color:var(--text-heading);margin:0;">Kontrak / Orientasi Bawahan Akan Berakhir</p>
-    </div>
+    <x-my-staff.widget-head icon="fa-file-contract" title="Kontrak & Orientasi" sub="Bawahan yang masa kerjanya akan berakhir" />
 
     @if ($loaded)
         <div class="pwa-list">
@@ -47,6 +44,6 @@
             </div>
         @endif
     @else
-        <p style="font-size:12px;color:var(--text-faint);">Memuat data tim...</p>
+        <p class="ms-loading">Memuat data tim...</p>
     @endif
 </div>

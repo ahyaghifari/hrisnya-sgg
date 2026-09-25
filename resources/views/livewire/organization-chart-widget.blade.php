@@ -121,19 +121,6 @@
     z-index: 0;
 }
 
-@media (max-width: 1024px) {
-    .org-level {
-        flex-direction: column;
-        gap: 1.5rem;
-        align-items: center;
-    }
-    .org-level::before {
-        display: none !important;
-    }
-    .org-branch > .org-line-up {
-        display: none !important;
-    }
-}
 </style>
 
 {{-- html2canvas-pro (BUKAN html2canvas biasa) + jsPDF (CDN, tanpa npm build) — dipakai cuma
