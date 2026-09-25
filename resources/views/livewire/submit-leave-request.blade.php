@@ -19,11 +19,16 @@
             <div style="width:36px;height:36px;background:var(--danger-soft-bg);border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
                 <i class="fa-solid fa-triangle-exclamation" style="color:var(--danger-soft-text);font-size:14px;"></i>
             </div>
-            <p style="font-size:12.5px;font-weight:600;color:var(--danger-soft-text);margin:0;">{{ $this->minimumTenureNote }}</p>
+            <div style="font-size:12.5px;font-weight:600;color:var(--danger-soft-text);">
+                <p style="margin:0;">{{ $this->minimumTenureNote }}</p>
+                @if ($this->cutiTahunanClosedNote)
+                    <p style="margin:6px 0 0;font-weight:500;">{{ $this->cutiTahunanClosedNote }}</p>
+                @endif
+            </div>
         </div>
     @endif
 
-    @if ($this->cutiTahunanClosedNote)
+    @if ($this->cutiTahunanClosedNote && ! $this->minimumTenureNote)
         <div style="background:var(--info-soft-bg);border:1px solid var(--info-soft-border);border-radius:14px;padding:14px 18px;display:flex;align-items:flex-start;gap:14px;margin-bottom:20px;">
             <div style="width:36px;height:36px;background:var(--info-soft-bg);border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
                 <i class="fa-solid fa-circle-info" style="color:var(--info-soft-text);font-size:14px;"></i>

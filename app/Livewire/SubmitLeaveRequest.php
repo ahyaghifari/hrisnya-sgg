@@ -80,7 +80,7 @@ class SubmitLeaveRequest extends Component
             return null;
         }
 
-        return "Cuti Tahunan belum bisa diajukan - baru buka mulai {$windowOpen->translatedFormat('d M Y')} (1 bulan sebelum masa kerja minimal terpenuhi pada {$eligibleDate->translatedFormat('d M Y')}).";
+        return "Cuti Tahunan baru bisa diajukan mulai {$windowOpen->translatedFormat('d M Y')}, 1 bulan sebelum masa kerja minimal terpenuhi ({$eligibleDate->translatedFormat('d M Y')}).";
     }
 
     /** Kategori cuti khusus dari jenis cuti yang dipilih (null kalau cuti biasa/tahunan). */

@@ -26,10 +26,21 @@
     </a>
 </div>
 
-<span class="pwa-section-title">Riwayat Pengajuan</span>
+{{-- Filter disembunyikan default, dibuka lewat tombol ikon. x-data lokal (bukan state Livewire) -
+     wire:click pada pill filter me-render ulang komponen tapi Alpine mempertahankan $open. --}}
+<div x-data="{ open: false }">
+<div style="display:flex;justify-content:space-between;align-items:center;">
+    <span class="pwa-section-title">Riwayat Pengajuan</span>
+    <button type="button" @click="open = ! open" class="btn-ghost" style="padding:6px 10px;position:relative;" title="Filter" aria-label="Tampilkan/sembunyikan filter" :aria-expanded="open">
+        <i class="fa-solid fa-filter"></i>
+        @if ($type !== '' || $status !== '')
+            <span style="position:absolute;top:3px;right:3px;width:7px;height:7px;border-radius:50%;background:var(--brand);"></span>
+        @endif
+    </button>
+</div>
 
 {{-- Filter Jenis + Status — pill button (wire:click), pola sama UserTransitionsPage. --}}
-<div style="display:flex;flex-wrap:wrap;gap:10px;margin:10px 0 14px;">
+<div x-show="open" x-cloak style="display:flex;flex-wrap:wrap;gap:10px;margin:10px 0 14px;">
     <div style="display:inline-flex;gap:2px;background:var(--surface-alt);padding:3px;border-radius:8px;flex-wrap:wrap;">
         <button type="button" wire:click="setType('')" style="padding:4px 12px;font-size:11.5px;font-weight:600;border:none;border-radius:6px;cursor:pointer;font-family:inherit;background:{{ $type === '' ? 'var(--surface)' : 'transparent' }};color:{{ $type === '' ? 'var(--text-heading)' : 'var(--text-muted)' }};box-shadow:{{ $type === '' ? 'var(--shadow-card)' : 'none' }};">Semua Jenis</button>
         @foreach ($this->typeOptions as $value => $label)
@@ -43,6 +54,7 @@
             <button type="button" wire:click="setStatus('{{ $s->value }}')" style="padding:4px 12px;font-size:11.5px;font-weight:600;border:none;border-radius:6px;cursor:pointer;font-family:inherit;background:{{ $status === $s->value ? 'var(--surface)' : 'transparent' }};color:{{ $status === $s->value ? 'var(--text-heading)' : 'var(--text-muted)' }};box-shadow:{{ $status === $s->value ? 'var(--shadow-card)' : 'none' }};">{{ $s->getLabel() }}</button>
         @endforeach
     </div>
+</div>
 </div>
 
 @php $requests = $this->requests; @endphp
