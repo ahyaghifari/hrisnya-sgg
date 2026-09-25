@@ -7,7 +7,7 @@ use App\Enum\AttendanceStatus;
 use App\Enum\CustomPermissionEnum;
 use App\Enum\EmployeeTypeCategory;
 use App\Enum\Pembinaan\PembinaanSettingEnum;
-use App\Exports\Attendance\AttendanceHistoryExport;
+use App\Helpers\PermissionHelper;
 use App\Livewire\Concerns\HandlesProfilePhotoUpload;
 use App\Livewire\Concerns\ResolvesTodayAttendanceStatus;
 use App\Models\AuditLog;
@@ -33,7 +33,6 @@ use Illuminate\Support\Str;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 use Livewire\WithPagination;
-use Maatwebsite\Excel\Facades\Excel;
 
 class EmployeeAttendanceStatistics extends Component
 {
@@ -46,7 +45,6 @@ class EmployeeAttendanceStatistics extends Component
 
     public ?string $date_from = null;
     public ?string $date_to = null;
-    public string $status = 'approved';
 
     public string $calendarMonth;
 
@@ -312,11 +310,21 @@ class EmployeeAttendanceStatistics extends Component
         Notification::make()->title('Lampiran dihapus')->success()->send();
     }
 
-    /** Tab "Pembinaan" — cuma karyawan itu sendiri ATAU pemegang permission modul Pembinaan
-     * Karyawan (SISTEM_PEMBINAAN_KARYAWAN). Atasan biasa tanpa permission itu TIDAK lihat tab
-     * ini walau bisa buka Data Diri bawahannya (instruksi user). Isinya CUMA Coaching —
-     * Counseling sengaja tidak ditampilkan di sini (instruksi user). */
+    /** Tab "Pembinaan" — karyawan itu sendiri, atasan langsung/hierarki-nya (instruksi user
+     * 2026-09-26), ATAU pemegang permission modul Pembinaan Karyawan (SISTEM_PEMBINAAN_KARYAWAN).
+     * Isinya CUMA Coaching — Counseling sengaja tidak ditampilkan di sini (instruksi user). */
     public function getCanViewPembinaanTabProperty(): bool
+    {
+        return $this->canViewMeritWidget
+            || app(OrgHierarchyService::class)
+                ->subordinates(Auth::user())
+                ->whereKey($this->record->id)
+                ->exists();
+    }
+
+    /** Gerbang lama tab Pembinaan (pemilik akun / SISTEM_PEMBINAAN_KARYAWAN) — sekarang khusus
+     * widget Merit Point + SP, atasan biasa tetap TIDAK lihat. */
+    public function getCanViewMeritWidgetProperty(): bool
     {
         return $this->record->id === Auth::id()
             || Auth::user()->can(CustomPermissionEnum::SISTEM_PEMBINAAN_KARYAWAN->value);
@@ -357,7 +365,7 @@ class EmployeeAttendanceStatistics extends Component
      */
     public function getHrBalanceProperty(): ?UserHrBalance
     {
-        if (! $this->showSpMeritWidget || ! $this->canViewPembinaanTab) {
+        if (! $this->showSpMeritWidget || ! $this->canViewMeritWidget) {
             return null;
         }
 
@@ -371,6 +379,33 @@ class EmployeeAttendanceStatistics extends Component
             $this->record->company_id,
             true
         );
+    }
+
+    // ── Riwayat Merit Point (panel, bukan halaman terpisah - instruksi user 2026-09-25) ──
+    public bool $showMeritHistoryModal = false;
+
+    public function getMeritHistoryProperty()
+    {
+        if (! $this->showMeritHistoryModal) {
+            return collect();
+        }
+
+        return \App\Models\MeritPoint\MeritPointTransaction::where('user_id', $this->record->id)
+            ->with('rule')
+            ->latest('created_at')
+            ->get();
+    }
+
+    public function openMeritHistoryModal(): void
+    {
+        abort_unless($this->record->id === Auth::id(), 403);
+
+        $this->showMeritHistoryModal = true;
+    }
+
+    public function closeMeritHistoryModal(): void
+    {
+        $this->showMeritHistoryModal = false;
     }
 
     // ── Transaksi Merit Point Modal ──
@@ -505,6 +540,22 @@ class EmployeeAttendanceStatistics extends Component
 
         return $user->canBrowseAllCompanies()
             || ($user->can(CustomPermissionEnum::SISTEM_KEPEGAWAIAN->value) && $user->company_id === $this->record->company_id);
+    }
+
+    // ── Riwayat Perubahan Data (panel geser di tab Data Diri, bukan tab terpisah - 2026-09-26) ──
+    public bool $showAuditHistoryPanel = false;
+
+    public function openAuditHistoryPanel(): void
+    {
+        abort_unless($this->canViewAuditHistory, 403);
+
+        $this->resetPage('riwayatPage');
+        $this->showAuditHistoryPanel = true;
+    }
+
+    public function closeAuditHistoryPanel(): void
+    {
+        $this->showAuditHistoryPanel = false;
     }
 
     /**
@@ -729,7 +780,10 @@ class EmployeeAttendanceStatistics extends Component
     protected function filters(): array
     {
         return [
-            'status' => $this->status !== 'all' ? $this->status : null,
+            // Riwayat Pengajuan di tab Kehadiran HANYA menampilkan yang sudah disetujui (instruksi user
+            // 2026-09-26) - filter status dihapus dari UI, jadi dikunci di sini, bukan property publik
+            // yang bisa dioprek dari client.
+            'status' => AttendanceReqStatus::APPROVED->value,
             'date_from' => $this->date_from,
             'date_to' => $this->date_to,
         ];
@@ -932,23 +986,6 @@ class EmployeeAttendanceStatistics extends Component
             'overtime' => $record->overtimeDetails->first()?->overtime_type ?? 'Lembur',
             default => '-',
         };
-    }
-
-    public function export()
-    {
-        $rows = $this->requests->map(fn (AttendanceRequests $r) => [
-            'date' => $r->created_at->translatedFormat('d M Y H:i'),
-            'type' => ['leave' => 'Cuti', 'permission' => 'Izin', 'overtime' => 'Lembur'][$r->type] ?? $r->type,
-            'keterangan' => $this->keterangan($r),
-            'status' => AttendanceReqStatus::from($r->status)->getLabel(),
-        ])->toArray();
-
-        $periodLabel = "{$this->date_from} s/d {$this->date_to}";
-
-        return Excel::download(
-            new AttendanceHistoryExport($rows, $this->record->name, $periodLabel),
-            'riwayat-absensi-' . str($this->record->name)->slug() . '.xlsx'
-        );
     }
 
     public function render()

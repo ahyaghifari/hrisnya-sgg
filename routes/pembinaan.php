@@ -7,7 +7,6 @@ use App\Livewire\Coaching\MyCoachingPage;
 use App\Livewire\Counseling\CounselingDetailPage;
 use App\Livewire\Counseling\CounselingManagePage;
 use App\Livewire\Counseling\CounselingPage;
-use App\Livewire\MeritPoint\MeritPointHistoryPage;
 use App\Livewire\Pembinaan\PembinaanSettingsPage;
 use App\Livewire\Sp\CreateSpPage;
 use App\Livewire\Sp\SpDetailPage;
@@ -58,9 +57,9 @@ Route::get('/surat-peringatan/{record}/berita-acara-preview', function (Employee
 })->name('sp.saya.beritaacara_preview');
 
 
-// Merit Point masih DEMO (§3) - dibuka lewat ikon "riwayat" di widget tab Karir, bukan lewat nav utama.
-Route::get('/merit-point/riwayat', MeritPointHistoryPage::class)
-    ->name('merit-point.saya.riwayat');
+// Merit Point masih DEMO (§3) - riwayat & transaksi dibuka lewat panel di widget tab Karir
+// (Livewire EmployeeAttendanceStatistics), BUKAN halaman/route terpisah (instruksi user
+// 2026-09-25). Route lama merit-point.saya.riwayat dihapus, lihat getMeritHistoryProperty().
 
 // Sisi konselor/atasan (row 2 nav, "Coaching & Counseling") — beda prefix dari sisi
 // personal (/coaching, /counseling) di atas, biar ketahuan dari URL-nya ini bukan

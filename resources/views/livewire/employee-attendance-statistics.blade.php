@@ -9,8 +9,8 @@
         default => route('my-staff'),
     };
 @endphp
-{{-- tab disimpan di sessionStorage: paginasi tab "Riwayat Perubahan" pakai wire:navigate
-(full page-visit) yang re-mount komponen; tanpa ini tab balik ke default tiap ganti halaman. --}}
+{{-- tab disimpan di sessionStorage supaya tab aktif tidak balik ke default kalau komponen re-mount
+lewat wire:navigate (mis. link paginasi/pindah halaman lain). --}}
 <div x-data="{ tab: sessionStorage.getItem('easTab') || 'career' }" x-init="$watch('tab', v => sessionStorage.setItem('easTab', v))">
 <x-page-header
     :title="$isSelf ? 'Profil Saya' : $record->name"
@@ -33,7 +33,7 @@
     // Merit Point dipindah ke samping kartu identitas (instruksi user) - dihitung di sini
     // (sebelum identitas) supaya tersedia buat wrapper flex di bawah. Gerbang sama seperti
     // sebelumnya: kill-switch global showSpMeritWidget + tab Pembinaan + setting per company.
-    $showMeritBeside = $this->showSpMeritWidget && $this->canViewPembinaanTab && $this->meritPointEnabled;
+    $showMeritBeside = $this->showSpMeritWidget && $this->canViewMeritWidget && $this->meritPointEnabled;
     if ($showMeritBeside) {
         $hrBalance = $this->hrBalance;
         // Belum ada baris di user_hr_balances = belum pernah kena potongan/tambahan sama
@@ -157,17 +157,18 @@ override tambahan. --}}
                             </div>
                         </div>
                     </div>
-                    <div>
-                        <p class="merit-label">{{ $isSelf ? 'Poin Anda' : 'Merit Point' }}</p>
-                        <p class="merit-score-row"><b>{{ $meritPoint }}</b>/100</p>
-                        <div style="display:flex;gap:6px;align-items:center;margin-top:4px;flex-wrap:wrap;">
+                    {{-- text-align:left INLINE (bukan cuma di app.css): di layar kecil .ia-row memusatkan seluruh
+                    teks kartu identitas, dan inline tidak butuh build CSS ulang. --}}
+                    <div style="text-align:left;">
+                        <p class="merit-label" style="text-align:left;">{{ $isSelf ? 'Poin Anda' : 'Merit Point' }}</p>
+                        <div style="display:flex;gap:6px;align-items:center;justify-content:flex-start;margin-top:4px;flex-wrap:wrap;">
                             @if ($isSelf)
-                                <a href="{{ route('merit-point.saya.riwayat') }}" wire:navigate class="merit-history-btn">
+                                <button type="button" wire:click="openMeritHistoryModal" class="merit-history-btn">
                                     <i class="fa-solid fa-clock-rotate-left"></i> Riwayat
-                                </a>
+                                </button>
                             @endif
                             @if ($this->canCreateMeritTransaction)
-                                <button type="button" wire:click="openMeritTransactionModal" class="merit-history-btn" style="border:none;cursor:pointer;">
+                                <button type="button" wire:click="openMeritTransactionModal" class="merit-history-btn">
                                     <i class="fa-solid fa-plus-minus"></i> Transaksi
                                 </button>
                             @endif
@@ -180,7 +181,23 @@ override tambahan. --}}
 </div>
 
 <!-- Navigasi antar-bagian: tombol (bukan tab bergaris bawah) supaya enak disentuh di mobile -->
-<div class="section-nav section-nav-tiles">
+{{-- Mobile: kolom tetap sesuai jumlah tab maksimal yang mungkin tampil - 5 kalau ada tab Penggajian (cuma
+pemilik akun, itu pun kalau tipe karyawannya sudah diisi), selain itu 4 (Karir/Pekerjaan, Data Diri, Kehadiran,
+Pembinaan). Inline supaya tidak perlu build CSS; desktop (>=768px) tetap pill horizontal dari app.css. --}}
+@php $navCols = ($isSelf && $this->showExtraTabs) ? 5 : 4; @endphp
+<style>
+    @media (max-width: 767px) {
+        .section-nav.section-nav-tiles.nav-cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); justify-content: stretch; gap: 10px 6px; }
+        .section-nav.section-nav-tiles.nav-cols-5 { grid-template-columns: repeat(5, minmax(0, 1fr)); justify-content: stretch; gap: 10px 4px; }
+        .section-nav.section-nav-tiles[class*="nav-cols-"] .section-nav-btn { min-width: 0; width: 100%; padding-left: 2px; padding-right: 2px; }
+    }
+    /* Dark mode: tab AKTIF tampil sama dengan light (emas penuh + ikon & label putih). Tanpa ini rule
+       html.dark .section-nav-tiles .section-nav-btn.gold-shiny (tint transparan) menimpa background aktif. */
+    html.dark .section-nav-tiles .section-nav-btn.gold-shiny.is-active { background: linear-gradient(135deg, #f5c518 0%, #d4a017 100%); box-shadow: 0 6px 14px rgba(212,160,23,0.42); }
+    html.dark .section-nav-tiles .section-nav-btn.gold-shiny.is-active i { color: #fff !important; }
+    html.dark .section-nav-tiles .section-nav-btn.gold-shiny.is-active span { color: #fff; font-weight: 700; }
+</style>
+<div class="section-nav section-nav-tiles nav-cols-{{ $navCols }}">
     <button type="button" @click="tab = 'career'" class="section-nav-btn gold-shiny" :class="{ 'is-active': tab === 'career' }">
         <img src="{{ asset('ico/karir.png') }}" alt="" class="section-nav-img">
         <span>{{ $isSelf ? 'Karir' : 'Pekerjaan' }}</span>
@@ -194,10 +211,10 @@ override tambahan. --}}
         <span>Kehadiran</span>
     </button>
     @if ($this->showExtraTabs)
-        <button type="button" @click="tab = 'dokumen'" class="section-nav-btn gold-shiny" :class="{ 'is-active': tab === 'dokumen' }">
-            <img src="{{ asset('ico/dokumen.png') }}" alt="" class="section-nav-img">
-            <span>Dokumen</span>
-        </button>
+        {{-- Tab Dokumen dilepas dulu (2026-09-26, instruksi user) - isinya tumpang tindih modul
+        lain: Pengunduran Diri/Pensiun masuk PHK, Surat Tugas rencana ke modul Tugas, Surat
+        Keterangan Kerja cukup internal. Konten & getDocumentsProperty() tidak dihapus, tinggal
+        dikembalikan kalau perlu lagi - lihat git history baris ini. --}}
         @if ($isSelf)
             <button type="button" @click="tab = 'penggajian'" class="section-nav-btn gold-shiny" :class="{ 'is-active': tab === 'penggajian' }">
                 <img src="{{ asset('ico/penggajian.png') }}" alt="" class="section-nav-img">
@@ -208,15 +225,12 @@ override tambahan. --}}
     @if ($this->canViewPembinaanTab)
         <button type="button" @click="tab = 'pembinaan'" class="section-nav-btn gold-shiny" :class="{ 'is-active': tab === 'pembinaan' }">
             <img src="{{ asset('ico/pembinaan.png') }}" alt="" class="section-nav-img">
-            <span>{{ $isSelf ? 'Pembinaan' : 'Pembinaan Karyawan' }}</span>
+            <span>Pembinaan</span>
         </button>
     @endif
-    @if ($this->canViewAuditHistory)
-        <button type="button" @click="tab = 'riwayatdata'" class="section-nav-btn gold-shiny" :class="{ 'is-active': tab === 'riwayatdata' }">
-            <i class="fa-solid fa-clock-rotate-left"></i>
-            <span>Riwayat</span>
-        </button>
-    @endif
+    {{-- Tab "Riwayat" (perubahan data) dilepas dari baris tab (2026-09-26, instruksi user - tab jangan
+    kebanyakan): dibuka lewat tombol "Riwayat Perubahan" di kartu Informasi Pribadi (tab Data Diri)
+    sebagai panel geser, sama polanya dengan Riwayat Merit Point. --}}
 </div>
 
 <!-- Tab: Profil -->
@@ -426,11 +440,18 @@ override tambahan. --}}
         <div class="card-surface" style="margin-bottom:20px;">
             <div style="display:flex;align-items:center;justify-content:space-between;">
                 {!! $sectionHeader('fa-id-card', 'Informasi Pribadi') !!}
-                @if ($isSelf)
-                    <button type="button" wire:click="startEditProfil" style="background:none;border:none;color:var(--brand);font-size:12.5px;font-weight:600;cursor:pointer;">
-                        <i class="fa-solid fa-pen"></i> Ubah
-                    </button>
-                @endif
+                <div style="display:flex;align-items:center;gap:16px;">
+                    @if ($this->canViewAuditHistory)
+                        <button type="button" wire:click="openAuditHistoryPanel" style="background:none;border:none;color:var(--brand);font-size:12.5px;font-weight:600;cursor:pointer;">
+                            <i class="fa-solid fa-clock-rotate-left"></i> Riwayat Perubahan
+                        </button>
+                    @endif
+                    @if ($isSelf)
+                        <button type="button" wire:click="startEditProfil" style="background:none;border:none;color:var(--brand);font-size:12.5px;font-weight:600;cursor:pointer;">
+                            <i class="fa-solid fa-pen"></i> Ubah
+                        </button>
+                    @endif
+                </div>
             </div>
             <div class="field-cols">
                 @foreach ($pribadi as $label => $value)
@@ -817,20 +838,6 @@ source (tab server-render sekali jalan, x-show cuma toggle CSS). --}}
                 <label class="form-label">Sampai Tanggal</label>
                 <input type="date" class="form-input" wire:model.live="date_to">
             </div>
-            <div>
-                <label class="form-label">Status Pengajuan</label>
-                <select class="form-input" wire:model.live="status">
-                    <option value="all">Semua Status</option>
-                    @foreach (\App\Enum\AttendanceReqStatus::cases() as $case)
-                        <option value="{{ $case->value }}">{{ $case->getLabel() }}</option>
-                    @endforeach
-                </select>
-            </div>
-            <div style="margin-left:auto;">
-                <button type="button" wire:click="export" class="btn-primary">
-                    <i class="fa-solid fa-file-excel"></i> Export Excel
-                </button>
-            </div>
         </div>
     </div>
 
@@ -1018,71 +1025,13 @@ source (tab server-render sekali jalan, x-show cuma toggle CSS). --}}
                                 </td>
                             </tr>
                         @empty
-                            <tr><td colspan="5" class="text-center text-sm text-slate-500 py-6">Tidak ada pengajuan pada periode/status ini.</td></tr>
+                            <tr><td colspan="5" class="text-center text-sm text-slate-500 py-6">Tidak ada pengajuan yang disetujui pada periode ini.</td></tr>
                         @endforelse
                     </tbody>
                 </table>
             </div>
         </div>
     @endif
-</div>
-
-<!-- Tab: Dokumen -->
-<div x-show="tab === 'dokumen'" x-data="{ docType: 'resignation' }">
-    @php
-        // Sama seperti menu "Jenis Dokumen" di Filament sebelumnya: kiri daftar jenis,
-        // kanan isi dokumen dari jenis yang dipilih. OTHER sengaja tidak masuk daftar
-        // jenis (juga tidak muncul di getNavigationItems() versi Filament-nya dulu).
-        $documentTypes = [
-            \App\Enum\UserDocumentType::RESIGNATION,
-            \App\Enum\UserDocumentType::RETIREMENT,
-            \App\Enum\UserDocumentType::ASSIGNMENT,
-            \App\Enum\UserDocumentType::WORK_CERTIFICATE,
-        ];
-        $documentsByType = $this->documents->groupBy('document_type');
-    @endphp
-
-    <div class="doc-type-layout">
-        {{-- Kiri: pilih jenis dokumen (pill row scrollable di mobile, sidebar vertikal di desktop) --}}
-        <div class="doc-type-nav">
-            @foreach ($documentTypes as $type)
-                <button type="button" @click="docType = '{{ $type->value }}'" class="doc-type-btn" :class="{ 'is-active': docType === '{{ $type->value }}' }">
-                    <i class="fa-solid fa-file-lines"></i>
-                    <span>{{ $type->label() }}</span>
-                    <span class="doc-type-count">{{ $documentsByType->get($type->value, collect())->count() }}</span>
-                </button>
-            @endforeach
-        </div>
-
-        {{-- Kanan: dokumen dari jenis yang dipilih --}}
-        <div style="flex:1;min-width:0;">
-            @foreach ($documentTypes as $type)
-                <div x-show="docType === '{{ $type->value }}'">
-                    @php $records = $documentsByType->get($type->value, collect()); @endphp
-                    @if ($records->isEmpty())
-                        <div class="pwa-list" style="padding:32px 16px;text-align:center;">
-                            <p style="font-size:13px;color:var(--text-muted);margin:0;">Belum ada dokumen {{ mb_strtolower($type->label()) }}.</p>
-                        </div>
-                    @else
-                        <div class="pwa-list">
-                            @foreach ($records as $document)
-                                <a href="{{ $document->file_url }}" target="_blank" rel="noopener" class="pwa-list-row" style="text-decoration:none;">
-                                    <div class="pwa-tile-icon neutral"><i class="fa-solid fa-file-lines"></i></div>
-                                    <div style="flex:1;min-width:0;">
-                                        <p style="font-size:13px;font-weight:600;color:var(--text-heading);">{{ $document->document_number ?: 'Tanpa nomor' }}</p>
-                                        <p style="font-size:11px;color:var(--text-muted);margin-top:2px;">
-                                            {{ $document->issued_date?->translatedFormat('d M Y') ?? 'Tanggal belum diisi' }}
-                                        </p>
-                                    </div>
-                                    <i class="fa-solid fa-download" style="color:var(--text-faint);"></i>
-                                </a>
-                            @endforeach
-                        </div>
-                    @endif
-                </div>
-            @endforeach
-        </div>
-    </div>
 </div>
 
 @if ($isSelf && $this->showExtraTabs)
@@ -1118,7 +1067,7 @@ source (tab server-render sekali jalan, x-show cuma toggle CSS). --}}
 
 @if ($this->canViewPembinaanTab)
     {{-- Pembinaan — CUMA Coaching (pengembangan) di mana karyawan ini yang dibina. Counseling
-    tidak ditampilkan di sini (instruksi user). Cuma tampil buat karyawan itu sendiri atau
+    tidak ditampilkan di sini (instruksi user). Tampil buat karyawan itu sendiri, atasannya, atau
     pemegang SISTEM_PEMBINAAN_KARYAWAN. --}}
     <div x-show="tab === 'pembinaan'">
         @php $coachings = $this->myCoachings; @endphp
@@ -1151,44 +1100,141 @@ source (tab server-render sekali jalan, x-show cuma toggle CSS). --}}
     </div>
 @endif
 
-@if ($this->canViewAuditHistory)
-    {{-- Riwayat perubahan data akun/profil/pekerjaan — gabungan User + UserProfiles (lihat
-    LogsFieldAuditChanges), mencatat siapa pun yang mengubah (karyawan sendiri via halaman ini,
-    atau admin/HC lewat Kepegawaian/Filament) karena hook-nya di level model. --}}
-    <div x-show="tab === 'riwayatdata'">
-        @php $auditHistory = $this->auditHistory; @endphp
-        @if ($auditHistory->isEmpty())
-            <div class="pwa-list" style="padding:32px 16px;text-align:center;">
-                <p style="font-size:13px;color:var(--text-muted);margin:0;">Belum ada riwayat perubahan data.</p>
-            </div>
-        @else
+@if ($showMeritHistoryModal || $showAuditHistoryPanel)
+    {{-- Panel geser (Riwayat Merit Point & Riwayat Perubahan Data): side panel nempel kanan di desktop,
+    full-screen di HP (instruksi user 2026-09-25 - jangan pindah ke halaman/route terpisah). Beda pola
+    dari modal-box biasa (yang di tengah) - dianimasikan translateX dari kanan, bukan translateY.
+    Style-nya dipakai bersama kedua panel, jadi dirender kalau salah satunya terbuka. --}}
+    <style>
+        @keyframes merit-history-slide-x { from { transform: translateX(100%); } to { transform: translateX(0); } }
+        @keyframes merit-history-fade { from { opacity: 0; } to { opacity: 1; } }
+        .merit-history-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 9999; animation: merit-history-fade 0.18s ease-out; }
+        .merit-history-panel { position: fixed; top: 0; right: 0; bottom: 0; width: 420px; max-width: 100%; background: var(--surface); box-shadow: -8px 0 28px rgba(0,0,0,0.18); display: flex; flex-direction: column; animation: merit-history-slide-x 0.25s cubic-bezier(0.2, 0.8, 0.2, 1); }
+        .merit-history-panel-header { display: flex; align-items: center; justify-content: space-between; padding: 18px 20px; border-bottom: 1px solid var(--border-soft); flex-shrink: 0; }
+        .merit-history-panel-body { flex: 1; overflow-y: auto; padding: 14px 20px calc(20px + env(safe-area-inset-bottom)); }
+        @media (max-width: 767.98px) {
+            .merit-history-panel { width: 100%; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .merit-history-overlay, .merit-history-panel { animation: none; }
+        }
+    </style>
+    @if ($showMeritHistoryModal)
+    <div class="merit-history-overlay" wire:click="closeMeritHistoryModal"></div>
+    <div class="merit-history-panel" role="dialog" aria-modal="true" aria-label="Riwayat Merit Point">
+        <div class="merit-history-panel-header">
+            <h3 style="font-size:15.5px;font-weight:700;color:var(--text-heading);margin:0;">Riwayat Merit Point</h3>
+            <button type="button" wire:click="closeMeritHistoryModal" class="pwa-fullsheet-close" aria-label="Tutup">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+        <div class="merit-history-panel-body">
             <div class="pwa-list">
-                @foreach ($auditHistory as $entry)
+                @forelse ($this->meritHistory as $tx)
                     <div class="pwa-list-row" style="align-items:flex-start;">
-                        <div class="pwa-tile-icon navy"><i class="fa-solid fa-pen"></i></div>
+                        <div class="pwa-tile-icon {{ $tx->points >= 0 ? 'teal' : 'warn' }}">
+                            <i class="fa-solid {{ $tx->points >= 0 ? 'fa-arrow-up' : 'fa-arrow-down' }}"></i>
+                        </div>
                         <div style="flex:1;min-width:0;">
-                            <p style="font-size:13px;font-weight:600;color:var(--text-heading);margin:0;">{{ $entry->label ?? $entry->key }}</p>
-                            <p style="font-size:12px;color:var(--text-body);margin-top:3px;">
-                                {{ $entry->old_value ?: '(kosong)' }}
-                                <i class="fa-solid fa-arrow-right" style="font-size:10px;color:var(--text-faint);margin:0 4px;"></i>
-                                {{ $entry->new_value ?: '(kosong)' }}
-                            </p>
-                            <p style="font-size:11px;color:var(--text-muted);margin-top:4px;">
-                                {{ $entry->created_at->translatedFormat('d M Y H:i') }}
-                                &middot;
-                                oleh {{ $entry->user?->id === $record->id ? 'karyawan sendiri' : ($entry->user?->name ?? 'Sistem') }}
-                            </p>
+                            <p class="pwa-row-title">{{ $tx->rule?->name ?? 'Manual' }}</p>
+                            <span style="font-size:11.5px;color:var(--text-muted);">{{ $tx->reason }}</span>
+                            <br>
+                            <span style="font-size:11px;color:var(--text-faint);">{{ $tx->created_at->translatedFormat('d M Y H:i') }}</span>
+                        </div>
+                        <span style="font-size:15px;font-weight:800;color:{{ $tx->points >= 0 ? '#047C54' : '#b91c1c' }};white-space:nowrap;">
+                            {{ $tx->points >= 0 ? '+' : '' }}{{ $tx->points }}
+                        </span>
+                    </div>
+                @empty
+                    <div class="pwa-list-row" style="opacity:0.7;">
+                        <div style="flex:1;min-width:0;">
+                            <p class="pwa-row-title">Belum ada transaksi Merit Point</p>
+                            <span style="font-size:11.5px;color:var(--text-muted);">Riwayat Merit Point Anda akan muncul di sini.</span>
                         </div>
                     </div>
-                @endforeach
+                @endforelse
             </div>
-            {{ $auditHistory->links('livewire.partials.pagination') }}
-        @endif
+        </div>
     </div>
+    @endif
+
+    @if ($showAuditHistoryPanel && $this->canViewAuditHistory)
+    {{-- Riwayat perubahan data akun/profil/pekerjaan — gabungan User + UserProfiles (lihat
+    LogsFieldAuditChanges), mencatat siapa pun yang mengubah (karyawan sendiri via halaman ini,
+    atau admin/HC lewat Kepegawaian/Filament) karena hook-nya di level model. Paginasi pakai
+    Livewire (previousPage/nextPage 'riwayatPage'), BUKAN link wire:navigate, supaya panel tetap terbuka. --}}
+    @php $auditHistory = $this->auditHistory; @endphp
+    <div class="merit-history-overlay" wire:click="closeAuditHistoryPanel"></div>
+    <div class="merit-history-panel" role="dialog" aria-modal="true" aria-label="Riwayat Perubahan Data">
+        <div class="merit-history-panel-header">
+            <h3 style="font-size:15.5px;font-weight:700;color:var(--text-heading);margin:0;">Riwayat Perubahan Data</h3>
+            <button type="button" wire:click="closeAuditHistoryPanel" class="pwa-fullsheet-close" aria-label="Tutup">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+        <div class="merit-history-panel-body">
+            @if ($auditHistory->isEmpty())
+                <div class="pwa-list" style="padding:32px 16px;text-align:center;">
+                    <p style="font-size:13px;color:var(--text-muted);margin:0;">Belum ada riwayat perubahan data.</p>
+                </div>
+            @else
+                <div class="pwa-list">
+                    @foreach ($auditHistory as $entry)
+                        <div class="pwa-list-row" style="align-items:flex-start;">
+                            <div class="pwa-tile-icon navy"><i class="fa-solid fa-pen"></i></div>
+                            <div style="flex:1;min-width:0;">
+                                <p style="font-size:13px;font-weight:600;color:var(--text-heading);margin:0;">{{ $entry->label ?? $entry->key }}</p>
+                                <p style="font-size:12px;color:var(--text-body);margin-top:3px;">
+                                    {{ $entry->old_value ?: '(kosong)' }}
+                                    <i class="fa-solid fa-arrow-right" style="font-size:10px;color:var(--text-faint);margin:0 4px;"></i>
+                                    {{ $entry->new_value ?: '(kosong)' }}
+                                </p>
+                                <p style="font-size:11px;color:var(--text-muted);margin-top:4px;">
+                                    {{ $entry->created_at->translatedFormat('d M Y H:i') }}
+                                    &middot;
+                                    oleh {{ $entry->user?->id === $record->id ? 'karyawan sendiri' : ($entry->user?->name ?? 'Sistem') }}
+                                </p>
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+
+                @if ($auditHistory->hasPages())
+                    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:14px;">
+                        <button type="button" wire:click="previousPage('riwayatPage')" wire:loading.attr="disabled" class="btn-ghost btn-sm" @disabled($auditHistory->onFirstPage())>
+                            <i class="fa-solid fa-chevron-left"></i> Sebelumnya
+                        </button>
+                        <span style="font-size:11.5px;color:var(--text-muted);">Halaman {{ $auditHistory->currentPage() }} dari {{ $auditHistory->lastPage() }}</span>
+                        <button type="button" wire:click="nextPage('riwayatPage')" wire:loading.attr="disabled" class="btn-ghost btn-sm" @disabled(! $auditHistory->hasMorePages())>
+                            Berikutnya <i class="fa-solid fa-chevron-right"></i>
+                        </button>
+                    </div>
+                @endif
+            @endif
+        </div>
+    </div>
+    @endif
 @endif
 
 @if ($showMeritTransactionModal)
-    <div class="modal-overlay" wire:click="closeModalMeritTransaction">
+    {{-- Transisi buka modal - pola sama dengan modal Tugas Baru (task-list-page.blade.php):
+    overlay fade + kotak naik sambil membesar dikit di desktop, slide dari bawah di HP. Scoped
+    ke class sendiri (bukan .modal-overlay polos) supaya tidak ikut mengubah modal lain di
+    halaman ini yang belum diminta pakai animasi ini. --}}
+    <style>
+        @keyframes merit-modal-fade { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes merit-modal-pop { from { opacity: 0; transform: translateY(14px) scale(0.97); } to { opacity: 1; transform: none; } }
+        @keyframes merit-modal-slide { from { transform: translateY(100%); } to { transform: none; } }
+        .merit-modal-overlay { animation: merit-modal-fade 0.18s ease-out; }
+        .merit-modal-overlay > .modal-box { animation: merit-modal-pop 0.22s cubic-bezier(0.2, 0.8, 0.2, 1); }
+        @media (max-width: 767.98px) {
+            .merit-modal-overlay > .modal-box { animation: merit-modal-slide 0.25s cubic-bezier(0.2, 0.8, 0.2, 1); }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .merit-modal-overlay, .merit-modal-overlay > .modal-box { animation: none; }
+        }
+    </style>
+    <div class="modal-overlay merit-modal-overlay" wire:click="closeModalMeritTransaction">
         <div class="modal-box" onclick="event.stopPropagation()">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
                 <div>
@@ -1256,14 +1302,14 @@ source (tab server-render sekali jalan, x-show cuma toggle CSS). --}}
                     <div>
                         <label class="form-label">Jenis Transaksi</label>
                         <div style="display:flex;gap:10px;">
-                            <label style="flex:1;display:flex;align-items:center;gap:8px;padding:10px 14px;border:1px solid {{ $merit_manual_type === 'add' ? '#16a34a' : 'var(--border)' }};border-radius:8px;background:{{ $merit_manual_type === 'add' ? '#f0fdf4' : 'var(--surface)' }};cursor:pointer;">
-                                <input type="radio" wire:model.live="merit_manual_type" value="add" style="accent-color:#16a34a;">
+                            <label style="flex:1;display:flex;align-items:center;justify-content:center;gap:8px;padding:10px 14px;border:1px solid {{ $merit_manual_type === 'add' ? '#16a34a' : 'var(--border)' }};border-radius:8px;background:{{ $merit_manual_type === 'add' ? '#f0fdf4' : 'var(--surface)' }};cursor:pointer;">
+                                <input type="radio" wire:model.live="merit_manual_type" value="add" style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">
                                 <span style="font-size:13px;font-weight:600;color:{{ $merit_manual_type === 'add' ? '#15803d' : 'var(--text-body)' }};">
                                     <i class="fa-solid fa-plus-circle" style="margin-right:4px;"></i> Tambah Point (+)
                                 </span>
                             </label>
-                            <label style="flex:1;display:flex;align-items:center;gap:8px;padding:10px 14px;border:1px solid {{ $merit_manual_type === 'subtract' ? '#dc2626' : 'var(--border)' }};border-radius:8px;background:{{ $merit_manual_type === 'subtract' ? '#fef2f2' : 'var(--surface)' }};cursor:pointer;">
-                                <input type="radio" wire:model.live="merit_manual_type" value="subtract" style="accent-color:#dc2626;">
+                            <label style="flex:1;display:flex;align-items:center;justify-content:center;gap:8px;padding:10px 14px;border:1px solid {{ $merit_manual_type === 'subtract' ? '#dc2626' : 'var(--border)' }};border-radius:8px;background:{{ $merit_manual_type === 'subtract' ? '#fef2f2' : 'var(--surface)' }};cursor:pointer;">
+                                <input type="radio" wire:model.live="merit_manual_type" value="subtract" style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">
                                 <span style="font-size:13px;font-weight:600;color:{{ $merit_manual_type === 'subtract' ? '#b91c1c' : 'var(--text-body)' }};">
                                     <i class="fa-solid fa-minus-circle" style="margin-right:4px;"></i> Kurangi Point (-)
                                 </span>

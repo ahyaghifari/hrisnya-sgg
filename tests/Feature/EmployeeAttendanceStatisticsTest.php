@@ -87,7 +87,6 @@ class EmployeeAttendanceStatisticsTest extends TestCase
         $this->actingAs($manager);
 
         Livewire::test(EmployeeAttendanceStatistics::class, ['record' => $staff])
-            ->assertSet('status', 'approved')
             ->assertSee($staff->name)
             ->assertSee('Cuti Tahunan');
     }
@@ -133,6 +132,33 @@ class EmployeeAttendanceStatisticsTest extends TestCase
         $this->assertNotNull($staff->fresh()->profile->fresh()->profile_picture[0] ?? null);
     }
 
+    /** Riwayat Pengajuan tab Kehadiran hanya menampilkan yang approved - filter status sudah dihapus dari UI. */
+    public function test_only_approved_requests_are_listed_and_status_filter_is_gone(): void
+    {
+        $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
+
+        $managerPosition = JobPositions::create(['company_id' => $company->id, 'name' => 'Manager', 'planned_manpower' => 1]);
+        $staffPosition = JobPositions::create(['company_id' => $company->id, 'name' => 'Staff', 'planned_manpower' => 1, 'parent_id' => $managerPosition->id]);
+
+        $manager = User::factory()->create(['company_id' => $company->id]);
+        $this->assignJobPosition($manager, $managerPosition);
+
+        $staff = User::factory()->create(['company_id' => $company->id]);
+        $this->assignJobPosition($staff, $staffPosition);
+        $this->assignEmployeeType($staff, $company);
+
+        $this->createLeaveRequest($staff, 'approved');
+        $this->createLeaveRequest($staff, 'in_review');
+        $this->createLeaveRequest($staff, 'rejected');
+
+        $this->actingAs($manager);
+
+        Livewire::test(EmployeeAttendanceStatistics::class, ['record' => $staff])
+            ->assertSet('stats', ['leave' => 1, 'permission' => 0, 'overtime' => 0])
+            ->assertDontSee('Status Pengajuan')
+            ->assertDontSee('Export Excel');
+    }
+
     public function test_status_filter_excludes_non_matching_requests(): void
     {
         $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
@@ -171,7 +197,8 @@ class EmployeeAttendanceStatisticsTest extends TestCase
             ->assertForbidden();
     }
 
-    public function test_documents_tab_lists_only_the_records_own_documents(): void
+    /** Tab Dokumen dilepas dari Profil Saya (2026-09-26, instruksi user): dokumen tidak lagi tampil di sini. */
+    public function test_documents_tab_is_removed_from_profile(): void
     {
         $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
 
@@ -209,30 +236,8 @@ class EmployeeAttendanceStatisticsTest extends TestCase
         $this->actingAs($manager);
 
         Livewire::test(EmployeeAttendanceStatistics::class, ['record' => $staff])
-            ->assertSee('SKK/001/2026')
+            ->assertDontSee('SKK/001/2026')
             ->assertDontSee('SKK/999/2026');
-    }
-
-    public function test_export_returns_download_response(): void
-    {
-        $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
-
-        $managerPosition = JobPositions::create(['company_id' => $company->id, 'name' => 'Manager', 'planned_manpower' => 1]);
-        $staffPosition = JobPositions::create(['company_id' => $company->id, 'name' => 'Staff', 'planned_manpower' => 1, 'parent_id' => $managerPosition->id]);
-
-        $manager = User::factory()->create(['company_id' => $company->id]);
-        $this->assignJobPosition($manager, $managerPosition);
-
-        $staff = User::factory()->create(['company_id' => $company->id]);
-        $this->assignJobPosition($staff, $staffPosition);
-
-        $this->createLeaveRequest($staff, 'approved');
-
-        $this->actingAs($manager);
-
-        Livewire::test(EmployeeAttendanceStatistics::class, ['record' => $staff])
-            ->call('export')
-            ->assertFileDownloaded();
     }
 
     private function makePayroll(User $user, bool $isPaid, array $periodOverrides = []): \App\Models\Payroll\Payroll
@@ -660,10 +665,16 @@ class EmployeeAttendanceStatisticsTest extends TestCase
             ->set('nickname', 'Budi')
             ->call('saveProfil');
 
+        // Riwayat perubahan data = panel geser dari tombol di tab Data Diri (bukan tab lagi, 2026-09-26).
         Livewire::test(EmployeeAttendanceStatistics::class, ['record' => $staff])
             ->assertSee('Riwayat Perubahan')
+            ->assertDontSee('Nama Panggilan')
+            ->call('openAuditHistoryPanel')
+            ->assertSee('Riwayat Perubahan Data')
             ->assertSee('Nama Panggilan')
-            ->assertSee('Budi');
+            ->assertSee('Budi')
+            ->call('closeAuditHistoryPanel')
+            ->assertDontSee('Riwayat Perubahan Data');
     }
 
     /**
@@ -688,7 +699,9 @@ class EmployeeAttendanceStatisticsTest extends TestCase
         $this->actingAs($manager);
 
         Livewire::test(EmployeeAttendanceStatistics::class, ['record' => $staff])
-            ->assertDontSee('Riwayat Perubahan');
+            ->assertDontSee('Riwayat Perubahan')
+            ->call('openAuditHistoryPanel')
+            ->assertForbidden();
     }
 
     public function test_hc_with_sistem_kepegawaian_can_see_change_history_in_same_company(): void
@@ -705,7 +718,9 @@ class EmployeeAttendanceStatisticsTest extends TestCase
         $this->actingAs($hc);
 
         Livewire::test(EmployeeAttendanceStatistics::class, ['record' => $staff])
-            ->assertSee('Riwayat Perubahan');
+            ->assertSee('Riwayat Perubahan')
+            ->call('openAuditHistoryPanel')
+            ->assertSee('Riwayat Perubahan Data');
     }
 
     // ── Tab Pembinaan (Coaching saja — Counseling tidak ditampilkan) ──
@@ -734,11 +749,11 @@ class EmployeeAttendanceStatisticsTest extends TestCase
         $this->actingAs($staff);
 
         Livewire::test(EmployeeAttendanceStatistics::class, ['record' => $staff])
-            ->assertSee('Pembinaan Saya')
+            ->assertSee('ico/pembinaan.png')
             ->assertSee('Coaching Kedisiplinan');
     }
 
-    public function test_manager_without_pembinaan_permission_does_not_see_tab_for_subordinate(): void
+    public function test_manager_without_pembinaan_permission_sees_tab_for_subordinate(): void
     {
         $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
 
@@ -754,7 +769,7 @@ class EmployeeAttendanceStatisticsTest extends TestCase
         $this->actingAs($manager);
 
         Livewire::test(EmployeeAttendanceStatistics::class, ['record' => $staff])
-            ->assertDontSee('Pembinaan Karyawan');
+            ->assertSee('ico/pembinaan.png');
     }
 
     public function test_pembinaan_permission_holder_sees_tab_with_coaching_and_no_counseling(): void
@@ -796,7 +811,7 @@ class EmployeeAttendanceStatisticsTest extends TestCase
         $this->actingAs($manager);
 
         Livewire::test(EmployeeAttendanceStatistics::class, ['record' => $staff])
-            ->assertSee('Pembinaan Karyawan')
+            ->assertSee('ico/pembinaan.png')
             ->assertSee('Coaching Target Kerja')
             ->assertDontSee('Counseling')
             ->assertDontSee('RAHASIA keluhan pribadi');
