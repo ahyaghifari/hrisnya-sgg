@@ -1,10 +1,24 @@
 {{-- Ajakan memasang aplikasi (PWA) ke perangkat - ditaruh SEBELUM banner notifikasi karena push di iOS baru
 jalan setelah aplikasi dipasang ke layar utama. wire:ignore: display-nya diatur JS, jangan di-morph Livewire. --}}
-<div id="pwa-install-banner" wire:ignore style="display:none;background:var(--info-soft-bg);border:1px solid var(--info-soft-border);border-radius:14px;padding:12px 14px;margin-bottom:16px;align-items:center;gap:12px;">
-    <i class="fa-solid fa-mobile-screen-button" style="color:var(--brand);"></i>
-    <p id="pwa-install-text" style="flex:1;font-size:12.5px;color:var(--text-body);margin:0;">Pasang aplikasi HRIS di perangkat Anda agar lebih cepat dibuka.</p>
-    <button type="button" id="pwa-install-btn" onclick="pwaInstallApp()" style="background:#042c6c;color:#fff;border:none;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;">Pasang</button>
-    <button type="button" onclick="pwaDismissInstallBanner()" style="background:none;border:none;color:var(--text-faint);font-size:12px;cursor:pointer;">Nanti</button>
+{{-- Warna EMAS (palet sama tombol emas "Profil Saya"): blok warna tetap, jadi sama di light & dark mode. Style inline
+di sini (tanpa build CSS). display diatur JS (inline none -> flex), jangan diset di class. --}}
+<style>
+    .pwa-install-banner { background: linear-gradient(135deg, #fde68a 0%, #f5c518 55%, #d4a017 100%); border: 1px solid rgba(146, 64, 14, 0.35); border-radius: 14px; padding: 12px 14px; margin-bottom: 16px; align-items: center; gap: 12px; box-shadow: 0 6px 16px rgba(212, 160, 23, 0.32); color: #4a3403; position: relative; overflow: hidden; }
+    .pwa-install-banner::after { content: ''; position: absolute; top: 0; left: -60%; width: 40%; height: 100%; background: linear-gradient(120deg, transparent 0%, rgba(255,255,255,0.55) 50%, transparent 100%); transform: skewX(-20deg); animation: gold-shimmer 6s ease-in-out infinite; pointer-events: none; }
+    .pwa-install-banner-icon { position: relative; width: 36px; height: 36px; flex-shrink: 0; border-radius: 11px; background: rgba(255, 255, 255, 0.55); color: #6b4a05; display: flex; align-items: center; justify-content: center; font-size: 16px; }
+    .pwa-install-banner-text { position: relative; flex: 1; min-width: 0; margin: 0; font-size: 12.5px; font-weight: 600; line-height: 1.4; color: #4a3403; }
+    .pwa-install-banner-btn { position: relative; background: #4a3403; color: #fde68a; border: none; border-radius: 9px; padding: 7px 14px; font-size: 12px; font-weight: 700; cursor: pointer; white-space: nowrap; font-family: inherit; transition: filter 0.15s; }
+    .pwa-install-banner-btn:hover { filter: brightness(1.15); }
+    .pwa-install-banner-later { position: relative; background: none; border: none; color: rgba(74, 52, 3, 0.75); font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit; }
+    .pwa-install-banner-later:hover { color: #4a3403; text-decoration: underline; }
+    @media (max-width: 479px) { .pwa-install-banner { flex-wrap: wrap; } .pwa-install-banner-text { flex-basis: calc(100% - 60px); } }
+    @media (prefers-reduced-motion: reduce) { .pwa-install-banner::after { animation: none; } }
+</style>
+<div id="pwa-install-banner" class="pwa-install-banner" wire:ignore style="display:none;">
+    <span class="pwa-install-banner-icon"><i class="fa-solid fa-mobile-screen-button"></i></span>
+    <p id="pwa-install-text" class="pwa-install-banner-text">Pasang aplikasi HRIS di perangkat Anda agar bisa menerima notifikasi dan lebih mudah diakses.</p>
+    <button type="button" id="pwa-install-btn" class="pwa-install-banner-btn" onclick="pwaInstallApp()">Pasang</button>
+    <button type="button" class="pwa-install-banner-later" onclick="pwaDismissInstallBanner()">Nanti</button>
 </div>
 
 <div id="push-notif-banner" style="display:none;background:var(--info-soft-bg);border:1px solid var(--info-soft-border);border-radius:14px;padding:12px 14px;margin-bottom:16px;align-items:center;gap:12px;">
@@ -358,7 +372,7 @@ function pwaShowInstallBanner(mode) {
 
     const installBtn = document.getElementById('pwa-install-btn');
     if (mode === 'ios') {
-        document.getElementById('pwa-install-text').textContent = 'Pasang aplikasi: ketuk ikon Bagikan di browser, lalu pilih "Tambah ke Layar Utama".';
+        document.getElementById('pwa-install-text').textContent = 'Agar bisa menerima notifikasi dan mudah diakses, pasang aplikasi: ketuk ikon Bagikan di browser, lalu pilih "Tambah ke Layar Utama".';
         installBtn.style.display = 'none';
     } else {
         installBtn.style.display = '';
