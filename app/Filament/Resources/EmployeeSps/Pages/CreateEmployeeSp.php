@@ -8,6 +8,7 @@ use App\Filament\Resources\EmployeeSps\EmployeeSpResource;
 use App\Models\Coaching\Coaching;
 use App\Models\Sp\EmployeeSp;
 use App\Services\Sp\SpService;
+use Filament\Actions\Action;
 use Filament\Resources\Pages\CreateRecord;
 use Illuminate\Support\Arr;
 
@@ -25,6 +26,17 @@ class CreateEmployeeSp extends CreateRecord
     protected static string $resource = EmployeeSpResource::class;
 
     protected array $reportData = [];
+
+    // Konfirmasi sebelum terbit (instruksi user 2026-09-25) - SP langsung diterima subjek begitu
+    // disimpan, bukan draft yang bisa dibatalkan diam-diam.
+    protected function getCreateFormAction(): Action
+    {
+        return parent::getCreateFormAction()
+            ->requiresConfirmation()
+            ->modalHeading('Terbitkan Surat Peringatan?')
+            ->modalDescription('Surat akan langsung diterima oleh karyawan bersangkutan.')
+            ->modalSubmitActionLabel('Ya, Terbitkan');
+    }
 
     protected function mutateFormDataBeforeCreate(array $data): array
     {

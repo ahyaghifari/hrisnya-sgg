@@ -1,10 +1,15 @@
 <div>
 <x-page-header title="Detail Surat Peringatan" :back="route('sp.saya')" />
 
-<div style="display:flex;justify-content:flex-end;margin-bottom:16px;">
+<div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:16px;">
     <a href="{{ route('sp.saya.preview', $record) }}" target="_blank" class="btn-primary">
         <i class="fa-solid fa-file-pdf"></i> Preview PDF
     </a>
+    @if ($record->report)
+        <a href="{{ route('sp.saya.beritaacara_preview', $record) }}" target="_blank" class="btn-secondary">
+            <i class="fa-solid fa-file-pdf"></i> Preview Berita Acara
+        </a>
+    @endif
 </div>
 
 @php
@@ -56,5 +61,38 @@
         <p style="font-size:13px;color:var(--text-muted);margin:0;">Belum ada poin.</p>
     @endforelse
 </div>
+
+@if ($record->report)
+    <div class="card-surface accent accent-green" style="margin-bottom:16px;">
+        <div class="section-head-icon" style="margin-bottom:14px;">
+            <div class="section-icon"><i class="fa-solid fa-file-lines"></i></div>
+            <p style="font-size:13px;font-weight:700;color:var(--text-heading);margin:0;">Berita Acara</p>
+        </div>
+        @if ($record->report->dasar_klarifikasi)
+            <p style="font-size:11.5px;color:var(--text-muted);margin:0 0 4px;">Dasar Klarifikasi</p>
+            <div style="font-size:13px;color:var(--text-body);line-height:1.6;margin:0 0 12px;">{!! $record->report->dasar_klarifikasi !!}</div>
+        @endif
+        @if ($record->report->kejadian)
+            <p style="font-size:11.5px;color:var(--text-muted);margin:0 0 4px;">Uraian Kronologi Permasalahan</p>
+            <div style="font-size:13px;color:var(--text-body);line-height:1.6;margin:0 0 12px;">{!! $record->report->kejadian !!}</div>
+        @endif
+        @if ($record->report->subject_clarification)
+            <p style="font-size:11.5px;color:var(--text-muted);margin:0 0 4px;">Klarifikasi Karyawan</p>
+            <div style="font-size:13px;color:var(--text-body);line-height:1.6;margin:0 0 12px;">{!! $record->report->subject_clarification !!}</div>
+        @endif
+        @if ($record->report->analysis)
+            <p style="font-size:11.5px;color:var(--text-muted);margin:0 0 4px;">Analisis</p>
+            <div style="font-size:13px;color:var(--text-body);line-height:1.6;margin:0 0 12px;">{!! $record->report->analysis !!}</div>
+        @endif
+        @if ($record->report->kesimpulan)
+            <p style="font-size:11.5px;color:var(--text-muted);margin:0 0 4px;">Kesimpulan Sementara</p>
+            <div style="font-size:13px;color:var(--text-body);line-height:1.6;margin:0 0 12px;">{!! $record->report->kesimpulan !!}</div>
+        @endif
+        @if ($record->report->followup_plan)
+            <p style="font-size:11.5px;color:var(--text-muted);margin:0 0 4px;">Rencana Tindak Lanjut</p>
+            <div style="font-size:13px;color:var(--text-body);line-height:1.6;">{!! $record->report->followup_plan !!}</div>
+        @endif
+    </div>
+@endif
 
 </div>

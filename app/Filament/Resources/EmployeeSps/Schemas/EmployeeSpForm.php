@@ -155,9 +155,12 @@ class EmployeeSpForm
                 ->icon('heroicon-o-exclamation-triangle')
                 ->columns(2)
                 ->schema([
-                    TextEntry::make('nomor')
+                    // nomor, start_date/end_date (Berlaku), knows_by (Mengetahui) dibuka diedit
+                    // (instruksi user 2026-09-25) - field lain (karyawan, level, sumber) tetap
+                    // final, ganti level/karyawan berarti bikin SP baru bukan edit yang ini.
+                    TextInput::make('nomor')
                         ->label('Nomor Surat')
-                        ->placeholder('-'),
+                        ->required(),
 
                     TextEntry::make('user.name')
                         ->label('Karyawan'),
@@ -173,21 +176,22 @@ class EmployeeSpForm
                         ->label('Coaching Terkait')
                         ->placeholder('-'),
 
-                    TextEntry::make('start_date')
-                        ->label('Tanggal Mulai')
-                        ->date(),
+                    DatePicker::make('start_date')
+                        ->label('Berlaku Mulai')
+                        ->required(),
 
-                    TextEntry::make('end_date')
-                        ->label('Tanggal Berakhir')
-                        ->date()
-                        ->placeholder('Tidak pernah berakhir (SP 3)'),
+                    DatePicker::make('end_date')
+                        ->label('Berlaku Sampai')
+                        ->helperText('Kosongkan kalau tidak pernah berakhir.'),
 
                     TextEntry::make('createdBy.name')
                         ->label('Dibuat Oleh'),
 
-                    TextEntry::make('knowsBy.name')
+                    Select::make('knows_by')
                         ->label('Mengetahui')
-                        ->placeholder('-'),
+                        ->searchable()
+                        ->options(fn ($record) => User::where('company_id', $record->company_id)->pluck('name', 'id'))
+                        ->required(),
 
                     TextEntry::make('created_at')
                         ->label('Diterbitkan Pada')

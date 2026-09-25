@@ -55,7 +55,7 @@ Route::get('/surat-peringatan/{record}/berita-acara-preview', function (Employee
     abort_unless($record->user_id === Auth::id(), 403);
 
     return app(SpPdfService::class)->previewBeritaAcara($record);
-})->name('sp.saya.preview');
+})->name('sp.saya.beritaacara_preview');
 
 
 // Merit Point masih DEMO (§3) - dibuka lewat ikon "riwayat" di widget tab Karir, bukan lewat nav utama.

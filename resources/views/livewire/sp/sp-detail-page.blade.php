@@ -18,8 +18,7 @@
 @endphp
 
 <div class="card-surface accent accent-navy" style="margin-bottom:16px;">
-    <div class="section-head-icon" style="margin-bottom:8px;">
-        <div class="section-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
+    <div class="section-head-icon" style="margin-bottom:8px;justify-content:space-between;">
         <p style="font-size:13px;font-weight:700;color:var(--text-heading);margin:0;">
             <span class="badge" style="background:{{ $levelColor['bg'] }};color:{{ $levelColor['fg'] }};margin-right:6px;">{{ $record->sp_level->getLabel() }}</span>
             {{ $isActive ? 'Aktif' : 'Expired' }}
@@ -27,6 +26,11 @@
                 <span style="font-size:11.5px;font-weight:400;color:var(--text-muted);">&middot; No. {{ $record->nomor }}</span>
             @endif
         </p>
+        @unless ($editingSp)
+            <button type="button" wire:click="editSp" class="btn-secondary" style="font-size:12px;padding:4px 10px;">
+                <i class="fa-solid fa-pen"></i> Edit
+            </button>
+        @endunless
     </div>
     <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;padding:10px 0;border-bottom:1px solid var(--border-soft);">
         <span style="font-size:12.5px;color:var(--text-muted);">Karyawan</span>
@@ -41,22 +45,57 @@
             @endif
         </span>
     </div>
-    <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;padding:10px 0;border-bottom:1px solid var(--border-soft);">
-        <span style="font-size:12.5px;color:var(--text-muted);">Berlaku</span>
-        <span style="font-size:13.5px;font-weight:600;color:var(--text-body);">
-            {{ $record->start_date->translatedFormat('d M Y') }}
-            &ndash;
-            {{ $record->end_date ? $record->end_date->translatedFormat('d M Y') : 'Tidak pernah berakhir' }}
-        </span>
-    </div>
-    <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;padding:10px 0;border-bottom:1px solid var(--border-soft);">
-        <span style="font-size:12.5px;color:var(--text-muted);">Dibuat Oleh</span>
-        <span style="font-size:13.5px;font-weight:600;color:var(--text-body);">{{ $record->createdBy?->name ?? '-' }}</span>
-    </div>
-    <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;padding:10px 0;">
-        <span style="font-size:12.5px;color:var(--text-muted);">Mengetahui</span>
-        <span style="font-size:13.5px;font-weight:600;color:var(--text-body);">{{ $record->knowsBy?->name ?? '-' }}</span>
-    </div>
+
+    @if ($editingSp)
+        <div style="padding:12px 0;border-bottom:1px solid var(--border-soft);">
+            <label class="form-label">Nomor Surat</label>
+            <input type="text" wire:model="sp_nomor" class="form-input">
+            @error('sp_nomor') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
+        </div>
+        <div style="display:flex;gap:12px;padding:12px 0;border-bottom:1px solid var(--border-soft);">
+            <div style="flex:1;">
+                <label class="form-label">Berlaku Mulai</label>
+                <input type="date" wire:model="sp_start_date" class="form-input">
+                @error('sp_start_date') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
+            </div>
+            <div style="flex:1;">
+                <label class="form-label">Berlaku Sampai (opsional)</label>
+                <input type="date" wire:model="sp_end_date" class="form-input">
+                @error('sp_end_date') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
+            </div>
+        </div>
+        <div style="padding:12px 0;border-bottom:1px solid var(--border-soft);">
+            <label class="form-label">Mengetahui</label>
+            <select wire:model="sp_knows_by" class="form-input">
+                <option value="">Pilih</option>
+                @foreach ($this->knowsByOptions as $id => $name)
+                    <option value="{{ $id }}">{{ $name }}</option>
+                @endforeach
+            </select>
+            @error('sp_knows_by') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
+        </div>
+        <div style="display:flex;gap:8px;padding-top:12px;">
+            <button type="button" wire:click="saveSp" class="btn-primary" style="font-size:12px;padding:4px 10px;">Simpan</button>
+            <button type="button" wire:click="cancelEditSp" class="btn-secondary" style="font-size:12px;padding:4px 10px;">Batal</button>
+        </div>
+    @else
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;padding:10px 0;border-bottom:1px solid var(--border-soft);">
+            <span style="font-size:12.5px;color:var(--text-muted);">Berlaku</span>
+            <span style="font-size:13.5px;font-weight:600;color:var(--text-body);">
+                {{ $record->start_date->translatedFormat('d M Y') }}
+                &ndash;
+                {{ $record->end_date ? $record->end_date->translatedFormat('d M Y') : 'Tidak pernah berakhir' }}
+            </span>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;padding:10px 0;border-bottom:1px solid var(--border-soft);">
+            <span style="font-size:12.5px;color:var(--text-muted);">Dibuat Oleh</span>
+            <span style="font-size:13.5px;font-weight:600;color:var(--text-body);">{{ $record->createdBy?->name ?? '-' }}</span>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;padding:10px 0;">
+            <span style="font-size:12.5px;color:var(--text-muted);">Mengetahui</span>
+            <span style="font-size:13.5px;font-weight:600;color:var(--text-body);">{{ $record->knowsBy?->name ?? '-' }}</span>
+        </div>
+    @endif
 </div>
 
 <div class="card-surface accent accent-indigo" style="margin-bottom:16px;">

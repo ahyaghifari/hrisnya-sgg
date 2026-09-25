@@ -31,4 +31,17 @@ enum SpLevel: string implements HasLabel
             self::SP3 => 'danger',
         };
     }
+
+    /** Buat pilihan radio-icon "Level SP" di CreateSpPage (instruksi user 2026-09-25, pola sama
+     * OvertimeTypeEnum::icon() di form Lembur) - makin tinggi level, makin "berat" ikonnya.
+     * Cuma pakai ikon Free (fa-solid), "octagon-exclamation"/"hexagon-exclamation" Pro-only jadi
+     * dihindari. */
+    public function icon(): string
+    {
+        return match ($this) {
+            self::SP1 => 'fa-triangle-exclamation',
+            self::SP2 => 'fa-circle-exclamation',
+            self::SP3 => 'fa-ban',
+        };
+    }
 }

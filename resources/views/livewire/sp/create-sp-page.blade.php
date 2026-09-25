@@ -1,7 +1,24 @@
 <div>
-<x-page-header title="Buat SP" subtitle="Terbitkan Surat Peringatan untuk karyawan" :back="route('sp')" />
+<x-page-header title="Buat Surat Peringatan" subtitle="Terbitkan Surat Peringatan untuk karyawan" :back="route('sp')" />
 
-<form wire:submit="save">
+<style>
+    /* Pola sama .ot-type-group/.ot-type-btn di submit-overtime-request.blade.php (pilihan Jenis
+    Lembur) - instruksi user 2026-09-25: Level SP pakai radio-icon yang sama, bukan <select>. */
+    .sp-level-group { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+    .sp-level-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 16px 12px; border-radius: 12px; border: 1.5px solid var(--border); background: var(--surface); color: var(--text-heading); font-family: inherit; font-size: 13.5px; font-weight: 700; text-align: center; cursor: pointer; transition: background 0.12s ease, border-color 0.12s ease; }
+    .sp-level-btn i { font-size: 22px; }
+    .sp-level-btn:hover { background: var(--surface-alt); }
+    .sp-level-btn.is-active[data-level="sp1"] { background: linear-gradient(130deg, #eab308 0%, #a16207 100%); border-color: #a16207; color: #fff; }
+    .sp-level-btn.is-active[data-level="sp2"] { background: linear-gradient(130deg, #f97316 0%, #c2410c 100%); border-color: #c2410c; color: #fff; }
+    .sp-level-btn.is-active[data-level="sp3"] { background: linear-gradient(130deg, #ef4444 0%, #b91c1c 100%); border-color: #b91c1c; color: #fff; }
+    @media (max-width: 767.98px) {
+        .sp-level-group { gap: 8px; }
+        .sp-level-btn { gap: 5px; padding: 11px 8px; font-size: 12px; border-radius: 10px; }
+        .sp-level-btn i { font-size: 16px; }
+    }
+</style>
+
+<form wire:submit="save" wire:confirm="Yakin ingin menerbitkan Surat Peringatan ini? Surat akan langsung diterima oleh karyawan bersangkutan.">
     <div class="form-card">
         <div class="section-head">
             <div class="section-icon"><i class="fa-solid fa-id-card" style="color:var(--brand);font-size:12px;"></i></div>
@@ -59,19 +76,29 @@
 
             <div>
                 <label class="form-label">Level SP <span style="color:var(--danger-text);">*</span></label>
-                <select wire:model="sp_level" class="form-input">
-                    <option value="">Pilih level</option>
-                    @foreach ($this->spLevelOptions as $value => $label)
-                        <option value="{{ $value }}">{{ $label }}</option>
+                <div class="sp-level-group" role="radiogroup" aria-label="Level SP">
+                    @foreach (\App\Enum\Sp\SpLevel::cases() as $level)
+                        <button type="button" role="radio" aria-checked="{{ $sp_level === $level->value ? 'true' : 'false' }}"
+                            data-level="{{ $level->value }}"
+                            wire:click="$set('sp_level', '{{ $level->value }}')"
+                            class="sp-level-btn {{ $sp_level === $level->value ? 'is-active' : '' }}">
+                            <i class="fa-solid {{ $level->icon() }}"></i>
+                            <span>{{ $level->getLabel() }}</span>
+                        </button>
                     @endforeach
-                </select>
+                </div>
                 @error('sp_level') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
             </div>
 
             <div>
                 <label class="form-label">Tanggal Mulai <span style="color:var(--danger-text);">*</span></label>
-                <input type="date" wire:model="start_date" class="form-input">
+                <input type="date" wire:model.live="start_date" class="form-input">
                 @error('start_date') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
+                @if ($this->endDatePreview)
+                    <p style="font-size:11px;color:var(--text-muted);margin-top:4px;">
+                        <i class="fa-solid fa-circle-info"></i> Berlaku sampai: {{ \Illuminate\Support\Carbon::parse($this->endDatePreview)->translatedFormat('d F Y') }}
+                    </p>
+                @endif
             </div>
 
             <div>

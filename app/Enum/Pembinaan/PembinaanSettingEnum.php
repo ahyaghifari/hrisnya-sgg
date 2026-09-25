@@ -15,6 +15,7 @@ enum PembinaanSettingEnum: string
 {
     case SP1_DURASI_HARI = 'pembinaan_sp1_durasi_hari';
     case SP2_DURASI_HARI = 'pembinaan_sp2_durasi_hari';
+    case SP3_DURASI_HARI = 'pembinaan_sp3_durasi_hari';
     case MERIT_POINT_ENABLED = 'pembinaan_merit_point_enabled';
 
     public function label(): string
@@ -22,6 +23,7 @@ enum PembinaanSettingEnum: string
         return match ($this) {
             self::SP1_DURASI_HARI => 'Durasi SP 1 (Hari)',
             self::SP2_DURASI_HARI => 'Durasi SP 2 (Hari)',
+            self::SP3_DURASI_HARI => 'Durasi SP 3 (Hari)',
             self::MERIT_POINT_ENABLED => 'Aktifkan Merit Point',
         };
     }
@@ -29,8 +31,9 @@ enum PembinaanSettingEnum: string
     public function helperText(): string
     {
         return match ($this) {
-            self::SP1_DURASI_HARI => 'Berapa hari SP 1 berlaku sejak diterbitkan sebelum otomatis dianggap expired. SP 3 selalu berlaku tanpa batas waktu.',
+            self::SP1_DURASI_HARI => 'Berapa hari SP 1 berlaku sejak diterbitkan sebelum otomatis dianggap expired.',
             self::SP2_DURASI_HARI => 'Berapa hari SP 2 berlaku sejak diterbitkan sebelum otomatis dianggap expired.',
+            self::SP3_DURASI_HARI => 'Berapa hari SP 3 berlaku sejak diterbitkan sebelum otomatis dianggap expired.',
             self::MERIT_POINT_ENABLED => 'Kalau dimatikan, seluruh tampilan Merit Point (widget tab Karir, menu rule, tombol beri poin) disembunyikan total untuk company ini.',
         };
     }
@@ -38,7 +41,7 @@ enum PembinaanSettingEnum: string
     public function type(): SettingTypeEnum
     {
         return match ($this) {
-            self::SP1_DURASI_HARI, self::SP2_DURASI_HARI => SettingTypeEnum::INTEGER,
+            self::SP1_DURASI_HARI, self::SP2_DURASI_HARI, self::SP3_DURASI_HARI => SettingTypeEnum::INTEGER,
             self::MERIT_POINT_ENABLED => SettingTypeEnum::BOOLEAN,
         };
     }
@@ -48,6 +51,7 @@ enum PembinaanSettingEnum: string
         return match ($this) {
             self::SP1_DURASI_HARI => '90',
             self::SP2_DURASI_HARI => '180',
+            self::SP3_DURASI_HARI => '180',
             self::MERIT_POINT_ENABLED => 'false',
         };
     }

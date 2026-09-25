@@ -172,6 +172,17 @@ function wireTrixEditor(editor) {
             event.attachment.remove();
         }
     });
+
+    // Semua isian SP (Uraian/Kronologi + Berita Acara) dibatasi cuma Bold/Italic/Strike/Link -
+    // heading/quote/code/bullet/number/indent/attach/undo/redo disembunyikan (instruksi user
+    // 2026-09-25: field SP cukup format teks sederhana, uraian item juga sudah dinomori manual
+    // per baris di blade, tombol numbered-list bawaan Trix cuma bikin nomor dobel).
+    const isSpTrixField = inputId && /^trix-(item-|edit-item-|report-|dasar-klarifikasi$|kejadian$|subject-clarification$|analysis$|kesimpulan$|followup-plan$)/.test(inputId);
+    if (isSpTrixField && editor.toolbarElement) {
+        editor.toolbarElement.querySelectorAll(
+            ".trix-button-group--block-tools, .trix-button-group--file-tools, .trix-button-group--history-tools"
+        ).forEach((group) => group.style.setProperty("display", "none"));
+    }
 }
 
 function initTrixEditors() {

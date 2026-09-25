@@ -85,7 +85,7 @@
                 @error('improvement_action') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
             </div>
             <div>
-                <label class="form-label">Deadline Perbaikan <span style="color:var(--danger-text);">*</span></label>
+                <label class="form-label">Deadline Perbaikan/Tindak Lanjut<span style="color:var(--danger-text);">*</span></label>
                 <input type="date" wire:model="improvement_due_date" class="form-input">
                 @error('improvement_due_date') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
             </div>

@@ -286,13 +286,13 @@
                 Pihak Perusahaan <br>
                 <span class="ttd-space">&nbsp;</span>
                 <span class="sign-name">{{ $coach?->name ?? '-' }}</span><br>
-                {{ $jabatan($sp->user)}}
+                {{ $jabatan($coach) }}
             </div>
             <div class="sign-col">
                 Pihak Karyawan <br>
                 <span class="ttd-space">&nbsp;</span>
                 <span class="sign-name">{{ $sp->user->name ?? '-' }}</span><br>
-                {{ $jabatan($coach) }}
+                {{ $jabatan($sp->user)}}
             </div>
             <div class="sign-col">
                 Mengetahui,

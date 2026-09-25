@@ -4,7 +4,7 @@
 @if ($this->canCreate)
     <div style="display:flex;justify-content:flex-end;margin-bottom:16px;">
         <a href="{{ route('sp.create') }}" wire:navigate class="btn-primary">
-            <i class="fa-solid fa-plus"></i> Buat SP
+            <i class="fa-solid fa-plus"></i> Buat Surat Peringatan
         </a>
     </div>
 @endif
@@ -59,9 +59,6 @@
                     {{ $sp->start_date->translatedFormat('d M Y') }}
                     &middot; {{ $isActive ? 'Aktif' : 'Expired' }}
                 </span>
-                @if ($sp->items->isNotEmpty())
-                    <p style="font-size:11.5px;color:var(--text-faint);margin:2px 0 0;">{{ \Illuminate\Support\Str::limit($sp->items->first()->text, 60) }}</p>
-                @endif
             </div>
             <i class="fa-solid fa-chevron-right"></i>
         </a>

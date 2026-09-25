@@ -41,18 +41,15 @@ class SpService
         return false;
     }
 
-    /** SP3 selalu NULL (tidak pernah expired). SP1/SP2 dari PembinaanSettingEnum, company-scoped. */
+    /** SP1/SP2/SP3 semua dari PembinaanSettingEnum, company-scoped (instruksi user 2026-09-25:
+     * SP3 sekarang juga punya batas hari, default 180 - sebelumnya SP3 tidak pernah expired). */
     public function resolveEndDate(SpLevel $level, ?string $companyId, string $startDate): ?string
     {
         $settingCase = match ($level) {
             SpLevel::SP1 => PembinaanSettingEnum::SP1_DURASI_HARI,
             SpLevel::SP2 => PembinaanSettingEnum::SP2_DURASI_HARI,
-            SpLevel::SP3 => null,
+            SpLevel::SP3 => PembinaanSettingEnum::SP3_DURASI_HARI,
         };
-
-        if (! $settingCase) {
-            return null;
-        }
 
         $days = (int) Setting::resolve($settingCase->value, $companyId, (int) $settingCase->default());
 

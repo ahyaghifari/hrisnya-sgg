@@ -14,8 +14,9 @@ use Livewire\Component;
  *
  * Restrukturisasi 2026-09-25 (instruksi user, lihat diagram ER): form "isi tanggapan" DIHAPUS -
  * klarifikasi karyawan sekarang diambil SAAT proses investigasi HR (sp_reports.subject_clarification,
- * Berita Acara, HR-internal), BUKAN self-service setelah SP terbit. Berita Acara sengaja TIDAK
- * ditampilkan di sini (internal HR).
+ * Berita Acara, HR-internal), BUKAN self-service setelah SP terbit. Berita Acara sempat
+ * disembunyikan dari karyawan, tapi instruksi user 2026-09-25 membuka kembali (laporan sudah
+ * jadi, tinggal ditampilkan) - read-only, tidak ada form edit di sini.
  */
 #[Layout('components.layout', ['title' => 'Detail Surat Peringatan'])]
 class SuratPeringatanDetailPage extends Component
@@ -26,7 +27,7 @@ class SuratPeringatanDetailPage extends Component
     {
         abort_unless($record->user_id === Auth::id(), 403);
 
-        $record->load(['items', 'createdBy']);
+        $record->load(['items', 'createdBy', 'report']);
 
         $this->record = $record;
     }

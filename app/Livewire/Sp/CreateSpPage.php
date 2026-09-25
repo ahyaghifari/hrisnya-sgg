@@ -141,6 +141,19 @@ class CreateSpPage extends Component
         return collect(SpLevel::cases())->mapWithKeys(fn ($level) => [$level->value => $level->getLabel()])->all();
     }
 
+    /** Preview "Berlaku sampai" live di form, dihitung sama persis kayak save() (SpService::resolveEndDate)
+     * biar HC lihat dulu sebelum submit (instruksi user 2026-09-25). */
+    public function getEndDatePreviewProperty(): ?string
+    {
+        if (! $this->sp_level || ! $this->start_date) {
+            return null;
+        }
+
+        $companyId = $this->companyId ?? Auth::user()->company_id;
+
+        return app(SpService::class)->resolveEndDate(SpLevel::from($this->sp_level), $companyId, $this->start_date);
+    }
+
     public function addItem(): void
     {
         $this->items[] = '';
