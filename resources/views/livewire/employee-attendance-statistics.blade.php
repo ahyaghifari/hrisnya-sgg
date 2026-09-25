@@ -442,8 +442,8 @@ Pembinaan). Inline supaya tidak perlu build CSS; desktop (>=768px) tetap pill ho
                 {!! $sectionHeader('fa-id-card', 'Informasi Pribadi') !!}
                 <div style="display:flex;align-items:center;gap:16px;">
                     @if ($this->canViewAuditHistory)
-                        <button type="button" wire:click="openAuditHistoryPanel" style="background:none;border:none;color:var(--brand);font-size:12.5px;font-weight:600;cursor:pointer;">
-                            <i class="fa-solid fa-clock-rotate-left"></i> Riwayat Perubahan
+                        <button type="button" wire:click="openAuditHistoryPanel" title="Riwayat Perubahan" aria-label="Riwayat Perubahan" style="background:none;border:none;color:var(--brand);font-size:15px;padding:4px 6px;cursor:pointer;line-height:1;">
+                            <i class="fa-solid fa-clock-rotate-left"></i>
                         </button>
                     @endif
                     @if ($isSelf)
@@ -828,16 +828,59 @@ source (tab server-render sekali jalan, x-show cuma toggle CSS). --}}
     @endphp
 
     <!-- Filter periode -->
+    {{-- Dua tanggal SELALU berdampingan (grid 2 kolom + panah), dari desktop sampai HP: input diberi
+    min-width:0 supaya bisa menyusut (tanpa itu input type=date memaksa lebar bawaan browser dan
+    salah satunya turun ke baris baru di layar sempit). Style inline supaya tidak perlu build CSS. --}}
+    <style>
+        .kh-period-head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+        .kh-period-icon { width: 34px; height: 34px; border-radius: 10px; background: var(--brand-soft, rgba(4,44,108,0.1)); color: var(--brand); display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 14px; }
+        .kh-period-title { font-size: 13.5px; font-weight: 700; color: var(--text-heading); margin: 0; line-height: 1.2; }
+        .kh-period-sub { font-size: 11.5px; color: var(--text-muted); margin: 3px 0 0; }
+        .kh-period-fields { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: end; gap: 10px; max-width: 560px; }
+        .kh-period-fields .form-input { width: 100%; min-width: 0; box-sizing: border-box; }
+        .kh-period-sep { color: var(--text-faint); font-size: 12px; padding-bottom: 12px; }
+        /* Desktop: kepala (ikon + judul + ringkasan rentang) di kiri, dua tanggal di kanannya - 1 baris. */
+        @media (min-width: 768px) {
+            .kh-period-body { display: flex; align-items: center; gap: 28px; }
+            .kh-period-body .kh-period-head { margin-bottom: 0; min-width: 210px; flex-shrink: 0; }
+            .kh-period-body .kh-period-fields { flex: 1; }
+        }
+        @media (max-width: 480px) {
+            .kh-period-fields { gap: 6px; }
+            .kh-period-fields .form-input { padding-left: 8px; padding-right: 8px; font-size: 13px; }
+            .kh-period-sep { font-size: 10px; }
+        }
+    </style>
     <div class="card-surface" style="margin-bottom:20px;">
-        <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;">
+        <div class="kh-period-body">
+        <div class="kh-period-head">
+            <span class="kh-period-icon"><i class="fa-solid fa-calendar-days"></i></span>
+            <div style="min-width:0;">
+                <p class="kh-period-title">Periode</p>
+                @php
+                    $khFrom = $date_from ? \Carbon\Carbon::parse($date_from) : null;
+                    $khTo = $date_to ? \Carbon\Carbon::parse($date_to) : null;
+                @endphp
+                <p class="kh-period-sub">
+                    @if ($khFrom && $khTo)
+                        {{ $khFrom->translatedFormat('d M Y') }} &ndash; {{ $khTo->translatedFormat('d M Y') }}
+                    @else
+                        Pilih rentang tanggal
+                    @endif
+                </p>
+            </div>
+        </div>
+        <div class="kh-period-fields">
             <div>
                 <label class="form-label">Dari Tanggal</label>
-                <input type="date" class="form-input" wire:model.live="date_from">
+                <input type="date" class="form-input" wire:model.live="date_from" @if ($date_to) max="{{ $date_to }}" @endif>
             </div>
+            <span class="kh-period-sep" aria-hidden="true"><i class="fa-solid fa-arrow-right"></i></span>
             <div>
                 <label class="form-label">Sampai Tanggal</label>
-                <input type="date" class="form-input" wire:model.live="date_to">
+                <input type="date" class="form-input" wire:model.live="date_to" @if ($date_from) min="{{ $date_from }}" @endif>
             </div>
+        </div>
         </div>
     </div>
 
@@ -975,8 +1018,8 @@ source (tab server-render sekali jalan, x-show cuma toggle CSS). --}}
     </div>
 
     @if ($this->showExtraTabs)
-        <!-- Section: Kehadiran -->
-        <h3 style="font-size:14px;font-weight:800;color:var(--text-heading);margin-bottom:12px;">Kehadiran</h3>
+        <!-- Section: Absensi (dulu "Kehadiran" - nama tab-nya sendiri tetap Kehadiran) -->
+        <h3 style="font-size:14px;font-weight:800;color:var(--text-heading);margin-bottom:12px;">Absensi</h3>
 
         {{-- 3 kartu sama seperti Beranda: Sisa Cuti Tahunan + Izin + Lembur (attendance-stat-cards
              render 2 kartu). Cuti Sakit & kartu hitung "Cuti" lama dibuang (instruksi user). --}}

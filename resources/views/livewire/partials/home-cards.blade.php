@@ -1,3 +1,12 @@
+{{-- Ajakan memasang aplikasi (PWA) ke perangkat - ditaruh SEBELUM banner notifikasi karena push di iOS baru
+jalan setelah aplikasi dipasang ke layar utama. wire:ignore: display-nya diatur JS, jangan di-morph Livewire. --}}
+<div id="pwa-install-banner" wire:ignore style="display:none;background:var(--info-soft-bg);border:1px solid var(--info-soft-border);border-radius:14px;padding:12px 14px;margin-bottom:16px;align-items:center;gap:12px;">
+    <i class="fa-solid fa-mobile-screen-button" style="color:var(--brand);"></i>
+    <p id="pwa-install-text" style="flex:1;font-size:12.5px;color:var(--text-body);margin:0;">Pasang aplikasi HRIS di perangkat Anda agar lebih cepat dibuka.</p>
+    <button type="button" id="pwa-install-btn" onclick="pwaInstallApp()" style="background:#042c6c;color:#fff;border:none;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;">Pasang</button>
+    <button type="button" onclick="pwaDismissInstallBanner()" style="background:none;border:none;color:var(--text-faint);font-size:12px;cursor:pointer;">Nanti</button>
+</div>
+
 <div id="push-notif-banner" style="display:none;background:var(--info-soft-bg);border:1px solid var(--info-soft-border);border-radius:14px;padding:12px 14px;margin-bottom:16px;align-items:center;gap:12px;">
     <i class="fa-solid fa-bell" style="color:var(--brand);"></i>
     <p style="flex:1;font-size:12.5px;color:var(--text-body);margin:0;">Aktifkan notifikasi agar tahu saat pengajuan Anda disetujui/ditolak.</p>
@@ -12,6 +21,10 @@
         $profilePhotoPath = auth()->user()->profile?->profile_picture[0] ?? null;
         $profilePhotoUrl = $profilePhotoPath && is_string($profilePhotoPath) ? \Illuminate\Support\Facades\Storage::url($profilePhotoPath) : null;
     @endphp
+    {{-- Tombol putih "Dashboard" di welcome card: latarnya tetap putih di dark mode, tapi var(--brand) berubah jadi
+    biru muda sehingga teksnya nyaris tak terbaca. Dikunci navy (sama dengan .data-diri-btn di app.css; inline
+    supaya langsung berlaku tanpa build). Tombol emas "Profil Saya" punya warna sendiri. --}}
+    <style>.welcome-actions .data-diri-btn:not(.gold) { color: #042c6c; }</style>
     <div class="welcome-card bento-welcome">
         <div class="w-deco-1"></div><div class="w-deco-2"></div><div class="w-deco-4"></div>
         <div style="position:relative;z-index:1;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;">
@@ -325,6 +338,67 @@
 @push('scripts')
 
 <script>
+// ── Banner "Pasang aplikasi" ──
+// Chromium (Android/desktop): pakai event beforeinstallprompt yang ditangkap layout (window.__pwaInstallPrompt),
+// tombol Pasang memanggil prompt() bawaan browser. iOS/Safari tidak punya event itu - cuma bisa lewat menu
+// Bagikan, jadi banner menampilkan petunjuk teks tanpa tombol Pasang. Sudah terpasang (mode standalone) = tidak tampil.
+// Seperti banner notifikasi, "Nanti" hanya menyembunyikan untuk tampilan ini (tidak disimpan) - muncul lagi di kunjungan berikutnya.
+function pwaIsStandalone() {
+    return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+}
+
+function pwaIsIos() {
+    return /iphone|ipad|ipod/i.test(navigator.userAgent)
+        || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+}
+
+function pwaShowInstallBanner(mode) {
+    const banner = document.getElementById('pwa-install-banner');
+    if (! banner || pwaIsStandalone()) return;
+
+    const installBtn = document.getElementById('pwa-install-btn');
+    if (mode === 'ios') {
+        document.getElementById('pwa-install-text').textContent = 'Pasang aplikasi: ketuk ikon Bagikan di browser, lalu pilih "Tambah ke Layar Utama".';
+        installBtn.style.display = 'none';
+    } else {
+        installBtn.style.display = '';
+    }
+    banner.style.display = 'flex';
+}
+
+function pwaDismissInstallBanner() {
+    const banner = document.getElementById('pwa-install-banner');
+    if (banner) banner.style.display = 'none';
+}
+
+async function pwaInstallApp() {
+    const promptEvent = window.__pwaInstallPrompt;
+    if (! promptEvent) return;
+
+    promptEvent.prompt();
+    await promptEvent.userChoice;
+    // Event hanya bisa dipakai sekali; kalau user menolak, browser akan menembakkannya lagi nanti.
+    window.__pwaInstallPrompt = null;
+    pwaDismissInstallBanner();
+}
+
+function pwaInitInstallBanner() {
+    if (! document.getElementById('pwa-install-banner') || pwaIsStandalone()) return;
+
+    if (window.__pwaInstallPrompt) {
+        pwaShowInstallBanner('prompt');
+    } else if (pwaIsIos()) {
+        pwaShowInstallBanner('ios');
+    }
+}
+
+// Banner Beranda dirender ulang tiap wire:navigate ke sini, jadi init dipanggil di load pertama DAN livewire:navigated.
+document.addEventListener('DOMContentLoaded', pwaInitInstallBanner);
+document.addEventListener('livewire:navigated', pwaInitInstallBanner);
+// Event datang terlambat (setelah Beranda terbuka) / aplikasi baru saja dipasang.
+window.addEventListener('pwa-install-available', () => pwaShowInstallBanner('prompt'));
+window.addEventListener('pwa-installed', pwaDismissInstallBanner);
+
 function pwaDismissPushBanner() {
     // Sengaja TIDAK disimpan ke localStorage (dulu disupres 7 hari) - banner harus tetap
     // muncul lagi di kunjungan/reload berikutnya selama notifikasi belum benar-benar aktif.

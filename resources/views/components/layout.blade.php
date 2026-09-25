@@ -112,6 +112,23 @@
             navigator.serviceWorker.register('/sw.js', { scope: '/' });
         }
 
+        // Tombol "Pasang aplikasi" di Beranda (banner #pwa-install-banner, lihat home-cards): browser
+        // Chromium cuma menembakkan beforeinstallprompt SEKALI per page load, bisa sebelum Beranda dirender
+        // (mis. mendarat di halaman lain lalu wire:navigate ke Beranda) - jadi ditangkap di layout dan
+        // disimpan di window. Dijaga flag supaya tidak dobel listener saat body dirender ulang lewat wire:navigate.
+        if (! window.__pwaInstallBound) {
+            window.__pwaInstallBound = true;
+            window.addEventListener('beforeinstallprompt', (event) => {
+                event.preventDefault();
+                window.__pwaInstallPrompt = event;
+                window.dispatchEvent(new Event('pwa-install-available'));
+            });
+            window.addEventListener('appinstalled', () => {
+                window.__pwaInstallPrompt = null;
+                window.dispatchEvent(new Event('pwa-installed'));
+            });
+        }
+
         // ponytail: submit needs a live request to the server (Livewire AJAX), so just
         // block it while offline instead of silently failing. No offline queue/sync yet.
         function pwaUpdateOfflineState() {
