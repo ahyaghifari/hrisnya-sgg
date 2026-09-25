@@ -59,17 +59,31 @@ class AlurPersetujuanFormPage extends Component
 
         $this->companyId = Auth::user()->company_id;
 
+        // Duplikat: ?replicate={id} mengisi form dengan salinan alur sumber (belum tersimpan, jadi
+        // cek bentrok di save() tetap jalan). Company-scope: non-holding cuma boleh nyalin
+        // alur company sendiri. Sama pola admin Filament CreateApprovalFlow::fillForm().
+        $isReplicate = false;
         if (! $flow || ! $flow->exists) {
-            $this->addStep();
+            $flow = ($id = request()->query('replicate'))
+                ? MasterApprovalFlows::query()
+                    ->when(! Auth::user()->canFilterByCompany(), fn ($q) => $q->where('company_id', Auth::user()->company_id))
+                    ->find($id)
+                : null;
 
-            return;
+            if (! $flow) {
+                $this->addStep();
+
+                return;
+            }
+
+            $isReplicate = true;
         }
 
         $flow->load(['steps', 'assignments']);
 
-        $this->editingFlowId = $flow->id;
+        $this->editingFlowId = $isReplicate ? null : $flow->id;
         $this->companyId = $flow->company_id;
-        $this->name = $flow->name;
+        $this->name = $isReplicate ? $flow->name . ' (Salinan)' : $flow->name;
         $this->module = $flow->module;
         $this->subModule = filled($flow->sub_module) ? explode(',', $flow->sub_module) : [];
         $this->flowType = $flow->flow_type;
@@ -77,7 +91,7 @@ class AlurPersetujuanFormPage extends Component
         $this->assignmentJobPositions = $flow->assignments->pluck('assignable_id')->all();
 
         $this->steps = $flow->steps->map(fn ($step) => [
-            'id' => $step->id,
+            'id' => $isReplicate ? null : $step->id,
             'step_order' => $step->step_order,
             'approver_type' => $step->approver_type,
             'source_company' => 'same_company',

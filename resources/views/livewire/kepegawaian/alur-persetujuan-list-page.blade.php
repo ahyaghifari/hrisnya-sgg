@@ -88,6 +88,9 @@
                         </td>
                         <td style="padding:9px 14px;text-align:center;white-space:nowrap;">
                             <a href="{{ route('kepegawaian.alur-persetujuan.edit', $flow) }}" wire:navigate class="btn-ghost" style="padding:5px 10px;font-size:11px;" title="Edit"><i class="fa-solid fa-pen"></i></a>
+                            @can(\App\Enum\CustomPermissionEnum::KELOLA_ALUR_PERSETUJUAN->value)
+                                <a href="{{ route('kepegawaian.alur-persetujuan.tambah', ['replicate' => $flow->id]) }}" wire:navigate class="btn-ghost" style="padding:5px 10px;font-size:11px;" title="Duplikat"><i class="fa-regular fa-copy"></i></a>
+                            @endcan
                         </td>
                     </tr>
                 @endforeach

@@ -214,6 +214,9 @@
 
 <div style="display:flex;justify-content:space-between;gap:8px;">
     <a href="{{ route('kepegawaian.alur-persetujuan') }}" wire:navigate class="btn-ghost"><i class="fa-solid fa-arrow-left"></i> Batal</a>
+    @if ($editingFlowId)
+        <a href="{{ route('kepegawaian.alur-persetujuan.tambah', ['replicate' => $editingFlowId]) }}" wire:navigate class="btn-ghost"><i class="fa-regular fa-copy"></i> Duplikat</a>
+    @endif
     <button type="button" wire:click="save" class="btn-primary"><i class="fa-solid fa-check"></i> Simpan</button>
 </div>
 
