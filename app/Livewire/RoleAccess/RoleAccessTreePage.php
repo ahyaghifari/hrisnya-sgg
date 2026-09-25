@@ -185,6 +185,13 @@ class RoleAccessTreePage extends Component
             $tree = $this->pruneExecutiveAllowanceNodes($tree);
         }
 
+        // Root "Lainnya" (permission tanpa container/kategori jelas, lihat
+        // PermissionTreeBuilder::$ungroupedNodes) cuma boleh dilihat/diatur user yang login
+        // dari company holding, siapapun role/user yang lagi diedit di tree ini.
+        if (! Auth::user()->isFromHoldingCompany()) {
+            $tree = array_values(array_filter($tree, fn (array $node) => $node['id'] !== 'subject_lainnya'));
+        }
+
         return $tree;
     }
 
@@ -212,6 +219,25 @@ class RoleAccessTreePage extends Component
         return $pruned;
     }
 
+    /** Nama permission yang sudah kepegang ($grantedNames) tapi jadi tidak valid lagi di
+     * tree yang di-prune buat user yang login saat ini (mis. ExecutiveAllowance, root
+     * "Lainnya") - dipertahankan lewat save() supaya editor yang tidak berwenang lihat
+     * kategori itu tidak diam-diam mencabutnya cuma karena checkbox-nya tidak dirender.
+     * Dibandingkan ke tree PENUH (bukan cuma leaf tervalidasi) supaya nama permission yang
+     * sudah dihapus/tidak ada lagi tetap tidak ikut disimpan ulang.
+     *
+     * @param array<int, string> $grantedNames
+     * @return array<int, string>
+     */
+    private function hiddenGrantedPermissionNames(array $grantedNames): array
+    {
+        $fullTreeNames = PermissionTreeBuilder::allLeafNames(PermissionTreeBuilder::build());
+        $visibleNames = PermissionTreeBuilder::allLeafNames($this->tree);
+        $hiddenNames = array_diff($fullTreeNames, $visibleNames);
+
+        return array_values(array_intersect($grantedNames, $hiddenNames));
+    }
+
     public function getIsSuperAdminRoleProperty(): bool
     {
         if ($this->mode === 'user') {
@@ -237,6 +263,13 @@ class RoleAccessTreePage extends Component
                 return;
             }
 
+            // Permission dari node yang di-prune buat user yang login (mis. ExecutiveAllowance
+            // buat non-super-admin, root "Lainnya" buat non-holding, lihat getTreeProperty())
+            // TIDAK ikut ditampilkan di checkbox - kalau sudah kepegang, harus tetap dipegang,
+            // bukan ke-strip diam-diam gara-gara payload $checkedNames tidak pernah bisa
+            // memuat nama yang tidak dirender.
+            $safeNames = [...$safeNames, ...$this->hiddenGrantedPermissionNames($user->getDirectPermissions()->pluck('name')->all())];
+
             // syncPermissions() di sini cuma nulis tabel pivot model_has_permissions milik
             // USER ini - TIDAK menyentuh role_has_permissions sama sekali, jadi permission
             // dari role user itu tetap utuh apa adanya (additive, bukan override).
@@ -256,6 +289,8 @@ class RoleAccessTreePage extends Component
         if (! $role || $role->name === 'super_admin' || $role->name === 'Super Admin') {
             return;
         }
+
+        $safeNames = [...$safeNames, ...$this->hiddenGrantedPermissionNames($role->permissions->pluck('name')->all())];
 
         $role->syncPermissions($safeNames);
         $this->checked = $safeNames;

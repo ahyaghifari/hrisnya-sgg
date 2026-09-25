@@ -243,6 +243,14 @@ class User extends Authenticatable implements FilamentUser
         return $this->can(\App\Enum\CustomPermissionEnum::LIHAT_PERUSAHAAN_LAIN->value);
     }
 
+    /** User ini dari company holding (code '0000', lihat Companies::HOLDING_CODE) - dipakai
+     * buat gerbang fitur yang cuma boleh diakses/dilihat holding, mis. root "Lainnya" di tree
+     * Hak Akses (RoleAccessTreePage). */
+    public function isFromHoldingCompany(): bool
+    {
+        return $this->company?->code === \App\Models\Master\Companies::HOLDING_CODE;
+    }
+
     /**
      * Sama seperti canFilterByCompany(), tapi dipersempit lagi per sistem/modul lewat
      * config CompanyFilterAccess (Manajemen Pengguna > Akses Filter Perusahaan) - admin

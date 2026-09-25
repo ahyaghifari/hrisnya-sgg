@@ -8,6 +8,13 @@ use Illuminate\Database\Eloquent\Model;
 class Companies extends Model
 {
     use HasUlids;
+
+    /** Kode company holding (dipakai AttendanceSettingsSeeder buat override khusus) — belum
+     * ada kolom eksplisit "tipe company" di m_companies, jadi identifikasi holding tetap
+     * lewat kode ini, bukan hardcode ULID id (lihat RoleSeeder::HOLDING_COMPANY_ID yang beda
+     * pola, sengaja tidak disatukan di sini supaya tidak mengubah perilaku seeder lama). */
+    public const HOLDING_CODE = '0000';
+
     protected $table = "m_companies";
 
     protected $fillable = [
