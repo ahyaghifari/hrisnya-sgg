@@ -301,11 +301,21 @@ class ShiftSwapRequestService
             return;
         }
 
+        // Log tiap mutasi persis saat terjadi - dipakai revertApprovedSwap() supaya pembatalan
+        // setelah approved bisa mengembalikan jadwal dengan akurat untuk semua skenario di bawah,
+        // bukan menebak ulang dari kondisi data sekarang (tidak ada snapshot "sebelum" lain yang
+        // tersimpan). Dibaca kebalikannya (array_reverse) saat revert.
+        $log = [];
+
         if ($reqSchedule->date->equalTo($targetSchedule->date)) {
             $reqShiftTypeId = $reqSchedule->shift_type_id;
             $targetShiftTypeId = $targetSchedule->shift_type_id;
             $reqSchedule->update(['shift_type_id' => $targetShiftTypeId]);
             $targetSchedule->update(['shift_type_id' => $reqShiftTypeId]);
+            $log[] = ['op' => 'update', 'id' => $reqSchedule->id, 'before' => ['shift_type_id' => $reqShiftTypeId]];
+            $log[] = ['op' => 'update', 'id' => $targetSchedule->id, 'before' => ['shift_type_id' => $targetShiftTypeId]];
+
+            $swapRequest->update(['execution_log' => $log]);
 
             return;
         }
@@ -319,33 +329,40 @@ class ShiftSwapRequestService
         $targetDate = $targetSchedule->date->toDateString();
         $companyId = $reqSchedule->company_id;
 
-        $this->applySlotResolution($plan['req_date'], $reqSchedule, $targetUserId, $swapRequest);
-        $this->applySlotResolution($plan['target_date'], $targetSchedule, $reqUserId, $swapRequest);
+        $this->applySlotResolution($plan['req_date'], $reqSchedule, $targetUserId, $swapRequest, $log);
+        $this->applySlotResolution($plan['target_date'], $targetSchedule, $reqUserId, $swapRequest, $log);
 
         if ($isReciprocalOff) {
-            ScheduleShiftAssignment::create([
+            $reqOff = ScheduleShiftAssignment::create([
                 'company_id' => $companyId,
                 'user_id' => $reqUserId,
                 'date' => $reqDate,
                 'off_day' => true,
                 'shift_type_id' => null,
             ]);
+            $log[] = ['op' => 'create', 'table' => 'schedule_shift_assignments', 'id' => $reqOff->id];
 
-            ScheduleShiftAssignment::create([
+            $targetOff = ScheduleShiftAssignment::create([
                 'company_id' => $companyId,
                 'user_id' => $targetUserId,
                 'date' => $targetDate,
                 'off_day' => true,
                 'shift_type_id' => null,
             ]);
+            $log[] = ['op' => 'create', 'table' => 'schedule_shift_assignments', 'id' => $targetOff->id];
         }
+
+        $swapRequest->update(['execution_log' => $log]);
     }
 
-    /** @param array{mode: 'move'|'move_over_off_day'|'double_shift', busy?: ScheduleShiftAssignment, warning?: string} $slot */
-    private function applySlotResolution(array $slot, ScheduleShiftAssignment $originalSchedule, string $incomingUserId, ShiftSwapRequests $swapRequest): void
+    /** @param array{mode: 'move'|'move_over_off_day'|'double_shift', busy?: ScheduleShiftAssignment, warning?: string} $slot
+     * @param array $log dilewat by-reference, entri undo ditambahkan di sini - lihat executeApprovedSwap(). */
+    private function applySlotResolution(array $slot, ScheduleShiftAssignment $originalSchedule, string $incomingUserId, ShiftSwapRequests $swapRequest, array &$log): void
     {
         if ($slot['mode'] === 'move') {
+            $before = ['user_id' => $originalSchedule->user_id];
             $originalSchedule->update(['user_id' => $incomingUserId]);
+            $log[] = ['op' => 'update', 'id' => $originalSchedule->id, 'before' => $before];
 
             return;
         }
@@ -353,8 +370,12 @@ class ShiftSwapRequestService
         if ($slot['mode'] === 'move_over_off_day') {
             // Baris "busy" cuma penanda Libur (off_day=true), bukan konflik beneran - boleh
             // ditimpa: hapus penandanya, baris asal pindah kepemilikan seperti mode 'move'.
+            $log[] = ['op' => 'delete', 'attributes' => $this->scheduleAttributesForLog($slot['busy'])];
             $slot['busy']->delete();
+
+            $before = ['user_id' => $originalSchedule->user_id];
             $originalSchedule->update(['user_id' => $incomingUserId]);
+            $log[] = ['op' => 'update', 'id' => $originalSchedule->id, 'before' => $before];
 
             return;
         }
@@ -367,7 +388,7 @@ class ShiftSwapRequestService
             // extra_shift biasa, TIDAK kena jasa ExtraShiftRule - ini konsekuensi tukar, bukan
             // penugasan sukarela). Baris asal dihapus - pemiliknya lama benar2 lepas dari shift
             // itu, sama seperti mode 'move' (instruksi user 2026-09-13).
-            ExtraShiftAssignment::create([
+            $extra = ExtraShiftAssignment::create([
                 'company_id' => $originalSchedule->company_id,
                 'user_id' => $incomingUserId,
                 'shift_type_id' => $originalSchedule->shift_type_id,
@@ -378,9 +399,67 @@ class ShiftSwapRequestService
                 'origin_shift_swap_request_id' => $swapRequest->id,
                 'created_by' => Auth::id(),
             ]);
+            $log[] = ['op' => 'create', 'table' => 'extra_shift_assignments', 'id' => $extra->id];
 
+            $log[] = ['op' => 'delete', 'attributes' => $this->scheduleAttributesForLog($originalSchedule)];
             $originalSchedule->delete();
         }
+    }
+
+    /** Snapshot kolom ScheduleShiftAssignment yang perlu untuk create() ulang - dipakai log undo
+     * (baris yang dihapus executeApprovedSwap() perlu dihidupkan lagi persis apa adanya kalau
+     * pembatalan disetujui, lihat revertApprovedSwap()). Eksplisit sebut kolom (bukan getAttributes()
+     * mentah) supaya tidak ikut kebawa timestamps/id lama. */
+    private function scheduleAttributesForLog(ScheduleShiftAssignment $row): array
+    {
+        return [
+            'company_id' => $row->company_id,
+            'user_id' => $row->user_id,
+            'shift_type_id' => $row->shift_type_id,
+            'off_day' => $row->off_day,
+            'date' => $row->date->toDateString(),
+            'notes' => $row->notes,
+            'schedule_status' => $row->schedule_status,
+            'created_by' => $row->created_by,
+            'source_request_id' => $row->source_request_id,
+        ];
+    }
+
+    /** Kebalikan executeApprovedSwap() - dipanggil ApprovalFlowService::resolveShiftSwapCancellationRequest()
+     * saat pengajuan pembatalan tukar shift yang sudah approved disetujui final. Baca execution_log
+     * TERBALIK (urutan mundur dari saat dieksekusi) supaya tiap mutasi di-undo persis kebalikannya:
+     * update -> kembalikan nilai 'before', delete (baris yang tadinya dihapus) -> create() ulang,
+     * create (baris baru yang tadinya dibuat) -> hapus lagi. */
+    public function revertApprovedSwap(ShiftSwapRequests $swapRequest): void
+    {
+        $log = $swapRequest->execution_log ?? [];
+
+        foreach (array_reverse($log) as $entry) {
+            match ($entry['op']) {
+                'update' => ScheduleShiftAssignment::find($entry['id'])?->update($entry['before']),
+                'delete' => ScheduleShiftAssignment::create($entry['attributes']),
+                'create' => $this->logTargetClass($entry['table'] ?? null)::destroy($entry['id']),
+                default => null,
+            };
+        }
+
+        $swapRequest->update(['execution_log' => null]);
+    }
+
+    private function logTargetClass(?string $table): string
+    {
+        return $table === 'extra_shift_assignments' ? ExtraShiftAssignment::class : ScheduleShiftAssignment::class;
+    }
+
+    /** "Hari H" tukar shift = tanggal PALING AWAL dari 2 shift yang terlibat - begitu salah satu
+     * sudah lewat/mulai dijalani, kedua sisi ikut tidak bisa dibatalkan lagi (revert execution_log
+     * harus utuh 2 sisi, tidak bisa cuma 1 sisi). Dipakai baik self-cancel (masih in_review)
+     * maupun ajukan pembatalan (sudah approved) - lihat App\Livewire\Presensi\ShiftSwapRequestDetail. */
+    public function cancellationCutoffPassed(ShiftSwapRequests $request): bool
+    {
+        $earliest = $request->req_date->lessThan($request->target_date) ? $request->req_date : $request->target_date;
+
+        return now()->startOfDay()->gt($earliest->copy()->startOfDay());
     }
 
     /** Tentukan siapa yang akhirnya nempatin baris req_schedule (tanggal pemohon) dan baris

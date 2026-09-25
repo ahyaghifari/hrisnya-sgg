@@ -32,7 +32,10 @@ class ShiftSwapRequests extends Model
         'approved_at',
         'rejected_by',
         'rejected_at',
+        'cancelled_by',
+        'cancelled_at',
         'notes',
+        'execution_log',
         'target_response',
         'target_responded_at',
     ];
@@ -42,6 +45,8 @@ class ShiftSwapRequests extends Model
         'target_date' => 'date',
         'approved_at' => 'datetime',
         'rejected_at' => 'datetime',
+        'cancelled_at' => 'datetime',
+        'execution_log' => 'array',
         'target_responded_at' => 'datetime',
     ];
 
@@ -92,5 +97,10 @@ class ShiftSwapRequests extends Model
     {
         return $this->hasMany(ApprovalHistories::class, 'requestable_id', 'id')
             ->where('requestable_type', ApprovalModuleEnum::SWAP_SHIFT_REQUEST->value);
+    }
+
+    public function cancellationRequests()
+    {
+        return $this->hasMany(ShiftSwapRequestCancellations::class, 'shift_swap_request_id', 'id');
     }
 }

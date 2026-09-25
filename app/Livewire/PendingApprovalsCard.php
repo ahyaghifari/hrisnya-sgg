@@ -14,6 +14,7 @@ use App\Models\Job\ManpowerRequests;
 use App\Models\LMS\LmsCourseUsers;
 use App\Models\LMS\TrainingRequests;
 use App\Models\Master\JobPositions;
+use App\Models\Shift\ShiftSwapRequestCancellations;
 use App\Models\Shift\ShiftSwapRequests;
 use App\Models\Sikartap\Sikartap;
 use App\Models\User;
@@ -293,6 +294,38 @@ class PendingApprovalsCard extends Component
                     'user_name' => $cancellation->requestedBy->name,
                     'created_at' => $cancellation->created_at,
                     'url' => route('my-attendance-requests.show', ['record' => $cancellation->attendance_request_id]),
+                    'modal' => false,
+                    'external' => false,
+                ]);
+        }
+
+        $shiftSwapCancellationRequests = collect();
+        if ($this->wants('shift_swap_request_cancellation')) {
+            $swapCancellationIds = $permissionService
+                ->pendingApprovalsFor(Auth::user(), ApprovalModuleEnum::SHIFT_SWAP_REQUEST_CANCELLATION->value)
+                ->pluck('snapshot.module_id')->filter()->values();
+
+            // bulk_supported=false - sama alasan attendance_request_cancellation di atas: approve/
+            // reject-nya lewat ShiftSwapRequestDetail::confirmCancellationAction(), bukan advanceStep
+            // langsung ke snapshot pengajuan tukar shift-nya.
+            $shiftSwapCancellationRequests = ShiftSwapRequestCancellations::with(['requestedBy', 'shiftSwapRequest'])
+                ->whereIn('id', $swapCancellationIds)
+                ->whereHas('requestedBy')
+                ->whereHas('shiftSwapRequest')
+                ->get()
+                ->map(fn ($cancellation) => (object) [
+                    'id' => $cancellation->id,
+                    'dispatch' => 'shift_swap_request_cancellation',
+                    'bulk_supported' => false,
+                    'module' => 'shift_swap_request_cancellation',
+                    'badge' => 'red',
+                    'label' => 'Pembatalan Tukar Shift',
+                    'icon' => 'fa-rotate-left',
+                    'tile' => 'warn',
+                    'keterangan' => $cancellation->reason,
+                    'user_name' => $cancellation->requestedBy->name,
+                    'created_at' => $cancellation->created_at,
+                    'url' => route('tukar-shift.show', ['record' => $cancellation->shift_swap_request_id]),
                     'modal' => false,
                     'external' => false,
                 ]);
@@ -647,7 +680,7 @@ class PendingApprovalsCard extends Component
                 ]);
         }
 
-        $requests = $attendanceRequests->concat($taskReviews)->concat($transitions)->concat($courseEnrollments)->concat($trainingRequests)->concat($cancellationRequests)->concat($jabatanKuota)->concat($manpowerRequests)->concat($shiftSwapRequests)->concat($sikartapRequests)->concat($orientationRequests)->concat($contractRequests)->concat($presentationApprovals)->concat($ideInovasiDirektur)->sortByDesc('created_at')->values();
+        $requests = $attendanceRequests->concat($taskReviews)->concat($transitions)->concat($courseEnrollments)->concat($trainingRequests)->concat($cancellationRequests)->concat($jabatanKuota)->concat($manpowerRequests)->concat($shiftSwapRequests)->concat($shiftSwapCancellationRequests)->concat($sikartapRequests)->concat($orientationRequests)->concat($contractRequests)->concat($presentationApprovals)->concat($ideInovasiDirektur)->sortByDesc('created_at')->values();
 
         foreach ($requests as $request) {
             $request->key = $request->dispatch . ':' . $request->id;

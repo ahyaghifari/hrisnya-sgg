@@ -7,6 +7,7 @@ use App\Enum\AttendanceReqStatus;
 use App\Enum\Task\TaskStatus;
 use App\Models\Attendance\AttendanceRequestCancellations;
 use App\Models\LMS\TrainingRequests;
+use App\Models\Shift\ShiftSwapRequestCancellations;
 use App\Models\Shift\ShiftSwapRequests;
 use App\Models\User;
 use App\Services\Attendance\AttendaceReqService;
@@ -60,6 +61,12 @@ class ApprovalFlowService
 
             if ($snapshot->module_type === ApprovalModuleEnum::ATTENDANCE_REQUEST_CANCELLATION->value) {
                 $this->resolveCancellationRequest($snapshot, $activity, $actorId, $actorName, $note, $action);
+
+                return;
+            }
+
+            if ($snapshot->module_type === ApprovalModuleEnum::SHIFT_SWAP_REQUEST_CANCELLATION->value) {
+                $this->resolveShiftSwapCancellationRequest($snapshot, $activity, $actorId, $actorName, $note, $action);
 
                 return;
             }
@@ -161,6 +168,18 @@ class ApprovalFlowService
                 if ($attendanceRequest) {
                     $this->attendanceReqRepository->updateAttendanceRequest($attendanceRequest, [
                         'status' => AttendanceReqStatus::CANCELLED->value,
+                        'cancelled_by' => $actorId,
+                        'cancelled_at' => now(),
+                    ]);
+                }
+
+                // Tukar Shift - jalur ini cuma dilewati SEBELUM approved final (masih in_review,
+                // executeApprovedSwap() belum pernah jalan), jadi tidak ada jadwal yang perlu
+                // direvert di sini - cuma tutup status pengajuannya. Batal SETELAH approved lewat
+                // modul terpisah SHIFT_SWAP_REQUEST_CANCELLATION (resolveShiftSwapCancellationRequest()).
+                if ($snapshot->module_type === ApprovalModuleEnum::SWAP_SHIFT_REQUEST->value) {
+                    ShiftSwapRequests::where('id', $snapshot->module_id)->update([
+                        'status' => 'cancelled',
                         'cancelled_by' => $actorId,
                         'cancelled_at' => now(),
                     ]);
@@ -568,6 +587,119 @@ class ApprovalFlowService
             ]);
 
             $this->attendaceReqService->revertApprovedAbsenceSync($originalRequest);
+        }
+
+        $this->historyRepo->create([
+            'requestable_type' => $snapshot->module_type,
+            'requestable_id' => $snapshot->module_id,
+            'snapshot_id' => $snapshot->id,
+            'activity_id' => $activity->id,
+            'action' => 'completed',
+            'actor_id' => $actorId,
+            'actor_name' => $actorName,
+            'note' => "Pembatalan disetujui {$actorName}",
+        ]);
+
+        if ($cancellation?->requested_by) {
+            User::find($cancellation->requested_by)?->notify(
+                new RequestStatusChanged($snapshot->module_type, $snapshot->module_id, 'cancelled', $actorName)
+            );
+        }
+    }
+
+    /**
+     * Alur khusus modul SHIFT_SWAP_REQUEST_CANCELLATION (pembatalan tukar shift yang sudah
+     * approved) - pola persis resolveCancellationRequest() di atas, bedanya eksekusi finalnya
+     * memanggil ShiftSwapRequestService::revertApprovedSwap() (mengembalikan jadwal) bukan sync
+     * absensi.
+     */
+    private function resolveShiftSwapCancellationRequest($snapshot, $activity, string $actorId, string $actorName, ?string $note, string $action): void
+    {
+        $cancellation = ShiftSwapRequestCancellations::with('shiftSwapRequest')->find($snapshot->module_id);
+
+        $this->historyRepo->create([
+            'requestable_type' => $snapshot->module_type,
+            'requestable_id' => $snapshot->module_id,
+            'snapshot_id' => $snapshot->id,
+            'activity_id' => $activity->id,
+            'action' => $action,
+            'actor_id' => $actorId,
+            'actor_name' => $actorName,
+            'note' => $note,
+            'metadata' => [
+                'step_order' => $activity->current_step_order,
+                'approver_type' => $activity->approver_type,
+            ],
+        ]);
+
+        if ($action === 'rejected') {
+            $this->activityRepo->update($activity, ['status' => 'rejected', 'acted_by' => $actorId, 'acted_at' => now(), 'note' => $note]);
+            $this->snapshotRepo->update($snapshot, ['status' => 'rejected']);
+            $cancellation?->update(['status' => 'rejected']);
+
+            $this->historyRepo->create([
+                'requestable_type' => $snapshot->module_type,
+                'requestable_id' => $snapshot->module_id,
+                'snapshot_id' => $snapshot->id,
+                'activity_id' => $activity->id,
+                'action' => 'completed',
+                'actor_id' => $actorId,
+                'actor_name' => $actorName,
+                'note' => "Pengajuan pembatalan ditolak {$actorName}",
+            ]);
+
+            if ($cancellation?->requested_by) {
+                User::find($cancellation->requested_by)?->notify(
+                    new RequestStatusChanged($snapshot->module_type, $snapshot->module_id, 'rejected', $actorName)
+                );
+            }
+
+            return;
+        }
+
+        // action === 'approved'
+        $next = $this->getNextApprover($snapshot);
+
+        if ($next) {
+            $this->activityRepo->update($activity, [
+                'current_step_order' => $next['step_order'],
+                'approver_type' => $next['type'],
+                'approver_ref_id' => $next['ref_id'],
+                'scope_type' => $next['scope_type'] ?? null,
+                'scope_ref_id' => $next['scope_ref_id'] ?? null,
+                'status' => 'pending',
+                'note' => null,
+                'acted_by' => $actorId,
+                'acted_at' => now(),
+            ]);
+
+            $this->snapshotRepo->update($snapshot, ['current_step_order' => $next['step_order'], 'status' => 'in_review']);
+
+            $snapshot->refresh();
+            $nextApprover = $this->notificationService->getFirstApproverFromSnapshot($snapshot);
+            if ($nextApprover && $cancellation) {
+                $requesterName = User::find($cancellation->requested_by)?->name ?? 'Seseorang';
+                $nextApprover->notify(new ApprovalNeedsAction($snapshot->module_type, $snapshot->module_id, $requesterName));
+            }
+
+            return;
+        }
+
+        // Step terakhir - pembatalan final disetujui, kembalikan jadwal ke normal.
+        $this->activityRepo->update($activity, ['status' => 'approved', 'acted_by' => $actorId, 'acted_at' => now()]);
+        $this->snapshotRepo->update($snapshot, ['status' => 'approved']);
+        $cancellation?->update(['status' => 'approved']);
+
+        $originalRequest = $cancellation?->shiftSwapRequest;
+
+        if ($originalRequest) {
+            $originalRequest->update([
+                'status' => 'cancelled',
+                'cancelled_by' => $actorId,
+                'cancelled_at' => now(),
+            ]);
+
+            app(\App\Services\Shift\ShiftSwapRequestService::class)->revertApprovedSwap($originalRequest);
         }
 
         $this->historyRepo->create([

@@ -24,6 +24,7 @@
         'in_review', 'pending' => 'Diproses',
         'approved' => 'Disetujui',
         'rejected' => 'Ditolak',
+        'cancelled' => 'Dibatalkan',
         default => $record->status,
     };
 
@@ -80,6 +81,59 @@
     </div>
 @endif
 
+@if ($this->activeCancellation)
+    @php
+        $cancellationStatusBadge = match ($this->activeCancellation->status) {
+            'approved' => 'badge-cancelled',
+            'rejected' => 'badge-rejected',
+            default => 'badge-pending',
+        };
+        $cancellationStatusLabel = match ($this->activeCancellation->status) {
+            'approved' => 'Pembatalan disetujui',
+            'rejected' => 'Pembatalan ditolak',
+            default => 'Pembatalan sedang diproses',
+        };
+    @endphp
+    <div style="background:var(--surface);border-radius:16px;box-shadow:var(--shadow-card);padding:18px;margin-bottom:16px;">
+        {!! $sectionHeader('fa-rotate-left', 'Pengajuan Pembatalan') !!}
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;padding:10px 0;border-bottom:1px solid var(--border-soft);">
+            <span style="font-size:12.5px;color:var(--text-muted);">Status</span>
+            <span class="badge {{ $cancellationStatusBadge }}">{{ $cancellationStatusLabel }}</span>
+        </div>
+        {!! $renderField('Alasan', $this->activeCancellation->reason, false) !!}
+
+        <div style="margin-top:14px;">
+            <x-approval-timeline :timeline="$this->cancellationTimeline" />
+        </div>
+
+        @if ($this->canApproveCancellation)
+            <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border-soft);">
+                @if ($cancellationPendingAction)
+                    <div style="display:flex;flex-direction:column;gap:12px;">
+                        <label class="form-label">Catatan <span style="color:var(--danger-text);">*</span></label>
+                        <textarea class="form-input" rows="3" placeholder="Tambahkan catatan..." wire:model="cancellationNote"></textarea>
+                        @error('cancellationNote') <p style="color:var(--danger-text);font-size:12px;">{{ $message }}</p> @enderror
+
+                        <div style="display:flex;gap:10px;">
+                            <button type="button" wire:click="confirmCancellationAction" class="btn-primary">Konfirmasi</button>
+                            <button type="button" wire:click="cancelCancellationChoice" class="btn-ghost">Batal</button>
+                        </div>
+                    </div>
+                @else
+                    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                        <button type="button" wire:click="chooseCancellationAction('approve')" class="btn-primary">
+                            <i class="fa-solid fa-check"></i> Setujui Pembatalan
+                        </button>
+                        <button type="button" wire:click="chooseCancellationAction('reject')" class="btn-ghost" style="color:var(--danger-text);border-color:var(--danger-soft-border);">
+                            <i class="fa-solid fa-xmark"></i> Tolak Pembatalan
+                        </button>
+                    </div>
+                @endif
+            </div>
+        @endif
+    </div>
+@endif
+
 <div class="grid grid-cols-1 md:grid-cols-2" style="gap:16px;align-items:start;">
     <div style="background:var(--surface);border-radius:16px;box-shadow:var(--shadow-card);padding:18px;">
         {!! $sectionHeader('fa-user', 'Pemohon') !!}
@@ -106,4 +160,34 @@
 
     <x-approval-history-list :histories="$record->approvalHistories" />
 </div>
+
+@if ($this->canSelfCancel || $this->canRequestCancellation)
+    <div style="margin-top:16px;">
+        @if ($selfAction)
+            <div style="display:flex;flex-direction:column;gap:12px;background:var(--surface);border-radius:16px;box-shadow:var(--shadow-card);padding:18px;">
+                <label class="form-label">Alasan <span style="color:var(--danger-text);">*</span></label>
+                <textarea class="form-input" rows="3" placeholder="Alasan pembatalan..." wire:model="selfActionReason"></textarea>
+                @error('selfActionReason') <p style="color:var(--danger-text);font-size:12px;">{{ $message }}</p> @enderror
+
+                <div style="display:flex;gap:10px;">
+                    <button type="button" wire:click="confirmSelfAction" class="btn-primary">Konfirmasi</button>
+                    <button type="button" wire:click="cancelSelfAction" class="btn-ghost">Batal</button>
+                </div>
+            </div>
+        @else
+            <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                @if ($this->canSelfCancel)
+                    <button type="button" wire:click="chooseSelfAction('self_cancel')" class="btn-ghost" style="color:var(--danger-text);border-color:var(--danger-soft-border);">
+                        <i class="fa-solid fa-ban"></i> Batalkan Pengajuan
+                    </button>
+                @endif
+                @if ($this->canRequestCancellation)
+                    <button type="button" wire:click="chooseSelfAction('request_cancel')" class="btn-ghost" style="color:var(--danger-text);border-color:var(--danger-soft-border);">
+                        <i class="fa-solid fa-rotate-left"></i> Ajukan Pembatalan
+                    </button>
+                @endif
+            </div>
+        @endif
+    </div>
+@endif
 </div>
