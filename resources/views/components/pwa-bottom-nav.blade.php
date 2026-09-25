@@ -104,10 +104,6 @@
             <x-pwa-nav.mystaff-item />
         @endif
 
-        @if (auth()->user()->hasSubordinates())
-            <x-pwa-nav.pembinaan-atasan-item />
-        @endif
-
         @if ($canAccessKeuangan)
             <x-pwa-nav.keuangan-menu />
         @endif

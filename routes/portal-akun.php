@@ -5,7 +5,6 @@ use App\Livewire\DashboardAndaPage;
 use App\Livewire\EmployeeAttendanceStatistics;
 use App\Livewire\MyEmployees;
 use App\Livewire\OrganizationStructure;
-use App\Livewire\Pembinaan\PembinaanAtasanPage;
 use App\Http\Controllers\Pwa\PushSubscriptionController;
 use App\Livewire\Pwa\Akun as PwaAkun;
 use App\Livewire\Pwa\NotificationSettingsPage;
@@ -99,12 +98,6 @@ Route::get('/struktur-organisasi', OrganizationStructure::class)
 
 Route::get('/my-staff', MyEmployees::class)
     ->name('my-staff');
-
-// Halaman TAMBAHAN, terpisah dari modul Pembinaan Karyawan (eks-Coaching & Counseling) HC
-// di routes/pembinaan.php - lihat gate literal hasSubordinates() di
-// PembinaanAtasanPage::mount() (instruksi user 2026-08-17).
-Route::get('/my-staff/pembinaan', PembinaanAtasanPage::class)
-    ->name('my-staff.pembinaan');
 
 Route::get('/riwayat-approval', RiwayatApprovalPage::class)
     ->name('riwayat-approval');

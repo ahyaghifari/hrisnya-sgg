@@ -27,7 +27,9 @@
     di-query cuma pas widget-nya dibuka pertama kali (instruksi user 2026-09-18) - lihat
     App\Livewire\MyStaff\Concerns\LazyLoadsOnExpand. --}}
     <div class="grid grid-cols-1 lg:grid-cols-2" style="gap:14px;align-items:start;">
-        <livewire:my-staff.ringkasan-tim-widget :key="'ringkasan-tim'" />
+        <div class="lg:col-span-2">
+            <livewire:my-staff.ringkasan-tim-widget :key="'ringkasan-tim'" />
+        </div>
         <livewire:my-staff.presensi-tim-widget :key="'presensi-tim'" />
         <livewire:my-staff.cuti-tim-widget :key="'cuti-tim'" />
         <livewire:my-staff.kontrak-orientasi-tim-widget :key="'kontrak-orientasi-tim'" />

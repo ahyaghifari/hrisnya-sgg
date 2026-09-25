@@ -10,7 +10,7 @@
 
             <div class="grid grid-cols-3" style="gap:10px;">
                 @forelse ($this->breakdown as $row)
-                    <button type="button" wire:click="openModal('{{ $row['name'] }}')" style="background:var(--surface-alt);border:none;border-radius:12px;padding:12px;text-align:center;cursor:pointer;font-family:inherit;">
+                    <button type="button" wire:click="openModal('{{ $row['name'] }}')" style="background:var(--surface-alt);border:none;box-shadow:inset 4px 0 0 {{ $this->colorForType($row['name']) }};border-radius:12px;padding:12px;text-align:center;cursor:pointer;font-family:inherit;">
                         <p style="font-size:20px;font-weight:800;color:{{ $this->colorForType($row['name']) }};margin:0;">{{ $row['count'] }}</p>
                         <p style="font-size:11px;color:var(--text-muted);margin-top:2px;">{{ $row['name'] }}</p>
                     </button>
