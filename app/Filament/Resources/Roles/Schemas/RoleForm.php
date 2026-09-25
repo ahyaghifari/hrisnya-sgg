@@ -370,6 +370,9 @@ class RoleForm
             'Delete' => 'Hapus Data',
             'Restore' => 'Pulihkan Data',
             'Reorder' => 'Urutkan Data',
+            // Custom (bukan hasil generate Shield) - cuma ada buat MasterApprovalFlows, lihat
+            // migration 2026_09_25_000000_seed_replicate_master_approval_flows_permission.
+            'Replicate' => 'Duplikat Data',
             // Bukan action standar Shield - custom buat ScheduleShiftTeam (2026-09-14), lihat
             // migration 2026_09_14_000000_seed_schedule_shift_team_assign_shift_types_permission.
             'AssignShiftTypes' => 'Atur Shift Tim',

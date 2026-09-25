@@ -1075,27 +1075,59 @@ html.lw-navigating .page-content { opacity: 0; }
 .absen-title { font-size: 14px; font-weight: 600; color: #fff; }
 .absen-sub { font-size: 11.5px; color: rgba(255,255,255,0.65); margin-top: 4px; }
 
-/* Domain Merit Point (Profil Saya, di samping kartu identitas) - kartu TERANG (bukan dark
-   gradient seperti .welcome-card/.absen-card), soft-tint gradasi bawah→atas mengikuti warna
-   tier skor (dikirim inline lewat --merit-from/--merit-to, lihat blade), supaya menyatu dengan
-   tema light bukan kotak gelap yang mencolok. */
-.merit-card { background: linear-gradient(135deg, var(--merit-from) 0%, var(--merit-to) 100%); border-radius: 18px; padding: 14px 22px; position: relative; overflow: hidden; display: flex; align-items: center; gap: 18px; min-width: 260px; box-shadow: 0 8px 26px -6px var(--merit-glow, rgba(0,0,0,.25)); animation: merit-pop .45s ease-out; transition: box-shadow .2s ease, transform .2s ease; }
+/* Domain Merit Point (Profil Saya, di samping kartu identitas) - kartu gradasi warna tier skor,
+   satu keluarga dengan .welcome-card/.absen-card. SEMUA warna per tier dikirim inline dari blade
+   lewat CSS variable (--merit-from/mid/to = gradasi kartu, --merit-ink* = warna teks, --merit-btn-*,
+   --merit-ring/track/spark = ring progres, --merit-coin-* = koin di tengah) - tier tertinggi
+   (emas, palet sama tombol "Profil Saya" .data-diri-btn.gold) terang jadi teksnya cokelat tua,
+   tier lain gelap jadi teksnya putih. Background berlapis (dari atas): kilau pojok kanan atas,
+   tekstur titik halus (pola sama .course-card-media-placeholder), gradasi dasar - semuanya layer
+   background di elemen ini sendiri, jadi selalu di bawah konten (tanpa pseudo-element/z-index). */
+.merit-card {
+    background:
+        radial-gradient(circle at 88% -8%, rgba(255,255,255,.28), transparent 52%),
+        radial-gradient(rgba(255,255,255,.14) 1px, transparent 1px) 0 0 / 14px 14px,
+        linear-gradient(135deg, var(--merit-from) 0%, var(--merit-mid) 45%, var(--merit-to) 100%);
+    border: 1px solid rgba(255,255,255,.2);
+    border-radius: 18px; padding: 14px 22px; position: relative; overflow: hidden; display: flex; align-items: center; gap: 18px; min-width: 260px; box-shadow: 0 8px 26px -6px var(--merit-glow, rgba(0,0,0,.25)); animation: merit-pop .45s ease-out; transition: box-shadow .2s ease, transform .2s ease;
+}
 .merit-card:hover { box-shadow: 0 12px 32px -6px var(--merit-glow, rgba(0,0,0,.3)); transform: translateY(-1px); }
 .merit-deco-1 { position: absolute; top: -46px; right: -40px; width: 150px; height: 150px; border-radius: 50%; background: #fff; opacity: .07; }
 .merit-deco-2 { position: absolute; bottom: -40px; left: 60px; width: 100px; height: 100px; border-radius: 50%; background: #fff; opacity: .06; }
-.merit-label { font-size: 13px; font-weight: 700; color: rgba(255,255,255,.85); position: relative; }
-.merit-score-row { font-size: 13px; color: rgba(255,255,255,.65); margin-top: 2px; position: relative; }
-.merit-score-row b { font-size: 15px; color: #fff; }
-.merit-history-btn { display: inline-flex; align-items: center; gap: 6px; background: rgba(255,255,255,.14); color: #fff; border: 1px solid rgba(255,255,255,.22); border-radius: 999px; padding: 5px 12px; font-size: 11.5px; font-weight: 600; margin-top: 8px; position: relative; transition: background .15s; }
-.merit-history-btn:hover { background: rgba(255,255,255,.24); }
-.merit-gauge-ring { flex-shrink: 0; position: relative; }
-/* Warna ring "hidup" (hue-rotate loop) lewat ::before terpisah dari konten - filter cuma
-   kena background gradient-nya, bukan lingkaran putih + angka di tengah (child dicat di atas
-   ::before secara alami tanpa perlu z-index). */
-.merit-gauge-ring::before { content: ''; position: absolute; inset: 0; border-radius: 50%; background: var(--merit-gauge-bg); animation: merit-hue-cycle 5s linear infinite; }
+.merit-label { font-size: 18px; font-weight: 800; letter-spacing: -.2px; color: var(--merit-ink, #fff); position: relative; }
+/* Tombol aksi di kartu (riwayat, tambah/kurangi poin) = ikon saja (bulat), label ada di
+   title/aria-label di blade. Bisa <a> maupun <button>, jadi reset padding/cursor di sini. */
+.merit-actions { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+.merit-icon-btn { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; padding: 0; cursor: pointer; background: var(--merit-btn-bg, rgba(255,255,255,.14)); color: var(--merit-ink, #fff); border: 1px solid var(--merit-btn-bd, rgba(255,255,255,.22)); border-radius: 50%; font-size: 12.5px; position: relative; transition: filter .15s; }
+.merit-icon-btn:hover { filter: brightness(1.12); }
+/* Glow statis di sekeliling ring (drop-shadow ngikutin bentuk lingkaran) - "berkilau" tanpa animasi. */
+.merit-gauge-ring { flex-shrink: 0; position: relative; filter: drop-shadow(0 0 7px var(--merit-spark)); }
+/* Ring statis - warnanya dari var(--merit-gauge-bg) (conic-gradient per tier, lihat blade),
+   tanpa animasi hue-rotate lagi (dihentikan, instruksi user 2026-09-25). */
+.merit-gauge-ring::before { content: ''; position: absolute; inset: 0; border-radius: 50%; background: var(--merit-gauge-bg); }
+/* Koin di tengah ring - TERANG mengkilap (bukan hitam, bukan var(--surface) yang jadi navy di dark
+   mode): gradasi radial krem->warna tier, angka gelap bernuansa tier di atasnya, kontras aman di
+   light maupun dark mode. Dua sisi (angka & emoji) dibalik lewat animasi flip 3D murni CSS -
+   .merit-medal = wadah perspective, .merit-flip = yang berputar (preserve-3d), .merit-face =
+   sisi koin (backface-visibility hidden, masing2 bawa background sendiri supaya seluruh koin
+   ikut berputar, bukan cuma isinya). Jangan kasih overflow/filter/opacity di .merit-medal atau
+   .merit-flip - itu memaksa transform-style jadi flat dan flip 3D-nya rata. */
+.merit-medal { position: absolute; inset: 5px; perspective: 260px; }
+.merit-flip { position: absolute; inset: 0; transform-style: preserve-3d; animation: merit-flip 7s ease-in-out infinite; }
+.merit-face {
+    position: absolute; inset: 0; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    -webkit-backface-visibility: hidden; backface-visibility: hidden;
+    background: radial-gradient(circle at 34% 26%, var(--merit-coin-a) 0%, var(--merit-coin-b) 52%, var(--merit-coin-c) 100%);
+    box-shadow: inset 0 2px 3px rgba(255,255,255,.75), inset 0 -3px 6px rgba(0,0,0,.16), 0 1px 3px rgba(0,0,0,.28);
+}
+.merit-face.is-back { transform: rotateY(180deg); }
+.merit-face .num { font-size: 22px; font-weight: 800; color: var(--merit-coin-ink); letter-spacing: -.5px; line-height: 1; text-shadow: 0 1px 0 rgba(255,255,255,.55); }
+.merit-face .emo { font-size: 30px; line-height: 1; filter: drop-shadow(0 1px 1px rgba(0,0,0,.25)); }
+/* Angka ~3s -> flip -> emoji ~3s -> flip balik (0% dan 100% = posisi sama, loop mulus). */
+@keyframes merit-flip { 0%, 44% { transform: rotateY(0deg); } 52%, 94% { transform: rotateY(180deg); } 100% { transform: rotateY(360deg); } }
+@media (prefers-reduced-motion: reduce) { .merit-flip { animation: none; } }
 @keyframes merit-pop { from { opacity: 0; transform: translateY(6px) scale(.97); } to { opacity: 1; transform: translateY(0) scale(1); } }
-@keyframes merit-hue-cycle { from { filter: hue-rotate(0deg); } to { filter: hue-rotate(360deg); } }
-@media (prefers-reduced-motion: reduce) { .merit-gauge-ring::before { animation: none; } }
 
 /* Font & tombol di welcome-card & absen-card dikecilkan khusus mobile — kartu dark-gradient
    ini dipakai di lebar penuh layar HP, jadi tulisan/tombol besar terasa boros tempat. */

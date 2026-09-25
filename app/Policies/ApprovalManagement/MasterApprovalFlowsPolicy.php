@@ -47,4 +47,9 @@ class MasterApprovalFlowsPolicy
         return $authUser->can('ForceDelete:MasterApprovalFlows');
     }
 
+    public function replicate(AuthUser $authUser, MasterApprovalFlows $masterApprovalFlows): bool
+    {
+        return $authUser->can('Replicate:MasterApprovalFlows');
+    }
+
 }

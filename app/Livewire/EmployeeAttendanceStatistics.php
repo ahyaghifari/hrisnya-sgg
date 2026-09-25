@@ -14,6 +14,7 @@ use App\Models\AuditLog;
 use App\Models\Attendance\AttendanceRecords;
 use App\Models\Attendance\AttendanceRequests;
 use App\Models\Master\Religions;
+use App\Models\MeritPoint\MeritPointRule;
 use App\Models\Payroll\Payroll;
 use App\Models\Setting;
 use App\Models\User;
@@ -22,6 +23,7 @@ use App\Models\User\UserProfileDocument;
 use App\Models\UserHrBalance;
 use App\Services\Attendance\AttendaceReqService;
 use App\Services\Attendance\AttendancePeriodResolver;
+use App\Services\MeritPoint\MeritPointService;
 use App\Services\OrgHierarchyService;
 use Carbon\Carbon;
 use Filament\Notifications\Notification;
@@ -30,6 +32,7 @@ use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 use Livewire\WithPagination;
@@ -81,6 +84,16 @@ class EmployeeAttendanceStatistics extends Component
     public string $newDocumentLabel = '';
     /** @var \Livewire\Features\SupportFileUploads\TemporaryUploadedFile|null */
     public $newDocumentFile = null;
+
+    // ── Beri/kurangi Merit Point manual (modal di kartu "Poin Anda", lihat saveMerit()) ──
+    public bool $showMeritModal = false;
+    /** 'rule' = pilih aturan (poin dari aturan) | 'manual' = tentukan sendiri. */
+    public string $meritMode = 'rule';
+    public ?string $meritRuleId = null;
+    /** Mode manual: 'add' | 'subtract' + jumlah positif (tanda dihitung dari arah, bukan diketik). */
+    public $meritAmount = null;
+    public string $meritDirection = 'add';
+    public string $meritReason = '';
 
     public function mount(?User $record = null): void
     {
@@ -371,6 +384,131 @@ class EmployeeAttendanceStatistics extends Component
             $this->record->company_id,
             filter_var(PembinaanSettingEnum::MERIT_POINT_ENABLED->default(), FILTER_VALIDATE_BOOLEAN)
         );
+    }
+
+    /**
+     * Tombol +/- di kartu Poin Anda: butuh permission Shield Create:MeritPointTransaction (sama
+     * dengan form admin Filament), Merit Point aktif di company karyawan, tidak boleh untuk
+     * diri sendiri, dan HC biasa cuma untuk karyawan company-nya (kecuali lintas company).
+     * Dicek ulang di server tiap aksi (open/save), bukan cuma buat nampilin tombol.
+     */
+    public function getCanGiveMeritPointProperty(): bool
+    {
+        $user = Auth::user();
+
+        return $this->showSpMeritWidget
+            && $this->meritPointEnabled
+            && $this->record->id !== $user->id
+            && $user->can('Create:MeritPointTransaction')
+            && ($user->canBrowseAllCompanies() || $user->company_id === $this->record->company_id);
+    }
+
+    /** Aturan aktif milik company karyawan ini (aturan itu per company, bukan company yang memberi). */
+    public function getMeritRulesProperty()
+    {
+        return MeritPointRule::where('company_id', $this->record->company_id)
+            ->where('is_active', true)
+            ->orderByDesc('points')
+            ->get();
+    }
+
+    public function getMeritNowProperty(): int
+    {
+        return app(MeritPointService::class)->computeBalance($this->record->id);
+    }
+
+    /** Selisih poin yang akan dicatat sesuai isian form saat ini (null = belum lengkap). */
+    public function getMeritDeltaProperty(): ?int
+    {
+        if ($this->meritMode === 'rule') {
+            return $this->meritRules->firstWhere('id', $this->meritRuleId)?->points;
+        }
+
+        $amount = filter_var($this->meritAmount, FILTER_VALIDATE_INT);
+
+        if ($amount === false || $amount < 1) {
+            return null;
+        }
+
+        return $this->meritDirection === 'subtract' ? -$amount : $amount;
+    }
+
+    public function openMeritModal(): void
+    {
+        abort_unless($this->canGiveMeritPoint, 403);
+
+        $this->resetMeritForm();
+        $this->showMeritModal = true;
+    }
+
+    public function closeMeritModal(): void
+    {
+        $this->showMeritModal = false;
+        $this->resetMeritForm();
+    }
+
+    public function setMeritMode(string $mode): void
+    {
+        $this->meritMode = $mode === 'manual' ? 'manual' : 'rule';
+        $this->resetErrorBag();
+    }
+
+    public function saveMerit(): void
+    {
+        abort_unless($this->canGiveMeritPoint, 403);
+
+        $messages = [
+            'meritRuleId.required' => 'Pilih aturan dulu.',
+            'meritRuleId.exists' => 'Aturan tidak valid atau sudah tidak aktif.',
+            'meritAmount.required' => 'Isi jumlah poin.',
+            'meritAmount.integer' => 'Jumlah poin harus bilangan bulat.',
+            'meritAmount.min' => 'Jumlah poin minimal 1.',
+            'meritAmount.max' => 'Jumlah poin maksimal 100.',
+            'meritReason.required' => 'Catatan wajib diisi.',
+            'meritReason.max' => 'Catatan maksimal 500 karakter.',
+        ];
+
+        if ($this->meritMode === 'rule') {
+            $this->validate([
+                'meritRuleId' => ['required', Rule::exists('merit_point_rules', 'id')
+                    ->where('company_id', $this->record->company_id)
+                    ->where('is_active', true)],
+                'meritReason' => ['required', 'string', 'max:500'],
+            ], $messages);
+
+            $ruleId = $this->meritRuleId;
+            $points = MeritPointRule::findOrFail($ruleId)->points;
+        } else {
+            $this->validate([
+                'meritDirection' => ['required', 'in:add,subtract'],
+                'meritAmount' => ['required', 'integer', 'min:1', 'max:100'],
+                'meritReason' => ['required', 'string', 'max:500'],
+            ], $messages);
+
+            $ruleId = null;
+            $points = $this->meritDirection === 'subtract' ? -(int) $this->meritAmount : (int) $this->meritAmount;
+        }
+
+        app(MeritPointService::class)->addTransaction([
+            'user_id' => $this->record->id,
+            'rule_id' => $ruleId,
+            'points' => $points,
+            'reason' => trim($this->meritReason),
+            'created_by' => Auth::id(),
+        ]);
+
+        $this->closeMeritModal();
+
+        Notification::make()
+            ->title(($points >= 0 ? '+' : '') . $points . ' poin untuk ' . $this->record->name . ' berhasil dicatat')
+            ->success()
+            ->send();
+    }
+
+    private function resetMeritForm(): void
+    {
+        $this->reset('meritMode', 'meritRuleId', 'meritDirection', 'meritAmount', 'meritReason');
+        $this->resetErrorBag();
     }
 
     /** Pemilik akun selalu boleh; selain itu HC (`sistem_kepegawaian`, dibatasi company sendiri

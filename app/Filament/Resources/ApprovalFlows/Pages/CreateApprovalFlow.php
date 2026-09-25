@@ -3,13 +3,51 @@
 namespace App\Filament\Resources\ApprovalFlows\Pages;
 
 use App\Filament\Resources\ApprovalFlows\ApprovalFlowResource;
+use App\Models\Master\JobPositions;
 use Filament\Resources\Pages\CreateRecord;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 
 class CreateApprovalFlow extends CreateRecord
 {
     protected static string $resource = ApprovalFlowResource::class;
     protected static ?string $title = 'Buat Alur Persetujuan Baru';
+
+    // Duplikat: ?replicate={id} mengisi form dengan salinan alur sumber (bukan simpan langsung -
+    // validasi bentrok modul/jenis/jabatan di form harus tetap jalan). Sumber diambil lewat
+    // getEloquentQuery (scope company) + policy replicate, jadi tidak bisa nyalin alur company lain.
+    protected function fillForm(): void
+    {
+        $source = ($id = request()->query('replicate'))
+            ? ApprovalFlowResource::getEloquentQuery()->find($id)
+            : null;
+
+        if (! $source || ! Auth::user()->can('replicate', $source)) {
+            parent::fillForm();
+
+            return;
+        }
+
+        $this->callHook('beforeFill');
+
+        $this->form->fill([
+            'company_id' => $source->company_id,
+            'name' => $source->name.' (Salinan)',
+            'module' => $source->module,
+            'sub_module' => $source->sub_module,
+            'flow_type' => $source->flow_type,
+            'assignment_job_positions' => $source->assignments()
+                ->where('assignable_type', JobPositions::class)
+                ->pluck('assignable_id')
+                ->toArray(),
+            'steps' => $source->steps->map(fn ($step) => $step->only([
+                'step_order', 'approver_type', 'approver_ref_id', 'supervisor_level',
+                'approval_mode', 'scope_type', 'scope_ref_id', 'is_final',
+            ]))->toArray(),
+        ]);
+
+        $this->callHook('afterFill');
+    }
 
     protected function mutateFormDataBeforeCreate(array $data): array
     {

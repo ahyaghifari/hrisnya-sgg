@@ -2,10 +2,11 @@
 
 namespace App\Filament\Resources\ApprovalFlows\Tables;
 
+use App\Filament\Resources\ApprovalFlows\ApprovalFlowResource;
 use App\Helpers\PermissionHelper;
-use Filament\Actions\BulkActionGroup;
-use Filament\Actions\DeleteBulkAction;
+use Filament\Actions\Action;
 use Filament\Actions\EditAction;
+use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
@@ -79,6 +80,14 @@ class ApprovalFlowsTable
             ])
             ->recordActions([
                 EditAction::make(),
+                // Bukan ReplicateAction bawaan: salinan langsung tersimpan akan mem-bypass validasi
+                // bentrok alur di form. Buka halaman Buat terisi salinan, validasi tetap jalan.
+                Action::make('duplicate')
+                    ->label('Duplikat')
+                    ->icon(Heroicon::OutlinedDocumentDuplicate)
+                    ->color('gray')
+                    ->visible(fn ($record) => Auth::user()->can('replicate', $record))
+                    ->url(fn ($record) => ApprovalFlowResource::getUrl('create', ['replicate' => $record->getKey()])),
             ]);
     }
 }

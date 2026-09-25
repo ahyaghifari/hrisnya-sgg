@@ -42,10 +42,53 @@
         $meritPct = max(0, min(100, $meritPoint));
         // Satu keluarga visual dengan .welcome-card/.absen-card (dark gradient, teks putih,
         // dekorasi bulat) tapi warnanya ikut tier skor - lihat DESIGN.md §domain card.
+        // Tier warna (semuanya jadi CSS variable inline di .merit-card, lihat app.css):
+        //  from/mid/to = gradasi kartu, ink/btnBg/btnBd = teks & tombol di atasnya,
+        //  ring2/ring/track = busur progres ring (track = sisa yang belum terisi), spark = glow ring,
+        //  coinA/B/C/Ink = koin terang di tengah ring (angka gelap bernuansa tier di atasnya).
+        // Emas (>=90) = palet sama tombol "Profil Saya" (.data-diri-btn.gold): kartunya TERANG, jadi
+        // teks/busur ring dibikin cokelat tua (bukan putih) supaya tetap kebaca.
         $meritTier = match (true) {
-            $meritPct >= 70 => ['from' => '#047C54', 'to' => '#024732', 'ring' => '#34d399', 'ring2' => '#a7f3d0', 'text' => '#047857', 'glow' => 'rgba(4,71,50,.35)'],
-            $meritPct >= 40 => ['from' => '#b45309', 'to' => '#78350f', 'ring' => '#fbbf24', 'ring2' => '#fde68a', 'text' => '#b45309', 'glow' => 'rgba(120,53,15,.35)'],
-            default => ['from' => '#b91c1c', 'to' => '#7f1d1d', 'ring' => '#f87171', 'ring2' => '#fecaca', 'text' => '#b91c1c', 'glow' => 'rgba(127,29,29,.35)'],
+            $meritPct >= 90 => [
+                'from' => '#fde68a', 'mid' => '#f5c518', 'to' => '#d4a017',
+                'ink' => '#4a3204', 'btnBg' => 'rgba(74,50,4,.10)', 'btnBd' => 'rgba(74,50,4,.24)',
+                'ring2' => '#b7791f', 'ring' => '#7a4f01', 'track' => 'rgba(255,255,255,.55)', 'spark' => '#ffffff',
+                'coinA' => '#fffdf5', 'coinB' => '#fde68a', 'coinC' => '#f5c518', 'coinInk' => '#6b4a05',
+                'glow' => 'rgba(180,120,4,.5)',
+            ],
+            $meritPct >= 70 => [
+                'from' => '#047C54', 'mid' => '#035f41', 'to' => '#024732',
+                'ink' => '#ffffff', 'btnBg' => 'rgba(255,255,255,.14)', 'btnBd' => 'rgba(255,255,255,.24)',
+                'ring2' => '#a7f3d0', 'ring' => '#34d399', 'track' => 'rgba(255,255,255,.25)', 'spark' => '#34d399',
+                'coinA' => '#f0fdf7', 'coinB' => '#a7f3d0', 'coinC' => '#34d399', 'coinInk' => '#065f46',
+                'glow' => 'rgba(4,71,50,.35)',
+            ],
+            $meritPct >= 40 => [
+                'from' => '#b45309', 'mid' => '#964410', 'to' => '#78350f',
+                'ink' => '#ffffff', 'btnBg' => 'rgba(255,255,255,.14)', 'btnBd' => 'rgba(255,255,255,.24)',
+                'ring2' => '#fde68a', 'ring' => '#fbbf24', 'track' => 'rgba(255,255,255,.25)', 'spark' => '#fbbf24',
+                'coinA' => '#fffbeb', 'coinB' => '#fde68a', 'coinC' => '#fbbf24', 'coinInk' => '#78350f',
+                'glow' => 'rgba(120,53,15,.35)',
+            ],
+            default => [
+                'from' => '#b91c1c', 'mid' => '#9c1c1c', 'to' => '#7f1d1d',
+                'ink' => '#ffffff', 'btnBg' => 'rgba(255,255,255,.14)', 'btnBd' => 'rgba(255,255,255,.24)',
+                'ring2' => '#fecaca', 'ring' => '#f87171', 'track' => 'rgba(255,255,255,.25)', 'spark' => '#f87171',
+                'coinA' => '#fff5f5', 'coinB' => '#fecaca', 'coinC' => '#fca5a5', 'coinInk' => '#7f1d1d',
+                'glow' => 'rgba(127,29,29,.35)',
+            ],
+        };
+        // Emoji sisi belakang koin (flip bergantian dengan angka) - makin rendah skor makin sedih.
+        $meritEmoji = match (true) {
+            $meritPct >= 100 => '🤩',
+            $meritPct >= 90 => '🔥',
+            $meritPct >= 80 => '😎',
+            $meritPct >= 70 => '👍',
+            $meritPct >= 55 => '🙂',
+            $meritPct >= 40 => '😐',
+            $meritPct >= 25 => '😟',
+            $meritPct >= 10 => '😢',
+            default => '😭',
         };
     }
 @endphp
@@ -103,21 +146,33 @@ override tambahan. --}}
 
         @if ($showMeritBeside)
             <div class="ia-merit-slot">
-                <div class="merit-card" style="--merit-from:{{ $meritTier['from'] }};--merit-to:{{ $meritTier['to'] }};--merit-glow:{{ $meritTier['glow'] }};">
+                <div class="merit-card" style="--merit-from:{{ $meritTier['from'] }};--merit-mid:{{ $meritTier['mid'] }};--merit-to:{{ $meritTier['to'] }};--merit-glow:{{ $meritTier['glow'] }};--merit-ink:{{ $meritTier['ink'] }};--merit-btn-bg:{{ $meritTier['btnBg'] }};--merit-btn-bd:{{ $meritTier['btnBd'] }};--merit-spark:{{ $meritTier['spark'] }};--merit-coin-a:{{ $meritTier['coinA'] }};--merit-coin-b:{{ $meritTier['coinB'] }};--merit-coin-c:{{ $meritTier['coinC'] }};--merit-coin-ink:{{ $meritTier['coinInk'] }};">
                     <div class="merit-deco-1"></div>
                     <div class="merit-deco-2"></div>
-                    <div class="merit-gauge-ring" style="width:72px;height:72px;--merit-gauge-bg:conic-gradient({{ $meritTier['ring2'] }} 0deg, {{ $meritTier['ring'] }} {{ $meritPct * 3.6 }}deg, rgba(255,255,255,.25) {{ $meritPct * 3.6 }}deg 360deg);">
-                        <div style="position:absolute;inset:5px;border-radius:50%;background:var(--surface);display:flex;align-items:center;justify-content:center;">
-                            <span style="font-size:19px;font-weight:800;color:{{ $meritTier['text'] }};">{{ $meritPoint }}</span>
+                    <div class="merit-gauge-ring" style="width:72px;height:72px;--merit-gauge-bg:conic-gradient({{ $meritTier['ring2'] }} 0deg, {{ $meritTier['ring'] }} {{ $meritPct * 3.6 }}deg, {{ $meritTier['track'] }} {{ $meritPct * 3.6 }}deg 360deg);">
+                        <div class="merit-medal">
+                            <div class="merit-flip">
+                                <div class="merit-face"><span class="num">{{ $meritPoint }}</span></div>
+                                <div class="merit-face is-back" aria-hidden="true"><span class="emo">{{ $meritEmoji }}</span></div>
+                            </div>
                         </div>
                     </div>
                     <div>
-                        <p class="merit-label">Poinmu</p>
-                        <p class="merit-score-row"><b>{{ $meritPoint }}</b>/100</p>
-                        @if ($isSelf)
-                            <a href="{{ route('merit-point.saya.riwayat') }}" wire:navigate class="merit-history-btn">
-                                <i class="fa-solid fa-clock-rotate-left"></i> Riwayat
-                            </a>
+                        <p class="merit-label">Poin Anda</p>
+                        @php $canGiveMerit = $this->canGiveMeritPoint; @endphp
+                        @if ($isSelf || $canGiveMerit)
+                            <div class="merit-actions">
+                                @if ($isSelf)
+                                    <a href="{{ route('merit-point.saya.riwayat') }}" wire:navigate class="merit-icon-btn" title="Riwayat poin" aria-label="Riwayat poin">
+                                        <i class="fa-solid fa-clock-rotate-left"></i>
+                                    </a>
+                                @endif
+                                @if ($canGiveMerit)
+                                    <button type="button" wire:click="openMeritModal" class="merit-icon-btn" title="Tambah / kurangi poin" aria-label="Tambah atau kurangi poin">
+                                        <i class="fa-solid fa-plus-minus"></i>
+                                    </button>
+                                @endif
+                            </div>
                         @endif
                     </div>
                 </div>
@@ -1163,6 +1218,85 @@ source (tab server-render sekali jalan, x-show cuma toggle CSS). --}}
             </div>
             {{ $auditHistory->links('livewire.partials.pagination') }}
         @endif
+    </div>
+@endif
+
+{{-- Modal tambah/kurangi Merit Point manual (tombol +/- di kartu "Poin Anda"). Sengaja di luar
+.merit-card: kartu itu punya animation/transform, dan itu bikin position:fixed anaknya nempel ke
+kartu, bukan ke layar. 2 tab: "Sesuai Aturan" (poin dari aturan company, tidak bisa diubah) dan
+"Sesuai Keinginan" (arah + jumlah bebas). Catatan wajib di dua-duanya. --}}
+@if ($showMeritModal && $this->canGiveMeritPoint)
+    @php
+        $meritRules = $this->meritRules;
+        $meritNow = $this->meritNow;
+        $meritDelta = $this->meritDelta;
+        $meritAfter = $meritDelta === null ? null : max(0, min(100, $meritNow + $meritDelta));
+        $segBtn = fn (bool $active) => 'padding:6px 16px;font-size:12.5px;font-weight:600;border:none;border-radius:6px;cursor:pointer;font-family:inherit;background:'.($active ? 'var(--surface)' : 'transparent').';color:'.($active ? 'var(--text-heading)' : 'var(--text-muted)').';box-shadow:'.($active ? 'var(--shadow-card)' : 'none').';';
+        $dirBtn = fn (bool $active, string $color) => 'flex:1;padding:9px 12px;font-size:13px;font-weight:700;border-radius:10px;cursor:pointer;font-family:inherit;border:1.5px solid '.($active ? $color : 'var(--border)').';background:'.($active ? $color : 'transparent').';color:'.($active ? '#fff' : 'var(--text-muted)').';';
+    @endphp
+    <div class="modal-overlay" wire:click="closeMeritModal">
+        <div class="modal-box" onclick="event.stopPropagation()">
+            <h3 style="font-size:16px;font-weight:700;color:var(--text-heading);margin:0;">Tambah / Kurangi Poin</h3>
+            <p style="font-size:12.5px;color:var(--text-muted);margin:4px 0 14px;">{{ $record->name }} &middot; poin saat ini <b style="color:var(--text-heading);">{{ $meritNow }}</b></p>
+
+            <div style="display:inline-flex;gap:2px;background:var(--surface-alt);padding:3px;border-radius:8px;margin-bottom:14px;">
+                <button type="button" wire:click="setMeritMode('rule')" style="{{ $segBtn($meritMode === 'rule') }}">Sesuai Aturan</button>
+                <button type="button" wire:click="setMeritMode('manual')" style="{{ $segBtn($meritMode === 'manual') }}">Sesuai Keinginan</button>
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:12px;">
+                @if ($meritMode === 'rule')
+                    <div>
+                        <label class="form-label">Aturan <span style="color:var(--danger-text);">*</span></label>
+                        @if ($meritRules->isEmpty())
+                            <p style="font-size:12.5px;color:var(--text-muted);margin:0;">Belum ada aturan aktif untuk perusahaan ini. Pakai tab "Sesuai Keinginan", atau tambahkan aturan lewat admin.</p>
+                        @else
+                            <select class="form-input" wire:model.live="meritRuleId">
+                                <option value="">Pilih aturan</option>
+                                @foreach ($meritRules as $rule)
+                                    <option value="{{ $rule->id }}">{{ $rule->name }} ({{ $rule->points > 0 ? '+' : '' }}{{ $rule->points }})</option>
+                                @endforeach
+                            </select>
+                        @endif
+                        @error('meritRuleId') <p style="font-size:11px;color:#dc2626;margin-top:4px;">{{ $message }}</p> @enderror
+                    </div>
+                @else
+                    <div>
+                        <label class="form-label">Arah</label>
+                        <div style="display:flex;gap:8px;">
+                            <button type="button" wire:click="$set('meritDirection', 'add')" style="{{ $dirBtn($meritDirection === 'add', '#047C54') }}"><i class="fa-solid fa-plus" style="margin-right:6px;"></i>Tambah</button>
+                            <button type="button" wire:click="$set('meritDirection', 'subtract')" style="{{ $dirBtn($meritDirection === 'subtract', '#b91c1c') }}"><i class="fa-solid fa-minus" style="margin-right:6px;"></i>Kurangi</button>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="form-label">Jumlah poin <span style="color:var(--danger-text);">*</span></label>
+                        <input type="number" class="form-input" wire:model.live.debounce.300ms="meritAmount" min="1" max="100" step="1" placeholder="mis. 5">
+                        @error('meritAmount') <p style="font-size:11px;color:#dc2626;margin-top:4px;">{{ $message }}</p> @enderror
+                    </div>
+                @endif
+
+                <div>
+                    <label class="form-label">Catatan <span style="color:var(--danger-text);">*</span></label>
+                    <textarea class="form-input" rows="3" wire:model="meritReason" maxlength="500" placeholder="Alasan pemberian / pengurangan poin..."></textarea>
+                    @error('meritReason') <p style="font-size:11px;color:#dc2626;margin-top:4px;">{{ $message }}</p> @enderror
+                </div>
+
+                @if ($meritDelta !== null)
+                    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px;border-radius:10px;background:var(--surface-alt);font-size:12.5px;">
+                        <span style="color:var(--text-muted);">Hasil</span>
+                        <span style="font-weight:700;color:{{ $meritAfter > $meritNow ? '#047C54' : ($meritAfter < $meritNow ? '#b91c1c' : 'var(--text-muted)') }};">
+                            {{ $meritNow }} <i class="fa-solid fa-arrow-right" style="font-size:10px;margin:0 4px;"></i> {{ $meritAfter }}
+                            <span style="font-weight:500;color:var(--text-muted);">({{ $meritDelta > 0 ? '+' : '' }}{{ $meritDelta }}{{ $meritAfter !== $meritNow + $meritDelta ? ', dijepit 0-100' : '' }})</span>
+                        </span>
+                    </div>
+                @endif
+            </div>
+
+            <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px;">
+                <button type="button" wire:click="closeMeritModal" class="btn-ghost">Batal</button>
+                <button type="button" wire:click="saveMerit" wire:loading.attr="disabled" wire:target="saveMerit" class="btn-primary">Simpan</button>
+            </div>
+        </div>
     </div>
 @endif
 </div>
