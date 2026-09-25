@@ -151,6 +151,23 @@ class EmployeeSpForm
     protected static function editSchema(): array
     {
         return [
+            Section::make('Pembatalan')
+                ->icon('heroicon-o-x-circle')
+                ->columns(2)
+                ->visible(fn ($record) => $record->isCancelled())
+                ->schema([
+                    TextEntry::make('cancelledBy.name')
+                        ->label('Dibatalkan Oleh'),
+
+                    TextEntry::make('cancelled_at')
+                        ->label('Dibatalkan Pada')
+                        ->dateTime(),
+
+                    TextEntry::make('cancelled_reason')
+                        ->label('Alasan')
+                        ->columnSpanFull(),
+                ])->columnSpanFull(),
+
             Section::make('SP')
                 ->icon('heroicon-o-exclamation-triangle')
                 ->columns(2)

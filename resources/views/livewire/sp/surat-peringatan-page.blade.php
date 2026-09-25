@@ -12,7 +12,7 @@
     <div class="pwa-list">
         @forelse ($sps as $sp)
             @php
-                $isActive = $sp->start_date->lte(today()) && ($sp->end_date === null || $sp->end_date->gte(today()));
+                $isActive = ! $sp->isCancelled() && $sp->start_date->lte(today()) && ($sp->end_date === null || $sp->end_date->gte(today()));
                 $levelColor = $levelColors[$sp->sp_level->value] ?? ['background' => '#f1f5f9', 'color' => '#64748b'];
             @endphp
             <a href="{{ route('sp.saya.show', $sp) }}" wire:navigate class="pwa-list-row" style="text-decoration:none;">
@@ -28,7 +28,7 @@
                         &middot;
                         {{ $sp->end_date ? $sp->end_date->translatedFormat('d M Y') : 'Tidak pernah berakhir' }}
                         &middot;
-                        {{ $isActive ? 'Aktif' : 'Expired' }}
+                        {{ $sp->isCancelled() ? 'Dibatalkan' : ($isActive ? 'Aktif' : 'Expired') }}
                     </span>
                 </div>
                 <i class="fa-solid fa-chevron-right"></i>

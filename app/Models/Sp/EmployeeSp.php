@@ -28,6 +28,9 @@ class EmployeeSp extends Model
         'end_date',
         'created_by',
         'knows_by',
+        'cancelled_at',
+        'cancelled_reason',
+        'cancelled_by',
     ];
 
     protected $casts = [
@@ -35,18 +38,32 @@ class EmployeeSp extends Model
         'source_type' => SpSourceType::class,
         'start_date' => 'date',
         'end_date' => 'date',
+        'cancelled_at' => 'datetime',
     ];
 
     /**
      * SP aktif = source of truth bisnis, selalu live-query (planning/2026-09-23-sp-dan-merit-point.md
-     * §2.2) - JANGAN baca dari cache user_hr_balances buat validasi.
+     * §2.2) - JANGAN baca dari cache user_hr_balances buat validasi. SP yang dibatalkan
+     * (cancelled_at terisi) TIDAK PERNAH dianggap aktif, walau tanggalnya masih berlaku
+     * (instruksi user 2026-09-25, fitur Batal SP).
      */
     public function scopeActive($query)
     {
-        return $query->whereDate('start_date', '<=', now()->toDateString())
+        return $query->whereNull('cancelled_at')
+            ->whereDate('start_date', '<=', now()->toDateString())
             ->where(function ($q) {
                 $q->whereNull('end_date')->orWhereDate('end_date', '>=', now()->toDateString());
             });
+    }
+
+    public function isCancelled(): bool
+    {
+        return $this->cancelled_at !== null;
+    }
+
+    public function cancelledBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'cancelled_by');
     }
 
     public function user(): BelongsTo

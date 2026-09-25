@@ -6,6 +6,7 @@ use App\Enum\CustomPermissionEnum;
 use App\Helpers\PermissionHelper;
 use App\Models\Sp\EmployeeSp;
 use App\Models\User;
+use App\Services\Sp\SpService;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
@@ -35,6 +36,10 @@ class SpDetailPage extends Component
     public ?string $sp_start_date = null;
     public ?string $sp_end_date = null;
     public ?string $sp_knows_by = null;
+
+    public bool $cancellingSp = false;
+
+    public string $cancel_reason = '';
 
     public bool $editingItems = false;
 
@@ -101,6 +106,27 @@ class SpDetailPage extends Component
     public function cancelEditSp(): void
     {
         $this->editingSp = false;
+    }
+
+    public function openCancelSp(): void
+    {
+        $this->cancel_reason = '';
+        $this->cancellingSp = true;
+    }
+
+    public function closeCancelSp(): void
+    {
+        $this->cancellingSp = false;
+    }
+
+    public function confirmCancelSp(): void
+    {
+        $this->validate(['cancel_reason' => ['required', 'string', 'max:1000']], [], ['cancel_reason' => 'Alasan pembatalan']);
+
+        app(SpService::class)->cancel($this->record, $this->cancel_reason, Auth::id());
+
+        $this->record->refresh()->load('cancelledBy');
+        $this->cancellingSp = false;
     }
 
     public function editItems(): void

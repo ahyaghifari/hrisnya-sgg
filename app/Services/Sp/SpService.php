@@ -64,6 +64,21 @@ class SpService
         User::find($employeeSp->user_id)?->notify(new SpIssued($employeeSp));
     }
 
+    /** Batal SP (instruksi user 2026-09-25) - soft-cancel, bukan hard delete: record tetap ada
+     * buat riwayat/audit, cuma ditandai cancelled_at + alasan + siapa yang membatalkan.
+     * scopeActive() otomatis exclude SP yang sudah dibatalkan, jadi cache active_sp_level perlu
+     * di-refresh ulang sama seperti afterIssued() (level aktif user bisa berubah/hilang). */
+    public function cancel(EmployeeSp $employeeSp, string $reason, string $cancelledById): void
+    {
+        $employeeSp->update([
+            'cancelled_at' => now(),
+            'cancelled_reason' => $reason,
+            'cancelled_by' => $cancelledById,
+        ]);
+
+        $this->refreshBalance($employeeSp->user_id);
+    }
+
     /**
      * Setujui rekomendasi (§2.4) - HR boleh ubah level & tanggal mulai dari saran awal
      * recommendation, reason/catatan tetap dari recommendation (tidak diubah saat review).

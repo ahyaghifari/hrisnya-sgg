@@ -1,11 +1,27 @@
 <div>
 <x-page-header title="Detail Surat Peringatan" :back="route('sp')" />
 
-<div style="display:flex;justify-content:flex-end;margin-bottom:16px;">
+<div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:16px;">
     <a href="{{ route('sp.preview', $record) }}" target="_blank" class="btn-primary">
         <i class="fa-solid fa-file-pdf"></i> Preview PDF
     </a>
 </div>
+
+@if ($cancellingSp)
+    <div class="card-surface" style="margin-bottom:16px;border:1.5px solid var(--danger-text);">
+        <p style="font-size:13px;font-weight:700;color:var(--danger-text);margin:0 0 8px;">
+            <i class="fa-solid fa-triangle-exclamation"></i> Batalkan SP ini?
+        </p>
+        <p style="font-size:12.5px;color:var(--text-muted);margin:0 0 12px;">SP tidak dihapus, cuma ditandai batal - tetap tercatat sebagai riwayat dan tidak lagi dihitung aktif.</p>
+        <label class="form-label">Alasan Pembatalan <span style="color:var(--danger-text);">*</span></label>
+        <textarea wire:model="cancel_reason" rows="3" class="form-input"></textarea>
+        @error('cancel_reason') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
+        <div style="display:flex;gap:8px;margin-top:12px;">
+            <button type="button" wire:click="confirmCancelSp" wire:confirm="Yakin batalkan SP ini? Tindakan ini tidak bisa dibatalkan lagi." class="btn-primary" style="background:var(--danger-text);border-color:var(--danger-text);">Ya, Batalkan</button>
+            <button type="button" wire:click="closeCancelSp" class="btn-secondary">Batal</button>
+        </div>
+    </div>
+@endif
 
 @php
     $levelColors = [
@@ -14,14 +30,26 @@
         'sp3' => ['bg' => '#fee2e2', 'fg' => '#b91c1c'],
     ];
     $levelColor = $levelColors[$record->sp_level->value] ?? ['bg' => '#f1f5f9', 'fg' => '#64748b'];
-    $isActive = $record->start_date->lte(today()) && ($record->end_date === null || $record->end_date->gte(today()));
+    $isActive = ! $record->isCancelled() && $record->start_date->lte(today()) && ($record->end_date === null || $record->end_date->gte(today()));
 @endphp
+
+@if ($record->isCancelled())
+    <div class="card-surface" style="margin-bottom:16px;border:1.5px solid var(--danger-text);background:#fef2f2;">
+        <p style="font-size:13px;font-weight:700;color:var(--danger-text);margin:0 0 6px;">
+            <i class="fa-solid fa-ban"></i> SP Ini Dibatalkan
+        </p>
+        <p style="font-size:12.5px;color:var(--text-body);margin:0 0 4px;">{{ $record->cancelled_reason }}</p>
+        <p style="font-size:11.5px;color:var(--text-muted);margin:0;">
+            Oleh {{ $record->cancelledBy?->name ?? '-' }} &middot; {{ $record->cancelled_at->translatedFormat('d M Y, H:i') }}
+        </p>
+    </div>
+@endif
 
 <div class="card-surface accent accent-navy" style="margin-bottom:16px;">
     <div class="section-head-icon" style="margin-bottom:8px;justify-content:space-between;">
         <p style="font-size:13px;font-weight:700;color:var(--text-heading);margin:0;">
             <span class="badge" style="background:{{ $levelColor['bg'] }};color:{{ $levelColor['fg'] }};margin-right:6px;">{{ $record->sp_level->getLabel() }}</span>
-            {{ $isActive ? 'Aktif' : 'Expired' }}
+            {{ $record->isCancelled() ? 'Dibatalkan' : ($isActive ? 'Aktif' : 'Expired') }}
             @if ($record->nomor)
                 <span style="font-size:11.5px;font-weight:400;color:var(--text-muted);">&middot; No. {{ $record->nomor }}</span>
             @endif
@@ -219,5 +247,13 @@
         @endunless
     @endif
 </div>
+
+@unless ($record->isCancelled())
+    <div style="display:flex;justify-content:flex-end;margin-top:8px;">
+        <button type="button" wire:click="openCancelSp" class="btn-ghost" style="color:var(--danger-text);border-color:var(--danger-soft-border);">
+            <i class="fa-solid fa-ban"></i> Batalkan SP
+        </button>
+    </div>
+@endunless
 
 </div>

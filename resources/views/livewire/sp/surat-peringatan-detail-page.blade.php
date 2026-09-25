@@ -19,15 +19,23 @@
         'sp3' => ['background' => '#fee2e2', 'color' => '#b91c1c'],
     ];
     $levelColor = $levelColors[$record->sp_level->value] ?? ['background' => '#f1f5f9', 'color' => '#64748b'];
-    $isActive = $record->start_date->lte(today()) && ($record->end_date === null || $record->end_date->gte(today()));
+    $isActive = ! $record->isCancelled() && $record->start_date->lte(today()) && ($record->end_date === null || $record->end_date->gte(today()));
 @endphp
+
+@if ($record->isCancelled())
+    <div class="card-surface" style="margin-bottom:16px;border:1.5px solid var(--danger-text);background:#fef2f2;">
+        <p style="font-size:13px;font-weight:700;color:var(--danger-text);margin:0;">
+            <i class="fa-solid fa-ban"></i> SP Ini Dibatalkan
+        </p>
+    </div>
+@endif
 
 <div class="card-surface accent accent-navy" style="margin-bottom:16px;">
     <div class="section-head-icon" style="margin-bottom:8px;">
         <div class="section-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
         <p style="font-size:13px;font-weight:700;color:var(--text-heading);margin:0;">
             <span class="badge" style="background:{{ $levelColor['background'] }};color:{{ $levelColor['color'] }};margin-right:6px;">{{ $record->sp_level->getLabel() }}</span>
-            {{ $isActive ? 'Aktif' : 'Expired' }}
+            {{ $record->isCancelled() ? 'Dibatalkan' : ($isActive ? 'Aktif' : 'Expired') }}
             @if ($record->nomor)
                 <span style="font-size:11.5px;font-weight:400;color:var(--text-muted);">&middot; No. {{ $record->nomor }}</span>
             @endif
