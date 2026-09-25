@@ -49,6 +49,15 @@ Route::get('/surat-peringatan/{record}/preview', function (EmployeeSp $record) {
     return app(SpPdfService::class)->preview($record);
 })->name('sp.saya.preview');
 
+// Preview PDF (bukan download) - GET biasa target=_blank, BUKAN aksi Livewire (Livewire selalu
+// memaksa browser save-as apa pun response-nya). Pola persis routes/keuangan.php +
+Route::get('/surat-peringatan/{record}/berita-acara-preview', function (EmployeeSp $record) {
+    abort_unless($record->user_id === Auth::id(), 403);
+
+    return app(SpPdfService::class)->previewBeritaAcara($record);
+})->name('sp.saya.preview');
+
+
 // Merit Point masih DEMO (§3) - dibuka lewat ikon "riwayat" di widget tab Karir, bukan lewat nav utama.
 Route::get('/merit-point/riwayat', MeritPointHistoryPage::class)
     ->name('merit-point.saya.riwayat');
@@ -94,6 +103,16 @@ Route::prefix('pembinaan')->group(function () {
 
         return app(SpPdfService::class)->preview($record);
     })->name('sp.preview');
+
+    Route::get('/sp/{record}/beritaacara-preview', function (EmployeeSp $record) {
+        $user = Auth::user();
+
+        abort_unless($user->can(CustomPermissionEnum::SISTEM_PEMBINAAN_KARYAWAN->value), 403);
+        abort_unless($user->can('View:EmployeeSp'), 403);
+        abort_unless($record->company_id === $user->company_id || PermissionHelper::hasGlobalRole($user), 403);
+
+        return app(SpPdfService::class)->previewBeritaAcara($record);
+    })->name('sp.beritaacara_preview');
 
     Route::get('/sp-rekomendasi', SpRecommendationsPage::class)
         ->name('sp.rekomendasi');

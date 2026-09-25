@@ -3,6 +3,7 @@
 namespace App\Services\Sp;
 
 use App\Models\Sp\EmployeeSp;
+use App\Models\Sp\SpReport;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -61,5 +62,37 @@ class SpPdfService
         $name = str_replace(' ', '_', $sp->user->name);
 
         return "{$level}-{$identity}_{$name}.pdf";
+    }
+
+    public function previewBeritaAcara(EmployeeSp $sp)
+    {
+        $pdf = Pdf::loadView('pdf.sp.berita-acara', ['sp' => $this->loadForBeritaAcaraPdf($sp)]);
+
+        return $pdf->stream($this->filename($sp));
+    }
+
+     private function loadForBeritaAcaraPdf(EmployeeSp $sp): EmployeeSp
+    {
+        $sp->loadMissing([
+            'company',
+            'report',
+            'user.profile',
+            'user.activeJobPosition.jobPosition.orgStructure.parent',
+            'createdBy.activeJobPosition.jobPosition',
+            'knowsBy.activeJobPosition.jobPosition',
+            'coaching.coachBy.activeJobPosition.jobPosition',
+        ]);
+
+        return $sp;
+    }
+
+    private function filenameBeritaAcara(EmployeeSp $sp): string
+    {
+        $level = strtoupper($sp->sp_level->value);
+        $identity = $sp->user->nip ?: $sp->user_id;
+        $name = str_replace(' ', '_', $sp->user->name);
+
+        return "beritaacara-{$level}-{$identity}_{$name}.pdf";
+
     }
 }

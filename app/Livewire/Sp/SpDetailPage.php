@@ -31,6 +31,7 @@ class SpDetailPage extends Component
 
     public bool $editingReport = false;
 
+    public ?string $nomor = null;
     public ?string $kejadian = null;
     public ?string $dasar_klarifikasi = null;
     public ?string $subject_clarification = null;
@@ -95,6 +96,7 @@ class SpDetailPage extends Component
 
     public function editReport(): void
     {
+        $this->nomor = $this->record?->report?->nomor;
         $this->kejadian = $this->record->report?->kejadian;
         $this->dasar_klarifikasi = $this->record->report?->dasar_klarifikasi;
         $this->subject_clarification = $this->record->report?->subject_clarification;
@@ -107,6 +109,7 @@ class SpDetailPage extends Component
     public function saveReport(): void
     {
         $this->record->report()->updateOrCreate([], [
+            'nomor' => $this->nomor,
             'kejadian' => $this->kejadian,
             'dasar_klarifikasi' => $this->dasar_klarifikasi,
             'subject_clarification' => $this->subject_clarification,

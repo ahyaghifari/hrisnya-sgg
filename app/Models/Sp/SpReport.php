@@ -17,6 +17,7 @@ class SpReport extends Model
 
     protected $fillable = [
         'sp_id',
+        'nomor',
         'kejadian',
         'dasar_klarifikasi',
         'subject_clarification',

@@ -993,7 +993,7 @@ html.lw-navigating .page-content { opacity: 0; }
 .field-cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 32px; }
 @media (max-width: 560px) { .field-cols { grid-template-columns: 1fr; } }
 
-.welcome-avatar { width: 52px; height: 52px; border-radius: 50%; object-fit: cover; border: 2px solid rgba(255,255,255,0.35); flex-shrink: 0; }
+.welcome-avatar { width: 100px; height: 100px; border-radius: 50%; object-fit: cover; border: 2px solid rgba(255,255,255,0.35); flex-shrink: 0; }
 .welcome-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
 /* Mobile: tombol Data Diri (dan Admin Panel kalau ada) jadi satu kolom penuh sendiri-sendiri,
    bukan berdesakan sejajar seperti di desktop - request user, tombol utama jangan mepet. */

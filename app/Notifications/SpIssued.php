@@ -29,14 +29,12 @@ class SpIssued extends Notification implements ShouldQueue
 
     protected function title(): string
     {
-        return 'SP Terbit';
+        return 'Anda Mendapatkan Surat Peringatan!';
     }
 
     protected function body(): string
     {
-        $nomor = $this->employeeSp->nomor;
-
-        return "Anda menerima {$this->employeeSp->sp_level->getLabel()}" . ($nomor ? " (No. {$nomor})" : '');
+        return "😱 Anda menerima {$this->employeeSp->sp_level->getLabel()}";
     }
 
     public function toDatabase(object $notifiable): array

@@ -104,21 +104,33 @@ class JobPositions extends Model
     }
 
     /**
-     * Divisi kalau ada, kalau tidak departemennya. Jabatan yang duduk langsung di departemen memang
-     * wajar - itu pimpinan puncak departemen itu (Kabid/Kabag/Manager), jadi tidak punya divisi di
-     * atasnya dan namanya sendiri yang dipakai.
-     *
-     * Perlu dipisah dari getDivisionAttribute() karena accessor itu naik 1 tingkat ke parent kalau
-     * org_structure-nya bukan level Divisi - dan DEPARTMENT di master ini parent_id-nya null semua
-     * (Keuangan, HCGA, Finance, ...), jadi hasilnya null padahal nama unitnya jelas ada.
+     * Nama DEPARTEMEN jabatan ini - naik terus sampai level Departemen, berapa pun dalamnya
+     * (Sub Divisi -> Divisi -> Departemen). Keputusan user 2026-09-24: yang dipakai langsung
+     * departemennya, bukan divisinya.
      *
      * Dipakai mengisi job_openings.division_name di DB recruitment, yang jadi token {divisi} di
      * naskah Persetujuan Onboarding. Tetap null cuma kalau jabatannya tidak punya org_structure_id
      * sama sekali (mis. Presiden Director, yang di atas semua departemen).
+     *
+     * ponytail: kalau rantainya putus sebelum ketemu Departemen (tidak terjadi di master sekarang -
+     * 54 divisi semuanya berinduk departemen, 20 sub divisi semuanya berinduk divisi), dipakai
+     * struktur terakhir yang masih kebaca, supaya tidak jatuh jadi kosong.
      */
-    public function getDivisionOrUnitNameAttribute(): ?string
+    public function getDepartmentNameAttribute(): ?string
     {
-        return $this->division?->name ?? $this->orgStructure?->name;
+        $org = $this->orgStructure;
+        $terakhir = $org;
+
+        for ($i = 0; $org && $i < 5; $i++) {
+            if ($org->level === \App\Enum\OrgStructurLevel::LEVEL_DEPARTMENT->value) {
+                return $org->name;
+            }
+
+            $terakhir = $org;
+            $org = $org->parent;
+        }
+
+        return $org?->name ?? $terakhir?->name;
     }
 
     public function parent()

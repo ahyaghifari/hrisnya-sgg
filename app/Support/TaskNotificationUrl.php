@@ -9,6 +9,12 @@ class TaskNotificationUrl
 {
     public static function for(array $data): ?string
     {
+        // SP terbit -> langsung ke halaman detail SP milik karyawan sendiri (instruksi user
+        // 2026-09-25). Dicek duluan, bukan cuma notifikasi task yang class ini urus namanya.
+        if (! empty($data['employee_sp_id'])) {
+            return route('sp.saya.show', $data['employee_sp_id']);
+        }
+
         if (($data['request_type'] ?? null) !== 'task') {
             return null;
         }

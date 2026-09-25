@@ -109,6 +109,13 @@ function initTomSelects() {
             // otomatis baca ulang opsi barunya sendiri, widget-nya nyangkut kosong/lama kalau
             // tidak di-sync manual di sini.
             el.tomselect.sync();
+            // sync() re-scan <option> dari DOM tapi TIDAK menyamakan item TERPILIH balik ke
+            // el.value - Livewire nyetnya lewat property .value langsung (bukan atribut
+            // `selected` di HTML), yang tidak dibaca sync(). Tanpa baris ini, pilihan tom-select
+            // langsung "kepental" balik ke placeholder tiap kali wire:model.live nge-trigger
+            // render ulang (2026-09-25). setValue(..., true) = silent, tidak memicu 'change'
+            // lagi (hindari request Livewire berulang).
+            el.tomselect.setValue(el.value, true);
             return;
         }
 

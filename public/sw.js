@@ -57,9 +57,13 @@ self.addEventListener('notificationclick', (event) => {
     const payrollId = event.notification.data?.payroll_id;
     const projectId = event.notification.data?.project_id;
     const courseId = event.notification.data?.course_id;
+    const employeeSpId = event.notification.data?.employee_sp_id;
 
     let url = '/';
-    if (payrollId) {
+    if (employeeSpId) {
+        // SpIssued -> halaman detail SP milik karyawan sendiri.
+        url = `/surat-peringatan/${employeeSpId}`;
+    } else if (payrollId) {
         // Notifikasi Gaji Sudah Dibayar -> halaman detail slip gaji karyawan sendiri.
         url = `/profil-saya/penggajian/${payrollId}`;
     } else if (courseId) {

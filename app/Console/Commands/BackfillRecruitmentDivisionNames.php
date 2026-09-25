@@ -27,10 +27,12 @@ class BackfillRecruitmentDivisionNames extends Command
     {
         $dryRun = (bool) $this->option('dry-run');
 
-        $targets = RecruitmentJobOpening::withTrashed()->whereNull('division_name')->get();
+        // Semua baris dihitung ulang, bukan cuma yang kosong: nilai lama bisa terisi divisi dari
+        // aturan sebelumnya, sementara sekarang yang dipakai departemennya.
+        $targets = RecruitmentJobOpening::withTrashed()->get();
 
         if ($targets->isEmpty()) {
-            $this->info('Semua lowongan sudah punya divisi.');
+            $this->info('Tidak ada lowongan di DB recruitment.');
 
             return self::SUCCESS;
         }
@@ -51,29 +53,31 @@ class BackfillRecruitmentDivisionNames extends Command
                 continue;
             }
 
-            // Divisinya diisi hook simpan JobOpening::booted(); di dry-run hook itu tidak jalan, jadi
-            // nilainya dihitung langsung dari jabatannya cuma buat ditampilkan.
-            $divisi = JobPositions::find($positionId)?->division_or_unit_name;
+            $departemen = JobPositions::find($positionId)?->department_name;
 
-            if (! $dryRun) {
-                $target->job_position_id = $positionId;
-                $target->save();
-                $target->refresh();
-                $divisi = $target->division_name;
-            }
-
-            if (! $divisi) {
+            if (! $departemen) {
                 $gagal[] = "{$target->title} (jabatannya belum punya struktur organisasi)";
 
                 continue;
             }
 
-            $this->line("  {$target->title} -> {$divisi}");
+            if ($target->division_name === $departemen && $target->job_position_id === $positionId) {
+                continue;
+            }
+
+            $this->line("  {$target->title} : " . ($target->division_name ?? 'kosong') . " -> {$departemen}");
+
+            if (! $dryRun) {
+                $target->job_position_id = $positionId;
+                $target->division_name = $departemen;
+                $target->save();
+            }
+
             $terisi++;
         }
 
         $this->newLine();
-        $this->info(($dryRun ? '[dry-run] ' : '') . "{$terisi} lowongan terisi dari " . $targets->count() . ' yang divisinya kosong.');
+        $this->info(($dryRun ? '[dry-run] ' : '') . "{$terisi} lowongan diperbarui dari " . $targets->count() . ' yang diperiksa.');
 
         if ($gagal !== []) {
             $this->newLine();

@@ -111,14 +111,26 @@
             <div class="section-icon"><i class="fa-solid fa-file-lines"></i></div>
             <p style="font-size:13px;font-weight:700;color:var(--text-heading);margin:0;">Berita Acara</p>
         </div>
-        @unless ($editingReport)
-            <button type="button" wire:click="editReport" class="btn-secondary" style="font-size:12px;padding:4px 10px;">
-                <i class="fa-solid fa-pen"></i> Edit
-            </button>
-        @endunless
+        <div style="display:flex;align-items-center;gap:3px;">
+            <a href="{{ route('sp.beritaacara_preview', $record) }}" target="_blank"  class="btn-primary" style="font-size:12px;padding:4px 10px;">
+                <i class="fa-solid fa-file-pdf"></i> Preview PDF
+            </a>
+            @unless ($editingReport)
+                <button type="button" wire:click="editReport" class="btn-secondary" style="font-size:12px;padding:4px 10px;">
+                    <i class="fa-solid fa-pen"></i> Edit
+                </button>
+            @endunless
+        </div>
     </div>
 
     @if ($editingReport)
+
+        <div style="margin-bottom: 12px;">
+            <label class="form-label">Nomor</label>
+            <input type="text" wire:model="nomor" class="form-input">
+            @error('nomor') <p style="color:var(--danger-text);font-size:12px;margin-top:5px;">{{ $message }}</p> @enderror
+        </div>
+
         @foreach (['dasar_klarifikasi' => 'Dasar Klarifikasi', 'kejadian' => 'Uraian Kronologi Permasalahan', 'subject_clarification' => 'Klarifikasi Karyawan', 'analysis' => 'Analisis', 'kesimpulan' => 'Kesimpulan Sementara', 'followup_plan' => 'Rencana Tindak Lanjut'] as $field => $label)
             <div style="margin-bottom:12px;">
                 <label class="form-label">{{ $label }}</label>
@@ -134,6 +146,11 @@
             <button type="button" wire:click="cancelEditReport" class="btn-secondary" style="font-size:12px;padding:4px 10px;">Batal</button>
         </div>
     @else
+
+        @if ($record->report?->nomor)
+            <p style="font-size:11.5px;color:var(--text-muted);margin:0 0 4px;">Nomor</p>
+            <div style="font-size:13px;color:var(--text-body);line-height:1.6;margin:0 0 12px;">{{ $record->report->nomor }}</div>
+        @endif
         @if ($record->report?->dasar_klarifikasi)
             <p style="font-size:11.5px;color:var(--text-muted);margin:0 0 4px;">Dasar Klarifikasi</p>
             <div style="font-size:13px;color:var(--text-body);line-height:1.6;margin:0 0 12px;">{!! $record->report->dasar_klarifikasi !!}</div>

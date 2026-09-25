@@ -156,7 +156,7 @@ class JobOpeningResource extends Resource
                 // masuk ke token {divisi} pada naskah Persetujuan Onboarding.
                 Placeholder::make('divisi_preview')
                     ->label('Divisi')
-                    ->content(fn (Get $get) => JobPositions::find($get('job_position_id'))?->division_or_unit_name
+                    ->content(fn (Get $get) => JobPositions::find($get('job_position_id'))?->department_name
                         ?? 'Ikut jabatan yang dipilih di atas.')
                     ->helperText('Otomatis dari jabatan HRIS, dipakai token {divisi} di naskah Persetujuan Onboarding.'),
 

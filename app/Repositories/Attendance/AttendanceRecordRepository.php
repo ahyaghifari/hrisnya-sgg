@@ -2,6 +2,7 @@
 
 namespace App\Repositories\Attendance;
 
+use App\Enum\AttendanceStatus;
 use App\Models\Attendance\AttendanceRecords;
 use App\Models\User;
 
@@ -49,8 +50,22 @@ class AttendanceRecordRepository
      * App\Console\Commands\ProcessAccessLogsSchedule dan App\Console\Commands\SyncAccessLogsAttendance,
      * biar mapping-nya cuma ada di satu tempat).
      */
+    /** Baris yang statusnya sudah Cuti/Sakit/Izin (disetujui - lihat
+     * AttendaceReqService::markAttendanceRecordAbsence()) TIDAK BOLEH ditimpa sync device (scan
+     * nyasar/keliru hari itu tetap mungkin ada meski karyawannya lagi cuti) - dikembalikan apa
+     * adanya tanpa disentuh sama sekali, dipanggil dari Rekap Presensi (runSync/resyncUserRange)
+     * maupun command terjadwal (SyncAccessLogsAttendance/ProcessAccessLogsSchedule/
+     * SweepMissedAccessLogs) yang sama-sama lewat method ini. Instruksi user 2026-09-27. */
     public function saveCalculatedResult(array $r, string $source): AttendanceRecords
     {
+        $existing = $this->findByEmployeeCodeAndDate($r['user']->nip, $r['date']);
+
+        $lockedStatuses = [AttendanceStatus::LEAVE->value, AttendanceStatus::SICK->value, AttendanceStatus::PERMIT->value];
+
+        if ($existing && in_array($existing->status, $lockedStatuses, true)) {
+            return $existing;
+        }
+
         return $this->updateOrCreate([
             'nip'                 => $r['user']->nip,
             'date'                => $r['date'],

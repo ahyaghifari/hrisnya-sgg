@@ -42,11 +42,12 @@ class JobOpening extends Model
     ];
 
     /**
-     * Divisi selalu diturunkan dari jabatan HRIS yang dipilih, tidak pernah diketik. Semua rekrutmen
-     * dikelola dari HRIS dan jabatannya wajib dari master HRIS, jadi divisinya sudah pasti ketahuan -
-     * lihat JobPositions::getDivisionOrUnitNameAttribute() (divisi kalau ada, kalau tidak
-     * departemennya). Nilainya dititipkan ke kolom di rekrutmen_db karena project `rekrutmen` tidak
-     * punya koneksi ke DB HRIS, dan di sana dipakai token {divisi} pada naskah Persetujuan Onboarding.
+     * division_name selalu diturunkan dari jabatan HRIS yang dipilih, tidak pernah diketik. Semua
+     * rekrutmen dikelola dari HRIS dan jabatannya wajib dari master HRIS, jadi unitnya sudah pasti
+     * ketahuan. Yang diisi nama DEPARTEMEN-nya, bukan divisi (keputusan user 2026-09-24) - lihat
+     * JobPositions::getDepartmentNameAttribute(). Nama kolomnya tetap `division_name` karena itu
+     * kolom di rekrutmen_db yang jadi token {divisi} pada naskah Persetujuan Onboarding; nilainya
+     * dititipkan ke sana karena project `rekrutmen` tidak punya koneksi ke DB HRIS.
      *
      * Dipasang di hook simpan, BUKAN di afterStateUpdated form: kalau hanya di form, buka-simpan
      * lowongan lama tanpa menyentuh pilihan jabatan tidak akan mengisi divisinya. Di sini semua jalur
@@ -63,7 +64,7 @@ class JobOpening extends Model
                 return;
             }
 
-            $opening->division_name = JobPositions::find($opening->job_position_id)?->division_or_unit_name
+            $opening->division_name = JobPositions::find($opening->job_position_id)?->department_name
                 ?? $opening->division_name;
         });
     }
