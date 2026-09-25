@@ -113,8 +113,9 @@
                 @endif
 
                 <div>
-                    <label class="form-label">Alasan / Keterangan</label>
-                    <textarea class="form-input" rows="3" placeholder="Tambahkan keterangan (opsional)" wire:model="reason"></textarea>
+                    <label class="form-label">Alasan / Keterangan @if ($this->reasonRequired)<span style="color:var(--danger-text);">*</span>@endif</label>
+                    <textarea class="form-input" rows="3" placeholder="{{ $this->reasonRequired ? 'Tambahkan keterangan' : 'Tambahkan keterangan (opsional)' }}" wire:model="reason"></textarea>
+                    @error('reason') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
                 </div>
             </div>
         </div>

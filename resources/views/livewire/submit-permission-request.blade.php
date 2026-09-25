@@ -102,8 +102,9 @@
                     @endif
 
                     <div>
-                        <label class="form-label">Keperluan Izin</label>
+                        <label class="form-label">Keperluan Izin @if ($this->purposeRequired)<span style="color:var(--danger-text);">*</span>@endif</label>
                         <textarea class="form-input" rows="3" placeholder="Masukkan keperluan izin..." wire:model="purpose"></textarea>
+                        @error('purpose') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
                     </div>
                     <div>
                         <label class="form-label">Lokasi Izin</label>

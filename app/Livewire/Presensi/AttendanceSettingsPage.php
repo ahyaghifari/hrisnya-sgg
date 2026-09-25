@@ -130,6 +130,14 @@ class AttendanceSettingsPage extends Component
         foreach ($this->values as $key => $value) {
             $case = AttendanceSettingEnum::from($key);
 
+            // Checkbox (SettingTypeEnum::BOOLEAN) di-bind Livewire sebagai bool asli, bukan
+            // string "0"/"1" seperti field angka lain di $values - normalisasi di sini biar
+            // konsisten disimpan sebagai string, sama seperti kolom `value` tipe field lain
+            // (dibaca ulang lewat filter_var() di Setting::resolve()).
+            $normalized = $case->type() === \App\Enum\SettingTypeEnum::BOOLEAN
+                ? (filter_var($value, FILTER_VALIDATE_BOOLEAN) ? '1' : '0')
+                : $value;
+
             Setting::updateOrCreate(
                 ['company_id' => $this->companyId, 'key' => $key],
                 [
@@ -137,7 +145,7 @@ class AttendanceSettingsPage extends Component
                     'type' => $case->type()->value,
                     'label' => $case->label(),
                     'description' => $case->helperText(),
-                    'value' => $value,
+                    'value' => $normalized,
                 ]
             );
         }

@@ -148,13 +148,26 @@ class SubmitLeaveRequest extends Component
         $this->periode = $service->getCutiTahunanPeriodeUsage(Auth::user(), $this->leave_type, $this->start_date);
     }
 
+    /** AttendanceSettingEnum::KETERANGAN_CUTI_IZIN_WAJIB - company-scoped, default OFF. Ditampilkan
+     *  ke pemohon SEBELUM submit (asterisk + validasi form), enforcement sebenarnya tetap di
+     *  AttendaceReqService::assertKeteranganWajibDiisi() (jaring pengaman server-side, dipakai
+     *  juga oleh submit lewat mobile API). */
+    public function getReasonRequiredProperty(): bool
+    {
+        return (bool) \App\Models\Setting::resolve(
+            \App\Enum\Attendance\AttendanceSettingEnum::KETERANGAN_CUTI_IZIN_WAJIB->value,
+            Auth::user()->company_id,
+            default: false
+        );
+    }
+
     protected function rules(): array
     {
         return [
             'leave_type' => ['required', \Illuminate\Validation\Rule::enum(LeaveTypeCategoryEnum::class)],
             'start_date' => ['required', 'date'],
             'end_date' => ['required', 'date', 'after_or_equal:start_date'],
-            'reason' => ['nullable', 'string'],
+            'reason' => [$this->reasonRequired ? 'required' : 'nullable', 'string'],
             'attachments' => [$this->requiresAttachment ? 'required' : 'nullable', 'array'],
             'attachments.*' => ['file', 'mimes:pdf,jpg,jpeg,png', 'max:10240'],
         ];
@@ -164,6 +177,7 @@ class SubmitLeaveRequest extends Component
     {
         return [
             'attachments.required' => 'Jenis cuti ini wajib melampirkan surat dokter/bidan.',
+            'reason.required' => 'Alasan/Keterangan wajib diisi.',
         ];
     }
 

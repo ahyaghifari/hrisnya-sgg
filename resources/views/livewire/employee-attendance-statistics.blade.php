@@ -29,10 +29,43 @@
     $photoUrl = $photoPath && is_string($photoPath) ? \Illuminate\Support\Facades\Storage::url($photoPath) : null;
 @endphp
 
+@php
+    // Merit Point dipindah ke samping kartu identitas (instruksi user) - dihitung di sini
+    // (sebelum identitas) supaya tersedia buat wrapper flex di bawah. Gerbang sama seperti
+    // sebelumnya: kill-switch global showSpMeritWidget + tab Pembinaan + setting per company.
+    $showMeritBeside = $this->showSpMeritWidget && $this->canViewPembinaanTab && $this->meritPointEnabled;
+    if ($showMeritBeside) {
+        $hrBalance = $this->hrBalance;
+        // Belum ada baris di user_hr_balances = belum pernah kena potongan/tambahan sama
+        // sekali → dianggap skor penuh (100), bukan 0 (instruksi user).
+        $meritPoint = $hrBalance?->merit_point ?? 100;
+        $meritPct = max(0, min(100, $meritPoint));
+        // Satu keluarga visual dengan .welcome-card/.absen-card (dark gradient, teks putih,
+        // dekorasi bulat) tapi warnanya ikut tier skor - lihat DESIGN.md §domain card.
+        $meritTier = match (true) {
+            $meritPct >= 70 => ['from' => '#047C54', 'to' => '#024732', 'ring' => '#34d399', 'ring2' => '#a7f3d0', 'text' => '#047857', 'glow' => 'rgba(4,71,50,.35)'],
+            $meritPct >= 40 => ['from' => '#b45309', 'to' => '#78350f', 'ring' => '#fbbf24', 'ring2' => '#fde68a', 'text' => '#b45309', 'glow' => 'rgba(120,53,15,.35)'],
+            default => ['from' => '#b91c1c', 'to' => '#7f1d1d', 'ring' => '#f87171', 'ring2' => '#fecaca', 'text' => '#b91c1c', 'glow' => 'rgba(127,29,29,.35)'],
+        };
+    }
+@endphp
+
 {{-- Kartu identitas: tampil di atas semua tab, jawaban cepat "siapa orang ini". Class
-identity-accent = border gradasi warna section-nav (lihat app.css); warna teks tetap token tema. --}}
+identity-accent = border gradasi warna section-nav (lihat app.css); warna teks tetap token tema.
+Merit Point digabung jadi 1 kartu di sini (bukan kartu terpisah di sampingnya, instruksi user) -
+gauge-nya jadi item ketiga di ia-row, sejajar avatar & body, nempel ujung kanan di desktop.
+Mobile tetap wrap ke bawah (ruang sempit, ia-row berubah jadi column lewat rule
+.identity-accent .ia-row di app.css) - flex-wrap TIDAK disentuh di sini, default browser
+untuk flex row sudah nowrap, jadi merit-slot otomatis nempel 1 baris di desktop tanpa perlu
+override tambahan. --}}
+<style>
+    .ia-merit-slot { flex: 0 0 auto; margin-left: auto; }
+    @media (max-width: 768px) {
+        .ia-merit-slot { margin-left: 0; width: 100%; }
+    }
+</style>
 <div class="card-surface identity-accent" style="margin-bottom:20px;">
-    <div class="ia-row" style="display:flex;flex-wrap:wrap;align-items:flex-start;gap:16px;">
+    <div class="ia-row" style="display:flex;align-items:center;gap:16px;">
         @if ($record->id === auth()->id())
             {{-- Cuma pemilik akun yang boleh edit foto sendiri di sini - HC/atasan yang buka
             Data Diri orang lain cuma lihat foto (@else di bawah), ditegakkan juga di server
@@ -67,6 +100,29 @@ identity-accent = border gradasi warna section-nav (lihat app.css); warna teks t
                 <span style="font-size:12.5px;color:var(--text-muted);"><i class="fa-solid fa-envelope" style="color:var(--text-faint);margin-right:6px;"></i>{{ $record->email }}</span>
             </div>
         </div>
+
+        @if ($showMeritBeside)
+            <div class="ia-merit-slot">
+                <div class="merit-card" style="--merit-from:{{ $meritTier['from'] }};--merit-to:{{ $meritTier['to'] }};--merit-glow:{{ $meritTier['glow'] }};">
+                    <div class="merit-deco-1"></div>
+                    <div class="merit-deco-2"></div>
+                    <div class="merit-gauge-ring" style="width:72px;height:72px;--merit-gauge-bg:conic-gradient({{ $meritTier['ring2'] }} 0deg, {{ $meritTier['ring'] }} {{ $meritPct * 3.6 }}deg, rgba(255,255,255,.25) {{ $meritPct * 3.6 }}deg 360deg);">
+                        <div style="position:absolute;inset:5px;border-radius:50%;background:var(--surface);display:flex;align-items:center;justify-content:center;">
+                            <span style="font-size:19px;font-weight:800;color:{{ $meritTier['text'] }};">{{ $meritPoint }}</span>
+                        </div>
+                    </div>
+                    <div>
+                        <p class="merit-label">Poinmu</p>
+                        <p class="merit-score-row"><b>{{ $meritPoint }}</b>/100</p>
+                        @if ($isSelf)
+                            <a href="{{ route('merit-point.saya.riwayat') }}" wire:navigate class="merit-history-btn">
+                                <i class="fa-solid fa-clock-rotate-left"></i> Riwayat
+                            </a>
+                        @endif
+                    </div>
+                </div>
+            </div>
+        @endif
     </div>
 </div>
 
@@ -413,6 +469,14 @@ identity-accent = border gradasi warna section-nav (lihat app.css); warna teks t
         @endif
     @endif
 
+    @if ($this->canDeleteEmployee)
+        {{-- Sementara: hapus manual (soft delete) sebelum PHK terjadwal — gerbang pakai
+        permission Shield Delete:User (UserPolicy::delete), lihat getCanDeleteEmployeeProperty(). --}}
+        <button type="button" wire:click="deleteEmployee" wire:confirm="Yakin hapus akun karyawan ini? Akun tidak akan bisa login lagi." class="btn-ghost" style="color:var(--danger-text);border-color:var(--danger-text);font-size:12px;padding:6px 12px;">
+            <i class="fa-solid fa-trash"></i> Hapus Akun Karyawan
+        </button>
+    @endif
+
 </div>
 
 {{-- Tab Karir (label "Karir" kalau lihat profil sendiri, "Pekerjaan" kalau lihat orang lain):
@@ -518,22 +582,12 @@ source (tab server-render sekali jalan, x-show cuma toggle CSS). --}}
         </p>
     </div>
 
-    {{-- Merit Point + SP (planning/2026-09-23-sp-dan-merit-point.md §3.6) - sama gerbang tab
-    Pembinaan (canViewPembinaanTab). Baca dari cache user_hr_balances - murni tampilan, tidak
-    dipakai buat validasi apa pun (§3.5). Merit Point disembunyikan TOTAL kalau company tidak
-    mengaktifkan (§3.1); SP independen, tetap tampil sendirian.
-    showSpMeritWidget = kill-switch global sementara (instruksi user 2026-09-23), lihat
-    getShowSpMeritWidgetProperty(). --}}
+    {{-- SP (planning/2026-09-23-sp-dan-merit-point.md §3.6) - Merit Point sudah dipindah ke
+    samping kartu identitas di atas head halaman (instruksi user), SP tetap di sini sendirian.
+    Sama gerbang: showSpMeritWidget (kill-switch global) + canViewPembinaanTab. --}}
     @if ($this->showSpMeritWidget && $this->canViewPembinaanTab)
         @php
             $hrBalance = $this->hrBalance;
-            $meritPoint = $hrBalance?->merit_point ?? 0;
-            $meritPct = max(0, min(100, $meritPoint));
-            $meritColor = match (true) {
-                $meritPct >= 70 => '#047C54',
-                $meritPct >= 40 => '#b45309',
-                default => '#b91c1c',
-            };
             $spLevel = $hrBalance?->active_sp_level;
             $spColors = [
                 'sp1' => ['bg' => '#fef9c3', 'fg' => '#a16207'],
@@ -542,42 +596,20 @@ source (tab server-render sekali jalan, x-show cuma toggle CSS). --}}
             ];
             $spColor = $spLevel ? ($spColors[$spLevel->value] ?? ['bg' => '#f1f5f9', 'fg' => '#64748b']) : ['bg' => 'var(--surface-alt)', 'fg' => 'var(--text-muted)'];
         @endphp
-        <div class="grid grid-cols-1 md:grid-cols-2" style="gap:14px;margin-bottom:20px;align-items:stretch;">
-            @if ($this->meritPointEnabled)
-                <div class="card-surface" style="position:relative;text-align:center;">
-                    {{-- Riwayat cuma untuk diri sendiri - route-nya self-scoped (Auth::id()), kalau
-                    ditampilkan saat HC lihat profil bawahan malah nyasar ke riwayat HC sendiri. --}}
-                    @if ($isSelf)
-                        <a href="{{ route('merit-point.saya.riwayat') }}" wire:navigate title="Riwayat Merit Point"
-                           style="position:absolute;top:14px;right:14px;color:var(--text-faint);font-size:13px;">
-                            <i class="fa-solid fa-clock-rotate-left"></i>
-                        </a>
-                    @endif
-                    <p style="font-size:11px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--text-faint);margin:0 0 12px;">Merit Point</p>
-                    <div style="position:relative;width:104px;height:104px;margin:0 auto;">
-                        <div style="width:100%;height:100%;border-radius:50%;background:conic-gradient({{ $meritColor }} {{ $meritPct * 3.6 }}deg, var(--border) 0deg);"></div>
-                        <div style="position:absolute;inset:10px;border-radius:50%;background:var(--surface);display:flex;align-items:center;justify-content:center;">
-                            <span style="font-size:24px;font-weight:800;letter-spacing:-0.5px;color:{{ $meritColor }};">{{ $meritPoint }}</span>
-                        </div>
-                    </div>
-                </div>
+        <div class="card-surface" style="position:relative;text-align:center;margin-bottom:20px;">
+            @if ($isSelf)
+                <a href="{{ route('sp.saya') }}" wire:navigate title="Riwayat Surat Peringatan"
+                   style="position:absolute;top:14px;right:14px;color:var(--text-faint);font-size:13px;">
+                    <i class="fa-solid fa-clock-rotate-left"></i>
+                </a>
             @endif
-
-            <div class="card-surface" style="position:relative;text-align:center;">
-                @if ($isSelf)
-                    <a href="{{ route('sp.saya') }}" wire:navigate title="Riwayat Surat Peringatan"
-                       style="position:absolute;top:14px;right:14px;color:var(--text-faint);font-size:13px;">
-                        <i class="fa-solid fa-clock-rotate-left"></i>
-                    </a>
+            <p style="font-size:11px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--text-faint);margin:0 0 12px;">Surat Peringatan</p>
+            <div style="display:flex;align-items:center;justify-content:center;height:104px;">
+                @if ($spLevel)
+                    <span class="badge" style="background:{{ $spColor['bg'] }};color:{{ $spColor['fg'] }};font-size:16px;font-weight:800;padding:10px 18px;">{{ $spLevel->getLabel() }}</span>
+                @else
+                    <span style="font-size:36px;font-weight:800;color:var(--text-muted);">0</span>
                 @endif
-                <p style="font-size:11px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--text-faint);margin:0 0 12px;">Surat Peringatan</p>
-                <div style="display:flex;align-items:center;justify-content:center;height:104px;">
-                    @if ($spLevel)
-                        <span class="badge" style="background:{{ $spColor['bg'] }};color:{{ $spColor['fg'] }};font-size:16px;font-weight:800;padding:10px 18px;">{{ $spLevel->getLabel() }}</span>
-                    @else
-                        <span style="font-size:36px;font-weight:800;color:var(--text-muted);">0</span>
-                    @endif
-                </div>
             </div>
         </div>
     @endif

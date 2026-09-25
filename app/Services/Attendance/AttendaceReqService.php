@@ -215,6 +215,8 @@ class AttendaceReqService
             $this->assertMinimumTenureMet($actingUser);
         }
 
+        $this->assertKeteranganWajibDiisi($actingUser, $data['reason'] ?? null, 'Alasan/Keterangan cuti');
+
         $request = $this->attendanceReqRepository->storeAttendanceRequest([
             'user_id' => $userId,
             'created_by' => $createdBy->id,
@@ -385,6 +387,22 @@ class AttendaceReqService
     {
         if (! $this->minimumTenureMet($actingUser)) {
             throw new \Exception('Anda belum bisa mengajukan cuti — masa kerja belum mencapai minimal kebijakan perusahaan.');
+        }
+    }
+
+    /**
+     * AttendanceSettingEnum::KETERANGAN_CUTI_IZIN_WAJIB — company-scoped, default OFF (Keterangan
+     * tetap opsional kecuali company yang bersangkutan mengaktifkannya lewat Pengaturan Absensi).
+     * Dicek di service (bukan cuma rules() Livewire) karena mobile API
+     * (AttendanceRequestController::storeLeaveRequest/storePermissionRequest) submit langsung
+     * lewat sini, tidak lewat form portal.
+     */
+    private function assertKeteranganWajibDiisi(User $actingUser, ?string $value, string $label): void
+    {
+        $wajib = Setting::resolve(AttendanceSettingEnum::KETERANGAN_CUTI_IZIN_WAJIB->value, $actingUser->company_id, default: false);
+
+        if ($wajib && trim((string) $value) === '') {
+            throw new \Exception("{$label} wajib diisi.");
         }
     }
 
@@ -727,6 +745,8 @@ class AttendaceReqService
         // mencegah pemohon submit. Nyalakan lagi dengan uncomment baris di bawah kalau kuota mau
         // jadi hard block lagi.
         // $this->assertWithinIzinPeriodeLimit($actingUser, $category, $data);
+
+        $this->assertKeteranganWajibDiisi($actingUser, $data['purpose'] ?? null, 'Keterangan izin');
 
         $request = $this->attendanceReqRepository->storeAttendanceRequest([
             'user_id' => $userId,

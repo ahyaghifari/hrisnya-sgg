@@ -346,7 +346,7 @@ class EmployeeAttendanceStatistics extends Component
      */
     public function getShowSpMeritWidgetProperty(): bool
     {
-        return false;
+        return true;
     }
 
     /**
@@ -408,6 +408,31 @@ class EmployeeAttendanceStatistics extends Component
             ->paginate(20, ['*'], 'riwayatPage');
     }
 
+
+    /** Tombol "Hapus Akun Karyawan" di tab Data Diri — pakai permission Shield standar
+     * Delete:User (UserPolicy::delete, sama gerbang dengan tombol Hapus di admin
+     * EmployeeResource), bukan permission manual baru. Tidak boleh untuk diri sendiri, dan
+     * akun belum di-nonaktifkan. */
+    public function getCanDeleteEmployeeProperty(): bool
+    {
+        return $this->record->id !== Auth::id()
+            && $this->record->is_active
+            && Auth::user()->can('delete', $this->record);
+    }
+
+    /** ponytail: cuma soft delete (users.deleted_at) + is_active=false — jalur manual sementara,
+     * BUKAN alur PHK resmi (tidak menutup jabatan/riwayat seperti UserTransitionService). */
+    public function deleteEmployee()
+    {
+        abort_unless($this->canDeleteEmployee, 403);
+
+        $this->record->update(['is_active' => false]);
+        $this->record->delete();
+
+        Notification::make()->title('Akun karyawan dihapus (soft delete)')->success()->send();
+
+        return redirect()->route('kepegawaian.karyawan');
+    }
 
     protected function canManage(User $record): bool
     {

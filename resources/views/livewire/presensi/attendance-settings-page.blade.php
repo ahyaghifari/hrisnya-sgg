@@ -32,7 +32,16 @@
                                     </label>
                                     <p style="font-size:11px;color:var(--text-muted);margin:2px 0 0;">{{ $setting->helperText() }}</p>
                                 </div>
-                                @if ($this->canEditSettings)
+                                @if ($setting->type() === \App\Enum\SettingTypeEnum::BOOLEAN)
+                                    @if ($this->canEditSettings)
+                                        <label style="display:flex;align-items:center;gap:8px;min-width:180px;cursor:pointer;">
+                                            <input type="checkbox" wire:model="values.{{ $setting->value }}">
+                                            <span style="font-size:12.5px;">Aktif</span>
+                                        </label>
+                                    @else
+                                        <span style="font-weight:600;min-width:180px;">{{ filter_var($values[$setting->value] ?? false, FILTER_VALIDATE_BOOLEAN) ? 'Aktif' : 'Nonaktif' }}</span>
+                                    @endif
+                                @elseif ($this->canEditSettings)
                                     <input type="number" class="form-input" style="max-width:180px;" wire:model="values.{{ $setting->value }}">
                                 @else
                                     <span style="font-weight:600;min-width:180px;">{{ $values[$setting->value] ?? '-' }}</span>

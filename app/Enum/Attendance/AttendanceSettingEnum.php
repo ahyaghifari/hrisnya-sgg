@@ -19,6 +19,7 @@ enum AttendanceSettingEnum: string
     case IZIN_MENINGGALKAN_JAM_KERJA_MAX_JAM = 'izin_meninggalkan_jam_kerja_max_jam';
     case CUTI_MIN_MASA_KERJA_BULAN = 'cuti_min_masa_kerja_bulan';
     case TUKAR_SHIFT_MAX_PER_BULAN = 'tukar_shift_max_per_bulan';
+    case KETERANGAN_CUTI_IZIN_WAJIB = 'keterangan_cuti_izin_wajib';
 
     public function label(): string
     {
@@ -31,6 +32,7 @@ enum AttendanceSettingEnum: string
             self::IZIN_MENINGGALKAN_JAM_KERJA_MAX_JAM => 'Maksimal Jam Izin Meninggalkan Jam Kerja',
             self::CUTI_MIN_MASA_KERJA_BULAN => 'Minimal Masa Kerja untuk Bisa Cuti (Bulan)',
             self::TUKAR_SHIFT_MAX_PER_BULAN => 'Batas Tukar Shift per Periode (Kali)',
+            self::KETERANGAN_CUTI_IZIN_WAJIB => 'Keterangan Cuti/Izin Wajib Diisi',
         };
     }
 
@@ -45,12 +47,16 @@ enum AttendanceSettingEnum: string
             self::IZIN_MENINGGALKAN_JAM_KERJA_MAX_JAM => 'Durasi maksimum (jam) 1 pengajuan Izin Meninggalkan Jam Kerja — berlaku sama untuk semua sub-jenisnya (Terlambat Masuk, Pulang Cepat, Meninggalkan Jam Kerja Tengah Hari). 0 = tidak dibatasi.',
             self::CUTI_MIN_MASA_KERJA_BULAN => 'Karyawan baru boleh mengajukan cuti (jenis apa pun) setelah bekerja minimal sekian bulan, dihitung dari Tanggal Bergabung. 0 = tidak dibatasi, boleh cuti sejak hari pertama.',
             self::TUKAR_SHIFT_MAX_PER_BULAN => 'Jumlah maksimum pengajuan tukar shift yang boleh diajukan 1 karyawan dalam 1 periode absensi (memakai Tanggal Awal/Akhir Periode di atas, dihitung dari tanggal shift yang ditukar; pengajuan ditolak/dibatalkan tidak dihitung). 0 = tidak dibatasi.',
+            self::KETERANGAN_CUTI_IZIN_WAJIB => 'Kalau AKTIF, pemohon wajib mengisi kolom Alasan/Keterangan saat mengajukan Cuti maupun Izin (sekarang opsional). Berlaku untuk semua jenis Cuti & Izin di company ini.',
         };
     }
 
     public function type(): SettingTypeEnum
     {
-        return SettingTypeEnum::INTEGER;
+        return match ($this) {
+            self::KETERANGAN_CUTI_IZIN_WAJIB => SettingTypeEnum::BOOLEAN,
+            default => SettingTypeEnum::INTEGER,
+        };
     }
 
     public function default(): string
@@ -64,6 +70,7 @@ enum AttendanceSettingEnum: string
             self::IZIN_MENINGGALKAN_JAM_KERJA_MAX_JAM => '3',
             self::CUTI_MIN_MASA_KERJA_BULAN => '0',
             self::TUKAR_SHIFT_MAX_PER_BULAN => '0',
+            self::KETERANGAN_CUTI_IZIN_WAJIB => '0',
         };
     }
 }

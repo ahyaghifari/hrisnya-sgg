@@ -49,6 +49,26 @@ class SubmitPermissionRequest extends Component
         return collect(PermissionGroupEnum::cases())->mapWithKeys(fn ($g) => [$g->value => $g->label()])->all();
     }
 
+    /** AttendanceSettingEnum::KETERANGAN_CUTI_IZIN_WAJIB - company-scoped, default OFF. Ditampilkan
+     *  ke pemohon SEBELUM submit (asterisk + validasi form), enforcement sebenarnya tetap di
+     *  AttendaceReqService::assertKeteranganWajibDiisi() (jaring pengaman server-side, dipakai
+     *  juga oleh submit lewat mobile API). */
+    public function getPurposeRequiredProperty(): bool
+    {
+        return (bool) Setting::resolve(
+            AttendanceSettingEnum::KETERANGAN_CUTI_IZIN_WAJIB->value,
+            Auth::user()->company_id,
+            default: false
+        );
+    }
+
+    protected function messages(): array
+    {
+        return [
+            'purpose.required' => 'Keterangan izin wajib diisi.',
+        ];
+    }
+
     private function currentGroup(): ?PermissionGroupEnum
     {
         return $this->group ? PermissionGroupEnum::from($this->group) : null;
@@ -213,7 +233,7 @@ class SubmitPermissionRequest extends Component
                 'after:start_time',
                 ...($wajibJam ? [$this->maxDurationRule()] : []),
             ],
-            'purpose' => ['nullable', 'string'],
+            'purpose' => [$this->purposeRequired ? 'required' : 'nullable', 'string'],
             'location' => ['nullable', 'string'],
             'substitute_user_name' => ['nullable', 'string'],
             'substitute_task' => ['nullable', 'string'],
