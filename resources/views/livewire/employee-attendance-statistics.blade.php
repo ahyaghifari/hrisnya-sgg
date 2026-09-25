@@ -158,22 +158,20 @@ override tambahan. --}}
                         </div>
                     </div>
                     <div>
-                        <p class="merit-label">Poin Anda</p>
-                        @php $canGiveMerit = $this->canGiveMeritPoint; @endphp
-                        @if ($isSelf || $canGiveMerit)
-                            <div class="merit-actions">
-                                @if ($isSelf)
-                                    <a href="{{ route('merit-point.saya.riwayat') }}" wire:navigate class="merit-icon-btn" title="Riwayat poin" aria-label="Riwayat poin">
-                                        <i class="fa-solid fa-clock-rotate-left"></i>
-                                    </a>
-                                @endif
-                                @if ($canGiveMerit)
-                                    <button type="button" wire:click="openMeritModal" class="merit-icon-btn" title="Tambah / kurangi poin" aria-label="Tambah atau kurangi poin">
-                                        <i class="fa-solid fa-plus-minus"></i>
-                                    </button>
-                                @endif
-                            </div>
-                        @endif
+                        <p class="merit-label">{{ $isSelf ? 'Poin Anda' : 'Merit Point' }}</p>
+                        <p class="merit-score-row"><b>{{ $meritPoint }}</b>/100</p>
+                        <div style="display:flex;gap:6px;align-items:center;margin-top:4px;flex-wrap:wrap;">
+                            @if ($isSelf)
+                                <a href="{{ route('merit-point.saya.riwayat') }}" wire:navigate class="merit-history-btn">
+                                    <i class="fa-solid fa-clock-rotate-left"></i> Riwayat
+                                </a>
+                            @endif
+                            @if ($this->canCreateMeritTransaction)
+                                <button type="button" wire:click="openMeritTransactionModal" class="merit-history-btn" style="border:none;cursor:pointer;">
+                                    <i class="fa-solid fa-plus-minus"></i> Transaksi
+                                </button>
+                            @endif
+                        </div>
                     </div>
                 </div>
             </div>
@@ -636,38 +634,6 @@ source (tab server-render sekali jalan, x-show cuma toggle CSS). --}}
             Belum ada penilaian kinerja. Hasil penilaian periodik dari atasan akan tampil di sini.
         </p>
     </div>
-
-    {{-- SP (planning/2026-09-23-sp-dan-merit-point.md §3.6) - Merit Point sudah dipindah ke
-    samping kartu identitas di atas head halaman (instruksi user), SP tetap di sini sendirian.
-    Sama gerbang: showSpMeritWidget (kill-switch global) + canViewPembinaanTab. --}}
-    @if ($this->showSpMeritWidget && $this->canViewPembinaanTab)
-        @php
-            $hrBalance = $this->hrBalance;
-            $spLevel = $hrBalance?->active_sp_level;
-            $spColors = [
-                'sp1' => ['bg' => '#fef9c3', 'fg' => '#a16207'],
-                'sp2' => ['bg' => '#ffedd5', 'fg' => '#c2410c'],
-                'sp3' => ['bg' => '#fee2e2', 'fg' => '#b91c1c'],
-            ];
-            $spColor = $spLevel ? ($spColors[$spLevel->value] ?? ['bg' => '#f1f5f9', 'fg' => '#64748b']) : ['bg' => 'var(--surface-alt)', 'fg' => 'var(--text-muted)'];
-        @endphp
-        <div class="card-surface" style="position:relative;text-align:center;margin-bottom:20px;">
-            @if ($isSelf)
-                <a href="{{ route('sp.saya') }}" wire:navigate title="Riwayat Surat Peringatan"
-                   style="position:absolute;top:14px;right:14px;color:var(--text-faint);font-size:13px;">
-                    <i class="fa-solid fa-clock-rotate-left"></i>
-                </a>
-            @endif
-            <p style="font-size:11px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--text-faint);margin:0 0 12px;">Surat Peringatan</p>
-            <div style="display:flex;align-items:center;justify-content:center;height:104px;">
-                @if ($spLevel)
-                    <span class="badge" style="background:{{ $spColor['bg'] }};color:{{ $spColor['fg'] }};font-size:16px;font-weight:800;padding:10px 18px;">{{ $spLevel->getLabel() }}</span>
-                @else
-                    <span style="font-size:36px;font-weight:800;color:var(--text-muted);">0</span>
-                @endif
-            </div>
-        </div>
-    @endif
 
     {{-- Status Kepegawaian: fase berjalan (ringkas) + timeline HORIZONTAL perjalanan
     Bergabung → Orientasi → Kontrak/perpanjangan → Tetap dalam satu baris. Data dari ledger
@@ -1221,81 +1187,113 @@ source (tab server-render sekali jalan, x-show cuma toggle CSS). --}}
     </div>
 @endif
 
-{{-- Modal tambah/kurangi Merit Point manual (tombol +/- di kartu "Poin Anda"). Sengaja di luar
-.merit-card: kartu itu punya animation/transform, dan itu bikin position:fixed anaknya nempel ke
-kartu, bukan ke layar. 2 tab: "Sesuai Aturan" (poin dari aturan company, tidak bisa diubah) dan
-"Sesuai Keinginan" (arah + jumlah bebas). Catatan wajib di dua-duanya. --}}
-@if ($showMeritModal && $this->canGiveMeritPoint)
-    @php
-        $meritRules = $this->meritRules;
-        $meritNow = $this->meritNow;
-        $meritDelta = $this->meritDelta;
-        $meritAfter = $meritDelta === null ? null : max(0, min(100, $meritNow + $meritDelta));
-        $segBtn = fn (bool $active) => 'padding:6px 16px;font-size:12.5px;font-weight:600;border:none;border-radius:6px;cursor:pointer;font-family:inherit;background:'.($active ? 'var(--surface)' : 'transparent').';color:'.($active ? 'var(--text-heading)' : 'var(--text-muted)').';box-shadow:'.($active ? 'var(--shadow-card)' : 'none').';';
-        $dirBtn = fn (bool $active, string $color) => 'flex:1;padding:9px 12px;font-size:13px;font-weight:700;border-radius:10px;cursor:pointer;font-family:inherit;border:1.5px solid '.($active ? $color : 'var(--border)').';background:'.($active ? $color : 'transparent').';color:'.($active ? '#fff' : 'var(--text-muted)').';';
-    @endphp
-    <div class="modal-overlay" wire:click="closeMeritModal">
+@if ($showMeritTransactionModal)
+    <div class="modal-overlay" wire:click="closeModalMeritTransaction">
         <div class="modal-box" onclick="event.stopPropagation()">
-            <h3 style="font-size:16px;font-weight:700;color:var(--text-heading);margin:0;">Tambah / Kurangi Poin</h3>
-            <p style="font-size:12.5px;color:var(--text-muted);margin:4px 0 14px;">{{ $record->name }} &middot; poin saat ini <b style="color:var(--text-heading);">{{ $meritNow }}</b></p>
-
-            <div style="display:inline-flex;gap:2px;background:var(--surface-alt);padding:3px;border-radius:8px;margin-bottom:14px;">
-                <button type="button" wire:click="setMeritMode('rule')" style="{{ $segBtn($meritMode === 'rule') }}">Sesuai Aturan</button>
-                <button type="button" wire:click="setMeritMode('manual')" style="{{ $segBtn($meritMode === 'manual') }}">Sesuai Keinginan</button>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+                <div>
+                    <h3 style="font-size:15px;font-weight:700;color:var(--text-heading);margin:0;">Transaksi Merit Point</h3>
+                    <p style="font-size:11.5px;color:var(--text-muted);margin:2px 0 0;">Karyawan: {{ $this->record->name }}</p>
+                </div>
+                <button type="button" wire:click="closeModalMeritTransaction" style="background:none;border:none;font-size:16px;color:var(--text-faint);cursor:pointer;">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
             </div>
 
-            <div style="display:flex;flex-direction:column;gap:12px;">
-                @if ($meritMode === 'rule')
+            {{-- Navigasi Tab (Berdasarkan Rule vs Manual) --}}
+            <div style="display:flex;background:var(--surface-alt);padding:4px;border-radius:10px;gap:4px;margin-bottom:16px;">
+                <button type="button" wire:click="$set('meritTab', 'rule')"
+                    style="flex:1;padding:8px 12px;font-size:12.5px;font-weight:600;border:none;border-radius:8px;cursor:pointer;transition:all 0.2s;{{ $meritTab === 'rule' ? 'background:var(--surface);color:var(--text-heading);box-shadow:0 1px 3px rgba(0,0,0,0.1);' : 'background:transparent;color:var(--text-muted);' }}">
+                    <i class="fa-solid fa-gavel" style="margin-right:6px;"></i> Berdasarkan Rule
+                </button>
+                <button type="button" wire:click="$set('meritTab', 'manual')"
+                    style="flex:1;padding:8px 12px;font-size:12.5px;font-weight:600;border:none;border-radius:8px;cursor:pointer;transition:all 0.2s;{{ $meritTab === 'manual' ? 'background:var(--surface);color:var(--text-heading);box-shadow:0 1px 3px rgba(0,0,0,0.1);' : 'background:transparent;color:var(--text-muted);' }}">
+                    <i class="fa-solid fa-pen-to-square" style="margin-right:6px;"></i> Manual
+                </button>
+            </div>
+
+            <form wire:submit.prevent="saveMeritTransaction" style="display:flex;flex-direction:column;gap:14px;">
+                @if ($meritTab === 'rule')
+                    {{-- Tab 1: Berdasarkan Rule --}}
                     <div>
-                        <label class="form-label">Aturan <span style="color:var(--danger-text);">*</span></label>
-                        @if ($meritRules->isEmpty())
-                            <p style="font-size:12.5px;color:var(--text-muted);margin:0;">Belum ada aturan aktif untuk perusahaan ini. Pakai tab "Sesuai Keinginan", atau tambahkan aturan lewat admin.</p>
-                        @else
-                            <select class="form-input" wire:model.live="meritRuleId">
-                                <option value="">Pilih aturan</option>
-                                @foreach ($meritRules as $rule)
-                                    <option value="{{ $rule->id }}">{{ $rule->name }} ({{ $rule->points > 0 ? '+' : '' }}{{ $rule->points }})</option>
-                                @endforeach
-                            </select>
+                        <label class="form-label">Pilih Aturan (Rule)</label>
+                        <select wire:model.live="merit_rule_id" class="form-input">
+                            <option value="">-- Pilih Aturan --</option>
+                            @foreach ($this->meritPointRules as $rule)
+                                <option value="{{ $rule->id }}">
+                                    {{ $rule->name }} ({{ $rule->type?->getLabel() ?? $rule->type }} &bull; {{ $rule->points >= 0 ? '+' : '' }}{{ $rule->points }} Poin)
+                                </option>
+                            @endforeach
+                        </select>
+                        @error('merit_rule_id') <p style="color:var(--danger-text);font-size:11.5px;margin-top:4px;">{{ $message }}</p> @enderror
+                    </div>
+
+                    @if ($merit_rule_id)
+                        @php
+                            $selectedRule = $this->meritPointRules->firstWhere('id', $merit_rule_id);
+                        @endphp
+                        @if ($selectedRule)
+                            <div style="padding:10px 14px;background:var(--surface-alt);border-radius:8px;font-size:12px;display:flex;justify-content:space-between;align-items:center;">
+                                <div>
+                                    <span style="font-weight:600;color:var(--text-heading);">Tipe: {{ $selectedRule->type?->getLabel() }}</span>
+                                </div>
+                                <div>
+                                    <span class="badge" style="font-size:13px;font-weight:700;background:{{ $selectedRule->points >= 0 ? '#dcfce7' : '#fee2e2' }};color:{{ $selectedRule->points >= 0 ? '#15803d' : '#b91c1c' }};">
+                                        {{ $selectedRule->points >= 0 ? '+' : '' }}{{ $selectedRule->points }} Poin
+                                    </span>
+                                </div>
+                            </div>
                         @endif
-                        @error('meritRuleId') <p style="font-size:11px;color:#dc2626;margin-top:4px;">{{ $message }}</p> @enderror
+                    @endif
+
+                    <div>
+                        <label class="form-label">Keterangan / Catatan <span style="color:var(--danger-text);">*</span></label>
+                        <textarea wire:model="merit_reason" class="form-input" rows="3" placeholder="Masukkan keterangan transaksi..."></textarea>
+                        @error('merit_reason') <p style="color:var(--danger-text);font-size:11.5px;margin-top:4px;">{{ $message }}</p> @enderror
                     </div>
                 @else
+                    {{-- Tab 2: Manual --}}
                     <div>
-                        <label class="form-label">Arah</label>
-                        <div style="display:flex;gap:8px;">
-                            <button type="button" wire:click="$set('meritDirection', 'add')" style="{{ $dirBtn($meritDirection === 'add', '#047C54') }}"><i class="fa-solid fa-plus" style="margin-right:6px;"></i>Tambah</button>
-                            <button type="button" wire:click="$set('meritDirection', 'subtract')" style="{{ $dirBtn($meritDirection === 'subtract', '#b91c1c') }}"><i class="fa-solid fa-minus" style="margin-right:6px;"></i>Kurangi</button>
+                        <label class="form-label">Jenis Transaksi</label>
+                        <div style="display:flex;gap:10px;">
+                            <label style="flex:1;display:flex;align-items:center;gap:8px;padding:10px 14px;border:1px solid {{ $merit_manual_type === 'add' ? '#16a34a' : 'var(--border)' }};border-radius:8px;background:{{ $merit_manual_type === 'add' ? '#f0fdf4' : 'var(--surface)' }};cursor:pointer;">
+                                <input type="radio" wire:model.live="merit_manual_type" value="add" style="accent-color:#16a34a;">
+                                <span style="font-size:13px;font-weight:600;color:{{ $merit_manual_type === 'add' ? '#15803d' : 'var(--text-body)' }};">
+                                    <i class="fa-solid fa-plus-circle" style="margin-right:4px;"></i> Tambah Point (+)
+                                </span>
+                            </label>
+                            <label style="flex:1;display:flex;align-items:center;gap:8px;padding:10px 14px;border:1px solid {{ $merit_manual_type === 'subtract' ? '#dc2626' : 'var(--border)' }};border-radius:8px;background:{{ $merit_manual_type === 'subtract' ? '#fef2f2' : 'var(--surface)' }};cursor:pointer;">
+                                <input type="radio" wire:model.live="merit_manual_type" value="subtract" style="accent-color:#dc2626;">
+                                <span style="font-size:13px;font-weight:600;color:{{ $merit_manual_type === 'subtract' ? '#b91c1c' : 'var(--text-body)' }};">
+                                    <i class="fa-solid fa-minus-circle" style="margin-right:4px;"></i> Kurangi Point (-)
+                                </span>
+                            </label>
                         </div>
+                        @error('merit_manual_type') <p style="color:var(--danger-text);font-size:11.5px;margin-top:4px;">{{ $message }}</p> @enderror
                     </div>
+
                     <div>
-                        <label class="form-label">Jumlah poin <span style="color:var(--danger-text);">*</span></label>
-                        <input type="number" class="form-input" wire:model.live.debounce.300ms="meritAmount" min="1" max="100" step="1" placeholder="mis. 5">
-                        @error('meritAmount') <p style="font-size:11px;color:#dc2626;margin-top:4px;">{{ $message }}</p> @enderror
+                        <label class="form-label">Jumlah Poin <span style="color:var(--danger-text);">*</span></label>
+                        <input type="number" wire:model="merit_points" min="1" max="100" class="form-input" placeholder="Contoh: 10">
+                        @error('merit_points') <p style="color:var(--danger-text);font-size:11.5px;margin-top:4px;">{{ $message }}</p> @enderror
+                    </div>
+
+                    <div>
+                        <label class="form-label">Keterangan / Alasan <span style="color:var(--danger-text);">*</span></label>
+                        <textarea wire:model="merit_reason" class="form-input" rows="3" placeholder="Masukkan keterangan (wajib diisi)..."></textarea>
+                        @error('merit_reason') <p style="color:var(--danger-text);font-size:11.5px;margin-top:4px;">{{ $message }}</p> @enderror
                     </div>
                 @endif
 
-                <div>
-                    <label class="form-label">Catatan <span style="color:var(--danger-text);">*</span></label>
-                    <textarea class="form-input" rows="3" wire:model="meritReason" maxlength="500" placeholder="Alasan pemberian / pengurangan poin..."></textarea>
-                    @error('meritReason') <p style="font-size:11px;color:#dc2626;margin-top:4px;">{{ $message }}</p> @enderror
+                <div style="display:flex;gap:10px;margin-top:8px;">
+                    <button type="submit" wire:loading.attr="disabled" class="btn-primary" style="flex:1;justify-content:center;">
+                        <i class="fa-solid fa-check"></i> Simpan Transaksi
+                    </button>
+                    <button type="button" wire:click="closeModalMeritTransaction" class="btn-ghost" style="flex:1;justify-content:center;">
+                        Batal
+                    </button>
                 </div>
-
-                @if ($meritDelta !== null)
-                    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px;border-radius:10px;background:var(--surface-alt);font-size:12.5px;">
-                        <span style="color:var(--text-muted);">Hasil</span>
-                        <span style="font-weight:700;color:{{ $meritAfter > $meritNow ? '#047C54' : ($meritAfter < $meritNow ? '#b91c1c' : 'var(--text-muted)') }};">
-                            {{ $meritNow }} <i class="fa-solid fa-arrow-right" style="font-size:10px;margin:0 4px;"></i> {{ $meritAfter }}
-                            <span style="font-weight:500;color:var(--text-muted);">({{ $meritDelta > 0 ? '+' : '' }}{{ $meritDelta }}{{ $meritAfter !== $meritNow + $meritDelta ? ', dijepit 0-100' : '' }})</span>
-                        </span>
-                    </div>
-                @endif
-            </div>
-
-            <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px;">
-                <button type="button" wire:click="closeMeritModal" class="btn-ghost">Batal</button>
-                <button type="button" wire:click="saveMerit" wire:loading.attr="disabled" wire:target="saveMerit" class="btn-primary">Simpan</button>
-            </div>
+            </form>
         </div>
     </div>
 @endif

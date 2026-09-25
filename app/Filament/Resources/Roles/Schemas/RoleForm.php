@@ -294,6 +294,10 @@ class RoleForm
             // SubDivisionsResource - di tree/checkbox tampil sebagai satu node "Struktur
             // Organisasi", bukan label salah satu resource-nya (Departemen).
             'OrgStructure' => 'Struktur Organisasi',
+            'MeritPointRule' => 'Aturan Merit Point',
+            'MeritPointTransaction' => 'Beri Merit Point',
+            'EmployeeSp' => 'Surat Peringatan (SP)',
+            'SpRecommendation' => 'Rekomendasi SP',
         ];
     }
 

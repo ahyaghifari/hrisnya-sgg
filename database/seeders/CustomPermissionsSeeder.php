@@ -36,8 +36,13 @@ class CustomPermissionsSeeder extends Seeder
      */
     private function seedManualPolicyPermissions(): void
     {
-        $subjects = [];
-        $verbs = ['ViewAny', 'View', 'Create', 'Update', 'Delete'];
+        $subjects = [
+            'MeritPointRule',
+            'MeritPointTransaction',
+            'EmployeeSp',
+            'SpRecommendation',
+        ];
+        $verbs = ['ViewAny', 'View', 'Create', 'Update', 'Delete', 'Restore', 'ForceDelete'];
 
         foreach ($subjects as $subject) {
             foreach ($verbs as $verb) {
