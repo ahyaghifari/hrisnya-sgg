@@ -4,7 +4,9 @@ namespace App\Livewire;
 
 use App\Enum\Approval\ApprovalModuleEnum;
 use App\Models\Attendance\AttendanceRequests;
+use App\Livewire\Presensi\Concerns\FormatsShiftSwapRequest;
 use App\Models\ApprovalManagement\ApprovalHistories;
+use App\Models\Shift\ShiftSwapRequests;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
@@ -26,6 +28,9 @@ use Livewire\WithPagination;
 class RiwayatApprovalPage extends Component
 {
     use WithPagination;
+    use FormatsShiftSwapRequest { keterangan as keteranganSwap; }
+
+    private const TYPE_SWAP = 'swap_shift';
 
     // Pagination di sini pakai wire:navigate (lihat livewire/partials/pagination.blade.php),
     // yaitu full page-visit yang bikin komponen di-mount ULANG dari URL. Tanpa #[Url], filter
@@ -49,21 +54,37 @@ class RiwayatApprovalPage extends Component
     }
 
     /**
-     * @return LengthAwarePaginator<int, array{history: ApprovalHistories, request: AttendanceRequests}>
+     * @return LengthAwarePaginator<int, array{history: ApprovalHistories, request: AttendanceRequests|ShiftSwapRequests}>
      */
     public function getRowsProperty(): LengthAwarePaginator
     {
+        // typeFilter 'swap_shift' = modul Tukar Shift (tabel terpisah dari attendance_requests);
+        // leave/permission/overtime = attendance_request; kosong = dua-duanya.
+        $modules = match (true) {
+            $this->typeFilter === self::TYPE_SWAP => [ApprovalModuleEnum::SWAP_SHIFT_REQUEST->value],
+            $this->typeFilter !== '' => [ApprovalModuleEnum::ATTENDANCE_REQUEST->value],
+            default => [ApprovalModuleEnum::ATTENDANCE_REQUEST->value, ApprovalModuleEnum::SWAP_SHIFT_REQUEST->value],
+        };
+
         $histories = ApprovalHistories::query()
             ->where('actor_id', Auth::id())
-            ->where('requestable_type', ApprovalModuleEnum::ATTENDANCE_REQUEST->value)
+            ->whereIn('requestable_type', $modules)
             ->whereIn('action', ['approved', 'rejected'])
             ->orderByDesc('created_at')
             ->get();
 
+        $idsOf = fn (ApprovalModuleEnum $m) => $histories->where('requestable_type', $m->value)->pluck('requestable_id')->unique()->values();
+
         $requests = AttendanceRequests::query()
-            ->whereIn('id', $histories->pluck('requestable_id')->unique()->values())
+            ->whereIn('id', $idsOf(ApprovalModuleEnum::ATTENDANCE_REQUEST))
             ->when($this->typeFilter !== '', fn ($q) => $q->where('type', $this->typeFilter))
             ->with(['user', 'leaveDetails', 'permissionDetails', 'overtimeDetails'])
+            ->get()
+            ->keyBy('id');
+
+        $swaps = ShiftSwapRequests::query()
+            ->whereIn('id', $idsOf(ApprovalModuleEnum::SWAP_SHIFT_REQUEST))
+            ->with(['requester', 'target', 'reqSchedule.shiftType', 'targetSchedule.shiftType'])
             ->get()
             ->keyBy('id');
 
@@ -72,11 +93,13 @@ class RiwayatApprovalPage extends Component
         $filtered = $histories
             ->map(fn (ApprovalHistories $history) => [
                 'history' => $history,
-                'request' => $requests->get($history->requestable_id),
+                'request' => $history->requestable_type === ApprovalModuleEnum::SWAP_SHIFT_REQUEST->value
+                    ? $swaps->get($history->requestable_id)
+                    : $requests->get($history->requestable_id),
             ])
             ->filter(fn (array $row) => $row['request'])
             ->when($search !== '', fn ($rows) => $rows->filter(
-                fn (array $row) => str_contains(mb_strtolower($row['request']->user->name), mb_strtolower($search))
+                fn (array $row) => str_contains(mb_strtolower($this->pemohon($row['request'])), mb_strtolower($search))
             ))
             ->values();
 
@@ -105,6 +128,32 @@ class RiwayatApprovalPage extends Component
                 ],
             ]
         );
+    }
+
+    public function pemohon(AttendanceRequests|ShiftSwapRequests $record): string
+    {
+        return ($record instanceof ShiftSwapRequests ? $record->requester?->name : $record->user?->name) ?? '-';
+    }
+
+    public function jenis(AttendanceRequests|ShiftSwapRequests $record): string
+    {
+        if ($record instanceof ShiftSwapRequests) {
+            return 'Tukar Shift';
+        }
+
+        return ['leave' => 'Cuti', 'permission' => 'Izin', 'overtime' => 'Lembur'][$record->type] ?? $record->type;
+    }
+
+    public function detailUrl(AttendanceRequests|ShiftSwapRequests $record): string
+    {
+        return $record instanceof ShiftSwapRequests
+            ? route('tukar-shift.show', ['record' => $record->id])
+            : route('my-attendance-requests.show', ['record' => $record->id]);
+    }
+
+    public function keteranganRow(AttendanceRequests|ShiftSwapRequests $record): string
+    {
+        return $record instanceof ShiftSwapRequests ? $this->keteranganSwap($record) : $this->keterangan($record);
     }
 
     public function keterangan(AttendanceRequests $record): string

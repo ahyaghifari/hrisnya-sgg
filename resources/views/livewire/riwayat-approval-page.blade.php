@@ -2,7 +2,6 @@
     <x-page-header title="Riwayat Approval" subtitle="Riwayat pengajuan yang pernah Anda setujui/tolak sebagai approver" />
 
     @php
-        $typeLabel = fn (string $type) => ['leave' => 'Cuti', 'permission' => 'Izin', 'overtime' => 'Lembur'][$type] ?? $type;
         $actionBadge = fn (string $action) => $action === 'approved' ? 'badge-approved' : 'badge-rejected';
         $actionLabel = fn (string $action) => $action === 'approved' ? 'Disetujui' : 'Ditolak';
     @endphp
@@ -20,6 +19,7 @@
                 <option value="leave">Cuti</option>
                 <option value="permission">Izin</option>
                 <option value="overtime">Lembur</option>
+                <option value="swap_shift">Tukar Shift</option>
             </select>
         </div>
     </div>
@@ -42,14 +42,14 @@
                         @php [$history, $request] = [$row['history'], $row['request']]; @endphp
                         <tr>
                             <td class="text-sm text-slate-500 whitespace-nowrap">{{ $history->created_at->translatedFormat('d M Y H:i') }}</td>
-                            <td class="text-sm font-semibold text-slate-800">{{ $typeLabel($request->type) }}</td>
-                            <td class="text-sm text-slate-600">{{ $this->keterangan($request) }}</td>
-                            <td class="text-sm text-slate-600">{{ $request->user->name }}</td>
+                            <td class="text-sm font-semibold text-slate-800">{{ $this->jenis($request) }}</td>
+                            <td class="text-sm text-slate-600">{{ $this->keteranganRow($request) }}</td>
+                            <td class="text-sm text-slate-600">{{ $this->pemohon($request) }}</td>
                             <td style="text-align:center;">
                                 <span class="badge {{ $actionBadge($history->action) }}">{{ $actionLabel($history->action) }}</span>
                             </td>
                             <td>
-                                <a href="{{ route('my-attendance-requests.show', ['record' => $request->id]) }}" wire:navigate style="font-size:12.5px;font-weight:700;color:var(--brand);white-space:nowrap;">
+                                <a href="{{ $this->detailUrl($request) }}" wire:navigate style="font-size:12.5px;font-weight:700;color:var(--brand);white-space:nowrap;">
                                     Detail
                                 </a>
                             </td>
