@@ -180,6 +180,37 @@ class EmployeeAttendanceStatisticsTest extends TestCase
             ->assertSet('stats', ['leave' => 0, 'permission' => 0, 'overtime' => 0]);
     }
 
+    /** Kartu "Poin Anda" hanya tampil kalau Merit Point diaktifkan di Pengaturan Pembinaan (default: mati). */
+    public function test_merit_point_card_hidden_unless_enabled_in_pembinaan_settings(): void
+    {
+        $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
+        $staff = User::factory()->create(['company_id' => $company->id]);
+        UserProfiles::create(['user_id' => $staff->id]);
+
+        $this->actingAs($staff);
+
+        // Belum pernah diatur = mati: kartu, panel riwayat, dan aksinya tertutup.
+        Livewire::test(EmployeeAttendanceStatistics::class, ['record' => $staff])
+            ->assertDontSee('Poin Anda')
+            ->call('openMeritHistoryModal')
+            ->assertForbidden();
+
+        // Diaktifkan untuk company ini: kartu tampil dan panel riwayat bisa dibuka.
+        \App\Models\Setting::create([
+            'company_id' => $company->id,
+            'module' => 'pembinaan',
+            'key' => \App\Enum\Pembinaan\PembinaanSettingEnum::MERIT_POINT_ENABLED->value,
+            'type' => 'boolean',
+            'value' => 'true',
+            'label' => 'Aktifkan Merit Point',
+        ]);
+
+        Livewire::test(EmployeeAttendanceStatistics::class, ['record' => $staff])
+            ->assertSee('Poin Anda')
+            ->call('openMeritHistoryModal')
+            ->assertSet('showMeritHistoryModal', true);
+    }
+
     public function test_stranger_cannot_view_unrelated_employee_statistics(): void
     {
         $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);

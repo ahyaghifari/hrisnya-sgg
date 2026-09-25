@@ -372,12 +372,15 @@ class EmployeeAttendanceStatistics extends Component
         return UserHrBalance::where('user_id', $this->record->id)->first();
     }
 
+    /** Merit Point aktif per company lewat Pengaturan Pembinaan (PembinaanSettingEnum::MERIT_POINT_ENABLED).
+     * Fallback kalau baris settings belum ada = default enum (false), sama seperti MeritPointRuleResource &
+     * MeritPointTransactionResource - dulu fallback-nya true sehingga "Poin Anda" tampil walau belum pernah diaktifkan. */
     public function getMeritPointEnabledProperty(): bool
     {
         return (bool) Setting::resolve(
             PembinaanSettingEnum::MERIT_POINT_ENABLED->value,
             $this->record->company_id,
-            true
+            filter_var(PembinaanSettingEnum::MERIT_POINT_ENABLED->default(), FILTER_VALIDATE_BOOLEAN)
         );
     }
 
@@ -398,7 +401,7 @@ class EmployeeAttendanceStatistics extends Component
 
     public function openMeritHistoryModal(): void
     {
-        abort_unless($this->record->id === Auth::id(), 403);
+        abort_unless($this->meritPointEnabled && $this->record->id === Auth::id(), 403);
 
         $this->showMeritHistoryModal = true;
     }
@@ -440,7 +443,7 @@ class EmployeeAttendanceStatistics extends Component
 
     public function openMeritTransactionModal(): void
     {
-        abort_unless($this->canCreateMeritTransaction, 403);
+        abort_unless($this->meritPointEnabled && $this->canCreateMeritTransaction, 403);
 
         $this->resetMeritForm();
         $this->showMeritTransactionModal = true;
@@ -474,7 +477,7 @@ class EmployeeAttendanceStatistics extends Component
 
     public function saveMeritTransaction(): void
     {
-        abort_unless($this->canCreateMeritTransaction, 403);
+        abort_unless($this->meritPointEnabled && $this->canCreateMeritTransaction, 403);
 
         if ($this->meritTab === 'rule') {
             $this->validate([
