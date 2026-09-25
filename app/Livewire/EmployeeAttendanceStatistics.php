@@ -369,8 +369,127 @@ class EmployeeAttendanceStatistics extends Component
         return (bool) Setting::resolve(
             PembinaanSettingEnum::MERIT_POINT_ENABLED->value,
             $this->record->company_id,
-            filter_var(PembinaanSettingEnum::MERIT_POINT_ENABLED->default(), FILTER_VALIDATE_BOOLEAN)
+            true
         );
+    }
+
+    // ── Transaksi Merit Point Modal ──
+    public bool $showMeritTransactionModal = false;
+    public string $meritTab = 'rule';
+    public ?string $merit_rule_id = null;
+    public string $merit_manual_type = 'add';
+    public ?int $merit_points = null;
+    public string $merit_reason = '';
+
+    public function getCanCreateMeritTransactionProperty(): bool
+    {
+        $user = Auth::user();
+        if (! $user) {
+            return false;
+        }
+
+        return $user->can('Create:MeritPointTransaction')
+            || $user->can(CustomPermissionEnum::SISTEM_PEMBINAAN_KARYAWAN->value)
+            || PermissionHelper::hasGlobalRole($user);
+    }
+
+    public function getMeritPointRulesProperty()
+    {
+        $companyId = $this->record->company_id;
+
+        return \App\Models\MeritPoint\MeritPointRule::query()
+            ->where('is_active', true)
+            ->when($companyId, fn ($q) => $q->where('company_id', $companyId))
+            ->get();
+    }
+
+    public function openMeritTransactionModal(): void
+    {
+        abort_unless($this->canCreateMeritTransaction, 403);
+
+        $this->resetMeritForm();
+        $this->showMeritTransactionModal = true;
+    }
+
+    public function closeModalMeritTransaction(): void
+    {
+        $this->showMeritTransactionModal = false;
+        $this->resetMeritForm();
+    }
+
+    private function resetMeritForm(): void
+    {
+        $this->meritTab = 'rule';
+        $this->merit_rule_id = null;
+        $this->merit_manual_type = 'add';
+        $this->merit_points = null;
+        $this->merit_reason = '';
+        $this->resetErrorBag();
+    }
+
+    public function updatedMeritRuleId($value): void
+    {
+        if ($value) {
+            $rule = \App\Models\MeritPoint\MeritPointRule::find($value);
+            if ($rule && empty($this->merit_reason)) {
+                $this->merit_reason = $rule->name;
+            }
+        }
+    }
+
+    public function saveMeritTransaction(): void
+    {
+        abort_unless($this->canCreateMeritTransaction, 403);
+
+        if ($this->meritTab === 'rule') {
+            $this->validate([
+                'merit_rule_id' => ['required', 'exists:merit_point_rules,id'],
+                'merit_reason' => ['required', 'string', 'max:500'],
+            ], [
+                'merit_rule_id.required' => 'Silakan pilih aturan Merit Point.',
+                'merit_rule_id.exists' => 'Aturan tidak ditemukan.',
+                'merit_reason.required' => 'Keterangan/catatan wajib diisi.',
+            ]);
+
+            $rule = \App\Models\MeritPoint\MeritPointRule::findOrFail($this->merit_rule_id);
+            $points = $rule->points;
+            $ruleId = $rule->id;
+        } else {
+            $this->validate([
+                'merit_manual_type' => ['required', 'in:add,subtract'],
+                'merit_points' => ['required', 'integer', 'min:1', 'max:100'],
+                'merit_reason' => ['required', 'string', 'max:500'],
+            ], [
+                'merit_manual_type.required' => 'Pilih jenis transaksi (tambah/kurang).',
+                'merit_points.required' => 'Jumlah poin wajib diisi.',
+                'merit_points.integer' => 'Jumlah poin harus berupa angka bulat.',
+                'merit_points.min' => 'Poin minimal 1.',
+                'merit_points.max' => 'Poin maksimal 100.',
+                'merit_reason.required' => 'Keterangan/catatan wajib diisi.',
+            ]);
+
+            $points = $this->merit_manual_type === 'subtract'
+                ? -abs((int) $this->merit_points)
+                : abs((int) $this->merit_points);
+            $ruleId = null;
+        }
+
+        app(\App\Services\MeritPoint\MeritPointService::class)->addTransaction([
+            'user_id' => $this->record->id,
+            'rule_id' => $ruleId,
+            'points' => $points,
+            'reason' => $this->merit_reason,
+            'created_by' => Auth::id(),
+        ]);
+
+        $this->showMeritTransactionModal = false;
+        $this->resetMeritForm();
+        $this->record->refresh();
+
+        Notification::make()
+            ->title('Transaksi Merit Point berhasil disimpan')
+            ->success()
+            ->send();
     }
 
     /** Pemilik akun selalu boleh; selain itu HC (`sistem_kepegawaian`, dibatasi company sendiri
