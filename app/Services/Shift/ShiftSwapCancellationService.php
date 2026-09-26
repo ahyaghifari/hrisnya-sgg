@@ -52,16 +52,30 @@ class ShiftSwapCancellationService
                 'status' => 'in_review',
             ]);
 
+            $record->loadMissing('reqSchedule.shiftType.schedule');
+            $headUserId = $record->reqSchedule?->shiftType?->schedule?->head_user_id;
+
+            // Approver = Kepala Ruangan jadwal shift (Schedule::head_user_id), tanpa alur master
+            // khusus pembatalan. Flow tukar shift cuma dipinjam sebagai pembawa flow_id (kolom
+            // wajib); step-nya dikosongkan. Kalau pemohon sendiri kepala ruangannya (tidak boleh
+            // approve giliran sendiri), step master flow tukar shift dipakai apa adanya.
             $masterFlow = $this->snapshotRepo->resolveApprovalFlowForUser(
-                moduleType: ApprovalModuleEnum::SHIFT_SWAP_REQUEST_CANCELLATION->value,
+                moduleType: ApprovalModuleEnum::SWAP_SHIFT_REQUEST->value,
                 companyId: $requester->company_id,
                 userId: $requester->id,
             );
 
             if (! $masterFlow) {
                 throw new \RuntimeException(
-                    'Tidak ada alur persetujuan aktif untuk pembatalan tukar shift di perusahaan ini. Hubungi admin.'
+                    'Tidak ada alur persetujuan aktif untuk tukar shift di perusahaan ini. Hubungi admin.'
                 );
+            }
+
+            $prependSteps = [];
+
+            if ($headUserId && $headUserId !== $requester->id) {
+                $masterFlow->setRelation('steps', collect());
+                $prependSteps = [['approver_type' => 'user', 'approver_ref_id' => $headUserId]];
             }
 
             $this->approvalCreationService->createSnapshot(
@@ -71,6 +85,7 @@ class ShiftSwapCancellationService
                 createdBy: $requester->id,
                 companyId: $requester->company_id,
                 userId: $requester->id,
+                prependSteps: $prependSteps,
             );
 
             return $cancellation;

@@ -70,22 +70,6 @@ class ShiftSwapCancellationApprovalTest extends TestCase
             'scope_type' => 'global',
             'is_final' => true,
         ]);
-
-        MasterApprovalFlowSteps::create([
-            'flow_id' => MasterApprovalFlows::create([
-                'company_id' => $this->company->id,
-                'module' => ApprovalModuleEnum::SHIFT_SWAP_REQUEST_CANCELLATION->value,
-                'name' => 'Alur Pembatalan Tukar Shift',
-                'flow_type' => 'default',
-                'is_active' => true,
-            ])->id,
-            'step_order' => 1,
-            'approver_type' => 'user',
-            'approver_ref_id' => $this->cancellationApprover->id,
-            'approval_mode' => 'any',
-            'scope_type' => 'global',
-            'is_final' => true,
-        ]);
     }
 
     /** Approve tukar shift sampai selesai (target lalu approver) - reuse Livewire persis alur
@@ -132,7 +116,7 @@ class ShiftSwapCancellationApprovalTest extends TestCase
 
         $cancellation = app(ShiftSwapCancellationService::class)->requestCancellation($swap, $this->requester, 'Batal, ada kendala');
 
-        Livewire::actingAs($this->cancellationApprover)
+        Livewire::actingAs($this->approver)
             ->test(ShiftSwapRequestDetail::class, ['record' => $swap])
             ->assertSet('canApproveCancellation', true)
             ->call('chooseCancellationAction', 'approve')
@@ -170,7 +154,7 @@ class ShiftSwapCancellationApprovalTest extends TestCase
 
         app(ShiftSwapCancellationService::class)->requestCancellation($swap, $this->requester, 'Batal');
 
-        Livewire::actingAs($this->cancellationApprover)
+        Livewire::actingAs($this->approver)
             ->test(ShiftSwapRequestDetail::class, ['record' => $swap])
             ->call('chooseCancellationAction', 'approve')
             ->set('cancellationNote', 'Oke batal')
@@ -200,7 +184,7 @@ class ShiftSwapCancellationApprovalTest extends TestCase
 
         $cancellation = app(ShiftSwapCancellationService::class)->requestCancellation($swap, $this->requester, 'Coba batal');
 
-        Livewire::actingAs($this->cancellationApprover)
+        Livewire::actingAs($this->approver)
             ->test(ShiftSwapRequestDetail::class, ['record' => $swap])
             ->call('chooseCancellationAction', 'reject')
             ->set('cancellationNote', 'Tidak bisa, sudah dijalani')
@@ -209,5 +193,52 @@ class ShiftSwapCancellationApprovalTest extends TestCase
         $this->assertDatabaseHas('shift_swap_requests', ['id' => $swap->id, 'status' => 'approved']);
         $this->assertDatabaseHas('shift_swap_request_cancellations', ['id' => $cancellation->id, 'status' => 'rejected']);
         $this->assertSame($this->siang->id, $scheduleA->fresh()->shift_type_id, 'Tetap hasil tukar, tidak direvert.');
+    }
+
+    public function test_cancellation_by_staff_is_approved_only_by_schedule_head(): void
+    {
+        $head = User::factory()->create(['company_id' => $this->company->id]);
+        $this->schedule->update(['head_user_id' => $head->id]);
+
+        $date = now()->addMonthNoOverflow()->startOfMonth()->addDays(5)->toDateString();
+
+        $scheduleA = ScheduleShiftAssignment::create(['company_id' => $this->company->id, 'user_id' => $this->requester->id, 'shift_type_id' => $this->pagi->id, 'date' => $date, 'off_day' => false]);
+        $scheduleB = ScheduleShiftAssignment::create(['company_id' => $this->company->id, 'user_id' => $this->target->id, 'shift_type_id' => $this->siang->id, 'date' => $date, 'off_day' => false]);
+
+        Auth::login($this->requester);
+        $swap = app(ShiftSwapRequestService::class)->store([
+            'swap_mode' => 'schedule',
+            'req_schedule_id' => $scheduleA->id,
+            'target_schedule_id' => $scheduleB->id,
+        ]);
+        Auth::logout();
+
+        // Alur tukar shift sekarang: rekan -> kepala ruangan -> approver master.
+        foreach ([$this->target, $head, $this->approver] as $actor) {
+            Livewire::actingAs($actor)
+                ->test(ShiftSwapRequestDetail::class, ['record' => $swap->fresh()])
+                ->call('chooseAction', 'approve')
+                ->set('note', 'ok')
+                ->call('confirmAction');
+        }
+        $swap = $swap->fresh();
+        $this->assertSame('approved', $swap->status);
+
+        app(ShiftSwapCancellationService::class)->requestCancellation($swap, $this->requester, 'Batal');
+
+        Livewire::actingAs($this->cancellationApprover)
+            ->test(ShiftSwapRequestDetail::class, ['record' => $swap])
+            ->assertSet('canApproveCancellation', false);
+
+        Livewire::actingAs($head)
+            ->test(ShiftSwapRequestDetail::class, ['record' => $swap])
+            ->assertSet('canApproveCancellation', true)
+            ->call('chooseCancellationAction', 'approve')
+            ->set('cancellationNote', 'Oke')
+            ->call('confirmCancellationAction');
+
+        $this->assertDatabaseHas('shift_swap_requests', ['id' => $swap->id, 'status' => 'cancelled']);
+        $this->assertSame($this->pagi->id, $scheduleA->fresh()->shift_type_id);
+        $this->assertSame($this->siang->id, $scheduleB->fresh()->shift_type_id);
     }
 }

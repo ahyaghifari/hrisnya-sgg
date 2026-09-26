@@ -58,6 +58,10 @@ enum ApprovalModuleEnum: string
     /** @return array<string, string> value => label, buat dropdown Filament. */
     public static function options(): array
     {
-        return collect(self::cases())->mapWithKeys(fn (self $case) => [$case->value => $case->label()])->all();
+        // Pembatalan tukar shift tidak punya alur master: approver-nya Kepala Ruangan jadwal
+        // (lihat ShiftSwapCancellationService), jadi tidak ditawarkan di pengaturan alur.
+        return collect(self::cases())
+            ->reject(fn (self $case) => $case === self::SHIFT_SWAP_REQUEST_CANCELLATION)
+            ->mapWithKeys(fn (self $case) => [$case->value => $case->label()])->all();
     }
 }
