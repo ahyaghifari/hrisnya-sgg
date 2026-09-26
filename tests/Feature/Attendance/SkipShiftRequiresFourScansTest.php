@@ -77,15 +77,14 @@ class SkipShiftRequiresFourScansTest extends TestCase
 
         $result = app(AccessLogScheduleReader::class)->readAndGroup('2026-08-10', '2026-08-11');
 
-        // TIDAK dipecah jadi normal+extra - masih 1 entri ambigu (belum divalidasi
-        // isGenuineExtraShiftScan(), itu baru jalan di SyncAccessLogsAttendance, lihat test
-        // incremental di bawah buat hasil akhirnya) - check_out tetap kosong (tidak ditebak dari
-        // scan besok). Scan tanggal 11 jadi entri 'off' sendiri (Libur beneran), tidak ke-borrow
-        // sama sekali oleh baris tanggal 10.
-        $this->assertCount(0, $result['buckets']['shift']);
-        $this->assertCount(1, $result['buckets']['extra_shift']);
-        $this->assertSame('07:00:00', $result['buckets']['extra_shift'][0]['check_in']);
-        $this->assertNull($result['buckets']['extra_shift'][0]['check_out']);
+        // TIDAK dipecah jadi normal+extra - scan 07:00 jelas milik Pagi (belum masuk jendela check-in
+        // Malam), jadi jadi pasangan NORMAL, check_out tetap kosong (tidak ditebak dari scan
+        // besok). Extra Malam tidak tercatat sama sekali. Scan tanggal 11 jadi entri 'off' sendiri
+        // (Libur beneran), tidak ke-borrow sama sekali oleh baris tanggal 10.
+        $this->assertCount(0, $result['buckets']['extra_shift']);
+        $this->assertCount(1, $result['buckets']['shift']);
+        $this->assertSame('07:00:00', $result['buckets']['shift'][0]['check_in']);
+        $this->assertNull($result['buckets']['shift'][0]['check_out']);
 
         $this->assertCount(1, $result['buckets']['off']);
         $this->assertSame('2026-08-11', $result['buckets']['off'][0]['date']);

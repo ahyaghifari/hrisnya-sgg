@@ -300,11 +300,22 @@ class AccessLogScheduleReader
     {
         $resolved = $this->scheduleResolver->resolveForUserDate($user, $date, ignoreEffectiveDate: true);
 
+        if ($resolved && in_array($resolved['type'], ['fixed', 'flexible'], true)) {
+            return false;
+        }
+
         if ($resolved && $resolved['type'] === 'shift' && ! ($resolved['is_off_day'] ?? false) && ($resolved['config']->is_overnight ?? false)) {
             return true;
         }
 
         return $this->shiftReader->isOvernight($user, $date);
+    }
+
+    private function isFixedOrFlexibleDay(User $user, string $date): bool
+    {
+        $resolved = $this->scheduleResolver->resolveForUserDate($user, $date, ignoreEffectiveDate: true);
+
+        return $resolved && in_array($resolved['type'], ['fixed', 'flexible'], true);
     }
 
     /** Jadwal SHIFT normal (bukan off_day, bukan fixed/flexible) user di tanggal itu - dipakai
@@ -401,7 +412,7 @@ class AccessLogScheduleReader
         $dayScans = $this->dropRepeatedTaps(
             DB::table('access_logs')
                 ->whereIn('employee_id', $employeeIds->unique()->values())
-                ->whereIn('access_date', $dates->unique()->values())
+                ->whereIn('access_date', $allDates)
                 ->orderBy('access_datetime')
                 ->get(['employee_id', 'access_date', 'access_time', 'device_name'])
         )->groupBy(fn ($r) => $r->employee_id . '|' . $r->access_date);
@@ -417,97 +428,71 @@ class AccessLogScheduleReader
             $existingRecord = $existing->get($employeeId . '|' . $date);
             $extraShift = $extraShifts->get($employeeId . '|' . $date);
 
+            // Fixed/Flexible tidak pernah punya extra shift (sama seperti groupAndBucket()) - baris
+            // ExtraShiftAssignment yang nyasar ke user Fixed/Flexible diabaikan, jangan membelokkan
+            // pairing mereka.
+            if ($extraShift && $this->isFixedOrFlexibleDay($user, $date)) {
+                $extraShift = null;
+            }
+
             // Lookback checkout shift semalam - scan tunggal ini bisa jadi bukan check-in hari
             // ini, tapi check-out shift overnight yang check-in-nya kemarin (masih terbuka).
-            // Sepenuhnya shift-specific, diserahkan ke ShiftAttendanceReader.
             if ($rowsForDay->count() === 1) {
                 $prevDate = Carbon::parse($date)->subDay()->toDateString();
                 $prevExtraShift = $extraShifts->get($employeeId . '|' . $prevDate);
+                if ($prevExtraShift && $this->isFixedOrFlexibleDay($user, $prevDate)) {
+                    $prevExtraShift = null;
+                }
                 $prevRecord = $existing->get($employeeId . '|' . $prevDate);
+                $prevScans = $dayScans->get($employeeId . '|' . $prevDate);
 
-                // Kalau kemarin ada normal DAN extra shift dua-duanya tapi TIDAK nempel (skip 1
-                // shift, mis. Pagi lalu lompat ke Malam) - jangan asal pinjem scan hari ini buat
-                // nutup baris normal kemarin, itu bisa salah atribusi total (baris normal jadi
-                // ketiban jam checkout shift LAIN). Skip-pattern wajib scan lengkap 4x, bukan
-                // ditebak (instruksi user 2026-09-13).
-                $prevNormalConfig = $this->normalShiftConfigFor($user, $prevDate);
-                $prevDateIsOvernight = ($prevNormalConfig && $prevExtraShift)
-                    ? ($this->shiftReader->isAdjacent($prevNormalConfig, $prevExtraShift) && ($prevNormalConfig->is_overnight || $prevExtraShift->shiftType->is_overnight))
-                    : $this->isOvernightShiftDay($user, $prevDate);
+                if ($prevExtraShift) {
+                    // Kemarin ada extra shift: hitung ulang kemarin dari SEMUA scan-nya, dengan scan
+                    // ini sebagai kandidat pinjaman (pulang shift overnight) - aturan pairing sama
+                    // persis dengan batch. Kalau scan ini tidak dipinjam (kemarin sudah lengkap),
+                    // lanjut jadi scan hari ini seperti biasa.
+                    if ($prevScans && $this->isOvernightShiftDay($user, $prevDate)) {
+                        $consumed = [];
+                        $prevEntries = $this->shiftReader->pairDay($user, $prevDate, $prevScans, $this->normalShiftConfigFor($user, $prevDate), collect([$date => $rowsForDay]), $consumed);
 
-                $lookbackEntry = $this->shiftReader->resolveOvernightLookbackEntry(
-                    $employeeId,
-                    $prevDate,
-                    $user,
-                    $rowsForDay,
-                    $newFirst,
-                    $prevExtraShift,
-                    $existingRecord,
-                    $prevRecord,
-                    $prevDateIsOvernight,
-                );
+                        if (! empty($consumed[$date])) {
+                            foreach ($prevEntries as $prevEntry) {
+                                $entries[] = $this->withNotifyFlags($prevEntry, $prevRecord);
+                            }
 
-                if ($lookbackEntry) {
-                    $entries[] = $lookbackEntry;
-
-                    continue;
-                }
-            }
-
-            // >=3 scan BARU sekaligus dalam 1 batch (mis. cron sempat mati/catch-up, atau
-            // "Sync Sekarang" manual sesudah karyawan sudah selesai kedua shift-nya), DAN belum
-            // ada apa pun tercatat buat normal MAUPUN extra hari itu -> berpotensi ini 2 blok
-            // shift berbeda sekaligus. Diserahkan ke ShiftAttendanceReader::splitIncrementalScans()
-            // (urutan/posisi scan, bukan jendela jam - lihat catatan ponytail di
-            // pairScansForEmployee()). Kalau cuma 1-2 scan baru (kasus normal tiap menit), tetap
-            // lewat resolveIncrementalSlot() seperti biasa.
-            if ($extraShift && $rowsForDay->count() >= 3 && ! $existingRecord && ! $extraShift->attendanceRecord) {
-                $normalConfig = $this->normalShiftConfigFor($user, $date);
-
-                if ($normalConfig) {
-                    foreach ($this->shiftReader->splitIncrementalScans($employeeId, $date, $rowsForDay, $user, $normalConfig, $extraShift) as $splitEntry) {
-                        $entries[] = $splitEntry;
+                            continue;
+                        }
                     }
+                } else {
+                    $lookbackEntry = $this->shiftReader->resolveOvernightLookbackEntry(
+                        $employeeId,
+                        $prevDate,
+                        $user,
+                        $rowsForDay,
+                        $newFirst,
+                        $existingRecord,
+                        $prevRecord,
+                        $this->isOvernightShiftDay($user, $prevDate),
+                    );
 
-                    continue;
-                }
-            }
+                    if ($lookbackEntry) {
+                        $entries[] = $lookbackEntry;
 
-            // PERSIS 2 scan: baik dua-duanya baru sekaligus (kontak pertama, 1 tick bawa 2 scan
-            // baru) ATAU 1 scan baru menutup normal yang sudah kebuka dari tick sebelumnya DAN
-            // jamnya sudah masuk jendela extra shift - tanda pola "cuma masuk pagi & pulang
-            // malam" (tidak ada scan pas transisi shift). Dipecah pakai jam konfigurasi sebagai
-            // batas sintetis, sama seperti ShiftAttendanceReader::splitTwoScans() versi batch
-            // (instruksi user 2026-09-13: "kayaknya cukup 2 scan aja").
-            if ($extraShift && ! $extraShift->attendanceRecord) {
-                $normalConfig = $this->normalShiftConfigFor($user, $date);
-                $twoScanTrigger = null;
-
-                if ($normalConfig && ! $existingRecord && $rowsForDay->count() === 2
-                    && $this->shiftReader->isPlausibleTwoScanSpan($newFirst, $newLast, $normalConfig, $extraShift)) {
-                    $twoScanTrigger = [$newFirst, $newLast, true];
-                } elseif ($normalConfig && $existingRecord && ! $existingRecord->check_out_time
-                    && $this->shiftReader->isPlausibleTwoScanSpan($existingRecord->check_in_time, $newLast, $normalConfig, $extraShift)) {
-                    $twoScanTrigger = [$existingRecord->check_in_time, $newLast, false];
-                }
-
-                if ($twoScanTrigger) {
-                    [$firstScanTime, $lastScanTime, $firstIsNewCheckin] = $twoScanTrigger;
-
-                    foreach ($this->shiftReader->splitIncrementalTwoScans($employeeId, $date, $firstScanTime, $lastScanTime, $firstIsNewCheckin, $normalConfig, $extraShift, $rowsForDay, $user) as $splitEntry) {
-                        $entries[] = $splitEntry;
+                        continue;
                     }
-
-                    continue;
                 }
             }
 
-            $slot = $extraShift ? $this->shiftReader->resolveIncrementalSlot($extraShift, $existingRecord, $newFirst) : 'normal';
+            // Hari ini ada extra shift: hitung ulang dari SEMUA scan hari ini (bukan menebak dari
+            // record yang sudah tersimpan) - aturan sama persis dengan batch, lihat
+            // ShiftAttendanceReader::pairDay(). Tanpa extra shift, lanjut pairing normal di bawah.
+            if ($extraShift) {
+                $consumed = [];
+                $todayEntries = $this->shiftReader->pairDay($user, $date, $dayScans->get($key) ?? $rowsForDay, $this->normalShiftConfigFor($user, $date), collect(), $consumed);
 
-            if ($slot === 'extra') {
-                // Nyambung ke pairing extra shift-nya sendiri (extra_shift_attendance_records),
-                // BUKAN attendance_records normal - lihat resolveIncrementalSlot().
-                $entries[] = $this->shiftReader->mergeIncrementalExtraEntry($employeeId, $date, $extraShift, $rowsForDay, $newFirst, $newLast, $user);
+                foreach ($todayEntries as $todayEntry) {
+                    $entries[] = $this->withNotifyFlags($todayEntry, $existingRecord);
+                }
 
                 continue;
             }
@@ -521,8 +506,7 @@ class AccessLogScheduleReader
             // milik shift semalam, bukan hari ini) - sisanya tetap perilaku lama.
             $daySpanCount = $rowsForDay->count();
             $deviceNames = $rowsForDay->pluck('device_name')->filter()->unique()->values()->all();
-            if (! $extraShift
-                && ! $this->isOvernightShiftDay($user, $date)
+            if (! $this->isOvernightShiftDay($user, $date)
                 && ! $this->isOvernightShiftDay($user, Carbon::parse($date)->subDay()->toDateString())) {
                 $allDayScans = $dayScans->get($key);
 
@@ -574,13 +558,21 @@ class AccessLogScheduleReader
                 'is_new_checkout' => $isNewCheckOut,
                 'device_names' => $deviceNames,
                 'user' => $user,
-                // extraShift ada tapi slot-nya 'normal' (extra shift belum disentuh hari ini) -
-                // jangan dianggap extra shift lagi oleh groupAndBucket(), ini murni pairing normal.
-                ...($extraShift ? ['extra_shift_handled' => true] : []),
             ];
         }
 
         return [$entries, $unmatchedUsers, $maxSyncedAt];
+    }
+
+    /** Entri hasil ShiftAttendanceReader::pairDay() tidak bawa flag is_new_checkin/is_new_checkout
+     * (bentuk entri jalur batch) - dihitung dari record normal yang sudah tersimpan, dipakai
+     * SyncAccessLogsAttendance buat kirim notifikasi cuma sekali per event. */
+    private function withNotifyFlags(array $entry, ?AttendanceRecords $existingRecord): array
+    {
+        return $entry + [
+            'is_new_checkin' => filled($entry['check_in']) && blank($existingRecord?->check_in_time),
+            'is_new_checkout' => filled($entry['check_out']) && blank($existingRecord?->check_out_time),
+        ];
     }
 
     /**

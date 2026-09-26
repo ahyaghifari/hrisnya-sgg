@@ -108,7 +108,8 @@ class SyncAccessLogsExtraShiftValidationTest extends TestCase
 
         $extraRecord = ExtraShiftAttendanceRecord::first();
         $this->assertNotNull($extraRecord, 'Shift extra (Siang) harus tercatat terpisah, bukan hilang/fallback.');
-        $this->assertSame('14:05:00', $extraRecord->check_in_time);
+        // Shift menyambung -> batas sintetis 14:00 (scan 14:05 di transisi diabaikan).
+        $this->assertSame('14:00:00', $extraRecord->check_in_time);
         $this->assertSame('21:00:00', $extraRecord->check_out_time);
     }
 

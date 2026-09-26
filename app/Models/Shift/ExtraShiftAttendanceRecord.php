@@ -2,6 +2,7 @@
 
 namespace App\Models\Shift;
 
+use App\Enum\AttendanceStatus;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
@@ -55,10 +56,12 @@ class ExtraShiftAttendanceRecord extends Model
                 'check_in_time' => $r['check_in'],
                 'check_out_time' => $r['check_out'],
                 'working_minutes' => $r['working_minutes'],
-                'late_minutes' => $r['late_minutes'],
+                // Extra shift tidak mengenal terlambat (instruksi user 2026-09-26): jam mulainya
+                // dipilih karyawan, bukan jadwal wajib.
+                'late_minutes' => 0,
                 'early_leave_minutes' => $r['early_leave_minutes'],
                 'overtime_minutes' => $r['overtime_minutes'],
-                'status' => $r['status'],
+                'status' => $r['status'] === AttendanceStatus::LATE->value ? AttendanceStatus::PRESENT->value : $r['status'],
                 'out_of_window' => $r['out_of_window'] ?? false,
                 'source' => $source,
                 'recorded_by' => $recordedBy,

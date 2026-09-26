@@ -70,7 +70,8 @@ class ExtraShiftBeforeNormalShiftTest extends TestCase
             'status' => 'approved', 'source' => 'assigned', 'created_by' => $user->id,
         ]);
 
-        // 4 scan: masuk Pagi, pulang Pagi, masuk Siang, pulang Siang.
+        // 4 scan: masuk Pagi, pulang Pagi, masuk Siang, pulang Siang. Shift menyambung -> cuma scan
+        // pertama & terakhir yang dipakai, batas antar shift sintetis (14:00), bukan 14:05.
         $this->insertScan($user, '2026-08-10 07:00:00');
         $this->insertScan($user, '2026-08-10 14:00:00');
         $this->insertScan($user, '2026-08-10 14:05:00');
@@ -83,7 +84,7 @@ class ExtraShiftBeforeNormalShiftTest extends TestCase
 
         // Shift normal (Siang) tetap tercatat, TIDAK hilang.
         $this->assertNotNull($normal);
-        $this->assertSame('14:05:00', $normal->check_in_time);
+        $this->assertSame('14:00:00', $normal->check_in_time);
         $this->assertSame('21:00:00', $normal->check_out_time);
 
         // Extra shift (Pagi) dihitung terpisah dengan pasangan scan-nya sendiri.
