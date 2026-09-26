@@ -467,7 +467,7 @@ class User extends Authenticatable implements FilamentUser
 
     /** Sama dengan UserProfiles::auditRecordKey() - keduanya dituliskan dengan prefix user_id
      * yang sama supaya 1 query bisa gabungkan riwayat akun + profil 1 orang, lihat
-     * EmployeeAttendanceStatistics::getAuditHistoryProperty(). */
+     * EmployeeStatistics::getAuditHistoryProperty(). */
     protected function auditRecordKey(): string
     {
         return $this->id;

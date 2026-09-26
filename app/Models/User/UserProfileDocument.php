@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 /**
  * Lampiran bebas milik karyawan sendiri (label ditulis manual, mis. KTP/KK/Ijazah, bukan enum
  * tetap) — beda dari `user_documents` yang isinya surat-surat resmi terbitan admin. Selalu
- * upload sendiri oleh karyawan, banyak baris per user, lihat EmployeeAttendanceStatistics.
+ * upload sendiri oleh karyawan, banyak baris per user, lihat EmployeeStatistics.
  */
 class UserProfileDocument extends Model
 {

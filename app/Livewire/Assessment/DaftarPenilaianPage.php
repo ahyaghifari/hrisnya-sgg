@@ -13,7 +13,7 @@ use Livewire\WithPagination;
 /**
  * Rekap terpusat semua AssessmentUsers lintas karyawan — biar HC bisa pantau progress
  * penilaian tanpa harus buka halaman karyawan satu-satu (itu sekarang cuma histori read-only,
- * lihat EmployeeAttendanceStatistics tab Penilaian).
+ * lihat EmployeeStatistics tab Penilaian).
  */
 #[Layout('components.layout', ['title' => 'Daftar Penilaian'])]
 class DaftarPenilaianPage extends Component

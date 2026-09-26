@@ -13,7 +13,7 @@ use Livewire\Component;
 /**
  * "Tambah Penilaian" — HC menunjuk karyawan yang harus dinilai di 1 jadwal (Assessments) dari
  * halaman terpusat, TIDAK lagi cuma dari tombol di tab Penilaian karyawan (lihat
- * EmployeeAttendanceStatistics — sekarang cuma histori read-only). Pengisian nilainya sendiri
+ * EmployeeStatistics — sekarang cuma histori read-only). Pengisian nilainya sendiri
  * tetap eksklusif atasan langsung (lihat AssessmentUserForm::$canEdit) — halaman ini cuma
  * bikin barisnya, bukan isi nilai.
  */

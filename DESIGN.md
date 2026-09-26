@@ -80,7 +80,7 @@ All dark/colored identity cards follow the same anatomy: `border-radius:20px`, `
 - **Buttons**: `.btn-primary` (solid navy), `.btn-ghost` (outlined gray, for light-background contexts), `.qa-btn` (translucent white pill, for buttons sitting on top of dark gradient cards — e.g. inside `.welcome-card`), `.section-nav-btn` (icon + label, color-coded per domain, active = solid fill — for switching between sections within one page, see Layout conventions below).
 - **Tables**: `.data-table` — uppercase `#64748b` headers, hover row tint, borderless last row. Used for every list (Riwayat Pengajuan, Data Presensi, pending approvals, etc.)
 - **Forms**: `.form-label`, `.form-input`, `.toggle`, `.time-grid`/`.date-grid` for paired inputs, `.upload-zone` for file drop areas. These came from the mockup HTML in `planning/web-attendance/demo/` and should stay consistent with that source design — don't reinvent form styling per page.
-- **Field-row pattern** (label left, value right, hairline divider): used in the Karyawanku profile tab (`employee-attendance-statistics.blade.php`) for scannable label/value lists. Prefer this over floating label-above-value grid cells for anything with more than ~4 fields.
+- **Field-row pattern** (label left, value right, hairline divider): used in the Karyawanku profile tab (`employee-statistics.blade.php`) for scannable label/value lists. Prefer this over floating label-above-value grid cells for anything with more than ~4 fields.
 
 ## Layout conventions
 

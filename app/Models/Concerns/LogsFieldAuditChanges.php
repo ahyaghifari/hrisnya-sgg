@@ -30,6 +30,10 @@ trait LogsFieldAuditChanges
                 $old = $model->getOriginal($attribute);
                 $new = $model->{$attribute};
 
+                if ((string) $old === (string) $new) {
+                    continue;
+                }
+
                 AuditLog::record(
                     $model->auditModule(),
                     $model->auditCompanyId(),

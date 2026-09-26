@@ -461,7 +461,7 @@ Pembinaan). Inline supaya tidak perlu build CSS; desktop (>=768px) tetap pill ho
                 buka Data Diri bawahan lewat MyStaff tidak boleh lihat ini (instruksi user
                 2026-08-10), beda dari field pribadi lain di atas yang memang boleh dilihat
                 atasan/HC. Read-only murni, tidak ada tombol edit - perubahan rekening tetap
-                cuma lewat HC/admin (lihat catatan di EmployeeAttendanceStatistics::saveProfil()). --}}
+                cuma lewat HC/admin (lihat catatan di EmployeeStatistics::saveProfil()). --}}
                 @if ($isSelf)
                     {!! $renderField('Bank', $profile?->bank_name) !!}
                     {!! $renderField('No. Rekening', $profile?->bank_account_number) !!}
@@ -659,7 +659,7 @@ source (tab server-render sekali jalan, x-show cuma toggle CSS). --}}
     {{-- Status Kepegawaian: fase berjalan (ringkas) + timeline HORIZONTAL perjalanan
     Bergabung → Orientasi → Kontrak/perpanjangan → Tetap dalam satu baris. Data dari ledger
     user_orientations & user_contracts, lihat
-    EmployeeAttendanceStatistics::getEmploymentJourneyProperty(). --}}
+    EmployeeStatistics::getEmploymentJourneyProperty(). --}}
     @php
         $journey = $this->employmentJourney;
         $sm = $journey['summary'];
@@ -1152,7 +1152,7 @@ source (tab server-render sekali jalan, x-show cuma toggle CSS). --}}
         @keyframes merit-history-slide-x { from { transform: translateX(100%); } to { transform: translateX(0); } }
         @keyframes merit-history-fade { from { opacity: 0; } to { opacity: 1; } }
         .merit-history-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 9999; animation: merit-history-fade 0.18s ease-out; }
-        .merit-history-panel { position: fixed; top: 0; right: 0; bottom: 0; width: 420px; max-width: 100%; background: var(--surface); box-shadow: -8px 0 28px rgba(0,0,0,0.18); display: flex; flex-direction: column; animation: merit-history-slide-x 0.25s cubic-bezier(0.2, 0.8, 0.2, 1); }
+        .merit-history-panel { position: fixed; top: 0; right: 0; bottom: 0; z-index: 10000; width: 420px; max-width: 100%; background: var(--surface); box-shadow: -8px 0 28px rgba(0,0,0,0.18); display: flex; flex-direction: column; animation: merit-history-slide-x 0.25s cubic-bezier(0.2, 0.8, 0.2, 1); }
         .merit-history-panel-header { display: flex; align-items: center; justify-content: space-between; padding: 18px 20px; border-bottom: 1px solid var(--border-soft); flex-shrink: 0; }
         .merit-history-panel-body { flex: 1; overflow-y: auto; padding: 14px 20px calc(20px + env(safe-area-inset-bottom)); }
         @media (max-width: 767.98px) {
@@ -1228,9 +1228,9 @@ source (tab server-render sekali jalan, x-show cuma toggle CSS). --}}
                             <div style="flex:1;min-width:0;">
                                 <p style="font-size:13px;font-weight:600;color:var(--text-heading);margin:0;">{{ $entry->label ?? $entry->key }}</p>
                                 <p style="font-size:12px;color:var(--text-body);margin-top:3px;">
-                                    {{ $entry->old_value ?: '(kosong)' }}
+                                    {{ $this->auditValue($entry, $entry->old_value) }}
                                     <i class="fa-solid fa-arrow-right" style="font-size:10px;color:var(--text-faint);margin:0 4px;"></i>
-                                    {{ $entry->new_value ?: '(kosong)' }}
+                                    {{ $this->auditValue($entry, $entry->new_value) }}
                                 </p>
                                 <p style="font-size:11px;color:var(--text-muted);margin-top:4px;">
                                     {{ $entry->created_at->translatedFormat('d M Y H:i') }}

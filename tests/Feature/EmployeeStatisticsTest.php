@@ -4,7 +4,7 @@ namespace Tests\Feature;
 
 use App\Enum\CustomPermissionEnum;
 use App\Enum\EmployeeTypeCategory;
-use App\Livewire\EmployeeAttendanceStatistics;
+use App\Livewire\EmployeeStatistics;
 use App\Models\Attendance\AttendanceRequestLeaveDetails;
 use App\Models\Attendance\AttendanceRequests;
 use App\Models\Master\Companies;
@@ -21,7 +21,7 @@ use Livewire\Livewire;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
-class EmployeeAttendanceStatisticsTest extends TestCase
+class EmployeeStatisticsTest extends TestCase
 {
     use RefreshDatabase;
 
@@ -37,7 +37,7 @@ class EmployeeAttendanceStatisticsTest extends TestCase
 
     // Tab Absensi/Riwayat Pengajuan/Dokumen/Penggajian di Data Diri cuma tampil kalau tipe
     // karyawan user itu SUDAH diisi (apa pun kategorinya) - lihat
-    // EmployeeAttendanceStatistics::getShowExtraTabsProperty(). Test yang mengasumsikan tab itu
+    // EmployeeStatistics::getShowExtraTabsProperty(). Test yang mengasumsikan tab itu
     // tampil harus assign tipe karyawan eksplisit di sini, user factory mentah tidak punya.
     private function assignEmployeeType(User $user, Companies $company): void
     {
@@ -86,7 +86,7 @@ class EmployeeAttendanceStatisticsTest extends TestCase
 
         $this->actingAs($manager);
 
-        Livewire::test(EmployeeAttendanceStatistics::class, ['record' => $staff])
+        Livewire::test(EmployeeStatistics::class, ['record' => $staff])
             ->assertSee($staff->name)
             ->assertSee('Cuti Tahunan');
     }
@@ -112,7 +112,7 @@ class EmployeeAttendanceStatisticsTest extends TestCase
 
         $this->actingAs($manager);
 
-        Livewire::test(EmployeeAttendanceStatistics::class, ['record' => $staff])
+        Livewire::test(EmployeeStatistics::class, ['record' => $staff])
             ->set('photo', \Illuminate\Http\UploadedFile::fake()->image('photo.jpg'))
             ->assertForbidden();
     }
@@ -125,7 +125,7 @@ class EmployeeAttendanceStatisticsTest extends TestCase
 
         $this->actingAs($staff);
 
-        Livewire::test(EmployeeAttendanceStatistics::class, ['record' => $staff])
+        Livewire::test(EmployeeStatistics::class, ['record' => $staff])
             ->set('photo', \Illuminate\Http\UploadedFile::fake()->image('photo.jpg'))
             ->assertHasNoErrors();
 
@@ -153,7 +153,7 @@ class EmployeeAttendanceStatisticsTest extends TestCase
 
         $this->actingAs($manager);
 
-        Livewire::test(EmployeeAttendanceStatistics::class, ['record' => $staff])
+        Livewire::test(EmployeeStatistics::class, ['record' => $staff])
             ->assertSet('stats', ['leave' => 1, 'permission' => 0, 'overtime' => 0])
             ->assertDontSee('Status Pengajuan')
             ->assertDontSee('Export Excel');
@@ -176,7 +176,7 @@ class EmployeeAttendanceStatisticsTest extends TestCase
 
         $this->actingAs($manager);
 
-        Livewire::test(EmployeeAttendanceStatistics::class, ['record' => $staff])
+        Livewire::test(EmployeeStatistics::class, ['record' => $staff])
             ->assertSet('stats', ['leave' => 0, 'permission' => 0, 'overtime' => 0]);
     }
 
@@ -190,7 +190,7 @@ class EmployeeAttendanceStatisticsTest extends TestCase
         $this->actingAs($staff);
 
         // Belum pernah diatur = mati: kartu, panel riwayat, dan aksinya tertutup.
-        Livewire::test(EmployeeAttendanceStatistics::class, ['record' => $staff])
+        Livewire::test(EmployeeStatistics::class, ['record' => $staff])
             ->assertDontSee('Poin Anda')
             ->call('openMeritHistoryModal')
             ->assertForbidden();
@@ -205,7 +205,7 @@ class EmployeeAttendanceStatisticsTest extends TestCase
             'label' => 'Aktifkan Merit Point',
         ]);
 
-        Livewire::test(EmployeeAttendanceStatistics::class, ['record' => $staff])
+        Livewire::test(EmployeeStatistics::class, ['record' => $staff])
             ->assertSee('Poin Anda')
             ->call('openMeritHistoryModal')
             ->assertSet('showMeritHistoryModal', true);
@@ -224,7 +224,7 @@ class EmployeeAttendanceStatisticsTest extends TestCase
 
         $this->actingAs($stranger);
 
-        Livewire::test(EmployeeAttendanceStatistics::class, ['record' => $other])
+        Livewire::test(EmployeeStatistics::class, ['record' => $other])
             ->assertForbidden();
     }
 
@@ -266,7 +266,7 @@ class EmployeeAttendanceStatisticsTest extends TestCase
 
         $this->actingAs($manager);
 
-        Livewire::test(EmployeeAttendanceStatistics::class, ['record' => $staff])
+        Livewire::test(EmployeeStatistics::class, ['record' => $staff])
             ->assertDontSee('SKK/001/2026')
             ->assertDontSee('SKK/999/2026');
     }
@@ -290,7 +290,7 @@ class EmployeeAttendanceStatisticsTest extends TestCase
     }
 
     /**
-     * Regresi: Livewire::test(EmployeeAttendanceStatistics::class) TANPA param 'record' balik
+     * Regresi: Livewire::test(EmployeeStatistics::class) TANPA param 'record' balik
      * 403 (quirk khusus test harness Livewire, sudah ditemukan sebelumnya di komponen lain
      * sesi ini) — tapi rute HTTP /profil-saya yang beneran (tanpa segment {record}) harus tetap
      * jalan normal di request asli, karena mount() dipanggil tanpa argumen sama sekali, bukan
@@ -331,7 +331,7 @@ class EmployeeAttendanceStatisticsTest extends TestCase
 
         $this->actingAs($user);
 
-        Livewire::test(EmployeeAttendanceStatistics::class, ['record' => $user])
+        Livewire::test(EmployeeStatistics::class, ['record' => $user])
             ->assertSee('Penggajian')
             ->assertSee('Rp4.500.000')
             ->assertSee(route('profil-saya.penggajian.show', $paid->id), false);
@@ -354,7 +354,7 @@ class EmployeeAttendanceStatisticsTest extends TestCase
 
         $this->actingAs($manager);
 
-        Livewire::test(EmployeeAttendanceStatistics::class, ['record' => $staff])
+        Livewire::test(EmployeeStatistics::class, ['record' => $staff])
             ->assertDontSee('Penggajian');
     }
 
@@ -365,7 +365,7 @@ class EmployeeAttendanceStatisticsTest extends TestCase
 
         $this->actingAs($user);
 
-        Livewire::test(EmployeeAttendanceStatistics::class, ['record' => $user])
+        Livewire::test(EmployeeStatistics::class, ['record' => $user])
             ->assertSee('Presensi')
             ->assertDontSee('Presensi & Absensi')
             ->assertDontSee('Riwayat Pengajuan')
@@ -388,7 +388,7 @@ class EmployeeAttendanceStatisticsTest extends TestCase
 
         $this->actingAs($user);
 
-        Livewire::test(EmployeeAttendanceStatistics::class, ['record' => $user])
+        Livewire::test(EmployeeStatistics::class, ['record' => $user])
             ->assertSee('Presensi & Absensi')
             ->assertSee('Riwayat Pengajuan')
             ->assertSee('Dokumen');
@@ -416,7 +416,7 @@ class EmployeeAttendanceStatisticsTest extends TestCase
 
         $this->actingAs($staff);
 
-        Livewire::test(EmployeeAttendanceStatistics::class, ['record' => $staff])
+        Livewire::test(EmployeeStatistics::class, ['record' => $staff])
             ->call('startEditProfil')
             ->set('nickname', 'Budi')
             ->set('no_nik', 'nik-baru')
@@ -448,7 +448,7 @@ class EmployeeAttendanceStatisticsTest extends TestCase
 
         $this->actingAs($manager);
 
-        Livewire::test(EmployeeAttendanceStatistics::class, ['record' => $staff])
+        Livewire::test(EmployeeStatistics::class, ['record' => $staff])
             ->call('startEditProfil')
             ->assertForbidden();
     }
@@ -463,7 +463,7 @@ class EmployeeAttendanceStatisticsTest extends TestCase
 
         $this->actingAs($staff);
 
-        Livewire::test(EmployeeAttendanceStatistics::class, ['record' => $staff])
+        Livewire::test(EmployeeStatistics::class, ['record' => $staff])
             ->set('newDocumentLabel', 'KTP')
             ->set('newDocumentFile', \Illuminate\Http\UploadedFile::fake()->image('ktp.jpg'))
             ->call('addProfileDocument')
@@ -487,7 +487,7 @@ class EmployeeAttendanceStatisticsTest extends TestCase
 
         $this->actingAs($staff);
 
-        Livewire::test(EmployeeAttendanceStatistics::class, ['record' => $staff])
+        Livewire::test(EmployeeStatistics::class, ['record' => $staff])
             ->set('newDocumentLabel', 'KTP')
             ->set('newDocumentFile', \Illuminate\Http\UploadedFile::fake()->createWithContent('ktp.pdf', '%PDF-1.4 rahasia'))
             ->call('addProfileDocument')
@@ -523,7 +523,7 @@ class EmployeeAttendanceStatisticsTest extends TestCase
 
         $this->actingAs($staff);
 
-        Livewire::test(EmployeeAttendanceStatistics::class, ['record' => $staff])
+        Livewire::test(EmployeeStatistics::class, ['record' => $staff])
             ->call('deleteProfileDocument', $doc->id)
             ->assertHasNoErrors();
 
@@ -545,7 +545,7 @@ class EmployeeAttendanceStatisticsTest extends TestCase
 
         $this->actingAs($manager);
 
-        Livewire::test(EmployeeAttendanceStatistics::class, ['record' => $staff])
+        Livewire::test(EmployeeStatistics::class, ['record' => $staff])
             ->set('newDocumentLabel', 'KTP')
             ->set('newDocumentFile', \Illuminate\Http\UploadedFile::fake()->image('ktp.jpg'))
             ->call('addProfileDocument')
@@ -578,7 +578,7 @@ class EmployeeAttendanceStatisticsTest extends TestCase
 
         $this->actingAs($manager);
 
-        $component = Livewire::test(EmployeeAttendanceStatistics::class, ['record' => $staff]);
+        $component = Livewire::test(EmployeeStatistics::class, ['record' => $staff]);
 
         $component->assertDontSee('Lampiran');
         $this->assertFalse($component->get('canViewProfileDocuments'));
@@ -607,7 +607,7 @@ class EmployeeAttendanceStatisticsTest extends TestCase
 
         $this->actingAs($manager);
 
-        Livewire::test(EmployeeAttendanceStatistics::class, ['record' => $staff])
+        Livewire::test(EmployeeStatistics::class, ['record' => $staff])
             ->assertSee('Lampiran');
     }
 
@@ -619,7 +619,7 @@ class EmployeeAttendanceStatisticsTest extends TestCase
 
         $this->actingAs($staff);
 
-        Livewire::test(EmployeeAttendanceStatistics::class, ['record' => $staff])
+        Livewire::test(EmployeeStatistics::class, ['record' => $staff])
             ->assertSee('Lampiran');
     }
 
@@ -636,7 +636,7 @@ class EmployeeAttendanceStatisticsTest extends TestCase
 
         $this->actingAs($staff);
 
-        Livewire::test(EmployeeAttendanceStatistics::class, ['record' => $staff])
+        Livewire::test(EmployeeStatistics::class, ['record' => $staff])
             ->call('startEditProfil')
             ->set('email', 'baru@syifaglobal.com')
             ->call('saveProfil')
@@ -654,7 +654,7 @@ class EmployeeAttendanceStatisticsTest extends TestCase
 
         $this->actingAs($staff);
 
-        Livewire::test(EmployeeAttendanceStatistics::class, ['record' => $staff])
+        Livewire::test(EmployeeStatistics::class, ['record' => $staff])
             ->call('startEditProfil')
             ->set('nickname', 'Budi')
             ->call('saveProfil')
@@ -674,7 +674,7 @@ class EmployeeAttendanceStatisticsTest extends TestCase
 
         $this->actingAs($staff);
 
-        Livewire::test(EmployeeAttendanceStatistics::class, ['record' => $staff])
+        Livewire::test(EmployeeStatistics::class, ['record' => $staff])
             ->call('startEditProfil')
             ->set('email', 'sudah-dipakai@syifaglobal.com')
             ->call('saveProfil')
@@ -691,13 +691,13 @@ class EmployeeAttendanceStatisticsTest extends TestCase
 
         $this->actingAs($staff);
 
-        Livewire::test(EmployeeAttendanceStatistics::class, ['record' => $staff])
+        Livewire::test(EmployeeStatistics::class, ['record' => $staff])
             ->call('startEditProfil')
             ->set('nickname', 'Budi')
             ->call('saveProfil');
 
         // Riwayat perubahan data = panel geser dari tombol di tab Data Diri (bukan tab lagi, 2026-09-26).
-        Livewire::test(EmployeeAttendanceStatistics::class, ['record' => $staff])
+        Livewire::test(EmployeeStatistics::class, ['record' => $staff])
             ->assertSee('Riwayat Perubahan')
             ->assertDontSee('Nama Panggilan')
             ->call('openAuditHistoryPanel')
@@ -729,7 +729,7 @@ class EmployeeAttendanceStatisticsTest extends TestCase
 
         $this->actingAs($manager);
 
-        Livewire::test(EmployeeAttendanceStatistics::class, ['record' => $staff])
+        Livewire::test(EmployeeStatistics::class, ['record' => $staff])
             ->assertDontSee('Riwayat Perubahan')
             ->call('openAuditHistoryPanel')
             ->assertForbidden();
@@ -748,7 +748,7 @@ class EmployeeAttendanceStatisticsTest extends TestCase
 
         $this->actingAs($hc);
 
-        Livewire::test(EmployeeAttendanceStatistics::class, ['record' => $staff])
+        Livewire::test(EmployeeStatistics::class, ['record' => $staff])
             ->assertSee('Riwayat Perubahan')
             ->call('openAuditHistoryPanel')
             ->assertSee('Riwayat Perubahan Data');
@@ -779,7 +779,7 @@ class EmployeeAttendanceStatisticsTest extends TestCase
 
         $this->actingAs($staff);
 
-        Livewire::test(EmployeeAttendanceStatistics::class, ['record' => $staff])
+        Livewire::test(EmployeeStatistics::class, ['record' => $staff])
             ->assertSee('ico/pembinaan.png')
             ->assertSee('Coaching Kedisiplinan');
     }
@@ -799,7 +799,7 @@ class EmployeeAttendanceStatisticsTest extends TestCase
 
         $this->actingAs($manager);
 
-        Livewire::test(EmployeeAttendanceStatistics::class, ['record' => $staff])
+        Livewire::test(EmployeeStatistics::class, ['record' => $staff])
             ->assertSee('ico/pembinaan.png');
     }
 
@@ -841,7 +841,7 @@ class EmployeeAttendanceStatisticsTest extends TestCase
 
         $this->actingAs($manager);
 
-        Livewire::test(EmployeeAttendanceStatistics::class, ['record' => $staff])
+        Livewire::test(EmployeeStatistics::class, ['record' => $staff])
             ->assertSee('ico/pembinaan.png')
             ->assertSee('Coaching Target Kerja')
             ->assertDontSee('Counseling')

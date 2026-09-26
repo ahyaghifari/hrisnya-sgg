@@ -115,7 +115,10 @@ function initTomSelects() {
             // langsung "kepental" balik ke placeholder tiap kali wire:model.live nge-trigger
             // render ulang (2026-09-25). setValue(..., true) = silent, tidak memicu 'change'
             // lagi (hindari request Livewire berulang).
-            el.tomselect.setValue(el.value, true);
+            el.tomselect.setValue(
+                el.multiple ? [...el.selectedOptions].map((o) => o.value) : el.value,
+                true,
+            );
             return;
         }
 

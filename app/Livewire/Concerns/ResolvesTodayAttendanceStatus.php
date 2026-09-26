@@ -14,7 +14,7 @@ use Carbon\Carbon;
  * Status presensi "hari ini" untuk 1 user - gabungan jadwal (Fixed/Flexible/Shift), hari libur
  * (dari jadwal ATAU m_holidays), cuti/izin yang approved hari ini, dan data attendance_records
  * asli kalau ada. Dipakai bareng oleh Dashboard (kartu Presensi Hari Ini di home) dan
- * EmployeeAttendanceStatistics (kartu sama di tab Presensi & Absensi, Data Diri) - sengaja 1
+ * EmployeeStatistics (kartu sama di tab Presensi & Absensi, Data Diri) - sengaja 1
  * tempat biar aturan prioritas (Libur > Cuti > Izin Seharian > Izin biasa > normal) konsisten
  * di kedua tampilan, bukan 2 logic terpisah yang bisa mencong.
  */

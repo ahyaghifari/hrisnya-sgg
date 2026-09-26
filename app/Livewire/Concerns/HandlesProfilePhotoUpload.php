@@ -9,7 +9,7 @@ use Livewire\WithFileUploads;
 
 /**
  * Dipakai App\Livewire\Pwa\Akun (selalu diri sendiri) dan
- * App\Livewire\EmployeeAttendanceStatistics (halaman Data Diri, BISA dibuka HC/atasan untuk
+ * App\Livewire\EmployeeStatistics (halaman Data Diri, BISA dibuka HC/atasan untuk
  * lihat data orang lain) - abort_unless di bawah WAJIB ada di server, bukan cuma sembunyikan
  * tombol di blade, karena komponen kedua itu bisa dibuka buat lihat user lain.
  *

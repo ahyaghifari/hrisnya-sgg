@@ -2,7 +2,7 @@
 
 use App\Livewire\Dashboard;
 use App\Livewire\DashboardAndaPage;
-use App\Livewire\EmployeeAttendanceStatistics;
+use App\Livewire\EmployeeStatistics;
 use App\Livewire\MyEmployees;
 use App\Livewire\OrganizationStructure;
 use App\Http\Controllers\Pwa\PushSubscriptionController;
@@ -45,7 +45,7 @@ Route::post('/push/subscribe', [PushSubscriptionController::class, 'store'])
 Route::delete('/push/subscribe', [PushSubscriptionController::class, 'destroy'])
     ->name('push.unsubscribe');
 
-Route::get('/profil-saya', EmployeeAttendanceStatistics::class)
+Route::get('/profil-saya', EmployeeStatistics::class)
     ->name('profil-saya');
 
 Route::get('/profil-saya/penggajian/{payroll}', \App\Livewire\Keuangan\MyPayrollSlipPage::class)
@@ -54,7 +54,7 @@ Route::get('/profil-saya/penggajian/{payroll}', \App\Livewire\Keuangan\MyPayroll
 // Lampiran data diri (KTP/KK/dsb) — file terenkripsi di disk privat 'local', tidak boleh
 // dilayani lewat URL /storage langsung. Route ini decrypt di memory + gerbang izin
 // (pemilik akun atau permission lihat_lampiran_identitas_karyawan, sama seperti
-// EmployeeAttendanceStatistics::getCanViewProfileDocumentsProperty()).
+// EmployeeStatistics::getCanViewProfileDocumentsProperty()).
 Route::get('/profil-saya/lampiran/{document}', function (\App\Models\User\UserProfileDocument $document) {
     $user = \Illuminate\Support\Facades\Auth::user();
     abort_unless(
@@ -113,5 +113,5 @@ Route::get('/akses-filter-perusahaan', \App\Livewire\RoleAccess\CompanyFilterAcc
 
 // Halaman detail karyawan dipakai 2 entry point: MyStaff (bawahan) & Karyawan (company-wide,
 // routes/kepegawaian.php) — makanya path-nya /karyawan, bukan /my-staff.
-Route::get('/karyawan/{record}', EmployeeAttendanceStatistics::class)
+Route::get('/karyawan/{record}', EmployeeStatistics::class)
     ->name('karyawan.show');

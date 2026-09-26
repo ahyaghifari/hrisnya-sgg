@@ -34,7 +34,7 @@ use Livewire\Component;
 use Livewire\WithFileUploads;
 use Livewire\WithPagination;
 
-class EmployeeAttendanceStatistics extends Component
+class EmployeeStatistics extends Component
 {
     use ResolvesTodayAttendanceStatus;
     use HandlesProfilePhotoUpload;
@@ -581,6 +581,31 @@ class EmployeeAttendanceStatistics extends Component
             ->paginate(20, ['*'], 'riwayatPage');
     }
 
+    /** Nilai audit tersimpan mentah (ULID FK / "1"/""); diterjemahkan ke nama saat ditampilkan. */
+    public function auditValue(AuditLog $entry, ?string $value): string
+    {
+        $field = Str::after($entry->key, ':');
+
+        if ($field === 'is_active') {
+            return $value ? 'Aktif' : 'Nonaktif';
+        }
+
+        if ($value === null || $value === '') {
+            return '(kosong)';
+        }
+
+        $model = [
+            'religion_id' => Religions::class,
+            'job_position_id' => \App\Models\Master\JobPositions::class,
+            'pangkat_id' => \App\Models\Master\Pangkats::class,
+            'kelas_id' => \App\Models\Master\Kelas::class,
+            'employee_type_id' => \App\Models\Master\EmployeeTypes::class,
+            'company_id' => \App\Models\Master\Companies::class,
+        ][$field] ?? null;
+
+        return $model ? ($model::withoutGlobalScopes()->whereKey($value)->value('name') ?? $value) : $value;
+    }
+
 
     /** Tombol "Hapus Akun Karyawan" di tab Data Diri — pakai permission Shield standar
      * Delete:User (UserPolicy::delete, sama gerbang dengan tombol Hapus di admin
@@ -997,7 +1022,7 @@ class EmployeeAttendanceStatistics extends Component
             ? 'Profil Saya'
             : "MyStaff - {$this->record->name}";
 
-        return view('livewire.employee-attendance-statistics')
+        return view('livewire.employee-statistics')
             ->layout('components.layout', ['title' => $title]);
     }
 }

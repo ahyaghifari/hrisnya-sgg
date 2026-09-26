@@ -84,7 +84,7 @@ return [
         'permission' => null,
         // Tidak pakai guard tunggal di sini — halaman ini dipakai 3 entry point ("Data Diri",
         // MyStaff/bawahan, Kepegawaian/company-wide). Guard per-record dicek di
-        // EmployeeAttendanceStatistics::canManage(), bukan di level registry ini.
+        // EmployeeStatistics::canManage(), bukan di level registry ini.
         'guard' => null,
     ],
 

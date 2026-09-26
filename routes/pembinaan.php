@@ -58,7 +58,7 @@ Route::get('/surat-peringatan/{record}/berita-acara-preview', function (Employee
 
 
 // Merit Point masih DEMO (§3) - riwayat & transaksi dibuka lewat panel di widget tab Karir
-// (Livewire EmployeeAttendanceStatistics), BUKAN halaman/route terpisah (instruksi user
+// (Livewire EmployeeStatistics), BUKAN halaman/route terpisah (instruksi user
 // 2026-09-25). Route lama merit-point.saya.riwayat dihapus, lihat getMeritHistoryProperty().
 
 // Sisi konselor/atasan (row 2 nav, "Coaching & Counseling") — beda prefix dari sisi
