@@ -38,6 +38,10 @@ class MeritPointRulesTable
                 TextColumn::make('trigger_type')
                     ->label('Cara Pemakaian'),
 
+                TextColumn::make('event')
+                    ->label('Kejadian Pemicu')
+                    ->placeholder('-'),
+
                 IconColumn::make('is_active')
                     ->label('Aktif')
                     ->boolean(),

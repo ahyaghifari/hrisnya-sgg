@@ -37,7 +37,7 @@ enum PermissionTypeEnum: string
         return match ($this) {
             self::TERLAMBAT => 'Izin Terlambat',
             self::PULANG_CEPAT => 'Izin Pulang Lebih Awal',
-            self::MENINGGALKAN_JAM_KERJA => 'Izin Meninggalkan Jam Kerja',
+            self::MENINGGALKAN_JAM_KERJA => 'Izin Ditengah Jam Kerja',
             self::TIDAK_MASUK => 'Izin Tidak Masuk',
             self::SAKIT => 'Izin Sakit',
             self::MENIKAH_KARYAWAN => 'Izin Menikah (Karyawan)',

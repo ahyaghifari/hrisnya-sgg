@@ -20,6 +20,7 @@ enum KepegawaianSettingEnum: string
     case PENGAJUAN_ORIENTASI_LEAD_HARI = 'kepegawaian_pengajuan_orientasi_lead_hari';
     case PENGAJUAN_KONTRAK_LEAD_HARI = 'kepegawaian_pengajuan_kontrak_lead_hari';
     case MASA_KERJA_MINIMAL_PENGANGKATAN_BULAN = 'kepegawaian_masa_kerja_minimal_pengangkatan_bulan';
+    case MERIT_POINT_ENABLED = 'kepegawaian_merit_point_enabled';
 
     public function label(): string
     {
@@ -31,6 +32,7 @@ enum KepegawaianSettingEnum: string
             self::PENGAJUAN_ORIENTASI_LEAD_HARI => 'Pengajuan Orientasi Dibuka (Hari sebelum periode berakhir)',
             self::PENGAJUAN_KONTRAK_LEAD_HARI => 'Pengajuan Kontrak Dibuka (Hari sebelum kontrak berakhir)',
             self::MASA_KERJA_MINIMAL_PENGANGKATAN_BULAN => 'Masa Kerja Minimal Pengajuan Pengangkatan Tetap (Bulan)',
+            self::MERIT_POINT_ENABLED => 'Aktifkan Merit Point',
         };
     }
 
@@ -44,12 +46,13 @@ enum KepegawaianSettingEnum: string
             self::PENGAJUAN_ORIENTASI_LEAD_HARI => 'Karyawan orientasi baru bisa membuat pengajuan penilaian orientasi mulai sekian hari sebelum periode orientasinya berakhir. 0 = kapan saja selama periode berjalan.',
             self::PENGAJUAN_KONTRAK_LEAD_HARI => 'Ambang berapa hari sebelum kontrak berakhir pengajuan perpanjangan/perubahan kontrak boleh dibuat. 0 = kapan saja. (Dipakai modul kontrak.)',
             self::MASA_KERJA_MINIMAL_PENGANGKATAN_BULAN => 'Masa kerja minimal (dihitung dari Tanggal Bergabung) sebelum karyawan Kontrak boleh mengajukan Pengangkatan Karyawan Tetap. Tombol "Ajukan Pengangkatan Karyawan Tetap" di Profil Saya baru muncul setelah masa kerjanya lewat ambang ini. 0 = kapan saja selama masih Kontrak.',
+            self::MERIT_POINT_ENABLED => 'Kalau dimatikan, seluruh tampilan Merit Point (widget tab Karir, menu rule, tombol beri poin) disembunyikan total untuk company ini.',
         };
     }
 
     public function type(): SettingTypeEnum
     {
-        return SettingTypeEnum::INTEGER;
+        return $this === self::MERIT_POINT_ENABLED ? SettingTypeEnum::BOOLEAN : SettingTypeEnum::INTEGER;
     }
 
     public function default(): string
@@ -62,6 +65,7 @@ enum KepegawaianSettingEnum: string
             self::PENGAJUAN_ORIENTASI_LEAD_HARI => '30',
             self::PENGAJUAN_KONTRAK_LEAD_HARI => '30',
             self::MASA_KERJA_MINIMAL_PENGANGKATAN_BULAN => '15',
+            self::MERIT_POINT_ENABLED => 'false',
         };
     }
 }

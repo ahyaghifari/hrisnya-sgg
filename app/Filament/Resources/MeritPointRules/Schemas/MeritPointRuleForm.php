@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\MeritPointRules\Schemas;
 
+use App\Enum\MeritPoint\MeritPointEvent;
 use App\Enum\MeritPoint\MeritPointTriggerType;
 use App\Enum\MeritPoint\MeritPointType;
 use App\Helpers\PermissionHelper;
@@ -54,8 +55,16 @@ class MeritPointRuleForm
                             ->label('Cara Pemakaian')
                             ->options(collect(MeritPointTriggerType::cases())->mapWithKeys(fn ($t) => [$t->value => $t->getLabel()]))
                             ->default(MeritPointTriggerType::MANUAL->value)
-                            ->helperText('Trigger otomatis belum dibangun (masih DEMO) - rule AUTOMATIC saat ini tetap cuma dipakai manual lewat halaman Beri Merit Point.')
+                            ->live()
+                            ->helperText('Otomatis = poin dicatat sendiri oleh sistem saat kejadian di bawah terjadi. Manual = dipilih saat memberi poin.')
                             ->required(),
+
+                        Select::make('event')
+                            ->label('Kejadian Pemicu')
+                            ->options(collect(MeritPointEvent::cases())->mapWithKeys(fn ($e) => [$e->value => $e->getLabel()]))
+                            ->visible(fn ($get) => $get('trigger_type') === MeritPointTriggerType::AUTOMATIC->value)
+                            ->required(fn ($get) => $get('trigger_type') === MeritPointTriggerType::AUTOMATIC->value)
+                            ->helperText('Cukup satu rule aktif per kejadian per perusahaan.'),
 
                         Toggle::make('is_active')
                             ->label('Aktif')

@@ -518,6 +518,13 @@ html.dark .dropdown-notif-item:hover, html.dark .dropdown-notif-footer:hover { b
 .pwa-tile-icon.rust { background: #ffedd5; color: #9a3412; }
 .pwa-tile-icon.gold { background: #fde9c8; color: #92400e; }
 .pwa-tile-icon.teal { background: #ccfbf1; color: #0f766e; }
+html.dark .pwa-tile-icon.neutral, html.dark .pwa-tile-icon.navy { background: rgba(110,168,224,0.16); color: var(--brand); }
+html.dark .pwa-tile-icon.danger { background: rgba(248,113,113,0.16); color: #fca5a5; }
+html.dark .pwa-tile-icon.warn { background: rgba(251,191,36,0.16); color: #fcd34d; }
+html.dark .pwa-tile-icon.done { background: rgba(74,222,128,0.16); color: #86efac; }
+html.dark .pwa-tile-icon.rust { background: rgba(251,146,60,0.16); color: #fdba74; }
+html.dark .pwa-tile-icon.gold { background: rgba(251,191,36,0.16); color: #fcd34d; }
+html.dark .pwa-tile-icon.teal { background: rgba(45,212,191,0.16); color: #5eead4; }
 
 .pwa-scroll-row { display: flex; gap: 14px; overflow-x: auto; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; padding-bottom: 2px; }
 .pwa-scroll-row::-webkit-scrollbar { display: none; }

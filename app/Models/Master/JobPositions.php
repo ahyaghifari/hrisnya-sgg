@@ -38,6 +38,7 @@ class JobPositions extends Model
         'manpower',
         'pangkat_id',
         'kelas_id',
+        'is_nakes',
         'status',
         'request_type',
         'request_by',
@@ -45,6 +46,8 @@ class JobPositions extends Model
         'approved_at',
         'rejected_at',
     ];
+
+    protected $casts = ['is_nakes' => 'boolean'];
 
     public function competencies(): BelongsToMany
     {

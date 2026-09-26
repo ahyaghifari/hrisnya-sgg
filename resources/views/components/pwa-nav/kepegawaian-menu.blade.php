@@ -9,6 +9,7 @@
     $canViewKontrak = auth()->user()->can('ViewAny:UserContract');
     $canViewOrientasiData = auth()->user()->can('ViewAny:UserOrientation');
     $canViewPermintaanTenagaKerja = auth()->user()->can('ViewAny:ManpowerRequests');
+    $canViewMerit = auth()->user()->can('ViewAny:MeritPointRule') || auth()->user()->can('ViewAny:MeritPointTransaction');
 @endphp
 
 <span class="pwa-menu-grid-divider">Sistem Kepegawaian</span>
@@ -22,6 +23,12 @@
 <a href="{{ route('kepegawaian.karyawan') }}" wire:navigate class="pwa-menu-grid-item">
     <span class="pwa-menu-grid-icon violet"><i class="fa-solid fa-users"></i></span>
     <span class="pwa-menu-grid-label">Karyawan</span>
+</a>
+@endif
+@if ($canViewMerit)
+<a href="{{ route('kepegawaian.merit-poin') }}" wire:navigate class="pwa-menu-grid-item">
+    <span class="pwa-menu-grid-icon violet"><i class="fa-solid fa-star"></i></span>
+    <span class="pwa-menu-grid-label">Merit Poin</span>
 </a>
 @endif
 @if ($canViewPengaturanKepegawaian)

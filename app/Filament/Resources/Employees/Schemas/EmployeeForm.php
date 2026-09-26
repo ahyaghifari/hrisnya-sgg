@@ -119,16 +119,6 @@ class EmployeeForm
                             ->preload()
                             ->helperText('Bisa pilih lebih dari 1 peran.')
                             ->columnSpanFull(),
-                            
-                        Select::make('type_nakes')
-                            ->label('Tipe Nakes')
-                            ->helperText('Pilih tipe nakes untuk karyawan ini.')
-                            ->options([
-                                'nakes' => 'Nakes',
-                                'non-nakes' => 'Non-Nakes',
-                                'all' => 'Nakes & Non-Nakes',
-                            ])
-                            ->nullable(),
 
                         Toggle::make('is_active')
                             ->label('Karyawan Aktif')

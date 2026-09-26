@@ -2,7 +2,7 @@
 
 namespace App\Filament\Resources\MeritPointTransactions;
 
-use App\Enum\Pembinaan\PembinaanSettingEnum;
+use App\Enum\Kepegawaian\KepegawaianSettingEnum;
 use App\Filament\Resources\MeritPointTransactions\Pages\CreateMeritPointTransaction;
 use App\Filament\Resources\MeritPointTransactions\Pages\ListMeritPointTransactions;
 use App\Filament\Resources\MeritPointTransactions\Schemas\MeritPointTransactionForm;
@@ -30,9 +30,11 @@ class MeritPointTransactionResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedGift;
 
-    protected static string | UnitEnum | null $navigationGroup = 'Pembinaan';
+    protected static string | UnitEnum | null $navigationGroup = 'Kepegawaian';
 
-    protected static ?string $navigationLabel = 'Beri Merit Point';
+    protected static ?string $navigationLabel = 'Merit Poin';
+
+    protected static bool $shouldRegisterNavigation = false; // diganti halaman portal kepegawaian.merit-poin
 
     protected static ?int $navigationSort = 5;
 
@@ -69,9 +71,9 @@ class MeritPointTransactionResource extends Resource
 
         if ($user && $user->company_id && ! PermissionHelper::hasGlobalRole($user)) {
             return (bool) Setting::resolve(
-                PembinaanSettingEnum::MERIT_POINT_ENABLED->value,
+                KepegawaianSettingEnum::MERIT_POINT_ENABLED->value,
                 $user->company_id,
-                filter_var(PembinaanSettingEnum::MERIT_POINT_ENABLED->default(), FILTER_VALIDATE_BOOLEAN)
+                filter_var(KepegawaianSettingEnum::MERIT_POINT_ENABLED->default(), FILTER_VALIDATE_BOOLEAN)
             );
         }
 

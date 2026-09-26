@@ -20,6 +20,7 @@ use Filament\Forms\Components\RichEditor;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Toggle;
 use Filament\Infolists\Components\RepeatableEntry;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Components\Section;
@@ -174,6 +175,10 @@ class JobPositionResource extends BaseCompanyResource
                             ->relationship('parent', 'name')
                             ->searchable()
                             ->preload(),
+
+                        Toggle::make('is_nakes')
+                            ->label('Tenaga Kesehatan (Nakes)')
+                            ->helperText('Karyawan dengan jabatan ini dianggap nakes.'),
 
                         Textarea::make('description')
                             ->label('Deskripsi Jabatan')

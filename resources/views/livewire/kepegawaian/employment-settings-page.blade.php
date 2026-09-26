@@ -28,7 +28,18 @@
                                     </label>
                                     <p style="font-size:11px;color:var(--text-muted);margin:2px 0 0;">{{ $setting->helperText() }}</p>
                                 </div>
-                                @if ($this->canEditSettings)
+                                @if ($setting->type() === \App\Enum\SettingTypeEnum::BOOLEAN)
+                                    @if ($this->canEditSettings)
+                                        <label class="custom-checkbox" style="--accent:#7c3aed;flex-shrink:0;">
+                                            <input type="checkbox" wire:model="values.{{ $setting->value }}" value="1" @checked(($values[$setting->value] ?? '0') == '1')>
+                                            <span class="box"><i class="fa-solid fa-check"></i></span>
+                                        </label>
+                                    @else
+                                        <span class="badge {{ ($values[$setting->value] ?? '0') == '1' ? 'badge-approved' : 'badge-cancelled' }}">
+                                            {{ ($values[$setting->value] ?? '0') == '1' ? 'Aktif' : 'Nonaktif' }}
+                                        </span>
+                                    @endif
+                                @elseif ($this->canEditSettings)
                                     <input type="number" class="form-input" style="max-width:180px;" wire:model="values.{{ $setting->value }}">
                                 @else
                                     <span style="font-weight:600;min-width:180px;">{{ $values[$setting->value] ?? '-' }}</span>

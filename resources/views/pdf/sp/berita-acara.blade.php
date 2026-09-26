@@ -204,7 +204,7 @@
     <div class="title">BERITA ACARA KLARIFIKASI KARYAWAN</div>
     <div class="nomor">Nomor: {{ $sp->report->nomor ?? '-' }}</div>
 
-    <p style="text-align: justify;margin-top:0.8cm;">Pada hari ini, Sabtu, 07 Maret 2026, bertempat di PT. Syifa Global Group, kami yang bertanda tangan di bawah ini telah melakukan klarifikasi resmi terhadap seorang karyawan terkait dugaan pelanggaran ketentuan perusahaan sebagaimana diatur dalam Peraturan Perusahaan dan peraturan perundangundangan yang berlaku. </p>
+    <p style="text-align: justify;margin-top:0.8cm;">Pada hari ini, {{ $sp->start_date->translatedFormat('l, d F Y') }}, bertempat di {{ $sp->company->name ?? '-' }}, kami yang bertanda tangan di bawah ini telah melakukan klarifikasi resmi terhadap seorang karyawan terkait dugaan pelanggaran ketentuan perusahaan sebagaimana diatur dalam Peraturan Perusahaan dan peraturan perundangundangan yang berlaku. </p>
     
     <p>Berita Acara Klarifikasi ini dibuat sebagai dokumen resmi perusahaan dan dapat dijadikan dasar pertimbangan manajemen dalam menentukan tindak lanjut sesuai dengan ketentuan yang berlaku. </p>
     

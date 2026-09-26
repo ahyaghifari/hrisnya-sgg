@@ -47,6 +47,7 @@ trait ResolvesExtraShiftOptions
             return [
                 'category' => $config->shift_type,
                 'label' => $config->name,
+                'time' => substr((string) $config->start_time, 0, 5) . '–' . substr((string) $config->end_time, 0, 5),
                 'scheduleId' => $config->schedule_id,
             ];
         }

@@ -2,7 +2,12 @@
 
 namespace App\Services\MeritPoint;
 
+use App\Enum\Kepegawaian\KepegawaianSettingEnum;
+use App\Enum\MeritPoint\MeritPointEvent;
+use App\Enum\MeritPoint\MeritPointTriggerType;
+use App\Models\MeritPoint\MeritPointRule;
 use App\Models\MeritPoint\MeritPointTransaction;
+use App\Models\Setting;
 use App\Models\UserHrBalance;
 use Illuminate\Support\Facades\DB;
 
@@ -31,6 +36,52 @@ class MeritPointService
 
             return $transaction;
         });
+    }
+
+    /**
+     * Terapkan rule AUTOMATIC aktif milik company untuk $event. Diam-diam skip kalau Merit Point
+     * belum diaktifkan, rule tidak ada, atau kejadian yang sama ($sourceType+$sourceId) sudah
+     * pernah dicatat (idempotent - aman dipanggil ulang tiap record disimpan).
+     */
+    public function applyEvent(MeritPointEvent $event, string $userId, ?string $companyId, string $sourceType, string $sourceId, string $reason): ?MeritPointTransaction
+    {
+        if (! $companyId || ! Setting::resolve(
+            KepegawaianSettingEnum::MERIT_POINT_ENABLED->value,
+            $companyId,
+            filter_var(KepegawaianSettingEnum::MERIT_POINT_ENABLED->default(), FILTER_VALIDATE_BOOLEAN)
+        )) {
+            return null;
+        }
+
+        $rule = MeritPointRule::where('company_id', $companyId)
+            ->where('trigger_type', MeritPointTriggerType::AUTOMATIC->value)
+            ->where('event', $event->value)
+            ->where('is_active', true)
+            ->first();
+
+        if (! $rule || MeritPointTransaction::where('rule_id', $rule->id)->where('source_type', $sourceType)->where('source_id', $sourceId)->exists()) {
+            return null;
+        }
+
+        return $this->addTransaction([
+            'user_id' => $userId,
+            'rule_id' => $rule->id,
+            'points' => $rule->points,
+            'reason' => $reason,
+            'source_type' => $sourceType,
+            'source_id' => $sourceId,
+        ]);
+    }
+
+    /** Batalkan transaksi otomatis suatu kejadian (mis. SP dibatalkan, keterlambatan dikoreksi jadi 0). */
+    public function revokeEvent(string $userId, string $sourceType, string $sourceId): void
+    {
+        $deleted = MeritPointTransaction::where('user_id', $userId)
+            ->where('source_type', $sourceType)->where('source_id', $sourceId)->delete();
+
+        if ($deleted) {
+            $this->refreshBalance($userId);
+        }
     }
 
     public function refreshBalance(string $userId): UserHrBalance

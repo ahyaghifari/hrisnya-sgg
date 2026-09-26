@@ -33,8 +33,8 @@
     <div @if ($step !== 1) style="display:none;" @endif wire:key="step-1">
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;">
             <div style="grid-column:1 / -1;">
-                <label class="form-label">Nama Lengkap</label>
-                <input type="text" wire:model="name" class="form-input" placeholder="Nama sesuai KTP">
+                <label class="form-label">Nama Lengkap dengan Gelar</label>
+                <input type="text" wire:model="name" class="form-input" placeholder="Nama lengkap dengan gelar">
                 @error('name') <p style="color:var(--danger-text);font-size:12px;margin-top:5px;">{{ $message }}</p> @enderror
             </div>
 
@@ -54,16 +54,6 @@
                 <label class="form-label">{{ $isEdit ? 'Ganti Kata Sandi' : 'Kata Sandi Awal' }}</label>
                 <input type="password" wire:model="password" class="form-input" placeholder="{{ $isEdit ? 'Kosongkan jika tidak ingin mengubah' : 'Minimal 8 karakter' }}">
                 @error('password') <p style="color:var(--danger-text);font-size:12px;margin-top:5px;">{{ $message }}</p> @enderror
-            </div>
-
-            <div>
-                <label class="form-label">Tipe Nakes</label>
-                <select wire:model="type_nakes" class="form-input">
-                    <option value="">Tidak berlaku</option>
-                    <option value="nakes">Nakes</option>
-                    <option value="non-nakes">Non-Nakes</option>
-                    <option value="all">Nakes &amp; Non-Nakes</option>
-                </select>
             </div>
 
             <div>

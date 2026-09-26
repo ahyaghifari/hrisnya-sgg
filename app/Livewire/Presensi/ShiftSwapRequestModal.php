@@ -103,6 +103,13 @@ class ShiftSwapRequestModal extends Component
         return app(ShiftSwapRequestService::class)->swapQuota(Auth::user(), $anchor);
     }
 
+    public function getSwapQuotaExhaustedProperty(): bool
+    {
+        $quota = $this->swapQuota;
+
+        return $quota && $quota['remaining'] <= 0;
+    }
+
     /** Ganti tanggal/mode -> rekan yang sebelumnya dipilih bisa jadi tidak lagi punya jadwal di
      * tanggal EFEKTIF yang baru, jadi direset biar tidak nyangkut kombinasi yang sudah tidak
      * relevan (rekan selalu dipilih PALING TERAKHIR, setelah tanggal efektifnya jelas). */
@@ -336,6 +343,12 @@ class ShiftSwapRequestModal extends Component
 
     public function submit(): void
     {
+        if ($this->swapQuotaExhausted) {
+            $this->addError('reqDate', 'Saldo tukar shift Anda habis untuk periode ini, tidak bisa mengajukan.');
+
+            return;
+        }
+
         $minDate = $this->minDate;
 
         $this->validate([

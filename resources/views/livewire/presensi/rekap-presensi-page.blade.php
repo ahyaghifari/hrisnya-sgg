@@ -176,7 +176,7 @@
         </div>
     @endif
 
-    @php $rows = $this->todayRows; @endphp
+    @php $rows = $this->todayRows; $lateExcusedIds = $this->lateExcusedUserIds($rows->pluck('id')->all()); @endphp
     <div style="background:var(--surface);border-radius:12px;box-shadow:var(--shadow-card);overflow:hidden;">
         <div style="overflow-x:auto;">
             <table class="data-table" style="min-width:640px;font-size:12px;">
@@ -201,6 +201,9 @@
                             </td>
                             <td style="text-align:center;">
                                 <span style="display:inline-flex;align-items:center;padding:3px 10px;border-radius:99px;background:{{ $style['bg'] }};color:{{ $style['color'] }};font-size:11px;font-weight:700;">{{ $style['label'] }}</span>
+                                @if (in_array($row->id, $lateExcusedIds, true))
+                                    <span title="Ada izin terlambat masuk yang disetujui di hari ini" style="display:inline-flex;align-items:center;padding:3px 10px;margin-left:4px;border-radius:99px;background:rgba(29,78,216,0.1);color:#1d4ed8;font-size:11px;font-weight:700;">Izin</span>
+                                @endif
                             </td>
                             <td style="text-align:center;">{{ $row->check_in_time ? \Illuminate\Support\Str::substr($row->check_in_time, 0, 5) : '–' }}</td>
                             <td style="text-align:center;">{{ $row->check_out_time ? \Illuminate\Support\Str::substr($row->check_out_time, 0, 5) : '–' }}</td>

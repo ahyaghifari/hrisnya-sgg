@@ -735,6 +735,25 @@ class RekapPresensiPage extends Component
         });
     }
 
+    /** ID user (dari $userIds) yang punya Izin Terlambat Masuk approved di tanggal mode harian -
+     * dipakai buat badge biru "Izin" di samping status. Sama kriteria dengan excludeExcusedLateDates(). */
+    public function lateExcusedUserIds(array $userIds): array
+    {
+        if (! $userIds) {
+            return [];
+        }
+
+        return AttendanceRequests::query()
+            ->whereIn('attendance_requests.user_id', $userIds)
+            ->where('attendance_requests.type', 'permission')
+            ->where('attendance_requests.status', AttendanceReqStatus::APPROVED->value)
+            ->whereHas('permissionDetails', fn ($q) => $q
+                ->whereDate('date', $this->harianDay())
+                ->where('category', PermissionTypeCategoryEnum::IZIN_TERLAMBAT_MASUK->value))
+            ->pluck('user_id')
+            ->all();
+    }
+
     protected function queryAppends(): array
     {
         return [

@@ -42,6 +42,32 @@ class AttendanceRecords extends Model
         'out_of_window'      => 'boolean',
     ];
 
+    /** Merit Point otomatis "Terlambat": satu record telat = satu transaksi (idempotent per record);
+     * kalau late_minutes dikoreksi jadi 0 transaksinya dicabut lagi. */
+    protected static function booted(): void
+    {
+        static::saved(function (self $record) {
+            if (! $record->wasRecentlyCreated && ! $record->wasChanged('late_minutes')) {
+                return;
+            }
+
+            $merit = app(\App\Services\MeritPoint\MeritPointService::class);
+
+            if (($record->late_minutes ?? 0) > 0) {
+                $merit->applyEvent(
+                    \App\Enum\MeritPoint\MeritPointEvent::LATE,
+                    $record->user_id,
+                    $record->user?->company_id,
+                    'attendance_record',
+                    $record->id,
+                    "Terlambat {$record->late_minutes} menit ({$record->date})",
+                );
+            } else {
+                $merit->revokeEvent($record->user_id, 'attendance_record', $record->id);
+            }
+        });
+    }
+
     public function user()
     {
         return $this->belongsTo(\App\Models\User::class, 'user_id');

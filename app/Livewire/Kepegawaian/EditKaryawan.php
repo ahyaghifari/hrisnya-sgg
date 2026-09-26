@@ -33,7 +33,6 @@ class EditKaryawan extends Component
         $this->email = $record->email;
         $this->nip = $record->nip ?? '';
         $this->company_id = $record->company_id;
-        $this->type_nakes = $record->type_nakes;
         $this->is_active = (bool) $record->is_active;
         // Bug lama: role tidak ke-load otomatis saat edit - harus diisi eksplisit di sini,
         // beda dari properti lain yang kebetulan sama nama kolomnya dengan field $record.
@@ -88,7 +87,6 @@ class EditKaryawan extends Component
             'email' => $this->email,
             'nip' => $this->nip ?: null,
             'company_id' => $this->company_id,
-            'type_nakes' => $this->type_nakes,
             'is_active' => $this->is_active,
         ];
 

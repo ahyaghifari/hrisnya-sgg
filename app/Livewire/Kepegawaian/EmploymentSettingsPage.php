@@ -4,7 +4,8 @@ namespace App\Livewire\Kepegawaian;
 
 use App\Enum\CustomPermissionEnum;
 use App\Enum\Kepegawaian\KepegawaianSettingEnum;
-use App\Models\AuditLog;
+use App\Enum\SettingTypeEnum;
+use AppModelsAuditLog;
 use App\Models\Master\Companies;
 use App\Models\Setting;
 use Filament\Notifications\Notification;
@@ -124,6 +125,8 @@ class EmploymentSettingsPage extends Component
 
         foreach ($this->values as $key => $value) {
             $case = KepegawaianSettingEnum::from($key);
+            // Checkbox uncheck tidak terkirim - normalisasi ke 0 (pola PembinaanSettingsPage).
+            $normalized = $case->type() === SettingTypeEnum::BOOLEAN ? ($value == '1' ? '1' : '0') : $value;
 
             Setting::updateOrCreate(
                 ['company_id' => $this->companyId, 'key' => $key],
@@ -132,7 +135,7 @@ class EmploymentSettingsPage extends Component
                     'type' => $case->type()->value,
                     'label' => $case->label(),
                     'description' => $case->helperText(),
-                    'value' => $value,
+                    'value' => $normalized,
                 ]
             );
         }

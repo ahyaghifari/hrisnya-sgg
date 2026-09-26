@@ -21,7 +21,9 @@
                 <p style="font-size:12.5px;font-weight:700;color:var(--warn-soft-text);margin:0 0 6px;">Kuota Izin Periode Ini</p>
                 @if ($usage['max'] > 0)
                     <span class="saldo-pill" style="background:var(--warn-soft-bg);border-color:var(--warn-soft-border);color:var(--warn-soft-text);">
-                        <i class="fa-solid fa-calendar-days" style="font-size:10px;"></i> Sisa <strong>{{ $usage['available'] }} hari</strong> dari {{ $usage['max'] }} hari (periode {{ $usage['period_start']->translatedFormat('d M') }} – {{ $usage['period_end']->translatedFormat('d M Y') }})
+                        <i class="fa-solid fa-calendar-days" style="font-size:10px;"></i> Sisa <strong>{{ $usage['available'] }} hari</strong> dari {{ $usage['max'] }} hari
+                        <br>
+                        <span> (periode {{ $usage['period_start']->translatedFormat('d M') }} – {{ $usage['period_end']->translatedFormat('d M Y') }})</span>
                     </span>
                 @else
                     <span style="font-size:11.5px;color:var(--text-muted);">Tidak dibatasi.</span>

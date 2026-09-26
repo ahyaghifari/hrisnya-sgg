@@ -81,6 +81,14 @@
         </div>
 
         <div>
+            <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;">
+                <input type="checkbox" wire:model="is_nakes" @disabled($disabled)>
+                <span>Tenaga Kesehatan (Nakes)</span>
+            </label>
+            <p style="font-size:11px;color:var(--text-muted);margin:4px 0 0;">Karyawan dengan jabatan ini dianggap nakes.</p>
+        </div>
+
+        <div>
             <label class="form-label">Deskripsi Jabatan</label>
             <textarea wire:model="description" class="form-input" rows="3" @disabled($disabled)></textarea>
             @error('description') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror

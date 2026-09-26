@@ -376,7 +376,7 @@
                                     <div class="rf-handle" @mousedown.stop.prevent="handleDown()"></div>
                                 </template>
                                 @if ($swapLocked)
-                                    <button type="button" wire:click="$dispatch('open-schedule-swap-history')" title="Jadwal ini terkait pengajuan tukar shift — tidak bisa diubah dari sini. Klik untuk lihat riwayat."
+                                    <button type="button" wire:click="$dispatch('open-schedule-swap-history', { userId: '{{ $employee->id }}', date: '{{ $date->toDateString() }}' })" title="Jadwal ini terkait pengajuan tukar shift — tidak bisa diubah dari sini. Klik untuk lihat riwayat."
                                         style="position:absolute;top:0;right:0;z-index:3;background:none;border:none;padding:1px 2px;cursor:pointer;color:#b45309;font-size:8.5px;line-height:1;">
                                         <i class="fa-solid fa-right-left"></i>
                                     </button>

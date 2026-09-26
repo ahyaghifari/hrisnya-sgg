@@ -198,8 +198,8 @@ class EmployeeStatisticsTest extends TestCase
         // Diaktifkan untuk company ini: kartu tampil dan panel riwayat bisa dibuka.
         \App\Models\Setting::create([
             'company_id' => $company->id,
-            'module' => 'pembinaan',
-            'key' => \App\Enum\Pembinaan\PembinaanSettingEnum::MERIT_POINT_ENABLED->value,
+            'module' => 'kepegawaian',
+            'key' => \App\Enum\Kepegawaian\KepegawaianSettingEnum::MERIT_POINT_ENABLED->value,
             'type' => 'boolean',
             'value' => 'true',
             'label' => 'Aktifkan Merit Point',

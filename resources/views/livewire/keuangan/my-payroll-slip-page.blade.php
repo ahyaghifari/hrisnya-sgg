@@ -43,19 +43,22 @@
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin-top:18px;padding-top:18px;border-top:1px dashed var(--border);">
                 <div>
                     <p style="font-size:10.5px;color:var(--text-faint);margin:0 0 2px;text-transform:uppercase;letter-spacing:0.03em;">Gaji Kotor</p>
-                    <p style="font-size:15px;font-weight:700;margin:0;">Rp{{ number_format($payroll->gross_salary, 0, ',', '.') }}</p>
+                    <p style="font-size:15px;font-weight:700;margin:0;">{{ $this->rp($payroll->gross_salary) }}</p>
                 </div>
                 <div>
                     <p style="font-size:10.5px;color:var(--text-faint);margin:0 0 2px;text-transform:uppercase;letter-spacing:0.03em;">Total Potongan</p>
-                    <p style="font-size:15px;font-weight:700;margin:0;color:#dc2626;">Rp{{ number_format($payroll->total_deductions, 0, ',', '.') }}</p>
+                    <p style="font-size:15px;font-weight:700;margin:0;color:#dc2626;">{{ $this->rp($payroll->total_deductions) }}</p>
                 </div>
                 <div>
                     <p style="font-size:10.5px;color:var(--text-faint);margin:0 0 2px;text-transform:uppercase;letter-spacing:0.03em;">Gaji Bersih</p>
-                    <p style="font-size:16px;font-weight:800;margin:0;color:#047C54;">Rp{{ number_format($payroll->net_salary, 0, ',', '.') }}</p>
+                    <p style="font-size:16px;font-weight:800;margin:0;color:#047C54;">{{ $this->rp($payroll->net_salary) }}</p>
                 </div>
             </div>
 
             <div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap;">
+                <button type="button" wire:click="toggleMoney" class="btn-ghost" style="padding:6px 12px;font-size:11px;">
+                    <i class="fa-solid {{ $hideMoney ? 'fa-eye' : 'fa-eye-slash' }}"></i> {{ $hideMoney ? 'Tampilkan Angka' : 'Sembunyikan Angka' }}
+                </button>
                 <a href="{{ route('profil-saya.penggajian.preview', $payroll->id) }}" target="_blank" class="btn-ghost" style="padding:6px 12px;font-size:11px;">
                     <i class="fa-solid fa-eye"></i> Preview Slip Gaji
                 </a>
@@ -76,8 +79,8 @@
                             <div style="display:flex;justify-content:space-between;gap:8px;font-size:12.5px;">
                                 <span style="color:{{ $row['hasValue'] ? 'var(--text-body)' : 'var(--text-faint)' }};">{{ $row['label'] }}</span>
                                 <span style="white-space:nowrap;text-align:right;">
-                                    <span style="font-weight:{{ $row['hasValue'] ? '700' : '500' }};color:{{ $row['hasValue'] ? '#047C54' : 'var(--text-faint)' }};">Rp{{ number_format($row['amount'], 0, ',', '.') }}</span>
-                                    @if ($row['note'])
+                                    <span style="font-weight:{{ $row['hasValue'] ? '700' : '500' }};color:{{ $row['hasValue'] ? '#047C54' : 'var(--text-faint)' }};">{{ $this->rp($row['amount']) }}</span>
+                                    @if ($row['note'] && ! $hideMoney)
                                         <span style="display:block;font-size:10px;font-weight:400;color:var(--text-faint);">({{ $row['note'] }})</span>
                                     @endif
                                 </span>
@@ -88,7 +91,7 @@
                     </div>
                     <div style="display:flex;justify-content:space-between;gap:8px;font-size:12.5px;font-weight:700;margin-top:10px;padding-top:8px;border-top:1px solid var(--border-soft);">
                         <span>Subtotal</span>
-                        <span style="color:#047C54;">Rp{{ number_format($earningTotal, 0, ',', '.') }}</span>
+                        <span style="color:#047C54;">{{ $this->rp($earningTotal) }}</span>
                     </div>
                 </div>
 
@@ -101,8 +104,8 @@
                             <div style="display:flex;justify-content:space-between;gap:8px;font-size:12.5px;">
                                 <span style="color:{{ $row['hasValue'] ? 'var(--text-body)' : 'var(--text-faint)' }};">{{ $row['label'] }}</span>
                                 <span style="white-space:nowrap;text-align:right;">
-                                    <span style="font-weight:{{ $row['hasValue'] ? '700' : '500' }};color:{{ $row['hasValue'] ? '#dc2626' : 'var(--text-faint)' }};">Rp{{ number_format($row['amount'], 0, ',', '.') }}</span>
-                                    @if ($row['note'])
+                                    <span style="font-weight:{{ $row['hasValue'] ? '700' : '500' }};color:{{ $row['hasValue'] ? '#dc2626' : 'var(--text-faint)' }};">{{ $this->rp($row['amount']) }}</span>
+                                    @if ($row['note'] && ! $hideMoney)
                                         <span style="display:block;font-size:10px;font-weight:400;color:var(--text-faint);">({{ $row['note'] }})</span>
                                     @endif
                                 </span>
@@ -113,7 +116,7 @@
                     </div>
                     <div style="display:flex;justify-content:space-between;gap:8px;font-size:12.5px;font-weight:700;margin-top:10px;padding-top:8px;border-top:1px solid var(--border-soft);">
                         <span>Subtotal</span>
-                        <span style="color:#dc2626;">Rp{{ number_format($deductionTotal, 0, ',', '.') }}</span>
+                        <span style="color:#dc2626;">{{ $this->rp($deductionTotal) }}</span>
                     </div>
                 </div>
             </div>

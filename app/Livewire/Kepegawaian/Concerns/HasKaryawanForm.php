@@ -37,7 +37,6 @@ trait HasKaryawanForm
     public ?string $company_id = null;
     /** @var array<int, string> */
     public array $role_ids = [];
-    public ?string $type_nakes = null;
     public bool $is_active = true;
 
     // Step 2 — Data Pribadi, Alamat, Kontak

@@ -108,3 +108,6 @@ Route::get('/kepegawaian/permintaan/tambah/{draft?}', CreateManpowerRequestPage:
 
 Route::get('/kepegawaian/permintaan/{record}', ManpowerRequestDetailPage::class)
     ->name('kepegawaian.permintaan.show');
+
+Route::get('/kepegawaian/merit-poin', \App\Livewire\Kepegawaian\MeritPointPage::class)
+    ->name('kepegawaian.merit-poin');

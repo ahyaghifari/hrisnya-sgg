@@ -46,7 +46,6 @@ class CreateKaryawan extends Component
             'password' => bcrypt($this->password),
             'nip' => $this->nip ?: null,
             'company_id' => $this->company_id,
-            'type_nakes' => $this->type_nakes,
             'is_active' => $this->is_active,
         ];
 

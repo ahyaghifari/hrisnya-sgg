@@ -7,7 +7,10 @@
             <span class="pwa-section-title"><i class="fa-solid fa-users text-xs" style="font-size:12px;margin-right:4px;"></i> Jadwal Shift Tim</span>
             @if ($this->teamScheduleId)
                 <span style="display:inline-flex;align-items:center;gap:10px;">
-                    <livewire:presensi.schedule-swap-history-sheet :scheduleId="$this->teamScheduleId" :key="'team-swap-history-'.$this->teamScheduleId" />
+                    <button type="button" wire:click="$dispatch('open-schedule-swap-history')" title="Riwayat Tukar Shift" aria-label="Riwayat Tukar Shift"
+                        style="background:none;border:none;cursor:pointer;padding:4px;color:#b45309;font-size:15px;line-height:1;">
+                        <i class="fa-solid fa-right-left"></i>
+                    </button>
                     <a href="{{ route('presensi.jadwal.show', ['schedule' => $this->teamScheduleId, 'tab' => 'penjadwalan']) }}" wire:navigate class="pwa-section-link" style="font-size:13.5px;padding:5px 10px;border-radius:8px;background:rgba(255,255,255,0.16);">Detail Jadwal <i class="fa-solid fa-chevron-right" style="font-size:11px;"></i></a>
                 </span>
             @endif
@@ -51,7 +54,7 @@
                     <span class="team-shift-name" style="font-size:12.5px;font-weight:600;color:var(--text-heading);display:inline-flex;align-items:center;gap:6px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
                         {{ $row['user']->name }}
                         @if (in_array($row['user']->id, $this->swapMemberIds, true))
-                            <button type="button" wire:click="$dispatch('open-schedule-swap-history')" title="Ada pengajuan tukar shift di tanggal ini — lihat riwayat"
+                            <button type="button" wire:click="$dispatch('open-schedule-swap-history', { userId: '{{ $row['user']->id }}', date: '{{ $this->date }}' })" title="Ada pengajuan tukar shift di tanggal ini — lihat riwayat"
                                 style="background:none;border:none;padding:0;cursor:pointer;color:#b45309;font-size:12px;line-height:1;flex-shrink:0;">
                                 <i class="fa-solid fa-right-left"></i>
                             </button>
@@ -61,6 +64,12 @@
                 </div>
             @endforeach
         </div>
+
+        {{-- Di luar .pwa-card-header (yang membentuk stacking context) supaya overlay modalnya tidak
+        kekunci di bawah app bar. Pemicunya tombol di header via event 'open-schedule-swap-history'. --}}
+        @if ($this->teamScheduleId)
+            <livewire:presensi.schedule-swap-history-sheet :scheduleId="$this->teamScheduleId" :showTrigger="false" :key="'team-swap-history-'.$this->teamScheduleId" />
+        @endif
 
         @if ($this->canCreateExtraShift)
             <livewire:presensi.extra-shift-request-modal :key="'extra-shift-modal'" />

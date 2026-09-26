@@ -45,7 +45,6 @@ class User extends Authenticatable implements FilamentUser
         'password',
         'nip',
         'company_id',
-        'type_nakes',
         'is_active',
     ];
 
@@ -474,7 +473,7 @@ class User extends Authenticatable implements FilamentUser
     }
 
     /** password/remember_token sengaja tidak diikutkan (jangan pernah log hash password),
-     * begitu juga type_nakes (jarang dipakai/tidak relevan buat karyawan biasa). */
+     * (status nakes ada di jabatan: JobPositions::is_nakes). */
     protected function auditFieldLabels(): array
     {
         return [

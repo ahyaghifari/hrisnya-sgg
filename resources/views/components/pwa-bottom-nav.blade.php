@@ -43,6 +43,7 @@
             @else
                 <span style="width:24px;height:24px;border-radius:50%;background:var(--border-soft);color:var(--text-heading);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;">{{ $navInitials }}</span>
             @endif
+            Akun
         </a>
     </div>
 </nav>

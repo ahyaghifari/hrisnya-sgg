@@ -47,6 +47,9 @@ class MyPayrollSlipPageTest extends TestCase
 
         Livewire::test(MyPayrollSlipPage::class, ['payroll' => $payroll])
             ->assertOk()
+            ->assertSet('hideMoney', true)
+            ->assertDontSee('Rp4.500.000')
+            ->call('toggleMoney')
             ->assertSee('Rp4.500.000');
     }
 

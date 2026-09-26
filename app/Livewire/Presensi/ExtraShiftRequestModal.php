@@ -5,7 +5,10 @@ namespace App\Livewire\Presensi;
 use App\Livewire\Concerns\ResolvesShiftTeamMembers;
 use App\Livewire\Presensi\Concerns\ResolvesExtraShiftOptions;
 use App\Models\Shift\ExtraShiftAssignment;
+use App\Models\Shift\Schedule;
+use App\Models\Shift\ScheduleShiftTeamMember;
 use App\Models\User;
+use Carbon\Carbon;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
@@ -99,6 +102,25 @@ class ExtraShiftRequestModal extends Component
         $user = User::find($this->user_id);
 
         return $user ? $this->resolveAllowedExtraShiftTypes($user, $this->date) : collect();
+    }
+
+    /** Nama Regu karyawan di bulan tanggal terpilih - null kalau jadwalnya tidak pakai Regu atau
+     * karyawan belum masuk regu manapun (shift tambahan tidak dibatasi regu). */
+    public function getTeamNameProperty(): ?string
+    {
+        $normal = $this->normalShift;
+
+        if (! $normal || ! $this->user_id) {
+            return null;
+        }
+
+        $schedule = Schedule::find($normal['scheduleId']);
+
+        if (! $schedule?->use_teams) {
+            return null;
+        }
+
+        return ScheduleShiftTeamMember::forPeriod($schedule->id, $this->user_id, Carbon::parse($this->date)->format('Y-m'))?->team?->name;
     }
 
     /** Beda pesan dari "belum ada aturan" - karyawan ini SUDAH punya extra shift lain di

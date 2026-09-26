@@ -6,7 +6,7 @@ use App\Enum\AttendanceReqStatus;
 use App\Enum\AttendanceStatus;
 use App\Enum\CustomPermissionEnum;
 use App\Enum\EmployeeTypeCategory;
-use App\Enum\Pembinaan\PembinaanSettingEnum;
+use App\Enum\Kepegawaian\KepegawaianSettingEnum;
 use App\Helpers\PermissionHelper;
 use App\Livewire\Concerns\HandlesProfilePhotoUpload;
 use App\Livewire\Concerns\ResolvesTodayAttendanceStatus;
@@ -372,15 +372,15 @@ class EmployeeStatistics extends Component
         return UserHrBalance::where('user_id', $this->record->id)->first();
     }
 
-    /** Merit Point aktif per company lewat Pengaturan Pembinaan (PembinaanSettingEnum::MERIT_POINT_ENABLED).
+    /** Merit Point aktif per company lewat Pengaturan Kepegawaian (KepegawaianSettingEnum::MERIT_POINT_ENABLED).
      * Fallback kalau baris settings belum ada = default enum (false), sama seperti MeritPointRuleResource &
      * MeritPointTransactionResource - dulu fallback-nya true sehingga "Poin Anda" tampil walau belum pernah diaktifkan. */
     public function getMeritPointEnabledProperty(): bool
     {
         return (bool) Setting::resolve(
-            PembinaanSettingEnum::MERIT_POINT_ENABLED->value,
+            KepegawaianSettingEnum::MERIT_POINT_ENABLED->value,
             $this->record->company_id,
-            filter_var(PembinaanSettingEnum::MERIT_POINT_ENABLED->default(), FILTER_VALIDATE_BOOLEAN)
+            filter_var(KepegawaianSettingEnum::MERIT_POINT_ENABLED->default(), FILTER_VALIDATE_BOOLEAN)
         );
     }
 

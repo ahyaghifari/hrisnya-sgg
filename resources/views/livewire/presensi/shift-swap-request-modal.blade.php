@@ -160,7 +160,7 @@
                 </div>
 
                 <div style="display:flex;gap:10px;margin-top:16px;">
-                    <button type="button" wire:click="submit" class="btn-primary" style="flex:1;justify-content:center;" @if ($this->duplicateShiftBlock) disabled @endif>
+                    <button type="button" wire:click="submit" class="btn-primary" style="flex:1;justify-content:center;" @if ($this->duplicateShiftBlock || $this->swapQuotaExhausted) disabled @endif>
                         <i class="fa-solid fa-paper-plane"></i> Ajukan
                     </button>
                     <button type="button" wire:click="closeModal" class="btn-ghost" style="flex:1;justify-content:center;">

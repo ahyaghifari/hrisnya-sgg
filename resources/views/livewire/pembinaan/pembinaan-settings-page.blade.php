@@ -1,5 +1,5 @@
 <div class="p-4 md:p-6">
-    <x-page-header title="Pengaturan Pembinaan" subtitle="Durasi SP & aktivasi Merit Point per perusahaan" />
+    <x-page-header title="Pengaturan Pembinaan" subtitle="Durasi SP per perusahaan" />
 
     <div class="mt-4">
         <div class="doc-type-layout">

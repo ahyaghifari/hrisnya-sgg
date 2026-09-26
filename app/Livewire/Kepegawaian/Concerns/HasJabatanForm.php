@@ -33,6 +33,7 @@ trait HasJabatanForm
     public ?string $parent_id = null;
     public string $description = '';
     public string $qualification = '';
+    public bool $is_nakes = false;
 
     // Job Evaluation
     public ?string $pangkat_id = null;
@@ -153,6 +154,7 @@ trait HasJabatanForm
         $this->parent_id = $record->parent_id;
         $this->description = (string) $record->description;
         $this->qualification = (string) $record->qualification;
+        $this->is_nakes = (bool) $record->is_nakes;
         $this->pangkat_id = $record->pangkat_id;
         $this->kelas_id = $record->kelas_id;
         $this->job_evaluation_score = $record->job_evaluation_score !== null ? (string) $record->job_evaluation_score : null;
@@ -186,6 +188,7 @@ trait HasJabatanForm
             'parent_id' => ['nullable', 'exists:m_job_positions,id'],
             'description' => ['nullable', 'string'],
             'qualification' => ['nullable', 'string'],
+            'is_nakes' => ['boolean'],
             'pangkat_id' => ['nullable', 'exists:m_pangkats,id'],
             'kelas_id' => ['nullable', 'exists:m_kelas,id'],
             'job_evaluation_score' => ['nullable', 'numeric', 'min:0'],
@@ -202,6 +205,7 @@ trait HasJabatanForm
             'parent_id' => $this->parent_id ?: null,
             'description' => $this->description !== '' ? $this->description : null,
             'qualification' => $this->qualification !== '' ? $this->qualification : null,
+            'is_nakes' => $this->is_nakes,
             'pangkat_id' => $this->pangkat_id ?: null,
             'kelas_id' => $this->kelas_id ?: null,
             'job_evaluation_score' => $this->job_evaluation_score !== null && $this->job_evaluation_score !== '' ? $this->job_evaluation_score : null,

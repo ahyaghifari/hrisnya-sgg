@@ -2,9 +2,13 @@
 
 namespace Tests\Feature\Presensi;
 
+use App\Enum\Attendance\PermissionTypeCategoryEnum;
+use App\Enum\AttendanceReqStatus;
 use App\Enum\CustomPermissionEnum;
 use App\Livewire\Presensi\RekapPresensiPage;
 use App\Models\Attendance\AttendanceRecords;
+use App\Models\Attendance\AttendanceRequestPermissionDetails;
+use App\Models\Attendance\AttendanceRequests;
 use App\Models\Master\Companies;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -96,5 +100,29 @@ class RekapPresensiPageHarianDateTest extends TestCase
         Livewire::withQueryParams(['tanggal' => now()->addYear()->toDateString()])
             ->actingAs($viewer)->test(RekapPresensiPage::class)
             ->assertSet('harianDate', $today);
+    }
+
+    public function test_late_row_with_approved_late_permission_shows_blue_izin_badge(): void
+    {
+        $company = Companies::create(['code' => 'HRN4', 'name' => 'Test Harian 4', 'location' => 'Test', 'is_active' => true]);
+        $viewer = $this->viewer($company);
+        $withIzin = User::factory()->create(['company_id' => $company->id, 'name' => 'Telat Berizin', 'nip' => 'IZN001']);
+        $noIzin = User::factory()->create(['company_id' => $company->id, 'name' => 'Telat Biasa', 'nip' => 'IZN002']);
+        $today = now()->toDateString();
+
+        foreach ([$withIzin, $noIzin] as $u) {
+            AttendanceRecords::create([
+                'nip' => $u->nip, 'user_id' => $u->id, 'date' => $today,
+                'check_in_time' => '09:30:00', 'status' => 'late', 'late_minutes' => 90, 'source' => 'import',
+            ]);
+        }
+
+        $request = AttendanceRequests::create(['user_id' => $withIzin->id, 'type' => 'permission', 'status' => AttendanceReqStatus::APPROVED->value]);
+        AttendanceRequestPermissionDetails::create(['request_id' => $request->id, 'category' => PermissionTypeCategoryEnum::IZIN_TERLAMBAT_MASUK->value, 'date' => $today]);
+
+        $component = Livewire::actingAs($viewer)->test(RekapPresensiPage::class);
+
+        $this->assertSame([$withIzin->id], $component->instance()->lateExcusedUserIds([$withIzin->id, $noIzin->id]));
+        $component->assertSee('rgba(29,78,216,0.1)', false);
     }
 }

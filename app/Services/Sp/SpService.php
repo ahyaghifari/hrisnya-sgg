@@ -2,7 +2,9 @@
 
 namespace App\Services\Sp;
 
+use App\Enum\MeritPoint\MeritPointEvent;
 use App\Enum\Pembinaan\PembinaanSettingEnum;
+use App\Services\MeritPoint\MeritPointService;
 use App\Enum\Sp\SpLevel;
 use App\Enum\Sp\SpRecommendationDecision;
 use App\Models\Setting;
@@ -62,6 +64,15 @@ class SpService
         $this->refreshBalance($employeeSp->user_id);
 
         User::find($employeeSp->user_id)?->notify(new SpIssued($employeeSp));
+
+        app(MeritPointService::class)->applyEvent(
+            MeritPointEvent::from($employeeSp->sp_level->value),
+            $employeeSp->user_id,
+            $employeeSp->company_id,
+            'employee_sp',
+            $employeeSp->id,
+            'Penerbitan ' . $employeeSp->sp_level->name,
+        );
     }
 
     /** Batal SP (instruksi user 2026-09-25) - soft-cancel, bukan hard delete: record tetap ada
@@ -77,6 +88,8 @@ class SpService
         ]);
 
         $this->refreshBalance($employeeSp->user_id);
+
+        app(MeritPointService::class)->revokeEvent($employeeSp->user_id, 'employee_sp', $employeeSp->id);
     }
 
     /**

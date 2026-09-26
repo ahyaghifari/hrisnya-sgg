@@ -20,6 +20,22 @@ class MyPayrollSlipPage extends Component
 {
     public Payroll $payroll;
 
+    /** Selalu tersembunyi tiap halaman dibuka (sengaja TIDAK di-persist di session seperti
+     * MasksMoney di halaman admin). Nominal tidak dirender ke HTML saat tersembunyi. */
+    public bool $hideMoney = true;
+
+    public function toggleMoney(): void
+    {
+        $this->hideMoney = ! $this->hideMoney;
+    }
+
+    public function rp(?float $amount): string
+    {
+        return $this->hideMoney
+            ? "Rp\u{00A0}\u{2022}\u{2022}\u{2022}\u{2022}\u{2022}"
+            : 'Rp' . number_format((float) $amount, 0, ',', '.');
+    }
+
     public function mount(Payroll $payroll): void
     {
         abort_unless(

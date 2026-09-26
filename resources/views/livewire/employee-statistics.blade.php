@@ -161,6 +161,7 @@ override tambahan. --}}
                     teks kartu identitas, dan inline tidak butuh build CSS ulang. --}}
                     <div style="text-align:left;">
                         <p class="merit-label" style="text-align:left;">{{ $isSelf ? 'Poin Anda' : 'Merit Point' }}</p>
+                        <p style="font-size:10.5px;font-style:italic;opacity:.85;margin:2px 0 0;text-align:left;color:var(--merit-ink, #fff);">*Masih tahap demo</p>
                         <div style="display:flex;gap:6px;align-items:center;justify-content:flex-start;margin-top:4px;flex-wrap:wrap;">
                             @if ($isSelf)
                                 <button type="button" wire:click="openMeritHistoryModal" class="merit-history-btn">

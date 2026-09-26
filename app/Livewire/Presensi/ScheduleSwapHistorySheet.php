@@ -4,6 +4,7 @@ namespace App\Livewire\Presensi;
 
 use App\Livewire\Presensi\Concerns\FormatsShiftSwapRequest;
 use App\Models\Shift\ShiftSwapRequests;
+use App\Models\User;
 use Livewire\Attributes\On;
 use Livewire\Component;
 
@@ -23,11 +24,21 @@ class ScheduleSwapHistorySheet extends Component
 
     public bool $showModal = false;
 
+    public bool $showTrigger = true;
+
+    /** Diisi kalau dibuka dari ikon "tukar" di 1 karyawan+tanggal tertentu - daftar dipersempit ke
+     * pengajuan yang menyentuh (karyawan, tanggal) itu saja dan ditampilkan mendetail. */
+    public ?string $filterUserId = null;
+
+    public ?string $filterDate = null;
+
     /** Dibuka juga dari ikon "tukar" emas yang nempel di tiap sel/tanggal roster & baris tim
-     * (host component dispatch 'open-schedule-swap-history' global). */
+     * (host component dispatch 'open-schedule-swap-history' global, membawa userId & date). */
     #[On('open-schedule-swap-history')]
-    public function openModal(): void
+    public function openModal(?string $userId = null, ?string $date = null): void
     {
+        $this->filterUserId = $userId;
+        $this->filterDate = $userId && $date ? $date : null;
         $this->showModal = true;
     }
 
@@ -36,17 +47,34 @@ class ScheduleSwapHistorySheet extends Component
         $this->showModal = false;
     }
 
+    public function getIsFilteredProperty(): bool
+    {
+        return (bool) ($this->filterUserId && $this->filterDate);
+    }
+
+    public function getFilteredUserNameProperty(): ?string
+    {
+        return $this->isFiltered ? User::find($this->filterUserId)?->name : null;
+    }
+
     public function getRequestsProperty()
     {
         if (! $this->scheduleId) {
             return collect();
         }
 
-        return ShiftSwapRequests::whereHas('reqSchedule.shiftType', fn ($q) => $q->where('schedule_id', $this->scheduleId))
-            ->with(['requester', 'target', 'reqSchedule.shiftType', 'targetSchedule.shiftType'])
-            ->orderByDesc('created_at')
-            ->limit(30)
-            ->get();
+        $query = ShiftSwapRequests::whereHas('reqSchedule.shiftType', fn ($q) => $q->where('schedule_id', $this->scheduleId))
+            ->with(['requester', 'target', 'reqSchedule.shiftType', 'targetSchedule.shiftType']);
+
+        if ($this->isFiltered) {
+            $query->whereIn('status', ['in_review', 'approved'])
+                ->where(function ($q) {
+                    $q->where(fn ($qq) => $qq->where('requester_id', $this->filterUserId)->whereDate('req_date', $this->filterDate))
+                        ->orWhere(fn ($qq) => $qq->where('target_id', $this->filterUserId)->whereDate('target_date', $this->filterDate));
+                });
+        }
+
+        return $query->orderByDesc('created_at')->limit(30)->get();
     }
 
     public function render()

@@ -16,10 +16,10 @@
                 <div style="display:flex;flex-direction:column;gap:14px;max-height:60vh;overflow-y:auto;padding-right:2px;">
                     <div>
                         <label class="form-label">1. Karyawan yang Dapat Extra Shift</label>
-                        <select wire:model.live="user_id" class="form-input">
+                        <select wire:model.live="user_id" data-tom-select data-placeholder="Cari nama atau NIP karyawan..." class="form-input">
                             <option value="">Pilih karyawan...</option>
                             @foreach ($this->eligibleEmployees as $emp)
-                                <option value="{{ $emp->id }}">{{ $emp->name }} ({{ $emp->nip }})</option>
+                                <option value="{{ $emp->id }}" @selected($user_id === $emp->id)>{{ $emp->name }} ({{ $emp->nip }})</option>
                             @endforeach
                         </select>
                         @error('user_id') <p style="color:var(--danger-text);font-size:11.5px;margin-top:4px;">{{ $message }}</p> @enderror
@@ -37,7 +37,7 @@
                         <div>
                             <label class="form-label">Shift Normal di Tanggal Ini</label>
                             @if ($this->normalShift)
-                                <p style="font-size:12.5px;margin:0;padding:8px 10px;background:var(--surface-alt);color:var(--text-body);border:1px solid var(--border-soft);border-radius:8px;">{{ $this->normalShift['label'] }}</p>
+                                <p style="font-size:12.5px;margin:0;padding:8px 10px;background:var(--surface-alt);color:var(--text-body);border:1px solid var(--border-soft);border-radius:8px;">{{ $this->normalShift['label'] }}@if (! empty($this->normalShift['time'])) ({{ $this->normalShift['time'] }})@endif @if ($this->teamName) · Regu {{ $this->teamName }}@endif</p>
                             @else
                                 <p style="font-size:12px;color:var(--danger-text);margin:0;">Karyawan ini tidak punya jadwal shift (atau libur) di tanggal ini — extra shift butuh basis shift normal, pilih tanggal lain.</p>
                             @endif
@@ -55,9 +55,12 @@
                                 <select wire:model.live="shift_type_id" class="form-input">
                                     <option value="">Pilih shift...</option>
                                     @foreach ($this->shiftTypeOptions as $type)
-                                        <option value="{{ $type->id }}">{{ $type->name }}</option>
+                                        <option value="{{ $type->id }}">{{ $type->name }} ({{ substr($type->start_time, 0, 5) }}–{{ substr($type->end_time, 0, 5) }})</option>
                                     @endforeach
                                 </select>
+                            @endif
+                            @if ($this->teamName)
+                                <p style="font-size:11.5px;color:var(--text-muted);margin-top:4px;">Pilihan dibatasi shift jatah Regu {{ $this->teamName }} dan aturan Extra Shift.</p>
                             @endif
                             @error('shift_type_id') <p style="color:var(--danger-text);font-size:11.5px;margin-top:4px;">{{ $message }}</p> @enderror
                         </div>
