@@ -21,6 +21,8 @@ enum KepegawaianSettingEnum: string
     case PENGAJUAN_KONTRAK_LEAD_HARI = 'kepegawaian_pengajuan_kontrak_lead_hari';
     case MASA_KERJA_MINIMAL_PENGANGKATAN_BULAN = 'kepegawaian_masa_kerja_minimal_pengangkatan_bulan';
     case MERIT_POINT_ENABLED = 'kepegawaian_merit_point_enabled';
+    case PENGANGKATAN_MODE_BUKA_TUTUP = 'kepegawaian_pengangkatan_mode_buka_tutup';
+    case PENGANGKATAN_DIBUKA = 'kepegawaian_pengangkatan_dibuka';
 
     public function label(): string
     {
@@ -33,6 +35,8 @@ enum KepegawaianSettingEnum: string
             self::PENGAJUAN_KONTRAK_LEAD_HARI => 'Pengajuan Kontrak Dibuka (Hari sebelum kontrak berakhir)',
             self::MASA_KERJA_MINIMAL_PENGANGKATAN_BULAN => 'Masa Kerja Minimal Pengajuan Pengangkatan Tetap (Bulan)',
             self::MERIT_POINT_ENABLED => 'Aktifkan Merit Point',
+            self::PENGANGKATAN_MODE_BUKA_TUTUP => 'Mode Pengajuan Karyawan Tetap',
+            self::PENGANGKATAN_DIBUKA => 'Status Pengajuan Karyawan Tetap',
         };
     }
 
@@ -45,14 +49,29 @@ enum KepegawaianSettingEnum: string
             self::HARI_KERJA_EFEKTIF_PER_BULAN => 'Dipakai sebagai pembagi tetap buat prorate Gaji Pokok karyawan yang Tanggal Bergabungnya jatuh di tengah periode gaji (bulan pertama): (hari kerja efektif sejak Tanggal Bergabung s.d. akhir periode / angka ini) x Gaji Pokok. Bukan dihitung dari jadwal - langsung angka yang diisi di sini.',
             self::PENGAJUAN_ORIENTASI_LEAD_HARI => 'Karyawan orientasi baru bisa membuat pengajuan penilaian orientasi mulai sekian hari sebelum periode orientasinya berakhir. 0 = kapan saja selama periode berjalan.',
             self::PENGAJUAN_KONTRAK_LEAD_HARI => 'Ambang berapa hari sebelum kontrak berakhir pengajuan perpanjangan/perubahan kontrak boleh dibuat. 0 = kapan saja. (Dipakai modul kontrak.)',
-            self::MASA_KERJA_MINIMAL_PENGANGKATAN_BULAN => 'Masa kerja minimal (dihitung dari Tanggal Bergabung) sebelum karyawan Kontrak boleh mengajukan Pengangkatan Karyawan Tetap. Tombol "Ajukan Pengangkatan Karyawan Tetap" di Profil Saya baru muncul setelah masa kerjanya lewat ambang ini. 0 = kapan saja selama masih Kontrak.',
+            self::MASA_KERJA_MINIMAL_PENGANGKATAN_BULAN => 'Masa kerja minimal karyawan Kontrak sebelum boleh mengajukan jadi Tetap. Hanya dipakai kalau mode di bawah "Berdasarkan Masa Kerja". 0 = kapan saja.',
             self::MERIT_POINT_ENABLED => 'Kalau dimatikan, seluruh tampilan Merit Point (widget tab Karir, menu rule, tombol beri poin) disembunyikan total untuk company ini.',
+            self::PENGANGKATAN_MODE_BUKA_TUTUP => 'Berdasarkan Masa Kerja = pakai ambang di atas. Buka/Tutup Manual = diatur langsung dari Dashboard Sikartap.',
+            self::PENGANGKATAN_DIBUKA => 'Diatur dari Dashboard Sikartap, bukan di sini.',
         };
     }
 
     public function type(): SettingTypeEnum
     {
-        return $this === self::MERIT_POINT_ENABLED ? SettingTypeEnum::BOOLEAN : SettingTypeEnum::INTEGER;
+        if ($this === self::MERIT_POINT_ENABLED || $this === self::PENGANGKATAN_DIBUKA) {
+            return SettingTypeEnum::BOOLEAN;
+        }
+
+        return $this === self::PENGANGKATAN_MODE_BUKA_TUTUP ? SettingTypeEnum::STRING : SettingTypeEnum::INTEGER;
+    }
+
+    /** Pilihan dropdown - null berarti case ini bukan select (integer/boolean biasa). Dipakai
+     * EmploymentSettingsPage buat render <select> alih-alih checkbox/number. */
+    public function selectOptions(): ?array
+    {
+        return $this === self::PENGANGKATAN_MODE_BUKA_TUTUP
+            ? ['masa_kerja' => 'Berdasarkan Masa Kerja', 'buka_tutup' => 'Buka/Tutup Manual']
+            : null;
     }
 
     public function default(): string
@@ -66,6 +85,8 @@ enum KepegawaianSettingEnum: string
             self::PENGAJUAN_KONTRAK_LEAD_HARI => '30',
             self::MASA_KERJA_MINIMAL_PENGANGKATAN_BULAN => '15',
             self::MERIT_POINT_ENABLED => 'false',
+            self::PENGANGKATAN_MODE_BUKA_TUTUP => 'masa_kerja',
+            self::PENGANGKATAN_DIBUKA => 'false',
         };
     }
 }

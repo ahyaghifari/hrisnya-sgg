@@ -52,10 +52,13 @@ class PengajuanKaryawanTetapPage extends Component
 
     /** Boleh mulai pengajuan baru kalau belum pernah sama sekali, ATAU pengajuan terakhir
      * ditolak (bukan didiskualifikasi) - rewrite tombol "Buat Pengajuan Baru" history_pengajuan.php
-     * legacy, lihat Sikartap::canReapplyAfterRejection(). */
+     * legacy, lihat Sikartap::canReapplyAfterRejection() - DAN karyawan lagi eligible
+     * (masa kerja cukup / periode pengajuan dibuka, lihat User::isEligibleForPengangkatanTetap()).
+     * Pengajuan yang sudah berjalan tetap bisa dilihat & dilanjutkan walau periode ditutup. */
     public function getCanStartNewProperty(): bool
     {
-        return ! $this->sikartap || $this->sikartap->canReapplyAfterRejection();
+        return Auth::user()->isEligibleForPengangkatanTetap()
+            && (! $this->sikartap || $this->sikartap->canReapplyAfterRejection());
     }
 
     public function startApplication(): void

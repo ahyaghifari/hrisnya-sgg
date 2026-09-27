@@ -16,10 +16,14 @@
 
     @if (! $sikartap)
         <div style="background:var(--surface);border-radius:16px;box-shadow:var(--shadow-card);padding:32px;text-align:center;">
-            <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px;">Anda belum memiliki pengajuan karyawan tetap.</p>
-            <button type="button" wire:click="startApplication" class="btn-primary">
-                <i class="fa-solid fa-file-circle-plus"></i> Mulai Pengajuan
-            </button>
+            <p style="font-size:13px;color:var(--text-muted);margin-bottom:{{ $this->canStartNew ? '16px' : '0' }};">Anda belum memiliki pengajuan karyawan tetap.</p>
+            @if ($this->canStartNew)
+                <button type="button" wire:click="startApplication" class="btn-primary">
+                    <i class="fa-solid fa-file-circle-plus"></i> Mulai Pengajuan
+                </button>
+            @else
+                <p style="font-size:12.5px;color:var(--text-muted);margin:8px 0 0;">Pengajuan karyawan tetap saat ini belum dibuka untuk Anda.</p>
+            @endif
         </div>
     @else
         @if ($sikartap->is_diskualifikasi)

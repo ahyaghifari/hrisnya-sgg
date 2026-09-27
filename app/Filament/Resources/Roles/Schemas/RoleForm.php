@@ -122,6 +122,10 @@ class RoleForm
                 CustomPermissionEnum::LIHAT_DASHBOARD_SIKARTAP_MODUL->value,
                 CustomPermissionEnum::LIHAT_PENGATURAN_SIKARTAP->value,
                 CustomPermissionEnum::EDIT_PENGATURAN_SIKARTAP->value,
+                // Widget "Buka/Tutup Pengajuan Karyawan Tetap" di Dashboard Sikartap (instruksi
+                // user 2026-09-27: dikelompokkan Sikartap, bukan Kepegawaian, meski setting
+                // mode-nya sendiri masih di Pengaturan Kepegawaian).
+                CustomPermissionEnum::BUKA_TUTUP_PENGAJUAN_KARTAP->value,
                 CustomPermissionEnum::NILAI_IDE_INOVASI_DIREKTUR->value,
                 CustomPermissionEnum::NILAI_IDE_INOVASI_KOMISARIS->value,
             ],

@@ -3,10 +3,13 @@
 namespace App\Livewire\Sikartap;
 
 use App\Enum\CustomPermissionEnum;
+use App\Enum\Kepegawaian\KepegawaianSettingEnum;
 use App\Exports\Sikartap\SikartapPengajuanExport;
 use App\Models\Master\Companies;
+use App\Models\Setting;
 use App\Models\Sikartap\Sikartap;
 use App\Services\Sikartap\SikartapPeriodeHelper;
+use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Url;
@@ -94,6 +97,73 @@ class DashboardSikartapPage extends Component
     public function getCanFilterByCompanyProperty(): bool
     {
         return Auth::user()->canFilterByCompany();
+    }
+
+    /** Widget "Buka/Tutup Pengajuan Karyawan Tetap" - dipindah dari Pengaturan Kepegawaian ke
+     * sini (instruksi user 2026-09-27), supaya yang punya izin operasional buka/tutup tidak
+     * perlu masuk halaman Pengaturan Kepegawaian sama sekali. Butuh 1 company spesifik terpilih
+     * (bukan "Semua perusahaan") - toggle-nya per company, sama seperti setting Kepegawaian lain. */
+    public function getCanBukaTutupKartapProperty(): bool
+    {
+        return $this->companyId !== null && Auth::user()->can(CustomPermissionEnum::BUKA_TUTUP_PENGAJUAN_KARTAP->value);
+    }
+
+    /** Widget toggle cuma relevan kalau mode company ini memang 'buka_tutup' - mode
+     * 'masa_kerja' (default) tidak pernah membaca PENGANGKATAN_DIBUKA sama sekali (lihat
+     * User::isEligibleForPengangkatanTetap()), jadi toggle-nya tidak boleh ditampilkan (instruksi
+     * user 2026-09-27: "tidak perlu ada lagi sistem buka tutup" kalau mode masa kerja). */
+    public function getShowBukaTutupToggleProperty(): bool
+    {
+        return $this->canBukaTutupKartap && $this->pengangkatanMode === 'buka_tutup';
+    }
+
+    /** 'masa_kerja' | 'buka_tutup' - dibaca read-only di sini, diatur di Pengaturan Kepegawaian
+     * (select "Pengajuan Karyawan Tetap: Mode Buka/Tutup"). */
+    public function getPengangkatanModeProperty(): string
+    {
+        return Setting::resolve(
+            KepegawaianSettingEnum::PENGANGKATAN_MODE_BUKA_TUTUP->value,
+            $this->companyId,
+            default: KepegawaianSettingEnum::PENGANGKATAN_MODE_BUKA_TUTUP->default(),
+        );
+    }
+
+    public function getPengangkatanDibukaProperty(): bool
+    {
+        if (! $this->companyId) {
+            return false;
+        }
+
+        return (bool) Setting::resolve(
+            KepegawaianSettingEnum::PENGANGKATAN_DIBUKA->value,
+            $this->companyId,
+            default: filter_var(KepegawaianSettingEnum::PENGANGKATAN_DIBUKA->default(), FILTER_VALIDATE_BOOLEAN),
+        );
+    }
+
+    /** Toggle langsung (tanpa tombol Simpan terpisah) - status buka/tutup adalah aksi
+     * operasional sekali klik, beda dari form pengaturan biasa. */
+    public function toggleKartapDibuka(): void
+    {
+        abort_unless($this->canBukaTutupKartap, 403);
+
+        $next = ! $this->pengangkatanDibuka;
+        $case = KepegawaianSettingEnum::PENGANGKATAN_DIBUKA;
+
+        Setting::updateOrCreate(
+            ['company_id' => $this->companyId, 'key' => $case->value],
+            ['module' => 'kepegawaian', 'type' => $case->type()->value, 'label' => $case->label(), 'description' => $case->helperText(), 'value' => $next ? '1' : '0'],
+        );
+
+        // Computed property Livewire (getXxxProperty) di-cache per-request (SupportLegacyComputedPropertySyntax)
+        // - tanpa unset ini, render/assertSet SETELAH toggle masih membaca nilai lama dari cache,
+        // bukan baris yang baru saja ditulis.
+        unset($this->pengangkatanDibuka);
+
+        Notification::make()
+            ->title($next ? 'Pengajuan Karyawan Tetap dibuka' : 'Pengajuan Karyawan Tetap ditutup')
+            ->success()
+            ->send();
     }
 
     public function getCanStatistikProperty(): bool

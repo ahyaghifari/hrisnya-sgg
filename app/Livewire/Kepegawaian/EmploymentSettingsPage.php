@@ -5,7 +5,7 @@ namespace App\Livewire\Kepegawaian;
 use App\Enum\CustomPermissionEnum;
 use App\Enum\Kepegawaian\KepegawaianSettingEnum;
 use App\Enum\SettingTypeEnum;
-use AppModelsAuditLog;
+use App\Models\AuditLog;
 use App\Models\Master\Companies;
 use App\Models\Setting;
 use Filament\Notifications\Notification;
@@ -104,10 +104,17 @@ class EmploymentSettingsPage extends Component
             ->get();
     }
 
-    /** @return KepegawaianSettingEnum[] */
+    /** PENGANGKATAN_DIBUKA sengaja dikeluarkan dari halaman ini - toggle-nya dipindah ke
+     * Dashboard Sikartap (izin BUKA_TUTUP_PENGAJUAN_KARTAP), lihat DashboardSikartapPage.
+     * Halaman ini cuma atur MODE-nya (select masa_kerja/buka_tutup), bukan status buka/tutup itu
+     * sendiri.
+     * @return KepegawaianSettingEnum[] */
     public function getSettingsProperty(): array
     {
-        return KepegawaianSettingEnum::cases();
+        return array_values(array_filter(
+            KepegawaianSettingEnum::cases(),
+            fn (KepegawaianSettingEnum $case) => $case !== KepegawaianSettingEnum::PENGANGKATAN_DIBUKA,
+        ));
     }
 
     public function getCanEditSettingsProperty(): bool
@@ -117,13 +124,20 @@ class EmploymentSettingsPage extends Component
 
     public function save(): void
     {
-        abort_unless(Auth::user()->can(CustomPermissionEnum::EDIT_PENGATURAN_KEPEGAWAIAN->value), 403);
+        abort_unless($this->canEditSettings, 403);
 
         if (! $this->companyId) {
             return;
         }
 
         foreach ($this->values as $key => $value) {
+            // PENGANGKATAN_DIBUKA tidak dirender di halaman ini (lihat getSettingsProperty) tapi
+            // masih ada di $values (dimuat loadCompanyState() dari semua case) - jangan sampai
+            // ikut ditulis ulang dari sini kalau suatu saat direktori $values dipakai penuh.
+            if ($key === KepegawaianSettingEnum::PENGANGKATAN_DIBUKA->value) {
+                continue;
+            }
+
             $case = KepegawaianSettingEnum::from($key);
             // Checkbox uncheck tidak terkirim - normalisasi ke 0 (pola PembinaanSettingsPage).
             $normalized = $case->type() === SettingTypeEnum::BOOLEAN ? ($value == '1' ? '1' : '0') : $value;

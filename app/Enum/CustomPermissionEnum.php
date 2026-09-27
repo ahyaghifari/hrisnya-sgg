@@ -176,6 +176,16 @@ enum CustomPermissionEnum: string
      * disembunyikan tombol simpan/input-nya), sama seperti pola LIHAT_PENGATURAN_ABSENSI. */
     case LIHAT_PENGATURAN_KEPEGAWAIAN = 'lihat_pengaturan_kepegawaian';
 
+    /** Widget "Buka/Tutup Pengajuan Karyawan Tetap" di Dashboard Sikartap (toggle
+     * KepegawaianSettingEnum::PENGANGKATAN_DIBUKA, lihat DashboardSikartapPage) - dikelompokkan
+     * Sikartap (instruksi user 2026-09-27), bukan Kepegawaian, walau setting-nya sendiri masih
+     * baris `settings` module kepegawaian. Dipisah dari EDIT_PENGATURAN_KEPEGAWAIAN supaya HC/SDM
+     * yang cuma bertugas membuka-menutup periode tidak otomatis bisa mengubah pengaturan
+     * kepegawaian lain. Butuh SISTEM_SIKARTAP + LIHAT_DASHBOARD_SIKARTAP_MODUL buat membuka
+     * halamannya (gate DashboardSikartapPage::mount(), bukan permission Kepegawaian). Pemegang
+     * EDIT_PENGATURAN_KEPEGAWAIAN otomatis juga boleh toggle (edit = semua pengaturan). */
+    case BUKA_TUTUP_PENGAJUAN_KARTAP = 'buka_tutup_pengajuan_kartap';
+
     /** Halaman "Pengaturan Sikartap" (2026-08-25) - toggle per company wajib Ide Inovasi &
      * wajib MCU (App\Enum\Sikartap\SikartapSettingEnum), pola sama persis
      * LIHAT/EDIT_PENGATURAN_KEPEGAWAIAN: LIHAT = buka halaman (read-only tanpa EDIT), EDIT =
@@ -343,6 +353,7 @@ enum CustomPermissionEnum: string
             self::LIHAT_PENGATURAN_LMS => 'Lihat Pengaturan LMS',
             self::EDIT_PENGATURAN_KEPEGAWAIAN => 'Edit Pengaturan Kepegawaian',
             self::LIHAT_PENGATURAN_KEPEGAWAIAN => 'Lihat Pengaturan Kepegawaian',
+            self::BUKA_TUTUP_PENGAJUAN_KARTAP => 'Buka/Tutup Pengajuan Karyawan Tetap',
             self::LIHAT_PENGATURAN_SIKARTAP => 'Lihat Pengaturan Sikartap',
             self::EDIT_PENGATURAN_SIKARTAP => 'Edit Pengaturan Sikartap',
             self::NILAI_IDE_INOVASI_DIREKTUR => 'Nilai Ide Inovasi (Direktur)',

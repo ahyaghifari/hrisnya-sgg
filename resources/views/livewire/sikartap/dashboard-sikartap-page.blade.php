@@ -24,6 +24,27 @@
         </div>
     @endif
 
+    {{-- Widget Buka/Tutup Pengajuan Karyawan Tetap - cuma muncul kalau 1 company spesifik
+    terpilih, user punya izin BUKA_TUTUP_PENGAJUAN_KARTAP, DAN mode company ini "Buka/Tutup
+    Manual". Mode "Berdasarkan Masa Kerja" tidak butuh (dan tidak menampilkan) toggle ini sama
+    sekali - tombol pengajuan otomatis muncul begitu masa kerja karyawan cukup, tidak ada
+    "buka/tutup" buat dikelola (instruksi user 2026-09-27). Mode diatur di Pengaturan Kepegawaian. --}}
+    @if ($this->showBukaTutupToggle)
+        @php $dibuka = $this->pengangkatanDibuka; @endphp
+        <div style="background:var(--surface);border-radius:14px;box-shadow:var(--shadow-card);padding:16px 18px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;">
+            <div>
+                <p style="font-size:13px;font-weight:700;color:var(--text-heading);margin:0 0 4px;">Pengajuan Karyawan Tetap</p>
+                <p style="font-size:11.5px;color:var(--text-muted);margin:0;">Tombol pengajuan di tab Karir karyawan ikut status di bawah.</p>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;flex-shrink:0;">
+                <span class="badge {{ $dibuka ? 'badge-approved' : 'badge-cancelled' }}">{{ $dibuka ? 'Sedang Dibuka' : 'Sedang Ditutup' }}</span>
+                <button type="button" wire:click="toggleKartapDibuka" wire:confirm="{{ $dibuka ? 'Tutup pengajuan Karyawan Tetap untuk perusahaan ini?' : 'Buka pengajuan Karyawan Tetap untuk perusahaan ini?' }}" class="btn-primary" style="font-size:12.5px;">
+                    <i class="fa-solid fa-power-off"></i> {{ $dibuka ? 'Tutup' : 'Buka' }}
+                </button>
+            </div>
+        </div>
+    @endif
+
     {{-- Ringkasan padat: 1 strip, bukan 2 blok kartu tinggi. Baris atas = hasil akhir
          (total + pending/disetujui/ditolak). Baris bawah = pipeline antrian per tahap, dibaca
          kiri→kanan sesuai urutan proses Sikartap — kelihatan di tahap mana antrian menumpuk. --}}

@@ -307,14 +307,33 @@ class User extends Authenticatable implements FilamentUser
             && $this->profile?->employeeType?->category === \App\Enum\EmployeeTypeCategory::KONTRAK;
     }
 
-    /** Gate tombol "Ajukan Pengangkatan Karyawan Tetap" di Profil Saya - selain harus Kontrak
-     * (isKontrakKaryawan()), masa kerja sejak Tanggal Bergabung juga harus sudah lewat ambang
-     * KepegawaianSettingEnum::MASA_KERJA_MINIMAL_PENGANGKATAN_BULAN (company-scoped, default 15
-     * bulan). Tanpa Tanggal Bergabung dianggap belum eligible - tidak ada dasar hitung masa kerja. */
+    /** Gate tombol "Ajukan Pengangkatan Karyawan Tetap" di tab Karir Profil Saya DAN pembuatan
+     * pengajuan baru (PengajuanKaryawanTetapPage::startApplication). Harus Kontrak
+     * (isKontrakKaryawan()), lalu 2 mode per company (KepegawaianSettingEnum::
+     * PENGANGKATAN_MODE_BUKA_TUTUP, diatur lewat select di Pengaturan Kepegawaian):
+     * - 'buka_tutup': masa kerja DIABAIKAN, eligible cuma selama PENGANGKATAN_DIBUKA (toggle-nya
+     *   di Dashboard Sikartap, bukan di Pengaturan Kepegawaian - lihat DashboardSikartapPage).
+     * - 'masa_kerja' (default): masa kerja sejak Tanggal Bergabung harus sudah lewat ambang
+     *   MASA_KERJA_MINIMAL_PENGANGKATAN_BULAN (default 15 bulan). Tanpa Tanggal Bergabung dianggap
+     *   belum eligible - tidak ada dasar hitung masa kerja. */
     public function isEligibleForPengangkatanTetap(): bool
     {
         if (! $this->isKontrakKaryawan()) {
             return false;
+        }
+
+        $mode = Setting::resolve(
+            KepegawaianSettingEnum::PENGANGKATAN_MODE_BUKA_TUTUP->value,
+            $this->company_id,
+            default: KepegawaianSettingEnum::PENGANGKATAN_MODE_BUKA_TUTUP->default(),
+        );
+
+        if ($mode === 'buka_tutup') {
+            return (bool) Setting::resolve(
+                KepegawaianSettingEnum::PENGANGKATAN_DIBUKA->value,
+                $this->company_id,
+                default: filter_var(KepegawaianSettingEnum::PENGANGKATAN_DIBUKA->default(), FILTER_VALIDATE_BOOLEAN),
+            );
         }
 
         $joinDate = $this->profile?->joining_date;

@@ -28,7 +28,17 @@
                                     </label>
                                     <p style="font-size:11px;color:var(--text-muted);margin:2px 0 0;">{{ $setting->helperText() }}</p>
                                 </div>
-                                @if ($setting->type() === \App\Enum\SettingTypeEnum::BOOLEAN)
+                                @if ($setting->selectOptions())
+                                    @if ($this->canEditSettings)
+                                        <select class="form-input" style="max-width:220px;" wire:model="values.{{ $setting->value }}">
+                                            @foreach ($setting->selectOptions() as $optValue => $optLabel)
+                                                <option value="{{ $optValue }}">{{ $optLabel }}</option>
+                                            @endforeach
+                                        </select>
+                                    @else
+                                        <span style="font-weight:600;min-width:180px;">{{ $setting->selectOptions()[$values[$setting->value] ?? ''] ?? '-' }}</span>
+                                    @endif
+                                @elseif ($setting->type() === \App\Enum\SettingTypeEnum::BOOLEAN)
                                     @if ($this->canEditSettings)
                                         <label class="custom-checkbox" style="--accent:#7c3aed;flex-shrink:0;">
                                             <input type="checkbox" wire:model="values.{{ $setting->value }}" value="1" @checked(($values[$setting->value] ?? '0') == '1')>
