@@ -11,7 +11,6 @@ use App\Models\Payroll\BpjsDependent;
 use App\Models\Payroll\UserKoperasi;
 use App\Models\Setting;
 use App\Models\Shift\ShiftScheduleAssignments;
-use App\Models\User\UserDocuments;
 use App\Models\User\UserJobPositions;
 use App\Models\User\UserProfiles;
 use Carbon\Carbon;
@@ -128,19 +127,6 @@ class User extends Authenticatable implements FilamentUser
         return $this->hasOne(BpjsDependent::class, 'user_id', 'id');
     }
 
-    // Dokumen yang diunggah oleh user itu sendiri
-    public function userPersonalDocuments()
-    {
-        return $this->hasMany(UserDocuments::class, 'user_id', 'id')
-            ->where('uploaded_by_user', true);
-    }
-
-    // Dokumen yang diunggah oleh perusahaan untuk user tersebut
-    public function userCompaniesDocuments()
-    {
-        return $this->hasMany(UserDocuments::class, 'user_id', 'id')
-            ->where('uploaded_by_user', false);
-    }
 
     public function jobPositions(): HasMany
     {

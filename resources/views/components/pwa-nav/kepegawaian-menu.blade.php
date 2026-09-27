@@ -3,13 +3,12 @@
     $canViewKaryawan = auth()->user()->can('ViewAny:User');
     $canViewPengaturanKepegawaian = auth()->user()->can(\App\Enum\CustomPermissionEnum::LIHAT_PENGATURAN_KEPEGAWAIAN->value);
     $canViewJabatan = auth()->user()->can('ViewAny:JobPositions');
-    $canViewJobEvaluation = auth()->user()->can(\App\Enum\CustomPermissionEnum::LIHAT_JOB_EVALUATION->value);   
-    $canViewDokumen = auth()->user()->can('ViewAny:UserDocuments');
+    $canViewJobEvaluation = auth()->user()->can(\App\Enum\CustomPermissionEnum::LIHAT_JOB_EVALUATION->value);
     $canViewPerubahanStatus = auth()->user()->can('ViewAny:UserTransition');
     $canViewKontrak = auth()->user()->can('ViewAny:UserContract');
     $canViewOrientasiData = auth()->user()->can('ViewAny:UserOrientation');
     $canViewPermintaanTenagaKerja = auth()->user()->can('ViewAny:ManpowerRequests');
-    $canViewMerit = auth()->user()->can('ViewAny:MeritPointRule') || auth()->user()->can('ViewAny:MeritPointTransaction');
+    $canViewMerit = auth()->user()->can('ViewAny:MeritPointRule') || auth()->user()->can(\App\Enum\CustomPermissionEnum::BERI_MERIT_POINT->value);
 @endphp
 
 <span class="pwa-menu-grid-divider">Sistem Kepegawaian</span>
@@ -47,12 +46,6 @@
 <a href="{{ route('kepegawaian.job-evaluation') }}" wire:navigate class="pwa-menu-grid-item">
     <span class="pwa-menu-grid-icon violet"><i class="fa-solid fa-table-list"></i></span>
     <span class="pwa-menu-grid-label">Job Evaluation</span>
-</a>
-@endif
-@if ($canViewDokumen)
-<a href="{{ route('kepegawaian.dokumen') }}" wire:navigate class="pwa-menu-grid-item">
-    <span class="pwa-menu-grid-icon violet"><i class="fa-solid fa-folder-open"></i></span>
-    <span class="pwa-menu-grid-label">Dokumen</span>
 </a>
 @endif
 {{-- Orientasi + Perpanjangan Kontrak (alur) di menu Sikartap. Kontrak Karyawan (data

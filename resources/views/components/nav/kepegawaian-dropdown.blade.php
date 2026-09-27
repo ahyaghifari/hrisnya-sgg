@@ -5,12 +5,11 @@
     $canViewAlurPersetujuan = auth()->user()->can(\App\Enum\CustomPermissionEnum::LIHAT_ALUR_PERSETUJUAN->value);
     $canViewJabatan = auth()->user()->can('ViewAny:JobPositions');
     $canViewJobEvaluation = auth()->user()->can(\App\Enum\CustomPermissionEnum::LIHAT_JOB_EVALUATION->value);
-    $canViewDokumen = auth()->user()->can('ViewAny:UserDocuments');
     $canViewPerubahanStatus = auth()->user()->can('ViewAny:UserTransition');
     $canViewKontrak = auth()->user()->can('ViewAny:UserContract');
     $canViewOrientasiData = auth()->user()->can('ViewAny:UserOrientation');
     $canViewPermintaanTenagaKerja = auth()->user()->can('ViewAny:ManpowerRequests');
-    $canViewMerit = auth()->user()->can('ViewAny:MeritPointRule') || auth()->user()->can('ViewAny:MeritPointTransaction');
+    $canViewMerit = auth()->user()->can('ViewAny:MeritPointRule') || auth()->user()->can(\App\Enum\CustomPermissionEnum::BERI_MERIT_POINT->value);
 @endphp
 
 <div class="dropdown">
@@ -35,7 +34,7 @@
                 <a href="{{ route('kepegawaian.pengaturan') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-gear"></i> Pengaturan Kepegawaian</a>
             @endif
         </div>
-        @if ($canViewJabatan || $canViewJobEvaluation || $canViewDokumen || $canViewPermintaanTenagaKerja)
+        @if ($canViewJabatan || $canViewJobEvaluation || $canViewPermintaanTenagaKerja)
         <div class="dropdown-col">
             <div class="dropdown-col-label">Jabatan</div>
             @if ($canViewJabatan)
@@ -46,9 +45,6 @@
             @endif
             @if ($canViewPermintaanTenagaKerja)
                 <a href="{{ route('kepegawaian.permintaan') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-right-left"></i> Permintaan Tenaga Kerja</a>
-            @endif
-            @if ($canViewDokumen)
-                <a href="{{ route('kepegawaian.dokumen') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-folder-open"></i> Dokumen</a>
             @endif
         </div>
         @endif

@@ -1018,6 +1018,13 @@ html.lw-navigating .page-content { opacity: 0; }
     .welcome-actions .data-diri-btn { font-size: 14px; padding: 11px 22px; border-radius: 12px; gap: 9px; }
 }
 
+/* Mobile: label jenis dokumen & tombol Unggah/Ganti di kartu "Dokumen" (Data Diri) dikecilkan
+   sedikit - request user, muat lebih rapi di layar sempit. */
+@media (max-width: 639px) {
+    .doc-type-label { font-size: 12px !important; }
+    .doc-type-upload-btn { font-size: 11px !important; padding: 5px 10px !important; }
+}
+
 /* Wrapper tombol "Tukar Shift" + "Riwayat" - mobile ditumpuk 1 kolom (default), desktop
    bersisian (lihat @media 768px di bawah). */
 .jadwal-shift-swap-actions { display: flex; flex-direction: column; gap: 8px; margin-top: 20px; }

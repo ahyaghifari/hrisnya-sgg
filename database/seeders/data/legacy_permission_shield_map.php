@@ -16,7 +16,7 @@ return [
     'create_data_absensi' => 'Create:AttendanceRecords',
     'create_data_overtime_cost' => 'Create:ShiftOvertimeCosts',
     'create_doctor_payroll' => null, // NO_LONGER_EXISTS: doctor_payroll* tables dropped by 2026_07_12_072348_drop_doctor_payroll_tables.php; superseded by generic Payroll (doctor now follows normal payroll cycle)
-    'create_dokumen_karyawan' => 'Create:UserDocuments',
+    'create_dokumen_karyawan' => null, // NO_LONGER_EXISTS: modul user_documents dihapus (0 baris di prod, digantikan modul per-jenis dokumen)
     'create_gaji_trainner' => 'Create:TrainerAssessmentResults',
     'create_jabatan_dan_kompetensi' => 'Create:JobPositions',
     'create_jadwal_shift' => 'Create:ShiftScheduleAssignments',
@@ -56,7 +56,7 @@ return [
     'delete_data_absensi' => 'Delete:AttendanceRecords',
     'delete_data_overtime_cost' => 'Delete:ShiftOvertimeCosts',
     'delete_doctor_payroll' => null, // NO_LONGER_EXISTS: see create_doctor_payroll
-    'delete_dokumen_karyawan' => 'Delete:UserDocuments',
+    'delete_dokumen_karyawan' => null, // NO_LONGER_EXISTS: lihat catatan create_dokumen_karyawan
     'delete_gaji_trainner' => 'Delete:TrainerAssessmentResults',
     'delete_jabatan_dan_kompetensi' => 'Delete:JobPositions',
     'delete_jadwal_shift' => 'Delete:ShiftScheduleAssignments',
@@ -98,7 +98,7 @@ return [
     'edit_data_overtime_cost' => 'Update:ShiftOvertimeCosts',
     'edit_data_pribadi' => null, // NO_SHIELD_EQUIVALENT: "Data Pribadi" is a self-service/portal concept, no admin Filament Resource found (only unrelated "Data Pribadi" fieldset labels in candidate-portal forms)
     'edit_doctor_payroll' => null, // NO_LONGER_EXISTS: see create_doctor_payroll
-    'edit_dokumen_karyawan' => 'Update:UserDocuments',
+    'edit_dokumen_karyawan' => null, // NO_LONGER_EXISTS: lihat catatan create_dokumen_karyawan
     'edit_gaji_trainner' => 'Update:TrainerAssessmentResults',
     'edit_jabatan_dan_kompetensi' => 'Update:JobPositions',
     'edit_jadwal_shift' => 'Update:ShiftScheduleAssignments',
@@ -141,7 +141,7 @@ return [
     'view_data_overtime_cost' => 'ViewAny:ShiftOvertimeCosts',
     'view_data_pribadi' => null, // NO_SHIELD_EQUIVALENT: see edit_data_pribadi
     'view_doctor_payroll' => null, // NO_LONGER_EXISTS: see create_doctor_payroll
-    'view_dokumen_karyawan' => 'ViewAny:UserDocuments',
+    'view_dokumen_karyawan' => null, // NO_LONGER_EXISTS: lihat catatan create_dokumen_karyawan
     'view_gaji_trainner' => 'ViewAny:TrainerAssessmentResults',
     'view_jabatan_dan_kompetensi' => 'ViewAny:JobPositions',
     'view_jadwal_shift' => 'ViewAny:ShiftScheduleAssignments',

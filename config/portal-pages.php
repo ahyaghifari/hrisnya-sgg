@@ -170,24 +170,6 @@ return [
         'guard' => null,
     ],
 
-    'kepegawaian.dokumen' => [
-        'label' => 'Dokumen Kepegawaian',
-        'permission' => 'ViewAny:UserDocuments',
-        'guard' => null,
-    ],
-
-    'kepegawaian.dokumen.create' => [
-        'label' => 'Tambah Dokumen',
-        'permission' => 'Create:UserDocuments',
-        'guard' => null,
-    ],
-
-    'kepegawaian.dokumen.edit' => [
-        'label' => 'Edit Dokumen',
-        'permission' => 'Update:UserDocuments',
-        'guard' => null,
-    ],
-
     'kepegawaian.kontrak' => [
         'label' => 'Kontrak Karyawan',
         'permission' => 'ViewAny:UserContract',

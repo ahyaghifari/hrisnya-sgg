@@ -40,6 +40,12 @@ lewat wire:navigate (mis. link paginasi/pindah halaman lain). --}}
         // sekali → dianggap skor penuh (100), bukan 0 (instruksi user).
         $meritPoint = $hrBalance?->merit_point ?? 100;
         $meritPct = max(0, min(100, $meritPoint));
+        // Saldo boleh lewat 100 (poin bonus, instruksi user 2026-09-27) - ring & angka di medali
+        // tetap dikunci tampil 100 (ring cuma masuk akal 0-100%), kelebihannya ditampilkan
+        // terpisah sebagai badge "+12" di pojok, DB (UserHrBalance::merit_point) tetap simpan
+        // nilai aslinya (112) - lihat MeritPointService (clamp lantai 0 saja, tanpa plafon).
+        $meritDisplay = min(100, $meritPoint);
+        $meritBonus = max(0, $meritPoint - 100);
         // Satu keluarga visual dengan .welcome-card/.absen-card (dark gradient, teks putih,
         // dekorasi bulat) tapi warnanya ikut tier skor - lihat DESIGN.md §domain card.
         // Tier warna (semuanya jadi CSS variable inline di .merit-card, lihat app.css):
@@ -149,13 +155,20 @@ override tambahan. --}}
                 <div class="merit-card" style="--merit-from:{{ $meritTier['from'] }};--merit-mid:{{ $meritTier['mid'] }};--merit-to:{{ $meritTier['to'] }};--merit-glow:{{ $meritTier['glow'] }};--merit-ink:{{ $meritTier['ink'] }};--merit-btn-bg:{{ $meritTier['btnBg'] }};--merit-btn-bd:{{ $meritTier['btnBd'] }};--merit-spark:{{ $meritTier['spark'] }};--merit-coin-a:{{ $meritTier['coinA'] }};--merit-coin-b:{{ $meritTier['coinB'] }};--merit-coin-c:{{ $meritTier['coinC'] }};--merit-coin-ink:{{ $meritTier['coinInk'] }};">
                     <div class="merit-deco-1"></div>
                     <div class="merit-deco-2"></div>
-                    <div class="merit-gauge-ring" style="width:72px;height:72px;--merit-gauge-bg:conic-gradient({{ $meritTier['ring2'] }} 0deg, {{ $meritTier['ring'] }} {{ $meritPct * 3.6 }}deg, {{ $meritTier['track'] }} {{ $meritPct * 3.6 }}deg 360deg);">
+                    <div class="merit-gauge-ring" style="width:72px;height:72px;position:relative;--merit-gauge-bg:conic-gradient({{ $meritTier['ring2'] }} 0deg, {{ $meritTier['ring'] }} {{ $meritPct * 3.6 }}deg, {{ $meritTier['track'] }} {{ $meritPct * 3.6 }}deg 360deg);">
                         <div class="merit-medal">
                             <div class="merit-flip">
-                                <div class="merit-face"><span class="num">{{ $meritPoint }}</span></div>
+                                <div class="merit-face"><span class="num">{{ $meritDisplay }}</span></div>
                                 <div class="merit-face is-back" aria-hidden="true"><span class="emo">{{ $meritEmoji }}</span></div>
                             </div>
                         </div>
+                        @if ($meritBonus > 0)
+                            {{-- Poin bonus (saldo asli sudah lewat 100, DB tetap simpan aslinya) - badge
+                            kecil menempel pojok ring, tidak ikut animasi flip medali. --}}
+                            <span title="Poin bonus - total sebenarnya {{ $meritPoint }}" style="position:absolute;bottom:-4px;right:-4px;background:linear-gradient(135deg, #34d399 0%, #059669 100%);color:#fff;font-size:10.5px;font-weight:800;line-height:1;padding:3px 6px;border-radius:99px;box-shadow:0 1px 4px rgba(5,150,105,.4);border:2px solid var(--merit-from, #fff);">
+                                +{{ $meritBonus }}
+                            </span>
+                        @endif
                     </div>
                     {{-- text-align:left INLINE (bukan cuma di app.css): di layar kecil .ia-row memusatkan seluruh
                     teks kartu identitas, dan inline tidak butuh build CSS ulang. --}}
@@ -165,14 +178,19 @@ override tambahan. --}}
                         <div style="display:flex;gap:6px;align-items:center;justify-content:flex-start;margin-top:4px;flex-wrap:wrap;">
                             @if ($isSelf)
                                 <button type="button" wire:click="openMeritHistoryModal" class="merit-history-btn">
-                                    <i class="fa-solid fa-clock-rotate-left"></i> Riwayat
+                                    <i class="fa-solid fa-clock-rotate-left"></i>
                                 </button>
                             @endif
                             @if ($this->canCreateMeritTransaction)
                                 <button type="button" wire:click="openMeritTransactionModal" class="merit-history-btn">
-                                    <i class="fa-solid fa-plus-minus"></i> Transaksi
+                                    <i class="fa-solid fa-plus-minus"></i> Beri Poin
                                 </button>
                             @endif
+                            {{-- Info Aturan: selalu tampil (diri sendiri ATAU orang lain) - murni
+                            informasi daftar rule, bukan aksi. --}}
+                            <button type="button" wire:click="openMeritRulesInfoModal" class="merit-history-btn">
+                                <i class="fa-solid fa-circle-info"></i>
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -494,52 +512,46 @@ Pembinaan). Inline supaya tidak perlu build CSS; desktop (>=768px) tetap pill ho
             @endif
         </div>
 
-        {{-- Lampiran bebas (label ditulis sendiri oleh karyawan, bukan tipe tetap seperti
-        KTP/KK saja) - terpisah dari tab "Dokumen" yang isinya surat resmi terbitan admin
-        (lihat UserProfileDocument). Kartu ini disembunyikan total dari atasan/HC yang tidak
-        punya permission lihat_lampiran_identitas_karyawan, meskipun mereka bisa buka Data
-        Diri karyawan itu untuk tab lain. ponytail: cuma tampil di mode lihat (bukan form edit). --}}
+        {{-- Lampiran tipe tetap (App\Enum\UserProfileDocumentType: KTP/KK/STR/SIP/RKK), satu
+        slot per tipe kayak halaman Pengaturan - pilih file di slot langsung upload (updated{X}File
+        di EmployeeStatistics), tidak ada tombol submit terpisah. Terpisah dari tab "Dokumen"
+        yang isinya surat resmi terbitan admin (lihat UserProfileDocument). Kartu ini disembunyikan
+        total dari atasan/HC yang tidak punya permission lihat_lampiran_identitas_karyawan,
+        meskipun mereka bisa buka Data Diri karyawan itu untuk tab lain. ponytail: cuma tampil
+        di mode lihat (bukan form edit). --}}
         @if ($this->canViewProfileDocuments)
             <div class="card-surface" style="margin-bottom:20px;">
-                {!! $sectionHeader('fa-paperclip', 'Lampiran') !!}
+                {!! $sectionHeader('fa-paperclip', 'Dokumen') !!}
 
-                @if ($this->profileDocuments->isNotEmpty())
-                    <div class="pwa-list" style="margin-bottom:14px;">
-                        @foreach ($this->profileDocuments as $doc)
-                            <div class="pwa-list-row">
-                                <div class="pwa-tile-icon neutral"><i class="fa-solid fa-file-lines"></i></div>
-                                <a href="{{ $doc->file_url }}" target="_blank" rel="noopener" style="flex:1;min-width:0;text-decoration:none;">
-                                    <p style="font-size:13px;font-weight:600;color:var(--text-heading);margin:0;">{{ $doc->label }}</p>
-                                </a>
-                                @if ($isSelf)
-                                    <button type="button" wire:click="deleteProfileDocument('{{ $doc->id }}')" wire:confirm="Hapus lampiran ini?" style="background:none;border:none;color:var(--danger-text);cursor:pointer;padding:6px;">
+                <div class="pwa-list">
+                    @foreach ($this->documentTypeOptions as $type)
+                        @php $doc = $this->profileDocuments->firstWhere('label', $type->value); @endphp
+                        <div class="pwa-list-row" wire:loading.class="opacity-60" wire:target="{{ $type->uploadProperty() }}">
+                            <div class="pwa-tile-icon {{ $type->tileColor() }}"><i class="{{ $type->icon() }}"></i></div>
+                            <div style="flex:1;min-width:0;">
+                                <p class="doc-type-label" style="font-size:13px;font-weight:600;color:var(--text-heading);margin:0;">{{ $type->label() }}</p>
+                                @if ($doc)
+                                    <a href="{{ $doc->file_url }}" target="_blank" rel="noopener" style="font-size:11.5px;color:var(--text-muted);">Lihat berkas</a>
+                                    <span style="font-size:11.5px;color:var(--text-muted);"> &middot; Diunggah {{ $doc->updated_at->translatedFormat('d M Y H:i') }}</span>
+                                @else
+                                    <span style="font-size:11.5px;color:var(--text-muted);">Belum diunggah</span>
+                                @endif
+                                @error($type->uploadProperty()) <p style="color:var(--danger-text);font-size:11px;margin:4px 0 0;">{{ $message }}</p> @enderror
+                            </div>
+                            @if ($isSelf)
+                                <label class="btn-ghost doc-type-upload-btn" style="font-size:12px;padding:6px 12px;cursor:pointer;position:relative;overflow:hidden;white-space:nowrap;">
+                                    <i class="fa-solid fa-upload"></i> {{ $doc ? 'Ganti' : 'Unggah' }}
+                                    <input type="file" wire:model="{{ $type->uploadProperty() }}" accept="image/*,.pdf" style="position:absolute;inset:0;opacity:0;cursor:pointer;">
+                                </label>
+                                @if ($doc)
+                                    <button type="button" wire:click="deleteProfileDocument('{{ $doc->id }}')" wire:confirm="Hapus dokumen ini?" style="background:none;border:none;color:var(--danger-text);cursor:pointer;padding:6px;">
                                         <i class="fa-solid fa-trash"></i>
                                     </button>
                                 @endif
-                            </div>
-                        @endforeach
-                    </div>
-                @endif
-
-                @if ($isSelf)
-                    {{-- Satu kotak tambah lampiran, dipakai berulang - jadi satu-satunya kotak yang
-                    tampil kalau daftar di atas masih kosong, atau "tambah lagi" kalau sudah ada isinya. --}}
-                    <div style="border:1px dashed var(--border-soft);border-radius:12px;padding:14px;display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;">
-                        <div style="flex:1;min-width:160px;">
-                            <label class="form-label">Nama Lampiran</label>
-                            <input type="text" class="form-input" wire:model="newDocumentLabel" placeholder="Contoh: KTP, KK, Ijazah">
-                            @error('newDocumentLabel') <p style="color:var(--danger-text);font-size:11px;margin-top:4px;">{{ $message }}</p> @enderror
+                            @endif
                         </div>
-                        <div style="flex:1;min-width:160px;">
-                            <label class="form-label">File</label>
-                            <input type="file" wire:model="newDocumentFile" accept="image/*,.pdf" class="form-input" style="padding:6px;">
-                            @error('newDocumentFile') <p style="color:var(--danger-text);font-size:11px;margin-top:4px;">{{ $message }}</p> @enderror
-                        </div>
-                        <button type="button" wire:click="addProfileDocument" wire:loading.attr="disabled" wire:target="addProfileDocument,newDocumentFile" class="btn-primary">
-                            <i class="fa-solid fa-plus"></i> Tambah
-                        </button>
-                    </div>
-                @endif
+                    @endforeach
+                </div>
             </div>
         @endif
     @endif
@@ -1159,13 +1171,19 @@ source (tab server-render sekali jalan, x-show cuma toggle CSS). --}}
         @media (max-width: 767.98px) {
             .merit-history-panel { width: 100%; }
         }
+        {{-- Riwayat Merit Point (bukan Riwayat Perubahan Data, yang tetap slide-x polos) ikut
+        pop-in kayak modal Beri Poin (merit-modal-pop di bawah) - masuk sambil membesar dikit,
+        bukan cuma geser, instruksi user 2026-09-27. Selector 2-class supaya spesifisitasnya
+        menang atas .merit-history-panel di atas tanpa mengubah panel Riwayat Perubahan Data. --}}
+        @keyframes merit-history-slide-pop { from { transform: translateX(100%) scale(0.98); opacity: 0; } to { transform: translateX(0) scale(1); opacity: 1; } }
+        .merit-history-panel.merit-history-panel-pop { animation: merit-history-slide-pop 0.25s cubic-bezier(0.2, 0.8, 0.2, 1); }
         @media (prefers-reduced-motion: reduce) {
-            .merit-history-overlay, .merit-history-panel { animation: none; }
+            .merit-history-overlay, .merit-history-panel, .merit-history-panel.merit-history-panel-pop { animation: none; }
         }
     </style>
     @if ($showMeritHistoryModal)
     <div class="merit-history-overlay" wire:click="closeMeritHistoryModal"></div>
-    <div class="merit-history-panel" role="dialog" aria-modal="true" aria-label="Riwayat Merit Point">
+    <div class="merit-history-panel merit-history-panel-pop" role="dialog" aria-modal="true" aria-label="Riwayat Merit Point">
         <div class="merit-history-panel-header">
             <h3 style="font-size:15.5px;font-weight:700;color:var(--text-heading);margin:0;">Riwayat Merit Point</h3>
             <button type="button" wire:click="closeMeritHistoryModal" class="pwa-fullsheet-close" aria-label="Tutup">
@@ -1321,15 +1339,22 @@ source (tab server-render sekali jalan, x-show cuma toggle CSS). --}}
                     @if ($merit_rule_id)
                         @php
                             $selectedRule = $this->meritPointRules->firstWhere('id', $merit_rule_id);
+                            // Pratinjau poin BENERAN yang bakal dipakai (bisa poin bonus kalau saldo
+                            // karyawan ini sudah >= 100), bukan $selectedRule->points mentah - jangan
+                            // sampai preview beda dari yang tersimpan pas Simpan ditekan.
+                            $effectivePoints = $selectedRule ? app(\App\Services\MeritPoint\MeritPointService::class)->effectivePoints($selectedRule, $this->record->id) : null;
                         @endphp
                         @if ($selectedRule)
                             <div style="padding:10px 14px;background:var(--surface-alt);border-radius:8px;font-size:12px;display:flex;justify-content:space-between;align-items:center;">
                                 <div>
                                     <span style="font-weight:600;color:var(--text-heading);">Tipe: {{ $selectedRule->type?->getLabel() }}</span>
+                                    @if ($effectivePoints !== $selectedRule->points)
+                                        <span style="display:block;color:var(--text-muted);font-size:11px;margin-top:2px;">Poin bonus - saldo sudah 100+</span>
+                                    @endif
                                 </div>
                                 <div>
-                                    <span class="badge" style="font-size:13px;font-weight:700;background:{{ $selectedRule->points >= 0 ? '#dcfce7' : '#fee2e2' }};color:{{ $selectedRule->points >= 0 ? '#15803d' : '#b91c1c' }};">
-                                        {{ $selectedRule->points >= 0 ? '+' : '' }}{{ $selectedRule->points }} Poin
+                                    <span class="badge" style="font-size:13px;font-weight:700;background:{{ $effectivePoints >= 0 ? '#dcfce7' : '#fee2e2' }};color:{{ $effectivePoints >= 0 ? '#15803d' : '#b91c1c' }};">
+                                        {{ $effectivePoints >= 0 ? '+' : '' }}{{ $effectivePoints }} Poin
                                     </span>
                                 </div>
                             </div>
@@ -1384,6 +1409,80 @@ source (tab server-render sekali jalan, x-show cuma toggle CSS). --}}
                     </button>
                 </div>
             </form>
+        </div>
+    </div>
+@endif
+
+@if ($showMeritRulesInfoModal)
+    {{-- Info Aturan: read-only, transisi sendiri (nama keyframe beda dari merit-modal-* milik
+    modal Beri Poin) - dua-duanya sama-sama dikondisikan @if terpisah, aman kalau kebetulan
+    sama-sama dirender (tidak bentrok nama). --}}
+    <style>
+        @keyframes merit-rules-modal-fade { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes merit-rules-modal-pop { from { opacity: 0; transform: translateY(14px) scale(0.97); } to { opacity: 1; transform: none; } }
+        @keyframes merit-rules-modal-slide { from { transform: translateY(100%); } to { transform: none; } }
+        .merit-rules-modal-overlay { animation: merit-rules-modal-fade 0.18s ease-out; }
+        .merit-rules-modal-overlay > .modal-box { animation: merit-rules-modal-pop 0.22s cubic-bezier(0.2, 0.8, 0.2, 1); }
+        @media (max-width: 767.98px) {
+            .merit-rules-modal-overlay > .modal-box { animation: merit-rules-modal-slide 0.25s cubic-bezier(0.2, 0.8, 0.2, 1); }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .merit-rules-modal-overlay, .merit-rules-modal-overlay > .modal-box { animation: none; }
+        }
+    </style>
+    <div class="modal-overlay merit-rules-modal-overlay" wire:click="closeMeritRulesInfoModal">
+        <div class="modal-box" onclick="event.stopPropagation()">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+                <h3 style="font-size:15px;font-weight:700;color:var(--text-heading);margin:0;">Aturan Merit Point</h3>
+                <button type="button" wire:click="closeMeritRulesInfoModal" style="background:none;border:none;font-size:16px;color:var(--text-faint);cursor:pointer;">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            @php
+                $manualRules = $this->meritRulesInfo->where('trigger_type', \App\Enum\MeritPoint\MeritPointTriggerType::MANUAL);
+                $automaticRules = $this->meritRulesInfo->where('trigger_type', \App\Enum\MeritPoint\MeritPointTriggerType::AUTOMATIC);
+            @endphp
+
+            <p style="font-size:12px;color:var(--text-muted);margin:0 0 14px;">Kejadian di bawah otomatis menambah/mengurangi poin, atau bisa diberikan manual oleh atasan/HC.</p>
+
+            <div style="max-height:60vh;overflow-y:auto;display:flex;flex-direction:column;gap:16px;">
+                <div>
+                    <p style="font-size:11.5px;font-weight:700;color:var(--text-faint);text-transform:uppercase;letter-spacing:.04em;margin:0 0 6px;">Otomatis</p>
+                    @forelse ($automaticRules as $rule)
+                        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border-soft);">
+                            <span style="font-size:13px;color:var(--text-heading);">
+                                {{ $rule->event?->getLabel() }}
+                                @if ($rule->bonus_points !== null)
+                                    <span style="display:block;font-size:10.5px;color:var(--text-muted);">bonus {{ $rule->bonus_points >= 0 ? '+' : '' }}{{ $rule->bonus_points }} setelah 100</span>
+                                @endif
+                            </span>
+                            <strong style="font-size:13.5px;color:{{ $rule->points >= 0 ? '#15803d' : 'var(--danger-text)' }};white-space:nowrap;">{{ $rule->points >= 0 ? '+' : '' }}{{ $rule->points }}</strong>
+                        </div>
+                    @empty
+                        <p style="font-size:12px;color:var(--text-muted);margin:0;">Belum ada aturan otomatis aktif.</p>
+                    @endforelse
+                </div>
+
+                <div>
+                    <p style="font-size:11.5px;font-weight:700;color:var(--text-faint);text-transform:uppercase;letter-spacing:.04em;margin:0 0 6px;">Manual</p>
+                    @forelse ($manualRules as $rule)
+                        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border-soft);">
+                            <span style="font-size:13px;color:var(--text-heading);">
+                                {{ $rule->name }}
+                                @if ($rule->bonus_points !== null)
+                                    <span style="display:block;font-size:10.5px;color:var(--text-muted);">bonus {{ $rule->bonus_points >= 0 ? '+' : '' }}{{ $rule->bonus_points }} setelah 100</span>
+                                @endif
+                            </span>
+                            <strong style="font-size:13.5px;color:{{ $rule->points >= 0 ? '#15803d' : 'var(--danger-text)' }};white-space:nowrap;">{{ $rule->points >= 0 ? '+' : '' }}{{ $rule->points }}</strong>
+                        </div>
+                    @empty
+                        <p style="font-size:12px;color:var(--text-muted);margin:0;">Belum ada aturan manual aktif.</p>
+                    @endforelse
+                </div>
+            </div>
+
+            <button type="button" wire:click="closeMeritRulesInfoModal" class="btn-ghost" style="width:100%;justify-content:center;margin-top:16px;">Tutup</button>
         </div>
     </div>
 @endif

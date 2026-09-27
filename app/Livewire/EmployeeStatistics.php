@@ -7,7 +7,7 @@ use App\Enum\AttendanceStatus;
 use App\Enum\CustomPermissionEnum;
 use App\Enum\EmployeeTypeCategory;
 use App\Enum\Kepegawaian\KepegawaianSettingEnum;
-use App\Helpers\PermissionHelper;
+use App\Enum\UserProfileDocumentType;
 use App\Livewire\Concerns\HandlesProfilePhotoUpload;
 use App\Livewire\Concerns\ResolvesTodayAttendanceStatus;
 use App\Models\AuditLog;
@@ -17,7 +17,6 @@ use App\Models\Master\Religions;
 use App\Models\Payroll\Payroll;
 use App\Models\Setting;
 use App\Models\User;
-use App\Models\User\UserDocuments;
 use App\Models\User\UserProfileDocument;
 use App\Models\UserHrBalance;
 use App\Services\Attendance\AttendaceReqService;
@@ -75,10 +74,19 @@ class EmployeeStatistics extends Component
     public ?string $rw = null;
     public ?string $address = null;
 
-    // ── Tambah lampiran (label bebas, bukan tipe tetap) ──
-    public string $newDocumentLabel = '';
+    // ── Lampiran, satu slot upload per tipe tetap (App\Enum\UserProfileDocumentType) - pilih
+    // file langsung upload (pola sama dengan HandlesProfilePhotoUpload::$photo), tidak ada
+    // tombol submit terpisah lagi.
     /** @var \Livewire\Features\SupportFileUploads\TemporaryUploadedFile|null */
-    public $newDocumentFile = null;
+    public $ktpFile = null;
+    /** @var \Livewire\Features\SupportFileUploads\TemporaryUploadedFile|null */
+    public $kkFile = null;
+    /** @var \Livewire\Features\SupportFileUploads\TemporaryUploadedFile|null */
+    public $strFile = null;
+    /** @var \Livewire\Features\SupportFileUploads\TemporaryUploadedFile|null */
+    public $sipFile = null;
+    /** @var \Livewire\Features\SupportFileUploads\TemporaryUploadedFile|null */
+    public $rkkFile = null;
 
     public function mount(?User $record = null): void
     {
@@ -96,6 +104,7 @@ class EmployeeStatistics extends Component
             'profile.pangkat',
             'profile.kelas',
             'profile.employeeType',
+            'activeJobPosition.jobPosition',
         ]);
         // Default periode ikut cutoff absensi company (AttendancePeriodResolver, sama dengan
         // yang dipakai enforcement kuota Cuti/Izin) — bukan kalender 1-31 tetap. User tetap
@@ -255,43 +264,96 @@ class EmployeeStatistics extends Component
             ->get();
     }
 
+    /** STR/SIP/RKK cuma relevan buat nakes (JobPositions::is_nakes) - dipakai buat filter opsi
+     * dropdown lampiran DAN guard server-side di addProfileDocument(). */
+    public function getIsNakesProperty(): bool
+    {
+        return (bool) $this->record->activeJobPosition?->jobPosition?->is_nakes;
+    }
+
+    /** @return array<int, UserProfileDocumentType> */
+    public function getDocumentTypeOptionsProperty(): array
+    {
+        return UserProfileDocumentType::options($this->isNakes);
+    }
+
+    /** Pilih file di slot KTP langsung upload (pola sama HandlesProfilePhotoUpload::updatedPhoto()). */
+    public function updatedKtpFile(): void
+    {
+        $this->uploadProfileDocument(UserProfileDocumentType::KTP, 'ktpFile');
+    }
+
+    public function updatedKkFile(): void
+    {
+        $this->uploadProfileDocument(UserProfileDocumentType::KK, 'kkFile');
+    }
+
+    public function updatedStrFile(): void
+    {
+        $this->uploadProfileDocument(UserProfileDocumentType::STR, 'strFile');
+    }
+
+    public function updatedSipFile(): void
+    {
+        $this->uploadProfileDocument(UserProfileDocumentType::SIP, 'sipFile');
+    }
+
+    public function updatedRkkFile(): void
+    {
+        $this->uploadProfileDocument(UserProfileDocumentType::RKK, 'rkkFile');
+    }
+
     /**
-     * Lampiran bebas (bukan cuma KTP/KK) — karyawan tulis sendiri labelnya lalu pilih file, 1
-     * baris baru per submit (bukan upsert per tipe seperti sebelumnya, karena tidak ada lagi
-     * konsep tipe tetap). Kotak "Tambah Lampiran" di blade tetap sama baik saat daftar kosong
-     * (jadi satu-satunya kotak yang tampil) maupun sudah ada lampiran lain (jadi kotak "tambah
-     * lagi").
+     * Upload ulang tipe yang sama MENGGANTI baris lama (upsert), bukan menambah baris baru
+     * (instruksi user 2026-10-05). Satu slot tetap per tipe di blade (kayak halaman Pengaturan),
+     * bukan lagi form pilih-tipe-lalu-tambah.
      */
-    public function addProfileDocument(): void
+    private function uploadProfileDocument(UserProfileDocumentType $type, string $property): void
     {
         abort_unless($this->record->id === Auth::id(), 403);
 
+        // Jangan cuma sembunyikan slot STR/SIP/RKK di UI - tolak juga di server, request bisa
+        // dimanipulasi manual.
+        abort_if($type->nakesOnly() && ! $this->isNakes, 403);
+
         $this->validate([
-            'newDocumentLabel' => ['required', 'string', 'max:100'],
-            'newDocumentFile' => ['required', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+            $property => ['required', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
         ]);
+
+        /** @var \Livewire\Features\SupportFileUploads\TemporaryUploadedFile $file */
+        $file = $this->$property;
 
         // Lampiran data diri (KTP/KK/dsb) disimpan TERENKRIPSI di disk privat 'local'
         // (storage/app/private, tidak web-accessible) — beda dari lampiran lain yang plaintext
         // di 'public'. Dilayani lewat route profil-saya.lampiran.show yang decrypt + cek izin.
-        $ext = strtolower($this->newDocumentFile->getClientOriginalExtension() ?: $this->newDocumentFile->extension());
+        $ext = strtolower($file->getClientOriginalExtension() ?: $file->extension());
         $path = 'profile-documents/' . $this->record->id . '/' . Str::ulid() . '.' . $ext;
 
         Storage::disk('local')->put(
             $path,
-            Crypt::encryptString(file_get_contents($this->newDocumentFile->getRealPath()))
+            Crypt::encryptString(file_get_contents($file->getRealPath()))
         );
 
-        UserProfileDocument::create([
-            'user_id' => $this->record->id,
-            'label' => $this->newDocumentLabel,
-            'file_path' => $path,
-        ]);
+        $existing = UserProfileDocument::query()
+            ->where('user_id', $this->record->id)
+            ->where('label', $type->value)
+            ->first();
 
-        $this->newDocumentLabel = '';
-        $this->newDocumentFile = null;
+        if ($existing) {
+            Storage::disk('local')->delete($existing->file_path);
+            Storage::disk('public')->delete($existing->file_path);
+            $existing->update(['file_path' => $path]);
+        } else {
+            UserProfileDocument::create([
+                'user_id' => $this->record->id,
+                'label' => $type->value,
+                'file_path' => $path,
+            ]);
+        }
 
-        Notification::make()->title('Lampiran berhasil diunggah')->success()->send();
+        $this->$property = null;
+
+        Notification::make()->title('Dokumen berhasil diunggah')->success()->send();
     }
 
     public function deleteProfileDocument(string $documentId): void
@@ -307,7 +369,7 @@ class EmployeeStatistics extends Component
         Storage::disk('public')->delete($document->file_path);
         $document->delete();
 
-        Notification::make()->title('Lampiran dihapus')->success()->send();
+        Notification::make()->title('Dokumen dihapus')->success()->send();
     }
 
     /** Tab "Pembinaan" — karyawan itu sendiri, atasan langsung/hierarki-nya (instruksi user
@@ -411,7 +473,40 @@ class EmployeeStatistics extends Component
         $this->showMeritHistoryModal = false;
     }
 
-    // ── Transaksi Merit Point Modal ──
+    // ── Info Aturan Merit Point (panel read-only, instruksi user 2026-09-27) ── Daftar semua
+    // rule aktif (manual & otomatis) company ini, supaya siapa pun yang lihat widget - diri
+    // sendiri ATAU orang lain - tahu persis kejadian apa dapat berapa poin (mis. "Terlambat -1",
+    // "Ikut Pelatihan +5"), tanpa perlu buka Pengaturan Kepegawaian. Cuma informasi, tidak ada
+    // permission khusus - siapa pun yang bisa lihat widget ($showMeritBeside di blade) boleh buka.
+    public bool $showMeritRulesInfoModal = false;
+
+    public function getMeritRulesInfoProperty()
+    {
+        if (! $this->showMeritRulesInfoModal) {
+            return collect();
+        }
+
+        return \App\Models\MeritPoint\MeritPointRule::where('company_id', $this->record->company_id)
+            ->where('is_active', true)
+            ->orderBy('trigger_type')
+            ->orderBy('name')
+            ->get();
+    }
+
+    public function openMeritRulesInfoModal(): void
+    {
+        abort_unless($this->meritPointEnabled, 403);
+
+        $this->showMeritRulesInfoModal = true;
+    }
+
+    public function closeMeritRulesInfoModal(): void
+    {
+        $this->showMeritRulesInfoModal = false;
+    }
+
+    // ── Transaksi Merit Point Modal ── Rule ATAU manual bebas (dikembalikan 2026-09-27 - user
+    // sempat minta manual dihapus, tapi berubah pikiran, tab manual balik lagi).
     public bool $showMeritTransactionModal = false;
     public string $meritTab = 'rule';
     public ?string $merit_rule_id = null;
@@ -419,24 +514,30 @@ class EmployeeStatistics extends Component
     public ?int $merit_points = null;
     public string $merit_reason = '';
 
+    // Satu permission custom (BERI_MERIT_POINT), bukan lagi 7 verb Shield Create:MeritPointTransaction
+    // dkk (MeritPointTransactionResource dihapus 2026-09-27) - Super Admin & role Pembinaan sudah
+    // di-grant literal lewat migration, jadi cukup 1 cek di sini (define_via_gate=false, tidak ada
+    // bypass otomatis, lihat App\Enum\CustomPermissionEnum::BERI_MERIT_POINT). Tidak boleh beri
+    // poin ke DIRI SENDIRI walau punya permission-nya (instruksi user 2026-09-27) - dicek di sini
+    // (bukan cuma sembunyikan tombol) karena property ini juga jadi abort_unless() di
+    // openMeritTransactionModal()/saveMeritTransaction(), jadi otomatis kena di server juga.
     public function getCanCreateMeritTransactionProperty(): bool
     {
         $user = Auth::user();
-        if (! $user) {
-            return false;
-        }
 
-        return $user->can('Create:MeritPointTransaction')
-            || $user->can(CustomPermissionEnum::SISTEM_PEMBINAAN_KARYAWAN->value)
-            || PermissionHelper::hasGlobalRole($user);
+        return $user && $user->id !== $this->record->id && $user->can(CustomPermissionEnum::BERI_MERIT_POINT->value);
     }
 
+    /** Cuma rule MANUAL - rule Otomatis (trigger_type=automatic) dikelola sendiri oleh sistem
+     * lewat MeritPointService::applyEvent(), tidak boleh dipilih untuk diberikan manual di sini
+     * (bisa dobel dengan yang otomatis). */
     public function getMeritPointRulesProperty()
     {
         $companyId = $this->record->company_id;
 
         return \App\Models\MeritPoint\MeritPointRule::query()
             ->where('is_active', true)
+            ->where('trigger_type', \App\Enum\MeritPoint\MeritPointTriggerType::MANUAL->value)
             ->when($companyId, fn ($q) => $q->where('company_id', $companyId))
             ->get();
     }
@@ -489,8 +590,20 @@ class EmployeeStatistics extends Component
                 'merit_reason.required' => 'Keterangan/catatan wajib diisi.',
             ]);
 
-            $rule = \App\Models\MeritPoint\MeritPointRule::findOrFail($this->merit_rule_id);
-            $points = $rule->points;
+            // findOrFail lewat meritPointRules (bukan MeritPointRule::findOrFail polos) - jaga
+            // rule yang dipilih benar rule MANUAL milik company ini, bukan hasil payload
+            // dimanipulasi (mis. ID rule Otomatis company lain).
+            $rule = $this->meritPointRules->firstWhere('id', $this->merit_rule_id);
+
+            if (! $rule) {
+                $this->addError('merit_rule_id', 'Aturan tidak ditemukan.');
+
+                return;
+            }
+
+            // effectivePoints(), bukan $rule->points polos - rule Reward yang punya bonus_points
+            // dipetakan ke poin bonus (bukan poin biasa) kalau saldo karyawan sudah >= 100.
+            $points = app(\App\Services\MeritPoint\MeritPointService::class)->effectivePoints($rule, $this->record->id);
             $ruleId = $rule->id;
         } else {
             $this->validate([
@@ -996,14 +1109,6 @@ class EmployeeStatistics extends Component
             ->get()
             ->sortByDesc(fn (Payroll $p) => $p->payrollPeriod?->end_date)
             ->values();
-    }
-
-    public function getDocumentsProperty()
-    {
-        return UserDocuments::query()
-            ->where('user_id', $this->record->id)
-            ->orderByDesc('issued_date')
-            ->get();
     }
 
     private function keterangan(AttendanceRequests $record): string

@@ -12,7 +12,6 @@ use App\Models\Master\EmployeeTypes;
 use App\Models\Master\JobPositions;
 use App\Models\Permission;
 use App\Models\User;
-use App\Models\User\UserDocuments;
 use App\Models\User\UserJobPositions;
 use App\Models\User\UserProfileDocument;
 use App\Models\User\UserProfiles;
@@ -228,49 +227,6 @@ class EmployeeStatisticsTest extends TestCase
             ->assertForbidden();
     }
 
-    /** Tab Dokumen dilepas dari Profil Saya (2026-09-26, instruksi user): dokumen tidak lagi tampil di sini. */
-    public function test_documents_tab_is_removed_from_profile(): void
-    {
-        $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
-
-        $managerPosition = JobPositions::create(['company_id' => $company->id, 'name' => 'Manager', 'planned_manpower' => 1]);
-        $staffPosition = JobPositions::create(['company_id' => $company->id, 'name' => 'Staff', 'planned_manpower' => 1, 'parent_id' => $managerPosition->id]);
-
-        $manager = User::factory()->create(['company_id' => $company->id]);
-        $this->assignJobPosition($manager, $managerPosition);
-
-        $staff = User::factory()->create(['company_id' => $company->id]);
-        $this->assignJobPosition($staff, $staffPosition);
-
-        $otherStaff = User::factory()->create(['company_id' => $company->id]);
-
-        UserDocuments::create([
-            'user_id' => $staff->id,
-            'document_type' => 'work_certificate',
-            'user_name' => $staff->name,
-            'document_number' => 'SKK/001/2026',
-            'issued_date' => now()->toDateString(),
-            'file_path' => 'user-documents/' . $staff->id . '/skk.pdf',
-        ]);
-
-        UserDocuments::create([
-            'user_id' => $otherStaff->id,
-            'document_type' => 'work_certificate',
-            'user_name' => $otherStaff->name,
-            'document_number' => 'SKK/999/2026',
-            'issued_date' => now()->toDateString(),
-            'file_path' => 'user-documents/' . $otherStaff->id . '/skk.pdf',
-        ]);
-
-        $this->assignEmployeeType($staff, $company);
-
-        $this->actingAs($manager);
-
-        Livewire::test(EmployeeStatistics::class, ['record' => $staff])
-            ->assertDontSee('SKK/001/2026')
-            ->assertDontSee('SKK/999/2026');
-    }
-
     private function makePayroll(User $user, bool $isPaid, array $periodOverrides = []): \App\Models\Payroll\Payroll
     {
         $period = \App\Models\Payroll\PayrollPeriod::create(array_merge([
@@ -369,7 +325,6 @@ class EmployeeStatisticsTest extends TestCase
             ->assertSee('Presensi')
             ->assertDontSee('Presensi & Absensi')
             ->assertDontSee('Riwayat Pengajuan')
-            ->assertDontSee('Dokumen')
             ->assertDontSee('Penggajian');
     }
 
@@ -453,7 +408,7 @@ class EmployeeStatisticsTest extends TestCase
             ->assertForbidden();
     }
 
-    public function test_owner_can_add_own_attachments_with_free_label(): void
+    public function test_owner_can_add_own_attachments_with_fixed_types(): void
     {
         \Illuminate\Support\Facades\Storage::fake('local');
 
@@ -464,17 +419,77 @@ class EmployeeStatisticsTest extends TestCase
         $this->actingAs($staff);
 
         Livewire::test(EmployeeStatistics::class, ['record' => $staff])
-            ->set('newDocumentLabel', 'KTP')
-            ->set('newDocumentFile', \Illuminate\Http\UploadedFile::fake()->image('ktp.jpg'))
-            ->call('addProfileDocument')
+            ->set('ktpFile', \Illuminate\Http\UploadedFile::fake()->image('ktp.jpg'))
             ->assertHasNoErrors()
-            ->set('newDocumentLabel', 'Ijazah')
-            ->set('newDocumentFile', \Illuminate\Http\UploadedFile::fake()->create('ijazah.pdf', 100, 'application/pdf'))
-            ->call('addProfileDocument')
+            ->set('kkFile', \Illuminate\Http\UploadedFile::fake()->create('kk.pdf', 100, 'application/pdf'))
             ->assertHasNoErrors();
 
         $labels = \App\Models\User\UserProfileDocument::where('user_id', $staff->id)->pluck('label');
-        $this->assertEqualsCanonicalizing(['KTP', 'Ijazah'], $labels->all());
+        $this->assertEqualsCanonicalizing(['KTP', 'KK'], $labels->all());
+    }
+
+    /** Upload ulang tipe yang sama MENGGANTI baris lama, bukan menambah baris baru (instruksi user 2026-10-05). */
+    public function test_reuploading_same_type_replaces_old_row_and_file(): void
+    {
+        \Illuminate\Support\Facades\Storage::fake('local');
+
+        $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
+        $staff = User::factory()->create(['company_id' => $company->id]);
+        UserProfiles::create(['user_id' => $staff->id]);
+
+        $this->actingAs($staff);
+
+        $component = Livewire::test(EmployeeStatistics::class, ['record' => $staff])
+            ->set('ktpFile', \Illuminate\Http\UploadedFile::fake()->image('ktp-lama.jpg'))
+            ->assertHasNoErrors();
+
+        $oldPath = \App\Models\User\UserProfileDocument::where('user_id', $staff->id)->where('label', 'KTP')->firstOrFail()->file_path;
+
+        $component
+            ->set('ktpFile', \Illuminate\Http\UploadedFile::fake()->image('ktp-baru.jpg'))
+            ->assertHasNoErrors();
+
+        $rows = \App\Models\User\UserProfileDocument::where('user_id', $staff->id)->where('label', 'KTP')->get();
+        $this->assertCount(1, $rows);
+        $this->assertNotSame($oldPath, $rows->first()->file_path);
+        \Illuminate\Support\Facades\Storage::disk('local')->assertMissing($oldPath);
+    }
+
+    /** STR/SIP/RKK cuma buat nakes (JobPositions::is_nakes) - ditolak di server, bukan cuma disembunyikan di UI. */
+    public function test_non_nakes_cannot_add_str_attachment(): void
+    {
+        $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
+        $staffPosition = JobPositions::create(['company_id' => $company->id, 'name' => 'Staff', 'planned_manpower' => 1, 'is_nakes' => false]);
+
+        $staff = User::factory()->create(['company_id' => $company->id]);
+        $this->assignJobPosition($staff, $staffPosition);
+        UserProfiles::create(['user_id' => $staff->id]);
+
+        $this->actingAs($staff);
+
+        Livewire::test(EmployeeStatistics::class, ['record' => $staff])
+            ->set('strFile', \Illuminate\Http\UploadedFile::fake()->create('str.pdf', 100, 'application/pdf'))
+            ->assertForbidden();
+    }
+
+    public function test_nakes_can_add_str_attachment(): void
+    {
+        \Illuminate\Support\Facades\Storage::fake('local');
+
+        $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
+        $nakesPosition = JobPositions::create(['company_id' => $company->id, 'name' => 'Perawat', 'planned_manpower' => 1, 'is_nakes' => true]);
+
+        $staff = User::factory()->create(['company_id' => $company->id]);
+        $this->assignJobPosition($staff, $nakesPosition);
+        UserProfiles::create(['user_id' => $staff->id]);
+
+        $this->actingAs($staff);
+
+        Livewire::test(EmployeeStatistics::class, ['record' => $staff])
+            ->set('strFile', \Illuminate\Http\UploadedFile::fake()->create('str.pdf', 100, 'application/pdf'))
+            ->assertHasNoErrors();
+
+        $this->assertDatabaseHas('user_profile_documents', ['user_id' => $staff->id, 'label' => 'STR']);
     }
 
     public function test_uploaded_attachment_is_encrypted_at_rest_and_served_decrypted(): void
@@ -488,9 +503,7 @@ class EmployeeStatisticsTest extends TestCase
         $this->actingAs($staff);
 
         Livewire::test(EmployeeStatistics::class, ['record' => $staff])
-            ->set('newDocumentLabel', 'KTP')
-            ->set('newDocumentFile', \Illuminate\Http\UploadedFile::fake()->createWithContent('ktp.pdf', '%PDF-1.4 rahasia'))
-            ->call('addProfileDocument')
+            ->set('ktpFile', \Illuminate\Http\UploadedFile::fake()->createWithContent('ktp.pdf', '%PDF-1.4 rahasia'))
             ->assertHasNoErrors();
 
         $doc = UserProfileDocument::where('user_id', $staff->id)->firstOrFail();
@@ -546,9 +559,7 @@ class EmployeeStatisticsTest extends TestCase
         $this->actingAs($manager);
 
         Livewire::test(EmployeeStatistics::class, ['record' => $staff])
-            ->set('newDocumentLabel', 'KTP')
-            ->set('newDocumentFile', \Illuminate\Http\UploadedFile::fake()->image('ktp.jpg'))
-            ->call('addProfileDocument')
+            ->set('ktpFile', \Illuminate\Http\UploadedFile::fake()->image('ktp.jpg'))
             ->assertForbidden();
     }
 
@@ -580,7 +591,7 @@ class EmployeeStatisticsTest extends TestCase
 
         $component = Livewire::test(EmployeeStatistics::class, ['record' => $staff]);
 
-        $component->assertDontSee('Lampiran');
+        $component->assertDontSee('Dokumen');
         $this->assertFalse($component->get('canViewProfileDocuments'));
     }
 
@@ -608,7 +619,7 @@ class EmployeeStatisticsTest extends TestCase
         $this->actingAs($manager);
 
         Livewire::test(EmployeeStatistics::class, ['record' => $staff])
-            ->assertSee('Lampiran');
+            ->assertSee('Dokumen');
     }
 
     public function test_owner_can_always_see_own_attachments_without_permission(): void
@@ -620,7 +631,7 @@ class EmployeeStatisticsTest extends TestCase
         $this->actingAs($staff);
 
         Livewire::test(EmployeeStatistics::class, ['record' => $staff])
-            ->assertSee('Lampiran');
+            ->assertSee('Dokumen');
     }
 
     /**

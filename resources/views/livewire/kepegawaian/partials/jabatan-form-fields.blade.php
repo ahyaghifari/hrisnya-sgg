@@ -81,10 +81,13 @@
         </div>
 
         <div>
-            <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;">
-                <input type="checkbox" wire:model="is_nakes" @disabled($disabled)>
-                <span>Tenaga Kesehatan (Nakes)</span>
-            </label>
+            <div style="display:flex;align-items:center;gap:8px;">
+                <label class="custom-checkbox">
+                    <input type="checkbox" wire:model="is_nakes" @disabled($disabled)>
+                    <span class="box"><i class="fa-solid fa-check"></i></span>
+                </label>
+                <span style="font-size:13px;">Tenaga Kesehatan (Nakes)</span>
+            </div>
             <p style="font-size:11px;color:var(--text-muted);margin:4px 0 0;">Karyawan dengan jabatan ini dianggap nakes.</p>
         </div>
 

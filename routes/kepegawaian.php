@@ -2,8 +2,6 @@
 
 use App\Livewire\Kepegawaian\CreateKaryawan;
 use App\Livewire\Kepegawaian\CreateUserTransitionPage;
-use App\Livewire\Kepegawaian\DocumentFormPage;
-use App\Livewire\Kepegawaian\DocumentsPage;
 use App\Livewire\Kepegawaian\EditKaryawan;
 use App\Livewire\Kepegawaian\KaryawanPage;
 use App\Livewire\Kepegawaian\KepegawaianDashboardPage;
@@ -33,15 +31,6 @@ Route::get('/kepegawaian/karyawan/tambah', CreateKaryawan::class)
 
 Route::get('/kepegawaian/karyawan/{record}/edit', EditKaryawan::class)
     ->name('kepegawaian.karyawan.edit');
-
-Route::get('/kepegawaian/dokumen', DocumentsPage::class)
-    ->name('kepegawaian.dokumen');
-
-Route::get('/kepegawaian/dokumen/tambah', DocumentFormPage::class)
-    ->name('kepegawaian.dokumen.create');
-
-Route::get('/kepegawaian/dokumen/{record}/edit', DocumentFormPage::class)
-    ->name('kepegawaian.dokumen.edit');
 
 // Data ledger periode kontrak & orientasi berjalan (Kepegawaian > Status Karyawan). Alur
 // PENGAJUAN perpanjangan/penilaian ada di dropdown Sikartap (sikartap.kontrak/.orientasi).
