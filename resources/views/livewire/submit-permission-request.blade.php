@@ -20,10 +20,10 @@
             <div>
                 <p style="font-size:12.5px;font-weight:700;color:var(--warn-soft-text);margin:0 0 6px;">Kuota Izin Periode Ini</p>
                 @if ($usage['max'] > 0)
-                    <span class="saldo-pill" style="background:var(--warn-soft-bg);border-color:var(--warn-soft-border);color:var(--warn-soft-text);">
-                        <i class="fa-solid fa-calendar-days" style="font-size:10px;"></i> Sisa <strong>{{ $usage['available'] }} hari</strong> dari {{ $usage['max'] }} hari
-                        <br>
-                        <span> (periode {{ $usage['period_start']->translatedFormat('d M') }} – {{ $usage['period_end']->translatedFormat('d M Y') }})</span>
+                    {{-- flex-direction:column - .saldo-pill inline-flex, <br> tidak memecah baris di dalamnya. --}}
+                    <span class="saldo-pill" style="background:var(--warn-soft-bg);border-color:var(--warn-soft-border);color:var(--warn-soft-text);flex-direction:column;align-items:flex-start;gap:2px;border-radius:12px;">
+                        <span><i class="fa-solid fa-calendar-days" style="font-size:10px;"></i> Sisa <strong>{{ $usage['available'] }} hari</strong> dari {{ $usage['max'] }} hari</span>
+                        <span style="font-weight:500;">Periode {{ $usage['period_start']->translatedFormat('d M') }} – {{ $usage['period_end']->translatedFormat('d M Y') }}</span>
                     </span>
                 @else
                     <span style="font-size:11.5px;color:var(--text-muted);">Tidak dibatasi.</span>

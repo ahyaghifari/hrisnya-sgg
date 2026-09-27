@@ -49,7 +49,10 @@
                 @if ($periode)
                     <div style="margin-top:8px;">
                         @if ($periode['max'] > 0)
-                            <span class="saldo-pill"><i class="fa-solid fa-calendar-days" style="font-size:10px;"></i> Sisa <strong>{{ $periode['available'] }} hari</strong> dari {{ $periode['max'] }} hari (periode {{ $periode['period_start']->translatedFormat('d M') }} – {{ $periode['period_end']->translatedFormat('d M Y') }})</span>
+                            <span class="saldo-pill" style="flex-direction:column;align-items:flex-start;gap:2px;border-radius:12px;">
+                                <span><i class="fa-solid fa-calendar-days" style="font-size:10px;"></i> Sisa <strong>{{ $periode['available'] }} hari</strong> dari {{ $periode['max'] }} hari</span>
+                                <span style="font-weight:500;">Periode {{ $periode['period_start']->translatedFormat('d M') }} – {{ $periode['period_end']->translatedFormat('d M Y') }}</span>
+                            </span>
                         @else
                             <span style="font-size:11.5px;color:var(--text-muted);">Batas per periode: tidak dibatasi.</span>
                         @endif
