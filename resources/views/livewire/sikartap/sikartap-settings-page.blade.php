@@ -1,4 +1,4 @@
-<div class="p-4 md:p-6">
+<div>
     <x-page-header title="Pengaturan Sikartap" subtitle="Wajib Ide Inovasi & wajib MCU - beda-beda per perusahaan" />
 
     <div class="mt-4">
