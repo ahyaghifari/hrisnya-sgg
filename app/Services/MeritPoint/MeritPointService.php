@@ -5,6 +5,7 @@ namespace App\Services\MeritPoint;
 use App\Enum\Kepegawaian\KepegawaianSettingEnum;
 use App\Enum\MeritPoint\MeritPointEvent;
 use App\Enum\MeritPoint\MeritPointTriggerType;
+use App\Enum\MeritPoint\MeritPointType;
 use App\Models\MeritPoint\MeritPointRule;
 use App\Models\MeritPoint\MeritPointTransaction;
 use App\Models\Setting;
@@ -17,11 +18,18 @@ use Illuminate\Support\Facades\DB;
  * (dikelola terpisah oleh SpService).
  *
  * Cara hitung: saldo MULAI dari 100 (karyawan tanpa transaksi = skor penuh, sama dengan widget
- * tab Karir), lalu ledger diputar berurutan dan dijepit 0..100 di SETIAP transaksi - persis
- * contoh dokumen acuan §9 (100 +15 = 100, lalu -5 = 95). Bukan SUM lalu dijepit sekali di
- * akhir: itu bikin penalti "tertelan" reward yang tadinya kelebihan di atas 100, dan transaksi
- * pertama dihitung dari 0 (-5 jadi 0, bukan 95). Ledger kecil per karyawan (demo), jadi
- * diputar ulang penuh tiap kali - bukan disimpan inkremental.
+ * tab Karir), lalu ledger diputar berurutan dan dijepit di LANTAI 0 di SETIAP transaksi - persis
+ * contoh dokumen acuan §9 (100 +15 = 115, lalu -5 = 110). Bukan SUM lalu dijepit sekali di
+ * akhir: itu bikin transaksi pertama dihitung dari 0 (-5 jadi 0, bukan 95) kalau urutannya
+ * penalti duluan. Ledger kecil per karyawan (demo), jadi diputar ulang penuh tiap kali - bukan
+ * disimpan inkremental.
+ *
+ * "Poin Bonus" (instruksi user 2026-09-27): saldo TIDAK lagi dijepit di 100 - boleh lewat
+ * (112, 101, dst), widget tab Karir menampilkan kelebihannya sebagai badge "+12" terpisah dari
+ * angka 100. Supaya tidak semua rule Reward otomatis "meledak" tak terbatas past 100, rule bisa
+ * diisi kolom `bonus_points` (biasanya lebih kecil dari `points`) - begitu saldo SUDAH >= 100,
+ * rule itu pakai `bonus_points`, bukan `points`, lihat effectivePoints(). Kolom kosong (null) =
+ * rule tetap pakai `points` apa adanya walau sudah >= 100 (perilaku lama).
  */
 class MeritPointService
 {
@@ -66,11 +74,27 @@ class MeritPointService
         return $this->addTransaction([
             'user_id' => $userId,
             'rule_id' => $rule->id,
-            'points' => $rule->points,
+            'points' => $this->effectivePoints($rule, $userId),
             'reason' => $reason,
             'source_type' => $sourceType,
             'source_id' => $sourceId,
         ]);
+    }
+
+    /**
+     * Poin yang BENERAN dipakai untuk 1 kejadian rule $rule pada karyawan $userId, dengan poin
+     * bonus diperhitungkan - satu-satunya tempat logic ini ditulis, dipakai baik jalur otomatis
+     * (applyEvent di atas) maupun manual "Pakai Aturan" (EmployeeStatistics::saveMeritTransaction).
+     * Cuma rule Reward yang punya `bonus_points` terisi yang kena efek ini; Penalty/Contribution
+     * atau Reward tanpa bonus_points tetap pakai `points` apa adanya, berapa pun saldo sekarang.
+     */
+    public function effectivePoints(MeritPointRule $rule, string $userId): int
+    {
+        if ($rule->type !== MeritPointType::REWARD || $rule->bonus_points === null) {
+            return $rule->points;
+        }
+
+        return $this->computeBalance($userId) >= self::BASELINE ? $rule->bonus_points : $rule->points;
     }
 
     /** Batalkan transaksi otomatis suatu kejadian (mis. SP dibatalkan, keterlambatan dikoreksi jadi 0). */
@@ -108,8 +132,10 @@ class MeritPointService
         return $this->clamp($this->computeBalance($userId) + $delta);
     }
 
+    /** Lantai 0 saja - TIDAK ada lagi plafon 100 (instruksi user 2026-09-27, lihat docblock
+     * class). Penalti tetap tidak bisa bikin saldo negatif. */
     private function clamp(int $value): int
     {
-        return max(0, min(100, $value));
+        return max(0, $value);
     }
 }

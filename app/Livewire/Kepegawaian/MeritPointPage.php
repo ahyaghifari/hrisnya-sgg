@@ -30,17 +30,29 @@ class MeritPointPage extends Component
     public bool $showForm = false;
     public ?string $ruleId = null;
     public string $name = '';
-    public string $type = 'penalty';
+    // Sengaja tanpa default (instruksi user 2026-09-27) - admin harus pilih sendiri Reward/Penalty,
+    // tidak boleh kepencet Simpan tanpa sadar dengan tipe yang kepilih diam-diam.
+    public string $type = '';
     public int|string $points = 0;
-    public string $trigger_type = 'manual';
-    public ?string $event = null;
+    // Kosong = null (tidak ada poin bonus, rule tetap pakai `points` walau saldo sudah >= 100).
+    // Cuma relevan buat Tipe Reward - lihat MeritPointService::effectivePoints().
+    public int|string|null $bonus_points = '';
     public bool $is_active = true;
+
+    /** @var array<string, array{id: ?string, type: string, points: int|string, bonus_points: int|string, is_active: bool}>
+     * keyBy MeritPointEvent->value - selalu berisi SEMUA kejadian (App\Enum\MeritPoint::cases()),
+     * baris yang belum pernah disimpan tampil dengan default kosong/nonaktif (pola sama
+     * ExtraShiftRule - "baris tidak ada = tidak berlaku"), bukan cuma yang sudah pernah dibuat
+     * admin. Ini yang membedakan section "Otomatis" dari "Aturan Poin" (manual): otomatis TIDAK
+     * ditambah/dihapus admin, cuma 4 baris tetap (1 per MeritPointEvent) yang diisi. */
+    public array $automaticForm = [];
 
     public function mount(): void
     {
-        abort_unless(Auth::user()->can('ViewAny:MeritPointRule') || Auth::user()->can('ViewAny:MeritPointTransaction'), 403);
+        abort_unless(Auth::user()->can('ViewAny:MeritPointRule') || Auth::user()->can(\App\Enum\CustomPermissionEnum::BERI_MERIT_POINT->value), 403);
 
         $this->companyId = Auth::user()->company_id ?? Companies::orderBy('code')->value('id');
+        $this->loadAutomaticForm();
     }
 
     public function updatedCompanyId(): void
@@ -49,6 +61,30 @@ class MeritPointPage extends Component
         if (! Auth::user()->canFilterByCompany()) {
             $this->companyId = Auth::user()->company_id;
         }
+
+        $this->loadAutomaticForm();
+    }
+
+    private function loadAutomaticForm(): void
+    {
+        $existing = MeritPointRule::where('company_id', $this->companyId)
+            ->where('trigger_type', MeritPointTriggerType::AUTOMATIC->value)
+            ->get()
+            ->keyBy(fn (MeritPointRule $r) => $r->event->value);
+
+        $this->automaticForm = collect(MeritPointEvent::cases())
+            ->mapWithKeys(function (MeritPointEvent $event) use ($existing) {
+                $rule = $existing->get($event->value);
+
+                return [$event->value => [
+                    'id' => $rule?->id,
+                    'type' => $rule?->type->value ?? MeritPointType::PENALTY->value,
+                    'points' => $rule?->points ?? 0,
+                    'bonus_points' => $rule?->bonus_points ?? '',
+                    'is_active' => $rule?->is_active ?? false,
+                ]];
+            })
+            ->all();
     }
 
     public function getCompaniesProperty()
@@ -101,10 +137,13 @@ class MeritPointPage extends Component
             ->get();
     }
 
+    /** Cuma rule MANUAL - Otomatis (trigger_type=automatic) punya section tersendiri
+     * (automaticForm, 4 baris tetap), tidak ikut di daftar "Aturan Poin" ini lagi. */
     public function getRulesProperty()
     {
         return MeritPointRule::where('company_id', $this->companyId)
-            ->orderByDesc('is_active')->orderBy('trigger_type')->orderBy('name')
+            ->where('trigger_type', MeritPointTriggerType::MANUAL->value)
+            ->orderByDesc('is_active')->orderBy('name')
             ->get();
     }
 
@@ -115,17 +154,20 @@ class MeritPointPage extends Component
         $this->showForm = true;
     }
 
+    /** @param string $id MeritPointRule::id - cuma rule manual yang boleh diedit lewat modal ini
+     * (findOrFail dengan filter trigger_type manual, bukan cuma company_id). */
     public function edit(string $id): void
     {
         abort_unless(Auth::user()->can('Update:MeritPointRule'), 403);
-        $rule = MeritPointRule::where('company_id', $this->companyId)->findOrFail($id);
+        $rule = MeritPointRule::where('company_id', $this->companyId)
+            ->where('trigger_type', MeritPointTriggerType::MANUAL->value)
+            ->findOrFail($id);
 
         $this->ruleId = $rule->id;
         $this->name = $rule->name;
         $this->type = $rule->type->value;
         $this->points = $rule->points;
-        $this->trigger_type = $rule->trigger_type->value;
-        $this->event = $rule->event?->value;
+        $this->bonus_points = $rule->bonus_points ?? '';
         $this->is_active = $rule->is_active;
         $this->showForm = true;
     }
@@ -138,40 +180,47 @@ class MeritPointPage extends Component
     public function toggleActive(string $id): void
     {
         abort_unless(Auth::user()->can('Update:MeritPointRule'), 403);
-        $rule = MeritPointRule::where('company_id', $this->companyId)->findOrFail($id);
+        $rule = MeritPointRule::where('company_id', $this->companyId)
+            ->where('trigger_type', MeritPointTriggerType::MANUAL->value)
+            ->findOrFail($id);
         $rule->update(['is_active' => ! $rule->is_active]);
     }
 
+    /** Modal "Tambah/Ubah Aturan" SELALU manual - tidak ada pilihan Cara Pemakaian lagi
+     * (instruksi user 2026-09-27: rule yang dibuat admin lewat sini pasti manual, otomatis
+     * cuma 4 baris tetap yang diisi lewat saveAutomaticRule()). */
     public function save(): void
     {
         abort_unless(Auth::user()->can($this->ruleId ? 'Update:MeritPointRule' : 'Create:MeritPointRule'), 403);
 
-        $auto = $this->trigger_type === MeritPointTriggerType::AUTOMATIC->value;
+        // Livewire ->validate() tidak lewat middleware ConvertEmptyStringsToNull bawaan Laravel
+        // (itu cuma jalan di request HTTP asli) - text input kosong ('') harus dikonversi manual
+        // biar rule 'nullable|integer' benar-benar melewatkan field kosong, bukan menolaknya.
+        if ($this->bonus_points === '') {
+            $this->bonus_points = null;
+        }
 
         $data = $this->validate([
             'name' => 'required|string|max:255',
             'type' => ['required', Rule::enum(MeritPointType::class)],
             'points' => 'required|integer',
-            'trigger_type' => ['required', Rule::enum(MeritPointTriggerType::class)],
-            'event' => [$auto ? 'required' : 'nullable', Rule::enum(MeritPointEvent::class)],
+            'bonus_points' => 'nullable|integer',
             'is_active' => 'boolean',
         ]);
 
-        if (! $auto) {
-            $data['event'] = null;
-        }
-
-        // Satu rule aktif per kejadian per company - kalau dobel, sistem cuma memakai yang pertama ketemu.
-        if ($auto && $data['is_active'] && MeritPointRule::where('company_id', $this->companyId)
-            ->where('trigger_type', 'automatic')->where('event', $data['event'])->where('is_active', true)
-            ->when($this->ruleId, fn ($q) => $q->where('id', '!=', $this->ruleId))->exists()) {
-            $this->addError('event', 'Sudah ada rule otomatis aktif untuk kejadian ini. Nonaktifkan dulu yang lama.');
-
-            return;
+        $data['trigger_type'] = MeritPointTriggerType::MANUAL->value;
+        $data['event'] = null;
+        // Poin bonus cuma relevan buat Reward - jangan simpan sisa angka lama kalau admin ganti
+        // Tipe ke Penalty (field-nya disembunyikan di form, tapi property Livewire-nya tetap
+        // kebawa kalau tidak dibersihkan di sini).
+        if ($data['type'] !== MeritPointType::REWARD->value) {
+            $data['bonus_points'] = null;
         }
 
         if ($this->ruleId) {
-            MeritPointRule::where('company_id', $this->companyId)->findOrFail($this->ruleId)->update($data);
+            MeritPointRule::where('company_id', $this->companyId)
+                ->where('trigger_type', MeritPointTriggerType::MANUAL->value)
+                ->findOrFail($this->ruleId)->update($data);
         } else {
             MeritPointRule::create($data + ['company_id' => $this->companyId]);
         }
@@ -182,8 +231,50 @@ class MeritPointPage extends Component
 
     private function resetForm(): void
     {
-        $this->reset(['ruleId', 'name', 'type', 'points', 'trigger_type', 'event', 'is_active']);
+        $this->reset(['ruleId', 'name', 'type', 'points', 'bonus_points', 'is_active']);
         $this->resetValidation();
+    }
+
+    /** Simpan 1 baris section "Otomatis" (MeritPointRule trigger_type=automatic, event=$eventValue) -
+     * upsert langsung, tidak lewat modal. Nama baris sistem-generated dari label kejadian, bukan
+     * diisi admin - baris ini bukan "aturan baru" tapi konfigurasi kejadian yang SUDAH tetap
+     * (App\Enum\MeritPoint\MeritPointEvent), 1 baris per kejadian per company, tidak bisa
+     * dobel/dihapus. */
+    public function saveAutomaticRule(string $eventValue): void
+    {
+        $event = MeritPointEvent::from($eventValue);
+        $canManageThis = $this->automaticForm[$eventValue]['id']
+            ? Auth::user()->can('Update:MeritPointRule')
+            : Auth::user()->can('Create:MeritPointRule');
+        abort_unless($canManageThis, 403);
+
+        // Sama alasan seperti save() rule manual - normalisasi '' -> null sebelum validasi.
+        if (($this->automaticForm[$eventValue]['bonus_points'] ?? null) === '') {
+            $this->automaticForm[$eventValue]['bonus_points'] = null;
+        }
+
+        $row = $this->validate([
+            "automaticForm.{$eventValue}.type" => ['required', Rule::enum(MeritPointType::class)],
+            "automaticForm.{$eventValue}.points" => ['required', 'integer'],
+            "automaticForm.{$eventValue}.bonus_points" => ['nullable', 'integer'],
+            "automaticForm.{$eventValue}.is_active" => ['boolean'],
+        ])['automaticForm'][$eventValue];
+
+        MeritPointRule::updateOrCreate(
+            ['company_id' => $this->companyId, 'trigger_type' => MeritPointTriggerType::AUTOMATIC->value, 'event' => $eventValue],
+            [
+                'type' => $row['type'],
+                'name' => 'Otomatis: ' . $event->getLabel(),
+                'points' => $row['points'],
+                // Sama seperti save() rule manual - poin bonus cuma relevan buat Reward.
+                'bonus_points' => $row['type'] === MeritPointType::REWARD->value ? ($row['bonus_points'] ?? null) : null,
+                'is_active' => (bool) ($row['is_active'] ?? false),
+            ],
+        );
+
+        $this->loadAutomaticForm();
+
+        Notification::make()->title('Poin otomatis ' . $event->getLabel() . ' disimpan')->success()->send();
     }
 
     public function render()

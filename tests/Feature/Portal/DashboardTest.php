@@ -57,18 +57,6 @@ class DashboardTest extends TestCase
         $response->assertSee('Budi Santoso');
     }
 
-    public function test_welcome_card_greets_with_nickname_instead_of_full_name(): void
-    {
-        $user = User::factory()->create(['name' => 'Budi Santoso']);
-        \App\Models\User\UserProfiles::create(['user_id' => $user->id, 'nickname' => 'Budi']);
-
-        $response = $this->actingAs($user)->get('/');
-
-        $response->assertOk();
-        $response->assertSee('<h2 class="welcome-name">Budi</h2>', false);
-        $response->assertDontSee('<h2 class="welcome-name">Budi Santoso</h2>', false);
-    }
-
     public function test_dashboard_shows_static_placeholder_for_attendance_card(): void
     {
         $user = User::factory()->create();

@@ -67,7 +67,9 @@
         </div>
     </div>
 
-    {{-- Aturan --}}
+    {{-- Aturan Poin: SELALU manual, diberikan admin lewat modal transaksi di tab Karir Profil
+    Saya (izin BERI_MERIT_POINT). Otomatis punya section sendiri di bawah (4 baris tetap, tidak
+    bisa ditambah/dihapus di sini). --}}
     <div style="background:var(--surface);border-radius:16px;box-shadow:var(--shadow-card);padding:18px;margin-bottom:16px;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
             <h3 style="font-size:14px;font-weight:700;color:var(--text-heading);margin:0;">Aturan Poin</h3>
@@ -78,11 +80,9 @@
                 <div style="flex:1;min-width:200px;">
                     <p style="font-size:13.5px;font-weight:600;color:var(--text-heading);margin:0;">{{ $rule->name }}</p>
                     <p style="font-size:11.5px;color:var(--text-muted);margin:2px 0 0;">
-                        {{ $rule->type->getLabel() }} &middot;
-                        @if ($rule->trigger_type === \App\Enum\MeritPoint\MeritPointTriggerType::AUTOMATIC)
-                            Otomatis: {{ $rule->event?->getLabel() }}
-                        @else
-                            Manual
+                        {{ $rule->type->getLabel() }}
+                        @if ($rule->bonus_points !== null)
+                            &middot; bonus {{ $rule->bonus_points >= 0 ? '+' : '' }}{{ $rule->bonus_points }} setelah 100
                         @endif
                     </p>
                 </div>
@@ -97,9 +97,64 @@
         @endforelse
     </div>
 
+    {{-- Otomatis: 4 baris TETAP, 1 per App\Enum\MeritPoint\MeritPointEvent - tidak bisa
+    ditambah/dihapus, langsung dimuat semuanya (baris yang belum pernah diisi tampil nonaktif/0,
+    bukan disembunyikan) supaya admin langsung lihat kejadian apa saja yang bisa disambungkan. --}}
+    <div style="background:var(--surface);border-radius:16px;box-shadow:var(--shadow-card);padding:18px;margin-bottom:16px;">
+        <h3 style="font-size:14px;font-weight:700;color:var(--text-heading);margin:0 0 2px;">Otomatis</h3>
+
+        @foreach (\App\Enum\MeritPoint\MeritPointEvent::cases() as $event)
+            @php $row = $automaticForm[$event->value]; @endphp
+            <div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;padding:10px 0;border-bottom:1px solid var(--border-soft);{{ $row['is_active'] ? '' : 'opacity:.7;' }}">
+                <div style="flex:1;min-width:160px;">
+                    <p style="font-size:13.5px;font-weight:600;color:var(--text-heading);margin:0;">{{ $event->getLabel() }}</p>
+                </div>
+
+                @if ($this->canManage)
+                    <select wire:model.live="automaticForm.{{ $event->value }}.type" class="form-input" style="max-width:140px;">
+                        @foreach (\App\Enum\MeritPoint\MeritPointType::cases() as $t)
+                            <option value="{{ $t->value }}">{{ $t->getLabel() }}</option>
+                        @endforeach
+                    </select>
+                    <input type="number" wire:model="automaticForm.{{ $event->value }}.points" class="form-input" style="max-width:90px;" placeholder="Poin">
+                    @if ($row['type'] === \App\Enum\MeritPoint\MeritPointType::REWARD->value)
+                        <input type="number" wire:model="automaticForm.{{ $event->value }}.bonus_points" class="form-input" style="max-width:100px;" placeholder="Bonus setelah 100">
+                    @endif
+                    <div style="display:flex;align-items:center;gap:6px;">
+                        <label class="custom-checkbox" style="--accent:#7c3aed;">
+                            <input type="checkbox" wire:model="automaticForm.{{ $event->value }}.is_active">
+                            <span class="box"><i class="fa-solid fa-check"></i></span>
+                        </label>
+                        <span style="font-size:12px;color:var(--text-muted);">Aktif</span>
+                    </div>
+                    <button type="button" wire:click="saveAutomaticRule('{{ $event->value }}')" class="btn-secondary" style="font-size:12px;padding:6px 12px;">Simpan</button>
+                    @error("automaticForm.{$event->value}.points") <p style="width:100%;color:var(--danger-text);font-size:11px;margin:0;">{{ $message }}</p> @enderror
+                    @error("automaticForm.{$event->value}.bonus_points") <p style="width:100%;color:var(--danger-text);font-size:11px;margin:0;">{{ $message }}</p> @enderror
+                @else
+                    <span style="font-size:12.5px;color:var(--text-muted);">{{ $row['type'] }}</span>
+                    <strong style="color:{{ $row['points'] >= 0 ? '#15803d' : 'var(--danger-text)' }};">{{ $row['points'] >= 0 ? '+' : '' }}{{ $row['points'] }}</strong>
+                    @if ($row['type'] === \App\Enum\MeritPoint\MeritPointType::REWARD->value && $row['bonus_points'] !== '' && $row['bonus_points'] !== null)
+                        <span style="font-size:11px;color:var(--text-muted);">(bonus {{ $row['bonus_points'] >= 0 ? '+' : '' }}{{ $row['bonus_points'] }} setelah 100)</span>
+                    @endif
+                    <span class="badge {{ $row['is_active'] ? 'badge-approved' : 'badge-cancelled' }}">{{ $row['is_active'] ? 'Aktif' : 'Nonaktif' }}</span>
+                @endif
+            </div>
+        @endforeach
+    </div>
+
     @if ($showForm)
+        {{-- Pola pilihan tipe (2 tombol, ikon di atas label) sama persis submit-overtime-request.blade.php
+        .ot-type-group - dipakai ulang di sini biar konsisten lintas halaman. --}}
+        <style>
+            .mp-type-group { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+            .mp-type-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 16px 12px; border-radius: 12px; border: 1.5px solid var(--border); background: var(--surface); color: var(--text-heading); font-family: inherit; font-size: 13.5px; font-weight: 700; text-align: center; cursor: pointer; transition: background 0.12s ease, border-color 0.12s ease; }
+            .mp-type-btn i { font-size: 22px; }
+            .mp-type-btn:hover { background: var(--surface-alt); }
+            .mp-type-btn.is-active.mp-type-reward { background: linear-gradient(130deg, #16a34a 0%, #14532d 100%); border-color: #16a34a; color: #fff; }
+            .mp-type-btn.is-active.mp-type-penalty { background: linear-gradient(130deg, #dc2626 0%, #7f1d1d 100%); border-color: #dc2626; color: #fff; }
+        </style>
         <div class="modal-overlay" wire:click="closeForm">
-            <div class="modal-box" onclick="event.stopPropagation()">
+            <div class="modal-box modal-box-lg" onclick="event.stopPropagation()">
                 <h3 style="font-size:15px;font-weight:700;color:var(--text-heading);margin:0 0 14px;">{{ $ruleId ? 'Ubah' : 'Tambah' }} Aturan</h3>
                 <form wire:submit.prevent="save" style="display:flex;flex-direction:column;gap:12px;">
                     <div>
@@ -109,42 +164,38 @@
                     </div>
                     <div>
                         <label class="form-label">Tipe</label>
-                        <select wire:model="type" class="form-input">
+                        <div class="mp-type-group" role="radiogroup" aria-label="Tipe">
                             @foreach (\App\Enum\MeritPoint\MeritPointType::cases() as $t)
-                                <option value="{{ $t->value }}">{{ $t->getLabel() }}</option>
+                                <button type="button" role="radio" aria-checked="{{ $type === $t->value ? 'true' : 'false' }}"
+                                    wire:click="$set('type', '{{ $t->value }}')"
+                                    class="mp-type-btn mp-type-{{ $t->value }} {{ $type === $t->value ? 'is-active' : '' }}">
+                                    <i class="fa-solid {{ $t === \App\Enum\MeritPoint\MeritPointType::REWARD ? 'fa-award' : 'fa-triangle-exclamation' }}"></i>
+                                    <span>{{ $t->getLabel() }}</span>
+                                </button>
                             @endforeach
-                        </select>
+                        </div>
+                        @error('type') <p style="color:var(--danger-text);font-size:11px;margin-top:4px;">{{ $message }}</p> @enderror
                     </div>
                     <div>
                         <label class="form-label">Poin</label>
                         <input type="number" wire:model="points" class="form-input">
-                        <p style="font-size:11px;color:var(--text-muted);margin:2px 0 0;">Boleh negatif untuk Penalty (mis. -5).</p>
                         @error('points') <p style="color:var(--danger-text);font-size:11px;">{{ $message }}</p> @enderror
                     </div>
-                    <div>
-                        <label class="form-label">Cara Pemakaian</label>
-                        <select wire:model.live="trigger_type" class="form-input">
-                            @foreach (\App\Enum\MeritPoint\MeritPointTriggerType::cases() as $t)
-                                <option value="{{ $t->value }}">{{ $t->getLabel() }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    @if ($trigger_type === 'automatic')
+                    @if ($type === \App\Enum\MeritPoint\MeritPointType::REWARD->value)
                         <div>
-                            <label class="form-label">Kejadian Pemicu</label>
-                            <select wire:model="event" class="form-input">
-                                <option value="">-- Pilih --</option>
-                                @foreach (\App\Enum\MeritPoint\MeritPointEvent::cases() as $e)
-                                    <option value="{{ $e->value }}">{{ $e->getLabel() }}</option>
-                                @endforeach
-                            </select>
-                            @error('event') <p style="color:var(--danger-text);font-size:11px;">{{ $message }}</p> @enderror
+                            <label class="form-label">Poin Bonus</label>
+                            <input type="number" wire:model="bonus_points" class="form-input" placeholder="Kosongkan kalau tidak ada bonus">
+                            <p style="font-size:11px;color:var(--text-muted);margin:2px 0 0;">Dipakai ganti "Poin" begitu saldo karyawan sudah 100+, biasanya lebih kecil.</p>
+                            @error('bonus_points') <p style="color:var(--danger-text);font-size:11px;">{{ $message }}</p> @enderror
                         </div>
                     @endif
-                    <label class="custom-checkbox" style="--accent:#7c3aed;">
-                        <input type="checkbox" wire:model="is_active" value="1">
-                        <span class="box"><i class="fa-solid fa-check"></i></span> Aktif
-                    </label>
+                    <div style="display:flex;align-items:center;gap:8px;">
+                        <label class="custom-checkbox" style="--accent:#7c3aed;">
+                            <input type="checkbox" wire:model="is_active">
+                            <span class="box"><i class="fa-solid fa-check"></i></span>
+                        </label>
+                        <span style="font-size:13px;color:var(--text-body);">Aktif</span>
+                    </div>
                     <div style="display:flex;gap:8px;justify-content:flex-end;">
                         <button type="button" wire:click="closeForm" class="btn-secondary">Batal</button>
                         <button type="submit" class="btn-primary">Simpan</button>

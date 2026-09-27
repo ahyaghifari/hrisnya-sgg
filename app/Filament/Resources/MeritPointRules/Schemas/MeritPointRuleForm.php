@@ -37,6 +37,7 @@ class MeritPointRuleForm
                         Select::make('type')
                             ->label('Tipe')
                             ->options(collect(MeritPointType::cases())->mapWithKeys(fn ($t) => [$t->value => $t->getLabel()]))
+                            ->live()
                             ->required(),
 
                         TextInput::make('name')
@@ -50,6 +51,14 @@ class MeritPointRuleForm
                             ->numeric()
                             ->helperText('Boleh negatif untuk Penalty (mis. -5).')
                             ->required(),
+
+                        // Poin Bonus (instruksi user 2026-09-27) - cuma relevan buat Reward, dipakai
+                        // MeritPointService::effectivePoints() begitu saldo karyawan sudah >= 100.
+                        TextInput::make('bonus_points')
+                            ->label('Poin Bonus')
+                            ->numeric()
+                            ->visible(fn ($get) => $get('type') === MeritPointType::REWARD->value)
+                            ->helperText('Dipakai ganti "Poin" begitu saldo karyawan sudah 100+. Kosongkan kalau rule ini tidak punya bonus.'),
 
                         Select::make('trigger_type')
                             ->label('Cara Pemakaian')

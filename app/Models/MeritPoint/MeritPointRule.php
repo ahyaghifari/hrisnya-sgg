@@ -18,6 +18,7 @@ class MeritPointRule extends Model
         'type',
         'name',
         'points',
+        'bonus_points',
         'trigger_type',
         'event',
         'is_active',
@@ -26,6 +27,7 @@ class MeritPointRule extends Model
     protected $casts = [
         'type' => MeritPointType::class,
         'points' => 'integer',
+        'bonus_points' => 'integer',
         'trigger_type' => MeritPointTriggerType::class,
         'event' => \App\Enum\MeritPoint\MeritPointEvent::class,
         'is_active' => 'boolean',

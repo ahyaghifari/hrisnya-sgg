@@ -9,14 +9,12 @@ enum MeritPointType: string implements HasLabel
 {
     case REWARD = 'reward';
     case PENALTY = 'penalty';
-    case CONTRIBUTION = 'contribution';
 
     public function getLabel(): string
     {
         return match ($this) {
             self::REWARD => 'Reward',
             self::PENALTY => 'Penalty',
-            self::CONTRIBUTION => 'Kontribusi',
         };
     }
 
@@ -25,7 +23,6 @@ enum MeritPointType: string implements HasLabel
         return match ($this) {
             self::REWARD => 'success',
             self::PENALTY => 'danger',
-            self::CONTRIBUTION => 'info',
         };
     }
 }

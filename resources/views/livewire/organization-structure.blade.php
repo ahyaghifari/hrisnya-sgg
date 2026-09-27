@@ -13,152 +13,150 @@
 
 <livewire:organization-chart-widget :company-id="$companyId" :key="'org-chart-'.$companyId" />
 
-{{-- Slideover: Job Position Detail (Alpine, bundled with Livewire — no extra dependency) --}}
+{{-- Panel detail jabatan - slide dari kanan (docked di desktop, full-screen di HP, sama pola
+dengan panel Riwayat Merit Point/Riwayat Perubahan Data di employee-statistics.blade.php), pakai
+warna tema situs sendiri (var(--surface) dkk, ikut dark mode) - sebelumnya x-filament::section
+bawaan Filament (primary-*/gray-*), kepakai di sini walau bukan admin panel jadi tampilannya
+nyempil sendiri & tidak ikut dark mode. Alpine (bukan Livewire @if polos) sengaja dipertahankan -
+satu-satunya cara dapat animasi KELUAR juga (bukan cuma masuk), Livewire @if langsung mencabut
+DOM tanpa transisi keluar. --}}
 <div x-data="{ open: false }" x-on:open-job-detail.window="open = true" x-on:keydown.escape.window="open = false">
     <div
         x-show="open"
-        x-transition.opacity
+        x-transition:enter="transition ease-out duration-200"
+        x-transition:enter-start="opacity-0"
+        x-transition:enter-end="opacity-100"
+        x-transition:leave="transition ease-in duration-150"
+        x-transition:leave-start="opacity-100"
+        x-transition:leave-end="opacity-0"
         x-on:click="open = false"
-        class="fixed inset-0 bg-gray-900/50 z-[80]"
+        class="fixed inset-0 bg-black/50 z-[9999]"
         style="display: none;"
     ></div>
 
     <div
         x-show="open"
-        x-transition:enter="transition ease-out duration-300"
-        x-transition:enter-start="translate-x-full"
-        x-transition:enter-end="translate-x-0"
-        x-transition:leave="transition ease-in duration-200"
-        x-transition:leave-start="translate-x-0"
-        x-transition:leave-end="translate-x-full"
-        class="fixed top-0 end-0 h-full max-w-2xl w-full bg-white border-s border-gray-200 shadow-xl flex flex-col z-[80]"
+        x-transition:enter="transition ease-out duration-[250ms]"
+        x-transition:enter-start="translate-x-full opacity-0"
+        x-transition:enter-end="translate-x-0 opacity-100"
+        x-transition:leave="transition ease-in duration-150"
+        x-transition:leave-start="translate-x-0 opacity-100"
+        x-transition:leave-end="translate-x-full opacity-0"
+        class="fixed top-0 end-0 h-full w-full sm:w-[480px] sm:max-w-[90vw] bg-[var(--surface)] shadow-[-8px_0_28px_rgba(0,0,0,0.18)] flex flex-col z-[10000]"
         style="display: none;"
     >
-        <div class="flex items-center justify-between py-3 px-4 border-b border-gray-200 shrink-0">
-            <h3 class="font-bold text-gray-800">Detail Jabatan</h3>
-            <button type="button" class="flex items-center justify-center h-8 w-8 rounded-full text-gray-500 hover:bg-gray-100" x-on:click="open = false">
-                <span class="sr-only">Tutup</span>
-                <x-heroicon-m-x-mark class="w-5 h-5" />
+        <div class="flex items-center justify-between py-4 px-5 border-b border-[var(--border-soft)] shrink-0">
+            <h3 class="font-bold text-[15.5px] text-[var(--text-heading)]">Detail Jabatan</h3>
+            <button type="button" class="flex items-center justify-center h-8 w-8 rounded-full text-[var(--text-faint)] hover:bg-[var(--surface-alt)]" x-on:click="open = false" aria-label="Tutup">
+                <i class="fa-solid fa-xmark"></i>
             </button>
         </div>
 
-        <div class="p-4 overflow-y-auto grow">
+        <div class="p-4 sm:p-5 overflow-y-auto grow" style="padding-bottom: calc(20px + env(safe-area-inset-bottom));">
     @if ($this->selectedJobDetail)
-        <div class="space-y-6">
+        <div class="flex flex-col gap-4">
             {{-- Informasi Dasar Jabatan --}}
-            <x-filament::section>
-                <div class="flex items-center gap-4 mb-4">
-                    <div class="h-12 w-12 rounded-full bg-primary-100 flex items-center justify-center text-primary-600">
-                        <x-heroicon-o-briefcase class="w-6 h-6" />
+            <div class="form-card" style="margin:0;padding:18px;">
+                <div class="flex items-center gap-3 mb-4">
+                    <div class="h-12 w-12 rounded-full flex items-center justify-center flex-shrink-0" style="background:rgba(4,44,108,0.1);color:var(--brand);">
+                        <i class="fa-solid fa-briefcase text-lg"></i>
                     </div>
-                    <div>
-                        <h3 class="text-xl font-bold text-gray-950">{{ $this->selectedJobDetail->name }}</h3>
-                        <p class="text-sm text-gray-500">{{ $this->selectedJobDetail->company->name ?? '-' }}</p>
+                    <div class="min-w-0">
+                        <h3 class="text-lg font-bold text-[var(--text-heading)] truncate">{{ $this->selectedJobDetail->name }}</h3>
+                        <p class="text-sm text-[var(--text-muted)] truncate">{{ $this->selectedJobDetail->company->name ?? '-' }}</p>
                     </div>
                 </div>
 
-                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 mt-4">
-                    <div class="p-4 rounded-xl bg-gray-50 border border-gray-200">
-                        <span class="block text-xs font-medium text-gray-500 mb-1">Unit Organisasi</span>
-                        <span class="block text-sm font-semibold text-gray-950">{{ $this->selectedJobDetail->orgStructure?->name ?? 'Jabatan Struktural' }}</span>
+                <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div class="p-3 rounded-xl" style="background:var(--surface-alt);border:1px solid var(--border-soft);">
+                        <span class="block text-[11px] font-medium text-[var(--text-faint)] mb-1">Unit Organisasi</span>
+                        <span class="block text-sm font-semibold text-[var(--text-heading)]">{{ $this->selectedJobDetail->orgStructure?->name ?? 'Jabatan Struktural' }}</span>
                     </div>
 
-                    <div class="p-4 rounded-xl bg-gray-50 border border-gray-200">
-                        <span class="block text-xs font-medium text-gray-500 mb-1">Atasan Langsung</span>
-                        <span class="block text-sm font-semibold text-gray-950">{{ $this->selectedJobDetail->parent?->name ?? 'Tidak ada' }}</span>
+                    <div class="p-3 rounded-xl" style="background:var(--surface-alt);border:1px solid var(--border-soft);">
+                        <span class="block text-[11px] font-medium text-[var(--text-faint)] mb-1">Atasan Langsung</span>
+                        <span class="block text-sm font-semibold text-[var(--text-heading)]">{{ $this->selectedJobDetail->parent?->name ?? 'Tidak ada' }}</span>
                     </div>
                 </div>
-            </x-filament::section>
+            </div>
 
             {{-- Klasifikasi Jabatan --}}
-            <x-filament::section>
-                <x-slot name="heading">Klasifikasi Jabatan</x-slot>
+            <div class="form-card" style="margin:0;padding:18px;">
+                <div class="section-head" style="margin-bottom:12px;">
+                    <div class="section-icon"><i class="fa-solid fa-layer-group" style="color:var(--brand);font-size:12px;"></i></div>
+                    <span class="section-title">Klasifikasi Jabatan</span>
+                </div>
 
-                <div class="grid grid-cols-1 gap-4 sm:grid-cols-3 mt-2">
-                    <div class="p-3 rounded-lg border border-gray-200 flex flex-col items-center justify-center text-center">
-                        <span class="text-xs text-gray-500 uppercase tracking-wider">Pangkat</span>
-                        <span class="mt-1 flex-1 font-semibold text-gray-900">{{ $this->selectedJobDetail->pangkat?->name ?? '-' }}</span>
+                <div class="grid grid-cols-3 gap-2">
+                    <div class="p-3 rounded-lg text-center" style="border:1px solid var(--border-soft);">
+                        <span class="block text-[10.5px] text-[var(--text-faint)] uppercase tracking-wider">Pangkat</span>
+                        <span class="block mt-1 font-semibold text-[var(--text-heading)] text-sm">{{ $this->selectedJobDetail->pangkat?->name ?? '-' }}</span>
                     </div>
-                    <div class="p-3 rounded-lg border border-gray-200 flex flex-col items-center justify-center text-center">
-                        <span class="text-xs text-gray-500 uppercase tracking-wider">Golongan</span>
-                        <span class="mt-1 flex-1 font-semibold text-gray-900">{{ $this->selectedJobDetail->pangkat?->golongan ?? '-' }}</span>
+                    <div class="p-3 rounded-lg text-center" style="border:1px solid var(--border-soft);">
+                        <span class="block text-[10.5px] text-[var(--text-faint)] uppercase tracking-wider">Golongan</span>
+                        <span class="block mt-1 font-semibold text-[var(--text-heading)] text-sm">{{ $this->selectedJobDetail->pangkat?->golongan ?? '-' }}</span>
                     </div>
-                    <div class="p-3 rounded-lg border border-gray-200 flex flex-col items-center justify-center text-center">
-                        <span class="text-xs text-gray-500 uppercase tracking-wider">Kelas</span>
-                        <span class="mt-1 flex-1 font-semibold text-gray-900">{{ $this->selectedJobDetail->kelas?->name ?? '-' }}</span>
+                    <div class="p-3 rounded-lg text-center" style="border:1px solid var(--border-soft);">
+                        <span class="block text-[10.5px] text-[var(--text-faint)] uppercase tracking-wider">Kelas</span>
+                        <span class="block mt-1 font-semibold text-[var(--text-heading)] text-sm">{{ $this->selectedJobDetail->kelas?->name ?? '-' }}</span>
                     </div>
                 </div>
-            </x-filament::section>
+            </div>
 
-            {{-- Pemegang Jabatan --}}
-            <x-filament::section>
-                <x-slot name="heading">Pemegang Jabatan ({{ $this->selectedJobDetail->userAssignments->count() }})</x-slot>
+            {{-- Pemegang Jabatan - foto profil kalau sudah upload, kalau belum inisial nama
+            (x-avatar, sama komponen yang dipakai welcome-card/dsb). --}}
+            <div class="form-card" style="margin:0;padding:18px;">
+                <div class="section-head" style="margin-bottom:10px;">
+                    <div class="section-icon"><i class="fa-solid fa-user-group" style="color:var(--brand);font-size:12px;"></i></div>
+                    <span class="section-title">Pemegang Jabatan ({{ $this->selectedJobDetail->userAssignments->count() }})</span>
+                </div>
 
-                @if($this->selectedJobDetail->userAssignments->isNotEmpty())
-                    <div class="space-y-3 mt-2">
-                        @foreach($this->selectedJobDetail->userAssignments as $assignment)
+                @if ($this->selectedJobDetail->userAssignments->isNotEmpty())
+                    <div class="pwa-list">
+                        @foreach ($this->selectedJobDetail->userAssignments as $assignment)
                             @continue(!$assignment->user)
-                            <div class="flex items-center gap-3 p-3 bg-white border border-gray-200 rounded-xl">
-                                <div class="h-8 w-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 shrink-0">
-                                    <x-heroicon-s-user class="w-4 h-4" />
-                                </div>
+                            <div class="pwa-list-row">
+                                <x-avatar :user="$assignment->user" :size="36" />
                                 <div class="min-w-0">
-                                    <div class="font-bold text-sm text-gray-900 truncate">{{ $assignment->user->name }}</div>
-                                    <div class="text-xs text-gray-500 truncate">{{ $assignment->user->email }}</div>
+                                    <div class="pwa-row-title truncate">{{ $assignment->user->name }}</div>
+                                    <span style="font-size:11.5px;color:var(--text-muted);" class="truncate block">{{ $assignment->user->email }}</span>
                                 </div>
                             </div>
                         @endforeach
                     </div>
                 @else
-                    <p class="text-sm text-gray-500 mt-2">Belum ada user yang menempati jabatan ini.</p>
+                    <p class="text-sm text-[var(--text-muted)]">Belum ada user yang menempati jabatan ini.</p>
                 @endif
-            </x-filament::section>
+            </div>
 
             {{-- Sub Jabatan --}}
-            @if($this->selectedJobDetail->children && $this->selectedJobDetail->children->count() > 0)
-                <x-filament::section>
-                    <x-slot name="heading">Sub Jabatan bawahan ({{ $this->selectedJobDetail->children->count() }})</x-slot>
+            @if ($this->selectedJobDetail->children && $this->selectedJobDetail->children->count() > 0)
+                <div class="form-card" style="margin:0;padding:18px;">
+                    <div class="section-head" style="margin-bottom:10px;">
+                        <div class="section-icon"><i class="fa-solid fa-sitemap" style="color:var(--brand);font-size:12px;"></i></div>
+                        <span class="section-title">Sub Jabatan Bawahan ({{ $this->selectedJobDetail->children->count() }})</span>
+                    </div>
 
-                    <div class="space-y-3 mt-2">
-                        @foreach($this->selectedJobDetail->children as $child)
-                            <div class="flex items-center justify-between p-4 bg-white border border-gray-200 rounded-xl hover:border-primary-500 transition-colors">
-                                <div class="flex items-start gap-3">
-                                    <div class="mt-0.5">
-                                        <div class="h-8 w-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500">
-                                            <x-heroicon-s-user class="w-4 h-4" />
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <div class="font-bold text-sm text-gray-900">{{ $child->name }}</div>
-                                        @if($child->orgStructure)
-                                            <div class="text-xs font-medium text-primary-600 mt-0.5">{{ $child->orgStructure->name }}</div>
-                                        @endif
-                                    </div>
+                    <div class="pwa-list">
+                        @foreach ($this->selectedJobDetail->children as $child)
+                            <div class="pwa-list-row" style="cursor:pointer;" wire:click="openJobDetail('{{ $child->id }}')">
+                                <div class="pwa-tile-icon neutral"><i class="fa-solid fa-briefcase"></i></div>
+                                <div class="min-w-0 flex-1">
+                                    <div class="pwa-row-title truncate">{{ $child->name }}</div>
+                                    @if ($child->orgStructure)
+                                        <span style="font-size:11.5px;color:var(--brand);font-weight:600;" class="truncate block">{{ $child->orgStructure->name }}</span>
+                                    @endif
                                 </div>
-                                <button
-                                    type="button"
-                                    wire:click="openJobDetail('{{ $child->id }}')"
-                                    class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-gray-600 bg-white border border-gray-200 rounded-lg shadow-sm hover:border-primary-300 hover:text-primary-600 hover:bg-primary-50 transition-colors shrink-0"
-                                >
-                                    <x-heroicon-m-eye class="w-4 h-4" />
-                                    Lihat
-                                </button>
+                                <i class="fa-solid fa-chevron-right"></i>
                             </div>
                         @endforeach
                     </div>
-                </x-filament::section>
+                </div>
             @endif
 
-            {{-- Action Buttons --}}
-            <div class="flex justify-end gap-3 pt-4 border-t border-gray-200">
-                <button
-                    type="button"
-                    x-on:click="open = false"
-                    class="px-4 py-2 text-sm font-semibold text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 transition-colors"
-                >
-                    Tutup
-                </button>
-            </div>
+            <button type="button" x-on:click="open = false" class="btn-secondary" style="width:100%;justify-content:center;">
+                Tutup
+            </button>
         </div>
     @endif
         </div>

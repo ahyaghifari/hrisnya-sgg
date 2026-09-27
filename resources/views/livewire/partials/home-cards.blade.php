@@ -51,8 +51,7 @@ di sini (tanpa build CSS). display diatur JS (inline none -> flex), jangan diset
                 @endif
                 <div>
                     <p class="welcome-greeting">Selamat datang kembali 👋</p>
-                    {{-- Sapaan pakai nama panggilan kalau ada, nama lengkap cuma fallback. --}}
-                    <h2 class="welcome-name">{{ filled(auth()->user()->profile?->nickname) ? auth()->user()->profile->nickname : auth()->user()->name }}</h2>
+                    <h2 class="welcome-name">{{ auth()->user()->name }}</h2>
                     <p class="welcome-meta">
                         {{ auth()->user()->profile?->jobPosition?->name ?? 'Karyawan' }}
                         &nbsp;·&nbsp; NIP {{ auth()->user()->nip }}

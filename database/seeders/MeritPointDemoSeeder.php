@@ -29,7 +29,7 @@ class MeritPointDemoSeeder extends Seeder
         $rules = [
             ['name' => '[DEMO] Datang Tepat Waktu 1 Bulan Penuh', 'type' => MeritPointType::REWARD, 'points' => 5],
             ['name' => '[DEMO] Ide Inovasi Diterima', 'type' => MeritPointType::REWARD, 'points' => 10],
-            ['name' => '[DEMO] Bantu Rekan Kerja di Luar Tugas', 'type' => MeritPointType::CONTRIBUTION, 'points' => 3],
+            ['name' => '[DEMO] Bantu Rekan Kerja di Luar Tugas', 'type' => MeritPointType::REWARD, 'points' => 3],
             ['name' => '[DEMO] Terlambat Tanpa Keterangan', 'type' => MeritPointType::PENALTY, 'points' => -5],
             ['name' => '[DEMO] Melanggar SOP Ringan', 'type' => MeritPointType::PENALTY, 'points' => -10],
         ];

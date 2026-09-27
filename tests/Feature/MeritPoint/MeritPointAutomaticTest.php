@@ -57,7 +57,28 @@ class MeritPointAutomaticTest extends TestCase
         $this->assertSame(0, MeritPointTransaction::count());
     }
 
-    public function test_page_renders_and_saves_automatic_rule(): void
+    /** Tipe (Reward/Penalty) tidak boleh punya default - admin harus pilih sendiri lewat radio,
+     * bukan kepencet Simpan dengan tipe yang kepilih diam-diam (instruksi user 2026-09-27). */
+    public function test_type_has_no_default_and_blocks_submit_until_chosen(): void
+    {
+        $user = User::factory()->create(['company_id' => Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true])->id]);
+        foreach (['ViewAny:MeritPointRule', 'Create:MeritPointRule'] as $p) {
+            \Spatie\Permission\Models\Permission::firstOrCreate(['name' => $p, 'guard_name' => 'web']);
+            $user->givePermissionTo($p);
+        }
+
+        \Livewire\Livewire::actingAs($user)->test(\App\Livewire\Kepegawaian\MeritPointPage::class)
+            ->call('create')
+            ->assertSet('type', '')
+            ->set('name', 'Belum pilih tipe')->set('points', 5)
+            ->call('save')
+            ->assertHasErrors('type');
+
+        $this->assertSame(0, MeritPointRule::count());
+    }
+
+    /** Modal "Tambah Aturan" cuma bikin rule MANUAL - tidak ada pilihan Cara Pemakaian lagi. */
+    public function test_manual_rule_modal_always_creates_manual_trigger_type(): void
     {
         $user = User::factory()->create(['company_id' => Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true])->id]);
         foreach (['ViewAny:MeritPointRule', 'Create:MeritPointRule', 'Update:MeritPointRule'] as $p) {
@@ -68,11 +89,47 @@ class MeritPointAutomaticTest extends TestCase
         \Livewire\Livewire::actingAs($user)->test(\App\Livewire\Kepegawaian\MeritPointPage::class)
             ->assertOk()
             ->call('create')
-            ->set('name', 'SP1 potong')->set('type', 'penalty')->set('points', -10)
-            ->set('trigger_type', 'automatic')->set('event', 'sp1')
+            ->set('name', 'Bantu rekan kerja')->set('type', 'reward')->set('points', 5)
             ->call('save')
             ->assertHasNoErrors();
 
-        $this->assertSame('sp1', MeritPointRule::first()->event->value);
+        $rule = MeritPointRule::first();
+        $this->assertSame('manual', $rule->trigger_type->value);
+        $this->assertNull($rule->event);
+    }
+
+    /** Section "Otomatis" (saveAutomaticRule) - 4 baris tetap dimuat langsung dari
+     * MeritPointEvent::cases(), diisi tanpa modal, upsert per event, tidak bisa dobel. */
+    public function test_automatic_section_loads_all_events_and_saves_per_row(): void
+    {
+        $user = User::factory()->create(['company_id' => Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true])->id]);
+        foreach (['ViewAny:MeritPointRule', 'Create:MeritPointRule', 'Update:MeritPointRule'] as $p) {
+            \Spatie\Permission\Models\Permission::firstOrCreate(['name' => $p, 'guard_name' => 'web']);
+            $user->givePermissionTo($p);
+        }
+
+        $test = \Livewire\Livewire::actingAs($user)->test(\App\Livewire\Kepegawaian\MeritPointPage::class)
+            ->assertOk()
+            ->assertSet('automaticForm.sp1.is_active', false)
+            ->assertSet('automaticForm.sp1.points', 0)
+            ->assertCount('automaticForm', 4);
+
+        $test->set('automaticForm.sp1.type', 'penalty')
+            ->set('automaticForm.sp1.points', -10)
+            ->set('automaticForm.sp1.is_active', true)
+            ->call('saveAutomaticRule', 'sp1')
+            ->assertHasNoErrors()
+            ->assertSet('automaticForm.sp1.is_active', true);
+
+        $this->assertSame(1, MeritPointRule::where('event', 'sp1')->count());
+        $rule = MeritPointRule::where('event', 'sp1')->first();
+        $this->assertSame('automatic', $rule->trigger_type->value);
+        $this->assertSame(-10, $rule->points);
+
+        // Simpan lagi (ubah poin) - HARUS update baris yang sama, tidak boleh bikin baris kedua
+        // (upsert keyBy company_id+trigger_type+event, satu baris tetap per kejadian).
+        $test->set('automaticForm.sp1.points', -15)->call('saveAutomaticRule', 'sp1')->assertHasNoErrors();
+        $this->assertSame(1, MeritPointRule::where('event', 'sp1')->count());
+        $this->assertSame(-15, MeritPointRule::where('event', 'sp1')->first()->points);
     }
 }

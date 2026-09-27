@@ -35,6 +35,11 @@ class MeritPointRulesTable
                     ->sortable()
                     ->color(fn (int $state) => $state >= 0 ? 'success' : 'danger'),
 
+                TextColumn::make('bonus_points')
+                    ->label('Poin Bonus')
+                    ->placeholder('-')
+                    ->sortable(),
+
                 TextColumn::make('trigger_type')
                     ->label('Cara Pemakaian'),
 
