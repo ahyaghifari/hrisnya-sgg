@@ -1018,9 +1018,22 @@ html.lw-navigating .page-content { opacity: 0; }
     .welcome-actions .data-diri-btn { font-size: 14px; padding: 11px 22px; border-radius: 12px; gap: 9px; }
 }
 
-/* Mobile: label jenis dokumen & tombol Unggah/Ganti di kartu "Dokumen" (Data Diri) dikecilkan
-   sedikit - request user, muat lebih rapi di layar sempit. */
+/* Kartu "Dokumen" (Data Diri): baris icon+label+timestamp (.doc-row-main) dan baris tombol
+   Lihat berkas/Ganti/Hapus (.doc-row-actions) - flex-wrap biar mobile bisa pecah ke baris
+   sendiri tanpa ubah markup per breakpoint. */
+.doc-row { flex-wrap: wrap; row-gap: 8px; }
+.doc-row-main { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
+.doc-row-actions { display: flex; align-items: center; gap: 4px; flex-shrink: 0; margin-left: auto; }
+
+/* Mobile: icon+label+timestamp jadi 1 baris penuh, tombol Lihat berkas/Ganti/Hapus jadi 1
+   baris sendiri di bawahnya (request user) - dikecilkan sedikit juga biar muat rapi. */
 @media (max-width: 639px) {
+    .doc-row-main { width: 100%; }
+    .doc-row-actions { width: 100%; margin-left: 0; justify-content: flex-start; }
+    /* Label + timestamp dipaksa 1 baris (request user) - dipangkas elipsis kalau kepanjangan,
+       bukan wrap ke baris baru. */
+    .doc-row-main .doc-type-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex-shrink: 1; min-width: 0; }
+    .doc-row-main .doc-row-time { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex-shrink: 2; min-width: 0; }
     .doc-type-label { font-size: 12px !important; }
     .doc-type-upload-btn { font-size: 11px !important; padding: 5px 10px !important; }
 }

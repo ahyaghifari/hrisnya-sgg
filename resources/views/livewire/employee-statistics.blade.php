@@ -526,29 +526,31 @@ Pembinaan). Inline supaya tidak perlu build CSS; desktop (>=768px) tetap pill ho
                 <div class="pwa-list">
                     @foreach ($this->documentTypeOptions as $type)
                         @php $doc = $this->profileDocuments->firstWhere('label', $type->value); @endphp
-                        <div class="pwa-list-row" wire:loading.class="opacity-60" wire:target="{{ $type->uploadProperty() }}">
-                            <div class="pwa-tile-icon {{ $type->tileColor() }}"><i class="{{ $type->icon() }}"></i></div>
-                            <div style="flex:1;min-width:0;">
+                        <div class="pwa-list-row doc-row" wire:loading.class="opacity-60" wire:target="{{ $type->uploadProperty() }}">
+                            <div class="doc-row-main">
+                                <div class="pwa-tile-icon {{ $type->tileColor() }}"><i class="{{ $type->icon() }}"></i></div>
                                 <p class="doc-type-label" style="font-size:13px;font-weight:600;color:var(--text-heading);margin:0;">{{ $type->label() }}</p>
-                                @if ($doc)
-                                    <a href="{{ $doc->file_url }}" target="_blank" rel="noopener" style="font-size:11.5px;color:var(--text-muted);">Lihat berkas</a>
-                                    <span style="font-size:11.5px;color:var(--text-muted);"> &middot; Diunggah {{ $doc->updated_at->translatedFormat('d M Y H:i') }}</span>
-                                @else
-                                    <span style="font-size:11.5px;color:var(--text-muted);">Belum diunggah</span>
-                                @endif
-                                @error($type->uploadProperty()) <p style="color:var(--danger-text);font-size:11px;margin:4px 0 0;">{{ $message }}</p> @enderror
+                                <span class="doc-row-time" style="font-size:11.5px;color:var(--text-muted);">
+                                    {{ $doc ? 'Diunggah ' . $doc->updated_at->translatedFormat('d M Y H:i') : 'Belum diunggah' }}
+                                </span>
                             </div>
-                            @if ($isSelf)
-                                <label class="btn-ghost doc-type-upload-btn" style="font-size:12px;padding:6px 12px;cursor:pointer;position:relative;overflow:hidden;white-space:nowrap;">
-                                    <i class="fa-solid fa-upload"></i> {{ $doc ? 'Ganti' : 'Unggah' }}
-                                    <input type="file" wire:model="{{ $type->uploadProperty() }}" accept="image/*,.pdf" style="position:absolute;inset:0;opacity:0;cursor:pointer;">
-                                </label>
+                            <div class="doc-row-actions">
                                 @if ($doc)
-                                    <button type="button" wire:click="deleteProfileDocument('{{ $doc->id }}')" wire:confirm="Hapus dokumen ini?" style="background:none;border:none;color:var(--danger-text);cursor:pointer;padding:6px;">
-                                        <i class="fa-solid fa-trash"></i>
-                                    </button>
+                                    <a href="{{ $doc->file_url }}" target="_blank" rel="noopener" style="font-size:11.5px;color:var(--text-muted);white-space:nowrap;">Lihat berkas</a>
                                 @endif
-                            @endif
+                                @if ($isSelf)
+                                    <label class="btn-ghost doc-type-upload-btn" style="font-size:12px;padding:6px 12px;cursor:pointer;position:relative;overflow:hidden;white-space:nowrap;">
+                                        <i class="fa-solid fa-upload"></i> {{ $doc ? 'Ganti' : 'Unggah' }}
+                                        <input type="file" wire:model="{{ $type->uploadProperty() }}" accept="image/*,.pdf" style="position:absolute;inset:0;opacity:0;cursor:pointer;">
+                                    </label>
+                                    @if ($doc)
+                                        <button type="button" wire:click="deleteProfileDocument('{{ $doc->id }}')" wire:confirm="Hapus dokumen ini?" style="background:none;border:none;color:var(--danger-text);cursor:pointer;padding:6px;">
+                                            <i class="fa-solid fa-trash"></i>
+                                        </button>
+                                    @endif
+                                @endif
+                            </div>
+                            @error($type->uploadProperty()) <p style="color:var(--danger-text);font-size:11px;margin:0;width:100%;">{{ $message }}</p> @enderror
                         </div>
                     @endforeach
                 </div>
