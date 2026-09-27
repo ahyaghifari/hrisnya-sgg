@@ -32,6 +32,7 @@ trait ResolvesTodayAttendanceStatus
      *     late_minutes_label: ?string,
      *     flexible_min_work_label: ?string,
      *     flexible_target_checkout: ?string,
+     *     attendance_window: ?array{type: string, from: string, until: string, start_time?: string, end_time?: string, checkin_buffer_minutes?: int, checkout_buffer_minutes?: int, late_tolerance_minutes?: int, late_threshold?: string, late_checkin_deadline?: ?string},
      * }
      */
     protected function todayAttendanceStatus(User $user, ?AttendanceRecords $attendance = null): array
@@ -39,6 +40,13 @@ trait ResolvesTodayAttendanceStatus
         $todayStr = Carbon::today()->toDateString();
 
         $resolved = app(ScheduleResolver::class)->resolveForUserDate($user, $todayStr);
+
+        // Jendela presensi valid hari ini (kapan paling awal boleh scan masuk, kapan paling
+        // akhir boleh scan pulang, dst) - dihitung persis sama dengan FixedScheduleCalculator/
+        // FlexibleScheduleCalculator supaya kartu ini tidak pernah menyesatkan (klaim jendela
+        // beda dari yang benar-benar dipakai buat validasi scan). Detail lengkap (bukan cuma
+        // label ringkas) buat modal "Detail Jendela Presensi" di today-attendance-card.
+        $attendanceWindow = $this->resolveAttendanceWindow($resolved);
 
         $scheduleTypeLabel = match ($resolved['type'] ?? null) {
             'fixed'    => 'Jadwal Tetap',
@@ -108,6 +116,7 @@ trait ResolvesTodayAttendanceStatus
                 'late_minutes_label'       => $lateMinutesLabel,
                 'flexible_min_work_label'  => $flexibleMinWorkLabel,
                 'flexible_target_checkout' => $flexibleTargetCheckout,
+                'attendance_window'        => null,
             ];
         }
 
@@ -134,6 +143,7 @@ trait ResolvesTodayAttendanceStatus
                 'late_minutes_label'       => $lateMinutesLabel,
                 'flexible_min_work_label'  => $flexibleMinWorkLabel,
                 'flexible_target_checkout' => $flexibleTargetCheckout,
+                'attendance_window'        => null,
             ];
         }
 
@@ -161,6 +171,9 @@ trait ResolvesTodayAttendanceStatus
                 'late_minutes_label'       => $lateMinutesLabel,
                 'flexible_min_work_label'  => $flexibleMinWorkLabel,
                 'flexible_target_checkout' => $flexibleTargetCheckout,
+                // Izin seharian = tidak masuk sama sekali, jendela presensi tidak relevan. Izin
+                // biasa (sebagian hari) tetap perlu presensi di sisa jamnya.
+                'attendance_window'        => $isFullDay ? null : $attendanceWindow,
             ];
         }
 
@@ -179,6 +192,7 @@ trait ResolvesTodayAttendanceStatus
                 'late_minutes_label'       => $lateMinutesLabel,
                 'flexible_min_work_label'  => $flexibleMinWorkLabel,
                 'flexible_target_checkout' => $flexibleTargetCheckout,
+                'attendance_window'        => null,
             ];
         }
 
@@ -193,7 +207,66 @@ trait ResolvesTodayAttendanceStatus
             'late_minutes_label'       => $lateMinutesLabel,
             'flexible_min_work_label'  => $flexibleMinWorkLabel,
             'flexible_target_checkout' => $flexibleTargetCheckout,
+            'attendance_window'        => $attendanceWindow,
         ];
+    }
+
+    /**
+     * Detail jendela presensi valid hari ini, dihitung PERSIS sama dengan calculator yang
+     * dipakai pipeline access_logs (jangan hardcode ulang rumus lain di sini):
+     * - Fixed/Shift: start_time - checkin_buffer_minutes s/d end_time + checkout_buffer_minutes
+     *   (FixedScheduleCalculator::$earliestCheckIn/$latestCheckOut), plus late_tolerance_minutes
+     *   (jam mulai dianggap telat).
+     * - Flexible: schedules.flexible_checkin_from s/d flexible_checkin_until (jendela level
+     *   schedule, bukan per-hari - FlexibleScheduleCalculator), plus late_checkin_deadline
+     *   per-hari kalau diisi. Null kalau field yang relevan kosong, berarti jadwal ini memang
+     *   tidak membatasi jendela check-in.
+     */
+    private function resolveAttendanceWindow(?array $resolved): ?array
+    {
+        if (! $resolved || ($resolved['is_off_day'] ?? false) || ! isset($resolved['config'])) {
+            return null;
+        }
+
+        $config = $resolved['config'];
+
+        if (in_array($resolved['type'], ['fixed', 'shift'], true)) {
+            if (! $config->start_time || ! $config->end_time) {
+                return null;
+            }
+
+            $start = Carbon::createFromFormat('H:i:s', $config->start_time);
+            $end   = Carbon::createFromFormat('H:i:s', $config->end_time);
+
+            return [
+                'type'                    => $resolved['type'],
+                'from'                    => $start->copy()->subMinutes($config->checkin_buffer_minutes)->format('H:i'),
+                'until'                   => $end->copy()->addMinutes($config->checkout_buffer_minutes)->format('H:i'),
+                'start_time'              => $start->format('H:i'),
+                'end_time'                => $end->format('H:i'),
+                'checkin_buffer_minutes'  => (int) $config->checkin_buffer_minutes,
+                'checkout_buffer_minutes' => (int) $config->checkout_buffer_minutes,
+                'late_tolerance_minutes'  => (int) $config->late_tolerance_minutes,
+                'late_threshold'          => $start->copy()->addMinutes($config->late_tolerance_minutes)->format('H:i'),
+            ];
+        }
+
+        if ($resolved['type'] === 'flexible') {
+            $schedule = $resolved['schedule'] ?? null;
+
+            if (! $schedule?->flexible_checkin_from || ! $schedule?->flexible_checkin_until) {
+                return null;
+            }
+
+            return [
+                'type'                   => 'flexible',
+                'from'                   => substr($schedule->flexible_checkin_from, 0, 5),
+                'until'                  => substr($schedule->flexible_checkin_until, 0, 5),
+                'late_checkin_deadline'  => $config->late_checkin_deadline ? substr($config->late_checkin_deadline, 0, 5) : null,
+            ];
+        }
+
+        return null;
     }
 
     /**
