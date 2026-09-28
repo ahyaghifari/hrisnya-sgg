@@ -9,12 +9,15 @@ use App\Models\Attendance\AttendanceRequestLeaveDetails;
 use App\Models\Attendance\AttendanceRequests;
 use App\Models\Shift\Schedule;
 use App\Models\Shift\ScheduleAssignment;
+use App\Models\Shift\ScheduleRosterChangeRequest;
 use App\Models\Shift\ScheduleShiftAssignment;
 use App\Models\Shift\ScheduleShiftRosterLog;
 use App\Models\Shift\ScheduleShiftRotation;
 use App\Models\Shift\ScheduleShiftTeam;
 use App\Models\Shift\ScheduleShiftTeamMember;
 use App\Models\Shift\ShiftSwapRequests;
+use App\Services\Approval\ApprovalFlowService;
+use App\Services\Approval\ApprovalPermissionService;
 use Carbon\Carbon;
 use Filament\Notifications\Notification;
 use Illuminate\Http\UploadedFile;
@@ -545,6 +548,110 @@ class ScheduleShiftRosterTab extends Component
         return $roster;
     }
 
+    /** @return array<string, array<string, string>> [user_id => [date => draft shift_type_id atau
+     * 'off']] - CUMA sel yang lagi ada pengajuan belum diputuskan (draft_request_id terisi), lihat
+     * ScheduleShiftAssignment::draft_request_id / ScheduleRosterChangeService. Dipakai overlay di
+     * atas $roster (approved) buat preview di grid - TIDAK dipakai presensi (ScheduleResolver
+     * default tetap baca kolom approved). */
+    public function getDraftRosterProperty(): array
+    {
+        $start = Carbon::createFromFormat('Y-m', $this->period)->startOfMonth()->subDays($this->leadDays)->toDateString();
+        $end = Carbon::createFromFormat('Y-m', $this->period)->endOfMonth()->toDateString();
+
+        $userIds = $this->employees->pluck('id')->all();
+
+        $rows = $this->shiftAssignmentQuery()->whereIn('user_id', $userIds)
+            ->whereBetween('date', [$start, $end])
+            ->whereNotNull('draft_request_id')
+            ->get();
+
+        $draft = [];
+
+        foreach ($rows as $row) {
+            $draft[$row->user_id][$row->date->toDateString()] = $row->draft_off_day ? 'off' : ($row->draft_shift_type_id ?? '');
+        }
+
+        return $draft;
+    }
+
+    /** $roster (approved) dengan sel yang punya draft ditimpa nilai draft-nya - "apa yang
+     * ditampilkan ke user" di grid (baik mode lihat maupun basis awal $draft pas mulai edit). */
+    public function getDisplayRosterProperty(): array
+    {
+        $roster = $this->roster;
+
+        foreach ($this->draftRoster as $userId => $dates) {
+            foreach ($dates as $date => $value) {
+                $roster[$userId][$date] = $value;
+            }
+        }
+
+        return $roster;
+    }
+
+    /** Pengajuan perubahan jadwal yang masih menunggu keputusan untuk jadwal INI (kalau ada - 1
+     * schedule cuma boleh punya 1 yang in_review, lihat ScheduleRosterChangeService). Dipakai
+     * banner "Menunggu Persetujuan" di atas grid & gerbang approveRosterChange()/rejectRosterChange(). */
+    public function getOpenRosterChangeRequestProperty(): ?ScheduleRosterChangeRequest
+    {
+        return ScheduleRosterChangeRequest::where('schedule_id', $this->schedule->id)
+            ->where('status', 'in_review')
+            ->with(['requester', 'approvalSnapshot'])
+            ->first();
+    }
+
+    /** User ini approver step SEKARANG untuk pengajuan yang lagi terbuka - kalau true, banner
+     * dapat tombol Setuju/Tolak; kalau false (mis. karu pengaju sendiri, atau bukan approver step
+     * ini), banner cuma informasi "menunggu atasan". */
+    public function getCanReviewRosterChangeProperty(): bool
+    {
+        $request = $this->openRosterChangeRequest;
+
+        if (! $request || ! $request->approvalSnapshot) {
+            return false;
+        }
+
+        return app(ApprovalPermissionService::class)->canApprove($request->approvalSnapshot->id, Auth::user());
+    }
+
+    public function approveRosterChange(): void
+    {
+        abort_unless($this->canReviewRosterChange, 403);
+
+        $request = $this->openRosterChangeRequest;
+
+        try {
+            app(ApprovalFlowService::class)->advanceStep($request->approvalSnapshot, Auth::id(), null, 'approved');
+        } catch (\Throwable $e) {
+            Notification::make()->title($e->getMessage() ?: 'Tidak bisa menyetujui perubahan jadwal ini')->danger()->send();
+
+            return;
+        }
+
+        unset($this->roster, $this->draftRoster, $this->displayRoster, $this->openRosterChangeRequest, $this->rosterLogs);
+
+        Notification::make()->title('Perubahan jadwal disetujui')->success()->send();
+    }
+
+    public function rejectRosterChange(): void
+    {
+        abort_unless($this->canReviewRosterChange, 403);
+
+        $request = $this->openRosterChangeRequest;
+
+        try {
+            app(ApprovalFlowService::class)->advanceStep($request->approvalSnapshot, Auth::id(), null, 'rejected');
+        } catch (\Throwable $e) {
+            Notification::make()->title($e->getMessage() ?: 'Tidak bisa menolak perubahan jadwal ini')->danger()->send();
+
+            return;
+        }
+
+        unset($this->roster, $this->draftRoster, $this->displayRoster, $this->openRosterChangeRequest, $this->rosterLogs);
+
+        Notification::make()->title('Perubahan jadwal ditolak')->success()->send();
+    }
+
     /** Sel roster yang KENA pengajuan tukar shift (in_review / approved) - dipakai blade buat naruh
      * ikon "tukar" emas di pojok sel. Key: "{user_id}|{Y-m-d}". Scope: pengajuan yang req-schedule-nya
      * milik jadwal ini, dalam rentang bulan periode terpilih.
@@ -668,14 +775,17 @@ class ScheduleShiftRosterTab extends Component
             ->get();
     }
 
-    /** Masuk mode edit — salin roster tersimpan saat ini ke $draft (sel kosong default ''),
-     * supaya select di grid punya nilai awal yang benar sebelum diubah user. */
+    /** Masuk mode edit — salin roster YANG DITAMPILKAN saat ini ke $draft (sel kosong default ''),
+     * supaya select di grid punya nilai awal yang benar sebelum diubah user. Pakai displayRoster
+     * (approved + overlay draft yang lagi diajukan), bukan roster approved polos - kalau ada
+     * pengajuan lama yang belum diputuskan, karu/atasan lihat & lanjut edit proposalnya sendiri,
+     * bukan mulai dari approved seolah pengajuan lama tidak ada. */
     public function startEdit(): void
     {
         abort_unless(Auth::user()->can('Update:ShiftScheduleAssignments'), 403);
         abort_if($this->periodLocked, 403);
 
-        $roster = $this->roster;
+        $roster = $this->displayRoster;
 
         $this->draft = collect($this->employees)->mapWithKeys(function ($employee) use ($roster) {
             $row = collect($this->dates)->mapWithKeys(fn ($date) => [
@@ -712,7 +822,11 @@ class ScheduleShiftRosterTab extends Component
             return;
         }
 
-        $currentRoster = $this->roster;
+        // displayRoster (approved + overlay draft), bukan roster approved polos - biar sel yang
+        // "kembali ke kondisi awal" (approved) TERDETEKSI sebagai perubahan dari draft yang lagi
+        // pending (before=nilai draft lama), bukan malah dianggap no-op dan ke-skip diam-diam
+        // (ScheduleRosterChangeService yang nentuin itu revert-ke-approved -> draft dibatalkan).
+        $currentRoster = $this->displayRoster;
         $swapCells = $this->swapCells;
         $leaveCells = $this->leaveCells;
         $blockedBySwap = 0;
@@ -777,6 +891,8 @@ class ScheduleShiftRosterTab extends Component
             $this->editMode = false;
             $this->draft = [];
 
+            unset($this->draftRoster, $this->displayRoster, $this->rosterLogs);
+
             Notification::make()
                 ->title('Perubahan jadwal diajukan untuk persetujuan')
                 ->body("{$changed} sel diajukan ke atasan Anda, belum tersimpan sampai disetujui.")
@@ -795,7 +911,7 @@ class ScheduleShiftRosterTab extends Component
 
         // Buang memoisasi computed — kalau tidak, render() di request yang sama masih baca
         // roster/log versi cache SEBELUM tulisan setCell(), grid & Riwayat baru muncul pas refresh.
-        unset($this->roster, $this->rosterLogs);
+        unset($this->roster, $this->draftRoster, $this->displayRoster, $this->rosterLogs);
 
         Notification::make()
             ->title('Jadwal berhasil disimpan')

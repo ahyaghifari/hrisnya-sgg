@@ -106,7 +106,9 @@ class RosterBatchWriter
         });
     }
 
-    private function shiftAssignmentQuery(Schedule $schedule): \Illuminate\Database\Eloquent\Builder
+    /** Public - dipakai juga ScheduleRosterChangeService buat cari/timpa baris draft dengan
+     * scope company yang sama persis. */
+    public function shiftAssignmentQuery(Schedule $schedule): \Illuminate\Database\Eloquent\Builder
     {
         $query = ScheduleShiftAssignment::query();
 

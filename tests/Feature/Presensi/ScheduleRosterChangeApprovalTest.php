@@ -102,16 +102,102 @@ class ScheduleRosterChangeApprovalTest extends TestCase
             ->call('saveRoster')
             ->assertSet('editMode', false);
 
-        $this->assertFalse(
-            ScheduleShiftAssignment::where('user_id', $employee->id)->whereDate('date', $date)->exists(),
-            'Belum boleh tertulis sebelum disetujui.'
-        );
-
         $request = ScheduleRosterChangeRequest::where('schedule_id', $schedule->id)->first();
         $this->assertNotNull($request);
         $this->assertSame('in_review', $request->status);
         $this->assertSame($karu->id, $request->requested_by);
         $this->assertNotNull($request->approvalSnapshot);
+
+        // Baris ADA (nampung draft), TAPI kolom approved-nya (shift_type_id/off_day) belum
+        // tersentuh sama sekali - itu yang dibaca presensi (ScheduleResolver default).
+        $row = ScheduleShiftAssignment::where('user_id', $employee->id)->whereDate('date', $date)->first();
+        $this->assertNotNull($row);
+        $this->assertNull($row->shift_type_id, 'Kolom approved belum boleh tertulis sebelum disetujui.');
+        $this->assertFalse($row->off_day);
+        $this->assertSame($request->id, $row->draft_request_id);
+        $this->assertSame($shiftType->id, $row->draft_shift_type_id);
+        $this->assertFalse($row->draft_off_day);
+    }
+
+    /** Karu boleh terus edit sel yang lagi diajukan - Simpan lagi menambah/mengubah draft di
+     * pengajuan YANG SAMA (in_review), bukan bikin pengajuan baru. */
+    public function test_karu_can_keep_editing_while_request_is_still_in_review(): void
+    {
+        [$schedule, $shiftType, $employee] = $this->makeManualShiftSchedule();
+        $shiftTypeSiang = ScheduleShiftType::create(['schedule_id' => $schedule->id, 'code' => 'S', 'name' => 'Siang', 'start_time' => '15:00', 'end_time' => '23:00']);
+        $karu = $this->actingAsKaru($schedule->company_id);
+        $approver = User::factory()->create(['company_id' => $schedule->company_id]);
+        $this->makeDefaultApprovalFlow(Companies::find($schedule->company_id), $approver);
+        $date = now()->addDay()->toDateString();
+
+        Livewire::actingAs($karu)
+            ->test(ScheduleShiftRosterTab::class, ['schedule' => $schedule])
+            ->call('startEdit')
+            ->set("draft.{$employee->id}.{$date}", $shiftType->id)
+            ->call('saveRoster');
+
+        $firstRequestId = ScheduleRosterChangeRequest::where('schedule_id', $schedule->id)->firstOrFail()->id;
+
+        // startEdit() harus PRA-ISI draft dengan proposal yang lagi pending (displayRoster), bukan
+        // approved kosong - lanjut ganti ke Siang.
+        Livewire::actingAs($karu)
+            ->test(ScheduleShiftRosterTab::class, ['schedule' => $schedule])
+            ->call('startEdit')
+            ->assertSet("draft.{$employee->id}.{$date}", $shiftType->id)
+            ->set("draft.{$employee->id}.{$date}", $shiftTypeSiang->id)
+            ->call('saveRoster');
+
+        $this->assertSame(1, ScheduleRosterChangeRequest::where('schedule_id', $schedule->id)->count(), 'Tidak boleh bikin pengajuan baru.');
+
+        $request = ScheduleRosterChangeRequest::where('schedule_id', $schedule->id)->firstOrFail();
+        $this->assertSame($firstRequestId, $request->id);
+        $this->assertSame('in_review', $request->status);
+
+        $row = ScheduleShiftAssignment::where('user_id', $employee->id)->whereDate('date', $date)->first();
+        $this->assertSame($shiftTypeSiang->id, $row->draft_shift_type_id);
+    }
+
+    /** Sel yang diedit balik ke nilai approved-nya sendiri otomatis lepas dari draft (bukan
+     * ditolak, dianggap tidak jadi diajukan) - kalau itu sel draft terakhir, pengajuan ikut
+     * otomatis dibatalkan. */
+    public function test_reverting_a_cell_back_to_approved_value_auto_cancels_the_request(): void
+    {
+        [$schedule, $shiftType, $employee] = $this->makeManualShiftSchedule();
+        $karu = $this->actingAsKaru($schedule->company_id);
+        $approver = User::factory()->create(['company_id' => $schedule->company_id]);
+        $this->makeDefaultApprovalFlow(Companies::find($schedule->company_id), $approver);
+        $date = now()->addDay()->toDateString();
+
+        // Approved awal: Pagi (bukan kosong) - biar "revert" beneran balik ke sesuatu, bukan
+        // sekadar mengosongkan draft-only row.
+        ScheduleShiftAssignment::create([
+            'company_id' => $schedule->company_id, 'user_id' => $employee->id,
+            'date' => $date, 'shift_type_id' => $shiftType->id, 'off_day' => false,
+        ]);
+        $shiftTypeSiang = ScheduleShiftType::create(['schedule_id' => $schedule->id, 'code' => 'S', 'name' => 'Siang', 'start_time' => '15:00', 'end_time' => '23:00']);
+
+        Livewire::actingAs($karu)
+            ->test(ScheduleShiftRosterTab::class, ['schedule' => $schedule])
+            ->call('startEdit')
+            ->set("draft.{$employee->id}.{$date}", $shiftTypeSiang->id)
+            ->call('saveRoster');
+
+        $request = ScheduleRosterChangeRequest::where('schedule_id', $schedule->id)->firstOrFail();
+        $this->assertSame('in_review', $request->status);
+
+        // Edit lagi, balik ke Pagi (approved semula).
+        Livewire::actingAs($karu)
+            ->test(ScheduleShiftRosterTab::class, ['schedule' => $schedule])
+            ->call('startEdit')
+            ->assertSet("draft.{$employee->id}.{$date}", $shiftTypeSiang->id)
+            ->set("draft.{$employee->id}.{$date}", $shiftType->id)
+            ->call('saveRoster');
+
+        $this->assertSame('cancelled', $request->fresh()->status, 'Satu-satunya sel draft dibalik ke approved -> pengajuan otomatis batal.');
+
+        $row = ScheduleShiftAssignment::where('user_id', $employee->id)->whereDate('date', $date)->first();
+        $this->assertNull($row->draft_request_id);
+        $this->assertSame($shiftType->id, $row->shift_type_id, 'Approved tidak pernah berubah sepanjang proses ini.');
     }
 
     public function test_approving_the_request_writes_the_roster(): void
@@ -192,5 +278,84 @@ class ScheduleRosterChangeApprovalTest extends TestCase
         $this->assertFalse(
             ScheduleShiftAssignment::where('user_id', $employee->id)->whereDate('date', $date)->exists()
         );
+    }
+
+    /** Approver ditinjau LANGSUNG di grid (bukan modal) - banner muncul dengan tombol Setuju/Tolak,
+     * approve dari sana menulis roster persis seperti advanceStep() langsung. */
+    public function test_approver_sees_review_banner_and_can_approve_from_the_schedule_page(): void
+    {
+        [$schedule, $shiftType, $employee] = $this->makeManualShiftSchedule();
+        $karu = $this->actingAsKaru($schedule->company_id);
+        $approver = User::factory()->create(['company_id' => $schedule->company_id]);
+        Permission::firstOrCreate(['name' => 'View:Schedule', 'guard_name' => 'web']);
+        $approver->givePermissionTo('View:Schedule');
+        $this->makeDefaultApprovalFlow(Companies::find($schedule->company_id), $approver);
+        $date = now()->addDay()->toDateString();
+
+        Livewire::actingAs($karu)
+            ->test(ScheduleShiftRosterTab::class, ['schedule' => $schedule])
+            ->call('startEdit')
+            ->set("draft.{$employee->id}.{$date}", $shiftType->id)
+            ->call('saveRoster');
+
+        Livewire::actingAs($approver)
+            ->test(ScheduleShiftRosterTab::class, ['schedule' => $schedule])
+            ->assertSee('menunggu persetujuan')
+            ->assertSee('Setujui')
+            // Sel draft ditandai dim (title tooltip) di grid - lihat blade cell rendering.
+            ->assertSee('Diajukan, belum disetujui atasan', false)
+            ->call('approveRosterChange');
+
+        $this->assertTrue(
+            ScheduleShiftAssignment::where('user_id', $employee->id)
+                ->whereDate('date', $date)->where('shift_type_id', $shiftType->id)->exists()
+        );
+    }
+
+    /** Si pengaju sendiri (karu) lihat banner "menunggu" TAPI tanpa tombol Setuju/Tolak - dia bukan
+     * approver step ini. */
+    public function test_requester_sees_banner_without_action_buttons(): void
+    {
+        [$schedule, $shiftType, $employee] = $this->makeManualShiftSchedule();
+        $karu = $this->actingAsKaru($schedule->company_id);
+        $approver = User::factory()->create(['company_id' => $schedule->company_id]);
+        $this->makeDefaultApprovalFlow(Companies::find($schedule->company_id), $approver);
+        $date = now()->addDay()->toDateString();
+
+        Livewire::actingAs($karu)
+            ->test(ScheduleShiftRosterTab::class, ['schedule' => $schedule])
+            ->call('startEdit')
+            ->set("draft.{$employee->id}.{$date}", $shiftType->id)
+            ->call('saveRoster');
+
+        Livewire::actingAs($karu)
+            ->test(ScheduleShiftRosterTab::class, ['schedule' => $schedule])
+            ->assertSee('menunggu persetujuan')
+            ->assertDontSee('Setujui');
+    }
+
+    /** approveRosterChange()/rejectRosterChange() digerbangi canReviewRosterChange - approver yang
+     * bukan giliran (mis. sudah dieksekusi orang lain / snapshot beda) ditolak 403. */
+    public function test_non_approver_cannot_approve_roster_change(): void
+    {
+        [$schedule, $shiftType, $employee] = $this->makeManualShiftSchedule();
+        $karu = $this->actingAsKaru($schedule->company_id);
+        $approver = User::factory()->create(['company_id' => $schedule->company_id]);
+        $randomViewer = User::factory()->create(['company_id' => $schedule->company_id]);
+        Permission::firstOrCreate(['name' => 'View:Schedule', 'guard_name' => 'web']);
+        $randomViewer->givePermissionTo('View:Schedule');
+        $this->makeDefaultApprovalFlow(Companies::find($schedule->company_id), $approver);
+        $date = now()->addDay()->toDateString();
+
+        Livewire::actingAs($karu)
+            ->test(ScheduleShiftRosterTab::class, ['schedule' => $schedule])
+            ->call('startEdit')
+            ->set("draft.{$employee->id}.{$date}", $shiftType->id)
+            ->call('saveRoster');
+
+        Livewire::actingAs($randomViewer)
+            ->test(ScheduleShiftRosterTab::class, ['schedule' => $schedule])
+            ->call('approveRosterChange')
+            ->assertForbidden();
     }
 }

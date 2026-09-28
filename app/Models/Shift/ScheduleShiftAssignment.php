@@ -34,16 +34,38 @@ class ScheduleShiftAssignment extends Model
         'schedule_status',
         'created_by',
         'source_request_id',
+        'draft_request_id',
+        'draft_shift_type_id',
+        'draft_off_day',
     ];
 
     protected $casts = [
-        'date' => 'date',
+        // 'date:Y-m-d' (bukan 'date' polos) - cast 'date' Eloquent default nulis 'Y-m-d H:i:s'
+        // saat SAVE lewat model (create()/save() biasa, beda dari upsert() mentah yang dipakai
+        // RosterBatchWriter/ScheduleRosterChangeService) - di MySQL kolom DATE asli otomatis
+        // memangkas jam-nya jadi tidak kelihatan, tapi di SQLite (tanpa tipe DATE asli, disimpan
+        // TEXT apa adanya) itu BOCOR, bikin whereBetween('date', [...]) berbasis string gagal
+        // cocok (ditemukan 2026-09-28 lewat test approval jadwal shift yang flaky).
+        'date' => 'date:Y-m-d',
         'off_day' => 'boolean',
+        'draft_off_day' => 'boolean',
     ];
 
     public function shiftType(): BelongsTo
     {
         return $this->belongsTo(ScheduleShiftType::class, 'shift_type_id');
+    }
+
+    public function draftShiftType(): BelongsTo
+    {
+        return $this->belongsTo(ScheduleShiftType::class, 'draft_shift_type_id');
+    }
+
+    /** Ada pengajuan yang belum disetujui/ditolak untuk sel ini - lihat
+     * App\Services\Shift\ScheduleRosterChangeService. */
+    public function getHasDraftAttribute(): bool
+    {
+        return $this->draft_request_id !== null;
     }
 
     public function user(): BelongsTo

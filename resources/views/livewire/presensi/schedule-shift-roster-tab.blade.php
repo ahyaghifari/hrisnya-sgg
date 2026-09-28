@@ -93,6 +93,26 @@
             @endunless
         </div>
 
+        @if ($this->openRosterChangeRequest)
+            <div style="margin-top:12px;padding:10px 14px;border-radius:10px;background:rgba(217,119,6,0.1);border:1px solid rgba(217,119,6,0.3);display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+                <div style="font-size:12px;color:#92400e;">
+                    <i class="fa-solid fa-hourglass-half"></i>
+                    Ada perubahan jadwal diajukan <strong>{{ $this->openRosterChangeRequest->requester?->name }}</strong>, menunggu persetujuan.
+                    Sel yang diajukan ditandai dim di grid.
+                </div>
+                @if ($this->canReviewRosterChange)
+                    <div style="display:flex;gap:8px;">
+                        <button type="button" wire:click="approveRosterChange" wire:confirm="Setujui perubahan jadwal ini?" class="btn-primary" style="font-size:11px;padding:6px 12px;">
+                            <i class="fa-solid fa-check"></i> Setujui
+                        </button>
+                        <button type="button" wire:click="rejectRosterChange" wire:confirm="Tolak perubahan jadwal ini?" class="btn-ghost" style="font-size:11px;padding:6px 12px;color:var(--danger-text);border-color:var(--danger-soft-border);">
+                            <i class="fa-solid fa-xmark"></i> Tolak
+                        </button>
+                    </div>
+                @endif
+            </div>
+        @endif
+
         @if ($this->periodLocked)
             <p style="font-size:11px;color:var(--text-faint);margin:0;">Bulan ini belum bisa diisi/di-export/di-import — baru bisa mulai bulan depan ({{ now()->addMonth()->locale('id')->translatedFormat('F Y') }}).</p>
         @else
@@ -241,7 +261,11 @@
                 @endphp
                 @forelse ($this->employees as $employee)
                     @php
-                        $userRoster = $this->roster[$employee->id] ?? [];
+                        // displayRoster (approved + overlay draft), bukan roster approved polos -
+                        // biar sel yang lagi diajukan (belum disetujui) tetap kelihatan di grid,
+                        // ditandai dim lewat isDraftCell di bawah (instruksi user 2026-09-28).
+                        $userRoster = $this->displayRoster[$employee->id] ?? [];
+                        $userDraft = $this->draftRoster[$employee->id] ?? [];
                         $leadCount = count($this->leadDates);
                         $rfRow = $loop->index;
                         $teamInfo = $this->employeeTeamInfo[$employee->id] ?? null;
@@ -367,6 +391,10 @@
                                 $locked = ! $editMode || $swapLocked || $leaveLocked || $pastLocked;
                                 $rfR = $loop->parent->index;
                                 $rfC = $loop->index;
+                                // Sel ini lagi ada pengajuan belum diputuskan - dim (opacity
+                                // dikurangi) biar kebeda dari yang sudah approved, baik pas lihat
+                                // maupun pas lanjut edit (instruksi user 2026-09-28).
+                                $isDraftCell = isset($userDraft[$date->toDateString()]);
                             @endphp
                             <td class="rf-cell" data-r="{{ $rfR }}" data-c="{{ $rfC }}" data-locked="{{ ($swapLocked || $leaveLocked || $pastLocked) ? '1' : '0' }}"
                                 @mousedown="cellDown($event, {{ $rfR }}, {{ $rfC }})" @mouseenter="cellEnter({{ $rfR }}, {{ $rfC }})"
@@ -398,7 +426,9 @@
                                         @change="recolor($event.target)"
                                     @endif
                                     @disabled($locked)
-                                    @if ($swapLocked)
+                                    @if ($isDraftCell)
+                                        title="Diajukan, belum disetujui atasan."
+                                    @elseif ($swapLocked)
                                         title="Jadwal ini terkait pengajuan tukar shift — tidak bisa diubah dari halaman jadwal."
                                     @elseif ($leaveLocked)
                                         title="{{ $leaveType === 'cuti' ? 'Cuti' : 'Izin' }} disetujui otomatis — tidak bisa diubah dari halaman jadwal."
@@ -406,13 +436,17 @@
                                         title="{{ $leaveType === 'cuti' ? 'Cuti' : 'Izin' }} disetujui otomatis — kamu bisa mengubahnya karena punya izin Edit Jadwal."
                                     @elseif ($pastLocked)
                                         title="Tanggal sudah lewat - cuma bisa diubah oleh yang punya izin Edit Jadwal."
+                                    @elseif (! $editMode && $current === '')
+                                        title="Lepas Dinas"
                                     @elseif (! $editMode)
                                         title="Klik &quot;Mulai Isi Jadwal&quot; dulu buat mengubah."
                                     @endif
                                     {{-- opacity locked dikurangi TIPIS aja (0.92, dulu 0.7) - kebanyakan bikin
-                                    warna sel beda jauh dari warna shift sebenarnya (dilaporkan user 2026-09-16). --}}
-                                    style="width:52px;padding:6px 2px;font-size:10.5px;text-align:center;font-weight:700;border:none;border-radius:5px;{{ $locked ? 'cursor:not-allowed;opacity:0.92;' : 'cursor:pointer;' }}color:{{ $isLeaveCell ? '#000' : $currentFontColor }};{{ $isLeaveCell ? 'background:'.($leaveType === 'cuti' ? '#EF4444' : '#0EA5E9').';' : ($isOff ? "background:{$offBg};" : ($currentColor ? "background:{$currentColor};" : 'background:var(--surface-alt);')) }}">
-                                    <option value="" {{ $current === '' ? 'selected' : '' }}>-</option>
+                                    warna sel beda jauh dari warna shift sebenarnya (dilaporkan user 2026-09-16).
+                                    Sel draft (belum disetujui) dikurangi LEBIH jauh (0.55) - beda kasat mata dari
+                                    sel biasa, baik lagi editMode (karu lanjut edit proposalnya) maupun view. --}}
+                                    style="width:52px;padding:6px 2px;font-size:10.5px;text-align:center;font-weight:700;border:none;border-radius:5px;{{ $isDraftCell ? 'opacity:0.55;' : ($locked ? 'opacity:0.92;' : '') }}{{ $locked ? 'cursor:not-allowed;' : 'cursor:pointer;' }}color:{{ $isLeaveCell ? '#000' : $currentFontColor }};{{ $isLeaveCell ? 'background:'.($leaveType === 'cuti' ? '#EF4444' : '#0EA5E9').';' : ($isOff ? "background:{$offBg};" : ($currentColor ? "background:{$currentColor};" : 'background:var(--surface-alt);')) }}">
+                                    <option value="" {{ $current === '' ? 'selected' : '' }}>{{ $editMode ? '-' : 'LD' }}</option>
                                     @if ($currentOutsideTeam)
                                         <option value="{{ $current }}" selected title="Di luar daftar shift Tim karyawan ini">{{ $currentType->code }} &#9888;</option>
                                     @endif

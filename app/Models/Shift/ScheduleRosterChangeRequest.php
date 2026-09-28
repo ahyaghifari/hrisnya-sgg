@@ -11,11 +11,12 @@ use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 
 /**
- * Pengajuan perubahan roster harian dari Kepala Ruangan yang cuma punya
- * Update:ShiftScheduleAssignments (bukan Update:Schedule) - dibuat oleh
- * ScheduleRosterChangeService::submitForApproval() dari sel-sel yang lolos gerbang
- * ScheduleShiftRosterTab::saveRoster(), dieksekusi ke schedule_shift_assignments (lihat
- * RosterBatchWriter) begitu disetujui lewat ApprovalFlowService::advanceStep().
+ * "Wrapper" pengajuan perubahan roster harian dari Kepala Ruangan yang cuma punya
+ * Update:ShiftScheduleAssignments (bukan Update:Schedule) - dibuat/dipakai ulang oleh
+ * ScheduleRosterChangeService::submitForApproval() SELAMA masih in_review (karu boleh terus edit,
+ * tidak bikin request baru tiap Simpan). Diff SEBENARNYA hidup di baris schedule_shift_assignments
+ * sendiri (kolom draft_request_id/draft_shift_type_id/draft_off_day, lihat draftAssignments()) -
+ * tabel ini sejak 2026-09-28 murni status + siapa/kapan, bukan penyimpan JSON payload lagi.
  */
 class ScheduleRosterChangeRequest extends Model
 {
@@ -28,7 +29,6 @@ class ScheduleRosterChangeRequest extends Model
         'company_id',
         'schedule_id',
         'period',
-        'payload',
         'requested_by',
         'status',
         'approved_by',
@@ -39,7 +39,6 @@ class ScheduleRosterChangeRequest extends Model
     ];
 
     protected $casts = [
-        'payload' => 'array',
         'approved_at' => 'datetime',
         'rejected_at' => 'datetime',
     ];
@@ -47,6 +46,12 @@ class ScheduleRosterChangeRequest extends Model
     public function schedule()
     {
         return $this->belongsTo(Schedule::class, 'schedule_id');
+    }
+
+    /** Baris roster yang lagi menunggu keputusan atas request ini - lihat docblock class. */
+    public function draftAssignments()
+    {
+        return $this->hasMany(ScheduleShiftAssignment::class, 'draft_request_id');
     }
 
     public function requester()

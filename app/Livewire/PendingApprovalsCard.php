@@ -16,6 +16,7 @@ use App\Models\LMS\TrainingRequests;
 use App\Models\Master\JobPositions;
 use App\Models\Shift\ShiftSwapRequestCancellations;
 use App\Models\Shift\ShiftSwapRequests;
+use App\Models\Shift\ScheduleRosterChangeRequest;
 use App\Models\Sikartap\Sikartap;
 use App\Models\User;
 use App\Models\User\UserTransition;
@@ -680,7 +681,39 @@ class PendingApprovalsCard extends Component
                 ]);
         }
 
-        $requests = $attendanceRequests->concat($taskReviews)->concat($transitions)->concat($courseEnrollments)->concat($trainingRequests)->concat($cancellationRequests)->concat($jabatanKuota)->concat($manpowerRequests)->concat($shiftSwapRequests)->concat($shiftSwapCancellationRequests)->concat($sikartapRequests)->concat($orientationRequests)->concat($contractRequests)->concat($presentationApprovals)->concat($ideInovasiDirektur)->sortByDesc('created_at')->values();
+        $scheduleRosterChanges = collect();
+        if ($this->wants('schedule_roster_change')) {
+            $rosterChangeIds = $permissionService
+                ->pendingApprovalsFor(Auth::user(), ApprovalModuleEnum::SCHEDULE_ROSTER_CHANGE->value)
+                ->pluck('snapshot.module_id')->filter()->values();
+
+            $scheduleRosterChanges = ScheduleRosterChangeRequest::with(['requester', 'schedule'])
+                ->whereIn('id', $rosterChangeIds)
+                ->whereHas('requester')
+                ->get()
+                ->map(fn ($request) => (object) [
+                    'id' => $request->id,
+                    'dispatch' => 'schedule_roster_change',
+                    'bulk_supported' => true,
+                    'module' => 'schedule_roster_change',
+                    'badge' => 'blue',
+                    'label' => 'Jadwal Shift',
+                    'icon' => 'fa-calendar-days',
+                    'tile' => 'neutral',
+                    'keterangan' => ($request->schedule?->name ?? '-') . ' - ' . $request->draftAssignments()->count() . ' sel, periode ' . $request->period,
+                    'user_name' => $request->requester->name,
+                    'created_at' => $request->created_at,
+                    // Ditinjau LANGSUNG di grid Detail Penjadwalan (bukan modal terpisah) - sel
+                    // draft kelihatan (dim) di situ, tombol Setuju/Tolak juga ada di sana - lihat
+                    // ScheduleShiftRosterTab::getCanReviewRosterChangeProperty(). Tetap
+                    // bulk_supported (approve massal tanpa buka tiap jadwal).
+                    'modal' => false,
+                    'url' => route('presensi.jadwal.show', ['schedule' => $request->schedule_id, 'tab' => 'penjadwalan']),
+                    'external' => false,
+                ]);
+        }
+
+        $requests = $attendanceRequests->concat($taskReviews)->concat($transitions)->concat($courseEnrollments)->concat($trainingRequests)->concat($cancellationRequests)->concat($jabatanKuota)->concat($manpowerRequests)->concat($shiftSwapRequests)->concat($shiftSwapCancellationRequests)->concat($sikartapRequests)->concat($orientationRequests)->concat($contractRequests)->concat($presentationApprovals)->concat($ideInovasiDirektur)->concat($scheduleRosterChanges)->sortByDesc('created_at')->values();
 
         foreach ($requests as $request) {
             $request->key = $request->dispatch . ':' . $request->id;
@@ -757,6 +790,12 @@ class PendingApprovalsCard extends Component
             ),
             'shift_swap_request' => app(ApprovalFlowService::class)->advanceStep(
                 ShiftSwapRequests::findOrFail($row->id)->approvalSnapshot,
+                Auth::id(),
+                $note,
+                'approved',
+            ),
+            'schedule_roster_change' => app(ApprovalFlowService::class)->advanceStep(
+                ScheduleRosterChangeRequest::findOrFail($row->id)->approvalSnapshot,
                 Auth::id(),
                 $note,
                 'approved',

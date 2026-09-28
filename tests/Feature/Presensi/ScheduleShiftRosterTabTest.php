@@ -100,6 +100,22 @@ class ScheduleShiftRosterTabTest extends TestCase
             ->assertSee($shiftType->code);
     }
 
+    /** Sel kosong (belum ada baris ScheduleShiftAssignment) mode LIHAT (bukan editMode) dikasih
+     * label "LD" (Lepas Dinas), instruksi user 2026-09-28 - beda dari mode edit yang tetap "-". */
+    public function test_empty_cell_shows_ld_label_in_view_mode(): void
+    {
+        [$schedule, $shiftType, $employee] = $this->makeManualShiftSchedule();
+        $user = $this->actingAsAbsensi();
+
+        Livewire::actingAs($user)
+            ->test(ScheduleShiftRosterTab::class, ['schedule' => $schedule])
+            ->assertSet('editMode', false)
+            ->assertSee('LD')
+            ->assertSee('Lepas Dinas', false)
+            ->call('startEdit')
+            ->assertDontSee('LD');
+    }
+
     public function test_manual_cell_edit_assigns_shift_without_any_template(): void
     {
         [$schedule, $shiftType, $employee] = $this->makeManualShiftSchedule();
@@ -216,7 +232,7 @@ class ScheduleShiftRosterTabTest extends TestCase
         Livewire::actingAs($user)
             ->test(ScheduleShiftRosterTab::class, ['schedule' => $schedule])
             ->assertSee('Mulai Dari')
-            ->assertSee('Mulai Isi Jadwal')
+            ->assertSee('Isi Jadwal')
             ->call('setCell', $employee->id, $date, $shiftType->id);
 
         $this->assertTrue(
@@ -232,7 +248,7 @@ class ScheduleShiftRosterTabTest extends TestCase
 
         Livewire::actingAs($user)
             ->test(ScheduleShiftRosterTab::class, ['schedule' => $schedule])
-            ->assertSee('Mulai Isi Jadwal')
+            ->assertSee('Isi Jadwal')
             ->assertSet('editMode', false)
             ->call('startEdit')
             ->assertSet('editMode', true)
@@ -770,11 +786,9 @@ class ScheduleShiftRosterTabTest extends TestCase
             ->assertSet('editMode', true);
     }
 
-    /** Yang cuma punya Update:ShiftScheduleAssignments (bukan Edit Jadwal) dibatasi mulai hari
-     * ini lewat saveRoster() - sel tanggal lewat di-skip, bukan malah error/nyimpen. */
     /** Sejak 2026-09-28 tanggal lampau TIDAK lagi dilewati/skip buat yang tanpa Edit Jadwal -
-     * malah ikut diajukan ke approval sama seperti tanggal lain (toh tidak pernah tertulis
-     * langsung sampai disetujui atasannya, lihat ScheduleRosterChangeApprovalTest). */
+     * malah ikut diajukan ke approval sama seperti tanggal lain (toh tidak pernah TERTULIS
+     * SEBAGAI APPROVED sampai disetujui atasannya, lihat ScheduleRosterChangeApprovalTest). */
     public function test_save_roster_includes_past_dated_cells_in_the_approval_request_for_user_without_edit_jadwal(): void
     {
         [$schedule, $shiftType, $employee] = $this->makeManualShiftSchedule();
@@ -805,14 +819,14 @@ class ScheduleShiftRosterTabTest extends TestCase
             ->set("draft.{$employee->id}.{$datePast}", $shiftType->id)
             ->call('saveRoster');
 
-        $this->assertFalse(
-            ScheduleShiftAssignment::where('user_id', $employee->id)->whereDate('date', $datePast)->exists(),
-            'Belum boleh tertulis sebelum disetujui.'
-        );
+        $row = ScheduleShiftAssignment::where('user_id', $employee->id)->whereDate('date', $datePast)->first();
+        $this->assertNotNull($row);
+        $this->assertNull($row->shift_type_id, 'Kolom approved belum boleh tertulis sebelum disetujui.');
+        $this->assertSame($shiftType->id, $row->draft_shift_type_id);
 
         $request = ScheduleRosterChangeRequest::where('schedule_id', $schedule->id)->first();
         $this->assertNotNull($request, 'Tanggal lampau harus ikut diajukan, bukan dilewati diam-diam.');
-        $this->assertSame($datePast, $request->payload[0]['date']);
+        $this->assertSame($request->id, $row->draft_request_id);
     }
 
     /** Yang punya Update:Schedule ("Edit Jadwal") bebas ubah tanggal lewat lewat saveRoster(). */
