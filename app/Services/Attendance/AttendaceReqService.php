@@ -214,13 +214,20 @@ class AttendaceReqService
         // yang dibatasi UU, bukan kuota kebijakan yang boleh dilanggar seperti Cuti Tahunan.
         $this->assertWithinSpecialLeaveQuota($actingUser, $leaveType, $data);
 
-        // ponytail: DEMO SEMENTARA (instruksi user 2026-09-28) - gerbang masa kerja & jendela
-        // eligibility Cuti Tahunan dimatikan biar form bisa dicoba bebas tanpa disumbat status
-        // kepegawaian. Nyalakan lagi (uncomment 2 baris di bawah) setelah demo selesai.
-        // $this->assertCutiTahunanEligibility($actingUser, $leaveType, $data);
-        // if ($leaveType !== LeaveTypeCategoryEnum::TAHUNAN) {
-        //     $this->assertMinimumTenureMet($actingUser);
-        // }
+        // Cuti Tahunan TETAP diblokir kalau masa kerja minimal belum masuk jendela pengajuan
+        // (instruksi user 2026-09-05) — beda dari kuota Cuti Tahunan di atas yang sengaja
+        // dilonggarkan, ini justru harus keras (dropdown jenis cuti sudah disaring di form,
+        // ini jaring pengaman server-side).
+        $this->assertCutiTahunanEligibility($actingUser, $leaveType, $data);
+
+        // Masa kerja minimal (CUTI_MIN_MASA_KERJA_BULAN) berlaku ke jenis cuti selain Tahunan
+        // (Tahunan punya jendela sendiri yang boleh diisi 1 bulan lebih awal, lihat
+        // assertCutiTahunanEligibility di atas) — dropdown form sudah menyaring jenis cuti
+        // lain kalau belum terpenuhi (SubmitLeaveRequest::getLeaveTypesProperty), ini jaring
+        // pengaman server-side.
+        if ($leaveType !== LeaveTypeCategoryEnum::TAHUNAN) {
+            $this->assertMinimumTenureMet($actingUser);
+        }
 
         // H-30 cuma untuk Cuti Tahunan, dan cuma jalur self-service (pemohon = pembuat request) -
         // admin/HC yang membuat pengajuan atas nama karyawan lewat Filament (createdBy beda dari

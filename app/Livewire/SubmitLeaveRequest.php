@@ -54,23 +54,20 @@ class SubmitLeaveRequest extends Component
         // dibatasi (setting 0/tidak diset, atau joining_date kosong).
         $windowOpen = $service->cutiTahunanEligibleDate(Auth::user())?->subMonth();
 
-        // ponytail: DEMO SEMENTARA (instruksi user 2026-09-28) - filter jendela Tahunan, masa
-        // kerja, DAN female-only (Haid/Melahirkan/Keguguran) dimatikan semua ($isFemale,
-        // $windowOpen, $tenureMet jadi tidak dipakai di reject() di bawah) biar semua jenis
-        // cuti selalu muncul untuk akun apa pun. Nyalakan lagi setelah demo: kembalikan baris
-        // yang di-comment di dalam reject().
         return collect(LeaveTypeCategoryEnum::cases())
-            ->reject(function (LeaveTypeCategoryEnum $cat) {
-                // if ($cat->isFemaleOnly() && ! $isFemale) {
-                //     return true;
-                // }
-                //
-                // if ($cat === LeaveTypeCategoryEnum::TAHUNAN) {
-                //     return $windowOpen && now()->lt($windowOpen);
-                // }
-                //
-                // return ! $tenureMet;
-                return false;
+            ->reject(function (LeaveTypeCategoryEnum $cat) use ($isFemale, $windowOpen, $tenureMet) {
+                // Cuti haid/melahirkan/keguguran cuma buat karyawan perempuan.
+                if ($cat->isFemaleOnly() && ! $isFemale) {
+                    return true;
+                }
+
+                if ($cat === LeaveTypeCategoryEnum::TAHUNAN) {
+                    return $windowOpen && now()->lt($windowOpen);
+                }
+
+                // Jenis cuti lain (bukan Tahunan) - masa kerja minimal berlaku langsung, tidak
+                // ada jendela "boleh diisi lebih awal" seperti Tahunan.
+                return ! $tenureMet;
             })
             ->values();
     }
@@ -80,31 +77,21 @@ class SubmitLeaveRequest extends Component
      *  atau sudah terpenuhi. */
     public function getMinimumTenureNoteProperty(): ?string
     {
-        // ponytail: DEMO SEMENTARA (instruksi user 2026-09-28) - method ini sengaja dibuat
-        // selalu null biar form TIDAK dibungkus @unless($minimumTenureNote) di blade (yang
-        // menyembunyikan seluruh form kalau masa kerja belum terpenuhi). Kembalikan baris asli
-        // di bawah setelah demo selesai.
-        return null;
-        // return app(AttendaceReqService::class)->getMinimumTenureBlockNote(Auth::user());
+        return app(AttendaceReqService::class)->getMinimumTenureBlockNote(Auth::user());
     }
 
     /** Kenapa Cuti Tahunan tidak muncul di dropdown (belum masuk jendela pengajuan) - null
      *  kalau memang tidak dibatasi atau jendelanya sudah buka. */
     public function getCutiTahunanClosedNoteProperty(): ?string
     {
-        // ponytail: DEMO SEMENTARA (instruksi user 2026-09-28) - selalu null, konsisten dengan
-        // dropdown leaveTypes yang juga tidak lagi menyaring Tahunan berdasar jendela masa
-        // kerja. Kembalikan logika asli di bawah setelah demo selesai.
-        return null;
+        $eligibleDate = app(AttendaceReqService::class)->cutiTahunanEligibleDate(Auth::user());
+        $windowOpen = $eligibleDate?->copy()->subMonth();
 
-        // $eligibleDate = app(AttendaceReqService::class)->cutiTahunanEligibleDate(Auth::user());
-        // $windowOpen = $eligibleDate?->copy()->subMonth();
-        //
-        // if (! $windowOpen || now()->gte($windowOpen)) {
-        //     return null;
-        // }
-        //
-        // return "Cuti Tahunan baru bisa diajukan mulai {$windowOpen->translatedFormat('d M Y')}, 1 bulan sebelum masa kerja minimal terpenuhi ({$eligibleDate->translatedFormat('d M Y')}).";
+        if (! $windowOpen || now()->gte($windowOpen)) {
+            return null;
+        }
+
+        return "Cuti Tahunan baru bisa diajukan mulai {$windowOpen->translatedFormat('d M Y')}, 1 bulan sebelum masa kerja minimal terpenuhi ({$eligibleDate->translatedFormat('d M Y')}).";
     }
 
     /** Kategori cuti khusus dari jenis cuti yang dipilih (null kalau cuti biasa/tahunan). */
@@ -217,19 +204,18 @@ class SubmitLeaveRequest extends Component
 
         $data = $this->validate();
 
-        // ponytail: DEMO SEMENTARA (instruksi user 2026-09-28) - guard female-only dimatikan
-        // biar Cuti Haid/Melahirkan/Keguguran bisa diajukan akun apa pun. Nyalakan lagi:
-        // uncomment blok di bawah.
-        // $cat = LeaveTypeCategoryEnum::tryFrom($data['leave_type']);
-        //
-        // if ($cat?->isFemaleOnly() && Auth::user()->profile?->gender !== 'perempuan') {
-        //     Notification::make()
-        //         ->title('Jenis cuti ini hanya untuk karyawan perempuan.')
-        //         ->danger()
-        //         ->send();
-        //
-        //     return;
-        // }
+        // Guard server-side — jenis cuti female-only tidak boleh diajukan karyawan non-perempuan
+        // (walau di dropdown sudah disembunyikan).
+        $cat = LeaveTypeCategoryEnum::tryFrom($data['leave_type']);
+
+        if ($cat?->isFemaleOnly() && Auth::user()->profile?->gender !== 'perempuan') {
+            Notification::make()
+                ->title('Jenis cuti ini hanya untuk karyawan perempuan.')
+                ->danger()
+                ->send();
+
+            return;
+        }
 
         try {
             app(AttendaceReqService::class)->storeLeaveRequest([
