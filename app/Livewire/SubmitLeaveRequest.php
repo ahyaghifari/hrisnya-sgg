@@ -236,6 +236,7 @@ class SubmitLeaveRequest extends Component
                 'type_id' => $data['leave_type'],
                 'start_date' => $data['start_date'],
                 'end_date' => $data['end_date'],
+                'reason' => $data['reason'] ?? null,
                 'attachments' => $data['attachments'] ?? null,
             ], Auth::user());
 
