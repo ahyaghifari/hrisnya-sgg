@@ -156,9 +156,40 @@ class JobApplication extends Model
         return $this->hasMany(OfferingNegotiation::class)->orderBy('created_at');
     }
 
+    public function interviewInvitees(): HasMany
+    {
+        return $this->hasMany(InterviewInvitee::class);
+    }
+
+    /**
+     * Undangan wawancara TERBARU. Dulu hasOne polos karena wawancara cuma sekali; sejak wawancara
+     * berlapis (2026-09-28) satu pelamar bisa punya undangan per tahap, jadi yang diambil yang
+     * terakhir - itu tahap yang sedang berjalan untuk dia. Pemanggil lama (mis. tombol Ubah Jadwal
+     * per orang) otomatis mengenai tahap yang sedang berjalan, yang memang yang dimaksud.
+     */
     public function interviewInvitee(): HasOne
     {
-        return $this->hasOne(InterviewInvitee::class);
+        return $this->hasOne(InterviewInvitee::class)->latestOfMany();
+    }
+
+    /** Undangan tahap tertentu, null kalau belum pernah dijadwalkan di tahap itu. */
+    public function interviewInviteeForRound(int $round): ?InterviewInvitee
+    {
+        return $this->interviewInvitees->first(fn (InterviewInvitee $inv) => $inv->round() === $round);
+    }
+
+    /**
+     * Tahap wawancara yang sedang menunggu keputusan, null kalau tidak ada. Dipakai halaman Wawancara
+     * menentukan hasil tahap mana yang dicatat.
+     */
+    public function pendingInterviewRound(): ?int
+    {
+        $pending = $this->interviewInvitees
+            ->filter(fn (InterviewInvitee $inv) => $inv->result === null)
+            ->sortBy(fn (InterviewInvitee $inv) => $inv->round())
+            ->first();
+
+        return $pending?->round();
     }
 
     public function mcuInvitee(): HasOne

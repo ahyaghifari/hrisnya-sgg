@@ -95,7 +95,9 @@ class ApplicationNotification extends Model
 
         $jobTitle = $app->jobOpening->title ?? '';
         $name = $app->answersMap()['full_name'] ?? 'Pelamar';
-        $label = match ($kind) {
+        // $data['label'] dipakai wawancara berlapis supaya emailnya menyebut tahapnya
+        // (mis. "Wawancara Tahap 2" / "Wawancara User"), lihat InterviewSchedule::label().
+        $label = $data['label'] ?? match ($kind) {
             'mcu' => 'Medical Check Up',
             'offline_test' => 'Tes',
             default => 'Wawancara',

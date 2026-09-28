@@ -18,9 +18,15 @@ class InterviewSchedule extends Model
 
     protected $connection = 'recruitment';
 
-    protected $fillable = ['job_opening_id', 'interview_date', 'interview_time', 'location', 'notes', 'status'];
+    protected $fillable = ['job_opening_id', 'round', 'name', 'interview_date', 'interview_time', 'location', 'notes', 'status'];
 
-    protected $casts = ['interview_date' => 'date'];
+    protected $casts = ['interview_date' => 'date', 'round' => 'integer'];
+
+    /** "Wawancara HR" kalau HR mengisi namanya, kalau tidak "Wawancara Tahap 2". */
+    public function label(): string
+    {
+        return filled($this->name) ? $this->name : 'Wawancara Tahap ' . ($this->round ?: 1);
+    }
 
     public function jobOpening(): BelongsTo
     {
@@ -32,14 +38,16 @@ class InterviewSchedule extends Model
         return $this->hasMany(InterviewInvitee::class);
     }
 
-    public static function draftForOpening(string $jobOpeningId): ?self
+    public static function draftForOpening(string $jobOpeningId, int $round = 1): ?self
     {
-        return static::where('job_opening_id', $jobOpeningId)->where('status', 'draft')->latest()->first();
+        return static::where('job_opening_id', $jobOpeningId)->where('round', $round)
+            ->where('status', 'draft')->latest()->first();
     }
 
-    public static function publishedForOpening(string $jobOpeningId): ?self
+    public static function publishedForOpening(string $jobOpeningId, int $round = 1): ?self
     {
-        return static::where('job_opening_id', $jobOpeningId)->where('status', 'published')->latest()->first();
+        return static::where('job_opening_id', $jobOpeningId)->where('round', $round)
+            ->where('status', 'published')->latest()->first();
     }
 
     /** Notif email perubahan jadwal ke 1 pelamar kalau masih di tahap wawancara. */
@@ -50,6 +58,7 @@ class InterviewSchedule extends Model
         }
 
         ApplicationNotification::notifyReschedule($inv->jobApplication, 'interview', [
+            'label' => $this->label(),
             'date' => $this->interview_date?->translatedFormat('d F Y'),
             'time' => $this->interview_time ? substr($this->interview_time, 0, 5) : null,
             'location' => $this->location,
@@ -80,10 +89,11 @@ class InterviewSchedule extends Model
         return $notified;
     }
 
-    /** Reschedule massal: semua jadwal terbit lowongan ini dipindah ke tanggal baru. */
-    public static function rescheduleOpening(string $jobOpeningId, array $data): int
+    /** Reschedule massal: semua jadwal terbit TAHAP ITU dipindah ke tanggal baru. */
+    public static function rescheduleOpening(string $jobOpeningId, array $data, int $round = 1): int
     {
-        return static::where('job_opening_id', $jobOpeningId)->where('status', 'published')->get()
+        return static::where('job_opening_id', $jobOpeningId)->where('round', $round)
+            ->where('status', 'published')->get()
             ->sum(fn (self $s) => $s->reschedule($data));
     }
 
@@ -95,6 +105,9 @@ class InterviewSchedule extends Model
     {
         $new = static::create([
             'job_opening_id' => $invitee->schedule?->job_opening_id ?? $invitee->jobApplication?->job_opening_id,
+            // Tahap & namanya ikut jadwal lama - ini pindah tanggal, bukan tahap baru.
+            'round' => $invitee->schedule?->round ?? 1,
+            'name' => $invitee->schedule?->name,
             'interview_date' => $data['interview_date'],
             'interview_time' => $data['interview_time'] ?? null,
             'location' => $data['location'] ?? null,
@@ -106,12 +119,16 @@ class InterviewSchedule extends Model
         $new->notifyInvitee($invitee->fresh('jobApplication'));
     }
 
-    public static function saveDraft(string $jobOpeningId, array $data, array $invitedIds): self
+    public static function saveDraft(string $jobOpeningId, array $data, array $invitedIds, int $round = 1): self
     {
-        static::where('job_opening_id', $jobOpeningId)->where('status', 'draft')->delete();
+        // Hapus draft TAHAP INI saja - draft tahap lain (mis. tahap 2 yang sedang disiapkan) jangan
+        // ikut terhapus waktu tahap 1 diubah.
+        static::where('job_opening_id', $jobOpeningId)->where('round', $round)->where('status', 'draft')->delete();
 
         $schedule = static::create([
             'job_opening_id' => $jobOpeningId,
+            'round' => $round,
+            'name' => $data['name'] ?? null,
             'interview_date' => $data['interview_date'],
             'interview_time' => $data['interview_time'] ?? null,
             'location' => $data['location'] ?? null,
@@ -137,6 +154,7 @@ class InterviewSchedule extends Model
         foreach ($invitees as $inv) {
             $inv->jobApplication->update(['status' => JobApplication::STATUS_INTERVIEW]);
             ApplicationNotification::createAndSend($inv->jobApplication, CompanyMessageTemplate::EVENT_INTERVIEW_SCHEDULED, [
+                'tahap' => $this->label(),
                 'interview_date' => $this->interview_date?->translatedFormat('d F Y'),
                 'interview_time' => $this->interview_time ? substr($this->interview_time, 0, 5) : null,
                 'location' => $this->location,

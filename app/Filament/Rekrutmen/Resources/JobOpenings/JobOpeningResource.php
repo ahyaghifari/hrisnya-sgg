@@ -216,6 +216,20 @@ class JobOpeningResource extends Resource
                     ->helperText('Kuis yang dipakai untuk lowongan ini. Kelola soal di menu Kuis.')
                     ->columnSpanFull(),
 
+                TextInput::make('interview_rounds')
+                    ->label('Jumlah Tahap Wawancara')
+                    ->numeric()
+                    ->default(1)
+                    ->minValue(1)
+                    // Batas atas cuma pengaman salah ketik - kolomnya tinyint, dan tidak ada alur
+                    // yang mengunci jumlahnya. Naikkan saja kalau memang ada yang butuh lebih.
+                    ->maxValue(10)
+                    ->required()
+                    // Lulus satu tahap belum langsung ke Offering selama masih ada tahap sesudahnya:
+                    // orangnya masuk daftar tunggu, lalu dijadwalkan di menu Kandidat > Wawancara.
+                    // Nama tiap tahap diisi saat menjadwalkan, bukan di sini.
+                    ->helperText('Lulus satu tahap masuk daftar tunggu tahap berikutnya; baru setelah lulus tahap terakhir lanjut ke Offering.'),
+
                 Toggle::make('requires_psychotest')
                     ->label('Wajib Psikotes Offline')
                     ->helperText('Aktifkan untuk memilih Tes Offline yang dipakai lowongan ini.')
