@@ -29,9 +29,14 @@ class AttendanceRequestDetail extends Component
     public ?string $reviseEnd = null;
 
     /** Aksi self-service pemilik pengajuan (bukan approver): 'self_cancel' (batal langsung, masih
-     *  in_review) atau 'request_cancel' (ajukan pembatalan, sudah approved). */
+     *  in_review), 'request_cancel' (ajukan pembatalan, sudah approved), atau 'reschedule'
+     *  (khusus Cuti - lihat getCanRescheduleProperty()). */
     public ?string $selfAction = null;
     public ?string $selfActionReason = null;
+
+    /** Tanggal baru untuk aksi 'reschedule' - lihat getCanRescheduleProperty(). */
+    public ?string $rescheduleStart = null;
+    public ?string $rescheduleEnd = null;
 
     /** Approve/Reject untuk pengajuan pembatalan (aktivitas terpisah dari $pendingAction di atas
      *  yang khusus pengajuan Cuti/Izin aslinya). */
@@ -129,6 +134,19 @@ class AttendanceRequestDetail extends Component
             && $this->activeCancellation?->status !== 'in_review';
     }
 
+    /** Pemilik pengajuan boleh RESCHEDULE - KHUSUS Cuti (bukan Izin), masih in_review ATAU sudah
+     *  approved, belum lewat tanggal mulai, belum ada pengajuan pembatalan yang masih diproses.
+     *  Beda dari canRequestCancellation - ini otomatis batal LANGSUNG (tanpa approval) lalu
+     *  buka pengajuan baru, lihat AttendaceReqService::rescheduleLeaveRequest(). */
+    public function getCanRescheduleProperty(): bool
+    {
+        return $this->record->user_id === Auth::id()
+            && $this->record->type === 'leave'
+            && in_array($this->record->status, ['in_review', 'approved'], true)
+            && ! app(AttendaceReqService::class)->cancellationCutoffPassed($this->record)
+            && $this->activeCancellation?->status !== 'in_review';
+    }
+
     public function getCanApproveCancellationProperty(): bool
     {
         $snapshot = $this->activeCancellation?->approvalSnapshot;
@@ -172,6 +190,11 @@ class AttendanceRequestDetail extends Component
     {
         $this->selfAction = $type;
         $this->selfActionReason = null;
+
+        if ($type === 'reschedule') {
+            [$this->rescheduleStart, $this->rescheduleEnd] = $this->currentRequestDates();
+        }
+
         $this->resetErrorBag();
     }
 
@@ -179,18 +202,28 @@ class AttendanceRequestDetail extends Component
     {
         $this->selfAction = null;
         $this->selfActionReason = null;
+        $this->rescheduleStart = null;
+        $this->rescheduleEnd = null;
     }
 
     public function confirmSelfAction(): void
     {
         $this->validate(['selfActionReason' => ['required', 'string']], [], ['selfActionReason' => 'Alasan']);
 
+        if ($this->selfAction === 'reschedule') {
+            $this->validate([
+                'rescheduleStart' => ['required', 'date'],
+                'rescheduleEnd' => ['required', 'date', 'after_or_equal:rescheduleStart'],
+            ], [], ['rescheduleStart' => 'Tanggal mulai baru', 'rescheduleEnd' => 'Tanggal selesai baru']);
+        }
+
         // Guard server-side - tombolnya sudah disembunyikan di blade kalau tidak eligible, tapi
         // chooseSelfAction()/confirmSelfAction() bisa dipanggil langsung lewat Livewire wire:click
         // manapun, jadi statusnya dicek ulang di sini (bukan cuma andalkan UI).
         abort_unless(
             ($this->selfAction === 'self_cancel' && $this->canSelfCancel)
-                || ($this->selfAction === 'request_cancel' && $this->canRequestCancellation),
+                || ($this->selfAction === 'request_cancel' && $this->canRequestCancellation)
+                || ($this->selfAction === 'reschedule' && $this->canReschedule),
             403
         );
 
@@ -212,10 +245,28 @@ class AttendanceRequestDetail extends Component
                 );
 
                 Notification::make()->title('Pengajuan pembatalan berhasil dikirim, menunggu persetujuan')->success()->send();
+            } elseif ($this->selfAction === 'reschedule') {
+                app(AttendaceReqService::class)->rescheduleLeaveRequest(
+                    $this->record,
+                    $this->rescheduleStart,
+                    $this->rescheduleEnd,
+                    Auth::user(),
+                    $this->selfActionReason
+                );
+
+                Notification::make()->title('Cuti berhasil dijadwalkan ulang, menunggu persetujuan baru')->success()->send();
+
+                // Pengajuan lama (record ini) sudah cancelled, halaman detailnya sudah tidak
+                // relevan lagi - balik ke daftar, sama pola dengan SubmitLeaveRequest::submit().
+                $this->redirect(route('my-attendance-requests'), navigate: true);
+
+                return;
             }
 
             $this->selfAction = null;
             $this->selfActionReason = null;
+            $this->rescheduleStart = null;
+            $this->rescheduleEnd = null;
 
             $this->record->refresh();
             $this->record->load([
@@ -223,7 +274,7 @@ class AttendanceRequestDetail extends Component
                 'cancellationRequests' => fn ($q) => $q->latest()->limit(1),
             ]);
 
-            unset($this->canSelfCancel, $this->canRequestCancellation, $this->activeCancellation, $this->cancellationTimeline);
+            unset($this->canSelfCancel, $this->canRequestCancellation, $this->canReschedule, $this->activeCancellation, $this->cancellationTimeline);
         } catch (\Exception $e) {
             Notification::make()->title('Gagal: ' . $e->getMessage())->danger()->send();
         }

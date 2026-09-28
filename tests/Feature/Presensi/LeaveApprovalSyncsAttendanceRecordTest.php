@@ -61,7 +61,7 @@ class LeaveApprovalSyncsAttendanceRecordTest extends TestCase
         $approver = User::factory()->create(['company_id' => $company->id]);
         $this->approvalFlow($company, $approver);
 
-        $date = now()->addDays(3)->toDateString();
+        $date = now()->addDays(31)->toDateString();
 
         app(AttendaceReqService::class)->storeLeaveRequest([
             'type_id' => LeaveTypeCategoryEnum::TAHUNAN->value,
@@ -167,7 +167,7 @@ class LeaveApprovalSyncsAttendanceRecordTest extends TestCase
         $approver = User::factory()->create(['company_id' => $company->id]);
         $this->approvalFlow($company, $approver);
 
-        $date = now()->addDays(3)->toDateString();
+        $date = now()->addDays(31)->toDateString();
 
         AttendanceRecords::create([
             'user_id' => $employee->id,

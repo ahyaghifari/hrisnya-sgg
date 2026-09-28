@@ -9,6 +9,7 @@ use App\Enum\Attendance\LeaveTypeCategoryEnum;
 use App\Enum\Attendance\PermissionGroupEnum;
 use App\Enum\Attendance\PermissionTypeCategoryEnum;
 use App\Enum\Attendance\PermissionTypeEnum;
+use App\Enum\AttendanceReqStatus;
 use App\Enum\AttendanceStatus;
 use App\Models\Attendance\AttendanceRecords;
 use App\Models\Attendance\AttendanceRequestLeaveDetails;
@@ -28,9 +29,22 @@ use App\Repositories\Attendance\PermissionReqRepository;
 use App\Services\Approval\ApprovalCreationService;
 use App\Services\Notification\NotificationService;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 
 class AttendaceReqService
 {
+    /** Cuti TAHUNAN (submit self-service saja, bukan dibuat admin) wajib diajukan minimal
+     *  H-30 - instruksi user 2026-09-28, sengaja HANYA untuk kategori Tahunan (bukan jenis cuti
+     *  lain). Sumber kebenaran TUNGGAL (dipakai SubmitLeaveRequest buat `min` date picker DAN
+     *  diassert ulang di storeLeaveRequest() sebagai jaring pengaman server-side, termasuk jalur
+     *  mobile API) - jangan duplikasi angka 30 ini di tempat lain. */
+    public const LEAVE_MIN_LEAD_DAYS = 30;
+
+    public function minLeaveDate(): Carbon
+    {
+        return now()->addDays(self::LEAVE_MIN_LEAD_DAYS)->startOfDay();
+    }
+
     public function __construct(
         protected AttendanceReqRepository $attendanceReqRepository,
         protected OvertimeReqRepository $overtimeReqRepository,
@@ -200,19 +214,19 @@ class AttendaceReqService
         // yang dibatasi UU, bukan kuota kebijakan yang boleh dilanggar seperti Cuti Tahunan.
         $this->assertWithinSpecialLeaveQuota($actingUser, $leaveType, $data);
 
-        // Cuti Tahunan TETAP diblokir kalau masa kerja minimal belum masuk jendela pengajuan
-        // (instruksi user 2026-09-05) — beda dari kuota Cuti Tahunan di atas yang sengaja
-        // dilonggarkan, ini justru harus keras (dropdown jenis cuti sudah disaring di form,
-        // ini jaring pengaman server-side).
-        $this->assertCutiTahunanEligibility($actingUser, $leaveType, $data);
+        // ponytail: DEMO SEMENTARA (instruksi user 2026-09-28) - gerbang masa kerja & jendela
+        // eligibility Cuti Tahunan dimatikan biar form bisa dicoba bebas tanpa disumbat status
+        // kepegawaian. Nyalakan lagi (uncomment 2 baris di bawah) setelah demo selesai.
+        // $this->assertCutiTahunanEligibility($actingUser, $leaveType, $data);
+        // if ($leaveType !== LeaveTypeCategoryEnum::TAHUNAN) {
+        //     $this->assertMinimumTenureMet($actingUser);
+        // }
 
-        // Masa kerja minimal (CUTI_MIN_MASA_KERJA_BULAN) berlaku ke jenis cuti selain Tahunan
-        // (Tahunan punya jendela sendiri yang boleh diisi 1 bulan lebih awal, lihat
-        // assertCutiTahunanEligibility di atas) — dropdown form sudah menyaring jenis cuti
-        // lain kalau belum terpenuhi (SubmitLeaveRequest::getLeaveTypesProperty), ini jaring
-        // pengaman server-side.
-        if ($leaveType !== LeaveTypeCategoryEnum::TAHUNAN) {
-            $this->assertMinimumTenureMet($actingUser);
+        // H-30 cuma untuk Cuti Tahunan, dan cuma jalur self-service (pemohon = pembuat request) -
+        // admin/HC yang membuat pengajuan atas nama karyawan lewat Filament (createdBy beda dari
+        // actingUser) sengaja TIDAK kena, supaya tetap bisa input cuti retroaktif/darurat.
+        if ($leaveType === LeaveTypeCategoryEnum::TAHUNAN && $createdBy->id === $actingUser->id) {
+            $this->assertMinimumLeadTime($data['start_date']);
         }
 
         $this->assertKeteranganWajibDiisi($actingUser, $data['reason'] ?? null, 'Alasan/Keterangan cuti');
@@ -387,6 +401,15 @@ class AttendaceReqService
     {
         if (! $this->minimumTenureMet($actingUser)) {
             throw new \Exception('Anda belum bisa mengajukan cuti — masa kerja belum mencapai minimal kebijakan perusahaan.');
+        }
+    }
+
+    /** Jaring pengaman server-side buat minLeaveDate() — lihat storeLeaveRequest() (Cuti Tahunan
+     *  self-service saja). */
+    private function assertMinimumLeadTime(string $startDate): void
+    {
+        if (Carbon::parse($startDate)->startOfDay()->lt($this->minLeaveDate())) {
+            throw new \Exception('Cuti Tahunan wajib diajukan minimal 30 hari sebelum tanggal mulai.');
         }
     }
 
@@ -1078,5 +1101,91 @@ class AttendaceReqService
     {
         ScheduleShiftAssignment::where('source_request_id', $request->id)->delete();
         AttendanceRecords::where('source_request_id', $request->id)->delete();
+    }
+
+    /**
+     * Reschedule Cuti (instruksi user 2026-09-28): pengajuan LAMA otomatis DIBATALKAN LANGSUNG -
+     * baik masih in_review maupun sudah approved sampai akhir - TANPA lewat alur approval
+     * pembatalan (beda dari AttendanceCancellationService::requestCancellation() yang tetap
+     * butuh approval kalau sudah approved). Kalau lama sudah approved, roster/attendance_records
+     * yang tadi disinkron ikut di-revert (revertApprovedAbsenceSync) supaya tidak nyangkut ganda.
+     * Setelah itu pengajuan BARU dibuat dengan tanggal baru lewat storeLeaveRequest() biasa -
+     * approval dari awal lagi, kuota/eligibility dicek ulang normal (yang lama sudah cancelled
+     * duluan jadi tidak ikut terhitung "used"). Efeknya sama seperti pemohon manual batal
+     * lalu ajukan baru terpisah, cuma digabung jadi 1 aksi.
+     *
+     * Type-agnostic secara kode (semua jenis Cuti, bukan cuma Tahunan) - H-30 tetap berlaku
+     * otomatis lewat storeLeaveRequest() karena reschedule ini SELALU self-service (actingUser
+     * = createdBy = pemilik pengajuan lama).
+     */
+    public function rescheduleLeaveRequest(AttendanceRequests $record, string $newStart, string $newEnd, User $actingUser, string $reason): object
+    {
+        if ($record->type !== 'leave') {
+            throw new \Exception('Jadwalkan ulang cuma berlaku untuk pengajuan Cuti.');
+        }
+
+        if ($record->user_id !== $actingUser->id) {
+            throw new \Exception('Hanya pemilik pengajuan yang bisa menjadwalkan ulang.');
+        }
+
+        if (! in_array($record->status, ['in_review', 'approved'], true)) {
+            throw new \Exception('Pengajuan ini sudah selesai diproses, tidak bisa dijadwalkan ulang.');
+        }
+
+        if ($this->cancellationCutoffPassed($record)) {
+            throw new \Exception('Tanggal mulai pengajuan lama ini sudah lewat, tidak bisa dijadwalkan ulang.');
+        }
+
+        if ($record->cancellationRequests()->where('status', 'in_review')->exists()) {
+            throw new \Exception('Sudah ada pengajuan pembatalan yang masih diproses untuk pengajuan ini, tunggu itu selesai dulu.');
+        }
+
+        if (Carbon::parse($newEnd)->lt(Carbon::parse($newStart))) {
+            throw new \Exception('Tanggal selesai baru tidak boleh sebelum tanggal mulai baru.');
+        }
+
+        $category = $record->leaveDetails->first()?->category;
+
+        if (! $category) {
+            throw new \Exception('Jenis cuti pengajuan lama tidak ditemukan.');
+        }
+
+        return DB::transaction(function () use ($record, $newStart, $newEnd, $actingUser, $reason, $category) {
+            $wasApproved = $record->status === 'approved';
+
+            $this->attendanceReqRepository->updateAttendanceRequest($record, [
+                'status' => AttendanceReqStatus::CANCELLED->value,
+                'cancelled_by' => $actingUser->id,
+                'cancelled_at' => now(),
+            ]);
+
+            $snapshot = $record->approvalSnapshot;
+            if ($snapshot) {
+                $snapshot->activity?->update(['status' => 'cancelled', 'acted_by' => $actingUser->id, 'acted_at' => now(), 'note' => $reason]);
+                $snapshot->update(['status' => 'cancelled']);
+            }
+
+            $this->approvalHistoryRepository->create([
+                'requestable_type' => ApprovalModuleEnum::ATTENDANCE_REQUEST->value,
+                'requestable_id' => $record->id,
+                'snapshot_id' => $snapshot?->id,
+                'activity_id' => $snapshot?->activity?->id,
+                'action' => 'cancelled',
+                'actor_id' => $actingUser->id,
+                'actor_name' => $actingUser->name,
+                'note' => "Dijadwalkan ulang oleh {$actingUser->name}: {$reason}",
+            ]);
+
+            if ($wasApproved) {
+                $this->revertApprovedAbsenceSync($record);
+            }
+
+            return $this->storeLeaveRequest([
+                'type_id' => $category,
+                'start_date' => $newStart,
+                'end_date' => $newEnd,
+                'reason' => $reason,
+            ], $actingUser);
+        });
     }
 }

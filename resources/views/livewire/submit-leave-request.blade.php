@@ -86,16 +86,16 @@
                     <div class="date-grid">
                         <div>
                             <p style="font-size:11.5px;color:var(--text-muted);margin:0 0 5px;">Tanggal Mulai</p>
-                            <input type="date" class="form-input" wire:model.live="start_date">
+                            <input type="date" class="form-input" wire:model.live="start_date" @if ($this->minLeaveDate) min="{{ $this->minLeaveDate }}" @endif>
                             @error('start_date') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
                         </div>
                         <div>
                             <p style="font-size:11.5px;color:var(--text-muted);margin:0 0 5px;">Tanggal Selesai</p>
-                            <input type="date" class="form-input" wire:model.live="end_date">
+                            <input type="date" class="form-input" wire:model.live="end_date" @if ($start_date || $this->minLeaveDate) min="{{ $start_date ?: $this->minLeaveDate }}" @endif>
                             @error('end_date') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
                         </div>
                     </div>
-                    <p style="font-size:11.5px;color:var(--text-muted);margin:6px 0 0;">1 hari cuti? Isi tanggal mulai dan selesai sama.</p>
+                    <p style="font-size:11.5px;color:var(--text-muted);margin:6px 0 0;">1 hari cuti? Isi tanggal mulai dan selesai sama.@if ($leave_type === \App\Enum\Attendance\LeaveTypeCategoryEnum::TAHUNAN->value) Cuti Tahunan wajib diajukan minimal 30 hari sebelum tanggal mulai.@endif</p>
                 </div>
 
                 @if ($this->workingDays !== null)

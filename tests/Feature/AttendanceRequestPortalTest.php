@@ -115,7 +115,7 @@ class AttendanceRequestPortalTest extends TestCase
 
         $this->actingAs($user);
 
-        $date = now()->addDay()->toDateString();
+        $date = now()->addDays(31)->toDateString();
 
         Livewire::test(SubmitLeaveRequest::class)
             ->set('leave_type', $leaveType->value)
@@ -156,7 +156,7 @@ class AttendanceRequestPortalTest extends TestCase
         $user = $this->createEmployee($company);
         $this->actingAs($user);
 
-        $date = now()->addDay()->toDateString();
+        $date = now()->addDays(31)->toDateString();
 
         // Cuti
         $leave = Livewire::test(SubmitLeaveRequest::class)

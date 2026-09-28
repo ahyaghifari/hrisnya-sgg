@@ -122,7 +122,7 @@ class WorkingDaysScheduleTest extends TestCase
 
         $type = LeaveTypeCategoryEnum::TAHUNAN;
 
-        $monday = Carbon::parse('2026-09-07')->startOfWeek(Carbon::MONDAY);
+        $monday = now()->addDays(45)->startOfWeek(Carbon::MONDAY);
 
         app(AttendaceReqService::class)->storeLeaveRequest([
             'type_id' => $type->value,
@@ -146,7 +146,7 @@ class WorkingDaysScheduleTest extends TestCase
         $type = LeaveTypeCategoryEnum::TAHUNAN;
 
         // Sabtu (off day) — 1 tanggal tetap total_days 1 (yang diajukan dihormati).
-        $saturday = Carbon::parse('2026-09-07')->startOfWeek(Carbon::MONDAY)->addDays(5);
+        $saturday = now()->addDays(45)->startOfWeek(Carbon::MONDAY)->addDays(5);
 
         app(AttendaceReqService::class)->storeLeaveRequest([
             'type_id' => $type->value,

@@ -49,14 +49,16 @@ class SelfCancelLeaveRequestTest extends TestCase
         ]);
     }
 
-    private function submitLeave(User $employee, string $start): AttendanceRequests
+    /** $createdBy null = self-service (kena H-30 Cuti Tahunan); diisi eksplisit (mis. admin)
+     *  buat simulasi data lama/lewat H yang butuh tanggal di bawah H-30. */
+    private function submitLeave(User $employee, string $start, ?User $createdBy = null): AttendanceRequests
     {
         app(AttendaceReqService::class)->storeLeaveRequest([
             'type_id' => LeaveTypeCategoryEnum::TAHUNAN->value,
             'is_one_day' => true,
             'start_date' => $start,
             'end_date' => $start,
-        ], $employee);
+        ], $employee, createdBy: $createdBy ?? $employee);
 
         return AttendanceRequests::where('user_id', $employee->id)->firstOrFail();
     }
@@ -64,7 +66,7 @@ class SelfCancelLeaveRequestTest extends TestCase
     public function test_owner_can_self_cancel_while_in_review(): void
     {
         $employee = User::factory()->create(['company_id' => $this->company->id]);
-        $request = $this->submitLeave($employee, now()->addDays(3)->toDateString());
+        $request = $this->submitLeave($employee, now()->addDays(31)->toDateString());
 
         $this->actingAs($employee);
         Livewire::test(AttendanceRequestDetail::class, ['record' => $request])
@@ -80,7 +82,8 @@ class SelfCancelLeaveRequestTest extends TestCase
     public function test_self_cancel_button_hidden_and_blocked_after_cutoff(): void
     {
         $employee = User::factory()->create(['company_id' => $this->company->id]);
-        $request = $this->submitLeave($employee, now()->subDay()->toDateString());
+        $admin = User::factory()->create(['company_id' => $this->company->id]);
+        $request = $this->submitLeave($employee, now()->subDay()->toDateString(), createdBy: $admin);
 
         $this->actingAs($employee);
         Livewire::test(AttendanceRequestDetail::class, ['record' => $request])
@@ -97,7 +100,7 @@ class SelfCancelLeaveRequestTest extends TestCase
     {
         $employee = User::factory()->create(['company_id' => $this->company->id]);
         $otherUser = User::factory()->create(['company_id' => $this->company->id]);
-        $request = $this->submitLeave($employee, now()->addDays(3)->toDateString());
+        $request = $this->submitLeave($employee, now()->addDays(31)->toDateString());
 
         $this->actingAs($otherUser);
         Livewire::test(AttendanceRequestDetail::class, ['record' => $request])

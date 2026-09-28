@@ -51,8 +51,8 @@ class AttendanceRequestCancelTest extends TestCase
         app(AttendaceReqService::class)->storeLeaveRequest([
             'type_id' => $leaveType->value,
             'is_one_day' => true,
-            'start_date' => now()->addDay()->toDateString(),
-            'end_date' => now()->addDay()->toDateString(),
+            'start_date' => now()->addDays(31)->toDateString(),
+            'end_date' => now()->addDays(31)->toDateString(),
         ], $employee);
 
         $request = \App\Models\Attendance\AttendanceRequests::where('user_id', $employee->id)->firstOrFail();

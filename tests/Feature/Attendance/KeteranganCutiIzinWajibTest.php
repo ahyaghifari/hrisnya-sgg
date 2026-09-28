@@ -59,8 +59,8 @@ class KeteranganCutiIzinWajibTest extends TestCase
 
         app(AttendaceReqService::class)->storeLeaveRequest([
             'type_id' => LeaveTypeCategoryEnum::TAHUNAN->value,
-            'start_date' => now()->addDay()->toDateString(),
-            'end_date' => now()->addDay()->toDateString(),
+            'start_date' => now()->addDays(31)->toDateString(),
+            'end_date' => now()->addDays(31)->toDateString(),
         ], $employee);
 
         $this->assertDatabaseCount('attendance_requests', 1);
@@ -75,8 +75,8 @@ class KeteranganCutiIzinWajibTest extends TestCase
 
         app(AttendaceReqService::class)->storeLeaveRequest([
             'type_id' => LeaveTypeCategoryEnum::TAHUNAN->value,
-            'start_date' => now()->addDay()->toDateString(),
-            'end_date' => now()->addDay()->toDateString(),
+            'start_date' => now()->addDays(31)->toDateString(),
+            'end_date' => now()->addDays(31)->toDateString(),
         ], $employee);
     }
 
@@ -87,8 +87,8 @@ class KeteranganCutiIzinWajibTest extends TestCase
 
         app(AttendaceReqService::class)->storeLeaveRequest([
             'type_id' => LeaveTypeCategoryEnum::TAHUNAN->value,
-            'start_date' => now()->addDay()->toDateString(),
-            'end_date' => now()->addDay()->toDateString(),
+            'start_date' => now()->addDays(31)->toDateString(),
+            'end_date' => now()->addDays(31)->toDateString(),
             'reason' => 'Acara keluarga',
         ], $employee);
 

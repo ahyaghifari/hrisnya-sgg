@@ -418,12 +418,29 @@ disetujui/ditolak/dibatalkan, kuota ini tidak lagi jadi pertimbangan apa pun, ja
     <x-approval-history-list :histories="$record->approvalHistories" />
 </div>
 
-@if ($this->canSelfCancel || $this->canRequestCancellation)
+@if ($this->canSelfCancel || $this->canRequestCancellation || $this->canReschedule)
     <div style="margin-top:16px;">
         @if ($selfAction)
             <div style="display:flex;flex-direction:column;gap:12px;background:var(--surface);border-radius:16px;box-shadow:var(--shadow-card);padding:18px;">
+                @if ($selfAction === 'reschedule')
+                    <label class="form-label">Tanggal Cuti Baru <span style="color:var(--danger-text);">*</span></label>
+                    <div class="date-grid">
+                        <div>
+                            <p style="font-size:11.5px;color:var(--text-muted);margin:0 0 5px;">Tanggal Mulai</p>
+                            <input type="date" class="form-input" wire:model="rescheduleStart">
+                            @error('rescheduleStart') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
+                        </div>
+                        <div>
+                            <p style="font-size:11.5px;color:var(--text-muted);margin:0 0 5px;">Tanggal Selesai</p>
+                            <input type="date" class="form-input" wire:model="rescheduleEnd">
+                            @error('rescheduleEnd') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
+                        </div>
+                    </div>
+                    <p style="font-size:11px;color:var(--text-muted);margin:0;">Pengajuan lama otomatis dibatalkan (tanpa perlu persetujuan), lalu pengajuan baru dengan tanggal ini dikirim dan menunggu persetujuan dari awal.</p>
+                @endif
+
                 <label class="form-label">Alasan <span style="color:var(--danger-text);">*</span></label>
-                <textarea class="form-input" rows="3" placeholder="Alasan pembatalan..." wire:model="selfActionReason"></textarea>
+                <textarea class="form-input" rows="3" placeholder="{{ $selfAction === 'reschedule' ? 'Alasan jadwal ulang...' : 'Alasan pembatalan...' }}" wire:model="selfActionReason"></textarea>
                 @error('selfActionReason') <p style="color:var(--danger-text);font-size:12px;">{{ $message }}</p> @enderror
 
                 <div style="display:flex;gap:10px;">
@@ -441,6 +458,11 @@ disetujui/ditolak/dibatalkan, kuota ini tidak lagi jadi pertimbangan apa pun, ja
                 @if ($this->canRequestCancellation)
                     <button type="button" wire:click="chooseSelfAction('request_cancel')" class="btn-ghost" style="color:var(--danger-text);border-color:var(--danger-soft-border);">
                         <i class="fa-solid fa-rotate-left"></i> Ajukan Pembatalan
+                    </button>
+                @endif
+                @if ($this->canReschedule)
+                    <button type="button" wire:click="chooseSelfAction('reschedule')" class="btn-ghost">
+                        <i class="fa-solid fa-calendar-days"></i> Jadwalkan Ulang
                     </button>
                 @endif
             </div>

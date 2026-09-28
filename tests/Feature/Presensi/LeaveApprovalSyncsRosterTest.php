@@ -95,7 +95,7 @@ class LeaveApprovalSyncsRosterTest extends TestCase
         $approver = User::factory()->create(['company_id' => $company->id]);
         $this->approveAttendanceFlow($company, $approver);
 
-        $date = now()->addDays(3)->toDateString();
+        $date = now()->addDays(31)->toDateString();
 
         // Karyawan sudah terjadwal kerja Pagi hari itu - harus TERTIMPA jadi Libur begitu
         // cuti disetujui.

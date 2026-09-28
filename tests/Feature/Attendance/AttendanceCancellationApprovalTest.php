@@ -72,14 +72,17 @@ class AttendanceCancellationApprovalTest extends TestCase
         ]);
     }
 
-    private function approvedLeave(User $employee, string $start): AttendanceRequests
+    /** $createdBy null = self-service (kena H-30 Cuti Tahunan); diisi eksplisit (mis. admin) buat
+     *  simulasi data lama/lewat H yang butuh tanggal di bawah H-30 - lihat
+     *  test_cannot_request_cancellation_after_cutoff(). */
+    private function approvedLeave(User $employee, string $start, ?User $createdBy = null): AttendanceRequests
     {
         app(AttendaceReqService::class)->storeLeaveRequest([
             'type_id' => LeaveTypeCategoryEnum::TAHUNAN->value,
             'is_one_day' => true,
             'start_date' => $start,
             'end_date' => $start,
-        ], $employee);
+        ], $employee, createdBy: $createdBy ?? $employee);
 
         $request = AttendanceRequests::where('user_id', $employee->id)->firstOrFail();
         $request->load('approvalSnapshot.activity');
@@ -97,7 +100,7 @@ class AttendanceCancellationApprovalTest extends TestCase
     public function test_approving_cancellation_reverts_status_and_sync(): void
     {
         $employee = User::factory()->create(['company_id' => $this->company->id]);
-        $start = now()->addDays(3)->toDateString();
+        $start = now()->addDays(31)->toDateString();
         $request = $this->approvedLeave($employee, $start);
 
         // Sync approval sudah menandai attendance_records - pastikan itu memang terjadi dulu
@@ -131,7 +134,7 @@ class AttendanceCancellationApprovalTest extends TestCase
     public function test_rejecting_cancellation_keeps_original_request_approved(): void
     {
         $employee = User::factory()->create(['company_id' => $this->company->id]);
-        $start = now()->addDays(3)->toDateString();
+        $start = now()->addDays(31)->toDateString();
         $request = $this->approvedLeave($employee, $start);
 
         $cancellation = app(AttendanceCancellationService::class)->requestCancellation(
@@ -156,7 +159,7 @@ class AttendanceCancellationApprovalTest extends TestCase
         MasterApprovalFlows::where('module', 'attendance_request_cancellation')->delete();
 
         $employee = User::factory()->create(['company_id' => $this->company->id]);
-        $request = $this->approvedLeave($employee, now()->addDays(3)->toDateString());
+        $request = $this->approvedLeave($employee, now()->addDays(31)->toDateString());
 
         $this->expectException(\RuntimeException::class);
 
@@ -166,7 +169,7 @@ class AttendanceCancellationApprovalTest extends TestCase
     public function test_cannot_request_cancellation_after_cutoff(): void
     {
         $employee = User::factory()->create(['company_id' => $this->company->id]);
-        $request = $this->approvedLeave($employee, now()->subDay()->toDateString());
+        $request = $this->approvedLeave($employee, now()->subDay()->toDateString(), createdBy: $this->approver);
 
         $this->expectException(\RuntimeException::class);
 

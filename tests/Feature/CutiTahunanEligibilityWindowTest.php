@@ -156,7 +156,7 @@ class CutiTahunanEligibilityWindowTest extends TestCase
         $user = $this->userJoinedOn($company, '2025-05-05');
         $this->be($user);
 
-        \Carbon\Carbon::setTestNow('2026-04-10');
+        \Carbon\Carbon::setTestNow('2026-04-05'); // pas 30 hari sebelum 5 Mei 2026
 
         Livewire::test(SubmitLeaveRequest::class)
             ->set('leave_type', $type->value)
@@ -182,8 +182,8 @@ class CutiTahunanEligibilityWindowTest extends TestCase
 
         Livewire::test(SubmitLeaveRequest::class)
             ->set('leave_type', $type->value)
-            ->set('start_date', now()->addDay()->toDateString())
-            ->set('end_date', now()->addDay()->toDateString())
+            ->set('start_date', now()->addDays(31)->toDateString())
+            ->set('end_date', now()->addDays(31)->toDateString())
             ->call('submit');
 
         $this->assertSame(1, AttendanceRequests::where('user_id', $user->id)->count());
@@ -238,7 +238,7 @@ class CutiTahunanEligibilityWindowTest extends TestCase
 
         Livewire::test(SubmitLeaveRequest::class)
             ->set('leave_type', $type->value)
-            ->set('start_date', '2026-03-05')
+            ->set('start_date', '2026-03-05') // H-30 cuma untuk Tahunan, jenis ini (Melahirkan) bebas
             ->set('end_date', '2026-03-05')
             ->set('attachments', [\Illuminate\Http\UploadedFile::fake()->create('surat.pdf', 50, 'application/pdf')])
             ->call('submit');

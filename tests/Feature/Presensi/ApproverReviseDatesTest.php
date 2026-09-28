@@ -130,7 +130,7 @@ class ApproverReviseDatesTest extends TestCase
     public function test_regular_leave_is_not_date_revisable(): void
     {
         $employee = User::factory()->create(['company_id' => $this->company->id]);
-        $request = $this->submitLeave($employee, LeaveTypeCategoryEnum::TAHUNAN, 12, now()->addDay()->toDateString());
+        $request = $this->submitLeave($employee, LeaveTypeCategoryEnum::TAHUNAN, 12, now()->addDays(31)->toDateString());
 
         $this->actingAs($this->approver);
         Livewire::test(AttendanceRequestDetail::class, ['record' => $request])

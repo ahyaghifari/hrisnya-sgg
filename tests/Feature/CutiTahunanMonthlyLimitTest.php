@@ -74,7 +74,7 @@ class CutiTahunanMonthlyLimitTest extends TestCase
         $leaveType = $this->makeCutiTahunanType($company);
         $this->setLimit($company, 5);
 
-        $start = now()->firstOfMonth()->addDays(3);
+        $start = now()->addDays(45)->firstOfMonth()->addDays(3);
 
         $this->actingAs($user);
         Livewire::test(SubmitLeaveRequest::class)
@@ -95,7 +95,7 @@ class CutiTahunanMonthlyLimitTest extends TestCase
         $leaveType = $this->makeCutiTahunanType($company);
         $this->setLimit($company, 5);
 
-        $start = now()->firstOfMonth()->addDays(3);
+        $start = now()->addDays(45)->firstOfMonth()->addDays(3);
 
         $this->actingAs($user);
         Livewire::test(SubmitLeaveRequest::class)
@@ -149,7 +149,7 @@ class CutiTahunanMonthlyLimitTest extends TestCase
         \App\Models\User\UserProfiles::create(['user_id' => $user->id, 'gender' => 'perempuan']);
         $this->setLimit($company, 5);
 
-        $start = now()->firstOfMonth()->addDays(1);
+        $start = now()->firstOfMonth()->addDays(1); // H-30 cuma untuk Tahunan, Melahirkan bebas
 
         $this->actingAs($user);
         Livewire::test(SubmitLeaveRequest::class)
@@ -169,7 +169,7 @@ class CutiTahunanMonthlyLimitTest extends TestCase
         $leaveType = $this->makeCutiTahunanType($company);
         // Sengaja tidak set Setting sama sekali -> default 0 = tidak dibatasi.
 
-        $start = now()->firstOfMonth()->addDays(1);
+        $start = now()->addDays(45)->firstOfMonth()->addDays(1);
 
         $this->actingAs($user);
         Livewire::test(SubmitLeaveRequest::class)
