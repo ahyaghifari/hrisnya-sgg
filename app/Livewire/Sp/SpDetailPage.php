@@ -3,7 +3,6 @@
 namespace App\Livewire\Sp;
 
 use App\Enum\CustomPermissionEnum;
-use App\Helpers\PermissionHelper;
 use App\Models\Sp\EmployeeSp;
 use App\Models\User;
 use App\Services\Sp\SpService;
@@ -24,6 +23,14 @@ use Livewire\Component;
  * Field inti SP (nomor, Berlaku = start_date/end_date, Mengetahui) juga dibuka diedit (instruksi
  * user 2026-09-25) - prefix `sp_` biar tidak bentrok nama property dengan `nomor` milik Berita
  * Acara (sp_reports.nomor, field terpisah).
+ *
+ * DIKUNCI setelah SEMUA penanda tangan yang diharapkan menandatangani (instruksi user
+ * 2026-09-28, menutup gap "dokumen bisa diedit walau sudah ditandatangani" -
+ * Document::isFullySigned()) - sebelum knows_by konfirmasi sendiri, HC masih boleh koreksi
+ * salah ketik; begitu knows_by sudah menandatangani, isi surat (nomor/tanggal/Mengetahui/poin
+ * pelanggaran/Berita Acara) dikunci semua - itu jaminan yang mau diberikan TTE-nya (kalau tetap
+ * bisa diedit diam-diam setelah tanda tangan, hash pembanding di halaman verifikasi jadi
+ * percuma).
  */
 #[Layout('components.layout', ['title' => 'Detail Surat Peringatan'])]
 class SpDetailPage extends Component
@@ -60,17 +67,35 @@ class SpDetailPage extends Component
     {
         $user = Auth::user();
 
-        abort_unless($user->can(CustomPermissionEnum::SISTEM_PEMBINAAN_KARYAWAN->value), 403);
-        abort_unless($user->can('View:EmployeeSp'), 403);
-        abort_unless($record->company_id === $user->company_id || PermissionHelper::hasGlobalRole($user), 403);
+        abort_unless($record->canBeViewedBy($user), 403);
 
-        $record->load(['user', 'items', 'report', 'createdBy', 'knowsBy', 'coaching']);
+        $record->load(['user', 'items', 'report', 'createdBy', 'knowsBy', 'coaching', 'document.signatures']);
 
         $this->record = $record;
     }
 
+    /** Semua penanda tangan yang diharapkan (created_by + knows_by) sudah menandatangani -
+     *  dipakai gerbang server-side DAN toggle tampilan tombol Edit di blade. */
+    public function getIsFullySignedProperty(): bool
+    {
+        return $this->record->document?->isFullySigned() ?? false;
+    }
+
+    /** HC beneran (bukan cuma "Mengetahui" yang ikut boleh LIHAT lewat canBeViewedBy()) - dipakai
+     *  gerbang server-side tiap aksi tulis/batal DAN toggle tombol Edit/Batalkan di blade.
+     *  "Mengetahui" cuma boleh baca isi surat, sama sekali tidak boleh mengubahnya. */
+    public function getCanManageProperty(): bool
+    {
+        $user = Auth::user();
+
+        return $user->can(CustomPermissionEnum::SISTEM_PEMBINAAN_KARYAWAN->value) && $user->can('View:EmployeeSp');
+    }
+
     public function editSp(): void
     {
+        abort_unless($this->canManage, 403);
+        abort_if($this->isFullySigned, 403, 'Dokumen sudah ditandatangani lengkap, tidak bisa diedit lagi.');
+
         $this->sp_nomor = $this->record->nomor;
         $this->sp_start_date = $this->record->start_date?->toDateString();
         $this->sp_end_date = $this->record->end_date?->toDateString();
@@ -85,6 +110,9 @@ class SpDetailPage extends Component
 
     public function saveSp(): void
     {
+        abort_unless($this->canManage, 403);
+        abort_if($this->isFullySigned, 403, 'Dokumen sudah ditandatangani lengkap, tidak bisa diedit lagi.');
+
         $this->validate([
             'sp_nomor' => ['required', 'string', 'max:255'],
             'sp_start_date' => ['required', 'date'],
@@ -110,6 +138,8 @@ class SpDetailPage extends Component
 
     public function openCancelSp(): void
     {
+        abort_unless($this->canManage, 403);
+
         $this->cancel_reason = '';
         $this->cancellingSp = true;
     }
@@ -121,6 +151,8 @@ class SpDetailPage extends Component
 
     public function confirmCancelSp(): void
     {
+        abort_unless($this->canManage, 403);
+
         $this->validate(['cancel_reason' => ['required', 'string', 'max:1000']], [], ['cancel_reason' => 'Alasan pembatalan']);
 
         app(SpService::class)->cancel($this->record, $this->cancel_reason, Auth::id());
@@ -131,6 +163,9 @@ class SpDetailPage extends Component
 
     public function editItems(): void
     {
+        abort_unless($this->canManage, 403);
+        abort_if($this->isFullySigned, 403, 'Dokumen sudah ditandatangani lengkap, tidak bisa diedit lagi.');
+
         $this->items = $this->record->items->pluck('text')->all();
         $this->editingItems = true;
     }
@@ -148,6 +183,9 @@ class SpDetailPage extends Component
 
     public function saveItems(): void
     {
+        abort_unless($this->canManage, 403);
+        abort_if($this->isFullySigned, 403, 'Dokumen sudah ditandatangani lengkap, tidak bisa diedit lagi.');
+
         $texts = array_values(array_filter(array_map('trim', $this->items), fn ($text) => $text !== ''));
 
         if ($texts === []) {
@@ -173,6 +211,13 @@ class SpDetailPage extends Component
 
     public function editReport(): void
     {
+        // Dikunci ikut status SP-nya (bukan report->document sendiri) - Berita Acara yang
+        // ditambahkan BELAKANGAN (setelah SP terbit) belum tentu punya baris document/signature
+        // sendiri (hook tanda tangan cuma jalan sekali saat SP terbit), jadi patokan yang aman
+        // dan konsisten adalah status SP induknya.
+        abort_unless($this->canManage, 403);
+        abort_if($this->isFullySigned, 403, 'Dokumen sudah ditandatangani lengkap, tidak bisa diedit lagi.');
+
         $this->nomor = $this->record?->report?->nomor;
         $this->kejadian = $this->record->report?->kejadian;
         $this->dasar_klarifikasi = $this->record->report?->dasar_klarifikasi;
@@ -185,6 +230,9 @@ class SpDetailPage extends Component
 
     public function saveReport(): void
     {
+        abort_unless($this->canManage, 403);
+        abort_if($this->isFullySigned, 403, 'Dokumen sudah ditandatangani lengkap, tidak bisa diedit lagi.');
+
         $this->record->report()->updateOrCreate([], [
             'nomor' => $this->nomor,
             'kejadian' => $this->kejadian,

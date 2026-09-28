@@ -1,0 +1,89 @@
+<?php
+
+namespace App\Models\Concerns;
+
+use App\Models\Document\Document;
+use App\Models\Document\DocumentSignature;
+use App\Models\Document\DocumentVerification;
+use App\Models\User;
+use App\Services\Document\VerificationCodeGenerator;
+
+/**
+ * Dipasangkan dengan App\Contracts\Signable - tiap model dokumen (EmployeeSp, SpReport, dst)
+ * `use HasDocumentSignatures;` biar tidak menulis ulang query registry/tanda tangan/kode
+ * verifikasi yang sama. Lihat docs/2026-09-28-tte-qr-internal-fase-1.md §3.
+ */
+trait HasDocumentSignatures
+{
+    public function document(): \Illuminate\Database\Eloquent\Relations\MorphOne
+    {
+        return $this->morphOne(Document::class, 'documentable');
+    }
+
+    /** Bikin baris registry `documents` kalau belum ada - dipanggil sekali di titik pemicu
+     * sebelum sign() pertama kali. Idempotent - dokumen yang sudah punya registry tidak dobel. */
+    public function issueDocument(string $title, ?User $issuer = null): Document
+    {
+        /** @var \App\Contracts\Signable $this */
+        if ($this->document) {
+            return $this->document;
+        }
+
+        $document = $this->document()->create([
+            'document_type'   => $this->documentType()->value,
+            'document_number' => $this->documentNumber(),
+            'title'           => $title,
+            'issued_at'       => now(),
+            'created_by'      => $issuer?->id,
+        ]);
+
+        // Accessing `$this->document` above (kalau belum pernah di-load) sudah men-cache hasil
+        // query pertama (null, karena baris belum ada) ke relation cache Eloquent - tanpa
+        // setRelation() di sini, akses `$this->document` BERIKUTNYA (di sign()/ensureVerificationCode())
+        // tetap kepental ke null lama itu, bukan baris yang barusan dibuat.
+        $this->setRelation('document', $document);
+
+        return $document;
+    }
+
+    /** Tanda tangan 1 peran ($role bebas per jenis dokumen, mis. 'created_by'/'knows_by') -
+     * hash dihitung dari signablePayload() SEKARANG (saat sign dipanggil), disimpan sebagai
+     * potret data final. Panggil issueDocument() dulu sebelum ini.
+     *
+     * ip_address/user_agent DIREKAM (instruksi user 2026-09-28, menutup gap "Audit Log" §15/§24
+     * docs/HRIS_TTE_NonTersertifikasi_QR_Verification.md) - internal-only, TIDAK ditampilkan di
+     * halaman verifikasi publik. request() bisa null saat dipanggil dari CLI/queue (mis. command
+     * backfill nanti) - null-safe, jangan sampai signing gagal cuma karena tidak ada HTTP request.
+     */
+    public function sign(User $signer, string $role): DocumentSignature
+    {
+        /** @var \App\Contracts\Signable $this */
+        return $this->document->signatures()->create([
+            'signer_role'     => $role,
+            'signer_id'       => $signer->id,
+            'signer_name'     => $signer->name,
+            'signer_position' => $signer->activeJobPosition?->jobPosition?->name,
+            'document_hash'   => hash('sha256', json_encode($this->signablePayload())),
+            'signed_at'       => now(),
+            'ip_address'      => request()?->ip(),
+            'user_agent'      => request()?->userAgent(),
+        ]);
+    }
+
+    /** Kode verifikasi publik - dibangkitkan SEKALI per dokumen, tetap selamanya (§0). Retry
+     * kalau tabrakan (peluangnya sangat kecil, lihat VerificationCodeGenerator) daripada
+     * percaya unique() constraint doang tanpa jaring pengaman aplikasi. */
+    public function ensureVerificationCode(): DocumentVerification
+    {
+        /** @var \App\Contracts\Signable $this */
+        if ($this->document->verification) {
+            return $this->document->verification;
+        }
+
+        $type = $this->documentType();
+
+        return retry(5, fn () => $this->document->verification()->create([
+            'verification_code' => app(VerificationCodeGenerator::class)->generate($type),
+        ]), 0, fn ($e) => $e instanceof \Illuminate\Database\QueryException);
+    }
+}

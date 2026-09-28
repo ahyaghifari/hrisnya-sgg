@@ -14,8 +14,6 @@ use App\Livewire\Sp\SpPage;
 use App\Livewire\Sp\SpRecommendationsPage;
 use App\Livewire\Sp\SuratPeringatanDetailPage;
 use App\Livewire\Sp\SuratPeringatanPage;
-use App\Enum\CustomPermissionEnum;
-use App\Helpers\PermissionHelper;
 use App\Models\Sp\EmployeeSp;
 use App\Services\Sp\SpPdfService;
 use Illuminate\Support\Facades\Auth;
@@ -92,23 +90,16 @@ Route::prefix('pembinaan')->group(function () {
     Route::get('/sp/{record}', SpDetailPage::class)
         ->name('sp.show');
 
-    // Preview PDF sisi HC - gerbang sama dengan SpDetailPage::mount().
+    // Preview PDF - gerbang sama dengan SpDetailPage::mount() (HC ATAU "Mengetahui" yang
+    // ditunjuk di SP ini, lihat EmployeeSp::canBeViewedBy(), instruksi user 2026-09-28).
     Route::get('/sp/{record}/preview', function (EmployeeSp $record) {
-        $user = Auth::user();
-
-        abort_unless($user->can(CustomPermissionEnum::SISTEM_PEMBINAAN_KARYAWAN->value), 403);
-        abort_unless($user->can('View:EmployeeSp'), 403);
-        abort_unless($record->company_id === $user->company_id || PermissionHelper::hasGlobalRole($user), 403);
+        abort_unless($record->canBeViewedBy(Auth::user()), 403);
 
         return app(SpPdfService::class)->preview($record);
     })->name('sp.preview');
 
     Route::get('/sp/{record}/beritaacara-preview', function (EmployeeSp $record) {
-        $user = Auth::user();
-
-        abort_unless($user->can(CustomPermissionEnum::SISTEM_PEMBINAAN_KARYAWAN->value), 403);
-        abort_unless($user->can('View:EmployeeSp'), 403);
-        abort_unless($record->company_id === $user->company_id || PermissionHelper::hasGlobalRole($user), 403);
+        abort_unless($record->canBeViewedBy(Auth::user()), 403);
 
         return app(SpPdfService::class)->previewBeritaAcara($record);
     })->name('sp.beritaacara_preview');

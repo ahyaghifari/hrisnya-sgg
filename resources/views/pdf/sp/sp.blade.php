@@ -156,6 +156,21 @@
             text-align: center;
             margin-top: 8px;
         }
+
+        .verify-block {
+            margin-top: 6px;
+            text-align: center;
+        }
+
+        .verify-qr {
+            width: 55px;
+            height: 55px;
+        }
+
+        .verify-code {
+            font-size: 7px;
+            color: #555;
+        }
     </style>
 </head>
 <body>
@@ -195,19 +210,37 @@
         <div class="sign-col">
             Banjarbaru, {{ $sp->start_date->translatedFormat('d F Y') }} <br>
             {{ $jabatan($coach) }}<br>
-            <span class="ttd-space">&nbsp;</span>
+            @if ($verification['created_by'] ?? null)
+                <div class="verify-block">
+                    <img src="{{ $verification['created_by']['qr'] }}" alt="QR Verifikasi" class="verify-qr">
+                    <div class="verify-code">{{ $verification['created_by']['code'] }}</div>
+                </div>
+            @else
+                <span class="ttd-space">&nbsp;</span>
+            @endif
             <span class="sign-name">{{ $coach?->name ?? '-' }}</span><br>
             {{ $coach?->nip ?? '-' }}
         </div>
         <div class="sign-col">
             Mengetahui,<br>
             {{ $jabatan($sp->knowsBy) }}<br>
-            <span class="ttd-space">&nbsp;</span>
+            @if ($verification['knows_by'] ?? null)
+                <div class="verify-block">
+                    <img src="{{ $verification['knows_by']['qr'] }}" alt="QR Verifikasi" class="verify-qr">
+                    <div class="verify-code">{{ $verification['knows_by']['code'] }}</div>
+                </div>
+            @else
+                <span class="ttd-space">&nbsp;</span>
+            @endif
             <span class="sign-name">{{ $sp->knowsBy?->name ?? '-' }}</span><br>
             {{ $sp->knowsBy?->nip ?? '-' }}
         </div>
     </div>
 
+    {{-- Karyawan TIDAK PERNAH ikut TTE digital (cuma tanda tangan basah/fisik, bukan salah satu
+    Signable::expectedSignerRoles()) - jangan pernah tampilkan QR di sini walau dokumen sudah
+    punya kode verifikasi, supaya tidak menyesatkan seolah karyawan sudah "menandatangani secara
+    elektronik" (instruksi user 2026-09-28, bug: QR sempat muncul di sini). --}}
     <div class="employee-sign">
         Karyawan
         <span class="ttd-space">&nbsp;</span>

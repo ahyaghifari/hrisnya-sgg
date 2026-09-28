@@ -2,9 +2,14 @@
 
 namespace App\Models\Sp;
 
+use App\Contracts\Signable;
+use App\Enum\CustomPermissionEnum;
+use App\Enum\DocumentType;
 use App\Enum\Sp\SpLevel;
 use App\Enum\Sp\SpSourceType;
+use App\Helpers\PermissionHelper;
 use App\Models\Coaching\Coaching;
+use App\Models\Concerns\HasDocumentSignatures;
 use App\Models\Master\Companies;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
@@ -13,9 +18,15 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
-class EmployeeSp extends Model
+/**
+ * implements Signable (TTE Fase 1, docs/2026-09-28-tte-qr-internal-fase-1.md §2) - Berita Acara
+ * (SpReport) SENGAJA Signable TERPISAH (dokumen beda, instruksi user 2026-09-28), bukan ikut
+ * ditandatangani bareng SP induknya.
+ */
+class EmployeeSp extends Model implements Signable
 {
     use HasUlids;
+    use HasDocumentSignatures;
 
     protected $fillable = [
         'nomor',
@@ -61,6 +72,22 @@ class EmployeeSp extends Model
         return $this->cancelled_at !== null;
     }
 
+    /**
+     * HC (izin SISTEM_PEMBINAAN_KARYAWAN + View:EmployeeSp, company sama/global) bisa lihat SP
+     * mana pun di company-nya seperti biasa. Ditambah: "Mengetahui" yang DITUNJUK di SP ini juga
+     * boleh lihat (instruksi user 2026-09-28) - dia perlu tahu isi surat yang mau/sudah
+     * ditandatanganinya, bukan cuma modal ringkas di halaman tanda tangan. HANYA lihat - bukan
+     * berarti boleh edit, lihat SpDetailPage::getCanManageProperty() untuk gerbang tulis.
+     */
+    public function canBeViewedBy(User $user): bool
+    {
+        if ($user->can(CustomPermissionEnum::SISTEM_PEMBINAAN_KARYAWAN->value) && $user->can('View:EmployeeSp')) {
+            return $this->company_id === $user->company_id || PermissionHelper::hasGlobalRole($user);
+        }
+
+        return $user->id === $this->knows_by;
+    }
+
     public function cancelledBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'cancelled_by');
@@ -82,7 +109,9 @@ class EmployeeSp extends Model
     }
 
     /** "Mengetahui" - pimpinan/HC Supervisor/Manager yang menyetujui surat ini (instruksi user
-     * 2026-09-25, sesuai flowchart approval HC-GA). Nullable - approval-nya offline/verbal. */
+     * 2026-09-25, sesuai flowchart approval HC-GA). WAJIB diisi saat SP dibuat (instruksi user
+     * 2026-09-28, revisi dari "boleh menyusul/offline verbal") - lihat CreateSpPage::rules()
+     * dan migration require_knows_by_on_employee_sps_table. */
     public function knowsBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'knows_by');
@@ -112,5 +141,61 @@ class EmployeeSp extends Model
     public function coaching(): BelongsTo
     {
         return $this->belongsTo(Coaching::class, 'source_id');
+    }
+
+    /** @return array<string, mixed> */
+    public function signablePayload(): array
+    {
+        return [
+            'nomor' => $this->nomor,
+            'user_id' => $this->user_id,
+            'sp_level' => $this->sp_level->value,
+            'start_date' => $this->start_date?->toDateString(),
+            'end_date' => $this->end_date?->toDateString(),
+            'created_by' => $this->created_by,
+            'knows_by' => $this->knows_by,
+            'items' => $this->items->sortBy('sort_order')->pluck('text')->values()->all(),
+        ];
+    }
+
+    public function documentNumber(): string
+    {
+        return $this->nomor;
+    }
+
+    public function documentTypeLabel(): string
+    {
+        return "Surat Peringatan ({$this->sp_level->getLabel()})";
+    }
+
+    public function documentType(): DocumentType
+    {
+        return DocumentType::SP;
+    }
+
+    public function isRevoked(): bool
+    {
+        return $this->isCancelled();
+    }
+
+    public function revokedReason(): ?string
+    {
+        return $this->cancelled_reason;
+    }
+
+    public function expectedSignerRoles(): array
+    {
+        return [
+            'created_by' => 'Dibuat oleh',
+            'knows_by' => 'Mengetahui',
+        ];
+    }
+
+    public function assignedSigners(): array
+    {
+        return [
+            'created_by' => $this->createdBy,
+            'knows_by' => $this->knowsBy,
+        ];
     }
 }

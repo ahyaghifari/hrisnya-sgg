@@ -33,6 +33,15 @@
     $isActive = ! $record->isCancelled() && $record->start_date->lte(today()) && ($record->end_date === null || $record->end_date->gte(today()));
 @endphp
 
+@if ($this->isFullySigned)
+    <div class="card-surface" style="margin-bottom:16px;border:1.5px solid #16a34a;background:#f0fdf4;">
+        <p style="font-size:13px;font-weight:700;color:#15803d;margin:0;">
+            <i class="fa-solid fa-lock"></i> Dokumen Terkunci
+        </p>
+        <p style="font-size:12.5px;color:var(--text-body);margin:4px 0 0;">Semua pihak sudah menandatangani - nomor, tanggal, Mengetahui, poin pelanggaran, dan Berita Acara tidak bisa diedit lagi.</p>
+    </div>
+@endif
+
 @if ($record->isCancelled())
     <div class="card-surface" style="margin-bottom:16px;border:1.5px solid var(--danger-text);background:#fef2f2;">
         <p style="font-size:13px;font-weight:700;color:var(--danger-text);margin:0 0 6px;">
@@ -54,11 +63,13 @@
                 <span style="font-size:11.5px;font-weight:400;color:var(--text-muted);">&middot; No. {{ $record->nomor }}</span>
             @endif
         </p>
-        @unless ($editingSp)
-            <button type="button" wire:click="editSp" class="btn-secondary" style="font-size:12px;padding:4px 10px;">
-                <i class="fa-solid fa-pen"></i> Edit
-            </button>
-        @endunless
+        @if ($this->canManage)
+            @unless ($editingSp || $this->isFullySigned)
+                <button type="button" wire:click="editSp" class="btn-secondary" style="font-size:12px;padding:4px 10px;">
+                    <i class="fa-solid fa-pen"></i> Edit
+                </button>
+            @endunless
+        @endif
     </div>
     <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;padding:10px 0;border-bottom:1px solid var(--border-soft);">
         <span style="font-size:12.5px;color:var(--text-muted);">Karyawan</span>
@@ -132,11 +143,13 @@
             <div class="section-icon"><i class="fa-solid fa-list-ol"></i></div>
             <p style="font-size:13px;font-weight:700;color:var(--text-heading);margin:0;">Uraian/Kronologi</p>
         </div>
-        @unless ($editingItems)
-            <button type="button" wire:click="editItems" class="btn-secondary" style="font-size:12px;padding:4px 10px;">
-                <i class="fa-solid fa-pen"></i> Edit
-            </button>
-        @endunless
+        @if ($this->canManage)
+            @unless ($editingItems || $this->isFullySigned)
+                <button type="button" wire:click="editItems" class="btn-secondary" style="font-size:12px;padding:4px 10px;">
+                    <i class="fa-solid fa-pen"></i> Edit
+                </button>
+            @endunless
+        @endif
     </div>
 
     @if ($editingItems)
@@ -182,11 +195,13 @@
             <a href="{{ route('sp.beritaacara_preview', $record) }}" target="_blank"  class="btn-primary" style="font-size:12px;padding:4px 10px;">
                 <i class="fa-solid fa-file-pdf"></i> Preview PDF
             </a>
-            @unless ($editingReport)
-                <button type="button" wire:click="editReport" class="btn-secondary" style="font-size:12px;padding:4px 10px;">
-                    <i class="fa-solid fa-pen"></i> Edit
-                </button>
-            @endunless
+            @if ($this->canManage)
+                @unless ($editingReport || $this->isFullySigned)
+                    <button type="button" wire:click="editReport" class="btn-secondary" style="font-size:12px;padding:4px 10px;">
+                        <i class="fa-solid fa-pen"></i> Edit
+                    </button>
+                @endunless
+            @endif
         </div>
     </div>
 
@@ -248,12 +263,14 @@
     @endif
 </div>
 
-@unless ($record->isCancelled())
-    <div style="display:flex;justify-content:flex-end;margin-top:8px;">
-        <button type="button" wire:click="openCancelSp" class="btn-ghost" style="color:var(--danger-text);border-color:var(--danger-soft-border);">
-            <i class="fa-solid fa-ban"></i> Batalkan SP
-        </button>
-    </div>
-@endunless
+@if ($this->canManage)
+    @unless ($record->isCancelled())
+        <div style="display:flex;justify-content:flex-end;margin-top:8px;">
+            <button type="button" wire:click="openCancelSp" class="btn-ghost" style="color:var(--danger-text);border-color:var(--danger-soft-border);">
+                <i class="fa-solid fa-ban"></i> Batalkan SP
+            </button>
+        </div>
+    @endunless
+@endif
 
 </div>

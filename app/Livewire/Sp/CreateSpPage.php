@@ -13,6 +13,7 @@ use App\Services\Sp\SpService;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 
@@ -46,6 +47,15 @@ class CreateSpPage extends Component
 
     /** Opsional - SP ini berdasarkan Coaching mana (kalau ada). Kosong = source_type MANUAL. */
     public ?string $coaching_id = null;
+
+    /** TTE Fase 1 (instruksi user 2026-09-28) - konfirmasi password sebelum SP benar-benar
+     *  disimpan & ditandatangani, gantinya wire:confirm browser dialog yang cuma "OK/Cancel"
+     *  tanpa bukti siapa yang menyetujui. Ini konsen EKSPLISIT created_by sendiri (Pasal 59
+     *  ayat 3 butir 6 PP 71/2019) - beda dari knows_by yang konfirmasi terpisah lewat
+     *  SignDocumentsPage begitu dia login sendiri. */
+    public bool $confirmingSign = false;
+
+    public ?string $signPassword = null;
 
     public function mount(): void
     {
@@ -189,9 +199,39 @@ class CreateSpPage extends Component
         ];
     }
 
+    /** Langkah 1 - validasi form seperti biasa, lalu tampilkan langkah konfirmasi password
+     *  (bukan langsung simpan). Nilai form TETAP di properti public yang sama, tidak perlu
+     *  disalin ke tempat lain - Livewire menjaga state-nya antar render dalam 1 kunjungan. */
+    public function chooseConfirmSign(): void
+    {
+        $this->validate();
+
+        $this->signPassword = null;
+        $this->resetErrorBag();
+        $this->confirmingSign = true;
+    }
+
+    public function cancelConfirmSign(): void
+    {
+        $this->confirmingSign = false;
+        $this->signPassword = null;
+    }
+
+    /** Langkah 2 - password Anda sendiri sebagai bukti konsen eksplisit created_by, BARU
+     *  benar-benar disimpan & ditandatangani. Re-validasi form penuh lagi (jaring pengaman
+     *  server-side kalau ada yang berubah antara langkah 1 dan 2). */
     public function save(): void
     {
         $data = $this->validate();
+
+        $this->validate(['signPassword' => ['required', 'string']], [], ['signPassword' => 'Password']);
+
+        if (! Hash::check($this->signPassword, Auth::user()->password)) {
+            $this->addError('signPassword', 'Password salah.');
+
+            return;
+        }
+
         $auth = Auth::user();
 
         $companyId = $this->companyId ?? $auth->company_id;

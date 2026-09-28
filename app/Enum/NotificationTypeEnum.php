@@ -37,6 +37,7 @@ enum NotificationTypeEnum: string
 
     // SP resmi terbit (approve sp_recommendations) — lihat App\Services\Sp\SpService.
     case SP_ISSUED = 'sp_issued';
+    case SP_AWAITING_SIGNATURE = 'sp_awaiting_signature';
 
     // Absensi otomatis dari access_logs (mesin absensi) — lihat
     // App\Console\Commands\SyncAccessLogsAttendance.
@@ -104,6 +105,7 @@ enum NotificationTypeEnum: string
             self::COUNSELING_RECEIVED => 'Ada Karyawan Konsul ke Saya',
             self::COACHING_ASSIGNED => 'Saya Mendapatkan Coaching',
             self::SP_ISSUED => 'SP Saya Terbit',
+            self::SP_AWAITING_SIGNATURE => 'Menunggu Tanda Tangan Saya (SP)',
             self::ATTENDANCE_CHECKED_IN => 'Absensi Masuk Tercatat',
             self::ATTENDANCE_CHECKED_OUT => 'Absensi Pulang Tercatat',
             self::ATTENDANCE_SCAN_REJECTED => 'Absensi Saya Tidak Diproses',
@@ -164,6 +166,7 @@ enum NotificationTypeEnum: string
             self::COUNSELING_RECEIVED => 'Dikirim saat ada karyawan yang menunjuk Anda sebagai konselor untuk konsul.',
             self::COACHING_ASSIGNED => 'Dikirim saat atasan/HC membuat sesi coaching baru untuk Anda.',
             self::SP_ISSUED => 'Dikirim saat HR menyetujui rekomendasi dan SP Anda resmi terbit.',
+            self::SP_AWAITING_SIGNATURE => 'Dikirim saat Anda ditunjuk sebagai "Mengetahui" pada sebuah SP dan perlu menandatanganinya sendiri.',
             self::ATTENDANCE_CHECKED_IN => 'Dikirim saat mesin absensi mencatat Anda check-in.',
             self::ATTENDANCE_CHECKED_OUT => 'Dikirim saat mesin absensi mencatat Anda check-out.',
             self::ATTENDANCE_SCAN_REJECTED => 'Dikirim saat scan absensi Anda tidak bisa diproses sistem (mis. jadwal tidak ditemukan), beserta alasannya.',

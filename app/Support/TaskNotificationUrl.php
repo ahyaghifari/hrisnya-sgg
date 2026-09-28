@@ -15,6 +15,12 @@ class TaskNotificationUrl
             return route('sp.saya.show', $data['employee_sp_id']);
         }
 
+        // Notifikasi "Menunggu Tanda Tangan Anda" (TTE Fase 1) -> halaman tanda tangan generik
+        // (routes/documents.php), BUKAN sp.saya.show (itu cuma buat pemilik dokumen sendiri).
+        if (! empty($data['document_sign_id'])) {
+            return route('documents.sign', $data['document_sign_id']);
+        }
+
         if (($data['request_type'] ?? null) !== 'task') {
             return null;
         }

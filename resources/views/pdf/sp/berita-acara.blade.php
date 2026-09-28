@@ -193,6 +193,21 @@
             text-align: center;
             margin-top: 8px;
         }
+
+        .verify-block {
+            margin-top: 6px;
+            text-align: center;
+        }
+
+        .verify-qr {
+            width: 50px;
+            height: 50px;
+        }
+
+        .verify-code {
+            font-size: 7px;
+            color: #555;
+        }
     </style>
 </head>
 <body>
@@ -284,10 +299,20 @@
         <div class="sign-block">
             <div class="sign-col">
                 Pihak Perusahaan <br>
-                <span class="ttd-space">&nbsp;</span>
+                @if ($verification['created_by'] ?? null)
+                    <div class="verify-block">
+                        <img src="{{ $verification['created_by']['qr'] }}" alt="QR Verifikasi" class="verify-qr">
+                        <div class="verify-code">{{ $verification['created_by']['code'] }}</div>
+                    </div>
+                @else
+                    <span class="ttd-space">&nbsp;</span>
+                @endif
                 <span class="sign-name">{{ $coach?->name ?? '-' }}</span><br>
                 {{ $jabatan($coach) }}
             </div>
+            {{-- Karyawan TIDAK PERNAH ikut TTE digital (tanda tangan basah/fisik saja) - jangan
+            tampilkan QR di sini (instruksi user 2026-09-28, bug: QR sempat muncul di kolom yang
+            belum/tidak pernah ditandatangani). --}}
             <div class="sign-col">
                 Pihak Karyawan <br>
                 <span class="ttd-space">&nbsp;</span>
@@ -296,7 +321,14 @@
             </div>
             <div class="sign-col">
                 Mengetahui,
-                <span class="ttd-space">&nbsp;</span>
+                @if ($verification['knows_by'] ?? null)
+                    <div class="verify-block">
+                        <img src="{{ $verification['knows_by']['qr'] }}" alt="QR Verifikasi" class="verify-qr">
+                        <div class="verify-code">{{ $verification['knows_by']['code'] }}</div>
+                    </div>
+                @else
+                    <span class="ttd-space">&nbsp;</span>
+                @endif
                 <span class="sign-name">{{ $sp->knowsBy?->name ?? '-' }}</span><br>
                 {{ $jabatan($sp->knowsBy) }}
             </div>

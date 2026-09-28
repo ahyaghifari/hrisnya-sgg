@@ -12,6 +12,7 @@ use App\Models\Sp\EmployeeSp;
 use App\Models\Sp\SpRecommendation;
 use App\Models\User;
 use App\Models\UserHrBalance;
+use App\Notifications\SpAwaitingSignature;
 use App\Notifications\SpIssued;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -73,7 +74,54 @@ class SpService
             $employeeSp->id,
             'Penerbitan ' . $employeeSp->sp_level->name,
         );
+
+        $this->signCreatedByAndNotifyKnowsBy($employeeSp);
     }
+
+    /**
+     * TTE Fase 1, level "TTE Tidak Tersertifikasi" (docs/HRIS_TTE_NonTersertifikasi_QR_Verification.md
+     * §4, Pasal 59 ayat 3 butir 6 PP 71/2019 - persetujuan tiap penanda tangan harus eksplisit dari
+     * ORANG itu sendiri, bukan diwakilkan). SP tidak punya approval berjenjang sebelum terbit, jadi
+     * created_by ditandatangani otomatis DI SINI - tapi konsen created_by sendiri sudah diminta
+     * lewat konfirmasi ulang password di CreateSpPage SEBELUM method ini dipanggil (lihat
+     * CreateSpPage::confirmAndSign()), jadi bukan "auto tanpa consent".
+     *
+     * knows_by SENGAJA TIDAK ditandatangani di sini (instruksi user 2026-09-28: "yang mengetahui
+     * itu klik TTD setujui, isi password ulang, baru di-TTD") - dia cuma DITUNJUK di form, tanda
+     * tangannya sendiri baru tercatat lewat SignDocumentsPage setelah dia login & konfirmasi
+     * password sendiri (lihat App\Services\Document\DocumentSigningService::sign() - generik,
+     * bukan method khusus SP lagi). Berita Acara (kalau ada) di-sign TERPISAH sebagai dokumennya
+     * sendiri (dokumen beda, TTD dibedakan) - dipinjam penanda tangan yang sama karena sp_reports
+     * tidak punya kolom penanda tangan sendiri.
+     */
+    private function signCreatedByAndNotifyKnowsBy(EmployeeSp $employeeSp): void
+    {
+        $employeeSp->loadMissing(['createdBy', 'knowsBy', 'items', 'report', 'user']);
+
+        $createdBy = $employeeSp->createdBy;
+        $knowsBy = $employeeSp->knowsBy;
+
+        if (! $createdBy || ! $knowsBy) {
+            return;
+        }
+
+        $employeeSp->issueDocument("Surat Peringatan {$employeeSp->sp_level->getLabel()} — {$employeeSp->user?->name}", $createdBy);
+        $employeeSp->sign($createdBy, 'created_by');
+        $employeeSp->ensureVerificationCode();
+
+        if ($employeeSp->report) {
+            $employeeSp->report->issueDocument("Berita Acara — {$employeeSp->user?->name}", $createdBy);
+            $employeeSp->report->sign($createdBy, 'created_by');
+            $employeeSp->report->ensureVerificationCode();
+        }
+
+        $knowsBy->notify(new SpAwaitingSignature($employeeSp));
+    }
+
+    // Tanda tangan knows_by sendiri (setelah dia login & konfirmasi password) TIDAK ditangani di
+    // sini lagi - lihat App\Services\Document\DocumentSigningService::sign(), generik lintas
+    // jenis dokumen (instruksi user 2026-09-28: "kenapa dibangun erat dengan SP, kan bisa modal,
+    // nanti ada juga Surat Tugas dan yang lainnya").
 
     /** Batal SP (instruksi user 2026-09-25) - soft-cancel, bukan hard delete: record tetap ada
      * buat riwayat/audit, cuma ditandai cancelled_at + alasan + siapa yang membatalkan.
