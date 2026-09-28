@@ -698,9 +698,11 @@ class ScheduleShiftRosterTab extends Component
      * setCell() per sel (dulu 1 SELECT + 1 write + 1 log INSERT per sel - grid 30 karyawan x 30
      * hari yang banyak berubah gampang tembus >1000 query dalam 1 klik Simpan, lambat sekali -
      * dikeluhkan user 2026-09-14). setCell() TETAP ada apa adanya buat edit 1 sel langsung
-     * (dipanggil test & alur lain) - gerbang/aturannya (swap-lock, past-date-lock, jatah Tim)
-     * disalin di sini supaya hasil akhirnya identik, cuma eksekusi DB-nya dibatch lewat
-     * persistRosterBatch(). */
+     * (dipanggil test & alur lain) - gerbang/aturannya (swap-lock, jatah Tim) disalin di sini
+     * supaya hasil akhirnya identik, cuma eksekusi DB-nya dibatch lewat persistRosterBatch(). Tidak
+     * ada lagi gerbang tanggal lampau di sini (dulu ada, dicabut 2026-09-28) - yang tidak punya
+     * Update:Schedule sekarang boleh ajukan tanggal berapa pun lewat approval (lihat cabang
+     * ! canEditPastDates di bawah), toh tidak pernah tertulis langsung sampai disetujui atasannya. */
     public function saveRoster(): void
     {
         abort_unless(Auth::user()->can('Update:ShiftScheduleAssignments'), 403);
@@ -713,10 +715,8 @@ class ScheduleShiftRosterTab extends Component
         $currentRoster = $this->roster;
         $swapCells = $this->swapCells;
         $leaveCells = $this->leaveCells;
-        $lockBeforeDate = $this->lockBeforeDate();
         $blockedBySwap = 0;
         $blockedByLeave = 0;
-        $blockedByPastDate = 0;
         $blockedByRegu = 0;
 
         $pending = [];
@@ -742,13 +742,6 @@ class ScheduleShiftRosterTab extends Component
                 // dicek ulang (instruksi user 2026-09-24).
                 if (isset($leaveCells[$userId . '|' . $date]) && ! $this->canOverrideLeaveLock) {
                     $blockedByLeave++;
-                    continue;
-                }
-
-                // Yang cuma punya Update:ShiftScheduleAssignments (bukan Edit Jadwal) dibatasi
-                // mulai hari ini - perbandingan string 'Y-m-d' aman leksikografis.
-                if ($lockBeforeDate && $date < $lockBeforeDate) {
-                    $blockedByPastDate++;
                     continue;
                 }
 
@@ -810,7 +803,6 @@ class ScheduleShiftRosterTab extends Component
                 "{$changed} sel diubah."
                 . ($blockedBySwap ? " {$blockedBySwap} sel dilewati karena terkait pengajuan tukar shift." : '')
                 . ($blockedByLeave ? " {$blockedByLeave} sel dilewati karena Cuti/Izin disetujui." : '')
-                . ($blockedByPastDate ? " {$blockedByPastDate} sel dilewati karena tanggalnya sudah lewat." : '')
                 . ($blockedByRegu ? " {$blockedByRegu} sel dilewati karena shift tidak termasuk daftar Tim karyawan." : '')
             )
             ->success()

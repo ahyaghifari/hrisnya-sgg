@@ -5,9 +5,12 @@ namespace Tests\Feature\Presensi;
 use App\Enum\CustomPermissionEnum;
 use App\Enum\ScheduleType;
 use App\Livewire\Presensi\ScheduleShiftRosterTab;
+use App\Models\ApprovalManagement\MasterApprovalFlows;
+use App\Models\ApprovalManagement\MasterApprovalFlowSteps;
 use App\Models\Master\Companies;
 use App\Models\Shift\Schedule;
 use App\Models\Shift\ScheduleAssignment;
+use App\Models\Shift\ScheduleRosterChangeRequest;
 use App\Models\Shift\ScheduleShiftAssignment;
 use App\Models\Shift\ScheduleShiftRosterLog;
 use App\Models\Shift\ScheduleShiftRotation;
@@ -769,10 +772,31 @@ class ScheduleShiftRosterTabTest extends TestCase
 
     /** Yang cuma punya Update:ShiftScheduleAssignments (bukan Edit Jadwal) dibatasi mulai hari
      * ini lewat saveRoster() - sel tanggal lewat di-skip, bukan malah error/nyimpen. */
-    public function test_save_roster_skips_past_dated_cells_for_user_without_edit_jadwal(): void
+    /** Sejak 2026-09-28 tanggal lampau TIDAK lagi dilewati/skip buat yang tanpa Edit Jadwal -
+     * malah ikut diajukan ke approval sama seperti tanggal lain (toh tidak pernah tertulis
+     * langsung sampai disetujui atasannya, lihat ScheduleRosterChangeApprovalTest). */
+    public function test_save_roster_includes_past_dated_cells_in_the_approval_request_for_user_without_edit_jadwal(): void
     {
         [$schedule, $shiftType, $employee] = $this->makeManualShiftSchedule();
         $user = $this->actingAsAbsensi();
+        $user->update(['company_id' => $schedule->company_id]);
+        $approver = User::factory()->create(['company_id' => $schedule->company_id]);
+        $flow = MasterApprovalFlows::create([
+            'company_id' => $schedule->company_id,
+            'module' => 'schedule_roster_change',
+            'name' => 'Alur Test',
+            'flow_type' => 'default',
+            'is_active' => true,
+        ]);
+        MasterApprovalFlowSteps::create([
+            'flow_id' => $flow->id,
+            'step_order' => 1,
+            'approver_type' => 'user',
+            'approver_ref_id' => $approver->id,
+            'approval_mode' => 'any',
+            'scope_type' => 'global',
+            'is_final' => true,
+        ]);
         $datePast = now()->subDay()->toDateString();
 
         Livewire::actingAs($user)
@@ -782,8 +806,13 @@ class ScheduleShiftRosterTabTest extends TestCase
             ->call('saveRoster');
 
         $this->assertFalse(
-            ScheduleShiftAssignment::where('user_id', $employee->id)->whereDate('date', $datePast)->exists()
+            ScheduleShiftAssignment::where('user_id', $employee->id)->whereDate('date', $datePast)->exists(),
+            'Belum boleh tertulis sebelum disetujui.'
         );
+
+        $request = ScheduleRosterChangeRequest::where('schedule_id', $schedule->id)->first();
+        $this->assertNotNull($request, 'Tanggal lampau harus ikut diajukan, bukan dilewati diam-diam.');
+        $this->assertSame($datePast, $request->payload[0]['date']);
     }
 
     /** Yang punya Update:Schedule ("Edit Jadwal") bebas ubah tanggal lewat lewat saveRoster(). */
