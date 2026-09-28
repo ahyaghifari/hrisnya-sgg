@@ -104,12 +104,12 @@
 
     @if ($showUsersModal)
         <div class="modal-overlay" wire:click="closeUsersModal">
-            <div class="modal-box" onclick="event.stopPropagation()">
+            <div class="modal-box modal-box-lg" onclick="event.stopPropagation()">
                 <h3 style="font-size:16px;font-weight:700;color:var(--text-heading);margin:0 0 14px;">
                     User dengan Role "{{ $usersModalRoleName }}" ({{ count($usersModalUsers) }})
                 </h3>
 
-                <div style="max-height:360px;overflow-y:auto;">
+                <div style="max-height:280px;overflow-y:auto;">
                     @forelse ($usersModalUsers as $user)
                         <div wire:key="'usersmodal-'.{{ $user['id'] }}" style="padding:8px 0;border-bottom:1px solid var(--border-soft);display:flex;align-items:center;justify-content:space-between;gap:10px;">
                             <div>
@@ -126,6 +126,46 @@
                         <p style="padding:16px 0;text-align:center;color:var(--text-faint);font-size:12.5px;">Belum ada user dengan role ini.</p>
                     @endforelse
                 </div>
+
+                @if ($this->canManageUsersModal)
+                    <div style="margin-top:16px;padding-top:14px;border-top:1.5px solid var(--border);">
+                        <h4 style="font-size:13px;font-weight:700;color:var(--text-heading);margin:0 0 10px;">Tambah User ke Role Ini</h4>
+
+                        <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
+                            <input type="text" class="form-input" style="flex:1;min-width:160px;" wire:model.live.debounce.400ms="addUserSearch" placeholder="Cari nama / NIP...">
+
+                            <select data-tom-select data-placeholder="Semua Divisi" class="form-input" style="min-width:150px;" wire:model.live="addUserDivisionId">
+                                <option value="">Semua Divisi</option>
+                                @foreach ($this->addUserDivisions as $division)
+                                    <option value="{{ $division->id }}">{{ $division->name }}</option>
+                                @endforeach
+                            </select>
+
+                            <select data-tom-select data-placeholder="Semua Jabatan" class="form-input" style="min-width:150px;" wire:model.live="addUserJobPositionId">
+                                <option value="">Semua Jabatan</option>
+                                @foreach ($this->addUserJobPositions as $jobPosition)
+                                    <option value="{{ $jobPosition->id }}">{{ $jobPosition->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+
+                        <div style="max-height:220px;overflow-y:auto;">
+                            @forelse ($this->addUserCandidates as $candidate)
+                                <div wire:key="'addcandidate-'.{{ $candidate->id }}" style="padding:8px 0;border-bottom:1px solid var(--border-soft);display:flex;align-items:center;justify-content:space-between;gap:10px;">
+                                    <div>
+                                        <div style="font-weight:600;font-size:13px;color:var(--text-heading);">{{ $candidate->name }}</div>
+                                        <div style="font-size:11.5px;color:var(--text-muted);">{{ $candidate->email }} @if($candidate->nip) &middot; NIP {{ $candidate->nip }} @endif</div>
+                                    </div>
+                                    <button type="button" wire:click="addUserToRole('{{ $candidate->id }}')" class="btn-ghost" style="padding:5px 12px;font-size:11.5px;color:#0d7a3d;white-space:nowrap;">
+                                        <i class="fa-solid fa-user-plus"></i> Tambah
+                                    </button>
+                                </div>
+                            @empty
+                                <p style="padding:12px 0;text-align:center;color:var(--text-faint);font-size:12.5px;">Tidak ada user yang cocok.</p>
+                            @endforelse
+                        </div>
+                    </div>
+                @endif
 
                 <div style="display:flex;justify-content:flex-end;margin-top:16px;">
                     <button type="button" wire:click="closeUsersModal" class="btn-ghost">Tutup</button>

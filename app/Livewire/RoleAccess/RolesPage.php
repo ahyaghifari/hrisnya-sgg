@@ -2,8 +2,11 @@
 
 namespace App\Livewire\RoleAccess;
 
+use App\Enum\OrgStructurLevel;
 use App\Helpers\PermissionHelper;
 use App\Models\Master\Companies;
+use App\Models\Master\JobPositions;
+use App\Models\Master\OrgStructure;
 use App\Models\Role;
 use App\Models\User;
 use Filament\Notifications\Notification;
@@ -33,6 +36,10 @@ class RolesPage extends Component
     public ?string $usersModalRoleId = null;
     public ?string $usersModalRoleName = null;
     public array $usersModalUsers = [];
+
+    public string $addUserSearch = '';
+    public ?string $addUserDivisionId = null;
+    public ?string $addUserJobPositionId = null;
 
     public function mount(): void
     {
@@ -119,12 +126,85 @@ class RolesPage extends Component
         $this->usersModalRoleId = $role->id;
         $this->usersModalRoleName = $role->name;
         $this->usersModalUsers = $role->users()->orderBy('name')->get(['id', 'name', 'email', 'nip'])->toArray();
+        $this->addUserSearch = '';
+        $this->addUserDivisionId = null;
+        $this->addUserJobPositionId = null;
         $this->showUsersModal = true;
     }
 
     public function closeUsersModal(): void
     {
         $this->showUsersModal = false;
+    }
+
+    /** Opsi divisi buat filter "Tambah User" - dibatasi company role kalau role-nya company-scoped. */
+    public function getAddUserDivisionsProperty()
+    {
+        $role = $this->usersModalRoleId ? Role::find($this->usersModalRoleId) : null;
+
+        return OrgStructure::query()
+            ->where('level', OrgStructurLevel::LEVEL_DIVISION->value)
+            ->when($role?->company_id, fn ($q, $companyId) => $q->where('company_id', $companyId))
+            ->orderBy('name')
+            ->get(['id', 'name']);
+    }
+
+    /** Opsi jabatan buat filter "Tambah User" - dibatasi company role kalau role-nya company-scoped. */
+    public function getAddUserJobPositionsProperty()
+    {
+        $role = $this->usersModalRoleId ? Role::find($this->usersModalRoleId) : null;
+
+        return JobPositions::query()
+            ->when($role?->company_id, fn ($q, $companyId) => $q->where('company_id', $companyId))
+            ->orderBy('name')
+            ->get(['id', 'name']);
+    }
+
+    /** Kandidat user yang BELUM punya role ini, difilter nama/NIP + divisi + jabatan - dipakai
+     * panel "Tambah User" di modal Lihat User. Dibatasi 20 baris supaya tidak berat. */
+    public function getAddUserCandidatesProperty()
+    {
+        if (! $this->usersModalRoleId) {
+            return collect();
+        }
+
+        $role = Role::findOrFail($this->usersModalRoleId);
+        $assignedIds = collect($this->usersModalUsers)->pluck('id')->all();
+
+        return User::query()
+            ->when($role->company_id, fn ($q, $companyId) => $q->where('company_id', $companyId))
+            ->whereNotIn('id', $assignedIds)
+            ->when($this->addUserSearch, fn ($q) => $q->where(fn ($q) => $q
+                ->where('name', 'like', '%' . $this->addUserSearch . '%')
+                ->orWhere('nip', 'like', '%' . $this->addUserSearch . '%')))
+            ->when($this->addUserJobPositionId, fn ($q, $jobPositionId) => $q->whereHas(
+                'profile',
+                fn ($q) => $q->where('job_position_id', $jobPositionId),
+            ))
+            ->when($this->addUserDivisionId, fn ($q, $divisionId) => $q->whereHas(
+                'profile.jobPosition.orgStructure',
+                fn ($q) => $q->where('id', $divisionId)->orWhere('parent_id', $divisionId),
+            ))
+            ->orderBy('name')
+            ->limit(20)
+            ->get(['id', 'name', 'email', 'nip']);
+    }
+
+    public function addUserToRole(string $userId): void
+    {
+        $role = Role::findOrFail($this->usersModalRoleId);
+
+        abort_unless(Auth::user()->can('update', $role), 403);
+        abort_if($this->isProtectedRole($role), 403, 'Role Super Admin tidak bisa diubah dari sini.');
+
+        User::findOrFail($userId)->assignRole($role);
+
+        $this->usersModalUsers = $role->users()->orderBy('name')->get(['id', 'name', 'email', 'nip'])->toArray();
+
+        Notification::make()
+            ->title('User berhasil ditambahkan ke role')
+            ->success()
+            ->send();
     }
 
     public function getCanManageUsersModalProperty(): bool
