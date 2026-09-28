@@ -535,7 +535,7 @@
         <button type="button" wire:click="toggleLogs" class="btn-ghost" style="font-size:11px;padding:7px 12px;white-space:nowrap;">
             <i class="fa-solid fa-clock-rotate-left"></i> {{ $showLogs ? 'Sembunyikan' : 'Lihat' }} Riwayat Perubahan
         </button>
-        @if ($this->canEditJadwal)
+        @if ($this->canEditJadwal && $period >= now()->format('Y-m'))
             <button type="button" wire:click="resetPeriod"
                 wire:confirm="{{ $this->canEditPastDates ? "Hapus SEMUA roster {$this->periodLabel} (termasuk yang sudah dikoreksi manual, termasuk tanggal yang sudah lewat)? Tindakan ini tidak bisa dibatalkan." : "Hapus roster {$this->periodLabel} MULAI HARI INI sampai akhir bulan (termasuk yang sudah dikoreksi manual)? Tanggal yang sudah lewat tidak ikut dihapus. Tindakan ini tidak bisa dibatalkan." }}"
                 class="btn-ghost" style="font-size:11px;padding:7px 12px;white-space:nowrap;color:var(--danger-text);">

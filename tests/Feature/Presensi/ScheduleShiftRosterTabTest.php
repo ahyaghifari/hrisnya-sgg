@@ -240,9 +240,12 @@ class ScheduleShiftRosterTabTest extends TestCase
     public function test_save_roster_persists_only_changed_cells_from_draft(): void
     {
         [$schedule, $shiftType, $employee] = $this->makeManualShiftSchedule();
-        $user = $this->actingAsAbsensi();
-        // saveRoster() cuma boleh tulis mulai hari ini (lihat lockBeforeDate()) buat role yang
-        // tidak punya Edit Jadwal - dateA/dateB harus hari ini/masa depan biar tidak ke-skip.
+        // actingAsScheduleOwner (bukan actingAsAbsensi) - sejak 2026-09-28 yang cuma punya
+        // Update:ShiftScheduleAssignments (bukan Edit Jadwal) diajukan ke approval dulu lewat
+        // saveRoster() (lihat ScheduleRosterChangeApprovalTest), bukan langsung tersimpan - test
+        // ini murni soal "cuma sel yang berubah yang ditulis", jadi pakai user yang tetap langsung
+        // tersimpan.
+        $user = $this->actingAsScheduleOwner();
         $dateA = now()->addDays(1)->toDateString();
         $dateB = now()->addDays(2)->toDateString();
 
@@ -267,7 +270,8 @@ class ScheduleShiftRosterTabTest extends TestCase
     public function test_save_roster_refreshes_grid_in_same_request(): void
     {
         [$schedule, $shiftType, $employee] = $this->makeManualShiftSchedule();
-        $user = $this->actingAsAbsensi();
+        // actingAsScheduleOwner - lihat alasan sama di test_save_roster_persists_only_changed_cells_from_draft().
+        $user = $this->actingAsScheduleOwner();
         $date = now()->addDays(1)->toDateString();
 
         $component = Livewire::actingAs($user)
@@ -365,7 +369,8 @@ class ScheduleShiftRosterTabTest extends TestCase
     public function test_describe_roster_log_reads_as_a_human_sentence_for_empty_to_filled(): void
     {
         [$schedule, $shiftType, $employee] = $this->makeManualShiftSchedule();
-        $user = $this->actingAsAbsensi();
+        // actingAsScheduleOwner - lihat alasan sama di test_save_roster_persists_only_changed_cells_from_draft().
+        $user = $this->actingAsScheduleOwner();
         $date = now()->addDays(1)->toDateString();
 
         $component = Livewire::actingAs($user)
@@ -383,7 +388,8 @@ class ScheduleShiftRosterTabTest extends TestCase
     public function test_save_roster_logs_changed_cells_with_manual_source(): void
     {
         [$schedule, $shiftType, $employee] = $this->makeManualShiftSchedule();
-        $user = $this->actingAsAbsensi();
+        // actingAsScheduleOwner - lihat alasan sama di test_save_roster_persists_only_changed_cells_from_draft().
+        $user = $this->actingAsScheduleOwner();
         $date = now()->addDays(1)->toDateString();
 
         Livewire::actingAs($user)
@@ -471,7 +477,8 @@ class ScheduleShiftRosterTabTest extends TestCase
     public function test_import_excel_stages_into_draft_without_saving_until_save_roster_is_called(): void
     {
         [$schedule, $shiftType, $employee] = $this->makeManualShiftSchedule();
-        $user = $this->actingAsAbsensi();
+        // actingAsScheduleOwner - lihat alasan sama di test_save_roster_persists_only_changed_cells_from_draft().
+        $user = $this->actingAsScheduleOwner();
         $firstDate = now();
         // Kolom di file export/import urut 1..akhir bulan dari tanggal 1 - saveRoster() cuma
         // boleh tulis mulai hari ini (lockBeforeDate()), jadi kolomnya harus nunjuk hari ini,

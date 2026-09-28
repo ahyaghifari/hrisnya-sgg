@@ -7,10 +7,12 @@ use App\Enum\AttendanceReqStatus;
 use App\Enum\Task\TaskStatus;
 use App\Models\Attendance\AttendanceRequestCancellations;
 use App\Models\LMS\TrainingRequests;
+use App\Models\Shift\ScheduleRosterChangeRequest;
 use App\Models\Shift\ShiftSwapRequestCancellations;
 use App\Models\Shift\ShiftSwapRequests;
 use App\Models\User;
 use App\Services\Attendance\AttendaceReqService;
+use App\Services\Shift\ScheduleRosterChangeService;
 use App\Services\Shift\ShiftSwapRequestService;
 use App\Notifications\ApprovalNeedsAction;
 use App\Notifications\RequestStatusChanged;
@@ -33,6 +35,7 @@ class ApprovalFlowService
         protected TaskRepository $taskRepository,
         protected NotificationService $notificationService,
         protected AttendaceReqService $attendaceReqService,
+        protected ScheduleRosterChangeService $scheduleRosterChangeService,
     ) {}
 
     public function getNextApprover($snapshot): ?array
@@ -130,6 +133,16 @@ class ApprovalFlowService
                 // Training Request
                 if ($snapshot->module_type === ApprovalModuleEnum::TRAINING_REQUEST->value) {
                     TrainingRequests::where('id', $snapshot->module_id)->update([
+                        'status' => 'rejected',
+                        'rejected_by' => $actorId,
+                        'rejected_at' => now(),
+                    ]);
+                }
+
+                // Perubahan Jadwal Shift (Kepala Ruangan) - ditolak, roster TIDAK pernah ditulis
+                // (baru ditulis kalau approved, lihat cabang di bawah), jadi tidak ada yang perlu direvert.
+                if ($snapshot->module_type === ApprovalModuleEnum::SCHEDULE_ROSTER_CHANGE->value) {
+                    ScheduleRosterChangeRequest::where('id', $snapshot->module_id)->update([
                         'status' => 'rejected',
                         'rejected_by' => $actorId,
                         'rejected_at' => now(),
@@ -304,6 +317,21 @@ class ApprovalFlowService
                         'approved_by' => $actorId,
                         'approved_at' => now(),
                     ]);
+                }
+
+                // Perubahan Jadwal Shift (Kepala Ruangan) - approved final: baru sekarang sel-sel
+                // yang diajukan beneran ditulis ke schedule_shift_assignments (RosterBatchWriter,
+                // writer yang sama dipakai simpan langsung lewat ScheduleShiftRosterTab).
+                if ($snapshot->module_type === ApprovalModuleEnum::SCHEDULE_ROSTER_CHANGE->value) {
+                    $rosterRequest = ScheduleRosterChangeRequest::find($snapshot->module_id);
+                    if ($rosterRequest) {
+                        $rosterRequest->update([
+                            'status' => 'approved',
+                            'approved_by' => $actorId,
+                            'approved_at' => now(),
+                        ]);
+                        $this->scheduleRosterChangeService->executeApproved($rosterRequest);
+                    }
                 }
 
                 $this->historyRepo->create([

@@ -28,13 +28,19 @@ class ScheduleShiftRosterLeaveQuotaRefundTest extends TestCase
 {
     use RefreshDatabase;
 
+    /** Punya Update:Schedule juga (bukan cuma Update:ShiftScheduleAssignments) - sejak 2026-09-28
+     * yang tidak punya Update:Schedule diajukan ke approval dulu lewat saveRoster() (lihat
+     * ScheduleRosterChangeApprovalTest), refund kuota baru terjadi begitu disetujui. Test refund
+     * di file ini soal RosterBatchWriter, bukan soal gerbang approval, jadi tetap pakai user yang
+     * langsung tersimpan. */
     private function actingAsAbsensi(): User
     {
         Permission::firstOrCreate(['name' => CustomPermissionEnum::SISTEM_ABSENSI->value, 'guard_name' => 'web']);
         Permission::firstOrCreate(['name' => 'Update:ShiftScheduleAssignments', 'guard_name' => 'web']);
         Permission::firstOrCreate(['name' => 'View:Schedule', 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'Update:Schedule', 'guard_name' => 'web']);
         $role = Role::firstOrCreate(['name' => 'Absensi Roster Refund Test', 'guard_name' => 'web']);
-        $role->givePermissionTo([CustomPermissionEnum::SISTEM_ABSENSI->value, 'Update:ShiftScheduleAssignments', 'View:Schedule']);
+        $role->givePermissionTo([CustomPermissionEnum::SISTEM_ABSENSI->value, 'Update:ShiftScheduleAssignments', 'View:Schedule', 'Update:Schedule']);
 
         $user = User::factory()->create();
         $user->assignRole($role);
