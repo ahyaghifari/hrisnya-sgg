@@ -8,46 +8,40 @@ use Illuminate\View\View;
 
 /**
  * Halaman verifikasi publik /verify/{code} (Fase 1 TTE, docs/2026-09-28-tte-qr-internal-fase-1.md
- * §5) - tanpa login, dipagari throttle di routes/web.php. Status SAH/DATA BERUBAH/DICABUT
- * DIHITUNG LIVE di sini (bukan kolom tersimpan) - lihat komentar migration
- * create_document_verifications_table.
+ * §5, direvisi instruksi user 2026-09-29) - tanpa login, dipagari throttle di routes/web.php.
+ * 1 kode = 1 TTD PERSONAL, jadi halaman ini cuma bicara soal TTD itu sendiri (siapa yang
+ * menandatangani, kapan, masih cocok datanya atau tidak) - BUKAN status keseluruhan dokumen
+ * (peran lain yang mungkin belum menandatangani tidak dibocorkan di sini). Status SAH/DATA
+ * BERUBAH/DICABUT DIHITUNG LIVE di sini (bukan kolom tersimpan) - lihat komentar migration
+ * move_document_verification_code_to_signature.
  */
 class VerificationController extends Controller
 {
     public function show(string $code): View
     {
         $verification = DocumentVerification::where('verification_code', $code)
-            ->with(['document.documentable', 'document.signatures' => fn ($q) => $q->orderBy('signed_at')])
+            ->with(['signature.document.documentable'])
             ->first();
 
         if (! $verification) {
             return view('public.verify-not-found', ['code' => $code]);
         }
 
-        $document = $verification->document;
+        $signature = $verification->signature;
+        $document = $signature->document;
         $signable = $document->documentable;
 
-        $currentHashesMatch = $signable
-            ? hash('sha256', json_encode($signable->signablePayload())) === $document->signatures->last()?->document_hash
+        $currentHashMatches = $signable
+            ? hash('sha256', json_encode($signable->signablePayload())) === $signature->document_hash
             : false;
-
-        // Peran yang diharapkan (Signable::expectedSignerRoles()) tapi belum ada baris
-        // document_signatures-nya - generik lintas jenis dokumen, TTE Fase 1 instruksi user
-        // 2026-09-28 (knows_by dkk baru sah setelah konfirmasi password sendiri, bukan otomatis
-        // saat dokumen dibuat).
-        $signedRoles = $document->signatures->pluck('signer_role');
-        $pendingRoles = $signable
-            ? collect($signable->expectedSignerRoles())->reject(fn ($label, $role) => $signedRoles->contains($role))
-            : collect();
 
         return view('public.verify', [
             'document' => $document,
             'signable' => $signable,
-            'signatures' => $document->signatures,
+            'signature' => $signature,
             'isRevoked' => $signable?->isRevoked() ?? false,
             'revokedReason' => $signable?->revokedReason(),
-            'hashMatches' => $currentHashesMatch,
-            'pendingRoles' => $pendingRoles,
+            'hashMatches' => $currentHashMatches,
             'code' => $code,
         ]);
     }

@@ -15,8 +15,9 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  *
  * QR verifikasi (TTE Fase 1, docs/2026-09-28-tte-qr-internal-fase-1.md §7) di-generate ULANG
  * tiap PDF dirender (bukan disimpan sebagai file), TAPI isinya (URL /verify/{code}) selalu SAMA
- * selama dokumen tidak dihapus - `verification_code` dibangkitkan sekali saat sign
- * (HasDocumentSignatures::ensureVerificationCode()), bukan tiap render. Format SVG (default
+ * selama TTD-nya tidak dihapus - `verification_code` dibangkitkan sekali per TTD saat sign
+ * (HasDocumentSignatures::sign(), instruksi user 2026-09-29: 1 kode PERSONAL per penanda tangan,
+ * bukan 1 kode dibagi rata ke semua peran), bukan tiap render. Format SVG (default
  * simple-qrcode) - tidak butuh ext-imagick yang tidak dijamin terpasang, dompdf render inline SVG
  * data URI dengan baik untuk pola sesederhana QR.
  */
@@ -60,8 +61,7 @@ class SpPdfService
             'createdBy.activeJobPosition.jobPosition',
             'knowsBy.activeJobPosition.jobPosition',
             'coaching.coachBy.activeJobPosition.jobPosition',
-            'document.verification',
-            'document.signatures',
+            'document.signatures.verification',
         ]);
 
         return $sp;
@@ -84,22 +84,20 @@ class SpPdfService
         ];
     }
 
-    /** Data URI SVG QR + kode verifikasi untuk 1 peran tertentu, atau null kalau dokumen belum
-     *  punya kode verifikasi SAMA SEKALI, atau peran itu belum menandatangani. */
+    /** Data URI SVG QR + kode verifikasi untuk 1 peran tertentu, atau null kalau peran itu belum
+     *  menandatangani (kode-nya PERSONAL milik TTD peran ini sendiri - instruksi user 2026-09-29,
+     *  bukan 1 kode dibagi rata ke semua peran). */
     private function verificationBlock(EmployeeSp|SpReport $signable, string $role): ?array
     {
         $document = $signable->document;
-        $code = $document?->verification?->verification_code;
+
+        $signature = $document?->relationLoaded('signatures')
+            ? $document->signatures->firstWhere('signer_role', $role)
+            : $document?->signatures()->where('signer_role', $role)->first();
+
+        $code = $signature?->verification?->verification_code;
 
         if (! $code) {
-            return null;
-        }
-
-        $signed = $document->relationLoaded('signatures')
-            ? $document->signatures->contains('signer_role', $role)
-            : $document->signatures()->where('signer_role', $role)->exists();
-
-        if (! $signed) {
             return null;
         }
 
@@ -134,8 +132,7 @@ class SpPdfService
     {
         $sp->loadMissing([
             'company',
-            'report.document.verification',
-            'report.document.signatures',
+            'report.document.signatures.verification',
             'user.profile',
             'user.activeJobPosition.jobPosition.orgStructure.parent',
             'createdBy.activeJobPosition.jobPosition',

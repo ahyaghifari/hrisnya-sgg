@@ -7,7 +7,6 @@ use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 /**
@@ -41,11 +40,6 @@ class Document extends Model
     public function signatures(): HasMany
     {
         return $this->hasMany(DocumentSignature::class);
-    }
-
-    public function verification(): HasOne
-    {
-        return $this->hasOne(DocumentVerification::class);
     }
 
     public function createdBy(): BelongsTo

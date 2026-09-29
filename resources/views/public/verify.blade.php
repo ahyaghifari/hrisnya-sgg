@@ -13,7 +13,7 @@
             ? ['label' => 'DICABUT', 'theme' => 'slate', 'desc' => 'Dokumen ini sudah dibatalkan dan tidak berlaku lagi.']
             : (! $hashMatches
                 ? ['label' => 'DATA BERUBAH', 'theme' => 'red', 'desc' => 'Isi dokumen sudah berbeda dari saat ditandatangani. Jangan dipakai sebagai acuan.']
-                : ['label' => 'SAH', 'theme' => 'emerald', 'desc' => 'Dokumen ini asli dan belum diubah sejak ditandatangani.']);
+                : ['label' => 'SAH', 'theme' => 'emerald', 'desc' => 'Tanda tangan ini asli dan isi dokumen belum diubah sejak ditandatangani.']);
 
         $themes = [
             'emerald' => ['bg' => 'bg-emerald-600', 'soft' => 'bg-emerald-50', 'text' => 'text-emerald-700', 'ring' => 'ring-emerald-100'],
@@ -22,7 +22,7 @@
             'slate' => ['bg' => 'bg-slate-500', 'soft' => 'bg-slate-100', 'text' => 'text-slate-600', 'ring' => 'ring-slate-200'],
         ][$status['theme']];
 
-        $signedRoles = $signatures->pluck('signer_role');
+        $roleLabel = $signable?->expectedSignerRoles()[$signature->signer_role] ?? $signature->signer_role;
     @endphp
 
     <div class="max-w-md mx-auto px-4 py-8 sm:py-12">
@@ -81,45 +81,22 @@
                     </div>
                 @endif
 
-                @if (! $isRevoked && $pendingRoles->isNotEmpty())
-                    <div class="rounded-xl bg-amber-50 ring-1 ring-amber-100 px-4 py-3">
-                        <p class="text-[10.5px] text-amber-700 uppercase tracking-wide font-semibold mb-0.5">Belum Lengkap</p>
-                        <p class="text-sm text-amber-800">Menunggu tanda tangan: {{ $pendingRoles->values()->implode(', ') }}.</p>
-                    </div>
-                @endif
-
-                {{-- Penanda tangan: dipetakan ke expectedSignerRoles biar peran yang BELUM
-                tanda tangan ikut kelihatan (bukan cuma yang sudah), urutan tetap konsisten
-                lintas render (instruksi user 2026-09-28: redesign halaman verifikasi). --}}
+                {{-- 1 kode = 1 TTD personal (instruksi user 2026-09-29) - halaman ini cuma
+                bicara soal TTD yang di-scan, bukan status TTD peran lain di dokumen yang sama. --}}
                 <div>
                     <p class="text-[10.5px] text-slate-400 uppercase tracking-wide font-semibold mb-2.5">Penanda Tangan</p>
-                    <div class="space-y-2.5">
-                        @foreach ($signable?->expectedSignerRoles() ?? [] as $role => $roleLabel)
-                            @php $sig = $signatures->firstWhere('signer_role', $role); @endphp
-                            <div class="flex items-start gap-3">
-                                <div class="w-6 h-6 shrink-0 rounded-full flex items-center justify-center mt-0.5 {{ $sig ? 'bg-emerald-100' : 'bg-slate-100' }}">
-                                    @if ($sig)
-                                        <svg viewBox="0 0 24 24" fill="none" class="w-3.5 h-3.5"><path d="M5 13l4 4L19 7" stroke="#059669" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                                    @else
-                                        <span class="w-1.5 h-1.5 rounded-full bg-slate-300"></span>
-                                    @endif
-                                </div>
-                                <div class="min-w-0 flex-1">
-                                    <p class="text-[10.5px] text-slate-400 uppercase tracking-wide font-medium">{{ $roleLabel }}</p>
-                                    @if ($sig)
-                                        <p class="text-sm font-semibold text-slate-900 leading-tight">{{ $sig->signer_name }}</p>
-                                        @if ($sig->signer_position)
-                                            <p class="text-xs text-slate-500">{{ $sig->signer_position }}</p>
-                                        @endif
-                                    @else
-                                        <p class="text-sm text-slate-400 italic">Belum menandatangani</p>
-                                    @endif
-                                </div>
-                                @if ($sig)
-                                    <p class="text-[11px] text-slate-400 whitespace-nowrap shrink-0">{{ $sig->signed_at->translatedFormat('d M Y') }}<br><span class="text-slate-300">{{ $sig->signed_at->format('H:i') }}</span></p>
-                                @endif
-                            </div>
-                        @endforeach
+                    <div class="flex items-start gap-3">
+                        <div class="w-6 h-6 shrink-0 rounded-full bg-emerald-100 flex items-center justify-center mt-0.5">
+                            <svg viewBox="0 0 24 24" fill="none" class="w-3.5 h-3.5"><path d="M5 13l4 4L19 7" stroke="#059669" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                        </div>
+                        <div class="min-w-0 flex-1">
+                            <p class="text-[10.5px] text-slate-400 uppercase tracking-wide font-medium">{{ $roleLabel }}</p>
+                            <p class="text-sm font-semibold text-slate-900 leading-tight">{{ $signature->signer_name }}</p>
+                            @if ($signature->signer_position)
+                                <p class="text-xs text-slate-500">{{ $signature->signer_position }}</p>
+                            @endif
+                        </div>
+                        <p class="text-[11px] text-slate-400 whitespace-nowrap shrink-0">{{ $signature->signed_at->translatedFormat('d M Y') }}<br><span class="text-slate-300">{{ $signature->signed_at->format('H:i') }}</span></p>
                     </div>
                 </div>
 

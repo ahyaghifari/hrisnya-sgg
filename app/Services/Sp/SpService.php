@@ -59,7 +59,11 @@ class SpService
         return Carbon::parse($startDate)->addDays($days)->toDateString();
     }
 
-    /** Dipanggil setelah employee_sps baru dibuat lewat jalur mana pun - refresh cache (§3.5) + notif karyawan. */
+    /** Dipanggil saat SP benar-benar TERBIT (bukan cuma disimpan draft) - refresh cache (§3.5) +
+     *  notif karyawan. Portal (CreateSpPage) baru memanggil ini belakangan lewat tombol "Tanda
+     *  Tangan & Terbitkan" di SpDetailPage (instruksi user 2026-09-29); jalur approve
+     *  recommendation & Filament EmployeeSpResource masih memanggilnya langsung setelah create
+     *  (tidak ada langkah draft di jalur itu). */
     public function afterIssued(EmployeeSp $employeeSp): void
     {
         $this->refreshBalance($employeeSp->user_id);
@@ -81,10 +85,10 @@ class SpService
     /**
      * TTE Fase 1, level "TTE Tidak Tersertifikasi" (docs/HRIS_TTE_NonTersertifikasi_QR_Verification.md
      * §4, Pasal 59 ayat 3 butir 6 PP 71/2019 - persetujuan tiap penanda tangan harus eksplisit dari
-     * ORANG itu sendiri, bukan diwakilkan). SP tidak punya approval berjenjang sebelum terbit, jadi
-     * created_by ditandatangani otomatis DI SINI - tapi konsen created_by sendiri sudah diminta
-     * lewat konfirmasi ulang password di CreateSpPage SEBELUM method ini dipanggil (lihat
-     * CreateSpPage::confirmAndSign()), jadi bukan "auto tanpa consent".
+     * ORANG itu sendiri, bukan diwakilkan). created_by ditandatangani DI SINI - konsen created_by
+     * sendiri sudah diminta lewat konfirmasi password di SpDetailPage::issue() SEBELUM method ini
+     * dipanggil (tombol "Tanda Tangan & Terbitkan", instruksi user 2026-09-29), jadi bukan "auto
+     * tanpa consent".
      *
      * knows_by SENGAJA TIDAK ditandatangani di sini (instruksi user 2026-09-28: "yang mengetahui
      * itu klik TTD setujui, isi password ulang, baru di-TTD") - dia cuma DITUNJUK di form, tanda
@@ -105,14 +109,15 @@ class SpService
             return;
         }
 
+        // sign() sekarang langsung membangkitkan kode/QR verifikasi-nya sendiri per TTD
+        // (HasDocumentSignatures::sign(), instruksi user 2026-09-29) - tidak perlu panggilan
+        // ensureVerificationCode() terpisah lagi.
         $employeeSp->issueDocument("Surat Peringatan {$employeeSp->sp_level->getLabel()} — {$employeeSp->user?->name}", $createdBy);
         $employeeSp->sign($createdBy, 'created_by');
-        $employeeSp->ensureVerificationCode();
 
         if ($employeeSp->report) {
             $employeeSp->report->issueDocument("Berita Acara — {$employeeSp->user?->name}", $createdBy);
             $employeeSp->report->sign($createdBy, 'created_by');
-            $employeeSp->report->ensureVerificationCode();
         }
 
         $knowsBy->notify(new SpAwaitingSignature($employeeSp));

@@ -13,7 +13,6 @@ use App\Services\Sp\SpService;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 
@@ -23,6 +22,10 @@ use Livewire\Component;
  * total). Restrukturisasi 2026-09-25 (lihat diagram ER): surat SP + poin pelanggaran (sp_items,
  * bebas per baris, menggantikan reason_id/reason_note) + Berita Acara (sp_reports) dibuat
  * sekaligus dalam satu form. end_date & refresh cache didelegasikan ke SpService.
+ *
+ * save() cuma menyimpan sebagai DRAFT (instruksi user 2026-09-29) - belum ada Document/tanda
+ * tangan, jadi masih bebas diedit dari SpDetailPage. Tanda tangan created_by + penerbitan
+ * sungguhan dipicu terpisah lewat tombol "Tanda Tangan dan Terbitkan" di sana.
  */
 #[Layout('components.layout', ['title' => 'Buat SP'])]
 class CreateSpPage extends Component
@@ -47,15 +50,6 @@ class CreateSpPage extends Component
 
     /** Opsional - SP ini berdasarkan Coaching mana (kalau ada). Kosong = source_type MANUAL. */
     public ?string $coaching_id = null;
-
-    /** TTE Fase 1 (instruksi user 2026-09-28) - konfirmasi password sebelum SP benar-benar
-     *  disimpan & ditandatangani, gantinya wire:confirm browser dialog yang cuma "OK/Cancel"
-     *  tanpa bukti siapa yang menyetujui. Ini konsen EKSPLISIT created_by sendiri (Pasal 59
-     *  ayat 3 butir 6 PP 71/2019) - beda dari knows_by yang konfirmasi terpisah lewat
-     *  SignDocumentsPage begitu dia login sendiri. */
-    public bool $confirmingSign = false;
-
-    public ?string $signPassword = null;
 
     public function mount(): void
     {
@@ -199,38 +193,14 @@ class CreateSpPage extends Component
         ];
     }
 
-    /** Langkah 1 - validasi form seperti biasa, lalu tampilkan langkah konfirmasi password
-     *  (bukan langsung simpan). Nilai form TETAP di properti public yang sama, tidak perlu
-     *  disalin ke tempat lain - Livewire menjaga state-nya antar render dalam 1 kunjungan. */
-    public function chooseConfirmSign(): void
-    {
-        $this->validate();
-
-        $this->signPassword = null;
-        $this->resetErrorBag();
-        $this->confirmingSign = true;
-    }
-
-    public function cancelConfirmSign(): void
-    {
-        $this->confirmingSign = false;
-        $this->signPassword = null;
-    }
-
-    /** Langkah 2 - password Anda sendiri sebagai bukti konsen eksplisit created_by, BARU
-     *  benar-benar disimpan & ditandatangani. Re-validasi form penuh lagi (jaring pengaman
-     *  server-side kalau ada yang berubah antara langkah 1 dan 2). */
+    /** Simpan sebagai DRAFT (instruksi user 2026-09-29) - belum terbit, belum ditandatangani.
+     *  Tanda tangan created_by + penerbitan sungguhan (issueDocument/sign/notify/merit point,
+     *  SpService::afterIssued()) baru dipicu terpisah lewat tombol "Tanda Tangan dan Terbitkan"
+     *  di SpDetailPage (hanya pembuatnya sendiri) - draft dikenali dari $record->document masih
+     *  null (belum ada baris registry documents), tidak perlu kolom status baru. */
     public function save(): void
     {
         $data = $this->validate();
-
-        $this->validate(['signPassword' => ['required', 'string']], [], ['signPassword' => 'Password']);
-
-        if (! Hash::check($this->signPassword, Auth::user()->password)) {
-            $this->addError('signPassword', 'Password salah.');
-
-            return;
-        }
 
         $auth = Auth::user();
 
@@ -276,9 +246,7 @@ class CreateSpPage extends Component
             return $sp;
         });
 
-        app(SpService::class)->afterIssued($sp);
-
-        Notification::make()->title('SP berhasil diterbitkan')->success()->send();
+        Notification::make()->title('SP disimpan sebagai draft')->body('Tanda tangani & terbitkan dari halaman detail.')->success()->send();
 
         $this->redirect(route('sp.show', $sp), navigate: true);
     }

@@ -7,6 +7,7 @@ use App\Models\Sp\EmployeeSp;
 use App\Models\User;
 use App\Services\Sp\SpService;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 
@@ -48,6 +49,14 @@ class SpDetailPage extends Component
 
     public string $cancel_reason = '';
 
+    /** Tanda Tangan &amp; Terbitkan (instruksi user 2026-09-29) - SP dari CreateSpPage cuma
+     *  disimpan sebagai draft, belum ada Document/tanda tangan. Cuma pembuatnya sendiri (bukan HC
+     *  lain) yang boleh menerbitkan, sama seperti konsen eksplisit created_by di TTE Fase 1
+     *  sebelumnya - password diminta lagi di sini sebagai bukti konsen itu. */
+    public bool $confirmingIssue = false;
+
+    public ?string $issuePassword = null;
+
     public bool $editingItems = false;
 
     /** @var array<int, string> */
@@ -81,6 +90,20 @@ class SpDetailPage extends Component
         return $this->record->document?->isFullySigned() ?? false;
     }
 
+    /** Draft = belum ada baris registry `documents` sama sekali - dikenali dari ini, tidak perlu
+     *  kolom status baru (SP terbit selalu langsung dapat Document lewat SpService::afterIssued()). */
+    public function getIsDraftProperty(): bool
+    {
+        return ! $this->record->document;
+    }
+
+    /** Cuma pembuat SP sendiri yang boleh menandatangani & menerbitkan draftnya (instruksi user
+     *  2026-09-29) - bukan HC lain yang kebetulan punya izin sama. */
+    public function getCanIssueProperty(): bool
+    {
+        return $this->isDraft && ! $this->record->isCancelled() && Auth::id() === $this->record->created_by;
+    }
+
     /** HC beneran (bukan cuma "Mengetahui" yang ikut boleh LIHAT lewat canBeViewedBy()) - dipakai
      *  gerbang server-side tiap aksi tulis/batal DAN toggle tombol Edit/Batalkan di blade.
      *  "Mengetahui" cuma boleh baca isi surat, sama sekali tidak boleh mengubahnya. */
@@ -89,6 +112,43 @@ class SpDetailPage extends Component
         $user = Auth::user();
 
         return $user->can(CustomPermissionEnum::SISTEM_PEMBINAAN_KARYAWAN->value) && $user->can('View:EmployeeSp');
+    }
+
+    public function openConfirmIssue(): void
+    {
+        abort_unless($this->canIssue, 403);
+
+        $this->issuePassword = null;
+        $this->resetErrorBag();
+        $this->confirmingIssue = true;
+    }
+
+    public function cancelConfirmIssue(): void
+    {
+        $this->confirmingIssue = false;
+        $this->issuePassword = null;
+    }
+
+    /** Password sendiri sebagai bukti konsen eksplisit created_by (Pasal 59 ayat 3 butir 6 PP
+     *  71/2019), BARU benar-benar terbit: Document dibuat, ditandatangani created_by, knows_by
+     *  dinotif, merit point diterapkan, karyawan dinotif SP (semua di SpService::afterIssued()). */
+    public function issue(): void
+    {
+        abort_unless($this->canIssue, 403);
+
+        $this->validate(['issuePassword' => ['required', 'string']], [], ['issuePassword' => 'Password']);
+
+        if (! Hash::check($this->issuePassword, Auth::user()->password)) {
+            $this->addError('issuePassword', 'Password salah.');
+
+            return;
+        }
+
+        app(SpService::class)->afterIssued($this->record);
+
+        $this->record->refresh()->load(['document.signatures', 'report.document.signatures']);
+        $this->confirmingIssue = false;
+        $this->issuePassword = null;
     }
 
     public function editSp(): void

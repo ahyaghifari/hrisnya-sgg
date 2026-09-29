@@ -6,6 +6,7 @@ use App\Enum\CustomPermissionEnum;
 use App\Enum\Sp\SpLevel;
 use App\Livewire\Document\SignDocumentsPage;
 use App\Livewire\Sp\CreateSpPage;
+use App\Livewire\Sp\SpDetailPage;
 use App\Models\Master\Companies;
 use App\Models\Sp\EmployeeSp;
 use App\Models\User;
@@ -28,11 +29,11 @@ class SignDocumentsPageTest extends TestCase
     {
         $company = Companies::create(['code' => 'SGN', 'name' => 'Test Co', 'location' => 'X', 'is_active' => true]);
 
-        foreach ([CustomPermissionEnum::SISTEM_PEMBINAAN_KARYAWAN->value, 'Create:EmployeeSp'] as $perm) {
+        foreach ([CustomPermissionEnum::SISTEM_PEMBINAAN_KARYAWAN->value, 'Create:EmployeeSp', 'View:EmployeeSp'] as $perm) {
             Permission::firstOrCreate(['name' => $perm, 'guard_name' => 'web']);
         }
         $hc = User::factory()->create(['company_id' => $company->id]);
-        $hc->givePermissionTo(CustomPermissionEnum::SISTEM_PEMBINAAN_KARYAWAN->value, 'Create:EmployeeSp');
+        $hc->givePermissionTo(CustomPermissionEnum::SISTEM_PEMBINAAN_KARYAWAN->value, 'Create:EmployeeSp', 'View:EmployeeSp');
         $employee = User::factory()->create(['company_id' => $company->id]);
         $knower = User::factory()->create(['company_id' => $company->id]);
 
@@ -45,13 +46,17 @@ class SignDocumentsPageTest extends TestCase
             ->set('knows_by', $knower->id)
             ->set('start_date', now()->toDateString())
             ->set('items', ['Pelanggaran'])
-            ->call('chooseConfirmSign')
-            ->set('signPassword', 'password')
             ->call('save');
 
         $sp = EmployeeSp::where('nomor', $nomor)->firstOrFail();
 
-        return [$sp, $knower, $hc];
+        Livewire::actingAs($hc)
+            ->test(SpDetailPage::class, ['record' => $sp])
+            ->call('openConfirmIssue')
+            ->set('issuePassword', 'password')
+            ->call('issue');
+
+        return [$sp->fresh(), $knower, $hc];
     }
 
     public function test_knows_by_sees_pending_document_in_list(): void

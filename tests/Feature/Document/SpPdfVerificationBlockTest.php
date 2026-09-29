@@ -5,6 +5,7 @@ namespace Tests\Feature\Document;
 use App\Enum\CustomPermissionEnum;
 use App\Enum\Sp\SpLevel;
 use App\Livewire\Sp\CreateSpPage;
+use App\Livewire\Sp\SpDetailPage;
 use App\Models\Master\Companies;
 use App\Models\Sp\EmployeeSp;
 use App\Models\User;
@@ -27,11 +28,11 @@ class SpPdfVerificationBlockTest extends TestCase
     {
         $company = Companies::create(['code' => 'PDF', 'name' => 'Test Co', 'location' => 'X', 'is_active' => true]);
 
-        foreach ([CustomPermissionEnum::SISTEM_PEMBINAAN_KARYAWAN->value, 'Create:EmployeeSp'] as $perm) {
+        foreach ([CustomPermissionEnum::SISTEM_PEMBINAAN_KARYAWAN->value, 'Create:EmployeeSp', 'View:EmployeeSp'] as $perm) {
             Permission::firstOrCreate(['name' => $perm, 'guard_name' => 'web']);
         }
         $hc = User::factory()->create(['company_id' => $company->id]);
-        $hc->givePermissionTo(CustomPermissionEnum::SISTEM_PEMBINAAN_KARYAWAN->value, 'Create:EmployeeSp');
+        $hc->givePermissionTo(CustomPermissionEnum::SISTEM_PEMBINAAN_KARYAWAN->value, 'Create:EmployeeSp', 'View:EmployeeSp');
         $employee = User::factory()->create(['company_id' => $company->id]);
         $knower = User::factory()->create(['company_id' => $company->id]);
 
@@ -45,11 +46,15 @@ class SpPdfVerificationBlockTest extends TestCase
             ->set('start_date', now()->toDateString())
             ->set('items', ['Pelanggaran'])
             ->set('kejadian', 'Kejadian')
-            ->call('chooseConfirmSign')
-            ->set('signPassword', 'password')
             ->call('save');
 
         $sp = EmployeeSp::where('nomor', 'SP-PDF-001')->firstOrFail();
+
+        Livewire::actingAs($hc)
+            ->test(SpDetailPage::class, ['record' => $sp])
+            ->call('openConfirmIssue')
+            ->set('issuePassword', 'password')
+            ->call('issue');
 
         // dompdf stream() balikin binary PDF (bukan HTML), kadang ikut membawa header HTTP
         // literal di depannya kalau dipanggil di luar siklus response normal (kasus test ini) -
@@ -67,11 +72,11 @@ class SpPdfVerificationBlockTest extends TestCase
     {
         $company = Companies::create(['code' => 'PDF2', 'name' => 'Test Co 2', 'location' => 'X', 'is_active' => true]);
 
-        foreach ([CustomPermissionEnum::SISTEM_PEMBINAAN_KARYAWAN->value, 'Create:EmployeeSp'] as $perm) {
+        foreach ([CustomPermissionEnum::SISTEM_PEMBINAAN_KARYAWAN->value, 'Create:EmployeeSp', 'View:EmployeeSp'] as $perm) {
             Permission::firstOrCreate(['name' => $perm, 'guard_name' => 'web']);
         }
         $hc = User::factory()->create(['company_id' => $company->id]);
-        $hc->givePermissionTo(CustomPermissionEnum::SISTEM_PEMBINAAN_KARYAWAN->value, 'Create:EmployeeSp');
+        $hc->givePermissionTo(CustomPermissionEnum::SISTEM_PEMBINAAN_KARYAWAN->value, 'Create:EmployeeSp', 'View:EmployeeSp');
         $employee = User::factory()->create(['company_id' => $company->id]);
         $knower = User::factory()->create(['company_id' => $company->id]);
 
@@ -84,11 +89,17 @@ class SpPdfVerificationBlockTest extends TestCase
             ->set('knows_by', $knower->id)
             ->set('start_date', now()->toDateString())
             ->set('items', ['Pelanggaran'])
-            ->call('chooseConfirmSign')
-            ->set('signPassword', 'password')
             ->call('save');
 
-        $sp = EmployeeSp::with('document.signatures', 'document.verification')
+        $draftSp = EmployeeSp::where('nomor', 'SP-PDF-002')->firstOrFail();
+
+        Livewire::actingAs($hc)
+            ->test(SpDetailPage::class, ['record' => $draftSp])
+            ->call('openConfirmIssue')
+            ->set('issuePassword', 'password')
+            ->call('issue');
+
+        $sp = EmployeeSp::with('document.signatures.verification')
             ->where('nomor', 'SP-PDF-002')->firstOrFail();
 
         // created_by (HC) langsung TTD saat terbit -> QR-nya boleh tampil.
@@ -99,7 +110,7 @@ class SpPdfVerificationBlockTest extends TestCase
 
         app(DocumentSigningService::class)->sign($sp->document, $knower);
 
-        $verification = app(SpPdfService::class)->verificationBySignerRole($sp->fresh()->load('document.signatures'));
+        $verification = app(SpPdfService::class)->verificationBySignerRole($sp->fresh()->load('document.signatures.verification'));
         $this->assertNotNull($verification['knows_by']);
     }
 }

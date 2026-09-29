@@ -33,6 +33,24 @@
     $isActive = ! $record->isCancelled() && $record->start_date->lte(today()) && ($record->end_date === null || $record->end_date->gte(today()));
 @endphp
 
+@if ($this->isDraft)
+    <div class="card-surface" style="margin-bottom:16px;border:1.5px solid #a16207;background:#fefce8;">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+            <div>
+                <p style="font-size:13px;font-weight:700;color:#a16207;margin:0;">
+                    <i class="fa-solid fa-pen-to-square"></i> Draft - Belum Terbit
+                </p>
+                <p style="font-size:12.5px;color:var(--text-body);margin:4px 0 0;">Surat belum ditandatangani &amp; belum diterima karyawan. Masih bisa diedit bebas.</p>
+            </div>
+            @if ($this->canIssue)
+                <button type="button" wire:click="openConfirmIssue" class="btn-primary" style="white-space:nowrap;">
+                    <i class="fa-solid fa-signature"></i> Tanda Tangan &amp; Terbitkan
+                </button>
+            @endif
+        </div>
+    </div>
+@endif
+
 @if ($this->isFullySigned)
     <div class="card-surface" style="margin-bottom:16px;border:1.5px solid #16a34a;background:#f0fdf4;">
         <p style="font-size:13px;font-weight:700;color:#15803d;margin:0;">
@@ -271,6 +289,43 @@
             </button>
         </div>
     @endunless
+@endif
+
+@if ($confirmingIssue)
+    <div class="modal-overlay" wire:click="cancelConfirmIssue">
+        <div class="modal-box" onclick="event.stopPropagation()">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+                <h3 style="font-size:15px;font-weight:700;color:var(--text-heading);margin:0;">Konfirmasi Tanda Tangan</h3>
+                <button type="button" wire:click="cancelConfirmIssue" style="background:none;border:none;font-size:16px;color:var(--text-faint);cursor:pointer;">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <div style="display:flex;align-items:center;gap:12px;background:var(--info-soft-bg);border-radius:10px;padding:12px 14px;margin-bottom:14px;">
+                <x-avatar :user="auth()->user()" :size="42" />
+                <div style="min-width:0;">
+                    <p style="font-size:10.5px;color:var(--info-soft-text);text-transform:uppercase;letter-spacing:0.03em;margin:0 0 2px;">Anda menandatangani sebagai</p>
+                    <p style="font-size:13.5px;font-weight:700;color:var(--text-heading);margin:0;">{{ auth()->user()->name }}</p>
+                    <p style="font-size:11.5px;color:var(--text-muted);margin:0;">{{ auth()->user()->activeJobPosition?->jobPosition?->name ?? '-' }}</p>
+                </div>
+            </div>
+
+            <p style="font-size:12px;color:var(--text-body);margin:0 0 12px;">Surat akan langsung diterima oleh karyawan bersangkutan. Masukkan password Anda untuk menyetujui dan menandatangani penerbitan SP ini.</p>
+
+            <div style="margin-bottom:14px;">
+                <label class="form-label">Password Anda</label>
+                <input type="password" wire:model="issuePassword" class="form-input" wire:keydown.enter="issue" autofocus>
+                @error('issuePassword') <p style="color:var(--danger-text);font-size:11.5px;margin-top:4px;">{{ $message }}</p> @enderror
+            </div>
+
+            <div style="display:flex;gap:10px;">
+                <button type="button" wire:click="issue" wire:loading.attr="disabled" class="btn-primary" style="flex:1;justify-content:center;">
+                    <i class="fa-solid fa-check"></i> Setujui &amp; Terbitkan
+                </button>
+                <button type="button" wire:click="cancelConfirmIssue" class="btn-ghost" style="flex:1;justify-content:center;">Batal</button>
+            </div>
+        </div>
+    </div>
 @endif
 
 </div>

@@ -1,5 +1,14 @@
 # TTE + QR Verification — Fase 1 (internal, TANPA sertifikasi PSrE)
 
+> **Direvisi 2026-09-29**: keputusan "1 dokumen = 1 kode verifikasi tetap" di §0/§100 di bawah
+> SUDAH TIDAK BERLAKU — diganti "1 TTD = 1 kode verifikasi PERSONAL" (instruksi user: tanda
+> tangan itu unik & menyangkut langsung ke personal, jangan digabung 1 QR buat semua penanda
+> tangan). `document_verifications` sekarang 1:1 ke `document_signatures` (bukan ke `documents`
+> lagi) — lihat migration `2026_10_06_090500_move_document_verification_code_to_signature.php`,
+> `App\Models\Concerns\HasDocumentSignatures::sign()`, dan
+> `App\Http\Controllers\Public\VerificationController`. Sisa dokumen di bawah ini (skema §1,
+> alasan §0) dibiarkan sebagai jejak keputusan AWAL, bukan diperbarui ulang kalimat per kalimat.
+>
 > Dibuat 2026-09-28, direvisi 2026-09-28 (balik pakai tabel registry `documents` generik —
 > lihat §0 baris "Tabel `documents`"). Turunan dari `docs/HRIS_TTE_QR_Verification_Architecture.md`
 > (baseline arsitektur umum, masih berlaku sebagai referensi konsep) — dokumen ini mempersempit

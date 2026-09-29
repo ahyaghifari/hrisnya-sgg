@@ -4,7 +4,6 @@ namespace App\Models\Concerns;
 
 use App\Models\Document\Document;
 use App\Models\Document\DocumentSignature;
-use App\Models\Document\DocumentVerification;
 use App\Models\User;
 use App\Services\Document\VerificationCodeGenerator;
 
@@ -50,6 +49,12 @@ trait HasDocumentSignatures
      * hash dihitung dari signablePayload() SEKARANG (saat sign dipanggil), disimpan sebagai
      * potret data final. Panggil issueDocument() dulu sebelum ini.
      *
+     * Kode verifikasi/QR dibangkitkan BARENGAN di sini (instruksi user 2026-09-29) - PERSONAL
+     * per TTD, bukan 1 kode dibagi rata ke semua peran (keputusan awal §0/§100
+     * docs/2026-09-28-tte-qr-internal-fase-1.md, direvisi). Retry kalau kode tabrakan (peluangnya
+     * sangat kecil, lihat VerificationCodeGenerator) daripada percaya unique() constraint doang
+     * tanpa jaring pengaman aplikasi.
+     *
      * ip_address/user_agent DIREKAM (instruksi user 2026-09-28, menutup gap "Audit Log" §15/§24
      * docs/HRIS_TTE_NonTersertifikasi_QR_Verification.md) - internal-only, TIDAK ditampilkan di
      * halaman verifikasi publik. request() bisa null saat dipanggil dari CLI/queue (mis. command
@@ -58,7 +63,7 @@ trait HasDocumentSignatures
     public function sign(User $signer, string $role): DocumentSignature
     {
         /** @var \App\Contracts\Signable $this */
-        return $this->document->signatures()->create([
+        $signature = $this->document->signatures()->create([
             'signer_role'     => $role,
             'signer_id'       => $signer->id,
             'signer_name'     => $signer->name,
@@ -68,22 +73,13 @@ trait HasDocumentSignatures
             'ip_address'      => request()?->ip(),
             'user_agent'      => request()?->userAgent(),
         ]);
-    }
-
-    /** Kode verifikasi publik - dibangkitkan SEKALI per dokumen, tetap selamanya (§0). Retry
-     * kalau tabrakan (peluangnya sangat kecil, lihat VerificationCodeGenerator) daripada
-     * percaya unique() constraint doang tanpa jaring pengaman aplikasi. */
-    public function ensureVerificationCode(): DocumentVerification
-    {
-        /** @var \App\Contracts\Signable $this */
-        if ($this->document->verification) {
-            return $this->document->verification;
-        }
 
         $type = $this->documentType();
 
-        return retry(5, fn () => $this->document->verification()->create([
+        retry(5, fn () => $signature->verification()->create([
             'verification_code' => app(VerificationCodeGenerator::class)->generate($type),
         ]), 0, fn ($e) => $e instanceof \Illuminate\Database\QueryException);
+
+        return $signature;
     }
 }
