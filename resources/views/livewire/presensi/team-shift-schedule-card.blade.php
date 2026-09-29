@@ -60,7 +60,14 @@
                             </button>
                         @endif
                     </span>
-                    <span class="team-shift-chip" style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:99px;background:{{ $chipBg }};color:{{ $chipText }};white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis;">{{ $label }}</span>
+                    <span style="display:inline-flex;align-items:center;gap:6px;max-width:100%;">
+                        <span class="team-shift-chip" style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:99px;background:{{ $chipBg }};color:{{ $chipText }};white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis;">{{ $label }}</span>
+                        @if (array_key_exists($row['user']->id, $this->extraShiftMemberIds))
+                            <span class="badge" title="{{ $this->extraShiftMemberIds[$row['user']->id] ? 'Double Shift' : 'Extra Shift' }} di tanggal ini" style="flex-shrink:0;white-space:nowrap;font-size:10.5px;padding:2px 8px;background:#e0f2fe;color:#0369a1;">
+                                <i class="fa-solid fa-bolt"></i> {{ $this->extraShiftMemberIds[$row['user']->id] ? 'Double Shift' : 'Extra Shift' }}
+                            </span>
+                        @endif
+                    </span>
                 </div>
             @endforeach
         </div>

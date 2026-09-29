@@ -157,6 +157,28 @@ class TeamShiftScheduleCard extends Component
             ->all();
     }
 
+    /** user_id anggota tim yang punya Extra/Double Shift APPROVED di tanggal yang sedang
+     * ditampilkan - dipakai blade buat naruh badge "Extra Shift"/"Double Shift" di sebelah chip
+     * jadwal orang itu (instruksi user 2026-10-17), sama pola dengan $swapMemberIds.
+     *
+     * @return array<string, bool> user_id => is_double_shift
+     */
+    public function getExtraShiftMemberIdsProperty(): array
+    {
+        $memberIds = $this->teamMembers->pluck('id')->all();
+
+        if (! $memberIds) {
+            return [];
+        }
+
+        return ExtraShiftAssignment::whereIn('user_id', $memberIds)
+            ->whereDate('date', $this->date)
+            ->where('status', 'approved')
+            ->get(['user_id', 'category'])
+            ->mapWithKeys(fn ($e) => [$e->user_id => $e->category === ExtraShiftAssignment::CATEGORY_DOUBLE_SHIFT])
+            ->all();
+    }
+
     /** @return array<int, array{user: User, schedule: array}> */
     public function getTeamScheduleProperty(): array
     {
