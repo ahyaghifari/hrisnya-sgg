@@ -608,7 +608,13 @@ class ShiftSwapRequestService
      * double shift di tanggal shift pemohon (reqDate). Beda dari conflictWarnings() yang generik
      * 2 arah (peduli konflik di kedua pihak, dipakai pengaju di modal pengajuan & halaman
      * Detail) - di sini cuma ambil separuh 'req_date' dari hasilnya, yang selalu soal jadwal
-     * REKAN (lihat resolveDifferentDateExecution()). null kalau tidak ada konflik/tanggal sama. */
+     * REKAN (lihat resolveDifferentDateExecution()). null kalau tidak ada konflik/tanggal sama.
+     *
+     * Pesannya dibangun SENDIRI di sini (bukan reuse teks 'warning' dari resolveSlot()) - teks
+     * itu ditulis dari POV pemohon ("Karyawan tujuan ... - {nama rekan} akan bekerja double
+     * shift"), padahal pembaca widget ini rekan itu SENDIRI, jadi harus "Anda", bukan nama
+     * sendiri (dilaporkan user 2026-09-29, screenshot nunjukkin nama rekan nongol di kartu rekan
+     * sendiri). */
     public function targetDoubleShiftWarning(ShiftSwapRequests $request): ?string
     {
         $request->loadMissing(['reqSchedule.shiftType', 'targetSchedule.shiftType']);
@@ -620,7 +626,18 @@ class ShiftSwapRequestService
             return null;
         }
 
-        return $this->resolveDifferentDateExecution($reqSchedule, $targetSchedule)['req_date']['warning'] ?? null;
+        $slot = $this->resolveDifferentDateExecution($reqSchedule, $targetSchedule)['req_date'];
+
+        if (($slot['mode'] ?? null) !== 'double_shift') {
+            return null;
+        }
+
+        $busyShift = $slot['busy']->shiftType?->name ?? 'shift lain';
+        $incomingShift = $reqSchedule->shiftType?->name ?? 'shift ini';
+        $reqDate = $reqSchedule->date->translatedFormat('d M Y');
+
+        return "Anda sudah memiliki jadwal lain pada tanggal {$reqDate} ({$busyShift}) - Anda akan bekerja double shift "
+            . "(shift {$incomingShift} ini ditambahkan di atas shift {$busyShift} yang sudah ada).";
     }
 
     private function createApprovalSnapshot(ShiftSwapRequests $swapRequest, $user): void

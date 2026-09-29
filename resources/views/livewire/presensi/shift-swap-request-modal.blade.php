@@ -153,8 +153,9 @@
                         @endif
 
                         <div>
-                            <label class="form-label">Catatan (opsional)</label>
+                            <label class="form-label">Keterangan</label>
                             <textarea wire:model="notes" class="form-input" rows="2" placeholder="Alasan tukar shift..."></textarea>
+                            @error('notes') <p style="color:var(--danger-text);font-size:11.5px;margin-top:4px;">{{ $message }}</p> @enderror
                         </div>
                     @endif
                 </div>

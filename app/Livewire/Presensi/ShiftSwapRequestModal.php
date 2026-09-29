@@ -356,10 +356,11 @@ class ShiftSwapRequestModal extends Component
             'targetUserId' => ['required'],
             'dateMode' => ['required', 'in:same,different,reciprocal'],
             'targetDate' => ['required_if:dateMode,different', 'required_if:dateMode,reciprocal', 'nullable', 'date', 'after_or_equal:' . $minDate],
-            'notes' => ['nullable', 'string'],
+            'notes' => ['required', 'string'],
         ], [], [
             'reqDate' => 'tanggal shift Anda',
             'targetUserId' => 'rekan',
+            'notes' => 'keterangan',
             'targetDate' => $this->dateMode === 'reciprocal' ? 'tanggal kompensasi' : 'tanggal shift rekan',
         ]);
 
