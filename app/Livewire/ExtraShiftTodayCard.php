@@ -36,11 +36,16 @@ class ExtraShiftTodayCard extends Component
             ->first();
 
         return view('livewire.extra-shift-today-card', [
-            'data' => $extraShift ? $this->buildData($user, $today, $extraShift) : null,
+            'data' => $extraShift ? self::build($user, $today, $extraShift) : null,
         ]);
     }
 
-    private function buildData($user, string $today, ExtraShiftAssignment $extraShift): array
+    /** Diekstrak static+public (2026-10-16) - dipakai juga oleh
+     * ResolvesTodayAttendanceStatus::todayAttendanceStatus() buat gabung kartu Presensi Hari Ini
+     * dengan info Extra/Double Shift jadi 1 kartu (khusus jadwal tipe shift), bukan 2 kartu
+     * terpisah lagi - instruksi user. Widget ini sendiri tetap ada apa adanya (masih dites
+     * terpisah), cuma tidak lagi dirender di Beranda. */
+    public static function build($user, string $today, ExtraShiftAssignment $extraShift): array
     {
         $resolved = app(ScheduleResolver::class)->resolveForUserDate($user, $today);
         $normalConfig = ($resolved && $resolved['type'] === 'shift' && ! ($resolved['is_off_day'] ?? false))

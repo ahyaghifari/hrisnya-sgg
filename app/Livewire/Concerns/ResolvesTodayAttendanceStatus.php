@@ -3,9 +3,11 @@
 namespace App\Livewire\Concerns;
 
 use App\Enum\Attendance\PermissionTypeCategoryEnum;
+use App\Livewire\ExtraShiftTodayCard;
 use App\Models\Attendance\AttendanceRecords;
 use App\Models\Attendance\AttendanceRequests;
 use App\Models\Master\Attendance\Holidays;
+use App\Models\Shift\ExtraShiftAssignment;
 use App\Models\User;
 use App\Services\Attendance\ScheduleResolver;
 use Carbon\Carbon;
@@ -40,6 +42,14 @@ trait ResolvesTodayAttendanceStatus
         $todayStr = Carbon::today()->toDateString();
 
         $resolved = app(ScheduleResolver::class)->resolveForUserDate($user, $todayStr);
+
+        // Gabungan sama info Extra/Double Shift hari ini (dulu kartu "Extra Shift/Double Shift
+        // Hari Ini" terpisah, ExtraShiftTodayCard) jadi 1 kartu Presensi Hari Ini - instruksi
+        // user 2026-10-16: cuma dicek untuk jadwal tipe Shift, jadwal Tetap/Fleksibel tidak
+        // perlu query tambahan ini sama sekali (dianggap tidak pernah ada extra/double shift).
+        $extraShiftToday = ($resolved['type'] ?? null) === 'shift'
+            ? $this->resolveExtraShiftToday($user, $todayStr)
+            : null;
 
         // Jendela presensi valid hari ini (kapan paling awal boleh scan masuk, kapan paling
         // akhir boleh scan pulang, dst) - dihitung persis sama dengan FixedScheduleCalculator/
@@ -117,6 +127,7 @@ trait ResolvesTodayAttendanceStatus
                 'flexible_min_work_label'  => $flexibleMinWorkLabel,
                 'flexible_target_checkout' => $flexibleTargetCheckout,
                 'attendance_window'        => null,
+                'extra_shift'              => $extraShiftToday,
             ];
         }
 
@@ -144,6 +155,7 @@ trait ResolvesTodayAttendanceStatus
                 'flexible_min_work_label'  => $flexibleMinWorkLabel,
                 'flexible_target_checkout' => $flexibleTargetCheckout,
                 'attendance_window'        => null,
+                'extra_shift'              => $extraShiftToday,
             ];
         }
 
@@ -174,6 +186,7 @@ trait ResolvesTodayAttendanceStatus
                 // Izin seharian = tidak masuk sama sekali, jendela presensi tidak relevan. Izin
                 // biasa (sebagian hari) tetap perlu presensi di sisa jamnya.
                 'attendance_window'        => $isFullDay ? null : $attendanceWindow,
+                'extra_shift'              => $extraShiftToday,
             ];
         }
 
@@ -193,6 +206,7 @@ trait ResolvesTodayAttendanceStatus
                 'flexible_min_work_label'  => $flexibleMinWorkLabel,
                 'flexible_target_checkout' => $flexibleTargetCheckout,
                 'attendance_window'        => null,
+                'extra_shift'              => $extraShiftToday,
             ];
         }
 
@@ -208,7 +222,23 @@ trait ResolvesTodayAttendanceStatus
             'flexible_min_work_label'  => $flexibleMinWorkLabel,
             'flexible_target_checkout' => $flexibleTargetCheckout,
             'attendance_window'        => $attendanceWindow,
+            'extra_shift'              => $extraShiftToday,
         ];
+    }
+
+    /** Extra/Double Shift APPROVED hari ini (kalau ada), dibentuk lewat
+     * ExtraShiftTodayCard::build() - satu sumber kebenaran yang sama dipakai widget lama itu
+     * (masih ada & dites sendiri, tapi tidak lagi dirender terpisah di Beranda). null kalau
+     * tidak ada. */
+    private function resolveExtraShiftToday(User $user, string $todayStr): ?array
+    {
+        $extraShift = ExtraShiftAssignment::where('user_id', $user->id)
+            ->whereDate('date', $todayStr)
+            ->where('status', 'approved')
+            ->with(['shiftType', 'createdBy'])
+            ->first();
+
+        return $extraShift ? ExtraShiftTodayCard::build($user, $todayStr, $extraShift) : null;
     }
 
     /**

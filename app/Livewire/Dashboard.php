@@ -12,6 +12,7 @@ use App\Models\Task\Task;
 use App\Models\Task\TaskProject;
 use App\Models\LMS\LmsCourseUsers;
 use App\Models\Master\Attendance\Holidays;
+use App\Models\Shift\ShiftSwapRequests;
 use App\Services\Attendance\ScheduleResolver;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
@@ -142,6 +143,7 @@ class Dashboard extends Component
 
         $resolver = app(ScheduleResolver::class);
         $today = now()->toDateString();
+        $swapDates = $this->getSwapDates($user, $gridStart->toDateString(), $gridEnd->toDateString());
 
         $weeks = [];
         $cursor = $gridStart->copy();
@@ -160,6 +162,7 @@ class Dashboard extends Component
                     'schedule' => $isCurrentMonth
                         ? $this->resolveDaySchedule($resolver, $user, $dateStr, $holidays->get($dateStr))
                         : null,
+                    'is_swap' => $isCurrentMonth && isset($swapDates[$dateStr]),
                 ];
 
                 $cursor->addDay();
@@ -169,6 +172,43 @@ class Dashboard extends Component
         }
 
         return $weeks;
+    }
+
+    /** Tanggal (dalam rentang grid kalender yang lagi ditampilkan) yang jadwal $user SENDIRI
+     * terkait pengajuan tukar shift in_review/approved - dipakai taruh ikon tukar kecil di sel
+     * widget "Jadwal Shift Saya", sama makna dengan ikon di grid Detail Penjadwalan (lihat
+     * ScheduleShiftRosterTab::getSwapCellsProperty()), cuma disaring buat 1 user di sini.
+     * Sengaja baca user_id dari relasi reqSchedule/targetSchedule LANGSUNG (bukan kolom
+     * requester_id/target_id di shift_swap_requests) - begitu approved & mode 'move'/
+     * 'move_over_off_day', executeApprovedSwap() mengubah user_id baris schedule_shift_assignments
+     * itu sendiri, jadi kolom requester_id/target_id jadi menunjuk pemilik LAMA yang sudah pindah.
+     *
+     * @return array<string, true>
+     */
+    private function getSwapDates($user, string $start, string $end): array
+    {
+        $swaps = ShiftSwapRequests::whereIn('status', ['in_review', 'approved'])
+            ->where(function ($q) use ($user) {
+                $q->whereHas('reqSchedule', fn ($q2) => $q2->where('user_id', $user->id))
+                    ->orWhereHas('targetSchedule', fn ($q2) => $q2->where('user_id', $user->id));
+            })
+            ->with(['reqSchedule:id,user_id,date', 'targetSchedule:id,user_id,date'])
+            ->get();
+
+        $dates = [];
+
+        foreach ($swaps as $s) {
+            foreach ([$s->reqSchedule, $s->targetSchedule] as $slot) {
+                if ($slot && $slot->user_id === $user->id) {
+                    $d = $slot->date->toDateString();
+                    if ($d >= $start && $d <= $end) {
+                        $dates[$d] = true;
+                    }
+                }
+            }
+        }
+
+        return $dates;
     }
 
     public function getCalendarMonthLabelProperty(): string

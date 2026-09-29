@@ -893,24 +893,17 @@ html.lw-navigating .page-content { opacity: 0; }
    tapi tetap masuk grid item -> gap 16px di atas+bawah row kosong = 32px jarak yang kelihatan
    berlebih. display:none saat kosong biar row-nya tidak makan tempat sama sekali. */
 .bento-status-pengajuan:not(:has(.timeline-card)) { display: none; }
-/* Kartu Extra Shift/Double Shift Hari Ini - sama pola dengan bento-status-pengajuan, kosong
-   (tidak ada extra shift hari itu) -> disembunyikan total, bukan cuma kartu kosong makan gap. */
-.bento-extra-shift:not(:has(.extra-shift-card-inner)) { display: none; }
 @media (min-width: 640px) {
     .bento { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
-    .bento-welcome, .bento-absensi, .bento-recent, .bento-pending-approvals, .bento-status-pengajuan, .bento-extra-shift { grid-column: 1 / 3; }
+    .bento-welcome, .bento-absensi, .bento-recent, .bento-pending-approvals, .bento-status-pengajuan { grid-column: 1 / 3; }
 }
 @media (min-width: 1024px) {
     /* Tanpa grid-template-rows/grid-row angka tetap - biar row auto-flow ngikutin DOM order.
        Row bernomor tetap bikin track "hantu" (ikut kena gap 2x walau kosong) pas salah satu
        card kondisional (mis. bento-status-pengajuan) tidak render/kosong. absensi & side-stats
-       tetap satu baris berdampingan (col1 & col2) berkat grid-auto-flow:dense di atas - tanpa
-       itu, Extra Shift (baris penuh sendiri, di antara absensi & side-stats di DOM) bikin
-       side-stats malah kebuang ke baris baru sendiri, nyisain kolom 2 kosong di sebelah
-       Presensi. Extra Shift sendiri baris penuh (bukan ikut kolom manapun) - instruksi user
-       2026-09-14, percobaan 50/50 sama Presensi kekecilan/ribet, balik ke 1 baris utuh saja. */
+       tetap satu baris berdampingan (col1 & col2) berkat grid-auto-flow:dense di atas. */
     .bento { grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); }
-    .bento-welcome, .bento-status-pengajuan, .bento-pending-approvals, .bento-recent, .bento-extra-shift { grid-column: 1/-1; }
+    .bento-welcome, .bento-status-pengajuan, .bento-pending-approvals, .bento-recent { grid-column: 1/-1; }
     .bento-absensi { grid-column: 1; }
 }
 

@@ -19,6 +19,20 @@
     $cSub    = $isPlain ? 'var(--text-faint)'   : 'rgba(255,255,255,0.7)';
     $cStrong = $isPlain ? 'var(--text-heading)' : '#fff';
 
+    // Extra/Double Shift hari ini (jadwal tipe Shift saja, lihat
+    // ResolvesTodayAttendanceStatus::resolveExtraShiftToday()) - dulu kartu terpisah
+    // (extra-shift-today-card.blade.php), sekarang digabung ke kartu ini SEBAGAI VARIAN warna
+    // supaya karyawan cukup lihat 1 kartu, bukan 2 bertumpuk (instruksi user 2026-10-16).
+    // Gradient-nya SAMA PERSIS header widget "Jadwal Shift Saya" (.pwa-card-header-sky di
+    // app.css: #0ea5e9 -> #0369a1) - instruksi user susulan, bukan varian pucat lagi - jadi
+    // teksnya tetap putih (sama seperti kartu normal), bukan navy-di-atas-terang.
+    $extra = $status['extra_shift'] ?? null;
+    $isSky = (bool) $extra;
+    if ($isSky) {
+        $isPlain = false;
+        $cardStyle = 'background:linear-gradient(130deg, #0ea5e9 0%, #0369a1 100%);';
+    }
+
     $attendance = $status['attendance'];
     $formatJam = fn (?string $time) => $time ? \Carbon\Carbon::parse($time)->format('H:i') : '-';
 
@@ -42,10 +56,14 @@
     di desktop, slide dari bawah di HP) tapi lewat Alpine x-transition karena elemen ini TETAP
     di DOM (x-show toggle display, bukan ditambah/dibuang Livewire @if) - CSS @keyframes/animation
     cuma jalan sekali saat mount, tidak re-trigger tiap dibuka-tutup. --}}
-    @if ($status['attendance_window'])
+    @if ($status['attendance_window'] || $extra)
         @php
             $w = $status['attendance_window'];
-            $isFlexible = $w['type'] === 'flexible';
+            // $extra cuma pernah kebentuk buat jadwal tipe Shift (lihat
+            // ResolvesTodayAttendanceStatus) - jadi kapan pun ada, $isFlexible pasti false,
+            // aman dipakai gerbang bareng ($w bisa null di sini kalau hari itu extra_only,
+            // jadwal normalnya libur - makanya isFlexible dicek null-safe).
+            $isFlexible = $w && $w['type'] === 'flexible';
         @endphp
         <style>
             .win-modal-overlay, .win-modal-box { transition: opacity 0.18s ease-out, transform 0.22s cubic-bezier(0.2, 0.8, 0.2, 1); }
@@ -84,6 +102,47 @@
 
                 <div style="display:flex;flex-direction:column;gap:10px;">
                     @if (! $isFlexible)
+                        @if ($extra)
+                            {{-- Double/Extra Shift hari ini - jendela normalnya (kalau ada) sudah
+                            terwakili sebagai salah satu leg di bawah (mode adjacent/skip), jadi
+                            body modal DIGANTI TOTAL ke rincian per-shift ini, bukan ditumpuk
+                            dengan 4 baris jendela normal biasa (instruksi user 2026-10-16 - modal
+                            harus "ikut update" pas ada double shift, bukan diam menampilkan
+                            jendela shift normal seolah tidak ada apa-apa). --}}
+                            @php
+                                $legs = in_array($extra['mode'], ['adjacent', 'skip'], true)
+                                    ? [$extra['earlier'], $extra['later']]
+                                    : ($extra['mode'] === 'extra_only' ? [$extra['shift']] : []);
+                                $scanNote = match ($extra['mode']) {
+                                    'adjacent' => 'Shift nempel - cukup scan 2x (masuk shift pertama, pulang shift kedua).',
+                                    'skip' => 'Ada jeda antar shift - WAJIB scan 4x (masuk & pulang tiap shift terpisah).',
+                                    'extra_only' => 'Jadwal normal hari ini libur - ini tugas tambahan tersendiri.',
+                                    default => null,
+                                };
+                            @endphp
+                            <div style="display:flex;gap:12px;align-items:flex-start;">
+                                <div class="pwa-tile-icon navy" style="flex-shrink:0;"><i class="fa-solid fa-bolt"></i></div>
+                                <div>
+                                    <p style="font-size:11px;color:var(--text-muted);margin:0;">{{ $extra['is_double_shift'] ? 'Double Shift' : 'Extra Shift' }} hari ini</p>
+                                    @if ($scanNote)
+                                        <p style="font-size:13px;font-weight:600;color:var(--text-heading);margin:2px 0 0;">{{ $scanNote }}</p>
+                                    @endif
+                                </div>
+                            </div>
+                            @foreach ($legs as $i => $leg)
+                                <div style="display:flex;gap:12px;align-items:flex-start;">
+                                    <div class="pwa-tile-icon {{ $i === 0 ? 'done' : 'gold' }}" style="flex-shrink:0;"><i class="fa-solid fa-clock"></i></div>
+                                    <div>
+                                        <p style="font-size:11px;color:var(--text-muted);margin:0;">{{ $leg->name }}</p>
+                                        <p style="font-size:14.5px;font-weight:700;color:var(--text-heading);margin:2px 0 0;">{{ substr($leg->start_time, 0, 5) }} &ndash; {{ substr($leg->end_time, 0, 5) }}</p>
+                                        <p style="font-size:11.5px;color:var(--text-muted);margin:1px 0 0;">
+                                            Boleh masuk mulai {{ \Carbon\Carbon::createFromFormat('H:i:s', $leg->start_time)->subMinutes($leg->checkin_buffer_minutes)->format('H:i') }},
+                                            batas pulang {{ \Carbon\Carbon::createFromFormat('H:i:s', $leg->end_time)->addMinutes($leg->checkout_buffer_minutes)->format('H:i') }}
+                                        </p>
+                                    </div>
+                                </div>
+                            @endforeach
+                        @else
                         <div style="display:flex;gap:12px;align-items:flex-start;">
                             <div class="pwa-tile-icon navy" style="flex-shrink:0;"><i class="fa-solid fa-briefcase"></i></div>
                             <div>
@@ -115,6 +174,7 @@
                                 <p style="font-size:11.5px;color:var(--text-muted);margin:1px 0 0;">Dianggap terlambat kalau masuk setelah jam {{ $w['late_threshold'] }}</p>
                             </div>
                         </div>
+                        @endif
                     @else
                         <div style="display:flex;gap:12px;align-items:flex-start;">
                             <div class="pwa-tile-icon teal" style="flex-shrink:0;"><i class="fa-solid fa-arrows-left-right"></i></div>
@@ -148,6 +208,11 @@
             <span class="absen-label" style="color:{{ $cLabel }};"><i class="fa-regular fa-clock"></i> Presensi Hari Ini</span>
             <p style="font-size:11.5px;color:{{ $cSub }};margin-top:3px;">{{ $subLine }}</p>
         </div>
+        @if ($extra)
+            <span class="badge" style="flex-shrink:0;white-space:nowrap;margin-right:{{ ($status['attendance_window'] || $extra) ? '34px' : '0' }};background:rgba(255,255,255,0.2);color:#fff;">
+                <i class="fa-solid fa-bolt"></i> {{ $extra['is_double_shift'] ? 'Double Shift' : 'Extra Shift' }}
+            </span>
+        @endif
     </div>
 
     @if (in_array($status['state'], ['holiday', 'leave', 'full_day_permission', 'no_schedule']))
@@ -193,6 +258,70 @@
             <p style="font-size:11.5px;color:rgba(255,255,255,0.65);margin-top:4px;">Karyawan belum melakukan presensi hari ini.</p>
             @if ($status['note'])
                 <p style="font-size:12.5px;color:rgba(255,255,255,0.95);font-weight:700;margin-top:6px;">{{ $status['note'] }}</p>
+            @endif
+        </div>
+    @endif
+
+    {{-- Jam scan buat Extra/Double Shift hari ini - dulu isi kartu extra-shift-today-card.blade.php
+    terpisah, sekarang ditempel di bawah kartu Presensi Hari Ini yang sama (instruksi user
+    2026-10-16). Logika mode adjacent/skip/extra_only persis sama, lihat ExtraShiftTodayCard::build(). --}}
+    @if ($extra)
+        @php
+            $jamExtra = fn (?string $time) => $time ? substr($time, 0, 5) : '-';
+            $scanSteps = $extra['mode'] === 'adjacent'
+                ? [['Masuk', $extra['earlier']->start_time ?? null, $extra['earlier']->name ?? null], ['Pulang', $extra['later']->end_time ?? null, $extra['later']->name ?? null]]
+                : ($extra['mode'] === 'skip'
+                    ? [
+                        ['Masuk', $extra['earlier']->start_time ?? null, $extra['earlier']->name ?? null],
+                        ['Pulang', $extra['earlier']->end_time ?? null, $extra['earlier']->name ?? null],
+                        ['Masuk lagi', $extra['later']->start_time ?? null, $extra['later']->name ?? null],
+                        ['Pulang', $extra['later']->end_time ?? null, $extra['later']->name ?? null],
+                    ]
+                    : []);
+        @endphp
+        <div style="position:relative;z-index:1;border-top:1px solid rgba(255,255,255,0.25);padding-top:10px;margin-top:2px;">
+            @if ($extra['is_double_shift'])
+                <p style="font-size:11px;color:rgba(255,255,255,0.8);margin:0 0 8px;">Double Shift</p>
+            @elseif ($extra['assigned_by'] && $extra['assigned_by']['name'])
+                <p style="font-size:11px;color:rgba(255,255,255,0.8);margin:0 0 8px;">
+                    Ditugaskan oleh <strong>{{ $extra['assigned_by']['name'] }}</strong> · {{ $extra['assigned_by']['at']->translatedFormat('d M Y, H:i') }}
+                </p>
+            @endif
+
+            @if ($extra['mode'] === 'skip')
+                <p style="font-size:11px;color:rgba(255,255,255,0.8);margin:0 0 10px;">Ada jeda antar shift, WAJIB scan <strong>4x</strong> &mdash; jangan cuma masuk-pulang sekali:</p>
+            @elseif ($extra['mode'] === 'adjacent')
+                <p style="font-size:11px;color:rgba(255,255,255,0.8);margin:0 0 10px;">Shift-nya nempel, cukup scan <strong>2x</strong>:</p>
+            @endif
+
+            @if ($scanSteps)
+                <div style="display:flex;flex-direction:column;">
+                    @foreach ($scanSteps as $step)
+                        <div style="display:flex;gap:10px;">
+                            <div style="display:flex;flex-direction:column;align-items:center;flex-shrink:0;">
+                                <div style="width:20px;height:20px;border-radius:50%;background:#0369a1;border:2px solid #fff;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:#fff;flex-shrink:0;">
+                                    {{ $loop->iteration }}
+                                </div>
+                                @unless ($loop->last)
+                                    <div style="width:2px;flex:1;min-height:10px;background:rgba(255,255,255,0.4);margin:2px 0;"></div>
+                                @endunless
+                            </div>
+                            <div style="padding-bottom:{{ $loop->last ? '0' : '8px' }};min-width:0;">
+                                <p style="font-size:12px;font-weight:700;color:#fff;margin:0;">
+                                    {{ $step[0] }} <span style="font-weight:800;">{{ $jamExtra($step[1]) }}</span>
+                                </p>
+                                <p style="font-size:10.5px;color:rgba(255,255,255,0.75);margin:1px 0 0;">{{ $step[2] }}</p>
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+            @else
+                <p style="font-size:12.5px;color:rgba(255,255,255,0.9);margin:0;">
+                    Jadwal normal Anda hari ini libur, tapi ada tugas tambahan
+                    <strong>{{ $extra['shift']->name }}</strong>:
+                    masuk jam <strong>{{ $jamExtra($extra['shift']->start_time) }}</strong>,
+                    pulang jam <strong>{{ $jamExtra($extra['shift']->end_time) }}</strong>.
+                </p>
             @endif
         </div>
     @endif

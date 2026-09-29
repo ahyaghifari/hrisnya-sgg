@@ -79,13 +79,11 @@ di sini (tanpa build CSS). display diatur JS (inline none -> flex), jangan diset
         </div>
     @endif
 
-    <!-- PRESENSI: status hari ini (jadwal + libur/cuti/izin + jam presensi asli) -->
+    {{-- PRESENSI: status hari ini (jadwal + libur/cuti/izin + jam presensi asli), digabung sama
+    info Extra/Double Shift kalau jadwalnya tipe Shift dan hari ini kena (instruksi user
+    2026-10-16 - dulu kartu "Extra Shift/Double Shift Hari Ini" terpisah di bawahnya, sekarang
+    jadi varian warna sky kartu yang sama, lihat today-attendance-card.blade.php). --}}
     <x-today-attendance-card :status="$this->todayAttendanceStatus" id="absen-section" class="bento-absensi" />
-
-    <!-- Extra Shift/Double Shift hari ini (kalau ada) - beritahu jam scan yang perlu dilakukan -->
-    <div class="bento-extra-shift">
-        <livewire:extra-shift-today-card />
-    </div>
 
     {{-- Cuti Tahunan + Jumlah Izin + Jumlah Lembur, berdampingan dengan presensi di layar lebar.
     Dua variasi ukuran (LeaveBalanceCard/AttendanceStatCards menghitung style-nya di server lewat
@@ -176,9 +174,15 @@ di sini (tanpa build CSS). display diatur JS (inline none -> flex), jangan diset
                             <div
                                 class="jadwal-shift-cell"
                                 @if ($day['is_current_month'] && $schedule && $schedule['label']) title="{{ $schedule['label'] }}" @endif
-                                style="aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:7px;font-size:10.5px;gap:1px;
+                                style="aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:7px;font-size:10.5px;gap:1px;position:relative;
                                     {{ $day['is_current_month'] ? "background:{$cellBg};color:{$cellColor};font-weight:700;" : 'color:var(--text-faint);' }}
                                     {{ $day['is_today'] ? 'box-shadow:inset 0 0 0 1.5px var(--brand);' : '' }}">
+                                @if ($day['is_swap'])
+                                    <span title="Terkait pengajuan tukar shift — lihat Riwayat di bawah."
+                                        style="position:absolute;top:1px;right:1px;color:#b45309;font-size:8px;line-height:1;">
+                                        <i class="fa-solid fa-right-left"></i>
+                                    </span>
+                                @endif
                                 {{ $day['date']->day }}
                                 @if ($day['is_current_month'] && $state === 'scheduled' && $schedule['code'])
                                     <span class="jadwal-shift-cell-code" style="font-size:12px;font-weight:800;letter-spacing:0.2px;line-height:1;">{{ $schedule['code'] }}</span>
