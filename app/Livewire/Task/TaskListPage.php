@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Services\OrgHierarchyService;
 use App\Services\Task\TaskService;
 use Filament\Notifications\Notification;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Url;
@@ -49,6 +50,7 @@ class TaskListPage extends Component
     public ?string $requirement = null; // Kebutuhan = judul singkat tugas
     public ?string $description = null; // Deskripsi = uraian detail (opsional)
     public ?string $due_date = null;
+    public ?string $due_time = null; // Jam tenggat (opsional) - kosong default ke 23:59 saat disimpan.
     public string $priority = 'medium';
     public ?string $assigned_to = null;
     public ?string $newTaskListId = null; // List tujuan tugas baru (Board)
@@ -79,6 +81,7 @@ class TaskListPage extends Component
     public string $editRequirement = '';
     public ?string $editDescription = null;
     public ?string $editDueDate = null;
+    public ?string $editDueTime = null;
     public string $editPriority = 'medium';
 
     // Lampiran - inline di modal detail (bukan modal terpisah lagi, 2026-08-02, ala Trello)
@@ -287,7 +290,7 @@ class TaskListPage extends Component
     /** $listId: dari tombol "+ Tambah tugas" di List Board - tugas baru langsung masuk List itu. */
     public function openCreateTask(?string $listId = null): void
     {
-        $this->reset(['requirement', 'description', 'due_date', 'assigned_to', 'checklist', 'newChecklistTitle', 'reviewerId']);
+        $this->reset(['requirement', 'description', 'due_date', 'due_time', 'assigned_to', 'checklist', 'newChecklistTitle', 'reviewerId']);
         $this->newTaskListId = $this->activeProject ? $listId : null;
         $this->priority = TaskPriority::MEDIUM->value;
         $this->needsReview = false;
@@ -329,14 +332,26 @@ class TaskListPage extends Component
             'requirement' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:5000'],
             'due_date' => ['nullable', 'date'],
+            'due_time' => ['nullable', 'date_format:H:i'],
             'priority' => ['required', 'in:' . implode(',', array_column(TaskPriority::cases(), 'value'))],
             'assigned_to' => [$this->assignedToRequiredForSubordinate() ? 'required' : 'nullable', 'string'],
         ];
     }
 
+    /** Gabung input tanggal + jam (opsional) jadi datetime buat disimpan - jam kosong default 23:59. */
+    protected function combineDueDateTime(?string $date, ?string $time): ?string
+    {
+        if (! $date) {
+            return null;
+        }
+
+        return Carbon::parse($date)->setTimeFromTimeString($time ?: '23:59')->format('Y-m-d H:i:s');
+    }
+
     public function createTask(): void
     {
         $data = $this->validate($this->taskRules());
+        $data['due_date'] = $this->combineDueDateTime($data['due_date'], $data['due_time'] ?? null);
 
         try {
             app(TaskService::class)->createCasualTask([
@@ -419,7 +434,8 @@ class TaskListPage extends Component
         $this->editTaskId = $task->id;
         $this->editRequirement = $task->requirement ?? '';
         $this->editDescription = $task->description;
-        $this->editDueDate = $task->due_date;
+        $this->editDueDate = $task->due_date ? Carbon::parse($task->due_date)->format('Y-m-d') : null;
+        $this->editDueTime = $task->due_date ? Carbon::parse($task->due_date)->format('H:i') : null;
         $this->editPriority = $task->priority?->value ?? TaskPriority::MEDIUM->value;
         $this->showEditTaskModal = true;
     }
@@ -436,8 +452,10 @@ class TaskListPage extends Component
             'editRequirement' => ['required', 'string', 'max:255'],
             'editDescription' => ['nullable', 'string', 'max:5000'],
             'editDueDate' => ['nullable', 'date'],
+            'editDueTime' => ['nullable', 'date_format:H:i'],
             'editPriority' => ['required', 'in:' . implode(',', array_column(TaskPriority::cases(), 'value'))],
         ]);
+        $data['editDueDate'] = $this->combineDueDateTime($data['editDueDate'], $data['editDueTime'] ?? null);
 
         try {
             app(TaskService::class)->updateTaskDetails(Task::findOrFail($this->editTaskId), [

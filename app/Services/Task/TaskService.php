@@ -408,7 +408,9 @@ class TaskService
                         if ($list->is_review) {
                             $updateData['status'] = TaskStatus::REVIEW->value;
                             $updateData['completed_date'] = null;
-                            $updateData['is_overdue'] = false;
+                            // Keterlambatan diukur di sini (submit ke Review), bukan pas reviewer akhirnya
+                            // approve - lihat catatan sama di TaskService::applyMoveStatus().
+                            $updateData['is_overdue'] = $task->due_date && Carbon::now()->gt($task->due_date);
 
                             // Kabari yang berhak memutuskan (reviewer ?? pembuat) - kecuali dia sendiri yang memindahkan.
                             $deciderId = $task->reviewer_id ?? $task->created_by;
@@ -425,7 +427,10 @@ class TaskService
 
                             $updateData['status'] = TaskStatus::COMPLETE->value;
                             $updateData['completed_date'] = Carbon::now();
-                            $updateData['is_overdue'] = $task->due_date && Carbon::now()->gt($task->due_date);
+
+                            if (! $fromReview) {
+                                $updateData['is_overdue'] = $task->due_date && Carbon::now()->gt($task->due_date);
+                            }
 
                             if ($fromReview) {
                                 $task->assigned_to !== $actor->id && $task->assignedTo?->notify(new TaskReviewDecided($task, true, $actor->name));
@@ -744,7 +749,7 @@ class TaskService
         }
 
         if ($task->status === TaskStatus::REVIEW->value && $newStatus === TaskStatus::IN_PROGRESS->value) {
-            $this->taskRepository->update($task->id, ['status' => $newStatus]);
+            $this->taskRepository->update($task->id, ['status' => $newStatus, 'is_overdue' => false]);
             $task->assignedTo?->notify(new TaskReviewDecided($task, false, $user->name));
             return;
         }
@@ -757,9 +762,19 @@ class TaskService
 
         $updateData = ['status' => $newStatus];
 
+        // Keterlambatan diukur di titik pelaksana "menyerahkan" tugas - submit ke Review, atau
+        // langsung ke Selesai kalau nggak butuh review - bukan pas reviewer akhirnya approve.
+        // Approve yang telat bukan salah pelaksana, jadi is_overdue dari submit ke Review dipertahankan.
+        if ($newStatus === TaskStatus::REVIEW->value) {
+            $updateData['is_overdue'] = $task->due_date && Carbon::now()->gt($task->due_date);
+        }
+
         if ($newStatus === TaskStatus::COMPLETE->value) {
             $updateData['completed_date'] = Carbon::now();
-            $updateData['is_overdue'] = $task->due_date && Carbon::now()->gt($task->due_date);
+
+            if ($task->status !== TaskStatus::REVIEW->value) {
+                $updateData['is_overdue'] = $task->due_date && Carbon::now()->gt($task->due_date);
+            }
         }
 
         // Notifikasi opt-in ke creator (dicentang pas bikin tugas) - review diajukan, atau tugas

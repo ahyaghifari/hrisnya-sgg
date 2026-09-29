@@ -64,6 +64,7 @@ class Task extends Model
         'needs_review' => 'boolean',
         'notify_creator_on_review' => 'boolean',
         'notify_creator_on_complete' => 'boolean',
+        'is_overdue' => 'boolean',
     ];
 
     public function attachments(): HasMany

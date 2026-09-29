@@ -430,7 +430,10 @@
                                     <td style="padding:10px 14px;">{{ $task->createdBy?->name ?? '-' }}</td>
                                 @endif
                                 <td style="padding:10px 14px;">{{ $task->assignedTo?->name ?? '-' }}</td>
-                                <td style="padding:10px 14px;">{{ $fmtDate($task->due_date, 'j M Y') ?? '-' }}</td>
+                                <td style="padding:10px 14px;">
+                                    {{ $fmtDate($task->due_date, 'j M Y, H:i') ?? '-' }}
+                                    @if ($task->is_overdue) <span class="badge badge-rejected" style="margin-left:4px;">Terlambat</span> @endif
+                                </td>
                             </tr>
                         @empty
                             <tr><td colspan="{{ $scope === 'tim' ? 7 : 6 }}" style="padding:20px;text-align:center;color:var(--text-muted);">Belum ada tugas.</td></tr>
@@ -458,8 +461,9 @@
                                 @endif
                                 <span>Ke <strong>{{ $task->assignedTo?->name ?? '-' }}</strong></span>
                                 @if ($task->due_date)
-                                    <span><i class="fa-regular fa-calendar" style="font-size:10px;"></i> {{ $fmtDate($task->due_date, 'j M Y') }}</span>
+                                    <span><i class="fa-regular fa-calendar" style="font-size:10px;"></i> {{ $fmtDate($task->due_date, 'j M Y, H:i') }}</span>
                                 @endif
+                                @if ($task->is_overdue) <span class="badge badge-rejected">Terlambat</span> @endif
                             </div>
                         </div>
                         <i class="fa-solid fa-chevron-right" style="color:var(--text-faint);font-size:12px;flex-shrink:0;"></i>
@@ -557,8 +561,9 @@
                                                 <span><i class="fa-solid fa-square-check"></i> {{ $task->checklistItems->where('is_done', true)->count() }}/{{ $task->checklistItems->count() }}</span>
                                             @endif
                                             @if ($task->due_date)
-                                                <span><i class="fa-regular fa-calendar" style="font-size:10px;"></i> {{ $fmtDate($task->due_date) }}</span>
+                                                <span><i class="fa-regular fa-calendar" style="font-size:10px;"></i> {{ $fmtDate($task->due_date, 'j M, H:i') }}</span>
                                             @endif
+                                            @if ($task->is_overdue) <span class="badge badge-rejected">Terlambat</span> @endif
                                         </div>
                                         @php $isDecider = ($task->reviewer_id ?? $task->created_by) === auth()->id(); @endphp
                                         @if ($this->isProjectArchived)
@@ -661,8 +666,9 @@
                                                 <span><i class="fa-solid fa-square-check"></i> {{ $task->checklistItems->where('is_done', true)->count() }}/{{ $task->checklistItems->count() }}</span>
                                             @endif
                                             @if ($task->due_date)
-                                                <span><i class="fa-regular fa-calendar" style="font-size:10px;"></i> {{ $fmtDate($task->due_date) }}</span>
+                                                <span><i class="fa-regular fa-calendar" style="font-size:10px;"></i> {{ $fmtDate($task->due_date, 'j M, H:i') }}</span>
                                             @endif
+                                            @if ($task->is_overdue) <span class="badge badge-rejected">Terlambat</span> @endif
                                         </div>
                                         @if ($task->assignedTo && ! $task->is_self_assigned)
                                             <div class="task-card-assignee">{{ $task->assignedTo->profile?->nickname ?: $task->assignedTo->name }}</div>
@@ -789,7 +795,11 @@
                 <div class="date-grid">
                     <div>
                         <label class="form-label">Tenggat</label>
-                        <input type="date" class="form-input" wire:model="due_date">
+                        <div style="display:flex;gap:6px;">
+                            <input type="date" class="form-input" wire:model="due_date">
+                            <input type="time" class="form-input" wire:model="due_time" placeholder="23:59" style="max-width:110px;">
+                        </div>
+                        <p style="font-size:11px;color:var(--text-muted);margin-top:4px;">Jam kosong = 23:59.</p>
                     </div>
                     <div>
                         <label class="form-label">Prioritas</label>
@@ -955,7 +965,11 @@
                 <div class="date-grid">
                     <div>
                         <label class="form-label">Tenggat</label>
-                        <input type="date" class="form-input" wire:model="editDueDate">
+                        <div style="display:flex;gap:6px;">
+                            <input type="date" class="form-input" wire:model="editDueDate">
+                            <input type="time" class="form-input" wire:model="editDueTime" placeholder="23:59" style="max-width:110px;">
+                        </div>
+                        <p style="font-size:11px;color:var(--text-muted);margin-top:4px;">Jam kosong = 23:59.</p>
                     </div>
                     <div>
                         <label class="form-label">Prioritas</label>
@@ -1024,7 +1038,8 @@
                     <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:18px;font-size:13px;">
                         <span class="badge {{ $badgeClass(TaskStatus::tryFrom($task->status)?->getColor() ?? 'gray') }}">{{ TaskStatus::tryFrom($task->status)?->getLabel() ?? $task->status }}</span>
                         <span class="task-card-priority" style="--accent:{{ $priorityAccent($task->priority?->getColor() ?? 'gray') }};font-size:13px;"><span class="dot"></span> {{ $task->priority?->getLabel() ?? $task->priority }}</span>
-                        @if ($task->due_date)<span style="color:var(--text-muted);display:inline-flex;align-items:center;gap:5px;"><i class="fa-regular fa-calendar" style="font-size:11px;"></i> {{ $fmtDate($task->due_date, 'j M Y') }}</span>@endif
+                        @if ($task->due_date)<span style="color:var(--text-muted);display:inline-flex;align-items:center;gap:5px;"><i class="fa-regular fa-calendar" style="font-size:11px;"></i> {{ $fmtDate($task->due_date, 'j M Y, H:i') }}</span>@endif
+                        @if ($task->is_overdue)<span class="badge badge-rejected">Terlambat</span>@endif
                         @if ($task->project)<span class="badge badge-cancelled"><i class="fa-solid fa-diagram-project"></i> {{ $task->project->name }}</span>@endif
                     </div>
 
