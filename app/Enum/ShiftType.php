@@ -16,8 +16,11 @@ enum ShiftType: string implements HasLabel
      * awal 2026-09-13 sempat menjadikan ini cuma didapat lewat Extra Shift saat libur, DIHAPUS).
      * Dihitung fleksibel: TIDAK ADA konsep telat/pulang cepat sama sekali, jam masuk bebas
      * total, target durasi dari `max_work_minutes` - lihat
-     * ShiftScheduleCalculator::calculateOncall(). TIDAK terlibat Extra Shift sama sekali
-     * (cuma Pagi/Siang/Malam yang boleh, lihat ExtraShiftRulePage::getShiftTypeOptionsProperty()). */
+     * ShiftScheduleCalculator::calculateOncall(). Tidak pernah bisa dipasangkan lewat
+     * extra_shift_rules company-wide (cuma Pagi/Siang/Malam yang boleh di sana, lihat
+     * ExtraShiftRulePage::getShiftTypeOptionsProperty()) - tapi BISA jadi pilihan Extra Shift
+     * kalau jadwalnya menyalakan schedules.allow_oncall_extra_shift (2026-09-29, per Schedule,
+     * lihat ResolvesExtraShiftOptions::resolveAllowedExtraShiftTypes()). */
     case ONCALL = 'oncall';
 
     public function getLabel(): string|Htmlable|null

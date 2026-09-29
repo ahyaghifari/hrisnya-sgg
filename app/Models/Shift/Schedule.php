@@ -31,6 +31,7 @@ class Schedule extends Model
         'use_template',
         'use_teams',
         'team_group_mode',
+        'allow_oncall_extra_shift',
         'color',
         'off_bg_color',
         'off_font_color',
@@ -42,6 +43,7 @@ class Schedule extends Model
     protected $casts = [
         'use_template' => 'boolean',
         'use_teams' => 'boolean',
+        'allow_oncall_extra_shift' => 'boolean',
     ];
 
     public function company()

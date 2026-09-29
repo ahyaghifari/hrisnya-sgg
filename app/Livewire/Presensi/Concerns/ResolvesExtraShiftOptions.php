@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Presensi\Concerns;
 
+use App\Enum\ShiftType;
 use App\Models\Shift\ExtraShiftAssignment;
 use App\Models\Shift\ExtraShiftRule;
 use App\Models\Shift\Schedule;
@@ -105,9 +106,21 @@ trait ResolvesExtraShiftOptions
         $allowedCategories = ExtraShiftRule::query()
             ->where('company_id', $user->company_id)
             ->where('from_shift_type', $normal['category'])
-            ->pluck('to_shift_type');
+            ->pluck('to_shift_type')
+            ->all();
 
-        if ($allowedCategories->isEmpty()) {
+        $schedule = Schedule::find($normal['scheduleId']);
+
+        // Oncall SENGAJA di luar extra_shift_rules (pasangan yang admin atur di sana cuma
+        // Pagi/Siang/Malam, lihat ExtraShiftRulePage::getShiftTypeOptionsProperty()) - baru ikut
+        // jadi pilihan Extra Shift kalau jadwal INI menyalakan schedules.allow_oncall_extra_shift
+        // (instruksi user 2026-09-29 - per Schedule, bukan keputusan company-wide, karena unit
+        // lain belum tentu mau Oncall dobel jadi Extra Shift juga).
+        if ($schedule?->allow_oncall_extra_shift) {
+            $allowedCategories[] = ShiftType::ONCALL->value;
+        }
+
+        if (empty($allowedCategories)) {
             return collect();
         }
 
@@ -121,7 +134,6 @@ trait ResolvesExtraShiftOptions
         // shift jatah Regu-nya juga, sama seperti roster harian manual/generate (instruksi user
         // 2026-09-15: Regu A tidak boleh nyerobot shift tambahan Regu B). null = tidak dibatasi
         // (Regu tidak aktif / user belum punya Regu bulan ini), lihat allowedShiftTypeIdsFor().
-        $schedule = Schedule::find($normal['scheduleId']);
         $allowedTeamIds = $schedule
             ? ScheduleShiftTeamMember::allowedShiftTypeIdsFor($schedule, $user->id, Carbon::parse($date)->format('Y-m'))
             : null;

@@ -52,6 +52,13 @@ class CreateSchedulePage extends Component
      * tipe Fixed/Flexible). */
     public ?string $shiftPattern = null;
 
+    /** Saklar `schedules.allow_oncall_extra_shift` - cuma relevan buat scheduleType SHIFT.
+     * Ditaruh di halaman Edit Jadwal ini (bukan tab Extra Shift lagi, instruksi user 2026-09-29)
+     * supaya 1 tempat sama dengan pengaturan jadwal lain (Kepala Ruangan, Pola Shift dst),
+     * bukan nyebar di tab terpisah. Default FALSE - Oncall tidak pernah muncul di pilihan Extra
+     * Shift kecuali dinyalakan eksplisit di sini. */
+    public bool $allowOncallExtraShift = false;
+
     public function mount(?Schedule $schedule = null): void
     {
         $this->companyId = Auth::user()->canFilterByCompany()
@@ -75,6 +82,13 @@ class CreateSchedulePage extends Component
         $this->scheduleType = $schedule->schedule_type;
         $this->shiftPattern = $schedule->shift_pattern;
         $this->headUserId = $schedule->head_user_id;
+        // Cast eksplisit (bukan percaya cast 'boolean' Eloquent apa adanya) - jadwal yang baru
+        // dibuat lewat Schedule::create() TANPA eksplisit isi kolom ini (mis. fixture test lama,
+        // sebelum kolom ini ada) punya instance model yang atributnya BELUM ke-refresh dari DB,
+        // jadi $schedule->allow_oncall_extra_shift bisa null walau kolomnya sendiri NOT NULL
+        // default 0 - ditemukan 2026-09-29 lewat CreateSchedulePageTest yang bikin Schedule
+        // manual tanpa lewat save() form ini.
+        $this->allowOncallExtraShift = (bool) $schedule->allow_oncall_extra_shift;
         $this->step = 2;
 
         if ($this->scheduleType === ScheduleType::SHIFT->value) {
@@ -213,6 +227,9 @@ class CreateSchedulePage extends Component
             // blade) - dipaksa null buat tipe lain, jaga-jaga headUserId nyangkut nilai lama
             // kalau user sempat pilih Shift lalu balik ganti tipe sebelum submit.
             'head_user_id' => $this->scheduleType === ScheduleType::SHIFT->value ? ($this->headUserId ?: null) : null,
+            // Sama seperti head_user_id - cuma relevan buat Jadwal Shift, dipaksa false buat
+            // tipe lain (Fixed/Flexible tidak punya konsep Extra Shift sama sekali).
+            'allow_oncall_extra_shift' => $this->scheduleType === ScheduleType::SHIFT->value ? $this->allowOncallExtraShift : false,
         ];
 
         $schedule = DB::transaction(function () use ($scheduleData) {

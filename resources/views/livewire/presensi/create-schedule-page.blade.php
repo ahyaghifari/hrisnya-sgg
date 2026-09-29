@@ -202,6 +202,17 @@
                         <p style="font-size:10.5px;color:var(--text-faint);margin-top:4px;">Dipakai widget "Jadwal Shift Tim" di Dashboard supaya tombol "Detail Jadwal" mengarah ke jadwal yang tepat.</p>
                         @error('headUserId') <p style="font-size:11px;color:#dc2626;margin-top:4px;">{{ $message }}</p> @enderror
                     </div>
+
+                    <label style="display:flex;align-items:flex-start;gap:10px;margin-top:14px;max-width:420px;cursor:pointer;">
+                        <span class="custom-checkbox" style="margin-top:1px;">
+                            <input type="checkbox" wire:model="allowOncallExtraShift">
+                            <span class="box"><i class="fa-solid fa-check"></i></span>
+                        </span>
+                        <span>
+                            <span style="display:block;font-size:12.5px;font-weight:600;color:var(--text-heading);">Oncall boleh jadi Extra Shift</span>
+                            <span style="display:block;font-size:10.5px;color:var(--text-faint);margin-top:2px;">Kalau dinyalakan, Oncall ikut muncul sebagai pilihan Extra Shift untuk jadwal ini &mdash; di luar aturan Pagi/Siang/Malam yang diatur admin (Pengaturan &gt; Aturan Extra Shift).</span>
+                        </span>
+                    </label>
                 @endif
 
                 @if ($scheduleType === 'flexible')
