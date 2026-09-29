@@ -82,9 +82,13 @@
             </button>
             @if ($this->canEditJadwal)
                 <div style="margin-top:16px;">
-                    <label class="btn-info" style="font-size:11px;padding:7px 12px;white-space:nowrap;cursor:pointer;margin:0;">
+                    {{-- Sama alasannya dengan tombol Isi Jadwal - approver yang lagi ada pengajuan
+                    menunggu wajib Setujui/Tolak dulu, bukan import di atas draft yang belum
+                    diputuskan (instruksi user). --}}
+                    <label class="btn-info" style="font-size:11px;padding:7px 12px;white-space:nowrap;margin:0;{{ $this->canReviewRosterChange ? 'opacity:0.5;cursor:not-allowed;' : 'cursor:pointer;' }}"
+                        @if ($this->canReviewRosterChange) title="Ada pengajuan menunggu keputusan Anda - Setujui/Tolak dulu di banner atas sebelum import." @endif>
                         <i class="fa-solid fa-file-import"></i> Import Excel
-                        <input type="file" wire:model="importFile" accept=".xlsx,.xls" style="display:none;">
+                        <input type="file" wire:model="importFile" accept=".xlsx,.xls" style="display:none;" @disabled($this->canReviewRosterChange)>
                     </label>
                     <div wire:loading wire:target="importFile" style="font-size:10.5px;color:var(--text-muted);margin-top:2px;">Mengimpor...</div>
                     @error('importFile') <div style="font-size:10.5px;color:var(--danger-text);margin-top:2px;">{{ $message }}</div> @enderror
@@ -156,7 +160,12 @@
             "Simpan". --}}
             @if ($this->canEditJadwal)
                 @if (! $editMode)
-                    <button type="button" wire:click="startEdit" class="btn-primary" style="font-size:11px;padding:7px 12px;white-space:nowrap;">
+                    {{-- Approver yang lagi ada pengajuan menunggu di jadwal ini WAJIB memutuskan
+                    (Setujui/Tolak) dulu lewat banner di atas, bukan malah mulai edit sendiri di
+                    atas draft yang belum diputuskan - instruksi user. --}}
+                    <button type="button" wire:click="startEdit" class="btn-primary" style="font-size:11px;padding:7px 12px;white-space:nowrap;"
+                        @disabled($this->canReviewRosterChange)
+                        @if ($this->canReviewRosterChange) title="Ada pengajuan menunggu keputusan Anda - Setujui/Tolak dulu di banner atas sebelum isi jadwal." @endif>
                         <i class="fa-solid fa-pen"></i> Isi Jadwal
                     </button>
                 @else
@@ -385,10 +394,11 @@
                                 $leaveType = $this->leaveCells[$employee->id.'|'.$date->toDateString()] ?? null;
                                 $isLeaveCell = $leaveType !== null;
                                 $leaveLocked = $isLeaveCell && ! $this->canOverrideLeaveLock;
-                                // Yang cuma punya Update:ShiftScheduleAssignments (bukan Edit Jadwal)
-                                // dibatasi mulai hari ini - tanggal yang sudah lewat dikunci di grid juga.
-                                $pastLocked = ! $this->canEditPastDates && $date->lt(today());
-                                $locked = ! $editMode || $swapLocked || $leaveLocked || $pastLocked;
+                                // Yang cuma punya Update:ShiftScheduleAssignments (bukan Edit Jadwal) BOLEH
+                                // pilih tanggal lampau juga (dicabut 2026-09-28, lihat docblock saveRoster())
+                                // - tetap bisa diedit di grid, cuma tidak langsung tertulis, lewat
+                                // ScheduleRosterChangeService::submitForApproval() sampai disetujui atasan.
+                                $locked = ! $editMode || $swapLocked || $leaveLocked;
                                 $rfR = $loop->parent->index;
                                 $rfC = $loop->index;
                                 // Sel ini lagi ada pengajuan belum diputuskan - dim (opacity
@@ -396,7 +406,7 @@
                                 // maupun pas lanjut edit (instruksi user 2026-09-28).
                                 $isDraftCell = isset($userDraft[$date->toDateString()]);
                             @endphp
-                            <td class="rf-cell" data-r="{{ $rfR }}" data-c="{{ $rfC }}" data-locked="{{ ($swapLocked || $leaveLocked || $pastLocked) ? '1' : '0' }}"
+                            <td class="rf-cell" data-r="{{ $rfR }}" data-c="{{ $rfC }}" data-locked="{{ ($swapLocked || $leaveLocked) ? '1' : '0' }}"
                                 @mousedown="cellDown($event, {{ $rfR }}, {{ $rfC }})" @mouseenter="cellEnter({{ $rfR }}, {{ $rfC }})"
                                 :class="cellClass({{ $rfR }}, {{ $rfC }})"
                                 style="padding:2px;text-align:center;position:relative;">
@@ -413,6 +423,13 @@
                                         style="position:absolute;top:0;right:0;z-index:3;padding:1px 2px;color:#000;font-size:8.5px;line-height:1;">
                                         <i class="fa-solid fa-file-medical"></i>
                                     </span>
+                                @elseif ($isDraftCell)
+                                    {{-- Pola sama dengan ikon tukar shift/cuti di atas - penanda kecil di pojok
+                                    sel, bukan cuma andalkan opacity dim (instruksi user). --}}
+                                    <span title="Diajukan, belum disetujui oleh HC/Kepegawaian."
+                                        style="position:absolute;top:0;right:0;z-index:3;padding:1px 2px;color:#b45309;font-size:8.5px;line-height:1;">
+                                        <i class="fa-solid fa-hourglass-half"></i>
+                                    </span>
                                 @endif
                                 <select
                                     {{-- wire:key ikut nilainya, bukan cuma posisi - morphdom kadang cuma
@@ -421,21 +438,21 @@
                                     tapi teksnya masih nilai lama sampai refresh manual. wire:key beda ->
                                     dianggap elemen baru -> browser bikin ulang dari nol, bukan di-patch. --}}
                                     wire:key="'cell-{{ $employee->id }}-{{ $date->toDateString() }}-{{ $current }}'"
-                                    @if ($editMode && ! $swapLocked && ! $leaveLocked && ! $pastLocked)
+                                    @if ($editMode && ! $swapLocked && ! $leaveLocked)
                                         wire:model="draft.{{ $employee->id }}.{{ $date->toDateString() }}"
                                         @change="recolor($event.target)"
                                     @endif
                                     @disabled($locked)
                                     @if ($isDraftCell)
-                                        title="Diajukan, belum disetujui atasan."
+                                        title="Diajukan, belum disetujui oleh HC/Kepegawaian."
                                     @elseif ($swapLocked)
                                         title="Jadwal ini terkait pengajuan tukar shift — tidak bisa diubah dari halaman jadwal."
                                     @elseif ($leaveLocked)
                                         title="{{ $leaveType === 'cuti' ? 'Cuti' : 'Izin' }} disetujui otomatis — tidak bisa diubah dari halaman jadwal."
                                     @elseif ($isLeaveCell)
                                         title="{{ $leaveType === 'cuti' ? 'Cuti' : 'Izin' }} disetujui otomatis — kamu bisa mengubahnya karena punya izin Edit Jadwal."
-                                    @elseif ($pastLocked)
-                                        title="Tanggal sudah lewat - cuma bisa diubah oleh yang punya izin Edit Jadwal."
+                                    @elseif ($editMode && ! $this->canEditPastDates && $date->lt(today()))
+                                        title="Tanggal sudah lewat — perubahan diajukan dulu ke HC/Kepegawaian, tidak langsung tersimpan."
                                     @elseif (! $editMode && $current === '')
                                         title="Lepas Dinas"
                                     @elseif (! $editMode)
@@ -446,7 +463,7 @@
                                     Sel draft (belum disetujui) dikurangi LEBIH jauh (0.55) - beda kasat mata dari
                                     sel biasa, baik lagi editMode (karu lanjut edit proposalnya) maupun view. --}}
                                     style="width:52px;padding:6px 2px;font-size:10.5px;text-align:center;font-weight:700;border:none;border-radius:5px;{{ $isDraftCell ? 'opacity:0.55;' : ($locked ? 'opacity:0.92;' : '') }}{{ $locked ? 'cursor:not-allowed;' : 'cursor:pointer;' }}color:{{ $isLeaveCell ? '#000' : $currentFontColor }};{{ $isLeaveCell ? 'background:'.($leaveType === 'cuti' ? '#EF4444' : '#0EA5E9').';' : ($isOff ? "background:{$offBg};" : ($currentColor ? "background:{$currentColor};" : 'background:var(--surface-alt);')) }}">
-                                    <option value="" {{ $current === '' ? 'selected' : '' }}>{{ $editMode ? '-' : 'LD' }}</option>
+                                    <option value="" {{ $current === '' ? 'selected' : '' }}>{{ $editMode ? '-' : 'N/A' }}</option>
                                     @if ($currentOutsideTeam)
                                         <option value="{{ $current }}" selected title="Di luar daftar shift Tim karyawan ini">{{ $currentType->code }} &#9888;</option>
                                     @endif
@@ -569,13 +586,19 @@
         <button type="button" wire:click="toggleLogs" class="btn-ghost" style="font-size:11px;padding:7px 12px;white-space:nowrap;">
             <i class="fa-solid fa-clock-rotate-left"></i> {{ $showLogs ? 'Sembunyikan' : 'Lihat' }} Riwayat Perubahan
         </button>
+        {{-- Reset Jadwal DINONAKTIFKAN sementara (instruksi user 2026-09-29) - method-nya menulis
+        langsung ke DB, bypass alur approval Perubahan Jadwal (ScheduleRosterChangeService) sama
+        sekali beda dari edit sel manual yang sudah lewat approval. Jangan diaktifkan lagi sebelum
+        itu dibenerin (resetPeriod() ikut lewat approval juga, atau sengaja tetap langsung dengan
+        alasan jelas) - lihat resetPeriod() di ScheduleShiftRosterTab.php, sudah di-abort juga di
+        server, bukan cuma disembunyikan di sini.
         @if ($this->canEditJadwal && $period >= now()->format('Y-m'))
             <button type="button" wire:click="resetPeriod"
                 wire:confirm="{{ $this->canEditPastDates ? "Hapus SEMUA roster {$this->periodLabel} (termasuk yang sudah dikoreksi manual, termasuk tanggal yang sudah lewat)? Tindakan ini tidak bisa dibatalkan." : "Hapus roster {$this->periodLabel} MULAI HARI INI sampai akhir bulan (termasuk yang sudah dikoreksi manual)? Tanggal yang sudah lewat tidak ikut dihapus. Tindakan ini tidak bisa dibatalkan." }}"
                 class="btn-ghost" style="font-size:11px;padding:7px 12px;white-space:nowrap;color:var(--danger-text);">
                 <i class="fa-solid fa-rotate-left"></i> Reset Jadwal
             </button>
-        @endif
+        @endif --}}
         @if ($this->canResetOrder)
             <button type="button" wire:click="resetOrderByJoinDate"
                 wire:confirm="Kembalikan urutan karyawan {{ $this->periodLabel }} ke urutan tanggal bergabung (terlama dulu)? Urutan manual yang sudah diatur (di dalam tim maupun Tanpa Tim) akan diganti."

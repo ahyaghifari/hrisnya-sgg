@@ -784,6 +784,10 @@ class ScheduleShiftRosterTab extends Component
     {
         abort_unless(Auth::user()->can('Update:ShiftScheduleAssignments'), 403);
         abort_if($this->periodLocked, 403);
+        // Approver yang lagi ada pengajuan menunggu keputusannya di jadwal ini wajib
+        // Setujui/Tolak dulu lewat banner, bukan mulai edit sendiri di atas draft yang belum
+        // diputuskan - instruksi user. Jangan cuma sembunyikan tombol di UI.
+        abort_if($this->canReviewRosterChange, 403);
 
         $roster = $this->displayRoster;
 
@@ -895,7 +899,7 @@ class ScheduleShiftRosterTab extends Component
 
             Notification::make()
                 ->title('Perubahan jadwal diajukan untuk persetujuan')
-                ->body("{$changed} sel diajukan ke atasan Anda, belum tersimpan sampai disetujui.")
+                ->body("{$changed} sel diajukan ke HC/Kepegawaian, belum tersimpan sampai disetujui.")
                 ->success()
                 ->send();
 
@@ -1201,6 +1205,12 @@ class ScheduleShiftRosterTab extends Component
      * manual. */
     public function resetPeriod(): void
     {
+        // DINONAKTIFKAN sementara (instruksi user 2026-09-29) - method ini menulis/menghapus
+        // langsung ke DB, bypass alur approval Perubahan Jadwal sama sekali (beda dari saveRoster()
+        // yang sudah lewat ScheduleRosterChangeService kalau user tidak punya Update:Schedule).
+        // Tombolnya sudah disembunyikan di blade, abort di sini jaga-jaga request manual.
+        abort(403, 'Reset Jadwal sedang dinonaktifkan sementara.');
+
         abort_unless(Auth::user()->can('Update:ShiftScheduleAssignments'), 403);
 
         $start = Carbon::createFromFormat('Y-m', $this->period)->startOfMonth();
@@ -1284,6 +1294,9 @@ class ScheduleShiftRosterTab extends Component
     {
         abort_unless(Auth::user()->can('Update:ShiftScheduleAssignments'), 403);
         abort_if($this->periodLocked, 403);
+        // Sama seperti startEdit() - approver yang lagi ada pengajuan menunggu wajib
+        // Setujui/Tolak dulu, bukan malah import di atas draft yang belum diputuskan.
+        abort_if($this->canReviewRosterChange, 403);
 
         $this->validate(['importFile' => 'required|file|mimes:xlsx,xls']);
 

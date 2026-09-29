@@ -13,9 +13,11 @@ use App\Models\Shift\ScheduleAssignment;
 use App\Models\Shift\ScheduleRosterChangeRequest;
 use App\Models\Shift\ScheduleShiftAssignment;
 use App\Models\Shift\ScheduleShiftType;
+use App\Models\Attendance\AttendanceRecords;
 use App\Models\User;
 use App\Services\Approval\ApprovalFlowService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Livewire\Livewire;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
@@ -303,13 +305,46 @@ class ScheduleRosterChangeApprovalTest extends TestCase
             ->assertSee('menunggu persetujuan')
             ->assertSee('Setujui')
             // Sel draft ditandai dim (title tooltip) di grid - lihat blade cell rendering.
-            ->assertSee('Diajukan, belum disetujui atasan', false)
+            ->assertSee('Diajukan, belum disetujui oleh HC/Kepegawaian', false)
             ->call('approveRosterChange');
 
         $this->assertTrue(
             ScheduleShiftAssignment::where('user_id', $employee->id)
                 ->whereDate('date', $date)->where('shift_type_id', $shiftType->id)->exists()
         );
+    }
+
+    /** Approver wajib Setujui/Tolak dulu lewat banner, tidak boleh malah mulai edit sendiri di
+     * atas draft yang belum diputuskan - "Isi Jadwal" mesti disabled buat dia (instruksi user). */
+    public function test_approver_cannot_start_edit_while_a_request_is_pending(): void
+    {
+        [$schedule, $shiftType, $employee] = $this->makeManualShiftSchedule();
+        $karu = $this->actingAsKaru($schedule->company_id);
+        $approver = User::factory()->create(['company_id' => $schedule->company_id]);
+        Permission::firstOrCreate(['name' => 'View:Schedule', 'guard_name' => 'web']);
+        $approver->givePermissionTo('View:Schedule');
+        Permission::firstOrCreate(['name' => 'Update:ShiftScheduleAssignments', 'guard_name' => 'web']);
+        $approver->givePermissionTo('Update:ShiftScheduleAssignments');
+        $this->makeDefaultApprovalFlow(Companies::find($schedule->company_id), $approver);
+        $date = now()->addDay()->toDateString();
+
+        Livewire::actingAs($karu)
+            ->test(ScheduleShiftRosterTab::class, ['schedule' => $schedule])
+            ->call('startEdit')
+            ->set("draft.{$employee->id}.{$date}", $shiftType->id)
+            ->call('saveRoster');
+
+        Livewire::actingAs($approver)
+            ->test(ScheduleShiftRosterTab::class, ['schedule' => $schedule])
+            ->assertSeeHtml('disabled')
+            ->call('startEdit')
+            ->assertForbidden();
+
+        // Import Excel kena guard yang sama - bukan cuma tombol Isi Jadwal.
+        Livewire::actingAs($approver)
+            ->test(ScheduleShiftRosterTab::class, ['schedule' => $schedule])
+            ->set('importFile', \Illuminate\Http\UploadedFile::fake()->create('roster.xlsx', 10))
+            ->assertForbidden();
     }
 
     /** Si pengaju sendiri (karu) lihat banner "menunggu" TAPI tanpa tombol Setuju/Tolak - dia bukan
@@ -357,5 +392,65 @@ class ScheduleRosterChangeApprovalTest extends TestCase
             ->test(ScheduleShiftRosterTab::class, ['schedule' => $schedule])
             ->call('approveRosterChange')
             ->assertForbidden();
+    }
+
+    private function scan(User $u, string $dt): void
+    {
+        DB::table('access_logs')->insert([
+            'employee_id' => $u->nip, 'access_datetime' => $dt, 'access_date' => substr($dt, 0, 10), 'access_time' => substr($dt, 11),
+            'first_name' => $u->name, 'last_name' => '', 'person_name' => $u->name, 'person_group' => 'default',
+        ]);
+    }
+
+    /** Selama pengajuan menunggu, ScheduleResolver cuma baca kolom approved - scan yang keburu
+     * terjadi hari itu (sel-nya masih kosong = dianggap off_day) jatuh ke bucket yang tidak
+     * pernah diproses SyncAccessLogsAttendance (silent, tidak ada attendance_records). Begitu
+     * disetujui, ScheduleRosterChangeService::executeApproved() harus baca ulang TARGETED supaya
+     * scan itu langsung kebaca dengan jadwal yang baru disetujui - instruksi user 2026-09-29. */
+    public function test_approving_a_past_dated_request_resweeps_the_scan_that_was_silently_dropped(): void
+    {
+        [$schedule, $shiftType, $employee] = $this->makeManualShiftSchedule();
+        $employee->update(['nip' => 'BUDI001']);
+        // ShiftScheduleCalculator parse start_time/end_time dengan format 'H:i:s' (detik wajib) -
+        // MySQL production auto-normalize '07:00' jadi '07:00:00' di kolom TIME, tapi SQLite
+        // (dipakai test) simpan apa adanya tanpa normalisasi. Test lain aman pakai '07:00' polos
+        // dari makeManualShiftSchedule() karena tidak pernah beneran manggil calculator - punya
+        // resweep ini yang pertama, jadi perlu detik eksplisit.
+        $shiftType->update(['start_time' => '07:00:00', 'end_time' => '15:00:00']);
+        $karu = $this->actingAsKaru($schedule->company_id);
+        $approver = User::factory()->create(['company_id' => $schedule->company_id]);
+        Permission::firstOrCreate(['name' => 'View:Schedule', 'guard_name' => 'web']);
+        $approver->givePermissionTo('View:Schedule');
+        $this->makeDefaultApprovalFlow(Companies::find($schedule->company_id), $approver);
+        $date = now()->subDay()->toDateString();
+
+        // Karyawan sudah scan sesuai jam shift Pagi (07:00-15:00) SEBELUM jadwalnya disetujui -
+        // hari itu masih dianggap off_day (belum ada baris roster sama sekali), jadi scan ini
+        // jatuh ke bucket yang tidak pernah diproses.
+        $this->scan($employee, "{$date} 07:00:00");
+        $this->scan($employee, "{$date} 15:00:00");
+
+        Livewire::actingAs($karu)
+            ->test(ScheduleShiftRosterTab::class, ['schedule' => $schedule])
+            ->call('startEdit')
+            ->set("draft.{$employee->id}.{$date}", $shiftType->id)
+            ->call('saveRoster');
+
+        $this->assertDatabaseCount('attendance_records', 0);
+
+        Livewire::actingAs($approver)
+            ->test(ScheduleShiftRosterTab::class, ['schedule' => $schedule])
+            // assertSee dulu sebelum call() - Livewire::test() butuh 1 render eksplisit sebelum
+            // aksi pertama supaya token child component (schedule-swap-history-sheet yang ke-nest
+            // di grid) sempat dilepas dengan benar; loncat langsung ke call() dari mount memicu
+            // ComponentNotFoundException di harness test (murni artefak testing, bukan bug
+            // aplikasi - browser sungguhan selalu render awal lewat GET dulu sebelum aksi apa pun).
+            ->assertSee('menunggu persetujuan')
+            ->call('approveRosterChange');
+
+        $record = AttendanceRecords::where('nip', 'BUDI001')->where('date', $date)->first();
+        $this->assertNotNull($record, 'Scan yang terjatuh ke bucket off_day harus kebaca ulang begitu roster disetujui.');
+        $this->assertSame('07:00:00', $record->check_in_time);
+        $this->assertSame('15:00:00', $record->check_out_time);
     }
 }

@@ -101,8 +101,8 @@ class ScheduleShiftRosterTabTest extends TestCase
     }
 
     /** Sel kosong (belum ada baris ScheduleShiftAssignment) mode LIHAT (bukan editMode) dikasih
-     * label "LD" (Lepas Dinas), instruksi user 2026-09-28 - beda dari mode edit yang tetap "-". */
-    public function test_empty_cell_shows_ld_label_in_view_mode(): void
+     * label "N/A" (dulu "LD", diganti instruksi user), beda dari mode edit yang tetap "-". */
+    public function test_empty_cell_shows_na_label_in_view_mode(): void
     {
         [$schedule, $shiftType, $employee] = $this->makeManualShiftSchedule();
         $user = $this->actingAsAbsensi();
@@ -110,10 +110,10 @@ class ScheduleShiftRosterTabTest extends TestCase
         Livewire::actingAs($user)
             ->test(ScheduleShiftRosterTab::class, ['schedule' => $schedule])
             ->assertSet('editMode', false)
-            ->assertSee('LD')
+            ->assertSee('N/A')
             ->assertSee('Lepas Dinas', false)
             ->call('startEdit')
-            ->assertDontSee('LD');
+            ->assertDontSee('N/A');
     }
 
     public function test_manual_cell_edit_assigns_shift_without_any_template(): void
@@ -321,68 +321,19 @@ class ScheduleShiftRosterTabTest extends TestCase
         );
     }
 
-    /** Reset cuma boleh mulai hari ini sampai akhir bulan periode terpilih - tanggal yang
-     * sudah lewat (walau masih di bulan yang sama) tidak boleh ikut kehapus, itu histori. */
-    public function test_reset_period_deletes_from_today_onward_but_keeps_past_dates(): void
+    /** Reset Jadwal DINONAKTIFKAN sementara (instruksi user 2026-09-29) - method-nya bypass alur
+     * approval Perubahan Jadwal sama sekali, beda dari saveRoster(). Ditolak di server, bukan
+     * cuma disembunyikan tombolnya. Aktifkan lagi test detail (tanggal lampau tidak ikut kehapus,
+     * log tercatat source=reset, dst - lihat git history baris ini) begitu fiturnya dipakai lagi. */
+    public function test_reset_period_is_disabled(): void
     {
-        [$schedule, $shiftType, $employee] = $this->makeManualShiftSchedule();
+        [$schedule] = $this->makeManualShiftSchedule();
         $user = $this->actingAsAbsensi();
-        $datePast = now()->subDay()->toDateString();
-        $dateToday = now()->toDateString();
-        $dateFuture = now()->addDays(3)->min(now()->endOfMonth())->toDateString();
-        $dateOutsideMonth = now()->startOfMonth()->subMonth()->addDays(4)->toDateString();
-
-        foreach ([$datePast, $dateToday, $dateFuture, $dateOutsideMonth] as $date) {
-            ScheduleShiftAssignment::create([
-                'company_id' => $schedule->company_id, 'user_id' => $employee->id,
-                'date' => $date, 'shift_type_id' => $shiftType->id, 'off_day' => false,
-            ]);
-        }
 
         Livewire::actingAs($user)
             ->test(ScheduleShiftRosterTab::class, ['schedule' => $schedule])
-            ->call('resetPeriod');
-
-        $this->assertTrue(
-            ScheduleShiftAssignment::where('user_id', $employee->id)->whereDate('date', $datePast)->exists(),
-            'Tanggal yang sudah lewat tidak boleh ikut direset.'
-        );
-        $this->assertFalse(
-            ScheduleShiftAssignment::where('user_id', $employee->id)->whereDate('date', $dateToday)->exists()
-        );
-        $this->assertFalse(
-            ScheduleShiftAssignment::where('user_id', $employee->id)->whereDate('date', $dateFuture)->exists()
-        );
-        $this->assertTrue(
-            ScheduleShiftAssignment::where('user_id', $employee->id)->whereDate('date', $dateOutsideMonth)->exists()
-        );
-    }
-
-    public function test_reset_period_logs_deleted_rows_with_reset_source(): void
-    {
-        [$schedule, $shiftType, $employee] = $this->makeManualShiftSchedule();
-        $user = $this->actingAsAbsensi();
-        $date = now()->addDays(2)->toDateString();
-
-        ScheduleShiftAssignment::create([
-            'company_id' => $schedule->company_id, 'user_id' => $employee->id,
-            'date' => $date, 'shift_type_id' => $shiftType->id, 'off_day' => false,
-        ]);
-
-        Livewire::actingAs($user)
-            ->test(ScheduleShiftRosterTab::class, ['schedule' => $schedule])
-            ->call('resetPeriod');
-
-        $this->assertTrue(
-            ScheduleShiftRosterLog::where('schedule_id', $schedule->id)
-                ->where('user_id', $employee->id)
-                ->whereDate('date', $date)
-                ->where('old_value', $shiftType->id)
-                ->whereNull('new_value')
-                ->where('source', 'reset')
-                ->where('changed_by', $user->id)
-                ->exists()
-        );
+            ->call('resetPeriod')
+            ->assertForbidden();
     }
 
     public function test_describe_roster_log_reads_as_a_human_sentence_for_empty_to_filled(): void

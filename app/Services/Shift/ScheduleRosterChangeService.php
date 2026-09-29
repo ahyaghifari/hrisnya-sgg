@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Repositories\Approval\ApprovalSnapshotRepository;
 use App\Services\Approval\ApprovalCreationService;
 use App\Services\Approval\ApprovalFlowService;
+use App\Services\Attendance\AccessLogResweepService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -35,6 +36,7 @@ class ScheduleRosterChangeService
         protected ApprovalCreationService $approvalCreationService,
         protected ApprovalSnapshotRepository $approvalSnapshotRepository,
         protected RosterBatchWriter $writer,
+        protected AccessLogResweepService $resweepService,
     ) {}
 
     /** @param array<int, array{user_id:string, date:string, before:?string, value:?string}> $pending */
@@ -209,6 +211,55 @@ class ScheduleRosterChangeService
             'draft_shift_type_id' => null,
             'draft_off_day' => false,
         ]);
+
+        $this->resweepPastDates($pending);
+    }
+
+    /**
+     * Selama pengajuan menunggu, ScheduleResolver cuma baca kolom APPROVED (belum kesentuh) -
+     * scan karyawan yang keburu terjadi hari itu ikut resolusi jadwal LAMA (atau off_day kalau
+     * sel-nya beneran baru), jatuh ke bucket yang tidak pernah diproses SyncAccessLogsAttendance
+     * (lihat AccessLogScheduleReader::groupAndBucket) - silent, tidak ada attendance_records
+     * ataupun notifikasi. Begitu disetujui di sini, baca ulang TARGETED per (user, tanggal) yang
+     * baru disetujui supaya scan yang tadi jatuh ke bucket itu langsung kebaca ulang dengan
+     * jadwal yang benar, tidak nunggu jadwal sweep berkala berikutnya (instruksi user 2026-09-29).
+     * Tanggal MASA DEPAN dilewati - belum mungkin ada access_logs buat tanggal yang belum terjadi.
+     * Satu (user, tanggal) gagal resweep tidak boleh menggagalkan approval-nya sendiri - approval
+     * sudah tuntas ditulis di atas, resweep di sini murni percepatan, bukan bagian transaksi itu.
+     *
+     * @param array<int, array{user_id:string, date:string, before:?string, value:?string}> $pending
+     */
+    private function resweepPastDates(array $pending): void
+    {
+        $today = now()->toDateString();
+
+        $userIdsByDate = collect($pending)
+            ->filter(fn ($cell) => $cell['date'] <= $today)
+            ->groupBy('date')
+            ->map(fn ($cells) => collect($cells)->pluck('user_id')->unique());
+
+        if ($userIdsByDate->isEmpty()) {
+            return;
+        }
+
+        $nipByUserId = User::whereIn('id', $userIdsByDate->flatten()->unique())->pluck('nip', 'id');
+
+        foreach ($userIdsByDate as $date => $userIds) {
+            foreach ($userIds as $userId) {
+                $nip = $nipByUserId->get($userId);
+
+                if (! $nip) {
+                    continue;
+                }
+
+                try {
+                    $this->resweepService->resweepUserDate($nip, $date);
+                } catch (\Throwable) {
+                    // Diam - lihat docblock: resweep gagal tidak boleh menggagalkan approval.
+                    // Jaring pengaman attendance:sweep-missed-scans tetap menangkapnya belakangan.
+                }
+            }
+        }
     }
 
     /** Buang SEMUA draft di bawah pengajuan ini tanpa menulis apa pun ke kolom approved - dipakai

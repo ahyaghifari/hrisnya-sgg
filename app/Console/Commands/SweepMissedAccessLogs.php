@@ -3,11 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\Attendance\AttendanceRecords;
-use App\Repositories\Attendance\AttendanceRecordRepository;
-use App\Services\Attendance\AccessLogScheduleReader;
-use App\Services\Attendance\Calculators\FixedScheduleCalculator;
-use App\Services\Attendance\Calculators\FlexibleScheduleCalculator;
-use App\Services\Attendance\Calculators\ShiftScheduleCalculator;
+use App\Services\Attendance\AccessLogResweepService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -44,13 +40,8 @@ class SweepMissedAccessLogs extends Command
     /** Beda sedetik dua detik = tap ganda, sudah dibuang reader. Bukan tanda jam pulang hilang. */
     private const REPEATED_TAP_SECONDS = 60;
 
-    public function handle(
-        AccessLogScheduleReader $reader,
-        FixedScheduleCalculator $fixedCalculator,
-        FlexibleScheduleCalculator $flexibleCalculator,
-        ShiftScheduleCalculator $shiftCalculator,
-        AttendanceRecordRepository $repo,
-    ): int {
+    public function handle(AccessLogResweepService $resweepService): int
+    {
         // Carbon::parse biar scheduler bisa mengirim kata relatif ("yesterday") - kalau tanggalnya
         // dihitung di bootstrap/app.php, nilainya membeku selama proses schedule:work hidup.
         $date = Carbon::parse($this->option('date') ?: 'today')->toDateString();
@@ -80,7 +71,7 @@ class SweepMissedAccessLogs extends Command
 
         foreach ($suspects as $nip) {
             try {
-                [$s, $m] = $this->resweep($nip, $date, $reader, $fixedCalculator, $flexibleCalculator, $shiftCalculator, $repo);
+                [$s, $m] = $resweepService->resweepUserDate($nip, $date);
                 $saved += $s;
                 $skippedManual += $m;
             } catch (\Throwable $e) {
@@ -150,55 +141,5 @@ class SweepMissedAccessLogs extends Command
     private function secondsBetween(string $from, string $to): int
     {
         return Carbon::parse($from)->diffInSeconds(Carbon::parse($to));
-    }
-
-    /**
-     * @return array{0:int,1:int} [tersimpan, dilewati karena koreksi manual]
-     */
-    private function resweep(
-        string $nip,
-        string $date,
-        AccessLogScheduleReader $reader,
-        FixedScheduleCalculator $fixedCalculator,
-        FlexibleScheduleCalculator $flexibleCalculator,
-        ShiftScheduleCalculator $shiftCalculator,
-        AttendanceRecordRepository $repo,
-    ): array {
-        $result = $reader->readAndGroup($date, $date, $nip);
-
-        $calculators = [
-            'fixed' => $fixedCalculator,
-            'flexible' => $flexibleCalculator,
-            'shift' => $shiftCalculator,
-        ];
-
-        $saved = 0;
-        $skippedManual = 0;
-
-        foreach ($calculators as $type => $calculator) {
-            foreach ($calculator->calculate($result['buckets'][$type]) as $r) {
-                // Koreksi manual HR (is_auto_calculated=false) tidak boleh ditimpa mesin tiap 10
-                // menit. Tombol "Sync Presensi" tetap boleh menimpa - itu keputusan sadar user.
-                if ($this->isManuallyCorrected($r['user']->nip, $r['date'])) {
-                    $skippedManual++;
-
-                    continue;
-                }
-
-                $repo->saveCalculatedResult($r, 'access_logs_' . $type);
-                $saved++;
-            }
-        }
-
-        return [$saved, $skippedManual];
-    }
-
-    private function isManuallyCorrected(string $nip, string $date): bool
-    {
-        return AttendanceRecords::query()
-            ->where('nip', $nip)
-            ->where('date', $date)
-            ->where('is_auto_calculated', false)
-            ->exists();
     }
 }
