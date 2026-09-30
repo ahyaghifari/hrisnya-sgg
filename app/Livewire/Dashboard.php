@@ -8,6 +8,7 @@ use App\Enum\WidgetPermissionEnum;
 use App\Enum\Task\TaskStatus;
 use App\Livewire\Concerns\ResolvesDayScheduleSummary;
 use App\Livewire\Concerns\ResolvesTodayAttendanceStatus;
+use App\Livewire\Concerns\ResyncsOwnAttendance;
 use App\Models\Task\Task;
 use App\Models\Task\TaskProject;
 use App\Models\LMS\LmsCourseUsers;
@@ -23,6 +24,7 @@ use Livewire\Component;
 class Dashboard extends Component
 {
     use ResolvesTodayAttendanceStatus;
+    use ResyncsOwnAttendance;
     use ResolvesDayScheduleSummary;
 
     /** Bulan yang ditampilkan widget "Jadwal Shift Saya" (Y-m) - state Livewire biasa, bukan

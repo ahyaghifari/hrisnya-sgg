@@ -10,6 +10,7 @@ use App\Enum\Kepegawaian\KepegawaianSettingEnum;
 use App\Enum\UserProfileDocumentType;
 use App\Livewire\Concerns\HandlesProfilePhotoUpload;
 use App\Livewire\Concerns\ResolvesTodayAttendanceStatus;
+use App\Livewire\Concerns\ResyncsOwnAttendance;
 use App\Models\AuditLog;
 use App\Models\Attendance\AttendanceRecords;
 use App\Models\Attendance\AttendanceRequests;
@@ -36,6 +37,7 @@ use Livewire\WithPagination;
 class EmployeeStatistics extends Component
 {
     use ResolvesTodayAttendanceStatus;
+    use ResyncsOwnAttendance;
     use HandlesProfilePhotoUpload;
     use WithFileUploads;
     use WithPagination;
@@ -646,6 +648,26 @@ class EmployeeStatistics extends Component
     /** Pemilik akun selalu boleh; selain itu HC (`sistem_kepegawaian`, dibatasi company sendiri
      * sama seperti EmployeeResource) atau yang bisa lihat lintas company — BUKAN atasan biasa,
      * sekalipun atasan bisa buka Data Diri bawahannya untuk tab lain (lihat canManage()). */
+    public function getIsOwnProfileProperty(): bool
+    {
+        return $this->record->id === Auth::id();
+    }
+
+    /** Tombol "Hitung Ulang Presensi": profil sendiri + rentang terpilih tidak lebih dari RESYNC_MAX_DAYS hari. */
+    public function getCanResyncPeriodProperty(): bool
+    {
+        return $this->isOwnProfile
+            && $this->date_from && $this->date_to && $this->date_from <= $this->date_to
+            && Carbon::parse($this->date_from)->diffInDays(Carbon::parse($this->date_to)) + 1 <= self::RESYNC_MAX_DAYS;
+    }
+
+    public function syncMyPeriod(): void
+    {
+        abort_unless($this->isOwnProfile, 403);
+
+        $this->resyncOwnRange($this->date_from, $this->date_to);
+    }
+
     public function getCanViewAuditHistoryProperty(): bool
     {
         if ($this->record->id === Auth::id()) {

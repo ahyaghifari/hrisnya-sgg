@@ -1,4 +1,4 @@
-@props(['status'])
+@props(['status', 'canSync' => false])
 @php
     // Warna kartu ikut state (lihat ResolvesTodayAttendanceStatus): Libur nasional/tanggal
     // merah = merah, Cuti = biru, Izin Seharian = kuning, normal/izin biasa = hijau. 'plain'
@@ -38,7 +38,7 @@
 
     // Baris ke-2 kartu: tanggal + nama jadwal + detail (jam kerja/target menit), digabung 1
     // baris pakai "·" supaya ringkas - bukan 3 baris terpisah.
-    $subLine = collect([now()->translatedFormat('d F Y'), $status['schedule_name'], $status['schedule_detail']])
+    $subLine = collect([\Carbon\Carbon::parse($status['date'] ?? today())->translatedFormat('d F Y'), $status['schedule_name'], $status['schedule_detail']])
         ->filter()
         ->implode(' · ');
 @endphp
@@ -56,6 +56,15 @@
     di desktop, slide dari bawah di HP) tapi lewat Alpine x-transition karena elemen ini TETAP
     di DOM (x-show toggle display, bukan ditambah/dibuang Livewire @if) - CSS @keyframes/animation
     cuma jalan sekali saat mount, tidak re-trigger tiap dibuka-tutup. --}}
+    {{-- Sync presensi sendiri hari ini (ResyncsOwnAttendance::syncMyToday) - di kiri tombol info
+    kalau tombol info ada, kalau tidak ada nempel di pojok kanan atas. --}}
+    @if ($canSync)
+        <button type="button" wire:click="syncMyToday" wire:loading.attr="disabled" wire:target="syncMyToday" title="Sync presensi hari ini"
+            style="position:absolute;top:12px;right:{{ ($status['attendance_window'] || $extra) ? '44px' : '12px' }};z-index:2;width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,0.2);color:{{ $isPlain ? 'var(--text-heading)' : '#fff' }};border:none;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;font-size:12px;">
+            <i class="fa-solid fa-arrow-rotate-right" wire:loading.class="fa-spin" wire:target="syncMyToday"></i>
+        </button>
+    @endif
+
     @if ($status['attendance_window'] || $extra)
         @php
             $w = $status['attendance_window'];

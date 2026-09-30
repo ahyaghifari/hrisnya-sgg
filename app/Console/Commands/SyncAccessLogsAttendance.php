@@ -10,6 +10,7 @@ use App\Notifications\AttendanceCheckedOut;
 use App\Notifications\AttendanceScanRejected;
 use App\Repositories\Attendance\AttendanceRecordRepository;
 use App\Services\Attendance\AccessLogScheduleReader;
+use App\Services\Attendance\AttendanceResyncService;
 use App\Services\Attendance\Calculators\FixedScheduleCalculator;
 use App\Services\Attendance\Calculators\FlexibleScheduleCalculator;
 use App\Services\Attendance\Calculators\ShiftScheduleCalculator;
@@ -209,14 +210,7 @@ class SyncAccessLogsAttendance extends Command
      */
     private function isGenuineExtraShiftScan(array $entry): bool
     {
-        if (! $entry['check_in']) {
-            return false;
-        }
-
-        $earliestCheckIn = Carbon::createFromFormat('H:i:s', $entry['config']->start_time)
-            ->subMinutes($entry['config']->checkin_buffer_minutes);
-
-        return Carbon::createFromFormat('H:i:s', $entry['check_in'])->gte($earliestCheckIn);
+        return AttendanceResyncService::isGenuineExtraShiftScan($entry);
     }
 
     /**

@@ -16,6 +16,7 @@ use App\Notifications\AttendanceCheckedOut;
 use App\Repositories\Attendance\AttendanceRecordRepository;
 use App\Services\Attendance\AccessLogScheduleReader;
 use App\Services\Attendance\AttendancePeriodResolver;
+use App\Services\Attendance\AttendanceResyncService;
 use App\Services\Attendance\Calculators\FixedScheduleCalculator;
 use App\Services\Attendance\Calculators\FlexibleScheduleCalculator;
 use App\Services\Attendance\Calculators\ShiftScheduleCalculator;
@@ -499,94 +500,10 @@ class RekapPresensiPage extends Component
         return $this->baseUserQuery()->whereKey($userId)->firstOrFail();
     }
 
-    /**
-     * Dua tahap, sama seperti tombol massal tapi untuk 1 karyawan: (1) baca ulang scan access_logs
-     * di rentang itu lalu hitung & simpan lewat calculator jadwalnya (sama dengan runSync(), tanpa
-     * notifikasi push karena ini koreksi manual, bukan presensi baru); (2) hitung ulang jam kerja,
-     * telat, dan pulang cepat baris yang punya jam masuk & pulang (mencakup baris yang tidak punya
-     * scan mentah, mis. dari aplikasi mobile).
-     *
-     * @return array{logs: int, recalculated: int, skipped: int, no_nip: bool}
-     */
+    /** @return array{logs: int, recalculated: int, skipped: int, no_nip: bool} */
     private function resyncUserRange(User $user, string $from, string $to): array
     {
-        $counts = ['logs' => 0, 'recalculated' => 0, 'skipped' => 0, 'no_nip' => ! filled($user->nip)];
-
-        if (! $counts['no_nip']) {
-            $result = app(AccessLogScheduleReader::class)->readAndGroup($from, $to, $user->nip);
-            $repo = app(AttendanceRecordRepository::class);
-            $calculators = [
-                'fixed' => app(FixedScheduleCalculator::class),
-                'flexible' => app(FlexibleScheduleCalculator::class),
-                'shift' => app(ShiftScheduleCalculator::class),
-            ];
-
-            foreach ($calculators as $type => $calculator) {
-                foreach ($calculator->calculate($result['buckets'][$type]) as $r) {
-                    if ($r['user']->id !== $user->id) {
-                        continue;
-                    }
-
-                    $repo->saveCalculatedResult($r, 'access_logs_' . $type);
-                    $counts['logs']++;
-                }
-            }
-        }
-
-        $records = AttendanceRecords::query()
-            ->where('user_id', $user->id)
-            ->whereBetween('date', [$from, $to])
-            ->whereNotNull('check_in_time')
-            ->whereNotNull('check_out_time')
-            ->with('user')
-            ->get();
-
-        foreach ($records as $record) {
-            $this->recalculateRecord($record) ? $counts['recalculated']++ : $counts['skipped']++;
-        }
-
-        return $counts;
-    }
-
-    /** Hitung ulang 1 baris pakai rumus jadwal aslinya; false = dilewati (jadwal tak ketemu/libur/di bawah minimum). */
-    private function recalculateRecord(AttendanceRecords $record): bool
-    {
-        if (! $record->user) {
-            return false;
-        }
-
-        $resolved = app(ScheduleResolver::class)->resolveForUserDate($record->user, $record->date);
-
-        if (! $resolved || ($resolved['is_off_day'] ?? false) || ! isset($resolved['config'])) {
-            return false;
-        }
-
-        $entry = [
-            'check_in' => $record->check_in_time,
-            'check_out' => $record->check_out_time,
-            'config' => $resolved['config'],
-            'schedule' => $resolved['schedule'] ?? null,
-        ];
-
-        $result = match ($resolved['type']) {
-            'fixed' => app(FixedScheduleCalculator::class)->calculate([$entry])[0] ?? null,
-            'flexible' => app(FlexibleScheduleCalculator::class)->calculate([$entry])[0] ?? null,
-            'shift' => app(ShiftScheduleCalculator::class)->calculate([$entry])[0] ?? null,
-            default => null,
-        };
-
-        if (! $result || $result['working_minutes'] === null) {
-            return false;
-        }
-
-        $record->update([
-            'working_minutes' => $result['working_minutes'],
-            'late_minutes' => $result['late_minutes'] ?? 0,
-            'early_leave_minutes' => $result['early_leave_minutes'] ?? 0,
-            'status' => $result['status'] ?? $record->status,
-        ]);
-
-        return true;
+        return app(AttendanceResyncService::class)->resyncUserRange($user, $from, $to);
     }
 
     private function notifyResync(User $user, string $from, string $to, array $counts): void

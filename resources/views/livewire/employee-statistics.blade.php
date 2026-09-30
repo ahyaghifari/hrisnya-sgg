@@ -903,7 +903,7 @@ source (tab server-render sekali jalan, x-show cuma toggle CSS). --}}
     <h3 style="font-size:14px;font-weight:800;color:var(--text-heading);margin-bottom:12px;">Presensi</h3>
 
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;margin-bottom:16px;align-items:stretch;">
-        <x-today-attendance-card :status="$this->todayAttendanceStatus" style="min-height:0;" />
+        <x-today-attendance-card :status="$this->todayAttendanceStatus" :can-sync="$this->isOwnProfile" style="min-height:0;" />
 
         <div class="card-surface">
             <p style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:12px;">Indeks Presensi Periode Ini</p>
@@ -1003,8 +1003,15 @@ source (tab server-render sekali jalan, x-show cuma toggle CSS). --}}
 
         {{-- Kanan: tabel data presensi harian (attendance_records) --}}
         <div class="card-surface-flush">
-            <div style="padding:18px 20px 14px;border-bottom:1px solid var(--border-soft);">
+            <div style="padding:18px 20px 14px;border-bottom:1px solid var(--border-soft);display:flex;align-items:center;justify-content:space-between;gap:10px;">
                 <h4 style="font-size:13.5px;font-weight:700;color:var(--text-heading);margin:0;">Data Presensi</h4>
+                @if ($this->canResyncPeriod)
+                    <button type="button" wire:click="syncMyPeriod" wire:loading.attr="disabled" wire:target="syncMyPeriod"
+                        wire:confirm="Hitung ulang data presensi kamu untuk periode yang dipilih?" class="btn-ghost" style="padding:5px 12px;font-size:11.5px;">
+                        <span wire:loading.remove wire:target="syncMyPeriod">Hitung Ulang Presensi</span>
+                        <span wire:loading wire:target="syncMyPeriod">Memproses...</span>
+                    </button>
+                @endif
             </div>
             <div style="overflow-x:auto;">
                 <table class="data-table">

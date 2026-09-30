@@ -8,8 +8,10 @@ use App\Models\Attendance\AttendanceRecords;
 use App\Models\Attendance\AttendanceRequests;
 use App\Models\Master\Attendance\Holidays;
 use App\Models\Shift\ExtraShiftAssignment;
+use App\Models\Shift\ExtraShiftAttendanceRecord;
 use App\Models\User;
 use App\Services\Attendance\ScheduleResolver;
+use App\Services\Attendance\ShiftAttendanceReader;
 use Carbon\Carbon;
 
 /**
@@ -39,7 +41,80 @@ trait ResolvesTodayAttendanceStatus
      */
     protected function todayAttendanceStatus(User $user, ?AttendanceRecords $attendance = null): array
     {
-        $todayStr = Carbon::today()->toDateString();
+        $date = $this->resolveCardDate($user);
+
+        // $attendance dari pemanggil selalu baris HARI INI - buang kalau kartu lagi nempel ke
+        // shift kemarin (lihat resolveCardDate), biar dimuat ulang sesuai tanggal kartu.
+        if ($attendance && Carbon::parse($attendance->date)->toDateString() !== $date) {
+            $attendance = null;
+        }
+
+        return $this->buildTodayAttendanceStatus($user, $attendance, $date) + ['date' => $date];
+    }
+
+    /**
+     * Tanggal yang dipakai kartu. Biasanya hari ini, TAPI shift malam (is_overnight) kemarin yang
+     * sudah check-in & belum check-out tetap jadi "hari ini" sampai jendela pulangnya habis
+     * (end_time + checkout_buffer besok pagi) - sama dengan aturan AccessLogScheduleReader yang
+     * menyimpan presensi overnight di tanggal MULAI shift dan "meminjam" scan pulang besoknya.
+     * Tanpa ini, lewat tengah malam kartu langsung ganti ke hari baru padahal karyawan masih
+     * dalam shift-nya. Sudah check-out = kartu langsung ganti ke hari ini.
+     */
+    protected function resolveCardDate(User $user): string
+    {
+        $now = now();
+        $today = $now->toDateString();
+        $yesterday = $now->copy()->subDay()->toDateString();
+
+        // "Terbuka" = sudah check-in, belum check-out. Shift normal tersimpan di attendance_records,
+        // extra/double shift di extra_shift_attendance_records (per shift, jadi double shift dengan
+        // jeda bisa punya leg pertama sudah tutup tapi leg extra malam masih terbuka).
+        $normalOpen = AttendanceRecords::where('user_id', $user->id)
+            ->where('date', $yesterday)
+            ->whereNotNull('check_in_time')
+            ->whereNull('check_out_time')
+            ->exists();
+
+        $extra = app(ShiftAttendanceReader::class)->find($user, $yesterday);
+        $extraOpen = $extra?->shiftType?->is_overnight
+            && ExtraShiftAttendanceRecord::where('extra_shift_assignment_id', $extra->id)
+                ->whereNotNull('check_in_time')
+                ->whereNull('check_out_time')
+                ->exists();
+
+        if (! $normalOpen && ! $extraOpen) {
+            return $today;
+        }
+
+        // Shift yang berhak "meminjam" scan pulang hari ini: yang masih terbuka DAN overnight.
+        // Jendela pulangnya ikut yang paling akhir.
+        $overnight = [];
+        if ($normalOpen) {
+            $resolved = app(ScheduleResolver::class)->resolveForUserDate($user, $yesterday);
+            $config = $resolved['config'] ?? null;
+
+            if (($resolved['type'] ?? null) === 'shift' && ! ($resolved['is_off_day'] ?? false) && ($config->is_overnight ?? false)) {
+                $overnight[] = $config;
+            }
+        }
+
+        if ($extraOpen) {
+            $overnight[] = $extra->shiftType;
+        }
+
+        foreach ($overnight as $shift) {
+            $windowEnd = Carbon::parse($today . ' ' . $shift->end_time)->addMinutes((int) $shift->checkout_buffer_minutes);
+
+            if ($now->lt($windowEnd)) {
+                return $yesterday;
+            }
+        }
+
+        return $today;
+    }
+
+    private function buildTodayAttendanceStatus(User $user, ?AttendanceRecords $attendance, string $todayStr): array
+    {
 
         $resolved = app(ScheduleResolver::class)->resolveForUserDate($user, $todayStr);
 
