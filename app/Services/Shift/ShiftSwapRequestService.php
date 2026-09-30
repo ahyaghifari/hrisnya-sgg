@@ -242,27 +242,34 @@ class ShiftSwapRequestService
             );
         }
 
-        // shift_type compatibility (pagi ↔ siang diperbolehkan, malam hanya dengan malam) CUMA
-        // berlaku buat tukar BEDA tanggal (instruksi user 2026-08-20) - tanggal sama cuma nuker
-        // kategori shift di hari yang sama, tidak menggeser hari kerja siapa pun, jadi bebas mau
-        // kombinasi apa saja asal kedua belah pihak setuju.
+        // Durasi jam kerja harus SAMA - CUMA berlaku buat tukar BEDA tanggal (instruksi user
+        // 2026-08-20) - tanggal sama cuma nuker kategori shift di hari yang sama, tidak
+        // menggeser hari kerja siapa pun, jadi bebas mau kombinasi apa saja asal kedua belah
+        // pihak setuju.
+        //
+        // SEBELUMNYA dicek lewat label kategori (pagi/siang boleh saling tukar, malam cuma
+        // sesama malam) - itu cuma kebetulan cocok di jadwal yang durasi Pagi/Siang-nya sama
+        // (mis. NS 2A: Pagi & Siang sama-sama 6 jam, Malam 12 jam) dan tidak generalisir ke
+        // jadwal lain yang durasinya beda. Aturan SEBENARNYA (instruksi user 2026-09-29): tukar
+        // shift harus jam kerjanya SAMA, bukan soal nama kategorinya - dicek dari durasi
+        // start_time-end_time asli (ScheduleShiftType::getDurationMinutesAttribute()), berlaku
+        // buat kategori apa pun termasuk yang belum ada saat ini.
         if ($reqSchedule->date->equalTo($targetSchedule->date)) {
             return;
         }
 
-        $reqType    = $reqSchedule->shiftType?->shift_type;
-        $targetType = $targetSchedule->shiftType?->shift_type;
+        $reqShift    = $reqSchedule->shiftType;
+        $targetShift = $targetSchedule->shiftType;
 
-        $pagiSiang = [\App\Enum\ShiftType::PAGI->value, \App\Enum\ShiftType::SIANG->value];
-        $compatible = (in_array($reqType, $pagiSiang) && in_array($targetType, $pagiSiang))
-            || ($reqType === \App\Enum\ShiftType::MALAM->value && $targetType === \App\Enum\ShiftType::MALAM->value);
+        $reqDuration    = $reqShift?->duration_minutes;
+        $targetDuration = $targetShift?->duration_minutes;
 
-        if (!$reqType || !$targetType || !$compatible) {
-            $reqLabel    = $reqType    ?? 'tidak diketahui';
-            $targetLabel = $targetType ?? 'tidak diketahui';
+        if ($reqDuration === null || $targetDuration === null || $reqDuration !== $targetDuration) {
+            $reqLabel    = $reqShift?->name ?? 'tidak diketahui';
+            $targetLabel = $targetShift?->name ?? 'tidak diketahui';
             throw new \InvalidArgumentException(
-                "Tidak dapat menukar shift {$reqLabel} dengan shift {$targetLabel}. " .
-                'Pagi dan siang dapat saling ditukar. Shift malam hanya bisa ditukar dengan sesama malam.'
+                "Tidak dapat menukar shift {$reqLabel} dengan shift {$targetLabel} - jam kerjanya berbeda. " .
+                'Tukar shift hanya boleh antar shift yang jam kerjanya sama.'
             );
         }
     }

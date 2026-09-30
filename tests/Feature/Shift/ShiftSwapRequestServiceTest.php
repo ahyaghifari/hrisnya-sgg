@@ -73,13 +73,17 @@ class ShiftSwapRequestServiceTest extends TestCase
             'is_overnight' => false,
         ]);
 
+        // Durasi SENGAJA beda dari Pagi/Siang (8 jam) - 10 jam, bukan 8 - biar test kompatibilitas
+        // tukar shift beda tanggal (durasi harus SAMA, lihat ShiftSwapRequestService::
+        // validateScheduleSwapRules()) benar-benar menguji perbedaan durasi, bukan kebetulan sama
+        // 8 jam kayak Pagi/Siang.
         $this->malam = ScheduleShiftType::create([
             'schedule_id' => $schedule->id,
             'code' => 'MALAM',
             'name' => 'Malam',
             'shift_type' => ShiftType::MALAM->value,
             'start_time' => '23:00:00',
-            'end_time' => '07:00:00',
+            'end_time' => '09:00:00',
             'is_overnight' => true,
         ]);
 
@@ -655,8 +659,8 @@ class ShiftSwapRequestServiceTest extends TestCase
         $perawatA = User::factory()->create(['company_id' => $this->company->id]);
         $perawatB = User::factory()->create(['company_id' => $this->company->id]);
 
-        // Pagi <-> Malam tidak boleh ditukar (cuma pagi<->siang atau malam<->malam) - berlaku
-        // buat tanggal BEDA.
+        // Pagi (8 jam) <-> Malam (10 jam) tidak boleh ditukar - durasi jam kerjanya beda, aturan
+        // ini berlaku buat tanggal BEDA (lihat validateScheduleSwapRules()).
         $scheduleA = $this->assignShift($perawatA, $this->pagi, '2026-08-10');
         $scheduleB = $this->assignShift($perawatB, $this->malam, '2026-08-11');
 
@@ -677,7 +681,8 @@ class ShiftSwapRequestServiceTest extends TestCase
         $perawatB = User::factory()->create(['company_id' => $this->company->id]);
 
         // Pagi <-> Malam TETAP boleh kalau tanggalnya SAMA (instruksi user 2026-08-20) - aturan
-        // kompatibilitas kategori shift cuma berlaku buat tukar beda tanggal.
+        // durasi jam kerja harus sama cuma berlaku buat tukar beda tanggal, walau durasinya beda
+        // (8 jam vs 10 jam di sini) tetap boleh asal tanggalnya sama.
         $scheduleA = $this->assignShift($perawatA, $this->pagi, '2026-08-10');
         $scheduleB = $this->assignShift($perawatB, $this->malam, '2026-08-10');
 

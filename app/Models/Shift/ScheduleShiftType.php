@@ -54,4 +54,25 @@ class ScheduleShiftType extends Model
     {
         return $this->belongsTo(Schedule::class, 'schedule_id');
     }
+
+    /** Durasi shift dalam menit (rentang start_time-end_time apa adanya, tanpa dikurangi
+     * break_minutes - ini "jam kerja" yang dimaksud user buat aturan tukar shift, sama dengan
+     * label yang ditampilkan ke karyawan mis. "PAGI 08:00-14:00"). Nambah 1 hari kalau end_time
+     * <= start_time (shift overnight, mis. Malam 20:00-08:00) supaya hasilnya tetap durasi
+     * positif yang benar, bukan negatif. */
+    public function getDurationMinutesAttribute(): ?int
+    {
+        if (! $this->start_time || ! $this->end_time) {
+            return null;
+        }
+
+        $start = \Carbon\Carbon::createFromFormat('H:i:s', $this->start_time);
+        $end = \Carbon\Carbon::createFromFormat('H:i:s', $this->end_time);
+
+        if ($end->lessThanOrEqualTo($start)) {
+            $end->addDay();
+        }
+
+        return $end->diffInMinutes($start);
+    }
 }
