@@ -21,6 +21,50 @@ di sini (tanpa build CSS). display diatur JS (inline none -> flex), jangan diset
     <button type="button" class="pwa-install-banner-later" onclick="pwaDismissInstallBanner()">Nanti</button>
 </div>
 
+{{-- Panduan pasang untuk iPhone/iPad (Safari): iOS tidak punya prompt pasang bawaan seperti Chromium, jadi
+tombol banner membuka panduan ini. Dibuka/ditutup lewat JS (display none <-> flex), wire:ignore supaya tidak di-morph Livewire. --}}
+<div id="pwa-ios-guide" class="modal-overlay" wire:ignore style="display:none;" onclick="pwaCloseIosGuide()">
+    <div class="modal-box" style="max-width:420px;" onclick="event.stopPropagation()">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+            <h3 style="font-size:16px;font-weight:700;color:var(--text-heading);margin:0;">Pasang Aplikasi di iPhone</h3>
+            <button type="button" onclick="pwaCloseIosGuide()" style="background:none;border:none;color:var(--text-faint);cursor:pointer;font-size:16px;padding:4px;" aria-label="Tutup">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+
+        <p id="pwa-ios-guide-warning" style="display:none;font-size:12px;font-weight:600;color:#b45309;background:rgba(217,119,6,0.12);border-radius:8px;padding:8px 10px;margin:0 0 12px;">
+            Anda sedang tidak memakai Safari. Buka halaman ini di Safari dulu agar pemasangan berjalan lancar.
+        </p>
+
+        <ol style="margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:12px;">
+            <li style="display:flex;gap:12px;align-items:flex-start;">
+                <span class="pwa-tile-icon navy" style="flex-shrink:0;"><i class="fa-brands fa-safari"></i></span>
+                <p style="font-size:13px;color:var(--text-heading);margin:2px 0 0;"><strong>1.</strong> Buka halaman ini lewat <strong>Safari</strong>.</p>
+            </li>
+            <li style="display:flex;gap:12px;align-items:flex-start;">
+                <span class="pwa-tile-icon navy" style="flex-shrink:0;"><i class="fa-solid fa-arrow-up-from-bracket"></i></span>
+                <p style="font-size:13px;color:var(--text-heading);margin:2px 0 0;"><strong>2.</strong> Ketuk ikon <strong>Bagikan</strong> (kotak dengan panah ke atas) di bagian bawah layar. Di iPad, ikonnya ada di pojok kanan atas.</p>
+            </li>
+            <li style="display:flex;gap:12px;align-items:flex-start;">
+                <span class="pwa-tile-icon navy" style="flex-shrink:0;"><i class="fa-solid fa-square-plus"></i></span>
+                <p style="font-size:13px;color:var(--text-heading);margin:2px 0 0;"><strong>3.</strong> Gulir menu ke bawah, lalu pilih <strong>Tambah ke Layar Utama</strong>.</p>
+            </li>
+            <li style="display:flex;gap:12px;align-items:flex-start;">
+                <span class="pwa-tile-icon navy" style="flex-shrink:0;"><i class="fa-solid fa-check"></i></span>
+                <p style="font-size:13px;color:var(--text-heading);margin:2px 0 0;"><strong>4.</strong> Ketuk <strong>Tambah</strong> di pojok kanan atas. Ikon HRIS akan muncul di layar utama; buka aplikasi dari sana.</p>
+            </li>
+        </ol>
+
+        <p style="font-size:11px;color:var(--text-faint);margin:14px 0 0;">
+            Notifikasi di iPhone hanya bisa aktif setelah aplikasi dibuka dari ikon di layar utama (butuh iOS 16.4 atau lebih baru).
+        </p>
+
+        <div style="display:flex;justify-content:flex-end;margin-top:14px;">
+            <button type="button" onclick="pwaCloseIosGuide()" class="btn-primary">Mengerti</button>
+        </div>
+    </div>
+</div>
+
 <div id="push-notif-banner" style="display:none;background:var(--info-soft-bg);border:1px solid var(--info-soft-border);border-radius:14px;padding:12px 14px;margin-bottom:16px;align-items:center;gap:12px;">
     <i class="fa-solid fa-bell" style="color:var(--brand);"></i>
     <p style="flex:1;font-size:12.5px;color:var(--text-body);margin:0;">Aktifkan notifikasi agar tahu saat pengajuan Anda disetujui/ditolak.</p>
@@ -83,7 +127,7 @@ di sini (tanpa build CSS). display diatur JS (inline none -> flex), jangan diset
     info Extra/Double Shift kalau jadwalnya tipe Shift dan hari ini kena (instruksi user
     2026-10-16 - dulu kartu "Extra Shift/Double Shift Hari Ini" terpisah di bawahnya, sekarang
     jadi varian warna sky kartu yang sama, lihat today-attendance-card.blade.php). --}}
-    <x-today-attendance-card :status="$this->todayAttendanceStatus" id="absen-section" class="bento-absensi" />
+    <x-today-attendance-card :status="$this->todayAttendanceStatus" :can-sync="true" id="absen-section" class="bento-absensi" />
 
     {{-- Cuti Tahunan + Jumlah Izin + Jumlah Lembur, berdampingan dengan presensi di layar lebar.
     Dua variasi ukuran (LeaveBalanceCard/AttendanceStatCards menghitung style-nya di server lewat
@@ -376,9 +420,11 @@ function pwaShowInstallBanner(mode) {
 
     const installBtn = document.getElementById('pwa-install-btn');
     if (mode === 'ios') {
-        document.getElementById('pwa-install-text').textContent = 'Agar bisa menerima notifikasi dan mudah diakses, pasang aplikasi: ketuk ikon Bagikan di browser, lalu pilih "Tambah ke Layar Utama".';
-        installBtn.style.display = 'none';
+        document.getElementById('pwa-install-text').textContent = 'Agar bisa menerima notifikasi dan mudah diakses, pasang aplikasi ke layar utama iPhone Anda. Ketuk "Cara Pasang" untuk panduannya.';
+        installBtn.textContent = 'Cara Pasang';
+        installBtn.style.display = '';
     } else {
+        installBtn.textContent = 'Pasang';
         installBtn.style.display = '';
     }
     banner.style.display = 'flex';
@@ -389,9 +435,25 @@ function pwaDismissInstallBanner() {
     if (banner) banner.style.display = 'none';
 }
 
+function pwaOpenIosGuide() {
+    // Safari asli: UA iOS tanpa token browser lain. Chrome/Firefox/Edge/Opera iOS (CriOS/FxiOS/EdgiOS/OPiOS)
+    // dapat peringatan buka di Safari.
+    const notSafari = /crios|fxios|edgios|opios|gsa\//i.test(navigator.userAgent);
+    document.getElementById('pwa-ios-guide-warning').style.display = notSafari ? 'block' : 'none';
+    document.getElementById('pwa-ios-guide').style.display = 'flex';
+}
+
+function pwaCloseIosGuide() {
+    document.getElementById('pwa-ios-guide').style.display = 'none';
+}
+
 async function pwaInstallApp() {
     const promptEvent = window.__pwaInstallPrompt;
-    if (! promptEvent) return;
+    if (! promptEvent) {
+        // Tidak ada prompt bawaan (iOS) -> buka panduan manual.
+        if (pwaIsIos()) pwaOpenIosGuide();
+        return;
+    }
 
     promptEvent.prompt();
     await promptEvent.userChoice;
