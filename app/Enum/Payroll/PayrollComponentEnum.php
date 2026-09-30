@@ -135,7 +135,7 @@ enum PayrollComponentEnum: string
             self::GAJI_POKOK => ['gaji_pokok_kenaikan_per_kelas'],
             self::BPJS_KESEHATAN, self::BPJS_KETENAGAKERJAAN => ['bpjs_declared_value'],
             self::KETERLAMBATAN => ['keterlambatan_threshold_menit', 'keterlambatan_denda', 'keterlambatan_grace_count'],
-            self::IZIN_TERLAMBAT_PULANG_CEPAT => ['izin_potongan_flat'],
+            self::IZIN_TERLAMBAT_PULANG_CEPAT => ['izin_potongan_flat', 'izin_potongan_per_jam'],
             self::INSENTIF => ['insentif_metode'],
             self::LEMBUR => ['lembur_minimum_jam', 'lembur_metode'],
             self::IZIN_SEHARIAN => ['izin_seharian_metode', 'izin_seharian_persen_gaji_pokok'],

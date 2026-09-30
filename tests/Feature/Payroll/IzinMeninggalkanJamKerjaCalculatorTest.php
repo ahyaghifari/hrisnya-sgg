@@ -24,10 +24,16 @@ class IzinMeninggalkanJamKerjaCalculatorTest extends TestCase
 {
     use RefreshDatabase;
 
-    private function makeApprovedIzin(User $user, string $companyId, string $category, string $date): void
+    private function makeApprovedIzin(User $user, string $companyId, string $category, string $date, ?string $startTime = null, ?string $endTime = null): void
     {
         $request = AttendanceRequests::create(['user_id' => $user->id, 'type' => 'permission', 'status' => AttendanceReqStatus::APPROVED->value]);
-        AttendanceRequestPermissionDetails::create(['request_id' => $request->id, 'category' => $category, 'date' => $date]);
+        AttendanceRequestPermissionDetails::create([
+            'request_id' => $request->id,
+            'category' => $category,
+            'date' => $date,
+            'start_time' => $startTime,
+            'end_time' => $endTime,
+        ]);
     }
 
     public function test_charges_flat_amount_per_occurrence(): void
@@ -112,6 +118,70 @@ class IzinMeninggalkanJamKerjaCalculatorTest extends TestCase
         (new IzinMeninggalkanJamKerjaCalculator())->calculate($user, $payroll, $period, $context);
 
         // Cuma 1 kejadian (14 Mei) yang kehitung, 25 Mei di luar window 21 Apr - 20 Mei.
+        $this->assertSame(10_000.0, $context->totalDeductions);
+    }
+
+    /** izin_potongan_per_jam=true - rate dikali jumlah jam izin (dari start_time/end_time),
+     * bukan flat per kejadian lagi. Unit bisnis yang hitungnya kelipatan jam (instruksi user
+     * 2026-09-29/30). */
+    public function test_multiplies_by_hours_when_per_jam_setting_enabled(): void
+    {
+        $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
+        Setting::create(['company_id' => $company->id, 'key' => 'izin_potongan_flat', 'module' => 'payroll', 'type' => 'decimal', 'value' => '10000', 'label' => 'x']);
+        Setting::create(['company_id' => $company->id, 'key' => 'izin_potongan_per_jam', 'module' => 'payroll', 'type' => 'boolean', 'value' => '1', 'label' => 'x']);
+
+        $user = User::factory()->create(['company_id' => $company->id]);
+        $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
+        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+
+        // Izin 2 jam (10:00-12:00) - 10.000 x 2 jam = 20.000, bukan flat 10.000.
+        $this->makeApprovedIzin($user, $company->id, PermissionTypeCategoryEnum::IZIN_MENINGGALKAN_JAM_KERJA->value, '2026-07-05', '10:00:00', '12:00:00');
+
+        $context = new PayrollContext();
+        (new IzinMeninggalkanJamKerjaCalculator())->calculate($user, $payroll, $period, $context);
+
+        $this->assertSame(20_000.0, $context->totalDeductions);
+    }
+
+    /** 2 kejadian beda durasi digabung jamnya, bukan cuma dihitung kejadian - 2 jam + 1 jam = 3 jam. */
+    public function test_sums_hours_across_multiple_occurrences_when_per_jam_enabled(): void
+    {
+        $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
+        Setting::create(['company_id' => $company->id, 'key' => 'izin_potongan_flat', 'module' => 'payroll', 'type' => 'decimal', 'value' => '10000', 'label' => 'x']);
+        Setting::create(['company_id' => $company->id, 'key' => 'izin_potongan_per_jam', 'module' => 'payroll', 'type' => 'boolean', 'value' => '1', 'label' => 'x']);
+
+        $user = User::factory()->create(['company_id' => $company->id]);
+        $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
+        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+
+        $this->makeApprovedIzin($user, $company->id, PermissionTypeCategoryEnum::IZIN_TERLAMBAT_MASUK->value, '2026-07-05', '07:00:00', '09:00:00');
+        $this->makeApprovedIzin($user, $company->id, PermissionTypeCategoryEnum::IZIN_PULANG_CEPAT->value, '2026-07-10', '15:00:00', '16:00:00');
+
+        $context = new PayrollContext();
+        (new IzinMeninggalkanJamKerjaCalculator())->calculate($user, $payroll, $period, $context);
+
+        // (2 jam + 1 jam) x 10.000 = 30.000.
+        $this->assertSame(30_000.0, $context->totalDeductions);
+    }
+
+    /** izin_potongan_per_jam default/false - berapa jam pun izinnya, tetap flat (perilaku lama
+     * tidak berubah kalau setting ini tidak diaktifkan). */
+    public function test_stays_flat_regardless_of_hours_when_per_jam_setting_disabled(): void
+    {
+        $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
+        Setting::create(['company_id' => $company->id, 'key' => 'izin_potongan_flat', 'module' => 'payroll', 'type' => 'decimal', 'value' => '10000', 'label' => 'x']);
+        // izin_potongan_per_jam TIDAK dibuat sama sekali - default Setting::resolve() = false.
+
+        $user = User::factory()->create(['company_id' => $company->id]);
+        $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
+        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+
+        // Izin 4 jam - tetap 10.000 flat, bukan 40.000.
+        $this->makeApprovedIzin($user, $company->id, PermissionTypeCategoryEnum::IZIN_MENINGGALKAN_JAM_KERJA->value, '2026-07-05', '09:00:00', '13:00:00');
+
+        $context = new PayrollContext();
+        (new IzinMeninggalkanJamKerjaCalculator())->calculate($user, $payroll, $period, $context);
+
         $this->assertSame(10_000.0, $context->totalDeductions);
     }
 

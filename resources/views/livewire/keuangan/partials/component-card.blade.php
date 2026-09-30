@@ -84,6 +84,11 @@
                                 <option value="per_komponen">Per Komponen (prorate Tunjangan/Insentif/Jasa Pelayanan)</option>
                                 <option value="thp">THP (1 baris potongan dari selisih Take Home Pay)</option>
                             </select>
+                        @elseif ($key === 'izin_potongan_per_jam')
+                            <label class="custom-checkbox" style="margin-top:4px;">
+                                <input type="checkbox" wire:model="settingValues.{{ $key }}" value="1" @checked(($settingValues[$key] ?? '0') === '1')>
+                                <span class="box"><i class="fa-solid fa-check"></i></span>
+                            </label>
                         @else
                             <input type="{{ $inputType($meta?->type) }}" step="0.01" class="form-input" style="font-size:12px;padding:7px 10px;" wire:model="settingValues.{{ $key }}">
                         @endif
