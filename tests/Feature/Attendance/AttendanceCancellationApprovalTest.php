@@ -154,16 +154,50 @@ class AttendanceCancellationApprovalTest extends TestCase
         $this->assertDatabaseHas('attendance_records', ['source_request_id' => $request->id, 'status' => 'leave']);
     }
 
-    public function test_cannot_request_cancellation_without_flow_configured(): void
+    public function test_without_cancellation_flow_falls_back_to_first_approver_of_original_request(): void
     {
         MasterApprovalFlows::where('module', 'attendance_request_cancellation')->delete();
 
+        // Alur pengajuan asli dibuat 2 step (approver, lalu manager) - pembatalan cukup step pertama.
+        $manager = User::factory()->create(['company_id' => $this->company->id]);
+        $leaveFlow = MasterApprovalFlows::where('module', 'attendance_request')->firstOrFail();
+        $leaveFlow->steps()->update(['is_final' => false]);
+        MasterApprovalFlowSteps::create([
+            'flow_id' => $leaveFlow->id,
+            'step_order' => 2,
+            'approver_type' => 'user',
+            'approver_ref_id' => $manager->id,
+            'approval_mode' => 'any',
+            'scope_type' => 'global',
+            'is_final' => true,
+        ]);
+
         $employee = User::factory()->create(['company_id' => $this->company->id]);
-        $request = $this->approvedLeave($employee, now()->addDays(31)->toDateString());
+        $start = now()->addDays(31)->toDateString();
 
-        $this->expectException(\RuntimeException::class);
+        app(AttendaceReqService::class)->storeLeaveRequest([
+            'type_id' => LeaveTypeCategoryEnum::TAHUNAN->value,
+            'is_one_day' => true,
+            'start_date' => $start,
+            'end_date' => $start,
+        ], $employee, createdBy: $employee);
+        $request = AttendanceRequests::where('user_id', $employee->id)->firstOrFail();
+        $flowService = app(ApprovalFlowService::class);
+        $flowService->advanceStep($request->approvalSnapshot, $this->approver->id, 'OK', 'approved');
+        $flowService->advanceStep($request->approvalSnapshot->fresh(), $manager->id, 'OK', 'approved');
+        $request = $request->fresh();
+        $this->assertSame('approved', $request->status);
 
-        app(AttendanceCancellationService::class)->requestCancellation($request, $employee, 'Coba batal');
+        $cancellation = app(AttendanceCancellationService::class)->requestCancellation($request, $employee, 'Coba batal');
+
+        $snapshot = \App\Models\ApprovalManagement\ApprovalSnapshots::where('module_type', 'attendance_request_cancellation')
+            ->where('module_id', $cancellation->id)->firstOrFail();
+        $this->assertCount(1, $snapshot->steps_snapshot);
+        $this->assertSame($this->approver->id, $snapshot->steps_snapshot[0]['approver_ref_id']);
+
+        // Approver pertama saja sudah cukup menyetujui pembatalan.
+        $flowService->advanceStep($snapshot, $this->approver->id, 'Silakan batal', 'approved');
+        $this->assertDatabaseHas('attendance_requests', ['id' => $request->id, 'status' => 'cancelled']);
     }
 
     public function test_cannot_request_cancellation_after_cutoff(): void

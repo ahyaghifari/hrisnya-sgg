@@ -3,6 +3,7 @@
 namespace App\Services\Attendance;
 
 use App\Enum\Approval\ApprovalModuleEnum;
+use App\Models\ApprovalManagement\MasterApprovalFlows;
 use App\Models\Attendance\AttendanceRequestCancellations;
 use App\Models\Attendance\AttendanceRequests;
 use App\Models\User;
@@ -62,10 +63,32 @@ class AttendanceCancellationService
                 userId: $requester->id,
             );
 
+            // Tidak ada alur pembatalan di master -> default: cukup approver PERTAMA dari alur
+            // pengajuan aslinya (mis. cuti: Supervisor lalu Manager -> batal cukup Supervisor).
+            $prependSteps = [];
             if (! $masterFlow) {
-                throw new \RuntimeException(
-                    'Tidak ada alur persetujuan aktif untuk pembatalan cuti/izin di perusahaan ini. Hubungi admin.'
-                );
+                $original = $record->approvalSnapshot;
+                $first = collect($original?->steps_snapshot)->sortBy('order')->first();
+                $originalFlow = $original ? MasterApprovalFlows::find($original->flow_id) : null;
+
+                if (! $first || ! $originalFlow) {
+                    throw new \RuntimeException(
+                        'Tidak ada alur persetujuan pembatalan cuti/izin dan approver pengajuan asli tidak ditemukan. Hubungi admin.'
+                    );
+                }
+
+                // Step sudah dibekukan di snapshot asli (supervisor sudah jadi job_position) - dipakai apa adanya.
+                // Flow disalin TANPA steps (tidak disimpan) supaya hanya step pertama itu yang jadi alur.
+                $masterFlow = $originalFlow->replicate();
+                $masterFlow->id = $originalFlow->id;
+                $masterFlow->name = 'Pembatalan (default: approver pertama pengajuan asli)';
+                $masterFlow->setRelation('steps', collect());
+                $prependSteps = [[
+                    'approver_type' => $first['approver_type'],
+                    'approver_ref_id' => $first['approver_ref_id'],
+                    'scope_type' => $first['scope_type'] ?? null,
+                    'scope_ref_id' => $first['scope_ref_id'] ?? null,
+                ]];
             }
 
             $this->approvalCreationService->createSnapshot(
@@ -75,6 +98,7 @@ class AttendanceCancellationService
                 createdBy: $requester->id,
                 companyId: $requester->company_id,
                 userId: $requester->id,
+                prependSteps: $prependSteps,
             );
 
             return $cancellation;
