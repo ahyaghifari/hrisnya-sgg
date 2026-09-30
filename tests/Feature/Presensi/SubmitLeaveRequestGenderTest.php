@@ -33,13 +33,30 @@ class SubmitLeaveRequestGenderTest extends TestCase
         return $user;
     }
 
-    public function test_female_sees_all_leave_types(): void
+    /** Cuti Haid DIMATIKAN sementara dari dropdown (instruksi user 2026-09-30) - tidak ikut
+     * muncul di sini walau karyawannya perempuan. Lihat SubmitLeaveRequest::getLeaveTypesProperty(). */
+    public function test_female_sees_all_leave_types_except_haid(): void
     {
         $this->loginAs('perempuan');
 
         $names = Livewire::test(SubmitLeaveRequest::class)->get('leaveTypes')->map(fn ($t) => $t->label());
 
-        $this->assertEqualsCanonicalizing(['Cuti Tahunan', 'Cuti Haid', 'Cuti Melahirkan', 'Cuti Keguguran'], $names->all());
+        $this->assertEqualsCanonicalizing(['Cuti Tahunan', 'Cuti Melahirkan', 'Cuti Keguguran'], $names->all());
+    }
+
+    /** Cuti Haid ditolak di server juga, bukan cuma disembunyikan dari dropdown - jaga-jaga
+     * request yang di-craft manual (pola sama dengan guard female-only). */
+    public function test_haid_is_rejected_even_for_female(): void
+    {
+        $this->loginAs('perempuan');
+        $haid = LeaveTypeCategoryEnum::HAID;
+
+        Livewire::test(SubmitLeaveRequest::class)
+            ->set('leave_type', $haid->value)
+            ->set('start_date', now()->toDateString())
+            ->call('submit');
+
+        $this->assertDatabaseCount('attendance_requests', 0);
     }
 
     public function test_male_does_not_see_female_only_leave_types(): void
@@ -67,10 +84,12 @@ class SubmitLeaveRequestGenderTest extends TestCase
     public function test_special_leave_requires_attachment(): void
     {
         $this->loginAs('perempuan');
-        $haid = LeaveTypeCategoryEnum::HAID;
+        // Keguguran dipakai sebagai contoh "cuti khusus" di sini (bukan Haid - lagi dimatikan
+        // sementara, lihat test_haid_is_rejected_even_for_female).
+        $keguguran = LeaveTypeCategoryEnum::KEGUGURAN;
 
         $component = Livewire::test(SubmitLeaveRequest::class)
-            ->set('leave_type', $haid->value)
+            ->set('leave_type', $keguguran->value)
             ->set('start_date', now()->toDateString());
 
         $this->assertTrue($component->get('requiresAttachment'));

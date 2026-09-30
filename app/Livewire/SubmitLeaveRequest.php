@@ -56,6 +56,14 @@ class SubmitLeaveRequest extends Component
 
         return collect(LeaveTypeCategoryEnum::cases())
             ->reject(function (LeaveTypeCategoryEnum $cat) use ($isFemale, $windowOpen, $tenureMet) {
+                // Cuti Haid DIMATIKAN sementara dari pengajuan (instruksi user 2026-09-30, sehari
+                // sebelum HRIS efektif dipakai) - enum/kuota/payroll (CutiCalculator dkk) TIDAK
+                // disentuh, cuma disembunyikan dari dropdown pengajuan. Hapus baris ini kalau
+                // sudah boleh diaktifkan lagi.
+                if ($cat === LeaveTypeCategoryEnum::HAID) {
+                    return true;
+                }
+
                 // Cuti haid/melahirkan/keguguran cuma buat karyawan perempuan.
                 if ($cat->isFemaleOnly() && ! $isFemale) {
                     return true;
@@ -211,6 +219,17 @@ class SubmitLeaveRequest extends Component
         if ($cat?->isFemaleOnly() && Auth::user()->profile?->gender !== 'perempuan') {
             Notification::make()
                 ->title('Jenis cuti ini hanya untuk karyawan perempuan.')
+                ->danger()
+                ->send();
+
+            return;
+        }
+
+        // Cuti Haid DIMATIKAN sementara (instruksi user 2026-09-30) - dropdown sudah tidak
+        // menampilkannya, dicek ulang di sini biar tidak bisa lolos lewat request yang di-craft.
+        if ($cat === LeaveTypeCategoryEnum::HAID) {
+            Notification::make()
+                ->title('Cuti Haid sedang dinonaktifkan sementara.')
                 ->danger()
                 ->send();
 

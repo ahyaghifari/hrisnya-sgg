@@ -2,17 +2,24 @@
 
 namespace App\Enum\Attendance;
 
+use App\Enum\Attendance\Concerns\HasCompanyLabelOverride;
+
 /**
  * Jenis Izin - tetap & sama untuk semua perusahaan (tabel master m_permission_types dihapus
  * 2026-09-20). Nilai enum = key yang dikirim form/API (`type_id`); yang disimpan di
  * attendance_req_permission_details adalah label-nya (`permission_type`) + `category`.
  *
- * Kelompok Meninggalkan Jam Kerja (3 jenis) & Khusus (8 jenis) dipilih user di level 2 form;
+ * Kelompok Meninggalkan Jam Kerja (3 jenis) & Khusus (9 jenis) dipilih user di level 2 form;
  * Tidak Masuk & Sakit flat (tanpa level 2) tapi tetap punya case di sini supaya API/`type_id`
  * seragam dan nama jenis yang tersimpan konsisten ("Izin Tidak Masuk", "Izin Sakit").
+ *
+ * KELUARGA_INTI_SAKIT company-restricted (2 company override, lihat HasCompanyLabelOverride) -
+ * instruksi user 2026-09-30, disaring di forGroup().
  */
 enum PermissionTypeEnum: string
 {
+    use HasCompanyLabelOverride;
+
     // Meninggalkan Jam Kerja
     case TERLAMBAT = 'terlambat';
     case PULANG_CEPAT = 'pulang_cepat';
@@ -31,9 +38,25 @@ enum PermissionTypeEnum: string
     case KHITAN_BAPTIS_ANAK = 'khitan_baptis_anak';
     case MUSIBAH = 'musibah';
     case IBADAH_HAJI = 'ibadah_haji';
+    case KELUARGA_INTI_SAKIT = 'keluarga_inti_sakit';
 
-    public function label(): string
+    /** $companyId null = label default (semua company lain). 2 company override (lihat
+     * HasCompanyLabelOverride) pakai penamaan sendiri buat Tidak Masuk/Sakit - instruksi user
+     * 2026-09-30. */
+    public function label(?string $companyId = null): string
     {
+        if (self::usesLabelOverride($companyId)) {
+            $override = match ($this) {
+                self::TIDAK_MASUK => 'Izin Tidak Masuk / Sakit tanpa surat',
+                self::SAKIT => 'Izin Sakit Bersurat',
+                default => null,
+            };
+
+            if ($override !== null) {
+                return $override;
+            }
+        }
+
         return match ($this) {
             self::TERLAMBAT => 'Izin Terlambat',
             self::PULANG_CEPAT => 'Izin Pulang Lebih Awal',
@@ -48,6 +71,7 @@ enum PermissionTypeEnum: string
             self::KHITAN_BAPTIS_ANAK => 'Izin Mengkhitankan/Membaptiskan Anak',
             self::MUSIBAH => 'Izin Musibah',
             self::IBADAH_HAJI => 'Izin Ibadah Haji',
+            self::KELUARGA_INTI_SAKIT => 'Izin Keluarga Inti Sakit',
         };
     }
 
@@ -82,20 +106,33 @@ enum PermissionTypeEnum: string
             self::KELUARGA_SERUMAH_MENINGGAL => 'Anggota keluarga yang tinggal serumah (di luar suami/istri/ortu/anak) meninggal - 2 hari kerja.',
             self::MUSIBAH => 'Kebakaran, kebanjiran, atau musibah lain yang menimpa karyawan - lama izin atas pertimbangan pimpinan perusahaan, tidak ada jumlah hari baku. Isi tanggal sesuai kesepakatan dengan atasan/HC.',
             self::IBADAH_HAJI => 'Sesuai durasi ibadah haji ditambah 2 hari sebelum keberangkatan dan 2 hari setelah tiba kembali di tanah air. Isi tanggal mulai/selesai sesuai jadwal keberangkatan-kepulangan yang sebenarnya.',
+            self::KELUARGA_INTI_SAKIT => 'Suami/istri, orang tua, atau anak sah karyawan sakit - tidak ada jumlah hari baku, lama izin atas pertimbangan atasan/HC. Lampirkan surat rawat/keterangan dokter.',
             default => null,
         };
     }
 
+    /** Jenis yang cuma boleh dipilih 2 company override (lihat HasCompanyLabelOverride) -
+     * instruksi user 2026-09-30. */
+    public function isCompanyRestricted(): bool
+    {
+        return $this === self::KELUARGA_INTI_SAKIT;
+    }
+
     /**
-     * Pilihan level 2 sebuah kelompok (Meninggalkan Jam Kerja / Khusus).
+     * Pilihan level 2 sebuah kelompok (Meninggalkan Jam Kerja / Khusus). $companyId dipakai
+     * buat nyaring jenis yang company-restricted (KELUARGA_INTI_SAKIT).
      *
      * @return array<int, self>
      */
-    public static function forGroup(PermissionGroupEnum $group): array
+    public static function forGroup(PermissionGroupEnum $group, ?string $companyId = null): array
     {
         $categories = $group->categories();
 
-        return array_values(array_filter(self::cases(), fn (self $t) => in_array($t->category(), $categories, true)));
+        return array_values(array_filter(
+            self::cases(),
+            fn (self $t) => in_array($t->category(), $categories, true)
+                && (! $t->isCompanyRestricted() || self::usesLabelOverride($companyId))
+        ));
     }
 
     /** Jenis dari label yang tersimpan di detail pengajuan (`permission_type`), null kalau data lama/custom. */

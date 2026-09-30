@@ -176,6 +176,11 @@ class SpecialLeaveQuotaTest extends TestCase
 
     public function test_menstrual_leave_monthly_accumulation_is_blocked(): void
     {
+        // Cuti Haid DIMATIKAN sementara dari pengajuan (instruksi user 2026-09-30) -
+        // SubmitLeaveRequest::submit() menolak kategori ini duluan sebelum sempat kena cek kuota
+        // di sini. Aktifkan lagi test ini begitu Cuti Haid dinyalakan kembali.
+        $this->markTestSkipped('Cuti Haid dimatikan sementara dari pengajuan (instruksi user 2026-09-30).');
+
         $user = $this->femaleUser();
         $type = $this->leaveType(LeaveTypeCategoryEnum::HAID, 2);
         $monthStart = now()->firstOfMonth();
@@ -191,6 +196,10 @@ class SpecialLeaveQuotaTest extends TestCase
 
     public function test_menstrual_leave_next_month_resets(): void
     {
+        // Cuti Haid DIMATIKAN sementara dari pengajuan (instruksi user 2026-09-30) - lihat
+        // catatan di test_menstrual_leave_monthly_accumulation_is_blocked().
+        $this->markTestSkipped('Cuti Haid dimatikan sementara dari pengajuan (instruksi user 2026-09-30).');
+
         $user = $this->femaleUser();
         $type = $this->leaveType(LeaveTypeCategoryEnum::HAID, 2);
         $monthStart = now()->firstOfMonth();

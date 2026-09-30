@@ -2,6 +2,8 @@
 
 namespace App\Enum\Attendance;
 
+use App\Enum\Attendance\Concerns\HasCompanyLabelOverride;
+
 /**
  * 4 kelompok besar Izin yang dipilih user di level 1 form pengajuan (`SubmitPermissionRequest`).
  * Konsep grouping ini murni UI, bukan kolom database - jenis izin (PermissionTypeEnum) tetap flat,
@@ -10,13 +12,30 @@ namespace App\Enum\Attendance;
  */
 enum PermissionGroupEnum: string
 {
+    use HasCompanyLabelOverride;
+
     case MENINGGALKAN_JAM_KERJA = 'meninggalkan_jam_kerja';
     case TIDAK_MASUK_SEHARIAN = 'tidak_masuk_seharian';
     case SAKIT = 'sakit';
     case KHUSUS = 'khusus';
 
-    public function label(): string
+    /** $companyId null = label default (semua company lain). 2 company override (lihat
+     * HasCompanyLabelOverride) pakai penamaan sendiri buat Tidak Masuk/Sakit - instruksi user
+     * 2026-09-30. */
+    public function label(?string $companyId = null): string
     {
+        if (self::usesLabelOverride($companyId)) {
+            $override = match ($this) {
+                self::TIDAK_MASUK_SEHARIAN => 'Izin Tidak Masuk / Sakit tanpa surat',
+                self::SAKIT => 'Izin Sakit Bersurat',
+                default => null,
+            };
+
+            if ($override !== null) {
+                return $override;
+            }
+        }
+
         return match ($this) {
             self::MENINGGALKAN_JAM_KERJA => 'Izin Meninggalkan Jam Kerja',
             self::TIDAK_MASUK_SEHARIAN => 'Izin Tidak Masuk',

@@ -43,10 +43,13 @@ class SubmitPermissionRequest extends Component
         abort_if(Auth::user()->canBrowseAllCompanies(), 403);
     }
 
-    /** 4 kelompok level 1 - grouping ini konsep UI, bukan data (lihat PermissionGroupEnum). */
+    /** 4 kelompok level 1 - grouping ini konsep UI, bukan data (lihat PermissionGroupEnum).
+     * Label Tidak Masuk/Sakit beda buat 2 company tertentu (instruksi user 2026-09-30). */
     public function getKelompokOptionsProperty(): array
     {
-        return collect(PermissionGroupEnum::cases())->mapWithKeys(fn ($g) => [$g->value => $g->label()])->all();
+        $companyId = Auth::user()->company_id;
+
+        return collect(PermissionGroupEnum::cases())->mapWithKeys(fn ($g) => [$g->value => $g->label($companyId)])->all();
     }
 
     /** AttendanceSettingEnum::KETERANGAN_CUTI_IZIN_WAJIB - company-scoped, default OFF. Ditampilkan
@@ -84,7 +87,7 @@ class SubmitPermissionRequest extends Component
             return [];
         }
 
-        return PermissionTypeEnum::forGroup($group);
+        return PermissionTypeEnum::forGroup($group, Auth::user()->company_id);
     }
 
     /** Jenis izin (level 2) yang lagi dipilih - dipakai blade buat tampilkan `description` di
@@ -221,7 +224,7 @@ class SubmitPermissionRequest extends Component
             // Meninggalkan Jam Kerja & Khusus memilih jenis level 2 (permission_type, harus milik
             // kelompoknya) - kelompok flat (Tidak Masuk Seharian, Sakit) auto-set `category` sendiri.
             'permission_type' => $butuhMaster
-                ? ['required', Rule::in(array_map(fn (PermissionTypeEnum $t) => $t->value, $group ? PermissionTypeEnum::forGroup($group) : []))]
+                ? ['required', Rule::in(array_map(fn (PermissionTypeEnum $t) => $t->value, $group ? PermissionTypeEnum::forGroup($group, Auth::user()->company_id) : []))]
                 : ['nullable'],
             'category' => [$butuhMaster ? 'nullable' : 'required', 'string'],
             'date' => ['required', 'date'],

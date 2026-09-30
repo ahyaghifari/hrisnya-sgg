@@ -752,8 +752,12 @@ class AttendaceReqService
         // Diresolusi sebelum blok flow karena `category` menentukan ember alur persetujuan.
         $permissionType = !empty($data['type_id']) ? PermissionTypeEnum::from($data['type_id']) : null;
         $category = $permissionType?->category()->value ?? ($data['category'] ?? null);
-        $permissionTypeName = $permissionType?->label()
-            ?? PermissionTypeEnum::firstForCategory($category)?->label()
+        // Label 2 company override (RSU Syifa Medika Banjarbaru/Barabai) tersimpan APA ADANYA di
+        // permission_type - instruksi user 2026-09-30. `category` di atas TIDAK terpengaruh sama
+        // sekali (ditentukan dari identitas enum case, bukan teks label), jadi aman terhadap
+        // payroll/approval yang membaca category, bukan permission_type.
+        $permissionTypeName = $permissionType?->label($actingUser->company_id)
+            ?? PermissionTypeEnum::firstForCategory($category)?->label($actingUser->company_id)
             ?? ($category ? PermissionTypeCategoryEnum::tryFrom($category)?->label() : null);
 
         $masterFlow = null;
