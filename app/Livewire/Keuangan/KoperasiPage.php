@@ -5,6 +5,7 @@ namespace App\Livewire\Keuangan;
 use App\Enum\CustomPermissionEnum;
 use App\Enum\Payroll\PayrollComponentEnum;
 use App\Exports\Payroll\KoperasiExport;
+use App\Imports\Payroll\KoperasiImport;
 use App\Livewire\Concerns\GatesCompanyFilterBySystem;
 use App\Models\Master\Companies;
 use App\Models\Payroll\PayrollComponentRecipient;
@@ -15,6 +16,7 @@ use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
+use Livewire\WithFileUploads;
 use Maatwebsite\Excel\Facades\Excel;
 
 /**
@@ -28,6 +30,7 @@ use Maatwebsite\Excel\Facades\Excel;
 class KoperasiPage extends Component
 {
     use GatesCompanyFilterBySystem;
+    use WithFileUploads;
 
     public ?string $companyId = null;
     public string $search = '';
@@ -37,6 +40,10 @@ class KoperasiPage extends Component
     public bool $showAddModal = false;
     public ?string $addUserId = null;
     public ?string $addAmount = null;
+
+    public bool $showImportModal = false;
+    public $importFile = null;
+    public array $importErrors = [];
 
     public bool $showEditModal = false;
     public array $editingIds = [];
@@ -258,6 +265,40 @@ class KoperasiPage extends Component
             ->title('Anggota koperasi dihapus')
             ->success()
             ->send();
+    }
+
+    public function openImportModal(): void
+    {
+        abort_unless(Auth::user()->can('create', UserKoperasi::class) && Auth::user()->can('update', UserKoperasi::class), 403);
+
+        $this->reset('importFile', 'importErrors');
+        $this->resetErrorBag();
+        $this->showImportModal = true;
+    }
+
+    public function closeImportModal(): void
+    {
+        $this->showImportModal = false;
+    }
+
+    public function import(): void
+    {
+        abort_unless(Auth::user()->can('create', UserKoperasi::class) && Auth::user()->can('update', UserKoperasi::class), 403);
+        $this->lockCompanyIdUnlessAllowed(CustomPermissionEnum::SISTEM_KEUANGAN);
+
+        $this->validate(['importFile' => 'required|file|mimes:xlsx,xls,csv|max:5120'], [], ['importFile' => 'file']);
+
+        $import = new KoperasiImport($this->companyId);
+        Excel::import($import, $this->importFile->getRealPath());
+
+        $this->importErrors = $import->errors;
+        $this->importFile = null;
+
+        $notification = Notification::make()
+            ->title("Import selesai: {$import->created} ditambah, {$import->updated} diperbarui")
+            ->body($import->errors ? count($import->errors) . ' baris dilewati (lihat daftar).' : 'Akan ikut ke payroll mulai Generate/Regenerate berikutnya.');
+
+        $import->errors ? $notification->warning()->send() : $notification->success()->send();
     }
 
     public function export()

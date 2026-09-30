@@ -20,6 +20,11 @@
                     <button type="button" wire:click="export" wire:loading.attr="disabled" wire:target="export" class="btn-ghost" style="padding:9px 16px;font-size:12.5px;">
                         <i class="fa-solid fa-file-excel"></i> Export
                     </button>
+                    @if ($this->canCreateKoperasi && $this->canUpdateKoperasi)
+                        <button type="button" wire:click="openImportModal" class="btn-ghost" style="padding:9px 16px;font-size:12.5px;">
+                            <i class="fa-solid fa-file-import"></i> Import
+                        </button>
+                    @endif
                     @if ($this->canCreateKoperasi)
                         <button type="button" wire:click="openAddModal" class="btn-primary" style="padding:9px 18px;font-size:12.5px;">
                             <i class="fa-solid fa-plus"></i> Tambah Anggota Koperasi
@@ -42,7 +47,10 @@
                     <thead>
                         <tr style="border-bottom:1.5px solid var(--border);">
                             <th style="text-align:left;padding:10px 14px;width:36px;">
-                                <input type="checkbox" wire:click="toggleSelectAll($event.target.checked)">
+                                <span class="custom-checkbox" style="--accent:#042c6c;">
+                                    <input type="checkbox" wire:click="toggleSelectAll($event.target.checked)">
+                                    <span class="box"><i class="fa-solid fa-check"></i></span>
+                                </span>
                             </th>
                             <th style="text-align:left;padding:10px 14px;white-space:nowrap;">Nama</th>
                             <th style="text-align:left;padding:10px 14px;white-space:nowrap;">NIP</th>
@@ -55,7 +63,10 @@
                         @forelse ($this->members as $member)
                             <tr wire:key="'koperasi-'.{{ $member->id }}" style="border-bottom:1px solid var(--border-soft);">
                                 <td style="padding:9px 14px;">
-                                    <input type="checkbox" wire:model="selected" value="{{ $member->id }}">
+                                    <span class="custom-checkbox" style="--accent:#042c6c;">
+                                        <input type="checkbox" wire:model="selected" value="{{ $member->id }}">
+                                        <span class="box"><i class="fa-solid fa-check"></i></span>
+                                    </span>
                                 </td>
                                 <td style="padding:9px 14px;font-weight:600;white-space:nowrap;">{{ $member->user?->name ?? '-' }}</td>
                                 <td style="padding:9px 14px;white-space:nowrap;">{{ $member->user?->nip ?? '-' }}</td>
@@ -128,6 +139,35 @@
                 <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px;">
                     <button type="button" wire:click="closeAddModal" class="btn-ghost">Batal</button>
                     <button type="button" wire:click="saveAdd" class="btn-primary">Simpan</button>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    {{-- Modal Import --}}
+    @if ($showImportModal)
+        <div class="modal-overlay" wire:click="closeImportModal">
+            <div class="modal-box" style="max-width:420px;" onclick="event.stopPropagation()">
+                <h3 style="font-size:16px;font-weight:700;color:var(--text-heading);margin:0 0 14px;">Import Anggota Koperasi</h3>
+
+                <input type="file" wire:model="importFile" accept=".xlsx,.xls,.csv" class="form-input">
+                @error('importFile') <p style="font-size:11px;color:#dc2626;margin-top:4px;">{{ $message }}</p> @enderror
+
+                <p style="font-size:10.5px;color:var(--text-faint);margin-top:10px;">
+                    Pakai format file Export (kolom NIP, Potongan Per Bulan, Status; Nama diabaikan). NIP yang sudah jadi anggota diperbarui, yang belum ditambahkan. Hanya karyawan di perusahaan terpilih yang tipenya terdaftar sebagai penerima Koperasi.
+                </p>
+
+                @if ($importErrors)
+                    <ul style="font-size:11px;color:#dc2626;margin:10px 0 0;padding-left:16px;max-height:160px;overflow:auto;">
+                        @foreach ($importErrors as $err)
+                            <li>{{ $err }}</li>
+                        @endforeach
+                    </ul>
+                @endif
+
+                <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px;">
+                    <button type="button" wire:click="closeImportModal" class="btn-ghost">Tutup</button>
+                    <button type="button" wire:click="import" wire:loading.attr="disabled" wire:target="import,importFile" class="btn-primary">Import</button>
                 </div>
             </div>
         </div>
