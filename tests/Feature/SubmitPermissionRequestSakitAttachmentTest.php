@@ -27,12 +27,14 @@ class SubmitPermissionRequestSakitAttachmentTest extends TestCase
 
         $this->actingAs($user);
 
-        Livewire::test(SubmitPermissionRequest::class)
+        $component = Livewire::test(SubmitPermissionRequest::class)
             ->set('group', 'sakit')
             ->set('date', '2026-08-10')
-            ->set('end_date', '2026-08-10')
-            ->call('submit')
-            ->assertHasNoErrors();
+            ->set('end_date', '2026-08-10');
+
+        $this->assertFalse($component->get('lampiranWajib'), 'Company generik tidak dapat bintang wajib.');
+
+        $component->call('submit')->assertHasNoErrors();
     }
 
     public function test_two_day_sakit_without_attachment_fails_validation(): void
@@ -87,6 +89,7 @@ class SubmitPermissionRequestSakitAttachmentTest extends TestCase
             ->set('end_date', '2026-08-10');
 
         $this->assertSame('', $component->get('lampiranLabelSuffix'), 'Label section jadi polos "Lampiran" tanpa syarat hari.');
+        $this->assertTrue($component->get('lampiranWajib'), 'Bintang wajib tampil buat 2 company override.');
 
         $component->call('submit')->assertHasErrors(['attachments']);
 

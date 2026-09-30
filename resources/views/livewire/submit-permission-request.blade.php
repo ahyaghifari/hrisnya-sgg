@@ -121,7 +121,7 @@
             <div class="form-card">
                 <div class="section-head">
                     <div class="section-icon"><i class="fa-solid fa-paperclip" style="color:var(--brand);font-size:12px;"></i></div>
-                    <span class="section-title">Lampiran{{ $this->lampiranLabelSuffix }}</span>
+                    <span class="section-title">Lampiran{{ $this->lampiranLabelSuffix }} @if ($this->lampiranWajib)<span style="color:var(--danger-text);">*</span>@endif</span>
                 </div>
                 <label class="upload-zone" style="display:block;">
                     <i class="fa-solid fa-cloud-arrow-up" style="font-size:32px;color:var(--text-faint);margin-bottom:10px;display:block;"></i>

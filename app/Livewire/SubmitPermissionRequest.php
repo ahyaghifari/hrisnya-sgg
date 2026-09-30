@@ -182,6 +182,15 @@ class SubmitPermissionRequest extends Component
         return ' (wajib kalau > 2 hari)';
     }
 
+    /** Tanda bintang wajib di label section - cuma buat 2 company override (Sakit wajib pasti
+     * dari hari pertama). Company lain kondisional (teks "(wajib kalau > 2 hari)" sudah cukup
+     * jelas, tidak perlu bintang karena wajibnya tergantung tanggal yang belum tentu diisi). */
+    public function getLampiranWajibProperty(): bool
+    {
+        return $this->group === PermissionGroupEnum::SAKIT->value
+            && PermissionGroupEnum::usesLabelOverride(Auth::user()->company_id);
+    }
+
     private function totalDays(): int
     {
         if (! $this->date) {
