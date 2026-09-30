@@ -58,16 +58,21 @@ class ExtraShiftRulePage extends Component
         return Companies::orderBy('code')->get();
     }
 
-    /** Include-list, BUKAN exclude-list (instruksi user 2026-09-14) - cuma 3 kategori shift
-     * UTAMA (Pagi/Siang/Malam) yang boleh terlibat Extra Shift sebagai `from` maupun `to`, biar
-     * kategori baru yang mungkin ditambah nanti otomatis TIDAK ikut Extra Shift kecuali sengaja
-     * ditambahkan ke sini. Oncall (assignable roster biasa sejak 2026-09-14) dan Middle (enum
-     * dihapus, shift_type=null sejak migration clear_middle_shift_type_value) makanya otomatis
-     * tidak pernah muncul di sini. `from=libur` (karyawan lagi libur) TETAP bisa - itu konstanta
-     * terpisah (self::LIBUR), tidak lewat properti ini sama sekali, lihat addRule(). */
+    /** Include-list, BUKAN exclude-list (instruksi user 2026-09-14) - biar kategori baru yang
+     * mungkin ditambah nanti otomatis TIDAK ikut Extra Shift kecuali sengaja ditambahkan ke sini.
+     * Middle (enum dihapus, shift_type=null sejak migration clear_middle_shift_type_value)
+     * otomatis tidak pernah muncul di sini. `from=libur` (karyawan lagi libur) TETAP bisa - itu
+     * konstanta terpisah (self::LIBUR), tidak lewat properti ini sama sekali, lihat addRule().
+     *
+     * Oncall IKUT dimasukkan di sini sejak 2026-09-30 (instruksi user) - sebelumnya sengaja
+     * dikecualikan karena Oncall baru assignable roster biasa, tapi ternyata unit yang menyalakan
+     * schedules.allow_oncall_extra_shift (lihat ResolvesExtraShiftOptions) butuh nominal jasa
+     * khusus buat Oncall juga, dan SATU-SATUNYA tempat nominal itu tersimpan ya baris
+     * extra_shift_rules ini (ExtraShiftCalculator melewati diam-diam kejadian yang pasangan
+     * from->to-nya tidak punya baris/amount di sini, apa pun jalur eligibility-nya). */
     public function getShiftTypeOptionsProperty(): array
     {
-        return [ShiftType::PAGI, ShiftType::SIANG, ShiftType::MALAM];
+        return [ShiftType::PAGI, ShiftType::SIANG, ShiftType::MALAM, ShiftType::ONCALL];
     }
 
     public function getRulesProperty()
