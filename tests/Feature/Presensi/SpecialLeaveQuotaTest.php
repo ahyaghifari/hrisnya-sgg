@@ -176,11 +176,8 @@ class SpecialLeaveQuotaTest extends TestCase
 
     public function test_menstrual_leave_monthly_accumulation_is_blocked(): void
     {
-        // Cuti Haid DIMATIKAN sementara dari pengajuan (instruksi user 2026-09-30) -
-        // SubmitLeaveRequest::submit() menolak kategori ini duluan sebelum sempat kena cek kuota
-        // di sini. Aktifkan lagi test ini begitu Cuti Haid dinyalakan kembali.
-        $this->markTestSkipped('Cuti Haid dimatikan sementara dari pengajuan (instruksi user 2026-09-30).');
-
+        // Company generik (bukan 2 company override, lihat HasCompanyLabelOverride) - Cuti Haid
+        // tetap berlaku normal di sini, cuma disembunyikan buat Banjarbaru/Barabai.
         $user = $this->femaleUser();
         $type = $this->leaveType(LeaveTypeCategoryEnum::HAID, 2);
         $monthStart = now()->firstOfMonth();
@@ -196,10 +193,6 @@ class SpecialLeaveQuotaTest extends TestCase
 
     public function test_menstrual_leave_next_month_resets(): void
     {
-        // Cuti Haid DIMATIKAN sementara dari pengajuan (instruksi user 2026-09-30) - lihat
-        // catatan di test_menstrual_leave_monthly_accumulation_is_blocked().
-        $this->markTestSkipped('Cuti Haid dimatikan sementara dari pengajuan (instruksi user 2026-09-30).');
-
         $user = $this->femaleUser();
         $type = $this->leaveType(LeaveTypeCategoryEnum::HAID, 2);
         $monthStart = now()->firstOfMonth();
@@ -211,5 +204,44 @@ class SpecialLeaveQuotaTest extends TestCase
         $this->form($type->value, $next->copy()->addDays(1)->toDateString(), $next->copy()->addDays(2)->toDateString())->call('submit');
 
         $this->assertSame(2, AttendanceRequests::where('user_id', $user->id)->count());
+    }
+
+    /** Cuti Haid disembunyikan & ditolak KHUSUS 2 company (RSU Syifa Medika Banjarbaru & Barabai,
+     * lihat HasCompanyLabelOverride) - instruksi user 2026-09-30. */
+    public function test_menstrual_leave_is_rejected_for_the_two_override_companies(): void
+    {
+        $banjarbaru = new Companies();
+        $banjarbaru->forceFill(['id' => '01k8271xa4nq8cezg3dq9vfr14', 'code' => '0001', 'name' => 'RSU Syifa Medika Banjarbaru', 'location' => 'X', 'is_active' => true]);
+        $banjarbaru->save();
+
+        $approver = User::factory()->create(['company_id' => $banjarbaru->id]);
+        $flow = MasterApprovalFlows::create([
+            'company_id' => $banjarbaru->id,
+            'module' => 'attendance_request',
+            'name' => 'Alur Test',
+            'flow_type' => 'default',
+            'is_active' => true,
+        ]);
+        MasterApprovalFlowSteps::create([
+            'flow_id' => $flow->id,
+            'step_order' => 1,
+            'approver_type' => 'user',
+            'approver_ref_id' => $approver->id,
+            'approval_mode' => 'any',
+            'scope_type' => 'global',
+            'is_final' => true,
+        ]);
+
+        $user = User::factory()->create(['company_id' => $banjarbaru->id]);
+        UserProfiles::create(['user_id' => $user->id, 'gender' => 'perempuan']);
+        $this->be($user);
+
+        $names = Livewire::test(SubmitLeaveRequest::class)->get('leaveTypes')->map(fn ($t) => $t->label());
+        $this->assertNotContains('Cuti Haid', $names->all());
+
+        $monthStart = now()->firstOfMonth();
+        $this->form(LeaveTypeCategoryEnum::HAID->value, $monthStart->copy()->addDays(1)->toDateString(), $monthStart->copy()->addDays(2)->toDateString())->call('submit');
+
+        $this->assertSame(0, AttendanceRequests::where('user_id', $user->id)->count());
     }
 }

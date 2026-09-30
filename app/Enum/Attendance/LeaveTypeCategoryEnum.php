@@ -2,6 +2,8 @@
 
 namespace App\Enum\Attendance;
 
+use App\Enum\Attendance\Concerns\HasCompanyLabelOverride;
+
 /**
  * Jenis Cuti - tetap & sama untuk semua perusahaan (tabel master m_leave_types dihapus
  * 2026-09-20). Nilai enum = key yang dikirim form/API (`type_id`) dan disimpan di
@@ -14,9 +16,15 @@ namespace App\Enum\Attendance;
  *
  * Kuota (`quotaDays()`) tetap sesuai UU/kebijakan, sama untuk semua perusahaan; enum ini juga
  * mendefinisikan ATURAN yang menempel ke tiap jenis.
+ *
+ * HAID disembunyikan dari pengajuan KHUSUS 2 company (RSU Syifa Medika Banjarbaru & Barabai,
+ * lihat HasCompanyLabelOverride) - instruksi user 2026-09-30. Company lain tetap bisa ajukan
+ * Cuti Haid normal seperti biasa.
  */
 enum LeaveTypeCategoryEnum: string
 {
+    use HasCompanyLabelOverride;
+
     case TAHUNAN = 'tahunan';
     case HAID = 'haid';
     case MELAHIRKAN = 'melahirkan';

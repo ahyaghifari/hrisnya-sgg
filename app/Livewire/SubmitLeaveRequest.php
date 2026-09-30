@@ -56,11 +56,10 @@ class SubmitLeaveRequest extends Component
 
         return collect(LeaveTypeCategoryEnum::cases())
             ->reject(function (LeaveTypeCategoryEnum $cat) use ($isFemale, $windowOpen, $tenureMet) {
-                // Cuti Haid DIMATIKAN sementara dari pengajuan (instruksi user 2026-09-30, sehari
-                // sebelum HRIS efektif dipakai) - enum/kuota/payroll (CutiCalculator dkk) TIDAK
-                // disentuh, cuma disembunyikan dari dropdown pengajuan. Hapus baris ini kalau
-                // sudah boleh diaktifkan lagi.
-                if ($cat === LeaveTypeCategoryEnum::HAID) {
+                // Cuti Haid disembunyikan dari pengajuan KHUSUS 2 company (RSU Syifa Medika
+                // Banjarbaru & Barabai, lihat HasCompanyLabelOverride) - instruksi user
+                // 2026-09-30. Company lain tetap bisa ajukan Cuti Haid normal.
+                if ($cat === LeaveTypeCategoryEnum::HAID && LeaveTypeCategoryEnum::usesLabelOverride(Auth::user()->company_id)) {
                     return true;
                 }
 
@@ -225,11 +224,12 @@ class SubmitLeaveRequest extends Component
             return;
         }
 
-        // Cuti Haid DIMATIKAN sementara (instruksi user 2026-09-30) - dropdown sudah tidak
-        // menampilkannya, dicek ulang di sini biar tidak bisa lolos lewat request yang di-craft.
-        if ($cat === LeaveTypeCategoryEnum::HAID) {
+        // Cuti Haid disembunyikan KHUSUS 2 company (instruksi user 2026-09-30) - dropdown sudah
+        // tidak menampilkannya buat company itu, dicek ulang di sini biar tidak bisa lolos lewat
+        // request yang di-craft. Company lain tetap boleh.
+        if ($cat === LeaveTypeCategoryEnum::HAID && LeaveTypeCategoryEnum::usesLabelOverride(Auth::user()->company_id)) {
             Notification::make()
-                ->title('Cuti Haid sedang dinonaktifkan sementara.')
+                ->title('Cuti Haid tidak tersedia untuk perusahaan Anda.')
                 ->danger()
                 ->send();
 

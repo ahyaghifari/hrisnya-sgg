@@ -166,6 +166,22 @@ class SubmitPermissionRequest extends Component
         }
     }
 
+    /** Teks label section Lampiran - KHUSUS 2 company override (Banjarbaru/Barabai) lampiran
+     * Sakit WAJIB dari hari pertama (bukan nunggu >1 hari), teksnya polos tanpa syarat hari lagi
+     * (instruksi user 2026-09-30). Company lain tetap kondisional seperti semula. */
+    public function getLampiranLabelSuffixProperty(): string
+    {
+        if ($this->group !== PermissionGroupEnum::SAKIT->value) {
+            return ' (opsional)';
+        }
+
+        if (PermissionGroupEnum::usesLabelOverride(Auth::user()->company_id)) {
+            return '';
+        }
+
+        return ' (wajib kalau > 2 hari)';
+    }
+
     private function totalDays(): int
     {
         if (! $this->date) {
@@ -215,8 +231,12 @@ class SubmitPermissionRequest extends Component
         $isRentang = $group?->isRentangTanggal() ?? false;
         $wajibJam = $group === PermissionGroupEnum::MENINGGALKAN_JAM_KERJA;
         // Hari pertama sakit belum wajib lampiran, tapi begitu masuk hari ke-2 (total_days > 1)
-        // wajib surat/bukti sakit - dikonfirmasi user 2026-07-31.
-        $wajibLampiran = $group === PermissionGroupEnum::SAKIT && $this->totalDays() > 1;
+        // wajib surat/bukti sakit - dikonfirmasi user 2026-07-31. KHUSUS 2 company override
+        // (Banjarbaru/Barabai, lihat HasCompanyLabelOverride) - Sakit di company itu relabel jadi
+        // "Izin Sakit Bersurat", jadi lampiran WAJIB dari hari pertama, tidak nunggu hari ke-2
+        // (instruksi user 2026-09-30).
+        $wajibLampiran = $group === PermissionGroupEnum::SAKIT
+            && (PermissionGroupEnum::usesLabelOverride(Auth::user()->company_id) || $this->totalDays() > 1);
         $butuhMaster = $group?->hasSubKategori() ?? false;
 
         return [

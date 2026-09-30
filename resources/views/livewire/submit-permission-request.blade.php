@@ -121,7 +121,7 @@
             <div class="form-card">
                 <div class="section-head">
                     <div class="section-icon"><i class="fa-solid fa-paperclip" style="color:var(--brand);font-size:12px;"></i></div>
-                    <span class="section-title">Lampiran{{ $group === 'sakit' ? ' (wajib kalau > 2 hari)' : ' (opsional)' }}</span>
+                    <span class="section-title">Lampiran{{ $this->lampiranLabelSuffix }}</span>
                 </div>
                 <label class="upload-zone" style="display:block;">
                     <i class="fa-solid fa-cloud-arrow-up" style="font-size:32px;color:var(--text-faint);margin-bottom:10px;display:block;"></i>

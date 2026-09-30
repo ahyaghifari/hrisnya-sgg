@@ -33,30 +33,16 @@ class SubmitLeaveRequestGenderTest extends TestCase
         return $user;
     }
 
-    /** Cuti Haid DIMATIKAN sementara dari dropdown (instruksi user 2026-09-30) - tidak ikut
-     * muncul di sini walau karyawannya perempuan. Lihat SubmitLeaveRequest::getLeaveTypesProperty(). */
-    public function test_female_sees_all_leave_types_except_haid(): void
+    /** Company generik (bukan 2 company override, lihat HasCompanyLabelOverride) - Cuti Haid
+     * tetap muncul normal. Kasus disembunyikan/ditolak khusus Banjarbaru/Barabai ada di
+     * SpecialLeaveQuotaTest::test_menstrual_leave_is_rejected_for_the_two_override_companies(). */
+    public function test_female_sees_all_leave_types(): void
     {
         $this->loginAs('perempuan');
 
         $names = Livewire::test(SubmitLeaveRequest::class)->get('leaveTypes')->map(fn ($t) => $t->label());
 
-        $this->assertEqualsCanonicalizing(['Cuti Tahunan', 'Cuti Melahirkan', 'Cuti Keguguran'], $names->all());
-    }
-
-    /** Cuti Haid ditolak di server juga, bukan cuma disembunyikan dari dropdown - jaga-jaga
-     * request yang di-craft manual (pola sama dengan guard female-only). */
-    public function test_haid_is_rejected_even_for_female(): void
-    {
-        $this->loginAs('perempuan');
-        $haid = LeaveTypeCategoryEnum::HAID;
-
-        Livewire::test(SubmitLeaveRequest::class)
-            ->set('leave_type', $haid->value)
-            ->set('start_date', now()->toDateString())
-            ->call('submit');
-
-        $this->assertDatabaseCount('attendance_requests', 0);
+        $this->assertEqualsCanonicalizing(['Cuti Tahunan', 'Cuti Haid', 'Cuti Melahirkan', 'Cuti Keguguran'], $names->all());
     }
 
     public function test_male_does_not_see_female_only_leave_types(): void
@@ -84,8 +70,8 @@ class SubmitLeaveRequestGenderTest extends TestCase
     public function test_special_leave_requires_attachment(): void
     {
         $this->loginAs('perempuan');
-        // Keguguran dipakai sebagai contoh "cuti khusus" di sini (bukan Haid - lagi dimatikan
-        // sementara, lihat test_haid_is_rejected_even_for_female).
+        // Keguguran dipakai sebagai contoh "cuti khusus" di sini (Haid sama-sama valid buat
+        // company generik ini, cuma Keguguran kebetulan lebih dulu dipilih).
         $keguguran = LeaveTypeCategoryEnum::KEGUGURAN;
 
         $component = Livewire::test(SubmitLeaveRequest::class)
