@@ -909,4 +909,33 @@ class ScheduleShiftRosterTabTest extends TestCase
             ScheduleShiftTeamMember::forPeriod($schedule->id, $employee->id, $nextMonth)?->team_id
         );
     }
+
+    /** Karu baru pertama kali buka halaman ini SETELAH kalender beneran maju (period default =
+     * bulan berjalan SEKARANG, bukan preview bulan depan) - Tim bulan lalu tetap harus ke-carry ke
+     * bulan berjalan ini, bukan cuma ke preview "bulan depan" (dilaporkan user 2026-09-30, lihat
+     * ScheduleShiftTeamMember::autoCarryNextMonthFromCurrent()). */
+    public function test_first_visit_after_calendar_already_rolled_over_still_carries_team_from_last_month(): void
+    {
+        [$schedule, $shiftType, $employee] = $this->makeManualShiftSchedule();
+        $schedule->update(['use_teams' => true]);
+        $user = $this->actingAsAbsensi();
+        $team = ScheduleShiftTeam::create(['schedule_id' => $schedule->id, 'name' => 'Regu A']);
+        $lastMonth = now()->subMonth()->format('Y-m');
+        $currentMonth = now()->format('Y-m');
+
+        // Tim diatur bulan lalu, tapi TIDAK PERNAH ada yang buka halaman ini pas bulan lalu masih
+        // berjalan (jadi carry-over ke bulan ini belum pernah ke-trigger sama sekali).
+        ScheduleShiftTeamMember::setForPeriod($schedule, $employee, $team, $lastMonth, $user->id);
+        $this->assertNull(ScheduleShiftTeamMember::forPeriod($schedule->id, $employee->id, $currentMonth));
+
+        // Baru sekarang, pas bulan lalu itu sudah lewat, karu pertama kali buka halamannya -
+        // period default langsung bulan berjalan (mount(), bukan di-set manual ke bulan depan).
+        Livewire::actingAs($user)
+            ->test(ScheduleShiftRosterTab::class, ['schedule' => $schedule]);
+
+        $this->assertSame(
+            $team->id,
+            ScheduleShiftTeamMember::forPeriod($schedule->id, $employee->id, $currentMonth)?->team_id
+        );
+    }
 }

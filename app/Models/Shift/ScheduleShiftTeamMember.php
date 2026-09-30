@@ -73,26 +73,40 @@ class ScheduleShiftTeamMember extends Model
         return static::updateOrCreate($keys, $attributes);
     }
 
-    /** Carry-over Tim bulan DEPAN (relatif ke bulan berjalan ASLI) dari bulan berjalan, LANGSUNG
-     * disimpan (upsert, idempotent) - dipanggil dari tab Regu MAUPUN tab Detail Penjadwalan
-     * (instruksi user 2026-09-16: siapa pun yang buka bulan depan duluan yang men-trigger, tidak
-     * boleh tergantung urutan buka tab). No-op kalau $period BUKAN bulan depan. Karyawan yang
-     * bulan berjalannya juga belum punya Tim dilewati (carry-over butuh sumber, tidak bikin baris
-     * kosong) - jadi otomatis no-op juga kalau schedule ini memang belum pernah pakai Tim. */
+    /** Carry-over Tim ke $period dari bulan SEBELUM $period, LANGSUNG disimpan (upsert, idempotent)
+     * - dipanggil dari tab Regu MAUPUN tab Detail Penjadwalan (instruksi user 2026-09-16: siapa pun
+     * yang buka duluan yang men-trigger, tidak boleh tergantung urutan buka tab). Cuma jalan buat
+     * $period = bulan berjalan ATAU bulan depan (dua-duanya, relatif ke bulan berjalan ASLI saat
+     * dipanggil) - bulan 2+ ke depan/lampau tidak ikut (di luar 2 periode itu sengaja tidak
+     * diwariskan, lihat getPeriodLockedProperty()).
+     *
+     * Awalnya cuma nyakup "bulan berjalan -> bulan depan" (asumsi karu rutin buka tiap bulan, jadi
+     * pas kalender maju bulan depan sudah lebih dulu ke-isi) - TERNYATA kalau karu belum PERNAH
+     * buka sampai kalender beneran maju (bulan yang mestinya "depan" itu sudah jadi bulan berjalan
+     * pas dia baru pertama kali akses), carry-nya kelewat karena $period yang dibuka (bulan
+     * berjalan skrng) tidak pernah dicoba sebagai TUJUAN carry - cuma dicoba sebagai SUMBER
+     * (dilaporkan user 2026-09-30). Makanya $period = bulan berjalan JUGA dicoba di sini, sumbernya
+     * digeser jadi "1 bulan sebelum $period" (bukan hardcode now()) supaya kedua kasus pakai logic
+     * yang sama. Karyawan yang bulan sumbernya juga belum punya Tim dilewati (carry-over butuh
+     * sumber, tidak bikin baris kosong) - otomatis no-op juga kalau schedule ini memang belum
+     * pernah pakai Tim. */
     public static function autoCarryNextMonthFromCurrent(Schedule $schedule, iterable $employees, string $period, string $actorId): void
     {
-        if ($period !== now()->addMonth()->format('Y-m')) {
+        $currentMonth = now()->format('Y-m');
+        $nextMonth = now()->addMonth()->format('Y-m');
+
+        if ($period !== $currentMonth && $period !== $nextMonth) {
             return;
         }
 
-        $currentMonth = now()->format('Y-m');
+        $sourceMonth = \Carbon\Carbon::createFromFormat('Y-m', $period)->subMonth()->format('Y-m');
 
         foreach ($employees as $user) {
             if (static::forPeriod($schedule->id, $user->id, $period)) {
                 continue;
             }
 
-            $carryFrom = static::forPeriod($schedule->id, $user->id, $currentMonth);
+            $carryFrom = static::forPeriod($schedule->id, $user->id, $sourceMonth);
 
             if ($carryFrom) {
                 static::setForPeriod($schedule, $user, $carryFrom->team, $period, $actorId, $carryFrom->sort_order);

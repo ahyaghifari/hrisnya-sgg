@@ -113,6 +113,15 @@ class ScheduleShiftRosterTab extends Component
         $this->period = max(now()->format('Y-m'), self::MIN_PERIOD);
         $this->rotationStartDate = Carbon::createFromFormat('Y-m', $this->period)->startOfMonth()->toDateString();
         $this->teamGroupMode = $schedule->team_group_mode === 'column' ? 'column' : 'row';
+
+        // Carry-over Tim - updatedPeriod() (hook "period berubah") TIDAK pernah kepanggil pas
+        // mount() pertama kali (Livewire cuma trigger updatedX begitu $period diubah SETELAHNYA),
+        // jadi kalau ini kunjungan PERTAMA karu ke halaman ini dan period default-nya (bulan
+        // berjalan) kebetulan yang mestinya mewarisi Tim dari bulan lalu, carry-nya kelewat kalau
+        // cuma diandalkan dari updatedPeriod() saja (dilaporkan user 2026-09-30). Reuse method yang
+        // sama biar tidak dobel logic - lihat ScheduleShiftTeamTab::mount() yang sudah benar dari
+        // awal (manggil syncAssignForm() yang di dalamnya ada carry ini juga).
+        $this->carryTeamForPeriod();
     }
 
     public function getCanEditJadwalProperty(): bool
@@ -181,10 +190,17 @@ class ScheduleShiftRosterTab extends Component
 
         $this->rotationStartDate = Carbon::createFromFormat('Y-m', $this->period)->startOfMonth()->toDateString();
 
-        // Carry-over Tim bulan depan - logic bersama sama ScheduleShiftTeamTab, TIDAK boleh
-        // tergantung tab mana yang dibuka duluan (instruksi user 2026-09-16). No-op sendiri kalau
-        // $period bukan bulan depan; guard use_teams di sini cuma hemat query kalau jadwal ini
-        // memang tidak pakai Tim sama sekali.
+        $this->carryTeamForPeriod();
+    }
+
+    /** Carry-over Tim ke $period (bulan berjalan atau bulan depan) dari bulan sebelumnya - logic
+     * bersama sama ScheduleShiftTeamTab, TIDAK boleh tergantung tab mana yang dibuka duluan
+     * (instruksi user 2026-09-16), dan TIDAK boleh tergantung updatedPeriod() sempat kepanggil
+     * atau tidak (instruksi user 2026-09-30, lihat mount()). No-op sendiri kalau $period di luar
+     * bulan berjalan/depan (lihat ScheduleShiftTeamMember::autoCarryNextMonthFromCurrent()); guard
+     * use_teams di sini cuma hemat query kalau jadwal ini memang tidak pakai Tim sama sekali. */
+    private function carryTeamForPeriod(): void
+    {
         if ($this->schedule->use_teams) {
             ScheduleShiftTeamMember::autoCarryNextMonthFromCurrent($this->schedule, $this->employees, $this->period, Auth::id());
             $this->forgetTeamCaches();
