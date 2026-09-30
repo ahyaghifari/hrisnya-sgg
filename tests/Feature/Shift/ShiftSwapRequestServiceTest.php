@@ -73,10 +73,6 @@ class ShiftSwapRequestServiceTest extends TestCase
             'is_overnight' => false,
         ]);
 
-        // Durasi SENGAJA beda dari Pagi/Siang (8 jam) - 10 jam, bukan 8 - biar test kompatibilitas
-        // tukar shift beda tanggal (durasi harus SAMA, lihat ShiftSwapRequestService::
-        // validateScheduleSwapRules()) benar-benar menguji perbedaan durasi, bukan kebetulan sama
-        // 8 jam kayak Pagi/Siang.
         $this->malam = ScheduleShiftType::create([
             'schedule_id' => $schedule->id,
             'code' => 'MALAM',
@@ -654,25 +650,27 @@ class ShiftSwapRequestServiceTest extends TestCase
         $this->approve($swapRequest);
     }
 
-    public function test_incompatible_shift_types_are_rejected_for_different_date(): void
+    public function test_any_shift_type_combination_is_allowed_for_different_date(): void
     {
         $perawatA = User::factory()->create(['company_id' => $this->company->id]);
         $perawatB = User::factory()->create(['company_id' => $this->company->id]);
 
-        // Pagi (8 jam) <-> Malam (10 jam) tidak boleh ditukar - durasi jam kerjanya beda, aturan
-        // ini berlaku buat tanggal BEDA (lihat validateScheduleSwapRules()).
+        // Pagi <-> Malam boleh ditukar walau tanggalnya BEDA - tidak ada lagi pembatasan
+        // kompatibilitas kategori/durasi shift (instruksi user 2026-09-30, dibuka bebas).
         $scheduleA = $this->assignShift($perawatA, $this->pagi, '2026-08-10');
         $scheduleB = $this->assignShift($perawatB, $this->malam, '2026-08-11');
 
         Auth::login($perawatA);
-
-        $this->expectException(\InvalidArgumentException::class);
-
-        app(ShiftSwapRequestService::class)->store([
+        $swapRequest = app(ShiftSwapRequestService::class)->store([
             'swap_mode' => 'schedule',
             'req_schedule_id' => $scheduleA->id,
             'target_schedule_id' => $scheduleB->id,
         ]);
+
+        $this->approve($swapRequest);
+
+        $this->assertSame($perawatB->id, $scheduleA->fresh()->user_id);
+        $this->assertSame($perawatA->id, $scheduleB->fresh()->user_id);
     }
 
     public function test_incompatible_shift_types_are_allowed_for_same_date(): void
@@ -680,9 +678,7 @@ class ShiftSwapRequestServiceTest extends TestCase
         $perawatA = User::factory()->create(['company_id' => $this->company->id]);
         $perawatB = User::factory()->create(['company_id' => $this->company->id]);
 
-        // Pagi <-> Malam TETAP boleh kalau tanggalnya SAMA (instruksi user 2026-08-20) - aturan
-        // durasi jam kerja harus sama cuma berlaku buat tukar beda tanggal, walau durasinya beda
-        // (8 jam vs 10 jam di sini) tetap boleh asal tanggalnya sama.
+        // Pagi <-> Malam TETAP boleh kalau tanggalnya SAMA (instruksi user 2026-08-20).
         $scheduleA = $this->assignShift($perawatA, $this->pagi, '2026-08-10');
         $scheduleB = $this->assignShift($perawatB, $this->malam, '2026-08-10');
 
