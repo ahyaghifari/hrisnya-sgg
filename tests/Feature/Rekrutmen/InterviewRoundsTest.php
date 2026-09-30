@@ -5,99 +5,78 @@ namespace Tests\Feature\Rekrutmen;
 use App\Models\Rekrutmen\InterviewInvitee;
 use App\Models\Rekrutmen\InterviewSchedule;
 use App\Models\Rekrutmen\JobApplication;
-use App\Models\Rekrutmen\JobOpening;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Wawancara berlapis (keputusan user 2026-09-28): 1 pelamar bisa diwawancara 2 kali, jumlah tahapnya
- * diatur per lowongan, tiap tahap punya nama bebas dan hasilnya sendiri.
+ * Wawancara boleh dijadwalkan lebih dari sekali untuk 1 pelamar, tanpa batas jumlah sesi. TAPI
+ * keputusan lanjut/tidak BUKAN per sesi (koreksi arah, keputusan user 2026-09-30): dia menempel di
+ * job_applications.interview_result + status. Selama hasilnya belum dicatat, pelamarnya tetap di
+ * tahap wawancara dan boleh dijadwalkan lagi.
  *
- * ponytail: tanpa database. Tabel-tabelnya ada di koneksi `recruitment` (MySQL), sementara test suite
- * project ini pakai sqlite in-memory - jadi yang diuji logika penentuan tahap & label di model, dengan
- * relasi dipasang manual. Percabangan status (lulus tahap 1 -> tetap `interview`, lulus tahap akhir ->
- * `offering`) ada di WawancaraPage::tandaiHasilWawancaraAction().
+ * Sesi cuma penanda & nama ("Wawancara HR", "Wawancara User").
+ *
+ * ponytail: tanpa database. Tabelnya di koneksi `recruitment` (MySQL) sementara suite ini sqlite
+ * in-memory. Penyaringan siapa yang boleh diundang & percabangan keputusannya ada di WawancaraPage.
  */
 class InterviewRoundsTest extends TestCase
 {
-    private function invitee(int $round, ?string $result, ?string $name = null): InterviewInvitee
+    private function invitee(int $round, ?string $name = null): InterviewInvitee
     {
-        $schedule = new InterviewSchedule(['round' => $round, 'name' => $name]);
-        $invitee = new InterviewInvitee(['result' => $result]);
-        $invitee->setRelation('schedule', $schedule);
+        $invitee = new InterviewInvitee();
+        $invitee->setRelation('schedule', new InterviewSchedule(['round' => $round, 'name' => $name]));
 
         return $invitee;
     }
 
-    private function application(array $invitees): JobApplication
+    private function application(array $invitees, ?string $result = null): JobApplication
     {
-        $app = new JobApplication();
+        $app = new JobApplication(['interview_result' => $result]);
         $app->setRelation('interviewInvitees', collect($invitees));
 
         return $app;
     }
 
-    public function test_the_stage_label_falls_back_to_the_round_number(): void
+    public function test_the_session_label_falls_back_to_the_round_number(): void
     {
         $this->assertSame('Wawancara Tahap 2', (new InterviewSchedule(['round' => 2]))->label());
         $this->assertSame('Wawancara User', (new InterviewSchedule(['round' => 2, 'name' => 'Wawancara User']))->label());
     }
 
-    public function test_an_invitee_knows_which_round_it_belongs_to(): void
+    public function test_an_invitee_knows_which_session_it_belongs_to(): void
     {
-        $this->assertSame(2, $this->invitee(2, null)->round());
+        $this->assertSame(3, $this->invitee(3)->round());
 
         $tanpaJadwal = new InterviewInvitee();
         $tanpaJadwal->setRelation('schedule', null);
-        $this->assertSame(1, $tanpaJadwal->round(), 'Tanpa jadwal dianggap tahap 1.');
+        $this->assertSame(1, $tanpaJadwal->round(), 'Tanpa jadwal dianggap sesi 1.');
     }
 
-    public function test_the_pending_round_is_the_earliest_one_without_a_result(): void
+    /** Satu pelamar boleh punya banyak sesi - tidak dibatasi dua. */
+    public function test_an_applicant_can_hold_any_number_of_sessions(): void
     {
-        $app = $this->application([
-            $this->invitee(1, 'lulus'),
-            $this->invitee(2, null),
-        ]);
+        $app = $this->application([$this->invitee(1), $this->invitee(2), $this->invitee(3)]);
 
-        $this->assertSame(2, $app->pendingInterviewRound());
+        $this->assertCount(3, $app->interviewInvitees);
+        $this->assertSame('Wawancara Tahap 3', $app->interviewInviteeForRound(3)->schedule->label());
+        $this->assertNull($app->interviewInviteeForRound(4), 'Sesi yang belum pernah dijadwalkan.');
     }
 
-    public function test_there_is_no_pending_round_once_every_stage_is_decided(): void
+    /**
+     * Inti koreksinya: banyaknya sesi tidak memutuskan apa pun. Pelamar dengan tiga sesi tetap
+     * "belum diputuskan" selama interview_result-nya kosong.
+     */
+    public function test_sessions_do_not_decide_anything(): void
     {
-        $app = $this->application([
-            $this->invitee(1, 'lulus'),
-            $this->invitee(2, 'tidak_lulus'),
-        ]);
+        $belum = $this->application([$this->invitee(1), $this->invitee(2), $this->invitee(3)]);
+        $this->assertNull($belum->interview_result, 'Berapa pun sesinya, keputusan tetap dari statusnya.');
 
-        $this->assertNull($app->pendingInterviewRound());
+        $sudah = $this->application([$this->invitee(1)], 'lulus');
+        $this->assertSame('lulus', $sudah->interview_result, 'Satu sesi pun cukup kalau sudah diputuskan.');
     }
 
-    /** Urutan baris tidak boleh memengaruhi tahap mana yang dianggap menunggu. */
-    public function test_the_pending_round_ignores_row_order(): void
+    /** Hasil tidak lagi disimpan di undangan sesi - kolomnya sudah dilepas dari tabel. */
+    public function test_the_result_no_longer_lives_on_the_session_invitee(): void
     {
-        $app = $this->application([
-            $this->invitee(2, null),
-            $this->invitee(1, null),
-        ]);
-
-        $this->assertSame(1, $app->pendingInterviewRound());
-    }
-
-    public function test_an_invitee_can_be_looked_up_per_round(): void
-    {
-        $app = $this->application([
-            $this->invitee(1, 'lulus'),
-            $this->invitee(2, null),
-        ]);
-
-        $this->assertSame('lulus', $app->interviewInviteeForRound(1)?->result);
-        $this->assertNull($app->interviewInviteeForRound(2)?->result);
-        $this->assertNull($app->interviewInviteeForRound(3), 'Tahap yang belum pernah dijadwalkan.');
-    }
-
-    /** Lowongan lama tanpa setelan tahap tetap dianggap 1 tahap. */
-    public function test_an_opening_defaults_to_a_single_round(): void
-    {
-        $this->assertSame(1, (new JobOpening())->interview_rounds ?: 1);
-        $this->assertSame(2, (new JobOpening(['interview_rounds' => 2]))->interview_rounds);
+        $this->assertNotContains('result', (new InterviewInvitee())->getFillable());
     }
 }

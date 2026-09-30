@@ -12,7 +12,7 @@ class InterviewInvitee extends Model
 
     protected $connection = 'recruitment';
 
-    protected $fillable = ['interview_schedule_id', 'job_application_id', 'result'];
+    protected $fillable = ['interview_schedule_id', 'job_application_id'];
 
     /** Tahap ke berapa undangan ini - ikut jadwalnya. */
     public function round(): int

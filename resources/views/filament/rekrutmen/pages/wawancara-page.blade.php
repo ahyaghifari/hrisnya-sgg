@@ -28,22 +28,25 @@
     @include('filament.rekrutmen.pages.partials.pipeline-tabs')
 
     @if($this->jobOpeningId)
-        {{-- Pemilih tahap — muncul kalau lowongannya lebih dari 1 tahap (Lowongan > Jumlah Tahap
-             Wawancara). Jumlahnya tidak dibatasi: tombolnya ikut sebanyak tahap yang diatur. --}}
+        {{-- Pemilih sesi. getInterviewRounds() = jumlah sesi yang sudah ada + satu slot kosong buat
+             menjadwalkan sesi baru, jadi tombolnya bertambah sendiri tiap sesi baru dibuat. Tidak ada
+             batas jumlah sesi, dan sesi TIDAK menentukan keputusan — keputusan ada di kolom Hasil,
+             menempel di status pelamar. --}}
         @if($this->getInterviewRounds() > 1)
-            <div class="flex flex-wrap items-center gap-2">
-                <span class="text-xs font-semibold text-gray-500 dark:text-gray-400">Tahap:</span>
+            {{-- Pakai komponen tabs bawaan Filament, bukan tombol rakitan sendiri: kelas warna
+                 Tailwind seperti bg-primary-600 tidak ikut ter-build di CSS panel ini, jadi tombol
+                 aktifnya sempat tampil tanpa latar dengan tulisan putih alias tak terbaca. --}}
+            <x-filament::tabs label="Sesi wawancara" contained>
                 @for($r = 1; $r <= $this->getInterviewRounds(); $r++)
-                    <button type="button" wire:click="$set('activeRound', {{ $r }})"
-                        @class([
-                            'rounded-lg px-3 py-1.5 text-xs font-semibold ring-1 transition',
-                            'bg-primary-600 text-white ring-primary-600' => $this->currentRound() === $r,
-                            'bg-white text-gray-700 ring-gray-300 hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-200 dark:ring-gray-700 dark:hover:bg-gray-700' => $this->currentRound() !== $r,
-                        ])>
+                    <x-filament::tabs.item
+                        :active="$this->currentRound() === $r"
+                        :badge="$this->hasSession($r) ? null : 'baru'"
+                        badge-color="gray"
+                        wire:click="$set('activeRound', {{ $r }})">
                         {{ $this->roundLabel($r) }}
-                    </button>
+                    </x-filament::tabs.item>
                 @endfor
-            </div>
+            </x-filament::tabs>
         @endif
 
         <div class="flex flex-wrap gap-3">

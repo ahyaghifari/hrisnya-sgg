@@ -4,6 +4,7 @@ namespace App\Filament\Rekrutmen\Pages;
 
 use App\Models\Rekrutmen\ApplicationNotification;
 use App\Models\Rekrutmen\CompanyMessageTemplate;
+use App\Models\Rekrutmen\InterviewInvitee;
 use App\Models\Rekrutmen\InterviewSchedule;
 use App\Models\Rekrutmen\JobApplication;
 use App\Models\Rekrutmen\JobOpening;
@@ -15,11 +16,14 @@ use Filament\Forms\Components\CheckboxList;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Radio;
+use Filament\Forms\Components\RichEditor;
+use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\TimePicker;
 use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
+use Filament\Schemas\Components\Utilities\Set;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Filament\Support\Icons\Heroicon;
@@ -71,7 +75,7 @@ class WawancaraPage extends Page implements HasActions, HasForms, HasTable
         return $u->hasRole(['Admin', 'Super Admin']) || $u->can('Update:JobOpenings');
     }
 
-    /** Tahap wawancara yang sedang dibuka di halaman ini (1..interview_rounds lowongannya). */
+    /** Sesi wawancara yang sedang dibuka di halaman ini. */
     public int $activeRound = 1;
 
     public function updatedCompanyId(): void
@@ -100,12 +104,23 @@ class WawancaraPage extends Page implements HasActions, HasForms, HasTable
      */
     public function getInterviewRounds(): int
     {
-        return $this->jobOpeningId
-            ? max(1, JobOpening::find($this->jobOpeningId)?->interview_rounds ?: 1)
-            : 1;
+        if (! $this->jobOpeningId) {
+            return 1;
+        }
+
+        // Sesi yang SUDAH ada, plus satu slot kosong di belakangnya buat menjadwalkan sesi baru.
+        // Tidak ada batas jumlah sesi - lihat catatan di currentRound().
+        return (int) InterviewSchedule::where('job_opening_id', $this->jobOpeningId)->max('round') + 1;
     }
 
-    /** Tahap yang sedang dikerjakan di halaman ini, dijaga tetap di dalam rentang lowongannya. */
+    /**
+     * Sesi yang sedang dibuka di halaman ini.
+     *
+     * Jumlah sesi TIDAK dibatasi dan tidak diatur per lowongan: wawancara boleh dijadwalkan berapa
+     * kali pun untuk orang yang sama. Sesi cuma penanda & nama ("Wawancara HR", "Wawancara User") -
+     * keputusan lanjut/tidak BUKAN milik sesi, tapi menempel di status pelamarnya
+     * (job_applications.interview_result + status), lihat tandaiHasilWawancaraAction().
+     */
     public function currentRound(): int
     {
         return min(max(1, $this->activeRound), $this->getInterviewRounds());
@@ -116,7 +131,43 @@ class WawancaraPage extends Page implements HasActions, HasForms, HasTable
         $this->resetTable();
     }
 
-    /** Nama tahap: nama dari jadwalnya kalau HR sudah mengisi, kalau tidak "Wawancara Tahap N". */
+    /**
+     * Lowongan yang dipilih sudah punya komponen kompensasi offering letter.
+     *
+     * Dipakai menahan keputusan "Lulus": tanpa komponen ini surat penawarannya kosong, padahal
+     * pelamarnya sudah terlanjur dikabari lolos dan diminta melengkapi datanya.
+     */
+    public function hasCompensationRows(): bool
+    {
+        return $this->jobOpeningId
+            ? JobOpening::find($this->jobOpeningId)?->offeringCompensationRows()->exists() ?? false
+            : false;
+    }
+
+    /** Sesi ini sudah punya jadwal (draft maupun terbit), atau masih slot kosong buat sesi baru. */
+    public function hasSession(int $round): bool
+    {
+        return $this->getInterviewDraft($round) !== null || $this->getPublishedInterview($round) !== null;
+    }
+
+    /**
+     * Sebutan sesi ini di tombol & judul modal penjadwalan.
+     *
+     * Slot kosong: "Wawancara" kalau belum ada jadwal sama sekali, "Wawancara Berikutnya" kalau
+     * sudah ada sesi sebelumnya - jadi tidak menyebut nomor tahap yang bikin seolah-olah jumlah
+     * sesinya dipatok. Slot yang sudah punya jadwal memakai namanya sendiri, supaya HR tahu draft
+     * mana yang sedang dia sunting.
+     */
+    public function scheduleLabel(int $round): string
+    {
+        if ($this->hasSession($round)) {
+            return $this->roundLabel($round);
+        }
+
+        return $round > 1 ? 'Wawancara Berikutnya' : 'Wawancara';
+    }
+
+    /** Nama sesi: nama dari jadwalnya kalau HR sudah mengisi, kalau tidak "Wawancara Tahap N". */
     public function roundLabel(int $round): string
     {
         $schedule = $this->getInterviewDraft($round) ?? $this->getPublishedInterview($round);
@@ -144,32 +195,34 @@ class WawancaraPage extends Page implements HasActions, HasForms, HasTable
     }
 
     /**
-     * Pelamar yang siap diundang ke tahap ini.
+     * Pelamar yang bisa diundang ke sesi ini.
      *
-     * Tahap 1: lolos seleksi berkas & kuis, seperti sebelumnya. Tahap berikutnya: sudah LULUS tahap
-     * sebelumnya dan belum pernah dijadwalkan di tahap ini - jadi satu orang tidak bisa diundang dua
-     * kali ke tahap yang sama, dan yang tidak lulus tidak ikut terbawa.
+     * Dua kelompok: yang baru lolos seleksi berkas & kuis (belum masuk tahap wawancara), DAN yang
+     * sudah di tahap wawancara tapi keputusannya belum ditetapkan - itu yang membuat satu orang bisa
+     * dijadwalkan wawancara lagi. Tidak ada syarat "lulus sesi sebelumnya", karena hasil bukan milik
+     * sesi; yang sudah diputuskan (lulus ke Offering atau tidak lulus) otomatis tidak ikut karena
+     * statusnya sudah pindah.
+     *
+     * Yang sudah diundang ke sesi INI dikeluarkan supaya tidak dobel di sesi yang sama.
      */
     private function readyOptions(int $round = 1): array
     {
-        if (! $this->jobOpeningId || $round > $this->getInterviewRounds()) {
+        if (! $this->jobOpeningId) {
             return [];
         }
 
-        $query = JobApplication::with(['answers' => fn ($q) => $q->where('field_key', 'full_name')])
-            ->where('job_opening_id', $this->jobOpeningId);
+        $sudahDiSesiIni = InterviewInvitee::whereHas(
+            'schedule',
+            fn ($q) => $q->where('job_opening_id', $this->jobOpeningId)->where('round', $round)
+        )->pluck('job_application_id');
 
-        if ($round === 1) {
-            $query->where('status', 'shortlisted')->where('quiz_result', 'lulus');
-        } else {
-            $query->where('status', 'interview')->with('interviewInvitees.schedule');
-        }
-
-        return $query->get()
-            ->when($round > 1, fn ($apps) => $apps->filter(
-                fn (JobApplication $a) => $a->interviewInviteeForRound($round - 1)?->result === 'lulus'
-                    && $a->interviewInviteeForRound($round) === null
-            ))
+        return JobApplication::with(['answers' => fn ($q) => $q->where('field_key', 'full_name')])
+            ->where('job_opening_id', $this->jobOpeningId)
+            ->whereNotIn('id', $sudahDiSesiIni)
+            ->where(fn ($q) => $q
+                ->where(fn ($baru) => $baru->where('status', 'shortlisted')->where('quiz_result', 'lulus'))
+                ->orWhere(fn ($lagi) => $lagi->where('status', 'interview')->whereNull('interview_result')))
+            ->get()
             ->mapWithKeys(fn ($a) => [$a->id => $a->answers->firstWhere('field_key', 'full_name')?->value ?? '(tanpa nama)'])
             ->all();
     }
@@ -179,7 +232,7 @@ class WawancaraPage extends Page implements HasActions, HasForms, HasTable
         $round = $this->currentRound();
         $options = $this->readyOptions($round);
         $draft = $this->getInterviewDraft($round);
-        $tahap = $this->roundLabel($round);
+        $tahap = $this->scheduleLabel($round);
 
         return Action::make('jadwalWawancara')
             ->label('Jadwalkan ' . $tahap . ' (' . count($options) . ' pelamar)')
@@ -255,6 +308,33 @@ class WawancaraPage extends Page implements HasActions, HasForms, HasTable
             });
     }
 
+    /**
+     * Sesi wawancara yang pernah dijalani pelamar ini, buat dipilih di tombol Ubah Jadwal.
+     *
+     * @return array<string,string> id undangan => "Wawancara HR — 12 Okt 2026"
+     */
+    private function sessionOptions($record): array
+    {
+        return $record->interviewInvitees
+            ->sortBy(fn ($inv) => $inv->round())
+            ->mapWithKeys(fn ($inv) => [
+                $inv->id => ($inv->schedule?->label() ?? 'Wawancara Tahap ' . $inv->round())
+                    . ' — ' . ($inv->schedule?->interview_date?->translatedFormat('d M Y') ?? 'tanpa tanggal'),
+            ])
+            ->all();
+    }
+
+    /** Isi form jadwal dari satu undangan - dipakai saat modal dibuka & saat sesinya diganti. */
+    private function sessionFormValues($invitee): array
+    {
+        return [
+            'interview_date' => $invitee?->schedule?->interview_date?->format('Y-m-d'),
+            'interview_time' => $invitee?->schedule?->interview_time,
+            'location' => $invitee?->schedule?->location,
+            'notes' => $invitee?->schedule?->notes,
+        ];
+    }
+
     public function rescheduleOneWawancaraAction(): Action
     {
         return Action::make('rescheduleOneWawancara')
@@ -262,28 +342,47 @@ class WawancaraPage extends Page implements HasActions, HasForms, HasTable
             ->icon('heroicon-m-calendar')
             ->color('warning')
             ->visible(fn ($record) => $this->canDecide() && $record?->interviewInvitee && $record->interview_result === null)
+            /*
+             * Sejak wawancara bisa dijadwalkan berkali-kali, tombol ini harus menyebut sesi MANA yang
+             * diubah - dulu diam-diam mengenai sesi terakhir. Sesinya dipilih sendiri oleh HR, default
+             * sesi terakhir, dan tanggal/lokasi ikut terisi dari sesi yang dipilih.
+             */
             ->fillForm(fn ($record) => [
-                'interview_date' => $record->interviewInvitee?->schedule?->interview_date?->format('Y-m-d'),
-                'interview_time' => $record->interviewInvitee?->schedule?->interview_time,
-                'location' => $record->interviewInvitee?->schedule?->location,
-                'notes' => $record->interviewInvitee?->schedule?->notes,
-            ])
+                'invitee_id' => $record->interviewInvitee?->id,
+            ] + $this->sessionFormValues($record->interviewInvitee))
             ->schema([
+                Select::make('invitee_id')
+                    ->label('Sesi yang Diubah')
+                    ->options(fn ($record) => $this->sessionOptions($record))
+                    ->required()
+                    ->live()
+                    ->selectablePlaceholder(false)
+                    ->afterStateUpdated(function ($state, Set $set, $record) {
+                        $invitee = $record->interviewInvitees->firstWhere('id', $state);
+                        foreach ($this->sessionFormValues($invitee) as $key => $value) {
+                            $set($key, $value);
+                        }
+                    })
+                    ->helperText('Cuma sesi ini yang dipindah. Sesi lain pelamar ini tidak terpengaruh.'),
                 DatePicker::make('interview_date')->label('Tanggal Wawancara Baru')->required()->native(false)->displayFormat('d/m/Y'),
                 TimePicker::make('interview_time')->label('Waktu')->seconds(false),
                 TextInput::make('location')->label('Lokasi / Link Meeting'),
                 Textarea::make('notes')->label('Catatan untuk Pelamar')->rows(2),
             ])
             ->modalHeading('Ubah Jadwal Wawancara — Pelamar Ini')
-            ->modalDescription('Hanya pelamar ini yang dipindah ke jadwal baru. Peserta lain tidak terpengaruh.')
+            ->modalDescription('Hanya pelamar ini yang dipindah ke jadwal baru. Peserta lain di sesi yang sama tidak terpengaruh.')
             ->modalSubmitActionLabel('Simpan & Kirim Pemberitahuan')
             ->action(function (array $data, $record): void {
-                if (! $record?->interviewInvitee) {
+                $invitee = $record->interviewInvitees->firstWhere('id', $data['invitee_id'])
+                    ?? $record->interviewInvitee;
+
+                if (! $invitee) {
                     return;
                 }
-                InterviewSchedule::rescheduleOne($record->interviewInvitee, $data);
+
+                InterviewSchedule::rescheduleOne($invitee, $data);
                 $this->resetTable();
-                Notification::make()->title('Jadwal wawancara pelamar ini diperbarui & email terkirim.')->success()->send();
+                Notification::make()->title('Jadwal sesi tersebut diperbarui & email terkirim.')->success()->send();
             });
     }
 
@@ -335,53 +434,75 @@ class WawancaraPage extends Page implements HasActions, HasForms, HasTable
             ->label('Catat Hasil')
             ->icon('heroicon-m-clipboard-document-check')
             ->color('gray')
-            // Yang dicatat hasil TAHAP yang sedang menunggu keputusan untuk orang itu. Kalau semua
-            // tahapnya sudah diputuskan, tombolnya hilang.
-            ->visible(fn ($record) => $this->canDecide() && $record?->pendingInterviewRound() !== null)
-            ->modalHeading(fn ($record) => 'Catat Hasil ' . $this->roundLabel($record?->pendingInterviewRound() ?? 1))
+            /*
+             * SATU keputusan per pelamar, menempel di statusnya - bukan per sesi wawancara. Selama
+             * belum dicatat, pelamarnya tetap di tahap wawancara dan boleh dijadwalkan lagi berapa
+             * kali pun (lihat readyOptions()). Begitu dicatat, dia pindah status dan keluar dari
+             * daftar ini.
+             */
+            ->visible(fn ($record) => $this->canDecide() && $record?->interview_result === null)
+            ->modalHeading('Catat Hasil Wawancara')
+            ->modalDescription(fn () => $this->hasCompensationRows()
+                ? 'Keputusan ini menutup tahap wawancara pelamar ini. Kalau masih perlu sesi tambahan, jadwalkan dulu tanpa mencatat hasil.'
+                : 'Komponen kompensasi lowongan ini belum diisi, jadi hasil "Lulus" belum bisa disimpan — surat penawarannya tidak akan punya isi. Lengkapi dulu di Lowongan > Kompensasi Offering Letter. Hasil "Tidak Lulus" tetap bisa disimpan.')
+            ->fillForm(fn ($record) => ['catatan' => $record->interview_notes])
             ->schema([
+                // Catatan menempel di keputusan, bukan di sesi tertentu - sama seperti hasilnya.
+                RichEditor::make('catatan')
+                    ->label('Catatan Wawancara')
+                    ->toolbarButtons(['bold', 'italic', 'underline', 'bulletList', 'orderedList', 'link', 'undo', 'redo'])
+                    ->helperText('Catatan internal HR, tidak dikirim ke pelamar.'),
                 Radio::make('hasil')->label('Hasil Wawancara')->options([
                     'lulus' => 'Lulus',
                     'tidak_lulus' => 'Tidak Lulus',
                 ])->required(),
             ])
             ->action(function (array $data, $record): void {
-                $round = $record->pendingInterviewRound();
-                $invitee = $round ? $record->interviewInviteeForRound($round) : null;
+                $catatan = filled($data['catatan'] ?? null) ? $data['catatan'] : null;
 
-                if (! $invitee) {
-                    Notification::make()->title('Tidak ada tahap wawancara yang menunggu keputusan.')->warning()->send();
-
-                    return;
-                }
-
-                $invitee->update(['result' => $data['hasil']]);
-                $totalRounds = $record->jobOpening?->interview_rounds ?: 1;
-
-                if ($data['hasil'] === 'tidak_lulus') {
-                    // Gagal di tahap mana pun langsung berhenti - tidak ada tahap lanjutan.
-                    $record->update(['interview_result' => 'tidak_lulus', 'status' => 'rejected']);
-                    JobOpeningStageLog::record($record->job_opening_id, 'interview', 'rejected', 1);
-                    ApplicationNotification::createDraftFor($record, CompanyMessageTemplate::EVENT_INTERVIEW_REJECTED);
-                    Notification::make()->title('Hasil tersimpan: tidak lulus.')->success()->send();
-
-                    return;
-                }
-
-                if ($round < $totalRounds) {
-                    // Masih ada tahap berikutnya: status tetap `interview`, dan interview_result
-                    // sengaja dibiarkan kosong karena itu menyimpan hasil AKHIR - baru diisi setelah
-                    // tahap terakhir. Orang ini otomatis masuk daftar undangan tahap selanjutnya.
+                /*
+                 * Lulus wawancara memindahkan pelamar ke tahap Offering dan langsung mengabari dia
+                 * lewat email. Kalau komponen kompensasi lowongannya belum diisi, surat penawarannya
+                 * tidak akan punya isi - jadi keputusannya ditahan di sini, bukan baru ketahuan waktu
+                 * suratnya dibuat dan kandidatnya sudah terlanjur dijanjikan.
+                 */
+                if ($data['hasil'] === 'lulus' && ! $this->hasCompensationRows()) {
                     Notification::make()
-                        ->title('Lulus ' . $this->roundLabel($round) . '. Menunggu dijadwalkan ke tahap berikutnya.')
+                        ->title('Kompensasi lowongan belum diisi')
+                        ->body('Lengkapi dulu Lowongan > Kompensasi Offering Letter sebelum meluluskan pelamar ke tahap Offering.')
+                        ->danger()->persistent()->send();
+
+                    return;
+                }
+
+                if ($data['hasil'] === 'lulus') {
+                    $record->update([
+                        'interview_result' => 'lulus',
+                        'interview_notes' => $catatan,
+                        'status' => 'offering',
+                    ]);
+                    JobOpeningStageLog::record($record->job_opening_id, 'interview', 'offering', 1);
+
+                    // Kabari pelamarnya: lulus wawancara + diminta melengkapi data surat penawaran
+                    // di dashboard. Sebelum ini lulus wawancara sama sekali tidak mengirim email dari
+                    // HRIS - pelamarnya cuma diam menunggu tanpa tahu harus mengisi apa-apa.
+                    ApplicationNotification::createAndSend($record, CompanyMessageTemplate::EVENT_INTERVIEW_PASSED);
+
+                    Notification::make()
+                        ->title('Lulus wawancara. Email pemberitahuan dikirim, pelamar diminta melengkapi data surat penawaran.')
                         ->success()->send();
 
                     return;
                 }
 
-                $record->update(['interview_result' => 'lulus', 'status' => 'offering']);
-                JobOpeningStageLog::record($record->job_opening_id, 'interview', 'offering', 1);
-                Notification::make()->title('Lulus seluruh tahap wawancara. Lanjut ke Offering.')->success()->send();
+                $record->update([
+                    'interview_result' => 'tidak_lulus',
+                    'interview_notes' => $catatan,
+                    'status' => 'rejected',
+                ]);
+                JobOpeningStageLog::record($record->job_opening_id, 'interview', 'rejected', 1);
+                ApplicationNotification::createDraftFor($record, CompanyMessageTemplate::EVENT_INTERVIEW_REJECTED);
+                Notification::make()->title('Hasil tersimpan: tidak lulus.')->success()->send();
             });
     }
 
@@ -393,8 +514,7 @@ class WawancaraPage extends Page implements HasActions, HasForms, HasTable
                     ->with([
                         'answers' => fn ($q) => $q->where('field_key', 'full_name'),
                         'interviewInvitee.schedule',
-                        // Semua tahap ikut dimuat - dipakai kolom Tahap & Hasil per tahap, dan
-                        // pendingInterviewRound() supaya tidak query ulang per baris.
+                        // Semua sesi ikut dimuat buat kolom Sesi, supaya tidak query ulang per baris.
                         'interviewInvitees.schedule',
                     ])
                     ->when(
@@ -407,6 +527,23 @@ class WawancaraPage extends Page implements HasActions, HasForms, HasTable
             ->columns([
                 TextColumn::make('full_name')->label('Nama Lengkap')
                     ->state(fn ($record) => $record->answers->firstWhere('field_key', 'full_name')?->value ?? '—'),
+                // Riwayat sesi yang pernah dia jalani. Cuma keterangan - tidak memengaruhi keputusan,
+                // yang ada di kolom Hasil sebelah.
+                TextColumn::make('sesi')->label('Sesi Wawancara')->badge()->color('info')
+                    ->state(fn ($record) => $record->interviewInvitees
+                        ->sortBy(fn ($inv) => $inv->round())
+                        ->map(fn ($inv) => $inv->schedule?->label() ?? 'Wawancara Tahap ' . $inv->round())
+                        ->values()->all() ?: ['Belum dijadwalkan']),
+                // Catatan hasil wawancara - dipendekkan di kolom, lengkapnya di tooltip. Diisi
+                // bersamaan dengan keputusannya di tombol Catat Hasil.
+                TextColumn::make('interview_notes')->label('Catatan')
+                    ->state(fn ($record) => filled($record->interview_notes)
+                        ? str(strip_tags($record->interview_notes))->squish()->limit(60)
+                        : '—')
+                    ->tooltip(fn ($record) => filled($record->interview_notes)
+                        ? str(strip_tags($record->interview_notes))->squish()->toString()
+                        : null)
+                    ->wrap(),
                 TextColumn::make('interview_result')->label('Hasil')->badge()
                     ->formatStateUsing(fn ($state) => match ($state) {
                         'lulus' => 'Lulus', 'tidak_lulus' => 'Tidak Lulus', default => 'Belum dicatat',

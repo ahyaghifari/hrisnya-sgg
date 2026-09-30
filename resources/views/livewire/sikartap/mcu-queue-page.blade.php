@@ -43,11 +43,11 @@
                 @foreach ($antrian as $item)
                     <div class="pwa-list-row" style="align-items:flex-start;">
                         <div style="flex:1;min-width:0;">
-                            <p style="font-size:13px;font-weight:600;color:var(--text-heading);">{{ $item->user->name }}</p>
-                            <p style="font-size:11px;color:var(--text-muted);margin-top:2px;">{{ $item->user->nip }} &middot; {{ $item->user->company?->name }}</p>
+                            <p style="font-size:15px;font-weight:600;color:var(--text-heading);">{{ $item->user->name }}</p>
+                            <p style="font-size:12.5px;color:var(--text-muted);margin-top:2px;">{{ $item->user->nip }} &middot; {{ $item->user->company?->name }}</p>
                             <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;">
                                 @foreach ($item->mcuActionsFor(auth()->user()) as $action)
-                                    <a href="{{ $action['url'] }}" wire:navigate class="btn-ghost" style="padding:5px 10px;font-size:11px;">
+                                    <a href="{{ $action['url'] }}" wire:navigate class="btn-ghost" style="padding:8px 14px;font-size:13px;">
                                         <i class="fa-solid {{ $action['icon'] }}"></i> {{ $action['title'] }}
                                     </a>
                                 @endforeach
@@ -65,26 +65,26 @@
         {{-- DESKTOP: tabel --}}
         <div class="hidden md:block">
             <div style="background:var(--surface);border-radius:12px;box-shadow:var(--shadow-card);overflow-x:auto;">
-                <table style="width:100%;border-collapse:collapse;font-size:12.5px;">
+                <table style="width:100%;border-collapse:collapse;font-size:14.5px;">
                     <thead>
                         <tr style="border-bottom:1.5px solid var(--border);">
-                            <th style="text-align:left;padding:10px 14px;white-space:nowrap;">Karyawan</th>
-                            <th style="text-align:left;padding:10px 14px;white-space:nowrap;">Perusahaan</th>
-                            <th style="text-align:left;padding:10px 14px;white-space:nowrap;">Input MCU</th>
+                            <th style="text-align:left;padding:13px 16px;white-space:nowrap;">Karyawan</th>
+                            <th style="text-align:left;padding:13px 16px;white-space:nowrap;">Perusahaan</th>
+                            <th style="text-align:left;padding:13px 16px;white-space:nowrap;">Input MCU</th>
                         </tr>
                     </thead>
                     <tbody>
                         @foreach ($antrian as $item)
                             <tr wire:key="'mcu-'.{{ $item->id }}" style="border-bottom:1px solid var(--border-soft);">
-                                <td style="padding:9px 14px;white-space:nowrap;">
+                                <td style="padding:12px 16px;white-space:nowrap;">
                                     <span style="font-weight:600;">{{ $item->user->name }}</span>
-                                    <span style="display:block;font-size:10.5px;color:var(--text-faint);">{{ $item->user->nip }}</span>
+                                    <span style="display:block;font-size:12px;color:var(--text-faint);">{{ $item->user->nip }}</span>
                                 </td>
-                                <td style="padding:9px 14px;white-space:nowrap;">{{ $item->user->company?->name ?? '-' }}</td>
-                                <td style="padding:9px 14px;">
+                                <td style="padding:12px 16px;white-space:nowrap;">{{ $item->user->company?->name ?? '-' }}</td>
+                                <td style="padding:12px 16px;">
                                     <div style="display:flex;flex-wrap:wrap;gap:6px;">
                                         @foreach ($item->mcuActionsFor(auth()->user()) as $action)
-                                            <a href="{{ $action['url'] }}" wire:navigate class="btn-ghost" style="padding:5px 10px;font-size:11px;" title="{{ $action['title'] }}">
+                                            <a href="{{ $action['url'] }}" wire:navigate class="btn-ghost" style="padding:8px 14px;font-size:13px;" title="{{ $action['title'] }}">
                                                 <i class="fa-solid {{ $action['icon'] }}"></i> {{ $action['title'] }}
                                             </a>
                                         @endforeach

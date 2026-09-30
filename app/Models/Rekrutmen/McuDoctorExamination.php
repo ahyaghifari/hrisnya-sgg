@@ -18,7 +18,7 @@ class McuDoctorExamination extends Model
         'hidung', 'telinga', 'tonsil', 'faring', 'gigi', 'kelenjar_gondok',
         'suara_pernafasan', 'ronchi', 'wheezing', 'lainnya_paru', 'jantung',
         'hati', 'limpa', 'epigastrium', 'ginjal', 'lainnya_abdomen',
-        'ekstremitas', 'neurologi', 'diagnosa', 'rekomendasi', 'catatan',
+        'ekstremitas', 'neurologi', 'diagnosa', 'rekomendasi', 'catatan', 'file_path', 'rekomendasi_fit',
     ];
 
     public function invitee(): BelongsTo

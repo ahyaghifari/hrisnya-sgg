@@ -20,7 +20,7 @@ class McuNurseAssessment extends Model
         'riwayat_penyakit_dahulu', 'riwayat_operasi',
         'alergi_makanan', 'alergi_obat', 'alergi_debu', 'alergi_lainnya',
         'kebiasaan_olahraga', 'kebiasaan_merokok', 'kebiasaan_alkohol', 'kebiasaan_obat', 'kebiasaan_lainnya',
-        'hasil_ekg', 'keterangan_ekg', 'file_ekg', 'catatan',
+        'hasil_ekg', 'keterangan_ekg', 'file_ekg', 'catatan', 'file_path',
     ];
 
     protected $casts = [

@@ -27,7 +27,7 @@ class JobApplication extends Model
 
     protected $fillable = [
         'user_id', 'job_opening_id', 'status', 'quiz_sent_at', 'quiz_result',
-        'psychotest_completed_at', 'interview_result', 'offering_letter_path',
+        'psychotest_completed_at', 'interview_result', 'interview_notes', 'offering_letter_path',
         'offering_letter_uploaded_at', 'offering_letter_signed_path', 'offering_letter_signed_at',
         'offering_signed_reviewed_at', 'offering_signed_revision_reason', 'onboarding_date',
     ];
@@ -163,33 +163,22 @@ class JobApplication extends Model
 
     /**
      * Undangan wawancara TERBARU. Dulu hasOne polos karena wawancara cuma sekali; sejak wawancara
-     * berlapis (2026-09-28) satu pelamar bisa punya undangan per tahap, jadi yang diambil yang
-     * terakhir - itu tahap yang sedang berjalan untuk dia. Pemanggil lama (mis. tombol Ubah Jadwal
-     * per orang) otomatis mengenai tahap yang sedang berjalan, yang memang yang dimaksud.
+     * boleh dijadwalkan berkali-kali (2026-09-28) satu pelamar bisa punya beberapa undangan, jadi
+     * yang diambil yang terakhir - itu sesi yang sedang berjalan untuk dia. Pemanggil lama (mis.
+     * tombol Ubah Jadwal per orang) otomatis mengenai sesi terakhir, yang memang yang dimaksud.
+     *
+     * Keputusan lulus/tidak TIDAK ada di sini: dia menempel di interview_result + status lamaran
+     * ini, lihat WawancaraPage::tandaiHasilWawancaraAction().
      */
     public function interviewInvitee(): HasOne
     {
         return $this->hasOne(InterviewInvitee::class)->latestOfMany();
     }
 
-    /** Undangan tahap tertentu, null kalau belum pernah dijadwalkan di tahap itu. */
+    /** Undangan sesi tertentu, null kalau belum pernah dijadwalkan di sesi itu. */
     public function interviewInviteeForRound(int $round): ?InterviewInvitee
     {
         return $this->interviewInvitees->first(fn (InterviewInvitee $inv) => $inv->round() === $round);
-    }
-
-    /**
-     * Tahap wawancara yang sedang menunggu keputusan, null kalau tidak ada. Dipakai halaman Wawancara
-     * menentukan hasil tahap mana yang dicatat.
-     */
-    public function pendingInterviewRound(): ?int
-    {
-        $pending = $this->interviewInvitees
-            ->filter(fn (InterviewInvitee $inv) => $inv->result === null)
-            ->sortBy(fn (InterviewInvitee $inv) => $inv->round())
-            ->first();
-
-        return $pending?->round();
     }
 
     public function mcuInvitee(): HasOne

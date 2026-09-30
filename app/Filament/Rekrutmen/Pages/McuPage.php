@@ -8,6 +8,7 @@ use App\Models\Rekrutmen\CompanyMessageTemplate;
 use App\Models\Rekrutmen\JobApplication;
 use App\Models\Rekrutmen\JobOpening;
 use App\Models\Rekrutmen\JobOpeningStageLog;
+use App\Models\Rekrutmen\McuInvitee;
 use App\Models\Rekrutmen\McuSchedule;
 use Filament\Actions\Action;
 use Filament\Actions\Concerns\InteractsWithActions;
@@ -30,6 +31,7 @@ use Filament\Tables\Concerns\InteractsWithTable;
 use Filament\Tables\Contracts\HasTable;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\HtmlString;
 use UnitEnum;
 
@@ -263,6 +265,93 @@ class McuPage extends Page implements HasActions, HasForms, HasTable
             });
     }
 
+    /**
+     * Berkas hasil MCU per stasiun untuk satu peserta.
+     *
+     * @return array<string,string> label stasiun => path di disk local
+     */
+    private function mcuFiles(string $inviteeId): array
+    {
+        $invitee = McuInvitee::with(['nurseAssessment', 'labResult', 'radiologyResult', 'doctorExamination'])
+            ->find($inviteeId);
+
+        return array_filter([
+            'Asesmen Perawat' => $invitee?->nurseAssessment?->file_path,
+            'Laboratorium' => $invitee?->labResult?->file_path,
+            'Radiologi' => $invitee?->radiologyResult?->file_path,
+            'Pemeriksaan Dokter' => $invitee?->doctorExamination?->file_path,
+        ]);
+    }
+
+    /**
+     * Unduh satu berkas hasil MCU. Stasiun disebut lewat nama & peserta lewat id - path tidak pernah
+     * diterima dari request, karena path bebas berarti berkas kandidat lain ikut bisa dibaca.
+     */
+    public function unduhBerkasMcu(string $inviteeId, string $stasiun)
+    {
+        abort_unless(static::canAccess(), 403);
+
+        $path = $this->mcuFiles($inviteeId)[$stasiun] ?? null;
+
+        abort_unless($path && Storage::disk('local')->exists($path), 404);
+
+        return Storage::disk('local')->download($path);
+    }
+
+    /**
+     * Hasil MCU ditampilkan sebagai MODAL, bukan halaman sendiri (keputusan user 2026-09-30):
+     * isinya sekarang cuma berkas per stasiun + rekomendasi dokter, tidak sepadan dengan pindah
+     * halaman. HasilMcuDetailPage dihapus bersamaan.
+     */
+    public function lihatHasilMcuAction(): Action
+    {
+        return Action::make('lihatHasilMcu')
+            ->label('Hasil MCU')
+            ->icon('heroicon-m-clipboard-document-check')
+            ->color('gray')
+            ->visible(fn ($record) => $record->mcuInvitee?->hasAnyMcuResult())
+            ->modalHeading('Hasil MCU')
+            ->modalSubmitAction(false)
+            ->modalCancelActionLabel('Tutup')
+            ->schema(fn ($record) => [
+                Placeholder::make('hasil_mcu')
+                    ->hiddenLabel()
+                    ->content(fn () => new HtmlString($this->mcuResultHtml($record))),
+            ]);
+    }
+
+    /** Isi modal hasil MCU: rekomendasi dokter + daftar berkas dengan tombol unduh per stasiun. */
+    private function mcuResultHtml($record): string
+    {
+        $invitee = $record->mcuInvitee;
+        $rekomendasi = $invitee?->doctorExamination?->rekomendasi_fit;
+        $html = '';
+
+        if ($rekomendasi) {
+            $warna = $rekomendasi === 'fit' ? '#047C54' : '#ef4444';
+            $teks = $rekomendasi === 'fit' ? 'Fit' : 'Tidak Fit';
+            $html .= '<div style="margin-bottom:14px;font-size:13px;">Rekomendasi dokter: '
+                . '<strong style="color:' . $warna . ';">' . $teks . '</strong>'
+                . ' <span style="color:#9ca3af;">— keputusan MCU tetap ditetapkan HRD.</span></div>';
+        }
+
+        $files = $this->mcuFiles($invitee->id);
+
+        if ($files === []) {
+            return $html . '<p style="font-size:13px;color:#9ca3af;margin:0;">Belum ada berkas hasil yang diunggah.</p>';
+        }
+
+        foreach ($files as $stasiun => $path) {
+            $html .= '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 0;border-top:1px solid #e5e7eb;">'
+                . '<span style="font-size:13px;">' . e($stasiun) . '</span>'
+                . '<button type="button" wire:click="unduhBerkasMcu(\'' . e($invitee->id) . '\', \'' . e($stasiun) . '\')"'
+                . ' style="font-size:12.5px;font-weight:600;text-decoration:underline;background:none;border:0;padding:0;cursor:pointer;">Unduh</button>'
+                . '</div>';
+        }
+
+        return $html;
+    }
+
     public function putuskanHasilMcuAction(): Action
     {
         return Action::make('putuskanHasilMcu')
@@ -336,9 +425,7 @@ class McuPage extends Page implements HasActions, HasForms, HasTable
             ->recordActions([
                 Action::make('lihat')->label('Detail')->icon('heroicon-m-eye')->color('gray')
                     ->url(fn ($record) => \App\Filament\Rekrutmen\Pages\ApplicantDetailPage::getUrl() . '?application=' . $record->id),
-                Action::make('lihatHasilMcu')->label('Hasil MCU')->icon('heroicon-m-clipboard-document-check')->color('gray')
-                    ->visible(fn ($record) => $record->mcuInvitee?->hasAnyMcuResult())
-                    ->url(fn ($record) => \App\Filament\Rekrutmen\Pages\HasilMcuDetailPage::getUrl() . '?invitee=' . $record->mcuInvitee->id),
+                $this->lihatHasilMcuAction(),
                 $this->rescheduleOneMcuAction(),
                 $this->putuskanHasilMcuAction(),
             ])
