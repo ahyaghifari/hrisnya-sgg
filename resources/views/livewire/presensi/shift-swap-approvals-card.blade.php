@@ -27,7 +27,10 @@
                 @endif
 
                 <div style="display:flex;gap:6px;margin-top:10px;">
-                    <button type="button" wire:click="approve('{{ $record->id }}')" class="btn-primary" style="flex:1;justify-content:center;padding:5px 8px;font-size:11px;">
+                    {{-- wire:target scoped ke pengajuan INI saja - double-klik cuma bikin tombol Setuju
+                    baris ini yang nge-disable selama request pertama masih diproses, baris lain tetap
+                    bisa diklik (bukan wire:loading polos yang nge-disable SEMUA tombol di kartu). --}}
+                    <button type="button" wire:click="approve('{{ $record->id }}')" wire:loading.attr="disabled" wire:target="approve('{{ $record->id }}')" class="btn-primary" style="flex:1;justify-content:center;padding:5px 8px;font-size:11px;">
                         <i class="fa-solid fa-check"></i> Setuju
                     </button>
                     <button type="button" wire:click="reject('{{ $record->id }}')" class="btn-ghost" style="flex:1;justify-content:center;padding:5px 8px;font-size:11px;color:var(--danger-text);border-color:var(--danger-soft-border);">
