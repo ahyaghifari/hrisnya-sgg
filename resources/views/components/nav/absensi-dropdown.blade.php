@@ -49,6 +49,7 @@
             @if ($canViewExtraShift)
             <a href="{{ route('presensi.rekap-extra-shift') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-user-clock"></i> Rekap Extra Shift</a>
             @endif
+            <a href="{{ route('presensi.rekap-tukar-shift') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-right-left"></i> Rekap Tukar Shift</a>
         </div>
         @endif
     </div>

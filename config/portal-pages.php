@@ -473,6 +473,12 @@ return [
         'guard' => null,
     ],
 
+    'presensi.rekap-tukar-shift' => [
+        'label' => 'Rekap Tukar Shift',
+        'permission' => \App\Enum\CustomPermissionEnum::VIEW_REPORT_DATA_ABSENSI->value,
+        'guard' => null,
+    ],
+
     // Gerbang kedua (ViewAny:ExtraShiftAssignment) dicek di ExtraShiftRecapPage::mount() -
     // registry ini cuma mendukung 1 permission per route.
     'presensi.rekap-extra-shift' => [

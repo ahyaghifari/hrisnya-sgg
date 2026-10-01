@@ -66,6 +66,10 @@
     <span class="pwa-menu-grid-label">Rekap Extra Shift</span>
 </a>
 @endif
+<a href="{{ route('presensi.rekap-tukar-shift') }}" wire:navigate class="pwa-menu-grid-item">
+    <span class="pwa-menu-grid-icon green"><i class="fa-solid fa-right-left"></i></span>
+    <span class="pwa-menu-grid-label">Rekap Tukar Shift</span>
+</a>
 @endif
 @if ($canViewPengaturanAbsensi)
 <a href="{{ route('presensi.pengaturan') }}" wire:navigate class="pwa-menu-grid-item">
