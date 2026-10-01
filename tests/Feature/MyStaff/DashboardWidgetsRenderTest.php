@@ -44,6 +44,14 @@ class DashboardWidgetsRenderTest extends TestCase
             ->call('openModal', 'not_recorded')
             ->assertSee('Belum Presensi')->assertSee($employee->name);
 
+        \App\Models\Attendance\AttendanceRecords::create([
+            'user_id' => $employee->id, 'nip' => $employee->nip, 'date' => now()->toDateString(),
+            'check_in_time' => '08:15:00', 'late_minutes' => 75, 'status' => 'late', 'source' => 'access_logs_fixed',
+        ]);
+        Livewire::test(PresensiTimWidget::class)->call('load')
+            ->call('openModal', 'late')
+            ->assertSee('Masuk 08:15')->assertSee('terlambat 1 jam 15 menit');
+
         foreach ([PresensiTimWidget::class, CutiTimWidget::class, KontrakOrientasiTimWidget::class, CoachingTimWidget::class] as $widget) {
             Livewire::test($widget)->call('load')->assertDontSee('Memuat data tim');
         }

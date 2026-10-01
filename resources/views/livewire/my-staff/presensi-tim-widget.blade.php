@@ -67,7 +67,8 @@
                                 <p style="font-size:11px;color:var(--text-muted);margin:2px 0 0;">{{ $row['user']->profile?->jobPosition?->name ?? '-' }}</p>
                             </div>
                             @if ($row['detail'])
-                                <span style="font-size:12px;font-weight:600;color:var(--text-muted);white-space:nowrap;">{{ $row['detail'] }}</span>
+                                @php [$fg, $bg] = $this->modalStyle; @endphp
+                                <span style="align-self:center;display:inline-flex;padding:3px 10px;border-radius:99px;background:{{ $bg }};color:{{ $fg }};font-size:11px;font-weight:700;white-space:nowrap;">{{ $row['detail'] }}</span>
                             @endif
                         </div>
                     @empty

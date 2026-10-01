@@ -134,6 +134,17 @@ class PresensiTimWidget extends Component
         ][$this->activeModal] ?? '';
     }
 
+    /** Warna keterangan di modal - palet sama dengan badge status RekapPresensiPage. */
+    public function getModalStyleProperty(): array
+    {
+        return [
+            'present' => ['#047C54', 'rgba(4,124,84,0.1)'],
+            'late' => ['#b45309', 'rgba(180,83,9,0.1)'],
+            'permit' => ['#1d4ed8', 'rgba(29,78,216,0.1)'],
+            'leave' => ['#0f766e', 'rgba(15,118,110,0.1)'],
+        ][str_replace('_days', '', $this->activeModal ?? '')] ?? ['#94a3b8', 'rgba(148,163,184,0.1)'];
+    }
+
     /**
      * Daftar staff di balik angka tile yang diklik. Harian: status hari ini (not_recorded = tidak
      * punya record hari ini). Periode: staff yang punya >=1 hari status itu di rentang, 'detail'
@@ -157,7 +168,18 @@ class PresensiTimWidget extends Component
                 ? $ids->diff((clone $recorded)->pluck('user_id'))
                 : (clone $recorded)->where('status', self::STATUS_BY_KEY[$this->activeModal])->pluck('user_id');
 
-            return $users($matched)->map(fn ($u) => ['user' => $u, 'detail' => null]);
+            // Hadir: jam masuk. Terlambat: jam masuk + lama terlambat.
+            $records = in_array($this->activeModal, ['present', 'late'], true)
+                ? (clone $recorded)->whereIn('user_id', $matched)->get()->keyBy('user_id')
+                : collect();
+
+            return $users($matched)->map(function ($u) use ($records) {
+                $r = $records[$u->id] ?? null;
+                $in = $r?->check_in_time ? 'Masuk ' . substr($r->check_in_time, 0, 5) : null;
+                $late = $r && $r->late_minutes > 0 ? 'terlambat ' . $this->formatMinutes((int) $r->late_minutes) : null;
+
+                return ['user' => $u, 'detail' => implode(' · ', array_filter([$in, $late])) ?: null];
+            });
         }
 
         $isMinutes = $this->activeModal === 'late_minutes';
@@ -171,8 +193,17 @@ class PresensiTimWidget extends Component
 
         return $users($rows->keys())->map(fn ($u) => [
             'user' => $u,
-            'detail' => $isMinutes ? (int) $rows[$u->id]->minutes . ' menit' : $rows[$u->id]->days . ' hari',
+            'detail' => $isMinutes
+                ? $this->formatMinutes((int) $rows[$u->id]->minutes)
+                : $rows[$u->id]->days . ' hari' . ($this->activeModal === 'late_days' ? ' · terlambat ' . $this->formatMinutes((int) $rows[$u->id]->minutes) : ''),
         ]);
+    }
+
+    private function formatMinutes(int $minutes): string
+    {
+        return $minutes >= 60
+            ? intdiv($minutes, 60) . ' jam' . ($minutes % 60 ? ' ' . $minutes % 60 . ' menit' : '')
+            : $minutes . ' menit';
     }
 
     /** Config Chart.js utuh (type/data/options) - dikirim ke blade sebagai JSON, diparse &
