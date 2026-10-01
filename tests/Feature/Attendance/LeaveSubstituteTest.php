@@ -107,6 +107,26 @@ class LeaveSubstituteTest extends TestCase
         $this->assertSame($staff->id, AttendanceRequestLeaveDetails::first()->substitute_user_id);
     }
 
+    /** Hanya bawahan LANGSUNG - bawahan dari bawahan (beda unit) tidak boleh jadi calon pengganti. */
+    public function test_indirect_subordinate_is_not_a_candidate(): void
+    {
+        $bossJob = JobPositions::create(['company_id' => $this->company->id, 'name' => 'Karu', 'planned_manpower' => 1, 'org_structure_id' => $this->unitA->id]);
+        $midJob = JobPositions::create(['company_id' => $this->company->id, 'name' => 'Katim', 'planned_manpower' => 1, 'org_structure_id' => $this->unitB->id, 'parent_id' => $bossJob->id]);
+        $lowJob = JobPositions::create(['company_id' => $this->company->id, 'name' => 'Perawat', 'planned_manpower' => 1, 'org_structure_id' => $this->unitB->id, 'parent_id' => $midJob->id]);
+        $users = [];
+        foreach (['Atasan' => $bossJob, 'Bawahan Langsung' => $midJob, 'Bawahan Tidak Langsung' => $lowJob] as $name => $job) {
+            $u = User::factory()->create(['company_id' => $this->company->id, 'name' => $name, 'is_active' => true]);
+            UserProfiles::create(['user_id' => $u->id, 'job_position_id' => $job->id]);
+            \App\Models\User\UserJobPositions::create(['user_id' => $u->id, 'job_position_id' => $job->id, 'start_date' => now()->subYear(), 'status' => 'active']);
+            $users[$name] = $u;
+        }
+
+        $names = app(AttendaceReqService::class)->unitMates($users['Atasan'])->pluck('name')->all();
+
+        $this->assertContains('Bawahan Langsung', $names);
+        $this->assertNotContains('Bawahan Tidak Langsung', $names);
+    }
+
     /** Fitur cuma untuk 2 company RS - company lain: pilihan pengganti diabaikan, tidak tersimpan. */
     public function test_substitute_is_ignored_for_non_override_company(): void
     {

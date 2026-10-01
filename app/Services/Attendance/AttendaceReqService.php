@@ -188,12 +188,18 @@ class AttendaceReqService
     }
 
     /** Calon pengganti cuti: karyawan aktif lain di company & unit (org_structure jabatan) yang
-     * sama dengan $user, PLUS bawahannya (langsung & tidak langsung) - atasan boleh memilih
-     * bawahannya sebagai pengganti walau bawahan itu tercatat di sub-unit lain. */
+     * sama dengan $user, PLUS bawahan LANGSUNG-nya saja (bukan bawahan dari bawahan) - atasan
+     * boleh memilih bawahan langsungnya walau tercatat di sub-unit lain. */
     public function unitMates(User $user): \Illuminate\Database\Eloquent\Builder
     {
         $orgId = $user->profile?->jobPosition?->org_structure_id;
-        $subordinateIds = app(\App\Services\OrgHierarchyService::class)->subordinates($user)->pluck('id');
+        $positionId = $user->activeJobPosition?->job_position_id;
+        $subordinateIds = User::query()
+            ->whereHas('activeJobPosition', fn ($q) => $q->whereIn(
+                'job_position_id',
+                \App\Models\Master\JobPositions::where('parent_id', $positionId ?? '__none__')->select('id')
+            ))
+            ->pluck('id');
 
         return User::query()
             ->where('company_id', $user->company_id)
@@ -351,9 +357,8 @@ class AttendaceReqService
      * untuk 1 leave type pada bulan yang mengandung $referenceDate — dipakai bareng oleh
      * assertWithinCutiTahunanMonthlyLimit (validasi submit, saat ini dimatikan sementara) DAN
      * info kuota pemohon di halaman approval (§8). Null kalau leave type ini bukan kategori
-     * Tahunan (aturan ini memang tidak berlaku). "used" cuma menghitung status APPROVED
-     * (konsisten dengan getLeaveUserBalance) — pengajuan yang masih in_review/submitted BELUM
-     * mengurangi kuota periode sampai benar-benar diputuskan final.
+     * Tahunan (aturan ini memang tidak berlaku). "used" menghitung semua status kecuali
+     * cancelled/rejected (konsisten dengan getLeaveUserBalance) — in_review sudah mengurangi.
      *
      * Sengaja TIDAK pakai AttendancePeriodResolver (itu punya periode Izin sendiri) — Cuti
      * Tahunan cuma bulan kalender biasa, independen dari setting periode Izin (dikonfirmasi

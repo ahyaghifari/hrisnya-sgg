@@ -18,6 +18,22 @@
                 <i class="fa-solid fa-circle-info" style="color:var(--warn-soft-text);font-size:14px;"></i>
             </div>
             <div>
+                @if ($this->ketentuanMode)
+                    <p style="font-size:12.5px;font-weight:700;color:var(--warn-soft-text);margin:0 0 6px;">Ketentuan {{ $this->groupLabel }}</p>
+                    <p style="font-size:12px;color:var(--warn-soft-text);margin:0;line-height:1.55;">
+                        @if ($usage['max'] > 0)
+                            Berdasarkan ketentuan, {{ $this->groupLabel }} dapat diajukan paling banyak <strong>{{ $usage['max'] }} kali</strong> dalam satu periode ({{ $usage['period_start']->translatedFormat('d M') }} – {{ $usage['period_end']->translatedFormat('d M Y') }}).
+                        @else
+                            Berdasarkan ketentuan, jumlah pengajuan {{ $this->groupLabel }} tidak dibatasi.
+                        @endif
+                        Izin diberikan untuk keperluan yang mendesak. Gunakan secara bijaksana dan bertanggung jawab serta tetap berkoordinasi dengan atasan Anda.
+                        @if ($usage['used'] > 0)
+                            Anda telah mengajukan {{ $this->groupLabel }} sebanyak <strong>{{ $usage['used'] }} kali</strong> pada periode ini.
+                        @else
+                            Anda belum pernah mengajukan {{ $this->groupLabel }} pada periode ini.
+                        @endif
+                    </p>
+                @else
                 <p style="font-size:12.5px;font-weight:700;color:var(--warn-soft-text);margin:0 0 6px;">Kuota Izin Periode Ini</p>
                 @if ($usage['max'] > 0)
                     {{-- flex-direction:column - .saldo-pill inline-flex, <br> tidak memecah baris di dalamnya. --}}
@@ -27,6 +43,7 @@
                     </span>
                 @else
                     <span style="font-size:11.5px;color:var(--text-muted);">Tidak dibatasi.</span>
+                @endif
                 @endif
             </div>
         </div>

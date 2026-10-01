@@ -64,11 +64,10 @@ class AttendanceRequestDetailPermissionQuotaTest extends TestCase
         $component = Livewire::test(AttendanceRequestDetail::class, ['record' => $request]);
         $quotaInfo = $component->get('quotaInfo');
 
-        // used=0 karena request masih in_review (getIzinPeriodeUsage cuma hitung approved) -
-        // fokus test ini bukan akurasi angka kuota, tapi memastikan tidak ada TypeError sama
-        // sekali sampai struktur datanya lengkap kebaca.
+        // used=1 karena request in_review sudah mengurangi kuota (belum cancelled/rejected) -
+        // fokus test ini memastikan tidak ada TypeError sampai struktur datanya lengkap kebaca.
         $this->assertSame('permission', $quotaInfo['kind']);
         $this->assertArrayHasKey('max', $quotaInfo['usage']);
-        $this->assertSame(0, $quotaInfo['usage']['used']);
+        $this->assertSame(1, $quotaInfo['usage']['used']);
     }
 }
