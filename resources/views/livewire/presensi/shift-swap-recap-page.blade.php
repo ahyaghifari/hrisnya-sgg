@@ -122,7 +122,7 @@
                             ->implode('');
                     @endphp
                     <tr wire:click="openDetail('{{ $row['user']->id }}')" style="cursor:pointer;" title="Klik untuk lihat rincian tanggal">
-                        <td style="min-width:240px;max-width:300px;">
+                        <td style="min-width:300px;max-width:400px;">
                             <div style="display:flex;align-items:center;gap:10px;">
                                 <div style="flex-shrink:0;width:32px;height:32px;border-radius:50%;background:#047C54;color:#fff;font-weight:800;font-size:12px;display:flex;align-items:center;justify-content:center;">
                                     {{ $initials ?: '?' }}

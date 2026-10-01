@@ -252,7 +252,8 @@ trait ResolvesTodayAttendanceStatus
                 'schedule_name'       => $scheduleName,
                 'schedule_detail'     => $scheduleDetail,
                 'state'          => $isFullDay ? 'full_day_permission' : 'permission',
-                'color'          => $isFullDay ? 'yellow' : 'green',
+                // Sakit pink (sama dengan warna Sakit di Rekap Presensi), izin seharian kuning, sisanya hijau.
+                'color'          => $detail?->category === PermissionTypeCategoryEnum::IZIN_SAKIT->value ? 'pink' : ($isFullDay ? 'yellow' : 'green'),
                 'note'           => "Izin - {$label}",
                 'attendance'     => $attendance,
                 'late_minutes_label'       => $lateMinutesLabel,

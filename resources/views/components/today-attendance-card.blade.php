@@ -1,12 +1,13 @@
 @props(['status', 'canSync' => false])
 @php
     // Warna kartu ikut state (lihat ResolvesTodayAttendanceStatus): Libur nasional/tanggal
-    // merah = merah, Cuti = biru, Izin Seharian = kuning, normal/izin biasa = hijau. 'plain'
+    // merah = merah, Cuti = biru, Izin Seharian = kuning, Izin Sakit = pink, normal/izin biasa = hijau. 'plain'
     // = hari ini off cuma karena jadwal (bukan tanggal merah) -> kartu putih, teks netral.
     $gradients = [
         'red'    => ['#dc2626', '#7f1d1d'],
         'blue'   => ['#1a56c4', '#0b2f6b'],
         'yellow' => ['#d97706', '#92400e'],
+        'pink'   => ['#be185d', '#831843'],
         'green'  => ['#047C54', '#024732'],
         'gray'   => ['#475569', '#1e293b'],
     ];
