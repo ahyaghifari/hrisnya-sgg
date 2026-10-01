@@ -83,7 +83,7 @@ return [
         'label' => 'Detail Karyawan',
         'permission' => null,
         // Tidak pakai guard tunggal di sini — halaman ini dipakai 3 entry point ("Data Diri",
-        // MyStaff/bawahan, Kepegawaian/company-wide). Guard per-record dicek di
+        // MyStaff/staff, Kepegawaian/company-wide). Guard per-record dicek di
         // EmployeeStatistics::canManage(), bukan di level registry ini.
         'guard' => null,
     ],
@@ -550,8 +550,8 @@ return [
 
     'coaching' => [
         // Dua jalur akses beda scope (instruksi user 2026-07-26): permission Shield
-        // ViewAny:Coaching (role HC khusus, company-wide) ATAU sekadar punya bawahan (scoped ke
-        // bawahannya sendiri). Permission null di sini supaya middleware tidak nge-block jalur
+        // ViewAny:Coaching (role HC khusus, company-wide) ATAU sekadar punya staff (scoped ke
+        // staff-nya sendiri). Permission null di sini supaya middleware tidak nge-block jalur
         // kedua — gate & scope sesungguhnya ada di CoachingPage/CreateCoachingPage/
         // CoachingDetailPage.
         'label' => 'Coaching',

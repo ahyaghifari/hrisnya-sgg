@@ -40,6 +40,10 @@ class DashboardWidgetsRenderTest extends TestCase
         Livewire::test(RingkasanTimWidget::class)->call('load')
             ->assertSee('Karyawan Tetap')->assertSee('100% dari tim');
 
+        Livewire::test(PresensiTimWidget::class)->call('load')
+            ->call('openModal', 'not_recorded')
+            ->assertSee('Belum Presensi')->assertSee($employee->name);
+
         foreach ([PresensiTimWidget::class, CutiTimWidget::class, KontrakOrientasiTimWidget::class, CoachingTimWidget::class] as $widget) {
             Livewire::test($widget)->call('load')->assertDontSee('Memuat data tim');
         }

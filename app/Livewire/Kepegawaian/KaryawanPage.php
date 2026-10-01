@@ -17,7 +17,7 @@ use Livewire\WithPagination;
 use Maatwebsite\Excel\Facades\Excel;
 
 /**
- * Daftar SEMUA karyawan company (bukan cuma bawahan seperti MyEmployees/MyStaff) — padanan
+ * Daftar SEMUA karyawan company (bukan cuma staff seperti MyEmployees/MyStaff) — padanan
  * portal dari admin EmployeeResource. Pola desktop-tabel/mobile-card sama persis dengan
  * MyEmployees, lihat DESIGN.md § Responsive requirement.
  */

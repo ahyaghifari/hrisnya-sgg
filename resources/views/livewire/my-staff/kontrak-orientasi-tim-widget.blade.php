@@ -1,5 +1,5 @@
 <div class="card-surface accent accent-indigo">
-    <x-my-staff.widget-head icon="fa-file-contract" title="Kontrak & Orientasi" sub="Bawahan yang masa kerjanya akan berakhir" />
+    <x-my-staff.widget-head icon="fa-file-contract" title="Kontrak & Orientasi" sub="Staff yang masa kerjanya akan berakhir" />
 
     @if ($loaded)
         <div class="pwa-list">
@@ -7,7 +7,7 @@
                 <button type="button" wire:click="openModal('{{ $row['key'] }}')" class="pwa-list-row" style="width:100%;text-align:left;border:none;background:none;cursor:pointer;font-family:inherit;">
                     <div class="pwa-tile-icon {{ $row['tile'] }}"><i class="fa-solid {{ $row['icon'] }}"></i></div>
                     <div style="flex:1;min-width:0;">
-                        <p style="font-size:13px;font-weight:600;color:var(--text-heading);margin:0;">{{ $row['count'] }} bawahan <span class="badge {{ $row['typeBadge'] }}" style="margin-left:4px;">{{ $row['type'] }}</span></p>
+                        <p style="font-size:13px;font-weight:600;color:var(--text-heading);margin:0;">{{ $row['count'] }} staff <span class="badge {{ $row['typeBadge'] }}" style="margin-left:4px;">{{ $row['type'] }}</span></p>
                         <p style="font-size:11px;color:var(--text-muted);margin-top:2px;">{{ $row['desc'] }}</p>
                     </div>
                     <span class="badge {{ $row['urgencyBadge'] }}">{{ $row['urgencyLabel'] }}</span>
@@ -16,12 +16,12 @@
         </div>
 
         @if (in_array($activeModal, ['kontrak-urgent', 'orientasi-urgent', 'kontrak-attention'], true))
-            <div class="modal-overlay" wire:click="closeModal">
+            <div class="modal-overlay ms-modal" wire:click="closeModal">
                 <div class="modal-box" onclick="event.stopPropagation()">
                     <h3 style="font-size:16px;font-weight:700;color:var(--text-heading);margin:0 0 4px;">
                         {{ $activeModal === 'orientasi-urgent' ? 'Orientasi Akan Berakhir' : 'Kontrak Akan Berakhir' }}
                     </h3>
-                    <p style="font-size:12px;color:var(--text-muted);margin:0 0 14px;">{{ $this->detail->count() }} bawahan, diurutkan dari yang paling dekat jatuh tempo.</p>
+                    <p style="font-size:12px;color:var(--text-muted);margin:0 0 14px;">{{ $this->detail->count() }} staff, diurutkan dari yang paling dekat jatuh tempo.</p>
 
                     @forelse ($this->detail->sortBy(fn ($item) => $activeModal === 'orientasi-urgent' ? $item->effective_end_date : $item->contract_end_date) as $item)
                         <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border-soft);">

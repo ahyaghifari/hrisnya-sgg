@@ -19,7 +19,7 @@ use Livewire\Component;
 /**
  * Kalender bulanan jadwal (Fixed/Flexible/Shift) milik SATU karyawan pilihan - padanan admin
  * dari JadwalSayaPage, dipakai orang yang punya hak kelola jadwal (permission 'ViewAny:Schedule',
- * sama seperti SchedulesPage) buat cek jadwal siapa saja di perusahaannya, BUKAN cuma bawahan
+ * sama seperti SchedulesPage) buat cek jadwal siapa saja di perusahaannya, BUKAN cuma staff
  * langsungnya (beda dari MyStaff). Reuse trait ResolvesDayScheduleSummary supaya logic resolve
  * jadwal tidak dobel dengan JadwalSayaPage/Dashboard.
  */

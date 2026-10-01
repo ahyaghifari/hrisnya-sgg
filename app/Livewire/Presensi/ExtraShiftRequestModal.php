@@ -15,7 +15,7 @@ use Livewire\Component;
 
 /**
  * Modal "Extra Shift" instan nempel di widget "Jadwal Shift Tim" (Dashboard) - buat atasan
- * berjadwal shift (mis. Kepala Ruangan) assign extra shift ke bawahannya sendiri tanpa lewat
+ * berjadwal shift (mis. Kepala Ruangan) assign extra shift ke staff-nya sendiri tanpa lewat
  * approval, pola sama ExtraShiftPage (halaman admin berdiri sendiri, company-wide) tapi
  * scope karyawannya dipersempit ke tim (ResolvesShiftTeamMembers) + diri sendiri.
  *
@@ -56,7 +56,7 @@ class ExtraShiftRequestModal extends Component
     }
 
     /** Tim (lihat ResolvesShiftTeamMembers) + diri sendiri, yang beneran berjadwal shift - beda
-     * dari TeamShiftScheduleCard (widget lihat-lihat, semua bawahan tampil apa adanya), di sini
+     * dari TeamShiftScheduleCard (widget lihat-lihat, semua staff tampil apa adanya), di sini
      * TETAP difilter hasShiftSchedule() karena yang dipilih harus punya jadwal shift nyata biar
      * ada basis shift normal buat aturan Extra Shift. */
     public function getEligibleEmployeesProperty()

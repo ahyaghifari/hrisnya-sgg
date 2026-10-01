@@ -49,7 +49,7 @@ enum CustomPermissionEnum: string
     case PENGAJUAN_ABSENSI_SAYA = 'pengajuan_absensi_saya';
     case PEMBINAAN_SAYA = 'pembinaan_saya';
 
-    /** Beda dari sekadar "punya bawahan" (CoachingPage/CreateCoachingPage/CoachingDetailPage
+    /** Beda dari sekadar "punya staff" (CoachingPage/CreateCoachingPage/CoachingDetailPage
      * default scope ke OrgHierarchyService::subordinates()) — permission ini kasih akses
      * mengcoaching SEMUA karyawan company tanpa terkecuali, dipakai buat role seperti HC yang
      * bukan atasan langsung siapa-siapa di struktur organisasi tapi tetap perlu bisa coaching
@@ -237,7 +237,7 @@ enum CustomPermissionEnum: string
 
     /** Lihat lampiran KTP/KK karyawan lain di halaman Data Diri (kartu "Lampiran Identitas") —
      * dipisah dari akses baca Data Diri secara umum (atasan/HC yang biasa buka Data Diri
-     * bawahannya TIDAK otomatis bisa lihat lampiran ini kecuali dikasih permission ini secara
+     * staff-nya TIDAK otomatis bisa lihat lampiran ini kecuali dikasih permission ini secara
      * eksplisit). Pemilik akun selalu bisa lihat/unggah lampirannya sendiri, tanpa permission ini. */
     case LIHAT_LAMPIRAN_IDENTITAS_KARYAWAN = 'lihat_lampiran_identitas_karyawan';
 
@@ -324,7 +324,7 @@ enum CustomPermissionEnum: string
             self::AJUKAN_PELATIHAN => 'Ajukan Pelatihan (Eksternal)',
             self::PENGAJUAN_ABSENSI_SAYA => 'Pengajuan Absensi Saya',
             self::PEMBINAAN_SAYA => 'Pembinaan Saya',
-            self::COACHING_KARYAWAN_LAINNYA => 'Coaching Karyawan Lainnya (Semua Karyawan, Bukan Cuma Bawahan)',
+            self::COACHING_KARYAWAN_LAINNYA => 'Coaching Karyawan Lainnya (Semua Karyawan, Bukan Cuma Staff)',
             self::BERI_MERIT_POINT => 'Beri Merit Point',
             self::VIEW_REPORT_DATA_ABSENSI => 'Lihat Laporan Data Absensi',
             self::APPROVE_PENGAJUAN_PELATIHAN => 'Approve Pengajuan Pelatihan',

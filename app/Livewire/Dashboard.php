@@ -72,7 +72,7 @@ class Dashboard extends Component
     }
 
     /** Widget "Jadwal Shift Tim" (TeamShiftScheduleCard) - SEBELUMNYA otomatis tampil untuk
-     * siapa pun yang punya bawahan, diganti ke permission eksplisit (WidgetPermissionEnum,
+     * siapa pun yang punya staff, diganti ke permission eksplisit (WidgetPermissionEnum,
      * bukan CustomPermissionEnum - lihat docblock enum itu) 2026-08-19 supaya lebih mudah
      * diatur siapa yang lihat, bukan implisit dari struktur organisasi. */
     public function getCanJadwalShiftTimProperty(): bool
@@ -236,7 +236,7 @@ class Dashboard extends Component
     {
         // Cuma tugas yang DITUGASKAN ke user ini (assignee) - bukan yang dia buat/tugaskan ke
         // orang lain. Widget "Tugas Saya" di dashboard itu daftar kerjaan sendiri, bukan daftar
-        // penugasan yang dia kasih ke bawahan (itu ada di menu Tugas > Penugasan Individu).
+        // penugasan yang dia kasih ke staff (itu ada di menu Tugas > Penugasan Individu).
         return Task::where('assigned_to', Auth::id())
             // Task di dalam Project/Board dikecualikan - kartu ini cuma buat task personal
             // (Todo Saya/Tugas Saya), sama seperti TaskService::scopedTaskQuery(). Task board

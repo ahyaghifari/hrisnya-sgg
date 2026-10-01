@@ -15,7 +15,7 @@ use Livewire\Component;
  * App\Livewire\Presensi\RekapPresensiPage (instruksi user 2026-09-18: "bisa filter juga
  * berdasarkan periode kaya di rekap presensi"), default periode ikut cutoff company
  * (AttendancePeriodResolver, bukan tanggal 1-akhir bulan kalender polos) - bedanya scope di
- * sini SELALU bawahan (OrgHierarchyService::subordinates()), tanpa filter company/departemen
+ * sini SELALU staff (OrgHierarchyService::subordinates()), tanpa filter company/departemen
  * (RekapPresensiPage company-wide, ini cuma tim sendiri).
  *
  * Data di-query pas tab "Dashboard" diklik pertama kali - lihat LazyLoadsOnExpand.
@@ -29,6 +29,16 @@ class PresensiTimWidget extends Component
     public ?string $dateFrom = null;
 
     public ?string $dateTo = null;
+
+    public ?string $activeModal = null;
+
+    /** Key tile -> nilai kolom status attendance_records (harian & periode pakai status yang sama). */
+    private const STATUS_BY_KEY = [
+        'present' => 'present', 'present_days' => 'present',
+        'late' => 'late', 'late_days' => 'late',
+        'leave' => 'leave', 'leave_days' => 'leave',
+        'permit' => 'permit', 'permit_days' => 'permit',
+    ];
 
     public function setMode(string $mode): void
     {
@@ -53,7 +63,7 @@ class PresensiTimWidget extends Component
 
     /** Stat hari ini - dihitung dari status kolom attendance_records (bukan resolve jadwal per
      * user, terlalu berat) - sama pola agregat TodayAttendanceSummaryWidget punya Dashboard
-     * Anda, cuma scope bawahan. */
+     * Anda, cuma scope staff. */
     public function getTodayStatsProperty(): array
     {
         if ($this->mode !== 'harian') {
@@ -101,6 +111,68 @@ class PresensiTimWidget extends Component
             'permit_days' => (clone $records)->where('status', AttendanceStatus::PERMIT->value)->count(),
             'total_late_minutes' => (int) (clone $records)->where('status', AttendanceStatus::LATE->value)->sum('late_minutes'),
         ];
+    }
+
+    public function openModal(string $key): void
+    {
+        $this->activeModal = $key;
+    }
+
+    public function closeModal(): void
+    {
+        $this->activeModal = null;
+    }
+
+    /** Judul modal = label tile yang diklik. */
+    public function getModalTitleProperty(): string
+    {
+        return [
+            'present' => 'Hadir', 'late' => 'Terlambat', 'leave' => 'Cuti', 'permit' => 'Izin',
+            'not_recorded' => 'Belum Presensi',
+            'present_days' => 'Hari Hadir', 'late_days' => 'Hari Telat', 'leave_days' => 'Hari Cuti',
+            'permit_days' => 'Hari Izin', 'late_minutes' => 'Menit Telat',
+        ][$this->activeModal] ?? '';
+    }
+
+    /**
+     * Daftar staff di balik angka tile yang diklik. Harian: status hari ini (not_recorded = tidak
+     * punya record hari ini). Periode: staff yang punya >=1 hari status itu di rentang, 'detail'
+     * = jumlah hari (atau total menit untuk late_minutes).
+     *
+     * @return \Illuminate\Support\Collection<int, array{user: \App\Models\User, detail: ?string}>
+     */
+    public function getModalEmployeesProperty()
+    {
+        if (! $this->activeModal) {
+            return collect();
+        }
+
+        $ids = $this->subordinateIds();
+        $users = fn ($filterIds) => \App\Models\User::whereIn('id', $filterIds)->with('profile.jobPosition')->orderBy('name')->get();
+
+        if ($this->mode === 'harian') {
+            $recorded = AttendanceRecords::whereIn('user_id', $ids)->where('date', now()->toDateString());
+
+            $matched = $this->activeModal === 'not_recorded'
+                ? $ids->diff((clone $recorded)->pluck('user_id'))
+                : (clone $recorded)->where('status', self::STATUS_BY_KEY[$this->activeModal])->pluck('user_id');
+
+            return $users($matched)->map(fn ($u) => ['user' => $u, 'detail' => null]);
+        }
+
+        $isMinutes = $this->activeModal === 'late_minutes';
+        $rows = AttendanceRecords::whereIn('user_id', $ids)
+            ->whereBetween('date', [$this->dateFrom, $this->dateTo])
+            ->where('status', $isMinutes ? AttendanceStatus::LATE->value : self::STATUS_BY_KEY[$this->activeModal])
+            ->selectRaw('user_id, count(*) as days, sum(late_minutes) as minutes')
+            ->groupBy('user_id')
+            ->get()
+            ->keyBy('user_id');
+
+        return $users($rows->keys())->map(fn ($u) => [
+            'user' => $u,
+            'detail' => $isMinutes ? (int) $rows[$u->id]->minutes . ' menit' : $rows[$u->id]->days . ' hari',
+        ]);
     }
 
     /** Config Chart.js utuh (type/data/options) - dikirim ke blade sebagai JSON, diparse &

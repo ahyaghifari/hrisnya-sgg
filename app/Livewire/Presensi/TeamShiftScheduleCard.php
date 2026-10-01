@@ -17,12 +17,12 @@ use Livewire\Component;
 
 /**
  * Widget "Jadwal Shift Tim" di Dashboard - buat atasan (mis. Kepala Ruangan) sekilas lihat
- * jadwal BAWAHANNYA per hari (beda dari widget "Jadwal Shift Saya" yang isinya jadwal sendiri)
- * - instruksi user 2026-08-18. Scope bawahan sama dengan ExtraShiftRequestModal
+ * jadwal STAFF-NYA per hari (beda dari widget "Jadwal Shift Saya" yang isinya jadwal sendiri)
+ * - instruksi user 2026-08-18. Scope staff sama dengan ExtraShiftRequestModal
  * (OrgHierarchyService::subordinates(), rekursif lewat struktur jabatan), tanpa diri sendiri
  * (widget ini murni lihat tim).
  *
- * SEMUA bawahan ditampilkan, TIDAK difilter berdasarkan hasShiftSchedule()/tipe karyawan
+ * SEMUA staff ditampilkan, TIDAK difilter berdasarkan hasShiftSchedule()/tipe karyawan
  * (instruksi user 2026-08-18: "seluruh karyawan dibawah kepala ruangan itu masuk, tidak peduli
  * tipe karyawan apa" - awalnya sempat difilter ke yang beneran berjadwal shift, tapi itu bikin
  * karyawan baru/orientasi yang belum sempat di-assign jadwal jadi hilang dari daftar padahal
@@ -30,7 +30,7 @@ use Livewire\Component;
  * "Belum ada jadwal" (lihat resolveDaySchedule() state 'none'), bukan disembunyikan.
  *
  * Read-only. Kemunculannya digerbangi permission `WidgetPermissionEnum::JADWAL_SHIFT_TIM`
- * (2026-08-19, sebelumnya otomatis tampil untuk siapa pun yang punya bawahan tanpa permission
+ * (2026-08-19, sebelumnya otomatis tampil untuk siapa pun yang punya staff tanpa permission
  * terpisah - diganti eksplisit atas instruksi user, biar lebih gampang diatur siapa yang lihat)
  * - gate-nya ada di `Dashboard::getCanJadwalShiftTimProperty()` + `@if` yang membungkus tag
  * `<livewire:presensi.team-shift-schedule-card>` di home-cards.blade.php, BUKAN di class ini
@@ -69,7 +69,7 @@ class TeamShiftScheduleCard extends Component
         return Carbon::parse($this->date)->translatedFormat('l, d M Y');
     }
 
-    /** Bawahan struktur jabatan + karyawan lain yang pakai Schedule sama (lihat
+    /** Staff struktur jabatan + karyawan lain yang pakai Schedule sama (lihat
      * ResolvesShiftTeamMembers), tanpa diri sendiri, TIDAK difilter hasShiftSchedule() lagi -
      * lihat catatan class-level. */
     public function getTeamMembersProperty()
@@ -89,7 +89,7 @@ class TeamShiftScheduleCard extends Component
      * timnya tetap perlu dilihat detail rosternya.
      *
      * Prioritas 1 (2026-08-19): kalau atasan ini terdaftar sebagai `head_user_id` di 1 Schedule
-     * tertentu, link WAJIB ke situ - tanpa ini, atasan yang bawahannya kepencar di lebih dari 1
+     * tertentu, link WAJIB ke situ - tanpa ini, atasan yang staff-nya kepencar di lebih dari 1
      * Schedule/unit bisa ke-link ke Schedule unit yang salah (asal Schedule pertama yang ketemu
      * dari roster siapapun, urutan tidak dijamin). Fallback ke logic lama (Schedule pertama dari
      * roster anggota tim) kalau atasan ini belum di-set sebagai kepala ruangan manapun - null

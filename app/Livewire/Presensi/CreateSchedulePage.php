@@ -44,7 +44,7 @@ class CreateSchedulePage extends Component
     public string $scheduleType = '';
 
     /** "Kepala Ruangan" - opsional, dipakai TeamShiftScheduleCard buat resolve link "Detail
-     * Jadwal" ke Schedule yang benar kalau atasan punya bawahan di lebih dari 1 Schedule. */
+     * Jadwal" ke Schedule yang benar kalau atasan punya staff di lebih dari 1 Schedule. */
     public ?string $headUserId = null;
 
     /** Pola shift (2 atau 3 shift) - cuma relevan buat scheduleType SHIFT, lihat

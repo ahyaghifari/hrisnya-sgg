@@ -9,8 +9,8 @@ use Illuminate\Support\Collection;
 
 /**
  * Dipakai TeamShiftScheduleCard & ExtraShiftRequestModal - "tim" 1 Kepala Ruangan bukan cuma
- * bawahan struktur jabatan (OrgHierarchyService::subordinates(), rekursif via parent_id), TAPI
- * juga siapa pun yang pakai Schedule (shift) yang SAMA dengan bawahan-bawahan itu.
+ * staff struktur jabatan (OrgHierarchyService::subordinates(), rekursif via parent_id), TAPI
+ * juga siapa pun yang pakai Schedule (shift) yang SAMA dengan staff-staff itu.
  *
  * Kenapa perlu tambahan ini (instruksi user 2026-08-18, kasus NIP 02022026834): karyawan
  * Orientasi di beberapa RS ditaruh di 1 Jabatan generik company-wide ("Perawat Orientasi",

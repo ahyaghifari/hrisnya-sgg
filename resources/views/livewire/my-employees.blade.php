@@ -23,7 +23,7 @@
     </div>
 
     {{-- Dashboard MyStaff - fixed (bukan widget dashboard per jabatan kayak Dashboard Anda),
-    scope-nya SELALU bawahan (OrgHierarchyService::subordinates()). Collapsed default, data
+    scope-nya SELALU staff (OrgHierarchyService::subordinates()). Collapsed default, data
     di-query cuma pas widget-nya dibuka pertama kali (instruksi user 2026-09-18) - lihat
     App\Livewire\MyStaff\Concerns\LazyLoadsOnExpand. --}}
     <div class="grid grid-cols-1 lg:grid-cols-2" style="gap:14px;align-items:start;">

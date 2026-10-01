@@ -134,7 +134,7 @@ DOM tanpa transisi keluar. --}}
                 <div class="form-card" style="margin:0;padding:18px;">
                     <div class="section-head" style="margin-bottom:10px;">
                         <div class="section-icon"><i class="fa-solid fa-sitemap" style="color:var(--brand);font-size:12px;"></i></div>
-                        <span class="section-title">Sub Jabatan Bawahan ({{ $this->selectedJobDetail->children->count() }})</span>
+                        <span class="section-title">Sub Jabatan Staff ({{ $this->selectedJobDetail->children->count() }})</span>
                     </div>
 
                     <div class="pwa-list">

@@ -20,8 +20,8 @@ use Tests\TestCase;
 
 /**
  * Akses "Coaching" (row 2) sekarang punya 2 jalur beda scope (instruksi user 2026-07-26):
- * permission Shield ViewAny:Coaching (HC, company-wide) ATAU sekadar punya bawahan (di-scope
- * ke bawahannya sendiri saja, sama pola MyStaff).
+ * permission Shield ViewAny:Coaching (HC, company-wide) ATAU sekadar punya staff (di-scope
+ * ke staff-nya sendiri saja, sama pola MyStaff).
  */
 class CoachingSubordinateAccessTest extends TestCase
 {
@@ -37,7 +37,7 @@ class CoachingSubordinateAccessTest extends TestCase
         ]);
     }
 
-    /** @return array{0: User, 1: User, 2: User, 3: Companies} manager, subordinate, karyawan lain (bukan bawahan) */
+    /** @return array{0: User, 1: User, 2: User, 3: Companies} manager, subordinate, karyawan lain (bukan staff) */
     private function makeManagerWithSubordinate(): array
     {
         // SISTEM_PEMBINAAN_KARYAWAN - gerbang modul dicek duluan di mount() (CreateCoachingPage/
@@ -74,7 +74,7 @@ class CoachingSubordinateAccessTest extends TestCase
         ]);
 
         $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
-        $hc = User::factory()->create(['company_id' => $company->id]); // tidak punya bawahan sama sekali
+        $hc = User::factory()->create(['company_id' => $company->id]); // tidak punya staff sama sekali
         $hc->assignRole($role);
         $randomEmployee = User::factory()->create(['company_id' => $company->id]);
 
@@ -88,7 +88,7 @@ class CoachingSubordinateAccessTest extends TestCase
             ->test(CoachingPage::class)
             ->assertSee('Coaching karyawan random');
 
-        // ...dan bisa bikin coaching buat karyawan mana pun, bukan cuma bawahan (yang memang
+        // ...dan bisa bikin coaching buat karyawan mana pun, bukan cuma staff (yang memang
         // tidak dia punya sama sekali).
         Livewire::actingAs($hc)
             ->test(CreateCoachingPage::class)
@@ -120,7 +120,7 @@ class CoachingSubordinateAccessTest extends TestCase
 
         Coaching::create([
             'company_id' => $company->id, 'user_id' => $subordinate->id, 'coach_by' => $manager->id,
-            'title' => 'Coaching bawahan', 'improvement_due_date' => now()->addWeek(),
+            'title' => 'Coaching staff', 'improvement_due_date' => now()->addWeek(),
         ]);
         Coaching::create([
             'company_id' => $company->id, 'user_id' => $outsider->id, 'coach_by' => $outsider->id,
@@ -129,7 +129,7 @@ class CoachingSubordinateAccessTest extends TestCase
 
         $component = Livewire::actingAs($manager)->test(CoachingPage::class);
 
-        $component->assertSee('Coaching bawahan')->assertDontSee('Coaching karyawan lain');
+        $component->assertSee('Coaching staff')->assertDontSee('Coaching karyawan lain');
     }
 
     public function test_manager_can_create_coaching_for_own_subordinate(): void
@@ -219,12 +219,12 @@ class CoachingSubordinateAccessTest extends TestCase
 
         $coaching = Coaching::create([
             'company_id' => $company->id, 'user_id' => $subordinate->id, 'coach_by' => $manager->id,
-            'title' => 'Coaching bawahan', 'improvement_due_date' => now()->addWeek(),
+            'title' => 'Coaching staff', 'improvement_due_date' => now()->addWeek(),
         ]);
 
         Livewire::actingAs($manager)
             ->test(CoachingDetailPage::class, ['record' => $coaching])
-            ->assertSee('Coaching bawahan');
+            ->assertSee('Coaching staff');
     }
 
     /**

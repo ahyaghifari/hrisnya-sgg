@@ -38,7 +38,7 @@ class TaskService
      * Dipakai portal (bukan lewat Request mobile API) — buat task casual/board tanpa approval,
      * bisa didelegasikan (bukan cuma diri sendiri), boleh isi checklist awal & project_id.
      * $assignedTo selain diri sendiri: kalau ada project_id harus sesama member project itu,
-     * kalau tidak ada project harus bawahan pembuat (OrgHierarchyService).
+     * kalau tidak ada project harus staff pembuat (OrgHierarchyService).
      */
     public function createCasualTask(array $data): Task
     {
@@ -58,7 +58,7 @@ class TaskService
                     abort_unless($this->canAssignInProject($project, $user), 403, 'Kamu tidak punya izin menugaskan ke anggota lain di project ini — cuma owner atau anggota yang ditandai "Assigner" yang boleh.');
                     abort_unless($this->canAccessProject($project, User::find($assignedTo)), 403, 'Orang itu bukan anggota project ini.');
                 } else {
-                    abort_unless($this->orgHierarchyService->subordinates($user)->where('id', $assignedTo)->exists(), 403, 'Hanya bisa menugaskan ke bawahan sendiri.');
+                    abort_unless($this->orgHierarchyService->subordinates($user)->where('id', $assignedTo)->exists(), 403, 'Hanya bisa menugaskan ke staff sendiri.');
                 }
             }
 
@@ -577,7 +577,7 @@ class TaskService
      *   - bukan superset dari 'todo' lagi (dipisah 2026-08-02), murni tugas "kiriman" orang lain.
      * - 'individu' = "Penugasan Individu", tugas yang AKU assign ke ORANG LAIN (created_by = aku,
      *   assigned_to != aku).
-     * - 'tim' = "Tim Saya" (2026-08-02) - task yang DIKERJAKAN bawahan (rekursif seluruh hierarki
+     * - 'tim' = "Tim Saya" (2026-08-02) - task yang DIKERJAKAN staff (rekursif seluruh hierarki
      *   di bawahku, lewat OrgHierarchyService::subordinates), siapapun yang nugasin - oversight
      *   murni, aku ngga harus jadi creator/assignee-nya.
      */
@@ -595,7 +595,7 @@ class TaskService
             ->when($scope === 'individu', fn ($q) => $q->where('created_by', $user->id)->where(function ($q2) use ($user) {
                 $q2->whereNull('assigned_to')->orWhere('assigned_to', '!=', $user->id);
             }))
-            // 'tim' = task yang DIKERJAKAN bawahan (rekursif, seluruh hierarki di bawah user),
+            // 'tim' = task yang DIKERJAKAN staff (rekursif, seluruh hierarki di bawah user),
             // siapapun yang nugasin - buat oversight atasan (mis. HC Manager liat kerjaan Supervisor
             // ke staff-nya, staff ke anak magang, dst), bukan cuma langsung ke user.
             ->when($scope === 'tim', fn ($q) => $q->whereIn('assigned_to', $this->orgHierarchyService->subordinates($user)->pluck('id')));
@@ -830,7 +830,7 @@ class TaskService
 
     /** Tambah item checklist ke task yang SUDAH ADA (beda dari checklist awal yang diisi pas
      * bikin task) - pelaksana boleh nambah (dia yang paling tahu detail kerjaannya), pembuat
-     * juga boleh (termasuk atasan yang menugaskan ke bawahan di Penugasan Individu - dia
+     * juga boleh (termasuk atasan yang menugaskan ke staff di Penugasan Individu - dia
      * "pembuat" task itu meski bukan yang mengerjakan). Guard sama persis toggleChecklistItem(). */
     public function addChecklistItem(Task $task, string $title, User $user): TaskChecklistItem
     {

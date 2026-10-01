@@ -10,7 +10,7 @@
     // sendiri (bukan index loop) biar Review konsisten dapat gold-dark di board manapun dia
     // muncul. Review = emas gelap ala aksen gold-shiny halaman profil, biar "butuh perhatian".
     $useBoardHero = $isTodoHero || (! $activeProjectId && $scope === 'saya');
-    // Individu/Tim potensial banyak baris (banyak bawahan x banyak tugas) - tabel lebih gampang
+    // Individu/Tim potensial banyak baris (banyak staff x banyak tugas) - tabel lebih gampang
     // di-scan/sortir daripada card yang makan tempat vertikal, beda kebutuhan sama Todo/Tugas Saya.
     $isTableScope = ! $activeProjectId && in_array($scope, ['individu', 'tim'], true);
     $heroClassFor = fn (TaskStatus $status) => match ($status) {

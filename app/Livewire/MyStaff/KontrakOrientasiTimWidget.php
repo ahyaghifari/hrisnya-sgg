@@ -10,8 +10,8 @@ use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
 
 /**
- * Widget "Kontrak / Orientasi Bawahan Akan Berakhir" di halaman MyStaff - pola sama
- * EmployeeTypeBreakdownWidget (Dashboard Anda), tapi scope SELALU bawahan
+ * Widget "Kontrak / Orientasi Staff Akan Berakhir" di halaman MyStaff - pola sama
+ * EmployeeTypeBreakdownWidget (Dashboard Anda), tapi scope SELALU staff
  * (OrgHierarchyService::subordinates()), bukan company.
  *
  * Data di-query pas tab "Dashboard" diklik pertama kali - lihat LazyLoadsOnExpand.
@@ -26,7 +26,7 @@ class KontrakOrientasiTimWidget extends Component
     }
 
     /** Kontrak dari periode kontrak TERBARU per user (UserContract, ledger append-only), yang
-     * berakhir dalam $maxDays hari ke depan - scope bawahan, bukan lewat
+     * berakhir dalam $maxDays hari ke depan - scope staff, bukan lewat
      * UserContract::latestPerUserInCompany() (itu company-wide). */
     private function expiringContracts(int $minDays, int $maxDays)
     {

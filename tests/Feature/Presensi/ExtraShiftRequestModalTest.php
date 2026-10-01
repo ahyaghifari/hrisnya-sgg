@@ -19,8 +19,8 @@ use Tests\TestCase;
 
 /**
  * Modal "Extra Shift" instan di widget Jadwal Shift Saya (Dashboard) - buat atasan berjadwal
- * shift (mis. Kepala Ruangan) assign extra shift ke bawahannya sendiri, auto approved
- * (source=assigned), scope karyawannya pakai ResolvesShiftTeamMembers (bawahan struktur jabatan
+ * shift (mis. Kepala Ruangan) assign extra shift ke staff-nya sendiri, auto approved
+ * (source=assigned), scope karyawannya pakai ResolvesShiftTeamMembers (staff struktur jabatan
  * + siapa pun yang pakai Schedule sama) + diri sendiri - BUKAN company-wide seperti
  * ExtraShiftPage (halaman admin).
  */
@@ -38,7 +38,7 @@ class ExtraShiftRequestModalTest extends TestCase
         ]);
     }
 
-    /** @return array{0: User, 1: User, 2: User, 3: User, 4: User, 5: User, 6: ScheduleShiftType} kepala, bawahan1 (roster di-cover), bawahan2 (dapat extra shift), bawahan3 (tanpa jadwal shift), orientasi (bukan bawahan formal, schedule sama), outsider (unit lain, schedule beda) */
+    /** @return array{0: User, 1: User, 2: User, 3: User, 4: User, 5: User, 6: ScheduleShiftType} kepala, staff1 (roster di-cover), staff2 (dapat extra shift), staff3 (tanpa jadwal shift), orientasi (bukan staff formal, schedule sama), outsider (unit lain, schedule beda) */
     private function makeScenario(): array
     {
         Permission::firstOrCreate(['name' => 'Create:ExtraShiftAssignment', 'guard_name' => 'web']);
@@ -62,21 +62,21 @@ class ExtraShiftRequestModalTest extends TestCase
         $this->assignJobPosition($kepala, $kepalaPosition);
         ScheduleShiftAssignment::create(['company_id' => $company->id, 'user_id' => $kepala->id, 'shift_type_id' => $pagi->id, 'date' => now()->addDays(2)->toDateString(), 'off_day' => false]);
 
-        $bawahan1 = User::factory()->create(['company_id' => $company->id, 'name' => 'Perawat Satu']);
-        $this->assignJobPosition($bawahan1, $staffPosition);
-        ScheduleShiftAssignment::create(['company_id' => $company->id, 'user_id' => $bawahan1->id, 'shift_type_id' => $pagi->id, 'date' => now()->addDay()->toDateString(), 'off_day' => false]);
+        $staff1 = User::factory()->create(['company_id' => $company->id, 'name' => 'Perawat Satu']);
+        $this->assignJobPosition($staff1, $staffPosition);
+        ScheduleShiftAssignment::create(['company_id' => $company->id, 'user_id' => $staff1->id, 'shift_type_id' => $pagi->id, 'date' => now()->addDay()->toDateString(), 'off_day' => false]);
 
-        $bawahan2 = User::factory()->create(['company_id' => $company->id, 'name' => 'Perawat Dua']);
-        $this->assignJobPosition($bawahan2, $staffPosition);
-        ScheduleShiftAssignment::create(['company_id' => $company->id, 'user_id' => $bawahan2->id, 'shift_type_id' => $pagi->id, 'date' => now()->addDays(3)->toDateString(), 'off_day' => false]);
+        $staff2 = User::factory()->create(['company_id' => $company->id, 'name' => 'Perawat Dua']);
+        $this->assignJobPosition($staff2, $staffPosition);
+        ScheduleShiftAssignment::create(['company_id' => $company->id, 'user_id' => $staff2->id, 'shift_type_id' => $pagi->id, 'date' => now()->addDays(3)->toDateString(), 'off_day' => false]);
 
-        // Bawahan yang belum punya jadwal shift sama sekali - tidak boleh muncul di pilihan.
-        $bawahan3 = User::factory()->create(['company_id' => $company->id, 'name' => 'Perawat Tiga Tanpa Jadwal']);
-        $this->assignJobPosition($bawahan3, $staffPosition);
+        // Staff yang belum punya jadwal shift sama sekali - tidak boleh muncul di pilihan.
+        $staff3 = User::factory()->create(['company_id' => $company->id, 'name' => 'Perawat Tiga Tanpa Jadwal']);
+        $this->assignJobPosition($staff3, $staffPosition);
 
         // Kasus nyata (NIP 02022026834): "Perawat Orientasi" - jabatan generik, BUKAN anak
         // struktur Kepala Ruangan ini, tapi roster shift-nya nunjuk ke Schedule unit yang sama
-        // dengan bawahan1/bawahan2 - harus tetap muncul di pilihan.
+        // dengan staff1/staff2 - harus tetap muncul di pilihan.
         $orientasi = User::factory()->create(['company_id' => $company->id, 'name' => 'Perawat Orientasi Unit A']);
         $orientasiPosition = JobPositions::create(['company_id' => $company->id, 'name' => 'Perawat Orientasi', 'planned_manpower' => 5]);
         $this->assignJobPosition($orientasi, $orientasiPosition);
@@ -89,46 +89,46 @@ class ExtraShiftRequestModalTest extends TestCase
         $this->assignJobPosition($outsider, $otherKepalaPosition);
         ScheduleShiftAssignment::create(['company_id' => $company->id, 'user_id' => $outsider->id, 'shift_type_id' => $pagiUnitB->id, 'date' => now()->addDay()->toDateString(), 'off_day' => false]);
 
-        return [$kepala, $bawahan1, $bawahan2, $bawahan3, $orientasi, $outsider, $pagi];
+        return [$kepala, $staff1, $staff2, $staff3, $orientasi, $outsider, $pagi];
     }
 
     public function test_eligible_employees_scoped_to_team_including_shared_schedule(): void
     {
-        [$kepala, $bawahan1, $bawahan2, $bawahan3, $orientasi, $outsider] = $this->makeScenario();
+        [$kepala, $staff1, $staff2, $staff3, $orientasi, $outsider] = $this->makeScenario();
 
         $component = Livewire::actingAs($kepala)->test(ExtraShiftRequestModal::class);
 
         $names = $component->get('eligibleEmployees')->pluck('name')->all();
 
         $this->assertContains($kepala->name, $names);
-        $this->assertContains($bawahan1->name, $names);
-        $this->assertContains($bawahan2->name, $names);
-        $this->assertContains($orientasi->name, $names); // Bukan bawahan formal, tapi schedule sama.
-        $this->assertNotContains($bawahan3->name, $names); // Belum punya jadwal shift.
+        $this->assertContains($staff1->name, $names);
+        $this->assertContains($staff2->name, $names);
+        $this->assertContains($orientasi->name, $names); // Bukan staff formal, tapi schedule sama.
+        $this->assertNotContains($staff3->name, $names); // Belum punya jadwal shift.
         $this->assertNotContains($outsider->name, $names); // Schedule beda (unit lain).
     }
 
     public function test_submit_creates_approved_extra_shift_assignment(): void
     {
-        [$kepala, , $bawahan2, , , , $pagi] = $this->makeScenario();
+        [$kepala, , $staff2, , , , $pagi] = $this->makeScenario();
 
         $siang = ScheduleShiftType::create(['schedule_id' => $pagi->schedule_id, 'code' => 'SIANG', 'name' => 'Siang', 'shift_type' => 'siang', 'start_time' => '14:00:00', 'end_time' => '22:00:00', 'is_overnight' => false]);
-        ExtraShiftRule::create(['company_id' => $bawahan2->company_id, 'from_shift_type' => 'pagi', 'to_shift_type' => 'siang']);
+        ExtraShiftRule::create(['company_id' => $staff2->company_id, 'from_shift_type' => 'pagi', 'to_shift_type' => 'siang']);
 
         // ->value('date') balik objek Carbon (kolom di-cast 'date' di model) - Livewire
         // ->set() butuh string biasa buat properti ?string $date, bukan objek.
-        $date = ScheduleShiftAssignment::where('user_id', $bawahan2->id)->first()->date->toDateString();
+        $date = ScheduleShiftAssignment::where('user_id', $staff2->id)->first()->date->toDateString();
 
         Livewire::actingAs($kepala)->test(ExtraShiftRequestModal::class)
             ->call('openModal')
-            ->set('user_id', $bawahan2->id)
+            ->set('user_id', $staff2->id)
             ->set('date', $date)
             ->set('shift_type_id', $siang->id)
             ->call('submit')
             ->assertHasNoErrors();
 
         $this->assertDatabaseHas('extra_shift_assignments', [
-            'user_id' => $bawahan2->id,
+            'user_id' => $staff2->id,
             'shift_type_id' => $siang->id,
             'status' => 'approved',
             'source' => 'assigned',
@@ -141,16 +141,16 @@ class ExtraShiftRequestModalTest extends TestCase
      *  pilih shift apa pun. */
     public function test_submit_rejects_shift_type_not_allowed_by_rule(): void
     {
-        [$kepala, , $bawahan2, , , , $pagi] = $this->makeScenario();
+        [$kepala, , $staff2, , , , $pagi] = $this->makeScenario();
 
         // Malam sengaja TIDAK dibuatkan ExtraShiftRule dari pagi - harus ditolak.
         $malam = ScheduleShiftType::create(['schedule_id' => $pagi->schedule_id, 'code' => 'MALAM', 'name' => 'Malam', 'shift_type' => 'malam', 'start_time' => '22:00:00', 'end_time' => '07:00:00', 'is_overnight' => true]);
 
-        $date = ScheduleShiftAssignment::where('user_id', $bawahan2->id)->first()->date->toDateString();
+        $date = ScheduleShiftAssignment::where('user_id', $staff2->id)->first()->date->toDateString();
 
         Livewire::actingAs($kepala)->test(ExtraShiftRequestModal::class)
             ->call('openModal')
-            ->set('user_id', $bawahan2->id)
+            ->set('user_id', $staff2->id)
             ->set('date', $date)
             ->set('shift_type_id', $malam->id)
             ->call('submit')
@@ -161,11 +161,11 @@ class ExtraShiftRequestModalTest extends TestCase
 
     public function test_normal_shift_and_options_are_empty_when_employee_has_no_schedule_on_date(): void
     {
-        [$kepala, , $bawahan2] = $this->makeScenario();
+        [$kepala, , $staff2] = $this->makeScenario();
 
         $component = Livewire::actingAs($kepala)->test(ExtraShiftRequestModal::class)
             ->call('openModal')
-            ->set('user_id', $bawahan2->id)
+            ->set('user_id', $staff2->id)
             ->set('date', now()->addDays(30)->toDateString()); // tanggal tanpa roster sama sekali
 
         $this->assertNull($component->get('normalShift'));
@@ -174,8 +174,8 @@ class ExtraShiftRequestModalTest extends TestCase
 
     public function test_forbidden_without_create_permission(): void
     {
-        [, $bawahan1] = $this->makeScenario();
-        $noPermUser = User::factory()->create(['company_id' => $bawahan1->company_id]);
+        [, $staff1] = $this->makeScenario();
+        $noPermUser = User::factory()->create(['company_id' => $staff1->company_id]);
 
         Livewire::actingAs($noPermUser)->test(ExtraShiftRequestModal::class)
             ->call('openModal')

@@ -39,7 +39,7 @@ class MyEmployees extends Component
         $this->resetPage();
     }
 
-    // MyStaff = HANYA bawahan langsung + tidak langsung (rekursif via OrgHierarchyService),
+    // MyStaff = HANYA staff langsung + tidak langsung (rekursif via OrgHierarchyService),
     // tanpa pemilih perusahaan. Beda dari halaman Kepegawaian > Karyawan yang company-wide
     // (instruksi user 2026-09-03) — siapa pun (termasuk yang punya LIHAT_PERUSAHAAN_LAIN)
     // di halaman ini cuma lihat struktur di bawahnya sendiri.

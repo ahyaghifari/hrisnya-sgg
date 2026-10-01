@@ -1,6 +1,6 @@
 @php
     $isSelf = $record->id === auth()->id();
-    // Halaman ini punya 2 entry point selain "Data Diri": MyStaff (bawahan) & Kepegawaian
+    // Halaman ini punya 2 entry point selain "Data Diri": MyStaff (staff) & Kepegawaian
     // (company-wide) — asal-halaman dikirim lewat query string ?from=karyawan supaya tombol
     // Kembali balik ke list yang benar, bukan selalu ke MyStaff.
     $backRoute = match (true) {
@@ -477,7 +477,7 @@ Pembinaan). Inline supaya tidak perlu build CSS; desktop (>=768px) tetap pill ho
                     {!! $renderField($label, $value) !!}
                 @endforeach
                 {{-- Rekening bank SENGAJA cuma tampil untuk pemilik akun sendiri - atasan/HC yang
-                buka Data Diri bawahan lewat MyStaff tidak boleh lihat ini (instruksi user
+                buka Data Diri staff lewat MyStaff tidak boleh lihat ini (instruksi user
                 2026-08-10), beda dari field pribadi lain di atas yang memang boleh dilihat
                 atasan/HC. Read-only murni, tidak ada tombol edit - perubahan rekening tetap
                 cuma lewat HC/admin (lihat catatan di EmployeeStatistics::saveProfil()). --}}

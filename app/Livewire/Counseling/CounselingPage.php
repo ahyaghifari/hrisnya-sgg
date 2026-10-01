@@ -54,7 +54,7 @@ class CounselingPage extends Component
 
     /**
      * Tombol "Konsul ke Saya" — cuma buat karyawan BIASA (bukan atasan, tidak lihat dropdown
-     * "Coaching & Counseling" di row 2 karena itu sekarang gerbangnya murni "punya bawahan")
+     * "Coaching & Counseling" di row 2 karena itu sekarang gerbangnya murni "punya staff")
      * dan cuma kalau ADA konsul yang masih PENDING (nunggu ditanggapi) — bukan sekadar pernah
      * jadi konselor. Yang sudah DONE semua tidak perlu tombolnya lagi.
      */

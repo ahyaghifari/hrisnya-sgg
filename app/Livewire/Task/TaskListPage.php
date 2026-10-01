@@ -22,7 +22,7 @@ use Livewire\WithPagination;
 
 /**
  * Halaman "Tugas" portal — pengganti modul Kanban. Board/List cuma mode tampilan atas
- * task_records yang sudah bisa dilihat user (assigned_to/created_by/bawahan/anggota project),
+ * task_records yang sudah bisa dilihat user (assigned_to/created_by/staff/anggota project),
  * project sekarang entitas ringan (task_projects + task_project_members) — sidebar khusus
  * halaman ini, lihat planning/cached-dreaming-ladybug.md.
  */
@@ -320,7 +320,7 @@ class TaskListPage extends Component
         $this->checklist = array_values($this->checklist);
     }
 
-    /** Assign wajib pilih orang (ngga boleh "saya sendiri") pas nugasin ke bawahan, bukan project. */
+    /** Assign wajib pilih orang (ngga boleh "saya sendiri") pas nugasin ke staff, bukan project. */
     protected function assignedToRequiredForSubordinate(): bool
     {
         return $this->hasSubordinates && ! $this->activeProject && $this->scope !== 'todo';

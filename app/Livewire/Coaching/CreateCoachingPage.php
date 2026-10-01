@@ -16,7 +16,7 @@ use Livewire\Component;
  * Form Buat Coaching baru — padanan CreateCoaching admin, satu langkah langsung isi semua
  * field (status jadi IN_PROGRESS), bukan lewat state PENDING dulu. Dua jalur akses beda scope
  * karyawan (sama seperti CoachingPage, instruksi user 2026-07-26): permission `Create:Coaching`
- * (HC) -> semua karyawan company; sekadar punya bawahan -> cuma bawahannya sendiri.
+ * (HC) -> semua karyawan company; sekadar punya staff -> cuma staff-nya sendiri.
  *
  * Coaching & SP sengaja dipisah total (instruksi user 2026-09-23) — form ini TIDAK ada urusan SP
  * sama sekali. SP dibuat dari sisi SP sendiri (CreateSpPage/EmployeeSpResource), yang punya field
@@ -55,7 +55,7 @@ class CreateCoachingPage extends Component
 
         // Prefill dari tombol pintasan "Buat Coaching Lanjutan" di CoachingDetailPage
         // (planning/2026-09-23-sp-dan-merit-point.md §1.1) - cuma kenyamanan UI, scope
-        // bawahan/company tetap dicek ulang di save() saat submit.
+        // staff/company tetap dicek ulang di save() saat submit.
         if ($prefillUserId = request()->query('user_id')) {
             $prefillUser = User::find($prefillUserId);
 
@@ -115,7 +115,7 @@ class CreateCoachingPage extends Component
     /**
      * Dropdown "Coach" — beda dari "Karyawan" di atas: yang lewat jalur canAccessKaryawanMenu()
      * (bukan permission Create:Coaching) HARUS bisa pilih dirinya sendiri sebagai coach (dia
-     * BUKAN bawahannya sendiri, jadi tidak ikut ke-scope subordinates() seperti employeeOptions).
+     * BUKAN staff-nya sendiri, jadi tidak ikut ke-scope subordinates() seperti employeeOptions).
      */
     public function getCoachOptionsProperty()
     {
@@ -153,10 +153,10 @@ class CreateCoachingPage extends Component
     {
         $data = $this->validate();
 
-        // Dropdown "Karyawan"/"Coach" sudah di-scope ke bawahan buat yang lewat jalur
+        // Dropdown "Karyawan"/"Coach" sudah di-scope ke staff buat yang lewat jalur
         // canAccessKaryawanMenu() (getEmployeeOptionsProperty()/getCoachOptionsProperty()), tapi
         // itu cuma UI — cek ulang di server biar tidak bisa ditembus lewat wire:model manual buat
-        // bikin coaching atas nama karyawan/coach di luar bawahannya.
+        // bikin coaching atas nama karyawan/coach di luar staff-nya.
         if (! $this->hasFullAccess) {
             $subordinateIds = app(OrgHierarchyService::class)->subordinates(Auth::user())->pluck('id');
             abort_unless($subordinateIds->contains($data['user_id']), 403);

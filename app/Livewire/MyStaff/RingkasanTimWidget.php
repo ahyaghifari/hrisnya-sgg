@@ -9,15 +9,15 @@ use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
 
 /**
- * Widget "Ringkasan Tim" di halaman MyStaff - total bawahan + breakdown status kepegawaian
- * (Tetap/Kontrak/Orientasi), scope SELALU bawahan (langsung + rekursif via
+ * Widget "Ringkasan Tim" di halaman MyStaff - total staff + breakdown status kepegawaian
+ * (Tetap/Kontrak/Orientasi), scope SELALU staff (langsung + rekursif via
  * OrgHierarchyService::subordinates()), bukan company - beda dari widget serupa di Dashboard
  * Anda (EmployeeTypeBreakdownWidget) yang company-wide buat HC Manager.
  *
  * Datanya dipanggil blade cuma pas $loaded true (lihat LazyLoadsOnExpand + blade-nya sendiri
  * yang bungkus semua ini di dalam @if ($loaded)).
  *
- * Tile tipe kepegawaian bisa diklik buat lihat daftar bawahannya (modal) - pola sama
+ * Tile tipe kepegawaian bisa diklik buat lihat daftar staff-nya (modal) - pola sama
  * EmployeeTypeBreakdownWidget punya Dashboard Anda, biar setara kualitasnya (instruksi user
  * 2026-09-18: "diperbagus kaya dashboard hc manager").
  */
@@ -54,7 +54,7 @@ class RingkasanTimWidget extends Component
         return app(OrgHierarchyService::class)->subordinates(Auth::user())->count();
     }
 
-    /** Buat modal tile tipe kepegawaian - daftar bawahan dengan employeeType.name = $activeModal. */
+    /** Buat modal tile tipe kepegawaian - daftar staff dengan employeeType.name = $activeModal. */
     public function getEmployeesForTypeProperty()
     {
         if (! $this->activeModal) {

@@ -111,7 +111,7 @@ Route::get('/role', \App\Livewire\RoleAccess\RolesPage::class)
 Route::get('/akses-filter-perusahaan', \App\Livewire\RoleAccess\CompanyFilterAccessPage::class)
     ->name('akses-filter-perusahaan');
 
-// Halaman detail karyawan dipakai 2 entry point: MyStaff (bawahan) & Karyawan (company-wide,
+// Halaman detail karyawan dipakai 2 entry point: MyStaff (staff) & Karyawan (company-wide,
 // routes/kepegawaian.php) — makanya path-nya /karyawan, bukan /my-staff.
 Route::get('/karyawan/{record}', EmployeeStatistics::class)
     ->name('karyawan.show');

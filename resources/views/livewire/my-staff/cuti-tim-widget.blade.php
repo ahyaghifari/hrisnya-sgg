@@ -19,7 +19,7 @@
             @empty
                 <div class="ms-empty">
                     <i class="fa-solid fa-mug-hot"></i>
-                    <span>Tidak ada bawahan yang cuti dalam 7 hari ke depan.</span>
+                    <span>Tidak ada staff yang cuti dalam 7 hari ke depan.</span>
                 </div>
             @endforelse
         </div>

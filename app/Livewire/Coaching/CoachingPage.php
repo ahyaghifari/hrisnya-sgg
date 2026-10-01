@@ -16,8 +16,8 @@ use Livewire\WithPagination;
  * "Coaching" — dua jalur akses beda scope (instruksi user 2026-07-26):
  * - Permission Shield `ViewAny:Coaching` ATAU custom `COACHING_KARYAWAN_LAINNYA` (role HC
  *   khusus, dua-duanya berarti "boleh mengcoaching siapa saja") -> company-wide, semua karyawan.
- * - Sekadar punya bawahan (`canAccessKaryawanMenu()`, sama gate MyStaff) -> di-scope ke
- *   bawahannya sendiri (`OrgHierarchyService::subordinates()`) UNION `coach_by = auth()->id()`,
+ * - Sekadar punya staff (`canAccessKaryawanMenu()`, sama gate MyStaff) -> di-scope ke
+ *   staff-nya sendiri (`OrgHierarchyService::subordinates()`) UNION `coach_by = auth()->id()`,
  *   BUKAN company-wide — supaya atasan biasa tidak intip data karyawan yang bukan tanggung
  *   jawabnya.
  */
@@ -95,7 +95,7 @@ class CoachingPage extends Component
      * Filter perusahaan cuma relevan buat yang company-wide (hasFullAccess) — subordinate-only
      * TETAP dikunci ke company sendiri walau kebetulan juga punya permission LIHAT_PERUSAHAAN_LAIN
      * (permission itu independen, tidak seharusnya buka filter company di sini juga, karena
-     * baseQuery() tetap scoped ke bawahan berapa pun company yang dipilih — dulu jadi dead-end
+     * baseQuery() tetap scoped ke staff berapa pun company yang dipilih — dulu jadi dead-end
      * dropdown kosong kalau pilih company lain).
      */
     public function getCanBrowseAllCompaniesProperty(): bool

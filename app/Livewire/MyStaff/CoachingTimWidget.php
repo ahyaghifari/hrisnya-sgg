@@ -10,9 +10,9 @@ use Livewire\Component;
 
 /**
  * Widget "Coaching Tim" di halaman MyStaff - coaching yang orangnya (bukan coach-nya) adalah
- * bawahan (OrgHierarchyService::subordinates()) - sesuai prinsip semua widget MyStaff "cuma
- * berhubungan dengan bawahannya", bukan dibatasi ke coach_by = user login (atasan bisa saja
- * ingin lihat semua coaching bawahannya walau yang jadi coach orang lain).
+ * staff (OrgHierarchyService::subordinates()) - sesuai prinsip semua widget MyStaff "cuma
+ * berhubungan dengan staff-nya", bukan dibatasi ke coach_by = user login (atasan bisa saja
+ * ingin lihat semua coaching staff-nya walau yang jadi coach orang lain).
  *
  * Data di-query pas tab "Dashboard" diklik pertama kali - lihat LazyLoadsOnExpand.
  */

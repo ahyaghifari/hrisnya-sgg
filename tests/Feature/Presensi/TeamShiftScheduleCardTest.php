@@ -16,12 +16,12 @@ use Livewire\Livewire;
 use Tests\TestCase;
 
 /**
- * Widget "Jadwal Shift Tim" di Dashboard - atasan lihat jadwal bawahannya per hari (beda dari
+ * Widget "Jadwal Shift Tim" di Dashboard - atasan lihat jadwal staff-nya per hari (beda dari
  * widget "Jadwal Shift Saya" yang isinya jadwal sendiri). Scope pakai
- * ResolvesShiftTeamMembers::subordinatesWithSharedSchedule() - bawahan struktur jabatan + siapa
+ * ResolvesShiftTeamMembers::subordinatesWithSharedSchedule() - staff struktur jabatan + siapa
  * pun yang pakai Schedule sama (kasus "Perawat Orientasi" - jabatan generik company-wide, bukan
  * anak struktur Kepala Ruangan manapun, tapi roster shift-nya nunjuk ke Schedule unit itu),
- * minus diri sendiri. Semua bawahan tampil apa adanya (tidak difilter hasShiftSchedule() lagi,
+ * minus diri sendiri. Semua staff tampil apa adanya (tidak difilter hasShiftSchedule() lagi,
  * instruksi user 2026-08-18: karyawan tanpa jadwal apa pun tetap harus kelihatan dengan status
  * "Belum ada jadwal").
  */
@@ -43,7 +43,7 @@ class TeamShiftScheduleCardTest extends TestCase
     {
         $company = Companies::create(['code' => 'TSC', 'name' => 'RS Team Shift Card Test', 'location' => 'Test', 'is_active' => true]);
 
-        // Schedule unit Saniah - dipakai bawahan sah DAN karyawan "orientasi" yang jabatannya
+        // Schedule unit Saniah - dipakai staff sah DAN karyawan "orientasi" yang jabatannya
         // sendiri tidak nyambung ke struktur Saniah sama sekali.
         $unitASchedule = Schedule::create(['company_id' => $company->id, 'name' => 'Jadwal Perawat Unit A', 'schedule_type' => 'shift']);
         $pagi = ScheduleShiftType::create(['schedule_id' => $unitASchedule->id, 'code' => 'PAGI', 'name' => 'Pagi', 'start_time' => '07:00:00', 'end_time' => '15:00:00', 'is_overnight' => false, 'color' => '#22c55e']);
@@ -59,19 +59,19 @@ class TeamShiftScheduleCardTest extends TestCase
         $kepala = User::factory()->create(['company_id' => $company->id]);
         $this->assignJobPosition($kepala, $kepalaPosition);
 
-        $bawahan = User::factory()->create(['company_id' => $company->id, 'name' => 'Perawat Satu']);
-        $this->assignJobPosition($bawahan, $staffPosition);
-        ScheduleShiftAssignment::create(['company_id' => $company->id, 'user_id' => $bawahan->id, 'shift_type_id' => $pagi->id, 'date' => now()->toDateString(), 'off_day' => false]);
+        $staff = User::factory()->create(['company_id' => $company->id, 'name' => 'Perawat Satu']);
+        $this->assignJobPosition($staff, $staffPosition);
+        ScheduleShiftAssignment::create(['company_id' => $company->id, 'user_id' => $staff->id, 'shift_type_id' => $pagi->id, 'date' => now()->toDateString(), 'off_day' => false]);
 
-        // Bawahan tanpa jadwal apa pun (mis. baru masuk/orientasi) - HARUS tetap tampil, bukan
+        // Staff tanpa jadwal apa pun (mis. baru masuk/orientasi) - HARUS tetap tampil, bukan
         // disembunyikan, dengan status "Belum ada jadwal" di sisi tampilan.
-        $bawahanTanpaJadwal = User::factory()->create(['company_id' => $company->id, 'name' => 'Perawat Tanpa Jadwal']);
-        $this->assignJobPosition($bawahanTanpaJadwal, $staffPosition);
+        $staffTanpaJadwal = User::factory()->create(['company_id' => $company->id, 'name' => 'Perawat Tanpa Jadwal']);
+        $this->assignJobPosition($staffTanpaJadwal, $staffPosition);
 
         // Kasus nyata (NIP 02022026834): "Perawat Orientasi" - jabatan GENERIK, bukan anak
         // struktur Kepala Ruangan manapun (tidak di-assignJobPosition ke $staffPosition), tapi
-        // roster shift-nya nunjuk ke Schedule unit yang SAMA dengan bawahan sah ($pagi). Harus
-        // ikut tampil walau bukan bawahan formal.
+        // roster shift-nya nunjuk ke Schedule unit yang SAMA dengan staff sah ($pagi). Harus
+        // ikut tampil walau bukan staff formal.
         $orientasiSchedulSama = User::factory()->create(['company_id' => $company->id, 'name' => 'Perawat Orientasi Unit A']);
         $orientasiPosition = JobPositions::create(['company_id' => $company->id, 'name' => 'Perawat Orientasi', 'planned_manpower' => 5]);
         $this->assignJobPosition($orientasiSchedulSama, $orientasiPosition);
@@ -86,17 +86,17 @@ class TeamShiftScheduleCardTest extends TestCase
 
         $names = $component->get('teamMembers')->pluck('name')->all();
 
-        $this->assertContains($bawahan->name, $names);
-        $this->assertContains($bawahanTanpaJadwal->name, $names);
-        $this->assertContains($orientasiSchedulSama->name, $names); // Bukan bawahan formal, tapi 1 schedule.
+        $this->assertContains($staff->name, $names);
+        $this->assertContains($staffTanpaJadwal->name, $names);
+        $this->assertContains($orientasiSchedulSama->name, $names); // Bukan staff formal, tapi 1 schedule.
         $this->assertNotContains($kepala->name, $names); // Widget ini bukan buat diri sendiri.
         $this->assertNotContains($outsider->name, $names); // Schedule beda (unit lain).
 
-        $schedule = collect($component->get('teamSchedule'))->firstWhere('user.id', $bawahan->id);
+        $schedule = collect($component->get('teamSchedule'))->firstWhere('user.id', $staff->id);
         $this->assertSame('scheduled', $schedule['schedule']['state']);
         $this->assertSame('Pagi', $schedule['schedule']['label']);
 
-        $noneSchedule = collect($component->get('teamSchedule'))->firstWhere('user.id', $bawahanTanpaJadwal->id);
+        $noneSchedule = collect($component->get('teamSchedule'))->firstWhere('user.id', $staffTanpaJadwal->id);
         $this->assertSame('none', $noneSchedule['schedule']['state']);
 
         // Link "Detail Jadwal" nunjuk ke Schedule unit A (dipakai tim), walau Kepala Ruangan
@@ -105,7 +105,7 @@ class TeamShiftScheduleCardTest extends TestCase
     }
 
     /** head_user_id (2026-08-19) menang atas fallback "Schedule pertama dari roster tim" -
-     *  penting kalau atasan punya bawahan di lebih dari 1 Schedule/unit, biar link "Detail
+     *  penting kalau atasan punya staff di lebih dari 1 Schedule/unit, biar link "Detail
      *  Jadwal" tidak nyasar ke unit yang salah. */
     public function test_team_schedule_id_prefers_schedule_where_user_is_head(): void
     {
@@ -119,16 +119,16 @@ class TeamShiftScheduleCardTest extends TestCase
         $kepalaPosition = JobPositions::create(['company_id' => $company->id, 'name' => 'Kepala Ruangan', 'planned_manpower' => 1]);
         $staffPosition = JobPositions::create(['company_id' => $company->id, 'name' => 'Perawat', 'planned_manpower' => 1, 'parent_id' => $kepalaPosition->id]);
 
-        // Kepala ini di-set sebagai head Unit B, tapi bawahan formalnya kebetulan berjadwal
+        // Kepala ini di-set sebagai head Unit B, tapi staff formalnya kebetulan berjadwal
         // Unit A (dua kondisi yang bisa saling kontradiksi di skenario nyata) - head_user_id
         // harus tetap menang.
         $kepala = User::factory()->create(['company_id' => $company->id]);
         $this->assignJobPosition($kepala, $kepalaPosition);
         $unitBSchedule->update(['head_user_id' => $kepala->id]);
 
-        $bawahan = User::factory()->create(['company_id' => $company->id]);
-        $this->assignJobPosition($bawahan, $staffPosition);
-        ScheduleShiftAssignment::create(['company_id' => $company->id, 'user_id' => $bawahan->id, 'shift_type_id' => $pagiA->id, 'date' => now()->toDateString(), 'off_day' => false]);
+        $staff = User::factory()->create(['company_id' => $company->id]);
+        $this->assignJobPosition($staff, $staffPosition);
+        ScheduleShiftAssignment::create(['company_id' => $company->id, 'user_id' => $staff->id, 'shift_type_id' => $pagiA->id, 'date' => now()->toDateString(), 'off_day' => false]);
 
         $component = Livewire::actingAs($kepala)->test(TeamShiftScheduleCard::class);
 
@@ -149,16 +149,16 @@ class TeamShiftScheduleCardTest extends TestCase
         $schedule = Schedule::create(['company_id' => $company->id, 'name' => 'Jadwal Perawat', 'schedule_type' => 'shift']);
         $pagi = ScheduleShiftType::create(['schedule_id' => $schedule->id, 'code' => 'PAGI', 'name' => 'Pagi', 'start_time' => '07:00:00', 'end_time' => '15:00:00', 'is_overnight' => false]);
 
-        $bawahan = User::factory()->create(['company_id' => $company->id, 'name' => 'Perawat Satu']);
-        $this->assignJobPosition($bawahan, $staffPosition);
-        ScheduleShiftAssignment::create(['company_id' => $company->id, 'user_id' => $bawahan->id, 'shift_type_id' => $pagi->id, 'date' => now()->addDay()->toDateString(), 'off_day' => false]);
+        $staff = User::factory()->create(['company_id' => $company->id, 'name' => 'Perawat Satu']);
+        $this->assignJobPosition($staff, $staffPosition);
+        ScheduleShiftAssignment::create(['company_id' => $company->id, 'user_id' => $staff->id, 'shift_type_id' => $pagi->id, 'date' => now()->addDay()->toDateString(), 'off_day' => false]);
 
         Holidays::create(['name' => 'Libur Nasional Test', 'date' => now()->addDay()->toDateString()]);
 
         $component = Livewire::actingAs($kepala)->test(TeamShiftScheduleCard::class)
             ->call('nextDay');
 
-        $schedule = collect($component->get('teamSchedule'))->firstWhere('user.id', $bawahan->id);
+        $schedule = collect($component->get('teamSchedule'))->firstWhere('user.id', $staff->id);
         $this->assertSame('holiday', $schedule['schedule']['state']);
     }
 
@@ -207,8 +207,8 @@ class TeamShiftScheduleCardTest extends TestCase
         $kepala = User::factory()->create(['company_id' => $company->id]);
         $this->assignJobPosition($kepala, $kepalaPosition);
 
-        $bawahan = User::factory()->create(['company_id' => $company->id]);
-        $this->assignJobPosition($bawahan, $staffPosition);
+        $staff = User::factory()->create(['company_id' => $company->id]);
+        $this->assignJobPosition($staff, $staffPosition);
 
         $html = Livewire::actingAs($kepala)->test(TeamShiftScheduleCard::class)->html();
 

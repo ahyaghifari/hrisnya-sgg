@@ -18,7 +18,7 @@ use Livewire\Component;
  * Detail Coaching — read-only untuk kartu info dasar. Coaching satu arah (instruksi user
  * 2026-09-22): coach memberi, karyawan yang dibina hanya membaca; tidak ada upload
  * bukti/approve/reject. Yang boleh buka: karyawan yang dibina, coach yang ditunjuk, atau (lewat
- * gerbang modul SISTEM_PEMBINAAN_KARYAWAN) HC / atasan bawahannya.
+ * gerbang modul SISTEM_PEMBINAAN_KARYAWAN) HC / atasan staff-nya.
  *
  * Tindak Lanjut (§1.1, HANYA coach_by yang login) - evaluasi kondisi karyawan, 2 pilihan, sekadar
  * catatan. Coaching & SP sengaja dipisah total (instruksi user 2026-09-23) - halaman ini TIDAK
@@ -46,7 +46,7 @@ class CoachingDetailPage extends Component
         // Subject-nya sendiri dan coach yang ditunjuk self-contained lewat penunjukan LANGSUNG di
         // record ini - tidak digerbangi SISTEM_PEMBINAAN_KARYAWAN (instruksi user 2026-08-17).
         // Gerbang modul itu cuma wajib untuk jalur "lihat coaching orang lain" (HC company-wide /
-        // atasan lewat hierarki bawahan).
+        // atasan lewat hierarki staff).
         abort_unless(
             $isSubject
                 || $isCoach || $isUserCreate

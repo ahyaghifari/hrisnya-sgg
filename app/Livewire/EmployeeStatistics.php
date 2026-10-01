@@ -647,7 +647,7 @@ class EmployeeStatistics extends Component
 
     /** Pemilik akun selalu boleh; selain itu HC (`sistem_kepegawaian`, dibatasi company sendiri
      * sama seperti EmployeeResource) atau yang bisa lihat lintas company — BUKAN atasan biasa,
-     * sekalipun atasan bisa buka Data Diri bawahannya untuk tab lain (lihat canManage()). */
+     * sekalipun atasan bisa buka Data Diri staff-nya untuk tab lain (lihat canManage()). */
     public function getIsOwnProfileProperty(): bool
     {
         return $this->record->id === Auth::id();
@@ -772,7 +772,7 @@ class EmployeeStatistics extends Component
         $user = Auth::user();
 
         // Karyawan boleh lihat data dirinya sendiri lewat halaman ini juga (tombol "Data Diri"
-        // di Dashboard) — bukan cuma atasan yang lihat bawahannya.
+        // di Dashboard) — bukan cuma atasan yang lihat staff-nya.
         if ($record->id === $user->id) {
             return true;
         }

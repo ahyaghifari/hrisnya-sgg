@@ -9,8 +9,8 @@ use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
 
 /**
- * Widget "Cuti Tim 7 Hari ke Depan" di halaman MyStaff - cuti bawahan yang approved & mulai
- * dalam 7 hari ke depan, biar atasan bisa antisipasi kekurangan orang. Scope SELALU bawahan
+ * Widget "Cuti Tim 7 Hari ke Depan" di halaman MyStaff - cuti staff yang approved & mulai
+ * dalam 7 hari ke depan, biar atasan bisa antisipasi kekurangan orang. Scope SELALU staff
  * (OrgHierarchyService::subordinates()).
  *
  * Data di-query pas tab "Dashboard" diklik pertama kali - lihat LazyLoadsOnExpand.

@@ -1295,6 +1295,13 @@ html.dark .ms-t-gold  { --t: #fbbf24; }
 button.ms-stat { cursor: pointer; transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease; }
 button.ms-stat:hover { transform: translateY(-2px); box-shadow: 0 8px 18px color-mix(in srgb, var(--t) 14%, transparent); border-color: color-mix(in srgb, var(--t) 40%, transparent); }
 .ms-stat-row { flex-direction: row; align-items: center; gap: 12px; }
+/* Varian ubin solid (Ringkasan Tim): warna tipe langsung jadi latar. Dark mode --t pastel, teks gelap. */
+.ms-stat-solid { --on-t: #fff; background: var(--t); border-color: var(--t); }
+html.dark .ms-stat-solid { --on-t: #0f172a; }
+.ms-stat-solid .ms-stat-icon { color: var(--on-t); background: color-mix(in srgb, var(--on-t) 22%, transparent); }
+.ms-stat-solid .ms-stat-num, .ms-stat-solid .ms-stat-label, .ms-stat-solid .ms-stat-foot { color: var(--on-t); }
+.ms-stat-solid .ms-stat-label, .ms-stat-solid .ms-stat-foot { opacity: .85; }
+button.ms-stat-solid:hover { border-color: var(--t); box-shadow: 0 8px 18px color-mix(in srgb, var(--t) 35%, transparent); }
 .ms-grid { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
 
 .ms-total { display: flex; align-items: baseline; gap: 8px; margin: 0 0 10px; }
@@ -1729,3 +1736,13 @@ html.dark .upload-zone:hover { border-color: var(--brand); background: color-mix
 /* Default Filament (.fi-badge) padding-nya rapat/kompak (didesain buat admin panel).
    Dilebarkan sedikit di portal biar lebih nyaman dibaca. */
 .fi-badge { padding-inline: 12px !important; padding-block: 5px !important; }
+
+/* Transisi buka modal MyStaff - sama dengan modal papan Penugasan (task-menu-page): fade overlay,
+   pop kotak di desktop, slide dari bawah di mobile. */
+@keyframes ms-modal-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes ms-modal-pop { from { opacity: 0; transform: translateY(14px) scale(0.97); } to { opacity: 1; transform: none; } }
+@keyframes ms-modal-slide { from { transform: translateY(100%); } to { transform: none; } }
+.modal-overlay.ms-modal { animation: ms-modal-fade 0.18s ease-out; }
+.modal-overlay.ms-modal > .modal-box { border-radius: 20px; animation: ms-modal-pop 0.22s cubic-bezier(0.2, 0.8, 0.2, 1); }
+@media (max-width: 767.98px) { .modal-overlay.ms-modal > .modal-box { animation: ms-modal-slide 0.25s cubic-bezier(0.2, 0.8, 0.2, 1); } }
+@media (prefers-reduced-motion: reduce) { .modal-overlay.ms-modal, .modal-overlay.ms-modal > .modal-box { animation: none; } }

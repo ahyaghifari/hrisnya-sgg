@@ -564,7 +564,7 @@ class EmployeeStatisticsTest extends TestCase
     }
 
     /**
-     * Beda dari sekadar bisa buka Data Diri bawahan (manager biasa bisa, lihat
+     * Beda dari sekadar bisa buka Data Diri staff (manager biasa bisa, lihat
      * test_manager_can_view_subordinate_statistics) — kartu "Lampiran" tetap disembunyikan
      * kecuali manager itu punya permission lihat_lampiran_identitas_karyawan.
      */
@@ -720,9 +720,9 @@ class EmployeeStatisticsTest extends TestCase
     }
 
     /**
-     * Beda dari sekadar bisa buka Data Diri bawahan — atasan biasa (bukan HC, bukan yang bisa
+     * Beda dari sekadar bisa buka Data Diri staff — atasan biasa (bukan HC, bukan yang bisa
      * lihat lintas company) TIDAK boleh lihat tab "Riwayat Perubahan", meski dia bisa buka tab
-     * lain seperti Profil/Presensi bawahannya (lihat canManage() vs getCanViewAuditHistoryProperty()).
+     * lain seperti Profil/Presensi staff-nya (lihat canManage() vs getCanViewAuditHistoryProperty()).
      */
     public function test_plain_manager_cannot_see_subordinate_change_history(): void
     {
