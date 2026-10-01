@@ -105,12 +105,12 @@ class ManualPayrollExcelImporter
      *   summary: array, matched: list<array>, unmatched: list<array>, warnings: list<array>
      * }
      */
-    public function preview(string $path, string $companyId): array
+    public function preview(string $path, string $companyId, ?array $parsed = null): array
     {
         // Hitung rumus 480+ baris bisa 10-40 dtk (lihat parse()).
         @set_time_limit(300);
 
-        $parsed = $this->parse($path, $this->tunjanganKhususLabel($companyId));
+        $parsed ??= $this->parse($path, $this->tunjanganKhususLabel($companyId));
 
         $matched = [];
         $unmatched = [];
@@ -192,7 +192,10 @@ class ManualPayrollExcelImporter
      */
     public function import(string $path, PayrollPeriod $period, User $actor): array
     {
-        $preview = $this->preview($path, $period->company_id);
+        @set_time_limit(300);
+        // Parse sekali (mahal: hitung rumus Excel), dipakai untuk preview + penulisan.
+        $parsed = $this->parse($path, $this->tunjanganKhususLabel($period->company_id));
+        $preview = $this->preview($path, $period->company_id, $parsed);
 
         // user_id yang payroll-nya di period ini sudah DIBAYAR — dikunci total, tidak ikut
         // di-replace import (baris Excel-nya dilewati di loop bawah).
@@ -201,7 +204,7 @@ class ManualPayrollExcelImporter
             ->where('is_paid', true)
             ->pluck('user_id');
 
-        $parsedByNip = collect($this->parse($path, $this->tunjanganKhususLabel($period->company_id))['rows'])->keyBy('nip_excel');
+        $parsedByNip = collect($parsed['rows'])->keyBy('nip_excel');
 
         return DB::transaction(function () use ($preview, $parsedByNip, $period, $actor, $paidUserIds) {
             // Bersihkan payroll lama yang BELUM dibayar (+ item-nya) untuk period ini. Yang sudah

@@ -2,6 +2,7 @@
 
 namespace App\Exports\Payroll;
 
+use App\Enum\Attendance\PermissionGroupEnum;
 use App\Enum\Payroll\PayrollComponentEnum;
 use App\Exports\Payroll\Concerns\GroupsPayrollsByDivision;
 use App\Models\Payroll\Payroll;
@@ -43,6 +44,13 @@ class PajakGajiPokokExport extends DefaultValueBinder implements FromCollection,
     /** @param Collection<int, Payroll> $payrolls */
     public function __construct(protected Collection $payrolls, protected string $companyId) {}
 
+    /** Banjarbaru & Barabai dapat 2 kolom tambahan (Tunj. Jabatan, Tunj. Masa Kerja). ID company sama
+     * di prod & dev; reuse daftar 2 company dari PermissionGroupEnum (HasCompanyLabelOverride). */
+    private function hasExtraColumns(): bool
+    {
+        return PermissionGroupEnum::usesLabelOverride($this->companyId);
+    }
+
     public function collection(): Collection
     {
         $grouped = $this->groupedByDivision($this->payrolls, $this->companyId);
@@ -53,7 +61,7 @@ class PajakGajiPokokExport extends DefaultValueBinder implements FromCollection,
         foreach ($grouped as $divisionName => $payrolls) {
             $rowNumber++;
             $this->groupHeaderRows[] = $rowNumber;
-            $rows->push(['', $divisionName, '', '', '', '', '']);
+            $rows->push(array_pad(['', $divisionName], count($this->headings()), ''));
 
             $no = 1; // reset per divisi, sama pola PayrollSlipRekapExport.
             foreach ($this->sortWithinDivision($payrolls) as $payroll) {
@@ -71,7 +79,7 @@ class PajakGajiPokokExport extends DefaultValueBinder implements FromCollection,
         $gajiPokokItem = $payroll->items->firstWhere('source_type', PayrollComponentEnum::GAJI_POKOK->value);
         $profile = $payroll->user?->profile;
 
-        return [
+        $row = [
             $no,
             $payroll->user?->name,
             $profile?->jobPosition?->name,
@@ -80,11 +88,21 @@ class PajakGajiPokokExport extends DefaultValueBinder implements FromCollection,
             $profile?->no_nik,
             $profile?->marital_status,
         ];
+
+        if ($this->hasExtraColumns()) {
+            foreach ([PayrollComponentEnum::TUNJANGAN_JABATAN, PayrollComponentEnum::TUNJANGAN_MASA_KERJA] as $component) {
+                $row[] = (float) ($payroll->items->firstWhere('source_type', $component->value)?->amount ?? 0);
+            }
+        }
+
+        return $row;
     }
 
     public function headings(): array
     {
-        return ['NO', 'NAMA', 'JABATAN', 'STATUS KARYAWAN', 'GAJI POKOK', 'NIK', 'STATUS PERKAWINAN'];
+        $headings = ['NO', 'NAMA', 'JABATAN', 'STATUS KARYAWAN', 'GAJI POKOK', 'NIK', 'STATUS PERKAWINAN'];
+
+        return $this->hasExtraColumns() ? [...$headings, 'TUNJANGAN JABATAN', 'TUNJANGAN MASA KERJA'] : $headings;
     }
 
     /** Sama alasan PayrollSlipRekapExport::bindValue() - NIK yang keliatan numerik (mis.
@@ -121,14 +139,18 @@ class PajakGajiPokokExport extends DefaultValueBinder implements FromCollection,
                 $sheet = $event->sheet->getDelegate();
                 $lastRow = $sheet->getHighestRow();
 
-                foreach (['A', 'B', 'C', 'D', 'E', 'F', 'G'] as $letter) {
+                $last = $this->hasExtraColumns() ? 'I' : 'G';
+                foreach (range('A', $last) as $letter) {
                     $sheet->getColumnDimension($letter)->setAutoSize(true);
                 }
 
                 $sheet->getStyle('E2:E' . $lastRow)->getNumberFormat()->setFormatCode(self::CURRENCY_FORMAT);
+                if ($this->hasExtraColumns()) {
+                    $sheet->getStyle('H2:I' . $lastRow)->getNumberFormat()->setFormatCode(self::CURRENCY_FORMAT);
+                }
 
                 foreach ($this->groupHeaderRows as $rowNumber) {
-                    $sheet->getStyle("A{$rowNumber}:G{$rowNumber}")->applyFromArray([
+                    $sheet->getStyle("A{$rowNumber}:{$last}{$rowNumber}")->applyFromArray([
                         'font' => ['bold' => true],
                         'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'E5E7EB']],
                     ]);

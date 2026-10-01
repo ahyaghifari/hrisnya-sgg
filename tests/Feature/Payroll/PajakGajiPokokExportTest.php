@@ -61,6 +61,21 @@ class PajakGajiPokokExportTest extends TestCase
         $this->assertSame('Budi', $rows[3][1]);
     }
 
+    public function test_banjarbaru_company_gets_tunjangan_jabatan_and_masa_kerja_columns(): void
+    {
+        $company = new Companies(['code' => '0001', 'name' => 'RSU Syifa Medika Banjarbaru', 'location' => 'Test', 'is_active' => true]);
+        $company->forceFill(['id' => '01k8271xa4nq8cezg3dq9vfr14'])->save();
+        $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
+        $payroll = $this->makePayroll($company, $period, 'Budi', null);
+        PayrollItem::create(['payroll_id' => $payroll->id, 'name' => 'Tunjangan Jabatan', 'type' => 'earning', 'amount' => 500_000, 'source_type' => PayrollComponentEnum::TUNJANGAN_JABATAN->value]);
+        $payroll->load('items');
+
+        $export = new PajakGajiPokokExport(collect([$payroll]), $company->id);
+
+        $this->assertSame(['TUNJANGAN JABATAN', 'TUNJANGAN MASA KERJA'], array_slice($export->headings(), 7));
+        $this->assertSame([500000.0, 0.0], array_slice($export->collection()[1], 7));
+    }
+
     public function test_no_division_group_labeled_presiden_direktur_for_holding_company(): void
     {
         $company = Companies::create(['code' => '0000', 'name' => 'Holding Co', 'location' => 'Test', 'is_active' => true]);
