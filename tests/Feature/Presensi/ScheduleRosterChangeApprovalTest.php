@@ -453,4 +453,25 @@ class ScheduleRosterChangeApprovalTest extends TestCase
         $this->assertSame('07:00:00', $record->check_in_time);
         $this->assertSame('15:00:00', $record->check_out_time);
     }
+
+    /** Draft in_review dihitung sama seperti approved (instruksi user 2026-10-01). */
+    public function test_resolver_uses_draft_shift_while_request_is_in_review(): void
+    {
+        [$schedule, $shiftType, $employee] = $this->makeManualShiftSchedule();
+        $karu = $this->actingAsKaru($schedule->company_id);
+        $approver = User::factory()->create(['company_id' => $schedule->company_id]);
+        $this->makeDefaultApprovalFlow(Companies::find($schedule->company_id), $approver);
+        $date = now()->addDay()->toDateString();
+
+        Livewire::actingAs($karu)
+            ->test(ScheduleShiftRosterTab::class, ['schedule' => $schedule])
+            ->call('startEdit')
+            ->set("draft.{$employee->id}.{$date}", $shiftType->id)
+            ->call('saveRoster');
+
+        $resolved = app(\App\Services\Attendance\ScheduleResolver::class)->resolveForUserDate($employee, $date);
+
+        $this->assertFalse($resolved['is_off_day']);
+        $this->assertSame($shiftType->id, $resolved['config']->id);
+    }
 }

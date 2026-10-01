@@ -50,22 +50,37 @@ class ScheduleResolver
     public function resolveForUserDate(User $user, string $date, bool $ignoreEffectiveDate = false): ?array
     {
         $shiftAssignment = $this->shiftAssignmentQuery($user)
-            ->with('shiftType.schedule')
+            ->with(['shiftType.schedule', 'draftShiftType.schedule'])
             ->where('user_id', $user->id)
             ->whereDate('date', $date)
             ->first();
 
-        if ($shiftAssignment) {
-            if ($shiftAssignment->off_day || ! $shiftAssignment->shiftType) {
+        // Pengajuan perubahan roster yang masih in_review (draft_*) DIHITUNG sama seperti approved
+        // (instruksi user 2026-10-01) - draft menimpa kolom approved. Draft kosong (sel diajukan
+        // dikosongkan) = tidak ada roster, jatuh ke assignment Fixed/Flexible di bawah.
+        // ponytail: draft yang akhirnya ditolak tidak membatalkan presensi yang sudah terbentuk
+        // dari draft itu, tambahkan resweep di jalur tolak kalau perlu.
+        if ($shiftAssignment?->has_draft) {
+            $offDay    = $shiftAssignment->draft_off_day;
+            $shiftType = $shiftAssignment->draftShiftType;
+            $isEmpty   = ! $offDay && ! $shiftType;
+        } else {
+            $offDay    = $shiftAssignment?->off_day;
+            $shiftType = $shiftAssignment?->shiftType;
+            $isEmpty   = false;
+        }
+
+        if ($shiftAssignment && ! $isEmpty) {
+            if ($offDay || ! $shiftType) {
                 return ['type' => 'shift', 'is_off_day' => true, 'label' => 'Shift (roster off_day)'];
             }
 
             return [
                 'type'       => 'shift',
                 'is_off_day' => false,
-                'config'     => $shiftAssignment->shiftType,
-                'schedule'   => $shiftAssignment->shiftType->schedule,
-                'label'      => 'Shift - ' . $shiftAssignment->shiftType->name,
+                'config'     => $shiftType,
+                'schedule'   => $shiftType->schedule,
+                'label'      => 'Shift - ' . $shiftType->name,
             ];
         }
 
