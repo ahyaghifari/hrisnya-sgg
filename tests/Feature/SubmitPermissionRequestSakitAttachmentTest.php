@@ -102,4 +102,20 @@ class SubmitPermissionRequestSakitAttachmentTest extends TestCase
             ->call('submit')
             ->assertHasNoErrors();
     }
+
+    /** Izin Meninggalkan Jam Kerja: section Lampiran (opsional) cuma ada di 2 company override. */
+    public function test_meninggalkan_jam_kerja_attachment_section_only_for_the_two_override_companies(): void
+    {
+        $banjarbaru = new Companies();
+        $banjarbaru->forceFill(['id' => '01k8271xa4nq8cezg3dq9vfr14', 'code' => '0001', 'name' => 'RSU Syifa Medika Banjarbaru', 'location' => 'X', 'is_active' => true])->save();
+        $generik = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
+
+        $this->actingAs(User::factory()->create(['company_id' => $banjarbaru->id]));
+        $rs = Livewire::test(SubmitPermissionRequest::class)->set('group', 'meninggalkan_jam_kerja');
+        $this->assertTrue($rs->get('lampiranTersedia'));
+        $this->assertFalse($rs->get('lampiranWajib'), 'Opsional, tanpa bintang wajib.');
+
+        $this->actingAs(User::factory()->create(['company_id' => $generik->id]));
+        $this->assertFalse(Livewire::test(SubmitPermissionRequest::class)->set('group', 'meninggalkan_jam_kerja')->get('lampiranTersedia'));
+    }
 }

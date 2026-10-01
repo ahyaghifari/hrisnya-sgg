@@ -116,7 +116,7 @@
             </div>
         </div>
 
-        @if (in_array($group, ['sakit', 'khusus']))
+        @if ($this->lampiranTersedia)
             <!-- Lampiran -->
             <div class="form-card">
                 <div class="section-head">

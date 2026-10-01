@@ -166,6 +166,15 @@ class SubmitPermissionRequest extends Component
         }
     }
 
+    /** Section Lampiran tampil untuk Sakit & Khusus; Meninggalkan Jam Kerja juga boleh melampirkan
+     * (opsional) KHUSUS 2 company override (Banjarbaru/Barabai) - instruksi user 2026-10-01. */
+    public function getLampiranTersediaProperty(): bool
+    {
+        return in_array($this->group, [PermissionGroupEnum::SAKIT->value, PermissionGroupEnum::KHUSUS->value], true)
+            || ($this->group === PermissionGroupEnum::MENINGGALKAN_JAM_KERJA->value
+                && PermissionGroupEnum::usesLabelOverride(Auth::user()->company_id));
+    }
+
     /** Teks label section Lampiran - KHUSUS 2 company override (Banjarbaru/Barabai) lampiran
      * Sakit WAJIB dari hari pertama (bukan nunggu >1 hari), teksnya polos tanpa syarat hari lagi
      * (instruksi user 2026-09-30). Company lain tetap kondisional seperti semula. */
