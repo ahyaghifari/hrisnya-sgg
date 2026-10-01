@@ -18,11 +18,17 @@ class AttendanceRequestLeaveDetails extends Model
         'start_date',
         'end_date',
         'total_days',
+        'substitute_user_id',
     ];
 
     public function request()
     {
         return $this->belongsTo(AttendanceRequests::class, 'request_id');
+    }
+
+    public function substituteUser()
+    {
+        return $this->belongsTo(\App\Models\User::class, 'substitute_user_id');
     }
 
 }

@@ -120,6 +120,20 @@
                     </div>
                 @endif
 
+                @if ($this->substituteEnabled)
+                <div>
+                    <label class="form-label">Pengganti (opsional)</label>
+                    <select class="form-input" wire:model="substitute_user_id">
+                        <option value="">Tanpa pengganti</option>
+                        @foreach ($this->substituteOptions as $id => $name)
+                            <option value="{{ $id }}">{{ $name }}</option>
+                        @endforeach
+                    </select>
+                    <p style="font-size:11.5px;color:var(--text-muted);margin:5px 0 0;">Pilih rekan di unit yang sama yang menggantikan tugas Anda selama cuti.</p>
+                    @error('substitute_user_id') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
+                </div>
+                @endif
+
                 <div>
                     <label class="form-label">Alasan / Keterangan @if ($this->reasonRequired)<span style="color:var(--danger-text);">*</span>@endif</label>
                     <textarea class="form-input" rows="3" placeholder="{{ $this->reasonRequired ? 'Tambahkan keterangan' : 'Tambahkan keterangan (opsional)' }}" wire:model="reason"></textarea>

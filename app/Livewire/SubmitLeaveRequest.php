@@ -19,6 +19,7 @@ class SubmitLeaveRequest extends Component
     public ?string $start_date = null;
     public ?string $end_date = null;
     public ?string $reason = null;
+    public ?string $substitute_user_id = null;
 
     /** Lampiran surat dokter/bidan — wajib untuk cuti khusus (haid/melahirkan/keguguran). */
     public array $attachments = [];
@@ -179,9 +180,22 @@ class SubmitLeaveRequest extends Component
         );
     }
 
+    /** Calon pengganti: karyawan lain di unit yang sama, id => nama. */
+    public function getSubstituteOptionsProperty()
+    {
+        return app(AttendaceReqService::class)->unitMates(Auth::user())->orderBy('name')->pluck('name', 'id');
+    }
+
+    /** Kolom Pengganti cuma tampil di 2 company RS (sama pengecualian izin). */
+    public function getSubstituteEnabledProperty(): bool
+    {
+        return app(AttendaceReqService::class)->leaveSubstituteEnabled(Auth::user());
+    }
+
     protected function rules(): array
     {
         return [
+            'substitute_user_id' => ['nullable', 'string'],
             'leave_type' => ['required', \Illuminate\Validation\Rule::enum(LeaveTypeCategoryEnum::class)],
             'start_date' => array_filter([
                 'required', 'date',
@@ -243,6 +257,7 @@ class SubmitLeaveRequest extends Component
                 'end_date' => $data['end_date'],
                 'reason' => $data['reason'] ?? null,
                 'attachments' => $data['attachments'] ?? null,
+                'substitute_user_id' => $data['substitute_user_id'] ?: null,
             ], Auth::user());
 
             Notification::make()

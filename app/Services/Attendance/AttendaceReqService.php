@@ -180,6 +180,30 @@ class AttendaceReqService
         return $this->overtimeReqRepository->findAttendanceReqOvertimeDetail($request->id);
     }
 
+    /** Fitur pengganti cuti HANYA untuk 2 company RS (Banjarbaru & Barabai) - sama dengan
+     * pengecualian izin, lihat HasCompanyLabelOverride (instruksi user 2026-10-01). */
+    public function leaveSubstituteEnabled(User $user): bool
+    {
+        return LeaveTypeCategoryEnum::usesLabelOverride($user->company_id);
+    }
+
+    /** Calon pengganti cuti: karyawan aktif lain di company & unit (org_structure jabatan) yang
+     * sama dengan $user, PLUS bawahannya (langsung & tidak langsung) - atasan boleh memilih
+     * bawahannya sebagai pengganti walau bawahan itu tercatat di sub-unit lain. */
+    public function unitMates(User $user): \Illuminate\Database\Eloquent\Builder
+    {
+        $orgId = $user->profile?->jobPosition?->org_structure_id;
+        $subordinateIds = app(\App\Services\OrgHierarchyService::class)->subordinates($user)->pluck('id');
+
+        return User::query()
+            ->where('company_id', $user->company_id)
+            ->where('id', '!=', $user->id)
+            ->where('is_active', true)
+            ->where(fn ($q) => $q
+                ->whereHas('profile.jobPosition', fn ($j) => $j->where('org_structure_id', $orgId ?? '__none__'))
+                ->orWhereIn('id', $subordinateIds));
+    }
+
     public function storeLeaveRequest(array $data, ?User $actingUser = null, bool $skipApproval = false, ?string $note = null, ?User $createdBy = null): object
     {
         $actingUser ??= auth('sanctum')->user();
@@ -238,6 +262,15 @@ class AttendaceReqService
 
         $this->assertKeteranganWajibDiisi($actingUser, $data['reason'] ?? null, 'Alasan/Keterangan cuti');
 
+        // Pengganti cuti cuma ada di 2 company RS (lihat leaveSubstituteEnabled) - company lain diabaikan.
+        if (! $this->leaveSubstituteEnabled($actingUser)) {
+            $data['substitute_user_id'] = null;
+        }
+
+        if (! empty($data['substitute_user_id']) && ! $this->unitMates($actingUser)->whereKey($data['substitute_user_id'])->exists()) {
+            throw new \Exception('Pengganti harus karyawan lain di unit yang sama.');
+        }
+
         $request = $this->attendanceReqRepository->storeAttendanceRequest([
             'user_id' => $userId,
             'created_by' => $createdBy->id,
@@ -254,6 +287,7 @@ class AttendaceReqService
             'end_date' => $data['end_date'] ?? null,
             'total_days' => $this->countLeaveDays($actingUser, $leaveType, $data['start_date'], $data['end_date'] ?? null),
             'attachments_files' => $data['attachments'] ?? null,
+            'substitute_user_id' => $data['substitute_user_id'] ?? null,
         ];
 
         $this->leaveReqRepository->storeLeaveRequest($leaveData);

@@ -370,7 +370,12 @@ disetujui/ditolak/dibatalkan, kuota ini tidak lagi jadi pertimbangan apa pun, ja
             {!! $renderField('Tipe Cuti', $leave->leave_type) !!}
             {!! $renderField('Tanggal Mulai', $formatDate($leave->start_date)) !!}
             {!! $renderField('Tanggal Selesai', $formatDate($leave->end_date)) !!}
-            {!! $renderField('Total Hari', $leave->total_days ? ((int) $leave->total_days) . ' hari' : null, false) !!}
+            @if (\App\Enum\Attendance\LeaveTypeCategoryEnum::usesLabelOverride($record->user?->company_id))
+                {!! $renderField('Total Hari', $leave->total_days ? ((int) $leave->total_days) . ' hari' : null) !!}
+                {!! $renderField('Pengganti', $leave->substituteUser?->name, false) !!}
+            @else
+                {!! $renderField('Total Hari', $leave->total_days ? ((int) $leave->total_days) . ' hari' : null, false) !!}
+            @endif
         </div>
     @endif
 
