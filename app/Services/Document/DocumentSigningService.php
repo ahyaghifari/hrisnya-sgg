@@ -5,7 +5,9 @@ namespace App\Services\Document;
 use App\Enum\DocumentType;
 use App\Models\Document\Document;
 use App\Models\Sp\EmployeeSp;
+use App\Models\Sp\SpReport;
 use App\Models\User;
+use App\Services\Sp\SpReportService;
 use Illuminate\Support\Collection;
 
 /**
@@ -59,7 +61,24 @@ class DocumentSigningService
 
         $document->documentable->sign($actor, $role);
 
-        if ($document->documentable instanceof EmployeeSp && $document->documentable->report) {
+        // BA alur baru: begitu 3 pihak selesai TTD, status jadi SELESAI & isi terkunci.
+        if ($document->documentable instanceof SpReport && ! $document->documentable->isLegacy()) {
+            app(SpReportService::class)->afterSigned($document->documentable, $role);
+
+            return;
+        }
+
+        // SP dari BA alur baru: begitu "Mengetahui" menandatangani, giliran karyawan - beri tahu.
+        if ($document->documentable instanceof EmployeeSp && $role === 'knows_by' && $document->documentable->requiresEmployeeSignature()) {
+            $sp = $document->documentable;
+            $sp->user?->notify(new \App\Notifications\SpReportUpdated(
+                'Surat Peringatan Menunggu Tanda Tangan Anda',
+                "{$sp->sp_level->getLabel()} atas nama Anda sudah ditandatangani pembuat dan yang mengetahui - giliran Anda menandatangani.",
+                documentSignId: $document->id,
+            ));
+        }
+
+        if ($document->documentable instanceof EmployeeSp && $document->documentable->report?->isLegacy()) {
             $report = $document->documentable->report;
             $report->loadMissing('document.signatures');
 

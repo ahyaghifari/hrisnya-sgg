@@ -2,7 +2,9 @@
 
 namespace App\Livewire\Sp;
 
+use App\Enum\Sp\SpReportStatus;
 use App\Models\Sp\EmployeeSp;
+use App\Models\Sp\SpReport;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
@@ -22,8 +24,16 @@ class SuratPeringatanPage extends Component
             ->orderByDesc('start_date')
             ->get();
 
+        // Berita Acara alur baru (instruksi user 2026-10-01) - draft HC belum terlihat karyawan.
+        $reports = SpReport::where('user_id', Auth::id())
+            ->whereNotNull('status')
+            ->where('status', '!=', SpReportStatus::DRAFT->value)
+            ->latest()
+            ->get();
+
         return view('livewire.sp.surat-peringatan-page', [
             'sps' => $sps,
+            'reports' => $reports,
         ]);
     }
 }

@@ -81,6 +81,7 @@ class SpPdfService
         return [
             'created_by' => $this->verificationBlock($signable, 'created_by'),
             'knows_by' => $this->verificationBlock($signable, 'knows_by'),
+            'employee' => $this->verificationBlock($signable, 'employee'),
         ];
     }
 

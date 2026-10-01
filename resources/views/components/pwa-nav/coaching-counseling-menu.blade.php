@@ -7,6 +7,10 @@
     <span class="pwa-menu-grid-icon indigo"><i class="fa-solid fa-comments"></i></span>
     <span class="pwa-menu-grid-label">Counseling</span>
 </a>
+<a href="{{ route('ba') }}" wire:navigate class="pwa-menu-grid-item">
+    <span class="pwa-menu-grid-icon indigo"><i class="fa-solid fa-file-lines"></i></span>
+    <span class="pwa-menu-grid-label">Berita Acara</span>
+</a>
 <a href="{{ route('sp') }}" wire:navigate class="pwa-menu-grid-item">
     <span class="pwa-menu-grid-icon indigo"><i class="fa-solid fa-triangle-exclamation"></i></span>
     <span class="pwa-menu-grid-label">Surat Peringatan</span>

@@ -8,7 +8,11 @@ use App\Livewire\Counseling\CounselingDetailPage;
 use App\Livewire\Counseling\CounselingManagePage;
 use App\Livewire\Counseling\CounselingPage;
 use App\Livewire\Pembinaan\PembinaanSettingsPage;
-use App\Livewire\Sp\CreateSpPage;
+use App\Livewire\Sp\BeritaAcaraDetailPage;
+use App\Livewire\Sp\BeritaAcaraPage;
+use App\Livewire\Sp\BeritaAcaraSayaPage;
+use App\Livewire\Sp\CreateBeritaAcaraPage;
+use App\Livewire\Sp\CreateSpFromReportPage;
 use App\Livewire\Sp\SpDetailPage;
 use App\Livewire\Sp\SpPage;
 use App\Livewire\Sp\SpRecommendationsPage;
@@ -36,6 +40,10 @@ Route::get('/surat-peringatan', SuratPeringatanPage::class)
 
 Route::get('/surat-peringatan/{record}', SuratPeringatanDetailPage::class)
     ->name('sp.saya.show');
+
+// Berita Acara milik karyawan sendiri (alur baru, instruksi user 2026-10-01).
+Route::get('/berita-acara/{record}', BeritaAcaraSayaPage::class)
+    ->name('sp.saya.ba');
 
 // Preview PDF (bukan download) - GET biasa target=_blank, BUKAN aksi Livewire (Livewire selalu
 // memaksa browser save-as apa pun response-nya). Pola persis routes/keuangan.php +
@@ -84,7 +92,9 @@ Route::prefix('pembinaan')->group(function () {
     Route::get('/sp', SpPage::class)
         ->name('sp');
 
-    Route::get('/sp/tambah', CreateSpPage::class)
+    // SP hanya dibuat dari Berita Acara yang selesai & diputuskan lanjut SP (instruksi user
+    // 2026-10-01); jalur langsung tanpa BA (CreateSpPage & pembuatan di panel admin) sudah ditutup.
+    Route::get('/sp/tambah', CreateSpFromReportPage::class)
         ->name('sp.create');
 
     Route::get('/sp/{record}', SpDetailPage::class)
@@ -103,6 +113,16 @@ Route::prefix('pembinaan')->group(function () {
 
         return app(SpPdfService::class)->previewBeritaAcara($record);
     })->name('sp.beritaacara_preview');
+
+    // Berita Acara alur baru (instruksi user 2026-10-01) - proses klarifikasi sebelum SP.
+    Route::get('/berita-acara', BeritaAcaraPage::class)
+        ->name('ba');
+
+    Route::get('/berita-acara/tambah', CreateBeritaAcaraPage::class)
+        ->name('ba.create');
+
+    Route::get('/berita-acara/{record}', BeritaAcaraDetailPage::class)
+        ->name('ba.show');
 
     Route::get('/sp-rekomendasi', SpRecommendationsPage::class)
         ->name('sp.rekomendasi');

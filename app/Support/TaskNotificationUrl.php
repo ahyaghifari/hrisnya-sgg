@@ -21,6 +21,11 @@ class TaskNotificationUrl
             return route('documents.sign', $data['document_sign_id']);
         }
 
+        // Perkembangan Berita Acara (non-tanda-tangan) -> URL halaman BA yang relevan untuk penerimanya.
+        if (! empty($data['sp_report_url'])) {
+            return $data['sp_report_url'];
+        }
+
         if (($data['request_type'] ?? null) !== 'task') {
             return null;
         }

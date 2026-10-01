@@ -59,8 +59,15 @@ self.addEventListener('notificationclick', (event) => {
     const courseId = event.notification.data?.course_id;
     const employeeSpId = event.notification.data?.employee_sp_id;
 
+    const documentSignId = event.notification.data?.document_sign_id;
+    const spReportUrl = event.notification.data?.sp_report_url;
+
     let url = '/';
-    if (employeeSpId) {
+    if (documentSignId) {
+        url = `/dokumen/tandatangani/${documentSignId}`;
+    } else if (spReportUrl) {
+        url = spReportUrl;
+    } else if (employeeSpId) {
         // SpIssued -> halaman detail SP milik karyawan sendiri.
         url = `/surat-peringatan/${employeeSpId}`;
     } else if (payrollId) {

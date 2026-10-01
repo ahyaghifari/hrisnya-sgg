@@ -5,7 +5,7 @@ namespace Tests\Feature\Document;
 use App\Enum\CustomPermissionEnum;
 use App\Enum\Sp\SpLevel;
 use App\Livewire\Document\SignDocumentsPage;
-use App\Livewire\Sp\CreateSpPage;
+use Tests\Support\SpFixtures;
 use App\Livewire\Sp\SpDetailPage;
 use App\Models\Master\Companies;
 use App\Models\Sp\EmployeeSp;
@@ -37,18 +37,7 @@ class SignDocumentsPageTest extends TestCase
         $employee = User::factory()->create(['company_id' => $company->id]);
         $knower = User::factory()->create(['company_id' => $company->id]);
 
-        Livewire::actingAs($hc)
-            ->test(CreateSpPage::class)
-            ->set('companyId', $company->id)
-            ->set('user_id', $employee->id)
-            ->set('nomor', $nomor)
-            ->set('sp_level', SpLevel::SP1->value)
-            ->set('knows_by', $knower->id)
-            ->set('start_date', now()->toDateString())
-            ->set('items', ['Pelanggaran'])
-            ->call('save');
-
-        $sp = EmployeeSp::where('nomor', $nomor)->firstOrFail();
+        $sp = SpFixtures::draftSp($hc, $company->id, $employee->id, $knower->id, $nomor);
 
         Livewire::actingAs($hc)
             ->test(SpDetailPage::class, ['record' => $sp])

@@ -40,6 +40,13 @@ class EmployeeSpResource extends Resource
         return EmployeeSpsTable::configure($table);
     }
 
+    /** SP baru hanya dibuat dari Berita Acara yang selesai & diputuskan lanjut SP (portal HC,
+     * instruksi user 2026-10-01) - panel admin tetap untuk melihat/mengedit SP yang sudah ada. */
+    public static function canCreate(): bool
+    {
+        return false;
+    }
+
     public static function getRelations(): array
     {
         return [

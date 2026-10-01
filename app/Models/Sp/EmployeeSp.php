@@ -183,19 +183,37 @@ class EmployeeSp extends Model implements Signable
         return $this->cancelled_reason;
     }
 
+    /** SP yang dibuat dari BA alur baru (instruksi user 2026-10-01) - karyawan ikut menandatangani.
+     *  SP lama (tanpa BA alur baru) tetap 2 penanda tangan supaya tidak jadi "belum lengkap". */
+    public function requiresEmployeeSignature(): bool
+    {
+        return $this->report !== null && ! $this->report->isLegacy();
+    }
+
     public function expectedSignerRoles(): array
     {
-        return [
+        $roles = [
             'created_by' => 'Dibuat oleh',
             'knows_by' => 'Mengetahui',
         ];
+
+        return $this->requiresEmployeeSignature() ? $roles + ['employee' => 'Karyawan yang Bersangkutan'] : $roles;
     }
 
+    /** Urutan TTD SP baru: pembuat, mengetahui, lalu karyawan - karyawan baru ditugaskan setelah
+     *  dua yang lain selesai. */
     public function assignedSigners(): array
     {
-        return [
+        $signers = [
             'created_by' => $this->createdBy,
             'knows_by' => $this->knowsBy,
         ];
+
+        if ($this->requiresEmployeeSignature()) {
+            $signedRoles = $this->document?->signatures()->pluck('signer_role') ?? collect();
+            $signers['employee'] = $signedRoles->contains('created_by') && $signedRoles->contains('knows_by') ? $this->user : null;
+        }
+
+        return $signers;
     }
 }

@@ -263,7 +263,7 @@
     <p>Dalam proses klarifikasi ini, karyawan yang bersangkutan telah diberikan kesempatan seluas-luasnya untuk menyampaikan penjelasan dan pembelaan diri. Adapun pernyataan karyawan adalah sebagai berikut:</p>
 
     <ul class="uraian">
-        <li>{!! $sp->report->subject_clarification !!}</li>
+        <li>{!! $sp->report->klarifikasi_parafrase ?: $sp->report->subject_clarification !!}</li>
     </ul>
 
     <p style="margin-top: 0.1cm;">Karyawan menyatakan bahwa seluruh keterangan yang disampaikan adalah benar, diberikan tanpa adanya paksaan dari pihak mana pun, serta bersedia mempertanggungjawabkannya secara hukum dan ketenagakerjaan.</p>
@@ -310,12 +310,18 @@
                 <span class="sign-name">{{ $coach?->name ?? '-' }}</span><br>
                 {{ $jabatan($coach) }}
             </div>
-            {{-- Karyawan TIDAK PERNAH ikut TTE digital (tanda tangan basah/fisik saja) - jangan
-            tampilkan QR di sini (instruksi user 2026-09-28, bug: QR sempat muncul di kolom yang
-            belum/tidak pernah ditandatangani). --}}
+            {{-- QR hanya kalau karyawan sudah menandatangani BA (alur baru, instruksi user
+            2026-10-01); BA lama tetap tanda tangan basah. --}}
             <div class="sign-col">
                 Pihak Karyawan <br>
-                <span class="ttd-space">&nbsp;</span>
+                @if ($verification['employee'] ?? null)
+                    <div class="verify-block">
+                        <img src="{{ $verification['employee']['qr'] }}" alt="QR Verifikasi" class="verify-qr">
+                        <div class="verify-code">{{ $verification['employee']['code'] }}</div>
+                    </div>
+                @else
+                    <span class="ttd-space">&nbsp;</span>
+                @endif
                 <span class="sign-name">{{ $sp->user->name ?? '-' }}</span><br>
                 {{ $jabatan($sp->user)}}
             </div>

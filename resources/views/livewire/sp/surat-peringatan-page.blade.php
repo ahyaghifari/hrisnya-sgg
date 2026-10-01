@@ -1,6 +1,24 @@
 <div>
     <x-page-header title="Surat Peringatan" size="lg" />
 
+    @if ($reports->isNotEmpty())
+        <p style="font-size:12px;font-weight:700;color:var(--text-muted);margin:0 0 8px;">Berita Acara</p>
+        <div class="pwa-list" style="margin-bottom:20px;">
+            @foreach ($reports as $report)
+                <a href="{{ route('sp.saya.ba', $report) }}" wire:navigate class="pwa-list-row" style="text-decoration:none;">
+                    <div style="flex:1;min-width:0;">
+                        <p class="pwa-row-title">Berita Acara{{ $report->nomor ? ' No. ' . $report->nomor : '' }}</p>
+                        <span style="font-size:11.5px;color:var(--text-muted);">
+                            {{ $report->status->getLabel() }} &middot; {{ $report->created_at->translatedFormat('d M Y') }}
+                        </span>
+                    </div>
+                    <i class="fa-solid fa-chevron-right"></i>
+                </a>
+            @endforeach
+        </div>
+        <p style="font-size:12px;font-weight:700;color:var(--text-muted);margin:0 0 8px;">Surat Peringatan</p>
+    @endif
+
     @php
         $levelColors = [
             'sp1' => ['background' => '#fef9c3', 'color' => '#a16207'],

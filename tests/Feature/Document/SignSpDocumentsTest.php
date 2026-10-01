@@ -4,7 +4,7 @@ namespace Tests\Feature\Document;
 
 use App\Enum\CustomPermissionEnum;
 use App\Enum\Sp\SpLevel;
-use App\Livewire\Sp\CreateSpPage;
+use Tests\Support\SpFixtures;
 use App\Livewire\Sp\SpDetailPage;
 use App\Models\Master\Companies;
 use App\Models\Sp\EmployeeSp;
@@ -45,23 +45,11 @@ class SignSpDocumentsTest extends TestCase
         return $user;
     }
 
-    /** Simpan draft lewat CreateSpPage lalu langsung terbitkan lewat SpDetailPage::issue() (si
-     *  pembuat konfirmasi password) - meniru 2 langkah yang sekarang ada di portal beneran. */
+    /** Buat draft SP (fixture, bukan halaman pembuat) lalu terbitkan lewat SpDetailPage::issue()
+     *  (si pembuat konfirmasi password). */
     private function createSp(User $hc, string $companyId, string $employeeId, string $knowerId, string $nomor, array $extra = [])
     {
-        Livewire::actingAs($hc)
-            ->test(CreateSpPage::class)
-            ->set('companyId', $companyId)
-            ->set('user_id', $employeeId)
-            ->set('nomor', $nomor)
-            ->set('sp_level', SpLevel::SP1->value)
-            ->set('knows_by', $knowerId)
-            ->set('start_date', now()->toDateString())
-            ->set('items', ['Terlambat berkali-kali'])
-            ->set($extra)
-            ->call('save');
-
-        $sp = EmployeeSp::where('nomor', $nomor)->firstOrFail();
+        $sp = SpFixtures::draftSp($hc, $companyId, $employeeId, $knowerId, $nomor, $extra);
 
         Livewire::actingAs($hc)
             ->test(SpDetailPage::class, ['record' => $sp])
@@ -79,18 +67,7 @@ class SignSpDocumentsTest extends TestCase
         $employee = User::factory()->create(['company_id' => $company->id]);
         $knower = User::factory()->create(['company_id' => $company->id]);
 
-        Livewire::actingAs($hc)
-            ->test(CreateSpPage::class)
-            ->set('companyId', $company->id)
-            ->set('user_id', $employee->id)
-            ->set('nomor', 'SP-TEST-000')
-            ->set('sp_level', SpLevel::SP1->value)
-            ->set('knows_by', $knower->id)
-            ->set('start_date', now()->toDateString())
-            ->set('items', ['Pelanggaran'])
-            ->call('save');
-
-        $sp = EmployeeSp::where('nomor', 'SP-TEST-000')->firstOrFail();
+        $sp = SpFixtures::draftSp($hc, $company->id, $employee->id, $knower->id, 'SP-TEST-000');
 
         Livewire::actingAs($hc)
             ->test(SpDetailPage::class, ['record' => $sp])

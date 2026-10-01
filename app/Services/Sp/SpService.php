@@ -115,7 +115,8 @@ class SpService
         $employeeSp->issueDocument("Surat Peringatan {$employeeSp->sp_level->getLabel()} — {$employeeSp->user?->name}", $createdBy);
         $employeeSp->sign($createdBy, 'created_by');
 
-        if ($employeeSp->report) {
+        // BA alur baru sudah ditandatangani sendiri sebelum SP ada - hanya BA lama yang ikut paket SP.
+        if ($employeeSp->report?->isLegacy()) {
             $employeeSp->report->issueDocument("Berita Acara — {$employeeSp->user?->name}", $createdBy);
             $employeeSp->report->sign($createdBy, 'created_by');
         }

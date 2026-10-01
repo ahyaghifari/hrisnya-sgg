@@ -88,6 +88,10 @@
             <p style="font-size:11.5px;color:var(--text-muted);margin:0 0 4px;">Klarifikasi Karyawan</p>
             <div style="font-size:13px;color:var(--text-body);line-height:1.6;margin:0 0 12px;">{!! $record->report->subject_clarification !!}</div>
         @endif
+        @if ($record->report->klarifikasi_parafrase)
+            <p style="font-size:11.5px;color:var(--text-muted);margin:0 0 4px;">Parafrase Klarifikasi</p>
+            <div style="font-size:13px;color:var(--text-body);line-height:1.6;margin:0 0 12px;">{!! $record->report->klarifikasi_parafrase !!}</div>
+        @endif
         @if ($record->report->analysis)
             <p style="font-size:11.5px;color:var(--text-muted);margin:0 0 4px;">Analisis</p>
             <div style="font-size:13px;color:var(--text-body);line-height:1.6;margin:0 0 12px;">{!! $record->report->analysis !!}</div>

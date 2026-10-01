@@ -98,8 +98,9 @@
                     <i class="fa-solid fa-plus"></i> Buat Coaching Lanjutan
                 </a>
             @elseif ($record->follow_up_status === \App\Enum\CoachingFollowUpStatus::NEEDS_SP)
-                <a href="{{ route('sp.create', ['user_id' => $record->user_id, 'coaching_id' => $record->id]) }}" wire:navigate class="btn-ghost" style="color:var(--danger-text);border-color:var(--danger-soft-border);">
-                    <i class="fa-solid fa-triangle-exclamation"></i> Buat SP
+                {{-- SP sekarang lewat Berita Acara dulu (instruksi user 2026-10-01). --}}
+                <a href="{{ route('ba.create', ['user_id' => $record->user_id]) }}" wire:navigate class="btn-ghost" style="color:var(--danger-text);border-color:var(--danger-soft-border);">
+                    <i class="fa-solid fa-file-lines"></i> Buat Berita Acara
                 </a>
             @endif
         </div>

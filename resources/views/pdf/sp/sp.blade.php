@@ -237,13 +237,19 @@
         </div>
     </div>
 
-    {{-- Karyawan TIDAK PERNAH ikut TTE digital (cuma tanda tangan basah/fisik, bukan salah satu
-    Signable::expectedSignerRoles()) - jangan pernah tampilkan QR di sini walau dokumen sudah
-    punya kode verifikasi, supaya tidak menyesatkan seolah karyawan sudah "menandatangani secara
-    elektronik" (instruksi user 2026-09-28, bug: QR sempat muncul di sini). --}}
+    {{-- QR karyawan HANYA tampil kalau karyawan benar-benar sudah menandatangani (SP dari BA alur
+    baru, instruksi user 2026-10-01) - $verification['employee'] baru terisi kalau baris
+    document_signatures peran 'employee' ada. SP lama tetap tanda tangan basah (ttd-space). --}}
     <div class="employee-sign">
         Karyawan
-        <span class="ttd-space">&nbsp;</span>
+        @if ($verification['employee'] ?? null)
+            <div class="verify-block">
+                <img src="{{ $verification['employee']['qr'] }}" alt="QR Verifikasi" class="verify-qr">
+                <div class="verify-code">{{ $verification['employee']['code'] }}</div>
+            </div>
+        @else
+            <span class="ttd-space">&nbsp;</span>
+        @endif
         <span class="sign-name">{{ $sp->user->name }}</span><br>
         {{ $sp->user->nip ?? '-' }}
     </div>
