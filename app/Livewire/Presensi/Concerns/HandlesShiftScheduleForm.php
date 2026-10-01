@@ -89,6 +89,8 @@ trait HandlesShiftScheduleForm
         $validUserIds = $this->companyEmployeeIds();
         $this->selectedEmployeeIds = array_values(array_intersect($this->selectedEmployeeIds, $validUserIds));
 
+        $previousIds = ScheduleAssignment::where('schedule_id', $schedule->id)->whereNotNull('user_id')->pluck('user_id')->all();
+
         ScheduleAssignment::where('schedule_id', $schedule->id)
             ->whereNotNull('user_id')
             ->whereNotIn('user_id', $this->selectedEmployeeIds)
@@ -99,6 +101,13 @@ trait HandlesShiftScheduleForm
                 ['schedule_id' => $schedule->id, 'user_id' => $userId],
                 ['company_id' => $schedule->company_id, 'effective_from' => now()->toDateString(), 'created_by' => Auth::id()]
             );
+        }
+
+        // Karyawan yang baru masuk jadwal ini (mis. dipindah dari jadwal lain) membawa roster lama
+        // yang masih menunjuk shift jadwal asal - arahkan ke shift jadwal ini mulai hari ini.
+        $newcomers = array_values(array_diff($this->selectedEmployeeIds, $previousIds));
+        if ($newcomers) {
+            app(\App\Services\Shift\RosterScheduleRemapper::class)->remap($schedule->load('shiftTypes'), $newcomers, now()->toDateString());
         }
     }
 
