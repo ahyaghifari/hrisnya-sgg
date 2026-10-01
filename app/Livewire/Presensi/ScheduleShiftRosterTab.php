@@ -1283,8 +1283,17 @@ class ScheduleShiftRosterTab extends Component
 
         $teamNames = collect($this->employeeTeamInfo)->map(fn ($info) => $info['name'])->all();
 
+        // Sel yang masih in_review ikut diexport (nilai draft menimpa approved) - sama aturan
+        // ScheduleResolver: draft kosong tidak menghapus nilai approved.
+        $roster = $this->roster;
+        foreach ($this->draftRoster as $userId => $dates) {
+            foreach (array_filter($dates, fn ($v) => $v !== '') as $date => $value) {
+                $roster[$userId][$date] = $value;
+            }
+        }
+
         return Excel::download(
-            new ScheduleShiftRosterExport($this->schedule, $this->employees, $this->dates, $this->roster, $this->periodLabel, $teamNames, $this->teamGroupMode, $this->leaveCells),
+            new ScheduleShiftRosterExport($this->schedule, $this->employees, $this->dates, $roster, $this->periodLabel, $teamNames, $this->teamGroupMode, $this->leaveCells),
             'detail-penjadwalan-'.str($this->schedule->name)->slug().'-'.$this->period.'.xlsx'
         );
     }
