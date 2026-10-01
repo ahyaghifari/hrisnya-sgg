@@ -109,7 +109,7 @@ class ShiftSwapRecapPage extends Component
                 $q->when($this->companyId, fn ($q2) => $q2->where('company_id', $this->companyId));
                 $this->applyDepartmentDivisionFilter($q);
             })
-            ->with(['requester', 'target', 'reqSchedule.shiftType', 'targetSchedule.shiftType'])
+            ->with(['requester.profile.jobPosition.orgStructure.parent.parent', 'target.profile.jobPosition.orgStructure.parent.parent', 'reqSchedule.shiftType', 'targetSchedule.shiftType'])
             ->get();
 
         // 1 pengajuan -> 1 entri per orang yang terlibat (pengaju + rekan).

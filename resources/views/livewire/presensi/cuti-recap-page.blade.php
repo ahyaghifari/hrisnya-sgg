@@ -225,6 +225,10 @@
                                 <div>
                                     <p style="font-weight:600;color:var(--text-heading);margin:0;">{{ $row['user']->name }}</p>
                                     <span style="font-size:11px;color:var(--text-muted);">{{ $row['user']->nip }}</span>
+                                    @php $p = $row['user']->profile; $unit = collect([$p?->jobPosition?->name, $p?->division?->name ?? $p?->department?->name])->filter()->implode(' · '); @endphp
+                                    @if ($unit !== '')
+                                        <span style="display:block;font-size:11px;color:var(--text-muted);">{{ $unit }}</span>
+                                    @endif
                                 </div>
                             </div>
                         </td>

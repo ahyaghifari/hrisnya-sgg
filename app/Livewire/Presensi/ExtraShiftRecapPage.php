@@ -120,7 +120,9 @@ class ExtraShiftRecapPage extends Component
                 $q->when($this->companyId, fn ($q2) => $q2->where('company_id', $this->companyId));
                 $this->applyDepartmentDivisionFilter($q);
             })
-            ->with(['user', 'shiftType', 'attendanceRecord'])
+            ->with(['user', 'user.profile.jobPosition.orgStructure.parent.parent', 'shiftType', 'attendanceRecord', 'coveringUser',
+                'originShiftSwapRequest' => fn ($q) => $q->withoutGlobalScope('company')->with(['requester', 'target']),
+            ])
             ->get()
             ->filter(fn ($a) => $a->user);
 
@@ -141,6 +143,16 @@ class ExtraShiftRecapPage extends Component
                     'source'     => $a->source,
                     'check_in'   => $a->attendanceRecord?->check_in_time,
                     'check_out'  => $a->attendanceRecord?->check_out_time,
+                    'reason'     => $a->reason,
+                    'covering'   => $a->coveringUser?->name,
+                    'swap'       => ($sw = $a->originShiftSwapRequest) ? [
+                        'kind'      => $sw->swap_kind === 'reciprocal_off' ? 'tukar libur' : 'tukar shift',
+                        'requester' => $sw->requester?->name,
+                        'target'    => $sw->target?->name,
+                        'date'      => $sw->req_date,
+                        'target_date' => $sw->target_date,
+                        'notes'     => $sw->notes,
+                    ] : null,
                 ];
             })->sortBy('date')->values()->all();
 

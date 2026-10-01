@@ -123,7 +123,7 @@ class CutiRecapPage extends Component
                 ->where(fn ($q2) => $q2->whereNotNull('end_date')->where('start_date', '<=', $this->date_to)->where('end_date', '>=', $this->date_from))
                 ->orWhere(fn ($q2) => $q2->whereNull('end_date')->whereBetween('start_date', [$this->date_from, $this->date_to]))
             )
-            ->with(['user', 'leaveDetails'])
+            ->with(['user', 'user.profile.jobPosition.orgStructure.parent.parent', 'leaveDetails'])
             ->get()
             ->filter(fn ($r) => $r->user);
 

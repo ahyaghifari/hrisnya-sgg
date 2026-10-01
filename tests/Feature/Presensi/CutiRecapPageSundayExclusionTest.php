@@ -24,9 +24,9 @@ class CutiRecapPageSundayExclusionTest extends TestCase
 
     private function actingAsAbsensi(string $companyId): User
     {
-        Permission::firstOrCreate(['name' => CustomPermissionEnum::SISTEM_ABSENSI->value, 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => CustomPermissionEnum::VIEW_REPORT_DATA_ABSENSI->value, 'guard_name' => 'web']);
         $role = Role::firstOrCreate(['name' => 'Rekap Cuti Test', 'guard_name' => 'web']);
-        $role->givePermissionTo(CustomPermissionEnum::SISTEM_ABSENSI->value);
+        $role->givePermissionTo(CustomPermissionEnum::VIEW_REPORT_DATA_ABSENSI->value);
 
         $viewer = User::factory()->create(['company_id' => $companyId]);
         $viewer->assignRole($role);

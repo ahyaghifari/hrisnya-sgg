@@ -130,6 +130,10 @@
                                 <div>
                                     <p style="font-weight:600;color:var(--text-heading);margin:0;">{{ $row['user']->name }}</p>
                                     <span style="font-size:11px;color:var(--text-muted);">{{ $row['user']->nip }}</span>
+                                    @php $p = $row['user']->profile; $unit = collect([$p?->jobPosition?->name, $p?->division?->name ?? $p?->department?->name])->filter()->implode(' · '); @endphp
+                                    @if ($unit !== '')
+                                        <span style="display:block;font-size:11px;color:var(--text-muted);">{{ $unit }}</span>
+                                    @endif
                                 </div>
                             </div>
                         </td>
@@ -201,9 +205,24 @@
                                     &middot; {{ $time($item['start_time']) }} - {{ $time($item['end_time']) }}
                                 @endif
                                 @if ($item['source'])
-                                    &middot; {{ $item['source'] === 'requested' ? 'Diajukan karyawan' : 'Ditugaskan' }}
+                                    &middot; {{ ['requested' => 'Diajukan karyawan', 'swap_conflict' => 'Akibat tukar shift'][$item['source']] ?? 'Ditugaskan' }}
                                 @endif
                             </p>
+                            @if ($item['swap'])
+                                @php $sw = $item['swap']; @endphp
+                                <p style="font-size:11.5px;color:var(--text-body, var(--text-heading));margin:6px 0 0;">
+                                    Akibat {{ $sw['kind'] }} {{ $sw['requester'] ?? '-' }} &harr; {{ $sw['target'] ?? '-' }}
+                                    ({{ \Illuminate\Support\Carbon::parse($sw['date'])->translatedFormat('d M Y') }}@if ($sw['target_date']) &harr; {{ \Illuminate\Support\Carbon::parse($sw['target_date'])->translatedFormat('d M Y') }}@endif).
+                                    @if (filled($sw['notes'])) Penjelasan: {{ $sw['notes'] }} @endif
+                                </p>
+                            @elseif ($item['category'] === 'extra_shift')
+                                @if ($item['covering'])
+                                    <p style="font-size:11.5px;color:var(--text-body, var(--text-heading));margin:6px 0 0;">Menggantikan: {{ $item['covering'] }}</p>
+                                @endif
+                                @if (filled($item['reason']))
+                                    <p style="font-size:11.5px;color:var(--text-body, var(--text-heading));margin:6px 0 0;white-space:pre-line;">Keterangan: {{ $item['reason'] }}</p>
+                                @endif
+                            @endif
                             @if ($time($item['check_in']) || $time($item['check_out']))
                                 <p style="font-size:11px;color:var(--text-muted);margin:2px 0 0;">
                                     Scan: {{ $time($item['check_in']) ?? '-' }} &rarr; {{ $time($item['check_out']) ?? '-' }}

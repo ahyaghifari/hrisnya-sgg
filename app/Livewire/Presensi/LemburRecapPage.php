@@ -98,7 +98,7 @@ class LemburRecapPage extends Component
                     $q2->when($this->companyId, fn ($q3) => $q3->where('company_id', $this->companyId));
                     $this->applyDepartmentDivisionFilter($q2);
                 }))
-            ->with('attendanceRequest.user')
+            ->with(['attendanceRequest.user', 'attendanceRequest.user.profile.jobPosition.orgStructure.parent.parent'])
             ->get()
             ->filter(fn ($d) => $d->attendanceRequest?->user);
 
@@ -119,6 +119,7 @@ class LemburRecapPage extends Component
                     'start_time' => $detail->start_time,
                     'end_time'   => $detail->end_time,
                     'total_hours' => (float) $detail->total_hours,
+                    'task'       => $detail->task_description,
                 ];
             })->sortBy('date')->values()->all();
 
