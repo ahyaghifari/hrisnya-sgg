@@ -66,7 +66,7 @@ class ShiftSwapRecapPageTest extends TestCase
             ->assertForbidden();
     }
 
-    public function test_swap_counts_for_requester_and_partner_per_status_within_period(): void
+    public function test_swap_counts_only_for_requester_per_status_within_period(): void
     {
         $a = User::factory()->create(['company_id' => $this->company->id, 'name' => 'Ani Pengaju']);
         $b = User::factory()->create(['company_id' => $this->company->id, 'name' => 'Budi Rekan']);
@@ -77,12 +77,12 @@ class ShiftSwapRecapPageTest extends TestCase
         $recap = Livewire::actingAs($this->viewer())->test(ShiftSwapRecapPage::class)
             ->set('date_from', '2026-07-01')
             ->set('date_to', '2026-07-31')
-            ->assertSee('Ani Pengaju')->assertSee('Budi Rekan')
+            ->assertSee('Ani Pengaju')->assertDontSee('Budi Rekan')
             ->instance()->recap;
 
         $this->assertSame(1, $recap['overall']['counts']['approved']);
         $this->assertSame(1, $recap['overall']['counts']['in_review']);
-        $this->assertSame(2, $recap['overall']['employee_count']);
+        $this->assertSame(1, $recap['overall']['employee_count']);
         $this->assertSame(2, $recap['rows'][0]['total']);
     }
 }

@@ -56,7 +56,7 @@
 
 @php $recap = $this->recap; @endphp
 
-<p style="font-size:12px;color:var(--text-muted);margin:0 0 14px;">Satu pengajuan dihitung untuk dua orang: pengaju dan rekan tukarnya.</p>
+<p style="font-size:12px;color:var(--text-muted);margin:0 0 14px;">Satu pengajuan dihitung atas nama pengaju saja.</p>
 
 @if (! $recap['ready'])
     <div style="background:var(--surface);border-radius:12px;box-shadow:var(--shadow-card);padding:36px 24px;text-align:center;color:var(--text-muted);">
@@ -122,12 +122,12 @@
                             ->implode('');
                     @endphp
                     <tr wire:click="openDetail('{{ $row['user']->id }}')" style="cursor:pointer;" title="Klik untuk lihat rincian tanggal">
-                        <td style="white-space:nowrap;">
+                        <td style="min-width:240px;max-width:300px;">
                             <div style="display:flex;align-items:center;gap:10px;">
                                 <div style="flex-shrink:0;width:32px;height:32px;border-radius:50%;background:#047C54;color:#fff;font-weight:800;font-size:12px;display:flex;align-items:center;justify-content:center;">
                                     {{ $initials ?: '?' }}
                                 </div>
-                                <div>
+                                <div style="min-width:0;">
                                     <p style="font-weight:600;color:var(--text-heading);margin:0;">{{ $row['user']->name }}</p>
                                     <span style="font-size:11px;color:var(--text-muted);">{{ $row['user']->nip }}</span>
                                     @php $p = $row['user']->profile; $unit = collect([$p?->jobPosition?->name, $p?->division?->name ?? $p?->department?->name])->filter()->implode(' · '); @endphp
@@ -194,7 +194,7 @@
                         </div>
                         <div style="min-width:0;flex:1;">
                             <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;">
-                                <p style="font-size:12.5px;font-weight:600;color:var(--text-heading);margin:0;">{{ $item['kind'] }} dengan {{ $item['partner'] }} <span style="font-weight:500;color:var(--text-muted);">({{ $item['role'] }})</span></p>
+                                <p style="font-size:12.5px;font-weight:600;color:var(--text-heading);margin:0;">{{ $item['kind'] }} dengan {{ $item['partner'] }}</p>
                                 <span style="font-size:11.5px;font-weight:700;color:{{ $itemStyle['color'] }};white-space:nowrap;">{{ $statuses[$item['status']] }}</span>
                             </div>
                             <p style="font-size:11px;color:var(--text-muted);margin:2px 0 0;">

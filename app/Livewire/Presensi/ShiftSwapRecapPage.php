@@ -112,11 +112,9 @@ class ShiftSwapRecapPage extends Component
             ->with(['requester.profile.jobPosition.orgStructure.parent.parent', 'target.profile.jobPosition.orgStructure.parent.parent', 'reqSchedule.shiftType', 'targetSchedule.shiftType'])
             ->get();
 
-        // 1 pengajuan -> 1 entri per orang yang terlibat (pengaju + rekan).
-        $entries = $swaps->flatMap(fn ($s) => array_filter([
-            $s->requester ? ['user' => $s->requester, 'role' => 'Pengaju', 'partner' => $s->target?->name, 'swap' => $s] : null,
-            $s->target ? ['user' => $s->target, 'role' => 'Rekan', 'partner' => $s->requester?->name, 'swap' => $s] : null,
-        ]));
+        // 1 pengajuan -> 1 entri, atas nama pengaju saja (rekan tidak ditampilkan sebagai baris sendiri).
+        $entries = $swaps->filter(fn ($s) => $s->requester)
+            ->map(fn ($s) => ['user' => $s->requester, 'role' => 'Pengaju', 'partner' => $s->target?->name, 'swap' => $s]);
 
         $rows = $entries->groupBy(fn ($e) => $e['user']->id)->map(function ($group) use ($emptyCounts) {
             $counts = $emptyCounts;

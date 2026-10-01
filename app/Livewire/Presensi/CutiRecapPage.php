@@ -8,7 +8,6 @@ use App\Livewire\Concerns\GatesCompanyFilterBySystem;
 use App\Models\Attendance\AttendanceRequestLeaveDetails;
 use App\Models\Attendance\AttendanceRequests;
 use App\Models\Master\Companies;
-use App\Services\Attendance\AttendancePeriodResolver;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
@@ -35,6 +34,7 @@ class CutiRecapPage extends Component
     public string $mode = 'matrix';
 
     public ?string $companyId = null;
+    public int $year = 0;
     public ?string $date_from = null;
     public ?string $date_to = null;
     public ?string $selectedUserId = null;
@@ -50,9 +50,15 @@ class CutiRecapPage extends Component
             $this->companyId = Auth::user()->company_id;
         }
 
-        [$periodStart, $periodEnd] = AttendancePeriodResolver::resolve(now(), $this->companyId);
-        $this->date_from = $periodStart->toDateString();
-        $this->date_to = $periodEnd->toDateString();
+        $this->year = (int) now()->year;
+        $this->updatedYear();
+    }
+
+    /** Filter rekap = 1 tahun kalender penuh (bukan periode gajian). */
+    public function updatedYear(): void
+    {
+        $this->date_from = Carbon::create($this->year, 1, 1)->toDateString();
+        $this->date_to = Carbon::create($this->year, 12, 31)->toDateString();
     }
 
     public function setMode(string $mode): void

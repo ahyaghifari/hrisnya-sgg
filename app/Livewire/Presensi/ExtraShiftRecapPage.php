@@ -8,6 +8,7 @@ use App\Livewire\Concerns\FiltersByDepartmentDivision;
 use App\Livewire\Concerns\GatesCompanyFilterBySystem;
 use App\Models\Master\Companies;
 use App\Models\Shift\ExtraShiftAssignment;
+use App\Models\Shift\ScheduleShiftAssignment;
 use App\Services\Attendance\AttendancePeriodResolver;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
@@ -120,16 +121,24 @@ class ExtraShiftRecapPage extends Component
                 $q->when($this->companyId, fn ($q2) => $q2->where('company_id', $this->companyId));
                 $this->applyDepartmentDivisionFilter($q);
             })
-            ->with(['user', 'user.profile.jobPosition.orgStructure.parent.parent', 'shiftType', 'attendanceRecord', 'coveringUser',
+            ->with(['user', 'user.profile.jobPosition.orgStructure.parent.parent', 'shiftType', 'attendanceRecord', 'coveringUser', 'createdBy',
                 'originShiftSwapRequest' => fn ($q) => $q->withoutGlobalScope('company')->with(['requester', 'target']),
             ])
             ->get()
             ->filter(fn ($a) => $a->user);
 
-        $rows = $assignments->groupBy('user_id')->map(function ($group) use ($emptyCounts) {
+        // Jadwal reguler di tanggal extra shift: baris off_day = libur, tidak ada baris = kosong.
+        // Scope company dibuka karena viewer bisa lintas company (pola ShiftSwapRecapPage).
+        $schedules = ScheduleShiftAssignment::withoutGlobalScope('company')
+            ->with('shiftType')
+            ->whereIn('user_id', $assignments->pluck('user_id')->unique())
+            ->whereBetween('date', [$this->date_from, $this->date_to])
+            ->get()
+            ->keyBy(fn ($sc) => $sc->user_id . '|' . substr((string) $sc->date, 0, 10));
+        $rows = $assignments->groupBy('user_id')->map(function ($group) use ($emptyCounts, $schedules) {
             $counts = $emptyCounts;
 
-            $items = $group->map(function ($a) use (&$counts) {
+            $items = $group->map(function ($a) use (&$counts, $schedules) {
                 $category = array_key_exists($a->category, $counts) ? $a->category : ExtraShiftAssignment::CATEGORY_EXTRA_SHIFT;
                 $counts[$category]++;
 
@@ -143,8 +152,17 @@ class ExtraShiftRecapPage extends Component
                     'source'     => $a->source,
                     'check_in'   => $a->attendanceRecord?->check_in_time,
                     'check_out'  => $a->attendanceRecord?->check_out_time,
-                    'reason'     => $a->reason,
+                    'regular'    => (function () use ($schedules, $a) {
+                        $sc = $schedules[$a->user_id . '|' . substr((string) $a->date, 0, 10)] ?? null;
+
+                        return match (true) {
+                            ! $sc => 'Kosong',
+                            $sc->off_day || ! $sc->shiftType => 'Libur',
+                            default => $sc->shiftType->name,
+                        };
+                    })(),                    'reason'     => $a->reason,
                     'covering'   => $a->coveringUser?->name,
+                    'assigned_by' => $a->source === 'assigned' ? $a->createdBy?->name : null,
                     'swap'       => ($sw = $a->originShiftSwapRequest) ? [
                         'kind'      => $sw->swap_kind === 'reciprocal_off' ? 'tukar libur' : 'tukar shift',
                         'requester' => $sw->requester?->name,

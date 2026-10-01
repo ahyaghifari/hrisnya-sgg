@@ -11,7 +11,7 @@
     $typeStyle = fn (string $type) => $palette[crc32($type) % count($palette)];
 @endphp
 <div>
-<x-page-header title="Rekap Cuti" :subtitle="$mode === 'matrix' ? 'Ringkasan karyawan x jenis cuti dalam 1 periode' : 'Histori seluruh pengajuan cuti yang sudah disetujui, terbaru di atas'" />
+<x-page-header title="Rekap Cuti" :subtitle="$mode === 'matrix' ? 'Ringkasan karyawan x jenis cuti dalam 1 tahun' : 'Histori seluruh pengajuan cuti yang sudah disetujui, terbaru di atas'" />
 
 <div style="display:inline-flex;gap:2px;background:var(--surface-alt);padding:3px;border-radius:8px;margin-bottom:16px;">
     <button type="button" wire:click="setMode('matrix')" style="padding:4px 12px;font-size:11.5px;font-weight:600;border:none;border-radius:6px;cursor:pointer;font-family:inherit;background:{{ $mode === 'matrix' ? 'var(--surface)' : 'transparent' }};color:{{ $mode === 'matrix' ? 'var(--text-heading)' : 'var(--text-muted)' }};box-shadow:{{ $mode === 'matrix' ? 'var(--shadow-card)' : 'none' }};">Ringkasan</button>
@@ -52,14 +52,13 @@
     </div>
 
     @if ($mode === 'matrix')
-        <div style="min-width:170px;">
-            <label class="form-label">Dari Tanggal</label>
-            <input type="date" class="form-input" wire:model.live="date_from">
-        </div>
-
-        <div style="min-width:170px;">
-            <label class="form-label">Sampai Tanggal</label>
-            <input type="date" class="form-input" wire:model.live="date_to">
+        <div style="min-width:140px;">
+            <label class="form-label">Tahun</label>
+            <select wire:model.live="year" class="form-input">
+                @foreach (range(now()->year + 1, now()->year - 5) as $y)
+                    <option value="{{ $y }}">{{ $y }}</option>
+                @endforeach
+            </select>
         </div>
     @else
         <div style="min-width:220px;flex:1;">
@@ -217,12 +216,12 @@
                             ->implode('');
                     @endphp
                     <tr wire:click="openDetail('{{ $row['user']->id }}')" style="cursor:pointer;" title="Klik untuk lihat rincian tanggal">
-                        <td style="white-space:nowrap;">
+                        <td style="min-width:240px;max-width:300px;">
                             <div style="display:flex;align-items:center;gap:10px;">
                                 <div style="flex-shrink:0;width:32px;height:32px;border-radius:50%;background:#042c6c;color:#fff;font-weight:800;font-size:12px;display:flex;align-items:center;justify-content:center;">
                                     {{ $initials ?: '?' }}
                                 </div>
-                                <div>
+                                <div style="min-width:0;">
                                     <p style="font-weight:600;color:var(--text-heading);margin:0;">{{ $row['user']->name }}</p>
                                     <span style="font-size:11px;color:var(--text-muted);">{{ $row['user']->nip }}</span>
                                     @php $p = $row['user']->profile; $unit = collect([$p?->jobPosition?->name, $p?->division?->name ?? $p?->department?->name])->filter()->implode(' · '); @endphp

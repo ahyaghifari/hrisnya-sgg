@@ -122,12 +122,12 @@
                             ->implode('');
                     @endphp
                     <tr wire:click="openDetail('{{ $row['user']->id }}')" style="cursor:pointer;" title="Klik untuk lihat rincian tanggal">
-                        <td style="white-space:nowrap;">
+                        <td style="min-width:240px;max-width:300px;">
                             <div style="display:flex;align-items:center;gap:10px;">
                                 <div style="flex-shrink:0;width:32px;height:32px;border-radius:50%;background:#047C54;color:#fff;font-weight:800;font-size:12px;display:flex;align-items:center;justify-content:center;">
                                     {{ $initials ?: '?' }}
                                 </div>
-                                <div>
+                                <div style="min-width:0;">
                                     <p style="font-weight:600;color:var(--text-heading);margin:0;">{{ $row['user']->name }}</p>
                                     <span style="font-size:11px;color:var(--text-muted);">{{ $row['user']->nip }}</span>
                                     @php $p = $row['user']->profile; $unit = collect([$p?->jobPosition?->name, $p?->division?->name ?? $p?->department?->name])->filter()->implode(' · '); @endphp
@@ -208,6 +208,7 @@
                                     &middot; {{ ['requested' => 'Diajukan karyawan', 'swap_conflict' => 'Akibat tukar shift'][$item['source']] ?? 'Ditugaskan' }}
                                 @endif
                             </p>
+                            <p style="font-size:11.5px;color:var(--text-body, var(--text-heading));margin:6px 0 0;">Jadwal hari itu: <strong>{{ $item['regular'] }}</strong> &rarr; {{ $recap['categories'][$item['category']] }}: <strong>{{ $item['shift_name'] }}</strong></p>
                             @if ($item['swap'])
                                 @php $sw = $item['swap']; @endphp
                                 <p style="font-size:11.5px;color:var(--text-body, var(--text-heading));margin:6px 0 0;">
@@ -216,6 +217,9 @@
                                     @if (filled($sw['notes'])) Penjelasan: {{ $sw['notes'] }} @endif
                                 </p>
                             @elseif ($item['category'] === 'extra_shift')
+                                @if ($item['assigned_by'])
+                                    <p style="font-size:11.5px;color:var(--text-body, var(--text-heading));margin:6px 0 0;">Ditugaskan oleh: {{ $item['assigned_by'] }}</p>
+                                @endif
                                 @if ($item['covering'])
                                     <p style="font-size:11.5px;color:var(--text-body, var(--text-heading));margin:6px 0 0;">Menggantikan: {{ $item['covering'] }}</p>
                                 @endif
