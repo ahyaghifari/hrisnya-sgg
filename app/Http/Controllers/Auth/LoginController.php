@@ -18,14 +18,17 @@ class LoginController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $request->validate([
-            'nip' => ['required', 'string'],
+            'email' => ['required', 'string'],
             'password' => ['required', 'string'],
         ]);
 
-        if (!Auth::attempt(['nip' => $request->input('nip'), 'password' => $request->input('password')], $request->boolean('remember'))) {
+        $login = $request->input('email');
+        $field = filter_var($login, FILTER_VALIDATE_EMAIL) ? 'email' : 'nip';
+
+        if (!Auth::attempt([$field => $login, 'password' => $request->input('password')], $request->boolean('remember'))) {
             return back()
-                ->withErrors(['nip' => 'NIP atau password salah.'])
-                ->onlyInput('nip');
+                ->withErrors(['email' => 'Email atau password salah.'])
+                ->onlyInput('email');
         }
 
         if (! Auth::user()->is_active) {
@@ -34,8 +37,8 @@ class LoginController extends Controller
             $request->session()->regenerateToken();
 
             return back()
-                ->withErrors(['nip' => 'Akun Anda sudah dinonaktifkan. Hubungi HC/Admin perusahaan.'])
-                ->onlyInput('nip');
+                ->withErrors(['email' => 'Akun Anda sudah dinonaktifkan. Hubungi HC/Admin perusahaan.'])
+                ->onlyInput('email');
         }
 
         $request->session()->regenerate();

@@ -23,12 +23,11 @@ class LoginTest extends TestCase
     public function test_users_can_authenticate_using_the_login_screen(): void
     {
         $user = User::factory()->create([
-            'nip' => '1234567890',
             'password' => Hash::make('password'),
         ]);
 
         $response = $this->post('/login', [
-            'nip' => $user->nip,
+            'email' => $user->email,
             'password' => 'password',
         ]);
 
@@ -36,47 +35,47 @@ class LoginTest extends TestCase
         $response->assertRedirect('/');
     }
 
-    public function test_users_cannot_authenticate_with_email(): void
+    public function test_users_can_authenticate_using_nip(): void
     {
         $user = User::factory()->create([
             'nip' => '1234567890',
             'password' => Hash::make('password'),
         ]);
 
-        $this->post('/login', [
-            'nip' => $user->email,
+        $response = $this->post('/login', [
+            'email' => $user->nip,
             'password' => 'password',
         ]);
 
-        $this->assertGuest();
+        $this->assertAuthenticatedAs($user);
+        $response->assertRedirect('/');
     }
 
     public function test_users_cannot_authenticate_with_invalid_password(): void
     {
         $user = User::factory()->create([
-            'nip' => '1234567890',
             'password' => Hash::make('password'),
         ]);
 
         $response = $this->post('/login', [
-            'nip' => $user->nip,
+            'email' => $user->email,
             'password' => 'password-yang-salah',
         ]);
 
         $this->assertGuest();
-        $response->assertSessionHasErrors('nip');
-        $response->assertSessionHasInput('nip', $user->nip);
+        $response->assertSessionHasErrors('email');
+        $response->assertSessionHasInput('email', $user->email);
     }
 
-    public function test_users_cannot_authenticate_with_nonexistent_nip(): void
+    public function test_users_cannot_authenticate_with_nonexistent_email(): void
     {
         $response = $this->post('/login', [
-            'nip' => '0000000000',
+            'email' => 'tidak-ada@nowhere.com',
             'password' => 'password',
         ]);
 
         $this->assertGuest();
-        $response->assertSessionHasErrors('nip');
+        $response->assertSessionHasErrors('email');
     }
 
     public function test_authenticated_users_are_redirected_away_from_login_page(): void
@@ -127,13 +126,13 @@ class LoginTest extends TestCase
     {
         for ($i = 0; $i < 5; $i++) {
             $this->post('/login', [
-                'nip' => '0000000000',
+                'email' => 'siapa@nowhere.com',
                 'password' => 'salah',
             ]);
         }
 
         $response = $this->post('/login', [
-            'nip' => '0000000000',
+            'email' => 'siapa@nowhere.com',
             'password' => 'salah',
         ]);
 

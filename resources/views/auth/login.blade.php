@@ -39,7 +39,7 @@
                 @if ($errors->any())
                     <div class="flex items-center gap-2.5 bg-red-50 border border-red-200 rounded-[10px] px-3.5 py-2.5 mb-5 text-[13px] text-red-600">
                         <i class="fas fa-circle-exclamation"></i>
-                        {{ $errors->first('nip') }}
+                        {{ $errors->first('email') }}
                     </div>
                 @endif
 
@@ -54,13 +54,13 @@
                     @csrf
 
                     <div class="mb-4.5">
-                        <label class="block text-[13px] font-semibold text-slate-700 mb-1.5" for="nip">NIP</label>
+                        <label class="block text-[13px] font-semibold text-slate-700 mb-1.5" for="email">NIP</label>
                         <div class="relative">
-                            <i class="fas fa-id-cardabsolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-[13px] pointer-events-none"></i>
+                            <i class="fas fa-envelope absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-[13px] pointer-events-none"></i>
                             <input
                                 class="block w-full rounded-[10px] border-slate-200 bg-slate-50 pl-9 pr-3.5 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 focus:border-[#042c6c] focus:bg-white focus:ring-4 focus:ring-[#042c6c]/[0.07]"
-                                type="text" id="nip" name="nip" value="{{ old('nip') }}"
-                                placeholder="Masukkan NIP"autocomplete="username" required autofocus>
+                                type="text" id="email" name="email" value="{{ old('email') }}"
+                                placeholder="NIP" autocomplete="username" required autofocus>
                         </div>
                     </div>
 
