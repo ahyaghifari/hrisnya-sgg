@@ -55,20 +55,15 @@ class ScheduleResolver
             ->whereDate('date', $date)
             ->first();
 
-        // Pengajuan perubahan roster yang masih in_review (draft_*) DIHITUNG sama seperti approved
-        // (instruksi user 2026-10-01) - draft menimpa kolom approved. Draft kosong (sel diajukan
-        // dikosongkan) = tidak ada roster, jatuh ke assignment Fixed/Flexible di bawah.
+        // Status pengajuan (draft in_review / approved) TIDAK dibedakan (instruksi user 2026-10-01):
+        // dihitung selama sel tidak kosong. Draft terisi dipakai dulu, kalau draft kosong pakai
+        // kolom approved. Dua-duanya kosong = tidak ada roster, jatuh ke Fixed/Flexible di bawah.
         // ponytail: draft yang akhirnya ditolak tidak membatalkan presensi yang sudah terbentuk
         // dari draft itu, tambahkan resweep di jalur tolak kalau perlu.
-        if ($shiftAssignment?->has_draft) {
-            $offDay    = $shiftAssignment->draft_off_day;
-            $shiftType = $shiftAssignment->draftShiftType;
-            $isEmpty   = ! $offDay && ! $shiftType;
-        } else {
-            $offDay    = $shiftAssignment?->off_day;
-            $shiftType = $shiftAssignment?->shiftType;
-            $isEmpty   = false;
-        }
+        $useDraft  = $shiftAssignment && ($shiftAssignment->draft_off_day || $shiftAssignment->draftShiftType);
+        $offDay    = $useDraft ? $shiftAssignment->draft_off_day : $shiftAssignment?->off_day;
+        $shiftType = $useDraft ? $shiftAssignment->draftShiftType : $shiftAssignment?->shiftType;
+        $isEmpty   = $shiftAssignment?->has_draft && ! $useDraft && ! $offDay && ! $shiftType;
 
         if ($shiftAssignment && ! $isEmpty) {
             if ($offDay || ! $shiftType) {
