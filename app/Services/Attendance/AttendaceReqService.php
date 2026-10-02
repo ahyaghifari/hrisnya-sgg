@@ -187,9 +187,9 @@ class AttendaceReqService
         return LeaveTypeCategoryEnum::usesLabelOverride($user->company_id);
     }
 
-    /** Calon pengganti cuti: karyawan aktif lain di company & unit (org_structure jabatan) yang
-     * sama dengan $user, PLUS bawahan LANGSUNG-nya saja (bukan bawahan dari bawahan) - atasan
-     * boleh memilih bawahan langsungnya walau tercatat di sub-unit lain. */
+    /** Calon pengganti cuti: kalau $user punya bawahan LANGSUNG (bukan bawahan dari bawahan) ->
+     * cuma bawahan itu; kalau tidak -> karyawan aktif lain di company & unit (org_structure
+     * jabatan) yang sama. */
     public function unitMates(User $user): \Illuminate\Database\Eloquent\Builder
     {
         $orgId = $user->profile?->jobPosition?->org_structure_id;
@@ -201,13 +201,16 @@ class AttendaceReqService
             ))
             ->pluck('id');
 
-        return User::query()
+        $query = User::query()
             ->where('company_id', $user->company_id)
             ->where('id', '!=', $user->id)
-            ->where('is_active', true)
-            ->where(fn ($q) => $q
-                ->whereHas('profile.jobPosition', fn ($j) => $j->where('org_structure_id', $orgId ?? '__none__'))
-                ->orWhereIn('id', $subordinateIds));
+            ->where('is_active', true);
+
+        // Atasan (punya bawahan langsung) -> pengganti HANYA bawahan langsungnya; bukan atasan ->
+        // karyawan di unit yang sama (instruksi user 2026-10-03).
+        return $subordinateIds->isNotEmpty()
+            ? $query->whereIn('id', $subordinateIds)
+            : $query->whereHas('profile.jobPosition', fn ($j) => $j->where('org_structure_id', $orgId ?? '__none__'));
     }
 
     public function storeLeaveRequest(array $data, ?User $actingUser = null, bool $skipApproval = false, ?string $note = null, ?User $createdBy = null): object
