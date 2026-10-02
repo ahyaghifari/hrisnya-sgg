@@ -15,6 +15,7 @@ use App\Models\Shift\ScheduleShiftRosterLog;
 use App\Models\Shift\ScheduleShiftRotation;
 use App\Models\Shift\ScheduleShiftTeam;
 use App\Models\Shift\ScheduleShiftTeamMember;
+use App\Models\Shift\ExtraShiftAssignment;
 use App\Models\Shift\ShiftSwapRequests;
 use App\Services\Approval\ApprovalFlowService;
 use App\Services\Approval\ApprovalPermissionService;
@@ -731,6 +732,56 @@ class ScheduleShiftRosterTab extends Component
         }
 
         return $cells;
+    }
+
+    /** Sel kosong hasil tukar beda tanggal APPROVED: pemiliknya sudah menyerahkan shift di tanggal itu
+     * (baris pindah ke rekan), tapi grid tetap menampilkan kode shift yang ditukar (redup + ikon,
+     * read-only), bukan N/A (instruksi user 2026-10-02). Key "{user_id}|{Y-m-d}" => shift_type_id.
+     * Sumber berurutan: baris jadwal yang dirujuk -> Double Shift hasil tukar -> kode yang DITERIMA dari
+     * rekan. Tidak ada yang cocok -> sel dibiarkan N/A.
+     *
+     * @return array<string, string>
+     */
+    public function getSwapGhostsProperty(): array
+    {
+        $start = Carbon::createFromFormat('Y-m', $this->period)->startOfMonth()->toDateString();
+        $end = Carbon::createFromFormat('Y-m', $this->period)->endOfMonth()->toDateString();
+
+        $swaps = $this->swapQuery()->where('status', 'approved')
+            ->where(function ($q) use ($start, $end) {
+                $q->whereBetween('req_date', [$start, $end])->orWhereBetween('target_date', [$start, $end]);
+            })
+            ->with([
+                'reqSchedule' => fn ($q) => $q->withoutGlobalScope('company')->select('id', 'shift_type_id'),
+                'targetSchedule' => fn ($q) => $q->withoutGlobalScope('company')->select('id', 'shift_type_id'),
+            ])
+            ->get();
+
+        $ghosts = [];
+
+        foreach ($swaps as $s) {
+            if (! $s->target_date || $s->target_date->equalTo($s->req_date)) {
+                continue;
+            }
+
+            foreach ([[$s->requester_id, $s->req_date, $s->reqSchedule, $s->targetSchedule], [$s->target_id, $s->target_date, $s->targetSchedule, $s->reqSchedule]] as [$uid, $d, $slot, $otherSlot]) {
+                $date = $d->toDateString();
+
+                $typeId = $slot?->shift_type_id
+                    ?? ExtraShiftAssignment::withoutGlobalScope('company')
+                        ->where('origin_shift_swap_request_id', $s->id)
+                        ->whereDate('date', $date)
+                        ->where('user_id', '!=', $uid)
+                        ->value('shift_type_id')
+                    ?? $otherSlot?->shift_type_id;
+
+                if ($typeId && $date >= $start && $date <= $end) {
+                    $ghosts[$uid . '|' . $date] = $typeId;
+                }
+            }
+        }
+
+        return $ghosts;
     }
 
     /** Sel roster yang off_day-nya KARENA Cuti/Izin disetujui otomatis (schedule_status

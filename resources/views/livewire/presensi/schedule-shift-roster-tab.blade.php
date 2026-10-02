@@ -370,6 +370,12 @@
                                 $current = $editMode
                                     ? ($draft[$employee->id][$date->toDateString()] ?? '')
                                     : ($userRoster[$date->toDateString()] ?? '');
+                                // Sel kosong karena shiftnya sudah diserahkan lewat tukar approved: tampilkan
+                                // shift yang ditukar (redup, read-only) - lihat getSwapGhostsProperty().
+                                $ghostId = $current === '' ? ($this->swapGhosts[$employee->id.'|'.$date->toDateString()] ?? null) : null;
+                                if ($ghostId) {
+                                    $current = $ghostId;
+                                }
                                 $isOff = $current === 'off';
                                 $currentType = $schedule->shiftTypes->firstWhere('id', $current);
                                 $currentColor = $currentType?->color;
@@ -386,7 +392,8 @@
                                 // Sel yang jadwalnya lagi/sudah dipakai pengajuan tukar shift -> dikunci
                                 // total, tidak bisa diedit dari halaman jadwal (biar tidak bentrok sama
                                 // eksekusi swap). Lihat ScheduleShiftRosterTab::getSwapCellsProperty().
-                                $swapLocked = isset($this->swapCells[$employee->id.'|'.$date->toDateString()]);
+                                // Sel serah-shift (ghost, lihat getSwapGhostsProperty) ikut dikunci + berikon.
+                                $swapLocked = $ghostId || isset($this->swapCells[$employee->id.'|'.$date->toDateString()]);
                                 // Sel Cuti/Izin disetujui otomatis - selalu ditandai (badge + kode
                                 // C/Izin), tapi cuma DIKUNCI dari edit buat yang bukan pemegang
                                 // Update:Schedule (Edit Jadwal) - instruksi user 2026-09-24. Lihat
@@ -445,6 +452,8 @@
                                     @disabled($locked)
                                     @if ($isDraftCell)
                                         title="Diajukan, belum disetujui oleh HC/Kepegawaian."
+                                    @elseif ($ghostId)
+                                        title="Shift ini sudah ditukar ke rekan (tukar shift disetujui) — karyawan ini tidak bertugas di tanggal ini."
                                     @elseif ($swapLocked)
                                         title="Jadwal ini terkait pengajuan tukar shift — tidak bisa diubah dari halaman jadwal."
                                     @elseif ($leaveLocked)
@@ -462,7 +471,7 @@
                                     warna sel beda jauh dari warna shift sebenarnya (dilaporkan user 2026-09-16).
                                     Sel draft (belum disetujui) dikurangi LEBIH jauh (0.55) - beda kasat mata dari
                                     sel biasa, baik lagi editMode (karu lanjut edit proposalnya) maupun view. --}}
-                                    style="width:52px;padding:6px 2px;font-size:10.5px;text-align:center;font-weight:700;border:none;border-radius:5px;{{ $isDraftCell ? 'opacity:0.55;' : ($locked ? 'opacity:0.92;' : '') }}{{ $locked ? 'cursor:not-allowed;' : 'cursor:pointer;' }}color:{{ $isLeaveCell ? '#000' : $currentFontColor }};{{ $isLeaveCell ? 'background:'.($leaveType === 'cuti' ? '#EF4444' : '#0EA5E9').';' : ($isOff ? "background:{$offBg};" : ($currentColor ? "background:{$currentColor};" : 'background:var(--surface-alt);')) }}">
+                                    style="width:52px;padding:6px 2px;font-size:10.5px;text-align:center;font-weight:700;border:none;border-radius:5px;{{ $isDraftCell ? 'opacity:0.55;' : ($ghostId ? 'opacity:0.5;' : ($locked ? 'opacity:0.92;' : '')) }}{{ $locked ? 'cursor:not-allowed;' : 'cursor:pointer;' }}color:{{ $isLeaveCell ? '#000' : $currentFontColor }};{{ $isLeaveCell ? 'background:'.($leaveType === 'cuti' ? '#EF4444' : '#0EA5E9').';' : ($isOff ? "background:{$offBg};" : ($currentColor ? "background:{$currentColor};" : 'background:var(--surface-alt);')) }}">
                                     <option value="" {{ $current === '' ? 'selected' : '' }}>{{ $editMode ? '-' : 'N/A' }}</option>
                                     @if ($currentOutsideTeam)
                                         <option value="{{ $current }}" selected title="Di luar daftar shift Tim karyawan ini">{{ $currentType->code }} &#9888;</option>
