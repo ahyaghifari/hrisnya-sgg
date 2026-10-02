@@ -669,16 +669,12 @@ class ScheduleShiftRosterTab extends Component
     }
 
     /** Sel roster yang KENA pengajuan tukar shift (in_review / approved) - dipakai blade buat naruh
-     * ikon "tukar" emas di pojok sel. Key: "{user_id}|{Y-m-d}". Scope: pengajuan yang req-schedule-nya
-     * milik jadwal ini, dalam rentang bulan periode terpilih.
+     * ikon "tukar" emas di pojok sel. Key: "{user_id}|{Y-m-d}". Dalam rentang bulan periode terpilih.
      *
-     * Sengaja pakai user_id & date dari relasi reqSchedule/targetSchedule LANGSUNG (bukan kolom
-     * requester_id/req_date/target_id/target_date di shift_swap_requests) - begitu approved,
-     * executeApprovedSwap() mengubah user_id baris schedule_shift_assignments itu sendiri (mode
-     * 'move'/'move_over_off_day'), jadi kolom requester_id/target_id jadi STALE (nunjuk pemilik
-     * LAMA yang sudah pindah/kosong). Baris yang dihapus total (mode 'double_shift') otomatis
-     * dilewati (relasinya null) - tidak ada sel schedule_shift_assignments buat ditandai lagi,
-     * hasilnya sudah pindah jadi ExtraShiftAssignment.
+     * Baca kolom requester_id/target_id + req_date/target_date di shift_swap_requests (bukan relasi
+     * baris schedule - yang bisa pindah pemilik/terhapus setelah approved, lihat executeApprovedSwap()).
+     * Pengaju & target ditandai di KEDUA tanggal tukar (instruksi user 2026-10-02: tukar shift
+     * approved/in_review = selalu tandai ikon).
      *
      * @return array<string, true>
      */
