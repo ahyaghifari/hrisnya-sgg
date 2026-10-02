@@ -85,4 +85,22 @@ class ShiftSwapRecapPageTest extends TestCase
         $this->assertSame(1, $recap['overall']['employee_count']);
         $this->assertSame(2, $recap['rows'][0]['total']);
     }
+
+    public function test_item_type_distinguishes_same_date_different_date_and_reciprocal_off(): void
+    {
+        $a = User::factory()->create(['company_id' => $this->company->id, 'name' => 'Ani Pengaju']);
+        $b = User::factory()->create(['company_id' => $this->company->id, 'name' => 'Budi Rekan']);
+
+        $this->makeSwap($a, $b, '2026-07-05', 'in_review'); // tanggal sama
+        $diff = $this->makeSwap($a, $b, '2026-07-06', 'in_review');
+        $diff->update(['target_date' => '2026-07-09']);
+        $libur = $this->makeSwap($a, $b, '2026-07-07', 'in_review');
+        $libur->update(['swap_kind' => 'reciprocal_off', 'target_date' => '2026-07-10']);
+
+        $items = Livewire::actingAs($this->viewer())->test(ShiftSwapRecapPage::class)
+            ->set('date_from', '2026-07-01')->set('date_to', '2026-07-31')
+            ->instance()->recap['rows'][0]['items'];
+
+        $this->assertSame(['same', 'diff', 'libur'], array_column($items, 'type'));
+    }
 }

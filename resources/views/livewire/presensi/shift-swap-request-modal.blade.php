@@ -65,7 +65,7 @@
                                         <input type="radio" name="dateMode" wire:model.live="dateMode" value="reciprocal">
                                         <span class="dot"></span>
                                     </span>
-                                    Shift rekan yang diambil alih
+                                    Ambil alih shift libur rekan
                                 </label>
                             </div>
 

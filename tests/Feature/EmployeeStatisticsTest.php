@@ -858,4 +858,32 @@ class EmployeeStatisticsTest extends TestCase
             ->assertDontSee('Counseling')
             ->assertDontSee('RAHASIA keluhan pribadi');
     }
+
+    // Hitung ulang presensi di tab Kehadiran: pemilik akun atau pemegang izin lihat rekap
+    // presensi (view_report_data_absensi) di company yang sama - atasan biasa tidak (2026-10-02).
+    public function test_resync_button_is_open_to_rekap_viewers_and_owner_only(): void
+    {
+        $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
+        $managerPosition = JobPositions::create(['company_id' => $company->id, 'name' => 'Manager', 'planned_manpower' => 1]);
+        $staffPosition = JobPositions::create(['company_id' => $company->id, 'name' => 'Staff', 'planned_manpower' => 1, 'parent_id' => $managerPosition->id]);
+
+        $manager = User::factory()->create(['company_id' => $company->id]);
+        $this->assignJobPosition($manager, $managerPosition);
+        $staff = User::factory()->create(['company_id' => $company->id]);
+        $this->assignJobPosition($staff, $staffPosition);
+
+        Livewire::actingAs($manager)->test(EmployeeStatistics::class, ['record' => $staff])
+            ->assertSet('canResync', false);
+
+        Livewire::actingAs($staff)->test(EmployeeStatistics::class, ['record' => $staff])
+            ->assertSet('canResync', true);
+
+        Permission::firstOrCreate(['name' => CustomPermissionEnum::VIEW_REPORT_DATA_ABSENSI->value, 'guard_name' => 'web']);
+        $manager->givePermissionTo(CustomPermissionEnum::VIEW_REPORT_DATA_ABSENSI->value);
+
+        Livewire::actingAs($manager->fresh())->test(EmployeeStatistics::class, ['record' => $staff])
+            ->assertSet('canResync', true)
+            ->call('syncDate', now()->toDateString())
+            ->assertHasNoErrors();
+    }
 }

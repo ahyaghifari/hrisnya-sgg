@@ -1007,7 +1007,7 @@ source (tab server-render sekali jalan, x-show cuma toggle CSS). --}}
                 <h4 style="font-size:13.5px;font-weight:700;color:var(--text-heading);margin:0;">Data Presensi</h4>
                 @if ($this->canResyncPeriod)
                     <button type="button" wire:click="syncMyPeriod" wire:loading.attr="disabled" wire:target="syncMyPeriod"
-                        wire:confirm="Hitung ulang data presensi kamu untuk periode yang dipilih?" class="btn-ghost" style="padding:5px 12px;font-size:11.5px;">
+                        wire:confirm="Hitung ulang data presensi {{ $this->isOwnProfile ? 'kamu' : $record->name }} untuk periode yang dipilih?" class="btn-ghost" style="padding:5px 12px;font-size:11.5px;">
                         <span wire:loading.remove wire:target="syncMyPeriod">Hitung Ulang Presensi</span>
                         <span wire:loading wire:target="syncMyPeriod">Memproses...</span>
                     </button>
@@ -1016,7 +1016,7 @@ source (tab server-render sekali jalan, x-show cuma toggle CSS). --}}
             <div style="overflow-x:auto;">
                 <table class="data-table">
                     <thead>
-                        <tr><th>Tanggal</th><th>Jam Masuk</th><th>Jam Keluar</th><th>Status</th></tr>
+                        <tr><th>Tanggal</th><th>Jam Masuk</th><th>Jam Keluar</th><th>Status</th>@if ($this->canResync)<th></th>@endif</tr>
                     </thead>
                     <tbody>
                         @forelse ($this->presenceRecords as $presence)
@@ -1029,9 +1029,19 @@ source (tab server-render sekali jalan, x-show cuma toggle CSS). --}}
                                         {{ \App\Enum\AttendanceStatus::from($presence->status)->getLabel() }}
                                     </span>
                                 </td>
+                                @if ($this->canResync)
+                                    <td class="text-right">
+                                        <button type="button" wire:click="syncDate('{{ \Carbon\Carbon::parse($presence->date)->toDateString() }}')" wire:loading.attr="disabled"
+                                            wire:target="syncDate('{{ \Carbon\Carbon::parse($presence->date)->toDateString() }}')"
+                                            wire:confirm="Hitung ulang presensi tanggal {{ \Carbon\Carbon::parse($presence->date)->translatedFormat('d M Y') }}?"
+                                            class="btn-ghost" style="padding:3px 9px;font-size:11px;" title="Baca ulang scan & hitung ulang tanggal ini">
+                                            <i class="fa-solid fa-rotate"></i>
+                                        </button>
+                                    </td>
+                                @endif
                             </tr>
                         @empty
-                            <tr><td colspan="4" class="text-center text-sm text-slate-500 py-6">Tidak ada data presensi pada periode ini.</td></tr>
+                            <tr><td colspan="{{ $this->canResync ? 5 : 4 }}" class="text-center text-sm text-slate-500 py-6">Tidak ada data presensi pada periode ini.</td></tr>
                         @endforelse
                     </tbody>
                 </table>

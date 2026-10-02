@@ -653,19 +653,44 @@ class EmployeeStatistics extends Component
         return $this->record->id === Auth::id();
     }
 
-    /** Tombol "Hitung Ulang Presensi": profil sendiri + rentang terpilih tidak lebih dari RESYNC_MAX_DAYS hari. */
+    /** Boleh hitung ulang presensi profil ini: pemilik akun, atau pemegang izin lihat rekap presensi
+     * (view_report_data_absensi) - dibatasi company sendiri kecuali bisa lihat lintas company,
+     * sama seperti RekapPresensiPage. */
+    public function getCanResyncProperty(): bool
+    {
+        if ($this->isOwnProfile) {
+            return true;
+        }
+
+        $user = Auth::user();
+
+        return $user->can(CustomPermissionEnum::VIEW_REPORT_DATA_ABSENSI->value)
+            && ($user->canFilterByCompany() || $user->company_id === $this->record->company_id);
+    }
+
+    /** Tombol "Hitung Ulang Presensi": boleh hitung ulang + rentang terpilih tidak lebih dari RESYNC_MAX_DAYS hari. */
     public function getCanResyncPeriodProperty(): bool
     {
-        return $this->isOwnProfile
+        return $this->canResync
             && $this->date_from && $this->date_to && $this->date_from <= $this->date_to
             && Carbon::parse($this->date_from)->diffInDays(Carbon::parse($this->date_to)) + 1 <= self::RESYNC_MAX_DAYS;
     }
 
     public function syncMyPeriod(): void
     {
-        abort_unless($this->isOwnProfile, 403);
+        abort_unless($this->canResync, 403);
 
-        $this->resyncOwnRange($this->date_from, $this->date_to);
+        $this->resyncOwnRange($this->date_from, $this->date_to, $this->record);
+    }
+
+    /** Hitung ulang 1 tanggal (tombol per baris tabel Data Presensi) - harus di dalam periode terpilih. */
+    public function syncDate(string $date): void
+    {
+        abort_unless($this->canResync, 403);
+        abort_unless(preg_match('/^\d{4}-\d{2}-\d{2}$/', $date) === 1, 422);
+        abort_unless($this->date_from && $date >= $this->date_from && $date <= $this->date_to, 422);
+
+        $this->resyncOwnRange($date, $date, $this->record);
     }
 
     public function getCanViewAuditHistoryProperty(): bool

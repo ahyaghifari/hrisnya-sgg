@@ -139,6 +139,9 @@ class ShiftSwapRecapPage extends Component
                     'role' => $e['role'],
                     'partner' => $e['partner'] ?? '-',
                     'kind' => $e['swap']->swap_kind === 'reciprocal_off' ? 'Tukar Libur' : 'Tukar Shift',
+                    // same = tanggal sama, diff = tanggal beda, libur = tukar libur berpasangan (ambil libur teman).
+                    'type' => $e['swap']->swap_kind === 'reciprocal_off' ? 'libur'
+                        : ($e['swap']->target_date?->equalTo($e['swap']->req_date) ? 'same' : 'diff'),
                     'req_shift' => $reqShift,
                     'target_shift' => $targetShift,
                 ];

@@ -6,6 +6,12 @@
         'cancelled' => ['color' => '#64748b', 'bg' => 'rgba(100,116,139,0.1)', 'icon' => 'fa-ban'],
     ];
     $statuses = \App\Livewire\Presensi\ShiftSwapRecapPage::STATUSES;
+    // Jenis tukar (warna terpisah dari warna status): tanggal sama / tanggal beda / tukar libur (ambil libur teman).
+    $typeStyle = [
+        'same' => ['color' => '#1d4ed8', 'bg' => 'rgba(29,78,216,0.1)', 'label' => 'Tanggal Sama'],
+        'diff' => ['color' => '#7c3aed', 'bg' => 'rgba(124,58,237,0.1)', 'label' => 'Tanggal Beda'],
+        'libur' => ['color' => '#db2777', 'bg' => 'rgba(219,39,119,0.1)', 'label' => 'Tukar Libur (Ambil Libur Teman)'],
+    ];
 @endphp
 <div>
 <x-page-header title="Rekap Tukar Shift" subtitle="Rekap pengajuan tukar shift dalam 1 periode, berdasarkan tanggal shift pengaju" />
@@ -185,16 +191,26 @@
                 <button type="button" wire:click="closeDetail" class="btn-ghost" style="padding:6px 10px;"><i class="fa-solid fa-xmark"></i></button>
             </div>
 
+            <div style="display:flex;flex-wrap:wrap;gap:6px 12px;margin-bottom:10px;">
+                @foreach ($typeStyle as $t)
+                    <span style="font-size:10.5px;color:var(--text-muted);display:inline-flex;align-items:center;gap:4px;">
+                        <span style="width:9px;height:9px;border-radius:3px;background:{{ $t['color'] }};display:inline-block;"></span>{{ $t['label'] }}
+                    </span>
+                @endforeach
+            </div>
+
             <div style="display:flex;flex-direction:column;gap:8px;max-height:360px;overflow-y:auto;">
                 @foreach ($selectedRow['items'] as $item)
-                    @php $itemStyle = $statusStyle[$item['status']]; @endphp
-                    <div style="display:flex;align-items:flex-start;gap:12px;padding:10px 12px;border-radius:10px;background:var(--surface-alt);">
+                    @php $itemStyle = $statusStyle[$item['status']]; $tStyle = $typeStyle[$item['type']]; @endphp
+                    <div style="display:flex;align-items:flex-start;gap:12px;padding:10px 12px;border-radius:10px;background:var(--surface-alt);border-left:4px solid {{ $tStyle['color'] }};">
                         <div style="flex-shrink:0;width:30px;height:30px;border-radius:9px;background:{{ $itemStyle['bg'] }};display:flex;align-items:center;justify-content:center;margin-top:1px;">
                             <i class="fa-solid {{ $itemStyle['icon'] }}" style="color:{{ $itemStyle['color'] }};font-size:12px;"></i>
                         </div>
                         <div style="min-width:0;flex:1;">
                             <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;">
-                                <p style="font-size:12.5px;font-weight:600;color:var(--text-heading);margin:0;">{{ $item['kind'] }} dengan {{ $item['partner'] }}</p>
+                                <p style="font-size:12.5px;font-weight:600;color:var(--text-heading);margin:0;">
+                                    <span style="display:inline-block;padding:1px 8px;margin-right:6px;border-radius:99px;background:{{ $tStyle['bg'] }};color:{{ $tStyle['color'] }};font-size:10.5px;font-weight:700;">{{ $tStyle['label'] }}</span>{{ $item['kind'] }} dengan {{ $item['partner'] }}
+                                </p>
                                 <span style="font-size:11.5px;font-weight:700;color:{{ $itemStyle['color'] }};white-space:nowrap;">{{ $statuses[$item['status']] }}</span>
                             </div>
                             @php
@@ -205,9 +221,9 @@
                                 <span><strong style="color:var(--text-heading);">{{ $selectedRow['user']->name }}</strong> (pengaju): <strong>{{ $item['req_shift'] ?? '-' }}</strong> tgl {{ $dFmt($item['date']) }} &rarr; <strong style="color:#b45309;">{{ $item['target_shift'] ?? '-' }}</strong> tgl {{ $dFmt($tDate) }}</span>
                                 <span><strong style="color:var(--text-heading);">{{ $item['partner'] }}</strong> (rekan): <strong>{{ $item['target_shift'] ?? '-' }}</strong> tgl {{ $dFmt($tDate) }} &rarr; <strong style="color:#b45309;">{{ $item['req_shift'] ?? '-' }}</strong> tgl {{ $dFmt($item['date']) }}</span>
                                 <span style="color:#b45309;"><i class="fa-solid fa-right-left"></i>
-                                    @if ($item['kind'] === 'Tukar Libur')
+                                    @if ($item['type'] === 'libur')
                                         Rekan mengambil shift pengaju, pengaju mengambil alih shift rekan; masing-masing jadi Libur di tanggal asalnya.
-                                    @elseif ($tDate === $item['date'])
+                                    @elseif ($item['type'] === 'same')
                                         Shift keduanya saling ditukar di tanggal yang sama.
                                     @else
                                         Pengaju menerima shift rekan, rekan menerima shift pengaju (tanggal saling bertukar).
