@@ -15,6 +15,7 @@ use App\Models\Shift\ScheduleShiftRosterLog;
 use App\Models\Shift\ScheduleShiftRotation;
 use App\Models\Shift\ScheduleShiftTeam;
 use App\Models\Shift\ScheduleShiftTeamMember;
+use App\Models\Shift\ExtraShiftAssignment;
 use App\Models\Shift\ShiftSwapRequests;
 use App\Services\Approval\ApprovalFlowService;
 use App\Services\Approval\ApprovalPermissionService;
@@ -739,11 +740,31 @@ class ScheduleShiftRosterTab extends Component
 
             foreach ([[$s->requester_id, $s->req_date, $s->reqSchedule], [$s->target_id, $s->target_date, $s->targetSchedule]] as [$uid, $d, $slot]) {
                 $date = $d->toDateString();
+                // Urutan sumber: baris jadwal yang pindah -> execution_log (baris dihapus) -> Double Shift
+                // hasil tukar ini (pengajuan lama tanpa log; shift & tanggalnya = baris asal yang dihapus).
                 $typeId = $slot?->shift_type_id
                     ?? $deleted->first(fn ($a) => ($a['user_id'] ?? null) === $uid && ($a['date'] ?? null) === $date)['shift_type_id'] ?? null;
 
-                if ($typeId && $date >= $start && $date <= $end) {
-                    $ghosts[$uid . '|' . $date] = $typeId;
+                $typeId ??= ExtraShiftAssignment::where('origin_shift_swap_request_id', $s->id)
+                    ->whereDate('date', $date)
+                    ->where('user_id', '!=', $uid)
+                    ->value('shift_type_id');
+
+                // Rekan sekarang memegang shift itu di tanggal yang sama (baris yang pindah pemilik).
+                $partnerId = $uid === $s->requester_id ? $s->target_id : $s->requester_id;
+                $typeId ??= ScheduleShiftAssignment::where('user_id', $partnerId)
+                    ->whereDate('date', $date)
+                    ->where('off_day', false)
+                    ->value('shift_type_id');
+
+                // Masih kosong: pakai kode shift yang DITERIMA dari rekan (sisi lain pengajuan) - ini
+                // tukar kode shift kerja, jadi tetap tampil M/P/S, bukan Libur (instruksi user 2026-10-02).
+                $otherSlot = $uid === $s->requester_id ? $s->targetSchedule : $s->reqSchedule;
+                $typeId ??= $otherSlot?->shift_type_id;
+
+                // Terakhir (tidak ada kode apa pun sama sekali): Libur redup, tetap bukan N/A.
+                if ($date >= $start && $date <= $end) {
+                    $ghosts[$uid . '|' . $date] = $typeId ?: 'off';
                 }
             }
         }
