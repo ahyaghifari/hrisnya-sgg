@@ -160,7 +160,8 @@ class ShiftSwapRequestService
 
     /** Saldo pengajuan tukar shift milik $user dalam PERIODE ABSENSI (AttendanceSettingEnum::PERIOD_*)
      * yang memuat $anchorDate - bukan bulan kalender. null = tidak dibatasi
-     * (TUKAR_SHIFT_MAX_PER_BULAN <= 0). Pengajuan ditolak/dibatalkan tidak dihitung.
+     * (TUKAR_SHIFT_MAX_PER_BULAN <= 0). HANYA pengajuan approved yang dihitung (instruksi user
+     * 2026-10-02) - in_review/ditolak/dibatalkan belum mengurangi saldo.
      *
      * @return array{max:int, used:int, remaining:int, start:\Carbon\Carbon, end:\Carbon\Carbon}|null
      */
@@ -174,7 +175,7 @@ class ShiftSwapRequestService
         [$start, $end] = AttendancePeriodResolver::resolve($anchorDate->copy(), $user->company_id);
 
         $used = ShiftSwapRequests::where('requester_id', $user->id)
-            ->whereIn('status', ['in_review', 'approved'])
+            ->where('status', 'approved')
             ->whereBetween('req_date', [$start->toDateString(), $end->toDateString()])
             ->count();
 
