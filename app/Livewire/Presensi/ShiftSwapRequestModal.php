@@ -344,7 +344,7 @@ class ShiftSwapRequestModal extends Component
     public function submit(): void
     {
         if ($this->swapQuotaExhausted) {
-            $this->addError('reqDate', 'Saldo tukar shift Anda habis untuk periode ini, tidak bisa mengajukan.');
+            $this->addError('reqDate', 'Batas pengajuan tukar shift pada periode ini sudah tercapai, tidak bisa mengajukan.');
 
             return;
         }

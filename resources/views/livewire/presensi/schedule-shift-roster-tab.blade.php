@@ -422,7 +422,7 @@
                                 </template>
                                 @if ($swapLocked)
                                     <button type="button" wire:click="$dispatch('open-schedule-swap-history', { userId: '{{ $employee->id }}', date: '{{ $date->toDateString() }}' })" title="Jadwal ini terkait pengajuan tukar shift — tidak bisa diubah dari sini. Klik untuk lihat riwayat."
-                                        style="position:absolute;top:0;right:0;z-index:3;background:none;border:none;padding:1px 2px;cursor:pointer;color:#b45309;font-size:8.5px;line-height:1;">
+                                        style="position:absolute;top:0;right:0;z-index:3;background:none;border:none;padding:1px 3px;cursor:pointer;color:#b45309;font-size:12px;line-height:1;">
                                         <i class="fa-solid fa-right-left"></i>
                                     </button>
                                 @elseif ($isLeaveCell)
@@ -471,7 +471,7 @@
                                     warna sel beda jauh dari warna shift sebenarnya (dilaporkan user 2026-09-16).
                                     Sel draft (belum disetujui) dikurangi LEBIH jauh (0.55) - beda kasat mata dari
                                     sel biasa, baik lagi editMode (karu lanjut edit proposalnya) maupun view. --}}
-                                    style="width:52px;padding:6px 2px;font-size:10.5px;text-align:center;font-weight:700;border:none;border-radius:5px;{{ $isDraftCell ? 'opacity:0.55;' : ($ghostId ? 'opacity:0.5;' : ($locked ? 'opacity:0.92;' : '')) }}{{ $locked ? 'cursor:not-allowed;' : 'cursor:pointer;' }}color:{{ $isLeaveCell ? '#000' : $currentFontColor }};{{ $isLeaveCell ? 'background:'.($leaveType === 'cuti' ? '#EF4444' : '#0EA5E9').';' : ($isOff ? "background:{$offBg};" : ($currentColor ? "background:{$currentColor};" : 'background:var(--surface-alt);')) }}">
+                                    style="width:52px;padding:6px 2px;font-size:10.5px;text-align:center;font-weight:700;border:none;border-radius:5px;{{ $isDraftCell ? 'opacity:0.55;' : (($locked ? 'opacity:0.92;' : '')) }}{{ $locked ? 'cursor:not-allowed;' : 'cursor:pointer;' }}color:{{ $isLeaveCell ? '#000' : $currentFontColor }};{{ $isLeaveCell ? 'background:'.($leaveType === 'cuti' ? '#EF4444' : '#0EA5E9').';' : ($isOff ? "background:{$offBg};" : ($currentColor ? "background:{$currentColor};" : 'background:var(--surface-alt);')) }}">
                                     <option value="" {{ $current === '' ? 'selected' : '' }}>{{ $editMode ? '-' : 'N/A' }}</option>
                                     @if ($currentOutsideTeam)
                                         <option value="{{ $current }}" selected title="Di luar daftar shift Tim karyawan ini">{{ $currentType->code }} &#9888;</option>

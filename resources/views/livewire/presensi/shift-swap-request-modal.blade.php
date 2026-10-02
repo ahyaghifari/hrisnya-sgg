@@ -22,12 +22,13 @@
                                 : 'background:var(--info-soft-bg);color:var(--info-soft-text);' }}">
                             @if ($q['remaining'] <= 0)
                                 <i class="fa-solid fa-triangle-exclamation"></i>
-                                Saldo tukar shift Anda <strong>habis</strong> untuk periode
+                                Anda telah mengajukan tukar shift <strong>{{ $q['used'] }} kali</strong> pada periode
                             @else
                                 <i class="fa-solid fa-circle-info"></i>
-                                Sisa saldo tukar shift: <strong>{{ $q['remaining'] }}</strong> dari {{ $q['max'] }} untuk periode
+                                Anda telah mengajukan tukar shift <strong>{{ $q['used'] }} kali</strong> pada periode
                             @endif
-                            <strong>{{ $q['start']->translatedFormat('d M') }} &ndash; {{ $q['end']->translatedFormat('d M Y') }}</strong>.
+                            <strong>{{ $q['start']->translatedFormat('d M') }} &ndash; {{ $q['end']->translatedFormat('d M Y') }}</strong>
+                            (maksimal {{ $q['max'] }} kali).@if ($q['remaining'] <= 0) Batas pengajuan sudah tercapai.@endif
                         </div>
                     @endif
 

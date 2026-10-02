@@ -160,8 +160,9 @@ class ShiftSwapRequestService
 
     /** Saldo pengajuan tukar shift milik $user dalam PERIODE ABSENSI (AttendanceSettingEnum::PERIOD_*)
      * yang memuat $anchorDate - bukan bulan kalender. null = tidak dibatasi
-     * (TUKAR_SHIFT_MAX_PER_BULAN <= 0). HANYA pengajuan approved yang dihitung (instruksi user
-     * 2026-10-02) - in_review/ditolak/dibatalkan belum mengurangi saldo.
+     * (TUKAR_SHIFT_MAX_PER_BULAN <= 0). Beda dari kuota cuti/izin: pengajuan in_review (dan
+     * pending) SUDAH mengurangi saldo; baru tidak terhitung kalau rejected/cancelled (instruksi
+     * user 2026-10-02).
      *
      * @return array{max:int, used:int, remaining:int, start:\Carbon\Carbon, end:\Carbon\Carbon}|null
      */
@@ -175,7 +176,7 @@ class ShiftSwapRequestService
         [$start, $end] = AttendancePeriodResolver::resolve($anchorDate->copy(), $user->company_id);
 
         $used = ShiftSwapRequests::where('requester_id', $user->id)
-            ->where('status', 'approved')
+            ->whereNotIn('status', ['rejected', 'cancelled'])
             ->whereBetween('req_date', [$start->toDateString(), $end->toDateString()])
             ->count();
 
@@ -198,7 +199,7 @@ class ShiftSwapRequestService
         $quota = $this->swapQuota($user, $reqSchedule->date);
         if ($quota && $quota['used'] >= $quota['max']) {
             throw new \InvalidArgumentException(
-                "Saldo tukar shift Anda habis (maksimal {$quota['max']} pengajuan) untuk periode " .
+                "Anda telah mengajukan tukar shift {$quota['used']} kali (maksimal {$quota['max']}) pada periode " .
                 $quota['start']->translatedFormat('d M') . ' - ' . $quota['end']->translatedFormat('d M Y') . '.'
             );
         }

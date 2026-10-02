@@ -211,6 +211,33 @@ class ShiftSwapRequestServiceTest extends TestCase
         ]);
     }
 
+    public function test_quota_ignores_rejected_and_cancelled_swaps(): void
+    {
+        $this->setAttendanceSetting(\App\Enum\Attendance\AttendanceSettingEnum::TUKAR_SHIFT_MAX_PER_BULAN->value, '5');
+
+        $perawatA = User::factory()->create(['company_id' => $this->company->id]);
+        $perawatB = User::factory()->create(['company_id' => $this->company->id]);
+
+        $date = now()->addDays(10);
+        $scheduleA = $this->assignShift($perawatA, $this->pagi, $date->toDateString());
+        $scheduleB = $this->assignShift($perawatB, $this->siang, $date->toDateString());
+
+        foreach (['pending', 'in_review', 'approved', 'rejected', 'cancelled'] as $status) {
+            ShiftSwapRequests::create([
+                'company_id' => $this->company->id,
+                'requester_id' => $perawatA->id,
+                'target_id' => $perawatB->id,
+                'req_schedule_id' => $scheduleA->id,
+                'target_schedule_id' => $scheduleB->id,
+                'req_date' => $date->toDateString(),
+                'target_date' => $date->toDateString(),
+                'status' => $status,
+            ]);
+        }
+
+        $this->assertSame(3, app(ShiftSwapRequestService::class)->swapQuota($perawatA, $date)['used']);
+    }
+
     public function test_kepala_ruangan_jadwal_disisipkan_sebagai_approver_kedua(): void
     {
         $head = User::factory()->create(['company_id' => $this->company->id]);
