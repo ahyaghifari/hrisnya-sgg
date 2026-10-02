@@ -134,6 +134,37 @@
                                     <p style="font-size:11.5px;color:var(--danger-text);margin-top:2px;">Rekan tidak punya jadwal shift (atau libur) di tanggal ini.</p>
                                 @endif
                             </div>
+
+                            @if ($this->targetShift && $this->reqShift)
+                                @php
+                                    $meName = auth()->user()->name;
+                                    $peerName = $this->targetShift->user?->name;
+                                    $reqD = $this->reqShift->date->translatedFormat('d M Y (D)');
+                                    $tgtD = $this->targetShift->date->translatedFormat('d M Y (D)');
+                                    $reqS = $this->reqShift->shiftType?->name;
+                                    $tgtS = $this->targetShift->shiftType?->name;
+                                    $sameDay = $this->reqShift->date->equalTo($this->targetShift->date);
+                                    $rows = [
+                                        ['Anda', $meName, $reqD, $reqS, $tgtD, $tgtS],
+                                        ['Rekan', $peerName, $tgtD, $tgtS, $reqD, $reqS],
+                                    ];
+                                @endphp
+                                <div wire:key="swap-summary" style="border:1px solid var(--border-soft);border-radius:8px;padding:10px 12px;background:var(--surface-alt);">
+                                    <p style="font-size:12px;font-weight:700;color:var(--text-heading);margin:0 0 6px;"><i class="fa-solid fa-right-left" style="color:#b45309;"></i> Ringkasan Tukar</p>
+                                    @foreach ($rows as [$who, $name, $fromD, $fromS, $toD, $toS])
+                                        <p style="font-size:11.5px;color:var(--text-body);margin:0 0 4px;">
+                                            <strong style="color:var(--text-heading);">{{ $who }} ({{ $name }})</strong>:
+                                            @if ($sameDay)
+                                                shift {{ $fromD }} berubah dari <strong>{{ $fromS }}</strong> menjadi <strong>{{ $toS }}</strong>.
+                                            @elseif ($dateMode === 'reciprocal')
+                                                melepas shift <strong>{{ $fromS }}</strong> ({{ $fromD }}, jadi Libur) dan mengambil alih <strong>{{ $toS }}</strong> ({{ $toD }}).
+                                            @else
+                                                melepas shift <strong>{{ $fromS }}</strong> ({{ $fromD }}) dan menerima <strong>{{ $toS }}</strong> ({{ $toD }}).
+                                            @endif
+                                        </p>
+                                    @endforeach
+                                </div>
+                            @endif
                         @endif
 
                         @if ($this->duplicateShiftBlock)
