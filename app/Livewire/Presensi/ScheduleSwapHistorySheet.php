@@ -3,6 +3,7 @@
 namespace App\Livewire\Presensi;
 
 use App\Livewire\Presensi\Concerns\FormatsShiftSwapRequest;
+use App\Models\Shift\Schedule;
 use App\Models\Shift\ShiftSwapRequests;
 use App\Models\User;
 use Livewire\Attributes\On;
@@ -63,8 +64,22 @@ class ScheduleSwapHistorySheet extends Component
             return collect();
         }
 
-        $query = ShiftSwapRequests::whereHas('reqSchedule.shiftType', fn ($q) => $q->where('schedule_id', $this->scheduleId))
-            ->with(['requester', 'target', 'reqSchedule.shiftType', 'targetSchedule.shiftType']);
+        // Global scope company dibuka (dibatasi ke company jadwal ini): ShiftSwapRequests & baris
+        // jadwal yang dirujuknya kesaring buat akun beda company, dan baris yang dihapus saat approved
+        // (Double Shift) membuat whereHas reqSchedule kosong -> modal tidak menampilkan detail.
+        $companyId = Schedule::whereKey($this->scheduleId)->value('company_id');
+
+        $query = ShiftSwapRequests::withoutGlobalScope('company')->where('company_id', $companyId)
+            ->with([
+                'requester', 'target',
+                'reqSchedule' => fn ($q) => $q->withoutGlobalScope('company')->with('shiftType'),
+                'targetSchedule' => fn ($q) => $q->withoutGlobalScope('company')->with('shiftType'),
+            ]);
+
+        if (! $this->isFiltered) {
+            $query->whereHas('reqSchedule', fn ($q) => $q->withoutGlobalScope('company')
+                ->whereHas('shiftType', fn ($qq) => $qq->where('schedule_id', $this->scheduleId)));
+        }
 
         if ($this->isFiltered) {
             $query->whereIn('status', ['in_review', 'approved'])

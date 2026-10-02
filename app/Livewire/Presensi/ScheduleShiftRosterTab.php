@@ -15,7 +15,6 @@ use App\Models\Shift\ScheduleShiftRosterLog;
 use App\Models\Shift\ScheduleShiftRotation;
 use App\Models\Shift\ScheduleShiftTeam;
 use App\Models\Shift\ScheduleShiftTeamMember;
-use App\Models\Shift\ExtraShiftAssignment;
 use App\Models\Shift\ShiftSwapRequests;
 use App\Services\Approval\ApprovalFlowService;
 use App\Services\Approval\ApprovalPermissionService;
@@ -679,12 +678,19 @@ class ScheduleShiftRosterTab extends Component
     }
 
     /** Sel roster yang KENA pengajuan tukar shift (in_review / approved) - dipakai blade buat naruh
-     * ikon "tukar" emas di pojok sel. Key: "{user_id}|{Y-m-d}". Dalam rentang bulan periode terpilih.
+     * ikon "tukar" emas di pojok sel. Key: "{user_id}|{Y-m-d}". Scope: pengajuan yang req-schedule-nya
+     * milik jadwal ini, dalam rentang bulan periode terpilih.
      *
-     * Baca kolom requester_id/target_id + req_date/target_date di shift_swap_requests (bukan relasi
-     * baris schedule - yang bisa pindah pemilik/terhapus setelah approved, lihat executeApprovedSwap()).
-     * Pengaju & target ditandai di KEDUA tanggal tukar (instruksi user 2026-10-02: tukar shift
-     * approved/in_review = selalu tandai ikon).
+     * Sengaja pakai user_id & date dari relasi reqSchedule/targetSchedule LANGSUNG (bukan kolom
+     * requester_id/req_date/target_id/target_date di shift_swap_requests) - begitu approved,
+     * executeApprovedSwap() mengubah user_id baris schedule_shift_assignments itu sendiri (mode
+     * 'move'/'move_over_off_day'), jadi kolom requester_id/target_id jadi STALE (nunjuk pemilik
+     * LAMA yang sudah pindah/kosong). Baris yang dihapus total (mode 'double_shift') otomatis
+     * dilewati (relasinya null) - tidak ada sel schedule_shift_assignments buat ditandai lagi,
+     * hasilnya sudah pindah jadi ExtraShiftAssignment.
+     *
+     * Global scope company dibuka (swapQuery() + relasi) - tanpa itu akun beda company tidak melihat
+     * ikon sama sekali walau datanya ada.
      *
      * @return array<string, true>
      */
@@ -697,91 +703,34 @@ class ScheduleShiftRosterTab extends Component
         // swap sepanjang masa) - dulu ambil SEMUA in_review/approved sejak jadwal ini ada, makin
         // lama makin berat kena tarik ulang tiap render (dikeluhkan user "berat" 2026-09-15).
         $swaps = $this->swapQuery()->whereIn('status', ['in_review', 'approved'])
+            ->whereHas('reqSchedule', fn ($q) => $q->withoutGlobalScope('company')
+                ->whereHas('shiftType', fn ($q2) => $q2->where('schedule_id', $this->schedule->id)))
             ->where(function ($q) use ($start, $end) {
-                $q->whereBetween('req_date', [$start, $end])->orWhereBetween('target_date', [$start, $end]);
+                $q->whereHas('reqSchedule', fn ($q2) => $q2->withoutGlobalScope('company')->whereBetween('date', [$start, $end]))
+                    ->orWhereHas('targetSchedule', fn ($q2) => $q2->withoutGlobalScope('company')->whereBetween('date', [$start, $end]));
             })
-            ->get(['requester_id', 'req_date', 'target_id', 'target_date']);
+            ->with([
+                'reqSchedule' => fn ($q) => $q->withoutGlobalScope('company')->select('id', 'user_id', 'date'),
+                'targetSchedule' => fn ($q) => $q->withoutGlobalScope('company')->select('id', 'user_id', 'date'),
+            ])
+            ->get();
 
         $cells = [];
 
-        // ponytail: baca kolom requester/target + tanggal (bukan baris schedule) - setelah approved baris
-        // bisa pindah user / terhapus, dan shift tertukar silang: kedua pihak ditandai di kedua tanggal.
         foreach ($swaps as $s) {
-            foreach (array_filter([$s->requester_id, $s->target_id]) as $uid) {
-                foreach (array_filter([$s->req_date, $s->target_date]) as $d) {
-                    $date = $d->toDateString();
-                    if ($date >= $start && $date <= $end) {
-                        $cells[$uid . '|' . $date] = true;
-                    }
+            foreach ([$s->reqSchedule, $s->targetSchedule] as $slot) {
+                if (! $slot) {
+                    continue;
+                }
+
+                $date = $slot->date->toDateString();
+                if ($date >= $start && $date <= $end) {
+                    $cells[$slot->user_id . '|' . $date] = true;
                 }
             }
         }
 
         return $cells;
-    }
-
-    /** Sel kosong hasil tukar beda tanggal APPROVED: pemiliknya sudah menyerahkan shift di tanggal itu
-     * (barisnya pindah/terhapus), tapi grid tetap menampilkan shift yang ditukar (redup + ikon, read-only)
-     * bukan N/A (instruksi user 2026-10-02). Key "{user_id}|{Y-m-d}" => shift_type_id yang diserahkan.
-     *
-     * @return array<string, string>
-     */
-    public function getSwapGhostsProperty(): array
-    {
-        $start = Carbon::createFromFormat('Y-m', $this->period)->startOfMonth()->toDateString();
-        $end = Carbon::createFromFormat('Y-m', $this->period)->endOfMonth()->toDateString();
-
-        $swaps = $this->swapQuery()->where('status', 'approved')
-            ->where(function ($q) use ($start, $end) {
-                $q->whereBetween('req_date', [$start, $end])->orWhereBetween('target_date', [$start, $end]);
-            })
-            ->with([
-                'reqSchedule' => fn ($q) => $q->withoutGlobalScope('company')->select('id', 'shift_type_id'),
-                'targetSchedule' => fn ($q) => $q->withoutGlobalScope('company')->select('id', 'shift_type_id'),
-            ])
-            ->get();
-
-        $ghosts = [];
-
-        foreach ($swaps as $s) {
-            if (! $s->target_date || $s->target_date->equalTo($s->req_date)) {
-                continue;
-            }
-
-            $deleted = collect($s->execution_log ?? [])->where('op', 'delete')->pluck('attributes');
-
-            foreach ([[$s->requester_id, $s->req_date, $s->reqSchedule], [$s->target_id, $s->target_date, $s->targetSchedule]] as [$uid, $d, $slot]) {
-                $date = $d->toDateString();
-                // Urutan sumber: baris jadwal yang pindah -> execution_log (baris dihapus) -> Double Shift
-                // hasil tukar ini (pengajuan lama tanpa log; shift & tanggalnya = baris asal yang dihapus).
-                $typeId = $slot?->shift_type_id
-                    ?? $deleted->first(fn ($a) => ($a['user_id'] ?? null) === $uid && ($a['date'] ?? null) === $date)['shift_type_id'] ?? null;
-
-                $typeId ??= ExtraShiftAssignment::withoutGlobalScope('company')->where('origin_shift_swap_request_id', $s->id)
-                    ->whereDate('date', $date)
-                    ->where('user_id', '!=', $uid)
-                    ->value('shift_type_id');
-
-                // Rekan sekarang memegang shift itu di tanggal yang sama (baris yang pindah pemilik).
-                $partnerId = $uid === $s->requester_id ? $s->target_id : $s->requester_id;
-                $typeId ??= ScheduleShiftAssignment::withoutGlobalScope('company')->where('user_id', $partnerId)
-                    ->whereDate('date', $date)
-                    ->where('off_day', false)
-                    ->value('shift_type_id');
-
-                // Masih kosong: pakai kode shift yang DITERIMA dari rekan (sisi lain pengajuan) - ini
-                // tukar kode shift kerja, jadi tetap tampil M/P/S, bukan Libur (instruksi user 2026-10-02).
-                $otherSlot = $uid === $s->requester_id ? $s->targetSchedule : $s->reqSchedule;
-                $typeId ??= $otherSlot?->shift_type_id;
-
-                // Terakhir (tidak ada kode apa pun sama sekali): Libur redup, tetap bukan N/A.
-                if ($date >= $start && $date <= $end) {
-                    $ghosts[$uid . '|' . $date] = $typeId ?: 'off';
-                }
-            }
-        }
-
-        return $ghosts;
     }
 
     /** Sel roster yang off_day-nya KARENA Cuti/Izin disetujui otomatis (schedule_status

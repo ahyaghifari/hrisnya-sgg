@@ -172,35 +172,6 @@ class ScheduleShiftRosterTabTest extends TestCase
         );
     }
 
-    public function test_approved_different_date_swap_shows_given_up_shift_instead_of_na(): void
-    {
-        [$schedule, $shiftType, $employee] = $this->makeManualShiftSchedule();
-        $user = $this->actingAsAbsensi();
-        $dateA = now()->startOfMonth()->addDays(4)->toDateString();
-        $dateB = now()->startOfMonth()->addDays(6)->toDateString();
-        $rekan = User::factory()->create(['company_id' => $schedule->company_id]);
-
-        // Setelah approved: baris tgl A pindah ke rekan, baris tgl B pindah ke employee.
-        $rowA = ScheduleShiftAssignment::create(['company_id' => $schedule->company_id, 'user_id' => $rekan->id, 'shift_type_id' => $shiftType->id, 'date' => $dateA, 'off_day' => false]);
-        $rowB = ScheduleShiftAssignment::create(['company_id' => $schedule->company_id, 'user_id' => $employee->id, 'shift_type_id' => $shiftType->id, 'date' => $dateB, 'off_day' => false]);
-
-        ShiftSwapRequests::create([
-            'company_id' => $schedule->company_id,
-            'requester_id' => $employee->id,
-            'target_id' => $rekan->id,
-            'req_schedule_id' => $rowA->id,
-            'target_schedule_id' => $rowB->id,
-            'req_date' => $dateA,
-            'target_date' => $dateB,
-            'status' => 'approved',
-        ]);
-
-        Livewire::actingAs($user)
-            ->test(ScheduleShiftRosterTab::class, ['schedule' => $schedule])
-            ->assertSet('swapGhosts', fn ($g) => ($g[$employee->id . '|' . $dateA] ?? null) === $shiftType->id)
-            ->assertSee('Shift ini sudah ditukar ke rekan');
-    }
-
     public function test_manual_cell_edit_can_set_off_day(): void
     {
         [$schedule, , $employee] = $this->makeManualShiftSchedule();
