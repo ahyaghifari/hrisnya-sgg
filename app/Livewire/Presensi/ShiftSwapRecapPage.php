@@ -123,6 +123,15 @@ class ShiftSwapRecapPage extends Component
                 $status = $this->normalizeStatus($e['swap']->status);
                 $counts[$status]++;
 
+                $reqShift = $e['swap']->reqSchedule?->shiftType?->name;
+                $targetShift = $e['swap']->targetSchedule?->shiftType?->name;
+
+                // ponytail: tukar tanggal sama yang sudah approved menukar shift_type di baris jadwal,
+                // jadi nama dari relasi = shift SESUDAH tukar; dibalik lagi biar jadi shift awal.
+                if ($status === 'approved' && $e['swap']->target_date?->equalTo($e['swap']->req_date)) {
+                    [$reqShift, $targetShift] = [$targetShift, $reqShift];
+                }
+
                 return [
                     'date' => $e['swap']->req_date,
                     'target_date' => $e['swap']->target_date,
@@ -130,8 +139,8 @@ class ShiftSwapRecapPage extends Component
                     'role' => $e['role'],
                     'partner' => $e['partner'] ?? '-',
                     'kind' => $e['swap']->swap_kind === 'reciprocal_off' ? 'Tukar Libur' : 'Tukar Shift',
-                    'req_shift' => $e['swap']->reqSchedule?->shiftType?->name,
-                    'target_shift' => $e['swap']->targetSchedule?->shiftType?->name,
+                    'req_shift' => $reqShift,
+                    'target_shift' => $targetShift,
                 ];
             })->sortBy('date')->values()->all();
 
