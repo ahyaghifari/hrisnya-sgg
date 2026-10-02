@@ -18,7 +18,7 @@ class AttendanceRequestLeaveDetails extends Model
         'start_date',
         'end_date',
         'total_days',
-        'substitute_user_id',
+        'substitute_task',
     ];
 
     public function request()
@@ -26,9 +26,10 @@ class AttendanceRequestLeaveDetails extends Model
         return $this->belongsTo(AttendanceRequests::class, 'request_id');
     }
 
-    public function substituteUser()
+    /** Pengganti cuti - boleh lebih dari 1 orang (tabel attendance_req_leave_substitutes). */
+    public function substitutes()
     {
-        return $this->belongsTo(\App\Models\User::class, 'substitute_user_id');
+        return $this->belongsToMany(\App\Models\User::class, 'attendance_req_leave_substitutes', 'leave_detail_id', 'user_id')->withTimestamps();
     }
 
 }

@@ -192,6 +192,13 @@ disetujui/ditolak/dibatalkan, kuota ini tidak lagi jadi pertimbangan apa pun, ja
     </div>
 @endif
 
+@if ($this->canApprove && $record->type === 'leave' && filled($record->reason))
+    <div style="background:var(--surface);border-radius:16px;box-shadow:var(--shadow-card);padding:18px;margin-bottom:16px;">
+        {!! $sectionHeader('fa-comment-dots', 'Alasan / Keterangan Cuti') !!}
+        <p style="font-size:13.5px;color:var(--text-body);margin:12px 0 0;white-space:pre-line;">{{ $record->reason }}</p>
+    </div>
+@endif
+
 @if ($this->canApprove && $record->attachments->isNotEmpty())
     <div style="background:var(--surface);border-radius:16px;box-shadow:var(--shadow-card);padding:18px;margin-bottom:16px;">
         {!! $sectionHeader('fa-paperclip', 'Lampiran') !!}
@@ -370,13 +377,17 @@ disetujui/ditolak/dibatalkan, kuota ini tidak lagi jadi pertimbangan apa pun, ja
             {!! $renderField('Tipe Cuti', $leave->leave_type) !!}
             {!! $renderField('Tanggal Mulai', $formatDate($leave->start_date)) !!}
             {!! $renderField('Tanggal Selesai', $formatDate($leave->end_date)) !!}
-            @if (\App\Enum\Attendance\LeaveTypeCategoryEnum::usesLabelOverride($record->user?->company_id))
-                {!! $renderField('Total Hari', $leave->total_days ? ((int) $leave->total_days) . ' hari' : null) !!}
-                {!! $renderField('Pengganti', $leave->substituteUser?->name, false) !!}
-            @else
-                {!! $renderField('Total Hari', $leave->total_days ? ((int) $leave->total_days) . ' hari' : null, false) !!}
-            @endif
+            {!! $renderField('Total Hari', $leave->total_days ? ((int) $leave->total_days) . ' hari' : null) !!}
+            {!! $renderField('Alasan / Keterangan', $record->reason, false) !!}
         </div>
+
+        @if (\App\Enum\Attendance\LeaveTypeCategoryEnum::usesLabelOverride($record->user?->company_id))
+            <div style="background:var(--surface);border-radius:16px;box-shadow:var(--shadow-card);padding:18px;">
+                {!! $sectionHeader('fa-user-group', 'Pengganti Tugas') !!}
+                {!! $renderField('Pengganti', $leave->substitutes->pluck('name')->join(', ') ?: null) !!}
+                {!! $renderField('Tugas yang Diberikan', $leave->substitute_task, false) !!}
+            </div>
+        @endif
     @endif
 
     @if ($record->type === 'permission' && $record->permissionDetails->isNotEmpty())

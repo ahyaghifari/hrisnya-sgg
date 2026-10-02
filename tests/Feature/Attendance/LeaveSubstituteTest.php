@@ -54,14 +54,74 @@ class LeaveSubstituteTest extends TestCase
         return $user;
     }
 
-    private function submit(User $employee, ?string $substituteId): void
+    private function submit(User $employee, string|array|null $substituteIds): void
     {
         app(AttendaceReqService::class)->storeLeaveRequest([
             'type_id' => LeaveTypeCategoryEnum::TAHUNAN->value,
             'start_date' => now()->addDays(31)->toDateString(),
             'end_date' => now()->addDays(31)->toDateString(),
-            'substitute_user_id' => $substituteId,
+            'substitute_user_ids' => (array) $substituteIds,
         ], $employee);
+    }
+
+    private function substituteIds(): array
+    {
+        return AttendanceRequestLeaveDetails::first()->substitutes()->pluck('users.id')->all();
+    }
+
+    public function test_multiple_substitutes_are_stored(): void
+    {
+        $employee = $this->employeeIn($this->unitA, 'Pemohon');
+        $a = $this->employeeIn($this->unitA, 'Rekan A');
+        $b = $this->employeeIn($this->unitA, 'Rekan B');
+
+        $this->submit($employee, [$a->id, $b->id]);
+
+        $this->assertEqualsCanonicalizing([$a->id, $b->id], $this->substituteIds());
+    }
+
+    public function test_substitute_task_is_stored_only_with_substitutes(): void
+    {
+        $employee = $this->employeeIn($this->unitA, 'Pemohon');
+        $mate = $this->employeeIn($this->unitA, 'Rekan');
+        $svc = app(AttendaceReqService::class);
+        $base = [
+            'type_id' => LeaveTypeCategoryEnum::TAHUNAN->value,
+            'start_date' => now()->addDays(31)->toDateString(),
+            'end_date' => now()->addDays(31)->toDateString(),
+        ];
+
+        $svc->storeLeaveRequest($base + ['substitute_user_ids' => [$mate->id], 'substitute_task' => 'Jaga IGD', 'reason' => 'Acara keluarga'], $employee);
+        $this->assertSame('Jaga IGD', AttendanceRequestLeaveDetails::first()->substitute_task);
+        $this->assertSame('Acara keluarga', AttendanceRequestLeaveDetails::first()->request->reason);
+
+        AttendanceRequestLeaveDetails::query()->delete();
+        $svc->storeLeaveRequest($base + ['substitute_task' => 'Jaga IGD'], $employee);
+        $this->assertNull(AttendanceRequestLeaveDetails::first()->substitute_task);
+    }
+
+    public function test_more_than_five_substitutes_is_rejected(): void
+    {
+        $employee = $this->employeeIn($this->unitA, 'Pemohon');
+        $ids = [];
+        foreach (range(1, 6) as $n) {
+            $ids[] = $this->employeeIn($this->unitA, "Rekan {$n}")->id;
+        }
+
+        $this->expectExceptionMessage('Pengganti maksimal 5 orang.');
+
+        $this->submit($employee, $ids);
+    }
+
+    public function test_one_substitute_from_other_unit_rejects_whole_list(): void
+    {
+        $employee = $this->employeeIn($this->unitA, 'Pemohon');
+        $mate = $this->employeeIn($this->unitA, 'Rekan Unit');
+        $other = $this->employeeIn($this->unitB, 'Orang Lain');
+
+        $this->expectExceptionMessage('Pengganti harus karyawan lain di unit yang sama.');
+
+        $this->submit($employee, [$mate->id, $other->id]);
     }
 
     public function test_substitute_must_be_in_same_unit_and_is_stored(): void
@@ -75,7 +135,7 @@ class LeaveSubstituteTest extends TestCase
 
         $this->submit($employee, $mate->id);
 
-        $this->assertSame($mate->id, AttendanceRequestLeaveDetails::first()->substitute_user_id);
+        $this->assertSame([$mate->id], $this->substituteIds());
     }
 
     public function test_substitute_from_other_unit_is_rejected(): void
@@ -104,7 +164,7 @@ class LeaveSubstituteTest extends TestCase
 
         $this->submit($boss, $staff->id);
 
-        $this->assertSame($staff->id, AttendanceRequestLeaveDetails::first()->substitute_user_id);
+        $this->assertSame([$staff->id], $this->substituteIds());
     }
 
     /** Hanya bawahan LANGSUNG - bawahan dari bawahan (beda unit) tidak boleh jadi calon pengganti. */
@@ -144,7 +204,7 @@ class LeaveSubstituteTest extends TestCase
 
         $this->submit($employee, $mate->id);
 
-        $this->assertNull(AttendanceRequestLeaveDetails::first()->substitute_user_id);
+        $this->assertSame([], $this->substituteIds());
     }
 
     public function test_substitute_is_optional(): void
@@ -153,6 +213,6 @@ class LeaveSubstituteTest extends TestCase
 
         $this->submit($employee, null);
 
-        $this->assertNull(AttendanceRequestLeaveDetails::first()->substitute_user_id);
+        $this->assertSame([], $this->substituteIds());
     }
 }

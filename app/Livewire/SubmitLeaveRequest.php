@@ -19,7 +19,36 @@ class SubmitLeaveRequest extends Component
     public ?string $start_date = null;
     public ?string $end_date = null;
     public ?string $reason = null;
-    public ?string $substitute_user_id = null;
+    private const MAX_SUBSTITUTES = 5;
+
+    public bool $with_substitute = false;
+    public array $substitute_user_ids = [];
+    public ?string $substitute_task = null;
+
+    public function toggleSubstitute(): void
+    {
+        $this->with_substitute = ! $this->with_substitute;
+
+        // Nyala: mulai dari 1 baris kosong. Mati: buang semua pilihan.
+        $this->substitute_user_ids = $this->with_substitute ? [''] : [];
+
+        if (! $this->with_substitute) {
+            $this->substitute_task = null;
+        }
+    }
+
+    public function addSubstitute(): void
+    {
+        if (count($this->substitute_user_ids) < self::MAX_SUBSTITUTES) {
+            $this->substitute_user_ids[] = '';
+        }
+    }
+
+    public function removeSubstitute(int $index): void
+    {
+        unset($this->substitute_user_ids[$index]);
+        $this->substitute_user_ids = array_values($this->substitute_user_ids) ?: [''];
+    }
 
     /** Lampiran surat dokter/bidan — wajib untuk cuti khusus (haid/melahirkan/keguguran). */
     public array $attachments = [];
@@ -195,7 +224,9 @@ class SubmitLeaveRequest extends Component
     protected function rules(): array
     {
         return [
-            'substitute_user_id' => ['nullable', 'string'],
+            'substitute_user_ids' => ['nullable', 'array', 'max:' . self::MAX_SUBSTITUTES],
+            'substitute_user_ids.*' => ['nullable', 'string'],
+            'substitute_task' => ['nullable', 'string'],
             'leave_type' => ['required', \Illuminate\Validation\Rule::enum(LeaveTypeCategoryEnum::class)],
             'start_date' => array_filter([
                 'required', 'date',
@@ -257,7 +288,8 @@ class SubmitLeaveRequest extends Component
                 'end_date' => $data['end_date'],
                 'reason' => $data['reason'] ?? null,
                 'attachments' => $data['attachments'] ?? null,
-                'substitute_user_id' => $data['substitute_user_id'] ?: null,
+                'substitute_user_ids' => $data['substitute_user_ids'] ?? [],
+                'substitute_task' => $data['substitute_task'] ?? null,
             ], Auth::user());
 
             Notification::make()

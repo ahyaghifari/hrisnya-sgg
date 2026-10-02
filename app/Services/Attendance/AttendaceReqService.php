@@ -270,10 +270,16 @@ class AttendaceReqService
 
         // Pengganti cuti cuma ada di 2 company RS (lihat leaveSubstituteEnabled) - company lain diabaikan.
         if (! $this->leaveSubstituteEnabled($actingUser)) {
-            $data['substitute_user_id'] = null;
+            $data['substitute_user_ids'] = [];
         }
 
-        if (! empty($data['substitute_user_id']) && ! $this->unitMates($actingUser)->whereKey($data['substitute_user_id'])->exists()) {
+        $substituteIds = array_values(array_unique(array_filter($data['substitute_user_ids'] ?? [])));
+
+        if (count($substituteIds) > 5) {
+            throw new \Exception('Pengganti maksimal 5 orang.');
+        }
+
+        if ($substituteIds && $this->unitMates($actingUser)->whereKey($substituteIds)->count() !== count($substituteIds)) {
             throw new \Exception('Pengganti harus karyawan lain di unit yang sama.');
         }
 
@@ -281,6 +287,7 @@ class AttendaceReqService
             'user_id' => $userId,
             'created_by' => $createdBy->id,
             'type' => $type,
+            'reason' => $data['reason'] ?? null,
             'status' => $status,
         ]);
 
@@ -293,7 +300,9 @@ class AttendaceReqService
             'end_date' => $data['end_date'] ?? null,
             'total_days' => $this->countLeaveDays($actingUser, $leaveType, $data['start_date'], $data['end_date'] ?? null),
             'attachments_files' => $data['attachments'] ?? null,
-            'substitute_user_id' => $data['substitute_user_id'] ?? null,
+            'substitute_user_ids' => $substituteIds,
+            // Tugas tanpa pengganti tidak bermakna - dibuang kalau tidak ada pengganti dipilih.
+            'substitute_task' => $substituteIds ? ($data['substitute_task'] ?? null) : null,
         ];
 
         $this->leaveReqRepository->storeLeaveRequest($leaveData);

@@ -142,20 +142,6 @@
                     </div>
                 @endif
 
-                @if ($this->substituteEnabled)
-                <div>
-                    <label class="form-label">Pengganti (opsional)</label>
-                    <select class="form-input" wire:model="substitute_user_id">
-                        <option value="">Tanpa pengganti</option>
-                        @foreach ($this->substituteOptions as $id => $name)
-                            <option value="{{ $id }}">{{ $name }}</option>
-                        @endforeach
-                    </select>
-                    <p style="font-size:11.5px;color:var(--text-muted);margin:5px 0 0;">Pilih rekan di unit yang sama yang menggantikan tugas Anda selama cuti.</p>
-                    @error('substitute_user_id') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
-                </div>
-                @endif
-
                 <div>
                     <label class="form-label">Alasan / Keterangan @if ($this->reasonRequired)<span style="color:var(--danger-text);">*</span>@endif</label>
                     <textarea class="form-input" rows="3" placeholder="{{ $this->reasonRequired ? 'Tambahkan keterangan' : 'Tambahkan keterangan (opsional)' }}" wire:model="reason"></textarea>
@@ -163,6 +149,66 @@
                 </div>
             </div>
         </div>
+
+        @if ($this->substituteEnabled)
+            <!-- Pengganti -->
+            <div class="form-card" style="margin-top:20px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+                    <div class="section-head" style="margin-bottom:0;">
+                        <div class="section-icon"><i class="fa-solid fa-user-group" style="color:var(--brand);font-size:12px;"></i></div>
+                        <span class="section-title">Pengganti Tugas</span>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:8px;cursor:pointer;" wire:click="toggleSubstitute">
+                        <span style="font-size:12px;color:var(--text-muted);font-weight:500;">Tambahkan</span>
+                        <div class="toggle {{ $with_substitute ? 'on' : '' }}"></div>
+                    </div>
+                </div>
+
+                @if ($with_substitute)
+                    <div style="display:flex;flex-direction:column;gap:16px;">
+                    <div>
+                        <label class="form-label">Pengganti</label>
+                        <div style="display:flex;flex-direction:column;gap:8px;">
+                            @foreach ($substitute_user_ids as $i => $selectedId)
+                                <div wire:key="substitute-row-{{ $i }}" style="display:flex;align-items:center;gap:8px;">
+                                    <div style="flex:1;min-width:0;">
+                                        <select class="form-input" wire:model.live="substitute_user_ids.{{ $i }}" data-tom-select data-placeholder="Cari nama pengganti...">
+                                            {{-- `selected` eksplisit: morph Livewire mengembalikan <select> ke nilai dari HTML server,
+                                                 tanpa atribut ini pilihan baris lain "kepental" saat Tambah/Hapus Pengganti. --}}
+                                            <option value="" @selected($selectedId === '' || $selectedId === null)>Pilih pengganti</option>
+                                            @foreach ($this->substituteOptions as $id => $name)
+                                                {{-- Orang yang sudah dipilih di baris lain disembunyikan supaya tidak dobel. --}}
+                                                @continue($id !== $selectedId && in_array($id, $substitute_user_ids, true))
+                                                <option value="{{ $id }}" @selected($id === $selectedId)>{{ $name }}</option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                    @if (count($substitute_user_ids) > 1)
+                                        <button type="button" class="btn-ghost" wire:click="removeSubstitute({{ $i }})" title="Hapus pengganti"><i class="fa-solid fa-xmark"></i></button>
+                                    @endif
+                                </div>
+                            @endforeach
+                        </div>
+                        @if (count($substitute_user_ids) < 5)
+                            <button type="button" class="btn-ghost" style="margin-top:8px;" wire:click="addSubstitute"><i class="fa-solid fa-plus" style="font-size:12px;"></i> Tambah Pengganti</button>
+                        @endif
+                        <p style="font-size:11.5px;color:var(--text-muted);margin:5px 0 0;">Rekan di unit yang sama yang menggantikan tugas Anda selama cuti. Maksimal 5 orang.</p>
+                        @error('substitute_user_ids') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
+                    </div>
+                    <div>
+                        <label class="form-label">Tugas yang Diberikan</label>
+                        <textarea class="form-input" rows="2" placeholder="Deskripsikan tugas yang dikerjakan pengganti..." wire:model="substitute_task"></textarea>
+                        @error('substitute_task') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
+                    </div>
+                    </div>
+                @else
+                    <div class="pengganti-placeholder">
+                        <i class="fa-solid fa-user-plus" style="color:var(--text-faint);font-size:20px;"></i>
+                        <p style="font-size:13px;color:var(--text-muted);margin:0;">Aktifkan toggle untuk menambahkan pengganti tugas</p>
+                    </div>
+                @endif
+            </div>
+        @endif
 
         <div style="display:flex;align-items:center;justify-content:space-between;margin-top:20px;gap:12px;flex-wrap:wrap;">
             <a href="{{ route('my-attendance-requests') }}" wire:navigate class="btn-ghost"><i class="fa-solid fa-arrow-left" style="font-size:12px;"></i> Kembali</a>

@@ -117,8 +117,12 @@ class LeaveReqRepository
                 'start_date' => $data['start_date'],
                 'end_date' => $data['end_date'],
                 'total_days' => $data['total_days'],
-                'substitute_user_id' => $data['substitute_user_id'] ?? null,
+                'substitute_task' => $data['substitute_task'] ?? null,
             ]);
+
+            if (!empty($data['substitute_user_ids'])) {
+                $detail->substitutes()->sync($data['substitute_user_ids']);
+            }
 
             if (!empty($data['attachments_files']) && is_array($data['attachments_files'])) {
                 foreach ($data['attachments_files'] as $file) {
