@@ -60,6 +60,9 @@
     .task-card-top { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 7px; }
     .task-card-title { font-size: 13px; font-weight: 600; color: var(--text-heading); line-height: 1.4; margin: 0; flex: 1; min-width: 0; }
     .task-card-avatar { flex-shrink: 0; margin-top: 1px; }
+    .task-card-avatars { display: inline-flex; align-items: center; padding-left: 5px; }
+    .task-card-avatars > * { margin-left: -5px; box-shadow: 0 0 0 2px var(--surface); }
+    .task-card-avatars-more { display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 99px; background: var(--border-soft); color: var(--text-muted); font-size: 10px; font-weight: 800; }
     .task-card-meta { display: flex; flex-wrap: wrap; row-gap: 4px; align-items: center; justify-content: space-between; gap: 8px; font-size: 11px; color: var(--text-muted); margin-bottom: 6px; }
     .task-card-priority { display: inline-flex; align-items: center; gap: 5px; font-weight: 600; color: var(--accent); }
     .task-card-priority .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
@@ -540,10 +543,14 @@
                                     @endif
                                 @endif
                             </div>
+                            {{-- Tombol tambah tugas per List, di ATAS kartu supaya nggak perlu scroll - nggak ada di List Review/Selesai (alurnya sendiri) dan Board arsip. --}}
+                            @if (! $this->isProjectArchived && ! $list->is_review && ! $list->is_final)
+                                <button type="button" wire:click="openCreateTask('{{ $list->id }}')" class="task-list-add-btn" style="margin-top:0;margin-bottom:10px;"><i class="fa-solid fa-plus"></i> Tambah</button>
+                            @endif
                             <div class="task-hero-column-body" @if (! $this->isProjectArchived) wire:ignore.self data-list-id="{{ $list->id }}" data-list-final="{{ $list->is_final ? '1' : '0' }}" data-list-review="{{ $list->is_review ? '1' : '0' }}" @endif>
                                 @forelse (($this->tasksByList[$list->id] ?? []) as $task)
                                     {{-- Yang boleh menggeser kartu: di List kerja cuma yang ditugaskan + pembuat Board (owner); di List Review cuma reviewer/pembuat tugas. Selain itu kartu terkunci (nggak bisa drag / pindah List). --}}
-                                    @php $canMoveCard = ! $this->isProjectArchived && ($list->is_review ? (($task->reviewer_id ?? $task->created_by) === auth()->id()) : ($task->assigned_to === auth()->id() || $this->isProjectOwner)); @endphp
+                                    @php $canMoveCard = ! $this->isProjectArchived && ($list->is_review ? (($task->reviewer_id ?? $task->created_by) === auth()->id()) : ($task->isAssignee(auth()->id()) || $this->isProjectOwner)); @endphp
                                     <div class="task-card{{ $canMoveCard ? '' : ' task-card-locked' }}" wire:click="openTaskDetail('{{ $task->id }}')" data-task-id="{{ $task->id }}" style="--accent:{{ $priorityAccent($task->priority?->getColor() ?? 'gray') }};">
                                         <div class="task-card-top">
                                             <p class="task-card-title">{{ \Illuminate\Support\Str::limit($task->requirement, 80) }}</p>
@@ -551,9 +558,21 @@
                                         <div class="task-card-meta">
                                             <span style="display:flex;align-items:center;gap:10px;min-width:0;flex-wrap:wrap;">
                                                 <span class="task-card-priority"><span class="dot"></span> {{ $task->priority?->getLabel() ?? $task->priority }}</span>
-                                                {{-- Pelaksana (ikon user kecil) di samping prioritas: nama panggilan, kalau belum ada nama lengkap. --}}
-                                                @if ($task->assignedTo)
-                                                    <span title="Pelaksana" style="display:inline-flex;align-items:center;gap:4px;min-width:0;"><i class="fa-solid fa-user" style="font-size:10px;"></i> {{ $task->assignedTo->profile?->nickname ?: $task->assignedTo->name }}</span>
+                                                {{-- Pelaksana: avatar saja (nama di tooltip), maks 3 lalu "+N". --}}
+                                                @php
+                                                    $cardAssignees = $task->assignees->map(fn ($a) => $a->user)->filter();
+                                                    if ($cardAssignees->isEmpty() && $task->assignedTo) { $cardAssignees = collect([$task->assignedTo]); }
+                                                    $moreAssignees = $cardAssignees->count() - 3;
+                                                @endphp
+                                                @if ($cardAssignees->isNotEmpty())
+                                                    <span class="task-card-avatars" title="Pelaksana: {{ $cardAssignees->pluck('name')->join(', ') }}">
+                                                        @foreach ($cardAssignees->take(3) as $cardAssignee)
+                                                            <x-avatar :user="$cardAssignee" :size="20" />
+                                                        @endforeach
+                                                        @if ($moreAssignees > 0)
+                                                            <span class="task-card-avatars-more">+{{ $moreAssignees }}</span>
+                                                        @endif
+                                                    </span>
                                                 @endif
                                             </span>
                                             @if ($task->needs_review) <span title="Wajib direview"><i class="fa-solid fa-clipboard-check"></i></span> @endif
@@ -605,10 +624,6 @@
                                     <p style="font-size:12px;color:var(--text-muted);text-align:center;padding:12px 0;margin:0;">Kosong</p>
                                 @endforelse
                             </div>
-                            {{-- Tombol tambah tugas per List - nggak ada di List Review/Selesai (alurnya sendiri) dan Board arsip. --}}
-                            @if (! $this->isProjectArchived && ! $list->is_review && ! $list->is_final)
-                                <button type="button" wire:click="openCreateTask('{{ $list->id }}')" class="task-list-add-btn"><i class="fa-solid fa-plus"></i> Tambah</button>
-                            @endif
                         </div>
                     @endforeach
                     @if ($this->canManageProjectMembers)
@@ -1052,33 +1067,49 @@
                     @endif
 
                     @unless ($isPersonalNote)
-                        {{-- Pembuat, pelaksana & reviewer: ringkas (collapse) dulu supaya modal nggak terlalu penuh. --}}
-                        <div x-data="{ open: false }" style="margin-bottom:18px;">
-                            <button type="button" @click="open = ! open" style="display:flex;align-items:center;gap:8px;width:100%;background:none;border:none;padding:0;cursor:pointer;font-family:inherit;font-size:12.5px;font-weight:700;color:var(--text-muted);text-align:left;">
-                                <i class="fa-solid fa-users" style="font-size:11px;"></i>
-                                <span>Pembuat, pelaksana &amp; reviewer</span>
-                                <i class="fa-solid fa-chevron-down" :style="open && 'transform:rotate(180deg);'" style="font-size:10px;transition:transform 0.15s;margin-left:auto;"></i>
-                            </button>
-                            <div x-show="open" x-cloak style="margin-top:8px;">
+                        {{-- Pembuat, pelaksana & reviewer: avatar saja, nama muncul saat di-hover (title avatar). --}}
+                        <div style="margin-bottom:18px;">
                             <div style="display:flex;align-items:center;gap:18px;flex-wrap:wrap;padding:10px 12px;background:var(--surface-alt);border-radius:10px;font-size:12.5px;">
-                            <div style="display:flex;align-items:center;gap:7px;">
-                                <x-avatar :user="$task->createdBy" :size="20" />
-                                <span><span style="color:var(--text-muted);">Dibuat</span> {{ $task->createdBy?->name ?? '-' }}</span>
-                            </div>
-                            @if ($task->assignedTo)
                                 <div style="display:flex;align-items:center;gap:7px;">
-                                    <x-avatar :user="$task->assignedTo" :size="20" />
-                                    <span><span style="color:var(--text-muted);">Ditugaskan</span> {{ $task->assignedTo->name }}</span>
+                                    <span style="color:var(--text-muted);">Pembuat</span>
+                                    <x-avatar :user="$task->createdBy" :size="24" />
                                 </div>
-                            @endif
-                            @if ($task->reviewer_id)
                                 <div style="display:flex;align-items:center;gap:7px;">
-                                    <x-avatar :user="$task->reviewer" :size="20" />
-                                    <span><span style="color:var(--text-muted);">Reviewer</span> {{ $task->reviewer?->name }}</span>
+                                    <span style="color:var(--text-muted);">Pelaksana</span>
+                                    <span style="display:inline-flex;align-items:center;gap:4px;">
+                                        @forelse ($task->assignees as $assignee)
+                                            <x-avatar :user="$assignee->user" :size="24" />
+                                        @empty
+                                            @if ($task->assignedTo)
+                                                <x-avatar :user="$task->assignedTo" :size="24" />
+                                            @endif
+                                        @endforelse
+                                    </span>
+                                    {{-- Tambah pelaksana: owner/Assigner Board, selama kartu belum Selesai. --}}
+                                    @if ($task->project_id && $this->canAssignInProject && ! $this->isProjectArchived
+                                        && $task->status !== \App\Enum\Task\TaskStatus::COMPLETE->value)
+                                        {{-- Klik "Tambah" -> daftar anggota Board, klik nama = langsung ditambahkan. --}}
+                                        <div x-data="{ open: false }" @click.outside="open = false" style="position:relative;">
+                                            <button type="button" @click="open = ! open" class="btn-ghost btn-sm" style="padding:3px 10px;"><i class="fa-solid fa-plus" style="font-size:10px;"></i> Tambah</button>
+                                            <div x-show="open" x-cloak style="position:absolute;top:calc(100% + 6px);left:0;z-index:50;min-width:200px;max-height:240px;overflow-y:auto;background:var(--surface);border-radius:12px;padding:6px;box-shadow:0 8px 30px rgba(4,44,108,0.16),0 0 0 1px var(--border-soft);">
+                                                @forelse ($this->projectMembers->reject(fn ($m) => $task->isAssignee($m->user_id)) as $member)
+                                                    <button type="button" wire:click="addAssignee('{{ $task->id }}', '{{ $member->user_id }}')" @click="open = false" style="display:flex;align-items:center;gap:8px;width:100%;padding:7px 10px;border:none;background:none;border-radius:8px;cursor:pointer;font-family:inherit;font-size:13px;color:var(--text-body);text-align:left;" onmouseover="this.style.background='var(--surface-alt)'" onmouseout="this.style.background='none'">
+                                                        <x-avatar :user="$member->user" :size="20" /> {{ $member->user?->name }}
+                                                    </button>
+                                                @empty
+                                                    <span style="display:block;padding:7px 10px;font-size:12.5px;color:var(--text-muted);">Semua anggota sudah jadi pelaksana</span>
+                                                @endforelse
+                                            </div>
+                                        </div>
+                                    @endif
                                 </div>
-                            @endif
+                                @if ($task->reviewer_id)
+                                    <div style="display:flex;align-items:center;gap:7px;">
+                                        <span style="color:var(--text-muted);">Reviewer</span>
+                                        <x-avatar :user="$task->reviewer" :size="24" />
+                                    </div>
+                                @endif
                             </div>
-                        </div>
                         </div>
 
                         @if ($task->status === \App\Enum\Task\TaskStatus::REVIEW->value)
@@ -1099,17 +1130,35 @@
                         @endif
 
                         @if ($task->status === \App\Enum\Task\TaskStatus::COMPLETE->value)
+                            @php
+                                $ratedAssignees = $task->assignees->whereNotNull('rating');
+                                $toRate = $task->requiresRatingFrom(auth()->id())
+                                    ? $task->assignees->whereNull('rating')->where('user_id', '!=', auth()->id())
+                                    : collect();
+                            @endphp
                             <div style="margin-bottom:18px;">
-                                @if ($task->rating)
+                                @foreach ($ratedAssignees as $assignee)
+                                    <div style="display:flex;align-items:center;gap:4px;margin-bottom:4px;">
+                                        @if ($task->assignees->count() > 1)
+                                            <span style="font-size:12px;color:var(--text-muted);margin-right:6px;">{{ $assignee->user?->name }}</span>
+                                        @endif
+                                        @for ($i = 1; $i <= 5; $i++)
+                                            <i class="fa-solid fa-star" style="font-size:15px;color:{{ $i <= $assignee->rating ? '#f5a524' : 'var(--border-soft)' }};"></i>
+                                        @endfor
+                                        <span style="font-size:12px;color:var(--text-muted);margin-left:4px;">({{ $assignee->rating }}/5)</span>
+                                    </div>
+                                @endforeach
+                                @if ($ratedAssignees->isEmpty() && $task->rating)
                                     <div style="display:flex;align-items:center;gap:4px;">
                                         @for ($i = 1; $i <= 5; $i++)
                                             <i class="fa-solid fa-star" style="font-size:15px;color:{{ $i <= $task->rating ? '#f5a524' : 'var(--border-soft)' }};"></i>
                                         @endfor
                                         <span style="font-size:12px;color:var(--text-muted);margin-left:4px;">({{ $task->rating }}/5)</span>
                                     </div>
-                                @elseif ($task->requiresRatingFrom(auth()->id()))
-                                    <div x-data="{ hover: 0 }" style="border:2px solid #f5a524;background:color-mix(in srgb, #f5a524 10%, transparent);border-radius:14px;padding:16px;text-align:center;">
-                                        <p style="font-size:14px;font-weight:700;color:var(--text-heading);margin:0 0 2px;">Beri penilaian untuk pelaksana <span style="color:var(--danger-text);">*</span></p>
+                                @endif
+                                @if ($toRate->isNotEmpty())
+                                    <div x-data="{ hover: 0 }" style="border:2px solid #f5a524;background:color-mix(in srgb, #f5a524 10%, transparent);border-radius:14px;padding:16px;text-align:center;margin-top:8px;">
+                                        <p style="font-size:14px;font-weight:700;color:var(--text-heading);margin:0 0 2px;">Beri penilaian untuk {{ $toRate->count() > 1 ? 'semua pelaksana' : $toRate->first()->user?->name }} <span style="color:var(--danger-text);">*</span></p>
                                         <p style="font-size:12px;color:var(--text-muted);margin:0 0 10px;">Wajib diisi sebelum tugas ini bisa ditutup.</p>
                                         <div style="display:flex;justify-content:center;gap:6px;">
                                             @for ($i = 1; $i <= 5; $i++)
@@ -1118,13 +1167,27 @@
                                                 </button>
                                             @endfor
                                         </div>
+                                        @if ($toRate->count() > 1)
+                                            {{-- 2 pelaksana: bisa dinilai sekaligus (bintang di atas) atau 1 per 1 (di bawah). --}}
+                                            <p style="font-size:12px;color:var(--text-muted);margin:14px 0 8px;">atau nilai satu per satu:</p>
+                                            @foreach ($toRate as $assignee)
+                                                <div x-data="{ h: 0 }" style="display:flex;align-items:center;justify-content:center;gap:4px;margin-bottom:4px;">
+                                                    <span style="font-size:12.5px;min-width:110px;text-align:right;margin-right:6px;">{{ $assignee->user?->name }}</span>
+                                                    @for ($i = 1; $i <= 5; $i++)
+                                                        <button type="button" wire:click="rateTask('{{ $task->id }}', {{ $i }}, '{{ $assignee->user_id }}')" @mouseenter="h = {{ $i }}" @mouseleave="h = 0" aria-label="Beri {{ $assignee->user?->name }} {{ $i }} bintang" style="background:none;border:none;cursor:pointer;padding:2px;">
+                                                            <i class="fa-solid fa-star" :style="h >= {{ $i }} ? 'color:#f5a524;' : 'color:var(--border);'" style="font-size:20px;"></i>
+                                                        </button>
+                                                    @endfor
+                                                </div>
+                                            @endforeach
+                                        @endif
                                     </div>
                                 @endif
                             </div>
                         @endif
                     @endunless
 
-                    @if ($task->assigned_to === auth()->id() && $task->rejected_reason)
+                    @if ($task->isAssignee(auth()->id()) && $task->rejected_reason)
                         {{-- Catatan penolakan — cuma kelihatan buat pelaksana, bukan komentar publik. --}}
                         <div style="background:var(--danger-soft-bg);border:1px solid var(--danger-soft-border);border-radius:12px;padding:14px 16px;margin-bottom:18px;">
                             <p style="font-size:14px;font-weight:700;color:var(--danger-soft-text);margin:0 0 4px;">
@@ -1138,7 +1201,7 @@
                     <div style="margin-bottom:18px;padding-top:18px;border-top:1px solid var(--border-soft);">
                         @php
                             $isTaskCreator = auth()->id() === $task->created_by;
-                            $isTaskAssignee = auth()->id() === $task->assigned_to;
+                            $isTaskAssignee = $task->isAssignee(auth()->id());
                             // Pelaksana, pembuat tugas, dan pembuat Board (khusus tugas Board) yang boleh mengelola
                             // checklist & lampiran - anggota lain cuma bisa melihat (Board arsip: lihat saja).
                             $isBoardOwner = $task->project_id && $this->isProjectOwner && ! $this->isProjectArchived;
@@ -1305,21 +1368,86 @@
 
                 @unless ($isPersonalNote)
                     {{-- Komentar ala Trello, kolom kanan terpisah — cuma buat task yang bukan self-assigned. --}}
-                    <div class="task-detail-comments" style="flex:0 0 400px;border-left:1px solid var(--border-soft);padding-left:24px;">
+                    <div class="task-detail-comments" style="flex:0 0 320px;border-left:1px solid var(--border-soft);padding-left:24px;">
                         <h4 style="font-size:16px;font-weight:700;margin:0 0 12px;"><i class="fa-regular fa-comment"></i> Komentar ({{ $task->comments->count() }})</h4>
-                        <div style="display:flex;gap:8px;margin-bottom:14px;">
-                            <input type="text" class="form-input" style="font-size:13.5px;" wire:model="newComment" wire:keydown.enter.prevent="addComment('{{ $task->id }}')" placeholder="Tulis komentar...">
-                            <button type="button" wire:click="addComment('{{ $task->id }}')" class="btn-primary" style="font-size:13.5px;padding:8px 14px;">Kirim</button>
+                        @php
+                            // Mention "@Nama": daftar nama buat dropdown (tanpa diri sendiri) & buat menebalkan "@Nama" di teks.
+                            $mentionUsers = app(\App\Services\Task\TaskService::class)->mentionableUsers($task);
+                            $taskService = app(\App\Services\Task\TaskService::class);
+                            $mentionNames = $mentionUsers->flatMap(fn ($u) => $taskService->mentionTerms($u))->all();
+                            // Dropdown: nama panggilan dulu (kalau ada), nama lengkap sebagai petunjuk.
+                            $mentionPick = $mentionUsers->reject(fn ($u) => $u->id === auth()->id())
+                                ->map(fn ($u) => ['label' => $taskService->mentionLabel($u), 'full' => $u->name])->values()->all();
+                            $topComments = $task->comments->whereNull('parent_id');
+                            $repliesByParent = $task->comments->whereNotNull('parent_id')->groupBy('parent_id');
+                            $replyingTo = $this->replyToId ? $task->comments->firstWhere('id', $this->replyToId) : null;
+                        @endphp
+                        <div style="margin-bottom:14px;"
+                            x-data="{
+                                names: @js($mentionPick), open: false, q: '',
+                                matches() { const q = this.q.toLowerCase(); return this.names.filter(n => n.label.toLowerCase().includes(q) || n.full.toLowerCase().includes(q)).slice(0, 6) },
+                                check(el) {
+                                    const m = el.value.slice(0, el.selectionStart).match(/(?:^|\s)@([^\s@]*)$/);
+                                    this.q = m ? m[1] : '';
+                                    this.open = !!m && this.matches().length > 0;
+                                },
+                                pick(el, name) {
+                                    const pos = el.selectionStart;
+                                    el.value = el.value.slice(0, pos).replace(/@([^\s@]*)$/, '@' + name + ' ') + el.value.slice(pos);
+                                    el.dispatchEvent(new Event('input'));
+                                    this.open = false;
+                                    el.focus();
+                                }
+                            }">
+                            @if ($replyingTo)
+                                <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-muted);margin-bottom:6px;">
+                                    <i class="fa-solid fa-reply"></i>
+                                    <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">Membalas <strong>{{ $replyingTo->user?->name }}</strong>: {{ \Illuminate\Support\Str::limit($replyingTo->comment, 40) }}</span>
+                                    <button type="button" wire:click="cancelReply" style="background:none;border:none;cursor:pointer;color:var(--text-muted);" aria-label="Batal membalas"><i class="fa-solid fa-xmark"></i></button>
+                                </div>
+                            @endif
+                            <div style="display:flex;gap:8px;position:relative;">
+                                <input id="task-comment-input" type="text" class="form-input" style="font-size:13.5px;" wire:model="newComment" autocomplete="off"
+                                    @input="check($el)" @click="check($el)" @keyup.arrow-left="check($el)" @keyup.arrow-right="check($el)"
+                                    @keydown.escape="open = false"
+                                    @keydown.enter.prevent="open ? pick($el, matches()[0]) : $wire.addComment('{{ $task->id }}')"
+                                    placeholder="{{ $replyingTo ? 'Tulis balasan...' : 'Tulis komentar... (@ untuk menyebut)' }}">
+                                <button type="button" wire:click="addComment('{{ $task->id }}')" class="btn-primary" style="font-size:13.5px;padding:8px 14px;">Kirim</button>
+                                <div x-show="open" x-cloak @click.outside="open = false" style="position:absolute;top:calc(100% + 4px);left:0;z-index:60;min-width:200px;max-height:220px;overflow-y:auto;background:var(--surface);border-radius:12px;padding:6px;box-shadow:0 8px 30px rgba(4,44,108,0.16),0 0 0 1px var(--border-soft);">
+                                    <template x-for="n in matches()" :key="n.full">
+                                        <button type="button" @click="pick(document.getElementById('task-comment-input'), n.label)" style="display:block;width:100%;padding:7px 10px;border:none;background:none;border-radius:8px;cursor:pointer;font-family:inherit;font-size:13px;color:var(--text-body);text-align:left;" onmouseover="this.style.background='var(--surface-alt)'" onmouseout="this.style.background='none'">
+                                            <span x-text="'@' + n.label"></span>
+                                            <span x-show="n.label !== n.full" x-text="n.full" style="color:var(--text-muted);font-size:11.5px;margin-left:4px;"></span>
+                                        </button>
+                                    </template>
+                                </div>
+                            </div>
                         </div>
                         <div class="task-list-scroll" style="display:flex;flex-direction:column;gap:14px;max-height:320px;overflow-y:auto;overscroll-behavior:contain;padding-right:6px;">
-                            @forelse ($task->comments as $comment)
-                                <div style="display:flex;gap:9px;font-size:13.5px;">
-                                    <x-avatar :user="$comment->user" :size="26" />
-                                    <div style="min-width:0;">
-                                        <span style="font-weight:700;">{{ $comment->user?->name }}</span>
-                                        <span style="color:var(--text-muted);font-size:12px;"> &middot; {{ $comment->created_at->diffForHumans() }}</span>
-                                        <p style="margin:2px 0 0;">{{ $comment->comment }}</p>
+                            @forelse ($topComments as $comment)
+                                <div style="font-size:13.5px;">
+                                    <div style="display:flex;gap:9px;">
+                                        <x-avatar :user="$comment->user" :size="26" />
+                                        <div style="min-width:0;">
+                                            <span style="font-weight:700;">{{ $comment->user?->name }}</span>
+                                            <span style="color:var(--text-muted);font-size:12px;"> &middot; {{ $comment->created_at->diffForHumans() }}</span>
+                                            <p style="margin:2px 0 0;white-space:pre-line;word-break:break-word;">{{ $comment->bodyHtml($mentionNames) }}</p>
+                                            @unless ($this->isProjectArchived)
+                                                <button type="button" wire:click="startReply('{{ $comment->id }}')" @click="$nextTick(() => document.getElementById('task-comment-input')?.focus())" style="background:none;border:none;padding:0;margin-top:2px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;color:var(--text-muted);">Balas</button>
+                                            @endunless
+                                        </div>
                                     </div>
+                                    {{-- Balasan: 1 tingkat saja - nggak ada tombol Balas di sini. --}}
+                                    @foreach ($repliesByParent->get($comment->id, collect()) as $reply)
+                                        <div style="display:flex;gap:8px;margin:10px 0 0 35px;padding-left:10px;border-left:2px solid var(--border-soft);">
+                                            <x-avatar :user="$reply->user" :size="22" />
+                                            <div style="min-width:0;">
+                                                <span style="font-weight:700;">{{ $reply->user?->name }}</span>
+                                                <span style="color:var(--text-muted);font-size:12px;"> &middot; {{ $reply->created_at->diffForHumans() }}</span>
+                                                <p style="margin:2px 0 0;white-space:pre-line;word-break:break-word;">{{ $reply->bodyHtml($mentionNames) }}</p>
+                                            </div>
+                                        </div>
+                                    @endforeach
                                 </div>
                             @empty
                                 <p style="font-size:13.5px;color:var(--text-muted);margin:0;">Belum ada komentar.</p>

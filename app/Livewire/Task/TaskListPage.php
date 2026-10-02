@@ -71,6 +71,7 @@ class TaskListPage extends Component
     // Modal detail task
     public ?string $selectedTaskId = null;
     public string $newComment = '';
+    public ?string $replyToId = null; // komentar awal yang sedang dibalas (1 tingkat)
     public string $newChecklistTitle = '';
     public ?string $editingChecklistItemId = null;
     public string $editingChecklistItemTitle = '';
@@ -236,12 +237,12 @@ class TaskListPage extends Component
         $tasks = $this->activeProject
             ? $service->getProjectTasks($this->activeProject)
             : $service->getPortalTasks(Auth::user(), $this->scope)
-                ->load(['assignedTo.profile', 'createdBy', 'checklistItems', 'comments.user'])
+                ->load(['assignedTo.profile', 'assignees.user', 'createdBy', 'checklistItems', 'comments.user'])
                 ->loadCount('attachments');
 
         // Tab "Tugas Saya" di Board: cuma tugas yang ditugaskan ke user yang login.
         if ($this->activeProject && $this->boardFilter === 'saya') {
-            $tasks = $tasks->filter(fn ($task) => $task->assigned_to === Auth::id())->values();
+            $tasks = $tasks->filter(fn ($task) => $task->isAssignee(Auth::id()))->values();
         }
 
         // Search cuma aktif buat tab Penugasan Individu.
@@ -251,7 +252,7 @@ class TaskListPage extends Component
         }
 
         return $tasks->filter(fn ($task) => str_contains(strtolower($task->requirement ?? ''), strtolower($search))
-            || str_contains(strtolower($task->assignedTo?->name ?? ''), strtolower($search)))->values();
+            || str_contains(strtolower($task->assigneeNames()), strtolower($search)))->values();
     }
 
     public function getTasksByStatusProperty(): array
@@ -479,6 +480,7 @@ class TaskListPage extends Component
     public function openTaskDetail(string $taskId): void
     {
         $this->selectedTaskId = $taskId;
+        $this->replyToId = null;
         $this->newComment = '';
         $this->newChecklistTitle = '';
         $this->editingChecklistItemId = null;
@@ -505,7 +507,7 @@ class TaskListPage extends Component
             return null;
         }
 
-        return Task::with(['assignedTo', 'createdBy', 'reviewer', 'checklistItems', 'comments.user', 'attachments.uploadedBy', 'activities.user.profile', 'checklistItems.doneBy', 'proofs', 'rejectionNoteBy'])
+        return Task::with(['assignedTo', 'assignees.user.profile', 'createdBy', 'reviewer', 'checklistItems', 'comments.user', 'attachments.uploadedBy', 'activities.user.profile', 'checklistItems.doneBy', 'proofs', 'rejectionNoteBy'])
             ->find($this->selectedTaskId);
     }
 
@@ -577,14 +579,35 @@ class TaskListPage extends Component
         }
     }
 
-    public function rateTask(string $taskId, int $rating): void
+    public function addAssignee(string $taskId, string $userId): void
     {
         try {
-            app(TaskService::class)->rateTask(Task::findOrFail($taskId), $rating, Auth::user());
+            app(TaskService::class)->addAssignee(Task::findOrFail($taskId), $userId, Auth::user());
+            unset($this->selectedTask, $this->tasks);
+        } catch (\Throwable $e) {
+            Notification::make()->title($e->getMessage() ?: 'Tidak bisa menambah pelaksana')->danger()->send();
+        }
+    }
+
+    /** $assigneeUserId null = nilai semua pelaksana yang belum dinilai sekaligus. */
+    public function rateTask(string $taskId, int $rating, ?string $assigneeUserId = null): void
+    {
+        try {
+            app(TaskService::class)->rateTask(Task::findOrFail($taskId), $rating, Auth::user(), $assigneeUserId);
             unset($this->selectedTask, $this->tasks);
         } catch (\Throwable $e) {
             Notification::make()->title($e->getMessage() ?: 'Tidak bisa memberi rating')->danger()->send();
         }
+    }
+
+    public function startReply(string $commentId): void
+    {
+        $this->replyToId = $commentId;
+    }
+
+    public function cancelReply(): void
+    {
+        $this->replyToId = null;
     }
 
     public function addComment(string $taskId): void
@@ -594,8 +617,9 @@ class TaskListPage extends Component
         }
 
         try {
-            app(TaskService::class)->addComment(Task::findOrFail($taskId), Auth::user(), $this->newComment);
+            app(TaskService::class)->addComment(Task::findOrFail($taskId), Auth::user(), $this->newComment, $this->replyToId);
             $this->newComment = '';
+            $this->replyToId = null;
             unset($this->tasks, $this->selectedTask);
         } catch (\Throwable $e) {
             Notification::make()->title($e->getMessage() ?: 'Tidak bisa mengirim komentar')->danger()->send();
