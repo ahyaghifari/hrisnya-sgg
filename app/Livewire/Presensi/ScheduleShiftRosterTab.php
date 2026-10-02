@@ -183,6 +183,15 @@ class ScheduleShiftRosterTab extends Component
         return $query;
     }
 
+    /** Pengajuan tukar shift milik company JADWAL ini. ShiftSwapRequests (& baris jadwal yang dirujuknya)
+     * pakai global scope company = company user login, jadi user yang boleh membuka jadwal company lain
+     * (gerbang SchedulePolicy::view() di mount()) tidak melihat tukar shift sama sekali -> ikon hilang &
+     * sel serah-shift N/A di production walau data ada (console/tinker skip scope, makanya terlihat benar). */
+    private function swapQuery(): \Illuminate\Database\Eloquent\Builder
+    {
+        return ShiftSwapRequests::withoutGlobalScope('company')->where('company_id', $this->schedule->company_id);
+    }
+
     public function updatedPeriod(): void
     {
         if ($this->period < self::MIN_PERIOD) {
@@ -687,7 +696,7 @@ class ScheduleShiftRosterTab extends Component
         // Tanggal dibatasi di QUERY (bukan cuma di-filter di PHP setelah tarik semua histori
         // swap sepanjang masa) - dulu ambil SEMUA in_review/approved sejak jadwal ini ada, makin
         // lama makin berat kena tarik ulang tiap render (dikeluhkan user "berat" 2026-09-15).
-        $swaps = ShiftSwapRequests::whereIn('status', ['in_review', 'approved'])
+        $swaps = $this->swapQuery()->whereIn('status', ['in_review', 'approved'])
             ->where(function ($q) use ($start, $end) {
                 $q->whereBetween('req_date', [$start, $end])->orWhereBetween('target_date', [$start, $end]);
             })
@@ -722,11 +731,14 @@ class ScheduleShiftRosterTab extends Component
         $start = Carbon::createFromFormat('Y-m', $this->period)->startOfMonth()->toDateString();
         $end = Carbon::createFromFormat('Y-m', $this->period)->endOfMonth()->toDateString();
 
-        $swaps = ShiftSwapRequests::where('status', 'approved')
+        $swaps = $this->swapQuery()->where('status', 'approved')
             ->where(function ($q) use ($start, $end) {
                 $q->whereBetween('req_date', [$start, $end])->orWhereBetween('target_date', [$start, $end]);
             })
-            ->with(['reqSchedule:id,shift_type_id', 'targetSchedule:id,shift_type_id'])
+            ->with([
+                'reqSchedule' => fn ($q) => $q->withoutGlobalScope('company')->select('id', 'shift_type_id'),
+                'targetSchedule' => fn ($q) => $q->withoutGlobalScope('company')->select('id', 'shift_type_id'),
+            ])
             ->get();
 
         $ghosts = [];
@@ -745,14 +757,14 @@ class ScheduleShiftRosterTab extends Component
                 $typeId = $slot?->shift_type_id
                     ?? $deleted->first(fn ($a) => ($a['user_id'] ?? null) === $uid && ($a['date'] ?? null) === $date)['shift_type_id'] ?? null;
 
-                $typeId ??= ExtraShiftAssignment::where('origin_shift_swap_request_id', $s->id)
+                $typeId ??= ExtraShiftAssignment::withoutGlobalScope('company')->where('origin_shift_swap_request_id', $s->id)
                     ->whereDate('date', $date)
                     ->where('user_id', '!=', $uid)
                     ->value('shift_type_id');
 
                 // Rekan sekarang memegang shift itu di tanggal yang sama (baris yang pindah pemilik).
                 $partnerId = $uid === $s->requester_id ? $s->target_id : $s->requester_id;
-                $typeId ??= ScheduleShiftAssignment::where('user_id', $partnerId)
+                $typeId ??= ScheduleShiftAssignment::withoutGlobalScope('company')->where('user_id', $partnerId)
                     ->whereDate('date', $date)
                     ->where('off_day', false)
                     ->value('shift_type_id');
