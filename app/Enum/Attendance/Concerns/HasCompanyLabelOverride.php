@@ -18,7 +18,6 @@ trait HasCompanyLabelOverride
     private const OVERRIDE_COMPANY_IDS = [
         '01k8271xa4nq8cezg3dq9vfr14', // RSU Syifa Medika Banjarbaru
         '01k8271xefsez6a80tknntt1pj', // RSU Syifa Medika Barabai
-        '01J2F0C8KQ9M7D4S8RBX6E1ZVP', // Holding (Syifa Global Group) - ikut override, bukan RS (instruksi user 2026-10-03)
     ];
 
     public static function usesLabelOverride(?string $companyId): bool
