@@ -710,6 +710,47 @@ class ScheduleShiftRosterTab extends Component
         return $cells;
     }
 
+    /** Sel kosong hasil tukar beda tanggal APPROVED: pemiliknya sudah menyerahkan shift di tanggal itu
+     * (barisnya pindah/terhapus), tapi grid tetap menampilkan shift yang ditukar (redup + ikon, read-only)
+     * bukan N/A (instruksi user 2026-10-02). Key "{user_id}|{Y-m-d}" => shift_type_id yang diserahkan.
+     *
+     * @return array<string, string>
+     */
+    public function getSwapGhostsProperty(): array
+    {
+        $start = Carbon::createFromFormat('Y-m', $this->period)->startOfMonth()->toDateString();
+        $end = Carbon::createFromFormat('Y-m', $this->period)->endOfMonth()->toDateString();
+
+        $swaps = ShiftSwapRequests::where('status', 'approved')
+            ->where(function ($q) use ($start, $end) {
+                $q->whereBetween('req_date', [$start, $end])->orWhereBetween('target_date', [$start, $end]);
+            })
+            ->with(['reqSchedule:id,shift_type_id', 'targetSchedule:id,shift_type_id'])
+            ->get();
+
+        $ghosts = [];
+
+        foreach ($swaps as $s) {
+            if (! $s->target_date || $s->target_date->equalTo($s->req_date)) {
+                continue;
+            }
+
+            $deleted = collect($s->execution_log ?? [])->where('op', 'delete')->pluck('attributes');
+
+            foreach ([[$s->requester_id, $s->req_date, $s->reqSchedule], [$s->target_id, $s->target_date, $s->targetSchedule]] as [$uid, $d, $slot]) {
+                $date = $d->toDateString();
+                $typeId = $slot?->shift_type_id
+                    ?? $deleted->first(fn ($a) => ($a['user_id'] ?? null) === $uid && ($a['date'] ?? null) === $date)['shift_type_id'] ?? null;
+
+                if ($typeId && $date >= $start && $date <= $end) {
+                    $ghosts[$uid . '|' . $date] = $typeId;
+                }
+            }
+        }
+
+        return $ghosts;
+    }
+
     /** Sel roster yang off_day-nya KARENA Cuti/Izin disetujui otomatis (schedule_status
      * 'cuti'/'izin', diisi AttendaceReqService::markRosterDayOff()) - dikunci dari edit manual/Isi
      * Cepat/Import/Reset, sama pola dengan $swapCells, supaya tidak ketimpa balik jadi shift kerja
