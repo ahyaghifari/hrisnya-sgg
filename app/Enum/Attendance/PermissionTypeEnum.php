@@ -39,6 +39,7 @@ enum PermissionTypeEnum: string
     case MUSIBAH = 'musibah';
     case IBADAH_HAJI = 'ibadah_haji';
     case KELUARGA_INTI_SAKIT = 'keluarga_inti_sakit';
+    case SURAT_TUGAS = 'surat_tugas';
 
     /** $companyId null = label default (semua company lain). 2 company override (lihat
      * HasCompanyLabelOverride) pakai penamaan sendiri buat Tidak Masuk/Sakit - instruksi user
@@ -72,6 +73,7 @@ enum PermissionTypeEnum: string
             self::MUSIBAH => 'Izin Musibah',
             self::IBADAH_HAJI => 'Izin Ibadah Haji',
             self::KELUARGA_INTI_SAKIT => 'Izin Keluarga Inti Sakit',
+            self::SURAT_TUGAS => 'Izin Surat Tugas',
         };
     }
 
@@ -107,6 +109,7 @@ enum PermissionTypeEnum: string
             self::MUSIBAH => 'Kebakaran, kebanjiran, atau musibah lain yang menimpa karyawan - lama izin atas pertimbangan pimpinan perusahaan, tidak ada jumlah hari baku. Isi tanggal sesuai kesepakatan dengan atasan/HC.',
             self::IBADAH_HAJI => 'Sesuai durasi ibadah haji ditambah 2 hari sebelum keberangkatan dan 2 hari setelah tiba kembali di tanah air. Isi tanggal mulai/selesai sesuai jadwal keberangkatan-kepulangan yang sebenarnya.',
             self::KELUARGA_INTI_SAKIT => 'Suami/istri, orang tua, atau anak sah karyawan sakit - tidak ada jumlah hari baku, lama izin atas pertimbangan atasan/HC. Lampirkan surat rawat/keterangan dokter.',
+            self::SURAT_TUGAS => 'Tugas/dinas di luar kantor berdasarkan surat tugas - isi tanggal sesuai surat tugas dan lampirkan scan/foto surat tugas.',
             default => null,
         };
     }
@@ -115,7 +118,7 @@ enum PermissionTypeEnum: string
      * instruksi user 2026-09-30. */
     public function isCompanyRestricted(): bool
     {
-        return $this === self::KELUARGA_INTI_SAKIT;
+        return in_array($this, [self::KELUARGA_INTI_SAKIT, self::SURAT_TUGAS], true);
     }
 
     /**
