@@ -389,6 +389,10 @@ class AttendaceReqService
      */
     private function tenureStatus(User $user): ?array
     {
+        // ponytail: batas masa kerja cuti dibuka sementara (instruksi user 2026-10-03, demo) -
+        // hapus return ini buat nyalakan lagi, setting CUTI_MIN_MASA_KERJA_BULAN tetap utuh.
+        return null;
+
         $minMonths = (int) Setting::resolve(AttendanceSettingEnum::CUTI_MIN_MASA_KERJA_BULAN->value, $user->company_id, default: 0);
 
         if ($minMonths <= 0) {
@@ -494,6 +498,9 @@ class AttendaceReqService
      */
     public function cutiTahunanEligibleDate(User $user): ?Carbon
     {
+        // ponytail: dibuka sementara, lihat tenureStatus().
+        return null;
+
         $minMonths = (int) Setting::resolve(AttendanceSettingEnum::CUTI_MIN_MASA_KERJA_BULAN->value, $user->company_id, default: 0);
 
         if ($minMonths <= 0) {
