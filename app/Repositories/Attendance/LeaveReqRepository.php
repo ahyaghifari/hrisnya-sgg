@@ -7,6 +7,7 @@ use App\Models\Attendance\AttendanceRequestAttachments;
 use App\Models\Attendance\AttendanceRequestLeaveDetails;
 use App\Models\Attendance\AttendanceRequests;
 use App\Models\Master\Attendance\Holidays;
+use App\Models\User\UserJobPositions;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -67,7 +68,11 @@ class LeaveReqRepository
 
         // Cuti bersama cuma mengurangi kuota Cuti Tahunan, bukan tipe cuti lain (izin, dll).
         $collectiveLeaveDays = 0;
-        if ($leaveType === LeaveTypeCategoryEnum::TAHUNAN) {
+        // Jabatan aktif yang ada di daftar pengecualian (Admin > Hari Libur & Cuti Bersama) tidak kena potongan.
+        $exempt = DB::table('collective_leave_exempt_positions')
+            ->whereIn('job_position_id', UserJobPositions::where('user_id', $userId)->where('status', 'active')->select('job_position_id'))
+            ->exists();
+        if ($leaveType === LeaveTypeCategoryEnum::TAHUNAN && ! $exempt) {
             $collectiveLeaveDays = Holidays::where('is_collective_leave', true)
                 ->whereBetween('date', [$periodStartDate, $periodEndDate])
                 ->count();

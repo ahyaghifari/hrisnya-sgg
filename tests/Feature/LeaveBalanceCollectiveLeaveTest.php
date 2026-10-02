@@ -7,6 +7,9 @@ use App\Models\Attendance\AttendanceRequests;
 use App\Models\Master\Attendance\Holidays;
 use App\Enum\Attendance\LeaveTypeCategoryEnum;
 use App\Models\Master\Companies;
+use App\Models\Master\JobPositions;
+use App\Models\User\UserJobPositions;
+use Illuminate\Support\Facades\DB;
 use App\Models\User;
 use App\Repositories\Attendance\LeaveReqRepository;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -98,6 +101,23 @@ class LeaveBalanceCollectiveLeaveTest extends TestCase
         $balance = (new LeaveReqRepository())->getLeaveUserBalance($user->id, $leaveType->value);
 
         $this->assertSame(2, $balance['used']);
+    }
+
+    public function test_exempt_position_is_not_reduced_by_collective_leave(): void
+    {
+        $company = $this->makeCompany('TSX');
+        $user = User::factory()->create(['company_id' => $company->id]);
+        $position = JobPositions::create(['company_id' => $company->id, 'name' => 'Dokter']);
+        UserJobPositions::create(['user_id' => $user->id, 'job_position_id' => $position->id, 'status' => 'active', 'start_date' => now()->subYear()->toDateString()]);
+        Holidays::create(['date' => now()->startOfYear()->addDays(10), 'name' => 'CB', 'is_collective_leave' => true]);
+
+        $this->assertSame(1, (new LeaveReqRepository())->getLeaveUserBalance($user->id, 'tahunan')['collective_leave_days']);
+
+        DB::table('collective_leave_exempt_positions')->insert(['job_position_id' => $position->id]);
+
+        $balance = (new LeaveReqRepository())->getLeaveUserBalance($user->id, 'tahunan');
+        $this->assertSame(0, $balance['collective_leave_days']);
+        $this->assertSame(12, $balance['available']);
     }
 
     public function test_holiday_without_collective_leave_flag_does_not_reduce_balance(): void
