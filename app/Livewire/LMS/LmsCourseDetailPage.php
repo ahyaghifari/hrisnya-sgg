@@ -18,7 +18,7 @@ use App\Models\LMS\LmsQuizzes;
 use App\Models\LMS\Trainer\LmsHonorarium;
 use App\Models\LMS\Trainer\TrainerAssessmentResults;
 use App\Models\LMS\Trainer\Trainers;
-use App\Models\Rekrutmen\Company;
+use App\Models\Master\Companies;
 use App\Models\User;
 use App\Services\LMS\CourseService;
 use App\Services\LMS\CourseUserService;
@@ -245,7 +245,7 @@ class LmsCourseDetailPage extends Component
 
     public function getCompanyOptionsProperty()
     {
-        return Company::orderBy('name')->pluck('name', 'id');
+        return Companies::orderBy('name')->pluck('name', 'id');
     }
 
     public function updatedParticipantCompanyId(): void
