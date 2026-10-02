@@ -256,7 +256,7 @@ class LmsCourseDetailPage extends Component
     public function openAddParticipantForm(): void
     {
         $this->selectedUserIds = [];
-        $this->participantCompanyId = $this->course->company_id;
+        $this->participantCompanyId = Auth::user()->company_id;
         $this->showAddParticipantForm = true;
     }
 

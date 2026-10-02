@@ -248,7 +248,7 @@
                 </select>
 
                 <label class="form-label">Pilih Karyawan</label>
-                <div wire:ignore wire:key="participant-select-{{ $participantCompanyId }}">
+                <div>
                     <select data-tom-select data-placeholder="Pilih karyawan..." multiple wire:model="selectedUserIds">
                         @foreach ($this->availableUserOptions as $id => $name)
                             <option value="{{ $id }}">{{ $name }}</option>
