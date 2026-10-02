@@ -49,6 +49,10 @@ enum LeaveTypeCategoryEnum: string
     /** Cuti yang cuma bisa diajukan karyawan perempuan (user_profiles.gender). */
     public function isFemaleOnly(): bool
     {
+        // ponytail: filter gender dibuka sementara buat demo (instruksi user 2026-10-03) - hapus
+        // return ini buat nyalakan lagi.
+        return false;
+
         return in_array($this, [self::HAID, self::MELAHIRKAN, self::KEGUGURAN], true);
     }
 
