@@ -342,7 +342,7 @@ tombol banner membuka panduan ini. Dibuka/ditutup lewat JS (display none <-> fle
                 </div>
             </div>
             @php
-                $trainingStatusLabel = fn (string $s) => ['requested' => 'Menunggu', 'approved' => 'Disetujui', 'in_progress' => 'Berjalan'][$s] ?? $s;
+                $trainingStatusLabel = fn (string $s) => ['requested' => 'Menunggu', 'approved' => 'Mengikuti', 'in_progress' => 'Berjalan'][$s] ?? $s;
                 $trainingBadgeClass = fn (string $s) => ['requested' => 'badge-pending', 'approved' => 'badge-approved', 'in_progress' => 'badge-pending'][$s] ?? 'badge-cancelled';
             @endphp
             @if ($this->myTrainings->isEmpty())
