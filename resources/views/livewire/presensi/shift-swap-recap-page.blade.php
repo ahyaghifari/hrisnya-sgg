@@ -197,14 +197,23 @@
                                 <p style="font-size:12.5px;font-weight:600;color:var(--text-heading);margin:0;">{{ $item['kind'] }} dengan {{ $item['partner'] }}</p>
                                 <span style="font-size:11.5px;font-weight:700;color:{{ $itemStyle['color'] }};white-space:nowrap;">{{ $statuses[$item['status']] }}</span>
                             </div>
-                            <p style="font-size:11px;color:var(--text-muted);margin:2px 0 0;">
-                                {{ \Illuminate\Support\Carbon::parse($item['date'])->translatedFormat('d M Y') }}
-                                @if ($item['req_shift']) &middot; {{ $item['req_shift'] }} @endif
-                                @if ($item['target_date'])
-                                    &harr; {{ \Illuminate\Support\Carbon::parse($item['target_date'])->translatedFormat('d M Y') }}
-                                    @if ($item['target_shift']) &middot; {{ $item['target_shift'] }} @endif
-                                @endif
-                            </p>
+                            @php
+                                $dFmt = fn ($d) => \Illuminate\Support\Carbon::parse($d)->translatedFormat('d M Y');
+                                $tDate = $item['target_date'] ?: $item['date'];
+                            @endphp
+                            <div style="font-size:11px;color:var(--text-muted);margin:4px 0 0;display:flex;flex-direction:column;gap:2px;">
+                                <span><strong style="color:var(--text-heading);">{{ $selectedRow['user']->name }}</strong> (pengaju): shift <strong>{{ $item['req_shift'] ?? '-' }}</strong> tgl {{ $dFmt($item['date']) }}</span>
+                                <span><strong style="color:var(--text-heading);">{{ $item['partner'] }}</strong> (rekan): shift <strong>{{ $item['target_shift'] ?? '-' }}</strong> tgl {{ $dFmt($tDate) }}</span>
+                                <span style="color:#b45309;"><i class="fa-solid fa-right-left"></i>
+                                    @if ($item['kind'] === 'Tukar Libur')
+                                        Rekan mengambil shift pengaju, pengaju mengambil alih shift rekan; masing-masing jadi Libur di tanggal asalnya.
+                                    @elseif ($tDate === $item['date'])
+                                        Shift keduanya saling ditukar di tanggal yang sama.
+                                    @else
+                                        Pengaju menerima shift rekan, rekan menerima shift pengaju (tanggal saling bertukar).
+                                    @endif
+                                </span>
+                            </div>
                         </div>
                     </div>
                 @endforeach
