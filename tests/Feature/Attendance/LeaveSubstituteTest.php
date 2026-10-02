@@ -160,7 +160,10 @@ class LeaveSubstituteTest extends TestCase
             \App\Models\User\UserJobPositions::create(['user_id' => $u->id, 'job_position_id' => $job->id, 'start_date' => now()->subYear(), 'status' => 'active']);
         }
 
-        $this->assertContains('Perawat Bawahan', app(AttendaceReqService::class)->unitMates($boss)->pluck('name')->all());
+        $this->employeeIn($this->unitA, 'Rekan Unit Atasan');
+
+        // Atasan -> cuma bawahan langsung, rekan di unit yang sama tidak ikut jadi calon.
+        $this->assertSame(['Perawat Bawahan'], app(AttendaceReqService::class)->unitMates($boss)->pluck('name')->all());
 
         $this->submit($boss, $staff->id);
 
