@@ -84,7 +84,7 @@ class ScheduleShiftRosterTab extends Component
      * pengaturan bersama, bukan preferensi pribadi, jadi tidak untuk semua viewer. */
     public function getCanSetTeamGroupModeProperty(): bool
     {
-        return $this->schedule->head_user_id === Auth::id() || Auth::user()->can('update', $this->schedule);
+        return $this->schedule->isManagedBy(Auth::id()) || Auth::user()->can('update', $this->schedule);
     }
 
     public function setTeamGroupMode(string $mode): void
@@ -307,7 +307,7 @@ class ScheduleShiftRosterTab extends Component
     public function getCanManageOrderProperty(): bool
     {
         return ! $this->editMode
-            && ($this->schedule->head_user_id === Auth::id() || Auth::user()->can('update', $this->schedule))
+            && ($this->schedule->isManagedBy(Auth::id()) || Auth::user()->can('update', $this->schedule))
             && $this->period >= now()->format('Y-m')
             && ! $this->periodLocked;
     }

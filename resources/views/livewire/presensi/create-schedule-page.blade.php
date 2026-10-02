@@ -203,6 +203,16 @@
                         @error('headUserId') <p style="font-size:11px;color:#dc2626;margin-top:4px;">{{ $message }}</p> @enderror
                     </div>
 
+                    <div style="margin-top:14px;max-width:320px;" wire:key="editors-{{ $companyId }}">
+                        <label class="form-label">Pengisi Jadwal</label>
+                        <select class="form-input" wire:model="editorUserIds" multiple data-tom-select data-placeholder="-- Tidak ada --">
+                            @foreach ($this->headUserOptions as $employee)
+                                <option value="{{ $employee->id }}">{{ $employee->name }}</option>
+                            @endforeach
+                        </select>
+                        <p style="font-size:10.5px;color:var(--text-faint);margin-top:4px;">Selain Kepala Ruangan, mereka juga bisa mengisi roster jadwal ini (perubahan tetap lewat approval).</p>
+                    </div>
+
                     <label style="display:flex;align-items:flex-start;gap:10px;margin-top:14px;max-width:420px;cursor:pointer;">
                         <span class="custom-checkbox" style="margin-top:1px;">
                             <input type="checkbox" wire:model="allowOncallExtraShift">

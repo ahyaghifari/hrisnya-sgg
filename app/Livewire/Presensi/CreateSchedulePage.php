@@ -47,6 +47,9 @@ class CreateSchedulePage extends Component
      * Jadwal" ke Schedule yang benar kalau atasan punya staff di lebih dari 1 Schedule. */
     public ?string $headUserId = null;
 
+    /** Pengisi Jadwal tambahan (tabel schedule_editors) - hak roster sama dengan Kepala Ruangan. */
+    public array $editorUserIds = [];
+
     /** Pola shift (2 atau 3 shift) - cuma relevan buat scheduleType SHIFT, lihat
      * App\Enum\ShiftPatternEnum. Null = belum diisi (schedule lama sebelum field ini ada, atau
      * tipe Fixed/Flexible). */
@@ -82,6 +85,7 @@ class CreateSchedulePage extends Component
         $this->scheduleType = $schedule->schedule_type;
         $this->shiftPattern = $schedule->shift_pattern;
         $this->headUserId = $schedule->head_user_id;
+        $this->editorUserIds = $schedule->editors()->pluck('users.id')->all();
         // Cast eksplisit (bukan percaya cast 'boolean' Eloquent apa adanya) - jadwal yang baru
         // dibuat lewat Schedule::create() TANPA eksplisit isi kolom ini (mis. fixture test lama,
         // sebelum kolom ini ada) punya instance model yang atributnya BELUM ke-refresh dari DB,
@@ -115,6 +119,7 @@ class CreateSchedulePage extends Component
         $this->employeeSearch = '';
         $this->employeeOrgStructureFilter = '';
         $this->headUserId = null;
+        $this->editorUserIds = [];
     }
 
     /** Opsi "Kepala Ruangan" - semua karyawan aktif di company yang lagi dipilih, sama scope-nya
@@ -249,6 +254,14 @@ class CreateSchedulePage extends Component
                 // ("Atur Pengguna Jadwal") setelah jadwal ini disimpan, bukan pas bikin header.
                 $schedule = Schedule::create($scheduleData);
             }
+
+            // Hanya user dari company jadwal ini (sama scope-nya dengan headUserOptions), jangan
+            // percaya ID mentah dari client.
+            $schedule->editors()->sync(
+                $this->scheduleType === ScheduleType::SHIFT->value && $this->editorUserIds
+                    ? User::where('company_id', $schedule->company_id)->whereIn('id', $this->editorUserIds)->pluck('id')->all()
+                    : []
+            );
 
             if ($this->scheduleType === ScheduleType::SHIFT->value) {
                 $this->saveShiftSchedule($schedule);

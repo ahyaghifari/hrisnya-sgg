@@ -7,6 +7,7 @@ use App\Models\User;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -57,6 +58,19 @@ class Schedule extends Model
     public function head(): BelongsTo
     {
         return $this->belongsTo(User::class, 'head_user_id');
+    }
+
+    /** Pengisi Jadwal tambahan selain Kepala Ruangan (tabel schedule_editors). */
+    public function editors(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'schedule_editors', 'schedule_id', 'user_id')->withTimestamps();
+    }
+
+    /** Kepala Ruangan ATAU Pengisi Jadwal - dipakai semua gerbang "seperti karu". */
+    public function isManagedBy(?string $userId): bool
+    {
+        return $userId !== null
+            && ($this->head_user_id === $userId || $this->editors()->whereKey($userId)->exists());
     }
 
     public function fixedDays(): HasMany

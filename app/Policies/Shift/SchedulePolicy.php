@@ -31,7 +31,7 @@ class SchedulePolicy
             return false;
         }
 
-        return $schedule->head_user_id === $authUser->getKey()
+        return $schedule->isManagedBy($authUser->getKey())
             || (method_exists($authUser, 'isAssignedToSchedule') && $authUser->isAssignedToSchedule($schedule));
     }
 
