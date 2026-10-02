@@ -386,7 +386,9 @@
                                 // Sel yang jadwalnya lagi/sudah dipakai pengajuan tukar shift -> dikunci
                                 // total, tidak bisa diedit dari halaman jadwal (biar tidak bentrok sama
                                 // eksekusi swap). Lihat ScheduleShiftRosterTab::getSwapCellsProperty().
-                                $swapLocked = isset($this->swapCells[$employee->id.'|'.$date->toDateString()]);
+                                // Sel kosong (N/A, shiftnya sudah diserahkan lewat tukar approved) TIDAK diberi
+                                // ikon/kunci (instruksi user 2026-10-02) - cuma sel yang masih punya baris jadwal.
+                                $swapLocked = $current !== '' && isset($this->swapCells[$employee->id.'|'.$date->toDateString()]);
                                 // Sel Cuti/Izin disetujui otomatis - selalu ditandai (badge + kode
                                 // C/Izin), tapi cuma DIKUNCI dari edit buat yang bukan pemegang
                                 // Update:Schedule (Edit Jadwal) - instruksi user 2026-09-24. Lihat
