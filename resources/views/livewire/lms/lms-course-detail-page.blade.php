@@ -240,8 +240,15 @@
 
         @if ($showAddParticipantForm)
             <div style="background:var(--surface);border-radius:12px;box-shadow:var(--shadow-card);padding:18px;margin-bottom:14px;">
+                <label class="form-label">Perusahaan</label>
+                <select class="form-input" wire:model.live="participantCompanyId" style="margin-bottom:12px;">
+                    @foreach ($this->companyOptions as $id => $name)
+                        <option value="{{ $id }}">{{ $name }}</option>
+                    @endforeach
+                </select>
+
                 <label class="form-label">Pilih Karyawan</label>
-                <div wire:ignore>
+                <div wire:ignore wire:key="participant-select-{{ $participantCompanyId }}">
                     <select data-tom-select data-placeholder="Pilih karyawan..." multiple wire:model="selectedUserIds">
                         @foreach ($this->availableUserOptions as $id => $name)
                             <option value="{{ $id }}">{{ $name }}</option>

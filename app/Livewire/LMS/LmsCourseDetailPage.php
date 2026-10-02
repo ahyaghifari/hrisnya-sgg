@@ -18,6 +18,7 @@ use App\Models\LMS\LmsQuizzes;
 use App\Models\LMS\Trainer\LmsHonorarium;
 use App\Models\LMS\Trainer\TrainerAssessmentResults;
 use App\Models\LMS\Trainer\Trainers;
+use App\Models\Rekrutmen\Company;
 use App\Models\User;
 use App\Services\LMS\CourseService;
 use App\Services\LMS\CourseUserService;
@@ -59,6 +60,8 @@ class LmsCourseDetailPage extends Component
 
     public bool $showAddParticipantForm = false;
     public array $selectedUserIds = [];
+
+    public $participantCompanyId = null;
     public string $participantSearch = '';
 
     /** id lms_course_users yang dicentang di ceklis tab Peserta, dasar aksi "Tandai Selesai
@@ -234,15 +237,26 @@ class LmsCourseDetailPage extends Component
     {
         $enrolledIds = $this->participants->pluck('user_id');
 
-        return User::where('company_id', $this->course->company_id)
+        return User::where('company_id', $this->participantCompanyId)
             ->whereNotIn('id', $enrolledIds)
             ->orderBy('name')
             ->pluck('name', 'id');
     }
 
+    public function getCompanyOptionsProperty()
+    {
+        return Company::orderBy('name')->pluck('name', 'id');
+    }
+
+    public function updatedParticipantCompanyId(): void
+    {
+        $this->selectedUserIds = [];
+    }
+
     public function openAddParticipantForm(): void
     {
         $this->selectedUserIds = [];
+        $this->participantCompanyId = $this->course->company_id;
         $this->showAddParticipantForm = true;
     }
 
