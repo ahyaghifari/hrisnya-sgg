@@ -72,6 +72,35 @@ class SpReportFlowTest extends TestCase
         app(DocumentSigningService::class)->sign($document, $user);
     }
 
+    public function test_employee_can_delegate_clarification_to_hc(): void
+    {
+        $report = $this->draft();
+        $this->service->requestClarification($report, $this->hc);
+
+        // HC belum boleh mengisi sebelum karyawan memilih.
+        try {
+            $this->service->fillClarificationByHc($report, $this->hc, 'x');
+            $this->fail('HC mengisi tanpa permintaan karyawan');
+        } catch (ValidationException) {
+        }
+
+        $this->service->delegateClarificationToHc($report, $this->employee);
+
+        // Setelah didelegasikan, karyawan tidak menulis sendiri.
+        try {
+            $this->service->submitClarification($report, $this->employee, 'x');
+            $this->fail('karyawan menulis setelah delegasi');
+        } catch (ValidationException) {
+        }
+
+        $this->service->fillClarificationByHc($report, $this->hc, 'macet di jalan');
+
+        $report->refresh();
+        $this->assertSame(SpReportStatus::KLARIFIKASI_DIAJUKAN, $report->status);
+        $this->assertSame('macet di jalan', $report->subject_clarification);
+        $this->assertTrue($report->klarifikasi_diisi_hc);
+    }
+
     public function test_full_flow_ends_selesai_and_locks_content(): void
     {
         $report = $this->untilWaitingSignature();

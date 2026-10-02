@@ -1,12 +1,13 @@
 @use('App\Enum\Sp\SpReportStatus', 'S')
 <div>
-<x-page-header title="Detail Berita Acara" :back="route('ba')" />
+<x-page-header title="Detail Berita Acara" :back="route('sp')" />
 
 @php
     $status = $record->status;
     $editable = $this->canManage;
     $steps = [S::DRAFT, S::MENUNGGU_KLARIFIKASI, S::KLARIFIKASI_DIAJUKAN, S::MENUNGGU_TTD, S::SELESAI];
     $currentIndex = array_search($status, $steps, true);
+    $lanjutSp = $record->keputusan === \App\Enum\Sp\SpReportDecision::LANJUT_SP;
 @endphp
 
 <div class="card-surface" style="margin-bottom:16px;">
@@ -16,6 +17,12 @@
                 {{ $i + 1 }}. {{ $step->getLabel() }}
             </span>
         @endforeach
+        {{-- Langkah 2 alur SP: tampil setelah BA diputuskan lanjut SP (form ada di bagian Keputusan). --}}
+        @if ($lanjutSp)
+            <span class="badge" style="{{ $record->sp_id ? 'background:#dcfce7;color:#15803d;' : 'background:var(--brand);color:#fff;' }}">
+                Langkah 2: Surat Peringatan
+            </span>
+        @endif
     </div>
     <p style="font-size:13px;margin:0;"><strong>{{ $record->user?->name }}</strong>
         <span style="color:var(--text-muted);">&middot; dibuat oleh {{ $record->createdBy?->name }} &middot; mengetahui {{ $record->knowsBy?->name }}</span></p>
@@ -66,10 +73,22 @@
             <div class="section-icon"><i class="fa-solid fa-comment-dots" style="color:var(--brand);font-size:12px;"></i></div>
             <span class="section-title">Klarifikasi Karyawan</span>
         </div>
-        @if ($status === S::MENUNGGU_KLARIFIKASI)
-            <p style="font-size:13px;color:var(--text-muted);margin:0;">Menunggu {{ $record->user?->name }} mengisi dan mengajukan klarifikasi.</p>
+        @if ($status === S::MENUNGGU_KLARIFIKASI && $record->klarifikasi_diisi_hc && $editable)
+            <p style="font-size:13px;color:var(--text-muted);margin:0 0 8px;">{{ $record->user?->name }} meminta HC yang mengisikan klarifikasinya. Tulis apa adanya sesuai keterangan karyawan.</p>
+            <textarea wire:model="klarifikasi_karyawan" rows="7" class="form-input"></textarea>
+            <div style="margin-top:12px;">
+                <button type="button" wire:click="fillClarification" wire:confirm="Simpan klarifikasi atas nama karyawan dan lanjut ke analisis?" class="btn-primary">
+                    <i class="fa-solid fa-floppy-disk"></i> Simpan Klarifikasi Karyawan
+                </button>
+            </div>
+        @elseif ($status === S::MENUNGGU_KLARIFIKASI)
+            <p style="font-size:13px;color:var(--text-muted);margin:0;">
+                {{ $record->klarifikasi_diisi_hc ? "{$record->user?->name} meminta HC yang mengisikan klarifikasi." : "Menunggu {$record->user?->name} mengisi dan mengajukan klarifikasi." }}
+            </p>
         @else
-            <p style="font-size:11.5px;color:var(--text-muted);margin:0 0 8px;">Diajukan {{ $record->klarifikasi_diajukan_at?->translatedFormat('d M Y H:i') }} &middot; ditampilkan apa adanya</p>
+            <p style="font-size:11.5px;color:var(--text-muted);margin:0 0 8px;">
+                {{ $record->klarifikasi_diisi_hc ? 'Diisikan HC atas permintaan karyawan' : 'Diajukan karyawan' }} {{ $record->klarifikasi_diajukan_at?->translatedFormat('d M Y H:i') }} &middot; ditampilkan apa adanya
+            </p>
             <div class="prose">{!! nl2br(e($record->subject_clarification)) !!}</div>
         @endif
 
@@ -148,13 +167,9 @@
         </div>
         @if ($record->keputusan)
             <p style="margin:0;font-weight:700;">{{ $record->keputusan->getLabel() }}</p>
-            @if ($record->keputusan === \App\Enum\Sp\SpReportDecision::LANJUT_SP)
+            @if ($lanjutSp && $record->sp_id)
                 <div style="margin-top:12px;">
-                    @if ($record->sp_id)
-                        <a href="{{ route('sp.show', $record->sp_id) }}" wire:navigate class="btn-secondary"><i class="fa-solid fa-triangle-exclamation"></i> Lihat SP</a>
-                    @elseif ($editable)
-                        <a href="{{ route('sp.create', ['report' => $record->id]) }}" wire:navigate class="btn-primary"><i class="fa-solid fa-triangle-exclamation"></i> Buat SP dari Berita Acara Ini</a>
-                    @endif
+                    <a href="{{ route('sp.show', $record->sp_id) }}" wire:navigate class="btn-secondary"><i class="fa-solid fa-triangle-exclamation"></i> Lihat SP</a>
                 </div>
             @endif
         @elseif ($editable)
@@ -167,5 +182,10 @@
             <p style="font-size:13px;color:var(--text-muted);margin:0;">Menunggu keputusan HC.</p>
         @endif
     </div>
+@endif
+
+{{-- 6. Langkah 2: form SP, tertanam (bukan halaman terpisah) --}}
+@if ($status === S::SELESAI && $lanjutSp && ! $record->sp_id && $editable)
+    <livewire:sp.create-sp-from-report-page :report-id="$record->id" :key="'sp-' . $record->id" />
 @endif
 </div>

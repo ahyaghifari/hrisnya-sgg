@@ -4,6 +4,7 @@ namespace Tests\Feature\Sp;
 
 use App\Enum\CustomPermissionEnum;
 use App\Enum\Sp\SpReportDecision;
+use App\Livewire\Sp\BeritaAcaraDetailPage;
 use App\Livewire\Sp\CreateSpFromReportPage;
 use App\Models\Master\Companies;
 use App\Models\Sp\EmployeeSp;
@@ -135,15 +136,14 @@ class SpFromReportTest extends TestCase
         $this->assertTrue($sp->fresh()->document->fresh()->isFullySigned());
     }
 
-    public function test_create_page_lists_only_eligible_reports_and_saves_draft(): void
+    public function test_create_step_saves_draft_and_is_embedded_in_ba_detail(): void
     {
         $eligible = $this->finishedReport();
-        $this->finishedReport(SpReportDecision::TIDAK_LAYAK_SP);
 
-        $page = Livewire::actingAs($this->hc)->test(CreateSpFromReportPage::class);
-        $this->assertCount(1, $page->get('reportOptions'));
+        Livewire::actingAs($this->hc)->test(BeritaAcaraDetailPage::class, ['record' => $eligible])
+            ->assertSeeLivewire(CreateSpFromReportPage::class);
 
-        $page->set('report_id', $eligible->id)
+        Livewire::actingAs($this->hc)->test(CreateSpFromReportPage::class, ['reportId' => $eligible->id])
             ->set('nomor', 'SP-FR-9')
             ->set('sp_level', 'sp2')
             ->set('knows_by', $this->knower->id)

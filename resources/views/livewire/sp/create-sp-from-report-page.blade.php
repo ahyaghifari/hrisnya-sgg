@@ -1,6 +1,4 @@
 <div>
-<x-page-header title="Buat Surat Peringatan" subtitle="Dari Berita Acara yang diputuskan lanjut SP" :back="route('sp')" />
-
 <style>
     .sp-level-group { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
     .sp-level-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 16px 12px; border-radius: 12px; border: 1.5px solid var(--border); background: var(--surface); color: var(--text-heading); font-family: inherit; font-size: 13.5px; font-weight: 700; text-align: center; cursor: pointer; transition: background 0.12s ease, border-color 0.12s ease; }
@@ -19,47 +17,21 @@
 <form wire:submit="save">
     <div class="form-card">
         <div class="section-head">
-            <div class="section-icon"><i class="fa-solid fa-file-lines" style="color:var(--brand);font-size:12px;"></i></div>
-            <span class="section-title">Berita Acara Dasar</span>
-        </div>
-        <div style="display:flex;flex-direction:column;gap:16px;">
-            <div>
-                <label class="form-label">Berita Acara <span style="color:var(--danger-text);">*</span></label>
-                <select wire:model.live="report_id" class="form-input">
-                    <option value="">Pilih Berita Acara (diputuskan lanjut SP)</option>
-                    @foreach ($this->reportOptions as $id => $label)
-                        <option value="{{ $id }}">{{ $label }}</option>
-                    @endforeach
-                </select>
-                @if ($this->reportOptions->isEmpty())
-                    <p style="font-size:11.5px;color:var(--text-muted);margin-top:4px;">Belum ada Berita Acara yang siap dijadikan SP. Selesaikan Berita Acara dan putuskan "Lanjut ke SP" lebih dulu.</p>
-                @endif
-                @error('report_id') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
-            </div>
-
-            @if ($this->report)
-                <p style="font-size:13px;margin:0;">Karyawan: <strong>{{ $this->report->user?->name }}</strong></p>
-
-                <div>
-                    <label class="form-label">Sumber dari Coaching (opsional)</label>
-                    <select wire:model="coaching_id" class="form-input">
-                        <option value="">Manual (tanpa Coaching)</option>
-                        @foreach ($this->coachingOptions as $id => $label)
-                            <option value="{{ $id }}">{{ $label }}</option>
-                        @endforeach
-                    </select>
-                    @error('coaching_id') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
-                </div>
-            @endif
-        </div>
-    </div>
-
-    <div class="form-card">
-        <div class="section-head">
             <div class="section-icon"><i class="fa-solid fa-triangle-exclamation" style="color:var(--brand);font-size:12px;"></i></div>
             <span class="section-title">Surat Peringatan</span>
         </div>
         <div style="display:flex;flex-direction:column;gap:16px;">
+            <div>
+                <label class="form-label">Sumber dari Coaching (opsional)</label>
+                <select wire:model="coaching_id" class="form-input">
+                    <option value="">Manual (tanpa Coaching)</option>
+                    @foreach ($this->coachingOptions as $id => $label)
+                        <option value="{{ $id }}">{{ $label }}</option>
+                    @endforeach
+                </select>
+                @error('coaching_id') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
+            </div>
+
             <div>
                 <label class="form-label">Nomor Surat <span style="color:var(--danger-text);">*</span></label>
                 <input type="text" wire:model="nomor" class="form-input" placeholder="mis. 001/SP/HC-GA/IX/2026">
@@ -127,8 +99,7 @@
         </div>
     </div>
 
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-top:20px;gap:12px;flex-wrap:wrap;">
-        <a href="{{ route('sp') }}" wire:navigate class="btn-ghost"><i class="fa-solid fa-arrow-left" style="font-size:12px;"></i> Kembali</a>
+    <div style="display:flex;justify-content:flex-end;margin-top:20px;">
         <button type="submit" class="btn-primary"><i class="fa-solid fa-floppy-disk" style="font-size:12px;"></i> Simpan Draft</button>
     </div>
 </form>

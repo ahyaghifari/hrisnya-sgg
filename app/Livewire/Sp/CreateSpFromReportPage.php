@@ -11,19 +11,17 @@ use App\Services\Sp\SpService;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
-use Livewire\Attributes\Layout;
 use Livewire\Component;
 
 /**
- * Form Buat SP dari Berita Acara (alur baru, instruksi user 2026-10-01): SP hanya dibuat dari BA
- * yang sudah selesai & diputuskan "Lanjut ke SP". Karyawan & company mengikuti BA; level SP
- * dipilih di sini. Tetap disimpan sebagai DRAFT - tanda tangan & penerbitan lewat SpDetailPage.
- * Menggantikan CreateSpPage lama (jalur langsung tanpa BA, sudah dihapus).
+ * Langkah 2 pembuatan SP (alur baru, instruksi user 2026-10-01/10-02): form SP tertanam di halaman
+ * detail Berita Acara (BeritaAcaraDetailPage), bukan halaman terpisah. Hanya untuk BA yang sudah
+ * selesai & diputuskan "Lanjut ke SP"; karyawan & company mengikuti BA, level SP dipilih di sini.
+ * Tetap disimpan sebagai DRAFT - tanda tangan & penerbitan lewat SpDetailPage.
  */
-#[Layout('components.layout', ['title' => 'Buat SP'])]
 class CreateSpFromReportPage extends Component
 {
-    public ?string $report_id = null;
+    public string $report_id;
     public ?string $nomor = null;
     public ?string $sp_level = null;
     public ?string $knows_by = null;
@@ -33,37 +31,21 @@ class CreateSpFromReportPage extends Component
     /** @var array<int, string> */
     public array $items = [''];
 
-    public function mount(): void
+    public function mount(string $reportId): void
     {
         $user = Auth::user();
 
         abort_unless($user->can(CustomPermissionEnum::SISTEM_PEMBINAAN_KARYAWAN->value), 403);
         abort_unless($user->can('Create:EmployeeSp'), 403);
 
+        $this->report_id = $reportId;
         $this->start_date = today()->toDateString();
-
-        if (($id = request()->query('report')) && $this->reportOptions->has($id)) {
-            $this->report_id = $id;
-            $this->updatedReportId();
-        }
+        $this->knows_by = $this->report->knows_by;
     }
 
-    /** id => nama karyawan, hanya BA yang memenuhi syarat di company HC. */
-    public function getReportOptionsProperty()
+    public function getReportProperty(): SpReport
     {
-        return app(SpReportService::class)->eligibleForSp(Auth::user()->company_id)->get()
-            ->mapWithKeys(fn (SpReport $r) => [$r->id => ($r->user?->name ?? '-') . ' — BA ' . ($r->nomor ?: $r->created_at->translatedFormat('d M Y'))]);
-    }
-
-    public function getReportProperty(): ?SpReport
-    {
-        return $this->report_id ? SpReport::with('user')->find($this->report_id) : null;
-    }
-
-    public function updatedReportId(): void
-    {
-        $this->knows_by = $this->report?->knows_by;
-        $this->coaching_id = null;
+        return SpReport::with('user')->findOrFail($this->report_id);
     }
 
     public function getKnowsByOptionsProperty()
@@ -73,10 +55,6 @@ class CreateSpFromReportPage extends Component
 
     public function getCoachingOptionsProperty()
     {
-        if (! $this->report) {
-            return collect();
-        }
-
         return Coaching::where('user_id', $this->report->user_id)->latest()->get()
             ->mapWithKeys(fn (Coaching $c) => [$c->id => "{$c->title} ({$c->created_at->translatedFormat('d M Y')})"]);
     }
@@ -88,7 +66,7 @@ class CreateSpFromReportPage extends Component
 
     public function getEndDatePreviewProperty(): ?string
     {
-        if (! $this->sp_level || ! $this->start_date || ! $this->report) {
+        if (! $this->sp_level || ! $this->start_date) {
             return null;
         }
 
@@ -109,7 +87,6 @@ class CreateSpFromReportPage extends Component
     protected function rules(): array
     {
         return [
-            'report_id' => ['required', 'string'],
             'nomor' => ['required', 'string', 'max:255'],
             'sp_level' => ['required', 'in:' . implode(',', array_column(SpLevel::cases(), 'value'))],
             'knows_by' => ['required', 'exists:users,id'],
@@ -124,9 +101,7 @@ class CreateSpFromReportPage extends Component
     {
         $data = $this->validate();
 
-        abort_unless($this->reportOptions->has($data['report_id']), 403);
-
-        $report = SpReport::findOrFail($data['report_id']);
+        $report = $this->report;
 
         abort_unless(\App\Models\User::where('company_id', $report->company_id)->whereKey($data['knows_by'])->exists(), 403);
 

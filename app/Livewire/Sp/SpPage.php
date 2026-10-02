@@ -4,7 +4,9 @@ namespace App\Livewire\Sp;
 
 use App\Enum\CustomPermissionEnum;
 use App\Models\Master\Companies;
+use App\Enum\Sp\SpReportDecision;
 use App\Models\Sp\EmployeeSp;
+use App\Models\Sp\SpReport;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Url;
@@ -79,6 +81,22 @@ class SpPage extends Component
             ->when($this->companyId, fn ($q) => $q->where('company_id', $this->companyId))
             ->when($search !== '', fn ($q) => $q->whereHas('user', fn ($q2) => $q2->where('name', 'like', "%{$search}%")))
             ->with(['user', 'items']);
+    }
+
+    /** BA alur baru yang belum jadi SP (BA diputuskan Tidak Layak SP sudah selesai prosesnya). */
+    public function getReportsProperty()
+    {
+        $search = trim($this->search);
+
+        return SpReport::query()
+            ->whereNotNull('status')
+            ->whereNull('sp_id')
+            ->where(fn ($q) => $q->whereNull('keputusan')->orWhere('keputusan', SpReportDecision::LANJUT_SP->value))
+            ->when($this->companyId, fn ($q) => $q->where('company_id', $this->companyId))
+            ->when($search !== '', fn ($q) => $q->whereHas('user', fn ($q2) => $q2->where('name', 'like', "%{$search}%")))
+            ->with('user')
+            ->latest()
+            ->get();
     }
 
     public function getSpsProperty()

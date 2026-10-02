@@ -28,15 +28,25 @@
         <span class="section-title">Klarifikasi Anda</span>
     </div>
     @if ($status === S::MENUNGGU_KLARIFIKASI)
-        <p style="font-size:12.5px;color:var(--text-muted);margin:0 0 8px;">Tulis klarifikasi Anda dengan bahasa Anda sendiri. HC akan merapikannya menjadi parafrase, dan Anda bisa memeriksanya sebelum menandatangani.</p>
-        <textarea wire:model="klarifikasi" rows="7" class="form-input"></textarea>
-        <div style="margin-top:12px;">
-            <button type="button" wire:click="submitClarification" wire:confirm="Ajukan klarifikasi ini ke HC?" class="btn-primary">
-                <i class="fa-solid fa-paper-plane"></i> Ajukan Klarifikasi
-            </button>
-        </div>
+        @if ($record->klarifikasi_diisi_hc)
+            <p style="font-size:13px;color:var(--text-muted);margin:0;">Anda memilih agar HC yang mengisikan klarifikasi. Menunggu HC mengisi.</p>
+        @else
+            <p style="font-size:12.5px;color:var(--text-muted);margin:0 0 8px;">Terangkan kejadian ini sejelas-jelasnya.</p>
+            <textarea wire:model="klarifikasi" rows="7" class="form-input"></textarea>
+            <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">
+                <button type="button" wire:click="submitClarification" wire:confirm="Ajukan klarifikasi ini ke HC?" class="btn-primary">
+                    <i class="fa-solid fa-paper-plane"></i> Ajukan Klarifikasi
+                </button>
+                <button type="button" wire:click="delegateToHc" wire:confirm="Minta HC yang mengisikan klarifikasi Anda? Setelah dipilih, Anda tidak bisa menulisnya sendiri." class="btn-secondary">
+                    Minta HC yang Mengisikan
+                </button>
+            </div>
+        @endif
     @else
         <div class="prose">{!! nl2br(e($record->subject_clarification)) !!}</div>
+        @if ($record->klarifikasi_diisi_hc)
+            <p style="font-size:11.5px;color:var(--text-muted);margin:6px 0 0;">Diisikan oleh HC atas permintaan Anda.</p>
+        @endif
         @if ($status === S::KLARIFIKASI_DIAJUKAN)
             <p style="font-size:12px;color:var(--text-muted);margin:10px 0 0;">Klarifikasi sudah diajukan, menunggu HC memproses.</p>
         @endif

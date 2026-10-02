@@ -1,5 +1,5 @@
 <div>
-<x-page-header title="Buat Berita Acara" subtitle="Awal proses klarifikasi karyawan" :back="route('ba')" />
+<x-page-header title="Buat Berita Acara" subtitle="Awal proses klarifikasi karyawan" :back="route('sp')" />
 
 <form wire:submit="save">
     <div class="form-card">
@@ -65,7 +65,7 @@
     </div>
 
     <div style="display:flex;align-items:center;justify-content:space-between;margin-top:20px;gap:12px;flex-wrap:wrap;">
-        <a href="{{ route('ba') }}" wire:navigate class="btn-ghost"><i class="fa-solid fa-arrow-left" style="font-size:12px;"></i> Kembali</a>
+        <a href="{{ route('sp') }}" wire:navigate class="btn-ghost"><i class="fa-solid fa-arrow-left" style="font-size:12px;"></i> Kembali</a>
         <button type="submit" class="btn-primary"><i class="fa-solid fa-floppy-disk" style="font-size:12px;"></i> Simpan Draft</button>
     </div>
 </form>

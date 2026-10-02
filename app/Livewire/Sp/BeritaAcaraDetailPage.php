@@ -26,6 +26,8 @@ class BeritaAcaraDetailPage extends Component
     public ?string $dasar_klarifikasi = null;
     public ?string $kejadian = null;
 
+    public string $klarifikasi_karyawan = '';
+
     public ?string $klarifikasi_parafrase = null;
     public ?string $analysis = null;
     public ?string $kesimpulan = null;
@@ -98,6 +100,11 @@ class BeritaAcaraDetailPage extends Component
     {
         $this->saveDraft();
         $this->run(fn ($s) => $s->requestClarification($this->record, Auth::user()), 'Klarifikasi diminta dari karyawan');
+    }
+
+    public function fillClarification(): void
+    {
+        $this->run(fn ($s) => $s->fillClarificationByHc($this->record, Auth::user(), $this->klarifikasi_karyawan), 'Klarifikasi karyawan disimpan');
     }
 
     public function saveAnalysis(): void

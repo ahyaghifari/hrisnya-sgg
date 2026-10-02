@@ -5,7 +5,6 @@ namespace Tests\Feature\Sp;
 use App\Enum\CustomPermissionEnum;
 use App\Enum\Sp\SpReportStatus;
 use App\Livewire\Sp\BeritaAcaraDetailPage;
-use App\Livewire\Sp\BeritaAcaraPage;
 use App\Livewire\Sp\CreateBeritaAcaraPage;
 use App\Models\Master\Companies;
 use App\Models\Sp\SpReport;
@@ -64,7 +63,6 @@ class SpReportPagesTest extends TestCase
 
     public function test_employee_without_permission_cannot_open_hc_pages(): void
     {
-        Livewire::actingAs($this->employee)->test(BeritaAcaraPage::class)->assertForbidden();
         Livewire::actingAs($this->employee)->test(CreateBeritaAcaraPage::class)->assertForbidden();
     }
 

@@ -3,7 +3,7 @@
 
 @if ($this->canCreate)
     <div style="display:flex;justify-content:flex-end;margin-bottom:16px;">
-        <a href="{{ route('sp.create') }}" wire:navigate class="btn-primary">
+        <a href="{{ route('ba.create') }}" wire:navigate class="btn-primary">
             <i class="fa-solid fa-plus"></i> Buat Surat Peringatan
         </a>
     </div>
@@ -39,6 +39,26 @@
         'sp3' => ['bg' => '#fee2e2', 'fg' => '#b91c1c'],
     ];
 @endphp
+
+{{-- Langkah 1 (Berita Acara) yang belum jadi SP - satu daftar dengan SP, tanpa menu terpisah. --}}
+@if ($this->reports->isNotEmpty())
+    <p style="font-size:12px;font-weight:700;color:var(--text-muted);margin:0 0 8px;">Dalam Proses (Berita Acara)</p>
+    <div class="pwa-list" style="margin-bottom:20px;">
+        @foreach ($this->reports as $report)
+            <a href="{{ route('ba.show', $report) }}" wire:navigate class="pwa-list-row" style="text-decoration:none;">
+                <div style="flex:1;min-width:0;">
+                    <p class="pwa-row-title">{{ $report->user?->name ?? '-' }}</p>
+                    <span style="font-size:11.5px;color:var(--text-muted);">
+                        Langkah {{ $report->keputusan ? '2 &middot; Buat SP' : '1 &middot; BA: ' . $report->status->getLabel() }}
+                        &middot; {{ $report->created_at->translatedFormat('d M Y') }}
+                    </span>
+                </div>
+                <i class="fa-solid fa-chevron-right"></i>
+            </a>
+        @endforeach
+    </div>
+    <p style="font-size:12px;font-weight:700;color:var(--text-muted);margin:0 0 8px;">Surat Peringatan</p>
+@endif
 
 <div class="pwa-list">
     @forelse ($sps as $sp)

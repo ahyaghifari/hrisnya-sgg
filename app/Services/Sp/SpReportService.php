@@ -75,6 +75,46 @@ class SpReportService
     {
         abort_unless($actor->id === $report->user_id, 403, 'Hanya karyawan yang bersangkutan yang dapat mengisi klarifikasi.');
         $this->assertStatus($report, SpReportStatus::MENUNGGU_KLARIFIKASI);
+
+        if ($report->klarifikasi_diisi_hc) {
+            throw ValidationException::withMessages(['status' => 'Anda sudah meminta HC yang mengisikan klarifikasi.']);
+        }
+
+        $this->storeClarification($report, $text);
+        $this->notifyCreator($report, 'Klarifikasi Karyawan Masuk', "{$report->user?->name} sudah mengajukan klarifikasi - silakan parafrase dan analisis.");
+
+        return $report;
+    }
+
+    /** Karyawan memilih klarifikasinya diisikan langsung oleh HC (bukan ditulis sendiri). */
+    public function delegateClarificationToHc(SpReport $report, User $actor): SpReport
+    {
+        abort_unless($actor->id === $report->user_id, 403, 'Hanya karyawan yang bersangkutan yang dapat memilih ini.');
+        $this->assertStatus($report, SpReportStatus::MENUNGGU_KLARIFIKASI);
+
+        $report->update(['klarifikasi_diisi_hc' => true]);
+        $this->notifyCreator($report, 'Klarifikasi Diminta Diisikan HC', "{$report->user?->name} meminta HC yang mengisikan klarifikasinya.");
+
+        return $report;
+    }
+
+    /** HC mengisi klarifikasi atas nama karyawan - hanya setelah karyawan memilih itu. */
+    public function fillClarificationByHc(SpReport $report, User $actor, string $text): SpReport
+    {
+        $this->assertManage($report, $actor);
+        $this->assertStatus($report, SpReportStatus::MENUNGGU_KLARIFIKASI);
+
+        if (! $report->klarifikasi_diisi_hc) {
+            throw ValidationException::withMessages(['status' => 'Karyawan belum meminta HC yang mengisikan klarifikasi.']);
+        }
+
+        $this->storeClarification($report, $text);
+
+        return $report;
+    }
+
+    private function storeClarification(SpReport $report, string $text): void
+    {
         $this->requireFilled($text, 'klarifikasi');
 
         $report->update([
@@ -82,10 +122,6 @@ class SpReportService
             'klarifikasi_diajukan_at' => now(),
             'status' => SpReportStatus::KLARIFIKASI_DIAJUKAN,
         ]);
-
-        $this->notifyCreator($report, 'Klarifikasi Karyawan Masuk', "{$report->user?->name} sudah mengajukan klarifikasi - silakan parafrase dan analisis.");
-
-        return $report;
     }
 
     /** HC menerima klarifikasi: tulis parafrase + analisis, kesimpulan, rencana tindak lanjut. */
@@ -144,6 +180,7 @@ class SpReportService
                 ],
             ],
             'klarifikasi_parafrase' => null,
+            'klarifikasi_diisi_hc' => false,
             'status' => SpReportStatus::MENUNGGU_KLARIFIKASI,
         ]);
 
@@ -238,17 +275,6 @@ class SpReportService
 
             return $sp;
         });
-    }
-
-    /** BA yang bisa dijadikan SP: selesai, diputuskan lanjut SP, belum punya SP. */
-    public function eligibleForSp(?string $companyId)
-    {
-        return SpReport::query()
-            ->where('status', SpReportStatus::SELESAI->value)
-            ->where('keputusan', SpReportDecision::LANJUT_SP->value)
-            ->whereNull('sp_id')
-            ->when($companyId, fn ($q) => $q->where('company_id', $companyId))
-            ->with('user');
     }
 
     private function notifyEmployee(SpReport $report, string $title, string $body): void

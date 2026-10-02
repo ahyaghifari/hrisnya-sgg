@@ -69,6 +69,11 @@ class BeritaAcaraSayaPage extends Component
         $this->run(fn ($s) => $s->submitClarification($this->record, Auth::user(), $this->klarifikasi), 'Klarifikasi diajukan');
     }
 
+    public function delegateToHc(): void
+    {
+        $this->run(fn ($s) => $s->delegateClarificationToHc($this->record, Auth::user()), 'HC akan mengisikan klarifikasi Anda');
+    }
+
     public function requestReclarification(): void
     {
         $this->run(function ($s) {

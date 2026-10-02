@@ -9,10 +9,8 @@ use App\Livewire\Counseling\CounselingManagePage;
 use App\Livewire\Counseling\CounselingPage;
 use App\Livewire\Pembinaan\PembinaanSettingsPage;
 use App\Livewire\Sp\BeritaAcaraDetailPage;
-use App\Livewire\Sp\BeritaAcaraPage;
 use App\Livewire\Sp\BeritaAcaraSayaPage;
 use App\Livewire\Sp\CreateBeritaAcaraPage;
-use App\Livewire\Sp\CreateSpFromReportPage;
 use App\Livewire\Sp\SpDetailPage;
 use App\Livewire\Sp\SpPage;
 use App\Livewire\Sp\SpRecommendationsPage;
@@ -93,9 +91,8 @@ Route::prefix('pembinaan')->group(function () {
         ->name('sp');
 
     // SP hanya dibuat dari Berita Acara yang selesai & diputuskan lanjut SP (instruksi user
-    // 2026-10-01); jalur langsung tanpa BA (CreateSpPage & pembuatan di panel admin) sudah ditutup.
-    Route::get('/sp/tambah', CreateSpFromReportPage::class)
-        ->name('sp.create');
+    // 2026-10-01); jalur langsung tanpa BA sudah ditutup. Form SP tertanam sebagai langkah 2 di
+    // halaman detail BA (ba.show), bukan halaman/menu terpisah (instruksi user 2026-10-02).
 
     Route::get('/sp/{record}', SpDetailPage::class)
         ->name('sp.show');
@@ -115,9 +112,6 @@ Route::prefix('pembinaan')->group(function () {
     })->name('sp.beritaacara_preview');
 
     // Berita Acara alur baru (instruksi user 2026-10-01) - proses klarifikasi sebelum SP.
-    Route::get('/berita-acara', BeritaAcaraPage::class)
-        ->name('ba');
-
     Route::get('/berita-acara/tambah', CreateBeritaAcaraPage::class)
         ->name('ba.create');
 

@@ -50,6 +50,7 @@ class SpReport extends Model implements Signable
         'subject_clarification',
         'klarifikasi_parafrase',
         'klarifikasi_diajukan_at',
+        'klarifikasi_diisi_hc',
         'riwayat_klarifikasi',
         'analysis',
         'kesimpulan',
@@ -60,6 +61,7 @@ class SpReport extends Model implements Signable
         'status' => SpReportStatus::class,
         'keputusan' => SpReportDecision::class,
         'klarifikasi_diajukan_at' => 'datetime',
+        'klarifikasi_diisi_hc' => 'boolean',
         'riwayat_klarifikasi' => 'array',
     ];
 
