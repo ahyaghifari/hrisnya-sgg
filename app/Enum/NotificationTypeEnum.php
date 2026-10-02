@@ -23,6 +23,7 @@ enum NotificationTypeEnum: string
     case TASK_REVIEW_DECIDED = 'task_review_decided';
     case TASK_REVIEWER_ASSIGNED = 'task_reviewer_assigned';
     case TASK_COMMENTED = 'task_commented';
+    case TASK_MENTIONED = 'task_mentioned';
     case TASK_PROJECT_MEMBER_ADDED = 'task_project_member_added';
     case TASK_REVIEW_REQUESTED = 'task_review_requested';
     case TASK_COMPLETED_BY_ASSIGNEE = 'task_completed_by_assignee';
@@ -101,6 +102,7 @@ enum NotificationTypeEnum: string
             self::TASK_REVIEW_DECIDED => 'Tugas Saya Direview',
             self::TASK_REVIEWER_ASSIGNED => 'Saya Diminta Jadi Reviewer',
             self::TASK_COMMENTED => 'Komentar Baru di Tugas Saya',
+            self::TASK_MENTIONED => 'Saya Disebut di Komentar Tugas',
             self::TASK_PROJECT_MEMBER_ADDED => 'Ditambahkan ke Project',
             self::TASK_REVIEW_REQUESTED => 'Pelaksana Mengajukan Review Tugas',
             self::TASK_COMPLETED_BY_ASSIGNEE => 'Pelaksana Menyelesaikan Tugas',
@@ -162,7 +164,8 @@ enum NotificationTypeEnum: string
             self::TASK_ASSIGNED => 'Dikirim saat orang lain menugaskan sebuah tugas ke Anda.',
             self::TASK_REVIEW_DECIDED => 'Dikirim saat tugas yang Anda kerjakan disetujui atau ditolak reviewer.',
             self::TASK_REVIEWER_ASSIGNED => 'Dikirim saat Anda ditunjuk sebagai reviewer sebuah tugas.',
-            self::TASK_COMMENTED => 'Dikirim saat ada komentar baru di tugas yang Anda kerjakan.',
+            self::TASK_COMMENTED => 'Dikirim saat ada komentar baru di tugas yang Anda kerjakan, atau balasan atas komentar Anda.',
+            self::TASK_MENTIONED => 'Dikirim saat seseorang menyebut Anda dengan @nama di komentar tugas.',
             self::TASK_PROJECT_MEMBER_ADDED => 'Dikirim saat Anda dimasukkan sebagai anggota sebuah project tugas.',
             self::TASK_REVIEW_REQUESTED => 'Dikirim ke pembuat tugas saat pelaksana mengajukan tugas untuk direview (kalau dicentang saat bikin tugas).',
             self::TASK_COMPLETED_BY_ASSIGNEE => 'Dikirim ke pembuat tugas saat pelaksana menandai tugas selesai tanpa review (kalau dicentang saat bikin tugas).',

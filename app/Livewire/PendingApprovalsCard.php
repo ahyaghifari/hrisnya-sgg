@@ -648,7 +648,7 @@ class PendingApprovalsCard extends Component
         if ($this->wants('task_review')) {
             $me = Auth::id();
 
-            $taskReviews = \App\Models\Task\Task::with(['assignedTo', 'list'])
+            $taskReviews = \App\Models\Task\Task::with(['assignedTo', 'assignees.user', 'list'])
                 ->where('status', \App\Enum\Task\TaskStatus::REVIEW->value)
                 ->where(function ($q) use ($me) {
                     $q->where('reviewer_id', $me)
@@ -671,7 +671,7 @@ class PendingApprovalsCard extends Component
                     'icon' => 'fa-clipboard-check',
                     'tile' => 'warn',
                     'keterangan' => \Illuminate\Support\Str::limit($task->requirement, 60),
-                    'user_name' => $task->assignedTo->name,
+                    'user_name' => $task->assigneeNames(),
                     'created_at' => $task->updated_at,
                     'url' => $task->project_id
                         ? route('tugas.papan.board', $task->project_id)

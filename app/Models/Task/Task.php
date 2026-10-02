@@ -67,6 +67,13 @@ class Task extends Model
         'is_overdue' => 'boolean',
     ];
 
+    protected static function booted(): void
+    {
+        // assigned_to = pelaksana utama - baris task_assignees-nya ikut dibuat supaya semua jalur
+        // pembuatan tugas (portal, approval, seeder) konsisten. Pelaksana tambahan ditambah lewat TaskService::addAssignee().
+        static::created(fn (Task $task) => $task->assigned_to && $task->assignees()->create(['user_id' => $task->assigned_to]));
+    }
+
     public function attachments(): HasMany
     {
         return $this->hasMany(TaskAttachment::class, 'task_id');
@@ -80,6 +87,33 @@ class Task extends Model
     public function assignedTo(): BelongsTo
     {
         return $this->belongsTo(User::class, 'assigned_to');
+    }
+
+    /** Semua pelaksana (Board bisa lebih dari 1) + rating masing-masing. assigned_to = pelaksana utama (baris pertama). */
+    public function assignees(): HasMany
+    {
+        return $this->hasMany(TaskAssignee::class, 'task_id')->orderBy('created_at')->orderBy('id');
+    }
+
+    public function isAssignee(?string $userId): bool
+    {
+        return $userId !== null
+            && ($this->assigned_to === $userId || $this->assignees->contains('user_id', $userId));
+    }
+
+    /** Tugas yang dikerjakan $userId, sebagai pelaksana utama maupun kedua. */
+    public function scopeAssignedToUser($query, string $userId)
+    {
+        return $query->where(fn ($q) => $q->where('assigned_to', $userId)
+            ->orWhereHas('assignees', fn ($a) => $a->where('user_id', $userId)));
+    }
+
+    /** Nama semua pelaksana, mis. "Budi & Sari". */
+    public function assigneeNames(): string
+    {
+        $names = $this->assignees->map(fn ($a) => $a->user?->name)->filter();
+
+        return $names->isNotEmpty() ? $names->join(' & ') : ($this->assignedTo?->name ?? '-');
     }
 
     public function createdBy(): BelongsTo
@@ -174,10 +208,10 @@ class Task extends Model
     }
 
     /**
-     * Apakah $userId WAJIB memberi rating bintang untuk tugas ini: tugas sudah Selesai, belum dinilai,
-     * bukan catatan pribadi (Todo Saya), dan dia penilainya (reviewer ?? pembuat tugas) - tapi bukan
-     * pelaksananya sendiri (menilai diri sendiri tidak ada artinya). Tugas tanpa reviewer dan tidak
-     * wajib review langsung selesai begitu Selesai - tanpa penilaian bintang.
+     * Apakah $userId WAJIB memberi rating bintang untuk tugas ini: tugas sudah Selesai, masih ada
+     * pelaksana yang belum dinilai, bukan catatan pribadi (Todo Saya), dan dia penilainya (reviewer ??
+     * pembuat tugas) - menilai diri sendiri tidak ada artinya, jadi pelaksana yang sama dengan penilai
+     * dilewati. Tugas tanpa reviewer dan tidak wajib review langsung selesai - tanpa penilaian bintang.
      */
     public function requiresRatingFrom(?string $userId): bool
     {
@@ -185,10 +219,9 @@ class Task extends Model
 
         return $userId !== null
             && $this->status === TaskStatus::COMPLETE->value
-            && ! $this->rating
             && ($this->reviewer_id !== null || $this->needs_review)
             && ! ($this->is_self_assigned && ! $this->project_id)
             && $raterId === $userId
-            && $raterId !== $this->assigned_to;
+            && $this->assignees->whereNull('rating')->where('user_id', '!=', $userId)->isNotEmpty();
     }
 }

@@ -13,6 +13,7 @@ use App\Models\Task\TaskProjectMember;
 use App\Models\User;
 use App\Notifications\TaskAssigned;
 use App\Notifications\TaskCommented;
+use App\Notifications\TaskMentioned;
 use App\Notifications\TaskCompletedByAssignee;
 use App\Notifications\TaskProjectMemberAdded;
 use App\Notifications\TaskReviewDecided;
@@ -23,6 +24,7 @@ use App\Services\OrgHierarchyService;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Notifications\Notification;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
@@ -127,6 +129,7 @@ class TaskService
                 $task->checklistItems()->create(['title' => $title, 'created_by' => $user->id]);
             }
 
+            // Pelaksana utama (assigned_to) otomatis dapat baris task_assignees dari Task::booted().
             if ($assignedTo !== $user->id) {
                 User::find($assignedTo)?->notify(new TaskAssigned($task, $user->name));
             }
@@ -397,7 +400,7 @@ class TaskService
                             );
                         } else {
                             abort_unless(
-                                $task->assigned_to === $actor->id || $isOwner,
+                                $task->isAssignee($actor->id) || $isOwner,
                                 403,
                                 'Cuma yang ditugaskan atau pembuat Board yang bisa memindahkan tugas ini.'
                             );
@@ -415,7 +418,7 @@ class TaskService
                             // Kabari yang berhak memutuskan (reviewer ?? pembuat) - kecuali dia sendiri yang memindahkan.
                             $deciderId = $task->reviewer_id ?? $task->created_by;
                             if ($deciderId !== $actor->id && ($task->needs_review || $task->notify_creator_on_review)) {
-                                User::find($deciderId)?->notify(new TaskReviewRequested($task, $task->assignedTo?->name ?? '-'));
+                                User::find($deciderId)?->notify(new TaskReviewRequested($task, $task->assigneeNames()));
                             }
                         } elseif ($list->is_final) {
                             abort_if(
@@ -433,9 +436,9 @@ class TaskService
                             }
 
                             if ($fromReview) {
-                                $task->assigned_to !== $actor->id && $task->assignedTo?->notify(new TaskReviewDecided($task, true, $actor->name));
-                            } elseif ($task->notify_creator_on_complete && $task->assigned_to !== $task->created_by && $task->created_by !== $actor->id) {
-                                $task->createdBy?->notify(new TaskCompletedByAssignee($task, $task->assignedTo?->name ?? '-'));
+                                $this->notifyAssignees($task, new TaskReviewDecided($task, true, $actor->name), $actor->id);
+                            } elseif ($task->notify_creator_on_complete && ! $task->is_self_assigned && $task->created_by !== $actor->id) {
+                                $task->createdBy?->notify(new TaskCompletedByAssignee($task, $task->assigneeNames()));
                             }
                         } elseif ($task->list?->is_final || $fromReview) {
                             $updateData['status'] = TaskStatus::IN_PROGRESS->value;
@@ -443,7 +446,7 @@ class TaskService
                             $updateData['is_overdue'] = false;
 
                             if ($fromReview) {
-                                $task->assigned_to !== $actor->id && $task->assignedTo?->notify(new TaskReviewDecided($task, false, $actor->name));
+                                $this->notifyAssignees($task, new TaskReviewDecided($task, false, $actor->name), $actor->id);
                             }
                         }
                     }
@@ -530,7 +533,7 @@ class TaskService
     public function getProjectHistoryTasks(TaskProject $project, int $perPage = 10)
     {
         return $project->tasks()
-            ->with(['assignedTo', 'createdBy'])
+            ->with(['assignedTo', 'assignees.user', 'createdBy'])
             ->where('status', TaskStatus::COMPLETE->value)
             ->where('completed_date', '<=', Carbon::now()->subDay())
             ->orderByDesc('completed_date')
@@ -545,7 +548,7 @@ class TaskService
                     ->orWhereNull('completed_date')
                     ->orWhere('completed_date', '>', Carbon::now()->subDay());
             })
-            ->with(['assignedTo.profile', 'createdBy', 'checklistItems', 'comments.user', 'list'])
+            ->with(['assignedTo.profile', 'assignees.user.profile', 'createdBy', 'checklistItems', 'comments.user', 'list'])
             ->withCount('attachments')
             ->orderBy('position')
             ->orderByDesc('created_at')
@@ -697,14 +700,14 @@ class TaskService
     private function applyMoveStatus(Task $task, string $newStatus, User $user): void
     {
         abort_unless(
-            $task->assigned_to === $user->id || $task->created_by === $user->id,
+            $task->isAssignee($user->id) || $task->created_by === $user->id,
             403
         );
 
         // Di TODO ("belum dikerjakan") cuma yang ditugaskan yang boleh mulai - creator ngga bisa
         // gesa-gesa mindahin status tugas orang lain sebelum pelaksananya sendiri yang mulai.
         abort_if(
-            $task->status === TaskStatus::TODO->value && $task->assigned_to !== $user->id,
+            $task->status === TaskStatus::TODO->value && ! $task->isAssignee($user->id),
             403,
             'Cuma yang ditugaskan yang bisa mengubah status tugas ini.'
         );
@@ -750,7 +753,7 @@ class TaskService
 
         if ($task->status === TaskStatus::REVIEW->value && $newStatus === TaskStatus::IN_PROGRESS->value) {
             $this->taskRepository->update($task->id, ['status' => $newStatus, 'is_overdue' => false]);
-            $task->assignedTo?->notify(new TaskReviewDecided($task, false, $user->name));
+            $this->notifyAssignees($task, new TaskReviewDecided($task, false, $user->name));
             return;
         }
 
@@ -780,16 +783,16 @@ class TaskService
         // Notifikasi opt-in ke creator (dicentang pas bikin tugas) - review diajukan, atau tugas
         // langsung diselesaikan pelaksana tanpa tahap review.
         if ($task->status === TaskStatus::IN_PROGRESS->value && $newStatus === TaskStatus::REVIEW->value && $task->notify_creator_on_review) {
-            $task->createdBy?->notify(new TaskReviewRequested($task, $task->assignedTo?->name ?? '-'));
+            $task->createdBy?->notify(new TaskReviewRequested($task, $task->assigneeNames()));
         }
         if ($task->status === TaskStatus::IN_PROGRESS->value && $newStatus === TaskStatus::COMPLETE->value && ! $task->is_self_assigned && $task->notify_creator_on_complete) {
-            $task->createdBy?->notify(new TaskCompletedByAssignee($task, $task->assignedTo?->name ?? '-'));
+            $task->createdBy?->notify(new TaskCompletedByAssignee($task, $task->assigneeNames()));
         }
 
         // Creator approve dari REVIEW -> COMPLETE - kabari pelaksana, selalu (bukan opt-in, beda
         // dari 2 notif di atas yang emang sengaja opsional buat creator).
         if ($task->status === TaskStatus::REVIEW->value && $newStatus === TaskStatus::COMPLETE->value) {
-            $task->assignedTo?->notify(new TaskReviewDecided($task, true, $user->name));
+            $this->notifyAssignees($task, new TaskReviewDecided($task, true, $user->name));
         }
 
         $this->taskRepository->update($task->id, $updateData);
@@ -866,7 +869,17 @@ class TaskService
             }
         }
 
-        return $task->assigned_to === $user->id || $task->created_by === $user->id;
+        return $task->isAssignee($user->id) || $task->created_by === $user->id;
+    }
+
+    /** Kabari semua pelaksana tugas (kecuali $exceptUserId, biasanya yang melakukan aksinya). */
+    private function notifyAssignees(Task $task, Notification $notification, ?string $exceptUserId = null): void
+    {
+        $users = $task->assignees->isNotEmpty()
+            ? $task->assignees->map(fn ($a) => $a->user)
+            : collect([$task->assignedTo]);
+
+        $users->filter(fn ($u) => $u && $u->id !== $exceptUserId)->each->notify($notification);
     }
 
     public function canModifyChecklistItem(TaskChecklistItem $item, User $user): bool
@@ -874,7 +887,6 @@ class TaskService
         $task = $item->task;
         $isBoardOwner = $task->project_id && $task->project && ! $task->project->isArchived() && $this->isProjectOwner($task->project, $user);
         $isCreator = $task->created_by === $user->id || $isBoardOwner;
-        $isAssignee = $task->assigned_to === $user->id;
 
         if (! $this->canContributeToTask($task, $user)) {
             return false;
@@ -904,22 +916,68 @@ class TaskService
         $item->delete();
     }
 
-    /** Rating bintang 1-5 dari creator ke pelaksana, opsional, cuma buat task yang udah COMPLETE. */
-    public function rateTask(Task $task, int $rating, User $user): void
+    /**
+     * Tambah pelaksana ke kartu Board yang sudah ada - owner Board atau Assigner, sama seperti
+     * aturan menugaskan. Pelaksana baru wajib anggota Board; kartu yang sudah Selesai dikunci.
+     */
+    public function addAssignee(Task $task, string $userId, User $actor): void
+    {
+        $project = $task->project;
+        abort_unless($project, 422, 'Pelaksana tambahan cuma untuk tugas di dalam Board.');
+        abort_if($project->isArchived(), 422, 'Board ini sudah diarsipkan.');
+        abort_unless($this->canAssignInProject($project, $actor), 403, 'Kamu tidak punya izin menugaskan ke anggota lain di project ini — cuma owner atau anggota yang ditandai "Assigner" yang boleh.');
+        abort_if($task->status === TaskStatus::COMPLETE->value, 422, 'Tugas yang sudah selesai tidak bisa diubah pelaksananya.');
+        abort_if($task->isAssignee($userId), 422, 'Orang itu sudah jadi pelaksana tugas ini.');
+
+        $assignee = User::findOrFail($userId);
+        abort_unless($this->canAccessProject($project, $assignee), 403, 'Orang itu bukan anggota project ini.');
+
+        DB::transaction(function () use ($task, $assignee, $actor) {
+            $task->assignees()->create(['user_id' => $assignee->id]);
+            // Tidak lagi catatan "untuk diri sendiri" begitu ada pelaksana lain.
+            $this->taskRepository->update($task->id, ['is_self_assigned' => false]);
+            $this->logActivity($task, $actor, 'assignee_added', 'Menambahkan pelaksana ' . $assignee->name);
+        });
+
+        if ($assignee->id !== $actor->id) {
+            $assignee->notify(new TaskAssigned($task, $actor->name));
+        }
+    }
+
+    /**
+     * Rating bintang 1-5 dari reviewer/creator ke pelaksana, cuma buat task yang udah COMPLETE.
+     * $assigneeUserId null = nilai SEMUA pelaksana yang belum dinilai sekaligus, diisi = nilai 1 orang.
+     * task_records.rating dijaga = rata-rata rating pelaksana (dibulatkan) buat pembaca lama.
+     */
+    public function rateTask(Task $task, int $rating, User $user, ?string $assigneeUserId = null): void
     {
         // reviewer_id (dipilih creator saat bikin task di Project) yang berhak rating kalau
         // diisi - fallback ke creator sendiri (task pribadi, atau project task tanpa reviewer
         // dipilih eksplisit).
         $allowedRaterId = $task->reviewer_id ?? $task->created_by;
         abort_unless($allowedRaterId === $user->id, 403, 'Kamu tidak berhak kasih rating untuk tugas ini.');
-        abort_if($task->assigned_to === $user->id, 422, 'Tidak bisa menilai tugas yang kamu kerjakan sendiri.');
         abort_unless($task->status === TaskStatus::COMPLETE->value, 422, 'Tugas belum selesai.');
         abort_unless($task->reviewer_id !== null || $task->needs_review, 422, 'Tugas ini tidak memakai penilaian (tanpa reviewer dan tidak wajib review).');
         abort_unless($rating >= 1 && $rating <= 5, 422, 'Rating harus 1-5.');
 
-        $this->taskRepository->update($task->id, ['rating' => $rating]);
+        // Menilai diri sendiri tidak ada artinya - pelaksana yang sama dengan penilai dilewati.
+        $targets = $task->assignees()
+            ->whereNull('rating')
+            ->where('user_id', '!=', $user->id)
+            ->when($assigneeUserId, fn ($q) => $q->where('user_id', $assigneeUserId))
+            ->with('user')
+            ->get();
+        abort_if($targets->isEmpty(), 422, 'Tidak ada pelaksana yang perlu/bisa kamu nilai.');
 
-        $this->logActivity($task, $user, 'rated', 'Memberi penilaian ' . $rating . '/5');
+        DB::transaction(function () use ($task, $targets, $rating, $user) {
+            $targets->each->update(['rating' => $rating, 'rated_by' => $user->id, 'rated_at' => Carbon::now()]);
+
+            $this->taskRepository->update($task->id, [
+                'rating' => (int) round($task->assignees()->whereNotNull('rating')->avg('rating')),
+            ]);
+        });
+
+        $this->logActivity($task, $user, 'rated', 'Memberi penilaian ' . $rating . '/5 untuk ' . $targets->map(fn ($a) => $a->user?->name)->filter()->join(' & '));
     }
 
     /** Task di dalam Project: semua anggota project boleh komentar (kolaboratif). Task pribadi:
@@ -930,22 +988,82 @@ class TaskService
             return $this->canAccessProject($task->project, $user);
         }
 
-        return in_array($user->id, [$task->assigned_to, $task->created_by], true);
+        return $task->isAssignee($user->id) || $task->created_by === $user->id;
     }
 
-    public function addComment(Task $task, User $user, string $comment): void
+    /** Siapa yang bisa di-mention (@) di komentar tugas: anggota Board, atau pelaksana + pembuat (tugas non-Board). */
+    public function mentionableUsers(Task $task): \Illuminate\Support\Collection
+    {
+        if ($task->project_id) {
+            return $task->project->members()->with('user.profile')->get()->pluck('user')->filter()->values();
+        }
+
+        return $task->assignees->map(fn ($a) => $a->user)->push($task->createdBy)->filter()->unique('id')->values();
+    }
+
+    /** Nama yang dipakai saat menyebut user di komentar: nama panggilan kalau ada, kalau tidak nama lengkap. */
+    public function mentionLabel(User $user): string
+    {
+        return filled($user->profile?->nickname) ? $user->profile->nickname : $user->name;
+    }
+
+    /** Semua teks "@..." yang sah buat 1 user: nama panggilan dan nama lengkap. */
+    public function mentionTerms(User $user): array
+    {
+        return array_values(array_unique(array_filter([$this->mentionLabel($user), $user->name])));
+    }
+
+    /** User yang disebut "@Nama"/"@Panggilan" di $text (selain $author). Teks terpanjang dicocokkan dulu supaya "@Budi Santoso" tidak ikut menandai "Budi". */
+    private function mentionedUsers(Task $task, string $text, User $author): \Illuminate\Support\Collection
+    {
+        $remaining = $text;
+        $found = collect();
+
+        $this->mentionableUsers($task)
+            ->flatMap(fn ($u) => collect($this->mentionTerms($u))->map(fn ($term) => [$term, $u]))
+            ->sortByDesc(fn ($pair) => mb_strlen($pair[0]))
+            ->each(function ($pair) use (&$remaining, $found) {
+                [$term, $user] = $pair;
+                if (stripos($remaining, '@' . $term) !== false) {
+                    $found->put($user->id, $user);
+                    $remaining = str_ireplace('@' . $term, '', $remaining);
+                }
+            });
+
+        return $found->reject(fn ($u) => $u->id === $author->id)->values();
+    }
+
+    /**
+     * Komentar baru. $parentId = balasan - cuma 1 tingkat: induknya harus komentar awal (bukan balasan)
+     * di tugas yang sama. "@Nama" menotifikasi orang yang disebut; pelaksana dan penulis komentar yang
+     * dibalas dikabari komentar baru (kecuali penulisnya sendiri atau yang sudah dapat notif mention).
+     */
+    public function addComment(Task $task, User $user, string $comment, ?string $parentId = null): void
     {
         abort_unless($this->canCommentOnTask($task, $user), 403, 'Kamu tidak bisa komentar di tugas ini.');
 
+        $parent = null;
+        if ($parentId) {
+            $parent = $task->comments()->find($parentId);
+            abort_unless($parent, 404, 'Komentar yang dibalas tidak ditemukan.');
+            abort_if($parent->parent_id !== null, 422, 'Balasan tidak bisa dibalas lagi.');
+        }
+
         $task->comments()->create([
             'user_id' => $user->id,
+            'parent_id' => $parent?->id,
             'comment' => $comment,
         ]);
 
-        // Komentar baru cuma dikabari ke pelaksana (bukan pembuat/anggota lain) - kecuali dia sendiri penulisnya.
-        if ($task->assigned_to && $task->assigned_to !== $user->id) {
-            User::find($task->assigned_to)?->notify(new TaskCommented($task, $user->name, $comment));
-        }
+        $mentioned = $this->mentionedUsers($task, $comment, $user);
+        $mentioned->each->notify(new TaskMentioned($task, $user->name, $comment));
+
+        $recipients = $task->assignees->isNotEmpty() ? $task->assignees->map(fn ($a) => $a->user) : collect([$task->assignedTo]);
+        $recipients->push($parent?->user)
+            ->filter()
+            ->unique('id')
+            ->reject(fn ($u) => $u->id === $user->id || $mentioned->contains('id', $u->id))
+            ->each->notify(new TaskCommented($task, $user->name, $comment));
     }
 
     public function addFileAttachment(Task $task, User $user, UploadedFile $file, ?string $description = null): void

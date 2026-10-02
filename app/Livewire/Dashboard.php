@@ -237,7 +237,7 @@ class Dashboard extends Component
         // Cuma tugas yang DITUGASKAN ke user ini (assignee) - bukan yang dia buat/tugaskan ke
         // orang lain. Widget "Tugas Saya" di dashboard itu daftar kerjaan sendiri, bukan daftar
         // penugasan yang dia kasih ke staff (itu ada di menu Tugas > Penugasan Individu).
-        return Task::where('assigned_to', Auth::id())
+        return Task::assignedToUser(Auth::id())
             // Task di dalam Project/Board dikecualikan - kartu ini cuma buat task personal
             // (Todo Saya/Tugas Saya), sama seperti TaskService::scopedTaskQuery(). Task board
             // eksklusif dilihat dari board-nya sendiri, termasuk otomatis tersaring kalau
@@ -259,7 +259,7 @@ class Dashboard extends Component
         return TaskProject::whereHas('members', fn ($q) => $q->where('user_id', Auth::id()))
             ->whereNull('archived_at')
             ->withCount(['tasks as unfinished_count' => fn ($q) => $q
-                ->where('assigned_to', Auth::id())
+                ->assignedToUser(Auth::id())
                 ->where('status', '!=', TaskStatus::COMPLETE->value)])
             ->get()
             ->filter(fn ($project) => $project->unfinished_count > 0)

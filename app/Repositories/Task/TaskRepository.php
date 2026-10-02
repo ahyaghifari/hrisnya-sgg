@@ -12,7 +12,7 @@ class TaskRepository
 {
     public function getCompletedTasksByUser(string $userId): Collection
     {
-        return Task::where('assigned_to', $userId)
+        return Task::assignedToUser($userId)
             ->whereNotNull('completed_date')
             ->orderBy('completed_date')
             ->get();
