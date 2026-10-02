@@ -691,25 +691,22 @@ class ScheduleShiftRosterTab extends Component
         // swap sepanjang masa) - dulu ambil SEMUA in_review/approved sejak jadwal ini ada, makin
         // lama makin berat kena tarik ulang tiap render (dikeluhkan user "berat" 2026-09-15).
         $swaps = ShiftSwapRequests::whereIn('status', ['in_review', 'approved'])
-            ->whereHas('reqSchedule.shiftType', fn ($q) => $q->where('schedule_id', $this->schedule->id))
             ->where(function ($q) use ($start, $end) {
-                $q->whereHas('reqSchedule', fn ($q2) => $q2->whereBetween('date', [$start, $end]))
-                    ->orWhereHas('targetSchedule', fn ($q2) => $q2->whereBetween('date', [$start, $end]));
+                $q->whereBetween('req_date', [$start, $end])->orWhereBetween('target_date', [$start, $end]);
             })
-            ->with(['reqSchedule:id,user_id,date', 'targetSchedule:id,user_id,date'])
-            ->get();
+            ->get(['requester_id', 'req_date', 'target_id', 'target_date']);
 
         $cells = [];
 
+        // ponytail: baca kolom requester/target + tanggal (bukan baris schedule) - setelah approved baris
+        // bisa pindah user / terhapus, dan shift tertukar silang: kedua pihak ditandai di kedua tanggal.
         foreach ($swaps as $s) {
-            foreach ([$s->reqSchedule, $s->targetSchedule] as $slot) {
-                if (! $slot) {
-                    continue;
-                }
-
-                $date = $slot->date->toDateString();
-                if ($date >= $start && $date <= $end) {
-                    $cells[$slot->user_id . '|' . $date] = true;
+            foreach (array_filter([$s->requester_id, $s->target_id]) as $uid) {
+                foreach (array_filter([$s->req_date, $s->target_date]) as $d) {
+                    $date = $d->toDateString();
+                    if ($date >= $start && $date <= $end) {
+                        $cells[$uid . '|' . $date] = true;
+                    }
                 }
             }
         }

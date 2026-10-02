@@ -143,15 +143,17 @@ class TeamShiftScheduleCard extends Component
 
         return ShiftSwapRequests::whereIn('status', ['in_review', 'approved'])
             ->where(function ($q) use ($memberIds) {
-                $q->where(fn ($qq) => $qq->whereIn('requester_id', $memberIds)->whereDate('req_date', $this->date))
-                    ->orWhere(fn ($qq) => $qq->whereIn('target_id', $memberIds)->whereDate('target_date', $this->date));
+                $q->where(fn ($qq) => $qq->where(fn ($u) => $u->whereIn('requester_id', $memberIds)->orWhereIn('target_id', $memberIds))
+                    ->where(fn ($d) => $d->whereDate('req_date', $this->date)->orWhereDate('target_date', $this->date)));
             })
             ->get(['requester_id', 'req_date', 'target_id', 'target_date'])
-            ->flatMap(fn ($s) => [
-                $s->req_date->toDateString() === $this->date ? $s->requester_id : null,
-                ($s->target_id && $s->target_date?->toDateString() === $this->date) ? $s->target_id : null,
-            ])
+            // ponytail: approved beda tanggal -> shift pindah silang (requester pegang target_date, target
+            // pegang req_date), jadi kedua pihak ditandai di kedua tanggal, bukan cuma tanggal asal.
+            ->flatMap(fn ($s) => (
+                $s->req_date->toDateString() === $this->date || $s->target_date?->toDateString() === $this->date
+            ) ? [$s->requester_id, $s->target_id] : [])
             ->filter()
+            ->intersect($memberIds)
             ->unique()
             ->values()
             ->all();
