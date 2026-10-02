@@ -186,6 +186,9 @@ class SpecialLeaveQuotaTest extends TestCase
         $this->form($type->value, $monthStart->copy()->addDays(1)->toDateString(), $monthStart->copy()->addDays(2)->toDateString())->call('submit');
         $this->assertSame(1, AttendanceRequests::where('user_id', $user->id)->count());
 
+        // Kuota cuma dihitung dari yang approved (2026-10-02) - setujui pengajuan 1 dulu.
+        AttendanceRequests::where('user_id', $user->id)->update(['status' => 'approved']);
+
         // Pengajuan 2: 1 hari lagi di bulan sama -> total 3 > 2, ditolak.
         $this->form($type->value, $monthStart->copy()->addDays(10)->toDateString())->call('submit');
         $this->assertSame(1, AttendanceRequests::where('user_id', $user->id)->count());

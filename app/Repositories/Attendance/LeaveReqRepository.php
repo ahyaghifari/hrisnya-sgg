@@ -21,8 +21,8 @@ class LeaveReqRepository
     /**
      * Kuota cuti dihitung LIVE (tabel `leave_user_balances` sudah dihapus 2026-08-29):
      * - `quota`  = LeaveTypeCategoryEnum::quotaDays() (tetap, sama untuk semua perusahaan)
-     * - `used`   = Σ total_days pengajuan `leave` user ini dalam periode berjalan yang BELUM
-     *   cancelled/rejected (in_review ikut mengurangi sejak diajukan, instruksi user 2026-10-01)
+     * - `used`   = Σ total_days pengajuan `leave` user ini dalam periode berjalan yang sudah
+     *   approved (in_review belum mengurangi, instruksi user 2026-10-02)
      * - periode:
      *   - Cuti Haid (usageWindow 'monthly')  = bulan kalender yg memuat $referenceDate
      *   - Cuti Tahunan & lainnya (termasuk Melahirkan/keguguran, 'per_request' cuma buat
@@ -62,7 +62,7 @@ class LeaveReqRepository
                 ->select('id')
                 ->where('user_id', $userId)
                 ->where('type', 'leave')
-                ->whereNotIn('status', ['cancelled', 'rejected']))
+                ->where('status', 'approved'))
             ->sum('total_days');
 
         // Cuti bersama cuma mengurangi kuota Cuti Tahunan, bukan tipe cuti lain (izin, dll).

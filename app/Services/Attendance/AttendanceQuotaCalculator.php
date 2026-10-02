@@ -19,8 +19,8 @@ use Carbon\Carbon;
  * dari AttendaceReqService (perilaku angka identik).
  *
  * TIDAK memblokir apa pun — enforcement tetap di AttendaceReqService::assertWithin*().
- * Konvensi "used": semua method di sini menghitung pengajuan yang BELUM cancelled/rejected
- * (in_review ikut mengurangi kuota sejak diajukan, instruksi user 2026-10-01).
+ * Konvensi "used": semua method di sini menghitung HANYA pengajuan approved
+ * (in_review belum mengurangi kuota, instruksi user 2026-10-02).
  */
 class AttendanceQuotaCalculator
 {
@@ -70,7 +70,7 @@ class AttendanceQuotaCalculator
                 ->select('id')
                 ->where('user_id', $user->id)
                 ->where('type', 'leave')
-                ->whereNotIn('status', ['cancelled', 'rejected']))
+                ->where('status', 'approved'))
             ->sum('total_days');
 
         return [
@@ -122,7 +122,7 @@ class AttendanceQuotaCalculator
                 ->select('id')
                 ->where('user_id', $user->id)
                 ->where('type', 'permission')
-                ->whereNotIn('status', ['cancelled', 'rejected']))
+                ->where('status', 'approved'))
             ->count();
 
         return [

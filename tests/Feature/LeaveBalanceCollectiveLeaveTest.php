@@ -77,7 +77,7 @@ class LeaveBalanceCollectiveLeaveTest extends TestCase
     }
 
     /** Saldo berkurang sejak diajukan: in_review & approved dihitung, cancelled & rejected tidak. */
-    public function test_pending_leave_reduces_balance_but_cancelled_and_rejected_do_not(): void
+    public function test_only_approved_leave_reduces_balance(): void
     {
         $company = $this->makeCompany('TST');
         $user = User::factory()->create(['company_id' => $company->id]);
@@ -97,7 +97,7 @@ class LeaveBalanceCollectiveLeaveTest extends TestCase
 
         $balance = (new LeaveReqRepository())->getLeaveUserBalance($user->id, $leaveType->value);
 
-        $this->assertSame(3, $balance['used']);
+        $this->assertSame(2, $balance['used']);
     }
 
     public function test_holiday_without_collective_leave_flag_does_not_reduce_balance(): void

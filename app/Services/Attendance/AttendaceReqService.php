@@ -357,8 +357,8 @@ class AttendaceReqService
      * untuk 1 leave type pada bulan yang mengandung $referenceDate — dipakai bareng oleh
      * assertWithinCutiTahunanMonthlyLimit (validasi submit, saat ini dimatikan sementara) DAN
      * info kuota pemohon di halaman approval (§8). Null kalau leave type ini bukan kategori
-     * Tahunan (aturan ini memang tidak berlaku). "used" menghitung semua status kecuali
-     * cancelled/rejected (konsisten dengan getLeaveUserBalance) — in_review sudah mengurangi.
+     * Tahunan (aturan ini memang tidak berlaku). "used" menghitung HANYA status approved
+     * (konsisten dengan getLeaveUserBalance) — in_review belum mengurangi.
      *
      * Sengaja TIDAK pakai AttendancePeriodResolver (itu punya periode Izin sendiri) — Cuti
      * Tahunan cuma bulan kalender biasa, independen dari setting periode Izin (dikonfirmasi
@@ -563,12 +563,11 @@ class AttendaceReqService
 
     /**
      * Validasi kuota cuti khusus sesuai LeaveTypeCategoryEnum::usageWindow():
-     * - 'monthly'     (HAID)              : Σ hari approved+in_review pada BULAN kalender tanggal
+     * - 'monthly'     (HAID)              : Σ hari approved pada BULAN kalender tanggal
      *   mulai + pengajuan baru tidak boleh > quota_days (mis. 2 hari/bulan).
      * - 'per_request' (MELAHIRKAN/KEGUGURAN): total_days 1 pengajuan tidak boleh > quota_days;
      *   tidak ada akumulasi (hak per kejadian).
-     * "used" ikut menghitung in_review supaya pengajuan ganda yang masih pending tidak bisa
-     * menembus kuota sebelum diputuskan.
+     * "used" HANYA approved (instruksi user 2026-10-02): pengajuan pending belum mengurangi kuota.
      */
     private function assertWithinSpecialLeaveQuota(User $actingUser, ?LeaveTypeCategoryEnum $leaveType, array $data, ?string $excludeRequestId = null): void
     {
@@ -615,7 +614,7 @@ class AttendaceReqService
                 ->select('id')
                 ->where('user_id', $actingUser->id)
                 ->where('type', 'leave')
-                ->whereIn('status', ['approved', 'in_review']))
+                ->where('status', 'approved'))
             ->sum('total_days');
 
         if ($used + $newDays > $quota) {
