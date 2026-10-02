@@ -73,7 +73,7 @@ class PayrollDashboardPage extends Component
             return null;
         }
 
-        return PayrollPeriod::where('company_id', $this->companyId)
+        return PayrollPeriod::acrossCompanies()->where('company_id', $this->companyId)
             ->orderByDesc('start_date')
             ->first();
     }
@@ -233,7 +233,7 @@ class PayrollDashboardPage extends Component
             return collect();
         }
 
-        return PayrollPeriod::where('company_id', $this->companyId)
+        return PayrollPeriod::acrossCompanies()->where('company_id', $this->companyId)
             ->withCount('payrolls')
             ->orderByDesc('start_date')
             ->limit(5)

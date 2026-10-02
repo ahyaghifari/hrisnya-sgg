@@ -63,7 +63,7 @@ class PayrollPeriodsPage extends Component
 
     public function getPeriodsProperty()
     {
-        return PayrollPeriod::query()
+        return PayrollPeriod::acrossCompanies()
             ->when($this->companyId, fn ($q) => $q->where('company_id', $this->companyId))
             ->with('company')
             ->orderByDesc('start_date')

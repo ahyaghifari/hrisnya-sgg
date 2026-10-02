@@ -95,7 +95,7 @@ class OmsetPage extends Component
             return collect();
         }
 
-        return PayrollPeriod::query()
+        return PayrollPeriod::acrossCompanies()
             ->where('company_id', $this->companyId)
             ->orderByDesc('start_date')
             ->get();

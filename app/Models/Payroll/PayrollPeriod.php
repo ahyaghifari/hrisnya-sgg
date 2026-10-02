@@ -2,7 +2,9 @@
 
 namespace App\Models\Payroll;
 
+use App\Enum\CustomPermissionEnum;
 use App\Models\Concerns\BelongsToCompany;
+use Illuminate\Support\Facades\Auth;
 use App\Models\Master\Companies;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
@@ -33,6 +35,16 @@ class PayrollPeriod extends Model
         'payment_date' => 'date',
         'processed_at' => 'datetime',
     ];
+
+    /** Lepas scope company kalau user boleh lihat company lain di sistem Keuangan (dipakai dropdown periode). */
+    public function scopeAcrossCompanies($query)
+    {
+        $user = Auth::user();
+
+        return $user && $user->canFilterByCompanyForSystem(CustomPermissionEnum::SISTEM_KEUANGAN)
+            ? $query->withoutGlobalScope('company')
+            : $query;
+    }
 
     public function company(): BelongsTo
     {

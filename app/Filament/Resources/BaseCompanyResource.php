@@ -21,7 +21,8 @@ abstract class BaseCompanyResource extends BaseResource
         $query = parent::getEloquentQuery();
 
         if (static::canBrowseAllCompanies()) {
-            return $query;
+            // global scope 'company' (BelongsToCompany) masih membatasi non-Super Admin; lepas supaya lintas company benar-benar tampil
+            return $query->withoutGlobalScope('company');
         }
 
         return $query->where('company_id', static::companyId());

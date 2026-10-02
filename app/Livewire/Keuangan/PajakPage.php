@@ -54,7 +54,7 @@ class PajakPage extends Component
             return collect();
         }
 
-        return PayrollPeriod::where('company_id', $this->companyId)->orderByDesc('start_date')->get();
+        return PayrollPeriod::acrossCompanies()->where('company_id', $this->companyId)->orderByDesc('start_date')->get();
     }
 
     public function getPayrollsProperty()
