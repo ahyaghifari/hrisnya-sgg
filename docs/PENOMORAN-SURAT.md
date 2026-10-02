@@ -121,7 +121,7 @@ CREATE TABLE nomor_surat_counter (
 
 **Key point (sistem lama): counter di-scope per `(id_perusahaan, tahun)` saja — TIDAK per unit atau per jenis surat.** Artinya semua jenis surat dan semua unit di satu perusahaan pada tahun yang sama berbagi satu urutan nomor global.
 
-> **Keputusan untuk sistem baru:** counter di-scope per `(id_perusahaan, tahun, id_jenis_surat)` — unit **tidak** ikut jadi bagian scope, cuma perusahaan + jenis surat. Tiap jenis surat punya urutan nomor sendiri per perusahaan per tahun, unit manapun berbagi urutan yang sama. Ini perubahan skema dari sistem lama (bukan migrasi 1:1): primary key tabel counter jadi `(id_perusahaan, tahun, id_jenis_surat)`, dan row lock (`SELECT ... FOR UPDATE`) tetap wajib dipertahankan per kombinasi key ini saat generate nomor.
+> **Keputusan untuk sistem baru:** counter tetap di-scope per `(id_perusahaan, tahun)` saja — sama seperti sistem lama. Unit dan jenis surat **tidak** ikut jadi bagian scope; semua jenis surat & unit di satu perusahaan pada tahun yang sama tetap berbagi satu urutan nomor global. Bulan juga sengaja tidak dijadikan bagian scope (dibahas & ditolak — nomor kontinu per tahun lebih gampang diaudit ketimbang reset per bulan). Row lock (`SELECT ... FOR UPDATE`) tetap wajib dipertahankan saat generate nomor.
 
 ### 3.1 Alur pembuatan nomor (single) — [proses_input_surat.php](../persuratan/proses_input_surat.php)
 
@@ -193,7 +193,7 @@ Yang perlu dibawa/diperbaiki saat migrasi:
 
 1. **Data referensi** yang harus dipindah: `perusahaan` + `kode_surat_perusahaan`, `unit` + `kode_surat_unit`, `jenis_surat`. Lengkapi dulu yang masih kosong (3 perusahaan & sebagian besar unit belum punya kode).
 2. **Constraint keunikan** kode yang belum ada di sistem lama — sebaiknya ditambahkan di sistem baru (unique per `id_perusahaan`, unique per `id_unit`, unique per `kode_surat` jenis).
-3. **Scope counter**: sistem lama per perusahaan+tahun (global lintas unit & jenis surat) — **diputuskan diganti** jadi per `(perusahaan, tahun, jenis_surat)` di sistem baru (unit tidak ikut scope), lihat bagian 3. Konsekuensi: nomor urut existing (hasil migrasi) tidak bisa dipetakan 1:1 ke skema baru — perlu strategi migrasi data (mis. nomor lama tetap ditampilkan apa adanya sebagai arsip, counter baru mulai dari 0 per kombinasi key baru).
+3. **Scope counter**: **dipertahankan sama seperti sistem lama** — per `(perusahaan, tahun)`, global lintas unit & jenis surat. Sempat dipertimbangkan dipecah per jenis surat dan/atau per bulan, tapi diputuskan tetap 1 urutan global per perusahaan per tahun (lihat bagian 3) — migrasi data counter jadi 1:1, gak perlu strategi pemetaan ulang.
 4. **Row lock (`SELECT ... FOR UPDATE`) dalam transaksi** wajib dipertahankan di sistem baru manapun — ini yang bikin penomoran lama tidak dobel walau diakses bersamaan.
 5. **Surat masuk tidak ikut format otomatis** — kalau sistem baru mau seragamkan, ini perubahan behavior, bukan migrasi murni.
 6. **Endpoint SiPOS (`get_next_po.php`) perlu ditulis ulang**, bukan dipindah langsung: tambahkan row lock + pindahkan token rahasia ke config/env, bukan hardcoded di source.
