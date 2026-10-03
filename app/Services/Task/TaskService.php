@@ -657,6 +657,19 @@ class TaskService
         ]);
     }
 
+    /** Ubah tenggat langsung dari modal detail - izin sama dengan edit tugas. Tenggat dikosongkan = pengulangan ikut mati. */
+    public function setDueDate(Task $task, ?string $dueDate, User $user): void
+    {
+        $isOwner = $task->is_self_assigned ? $task->assigned_to === $user->id : $task->created_by === $user->id;
+        abort_unless($isOwner, 403);
+        abort_if($task->status === TaskStatus::COMPLETE->value, 422, 'Tugas yang sudah selesai tidak bisa diedit.');
+
+        $this->taskRepository->update($task->id, [
+            'due_date' => $dueDate,
+            'recurrence' => $dueDate ? $task->recurrence : null,
+        ]);
+    }
+
     /** Ubah pengulangan langsung dari modal detail - izin sama dengan edit tugas, cuma untuk tugas Board bertenggat. */
     public function setRecurrence(Task $task, ?string $recurrence, User $user): void
     {

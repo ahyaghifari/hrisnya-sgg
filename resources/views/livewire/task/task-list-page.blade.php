@@ -1096,7 +1096,11 @@
                     <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:18px;font-size:13px;">
                         <span class="badge {{ $badgeClass(TaskStatus::tryFrom($task->status)?->getColor() ?? 'gray') }}">{{ TaskStatus::tryFrom($task->status)?->getLabel() ?? $task->status }}</span>
                         <span class="task-card-priority" style="--accent:{{ $priorityAccent($task->priority?->getColor() ?? 'gray') }};font-size:13px;"><span class="dot"></span> {{ $task->priority?->getLabel() ?? $task->priority }}</span>
-                        @if ($task->due_date)<span style="color:var(--text-muted);display:inline-flex;align-items:center;gap:5px;"><i class="fa-regular fa-calendar" style="font-size:11px;"></i> {{ $fmtDate($task->due_date, 'j M Y, H:i') }}</span>@endif
+                        @if ($canEdit)
+                            <input type="datetime-local" class="form-input" style="width:auto;padding:3px 8px;font-size:12px;" title="Tenggat" value="{{ $task->due_date ? \Carbon\Carbon::parse($task->due_date)->format('Y-m-d\TH:i') : '' }}" wire:change="setTaskDueDate('{{ $task->id }}', $event.target.value)">
+                        @elseif ($task->due_date)
+                            <span style="color:var(--text-muted);display:inline-flex;align-items:center;gap:5px;"><i class="fa-regular fa-calendar" style="font-size:11px;"></i> {{ $fmtDate($task->due_date, 'j M Y, H:i') }}</span>
+                        @endif
                         @if ($canEdit && $task->project_id && $task->due_date)
                             <label title="Ulangi: {{ $task->recurrence ? \App\Models\Task\Task::RECURRENCES[$task->recurrence] : 'Tidak berulang' }}" style="position:relative;display:inline-flex;align-items:center;justify-content:center;gap:5px;min-width:28px;height:28px;padding:0 8px;border:1px solid {{ $task->recurrence ? 'var(--primary,#2563eb)' : 'var(--border-color,#d1d5db)' }};border-radius:8px;cursor:pointer;font-size:12px;color:{{ $task->recurrence ? 'var(--primary,#2563eb)' : 'var(--text-muted)' }};">
                                 <i class="fa-solid fa-rotate"></i>@if ($task->recurrence)<span>{{ \App\Models\Task\Task::RECURRENCES[$task->recurrence] }}</span>@endif
