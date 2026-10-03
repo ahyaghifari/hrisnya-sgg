@@ -63,6 +63,15 @@ enum JenisSurat: string
         };
     }
 
+    /** Warna label jenis: hue unik per case (urutan enum), pastel untuk latar + gelap untuk teks. Urutan case jangan diacak
+     * kalau warna sudah dipakai orang — hue ikut bergeser. */
+    public function warna(): array
+    {
+        $hue = (int) round(array_search($this, self::cases(), true) * 360 / count(self::cases()));
+
+        return ['bg' => "hsl({$hue} 70% 90%)", 'text' => "hsl({$hue} 60% 26%)"];
+    }
+
     /** Semua jenis surat keluar - belum ada jenis yang masuk kategori 'masuk' (lihat
      * docs/PENOMORAN-SURAT.md §4, surat masuk gak dikategorikan lewat jenis surat). Tambah
      * case di match ini kalau nanti ada jenis yang perlu tipe 'masuk'. */
