@@ -40,15 +40,15 @@
 
         <div style="font-weight:bold;margin-bottom:2px;">Karyawan Mitra (3 Bulan)</div>
         <ul>
-            @foreach ($compensation_rows as $row)
-                <li>{{ $row['label'] }}{{ filled($row['orientasi']) ? ' : ' . $row['orientasi'] : '' }}</li>
+            @foreach ($mitra_items as $item)
+                <li>{{ $item['label'] }}{{ filled($item['amount']) ? ' : ' . $item['amount'] : '' }}</li>
             @endforeach
         </ul>
 
         <div style="font-weight:bold;margin-bottom:2px;">Karyawan Kontrak (1 Tahun)</div>
         <ul>
-            @foreach ($compensation_rows as $row)
-                <li>{{ $row['label'] }}{{ filled($row['kontrak']) ? ' : ' . $row['kontrak'] : '' }}</li>
+            @foreach ($kontrak_items as $item)
+                <li>{{ $item['label'] }}{{ filled($item['amount']) ? ' : ' . $item['amount'] : '' }}</li>
             @endforeach
         </ul>
 
