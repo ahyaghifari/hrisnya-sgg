@@ -12,6 +12,8 @@ use App\Models\User;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\HtmlString;
 
 /**
  * Berita Acara. Dua generasi:
@@ -32,7 +34,7 @@ class SpReport extends Model implements Signable
 
     /** Isi dokumen - dikunci begitu BA selesai (lihat booted()). */
     private const CONTENT_FIELDS = [
-        'nomor', 'kejadian', 'dasar_klarifikasi', 'subject_clarification',
+        'nomor', 'kejadian', 'subject_clarification',
         'klarifikasi_parafrase', 'analysis', 'kesimpulan', 'followup_plan',
     ];
 
@@ -46,7 +48,6 @@ class SpReport extends Model implements Signable
         'keputusan',
         'nomor',
         'kejadian',
-        'dasar_klarifikasi',
         'subject_clarification',
         'klarifikasi_parafrase',
         'klarifikasi_diajukan_at',
@@ -67,18 +68,70 @@ class SpReport extends Model implements Signable
 
     protected static function booted(): void
     {
-        // BA yang sudah SELESAI (3 pihak sudah TTD) tidak boleh berubah isinya - hash TTD-nya
-        // dihitung dari isi ini. keputusan/sp_id bukan bagian isi, tetap boleh diisi setelahnya.
+        // BA yang sudah SELESAI atau sudah ADA yang menandatangani (BA lama ikut TTD SP-nya) tidak
+        // boleh berubah isinya - hash TTD-nya dihitung dari isi ini. keputusan/sp_id bukan bagian
+        // isi, tetap boleh diisi setelahnya.
         static::updating(function (SpReport $report) {
-            if ($report->getOriginal('status') === SpReportStatus::SELESAI && $report->isDirty(self::CONTENT_FIELDS)) {
-                throw new \LogicException('Berita Acara sudah selesai ditandatangani, isinya tidak bisa diubah.');
+            if ($report->isDirty(self::CONTENT_FIELDS) && ($report->getOriginal('status') === SpReportStatus::SELESAI || $report->hasSignatures())) {
+                throw new \LogicException('Berita Acara sudah ditandatangani, isinya tidak bisa diubah.');
             }
         });
+    }
+
+    private function hasSignatures(): bool
+    {
+        return $this->exists && $this->document()->whereHas('signatures')->exists();
     }
 
     public function sp(): BelongsTo
     {
         return $this->belongsTo(EmployeeSp::class, 'sp_id');
+    }
+
+    public function dasarItems(): HasMany
+    {
+        return $this->hasMany(SpReportDasarItem::class, 'sp_report_id')->orderBy('sort_order');
+    }
+
+    /** Teks mentah semua item (dipakai hash TTD & cek terisi). BA lama = 1 item berisi teks lamanya, jadi hash tetap sama. */
+    public function getDasarKlarifikasiAttribute(): string
+    {
+        return $this->dasarItems->pluck('text')->implode("\n");
+    }
+
+    /** HTML tampilan: 1 item apa adanya, lebih dari 1 dinomori otomatis lewat <ol>. */
+    public function dasarKlarifikasiHtml(): HtmlString
+    {
+        $items = $this->dasarItems;
+
+        return new HtmlString($items->count() > 1
+            ? '<ol class="dasar-items">' . $items->map(fn ($i) => "<li>{$i->text}</li>")->implode('') . '</ol>'
+            : (string) $items->first()?->text);
+    }
+
+    /** Klarifikasi karyawan: diisikan HC = HTML Trix apa adanya, tulisan karyawan sendiri = teks polos (di-escape). */
+    public function subjectClarificationHtml(?string $text = null, ?bool $byHc = null): HtmlString
+    {
+        $text ??= $this->subject_clarification;
+
+        return new HtmlString(($byHc ?? $this->klarifikasi_diisi_hc) ? (string) $text : nl2br(e($text)));
+    }
+
+    /** @param  array<int, string>  $texts */
+    public function syncDasarItems(array $texts): void
+    {
+        // Dasar Klarifikasi ikut di-hash TTD, jadi sama terkunci dengan kolom isi lainnya.
+        if ($this->status === SpReportStatus::SELESAI || $this->hasSignatures()) {
+            throw new \LogicException('Berita Acara sudah ditandatangani, isinya tidak bisa diubah.');
+        }
+
+        $this->dasarItems()->delete();
+
+        foreach (array_values(array_filter(array_map('trim', $texts), 'filled')) as $index => $text) {
+            $this->dasarItems()->create(['text' => $text, 'sort_order' => $index]);
+        }
+
+        $this->unsetRelation('dasarItems');
     }
 
     public function user(): BelongsTo
@@ -170,17 +223,17 @@ class SpReport extends Model implements Signable
         }
 
         return [
-            'employee' => 'Karyawan yang Bersangkutan',
             'created_by' => 'Dibuat oleh',
+            'employee' => 'Karyawan yang Bersangkutan',
             'knows_by' => 'Mengetahui',
         ];
     }
 
     /**
      * BA lama: dipinjam dari SP induk. BA baru: hanya terisi saat status MENUNGGU_TTD, dan
-     * KARYAWAN menandatangani lebih dulu (= menerima isi BA, termasuk parafrase) - pembuat &
-     * yang mengetahui baru ditugaskan setelahnya. Urutan ini supaya karyawan yang keberatan
-     * (mengajukan ulang klarifikasi) tidak membatalkan tanda tangan yang sudah terlanjur ada.
+     * PEMBUAT (HC) menandatangani lebih dulu (instruksi user 2026-10-02: Parafrase & Analisis
+     * HC sudah merupakan Berita Acara-nya) - karyawan dan yang mengetahui ditugaskan setelahnya.
+     * Pengajuan ulang klarifikasi oleh karyawan hanya mungkin selama belum ada tanda tangan.
      */
     public function assignedSigners(): array
     {
@@ -195,12 +248,12 @@ class SpReport extends Model implements Signable
             return ['employee' => null, 'created_by' => null, 'knows_by' => null];
         }
 
-        $employeeSigned = $this->document?->signatures()->where('signer_role', 'employee')->exists() ?? false;
+        $creatorSigned = $this->document?->signatures()->where('signer_role', 'created_by')->exists() ?? false;
 
         return [
-            'employee' => $this->user,
-            'created_by' => $employeeSigned ? $this->createdBy : null,
-            'knows_by' => $employeeSigned ? $this->knowsBy : null,
+            'created_by' => $this->createdBy,
+            'employee' => $creatorSigned ? $this->user : null,
+            'knows_by' => $creatorSigned ? $this->knowsBy : null,
         ];
     }
 }

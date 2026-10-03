@@ -90,6 +90,31 @@ return [
             ]) : [],
         ],
 
+        /*
+         * Koneksi DB `persuratan` — penomoran & arsip surat, terpisah dari DB HRIS. Model di
+         * App\Models\Persuratan\* set `protected $connection = 'persuratan'`; migrasi pakai
+         * Schema::connection('persuratan'). Isi DB_PERSURATAN_* di .env.
+         */
+        'persuratan' => [
+            'driver' => 'mysql',
+            'url' => env('DB_PERSURATAN_URL'),
+            'host' => env('DB_PERSURATAN_HOST', '127.0.0.1'),
+            'port' => env('DB_PERSURATAN_PORT', '3306'),
+            'database' => env('DB_PERSURATAN_DATABASE'),
+            'username' => env('DB_PERSURATAN_USERNAME'),
+            'password' => env('DB_PERSURATAN_PASSWORD', ''),
+            'unix_socket' => env('DB_PERSURATAN_SOCKET', ''),
+            'charset' => env('DB_PERSURATAN_CHARSET', 'utf8mb4'),
+            'collation' => env('DB_PERSURATAN_COLLATION', 'utf8mb4_unicode_ci'),
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'strict' => true,
+            'engine' => null,
+            'options' => extension_loaded('pdo_mysql') ? array_filter([
+                PDO::MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
+            ]) : [],
+        ],
+
         'mariadb' => [
             'driver' => 'mariadb',
             'url' => env('DB_URL'),

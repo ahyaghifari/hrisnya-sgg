@@ -124,9 +124,47 @@ class SpPdfService
     {
         $sp = $this->loadForBeritaAcaraPdf($sp);
         $verification = $sp->report ? $this->verificationBySignerRole($sp->report) : ['created_by' => null, 'knows_by' => null];
-        $pdf = Pdf::loadView('pdf.sp.berita-acara', ['sp' => $sp, 'verification' => $verification]);
+
+        // Kolom kiri tanda tangan = pembuat SP (pemilik QR-nya), bukan Coach/atasan (instruksi user 2026-10-03).
+        $pdf = Pdf::loadView('pdf.sp.berita-acara', [
+            'report' => $sp->report,
+            'user' => $sp->user,
+            'company' => $sp->company,
+            'date' => $sp->start_date,
+            'coach' => $sp->createdBy,
+            'knowsBy' => $sp->knowsBy,
+            'verification' => $verification,
+        ]);
 
         return $pdf->stream($this->filename($sp));
+    }
+
+    /** PDF Berita Acara mandiri (alur baru) - hanya setelah SELESAI (3 pihak sudah TTD). */
+    public function previewReport(SpReport $report)
+    {
+        $report->loadMissing([
+            'company',
+            'dasarItems',
+            'document.signatures.verification',
+            'user.profile',
+            'user.activeJobPosition.jobPosition.orgStructure.parent',
+            'createdBy.activeJobPosition.jobPosition',
+            'knowsBy.activeJobPosition.jobPosition',
+        ]);
+
+        $pdf = Pdf::loadView('pdf.sp.berita-acara', [
+            'report' => $report,
+            'user' => $report->user,
+            'company' => $report->company,
+            'date' => $report->document?->signatures->max('signed_at') ?? now(),
+            'coach' => $report->createdBy,
+            'knowsBy' => $report->knowsBy,
+            'verification' => $this->verificationBySignerRole($report),
+        ]);
+
+        $identity = $report->user->nip ?: $report->user_id;
+
+        return $pdf->stream('beritaacara-' . $identity . '_' . str_replace(' ', '_', $report->user->name) . '.pdf');
     }
 
      private function loadForBeritaAcaraPdf(EmployeeSp $sp): EmployeeSp

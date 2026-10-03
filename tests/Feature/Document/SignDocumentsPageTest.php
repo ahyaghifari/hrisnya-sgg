@@ -4,6 +4,7 @@ namespace Tests\Feature\Document;
 
 use App\Enum\CustomPermissionEnum;
 use App\Enum\Sp\SpLevel;
+use App\Livewire\Document\SignDocumentModal;
 use App\Livewire\Document\SignDocumentsPage;
 use Tests\Support\SpFixtures;
 use App\Livewire\Sp\SpDetailPage;
@@ -58,6 +59,26 @@ class SignDocumentsPageTest extends TestCase
             ->assertSee('Mengetahui');
     }
 
+    public function test_dashboard_widget_lists_pending_documents_only_for_the_signer(): void
+    {
+        [$sp, $knower] = $this->issueSp();
+        $stranger = User::factory()->create(['company_id' => $sp->company_id]);
+
+        Livewire::actingAs($knower)->test(\App\Livewire\Document\PendingSignaturesCard::class)
+            ->assertSee('Dokumen Menunggu Penandatanganan')
+            ->assertSee($sp->document->document_number)
+            ->assertSee(route('sp.show', $sp), false);
+
+        Livewire::actingAs($stranger)->test(\App\Livewire\Document\PendingSignaturesCard::class)
+            ->assertDontSee('Dokumen Menunggu Penandatanganan');
+
+        // Tanda tangan dilakukan dari halaman detail, bukan langsung di widget.
+        Livewire::actingAs($knower)->test(SpDetailPage::class, ['record' => $sp])
+            ->assertSee('Menunggu Tanda Tangan Anda')
+            // Pembuat sudah menandatangani saat menerbitkan -> kotaknya langsung berisi QR; Mengetahui belum.
+            ->assertSee('TTD Pembuat')->assertSee('TTD Mengetahui')->assertSee('data:image/svg+xml', false)->assertSee('Belum menandatangani');
+    }
+
     public function test_unrelated_user_does_not_see_it(): void
     {
         [$sp] = $this->issueSp();
@@ -73,8 +94,8 @@ class SignDocumentsPageTest extends TestCase
         [$sp, $knower] = $this->issueSp();
 
         Livewire::actingAs($knower)
-            ->test(SignDocumentsPage::class)
-            ->call('openSignModal', $sp->document->id)
+            ->test(SignDocumentModal::class)
+            ->dispatch('open-sign-modal', id: $sp->document->id)
             ->set('password', 'password-salah')
             ->call('confirmSign')
             ->assertHasErrors('password');
@@ -87,12 +108,17 @@ class SignDocumentsPageTest extends TestCase
         [$sp, $knower] = $this->issueSp();
 
         Livewire::actingAs($knower)
-            ->test(SignDocumentsPage::class)
-            ->call('openSignModal', $sp->document->id)
+            ->test(SignDocumentModal::class)
+            ->dispatch('open-sign-modal', id: $sp->document->id)
             ->set('password', 'password')
             ->call('confirmSign')
             ->assertHasNoErrors()
-            ->assertSet('signingId', null)
+            ->assertSet('documentId', null)
+            ->assertDontSee('Konfirmasi Tanda Tangan')
+            ->assertDispatched('document-signed');
+
+        Livewire::actingAs($knower)
+            ->test(SignDocumentsPage::class)
             ->assertDontSee($sp->document->document_number);
 
         $this->assertDatabaseHas('document_signatures', [
@@ -111,8 +137,8 @@ class SignDocumentsPageTest extends TestCase
         $stranger = User::factory()->create(['company_id' => $sp->company_id]);
 
         Livewire::actingAs($stranger)
-            ->test(SignDocumentsPage::class)
-            ->call('openSignModal', $sp->document->id)
+            ->test(SignDocumentModal::class)
+            ->dispatch('open-sign-modal', id: $sp->document->id)
             ->set('password', 'password')
             ->call('confirmSign')
             ->assertNotFound();
@@ -126,6 +152,6 @@ class SignDocumentsPageTest extends TestCase
 
         Livewire::actingAs($knower)
             ->test(SignDocumentsPage::class, ['document' => $sp->document])
-            ->assertSet('signingId', $sp->document->id);
+            ->assertSet('initialSigningId', $sp->document->id);
     }
 }

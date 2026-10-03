@@ -28,7 +28,7 @@
     <div class="max-w-md mx-auto px-4 py-8 sm:py-12">
 
         <div class="flex items-center gap-3 mb-5">
-            <img src="{{ asset('assets/logo-sgg.png') }}" alt="Syifa Global Group" class="w-9 h-9 rounded-lg object-contain bg-white shadow-sm">
+            <img src="{{ asset('assets/logo-sgg.png') }}" alt="Syifa Global Group" class="w-11 h-11 p-1.5 rounded-xl object-contain bg-white shadow-sm ring-1 ring-slate-200">
             <div>
                 <p class="text-[11px] font-medium text-slate-400 uppercase tracking-wide leading-none">Syifa Global Group</p>
                 <h1 class="text-base font-bold text-slate-900 leading-tight">Verifikasi Dokumen</h1>
@@ -59,14 +59,14 @@
             <div class="px-5 py-5 space-y-5">
 
                 {{-- Dokumen --}}
-                <div class="grid grid-cols-2 gap-4">
-                    <div class="col-span-2">
+                <div class="grid grid-cols-1 gap-4">
+                    <div>
                         <p class="text-[10.5px] text-slate-400 uppercase tracking-wide font-semibold mb-0.5">Jenis Dokumen</p>
                         <p class="text-sm font-bold text-slate-900">{{ $signable?->documentTypeLabel() ?? '-' }}</p>
                     </div>
                     <div>
                         <p class="text-[10.5px] text-slate-400 uppercase tracking-wide font-semibold mb-0.5">Nomor</p>
-                        <p class="text-sm font-semibold text-slate-800 break-words">{{ $document->document_number }}</p>
+                        <p class="text-sm font-semibold text-slate-800 break-all">{{ $document->document_number }}</p>
                     </div>
                     <div>
                         <p class="text-[10.5px] text-slate-400 uppercase tracking-wide font-semibold mb-0.5">Tanggal Terbit</p>

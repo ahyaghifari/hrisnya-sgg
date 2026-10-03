@@ -67,6 +67,18 @@ class EmployeeSp extends Model implements Signable
             });
     }
 
+    /** Sudah diterbitkan = sudah punya baris registry `documents` (lihat SpDetailPage::getIsDraftProperty);
+     *  draft belum boleh dilihat karyawan yang bersangkutan. */
+    public function scopeIssued($query)
+    {
+        return $query->whereHas('document');
+    }
+
+    public function isIssued(): bool
+    {
+        return $this->document !== null;
+    }
+
     public function isCancelled(): bool
     {
         return $this->cancelled_at !== null;

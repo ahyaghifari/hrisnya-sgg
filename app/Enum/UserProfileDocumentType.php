@@ -75,7 +75,8 @@ enum UserProfileDocumentType: string
     {
         return array_values(array_filter(
             self::cases(),
-            fn (self $case) => $isNakes || ! $case->nakesOnly()
+            // ponytail: RKK disembunyikan dari form Data Diri (request user), case tetap ada buat data lama.
+            fn (self $case) => $case !== self::RKK && ($isNakes || ! $case->nakesOnly())
         ));
     }
 }

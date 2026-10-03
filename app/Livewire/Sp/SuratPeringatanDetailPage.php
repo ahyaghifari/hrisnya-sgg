@@ -5,6 +5,7 @@ namespace App\Livewire\Sp;
 use App\Models\Sp\EmployeeSp;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\On;
 use Livewire\Component;
 
 /**
@@ -26,10 +27,18 @@ class SuratPeringatanDetailPage extends Component
     public function mount(EmployeeSp $record): void
     {
         abort_unless($record->user_id === Auth::id(), 403);
+        abort_unless($record->isIssued(), 404);
 
         $record->load(['items', 'createdBy', 'report']);
 
         $this->record = $record;
+    }
+
+    /** Modal tanda tangan selesai - muat ulang dokumen & tanda tangannya. */
+    #[On('document-signed')]
+    public function refreshAfterSign(): void
+    {
+        $this->record->refresh()->unsetRelation('document');
     }
 
     public function render()

@@ -235,6 +235,41 @@ class OfferingLetterPage extends Page implements HasActions, HasForms, HasTable
             });
     }
 
+    private function hasCompensation(): bool
+    {
+        $opening = $this->jobOpeningId ? JobOpening::find($this->jobOpeningId) : null;
+
+        return $opening
+            ? $opening->offeringCompensationRows()->exists() || $opening->offeringCompensationItems()->exists()
+            : false;
+    }
+
+    /** Sudah pernah dikabari lulus wawancara (email `interview_passed` unik per lamaran). */
+    private function sudahDiberitahu($record): bool
+    {
+        return ApplicationNotification::where('job_application_id', $record->id)
+            ->where('event', CompanyMessageTemplate::EVENT_INTERVIEW_PASSED)->exists();
+    }
+
+    /**
+     * Lulus wawancara memindahkan pelamar ke sini TANPA email. Tombol ini baru muncul setelah
+     * kompensasi lowongan diatur, supaya pelamar tidak diminta mengisi data untuk surat kosong.
+     */
+    public function beritahuKandidatAction(): Action
+    {
+        return Action::make('beritahuKandidat')
+            ->label('Beritahu Kandidat')
+            ->icon('heroicon-m-paper-airplane')
+            ->color('primary')
+            ->visible(fn ($record) => $this->canDecide() && $this->hasCompensation() && ! $this->sudahDiberitahu($record))
+            ->requiresConfirmation()
+            ->modalDescription('Kirim email lulus wawancara: pelamar diminta melengkapi data surat penawaran di dashboard.')
+            ->action(function ($record): void {
+                ApplicationNotification::createAndSend($record, CompanyMessageTemplate::EVENT_INTERVIEW_PASSED);
+                Notification::make()->title('Email pemberitahuan dikirim ke kandidat.')->success()->send();
+            });
+    }
+
     public function uploadSuratAction(): Action
     {
         return Action::make('uploadSurat')
@@ -419,6 +454,8 @@ class OfferingLetterPage extends Page implements HasActions, HasForms, HasTable
             ->columns([
                 TextColumn::make('full_name')->label('Nama Lengkap')
                     ->state(fn ($record) => $record->answers->firstWhere('field_key', 'full_name')?->value ?? '—'),
+                IconColumn::make('diberitahu')->label('Sudah Diberitahu')->boolean()
+                    ->state(fn ($record) => $this->sudahDiberitahu($record)),
                 IconColumn::make('surat_diunggah')->label('Surat Diunggah')->boolean()
                     ->state(fn ($record) => $record->offering_letter_path !== null),
                 IconColumn::make('surat_signed')->label('Sudah TTD Kandidat')->boolean()
@@ -439,6 +476,7 @@ class OfferingLetterPage extends Page implements HasActions, HasForms, HasTable
                     }),
             ])
             ->recordActions([
+                $this->beritahuKandidatAction(),
                 $this->menungguDataKandidatAction(),
                 $this->uploadSuratAction(),
                 $this->unduhSuratMasukAction(),

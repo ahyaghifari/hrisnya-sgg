@@ -22,7 +22,7 @@ class CreateBeritaAcaraPage extends Component
     public ?string $user_id = null;
     public ?string $knows_by = null;
     public ?string $nomor = null;
-    public ?string $dasar_klarifikasi = null;
+    public array $dasar_items = [''];
     public ?string $kejadian = null;
 
     public function mount(): void
@@ -55,9 +55,21 @@ class CreateBeritaAcaraPage extends Component
             'user_id' => ['required', 'exists:users,id'],
             'knows_by' => ['required', 'exists:users,id'],
             'nomor' => ['nullable', 'string', 'max:255'],
-            'dasar_klarifikasi' => ['required', 'string'],
+            'dasar_items' => ['required', 'array', 'min:1'],
+            'dasar_items.*' => ['required', 'string'],
             'kejadian' => ['required', 'string'],
         ];
+    }
+
+    public function addDasarItem(): void
+    {
+        $this->dasar_items[] = '';
+    }
+
+    public function removeDasarItem(int $index): void
+    {
+        unset($this->dasar_items[$index]);
+        $this->dasar_items = array_values($this->dasar_items) ?: [''];
     }
 
     public function save(): void

@@ -126,8 +126,12 @@ class EmployeeSpForm
                 ->columns(1)
                 ->collapsible()
                 ->schema([
-                    RichEditor::make('dasar_klarifikasi')
-                        ->label('Dasar Klarifikasi'),
+                    Repeater::make('dasar_items')
+                        ->label('Dasar Klarifikasi')
+                        ->helperText('Nomor otomatis dari urutan.')
+                        ->simple(RichEditor::make('text')->required())
+                        ->addActionLabel('Tambah Dasar')
+                        ->defaultItems(0),
 
                     RichEditor::make('kejadian')
                         ->label('Kejadian'),
@@ -243,8 +247,12 @@ class EmployeeSpForm
                 ->columns(1)
                 ->collapsible()
                 ->schema([
-                    RichEditor::make('dasar_klarifikasi')
-                        ->label('Dasar Klarifikasi'),
+                    Repeater::make('dasar_items')
+                        ->label('Dasar Klarifikasi')
+                        ->helperText('Nomor otomatis dari urutan.')
+                        ->simple(RichEditor::make('text')->required())
+                        ->addActionLabel('Tambah Dasar')
+                        ->defaultItems(0),
 
                     RichEditor::make('kejadian')
                         ->label('Kejadian'),

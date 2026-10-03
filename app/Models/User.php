@@ -205,6 +205,11 @@ class User extends Authenticatable implements FilamentUser
             return $this->can(\App\Enum\CustomPermissionEnum::SISTEM_REKRUTMEN->value);
         }
 
+        // Persuratan: sementara cuma Admin/Super Admin (lolos di atas). Permission khusus menyusul.
+        if ($panel->getId() === 'persuratan') {
+            return false;
+        }
+
         if ($panel->getId() === 'keycloak') {
             return $this->can(\App\Enum\CustomPermissionEnum::KELOLA_KEYCLOAK->value);
         }

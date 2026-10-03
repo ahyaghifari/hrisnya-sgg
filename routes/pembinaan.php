@@ -16,7 +16,10 @@ use App\Livewire\Sp\SpPage;
 use App\Livewire\Sp\SpRecommendationsPage;
 use App\Livewire\Sp\SuratPeringatanDetailPage;
 use App\Livewire\Sp\SuratPeringatanPage;
+use App\Enum\CustomPermissionEnum;
+use App\Enum\Sp\SpReportStatus;
 use App\Models\Sp\EmployeeSp;
+use App\Models\Sp\SpReport;
 use App\Services\Sp\SpPdfService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
@@ -43,11 +46,18 @@ Route::get('/surat-peringatan/{record}', SuratPeringatanDetailPage::class)
 Route::get('/berita-acara/{record}', BeritaAcaraSayaPage::class)
     ->name('sp.saya.ba');
 
+// PDF Berita Acara mandiri: baru bisa dilihat setelah SELESAI (3 pihak sudah TTD).
+Route::get('/berita-acara/{record}/preview', function (SpReport $record) {
+    abort_unless($record->user_id === Auth::id() && ! $record->isLegacy() && $record->status === SpReportStatus::SELESAI, 403);
+
+    return app(SpPdfService::class)->previewReport($record);
+})->name('sp.saya.ba.preview');
+
 // Preview PDF (bukan download) - GET biasa target=_blank, BUKAN aksi Livewire (Livewire selalu
 // memaksa browser save-as apa pun response-nya). Pola persis routes/keuangan.php +
 // routes/portal-akun.php (preview slip gaji). Gerbang sama dengan SuratPeringatanDetailPage::mount().
 Route::get('/surat-peringatan/{record}/preview', function (EmployeeSp $record) {
-    abort_unless($record->user_id === Auth::id(), 403);
+    abort_unless($record->user_id === Auth::id() && $record->isIssued(), 403);
 
     return app(SpPdfService::class)->preview($record);
 })->name('sp.saya.preview');
@@ -55,7 +65,7 @@ Route::get('/surat-peringatan/{record}/preview', function (EmployeeSp $record) {
 // Preview PDF (bukan download) - GET biasa target=_blank, BUKAN aksi Livewire (Livewire selalu
 // memaksa browser save-as apa pun response-nya). Pola persis routes/keuangan.php +
 Route::get('/surat-peringatan/{record}/berita-acara-preview', function (EmployeeSp $record) {
-    abort_unless($record->user_id === Auth::id(), 403);
+    abort_unless($record->user_id === Auth::id() && $record->isIssued(), 403);
 
     return app(SpPdfService::class)->previewBeritaAcara($record);
 })->name('sp.saya.beritaacara_preview');
@@ -117,6 +127,21 @@ Route::prefix('pembinaan')->group(function () {
 
     Route::get('/berita-acara/{record}', BeritaAcaraDetailPage::class)
         ->name('ba.show');
+
+    // Gerbang sama dengan BeritaAcaraDetailPage::mount(), plus harus sudah SELESAI.
+    Route::get('/berita-acara/{record}/preview', function (SpReport $record) {
+        $user = Auth::user();
+
+        abort_unless(
+            ! $record->isLegacy() && $record->status === SpReportStatus::SELESAI
+                && ($user->id === $record->created_by
+                    || $user->id === $record->knows_by
+                    || ($user->can(CustomPermissionEnum::SISTEM_PEMBINAAN_KARYAWAN->value) && $user->can('View:EmployeeSp') && $user->company_id === $record->company_id)),
+            403
+        );
+
+        return app(SpPdfService::class)->previewReport($record);
+    })->name('ba.preview');
 
     Route::get('/sp-rekomendasi', SpRecommendationsPage::class)
         ->name('sp.rekomendasi');

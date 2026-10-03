@@ -59,13 +59,13 @@ class SpFromReportTest extends TestCase
     {
         $report = $this->service->create($this->hc, [
             'user_id' => $this->employee->id, 'knows_by' => $this->knower->id,
-            'kejadian' => 'Terlambat', 'dasar_klarifikasi' => 'Rekap',
+            'kejadian' => 'Terlambat', 'dasar_items' => ['Rekap'],
         ]);
         $this->service->requestClarification($report, $this->hc);
         $this->service->submitClarification($report, $this->employee, 'macet');
         $this->service->saveAnalysis($report, $this->hc, ['klarifikasi_parafrase' => 'p', 'analysis' => 'a', 'kesimpulan' => 'k', 'followup_plan' => 'f']);
         $this->service->sendForSigning($report, $this->hc);
-        foreach ([$this->employee, $this->hc, $this->knower] as $user) {
+        foreach ([$this->hc, $this->employee, $this->knower] as $user) {
             $this->sign($report->fresh()->document, $user);
         }
         if ($decision) {

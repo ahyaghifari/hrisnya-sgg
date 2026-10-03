@@ -9,6 +9,7 @@ use App\Services\Sp\SpService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\On;
 use Livewire\Component;
 
 /**
@@ -25,13 +26,11 @@ use Livewire\Component;
  * user 2026-09-25) - prefix `sp_` biar tidak bentrok nama property dengan `nomor` milik Berita
  * Acara (sp_reports.nomor, field terpisah).
  *
- * DIKUNCI setelah SEMUA penanda tangan yang diharapkan menandatangani (instruksi user
- * 2026-09-28, menutup gap "dokumen bisa diedit walau sudah ditandatangani" -
- * Document::isFullySigned()) - sebelum knows_by konfirmasi sendiri, HC masih boleh koreksi
- * salah ketik; begitu knows_by sudah menandatangani, isi surat (nomor/tanggal/Mengetahui/poin
- * pelanggaran/Berita Acara) dikunci semua - itu jaminan yang mau diberikan TTE-nya (kalau tetap
- * bisa diedit diam-diam setelah tanda tangan, hash pembanding di halaman verifikasi jadi
- * percuma).
+ * DIKUNCI begitu PEMBUAT menandatangani (instruksi user 2026-10-03; sebelumnya baru setelah semua
+ * pihak, 2026-09-28) - isi surat (nomor/tanggal/Mengetahui/poin pelanggaran/Berita Acara) tidak
+ * boleh berubah setelah ada tanda tangan, itu jaminan yang mau diberikan TTE-nya (kalau tetap
+ * bisa diedit diam-diam, hash pembanding di halaman verifikasi jadi percuma). SP draft (belum
+ * ada dokumen/tanda tangan) bebas diedit.
  */
 #[Layout('components.layout', ['title' => 'Detail Surat Peringatan'])]
 class SpDetailPage extends Component
@@ -66,7 +65,8 @@ class SpDetailPage extends Component
 
     public ?string $nomor = null;
     public ?string $kejadian = null;
-    public ?string $dasar_klarifikasi = null;
+    /** @var array<int, string> */
+    public array $dasar_items = [''];
     public ?string $subject_clarification = null;
     public ?string $analysis = null;
     public ?string $kesimpulan = null;
@@ -83,11 +83,14 @@ class SpDetailPage extends Component
         $this->record = $record;
     }
 
-    /** Semua penanda tangan yang diharapkan (created_by + knows_by) sudah menandatangani -
-     *  dipakai gerbang server-side DAN toggle tampilan tombol Edit di blade. */
-    public function getIsFullySignedProperty(): bool
+    /** Dikunci begitu PEMBUAT sudah menandatangani (instruksi user 2026-10-03) - sebelumnya baru
+     *  setelah semua pihak. Dipakai gerbang server-side DAN toggle tampilan tombol Edit di blade. */
+    public function getIsLockedProperty(): bool
     {
-        return $this->record->document?->isFullySigned() ?? false;
+        $document = $this->record->document;
+
+        return $document !== null
+            && ($document->signatures->contains('signer_role', 'created_by') || $document->isFullySigned());
     }
 
     /** Draft = belum ada baris registry `documents` sama sekali - dikenali dari ini, tidak perlu
@@ -154,7 +157,7 @@ class SpDetailPage extends Component
     public function editSp(): void
     {
         abort_unless($this->canManage, 403);
-        abort_if($this->isFullySigned, 403, 'Dokumen sudah ditandatangani lengkap, tidak bisa diedit lagi.');
+        abort_if($this->isLocked, 403, 'Dokumen sudah ditandatangani pembuat, tidak bisa diedit lagi.');
 
         $this->sp_nomor = $this->record->nomor;
         $this->sp_start_date = $this->record->start_date?->toDateString();
@@ -171,7 +174,7 @@ class SpDetailPage extends Component
     public function saveSp(): void
     {
         abort_unless($this->canManage, 403);
-        abort_if($this->isFullySigned, 403, 'Dokumen sudah ditandatangani lengkap, tidak bisa diedit lagi.');
+        abort_if($this->isLocked, 403, 'Dokumen sudah ditandatangani pembuat, tidak bisa diedit lagi.');
 
         $this->validate([
             'sp_nomor' => ['required', 'string', 'max:255'],
@@ -224,7 +227,7 @@ class SpDetailPage extends Component
     public function editItems(): void
     {
         abort_unless($this->canManage, 403);
-        abort_if($this->isFullySigned, 403, 'Dokumen sudah ditandatangani lengkap, tidak bisa diedit lagi.');
+        abort_if($this->isLocked, 403, 'Dokumen sudah ditandatangani pembuat, tidak bisa diedit lagi.');
 
         $this->items = $this->record->items->pluck('text')->all();
         $this->editingItems = true;
@@ -244,7 +247,7 @@ class SpDetailPage extends Component
     public function saveItems(): void
     {
         abort_unless($this->canManage, 403);
-        abort_if($this->isFullySigned, 403, 'Dokumen sudah ditandatangani lengkap, tidak bisa diedit lagi.');
+        abort_if($this->isLocked, 403, 'Dokumen sudah ditandatangani pembuat, tidak bisa diedit lagi.');
 
         $texts = array_values(array_filter(array_map('trim', $this->items), fn ($text) => $text !== ''));
 
@@ -276,11 +279,11 @@ class SpDetailPage extends Component
         // sendiri (hook tanda tangan cuma jalan sekali saat SP terbit), jadi patokan yang aman
         // dan konsisten adalah status SP induknya.
         abort_unless($this->canManage, 403);
-        abort_if($this->isFullySigned, 403, 'Dokumen sudah ditandatangani lengkap, tidak bisa diedit lagi.');
+        abort_if($this->isLocked, 403, 'Dokumen sudah ditandatangani pembuat, tidak bisa diedit lagi.');
 
         $this->nomor = $this->record?->report?->nomor;
         $this->kejadian = $this->record->report?->kejadian;
-        $this->dasar_klarifikasi = $this->record->report?->dasar_klarifikasi;
+        $this->dasar_items = $this->record->report?->dasarItems->pluck('text')->all() ?: [''];
         $this->subject_clarification = $this->record->report?->subject_clarification;
         $this->analysis = $this->record->report?->analysis;
         $this->kesimpulan = $this->record->report?->kesimpulan;
@@ -291,20 +294,39 @@ class SpDetailPage extends Component
     public function saveReport(): void
     {
         abort_unless($this->canManage, 403);
-        abort_if($this->isFullySigned, 403, 'Dokumen sudah ditandatangani lengkap, tidak bisa diedit lagi.');
+        abort_if($this->isLocked, 403, 'Dokumen sudah ditandatangani pembuat, tidak bisa diedit lagi.');
 
-        $this->record->report()->updateOrCreate([], [
+        $report = $this->record->report()->updateOrCreate([], [
             'nomor' => $this->nomor,
             'kejadian' => $this->kejadian,
-            'dasar_klarifikasi' => $this->dasar_klarifikasi,
             'subject_clarification' => $this->subject_clarification,
             'analysis' => $this->analysis,
             'kesimpulan' => $this->kesimpulan,
             'followup_plan' => $this->followup_plan,
         ]);
+        $report->syncDasarItems($this->dasar_items);
 
         $this->record->load('report');
         $this->editingReport = false;
+    }
+
+    public function addDasarItem(): void
+    {
+        $this->dasar_items[] = '';
+    }
+
+    public function removeDasarItem(int $index): void
+    {
+        unset($this->dasar_items[$index]);
+        $this->dasar_items = array_values($this->dasar_items) ?: [''];
+    }
+
+    /** Modal tanda tangan selesai - muat ulang dokumen & tanda tangannya (bisa jadi terkunci). */
+    #[On('document-signed')]
+    public function refreshAfterSign(): void
+    {
+        $this->record->refresh()->unsetRelation('document');
+        $this->record->load('document.signatures');
     }
 
     public function cancelEditReport(): void

@@ -317,6 +317,7 @@ class EmployeeStatistics extends Component
         // Jangan cuma sembunyikan slot STR/SIP/RKK di UI - tolak juga di server, request bisa
         // dimanipulasi manual.
         abort_if($type->nakesOnly() && ! $this->isNakes, 403);
+        abort_if($type === UserProfileDocumentType::RKK, 403);
 
         $this->validate([
             $property => ['required', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],

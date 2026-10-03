@@ -1,9 +1,11 @@
 @php
+    // Variabel dari SpPdfService (BA lama lewat SP maupun BA mandiri alur baru): $report, $user,
+    // $company, $date, $coach (kolom kiri tanda tangan), $knowsBy, $verification.
     // Background per company: file PRIVAT storage/app/private/sp-bg/{kode company}.jpg (bukan
     // public/ — dokumen internal), fallback ke default.jpg. Di-embed base64, pola persis
     // resources/views/pdf/payroll/payroll.blade.php.
     $bgDir = storage_path('app/private/sp-bg/');
-    $bgFile = $bgDir . ($sp->company->code ?? '') . '.jpg';
+    $bgFile = $bgDir . ($company->code ?? '') . '.jpg';
     if (! is_file($bgFile)) {
         $bgFile = $bgDir . 'default.jpg';
     }
@@ -13,30 +15,25 @@
 
     // Unit Kerja = divisi/departemen jabatan aktif karyawan, reuse accessor yang sudah ada
     // (JobPositions::getDivisionOrUnitNameAttribute() - dipakai juga di modul Rekrutmen).
-    $unitKerja = $sp->user->activeJobPosition?->jobPosition?->division_or_unit_name ?? '-';
+    $unitKerja = $user->activeJobPosition?->jobPosition?->division_or_unit_name ?? '-';
 
     // Masa Kerja dari profile->joining_date s.d. tanggal SP - tahun+bulan, kalau belum setahun
     // cuma bulan (instruksi user 2026-09-28).
     // joining_date TIDAK di-cast Carbon di model (masih string) - parse manual di sini.
-    $joiningDate = $sp->user->profile?->joining_date ? \Carbon\Carbon::parse($sp->user->profile->joining_date) : null;
+    $joiningDate = $user->profile?->joining_date ? \Carbon\Carbon::parse($user->profile->joining_date) : null;
     $masaKerja = '-';
     if ($joiningDate) {
-        $years = (int) $joiningDate->diffInYears($sp->start_date);
-        $months = (int) $joiningDate->copy()->addYears($years)->diffInMonths($sp->start_date);
+        $years = (int) $joiningDate->diffInYears($date);
+        $months = (int) $joiningDate->copy()->addYears($years)->diffInMonths($date);
         $masaKerja = $years > 0 ? "{$years} tahun {$months} bulan" : "{$months} bulan";
     }
 
-    // Kolom kiri tanda tangan = Coach (dari Coaching yang jadi sumber SP ini), BUKAN
-    // pembuat/created_by (instruksi user 2026-09-25) - created_by bisa jadi staf HC-GA yang
-    // sekadar entri data, beda orang dari coach yang mengawal karyawannya. Fallback ke
-    // created_by kalau SP-nya MANUAL (tidak ada Coaching sumber, jadi tidak ada coach).
-    $coach = $sp->coaching?->coachBy ?? $sp->createdBy;
 @endphp
 <!DOCTYPE html>
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <title>{{ $titles[$sp->sp_level->value] ?? 'SURAT PERINGATAN' }}</title>
+    <title>Berita Acara Klarifikasi</title>
 
     <style>
         /* Margin halaman = jarak aman konten dari kop (atas) & footer (bawah) di gambar
@@ -103,10 +100,27 @@
             font-weight: bold;
         }
 
+        #dasar-klarifikasi {
+            margin-left: 0.5cm;
+            text-align: justify;
+        }
+
+        /* Font ikut Berita Acara (body), bukan bawaan Trix/hasil paste - bold/italic/link tetap. */
+        #dasar-klarifikasi, #dasar-klarifikasi * {
+            font-family: Calibri, sans-serif !important;
+            font-size: 12pt !important;
+            line-height: 1.5 !important;
+        }
+
         #dasar-klarifikasi ol {
             list-style-type: none;
             margin: 0;
             padding: 0;
+        }
+
+        #dasar-klarifikasi ol.dasar-items {
+            list-style-type: decimal;
+            padding-left: 18px;
         }
 
         .uraian li div {
@@ -200,8 +214,8 @@
         }
 
         .verify-qr {
-            width: 50px;
-            height: 50px;
+            width: 80px;
+            height: 80px;
         }
 
         .verify-code {
@@ -217,9 +231,9 @@
 <div class="page">
 
     <div class="title">BERITA ACARA KLARIFIKASI KARYAWAN</div>
-    <div class="nomor">Nomor: {{ $sp->report->nomor ?? '-' }}</div>
+    <div class="nomor">Nomor: {{ $report->nomor ?? '-' }}</div>
 
-    <p style="text-align: justify;margin-top:0.8cm;">Pada hari ini, {{ $sp->start_date->translatedFormat('l, d F Y') }}, bertempat di {{ $sp->company->name ?? '-' }}, kami yang bertanda tangan di bawah ini telah melakukan klarifikasi resmi terhadap seorang karyawan terkait dugaan pelanggaran ketentuan perusahaan sebagaimana diatur dalam Peraturan Perusahaan dan peraturan perundangundangan yang berlaku. </p>
+    <p style="text-align: justify;margin-top:0.8cm;">Pada hari ini, <strong>{{ $date->translatedFormat('l, d F Y') }}</strong>, bertempat di <strong>{{ $company->name ?? '-' }}</strong>, kami yang bertanda tangan di bawah ini telah melakukan klarifikasi resmi terhadap seorang karyawan terkait dugaan pelanggaran ketentuan perusahaan sebagaimana diatur dalam Peraturan Perusahaan dan peraturan perundangundangan yang berlaku. </p>
     
     <p>Berita Acara Klarifikasi ini dibuat sebagai dokumen resmi perusahaan dan dapat dijadikan dasar pertimbangan manajemen dalam menentukan tindak lanjut sesuai dengan ketentuan yang berlaku. </p>
     
@@ -231,16 +245,16 @@
         <table>
             <tr><td>Nama</td><td>: {{ $coach->name }}</td></tr>
             <tr><td>Jabatan</td><td>: {{ $jabatan($coach) }}</td></tr>
-            <tr><td>ID Karyawan</td><td>: {{ $sp->user->nip ?? '-' }}</td></tr>
+            <tr><td>ID Karyawan</td><td>: {{ $user->nip ?? '-' }}</td></tr>
         </table>
     </div>
 
     <p>B. Pihak Karyawan</p>
     <div class="info">
         <table>
-            <tr><td>Nama</td><td>: {{ $sp->user->name }}</td></tr>
-            <tr><td>Jabatan</td><td>: {{ $jabatan($sp->user) }}</td></tr>
-            <tr><td>ID Karyawan</td><td>: {{ $sp->user->nip ?? '-' }}</td></tr>
+            <tr><td>Nama</td><td>: {{ $user->name }}</td></tr>
+            <tr><td>Jabatan</td><td>: {{ $jabatan($user) }}</td></tr>
+            <tr><td>ID Karyawan</td><td>: {{ $user->nip ?? '-' }}</td></tr>
             <tr><td>Unit Kerja</td><td>: {{ $unitKerja }}</td></tr>
             <tr><td>Masa Kerja</td><td>: {{ $masaKerja }}</td></tr>
         </table>
@@ -248,7 +262,7 @@
 
     <p class="section-title">II. Dasar Klarifikasi</p>
     <div id="dasar-klarifikasi">
-        {!! $sp->report->dasar_klarifikasi !!}
+        {!! $report->dasarKlarifikasiHtml() !!}
     </div>
 
     <p class="section-title">III. Uraian Kronologi Perusahaan</p>
@@ -257,13 +271,13 @@
     </p>
 
     <ul class="uraian">
-        <li>{!! $sp->report->kejadian !!}</li>
+        <li>{!! $report->kejadian !!}</li>
     </ul>
 
     <p>Dalam proses klarifikasi ini, karyawan yang bersangkutan telah diberikan kesempatan seluas-luasnya untuk menyampaikan penjelasan dan pembelaan diri. Adapun pernyataan karyawan adalah sebagai berikut:</p>
 
     <ul class="uraian">
-        <li>{!! $sp->report->klarifikasi_parafrase ?: $sp->report->subject_clarification !!}</li>
+        <li>{!! $report->klarifikasi_parafrase ?: $report->subject_clarification !!}</li>
     </ul>
 
     <p style="margin-top: 0.1cm;">Karyawan menyatakan bahwa seluruh keterangan yang disampaikan adalah benar, diberikan tanpa adanya paksaan dari pihak mana pun, serta bersedia mempertanggungjawabkannya secara hukum dan ketenagakerjaan.</p>
@@ -272,11 +286,11 @@
     <p>Berdasarkan hasil klarifikasi tersebut, perusahaan menyimpulkan sementara bahwa : </p>
     <p style="font-weight:bold;">Analisa :</p>
     <div style="text-align: justify;">
-        {!! $sp->report->analysis !!}
+        {!! $report->analysis !!}
     </div>
     <p style="font-weight:bold;">Kesimpulan Sementara :</p>
     <div style="text-align:justify;">
-        {!! $sp->report->kesimpulan !!}
+        {!! $report->kesimpulan !!}
     </div>
 
     <p>Kesimpulan ini bersifat sementara dan tidak menutup kemungkinan adanya perubahan berdasarkan hasil pemeriksaan lanjutan atau temuan bukti tambahan.</p>
@@ -285,7 +299,7 @@
     <p>Sehubungan dengan hasil klarifikasi ini, perusahaan akan melakukan langkah - langkah sebagai berikut: </p>
     <ul class="uraian">
         <li>
-            {!! $sp->report->followup_plan !!}
+            {!! $report->followup_plan !!}
         </li>
     </ul>
 
@@ -293,7 +307,7 @@
     <p>Demikian Berita Acara Klarifikasi ini dibuat dan ditandatangani dalam keadaan sadar, tanpa paksaan, serta untuk dipergunakan sebagaimana mestinya sebagai dokumen resmi perusahaan. <br><br> Apabila di kemudian hari terbukti bahwa keterangan yang disampaikan tidak benar, maka karyawan bersedia menerima konsekuensi sesuai dengan peraturan perusahaan dan ketentuan hukum yang berlaku. </p>
 
     <div style="margin-top: 1cm;">
-        <center>Banjarbaru, {{ $sp->start_date->translatedFormat('d F Y') }}</center>
+        <center>Banjarbaru, {{ $date->translatedFormat('d F Y') }}</center>
         <center>Ditandangani Oleh,</center>
 
         <div class="sign-block">
@@ -322,8 +336,8 @@
                 @else
                     <span class="ttd-space">&nbsp;</span>
                 @endif
-                <span class="sign-name">{{ $sp->user->name ?? '-' }}</span><br>
-                {{ $jabatan($sp->user)}}
+                <span class="sign-name">{{ $user->name ?? '-' }}</span><br>
+                {{ $jabatan($user)}}
             </div>
             <div class="sign-col">
                 Mengetahui,
@@ -335,8 +349,8 @@
                 @else
                     <span class="ttd-space">&nbsp;</span>
                 @endif
-                <span class="sign-name">{{ $sp->knowsBy?->name ?? '-' }}</span><br>
-                {{ $jabatan($sp->knowsBy) }}
+                <span class="sign-name">{{ $knowsBy?->name ?? '-' }}</span><br>
+                {{ $jabatan($knowsBy) }}
             </div>
         </div>
     </div>

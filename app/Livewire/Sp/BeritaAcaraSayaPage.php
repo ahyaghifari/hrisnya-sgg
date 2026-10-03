@@ -8,6 +8,7 @@ use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\On;
 use Livewire\Component;
 
 /**
@@ -47,6 +48,13 @@ class BeritaAcaraSayaPage extends Component
         $document = $this->record->document;
 
         return $document && $document->loadMissing(['documentable', 'signatures'])->pendingRoleFor(Auth::user()) ? $document->id : null;
+    }
+
+    /** Modal tanda tangan selesai - muat ulang status BA. */
+    #[On('document-signed')]
+    public function refreshAfterSign(): void
+    {
+        $this->record->refresh()->unsetRelation('document');
     }
 
     private function run(callable $action, string $success): void
