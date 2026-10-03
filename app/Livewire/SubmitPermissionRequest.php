@@ -121,25 +121,30 @@ class SubmitPermissionRequest extends Component
 
     public function updatedPermissionType(): void
     {
-        // Prefill end_date dari default_days jenis Izin Khusus yang dipilih - cuma prefill,
-        // tetap bebas diubah manual (lihat rencana-izin-empat-kategori.md §2).
-        $group = $this->currentGroup();
-
-        if ($group === PermissionGroupEnum::KHUSUS && $this->permission_type && $this->date) {
-            $days = PermissionTypeEnum::tryFrom($this->permission_type)?->defaultDays();
-
-            if ($days) {
-                $this->end_date = \Carbon\Carbon::parse($this->date)->addDays($days - 1)->toDateString();
-            }
-        }
+        // Tanggal selesai TIDAK diisi otomatis - pemohon memilih sendiri, dibatasi maxEndDate
+        // (jenis berubah = batasnya berubah, jadi pilihan lama dikosongkan).
+        $this->end_date = null;
 
         $this->refreshUsage();
     }
 
     public function updatedDate(): void
     {
-        $this->updatedPermissionType();
+        if ($this->end_date && ($this->end_date < $this->date || ($this->maxEndDate && $this->end_date > $this->maxEndDate))) {
+            $this->end_date = null;
+        }
+
         $this->refreshUsage();
+    }
+
+    /** Tanggal selesai paling akhir yang boleh dipilih untuk Izin Khusus (mulai + maxDays - 1); null = tidak dibatasi. */
+    public function getMaxEndDateProperty(): ?string
+    {
+        $days = $this->currentGroup() === PermissionGroupEnum::KHUSUS && $this->permission_type && $this->date
+            ? PermissionTypeEnum::tryFrom($this->permission_type)?->maxDays()
+            : null;
+
+        return $days ? \Carbon\Carbon::parse($this->date)->addDays($days - 1)->toDateString() : null;
     }
 
     /**
@@ -279,7 +284,12 @@ class SubmitPermissionRequest extends Component
                 : ['nullable'],
             'category' => [$butuhMaster ? 'nullable' : 'required', 'string'],
             'date' => ['required', 'date'],
-            'end_date' => [$isRentang ? 'required' : 'nullable', 'date', 'after_or_equal:date'],
+            'end_date' => [
+                $isRentang ? 'required' : 'nullable',
+                'date',
+                'after_or_equal:date',
+                ...($this->maxEndDate ? ['before_or_equal:' . $this->maxEndDate] : []),
+            ],
             'start_time' => [$wajibJam ? 'required' : 'nullable', 'date_format:H:i'],
             'end_time' => [
                 $wajibJam ? 'required' : 'nullable',

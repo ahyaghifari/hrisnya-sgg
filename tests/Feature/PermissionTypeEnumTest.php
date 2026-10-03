@@ -89,6 +89,22 @@ class PermissionTypeEnumTest extends TestCase
             ->assertHasNoErrors(['permission_type']);
     }
 
+    /** Izin Khusus: tanggal selesai tidak diisi otomatis, tapi dibatasi maxDays (Menikah Anak = 2 hari). */
+    public function test_izin_khusus_end_date_is_not_prefilled_and_capped_by_max_days(): void
+    {
+        $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
+        $this->actingAs(User::factory()->create(['company_id' => $company->id]));
+
+        $component = Livewire::test(SubmitPermissionRequest::class)
+            ->set('group', 'khusus')
+            ->set('date', '2026-08-10')
+            ->set('permission_type', PermissionTypeEnum::MENIKAH_ANAK->value)
+            ->assertSet('end_date', null)
+            ->assertSet('maxEndDate', '2026-08-11');
+
+        $component->set('end_date', '2026-08-12')->call('submit')->assertHasErrors(['end_date']);
+    }
+
     /** RSU Syifa Medika Banjarbaru/Barabai pakai penamaan sendiri buat Tidak Masuk/Sakit
      * (instruksi user 2026-09-30) - company lain tetap label default. `category` yang tersimpan
      * (dibaca payroll) TIDAK berubah, cuma teks label. */
