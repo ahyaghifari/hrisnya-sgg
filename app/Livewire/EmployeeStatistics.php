@@ -172,6 +172,7 @@ class EmployeeStatistics extends Component
     }
 
     /**
+     * Status perkawinan juga SENGAJA tidak masuk sini (sama seperti rekening: cuma HC/admin).
      * Rekening bank SENGAJA tidak masuk sini — dipakai transfer gaji, cuma boleh diubah HC/admin
      * lewat Kepegawaian (lihat diskusi sesi 2026-07-30), bukan self-service. Email BEDA
      * penanganan dari field profil lain: dia kolom `users.email` (dipakai login), jadi
@@ -187,7 +188,6 @@ class EmployeeStatistics extends Component
             'email' => ['required', 'email', 'max:255', \Illuminate\Validation\Rule::unique('users', 'email')->ignore($this->record->id)],
             'nickname' => ['nullable', 'string', 'max:100'],
             'gender' => ['nullable', 'in:laki_laki,perempuan'],
-            'marital_status' => ['nullable', 'string', 'max:50'],
             'religion_id' => ['nullable', 'exists:m_religions,id'],
             'place_of_birth' => ['nullable', 'string', 'max:100'],
             'date_of_birth' => ['nullable', 'date'],
