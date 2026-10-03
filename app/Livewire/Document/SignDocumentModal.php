@@ -30,6 +30,8 @@ class SignDocumentModal extends Component
         $this->documentId = $id;
         $this->password = null;
         $this->resetErrorBag();
+
+        $this->document?->logEvent('signature_viewed', Auth::user());
     }
 
     public function close(): void

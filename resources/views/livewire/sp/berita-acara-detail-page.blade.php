@@ -144,8 +144,8 @@
             @if ($status === S::KLARIFIKASI_DIAJUKAN && $editable)
                 <div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap;">
                     <button type="button" wire:click="editAnalysis" class="btn-secondary"><i class="fa-solid fa-pen"></i> Edit</button>
-                    <button type="button" wire:click="sendForSigning" wire:confirm="Tanda tangani Berita Acara sekarang? Isi akan dibekukan dan Anda langsung diarahkan menandatangani." class="btn-primary">
-                        <i class="fa-solid fa-signature"></i> Tanda Tangan
+                    <button type="button" wire:click="sendForSigning" wire:confirm="FIX Berita Acara sekarang? Isi akan dikunci dan tidak bisa diubah lagi. Tombol tanda tangan muncul setelahnya." class="btn-primary">
+                        <i class="fa-solid fa-lock"></i> FIX Berita Acara
                     </button>
                 </div>
             @endif

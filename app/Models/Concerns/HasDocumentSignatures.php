@@ -14,17 +14,26 @@ use App\Services\Document\VerificationCodeGenerator;
  */
 trait HasDocumentSignatures
 {
+    /** FIX/LOCK: isi dokumen terkunci (Document::fixed_at) - dipakai guard booted() model sumber. */
+    public function isFixed(): bool
+    {
+        return $this->exists && $this->document()->whereNotNull('fixed_at')->exists();
+    }
+
     public function document(): \Illuminate\Database\Eloquent\Relations\MorphOne
     {
         return $this->morphOne(Document::class, 'documentable');
     }
 
     /** Bikin baris registry `documents` kalau belum ada - dipanggil sekali di titik pemicu
-     * sebelum sign() pertama kali. Idempotent - dokumen yang sudah punya registry tidak dobel. */
+     * sebelum sign() pertama kali. Idempotent - dokumen yang sudah punya registry tidak dobel.
+     * Sekaligus FIX/LOCK isi (Document::fix); dokumen yang di-unfix (klarifikasi ulang) dikunci lagi di sini. */
     public function issueDocument(string $title, ?User $issuer = null): Document
     {
         /** @var \App\Contracts\Signable $this */
         if ($this->document) {
+            $this->document->fix($issuer);
+
             return $this->document;
         }
 
@@ -35,6 +44,8 @@ trait HasDocumentSignatures
             'issued_at'       => now(),
             'created_by'      => $issuer?->id,
         ]);
+        $document->logEvent('document_created', $issuer);
+        $document->fix($issuer);
 
         // Accessing `$this->document` above (kalau belum pernah di-load) sudah men-cache hasil
         // query pertama (null, karena baris belum ada) ke relation cache Eloquent - tanpa
@@ -73,12 +84,21 @@ trait HasDocumentSignatures
             'ip_address'      => request()?->ip(),
             'user_agent'      => request()?->userAgent(),
         ]);
+        $this->document->logEvent('document_signed', $signer, ['role' => $role]);
 
         $type = $this->documentType();
 
         retry(5, fn () => $signature->verification()->create([
             'verification_code' => app(VerificationCodeGenerator::class)->generate($type),
         ]), 0, fn ($e) => $e instanceof \Illuminate\Database\QueryException);
+
+        // Semua peran wajib sudah TTD -> FINAL (isFullySigned baca relation, buang cache dulu).
+        $this->document->unsetRelation('signatures');
+        if ($this->document->isFullySigned()) {
+            // PDF dirender di queue (UI: "sedang diproses"). Kalau job gagal, dokumen difinalkan
+            // lazy saat PDF-nya dibuka (DocumentFinalizer::contents).
+            \App\Jobs\FinalizeDocumentJob::dispatch($this->document->id);
+        }
 
         return $signature;
     }

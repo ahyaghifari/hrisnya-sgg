@@ -82,6 +82,12 @@
             <div class="section-icon"><i class="fa-solid fa-signature" style="color:var(--brand);font-size:12px;"></i></div>
             <span class="section-title">Tanggapan Anda</span>
         </div>
+        @include('livewire.document.partials.signature-boxes', [
+            'signable' => $record,
+            'boxes' => ['created_by' => 'TTD Pembuat', 'knows_by' => 'TTD Mengetahui', 'employee' => 'TTD YBS'],
+            'signatures' => $record->document?->signatures->keyBy('signer_role') ?? collect(),
+        ])
+        <div style="height:14px;"></div>
         @if ($this->signDocumentId)
             <p style="font-size:13px;margin:0 0 12px;">Berita Acara sudah ditandatangani pembuat. Jika isinya sudah sesuai dengan maksud Anda, setujui dan tanda tangani.</p>
             <button type="button" wire:click="$dispatch('open-sign-modal', { id: '{{ $this->signDocumentId }}' })" class="btn-primary">
