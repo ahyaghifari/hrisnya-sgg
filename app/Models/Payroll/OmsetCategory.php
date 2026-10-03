@@ -2,6 +2,7 @@
 
 namespace App\Models\Payroll;
 
+use App\Enum\Payroll\OmsetPayerType;
 use App\Models\Concerns\LogsAuditChanges;
 use App\Models\Master\Companies;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
@@ -22,6 +23,11 @@ class OmsetCategory extends Model
     protected $fillable = [
         'company_id',
         'name',
+        'payer_type',
+    ];
+
+    protected $casts = [
+        'payer_type' => OmsetPayerType::class,
     ];
 
     public function company(): BelongsTo

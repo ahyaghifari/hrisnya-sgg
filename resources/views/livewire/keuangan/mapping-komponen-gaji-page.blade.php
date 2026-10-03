@@ -304,12 +304,17 @@
                              per kategori per periode diisi finance di halaman input Omset Rumah
                              Sakit terpisah, bukan di sini. --}}
                         @if ($activeComponent === 'jasa_pelayanan')
-                            <p style="font-size:11px;color:var(--text-muted);margin:0 0 12px;">Kategori Omset (mis. Rawat Inap, Rawat Jalan, Farmasi) untuk perusahaan ini — jadi baris tetap di halaman input Omset Rumah Sakit bulanan. Nominal per kategori diisi di sana, bukan di sini.</p>
+                            <p style="font-size:11px;color:var(--text-muted);margin:0 0 12px;">Kategori Omset (mis. Rawat Inap BPJS, Rawat Inap Umum) untuk perusahaan ini — jadi baris tetap di halaman input Omset Rumah Sakit bulanan. Nominal per kategori diisi di sana, bukan di sini. Jenis penjamin menentukan persentase omset yang jadi dasar Jasa Pelayanan: BPJS 2,5%, Asuransi/Umum 7,5%.</p>
                             <div style="display:flex;flex-direction:column;gap:8px;">
                                 @foreach ($omsetCategoryRows as $i => $row)
                                     <div>
                                         <div style="display:flex;align-items:center;gap:8px;">
                                             <input type="text" class="form-input" style="max-width:280px;font-size:12.5px;padding:7px 10px;" wire:model="omsetCategoryRows.{{ $i }}.name" placeholder="Nama kategori (mis. Rawat Inap)">
+                                            <select class="form-input" style="max-width:190px;font-size:12.5px;padding:7px 10px;" wire:model="omsetCategoryRows.{{ $i }}.payer_type">
+                                                @foreach (\App\Enum\Payroll\OmsetPayerType::cases() as $payer)
+                                                    <option value="{{ $payer->value }}">{{ $payer->getLabel() }} ({{ rtrim(rtrim(number_format($payer->rate() * 100, 1, ',', ''), '0'), ',') }}%)</option>
+                                                @endforeach
+                                            </select>
                                             @if ($row['id'])
                                                 <button type="button" wire:click="openAuditLog('omset_category:{{ $row['id'] }}')" title="Riwayat" style="border:none;background:none;color:var(--text-faint);cursor:pointer;padding:6px;font-size:11px;"><i class="fa-solid fa-clock-rotate-left"></i></button>
                                             @endif

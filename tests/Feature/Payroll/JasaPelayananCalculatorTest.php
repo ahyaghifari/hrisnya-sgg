@@ -42,17 +42,17 @@ class JasaPelayananCalculatorTest extends TestCase
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
         $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
 
-        $rawatInap = OmsetCategory::create(['company_id' => $company->id, 'name' => 'Rawat Inap']);
-        $rawatJalan = OmsetCategory::create(['company_id' => $company->id, 'name' => 'Rawat Jalan']);
+        $rawatInap = OmsetCategory::create(['company_id' => $company->id, 'name' => 'Rawat Inap BPJS', 'payer_type' => 'bpjs']);
+        $rawatJalan = OmsetCategory::create(['company_id' => $company->id, 'name' => 'Rawat Jalan Umum', 'payer_type' => 'umum']);
         OmsetDetail::create(['payroll_period_id' => $period->id, 'omset_category_id' => $rawatInap->id, 'amount' => 70_000]);
         OmsetDetail::create(['payroll_period_id' => $period->id, 'omset_category_id' => $rawatJalan->id, 'amount' => 30_000]);
 
         $context = new PayrollContext();
         (new JasaPelayananCalculator())->calculate($user, $payroll, $period, $context);
 
-        // Total JE = 300 + 700 = 1000, Total Omset = 70.000 + 30.000 = 100.000
-        // (300 / 1000) * 100.000 = 30.000
-        $this->assertSame(30_000.0, $context->grossSalary);
+        // Total JE = 300 + 700 = 1000. Pool = 70.000 x 2,5% (BPJS) + 30.000 x 7,5% (Umum)
+        // = 1.750 + 2.250 = 4.000. (300 / 1000) * 4.000 = 1.200
+        $this->assertSame(1_200.0, $context->grossSalary);
     }
 
     public function test_skips_when_no_omset_filled_for_period(): void
