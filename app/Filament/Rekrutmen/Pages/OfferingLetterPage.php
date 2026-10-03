@@ -6,6 +6,7 @@ use App\Models\Rekrutmen\ApplicationNotification;
 use App\Models\Rekrutmen\CompanyMessageTemplate;
 use App\Models\Rekrutmen\JobApplication;
 use App\Models\Rekrutmen\JobOpening;
+use App\Models\Rekrutmen\JobOpeningOfferingCompensationItem;
 use App\Models\Rekrutmen\JobOpeningOfferingCompensationRow;
 use App\Models\Rekrutmen\JobOpeningStageLog;
 use Filament\Actions\Action;
@@ -137,7 +138,7 @@ class OfferingLetterPage extends Page implements HasActions, HasForms, HasTable
                     ->schema([
                         Hidden::make('id'),
                         TextInput::make('label')->label('Komponen')->placeholder('Mis. Gaji Pokok')->required()->maxLength(255)->columnSpanFull(),
-                        TextInput::make('amount_orientasi')->label('Nominal')->placeholder('Bebas teks atau kosongkan')->maxLength(255)->columnSpanFull(),
+                        TextInput::make('amount')->label('Nominal')->placeholder('Bebas teks atau kosongkan')->maxLength(255)->columnSpanFull(),
                     ])
                     ->visible(fn () => ! $this->isSggModeForCurrentOpening())
                     ->reorderable(false)
@@ -150,7 +151,7 @@ class OfferingLetterPage extends Page implements HasActions, HasForms, HasTable
                     ->schema([
                         Hidden::make('id'),
                         TextInput::make('label')->label('Komponen')->placeholder('Mis. Gaji Yang Didapatkan')->required()->maxLength(255)->columnSpanFull(),
-                        TextInput::make('amount_kontrak')->label('Nominal')->placeholder('Bebas teks atau kosongkan')->maxLength(255)->columnSpanFull(),
+                        TextInput::make('amount')->label('Nominal')->placeholder('Bebas teks atau kosongkan')->maxLength(255)->columnSpanFull(),
                     ])
                     ->visible(fn () => ! $this->isSggModeForCurrentOpening())
                     ->reorderable(false)
@@ -159,19 +160,20 @@ class OfferingLetterPage extends Page implements HasActions, HasForms, HasTable
                     ->defaultItems(0),
             ])
             ->fillForm(function () {
-                $rows = JobOpening::find($this->jobOpeningId)?->offeringCompensationRows ?? collect();
+                $opening = JobOpening::find($this->jobOpeningId);
+                $items = $opening?->offeringCompensationItems ?? collect();
 
                 return [
-                    'rows' => $rows->whereNull('kind')
+                    'rows' => ($opening?->offeringCompensationRows ?? collect())
                         ->map(fn ($r) => [
                             'id' => $r->id, 'label' => $r->label,
                             'amount_orientasi' => $r->amount_orientasi, 'amount_kontrak' => $r->amount_kontrak,
                         ])->values()->all(),
-                    'mitraRows' => $rows->where('kind', 'mitra')
-                        ->map(fn ($r) => ['id' => $r->id, 'label' => $r->label, 'amount_orientasi' => $r->amount_orientasi])
+                    'mitraRows' => $items->where('type', 'mitra')
+                        ->map(fn ($r) => ['id' => $r->id, 'label' => $r->label, 'amount' => $r->amount])
                         ->values()->all(),
-                    'kontrakRows' => $rows->where('kind', 'kontrak')
-                        ->map(fn ($r) => ['id' => $r->id, 'label' => $r->label, 'amount_kontrak' => $r->amount_kontrak])
+                    'kontrakRows' => $items->where('type', 'kontrak')
+                        ->map(fn ($r) => ['id' => $r->id, 'label' => $r->label, 'amount' => $r->amount])
                         ->values()->all(),
                 ];
             })
@@ -187,7 +189,6 @@ class OfferingLetterPage extends Page implements HasActions, HasForms, HasTable
                     $submittedIds = collect($rows)->pluck('id')->filter()->all();
 
                     JobOpeningOfferingCompensationRow::where('job_opening_id', $this->jobOpeningId)
-                        ->whereNull('kind')
                         ->whereNotIn('id', $submittedIds)
                         ->delete();
 
@@ -195,7 +196,6 @@ class OfferingLetterPage extends Page implements HasActions, HasForms, HasTable
                         $values = [
                             'job_opening_id' => $this->jobOpeningId,
                             'label' => $row['label'],
-                            'kind' => null,
                             'amount_orientasi' => $row['amount_orientasi'],
                             'amount_kontrak' => $row['amount_kontrak'],
                             'sort_order' => $i,
@@ -208,41 +208,25 @@ class OfferingLetterPage extends Page implements HasActions, HasForms, HasTable
                         }
                     }
                 } else {
-                    $mitra = $data['mitraRows'] ?? [];
-                    $kontrak = $data['kontrakRows'] ?? [];
-                    $submittedIds = collect($mitra)->pluck('id')->filter()
-                        ->merge(collect($kontrak)->pluck('id')->filter())->all();
+                    $submitted = ['mitra' => $data['mitraRows'] ?? [], 'kontrak' => $data['kontrakRows'] ?? []];
+                    $submittedIds = collect($submitted)->flatten(1)->pluck('id')->filter()->all();
 
-                    JobOpeningOfferingCompensationRow::where('job_opening_id', $this->jobOpeningId)
-                        ->whereIn('kind', ['mitra', 'kontrak'])
+                    JobOpeningOfferingCompensationItem::where('job_opening_id', $this->jobOpeningId)
                         ->whereNotIn('id', $submittedIds)
                         ->delete();
 
-                    foreach ($mitra as $i => $row) {
-                        $values = [
-                            'job_opening_id' => $this->jobOpeningId, 'label' => $row['label'], 'kind' => 'mitra',
-                            'amount_orientasi' => $row['amount_orientasi'], 'amount_kontrak' => null,
-                            'sort_order' => $i,
-                        ];
+                    foreach ($submitted as $type => $rows) {
+                        foreach ($rows as $i => $row) {
+                            $values = [
+                                'job_opening_id' => $this->jobOpeningId, 'type' => $type,
+                                'label' => $row['label'], 'amount' => $row['amount'], 'sort_order' => $i,
+                            ];
 
-                        if (! empty($row['id'])) {
-                            JobOpeningOfferingCompensationRow::where('id', $row['id'])->update($values);
-                        } else {
-                            JobOpeningOfferingCompensationRow::create($values);
-                        }
-                    }
-
-                    foreach ($kontrak as $i => $row) {
-                        $values = [
-                            'job_opening_id' => $this->jobOpeningId, 'label' => $row['label'], 'kind' => 'kontrak',
-                            'amount_orientasi' => null, 'amount_kontrak' => $row['amount_kontrak'],
-                            'sort_order' => $i,
-                        ];
-
-                        if (! empty($row['id'])) {
-                            JobOpeningOfferingCompensationRow::where('id', $row['id'])->update($values);
-                        } else {
-                            JobOpeningOfferingCompensationRow::create($values);
+                            if (! empty($row['id'])) {
+                                JobOpeningOfferingCompensationItem::where('id', $row['id'])->update($values);
+                            } else {
+                                JobOpeningOfferingCompensationItem::create($values);
+                            }
                         }
                     }
                 }

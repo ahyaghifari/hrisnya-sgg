@@ -254,6 +254,9 @@ class JobApplication extends Model
             'kontrak' => $formatAmount($row->amount_kontrak),
         ])->all();
 
+        $items = $this->jobOpening->offeringCompensationItems
+            ->map(fn ($i) => ['type' => $i->type, 'label' => $i->label, 'amount' => $i->amount]);
+
         return \Barryvdh\DomPDF\Facade\Pdf::loadView($company->offering_letter_template->view(), [
             'background_path' => $this->resolveOfferingBackgroundDataUri($company),
             'full_name' => $this->offering_full_name,
@@ -264,6 +267,8 @@ class JobApplication extends Model
             'lokasi_kerja' => $company->name,
             'tanggal_surat' => now()->translatedFormat('d F Y'),
             'compensation_rows' => $compensationRows,
+            'mitra_items' => $items->where('type', 'mitra')->values()->all(),
+            'kontrak_items' => $items->where('type', 'kontrak')->values()->all(),
             'benefits' => $company->offeringBenefits->map(fn ($b) => ['label' => $b->label, 'is_starred' => $b->is_starred])->all(),
             'benefit_note' => $company->offering_benefit_note,
             'terms' => $company->offeringTerms->pluck('label')->all(),

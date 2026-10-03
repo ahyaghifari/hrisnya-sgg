@@ -139,8 +139,10 @@ class WawancaraPage extends Page implements HasActions, HasForms, HasTable
      */
     public function hasCompensationRows(): bool
     {
-        return $this->jobOpeningId
-            ? JobOpening::find($this->jobOpeningId)?->offeringCompensationRows()->exists() ?? false
+        $opening = $this->jobOpeningId ? JobOpening::find($this->jobOpeningId) : null;
+
+        return $opening
+            ? $opening->offeringCompensationRows()->exists() || $opening->offeringCompensationItems()->exists()
             : false;
     }
 
