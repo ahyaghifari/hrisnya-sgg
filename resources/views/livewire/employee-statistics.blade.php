@@ -350,10 +350,6 @@ Pembinaan). Inline supaya tidak perlu build CSS; desktop (>=768px) tetap pill ho
                         </select>
                     </div>
                     <div>
-                        <label class="form-label">Status Perkawinan</label>
-                        <input type="text" class="form-input" wire:model="marital_status" maxlength="50">
-                    </div>
-                    <div>
                         <label class="form-label">Agama</label>
                         <select class="form-input" wire:model="religion_id">
                             <option value="">-- Pilih --</option>
@@ -393,7 +389,7 @@ Pembinaan). Inline supaya tidak perlu build CSS; desktop (>=768px) tetap pill ho
                     </div>
                 </div>
                 <p style="font-size:11.5px;color:var(--text-muted);margin:-8px 0 20px;">
-                    Rekening bank tidak bisa diubah sendiri — hubungi HC kalau perlu diperbarui.
+                    Rekening bank dan status perkawinan tidak bisa diubah sendiri — hubungi HC kalau perlu diperbarui.
                 </p>
 
                 {!! $sectionHeader('fa-phone', 'Kontak') !!}
