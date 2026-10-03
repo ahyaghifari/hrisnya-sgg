@@ -554,7 +554,7 @@ class TaskListPage extends Component
             return null;
         }
 
-        return Task::with(['assignedTo', 'assignees.user.profile', 'createdBy', 'reviewer', 'checklistItems', 'comments.user', 'attachments.uploadedBy', 'activities.user.profile', 'checklistItems.doneBy', 'proofs', 'rejectionNoteBy'])
+        return Task::with(['assignedTo', 'assignees.user.profile', 'createdBy', 'reviewer', 'checklistItems', 'comments.user', 'attachments.uploadedBy', 'activities.user.profile', 'checklistItems.doneBy', 'checklistItems.assignee.profile', 'proofs', 'rejectionNoteBy'])
             ->find($this->selectedTaskId);
     }
 
@@ -568,6 +568,28 @@ class TaskListPage extends Component
         } catch (\Throwable $e) {
             Notification::make()->title($e->getMessage() ?: 'Tidak bisa mengubah checklist ini')->danger()->send();
         }
+    }
+
+    public function assignChecklistItem(string $itemId, ?string $userId): void
+    {
+        try {
+            app(TaskService::class)->assignChecklistItem(TaskChecklistItem::findOrFail($itemId), $userId ?: null, Auth::user());
+        } catch (\Throwable $e) {
+            Notification::make()->title($e->getMessage() ?: 'Tidak bisa menugaskan checklist ini')->danger()->send();
+        }
+
+        unset($this->selectedTask, $this->tasks);
+    }
+
+    public function reorderChecklist(string $taskId, array $orderedIds): void
+    {
+        try {
+            app(TaskService::class)->reorderChecklist(Task::findOrFail($taskId), $orderedIds, Auth::user());
+        } catch (\Throwable $e) {
+            Notification::make()->title($e->getMessage() ?: 'Tidak bisa mengurutkan checklist ini')->danger()->send();
+        }
+
+        unset($this->selectedTask, $this->tasks);
     }
 
     public function addChecklistItemToTask(string $taskId): void

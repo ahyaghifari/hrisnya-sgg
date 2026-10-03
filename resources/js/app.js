@@ -514,6 +514,26 @@ function initTaskBoardSortables() {
         });
     });
 
+    // Checklist di modal detail tugas: urutkan dengan menggeser barisnya. Cuma yang boleh mengelola
+    // tugas yang bisa menggeser (server tetap cek lagi di TaskService::reorderChecklist()).
+    document.querySelectorAll("[data-checklist-list]").forEach((el) => {
+        if (el._sortable || el.dataset.sortableEnabled !== "1") return;
+
+        const wireId = el.closest("[wire\\:id]")?.getAttribute("wire:id") ?? null;
+        el._sortable = Sortable.create(el, {
+            ...taskSortableTouchOptions,
+            // Seluruh baris bisa digeser; tombol/dropdown/input di dalamnya tetap bisa diklik.
+            filter: "button, select, input, a",
+            preventOnFilter: false,
+            onEnd() {
+                if (!wireId) return;
+
+                const ids = Array.from(el.children).filter((c) => c.dataset.itemId).map((c) => c.dataset.itemId);
+                Livewire.find(wireId).call("reorderChecklist", el.dataset.taskId, ids);
+            },
+        });
+    });
+
     // Drag cuma opsi TAMBAHAN, tombol/dropdown status yang ada tetap dipertahankan. Drag yang
     // melanggar aturan moveStatus() (loncat step, bukan assignee/creator) balik ke kolom asal
     // lewat morph berikutnya - tidak ada revert manual di sini. Sementara baru dipasang di
