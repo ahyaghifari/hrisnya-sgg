@@ -141,6 +141,11 @@ class SpService
             'cancelled_by' => $cancelledById,
         ]);
 
+        $actor = \App\Models\User::find($cancelledById);
+        foreach ([$employeeSp->document, $employeeSp->report?->document] as $document) {
+            $document?->logEvent('document_revoked', $actor, ['reason' => $reason]);
+        }
+
         $this->refreshBalance($employeeSp->user_id);
 
         app(MeritPointService::class)->revokeEvent($employeeSp->user_id, 'employee_sp', $employeeSp->id);

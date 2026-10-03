@@ -72,15 +72,10 @@ class SpReport extends Model implements Signable
         // boleh berubah isinya - hash TTD-nya dihitung dari isi ini. keputusan/sp_id bukan bagian
         // isi, tetap boleh diisi setelahnya.
         static::updating(function (SpReport $report) {
-            if ($report->isDirty(self::CONTENT_FIELDS) && ($report->getOriginal('status') === SpReportStatus::SELESAI || $report->hasSignatures())) {
+            if ($report->isDirty(self::CONTENT_FIELDS) && ($report->getOriginal('status') === SpReportStatus::SELESAI || $report->isFixed())) {
                 throw new \LogicException('Berita Acara sudah ditandatangani, isinya tidak bisa diubah.');
             }
         });
-    }
-
-    private function hasSignatures(): bool
-    {
-        return $this->exists && $this->document()->whereHas('signatures')->exists();
     }
 
     public function sp(): BelongsTo
@@ -121,7 +116,7 @@ class SpReport extends Model implements Signable
     public function syncDasarItems(array $texts): void
     {
         // Dasar Klarifikasi ikut di-hash TTD, jadi sama terkunci dengan kolom isi lainnya.
-        if ($this->status === SpReportStatus::SELESAI || $this->hasSignatures()) {
+        if ($this->status === SpReportStatus::SELESAI || $this->isFixed()) {
             throw new \LogicException('Berita Acara sudah ditandatangani, isinya tidak bisa diubah.');
         }
 
@@ -190,6 +185,16 @@ class SpReport extends Model implements Signable
     public function documentNumber(): string
     {
         return $this->nomor ?? 'BA-' . ($this->sp_id ?? $this->id);
+    }
+
+    public function signSummary(): array
+    {
+        $this->loadMissing(['user.activeJobPosition.jobPosition']);
+
+        return array_filter([
+            'Untuk' => $this->user?->name,
+            'Jabatan' => $this->user?->activeJobPosition?->jobPosition?->name,
+        ]);
     }
 
     public function documentTypeLabel(): string

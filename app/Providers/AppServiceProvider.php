@@ -44,7 +44,7 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('payroll-slip-email', fn () => Limit::perMinute(35));
 
         // Laravel tidak scan subfolder migrations; migrasi DB `persuratan` dipisah ke subfolder.
-        $this->loadMigrationsFrom(database_path('migrations/persuratan'));
+        // $this->loadMigrationsFrom(database_path('migrations/persuratan'));
 
         // Daftarkan provider Socialite 'keycloak' (socialiteproviders/keycloak pakai pola
         // event-based, bukan config/services saja). Laravel 12 tidak punya EventServiceProvider

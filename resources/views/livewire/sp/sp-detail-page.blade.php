@@ -14,9 +14,7 @@
 @endif
 
 <div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:16px;">
-    <a href="{{ route('sp.preview', $record) }}" target="_blank" class="btn-primary">
-        <i class="fa-solid fa-file-pdf"></i> Preview PDF
-    </a>
+    @include('livewire.document.partials.pdf-button', ['document' => $record->document, 'url' => route('sp.preview', $record), 'label' => 'Preview PDF'])
 </div>
 
 @if ($cancellingSp)
@@ -224,9 +222,7 @@
             <p style="font-size:13px;font-weight:700;color:var(--text-heading);margin:0;">Berita Acara</p>
         </div>
         <div style="display:flex;align-items-center;gap:3px;">
-            <a href="{{ route('sp.beritaacara_preview', $record) }}" target="_blank"  class="btn-primary" style="font-size:12px;padding:4px 10px;">
-                <i class="fa-solid fa-file-pdf"></i> Preview PDF
-            </a>
+            @include('livewire.document.partials.pdf-button', ['document' => $record->report?->document, 'url' => route('sp.beritaacara_preview', $record), 'label' => 'Preview PDF', 'style' => 'font-size:12px;padding:4px 10px;'])
             @if ($this->canManage)
                 @unless ($editingReport || $this->isLocked)
                     <button type="button" wire:click="editReport" class="btn-secondary" style="font-size:12px;padding:4px 10px;">

@@ -20,6 +20,9 @@
                     <p style="font-size:11.5px;color:var(--text-muted);margin-top:2px;">
                         No. {{ $doc->document_number ?: '-' }} &middot; Terbit {{ $doc->issued_at->translatedFormat('d M Y') }}
                     </p>
+                    @foreach ($doc->documentable->signSummary() as $label => $value)
+                        <p style="font-size:12px;color:var(--text-body);margin:6px 0 0;"><span style="color:var(--text-muted);">{{ $label }}:</span> <strong>{{ $value }}</strong></p>
+                    @endforeach
                     @if ($this->roleLabel)
                         <p style="font-size:11px;color:var(--text-muted);margin-top:4px;">Peran yang Anda tandatangani: <strong>{{ $this->roleLabel }}</strong></p>
                     @endif
@@ -39,16 +42,19 @@
 
                 <div>
                     <label class="form-label">Password Anda</label>
-                    <input type="password" wire:model="password" class="form-input" wire:keydown.enter="confirmSign" autofocus>
+                    <input type="password" wire:model="password" class="form-input" wire:keydown.enter="confirmSign" wire:loading.attr="disabled" wire:target="confirmSign" autofocus>
                     @error('password') <p style="color:var(--danger-text);font-size:11.5px;margin-top:4px;">{{ $message }}</p> @enderror
                 </div>
             </div>
 
             <div style="display:flex;gap:10px;margin-top:16px;">
-                <button type="button" wire:click="confirmSign" wire:loading.attr="disabled" class="btn-primary" style="flex:1;justify-content:center;">
-                    <i class="fa-solid fa-check"></i> Setujui &amp; Tandatangani
+                <button type="button" wire:click="confirmSign" wire:loading.attr="disabled" wire:target="confirmSign" class="btn-primary" style="flex:1;justify-content:center;">
+                    <i class="fa-solid fa-check" wire:loading.remove wire:target="confirmSign"></i>
+                    <i class="fa-solid fa-spinner fa-spin" wire:loading wire:target="confirmSign"></i>
+                    <span wire:loading.remove wire:target="confirmSign">Setujui &amp; Tandatangani</span>
+                    <span wire:loading wire:target="confirmSign">Memproses...</span>
                 </button>
-                <button type="button" wire:click="close" class="btn-ghost" style="flex:1;justify-content:center;">Batal</button>
+                <button type="button" wire:click="close" wire:loading.attr="disabled" wire:target="confirmSign" class="btn-ghost" style="flex:1;justify-content:center;">Batal</button>
             </div>
         </div>
     </div>

@@ -187,6 +187,8 @@ class SpReportService
             throw ValidationException::withMessages(['status' => 'Berita Acara sudah ditandatangani, tidak bisa diajukan ulang.']);
         }
 
+        $report->document?->unfix($actor); // isi akan berubah -> buka kunci, dikunci lagi di sendForSigning
+
         $report->update([
             'riwayat_klarifikasi' => [
                 ...($report->riwayat_klarifikasi ?? []),

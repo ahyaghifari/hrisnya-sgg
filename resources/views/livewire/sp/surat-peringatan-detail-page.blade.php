@@ -13,13 +13,9 @@
 @endif
 
 <div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:16px;">
-    <a href="{{ route('sp.saya.preview', $record) }}" target="_blank" class="btn-primary">
-        <i class="fa-solid fa-file-pdf"></i> Preview PDF
-    </a>
+    @include('livewire.document.partials.pdf-button', ['document' => $record->document, 'url' => route('sp.saya.preview', $record), 'label' => 'Preview PDF'])
     @if ($record->report)
-        <a href="{{ route('sp.saya.beritaacara_preview', $record) }}" target="_blank" class="btn-secondary">
-            <i class="fa-solid fa-file-pdf"></i> Preview Berita Acara
-        </a>
+        @include('livewire.document.partials.pdf-button', ['document' => $record->report->document, 'url' => route('sp.saya.beritaacara_preview', $record), 'label' => 'Preview Berita Acara', 'class' => 'btn-secondary'])
     @endif
 </div>
 

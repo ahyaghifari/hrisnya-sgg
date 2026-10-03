@@ -50,6 +50,11 @@ class CompaniesResource extends BaseResource
                     ->required()
                     ->maxLength(255),
 
+                TextInput::make('letter_name')
+                    ->label('Nama Perusahaan untuk Surat')
+                    ->helperText('Dipakai di SP dan Berita Acara. Kosongkan untuk memakai Nama Perusahaan.')
+                    ->maxLength(255),
+
                 TextInput::make('location')
                     ->label('Lokasi Perusahaan')
                     ->required()

@@ -96,7 +96,10 @@
                     @if (in_array($group, ['sakit', 'khusus']))
                         <div>
                             <label class="form-label">Tanggal Selesai <span style="color:var(--danger-text);">*</span></label>
-                            <input type="date" class="form-input" wire:model="end_date">
+                            <input type="date" class="form-input" wire:model="end_date" min="{{ $date }}" @if ($this->maxEndDate) max="{{ $this->maxEndDate }}" @endif @disabled(! $date)>
+                            @if ($this->maxEndDate)
+                                <p style="font-size:11.5px;color:var(--text-muted);margin-top:4px;">Maksimal sampai {{ \Carbon\Carbon::parse($this->maxEndDate)->translatedFormat('j M Y') }} ({{ \App\Enum\Attendance\PermissionTypeEnum::tryFrom($permission_type)?->maxDays() }} hari).</p>
+                            @endif
                             @error('end_date') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
                         </div>
                     @endif

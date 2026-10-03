@@ -20,9 +20,16 @@ class Companies extends Model
     protected $fillable = [
         'code',
         'name',
+        'letter_name',
         'location',
         'is_active',
     ];
+
+    /** Nama untuk surat resmi (SP, Berita Acara); fallback ke nama biasa. */
+    public function letterName(): string
+    {
+        return $this->letter_name ?: $this->name;
+    }
 
     protected static function boot(): void
     {

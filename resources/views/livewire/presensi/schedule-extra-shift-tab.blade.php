@@ -84,7 +84,7 @@
 
                     <div>
                         <label class="form-label">Tanggal</label>
-                        <input type="date" class="form-input" wire:model.live="date" min="{{ now()->toDateString() }}" @disabled(!$user_id)>
+                        <input type="date" class="form-input" wire:model.live="date" min="{{ now()->subDay()->toDateString() }}" @disabled(!$user_id)>
                         @error('date') <p style="color:var(--danger-text);font-size:11px;margin-top:4px;">{{ $message }}</p> @enderror
                     </div>
 

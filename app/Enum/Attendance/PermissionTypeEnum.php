@@ -99,6 +99,12 @@ enum PermissionTypeEnum: string
         };
     }
 
+    /** Batas hari maksimal tanggal selesai Izin Khusus - null = tidak dibatasi. Menikah karyawan 5 hari (lokasi >150km), selebihnya = defaultDays(). */
+    public function maxDays(): ?int
+    {
+        return $this === self::MENIKAH_KARYAWAN ? 5 : $this->defaultDays();
+    }
+
     public function description(): ?string
     {
         return match ($this) {

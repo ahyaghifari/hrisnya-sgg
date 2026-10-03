@@ -21,6 +21,19 @@ class SpItem extends Model
         'sort_order' => 'integer',
     ];
 
+    protected static function booted(): void
+    {
+        $guard = function (SpItem $item) {
+            if ($item->sp?->isFixed()) {
+                throw new \LogicException('Surat Peringatan sudah dikunci (FIX), isinya tidak bisa diubah.');
+            }
+        };
+
+        static::creating($guard);
+        static::updating($guard);
+        static::deleting($guard);
+    }
+
     public function sp(): BelongsTo
     {
         return $this->belongsTo(EmployeeSp::class, 'sp_id');

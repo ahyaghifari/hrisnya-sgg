@@ -6,9 +6,7 @@
             <div class="section-icon"><i class="fa-solid fa-file-circle-check" style="color:var(--brand);font-size:12px;"></i></div>
             <span class="section-title">Berita Acara</span>
         </div>
-        <a href="{{ $pdfUrl }}" target="_blank" class="btn-primary" style="padding:7px 14px;font-size:12px;">
-            <i class="fa-solid fa-file-pdf"></i> Lihat PDF
-        </a>
+        @include('livewire.document.partials.pdf-button', ['document' => $record->document, 'url' => $pdfUrl, 'label' => 'Lihat PDF', 'style' => 'padding:7px 14px;font-size:12px;'])
     </div>
 
     <div style="display:flex;flex-direction:column;gap:2px;">

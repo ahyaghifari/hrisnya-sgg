@@ -110,6 +110,8 @@ class TaskService
                 'description' => filled($data['description'] ?? null) ? trim($data['description']) : null,
                 'priority' => $data['priority'] ?? 'medium',
                 'due_date' => $data['due_date'] ?? null,
+                // Berulang cuma untuk tugas Board yang punya tenggat.
+                'recurrence' => $project && ! empty($data['due_date']) ? ($data['recurrence'] ?? null) : null,
                 'created_by' => $user->id,
                 'reviewer_id' => $reviewerId,
                 'assigned_to' => $assignedTo,
@@ -650,8 +652,85 @@ class TaskService
             'requirement' => $data['requirement'],
             'description' => filled($data['description'] ?? null) ? trim($data['description']) : null,
             'due_date' => $data['due_date'] ?? null,
+            'recurrence' => $task->project_id && ! empty($data['due_date']) ? ($data['recurrence'] ?? null) : null,
             'priority' => $data['priority'],
         ]);
+    }
+
+    /** Ubah tenggat langsung dari modal detail - izin sama dengan edit tugas. Tenggat dikosongkan = pengulangan ikut mati. */
+    public function setDueDate(Task $task, ?string $dueDate, User $user): void
+    {
+        $isOwner = $task->is_self_assigned ? $task->assigned_to === $user->id : $task->created_by === $user->id;
+        abort_unless($isOwner, 403);
+        abort_if($task->status === TaskStatus::COMPLETE->value, 422, 'Tugas yang sudah selesai tidak bisa diedit.');
+
+        $this->taskRepository->update($task->id, [
+            'due_date' => $dueDate,
+            'recurrence' => $dueDate ? $task->recurrence : null,
+        ]);
+    }
+
+    /** Ubah pengulangan langsung dari modal detail - izin sama dengan edit tugas, cuma untuk tugas Board bertenggat. */
+    public function setRecurrence(Task $task, ?string $recurrence, User $user): void
+    {
+        $isOwner = $task->is_self_assigned ? $task->assigned_to === $user->id : $task->created_by === $user->id;
+        abort_unless($isOwner, 403);
+        abort_if($task->status === TaskStatus::COMPLETE->value, 422, 'Tugas yang sudah selesai tidak bisa diedit.');
+        abort_unless($task->project_id && $task->due_date, 422, 'Pengulangan cuma untuk tugas Board yang punya tenggat.');
+        abort_unless($recurrence === null || isset(Task::RECURRENCES[$recurrence]), 422);
+
+        $this->taskRepository->update($task->id, ['recurrence' => $recurrence]);
+    }
+
+    /**
+     * Centang tugas Board berulang: kartu lama pindah ke List Selesai (lewat moveCardsAcrossLists, jadi
+     * aturan review/izin tetap berlaku), lalu dibuat salinan baru - tenggat periode berikutnya, status
+     * Todo, checklist belum dicentang, pelaksana sama - di List asal. Kartu lama tidak berulang lagi.
+     */
+    public function completeRecurring(Task $task, User $actor): Task
+    {
+        abort_unless($task->recurrence && $task->project_id, 422, 'Tugas ini bukan tugas berulang.');
+        abort_if($task->status === TaskStatus::COMPLETE->value, 422, 'Tugas ini sudah selesai.');
+
+        return DB::transaction(function () use ($task, $actor) {
+            $final = $task->project->lists()->where('is_final', true)->first();
+            abort_unless($final, 422, 'Board ini belum punya List Selesai.');
+
+            $nextDue = $task->nextDueDate();
+            // Salinan kembali ke List asal; kalau asalnya List Review, ke List kerja pertama.
+            $listId = $task->list?->is_review
+                ? $task->project->lists()->where('is_review', false)->where('is_final', false)->orderBy('position')->value('id')
+                : $task->list_id;
+
+            $this->moveCardsAcrossLists(
+                [$final->id => $final->tasks()->orderBy('position')->pluck('id')->push($task->id)->all()],
+                $actor,
+                $task->id
+            );
+
+            $copy = $this->taskRepository->create([
+                ...$task->only(['department_id', 'project_id', 'company_id', 'requirement', 'description', 'priority', 'recurrence', 'created_by', 'reviewer_id', 'assigned_to', 'is_self_assigned', 'needs_review', 'notify_creator_on_review', 'notify_creator_on_complete']),
+                'code' => $this->generateCode($task->department_id),
+                'list_id' => $listId,
+                'due_date' => $nextDue,
+                'responded_date' => Carbon::now(),
+                'status' => TaskStatus::TODO->value,
+            ]);
+
+            foreach ($task->assignees as $assignee) {
+                if ($assignee->user_id !== $task->assigned_to) {
+                    $copy->assignees()->create(['user_id' => $assignee->user_id]);
+                }
+            }
+            foreach ($task->checklistItems as $item) {
+                $copy->checklistItems()->create(['title' => $item->title, 'position' => $item->position, 'created_by' => $item->created_by]);
+            }
+
+            $this->taskRepository->update($task->id, ['recurrence' => null]);
+            $this->logActivity($copy, $actor, 'created', 'Dibuat otomatis dari tugas berulang ' . $task->code);
+
+            return $copy;
+        });
     }
 
     /**
@@ -802,6 +881,9 @@ class TaskService
     {
         $task = $item->task;
         abort_unless($this->canContributeToTask($task, $user), 403, 'Cuma pelaksana, pembuat tugas, atau pembuat Board yang bisa ceklis checklist ini.');
+        // Item yang ditugaskan ke satu orang: cuma dia yang boleh mencentang/membatalkan - kecuali owner Board.
+        $isBoardOwner = $task->project && $this->isProjectOwner($task->project, $user);
+        abort_if($item->assigned_to && $item->assigned_to !== $user->id && ! $isBoardOwner, 403, 'Item ini ditugaskan ke ' . ($item->assignee?->name ?? 'pelaksana lain') . ', cuma dia yang bisa mencentangnya.');
 
         $nowDone = ! $item->is_done;
 
@@ -840,7 +922,11 @@ class TaskService
         abort_unless($this->canContributeToTask($task, $user), 403, 'Cuma pelaksana, pembuat tugas, atau pembuat Board yang bisa menambah checklist ini.');
         abort_if(trim($title) === '', 422, 'Judul checklist tidak boleh kosong.');
 
-        $item = $task->checklistItems()->create(['title' => trim($title), 'created_by' => $user->id]);
+        $item = $task->checklistItems()->create([
+            'title' => trim($title),
+            'created_by' => $user->id,
+            'position' => ($task->checklistItems()->max('position') ?? -1) + 1,
+        ]);
         $this->logActivity($task, $user, 'checklist_added', 'Menambahkan ceklis "' . $item->title . '"');
 
         return $item;
@@ -907,6 +993,36 @@ class TaskService
         abort_if(trim($title) === '', 422, 'Judul checklist tidak boleh kosong.');
 
         $item->update(['title' => trim($title)]);
+    }
+
+    /** Tugaskan item ke salah satu pelaksana tugas ($userId null = lepas penugasan). Hak ubah = hak edit item. */
+    public function assignChecklistItem(TaskChecklistItem $item, ?string $userId, User $user): void
+    {
+        abort_unless($this->canModifyChecklistItem($item, $user), 403, 'Kamu tidak bisa menugaskan checklist ini.');
+        abort_if($userId && ! $item->task->isAssignee($userId), 422, 'Item cuma bisa ditugaskan ke pelaksana tugas ini.');
+
+        $item->update(['assigned_to' => $userId ?: null]);
+
+        $this->logActivity(
+            $item->task,
+            $user,
+            'checklist_assigned',
+            $userId
+                ? 'Menugaskan ceklis "' . $item->title . '" ke ' . User::find($userId)?->name
+                : 'Melepas penugasan ceklis "' . $item->title . '"'
+        );
+    }
+
+    /** Urutan baru checklist ($orderedIds = id item sesuai urutan tampil). Hak = yang boleh mengelola tugas. */
+    public function reorderChecklist(Task $task, array $orderedIds, User $user): void
+    {
+        abort_unless($this->canContributeToTask($task, $user), 403, 'Kamu tidak bisa mengurutkan checklist ini.');
+
+        $valid = $task->checklistItems()->pluck('id')->all();
+
+        foreach (array_values(array_intersect($orderedIds, $valid)) as $position => $id) {
+            TaskChecklistItem::where('id', $id)->update(['position' => $position]);
+        }
     }
 
     public function deleteChecklistItem(TaskChecklistItem $item, User $user): void

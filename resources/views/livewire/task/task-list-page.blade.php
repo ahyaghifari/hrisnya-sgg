@@ -264,6 +264,12 @@
     .task-checklist-checkbox.custom-checkbox { width: 18px; height: 18px; }
     .task-checklist-checkbox .box { border-radius: 5px; }
     .task-checklist-checkbox .box i { font-size: 10px; }
+    /* Baris checklist yang bisa digeser: kotak berborder + bayangan tipis supaya kelihatan "bisa diangkat". */
+    .task-checklist-row.is-draggable { padding: 7px 10px; border: 1px solid var(--border-soft); border-radius: 10px; background: var(--surface, #fff); box-shadow: 0 1px 2px rgba(15,23,42,0.06); transition: box-shadow .15s, border-color .15s; }
+    .task-checklist-row.is-draggable:hover { border-color: var(--border); box-shadow: 0 3px 8px rgba(15,23,42,0.12); }
+    .task-checklist-row.sortable-chosen { box-shadow: 0 8px 18px rgba(15,23,42,0.22); cursor: grabbing; }
+    .task-checklist-row.sortable-ghost { opacity: 0.4; }
+    .task-checklist-row.sortable-fallback { opacity: 0.95 !important; z-index: 10005 !important; pointer-events: none; }
 
     /* Modal detail task di HP: layar penuh (bukan kotak ngambang kekecilan), 2 kolom
     (isi task + komentar) ditumpuk vertikal, komentar dapat garis atas bukan garis kiri. */
@@ -553,6 +559,12 @@
                                     @php $canMoveCard = ! $this->isProjectArchived && ($list->is_review ? (($task->reviewer_id ?? $task->created_by) === auth()->id()) : ($task->isAssignee(auth()->id()) || $this->isProjectOwner)); @endphp
                                     <div class="task-card{{ $canMoveCard ? '' : ' task-card-locked' }}" wire:click="openTaskDetail('{{ $task->id }}')" data-task-id="{{ $task->id }}" style="--accent:{{ $priorityAccent($task->priority?->getColor() ?? 'gray') }};">
                                         <div class="task-card-top">
+                                            @if ($task->recurrence && $canMoveCard && ! $list->is_final && ! $list->is_review)
+                                                <label class="custom-checkbox" style="--accent:#16a34a;width:16px;height:16px;margin-top:2px;" title="Selesai &amp; ulangi ({{ \App\Models\Task\Task::RECURRENCES[$task->recurrence] }})" onclick="event.stopPropagation()">
+                                                    <input type="checkbox" wire:click="completeRecurringTask('{{ $task->id }}')" wire:confirm="Selesaikan tugas ini dan buat salinan untuk periode berikutnya?">
+                                                    <span class="box"><i class="fa-solid fa-check"></i></span>
+                                                </label>
+                                            @endif
                                             <p class="task-card-title">{{ \Illuminate\Support\Str::limit($task->requirement, 80) }}</p>
                                         </div>
                                         <div class="task-card-meta">
@@ -582,6 +594,7 @@
                                             @if ($task->due_date)
                                                 <span><i class="fa-regular fa-calendar" style="font-size:10px;"></i> {{ $fmtDate($task->due_date, 'j M, H:i') }}</span>
                                             @endif
+                                            @if ($task->recurrence) <span title="{{ \App\Models\Task\Task::RECURRENCES[$task->recurrence] }}"><i class="fa-solid fa-rotate"></i></span> @endif
                                             @if ($task->is_overdue) <span class="badge badge-rejected">Terlambat</span> @endif
                                         </div>
                                         @php $isDecider = ($task->reviewer_id ?? $task->created_by) === auth()->id(); @endphp
@@ -811,10 +824,24 @@
                     <div>
                         <label class="form-label">Tenggat</label>
                         <div style="display:flex;gap:6px;">
-                            <input type="date" class="form-input" wire:model="due_date">
-                            <input type="time" class="form-input" wire:model="due_time" placeholder="23:59" style="max-width:110px;">
+                            <div style="display:flex;flex:1;border:1px solid var(--border-color,#d1d5db);border-radius:8px;overflow:hidden;">
+                                <input type="date" class="form-input" wire:model="due_date" style="border:0;border-radius:0;box-shadow:none;flex:1;">
+                                <input type="time" class="form-input" wire:model="due_time" placeholder="23:59" style="border:0;border-left:1px solid var(--border-color,#d1d5db);border-radius:0;box-shadow:none;max-width:110px;">
+                            </div>
+                            @if ($this->activeProject)
+                                <label title="Ulangi: {{ $recurrence ? \App\Models\Task\Task::RECURRENCES[$recurrence] : 'Tidak berulang' }}" style="position:relative;display:inline-flex;align-items:center;justify-content:center;gap:6px;min-width:40px;padding:0 10px;flex-shrink:0;white-space:nowrap;font-size:13px;border:1px solid {{ $recurrence ? 'var(--primary,#2563eb)' : 'var(--border-color,#d1d5db)' }};border-radius:8px;cursor:pointer;color:{{ $recurrence ? 'var(--primary,#2563eb)' : 'var(--text-muted)' }};">
+                                    <i class="fa-solid fa-rotate"></i>@if ($recurrence)<span>{{ \App\Models\Task\Task::RECURRENCES[$recurrence] }}</span>@endif
+                                    <select wire:model.live="recurrence" style="position:absolute;inset:0;width:100%;opacity:0;cursor:pointer;">
+                                        <option value="">Tidak berulang</option>
+                                        @foreach (\App\Models\Task\Task::RECURRENCES as $key => $label)
+                                            <option value="{{ $key }}">{{ $label }}</option>
+                                        @endforeach
+                                    </select>
+                                </label>
+                            @endif
                         </div>
                         <p style="font-size:11px;color:var(--text-muted);margin-top:4px;">Jam kosong = 23:59.</p>
+                        @error('due_date') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">Tenggat wajib diisi untuk tugas berulang.</p> @enderror
                     </div>
                     <div>
                         <label class="form-label">Prioritas</label>
@@ -981,10 +1008,24 @@
                     <div>
                         <label class="form-label">Tenggat</label>
                         <div style="display:flex;gap:6px;">
-                            <input type="date" class="form-input" wire:model="editDueDate">
-                            <input type="time" class="form-input" wire:model="editDueTime" placeholder="23:59" style="max-width:110px;">
+                            <div style="display:flex;flex:1;border:1px solid var(--border-color,#d1d5db);border-radius:8px;overflow:hidden;">
+                                <input type="date" class="form-input" wire:model="editDueDate" style="border:0;border-radius:0;box-shadow:none;flex:1;">
+                                <input type="time" class="form-input" wire:model="editDueTime" placeholder="23:59" style="border:0;border-left:1px solid var(--border-color,#d1d5db);border-radius:0;box-shadow:none;max-width:110px;">
+                            </div>
+                            @if ($this->activeProject)
+                                <label title="Ulangi: {{ $editRecurrence ? \App\Models\Task\Task::RECURRENCES[$editRecurrence] : 'Tidak berulang' }}" style="position:relative;display:inline-flex;align-items:center;justify-content:center;gap:6px;min-width:40px;padding:0 10px;flex-shrink:0;white-space:nowrap;font-size:13px;border:1px solid {{ $editRecurrence ? 'var(--primary,#2563eb)' : 'var(--border-color,#d1d5db)' }};border-radius:8px;cursor:pointer;color:{{ $editRecurrence ? 'var(--primary,#2563eb)' : 'var(--text-muted)' }};">
+                                    <i class="fa-solid fa-rotate"></i>@if ($editRecurrence)<span>{{ \App\Models\Task\Task::RECURRENCES[$editRecurrence] }}</span>@endif
+                                    <select wire:model.live="editRecurrence" style="position:absolute;inset:0;width:100%;opacity:0;cursor:pointer;">
+                                        <option value="">Tidak berulang</option>
+                                        @foreach (\App\Models\Task\Task::RECURRENCES as $key => $label)
+                                            <option value="{{ $key }}">{{ $label }}</option>
+                                        @endforeach
+                                    </select>
+                                </label>
+                            @endif
                         </div>
                         <p style="font-size:11px;color:var(--text-muted);margin-top:4px;">Jam kosong = 23:59.</p>
+                        @error('editDueDate') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">Tenggat wajib diisi untuk tugas berulang.</p> @enderror
                     </div>
                     <div>
                         <label class="form-label">Prioritas</label>
@@ -1030,7 +1071,15 @@
             <div style="display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:14px;">
                 <div style="min-width:0;">
                     <p style="font-size:11px;font-weight:700;letter-spacing:0.03em;text-transform:uppercase;color:var(--text-faint);margin:0 0 4px;">{{ $task->code }}</p>
-                    <h3 style="font-size:19px;font-weight:700;color:var(--text-heading);margin:0;line-height:1.35;">{{ $task->requirement }}</h3>
+                    <div style="display:flex;align-items:center;gap:10px;">
+                        @if ($task->recurrence && $task->project_id && $task->status !== \App\Enum\Task\TaskStatus::COMPLETE->value && ! $this->isProjectArchived && ($task->isAssignee(auth()->id()) || $this->isProjectOwner))
+                            <label class="custom-checkbox" style="--accent:#16a34a;width:24px;height:24px;" title="Selesai &amp; ulangi ({{ \App\Models\Task\Task::RECURRENCES[$task->recurrence] }})">
+                                <input type="checkbox" wire:click="completeRecurringTask('{{ $task->id }}')" wire:confirm="Selesaikan tugas ini dan buat salinan untuk periode berikutnya?">
+                                <span class="box"><i class="fa-solid fa-check" style="font-size:13px;"></i></span>
+                            </label>
+                        @endif
+                        <h3 style="font-size:19px;font-weight:700;color:var(--text-heading);margin:0;line-height:1.35;">{{ $task->requirement }}</h3>
+                    </div>
                 </div>
                 <div style="display:flex;flex-wrap:wrap;gap:6px;flex-shrink:0;">
                     @if ($canRevertComplete)
@@ -1053,7 +1102,24 @@
                     <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:18px;font-size:13px;">
                         <span class="badge {{ $badgeClass(TaskStatus::tryFrom($task->status)?->getColor() ?? 'gray') }}">{{ TaskStatus::tryFrom($task->status)?->getLabel() ?? $task->status }}</span>
                         <span class="task-card-priority" style="--accent:{{ $priorityAccent($task->priority?->getColor() ?? 'gray') }};font-size:13px;"><span class="dot"></span> {{ $task->priority?->getLabel() ?? $task->priority }}</span>
-                        @if ($task->due_date)<span style="color:var(--text-muted);display:inline-flex;align-items:center;gap:5px;"><i class="fa-regular fa-calendar" style="font-size:11px;"></i> {{ $fmtDate($task->due_date, 'j M Y, H:i') }}</span>@endif
+                        @if ($canEdit)
+                            <input type="datetime-local" class="form-input" style="width:auto;padding:3px 8px;font-size:12px;" title="Tenggat" value="{{ $task->due_date ? \Carbon\Carbon::parse($task->due_date)->format('Y-m-d\TH:i') : '' }}" wire:change="setTaskDueDate('{{ $task->id }}', $event.target.value)">
+                        @elseif ($task->due_date)
+                            <span style="color:var(--text-muted);display:inline-flex;align-items:center;gap:5px;"><i class="fa-regular fa-calendar" style="font-size:11px;"></i> {{ $fmtDate($task->due_date, 'j M Y, H:i') }}</span>
+                        @endif
+                        @if ($canEdit && $task->project_id && $task->due_date)
+                            <label title="Ulangi: {{ $task->recurrence ? \App\Models\Task\Task::RECURRENCES[$task->recurrence] : 'Tidak berulang' }}" style="position:relative;display:inline-flex;align-items:center;justify-content:center;gap:5px;min-width:28px;height:28px;padding:0 8px;border:1px solid {{ $task->recurrence ? 'var(--primary,#2563eb)' : 'var(--border-color,#d1d5db)' }};border-radius:8px;cursor:pointer;font-size:12px;color:{{ $task->recurrence ? 'var(--primary,#2563eb)' : 'var(--text-muted)' }};">
+                                <i class="fa-solid fa-rotate"></i>@if ($task->recurrence)<span>{{ \App\Models\Task\Task::RECURRENCES[$task->recurrence] }}</span>@endif
+                                <select style="position:absolute;inset:0;width:100%;opacity:0;cursor:pointer;" wire:change="setTaskRecurrence('{{ $task->id }}', $event.target.value)">
+                                    <option value="">Tidak berulang</option>
+                                    @foreach (\App\Models\Task\Task::RECURRENCES as $key => $label)
+                                        <option value="{{ $key }}" @selected($task->recurrence === $key)>{{ $label }}</option>
+                                    @endforeach
+                                </select>
+                            </label>
+                        @elseif ($task->recurrence)
+                            <span class="badge badge-cancelled"><i class="fa-solid fa-rotate"></i> {{ \App\Models\Task\Task::RECURRENCES[$task->recurrence] }}</span>
+                        @endif
                         @if ($task->is_overdue)<span class="badge badge-rejected">Terlambat</span>@endif
                         @if ($task->project)<span class="badge badge-cancelled"><i class="fa-solid fa-diagram-project"></i> {{ $task->project->name }}</span>@endif
                     </div>
@@ -1224,18 +1290,23 @@
                                 <div style="height:100%;border-radius:99px;background:var(--brand-success);width:{{ round($checklistDone / $checklistTotal * 100) }}%;"></div>
                             </div>
                         @endif
+                        @php $checklistAssignees = $task->assignees->map(fn ($a) => $a->user)->filter(); @endphp
+                        {{-- data-checklist-list: diurutkan lewat drag (SortableJS, lihat initTaskBoardSortables). --}}
+                        <div data-checklist-list data-task-id="{{ $task->id }}" data-sortable-enabled="{{ $canToggleChecklist ? 1 : 0 }}">
                         @forelse ($task->checklistItems as $item)
-                            <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;">
+                            @php $canCheckItem = $canToggleChecklist && (! $item->assigned_to || $item->assigned_to === auth()->id() || $isBoardOwner); @endphp
+                            <div wire:key="cl-{{ $item->id }}" data-item-id="{{ $item->id }}" class="task-checklist-row {{ $canToggleChecklist ? 'is-draggable' : '' }}" style="display:flex;align-items:center;gap:8px;margin-bottom:{{ $canToggleChecklist ? '6px' : '5px' }};{{ $canToggleChecklist ? 'cursor:grab;' : '' }}">
                                 @if ($editingChecklistItemId === $item->id)
                                     <input type="text" wire:model="editingChecklistItemTitle" wire:keydown.enter="updateChecklistItem" wire:keydown.escape="cancelEditChecklistItem" class="form-input" style="font-size:13px;padding:4px 8px;height:auto;flex:1;" autofocus>
                                     <button type="button" wire:click="updateChecklistItem" style="background:none;border:none;color:var(--brand-success);cursor:pointer;"><i class="fa-solid fa-check"></i></button>
                                     <button type="button" wire:click="cancelEditChecklistItem" style="background:none;border:none;color:var(--text-faint);cursor:pointer;"><i class="fa-solid fa-xmark"></i></button>
                                 @else
-                                    <label style="display:flex;align-items:center;gap:8px;font-size:13.5px;flex:1;min-width:0;{{ $canToggleChecklist ? '' : 'opacity:0.6;cursor:not-allowed;' }}">
-                                        <span class="custom-checkbox task-checklist-checkbox" style="--accent:#042c6c;">
-                                            <input type="checkbox" @if ($canToggleChecklist) wire:click="toggleChecklistItem('{{ $item->id }}')" @else disabled @endif @checked($item->is_done)>
+                                    {{-- Cuma kotak centangnya yang memicu ceklis (bukan teks/barisnya), supaya geser-urut tidak kebetulan mencentang. --}}
+                                    <div style="display:flex;align-items:center;gap:8px;font-size:13.5px;flex:1;min-width:0;{{ $canCheckItem ? '' : 'opacity:0.6;' }}" @if ($item->assigned_to && ! $canCheckItem) title="Hanya {{ $item->assignee?->name }} yang bisa mencentang item ini" @endif>
+                                        <label class="custom-checkbox task-checklist-checkbox" style="--accent:#042c6c;{{ $canCheckItem ? '' : 'cursor:not-allowed;' }}">
+                                            <input type="checkbox" @if ($canCheckItem) wire:click="toggleChecklistItem('{{ $item->id }}')" @else disabled @endif @checked($item->is_done)>
                                             <span class="box"><i class="fa-solid fa-check"></i></span>
-                                        </span>
+                                        </label>
                                         <span style="min-width:0;">
                                             <span style="{{ $item->is_done ? 'text-decoration:line-through;color:var(--text-muted);' : '' }}">{{ $item->title }}</span>
                                             @if ($item->is_done && $item->done_at)
@@ -1244,7 +1315,31 @@
                                                 </span>
                                             @endif
                                         </span>
-                                    </label>
+                                    </div>
+                                    {{-- Penugasan: avatar pelaksana terpilih tampil di samping tombol ubah; klik (kalau berhak) untuk ganti/lepas. --}}
+                                    @if ($canModifyItem($item) && $checklistAssignees->count() > 1)
+                                        <div x-data="{ open: false }" @click.outside="open = false" style="position:relative;flex-shrink:0;">
+                                            <button type="button" @click="open = ! open" style="background:none;border:none;padding:0;cursor:pointer;display:flex;" title="{{ $item->assignee ? 'Ditugaskan ke '.$item->assignee->name.' — klik untuk ganti' : 'Tugaskan ke satu pelaksana' }}">
+                                                @if ($item->assignee)
+                                                    <x-avatar :user="$item->assignee" :size="22" />
+                                                @else
+                                                    <span style="width:22px;height:22px;border-radius:50%;border:1.5px dashed var(--text-faint);display:flex;align-items:center;justify-content:center;color:var(--text-faint);"><i class="fa-solid fa-user-plus" style="font-size:9px;"></i></span>
+                                                @endif
+                                            </button>
+                                            <div x-show="open" x-cloak style="display:none;position:absolute;right:0;top:100%;margin-top:4px;z-index:30;min-width:180px;padding:4px;background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:0 8px 20px rgba(15,23,42,0.18);">
+                                                <button type="button" wire:click="assignChecklistItem('{{ $item->id }}', '')" @click="open = false" style="display:flex;align-items:center;gap:8px;width:100%;padding:6px 8px;border:none;background:{{ $item->assigned_to ? 'none' : 'var(--surface-alt)' }};border-radius:7px;cursor:pointer;font-size:12.5px;color:var(--text);text-align:left;">
+                                                    <i class="fa-solid fa-users" style="font-size:11px;width:20px;text-align:center;color:var(--text-muted);"></i> Semua pelaksana
+                                                </button>
+                                                @foreach ($checklistAssignees as $u)
+                                                    <button type="button" wire:click="assignChecklistItem('{{ $item->id }}', '{{ $u->id }}')" @click="open = false" style="display:flex;align-items:center;gap:8px;width:100%;padding:6px 8px;border:none;background:{{ $item->assigned_to === $u->id ? 'var(--surface-alt)' : 'none' }};border-radius:7px;cursor:pointer;font-size:12.5px;color:var(--text);text-align:left;">
+                                                        <x-avatar :user="$u" :size="20" /> {{ $u->profile?->nickname ?: $u->name }}
+                                                    </button>
+                                                @endforeach
+                                            </div>
+                                        </div>
+                                    @elseif ($item->assignee)
+                                        <span style="display:flex;flex-shrink:0;"><x-avatar :user="$item->assignee" :size="22" /></span>
+                                    @endif
                                     @if ($canModifyItem($item))
                                         <button type="button" wire:click="startEditChecklistItem('{{ $item->id }}', @js($item->title))" style="background:none;border:none;color:var(--text-faint);cursor:pointer;padding:2px;" title="Ubah"><i class="fa-solid fa-pen" style="font-size:11px;"></i></button>
                                         <button type="button" wire:click="deleteChecklistItem('{{ $item->id }}')" wire:confirm="Hapus item checklist ini?" style="background:none;border:none;color:var(--text-faint);cursor:pointer;padding:2px;" title="Hapus"><i class="fa-solid fa-trash" style="font-size:11px;"></i></button>
@@ -1254,6 +1349,7 @@
                         @empty
                             <p style="font-size:14px;color:var(--text-muted);">Belum ada checklist.</p>
                         @endforelse
+                        </div>
                         @if ($canToggleChecklist)
                             <div style="display:flex;gap:6px;margin-top:8px;">
                                 <input type="text" class="form-input" style="font-size:12.5px;padding:6px 10px;" wire:model="newChecklistTitle" wire:keydown.enter.prevent="addChecklistItemToTask('{{ $task->id }}')" placeholder="Tambah item checklist...">

@@ -44,6 +44,18 @@ class EmployeeSp extends Model implements Signable
         'cancelled_by',
     ];
 
+    /** Field yang masuk signablePayload() - dikunci begitu dokumen FIX (Document::fixed_at). */
+    private const CONTENT_FIELDS = ['nomor', 'user_id', 'sp_level', 'start_date', 'end_date', 'created_by', 'knows_by'];
+
+    protected static function booted(): void
+    {
+        static::updating(function (EmployeeSp $sp) {
+            if ($sp->isDirty(self::CONTENT_FIELDS) && $sp->isFixed()) {
+                throw new \LogicException('Surat Peringatan sudah dikunci (FIX), isinya tidak bisa diubah.');
+            }
+        });
+    }
+
     protected $casts = [
         'sp_level' => SpLevel::class,
         'source_type' => SpSourceType::class,
@@ -173,6 +185,19 @@ class EmployeeSp extends Model implements Signable
     public function documentNumber(): string
     {
         return $this->nomor;
+    }
+
+    public function signSummary(): array
+    {
+        $this->loadMissing(['user.activeJobPosition.jobPosition', 'items']);
+
+        return array_filter([
+            'Untuk' => $this->user?->name,
+            'Jabatan' => $this->user?->activeJobPosition?->jobPosition?->name,
+            'Jenis SP' => $this->sp_level->getLabel(),
+            'Berlaku' => $this->start_date?->translatedFormat('d M Y') . ($this->end_date ? ' - ' . $this->end_date->translatedFormat('d M Y') : ' (tanpa batas akhir)'),
+            'Poin pelanggaran' => $this->items->count() . ' poin',
+        ]);
     }
 
     public function documentTypeLabel(): string

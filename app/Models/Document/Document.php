@@ -25,12 +25,91 @@ class Document extends Model
         'document_number',
         'title',
         'issued_at',
+        'fixed_at',
+        'finalized_at',
+        'final_hash',
+        'file_path',
+        'file_hash',
         'created_by',
     ];
 
     protected $casts = [
         'issued_at' => 'datetime',
+        'fixed_at' => 'datetime',
+        'finalized_at' => 'datetime',
     ];
+
+    public function events(): HasMany
+    {
+        return $this->hasMany(DocumentEvent::class);
+    }
+
+    /** Catat event audit; ip/user agent null-safe (CLI/queue tidak punya request). */
+    public function logEvent(string $event, ?User $actor = null, array $meta = []): void
+    {
+        $this->events()->create([
+            'event' => $event,
+            'actor_id' => $actor?->id,
+            'ip_address' => request()?->ip(),
+            'user_agent' => request()?->userAgent(),
+            'meta' => $meta ?: null,
+        ]);
+    }
+
+    /** FIX/LOCK: isi dikunci, tanda tangan boleh jalan. Idempotent. */
+    public function fix(?User $actor = null): void
+    {
+        if ($this->fixed_at) {
+            return;
+        }
+
+        $this->update(['fixed_at' => now()]);
+        $this->logEvent('document_fixed', $actor);
+    }
+
+    /** Semua TTD selesai tapi PDF final belum jadi (job render masih jalan). */
+    public function isFinalizing(): bool
+    {
+        return ! $this->finalized_at && $this->isFullySigned();
+    }
+
+    /** Kembali ke draft (mis. karyawan minta klarifikasi ulang) - hanya sebelum ada tanda tangan. */
+    public function unfix(?User $actor = null): void
+    {
+        abort_if($this->signatures()->exists(), 409, 'Dokumen sudah ditandatangani, tidak bisa dibuka kuncinya.');
+
+        if ($this->fixed_at) {
+            $this->update(['fixed_at' => null]);
+            $this->logEvent('document_unfixed', $actor);
+        }
+    }
+
+    /** Semua TTD wajib selesai: catat waktu, hash payload akhir, dan PDF final yang sudah disimpan
+     *  (lihat DocumentFinalizer). Idempotent. */
+    public function finalize(string $filePath, string $fileHash): void
+    {
+        if ($this->finalized_at) {
+            return;
+        }
+
+        $this->update([
+            'finalized_at' => now(),
+            'final_hash' => hash('sha256', json_encode($this->documentable->signablePayload())),
+            'file_path' => $filePath,
+            'file_hash' => $fileHash,
+        ]);
+        $this->logEvent('document_finalized', null, ['file_hash' => $fileHash]);
+    }
+
+    protected static function booted(): void
+    {
+        // Dokumen final immutable: PDF & hash-nya tidak boleh diganti lewat jalur apa pun.
+        static::updating(function (Document $document) {
+            if ($document->getOriginal('finalized_at') && $document->isDirty(['finalized_at', 'final_hash', 'file_path', 'file_hash'])) {
+                throw new \LogicException('Dokumen sudah final, PDF dan hash-nya tidak bisa diubah.');
+            }
+        });
+    }
 
     public function documentable(): MorphTo
     {

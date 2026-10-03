@@ -142,7 +142,7 @@ class ExtraShiftRequestModal extends Component
 
         $data = $this->validate([
             'user_id' => ['required', 'exists:users,id'],
-            'date' => ['required', 'date', 'after_or_equal:today'],
+            'date' => ['required', 'date', 'after_or_equal:yesterday'],
             'shift_type_id' => ['required', 'exists:schedule_shift_types,id'],
             'reason' => ['nullable', 'string', 'max:500'],
         ]);

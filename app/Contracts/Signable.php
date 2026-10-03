@@ -52,4 +52,11 @@ interface Signable
      *         peran itu belum diisi siapa pun)
      */
     public function assignedSigners(): array;
+
+    /**
+     * Ringkasan isi dokumen untuk modal tanda tangan (penanda tangan melihat apa yang ia setujui).
+     *
+     * @return array<string, string> label => nilai (teks polos)
+     */
+    public function signSummary(): array;
 }
