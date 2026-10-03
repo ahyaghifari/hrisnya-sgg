@@ -56,7 +56,15 @@ class CandidateOnboardingService
             ? Carbon::parse($ctx['app']->onboarding_date)->toDateString()
             : now()->toDateString();
 
+        // Data offering letter (sudah dikonfirmasi pelamar, nama lengkap + gelar) diutamakan.
+        $app = $ctx['app'];
+        $name = $app->offering_full_name ?: ($c->name ?? $email);
+
         $profileData = array_filter([
+            'place_of_birth'     => $app->offering_birth_place,
+            'date_of_birth'      => $app->offering_birth_date
+                ? Carbon::parse($app->offering_birth_date)->toDateString()
+                : null,
             'employee_type_id'   => $orientationType->id,
             'nickname'            => $c->nickname,
             'marital_status'      => $c->status_marital,
@@ -66,7 +74,7 @@ class CandidateOnboardingService
             'no_bpjs_ket'        => $c->no_bpjstk,
             'bank_account_number' => $c->bsi_bank_number,
             'bank_account_name'  => $c->name,
-            'address'            => $c->ktp_address,
+            'address'            => $app->offering_domicile_address ?: $c->ktp_address,
             'village'            => $c->village,
             'district'           => $c->district,
             'city'               => $c->city,
@@ -75,7 +83,7 @@ class CandidateOnboardingService
             'joining_date'       => $joiningDate,
         ], fn ($v) => $v !== null && $v !== '');
 
-        return DB::transaction(function () use ($email, $c, $companyId, $profileData, $joiningDate, $orientationMonths) {
+        return DB::transaction(function () use ($email, $name, $companyId, $profileData, $joiningDate, $orientationMonths) {
             $existing = User::withTrashed()->where('email', $email)->first();
             $isExisting = (bool) $existing;
 
@@ -88,7 +96,7 @@ class CandidateOnboardingService
                 $nipGenerator = app(\App\Services\Kepegawaian\NipGeneratorService::class);
 
                 $user = User::create([
-                    'name'       => $c->name ?? $email,
+                    'name'       => $name,
                     'email'      => $email,
                     'password'   => bcrypt(Str::password(16)),
                     'company_id' => $companyId,

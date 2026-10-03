@@ -20,6 +20,7 @@ class CompanyMessageTemplate extends Model
     public const EVENT_QUIZ_PASSED = 'quiz_passed';
     public const EVENT_QUIZ_REJECTED = 'quiz_rejected';
     public const EVENT_INTERVIEW_SCHEDULED = 'interview_scheduled';
+    public const EVENT_INTERVIEW_PASSED = 'interview_passed';
     public const EVENT_INTERVIEW_REJECTED = 'interview_rejected';
     public const EVENT_MCU_SCHEDULED = 'mcu_scheduled';
     public const EVENT_MCU_PASSED = 'mcu_passed';

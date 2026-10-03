@@ -131,21 +131,6 @@ class WawancaraPage extends Page implements HasActions, HasForms, HasTable
         $this->resetTable();
     }
 
-    /**
-     * Lowongan yang dipilih sudah punya komponen kompensasi offering letter.
-     *
-     * Dipakai menahan keputusan "Lulus": tanpa komponen ini surat penawarannya kosong, padahal
-     * pelamarnya sudah terlanjur dikabari lolos dan diminta melengkapi datanya.
-     */
-    public function hasCompensationRows(): bool
-    {
-        $opening = $this->jobOpeningId ? JobOpening::find($this->jobOpeningId) : null;
-
-        return $opening
-            ? $opening->offeringCompensationRows()->exists() || $opening->offeringCompensationItems()->exists()
-            : false;
-    }
-
     /** Sesi ini sudah punya jadwal (draft maupun terbit), atau masih slot kosong buat sesi baru. */
     public function hasSession(int $round): bool
     {
@@ -444,9 +429,7 @@ class WawancaraPage extends Page implements HasActions, HasForms, HasTable
              */
             ->visible(fn ($record) => $this->canDecide() && $record?->interview_result === null)
             ->modalHeading('Catat Hasil Wawancara')
-            ->modalDescription(fn () => $this->hasCompensationRows()
-                ? 'Keputusan ini menutup tahap wawancara pelamar ini. Kalau masih perlu sesi tambahan, jadwalkan dulu tanpa mencatat hasil.'
-                : 'Komponen kompensasi lowongan ini belum diisi, jadi hasil "Lulus" belum bisa disimpan — surat penawarannya tidak akan punya isi. Lengkapi dulu di Lowongan > Kompensasi Offering Letter. Hasil "Tidak Lulus" tetap bisa disimpan.')
+            ->modalDescription('Keputusan ini menutup tahap wawancara pelamar ini. Kalau masih perlu sesi tambahan, jadwalkan dulu tanpa mencatat hasil. "Lulus" memindahkan pelamar ke tab Offering Letter tanpa mengabari pelamar; pemberitahuan dikirim dari sana.')
             ->fillForm(fn ($record) => ['catatan' => $record->interview_notes])
             ->schema([
                 // Catatan menempel di keputusan, bukan di sesi tertentu - sama seperti hasilnya.
@@ -462,21 +445,6 @@ class WawancaraPage extends Page implements HasActions, HasForms, HasTable
             ->action(function (array $data, $record): void {
                 $catatan = filled($data['catatan'] ?? null) ? $data['catatan'] : null;
 
-                /*
-                 * Lulus wawancara memindahkan pelamar ke tahap Offering dan langsung mengabari dia
-                 * lewat email. Kalau komponen kompensasi lowongannya belum diisi, surat penawarannya
-                 * tidak akan punya isi - jadi keputusannya ditahan di sini, bukan baru ketahuan waktu
-                 * suratnya dibuat dan kandidatnya sudah terlanjur dijanjikan.
-                 */
-                if ($data['hasil'] === 'lulus' && ! $this->hasCompensationRows()) {
-                    Notification::make()
-                        ->title('Kompensasi lowongan belum diisi')
-                        ->body('Lengkapi dulu Lowongan > Kompensasi Offering Letter sebelum meluluskan pelamar ke tahap Offering.')
-                        ->danger()->persistent()->send();
-
-                    return;
-                }
-
                 if ($data['hasil'] === 'lulus') {
                     $record->update([
                         'interview_result' => 'lulus',
@@ -485,13 +453,10 @@ class WawancaraPage extends Page implements HasActions, HasForms, HasTable
                     ]);
                     JobOpeningStageLog::record($record->job_opening_id, 'interview', 'offering', 1);
 
-                    // Kabari pelamarnya: lulus wawancara + diminta melengkapi data surat penawaran
-                    // di dashboard. Sebelum ini lulus wawancara sama sekali tidak mengirim email dari
-                    // HRIS - pelamarnya cuma diam menunggu tanpa tahu harus mengisi apa-apa.
-                    ApplicationNotification::createAndSend($record, CompanyMessageTemplate::EVENT_INTERVIEW_PASSED);
-
+                    // Pelamar TIDAK dikabari di sini: kompensasi lowongan mungkin belum diatur. Email
+                    // dikirim dari tab Offering Letter (beritahuKandidatAction) begitu kompensasi siap.
                     Notification::make()
-                        ->title('Lulus wawancara. Email pemberitahuan dikirim, pelamar diminta melengkapi data surat penawaran.')
+                        ->title('Lulus wawancara. Pelamar dipindah ke tab Offering Letter; kabari dia dari sana setelah kompensasi diatur.')
                         ->success()->send();
 
                     return;
