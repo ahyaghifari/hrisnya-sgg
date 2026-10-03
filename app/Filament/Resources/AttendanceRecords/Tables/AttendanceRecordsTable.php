@@ -8,6 +8,7 @@ use App\Repositories\Attendance\AttendanceImportRepository;
 use Carbon\Carbon;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\CreateAction;
+use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Actions\ViewAction;
@@ -244,6 +245,9 @@ class AttendanceRecordsTable
                     ->visible(fn ($record) => $record->exists ?? true),
                 EditAction::make()
                     ->slideOver()
+                    ->visible(fn ($record) => $record->exists ?? true),
+                DeleteAction::make()
+                    ->modalHeading('Hapus data absensi?')
                     ->visible(fn ($record) => $record->exists ?? true),
             ])
             ->toolbarActions([
