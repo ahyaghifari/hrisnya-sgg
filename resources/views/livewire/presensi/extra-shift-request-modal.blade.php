@@ -28,7 +28,7 @@
                     @if ($user_id)
                         <div>
                             <label class="form-label">2. Tanggal</label>
-                            <input type="date" wire:model.live="date" min="{{ now()->toDateString() }}" class="form-input">
+                            <input type="date" wire:model.live="date" min="{{ now()->subDay()->toDateString() }}" class="form-input">
                             @error('date') <p style="color:var(--danger-text);font-size:11.5px;margin-top:4px;">{{ $message }}</p> @enderror
                         </div>
                     @endif
