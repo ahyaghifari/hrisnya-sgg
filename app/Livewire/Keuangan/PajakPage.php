@@ -71,7 +71,7 @@ class PajakPage extends Component
                 'user.profile.employeeType',
                 'user.profile.jobPosition.orgStructure.parent.parent',
                 'user.profile.jobPosition.orgStructure.parent.parent',
-                'payrollPeriod',
+                'payrollPeriod' => fn ($q) => $q->withoutGlobalScope('company'),
                 'items',
             ])
             ->get();
@@ -81,7 +81,7 @@ class PajakPage extends Component
     {
         abort_unless($this->periodId, 400, 'Pilih periode dulu sebelum export.');
 
-        $period = PayrollPeriod::findOrFail($this->periodId);
+        $period = PayrollPeriod::acrossCompanies()->findOrFail($this->periodId);
         $filename = 'Pajak-' . $period->start_date->format('mY') . '.xlsx';
 
         return Excel::download(new PajakGajiPokokExport($this->payrolls, $this->companyId), $filename);
