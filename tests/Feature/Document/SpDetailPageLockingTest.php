@@ -62,32 +62,31 @@ class SpDetailPageLockingTest extends TestCase
         return $sp->fresh();
     }
 
-    public function test_edit_still_allowed_before_fully_signed(): void
+    public function test_draft_without_signature_is_still_editable(): void
     {
         $company = Companies::create(['code' => 'LK0', 'name' => 'Lock Co 0', 'location' => 'X', 'is_active' => true]);
         $hc = $this->hcUser($company);
         $knower = User::factory()->create(['company_id' => $company->id]);
-        $sp = $this->makeSp($company, $hc, $knower);
+        $sp = \Tests\Support\SpFixtures::draftSp($hc, $company->id, User::factory()->create(['company_id' => $company->id])->id, $knower->id, 'SP-LOCK-D');
 
         Livewire::actingAs($hc)
             ->test(SpDetailPage::class, ['record' => $sp])
+            ->assertSet('isLocked', false)
             ->call('editSp')
             ->assertSet('editingSp', true);
     }
 
-    public function test_edit_blocked_once_fully_signed(): void
+    public function test_edit_blocked_as_soon_as_creator_signed(): void
     {
         $company = Companies::create(['code' => 'LK1', 'name' => 'Lock Co 1', 'location' => 'X', 'is_active' => true]);
         $hc = $this->hcUser($company);
         $knower = User::factory()->create(['company_id' => $company->id]);
+        // afterIssued() = pembuat langsung menandatangani; knows_by BELUM.
         $sp = $this->makeSp($company, $hc, $knower);
-
-        app(DocumentSigningService::class)->sign($sp->document, $knower);
-        $sp = $sp->fresh();
 
         Livewire::actingAs($hc)
             ->test(SpDetailPage::class, ['record' => $sp])
-            ->assertSet('isFullySigned', true);
+            ->assertSet('isLocked', true);
 
         Livewire::actingAs($hc)->test(SpDetailPage::class, ['record' => $sp])->call('editSp')->assertForbidden();
         Livewire::actingAs($hc)->test(SpDetailPage::class, ['record' => $sp])->call('editItems')->assertForbidden();

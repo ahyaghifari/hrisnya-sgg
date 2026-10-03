@@ -46,11 +46,7 @@
         <div style="display:flex;flex-direction:column;gap:16px;">
             <div>
                 <label class="form-label">Dasar Klarifikasi <span style="color:var(--danger-text);">*</span></label>
-                <div wire:ignore>
-                    <input type="hidden" id="trix-ba-dasar" wire:model="dasar_klarifikasi" value="{{ $dasar_klarifikasi }}">
-                    <trix-editor input="trix-ba-dasar" style="min-height:100px;"></trix-editor>
-                </div>
-                @error('dasar_klarifikasi') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
+                @include('livewire.sp.partials.dasar-items-editor', ['idPrefix' => 'trix-ba-dasar'])
             </div>
 
             <div>

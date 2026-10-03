@@ -1,6 +1,17 @@
 <div>
 <x-page-header title="Detail Surat Peringatan" :back="route('sp.saya')" />
 
+@include('livewire.document.partials.sign-banner')
+
+@if ($record->report && $record->report->status !== null)
+    <div class="card-surface" style="margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+        @include('livewire.sp.partials.stage-chips', ['report' => $record->report, 'sp' => $record, 'chipsSize' => '12px'])
+        <a href="{{ route('sp.saya.ba', $record->report) }}" wire:navigate class="btn-secondary" style="padding:7px 14px;font-size:12px;">
+            <i class="fa-solid fa-file-lines"></i> Lihat Berita Acara
+        </a>
+    </div>
+@endif
+
 <div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:16px;">
     <a href="{{ route('sp.saya.preview', $record) }}" target="_blank" class="btn-primary">
         <i class="fa-solid fa-file-pdf"></i> Preview PDF
@@ -70,6 +81,8 @@
     @endforelse
 </div>
 
+@include('livewire.sp.partials.sp-signature-card')
+
 @if ($record->report)
     <div class="card-surface accent accent-green" style="margin-bottom:16px;">
         <div class="section-head-icon" style="margin-bottom:14px;">
@@ -77,32 +90,25 @@
             <p style="font-size:13px;font-weight:700;color:var(--text-heading);margin:0;">Berita Acara</p>
         </div>
         @if ($record->report->dasar_klarifikasi)
-            <p style="font-size:11.5px;color:var(--text-muted);margin:0 0 4px;">Dasar Klarifikasi</p>
-            <div style="font-size:13px;color:var(--text-body);line-height:1.6;margin:0 0 12px;">{!! $record->report->dasar_klarifikasi !!}</div>
+            <x-collapse-field label="Dasar Klarifikasi">{!! $record->report->dasarKlarifikasiHtml() !!}</x-collapse-field>
         @endif
         @if ($record->report->kejadian)
-            <p style="font-size:11.5px;color:var(--text-muted);margin:0 0 4px;">Uraian Kronologi Permasalahan</p>
-            <div style="font-size:13px;color:var(--text-body);line-height:1.6;margin:0 0 12px;">{!! $record->report->kejadian !!}</div>
+            <x-collapse-field label="Uraian Kronologi Permasalahan">{!! $record->report->kejadian !!}</x-collapse-field>
         @endif
         @if ($record->report->subject_clarification)
-            <p style="font-size:11.5px;color:var(--text-muted);margin:0 0 4px;">Klarifikasi Karyawan</p>
-            <div style="font-size:13px;color:var(--text-body);line-height:1.6;margin:0 0 12px;">{!! $record->report->subject_clarification !!}</div>
+            <x-collapse-field label="Klarifikasi Karyawan">{!! $record->report->subject_clarification !!}</x-collapse-field>
         @endif
         @if ($record->report->klarifikasi_parafrase)
-            <p style="font-size:11.5px;color:var(--text-muted);margin:0 0 4px;">Parafrase Klarifikasi</p>
-            <div style="font-size:13px;color:var(--text-body);line-height:1.6;margin:0 0 12px;">{!! $record->report->klarifikasi_parafrase !!}</div>
+            <x-collapse-field label="Parafrase Klarifikasi">{!! $record->report->klarifikasi_parafrase !!}</x-collapse-field>
         @endif
         @if ($record->report->analysis)
-            <p style="font-size:11.5px;color:var(--text-muted);margin:0 0 4px;">Analisis</p>
-            <div style="font-size:13px;color:var(--text-body);line-height:1.6;margin:0 0 12px;">{!! $record->report->analysis !!}</div>
+            <x-collapse-field label="Analisis">{!! $record->report->analysis !!}</x-collapse-field>
         @endif
         @if ($record->report->kesimpulan)
-            <p style="font-size:11.5px;color:var(--text-muted);margin:0 0 4px;">Kesimpulan Sementara</p>
-            <div style="font-size:13px;color:var(--text-body);line-height:1.6;margin:0 0 12px;">{!! $record->report->kesimpulan !!}</div>
+            <x-collapse-field label="Kesimpulan Sementara">{!! $record->report->kesimpulan !!}</x-collapse-field>
         @endif
         @if ($record->report->followup_plan)
-            <p style="font-size:11.5px;color:var(--text-muted);margin:0 0 4px;">Rencana Tindak Lanjut</p>
-            <div style="font-size:13px;color:var(--text-body);line-height:1.6;">{!! $record->report->followup_plan !!}</div>
+            <x-collapse-field label="Rencana Tindak Lanjut">{!! $record->report->followup_plan !!}</x-collapse-field>
         @endif
     </div>
 @endif

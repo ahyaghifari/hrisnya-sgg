@@ -1,6 +1,18 @@
 <div>
 <x-page-header title="Detail Surat Peringatan" :back="route('sp')" />
 
+@include('livewire.document.partials.sign-banner')
+
+{{-- Kasus ini = Berita Acara + Keputusan + Surat Peringatan; BA alur baru bisa dibuka dari sini. --}}
+@if ($record->report && $record->report->status !== null)
+    <div class="card-surface" style="margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+        @include('livewire.sp.partials.stage-chips', ['report' => $record->report, 'sp' => $record, 'chipsSize' => '12px'])
+        <a href="{{ route('ba.show', $record->report) }}" wire:navigate class="btn-secondary" style="padding:7px 14px;font-size:12px;">
+            <i class="fa-solid fa-file-lines"></i> Lihat Berita Acara
+        </a>
+    </div>
+@endif
+
 <div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:16px;">
     <a href="{{ route('sp.preview', $record) }}" target="_blank" class="btn-primary">
         <i class="fa-solid fa-file-pdf"></i> Preview PDF
@@ -51,12 +63,12 @@
     </div>
 @endif
 
-@if ($this->isFullySigned)
+@if ($this->isLocked)
     <div class="card-surface" style="margin-bottom:16px;border:1.5px solid #16a34a;background:#f0fdf4;">
         <p style="font-size:13px;font-weight:700;color:#15803d;margin:0;">
             <i class="fa-solid fa-lock"></i> Dokumen Terkunci
         </p>
-        <p style="font-size:12.5px;color:var(--text-body);margin:4px 0 0;">Semua pihak sudah menandatangani - nomor, tanggal, Mengetahui, poin pelanggaran, dan Berita Acara tidak bisa diedit lagi.</p>
+        <p style="font-size:12.5px;color:var(--text-body);margin:4px 0 0;">Pembuat sudah menandatangani - nomor, tanggal, Mengetahui, poin pelanggaran, dan Berita Acara tidak bisa diedit lagi.</p>
     </div>
 @endif
 
@@ -82,7 +94,7 @@
             @endif
         </p>
         @if ($this->canManage)
-            @unless ($editingSp || $this->isFullySigned)
+            @unless ($editingSp || $this->isLocked)
                 <button type="button" wire:click="editSp" class="btn-secondary" style="font-size:12px;padding:4px 10px;">
                     <i class="fa-solid fa-pen"></i> Edit
                 </button>
@@ -162,7 +174,7 @@
             <p style="font-size:13px;font-weight:700;color:var(--text-heading);margin:0;">Uraian/Kronologi</p>
         </div>
         @if ($this->canManage)
-            @unless ($editingItems || $this->isFullySigned)
+            @unless ($editingItems || $this->isLocked)
                 <button type="button" wire:click="editItems" class="btn-secondary" style="font-size:12px;padding:4px 10px;">
                     <i class="fa-solid fa-pen"></i> Edit
                 </button>
@@ -203,6 +215,8 @@
     @endif
 </div>
 
+@include('livewire.sp.partials.sp-signature-card')
+
 <div class="card-surface accent accent-green" style="margin-bottom:16px;">
     <div class="section-head-icon" style="margin-bottom:14px;justify-content:space-between;">
         <div style="display:flex;align-items:center;gap:8px;">
@@ -214,7 +228,7 @@
                 <i class="fa-solid fa-file-pdf"></i> Preview PDF
             </a>
             @if ($this->canManage)
-                @unless ($editingReport || $this->isFullySigned)
+                @unless ($editingReport || $this->isLocked)
                     <button type="button" wire:click="editReport" class="btn-secondary" style="font-size:12px;padding:4px 10px;">
                         <i class="fa-solid fa-pen"></i> Edit
                     </button>
@@ -231,7 +245,12 @@
             @error('nomor') <p style="color:var(--danger-text);font-size:12px;margin-top:5px;">{{ $message }}</p> @enderror
         </div>
 
-        @foreach (['dasar_klarifikasi' => 'Dasar Klarifikasi', 'kejadian' => 'Uraian Kronologi Permasalahan', 'subject_clarification' => 'Klarifikasi Karyawan', 'analysis' => 'Analisis', 'kesimpulan' => 'Kesimpulan Sementara', 'followup_plan' => 'Rencana Tindak Lanjut'] as $field => $label)
+        <div style="margin-bottom:12px;">
+            <label class="form-label">Dasar Klarifikasi</label>
+            @include('livewire.sp.partials.dasar-items-editor', ['idPrefix' => 'trix-report-dasar'])
+        </div>
+
+        @foreach (['kejadian' =>'Uraian Kronologi Permasalahan', 'subject_clarification' => 'Klarifikasi Karyawan', 'analysis' => 'Analisis', 'kesimpulan' => 'Kesimpulan Sementara', 'followup_plan' => 'Rencana Tindak Lanjut'] as $field => $label)
             <div style="margin-bottom:12px;">
                 <label class="form-label">{{ $label }}</label>
                 <div wire:ignore>
@@ -252,28 +271,22 @@
             <div style="font-size:13px;color:var(--text-body);line-height:1.6;margin:0 0 12px;">{{ $record->report->nomor }}</div>
         @endif
         @if ($record->report?->dasar_klarifikasi)
-            <p style="font-size:11.5px;color:var(--text-muted);margin:0 0 4px;">Dasar Klarifikasi</p>
-            <div style="font-size:13px;color:var(--text-body);line-height:1.6;margin:0 0 12px;">{!! $record->report->dasar_klarifikasi !!}</div>
+            <x-collapse-field label="Dasar Klarifikasi">{!! $record->report->dasarKlarifikasiHtml() !!}</x-collapse-field>
         @endif
         @if ($record->report?->kejadian)
-            <p style="font-size:11.5px;color:var(--text-muted);margin:0 0 4px;">Uraian Kronologi Permasalahan</p>
-            <div style="font-size:13px;color:var(--text-body);line-height:1.6;margin:0 0 12px;">{!! $record->report->kejadian !!}</div>
+            <x-collapse-field label="Uraian Kronologi Permasalahan">{!! $record->report->kejadian !!}</x-collapse-field>
         @endif
         @if ($record->report?->subject_clarification)
-            <p style="font-size:11.5px;color:var(--text-muted);margin:0 0 4px;">Klarifikasi Karyawan</p>
-            <div style="font-size:13px;color:var(--text-body);line-height:1.6;margin:0 0 12px;">{!! $record->report->subject_clarification !!}</div>
+            <x-collapse-field label="Klarifikasi Karyawan">{!! $record->report->subject_clarification !!}</x-collapse-field>
         @endif
         @if ($record->report?->analysis)
-            <p style="font-size:11.5px;color:var(--text-muted);margin:0 0 4px;">Analisis</p>
-            <div style="font-size:13px;color:var(--text-body);line-height:1.6;margin:0 0 12px;">{!! $record->report->analysis !!}</div>
+            <x-collapse-field label="Analisis">{!! $record->report->analysis !!}</x-collapse-field>
         @endif
         @if ($record->report?->kesimpulan)
-            <p style="font-size:11.5px;color:var(--text-muted);margin:0 0 4px;">Kesimpulan Sementara</p>
-            <div style="font-size:13px;color:var(--text-body);line-height:1.6;margin:0 0 12px;">{!! $record->report->kesimpulan !!}</div>
+            <x-collapse-field label="Kesimpulan Sementara">{!! $record->report->kesimpulan !!}</x-collapse-field>
         @endif
         @if ($record->report?->followup_plan)
-            <p style="font-size:11.5px;color:var(--text-muted);margin:0 0 4px;">Rencana Tindak Lanjut</p>
-            <div style="font-size:13px;color:var(--text-body);line-height:1.6;">{!! $record->report->followup_plan !!}</div>
+            <x-collapse-field label="Rencana Tindak Lanjut">{!! $record->report->followup_plan !!}</x-collapse-field>
         @endif
         @unless ($record->report?->kejadian || $record->report?->dasar_klarifikasi || $record->report?->subject_clarification || $record->report?->analysis || $record->report?->kesimpulan || $record->report?->followup_plan)
             <p style="font-size:13px;color:var(--text-muted);margin:0;">Belum ada Berita Acara.</p>

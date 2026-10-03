@@ -17,11 +17,10 @@
 
     $jabatan = fn ($user) => $user?->activeJobPosition?->jobPosition?->name ?? '-';
 
-    // Kolom kiri tanda tangan = Coach (dari Coaching yang jadi sumber SP ini), BUKAN
-    // pembuat/created_by (instruksi user 2026-09-25) - created_by bisa jadi staf HC-GA yang
-    // sekadar entri data, beda orang dari coach yang mengawal karyawannya. Fallback ke
-    // created_by kalau SP-nya MANUAL (tidak ada Coaching sumber, jadi tidak ada coach).
-    $coach = $sp->coaching?->coachBy ?? $sp->createdBy;
+    // Kolom kiri tanda tangan = PEMBUAT SP (created_by) - dialah pemilik QR di kolom ini
+    // (instruksi user 2026-10-03; sebelumnya memakai Coach/atasan dari Coaching sumber, yang
+    // namanya tidak cocok dengan penanda tangan sebenarnya).
+    $coach = $sp->createdBy;
 @endphp
 <!DOCTYPE html>
 <html lang="id">
@@ -163,8 +162,8 @@
         }
 
         .verify-qr {
-            width: 55px;
-            height: 55px;
+            width: 80px;
+            height: 80px;
         }
 
         .verify-code {

@@ -1,5 +1,6 @@
 @import 'tailwindcss';
 @import './syifa-theme.css';
+@import './trix.css';
 @plugin '@tailwindcss/forms';
 
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
@@ -496,6 +497,25 @@ html.dark .dropdown-notif-item:hover, html.dark .dropdown-notif-footer:hover { b
    Shift" (.jadwal-shift-shift-tukar-btn inline style), teks putih (2026-08-20). Beda dari
    .pwa-card-header-gold yang krem pucat teks amber, ini solid & lebih kontras kayak header
    sky/navy/primary. */
+/* Hitam resmi - widget Dokumen Menunggu Penandatanganan (instruksi user 2026-10-03). */
+.pwa-card-header-ink { background: linear-gradient(130deg, #0b0f19 0%, #111827 55%, #1f2937 100%); }
+.pwa-card-header-ink .pwa-section-title, .pwa-card-header-ink .pwa-section-link { color: #fff; }
+.pwa-card-header-ink .pwa-card-header-deco-1, .pwa-card-header-ink .pwa-card-header-deco-2 { background: #fff; }
+/* Tombol hitam: aura abu keperakan berdenyut + kilau tipis yang menyapu. */
+.btn-ink { position: relative; overflow: hidden; display: inline-flex; align-items: center; justify-content: center; gap: 8px; color: #fff; font-weight: 700; font-family: inherit; text-decoration: none; border: 1px solid #374151; border-radius: 12px; background: linear-gradient(135deg, #030712 0%, #111827 60%, #1f2937 100%); box-shadow: 0 0 0 0 rgba(148,163,184,0.45), 0 4px 14px rgba(0,0,0,0.35); animation: ink-aura 2.6s ease-in-out infinite; transition: transform 0.15s; cursor: pointer; }
+.btn-ink::after { content: ""; position: absolute; top: 0; left: -80%; width: 50%; height: 100%; background: linear-gradient(100deg, transparent, rgba(255,255,255,0.28), transparent); transform: skewX(-20deg); animation: ink-shine 3.8s ease-in-out infinite; pointer-events: none; }
+.btn-ink:hover { transform: translateY(-1px); }
+@keyframes ink-aura {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(148,163,184,0.45), 0 4px 14px rgba(0,0,0,0.35); }
+    50% { box-shadow: 0 0 0 7px rgba(148,163,184,0), 0 4px 22px rgba(148,163,184,0.4); }
+}
+@keyframes ink-shine {
+    0%, 55% { left: -80%; }
+    100% { left: 140%; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .btn-ink, .btn-ink::after { animation: none; }
+}
 .pwa-card-header-amber { background: linear-gradient(130deg, #f59e0b 0%, #b45309 100%); }
 .pwa-card-header-amber .pwa-section-title, .pwa-card-header-amber .pwa-section-link { color: #fff; }
 .pwa-card-header-amber .pwa-card-header-deco-1, .pwa-card-header-amber .pwa-card-header-deco-2 { background: #fff; }

@@ -5,6 +5,7 @@ namespace App\Livewire\Sp;
 use App\Enum\Sp\SpReportStatus;
 use App\Models\Sp\EmployeeSp;
 use App\Models\Sp\SpReport;
+use App\Services\Sp\SpCaseList;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
@@ -19,21 +20,19 @@ class SuratPeringatanPage extends Component
 {
     public function render()
     {
-        $sps = EmployeeSp::where('user_id', Auth::id())
-            ->with('items')
-            ->orderByDesc('start_date')
-            ->get();
+        // SP yang belum diterbitkan (draft) belum terlihat karyawan (instruksi user 2026-10-03).
+        $sps = EmployeeSp::issued()->where('user_id', Auth::id())->with(['user', 'report'])->get();
 
         // Berita Acara alur baru (instruksi user 2026-10-01) - draft HC belum terlihat karyawan.
         $reports = SpReport::where('user_id', Auth::id())
             ->whereNotNull('status')
             ->where('status', '!=', SpReportStatus::DRAFT->value)
-            ->latest()
+            ->with(['user', 'sp.document'])
             ->get();
 
-        return view('livewire.sp.surat-peringatan-page', [
-            'sps' => $sps,
-            'reports' => $reports,
-        ]);
+        // SP dari BA ini yang masih draft dianggap belum ada: baris tetap di tahap sebelumnya.
+        $reports->each(fn ($r) => $r->sp && ! $r->sp->isIssued() ? $r->setRelation('sp', null) : null);
+
+        return view('livewire.sp.surat-peringatan-page', ['cases' => SpCaseList::merge($reports, $sps)]);
     }
 }

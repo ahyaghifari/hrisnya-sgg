@@ -29,20 +29,25 @@ class SpReportService
     {
         $this->assertCanManage($creator, $data['company_id'] ?? $creator->company_id);
 
-        foreach (['user_id', 'knows_by', 'kejadian', 'dasar_klarifikasi'] as $field) {
+        foreach (['user_id', 'knows_by', 'kejadian'] as $field) {
             $this->requireFilled($data[$field] ?? null, $field);
         }
+        $this->requireFilled(array_filter(array_map('trim', $data['dasar_items'] ?? []), 'filled'), 'dasar_klarifikasi');
 
-        return SpReport::create([
-            'user_id' => $data['user_id'],
-            'company_id' => $data['company_id'] ?? $creator->company_id,
-            'created_by' => $creator->id,
-            'knows_by' => $data['knows_by'],
-            'nomor' => $data['nomor'] ?? null,
-            'kejadian' => $data['kejadian'],
-            'dasar_klarifikasi' => $data['dasar_klarifikasi'],
-            'status' => SpReportStatus::DRAFT,
-        ]);
+        return DB::transaction(function () use ($creator, $data) {
+            $report = SpReport::create([
+                'user_id' => $data['user_id'],
+                'company_id' => $data['company_id'] ?? $creator->company_id,
+                'created_by' => $creator->id,
+                'knows_by' => $data['knows_by'],
+                'nomor' => $data['nomor'] ?? null,
+                'kejadian' => $data['kejadian'],
+                'status' => SpReportStatus::DRAFT,
+            ]);
+            $report->syncDasarItems($data['dasar_items']);
+
+            return $report;
+        });
     }
 
     /** Edit bagian HC sebelum klarifikasi diminta. */
@@ -51,7 +56,11 @@ class SpReportService
         $this->assertManage($report, $actor);
         $this->assertStatus($report, SpReportStatus::DRAFT);
 
-        $report->update(array_intersect_key($data, array_flip(['nomor', 'kejadian', 'dasar_klarifikasi', 'knows_by'])));
+        $report->update(array_intersect_key($data, array_flip(['nomor', 'kejadian', 'knows_by'])));
+
+        if (array_key_exists('dasar_items', $data)) {
+            $report->syncDasarItems($data['dasar_items']);
+        }
 
         return $report;
     }
@@ -61,7 +70,7 @@ class SpReportService
         $this->assertManage($report, $actor);
         $this->assertStatus($report, SpReportStatus::DRAFT);
         $this->requireFilled($report->kejadian, 'kejadian');
-        $this->requireFilled($report->dasar_klarifikasi, 'dasar_klarifikasi');
+        $this->requireFilled($report->dasarItems()->exists(), 'dasar_klarifikasi');
 
         $report->update(['status' => SpReportStatus::MENUNGGU_KLARIFIKASI]);
 
@@ -77,7 +86,7 @@ class SpReportService
         $this->assertStatus($report, SpReportStatus::MENUNGGU_KLARIFIKASI);
 
         if ($report->klarifikasi_diisi_hc) {
-            throw ValidationException::withMessages(['status' => 'Anda sudah meminta HC yang mengisikan klarifikasi.']);
+            throw ValidationException::withMessages(['status' => 'Anda sudah mengizinkan HC mengisikan klarifikasi.']);
         }
 
         $this->storeClarification($report, $text);
@@ -93,7 +102,7 @@ class SpReportService
         $this->assertStatus($report, SpReportStatus::MENUNGGU_KLARIFIKASI);
 
         $report->update(['klarifikasi_diisi_hc' => true]);
-        $this->notifyCreator($report, 'Klarifikasi Diminta Diisikan HC', "{$report->user?->name} meminta HC yang mengisikan klarifikasinya.");
+        $this->notifyCreator($report, 'HC Diizinkan Mengisikan Klarifikasi', "{$report->user?->name} mengizinkan HC mengisikan klarifikasinya.");
 
         return $report;
     }
@@ -105,10 +114,14 @@ class SpReportService
         $this->assertStatus($report, SpReportStatus::MENUNGGU_KLARIFIKASI);
 
         if (! $report->klarifikasi_diisi_hc) {
-            throw ValidationException::withMessages(['status' => 'Karyawan belum meminta HC yang mengisikan klarifikasi.']);
+            throw ValidationException::withMessages(['status' => 'Karyawan belum mengizinkan HC mengisikan klarifikasi.']);
         }
 
+        // Trix kosong tetap mengirim markup (<div><br></div>) - cek isi teksnya.
+        $this->requireFilled(trim(strip_tags($text)), 'klarifikasi');
         $this->storeClarification($report, $text);
+        // Klarifikasi ditulis HC sendiri - tidak perlu diparafrase lagi, salin saja (masih boleh diedit).
+        $report->update(['klarifikasi_parafrase' => $text]);
 
         return $report;
     }
@@ -141,6 +154,11 @@ class SpReportService
         $this->assertManage($report, $actor);
         $this->assertStatus($report, SpReportStatus::KLARIFIKASI_DIAJUKAN);
 
+        // Diisikan HC: parafrase dikosongkan pun tidak masalah, otomatis memakai klarifikasi itu sendiri.
+        if ($report->klarifikasi_diisi_hc && ! filled(trim(strip_tags((string) $report->klarifikasi_parafrase)))) {
+            $report->update(['klarifikasi_parafrase' => $report->subject_clarification]);
+        }
+
         foreach (['klarifikasi_parafrase', 'analysis', 'kesimpulan', 'followup_plan'] as $field) {
             $this->requireFilled($report->{$field}, $field);
         }
@@ -150,7 +168,7 @@ class SpReportService
             $report->issueDocument("Berita Acara — {$report->user?->name}", $actor);
         });
 
-        $this->notifyEmployee($report, 'Berita Acara Menunggu Tanda Tangan Anda', 'Baca isi Berita Acara, lalu setujui dan tanda tangani, atau ajukan ulang klarifikasi bila parafrase tidak sesuai maksud Anda.');
+        $this->notifyEmployee($report, 'Berita Acara Telah Disusun', 'HC telah menyusun Berita Acara Anda dan akan menandatanganinya lebih dulu. Anda diminta menandatangani setelahnya.');
 
         return $report;
     }
@@ -174,6 +192,7 @@ class SpReportService
                 ...($report->riwayat_klarifikasi ?? []),
                 [
                     'klarifikasi' => $report->subject_clarification,
+                    'diisi_hc' => (bool) $report->klarifikasi_diisi_hc,
                     'parafrase' => $report->klarifikasi_parafrase,
                     'alasan_ajukan_ulang' => $reason,
                     'at' => now()->toDateTimeString(),
@@ -205,11 +224,11 @@ class SpReportService
             return $report;
         }
 
-        if ($role === 'employee') {
-            foreach ([$report->createdBy, $report->knowsBy] as $signer) {
+        if ($role === 'created_by') {
+            foreach ([$report->user, $report->knowsBy] as $signer) {
                 $signer?->notify(new SpReportUpdated(
                     'Berita Acara Menunggu Tanda Tangan Anda',
-                    "{$report->user?->name} sudah menyetujui Berita Acara - giliran Anda menandatangani.",
+                    "{$report->createdBy?->name} sudah menandatangani Berita Acara - giliran Anda menandatangani.",
                     documentSignId: $report->document?->id,
                 ));
             }

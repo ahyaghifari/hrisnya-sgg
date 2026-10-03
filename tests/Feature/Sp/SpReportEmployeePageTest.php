@@ -50,7 +50,7 @@ class SpReportEmployeePageTest extends TestCase
     {
         return $this->service->create($this->hc, [
             'user_id' => $this->employee->id, 'knows_by' => $this->knower->id,
-            'kejadian' => 'Terlambat', 'dasar_klarifikasi' => 'Rekap',
+            'kejadian' => 'Terlambat', 'dasar_items' => ['Rekap'],
         ]);
     }
 
@@ -103,7 +103,7 @@ class SpReportEmployeePageTest extends TestCase
 
         $page = Livewire::actingAs($this->employee)->test(BeritaAcaraSayaPage::class, ['record' => $report->fresh()])
             ->assertSee('PARAFRASE-RAHASIA')
-            ->assertSee('Setuju')
+            ->assertSee('Menunggu pembuat')
             ->set('alasan_ajukan_ulang', 'Bukan itu maksud saya')
             ->call('requestReclarification');
 
@@ -111,7 +111,16 @@ class SpReportEmployeePageTest extends TestCase
         $page->assertSee('Klarifikasi Anda');
     }
 
-    public function test_after_employee_signs_creator_and_knower_are_notified_and_list_shows_report(): void
+    public function test_draft_sp_is_hidden_from_the_employee_until_issued(): void
+    {
+        $sp = \Tests\Support\SpFixtures::draftSp($this->hc, $this->hc->company_id, $this->employee->id, $this->knower->id, 'SP-DRAFT-777');
+
+        Livewire::actingAs($this->employee)->test(SuratPeringatanPage::class)->assertDontSee('SP-DRAFT-777')->assertSee('Belum ada data');
+        Livewire::actingAs($this->employee)->test(\App\Livewire\Sp\SuratPeringatanDetailPage::class, ['record' => $sp])->assertNotFound();
+        $this->actingAs($this->employee)->get(route('sp.saya.preview', $sp))->assertForbidden();
+    }
+
+    public function test_after_creator_signs_employee_and_knower_are_notified_and_list_shows_report(): void
     {
         $report = $this->draft();
         $this->service->requestClarification($report, $this->hc);
@@ -122,9 +131,9 @@ class SpReportEmployeePageTest extends TestCase
         $this->service->sendForSigning($report->fresh(), $this->hc);
 
         Notification::fake();
-        app(DocumentSigningService::class)->sign($report->fresh()->document, $this->employee);
+        app(DocumentSigningService::class)->sign($report->fresh()->document, $this->hc);
 
-        Notification::assertSentTo($this->hc, SpReportUpdated::class);
+        Notification::assertSentTo($this->employee, SpReportUpdated::class);
         Notification::assertSentTo($this->knower, SpReportUpdated::class);
 
         Livewire::actingAs($this->employee)->test(SuratPeringatanPage::class)->assertSee('Berita Acara');

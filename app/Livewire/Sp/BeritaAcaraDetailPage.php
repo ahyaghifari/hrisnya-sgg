@@ -10,6 +10,7 @@ use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\On;
 use Livewire\Component;
 
 /**
@@ -23,8 +24,14 @@ class BeritaAcaraDetailPage extends Component
     public SpReport $record;
 
     public ?string $nomor = null;
-    public ?string $dasar_klarifikasi = null;
+    public array $dasar_items = [''];
     public ?string $kejadian = null;
+
+    /** Draft yang sudah terisi tampil mode lihat; form baru muncul lewat tombol Edit. */
+    public bool $editingDraft = false;
+
+    /** Sama untuk Parafrase & Analisis: sudah tersimpan = mode lihat dulu. */
+    public bool $editingAnalysis = false;
 
     public string $klarifikasi_karyawan = '';
 
@@ -49,13 +56,57 @@ class BeritaAcaraDetailPage extends Component
 
         $this->record = $record;
         $this->fillFromRecord();
+        $this->editingDraft = ! filled($this->kejadian) || ! $this->record->dasarItems->isNotEmpty();
+        $this->editingAnalysis = ! $this->hasSavedAnalysis();
+    }
+
+    /** Analisis dianggap sudah disimpan kalau ketiga kolom wajibnya terisi. */
+    private function hasSavedAnalysis(): bool
+    {
+        return filled($this->record->analysis) && filled($this->record->kesimpulan) && filled($this->record->followup_plan);
+    }
+
+    public function editAnalysis(): void
+    {
+        $this->editingAnalysis = true;
+    }
+
+    public function cancelEditAnalysis(): void
+    {
+        $this->fillFromRecord();
+        $this->editingAnalysis = false;
+    }
+
+    public function editDraft(): void
+    {
+        $this->editingDraft = true;
+    }
+
+    public function cancelEditDraft(): void
+    {
+        $this->fillFromRecord();
+        $this->editingDraft = false;
     }
 
     private function fillFromRecord(): void
     {
-        foreach (['nomor', 'dasar_klarifikasi', 'kejadian', 'klarifikasi_parafrase', 'analysis', 'kesimpulan', 'followup_plan'] as $field) {
+        foreach (['nomor', 'kejadian', 'klarifikasi_parafrase', 'analysis', 'kesimpulan', 'followup_plan'] as $field) {
             $this->{$field} = $this->record->{$field};
         }
+
+        $this->record->unsetRelation('dasarItems');
+        $this->dasar_items = $this->record->dasarItems->pluck('text')->all() ?: [''];
+    }
+
+    public function addDasarItem(): void
+    {
+        $this->dasar_items[] = '';
+    }
+
+    public function removeDasarItem(int $index): void
+    {
+        unset($this->dasar_items[$index]);
+        $this->dasar_items = array_values($this->dasar_items) ?: [''];
     }
 
     public function getCanManageProperty(): bool
@@ -85,6 +136,8 @@ class BeritaAcaraDetailPage extends Component
 
         $this->record->refresh()->unsetRelation('document');
         $this->fillFromRecord();
+        $this->editingDraft = false;
+        $this->editingAnalysis = ! $this->hasSavedAnalysis();
 
         Notification::make()->title($success)->success()->send();
     }
@@ -92,7 +145,7 @@ class BeritaAcaraDetailPage extends Component
     public function saveDraft(): void
     {
         $this->run(fn ($s) => $s->updateDraft($this->record, Auth::user(), [
-            'nomor' => $this->nomor, 'dasar_klarifikasi' => $this->dasar_klarifikasi, 'kejadian' => $this->kejadian,
+            'nomor' => $this->nomor, 'dasar_items' => $this->dasar_items, 'kejadian' => $this->kejadian,
         ]), 'Draft disimpan');
     }
 
@@ -117,7 +170,28 @@ class BeritaAcaraDetailPage extends Component
         $this->run(function ($s) {
             $s->saveAnalysis($this->record, Auth::user(), $this->analysisFields());
             $s->sendForSigning($this->record, Auth::user());
-        }, 'Berita Acara dikirim untuk ditandatangani');
+        }, 'Berita Acara dibekukan, silakan tanda tangani');
+
+        // Pembuat langsung dimintai konfirmasi password lewat modal tanda tangan.
+        if ($this->record->status === \App\Enum\Sp\SpReportStatus::MENUNGGU_TTD && $this->canSignNow) {
+            $this->dispatch('open-sign-modal', id: $this->record->document->id);
+        }
+    }
+
+    /** Modal tanda tangan selesai - muat ulang status BA (bisa jadi SELESAI) & daftar tanda tangan. */
+    #[On('document-signed')]
+    public function refreshAfterSign(): void
+    {
+        $this->record->refresh()->unsetRelation('document');
+        unset($this->canSignNow, $this->signatures);
+    }
+
+    /** Anda sedang ditugaskan menandatangani BA ini (pembuat = yang pertama). */
+    public function getCanSignNowProperty(): bool
+    {
+        $document = $this->record->document?->loadMissing(['documentable', 'signatures']);
+
+        return $document?->pendingRoleFor(Auth::user()) !== null;
     }
 
     public function decide(string $decision): void

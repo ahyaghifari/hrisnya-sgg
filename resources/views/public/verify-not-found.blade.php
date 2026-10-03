@@ -10,7 +10,7 @@
 
     <div class="max-w-md mx-auto px-4 py-8 sm:py-12">
         <div class="flex items-center gap-3 mb-5">
-            <img src="{{ asset('assets/logo-sgg.png') }}" alt="Syifa Global Group" class="w-9 h-9 rounded-lg object-contain bg-white shadow-sm">
+            <img src="{{ asset('assets/logo-sgg.png') }}" alt="Syifa Global Group" class="w-11 h-11 p-1.5 rounded-xl object-contain bg-white shadow-sm ring-1 ring-slate-200">
             <div>
                 <p class="text-[11px] font-medium text-slate-400 uppercase tracking-wide leading-none">Syifa Global Group</p>
                 <h1 class="text-base font-bold text-slate-900 leading-tight">Verifikasi Dokumen</h1>

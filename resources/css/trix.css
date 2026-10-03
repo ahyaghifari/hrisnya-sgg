@@ -1,0 +1,72 @@
+/* Trix (CDN, lihat layout.blade.php) disesuaikan dengan .form-input & token tema portal.
+   Stylesheet CDN dimuat SETELAH app.css, jadi semua selector diberi prefix "html" supaya
+   menang specificity tanpa !important. Token (--border, --brand, dst) ikut dark mode. */
+
+html trix-toolbar { display: block; margin-bottom: 8px; }
+html trix-toolbar .trix-button-row { gap: 8px; flex-wrap: wrap; }
+html trix-toolbar .trix-button-group {
+    margin: 0;
+    border: 1.5px solid var(--border);
+    border-radius: 11px;
+    background: var(--surface);
+    overflow: hidden;
+}
+html trix-toolbar .trix-button-group:not(:first-child) { margin-left: 0; }
+html trix-toolbar .trix-button {
+    border: none;
+    border-bottom: none;
+    border-left: 1px solid var(--border-soft);
+    background-color: transparent;
+    color: var(--text-body);
+    transition: background-color 0.15s;
+}
+html trix-toolbar .trix-button:first-child { border-left: none; border-top-left-radius: 0; border-top-right-radius: 0; }
+html trix-toolbar .trix-button:not(:disabled):hover { background-color: var(--surface-alt); }
+html trix-toolbar .trix-button.trix-active { background-color: var(--info-soft-bg); }
+/* Ikon Trix = SVG hitam; di dark mode dibalik supaya terbaca */
+html.dark trix-toolbar .trix-button:not(.trix-button--text) { filter: invert(1) hue-rotate(180deg); }
+
+html trix-editor {
+    padding: 10px 14px;
+    border: 1.5px solid var(--border);
+    border-radius: 11px;
+    background: var(--surface);
+    color: var(--text-heading);
+    font-size: 13.5px;
+    line-height: 1.5;
+    font-family: inherit;
+    outline: none;
+    transition: all 0.15s;
+}
+html trix-editor:focus { border-color: var(--brand); box-shadow: 0 0 0 3px rgba(4, 44, 108, 0.08); }
+html trix-editor:empty:not(:focus)::before { color: var(--text-faint); }
+html trix-editor a { color: var(--brand); }
+
+/* Dialog link */
+html trix-toolbar .trix-dialog {
+    margin-top: 8px;
+    padding: 12px;
+    border: 1.5px solid var(--border);
+    border-radius: 11px;
+    background: var(--surface);
+    box-shadow: var(--shadow-card);
+}
+html trix-toolbar .trix-input--dialog {
+    padding: 8px 12px;
+    border: 1.5px solid var(--border);
+    border-radius: 9px;
+    background: var(--surface);
+    color: var(--text-heading);
+    font-size: 13px;
+    font-family: inherit;
+    outline: none;
+}
+html trix-toolbar .trix-input--dialog:focus { border-color: var(--brand); }
+html trix-toolbar .trix-button--dialog {
+    border: 1.5px solid var(--border);
+    border-radius: 9px;
+    background: var(--surface);
+    color: var(--text-body);
+    font-family: inherit;
+}
+html trix-toolbar .trix-button--dialog:hover { background: var(--surface-alt); }

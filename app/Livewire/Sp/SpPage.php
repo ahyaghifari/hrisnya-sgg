@@ -4,9 +4,10 @@ namespace App\Livewire\Sp;
 
 use App\Enum\CustomPermissionEnum;
 use App\Models\Master\Companies;
-use App\Enum\Sp\SpReportDecision;
 use App\Models\Sp\EmployeeSp;
 use App\Models\Sp\SpReport;
+use App\Services\Sp\SpCaseList;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Url;
@@ -80,30 +81,29 @@ class SpPage extends Component
         return EmployeeSp::query()
             ->when($this->companyId, fn ($q) => $q->where('company_id', $this->companyId))
             ->when($search !== '', fn ($q) => $q->whereHas('user', fn ($q2) => $q2->where('name', 'like', "%{$search}%")))
-            ->with(['user', 'items']);
+            ->with('user');
     }
 
-    /** BA alur baru yang belum jadi SP (BA diputuskan Tidak Layak SP sudah selesai prosesnya). */
-    public function getReportsProperty()
+    /** Satu daftar: tiap baris = Berita Acara + SP-nya (kalau sudah ada), dengan keterangan tahap. */
+    public function getCasesProperty(): LengthAwarePaginator
     {
         $search = trim($this->search);
 
-        return SpReport::query()
+        $reports = SpReport::query()
             ->whereNotNull('status')
-            ->whereNull('sp_id')
-            ->where(fn ($q) => $q->whereNull('keputusan')->orWhere('keputusan', SpReportDecision::LANJUT_SP->value))
             ->when($this->companyId, fn ($q) => $q->where('company_id', $this->companyId))
             ->when($search !== '', fn ($q) => $q->whereHas('user', fn ($q2) => $q2->where('name', 'like', "%{$search}%")))
-            ->with('user')
-            ->latest()
+            ->with(['user', 'sp'])
             ->get();
-    }
 
-    public function getSpsProperty()
-    {
-        return $this->baseQuery()->latest('start_date')->paginate(10)->appends([
-            'companyId' => $this->companyId,
-            'search' => $this->search,
+        $sps = $this->baseQuery()->with('report')->get();
+
+        $cases = SpCaseList::merge($reports, $sps);
+        $page = $this->getPage();
+
+        return new LengthAwarePaginator($cases->forPage($page, 10)->values(), $cases->count(), 10, $page, [
+            'path' => request()->url(),
+            'query' => ['companyId' => $this->companyId, 'search' => $this->search],
         ]);
     }
 

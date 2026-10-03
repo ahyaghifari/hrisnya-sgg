@@ -1,29 +1,19 @@
 @use('App\Enum\Sp\SpReportStatus', 'S')
 <div>
-<x-page-header title="Detail Berita Acara" :back="route('sp')" />
+<x-page-header title="Detail Surat Peringatan" :back="route('sp')" />
 
 @php
     $status = $record->status;
     $editable = $this->canManage;
-    $steps = [S::DRAFT, S::MENUNGGU_KLARIFIKASI, S::KLARIFIKASI_DIAJUKAN, S::MENUNGGU_TTD, S::SELESAI];
-    $currentIndex = array_search($status, $steps, true);
     $lanjutSp = $record->keputusan === \App\Enum\Sp\SpReportDecision::LANJUT_SP;
 @endphp
 
 <div class="card-surface" style="margin-bottom:16px;">
-    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;">
-        @foreach ($steps as $i => $step)
-            <span class="badge" style="{{ $i === $currentIndex ? 'background:var(--brand);color:#fff;' : ($i < $currentIndex ? 'background:#dcfce7;color:#15803d;' : 'background:var(--surface-alt);color:var(--text-muted);') }}">
-                {{ $i + 1 }}. {{ $step->getLabel() }}
-            </span>
-        @endforeach
-        {{-- Langkah 2 alur SP: tampil setelah BA diputuskan lanjut SP (form ada di bagian Keputusan). --}}
-        @if ($lanjutSp)
-            <span class="badge" style="{{ $record->sp_id ? 'background:#dcfce7;color:#15803d;' : 'background:var(--brand);color:#fff;' }}">
-                Langkah 2: Surat Peringatan
-            </span>
-        @endif
-    </div>
+    {{-- Berita Acara, Keputusan, dan Surat Peringatan = satu kasus; sub-status BA ditulis di bawahnya. --}}
+    @include('livewire.sp.partials.stage-chips', ['report' => $record, 'sp' => $record->sp, 'chipsStyle' => 'margin-bottom:10px;', 'chipsSize' => '12px'])
+    @if ($status !== S::SELESAI)
+        <p style="font-size:12.5px;margin:0 0 8px;color:var(--text-muted);">Tahap Berita Acara: <strong style="color:var(--text-heading);">{{ $status->getLabel() }}</strong></p>
+    @endif
     <p style="font-size:13px;margin:0;"><strong>{{ $record->user?->name }}</strong>
         <span style="color:var(--text-muted);">&middot; dibuat oleh {{ $record->createdBy?->name }} &middot; mengetahui {{ $record->knowsBy?->name }}</span></p>
     @if ($record->keputusan)
@@ -31,38 +21,50 @@
     @endif
 </div>
 
+{{-- Setelah SELESAI: seluruh bagian BA dijadikan 1 section (lihat bawah), 4 section proses disembunyikan. --}}
+@if ($status !== S::SELESAI)
 {{-- 1. Dasar & kejadian: bisa diedit hanya saat draft --}}
 <div class="form-card">
     <div class="section-head">
         <div class="section-icon"><i class="fa-solid fa-file-lines" style="color:var(--brand);font-size:12px;"></i></div>
         <span class="section-title">Dasar &amp; Kejadian</span>
     </div>
-    @if ($status === S::DRAFT && $editable)
+    @if ($status === S::DRAFT && $editable && $editingDraft)
         <div style="display:flex;flex-direction:column;gap:16px;">
             <div>
                 <label class="form-label">Nomor</label>
                 <input type="text" wire:model="nomor" class="form-input">
             </div>
-            @foreach ([['dasar_klarifikasi', 'Dasar Klarifikasi'], ['kejadian', 'Kejadian']] as [$field, $label])
-                <div>
-                    <label class="form-label">{{ $label }} <span style="color:var(--danger-text);">*</span></label>
-                    <div wire:ignore>
-                        <input type="hidden" id="trix-ba-d-{{ $field }}" wire:model="{{ $field }}" value="{{ $$field }}">
-                        <trix-editor input="trix-ba-d-{{ $field }}" style="min-height:90px;"></trix-editor>
-                    </div>
+            <div>
+                <label class="form-label">Dasar Klarifikasi <span style="color:var(--danger-text);">*</span></label>
+                @include('livewire.sp.partials.dasar-items-editor', ['idPrefix' => 'trix-ba-d-dasar'])
+            </div>
+            <div>
+                <label class="form-label">Kejadian <span style="color:var(--danger-text);">*</span></label>
+                <div wire:ignore>
+                    <input type="hidden" id="trix-ba-d-kejadian" wire:model="kejadian" value="{{ $kejadian }}">
+                    <trix-editor input="trix-ba-d-kejadian" style="min-height:90px;"></trix-editor>
                 </div>
-            @endforeach
+            </div>
         </div>
         <div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap;">
             <button type="button" wire:click="saveDraft" class="btn-secondary">Simpan Draft</button>
-            <button type="button" wire:click="requestClarification" wire:confirm="Minta klarifikasi dari karyawan sekarang? Dasar & kejadian tidak bisa diubah lagi." class="btn-primary">
-                <i class="fa-solid fa-paper-plane"></i> Minta Klarifikasi Karyawan
-            </button>
+            @if ($record->kejadian && $record->dasarItems->isNotEmpty())
+                <button type="button" wire:click="cancelEditDraft" class="btn-ghost">Batal</button>
+            @endif
         </div>
     @else
         <p class="form-label">Nomor</p><p style="margin:0 0 12px;">{{ $record->nomor ?? '-' }}</p>
-        <p class="form-label">Dasar Klarifikasi</p><div class="prose" style="margin-bottom:12px;">{!! $record->dasar_klarifikasi !!}</div>
+        <p class="form-label">Dasar Klarifikasi</p><div class="prose" style="margin-bottom:12px;">{!! $record->dasarKlarifikasiHtml() !!}</div>
         <p class="form-label">Kejadian</p><div class="prose">{!! $record->kejadian !!}</div>
+        @if ($status === S::DRAFT && $editable)
+            <div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap;">
+                <button type="button" wire:click="editDraft" class="btn-secondary"><i class="fa-solid fa-pen"></i> Edit</button>
+                <button type="button" wire:click="requestClarification" wire:confirm="Minta klarifikasi dari karyawan sekarang? Dasar & kejadian tidak bisa diubah lagi." class="btn-primary">
+                    <i class="fa-solid fa-paper-plane"></i> Minta Klarifikasi Karyawan
+                </button>
+            </div>
+        @endif
     @endif
 </div>
 
@@ -74,8 +76,11 @@
             <span class="section-title">Klarifikasi Karyawan</span>
         </div>
         @if ($status === S::MENUNGGU_KLARIFIKASI && $record->klarifikasi_diisi_hc && $editable)
-            <p style="font-size:13px;color:var(--text-muted);margin:0 0 8px;">{{ $record->user?->name }} meminta HC yang mengisikan klarifikasinya. Tulis apa adanya sesuai keterangan karyawan.</p>
-            <textarea wire:model="klarifikasi_karyawan" rows="7" class="form-input"></textarea>
+            <p style="font-size:13px;color:var(--text-muted);margin:0 0 8px;">{{ $record->user?->name }} mengizinkan HC mengisikan klarifikasinya. Tulis apa adanya sesuai keterangan karyawan.</p>
+            <div wire:ignore>
+                <input type="hidden" id="trix-ba-klarifikasi" wire:model="klarifikasi_karyawan" value="{{ $klarifikasi_karyawan }}">
+                <trix-editor input="trix-ba-klarifikasi" style="min-height:140px;"></trix-editor>
+            </div>
             <div style="margin-top:12px;">
                 <button type="button" wire:click="fillClarification" wire:confirm="Simpan klarifikasi atas nama karyawan dan lanjut ke analisis?" class="btn-primary">
                     <i class="fa-solid fa-floppy-disk"></i> Simpan Klarifikasi Karyawan
@@ -83,20 +88,20 @@
             </div>
         @elseif ($status === S::MENUNGGU_KLARIFIKASI)
             <p style="font-size:13px;color:var(--text-muted);margin:0;">
-                {{ $record->klarifikasi_diisi_hc ? "{$record->user?->name} meminta HC yang mengisikan klarifikasi." : "Menunggu {$record->user?->name} mengisi dan mengajukan klarifikasi." }}
+                {{ $record->klarifikasi_diisi_hc ? "{$record->user?->name} mengizinkan HC mengisikan klarifikasi." : "Menunggu {$record->user?->name} mengisi dan mengajukan klarifikasi." }}
             </p>
         @else
             <p style="font-size:11.5px;color:var(--text-muted);margin:0 0 8px;">
-                {{ $record->klarifikasi_diisi_hc ? 'Diisikan HC atas permintaan karyawan' : 'Diajukan karyawan' }} {{ $record->klarifikasi_diajukan_at?->translatedFormat('d M Y H:i') }} &middot; ditampilkan apa adanya
+                {{ $record->klarifikasi_diisi_hc ? 'Diisikan HC atas izin karyawan' : 'Diajukan karyawan' }} {{ $record->klarifikasi_diajukan_at?->translatedFormat('d M Y H:i') }} &middot; ditampilkan apa adanya
             </p>
-            <div class="prose">{!! nl2br(e($record->subject_clarification)) !!}</div>
+            <div class="prose">{!! $record->subjectClarificationHtml() !!}</div>
         @endif
 
         @foreach ($record->riwayat_klarifikasi ?? [] as $i => $old)
             <details style="margin-top:12px;">
                 <summary style="font-size:12.5px;cursor:pointer;">Riwayat pengajuan ulang #{{ $i + 1 }} &middot; {{ $old['at'] ?? '' }}</summary>
                 <p style="font-size:12px;margin:8px 0 2px;font-weight:700;">Alasan mengajukan ulang</p><p style="font-size:12.5px;margin:0;">{{ $old['alasan_ajukan_ulang'] ?? '' }}</p>
-                <p style="font-size:12px;margin:8px 0 2px;font-weight:700;">Klarifikasi saat itu</p><p style="font-size:12.5px;margin:0;">{!! nl2br(e($old['klarifikasi'] ?? '')) !!}</p>
+                <p style="font-size:12px;margin:8px 0 2px;font-weight:700;">Klarifikasi saat itu</p><p style="font-size:12.5px;margin:0;">{!! $record->subjectClarificationHtml($old['klarifikasi'] ?? '', $old['diisi_hc'] ?? false) !!}</p>
                 <p style="font-size:12px;margin:8px 0 2px;font-weight:700;">Parafrase HC saat itu</p><p style="font-size:12.5px;margin:0;">{!! nl2br(e($old['parafrase'] ?? '')) !!}</p>
             </details>
         @endforeach
@@ -110,11 +115,15 @@
             <div class="section-icon"><i class="fa-solid fa-magnifying-glass-chart" style="color:var(--brand);font-size:12px;"></i></div>
             <span class="section-title">Parafrase &amp; Analisis HC</span>
         </div>
-        @if ($status === S::KLARIFIKASI_DIAJUKAN && $editable)
+        @if ($status === S::KLARIFIKASI_DIAJUKAN && $editable && $editingAnalysis)
             <div style="display:flex;flex-direction:column;gap:16px;">
                 @foreach ([['klarifikasi_parafrase', 'Parafrase Klarifikasi'], ['analysis', 'Analisis'], ['kesimpulan', 'Kesimpulan'], ['followup_plan', 'Rencana Tindak Lanjut']] as [$field, $label])
                     <div>
-                        <label class="form-label">{{ $label }} <span style="color:var(--danger-text);">*</span></label>
+                        @php $parafraseOpsional = $field === 'klarifikasi_parafrase' && $record->klarifikasi_diisi_hc; @endphp
+                        <label class="form-label">{{ $label }} @unless ($parafraseOpsional)<span style="color:var(--danger-text);">*</span>@endunless</label>
+                        @if ($parafraseOpsional)
+                            <p style="font-size:12px;color:var(--text-muted);margin:0 0 6px;">Klarifikasi ditulis HC sendiri, sudah disalin ke sini. Tidak perlu diparafrase lagi, boleh diubah atau dikosongkan.</p>
+                        @endif
                         <div wire:ignore>
                             <input type="hidden" id="trix-ba-a-{{ $field }}" wire:model="{{ $field }}" value="{{ $$field }}">
                             <trix-editor input="trix-ba-a-{{ $field }}" style="min-height:90px;"></trix-editor>
@@ -124,14 +133,22 @@
             </div>
             <div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap;">
                 <button type="button" wire:click="saveAnalysis" class="btn-secondary">Simpan</button>
-                <button type="button" wire:click="sendForSigning" wire:confirm="Kirim untuk ditandatangani? Isi akan dibekukan, karyawan menandatangani lebih dulu." class="btn-primary">
-                    <i class="fa-solid fa-signature"></i> Kirim untuk Tanda Tangan
-                </button>
+                @if (filled($record->analysis) && filled($record->kesimpulan) && filled($record->followup_plan))
+                    <button type="button" wire:click="cancelEditAnalysis" class="btn-ghost">Batal</button>
+                @endif
             </div>
         @else
             @foreach ([['klarifikasi_parafrase', 'Parafrase Klarifikasi'], ['analysis', 'Analisis'], ['kesimpulan', 'Kesimpulan'], ['followup_plan', 'Rencana Tindak Lanjut']] as [$field, $label])
                 <p class="form-label">{{ $label }}</p><div class="prose" style="margin-bottom:12px;">{!! $record->{$field} !!}</div>
             @endforeach
+            @if ($status === S::KLARIFIKASI_DIAJUKAN && $editable)
+                <div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap;">
+                    <button type="button" wire:click="editAnalysis" class="btn-secondary"><i class="fa-solid fa-pen"></i> Edit</button>
+                    <button type="button" wire:click="sendForSigning" wire:confirm="Tanda tangani Berita Acara sekarang? Isi akan dibekukan dan Anda langsung diarahkan menandatangani." class="btn-primary">
+                        <i class="fa-solid fa-signature"></i> Tanda Tangan
+                    </button>
+                </div>
+            @endif
         @endif
     </div>
 @endif
@@ -143,19 +160,27 @@
             <div class="section-icon"><i class="fa-solid fa-signature" style="color:var(--brand);font-size:12px;"></i></div>
             <span class="section-title">Tanda Tangan</span>
         </div>
-        @foreach ($record->expectedSignerRoles() as $role => $label)
-            @php $sig = $this->signatures->get($role); @endphp
-            <p style="font-size:13px;margin:0 0 6px;">
-                <i class="fa-solid {{ $sig ? 'fa-circle-check' : 'fa-clock' }}" style="color:{{ $sig ? '#16a34a' : 'var(--text-muted)' }};"></i>
-                {{ $label }}:
-                @if ($sig) {{ $sig->signer_name }} <span style="color:var(--text-muted);">({{ $sig->signed_at->translatedFormat('d M Y H:i') }})</span>
-                @else <span style="color:var(--text-muted);">belum menandatangani</span> @endif
-            </p>
-        @endforeach
+        @include('livewire.document.partials.signature-boxes', [
+            'signable' => $record,
+            'boxes' => ['created_by' => 'TTD Pembuat', 'knows_by' => 'TTD Mengetahui', 'employee' => 'TTD YBS'],
+            'signatures' => $this->signatures,
+        ])
         @if ($status === S::MENUNGGU_TTD)
-            <p style="font-size:12px;color:var(--text-muted);margin:8px 0 0;">Karyawan menandatangani lebih dulu, lalu pembuat dan yang mengetahui lewat halaman Tanda Tangan.</p>
+            <p style="font-size:12px;color:var(--text-muted);margin:12px 0 0;">Pembuat menandatangani lebih dulu, lalu karyawan dan yang mengetahui.</p>
+            @if ($record->document && $this->canSignNow)
+                <button type="button" wire:click="$dispatch('open-sign-modal', { id: '{{ $record->document->id }}' })" class="btn-primary" style="margin-top:10px;">
+                    <i class="fa-solid fa-signature"></i> Tanda Tangani Sekarang
+                </button>
+            @endif
         @endif
     </div>
+@endif
+
+@endif
+
+{{-- Berita Acara selesai: 1 section utuh + kotak tanda tangan + PDF --}}
+@if ($status === S::SELESAI)
+    @include('livewire.sp.partials.ba-selesai-section', ['record' => $record, 'pdfUrl' => route('ba.preview', $record)])
 @endif
 
 {{-- 5. Keputusan --}}
@@ -184,8 +209,32 @@
     </div>
 @endif
 
+<livewire:document.sign-document-modal />
+
 {{-- 6. Langkah 2: form SP, tertanam (bukan halaman terpisah) --}}
 @if ($status === S::SELESAI && $lanjutSp && ! $record->sp_id && $editable)
     <livewire:sp.create-sp-from-report-page :report-id="$record->id" :key="'sp-' . $record->id" />
+@endif
+
+{{-- Langkah 3: SP yang sudah terbit dari BA ini, ringkas + masuk ke detailnya --}}
+@if ($record->sp)
+    @php $sp = $record->sp; @endphp
+    <div class="form-card">
+        <div class="section-head" style="justify-content:space-between;">
+            <div style="display:flex;align-items:center;gap:8px;">
+                <div class="section-icon"><i class="fa-solid fa-triangle-exclamation" style="color:var(--brand);font-size:12px;"></i></div>
+                <span class="section-title">Surat Peringatan</span>
+            </div>
+            <a href="{{ route('sp.show', $sp) }}" wire:navigate class="btn-primary" style="padding:7px 14px;font-size:12px;">
+                Buka Surat Peringatan <i class="fa-solid fa-arrow-right"></i>
+            </a>
+        </div>
+        <p style="font-size:13px;margin:0;">
+            <strong>{{ $sp->sp_level->getLabel() }}</strong>
+            @if ($sp->nomor) &middot; No. {{ $sp->nomor }} @endif
+            &middot; {{ $sp->start_date->translatedFormat('d M Y') }}{{ $sp->end_date ? ' s.d. ' . $sp->end_date->translatedFormat('d M Y') : '' }}
+            &middot; {{ $sp->isCancelled() ? 'Dibatalkan' : ($sp->document?->isFullySigned() ? 'Terbit' : 'Menunggu tanda tangan') }}
+        </p>
+    </div>
 @endif
 </div>

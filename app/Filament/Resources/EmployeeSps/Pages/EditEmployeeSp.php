@@ -4,6 +4,7 @@ namespace App\Filament\Resources\EmployeeSps\Pages;
 
 use App\Filament\Resources\EmployeeSps\EmployeeSpResource;
 use App\Models\Sp\EmployeeSp;
+use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
 use Illuminate\Support\Arr;
 
@@ -34,15 +35,28 @@ class EditEmployeeSp extends EditRecord
         $record = $this->record;
 
         return [...$data, ...($record->report?->only([
-            'kejadian', 'dasar_klarifikasi', 'subject_clarification', 'analysis', 'kesimpulan', 'followup_plan',
-        ]) ?? [])];
+            'kejadian', 'subject_clarification', 'analysis', 'kesimpulan', 'followup_plan',
+        ]) ?? []), 'dasar_items' => $record->report?->dasarItems->pluck('text')->all() ?? []];
+    }
+
+    /** Sama dengan portal HC: begitu pembuat menandatangani, isi SP tidak boleh diubah lagi. */
+    protected function beforeSave(): void
+    {
+        /** @var EmployeeSp $record */
+        $record = $this->record;
+
+        if ($record->document?->signatures()->where('signer_role', 'created_by')->exists()) {
+            Notification::make()->title('Dokumen sudah ditandatangani pembuat, tidak bisa diedit lagi.')->danger()->send();
+
+            $this->halt();
+        }
     }
 
     protected function mutateFormDataBeforeSave(array $data): array
     {
-        $this->reportData = Arr::only($data, ['kejadian', 'dasar_klarifikasi', 'subject_clarification', 'analysis', 'kesimpulan', 'followup_plan']);
+        $this->reportData = Arr::only($data, ['kejadian', 'dasar_items', 'subject_clarification', 'analysis', 'kesimpulan', 'followup_plan']);
 
-        return Arr::except($data, ['kejadian', 'dasar_klarifikasi', 'subject_clarification', 'analysis', 'kesimpulan', 'followup_plan']);
+        return Arr::except($data, ['kejadian', 'dasar_items', 'subject_clarification', 'analysis', 'kesimpulan', 'followup_plan']);
     }
 
     protected function afterSave(): void
@@ -50,6 +64,7 @@ class EditEmployeeSp extends EditRecord
         /** @var EmployeeSp $record */
         $record = $this->record;
 
-        $record->report()->updateOrCreate([], $this->reportData);
+        $report = $record->report()->updateOrCreate([], Arr::except($this->reportData, 'dasar_items'));
+        $report->syncDasarItems($this->reportData['dasar_items'] ?? []);
     }
 }

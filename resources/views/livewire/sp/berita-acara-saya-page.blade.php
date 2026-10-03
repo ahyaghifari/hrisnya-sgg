@@ -1,23 +1,33 @@
 @use('App\Enum\Sp\SpReportStatus', 'S')
 <div>
-<x-page-header title="Berita Acara" :back="route('sp.saya')" />
+<x-page-header title="Detail Surat Peringatan" :back="route('sp.saya')" />
 
 @php $status = $record->status; @endphp
 
 <div class="card-surface" style="margin-bottom:16px;">
-    <p style="font-size:13px;font-weight:700;margin:0;">{{ $status->getLabel() }}</p>
+    @include('livewire.sp.partials.stage-chips', ['report' => $record, 'sp' => $record->sp?->isIssued() ? $record->sp : null, 'chipsStyle' => 'margin-bottom:10px;', 'chipsSize' => '12px'])
+    <p style="font-size:13px;font-weight:700;margin:0;">Tahap Berita Acara: {{ $status->getLabel() }}</p>
+    @if ($record->sp?->isIssued())
+        <a href="{{ route('sp.saya.show', $record->sp) }}" wire:navigate class="btn-primary" style="margin-top:10px;padding:7px 14px;font-size:12px;">
+            Buka Surat Peringatan <i class="fa-solid fa-arrow-right"></i>
+        </a>
+    @endif
     @if ($record->keputusan)
         <p style="font-size:12.5px;margin:4px 0 0;color:var(--text-muted);">Keputusan: {{ $record->keputusan->getLabel() }}</p>
     @endif
 </div>
 
+{{-- Setelah SELESAI: seluruh isi BA + tanda tangan + PDF dalam 1 section (sama dengan sisi HC). --}}
+@if ($status === S::SELESAI)
+    @include('livewire.sp.partials.ba-selesai-section', ['record' => $record, 'pdfUrl' => route('sp.saya.ba.preview', $record)])
+@else
 <div class="form-card">
     <div class="section-head">
         <div class="section-icon"><i class="fa-solid fa-file-lines" style="color:var(--brand);font-size:12px;"></i></div>
         <span class="section-title">Dasar &amp; Kejadian</span>
     </div>
     <p class="form-label">Dasar Klarifikasi</p>
-    <div class="prose" style="margin-bottom:12px;">{!! $record->dasar_klarifikasi !!}</div>
+    <div class="prose" style="margin-bottom:12px;">{!! $record->dasarKlarifikasiHtml() !!}</div>
     <p class="form-label">Kejadian</p>
     <div class="prose">{!! $record->kejadian !!}</div>
 </div>
@@ -29,7 +39,7 @@
     </div>
     @if ($status === S::MENUNGGU_KLARIFIKASI)
         @if ($record->klarifikasi_diisi_hc)
-            <p style="font-size:13px;color:var(--text-muted);margin:0;">Anda memilih agar HC yang mengisikan klarifikasi. Menunggu HC mengisi.</p>
+            <p style="font-size:13px;color:var(--text-muted);margin:0;">Anda telah mengizinkan HC mengisikan klarifikasi atas nama Anda. Menunggu HC mengisi.</p>
         @else
             <p style="font-size:12.5px;color:var(--text-muted);margin:0 0 8px;">Terangkan kejadian ini sejelas-jelasnya.</p>
             <textarea wire:model="klarifikasi" rows="7" class="form-input"></textarea>
@@ -37,15 +47,15 @@
                 <button type="button" wire:click="submitClarification" wire:confirm="Ajukan klarifikasi ini ke HC?" class="btn-primary">
                     <i class="fa-solid fa-paper-plane"></i> Ajukan Klarifikasi
                 </button>
-                <button type="button" wire:click="delegateToHc" wire:confirm="Minta HC yang mengisikan klarifikasi Anda? Setelah dipilih, Anda tidak bisa menulisnya sendiri." class="btn-secondary">
-                    Minta HC yang Mengisikan
+                <button type="button" wire:click="delegateToHc" wire:confirm="Izinkan HC mengisikan klarifikasi atas nama Anda? Setelah diizinkan, Anda tidak dapat menulisnya sendiri." class="btn-secondary">
+                    <i class="fa-solid fa-user-pen"></i> Izinkan HC Mengisikan Klarifikasi
                 </button>
             </div>
         @endif
     @else
-        <div class="prose">{!! nl2br(e($record->subject_clarification)) !!}</div>
+        <div class="prose">{!! $record->subjectClarificationHtml() !!}</div>
         @if ($record->klarifikasi_diisi_hc)
-            <p style="font-size:11.5px;color:var(--text-muted);margin:6px 0 0;">Diisikan oleh HC atas permintaan Anda.</p>
+            <p style="font-size:11.5px;color:var(--text-muted);margin:6px 0 0;">Diisikan oleh HC atas izin Anda.</p>
         @endif
         @if ($status === S::KLARIFIKASI_DIAJUKAN)
             <p style="font-size:12px;color:var(--text-muted);margin:10px 0 0;">Klarifikasi sudah diajukan, menunggu HC memproses.</p>
@@ -73,22 +83,26 @@
             <span class="section-title">Tanggapan Anda</span>
         </div>
         @if ($this->signDocumentId)
-            <p style="font-size:13px;margin:0 0 12px;">Jika parafrase di atas sudah sesuai dengan maksud Anda, setujui dan tanda tangani Berita Acara ini.</p>
-            <a href="{{ route('documents.sign', $this->signDocumentId) }}" wire:navigate class="btn-primary">
+            <p style="font-size:13px;margin:0 0 12px;">Berita Acara sudah ditandatangani pembuat. Jika isinya sudah sesuai dengan maksud Anda, setujui dan tanda tangani.</p>
+            <button type="button" wire:click="$dispatch('open-sign-modal', { id: '{{ $this->signDocumentId }}' })" class="btn-primary">
                 <i class="fa-solid fa-signature"></i> Setuju &amp; Tanda Tangan
-            </a>
-
-            <hr style="border:none;border-top:1px solid var(--border-soft);margin:18px 0;">
+            </button>
+        @elseif ($record->document?->signatures->contains('signer_role', 'employee'))
+            <p style="font-size:13px;color:var(--text-muted);margin:0;">Anda sudah menandatangani. Menunggu penandatangan yang mengetahui.</p>
+        @else
+            <p style="font-size:13px;margin:0 0 12px;">Menunggu pembuat Berita Acara menandatangani lebih dulu. Anda akan diminta menandatangani setelahnya.</p>
 
             <p style="font-size:13px;font-weight:700;margin:0 0 6px;">Parafrase tidak sesuai maksud Anda?</p>
-            <p style="font-size:12.5px;color:var(--text-muted);margin:0 0 8px;">Ajukan ulang klarifikasi dan jelaskan bagian yang tidak sesuai. Ini hanya bisa dilakukan sebelum Anda menandatangani.</p>
+            <p style="font-size:12.5px;color:var(--text-muted);margin:0 0 8px;">Ajukan ulang klarifikasi dan jelaskan bagian yang tidak sesuai. Ini hanya bisa dilakukan sebelum pembuat menandatangani.</p>
             <textarea wire:model="alasan_ajukan_ulang" rows="3" class="form-input" placeholder="Bagian yang tidak sesuai..."></textarea>
             <div style="margin-top:12px;">
                 <button type="button" wire:click="requestReclarification" wire:confirm="Ajukan ulang klarifikasi? Parafrase HC saat ini akan dibatalkan." class="btn-secondary">Ajukan Ulang Klarifikasi</button>
             </div>
-        @else
-            <p style="font-size:13px;color:var(--text-muted);margin:0;">Anda sudah menandatangani. Menunggu penandatangan pembuat dan yang mengetahui.</p>
         @endif
     </div>
 @endif
+
+@endif
+
+<livewire:document.sign-document-modal />
 </div>

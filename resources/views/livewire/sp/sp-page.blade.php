@@ -31,68 +31,23 @@
     </div>
 </div>
 
-@php
-    $sps = $this->sps;
-    $levelColors = [
-        'sp1' => ['bg' => '#fef9c3', 'fg' => '#a16207'],
-        'sp2' => ['bg' => '#ffedd5', 'fg' => '#c2410c'],
-        'sp3' => ['bg' => '#fee2e2', 'fg' => '#b91c1c'],
-    ];
-@endphp
+@php $cases = $this->cases; @endphp
 
-{{-- Langkah 1 (Berita Acara) yang belum jadi SP - satu daftar dengan SP, tanpa menu terpisah. --}}
-@if ($this->reports->isNotEmpty())
-    <p style="font-size:12px;font-weight:700;color:var(--text-muted);margin:0 0 8px;">Dalam Proses (Berita Acara)</p>
-    <div class="pwa-list" style="margin-bottom:20px;">
-        @foreach ($this->reports as $report)
-            <a href="{{ route('ba.show', $report) }}" wire:navigate class="pwa-list-row" style="text-decoration:none;">
-                <div style="flex:1;min-width:0;">
-                    <p class="pwa-row-title">{{ $report->user?->name ?? '-' }}</p>
-                    <span style="font-size:11.5px;color:var(--text-muted);">
-                        Langkah {{ $report->keputusan ? '2 &middot; Buat SP' : '1 &middot; BA: ' . $report->status->getLabel() }}
-                        &middot; {{ $report->created_at->translatedFormat('d M Y') }}
-                    </span>
-                </div>
-                <i class="fa-solid fa-chevron-right"></i>
-            </a>
-        @endforeach
-    </div>
-    <p style="font-size:12px;font-weight:700;color:var(--text-muted);margin:0 0 8px;">Surat Peringatan</p>
-@endif
-
+{{-- Berita Acara, Keputusan, dan Surat Peringatan dalam SATU daftar; tahapnya tampil di tiap baris. --}}
 <div class="pwa-list">
-    @forelse ($sps as $sp)
-        @php
-            $isActive = ! $sp->isCancelled() && $sp->start_date->lte(today()) && ($sp->end_date === null || $sp->end_date->gte(today()));
-            $levelColor = $levelColors[$sp->sp_level->value] ?? ['bg' => '#f1f5f9', 'fg' => '#64748b'];
-        @endphp
-        <a href="{{ route('sp.show', $sp) }}" wire:navigate class="pwa-list-row" style="text-decoration:none;">
-            <div style="flex:1;min-width:0;">
-                <p class="pwa-row-title">
-                    <span class="badge" style="background:{{ $levelColor['bg'] }};color:{{ $levelColor['fg'] }};margin-right:6px;">{{ $sp->sp_level->getLabel() }}</span>
-                    {{ $sp->user?->name ?? '-' }}
-                </p>
-                <span style="font-size:11.5px;color:var(--text-muted);">
-                    @if ($sp->nomor)
-                        No. {{ $sp->nomor }} &middot;
-                    @endif
-                    {{ $sp->start_date->translatedFormat('d M Y') }}
-                    &middot; {{ $sp->isCancelled() ? 'Dibatalkan' : ($isActive ? 'Aktif' : 'Expired') }}
-                </span>
-            </div>
-            <i class="fa-solid fa-chevron-right"></i>
-        </a>
+    @forelse ($cases as $case)
+        @include('livewire.sp.partials.case-row', ['case' => $case, 'mine' => false])
     @empty
         <div class="pwa-list-row" style="opacity:0.7;">
             <div style="flex:1;min-width:0;">
-                <p class="pwa-row-title">Belum ada SP</p>
-                <span style="font-size:11.5px;color:var(--text-muted);">SP yang diterbitkan akan muncul di sini.</span>
+                <p class="pwa-row-title">Belum ada data</p>
+                <span style="font-size:11.5px;color:var(--text-muted);">Berita Acara dan Surat Peringatan akan muncul di sini.</span>
             </div>
         </div>
     @endforelse
 </div>
 
 <div style="margin-top:16px;">
-    {{ $sps->links('livewire.partials.pagination') }}
+    {{ $cases->links('livewire.partials.pagination') }}
 </div>
 </div>

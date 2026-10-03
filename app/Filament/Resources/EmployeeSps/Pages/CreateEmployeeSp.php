@@ -50,8 +50,8 @@ class CreateEmployeeSp extends CreateRecord
         }
         unset($data['coaching_id']);
 
-        $this->reportData = Arr::only($data, ['kejadian', 'dasar_klarifikasi', 'subject_clarification', 'analysis', 'kesimpulan', 'followup_plan']);
-        $data = Arr::except($data, ['kejadian', 'dasar_klarifikasi', 'subject_clarification', 'analysis', 'kesimpulan', 'followup_plan']);
+        $this->reportData = Arr::only($data, ['kejadian', 'dasar_items', 'subject_clarification', 'analysis', 'kesimpulan', 'followup_plan']);
+        $data = Arr::except($data, ['kejadian', 'dasar_items', 'subject_clarification', 'analysis', 'kesimpulan', 'followup_plan']);
 
         $data['company_id'] = $auth->company_id;
         $data['source_type'] = $coachingId ? SpSourceType::COACHING->value : SpSourceType::MANUAL->value;
@@ -72,7 +72,8 @@ class CreateEmployeeSp extends CreateRecord
         $record = $this->record;
 
         if (array_filter($this->reportData, fn ($v) => filled($v))) {
-            $record->report()->create($this->reportData);
+            $record->report()->create(Arr::except($this->reportData, 'dasar_items'))
+                ->syncDasarItems($this->reportData['dasar_items'] ?? []);
         }
 
         app(SpService::class)->afterIssued($record);
