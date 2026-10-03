@@ -51,6 +51,7 @@ class TaskListPage extends Component
     public ?string $description = null; // Deskripsi = uraian detail (opsional)
     public ?string $due_date = null;
     public ?string $due_time = null; // Jam tenggat (opsional) - kosong default ke 23:59 saat disimpan.
+    public ?string $recurrence = null;
     public string $priority = 'medium';
     public ?string $assigned_to = null;
     public ?string $newTaskListId = null; // List tujuan tugas baru (Board)
@@ -83,6 +84,7 @@ class TaskListPage extends Component
     public ?string $editDescription = null;
     public ?string $editDueDate = null;
     public ?string $editDueTime = null;
+    public ?string $editRecurrence = null;
     public string $editPriority = 'medium';
 
     // Lampiran - inline di modal detail (bukan modal terpisah lagi, 2026-08-02, ala Trello)
@@ -291,7 +293,7 @@ class TaskListPage extends Component
     /** $listId: dari tombol "+ Tambah tugas" di List Board - tugas baru langsung masuk List itu. */
     public function openCreateTask(?string $listId = null): void
     {
-        $this->reset(['requirement', 'description', 'due_date', 'due_time', 'assigned_to', 'checklist', 'newChecklistTitle', 'reviewerId']);
+        $this->reset(['requirement', 'description', 'due_date', 'due_time', 'recurrence', 'assigned_to', 'checklist', 'newChecklistTitle', 'reviewerId']);
         $this->newTaskListId = $this->activeProject ? $listId : null;
         $this->priority = TaskPriority::MEDIUM->value;
         $this->needsReview = false;
@@ -332,8 +334,9 @@ class TaskListPage extends Component
         return [
             'requirement' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:5000'],
-            'due_date' => ['nullable', 'date'],
+            'due_date' => ['nullable', 'date', 'required_with:recurrence'],
             'due_time' => ['nullable', 'date_format:H:i'],
+            'recurrence' => ['nullable', 'in:' . implode(',', array_keys(Task::RECURRENCES))],
             'priority' => ['required', 'in:' . implode(',', array_column(TaskPriority::cases(), 'value'))],
             'assigned_to' => [$this->assignedToRequiredForSubordinate() ? 'required' : 'nullable', 'string'],
         ];
@@ -360,6 +363,7 @@ class TaskListPage extends Component
                 'description' => $data['description'] ?? null,
                 'priority' => $data['priority'],
                 'due_date' => $data['due_date'],
+                'recurrence' => $data['recurrence'] ?? null,
                 // Di Board, non-Assigner cuma boleh bikin tugas untuk dirinya sendiri (service juga
                 // menolak, ini supaya nilai sisa dari form nggak bikin error membingungkan).
                 'assigned_to' => ($this->activeProject && ! $this->canAssignInProject) ? null : ($data['assigned_to'] ?? null),
@@ -415,6 +419,33 @@ class TaskListPage extends Component
         unset($this->tasks, $this->historyTasks);
     }
 
+    public function setTaskRecurrence(string $taskId, ?string $recurrence): void
+    {
+        try {
+            app(TaskService::class)->setRecurrence(Task::findOrFail($taskId), $recurrence ?: null, Auth::user());
+        } catch (\Throwable $e) {
+            Notification::make()->title($e->getMessage() ?: 'Tidak bisa mengubah pengulangan')->danger()->send();
+        }
+
+        unset($this->tasks, $this->selectedTask);
+    }
+
+    /** Centang tugas Board berulang: selesai + otomatis dibuat salinan untuk periode berikutnya. */
+    public function completeRecurringTask(string $taskId): void
+    {
+        try {
+            $copy = app(TaskService::class)->completeRecurring(Task::findOrFail($taskId), Auth::user());
+            $this->selectedTaskId = null;
+            unset($this->selectedTask);
+            $this->dispatch('task-completed');
+            Notification::make()->title('Tugas selesai, salinan berikutnya dibuat untuk ' . Carbon::parse($copy->due_date)->translatedFormat('j M Y'))->success()->send();
+        } catch (\Throwable $e) {
+            Notification::make()->title($e->getMessage() ?: 'Tidak bisa menyelesaikan tugas ini')->danger()->send();
+        }
+
+        unset($this->tasks, $this->historyTasks);
+    }
+
     public function deleteTask(string $taskId): void
     {
         try {
@@ -437,6 +468,7 @@ class TaskListPage extends Component
         $this->editDescription = $task->description;
         $this->editDueDate = $task->due_date ? Carbon::parse($task->due_date)->format('Y-m-d') : null;
         $this->editDueTime = $task->due_date ? Carbon::parse($task->due_date)->format('H:i') : null;
+        $this->editRecurrence = $task->recurrence;
         $this->editPriority = $task->priority?->value ?? TaskPriority::MEDIUM->value;
         $this->showEditTaskModal = true;
     }
@@ -452,8 +484,9 @@ class TaskListPage extends Component
         $data = $this->validate([
             'editRequirement' => ['required', 'string', 'max:255'],
             'editDescription' => ['nullable', 'string', 'max:5000'],
-            'editDueDate' => ['nullable', 'date'],
+            'editDueDate' => ['nullable', 'date', 'required_with:editRecurrence'],
             'editDueTime' => ['nullable', 'date_format:H:i'],
+            'editRecurrence' => ['nullable', 'in:' . implode(',', array_keys(Task::RECURRENCES))],
             'editPriority' => ['required', 'in:' . implode(',', array_column(TaskPriority::cases(), 'value'))],
         ]);
         $data['editDueDate'] = $this->combineDueDateTime($data['editDueDate'], $data['editDueTime'] ?? null);
@@ -463,6 +496,7 @@ class TaskListPage extends Component
                 'requirement' => $data['editRequirement'],
                 'description' => $data['editDescription'] ?? null,
                 'due_date' => $data['editDueDate'],
+                'recurrence' => $data['editRecurrence'] ?? null,
                 'priority' => $data['editPriority'],
             ], Auth::user());
 

@@ -553,6 +553,12 @@
                                     @php $canMoveCard = ! $this->isProjectArchived && ($list->is_review ? (($task->reviewer_id ?? $task->created_by) === auth()->id()) : ($task->isAssignee(auth()->id()) || $this->isProjectOwner)); @endphp
                                     <div class="task-card{{ $canMoveCard ? '' : ' task-card-locked' }}" wire:click="openTaskDetail('{{ $task->id }}')" data-task-id="{{ $task->id }}" style="--accent:{{ $priorityAccent($task->priority?->getColor() ?? 'gray') }};">
                                         <div class="task-card-top">
+                                            @if ($task->recurrence && $canMoveCard && ! $list->is_final && ! $list->is_review)
+                                                <label class="custom-checkbox" style="--accent:#16a34a;width:16px;height:16px;margin-top:2px;" title="Selesai &amp; ulangi ({{ \App\Models\Task\Task::RECURRENCES[$task->recurrence] }})" onclick="event.stopPropagation()">
+                                                    <input type="checkbox" wire:click="completeRecurringTask('{{ $task->id }}')" wire:confirm="Selesaikan tugas ini dan buat salinan untuk periode berikutnya?">
+                                                    <span class="box"><i class="fa-solid fa-check"></i></span>
+                                                </label>
+                                            @endif
                                             <p class="task-card-title">{{ \Illuminate\Support\Str::limit($task->requirement, 80) }}</p>
                                         </div>
                                         <div class="task-card-meta">
@@ -582,6 +588,7 @@
                                             @if ($task->due_date)
                                                 <span><i class="fa-regular fa-calendar" style="font-size:10px;"></i> {{ $fmtDate($task->due_date, 'j M, H:i') }}</span>
                                             @endif
+                                            @if ($task->recurrence) <span title="{{ \App\Models\Task\Task::RECURRENCES[$task->recurrence] }}"><i class="fa-solid fa-rotate"></i></span> @endif
                                             @if ($task->is_overdue) <span class="badge badge-rejected">Terlambat</span> @endif
                                         </div>
                                         @php $isDecider = ($task->reviewer_id ?? $task->created_by) === auth()->id(); @endphp
@@ -811,10 +818,24 @@
                     <div>
                         <label class="form-label">Tenggat</label>
                         <div style="display:flex;gap:6px;">
-                            <input type="date" class="form-input" wire:model="due_date">
-                            <input type="time" class="form-input" wire:model="due_time" placeholder="23:59" style="max-width:110px;">
+                            <div style="display:flex;flex:1;border:1px solid var(--border-color,#d1d5db);border-radius:8px;overflow:hidden;">
+                                <input type="date" class="form-input" wire:model="due_date" style="border:0;border-radius:0;box-shadow:none;flex:1;">
+                                <input type="time" class="form-input" wire:model="due_time" placeholder="23:59" style="border:0;border-left:1px solid var(--border-color,#d1d5db);border-radius:0;box-shadow:none;max-width:110px;">
+                            </div>
+                            @if ($this->activeProject)
+                                <label title="Ulangi: {{ $recurrence ? \App\Models\Task\Task::RECURRENCES[$recurrence] : 'Tidak berulang' }}" style="position:relative;display:inline-flex;align-items:center;justify-content:center;gap:6px;min-width:40px;padding:0 10px;flex-shrink:0;white-space:nowrap;font-size:13px;border:1px solid {{ $recurrence ? 'var(--primary,#2563eb)' : 'var(--border-color,#d1d5db)' }};border-radius:8px;cursor:pointer;color:{{ $recurrence ? 'var(--primary,#2563eb)' : 'var(--text-muted)' }};">
+                                    <i class="fa-solid fa-rotate"></i>@if ($recurrence)<span>{{ \App\Models\Task\Task::RECURRENCES[$recurrence] }}</span>@endif
+                                    <select wire:model.live="recurrence" style="position:absolute;inset:0;width:100%;opacity:0;cursor:pointer;">
+                                        <option value="">Tidak berulang</option>
+                                        @foreach (\App\Models\Task\Task::RECURRENCES as $key => $label)
+                                            <option value="{{ $key }}">{{ $label }}</option>
+                                        @endforeach
+                                    </select>
+                                </label>
+                            @endif
                         </div>
                         <p style="font-size:11px;color:var(--text-muted);margin-top:4px;">Jam kosong = 23:59.</p>
+                        @error('due_date') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">Tenggat wajib diisi untuk tugas berulang.</p> @enderror
                     </div>
                     <div>
                         <label class="form-label">Prioritas</label>
@@ -981,10 +1002,24 @@
                     <div>
                         <label class="form-label">Tenggat</label>
                         <div style="display:flex;gap:6px;">
-                            <input type="date" class="form-input" wire:model="editDueDate">
-                            <input type="time" class="form-input" wire:model="editDueTime" placeholder="23:59" style="max-width:110px;">
+                            <div style="display:flex;flex:1;border:1px solid var(--border-color,#d1d5db);border-radius:8px;overflow:hidden;">
+                                <input type="date" class="form-input" wire:model="editDueDate" style="border:0;border-radius:0;box-shadow:none;flex:1;">
+                                <input type="time" class="form-input" wire:model="editDueTime" placeholder="23:59" style="border:0;border-left:1px solid var(--border-color,#d1d5db);border-radius:0;box-shadow:none;max-width:110px;">
+                            </div>
+                            @if ($this->activeProject)
+                                <label title="Ulangi: {{ $editRecurrence ? \App\Models\Task\Task::RECURRENCES[$editRecurrence] : 'Tidak berulang' }}" style="position:relative;display:inline-flex;align-items:center;justify-content:center;gap:6px;min-width:40px;padding:0 10px;flex-shrink:0;white-space:nowrap;font-size:13px;border:1px solid {{ $editRecurrence ? 'var(--primary,#2563eb)' : 'var(--border-color,#d1d5db)' }};border-radius:8px;cursor:pointer;color:{{ $editRecurrence ? 'var(--primary,#2563eb)' : 'var(--text-muted)' }};">
+                                    <i class="fa-solid fa-rotate"></i>@if ($editRecurrence)<span>{{ \App\Models\Task\Task::RECURRENCES[$editRecurrence] }}</span>@endif
+                                    <select wire:model.live="editRecurrence" style="position:absolute;inset:0;width:100%;opacity:0;cursor:pointer;">
+                                        <option value="">Tidak berulang</option>
+                                        @foreach (\App\Models\Task\Task::RECURRENCES as $key => $label)
+                                            <option value="{{ $key }}">{{ $label }}</option>
+                                        @endforeach
+                                    </select>
+                                </label>
+                            @endif
                         </div>
                         <p style="font-size:11px;color:var(--text-muted);margin-top:4px;">Jam kosong = 23:59.</p>
+                        @error('editDueDate') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">Tenggat wajib diisi untuk tugas berulang.</p> @enderror
                     </div>
                     <div>
                         <label class="form-label">Prioritas</label>
@@ -1030,7 +1065,15 @@
             <div style="display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:14px;">
                 <div style="min-width:0;">
                     <p style="font-size:11px;font-weight:700;letter-spacing:0.03em;text-transform:uppercase;color:var(--text-faint);margin:0 0 4px;">{{ $task->code }}</p>
-                    <h3 style="font-size:19px;font-weight:700;color:var(--text-heading);margin:0;line-height:1.35;">{{ $task->requirement }}</h3>
+                    <div style="display:flex;align-items:center;gap:10px;">
+                        @if ($task->recurrence && $task->project_id && $task->status !== \App\Enum\Task\TaskStatus::COMPLETE->value && ! $this->isProjectArchived && ($task->isAssignee(auth()->id()) || $this->isProjectOwner))
+                            <label class="custom-checkbox" style="--accent:#16a34a;width:24px;height:24px;" title="Selesai &amp; ulangi ({{ \App\Models\Task\Task::RECURRENCES[$task->recurrence] }})">
+                                <input type="checkbox" wire:click="completeRecurringTask('{{ $task->id }}')" wire:confirm="Selesaikan tugas ini dan buat salinan untuk periode berikutnya?">
+                                <span class="box"><i class="fa-solid fa-check" style="font-size:13px;"></i></span>
+                            </label>
+                        @endif
+                        <h3 style="font-size:19px;font-weight:700;color:var(--text-heading);margin:0;line-height:1.35;">{{ $task->requirement }}</h3>
+                    </div>
                 </div>
                 <div style="display:flex;flex-wrap:wrap;gap:6px;flex-shrink:0;">
                     @if ($canRevertComplete)
@@ -1054,6 +1097,19 @@
                         <span class="badge {{ $badgeClass(TaskStatus::tryFrom($task->status)?->getColor() ?? 'gray') }}">{{ TaskStatus::tryFrom($task->status)?->getLabel() ?? $task->status }}</span>
                         <span class="task-card-priority" style="--accent:{{ $priorityAccent($task->priority?->getColor() ?? 'gray') }};font-size:13px;"><span class="dot"></span> {{ $task->priority?->getLabel() ?? $task->priority }}</span>
                         @if ($task->due_date)<span style="color:var(--text-muted);display:inline-flex;align-items:center;gap:5px;"><i class="fa-regular fa-calendar" style="font-size:11px;"></i> {{ $fmtDate($task->due_date, 'j M Y, H:i') }}</span>@endif
+                        @if ($canEdit && $task->project_id && $task->due_date)
+                            <label title="Ulangi: {{ $task->recurrence ? \App\Models\Task\Task::RECURRENCES[$task->recurrence] : 'Tidak berulang' }}" style="position:relative;display:inline-flex;align-items:center;justify-content:center;gap:5px;min-width:28px;height:28px;padding:0 8px;border:1px solid {{ $task->recurrence ? 'var(--primary,#2563eb)' : 'var(--border-color,#d1d5db)' }};border-radius:8px;cursor:pointer;font-size:12px;color:{{ $task->recurrence ? 'var(--primary,#2563eb)' : 'var(--text-muted)' }};">
+                                <i class="fa-solid fa-rotate"></i>@if ($task->recurrence)<span>{{ \App\Models\Task\Task::RECURRENCES[$task->recurrence] }}</span>@endif
+                                <select style="position:absolute;inset:0;width:100%;opacity:0;cursor:pointer;" wire:change="setTaskRecurrence('{{ $task->id }}', $event.target.value)">
+                                    <option value="">Tidak berulang</option>
+                                    @foreach (\App\Models\Task\Task::RECURRENCES as $key => $label)
+                                        <option value="{{ $key }}" @selected($task->recurrence === $key)>{{ $label }}</option>
+                                    @endforeach
+                                </select>
+                            </label>
+                        @elseif ($task->recurrence)
+                            <span class="badge badge-cancelled"><i class="fa-solid fa-rotate"></i> {{ \App\Models\Task\Task::RECURRENCES[$task->recurrence] }}</span>
+                        @endif
                         @if ($task->is_overdue)<span class="badge badge-rejected">Terlambat</span>@endif
                         @if ($task->project)<span class="badge badge-cancelled"><i class="fa-solid fa-diagram-project"></i> {{ $task->project->name }}</span>@endif
                     </div>

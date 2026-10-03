@@ -22,6 +22,14 @@ class Task extends Model
     use HasUlids;
 
     protected $table = 'task_records';
+
+    public const RECURRENCES = [
+        'daily' => 'Setiap hari',
+        'weekly' => 'Setiap minggu',
+        'monthly' => 'Setiap bulan',
+        'yearly' => 'Setiap tahun',
+    ];
+
     protected $fillable = [
         'code',
         'company_id',
@@ -46,6 +54,7 @@ class Task extends Model
         'total_cost',
         'unit_cost',
         'due_date',
+        'recurrence',
         'responded_date',
         'started_date',
         'completed_date',
@@ -72,6 +81,22 @@ class Task extends Model
         // assigned_to = pelaksana utama - baris task_assignees-nya ikut dibuat supaya semua jalur
         // pembuatan tugas (portal, approval, seeder) konsisten. Pelaksana tambahan ditambah lewat TaskService::addAssignee().
         static::created(fn (Task $task) => $task->assigned_to && $task->assignees()->create(['user_id' => $task->assigned_to]));
+    }
+
+    /** Tenggat periode berikutnya dari due_date (dimajukan terus sampai di masa depan, supaya salinan nggak langsung telat). */
+    public function nextDueDate(): ?Carbon
+    {
+        if (! $this->recurrence || ! $this->due_date) {
+            return null;
+        }
+
+        $step = ['daily' => 'addDay', 'weekly' => 'addWeek', 'monthly' => 'addMonthNoOverflow', 'yearly' => 'addYearNoOverflow'][$this->recurrence];
+        $due = Carbon::parse($this->due_date);
+        do {
+            $due->$step();
+        } while ($due->isPast());
+
+        return $due;
     }
 
     public function attachments(): HasMany
