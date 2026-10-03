@@ -165,17 +165,13 @@ class BeritaAcaraDetailPage extends Component
         $this->run(fn ($s) => $s->saveAnalysis($this->record, Auth::user(), $this->analysisFields()), 'Tersimpan');
     }
 
+    /** Langkah FIX: isi dikunci. Tanda tangan baru muncul setelahnya, sebagai tombol terpisah. */
     public function sendForSigning(): void
     {
         $this->run(function ($s) {
             $s->saveAnalysis($this->record, Auth::user(), $this->analysisFields());
             $s->sendForSigning($this->record, Auth::user());
-        }, 'Berita Acara dibekukan, silakan tanda tangani');
-
-        // Pembuat langsung dimintai konfirmasi password lewat modal tanda tangan.
-        if ($this->record->status === \App\Enum\Sp\SpReportStatus::MENUNGGU_TTD && $this->canSignNow) {
-            $this->dispatch('open-sign-modal', id: $this->record->document->id);
-        }
+        }, 'Berita Acara di-FIX, isi terkunci. Silakan tanda tangani.');
     }
 
     /** Modal tanda tangan selesai - muat ulang status BA (bisa jadi SELESAI) & daftar tanda tangan. */

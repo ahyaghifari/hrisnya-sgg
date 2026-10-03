@@ -4,7 +4,9 @@ namespace App\Services\Sp;
 
 use App\Models\Sp\EmployeeSp;
 use App\Models\Sp\SpReport;
+use App\Services\Document\DocumentFinalizer;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Http\Response;
 use SimpleSoftwareIO\QrCode\Facades\QrCode;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -26,11 +28,12 @@ class SpPdfService
     public function download(EmployeeSp $sp): StreamedResponse
     {
         $sp = $this->loadForPdf($sp);
-        $pdf = Pdf::loadView('pdf.sp.sp', ['sp' => $sp, 'verification' => $this->verificationBySignerRole($sp)]);
+        $final = $this->finalContents($sp);
+        $pdf = $final === null ? $this->spPdf($sp) : null;
 
         return response()->streamDownload(
-            function () use ($pdf) {
-                echo $pdf->stream();
+            function () use ($pdf, $final) {
+                echo $final ?? $pdf->stream();
             },
             $this->filename($sp),
             ['Content-Type' => 'application/pdf']
@@ -47,9 +50,47 @@ class SpPdfService
     public function preview(EmployeeSp $sp)
     {
         $sp = $this->loadForPdf($sp);
-        $pdf = Pdf::loadView('pdf.sp.sp', ['sp' => $sp, 'verification' => $this->verificationBySignerRole($sp)]);
 
-        return $pdf->stream($this->filename($sp));
+        if ($final = $this->finalContents($sp)) {
+            return $this->inline($final, $this->filename($sp));
+        }
+
+        return $this->spPdf($sp)->stream($this->filename($sp));
+    }
+
+    /**
+     * PDF untuk disimpan sebagai dokumen final (DocumentFinalizer) - dipanggil sekali, begitu TTD
+     * terakhir masuk. BA lama (bagian dari SP) memakai layout BA-nya dari SP induk.
+     */
+    public function renderFinal(EmployeeSp|SpReport $signable): string
+    {
+        if ($signable instanceof EmployeeSp) {
+            return $this->spPdf($this->loadForPdf($signable))->output();
+        }
+
+        return ($signable->isLegacy()
+            ? $this->beritaAcaraPdf($this->loadForBeritaAcaraPdf($signable->sp))
+            : $this->reportPdf($signable)
+        )->output();
+    }
+
+    private function spPdf(EmployeeSp $sp): \Barryvdh\DomPDF\PDF
+    {
+        return Pdf::loadView('pdf.sp.sp', ['sp' => $sp, 'verification' => $this->verificationBySignerRole($sp)]);
+    }
+
+    /** Isi PDF final tersimpan kalau dokumennya sudah lengkap TTD, selain itu null (render live). */
+    private function finalContents(EmployeeSp|SpReport|null $signable): ?string
+    {
+        return $signable?->document ? app(DocumentFinalizer::class)->contents($signable->document) : null;
+    }
+
+    private function inline(string $contents, string $filename): Response
+    {
+        return response($contents, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="' . $filename . '"',
+        ]);
     }
 
     private function loadForPdf(EmployeeSp $sp): EmployeeSp
@@ -123,10 +164,20 @@ class SpPdfService
     public function previewBeritaAcara(EmployeeSp $sp)
     {
         $sp = $this->loadForBeritaAcaraPdf($sp);
+
+        if ($final = $this->finalContents($sp->report)) {
+            return $this->inline($final, $this->filename($sp));
+        }
+
+        return $this->beritaAcaraPdf($sp)->stream($this->filename($sp));
+    }
+
+    private function beritaAcaraPdf(EmployeeSp $sp): \Barryvdh\DomPDF\PDF
+    {
         $verification = $sp->report ? $this->verificationBySignerRole($sp->report) : ['created_by' => null, 'knows_by' => null];
 
         // Kolom kiri tanda tangan = pembuat SP (pemilik QR-nya), bukan Coach/atasan (instruksi user 2026-10-03).
-        $pdf = Pdf::loadView('pdf.sp.berita-acara', [
+        return Pdf::loadView('pdf.sp.berita-acara', [
             'report' => $sp->report,
             'user' => $sp->user,
             'company' => $sp->company,
@@ -135,12 +186,22 @@ class SpPdfService
             'knowsBy' => $sp->knowsBy,
             'verification' => $verification,
         ]);
-
-        return $pdf->stream($this->filename($sp));
     }
 
     /** PDF Berita Acara mandiri (alur baru) - hanya setelah SELESAI (3 pihak sudah TTD). */
     public function previewReport(SpReport $report)
+    {
+        $identity = $report->user->nip ?: $report->user_id;
+        $filename = 'beritaacara-' . $identity . '_' . str_replace(' ', '_', $report->user->name) . '.pdf';
+
+        if ($final = $this->finalContents($report)) {
+            return $this->inline($final, $filename);
+        }
+
+        return $this->reportPdf($report)->stream($filename);
+    }
+
+    private function reportPdf(SpReport $report): \Barryvdh\DomPDF\PDF
     {
         $report->loadMissing([
             'company',
@@ -152,7 +213,7 @@ class SpPdfService
             'knowsBy.activeJobPosition.jobPosition',
         ]);
 
-        $pdf = Pdf::loadView('pdf.sp.berita-acara', [
+        return Pdf::loadView('pdf.sp.berita-acara', [
             'report' => $report,
             'user' => $report->user,
             'company' => $report->company,
@@ -161,10 +222,6 @@ class SpPdfService
             'knowsBy' => $report->knowsBy,
             'verification' => $this->verificationBySignerRole($report),
         ]);
-
-        $identity = $report->user->nip ?: $report->user_id;
-
-        return $pdf->stream('beritaacara-' . $identity . '_' . str_replace(' ', '_', $report->user->name) . '.pdf');
     }
 
      private function loadForBeritaAcaraPdf(EmployeeSp $sp): EmployeeSp

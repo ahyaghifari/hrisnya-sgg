@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Services\Document\DocumentSigningService;
 use App\Services\Sp\SpService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 use Spatie\Permission\Models\Permission;
 use Tests\TestCase;
@@ -127,5 +128,55 @@ class SpDetailPageLockingTest extends TestCase
         Livewire::actingAs($stranger)
             ->test(SpDetailPage::class, ['record' => $sp])
             ->assertForbidden();
+    }
+
+    public function test_model_rejects_content_change_after_creator_signed(): void
+    {
+        $company = Companies::create(['code' => 'LKM', 'name' => 'Lock Co M', 'location' => 'X', 'is_active' => true]);
+        $hc = $this->hcUser($company);
+        $knower = User::factory()->create(['company_id' => $company->id]);
+        $sp = $this->makeSp($company, $hc, $knower);
+
+        $sp->update(['cancelled_reason' => 'ok']); // bukan field isi, tetap boleh
+
+        $this->assertThrows(fn () => $sp->update(['nomor' => 'UBAH']), \LogicException::class);
+        $this->assertThrows(fn () => $sp->items()->first()->update(['text' => 'ubah']), \LogicException::class);
+        $this->assertThrows(fn () => $sp->items()->create(['text' => 'baru', 'sort_order' => 2]), \LogicException::class);
+        $this->assertThrows(fn () => $sp->items()->first()->delete(), \LogicException::class);
+    }
+
+    public function test_issue_fixes_and_last_signature_finalizes_with_audit_events(): void
+    {
+        Storage::fake('local');
+        $company = Companies::create(['code' => 'LKF', 'name' => 'Lock Co F', 'location' => 'X', 'is_active' => true]);
+        $hc = $this->hcUser($company);
+        $knower = User::factory()->create(['company_id' => $company->id]);
+        $sp = $this->makeSp($company, $hc, $knower);
+        $document = $sp->document;
+
+        $this->assertNotNull($document->fixed_at);
+        $this->assertNull($document->finalized_at);
+
+        app(DocumentSigningService::class)->sign($document, $knower);
+
+        $document->refresh();
+        $this->assertNotNull($document->finalized_at);
+        $this->assertSame(hash('sha256', json_encode($sp->fresh()->signablePayload())), $document->final_hash);
+        $this->assertEquals(
+            ['document_created', 'document_fixed', 'document_signed', 'document_signed', 'document_finalized'],
+            $document->events()->orderBy('created_at')->orderBy('id')->pluck('event')->all()
+        );
+
+        // PDF final tersimpan, hash cocok, dan yang disajikan adalah file itu (bukan render ulang).
+        $finalizer = app(\App\Services\Document\DocumentFinalizer::class);
+        $bytes = Storage::disk('local')->get($document->file_path);
+        $this->assertStringStartsWith('%PDF', $bytes);
+        $this->assertSame(hash('sha256', $bytes), $document->file_hash);
+        $this->assertSame($bytes, $finalizer->contents($document));
+
+        // Kolom final di DB tidak bisa ditimpa; file di disk diubah -> ketahuan.
+        $this->assertThrows(fn () => $document->update(['file_hash' => str_repeat('0', 64)]), \LogicException::class);
+        Storage::disk('local')->put($document->file_path, $bytes . 'x');
+        $this->assertThrows(fn () => $finalizer->contents($document), \Symfony\Component\HttpKernel\Exception\HttpException::class);
     }
 }
