@@ -13,6 +13,7 @@ class TaskChecklistItem extends Model
     protected $fillable = [
         'task_id',
         'created_by',
+        'assigned_to',
         'title',
         'is_done',
         'done_at',
@@ -33,6 +34,11 @@ class TaskChecklistItem extends Model
     public function doneBy(): BelongsTo
     {
         return $this->belongsTo(\App\Models\User::class, 'done_by');
+    }
+
+    public function assignee(): BelongsTo
+    {
+        return $this->belongsTo(\App\Models\User::class, 'assigned_to');
     }
 
     public function creator(): BelongsTo

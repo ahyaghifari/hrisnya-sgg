@@ -264,6 +264,12 @@
     .task-checklist-checkbox.custom-checkbox { width: 18px; height: 18px; }
     .task-checklist-checkbox .box { border-radius: 5px; }
     .task-checklist-checkbox .box i { font-size: 10px; }
+    /* Baris checklist yang bisa digeser: kotak berborder + bayangan tipis supaya kelihatan "bisa diangkat". */
+    .task-checklist-row.is-draggable { padding: 7px 10px; border: 1px solid var(--border-soft); border-radius: 10px; background: var(--surface, #fff); box-shadow: 0 1px 2px rgba(15,23,42,0.06); transition: box-shadow .15s, border-color .15s; }
+    .task-checklist-row.is-draggable:hover { border-color: var(--border); box-shadow: 0 3px 8px rgba(15,23,42,0.12); }
+    .task-checklist-row.sortable-chosen { box-shadow: 0 8px 18px rgba(15,23,42,0.22); cursor: grabbing; }
+    .task-checklist-row.sortable-ghost { opacity: 0.4; }
+    .task-checklist-row.sortable-fallback { opacity: 0.95 !important; z-index: 10005 !important; pointer-events: none; }
 
     /* Modal detail task di HP: layar penuh (bukan kotak ngambang kekecilan), 2 kolom
     (isi task + komentar) ditumpuk vertikal, komentar dapat garis atas bukan garis kiri. */
@@ -1284,18 +1290,23 @@
                                 <div style="height:100%;border-radius:99px;background:var(--brand-success);width:{{ round($checklistDone / $checklistTotal * 100) }}%;"></div>
                             </div>
                         @endif
+                        @php $checklistAssignees = $task->assignees->map(fn ($a) => $a->user)->filter(); @endphp
+                        {{-- data-checklist-list: diurutkan lewat drag (SortableJS, lihat initTaskBoardSortables). --}}
+                        <div data-checklist-list data-task-id="{{ $task->id }}" data-sortable-enabled="{{ $canToggleChecklist ? 1 : 0 }}">
                         @forelse ($task->checklistItems as $item)
-                            <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;">
+                            @php $canCheckItem = $canToggleChecklist && (! $item->assigned_to || $item->assigned_to === auth()->id() || $isBoardOwner); @endphp
+                            <div wire:key="cl-{{ $item->id }}" data-item-id="{{ $item->id }}" class="task-checklist-row {{ $canToggleChecklist ? 'is-draggable' : '' }}" style="display:flex;align-items:center;gap:8px;margin-bottom:{{ $canToggleChecklist ? '6px' : '5px' }};{{ $canToggleChecklist ? 'cursor:grab;' : '' }}">
                                 @if ($editingChecklistItemId === $item->id)
                                     <input type="text" wire:model="editingChecklistItemTitle" wire:keydown.enter="updateChecklistItem" wire:keydown.escape="cancelEditChecklistItem" class="form-input" style="font-size:13px;padding:4px 8px;height:auto;flex:1;" autofocus>
                                     <button type="button" wire:click="updateChecklistItem" style="background:none;border:none;color:var(--brand-success);cursor:pointer;"><i class="fa-solid fa-check"></i></button>
                                     <button type="button" wire:click="cancelEditChecklistItem" style="background:none;border:none;color:var(--text-faint);cursor:pointer;"><i class="fa-solid fa-xmark"></i></button>
                                 @else
-                                    <label style="display:flex;align-items:center;gap:8px;font-size:13.5px;flex:1;min-width:0;{{ $canToggleChecklist ? '' : 'opacity:0.6;cursor:not-allowed;' }}">
-                                        <span class="custom-checkbox task-checklist-checkbox" style="--accent:#042c6c;">
-                                            <input type="checkbox" @if ($canToggleChecklist) wire:click="toggleChecklistItem('{{ $item->id }}')" @else disabled @endif @checked($item->is_done)>
+                                    {{-- Cuma kotak centangnya yang memicu ceklis (bukan teks/barisnya), supaya geser-urut tidak kebetulan mencentang. --}}
+                                    <div style="display:flex;align-items:center;gap:8px;font-size:13.5px;flex:1;min-width:0;{{ $canCheckItem ? '' : 'opacity:0.6;' }}" @if ($item->assigned_to && ! $canCheckItem) title="Hanya {{ $item->assignee?->name }} yang bisa mencentang item ini" @endif>
+                                        <label class="custom-checkbox task-checklist-checkbox" style="--accent:#042c6c;{{ $canCheckItem ? '' : 'cursor:not-allowed;' }}">
+                                            <input type="checkbox" @if ($canCheckItem) wire:click="toggleChecklistItem('{{ $item->id }}')" @else disabled @endif @checked($item->is_done)>
                                             <span class="box"><i class="fa-solid fa-check"></i></span>
-                                        </span>
+                                        </label>
                                         <span style="min-width:0;">
                                             <span style="{{ $item->is_done ? 'text-decoration:line-through;color:var(--text-muted);' : '' }}">{{ $item->title }}</span>
                                             @if ($item->is_done && $item->done_at)
@@ -1304,7 +1315,31 @@
                                                 </span>
                                             @endif
                                         </span>
-                                    </label>
+                                    </div>
+                                    {{-- Penugasan: avatar pelaksana terpilih tampil di samping tombol ubah; klik (kalau berhak) untuk ganti/lepas. --}}
+                                    @if ($canModifyItem($item) && $checklistAssignees->count() > 1)
+                                        <div x-data="{ open: false }" @click.outside="open = false" style="position:relative;flex-shrink:0;">
+                                            <button type="button" @click="open = ! open" style="background:none;border:none;padding:0;cursor:pointer;display:flex;" title="{{ $item->assignee ? 'Ditugaskan ke '.$item->assignee->name.' — klik untuk ganti' : 'Tugaskan ke satu pelaksana' }}">
+                                                @if ($item->assignee)
+                                                    <x-avatar :user="$item->assignee" :size="22" />
+                                                @else
+                                                    <span style="width:22px;height:22px;border-radius:50%;border:1.5px dashed var(--text-faint);display:flex;align-items:center;justify-content:center;color:var(--text-faint);"><i class="fa-solid fa-user-plus" style="font-size:9px;"></i></span>
+                                                @endif
+                                            </button>
+                                            <div x-show="open" x-cloak style="display:none;position:absolute;right:0;top:100%;margin-top:4px;z-index:30;min-width:180px;padding:4px;background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:0 8px 20px rgba(15,23,42,0.18);">
+                                                <button type="button" wire:click="assignChecklistItem('{{ $item->id }}', '')" @click="open = false" style="display:flex;align-items:center;gap:8px;width:100%;padding:6px 8px;border:none;background:{{ $item->assigned_to ? 'none' : 'var(--surface-alt)' }};border-radius:7px;cursor:pointer;font-size:12.5px;color:var(--text);text-align:left;">
+                                                    <i class="fa-solid fa-users" style="font-size:11px;width:20px;text-align:center;color:var(--text-muted);"></i> Semua pelaksana
+                                                </button>
+                                                @foreach ($checklistAssignees as $u)
+                                                    <button type="button" wire:click="assignChecklistItem('{{ $item->id }}', '{{ $u->id }}')" @click="open = false" style="display:flex;align-items:center;gap:8px;width:100%;padding:6px 8px;border:none;background:{{ $item->assigned_to === $u->id ? 'var(--surface-alt)' : 'none' }};border-radius:7px;cursor:pointer;font-size:12.5px;color:var(--text);text-align:left;">
+                                                        <x-avatar :user="$u" :size="20" /> {{ $u->profile?->nickname ?: $u->name }}
+                                                    </button>
+                                                @endforeach
+                                            </div>
+                                        </div>
+                                    @elseif ($item->assignee)
+                                        <span style="display:flex;flex-shrink:0;"><x-avatar :user="$item->assignee" :size="22" /></span>
+                                    @endif
                                     @if ($canModifyItem($item))
                                         <button type="button" wire:click="startEditChecklistItem('{{ $item->id }}', @js($item->title))" style="background:none;border:none;color:var(--text-faint);cursor:pointer;padding:2px;" title="Ubah"><i class="fa-solid fa-pen" style="font-size:11px;"></i></button>
                                         <button type="button" wire:click="deleteChecklistItem('{{ $item->id }}')" wire:confirm="Hapus item checklist ini?" style="background:none;border:none;color:var(--text-faint);cursor:pointer;padding:2px;" title="Hapus"><i class="fa-solid fa-trash" style="font-size:11px;"></i></button>
@@ -1314,6 +1349,7 @@
                         @empty
                             <p style="font-size:14px;color:var(--text-muted);">Belum ada checklist.</p>
                         @endforelse
+                        </div>
                         @if ($canToggleChecklist)
                             <div style="display:flex;gap:6px;margin-top:8px;">
                                 <input type="text" class="form-input" style="font-size:12.5px;padding:6px 10px;" wire:model="newChecklistTitle" wire:keydown.enter.prevent="addChecklistItemToTask('{{ $task->id }}')" placeholder="Tambah item checklist...">

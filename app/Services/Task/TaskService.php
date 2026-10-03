@@ -881,6 +881,9 @@ class TaskService
     {
         $task = $item->task;
         abort_unless($this->canContributeToTask($task, $user), 403, 'Cuma pelaksana, pembuat tugas, atau pembuat Board yang bisa ceklis checklist ini.');
+        // Item yang ditugaskan ke satu orang: cuma dia yang boleh mencentang/membatalkan - kecuali owner Board.
+        $isBoardOwner = $task->project && $this->isProjectOwner($task->project, $user);
+        abort_if($item->assigned_to && $item->assigned_to !== $user->id && ! $isBoardOwner, 403, 'Item ini ditugaskan ke ' . ($item->assignee?->name ?? 'pelaksana lain') . ', cuma dia yang bisa mencentangnya.');
 
         $nowDone = ! $item->is_done;
 
@@ -919,7 +922,11 @@ class TaskService
         abort_unless($this->canContributeToTask($task, $user), 403, 'Cuma pelaksana, pembuat tugas, atau pembuat Board yang bisa menambah checklist ini.');
         abort_if(trim($title) === '', 422, 'Judul checklist tidak boleh kosong.');
 
-        $item = $task->checklistItems()->create(['title' => trim($title), 'created_by' => $user->id]);
+        $item = $task->checklistItems()->create([
+            'title' => trim($title),
+            'created_by' => $user->id,
+            'position' => ($task->checklistItems()->max('position') ?? -1) + 1,
+        ]);
         $this->logActivity($task, $user, 'checklist_added', 'Menambahkan ceklis "' . $item->title . '"');
 
         return $item;
@@ -986,6 +993,36 @@ class TaskService
         abort_if(trim($title) === '', 422, 'Judul checklist tidak boleh kosong.');
 
         $item->update(['title' => trim($title)]);
+    }
+
+    /** Tugaskan item ke salah satu pelaksana tugas ($userId null = lepas penugasan). Hak ubah = hak edit item. */
+    public function assignChecklistItem(TaskChecklistItem $item, ?string $userId, User $user): void
+    {
+        abort_unless($this->canModifyChecklistItem($item, $user), 403, 'Kamu tidak bisa menugaskan checklist ini.');
+        abort_if($userId && ! $item->task->isAssignee($userId), 422, 'Item cuma bisa ditugaskan ke pelaksana tugas ini.');
+
+        $item->update(['assigned_to' => $userId ?: null]);
+
+        $this->logActivity(
+            $item->task,
+            $user,
+            'checklist_assigned',
+            $userId
+                ? 'Menugaskan ceklis "' . $item->title . '" ke ' . User::find($userId)?->name
+                : 'Melepas penugasan ceklis "' . $item->title . '"'
+        );
+    }
+
+    /** Urutan baru checklist ($orderedIds = id item sesuai urutan tampil). Hak = yang boleh mengelola tugas. */
+    public function reorderChecklist(Task $task, array $orderedIds, User $user): void
+    {
+        abort_unless($this->canContributeToTask($task, $user), 403, 'Kamu tidak bisa mengurutkan checklist ini.');
+
+        $valid = $task->checklistItems()->pluck('id')->all();
+
+        foreach (array_values(array_intersect($orderedIds, $valid)) as $position => $id) {
+            TaskChecklistItem::where('id', $id)->update(['position' => $position]);
+        }
     }
 
     public function deleteChecklistItem(TaskChecklistItem $item, User $user): void
