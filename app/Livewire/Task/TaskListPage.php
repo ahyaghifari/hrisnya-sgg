@@ -419,6 +419,19 @@ class TaskListPage extends Component
         unset($this->tasks, $this->historyTasks);
     }
 
+    /** $value dari input datetime-local ("Y-m-d\TH:i"), kosong = hapus tenggat. */
+    public function setTaskDueDate(string $taskId, ?string $value): void
+    {
+        try {
+            $due = $value ? Carbon::parse($value)->format('Y-m-d H:i:s') : null;
+            app(TaskService::class)->setDueDate(Task::findOrFail($taskId), $due, Auth::user());
+        } catch (\Throwable $e) {
+            Notification::make()->title($e->getMessage() ?: 'Tidak bisa mengubah tenggat')->danger()->send();
+        }
+
+        unset($this->tasks, $this->selectedTask);
+    }
+
     public function setTaskRecurrence(string $taskId, ?string $recurrence): void
     {
         try {
