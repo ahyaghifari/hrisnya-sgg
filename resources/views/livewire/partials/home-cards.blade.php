@@ -141,11 +141,67 @@ tombol banner membuka panduan ini. Dibuka/ditutup lewat JS (display none <-> fle
             .wc-chip i { font-size: 9px; opacity: .75; }
             .wc-chips .wc-chip + .wc-chip::before { content: "\00b7"; margin-right: 2px; font-weight: 800; }
         }
+        /* Tombol edit kecil (absolute, pojok kanan atas kartu) + dropdown. Panel buka ke KIRI tombol, bukan ke bawah: kartu overflow:hidden, ke bawah bisa terpotong di desktop yang rendah. */
+        .wc-menu { position: absolute; top: 12px; right: 12px; z-index: 5; }
+        .wc-menu-btn { width: 28px; height: 28px; border-radius: 50%; border: 0; background: none; color: #fff; opacity: .35; font-size: 12px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+        .wc-menu-btn:hover, .wc-menu-btn[aria-expanded="true"] { opacity: 1; }
+        .wc-menu-panel { position: absolute; top: 0; right: 36px; width: 206px; padding: 6px; border-radius: 12px; background: var(--surface); border: 1px solid var(--border); box-shadow: 0 10px 28px rgba(0,0,0,.28); }
+        .wc-menu-item { display: flex; align-items: center; gap: 9px; width: 100%; padding: 8px 10px; border: 0; border-radius: 8px; background: none; color: var(--text-heading); font-size: 12.5px; font-weight: 600; text-align: left; text-decoration: none; cursor: pointer; }
+        .wc-menu-item:hover:not(:disabled) { background: var(--surface-2, rgba(128,128,128,.12)); }
+        .wc-menu-item:disabled { opacity: .5; cursor: not-allowed; }
+        .wc-menu-item i { width: 14px; color: var(--text-muted); }
+        .wc-menu-item small { margin-left: auto; font-size: 10px; font-weight: 500; color: var(--text-muted); }
+        .wc-modal { position: fixed; inset: 0; z-index: 200; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(15,23,42,.55); }
+        .wc-modal-box { width: 100%; max-width: 340px; padding: 20px; border-radius: 16px; background: var(--surface); border: 1px solid var(--border); box-shadow: 0 20px 50px rgba(0,0,0,.35); }
+        .wc-modal-box h3 { margin: 0 0 2px; font-size: 15px; font-weight: 800; color: var(--text-heading); }
+        .wc-modal-box p { margin: 0 0 12px; font-size: 12px; color: var(--text-muted); }
+        .wc-modal-box input { width: 100%; box-sizing: border-box; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface); color: var(--text-heading); font-size: 14px; }
+        .wc-modal-box input:focus { outline: 2px solid var(--brand-fill); outline-offset: 1px; }
+        .wc-modal-err { display: block; margin-top: 6px; font-size: 11.5px; font-weight: 600; color: var(--danger-text, #dc2626); }
+        .wc-modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+        .wc-modal-actions button { padding: 8px 16px; border-radius: 10px; border: 0; font-size: 13px; font-weight: 700; cursor: pointer; }
+        .wc-modal-cancel { background: transparent; color: var(--text-muted); }
+        .wc-modal-save { background: var(--brand-fill); color: #fff; }
+        .wc-modal-save:disabled { opacity: .6; }
+        .wc-pop-in { transition: opacity .18s ease, transform .18s ease; }
+        .wc-pop-from { opacity: 0; transform: translateY(8px) scale(.96); }
+        .wc-pop-to { opacity: 1; transform: none; }
+        .wc-menu-label { padding: 6px 10px 2px; font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--text-muted); }
     </style>
-    <div class="welcome-card bento-welcome">
+    {{-- Mode nama (lengkap / panggilan) disimpan di localStorage browser (kunci wc-name-mode), bukan di DB - per perangkat.
+    Default: nama panggilan kalau valid (3-15 huruf). Dua span nama dirender server (yang non-default display:none) supaya tanpa Alpine tetap benar. --}}
+    <div class="welcome-card bento-welcome"
+         x-data="{ canNick: @js($useNick), mode: 'nick', open: false, modal: false,
+                   get nick() { return this.canNick && this.mode === 'nick'; },
+                   init() { try { const m = localStorage.getItem('wc-name-mode'); if (m === 'full' || m === 'nick') this.mode = m; } catch (e) {} },
+                   setMode(m) { this.mode = m; try { localStorage.setItem('wc-name-mode', m); } catch (e) {} this.open = false; } }"
+         x-on:keydown.escape.window="open = false; modal = false"
+         x-on:nickname-saved.window="canNick = true; setMode('nick'); modal = false">
+        <div class="wc-menu" x-on:click.outside="open = false">
+            <button type="button" class="wc-menu-btn" x-on:click="open = !open" aria-label="Pengaturan tampilan kartu" :aria-expanded="open"><i class="fa-solid fa-pen"></i></button>
+            <div class="wc-menu-panel" x-show="open" x-cloak x-transition.opacity.duration.120ms>
+                <div class="wc-menu-label">Tampilkan nama</div>
+                <button type="button" class="wc-menu-item" x-on:click="setMode('full')"><i class="fa-solid" :class="!nick ? 'fa-circle-check' : 'fa-circle'"></i> Nama lengkap</button>
+                <button type="button" class="wc-menu-item" x-on:click="canNick ? setMode('nick') : (open = false, modal = true, $nextTick(() => $refs.nickInput.focus()))"><i class="fa-solid" :class="nick ? 'fa-circle-check' : 'fa-circle'"></i> Nama panggilan<small x-show="!canNick" x-cloak>atur</small></button>
+                <button type="button" class="wc-menu-item" x-show="canNick" x-cloak x-on:click="open = false; modal = true; $nextTick(() => $refs.nickInput.focus())"><i class="fa-solid fa-pen-to-square"></i> Ganti nama panggilan</button>
+            </div>
+        </div>
+        {{-- Modal nama panggilan (muncul kalau belum diatur): fixed + z-200 seperti overlay crop dulu, jadi tidak terpotong overflow:hidden kartu. --}}
+        <div class="wc-modal" x-show="modal" x-cloak x-transition.opacity.duration.150ms x-on:click.self="modal = false">
+            <div class="wc-modal-box" x-show="modal" x-transition:enter="wc-pop-in" x-transition:enter-start="wc-pop-from" x-transition:enter-end="wc-pop-to">
+                <h3>Nama panggilan</h3>
+                <p>Dipakai di sapaan beranda. 3 sampai 12 huruf.</p>
+                <input type="text" x-ref="nickInput" wire:model="nickname" wire:keydown.enter="saveNickname" maxlength="12" placeholder="Contoh: Ahya" autocomplete="off">
+                @error('nickname') <span class="wc-modal-err">{{ $message }}</span> @enderror
+                <div class="wc-modal-actions">
+                    <button type="button" class="wc-modal-cancel" x-on:click="modal = false">Batal</button>
+                    <button type="button" class="wc-modal-save" wire:click="saveNickname" wire:loading.attr="disabled" wire:target="saveNickname">Simpan</button>
+                </div>
+            </div>
+        </div>
         <div class="w-deco-1"></div><div class="w-deco-2"></div><div class="w-deco-4"></div>
         <div style="position:relative;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;">
-            <div class="wc-hero{{ $useNick ? ' has-nick' : '' }}">
+            <div class="wc-hero{{ $useNick ? ' has-nick' : '' }}" :class="{ 'has-nick': nick }">
                 <p class="welcome-greeting">Selamat datang kembali 👋</p>
                 <div class="wc-avatar">
                     @if ($profilePhotoUrl)
@@ -158,7 +214,7 @@ tombol banner membuka panduan ini. Dibuka/ditutup lewat JS (display none <-> fle
                     @endif
                 </div>
                 <div class="wc-text" style="min-width:0;">
-                    <h2 class="welcome-name wc-big" title="{{ auth()->user()->full_name }}">{{ $useNick ? $nick : auth()->user()->full_name }}</h2>
+                    <h2 class="welcome-name wc-big" title="{{ auth()->user()->full_name }}"><span x-show="nick" @if (! $useNick) style="display:none" @endif>{{ $nick }}</span><span x-show="!nick" @if ($useNick) style="display:none" @endif>{{ auth()->user()->full_name }}</span></h2>
                     <div class="wc-chips">
                         <span class="wc-chip" title="NIP"><i class="fa-solid fa-id-badge"></i><span>{{ auth()->user()->nip }}</span></span>
                         <span class="wc-chip"><i class="fa-solid fa-briefcase"></i><span>{{ auth()->user()->profile?->jobPosition?->name ?? 'Karyawan' }}</span></span>
