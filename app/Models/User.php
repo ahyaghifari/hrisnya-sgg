@@ -16,7 +16,6 @@ use App\Models\User\UserProfiles;
 use Carbon\Carbon;
 use Filament\Models\Contracts\FilamentUser;
 use App\Observers\EmployeeSyncObserver;
-use App\Observers\PersonSyncObserver;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
@@ -30,7 +29,7 @@ use Laravel\Sanctum\HasApiTokens;
 use NotificationChannels\WebPush\HasPushSubscriptions;
 use Spatie\Permission\Traits\HasRoles;
 
-#[ObservedBy([PersonSyncObserver::class, EmployeeSyncObserver::class])]
+#[ObservedBy(EmployeeSyncObserver::class)]
 class User extends Authenticatable implements FilamentUser
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
@@ -113,13 +112,7 @@ class User extends Authenticatable implements FilamentUser
         return $this->hasOne(UserProfiles::class, 'user_id', 'id');
     }
 
-    /** Orang pemilik akun ini (users.person_id, diisi PersonSyncService). Belum dipakai fitur apa pun. */
-    public function person()
-    {
-        return $this->belongsTo(\App\Models\Person\Person::class, 'person_id');
-    }
-
-    /** Data karyawan (kosong untuk akun yang bukan karyawan, mis. dokter non-karyawan). */
+    /** Data karyawan (employees.user_id; kosong untuk dua akun Super Admin yang bukan karyawan). */
     public function employee()
     {
         return $this->hasOne(\App\Models\Employee\Employee::class, 'user_id');

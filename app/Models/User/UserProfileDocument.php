@@ -3,7 +3,7 @@
 namespace App\Models\User;
 
 use App\Models\User;
-use App\Observers\PersonSyncObserver;
+use App\Observers\EmployeeSyncObserver;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
@@ -13,7 +13,7 @@ use Illuminate\Database\Eloquent\Model;
  * tetap) — beda dari `user_documents` yang isinya surat-surat resmi terbitan admin. Selalu
  * upload sendiri oleh karyawan, banyak baris per user, lihat EmployeeStatistics.
  */
-#[ObservedBy(PersonSyncObserver::class)]
+#[ObservedBy(EmployeeSyncObserver::class)]
 class UserProfileDocument extends Model
 {
     use HasUlids;

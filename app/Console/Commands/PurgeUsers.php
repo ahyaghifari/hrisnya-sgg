@@ -3,7 +3,6 @@
 namespace App\Console\Commands;
 
 use App\Models\Employee\Employee;
-use App\Models\Person\Person;
 use App\Models\User;
 use Illuminate\Console\Command;
 use Illuminate\Database\QueryException;
@@ -11,7 +10,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Hapus PERMANEN user tertentu (mis. akun demo) beserta salinan persons/employees dan data
+ * Hapus PERMANEN user tertentu (mis. akun demo) beserta salinan employees dan data
  * approval-nya. TANPA --force hanya melapor (dry-run). Pengaman:
  * - NIP harus ada semua; akun non-karyawan & eksekutif (User::NON_KARYAWAN_IDS) ditolak.
  * - User yang punya penghalang DILEWATI (tidak disentuh) dan dilaporkan beserta alasannya;
@@ -22,7 +21,7 @@ use Illuminate\Support\Facades\Schema;
  *   ini tapi sudah diproses orang lain (kemungkinan pengajuan karyawan asli); dan aktivitas
  *   approval pada pengajuan milik orang lain - kecuali --nullify-approvals (pelaku dikosongkan).
  * - Satu transaksi; user dihapus lewat query langsung supaya observer tidak membuat ulang
- *   persons/employees.
+ *   employees.
  */
 class PurgeUsers extends Command
 {
@@ -107,9 +106,8 @@ class PurgeUsers extends Command
 
         try {
             DB::transaction(function () use ($set, $also) {
-                // persons dulu (persons.user_id SET NULL akan meninggalkan yatim); cascade ke
-                // identitas, alamat, lampiran, employees, employee_careers.
-                Person::whereIn('user_id', $set)->delete();
+                // Salinan karyawan dulu; cascade ke identitas, alamat, lampiran, employee_careers.
+                Employee::whereIn('user_id', $set)->delete();
 
                 foreach (self::POLYMORPHIC as $table => $column) {
                     if (Schema::hasTable($table)) {
@@ -138,7 +136,7 @@ class PurgeUsers extends Command
 
         $this->info('Selesai. Dihapus: ' . count($set) . ', dilewati: ' . count($skipped)
             . '. Sisa -> users: ' . User::withoutGlobalScopes()->withTrashed()->count()
-            . ', persons: ' . Person::count() . ', employees: ' . Employee::count());
+            . ', employees: ' . Employee::count());
 
         return self::SUCCESS;
     }

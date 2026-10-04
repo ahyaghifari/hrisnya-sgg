@@ -5,7 +5,7 @@ namespace Tests\Feature\Identity;
 use App\Models\Master\Companies;
 use App\Models\Payroll\Payroll;
 use App\Models\Payroll\PayrollPeriod;
-use App\Models\Person\Person;
+use App\Models\Employee\Employee;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -71,7 +71,7 @@ class PurgeUsersTest extends TestCase
         $this->artisan('identity:purge-users', ['nip' => ['D1']])->assertSuccessful();
 
         $this->assertSame(1, User::where('nip', 'D1')->count());
-        $this->assertSame(1, Person::count());
+        $this->assertSame(1, Employee::count());
     }
 
     public function test_force_deletes_user_and_copies_but_keeps_others(): void
@@ -83,8 +83,8 @@ class PurgeUsersTest extends TestCase
         $this->artisan('identity:purge-users', ['nip' => ['D1', 'D2'], '--force' => true])->assertSuccessful();
 
         $this->assertSame(0, User::whereIn('nip', ['D1', 'D2'])->count());
-        $this->assertSame([$keep->id], Person::pluck('user_id')->all(), 'Person yatim tidak boleh tertinggal.');
-        $this->assertSame(1, DB::table('employees')->count());
+        $this->assertSame([$keep->id], Employee::pluck('user_id')->all(), 'Salinan karyawan yang dihapus tidak boleh tertinggal.');
+        $this->assertSame(1, DB::table('employee_identities')->count(), 'Identitas ikut terhapus lewat cascade.');
     }
 
     public function test_blocker_with_rows_aborts_unless_explicitly_allowed(): void
@@ -146,7 +146,7 @@ class PurgeUsersTest extends TestCase
         $this->assertSame(1, User::where('nip', 'D1')->count(), 'Yang bermasalah tidak disentuh.');
         $this->assertSame(0, User::where('id', $clean->id)->count());
         $this->assertSame(1, Payroll::count());
-        $this->assertSame(1, Person::where('user_id', $withPayroll->id)->count(), 'Salinannya juga tetap ada.');
+        $this->assertSame(1, Employee::where('user_id', $withPayroll->id)->count(), 'Salinannya juga tetap ada.');
     }
 
     public function test_demo_user_with_request_processed_by_real_user_is_skipped_while_other_demo_is_deleted(): void

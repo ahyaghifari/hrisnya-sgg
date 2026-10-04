@@ -10,7 +10,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
-/** identity:verify = parity check hanya-baca antara data lama dan salinan persons/employees. */
+/** identity:verify = parity check hanya-baca antara data lama dan salinan employees. */
 class VerifyIdentityTest extends TestCase
 {
     use RefreshDatabase;
@@ -52,31 +52,34 @@ class VerifyIdentityTest extends TestCase
             ->assertFailed();
     }
 
-    public function test_reports_user_whose_person_id_link_is_missing(): void
+    public function test_reports_stale_personal_identity_and_document_copies(): void
     {
-        $this->karyawan('V001');
-        $unlinked = $this->karyawan('V002');
+        $stale = $this->karyawan('V001');
+        $this->karyawan('V002');
 
-        DB::table('users')->where('id', $unlinked->id)->update(['person_id' => null]);
+        // Simulasi update massal yang tidak memicu observer: salinan data pribadi/identitas tertinggal.
+        DB::table('employees')->where('user_id', $stale->id)->update(['phone' => '0000', 'nama_lengkap' => 'Nama Lain']);
+        DB::table('employee_identities')->where('employee_id', DB::table('employees')->where('user_id', $stale->id)->value('id'))->update(['no_nik' => '9999']);
 
         $this->artisan('identity:verify')
-            ->expectsOutputToContain('users: person_id menunjuk person miliknya: V002')
+            ->expectsOutputToContain('employees: data pribadi: V001')
+            ->expectsOutputToContain('employees: identitas & rekening: V001')
             ->assertFailed();
     }
 
-    public function test_reports_missing_person_and_conflicting_job_sources(): void
+    public function test_reports_missing_employee_and_conflicting_job_sources(): void
     {
         $missing = $this->karyawan('V001');
         $conflict = $this->karyawan('V002');
 
-        DB::table('persons')->where('user_id', $missing->id)->delete();
+        DB::table('employees')->where('user_id', $missing->id)->delete();
 
         // Dua sumber jabatan berbeda: ledger aktif menunjuk jabatan lain dari profil.
         $other = JobPositions::create(['company_id' => $this->company->id, 'name' => 'Lain', 'planned_manpower' => 1]);
         DB::table('user_job_positions')->where('user_id', $conflict->id)->update(['job_position_id' => $other->id]);
 
         $this->artisan('identity:verify')
-            ->expectsOutputToContain('persons: baris ada: V001')
+            ->expectsOutputToContain('employees: baris ada: V001')
             ->expectsOutputToContain('jabatan: profil = jabatan aktif di riwayat: V002')
             ->assertFailed();
     }
@@ -84,10 +87,11 @@ class VerifyIdentityTest extends TestCase
     public function test_verify_writes_nothing(): void
     {
         $this->karyawan('V001');
-        $before = [DB::table('persons')->count(), DB::table('employees')->count(), DB::table('employee_careers')->count()];
+        $count = fn () => [DB::table('employees')->count(), DB::table('employee_identities')->count(), DB::table('employee_careers')->count()];
+        $before = $count();
 
         $this->artisan('identity:verify');
 
-        $this->assertSame($before, [DB::table('persons')->count(), DB::table('employees')->count(), DB::table('employee_careers')->count()]);
+        $this->assertSame($before, $count());
     }
 }
