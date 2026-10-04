@@ -635,11 +635,11 @@ class EmployeeStatisticsTest extends TestCase
     }
 
     /**
-     * Email BUKAN kolom di UserProfiles (dia `users.email`, dipakai login) — ganti email harus
-     * update $record->email langsung DAN force-logout supaya session lama tidak menggantung
-     * terikat ke identitas lama (lihat komentar saveProfil()).
+     * Email AKUN (`users.email`, dipakai login) tidak boleh diubah dari self-service Data Diri
+     * (instruksi user 2026-10-04): tidak ada inputnya, dan properti `email` tidak ada sama sekali
+     * di komponen sehingga request yang di-craft pun tidak bisa mengubahnya.
      */
-    public function test_owner_changing_email_is_logged_out_and_redirected_to_login(): void
+    public function test_owner_cannot_change_account_email_from_data_diri(): void
     {
         $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
         $staff = User::factory()->create(['company_id' => $company->id, 'email' => 'lama@syifaglobal.com']);
@@ -647,14 +647,16 @@ class EmployeeStatisticsTest extends TestCase
 
         $this->actingAs($staff);
 
-        Livewire::test(EmployeeStatistics::class, ['record' => $staff])
+        $component = Livewire::test(EmployeeStatistics::class, ['record' => $staff])
             ->call('startEditProfil')
-            ->set('email', 'baru@syifaglobal.com')
-            ->call('saveProfil')
-            ->assertRedirect(route('login'));
+            ->assertDontSeeHtml('wire:model="email"');
 
-        $this->assertSame('baru@syifaglobal.com', $staff->fresh()->email);
-        $this->assertGuest();
+        $this->assertArrayNotHasKey('email', $component->instance()->all());
+
+        $component->set('nickname', 'Budi')->call('saveProfil')->assertHasNoErrors();
+
+        $this->assertSame('lama@syifaglobal.com', $staff->fresh()->email);
+        $this->assertAuthenticated();
     }
 
     public function test_owner_saving_profil_without_changing_email_stays_logged_in(): void
@@ -674,24 +676,6 @@ class EmployeeStatisticsTest extends TestCase
 
         $this->assertSame('tetap@syifaglobal.com', $staff->fresh()->email);
         $this->assertAuthenticated();
-    }
-
-    public function test_owner_cannot_change_email_to_one_already_taken(): void
-    {
-        $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
-        $staff = User::factory()->create(['company_id' => $company->id, 'email' => 'saya@syifaglobal.com']);
-        User::factory()->create(['company_id' => $company->id, 'email' => 'sudah-dipakai@syifaglobal.com']);
-        UserProfiles::create(['user_id' => $staff->id]);
-
-        $this->actingAs($staff);
-
-        Livewire::test(EmployeeStatistics::class, ['record' => $staff])
-            ->call('startEditProfil')
-            ->set('email', 'sudah-dipakai@syifaglobal.com')
-            ->call('saveProfil')
-            ->assertHasErrors(['email']);
-
-        $this->assertSame('saya@syifaglobal.com', $staff->fresh()->email);
     }
 
     public function test_owner_can_see_own_change_history(): void
