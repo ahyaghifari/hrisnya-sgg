@@ -18,7 +18,7 @@ use Livewire\WithPagination;
  * "SP" — portal HC, padanan CoachingPage (planning/2026-09-23-sp-dan-merit-point.md §2.1). Beda
  * dari Coaching: SP tidak punya jalur "sekadar punya staff" - gerbangnya cuma
  * SISTEM_PEMBINAAN_KARYAWAN + ViewAny:EmployeeSp (HR/HC company-wide, SP itu keputusan HR bukan
- * urusan tiap atasan). Karyawan lihat SP-nya sendiri lewat SuratPeringatanPage yang terpisah.
+ * urusan tiap atasan). Karyawan lihat SP-nya sendiri lewat tab Pembinaan di Profil Saya (PembinaanSayaList).
  */
 #[Layout('components.layout', ['title' => 'Surat Peringatan'])]
 class SpPage extends Component
