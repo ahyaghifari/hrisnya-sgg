@@ -5,7 +5,7 @@ namespace App\Repositories\Approval;
 use App\Models\ApprovalManagement\ApprovalSnapshots;
 use App\Models\ApprovalManagement\MasterApprovalFlows;
 use App\Models\Master\JobPositions;
-use App\Models\User\UserProfiles;
+use App\Services\Identity\EmployeeContext;
 
 class ApprovalSnapshotRepository
 {
@@ -40,7 +40,7 @@ class ApprovalSnapshotRepository
             return null;
         }
 
-        $currentId = UserProfiles::where('user_id', $requesterUserId)->value('job_position_id');
+        $currentId = EmployeeContext::jobPositionId($requesterUserId);
 
         if (! $currentId) {
             return null;
@@ -77,9 +77,8 @@ class ApprovalSnapshotRepository
         string $userId,
         ?string $subModule = null
     ): ?MasterApprovalFlows {
-        // Ambil jabatan user dari profil
-        $jobPositionId = UserProfiles::where('user_id', $userId)
-            ->value('job_position_id');
+        // Ambil jabatan user dari data kepegawaian (employees, jatuh balik ke profil)
+        $jobPositionId = EmployeeContext::jobPositionId($userId);
 
         // Cocok kalau baris "berlaku semua jenis" (sub_module kosong) saat $sm null, atau
         // ember $sm ada di dalam daftar koma. Filter di PHP: tabel kecil (segelintir baris per

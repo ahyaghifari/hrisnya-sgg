@@ -356,7 +356,20 @@ menunjukkan **nol selisih** di staging dan produksi.
 Setiap slice = "fitur ini membaca data karyawan lewat model baru, bukan `user->profile`".
 **Tabel fiturnya sendiri tidak berubah** (`user_id` tetap).
 
-## Slice A — Pengajuan Izin, Cuti, Lembur (pertama)
+## Slice 0 — Approval Management (SUDAH DIPINDAH, dikerjakan lebih dulu dari Slice A)
+
+Approval hanya membaca **jabatan pengaju/penyetuju** (dan organisasi/departemen turunannya) dari
+`user_profiles.job_position_id`; penyetuju tipe `role` dan `user` tidak bergantung pada data
+kepegawaian. Enam titik baca (`ApprovalSnapshotRepository` 2, `ApprovalPermissionService` 5) kini
+lewat `App\Services\Identity\EmployeeContext` (jabatan, organisasi, departemen dari `employees`,
+**jatuh balik ke `user_profiles`** untuk akun tanpa baris employees: Super Admin/Direktur, dokter
+non-karyawan, atau salinan belum tersinkron). Karena approval membaca profil (bukan riwayat),
+selisih jabatan profil-vs-riwayat yang tersisa tidak memengaruhi slice ini. Rollback = ubah isi
+`EmployeeContext`. Catatan: `ApprovalPermissionService::getDeniedReason` sebelumnya membaca
+`$user->job_position_id` yang tidak ada di model `User`; kini memakai nilai yang benar (hanya
+memengaruhi teks alasan penolakan, bukan siapa yang boleh menyetujui).
+
+## Slice A — Pengajuan Izin, Cuti, Lembur
 
 Alasan dipilih: pembacaan data karyawan di fitur ini sempit.
 
