@@ -1157,6 +1157,13 @@ source (tab server-render sekali jalan, x-show cuma toggle CSS). --}}
                 </div>
             @endforelse
         </div>
+
+        {{-- Counseling + SP milik sendiri (eks menu "Pembinaan Saya", instruksi user 2026-10-05). Cuma di
+        profil sendiri: kedua komponen membaca Auth::id(), bukan $record, dan counseling rahasia. --}}
+        @if ($this->isOwnProfile && auth()->user()->can(\App\Enum\CustomPermissionEnum::PEMBINAAN_SAYA->value))
+            <div style="margin-top:24px;"><livewire:counseling.counseling-page /></div>
+            <div style="margin-top:24px;"><livewire:sp.surat-peringatan-page /></div>
+        @endif
     </div>
 @endif
 

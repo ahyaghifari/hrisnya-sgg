@@ -81,26 +81,6 @@
     <div class="pwa-menu-sheet-handle"></div>
 
     <div class="pwa-menu-grid">
-        @if ($canAccessPembinaanSaya || $canSubmitAttendance)
-            <span class="pwa-menu-grid-divider">Menu Saya</span>
-            @if ($canAccessPembinaanSaya)
-                <a href="{{ route('coaching.saya') }}" wire:navigate class="pwa-menu-grid-item">
-                    <span class="pwa-menu-grid-icon gold"><i class="fa-solid fa-user-check"></i></span>
-                    <span class="pwa-menu-grid-label">Coaching Saya</span>
-                </a>
-                <a href="{{ route('counseling') }}" wire:navigate class="pwa-menu-grid-item">
-                    <span class="pwa-menu-grid-icon gold"><i class="fa-solid fa-comment-dots"></i></span>
-                    <span class="pwa-menu-grid-label">Counseling Saya</span>
-                </a>
-                <a href="{{ route('sp.saya') }}" wire:navigate class="pwa-menu-grid-item">
-                    <span class="pwa-menu-grid-icon gold"><i class="fa-solid fa-triangle-exclamation"></i></span>
-                    <span class="pwa-menu-grid-label">Surat Peringatan</span>
-                </a>
-            @endif
-            {{-- Orientasi / Perpanjangan Kontrak / Karyawan Tetap dipindah ke Profil Saya →
-                 kartu Status Kepegawaian (2026-09-08). --}}
-        @endif
-
         @if ($canSeeKaryawanMenu)
             <x-pwa-nav.mystaff-item />
         @endif

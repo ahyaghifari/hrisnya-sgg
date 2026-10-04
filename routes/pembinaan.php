@@ -3,10 +3,8 @@
 use App\Livewire\Coaching\CoachingDetailPage;
 use App\Livewire\Coaching\CoachingPage;
 use App\Livewire\Coaching\CreateCoachingPage;
-use App\Livewire\Coaching\MyCoachingPage;
 use App\Livewire\Counseling\CounselingDetailPage;
 use App\Livewire\Counseling\CounselingManagePage;
-use App\Livewire\Counseling\CounselingPage;
 use App\Livewire\Pembinaan\PembinaanSettingsPage;
 use App\Livewire\Sp\BeritaAcaraDetailPage;
 use App\Livewire\Sp\BeritaAcaraSayaPage;
@@ -15,7 +13,6 @@ use App\Livewire\Sp\SpDetailPage;
 use App\Livewire\Sp\SpPage;
 use App\Livewire\Sp\SpRecommendationsPage;
 use App\Livewire\Sp\SuratPeringatanDetailPage;
-use App\Livewire\Sp\SuratPeringatanPage;
 use App\Enum\CustomPermissionEnum;
 use App\Enum\Sp\SpReportStatus;
 use App\Models\Sp\EmployeeSp;
@@ -28,16 +25,11 @@ use Illuminate\Support\Facades\Route;
  * Route modul Pembinaan Karyawan (eks-Coaching & Counseling). Dipisah dari routes/web.php
  * (2026-09-04) - lihat komentar di routes/sikartap.php untuk konvensi split per-modul.
  */
-Route::get('/coaching', MyCoachingPage::class)
-    ->name('coaching.saya');
-
-Route::get('/counseling', CounselingPage::class)
-    ->name('counseling');
-
-// SP - route baru, sengaja tidak ditumpuk ke /coaching (planning/2026-09-23-sp-dan-merit-point.md
-// §2.1: SP itu legal/formal, harus kelihatan sebagai bagian tersendiri di navigasi).
-Route::get('/surat-peringatan', SuratPeringatanPage::class)
-    ->name('sp.saya');
+// Coaching/Counseling/SP "Saya" sekarang tab Pembinaan di Profil Saya (instruksi user 2026-10-05);
+// URL lama diarahkan ke sana supaya bookmark/notifikasi lama tidak 404.
+Route::redirect('/coaching', '/profil-saya');
+Route::redirect('/counseling', '/profil-saya');
+Route::redirect('/surat-peringatan', '/profil-saya');
 
 Route::get('/surat-peringatan/{record}', SuratPeringatanDetailPage::class)
     ->name('sp.saya.show');

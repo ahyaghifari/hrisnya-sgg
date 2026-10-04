@@ -1,6 +1,6 @@
 @use('App\Enum\Sp\SpReportStatus', 'S')
 <div>
-<x-page-header title="Detail Surat Peringatan" :back="route('sp.saya')" />
+<x-page-header title="Detail Surat Peringatan" :back="route('profil-saya')" />
 
 @php $status = $record->status; @endphp
 

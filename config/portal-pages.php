@@ -548,12 +548,6 @@ return [
         'guard' => null,
     ],
 
-    'coaching.saya' => [
-        'label' => 'Coaching Saya',
-        'permission' => \App\Enum\CustomPermissionEnum::PEMBINAAN_SAYA->value,
-        'guard' => null,
-    ],
-
     'coaching' => [
         // Dua jalur akses beda scope (instruksi user 2026-07-26): permission Shield
         // ViewAny:Coaching (role HC khusus, company-wide) ATAU sekadar punya staff (scoped ke
@@ -574,12 +568,6 @@ return [
     'coaching.show' => [
         'label' => 'Detail Coaching',
         'permission' => null,
-        'guard' => null,
-    ],
-
-    'counseling' => [
-        'label' => 'Counseling',
-        'permission' => \App\Enum\CustomPermissionEnum::PEMBINAAN_SAYA->value,
         'guard' => null,
     ],
 
