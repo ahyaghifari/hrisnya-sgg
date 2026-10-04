@@ -959,7 +959,7 @@ html.lw-navigating .page-content { opacity: 0; }
 @media (min-width: 768px) { .bento-task-kursus.no-tugas { grid-template-columns: 1fr; } }
 
 /* ── WELCOME CARD ── */
-.welcome-card { background: linear-gradient(135deg, var(--brand-fill) 0%, color-mix(in srgb, var(--brand-fill), #ffffff 22%) 100%); border-radius: 20px; padding: 32px; position: relative; overflow: hidden; }
+.welcome-card { background: linear-gradient(135deg, var(--brand-fill) 0%, color-mix(in srgb, var(--brand-fill), #2563eb 45%) 55%, color-mix(in srgb, var(--brand-fill), #38bdf8 42%) 100%); border-radius: 20px; padding: 32px; position: relative; overflow: hidden; }
 .w-deco-1 { position: absolute; top: -80px; right: -80px; width: 280px; height: 280px; border-radius: 50%; background: #fff; opacity: 0.06; }
 .w-deco-2 { position: absolute; bottom: -50px; left: 30px; width: 200px; height: 200px; border-radius: 50%; background: #047C54; opacity: 0.16; }
 .w-deco-4 { position: absolute; bottom: 60px; right: 40px; width: 100px; height: 100px; border-radius: 14px; background: #B9308C; opacity: 0.16; transform: rotate(15deg); }

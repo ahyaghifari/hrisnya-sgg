@@ -102,7 +102,7 @@ tombol banner membuka panduan ini. Dibuka/ditutup lewat JS (display none <-> fle
         .welcome-name.wc-big { font-size: 26px; line-height: 1.15; margin-top: 1px; }
         /* Pakai nama panggilan: nama dan foto lebih besar (nama pendek, muat). */
         .wc-hero.has-nick .welcome-greeting { font-size: 16px; }
-        .wc-hero.has-nick .welcome-name.wc-big { font-size: 34px; }
+        .wc-hero.has-nick .welcome-name.wc-big { font-size: 30px; }
         .wc-hero.has-nick .wc-face { width: 110px; height: 110px; }
         .wc-hero.has-nick .wc-face-initials { font-size: 34px; }
         .wc-chips { display: flex; align-items: center; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
@@ -129,7 +129,7 @@ tombol banner membuka panduan ini. Dibuka/ditutup lewat JS (display none <-> fle
             .wc-face { width: 48px; height: 48px; }
             .wc-face-initials { font-size: 15px; }
             .wc-hero.has-nick .welcome-greeting { font-size: 14px; }
-            .wc-hero.has-nick .welcome-name.wc-big { font-size: 26px; }
+            .wc-hero.has-nick .welcome-name.wc-big { font-size: 23px; }
             .wc-hero.has-nick .wc-face { width: 64px; height: 64px; }
             .wc-hero.has-nick .wc-face-initials { font-size: 20px; }
             .wc-chips { justify-content: flex-start; margin-top: 8px; gap: 5px; }
