@@ -99,11 +99,20 @@ tombol banner membuka panduan ini. Dibuka/ditutup lewat JS (display none <-> fle
             background: rgba(255,255,255,.16); border: 1px solid rgba(255,255,255,.28); color: #fff; font-size: 11px; font-weight: 600; }
         .wc-chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         @media (max-width: 639px) {
-            .wc-hero { gap: 14px; }
-            .wc-chips { margin-top: 8px; gap: 6px; }
-            .welcome-name.wc-big { font-size: 17px; }
-            .wc-chip { font-size: 10px; padding: 2px 8px; }
-            .wc-seal { width: 22px; height: 22px; padding: 3px; }
+            /* Mobile = susunan kartu identitas Profil Saya: avatar di atas, nama & chip di tengah. */
+            .wc-hero { flex-direction: column; align-items: center; text-align: center; gap: 12px; width: 100%; }
+            /* Halo: tiga lingkaran samar berdenyut pelan, melebar di kiri-kanan avatar (box-shadow ::before, di belakang foto, tanpa stacking context baru). */
+            .wc-avatar { margin: 14px 0 10px; }
+            .wc-avatar::before { box-shadow: 0 0 0 12px rgba(255,255,255,.10), 0 0 0 26px rgba(255,255,255,.055), 0 0 0 42px rgba(255,255,255,.03); animation: wc-pulse 3.2s ease-in-out infinite; }
+            @keyframes wc-pulse {
+                0%, 100% { box-shadow: 0 0 0 12px rgba(255,255,255,.10), 0 0 0 26px rgba(255,255,255,.055), 0 0 0 42px rgba(255,255,255,.03); }
+                50% { box-shadow: 0 0 0 17px rgba(255,255,255,.15), 0 0 0 35px rgba(255,255,255,.08), 0 0 0 54px rgba(255,255,255,.04); }
+            }
+            @media (prefers-reduced-motion: reduce) { .wc-avatar::before { animation: none; } }
+            .wc-chips { margin-top: 8px; gap: 6px; justify-content: center; }
+            .welcome-name.wc-big { font-size: 21px; }
+            .wc-chip { font-size: 12px; padding: 4px 11px; }
+            .wc-seal { width: 26px; height: 26px; padding: 3px; }
         }
     </style>
     <div class="welcome-card bento-welcome">
@@ -113,10 +122,10 @@ tombol banner membuka panduan ini. Dibuka/ditutup lewat JS (display none <-> fle
         <div style="position:relative;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;">
             <div class="wc-hero">
                 {{-- Ganti foto langsung dari sini (crop + upload), komponen & trait sama dengan halaman
-                Data Diri: Dashboard::updatedPhoto() lewat HandlesProfilePhotoUpload. Ukuran tetap 72px
+                Data Diri: Dashboard::updatedPhoto() lewat HandlesProfilePhotoUpload. Ukuran tetap 92px
                 (komponen cropper pakai px inline, tidak bisa diperkecil khusus HP). --}}
                 <div class="wc-avatar">
-                    <x-photo-upload-cropper :avatar-url="$profilePhotoUrl" :initials="$record->initials() ?: '?'" :size="72" />
+                    <x-photo-upload-cropper :avatar-url="$profilePhotoUrl" :initials="$record->initials() ?: '?'" :size="92" />
                 </div>
                 <div class="wc-text" style="min-width:0;">
                     @error('photo') <p style="color:#fecaca;font-size:11px;font-weight:600;margin-bottom:4px;">{{ $message }}</p> @enderror
