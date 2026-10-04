@@ -71,6 +71,7 @@ class UserRepository
         // Update massal lewat relasi TIDAK memicu event model, jadi salin ke persons manual
         // (perilaku simpan profil tetap persis seperti semula).
         app(\App\Services\Identity\PersonSyncService::class)->syncUserIdQuietly($user->id);
+        app(\App\Services\Identity\EmployeeSyncService::class)->syncUserIdQuietly($user->id);
         return $user->refresh();
     }
 

@@ -4,6 +4,7 @@ namespace Tests\Feature\Identity;
 
 use App\Models\Person\Person;
 use App\Models\User;
+use App\Models\User\UserProfileDocument;
 use App\Models\User\UserProfiles;
 use App\Services\User\UserService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -80,6 +81,24 @@ class PersonSyncTest extends TestCase
         $user->update(['name' => 'Baru']);
 
         $this->assertSame('Baru', Person::where('user_id', $user->id)->value('nama_lengkap'));
+    }
+
+    public function test_profile_documents_are_copied_updated_and_removed(): void
+    {
+        $user = User::factory()->create();
+        $ktp = UserProfileDocument::create(['user_id' => $user->id, 'label' => 'KTP', 'file_path' => 'lampiran/ktp-1.enc']);
+        UserProfileDocument::create(['user_id' => $user->id, 'label' => 'STR', 'file_path' => 'lampiran/str-1.enc']);
+
+        $person = Person::where('user_id', $user->id)->firstOrFail();
+        $this->assertEqualsCanonicalizing(['KTP', 'STR'], $person->documents->pluck('type')->all());
+        $this->assertSame('lampiran/ktp-1.enc', $person->documents->firstWhere('type', 'KTP')->file_path, 'file_path sama persis, file tidak dipindah.');
+
+        $ktp->update(['file_path' => 'lampiran/ktp-2.enc']);
+        $this->assertSame('lampiran/ktp-2.enc', $person->documents()->where('type', 'KTP')->value('file_path'));
+        $this->assertSame(2, $person->documents()->count());
+
+        $ktp->delete();
+        $this->assertSame(['STR'], $person->documents()->pluck('type')->all());
     }
 
     public function test_backfill_is_idempotent_and_dry_run_writes_nothing(): void
