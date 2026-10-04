@@ -2,6 +2,7 @@
 
 namespace App\Filament\Keycloak\Pages;
 
+use App\Models\Employee\Employee;
 use App\Models\User;
 use App\Services\Keycloak\KeycloakAdmin;
 use BackedEnum;
@@ -49,12 +50,16 @@ class HrisWithoutSso extends Page implements HasForms, HasTable
             ->query(
                 User::query()
                     ->whereNull('keycloak_sub')
-                    ->whereNotNull('nip')
-                    ->orderBy('name')
+                    ->whereIn('users.id', Employee::query()->select('user_id')->whereNotNull('nip'))
+                    ->orderByName()
             )
             ->columns([
-                TextColumn::make('nip')->label('NIP')->searchable()->sortable(),
-                TextColumn::make('name')->label('Nama')->searchable()->sortable(),
+                TextColumn::make('nip')->label('NIP')
+                    ->searchable(query: fn (Builder $query, string $search) => $query->whereNipLike($search))
+                    ->sortable(query: fn (Builder $query, string $direction) => $query->orderByNip($direction)),
+                TextColumn::make('name')->label('Nama')
+                    ->searchable(query: fn (Builder $query, string $search) => $query->searchName($search))
+                    ->sortable(query: fn (Builder $query, string $direction) => $query->orderByName($direction)),
                 TextColumn::make('email')->label('Email')->searchable(),
             ])
             ->recordActions([

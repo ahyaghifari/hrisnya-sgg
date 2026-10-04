@@ -197,7 +197,7 @@ class TrainingReportPage extends Page implements HasForms, HasTable
         return $table
             ->query($this->buildTableQuery())
             ->columns($this->buildTableColumns())
-            ->defaultSort('name')
+            ->defaultSort(fn (Builder $query, string $direction) => $query->orderByName($direction))
             ->striped()
             ->emptyStateHeading('Belum ada data pelatihan')
             ->emptyStateDescription('Pilih periode baseline di atas untuk menampilkan laporan')
@@ -221,7 +221,7 @@ class TrainingReportPage extends Page implements HasForms, HasTable
             return new Collection();
         }
 
-        $courseIds = LmsCourseUsers::whereHas('user', fn ($q) => $q->where('company_id', $baseline->company_id))
+        $courseIds = LmsCourseUsers::whereHas('user', fn ($q) => $q->whereCompany($baseline->company_id))
             ->whereDate('enrolled_at', '>=', $baseline->start_date)
             ->whereDate('enrolled_at', '<=', $baseline->end_date)
             ->distinct()
@@ -242,8 +242,9 @@ class TrainingReportPage extends Page implements HasForms, HasTable
 
         $courses = $this->getBaselineCourses();
 
-        $query = User::where('company_id', $baseline->company_id)
-            ->select(['users.id', 'users.name', 'users.nip']);
+        // name/nip dibaca lewat accessor User (employees), jadi cukup select users.id.
+        $query = User::whereCompany($baseline->company_id)
+            ->select(['users.id']);
 
         $startDate = $baseline->start_date;
         $endDate   = $baseline->end_date;
@@ -292,7 +293,7 @@ class TrainingReportPage extends Page implements HasForms, HasTable
             $query->selectRaw('0 as total_training_hours, 0 as total_courses_count');
         }
 
-        return $query->orderBy('users.name');
+        return $query->orderByName();
     }
 
     protected function buildTableColumns(): array
@@ -304,11 +305,11 @@ class TrainingReportPage extends Page implements HasForms, HasTable
         $columns = [
             TextColumn::make('nip')
                 ->label('NIP')
-                ->searchable(),
+                ->searchable(query: fn (Builder $query, string $search) => $query->whereNipLike($search)),
 
             TextColumn::make('name')
                 ->label('Nama Karyawan')
-                ->searchable()
+                ->searchable(query: fn (Builder $query, string $search) => $query->searchName($search))
                 ->weight(FontWeight::Bold),
         ];
 
@@ -376,7 +377,7 @@ class TrainingReportPage extends Page implements HasForms, HasTable
         }
 
         // Courses ditentukan dari siapa yang enroll (karyawan company baseline), bukan company_id course itu sendiri
-        $courseIds = LmsCourseUsers::whereHas('user', fn ($q) => $q->where('company_id', $baseline->company_id))
+        $courseIds = LmsCourseUsers::whereHas('user', fn ($q) => $q->whereCompany($baseline->company_id))
             ->whereDate('enrolled_at', '>=', $baseline->start_date)
             ->whereDate('enrolled_at', '<=', $baseline->end_date)
             ->distinct()
@@ -389,8 +390,8 @@ class TrainingReportPage extends Page implements HasForms, HasTable
         $courseIds = $courses->pluck('id')->toArray();
 
         // All employees of the same company
-        $users = User::where('company_id', $baseline->company_id)
-            ->orderBy('name')
+        $users = User::whereCompany($baseline->company_id)
+            ->orderByName()
             ->get();
 
         // Enrollment lookup: [user_id][course_id] => true

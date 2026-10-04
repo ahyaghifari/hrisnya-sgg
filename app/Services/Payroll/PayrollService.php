@@ -420,7 +420,7 @@ class PayrollService
     {
         DB::transaction(function () use ($period, $generatedByUserId) {
             $users = User::query()
-                ->where('company_id', $period->company_id)
+                ->whereCompany($period->company_id)
                 ->where('is_active', true)
                 ->whereNull('deleted_at')
                 ->get();
@@ -430,7 +430,7 @@ class PayrollService
             // global), instruksi user 2026-08-11. Lihat User::PAYROLL_ELIGIBLE_EXECUTIVE_IDS.
             $executives = User::withoutGlobalScope('non_karyawan')
                 ->whereIn('id', User::PAYROLL_ELIGIBLE_EXECUTIVE_IDS)
-                ->where('company_id', $period->company_id)
+                ->whereCompany($period->company_id)
                 ->where('is_active', true)
                 ->whereNull('deleted_at')
                 ->get();

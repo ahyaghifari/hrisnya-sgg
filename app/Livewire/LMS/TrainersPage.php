@@ -84,7 +84,7 @@ class TrainersPage extends Component
 
     public function getEmployeeOptionsProperty()
     {
-        return User::where('is_active', true)->orderBy('name')->pluck('name', 'id');
+        return User::where('is_active', true)->orderByName()->get()->pluck('name', 'id');
     }
 
     public function getCanCreateTrainerProperty(): bool

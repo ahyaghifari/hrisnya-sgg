@@ -52,9 +52,8 @@ class UserOrientationResource extends BaseCompanyResource
 
                 Select::make('user_id')
                     ->label('Karyawan')
-                    ->relationship('user', 'name')
+                    ->options(fn () => \App\Models\User::orderByName()->get()->pluck('name', 'id'))
                     ->searchable()
-                    ->preload()
                     ->required(),
 
                 DatePicker::make('start_date')

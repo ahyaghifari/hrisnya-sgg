@@ -57,10 +57,8 @@ class BpjsDependentsPage extends Component
         $search = trim($this->search);
 
         return BpjsDependent::query()
-            ->whereHas('user', fn ($q) => $q->where('company_id', $this->companyId)
-                ->when($search !== '', fn ($q2) => $q2->where(fn ($q3) => $q3
-                    ->where('name', 'like', "%{$search}%")
-                    ->orWhere('nip', 'like', "%{$search}%"))))
+            ->whereHas('user', fn ($q) => $q->whereCompany($this->companyId)
+                ->when($search !== '', fn ($q2) => $q2->searchNameOrNip($search)))
             ->with('user')
             ->get();
     }
@@ -72,10 +70,10 @@ class BpjsDependentsPage extends Component
         }
 
         return User::query()
-            ->where('company_id', $this->companyId)
+            ->whereCompany($this->companyId)
             ->where('is_active', true)
             ->whereDoesntHave('bpjsDependent')
-            ->orderBy('name')
+            ->orderByName()
             ->get();
     }
 

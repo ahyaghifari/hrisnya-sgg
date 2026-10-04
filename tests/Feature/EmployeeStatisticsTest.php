@@ -128,7 +128,7 @@ class EmployeeStatisticsTest extends TestCase
             ->set('photo', \Illuminate\Http\UploadedFile::fake()->image('photo.jpg'))
             ->assertHasNoErrors();
 
-        $this->assertNotNull($staff->fresh()->profile->fresh()->profile_picture[0] ?? null);
+        $this->assertNotNull($staff->fresh()->profilePhotoPath(), 'Foto tersimpan di users.profile_picture.');
     }
 
     /** Riwayat Pengajuan tab Kehadiran hanya menampilkan yang approved - filter status sudah dihapus dari UI. */

@@ -102,14 +102,14 @@ class CreateCoachingPage extends Component
             return collect();
         }
 
-        $query = User::where('company_id', $this->companyId);
+        $query = User::whereCompany($this->companyId);
 
         if (! $this->hasFullAccess) {
             $subordinateIds = app(OrgHierarchyService::class)->subordinates(Auth::user())->pluck('id');
             $query->whereIn('id', $subordinateIds);
         }
 
-        return $query->orderBy('name')->pluck('name', 'id');
+        return $query->orderByName()->get()->pluck('name', 'id');
     }
 
     /**
@@ -124,15 +124,15 @@ class CreateCoachingPage extends Component
         }
 
         if ($this->hasFullAccess) {
-            return User::where('company_id', $this->companyId)->orderBy('name')->pluck('name', 'id');
+            return User::whereCompany($this->companyId)->orderByName()->get()->pluck('name', 'id');
         }
 
         $subordinateIds = app(OrgHierarchyService::class)->subordinates(Auth::user())->pluck('id');
 
-        return User::where('company_id', $this->companyId)
+        return User::whereCompany($this->companyId)
             ->where(fn ($q) => $q->whereIn('id', $subordinateIds)->orWhere('id', Auth::id()))
-            ->orderBy('name')
-            ->pluck('name', 'id');
+            ->orderByName()
+            ->get()->pluck('name', 'id');
     }
 
     protected function rules(): array

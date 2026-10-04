@@ -432,7 +432,7 @@ class LmsCoursesForm
                                             $component->state([]);
                                         }
                                     })
-                                    ->options(fn () => User::orderBy('name')->pluck('name', 'id')->toArray())
+                                    ->options(fn () => User::orderByName()->get()->pluck('name', 'id')->toArray())
                                     ->columns(1)
                                     ->required()
                                     ->columnSpanFull(),

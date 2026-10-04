@@ -84,7 +84,7 @@ class AttendanceRequestForm
                         return [];
                     }
 
-                    return \App\Models\User::where('company_id', $companyId)->pluck('name', 'id');
+                    return \App\Models\User::whereCompany($companyId)->get()->pluck('name', 'id');
                 })
                 ->searchable()
                 ->preload()

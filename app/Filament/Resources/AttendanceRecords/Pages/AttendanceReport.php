@@ -275,6 +275,10 @@ class AttendanceReport extends Page implements HasTable
                 \Filament\Tables\Filters\SelectFilter::make('company_id')
                     ->label('Perusahaan')
                     ->relationship('company', 'name')
+                    ->query(fn (Builder $query, array $data) => $query->when(
+                        $data['value'] ?? null,
+                        fn (Builder $q, $companyId) => $q->whereCompany($companyId),
+                    ))
                     ->preload()
                     ->searchable()
                     ->default(fn () => PermissionHelper::hasGlobalRole(Auth::user()) ? Auth::user()->company_id : null)
@@ -307,7 +311,7 @@ class AttendanceReport extends Page implements HasTable
                         return $indicators;
                     }),
             ])
-            ->defaultSort('name');
+            ->defaultSort(fn (Builder $query, string $direction) => $query->orderByName($direction));
     }
 
     protected function getTableColumns(): array
@@ -318,9 +322,9 @@ class AttendanceReport extends Page implements HasTable
                 ->weight(FontWeight::Bold)
                 ->description(fn ($record) => "NIP: {$record->nip}")
                 ->searchable(query: function (Builder $query, string $search): Builder {
-                    return $query->where('users.name', 'like', "%{$search}%");
+                    return $query->searchName($search);
                 }, condition: $this->getViewType() === 'report')
-                ->sortable(),
+                ->sortable(query: fn (Builder $query, string $direction) => $query->orderByName($direction)),
 
             TextColumn::make('total_days_in_period')
                 ->label('Total Hari')
@@ -457,8 +461,8 @@ class AttendanceReport extends Page implements HasTable
         return $query
             ->select([
                 'users.id',
-                'users.name',
-                'users.nip',
+                'emp.nama_lengkap as name',
+                'emp.nip as nip',
                 DB::raw("{$totalDaysInPeriod} as total_days_in_period"),
                 DB::raw('COUNT(DISTINCT attendance_records.date) as present_count'),
                 DB::raw('(' . $totalDaysInPeriod . ' - COUNT(DISTINCT attendance_records.date)) as absent_count'),
@@ -521,12 +525,13 @@ class AttendanceReport extends Page implements HasTable
                     AND od.date BETWEEN "' . $fromDate . '" AND "' . $toDate . '"
                 ), 0) as overtime_approved_hours'),
             ])
+            ->leftJoin('employees as emp', 'emp.user_id', '=', 'users.id')
             ->leftJoin('attendance_records', function ($join) use ($fromDate, $toDate) {
                 $join->on('users.id', '=', 'attendance_records.user_id')
                     ->whereBetween('attendance_records.date', [$fromDate, $toDate]);
             })
-            ->groupBy('users.id', 'users.name', 'users.nip')
-            ->orderBy('users.name');
+            ->groupBy('users.id', 'emp.nama_lengkap', 'emp.nip')
+            ->orderBy('emp.nama_lengkap');
     }
 
     protected function applyCompanyScope(Builder $query): Builder
@@ -549,6 +554,6 @@ class AttendanceReport extends Page implements HasTable
             return $query;
         }
 
-        return $query->where('users.company_id', $user->company_id);
+        return $query->whereCompany($user->company_id);
     }
 }

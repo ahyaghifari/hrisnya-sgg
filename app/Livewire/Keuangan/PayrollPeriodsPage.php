@@ -58,7 +58,7 @@ class PayrollPeriodsPage extends Component
     /** Opsi Penandatangan - dipisah dari generated_by (siapa klik Generate), dipilih manual. */
     public function getSignerOptionsProperty()
     {
-        return User::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']);
+        return User::query()->where('is_active', true)->orderByName()->get();
     }
 
     public function getPeriodsProperty()

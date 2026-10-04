@@ -111,17 +111,16 @@ trait InteractsWithSikartapJadwalList
 
         if (Auth::user()->canFilterByCompany()) {
             if ($this->companyId) {
-                $query->whereHas('user', fn ($q) => $q->where('company_id', $this->companyId));
+                $query->whereHas('user', fn ($q) => $q->whereCompany($this->companyId));
             }
         } else {
-            $query->whereHas('user', fn ($q) => $q->where('company_id', Auth::user()->company_id));
+            $query->whereHas('user', fn ($q) => $q->whereCompany(Auth::user()->company_id));
         }
 
         $search = trim($this->search);
 
         if ($search !== '') {
-            $query->whereHas('user', fn ($q) => $q->where('name', 'like', "%{$search}%")
-                ->orWhere('nip', 'like', "%{$search}%"));
+            $query->whereHas('user', fn ($q) => $q->searchNameOrNip($search));
         }
 
         return $query;

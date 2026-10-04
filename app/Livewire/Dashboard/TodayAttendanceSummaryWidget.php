@@ -50,7 +50,7 @@ class TodayAttendanceSummaryWidget extends Component
 
     private function companyUserIds()
     {
-        return User::query()->where('company_id', $this->companyId)->pluck('id');
+        return User::query()->whereCompany($this->companyId)->pluck('id');
     }
 
     public function getSummaryProperty(): array
@@ -138,10 +138,10 @@ class TodayAttendanceSummaryWidget extends Component
         $izinIds = $this->izinDetail->pluck('user_id');
 
         return User::query()
-            ->where('company_id', $this->companyId)
+            ->whereCompany($this->companyId)
             ->whereNotIn('id', $hadirIds->merge($cutiIds)->merge($izinIds))
             ->with('profile.jobPosition')
-            ->orderBy('name')
+            ->orderByName()
             ->get();
     }
 

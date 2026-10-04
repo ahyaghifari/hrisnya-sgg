@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Payroll\Payrolls\Tables;
 
+use App\Filament\Resources\UserColumn;
 use App\Helpers\PermissionHelper;
 use App\Models\AuditLog;
 use App\Models\Payroll\Payroll;
@@ -28,8 +29,8 @@ class PayrollsTable
             ->columns([
                 TextColumn::make('user.name')
                     ->label('Employee')
-                    ->searchable()
-                    ->sortable(),
+                    ->searchable(query: UserColumn::searchName())
+                    ->sortable(query: UserColumn::sortName()),
 
                 TextColumn::make('payrollPeriod.start_date')
                     ->label('Period')

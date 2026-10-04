@@ -16,7 +16,7 @@ use Illuminate\Support\Facades\DB;
  * employee_identities, employee_addresses, employee_documents, dan employee_careers (lihat
  * EmployeeSyncService). Idempotent - aman diulang. --dry-run tidak menulis apa pun, cuma menghitung
  * & melaporkan konflik data (NIK kosong/ganda) yang perlu dibereskan sebelum constraint unik
- * dipasang. 2x akun Super Admin tidak dapat baris employee (bukan karyawan).
+ * dipasang.
  */
 class BackfillEmployees extends Command
 {
@@ -32,8 +32,7 @@ class BackfillEmployees extends Command
         $dry = (bool) $this->option('dry-run');
 
         $users = User::withoutGlobalScopes()->withTrashed()
-            ->whereNotIn('id', EmployeeSyncService::skippedUserIds())
-            ->when($this->option('user'), fn ($q, $nip) => $q->where('nip', $nip));
+            ->when($this->option('user'), fn ($q, $nip) => $q->whereNip($nip));
 
         $total = (clone $users)->count();
         $existing = Employee::whereIn('user_id', (clone $users)->select('id'))->count();

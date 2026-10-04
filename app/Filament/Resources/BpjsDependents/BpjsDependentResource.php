@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\BpjsDependents;
 
+use App\Filament\Resources\UserColumn;
 use App\Filament\Resources\BpjsDependents\Pages\ManageBpjsDependents;
 use App\Helpers\PermissionHelper;
 use App\Models\Master\Companies;
@@ -61,9 +62,9 @@ class BpjsDependentResource extends Resource
                     ->label('Karyawan')
                     ->options(fn (callable $get) => $get('company_id')
                         ? User::query()
-                            ->where('company_id', $get('company_id'))
+                            ->whereCompany($get('company_id'))
                             ->whereHas('profile')
-                            ->pluck('name', 'id')
+                            ->get()->pluck('name', 'id')
                         : [])
                     ->searchable()
                     ->required()
@@ -95,15 +96,15 @@ class BpjsDependentResource extends Resource
             ->columns([
                 TextColumn::make('user.company.name')
                     ->label('Perusahaan')
-                    ->searchable()
-                    ->sortable(),
+                    ->searchable(query: UserColumn::searchCompany())
+                    ->sortable(query: UserColumn::sortCompany()),
                 TextColumn::make('user.name')
                     ->label('Karyawan')
-                    ->searchable()
-                    ->sortable(),
+                    ->searchable(query: UserColumn::searchName())
+                    ->sortable(query: UserColumn::sortName()),
                 TextColumn::make('user.nip')
                     ->label('NIP')
-                    ->searchable(),
+                    ->searchable(query: UserColumn::searchNip()),
                 TextColumn::make('count')
                     ->label('Jumlah Tanggungan')
                     ->sortable(),
@@ -123,7 +124,7 @@ class BpjsDependentResource extends Resource
                     ->searchable()
                     ->query(fn ($query, array $data) => $query->when(
                         $data['value'] ?? null,
-                        fn ($q, $companyId) => $q->whereHas('user', fn ($q2) => $q2->where('company_id', $companyId)),
+                        fn ($q, $companyId) => $q->whereHas('user', fn ($q2) => $q2->whereCompany($companyId)),
                     ))
                     ->default(fn () => PermissionHelper::hasGlobalRole(Auth::user()) ? Auth::user()->company_id : null)
                     ->visible(fn () => PermissionHelper::hasGlobalRole(Auth::user())),

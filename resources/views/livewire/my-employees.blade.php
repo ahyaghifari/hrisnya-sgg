@@ -61,7 +61,7 @@
                         ->take(2)
                         ->implode('');
 
-                    $photoPath = $employee->profile?->profile_picture[0] ?? null;
+                    $photoPath = $employee->profilePhotoPath();
                     $photoUrl = $photoPath && is_string($photoPath) ? \Illuminate\Support\Facades\Storage::url($photoPath) : null;
                     $jabatan = $employee->profile?->jobPosition?->name;
                     $departemen = $employee->profile?->department?->name;

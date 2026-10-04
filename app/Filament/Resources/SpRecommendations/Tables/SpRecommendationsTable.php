@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\SpRecommendations\Tables;
 
+use App\Filament\Resources\UserColumn;
 use App\Enum\Sp\SpLevel;
 use App\Enum\Sp\SpRecommendationDecision;
 use App\Models\Sp\SpRecommendation;
@@ -23,8 +24,8 @@ class SpRecommendationsTable
             ->columns([
                 TextColumn::make('user.name')
                     ->label('Karyawan')
-                    ->sortable()
-                    ->searchable(),
+                    ->sortable(query: UserColumn::sortName())
+                    ->searchable(query: UserColumn::searchName()),
 
                 TextColumn::make('sp_level')
                     ->label('Level (Saran)')

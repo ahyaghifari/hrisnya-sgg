@@ -53,7 +53,7 @@ class DaftarPenilaianPage extends Component
             ->whereHas('target')
             ->with(['target', 'assessments'])
             ->when($this->jadwalId !== '', fn ($q) => $q->where('assessment_id', $this->jadwalId))
-            ->when(trim($this->search) !== '', fn ($q) => $q->whereHas('target', fn ($t) => $t->where('name', 'like', '%' . trim($this->search) . '%')))
+            ->when(trim($this->search) !== '', fn ($q) => $q->whereHas('target', fn ($t) => $t->searchName(trim($this->search))))
             ->latest()
             ->paginate(15);
     }

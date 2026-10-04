@@ -50,7 +50,7 @@ class CreateSpFromReportPage extends Component
 
     public function getKnowsByOptionsProperty()
     {
-        return \App\Models\User::where('company_id', Auth::user()->company_id)->orderBy('name')->pluck('name', 'id');
+        return \App\Models\User::whereCompany(Auth::user()->company_id)->orderByName()->get()->pluck('name', 'id');
     }
 
     public function getCoachingOptionsProperty()
@@ -103,7 +103,7 @@ class CreateSpFromReportPage extends Component
 
         $report = $this->report;
 
-        abort_unless(\App\Models\User::where('company_id', $report->company_id)->whereKey($data['knows_by'])->exists(), 403);
+        abort_unless(\App\Models\User::whereCompany($report->company_id)->whereKey($data['knows_by'])->exists(), 403);
 
         if ($data['coaching_id']) {
             abort_unless(Coaching::where('id', $data['coaching_id'])->where('user_id', $report->user_id)->exists(), 403);

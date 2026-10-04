@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\ExecutiveAllowances\Tables;
 
+use App\Filament\Resources\UserColumn;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
 use Filament\Actions\ViewAction;
@@ -17,8 +18,8 @@ class ExecutiveAllowancesTable
             ->columns([
                 TextColumn::make('user.name')
                     ->label('Penerima')
-                    ->searchable()
-                    ->sortable(),
+                    ->searchable(query: UserColumn::searchName())
+                    ->sortable(query: UserColumn::sortName()),
                 TextColumn::make('type')
                     ->label('Jenis')
                     ->formatStateUsing(fn (string $state) => $state === 'earning' ? 'Pendapatan' : 'Potongan')

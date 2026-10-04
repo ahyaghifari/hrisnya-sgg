@@ -28,7 +28,7 @@ class FixNipTypo extends Command
         $this->newLine();
 
         foreach (self::FIXES as $oldNip => $fix) {
-            $user = User::where('nip', $oldNip)->first();
+            $user = User::whereNip($oldNip)->first();
 
             if (!$user) {
                 $this->warn("[SKIP] NIP {$oldNip} ({$fix['name']}) tidak ditemukan di database.");
@@ -40,7 +40,7 @@ class FixNipTypo extends Command
                 continue;
             }
 
-            $clash = User::where('nip', $fix['new'])->where('id', '!=', $user->id)->first();
+            $clash = User::whereNip($fix['new'])->where('id', '!=', $user->id)->first();
             if ($clash) {
                 $this->warn("[SKIP] NIP baru {$fix['new']} sudah dipakai user lain ({$clash->name}) - konflik, tidak diubah.");
                 continue;

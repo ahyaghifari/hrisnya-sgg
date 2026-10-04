@@ -48,7 +48,7 @@ class Incentive extends Model
             $user = Auth::user();
 
             if ($user && $user->company_id && ! $user->hasRole('Super Admin')) {
-                $query->whereHas('user', fn ($q) => $q->where('company_id', $user->company_id));
+                $query->whereHas('user', fn ($q) => $q->whereCompany($user->company_id));
             }
         });
     }

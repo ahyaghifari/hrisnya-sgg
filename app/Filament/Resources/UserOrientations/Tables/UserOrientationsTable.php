@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\UserOrientations\Tables;
 
+use App\Filament\Resources\UserColumn;
 use App\Filament\Resources\UserOrientations\UserOrientationResource;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
@@ -18,8 +19,8 @@ class UserOrientationsTable
             ->columns([
                 TextColumn::make('user.name')
                     ->label('Karyawan')
-                    ->searchable()
-                    ->sortable(),
+                    ->searchable(query: UserColumn::searchName())
+                    ->sortable(query: UserColumn::sortName()),
 
                 TextColumn::make('start_date')
                     ->label('Mulai')

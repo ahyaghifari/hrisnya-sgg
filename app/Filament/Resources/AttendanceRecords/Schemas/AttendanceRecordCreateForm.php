@@ -21,9 +21,8 @@ class AttendanceRecordCreateForm
                     ->schema([
                         Select::make('user_id')
                             ->label('Karyawan')
-                            ->relationship('user', 'name')
+                            ->options(fn () => \App\Models\User::orderByName()->get()->pluck('name', 'id'))
                             ->searchable()
-                            ->preload()
                             ->required()
                             ->disabled(fn () => $userId !== null)
                             ->dehydrated(true),

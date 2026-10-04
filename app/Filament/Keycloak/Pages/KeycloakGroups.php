@@ -2,6 +2,7 @@
 
 namespace App\Filament\Keycloak\Pages;
 
+use App\Models\Employee\Employee;
 use App\Models\User;
 use App\Services\Keycloak\KeycloakAdmin;
 use BackedEnum;
@@ -122,12 +123,11 @@ class KeycloakGroups extends Page
     private function hrisUserOptions(?string $search): array
     {
         return User::query()
-            ->whereNotNull('nip')
+            ->whereIn('users.id', Employee::query()->select('user_id')->whereNotNull('nip'))
             ->when($search, fn ($q) => $q->where(fn ($q) => $q
-                ->where('nip', 'like', "%{$search}%")
-                ->orWhere('name', 'like', "%{$search}%")
+                ->searchNameOrNip($search)
                 ->orWhere('email', 'like', "%{$search}%")))
-            ->orderBy('name')
+            ->orderByName()
             ->limit(50)
             ->get()
             ->mapWithKeys(fn (User $u) => [$u->nip => "{$u->nip} — {$u->name}"])
@@ -137,7 +137,7 @@ class KeycloakGroups extends Page
     /** id user Keycloak dari NIP: link eksplisit (keycloak_sub) dulu, fallback cari via NIP. */
     private function keycloakUserId(string $nip): ?string
     {
-        return User::where('nip', $nip)->value('keycloak_sub')
+        return User::whereNip($nip)->value('keycloak_sub')
             ?: ($this->kc()->users($nip, 0, 1)[0]['id'] ?? null);
     }
 
@@ -243,7 +243,7 @@ class KeycloakGroups extends Page
                     ->required()
                     ->searchable()
                     ->getSearchResultsUsing(fn (string $search) => $this->hrisUserOptions($search))
-                    ->getOptionLabelUsing(fn ($value) => optional(User::where('nip', $value)->first(), fn ($u) => "{$u->nip} — {$u->name}")),
+                    ->getOptionLabelUsing(fn ($value) => optional(User::whereNip($value)->first(), fn ($u) => "{$u->nip} — {$u->name}")),
             ])
             ->action(function (array $data): void {
                 if (! $this->selectedId) {

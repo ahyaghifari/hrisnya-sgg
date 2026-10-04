@@ -118,7 +118,7 @@ class ExtraShiftRecapPage extends Component
             ->whereBetween('date', [$this->date_from, $this->date_to])
             ->where('status', 'approved')
             ->whereHas('user', function ($q) {
-                $q->when($this->companyId, fn ($q2) => $q2->where('company_id', $this->companyId));
+                $q->when($this->companyId, fn ($q2) => $q2->whereCompany($this->companyId));
                 $this->applyDepartmentDivisionFilter($q);
             })
             ->with(['user', 'user.profile.jobPosition.orgStructure.parent.parent', 'shiftType', 'attendanceRecord', 'coveringUser', 'createdBy',

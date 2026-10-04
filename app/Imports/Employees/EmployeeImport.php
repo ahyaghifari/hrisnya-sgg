@@ -61,11 +61,11 @@ class EmployeeImport implements ToCollection, WithHeadingRow
 
                     // ── Duplicate handling: same email OR nip → restore & update ──
                     $user = User::withTrashed()
-                        ->when($cid, fn ($q) => $q->where('company_id', $cid))
+                        ->when($cid, fn ($q) => $q->whereCompany($cid))
                         ->where(function ($q) use ($email, $nip) {
                             $q->where('email', $email);
                             if ($nip !== null) {
-                                $q->orWhere('nip', $nip);
+                                $q->orWhereIn('users.id', \App\Models\Employee\Employee::query()->select('user_id')->where('nip', $nip));
                             }
                         })
                         ->first();

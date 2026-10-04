@@ -25,13 +25,6 @@ use Illuminate\Support\Facades\DB;
  */
 class EmployeeSyncService
 {
-    /** Akun yang bukan karyawan (2x Super Admin). Direktur & Sekretaris Direktur tetap karyawan
-     * karena masih punya payroll (User::PAYROLL_ELIGIBLE_EXECUTIVE_IDS). */
-    public static function skippedUserIds(): array
-    {
-        return array_values(array_diff(User::NON_KARYAWAN_IDS, User::PAYROLL_ELIGIBLE_EXECUTIVE_IDS));
-    }
-
     public function syncUserId(string $userId): ?Employee
     {
         $user = User::withoutGlobalScopes()->withTrashed()->find($userId);
@@ -49,29 +42,49 @@ class EmployeeSyncService
         }
     }
 
-    public function syncUser(User $user): ?Employee
+    /** Seperti syncUser() tapi kegagalan cuma dilaporkan ke log; memakai INSTANCE (membawa nilai tertahan). */
+    public function syncUserQuietly(User $user): void
     {
-        if (in_array($user->id, self::skippedUserIds(), true)) {
-            return null;
+        try {
+            $this->syncUser($user);
+        } catch (\Throwable $e) {
+            report($e);
         }
+    }
 
+    /**
+     * nip / nama_lengkap / company_id yang masuk ke employees:
+     * - mode transisi (legacy_user_columns true): dari kolom users (sumber lama);
+     * - setelah kolom dicabut: tidak ada sumber di users, employees dibiarkan apa adanya;
+     * - nilai TERTAHAN dari penulisan lewat model User ($user->update(['name' => ..])) selalu menang.
+     *
+     * @return array<string, mixed>
+     */
+    private function userSource(User $user): array
+    {
+        $source = User::legacyColumns()
+            ? ['nip' => $user->rawNip(), 'nama_lengkap' => $user->rawName(), 'company_id' => $user->rawCompanyId()]
+            : [];
+
+        return array_merge($source, $user->pendingEmployeeAttributes());
+    }
+
+    public function syncUser(User $user): Employee
+    {
         return DB::transaction(function () use ($user) {
             $profile = UserProfiles::where('user_id', $user->id)->first();
 
             $employee = Employee::updateOrCreate(['user_id' => $user->id], [
-                'nip' => $user->nip,
-                'nama_lengkap' => $user->name,
+                ...$this->userSource($user),
                 'nickname' => $profile?->nickname,
                 'gender' => $profile?->gender,
                 'marital_status' => $profile?->marital_status,
                 'place_of_birth' => $profile?->place_of_birth,
                 'date_of_birth' => $profile?->date_of_birth,
                 'religion_id' => $profile?->religion_id,
-                'profile_picture' => $profile?->profile_picture,
                 'phone' => $profile?->phone,
                 'whatsapp' => $profile?->whatsapp,
                 'email_pribadi' => $profile?->email_pribadi,
-                'company_id' => $user->company_id,
                 'employee_type_id' => $profile?->employee_type_id,
                 'job_position_id' => $profile?->job_position_id,
                 'pangkat_id' => $profile?->pangkat_id,

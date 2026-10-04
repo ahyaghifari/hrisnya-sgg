@@ -20,8 +20,8 @@ class ExecutiveAllowanceForm
                     ->label('Penerima')
                     ->options(fn () => User::withoutGlobalScope('non_karyawan')
                         ->whereIn('id', User::PAYROLL_ELIGIBLE_EXECUTIVE_IDS)
-                        ->orderBy('name')
-                        ->pluck('name', 'id'))
+                        ->orderByName()
+                        ->get()->pluck('name', 'id'))
                     ->required(),
 
                 Select::make('source')

@@ -47,7 +47,7 @@ class EmployeeTypeBreakdownWidget extends Component
     public function getBreakdownProperty()
     {
         return User::query()
-            ->where('company_id', $this->companyId)
+            ->whereCompany($this->companyId)
             ->whereHas('profile.employeeType')
             ->with('profile.employeeType')
             ->get()
@@ -65,10 +65,10 @@ class EmployeeTypeBreakdownWidget extends Component
         }
 
         return User::query()
-            ->where('company_id', $this->companyId)
+            ->whereCompany($this->companyId)
             ->whereHas('profile.employeeType', fn ($q) => $q->where('name', $this->activeModal))
             ->with('profile.jobPosition')
-            ->orderBy('name')
+            ->orderByName()
             ->get();
     }
 
@@ -108,7 +108,7 @@ class EmployeeTypeBreakdownWidget extends Component
         $now = now()->startOfDay();
 
         return OrientationSubmission::query()
-            ->whereHas('user', fn ($q) => $q->where('company_id', $this->companyId))
+            ->whereHas('user', fn ($q) => $q->whereCompany($this->companyId))
             ->whereNull('decision')
             ->whereNotNull('effective_end_date')
             ->with('user')

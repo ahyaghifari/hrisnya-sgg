@@ -109,7 +109,7 @@ class IzinRecapPage extends Component
                 ->where('type', 'permission')
                 ->where('status', 'approved')
                 ->whereHas('user', function ($q2) {
-                    $q2->when($this->companyId, fn ($q3) => $q3->where('company_id', $this->companyId));
+                    $q2->when($this->companyId, fn ($q3) => $q3->whereCompany($this->companyId));
                     $this->applyDepartmentDivisionFilter($q2);
                 }))
             ->with(['attendanceRequest.user', 'attendanceRequest.user.profile.jobPosition.orgStructure.parent.parent'])

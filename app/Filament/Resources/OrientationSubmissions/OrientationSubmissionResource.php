@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\OrientationSubmissions;
 
+use App\Filament\Resources\UserColumn;
 use App\Filament\Resources\BaseCompanyResource;
 use App\Filament\Resources\OrientationSubmissions\Pages\ManageOrientationSubmissions;
 use App\Models\OrientationSubmission;
@@ -41,8 +42,8 @@ class OrientationSubmissionResource extends BaseCompanyResource
     {
         return $table
             ->columns([
-                TextColumn::make('user.name')->label('Karyawan')->searchable()->sortable(),
-                TextColumn::make('user.nip')->label('NIP')->searchable(),
+                TextColumn::make('user.name')->label('Karyawan')->searchable(query: UserColumn::searchName())->sortable(query: UserColumn::sortName()),
+                TextColumn::make('user.nip')->label('NIP')->searchable(query: UserColumn::searchNip()),
                 TextColumn::make('userOrientation')
                     ->label('Periode Orientasi')
                     ->state(fn ($record) => $record->userOrientation

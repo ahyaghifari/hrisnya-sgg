@@ -26,7 +26,7 @@ class ExecutiveEmployeesTable
                 TextColumn::make('profile.kelas.name')->label('Kelas')->default('-'),
                 TextColumn::make('profile.employeeType.name')->label('Tipe Karyawan')->default('-'),
             ])
-            ->defaultSort('name')
+            ->defaultSort(fn ($query, string $direction) => $query->orderByName($direction))
             ->recordActions([
                 EditAction::make()
                     ->visible(fn ($record) => ExecutiveEmployeeResource::canEdit($record)),

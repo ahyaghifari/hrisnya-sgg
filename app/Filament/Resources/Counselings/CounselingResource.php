@@ -61,7 +61,7 @@ class CounselingResource extends Resource
         $query = parent::getEloquentQuery()->latest();
 
         if ($user && $user->company_id && !PermissionHelper::hasGlobalRole($user)) {
-            $query->whereHas('user', fn ($q) => $q->where('company_id', $user->company_id));
+            $query->whereHas('user', fn ($q) => $q->whereCompany($user->company_id));
         }
 
         return $query;

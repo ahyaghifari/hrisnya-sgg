@@ -2,12 +2,12 @@
 @php
     extract($gates);
     $showRoleRow = $canSeeKaryawanMenu || $canAccessKeuangan || $canAccessAbsensi || $canAccessKepegawaian || $canAccessLms || $canAccessPenilaian || $canAccessHakAkses || $canAccessCoachingCounseling || $canAccessSikartap || $canAccessRekrutmen || $canAccessMcu;
-    $initials = collect(explode(' ', auth()->user()->name))
+    $initials = collect(explode(' ', auth()->user()->full_name))
         ->map(fn ($part) => mb_substr($part, 0, 1))
         ->take(2)
         ->implode('');
 
-    $navPhotoPath = auth()->user()->profile?->profile_picture[0] ?? null;
+    $navPhotoPath = auth()->user()->profilePhotoPath();
     $navPhotoUrl = $navPhotoPath && is_string($navPhotoPath) ? \Illuminate\Support\Facades\Storage::url($navPhotoPath) : null;
 @endphp
 
@@ -110,7 +110,7 @@
             <livewire:notification-bell variant="desktop" :key="'notif-bell-desktop'" />
             <div class="dropdown">
                 @if ($navPhotoUrl)
-                    <img src="{{ $navPhotoUrl }}" alt="{{ auth()->user()->name }}" class="nav-avatar" style="object-fit:cover;">
+                    <img src="{{ $navPhotoUrl }}" alt="{{ auth()->user()->full_name }}" class="nav-avatar" style="object-fit:cover;">
                 @else
                     <div class="nav-avatar">{{ $initials }}</div>
                 @endif

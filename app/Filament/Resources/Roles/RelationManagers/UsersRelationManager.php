@@ -23,15 +23,15 @@ class UsersRelationManager extends RelationManager
     public function table(Table $table): Table
     {
         return $table
-            ->recordTitleAttribute('name')
+            ->recordTitle(fn (User $record) => (string) $record->name)
             ->columns([
                 TextColumn::make('name')
                     ->label('Nama')
-                    ->searchable()
-                    ->sortable(),
+                    ->searchable(query: fn ($query, string $search) => $query->searchName($search))
+                    ->sortable(query: fn ($query, string $direction) => $query->orderByName($direction)),
                 TextColumn::make('nip')
                     ->label('NIP')
-                    ->searchable(),
+                    ->searchable(query: fn ($query, string $search) => $query->whereNipLike($search)),
                 TextColumn::make('profile.jobPosition.name')
                     ->label('Jabatan'),
                 TextColumn::make('profile.jobPosition.division.name')
@@ -62,11 +62,13 @@ class UsersRelationManager extends RelationManager
             ->headerActions([
                 AttachAction::make()
                     ->label('Tambah User')
-                    ->recordSelectSearchColumns(['name', 'nip'])
-                    ->recordSelectOptionsQuery(fn ($query) => $query->when(
-                        $this->getOwnerRecord()->company_id,
-                        fn ($q, $companyId) => $q->where('company_id', $companyId),
-                    )),
+                    ->recordSelectOptionsQuery(fn ($query, ?string $search) => $query
+                        ->when(
+                            $this->getOwnerRecord()->company_id,
+                            fn ($q, $companyId) => $q->whereCompany($companyId),
+                        )
+                        ->when(filled($search), fn ($q) => $q->searchNameOrNip($search))
+                        ->orderByName()),
             ])
             ->recordActions([
                 DetachAction::make(),

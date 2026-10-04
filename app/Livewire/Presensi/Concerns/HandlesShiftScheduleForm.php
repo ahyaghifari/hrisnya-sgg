@@ -115,7 +115,7 @@ trait HandlesShiftScheduleForm
      * $selectedEmployeeIds tidak kebawa id karyawan perusahaan lain. */
     private function companyEmployeeIds(): array
     {
-        return User::where('company_id', $this->companyId)->pluck('id')->all();
+        return User::whereCompany($this->companyId)->pluck('id')->all();
     }
 
     /** Warna default tiap baris baru gantian dari palet ini (bukan hitam semua) — biar langsung
@@ -183,7 +183,7 @@ trait HandlesShiftScheduleForm
             return collect();
         }
 
-        return User::where('company_id', $this->companyId)
+        return User::whereCompany($this->companyId)
             ->with('activeJobPosition.jobPosition.orgStructure')
             ->when($this->employeeOrgStructureFilter, fn ($query) => $query->whereHas(
                 'activeJobPosition.jobPosition',
@@ -193,16 +193,16 @@ trait HandlesShiftScheduleForm
                 $search = $this->employeeSearch;
 
                 $query->where(function ($q) use ($search) {
-                    $q->where('name', 'like', "%{$search}%")
-                        ->orWhere('nip', 'like', "%{$search}%")
+                    $q->searchName($search)
+                        ->orWhereIn('users.id', \App\Models\Employee\Employee::query()->select('user_id')->where('nip', 'like', "%{$search}%"))
                         ->orWhereHas('activeJobPosition.jobPosition', function ($jobQuery) use ($search) {
                             $jobQuery->where('name', 'like', "%{$search}%")
                                 ->orWhereHas('orgStructure', fn ($q) => $q->where('name', 'like', "%{$search}%"));
                         });
                 });
             })
-            ->orderBy('name')
-            ->get(['id', 'name', 'nip']);
+            ->orderByName()
+            ->get();
     }
 
     /** Opsi dropdown filter divisi - divisi/unit company yang lagi dipilih saja (bukan semua
@@ -226,10 +226,10 @@ trait HandlesShiftScheduleForm
         }
 
         return User::whereIn('id', $this->selectedEmployeeIds)
-            ->where('company_id', $this->companyId)
+            ->whereCompany($this->companyId)
             ->with('activeJobPosition.jobPosition.orgStructure')
-            ->orderBy('name')
-            ->get(['id', 'name', 'nip']);
+            ->orderByName()
+            ->get();
     }
 
     public function removeSelectedEmployee(string $userId): void

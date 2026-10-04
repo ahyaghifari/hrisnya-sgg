@@ -116,10 +116,10 @@ class KontrakKelolaPage extends Component
     public function getKontrakKaryawanProperty()
     {
         return User::query()
-            ->when($this->companyId, fn ($q) => $q->where('company_id', $this->companyId))
+            ->when($this->companyId, fn ($q) => $q->whereCompany($this->companyId))
             ->when(trim($this->search) !== '', function ($q) {
                 $s = trim($this->search);
-                $q->where(fn ($q2) => $q2->where('name', 'like', "%{$s}%")->orWhere('nip', 'like', "%{$s}%"));
+                $q->searchNameOrNip($s);
             })
             ->whereHas('profile.employeeType', fn ($q) => $q->where('category', EmployeeTypeCategory::KONTRAK->value))
             ->whereHas('contracts')
@@ -128,7 +128,7 @@ class KontrakKelolaPage extends Component
                 'currentContract',
                 'contractSubmissions' => fn ($q) => $q->with('decidedBy')->latest(),
             ])
-            ->orderBy('name')
+            ->orderByName()
             ->paginate(15)
             ->appends(['companyId' => $this->companyId, 'search' => $this->search, 'tab' => $this->tab]);
     }
@@ -140,7 +140,7 @@ class KontrakKelolaPage extends Component
             ->whereIn('status', ['selesai', 'ditolak'])
             ->when(trim($this->search) !== '', fn ($q) => $q->whereHas('user', function ($q2) {
                 $s = trim($this->search);
-                $q2->where('name', 'like', "%{$s}%")->orWhere('nip', 'like', "%{$s}%");
+                $q2->searchNameOrNip($s);
             }))
             ->with(['user', 'decidedBy', 'newContract'])
             ->latest('decided_at')

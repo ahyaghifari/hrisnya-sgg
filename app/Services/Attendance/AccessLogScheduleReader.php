@@ -635,7 +635,7 @@ class AccessLogScheduleReader
     private function resolveUsersForRows(Collection $rows): array
     {
         $employeeIds = $rows->pluck('employee_id')->unique()->values();
-        $users       = User::whereIn('nip', $employeeIds)->get()->keyBy('nip');
+        $users       = User::whereNip($employeeIds->all())->get()->keyBy('nip');
 
         $withUser       = collect();
         $unmatchedUsers = [];

@@ -38,6 +38,16 @@ class KepegawaianDashboardPage extends Component
         'date_of_birth' => 'Tanggal Lahir',
     ];
 
+    /** Field kelengkapan terisi? Foto = atribut akun (users.profile_picture), sisanya kolom profil. */
+    private function completenessFilled(User $user, string $field): bool
+    {
+        if ($field === 'profile_picture') {
+            return $user->profilePhotoPath() !== null;
+        }
+
+        return filled($user->profile?->{$field});
+    }
+
     public function mount(): void
     {
         abort_unless(Auth::user()->can(CustomPermissionEnum::SISTEM_KEPEGAWAIAN->value), 403);
@@ -85,7 +95,7 @@ class KepegawaianDashboardPage extends Component
 
     protected function scopedEmployees()
     {
-        return User::query()->when($this->companyId, fn ($q) => $q->where('company_id', $this->companyId));
+        return User::query()->when($this->companyId, fn ($q) => $q->whereCompany($this->companyId));
     }
 
     public function getTotalActiveEmployeesProperty(): int
@@ -198,7 +208,7 @@ class KepegawaianDashboardPage extends Component
             }
 
             $filled = collect(array_keys(self::COMPLETENESS_FIELDS))
-                ->filter(fn (string $field) => filled($user->profile->{$field}))
+                ->filter(fn (string $field) => $this->completenessFilled($user, $field))
                 ->count();
 
             return $filled / $fieldCount;
@@ -216,7 +226,7 @@ class KepegawaianDashboardPage extends Component
             ->get()
             ->map(function (User $user) {
                 $missing = collect(self::COMPLETENESS_FIELDS)
-                    ->reject(fn (string $label, string $field) => $user->profile && filled($user->profile->{$field}))
+                    ->reject(fn (string $label, string $field) => $user->profile && $this->completenessFilled($user, $field))
                     ->values();
 
                 return ['user' => $user, 'missing' => $missing];
@@ -231,7 +241,7 @@ class KepegawaianDashboardPage extends Component
     public function getHeadcountByPositionProperty()
     {
         $rows = User::query()
-            ->when($this->companyId, fn ($q) => $q->where('company_id', $this->companyId))
+            ->when($this->companyId, fn ($q) => $q->whereCompany($this->companyId))
             ->whereHas('profile.jobPosition')
             ->with('profile.jobPosition')
             ->get()

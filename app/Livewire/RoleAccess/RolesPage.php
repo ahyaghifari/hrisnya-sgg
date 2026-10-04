@@ -125,7 +125,7 @@ class RolesPage extends Component
 
         $this->usersModalRoleId = $role->id;
         $this->usersModalRoleName = $role->name;
-        $this->usersModalUsers = $role->users()->orderBy('name')->get(['id', 'name', 'email', 'nip'])->toArray();
+        $this->usersModalUsers = $role->users()->orderByName()->get()->map(fn (User $u) => ['id' => $u->id, 'name' => $u->name, 'email' => $u->email, 'nip' => $u->nip])->all();
         $this->addUserSearch = '';
         $this->addUserDivisionId = null;
         $this->addUserJobPositionId = null;
@@ -172,11 +172,9 @@ class RolesPage extends Component
         $assignedIds = collect($this->usersModalUsers)->pluck('id')->all();
 
         return User::query()
-            ->when($role->company_id, fn ($q, $companyId) => $q->where('company_id', $companyId))
+            ->when($role->company_id, fn ($q, $companyId) => $q->whereCompany($companyId))
             ->whereNotIn('id', $assignedIds)
-            ->when($this->addUserSearch, fn ($q) => $q->where(fn ($q) => $q
-                ->where('name', 'like', '%' . $this->addUserSearch . '%')
-                ->orWhere('nip', 'like', '%' . $this->addUserSearch . '%')))
+            ->when($this->addUserSearch, fn ($q) => $q->searchNameOrNip($this->addUserSearch))
             ->when($this->addUserJobPositionId, fn ($q, $jobPositionId) => $q->whereHas(
                 'profile',
                 fn ($q) => $q->where('job_position_id', $jobPositionId),
@@ -185,9 +183,9 @@ class RolesPage extends Component
                 'profile.jobPosition.orgStructure',
                 fn ($q) => $q->where('id', $divisionId)->orWhere('parent_id', $divisionId),
             ))
-            ->orderBy('name')
+            ->orderByName()
             ->limit(20)
-            ->get(['id', 'name', 'email', 'nip']);
+            ->get();
     }
 
     public function addUserToRole(string $userId): void
@@ -199,7 +197,7 @@ class RolesPage extends Component
 
         User::findOrFail($userId)->assignRole($role);
 
-        $this->usersModalUsers = $role->users()->orderBy('name')->get(['id', 'name', 'email', 'nip'])->toArray();
+        $this->usersModalUsers = $role->users()->orderByName()->get()->map(fn (User $u) => ['id' => $u->id, 'name' => $u->name, 'email' => $u->email, 'nip' => $u->nip])->all();
 
         Notification::make()
             ->title('User berhasil ditambahkan ke role')
@@ -225,7 +223,7 @@ class RolesPage extends Component
 
         User::findOrFail($userId)->removeRole($role);
 
-        $this->usersModalUsers = $role->users()->orderBy('name')->get(['id', 'name', 'email', 'nip'])->toArray();
+        $this->usersModalUsers = $role->users()->orderByName()->get()->map(fn (User $u) => ['id' => $u->id, 'name' => $u->name, 'email' => $u->email, 'nip' => $u->nip])->all();
 
         Notification::make()
             ->title('Role berhasil dilepas dari user')

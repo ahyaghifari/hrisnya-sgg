@@ -122,7 +122,7 @@ class CutiRecapPage extends Component
             ->where('type', 'leave')
             ->where('status', 'approved')
             ->whereHas('user', function ($q2) {
-                $q2->when($this->companyId, fn ($q3) => $q3->where('company_id', $this->companyId));
+                $q2->when($this->companyId, fn ($q3) => $q3->whereCompany($this->companyId));
                 $this->applyDepartmentDivisionFilter($q2);
             })
             ->whereHas('leaveDetails', fn ($q) => $q
@@ -244,13 +244,13 @@ class CutiRecapPage extends Component
                 $q->where('type', 'leave')
                     ->where('status', 'approved')
                     ->whereHas('user', function ($q2) {
-                        $q2->when($this->companyId, fn ($q3) => $q3->where('company_id', $this->companyId));
+                        $q2->when($this->companyId, fn ($q3) => $q3->whereCompany($this->companyId));
                         $this->applyDepartmentDivisionFilter($q2);
                     });
             })
             ->when(trim($this->search) !== '', function ($q) {
                 $search = trim($this->search);
-                $q->whereHas('request.user', fn ($q2) => $q2->where('name', 'like', "%{$search}%")->orWhere('nip', 'like', "%{$search}%"));
+                $q->whereHas('request.user', fn ($q2) => $q2->searchNameOrNip($search));
             })
             ->with([
                 'request.user.company',

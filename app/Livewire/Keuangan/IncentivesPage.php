@@ -78,10 +78,10 @@ class IncentivesPage extends Component
         $search = trim($this->search);
 
         return Incentive::query()
-            ->when($this->companyId, fn ($q) => $q->whereHas('user', fn ($q2) => $q2->where('company_id', $this->companyId)))
+            ->when($this->companyId, fn ($q) => $q->whereHas('user', fn ($q2) => $q2->whereCompany($this->companyId)))
             ->when($search !== '', fn ($q) => $q->where(fn ($q2) => $q2
                 ->where('name', 'like', "%{$search}%")
-                ->orWhereHas('user', fn ($q3) => $q3->where('name', 'like', "%{$search}%"))))
+                ->orWhereHas('user', fn ($q3) => $q3->searchName($search))))
             ->with('user.company')
             ->orderByDesc('incentive_date')
             ->get();
@@ -90,7 +90,7 @@ class IncentivesPage extends Component
     public function getEmployeesProperty()
     {
         return $this->companyId
-            ? User::where('company_id', $this->companyId)->whereHas('profile')->orderBy('name')->get()
+            ? User::whereCompany($this->companyId)->whereHas('profile')->orderByName()->get()
             : collect();
     }
 

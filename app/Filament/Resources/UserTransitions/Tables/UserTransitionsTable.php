@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\UserTransitions\Tables;
 
+use App\Filament\Resources\UserColumn;
 use App\Enum\UserTransitionStatusEnum;
 use App\Enum\UserTransitionTypeEnum;
 use App\Helpers\PermissionHelper;
@@ -25,8 +26,8 @@ class UserTransitionsTable
 
                 TextColumn::make('user.name')
                     ->label('Karyawan')
-                    ->searchable()
-                    ->sortable(),
+                    ->searchable(query: UserColumn::searchName())
+                    ->sortable(query: UserColumn::sortName()),
 
                 TextColumn::make('transition_type')
                     ->label('Jenis Perubahan')

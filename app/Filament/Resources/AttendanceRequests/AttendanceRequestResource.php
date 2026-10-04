@@ -49,7 +49,7 @@ class AttendanceRequestResource extends BaseResource
 
         if (! static::canBrowseAllCompanies() && static::companyId()) {
             $query->whereHas('user', function ($q) {
-                $q->where('company_id', static::companyId());
+                $q->whereCompany(static::companyId());
             });
         }
 

@@ -2,6 +2,7 @@
 
 namespace App\Filament\Keycloak\Pages;
 
+use App\Models\Employee\Employee;
 use App\Models\User;
 use App\Services\Keycloak\KeycloakAdmin;
 use BackedEnum;
@@ -102,10 +103,10 @@ class KeycloakUsers extends Page implements HasForms, HasTable
     /** Nama karyawan HRIS yang tersambung ke user Keycloak ini (keycloak_sub dulu, fallback NIP). */
     private function hrisNameFor(array $record): ?string
     {
-        $name = User::where('keycloak_sub', $record['id'])->value('name');
+        $name = User::where('keycloak_sub', $record['id'])->first()?->name;
 
         if (! $name && ($nip = $this->kc()->nipOf($record))) {
-            $name = User::where('nip', $nip)->value('name');
+            $name = User::whereNip($nip)->first()?->name;
         }
 
         return $name;
@@ -115,12 +116,11 @@ class KeycloakUsers extends Page implements HasForms, HasTable
     private function hrisUserOptions(?string $search): array
     {
         return User::query()
-            ->whereNotNull('nip')
+            ->whereIn('users.id', Employee::query()->select('user_id')->whereNotNull('nip'))
             ->when($search, fn ($q) => $q->where(fn ($q) => $q
-                ->where('nip', 'like', "%{$search}%")
-                ->orWhere('name', 'like', "%{$search}%")
+                ->searchNameOrNip($search)
                 ->orWhere('email', 'like', "%{$search}%")))
-            ->orderBy('name')
+            ->orderByName()
             ->limit(50)
             ->get()
             ->mapWithKeys(fn (User $u) => [$u->nip => "{$u->nip} — {$u->name}"])
@@ -164,10 +164,10 @@ class KeycloakUsers extends Page implements HasForms, HasTable
                             ->helperText('Pilih untuk mengisi otomatis. Boleh dikosongi lalu isi manual.')
                             ->searchable()
                             ->getSearchResultsUsing(fn (string $search) => $this->hrisUserOptions($search))
-                            ->getOptionLabelUsing(fn ($value) => optional(User::where('nip', $value)->first(), fn ($u) => "{$u->nip} — {$u->name}"))
+                            ->getOptionLabelUsing(fn ($value) => optional(User::whereNip($value)->first(), fn ($u) => "{$u->nip} — {$u->name}"))
                             ->live()
                             ->afterStateUpdated(function ($state, callable $set): void {
-                                if (! $state || ! ($u = User::where('nip', $state)->first())) {
+                                if (! $state || ! ($u = User::whereNip($state)->first())) {
                                     return;
                                 }
                                 [$first, $last] = array_pad(explode(' ', trim($u->name), 2), 2, '');
@@ -198,7 +198,7 @@ class KeycloakUsers extends Page implements HasForms, HasTable
 
                         // Simpan link ke HRIS: keycloak_sub = id user Keycloak (1:1).
                         $nip = $data['nip'] ?: $data['username'];
-                        User::where('nip', $nip)->update(['keycloak_sub' => $id]);
+                        User::whereNip($nip)->update(['keycloak_sub' => $id]);
 
                         Notification::make()->title('User dibuat')->success()->send();
                     }),
@@ -279,10 +279,10 @@ class KeycloakUsers extends Page implements HasForms, HasTable
                             ->required()
                             ->searchable()
                             ->getSearchResultsUsing(fn (string $search) => $this->hrisUserOptions($search))
-                            ->getOptionLabelUsing(fn ($value) => optional(User::where('nip', $value)->first(), fn ($u) => "{$u->nip} — {$u->name}")),
+                            ->getOptionLabelUsing(fn ($value) => optional(User::whereNip($value)->first(), fn ($u) => "{$u->nip} — {$u->name}")),
                     ])
                     ->action(function (array $record, array $data): void {
-                        User::where('nip', $data['hris_nip'])->update(['keycloak_sub' => $record['id']]);
+                        User::whereNip($data['hris_nip'])->update(['keycloak_sub' => $record['id']]);
                         Notification::make()->title('Terhubung ke karyawan HRIS')->success()->send();
                     }),
 

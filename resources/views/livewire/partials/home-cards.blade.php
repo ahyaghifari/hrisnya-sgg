@@ -76,7 +76,7 @@ tombol banner membuka panduan ini. Dibuka/ditutup lewat JS (display none <-> fle
 
     <!-- WELCOME CARD (server-rendered, bukan domain attendance) -->
     @php
-        $profilePhotoPath = auth()->user()->profile?->profile_picture[0] ?? null;
+        $profilePhotoPath = auth()->user()->profilePhotoPath();
         $profilePhotoUrl = $profilePhotoPath && is_string($profilePhotoPath) ? \Illuminate\Support\Facades\Storage::url($profilePhotoPath) : null;
     @endphp
     {{-- Tombol putih "Dashboard" di welcome card: latarnya tetap putih di dark mode, tapi var(--brand) berubah jadi
@@ -91,11 +91,11 @@ tombol banner membuka panduan ini. Dibuka/ditutup lewat JS (display none <-> fle
                 inisial/placeholder di sini (beda dari x-avatar), biar welcome-card tidak boros
                 ruang untuk user yang belum punya foto. --}}
                 @if ($profilePhotoUrl)
-                    <img src="{{ $profilePhotoUrl }}" alt="{{ auth()->user()->name }}" class="welcome-avatar">
+                    <img src="{{ $profilePhotoUrl }}" alt="{{ auth()->user()->full_name }}" class="welcome-avatar">
                 @endif
                 <div>
                     <p class="welcome-greeting">Selamat datang kembali 👋</p>
-                    <h2 class="welcome-name">{{ auth()->user()->name }}</h2>
+                    <h2 class="welcome-name">{{ auth()->user()->full_name }}</h2>
                     <p class="welcome-meta">
                         {{ auth()->user()->profile?->jobPosition?->name ?? 'Karyawan' }}
                         &nbsp;·&nbsp; NIP {{ auth()->user()->nip }}

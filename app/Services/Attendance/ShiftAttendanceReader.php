@@ -198,8 +198,8 @@ class ShiftAttendanceReader
         return ExtraShiftAssignment::query()
             ->where('status', 'approved')
             ->whereIn('date', $allDates)
-            ->whereHas('user', fn ($q) => $q->whereIn('nip', $employeeIds))
-            ->with(['shiftType', 'attendanceRecord', 'user:id,nip'])
+            ->whereHas('user', fn ($q) => $q->whereNip($employeeIds->all()))
+            ->with(['shiftType', 'attendanceRecord', 'user'])
             ->get()
             ->keyBy(fn (ExtraShiftAssignment $a) => $a->user->nip . '|' . $a->date);
     }

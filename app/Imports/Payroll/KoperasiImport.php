@@ -39,7 +39,7 @@ class KoperasiImport implements ToCollection, WithHeadingRow
                 continue;
             }
 
-            $user = User::with('profile')->where('nip', $nip)->where('company_id', $this->companyId)->first();
+            $user = User::with('profile')->whereNip($nip)->whereCompany($this->companyId)->first();
             if (! $user) {
                 $this->errors[] = "Baris {$n} ({$nip}): NIP tidak ditemukan di perusahaan ini.";
                 continue;

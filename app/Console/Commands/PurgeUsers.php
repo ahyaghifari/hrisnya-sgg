@@ -47,7 +47,7 @@ class PurgeUsers extends Command
     {
         $nips = array_values(array_unique($this->argument('nip')));
 
-        $users = User::withoutGlobalScopes()->withTrashed()->whereIn('nip', $nips)->get();
+        $users = User::withoutGlobalScopes()->withTrashed()->whereNip($nips)->get();
 
         if ($missing = array_diff($nips, $users->pluck('nip')->all())) {
             $this->error('NIP tidak ditemukan: ' . implode(', ', $missing));

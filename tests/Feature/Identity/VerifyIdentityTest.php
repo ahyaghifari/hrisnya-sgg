@@ -45,7 +45,7 @@ class VerifyIdentityTest extends TestCase
         $drift = $this->karyawan('V002');
 
         // Simulasi update massal yang tidak memicu observer: salinan tertinggal.
-        DB::table('employees')->where('user_id', $drift->id)->update(['company_id' => null]);
+        DB::table('employees')->where('user_id', $drift->id)->update(['joining_date' => '2000-01-01']);
 
         $this->artisan('identity:verify')
             ->expectsOutputToContain('employees: data kepegawaian: V002')
@@ -79,7 +79,7 @@ class VerifyIdentityTest extends TestCase
         DB::table('user_job_positions')->where('user_id', $conflict->id)->update(['job_position_id' => $other->id]);
 
         $this->artisan('identity:verify')
-            ->expectsOutputToContain('employees: baris ada: V001')
+            ->expectsOutputToContain('employees: baris ada: ' . (User::legacyColumns() ? 'V001' : $missing->id))
             ->expectsOutputToContain('jabatan: profil = jabatan aktif di riwayat: V002')
             ->assertFailed();
     }

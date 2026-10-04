@@ -40,7 +40,7 @@ class EmployeeDirectoryController extends Controller
 
         $app->recordUsage();
 
-        $user = User::where('nip', $nip)->first();
+        $user = User::whereNip($nip)->first();
 
         if (! $user) {
             $this->log($app, $nip, 'not_found', $request);

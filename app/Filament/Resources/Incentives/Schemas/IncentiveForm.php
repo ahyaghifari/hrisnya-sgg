@@ -35,9 +35,9 @@ class IncentiveForm
                     ->label('Penerima')
                     ->options(fn (callable $get) => $get('company_id')
                         ? User::query()
-                            ->where('company_id', $get('company_id'))
+                            ->whereCompany($get('company_id'))
                             ->whereHas('profile')
-                            ->pluck('name', 'id')
+                            ->get()->pluck('name', 'id')
                         : [])
                     ->searchable()
                     ->required(),

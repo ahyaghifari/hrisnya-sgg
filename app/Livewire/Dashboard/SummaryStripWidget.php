@@ -41,18 +41,18 @@ class SummaryStripWidget extends Component
 
     private function totalKaryawan(string $companyId): int
     {
-        return User::query()->where('company_id', $companyId)->count();
+        return User::query()->whereCompany($companyId)->count();
     }
 
     private function karyawanAktif(string $companyId): int
     {
-        return User::query()->where('company_id', $companyId)->where('is_active', true)->count();
+        return User::query()->whereCompany($companyId)->where('is_active', true)->count();
     }
 
     private function karyawanBaru(string $companyId): int
     {
         return User::query()
-            ->where('company_id', $companyId)
+            ->whereCompany($companyId)
             ->whereHas('profile', fn ($q) => $q->whereBetween('joining_date', [now()->startOfMonth(), now()->endOfMonth()]))
             ->count();
     }
@@ -85,7 +85,7 @@ class SummaryStripWidget extends Component
     private function trainingBerjalan(string $companyId): int
     {
         return LmsCourseUsers::query()
-            ->whereHas('user', fn ($q) => $q->where('company_id', $companyId))
+            ->whereHas('user', fn ($q) => $q->whereCompany($companyId))
             ->where('status', 'in_progress')
             ->distinct('course_id')
             ->count('course_id');

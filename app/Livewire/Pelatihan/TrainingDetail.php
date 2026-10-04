@@ -112,7 +112,7 @@ class TrainingDetail extends Component
             ->with('user.profile')
             ->when($this->memberSearch, fn ($q) => $q->whereHas(
                 'user',
-                fn ($q2) => $q2->where('name', 'like', '%' . $this->memberSearch . '%')
+                fn ($q2) => $q2->searchName($this->memberSearch)
             ))
             ->orderBy('enrolled_at')
             ->paginate(10, ['*'], 'membersPage')
@@ -125,7 +125,7 @@ class TrainingDetail extends Component
     // lebih murah daripada abstraksi baru untuk 2 pemakaian.
     public function memberAvatarUrl(?\App\Models\User $user): string
     {
-        $picture = $user?->profile?->profile_picture[0] ?? null;
+        $picture = $user?->profilePhotoPath();
 
         return $picture
             ? Storage::disk('public')->url($picture)

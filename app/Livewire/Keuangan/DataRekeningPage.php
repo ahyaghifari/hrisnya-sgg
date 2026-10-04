@@ -74,19 +74,18 @@ class DataRekeningPage extends Component
         $query = User::query()->where('is_active', true)->with('profile');
 
         if ($this->companyId) {
-            $query->where('company_id', $this->companyId);
+            $query->whereCompany($this->companyId);
         } elseif (! Auth::user()->canFilterByCompany()) {
-            $query->where('company_id', Auth::user()->company_id);
+            $query->whereCompany(Auth::user()->company_id);
         }
 
         $search = trim($this->search);
 
         if ($search !== '') {
-            $query->where(fn ($q) => $q->where('name', 'like', "%{$search}%")
-                ->orWhere('nip', 'like', "%{$search}%"));
+            $query->searchNameOrNip($search);
         }
 
-        return $query->orderBy('name')->paginate(15)->appends([
+        return $query->orderByName()->paginate(15)->appends([
             'companyId' => $this->companyId,
             'search' => $this->search,
         ]);

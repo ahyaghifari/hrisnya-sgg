@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\AttendanceRequests\Tables;
 
+use App\Filament\Resources\UserColumn;
 use App\Enum\AttendanceReqStatus;
 use App\Filament\Resources\AttendanceRequests\AttendanceRequestResource;
 use Filament\Actions\EditAction;
@@ -15,7 +16,7 @@ class AttendanceRequestsTable
         return $table
             ->columns([
                 TextColumn::make('created_at')->label('Tanggal Pengajuan')->dateTime()->formatStateUsing(fn ($state) => $state?->translatedFormat('j F Y H:i')),
-                TextColumn::make('user.name')->label('Nama Karyawan')->searchable()
+                TextColumn::make('user.name')->label('Nama Karyawan')->searchable(query: UserColumn::searchName())
                     ->description(fn ($record) => $record->user->company ? $record->user->company->name : '-'),
                 TextColumn::make('status')->label('Status')
                     ->badge()
@@ -29,7 +30,11 @@ class AttendanceRequestsTable
             ->filters([
                 \Filament\Tables\Filters\SelectFilter::make('company_id')
                     ->label('Perusahaan')
-                    ->relationship('user.company', 'name')
+                    ->options(fn () => \App\Models\Master\Companies::query()->pluck('name', 'id'))
+                    ->query(fn ($query, array $data) => $query->when(
+                        $data['value'] ?? null,
+                        fn ($q, $companyId) => $q->whereHas('user', fn ($u) => $u->whereCompany($companyId)),
+                    ))
                     ->preload()
                     ->searchable()
                     ->visible(fn () => AttendanceRequestResource::canBrowseAllCompanies()),

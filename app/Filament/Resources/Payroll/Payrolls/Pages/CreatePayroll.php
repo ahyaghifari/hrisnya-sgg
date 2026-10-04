@@ -58,10 +58,11 @@ class CreatePayroll extends CreateRecord
 
                         $existingUserIds = Payroll::where('payroll_period_id', $period->id)->pluck('user_id');
 
-                        $regular = User::where('company_id', $period->company_id)
+                        $regular = User::whereCompany($period->company_id)
                             ->where('is_active', true)
                             ->whereNotIn('id', $existingUserIds)
-                            ->orderBy('name')
+                            ->orderByName()
+                            ->get()
                             ->pluck('name', 'id');
 
                         // Presiden Direktur & Sekretaris Direktur dibuang query User biasa
@@ -69,10 +70,11 @@ class CreatePayroll extends CreateRecord
                         // supaya bisa dipilih juga, lihat User::PAYROLL_ELIGIBLE_EXECUTIVE_IDS.
                         $executives = User::withoutGlobalScope('non_karyawan')
                             ->whereIn('id', User::PAYROLL_ELIGIBLE_EXECUTIVE_IDS)
-                            ->where('company_id', $period->company_id)
+                            ->whereCompany($period->company_id)
                             ->where('is_active', true)
                             ->whereNotIn('id', $existingUserIds)
-                            ->orderBy('name')
+                            ->orderByName()
+                            ->get()
                             ->pluck('name', 'id');
 
                         return $regular->merge($executives);

@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Assessment\Assessments\RelationManagers;
 
+use App\Filament\Resources\UserColumn;
 use App\Filament\Resources\Assessment\UserAssessments\UserAssessmentResource;
 use App\Models\Assessment\AssessmentUsers;
 use Filament\Actions\Action;
@@ -35,12 +36,12 @@ class UserAssessmentsRelationManager extends RelationManager
             ->columns([
                 TextColumn::make('target.name')
                     ->label('Nama Karyawan')
-                    ->searchable()
-                    ->sortable(),
+                    ->searchable(query: UserColumn::searchName('target'))
+                    ->sortable(query: UserColumn::sortName('target')),
                 TextColumn::make('target.nip')
                     ->label('NIP Karyawan')
-                    ->searchable()
-                    ->sortable(),
+                    ->searchable(query: UserColumn::searchNip('target'))
+                    ->sortable(query: UserColumn::sortNip('target')),
 
                 TextColumn::make('final_score')
                     ->label('Nilai Akhir')
@@ -65,8 +66,8 @@ class UserAssessmentsRelationManager extends RelationManager
                             ->relationship('target')
                             ->options(function () {
                                 $companyId = Auth::user()->company_id;
-                                return \App\Models\User::where('company_id', $companyId)
-                                    ->pluck('name', 'id');
+                                return \App\Models\User::whereCompany($companyId)
+                                    ->get()->pluck('name', 'id');
                             })
                             ->required(),
                     ])

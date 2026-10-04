@@ -55,11 +55,11 @@ class TaskMenuPage extends Component
         // dicentang dari perusahaan lain, supaya pilihan tidak hilang saat ganti perusahaan.
         return User::query()
             ->where(function ($q) {
-                $q->where('company_id', $this->projectCompanyId ?: Auth::user()->company_id)
+                $q->whereCompany($this->projectCompanyId ?: Auth::user()->company_id)
                     ->orWhereIn('id', $this->projectMemberIds);
             })
-            ->orderBy('name')
-            ->get(['id', 'name']);
+            ->orderByName()
+            ->get();
     }
 
     public function getCompaniesProperty()

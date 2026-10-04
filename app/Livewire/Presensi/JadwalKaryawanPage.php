@@ -77,12 +77,12 @@ class JadwalKaryawanPage extends Component
     {
         return User::query()
             ->with('profile.jobPosition')
-            ->when($this->companyId, fn ($q) => $q->where('company_id', $this->companyId));
+            ->when($this->companyId, fn ($q) => $q->whereCompany($this->companyId));
     }
 
     public function getEmployeesProperty()
     {
-        return $this->employeesQuery()->orderBy('name')->get();
+        return $this->employeesQuery()->orderByName()->get();
     }
 
     public function setView(string $view): void

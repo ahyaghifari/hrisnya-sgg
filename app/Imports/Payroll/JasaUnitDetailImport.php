@@ -59,7 +59,7 @@ class JasaUnitDetailImport implements ToCollection, WithHeadingRow
                 continue; // baris kosong, bukan error
             }
 
-            $user = User::where('company_id', $this->companyId)->where('nip', $nip)->first();
+            $user = User::whereCompany($this->companyId)->whereNip($nip)->first();
             $jasa = JasaUnitType::where('company_id', $this->companyId)->where('code', $kode)->first();
 
             $error = $this->validateRow($user, $jasa, $amount, $nip, $kode, $eligibleTypeIds);

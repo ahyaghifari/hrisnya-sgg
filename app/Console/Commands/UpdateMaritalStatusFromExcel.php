@@ -34,8 +34,8 @@ class UpdateMaritalStatusFromExcel extends Command
             }
 
             // ponytail: NIP numerik di excel kehilangan nol depan; coba pad ke 11 digit
-            $user = User::where('nip', $nip)->first()
-                ?? (ctype_digit($nip) ? User::where('nip', str_pad($nip, 11, '0', STR_PAD_LEFT))->first() : null);
+            $user = User::whereNip($nip)->first()
+                ?? (ctype_digit($nip) ? User::whereNip(str_pad($nip, 11, '0', STR_PAD_LEFT))->first() : null);
 
             if (!$user) {
                 $this->warn("[SKIP] baris {$i}: NIP {$nip} tidak ditemukan.");

@@ -132,9 +132,7 @@ class ManualPayrollImportPage extends Component
         $search = trim($this->search);
 
         $payrolls = $this->applySlipStatusFilter($this->baseSlipQuery())
-            ->when($search !== '', fn ($q) => $q->whereHas('user', fn ($q2) => $q2
-                ->where('name', 'like', "%{$search}%")
-                ->orWhere('nip', 'like', "%{$search}%")))
+            ->when($search !== '', fn ($q) => $q->whereHas('user', fn ($q2) => $q2->searchNameOrNip($search)))
             ->with(['user', 'payrollPeriod'])
             ->orderByDesc('created_at')
             ->get();

@@ -64,9 +64,8 @@ class TrainersResource extends Resource
                 Select::make('user_id')
                     ->label('Karyawan')
                     ->helperText('Isi kalau pemateri ini karyawan sendiri (tipe Internal).')
-                    ->relationship('user', 'name')
-                    ->searchable()
-                    ->preload(),
+                    ->options(fn () => \App\Models\User::orderByName()->get()->pluck('name', 'id'))
+                    ->searchable(),
 
                 Toggle::make('is_active')
                     ->label('Aktif')
