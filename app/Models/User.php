@@ -15,6 +15,8 @@ use App\Models\User\UserJobPositions;
 use App\Models\User\UserProfiles;
 use Carbon\Carbon;
 use Filament\Models\Contracts\FilamentUser;
+use App\Observers\PersonSyncObserver;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -27,6 +29,7 @@ use Laravel\Sanctum\HasApiTokens;
 use NotificationChannels\WebPush\HasPushSubscriptions;
 use Spatie\Permission\Traits\HasRoles;
 
+#[ObservedBy(PersonSyncObserver::class)]
 class User extends Authenticatable implements FilamentUser
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */

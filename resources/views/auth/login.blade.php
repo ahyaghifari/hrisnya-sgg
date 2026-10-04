@@ -94,17 +94,9 @@
                     </button>
                 </form>
 
-                <div class="flex items-center gap-3 my-5">
-                    <div class="h-px bg-slate-200 flex-1"></div>
-                    <span class="text-[11px] text-slate-400">atau</span>
-                    <div class="h-px bg-slate-200 flex-1"></div>
-                </div>
-
-                <a href="{{ route('sso.redirect') }}"
-                    class="w-full py-3 rounded-[10px] text-[#042c6c] text-sm font-semibold flex items-center justify-center gap-2 border border-slate-200 bg-white hover:bg-slate-50 transition">
-                    <i class="fas fa-shield-halved"></i>
-                    Masuk dengan SSO
-                </a>
+                {{-- Tombol "Masuk dengan SSO" disembunyikan sementara (SSO ditahan dulu, 2026-10-04).
+                     Route sso.redirect/callback & KeycloakController sengaja tidak dihapus - pasang
+                     lagi pembatas "atau" + <a href="{{ route('sso.redirect') }}"> kalau SSO jalan lagi. --}}
             </div>
 
             <div class="text-center mt-6 text-xs text-slate-500">

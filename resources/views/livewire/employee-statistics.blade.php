@@ -319,17 +319,6 @@ Pembinaan). Inline supaya tidak perlu build CSS; desktop (>=768px) tetap pill ho
         <div class="card-surface" style="margin-bottom:20px;">
             <form wire:submit="saveProfil">
                 {!! $sectionHeader('fa-id-card', 'Informasi Pribadi') !!}
-                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-bottom:6px;">
-                    <div>
-                        <label class="form-label">Email</label>
-                        <input type="email" class="form-input" wire:model="email">
-                        @error('email') <p style="color:var(--danger-text);font-size:11px;margin-top:4px;">{{ $message }}</p> @enderror
-                    </div>
-                </div>
-                <p style="font-size:11.5px;color:#92400e;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:8px 10px;margin:0 0 20px;">
-                    <i class="fa-solid fa-triangle-exclamation"></i>
-                    Kalau email diubah, Anda akan otomatis logout setelah Simpan dan harus login lagi pakai email baru.
-                </p>
                 <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-bottom:20px;">
                     <div>
                         <label class="form-label">Nama Panggilan</label>

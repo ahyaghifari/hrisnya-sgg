@@ -6,9 +6,12 @@ use App\Models\Concerns\LogsFieldAuditChanges;
 use App\Models\Master\OrgStructure;
 use App\Models\Master\Religions;
 use App\Models\User;
+use App\Observers\PersonSyncObserver;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 
+#[ObservedBy(PersonSyncObserver::class)]
 class UserProfiles extends Model
 {
     use HasUlids;

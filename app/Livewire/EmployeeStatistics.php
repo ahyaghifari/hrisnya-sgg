@@ -51,7 +51,6 @@ class EmployeeStatistics extends Component
 
     // ── Edit Data Diri (self-service, lihat saveProfil()) ──
     public bool $editingProfil = false;
-    public ?string $email = null;
     public ?string $nickname = null;
     public ?string $gender = null;
     public ?string $marital_status = null;
@@ -126,7 +125,6 @@ class EmployeeStatistics extends Component
     {
         $profile = $this->record->profile;
 
-        $this->email = $this->record->email;
         $this->nickname = $profile?->nickname;
         $this->gender = $profile?->gender;
         $this->marital_status = $profile?->marital_status;
@@ -174,18 +172,16 @@ class EmployeeStatistics extends Component
     /**
      * Status perkawinan juga SENGAJA tidak masuk sini (sama seperti rekening: cuma HC/admin).
      * Rekening bank SENGAJA tidak masuk sini — dipakai transfer gaji, cuma boleh diubah HC/admin
-     * lewat Kepegawaian (lihat diskusi sesi 2026-07-30), bukan self-service. Email BEDA
-     * penanganan dari field profil lain: dia kolom `users.email` (dipakai login), jadi
-     * disimpan terpisah dari $profile->update(), dan kalau nilainya benar-benar berubah,
-     * user di-logout paksa sesudahnya (lihat peringatan di blade) supaya session lama yang
-     * masih terikat ke email sebelumnya tidak menggantung.
+     * lewat Kepegawaian (lihat diskusi sesi 2026-07-30), bukan self-service. Email AKUN
+     * (`users.email`, dipakai login) juga TIDAK bisa diubah dari sini (instruksi user
+     * 2026-10-04) - properti & validasinya sengaja tidak ada, supaya request yang di-craft pun
+     * tidak bisa mengubahnya. Yang bisa diedit hanya Email Pribadi (`email_pribadi`).
      */
     public function saveProfil()
     {
         abort_unless($this->record->id === Auth::id(), 403);
 
         $data = $this->validate([
-            'email' => ['required', 'email', 'max:255', \Illuminate\Validation\Rule::unique('users', 'email')->ignore($this->record->id)],
             'nickname' => ['nullable', 'string', 'max:100'],
             'gender' => ['nullable', 'in:laki_laki,perempuan'],
             'religion_id' => ['nullable', 'exists:m_religions,id'],
@@ -218,25 +214,7 @@ class EmployeeStatistics extends Component
             return;
         }
 
-        $newEmail = $data['email'];
-        unset($data['email']);
-        $emailChanged = $newEmail !== $this->record->email;
-
         $profile->update($data);
-
-        if ($emailChanged) {
-            $this->record->update(['email' => $newEmail]);
-
-            Auth::guard('web')->logout();
-            Session::invalidate();
-            // Notification::make() (Filament) flash-nya tidak akan selamat lewat
-            // Session::invalidate() di atas - pakai flash biasa yang dibaca auth.login.blade,
-            // ditulis SETELAH invalidate supaya tidak ikut kehapus.
-            Session::flash('status', 'Email berhasil diubah, silakan login lagi dengan email baru.');
-            Session::regenerateToken();
-
-            return redirect()->route('login');
-        }
 
         $this->record->refresh();
         $this->record->load('profile.religion');
