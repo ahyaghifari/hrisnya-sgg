@@ -50,8 +50,8 @@
                             <th style="text-align:center;padding:4px 8px;font-weight:500;color:var(--text-faint);background:{{ $zoneOvertime }};">Max</th>
                         @else
                             <th style="text-align:center;padding:4px 8px;font-weight:500;color:var(--text-faint);background:{{ $zoneWork }};">Ist</th>
-                            <th style="text-align:center;padding:4px 8px;font-weight:500;color:var(--text-faint);background:{{ $zoneWork }};">Min</th>
-                            <th style="text-align:center;padding:4px 8px;font-weight:500;color:var(--text-faint);background:{{ $zoneWork }};">Max</th>
+                            <th style="text-align:center;padding:4px 8px;font-weight:500;color:var(--text-faint);background:{{ $zoneWork }};" title="Durasi paling pendek yang boleh pulang duluan. Di bawah ini scan pulang ditolak.">Min Pulang</th>
+                            <th style="text-align:center;padding:4px 8px;font-weight:500;color:var(--text-faint);background:{{ $zoneWork }};" title="Target jam kerja. Kelebihan dari ini dihitung lembur.">Target</th>
                             <th style="text-align:center;padding:4px 8px;font-weight:500;color:var(--text-faint);background:{{ $zoneOvertime }};">Ist</th>
                             <th style="text-align:center;padding:4px 8px;font-weight:500;color:var(--text-faint);background:{{ $zoneOvertime }};">Min</th>
                             <th style="text-align:center;padding:4px 8px;font-weight:500;color:var(--text-faint);background:{{ $zoneOvertime }};">Max</th>

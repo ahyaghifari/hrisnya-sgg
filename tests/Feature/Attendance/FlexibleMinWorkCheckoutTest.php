@@ -88,7 +88,30 @@ class FlexibleMinWorkCheckoutTest extends TestCase
         $this->assertFalse($result['checkout_rejected']);
         $this->assertSame('14:00:00', $result['check_out']);
         $this->assertSame(360, $result['working_minutes']);
-        $this->assertTrue($result['meets_target']);
+    }
+
+    /**
+     * Target = max_work_minutes (480), min_work_minutes (300) cuma pagar pulang duluan: pulang di
+     * antara keduanya diterima & tersimpan tapi belum capai target; capai 480 baru meets_target.
+     */
+    public function test_meets_target_compares_to_max_not_min(): void
+    {
+        $early = $this->flexibleUser('FLXEARLY');
+        $this->scan($early, '2026-08-06 08:00:00');
+        $this->scan($early, '2026-08-06 14:00:00'); // 360: >= min 300, < target 480
+
+        $full = $this->flexibleUser('FLXFULL');
+        $this->scan($full, '2026-08-06 08:00:00');
+        $this->scan($full, '2026-08-06 16:00:00'); // 480 = target
+
+        $buckets = app(AccessLogScheduleReader::class)->readAndGroupIncremental(null)['buckets']['flexible'];
+        $results = collect(app(FlexibleScheduleCalculator::class)->calculate($buckets))
+            ->keyBy(fn ($r) => $r['user']->nip);
+
+        $this->assertFalse($results['FLXEARLY']['checkout_rejected']);
+        $this->assertSame('14:00:00', $results['FLXEARLY']['check_out']);
+        $this->assertFalse($results['FLXEARLY']['meets_target']);
+        $this->assertTrue($results['FLXFULL']['meets_target']);
     }
 
     /** min_work_minutes 0 = pagar dimatikan, perilaku lama (checkout selalu diterima). */

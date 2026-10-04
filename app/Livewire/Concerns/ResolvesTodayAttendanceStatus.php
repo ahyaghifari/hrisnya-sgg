@@ -152,8 +152,8 @@ trait ResolvesTodayAttendanceStatus
             'shift' => isset($resolved['config'])
                 ? $resolved['config']->name . ' ' . substr($resolved['config']->start_time, 0, 5) . '–' . substr($resolved['config']->end_time, 0, 5)
                 : null,
-            'flexible' => isset($resolved['config']) && $resolved['config']->min_work_minutes > 0
-                ? 'min. ' . $this->formatMinutesAsHours($resolved['config']->min_work_minutes)
+            'flexible' => isset($resolved['config']) && $this->flexibleTargetMinutes($resolved['config']) > 0
+                ? 'target ' . $this->formatMinutesAsHours($this->flexibleTargetMinutes($resolved['config']))
                 : null,
             default => null,
         };
@@ -166,20 +166,23 @@ trait ResolvesTodayAttendanceStatus
             ? $this->formatMinutesAsHours($attendance->late_minutes)
             : null;
 
-        // Jadwal Flexible: target minimal jam kerja + jam pulang yang harus dicapai supaya
-        // memenuhi target itu, dihitung dari jam masuk aktual hari ini. Target checkout IKUT
-        // menambahkan break_minutes - FlexibleScheduleCalculator mengurangi waktu istirahat dari
-        // working_minutes yang benar-benar dihitung, jadi karyawan butuh hadir LEBIH LAMA dari
-        // sekadar min_work_minutes buat menutupi jam istirahatnya juga. Tanpa ini, target
-        // checkout yang ditampilkan lebih awal dari yang sebenarnya dibutuhkan (2026-08-05).
+        // Jadwal Flexible: target jam kerja + jam pulang yang harus dicapai supaya memenuhi
+        // target itu, dihitung dari jam masuk aktual hari ini. Target = max_work_minutes (titik
+        // mulai lembur), bukan min_work_minutes yang cuma pagar pulang duluan - lihat
+        // flexibleTargetMinutes(). Target checkout IKUT menambahkan break_minutes -
+        // FlexibleScheduleCalculator mengurangi waktu istirahat dari working_minutes yang
+        // benar-benar dihitung, jadi karyawan butuh hadir LEBIH LAMA dari sekadar target buat
+        // menutupi jam istirahatnya juga (2026-08-05). Key `flexible_min_work_label` dipertahankan
+        // walau isinya sekarang target (dipakai banyak view).
         $flexibleMinWorkLabel   = null;
         $flexibleTargetCheckout = null;
-        if (($resolved['type'] ?? null) === 'flexible' && ($resolved['config']->min_work_minutes ?? 0) > 0) {
-            $flexibleMinWorkLabel = $this->formatMinutesAsHours($resolved['config']->min_work_minutes);
+        $flexibleTarget         = ($resolved['type'] ?? null) === 'flexible' ? $this->flexibleTargetMinutes($resolved['config'] ?? null) : 0;
+        if ($flexibleTarget > 0) {
+            $flexibleMinWorkLabel = $this->formatMinutesAsHours($flexibleTarget);
 
             if ($attendance?->check_in_time) {
                 $flexibleTargetCheckout = Carbon::parse($attendance->check_in_time)
-                    ->addMinutes($resolved['config']->min_work_minutes + $resolved['config']->break_minutes)
+                    ->addMinutes($flexibleTarget + $resolved['config']->break_minutes)
                     ->format('H:i');
             }
         }
@@ -373,6 +376,15 @@ trait ResolvesTodayAttendanceStatus
         }
 
         return null;
+    }
+
+    /**
+     * Target jam kerja Flexible = max_work_minutes (titik mulai lembur); kosong/0 jatuh balik
+     * ke min_work_minutes. Aturan sama dengan meets_target di FlexibleScheduleCalculator.
+     */
+    private function flexibleTargetMinutes(?object $config): int
+    {
+        return (int) (($config->max_work_minutes ?? 0) > 0 ? $config->max_work_minutes : ($config->min_work_minutes ?? 0));
     }
 
     /**

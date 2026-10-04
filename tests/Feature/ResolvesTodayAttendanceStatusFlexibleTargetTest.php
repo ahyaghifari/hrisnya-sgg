@@ -40,11 +40,13 @@ class ResolvesTodayAttendanceStatusFlexibleTargetTest extends TestCase
             'flexible_checkin_until' => '10:00:00',
         ]);
 
-        // Target 480 menit (8 jam) kerja + 60 menit istirahat.
+        // Target = max_work_minutes 480 (8 jam kerja) + 60 menit istirahat; min 300 cuma pagar
+        // pulang duluan dan tidak boleh ikut menentukan jam pulang target di kartu.
         ScheduleFlexibleDay::create([
             'schedule_id' => $schedule->id,
             'day_of_week' => $today->dayOfWeek,
-            'min_work_minutes' => 480,
+            'min_work_minutes' => 300,
+            'max_work_minutes' => 480,
             'break_minutes' => 60,
         ]);
 

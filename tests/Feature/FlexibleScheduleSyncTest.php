@@ -43,7 +43,7 @@ class FlexibleScheduleSyncTest extends TestCase
         ScheduleFlexibleDay::create([
             'schedule_id' => $schedule->id,
             'day_of_week' => $date->dayOfWeek,
-            'min_work_minutes' => 480,
+            'min_work_minutes' => 120,
             'max_work_minutes' => 480,
         ]);
 
@@ -55,7 +55,8 @@ class FlexibleScheduleSyncTest extends TestCase
         ]);
 
         // Check-in 05:00 (di luar jendela 06:00-10:00 -> out_of_window=true), check-out 09:00
-        // (cuma 4 jam = 240 menit, kurang dari min_work_minutes 480 -> meets_target=false).
+        // (4 jam = 240 menit: lolos pagar min 120 jadi tersimpan, tapi kurang dari target
+        // max_work_minutes 480 -> meets_target=false).
         foreach (['05:00:00', '09:00:00'] as $time) {
             DB::table('access_logs')->insert([
                 'employee_id' => $user->nip,

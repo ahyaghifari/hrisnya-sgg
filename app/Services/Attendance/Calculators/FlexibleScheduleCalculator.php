@@ -16,6 +16,10 @@ use Carbon\Carbon;
  * (opsional, migration 2026_07_28_200000) - kalau kosong, tidak ada batas jam masuk sama
  * sekali untuk hari itu.
  *
+ * Arti kolom (2026-10-04): max_work_minutes = TARGET jam kerja (kelebihannya jadi lembur) dan
+ * min_work_minutes = durasi paling pendek yang boleh pulang duluan; tidak ada batas atas jam
+ * pulang karena jadwal ini memang fleksibel.
+ *
  * min_work_minutes (kalau diisi >0) SEKARANG juga jadi pagar checkout, sama pola dengan
  * FixedScheduleCalculator: checkout yang durasinya di bawah minimum DITOLAK ($entry['check_out']
  * dipaksa null, 'checkout_rejected' => true) - bukan cuma ditandai lewat meets_target=false.
@@ -95,7 +99,11 @@ class FlexibleScheduleCalculator
                     $workingMinutes = $rawMinutes;
                 }
 
-                $meetsTarget = ($workingMinutes + ($overtimeMinutes ?? 0)) >= $config->min_work_minutes;
+                // Target = max_work_minutes (titik mulai lembur), BUKAN min_work_minutes: min
+                // cuma pagar "boleh pulang duluan sejak durasi berapa", jadi pulang di antara
+                // min dan max diterima & tersimpan tapi ditandai belum capai target. max
+                // kosong/0 = tidak ada target terpisah, jatuh balik ke min (perilaku lama).
+                $meetsTarget = ($workingMinutes + ($overtimeMinutes ?? 0)) >= ($target > 0 ? $target : $config->min_work_minutes);
             }
         }
 

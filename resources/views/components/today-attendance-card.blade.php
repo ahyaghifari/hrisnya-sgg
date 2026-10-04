@@ -244,7 +244,7 @@
         </div>
         @if ($status['flexible_min_work_label'])
             <div style="position:relative;z-index:1;font-size:12px;color:rgba(255,255,255,0.85);">
-                Min. jam kerja: <strong>{{ $status['flexible_min_work_label'] }}</strong>
+                Target jam kerja: <strong>{{ $status['flexible_min_work_label'] }}</strong>
                 @if ($status['flexible_target_checkout'] && ! $attendance->check_out_time)
                     · absen pulang jam <strong>{{ $status['flexible_target_checkout'] }}</strong> untuk mencapai target
                 @endif
